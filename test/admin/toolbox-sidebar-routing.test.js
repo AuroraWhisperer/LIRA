@@ -258,6 +258,6 @@ test('toolbox tabs rely on sidebar titles instead of repeating page headers', ()
   assert.doesNotMatch(styles, /\.other-feature-page-header\b/);
   assert.match(
     styles,
-    /\.planner-event-dialog label:not\(\.planner-all-day\),[\s\S]*?font-size:\s*var\(--type-size-control\)/,
+    /\.planner-event-dialog label:not\(\.planner-check-label\),[\s\S]*?font-size:\s*var\(--type-size-control\)/,
   );
 });

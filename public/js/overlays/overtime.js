@@ -20,6 +20,7 @@ let lastClockValue = '';
 let animationActive = false;
 let previewBackground = null;
 let previewSource = 0;
+let contentObserver = null;
 const animationQueue = [];
 const animationTimers = new Set();
 
@@ -27,7 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
   byId('overtimeMachine').classList.toggle('low-motion', lowMotion);
   document.addEventListener('visibilitychange', syncClock);
   if (isComponentPreview()) {
-    createComponentPreviewClient({
+    const machine = byId('overtimeMachine');
+    machine.classList.add('is-content-sized');
+    const preview = createComponentPreviewClient({
       onConfig(config) { previewBackground = config; renderBackground(); },
       onData(state, source) {
         if (!Number.isInteger(source) || source < previewSource) return;
@@ -41,6 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       onDispose: disposeSocket,
     });
+    const foreground = document.querySelector('.overtime-foreground');
+    contentObserver = new ResizeObserver(() => {
+      preview.resize({ width: machine.clientWidth, height: Math.ceil(foreground.getBoundingClientRect().height) });
+    });
+    contentObserver.observe(foreground);
+    contentObserver.observe(machine);
   } else {
     loadSnapshot();
     connectSocket();
@@ -93,6 +102,8 @@ function connectSocket() {
 
 function disposeSocket() {
   connectionGeneration += 1;
+  contentObserver?.disconnect();
+  contentObserver = null;
   clearTimeout(clockTimer);
   clockTimer = null;
   document.removeEventListener('visibilitychange', syncClock);

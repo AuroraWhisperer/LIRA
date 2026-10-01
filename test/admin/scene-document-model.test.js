@@ -69,6 +69,20 @@ test('model owns immutable document snapshots and isolated subscription values',
   assert.equal(model.getDocument().title, '修改');
 });
 
+test('automatic content sizing does not consume the previous user edit undo entry', async () => {
+  const [{ createSceneDocumentModel }] = await modules;
+  const document = fixture();
+  const item = document.items[0];
+  const model = createSceneDocumentModel({ ...document, items: [] });
+  model.edit((draft) => { draft.items.push(item); });
+  model.edit((draft) => { draft.items[0].height += 16; }, { recordHistory: false });
+  assert.equal(model.undo(), true);
+  assert.equal(model.getDocument().items.length, 0);
+  assert.equal(model.undo(), false);
+  assert.equal(model.redo(), true);
+  assert.equal(model.getDocument().items[0].height, item.height + 16);
+});
+
 test('one pointer gesture has one undo entry and updates use the starting snapshot', async () => {
   const [{ createSceneDocumentModel, moveSceneItems }] = await modules;
   const document = fixture();

@@ -15,15 +15,15 @@
 
 .overlay-address-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
-.overlay-address-intro {
+.overlay-address-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
-  color: var(--muted);
-  font-size: var(--type-size-body);
-  line-height: var(--type-leading-body);
 }
 
 .overlay-address-directory {
@@ -38,53 +38,42 @@
 
 .overlay-address-group-header {
   display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: center;
   padding: 0 2px;
 }
 
-.overlay-address-group-header div {
-  display: grid;
-  gap: 2px;
-}
-
-.overlay-address-group-header h3,
-.overlay-address-group-header p {
+.overlay-address-group-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
-}
-
-.overlay-address-group-header p,
-.overlay-address-group-header > span {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  line-height: var(--type-leading-caption);
-}
-
-.overlay-address-group-header > span {
-  flex: 0 0 auto;
-  padding-bottom: 2px;
-  font-weight: var(--type-weight-semibold);
 }
 
 .overlay-address-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 200px minmax(0, 1fr) 176px;
   gap: 12px;
-  align-items: end;
+  align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--color-bg-primary);
-  padding: 14px;
+  padding: 12px 14px;
 }
 
-.overlay-address-item div {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 4px;
+.overlay-address-item > div {
+  min-width: 0;
 }
 
-.overlay-address-item-wide { grid-column: 1 / -1; }
+.overlay-address-item-wide {
+  grid-template-columns: minmax(0, 1fr) 176px;
+}
+
+.overlay-address-item > button {
+  justify-self: end;
+}
+
+.overlay-address-status { grid-column: 1 / -1; }
+.overlay-address-status:empty { display: none; }
 
 .overlay-address-item p {
   margin: 0;
@@ -94,6 +83,9 @@
 }
 
 .overlay-address-item strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--type-size-section-title);
 }
 
@@ -104,6 +96,7 @@
 
 .overlay-address-item code {
   display: block;
+  min-width: 0;
   min-height: 38px;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -115,7 +108,7 @@
 
 .overlay-address-actions {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 

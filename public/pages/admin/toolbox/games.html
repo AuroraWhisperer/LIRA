@@ -13,25 +13,18 @@
           <span class="games-category-kicker">类别 1</span>
           <h3 id="gamesCategoryTitle" class="ui-section-title">直播间互动</h3>
         </div>
-        <div class="games-category-meta">
-          <span class="games-category-note">三款游戏共用一个直播画面</span>
-          <span id="gamesLiveStatus" class="pill warn">等待直播间</span>
+        <span id="gamesLiveStatus" class="pill warn">等待直播间</span>
+        <div class="games-source-actions">
+          <button
+            id="gamesOverlayUrl"
+            class="games-source-url"
+            type="button"
+            aria-label="复制直播间互动浏览器源链接"
+            title="点击复制链接"
+          ></button>
+          <button id="gamesOpenOverlayBtn" class="secondary" type="button">打开预览</button>
         </div>
       </header>
-      <section class="games-link-deck" aria-labelledby="gamesLinkTitle">
-        <div>
-          <span class="games-link-label">OBS / 直播姬浏览器源</span>
-          <strong id="gamesLinkTitle">游戏网页 <lira-help>数字炸弹、五子棋和你画我猜共用此地址。</lira-help></strong>
-        </div>
-        <label class="games-link-field">
-          <span>网页链接</span>
-          <input id="gamesOverlayUrl" type="text" readonly />
-        </label>
-        <div class="games-link-actions">
-          <button id="gamesCopyBaseUrlBtn" class="primary" type="button">复制链接</button>
-          <button id="gamesOpenOverlayBtn" class="secondary" type="button">打开网页</button>
-        </div>
-      </section>
 
       <footer class="games-admin-footer">
         <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
@@ -191,23 +184,17 @@
           <span class="games-category-kicker">类别 2</span>
           <h3 id="wheelCategoryTitle">转盘</h3>
         </div>
+        <div class="games-source-actions">
+          <button
+            id="wheelOverlayUrl"
+            class="games-source-url"
+            type="button"
+            aria-label="复制转盘浏览器源链接"
+            title="点击复制链接"
+          ></button>
+          <button id="wheelOpenUrlBtn" class="secondary" type="button">打开预览</button>
+        </div>
       </header>
-      <section class="games-link-deck games-link-deck-wheel" aria-labelledby="wheelLinkTitle">
-        <div>
-          <span class="games-link-label">OBS / 直播姬浏览器源</span>
-          <strong id="wheelLinkTitle"
-            >转盘网页 <lira-help>需单独添加浏览器源；地址不随互动游戏改变。</lira-help></strong
-          >
-        </div>
-        <label class="games-link-field">
-          <span>网页链接</span>
-          <input id="wheelOverlayUrl" type="text" readonly />
-        </label>
-        <div class="games-link-actions">
-          <button id="wheelCopyUrlBtn" class="secondary" type="button">复制链接</button>
-          <button id="wheelOpenUrlBtn" class="secondary" type="button">打开网页</button>
-        </div>
-      </section>
       <article class="game-admin-card is-wheel is-collapsed" data-wheel-card>
         <button
           id="wheelCardTrigger"
@@ -256,26 +243,17 @@
           <span class="games-category-kicker">类别 3</span>
           <h3 id="interactionsTitle" class="ui-section-title">投票与评分</h3>
         </div>
-        <button
-          id="interactionsSourceToggle"
-          class="secondary"
-          type="button"
-          aria-expanded="false"
-          aria-controls="interactionsSource"
-        >
-          浏览器源
-        </button>
-      </header>
-      <section id="interactionsSource" class="interaction-source" aria-label="互动网页链接" hidden>
-        <label class="games-link-field"
-          ><span>OBS / 直播姬浏览器源 · 推荐 800 × 600</span><input id="interactionsUrl" type="text" readonly
-        /></label>
-        <div class="games-link-actions">
-          <button id="interactionsCopy" class="primary" type="button">复制链接</button
-          ><button id="interactionsOpen" class="secondary" type="button">打开网页</button>
+        <div class="games-source-actions">
+          <button
+            id="interactionsUrl"
+            class="games-source-url"
+            type="button"
+            aria-label="复制投票与评分浏览器源链接"
+            title="点击复制链接"
+          ></button>
+          <button id="interactionsOpen" class="secondary" type="button">打开预览</button>
         </div>
-        <p class="interaction-source-note">投票与评分共用此地址，每次仅运行一场。</p>
-      </section>
+      </header>
       <div class="interaction-tabs" role="tablist" aria-label="选择互动类型">
         <button
           id="interactionPollTab"

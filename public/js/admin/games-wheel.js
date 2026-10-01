@@ -7,13 +7,13 @@ let wheelLimits = null;
 
 export function initWheelAdmin() {
   byId('wheelCardTrigger').addEventListener('click', toggleWheelDetails);
-  byId('wheelCopyUrlBtn').addEventListener('click', () => copyWheelUrl(wheelOverlayUrl()));
+  byId('wheelOverlayUrl').addEventListener('click', () => copyWheelUrl(wheelOverlayUrl()).catch(showError));
   byId('wheelOpenUrlBtn').addEventListener('click', () => window.open(wheelOverlayUrl(), '_blank', 'noopener'));
   byId('wheelAddEntryBtn').addEventListener('click', addWheelEntry);
   byId('wheelSaveBtn').addEventListener('click', () => saveWheel().catch(showError));
   byId('wheelSpinBtn').addEventListener('click', () => spinWheel().catch(showError));
   window.addEventListener('app:wheel-update', (event) => renderWheelState(event.detail));
-  byId('wheelOverlayUrl').value = wheelOverlayUrl();
+  byId('wheelOverlayUrl').textContent = wheelOverlayUrl();
   return refreshWheel();
 }
 

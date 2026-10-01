@@ -25,12 +25,51 @@ test('empty editor adds independent styles and publishes every layer through one
   assert.equal(await page.locator('.scene-editor-item').count(), 0);
   assert.equal(await page.locator('.component-preview-add').count(), 1);
   assert.equal(await page.locator('.preview-canvas-resolution').textContent(), '1920 × 1080');
+  assert.equal(await page.locator('.preview-canvas-sidebar').isHidden(), true);
+  const assertCanvasFits = async () => {
+    assert.equal(await page.locator('.scene-editor-canvas').evaluate(canvas => {
+      const viewport = canvas.closest('.scene-editor-viewport');
+      const bounds = canvas.getBoundingClientRect();
+      const frame = viewport.getBoundingClientRect();
+      const root = document.scrollingElement;
+      return bounds.width > 0 && bounds.left >= frame.left && bounds.top >= frame.top
+        && bounds.right <= frame.right && bounds.bottom <= frame.bottom
+        && viewport.scrollWidth <= viewport.clientWidth && viewport.scrollHeight <= viewport.clientHeight
+        && root.scrollWidth <= innerWidth && root.scrollHeight <= innerHeight;
+    }), true, 'The entire canvas must fit without page or canvas scrolling');
+  };
+  await assertCanvasFits();
+  assert.ok((await page.locator('.scene-editor-canvas').boundingBox()).width > 1200,
+    'The initial canvas should use the space released by the side panels');
   const add = async (category, style) => {
     await page.getByRole('button', { name: '添加组件', exact: true }).click();
     await page.locator(`[data-category="${category}"]`).click();
     await page.locator(`[data-picker-style="${style}"]`).click();
   };
   await add('clock', 'peach');
+  const xInput = page.getByRole('spinbutton', { name: 'X', exact: true });
+  await xInput.fill('-1');
+  await page.getByRole('button', { name: '收起参数', exact: true }).click();
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  assert.equal(await page.locator('.preview-canvas-sidebar').isVisible(), true);
+  assert.equal(await xInput.evaluate(input => document.activeElement === input), true);
+  assert.equal(fixture.service.list()[0].publishedVersion, 0, 'Invalid hidden fields must prevent publication');
+  await xInput.fill('670');
+  await page.getByRole('spinbutton', { name: 'Y', exact: true }).click();
+  const editingWidth = (await page.locator('.scene-editor-canvas').boundingBox()).width;
+  await page.getByRole('button', { name: '收起参数', exact: true }).click();
+  await page.waitForFunction(width => document.querySelector('.scene-editor-canvas').getBoundingClientRect().width > width, editingWidth);
+  assert.equal(await page.locator('.scene-editor-item.is-selected').count(), 1);
+  await assertCanvasFits();
+  await page.getByRole('button', { name: '展开参数', exact: true }).click();
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('.scene-editor-canvas').getBoundingClientRect();
+    const viewport = document.querySelector('.scene-editor-viewport').getBoundingClientRect();
+    return canvas.right <= viewport.right && canvas.bottom <= viewport.bottom;
+  });
+  await assertCanvasFits();
+  await page.setViewportSize({ width: 1440, height: 900 });
   assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).inputValue(), '670');
   await add('clock', 'flip');
   await add('queue', 'classic');
@@ -86,7 +125,8 @@ test('empty editor adds independent styles and publishes every layer through one
   await desktop.waitForFunction(() => window.externalPreviewUrl);
   await page.goto(await desktop.evaluate(() => window.externalPreviewUrl));
   await page.waitForFunction(() => document.querySelectorAll('.scene-editor-item').length === 5);
-  assert.equal(await page.getByRole('heading', { name: '公共画布设置', exact: true }).count(), 1);
+  await page.getByRole('button', { name: '画布设置', exact: true }).click();
+  assert.equal(await page.getByRole('heading', { name: '画布设置', exact: true }).count(), 1);
   assert.equal(fixture.service.list().length, 1);
   await page.close();
   await desktop.close();

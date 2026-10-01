@@ -38,11 +38,11 @@ export function createSceneDocumentModel(document) {
       listener(getState(), getDocument());
       return () => listeners.delete(listener);
     },
-    edit(mutator) {
+    edit(mutator, { recordHistory = true } = {}) {
       if (gesture) throw new Error('请先完成或取消当前手势。');
       const next = change(current, mutator);
       if (equal(current, next)) return false;
-      record(current);
+      if (recordHistory) record(current);
       current = next;
       notify();
       return true;

@@ -9,7 +9,6 @@ export const metrics = (() => {
   const METRICS_SAMPLE_SECONDS = 5;
   let metricsRunning = false;
   let metricsCountdownTimer = null;
-  let hardwareLoaded = false;
   let hardwareLoading = false;
 
   function initPerformanceMonitor() {
@@ -138,7 +137,7 @@ export const metrics = (() => {
   }
 
   async function loadHardwareSummary(includeTemperatures) {
-    if (hardwareLoading || (hardwareLoaded && !includeTemperatures)) return;
+    if (hardwareLoading) return;
     hardwareLoading = true;
     document.getElementById('hardwareSummaryStatus').textContent = '正在读取本机硬件信息';
 
@@ -147,7 +146,6 @@ export const metrics = (() => {
       const payload = await response.json();
       if (!payload.ok) throw new Error(payload.error || '硬件信息读取失败');
       renderHardwareSummary(payload.data, includeTemperatures);
-      hardwareLoaded = true;
     } catch (_) {
       document.getElementById('hardwareSummaryStatus').textContent = '硬件信息暂不可用，不影响性能检测';
     } finally {
@@ -207,6 +205,51 @@ export const metrics = (() => {
     document.getElementById('hardwareSummaryStatus').textContent = includesTemperatures
       ? '型号和容量已缓存；GPU 温度为本次检测时临时读取'
       : '型号和容量已读取；GPU 温度仅在检测时读取';
+    renderDisplays(summary);
+  }
+
+  function renderDisplays(summary) {
+    const list = document.getElementById('hardwareDisplayList');
+    const status = document.getElementById('hardwareDisplayStatus');
+    const displays = Array.isArray(summary.displays) ? summary.displays : [];
+    list.textContent = '';
+    list.hidden = displays.length === 0;
+    status.hidden = displays.length > 0;
+    status.textContent = summary.displayMessage || '未读取到显示器信息';
+
+    for (const display of displays) {
+      const row = document.createElement('li');
+      row.className = 'hardware-display-row';
+      const identity = document.createElement('div');
+      identity.className = 'hardware-display-identity';
+      const name = document.createElement('strong');
+      name.textContent = display.name;
+      identity.append(name);
+      if (display.primary) {
+        const primary = document.createElement('span');
+        primary.className = 'hardware-display-primary';
+        primary.textContent = '主屏';
+        identity.append(primary);
+      }
+      const values = document.createElement('dl');
+      values.className = 'hardware-display-values';
+      for (const [label, value, className] of [
+        ['分辨率', `${display.width} × ${display.height}`, 'hardware-display-resolution'],
+        ['系统缩放', display.scalePercent ? `${display.scalePercent}%` : '未知', ''],
+        ['刷新率', display.refreshRate ? `${display.refreshRate} Hz` : '未知', ''],
+      ]) {
+        const detail = document.createElement('div');
+        detail.className = className;
+        const term = document.createElement('dt');
+        term.textContent = label;
+        const valueNode = document.createElement('dd');
+        valueNode.textContent = value;
+        detail.append(term, valueNode);
+        values.append(detail);
+      }
+      row.append(identity, values);
+      list.append(row);
+    }
   }
 
   function setHardwareText(id, value) {

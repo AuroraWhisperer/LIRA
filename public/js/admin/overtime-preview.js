@@ -60,7 +60,7 @@ export function createOvertimePreview({ controller, source = document, startActu
   }
   return { id: 'overtime', title: '加班机', controller,
     url: new URL('/overtime?quality=low&componentPreview=1', localOverlayOrigin()).href,
-    size: () => [640, 480],
+    size: () => [520, 160],
     dataModes,
     createPanel: (host, targetController = controller) => {
       const panel = cloneComponentPanel(source.querySelector('#overtimeAppearanceFields'), 'preview-overtime');
@@ -133,13 +133,16 @@ export function createOvertimeAppearance({ initial = {}, onSavedState }) {
   bindOvertimeAppearance(document, controller);
   const save = document.getElementById('overtimeSaveBackgroundBtn');
   const discard = document.getElementById('overtimeDiscardBackgroundBtn');
+  const saveState = document.getElementById('overtimeBackgroundSaveState');
   save.addEventListener('click', () => controller.save());
   discard.addEventListener('click', () => controller.discard());
   controller.subscribe((state) => {
     save.disabled = !state.dirty || state.saving;
     save.textContent = state.saving ? '保存中…' : '保存画面';
     discard.disabled = !state.dirty || state.saving;
-    document.getElementById('overtimeBackgroundSaveState').textContent = componentSaveMessage(state);
+    saveState.textContent = state.dirty || state.error || state.loading || state.saving || state.conflict || !state.loaded
+      ? componentSaveMessage(state)
+      : '';
   });
   function receive(state) {
     if (!state) return;

@@ -80,68 +80,83 @@
 
 .clock-flip-cell {
   --flip-height: 100px;
+  --flip-radius: 7px;
   position: relative;
   display: block;
   flex: 0 0 auto;
   width: 106px;
   height: var(--flip-height);
-  border-radius: 7px;
+  border-radius: var(--flip-radius);
   perspective: 450px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .clock-date-row .clock-flip-cell {
   --flip-height: 46px;
+  --flip-radius: 4px;
   width: 72px;
-  border-radius: 4px;
 }
 
+/* FlipClock's half-height faces share one full-height text line at the hinge. */
 .clock-flip-half {
   position: absolute;
-  inset: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
+  height: 50%;
   overflow: hidden;
-  border-radius: 7px;
   background: var(--flip-face, #fff);
   backface-visibility: hidden;
-  /* Keep static and animated glyphs on the same raster origin when scaled. */
-  transform: translateZ(0);
-  transform-origin: center;
 }
 
-.clock-flip-half > span {
+.clock-flip-half > span,
+.clock-flip-value {
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: var(--flip-height);
+  line-height: var(--flip-height);
+  text-align: center;
+}
+
+.clock-flip-value {
+  z-index: 1;
+}
+
+.clock-flip-half.is-top > span,
+.clock-flip-half.is-bottom > span,
+.clock-flip-cell.is-flipping .clock-flip-value {
+  visibility: hidden;
+}
+
+.clock-flip-cell.is-flipping .clock-flip-half.is-top > span,
+.clock-flip-cell.is-flipping .clock-flip-half.is-bottom > span {
+  visibility: visible;
 }
 
 .clock-flip-half.is-top,
 .clock-flip-half.is-outgoing {
-  clip-path: inset(0 0 50%);
-  background-image: linear-gradient(rgba(0, 0, 0, 0.025), rgba(0, 0, 0, 0.085) 50%);
+  top: 0;
+  border-radius: var(--flip-radius) var(--flip-radius) 0 0;
+  transform-origin: center bottom;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.025), rgba(0, 0, 0, 0.085));
+  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.25);
 }
 
 .clock-flip-half.is-bottom,
 .clock-flip-half.is-incoming {
-  clip-path: inset(50% 0 0);
+  top: 50%;
+  border-radius: 0 0 var(--flip-radius) var(--flip-radius);
+  transform-origin: center top;
+}
+
+.clock-flip-half.is-bottom > span,
+.clock-flip-half.is-incoming > span {
+  top: calc(var(--flip-height) / -2);
 }
 
 .clock-flip-half.is-outgoing,
 .clock-flip-half.is-incoming {
   z-index: 2;
   visibility: hidden;
-}
-
-.clock-flip-cell::after {
-  position: absolute;
-  z-index: 3;
-  top: calc(50% - 1px);
-  left: 0;
-  width: 100%;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.25);
-  content: '';
 }

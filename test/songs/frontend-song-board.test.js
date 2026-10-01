@@ -30,9 +30,7 @@ test('display overlay URLs use explicit settings capabilities without the legacy
       'liveWheelUrl',
       'liveInteractionsUrl',
       'liveGiftFeedUrl',
-      'liveGiftWishLongUrl',
-      'liveGiftWishDayUrl',
-      'liveGiftWishSessionUrl',
+      'liveGiftWishUrl',
       'liveOvertimeUrl',
       'liveGiftEffectsUrl',
       'liveOpeningUrl',
@@ -59,6 +57,7 @@ test('display overlay URLs use explicit settings capabilities without the legacy
   window.AdminApp = {};
   display.initOverlayUrls();
   assert.equal(nodes.get('songsUrl').textContent, 'http://127.0.0.1:3012/songlist');
+  assert.equal(nodes.get('liveGiftWishUrl').textContent, 'http://127.0.0.1:3012/gift-wishes');
   assert.equal(nodes.get('blindboxOverlayUrl').textContent, 'http://127.0.0.1:3012/blindbox');
   assert.equal(nodes.get('blindboxLiveLink').href, 'http://127.0.0.1:3012/blindbox');
   assert.equal(copyButton.disabled, true);

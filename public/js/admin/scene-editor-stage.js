@@ -8,17 +8,39 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   const extent = previewElement('div', 'scene-editor-extent');
   const canvas = previewElement('div', 'scene-editor-canvas');
   canvas.setAttribute('aria-label', '场景画布');
-  const empty = previewElement('p', 'scene-editor-empty', '从左侧添加组件，开始编排直播画面。');
+  const empty = previewElement('p', 'scene-editor-empty', '添加组件，开始编排直播画面。');
   canvas.append(empty);
   extent.append(canvas);
   viewport.append(extent);
   host.append(viewport);
   const entries = new Map();
+  const contentSizes = new Map();
+  let resizeFrame = 0;
   let scale = 1;
   let zoom = 'fit';
   let snap = true;
   let gesture = null;
   let closed = false;
+  function scheduleContentResize() {
+    if (resizeFrame || !contentSizes.size || closed) return;
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = 0;
+      if (closed || model.isGestureActive()) return;
+      const sizes = new Map(contentSizes);
+      contentSizes.clear();
+      try {
+        model.edit((document) => {
+          for (const [id, size] of sizes) {
+            const item = document.items.find((entry) => entry.id === id);
+            if (!item || Math.round(item.width) !== size.width) continue;
+            if (item.locked) { contentSizes.set(id, size); continue; }
+            item.height = Math.max(32, Math.min(document.canvas.height, Math.ceil(size.height)));
+            item.y = Math.min(item.y, document.canvas.height - item.height);
+          }
+        }, { recordHistory: false });
+      } catch (error) { report(error.message); }
+    });
+  }
   function fit() {
     const document = model.getDocument();
     scale = zoom === 'fit' ? Math.max(0.03, Math.min(
@@ -30,12 +52,22 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     canvas.style.height = `${document.canvas.height}px`;
     canvas.style.transform = `scale(${scale})`;
     canvas.style.setProperty('--scene-inverse-scale', String(1 / scale));
+    for (const entry of entries.values()) positionContentLabel(entry);
+  }
+  function positionContentLabel(entry) {
+    if (entry.host.dataset.component !== 'overtime') return;
+    const space = entry.label.offsetHeight + 6;
+    const above = entry.host.offsetTop * scale >= space;
+    const below = (canvas.clientHeight - entry.host.offsetTop - entry.host.offsetHeight) * scale >= space;
+    entry.label.classList.toggle('is-above', above);
+    entry.label.classList.toggle('is-below', !above && below);
   }
   function syncSelection() {
     const selected = getSelection();
     for (const [id, entry] of entries) {
       entry.host.classList.toggle('is-selected', selected.has(id));
       entry.host.setAttribute('aria-pressed', String(selected.has(id)));
+      positionContentLabel(entry);
     }
   }
   function cancelGesture() {
@@ -80,6 +112,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
       entry.surface.dispose();
       entry.host.remove();
       entries.delete(id);
+      contentSizes.delete(id);
     }
     for (const [index, item] of document.items.entries()) {
       if (!item.visible) continue;
@@ -88,6 +121,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
         const component = components.find((value) => value.id === item.type);
         const node = previewElement('div', 'scene-editor-item');
         node.dataset.itemId = item.id;
+        node.dataset.component = item.type;
         node.tabIndex = 0;
         node.setAttribute('role', 'button');
         const label = previewElement('span', 'scene-editor-item-label');
@@ -97,6 +131,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
         const surface = mountComponentPreview(node, { ...component, controller,
           onOpen: undefined, onClose: undefined, onEdit: undefined, bounds: undefined,
           ...(item.type === 'overtime' ? { dataModes: undefined,
+            onResize(size) { contentSizes.set(item.id, size); scheduleContentResize(); },
             startData: component.startLayerData || (component.startActualData ? ({ emit }) => component.startActualData(emit) : startSceneEditorOvertimeData) } : {}),
           size: () => {
             const current = model.getDocument().items.find((value) => value.id === item.id) || item;
@@ -125,6 +160,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     empty.hidden = document.items.some((item) => item.visible);
     fit();
     syncSelection();
+    scheduleContentResize();
   }
   canvas.addEventListener('pointermove', pointerMove);
   canvas.addEventListener('pointerup', pointerUp);
@@ -141,6 +177,8 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
       cancelGesture();
       unsubscribe();
       observer.disconnect();
+      cancelAnimationFrame(resizeFrame);
+      contentSizes.clear();
       for (const entry of entries.values()) entry.surface.dispose();
       entries.clear();
       viewport.remove();

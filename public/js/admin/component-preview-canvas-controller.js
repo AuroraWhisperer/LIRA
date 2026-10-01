@@ -34,7 +34,7 @@ export async function prepareComponentPreviewCanvas(components, request = reques
     let revision = dto.revision;
     let publishedVersion = dto.publishedVersion || 0;
     let stale = false;
-    const conflictMessage = '画布已在其他入口更新，草稿已保留。点击“放弃未保存修改”可读取最新画布。';
+    const conflictMessage = '画布已在其他入口更新，草稿已保留。点击“放弃修改”可读取最新画布。';
     const controller = createComponentConfigController({
       initial: { document: dto.document },
       read: async () => {

@@ -204,9 +204,7 @@ test('browser source tab classifies and exposes every overlay address', () => {
     ['liveWheelUrl', '/wheel'],
     ['liveInteractionsUrl', '/interactions'],
     ['liveGiftFeedUrl', '/gift-feed'],
-    ['liveGiftWishLongUrl', '/gift-wishes?period=long'],
-    ['liveGiftWishDayUrl', '/gift-wishes?period=day'],
-    ['liveGiftWishSessionUrl', '/gift-wishes?period=session'],
+    ['liveGiftWishUrl', '/gift-wishes'],
     ['liveOvertimeUrl', '/overtime'],
     ['liveGiftEffectsUrl', '/gift-effects'],
     ['liveOpeningUrl', '/opening'],
@@ -241,7 +239,7 @@ test('browser source tab classifies and exposes every overlay address', () => {
   assert.match(html, />\s*直播互动\s*<\/h3\s*>/);
   assert.match(html, />\s*场景与氛围\s*<\/h3\s*>/);
   assert.match(html, />\s*礼物与心愿\s*<\/h3\s*>/);
-  assert.match(html, />\s*网页页面\s*<\/h3\s*>/);
+  assert.match(html, /id="webPageGroupTitle"[^>]*>\s*网页页面\s*<lira-help>/);
   for (const id of ['webSongPageUrl', 'webAccountUrl', 'webGiftCatalogUrl', 'webGamesUrl', 'webHomeUrl']) {
     assert.match(html, new RegExp(`id="${id}"`));
     assert.match(html, new RegExp(`data-copy-url="${id}"`));

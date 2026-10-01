@@ -217,7 +217,7 @@
   padding-top: 16px;
 }
 .fan-reminder-person {
-  padding: 16px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
 .fan-reminder-person h4 {
@@ -264,7 +264,7 @@
   }
   .fan-detail {
     border-left: 0;
-    padding: 20px 12px;
+    padding: 12px;
   }
   .fan-back-list {
     display: inline-flex;

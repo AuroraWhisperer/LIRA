@@ -3,28 +3,30 @@ import { createGiftWishFeed } from '../shared/gift-wish-client.js';
 import { createOverlaySocket } from './socket-client.js';
 
 const query = new URLSearchParams(location.search);
-const period = Object.hasOwn(WISH_PERIODS, query.get('period')) ? query.get('period') : 'long';
+const period = Object.hasOwn(WISH_PERIODS, query.get('period')) ? query.get('period') : null;
+const periodName = WISH_PERIODS[period] || '礼物许愿';
 const preview = query.get('preview') === '1';
 const stage = document.getElementById('giftWishStage');
 const status = document.getElementById('giftWishOverlayStatus');
 document.body.classList.toggle('wish-preview', preview);
-document.title = `${WISH_PERIODS[period]} · LIRA`;
+document.title = `${periodName} · LIRA`;
 let revision = null;
 let signature = '';
 const feed = createGiftWishFeed({
   onData(data) {
     revision = data.viewRevision;
-    const items = data.items.filter((wish) => wish.period === period);
+    const items = period ? data.items.filter((wish) => wish.period === period) : data.items;
     const next = JSON.stringify(items);
     if (signature !== next) {
       stage.replaceChildren(...items.map((wish) => createGiftWishCard(wish)));
       signature = next;
     }
     const messages = [];
-    if (!items.length) messages.push(`还没有${WISH_PERIODS[period]}，请在礼物姬中添加。`);
+    if (!items.length) messages.push(`还没有${periodName}，请在礼物姬中添加。`);
     if (data.partial) messages.push('正在同步已捕获的礼物，进度可能尚未完整。');
-    if (period === 'session' && data.session.stale) messages.push('开播状态暂未确认，已暂停本场计数。');
-    if (period === 'session' && data.session.state === 'offline') messages.push('还未开播，等待本场心愿开始。');
+    const showSessionStatus = period === 'session' || items.some((wish) => wish.period === 'session');
+    if (showSessionStatus && data.session.stale) messages.push('开播状态暂未确认，已暂停本场计数。');
+    if (showSessionStatus && data.session.state === 'offline') messages.push('还未开播，等待本场心愿开始。');
     status.textContent = messages.join(' ');
     status.hidden = !preview || !messages.length;
   },

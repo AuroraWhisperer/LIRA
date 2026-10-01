@@ -1,6 +1,6 @@
 'use strict';
 
-// Each half clips the same full-height glyph, so it stays aligned at the hinge.
+// Paint the settled glyph once to avoid seams between scaled, animated halves.
 function createFlipCell(host) {
   host.classList.add('clock-flip-cell');
   host.setAttribute('role', 'img');
@@ -12,7 +12,10 @@ function createFlipCell(host) {
     half.append(text);
     return { half, text };
   });
-  host.replaceChildren(...halves.map(({ half }) => half));
+  const valueText = document.createElement('span');
+  valueText.className = 'clock-flip-value';
+  valueText.setAttribute('aria-hidden', 'true');
+  host.replaceChildren(...halves.map(({ half }) => half), valueText);
   const [top, bottom, outgoing, incoming] = halves;
   let current = null;
   let animations = [];
@@ -23,8 +26,10 @@ function createFlipCell(host) {
       animation.cancel();
     }
     animations = [];
+    host.classList.remove('is-flipping');
     top.text.textContent = current;
     bottom.text.textContent = current;
+    valueText.textContent = current;
   }
 
   return {
@@ -41,6 +46,7 @@ function createFlipCell(host) {
       bottom.text.textContent = previous;
       outgoing.text.textContent = previous;
       incoming.text.textContent = value;
+      host.classList.add('is-flipping');
       animations = [
         outgoing.half.animate(
           [{ transform: 'rotateX(0deg)', visibility: 'visible' }, { transform: 'rotateX(-90deg)', visibility: 'visible' }],

@@ -129,7 +129,7 @@ test('publication revision conflicts can reload even when the local draft was al
   f.conflict();
   await assert.rejects(canvas.publish(), /其他入口更新/);
   assert.equal(canvas.controller.getState().dirty, false);
-  assert.match(canvas.controller.getState().error, /放弃未保存修改/);
+  assert.match(canvas.controller.getState().error, /放弃修改/);
   canvas.controller.discard();
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(canvas.controller.getState().draft.document.canvas.width, 2300);

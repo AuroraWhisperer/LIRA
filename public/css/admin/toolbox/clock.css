@@ -11,8 +11,8 @@
 
 .clock-tool-layout {
   display: grid;
-  grid-template-columns: minmax(360px, 1.15fr) minmax(320px, 0.85fr);
-  gap: 24px;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 
@@ -39,17 +39,11 @@
   color: var(--text);
   font-size: var(--type-size-card-title);
 }
-#clockRecommendedSize {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  text-align: center;
-}
-
 .clock-preview-canvas {
   display: grid;
   place-items: center;
-  min-height: 434px;
-  padding: 16px;
+  min-height: 220px;
+  padding: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -74,15 +68,18 @@
 }
 
 .clock-preview-canvas iframe[data-clock-style='timeline-vertical'] {
-  width: min(100%, 240px);
+  width: min(100%, 120px);
   aspect-ratio: 240 / 400;
 }
 
 .clock-settings-card {
   display: grid;
-  gap: 20px;
-  padding-left: 24px;
+  gap: 8px;
+  padding-left: 20px;
   border-left: 1px solid var(--color-border-light);
+}
+.clock-settings-card #clockSaveState {
+  margin: 0;
 }
 .clock-address-section,
 .clock-parameter-section {
@@ -90,7 +87,8 @@
   gap: 12px;
 }
 .clock-parameter-section {
-  padding-top: 20px;
+  gap: 8px;
+  padding-top: 12px;
   border-top: 1px solid var(--color-border-light);
 }
 
@@ -130,11 +128,14 @@
 .clock-style-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  gap: 8px;
+}
+.clock-settings-card .clock-style-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .clock-style-option {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
   min-height: 58px;
@@ -176,7 +177,7 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 58px;
+  width: 48px;
   height: 42px;
   overflow: hidden;
   border-radius: var(--radius-sm);
@@ -347,8 +348,16 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
-.clock-palette-options {
-  margin-bottom: 12px;
+.clock-flip-color-controls,
+.clock-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.clock-color-fields .clock-form-field {
+  grid-template-columns: auto 32px;
+  align-items: center;
+  gap: 8px;
 }
 .clock-palette-options [aria-pressed='true'] {
   border-color: var(--accent);
@@ -453,6 +462,12 @@
   padding-block: 6px;
 }
 
+@container clock-settings (max-width: 920px) {
+  .clock-settings-card .clock-style-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @container clock-settings (max-width: 704px) {
   .clock-tool-layout {
     grid-template-columns: 1fr;
@@ -465,8 +480,8 @@
 
 @container clock-settings (max-width: 620px) {
   .clock-style-options,
-  .clock-toggle-grid {
-    grid-template-columns: 1fr;
+  .clock-settings-card .clock-style-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .clock-url-box {
     grid-template-columns: 1fr;

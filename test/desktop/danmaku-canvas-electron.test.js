@@ -100,7 +100,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
   await app.evaluate(() => { global.canvasTest.failNext = true; });
   const save = page.getByRole('button', { name: '保存并应用', exact: true });
-  const saveState = page.locator('.component-preview-footer [role="status"]');
+  const saveState = page.locator('.preview-canvas-status');
   await save.click();
   await saveState.filter({ hasText: '无法连接服务器' }).waitFor();
   assert.equal(await number('宽度'), 987);

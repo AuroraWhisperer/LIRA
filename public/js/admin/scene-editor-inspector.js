@@ -58,7 +58,10 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       geometry.disabled = item.locked;
       geometry.append(field(embedded ? '组件名称' : '实例名称', 'name', 'text'));
       const grid = previewElement('div', 'component-preview-fields');
-      for (const [label, property] of [['X', 'x'], ['Y', 'y'], ['宽度', 'width'], ['高度', 'height']]) grid.append(field(label, property));
+      for (const [label, property] of [['X', 'x'], ['Y', 'y'], ['宽度', 'width'], ['高度', 'height']]) {
+        grid.append(field(item.type === 'overtime' && property === 'height' ? '高度（自动）' : label, property));
+      }
+      fields.height.readOnly = item.type === 'overtime';
       geometry.append(grid);
       target = previewElement('p', 'scene-editor-target');
       mode = previewElement('button', 'secondary');
@@ -116,6 +119,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     target.textContent = embedded ? (item.appearance.mode === 'shared' ? '样式与客户端的同类组件共用；位置和尺寸仅属于此图层。' : '样式、位置和尺寸仅属于此图层。') : item.appearance.mode === 'shared'
       ? '编辑目标：当前组件默认配置。更改会影响其他共享此默认配置的入口；场景发布时固定外观。'
       : '编辑目标：仅此场景实例。更改随场景草稿保存。';
+    target.hidden = embedded && item.appearance.mode === 'independent';
     mode.textContent = item.appearance.mode === 'shared' ? '复制当前外观为独立配置' : '改用组件默认配置';
     mode.disabled = item.locked;
   }

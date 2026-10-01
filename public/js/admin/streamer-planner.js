@@ -13,6 +13,7 @@ import {
   toDateValue,
   shiftMonth,
   normalizeEvent,
+  getEventReminderTimestamp,
   normalizeTask,
   normalizeTasks,
   normalizeNote,
@@ -81,6 +82,9 @@ export const todo = (() => {
     editingNoteId: '',
     editingEventId: '',
     saveFailed: false,
+    reminderStatus: window.plannerReminders ? 'loading' : 'unsupported',
+    reminderSignature: null,
+    reminderRevision: 0,
   };
 
   const byId = (id) => document.getElementById(id);
@@ -90,9 +94,31 @@ export const todo = (() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(moduleState.planner));
       moduleState.saveFailed = false;
+      void syncReminders();
     } catch {
       moduleState.saveFailed = true;
     }
+  }
+
+  async function syncReminders() {
+    if (readFailed || moduleState.saveFailed || !window.plannerReminders) return;
+    const reminders = moduleState.planner.events.filter((event) => event.reminderTime).map((event) => ({
+      id: event.id, title: event.title, detail: event.detail, remindAt: getEventReminderTimestamp(event),
+    }));
+    const signature = JSON.stringify(reminders);
+    if (signature === moduleState.reminderSignature) return;
+    moduleState.reminderSignature = signature;
+    const revision = ++moduleState.reminderRevision;
+    try {
+      const result = await window.plannerReminders.sync(reminders);
+      if (revision !== moduleState.reminderRevision) return;
+      moduleState.reminderStatus = result?.ok ? (result.supported ? 'ready' : 'unsupported') : 'error';
+    } catch {
+      if (revision !== moduleState.reminderRevision) return;
+      moduleState.reminderStatus = 'error';
+    }
+    if (moduleState.reminderStatus === 'error') moduleState.reminderSignature = null;
+    updateReminderFields();
   }
 
   function commit() {
@@ -286,7 +312,9 @@ export const todo = (() => {
     byId('plannerEventDate').value = event?.date || moduleState.selectedDate;
     byId('plannerEventTime').value = event ? event.time : '20:00';
     byId('plannerEventAllDay').checked = Boolean(event && !event.time);
-    byId('plannerEventTime').disabled = byId('plannerEventAllDay').checked;
+    byId('plannerEventReminder').checked = Boolean(event?.reminderTime);
+    byId('plannerEventReminderTime').value = event?.reminderTime || '09:00';
+    updateReminderFields();
     byId('plannerEventDetail').value = event?.detail || '';
     byId('plannerEventForm')
       .querySelectorAll('[name="plannerEventType"]')
@@ -297,6 +325,28 @@ export const todo = (() => {
     byId('plannerEventError').hidden = true;
     byId('plannerEventDialog').showModal();
     byId('plannerEventTitle').focus();
+  }
+
+  function updateReminderFields() {
+    const reminder = byId('plannerEventReminder');
+    if (!reminder) return;
+    const allDay = byId('plannerEventAllDay').checked;
+    const time = byId('plannerEventTime');
+    time.disabled = allDay;
+    time.required = !allDay;
+    byId('plannerEventTimeField').hidden = allDay;
+    reminder.disabled = readFailed || moduleState.reminderStatus !== 'ready';
+    byId('plannerEventReminderTimeField').hidden = !allDay || !reminder.checked;
+    byId('plannerEventReminderTime').required = allDay && reminder.checked;
+    const messages = {
+      loading: '正在检查系统通知…',
+      unsupported: '请在支持系统通知的 LIRA 桌面应用中设置提醒。',
+      error: '提醒未能同步，请重新保存日程后重试。',
+    };
+    byId('plannerEventReminderHint').textContent = messages[moduleState.reminderStatus] ||
+      (reminder.checked
+        ? (allDay ? '按所选时间提醒。' : `在日程开始时${time.value ? `（${time.value}）` : ''}提醒。`) + ' LIRA 运行时生效，最小化后也可提醒。'
+        : '到点通过系统通知提醒，LIRA 需保持运行。');
   }
 
   async function confirmTaskDelete(taskId) {
@@ -392,17 +442,27 @@ export const todo = (() => {
 
   function submitEvent(event) {
     event.preventDefault();
+    const allDay = byId('plannerEventAllDay').checked;
+    const time = byId('plannerEventTime').value;
+    const reminderTime = byId('plannerEventReminder').checked ? (allDay ? byId('plannerEventReminderTime').value : time) : '';
+    if ((!allDay && !time) || (byId('plannerEventReminder').checked && !reminderTime)) {
+      byId('plannerEventError').textContent = '请填写日程时间；全天日程开启提醒后，请选择提醒时间。';
+      byId('plannerEventError').hidden = false;
+      return;
+    }
     const input = {
       title: byId('plannerEventTitle').value,
       date: byId('plannerEventDate').value,
-      time: byId('plannerEventAllDay').checked ? '' : byId('plannerEventTime').value,
+      time: allDay ? '' : time,
+      reminderTime,
       type: byId('plannerEventForm').querySelector('[name="plannerEventType"]:checked').value,
       detail: byId('plannerEventDetail').value,
     };
     const saved = moduleState.editingEventId ? updateEvent(moduleState.editingEventId, input) : addEvent(input);
-    if (saved) byId('plannerEventDialog').close();
+    if (saved && !moduleState.saveFailed) byId('plannerEventDialog').close();
     else {
-      byId('plannerEventError').textContent = '请填写日程名称和有效的日期、时间。';
+      if (saved) moduleState.editingEventId = saved.id;
+      byId('plannerEventError').textContent = saved ? '日程未能保存到本机，请重试。' : '请填写日程名称和有效的日期、时间。';
       byId('plannerEventError').hidden = false;
     }
   }
@@ -427,9 +487,9 @@ export const todo = (() => {
     byId('plannerNoteForm').addEventListener('submit', submitNote);
     byId('plannerNoteCancel').addEventListener('click', () => editNote());
     byId('plannerGoToday').addEventListener('click', () => selectDate(toDateValue()));
-    byId('plannerEventAllDay').addEventListener('change', (event) => {
-      byId('plannerEventTime').disabled = event.target.checked;
-    });
+    byId('plannerEventAllDay').addEventListener('change', updateReminderFields);
+    byId('plannerEventReminder').addEventListener('change', updateReminderFields);
+    byId('plannerEventTime').addEventListener('input', updateReminderFields);
     byId('plannerEventForm').addEventListener('submit', submitEvent);
     byId('plannerEventDelete').addEventListener('click', confirmEventDelete);
     root.addEventListener('change', (event) => {

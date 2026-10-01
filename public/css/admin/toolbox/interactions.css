@@ -3,24 +3,6 @@
   container: interaction-editor / inline-size;
   gap: var(--spacing-md);
 }
-.interaction-source {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  border-radius: 8px;
-  background: var(--color-bg-secondary);
-}
-.interaction-source .games-link-field {
-  font-weight: 400;
-}
-.interaction-source-note {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--type-size-caption);
-}
 .interaction-tabs {
   display: flex;
   gap: var(--spacing-lg);
@@ -405,8 +387,5 @@
     padding: var(--spacing-lg) 0 0;
     border-left: 0;
     border-top: 1px solid var(--color-border-default);
-  }
-  .interaction-source {
-    grid-template-columns: 1fr;
   }
 }

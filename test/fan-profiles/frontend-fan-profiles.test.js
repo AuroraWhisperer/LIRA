@@ -412,3 +412,84 @@ test('context changes still invalidate selected details in archive scope', async
   assert.doesNotMatch(ui.detail(), /归档观众B/);
   assert.equal(ui.nodes.get('fanNewProfileButton').hidden, true);
 });
+
+test('polling keeps content while loading and leaves unchanged DOM and scroll positions intact', async (t) => {
+  const ui = await archiveUi(t);
+  await ui.click({ fanId: ui.a.id });
+  const writes = new Map();
+  for (const id of ['fanPeople', 'fanDetail', 'fanReminderSummary', 'fanRemindersPage']) {
+    const node = ui.nodes.get(id);
+    const property = Object.getOwnPropertyDescriptor(node, 'innerHTML');
+    writes.set(id, 0);
+    Object.defineProperty(node, 'innerHTML', {
+      get: property.get,
+      set(value) {
+        writes.set(id, writes.get(id) + 1);
+        property.set.call(this, value);
+      },
+    });
+  }
+  ui.nodes.get('fanPeople').scrollTop = 80;
+  ui.nodes.get('fanDetail').scrollTop = 120;
+  const before = ui.people();
+  const loading = deferred();
+  ui.handlers.set('open', async (input) => {
+    await loading.promise;
+    return ui.respond(input);
+  });
+  ui.poll();
+  await ui.flush();
+  assert.equal(ui.people(), before);
+  assert.match(ui.detail(), /保留私人资料/);
+  loading.resolve();
+  await ui.flush();
+  assert.ok([...writes.values()].every((count) => count === 0));
+  assert.equal(ui.nodes.get('fanPeople').scrollTop, 80);
+  assert.equal(ui.nodes.get('fanDetail').scrollTop, 120);
+  ui.handlers.delete('open');
+  const profile = ui.f.detail(ui.a.id);
+  ui.f.run('save', { id: profile.id, revision: profile.revision, summary: '更新后的简介', notes: '更新后的备注' });
+  ui.poll();
+  await ui.flush();
+  assert.match(ui.people(), /更新后的简介/);
+  assert.match(ui.detail(), /更新后的备注/);
+  assert.equal(ui.nodes.get('fanPeople').scrollTop, 80);
+  assert.equal(ui.nodes.get('fanDetail').scrollTop, 120);
+  const updated = ui.people();
+  ui.handlers.set('open', async () => {
+    throw new Error('后台刷新测试失败');
+  });
+  ui.poll();
+  await ui.flush();
+  assert.equal(ui.people(), updated);
+  assert.match(ui.detail(), /更新后的备注/);
+  assert.match(ui.nodes.get('fanPageError').textContent, /后台刷新测试失败/);
+});
+
+test('a delayed poll cannot interrupt a newer profile selection', async (t) => {
+  const ui = await archiveUi(t);
+  const c = ui.f.create({ alias: '当前观众C', identity: { ...IDENTITY, value: '900000003' } });
+  await ui.click({ fanAction: 'refresh' });
+  await ui.click({ fanId: ui.a.id });
+  const loading = deferred();
+  ui.handlers.set('open', async (input) => {
+    const response = ui.respond(input);
+    await loading.promise;
+    return response;
+  });
+  ui.poll();
+  await ui.flush();
+  const selection = deferred();
+  ui.handlers.set('detail', async (input) => {
+    const response = ui.respond(input);
+    await selection.promise;
+    return response;
+  });
+  await ui.click({ fanId: c.id });
+  loading.resolve();
+  await ui.flush();
+  selection.resolve();
+  await ui.flush();
+  assert.match(ui.detail(), /当前观众C/);
+  assert.doesNotMatch(ui.detail(), /当前观众A/);
+});

@@ -38,6 +38,7 @@ function createFanUi() {
   let searchTimer;
   let returnFocus;
   let pollTimer;
+  const renderedMarkup = new WeakMap();
   const transfer = createFanTransferUi({
     request,
     openForm,
@@ -49,7 +50,7 @@ function createFanUi() {
     },
     onReset: async () => {
       state.profile = null;
-      detailNode.innerHTML = '<p class="fan-empty">恢复完成，请重新选择档案。</p>';
+      updateMarkup(detailNode, '<p class="fan-empty">恢复完成，请重新选择档案。</p>');
       await load();
     },
   });
@@ -73,12 +74,12 @@ function createFanUi() {
       state.selection++;
       state.tab = 'overview';
       get('fanRosterResult').hidden = true;
-      detailNode.innerHTML = '<p class="fan-empty">登录状态已变化，请重新选择档案。</p>';
+      updateMarkup(detailNode, '<p class="fan-empty">登录状态已变化，请重新选择档案。</p>');
     }
     state.contextId = result.contextId;
     state.roomId = result.roomId || '';
     state.syncStatus = result.syncStatus;
-    get('fanSyncState').textContent =
+    const syncLabel =
       {
         ready: '已同步',
         syncing: '资料仍在同步',
@@ -86,6 +87,8 @@ function createFanUi() {
         offline: '离线 · 可维护本机档案',
         unsupported: '服务器尚未支持档案同步 · 可手动维护',
       }[result.syncStatus] || '';
+    const syncNode = get('fanSyncState');
+    if (syncNode.textContent !== syncLabel) syncNode.textContent = syncLabel;
     return result.data;
   }
 
@@ -114,8 +117,17 @@ function createFanUi() {
     }
   }
 
+  function updateMarkup(node, markup) {
+    if (renderedMarkup.get(node) === markup) return false;
+    const scroll = node.scrollTop;
+    node.innerHTML = markup;
+    node.scrollTop = scroll;
+    renderedMarkup.set(node, markup);
+    return true;
+  }
+
   function renderSelected() {
-    if (state.profile) detailNode.innerHTML = renderDetail(state.profile, state.tab);
+    if (state.profile) updateMarkup(detailNode, renderDetail(state.profile, state.tab));
     renderList();
   }
 
@@ -136,8 +148,8 @@ function createFanUi() {
 
   function renderList() {
     const list = get('fanPeople');
-    const scroll = list.scrollTop;
-    list.innerHTML =
+    const changed = updateMarkup(
+      list,
       state.listStatus === 'loading'
         ? '<p class="fan-empty" role="status">正在加载档案…</p>'
         : state.listStatus === 'error'
@@ -147,20 +159,24 @@ function createFanUi() {
               state.profile?.id,
               Boolean(get('fanSearch').value || state.filters.length),
               state.archived,
-            );
-    list.scrollTop = scroll;
+            ),
+    );
     get('fanSplit').classList.toggle('fan-has-selection', Boolean(state.profile));
     get('fanSplit').classList.toggle('fan-expanded', state.expanded);
     const expandButton = detailNode.querySelector('[data-fan-action="expand"]');
-    if (expandButton) expandButton.textContent = state.expanded ? '收起详情' : '展开详情';
-    fitPeopleNames();
+    const expandLabel = state.expanded ? '收起详情' : '展开详情';
+    if (expandButton && expandButton.textContent !== expandLabel) expandButton.textContent = expandLabel;
+    if (changed) fitPeopleNames();
   }
 
-  async function load(open = false) {
+  async function load(open = false, background = false) {
     const sequence = ++state.sequence;
+    const keepList = state.listStatus === 'ready' && state.contextId;
     get('fanPageError').hidden = true;
-    state.listStatus = 'loading';
-    renderList();
+    if (!keepList) {
+      state.listStatus = 'loading';
+      renderList();
+    }
     let data;
     try {
       data = await request(open || !state.contextId ? 'open' : 'list', {
@@ -170,8 +186,10 @@ function createFanUi() {
       });
     } catch (error) {
       if (sequence !== state.sequence) return false;
-      state.listStatus = 'error';
-      renderList();
+      if (!background || !keepList) {
+        state.listStatus = 'error';
+        renderList();
+      }
       throw error;
     }
     if (sequence !== state.sequence) return false;
@@ -188,10 +206,13 @@ function createFanUi() {
     const actionable = items.filter((item) => item.actionable);
     const summary = get('fanReminderSummary');
     summary.hidden = !actionable.length;
-    summary.innerHTML = actionable.length
-      ? `<span>今天与近期有 ${actionable.length} 项重要日子待处理</span><button type="button" data-fan-page="reminders">查看提醒</button>`
-      : '';
-    get('fanRemindersPage').innerHTML = renderReminders(items);
+    updateMarkup(
+      summary,
+      actionable.length
+        ? `<span>今天与近期有 ${actionable.length} 项重要日子待处理</span><button type="button" data-fan-page="reminders">查看提醒</button>`
+        : '',
+    );
+    updateMarkup(get('fanRemindersPage'), renderReminders(items));
   }
 
   async function select(id, resetTab = true, alignScope = false) {
@@ -235,7 +256,7 @@ function createFanUi() {
     }
     state.tab = 'overview';
     state.expanded = false;
-    detailNode.innerHTML = '<p class="fan-empty">选择一份档案查看详情</p>';
+    updateMarkup(detailNode, '<p class="fan-empty">选择一份档案查看详情</p>');
     renderList();
   }
 
@@ -495,7 +516,7 @@ function createFanUi() {
         async (payload) => {
           await request('delete', payload);
           state.profile = null;
-          detailNode.innerHTML = '<p class="fan-empty">档案已删除。</p>';
+          updateMarkup(detailNode, '<p class="fan-empty">档案已删除。</p>');
           await load();
         },
       );
@@ -595,9 +616,15 @@ function createFanUi() {
       .catch((error) => showError(error));
   pollTimer = setInterval(() => {
     if ((!panel.hidden || quick.open) && !editor.open && state.contextId) {
-      void load(true)
-        .then(() => {
-          if (state.profile) return select(state.profile.id, false);
+      const id = state.profile?.id;
+      const selection = state.selection;
+      void load(true, true)
+        .then(async (loaded) => {
+          if (!loaded || !id || selection !== state.selection || state.profile?.id !== id) return;
+          const profile = await request('detail', { id });
+          if (selection !== state.selection || state.profile?.id !== id) return;
+          state.profile = profile;
+          renderSelected();
         })
         .catch((error) => showError(error));
     }

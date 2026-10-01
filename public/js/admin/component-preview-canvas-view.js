@@ -25,28 +25,33 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   let closed = false;
   let output;
   let outputBusy = false;
+  let inspectorOpen = Boolean(selectedId);
   const subscriptions = [];
-  const header = previewElement('header', 'component-preview-heading');
-  header.append(previewElement('span', 'component-preview-brand', 'LIRA'),
-    previewElement('h1', '', '直播画布'),
-    previewElement('p', '', '编辑预览 · 含示例数据'));
+  const toolbar = previewElement('div', 'preview-canvas-toolbar');
+  toolbar.setAttribute('aria-label', '画布工具');
   const body = previewElement('div', 'component-preview-body');
   const navigation = previewElement('aside', 'component-preview-navigation');
   navigation.setAttribute('aria-label', '组件和图层');
   const library = previewElement('div', 'component-preview-list');
   const layers = previewElement('div', 'preview-canvas-layers');
-  const layerHeading = previewElement('h2', '', '画布中的组件');
-  navigation.append(library, layerHeading, layers);
+  const layerHeading = previewElement('h2', '', '组件');
   const center = previewElement('section', 'component-preview-canvas');
-  const toolbar = previewElement('div', 'preview-canvas-toolbar');
+  const canvasControls = previewElement('div', 'preview-canvas-controls');
   const dimensions = previewElement('span', 'preview-canvas-resolution');
   const stageHost = previewElement('div', 'scene-editor-stage-host');
-  const inspectorHost = previewElement('aside', 'component-preview-panel preview-canvas-inspector');
-  inspectorHost.setAttribute('aria-label', '画布与组件参数');
-  const footer = previewElement('footer', 'component-preview-footer');
-  const status = previewElement('p');
+  const sidebar = previewElement('aside', 'preview-canvas-sidebar');
+  sidebar.id = 'previewCanvasInspector';
+  sidebar.setAttribute('aria-label', '画布与组件参数');
+  const inspectorHost = previewElement('div', 'component-preview-panel preview-canvas-inspector');
+  const actions = previewElement('div', 'preview-canvas-actions');
+  const sourceActions = previewElement('div', 'preview-canvas-source-actions');
+  const applyActions = previewElement('div', 'preview-canvas-apply-actions');
+  const status = previewElement('p', 'preview-canvas-status');
   status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
-  footer.append(status);
+  actions.append(sourceActions, applyActions);
+  navigation.append(layerHeading, layers, status);
+  sidebar.append(inspectorHost);
+  toolbar.append(library, canvasControls, actions);
   const report = (text) => { message = text; renderStatus(); };
   function button(parent, text, action, className = 'secondary') {
     const node = previewElement('button', className, text);
@@ -57,19 +62,32 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     parent.append(node);
     return node;
   }
-  const canvasButton = button(toolbar, '画布设置', () => select(null));
-  toolbar.append(dimensions);
-  const backgroundLabel = previewElement('label', '', '检查底色');
+  const canvasButton = button(canvasControls, '画布设置', () => { select(null); setInspectorOpen(true); });
+  canvasButton.setAttribute('aria-label', '画布设置');
+  canvasButton.append(dimensions);
+  const backgroundLabel = previewElement('label', '', '底色');
   const background = previewElement('select');
   background.setAttribute('aria-label', '公共画布检查底色');
   for (const [value, text] of [['checker', '透明棋盘'], ['dark', '深色'], ['light', '浅色']]) {
     const option = previewElement('option', '', text); option.value = value; background.append(option);
   }
-  backgroundLabel.append(background); toolbar.append(backgroundLabel);
-  center.append(toolbar, stageHost);
-  body.append(navigation, center, inspectorHost);
+  backgroundLabel.append(background); canvasControls.append(backgroundLabel);
+  const panelToggle = button(canvasControls, '', () => setInspectorOpen(!inspectorOpen));
+  panelToggle.setAttribute('aria-controls', sidebar.id);
+  function setInspectorOpen(open) {
+    inspectorOpen = open;
+    sidebar.hidden = !open;
+    body.classList.toggle('is-inspector-collapsed', !open);
+    panelToggle.textContent = open ? '收起参数' : '展开参数';
+    panelToggle.setAttribute('aria-expanded', String(open));
+    canvasButton.setAttribute('aria-pressed', String(open && !selected));
+    stage?.fit();
+  }
+  setInspectorOpen(inspectorOpen);
+  center.append(stageHost, navigation);
+  body.append(center, sidebar);
   const controllers = [...components, ...(canvasController ? [{ id: 'canvas', title: '公共画布', controller: canvasController }] : [])];
-  const discard = button(footer, '放弃未保存修改', () => {
+  const discard = button(applyActions, '放弃修改', () => {
     stage.cancelGesture();
     for (const { controller } of controllers) {
       const state = controller.getState();
@@ -79,17 +97,17 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   function validateInputs() {
     stage.cancelGesture();
     const invalid = [...inspectorHost.querySelectorAll('input, select, textarea')].find((input) => !input.checkValidity());
-    if (invalid) { invalid.reportValidity(); return false; }
+    if (invalid) { setInspectorOpen(true); invalid.reportValidity(); return false; }
     return true;
   }
-  const save = canvasConnection ? null : button(footer, '保存全部修改', () => {
+  const save = canvasConnection ? null : button(applyActions, '保存全部修改', () => {
     if (!validateInputs()) return;
     for (const { controller } of controllers) if (controller.getState().dirty) void controller.save();
   }, 'primary');
-  if (canvasConnection) output = mountPreviewCanvasOutput({ header, footer, connection: canvasConnection,
+  if (canvasConnection) output = mountPreviewCanvasOutput({ sourceHost: sourceActions, applyHost: applyActions, connection: canvasConnection,
     controllers, beforeApply: validateInputs, report,
     setBusy(value) { outputBusy = value; renderStatus(); } });
-  host.replaceChildren(header, body, footer);
+  host.replaceChildren(toolbar, body);
   const picker = mountComponentPreviewPicker({ components, source, add, report });
   button(library, '添加组件', () => picker.open(), 'secondary component-preview-add');
   function edit(mutator) {
@@ -113,13 +131,14 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
         appearance: config ? { mode: 'independent', config } : { mode: 'shared' } });
     });
     select(id);
+    setInspectorOpen(true);
   }
   function select(id) {
     selected = id;
     inspector?.dispose();
     inspectorHost.replaceChildren();
     itemActions = null;
-    canvasButton.setAttribute('aria-pressed', String(!selected));
+    canvasButton.setAttribute('aria-pressed', String(inspectorOpen && !selected));
     if (selected) {
       const parameters = previewElement('div', 'preview-canvas-parameters');
       inspectorHost.append(parameters);
@@ -143,17 +162,18 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     } else inspector = mountPreviewCanvasSettings(inspectorHost, { model, report });
     stage?.syncSelection();
     renderLayers();
+    layers.querySelector('button[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     renderStatus();
     enhanceSelects();
   }
   function renderLayers() {
+    const scrollLeft = layers.scrollLeft;
     layers.replaceChildren();
     const document = model.getDocument();
-    layerHeading.textContent = `画布中的组件 · ${document.items.length}`;
-    if (!document.items.length) layers.append(previewElement('p', 'hint', '暂无组件。点击“添加组件”选择分类和样式。'));
+    layerHeading.textContent = `组件 · ${document.items.length}`;
     for (const item of document.items.toReversed()) {
       const row = previewElement('div', 'preview-canvas-layer');
-      const choose = button(row, item.name, () => select(item.id), 'preview-canvas-layer-select');
+      const choose = button(row, item.name, () => { select(item.id); setInspectorOpen(true); }, 'preview-canvas-layer-select');
       choose.dataset.itemId = item.id;
       choose.setAttribute('aria-pressed', String(selected === item.id));
       const visible = button(row, item.visible ? '隐藏' : '显示', () => edit((next) => {
@@ -163,6 +183,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       visible.disabled = item.locked;
       layers.append(row);
     }
+    layers.scrollLeft = scrollLeft;
   }
   function renderStatus() {
     if (closed) return;
@@ -176,13 +197,12 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     const dirty = states.filter((state) => state.dirty);
     const failures = states.filter((state) => state.error);
     status.textContent = failures.length ? failures.map((state) => `${state.title}：${state.error}`).join('；')
-      : message || (saving ? '正在保存画布和组件参数…' : dirty.length ? `${dirty.map((state) => state.title).join('、')}有未保存修改`
-        : '画布和组件参数已保存。');
+      : message || (saving ? '正在保存…' : dirty.length ? '有未保存修改' : '');
     if (!canvasController) status.textContent += ' 此旧链接仅保存组件参数；保存布局请从客户端重新打开。';
     if (save) save.disabled = saving || !dirty.length || dirty.some((state) => !state.loaded);
     discard.disabled = saving || outputBusy || (!dirty.length && !failures.length);
     const connected = !canvasController || canvasController.getState().loaded;
-    navigation.inert = stageHost.inert = inspectorHost.inert = !connected || outputBusy;
+    library.inert = canvasControls.inert = layers.inert = stageHost.inert = inspectorHost.inert = !connected || outputBusy;
     canvasButton.disabled = !connected || outputBusy;
     output?.render(connected, saving);
   }

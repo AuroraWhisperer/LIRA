@@ -13,8 +13,8 @@
 }
 .games-category-header {
   display: flex;
-  align-items: end;
-  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 18px;
   padding: 0 2px;
 }
@@ -22,11 +22,14 @@
   display: grid;
   gap: 3px;
 }
-.games-category-meta {
+.games-source-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  margin-left: auto;
+  max-width: 100%;
 }
 .games-category-header h3 {
   margin: 0;
@@ -42,10 +45,6 @@
   font-weight: var(--type-weight-bold);
   letter-spacing: 0.12em;
 }
-.games-category-note {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-}
 .games-category-wheel {
   border-color: #e8d8e2;
   background: #fffbfd;
@@ -53,53 +52,15 @@
 .games-category-wheel .games-category-kicker {
   color: #91516f;
 }
-.games-link-deck {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(300px, 1.5fr) auto;
-  gap: 18px;
-  align-items: end;
-  padding: 20px;
-  border: 1px solid #ddd9f3;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #f6f4ff, #fff 54%, #fff6e2);
-  box-shadow: 0 12px 30px rgba(46, 38, 92, 0.08);
-}
-.games-link-deck strong {
-  display: block;
-  margin: 3px 0 5px;
-  font-size: var(--type-size-card-title);
-}
-.games-link-deck p {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-}
-.games-link-label {
-  color: #6558b1;
-  font-size: var(--type-size-micro);
-  font-weight: var(--type-weight-bold);
-  letter-spacing: 0.12em;
-}
-.games-link-field {
-  display: grid;
-  gap: 6px;
-  font-size: var(--type-size-control);
-  font-weight: 700;
-}
-.games-link-field input {
+.games-source-url {
+  width: max-content;
+  max-width: 100%;
+  padding: 8px 12px;
   font-family: Consolas, monospace;
-}
-.games-link-actions {
-  display: flex;
-  gap: 8px;
-}
-.games-link-deck-wheel {
-  border-color: #ead5e1;
-  background: linear-gradient(135deg, #fff2f8, #fff 54%, #eef9fb);
-  box-shadow: 0 12px 30px rgba(92, 46, 73, 0.07);
-}
-.games-link-deck-wheel .games-link-label {
-  color: #91516f;
+  font-size: var(--type-size-control);
+  font-weight: 400;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 .games-catalog {
   display: grid;

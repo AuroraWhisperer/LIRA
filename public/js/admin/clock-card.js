@@ -136,8 +136,6 @@ function initClockCard() {
   }
   controller.subscribe((state) => {
     preview.dataset.clockStyle = state.draft.style;
-    document.getElementById('clockRecommendedSize').textContent = state.draft.style === 'timeline-vertical'
-      ? '推荐浏览器源：240 × 400' : '推荐浏览器源：580 × 210';
     const save = document.getElementById('clockSave');
     save.disabled = !state.loaded || !state.dirty || state.saving;
     save.textContent = state.saving ? '正在保存…' : '保存时钟设置';

@@ -9,22 +9,18 @@
   border-bottom: 1px solid var(--border);
 }
 .gift-wishes-heading > button {
-  margin-left: auto;
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 .gift-wish-periods {
   display: flex;
+  align-items: center;
+  flex: 0 0 auto;
   gap: var(--spacing-sm);
 }
-.gift-wish-periods button {
-  padding: var(--spacing-sm) var(--spacing-md);
-  color: var(--text);
-  background: var(--surface);
-  box-shadow: none;
-}
-.gift-wish-periods [aria-pressed='true'] {
-  background: var(--surface-2);
-  border-color: var(--color-primary-strong);
+.gift-wish-periods select:not(.lira-select-native),
+.gift-wish-periods .lira-select {
+  width: 160px;
 }
 .gift-wish-error {
   color: var(--color-danger);
@@ -331,23 +327,20 @@
 .gift-wish-empty {
   margin: 0;
 }
-.gift-wish-source {
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--border);
-}
-.gift-wish-source h4 {
-  margin: 0 0 var(--spacing-sm);
-}
 .gift-wish-source-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1 1 340px;
+  min-width: 0;
   gap: var(--spacing-sm);
   align-items: center;
 }
 .gift-wish-source-actions input {
-  min-width: 220px;
+  min-width: 160px;
   flex: 1;
+}
+.gift-wish-source-actions button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .gift-wish-source-actions a {
   color: var(--text);
@@ -433,8 +426,5 @@
   }
   .gift-wishes-heading {
     flex-wrap: wrap;
-  }
-  .gift-wish-periods button {
-    padding-inline: var(--spacing-sm);
   }
 }

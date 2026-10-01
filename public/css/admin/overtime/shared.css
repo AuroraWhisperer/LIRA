@@ -67,12 +67,18 @@
   justify-content: flex-end;
 }
 
+.overtime-time-editor,
+.overtime-screen-section {
+  grid-template-rows: auto 1fr auto;
+  align-items: start;
+}
+
 .overtime-manual-duration {
   grid-column: span 4;
 }
 .overtime-manual-duration > span {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 8px;
 }
 .overtime-manual-duration small {
@@ -85,8 +91,9 @@
 }
 .overtime-duration-selectors {
   display: grid;
-  grid-column: span 5;
+  grid-column: span 8;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 10px;
   min-width: 0;
   margin: 0;
@@ -101,8 +108,9 @@
   clip-path: inset(50%);
 }
 .overtime-time-editor > button {
-  grid-column: span 3;
+  grid-column: 1 / -1;
   align-self: end;
+  justify-self: end;
   font-weight: 700;
 }
 .overtime-admin-section label {
@@ -110,6 +118,10 @@
   gap: 6px;
   color: var(--muted);
   font-size: var(--type-size-control);
+}
+.overtime-time-editor label,
+.overtime-appearance-fields label {
+  align-content: start;
 }
 .overtime-admin-section input,
 .overtime-admin-section select {
@@ -132,7 +144,11 @@
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 12px;
 }
-#overtimeBackgroundSaveState { grid-column: 1 / -1; }
+#overtimeBackgroundSaveState {
+  flex-basis: 100%;
+  margin: 0;
+}
+#overtimeBackgroundSaveState:empty { display: none; }
 .overtime-settlement-row {
   display: grid;
   grid-template-columns: minmax(140px, 1fr) auto auto auto;

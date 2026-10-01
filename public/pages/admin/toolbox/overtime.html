@@ -32,12 +32,12 @@
         <div>
           <h3 class="ui-section-title">
             初始时长
-            <lira-help>可手动输入或选择时间；设置后倒计时会重置并暂停。</lira-help>
+            <lira-help>可输入「时:分」或选择时间；设置后倒计时会重置并暂停。</lira-help>
           </h3>
         </div>
       </div>
       <label class="overtime-manual-duration">
-        <span>手动输入 <lira-help>格式：时:分。</lira-help></span>
+        <span>手动输入</span>
         <input
           id="overtimeInitialTime"
           value="00:00"
@@ -66,7 +66,7 @@
     <section class="overtime-admin-section overtime-screen-section">
       <div class="overtime-section-heading">
         <div>
-          <h3>
+          <h3 class="ui-section-title">
             直播画面
             <lira-help>背景与前景独立；透明背景适合叠加到直播画面。</lira-help>
           </h3>
@@ -89,12 +89,12 @@
           </select>
         </label>
       </div>
-      <p id="overtimeBackgroundSaveState" role="status" aria-live="polite"></p>
       <div class="overtime-screen-actions">
+        <p id="overtimeBackgroundSaveState" role="status" aria-live="polite"></p>
         <button id="overtimeSaveBackgroundBtn" class="secondary" type="button">保存画面</button>
         <button id="overtimeOpenOverlayBtn" class="secondary" type="button">预览与调整</button>
         <button id="overtimeCopyOverlayBtn" type="button">复制地址</button>
-        <button id="overtimeDiscardBackgroundBtn" class="secondary" type="button" disabled>放弃未保存修改</button>
+        <button id="overtimeDiscardBackgroundBtn" class="secondary" type="button" disabled>放弃修改</button>
       </div>
     </section>
 

@@ -1,5 +1,5 @@
 .planner-event-dialog {
-  width: min(480px, calc(100% - 32px));
+  width: min(500px, calc(100% - 32px));
   max-height: calc(100% - 40px);
   padding: 24px;
   overflow-y: auto;
@@ -20,7 +20,7 @@
 .planner-event-dialog .planner-panel-heading {
   margin-bottom: 0;
 }
-.planner-event-dialog label:not(.planner-all-day),
+.planner-event-dialog label:not(.planner-check-label),
 .planner-event-types {
   display: grid;
   gap: 7px;
@@ -34,19 +34,64 @@
   font-size: var(--type-size-body);
 }
 .planner-event-dialog textarea {
+  min-height: 76px;
+  height: 76px;
+  max-height: 160px;
   resize: vertical;
+}
+.planner-event-schedule {
+  display: grid;
+  gap: 8px;
+}
+.planner-event-date-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 .planner-event-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 14px;
+  gap: 12px;
 }
-.planner-all-day {
+.planner-event-fields:has(.planner-event-time-field[hidden]) {
+  grid-template-columns: 1fr;
+}
+.planner-check-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: -5px;
   font-size: var(--type-size-control);
+}
+.planner-event-dialog :is(input[type='checkbox'], input[type='radio']) {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+.planner-event-reminder {
+  display: grid;
+  gap: 8px;
+  padding-block: 12px;
+  border-block: 1px solid var(--color-border-light);
+}
+.planner-event-dialog .planner-reminder-time-field {
+  grid-template-columns: auto minmax(0, 140px);
+  align-items: center;
+  gap: 12px;
+  padding-left: 24px;
+}
+.planner-reminder-hint {
+  margin: 0;
+  padding-left: 24px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 1.6;
+}
+.planner-field-optional {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
 }
 .planner-event-types {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -74,7 +119,8 @@
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 5px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-light);
 }
 .planner-dialog-actions button {
   min-height: 35px;

@@ -391,6 +391,103 @@
   white-space: pre-line;
 }
 
+.hardware-displays {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border);
+}
+
+.hardware-displays-head,
+.hardware-displays-head h5,
+.hardware-display-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.hardware-displays-head {
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
+}
+
+.hardware-displays-head h5 {
+  margin: 0;
+  font-size: var(--type-size-control);
+}
+
+.hardware-displays-head svg {
+  width: 22px;
+  height: 22px;
+  color: var(--muted);
+}
+
+.hardware-displays-head > span,
+.hardware-display-status,
+.hardware-display-values dt {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.hardware-display-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hardware-display-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md) var(--spacing-xl);
+  padding: var(--spacing-md);
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface));
+  border-radius: var(--radius-md);
+}
+
+.hardware-display-row + .hardware-display-row {
+  margin-top: var(--spacing-sm);
+}
+
+.hardware-display-primary {
+  padding: 2px var(--spacing-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: var(--type-size-micro);
+}
+
+.hardware-display-identity {
+  flex: 1 1 140px;
+}
+
+.hardware-display-values {
+  display: flex;
+  flex: 2 1 400px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md) var(--spacing-xl);
+  margin: 0;
+}
+
+.hardware-display-values dt {
+  margin-bottom: var(--spacing-xs);
+}
+
+.hardware-display-values dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: var(--type-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.hardware-display-resolution dd {
+  font-size: var(--type-size-metric-md);
+  font-weight: var(--type-weight-bold);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hardware-card {
     transition: none;

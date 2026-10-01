@@ -39,5 +39,5 @@ export function createComponentPreviewClient({ onConfig, onData, onDispose }) {
   window.addEventListener('message', receive);
   window.addEventListener('pagehide', dispose, { once: true });
   send('ready');
-  return { edit: (change) => send('edit', { change }), dispose };
+  return { edit: (change) => send('edit', { change }), resize: (size) => send('resize', { size }), dispose };
 }

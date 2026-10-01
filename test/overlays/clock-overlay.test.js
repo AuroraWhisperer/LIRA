@@ -164,7 +164,6 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.doesNotMatch(panel, /ui-page-(?:title|subtitle)|other-feature-page-header/);
   for (const id of [
     'clockPreview',
-    'clockRecommendedSize',
     'clockFixedUrl',
     'clockShowDate',
     'clockShowSeconds',
@@ -177,6 +176,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
     assert.match(panel, new RegExp(`id="${id}"`));
   }
   assert.doesNotMatch(panel, /clockCustomUrl|clockCopyCustom|带参数网址/);
+  assert.doesNotMatch(panel + script, /clockRecommendedSize|推荐浏览器源/);
   assert.match(panel, /id="clockPreviewTitle"[^>]*>实时预览<\/h3>/);
   assert.match(panel, /id="clockFixedTitle"[^>]*>萌时钟网址<\/h3>/);
   assert.match(panel, /id="clockParametersTitle"[^>]*>自定义设置<\/h3>/);
@@ -197,7 +197,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(panel, /is-timeline-horizontal/);
   assert.match(panel, /is-timeline-vertical/);
   assert.match(panel, /clockCustomLabelHelp/);
-  assert.match(styles, /grid-template-columns:\s*minmax\(360px,\s*1\.15fr\)\s+minmax\(320px,\s*0?\.85fr\)/);
+  assert.match(styles, /grid-template-columns:\s*minmax\(240px,\s*280px\)\s+minmax\(0,\s*1fr\)/);
   assert.match(styles, /container: clock-settings \/ inline-size/);
   assert.match(styles, /@container clock-settings \(max-width:\s*704px\)/);
   assert.match(script, /params\.set\('style'/);

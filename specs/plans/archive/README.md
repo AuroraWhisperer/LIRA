@@ -6,6 +6,9 @@
 
 ## 文件索引
 
+- [2026-10-01-release-5.0.13-validation](2026-10-01-release-5.0.13-validation.md)
+- [2026-10-01-planner-reminders](2026-10-01-planner-reminders.md)
+- [2026-10-01-performance-displays](2026-10-01-performance-displays.md)
 - [2026-09-30-release-5.0.12-validation](2026-09-30-release-5.0.12-validation.md)
 - [2026-09-30-component-source-directory](2026-09-30-component-source-directory.md)
 - [2026-09-30-canvas-library-output](2026-09-30-canvas-library-output.md)

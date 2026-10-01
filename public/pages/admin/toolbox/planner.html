@@ -182,11 +182,27 @@
         <label
           >日程名称<input id="plannerEventTitle" type="text" maxlength="80" required placeholder="日程名称"
         /></label>
-        <div class="planner-event-fields">
-          <label>日期<input id="plannerEventDate" type="date" min="0001-01-01" max="9999-12-31" required /></label>
-          <label>时间<input id="plannerEventTime" type="time" /></label>
+        <div class="planner-event-schedule">
+          <div class="planner-event-date-heading">
+            <label for="plannerEventDate">日期</label>
+            <label class="planner-check-label"><input id="plannerEventAllDay" type="checkbox" />全天</label>
+          </div>
+          <div class="planner-event-fields">
+            <input id="plannerEventDate" type="date" min="0001-01-01" max="9999-12-31" required />
+            <label id="plannerEventTimeField" class="planner-event-time-field">
+              <span class="planner-sr-only">时间</span><input id="plannerEventTime" type="time" required aria-label="日程时间" />
+            </label>
+          </div>
         </div>
-        <label class="planner-all-day"><input id="plannerEventAllDay" type="checkbox" />全天</label>
+        <div class="planner-event-reminder">
+          <label class="planner-check-label">
+            <input id="plannerEventReminder" type="checkbox" aria-describedby="plannerEventReminderHint" />系统通知提醒
+          </label>
+          <label id="plannerEventReminderTimeField" class="planner-reminder-time-field" hidden>
+            提醒时间<input id="plannerEventReminderTime" type="time" value="09:00" />
+          </label>
+          <p id="plannerEventReminderHint" class="planner-reminder-hint" aria-live="polite">到点通过系统通知提醒，LIRA 需保持运行。</p>
+        </div>
         <fieldset class="planner-event-types">
           <legend>分类</legend>
           <label class="event-live"><input type="radio" name="plannerEventType" value="live" checked />直播</label>
@@ -194,7 +210,7 @@
           <label class="event-personal"><input type="radio" name="plannerEventType" value="personal" />个人</label>
         </fieldset>
         <label
-          >备注<textarea id="plannerEventDetail" maxlength="500" rows="3" placeholder="备注（选填）"></textarea>
+          ><span>备注 <span class="planner-field-optional">选填</span></span><textarea id="plannerEventDetail" maxlength="500" rows="3" placeholder="补充日程内容…"></textarea>
         </label>
         <p id="plannerEventError" class="planner-form-error" role="alert" hidden></p>
         <div class="planner-dialog-actions">

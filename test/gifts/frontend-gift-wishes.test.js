@@ -82,7 +82,7 @@ async function openOverlay(t, period, missingAbortMethods, display = {}) {
   await page.setContent('<main id="giftWishStage"></main><p id="giftWishOverlayStatus" hidden></p>');
   await page.evaluate(
     async ({ period, missingAbortMethods, display }) => {
-      history.replaceState(null, '', `/gift-wishes?period=${period}`);
+      history.replaceState(null, '', period ? `/gift-wishes?period=${period}` : '/gift-wishes');
       for (const method of missingAbortMethods) delete AbortSignal[method];
       window.wishData = {
         viewRevision: 'one',
@@ -145,6 +145,30 @@ for (const missingAbortMethods of [['any'], ['any', 'timeout']]) {
     });
   }
 }
+
+test('unified wish source displays all periods and refreshes them together', async (t) => {
+  const page = await openOverlay(t, null, ['any', 'timeout']);
+  assert.equal(await page.title(), '礼物许愿 · LIRA');
+  assert.deepEqual(await page.locator('.wish-card').evaluateAll((cards) => cards.map((card) => card.dataset.wishId)),
+    ['long', 'day', 'session']);
+  await page.evaluate(() => {
+    for (const wish of window.wishData.items) Object.assign(wish, { count: 10, progress: 100, completed: true });
+    window.wishData.session.state = 'offline';
+    window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+  });
+  await page.waitForFunction(() => document.querySelectorAll('.wish-card.is-complete').length === 3);
+  assert.deepEqual(await page.locator('.wish-card-count').allTextContents(), ['10', '10', '10']);
+  assert.equal(await page.locator('.wish-card').count(), 3);
+  assert.equal(await page.locator('#giftWishOverlayStatus').textContent(), '还未开播，等待本场心愿开始。');
+  assert.equal(await page.locator('#giftWishOverlayStatus').isHidden(), true);
+  assert.equal(await page.evaluate(() => window.wishRequests), 2);
+  await page.evaluate(() => {
+    window.wishData.items = [];
+    window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+  });
+  await page.waitForFunction(() => document.querySelectorAll('.wish-card').length === 0);
+  assert.equal(await page.locator('#giftWishOverlayStatus').textContent(), '还没有礼物许愿，请在礼物姬中添加。');
+});
 
 for (const cancellation of ['timeout', 'pagehide']) {
   test(`wish overlay ${cancellation} aborts a pending response body without modern AbortSignal methods`, async (t) => {
@@ -221,11 +245,21 @@ test('choose room or cached gifts, enforce integer targets, edit without resetti
   assert.equal(await page.locator('#giftWishCards .wish-card').count(), 0);
 });
 
-test('period changes update browser-source URLs and source changes discard an in-progress edit', async (t) => {
+test('period selection keeps the unified browser-source URL and source changes discard an in-progress edit', async (t) => {
   const page = await open(t);
-  for (const period of ['day', 'session', 'long']) {
-    await page.locator(`[data-wish-period=${period}]`).click();
-    assert.match(await page.locator('#giftWishUrl').inputValue(), new RegExp(`period=${period}$`));
+  await page.evaluate(async () => {
+    const { enhanceSelects } = await import('/js/shared/select-menu.js');
+    enhanceSelects();
+  });
+  const url = await page.locator('#giftWishUrl').inputValue();
+  assert.match(url, /\/gift-wishes$/);
+  for (const [period, label] of [['day', '本日许愿'], ['session', '本场直播许愿'], ['long', '长效许愿']]) {
+    await page.getByRole('button', { name: '许愿统计周期', exact: true }).click();
+    await page.getByRole('option', { name: label, exact: true }).click();
+    assert.equal(await page.locator('#giftWishPeriod').inputValue(), period);
+    assert.equal(await page.locator('#giftWishDraftPreview .wish-card').getAttribute('aria-label'), `${label} · 礼物`);
+    assert.equal(await page.locator('#giftWishUrl').inputValue(), url);
+    assert.equal(await page.locator('#giftWishPreview').getAttribute('href'), `${url}?preview=1`);
   }
   await page.locator('#giftWishPick').click();
   await page.locator('.gift-wish-option').click();
@@ -554,7 +588,7 @@ test('wish text chips insert, delete and restore as a whole through native undo 
   assert.equal(await page.locator('#giftWishDraftPreview .wish-card-text').textContent(), '许愿礼物（0/10）\n谢谢大家');
   await editor.press('Control+z');
   assert.equal((await value()).includes('谢谢大家'), false);
-  await page.locator('[data-wish-period=day]').click();
+  await page.getByRole('combobox', { name: '许愿统计周期' }).selectOption('day');
   await page.getByRole('radio', { name: '文字版', exact: true }).check();
   await editor.press('Control+z');
   assert.equal(await value(), original);

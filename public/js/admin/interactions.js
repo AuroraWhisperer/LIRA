@@ -1,4 +1,4 @@
-import { api, copyText, localOverlayOrigin, showError } from '../shared/utils.js';
+import { api, copyText, localOverlayOrigin, showError, toast } from '../shared/utils.js';
 import { eventBus } from '../shared/event-bus.js';
 import {
   inspectInteractionText,
@@ -41,14 +41,11 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
     },
   });
   const url = `${localOverlayOrigin()}/interactions`;
-  get('interactionsUrl').value = url;
-  get('interactionsCopy').addEventListener('click', () => copyText(url));
+  get('interactionsUrl').textContent = url;
+  get('interactionsUrl').addEventListener('click', () =>
+    copyText(url).then(() => toast('互动网页地址已复制')).catch(showError),
+  );
   get('interactionsOpen').addEventListener('click', () => window.open(url, '_blank', 'noopener'));
-  get('interactionsSourceToggle').addEventListener('click', () => {
-    const source = get('interactionsSource');
-    source.hidden = !source.hidden;
-    get('interactionsSourceToggle').setAttribute('aria-expanded', String(!source.hidden));
-  });
   get('pollRule').textContent = POLL_RULE;
   get('ratingRule').textContent = RATING_RULE;
 

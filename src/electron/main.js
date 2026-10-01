@@ -9,6 +9,7 @@ const {
   dialog,
   ipcMain,
   Menu,
+  Notification,
   protocol,
   safeStorage,
   session,
@@ -23,6 +24,8 @@ const { createFanProfileController, fanScopeFor } = require('./fan-profile-contr
 const { registerFanProfileIpc } = require('./ipc/fan-profile-ipc');
 const { fetchGuardRoster } = require('../bilibili/guard-roster');
 const { createDailyBotController } = require('./daily-bot-controller');
+const { createPlannerReminderController } = require('./planner-reminder-controller');
+const { registerPlannerReminderIpc } = require('./ipc/planner-reminder-ipc');
 const { registerDailyBotIpc } = require('./ipc/daily-bot-ipc');
 const { createRemoteGiftController } = require('./remote-gift-controller');
 const { createSceneCloudController, getSceneOwner } = require('./scene-cloud-controller');
@@ -129,6 +132,8 @@ var disposeGiftExportIpc = null;
 var fanProfileController = null;
 var disposeFanProfileIpc = null;
 var disposeDailyBotIpc = null;
+var plannerReminderController = null;
+var disposePlannerReminderIpc = null;
 const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 
 // ---- app lifecycle ----
@@ -268,6 +273,8 @@ function requestDesktopShutdown({ restart = false } = {}) {
       disposeGiftExportIpc?.();
       disposeFanProfileIpc?.();
       disposeDailyBotIpc?.();
+      disposePlannerReminderIpc?.();
+      plannerReminderController?.dispose();
       dynamicLotteryAuth?.dispose();
       const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth].filter(
         Boolean,
@@ -297,6 +304,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
 
 async function startDesktopApp() {
   configureDesktopEnvironment();
+  if (process.platform === 'win32') app.setAppUserModelId('com.aurorawhisperer.lira');
   writeLog('user-data-migration', userDataMigrationState.migration);
   const startupStartedAt = Date.now();
   startupTiming.startedAt = startupStartedAt;
@@ -306,6 +314,19 @@ async function startDesktopApp() {
   logStartupPhase('partition-migration', phaseStartedAt);
   configureMenu();
   configureLocalMediaProtocol();
+  plannerReminderController = createPlannerReminderController({
+    Notification,
+    powerMonitor,
+    getMainWindow: () => windowState.main,
+    icon: path.join(ROOT_DIR, 'build', 'icon.png'),
+    writeLog,
+  });
+  disposePlannerReminderIpc = registerPlannerReminderIpc({
+    ipcMain,
+    controller: plannerReminderController,
+    getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => windowState.baseUrl,
+  });
   registerUpdateIpc({
     ipcMain,
     app,

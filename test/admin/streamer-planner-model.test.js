@@ -9,7 +9,7 @@ function loadModel() {
   const source = readJsModuleBundle('public', 'js', 'admin', 'streamer-planner-model.js');
   const sandbox = { console, crypto: { randomUUID: () => 'generated-id' } };
   vm.runInNewContext(
-    `${source}\nthis.model = { STORAGE_KEY, PREVIOUS_STORAGE_KEY, LEGACY_STORAGE_KEY, STAGES, NOTE_LABELS, NOTE_STAGE, EVENT_LABELS, createItemId, toDateValue, getCalendarDays, shiftMonth, normalizeEvent, normalizeTask, normalizeTasks, normalizeNote, createDefaultState, normalizeState };`,
+    `${source}\nthis.model = { STORAGE_KEY, PREVIOUS_STORAGE_KEY, LEGACY_STORAGE_KEY, STAGES, NOTE_LABELS, NOTE_STAGE, EVENT_LABELS, createItemId, toDateValue, getCalendarDays, shiftMonth, normalizeEvent, getEventReminderTimestamp, normalizeTask, normalizeTasks, normalizeNote, createDefaultState, normalizeState };`,
     sandbox,
   );
   return sandbox.model;
@@ -20,6 +20,24 @@ function plain(value) {
 }
 
 const model = loadModel();
+
+test('old events keep reminders off; timed reminders follow the event and all-day reminders use their own time', () => {
+  const original = { id: 'event-1', title: '学歌', date: '2026-10-02', time: '20:00' };
+  const old = model.normalizeEvent(original);
+  assert.equal(old.reminderTime, '');
+  assert.equal(model.getEventReminderTimestamp(old), null);
+  const timed = model.normalizeEvent({ ...original, reminderTime: '09:00' });
+  assert.equal(timed.reminderTime, '20:00');
+  assert.equal(model.getEventReminderTimestamp(timed), new Date('2026-10-02T20:00:00').getTime());
+  const rescheduled = model.normalizeEvent({ ...timed, time: '21:00' });
+  assert.equal(rescheduled.reminderTime, '21:00');
+  const allDay = model.normalizeEvent({ ...original, time: '', reminderTime: '09:30' });
+  assert.equal(allDay.reminderTime, '09:30');
+  assert.equal(model.getEventReminderTimestamp(allDay), new Date('2026-10-02T09:30:00').getTime());
+  assert.equal(model.normalizeEvent({ ...original, reminderTime: '24:00' }), null);
+  const restored = model.normalizeState({ version: 3, events: [allDay] });
+  assert.equal(restored.events[0].reminderTime, '09:30');
+});
 
 test('exports v3 storage names and creates an empty default account', () => {
   assert.equal(model.STORAGE_KEY, 'admin.streamerWorkbench.v3');

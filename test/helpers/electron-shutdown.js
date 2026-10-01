@@ -71,6 +71,7 @@ function createShutdownHarness(options = {}) {
     },
     getName: () => 'LIRA',
     setName() {},
+    setAppUserModelId() {},
     getVersion: () => '0.0.0-test',
     requestSingleInstanceLock() {
       storageCalls.push({ type: 'lock' });
@@ -280,6 +281,12 @@ function createShutdownHarness(options = {}) {
     },
     './daily-bot-controller': {
       createDailyBotController: () => ({ dispose: () => calls.push('daily-bot:dispose') }),
+    },
+    './planner-reminder-controller': {
+      createPlannerReminderController: () => ({ dispose: () => calls.push('planner-reminder:dispose') }),
+    },
+    './ipc/planner-reminder-ipc': {
+      registerPlannerReminderIpc: () => () => calls.push('planner-reminder:remove-ipc'),
     },
     './ipc/daily-bot-ipc': {
       registerDailyBotIpc:

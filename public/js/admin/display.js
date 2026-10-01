@@ -183,9 +183,7 @@ export const display = (() => {
     document.getElementById('liveWheelUrl').textContent = `${origin}/wheel`;
     document.getElementById('liveInteractionsUrl').textContent = `${origin}/interactions`;
     document.getElementById('liveGiftFeedUrl').textContent = `${origin}/gift-feed`;
-    document.getElementById('liveGiftWishLongUrl').textContent = `${origin}/gift-wishes?period=long`;
-    document.getElementById('liveGiftWishDayUrl').textContent = `${origin}/gift-wishes?period=day`;
-    document.getElementById('liveGiftWishSessionUrl').textContent = `${origin}/gift-wishes?period=session`;
+    document.getElementById('liveGiftWishUrl').textContent = `${origin}/gift-wishes`;
     document.getElementById('liveOvertimeUrl').textContent = `${origin}/overtime`;
     document.getElementById('liveGiftEffectsUrl').textContent = `${origin}/gift-effects`;
     document.getElementById('liveOpeningUrl').textContent = `${origin}/opening`;

@@ -9,7 +9,7 @@ const ROOT_DIR = path.join(__dirname, '../..');
 
 test('games admin groups shared games and the independent wheel', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'games.html'), 'utf8');
-  const linkPosition = html.indexOf('class="games-link-deck"');
+  const linkPosition = html.indexOf('id="gamesOverlayUrl"');
   const sessionPosition = html.indexOf('id="gamesSessionStatus"');
   const catalogPosition = html.indexOf('class="games-catalog"');
   const bombPosition = html.indexOf('data-game-card="number-bomb"');
@@ -18,7 +18,7 @@ test('games admin groups shared games and the independent wheel', () => {
   const wheelPosition = html.indexOf('data-wheel-card');
   const drawPosition = html.indexOf('data-game-card="draw-guess"');
 
-  assert.ok(linkPosition >= 0, 'the overlay link section should be present');
+  assert.ok(linkPosition >= 0, 'the overlay link should be present');
   assert.ok(sessionPosition > linkPosition, 'current session should follow the overlay link');
   assert.ok(catalogPosition > sessionPosition, 'game cards should follow the current session');
   assert.ok(bombPosition > catalogPosition, 'game one should be inside the catalog');
@@ -27,11 +27,19 @@ test('games admin groups shared games and the independent wheel', () => {
   assert.ok(wheelCategoryPosition > drawPosition, 'the independent wheel should follow the shared games');
   assert.ok(wheelPosition > wheelCategoryPosition, 'the wheel card should be inside category two');
   assert.match(html, /id="gamesOverlayUrl"/);
-  assert.match(html, /id="gamesCopyBaseUrlBtn"/);
   assert.match(html, /类别 1/);
   assert.match(html, /类别 2/);
   assert.match(html, /id="wheelOverlayUrl"/);
-  assert.match(html, /id="wheelCopyUrlBtn"/);
+  const headers = [...html.matchAll(/<header class="games-category-header">([\s\S]*?)<\/header>/g)];
+  assert.equal(headers.length, 3);
+  for (const [index, id] of ['gamesOverlayUrl', 'wheelOverlayUrl', 'interactionsUrl'].entries()) {
+    assert.match(headers[index][1], new RegExp(`<button\\s+id="${id}"[^>]*class="games-source-url"[^>]*type="button"`));
+    assert.doesNotMatch(headers[index][1], /\bhidden\b/);
+    assert.match(headers[index][1], /class="games-source-actions"/);
+    assert.match(headers[index][1], />打开预览<\/button>/);
+  }
+  assert.doesNotMatch(html, /gamesCopyBaseUrlBtn|wheelCopyUrlBtn|interactionsCopy|interactionsSourceToggle/);
+  assert.doesNotMatch(html, /games-link-deck|interaction-source|打开网页|三款游戏共用一个直播画面/);
   assert.match(html, /开始数字炸弹/);
   assert.match(html, /开始五子棋/);
   assert.match(html, /开始你画我猜/);
@@ -59,7 +67,8 @@ test('games admin groups shared games and the independent wheel', () => {
 test('games admin uses the restored single-column card layout', () => {
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'toolbox', 'games.css'), 'utf8');
 
-  assert.match(styles, /\.games-link-deck\s*\{/);
+  assert.match(styles, /\.games-source-url\s*\{[^}]*width:\s*max-content;/);
+  assert.match(styles, /\.games-source-actions\s*\{[^}]*margin-left:\s*auto;/);
   assert.match(styles, /\.games-catalog\s*\{\s*display:\s*grid;\s*gap:\s*16px;/);
   assert.match(styles, /\.game-admin-card\s*\{[^}]*grid-template-columns:\s*210px/);
   assert.doesNotMatch(styles, /\.games-catalog\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
@@ -111,7 +120,7 @@ test('admin game styles keep shared, wheel, draw, and responsive ownership', () 
 test('games admin uses one base URL and never opens a game-specific URL', () => {
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
   assert.doesNotMatch(script, /data-copy-game|overlayUrl\(game\)/);
-  assert.match(script, /gamesCopyBaseUrlBtn/);
+  assert.match(script, /byId\('gamesOverlayUrl'\)\.addEventListener\('click', \(\) => copyUrl\(overlayBaseUrl\(\)\)/);
   assert.match(script, /button\.disabled = Boolean\(session\)/);
   assert.match(script, /card\.classList\.toggle\(\s*["']is-running["']/);
   assert.match(script, /api\/games\/host-state/);

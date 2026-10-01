@@ -2,6 +2,11 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('plannerReminders', {
+  getState: () => ipcRenderer.invoke('planner-reminders:get-state'),
+  sync: (reminders) => ipcRenderer.invoke('planner-reminders:sync', reminders),
+});
+
 contextBridge.exposeInMainWorld('dailyBots', {
   invoke: (request) => ipcRenderer.invoke('daily-bots:invoke', request),
 });

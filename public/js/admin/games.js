@@ -21,8 +21,8 @@ const VIEWER_REFRESH_RETRY_DELAYS_MS = [250, 500, 1000, 2000];
 export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
   initialized = true;
-  byId('gamesOverlayUrl').value = overlayBaseUrl();
-  byId('gamesCopyBaseUrlBtn').addEventListener('click', () => copyUrl(overlayBaseUrl()));
+  byId('gamesOverlayUrl').textContent = overlayBaseUrl();
+  byId('gamesOverlayUrl').addEventListener('click', () => copyUrl(overlayBaseUrl()).catch(showError));
   byId('gamesOpenOverlayBtn').addEventListener('click', () => window.open(overlayBaseUrl(), '_blank', 'noopener'));
   byId('gamesRefreshViewersBtn').addEventListener('click', () => {
     requestViewerRefresh({ notify: true }).catch(showError);

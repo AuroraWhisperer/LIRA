@@ -116,10 +116,6 @@ async function initializeApp() {
     await waitForServerOverlayUrlInitialization();
     return prepareComponentPreviewCanvas(getComponentPreviews());
   });
-  document.getElementById('liveCanvasOpen')?.addEventListener('click', async () => {
-    const { openComponentPreview } = await import('./component-preview-dialog.js');
-    openComponentPreview();
-  });
   display.initDisplayForm();
   display.initOverlayUrls();
   desktopLyric.initDesktopLyricForm();

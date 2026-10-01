@@ -64,6 +64,7 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
         } }));
       window.previewOptions = { id: component, controller: window.controller,
         startActualData: component === 'overtime' ? (emit) => {
+          window.emitOvertime = emit;
           emit({ revision: 1, status: 'paused', effectiveRemainingMs: 60000, serverNowMs: Date.now(), rules: [] });
           return () => {};
         } : undefined };
@@ -82,8 +83,19 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
     assert.equal(await page.evaluate(() => Boolean(window.liraLicense || window.__API_TOKEN__)), false);
     const dimensions = page.locator('.scene-editor-item-label');
-    const initialSize = { clock: '580 × 210 px', queue: '480 × 800 px', danmaku: '560 × 600 px', overtime: '640 × 480 px' };
-    assert.ok((await dimensions.textContent()).endsWith(initialSize[component]));
+    const initialSize = { clock: '580 × 210 px', queue: '480 × 800 px', danmaku: '560 × 600 px' };
+    let overtimeHeight;
+    let overtimeFont;
+    if (component === 'overtime') {
+      const foreground = page.frameLocator('.component-preview-frame').locator('.overtime-foreground');
+      overtimeHeight = await foreground.evaluate(node => Math.ceil(node.getBoundingClientRect().height));
+      await page.waitForFunction(height => document.querySelector('.scene-editor-item-label').textContent.endsWith(`520 × ${height} px`), overtimeHeight);
+      assert.ok(overtimeHeight < 220, 'a clock without gift rules should have a compact frame');
+      overtimeFont = await page.frameLocator('.component-preview-frame').locator('#overtimeClock').evaluate(node => getComputedStyle(node).fontSize);
+      assert.equal(await page.getByRole('spinbutton', { name: '高度（自动）' }).getAttribute('readonly'), '');
+      assert.equal(await page.locator('.component-preview-frame').evaluate(node => getComputedStyle(node).colorScheme), 'normal');
+      assert.equal(await dimensions.evaluate(node => node.getBoundingClientRect().bottom <= node.closest('.scene-editor-item').getBoundingClientRect().top), true);
+    } else assert.ok((await dimensions.textContent()).endsWith(initialSize[component]));
     assert.equal(await dimensions.isVisible(), true);
     const labelHeight = await dimensions.evaluate(node => node.getBoundingClientRect().height);
     await page.getByRole('button', { name: '画布设置', exact: true }).click();
@@ -97,6 +109,25 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     if (component === 'overtime') await page.locator('[data-preview-field="overtimeBackgroundFit"]').selectOption(expected, { force: true });
     await desktop.waitForFunction(({ key, expected }) => window.controller.getState().draft[key] === expected, { key, expected });
     assert.equal(await desktop.evaluate(() => window.writes.length), 0);
+    if (component === 'overtime') {
+      await page.getByRole('button', { name: '锁定', exact: true }).click();
+      await desktop.evaluate(() => window.emitOvertime({ revision: 2, status: 'paused', effectiveRemainingMs: 60000,
+        serverNowMs: Date.now(), rules: Array.from({ length: 4 }, (_, index) => ({ enabled: true,
+          giftId: String(index), giftName: `礼物 ${index}`, mode: 'fixed', fixedSeconds: 60 })) }));
+      const frame = page.frameLocator('.component-preview-frame');
+      await frame.locator('.overtime-ticket').nth(3).waitFor();
+      const expandedHeight = await frame.locator('.overtime-foreground').evaluate(node => Math.ceil(node.getBoundingClientRect().height));
+      assert.ok((await dimensions.textContent()).endsWith(`520 × ${overtimeHeight} px`), 'a locked layer should keep its geometry');
+      await page.getByRole('button', { name: '解锁', exact: true }).click();
+      await page.waitForFunction(height => document.querySelector('.scene-editor-item-label').textContent.endsWith(`520 × ${height} px`), expandedHeight);
+      assert.ok(expandedHeight > overtimeHeight, 'gift rules should expand the frame');
+      assert.equal(await frame.locator('#overtimeClock').evaluate(node => getComputedStyle(node).fontSize), overtimeFont);
+      await desktop.evaluate(() => window.emitOvertime({ revision: 3, status: 'paused', effectiveRemainingMs: 60000,
+        serverNowMs: Date.now(), rules: [] }));
+      await frame.locator('#overtimeGiftGuide').waitFor({ state: 'hidden' });
+      await page.waitForFunction(height => document.querySelector('.scene-editor-item-label').textContent.endsWith(`520 × ${height} px`), overtimeHeight);
+      assert.deepEqual(await desktop.evaluate(() => window.canvasController.getState().draft.document.canvas), { width: 1920, height: 1080 });
+    }
     if (component === 'danmaku') {
       assert.equal(await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).count(), 0);
       for (const [name, value] of [['宽度', '720'], ['高度', '240']]) {
@@ -249,7 +280,7 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   await page.getByRole('button', { name: '锁定', exact: true }).click();
   await page.getByRole('button', { name: '解锁', exact: true }).waitFor();
   assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).isDisabled(), true);
-  await page.getByRole('button', { name: '放弃未保存修改', exact: true }).click();
+  await page.getByRole('button', { name: '放弃修改', exact: true }).click();
   await page.getByRole('button', { name: '锁定', exact: true }).waitFor();
   assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).isEnabled(), true);
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('581');
@@ -257,7 +288,7 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   await page.getByRole('button', { name: '居中', exact: true }).click();
   assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).inputValue(), '670');
   assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).evaluate(input => input.checkValidity()), true);
-  await page.getByRole('button', { name: '放弃未保存修改', exact: true }).click();
+  await page.getByRole('button', { name: '放弃修改', exact: true }).click();
   const added = new Set(['clock', 'queue']);
   for (const id of ['danmaku', 'overtime', 'queue', 'clock', 'queue']) {
     await choose(id);
@@ -284,6 +315,21 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   await page.getByRole('option', { name: '2560 × 1440', exact: true }).click();
   for (const [name, value] of [['画布宽度', '2000'], ['画布高度', '1200']]) {
     await page.getByRole('spinbutton', { name, exact: true }).fill(value);
+    if (name === '画布宽度') {
+      const overtime = page.locator('.scene-editor-item[data-component="overtime"]');
+      const height = await overtime.evaluate(node => node.style.height);
+      const resized = await overtime.evaluate(async node => {
+        window.dispatchEvent(new MessageEvent('message', {
+          source: node.querySelector('iframe').contentWindow,
+          origin: 'null',
+          data: { type: 'component-preview:resize', size: { width: node.offsetWidth, height: node.offsetHeight + 31 } },
+        }));
+        await new Promise(requestAnimationFrame);
+        return node.style.height;
+      });
+      assert.notEqual(resized, height);
+      assert.equal(await page.getByRole('spinbutton', { name, exact: true }).inputValue(), value);
+    }
     await page.getByRole('spinbutton', { name, exact: true }).press('Tab');
   }
   assert.deepEqual(await page.locator('.scene-editor-canvas').evaluate(node => [node.offsetWidth, node.offsetHeight]), [2000, 1200]);

@@ -378,11 +378,14 @@ test('flip cells animate only changed values, settle on rollover and clean up on
     location: new URL('http://127.0.0.1:3000/clock?style=flip&date=1&seconds=1&format=24'),
   });
   const node = (id) => dom.document.getElementById(id);
-  const halves = (id) => node(id).children.map((half) => half.children[0].textContent);
+  const halves = (id) => node(id).children.filter((half) => half.children.length).map((half) => half.children[0].textContent);
+  const value = (id) => node(id).children.at(-1).textContent;
   assert.equal(dom.animations.length, 0, 'first frame must not flip from placeholder zeroes');
   assert.equal(node('clockHours').getAttribute('aria-label'), '23');
   assert.equal(node('clockSeconds').getAttribute('aria-label'), '58');
   assert.deepEqual(halves('clockSeconds').slice(0, 2), ['58', '58']);
+  assert.equal(value('clockSeconds'), '58');
+  assert.equal(node('clockSeconds').classList.contains('is-flipping'), false);
   assert.equal(node('clockDate').getAttribute('aria-label'), '9/29');
   function tick() { [...dom.timers.values()][0](); }
   now += 1000;
@@ -390,9 +393,12 @@ test('flip cells animate only changed values, settle on rollover and clean up on
   assert.equal(dom.animations.length, 2, 'seconds flip together as one two-digit cell');
   assert.equal(dom.animations[0].keyframes[1].transform, 'rotateX(-90deg)');
   assert.equal(dom.animations[1].options.delay, 240);
+  assert.equal(node('clockSeconds').classList.contains('is-flipping'), true);
   dom.animations[1].onfinish();
   assert.equal(dom.animations[0].cancelled, true);
   assert.deepEqual(halves('clockSeconds').slice(0, 2), ['59', '59']);
+  assert.equal(value('clockSeconds'), '59');
+  assert.equal(node('clockSeconds').classList.contains('is-flipping'), false);
   now += 1000;
   tick();
   assert.equal(dom.animations.length, 12, 'midnight changes all five cells');
@@ -402,10 +408,13 @@ test('flip cells animate only changed values, settle on rollover and clean up on
   for (const animation of dom.animations) animation.onfinish?.();
   assert.deepEqual(halves('clockHours').slice(0, 2), ['00', '00']);
   assert.deepEqual(halves('clockSeconds').slice(0, 2), ['00', '00']);
+  assert.equal(value('clockHours'), '00');
+  assert.equal(value('clockSeconds'), '00');
   dom.window.matchMedia = () => ({ matches: true });
   now += 1000;
   tick();
   assert.equal(dom.animations.length, 12, 'reduced motion still updates time without folding');
+  assert.equal(value('clockSeconds'), '01');
   const receive = (config) => dom.window.listeners.get('message')({
     source: dom.window.parent, origin: 'http://127.0.0.1:3000', data: { type: 'lira:clock-preview-config', config },
   });

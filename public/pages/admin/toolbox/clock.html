@@ -16,7 +16,6 @@
         <div class="clock-preview-canvas">
           <iframe sandbox="allow-scripts" id="clockPreview" title="萌时钟实时预览" loading="lazy"></iframe>
         </div>
-        <small id="clockRecommendedSize">推荐浏览器源：580 × 210</small>
       </section>
 
       <aside class="clock-settings-card" aria-label="萌时钟地址与设置">
@@ -82,21 +81,23 @@
 
           <fieldset id="clockFlipColors" class="clock-flip-colors" hidden>
             <legend>翻牌配色</legend>
-            <div class="clock-palette-options" role="group" aria-label="翻牌预设配色">
-              <button type="button" class="secondary" data-clock-palette="light" aria-pressed="true">经典白</button>
-              <button type="button" class="secondary" data-clock-palette="dark" aria-pressed="false">石墨黑</button>
-              <button type="button" class="secondary" data-clock-palette="lilac" aria-pressed="false">香芋紫</button>
-            </div>
-            <div class="clock-color-fields">
-              <label class="clock-form-field" for="clockFlipFrameColor">
-                <span>外框</span><input id="clockFlipFrameColor" type="color" value="#e4e4e4" />
-              </label>
-              <label class="clock-form-field" for="clockFlipFaceColor">
-                <span>牌面</span><input id="clockFlipFaceColor" type="color" value="#ffffff" />
-              </label>
-              <label class="clock-form-field" for="clockFlipTextColor">
-                <span>数字</span><input id="clockFlipTextColor" type="color" value="#303030" />
-              </label>
+            <div class="clock-flip-color-controls">
+              <div class="clock-palette-options" role="group" aria-label="翻牌预设配色">
+                <button type="button" class="secondary" data-clock-palette="light" aria-pressed="true">经典白</button>
+                <button type="button" class="secondary" data-clock-palette="dark" aria-pressed="false">石墨黑</button>
+                <button type="button" class="secondary" data-clock-palette="lilac" aria-pressed="false">香芋紫</button>
+              </div>
+              <div class="clock-color-fields">
+                <label class="clock-form-field" for="clockFlipFrameColor">
+                  <span>外框</span><input id="clockFlipFrameColor" type="color" value="#e4e4e4" />
+                </label>
+                <label class="clock-form-field" for="clockFlipFaceColor">
+                  <span>牌面</span><input id="clockFlipFaceColor" type="color" value="#ffffff" />
+                </label>
+                <label class="clock-form-field" for="clockFlipTextColor">
+                  <span>数字</span><input id="clockFlipTextColor" type="color" value="#303030" />
+                </label>
+              </div>
             </div>
           </fieldset>
 
@@ -113,18 +114,20 @@
             </label>
           </div>
 
-          <label class="clock-form-field" for="clockHourFormat">
-            <span>小时格式</span>
-            <select id="clockHourFormat">
-              <option value="24" selected>24 小时制</option>
-              <option value="12">12 小时制</option>
-            </select>
-          </label>
+          <div class="clock-detail-fields">
+            <label class="clock-form-field" for="clockHourFormat">
+              <span>小时格式</span>
+              <select id="clockHourFormat">
+                <option value="24" selected>24 小时制</option>
+                <option value="12">12 小时制</option>
+              </select>
+            </label>
 
-          <label class="clock-form-field" for="clockCustomLabel">
-            <span>角标文案 <small id="clockCustomLabelHelp">最多 16 个字</small></span>
-            <input id="clockCustomLabel" type="text" maxlength="16" value="今天也要闪闪发光" autocomplete="off" />
-          </label>
+            <label class="clock-form-field" for="clockCustomLabel">
+              <span>角标文案 <small id="clockCustomLabelHelp">最多 16 个字</small></span>
+              <input id="clockCustomLabel" type="text" maxlength="16" value="今天也要闪闪发光" autocomplete="off" />
+            </label>
+          </div>
         </section>
         <p id="clockSaveState" role="status" aria-live="polite"></p>
         <div class="row">

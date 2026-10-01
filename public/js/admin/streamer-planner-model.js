@@ -187,7 +187,8 @@ export function normalizeEvent(value, fallbackId = '') {
     .slice(0, 80);
   const date = String(value.date || '');
   const time = String(value.time || '');
-  if (!title || !isValidDateValue(date) || (time && !isValidTimeValue(time))) {
+  const reminderTime = String(value.reminderTime || '');
+  if (!title || !isValidDateValue(date) || (time && !isValidTimeValue(time)) || (reminderTime && !isValidTimeValue(reminderTime))) {
     return null;
   }
   return {
@@ -195,12 +196,17 @@ export function normalizeEvent(value, fallbackId = '') {
     title,
     date,
     time,
+    reminderTime: reminderTime ? time || reminderTime : '',
     type: EVENT_TYPES.includes(value.type) ? value.type : 'live',
     detail: String(value.detail || '')
       .trim()
       .slice(0, 500),
     createdAt: String(value.createdAt || new Date().toISOString()),
   };
+}
+
+export function getEventReminderTimestamp(event) {
+  return event.reminderTime ? new Date(`${event.date}T${event.reminderTime}:00`).getTime() : null;
 }
 
 export function createDefaultState() {

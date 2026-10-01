@@ -11,6 +11,7 @@
 | [main-window-ipc.js](../../../src/electron/ipc/main-window-ipc.js)：music、playback、bilibili、desktop 资源检查 | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [update-ipc.js](../../../src/electron/ipc/update-ipc.js)：其余 desktop | 必须 | 必须 | 上述路径加 `/license` |
 | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) | 必须 | 必须 | `/`、`/admin`、`/settings` |
+| [planner-reminder-ipc.js](../../../src/electron/ipc/planner-reminder-ipc.js) | 必须 | 必须 | 仅 `/admin` |
 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js)、[gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [dynamic-lottery-auth-ipc.js](../../../src/electron/ipc/dynamic-lottery-auth-ipc.js)、[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) | 必须 | 必须 | 不另检查路径，包含同 origin 的 `/license` |
 | [license-ipc.js](../../../src/electron/ipc/license-ipc.js)：overlay-filters GET/PUT、overlay-viewers GET | 必须 | 必须 | 不另检查路径 |
@@ -131,6 +132,8 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | 通道 | 桥方法与输入 | 返回 | handler / 直接消费者 |
 | --- | --- | --- | --- |
 | `daily-bots:invoke` | `dailyBots.invoke({action,contextId?,payload?})` | `{ok:true,contextId,accountName,...actionResult}`；失败 `{ok:false,error}` | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) / [danmaku-daily-bots.js](../../../public/js/admin/danmaku-daily-bots.js) |
+| `planner-reminders:get-state` | `plannerReminders.getState()` | `{ok:true,supported:boolean}` | [planner-reminder-ipc.js](../../../src/electron/ipc/planner-reminder-ipc.js) / [streamer-planner.js](../../../public/js/admin/streamer-planner.js) |
+| `planner-reminders:sync` | `plannerReminders.sync(reminders)` | 同上；失败 `{ok:false,error}` | 同上；定时与通知由 [planner-reminder-controller.js](../../../src/electron/planner-reminder-controller.js) 拥有 |
 | `fan-profiles:invoke` | `fanProfiles.invoke({action,contextId?,payload?})` | `{ok:true,contextId,data,syncStatus,roomId,accountName}`；失败见 §5 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js) / [fans/index.js](../../../public/js/admin/fans/index.js)、[automatic-update.js](../../../public/js/admin/fans/automatic-update.js) |
 | `gift-export:settings` | `giftExport.settings(options?)` | `{ok:true,data:{mode,background,directory,custom}}` | [gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) / [export-preview.js](../../../public/js/admin/gifts/export-preview.js) |
 | `gift-export:prepare` | `giftExport.prepare(selection)` | `{ok:true,data:ExportTask}` | 同上 |
@@ -140,6 +143,8 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `gift-export:open-folder` | `giftExport.openFolder(id)` → `{id}` | `{ok:true,data:{ok:true}}`，要求该任务已保存≥1张 | 同上 |
 
 礼物导出其他方法失败统一 `{ok:false,error}`，保留中文错误，否则“礼物导出失败，请重新打开预览。”；来源非法仍用 IPC_SOURCE_INVALID。参数与任务时序见 §6。
+
+日程提醒快照最多 1000 项，只接收 `{id,title,detail,remindAt}`：id 为非空且唯一的字符串（≤128 字符），title 非空（≤80 字符），detail 为字符串（≤500 字符），remindAt 为有效日期范围内的安全整数毫秒时间戳。额外字段或非法整批输入返回 `PLANNER_REMINDERS_INVALID`，参数个数错误返回 `IPC_ARGUMENTS_INVALID`，已释放的 controller 返回 `PLANNER_REMINDERS_STOPPED`。getState 不接收参数，sync 只接收一个快照参数。主进程原子替换快照，编辑/删除/取消均沿用 sync；新启动不补发过去日程，运行期间已排定但休眠错过的提醒在 resume 时补发一次。同一 id/时间在进程内不重复，通知点击恢复并聚焦主窗口。退出取消定时器与 resume 监听、关闭仍持有的通知；不持久化第二份日程，也不开放任意 toast XML、图标路径或通知 API。
 
 ## 3. 消息、订阅与播放持久化
 

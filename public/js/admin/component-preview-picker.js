@@ -13,18 +13,26 @@ export function mountComponentPreviewPicker({ components, source, add, report })
   const header = previewElement('header', 'preview-picker-heading');
   const title = previewElement('h2', '', '添加组件');
   title.id = 'componentPickerTitle';
-  const close = previewElement('button', 'secondary', '关闭');
+  const close = previewElement('button', 'secondary preview-picker-close');
   close.type = 'button';
+  close.setAttribute('aria-label', '关闭');
+  close.title = '关闭';
+  const closeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  closeIcon.setAttribute('viewBox', '0 0 20 20');
+  closeIcon.setAttribute('aria-hidden', 'true');
+  closeIcon.setAttribute('focusable', 'false');
+  const closePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  closePath.setAttribute('d', 'm5 5 10 10M15 5 5 15');
+  closeIcon.append(closePath);
+  close.append(closeIcon);
   close.addEventListener('click', () => dialog.close());
   header.append(title, close);
   const body = previewElement('div', 'preview-picker-body');
   const categories = previewElement('nav', 'preview-picker-categories');
   categories.setAttribute('aria-label', '组件分类');
   const content = previewElement('section', 'preview-picker-content');
-  const heading = previewElement('h3');
-  const hint = previewElement('p', 'hint', '选择一个样式加入画布，随后在右侧调整参数。');
   const styles = previewElement('div', 'preview-picker-styles');
-  content.append(heading, hint, styles);
+  content.append(styles);
   body.append(categories, content);
   dialog.append(header, body);
   document.body.append(dialog);
@@ -32,7 +40,7 @@ export function mountComponentPreviewPicker({ components, source, add, report })
 
   function show(component) {
     for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === component.id));
-    heading.textContent = component.title;
+    content.setAttribute('aria-label', `${component.title}样式`);
     styles.replaceChildren();
     const field = STYLE_FIELDS[component.id];
     const originals = field ? [...source.querySelectorAll(`[${field[0]}]`)] : [null];

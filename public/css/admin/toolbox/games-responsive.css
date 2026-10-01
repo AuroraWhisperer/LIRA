@@ -40,15 +40,6 @@
     justify-items: start;
   }
 }
-@media (max-width: 1050px) {
-  .games-link-deck {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-  .games-link-actions {
-    justify-content: flex-start;
-  }
-}
 @media (max-width: 760px) {
   .games-category {
     padding: 14px;
@@ -59,8 +50,8 @@
     flex-direction: column;
     gap: 5px;
   }
-  .games-category-meta {
-    justify-content: flex-start;
+  .games-source-actions {
+    align-self: flex-end;
   }
   .game-admin-card {
     grid-template-columns: 1fr;

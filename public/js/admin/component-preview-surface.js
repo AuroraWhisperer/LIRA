@@ -6,7 +6,7 @@ export function previewElement(tag, className, text) {
 }
 
 export function mountComponentPreview(host, { title, controller, url, projectConfig = (draft) => draft,
-  size, bounds, onEdit, dataLabel = '示例数据 · 不影响直播', dataModes, startData, onOpen, onClose }) {
+  size, bounds, onEdit, onResize, dataLabel = '示例数据 · 不影响直播', dataModes, startData, onOpen, onClose }) {
   onOpen?.();
   const display = previewElement('section', 'component-preview-display');
   const toolbar = previewElement('div', 'component-preview-toolbar');
@@ -113,6 +113,9 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
       beginData();
     } else if (event.data?.type === 'component-preview:edit' && controller.getState().loaded) {
       onEdit?.(event.data.change);
+    } else if (event.data?.type === 'component-preview:resize' && ready && controller.getState().loaded) {
+      const size = event.data.size;
+      if (Number.isFinite(size?.width) && size.width > 0 && Number.isFinite(size.height) && size.height > 0) onResize?.(size);
     } else if (event.data?.type === 'component-preview:status') {
       loadState.textContent = String(event.data.message || '预览加载失败，请关闭后重试。');
       loadState.hidden = false;

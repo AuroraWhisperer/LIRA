@@ -36,7 +36,7 @@
 
 管理接口沿用管理页鉴权，并由 main 当前授权的 Server origin 与 streamerId 决定归属。`document` 是展示文档；管理 DTO 为 `{document,revision,publishedVersion,hasPublication}`，普通读写不包含凭据。领域模型见 [场景规格](../../../specs/component-scenes.md)。
 
-客户端「点歌 → 浏览器源 → 统一直播画布」与网页画布共用同一绑定场景，显式复制时读取 `source`，不会自动保存或发布。复制前未应用时提示先打开统一预览并保存应用；账号/在线来源变化清空客户端已显示的地址。
+客户端「点歌 → 浏览器源 → 直播画布」与网页画布共用同一绑定场景，显式复制时读取 `source`，不会自动保存或发布。复制前未应用时提示先编辑画布并保存应用；账号/在线来源变化清空客户端已显示的地址。
 
 | 端点 | 输入 | 输出与行为 |
 | --- | --- | --- |
@@ -177,8 +177,10 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `GET /api/health` | 匿名可用；有效管理 Bearer/query token 可读 ready 诊断详情；可选 `X-Lira-Instance-Challenge` | 匿名 `{serviceId,phase}`；详情与实例证明见 [server-core.md](server-core.md) §2/§7 | 400（Host 不匹配） |
 | `GET /api/state`            | 无                                                                                                                                                                        | 管理身份返回全量状态，overlay 返回 §0.0 的本页投影；管理数据与 WS 快照 `state` 一致(见 [ws.md](ws.md) §2)                                                      | —                    |
 | `GET /api/system/metrics`   | 查询参数 `windowMs`(可选,默认 5000)                                                                                                                                       | `getSystemMetrics` 采样窗口内 CPU/内存/GPU 指标(见 [server-core.md](server-core.md) §8)                                       | —                    |
-| `GET /api/system/hardware`  | 查询参数 `includeTemperatures=true`(可选)                                                                                                                                 | 本机 CPU/物理 GPU/内存型号与容量（排除虚拟显示适配器）；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号                 | —                    |
+| `GET /api/system/hardware`  | 查询参数 `includeTemperatures=true`(可选)                                                                                                                                 | 本机 CPU/物理 GPU/内存型号与容量（排除虚拟显示适配器），以及当前显示器配置；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号                 | —                    |
 | `POST /api/system/shutdown` | body `{confirm: true}`(必须)                                                                                                                                              | `{shuttingDown: true}`,随后延迟 250ms 关闭服务                                                                                | 400 `缺少退出确认。` |
+
+硬件查询的 `displays` 为主屏优先的数组，元素为 `{name,primary,width,height,scalePercent,refreshRate}`；宽高是 Windows 当前显示模式的像素值，不是网页逻辑尺寸或屏幕最大支持分辨率。缩放百分比与刷新率（Hz）未知时为 `null`，Windows 默认频率标记 0/1 不作实际 Hz 展示。显示配置每次查询重新读取，CPU/GPU/内存型号仍缓存；不支持、读取失败或无可用显示器时返回 `displays:[]` 和 `displayMessage`，不阻断其他硬件信息。性能页打开和开始检测时查询，不后台轮询。
 
 行为文档:[server-core.md](server-core.md) §6(启动/关闭时序)。
 

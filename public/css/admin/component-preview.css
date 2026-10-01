@@ -79,4 +79,3 @@
   .component-preview-footer { flex-wrap: wrap; }
   .component-preview-footer p { flex-basis: 100%; }
 }
-.live-canvas-open { margin: 0 12px 12px; width: calc(100% - 24px); }

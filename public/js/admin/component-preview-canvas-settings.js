@@ -3,8 +3,7 @@ import { previewElement } from './component-preview-surface.js';
 import { resizeSceneCanvas } from './scene-document-model.js';
 
 export function mountPreviewCanvasSettings(host, { model, report }) {
-  host.append(previewElement('h3', '', '公共画布设置'),
-    previewElement('p', 'hint', '分辨率决定整张直播画面的大小，所有组件共用这一块画布。'));
+  host.append(previewElement('h3', '', '画布设置'));
   const label = previewElement('label', 'preview-canvas-preset', '分辨率预设');
   const presets = previewElement('select');
   presets.setAttribute('aria-label', '公共画布分辨率');
@@ -19,9 +18,10 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
   label.append(presets);
   const fields = previewElement('div', 'component-preview-fields');
   const inputs = {};
+  let renderedCanvas = null;
   function resize(canvas) {
     try { model.edit((document) => resizeSceneCanvas(document, canvas)); }
-    catch (error) { report(error.message); render(); }
+    catch (error) { report(error.message); render(true); }
   }
   for (const [key, text] of [['width', '画布宽度'], ['height', '画布高度']]) {
     const wrapper = previewElement('label', '', text);
@@ -30,7 +30,7 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
     inputs[key] = input;
     wrapper.append(input); fields.append(wrapper);
     input.addEventListener('change', () => {
-      if (!input.reportValidity()) { render(); return; }
+      if (!input.reportValidity()) { render(true); return; }
       resize({ ...model.getDocument().canvas, [key]: Number(input.value) });
     });
   }
@@ -39,12 +39,13 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
     const [width, height] = presets.value.split('x').map(Number);
     resize({ width, height });
   });
-  host.append(label, fields, previewElement('p', 'hint',
-    '同一比例切换分辨率时，组件的位置和大小等比例调整。改变画布比例时，保留组件尺寸并将它们收回画布内。'));
-  function render() {
+  host.append(label, fields);
+  function render(force = false) {
     const { width, height } = model.getDocument().canvas;
+    if (!force && renderedCanvas?.width === width && renderedCanvas?.height === height) return;
+    renderedCanvas = { width, height };
     inputs.width.value = String(width); inputs.height.value = String(height);
     presets.value = CANVAS_PRESETS.some(([w, h]) => w === width && h === height) ? `${width}x${height}` : 'custom';
   }
-  return { dispose: model.subscribe(render) };
+  return { dispose: model.subscribe(() => render()) };
 }

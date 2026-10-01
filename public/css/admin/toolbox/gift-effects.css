@@ -84,30 +84,31 @@
   padding: 20px 24px;
 }
 
+.gift-effect-control-card,
 .gift-effect-command-card {
-  border-left: 1px solid var(--border);
+  --type-size-section-title: var(--type-size-page-title);
+  padding: 16px 20px;
 }
 
-.gift-effect-command-card .gift-effect-card-heading {
-  max-width: 280px;
-  flex-wrap: wrap;
+.gift-effect-command-card {
+  border-left: 1px solid var(--border);
 }
 
 .gift-effect-command-help {
   margin: 12px 0 0;
   color: var(--muted);
   font-size: var(--type-size-caption);
-  line-height: 2.5;
+  line-height: 1.8;
 }
 
 .gift-effect-command-help code {
   display: inline-block;
-  margin: 4px 8px 4px 0;
-  padding: 4px 8px;
+  margin: 0 4px 0 0;
+  padding: 2px 6px;
   border-radius: 6px;
   background: var(--surface-2);
   color: var(--text);
-  line-height: 1.7;
+  line-height: 1.5;
   white-space: nowrap;
 }
 
@@ -139,7 +140,7 @@
 }
 
 .gift-effect-lookup-form {
-  margin-top: 20px;
+  margin-top: 12px;
 }
 
 .gift-effect-field-heading,

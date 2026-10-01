@@ -14,7 +14,7 @@ const STORAGE_KEY = 'admin.streamerWorkbench.v3';
 const PREVIOUS_STORAGE_KEY = 'admin.streamerWorkbench.v2';
 const LEGACY_STORAGE_KEY = 'admin.streamerPlanner.v1';
 
-function loadTodo(stored = new Map(), storageOverrides = {}) {
+function loadTodo(stored = new Map(), storageOverrides = {}, plannerReminders) {
   let nextId = 0;
   const sandbox = {
     console,
@@ -22,6 +22,7 @@ function loadTodo(stored = new Map(), storageOverrides = {}) {
     document: { getElementById: () => null },
     window: {
       AdminApp: {},
+      plannerReminders,
       localStorage: {
         getItem: (key) => stored.get(key) ?? null,
         setItem: (key, value) => stored.set(key, value),
@@ -267,4 +268,38 @@ test('workbench remains initialized through the existing admin entry', () => {
   const read = (file) => fs.readFileSync(path.join(ROOT_DIR, file), 'utf8');
   assert.match(read('public/js/admin/app.js'), /import \{ todo \} from ["']\.\/streamer-planner\.js["'];/);
   assert.match(read('public/js/admin/app.js'), /todo\.init\(\)/);
+});
+
+test('successfully saved events synchronize native reminders, reschedules and cancellations without duplicate calls', async () => {
+  const calls = [];
+  const bridge = { sync: async (value) => { calls.push(value); return { ok: true, supported: true }; } };
+  const { todo, stored } = loadTodo(new Map(), {}, bridge);
+  const event = todo.addEvent({ title: '学歌', date: '2026-10-02', time: '20:00', reminderTime: '20:00' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0].remindAt, new Date('2026-10-02T20:00:00').getTime());
+  todo.addTask({ title: '无关待办' });
+  assert.equal(calls.length, 1);
+  todo.updateEvent(event.id, { time: '21:00' });
+  assert.equal(calls[1][0].remindAt, new Date('2026-10-02T21:00:00').getTime());
+  assert.equal(loadTodo(stored).todo.getState().events[0].reminderTime, '21:00');
+  todo.updateEvent(event.id, { reminderTime: '' });
+  assert.equal(calls[2].length, 0);
+  todo.updateEvent(event.id, { time: '', reminderTime: '09:00' });
+  assert.equal(calls[3][0].remindAt, new Date('2026-10-02T09:00:00').getTime());
+  todo.removeEvent(event.id);
+  assert.equal(calls[4].length, 0);
+  await Promise.resolve();
+});
+
+test('unreadable or unwritable storage never replaces the native reminder snapshot', () => {
+  const calls = [];
+  const bridge = { sync: async (value) => { calls.push(value); return { ok: true, supported: true }; } };
+  for (const [stored, overrides] of [
+    [new Map([[STORAGE_KEY, '{broken']]), {}],
+    [new Map(), { setItem() { throw new Error('Quota exceeded'); } }],
+  ]) {
+    const { todo } = loadTodo(stored, overrides, bridge);
+    todo.addEvent({ title: '学歌', date: '2026-10-02', time: '20:00', reminderTime: '20:00' });
+  }
+  assert.equal(calls.length, 0);
 });

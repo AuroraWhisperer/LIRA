@@ -98,6 +98,7 @@ function createHardwareSummaryService(options = {}) {
   let staticSummaryPromise = null;
   const readStatic = options.readStatic || readStaticHardwareSummary;
   const readTemperatures = options.readTemperatures || readHardwareTemperatures;
+  const readDisplays = options.readDisplays || readDisplaySummary;
 
   async function getStaticSummary() {
     if (!staticSummaryPromise) staticSummaryPromise = Promise.resolve().then(readStatic);
@@ -106,8 +107,8 @@ function createHardwareSummaryService(options = {}) {
 
   return {
     async getHardwareSummary(includeTemperatures = false) {
-      const summary = await getStaticSummary();
-      const result = cloneHardwareSummary(summary);
+      const [summary, displaySummary] = await Promise.all([getStaticSummary(), readDisplays()]);
+      const result = { ...cloneHardwareSummary(summary), ...displaySummary };
       if (!includeTemperatures) return result;
 
       const temperatures = await readTemperatures(result.gpus);
@@ -158,6 +159,94 @@ $ErrorActionPreference = 'Stop'
   return runCommand('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command], {
     timeout: 5000,
   }).then((stdout) => parseCommandJson(stdout));
+}
+
+async function readDisplaySummary() {
+  if (process.platform !== 'win32') {
+    return { displays: [], displayMessage: '当前系统暂不支持读取显示器信息' };
+  }
+  // Read the current display mode in pixels; CSS/DIP dimensions lose precision at fractional scaling.
+  const command = `
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class LiraDisplay {
+  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+  public struct Mode {
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+    public ushort SpecVersion, DriverVersion, Size, DriverExtra;
+    public uint Fields;
+    public int PositionX, PositionY;
+    public uint Orientation, FixedOutput;
+    public short Color, Duplex, YResolution, TTOption, Collate;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string FormName;
+    public ushort LogPixels;
+    public uint BitsPerPel, PelsWidth, PelsHeight, DisplayFlags, DisplayFrequency;
+    public uint ICMMethod, ICMIntent, MediaType, DitherType, Reserved1, Reserved2, PanningWidth, PanningHeight;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  public struct Point { public int X, Y; }
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  public static extern bool EnumDisplaySettingsW(string deviceName, int modeNumber, ref Mode mode);
+  [DllImport("user32.dll")]
+  public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+  [DllImport("user32.dll")]
+  public static extern IntPtr MonitorFromPoint(Point point, uint flags);
+  [DllImport("shcore.dll")]
+  public static extern int GetScaleFactorForMonitor(IntPtr monitor, out int scale);
+}
+'@
+$previousContext = [LiraDisplay]::SetThreadDpiAwarenessContext([IntPtr]::new(-4))
+try {
+  $displays = @(foreach ($display in [System.Windows.Forms.Screen]::AllScreens) {
+    $mode = New-Object LiraDisplay+Mode
+    $mode.Size = [Runtime.InteropServices.Marshal]::SizeOf($mode)
+    if (![LiraDisplay]::EnumDisplaySettingsW($display.DeviceName, -1, [ref]$mode)) { continue }
+    $point = New-Object LiraDisplay+Point
+    $point.X = $mode.PositionX
+    $point.Y = $mode.PositionY
+    $monitor = [LiraDisplay]::MonitorFromPoint($point, 0)
+    $scale = 0
+    if ($monitor -eq [IntPtr]::Zero -or [LiraDisplay]::GetScaleFactorForMonitor($monitor, [ref]$scale) -ne 0) { $scale = 0 }
+    [pscustomobject]@{
+      deviceName = $display.DeviceName
+      primary = $display.Primary
+      width = $mode.PelsWidth
+      height = $mode.PelsHeight
+      scalePercent = $scale
+      refreshRate = $mode.DisplayFrequency
+    }
+  })
+  [pscustomobject]@{ displays = $displays } | ConvertTo-Json -Depth 3 -Compress
+} finally {
+  if ($previousContext -ne [IntPtr]::Zero) { [void][LiraDisplay]::SetThreadDpiAwarenessContext($previousContext) }
+}
+`;
+  try {
+    const stdout = await runCommand('powershell.exe', ['-NoProfile', '-Command', command]);
+    return buildDisplaySummary(parseCommandJson(stdout));
+  } catch (_) {
+    return { displays: [], displayMessage: '显示器信息暂不可用，可点击开始检测重试' };
+  }
+}
+
+function buildDisplaySummary(details = {}) {
+  const displays = toArray(details.displays)
+    .filter((display) => positiveInteger(display.width) && positiveInteger(display.height))
+    .map((display, index) => ({
+      name: `显示器 ${hardwareText(display.deviceName).match(/DISPLAY(\d+)$/i)?.[1] || index + 1}`,
+      primary: display.primary === true,
+      width: positiveInteger(display.width),
+      height: positiveInteger(display.height),
+      scalePercent: positiveInteger(display.scalePercent) || null,
+      // Windows uses 0/1 for the driver's default refresh rate, not a measured frequency.
+      refreshRate: positiveInteger(display.refreshRate) > 1 ? positiveInteger(display.refreshRate) : null,
+    }))
+    .sort((left, right) => Number(right.primary) - Number(left.primary));
+  return { displays, displayMessage: displays.length ? '' : '未读取到已连接的显示器' };
 }
 
 async function readHardwareTemperatures(gpus) {
@@ -384,6 +473,8 @@ module.exports = {
   getHardwareSummary,
   createHardwareSummaryService,
   buildHardwareSummary,
+  buildDisplaySummary,
+  readDisplaySummary,
   parseNvidiaSmiOutput,
   readSystemCpuSnapshot,
   calculateSystemCpuPercent,

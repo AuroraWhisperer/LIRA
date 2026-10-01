@@ -2,7 +2,6 @@ import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
 import {
   createGiftWishCard,
   getGiftWishTextTemplate,
-  WISH_PERIODS,
   DEFAULT_WISH_TEXT,
   DEFAULT_WISH_TEXT_COLORS,
 } from '../../shared/gift-wish-card.js';
@@ -66,6 +65,7 @@ export function createGiftWishes() {
 
   function setEditorDisabled(value) {
     get('giftWishFields').disabled = value;
+    get('giftWishPeriod').disabled = busy;
     textEditor.setDisabled(value);
   }
 
@@ -217,14 +217,8 @@ export function createGiftWishes() {
     if (busy) return;
     period = value;
     resetEditor();
-    get('giftWishesPanel')
-      .querySelectorAll('[data-wish-period]')
-      .forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.wishPeriod === period)));
+    get('giftWishPeriod').value = period;
     get('giftWishPeriodHint').textContent = PERIOD_HINTS[period];
-    const url = `${localOverlayOrigin(location)}/gift-wishes?period=${period}`;
-    get('giftWishUrl').value = url;
-    get('giftWishPreview').href = `${url}&preview=1`;
-    get('giftWishUrl').setAttribute('aria-label', `${WISH_PERIODS[period]}浏览器源地址`);
     get('giftWishError').textContent = '';
     signature = '';
     render();
@@ -311,9 +305,10 @@ export function createGiftWishes() {
       .then(() => toast('许愿地址已复制'))
       .catch(fail),
   );
-  get('giftWishesPanel')
-    .querySelectorAll('[data-wish-period]')
-    .forEach((button) => button.addEventListener('click', () => selectPeriod(button.dataset.wishPeriod)));
+  get('giftWishPeriod').addEventListener('change', (event) => selectPeriod(event.target.value));
+  const url = `${localOverlayOrigin(location)}/gift-wishes`;
+  get('giftWishUrl').value = url;
+  get('giftWishPreview').href = `${url}?preview=1`;
   selectPeriod(period);
   const unsubscribe = eventBus.on(Events.STATE_LOADED, ({ state }) => {
     if (!state?.gifts || state.gifts.viewRevision === revision) return;

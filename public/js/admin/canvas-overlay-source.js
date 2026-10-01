@@ -12,8 +12,8 @@ export function initCanvasOverlaySource() {
   let busy = false;
   const stop = observeServerOverlayUrl(() => {
     generation += 1;
-    address.textContent = '保存并应用画布后，点击复制获取完整地址';
-    status.textContent = '浏览器源的宽高请设为画布分辨率。';
+    address.textContent = '保存并应用后可复制地址';
+    status.textContent = '';
   });
   document.getElementById('liveCanvasPreview').addEventListener('click', () => openComponentPreview());
   copy.addEventListener('click', async () => {
@@ -31,8 +31,8 @@ export function initCanvasOverlaySource() {
       address.textContent = url;
       await copyText(url);
       if (requested === generation) {
-        status.textContent = '统一地址已复制。画布更新后点击“保存并应用”，直播软件继续使用此地址。';
-        toast('统一直播画布地址已复制');
+        status.textContent = '地址已复制。';
+        toast('直播画布地址已复制');
       }
     } catch (error) {
       if (requested === generation) status.textContent = error.message;
