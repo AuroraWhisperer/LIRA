@@ -1,22 +1,76 @@
 /* 在 html 上设桌面主题变量（内联脚本在 CSS 加载前写入），
-   避免页面先用粉色默认主题渲染再切金色的闪烁 */
+   避免页面先用默认主题渲染再切换桌面主题的闪烁 */
 html.desktop-shell {
-  /* Quiet at rest, stronger on hover, strongest while dragging. */
-  --scrollbar-thumb: #91857a;
-  --scrollbar-thumb-hover: #665a50;
-  --scrollbar-thumb-active: #453930;
-  --page-bg: #f7f3ef;
-  --surface: #fffcf8;
-  --surface-2: #f5eee4;
-  --border: #e7d9c7;
-  --text: #241a16;
-  --muted: #75665b;
-  --primary: #d92d20;
-  --primary-strong: #b42318;
-  --accent: #c79a3b;
-  --danger: #b42318;
-  --warning: #946200;
-  --shadow: 0 12px 32px rgba(87, 58, 28, 0.1);
+  /* Desktop design system: neutral greys carry structure, one blue accent marks
+     interaction (primary actions, selection, focus, on-states). Semantic hues
+     (success / warning / danger / profit / loss) only appear where they mean
+     something. */
+  --scrollbar-thumb: #b5b2ac;
+  --scrollbar-thumb-hover: #8c8984;
+  --scrollbar-thumb-active: #6b6864;
+
+  --color-primary: #2f62d4;
+  --color-primary-strong: #234fb5;
+  --color-primary-light: #eef3fd;
+  --color-accent: #2f62d4;
+  --color-accent-light: #eef3fd;
+  --color-control-accent: #2f62d4;
+  --color-control-accent-light: #eef3fd;
+  --color-control-focus: rgba(47, 98, 212, 0.38);
+
+  --color-success: #1f8a5a;
+  --color-success-light: #ebf6f0;
+  --color-success-dark: #17734a;
+  --color-warning: #9a5b00;
+  --color-warning-light: #fcf4e4;
+  --color-warning-medium: #d08a12;
+  --color-danger: #c8372d;
+  --color-danger-light: #fcefed;
+  --color-danger-medium: #dc4a3f;
+  --color-info: #2f62d4;
+
+  --color-text-primary: #1c1c1a;
+  --color-text-secondary: #66625c;
+  --color-text-muted: #9a958e;
+
+  --color-bg-page: #f3f3f1;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #efeeeb;
+  --color-bg-tertiary: #f7f7f5;
+  --color-floating-surface: #ffffff;
+  --color-bg-overlay-light: rgba(24, 24, 22, 0.4);
+
+  --color-border-default: #e1dfda;
+  --color-border-light: #eae9e5;
+  --color-border-strong: #cbc8c1;
+  --color-border-accent: rgba(47, 98, 212, 0.4);
+  --color-border-primary: rgba(47, 98, 212, 0.4);
+  --color-border-focus: #2f62d4;
+
+  --shadow-sm: 0 1px 2px rgba(24, 24, 22, 0.05);
+  --shadow-md: 0 2px 8px rgba(24, 24, 22, 0.06);
+  --shadow-floating: 0 10px 28px rgba(24, 24, 22, 0.12), 0 0 0 1px rgba(24, 24, 22, 0.04);
+  --shadow-dialog: 0 24px 60px rgba(24, 24, 22, 0.18);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-control: 6px;
+
+  --page-bg: var(--color-bg-page);
+  --surface: var(--color-bg-primary);
+  --surface-2: var(--color-bg-secondary);
+  --border: var(--color-border-default);
+  --text: var(--color-text-primary);
+  --muted: var(--color-text-secondary);
+  --primary: var(--color-primary);
+  --primary-strong: var(--color-primary-strong);
+  --accent: var(--color-accent);
+  --danger: var(--color-danger);
+  --warning: var(--color-warning);
+  --shadow: var(--shadow-sm);
+  --radius: var(--radius-lg);
 }
 
 /* The lyric preview sits on a dark canvas, so interaction increases lightness. */
@@ -27,19 +81,7 @@ body.desktop-shell .desktop-lyric-preview-viewport {
 }
 
 body.desktop-shell {
-  --page-bg: #f7f3ef;
-  --surface: #fffcf8;
-  --surface-2: #f5eee4;
-  --border: #e7d9c7;
-  --text: #241a16;
-  --muted: #75665b;
-  --primary: #d92d20;
-  --primary-strong: #b42318;
-  --accent: #c79a3b;
-  --danger: #b42318;
-  --warning: #946200;
-  --shadow: 0 12px 32px rgba(87, 58, 28, 0.1);
-  background: linear-gradient(180deg, #fff7ed 0, #f7f3ef 280px, #f3f6fb 100%);
+  background: var(--color-bg-page);
 }
 
 body.desktop-shell.player-fs-open .topbar {
@@ -48,17 +90,16 @@ body.desktop-shell.player-fs-open .topbar {
 
 body.desktop-shell .topbar {
   -webkit-app-region: drag;
-  border-bottom: 2px solid rgba(199, 154, 59, 0.22);
+  border-bottom: 1px solid var(--color-border-default);
   border-radius: 0;
   border-left: none;
   border-right: none;
   border-top: none;
   margin-bottom: 0;
   padding: 0 0 0 0;
-  box-shadow: 0 2px 12px rgba(87, 58, 28, 0.07);
+  box-shadow: none;
   min-height: 58px;
-  background: rgba(255, 252, 248, 0.96);
-  backdrop-filter: blur(16px);
+  background: var(--color-bg-primary);
 }
 
 body.desktop-shell .topbar > * {
@@ -68,17 +109,6 @@ body.desktop-shell .topbar > * {
 body.desktop-shell button.primary:hover {
   border-color: transparent;
   background: var(--primary-strong);
-}
-
-body.desktop-shell .panel-header h2::before {
-  content: '';
-  display: inline-block;
-  width: 4px;
-  height: 16px;
-  margin-right: 8px;
-  border-radius: 3px;
-  background: var(--primary);
-  vertical-align: -2px;
 }
 
 body.desktop-shell #shutdownBtn {

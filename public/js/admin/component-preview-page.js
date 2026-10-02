@@ -1,24 +1,23 @@
 import { previewElement } from './component-preview-surface.js';
-import { createBrowserPreviewConnection } from './component-preview-remote.js';
-import { createClockPreview } from './clock-card.js';
-import { createDanmakuPreview } from './danmaku-canvas-dialog.js';
-import { createQueuePreview } from './queue-preview.js';
-import { createOvertimePreview } from './overtime-preview.js';
+import { createBrowserPreviewConnection, createRemotePreviewController } from './component-preview-remote.js';
+import { createPreviewDraftRecovery, readPreviewDraft } from './component-preview-drafts.js';
+import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
 import { mountComponentPreviewCanvas } from './component-preview-canvas-view.js';
 import { loadThemeConfig } from '../shared/theme.js';
 
-const factories = { danmaku: createDanmakuPreview, clock: createClockPreview,
-  queue: createQueuePreview, overtime: createOvertimePreview };
 const host = document.getElementById('componentPreviewPage');
 let closed = false;
 let connections = [];
 let view;
+let recovery;
+let links = [];
 
-function close() {
+function dispose() {
   if (closed) return;
   closed = true;
+  recovery?.dispose();
   view?.dispose();
-  for (const connection of connections) connection.close();
+  for (const connection of connections) connection.detach();
 }
 
 async function start() {
@@ -26,32 +25,69 @@ async function start() {
   const selectedId = new URLSearchParams(location.search).get('component');
   const others = JSON.parse(params.get('components') || '[]');
   if (!Array.isArray(others)) throw new Error('预览链接无效，请从客户端重新打开。');
-  const links = [...(selectedId ? [{ component: selectedId, id: params.get('id'), token: params.get('token') }] : []), ...others];
-  if (links.length > 4 || new Set(links.map((link) => link?.component)).size !== links.length
-    || links.some((link) => !Object.hasOwn(factories, link?.component))) {
+  links = [...(selectedId ? [{ component: selectedId, id: params.get('id'), token: params.get('token'),
+    draftKey: params.get('draftKey') }] : []), ...others];
+  if (links.length > Object.keys(COMPONENT_PREVIEW_DEFINITIONS).length
+    || new Set(links.map((link) => link?.component)).size !== links.length
+    || links.some((link) => !Object.hasOwn(COMPONENT_PREVIEW_DEFINITIONS, link?.component))) {
     throw new Error('请点击客户端中的“预览”打开此页面。');
   }
   if (params.has('canvas')) links.push({ ...JSON.parse(params.get('canvas')), component: 'canvas' });
   if (!links.length || links.some((link) => !link?.id || !/^[a-f0-9]{64}$/.test(link.token || ''))
     || new Set(links.map(({ id }) => id)).size !== links.length) throw new Error('预览链接无效，请从客户端重新打开。');
+  const selectedSize = JSON.parse(params.get('size') || 'null');
+  if (selectedSize !== null && !['width', 'height'].every((axis) => Number.isFinite(selectedSize[axis])
+    && selectedSize[axis] >= 32 && selectedSize[axis] <= 7680)) throw new Error('组件尺寸无效，请从客户端重新打开。');
   connections = links.map(createBrowserPreviewConnection);
   await Promise.all(connections.map((connection) => connection.start()));
   if (links.some(({ component }) => component === 'queue')) await loadThemeConfig();
   if (closed) return;
+  recovery = createPreviewDraftRecovery({ connections,
+    key: (connections.find(({ component }) => component === 'canvas') || connections[0]).draftKey });
+  mount(selectedId, selectedSize);
+}
+
+function mount(selectedId, selectedSize = null) {
   const source = document.getElementById('componentPreviewTemplates').content;
-  const components = Object.keys(factories).flatMap((id) => {
+  const components = Object.entries(COMPONENT_PREVIEW_DEFINITIONS).flatMap(([id, definition]) => {
     const connection = connections.find(({ component }) => component === id);
-    return connection ? [factories[id]({ controller: connection.controller, source,
-      startActualData: connection.startActualData, embedded: true })] : [];
+    return connection ? [definition.createPreview({ controller: connection.controller, source,
+      startActualData: connection.startActualData, embedded: true })]
+      : definition.sceneOnly && connections.some(({ component }) => component === 'canvas') ? [definition.createPreview()] : [];
   });
-  view = mountComponentPreviewCanvas(host, { components, selectedId, source,
+  view = mountComponentPreviewCanvas(host, { components, selectedId, selectedSize, source, recovery,
     canvasConnection: connections.find(({ component }) => component === 'canvas'),
     canvasController: connections.find(({ component }) => component === 'canvas')?.controller });
 }
 
-window.addEventListener('pagehide', close, { once: true });
+window.addEventListener('pagehide', dispose, { once: true });
 void start().catch((error) => {
-  close();
+  if (closed) return;
+  dispose();
+  const key = (links.find(({ component }) => component === 'canvas') || links[0])?.draftKey;
+  const snapshot = readPreviewDraft(key);
+  if ([401, 403, 410].includes(error.status) && snapshot && links.length
+    && snapshot.components[links.some(({ component }) => component === 'canvas') ? 'canvas' : links[0].component]) {
+    const message = '已找回上次编辑进度，未保存修改尚未应用。连接已结束，实际数据不可用，请从客户端重新打开继续编辑。';
+    connections = links.map(({ component }) => {
+      const state = snapshot.components[component] || { saved: {}, draft: {} };
+      return { component,
+        controller: createRemotePreviewController({ ...state, generation: 0,
+          dirty: JSON.stringify(state.draft) !== JSON.stringify(state.saved),
+          loaded: false, error: message }, () => Promise.reject(new Error(message))),
+        startActualData(emit) { emit(null); return () => {}; },
+        detach() {},
+      };
+    });
+    recovery = null;
+    try {
+      mount(null);
+      closed = false;
+      return;
+    } catch {
+      view?.dispose();
+    }
+  }
   const message = previewElement('p', '', error.message);
   message.id = 'componentPreviewStatus';
   message.setAttribute('role', 'status');

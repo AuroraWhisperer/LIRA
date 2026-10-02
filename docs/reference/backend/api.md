@@ -12,31 +12,37 @@
 
 ### 浏览器组件预览
 
-`POST /api/component-preview` 由 [component-preview-routes.js](../../../src/server/routes/component-preview-routes.js) 处理，响应 `{ok:true,data}`。这是客户端与默认浏览器之间的临时配置会话；组件保存与绑定画布的发布、来源读取，由创建会话的客户端控制器调用已有领域 owner 处理。
+`POST /api/component-preview` 由 [component-preview-routes.js](../../../src/server/routes/component-preview-routes.js) 处理，响应 `{ok:true,data}`。这是客户端与默认浏览器之间的临时配置会话；组件保存与绑定场景的发布、来源读取，由创建会话的客户端控制器调用已有领域 owner 处理。
 
-网页三栏编辑器为四个已注册组件及公共画布分别创建会话。从单组件预览进入时，初始组件使用 query `component` 和 fragment 的 `id`/`token`，`components` 携带其他组件的 `{component,id,token}` 数组；从客户端“直播画布”直接进入时没有初始组件 query，四个组件均放入 `components`。`canvas` 携带独立画布会话的 `{id,token}`。画布编辑仅传递 `{document}` 草稿，客户端适配器固定场景 ID，浏览器不能替换绑定 ID、创建或轮换场景凭据。缺少画布会话的旧链接仍可保存组件参数，但公共布局须从客户端重新打开后保存。
+场景编辑器为四个已注册组件及直播场景分别创建会话。从单组件预览进入时，初始组件使用 query `component` 和 fragment 的 `id`/`token`，`components` 携带其他组件的 `{component,id,token}` 数组；从客户端“直播场景”直接进入时没有初始组件 query，四个组件均放入 `components`。`canvas` 携带独立场景会话的 `{id,token}`，沿用原能力标识。场景编辑仅传递 `{document}` 草稿，客户端适配器固定场景 ID，浏览器不能替换绑定 ID、创建或轮换场景凭据。缺少场景会话的旧链接仍可保存组件参数，但公共布局须从客户端重新打开后保存。
 
-“保存并应用”先等待所有浏览器编辑被客户端确认，再保存组件及画布，最后按 revision 发布组合画面；任一保存失败或仍有并发草稿时停止发布。`publish`/`source` 仅允许 canvas 能力排队，结果通过该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。来源仅在显式复制时读取，拼成 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源能力>`；后续正常保存和发布沿用该地址，来源能力不进入文档或模板。
+“保存并应用”只等待当前场景及其共享外观 owner 的浏览器编辑被客户端确认，再同步预检、冻结并批量保存这些 owner，最后按 revision 发布组合画面；独立实例不依赖其类型的默认配置，无关默认草稿不保存。全部保存结束后再次检查参与者的读取、保存、冲突、草稿和账号代际状态，以及本次场景保存的规范化结果与 revision；任一失败或出现新的并发修改均停止发布，保留已成功保存的部分。发布请求发出后的后续编辑留作下次草稿。`publish`/`source` 仅允许 canvas 能力排队，结果通过该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。来源仅在显式复制时读取，拼成 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源能力>`；后续正常保存和发布沿用该地址，来源能力不进入文档或模板。
 
-每个请求只使用目标会话自己的凭据，能力不可互换。多个图层同时保留各自 renderer，选中组件只切换参数面板。关闭时各会话分别处理已接受命令并撤销，不提前撤销其他会话的待保存操作。
+每个请求只使用目标会话自己的凭据，能力不可互换。多个图层同时保留各自 renderer，选中组件只切换参数面板。网页刷新/离开只释放当前页面资源；显式 close 时各会话分别处理已接受命令并撤销，不提前撤销其他会话的待保存操作。
 
 | action | 身份与请求 | data |
 | --- | --- | --- |
-| `open` | 管理身份；`{component,state,display?}`，component 为 danmaku/clock/queue/overtime/canvas | `{id,token}`，256 位随机预览能力；同类型旧会话失效 |
+| `open` | 管理身份；`{component,state,display?}`，component 为 danmaku/clock/queue/overtime/canvas | `{id,token,draftKey}`，256 位随机预览能力；draftKey 仅定位账号/场景的本地恢复草稿，不授予权限；同类型旧会话失效 |
 | `exchange` | 管理身份；`{id,state,display?,ack}` | `{commands:[{sequence,action,change?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
 | `revoke` | 管理身份；`{id}` | `{closed}` |
-| `read` | 当前会话 Bearer；`{id}` | `{component,state,display,ack}`，只含组件草稿、已保存值、保存状态和必要展示数据 |
-| `edit` / `save` / `discard` | 当前会话 Bearer；`{id,change?}`，edit 只允许该组件已有草稿字段 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准 |
-| `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id}` 是临时会话 ID，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
-| `close` | 当前会话 Bearer；`{id}` | `{}`，关闭浏览器访问；客户端先处理已经接受的修改/保存，再撤销会话 |
+| `read` | 当前会话 Bearer；`{id,attachmentId?}`；未附页面标识的读取用于接管前取得快照 | `{component,draftKey,state,display,ack,sequence,attachmentId}`，attachmentId 初始为 null；只含组件草稿、已保存值、保存状态和必要展示数据 |
+| `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
+| `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?}`，edit 只允许该组件已有草稿字段 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准 |
+| `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}`，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
+| `close` | 当前会话 Bearer；`{id,attachmentId?}` | `{}`，显式关闭浏览器访问；客户端先处理已经接受的修改/保存，再撤销会话 |
 
-请求体上限 256 KiB，每会话最多 64 条待确认命令、每类型最多一会话。15 秒无客户端 exchange、账号归属/授权代次变化或控制器 generation 变化使旧会话失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此端点，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端/网页关闭停止轮询并撤销会话；领域保存失败保留原控制器草稿。
+接管后，网页变更和关闭必须携带当前 attachmentId，轮询也校验附带的标识；旧页面请求返回 409。
+未接管会话保留无标识旧协议。网页在每次接管内串行发送递增 commandId，重试最近一次编号返回
+原 sequence，确认后亦不重复执行；更早编号拒绝。新页面接管后可以重新计数，但不能丢弃已接受命令。
+恢复草稿前等待 `ack === sequence`、state.saving 和 display.busy 结束，避免重放此前已接受的保存/发布。
+
+中继拥有分层 UTF-8 大小限制：每份场景 document 仍限 256 KiB；单个 saved/draft 配置或 edit change 限 257 KiB，双份状态封装限 518 KiB，display 限 256 KiB；完整 HTTP 请求限 778 KiB（含 4 KiB 请求元数据余量）。超限不改变已有会话或命令，文档结构和领域配置仍由原保存 owner 校验。每会话最多 64 条待确认命令、每类型最多一会话。有效网页请求或客户端 exchange 续期；双方连续两分钟无有效请求暂停网页操作并返回可重试的 503，保留会话等待原客户端通过认证、同 generation 的 exchange 恢复，网页不能自行续活。账号归属/授权代次变化、控制器 generation 变化、显式 close/revoke 或同类型新会话使旧会话永久失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此端点，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪或页面/操作已被替代，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端关闭撤销会话；网页 pagehide 仅停止当前页面轮询，刷新可继续编辑；领域保存失败保留原控制器草稿。
 
 ### 本地场景
 
 管理接口沿用管理页鉴权，并由 main 当前授权的 Server origin 与 streamerId 决定归属。`document` 是展示文档；管理 DTO 为 `{document,revision,publishedVersion,hasPublication}`，普通读写不包含凭据。领域模型见 [场景规格](../../../specs/component-scenes.md)。
 
-客户端「点歌 → 浏览器源 → 直播画布」与网页画布共用同一绑定场景，显式复制时读取 `source`，不会自动保存或发布。复制前未应用时提示先编辑画布并保存应用；账号/在线来源变化清空客户端已显示的地址。
+客户端「点歌 → 浏览器源 → 直播场景」与场景编辑器共用同一绑定场景，显式复制时读取 `source`，不会自动保存或发布。复制前未应用时提示先编辑场景并保存应用；账号/在线来源变化清空客户端已显示的地址。
 
 | 端点 | 输入 | 输出与行为 |
 | --- | --- | --- |
@@ -46,10 +52,13 @@
 | `POST /api/scenes/create` | `{title,canvas:{width,height}}` | 空场景管理 DTO，凭据仅加密保存 |
 | `POST /api/scenes/save` | `{id,expectedRevision,document}` | 更新草稿并递增 revision，不改变已发布版；旧 revision 返回 409 |
 | `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 固定所有有效外观后原子发布，递增 publishedVersion；编辑器传共享类型外观快照确认，缓存尚未同步或已变化返回 503；失败保留旧版 |
-| `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token}`，仅显式复制来源使用 |
+| `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds}`，itemIds 为已发布实例 ID，仅显式复制来源使用 |
 | `POST /api/scenes/rotate` | `{id}` | 新 `{id,token}`，旧凭据立即失效 |
-| `GET /api/scene/output` | `id,version,epoch,cursor` 查询；场景 Bearer | `{sceneId,version,document,data}`；相同发布版本 document 为 null；仅必要显示投影，不含凭据 |
+| `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?` 查询；场景 Bearer | `{sceneId,version,projection,document,data}`；相同发布版本 document 为 null；item 可选 UUID 只投影该发布实例，移至原点并使用保存宽高；凭据权限仍属于整个场景 |
 | `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，仅此路径允许不带凭据的预检，实际 GET 必须验凭据 |
+| `GET /api/component/size` | clock/queue/overtime/danmaku 的 overlay 凭据；管理请求使用 type 查询 | `{ok:true,data:{width,height}\|null}`；组件 scope 取自凭据，不能由查询覆盖；当前账号尚无保存尺寸时为 null |
+
+输出中的 `projection` 是服务进程签发的类型投影回执，绑定已认证 owner scope/epoch、sceneId、来源 capability、item 选择及发布版本；不含实时数据或来源 token，不独立授予访问能力。父页面在整套 renderer 成功提交时同时记录 version/projection，后续请求携带该 active 回执。服务端仅合并最新文档与已验证 active 回执的类型集合，新版移除某类组件但准备失败时旧版仍获得更新；成功切换后旧类型随回执替换而释放。伪造、跨账号/场景/实例、版本不匹配、轮换或服务重启后的回执返回 403，父页清空旧版与回执后重新读取当前版。省略 projection 的旧客户端沿用仅投影最新文档的行为。没有历史文档缓存或无限版本保留。
 
 上述响应均禁止缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。输出轮询不重叠，约每 750ms 一次；云事件提供本地缓冲 `epoch/nextCursor/reset/gap/events`，不提供服务端历史重放。
 

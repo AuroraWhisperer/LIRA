@@ -98,6 +98,15 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(await fontSize.inputValue(), '36');
   assert.equal(await app.evaluate(() => global.canvasTest.attempts), 0);
   assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
+  await page.reload();
+  await fontSize.waitFor();
+  assert.equal(await number('宽度'), 987);
+  assert.equal(await fontSize.inputValue(), '36');
+  await fontSize.fill('38');
+  await fontSize.press('Tab');
+  await fontSize.fill('36');
+  await fontSize.press('Tab');
+  assert.equal(await app.evaluate(() => global.canvasTest.attempts), 0, 'Refresh must retain an unsaved draft.');
   await app.evaluate(() => { global.canvasTest.failNext = true; });
   const save = page.getByRole('button', { name: '保存并应用', exact: true });
   const saveState = page.locator('.preview-canvas-status');
@@ -107,12 +116,18 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 0);
   assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
   assert.equal(await save.isEnabled(), true);
+  assert.equal(await app.evaluate(() => global.canvasTest.componentSize()), null);
   await save.click();
-  await saveState.filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  await saveState.filter({ hasText: '已保存并应用到直播源' }).waitFor().catch(async (error) => {
+    throw new Error(`Publication status: ${await saveState.textContent()}`, { cause: error });
+  });
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.signal.fontSize), 36);
   const savedScene = await app.evaluate(() => global.canvasTest.scene());
   assert.equal(savedScene.document.canvas.width, 2560);
   assert.equal(savedScene.document.items[0].width, 987);
+  assert.deepEqual(await app.evaluate(() => global.canvasTest.componentSize()), {
+    width: savedScene.document.items[0].width, height: savedScene.document.items[0].height,
+  });
   assert.equal(savedScene.publishedVersion, 1);
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 1);
   assert.equal(await app.evaluate(() => global.canvasTest.attempts), 2);

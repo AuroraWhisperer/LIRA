@@ -8,6 +8,11 @@ body[data-style='transparent'] .draw-danmaku-feed {
 body[data-style='transparent'] .draw-danmaku-item {
   --transparent-ink: #fff;
   --transparent-name: #fff;
+  /* A crisp 1px outline in eight directions plus a soft drop, readable on any scene. */
+  --transparent-outline:
+    1px 0 0 rgb(8 10 16 / 90%), -1px 0 0 rgb(8 10 16 / 90%), 0 1px 0 rgb(8 10 16 / 90%), 0 -1px 0 rgb(8 10 16 / 90%),
+    1px 1px 0 rgb(8 10 16 / 72%), -1px 1px 0 rgb(8 10 16 / 72%), 1px -1px 0 rgb(8 10 16 / 72%),
+    -1px -1px 0 rgb(8 10 16 / 72%), 0 2px 6px rgb(0 0 0 / 55%);
   --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.webp');
   grid-template-columns: 58px minmax(0, 1fr);
   gap: 12px;
@@ -51,15 +56,10 @@ body[data-style='transparent'] .draw-danmaku-avatar[data-medal-level]::after {
   position: absolute;
   bottom: -7px;
   left: 50%;
-  color: var(--transparent-ink);
-  font:
-    700 14px/1.2 'Microsoft YaHei UI',
-    'Microsoft YaHei',
-    sans-serif;
-  text-shadow:
-    0 2px 3px rgba(0, 0, 0, 0.92),
-    1px 0 1px rgba(0, 0, 0, 0.84),
-    -1px 0 1px rgba(0, 0, 0, 0.84);
+  color: #ffe08a;
+  font: 700 13px/1.2 var(--danmaku-num-font);
+  letter-spacing: 0.02em;
+  text-shadow: var(--transparent-outline);
   white-space: nowrap;
   content: 'LV' attr(data-medal-level);
   transform: translateX(-50%);
@@ -80,16 +80,10 @@ body[data-style='transparent'] .draw-danmaku-identity strong {
   min-width: 0;
   overflow: hidden;
   color: var(--transparent-name);
-  font:
-    700 17px/1.25 'Microsoft YaHei UI',
-    'Microsoft YaHei',
-    sans-serif;
-  letter-spacing: 0;
+  font: 700 17px/1.25 var(--danmaku-ui-font);
+  letter-spacing: 0.02em;
   text-overflow: ellipsis;
-  text-shadow:
-    0 2px 3px rgba(0, 0, 0, 0.92),
-    1px 0 1px rgba(0, 0, 0, 0.84),
-    -1px 0 1px rgba(0, 0, 0, 0.84);
+  text-shadow: var(--transparent-outline);
   white-space: nowrap;
 }
 body[data-style='transparent'] .draw-danmaku-guard,
@@ -107,10 +101,7 @@ body[data-style='transparent'] .draw-danmaku-body p {
   line-height: 1.35;
   overflow-wrap: anywhere;
   word-break: break-word;
-  text-shadow:
-    0 2px 3px rgba(0, 0, 0, 0.94),
-    1px 0 1px rgba(0, 0, 0, 0.88),
-    -1px 0 1px rgba(0, 0, 0, 0.88);
+  text-shadow: var(--transparent-outline);
 }
 body[data-style='transparent'] .draw-danmaku-empty {
   padding: 18px 4px;
@@ -130,18 +121,24 @@ body[data-style='transparent'] .draw-danmaku-item[data-identity='governor'] {
   --transparent-name: #ff9dad;
 }
 
-/* 星光礼物卡：实色圆角底板与细金边，普通弹幕仍保持透明。 */
+/* 星光礼物卡：深蓝实色底、金色细边与内发丝高光，普通弹幕仍保持透明。 */
 body[data-style='transparent'] .draw-danmaku-item.is-gift {
   --danmaku-gift-art: url('/img/overlays/danmaku-gifts/transparent.svg');
   --gift-ink: #fff6df;
+  --gift-name: #dccba3;
+  --gift-action: #ffd47e;
   --gift-accent: #ffd47e;
   --gift-surface: #263447;
+  --gift-sheen: rgb(255 228 160 / 32%);
   grid-template-areas: 'content';
   grid-template-columns: minmax(0, 1fr);
-  padding: 10px 14px;
+  padding: 10px 16px;
   border: 1px solid #caad78;
   border-radius: 14px;
-  box-shadow: none;
+  background: linear-gradient(135deg, #1d2a3d, #2a3b55);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 6%),
+    0 8px 20px rgb(0 0 0 / 30%);
 }
 body[data-style='transparent'] .is-gift .draw-danmaku-avatar {
   display: none;
@@ -155,15 +152,25 @@ body[data-style='transparent'] .is-gift .draw-danmaku-gift-count {
 body[data-style='transparent'] .is-gift .draw-danmaku-gift-amount {
   color: var(--gift-accent);
   font-size: var(--danmaku-font-size);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.15;
   white-space: nowrap;
+  text-shadow: 0 0 12px rgb(255 212 126 / 30%);
 }
 body[data-style='transparent'] .is-gift .draw-danmaku-gift-art {
   left: 0;
   right: auto;
   width: 56px;
   height: 64px;
-  filter: drop-shadow(0 3px 3px rgb(0 0 0 / 30%));
+  filter: drop-shadow(0 0 6px rgb(255 212 126 / 45%));
   transform: translateY(-50%);
+}
+
+/* Custom background strength leaves text and images opaque. */
+body[data-custom-background='true'][data-style='transparent'] .draw-danmaku-item.is-gift {
+  background: linear-gradient(
+    135deg,
+    rgb(29 42 61 / var(--danmaku-background-opacity)),
+    rgb(42 59 85 / var(--danmaku-background-opacity))
+  );
 }

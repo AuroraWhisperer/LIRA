@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 33;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(24, 24, 22, 0.16);
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -24,13 +24,10 @@
   width: min(400px, calc(100vw - 48px));
   display: flex;
   flex-direction: column;
-  background: var(--surface, #fff);
-  border: 1px solid var(--border, rgba(220, 226, 238, 0.7));
-  border-radius: 16px;
-  box-shadow:
-    0 2px 0 rgba(255, 255, 255, 0.9) inset,
-    0 16px 48px rgba(22, 31, 43, 0.18),
-    0 4px 12px rgba(22, 31, 43, 0.08);
+  background: var(--color-floating-surface, var(--surface));
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-floating);
   transform: translateY(12px) scale(0.97);
   opacity: 0;
   pointer-events: none;
@@ -52,7 +49,7 @@
   gap: 8px;
   flex-shrink: 0;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--border, #e8edf5);
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .queue-popup-head strong {
@@ -81,7 +78,7 @@
   padding: 3px 9px;
   height: auto;
   min-height: 26px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .queue-popup-body {
@@ -99,7 +96,7 @@
 .queue-popup-body .empty {
   text-align: center;
   padding: 36px 0;
-  color: var(--muted, #8898aa);
+  color: var(--muted);
   font-size: var(--type-size-caption);
 }
 
@@ -119,10 +116,10 @@
   height: 64px;
   display: grid;
   place-items: center;
-  border-radius: 20px;
-  background: linear-gradient(145deg, rgba(217, 75, 112, 0.12), rgba(147, 112, 219, 0.12));
-  border: 1px solid rgba(217, 75, 112, 0.18);
-  color: #d94b70;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
   font-size: var(--type-size-metric-md);
   font-weight: var(--type-weight-bold);
 }

@@ -9,11 +9,29 @@
   padding: 0 10px;
 }
 
-.tabs > .tab {
+.tabs > .tab,
+.tabs > .tab-with-help {
   flex: 1 1 0;
   min-width: 0;
   padding: 0 8px;
   white-space: nowrap;
+}
+
+.tab-with-help {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-with-help:has(> .tab.active) {
+  border-bottom-color: var(--primary);
+}
+
+.app-shell .tab-with-help > .tab {
+  min-height: 40px;
+  padding: 0;
+  border-bottom: 0;
 }
 
 .app-shell .tab {
@@ -21,7 +39,7 @@
   border-radius: 0;
   background: transparent;
   min-height: 42px;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
   color: var(--muted);
   font-family: var(--font-ui);
   font-size: var(--type-size-control);

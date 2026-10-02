@@ -5,32 +5,11 @@
   align-items: stretch;
   min-height: 112px;
   padding: 16px 20px;
-  border: 1px solid rgba(255, 247, 251, 0.1);
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(33, 182, 168, 0.14), transparent 35%),
-    linear-gradient(135deg, #1b1b2a 0%, #14141e 100%);
-  color: #fff7fb;
-  box-shadow: 0 14px 28px rgba(24, 24, 35, 0.18);
-}
-.overtime-console::before {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: repeating-linear-gradient(90deg, transparent 0 74px, rgba(255, 247, 251, 0.035) 75px 76px);
-  content: '';
-  pointer-events: none;
-}
-.overtime-console::after {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 31%;
-  z-index: -1;
-  background: linear-gradient(90deg, transparent, rgba(255, 111, 145, 0.08));
-  content: '';
-  pointer-events: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
 }
 .overtime-clock-block {
   display: grid;
@@ -45,10 +24,10 @@
   align-items: center;
   gap: 7px;
   padding: 5px 10px;
-  border: 1px solid rgba(33, 182, 168, 0.38);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(33, 182, 168, 0.11);
-  color: #55d8ca;
+  background: var(--surface-2);
+  color: var(--muted);
   font-size: var(--type-size-micro);
   font-weight: 700;
 }
@@ -57,7 +36,6 @@
   height: 7px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 0 4px rgba(33, 182, 168, 0.12);
   content: '';
 }
 .overtime-clock-value {
@@ -68,13 +46,12 @@
     sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.035em;
-  text-shadow: 0 5px 20px rgba(255, 247, 251, 0.1);
 }
 .overtime-clock-value.is-calendar {
   letter-spacing: -0.015em;
 }
 .overtime-clock-value.is-finished {
-  color: #fff2b8;
+  color: var(--text);
   font-size: clamp(24px, 3.4vw, 46px);
   letter-spacing: 0.015em;
 }
@@ -89,46 +66,32 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
-.overtime-consumer-status .pill {
-  border-color: rgba(255, 247, 251, 0.14);
-  background: rgba(255, 247, 251, 0.07);
-  color: rgba(255, 247, 251, 0.78);
-}
-.overtime-consumer-status .pill.good {
-  border-color: rgba(85, 216, 202, 0.38);
-  background: rgba(33, 182, 168, 0.13);
-  color: #8aeee3;
-}
-.overtime-consumer-status .pill.warn {
-  border-color: rgba(245, 183, 47, 0.34);
-  background: rgba(245, 183, 47, 0.1);
-  color: #ffd77a;
-}
 .overtime-actions {
   justify-content: flex-end;
 }
 .overtime-actions button {
   min-height: 40px;
-  border-color: rgba(255, 247, 251, 0.55);
-  border-radius: 10px;
-  background: #fff7fb;
-  color: #251d25;
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--color-text-white);
   font-weight: 700;
-  box-shadow: 0 6px 12px rgba(10, 10, 18, 0.16);
 }
 .overtime-actions button.secondary {
-  border-color: rgba(255, 247, 251, 0.22);
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff7fb;
-  box-shadow: none;
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
 }
 .overtime-actions button:hover:not(:disabled) {
-  border-color: var(--ot-pink);
-  color: var(--ot-pink);
+  border-color: transparent;
+  background: var(--primary-strong);
+}
+.overtime-actions button.secondary:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
 }
 .overtime-actions button:disabled {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.62);
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
   opacity: 1;
 }

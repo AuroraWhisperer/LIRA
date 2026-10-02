@@ -215,6 +215,7 @@ test('browser source tab classifies and exposes every overlay address', () => {
   for (const [id, route] of sources) {
     assert.match(html, new RegExp(`id="${id}"`));
     assert.match(html, new RegExp(`data-copy-url="${id}"`));
+    assert.match(html, new RegExp(`<button[^>]*data-copy-url="${id}"[^>]*>\\s*<code id="${id}"`));
     const assignmentPattern = new RegExp(
       'document\\s*\\.\\s*getElementById\\(\\s*[\'\"]' +
         id +
@@ -227,6 +228,9 @@ test('browser source tab classifies and exposes every overlay address', () => {
   assert.match(html, /id="liveDanmakuUrl"/);
   assert.match(html, /id="liveCanvasUrl"/);
   assert.match(html, /id="copyLiveCanvasUrl"/);
+  assert.match(html, /id="copyLiveCanvasUrl"[^>]*>\s*<code id="liveCanvasUrl"/);
+  const addressFragment = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/song/overlay-addresses.html'), 'utf8');
+  assert.doesNotMatch(addressFragment, />复制(?:地址)?<\/button>/);
   assert.match(html, /id="liveCanvasPreview"/);
   assert.match(displaySource, /initCanvasOverlaySource\(\)/);
   assert.match(html, /data-copy-url="liveDanmakuUrl"[^>]*disabled/);

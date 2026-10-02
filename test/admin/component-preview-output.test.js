@@ -4,6 +4,259 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
+const { randomUUID } = require('node:crypto');
+
+test('canvas discard restores its shared and independent edits without clearing unrelated drafts', { timeout: 20000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const created = fixture.service.create({ title: 'Discard scope', canvas: { width: 1920, height: 1080 } });
+  const sharedId = randomUUID();
+  const independentId = randomUUID();
+  const items = [sharedId, independentId].map(id => ({ id, type: 'clock', name: id === sharedId ? 'Shared' : 'Independent',
+    x: 0, y: 0, width: 320, height: 180, visible: true, locked: false,
+    appearance: id === sharedId ? { mode: 'shared' } : { mode: 'independent', config: fixture.configs.clock } }));
+  fixture.service.save({ id: created.document.id, expectedRevision: 1, document: { ...created.document, items } });
+  const desktop = await browser.newPage();
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  desktop.setDefaultTimeout(5000);
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const receivedDrafts = Promise.all(['queue', 'clock'].map(type => page.waitForResponse(async response => {
+    if (!response.url().endsWith('/api/component-preview') || response.request().postDataJSON()?.action !== 'read') return false;
+    const { data } = await response.json();
+    return data?.component === type && data.state.dirty;
+  })));
+  await desktop.evaluate(() => {
+    window.controllers.queue.edit({ overlayTitle: 'Keep unrelated work' });
+    window.controllers.clock.edit({ label: 'Shared draft' });
+  });
+  await receivedDrafts;
+  await page.locator(`.preview-canvas-layer-select[data-item-id="${independentId}"]`).click();
+  await page.locator('[data-preview-field="clockCustomLabel"]').fill('Local draft');
+  await desktop.waitForFunction(id => window.controllers.canvas.getState().draft.document.items
+    .find(item => item.id === id).appearance.config.label === 'Local draft', independentId);
+  await page.locator(`.preview-canvas-layer-select[data-item-id="${sharedId}"]`).click();
+  await page.getByRole('button', { name: '移除组件', exact: true }).click();
+  await page.getByRole('button', { name: '放弃修改', exact: true }).click();
+  await desktop.waitForFunction(() => !window.controllers.canvas.getState().dirty && !window.controllers.clock.getState().dirty);
+  assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().draft.overlayTitle), 'Keep unrelated work');
+  assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), true);
+  assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items), items);
+  await page.waitForFunction(() => [...document.querySelectorAll('button')]
+    .find(button => button.textContent === '放弃修改')?.disabled);
+});
+
+for (const type of ['clock', 'queue', 'danmaku', 'overtime']) {
+  test(`re-adding shared ${type} restores its saved output size`, { timeout: 20000 }, async t => {
+    const fixture = await startCanvasOutputFixture();
+    const browser = await chromium.launch({ headless: true });
+    t.after(async () => { await browser.close(); await fixture.close(); });
+    const created = fixture.service.create({ title: 'Retained dimensions', canvas: { width: 1920, height: 1080 } });
+    const saved = fixture.service.save({ id: created.document.id, expectedRevision: 1, document: { ...created.document,
+      items: [{ id: randomUUID(), type, name: type, x: 0, y: 0, width: 800, height: 400,
+        visible: true, locked: false, appearance: { mode: 'shared' } }] } });
+    fixture.service.publish({ id: created.document.id, expectedRevision: saved.revision });
+    const removed = fixture.service.save({ id: created.document.id, expectedRevision: saved.revision,
+      document: { ...saved.document, items: [] } });
+    fixture.service.publish({ id: created.document.id, expectedRevision: removed.revision });
+    assert.deepEqual(fixture.service.getComponentSize(type), { width: 800, height: 400 });
+    const desktop = await browser.newPage();
+    const page = await browser.newPage();
+    const url = await openCanvasDesktop(desktop, fixture, type);
+    assert.equal((await fetch(url)).status, 200);
+    await page.goto(url);
+    assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '800');
+    if (type !== 'overtime') assert.equal(await page.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '400');
+    else {
+      const frame = page.locator('iframe').contentFrame();
+      await frame.locator('#overtimeMachine.is-content-sized').waitFor();
+      const height = await frame.locator('.overtime-foreground').evaluate(node => Math.ceil(node.getBoundingClientRect().height));
+      await desktop.waitForFunction(expected => window.controllers.canvas.getState().draft.document.items[0]?.height === expected, height);
+    }
+    await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+    assert.equal(fixture.service.getComponentSize(type).width, 800);
+    if (type !== 'overtime') assert.equal(fixture.service.getComponentSize(type).height, 400);
+  });
+}
+
+test('publication status follows late owner state updates without clearing real drafts', { timeout: 20000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const created = fixture.service.create({ title: 'Publication status', canvas: { width: 1920, height: 1080 } });
+  fixture.service.save({ id: created.document.id, expectedRevision: 1, document: { ...created.document, items: [{
+    id: randomUUID(), type: 'clock', name: 'clock', x: 0, y: 0, width: 320, height: 180, visible: true, locked: false,
+    appearance: { mode: 'independent', config: fixture.configs.clock },
+  }] } });
+  const desktop = await browser.newPage();
+  const page = await browser.newPage();
+  const url = await openCanvasDesktop(desktop, fixture);
+  await desktop.evaluate(() => window.controllers.queue.edit({ overlayTitle: 'Unrelated draft' }));
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const status = page.locator('.preview-canvas-status');
+  await status.filter({ hasText: '有未保存修改' }).waitFor();
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await status.filter({ hasText: '本次已应用，新修改仍需保存' }).waitFor();
+  assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), true);
+  assert.equal(fixture.service.list()[0].publishedVersion, 1);
+  await desktop.evaluate(() => window.controllers.queue.discard());
+  await status.filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  assert.equal(fixture.service.list()[0].publishedVersion, 1, 'A later owner update must not republish the scene.');
+});
+
+test('independent scene publication flushes only affected owners and leaves unrelated defaults untouched', { timeout: 20000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const created = fixture.service.create({ title: 'independent publication', canvas: { width: 1920, height: 1080 } });
+  fixture.service.save({ id: created.document.id, expectedRevision: 1, document: { ...created.document, items: [{
+    id: randomUUID(), type: 'clock', name: 'clock', x: 0, y: 0, width: 320, height: 180, visible: true, locked: false,
+    appearance: { mode: 'independent', config: fixture.configs.clock },
+  }] } });
+  const desktop = await browser.newPage();
+  const page = await browser.newPage();
+  const url = await openCanvasDesktop(desktop, fixture);
+  await desktop.evaluate(() => {
+    const original = window.controllers.danmaku.getState;
+    window.controllers.danmaku.getState = () => ({ ...original(), loaded: false, error: 'unused owner unavailable' });
+    window.controllers.queue.edit({ overlayTitle: 'unrelated draft' });
+  });
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.getByRole('status').filter({ hasText: 'unused owner unavailable' }).waitFor();
+  const published = page.waitForResponse(async response => response.url().endsWith('/api/component-preview')
+    && (await response.json()).data?.display?.result?.publishedVersion === 1);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await published;
+  assert.equal(fixture.service.list()[0].publishedVersion, 1);
+  assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), true);
+});
+
+test('saved default components keep their real dimensions in original sources at every viewport size', { timeout: 45000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = await chromium.launch({ headless: true });
+  const errors = [];
+  t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(errors, []); });
+  const created = fixture.service.create({ title: 'Fixed pixels', canvas: { width: 1920, height: 1080 } });
+  const document = { ...created.document, items: ['clock', 'queue', 'danmaku', 'overtime'].map(type => ({
+    id: randomUUID(), type, name: type, x: 30, y: 40, width: 800, height: 400,
+    visible: true, locked: false, appearance: { mode: 'shared' },
+  })) };
+  const saved = fixture.service.save({ id: document.id, expectedRevision: 1, document });
+  fixture.service.publish({ id: document.id, expectedRevision: saved.revision });
+  for (const [type, surface, content] of [
+    ['clock', '.clock-stage', '#clockCard'], ['queue', 'body', '.overlay-panel'],
+    ['danmaku', '#danmakuCanvasHost', '.danmaku-region'], ['overtime', '#overtimeMachine', '.overtime-foreground'],
+  ]) {
+    const page = await browser.newPage({ viewport: { width: 800, height: 400 } });
+    page.on('pageerror', error => errors.push(error.message));
+    const source = `${fixture.origin}/${type}${type === 'danmaku' ? '?source=component' : ''}`;
+    assert.equal((await fetch(source)).status, 200);
+    await page.goto(source);
+    await page.waitForFunction(() => document.documentElement.style.width === '800px');
+    if (type === 'clock') await page.locator('#clockCard').waitFor({ state: 'visible' });
+    if (type === 'queue') await page.getByText('合成实时歌曲').waitFor();
+    if (type === 'danmaku') await page.waitForFunction(() => document.body.classList.contains('has-layout'));
+    const bounds = async selector => page.locator(selector).evaluate(node => {
+      const { width, height } = node.getBoundingClientRect(); return { width, height };
+    });
+    const baseline = await bounds(content);
+    for (const viewport of [{ width: 800, height: 400 }, { width: 1920, height: 1080 },
+      { width: 2560, height: 1440 }, { width: 3840, height: 2160 }]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.deepEqual(await bounds(surface), { width: 800, height: 400 }, `${type}: saved surface at ${viewport.width}`);
+      assert.deepEqual(await bounds(content), baseline, `${type}: content must not scale with the host viewport`);
+    }
+    if (type === 'clock') {
+      const next = fixture.service.save({ id: document.id, expectedRevision: saved.revision,
+        document: { ...document, items: document.items.map(item => item.type === 'clock' ? { ...item, width: 700 } : item) } });
+      assert.equal((await bounds(surface)).width, 800, 'draft save alone does not alter output');
+      fixture.service.publish({ id: document.id, expectedRevision: next.revision });
+      await page.waitForFunction(() => document.documentElement.style.width === '700px');
+      await page.reload();
+      await page.waitForFunction(() => document.documentElement.style.width === '700px');
+    }
+    await page.close();
+  }
+});
+
+test('canvas save updates the original default source and separate instance URLs use the same saved configuration', { timeout: 45000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = await chromium.launch({ headless: true });
+  const desktop = await browser.newPage();
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const output = await browser.newPage({ viewport: { width: 3840, height: 2160 } });
+  const errors = [];
+  for (const target of [desktop, page, output]) target.on('pageerror', error => errors.push(error.message));
+  t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(errors, []); });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async value => { window.copiedSource = value; } } });
+  });
+  const url = await openCanvasDesktop(desktop, fixture, 'clock');
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const setSize = async (width, height) => {
+    await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill(String(width));
+    await page.getByRole('spinbutton', { name: '高度', exact: true }).fill(String(height));
+    await page.getByRole('spinbutton', { name: '高度', exact: true }).press('Tab');
+  };
+  const save = async () => {
+    await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  };
+  const copy = async () => {
+    await page.evaluate(() => { window.copiedSource = ''; });
+    await page.getByRole('button', { name: '复制单组件地址', exact: true }).click();
+    await page.waitForFunction(() => window.copiedSource);
+    return page.evaluate(() => window.copiedSource);
+  };
+  await setSize(800, 400);
+  await save();
+  assert.deepEqual(fixture.service.getComponentSize('clock'), { width: 800, height: 400 });
+  const defaultUrl = await copy();
+  assert.equal(new URL(defaultUrl).pathname, '/clock');
+  assert.equal((await fetch(defaultUrl)).status, 200);
+  await output.goto(defaultUrl);
+  await output.waitForFunction(() => document.documentElement.style.width === '800px');
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  await page.locator('[data-category="clock"]').click();
+  await page.locator('[data-picker-style="flip"]').click();
+  await setSize(600, 300);
+  await save();
+  const independentUrl = await copy();
+  const address = new URL(independentUrl);
+  assert.ok(address.searchParams.get('item'));
+  assert.equal((await fetch(independentUrl)).status, 200);
+  await output.goto(independentUrl);
+  const frame = output.locator('.scene-version:not(.is-staging) iframe');
+  await frame.waitFor();
+  assert.equal(await frame.count(), 1);
+  for (const viewport of [{ width: 800, height: 400 }, { width: 1920, height: 1080 },
+    { width: 2560, height: 1440 }, { width: 3840, height: 2160 }]) {
+    await output.setViewportSize(viewport);
+    const bounds = await frame.boundingBox();
+    assert.deepEqual({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      { x: 0, y: 0, width: 600, height: 300 });
+  }
+  assert.equal(await output.frameLocator('.scene-version:not(.is-staging) iframe').locator('html').getAttribute('data-clock-style'), 'flip');
+  await setSize(800, 400);
+  await save();
+  await output.waitForFunction(() => document.querySelector('.scene-version:not(.is-staging) iframe')?.getBoundingClientRect().width === 800);
+  assert.equal(await copy(), independentUrl);
+  assert.deepEqual(fixture.service.getComponentSize('clock'), { width: 800, height: 400 });
+  await page.goto('about:blank');
+  await desktop.evaluate(() => window.reopen('clock'));
+  await desktop.waitForFunction(() => window.externalPreviewUrl);
+  await page.goto(await desktop.evaluate(() => window.externalPreviewUrl));
+  assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '800');
+  assert.equal(await page.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '400');
+});
 
 test('empty editor adds independent styles and publishes every layer through one persistent source', { timeout: 45000 }, async t => {
   const fixture = await startCanvasOutputFixture();
@@ -139,7 +392,7 @@ test('empty editor adds independent styles and publishes every layer through one
   assert.equal(await output.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
   assert.equal(await output.locator('.component-preview-body').count(), 0);
   await output.setViewportSize({ width: 1280, height: 720 });
-  await output.waitForFunction(() => Math.round(document.querySelector('.scene-version:not(.is-staging)').getBoundingClientRect().width) === 1280);
   const size = await output.locator('.scene-version:not(.is-staging)').boundingBox();
-  assert.equal(Math.round(size.height), 720);
+  assert.equal(Math.round(size.width), 1920);
+  assert.equal(Math.round(size.height), 1080);
 });

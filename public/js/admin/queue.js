@@ -108,7 +108,10 @@ function renderQueueState(queue = {}) {
               <button class="icon" title="${item.is_pinned ? '取消置顶' : '置顶'}" type="button" data-action="${item.is_pinned ? 'unpin' : 'pin'}" data-id="${item.id}">${item.is_pinned ? '↧' : '↑'}</button>`;
 
         // 根据歌曲名长度决定字体大小
-        const songText = `${item.is_pinned ? '📌 ' : ''}${index + 1}. ${escapeHtml(item.song_name)}`;
+        const pinMark = item.is_pinned
+          ? '<svg class="queue-pin-icon" aria-hidden="true"><use href="/img/admin/workbench-icons.svg#pin"></use></svg>'
+          : '';
+        const songText = `${pinMark}${index + 1}. ${escapeHtml(item.song_name)}`;
         const textLength = (item.song_name || '').length;
         let lengthAttr = '';
         if (textLength > 35) {

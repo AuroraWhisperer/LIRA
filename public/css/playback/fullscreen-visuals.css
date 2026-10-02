@@ -278,7 +278,7 @@
   height: min(420px, 70vmin);
   display: grid;
   place-items: center;
-  filter: drop-shadow(0 20px 60px rgba(22, 31, 43, 0.3));
+  filter: drop-shadow(0 20px 60px rgba(87, 58, 28, 0.3));
 }
 
 .player-fs-vinyl-disc {

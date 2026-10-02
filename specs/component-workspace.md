@@ -12,6 +12,8 @@
 
 ## Context
 
+2026-10-01 尺寸语义：拖动边框/角点与右侧宽高编辑同一份几何配置，输入框保留原生选择、剪贴板与撤销快捷键。「保存并应用」同时提交共享默认组件的本机输出尺寸；独立组件以场景内的稳定实例 ID 提供单组件地址，直接使用同一发布配置。输出保持绝对 CSS 像素，浏览器视口变化不缩放组件；加班机继续使用自动测量高度。持久化、权限与独立输出契约见 [场景规格](component-scenes.md)。
+
 P1 已有四个共享草稿控制器、单组件沙箱预览、原领域保存路径和只读展示投影。原始设计与学习路线位于 tmp/component-preview-design.md 和 tmp/component-preview-references.md。P2 工作区、P3 场景文档与组合输出、P4 本地编辑能力均已实现并验证，证据见 [归档计划](plans/archive/2026-09-30-component-workspace.md)。
 
 ## Constraints

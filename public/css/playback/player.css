@@ -2,6 +2,12 @@
   --player-dock-height: 96px;
   --player-dock-expanded-height: 218px;
   --player-dock-collapsed-height: 0px;
+  /* The collapse handle hangs above the dock; page layouts reserve its height so it never covers content. */
+  --player-dock-toggle-clearance: 24px;
+}
+
+body {
+  --player-dock-reserve: calc(var(--player-dock-height) + var(--player-dock-toggle-clearance));
 }
 
 body.player-dock-expanded {
@@ -20,11 +26,10 @@ body.player-dock-collapsed {
   height: var(--player-dock-height);
   overflow: visible;
   border: 0;
-  border-top: 1px solid rgba(217, 224, 232, 0.86);
+  border-top: 1px solid var(--border);
   border-radius: 0;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 -10px 30px rgba(22, 31, 43, 0.1);
-  backdrop-filter: blur(18px);
+  background: var(--surface);
+  box-shadow: 0 -4px 16px rgba(24, 24, 22, 0.05);
   transition: height 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -32,21 +37,6 @@ body.player-dock-collapsed {
   border-top-color: transparent;
   background: transparent;
   box-shadow: none;
-  backdrop-filter: none;
-}
-
-.playback-player-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  z-index: 1;
-  height: 2px;
-  background: linear-gradient(90deg, var(--primary), var(--accent));
-  opacity: 0.68;
-}
-
-.playback-player-panel.is-collapsed::before {
-  opacity: 0;
 }
 
 .player-dock-toggle {
@@ -60,12 +50,12 @@ body.player-dock-collapsed {
   place-items: center;
   padding: 0;
   min-height: auto;
-  border: 1px solid rgba(217, 224, 232, 0.96);
+  border: 1px solid var(--border);
   border-bottom: 0;
   border-radius: 24px 24px 0 0;
-  background: rgba(255, 255, 255, 0.96);
-  color: var(--primary-strong, var(--muted));
-  box-shadow: 0 -5px 16px rgba(22, 31, 43, 0.12);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: 0 -2px 8px rgba(24, 24, 22, 0.06);
   cursor: pointer;
   transition:
     background 160ms ease,
@@ -76,17 +66,11 @@ body.player-dock-collapsed {
 
 .player-dock-toggle:hover {
   color: var(--text);
-  background: #fff;
-  box-shadow: 0 -7px 20px rgba(22, 31, 43, 0.16);
-  transform: translateY(-1px);
-}
-
-.player-dock-toggle:active {
-  transform: translateY(0);
+  background: var(--surface);
 }
 
 .player-dock-toggle:focus-visible {
-  outline: 3px solid rgba(217, 75, 112, 0.28);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 
@@ -137,21 +121,10 @@ body.player-dock-collapsed {
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #2d2d3f 0%, #1a1a2e 100%);
-  color: rgba(255, 255, 255, 0.32);
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
-  transition:
-    transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 240ms ease;
-}
-
-.playback-cover:hover {
-  transform: none;
-  box-shadow:
-    0 14px 32px rgba(0, 0, 0, 0.26),
-    0 4px 10px rgba(0, 0, 0, 0.14),
-    0 0 0 1px rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  box-shadow: inset 0 0 0 1px rgba(24, 24, 22, 0.06);
 }
 
 .playback-cover svg {
@@ -188,10 +161,6 @@ body.player-dock-collapsed {
 .playback-now strong.no-track {
   color: var(--muted);
   font-weight: 600;
-  background: linear-gradient(135deg, #d94b70, #9b59b6, #3498db);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 .playback-now > span {
@@ -227,8 +196,7 @@ body.player-dock-collapsed {
 }
 
 .playback-now > span.no-track {
-  color: #94a3b8;
-  font-style: italic;
+  color: var(--color-text-muted);
 }
 
 /* ===== 进度条 ===== */
@@ -263,9 +231,13 @@ body.player-dock-collapsed {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
+  height: 4px;
   border-radius: 999px;
-  background: linear-gradient(to right, var(--primary) var(--seek-pos, 0%), rgba(22, 31, 43, 0.1) var(--seek-pos, 0%));
+  background: linear-gradient(
+    to right,
+    var(--primary) var(--seek-pos, 0%),
+    color-mix(in srgb, var(--text) 12%, transparent) var(--seek-pos, 0%)
+  );
   cursor: pointer;
   outline: none;
   border: none;
@@ -275,40 +247,35 @@ body.player-dock-collapsed {
 }
 
 .playback-seek-wrap:hover input[type='range'] {
-  height: 8px;
+  height: 6px;
 }
 
 .playback-seek-wrap input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--color-bg-primary);
   border: none;
   box-shadow:
-    0 0 0 3px var(--primary),
-    0 3px 10px rgba(217, 75, 112, 0.45);
+    0 0 0 2px var(--primary),
+    0 1px 3px rgba(24, 24, 22, 0.25);
   cursor: pointer;
-  transition:
-    transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 150ms ease;
+  transition: transform 150ms ease;
 }
 
 .playback-seek-wrap input[type='range']::-webkit-slider-thumb:hover {
-  transform: scale(1.25);
-  box-shadow:
-    0 0 0 3px var(--primary),
-    0 4px 14px rgba(217, 75, 112, 0.6);
+  transform: scale(1.15);
 }
 
 .playback-seek-wrap input[type='range']::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--color-bg-primary);
-  border: 3px solid var(--primary);
-  box-shadow: 0 3px 10px rgba(217, 75, 112, 0.45);
+  border: 2px solid var(--primary);
+  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.25);
   cursor: pointer;
   box-sizing: border-box;
 }
@@ -321,13 +288,16 @@ body.player-dock-collapsed {
   height: 32px;
   padding: 5px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text);
   font-size: var(--type-size-control);
   font-weight: 600;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -339,11 +309,8 @@ body.player-dock-collapsed {
 }
 
 .playback-add-playlist-btn:not(:disabled):hover {
-  border-color: var(--primary);
-  background: linear-gradient(135deg, var(--color-primary-light) 0%, #fff 100%);
-  color: var(--primary);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(217, 75, 112, 0.15);
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
 }
 
 .playback-add-playlist-btn:disabled {
@@ -406,21 +373,19 @@ body.player-dock-collapsed {
   color: var(--muted);
   cursor: pointer;
   transition:
-    background 180ms ease,
-    color 180ms ease,
-    transform 140ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    background 160ms ease,
+    color 160ms ease;
   padding: 0;
   min-height: auto;
 }
 
 .playback-icon-btn:hover {
-  background: rgba(22, 31, 43, 0.07);
+  background: rgba(24, 24, 22, 0.06);
   color: var(--text);
-  transform: scale(1.08);
 }
 
 .playback-icon-btn:active {
-  transform: scale(0.9);
+  background: rgba(24, 24, 22, 0.1);
 }
 
 .playback-icon-btn:disabled {
@@ -431,7 +396,6 @@ body.player-dock-collapsed {
 .playback-icon-btn:disabled:hover {
   background: transparent;
   color: var(--muted);
-  transform: none;
 }
 
 .playback-icon-btn svg {
@@ -445,7 +409,7 @@ body.player-dock-collapsed {
 }
 
 .playback-mode-wrap .playback-icon-btn:hover {
-  color: var(--accent);
+  color: var(--text);
 }
 
 /* ===== 播放/暂停主按钮 ===== */
@@ -462,27 +426,23 @@ body.player-dock-collapsed {
   place-items: center;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(145deg, var(--primary) 0%, #e8406e 100%);
+  background: var(--primary);
   color: var(--color-bg-primary);
   cursor: pointer;
   transition:
-    transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 200ms ease;
+    background-color 160ms ease,
+    transform 160ms ease;
   padding: 0;
   min-height: auto;
-  box-shadow: 0 5px 14px rgba(217, 75, 112, 0.38);
+  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.18);
 }
 
 .playback-play-btn:hover {
-  transform: scale(1.1);
-  box-shadow:
-    0 10px 28px rgba(217, 75, 112, 0.6),
-    0 4px 10px rgba(217, 75, 112, 0.35),
-    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+  background: var(--primary-strong);
 }
 
 .playback-play-btn:active {
-  transform: scale(0.93);
+  transform: scale(0.96);
 }
 
 .playback-play-btn svg {
@@ -521,8 +481,8 @@ body.player-dock-collapsed {
 
 /* 队列按钮激活态 */
 #playbackQueueBtn.active {
-  color: var(--primary, #2563eb);
-  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary);
+  background: var(--color-primary-light);
 }
 
 /* ===== 右侧滑出抽屉 ===== */

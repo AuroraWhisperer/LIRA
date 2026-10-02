@@ -34,9 +34,11 @@ body[data-style='minimal'] .draw-danmaku-body {
   width: min(270px, 100%);
   min-width: 0;
   text-align: center;
+  /* A tight dark edge for legibility plus a faint lilac halo that echoes the bow. */
   text-shadow:
     0 1px 3px rgba(16, 28, 42, 0.9),
-    0 0 2px rgba(16, 28, 42, 0.9);
+    0 0 2px rgba(16, 28, 42, 0.9),
+    0 0 12px rgb(150 124 226 / 40%);
 }
 body[data-style='minimal'] .draw-danmaku-identity {
   display: grid;
@@ -49,10 +51,8 @@ body[data-style='minimal'] .draw-danmaku-identity strong {
   /* 正文占容器的 90%，昵称宽度为正文的 70%。 */
   width: 63%;
   transform: translateY(6px);
-  color: #dff3ff;
-  font:
-    800 16px/1.4 'Microsoft YaHei UI',
-    sans-serif;
+  color: #ece6ff;
+  font: 700 16px/1.4 var(--danmaku-ui-font);
   letter-spacing: 0;
   overflow-wrap: anywhere;
   white-space: normal;
@@ -99,7 +99,7 @@ body[data-style='minimal'] .draw-danmaku-gift-copy {
 }
 body[data-style='minimal'] .draw-danmaku-gift-action {
   margin-right: 6px;
-  color: #dff3ff;
+  color: #d9ccff;
   font-size: 14px;
 }
 body[data-style='minimal'] .draw-danmaku-gift-name {
@@ -109,7 +109,7 @@ body[data-style='minimal'] .draw-danmaku-gift-name {
 body[data-style='minimal'] .draw-danmaku-gift-count {
   display: inline-block;
   margin-left: 8px;
-  color: #dff3ff;
+  color: #ffe2a8;
   font-size: var(--danmaku-font-size);
   font-weight: 700;
 }

@@ -1,13 +1,14 @@
 'use strict';
 
 const { readJsonBody, sendJson, verifyToken } = require('../http-utils');
+const { MAX_PREVIEW_REQUEST_BYTES } = require('../component-preview-sessions');
 
 async function handleComponentPreview(context, req, res, url) {
   const sessions = context.componentPreviews;
   if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: '预览接口仅支持 POST。' });
   if (req.headers.origin === 'null') return sendJson(res, 403, { ok: false, error: 'Origin not allowed.' });
   try {
-    const body = await readJsonBody(req, 256 * 1024);
+    const body = await readJsonBody(req, MAX_PREVIEW_REQUEST_BYTES);
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return sendJson(res, 400, { ok: false, error: '预览请求无效。' });
     }

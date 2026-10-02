@@ -3,11 +3,7 @@
   gap: 0;
   padding: 16px;
   --accent: var(--color-control-accent);
-  --surface: light-dark(#fffefb, var(--dark-bg-primary));
-  --surface-2: light-dark(#f3f5f6, var(--dark-bg-secondary));
-  --text: light-dark(#526071, var(--dark-text-primary));
-  --muted: light-dark(#626c77, var(--dark-text-secondary));
-  --danmaku-heading-color: light-dark(#246b63, var(--dark-text-primary));
+  --danmaku-heading-color: var(--text);
   --fixed-divider: color-mix(in srgb, var(--border) 46%, var(--surface));
   font-size: 14px;
   line-height: 1.5;
@@ -44,7 +40,7 @@
   border-bottom: 1px solid var(--fixed-divider);
 }
 .danmaku-fixed-item.is-editing {
-  background: color-mix(in srgb, var(--danmaku-action) 12%, var(--surface));
+  background: var(--color-primary-light);
   border-radius: var(--radius-md);
 }
 .danmaku-fixed-copy {
@@ -75,8 +71,8 @@
   color: var(--danmaku-heading-color);
 }
 .danmaku-fixed-open:hover {
-  background: var(--surface-2);
-  border-color: var(--border);
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
 }
 .danmaku-fixed-open[aria-expanded='true'] {
   background: var(--surface-2);
@@ -227,11 +223,11 @@
   font-variant-numeric: tabular-nums;
 }
 .danmaku-fixed-reply-section .danmaku-welcome-field input[aria-invalid='true'] {
-  border-color: var(--danger, #b13f35);
+  border-color: var(--danger);
 }
 .danmaku-field-error {
   flex-basis: 100%;
-  color: var(--danger, #b13f35);
+  color: var(--danger);
   font-size: 12px;
 }
 .danmaku-text-action {
@@ -366,11 +362,11 @@
   color: var(--danmaku-heading-color);
 }
 .danmaku-fixed-reply-section :is(button, select, summary, input):focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 3px;
 }
 .danmaku-fixed-reply-section .switch-control input:focus-visible + .switch-track {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 3px;
 }
 @container fixed-replies (width < 640px) {

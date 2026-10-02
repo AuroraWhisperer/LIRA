@@ -124,7 +124,7 @@
 }
 
 #importPage .song-data-action:hover:not(:disabled) {
-  border-color: var(--color-text-secondary);
+  border-color: var(--color-border-strong);
   background: var(--color-bg-tertiary);
 }
 

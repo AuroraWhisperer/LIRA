@@ -51,6 +51,7 @@ test('wheel module entry binds its controls without relying on classic-script gl
     return elements.get(id);
   }
   await loadModuleExports(path.join(PUBLIC_DIR, 'js', 'overlays', 'wheel.js'), {
+    URLSearchParams,
     window: windowRef,
     document: {
       addEventListener: (type, handler) => handlers.set(type, handler),

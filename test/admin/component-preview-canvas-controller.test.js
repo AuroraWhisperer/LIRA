@@ -11,9 +11,9 @@ const modules = Promise.all(['component-preview-canvas-controller.js', 'componen
   loadModuleExports(path.join(admin, file), { TextEncoder, queueMicrotask })));
 const copy = (value) => JSON.parse(JSON.stringify(value));
 
-async function fixture(records = []) {
+async function fixture(records = [], read) {
   const [{ prepareComponentPreviewCanvas }, { createComponentConfigController }] = await modules;
-  const controller = createComponentConfigController({ initial: { layout: { canvas: { width: 2560, height: 1440 } } } });
+  const controller = createComponentConfigController({ initial: { layout: { canvas: { width: 2560, height: 1440 } } }, read });
   const components = [{ id: 'danmaku', controller }];
   const calls = [];
   let conflict = false;
@@ -65,6 +65,49 @@ test('existing scene geometry is retained and saves stay bound to its scene iden
   assert.equal(await controller.save(), false);
   assert.match(controller.getState().error, /标识不匹配/);
   assert.equal(f.calls.length, 1);
+});
+
+test('existing canvas opens without waiting for unrelated danmaku settings', async () => {
+  let finish;
+  const f = await fixture([{ document: { schemaVersion: 1, id: randomUUID(), title: 'Existing canvas',
+    canvas: { width: 1920, height: 1080 }, items: [] }, revision: 1 }], () => new Promise(resolve => { finish = resolve; }));
+  const loading = f.components[0].controller.reload();
+  let opened = false;
+  const preparing = f.prepare().then(canvas => { opened = true; return canvas; });
+  await new Promise(resolve => setImmediate(resolve));
+  const openedWhileLoading = opened;
+  finish({ layout: { canvas: { width: 2560, height: 1440 } } });
+  await loading;
+  const canvas = await preparing;
+  assert.equal(openedWhileLoading, true);
+  assert.deepEqual(f.calls.map(({ action }) => action), ['list']);
+  assert.equal(canvas.controller.getState().draft.document.canvas.width, 1920);
+});
+
+test('first canvas waits for danmaku dimensions once and rejects an owner change before creation', async () => {
+  for (const reset of [false, true]) {
+    let finish;
+    const f = await fixture([], () => new Promise(resolve => { finish = resolve; }));
+    const owner = f.components[0].controller;
+    const loading = owner.reload();
+    const preparing = Promise.all([f.prepare(), f.prepare()]);
+    const rejected = reset ? assert.rejects(preparing, /来源已变化/) : null;
+    await new Promise(resolve => setImmediate(resolve));
+    const whileLoading = f.calls.map(({ action }) => action);
+    if (reset) owner.reset();
+    finish({ layout: { canvas: { width: 3840, height: 2160 } } });
+    await loading;
+    if (reset) {
+      await rejected;
+      assert.equal(f.calls.some(({ action }) => action === 'create'), false);
+    } else {
+      const [first, second] = await preparing;
+      assert.equal(first, second);
+      assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'create']);
+      assert.equal(first.controller.getState().draft.document.canvas.width, 3840);
+    }
+    assert.deepEqual(whileLoading, ['list']);
+  }
 });
 
 test('revision failures preserve canvas drafts and an old owner cannot save after reset', async () => {

@@ -15,11 +15,9 @@
   justify-items: center;
   text-align: center;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
-  box-shadow:
-    0 20px 48px rgba(22, 31, 43, 0.1),
-    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  box-shadow: var(--shadow-md);
   padding: 44px 36px 36px;
 }
 
@@ -74,7 +72,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: rgba(33, 182, 168, 0.15);
+  background: var(--color-success-light);
   color: var(--color-success-dark);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-bold);
@@ -119,27 +117,6 @@
   font-size: var(--type-size-caption);
 }
 
-/* desktop shell overrides for shutdown */
-body.desktop-shell .shutdown-card {
-  box-shadow:
-    0 20px 48px rgba(87, 58, 28, 0.14),
-    0 0 0 1px rgba(255, 255, 255, 0.48) inset;
-}
-
-body.desktop-shell .shutdown-checklist {
-  background: #f5eee4;
-}
-
-body.desktop-shell .shutdown-checklist .check-mark {
-  background: rgba(199, 154, 59, 0.22);
-  color: #946200;
-}
-
-body.desktop-shell .shutdown-icon {
-  color: #c79a3b;
-  opacity: 0.45;
-}
-
 /* ---- custom frameless titlebar ---- */
 
 .titlebar-brand,
@@ -160,7 +137,6 @@ body.desktop-shell .titlebar-brand {
 body.desktop-shell .titlebar-logo {
   display: block;
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 3px rgba(180, 35, 24, 0.2));
 }
 
 body.desktop-shell .titlebar-name {
@@ -192,33 +168,31 @@ body.desktop-shell .win-btn {
   color: var(--text);
   cursor: pointer;
   padding: 0;
-  opacity: 0.5;
+  opacity: 0.62;
   transition:
     background 150ms ease,
     color 150ms ease,
-    opacity 150ms ease,
-    transform 150ms ease;
+    opacity 150ms ease;
 }
 
 body.desktop-shell .win-btn:hover {
-  background: rgba(255, 140, 170, 0.12);
+  background: rgba(24, 24, 22, 0.06);
   opacity: 1;
-  transform: scale(1.12);
 }
 
 body.desktop-shell .win-btn.close-win:hover {
-  background: rgba(255, 100, 140, 0.15);
-  color: #e8406a;
+  background: #c42b1c;
+  color: #ffffff;
   opacity: 1;
 }
 
 body.desktop-shell .win-btn:active {
-  background: rgba(255, 120, 160, 0.22);
-  transform: scale(0.96);
+  background: rgba(24, 24, 22, 0.1);
 }
 
 body.desktop-shell .win-btn.close-win:active {
-  background: rgba(232, 64, 106, 0.2);
+  background: #a92619;
+  color: #ffffff;
 }
 
 /* ---- full-screen workspace polish ---- */
@@ -237,54 +211,12 @@ body.desktop-shell .status-strip {
 
 body.desktop-shell .main-page-tab.active {
   background: transparent;
-  color: #3f3026;
+  color: var(--text);
   box-shadow: none;
 }
 
 body.desktop-shell .panel {
-  box-shadow: 0 5px 18px rgba(87, 58, 28, 0.07);
-}
-
-body.desktop-shell .playback-user,
-body.desktop-shell .playback-home-card {
-  background: #f8f1e8;
-}
-
-body.desktop-shell .playback-home-card:hover {
-  background: #fffdfa;
-}
-
-body.desktop-shell .playback-player-panel {
-  border-top-color: rgba(199, 154, 59, 0.28);
-  background: rgba(255, 252, 248, 0.95);
-  box-shadow: 0 -10px 30px rgba(87, 58, 28, 0.11);
-}
-
-body.desktop-shell .playback-player-panel.is-collapsed {
-  border-top-color: transparent;
-  background: transparent;
-  box-shadow: none;
-}
-
-body.desktop-shell .player-dock-toggle {
-  border-color: rgba(199, 154, 59, 0.28);
-  background: rgba(255, 252, 248, 0.98);
-  color: #756b61;
-}
-
-body.desktop-shell .playback-player-panel::before {
-  background: linear-gradient(90deg, var(--primary), var(--accent));
-}
-
-body.desktop-shell .playback-play-btn {
-  background: linear-gradient(145deg, #d92d20, #b42318);
-  box-shadow: 0 5px 14px rgba(180, 35, 24, 0.34);
-}
-
-body.desktop-shell .playback-seek-wrap input[type='range']::-webkit-slider-thumb {
-  box-shadow:
-    0 0 0 3px var(--primary),
-    0 3px 10px rgba(180, 35, 24, 0.34);
+  box-shadow: var(--shadow-sm);
 }
 
 @media (max-width: 900px) {
@@ -298,7 +230,7 @@ body.desktop-shell .playback-seek-wrap input[type='range']::-webkit-slider-thumb
     flex-direction: column;
     height: 100dvh;
     min-height: 0;
-    padding-bottom: var(--player-dock-height, 102px);
+    padding-bottom: var(--player-dock-reserve, 102px);
   }
 
   body.desktop-shell .topbar {
@@ -333,7 +265,8 @@ body.desktop-shell .playback-seek-wrap input[type='range']::-webkit-slider-thumb
     flex-wrap: wrap;
   }
 
-  body.desktop-shell .song-management-panel > .tabs > .tab {
+  body.desktop-shell .song-management-panel > .tabs > .tab,
+  body.desktop-shell .song-management-panel > .tabs > .tab-with-help {
     flex: 1 0 auto;
   }
 

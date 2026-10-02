@@ -174,7 +174,7 @@ function createServerRuntime(runtimeOptions = {}) {
         onGiftFlushed: publishGiftFlushed,
         onOvertimeUpdate: (update) => publishOvertimeUpdate(update),
       });
-      sceneRuntime = createSceneRuntime({ songDb: db.songDb, runtimeOptions, getState });
+      sceneRuntime = createSceneRuntime({ songDb: db.songDb, runtimeOptions, getState, getContext: () => createApiContext() });
       giftSyncStore = createGiftSyncStore({
         giftDb: db.giftDb,
         importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),

@@ -28,14 +28,13 @@
   align-items: flex-start;
   gap: 12px;
   border: 1px solid var(--blind-box-mapping-border);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 12px 14px;
   background: var(--blind-box-mapping-background);
   box-shadow: var(--blind-box-mapping-shadow);
   transition:
     border-color 180ms ease,
-    box-shadow 180ms ease,
-    transform 120ms ease;
+    box-shadow 180ms ease;
 }
 
 .blind-box-chip:hover {
@@ -98,7 +97,7 @@
   gap: 4px;
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
-  color: #64748b;
+  color: var(--muted);
   line-height: var(--type-leading-caption);
 }
 
@@ -106,7 +105,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  background: #f1f5f9;
+  background: var(--surface-2);
   border-radius: 4px;
   padding: 2px 7px;
   white-space: nowrap;
@@ -116,13 +115,13 @@
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-semibold);
   line-height: var(--type-leading-caption);
-  color: #94a3b8;
+  color: var(--color-text-muted);
 }
 
 /* ── 删除按钮 ── */
 .blind-box-chip .chip-delete {
   cursor: pointer;
-  color: #94a3b8;
+  color: var(--color-text-muted);
   font-weight: 700;
   line-height: 1;
   padding: 4px 6px;
@@ -136,8 +135,8 @@
 }
 
 .blind-box-chip .chip-delete:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.08);
+  color: var(--danger);
+  background: var(--color-danger-light);
 }
 
 .bb-chip-source {

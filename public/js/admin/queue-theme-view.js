@@ -2,7 +2,7 @@ import { theme } from '../shared/theme.js';
 import { normalizeRangeValue } from '../shared/utils.js';
 import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { initParameterRanges, disposeParameterRanges } from '../shared/parameter-range.js';
-import { componentField } from './component-preview-panel.js';
+import { componentField, syncComponentFieldValue } from './component-preview-panel.js';
 import { componentSaveMessage } from './component-config-controller.js';
 import { setOverlayStyle } from './theme-style-view.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
@@ -27,11 +27,18 @@ export function bindQueueTheme(root, controller) {
     const range = node(rangeId), number = node(numberId);
     range.addEventListener('input', () => { number.value = String(Number(range.value) * scale); });
     number.addEventListener('input', () => {
+      if (!number.value || !number.checkValidity()) return;
       range.value = normalizeRangeValue(Number(number.value) / scale, min, max, fallback);
-      number.value = String(Number(range.value) * scale);
+    });
+    number.addEventListener('change', () => {
+      range.value = normalizeRangeValue(Number(number.value) / scale, min, max, fallback);
+      syncComponentFieldValue(number, Number(range.value) * scale, true);
     });
   }
-  const edit = () => controller.edit(collectQueueTheme(root));
+  const edit = (event) => {
+    if (event.target.type === 'number' && (!event.target.value || !event.target.checkValidity())) return;
+    controller.edit(collectQueueTheme(root));
+  };
   root.addEventListener('input', edit);
   root.addEventListener('change', edit);
   root.addEventListener('submit', (event) => { event.preventDefault(); void controller.save(); });
@@ -52,14 +59,14 @@ export function bindQueueTheme(root, controller) {
     const { draft } = state;
     for (const [key, value] of Object.entries(draft)) {
       const control = node(key);
-      if (control && control.value !== String(value)) control.value = value;
+      if (control) syncComponentFieldValue(control, value);
     }
     const active = readQueueStyleSettings(draft, draft.overlayQueueStyle);
     ensureSavedFontOption(node('illustratedQueueFontFamily'), active.fontFamily);
-    for (const [field, id] of Object.entries(QUEUE_STYLE_CONTROLS)) node(id).value = active[field];
+    for (const [field, id] of Object.entries(QUEUE_STYLE_CONTROLS)) syncComponentFieldValue(node(id), active[field]);
     node('queueScrollSpeedRange').value = draft.queueScrollSpeed;
     node('identityQueueScrollSpeedRange').value = active.scrollSpeed;
-    for (const [rangeId, numberId, , , , scale = 1] of RANGE_PAIRS) node(numberId).value = String(Number(node(rangeId).value) * scale);
+    for (const [rangeId, numberId, , , , scale = 1] of RANGE_PAIRS) syncComponentFieldValue(node(numberId), Number(node(rangeId).value) * scale);
     setOverlayStyle(draft.overlayQueueStyle, root);
     initParameterRanges(root);
     const save = node('queueThemeSave');

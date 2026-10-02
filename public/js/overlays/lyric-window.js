@@ -1,12 +1,26 @@
 'use strict';
 
 import { desktopLyricRenderer } from '../lyrics/desktop-lyric-renderer.js?v=20260913-01';
+import { mountSceneExtraClient } from './scene-extra-client.js';
 
 let reconnectTimer = 0;
 let reconnectAttempts = 0;
+let componentTimeline = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   desktopLyricRenderer.init();
+  if (mountSceneExtraClient('lyrics', {
+    onConfig: (config) => desktopLyricRenderer.applySettings(config),
+    onData(data) {
+      const timeline = data?.lyricTimeline || { lines: [] };
+      const signature = JSON.stringify(timeline);
+      if (signature !== componentTimeline) {
+        componentTimeline = signature;
+        desktopLyricRenderer.updateLyricTimeline(timeline);
+      }
+      desktopLyricRenderer.updateLyricState(data?.lyricState || { playing: false, lineText: '', words: [], currentMs: 0, status: 'idle' });
+    },
+  })) return;
   connectSocket();
 });
 

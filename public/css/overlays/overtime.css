@@ -24,9 +24,9 @@ body {
 
 .overtime-machine {
   position: relative;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  width: var(--component-width, 100vw);
+  height: var(--component-height, 100vh);
+  height: var(--component-height, 100dvh);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -326,7 +326,7 @@ body {
   pointer-events: none;
 }
 .overtime-adjustment-card {
-  min-width: min(68vw, 66.67em);
+  min-width: min(calc(var(--component-width, 100vw) * 0.68), 66.67em);
   padding: 1.5em;
   border: 0.24em solid currentColor;
   border-radius: 1.2em;

@@ -1,5 +1,7 @@
 import { previewElement } from './component-preview-surface.js';
-import { createSceneItemController } from './scene-editor-state.js';
+import { createSceneItemController } from './scene-item-controller.js';
+import { SCENE_COMPONENTS } from '../shared/scene-components.js';
+import { syncComponentFieldValue } from './component-preview-panel.js';
 
 export function mountSceneEditorInspector(host, { model, components, getSelection, report, embedded = false }) {
   let key = '';
@@ -12,7 +14,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
   let saveDefault;
   let defaultState;
   function edit(mutator) {
-    try { model.edit(mutator); } catch (error) { report(error.message); render(); }
+    try { model.edit(mutator); } catch (error) { report(error.message); render(true); }
   }
   function field(label, property, type = 'number') {
     const wrapper = previewElement('label', '', label);
@@ -39,7 +41,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     fields = {};
     host.replaceChildren();
   }
-  function render() {
+  function render(force = false) {
     const selected = model.getDocument().items.filter((item) => getSelection().has(item.id));
     const item = selected.length === 1 ? selected[0] : null;
     const nextKey = item ? `${item.id}:${item.appearance.mode}:${item.locked}` : `count:${selected.length}`;
@@ -59,9 +61,9 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       geometry.append(field(embedded ? '组件名称' : '实例名称', 'name', 'text'));
       const grid = previewElement('div', 'component-preview-fields');
       for (const [label, property] of [['X', 'x'], ['Y', 'y'], ['宽度', 'width'], ['高度', 'height']]) {
-        grid.append(field(item.type === 'overtime' && property === 'height' ? '高度（自动）' : label, property));
+        grid.append(field(SCENE_COMPONENTS[item.type].contentHeight && property === 'height' ? '高度（自动）' : label, property));
       }
-      fields.height.readOnly = item.type === 'overtime';
+      fields.height.readOnly = SCENE_COMPONENTS[item.type].contentHeight;
       geometry.append(grid);
       target = previewElement('p', 'scene-editor-target');
       mode = previewElement('button', 'secondary');
@@ -80,7 +82,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       parameters.disabled = item.locked;
       const controller = item.appearance.mode === 'shared' ? component.controller
         : createSceneItemController(model, item.id, component.controller);
-      host.append(geometry, target, ...(embedded ? [] : [mode]), parameters);
+      host.append(geometry, target, ...(embedded || SCENE_COMPONENTS[item.type].independentOnly ? [] : [mode]), parameters);
       panel = component.createPanel(parameters, controller);
       if (item.appearance.mode === 'shared' && !embedded) {
         saveDefault = previewElement('button', 'secondary', '单独保存组件默认配置');
@@ -109,20 +111,20 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     if (!item) return;
     if (embedded) host.firstElementChild.textContent = `${item.name}参数`;
     for (const [property, input] of Object.entries(fields)) {
-      if (input.value !== String(item[property])) input.value = String(item[property]);
+      syncComponentFieldValue(input, item[property], force);
     }
     const { canvas } = model.getDocument();
     fields.x.max = String(canvas.width - item.width);
     fields.y.max = String(canvas.height - item.height);
     fields.width.max = String(canvas.width - item.x);
     fields.height.max = String(canvas.height - item.y);
-    target.textContent = embedded ? (item.appearance.mode === 'shared' ? '样式与客户端的同类组件共用；位置和尺寸仅属于此图层。' : '样式、位置和尺寸仅属于此图层。') : item.appearance.mode === 'shared'
+    target.textContent = embedded ? (item.appearance.mode === 'shared' ? '样式与尺寸和默认组件共用；保存并应用后，原单组件地址同步更新。' : '独立组件；保存并应用后可复制此组件的单独地址。') : item.appearance.mode === 'shared'
       ? '编辑目标：当前组件默认配置。更改会影响其他共享此默认配置的入口；场景发布时固定外观。'
       : '编辑目标：仅此场景实例。更改随场景草稿保存。';
-    target.hidden = embedded && item.appearance.mode === 'independent';
+    target.hidden = false;
     mode.textContent = item.appearance.mode === 'shared' ? '复制当前外观为独立配置' : '改用组件默认配置';
     mode.disabled = item.locked;
   }
-  const unsubscribe = model.subscribe(render);
+  const unsubscribe = model.subscribe(() => render());
   return { render, dispose() { unsubscribe(); clear(); } };
 }

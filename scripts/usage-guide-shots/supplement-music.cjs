@@ -195,7 +195,7 @@ const SHOTS = [
     musicAuth: true,
     click: '[data-playback-home-action="recent"]',
     wait: '#playbackDrawer.open',
-    mustShow: ['#playbackDrawerTitle', '#playbackDrawerClose', '#playbackDrawerPlayAllHeader'],
+    mustShow: ['#playbackDrawerTitle', '#playbackDrawerClose', '#playbackDrawerPlayAll'],
   },
   {
     id: 'C9',

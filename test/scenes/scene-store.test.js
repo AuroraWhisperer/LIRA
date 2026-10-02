@@ -6,10 +6,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
-const { migrateScenes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { createDatabases, closeDatabases, getSchemaVersions } = require('../../src/storage/database');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
+const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../../src/shared/scene-component-types');
 
 function temporaryDirectory() {
   const root = path.resolve(__dirname, '../../tmp');
@@ -44,10 +45,11 @@ function fixture(t) {
   });
   const db = open();
   migrateScenes(db);
+  migrateComponentOutputSizes(db);
   return { db, open, close, store: createSceneStore(db) };
 }
 
-test('songDb v8 migration preserves v7 rows and is idempotent after restart', (t) => {
+test('songDb scene migrations preserve v7 rows and are idempotent after restart', (t) => {
   const directory = temporaryDirectory();
   let databases = createDatabases({ dataDir: directory });
   t.after(() => {
@@ -62,7 +64,7 @@ test('songDb v8 migration preserves v7 rows and is idempotent after restart', (t
   `);
   const before = db.prepare('SELECT * FROM requests').all();
   const result = runAllMigrations(databases);
-  assert.deepEqual(result.find((entry) => entry.key === 'song_db'), { key: 'song_db', from: 7, to: 8, applied: 1 });
+  assert.deepEqual(result.find((entry) => entry.key === 'song_db'), { key: 'song_db', from: 7, to: 9, applied: 2 });
   const store = createSceneStore(db);
   const created = store.create({ scope: 'server/account', document: document(), capability: capability() });
   migrateScenes(db);
@@ -70,9 +72,51 @@ test('songDb v8 migration preserves v7 rows and is idempotent after restart', (t
   assert.deepEqual(db.prepare('SELECT * FROM requests').all(), before);
   closeDatabases(databases);
   databases = createDatabases({ dataDir: directory });
-  assert.equal(getSchemaVersions(databases).songDb, 8);
+  assert.equal(getSchemaVersions(databases).songDb, 9);
   assert.deepEqual(databases.songDb.prepare('SELECT * FROM requests').all(), before);
   assert.deepEqual(createSceneStore(databases.songDb).get('server/account', created.document.id), created);
+});
+
+test('v9 upgrades an existing v8 database and atomically publishes default dimensions', (t) => {
+  const directory = temporaryDirectory();
+  const databases = createDatabases({ dataDir: directory });
+  t.after(() => { closeDatabases(databases); fs.rmSync(directory, { recursive: true, force: true }); });
+  const db = databases.songDb;
+  const store = createSceneStore(db);
+  const original = store.create({ scope: 'owner', document: document(), capability: capability() });
+  db.exec("DROP TABLE component_output_sizes; UPDATE schema_version SET version = 8 WHERE key = 'song_db'");
+  assert.deepEqual(runAllMigrations(databases).find((entry) => entry.key === 'song_db'),
+    { key: 'song_db', from: 8, to: 9, applied: 1 });
+  migrateComponentOutputSizes(db);
+  assert.deepEqual(store.get('owner', original.document.id), original);
+  const input = { scope: 'owner', id: original.document.id, expectedRevision: 1, document: original.document,
+    componentSizes: { clock: { width: 800, height: 400 } } };
+  store.publish(input);
+  const published = store.get('owner', input.id);
+  db.exec(`CREATE TRIGGER fail_component_size BEFORE UPDATE ON component_output_sizes
+    BEGIN SELECT RAISE(ABORT, 'synthetic size failure'); END;`);
+  assert.throws(() => store.publish({ ...input, componentSizes: { clock: { width: 900, height: 500 } } }));
+  assert.deepEqual(store.get('owner', input.id), published);
+  assert.deepEqual(store.getComponentSize('owner', 'clock'), { width: 800, height: 400 });
+  assert.equal(store.getComponentSize('other-owner', 'clock'), null);
+});
+
+test('persisted default sizes accept shared component types and reject independent, control or unknown types atomically', (t) => {
+  const { store } = fixture(t);
+  const initial = store.create({ scope: 'owner', document: document(), capability: capability() });
+  const input = { scope: 'owner', id: initial.document.id, expectedRevision: 1, document: initial.document,
+    componentSizes: Object.fromEntries(SHARED_SCENE_TYPES.map((type) => [type, { width: 800, height: 400 }])) };
+  store.publish(input);
+  const published = store.get('owner', input.id);
+  for (const type of SHARED_SCENE_TYPES) {
+    assert.deepEqual(store.getComponentSize('owner', type), { width: 800, height: 400 }, type);
+  }
+  for (const type of [...SCENE_TYPES.filter((type) => !SHARED_SCENE_TYPES.includes(type)), 'canvas', 'unknown', 'constructor']) {
+    assert.throws(() => store.publish({ ...input, componentSizes: { [type]: { width: 800, height: 400 } } }),
+      /CHECK constraint failed/);
+    assert.deepEqual(store.get('owner', input.id), published);
+    assert.equal(store.getComponentSize('owner', type), null);
+  }
 });
 
 test('SQLite restart preserves separate draft, publication and capability', (t) => {

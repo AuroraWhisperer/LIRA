@@ -78,7 +78,7 @@
     height: auto;
     min-height: 0;
     overflow: visible;
-    padding: 12px 12px calc(var(--player-dock-height, 102px) + 14px);
+    padding: 12px 12px calc(var(--player-dock-reserve, 102px) + 14px);
   }
 
   .queues-row {
@@ -108,7 +108,7 @@
     height: auto;
     min-height: 0;
     overflow: visible;
-    padding: 12px 12px calc(var(--player-dock-height, 102px) + 14px);
+    padding: 12px 12px calc(var(--player-dock-reserve, 102px) + 14px);
   }
 
   .gift-controls-grid,
@@ -138,8 +138,8 @@
   padding: 0 11px 0 12px;
   border: 0;
   border-radius: 999px;
-  background: rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.07);
-  color: var(--gift-recent-accent, #149f94);
+  background: var(--surface-2);
+  color: var(--muted);
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -155,16 +155,15 @@
 }
 
 .gift-history-open-btn:hover {
-  background: rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.12);
-  color: #0d7f76;
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--text) 6%, var(--surface-2));
+  color: var(--text);
 }
 
 .gift-drawer-backdrop {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(24, 24, 22, 0.4);
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -192,7 +191,7 @@
   transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 .gift-drawer.open {
-  box-shadow: -8px 0 40px rgba(22, 31, 43, 0.18);
+  box-shadow: -8px 0 32px rgba(24, 24, 22, 0.12);
   transform: translateX(0);
 }
 
@@ -208,29 +207,29 @@
 .gift-drawer-head > button.sm {
   min-height: 34px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
 }
 .gift-drawer-head > button.secondary.sm {
-  border-color: #d8cfc4;
-  background: #fffdfa;
+  border-color: var(--border);
+  background: var(--surface);
   color: var(--text);
 }
 .gift-drawer-head > button.secondary.sm:hover {
-  border-color: var(--accent);
-  background: var(--surface-2);
-  color: var(--accent);
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
+  color: var(--text);
 }
 .gift-drawer-head > button.danger.sm {
-  border: 1px solid #efc7c2;
-  background: #fff8f7;
+  border: 1px solid color-mix(in srgb, var(--danger) 38%, var(--border));
+  background: var(--surface);
   color: var(--danger);
 }
 .gift-drawer-head > button.danger.sm:hover {
   border-color: var(--danger);
-  background: #ffefed;
+  background: var(--color-danger-light);
 }
 .gift-drawer-title {
   flex: 1 1 auto;
@@ -293,10 +292,10 @@
   transition: color 140ms ease;
 }
 .gift-history-table th[data-sort]:hover {
-  color: var(--accent);
+  color: var(--text);
 }
 .gift-history-table th[data-sort]:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }
 .sort-arrow {
@@ -359,16 +358,16 @@
   color: var(--color-text-secondary);
 }
 .gift-remark-tag.blind.profit-up {
-  background: var(--color-danger-light);
-  color: var(--color-danger);
+  background: var(--color-profit-soft);
+  color: var(--color-profit);
 }
 .gift-remark-tag.blind.profit-down {
-  background: var(--color-success-light);
-  color: var(--color-success-dark);
+  background: var(--color-loss-soft);
+  color: var(--color-loss);
 }
 .gift-remark-tag.guard {
-  background: #ffe9ed;
-  color: #d94b70;
+  background: var(--color-primary-light);
+  color: var(--primary-strong);
 }
 
 .gift-drawer-footer {
@@ -384,7 +383,7 @@
 .gift-drawer-footer button {
   min-height: 32px;
   padding: 0 16px;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   font-weight: 700;
 }
 .gift-drawer-footer .gift-page-info {

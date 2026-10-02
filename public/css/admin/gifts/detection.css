@@ -19,7 +19,7 @@
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-caption);
-  color: var(--text2);
+  color: var(--muted);
   margin-left: 48px;
 }
 
@@ -80,11 +80,11 @@
 
 .gift-stat.highlight {
   border-color: var(--color-border-accent);
-  background: var(--color-success-light);
+  background: var(--color-accent-light);
 }
 
 .gift-stat.highlight strong {
-  color: var(--color-success-dark);
+  color: var(--color-control-accent);
 }
 
 .gift-form-actions {

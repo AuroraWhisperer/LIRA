@@ -1,7 +1,7 @@
 .danmaku-blessings-section {
   overflow: hidden;
-  border: 2px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 .danmaku-blessings-section > summary {
@@ -19,10 +19,10 @@
   display: none;
 }
 .danmaku-blessings-section > summary:hover {
-  background: var(--surface-2);
+  background: var(--color-bg-tertiary);
 }
 .danmaku-blessings-section > summary:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }
 .danmaku-blessings-section h3 {
@@ -62,7 +62,7 @@
   display: grid;
   max-height: 360px;
   overflow-y: auto;
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--color-bg-primary);
 }
@@ -88,7 +88,7 @@
   background: transparent;
 }
 .danmaku-blessing-row input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }
 .danmaku-blessing-delete {
@@ -101,7 +101,8 @@
   color: var(--muted);
 }
 .danmaku-blessing-delete:hover {
-  border-color: #e8bbb6;
+  border-color: transparent;
+  background: var(--color-danger-light);
   color: var(--danger);
 }
 .danmaku-blessing-delete svg,
@@ -125,7 +126,7 @@
   gap: 12px;
 }
 .danmaku-blessing-actions .hint.good {
-  color: #278b5b;
+  color: var(--color-success);
 }
 .danmaku-blessing-actions .hint.warn {
   color: var(--warning);
@@ -140,7 +141,7 @@
   display: grid;
   max-height: 480px;
   overflow-y: auto;
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--color-bg-primary);
 }
@@ -183,7 +184,7 @@
   display: grid;
   max-height: 420px;
   overflow-y: auto;
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--color-bg-primary);
 }

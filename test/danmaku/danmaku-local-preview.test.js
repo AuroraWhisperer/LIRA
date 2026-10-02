@@ -335,6 +335,54 @@ test('scaled appearance edits keep logical font sizes and reset only the selecte
   assert.match(f.node('previewSaveState').textContent, /请输入 36～96 之间的整数/);
 });
 
+test('fixed canvas regions scale all content with width while height controls message capacity', async () => {
+  for (const style of styles.slice(0, 6)) {
+    const f = await fixture(`?preview=1&style=${style}`);
+    const variables = f.node('root').style;
+    const width = Number(f.node('regionWidth').value);
+    const fontSize = Number(f.node('previewFontSize').value);
+    const contentWidth = Number.parseFloat(variables['--region-content-width']);
+    const contentHeight = Number.parseFloat(variables['--region-content-height']);
+    const resize = (field, value) => {
+      f.node(field).value = String(value);
+      f.node(field).events.change();
+    };
+    const playbackCount = f.appends.length;
+    resize('regionWidth', width / 2);
+    assert.equal(variables['--content-scale'], '0.5', style);
+    assert.equal(Number.parseFloat(variables['--region-content-width']), contentWidth, style);
+    assert.equal(Number.parseFloat(variables['--region-content-height']), contentHeight * 2, style);
+    assert.equal(Number(f.node('previewFontSize').value), Math.round(fontSize / 2), style);
+    assert.ok(460 * Number(variables['--region-card-scale']) <= contentWidth - 24 + 0.001, style);
+    resize('regionHeight', Number(f.node('regionHeight').value) / 2);
+    assert.equal(variables['--content-scale'], '0.5', style);
+    assert.equal(Number.parseFloat(variables['--region-content-height']), contentHeight, style);
+    resize('regionWidth', width);
+    assert.equal(variables['--content-scale'], '1', style);
+    assert.equal(Number(f.node('previewFontSize').value), fontSize, style);
+    assert.equal(f.appends.length, playbackCount, 'resizing must not replay or duplicate messages');
+  }
+});
+
+test('resizing a fixed region preserves logical typography and random regions retain their layout scale', async () => {
+  const f = await fixture('?preview=1&style=signal');
+  f.node('regionWidth').value = '280';
+  f.node('regionWidth').events.change();
+  f.node('previewFontSize').value = '20';
+  f.node('previewFontSize').events.change();
+  assert.equal(f.history.state.danmakuStyleOptions.signal.fontSize, 40);
+  f.node('regionWidth').value = '560';
+  f.node('regionWidth').events.change();
+  assert.equal(f.node('previewFontSize').value, '40');
+  for (const style of styles.slice(6)) {
+    f.node(style).events.click();
+    f.node('regionWidth').value = '960';
+    f.node('regionWidth').events.change();
+    assert.equal(f.node('root').style['--content-scale'], '1', style);
+    assert.equal(f.node('root').style['--region-content-width'], '960px', style);
+  }
+});
+
 test('local preview restores the last style on reload and rejects unknown initial styles', async () => {
   assert.equal((await fixture('?preview=1', 'identity')).document.body.dataset.style, 'identity');
   assert.equal((await fixture('?preview=1&style=unknown')).document.body.dataset.style, 'signal');

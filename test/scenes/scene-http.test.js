@@ -7,7 +7,7 @@ const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { createCipheriv, createDecipheriv, randomBytes, randomUUID } = require('node:crypto');
 const { createSceneStore } = require('../../src/storage/scene-store');
-const { migrateScenes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { createHttpServer } = require('../../src/server/http-server');
@@ -41,6 +41,7 @@ function secretCodec() {
 async function fixture(t) {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
+  migrateComponentOutputSizes(db);
   const state = { owner: { scope: 'https://server.test/streamer-a', epoch: 1 }, licensed: true };
   const display = {
     settings: { clockLabel: 'HTTP clock', aiApiKey: PRIVATE },
@@ -127,6 +128,42 @@ function assertNoStore(response) {
 function outputRoute(id, suffix = '') {
   return `/api/scene/output?id=${id}${suffix}`;
 }
+
+test('HTTP output accepts only authentic active projection receipts and keeps old clients compatible', async t => {
+  const { request, publishedScene } = await fixture(t);
+  const { source } = publishedScene();
+  const initial = await request(outputRoute(source.id, '&version=0'), { token: source.token });
+  assert.equal(initial.status, 200);
+  const { version, projection } = initial.body.data;
+  const read = receipt => request(outputRoute(source.id, `&version=${version}&projection=${encodeURIComponent(receipt)}`), { token: source.token });
+  const next = await read(projection);
+  assert.equal(next.status, 200);
+  assert.equal(next.body.data.document, null);
+  assert.equal((await read(projection + 'x')).status, 403);
+  assert.equal((await request(outputRoute(source.id, `&version=${version}`), { token: source.token })).status, 200);
+});
+
+test('component dimensions require the matching overlay principal and cannot select another scope', async (t) => {
+  const { service, request } = await fixture(t);
+  const created = service.create({ title: 'Size fixture', canvas: { width: 1920, height: 1080 } });
+  const document = { ...created.document, items: [{ id: randomUUID(), type: 'clock', name: 'Clock',
+    x: 0, y: 0, width: 800, height: 400, visible: true, locked: false, appearance: { mode: 'shared' } }] };
+  const saved = service.save({ id: document.id, expectedRevision: 1, document });
+  service.publish({ id: document.id, expectedRevision: saved.revision });
+  assert.equal((await request('/api/component/size?type=clock')).status, 401);
+  const clock = await request('/api/component/size?type=queue', { token: createOverlayToken(ADMIN, 'clock'), headers: { Origin: 'null' } });
+  assert.equal(clock.status, 200);
+  assertNoStore(clock);
+  assert.deepEqual(clock.body.data, { width: 800, height: 400 });
+  const queue = await request('/api/component/size?type=clock', { token: createOverlayToken(ADMIN, 'queue') });
+  assert.equal(queue.body.data, null);
+  assert.equal((await request('/api/component/size', { token: createOverlayToken(ADMIN, 'lyrics') })).status, 403);
+  const source = service.getSource(document.id);
+  const selected = await request(outputRoute(source.id, `&item=${document.items[0].id}`), { token: source.token });
+  assert.deepEqual(selected.body.data.document.canvas, { width: 800, height: 400 });
+  assert.equal((await request('/api/component/size?type=clock', { token: source.token })).status, 401);
+  assert.equal((await request('/api/component/size', { token: createOverlayToken(ADMIN, 'clock'), method: 'POST', body: {} })).status, 403);
+});
 
 test('admin HTTP operations create, save, publish and explicitly disclose or rotate a source', async (t) => {
   const fixtureState = await fixture(t);

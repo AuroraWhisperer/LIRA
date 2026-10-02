@@ -1,7 +1,7 @@
 /* ===== 使用文档 ===== */
 #otherUsageGuideFeature {
-  --usage-guide-accent: #765438;
-  --usage-guide-accent-soft: #f3e9db;
+  --usage-guide-accent: var(--primary);
+  --usage-guide-accent-soft: var(--color-primary-light);
   position: relative;
 }
 
@@ -68,14 +68,14 @@
 }
 
 .usage-guide-hero-actions a:first-child {
-  background: var(--text);
-  color: var(--surface);
+  background: var(--primary);
+  color: var(--color-text-white);
 }
 
 .usage-guide-hero-actions a:first-child:hover,
 .usage-guide-hero-actions a:first-child.active {
-  background: color-mix(in srgb, var(--text) 82%, var(--muted));
-  color: var(--surface);
+  background: var(--primary-strong);
+  color: var(--color-text-white);
 }
 
 .usage-guide-hero-actions a:nth-child(2) {
@@ -89,7 +89,7 @@
 
 .usage-guide-hero-actions a:focus-visible,
 .usage-guide-hero-actions button:focus-visible {
-  outline: 2px solid var(--usage-guide-accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 3px;
 }
 
@@ -152,7 +152,7 @@
 
 .usage-guide-subsection-title {
   margin: 16px 0 0;
-  color: var(--usage-guide-accent);
+  color: var(--text);
   font-size: var(--type-size-section-title);
   font-weight: 600;
   line-height: 1.4;
@@ -177,7 +177,7 @@
 }
 
 .usage-guide-card:hover {
-  border-color: var(--usage-guide-accent-border);
+  border-color: var(--color-border-strong);
 }
 
 .usage-guide-card > strong,
@@ -386,7 +386,7 @@
 }
 
 .usage-guide-faq:hover {
-  border-color: var(--usage-guide-accent-border);
+  border-color: var(--color-border-strong);
 }
 
 .usage-guide-faq[open] {
@@ -417,9 +417,9 @@
 }
 
 .usage-guide-faq summary:focus-visible {
-  outline: 2px solid var(--usage-guide-accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
 }
 
 .usage-guide-faq-chevron {

@@ -23,12 +23,12 @@
   line-height: 1;
 }
 .interaction-tabs button[aria-selected='true'] {
-  color: var(--primary);
+  color: var(--text);
   border-bottom-color: var(--primary);
   font-weight: 600;
 }
 .interaction-tabs button:hover:not(:disabled) {
-  color: var(--primary);
+  color: var(--text);
 }
 .interaction-tabs button:focus-visible {
   outline: 2px solid var(--color-control-focus);
@@ -132,7 +132,8 @@
   font-weight: var(--type-weight-medium);
 }
 #interactionsAdmin button.interaction-quiet:hover:not(:disabled) {
-  color: var(--primary);
+  color: var(--text);
+  background: var(--color-bg-tertiary);
 }
 .interaction-input-row {
   display: grid;
@@ -190,6 +191,7 @@
 .interaction-presets button[aria-pressed='true'] {
   border-color: var(--color-control-accent);
   background: var(--color-control-accent-light);
+  color: var(--primary-strong);
 }
 .interaction-duration {
   display: flex;
@@ -319,7 +321,7 @@
   min-height: 18px;
   padding: 0;
   margin: 0;
-  accent-color: var(--color-accent);
+  accent-color: var(--primary);
 }
 .interaction-appearance-form > p {
   margin-top: 12px;

@@ -1,6 +1,8 @@
 'use strict';
 
 import { createOverlaySocket } from './socket-client.js';
+import { isComponentPreview } from './component-preview-client.js';
+import { mountSceneExtraClient } from './scene-extra-client.js';
 
 let socketController = null;
 let snapshotRetryTimer = null;
@@ -11,8 +13,21 @@ let rotation = 0;
 let animationToken = 0;
 let spinRequestPending = false;
 const SNAPSHOT_RETRIES = 4;
+let componentConfig = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (isComponentPreview()) {
+    mountSceneExtraClient('wheel', {
+      onConfig(config) {
+        componentConfig = config;
+        document.body.style.opacity = String(config.opacity);
+        renderState(currentState);
+      },
+      onData: renderState,
+      onDispose() { animationToken += 1; },
+    });
+    return;
+  }
   const centerButton = byId('wheelCenterButton');
   centerButton.addEventListener('click', spinFromWheel);
   centerButton.addEventListener('keydown', (event) => {
@@ -75,6 +90,10 @@ function renderState(state) {
     lastResult: null,
   };
   drawSegments(currentState.entries || []);
+  if (componentConfig) {
+    byId('wheelMessage').hidden = !componentConfig.showResult;
+    for (const label of document.querySelectorAll('.wheel-label')) label.style.fill = componentConfig.textColor;
+  }
   const spin = currentState.spin;
   setCenterBusy(Boolean(spin));
   if (spin && spin.id !== renderedSpinId) {
@@ -84,7 +103,7 @@ function renderState(state) {
   }
   if (!spin && currentState.lastResult) highlightResult(currentState.lastResult.index);
   if (!(currentState.entries || []).length) setMessage('等待主播配置转盘');
-  else if (!spin && !currentState.lastResult) setMessage('点击中心 GO 开始');
+  else if (!spin && !currentState.lastResult) setMessage(componentConfig ? '等待主播开始抽取' : '点击中心 GO 开始');
 }
 
 function drawSegments(entries) {
@@ -110,7 +129,7 @@ function drawSegments(entries) {
 function createRadialLabel(value, index, middle) {
   const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   const chars = Array.from(String(value || '')).slice(0, 12);
-  const fontSize = Math.min(22, Math.max(12, 156 / Math.max(chars.length, 1)));
+  const fontSize = Math.min(componentConfig?.labelFontSize || 22, Math.max(12, 156 / Math.max(chars.length, 1)));
   const point = polar(300, 300, 205, middle);
   label.classList.add('wheel-label');
   label.dataset.index = String(index);

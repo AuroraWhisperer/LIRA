@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
@@ -19,8 +19,8 @@
 }
 
 .track-menu-btn:hover {
-  background: var(--surface-2);
-  border-color: var(--color-control-accent, var(--primary));
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
 }
 
 .track-menu-btn:active {
@@ -33,10 +33,10 @@
   right: 0;
   min-width: 120px;
   padding: 6px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: var(--shadow-floating, 0 4px 12px rgba(22, 31, 43, 0.15));
+  background: var(--color-floating-surface, var(--surface));
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-floating);
   z-index: 100;
 }
 
@@ -73,5 +73,5 @@
 }
 
 .track-menu button.danger:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--color-danger-light);
 }

@@ -311,7 +311,17 @@ test('browser keeps toast variants free of close controls, aligns content and pr
         const node = handle.node;
         const content = node.querySelector('.toast-content');
         const action = node.querySelector('.toast-action');
+        const tokenColor = (token) => {
+          const probe = document.createElement('i');
+          probe.style.color = `var(${token})`;
+          document.body.append(probe);
+          const color = getComputedStyle(probe).color;
+          probe.remove();
+          return color;
+        };
         const result = {
+          mutedColor: tokenColor('--muted'),
+          textColor: tokenColor('--text'),
           closeCount: node.querySelectorAll('.toast-close').length,
           hidden: node.hidden,
           paddingRight: getComputedStyle(node).paddingRight,
@@ -337,16 +347,12 @@ test('browser keeps toast variants free of close controls, aligns content and pr
     assert.equal(layout.closeCount, 0, className);
     assert.equal(layout.hidden, false, className);
     assert.equal(layout.paddingRight, '16px', className);
-    assert.equal(
-      layout.background,
-      'linear-gradient(125deg, rgb(224, 228, 245) 0%, rgb(211, 216, 239) 45%, rgb(200, 206, 232) 100%)',
-      className,
-    );
+    assert.equal(layout.background, 'none', className);
     assert.equal(layout.titleSize, '15px', className);
     assert.equal(layout.bodySize, className.includes('gift-notify') ? '13px' : '14px', className);
-    assert.equal(layout.bodyColor, 'rgb(72, 81, 108)', className);
+    assert.equal(layout.bodyColor, layout.mutedColor, className);
     if (className.includes('gift-notify')) {
-      assert.equal(layout.badgeColor, 'rgb(48, 54, 83)', className);
+      assert.equal(layout.badgeColor, layout.textColor, className);
       assert.equal(layout.badgeSize, '13px', className);
     }
     assert.equal(layout.overflow, false, className);

@@ -1,7 +1,7 @@
 import { previewElement, mountComponentPreview } from './component-preview-surface.js';
-import { createSceneItemController } from './scene-editor-state.js';
-import { moveSceneItems } from './scene-document-model.js';
-import { startSceneEditorOvertimeData } from './scene-editor-preview-data.js';
+import { createSceneItemController } from './scene-item-controller.js';
+import { moveSceneItems, resizeSceneItem } from './scene-document-model.js';
+import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 
 export function mountSceneEditorStage(host, { model, components, getSelection, select, report }) {
   const viewport = previewElement('div', 'scene-editor-viewport');
@@ -55,7 +55,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     for (const entry of entries.values()) positionContentLabel(entry);
   }
   function positionContentLabel(entry) {
-    if (entry.host.dataset.component !== 'overtime') return;
+    if (!SCENE_COMPONENTS[entry.host.dataset.component].contentHeight) return;
     const space = entry.label.offsetHeight + 6;
     const above = entry.host.offsetTop * scale >= space;
     const below = (canvas.clientHeight - entry.host.offsetTop - entry.host.offsetHeight) * scale >= space;
@@ -66,14 +66,17 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     const selected = getSelection();
     for (const [id, entry] of entries) {
       entry.host.classList.toggle('is-selected', selected.has(id));
+      entry.host.classList.toggle('is-resizable', selected.size === 1 && selected.has(id));
       entry.host.setAttribute('aria-pressed', String(selected.has(id)));
       positionContentLabel(entry);
     }
   }
   function cancelGesture() {
     if (!gesture) return;
+    const { pointerId } = gesture;
     gesture = null;
     model.cancelGesture();
+    if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
   }
   function pointerDown(event, id) {
     if (event.button !== 0 || gesture) return;
@@ -84,7 +87,8 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     const item = model.getDocument().items.find((entry) => entry.id === id);
     if (toggle || !item || item.locked) return;
     const ids = [...getSelection()];
-    gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, ids, started: false };
+    const handle = event.target.closest('[data-resize]')?.dataset.resize;
+    gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, ids, handle, started: false };
     canvas.setPointerCapture(event.pointerId);
   }
   function pointerMove(event) {
@@ -94,7 +98,9 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     if (!gesture.started && Math.abs(deltaX) + Math.abs(deltaY) < 2) return;
     try {
       if (!gesture.started) { gesture.started = true; model.beginGesture(); }
-      model.updateGesture((document) => moveSceneItems(document, gesture.ids, deltaX, deltaY, { snap }));
+      model.updateGesture((document) => gesture.handle
+        ? resizeSceneItem(document, gesture.ids[0], gesture.handle, deltaX, deltaY, { snap })
+        : moveSceneItems(document, gesture.ids, deltaX, deltaY, { snap }));
     } catch (error) { cancelGesture(); report(error.message); }
   }
   function pointerUp(event) {
@@ -128,16 +134,25 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
         node.append(label);
         canvas.append(node);
         const controller = createSceneItemController(model, item.id, component.controller);
+        const capabilities = SCENE_COMPONENTS[item.type];
         const surface = mountComponentPreview(node, { ...component, controller,
           onOpen: undefined, onClose: undefined, onEdit: undefined, bounds: undefined,
-          ...(item.type === 'overtime' ? { dataModes: undefined,
+          dataModes: undefined,
+          startData: component.startLayerData || component.startData,
+          ...(capabilities.contentHeight ? {
             onResize(size) { contentSizes.set(item.id, size); scheduleContentResize(); },
-            startData: component.startLayerData || (component.startActualData ? ({ emit }) => component.startActualData(emit) : startSceneEditorOvertimeData) } : {}),
+          } : {}),
           size: () => {
             const current = model.getDocument().items.find((value) => value.id === item.id) || item;
             return [current.width, current.height];
           },
         });
+        for (const direction of capabilities.resizeAxes === 'x' ? ['e', 'w'] : ['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw']) {
+          const handle = previewElement('span', 'scene-editor-resize-handle');
+          handle.dataset.resize = direction;
+          handle.setAttribute('aria-hidden', 'true');
+          node.append(handle);
+        }
         node.addEventListener('pointerdown', (event) => pointerDown(event, item.id));
         node.addEventListener('keydown', (event) => {
           if (event.key === ' ' || event.key === 'Enter') {
@@ -166,7 +181,14 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   canvas.addEventListener('pointerup', pointerUp);
   canvas.addEventListener('pointercancel', cancelGesture);
   canvas.addEventListener('lostpointercapture', cancelGesture);
+  canvas.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !gesture) return;
+    event.preventDefault();
+    event.stopPropagation();
+    cancelGesture();
+  });
   canvas.addEventListener('pointerdown', (event) => { if (event.target === canvas) select(null); });
+  window.addEventListener('blur', cancelGesture);
   const unsubscribe = model.subscribe(render);
   const observer = new ResizeObserver(fit);
   observer.observe(viewport);
@@ -175,6 +197,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     dispose() {
       closed = true;
       cancelGesture();
+      window.removeEventListener('blur', cancelGesture);
       unsubscribe();
       observer.disconnect();
       cancelAnimationFrame(resizeFrame);

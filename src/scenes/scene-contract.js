@@ -1,8 +1,10 @@
 'use strict';
 
+const { SCENE_TYPES } = require('../shared/scene-component-types');
+const { SCENE_EXTRA_COMPONENTS } = require('../../public/js/shared/scene-extra-components.js');
+
 const SCENE_SCHEMA_VERSION = 1;
 const MAX_SCENE_BYTES = 256 * 1024;
-const SCENE_TYPES = Object.freeze(['danmaku', 'clock', 'queue', 'overtime']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 class SceneError extends Error {
@@ -84,6 +86,7 @@ function normalizeSceneDocument(input, { normalizeConfig } = {}) {
     }
     assertRecord(item.appearance);
     if (item.appearance.mode === 'shared') {
+      if (Object.hasOwn(SCENE_EXTRA_COMPONENTS, item.type)) throw invalidDocument();
       assertRecord(item.appearance, ['mode']);
     } else if (item.appearance.mode === 'independent') {
       assertRecord(item.appearance, ['mode', 'config']);

@@ -22,7 +22,7 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(16, 29, 46, 0.38);
+  background: rgba(24, 24, 22, 0.38);
   pointer-events: none;
 }
 
@@ -34,16 +34,16 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-shade {
   position: absolute;
   display: none;
-  background: rgba(16, 29, 46, 0.38);
+  background: rgba(24, 24, 22, 0.38);
   pointer-events: none;
 }
 
 /* 聚光灯内部保持透明，目标控件可见且能接收真实操作。 */
 .lira-tour-spotlight {
   position: absolute;
-  border: 2px solid var(--color-accent, #18b8b0);
-  border-radius: 9px;
-  box-shadow: 0 0 0 3px rgba(24, 184, 176, 0.18);
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
   pointer-events: none;
 }
 
@@ -51,11 +51,11 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-tooltip {
   position: absolute;
   width: min(380px, calc(100vw - 32px));
-  background: var(--color-bg-primary, #fff);
-  color: var(--color-text-primary, #17202a);
-  border: 1px solid var(--color-border-light, #e5e9f0);
-  border-radius: var(--radius-lg, 12px);
-  box-shadow: 0 10px 24px rgba(16, 29, 46, 0.18);
+  background: var(--color-floating-surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-floating);
   padding: 20px;
   pointer-events: auto;
 }
@@ -65,8 +65,8 @@ html.lira-tour-active .other-feature-panel {
   position: absolute;
   width: 14px;
   height: 14px;
-  background: var(--color-bg-primary, #fff);
-  border: 1px solid var(--color-border-light, #e5e9f0);
+  background: var(--color-floating-surface);
+  border: 1px solid var(--border);
   transform: rotate(45deg);
 }
 
@@ -107,7 +107,7 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-kicker {
   display: block;
   margin: 0 0 6px;
-  color: var(--color-accent, #ff5555);
+  color: var(--primary);
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   letter-spacing: var(--type-tracking-eyebrow);
@@ -129,10 +129,10 @@ html.lira-tour-active .other-feature-panel {
   width: 28px;
   height: 28px;
   min-height: 28px;
-  border: 1px solid var(--color-border-light, #e5e9f0);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--color-bg-secondary, #f0f3f7);
-  color: var(--color-text-secondary, #647181);
+  background: var(--surface-2);
+  color: var(--muted);
   font-size: var(--type-size-section-title);
   line-height: 1;
   padding: 0;
@@ -145,15 +145,14 @@ html.lira-tour-active .other-feature-panel {
 }
 
 .lira-tour-close:hover {
-  border-color: var(--color-accent, #ff5555);
-  background: var(--color-accent-light, #fff5f5);
-  color: var(--color-accent, #ff5555);
-  transform: scale(1.08);
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
+  color: var(--text);
 }
 
 .lira-tour-body {
   margin-bottom: 16px;
-  color: var(--color-text-secondary, #647181);
+  color: var(--color-text-secondary);
   font-size: var(--type-size-body);
   line-height: var(--type-leading-body);
 }
@@ -166,22 +165,21 @@ html.lira-tour-active .other-feature-panel {
 }
 
 .lira-tour-body strong {
-  color: var(--color-text-primary, #17202a);
+  color: var(--color-text-primary);
   font-weight: var(--type-weight-semibold);
 }
 
 .lira-tour-body .lira-tour-keyword {
-  color: var(--color-success-dark, #08766c);
+  color: var(--primary-strong);
 }
 
 .lira-tour-note {
   margin: 12px 0 0;
   padding: 10px 12px;
-  border-left: 3px solid var(--color-accent, #ff5555);
-  background: var(--color-accent-light, #fff5f5);
-  border-radius: 0 6px 6px 0;
+  background: var(--color-primary-light);
+  border-radius: var(--radius-md);
   font-size: var(--type-size-caption);
-  color: var(--color-text-secondary, #647181);
+  color: var(--color-text-secondary);
 }
 
 .lira-tour-footer {
@@ -202,12 +200,12 @@ html.lira-tour-active .other-feature-panel {
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--color-border-default, #d9e0e8);
+  background: var(--color-border-strong);
 }
 
 .lira-tour-progress-dot.active {
   width: 24px;
-  background: var(--color-accent, #ff5555);
+  background: var(--primary);
 }
 
 .lira-tour-actions {
@@ -218,35 +216,33 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-actions button {
   min-height: 34px;
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
   transition: all 180ms ease;
 }
 
 .lira-tour-actions button.secondary {
-  border-color: var(--color-border-default, #d9e0e8);
-  background: var(--color-bg-secondary, #f0f3f7);
-  color: var(--color-text-secondary, #647181);
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
 }
 
 .lira-tour-actions button.secondary:hover {
-  border-color: var(--color-accent, #ff5555);
-  background: var(--color-accent-light, #fff5f5);
-  color: var(--color-accent, #ff5555);
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
+  color: var(--text);
 }
 
 .lira-tour-actions button.primary {
-  border-color: var(--color-accent, #ff5555);
-  background: var(--color-accent, #ff5555);
-  color: #fff;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--color-text-white);
 }
 
 .lira-tour-actions button.primary:hover {
-  background: var(--color-success-dark, #ee3333);
-  border-color: var(--color-success-dark, #ee3333);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 85, 85, 0.3);
+  background: var(--primary-strong);
+  border-color: var(--primary-strong);
 }
 
 .lira-tour-actions button:disabled {
@@ -262,19 +258,19 @@ html.lira-tour-active .other-feature-panel {
   margin-top: 12px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: var(--color-bg-secondary, #f0f3f7);
+  background: var(--color-bg-secondary);
   font-size: var(--type-size-caption);
-  color: var(--color-text-secondary, #647181);
+  color: var(--color-text-secondary);
 }
 
 .lira-tour-status.waiting {
-  background: rgba(255, 193, 7, 0.1);
-  color: var(--color-warning, #a56716);
+  background: var(--color-warning-light);
+  color: var(--color-warning);
 }
 
 .lira-tour-status.completed {
-  background: var(--color-success-light, #effbf9);
-  color: var(--color-success-dark, #08766c);
+  background: var(--color-success-light);
+  color: var(--color-success-dark);
 }
 
 .lira-tour-status::before {
@@ -301,8 +297,8 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-status.completed::before {
   content: '✓';
   border: 0;
-  background: var(--color-success-dark, #08766c);
-  color: #fff;
+  background: var(--color-success-dark);
+  color: var(--color-text-white);
   opacity: 1;
 }
 
@@ -314,7 +310,7 @@ html.lira-tour-active .other-feature-panel {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(16, 29, 46, 0.48);
+  background: rgba(24, 24, 22, 0.48);
   pointer-events: auto;
 }
 
@@ -329,12 +325,11 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-exit-dialog {
   width: min(360px, calc(100vw - 32px));
   padding: 20px;
-  background: var(--color-bg-primary, #fff);
-  color: var(--color-text-primary, #17202a);
-  border: 1px solid var(--color-border-light, #e5e9f0);
-  border-top: 3px solid var(--color-danger, #c0392b);
-  border-radius: 8px;
-  box-shadow: 0 12px 28px rgba(16, 29, 46, 0.2);
+  background: var(--color-floating-surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-dialog);
 }
 
 .lira-tour-exit-header {
@@ -352,8 +347,8 @@ html.lira-tour-active .other-feature-panel {
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  background: var(--color-danger-light, #fff7f6);
-  color: var(--color-danger, #c0392b);
+  background: var(--color-danger-light);
+  color: var(--color-danger);
   font-size: var(--type-size-metric-sm);
   font-weight: var(--type-weight-bold);
 }
@@ -361,7 +356,7 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-exit-kicker {
   display: block;
   margin-bottom: 3px;
-  color: var(--color-danger, #c0392b);
+  color: var(--color-danger);
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   letter-spacing: var(--type-tracking-eyebrow);
@@ -376,7 +371,7 @@ html.lira-tour-active .other-feature-panel {
 
 .lira-tour-exit-dialog p {
   margin: 0 0 18px;
-  color: var(--color-text-secondary, #647181);
+  color: var(--color-text-secondary);
   font-size: var(--type-size-body);
   line-height: 1.65;
 }
@@ -391,35 +386,36 @@ html.lira-tour-active .other-feature-panel {
   min-width: 0;
   min-height: 40px;
   padding: 7px 12px;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
 }
 
 .lira-tour-exit-stay {
-  border-color: var(--color-border-default, #d9e0e8);
-  background: var(--color-bg-secondary, #f0f3f7);
-  color: var(--color-text-primary, #17202a);
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
 }
 
 .lira-tour-exit-stay:hover {
-  border-color: var(--color-accent, #18b8b0);
-  color: var(--color-accent, #08766c);
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
+  color: var(--text);
 }
 
 .lira-tour-exit-leave {
-  border-color: var(--color-danger, #c0392b);
-  background: var(--color-danger, #c0392b);
-  color: #fff;
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-text-white);
 }
 
 .lira-tour-exit-leave:hover {
-  border-color: #9f2f25;
-  background: #9f2f25;
+  border-color: color-mix(in srgb, var(--color-danger) 82%, #000);
+  background: color-mix(in srgb, var(--color-danger) 82%, #000);
 }
 
 .lira-tour-exit-actions button:focus-visible {
-  outline: 3px solid rgba(24, 184, 176, 0.28);
+  outline: 3px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 

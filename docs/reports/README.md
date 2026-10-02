@@ -4,6 +4,7 @@
 
 ## 历史报告
 
+- [画布、组件预览与场景输出：函数级依赖复审](2026-10-01-canvas-function-dependency-audit.md)
 - [LIRA 启动性能与运行卡顿测评报告](2026-08-21-startup-performance-evaluation.md)
 - [盲盒映射、礼物资料与图片更新方案报告](2026-09-05-blind-box-catalog-update-report.md)
 - [LIRA 现有功能检查与修复报告](2026-09-10-project-review-and-fixes.md)

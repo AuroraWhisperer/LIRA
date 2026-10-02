@@ -160,7 +160,6 @@ test('accent actions do not add a colored frame around their fill or active stat
     lyric.match(/\.desktop-lyric-reset-button\s*\{[\s\S]*?\n\}/)?.[0],
     responsive.match(/\.gift-history-open-btn\s*\{[\s\S]*?\n\}/)?.[0],
     toolbox.match(/\.other-feature-button\.active\s*\{[\s\S]*?\n\}/)?.[0],
-    toolbox.match(/\.opening-upload-button,\s*\.button-quiet\s*\{[\s\S]*?\n\}/)?.[0],
     toolbox.match(/\.usage-guide-hero-actions a,\s*\.usage-guide-hero-actions button\s*\{[\s\S]*?\n\}/)?.[0],
     playback.match(/\.playback-quality-btn\s*\{[\s\S]*?\n\}/)?.[0],
   ];
@@ -169,6 +168,11 @@ test('accent actions do not add a colored frame around their fill or active stat
   for (const rule of rules) {
     assert.match(rule, /border(?:-color)?:\s*(?:0|transparent)/);
   }
+
+  // 开播动画的上传/清除按钮使用统一的中性次按钮边框，不属于强调色描边。
+  const neutralButton = toolbox.match(/\.opening-upload-button,\s*\.button-quiet\s*\{[\s\S]*?\n\}/)?.[0];
+  assert.match(neutralButton, /border:\s*1px solid var\(--border\)/);
+  assert.doesNotMatch(neutralButton, /border(?:-color)?:\s*(?:var\(--primary\)|var\(--accent\)|var\(--danger\))/);
 });
 
 test('SuperChat clear control lives in the SC queue header', () => {
@@ -199,8 +203,9 @@ test('toolbox owns independent settings, overtime, streamer planner, start anima
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'performance.html'),
     'utf8',
   );
-  const managementTabs = html.match(/<div class="tabs" role="tablist">([\s\S]*?)<\/div>/)?.[1];
-  const directTabRule = tabStyles.match(/\.tabs > \.tab\s*\{[\s\S]*?\n\}/)?.[0];
+  // 选项卡块内含 .tab-with-help 包装层，因此取到该块自身的结束标签（同级缩进），而不是第一个 </div>。
+  const managementTabs = html.match(/<div class="tabs" role="tablist">([\s\S]*?)\n {8}<\/div>/)?.[1];
+  const directTabRule = tabStyles.match(/\.tabs > \.tab,\s*\n?\.tabs > \.tab-with-help\s*\{[\s\S]*?\n\}/)?.[0];
   const overtimePosition = html.indexOf('data-other-feature="otherOvertimeMachineFeature"');
   const dailyTodoPosition = html.indexOf('data-other-feature="otherDailyTodoFeature"');
   const startAnimationPosition = html.indexOf('data-other-feature="otherStartAnimationFeature"');

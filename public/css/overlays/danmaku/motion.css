@@ -8,6 +8,16 @@
     transform: translateX(0);
   }
 }
+@keyframes giftSheen {
+  from {
+    opacity: 1;
+    background-position: 100% 0;
+  }
+  to {
+    opacity: 1;
+    background-position: 0 0;
+  }
+}
 @keyframes signalMeter {
   from {
     transform: scaleY(0.45);
@@ -81,5 +91,8 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .draw-danmaku-item.is-gift::after {
+    animation: none !important;
   }
 }

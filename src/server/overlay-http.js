@@ -7,6 +7,7 @@ const { getOpeningConfig } = require('./routes/opening-routes');
 const { readGiftDisplaySettings } = require('../bilibili/gift/display-settings');
 const { routes: bilibiliRoutes } = require('./routes/bilibili-routes');
 const { routes: danmakuDisplayRoutes } = require('./routes/danmaku-display-routes');
+const { readComponentSize } = require('./routes/scene-routes');
 
 // Called only after exact scope/method/path authorization. Domain services still
 // validate moves, drawing, cursors and input sizes; this boundary limits purpose.
@@ -19,6 +20,8 @@ async function handleOverlayApi(context, principal, request, res) {
     });
   if (method === 'GET') {
     switch (pathName) {
+      case '/api/component/size':
+        return readComponentSize(context, principal.scope, res);
       case '/api/danmaku/display':
         return danmakuDisplayRoutes['GET /api/danmaku/display'](context, request, res);
       case '/api/interactions/session':

@@ -175,16 +175,7 @@ export function createDanmakuFeed(root, options = {}) {
     const styles = globalThis.getComputedStyle?.(root);
     const gap = Number.parseFloat(styles?.rowGap) || 0;
     const padding = (Number.parseFloat(styles?.paddingTop) || 0) + (Number.parseFloat(styles?.paddingBottom) || 0);
-    // Fit an unusually tall SC as a whole instead of clipping its original text.
-    for (const entry of renderedEntries) {
-      if (entry.item?.kind !== 'superchat' || viewportHeight <= padding) continue;
-      entry.node.style.setProperty('--sc-fit', '1');
-      const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
-      const height = Number(entry.node.offsetHeight) * zoom;
-      if (height > viewportHeight - padding) {
-        entry.node.style.setProperty('--sc-fit', String((viewportHeight - padding - 1) / height));
-      }
-    }
+    if (viewportHeight > padding) renderedEntries.forEach((entry) => fitItem(entry, root.clientWidth, viewportHeight - padding));
     renderedContentHeight = renderedEntries.reduce((total, entry) => {
       const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
       const measured = Number(entry.node.offsetHeight) * zoom;
@@ -199,6 +190,27 @@ export function createDanmakuFeed(root, options = {}) {
     ) {
       removeEntry(renderedEntries[0]);
     }
+  }
+
+  function fitItem(entry, availableWidth, availableHeight) {
+    const node = entry.node;
+    node.style.setProperty('width', '');
+    node.style.setProperty('zoom', '');
+    const zoom = Number.parseFloat(globalThis.getComputedStyle?.(node)?.zoom) || 1;
+    const width = Number(node.offsetWidth) || 0;
+    const height = Number(node.offsetHeight) || 0;
+    // Computed zoom is rounded; an exact fit can appear a fraction of a pixel wider.
+    const scale = Math.min(
+      1,
+      width * zoom > availableWidth + 0.01 && availableWidth > 0 ? (availableWidth - 1) / (width * zoom) : 1,
+      height * zoom > availableHeight && availableHeight > 0 ? (availableHeight - 1) / (height * zoom) : 1,
+    );
+    if (scale < 1) {
+      // Freeze the natural line breaks before zoom changes the containing width.
+      node.style.setProperty('width', `${width}px`);
+      node.style.setProperty('zoom', String(zoom * scale));
+    }
+    return { width: width * zoom * scale, height: height * zoom * scale, zoom: zoom * scale };
   }
 
   function pruneOldMessages() {
@@ -279,11 +291,9 @@ export function createDanmakuFeed(root, options = {}) {
     const height = Number(root.clientHeight) || 0;
     if (width <= 0 || height <= 0) return;
     const occupied = [];
-    // Read dimensions together before writing positions or evicting old nodes.
     const measured = renderedEntries.map((entry) => ({
       entry,
-      width: Number(entry.node.offsetWidth) || 0,
-      height: Number(entry.node.offsetHeight) || 0,
+      ...fitItem(entry, width - FULLSCREEN_SAFE_INSET_PX * 2, height - FULLSCREEN_SAFE_INSET_PX * 2),
     }));
     for (const item of measured) {
       if (item.width > width - FULLSCREEN_SAFE_INSET_PX * 2 || item.height > height - FULLSCREEN_SAFE_INSET_PX * 2) {
@@ -300,8 +310,8 @@ export function createDanmakuFeed(root, options = {}) {
         continue;
       }
       item.entry.position = position;
-      item.entry.node.style.setProperty('left', `${position.left}px`);
-      item.entry.node.style.setProperty('top', `${position.top}px`);
+      item.entry.node.style.setProperty('left', `${position.left / item.zoom}px`);
+      item.entry.node.style.setProperty('top', `${position.top / item.zoom}px`);
       item.entry.node.style.setProperty('visibility', 'visible');
       occupied.push({ ...item, ...position });
     }

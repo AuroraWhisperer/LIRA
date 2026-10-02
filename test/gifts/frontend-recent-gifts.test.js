@@ -128,9 +128,10 @@ test('recent blind box cards consume shared theme colors and preserve profit col
     styles,
     /\.gift-card\.blind-box-card\s*\{[^}]*border-left-color:\s*var\(--blind-box-card-accent\)[^}]*background:\s*var\(--blind-box-card-background\)/,
   );
-  assert.match(styles, /\.gift-card\.blind-box-card \.profit-up\s*\{[^}]*color:\s*#c0392b/);
-  assert.match(styles, /\.gift-card\.blind-box-card \.profit-down\s*\{[^}]*color:\s*#21b6a8/);
-  assert.match(styles, /\.gift-card\.blind-box-card \.profit-neutral\s*\{[^}]*color:\s*#647181/);
+  // Gain is green and loss is red, the same rule the overlays and the analysis workspace use.
+  assert.match(styles, /\.gift-card\.blind-box-card \.profit-up\s*\{[^}]*color:\s*var\(--color-profit\)/);
+  assert.match(styles, /\.gift-card\.blind-box-card \.profit-down\s*\{[^}]*color:\s*var\(--color-loss\)/);
+  assert.match(styles, /\.gift-card\.blind-box-card \.profit-neutral\s*\{[^}]*color:\s*var\(--muted\)/);
 });
 
 test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', async () => {

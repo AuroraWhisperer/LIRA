@@ -19,6 +19,7 @@ async function fixture() {
   const node = (key) => {
     if (!nodes.has(key))
       nodes.set(key, {
+        ownerDocument: document,
         value: '',
         textContent: '',
         disabled: false,
@@ -34,6 +35,9 @@ async function fixture() {
       });
     return nodes.get(key);
   };
+  const document = { activeElement: null, getElementById: (id) => node({
+    danmakuFullscreenDurationSeconds: 'fullscreenDuration', danmakuFullscreenDurationField: 'fullscreenDurationField',
+  }[id] || id) };
   const elements = Object.fromEntries(
     [
       'overlayUrl',
@@ -76,8 +80,7 @@ async function fixture() {
   const context = vm.createContext({
     URL,
     URLSearchParams,
-    document: { getElementById: (id) => node({ danmakuFullscreenDurationSeconds: 'fullscreenDuration',
-      danmakuFullscreenDurationField: 'fullscreenDurationField' }[id] || id) },
+    document,
     window: { liraLicense: bridge, open: (...args) => opened.push(args) },
   });
   const editors = [];

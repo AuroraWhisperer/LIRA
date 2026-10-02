@@ -1,5 +1,6 @@
 import { applyCanvas } from './danmaku-canvas.js';
 import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
+import { watchComponentOutputSize } from './component-output-size.js';
 
 export function initDanmakuComponentSource({ configure, clear, append, status, getStyle, dispose }) {
   const host = document.getElementById('danmakuCanvasHost');
@@ -11,9 +12,15 @@ export function initDanmakuComponentSource({ configure, clear, append, status, g
   let stopped = false;
   let timer;
   let request;
+  let outputSize = null;
   const fit = () => {
-    if (configuration) applyCanvas(document, configuration.layout, configuration.style, host.clientWidth, host.clientHeight);
+    if (!configuration) return;
+    const { layout, style } = configuration;
+    const outputLayout = outputSize ? { ...layout, canvas: outputSize,
+      regions: { ...layout.regions, [style]: { x: 0, y: 0, ...outputSize } } } : layout;
+    applyCanvas(document, outputLayout, style, host.clientWidth, host.clientHeight);
   };
+  const stopOutputSize = watchComponentOutputSize('danmaku', (size) => { outputSize = size; fit(); });
   const observer = new ResizeObserver(fit);
   observer.observe(host);
   async function poll() {
@@ -54,6 +61,7 @@ export function initDanmakuComponentSource({ configure, clear, append, status, g
     clearTimeout(timer);
     request?.abort();
     observer.disconnect();
+    stopOutputSize();
     dispose();
   }, { once: true });
   status('等待直播数据', false);

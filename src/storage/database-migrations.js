@@ -12,7 +12,7 @@ const { migrateGiftIdentities } = require('./gift-identity-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
 const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors } = require('./gift-wish-migration');
 const { migrateFanProfiles } = require('./fan-profile-migration');
-const { migrateScenes } = require('./scene-migration');
+const { migrateScenes, migrateComponentOutputSizes } = require('./scene-migration');
 
 // ── 迁移注册表 ──
 // 数组下标 + 1 即版本号。只能往末尾追加，不能改动已发布的步骤。
@@ -89,6 +89,7 @@ function runAllMigrations(databases, options = {}) {
         db.exec('CREATE INDEX IF NOT EXISTS idx_requests_queue_id ON requests(queue_id)');
       },
       migrateScenes,
+      migrateComponentOutputSizes,
     ]),
   );
 

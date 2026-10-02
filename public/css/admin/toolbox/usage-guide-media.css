@@ -5,7 +5,7 @@
   height: auto;
   margin-top: 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
 }
 
@@ -51,6 +51,6 @@
 }
 
 .usage-guide-foldout > summary:focus-visible {
-  outline: 2px solid var(--usage-guide-accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 4px;
 }

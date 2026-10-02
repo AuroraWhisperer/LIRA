@@ -7,15 +7,16 @@ import { enhanceSelects } from '../shared/select-menu.js';
 import { mountComponentPreviewPicker } from './component-preview-picker.js';
 import { mountPreviewCanvasOutput } from './component-preview-canvas-output.js';
 
-export function mountComponentPreviewCanvas(host, { components, canvasController, canvasConnection, selectedId, source }) {
+export function mountComponentPreviewCanvas(host, { components, canvasController, canvasConnection, selectedId, selectedSize, source, recovery }) {
   const initial = canvasController?.getState().draft.document || {
-    schemaVersion: 1, id: crypto.randomUUID(), title: '直播画布',
+    schemaVersion: 1, id: crypto.randomUUID(), title: '直播场景',
     canvas: { width: 1920, height: 1080 }, items: [],
   };
   if (initial.items.some((item) => !components.some(({ id }) => id === item.type))) {
-    throw new Error('画布中的组件尚未连接，请从客户端重新打开。');
+    throw new Error('场景中的组件尚未连接，请从客户端重新打开。');
   }
   const model = createSceneDocumentModel(initial);
+  const sharedTypes = new Set();
   let selected = null;
   let inspector = null;
   let itemActions = null;
@@ -28,7 +29,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   let inspectorOpen = Boolean(selectedId);
   const subscriptions = [];
   const toolbar = previewElement('div', 'preview-canvas-toolbar');
-  toolbar.setAttribute('aria-label', '画布工具');
+  toolbar.setAttribute('aria-label', '场景工具');
   const body = previewElement('div', 'component-preview-body');
   const navigation = previewElement('aside', 'component-preview-navigation');
   navigation.setAttribute('aria-label', '组件和图层');
@@ -86,10 +87,14 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   setInspectorOpen(inspectorOpen);
   center.append(stageHost, navigation);
   body.append(center, sidebar);
-  const controllers = [...components, ...(canvasController ? [{ id: 'canvas', title: '公共画布', controller: canvasController }] : [])];
+  const controllers = [...components.filter((component) => !component.sceneOnly),
+    ...(canvasController ? [{ id: 'canvas', title: '直播场景', controller: canvasController }] : [])];
+  const isDiscardTarget = ({ id }) => !canvasController || id === 'canvas' || sharedTypes.has(id);
+  const restore = recovery ? button(applyActions, '恢复上次草稿', () => recovery.restore()) : null;
   const discard = button(applyActions, '放弃修改', () => {
+    if (recovery?.getState().pending) { recovery.useCurrent(); return; }
     stage.cancelGesture();
-    for (const { controller } of controllers) {
+    for (const { controller } of controllers.filter(isDiscardTarget)) {
       const state = controller.getState();
       if (state.dirty || state.error) controller.discard();
     }
@@ -106,6 +111,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   }, 'primary');
   if (canvasConnection) output = mountPreviewCanvasOutput({ sourceHost: sourceActions, applyHost: applyActions, connection: canvasConnection,
     controllers, beforeApply: validateInputs, report,
+    getSelection: () => model.getDocument().items.find((item) => item.id === selected),
     setBusy(value) { outputBusy = value; renderStatus(); } });
   host.replaceChildren(toolbar, body);
   const picker = mountComponentPreviewPicker({ components, source, add, report });
@@ -118,9 +124,9 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   function add(component, config) {
     const id = crypto.randomUUID();
     edit((document) => {
-      if (document.items.length >= 32) throw new Error('一块画布最多添加 32 个组件。');
+      if (document.items.length >= 32) throw new Error('一个场景最多添加 32 个组件。');
       const draft = config || component.controller.getState().draft;
-      const region = component.bounds?.(draft);
+      const region = !config && selectedSize ? selectedSize : component.bounds?.(draft);
       const [defaultWidth, defaultHeight] = region ? [region.width, region.height] : component.size(draft);
       const width = Math.min(defaultWidth, document.canvas.width);
       const height = Math.min(defaultHeight, document.canvas.height);
@@ -166,10 +172,14 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     renderStatus();
     enhanceSelects();
   }
+  let layerSignature;
   function renderLayers() {
+    const document = model.getSnapshot();
+    const signature = JSON.stringify([selected, document.items.map(({ id, name, visible, locked }) => [id, name, visible, locked])]);
+    if (signature === layerSignature) return;
+    layerSignature = signature;
     const scrollLeft = layers.scrollLeft;
     layers.replaceChildren();
-    const document = model.getDocument();
     layerHeading.textContent = `组件 · ${document.items.length}`;
     for (const item of document.items.toReversed()) {
       const row = previewElement('div', 'preview-canvas-layer');
@@ -192,30 +202,57 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       itemActions.center.disabled = itemActions.remove.disabled = item.locked;
       itemActions.lock.textContent = item.locked ? '解锁' : '锁定';
     }
-    const states = controllers.map(({ title, controller }) => ({ title, ...controller.getState() }));
+    const states = controllers.map(({ id, title, controller }) => ({ id, title, ...controller.getState() }));
     const saving = states.some((state) => state.saving);
     const dirty = states.filter((state) => state.dirty);
     const failures = states.filter((state) => state.error);
-    status.textContent = failures.length ? failures.map((state) => `${state.title}：${state.error}`).join('；')
-      : message || (saving ? '正在保存…' : dirty.length ? '有未保存修改' : '');
+    const recoveryState = recovery?.getState();
+    if (restore) restore.hidden = !recoveryState.pending;
+    discard.textContent = recoveryState?.pending ? '使用当前配置' : '放弃修改';
+    const errors = new Map();
+    for (const { title, error } of failures) {
+      if (!errors.has(error)) errors.set(error, []);
+      errors.get(error).push(title);
+    }
+    status.classList.toggle('has-error', failures.length > 0 || Boolean(recoveryState?.pending));
+    status.textContent = failures.length ? [...errors].map(([error, titles]) =>
+      titles.length === states.length ? error : `${titles.join('、')}：${error}`).join('\n')
+      : recoveryState?.message || (typeof message === 'function' ? message() : message)
+        || (saving ? '正在保存…' : dirty.length ? '有未保存修改' : '');
     if (!canvasController) status.textContent += ' 此旧链接仅保存组件参数；保存布局请从客户端重新打开。';
     if (save) save.disabled = saving || !dirty.length || dirty.some((state) => !state.loaded);
-    discard.disabled = saving || outputBusy || (!dirty.length && !failures.length);
+    const discardStates = states.filter(isDiscardTarget);
+    discard.disabled = discardStates.some((state) => state.saving) || outputBusy
+      || (!discardStates.some((state) => state.dirty || state.error) && !recoveryState?.pending);
     const connected = !canvasController || canvasController.getState().loaded;
-    library.inert = canvasControls.inert = layers.inert = stageHost.inert = inspectorHost.inert = !connected || outputBusy;
-    canvasButton.disabled = !connected || outputBusy;
-    output?.render(connected, saving);
+    discard.disabled ||= !connected;
+    if (restore) restore.disabled = !connected || saving || outputBusy;
+    library.inert = canvasControls.inert = layers.inert = stageHost.inert = inspectorHost.inert = !connected || outputBusy || Boolean(recoveryState?.pending);
+    canvasButton.disabled = !connected || outputBusy || Boolean(recoveryState?.pending);
+    output?.render(connected && !recoveryState?.pending, saving);
   }
+  if (recovery) subscriptions.push(recovery.subscribe(renderStatus));
   for (const component of components) {
     subscriptions.push(component.controller.subscribe(renderStatus));
   }
   stage = mountSceneEditorStage(stageHost, { model, components, getSelection: () => new Set(selected ? [selected] : []), select, report });
+  function updateInspectorWidth() {
+    const { width, height } = model.getDocument().canvas;
+    // Reserve the height-fitted canvas and its 24px viewport padding on each side.
+    const fitWidth = Math.min(width, Math.max(0, stageHost.clientHeight - 48) * width / height);
+    body.style.setProperty('--preview-canvas-fit-width', `${Math.ceil(fitWidth)}px`);
+  }
+  const layoutObserver = new ResizeObserver(updateInspectorWidth);
+  layoutObserver.observe(stageHost);
   background.addEventListener('change', () => { stageHost.dataset.background = background.value; });
   subscriptions.push(model.subscribe(() => {
     message = '';
     const document = model.getDocument();
+    // Keep shared owners involved in this edit, including layers removed before discard.
+    for (const item of document.items) if (item.appearance.mode === 'shared') sharedTypes.add(item.type);
     if (selected && !document.items.some((item) => item.id === selected)) select(null);
     dimensions.textContent = `${document.canvas.width} × ${document.canvas.height}`;
+    updateInspectorWidth();
     if (canvasController && !receiving && !model.isGestureActive()
       && JSON.stringify(document) !== JSON.stringify(canvasController.getState().draft.document)) canvasController.edit({ document });
     renderLayers();
@@ -228,7 +265,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     }
     renderStatus();
   }));
-  const existing = model.getDocument().items.find((item) => item.type === selectedId);
+  const existing = model.getDocument().items.find((item) => item.type === selectedId && item.appearance.mode === 'shared');
   if (!selectedId) select(null);
   else if (existing) {
     if (!existing.visible) edit((document) => { document.items.find((item) => item.id === existing.id).visible = true; });
@@ -236,6 +273,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   } else add(components.find(({ id }) => id === selectedId));
   return { dispose() {
     closed = true;
+    layoutObserver.disconnect();
     for (const stop of subscriptions) stop();
     inspector?.dispose(); stage.dispose(); picker.dispose(); output?.dispose();
     host.replaceChildren();

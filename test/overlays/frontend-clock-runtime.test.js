@@ -71,7 +71,8 @@ function createClockDom() {
       value: '',
       textContent: '',
       children: [],
-      style: { setProperty(key, value) { this[key] = value; } },
+      style: { setProperty(key, value) { this[key] = value; }, getPropertyValue(key) { return this[key] || ''; },
+        removeProperty(key) { delete this[key]; } },
       classList: {
         toggle() {},
         add(name) { classes.add(name); },
@@ -125,6 +126,7 @@ function createClockDom() {
   document.getElementById('clockCard').hidden = true;
   const window = {
     ...element(),
+    document,
     parent: {},
     innerWidth: 580,
     innerHeight: 210,
@@ -144,7 +146,7 @@ function createClockDom() {
     close() { this.closed = true; }
   }
   return { document, window, options, palettes, timers, animations, sockets, WebSocket,
-    setTimeout: window.setTimeout, clearTimeout: window.clearTimeout };
+    AbortController, setTimeout: window.setTimeout, clearTimeout: window.clearTimeout };
 }
 
 test('clock preview loads once, shares drafts and only writes on explicit save', async () => {

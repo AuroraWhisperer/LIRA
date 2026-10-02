@@ -155,15 +155,18 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
     initCanvasOverlaySource();
     const { waitForServerOverlayUrlInitialization } = await import('/js/admin/server-overlay-url.js');
     await waitForServerOverlayUrlInitialization();
-    document.getElementById('copyLiveCanvasUrl').click();
   })()`);
-  await waitFor(() => admin.webContents.executeJavaScript("document.getElementById('liveCanvasSourceStatus').textContent.includes('请先保存并应用')"));
+  await waitFor(() => admin.webContents.executeJavaScript("document.getElementById('liveCanvasUrl').textContent.includes('请先编辑场景')"));
+  assert.equal(await admin.webContents.executeJavaScript("document.getElementById('copyLiveCanvasUrl').disabled"), true);
   assert.equal(canvasDto.publishedVersion, 0);
   await admin.webContents.executeJavaScript(`(async () => {
     const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
     await (await prepareComponentPreviews()).find(item => item.id === 'canvas').publish();
-    document.getElementById('copyLiveCanvasUrl').click();
+    window.dispatchEvent(new Event('focus'));
   })()`);
+  await waitFor(() => admin.webContents.executeJavaScript("!document.getElementById('copyLiveCanvasUrl').disabled"));
+  assert.equal(await admin.webContents.executeJavaScript("document.getElementById('liveCanvasUrl').textContent"), `${origin}/scene?id=${canvasId}#token=${source.token}`);
+  await admin.webContents.executeJavaScript("document.getElementById('liveCanvasUrl').click()");
   await waitFor(() => admin.webContents.executeJavaScript('Boolean(window.copiedCanvasSource)'));
   assert.equal(await admin.webContents.executeJavaScript('window.copiedCanvasSource'), `${origin}/scene?id=${canvasId}#token=${source.token}`);
   assert.equal(await admin.webContents.executeJavaScript("document.getElementById('liveCanvasUrl').textContent"), `${origin}/scene?id=${canvasId}#token=${source.token}`);
@@ -174,8 +177,14 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   assert.equal(new URL(canvasPreviewUrl).pathname, '/component-preview');
   assert.equal(new URL(canvasPreviewUrl).search, '');
   assert.ok(new URLSearchParams(new URL(canvasPreviewUrl).hash.slice(1)).has('canvas'));
+  context.scenes.list = () => { throw new Error('Synthetic scene read failure'); };
+  await admin.webContents.executeJavaScript("window.dispatchEvent(new Event('focus'))");
+  await waitFor(() => admin.webContents.executeJavaScript("document.getElementById('liveCanvasSourceStatus').textContent.includes('场景暂时不可用')"));
+  assert.equal(await admin.webContents.executeJavaScript("document.getElementById('copyLiveCanvasUrl').disabled"), true);
+  context.scenes.list = () => [];
   await admin.webContents.executeJavaScript("window.changeCanvasOwner({state:'unauthorized'})");
-  await waitFor(() => admin.webContents.executeJavaScript("!document.getElementById('liveCanvasUrl').textContent.includes('#token=')"));
+  await waitFor(() => admin.webContents.executeJavaScript("document.getElementById('liveCanvasUrl').textContent.includes('请先编辑场景')"));
+  assert.equal(await admin.webContents.executeJavaScript("document.getElementById('copyLiveCanvasUrl').disabled"), true);
   auth.dispose();
   admin.destroy();
   const preview = createWindow();

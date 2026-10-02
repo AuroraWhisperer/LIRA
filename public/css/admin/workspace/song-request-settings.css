@@ -1,22 +1,38 @@
 .song-management-panel:has(> #themePage.active) {
   flex: 0 0 auto;
   min-height: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-#themePage > .panel-body,
+.song-management-panel:has(> #themePage.active) > .tabs {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+#themePage > .panel-body {
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg) 0 0;
+}
+
 #songRequestSettingsForm {
-  gap: 12px;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  align-items: start;
+  gap: var(--spacing-md) var(--spacing-lg);
+}
+
+#songRequestSettingsForm > .song-board-section[open] {
+  align-self: stretch;
 }
 
 .song-board-section {
   min-width: 0;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 14px;
-}
-
-#songBoardAppearance {
-  border-bottom: 0;
-  padding-bottom: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
 }
 
 .song-board-section > summary {
@@ -34,10 +50,6 @@
   display: none;
 }
 
-.song-board-section > summary:hover {
-  color: var(--primary-strong);
-}
-
 .song-board-section > summary:focus-visible {
   outline: 2px solid var(--color-control-focus);
   outline-offset: 4px;
@@ -51,11 +63,14 @@
   gap: 4px 10px;
 }
 
-.song-board-section-title strong {
+.song-board-section-title strong,
+.song-board-section-heading {
+  margin: 0;
+  color: var(--text);
   font-family: var(--font-display);
-  font-size: var(--type-size-page-title);
+  font-size: var(--type-size-section-title);
   font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-page-title);
+  line-height: var(--type-leading-section-title);
 }
 
 .song-board-section-meta {
@@ -75,24 +90,32 @@
 }
 
 .song-board-section-body {
-  margin-top: 10px;
+  margin-top: var(--spacing-md);
 }
 
 .song-request-rules {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+
+.song-request-rules > label {
+  grid-column: span 2;
+}
+
+.song-request-rules > label:nth-last-child(-n + 2) {
+  grid-column: span 3;
 }
 
 .song-blacklist-toolbar {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--spacing-md);
 }
 
 .song-blacklist-empty {
-  flex: 1;
-  align-self: center;
+  padding: var(--spacing-sm) 0;
   margin: 0;
 }
 
@@ -102,9 +125,9 @@
 
 .song-blacklist-words {
   display: grid;
-  flex: 1;
+  width: 100%;
   min-width: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: 10px 12px;
   margin: 0;
   padding: 0;
@@ -163,24 +186,13 @@
 
 .song-board-actions {
   display: flex;
+  grid-column: 1 / -1;
   justify-content: flex-end;
 }
 
-@media (max-width: 1100px) {
-  .song-request-rules {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .song-request-rules > label {
-    grid-column: span 2;
-  }
-
-  .song-request-rules > label:nth-last-child(-n + 2) {
-    grid-column: span 3;
-  }
-
-  .song-blacklist-words {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 1200px) {
+  #songRequestSettingsForm {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

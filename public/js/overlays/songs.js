@@ -1,5 +1,7 @@
 import { SongVirtualScroller } from './song-virtual-scroller.js';
 import { createOverlaySocket } from './socket-client.js';
+import { isComponentPreview } from './component-preview-client.js';
+import { mountSceneExtraClient } from './scene-extra-client.js';
 
 ('use strict');
 
@@ -20,13 +22,33 @@ let lastOrderKey = null;
 let lastLayoutKey = null;
 let lastMotionKey = null;
 const overlayUtils = window.OverlayUtils;
+let componentSongs = [];
+let componentCategory = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   initializeScroller();
+  if (isComponentPreview()) {
+    mountSceneExtraClient('songlist', {
+      onConfig(config) {
+        state = { settings: { ...config, songBoardSyncTheme: 'false' } };
+        componentCategory = config.category;
+        updateComponentSongs();
+      },
+      onData(data) { componentSongs = data?.songs || []; updateComponentSongs(); },
+      onDispose: destroyScroller,
+    });
+    return;
+  }
   loadAll();
   connectSocket();
   window.addEventListener('beforeunload', disposeSocket, { once: true });
 });
+
+function updateComponentSongs() {
+  const next = componentCategory ? componentSongs.filter((song) => song.category_name === componentCategory) : componentSongs;
+  if (JSON.stringify(next) !== JSON.stringify(songs)) { songs = next; songsRevision += 1; }
+  render();
+}
 
 function initializeScroller() {
   const list = document.getElementById('songScrollList');

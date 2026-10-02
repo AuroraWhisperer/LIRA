@@ -254,6 +254,25 @@ test('component defaults are complete isolated appearance copies and cloud unava
   assert.throws(() => fixture.ports.getDefaultConfig('private'), { code: 'INVALID_SCENE_CONFIG' });
 });
 
+test('component ports deduplicate live data reads and omit absent or unknown projections', () => {
+  let stateReads = 0;
+  const requests = [];
+  const ports = createSceneComponentPorts({
+    getState() { stateReads++; return { settings: DEFAULT_SETTINGS }; },
+    cloud: { getSnapshot(request) { requests.push(request); return { events: [] }; } },
+  });
+  const request = { epoch: 'synthetic', cursor: 3 };
+  assert.deepEqual(ports.getDisplayData(['danmaku', 'danmaku', 'overtime', 'clock', 'constructor', 'unknown'], request),
+    { danmaku: { events: [] } });
+  assert.equal(stateReads, 1);
+  assert.deepEqual(requests, [request]);
+  for (const type of ['canvas', 'unknown', 'constructor', '__proto__', ['clock'], { toString: () => 'clock' }]) {
+    assert.throws(() => ports.getDefaultConfig(type), { code: 'INVALID_SCENE_CONFIG' });
+    assert.throws(() => normalizeSceneConfig(type, {}), { code: 'INVALID_SCENE_CONFIG' });
+  }
+  assert.equal(stateReads, 1, 'Invalid types must be rejected before accessing business state.');
+});
+
 test('appearance normalization rejects private keys, nested objects, nonfinite values and unsafe backgrounds', () => {
   const clock = getClockConfig(DEFAULT_SETTINGS);
   const danmaku = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null };

@@ -1,5 +1,5 @@
 .overtime-admin :is(button, input, select, textarea):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 

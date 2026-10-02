@@ -20,6 +20,7 @@ function readOvertimeAdminSource() {
     'overtime-time-view.js',
     'overtime-status-view.js',
     'overtime-preview.js',
+    'overtime-preview-factory.js',
     'overtime.js',
   ]
     .map((file) =>

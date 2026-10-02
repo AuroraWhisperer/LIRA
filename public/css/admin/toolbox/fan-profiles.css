@@ -84,8 +84,8 @@
 }
 .fan-nav [aria-selected='true'],
 .fan-detail-tabs [aria-selected='true'] {
-  color: var(--color-success-dark);
-  box-shadow: inset 0 -2px var(--accent);
+  color: var(--text);
+  box-shadow: inset 0 -2px var(--primary);
   font-weight: 600;
 }
 .fan-sync {
@@ -188,8 +188,9 @@
   padding: 4px 10px;
 }
 .fan-scope [aria-pressed='true'],
-.fan-filters [aria-pressed='true'] {
-  color: var(--color-success-dark);
+.fan-filters [aria-pressed='true'],
+.fan-header-actions [data-fan-action='favorite'][aria-pressed='true'] {
+  color: var(--primary-strong);
   background: var(--color-control-accent-light);
   border-color: var(--color-control-accent);
 }
@@ -229,7 +230,7 @@
   transition: background-color 140ms ease-out;
 }
 .fan-person:hover {
-  background: color-mix(in srgb, var(--surface-2) 65%, var(--surface));
+  background: var(--color-bg-tertiary);
 }
 .fan-person + .fan-person::after {
   content: '';
@@ -244,13 +245,13 @@
   background: var(--surface-2);
 }
 .fan-person.is-selected {
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  background: var(--color-primary-light);
 }
 .fan-person.is-selected:hover {
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  background: color-mix(in srgb, var(--primary) 6%, var(--color-primary-light));
 }
 .fan-person.is-selected:active {
-  background: color-mix(in srgb, var(--accent) 24%, var(--surface));
+  background: color-mix(in srgb, var(--primary) 10%, var(--color-primary-light));
 }
 .fan-person.is-selected::before {
   content: '';
@@ -260,11 +261,11 @@
   width: 3px;
   height: 20px;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent) 70%, var(--text));
+  background: var(--primary);
   transform: translateY(-50%);
 }
 .fan-person:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 70%, var(--text));
+  outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -376,11 +377,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.fan-header-actions [data-fan-action='favorite'][aria-pressed='true'] {
-  color: var(--color-success-dark);
-  background: var(--color-control-accent-light);
-  border-color: var(--color-control-accent);
 }
 .fan-detail-meta {
   display: flex;
@@ -583,9 +579,10 @@
 }
 .fan-more > div {
   padding: 6px;
-  background: var(--surface);
+  background: var(--color-floating-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-floating);
 }
 .fan-more button {
   display: block;

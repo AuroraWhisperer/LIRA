@@ -6,18 +6,22 @@ export function openComponentPreview(selected = null) {
   closeComponentPreview();
   let closed = false;
   const connections = [];
-  const post = (body) => api('/api/component-preview', body, { notifyError: false });
+  const requests = new AbortController();
+  const post = (body) => api('/api/component-preview', body, { notifyError: false,
+    signal: AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]) });
   function stopConnection(connection) {
     if (connection.stopped) return;
     connection.stopped = true;
     window.clearTimeout(connection.timer);
     connection.stopData?.();
-    if (connection.session) void post({ action: 'revoke', id: connection.session.id }).catch(() => {});
+    if (connection.session) void api('/api/component-preview', { action: 'revoke', id: connection.session.id },
+      { notifyError: false, signal: AbortSignal.timeout(5000) }).catch(() => {});
     if (connection.opened) connection.options.onClose?.();
   }
   function close() {
     if (closed) return;
     closed = true;
+    requests.abort();
     for (const connection of connections) stopConnection(connection);
     window.removeEventListener('pagehide', close);
     releaseComponentPreview(handle);
@@ -30,10 +34,13 @@ export function openComponentPreview(selected = null) {
     const { controller } = connection.options;
     if (closed || connection.stopped) return;
     if (controller.getState().generation !== connection.generation) { close(); return; }
+    let received = false;
     try {
       const { data } = await post({ action: 'exchange', id: connection.session.id,
         ack: connection.ack, state: controller.getState(), display: connection.display });
       if (closed || controller.getState().generation !== connection.generation) { close(); return; }
+      received = true;
+      connection.retryDelay = 1000;
       for (const command of data.commands) {
         if (command.sequence <= connection.ack) continue;
         if (command.action === 'edit') controller.edit(command.change);
@@ -44,7 +51,7 @@ export function openComponentPreview(selected = null) {
           void (async () => {
             try {
               const action = connection.options[command.action];
-              if (!action) throw new Error('请从客户端重新打开直播画布。');
+              if (!action) throw new Error('请从客户端重新打开场景编辑器。');
               const result = await action();
               connection.display = { sequence: command.sequence, busy: false, result };
             } catch (error) {
@@ -61,6 +68,12 @@ export function openComponentPreview(selected = null) {
       }
       connection.timer = window.setTimeout(() => exchange(connection), 200);
     } catch (error) {
+      if (closed || connection.stopped) return;
+      if (!received && (!error.status || error.status === 408 || error.status === 429 || error.status >= 500)) {
+        connection.timer = window.setTimeout(() => exchange(connection), connection.retryDelay);
+        connection.retryDelay = Math.min(connection.retryDelay * 2, 5000);
+        return;
+      }
       close();
       if (error.status !== 410) toast(error.message || '预览连接失败，请重新打开。');
     }
@@ -71,10 +84,10 @@ export function openComponentPreview(selected = null) {
       const available = await prepareComponentPreviews();
       if (closed) return;
       const previews = selected ? [selected, ...available.filter(({ id }) => id !== selected.id)] : available;
-      if (!previews.length) throw new Error('组件尚未就绪，请重新打开直播画布。');
+      if (!previews.length) throw new Error('组件尚未就绪，请重新打开场景编辑器。');
       for (const options of previews) {
         const connection = { options, generation: options.controller.getState().generation,
-          ack: 0, display: null, timer: 0, opened: false };
+          ack: 0, display: null, timer: 0, retryDelay: 1000, opened: false };
         connections.push(connection);
         connection.stopData = options.startActualData?.((data) => { connection.display = data; });
         const response = await post({ action: 'open', component: options.id,
@@ -94,6 +107,13 @@ export function openComponentPreview(selected = null) {
       const params = new URLSearchParams(selected ? connections[0].session : undefined);
       const canvas = connections.find(({ options }) => options.id === 'canvas');
       if (canvas) params.set('canvas', JSON.stringify(canvas.session));
+      if (selected && canvas?.options.getComponentSize && !canvas.options.controller.getState().draft.document.items
+        .some((item) => item.type === selected.id && item.appearance.mode === 'shared')) {
+        const size = await canvas.options.getComponentSize(selected.id,
+          AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]));
+        if (closed) return;
+        if (size) params.set('size', JSON.stringify(size));
+      }
       const others = connections.slice(selected ? 1 : 0).filter(({ options }) => options.id !== 'canvas');
       if (others.length) params.set('components', JSON.stringify(others
         .map(({ options, session }) => ({ component: options.id, ...session }))));

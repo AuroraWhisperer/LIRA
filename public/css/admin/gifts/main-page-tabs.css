@@ -5,7 +5,7 @@
   position: relative;
   isolation: isolate;
   padding: 3px;
-  border: 1px solid rgba(87, 58, 28, 0.06);
-  border-radius: 12px;
-  background: rgba(221, 213, 204, 0.38);
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-bg-secondary);
 }

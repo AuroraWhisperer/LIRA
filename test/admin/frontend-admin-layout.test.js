@@ -27,9 +27,9 @@ test('song workspace scrolls within the viewport above the player dock', () => {
 
   assert.ok(songWorkspaceRule, 'song workspace styles should remain defined');
   assert.ok(expandedRule, 'expanded player sizing should remain defined');
-  assert.match(songWorkspaceRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
+  assert.match(songWorkspaceRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-reserve, 96px\)\)/);
   assert.match(songWorkspaceRule, /overflow-y:\s*auto/);
-  assert.match(expandedRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 218px\)\)/);
+  assert.match(expandedRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-reserve, 218px\)\)/);
 });
 
 test('player dock exposes a collapse handle and shares its height with route workspaces', () => {
@@ -43,10 +43,14 @@ test('player dock exposes a collapse handle and shares its height with route wor
   assert.match(html, /id="playbackPlayerBody" class="panel-body playback-player"/);
   assert.match(playerStyles, /--player-dock-collapsed-height:\s*0px/);
   assert.match(playerStyles, /body\.player-dock-collapsed\s*\{/);
+  assert.match(
+    playerStyles,
+    /--player-dock-reserve:\s*calc\(var\(--player-dock-height\) \+ var\(--player-dock-toggle-clearance\)\)/,
+  );
   assert.match(playerStyles, /\.playback-player-panel\.is-collapsed \.playback-player\s*\{/);
-  assert.match(playbackLayout, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
-  assert.match(adminWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
-  assert.match(otherWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
+  assert.match(playbackLayout, /height:\s*calc\(100vh - 58px - var\(--player-dock-reserve, 96px\)\)/);
+  assert.match(adminWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-reserve, 96px\)\)/);
+  assert.match(otherWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-reserve, 96px\)\)/);
 });
 
 test('player dock starts collapsed and toggles open without opening fullscreen', async () => {
@@ -209,7 +213,7 @@ test('zoomed desktop routes keep scrolling below the titlebar and above the dock
   const styles = readCssBundle('public', 'css', 'overlays', 'desktop.css');
   const narrow = styles.slice(styles.lastIndexOf('@media (max-width: 900px)'));
   assert.match(narrow, /body\.desktop-shell\s*\{[^}]*overflow:\s*hidden/);
-  assert.match(narrow, /\.app-shell\s*\{[^}]*height:\s*100dvh[^}]*padding-bottom:\s*var\(--player-dock-height/);
+  assert.match(narrow, /\.app-shell\s*\{[^}]*height:\s*100dvh[^}]*padding-bottom:\s*var\(--player-dock-reserve/);
   assert.match(
     narrow,
     /:is\(\.song-workspace, \.gift-workspace, \.other-workspace\)\s*\{[^}]*height:\s*100%[^}]*overflow-y:\s*auto/,
@@ -255,10 +259,12 @@ test('admin queue cards have enough height for their text and metadata', () => {
 
 test('assisted super chat cards keep a single status color on hover', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'), 'utf8');
-  const assistedHoverRule = source.match(/\.sc-row\.assisted:hover::before\s*\{[\s\S]*?\n\}/)?.[0];
+  const assistedRule = source.match(/\.sc-row\.assisted\s*\{[\s\S]*?\n\}/)?.[0];
 
-  assert.ok(assistedHoverRule, 'assisted SC hover override should remain defined');
-  assert.match(assistedHoverRule, /opacity:\s*0/);
+  assert.ok(assistedRule, 'assisted SC state styles should remain defined');
+  assert.doesNotMatch(assistedRule, /border-left|#21b6a8/);
+  assert.doesNotMatch(source, /\.queue-row(?:\.sc-row)?(?:\.assisted)?(?::hover)?::before/);
+  assert.doesNotMatch(source, /\.sc-row\.assisted:hover/);
 });
 
 test('admin queue wheel scrolls overflowing lists and releases the page at their edges', async () => {

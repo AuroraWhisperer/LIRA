@@ -35,6 +35,7 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
   host.append(display);
   let closed = false;
   let ready = false;
+  let previousConfig;
   let focusTimer = 0;
   let dataGeneration = 0;
   let stopData = null;
@@ -68,7 +69,10 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
     dimensions.style.top = `${Math.max(8, Math.min(top, stage.clientHeight - labelHeight - 8))}px`;
   }
   function update(state) {
-    if (ready) send('config', { config: projectConfig(state.draft), editable: state.loaded });
+    const values = { config: projectConfig(state.draft), editable: state.loaded };
+    const serialized = JSON.stringify(values);
+    if (serialized === previousConfig) return;
+    if (ready) { send('config', values); previousConfig = serialized; }
     fit();
   }
   function trackFrameFocus() {
@@ -109,7 +113,9 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
       loadState.hidden = true;
       fit();
       const state = controller.getState();
-      send('init', { config: projectConfig(state.draft), editable: state.loaded });
+      const values = { config: projectConfig(state.draft), editable: state.loaded };
+      send('init', values);
+      previousConfig = JSON.stringify(values);
       beginData();
     } else if (event.data?.type === 'component-preview:edit' && controller.getState().loaded) {
       onEdit?.(event.data.change);

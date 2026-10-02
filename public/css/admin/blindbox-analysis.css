@@ -1,8 +1,8 @@
 .blind-analysis-workspace {
-  --analysis-green: #159b8f;
-  --analysis-green-soft: #eaf8f5;
-  --analysis-red: #c84e47;
-  --analysis-red-soft: #fff1f0;
+  --analysis-green: var(--color-profit);
+  --analysis-green-soft: var(--color-profit-soft);
+  --analysis-red: var(--color-loss);
+  --analysis-red-soft: var(--color-loss-soft);
   position: fixed;
   inset: 58px 0 0;
   z-index: 80;
@@ -11,7 +11,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #f3f6f8;
+  background: var(--surface-2);
 }
 
 .blind-analysis-workspace[hidden] {
@@ -34,8 +34,8 @@ body.blind-analysis-open .playback-player-panel {
   min-height: 72px;
   flex: 0 0 auto;
   padding: 10px 20px 10px 24px;
-  border-bottom: 1px solid #dce3e8;
-  background: #fff;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .blind-analysis-title-block {
@@ -51,10 +51,9 @@ body.blind-analysis-open .playback-player-panel {
   width: 40px;
   height: 40px;
   flex: 0 0 40px;
-  border: 1px solid #bfe8e2;
   border-radius: 8px;
-  background: var(--analysis-green-soft);
-  color: var(--analysis-green);
+  background: var(--surface-2);
+  color: var(--muted);
 }
 
 .blind-analysis-mark svg {
@@ -64,7 +63,7 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-title-block h2 {
   margin: 0;
-  color: #18242d;
+  color: var(--text);
   font-family: var(--font-display);
   font-size: var(--type-size-page-title);
   font-weight: var(--type-weight-bold);
@@ -74,7 +73,7 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-title-block p {
   margin: 3px 0 0;
-  color: #72808b;
+  color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-caption);
@@ -87,16 +86,16 @@ body.blind-analysis-open .playback-player-panel {
   height: 40px;
   margin-left: auto;
   padding: 0;
-  border: 1px solid #dce3e8;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
-  color: #596773;
+  background: var(--surface);
+  color: var(--muted);
   cursor: pointer;
 }
 
 .blind-analysis-close:hover {
-  border-color: #efb1ad;
-  background: #fff5f4;
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+  background: var(--color-danger-light);
   color: var(--analysis-red);
 }
 
@@ -104,7 +103,7 @@ body.blind-analysis-open .playback-player-panel {
 .blind-analysis-toolbar button:focus-visible,
 .blind-analysis-select:focus-visible,
 .blind-analysis-pagination button:focus-visible {
-  outline: 2px solid var(--analysis-green);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 
@@ -127,9 +126,9 @@ body.blind-analysis-open .playback-player-panel {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid #dce3e8;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   flex: 0 0 auto;
 }
 
@@ -138,7 +137,7 @@ body.blind-analysis-open .playback-player-panel {
   gap: 3px;
   min-width: 0;
   padding: 13px 16px;
-  border-right: 1px solid #e5eaee;
+  border-right: 1px solid var(--color-border-light);
 }
 
 .blind-analysis-summary > div:last-child {
@@ -146,7 +145,7 @@ body.blind-analysis-open .playback-player-panel {
 }
 
 .blind-analysis-summary span {
-  color: #72808b;
+  color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-caption);
@@ -154,7 +153,7 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-summary strong {
   overflow: hidden;
-  color: #18242d;
+  color: var(--text);
   font-size: var(--type-size-metric-sm);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-display);
@@ -184,9 +183,9 @@ body.blind-analysis-open .playback-player-panel {
   align-items: end;
   gap: 16px;
   padding: 12px 14px;
-  border: 1px solid #dce3e8;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   flex: 0 0 auto;
 }
 
@@ -202,7 +201,7 @@ body.blind-analysis-open .playback-player-panel {
   display: grid;
   gap: 5px;
   min-width: 190px;
-  color: #586773;
+  color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-caption);
@@ -215,10 +214,10 @@ body.blind-analysis-open .playback-player-panel {
   width: 100%;
   min-height: 38px;
   padding: 0 11px 0 13px;
-  border: 1px solid #d8e0e5;
+  border: 1px solid var(--border);
   border-radius: 7px;
-  background: #fff;
-  color: #18242d;
+  background: var(--surface);
+  color: var(--text);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-control);
@@ -231,17 +230,17 @@ body.blind-analysis-open .playback-player-panel {
 }
 
 .blind-analysis-select:hover {
-  border-color: #aab8c1;
-  background: #fbfcfd;
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
 }
 
 .blind-analysis-select[aria-expanded='true'] {
-  border-color: var(--analysis-green);
-  box-shadow: 0 0 0 3px rgba(21, 155, 143, 0.12);
+  border-color: var(--color-control-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-control-accent) 16%, transparent);
 }
 
 .blind-analysis-select:focus-visible {
-  outline: 2px solid rgba(21, 155, 143, 0.32);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 
@@ -256,7 +255,7 @@ body.blind-analysis-open .playback-player-panel {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
-  color: #667681;
+  color: var(--muted);
   transition: transform 160ms ease;
 }
 
@@ -275,13 +274,11 @@ body.blind-analysis-open .playback-player-panel {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 5px;
-  border: 1px solid #d8e0e5;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
-  box-shadow:
-    0 12px 30px rgba(31, 49, 61, 0.16),
-    0 2px 8px rgba(31, 49, 61, 0.08);
-  scrollbar-color: #b7c2c9 transparent;
+  background: var(--surface);
+  box-shadow: var(--shadow-floating);
+  scrollbar-color: var(--scrollbar-thumb, #b7c2c9) transparent;
   scrollbar-width: thin;
 }
 
@@ -294,9 +291,9 @@ body.blind-analysis-open .playback-player-panel {
 }
 
 .blind-analysis-select-menu::-webkit-scrollbar-thumb {
-  border: 2px solid #fff;
+  border: 2px solid var(--surface);
   border-radius: 8px;
-  background: #b7c2c9;
+  background: var(--scrollbar-thumb, #b7c2c9);
 }
 
 .blind-analysis-option {
@@ -306,7 +303,7 @@ body.blind-analysis-open .playback-player-panel {
   min-height: 36px;
   padding: 7px 9px;
   border-radius: 6px;
-  color: #2d3c47;
+  color: var(--text);
   cursor: pointer;
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-medium);
@@ -323,29 +320,30 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-option:hover,
 .blind-analysis-option.focused {
-  background: #f0f6f5;
+  background: var(--color-bg-tertiary);
 }
 
 .blind-analysis-option:focus-visible {
-  outline: 2px solid rgba(21, 155, 143, 0.32);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }
 
 .blind-analysis-option[aria-selected='true'] {
-  color: #087f75;
+  background: var(--color-primary-light);
+  color: var(--primary-strong);
   font-weight: var(--type-weight-bold);
 }
 
 .blind-analysis-option[aria-selected='true']::before {
   background: no-repeat center / 16px 16px
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 10 3 3 7-7' stroke='%23159b8f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 10 3 3 7-7' stroke='%232f62d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 .blind-analysis-clear {
   min-height: 38px;
   padding: 0 13px;
   border-radius: 7px;
-  color: #5f6d78;
+  color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-caption);
@@ -359,9 +357,9 @@ body.blind-analysis-open .playback-player-panel {
   min-width: 320px;
   margin-left: auto;
   padding: 4px;
-  border: 1px solid #dfe5ea;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #f3f6f8;
+  background: var(--surface-2);
 }
 
 .blind-analysis-view-tabs button {
@@ -370,7 +368,7 @@ body.blind-analysis-open .playback-player-panel {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #687681;
+  color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-caption);
@@ -378,9 +376,9 @@ body.blind-analysis-open .playback-player-panel {
 }
 
 .blind-analysis-view-tabs button.active {
-  background: #fff;
-  color: var(--analysis-green);
-  box-shadow: 0 1px 4px rgba(30, 51, 64, 0.12);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
 }
 
 .blind-analysis-results {
@@ -389,9 +387,9 @@ body.blind-analysis-open .playback-player-panel {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid #dce3e8;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .blind-analysis-results-head {
@@ -400,12 +398,12 @@ body.blind-analysis-open .playback-player-panel {
   gap: 12px;
   min-height: 56px;
   padding: 9px 14px;
-  border-bottom: 1px solid #e5eaee;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .blind-analysis-results-head h3 {
   margin: 0;
-  color: #24323d;
+  color: var(--text);
   font-size: var(--type-size-card-title);
   font-weight: var(--type-weight-semibold);
   line-height: var(--type-leading-card-title);
@@ -413,7 +411,7 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-results-head div span,
 .blind-analysis-updated {
-  color: #81909b;
+  color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-caption);
@@ -442,9 +440,9 @@ body.blind-analysis-open .playback-player-panel {
   top: 0;
   z-index: 1;
   padding: 10px 14px;
-  border-bottom: 1px solid #dfe5ea;
-  background: #f5f7f9;
-  color: #66747f;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-micro);
@@ -455,8 +453,8 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-table td {
   padding: 11px 14px;
-  border-bottom: 1px solid #edf0f3;
-  color: #35434e;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--text);
   text-align: right;
   white-space: nowrap;
 }
@@ -467,7 +465,7 @@ body.blind-analysis-open .playback-player-panel {
 }
 
 .blind-analysis-table tbody tr:hover {
-  background: #f8fbfb;
+  background: var(--color-bg-tertiary);
 }
 
 .blind-analysis-table td.profit-up {
@@ -483,7 +481,7 @@ body.blind-analysis-open .playback-player-panel {
 .blind-analysis-table .blind-analysis-empty {
   height: 180px;
   padding: 30px;
-  color: #7b8994;
+  color: var(--muted);
   text-align: center;
   white-space: normal;
 }
@@ -506,8 +504,8 @@ body.blind-analysis-open .playback-player-panel {
   gap: 14px;
   min-height: 50px;
   padding: 8px 14px;
-  border-top: 1px solid #e5eaee;
-  background: #fafbfc;
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg-tertiary);
 }
 
 .blind-analysis-pagination[hidden] {
@@ -525,7 +523,7 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-pagination span {
   min-width: 130px;
-  color: #687681;
+  color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-caption);
@@ -563,7 +561,7 @@ body.blind-analysis-open .playback-player-panel {
   }
 
   .blind-analysis-summary > div:nth-child(-n + 2) {
-    border-bottom: 1px solid #e5eaee;
+    border-bottom: 1px solid var(--color-border-light);
   }
 
   .blind-analysis-filters {

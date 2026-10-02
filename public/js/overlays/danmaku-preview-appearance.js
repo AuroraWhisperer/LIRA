@@ -1,4 +1,5 @@
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import { canvasContentScale } from './danmaku-canvas.js';
 import {
   readAppearanceValue,
   editStyleOption,
@@ -24,7 +25,7 @@ export function initPreviewAppearance({ getDraft, change, error }) {
         render();
         return;
       }
-      if (key === 'fontSize') value = Math.round(value / draft.layout.contentScale);
+      if (key === 'fontSize') value = Math.round(value / canvasContentScale(draft.layout, draft.style));
       change(editStyleOption(draft, key, value));
     });
   }
@@ -53,11 +54,12 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     const draft = getDraft();
     const options = styleOptionsFor(draft.style, draft.styleOptions);
     const limits = DANMAKU_STYLE_OPTIONS[draft.style];
+    const scale = canvasContentScale(draft.layout, draft.style);
     addFonts([{ value: options.fontFamily, label: options.fontFamily }]);
     for (const [key, control] of Object.entries(fields)) control.value = String(options[key]);
-    fields.fontSize.value = String(Math.round(options.fontSize * draft.layout.contentScale));
-    fields.fontSize.min = String(Math.ceil(limits.minFontSize * draft.layout.contentScale));
-    fields.fontSize.max = String(Math.floor(limits.maxFontSize * draft.layout.contentScale));
+    fields.fontSize.value = String(Math.round(options.fontSize * scale));
+    fields.fontSize.min = String(Math.ceil(limits.minFontSize * scale));
+    fields.fontSize.max = String(Math.floor(limits.maxFontSize * scale));
     byId('previewBackgroundField').hidden = !limits.background;
     byId('previewGiftField').hidden = !limits.giftImage;
     byId('previewDirectionField').hidden = !limits.scrollDirection;

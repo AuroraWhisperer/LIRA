@@ -6,6 +6,8 @@ import { escapeHtml, hexToRgba } from './overlay-utils-module.js';
 import { applyOverlayTheme } from './overlay-theme.js';
 import { createOverlaySocket } from './socket-client.js';
 import { startOverlayPages } from './auto-pages.js';
+import { isComponentPreview } from './component-preview-client.js';
+import { mountSceneExtraClient } from './scene-extra-client.js';
 
 const RANK_ICONS = ['👑', '🥈', '🥉'];
 
@@ -25,18 +27,34 @@ let blindboxViewportResized = false;
 const urlParams = new URLSearchParams(location.search);
 const param = (longKey, shortKey) => urlParams.get(longKey) || urlParams.get(shortKey);
 const requestedTop = Number.parseInt(param('top', 't') || '3', 10);
-const TOP_N = Number.isFinite(requestedTop) ? Math.min(10, Math.max(-1, requestedTop)) : 3;
-const SUMMARY_ONLY = TOP_N === 0;
-const COMPACT = param('compact', 'c') === '1';
-const WINNERS_ONLY = param('winners', 'w') === '1' || urlParams.get('show') === 'winners';
+let TOP_N = Number.isFinite(requestedTop) ? Math.min(10, Math.max(-1, requestedTop)) : 3;
+let SUMMARY_ONLY = TOP_N === 0;
+let COMPACT = param('compact', 'c') === '1';
+let WINNERS_ONLY = param('winners', 'w') === '1' || urlParams.get('show') === 'winners';
 const HEART_BOX_ONLY = param('heartBox', 'hb') === '1';
 const CUSTOM_TITLE = (param('title', 'tt') || '').trim();
-const HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
+let HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
 const REFRESH_SEC = Math.max(10, parseInt(param('refresh', 'r') || '0', 10) || 0);
-const NO_SCROLL = param('noScroll', 'ns') !== '0';
+let NO_SCROLL = param('noScroll', 'ns') !== '0';
 
 document.addEventListener('DOMContentLoaded', () => {
   const panel = document.querySelector('.blindbox-panel');
+  if (isComponentPreview()) {
+    mountSceneExtraClient('blindbox', {
+      onConfig(config) {
+        state = { settings: config };
+        TOP_N = config.top; SUMMARY_ONLY = TOP_N === 0; COMPACT = config.compact;
+        WINNERS_ONLY = config.winnersOnly; HIDE_LOSS = config.hideLoss; NO_SCROLL = config.noScroll;
+        for (const [name, active] of [['compact', COMPACT], ['winners-only', WINNERS_ONLY], ['no-scroll', NO_SCROLL], ['summary-only', SUMMARY_ONLY]]) panel.classList.toggle(name, active);
+        stopPages?.(); stopPages = NO_SCROLL ? startOverlayPages(panel) : null;
+        lastContentKey = null;
+        render(lastStats || { summary: {}, perUser: [] });
+      },
+      onData(data) { lastStats = data || { summary: {}, perUser: [] }; render(lastStats); },
+      onDispose() { stopPages?.(); },
+    });
+    return;
+  }
   initialBlindboxViewportWidth = window.innerWidth;
   initialBlindboxViewportHeight = window.innerHeight;
   window.addEventListener('resize', handleBlindboxViewportResize);

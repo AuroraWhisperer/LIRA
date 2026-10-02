@@ -16,8 +16,6 @@
   align-items: center;
   gap: 7px;
   margin: 4px 0 2px;
-  padding-left: 9px;
-  border-left: 3px solid var(--primary-strong);
   color: var(--text);
   font-family: var(--font-ui);
   font-size: var(--type-size-card-title);
@@ -41,8 +39,8 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: var(--primary-strong);
-  color: #fff;
+  background: var(--surface-2);
+  color: var(--muted);
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   line-height: 1;
@@ -51,40 +49,33 @@
 /* 队列行 */
 .playback-queue-row {
   border: none !important;
-  border-radius: 10px !important;
-  box-shadow:
-    0 1px 4px rgba(22, 31, 43, 0.07),
-    0 0 0 1px rgba(217, 224, 232, 0.65);
+  border-radius: 8px !important;
+  box-shadow: 0 0 0 1px var(--color-border-light);
   transition:
     box-shadow 160ms ease,
     background 160ms ease;
 }
 
 .playback-queue-row:hover {
-  box-shadow:
-    0 3px 10px rgba(22, 31, 43, 0.1),
-    0 0 0 1px rgba(200, 210, 220, 0.9);
-  background: #fafcff !important;
+  box-shadow: 0 0 0 1px var(--color-border-strong);
+  background: var(--color-bg-tertiary) !important;
+  transform: none;
 }
 
 /* 正在播放 */
 .playback-queue-row.active {
-  background: linear-gradient(135deg, #fff3ee 0%, #fff8f5 100%) !important;
-  box-shadow:
-    0 2px 12px rgba(217, 75, 112, 0.14),
-    0 0 0 1.5px rgba(217, 75, 112, 0.32) !important;
+  background: var(--color-primary-light) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent) !important;
 }
 
 .playback-queue-row.active:hover {
-  background: linear-gradient(135deg, #fff0ea 0%, #fff6f2 100%) !important;
+  background: var(--color-primary-light) !important;
 }
 
 /* 待确认点歌 */
 .playback-queue-row.pending {
-  background: #fffbeb;
-  box-shadow:
-    0 1px 4px rgba(180, 130, 0, 0.08),
-    0 0 0 1px rgba(251, 191, 36, 0.42) !important;
+  background: var(--color-warning-light);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-warning-medium) 40%, transparent) !important;
 }
 
 /* 队列行操作按钮 */
@@ -98,7 +89,7 @@
   min-height: 28px;
   height: 28px;
   padding: 0 11px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
   letter-spacing: var(--type-tracking-normal);
@@ -109,10 +100,34 @@
 .playback-queue-row .queue-actions button:last-child {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--color-text-white);
 }
 
 .playback-queue-row .queue-actions button:last-child:hover {
+  background: var(--primary-strong);
+  border-color: var(--primary-strong);
+}
+
+/* Pending confirmation: the affirmative action is primary, ignoring is the quiet option. */
+.playback-queue-row.pending .queue-actions button:last-child {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.playback-queue-row.pending .queue-actions button:last-child:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
+  color: var(--text);
+}
+
+.playback-queue-row.pending .queue-actions button:first-child {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--color-text-white);
+}
+
+.playback-queue-row.pending .queue-actions button:first-child:hover {
   background: var(--primary-strong);
   border-color: var(--primary-strong);
 }

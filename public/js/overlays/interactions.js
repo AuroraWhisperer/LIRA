@@ -2,12 +2,15 @@ import { createOverlaySocket } from './socket-client.js';
 import { createInteractionClient } from '../shared/interaction-client.js';
 import { renderPollRows, interactionStatus } from '../shared/interaction-view.js';
 import { readInteractionAppearance, applyInteractionAppearance } from '../shared/interaction-appearance.js';
+import { mountSceneExtraClient } from './scene-extra-client.js';
 
 const byId = (id) => document.getElementById(id);
 let session = null;
 let retry = null;
 let disposed = false;
 let appearance = readInteractionAppearance();
+let componentKind = 'poll';
+let componentData = null;
 const client = createInteractionClient({
   onState: render,
   async fetchState() {
@@ -92,8 +95,20 @@ function render(state) {
 const clock = setInterval(() => {
   if (session) byId('interactionStatus').textContent = interactionStatus(session);
 }, 250);
-refresh();
-socket.start();
+const component = mountSceneExtraClient('interactions', {
+  onConfig(config) {
+    componentKind = config.kind;
+    appearance = applyInteractionAppearance(byId('interactionStage'), config);
+    renderComponent();
+  },
+  onData(data) { componentData = data; renderComponent(); },
+  onDispose() { clearInterval(clock); },
+});
+function renderComponent() {
+  const next = componentData?.sessions?.[componentKind] || componentData?.session;
+  render({ session: next?.kind === componentKind ? next : null });
+}
+if (!component) { refresh(); socket.start(); }
 window.addEventListener(
   'beforeunload',
   () => {

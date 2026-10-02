@@ -1,4 +1,5 @@
 import { validateSceneDocument } from './scene-template.js';
+import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
@@ -14,15 +15,30 @@ export function createSceneDocumentModel(document) {
   let future = [];
   let gesture = null;
   const listeners = new Set();
+  const snapshotListeners = new Set();
   const getDocument = () => clone(current);
   const getState = () => ({ canUndo: !gesture && past.length > 0, canRedo: !gesture && future.length > 0 });
   function notify() {
     for (const listener of listeners) listener(getState(), getDocument());
+    for (const listener of snapshotListeners) listener(getState(), current);
   }
   function change(base, mutator) {
     const draft = clone(base);
     const result = mutator(draft);
-    return freeze(validateSceneDocument(result === undefined ? draft : result));
+    const next = result === undefined ? draft : result;
+    for (const item of next.items) {
+      if (item.appearance.mode !== 'shared') continue;
+      const previous = base.items.find((entry) => entry.id === item.id);
+      if (!previous || item.width === previous.width && item.height === previous.height) continue;
+      for (const reference of next.items) {
+        if (reference.id === item.id || reference.type !== item.type || reference.appearance.mode !== 'shared') continue;
+        reference.width = item.width;
+        reference.height = item.height;
+        reference.x = Math.min(reference.x, next.canvas.width - reference.width);
+        reference.y = Math.min(reference.y, next.canvas.height - reference.height);
+      }
+    }
+    return freeze(validateSceneDocument(next));
   }
   function record(previous) {
     past.push(previous);
@@ -31,12 +47,18 @@ export function createSceneDocumentModel(document) {
   }
   return {
     getDocument,
+    getSnapshot: () => current,
     getState,
     isGestureActive: () => gesture !== null,
     subscribe(listener) {
       listeners.add(listener);
       listener(getState(), getDocument());
       return () => listeners.delete(listener);
+    },
+    subscribeSnapshot(listener) {
+      snapshotListeners.add(listener);
+      listener(getState(), current);
+      return () => snapshotListeners.delete(listener);
     },
     edit(mutator, { recordHistory = true } = {}) {
       if (gesture) throw new Error('请先完成或取消当前手势。');
@@ -145,6 +167,30 @@ export function moveSceneItems(document, ids, deltaX, deltaY, { snap = false } =
   for (const item of items) {
     item.x += offsetX;
     item.y += offsetY;
+  }
+  return next;
+}
+
+export function resizeSceneItem(document, id, handle, deltaX, deltaY, { snap = false } = {}) {
+  const next = validateSceneDocument(document);
+  const item = selection(next, [id])[0];
+  if (!item) return next;
+  const coordinate = (value) => snap ? snapSceneCoordinate(value) : value;
+  const right = item.x + item.width;
+  const bottom = item.y + item.height;
+  if (handle.includes('w')) {
+    item.x = Math.max(0, Math.min(right - 32, coordinate(item.x + deltaX)));
+    item.width = right - item.x;
+  } else if (handle.includes('e')) {
+    item.width = Math.max(32, Math.min(next.canvas.width, coordinate(right + deltaX)) - item.x);
+  }
+  if (SCENE_COMPONENTS[item.type].resizeAxes.includes('y')) {
+    if (handle.includes('n')) {
+      item.y = Math.max(0, Math.min(bottom - 32, coordinate(item.y + deltaY)));
+      item.height = bottom - item.y;
+    } else if (handle.includes('s')) {
+      item.height = Math.max(32, Math.min(next.canvas.height, coordinate(bottom + deltaY)) - item.y);
+    }
   }
   return next;
 }

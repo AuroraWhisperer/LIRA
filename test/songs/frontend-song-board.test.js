@@ -40,7 +40,7 @@ test('display overlay URLs use explicit settings capabilities without the legacy
       'blindboxLiveLink',
     ].map((id) => [id, { addEventListener() {} }]),
   );
-  const copyButton = {};
+  const copyButton = { addEventListener() {}, removeEventListener() {} };
   const window = { addEventListener() {} };
   const { display } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/display.js'), {
     window,
@@ -93,6 +93,7 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
         addEventListener(name, listener) {
           if (name === 'pagehide') pagehide.push(listener);
         },
+        removeEventListener() {},
       },
       location: { protocol: 'http:', hostname: 'localhost', port: '3012' },
       document: {
@@ -101,7 +102,7 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
         getElementById: (id) => nodes.get(id) || null,
         querySelectorAll: () => [],
         querySelector(selector) {
-          if (!buttons.has(selector)) buttons.set(selector, {});
+          if (!buttons.has(selector)) buttons.set(selector, { addEventListener() {}, removeEventListener() {} });
           return buttons.get(selector);
         },
       },

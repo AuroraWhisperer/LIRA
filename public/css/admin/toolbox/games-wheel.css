@@ -1,22 +1,14 @@
-.is-wheel .game-card-poster {
-  color: #25193c;
-  background: linear-gradient(145deg, #f6c8e6, #a7d7e8);
-}
 .is-wheel .game-card-poster i {
   right: -20px;
   top: 28px;
-  border-color: rgba(37, 25, 60, 0.3);
-  box-shadow:
-    0 0 0 20px rgba(255, 255, 255, 0.22),
-    0 0 0 42px rgba(255, 255, 255, 0.14);
 }
 .is-wheel .game-card-poster i::after {
   position: absolute;
   inset: 48px;
   border-radius: 50%;
-  background: #fff5a8;
+  background: var(--surface);
   content: '';
-  box-shadow: 0 0 22px rgba(255, 245, 168, 0.9);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
 }
 .wheel-card-trigger {
   display: grid;
@@ -32,11 +24,11 @@
   cursor: pointer;
 }
 .wheel-card-trigger:hover .wheel-card-summary {
-  background: #fcfaff;
+  background: var(--color-bg-tertiary);
 }
 .wheel-card-trigger:focus-visible {
-  outline: 3px solid rgba(112, 98, 191, 0.35);
-  outline-offset: -3px;
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: -2px;
 }
 .wheel-card-summary {
   display: grid;
@@ -59,7 +51,7 @@
   line-height: 1.7;
 }
 .wheel-card-result {
-  color: #6a579e;
+  color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
 }
@@ -67,7 +59,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #5d519e;
+  color: var(--primary-strong);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
 }
@@ -76,9 +68,9 @@
   place-items: center;
   width: 22px;
   height: 22px;
-  border: 1px solid #cfc7ef;
+  border: 1px solid var(--color-border-primary);
   border-radius: 50%;
-  background: #f0edff;
+  background: var(--color-primary-light);
   font-size: 18px;
   line-height: 1;
   transition: transform 180ms ease;
@@ -92,8 +84,8 @@
 }
 .wheel-card-details {
   grid-column: 1 / -1;
-  border-top: 1px solid #e4dfef;
-  background: #fdfcff;
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg-tertiary);
 }
 .wheel-card-details[hidden] {
   display: none;
@@ -102,16 +94,16 @@
   display: grid;
   gap: 10px;
   padding: 14px;
-  border: 1px solid #e1ddec;
-  border-radius: 12px;
-  background: #fbfaff;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  background: var(--surface);
 }
 .wheel-editor-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: #4e4677;
+  color: var(--text);
   font-size: var(--type-size-control);
 }
 .wheel-editor-heading span {

@@ -3,9 +3,9 @@
   grid-area: match;
   overflow: visible;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 2px 6px rgba(22, 31, 43, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .playback-match-panel > summary {
@@ -57,7 +57,7 @@
 }
 
 .match-result-row.accepted {
-  border-color: rgba(33, 182, 168, 0.4);
+  border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
   background: var(--color-success-light);
 }
 

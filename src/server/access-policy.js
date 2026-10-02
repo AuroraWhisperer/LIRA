@@ -94,6 +94,7 @@ function resolveRequestPrincipal(context, req, requestUrl) {
 function isOverlayRequestAllowed(scope, method, pathname) {
   if (!hasScope(scope)) return false;
   if (method === 'GET' && pathname === '/api/state') return true;
+  if (method === 'GET' && pathname === '/api/component/size') return ['clock', 'queue', 'overtime', 'danmaku'].includes(scope);
   return OVERLAY_ROUTES[scope]?.includes(`${method} ${pathname}`) || false;
 }
 

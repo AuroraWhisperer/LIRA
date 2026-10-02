@@ -16,6 +16,14 @@ Main consumes the existing trusted cloud public-overlay SSE once per authorized 
 
 Persist the local scene capability as hash plus a safeStorage-encrypted, owner-bound package. It is accepted only by the exact scene output HTTP route, not general HTTP/WS authorization. Defaults remain owned by their existing components; “publish complete scene” freezes their current appearance explicitly.
 
+Under the user's 2026-10-01 fixed-pixel requirement, the scene store also owns
+current-owner default component output dimensions. Shared geometry and the scene
+snapshot publish atomically; original component sources consume the saved size
+through their existing overlay principal. Independent source addresses project a
+published item from that same scene, using the scene capability. This adds no
+second appearance or business-state owner. Output pixels are independent of the
+browser viewport; editor zoom remains separate.
+
 ```mermaid
 flowchart LR
   Admin["Desktop scene editor"] --> Scene["Scene service + store"]

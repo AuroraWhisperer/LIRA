@@ -106,7 +106,7 @@
   cursor: text;
 }
 .gift-wish-text-input:focus-visible {
-  outline: 2px solid var(--color-control-accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 .gift-wish-text-input:empty::before {
@@ -204,16 +204,18 @@
   font-size: 13px;
 }
 .gift-wish-styles input:checked + span {
-  border-color: var(--color-primary-strong);
-  background: var(--surface-2);
+  border-color: var(--primary);
+  background: var(--color-primary-light);
+  color: var(--primary-strong);
   font-weight: 600;
 }
 .gift-wish-styles input:focus-visible + span {
-  outline: 2px solid var(--color-control-accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
-.gift-wish-styles input:hover:not(:disabled) + span {
-  background: var(--surface-2);
+.gift-wish-styles input:hover:not(:disabled):not(:checked) + span {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
 }
 .gift-wish-styles input:disabled + span {
   opacity: 0.6;
@@ -258,8 +260,8 @@
   box-shadow: none;
 }
 .gift-wish-pick:hover:not(:disabled) {
-  background: var(--surface-2);
-  border-color: var(--color-primary-strong);
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
 }
 .gift-wish-pick img {
   width: 28px;
@@ -356,9 +358,10 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-dialog);
 }
 .gift-wish-picker::backdrop {
-  background: rgb(42 29 26 / 35%);
+  background: rgba(24, 24, 22, 0.4);
 }
 .gift-wish-picker header {
   display: flex;

@@ -55,8 +55,8 @@ test('Admin optional explanations use one contextual help component', () => {
   assert.match(styles, /:has\(\s*>\s*lira-help\s*\)[^{]*\{[^}]*white-space:\s*nowrap/s);
   assert.match(styles, /overflow:\s*hidden\s*!important/);
   assert.match(styles, /scrollbar-width:\s*none/);
-  assert.match(styles, /background:\s*#eaf6ff/);
-  assert.match(styles, /color:\s*#174f73/);
+  assert.match(styles, /background:\s*var\(--color-floating-surface\)/);
+  assert.match(styles, /color:\s*var\(--color-text-primary\)/);
   assert.match(styles, /\.lira-help-tooltip::\-webkit-scrollbar/);
   assert.doesNotMatch(styles, /\.lira-help-tooltip::after/);
   assert.doesNotMatch(styles, /lira-help--[\w-]+/);

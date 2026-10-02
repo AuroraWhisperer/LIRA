@@ -14,12 +14,15 @@ import {
 } from '../shared/gift-feed-state.js';
 import { createOverlaySocket } from './socket-client.js';
 import { buildGiftCards } from '../shared/gift-card-model.js';
+import { isComponentPreview } from './component-preview-client.js';
+import { mountSceneExtraClient, sceneAvatarSource } from './scene-extra-client.js';
 
 const state = createGiftFeedState();
 const stage = document.getElementById('giftFeedStage');
 const viewport = document.getElementById('giftFeedViewport');
 const status = document.getElementById('giftFeedStatus');
 const preview = new URLSearchParams(location.search).get('preview') === '1';
+const resolveAvatarUrl = isComponentPreview() ? sceneAvatarSource : undefined;
 document.body.classList.toggle('gift-feed-preview', preview);
 status.hidden = !preview;
 let config = { thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 25, minGiftAmountCents: 0 };
@@ -40,6 +43,7 @@ let refreshTimer;
 let frame = null;
 let previousTime = null;
 let progress = 0;
+let componentItems = [];
 
 async function request(url, signal) {
   // Browser sources may use a Chromium version without AbortSignal.any/timeout.
@@ -71,10 +75,10 @@ function render(retryAvatars = false) {
     const avatar = retryAvatars ? row?.node.querySelector('.gift-banner-avatar') : null;
     const retryAvatar = Boolean(avatar && item.gift.avatarUrl && avatar.getAttribute('src') !== avatar.dataset.source);
     if (!row) {
-      row = { signature, node: createGiftBanner(item, config, catalog) };
+      row = { signature, node: createGiftBanner(item, config, catalog, resolveAvatarUrl) };
       fit.push(row.node);
     } else if (row.signature !== signature || retryAvatar) {
-      if (updateGiftBanner(row.node, item, config, catalog, retryAvatar)) fit.push(row.node);
+      if (updateGiftBanner(row.node, item, config, catalog, retryAvatar, resolveAvatarUrl)) fit.push(row.node);
       row.signature = signature;
     }
     next.set(item.eventId, row);
@@ -117,7 +121,7 @@ function reset() {
 }
 
 function scheduleRefresh({ settings = false, catalog = false } = {}) {
-  if (disposed) return;
+  if (disposed || isComponentPreview()) return;
   settingsDirty ||= settings;
   catalogDirty ||= catalog;
   if (scanning) {
@@ -248,10 +252,36 @@ const socket = createOverlaySocket({
     }
   },
 });
-socket.start();
-scheduleRefresh();
-const reconcileTimer = setInterval(() => scheduleRefresh({ settings: true, catalog: true }), 30000);
-const dayTimer = setInterval(() => {
+function renderComponent() {
+  const minimum = BigInt(config.minGiftAmountCents);
+  const items = componentItems.filter((item) => minimum === 0n ||
+    BigInt(item.cardTotalCents ?? Math.round(item.gift.unitPrice * 100) * item.gift.num) > minimum);
+  state.replace(items);
+  render();
+}
+let componentResize;
+const component = mountSceneExtraClient('gift-feed', {
+  onConfig(value) {
+    config = { ...value, palette: 'bilibili-four', thresholds: [value.threshold1, value.threshold2, value.threshold3] };
+    renderComponent();
+  },
+  onData(data) {
+    componentItems = data?.items || [];
+    const nextCatalog = data?.catalog || [];
+    if (JSON.stringify(catalog) !== JSON.stringify(nextCatalog)) catalogVersion += 1;
+    catalog = nextCatalog;
+    renderComponent();
+  },
+  onDispose() { disposed = true; stopScrolling(); componentResize?.disconnect(); },
+});
+if (component) {
+  const fit = () => { viewport.style.transform = `scale(${window.innerWidth / viewport.offsetWidth})`; };
+  componentResize = new ResizeObserver(fit);
+  componentResize.observe(document.documentElement);
+  fit();
+} else { socket.start(); scheduleRefresh(); }
+const reconcileTimer = component ? null : setInterval(() => scheduleRefresh({ settings: true, catalog: true }), 30000);
+const dayTimer = component ? null : setInterval(() => {
   const nextDay = shanghaiToday();
   if (day !== nextDay) {
     day = nextDay;

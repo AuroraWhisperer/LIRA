@@ -1,6 +1,7 @@
 import { createSceneRenderer } from './scene-renderer.js';
 
 const sceneId = new URLSearchParams(location.search).get('id');
+const itemId = new URLSearchParams(location.search).get('item');
 const token = new URLSearchParams(location.hash.slice(1)).get('token');
 const status = document.getElementById('sceneStatus');
 const renderer = createSceneRenderer(document.getElementById('sceneOutput'), { onStatus(message, version) {
@@ -18,6 +19,8 @@ async function poll() {
   const timeout = setTimeout(() => request?.abort(), 8000);
   try {
     const query = new URLSearchParams({ id: sceneId, version: renderer.getVersion(), epoch, cursor });
+    if (itemId) query.set('item', itemId);
+    if (renderer.getProjection()) query.set('projection', renderer.getProjection());
     const response = await fetch(`/api/scene/output?${query}`, { headers: { Authorization: `Bearer ${token}` },
       credentials: 'omit', cache: 'no-store', signal: request.signal });
     const payload = await response.json();

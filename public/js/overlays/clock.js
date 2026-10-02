@@ -4,6 +4,7 @@ import { createFlipCell } from './clock-flip.js';
 import { createOverlaySocket } from './socket-client.js';
 import { clockConfigFromSettings } from '../shared/clock-settings.js';
 import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
+import { componentOutputViewport, watchComponentOutputSize } from './component-output-size.js';
 
 const CLOCK_STYLE_VALUES = new Set([
   'peach',
@@ -166,6 +167,7 @@ async function initClock() {
   let disposed = false;
   let clockStarted = false;
   let socketController = null;
+  let stopOutputSize = null;
   let formatters = createClockFormatters(config);
   const card = document.getElementById('clockCard');
   const timeNode = document.getElementById('clockTime');
@@ -193,9 +195,10 @@ async function initClock() {
   }
 
   function syncCardScale() {
+    const viewport = componentOutputViewport();
     card.style.setProperty(
       '--clock-scale',
-      String(clockScaleForViewport(window.innerWidth, window.innerHeight, config.style)),
+      String(clockScaleForViewport(viewport.width, viewport.height, config.style)),
     );
   }
 
@@ -310,6 +313,7 @@ async function initClock() {
     stateRevision += 1;
     window.clearTimeout(timer);
     socketController?.dispose();
+    stopOutputSize?.();
     styleTransition?.cancel();
     flipCells?.forEach((cell) => cell.dispose());
     window.removeEventListener('resize', syncCardScale);
@@ -323,6 +327,7 @@ async function initClock() {
     return;
   }
   if (legacyPreview) { showConfig(config); return; }
+  stopOutputSize = watchComponentOutputSize('clock', syncCardScale);
   async function loadCurrent() {
     const requestedRevision = ++stateRevision;
     const savedConfig = await loadSavedClockConfig();

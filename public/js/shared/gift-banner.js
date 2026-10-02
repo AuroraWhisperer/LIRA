@@ -58,7 +58,7 @@ export async function loadGiftArtworkCatalog(signal) {
   return (await response.json()).data?.gifts || [];
 }
 
-export function createGiftBanner(item, config, catalog = []) {
+export function createGiftBanner(item, config, catalog = [], resolveAvatarUrl = giftAvatarSource) {
   const gift = item.gift;
   const root = document.createElement('div');
   root.className = 'gift-banner';
@@ -70,7 +70,7 @@ export function createGiftBanner(item, config, catalog = []) {
   const background = document.createElement('div');
   background.className = 'gift-banner-background';
   root.append(background);
-  root.append(bannerImage(giftAvatarSource(gift), 'gift-banner-avatar', AVATAR_PLACEHOLDER));
+  root.append(bannerImage(resolveAvatarUrl(gift.avatarUrl) || AVATAR_PLACEHOLDER, 'gift-banner-avatar', AVATAR_PLACEHOLDER));
   if (FRAMES[gift.guardLevel]) {
     root.append(
       bannerImage(`/img/overlays/danmaku-guard/bubble-${FRAMES[gift.guardLevel]}-frame.webp`, 'gift-banner-frame', ''),
@@ -103,7 +103,7 @@ export function createGiftBanner(item, config, catalog = []) {
 }
 
 /** Patch changed display fields in place; return whether the text needs refitting. */
-export function updateGiftBanner(root, item, config, catalog = [], retryAvatar = false) {
+export function updateGiftBanner(root, item, config, catalog = [], retryAvatar = false, resolveAvatarUrl = giftAvatarSource) {
   const gift = item.gift;
   const colors = GIFT_PALETTE[giftTier(gift, config.thresholds, item.cardTotalCents)];
   for (const [index, key] of ['--gift-start', '--gift-end'].entries()) {
@@ -122,7 +122,7 @@ export function updateGiftBanner(root, item, config, catalog = [], retryAvatar =
   }
   const count = root.querySelector('.gift-banner-count').lastChild;
   if (count.nodeValue !== String(gift.num)) count.nodeValue = String(gift.num);
-  updateBannerImage(root.querySelector('.gift-banner-avatar'), giftAvatarSource(gift), retryAvatar);
+  updateBannerImage(root.querySelector('.gift-banner-avatar'), resolveAvatarUrl(gift.avatarUrl) || AVATAR_PLACEHOLDER, retryAvatar);
   updateBannerImage(root.querySelector('.gift-banner-artwork'), item.artworkPath || resolveGiftArtwork(gift, catalog));
   const frame = root.querySelector('.gift-banner-frame');
   if (FRAMES[gift.guardLevel]) {
@@ -133,10 +133,10 @@ export function updateGiftBanner(root, item, config, catalog = [], retryAvatar =
   return textChanged;
 }
 
-function giftAvatarSource(gift) {
+function giftAvatarSource(value) {
   const token = globalThis.window?.__API_TOKEN__ || '';
-  return gift.avatarUrl
-    ? `/api/bilibili/avatar?url=${encodeURIComponent(gift.avatarUrl)}${token ? `&token=${encodeURIComponent(token)}` : ''}`
+  return value
+    ? `/api/bilibili/avatar?url=${encodeURIComponent(value)}${token ? `&token=${encodeURIComponent(token)}` : ''}`
     : AVATAR_PLACEHOLDER;
 }
 
@@ -168,6 +168,7 @@ function bannerImage(source, className, fallback) {
   image.className = className;
   image.alt = '';
   image.draggable = false;
+  image.referrerPolicy = 'no-referrer';
   image.src = source;
   image.dataset.source = source;
   image.dataset.fallback = fallback;

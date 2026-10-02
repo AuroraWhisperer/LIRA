@@ -5,22 +5,32 @@
 .gift-assistant-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-lg);
   border-bottom: 1px solid var(--border);
-  padding-bottom: var(--spacing-md);
 }
 
+/* Same underline treatment as the other in-panel tab rows. */
 .gift-assistant-tabs [role='tab'] {
+  min-height: 38px;
+  margin-bottom: -1px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: transparent;
   color: var(--muted);
   box-shadow: none;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+}
+
+.gift-assistant-tabs [role='tab']:hover {
+  color: var(--text);
 }
 
 .gift-assistant-tabs [aria-selected='true'] {
+  border-bottom-color: var(--primary);
   color: var(--text);
-  background: var(--surface-2);
-  border-color: var(--border);
-  font-weight: 700;
 }
 
 .gift-display-settings {
@@ -94,7 +104,7 @@
   gap: 12px;
   margin: 0;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .gift-tier-inputs > :first-child {

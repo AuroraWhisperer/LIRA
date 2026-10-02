@@ -179,6 +179,13 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     }
     await desktop.evaluate(() => window.handle.close());
     await page.getByRole('status').filter({ hasText: '预览连接已结束' }).waitFor();
+    await page.waitForFunction(() => document.querySelector('.preview-canvas-status').textContent
+      === '预览连接已结束，请从客户端重新打开预览。', null, { timeout: 5000 });
+    const statusLayout = await page.locator('.preview-canvas-status').evaluate(node => {
+      const style = getComputedStyle(node);
+      return [style.gridColumnStart, style.gridColumnEnd, style.maxWidth];
+    });
+    assert.deepEqual(statusLayout, ['1', '-1', 'none']);
     assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isDisabled(), true);
     await desktop.evaluate(() => { window.externalPreviewUrl = ''; window.reopen(); });
     await desktop.waitForFunction(() => window.externalPreviewUrl);
@@ -337,10 +344,10 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   await desktop.waitForFunction(() => window.writes.length === 3);
   assert.equal(await desktop.evaluate(() => window.writes.at(-1).id), 'canvas');
   await page.goto('about:blank');
-  await desktop.waitForFunction(() => window.closedComponents.length === 5);
-  assert.deepEqual(await desktop.evaluate(() => window.closedComponents.sort()), ['canvas', 'clock', 'danmaku', 'overtime', 'queue']);
+  assert.equal(await desktop.evaluate(() => window.closedComponents.length), 0, 'Leaving the page preserves the desktop session.');
   await desktop.evaluate(() => { window.externalPreviewUrl = ''; window.reopen(); });
   await desktop.waitForFunction(() => window.externalPreviewUrl);
+  assert.deepEqual(await desktop.evaluate(() => window.closedComponents.sort()), ['canvas', 'clock', 'danmaku', 'overtime', 'queue']);
   await page.goto(await desktop.evaluate(() => window.externalPreviewUrl));
   await page.locator('[data-preview-field="clockCustomLabel"]').waitFor();
   assert.equal(await page.locator('[data-preview-field="clockCustomLabel"]').inputValue(), '切换后保留');
@@ -360,11 +367,17 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   const capabilities = new URLSearchParams(closingUrl.hash.slice(1));
   const sessions = [{ id: capabilities.get('id'), token: capabilities.get('token') },
     ...JSON.parse(capabilities.get('components')), JSON.parse(capabilities.get('canvas'))];
-  const canvasSession = JSON.parse(capabilities.get('canvas'));
-  assert.equal((await fixture.post({ action: 'publish', id: canvasSession.id }, canvasSession.token)).status, 200);
   for (const session of sessions) {
-    assert.equal((await fixture.post({ action: 'close', id: session.id }, session.token)).status, 200);
+    const { data } = await fixture.post({ action: 'read', id: session.id }, session.token);
+    session.attachmentId = data.attachmentId;
   }
+  const canvasSession = sessions.find(session => session.id === JSON.parse(capabilities.get('canvas')).id);
+  assert.equal((await fixture.post({ action: 'publish', id: canvasSession.id, attachmentId: canvasSession.attachmentId }, canvasSession.token)).status, 200);
+  for (const session of sessions) {
+    assert.equal((await fixture.post({ action: 'close', id: session.id, attachmentId: session.attachmentId }, session.token)).status, 200);
+  }
+  await page.waitForFunction(() => document.querySelector('.preview-canvas-status').textContent
+    === '预览连接已结束，请从客户端重新打开预览。', null, { timeout: 5000 });
   await page.goto('about:blank');
   resumeExchanges();
   await desktop.waitForFunction(() => window.closedComponents.length === 10 && window.writes.length === 5);

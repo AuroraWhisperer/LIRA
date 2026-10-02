@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 30;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(24, 24, 22, 0.3);
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -31,7 +31,7 @@
 }
 
 .playback-drawer.open {
-  box-shadow: -8px 0 40px rgba(22, 31, 43, 0.18);
+  box-shadow: -8px 0 32px rgba(24, 24, 22, 0.12);
   transform: translateX(0);
 }
 
@@ -66,36 +66,6 @@
   margin-top: 2px;
 }
 
-.playback-drawer-play-all-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 32px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 8px;
-  background: var(--primary);
-  color: #fff;
-  font-size: var(--type-size-control);
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-  transition:
-    background 140ms ease,
-    transform 100ms ease;
-}
-
-.playback-drawer-play-all-btn:hover {
-  background: var(--primary-hover, #e85d7a);
-  transform: scale(1.04);
-}
-
-.playback-drawer-play-all-btn:active {
-  transform: scale(0.94);
-}
-
 .playback-drawer-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -112,7 +82,7 @@
 }
 
 .playback-drawer-body .queue-row:hover {
-  background: var(--surface-2);
+  background: var(--color-bg-tertiary);
 }
 
 .playback-drawer-playlist-card {
@@ -124,12 +94,12 @@
   padding: 12px;
   cursor: pointer;
   transition: all 160ms ease;
-  background: #fff;
+  background: var(--surface);
 }
 
 .playback-drawer-playlist-card:hover {
-  border-color: var(--accent);
-  background: #f7fbfa;
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
 }
 
 .playback-drawer-playlist-card .playlist-title {
@@ -164,8 +134,8 @@
 }
 
 .playback-drawer-playlist-card:hover .playlist-card-arrow {
-  background: var(--accent);
-  color: #fff;
+  background: var(--primary);
+  color: var(--color-text-white);
 }
 
 .playback-drawer-actions {
@@ -180,7 +150,7 @@
 .playback-drawer-actions button {
   flex: 1 1 auto;
   min-height: 34px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   font-weight: 700;
   font-size: var(--type-size-control);
 }
@@ -195,7 +165,7 @@
 
 .playback-drawer-loading small {
   font-size: var(--type-size-caption);
-  color: var(--text-muted, #8898aa);
+  color: var(--color-text-muted);
   font-weight: 400;
 }
 

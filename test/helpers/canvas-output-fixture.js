@@ -1,23 +1,25 @@
 'use strict';
 
 const { DatabaseSync } = require('node:sqlite');
-const { migrateScenes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 const { createLayout } = require('../../src/shared/danmaku-layout');
 const { startComponentPreviewServer } = require('./component-preview-server');
 
-async function startCanvasOutputFixture() {
+async function startCanvasOutputFixture({ extraContext } = {}) {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
+  migrateComponentOutputSizes(db);
   const owner = { scope: 'synthetic-canvas-owner', epoch: 1 };
   const runtime = { settings: { ...DEFAULT_SETTINGS }, queue: { current: null,
     waiting: [{ id: 1, song_name: '合成实时歌曲', requester: '合成观众' }] }, superChats: [],
     overtime: { revision: 1, enabled: true, status: 'paused', effectiveRemainingMs: 120000,
       initialSeconds: 120, serverNowMs: Date.now(), rules: [], settlements: [], background: { path: '', fit: 'cover' } } };
   // The injected test codec handles synthetic data in an in-memory database only.
-  const sceneRuntime = createSceneRuntime({ songDb: db, getState: () => runtime, runtimeOptions: {
+  const sceneRuntime = createSceneRuntime({ songDb: db, getState: () => runtime,
+    getContext: extraContext ? () => ({ ...extraContext, system: { getState: () => runtime } }) : undefined, runtimeOptions: {
     getSceneOwner: () => owner,
     sceneSecretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() } } });

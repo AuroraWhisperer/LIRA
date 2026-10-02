@@ -1,21 +1,9 @@
 @import url('./danmaku-overlay-filters.css');
 
 .danmaku-tool-panel {
-  --surface: #fffefb;
-  --surface-2: #f3f5f6;
-  --border: #a4afbd;
-  --text: #526071;
-  --muted: #626c77;
-  --danmaku-heading-color: #246b63;
-  --danmaku-section-border: #b9d5cf;
-  --danmaku-action: #e7bd67;
-  --danmaku-action-hover: #d7a950;
-  --danmaku-action-text: #443315;
-  --color-success-light: #e8f3ec;
-  --color-success-dark: #25694f;
-  --type-size-page-title: 26px;
-  --type-size-section-title: 22px;
-  --type-size-card-title: 17px;
+  --danmaku-heading-color: var(--text);
+  --danmaku-section-border: var(--border);
+  --danmaku-action: var(--accent);
   width: 100%;
   max-width: none;
   row-gap: var(--spacing-lg);
@@ -25,7 +13,6 @@
 .danmaku-tool-panel button:is(.primary, .secondary, .ghost) {
   min-height: 32px;
   padding: 5px 12px;
-  border-width: 2px;
   font-size: var(--type-size-control);
   font-weight: 500;
   line-height: var(--type-leading-control);
@@ -46,10 +33,6 @@
   min-height: 32px;
   padding: 5px 10px;
 }
-.danmaku-tool-panel
-  :where(input:not([type='checkbox'], [type='color']), select, textarea, button.icon, .lira-select-trigger, .lira-select-menu) {
-  border-width: 2px;
-}
 .danmaku-tool-panel .lira-select {
   --select-border: var(--border);
 }
@@ -59,7 +42,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 16px;
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-2);
 }
@@ -67,20 +50,13 @@
   display: grid;
   gap: var(--spacing-md);
   padding: 20px;
-  border: 2px solid var(--danmaku-section-border);
-  border-radius: 12px;
+  border: 1px solid var(--danmaku-section-border);
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 .danmaku-connection-section {
   gap: 12px;
   padding-block: var(--spacing-md);
-}
-.danmaku-tool-panel .danmaku-feature-section button.primary {
-  background: var(--danmaku-action);
-  color: var(--danmaku-action-text);
-}
-.danmaku-tool-panel .danmaku-feature-section button.primary:hover:not(:disabled) {
-  background: var(--danmaku-action-hover);
 }
 .danmaku-bot-switch-grid {
   display: grid;
@@ -146,7 +122,7 @@
   align-items: center;
   padding: var(--spacing-md) var(--spacing-lg);
   border-bottom: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface);
 }
 .danmaku-tool-panel .danmaku-style-section h3 {
   font-size: var(--type-size-page-title);
@@ -210,7 +186,7 @@
   cursor: wait;
 }
 .danmaku-monitoring-control input:focus-visible + .switch-track {
-  outline: 2px solid var(--color-border-focus);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 3px;
 }
 .danmaku-style-picker {
@@ -265,7 +241,7 @@
   min-width: 0;
   min-height: 36px;
   padding: 8px;
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
@@ -302,20 +278,23 @@
   line-height: 1.2;
 }
 .danmaku-style-option:hover:not(:disabled) {
-  background: var(--surface);
+  background: var(--color-bg-tertiary);
   color: var(--text);
 }
+.danmaku-style-option:hover:not(:disabled, [aria-pressed='true']) {
+  border-color: var(--color-border-strong);
+}
 .danmaku-style-option:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 .danmaku-style-option[aria-pressed='true'] {
-  border-color: var(--danmaku-heading-color);
+  border-color: var(--primary);
   background: var(--surface);
-  color: var(--danmaku-heading-color);
+  color: var(--text);
 }
 .danmaku-style-option[aria-pressed='true'] .danmaku-style-name {
-  color: var(--danmaku-heading-color);
+  color: var(--text);
   font-weight: 600;
 }
 .danmaku-style-option[aria-pressed='true']::after {
@@ -324,8 +303,8 @@
   right: 11px;
   padding: 2px 5px;
   border-radius: 3px;
-  background: var(--surface);
-  color: var(--danmaku-heading-color);
+  background: var(--color-primary-light);
+  color: var(--primary-strong);
   font-size: var(--type-size-micro);
   content: '已选';
 }
@@ -402,8 +381,6 @@
   min-width: 0;
 }
 .danmaku-parameter-field input[type='range'] {
-  --parameter-range-accent: var(--danmaku-action);
-  --parameter-range-accent-hover: var(--danmaku-action);
   height: 40px;
   padding: 0;
 }
@@ -488,7 +465,7 @@
 .danmaku-reply-target {
   min-height: 72px;
   padding: 12px var(--spacing-md);
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   background: var(--surface);
   transition:
     border-color 160ms ease,
@@ -496,12 +473,11 @@
     background-color 160ms ease;
 }
 .danmaku-reply-target:hover {
-  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  border-color: var(--color-border-strong);
 }
 .danmaku-reply-target:has(input:checked) {
-  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
-  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
-  box-shadow: inset 3px 0 0 var(--accent);
+  border-color: var(--color-border-primary);
+  background: var(--surface);
 }
 .danmaku-reply-target > div {
   min-width: 0;
@@ -528,7 +504,7 @@
   opacity: 0.58;
 }
 .danmaku-reply-target .switch-control input:focus-visible + .switch-track {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 #danmakuMessage {
@@ -540,11 +516,6 @@
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease;
-}
-#danmakuMessage:focus {
-  border-color: var(--accent);
-  outline: 0;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 #danmakuSendForm .form-actions-row {
   display: flex;
@@ -568,8 +539,8 @@
   margin-top: 2px;
 }
 .danmaku-send-result.good {
-  border-left-color: #278b5b;
-  color: #278b5b;
+  border-left-color: var(--color-success);
+  color: var(--color-success);
 }
 .danmaku-send-result.warn {
   border-left-color: var(--warning);

@@ -6,8 +6,8 @@
   container: gift-workspace / inline-size;
   align-content: start;
   gap: 14px;
-  height: calc(100vh - 58px - var(--player-dock-height, 96px));
-  padding: 16px;
+  height: calc(100vh - 58px - var(--player-dock-reserve, 96px));
+  padding: 16px 16px 4px;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -21,7 +21,7 @@
 }
 
 body.player-dock-expanded .gift-workspace {
-  height: calc(100vh - 58px - var(--player-dock-height, 218px));
+  height: calc(100vh - 58px - var(--player-dock-reserve, 218px));
 }
 
 .gift-controls-grid {
@@ -36,6 +36,7 @@ body.player-dock-expanded .gift-workspace {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 #giftInteractionControls:not([hidden]) {
@@ -47,7 +48,7 @@ body.player-dock-expanded .gift-workspace {
   align-items: center;
   gap: var(--spacing-sm);
   padding: 8px 12px;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--color-border-light);
 }
 
 .gift-interaction-summary:has(#giftInteractionStatus[hidden]) {
@@ -56,17 +57,17 @@ body.player-dock-expanded .gift-workspace {
 
 .gift-interaction-summary .gift-interaction-refresh {
   border-color: transparent;
-  background: color-mix(in srgb, var(--color-control-accent) 65%, var(--text));
+  background: var(--primary);
   color: var(--color-text-white);
 }
 
 .gift-interaction-summary .gift-interaction-refresh:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-control-accent) 50%, var(--text));
+  background: var(--primary-strong);
 }
 
 .gift-interaction-summary .gift-interaction-refresh:focus-visible {
-  outline: 2px solid var(--color-control-accent);
-  outline-offset: 3px;
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
 }
 
 .gift-recent-panel {
@@ -110,7 +111,7 @@ body.player-dock-expanded .gift-workspace {
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: var(--color-accent-light);
+  background: var(--color-bg-tertiary);
 }
 
 .gift-planning-row .gift-section-title {
@@ -170,7 +171,7 @@ body.player-dock-expanded .gift-workspace {
   gap: 10px;
   min-width: 0;
   padding: 8px 12px;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--color-border-light);
 }
 
 .gift-monitoring-panel {
@@ -209,25 +210,9 @@ body.player-dock-expanded .gift-workspace {
   flex: 0 0 auto;
 }
 
-.gift-control-panel .switch-track {
-  width: 40px;
-  height: 22px;
-}
-
-.gift-control-panel .switch-track::after {
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-}
-
-.gift-control-panel .switch-control input:checked + .switch-track::after {
-  transform: translateX(18px);
-}
-
 .gift-control-panel .switch-control input:focus-visible + .switch-track {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 3px;
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
 }
 
 .gift-control-panel .switch-control input:disabled + .switch-track {

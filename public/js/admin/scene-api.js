@@ -1,0 +1,22 @@
+import { api, readJsonResponse } from '../shared/utils.js';
+
+export async function requestScene(action, body, id) {
+  if (body !== undefined) return (await api(`/api/scenes/${action}`, body, { notifyError: false })).data;
+  const query = id ? `?id=${encodeURIComponent(id)}` : '';
+  return readSceneData(`/api/scenes/${action}${query}`);
+}
+
+export function readComponentOutputSize(type, signal) {
+  return readSceneData(`/api/component/size?type=${encodeURIComponent(type)}`, signal);
+}
+
+async function readSceneData(url, signal) {
+  const response = await fetch(url, { cache: 'no-store', signal });
+  const payload = await readJsonResponse(response, '场景读取失败');
+  if (!response.ok || !payload.ok) {
+    const error = new Error(payload.error || '场景读取失败，请重试。');
+    error.status = response.status;
+    throw error;
+  }
+  return payload.data;
+}

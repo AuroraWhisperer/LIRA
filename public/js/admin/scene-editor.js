@@ -4,7 +4,8 @@ import { getComponentPreviews } from './component-preview-registry.js';
 import { previewElement } from './component-preview-surface.js';
 import { getActiveComponentPreview, closeComponentPreview, setActiveComponentPreview,
   releaseComponentPreview } from './component-preview-session.js';
-import { createSceneEditorSession, requestScene } from './scene-editor-state.js';
+import { createSceneEditorSession } from './scene-editor-state.js';
+import { requestScene } from './scene-api.js';
 import { alignSceneItems, moveSceneItems } from './scene-document-model.js';
 import { mountSceneEditorStage } from './scene-editor-stage.js';
 import { mountSceneEditorInspector } from './scene-editor-inspector.js';

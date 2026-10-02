@@ -59,8 +59,8 @@
 .source-tabs {
   display: inline-flex;
   gap: 4px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
   padding: 4px;
 }
@@ -73,7 +73,7 @@
   min-height: 38px;
   padding: 7px 16px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--muted);
   font-size: var(--type-size-control);
@@ -112,19 +112,7 @@
   border-color: var(--border);
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 2px 10px rgba(22, 31, 43, 0.1);
-}
-
-.source-tab.active[data-source='qq'] {
-  color: #1a9a5e;
-}
-
-.source-tab.active[data-source='netease'] {
-  color: #d43030;
-}
-
-.source-tab.active[data-source='wesing'] {
-  color: #1269cf;
+  box-shadow: var(--shadow-sm);
 }
 
 /* ===== 播放页网格（改用 display:contents 让子元素直接参与父级 grid） ===== */

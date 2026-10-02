@@ -23,7 +23,7 @@
 .planner-task-filters button[aria-pressed='true'] {
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 1px 3px #17202a12;
+  box-shadow: var(--shadow-sm);
 }
 .planner-task-form {
   display: grid;
@@ -69,7 +69,7 @@
   min-height: 0;
   margin: 0;
   padding: 0;
-  accent-color: var(--color-success-dark);
+  accent-color: var(--primary);
 }
 .planner-task-row.is-complete .planner-task-copy {
   color: var(--muted);

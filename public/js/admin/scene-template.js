@@ -1,5 +1,6 @@
+import { SCENE_TYPES, SCENE_COMPONENTS } from '../shared/scene-components.js';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const TYPES = ['danmaku', 'clock', 'queue', 'overtime'];
 const FORBIDDEN = new Set(['__proto__', 'prototype', 'constructor', 'queue', 'superchats', 'gifts',
   'giftrecords', 'events', 'livesessionid', 'streamerid', 'roomid', 'owner', 'ownerscope', 'data',
   'runtime', 'publication', 'publishedversion', 'revision', 'capability', 'hash', 'encryptedpackage',
@@ -58,14 +59,17 @@ export function validateSceneDocument(input) {
   const ids = new Set();
   for (const item of document.items) {
     exactKeys(item, ['id', 'type', 'name', 'x', 'y', 'width', 'height', 'visible', 'locked', 'appearance']);
-    if (!UUID.test(item.id) || ids.has(item.id.toLowerCase()) || !TYPES.includes(item.type)) throw invalid();
+    if (!UUID.test(item.id) || ids.has(item.id.toLowerCase()) || !SCENE_TYPES.includes(item.type)) throw invalid();
     ids.add(item.id.toLowerCase());
     name(item.name);
     if (typeof item.visible !== 'boolean' || typeof item.locked !== 'boolean'
       || ![item.x, item.y, item.width, item.height].every(Number.isFinite)
       || item.x < 0 || item.y < 0 || item.width < 32 || item.height < 32
       || item.x + item.width > document.canvas.width || item.y + item.height > document.canvas.height) throw invalid();
-    if (item.appearance?.mode === 'shared') exactKeys(item.appearance, ['mode']);
+    if (item.appearance?.mode === 'shared') {
+      if (SCENE_COMPONENTS[item.type].independentOnly) throw invalid();
+      exactKeys(item.appearance, ['mode']);
+    }
     else if (item.appearance?.mode === 'independent') {
       exactKeys(item.appearance, ['mode', 'config']);
       if (!item.appearance.config || typeof item.appearance.config !== 'object' || Array.isArray(item.appearance.config)) throw invalid();

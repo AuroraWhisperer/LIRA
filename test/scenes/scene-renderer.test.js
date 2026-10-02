@@ -10,6 +10,40 @@ const { getClockConfig } = require('../../src/server/clock-contract');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { createLayout } = require('../../src/shared/danmaku-layout');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
+const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
+const { randomUUID } = require('node:crypto');
+
+test('real polling keeps removed queue data until the replacement successfully commits', { timeout: 30000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(errors, []); });
+  const created = fixture.service.create({ title: 'retained output', canvas: { width: 1920, height: 1080 } });
+  const item = type => ({ id: randomUUID(), type, name: type, x: 0, y: 0, width: 400, height: 300,
+    visible: true, locked: false, appearance: { mode: 'independent', config: fixture.configs[type] } });
+  let saved = fixture.service.save({ id: created.document.id, expectedRevision: 1,
+    document: { ...created.document, items: [item('queue')] } });
+  fixture.service.publish({ id: created.document.id, expectedRevision: saved.revision });
+  const { id, token } = fixture.service.getSource(created.document.id);
+  const url = `${fixture.origin}/scene?id=${id}#token=${token}`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.frameLocator('.scene-version:not(.is-staging) iframe').getByText('合成实时歌曲').waitFor();
+  const old = page.frames().find(frame => new URL(frame.url()).pathname === '/queue');
+  await page.route('**/clock?*', route => route.abort());
+  saved = fixture.service.save({ id, expectedRevision: saved.revision, document: { ...saved.document, items: [item('clock')] } });
+  fixture.service.publish({ id, expectedRevision: saved.revision });
+  await page.waitForFunction(() => document.querySelector('#sceneStatus').textContent.includes('新版准备失败'));
+  fixture.runtime.queue.waiting[0].song_name = 'removed type still live';
+  await old.getByText('removed type still live').waitFor();
+  await page.unroute('**/clock?*');
+  await page.waitForFunction(() => document.querySelector('.scene-version:not(.is-staging) iframe')?.title === 'clock', null, { timeout: 15000 });
+  assert.equal(old.isDetached(), true);
+  fixture.service.rotate(id);
+  await page.waitForFunction(() => document.querySelectorAll('iframe').length === 0);
+});
 
 test('real source prepares complete versions, keeps prior output on failure and sends real data without child credentials', async (t) => {
   const settings = { ...DEFAULT_SETTINGS, overlayQueueStyle: 'classic' };

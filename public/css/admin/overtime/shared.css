@@ -1,11 +1,11 @@
 .overtime-admin {
-  --ot-night: #181823;
-  --ot-pink: #ff6f91;
-  --ot-teal: #21b6a8;
-  --ot-coral: #f0677d;
-  --ot-gold: #f5b72f;
-  --ot-action-add: #6657c7;
-  --ot-action-save: #147d73;
+  --ot-night: var(--text);
+  --ot-pink: var(--primary);
+  --ot-accent: var(--primary);
+  --ot-coral: var(--danger);
+  --ot-gold: var(--color-warning-medium);
+  --ot-action-add: var(--primary);
+  --ot-action-save: var(--primary);
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 14px;
@@ -53,7 +53,7 @@
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 .overtime-section-heading {
@@ -159,10 +159,10 @@
   font-size: var(--type-size-caption);
 }
 .overtime-settlement-row .is-positive {
-  color: var(--ot-teal);
+  color: var(--color-profit);
 }
 .overtime-settlement-row .is-negative {
-  color: var(--ot-coral);
+  color: var(--color-loss);
 }
 .overtime-settlement-row .is-display {
   color: var(--ot-pink);

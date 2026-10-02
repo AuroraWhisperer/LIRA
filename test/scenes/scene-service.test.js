@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { createCipheriv, createDecipheriv, randomBytes, randomUUID, createHash } = require('node:crypto');
-const { migrateScenes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { MAX_SCENE_BYTES, normalizeSceneDocument } = require('../../src/scenes/scene-contract');
@@ -40,6 +40,7 @@ function fixture(t, persistent = false) {
     if (directory) fs.rmSync(directory, { recursive: true, force: true });
   });
   migrateScenes(db);
+  migrateComponentOutputSizes(db);
   const store = createSceneStore(db);
   const state = {
     owner: { scope: 'https://server.test/streamer-a', epoch: 1 },
@@ -79,6 +80,7 @@ function fixture(t, persistent = false) {
       db.close();
       db = new DatabaseSync(filename);
       migrateScenes(db);
+      migrateComponentOutputSizes(db);
       return createSceneService({ ...ports, store: createSceneStore(db) });
     },
   };
@@ -92,6 +94,39 @@ function saveItems(service, created, items) {
   return service.save({ id: created.document.id, expectedRevision: created.revision, document: { ...created.document, items } });
 }
 
+test('output projection receipts bind version, scene, item, owner epoch, capability and process lifetime', t => {
+  const { service, state, ports } = fixture(t);
+  const first = create(service);
+  const entries = [item('queue'), item('clock')];
+  const saved = saveItems(service, first, entries);
+  service.publish({ id: first.document.id, expectedRevision: saved.revision });
+  const source = service.getSource(first.document.id);
+  const output = service.getOutput({ ...source, version: 0 });
+  const active = { ...source, version: output.version, projection: output.projection };
+  assert.ok(output.projection.length < 512);
+  assert.doesNotMatch(output.projection, new RegExp(source.token));
+  service.getOutput(active);
+  assert.deepEqual(state.dataCalls.at(-1).types, ['queue', 'clock']);
+  const reject = (reader, input) => assert.throws(() => reader.getOutput(input), { statusCode: 403 });
+  reject(service, { ...active, projection: output.projection + 'a' });
+  reject(service, { ...active, version: 9 });
+  reject(service, { ...active, item: entries[0].id });
+  const selected = service.getOutput({ ...source, item: entries[0].id, version: 0 });
+  reject(service, { ...active, projection: selected.projection });
+  const second = create(service);
+  service.publish({ id: second.document.id, expectedRevision: second.revision });
+  reject(service, { ...service.getSource(second.document.id), version: output.version, projection: output.projection });
+  state.owner.epoch++;
+  reject(service, active);
+  const renewed = service.getOutput({ ...source, version: 0 });
+  const current = { ...source, version: renewed.version, projection: renewed.projection };
+  reject(createSceneService(ports), current);
+  const rotated = service.rotate(source.id);
+  reject(service, { ...current, token: rotated.token });
+  state.owner = null;
+  reject(service, { ...current, token: rotated.token });
+});
+
 function expectError(action, code, statusCode) {
   assert.throws(action, (error) => {
     assert.equal(error.code, code);
@@ -101,6 +136,49 @@ function expectError(action, code, statusCode) {
     return true;
   });
 }
+
+test('shared dimensions publish to default sources, persist across restart and stay owner scoped', (t) => {
+  const { service, state, restart } = fixture(t, true);
+  const shared = item('clock', { width: 800, height: 400 });
+  const independent = item('clock', { width: 240, height: 120, appearance: { mode: 'independent', config: { color: 'blue' } } });
+  const saved = saveItems(service, create(service), [shared, independent]);
+  const id = saved.document.id;
+  assert.equal(service.getComponentSize('clock'), null);
+  service.publish({ id, expectedRevision: saved.revision });
+  assert.deepEqual(service.getComponentSize('clock'), { width: 800, height: 400 });
+  const source = service.getSource(id);
+  const output = service.getOutput({ ...source, item: independent.id });
+  assert.deepEqual(output.document.canvas, { width: 240, height: 120 });
+  assert.deepEqual(output.document.items, [{ ...independent, x: 0, y: 0 }]);
+  assert.deepEqual(state.dataCalls.at(-1).types, ['clock']);
+  expectError(() => service.getOutput({ ...source, item: randomUUID() }), 'SCENE_ITEM_NOT_FOUND', 404);
+  const revised = service.save({ id, expectedRevision: saved.revision,
+    document: { ...saved.document, items: [{ ...shared, width: 900 }, independent] } });
+  expectError(() => service.publish({ id, expectedRevision: saved.revision }), 'SCENE_CONFLICT', 409);
+  assert.deepEqual(service.getComponentSize('clock'), { width: 800, height: 400 });
+  const restored = restart();
+  assert.deepEqual(restored.getComponentSize('clock'), { width: 800, height: 400 });
+  assert.equal(restored.getOutput({ ...source, item: shared.id }).document.canvas.width, 800);
+  restored.publish({ id, expectedRevision: revised.revision });
+  assert.equal(restored.getComponentSize('clock').width, 900);
+  assert.equal(restored.getOutput({ ...source, item: independent.id }).document.canvas.width, 240);
+  const owner = state.owner;
+  state.owner = { scope: 'another-account', epoch: 2 };
+  assert.equal(restored.getComponentSize('clock'), null);
+  state.owner = null;
+  assert.equal(restored.getComponentSize('clock'), null);
+  state.owner = owner;
+  restored.rotate(id);
+  expectError(() => restored.getOutput({ ...source, item: independent.id }), 'SCENE_ACCESS_DENIED', 403);
+});
+
+test('inconsistent shared dimensions reject publication before changing the source', (t) => {
+  const { service } = fixture(t);
+  const saved = saveItems(service, create(service), [item('clock'), item('clock', { width: 400 })]);
+  expectError(() => service.publish({ id: saved.document.id, expectedRevision: saved.revision }), 'SCENE_SHARED_SIZE_CONFLICT', 400);
+  assert.equal(service.getComponentSize('clock'), null);
+  assert.equal(service.get(saved.document.id).publishedVersion, 0);
+});
 
 test('publication rejects delayed or changed shared appearance without replacing the current version', (t) => {
   const { service, state } = fixture(t);
@@ -248,7 +326,7 @@ test('publication freezes all appearances while draft saves, business data and c
   state.color = 'black';
   const draft = { ...saved.document, title: 'unpublished changes' };
   service.save({ id, expectedRevision: 2, document: draft });
-  assert.deepEqual(service.getSource(id), source);
+  assert.deepEqual(service.getSource(id), { ...source, itemIds: output.document.items.map((item) => item.id) });
   assert.deepEqual(service.getOutput({ ...source, version: 0 }).document, output.document);
   assert.equal(service.getOutput({ ...source, version: 1 }).document, null);
   assert.equal(state.dataCalls.length, 3);
@@ -257,7 +335,7 @@ test('publication freezes all appearances while draft saves, business data and c
   const republished = service.publish({ id, expectedRevision: 3 });
   assert.equal(republished.publishedVersion, 2);
   assert.equal(service.getOutput({ ...source, version: 1 }).document.items[0].appearance.config.color, 'black');
-  assert.deepEqual(service.getSource(id), source);
+  assert.deepEqual(service.getSource(id), { ...source, itemIds: output.document.items.map((item) => item.id) });
 });
 
 test('cross-scene tokens, changed owner, changed server and logout cannot read previous scene', (t) => {
@@ -403,7 +481,7 @@ test('published source survives actual database close/reopen and a new service i
   const expected = service.get(id);
   const published = service.getOutput(source).document;
   const restored = restart();
-  assert.deepEqual(restored.getSource(id), source);
+  assert.deepEqual(restored.getSource(id), { ...source, itemIds: published.items.map((item) => item.id) });
   assert.deepEqual(restored.get(id), expected);
   assert.deepEqual(restored.getOutput(source).document, published);
   assert.equal(restored.getOutput({ ...source, version: 1 }).document, null);

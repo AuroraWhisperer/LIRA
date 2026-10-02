@@ -158,3 +158,37 @@ test('execution forwards Node options, keeps VM modules and process isolation, a
   assert.equal(failure.status, 1, failure.stdout + failure.stderr);
   assert.match(failure.stdout, /synthetic failure/);
 });
+
+test('native ownership tests finish before the remaining selection and cannot have failures masked', (t) => {
+  const { root, put } = fixture(t);
+  const nativeFile = 'test/desktop/local-instance-windows.test.js';
+  const nativeSource = `
+    const test = require('node:test');
+    const assert = require('node:assert/strict');
+    const fs = require('node:fs');
+    test('selected', () => {
+      assert.equal(typeof require('node:vm').SourceTextModule, 'function');
+      fs.writeFileSync('native-parent.txt', String(process.ppid));
+    });
+    test('unselected', () => assert.fail('Node name filter was not forwarded'));
+  `;
+  put(nativeFile, nativeSource);
+  put('test/sample/remaining.test.js', `
+    const test = require('node:test');
+    const assert = require('node:assert/strict');
+    const fs = require('node:fs');
+    test('selected', () => {
+      assert.notEqual(process.ppid, Number(fs.readFileSync('native-parent.txt', 'utf8')));
+      fs.appendFileSync('remaining-runs.txt', 'completed\\n');
+    });
+    test('unselected', () => assert.fail('Node name filter was not forwarded'));
+  `);
+  const args = ['--domain=desktop', '--domain=sample', '--test-name-pattern=^selected$', '--test-reporter=tap'];
+  const success = run(root, ...args);
+  assert.equal(success.status, 0, success.stdout + success.stderr);
+  put(nativeFile, nativeSource + "test('selected', () => assert.fail('native batch failure'));\n");
+  const failure = run(root, ...args);
+  assert.equal(failure.status, 1, failure.stdout + failure.stderr);
+  assert.match(failure.stdout, /native batch failure/);
+  assert.equal(fs.readFileSync(path.join(root, 'remaining-runs.txt'), 'utf8'), 'completed\ncompleted\n');
+});

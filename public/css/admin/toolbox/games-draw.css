@@ -1,15 +1,9 @@
-.is-draw .game-card-poster {
-  color: #28263a;
-  background:
-    repeating-linear-gradient(0deg, rgba(79, 70, 111, 0.07) 0 1px, transparent 1px 24px),
-    linear-gradient(145deg, #fffdf7, #ece8ff);
-}
 .is-draw .game-card-poster i {
   width: 176px;
   height: 116px;
   right: -20px;
   top: 50px;
-  border: 4px solid #ef6c75;
+  border: 4px solid var(--color-border-strong);
   border-radius: 48% 52% 43% 57% / 56% 42% 58% 44%;
   box-shadow: none;
   transform: rotate(-9deg);
@@ -25,8 +19,8 @@
   height: 5px;
   left: 20px;
   top: 48px;
-  background: #5d52b5;
-  box-shadow: 18px 25px 0 #2ba9a4;
+  background: var(--muted);
+  box-shadow: 18px 25px 0 var(--color-border-strong);
   transform: rotate(17deg);
 }
 .is-draw .game-card-poster i::after {
@@ -34,7 +28,7 @@
   height: 42px;
   right: 18px;
   top: 10px;
-  border: 4px solid #f0b84b;
+  border: 4px solid var(--color-border-strong);
 }
 .draw-card-trigger {
   display: grid;
@@ -50,11 +44,11 @@
   cursor: pointer;
 }
 .draw-card-trigger:hover .draw-card-summary {
-  background: #fffdf9;
+  background: var(--color-bg-tertiary);
 }
 .draw-card-trigger:focus-visible {
-  outline: 3px solid rgba(112, 98, 191, 0.35);
-  outline-offset: -3px;
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: -2px;
 }
 .draw-card-summary {
   display: grid;
@@ -77,7 +71,7 @@
   line-height: 1.7;
 }
 .draw-card-status {
-  color: #6a579e;
+  color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
 }
@@ -85,7 +79,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #5d519e;
+  color: var(--primary-strong);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
 }
@@ -94,9 +88,9 @@
   place-items: center;
   width: 22px;
   height: 22px;
-  border: 1px solid #cfc7ef;
+  border: 1px solid var(--color-border-primary);
   border-radius: 50%;
-  background: #f0edff;
+  background: var(--color-primary-light);
   font-size: 18px;
   line-height: 1;
   transition: transform 180ms ease;
@@ -110,8 +104,8 @@
 }
 .draw-card-details {
   grid-column: 1 / -1;
-  border-top: 1px solid #e4dfef;
-  background: #fdfcff;
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg-tertiary);
 }
 .draw-card-details[hidden] {
   display: none;
@@ -127,10 +121,10 @@
   gap: 6px 10px;
   align-items: center;
   padding: 13px;
-  border: 1px solid #e0dced;
-  border-radius: 12px;
-  color: #494264;
-  background: #fff;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-bold);
 }
@@ -150,9 +144,9 @@
   display: grid;
   gap: 11px;
   padding: 14px;
-  border: 1px solid #ded9ee;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #fbfaff, #fff 58%, #fffaf0);
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  background: var(--surface);
 }
 .draw-word-library-heading {
   display: flex;
@@ -165,14 +159,14 @@
   gap: 2px;
 }
 .draw-word-library-heading span {
-  color: #6a5dab;
+  color: var(--muted);
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .draw-word-library-heading strong {
-  color: #3f385c;
+  color: var(--text);
   font-family: Bahnschrift, 'Microsoft YaHei', sans-serif;
   font-size: var(--type-size-section-title);
   font-weight: var(--type-weight-bold);
@@ -203,10 +197,10 @@
   align-items: center;
   min-width: 0;
   padding: 9px 10px;
-  border: 1px solid #e2deed;
-  border-radius: 10px;
-  color: #4b4564;
-  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
   cursor: pointer;
   transition:
     border-color 160ms ease,
@@ -214,21 +208,20 @@
     box-shadow 160ms ease;
 }
 .draw-word-category:hover {
-  border-color: #bdb4e2;
+  border-color: var(--color-border-strong);
 }
 .draw-word-category:has(input:checked) {
-  border-color: #9286cf;
-  background: #f2efff;
-  box-shadow: inset 3px 0 0 #6c5ce7;
+  border-color: var(--primary);
+  background: var(--color-primary-light);
 }
 .draw-word-category input {
   width: 15px;
   height: 15px;
   margin: 0;
-  accent-color: #6c5ce7;
+  accent-color: var(--primary);
 }
 .draw-word-category input:focus-visible {
-  outline: 2px solid #6c5ce7;
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 3px;
 }
 .draw-word-category strong {
@@ -238,7 +231,7 @@
   white-space: nowrap;
 }
 .draw-word-category span {
-  color: #7b7398;
+  color: var(--muted);
   font-family: Consolas, monospace;
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
@@ -259,10 +252,10 @@
   gap: 18px;
   align-items: center;
   padding: 18px;
-  border-radius: 14px;
-  color: #fff;
-  background: linear-gradient(135deg, #282441, #3d3564);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--color-bg-tertiary);
 }
 .draw-host-copy {
   display: grid;
@@ -270,7 +263,7 @@
   min-width: 0;
 }
 .draw-host-copy span {
-  color: #bdb7df;
+  color: var(--muted);
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   letter-spacing: 0.08em;
@@ -281,7 +274,7 @@
 .draw-host-copy p {
   margin: 0;
   overflow-wrap: anywhere;
-  color: #fff2a8;
+  color: var(--text);
   font-family: 'Microsoft YaHei', sans-serif;
   font-size: var(--type-size-metric-md);
   font-weight: var(--type-weight-bold);
@@ -294,11 +287,11 @@
   gap: 5px;
 }
 .draw-host-meta span {
-  color: #c8c2e6;
+  color: var(--muted);
   font-size: var(--type-size-caption);
 }
 .draw-host-meta strong {
-  color: #fff2a8;
+  color: var(--text);
   font-family: Consolas, monospace;
   font-size: 26px;
   font-weight: var(--type-weight-bold);
@@ -314,10 +307,10 @@
   display: inline-block;
   min-width: 20px;
   padding: 1px 5px;
-  border: 1px solid #d7d0eb;
-  border-radius: 4px;
-  color: #534987;
-  background: #f4f1ff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface-2);
   font-family: Consolas, monospace;
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);

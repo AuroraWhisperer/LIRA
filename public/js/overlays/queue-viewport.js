@@ -3,6 +3,8 @@
 // contain scale to the completed panel.
 'use strict';
 
+import { componentOutputViewport } from './component-output-size.js';
+
 export function calculateQueuePanelScale(viewportWidth, viewportHeight, panelWidth, panelHeight, edge = 0) {
   const safeViewportWidth = Math.max(1, Number(viewportWidth) || 1);
   const safeViewportHeight = Math.max(1, Number(viewportHeight) || 1);
@@ -24,8 +26,9 @@ export function syncQueuePanelViewport(panel) {
   const edge = panelStyle
     ? Math.max(Number.parseFloat(panelStyle.marginLeft) || 0, Number.parseFloat(panelStyle.marginTop) || 0)
     : 0;
-  const viewportWidth = Number(view.innerWidth || ownerDocument.documentElement?.clientWidth) || 1;
-  const viewportHeight = Number(view.innerHeight || ownerDocument.documentElement?.clientHeight) || 1;
+  const viewport = componentOutputViewport(view);
+  const viewportWidth = Number(viewport.width || ownerDocument.documentElement?.clientWidth) || 1;
+  const viewportHeight = Number(viewport.height || ownerDocument.documentElement?.clientHeight) || 1;
   const panelWidth = Number(panel.offsetWidth || panel.clientWidth) || 1;
   const panelHeight = Number(panel.offsetHeight || panel.clientHeight) || 1;
   const scale = calculateQueuePanelScale(viewportWidth, viewportHeight, panelWidth, panelHeight, edge);

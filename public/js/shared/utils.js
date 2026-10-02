@@ -124,7 +124,7 @@ export function withMultilingualFallback(fontFamily) {
   return `${selected}, ${multilingualFontFallback}`;
 }
 
-export async function api(url, body, { notifyError = true } = {}) {
+export async function api(url, body, { notifyError = true, signal } = {}) {
   try {
     const headers = { 'Content-Type': 'application/json' };
     const token = window.__API_TOKEN__;
@@ -133,6 +133,7 @@ export async function api(url, body, { notifyError = true } = {}) {
       method: 'POST',
       headers,
       body: JSON.stringify(body || {}),
+      signal,
     });
     const payload = await readJsonResponse(response, '请求失败');
     if (!payload.ok) {

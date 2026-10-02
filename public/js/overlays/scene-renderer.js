@@ -1,17 +1,14 @@
-const TYPES = new Set(['danmaku', 'clock', 'queue', 'overtime']);
+import { SCENE_COMPONENTS } from '../shared/scene-components.js';
+const MAX_PENDING_EVENTS = 200;
 
 export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 12000 } = {}) {
   let active = null;
   let staging = null;
   let disposed = false;
   let latestData = {};
+  let pendingDanmaku = null;
   let dataSequence = 1;
   const send = (entry, type, values = {}) => entry.frame.contentWindow?.postMessage({ type: `component-preview:${type}`, ...values }, '*');
-  function fit(version) {
-    if (!version) return;
-    const { width, height } = version.document.canvas;
-    version.root.style.transform = `scale(${Math.min(host.clientWidth / width, host.clientHeight / height)})`;
-  }
   function release(version) {
     if (!version) return;
     clearTimeout(version.timer);
@@ -29,7 +26,8 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     const next = staging;
     staging = null;
     clearTimeout(next.timer);
-    data(next, latestData);
+    data(next, pendingDanmaku ? { ...latestData, danmaku: pendingDanmaku } : latestData);
+    pendingDanmaku = null;
     next.root.classList.remove('is-staging');
     release(active);
     active = next;
@@ -52,7 +50,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       commit();
     } else if (event.data?.type === 'component-preview:status') fail();
   }
-  function prepare(document, version) {
+  function prepare(document, version, projection) {
     if (disposed || version === active?.version || version === staging?.version) return;
     release(staging);
     staging = null;
@@ -62,7 +60,8 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     root.style.height = `${document.canvas.height}px`;
     const entries = [];
     for (const item of document.items.filter((value) => value.visible)) {
-      if (!TYPES.has(item.type) || item.appearance.mode !== 'independent') {
+      if (typeof item.type !== 'string' || !Object.hasOwn(SCENE_COMPONENTS, item.type)
+        || item.appearance.mode !== 'independent') {
         onStatus('场景版本无效，继续显示上一版本。', active?.version || 0);
         return;
       }
@@ -73,29 +72,44 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       frame.style.top = `${item.y}px`;
       frame.style.width = `${item.width}px`;
       frame.style.height = `${item.height}px`;
-      frame.src = `/${item.type}?componentPreview=1&sceneComponent=1${item.type === 'danmaku' ? '&preview=1&componentLayer=1' : ''}`;
+      frame.src = SCENE_COMPONENTS[item.type].rendererUrl;
       root.append(frame);
       entries.push({ item, frame, ready: false, prepared: false });
     }
-    staging = { root, document, version, entries, timer: setTimeout(fail, timeoutMs) };
+    staging = { root, document, version, projection, entries, timer: setTimeout(fail, timeoutMs) };
     host.append(root);
-    fit(staging);
     commit();
   }
   window.addEventListener('message', receive);
-  const observer = new ResizeObserver(() => { fit(active); fit(staging); });
-  observer.observe(host);
   return {
     getVersion: () => active?.version || 0,
+    getProjection: () => active?.projection || '',
     update(response) {
       if (disposed) return;
-      latestData = response.data || {};
-      data(active, latestData);
-      if (response.document) prepare(response.document, response.version);
+      const values = response.data || {};
+      const cloud = values.danmaku;
+      data(active, values);
+      if (cloud && !active?.entries.some((entry) => entry.item.type === 'danmaku')) {
+        const previous = pendingDanmaku;
+        const reset = cloud.reset || !previous || cloud.epoch !== previous.epoch
+          || cloud.status !== previous.status || cloud.state?.liveSessionId !== previous.state?.liveSessionId
+          || cloud.state?.liveStatus !== previous.state?.liveStatus;
+        const events = [...(reset ? [] : previous.events), ...(cloud.events || [])];
+        pendingDanmaku = { ...cloud, reset: reset || previous.reset,
+          gap: Boolean(cloud.gap || !reset && previous.gap || events.length > MAX_PENDING_EVENTS),
+          events: events.slice(-MAX_PENDING_EVENTS) };
+      } else pendingDanmaku = null;
+      latestData = { ...values, ...(cloud ? { danmaku: { ...cloud, reset: false, events: [] } } : {}) };
+      if (response.document) prepare(response.document, response.version, response.projection);
     },
     disconnect() {
       dataSequence += 1;
-      data(active, { danmaku: { status: 'offline', epoch: null, reset: true, events: [] } });
+      pendingDanmaku = null;
+      const resets = Object.fromEntries(Object.entries(SCENE_COMPONENTS)
+        .filter(([, component]) => component.disconnectedData)
+        .map(([type, component]) => [type, component.disconnectedData()]));
+      latestData = { ...latestData, ...resets };
+      data(active, resets);
     },
     revoke() {
       release(staging);
@@ -103,6 +117,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       staging = null;
       active = null;
       latestData = {};
+      pendingDanmaku = null;
       dataSequence += 1;
     },
     dispose() {
@@ -110,7 +125,6 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       disposed = true;
       release(staging);
       release(active);
-      observer.disconnect();
       window.removeEventListener('message', receive);
     },
   };

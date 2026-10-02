@@ -134,7 +134,7 @@ test('runtime HTTP saves and publishes a scene, retaining its capability and fro
   assert.equal(fixtureState.baseUrl, oldBaseUrl);
   assert.notEqual(fixtureState.runtime.getApiToken(), oldAdminToken);
   await request('/api/scenes/list', { token: oldAdminToken, status: 401 });
-  assert.deepEqual(await request(`/api/scenes/source?id=${id}`), source);
+  assert.deepEqual(await request(`/api/scenes/source?id=${id}`), { ...source, itemIds: firstOutput.document.items.map((item) => item.id) });
   assert.deepEqual(await request(`/api/scenes/document?id=${id}`), updated);
   assert.deepEqual((await readOutput()).document, firstOutput.document);
   assert.deepEqual((await request('/api/scenes/list')).map((scene) => scene.document.id), [id]);

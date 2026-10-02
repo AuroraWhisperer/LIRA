@@ -46,7 +46,6 @@ export function createEventHandlers(deps) {
     closePlaybackDrawer,
     playbackDrawerGoBack,
     refreshPlaybackHomeContent,
-    handlePlaybackDrawerHeaderPlayAll,
     handlePlaybackHomeBulkAction,
     loadPlaybackPlaylistTracks,
     toggleTrackMenu,
@@ -126,9 +125,6 @@ export function createEventHandlers(deps) {
     document.getElementById('playbackDrawerClose')?.addEventListener('click', closePlaybackDrawer);
     document.getElementById('playbackDrawerBack')?.addEventListener('click', playbackDrawerGoBack);
     document.getElementById('playbackDrawerRefresh')?.addEventListener('click', refreshPlaybackHomeContent);
-    document
-      .getElementById('playbackDrawerPlayAllHeader')
-      ?.addEventListener('click', handlePlaybackDrawerHeaderPlayAll);
 
     // 抽屉底部按钮 - 事件委托
     document.getElementById('playbackDrawerActions')?.addEventListener('click', (event) => {

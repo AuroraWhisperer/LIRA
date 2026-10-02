@@ -1,18 +1,5 @@
-import { api, readJsonResponse } from '../shared/utils.js';
+import { requestScene } from './scene-api.js';
 import { createSceneDocumentModel } from './scene-document-model.js';
-
-export async function requestScene(action, body, id) {
-  if (body !== undefined) return (await api(`/api/scenes/${action}`, body, { notifyError: false })).data;
-  const query = id ? `?id=${encodeURIComponent(id)}` : '';
-  const response = await fetch(`/api/scenes/${action}${query}`, { cache: 'no-store' });
-  const payload = await readJsonResponse(response, '场景读取失败');
-  if (!response.ok || !payload.ok) {
-    const error = new Error(payload.error || '场景读取失败，请重试。');
-    error.status = response.status;
-    throw error;
-  }
-  return payload.data;
-}
 
 export function createSceneEditorSession(dto, request = requestScene) {
   const model = createSceneDocumentModel(dto.document);
@@ -64,29 +51,5 @@ export function createSceneEditorSession(dto, request = requestScene) {
   return { model, getState, save: () => write('save'), publish: (expectedDefaults) => write('publish', expectedDefaults),
     subscribe(listener) { listeners.add(listener); listener(getState()); return () => listeners.delete(listener); },
     dispose() { disposed = true; unsubscribe(); listeners.clear(); },
-  };
-}
-
-export function createSceneItemController(model, itemId, defaultController) {
-  function getState() {
-    const item = model.getDocument().items.find((entry) => entry.id === itemId);
-    const base = defaultController.getState();
-    if (!item || item.appearance.mode === 'shared') return base;
-    return { ...base, loaded: true, loading: false, saving: false, error: '', conflict: false,
-      draft: item.appearance.config, saved: item.appearance.config, dirty: false };
-  }
-  return { getState,
-    edit(change) {
-      model.edit((document) => {
-        const item = document.items.find((entry) => entry.id === itemId);
-        if (item && !item.locked && item.appearance.mode === 'independent') Object.assign(item.appearance.config, change);
-      });
-    },
-    subscribe(listener) {
-      const notify = () => listener(getState());
-      const stopModel = model.subscribe(notify);
-      const stopDefault = defaultController.subscribe(notify);
-      return () => { stopModel(); stopDefault(); };
-    },
   };
 }

@@ -1,6 +1,7 @@
 import { createGiftWishCard, WISH_PERIODS } from '../shared/gift-wish-card.js';
 import { createGiftWishFeed } from '../shared/gift-wish-client.js';
 import { createOverlaySocket } from './socket-client.js';
+import { mountSceneExtraClient } from './scene-extra-client.js';
 
 const query = new URLSearchParams(location.search);
 const period = Object.hasOwn(WISH_PERIODS, query.get('period')) ? query.get('period') : null;
@@ -51,8 +52,28 @@ const socket = createOverlaySocket({
     } else if (message.reason === 'gift:wishes') feed.refresh();
   },
 });
-feed.start();
-socket.start();
+let componentConfig;
+let componentData;
+function renderComponent() {
+  if (!componentConfig) return;
+  const items = (componentData?.items || []).filter((wish) =>
+    (componentConfig.period === 'all' || wish.period === componentConfig.period)
+    && (componentConfig.showCompleted || !wish.completed)).slice(0, componentConfig.limit);
+  const next = JSON.stringify([items, componentConfig]);
+  if (signature === next) return;
+  signature = next;
+  stage.style.gap = `${componentConfig.gap}px`;
+  stage.replaceChildren(...items.map((wish) => createGiftWishCard({ ...wish,
+    ...(componentConfig.displayStyle !== 'original' ? { displayStyle: componentConfig.displayStyle } : {}),
+    textPendingColor: componentConfig.textPendingColor, textReceivedColor: componentConfig.textReceivedColor,
+  })));
+  status.hidden = true;
+}
+const component = mountSceneExtraClient('gift-wishes', {
+  onConfig(config) { componentConfig = config; renderComponent(); },
+  onData(data) { componentData = data; renderComponent(); },
+});
+if (!component) { feed.start(); socket.start(); }
 window.addEventListener('pagehide', () => {
   feed.stop();
   socket.dispose();

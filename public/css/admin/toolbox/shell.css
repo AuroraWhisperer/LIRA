@@ -12,9 +12,9 @@
 
 .other-workspace {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-columns: 264px minmax(0, 1fr);
   gap: 16px 8px;
-  height: calc(100vh - 58px - var(--player-dock-height, 96px));
+  height: calc(100vh - 58px - var(--player-dock-reserve, 96px));
   min-height: 0;
   padding: 12px 12px 0;
   overflow: hidden;
@@ -26,16 +26,16 @@
 }
 
 body.player-dock-expanded .other-workspace {
-  height: calc(100vh - 58px - var(--player-dock-height, 218px));
+  height: calc(100vh - 58px - var(--player-dock-reserve, 218px));
 }
 
 .other-feature-sidebar,
 .other-feature-panel {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 @media (min-width: 901px) {
@@ -76,32 +76,24 @@ body.player-dock-expanded .other-workspace {
   height: 34px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 9px;
-  background: linear-gradient(90deg, var(--surface), var(--surface-2));
+  border-radius: var(--radius-control);
+  background: var(--surface);
   color: var(--muted);
-  box-shadow: 0 3px 10px rgba(22, 31, 43, 0.06);
   cursor: pointer;
   transition:
     color 160ms ease,
     background-color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 120ms ease;
+    border-color 160ms ease;
 }
 
 .other-sidebar-toggle:hover {
-  border-color: var(--primary);
-  background: var(--color-primary-light);
-  color: var(--primary-strong);
-  box-shadow: 0 5px 14px rgba(22, 31, 43, 0.1);
-}
-
-.other-sidebar-toggle:active {
-  transform: scale(0.97);
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
+  color: var(--text);
 }
 
 .other-sidebar-toggle:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 
@@ -221,9 +213,9 @@ body.player-dock-expanded .other-workspace {
 
 .other-feature-group-heading:focus-visible {
   z-index: 1;
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .other-feature-group-arrow {
@@ -253,7 +245,7 @@ body.player-dock-expanded .other-workspace {
   padding: 8px 10px;
   overflow: hidden;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
   text-align: left;
@@ -267,23 +259,11 @@ body.player-dock-expanded .other-workspace {
 }
 
 .other-feature-button::before {
-  position: absolute;
-  top: 11px;
-  bottom: 11px;
-  left: 0;
-  width: 4px;
-  border-radius: 0 4px 4px 0;
-  background: var(--primary);
-  content: '';
-  opacity: 0;
-  transform: scaleY(0.45);
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease;
+  content: none;
 }
 
 .other-feature-button:hover {
-  border-color: rgba(217, 224, 232, 0.8);
+  border-color: transparent;
   background: var(--surface-2);
   color: var(--text);
 }
@@ -294,13 +274,8 @@ body.player-dock-expanded .other-workspace {
   color: var(--primary-strong);
 }
 
-.other-feature-button.active::before {
-  opacity: 1;
-  transform: scaleY(1);
-}
-
 .other-feature-button:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 
@@ -309,7 +284,7 @@ body.player-dock-expanded .other-workspace {
   place-items: center;
   width: 38px;
   height: 38px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--muted);
   transition:
@@ -467,7 +442,7 @@ body.player-dock-expanded .other-workspace {
   flex: 0 0 auto;
   padding: 20px 22px 17px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(110deg, var(--surface) 0%, var(--surface-2) 100%);
+  background: var(--surface);
 }
 
 .other-feature-panel-header h2 {

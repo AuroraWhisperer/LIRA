@@ -2,7 +2,8 @@
 
 const { createHash, randomBytes, randomUUID, timingSafeEqual } = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
-const { SceneError, normalizeSceneId, normalizeSceneDocument } = require('./scene-contract');
+const { SCENE_TYPES, SceneError, normalizeSceneId, normalizeSceneDocument } = require('./scene-contract');
+const { createSceneOutputProjection } = require('./scene-output-projection');
 
 function hashToken(token) {
   return createHash('sha256').update(token).digest('hex');
@@ -35,6 +36,7 @@ function checkRevision(record, expectedRevision) {
 }
 
 function createSceneService({ store, getOwner, secretCodec, normalizeConfig, getDefaultConfig, getDisplayData }) {
+  const projections = createSceneOutputProjection();
   function withOwner(work) {
     try {
       const current = getOwner();
@@ -133,6 +135,13 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
       return withOwner((owner) => managementDto(read(owner.scope, normalizeSceneId(id))));
     },
 
+    getComponentSize(type) {
+      if (!SCENE_TYPES.includes(type)) throw new SceneError('SCENE_INVALID_COMPONENT', 400, '组件类型无效。');
+      // Legacy standalone sources also work before an account has created a scene.
+      if (!getOwner()) return null;
+      return withOwner((owner) => store.getComponentSize(owner.scope, type));
+    },
+
     save(input) {
       return withOwner((owner, assertCurrent) => {
         const id = normalizeSceneId(input?.id);
@@ -159,8 +168,14 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
           throw new SceneError('SCENE_INVALID_DEFAULTS', 400, '共享外观确认参数无效。');
         }
         const defaults = new Map();
+        const componentSizes = {};
         const items = record.document.items.map((item) => {
           if (item.appearance.mode !== 'shared') return item;
+          const size = { width: item.width, height: item.height };
+          if (componentSizes[item.type] && !isDeepStrictEqual(componentSizes[item.type], size)) {
+            throw new SceneError('SCENE_SHARED_SIZE_CONFLICT', 400, '共享同一组件的尺寸必须一致；不同尺寸请使用独立组件。');
+          }
+          componentSizes[item.type] = size;
           if (!defaults.has(item.type)) {
             const current = getDefaultConfig(item.type);
             if (expectedDefaults !== undefined && !isDeepStrictEqual(normalizeConfig(item.type, expectedDefaults[item.type]), current)) {
@@ -172,7 +187,7 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
         });
         const document = normalizeSceneDocument({ ...record.document, items }, { normalizeConfig });
         assertCurrent();
-        return confirm(store.publish({ scope: owner.scope, id, expectedRevision, document }));
+        return confirm(store.publish({ scope: owner.scope, id, expectedRevision, document, componentSizes }));
       });
     },
 
@@ -180,7 +195,8 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
       return withOwner((owner) => {
         const id = normalizeSceneId(sceneId);
         const record = read(owner.scope, id);
-        return { id, token: decodeCapability(owner.scope, id, record.capability) };
+        return { id, token: decodeCapability(owner.scope, id, record.capability),
+          itemIds: record.publishedDocument?.items.map((item) => item.id) || [] };
       });
     },
 
@@ -209,15 +225,32 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
           throw new SceneError('SCENE_INVALID_VERSION', 400, '场景发布版本无效。');
         }
         if (!record.publishedDocument) throw new SceneError('SCENE_NOT_PUBLISHED', 409, '场景尚未发布。');
-        const types = [...new Set(record.publishedDocument.items.filter((item) => item.visible).map((item) => item.type))];
-        const data = getDisplayData(types, { epoch, cursor });
-        assertCurrent();
-        return {
-          sceneId: id,
-          version: record.publishedVersion,
-          document: version === record.publishedVersion ? null : record.publishedDocument,
-          data,
+        let document = record.publishedDocument;
+        const itemId = input.item == null ? null : normalizeSceneId(input.item);
+        const binding = [owner.scope, owner.epoch, id, record.capability.hash, itemId];
+        const activeTypes = projections.read(input.projection, binding, version);
+        if (input.item != null) {
+          const item = document.items.find((entry) => entry.id === itemId);
+          if (!item) throw new SceneError('SCENE_ITEM_NOT_FOUND', 404, '组件尚未发布或已移除。');
+          document = { ...document, canvas: { width: item.width, height: item.height },
+            items: [{ ...item, x: 0, y: 0, visible: true }] };
+        }
+        const types = [...new Set(document.items.filter((item) => item.visible).map((item) => item.type))];
+        const data = getDisplayData([...new Set([...types, ...activeTypes])], { epoch, cursor });
+        const finish = (display) => {
+          assertCurrent();
+          if (!matchesToken(token, read(owner.scope, id).capability.hash)) {
+            throw new SceneError('SCENE_ACCESS_DENIED', 403, '场景来源凭据无效。');
+          }
+          return {
+            sceneId: id,
+            version: record.publishedVersion,
+            projection: projections.issue(binding, record.publishedVersion, types),
+            document: version === record.publishedVersion ? null : document,
+            data: display,
+          };
         };
+        return data?.then ? data.then(finish) : finish(data);
       });
     },
   };

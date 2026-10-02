@@ -16,10 +16,10 @@ body[data-style] .draw-danmaku-item.is-superchat {
   clip-path: none;
   color: #fff;
   text-shadow: none;
-  zoom: calc(var(--danmaku-superchat-scale, 1) * var(--sc-fit, 1));
+  zoom: var(--danmaku-superchat-scale, 1);
 }
 body:is([data-style='ranked'], [data-style='identity']) .draw-danmaku-item.is-superchat {
-  zoom: calc(var(--danmaku-superchat-scale, 1) * var(--sc-fit, 1) / var(--ranked-scale));
+  zoom: calc(var(--danmaku-superchat-scale, 1) / var(--ranked-scale));
 }
 body[data-style] .draw-danmaku-item.is-superchat::before,
 body[data-style] .draw-danmaku-item.is-superchat::after {
@@ -41,10 +41,21 @@ body[data-style] .draw-danmaku-item.is-superchat::after {
 }
 .is-superchat .sc-money {
   white-space: nowrap;
-  font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
-  font-weight: 650;
+  font-family: var(--danmaku-num-font);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
+}
+.is-superchat .sc-currency {
+  margin-right: 0.08em;
+  font-size: 0.66em;
+  font-weight: 500;
+}
+.is-superchat .sc-main {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
 }
 .is-superchat .sc-avatar {
   display: grid;
@@ -71,8 +82,9 @@ body[data-style] .draw-danmaku-item.is-superchat::after {
 }
 .is-superchat .sc-name {
   font-size: 16px;
-  font-weight: 500;
-  line-height: 1.5;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
   overflow-wrap: anywhere;
 }
 body[data-custom-font='true'] .is-superchat .sc-copy,
@@ -82,51 +94,76 @@ body[data-custom-font='true'] .is-superchat .sc-name {
 
 /* Classic: compact colored header above the complete message. */
 .is-superchat .sc-ranked {
-  border-radius: 6px;
+  border-radius: 10px;
   overflow: hidden;
+  box-shadow: 0 10px 24px rgb(7 10 20 / 24%);
 }
 .is-superchat .sc-classic-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 58px;
-  padding: 11px 19px;
+  min-height: 60px;
+  padding: 11px 20px 11px 16px;
   background: var(--sc-accent);
   color: var(--sc-on-accent);
+  box-shadow: inset 0 1px rgb(255 255 255 / 22%);
 }
-.is-superchat .sc-classic-head .sc-money { font-size: 25px; }
+.is-superchat .sc-classic-head .sc-avatar {
+  width: 38px;
+  height: 38px;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 80%);
+}
+.is-superchat .sc-classic-head .sc-money { font-size: 28px; }
 .is-superchat .sc-ranked .sc-copy {
-  padding: 18px 22px 22px;
+  padding: 16px 22px 20px;
   color: var(--sc-on-surface);
   background: var(--sc-surface);
+  line-height: 1.6;
 }
 
-/* Bubble: a floating amount tab, original text, and a quiet signature. */
+/* Bubble: a floating amount tab, original text, and a signature with the sender. */
 .is-superchat .sc-bubble {
-  padding: 31px 27px 20px;
-  border-radius: 22px 22px 22px 7px;
+  padding: 32px 28px 20px;
+  border-radius: 22px 22px 22px 6px;
   color: var(--sc-on-surface);
   background: var(--sc-surface);
+  box-shadow: 0 10px 26px rgb(7 6 20 / 24%), inset 0 1px rgb(255 255 255 / 45%);
 }
 .is-superchat .sc-bubble-price {
   position: absolute;
   right: 22px;
   top: -20px;
-  padding: 9px 16px;
-  border-radius: 11px 11px 11px 3px;
+  padding: 8px 16px 9px;
+  border-radius: 12px 12px 12px 4px;
   color: var(--sc-on-accent);
   background: var(--sc-accent);
-  font-size: 22px;
+  box-shadow: 0 6px 14px rgb(7 6 20 / 22%);
+  font-size: 24px;
 }
-.is-superchat .sc-bubble-foot { margin-top: 17px; }
+.is-superchat .sc-bubble-foot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(127 127 127 / 28%);
+}
+.is-superchat .sc-bubble .sc-avatar {
+  width: 28px;
+  height: 28px;
+  box-shadow: 0 0 0 2px var(--sc-accent);
+  font-size: 15px;
+}
+.is-superchat .sc-bubble .sc-name { font-size: 15px; opacity: 0.85; }
 
-/* Signal: a cut-corner panel with a distinct amount column. */
+/* Signal: a cut-corner ink panel, a distinct amount column and the sender above the text. */
 .is-superchat .sc-signal {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   color: #fff;
-  background: #191919;
+  background: linear-gradient(100deg, #111723, #171e2c);
+  box-shadow: inset 0 1px rgb(255 255 255 / 7%);
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
 }
 .is-superchat .sc-signal-amount {
@@ -134,12 +171,14 @@ body[data-custom-font='true'] .is-superchat .sc-name {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 96px;
-  padding: 24px 12px;
+  flex-direction: column;
+  min-width: 104px;
+  padding: 22px 14px;
   background: var(--sc-accent);
   color: var(--sc-on-accent);
-  font-size: 26px;
+  font-size: 28px;
 }
+.is-superchat .sc-signal-amount .sc-currency { margin: 0 0 2px; font-size: 15px; opacity: 0.82; }
 .is-superchat .sc-signal-amount::after {
   content: '';
   position: absolute;
@@ -150,13 +189,23 @@ body[data-custom-font='true'] .is-superchat .sc-name {
   background: currentColor;
   opacity: .28;
 }
-.is-superchat .sc-signal .sc-copy { padding: 22px 23px; line-height: 1.6; }
+.is-superchat .sc-signal .sc-main { padding: 17px 22px 20px; }
+.is-superchat .sc-signal .sc-name { color: rgb(255 255 255 / 66%); font-size: 15px; }
+.is-superchat .sc-signal .sc-copy { line-height: 1.55; }
 
 /* Minimal: symmetric fine ornaments around a centered message. */
 .is-superchat .sc-minimal {
   padding: 23px 36px 21px;
   text-align: center;
   color: #fff;
+}
+.is-superchat .sc-minimal .sc-name {
+  display: block;
+  margin-bottom: 8px;
+  color: #ece6ff;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px #000c, 0 0 10px rgb(150 124 226 / 45%);
 }
 .is-superchat .sc-minimal .sc-copy {
   font-family: 'SimSun', 'Songti SC', serif;
@@ -193,7 +242,9 @@ body[data-custom-font='true'] .is-superchat .sc-name {
   gap: 15px;
   margin-top: 20px;
   color: var(--sc-price);
-  font-size: 22px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 24px;
+  font-variant-numeric: oldstyle-nums;
   text-shadow: 0 2px 4px #0008;
 }
 .is-superchat .sc-bow-price::before,
@@ -201,6 +252,9 @@ body[data-custom-font='true'] .is-superchat .sc-name {
 
 /* Transparent: marginal numerals with open brackets that follow the text height. */
 .is-superchat .sc-transparent {
+  --sc-outline:
+    1px 0 0 rgb(8 10 16 / 88%), -1px 0 0 rgb(8 10 16 / 88%), 0 1px 0 rgb(8 10 16 / 88%),
+    0 -1px 0 rgb(8 10 16 / 88%), 0 2px 6px rgb(0 0 0 / 55%);
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: start;
@@ -219,12 +273,17 @@ body[data-custom-font='true'] .is-superchat .sc-name {
 }
 .is-superchat .sc-transparent::before { left: -19px; border-right: 0; border-radius: 12px 0 0 12px; }
 .is-superchat .sc-transparent::after { right: -19px; border-left: 0; border-radius: 0 12px 12px 0; }
+.is-superchat .sc-transparent .sc-name {
+  padding-top: 4px;
+  font-size: 17px;
+  font-weight: 700;
+  text-shadow: var(--sc-outline);
+}
 .is-superchat .sc-transparent .sc-copy {
-  padding-top: 7px;
-  font-weight: 400;
-  line-height: 1.8;
+  font-weight: 500;
+  line-height: 1.7;
   color: #fff;
-  text-shadow: 0 2px 5px #0008;
+  text-shadow: var(--sc-outline);
 }
 .is-superchat .sc-transparent .sc-money {
   display: flex;
@@ -233,9 +292,9 @@ body[data-custom-font='true'] .is-superchat .sc-name {
   min-width: 72px;
   padding-top: 5px;
   color: var(--sc-price);
-  font-size: 41px;
-  font-weight: 350;
-  letter-spacing: -.025em;
+  font-size: 44px;
+  font-weight: 300;
+  letter-spacing: -0.01em;
   text-shadow: 0 2px 5px #0008;
 }
 .is-superchat .sc-transparent .sc-currency {
@@ -256,25 +315,28 @@ body[data-custom-font='true'] .is-superchat .sc-name {
   position: absolute;
   z-index: -1;
   inset: 0 0 0 34px;
-  border-radius: 17px;
-  background: #242424;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #262a35, #1c1f28);
+  box-shadow: inset 0 3px 0 var(--sc-accent), 0 10px 24px rgb(6 8 14 / 26%);
 }
 .is-superchat .sc-identity-profile { position: absolute; left: 0; top: 24px; width: 82px; }
 .is-superchat .sc-identity .sc-avatar {
   width: 82px;
   height: 82px;
-  border: 5px solid #242424;
+  border: 4px solid #22252f;
+  box-shadow: 0 0 0 2px var(--sc-accent);
   font-size: 30px;
 }
 .is-superchat .sc-identity .sc-money {
   position: absolute;
   left: 50%;
-  bottom: -5px;
+  bottom: -6px;
   transform: translateX(-50%);
-  padding: 5px 9px;
-  border-radius: 6px;
+  padding: 4px 10px 5px;
+  border-radius: 7px;
   background: var(--sc-accent);
   color: var(--sc-on-accent);
-  font-size: 17px;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 30%);
+  font-size: 18px;
 }
-.is-superchat .sc-identity .sc-name { display: block; margin-bottom: 9px; font-size: 15px; font-weight: 400; }
+.is-superchat .sc-identity .sc-name { display: block; margin-bottom: 8px; font-size: 15px; color: rgb(255 255 255 / 74%); }

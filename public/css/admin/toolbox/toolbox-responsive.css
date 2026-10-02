@@ -29,7 +29,7 @@
     flex-direction: column;
     container-type: normal;
     gap: 2px;
-    max-height: calc(100dvh - var(--player-dock-height, 96px) - 128px);
+    max-height: calc(100dvh - var(--player-dock-reserve, 96px) - 128px);
     padding: 4px 6px 4px 4px;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -78,14 +78,14 @@
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a:hover {
-    background: var(--usage-guide-fill);
+    background: var(--color-bg-tertiary);
     color: var(--text);
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a.active {
     background: var(--usage-guide-accent-soft);
     border-left-color: var(--usage-guide-accent);
-    color: var(--usage-guide-accent);
+    color: var(--primary-strong);
     box-shadow: none;
   }
 
@@ -99,7 +99,7 @@
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a.active::before {
-    color: var(--usage-guide-accent);
+    color: var(--primary-strong);
   }
 
   .other-page.sidebar-collapsed .usage-guide-section {
@@ -213,7 +213,7 @@
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
-    padding: 12px 12px calc(var(--player-dock-height, 102px) + 14px);
+    padding: 12px 12px calc(var(--player-dock-reserve, 102px) + 14px);
     overflow: visible;
   }
 

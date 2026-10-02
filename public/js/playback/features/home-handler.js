@@ -245,28 +245,6 @@ export function createHomeHandler(deps) {
     }
   }
 
-  function handlePlaybackDrawerHeaderPlayAll(queueCallbacks) {
-    const homeState = homeService.getHomeState();
-    if (homeState.itemType !== 'track' || !homeState.items.length) return;
-
-    const tracks = homeState.items.map(PlaybackUtils.normalizeOnlineTrack);
-    let startIndex = 0;
-    const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
-    const collection = getHomeCollectionContext(homeState);
-
-    if (playbackState.mode === 'shuffle') {
-      startIndex = Math.floor(Math.random() * tracks.length);
-    }
-
-    queueCallbacks.startPlaybackCollection(tracks, startIndex, queueType, collection.title, collection.sourceKey);
-    const label = queueType === 'radio' ? '电台' : '歌单';
-    toast(
-      playbackState.mode === 'shuffle'
-        ? `随机播放${label}，共 ${tracks.length} 首`
-        : `播放全部${label}，共 ${tracks.length} 首`,
-    );
-  }
-
   // === 轨道菜单 ===
   function toggleTrackMenu(index) {
     const menu = document.querySelector(`[data-playback-home-track-menu-for="${index}"]`);
@@ -372,7 +350,6 @@ export function createHomeHandler(deps) {
     refreshPlaybackHomeContent,
     // Interactions
     handlePlaybackHomeBulkAction,
-    handlePlaybackDrawerHeaderPlayAll,
     handlePlaybackHomeTrackAction,
     toggleTrackMenu,
   };

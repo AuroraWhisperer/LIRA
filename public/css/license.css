@@ -3,28 +3,31 @@
 
 :root {
   color-scheme: light dark;
-  --license-bg: #f2f2ef;
-  --license-surface: #fdfdfb;
-  --license-text: #30342f;
-  --license-muted: #656b5f;
-  --license-border: #dedfd8;
-  --license-primary: #3e463b;
-  --license-primary-strong: #2e352b;
+  /* Same neutrals and blue accent as the desktop theme (public/css/desktop/theme.css). */
+  --license-bg: #f3f3f1;
+  --license-surface: #ffffff;
+  --license-text: #1c1c1a;
+  --license-muted: #66625c;
+  --license-border: #e1dfda;
+  --license-primary: #2f62d4;
+  --license-primary-strong: #234fb5;
   --license-on-primary: #fff;
-  --license-brand-accent: color-mix(in srgb, var(--color-primary-strong) 30%, #85867c);
-  --license-intro-bg: #e9eae3;
-  --license-record-bg: #30342f;
-  --license-record-light: #535b4e;
-  --license-record-label: #e0e2d8;
-  --license-record-ink: #3e463b;
-  --license-groove: rgba(232, 236, 223, 0.16);
-  --license-echo: rgba(85, 94, 76, 0.5);
-  --license-record-sheen: rgba(232, 236, 223, 0.2);
+  --license-brand-accent: var(--license-primary);
+  --license-intro-bg: #ecebe8;
+  --license-record-bg: #2a2a28;
+  --license-record-light: #4c4b47;
+  --license-record-label: #e6e4df;
+  --license-record-ink: #3a3936;
+  --license-groove: rgba(236, 234, 229, 0.16);
+  --license-echo: rgba(92, 90, 85, 0.5);
+  --license-record-sheen: rgba(236, 234, 229, 0.2);
   --license-input-bg: #fff;
-  --license-input-border: #d8dad2;
-  --license-placeholder: #74786f;
+  --license-input-border: #d6d3cd;
+  --license-placeholder: #8a857e;
   --license-display-font: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  --license-shadow: 0 16px 48px rgba(41, 47, 35, 0.05), 0 2px 6px rgba(41, 47, 35, 0.02);
+  --license-shadow: 0 16px 48px rgba(24, 24, 22, 0.06), 0 1px 3px rgba(24, 24, 22, 0.04);
+  --color-success-dark: #17734a;
+  --color-danger: #c8372d;
 }
 
 * {
@@ -85,8 +88,8 @@ button {
   height: 23px;
   place-items: center;
   border-radius: 6px;
-  background: var(--license-primary);
-  color: var(--license-on-primary);
+  background: var(--license-text);
+  color: var(--license-surface);
   font-size: 14px;
   letter-spacing: 0;
 }
@@ -147,11 +150,11 @@ button {
 .license-window-controls .close:hover,
 .license-window-controls .close:active {
   border-color: transparent;
-  background: #c0392b;
+  background: #c42b1c;
   color: #fff;
 }
 .license-window-controls .close:active {
-  background: #a93226;
+  background: #a92619;
 }
 
 .license-main {
@@ -200,6 +203,8 @@ button {
   font-weight: 500;
   letter-spacing: 0.02em;
   line-height: 1.55;
+  /* Hang the opening 「 so its glyph, not its blank half-em, aligns with the caption. */
+  text-indent: -0.5em;
 }
 .license-card {
   align-self: center;
@@ -310,7 +315,7 @@ button {
   border-radius: var(--radius-md);
   background: var(--license-input-bg);
   color: var(--license-text);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   outline: none;
   transition:
@@ -467,6 +472,17 @@ button {
   border-color: var(--license-primary);
   color: var(--license-primary);
 }
+@media (prefers-reduced-motion: no-preference) {
+  .license-card:not([hidden]) {
+    animation: license-card-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes license-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -476,28 +492,28 @@ button {
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --license-bg: #20221f;
-    --license-surface: #292c27;
-    --license-text: #edeee8;
-    --license-muted: #a5aa9f;
-    --license-border: #3c4037;
-    --license-primary: #c4ccbb;
-    --license-primary-strong: #d6ddce;
-    --license-on-primary: #252c22;
-    --license-intro-bg: #30352c;
-    --license-record-bg: #20221f;
-    --license-record-label: #c4ccbb;
-    --license-echo: rgba(183, 195, 166, 0.55);
-    --license-input-bg: #252822;
-    --license-input-border: #4c5146;
-    --license-placeholder: #8c9484;
+    --license-bg: #1c1c1b;
+    --license-surface: #262625;
+    --license-text: #ededeb;
+    --license-muted: #a3a09a;
+    --license-border: #3a3936;
+    --license-primary: #7fa3f2;
+    --license-primary-strong: #9db9f5;
+    --license-on-primary: #10141c;
+    --license-intro-bg: #2b2b29;
+    --license-record-bg: #1c1c1b;
+    --license-record-label: #c9c7c2;
+    --license-echo: rgba(170, 168, 162, 0.5);
+    --license-input-bg: #222221;
+    --license-input-border: #484743;
+    --license-placeholder: #8f8c86;
     --license-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
   }
   .license-status.error {
-    color: #eda69b;
+    color: #f0a39b;
   }
   .license-status.good {
-    color: #afc6ab;
+    color: #9fd3b4;
   }
 }
 @media (max-width: 760px) {

@@ -2,51 +2,41 @@
 .gift-blindbox-panel {
   overflow: hidden;
   padding: 0;
-  border-color: var(--color-border-light);
-  border-radius: 12px;
-  background: linear-gradient(180deg, var(--color-bg-primary) 0%, #fcfdff 100%);
-  box-shadow: 0 8px 24px rgba(23, 32, 42, 0.06);
+  border-color: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .gift-blindbox-panel > .panel-header {
   cursor: pointer;
-  position: relative;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gift-blindbox-panel > .panel-header::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 0;
-  background: linear-gradient(135deg, rgba(142, 68, 173, 0.1) 0%, rgba(142, 68, 173, 0.04) 50%, transparent 100%);
-  opacity: 0;
-  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
+  transition: background-color 140ms ease;
 }
 
 .gift-blindbox-panel > .panel-header:hover {
-  background: linear-gradient(to right, rgba(142, 68, 173, 0.06), rgba(142, 68, 173, 0.02));
-  box-shadow:
-    0 0 0 1px rgba(142, 68, 173, 0.15) inset,
-    0 6px 20px -2px rgba(142, 68, 173, 0.25),
-    0 3px 10px -2px rgba(142, 68, 173, 0.15);
-  transform: translateY(-2px);
+  background: var(--color-bg-tertiary);
 }
 
-.gift-blindbox-panel > .panel-header:hover::before {
-  opacity: 1;
+/* 查看全部：中性次按钮（基础样式在 responsive.css） */
+.gift-blindbox-panel .gift-history-open-btn {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: var(--type-weight-semibold);
 }
 
-.gift-blindbox-panel > .panel-header:active {
-  transform: translateY(0);
-  transition-duration: 100ms;
+.gift-blindbox-panel .gift-history-open-btn:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
+  color: var(--text);
+  transform: none;
 }
 
 .blind-stats-heading {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   user-select: none;
   pointer-events: none;
 }
@@ -54,17 +44,17 @@
 .blind-stats-heading-icon {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  border-radius: 11px;
-  background: linear-gradient(145deg, #fff0f5, #ffe4ed);
-  color: var(--primary-strong);
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--muted);
 }
 
 .blind-stats-heading-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
 }
 
 .blind-stats-heading .gift-section-title {
@@ -92,8 +82,8 @@
   gap: 10px;
   min-width: 0;
   padding: 12px;
-  border: 1px solid #e8edf3;
-  border-radius: 10px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
   background: var(--color-bg-tertiary);
 }
 
@@ -103,11 +93,10 @@
   width: 30px;
   height: 30px;
   flex: 0 0 30px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-primary);
   color: var(--muted);
   font-weight: var(--type-weight-bold);
-  box-shadow: 0 2px 8px rgba(23, 32, 42, 0.07);
 }
 
 .gift-blindbox-panel .stat-chip-copy {
@@ -136,23 +125,23 @@
 }
 
 .gift-blindbox-panel .stat-chip.profit-up {
-  border-color: rgba(33, 182, 168, 0.22);
-  background: var(--color-accent-light);
+  border-color: color-mix(in srgb, var(--color-profit) 28%, var(--border));
+  background: var(--color-profit-soft);
 }
 
 .gift-blindbox-panel .stat-chip.profit-down {
-  border-color: rgba(192, 57, 43, 0.18);
-  background: var(--color-danger-light);
+  border-color: color-mix(in srgb, var(--color-loss) 24%, var(--border));
+  background: var(--color-loss-soft);
 }
 
 .gift-blindbox-panel .stat-chip.profit-up .stat-chip-icon,
 .gift-blindbox-panel .stat-chip.profit-up strong {
-  color: #148f82;
+  color: var(--color-profit);
 }
 
 .gift-blindbox-panel .stat-chip.profit-down .stat-chip-icon,
 .gift-blindbox-panel .stat-chip.profit-down strong {
-  color: var(--danger);
+  color: var(--color-loss);
 }
 
 .blind-stats-status {
@@ -169,17 +158,17 @@
   width: 44px;
   height: 44px;
   margin-bottom: 4px;
-  border: 1px solid #e4e9ef;
-  border-radius: 14px;
-  background: #f5f7fa;
-  color: #98a3b1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 
 .blind-stats-status-icon.is-loading::before {
   width: 16px;
   height: 16px;
-  border: 2px solid #d9dee6;
+  border: 2px solid var(--border);
   border-top-color: var(--primary);
   border-radius: 50%;
   content: '';
@@ -201,8 +190,8 @@
 }
 
 .blind-stats-status.is-error .blind-stats-status-icon {
-  border-color: rgba(192, 57, 43, 0.16);
-  background: #fff5f4;
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border));
+  background: var(--color-danger-light);
   color: var(--danger);
 }
 
@@ -223,8 +212,8 @@
 .blind-stats-table th {
   text-align: left;
   padding: 10px 20px;
-  border-bottom: 1px solid #e8edf2;
-  background: #f7f9fb;
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--surface-2);
   color: var(--muted);
   font-weight: var(--type-weight-bold);
   font-size: var(--type-size-micro);
@@ -234,7 +223,7 @@
 
 .blind-stats-table td {
   padding: 12px 20px;
-  border-bottom: 1px solid #eef1f5;
+  border-bottom: 1px solid var(--color-border-light);
   white-space: nowrap;
 }
 
@@ -248,7 +237,7 @@
 }
 
 .blind-stats-table tbody tr:hover {
-  background: #fafbfd;
+  background: var(--color-bg-tertiary);
 }
 
 .blind-stats-table .blind-stats-user-row {
@@ -256,11 +245,11 @@
 }
 
 .blind-stats-table .blind-stats-user-row:hover {
-  background: #f3faf8;
+  background: var(--color-bg-tertiary);
 }
 
 .blind-stats-table .blind-stats-user-row:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }
 
@@ -286,7 +275,7 @@
 .gift-blindbox-stats-table-wrap {
   max-height: none !important;
   overflow: visible !important;
-  border-top: 1px solid #edf0f4;
+  border-top: 1px solid var(--color-border-light);
 }
 
 /* 加载/空状态/错误状态时，只显示状态消息，隐藏表格 */

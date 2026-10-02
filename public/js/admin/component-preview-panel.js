@@ -4,6 +4,12 @@ export function componentField(root, id) {
   return root.querySelector(`[data-preview-field="${id}"], [id="${id}"]`);
 }
 
+export function syncComponentFieldValue(control, value, force = false) {
+  if ((force || control !== control.ownerDocument.activeElement) && control.value !== String(value)) {
+    control.value = String(value);
+  }
+}
+
 export function cloneComponentPanel(source, prefix) {
   const panel = source.cloneNode(true);
   const names = new Map();

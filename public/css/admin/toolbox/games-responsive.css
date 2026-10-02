@@ -43,7 +43,6 @@
 @media (max-width: 760px) {
   .games-category {
     padding: 14px;
-    border-radius: 18px;
   }
   .games-category-header {
     align-items: flex-start;
@@ -57,7 +56,7 @@
     grid-template-columns: 1fr;
   }
   .game-admin-card:has(.lira-select.is-open) > .game-card-poster {
-    border-radius: 17px 17px 0 0;
+    border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
   }
   .game-card-poster {
     min-height: 100px;

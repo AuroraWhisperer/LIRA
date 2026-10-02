@@ -20,4 +20,16 @@ function migrateScenes(db) {
   `);
 }
 
-module.exports = { migrateScenes };
+function migrateComponentOutputSizes(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS component_output_sizes (
+      owner_scope TEXT NOT NULL,
+      component_type TEXT NOT NULL CHECK (component_type IN ('clock', 'queue', 'overtime', 'danmaku')),
+      width REAL NOT NULL CHECK (width BETWEEN 32 AND 7680),
+      height REAL NOT NULL CHECK (height BETWEEN 32 AND 7680),
+      PRIMARY KEY (owner_scope, component_type)
+    );
+  `);
+}
+
+module.exports = { migrateScenes, migrateComponentOutputSizes };

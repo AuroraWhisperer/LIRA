@@ -44,7 +44,8 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
   const copy = node('p', 'sc-copy', String(item.message ?? ''));
   const name = String(item.name || '观众').trim() || '观众';
   const price = Number(item.price).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
-  const amount = node('span', 'sc-money', `¥${price}`);
+  const amount = node('span', 'sc-money');
+  amount.append(node('span', 'sc-currency', '¥'), node('span', 'sc-value', price));
   root.setAttribute('aria-label', `醒目留言，¥${price}`);
 
   if (style === 'ranked') {
@@ -56,22 +57,20 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
   } else if (style === 'bubble') {
     amount.className += ' sc-bubble-price';
     const footer = node('div', 'sc-bubble-foot');
-    footer.append(node('span', 'sc-name', name));
+    footer.append(avatar(), node('span', 'sc-name', name));
     card.append(amount, copy, footer);
   } else if (style === 'signal') {
     amount.className += ' sc-signal-amount';
-    card.append(amount, copy);
+    card.append(amount, main());
   } else if (style === 'minimal') {
     const left = node('span', 'sc-bow-edge sc-bow-edge-left');
     const right = node('span', 'sc-bow-edge sc-bow-edge-right');
     left.setAttribute('aria-hidden', 'true');
     right.setAttribute('aria-hidden', 'true');
     amount.className += ' sc-bow-price';
-    card.append(left, right, copy, amount);
+    card.append(left, right, node('span', 'sc-name', name), copy, amount);
   } else if (style === 'transparent') {
-    amount.textContent = '';
-    amount.append(node('span', 'sc-currency', '¥'), node('span', '', price));
-    card.append(amount, copy);
+    card.append(amount, main());
   } else if (style === 'identity') {
     const profile = node('div', 'sc-identity-profile');
     profile.append(avatar(), amount);
@@ -79,6 +78,13 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
   }
   root.append(card);
   return root;
+
+  // Two-column designs keep the sender and the original text in one column.
+  function main() {
+    const column = node('div', 'sc-main');
+    column.append(node('span', 'sc-name', name), copy);
+    return column;
+  }
 
   function node(tag, className, text) {
     const element = document.createElement(tag);

@@ -1,20 +1,12 @@
 <div id="overlayPage" class="tab-page">
   <div class="panel-body stack">
-    <h2 class="ui-section-title overlay-address-heading">
-      浏览器源
-      <lira-help label="浏览器源使用说明"
-        >将直播画面地址添加到 OBS 或哔哩哔哩直播姬的浏览器源 / 网页来源。「网页页面」可直接用浏览器打开。
-        本机地址需要 LIRA 保持运行，并与直播软件在同一台电脑；在线弹幕姬地址在关闭 LIRA 后仍可展示。</lira-help
-      >
-    </h2>
-
     <div class="overlay-address-directory">
       <section class="overlay-address-group" aria-labelledby="canvasOverlayGroupTitle">
         <header class="overlay-address-group-header">
           <div>
             <h3 id="canvasOverlayGroupTitle" class="ui-section-title">
-              直播画布
-              <lira-help label="直播画布使用说明"
+              直播场景
+              <lira-help label="直播场景使用说明"
                 >在画布中摆放多个组件，保存并应用后导入直播软件。更换组件或样式后沿用同一地址；浏览器源宽高与画布分辨率保持一致。
                 单独使用组件时，可复制下方对应地址。</lira-help
               >
@@ -23,10 +15,11 @@
         </header>
         <div class="overlay-address-grid">
           <section class="overlay-address-item overlay-address-item-wide">
-            <code id="liveCanvasUrl" class="ui-caption">保存并应用后可复制地址</code>
+            <button type="button" id="copyLiveCanvasUrl" class="overlay-address-copy" title="点击复制直播场景地址" disabled>
+              <code id="liveCanvasUrl" class="ui-caption">正在读取场景地址…</code>
+            </button>
             <span class="overlay-address-actions">
-              <button type="button" id="copyLiveCanvasUrl">复制地址</button>
-              <button type="button" id="liveCanvasPreview" class="secondary">编辑画布</button>
+              <button type="button" id="liveCanvasPreview" class="secondary">编辑场景</button>
             </span>
             <p id="liveCanvasSourceStatus" class="hint overlay-address-status" role="status"></p>
           </section>
@@ -46,8 +39,9 @@
                 >点歌板 <lira-help>样式、字号和滚动方式在「点歌板」中配置。</lira-help></strong
               >
             </div>
-            <code id="queueUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="queueUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="queueUrl" title="点击复制地址">
+              <code id="queueUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -56,8 +50,9 @@
                 >歌曲展示滚动版 <lira-help>分类、排序和主题在「展示板」中配置。</lira-help></strong
               >
             </div>
-            <code id="songsUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="songsUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="songsUrl" title="点击复制地址">
+              <code id="songsUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -66,8 +61,9 @@
                 >桌面歌词 <lira-help>字体、颜色和逐字效果在「桌面歌词设置」中配置。</lira-help></strong
               >
             </div>
-            <code id="lyricsUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="lyricsUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="lyricsUrl" title="点击复制地址">
+              <code id="lyricsUrl" class="ui-caption"></code>
+            </button>
           </section>
         </div>
       </section>
@@ -83,8 +79,9 @@
             <div>
               <strong class="ui-card-title">弹幕姬 · 本机组件 <lira-help>使用已保存的样式，保持 LIRA 运行。</lira-help></strong>
             </div>
-            <code id="localDanmakuUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="localDanmakuUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="localDanmakuUrl" title="点击复制地址">
+              <code id="localDanmakuUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -96,8 +93,9 @@
                 ></strong
               >
             </div>
-            <code id="liveDanmakuUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveDanmakuUrl" disabled>复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveDanmakuUrl" title="点击复制地址" disabled>
+              <code id="liveDanmakuUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -106,8 +104,9 @@
                 >直播小游戏 <lira-help>数字炸弹、五子棋和你画我猜共用此地址。</lira-help></strong
               >
             </div>
-            <code id="liveGamesUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveGamesUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveGamesUrl" title="点击复制地址">
+              <code id="liveGamesUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -116,8 +115,9 @@
                 >抽奖转盘 <lira-help>转盘内容和抽取操作在「小游戏」的转盘区域中配置。</lira-help></strong
               >
             </div>
-            <code id="liveWheelUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveWheelUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveWheelUrl" title="点击复制地址">
+              <code id="liveWheelUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -126,8 +126,9 @@
                 >弹幕投票与观众评分 <lira-help>在「小游戏」→「投票与评分」中配置并开始活动。</lira-help></strong
               >
             </div>
-            <code id="liveInteractionsUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveInteractionsUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveInteractionsUrl" title="点击复制地址">
+              <code id="liveInteractionsUrl" class="ui-caption"></code>
+            </button>
           </section>
         </div>
       </section>
@@ -145,8 +146,9 @@
                 >礼物滚动 <lira-help>显示内容和样式在「礼物姬」的礼物滚动区域中配置。</lira-help></strong
               >
             </div>
-            <code id="liveGiftFeedUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveGiftFeedUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveGiftFeedUrl" title="点击复制地址">
+              <code id="liveGiftFeedUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -155,8 +157,9 @@
                 >盲盒盈亏榜 <lira-help>排行数量、赢家筛选和标题等参数可在礼物页生成。</lira-help></strong
               >
             </div>
-            <code id="liveBlindboxUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveBlindboxUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveBlindboxUrl" title="点击复制地址">
+              <code id="liveBlindboxUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -165,8 +168,9 @@
                 >礼物许愿 <lira-help>在「礼物姬」→「礼物许愿」中按周期添加目标；统一展示长效、本日和本场直播许愿。</lira-help></strong
               >
             </div>
-            <code id="liveGiftWishUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveGiftWishUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveGiftWishUrl" title="点击复制地址">
+              <code id="liveGiftWishUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -178,8 +182,9 @@
                 ></strong
               >
             </div>
-            <code id="liveGiftEffectsUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveGiftEffectsUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveGiftEffectsUrl" title="点击复制地址">
+              <code id="liveGiftEffectsUrl" class="ui-caption"></code>
+            </button>
           </section>
         </div>
       </section>
@@ -197,8 +202,9 @@
                 >加班机 <lira-help>初始时长、礼物规则和背景在「加班机」中配置。</lira-help></strong
               >
             </div>
-            <code id="liveOvertimeUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveOvertimeUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveOvertimeUrl" title="点击复制地址">
+              <code id="liveOvertimeUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -207,8 +213,9 @@
                 >开播画面 <lira-help>文案、动画和音乐在「开播动画」中配置。</lira-help></strong
               >
             </div>
-            <code id="liveOpeningUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveOpeningUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveOpeningUrl" title="点击复制地址">
+              <code id="liveOpeningUrl" class="ui-caption"></code>
+            </button>
           </section>
 
           <section class="overlay-address-item">
@@ -217,8 +224,9 @@
                 >萌时钟 <lira-help>风格、日期、秒数和小时制可在「萌时钟」中生成。</lira-help></strong
               >
             </div>
-            <code id="liveClockUrl" class="ui-caption"></code>
-            <button type="button" data-copy-url="liveClockUrl">复制</button>
+            <button type="button" class="overlay-address-copy" data-copy-url="liveClockUrl" title="点击复制地址">
+              <code id="liveClockUrl" class="ui-caption"></code>
+            </button>
           </section>
         </div>
       </section>
@@ -234,9 +242,10 @@
             <div>
               <strong class="ui-card-title">我的网页歌单 <lira-help>歌曲在「导入导出」中同步。</lira-help></strong>
             </div>
-            <code id="webSongPageUrl" class="ui-caption">连接已授权账号后显示网页歌单地址</code>
+            <button type="button" class="overlay-address-copy" data-copy-url="webSongPageUrl" title="点击复制地址" disabled>
+              <code id="webSongPageUrl" class="ui-caption">连接已授权账号后显示网页歌单地址</code>
+            </button>
             <span class="overlay-address-actions">
-              <button type="button" data-copy-url="webSongPageUrl" disabled>复制</button>
               <button type="button" data-open-url="webSongPageUrl" disabled>打开网页</button>
             </span>
           </section>
@@ -245,9 +254,10 @@
             <div>
               <strong class="ui-card-title">网页主播中心</strong>
             </div>
-            <code id="webAccountUrl" class="ui-caption">https://admin.lirahub.cn/</code>
+            <button type="button" class="overlay-address-copy" data-copy-url="webAccountUrl" title="点击复制地址">
+              <code id="webAccountUrl" class="ui-caption">https://admin.lirahub.cn/</code>
+            </button>
             <span class="overlay-address-actions">
-              <button type="button" data-copy-url="webAccountUrl">复制</button>
               <button type="button" data-open-url="webAccountUrl">打开网页</button>
             </span>
           </section>
@@ -256,9 +266,10 @@
             <div>
               <strong class="ui-card-title">礼物图鉴</strong>
             </div>
-            <code id="webGiftCatalogUrl" class="ui-caption">https://gifts.lirahub.cn/</code>
+            <button type="button" class="overlay-address-copy" data-copy-url="webGiftCatalogUrl" title="点击复制地址">
+              <code id="webGiftCatalogUrl" class="ui-caption">https://gifts.lirahub.cn/</code>
+            </button>
             <span class="overlay-address-actions">
-              <button type="button" data-copy-url="webGiftCatalogUrl">复制</button>
               <button type="button" data-open-url="webGiftCatalogUrl">打开网页</button>
             </span>
           </section>
@@ -267,9 +278,10 @@
             <div>
               <strong class="ui-card-title">网页小游戏</strong>
             </div>
-            <code id="webGamesUrl" class="ui-caption">https://games.lirahub.cn/</code>
+            <button type="button" class="overlay-address-copy" data-copy-url="webGamesUrl" title="点击复制地址">
+              <code id="webGamesUrl" class="ui-caption">https://games.lirahub.cn/</code>
+            </button>
             <span class="overlay-address-actions">
-              <button type="button" data-copy-url="webGamesUrl">复制</button>
               <button type="button" data-open-url="webGamesUrl">打开网页</button>
             </span>
           </section>
@@ -278,9 +290,10 @@
             <div>
               <strong class="ui-card-title">LIRA 官网</strong>
             </div>
-            <code id="webHomeUrl" class="ui-caption">https://lirahub.cn/</code>
+            <button type="button" class="overlay-address-copy" data-copy-url="webHomeUrl" title="点击复制地址">
+              <code id="webHomeUrl" class="ui-caption">https://lirahub.cn/</code>
+            </button>
             <span class="overlay-address-actions">
-              <button type="button" data-copy-url="webHomeUrl">复制</button>
               <button type="button" data-open-url="webHomeUrl">打开网页</button>
             </span>
           </section>

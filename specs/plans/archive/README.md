@@ -6,6 +6,15 @@
 
 ## 文件索引
 
+- [2026-10-02-release-5.0.14-validation](2026-10-02-release-5.0.14-validation.md)
+- [2026-10-01-canvas-component-library](2026-10-01-canvas-component-library.md)
+- [2026-10-01-canvas-component-boundaries](2026-10-01-canvas-component-boundaries.md)
+- [2026-10-01-canvas-audit-fixes](2026-10-01-canvas-audit-fixes.md)
+
+- [2026-10-01-preview-editable-refresh](2026-10-01-preview-editable-refresh.md)
+- [2026-10-01-preview-draft-recovery](2026-10-01-preview-draft-recovery.md)
+- [2026-10-01-component-output-size](2026-10-01-component-output-size.md)
+- [2026-10-01-preview-connection-recovery](2026-10-01-preview-connection-recovery.md)
 - [2026-10-01-release-5.0.13-validation](2026-10-01-release-5.0.13-validation.md)
 - [2026-10-01-planner-reminders](2026-10-01-planner-reminders.md)
 - [2026-10-01-performance-displays](2026-10-01-performance-displays.md)

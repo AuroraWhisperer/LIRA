@@ -298,7 +298,11 @@ export class PlaybackBar {
     const clearCacheBtn = document.getElementById('playbackClearCacheBtn');
     if (clearCacheBtn) clearCacheBtn.style.display = isWeSing ? 'none' : '';
     const healthBtn = document.getElementById('playbackHealthBtn');
-    if (healthBtn) healthBtn.textContent = isWeSing ? '重新检测' : '检查音乐平台连接';
+    if (healthBtn) {
+      // The 全民 K歌 panel carries its own 重新检测 button, so the header one is hidden there.
+      healthBtn.textContent = '检查音乐平台连接';
+      healthBtn.style.display = isWeSing ? 'none' : '';
+    }
 
     // 更新用户名显示
     const userName = document.getElementById('playbackUserName');
@@ -323,15 +327,15 @@ export class PlaybackBar {
         const keys = Array.isArray(authState.keyCookieNames) ? authState.keyCookieNames.join('、') : '';
         vipState.textContent = `Cookie ${authState.cookieCount || 0} 个，关键字段：${keys || '待确认'}，加密快照：${authState.encryptedSnapshotExists ? '已保存' : '未保存'}`;
       } else {
-        vipState.textContent = '账号歌单和推荐将在 Provider 接入后显示';
+        vipState.textContent = '账号歌单和推荐将在音乐服务接入后显示';
       }
     }
 
-    // 更新 Provider 健康状态
+    // 更新音乐服务健康状态
     const providerHealth = document.getElementById('playbackProviderHealth');
     if (providerHealth) {
       if (healthState) {
-        const message = healthState.message || `Provider 状态：${healthState.status || '未知'}`;
+        const message = healthState.message || `音乐服务状态：${healthState.status || (healthState.ok ? '正常' : '未知')}`;
         const details = healthState.details ? ` (${healthState.details})` : '';
         providerHealth.textContent = message + details;
 
@@ -345,7 +349,7 @@ export class PlaybackBar {
           providerHealth.classList.add('warning');
         }
       } else {
-        providerHealth.textContent = '等待检查音乐 Provider 状态';
+        providerHealth.textContent = '等待检查音乐服务状态';
         providerHealth.classList.remove('error', 'success', 'warning');
       }
     }

@@ -149,7 +149,8 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   const panel = read('public', 'pages', 'admin', 'toolbox', 'clock.html');
   const styles = read('public', 'css', 'admin', 'toolbox', 'clock.css');
   const styleEntry = read('public', 'css', 'admin', 'toolbox.css');
-  const script = read('public', 'js', 'admin', 'clock-card.js');
+  const script = read('public', 'js', 'admin', 'clock-card.js')
+    + read('public', 'js', 'admin', 'clock-preview.js');
   const app = read('public', 'js', 'admin', 'app.js');
   const composition = read('src', 'server', 'admin-page.js');
 

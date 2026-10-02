@@ -20,9 +20,6 @@ async function editorFixture(t) {
     export const localOverlayOrigin = () => 'http://lira-ui.test';
     export const readJsonResponse = response => response.json();
   ` }));
-  await page.route('**/js/admin/scene-editor-preview-data.js', (route) => route.fulfill({
-    contentType: 'text/javascript', body: 'export const startSceneEditorOvertimeData = () => () => {};',
-  }));
   await page.route('**/scene-preview-*', (route) => route.fulfill({ contentType: 'text/html', body: `
     <script>parent.postMessage({type:'component-preview:ready'}, '*');</script>
   ` }));
@@ -292,6 +289,35 @@ test('Escape cancels a gesture to its starting document without closing the edit
   assert.equal(await first.evaluate((node) => node.style.left), '32px');
   assert.equal(await page.locator('dialog[open]').count(), 1);
   assert.equal(await page.getByRole('button', { name: '撤销', exact: true }).isDisabled(), true);
+});
+
+test('resize handles follow zoom, update the inspector, and keep one undo entry per completed gesture', async (t) => {
+  const page = await editorFixture(t);
+  await choose(page, '时钟 A');
+  await page.getByRole('combobox', { name: '画布缩放' }).selectOption('50');
+  const item = page.locator(`.scene-editor-item[data-item-id="${firstId}"]`);
+  const drag = async () => {
+    const handle = await item.locator('[data-resize="se"]').boundingBox();
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + handle.width / 2 + 24, handle.y + handle.height / 2 + 16, { steps: 4 });
+  };
+  await drag();
+  await page.mouse.up();
+  assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '168');
+  assert.equal(await page.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '112');
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  assert.equal(await item.evaluate(node => node.style.width), '120px');
+  assert.equal(await page.getByRole('button', { name: '撤销', exact: true }).isDisabled(), true);
+  await drag();
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  assert.equal(await item.evaluate(node => node.style.width), '120px');
+  assert.equal(await page.locator('dialog[open]').count(), 1);
+  assert.equal(await page.getByRole('button', { name: '撤销', exact: true }).isDisabled(), true);
+  await drag();
+  await page.mouse.up();
+  assert.equal(await item.evaluate(node => node.style.width), '168px');
 });
 
 test('publication preflight rejects every unsettled shared default state and ignores unrelated defaults', async (t) => {

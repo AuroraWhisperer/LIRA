@@ -9,8 +9,12 @@ const root = path.resolve(__dirname, '..');
 // tests use Node, VM modules and isolated local HTTP/SQLite fixtures.
 const groups = {
   browser: [
+    'admin/canvas-editing',
+    'admin/canvas-component-library',
     'admin/component-preview-browser',
+    'admin/component-preview-drafts-browser',
     'admin/component-preview-output',
+    'admin/component-preview-recovery',
     'bots/daily-bot-frontend',
     'danmaku/frontend-admin-danmaku',
     'gifts/frontend-gift-banner',
@@ -124,11 +128,21 @@ if (help) {
 } else if (list) {
   console.log(selectedFiles.join('\n'));
 } else {
-  const result = spawnSync(
-    process.execPath,
-    ['--experimental-vm-modules', '--test', '--test-concurrency=6', ...nodeArgs, ...selectedFiles],
-    { cwd: root, stdio: 'inherit', windowsHide: true },
-  );
-  if (result.error) throw result.error;
-  process.exitCode = result.status ?? 1;
+  // Native ownership queries keep their production deadline; run them without
+  // competing browser, Electron or installer processes from the rest of the suite.
+  const nativeOwnershipFile = 'test/desktop/local-instance-windows.test.js';
+  const batches = [
+    selectedFiles.filter((file) => file === nativeOwnershipFile),
+    selectedFiles.filter((file) => file !== nativeOwnershipFile),
+  ];
+  for (const batch of batches) {
+    if (!batch.length) continue;
+    const result = spawnSync(
+      process.execPath,
+      ['--experimental-vm-modules', '--test', '--test-concurrency=6', ...nodeArgs, ...batch],
+      { cwd: root, stdio: 'inherit', windowsHide: true },
+    );
+    if (result.error) throw result.error;
+    if (result.status !== 0) process.exitCode = result.status ?? 1;
+  }
 }

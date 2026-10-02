@@ -2,7 +2,7 @@ import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, styleOptionsFor } from '..
 import { readAppearanceValue, editStyleOption, resetStyleOptions, isValidFullscreenDuration } from '../shared/danmaku-appearance-draft.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
-import { componentField } from './component-preview-panel.js';
+import { componentField, syncComponentFieldValue } from './component-preview-panel.js';
 
 export function bindDanmakuParameters(root, controller, onError) {
   const node = (id) => componentField(root, id);
@@ -11,7 +11,7 @@ export function bindDanmakuParameters(root, controller, onError) {
   const unregisterFont = registerLocalFontSelect(controls.fontFamily);
   initParameterRanges(controls.backgroundOpacity);
 
-  function render({ draft, loaded }) {
+  function render({ draft, loaded }, force = false) {
     const limits = DANMAKU_STYLE_OPTIONS[draft.style];
     const options = styleOptionsFor(draft.style, draft.styleOptions);
     const supported = Object.hasOwn(draft, 'styleOptions');
@@ -25,7 +25,7 @@ export function bindDanmakuParameters(root, controller, onError) {
     controls.fontFamily.value = selectedFont;
     controls.fontSize.min = String(limits.minFontSize);
     controls.fontSize.max = String(limits.maxFontSize);
-    controls.fontSize.value = String(options.fontSize);
+    syncComponentFieldValue(controls.fontSize, options.fontSize, force);
     controls.textColor.value = options.textColor;
     node('danmakuTextColorValue').textContent = options.textColor.toUpperCase();
     node('danmakuFontSizeHint').textContent = `${limits.minFontSize}～${limits.maxFontSize} px`;
@@ -40,7 +40,7 @@ export function bindDanmakuParameters(root, controller, onError) {
     for (const control of Object.values(controls)) control.disabled = !loaded || !supported;
     node('danmakuResetParameters').disabled = !loaded || !supported || !Object.keys(draft.styleOptions?.[draft.style] || {}).length;
     node('danmakuFullscreenDurationField').hidden = !isRandomDanmakuStyle(draft.style);
-    node('danmakuFullscreenDurationSeconds').value = String(draft.fullscreenDurationSeconds);
+    syncComponentFieldValue(node('danmakuFullscreenDurationSeconds'), draft.fullscreenDurationSeconds, force);
     node('danmakuFullscreenDurationSeconds').disabled = !loaded;
   }
 
@@ -51,7 +51,7 @@ export function bindDanmakuParameters(root, controller, onError) {
       try {
         const value = readAppearanceValue(key, control.value, control.min, control.max);
         controller.edit({ styleOptions: editStyleOption(state.draft, key, value).styleOptions });
-      } catch (error) { onError(error.message); render(state); }
+      } catch (error) { onError(error.message); render(state, true); }
     });
   }
   node('danmakuResetParameters').addEventListener('click', () => {
@@ -66,7 +66,7 @@ export function bindDanmakuParameters(root, controller, onError) {
     const duration = Number(node('danmakuFullscreenDurationSeconds').value);
     if (!isValidFullscreenDuration(duration)) {
       onError('停留时间请输入 2～30 秒的整数。');
-      render(state);
+      render(state, true);
       return;
     }
     controller.edit({ fullscreenDurationSeconds: duration });

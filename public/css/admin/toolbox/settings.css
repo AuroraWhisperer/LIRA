@@ -28,9 +28,9 @@
 .license-account-card {
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--surface), var(--surface-2));
-  box-shadow: 0 5px 18px rgba(22, 31, 43, 0.05);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .license-account-card-heading {
@@ -52,9 +52,9 @@
 .license-account-details > div {
   min-width: 0;
   padding: 11px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border-light);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--color-bg-tertiary);
 }
 
 .license-account-details dt {
@@ -75,8 +75,8 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  border-color: rgba(183, 133, 50, 0.24);
-  background: linear-gradient(135deg, rgba(255, 241, 207, 0.58), rgba(255, 250, 241, 0.86));
+  border-color: var(--border);
+  background: var(--color-bg-tertiary);
 }
 
 .license-account-note-icon {
@@ -86,7 +86,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(183, 133, 50, 0.14);
+  background: var(--color-primary-light);
   color: var(--primary-strong);
   font-weight: var(--type-weight-bold);
 }
@@ -122,18 +122,18 @@
 
 .license-website-link {
   flex-shrink: 0;
-  color: var(--primary-strong);
+  color: var(--primary);
   font-weight: var(--type-weight-bold);
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
 .license-website-link:hover {
-  color: var(--text);
+  color: var(--primary-strong);
 }
 
 .license-website-link:focus-visible {
-  outline: 2px solid var(--primary-strong);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 4px;
   border-radius: 2px;
 }

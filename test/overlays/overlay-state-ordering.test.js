@@ -100,6 +100,7 @@ function fixture(name) {
       updateLyricState: (value) => observed.push(['state', value]),
       updateLyricTimeline: (value) => observed.push(['timeline', value]),
     },
+    mountSceneExtraClient: () => null,
   });
   const source =
     name === 'lyric-window'

@@ -8,8 +8,8 @@
   gap: 16px;
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 22px;
-  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-tertiary);
 }
 .games-category-header {
   display: flex;
@@ -40,17 +40,10 @@
   letter-spacing: var(--type-tracking-normal);
 }
 .games-category-kicker {
-  color: #6255aa;
+  color: var(--muted);
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   letter-spacing: 0.12em;
-}
-.games-category-wheel {
-  border-color: #e8d8e2;
-  background: #fffbfd;
-}
-.games-category-wheel .games-category-kicker {
-  color: #91516f;
 }
 .games-source-url {
   width: max-content;
@@ -71,7 +64,7 @@
   grid-template-columns: 210px minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow);
   transition:
@@ -84,13 +77,10 @@
   overflow: visible;
 }
 .game-admin-card:has(.lira-select.is-open) > .game-card-poster {
-  border-radius: 17px 0 0 17px;
+  border-radius: calc(var(--radius-lg) - 1px) 0 0 calc(var(--radius-lg) - 1px);
 }
 .game-admin-card.is-running {
-  border-color: #7062bf;
-  box-shadow:
-    0 0 0 3px rgba(112, 98, 191, 0.1),
-    var(--shadow);
+  border-color: var(--primary);
 }
 .game-card-poster {
   position: relative;
@@ -99,8 +89,8 @@
   min-height: 230px;
   padding: 20px;
   overflow: hidden;
-  color: #fff;
-  background: #272151;
+  color: var(--text);
+  background: var(--surface-2);
 }
 .game-card-poster span {
   font-family: Consolas, monospace;
@@ -123,34 +113,23 @@
   position: absolute;
   width: 150px;
   height: 150px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  border: 1px solid var(--color-border-strong);
   border-radius: 50%;
   right: -35px;
   top: 30px;
-  box-shadow:
-    0 0 0 24px rgba(255, 255, 255, 0.04),
-    0 0 0 48px rgba(255, 255, 255, 0.03);
-}
-.is-bomb .game-card-poster {
-  background: linear-gradient(145deg, #272151, #483c88);
 }
 .is-bomb .game-card-poster i::after {
   position: absolute;
   inset: 54px;
   border-radius: 50%;
-  background: #ffc857;
+  background: var(--muted);
   content: '';
-  box-shadow: 0 0 24px #ffc857;
-}
-.is-gomoku .game-card-poster {
-  color: #342617;
-  background: linear-gradient(145deg, #efc57c, #b87938);
 }
 .is-gomoku .game-card-poster i {
   border-radius: 0;
   background-image:
-    linear-gradient(rgba(58, 37, 18, 0.25) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(58, 37, 18, 0.25) 1px, transparent 1px);
+    linear-gradient(var(--color-border-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border-strong) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 .game-card-content {
@@ -176,8 +155,8 @@
   align-self: start;
   padding: 6px 9px;
   border-radius: 999px;
-  color: #5d519e;
-  background: #f0edff;
+  color: var(--muted);
+  background: var(--surface-2);
 }
 .game-card-content > p {
   margin: 0;
@@ -210,7 +189,7 @@
   gap: 16px;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
 }
 .games-admin-footer > div {

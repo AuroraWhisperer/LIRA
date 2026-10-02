@@ -61,11 +61,11 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.doesNotMatch(styles, /body\[data-style='bubble'\] \.draw-danmaku-item \{[^}]*min-width:/s);
   assert.match(
     styles,
-    /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --signal-accent: #7d91a8;/,
+    /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity\] \{ --signal-accent: #8aa4bf;/,
   );
   assert.match(
     styles,
-    /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --signal-accent: #7d91a8;/,
+    /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --signal-accent: #49d6c8;/,
   );
   assert.match(styles, /--guard-captain:\s*#2f9bff;/);
   assert.match(styles, /--guard-admiral:\s*#a45cff;/);
@@ -82,16 +82,16 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     styles,
     /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --signal-accent: var\(--guard-governor\);/,
   );
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-identity \{ padding-right: 68px; \}/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-guard \{ display: none; \}/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-identity \{[^}]*padding-right: 18px;/s);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-guard \{[^}]*background: var\(--signal-accent\);/s);
   assert.doesNotMatch(styles, /body\[data-style='signal'\] \.draw-danmaku-medal-level \{[^}]*position:\s*absolute;/s);
   assert.match(
     styles,
-    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --bubble-accent: #70ddc6;/,
+    /body\[data-style='bubble'\] \.draw-danmaku-item \{ --bubble-accent: #70ddc6;/,
   );
   assert.match(
     styles,
-    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --bubble-accent: #70ddc6;/,
+    /body\[data-style='bubble'\] \.draw-danmaku-item \{ --bubble-accent: #70ddc6; --bubble-accent-rgb: 112 221 198;/,
   );
   assert.match(
     styles,
@@ -106,7 +106,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --bubble-accent: var\(--guard-governor\);[^}]*bubble-governor-frame\.webp/,
   );
   assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-guard \{ display: none; \}/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-medal-level \{ font-size: 14px; \}/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-medal-level \{[^}]*font-size: 12px;/s);
   assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-feed \{\s*gap:\s*24px;\s*\}/);
   assert.match(
     styles,

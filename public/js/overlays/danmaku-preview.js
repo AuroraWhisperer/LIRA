@@ -190,7 +190,7 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   window.addEventListener('message', receive);
   window.addEventListener('pagehide', () => { observer.disconnect(); window.removeEventListener('message', receive); }, { once: true });
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') send('danmaku-editor:close'); });
-  status.textContent = embedded ? '正在读取草稿…' : '本地预览；请在桌面端打开画布编辑器以应用修改。';
+  status.textContent = embedded ? '正在读取草稿…' : '本地预览；请从客户端打开场景编辑器以应用修改。';
   render();
   send('danmaku-editor:ready');
 }

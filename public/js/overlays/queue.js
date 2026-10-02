@@ -21,6 +21,7 @@ import {
   scheduleScrollAnimationRestore,
 } from './queue-scroll.js';
 import { syncQueuePanelViewport } from './queue-viewport.js';
+import { watchComponentOutputSize } from './component-output-size.js';
 import { normalizePersistedQueueStyle, resolveQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { createOverlaySocket } from './socket-client.js';
 import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
@@ -41,6 +42,7 @@ const ILLUSTRATED_QUEUE_ROW_GAPS = {
 
 let state = null;
 let socketController = null;
+let stopOutputSize = null;
 let stateRefreshTimer = null;
 let overlayResizeTimer = null;
 let lastRenderKey = null;
@@ -56,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
       onDispose: disposeSocket,
     });
   } else {
+    stopOutputSize = watchComponentOutputSize('queue', handleQueueViewportResize);
     loadState();
     connectSocket();
   }
@@ -118,6 +121,7 @@ function connectSocket() {
 }
 
 function disposeSocket() {
+  stopOutputSize?.();
   stateRevision += 1;
   clearTimeout(stateRefreshTimer);
   clearTimeout(overlayResizeTimer);

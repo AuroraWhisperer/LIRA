@@ -101,10 +101,13 @@ export function createDanmakuMessageRenderer({
       image.hidden = true;
       image.addEventListener('load', () => {
         image.hidden = false;
+        // Styles that tint their artwork through a mask must not clip the real gift.
+        art.className = 'draw-danmaku-gift-art has-image';
         art.style.setProperty('background-image', 'none');
       });
       image.addEventListener('error', () => {
         image.remove();
+        art.className = 'draw-danmaku-gift-art';
         art.style.setProperty('background-image', '');
       });
       image.src = giftSource;

@@ -3,6 +3,8 @@ import { createDanmakuFeed } from './danmaku-feed.js';
 import { createDrawController } from './games-drawing.js';
 import { startOverlayPages } from './auto-pages.js';
 import { createOverlaySocket } from './socket-client.js';
+import { isComponentPreview } from './component-preview-client.js';
+import { mountSceneExtraClient, sceneAvatarSource } from './scene-extra-client.js';
 
 ('use strict');
 
@@ -18,6 +20,8 @@ const gameStream = createGameSessionStream({
 let resultProfileRequest = 0;
 let drawDanmakuFeed = null;
 let drawController = null;
+let componentConfig = null;
+let componentData = null;
 
 const INITIAL_SNAPSHOT_RETRIES = 4;
 const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
@@ -57,6 +61,21 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDanmaku: renderDrawDanmaku,
   });
   drawController.init();
+  if (isComponentPreview()) {
+    const timer = setInterval(() => drawController?.updateCountdown(), 250);
+    mountSceneExtraClient('games', {
+      onConfig(config) {
+        componentConfig = config;
+        document.body.style.opacity = String(config.opacity);
+        document.body.dataset.hideGameTitle = String(!config.showTitle);
+        document.body.dataset.hideGameDanmaku = String(!config.showDanmaku);
+        renderComponent();
+      },
+      onData(data) { componentData = data; renderComponent(); },
+      onDispose() { clearInterval(timer); stopPages.forEach((stop) => stop()); drawDanmakuFeed?.destroy(); drawController?.resetDanmakuRenderScheduler(); },
+    });
+    return;
+  }
   connectSocket();
   byId('gameResultAvatar').addEventListener('error', hideGameResultAvatar);
   byId('gameResultExit').addEventListener('click', () => submitGameResultAction('stop'));
@@ -64,6 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', positionGameResult);
   setInterval(() => drawController?.updateCountdown(), 250);
 });
+
+function renderComponent() {
+  const next = componentData?.sessions?.[componentConfig?.game] || componentData?.session;
+  renderGame(next?.game === componentConfig?.game ? next : null);
+  byId('gameEmptyView').hidden = true;
+}
 
 async function loadSnapshot(attempt = 0) {
   const revision = gameStream.beginSnapshot();
@@ -313,11 +338,13 @@ function createEmptyDrawItem(message) {
 }
 
 function canDraw() {
+  if (isComponentPreview()) return false;
   if (gameStream.isRecovering()) return false;
   return session?.game === 'draw-guess' && session.state?.phase === 'drawing';
 }
 
 async function submitMove(value) {
+  if (isComponentPreview()) return;
   const revision = gameStream.beginSnapshot();
   clearTimeout(snapshotRetryTimer);
   try {
@@ -363,7 +390,7 @@ function showGameResult(winner, winnerIdentity = {}) {
   resultEl.hidden = false;
   positionGameResult();
   hideGameResultAvatar();
-  if (winner !== 'draw') void loadWinnerProfile(requestId, winner);
+  if (winner !== 'draw' && !isComponentPreview()) void loadWinnerProfile(requestId, winner);
 }
 
 function positionGameResult() {
@@ -470,6 +497,7 @@ function hideGameResultAvatar() {
 }
 
 function avatarSource(value) {
+  if (isComponentPreview()) return sceneAvatarSource(value);
   const source = String(value || '').trim();
   if (!source) return '';
   const token = String(window.__API_TOKEN__ || '');

@@ -155,12 +155,15 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
     autoScroll: false,
   });
   const assertClearLayout = () => {
-    const boxes = root.children.map((node) => ({
-      left: Number.parseFloat(node.style.getPropertyValue('left')),
-      top: Number.parseFloat(node.style.getPropertyValue('top')),
-      width: node.offsetWidth,
-      height: node.offsetHeight,
-    }));
+    const boxes = root.children.map((node) => {
+      const zoom = Number.parseFloat(node.style.getPropertyValue('zoom')) || 1;
+      return {
+        left: Number.parseFloat(node.style.getPropertyValue('left')) * zoom,
+        top: Number.parseFloat(node.style.getPropertyValue('top')) * zoom,
+        width: node.offsetWidth * zoom,
+        height: node.offsetHeight * zoom,
+      };
+    });
     for (const [index, box] of boxes.entries()) {
       assert.ok(box.left >= 16 && box.top >= 16);
       assert.ok(box.left + box.width <= root.clientWidth - 16);
@@ -206,10 +209,18 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
     { id: 'oversized', name: '超高', message: '图片加载后超高' },
   ]);
   const fittingNode = root.children[0];
-  root.children.at(-1).offsetHeight = 400;
+  const oversizedNode = root.children.at(-1);
+  oversizedNode.offsetHeight = 400;
   resizeObservers.at(-1).trigger();
-  assert.equal(root.children.length, 1);
-  assert.equal(root.children[0], fittingNode, 'an oversized item must not evict fitting messages');
+  assert.equal(root.children.length, 2);
+  assert.equal(root.children[0], fittingNode, 'a fitted item must not evict messages that still fit');
+  assert.equal(root.children[1], oversizedNode, 'an oversized message must shrink instead of disappearing');
+  assert.ok(Number(oversizedNode.style.getPropertyValue('zoom')) < 1);
+  assertClearLayout();
+  oversizedNode.offsetHeight = 42;
+  resizeObservers.at(-1).trigger();
+  assert.equal(oversizedNode.style.getPropertyValue('zoom'), '', 'natural size returns when the content fits');
+  assertClearLayout();
   collisionFeed.destroy();
 
   const animations = [];

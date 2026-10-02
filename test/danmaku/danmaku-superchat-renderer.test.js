@@ -68,9 +68,12 @@ test('all six SC designs preserve full original plain text and own their optiona
     const named = (value) => nodes.filter((node) => (node.className || '').split(' ').includes(value));
     assert.equal(named('sc-copy')[0].textContent, message, style);
     assert.equal(named('sc-copy')[0].children.length, 0);
-    assert.equal(named('sc-avatar').length, ['ranked', 'identity'].includes(style) ? 1 : 0, style);
-    assert.equal(named('sc-name').length, ['ranked', 'bubble', 'identity'].includes(style) ? 1 : 0, style);
+    assert.equal(named('sc-avatar').length, ['ranked', 'bubble', 'identity'].includes(style) ? 1 : 0, style);
+    assert.equal(named('sc-name').length, 1, style);
+    assert.equal(named('sc-name')[0].textContent, '<b>原名字</b>', style);
     assert.equal(named('sc-money').length, 1, style);
+    assert.equal(named('sc-currency')[0].textContent, '¥', style);
+    assert.equal(named('sc-value')[0].textContent, '2', style);
     assert.equal(root.style['--sc-accent'], '#2A60B2');
     assert.equal(named('draw-danmaku-body').length, 0, 'SC must not reuse chat or gift structure');
     assert.equal(named('draw-danmaku-gift').length, 0);

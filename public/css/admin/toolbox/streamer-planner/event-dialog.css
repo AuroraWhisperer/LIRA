@@ -5,13 +5,13 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow-dialog);
 }
 .planner-event-dialog::backdrop {
-  background: #17202a59;
+  background: var(--color-bg-overlay-light);
 }
 .planner-event-dialog form {
   display: grid;

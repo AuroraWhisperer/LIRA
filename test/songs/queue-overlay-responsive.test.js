@@ -72,6 +72,8 @@ test('queue styles use contain scaling while identity never grows beyond 100%', 
       },
     },
   };
+  panel.ownerDocument.documentElement.style = { getPropertyValue: () => '' };
+  panel.ownerDocument.defaultView.document = panel.ownerDocument;
   assert.equal(sandbox.syncQueuePanelViewport(panel), 384 / 560);
   assert.equal(appliedStyles.get('--queue-panel-scale'), String(384 / 560));
 

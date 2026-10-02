@@ -3,10 +3,12 @@ export function createRemotePreviewController(initial, send) {
   let pending = [];
   let chain = Promise.resolve();
   let stopped = false;
+  let connectionError = '';
   const listeners = new Set();
 
   function getState() {
     const current = structuredClone(state);
+    if (connectionError) current.error = connectionError;
     for (const command of pending) {
       if (command.action === 'edit') { Object.assign(current.draft, command.change); current.dirty = true; }
       if (command.action === 'discard') { current.draft = structuredClone(current.saved); current.dirty = false; }
@@ -28,10 +30,12 @@ export function createRemotePreviewController(initial, send) {
     return chain;
   }
   function disconnect(message) {
+    if (stopped) return;
     stopped = true;
     state = { ...getState(), loaded: false, saving: false, loading: false,
       error: message || '预览连接已结束，请从客户端重新打开。' };
     pending = [];
+    connectionError = '';
     notify();
   }
   async function flush() {
@@ -52,6 +56,11 @@ export function createRemotePreviewController(initial, send) {
     save: () => enqueue('save'),
     discard: () => enqueue('discard'),
     subscribe(listener) { listeners.add(listener); listener(getState()); return () => listeners.delete(listener); },
+    setConnectionError(message) {
+      if (stopped || connectionError === message) return;
+      connectionError = message;
+      notify();
+    },
     receive(update) {
       if (stopped) return;
       state = update.state;
@@ -67,17 +76,77 @@ export function createBrowserPreviewConnection({ id, token, component }) {
   let timer = 0;
   let controller;
   let display;
+  let draftKey;
+  let attachmentId;
   let operation = Promise.resolve();
   let rejectOperation;
+  let commandId = 0;
+  let commands = Promise.resolve();
+  const requests = new AbortController();
   const displayListeners = new Set();
 
-  async function request(command, keepalive = false) {
+  async function requestOnce(command, keepalive = false) {
     const response = await fetch('/api/component-preview', { method: 'POST', credentials: 'omit', cache: 'no-store',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...command, id }), keepalive });
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) throw new Error(payload.error || '预览连接失败，请从客户端重新打开。');
+      body: JSON.stringify({ attachmentId, ...command, id }), keepalive,
+      signal: keepalive ? AbortSignal.timeout(5000) : AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]) });
+    let payload;
+    try { payload = await response.json(); }
+    catch (error) { if (!response.ok) error.status = response.status; throw error; }
+    if (!response.ok || !payload.ok) throw Object.assign(new Error(payload.error || '预览连接失败，请从客户端重新打开。'),
+      { status: response.ok ? 400 : response.status });
     return payload.data;
+  }
+
+  function stop(error) {
+    if (closed) return;
+    closed = true;
+    window.clearTimeout(timer);
+    controller?.disconnect(error.message);
+    requests.abort(error);
+    rejectOperation?.(error);
+    displayListeners.clear();
+  }
+
+  function wait(delay) {
+    if (requests.signal.aborted) return Promise.reject(requests.signal.reason);
+    return new Promise((resolve, reject) => {
+      const cancel = () => { window.clearTimeout(retryTimer); reject(requests.signal.reason); };
+      const retryTimer = window.setTimeout(() => {
+        requests.signal.removeEventListener('abort', cancel);
+        resolve();
+      }, delay);
+      requests.signal.addEventListener('abort', cancel, { once: true });
+    });
+  }
+
+  async function request(command) {
+    let delay = 1000;
+    while (!closed) {
+      try {
+        const result = await requestOnce(command);
+        if (closed) throw requests.signal.reason;
+        controller?.setConnectionError('');
+        return result;
+      } catch (error) {
+        if (closed) throw error;
+        if (error.status && error.status !== 408 && error.status !== 429 && error.status < 500) {
+          stop(error);
+          throw error;
+        }
+        controller?.setConnectionError('连接暂时中断，正在自动重连；未保存修改仍保留在当前场景。');
+        await wait(delay);
+        delay = Math.min(delay * 2, 5000);
+      }
+    }
+    throw requests.signal.reason;
+  }
+
+  function send(command) {
+    // One unconfirmed mutation at a time lets the relay retain a bounded replay receipt.
+    const next = commands.then(() => request({ ...command, commandId: ++commandId }));
+    commands = next.catch(() => {});
+    return next;
   }
 
   async function poll() {
@@ -90,16 +159,15 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       timer = window.setTimeout(poll, 250);
     } catch (error) {
       if (!closed) {
-        controller.disconnect(error.message);
-        rejectOperation?.(error);
+        stop(error);
       }
     }
   }
 
   async function run(action) {
-    if (component !== 'canvas' || !['publish', 'source'].includes(action)) throw new Error('不支持的画布操作。');
+    if (component !== 'canvas' || !['publish', 'source'].includes(action)) throw new Error('不支持的场景操作。');
     await controller.flush();
-    const { sequence } = await request({ action });
+    const { sequence } = await send({ action });
     return new Promise((resolve, reject) => {
       const finish = (error, result) => {
         displayListeners.delete(receive);
@@ -119,6 +187,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
 
   return {
     component,
+    get draftKey() { return draftKey; },
     get controller() { return controller; },
     execute(action) {
       const next = operation.then(() => run(action));
@@ -126,10 +195,19 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       return next;
     },
     async start() {
-      const initial = await request({ action: 'read' });
+      let initial = await request({ action: 'read' });
       if (closed) return;
       if (initial.component !== component) throw new Error('预览链接不匹配，请重新打开。');
-      controller = createRemotePreviewController(initial.state, request);
+      initial = await request({ action: 'attach', attachmentId: crypto.randomUUID(),
+        previousAttachmentId: initial.attachmentId });
+      attachmentId = initial.attachmentId;
+      // Finish accepted commands before restoring the refreshed page's local draft.
+      while (initial.ack < initial.sequence || initial.state.saving || initial.display?.busy) {
+        await wait(200);
+        initial = await request({ action: 'read' });
+      }
+      draftKey = initial.draftKey;
+      controller = createRemotePreviewController(initial.state, send);
       display = initial.display;
       timer = window.setTimeout(poll, 250);
     },
@@ -138,14 +216,11 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       displayListeners.add(emit);
       return () => displayListeners.delete(emit);
     },
+    detach() { stop(new Error('预览页面已离开。')); },
     close() {
       if (closed) return;
-      closed = true;
-      window.clearTimeout(timer);
-      controller?.disconnect();
-      rejectOperation?.(new Error('预览连接已结束。'));
-      displayListeners.clear();
-      void request({ action: 'close' }, true).catch(() => {});
+      stop(new Error('预览连接已结束。'));
+      void requestOnce({ action: 'close' }, true).catch(() => {});
     },
   };
 }

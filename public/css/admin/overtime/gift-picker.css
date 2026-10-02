@@ -3,13 +3,13 @@
   max-height: min(720px, calc(100dvh - 32px));
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
+  border-radius: var(--radius-xl);
+  background: var(--color-floating-surface);
   color: var(--text);
+  box-shadow: var(--shadow-dialog);
 }
 .overtime-gift-picker::backdrop {
-  background: rgba(10, 10, 18, 0.62);
-  backdrop-filter: blur(4px);
+  background: var(--color-bg-overlay-light);
 }
 .overtime-picker-shell {
   display: grid;
@@ -52,13 +52,13 @@
   min-height: 58px;
   padding: 7px 9px;
   border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--surface-2);
+  border-radius: 8px;
+  background: var(--color-bg-tertiary);
   color: var(--text);
   text-align: left;
 }
 .overtime-gift-option:hover {
-  border-color: var(--ot-pink);
+  border-color: var(--color-border-strong);
 }
 .overtime-gift-option span {
   min-width: 0;

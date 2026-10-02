@@ -1,4 +1,4 @@
-const COMPONENT_ORDER = ['danmaku', 'clock', 'queue', 'overtime'];
+import { SCENE_TYPES } from '../shared/scene-components.js';
 const factories = new Map();
 let prepare = () => {};
 
@@ -12,9 +12,10 @@ export async function prepareComponentPreviews() {
 }
 
 export function registerComponentPreview(id, factory) {
+  if (!SCENE_TYPES.includes(id)) throw new Error(`未知组件类型：${id}`);
   factories.set(id, factory);
 }
 
 export function getComponentPreviews() {
-  return COMPONENT_ORDER.filter((id) => factories.has(id)).map((id) => factories.get(id)());
+  return SCENE_TYPES.filter((id) => factories.has(id)).map((id) => factories.get(id)());
 }

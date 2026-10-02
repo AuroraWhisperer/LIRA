@@ -36,7 +36,9 @@ body[data-style='ranked'] .draw-danmaku-avatar {
   border-radius: 50%;
   color: transparent;
   background: var(--danmaku-avatar-art) center / cover no-repeat;
-  box-shadow: 0 3px 8px rgba(12, 18, 30, 0.18);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 55%),
+    0 4px 10px rgb(12 18 30 / 24%);
   clip-path: none;
   font-size: 0;
 }
@@ -64,7 +66,9 @@ body[data-style='ranked'] .draw-danmaku-identity {
   border-radius: 999px 999px 999px 0;
   color: #fff;
   background: color-mix(in srgb, var(--ranked-accent) 55%, black);
-  box-shadow: 0 2px 5px rgba(12, 18, 30, 0.16);
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 14%),
+    0 2px 5px rgb(12 18 30 / 18%);
 }
 body[data-style='ranked']
   .draw-danmaku-item:not([data-streamer='true']):is(
@@ -109,20 +113,20 @@ body[data-style='ranked'] .draw-danmaku-guard,
 body[data-style='ranked'] .draw-danmaku-medal-name {
   display: none;
 }
+/* 粉丝牌等级：白底实心小牌，深色数字在任何身份色上都清楚。 */
 body[data-style='ranked'] .draw-danmaku-medal {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
+  min-width: 22px;
+  justify-content: center;
   margin-left: auto;
-  padding: 1px 5px;
-  border: 1px solid rgba(255, 255, 255, 0.56);
+  padding: 2px 6px;
+  border: 0;
   border-radius: 999px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
-  font:
-    700 12px/1.2 'Microsoft YaHei UI',
-    'Microsoft YaHei',
-    sans-serif;
+  color: #1f2a3a;
+  background: rgb(255 255 255 / 92%);
+  font: 700 12px/1 var(--danmaku-num-font);
 }
 body[data-style='ranked'] .draw-danmaku-medal-level {
   font-size: 1em;
@@ -139,6 +143,9 @@ body[data-style='ranked'] .draw-danmaku-body p {
   font-weight: 600;
   line-height: 1.28;
   background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)), var(--ranked-accent);
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 16%),
+    0 4px 12px rgb(10 14 24 / 22%);
   overflow-wrap: anywhere;
   word-break: break-word;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.34);
@@ -180,17 +187,23 @@ body[data-style='ranked'] .draw-danmaku-empty {
   }
 }
 
-/* 礼物票券：紫金飘带与斜放礼章。 */
+/* 礼物票券：紫金飘带与斜放礼章，票根与票面之间一条白色接缝。 */
 body[data-style='ranked'] .draw-danmaku-item.is-gift {
   --danmaku-gift-art: url('/img/overlays/danmaku-gifts/ranked.svg');
-  --gift-ink: #5a3569;
-  --gift-accent: #963a89;
+  --gift-ink: #4e2d5c;
+  --gift-name: #7a4c8c;
+  --gift-action: #9b3d8d;
+  --gift-accent: #8e2f86;
   --gift-surface: #f8eaff;
+  --gift-sheen: rgb(255 255 255 / 65%);
   grid-template-areas: 'content';
   grid-template-columns: minmax(0, 1fr);
-  padding: 12px 22px 12px 82px;
+  padding: 12px 24px 12px 84px;
   border-radius: 0;
-  background: linear-gradient(110deg, #dfb8ed 0 66px, #f8eaff 66px);
+  background:
+    linear-gradient(110deg, transparent 65px, rgb(255 255 255 / 85%) 65px 67px, transparent 67px),
+    linear-gradient(110deg, #e6bdf3 0, #d29be6 66px, #fcf3ff 66px, #f3e1fb);
+  box-shadow: none;
   clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%, 12px 50%);
 }
 body[data-style='ranked'] .is-gift .draw-danmaku-avatar {
@@ -216,9 +229,18 @@ body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item:not(
     color-mix(in srgb, var(--ranked-accent) var(--danmaku-background-weight), transparent);
 }
 body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item.is-gift {
-  background: linear-gradient(
-    110deg,
-    color-mix(in srgb, #dfb8ed var(--danmaku-background-weight), transparent) 0 66px,
-    color-mix(in srgb, #f8eaff var(--danmaku-background-weight), transparent) 66px
-  );
+  background:
+    linear-gradient(
+      110deg,
+      transparent 65px,
+      rgb(255 255 255 / calc(0.85 * var(--danmaku-background-opacity))) 65px 67px,
+      transparent 67px
+    ),
+    linear-gradient(
+      110deg,
+      rgb(230 189 243 / var(--danmaku-background-opacity)) 0,
+      rgb(210 155 230 / var(--danmaku-background-opacity)) 66px,
+      rgb(252 243 255 / var(--danmaku-background-opacity)) 66px,
+      rgb(243 225 251 / var(--danmaku-background-opacity))
+    );
 }

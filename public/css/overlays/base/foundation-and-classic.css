@@ -1,6 +1,6 @@
 .overlay-body {
-  --overlay-edge: clamp(0px, 2vmin, 16px);
-  min-height: 100vh;
+  --overlay-edge: var(--component-edge, clamp(0px, 2vmin, 16px));
+  min-height: var(--component-height, 100vh);
   overflow: hidden;
   background: transparent;
   color: var(--overlay-text, var(--color-text-light));
@@ -9,7 +9,7 @@
 }
 
 .overlay-panel {
-  width: min(540px, calc(100vw - (2 * var(--overlay-edge))));
+  width: min(540px, calc(var(--component-width, 100vw) - (2 * var(--overlay-edge))));
   margin: var(--overlay-edge);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--overlay-radius, 8px);

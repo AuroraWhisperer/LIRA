@@ -16,14 +16,15 @@
   min-width: 0;
   min-height: 40px;
   padding: 0 10px;
-  border: 1px solid var(--usage-guide-accent-border);
-  border-radius: var(--radius-md);
-  background: var(--usage-guide-fill);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
   color: var(--muted);
 }
 
 .usage-guide-search:focus-within {
-  outline: 2px solid var(--usage-guide-accent);
+  border-color: var(--primary);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 
@@ -76,7 +77,7 @@
 }
 
 .usage-guide-search-clear:hover {
-  background: var(--usage-guide-accent-soft);
+  background: var(--surface-2);
   color: var(--text);
 }
 
@@ -183,6 +184,6 @@
 .usage-guide-search-clear:focus-visible,
 .usage-guide-search-result:focus-visible,
 .usage-guide-search-target:focus-visible {
-  outline: 2px solid var(--usage-guide-accent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }

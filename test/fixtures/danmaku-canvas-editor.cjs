@@ -16,7 +16,7 @@ async function run() {
   const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
   const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
   const { DatabaseSync } = require('node:sqlite');
-  const { migrateScenes } = require('../../src/storage/scene-migration');
+  const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
   const { createSceneStore } = require('../../src/storage/scene-store');
   const { createSceneService } = require('../../src/scenes/scene-service');
   const { createSceneComponentPorts } = require('../../src/server/scene-components');
@@ -33,6 +33,7 @@ async function run() {
     overlayUrl: 'https://canvas.example.test/overlay/syntheticKey_123' };
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
+  migrateComponentOutputSizes(db);
   const scenes = createSceneService({ store: createSceneStore(db), getOwner: () => ({ scope: 'canvas-test', epoch: 1 }),
     secretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() },
@@ -41,7 +42,7 @@ async function run() {
       return { style, fullscreenDurationSeconds, styleOptions, layout };
     } } }) });
   global.canvasTest = { writes: [], attempts: 0, requests: [], externalUrls: [], failNext: false,
-    saved: () => saved, scene: () => scenes.list()[0] };
+    saved: () => saved, scene: () => scenes.list()[0], componentSize: () => scenes.getComponentSize('danmaku') };
   const server = createHttpServer({
     host: '127.0.0.1', startPort: 0, dataDir: directory, getPhase: () => 'ready',
     getStartedPort: () => server.address().port, isLicenseAuthorized: () => true,

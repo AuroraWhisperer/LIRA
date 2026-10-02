@@ -58,7 +58,6 @@ export function createPlaybackActionAdapters({
     loadPlaybackPlaylistTracks: (index) => homeHandler.loadPlaybackPlaylistTracks(index),
     refreshPlaybackHomeContent: () => homeHandler.refreshPlaybackHomeContent(),
     handlePlaybackHomeBulkAction: (action) => homeHandler.handlePlaybackHomeBulkAction(action, queueCallbacks),
-    handlePlaybackDrawerHeaderPlayAll: () => homeHandler.handlePlaybackDrawerHeaderPlayAll(queueCallbacks),
     handlePlaybackHomeTrackAction: (action, index) =>
       homeHandler.handlePlaybackHomeTrackAction(action, index, homeTrackCallbacks),
     handlePlaybackSearchAction: (action, index) =>

@@ -40,6 +40,20 @@ test('lost browser connections preserve visible drafts and disable subsequent op
   assert.equal(sent, 1);
 });
 
+test('temporary transport errors retain drafts and clear without hiding controller errors', async () => {
+  const { createRemotePreviewController } = await loadModuleExports(entry, { structuredClone });
+  const controller = createRemotePreviewController(state(), async () => ({ sequence: 1 }));
+  await controller.edit({ label: 'unsaved' });
+  controller.setConnectionError('正在自动重连');
+  controller.receive({ state: state(), ack: 0 });
+  assert.equal(controller.getState().draft.label, 'unsaved');
+  assert.equal(controller.getState().loaded, true);
+  assert.equal(controller.getState().error, '正在自动重连');
+  controller.receive({ state: { ...state('unsaved'), error: '保存失败' }, ack: 1 });
+  controller.setConnectionError('');
+  assert.equal(controller.getState().error, '保存失败');
+});
+
 test('flush waits for desktop acknowledgement and rejects a disconnected pending edit', async () => {
   const { createRemotePreviewController } = await loadModuleExports(entry, { structuredClone });
   const controller = createRemotePreviewController(state(), async () => ({ sequence: 1 }));

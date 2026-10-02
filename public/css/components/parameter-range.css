@@ -1,8 +1,8 @@
 /* 参数调节滑块：只对显式标记为 parameter-range 的控件生效。 */
 :root {
-  --parameter-range-accent: #34766a;
-  --parameter-range-accent-hover: #285d54;
-  --parameter-range-track: #9a8e7c;
+  --parameter-range-accent: var(--color-control-accent);
+  --parameter-range-accent-hover: color-mix(in srgb, var(--color-control-accent) 82%, #000);
+  --parameter-range-track: var(--color-border-strong, #cbc8c1);
 }
 
 input.parameter-range[type='range'] {
@@ -51,9 +51,9 @@ input.parameter-range[type='range']::-webkit-slider-thumb {
   appearance: none;
   -webkit-appearance: none;
   background: var(--parameter-range-accent);
-  border: 2px solid var(--surface, #fffcf8);
+  border: 2px solid var(--surface, #ffffff);
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(36, 26, 22, 0.18);
+  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.22);
   transition: background-color 120ms ease;
 }
 
@@ -62,9 +62,9 @@ input.parameter-range[type='range']::-moz-range-thumb {
   width: var(--parameter-range-thumb-size);
   height: var(--parameter-range-thumb-size);
   background: var(--parameter-range-accent);
-  border: 2px solid var(--surface, #fffcf8);
+  border: 2px solid var(--surface, #ffffff);
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(36, 26, 22, 0.18);
+  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.22);
   transition: background-color 120ms ease;
 }
 
@@ -88,15 +88,15 @@ input.parameter-range--centered[type='range'] {
   background:
     linear-gradient(var(--parameter-range-accent), var(--parameter-range-accent)) var(--parameter-range-origin-start)
       center / var(--parameter-range-origin-length) var(--parameter-range-track-height) no-repeat,
-    linear-gradient(var(--muted, #75665b), var(--muted, #75665b)) calc(var(--parameter-range-zero-position) - 1px)
+    linear-gradient(var(--muted, #66625c), var(--muted, #66625c)) calc(var(--parameter-range-zero-position) - 1px)
       center / 2px 10px no-repeat,
     linear-gradient(var(--parameter-range-track), var(--parameter-range-track)) var(--parameter-range-track-inset)
       center / var(--parameter-range-track-length) var(--parameter-range-track-height) no-repeat;
 }
 
 input.parameter-range[type='range']:disabled {
-  --parameter-range-accent: #a69b8b;
-  --parameter-range-track: #d8cfc2;
+  --parameter-range-accent: var(--color-text-muted, #9a958e);
+  --parameter-range-track: var(--color-border-default, #e1dfda);
   cursor: not-allowed;
   opacity: 0.68;
 }

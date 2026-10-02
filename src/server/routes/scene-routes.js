@@ -2,10 +2,10 @@
 
 const { sendJson } = require('../http-utils');
 
-function reply(res, action) {
+async function reply(res, action) {
   res.setHeader('Cache-Control', 'no-store');
   try {
-    return sendJson(res, 200, { ok: true, data: action() });
+    return sendJson(res, 200, { ok: true, data: await action() });
   } catch (error) {
     const status = [400, 401, 403, 404, 409, 503].includes(error.statusCode) ? error.statusCode : 500;
     return sendJson(res, status, { ok: false, code: error.code || 'SCENE_UNAVAILABLE',
@@ -13,8 +13,10 @@ function reply(res, action) {
   }
 }
 
-const prefixes = ['/api/scenes/'];
+const readComponentSize = (context, type, res) => reply(res, () => context.scenes.getComponentSize(type));
+const prefixes = ['/api/scenes/', '/api/component/'];
 const routes = {
+  'GET /api/component/size': (context, request, res) => readComponentSize(context, request.query.get('type'), res),
   async 'POST /api/scenes/validate'(context, request, res) {
     const body = await request.body();
     return reply(res, () => context.scenes.validate(body));
@@ -58,10 +60,12 @@ function handleSceneOutput(context, req, res, requestUrl) {
   const authorization = req.headers.authorization;
   const token = typeof authorization === 'string' && authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
   return reply(res, () => context.scenes.getOutput({ id: requestUrl.searchParams.get('id'), token,
+    item: requestUrl.searchParams.get('item'),
+    projection: requestUrl.searchParams.get('projection'),
     version: Number(requestUrl.searchParams.get('version')), epoch: requestUrl.searchParams.get('epoch'),
     cursor: requestUrl.searchParams.get('cursor') }));
 }
 
 const publicRoutes = { 'GET /api/scene/output': handleSceneOutput, 'OPTIONS /api/scene/output': handleSceneOutput };
 
-module.exports = { prefixes, routes, publicRoutes, handleSceneOutput };
+module.exports = { prefixes, routes, publicRoutes, handleSceneOutput, readComponentSize };

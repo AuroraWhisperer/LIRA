@@ -4,6 +4,7 @@ import { formatClockDisplay, formatClockSeconds } from '../shared/overtime-time-
 import { createOverlaySocket } from './socket-client.js';
 import { setGiftImage } from '../shared/gift-image-fallback.js';
 import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
+import { watchComponentOutputSize } from './component-output-size.js';
 
 const MAX_ANIMATION_QUEUE = 5;
 const quality = new URLSearchParams(location.search).get('quality') || '';
@@ -15,6 +16,7 @@ let connectionGeneration = 0;
 let anchorRemainingMs = 0;
 let localAnchorMs = performance.now();
 let socketController = null;
+let stopOutputSize = null;
 let clockTimer = null;
 let lastClockValue = '';
 let animationActive = false;
@@ -51,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     contentObserver.observe(foreground);
     contentObserver.observe(machine);
   } else {
+    stopOutputSize = watchComponentOutputSize('overtime', (size) => byId('overtimeMachine').classList.toggle('is-content-sized', Boolean(size)));
     loadSnapshot();
     connectSocket();
   }
@@ -101,6 +104,7 @@ function connectSocket() {
 }
 
 function disposeSocket() {
+  stopOutputSize?.();
   connectionGeneration += 1;
   contentObserver?.disconnect();
   contentObserver = null;

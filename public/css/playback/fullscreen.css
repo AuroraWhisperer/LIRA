@@ -34,7 +34,7 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: rgba(22, 31, 43, 0.85);
+  color: rgba(24, 24, 22, 0.85);
   cursor: pointer;
   padding: 0;
   transition: all 200ms ease;
@@ -42,20 +42,14 @@
 }
 
 .player-fs-close-btn:hover {
-  background: rgba(22, 31, 43, 0.08);
+  background: rgba(24, 24, 22, 0.08);
   color: var(--text);
-  transform: scale(1.06);
-}
-
-.player-fs-close-btn:active {
-  transform: scale(0.94);
 }
 
 .player-fs-close-btn svg {
   width: 28px;
   height: 28px;
   stroke-width: 2.8;
-  filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.9));
 }
 
 /* 主内容区 */
@@ -141,7 +135,7 @@
 }
 
 .player-fs-lyrics.is-manual-browsing::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb, #8c8279);
+  background-color: var(--scrollbar-thumb, #8c8984);
 }
 
 .player-fs-follow-btn {
@@ -173,7 +167,7 @@
 }
 
 .player-fs-lyric-line:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(24, 24, 22, 0.04);
   border-radius: 8px;
   padding-left: 8px;
   padding-right: 8px;
@@ -189,7 +183,7 @@
   place-items: center;
   border: none;
   border-radius: 50%;
-  background: rgba(217, 75, 112, 0.12);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
   color: var(--primary);
   cursor: pointer;
   opacity: 0;
@@ -206,8 +200,7 @@
 
 .lyric-seek-btn:hover {
   background: var(--primary);
-  color: #fff;
-  transform: scale(1.1);
+  color: var(--color-text-white);
 }
 
 .lyric-seek-btn:active {
@@ -230,20 +223,19 @@
   font-size: 32px;
   font-weight: 700;
   line-height: 1.4;
-  color: rgba(22, 31, 43, 0.35);
+  color: rgba(24, 24, 22, 0.35);
   transition: all 300ms ease;
 }
 
 .player-fs-lyric-line.active .lyric-text {
   font-size: 36px;
   color: var(--text);
-  text-shadow: 0 2px 12px rgba(217, 75, 112, 0.15);
 }
 
 .player-fs-lyric-line.active .lyric-seek-btn {
   opacity: 1;
   background: var(--primary);
-  color: #fff;
+  color: var(--color-text-white);
 }
 
 .lyric-trans {
@@ -252,7 +244,7 @@
   font-size: 18px;
   font-weight: 500;
   line-height: 1.5;
-  color: rgba(22, 31, 43, 0.28);
+  color: rgba(24, 24, 22, 0.28);
   transition: all 300ms ease;
 }
 
@@ -288,10 +280,10 @@
   width: 36px;
   height: 36px;
   padding: 0;
-  border: 1.5px solid rgba(22, 31, 43, 0.12);
-  border-radius: 8px;
+  border: 1.5px solid rgba(24, 24, 22, 0.12);
+  border-radius: var(--radius-control);
   background: rgba(255, 255, 255, 0.78);
-  color: rgba(22, 31, 43, 0.45);
+  color: rgba(24, 24, 22, 0.45);
   cursor: pointer;
   transition: all 200ms ease;
   backdrop-filter: blur(8px);
@@ -305,39 +297,33 @@
 .fs-lyric-toggle-btn:hover {
   background: rgba(255, 255, 255, 0.92);
   color: var(--text);
-  border-color: rgba(217, 75, 112, 0.45);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(22, 31, 43, 0.08);
+  border-color: var(--color-border-strong);
 }
 
 /* 翻译模式激活 */
 .fs-lyric-toggle-btn.mode-trans {
-  background: linear-gradient(135deg, var(--primary), #e8406e);
+  background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
-  box-shadow: 0 3px 12px rgba(217, 75, 112, 0.35);
+  color: var(--color-text-white);
 }
 
 .fs-lyric-toggle-btn.mode-trans:hover {
-  background: linear-gradient(135deg, var(--primary-strong), var(--primary));
+  background: var(--primary-strong);
   border-color: var(--primary-strong);
-  color: #fff;
-  box-shadow: 0 4px 16px rgba(217, 75, 112, 0.45);
+  color: var(--color-text-white);
 }
 
 /* 罗马音模式激活 */
 .fs-lyric-toggle-btn.mode-roma {
-  background: linear-gradient(135deg, #6c5ce7, #a855f7);
-  border-color: #6c5ce7;
-  color: #fff;
-  box-shadow: 0 3px 12px rgba(108, 92, 231, 0.35);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--color-text-white);
 }
 
 .fs-lyric-toggle-btn.mode-roma:hover {
-  background: linear-gradient(135deg, #5b4cdb, #9333ea);
-  border-color: #5b4cdb;
-  color: #fff;
-  box-shadow: 0 4px 16px rgba(108, 92, 231, 0.45);
+  background: var(--primary-strong);
+  border-color: var(--primary-strong);
+  color: var(--color-text-white);
 }
 
 .fs-lyric-toggle-btn:active {
@@ -348,14 +334,12 @@
 
 /* 正在播放行 */
 .playback-queue-row.playlist-current {
-  background: linear-gradient(135deg, #fff3ee 0%, #fff8f5 100%) !important;
-  box-shadow:
-    0 2px 12px rgba(217, 75, 112, 0.14),
-    0 0 0 1.5px rgba(217, 75, 112, 0.32) !important;
+  background: var(--color-primary-light) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent) !important;
 }
 
 .playback-queue-row.playlist-current:hover {
-  background: linear-gradient(135deg, #fff0ea 0%, #fff6f2 100%) !important;
+  background: var(--color-primary-light) !important;
 }
 
 /* 已播放行 */
@@ -370,7 +354,7 @@
 /* 正在播放小图标 */
 .playlist-now-icon {
   font-size: var(--type-size-micro);
-  color: var(--primary, #d94b70);
+  color: var(--primary);
   vertical-align: middle;
   line-height: 1;
 }

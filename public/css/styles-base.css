@@ -29,6 +29,12 @@
   --color-danger-medium: #e74c3c;
   --color-info: #4f8df7;
 
+  /* Gift profit and loss share one rule everywhere: gain is green, loss is red. */
+  --color-profit: var(--color-success-dark);
+  --color-profit-soft: var(--color-success-light);
+  --color-loss: var(--color-danger);
+  --color-loss-soft: var(--color-danger-light);
+
   /* ===== 中性色/文本颜色 ===== */
   --color-text-primary: #17202a;
   --color-text-secondary: #647181;
@@ -51,6 +57,7 @@
   --color-border-accent: rgba(33, 182, 168, 0.35);
   --color-border-primary: rgba(255, 111, 145, 0.35);
   --color-border-focus: #21b6a8;
+  --color-border-strong: #b9c3ce;
 
   /* ===== 阴影 ===== */
   --shadow-sm: 0 4px 18px rgba(22, 31, 43, 0.06);
@@ -71,6 +78,7 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  --radius-control: 7px;
 
   /* ===== 暗色主题变量（用于 overlays 等暗色界面）===== */
   --dark-bg-primary: #181823;
@@ -172,7 +180,7 @@ select {
   appearance: none;
   padding-right: 34px;
   background-color: var(--color-bg-primary);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23647181' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%2377736d' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-position: right 10px center;
   background-repeat: no-repeat;
   background-size: 16px;
@@ -184,7 +192,7 @@ select {
 }
 
 select:hover:not(:disabled) {
-  border-color: var(--color-control-accent);
+  border-color: var(--color-border-strong);
   background-color: var(--color-bg-tertiary);
 }
 
@@ -202,14 +210,14 @@ select:disabled {
 button {
   min-height: 36px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
 }
 
 button:hover {
-  border-color: var(--accent);
+  border-color: var(--color-border-strong);
 }
 
 button.primary {
@@ -241,8 +249,8 @@ button.secondary {
 }
 
 button.secondary:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
 }
 
 button.ghost {
@@ -266,10 +274,28 @@ textarea {
   width: 100%;
   min-height: 36px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   background: var(--color-bg-primary);
   color: var(--text);
   padding: 7px 10px;
+}
+
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']), textarea):hover:not(
+    :disabled,
+    :focus
+  ) {
+  border-color: var(--color-border-strong);
+}
+
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']), textarea):focus-visible {
+  border-color: var(--color-border-focus);
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 0;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--primary);
 }
 
 textarea {

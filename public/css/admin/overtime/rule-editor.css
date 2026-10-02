@@ -28,13 +28,11 @@
 .overtime-add-gift-action {
   border-color: var(--ot-action-add);
   background: var(--ot-action-add);
-  color: #fff;
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--ot-action-add) 18%, transparent);
+  color: var(--color-text-white);
 }
 .overtime-add-gift-action:hover {
-  border-color: color-mix(in srgb, var(--ot-action-add) 86%, #000);
-  background: color-mix(in srgb, var(--ot-action-add) 86%, #000);
-  box-shadow: 0 5px 14px color-mix(in srgb, var(--ot-action-add) 24%, transparent);
+  border-color: var(--primary-strong);
+  background: var(--primary-strong);
 }
 .overtime-save-rules-action:disabled {
   border-color: var(--border);
@@ -45,13 +43,11 @@
 .overtime-save-rules-action.is-dirty {
   border-color: var(--ot-action-save);
   background: var(--ot-action-save);
-  color: #fff;
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--ot-action-save) 18%, transparent);
+  color: var(--color-text-white);
 }
 .overtime-save-rules-action.is-dirty:hover {
-  border-color: color-mix(in srgb, var(--ot-action-save) 86%, #000);
-  background: color-mix(in srgb, var(--ot-action-save) 86%, #000);
-  box-shadow: 0 5px 14px color-mix(in srgb, var(--ot-action-save) 24%, transparent);
+  border-color: var(--primary-strong);
+  background: var(--primary-strong);
 }
 
 .overtime-rule-list,
@@ -66,8 +62,9 @@
 .overtime-rule-empty,
 .overtime-settlement-empty {
   padding: 20px;
-  border: 1px dashed var(--border);
-  border-radius: 9px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 8px;
+  background: var(--color-bg-tertiary);
   color: var(--muted);
   text-align: center;
 }
@@ -77,9 +74,9 @@
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 4px 14px rgba(24, 24, 35, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 .overtime-rule-header,
 .overtime-rule-gift,
@@ -96,7 +93,7 @@
   gap: 12px;
   min-height: 62px;
   padding: 9px 12px;
-  background: linear-gradient(110deg, color-mix(in srgb, var(--surface-2) 86%, #fff), var(--surface));
+  background: var(--color-bg-tertiary);
 }
 .overtime-rule-gift {
   min-width: 0;
@@ -112,8 +109,8 @@
   width: 42px;
   height: 42px;
   padding: 3px;
-  border: 1px solid color-mix(in srgb, var(--border) 70%, var(--ot-pink));
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   background: var(--surface);
 }
 .overtime-rule-identity {
@@ -138,8 +135,8 @@
   overflow-wrap: anywhere;
 }
 .overtime-rule-summary {
-  color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important;
-  font-weight: 700;
+  color: var(--text) !important;
+  font-weight: 600;
 }
 .overtime-rule-buttons {
   flex-wrap: wrap;
@@ -161,9 +158,7 @@
   color: var(--muted);
 }
 .overtime-rule-toggle {
-  border-color: color-mix(in srgb, var(--ot-teal) 54%, var(--border)) !important;
-  color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important;
-  font-weight: 700;
+  font-weight: 600;
 }
 .overtime-rule-enabled {
   display: inline-flex !important;
@@ -200,20 +195,20 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(24, 24, 35, 0.25);
+  background: var(--color-bg-primary);
+  box-shadow: 0 1px 4px rgba(24, 24, 22, 0.25);
   content: '';
   transition: transform 160ms ease;
 }
 .overtime-rule-enabled input:checked + span {
-  border-color: var(--ot-teal);
-  background: var(--ot-teal);
+  border-color: var(--ot-accent);
+  background: var(--ot-accent);
 }
 .overtime-rule-enabled input:checked + span::after {
   transform: translateX(14px);
 }
 .overtime-rule-enabled:has(input:focus-visible) > span {
-  outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 
@@ -274,7 +269,7 @@
   min-height: 36px;
   padding: 7px 9px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: 8px;
   background: var(--surface-2);
   color: var(--text) !important;
   cursor: pointer;
@@ -282,7 +277,7 @@
 .overtime-mode-option input {
   flex: 0 0 auto;
   width: auto !important;
-  accent-color: var(--ot-pink);
+  accent-color: var(--primary);
 }
 .overtime-mode-option > span {
   display: grid;
@@ -292,29 +287,26 @@
   font-size: var(--type-size-control);
 }
 .overtime-mode-option:has(input:checked) {
-  border-color: var(--ot-pink);
-  background: color-mix(in srgb, var(--ot-pink) 9%, var(--surface));
-  box-shadow: inset 3px 0 0 var(--ot-pink);
+  border-color: var(--primary);
+  background: var(--color-primary-light);
 }
 .overtime-mode-option.is-random:has(input:checked) {
-  border-color: var(--ot-gold);
-  background: color-mix(in srgb, var(--ot-gold) 12%, var(--surface));
-  box-shadow: inset 3px 0 0 var(--ot-gold);
+  border-color: var(--primary);
+  background: var(--color-primary-light);
 }
 .overtime-mode-option.is-random input {
-  accent-color: var(--ot-gold);
+  accent-color: var(--primary);
 }
 .overtime-mode-option.is-display:has(input:checked) {
-  border-color: var(--ot-pink);
-  background: color-mix(in srgb, var(--ot-pink) 12%, var(--surface));
-  box-shadow: inset 3px 0 0 var(--ot-pink);
+  border-color: var(--primary);
+  background: var(--color-primary-light);
 }
 .overtime-mode-option.is-display input {
-  accent-color: var(--ot-pink);
+  accent-color: var(--primary);
 }
 .overtime-mode-option:has(input:focus-visible),
 .overtime-operation-option:has(input:focus-visible) {
-  outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
 
@@ -325,10 +317,10 @@
   display: none !important;
 }
 .overtime-rule-effect.is-random {
-  background: color-mix(in srgb, var(--ot-gold) 3%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 3%, var(--surface));
 }
 .overtime-rule-effect.is-display {
-  background: color-mix(in srgb, var(--ot-pink) 3%, var(--surface));
+  background: color-mix(in srgb, var(--primary) 3%, var(--surface));
 }
 .overtime-display-input {
   max-width: 360px;
@@ -362,7 +354,7 @@
   min-height: 34px;
   padding: 5px 8px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--text) !important;
   cursor: pointer;
@@ -384,34 +376,34 @@
   white-space: nowrap;
 }
 .overtime-operation-option.is-add:has(input:checked) {
-  border-color: var(--ot-teal);
-  background: color-mix(in srgb, var(--ot-teal) 13%, var(--surface));
-  color: color-mix(in srgb, var(--ot-teal) 72%, var(--text)) !important;
-  box-shadow: inset 0 0 0 1px var(--ot-teal);
+  border-color: var(--color-success);
+  background: var(--color-success-light);
+  color: var(--color-success-dark) !important;
+  box-shadow: inset 0 0 0 1px var(--color-success);
 }
 .overtime-operation-option.is-subtract:has(input:checked) {
   border-color: var(--ot-coral);
-  background: color-mix(in srgb, var(--ot-coral) 12%, var(--surface));
-  color: color-mix(in srgb, var(--ot-coral) 76%, var(--text)) !important;
+  background: var(--color-danger-light);
+  color: var(--danger) !important;
   box-shadow: inset 0 0 0 1px var(--ot-coral);
 }
 .overtime-operation-option.is-multiply:has(input:checked) {
-  border-color: var(--ot-gold);
-  background: color-mix(in srgb, var(--ot-gold) 14%, var(--surface));
-  color: color-mix(in srgb, var(--ot-gold) 76%, var(--text)) !important;
-  box-shadow: inset 0 0 0 1px var(--ot-gold);
+  border-color: var(--primary);
+  background: var(--color-primary-light);
+  color: var(--primary-strong) !important;
+  box-shadow: inset 0 0 0 1px var(--primary);
 }
 .overtime-operation-option.is-divide:has(input:checked) {
-  border-color: var(--ot-pink);
-  background: color-mix(in srgb, var(--ot-pink) 12%, var(--surface));
-  color: color-mix(in srgb, var(--ot-pink) 78%, var(--text)) !important;
-  box-shadow: inset 0 0 0 1px var(--ot-pink);
+  border-color: var(--primary);
+  background: var(--color-primary-light);
+  color: var(--primary-strong) !important;
+  box-shadow: inset 0 0 0 1px var(--primary);
 }
 .overtime-operation-option.is-clear:has(input:checked) {
-  border-color: var(--muted);
-  background: color-mix(in srgb, var(--ot-night) 88%, var(--surface));
-  color: #fff7fb !important;
-  box-shadow: inset 0 0 0 1px var(--muted);
+  border-color: var(--color-border-strong);
+  background: var(--surface-2);
+  color: var(--text) !important;
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
 }
 .overtime-duration-control {
   display: inline-flex;
@@ -455,18 +447,17 @@
 }
 .overtime-clear-hint {
   padding: 10px 12px;
-  border-left: 3px solid var(--ot-night);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--ot-night) 7%, var(--surface));
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-tertiary);
   font-size: var(--type-size-caption);
 }
 
 .overtime-random-hint {
   margin: 0 !important;
   padding: 8px 10px;
-  border-left: 3px solid var(--ot-gold);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--ot-gold) 13%, var(--surface));
+  border-radius: var(--radius-md);
+  background: var(--color-primary-light);
   color: var(--text) !important;
 }
 .overtime-outcome-list {
@@ -479,9 +470,8 @@
   min-width: 0;
   gap: 9px;
   padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--ot-gold));
-  border-top: 3px solid var(--ot-gold);
-  border-radius: 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   background: var(--surface-2);
 }
 .overtime-outcome-card > header {
@@ -494,8 +484,8 @@
 .overtime-outcome-probability {
   padding: 4px 8px;
   border-radius: 999px;
-  background: var(--ot-night);
-  color: #fff7fb;
+  background: var(--color-primary-light);
+  color: var(--primary-strong);
   font-family: Bahnschrift, sans-serif;
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-bold);
@@ -542,6 +532,5 @@
   font-size: var(--type-size-caption);
 }
 .overtime-add-outcome {
-  border-color: color-mix(in srgb, var(--ot-gold) 62%, var(--border));
   font-weight: 700;
 }

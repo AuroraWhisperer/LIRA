@@ -5,7 +5,8 @@
   font-size: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-dialog);
   padding: 24px;
   max-height: 88vh;
   overflow: auto;
@@ -69,7 +70,7 @@
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  accent-color: var(--accent);
+  accent-color: var(--primary);
 }
 .fan-editor-footer {
   margin-top: 24px;
@@ -146,7 +147,7 @@
 }
 .fan-profile-tabs [aria-selected='true'] {
   color: var(--text);
-  box-shadow: inset 0 -2px var(--accent);
+  box-shadow: inset 0 -2px var(--primary);
   font-weight: var(--type-weight-semibold);
 }
 .fan-profile-editor .fan-profile-panel {

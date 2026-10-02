@@ -69,6 +69,20 @@ test('model owns immutable document snapshots and isolated subscription values',
   assert.equal(model.getDocument().title, '修改');
 });
 
+test('resizing a shared component updates its references and undo, but preserves independent instances', async () => {
+  const [{ createSceneDocumentModel }] = await modules;
+  const document = fixture();
+  const shared = { ...document.items[0], id: randomUUID(), x: 650 };
+  const independent = { ...document.items[0], id: randomUUID(), appearance: { mode: 'independent', config: {} } };
+  document.items.push(shared, independent);
+  const model = createSceneDocumentModel(document);
+  model.edit((draft) => { draft.items[0].width = 400; draft.items[0].height = 200; });
+  assert.deepEqual(plain(model.getDocument().items[3]), { ...shared, x: 400, width: 400, height: 200 });
+  assert.deepEqual(plain(model.getDocument().items[4]), independent);
+  model.undo();
+  assert.deepEqual(plain(model.getDocument()), document);
+});
+
 test('automatic content sizing does not consume the previous user edit undo entry', async () => {
   const [{ createSceneDocumentModel }] = await modules;
   const document = fixture();
@@ -102,6 +116,36 @@ test('one pointer gesture has one undo entry and updates use the starting snapsh
   assert.equal(model.undo(), false);
   model.redo();
   assert.equal(model.getDocument().items[0].x, 72);
+});
+
+test('resizing anchors the opposite edges, clamps to the canvas and respects locked and automatic-height layers', async () => {
+  const [{ resizeSceneItem }] = await modules;
+  const document = fixture();
+  const item = document.items[0];
+  const geometry = ({ x, y, width, height }) => ({ x, y, width, height });
+  const expected = {
+    n: [40, 64, 100, 44], e: [40, 48, 124, 60], s: [40, 48, 100, 76], w: [64, 48, 76, 60],
+    ne: [40, 64, 124, 44], se: [40, 48, 124, 76], sw: [64, 48, 76, 76], nw: [64, 64, 76, 44],
+  };
+  for (const [handle, [x, y, width, height]] of Object.entries(expected)) {
+    assert.deepEqual(geometry(resizeSceneItem(document, item.id, handle, 24, 16).items[0]), { x, y, width, height });
+  }
+  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'nw', -1000, -1000).items[0]),
+    { x: 0, y: 0, width: 140, height: 108 });
+  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'nw', 1000, 1000).items[0]),
+    { x: 108, y: 76, width: 32, height: 32 });
+  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'se', 1000, 1000).items[0]),
+    { x: 40, y: 48, width: 760, height: 552 });
+  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'se', -1000, -1000).items[0]),
+    { x: 40, y: 48, width: 32, height: 32 });
+  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'se', 9, 9, { snap: true }).items[0]),
+    { x: 40, y: 48, width: 112, height: 72 });
+  const overtime = document.items[2];
+  assert.deepEqual(plain(resizeSceneItem(document, overtime.id, 'se', 24, 16)), document);
+  overtime.locked = false;
+  assert.deepEqual(geometry(resizeSceneItem(document, overtime.id, 'nw', -24, -16).items[2]),
+    { x: 576, y: 400, width: 184, height: 160 });
+  assert.deepEqual(geometry(document.items[0]), { x: 40, y: 48, width: 100, height: 60 });
 });
 
 test('cancel, unchanged gestures and failed edits preserve redo; real edits invalidate it', async () => {

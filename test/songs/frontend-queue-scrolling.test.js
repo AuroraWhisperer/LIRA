@@ -328,7 +328,7 @@ test('classic queue uses calculated row height and sizes indexes with song text'
   assert.match(indexRule, /font-size:\s*var\(--overlay-waiting-font-size,\s*13px\)/);
   assert.match(overlaySource, /setTimeout\(relayoutQueue, 100\)/);
   assert.doesNotMatch(overlaySource, /overlayResizeTimer = setTimeout\(render, 100\)/);
-  assert.match(styles, /--overlay-edge:\s*clamp\(0px,\s*2vmin,\s*16px\)/);
+  assert.match(styles, /--overlay-edge:\s*var\(--component-edge,\s*clamp\(0px,\s*2vmin,\s*16px\)\)/);
 });
 
 test('queue resize helpers preserve real rows while rebuilding loop copies', () => {

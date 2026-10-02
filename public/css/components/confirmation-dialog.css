@@ -178,9 +178,9 @@
 }
 
 .lira-confirm-cancel:hover {
-  border-color: var(--color-control-accent);
-  background: var(--color-control-accent-light);
-  color: var(--color-success-dark);
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
+  color: var(--text);
 }
 
 .lira-confirm-confirm {

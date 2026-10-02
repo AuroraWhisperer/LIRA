@@ -197,15 +197,15 @@ body.desktop-shell #giftHistoryDrawer .gift-drawer-head > button {
 }
 
 #giftHistoryDrawer .gift-history-table tr[data-event-id]:hover {
-  background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+  background: var(--color-bg-tertiary);
 }
 
 #giftHistoryDrawer .gift-history-table tr.is-selected {
-  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  background: var(--color-primary-light);
 }
 
 #giftHistoryDrawer .gift-history-table tr.is-selected:hover {
-  background: color-mix(in srgb, var(--primary) 17%, var(--surface));
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
 }
 
 #giftHistoryDrawer .gift-history-table input[type='checkbox'] {
@@ -219,8 +219,8 @@ body.desktop-shell #giftHistoryDrawer .gift-drawer-head > button {
   cursor: pointer;
 }
 
-#giftHistoryDrawer .gift-history-table tr:focus-within {
-  outline: 2px solid var(--primary);
+#giftHistoryDrawer .gift-history-table tr:has(:focus-visible) {
+  outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }
 

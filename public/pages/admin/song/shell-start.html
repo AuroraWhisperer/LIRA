@@ -5,13 +5,7 @@
         <div class="panel-header">
           <div class="queue-heading">
             <h2 class="ui-section-title">
-              <span class="queue-mark" aria-hidden="true"
-                ><img
-                  class="queue-mark-image"
-                  src="/img/admin/queue/admin-queue-sc.webp"
-                  alt=""
-                  draggable="false" /></span
-              >SC 队列
+              <span class="queue-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 15.5a2 2 0 0 1-2 2H8l-4 3.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z" /><path d="M8.5 9h7" /><path d="M8.5 12.5h4.5" /></svg></span>SC 队列
             </h2>
             <span id="superChatSize" class="pill">0 条</span>
           </div>
@@ -33,13 +27,7 @@
         <div class="panel-header">
           <div class="queue-heading">
             <h2 class="ui-section-title">
-              <span class="queue-mark" aria-hidden="true"
-                ><img
-                  class="queue-mark-image"
-                  src="/img/admin/queue/admin-queue-song.webp"
-                  alt=""
-                  draggable="false" /></span
-              >点歌队列
+              <span class="queue-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 15V6" /><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path d="M12 12H3" /><path d="M16 6H3" /><path d="M12 18H3" /></svg></span>点歌队列
             </h2>
             <span id="queueSize" class="pill">0 首</span>
           </div>
@@ -83,9 +71,15 @@
           <button class="tab" data-tab="displayPage" type="button">
             展示板
           </button>
-          <button class="tab" data-tab="overlayPage" type="button">
-            浏览器源
-          </button>
+          <div class="tab-with-help">
+            <button class="tab" data-tab="overlayPage" type="button">
+              浏览器源
+            </button>
+            <lira-help label="浏览器源使用说明"
+              >将直播画面地址添加到 OBS 或哔哩哔哩直播姬的浏览器源 / 网页来源。「网页页面」可直接用浏览器打开。
+              本机地址需要 LIRA 保持运行，并与直播软件在同一台电脑；在线弹幕姬地址在关闭 LIRA 后仍可展示。</lira-help
+            >
+          </div>
           <button class="tab" data-tab="importPage" type="button">
             导入导出
           </button>
