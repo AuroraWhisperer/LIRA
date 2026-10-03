@@ -1,4 +1,13 @@
-/* 横向目录只保留一行，分组链接在悬停后浮出。 */
+/* 顶部展开目录并为链接留出正文空间；滚动后收成一行，悬停时浮出。 */
+.usage-guide-toc + .usage-guide-main {
+  margin-top: 0;
+  transition: margin-top 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.usage-guide-toc.is-at-top + .usage-guide-main {
+  margin-top: var(--usage-guide-toc-space, 0px);
+}
+
 .usage-guide-toc {
   position: sticky;
   top: 8px;
@@ -77,17 +86,20 @@
   visibility: hidden;
   opacity: 0;
   transform: translateY(-6px);
+  clip-path: inset(0 0 100% 0);
   pointer-events: none;
   transition:
     opacity 180ms ease,
-    transform 180ms ease,
-    visibility 0s linear 180ms;
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    clip-path 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 220ms;
 }
 
 .usage-guide-toc.is-open .usage-guide-toc-links {
   visibility: visible;
   opacity: 1;
   transform: translateY(0);
+  clip-path: inset(-24px);
   pointer-events: auto;
   transition-delay: 0s;
 }
@@ -199,6 +211,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .usage-guide-toc + .usage-guide-main,
   .usage-guide-toc-links,
   .usage-guide-toc-toggle svg {
     transition: none;

@@ -25,7 +25,7 @@ const preview = new URLSearchParams(location.search).get('preview') === '1';
 const resolveAvatarUrl = isComponentPreview() ? sceneAvatarSource : undefined;
 document.body.classList.toggle('gift-feed-preview', preview);
 status.hidden = !preview;
-let config = { thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 25, minGiftAmountCents: 0 };
+let config = { thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 };
 let catalog = [];
 let catalogVersion = 0;
 let rendered = new Map();

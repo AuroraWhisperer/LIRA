@@ -1,7 +1,12 @@
 import { api, readJsonResponse } from '../shared/utils.js';
+import { eventBus } from '../shared/event-bus.js';
 
 export async function requestScene(action, body, id) {
-  if (body !== undefined) return (await api(`/api/scenes/${action}`, body, { notifyError: false })).data;
+  if (body !== undefined) {
+    const { data } = await api(`/api/scenes/${action}`, body, { notifyError: false });
+    if (action === 'publish') eventBus.emit('scene:published');
+    return data;
+  }
   const query = id ? `?id=${encodeURIComponent(id)}` : '';
   return readSceneData(`/api/scenes/${action}${query}`);
 }

@@ -1,10 +1,17 @@
-/* 每张卡片独立初始化主题，避免继承另一种盲盒的配色。
-   卡片/映射芯片保持中性表面；各盲盒的色相只出现在小面积：左侧色条、图标底块、名称与价格文字。 */
+/* 映射芯片使用独立的中性表面。 */
+.blind-box-chip {
+  --surface: #ffffff;
+  --border: #e1dfda;
+  --text: #1c1c1a;
+  --color-border-strong: #cbc8c1;
+}
+
+/* 每张卡片独立初始化主题，保留盲盒原有底纹；渐变末端跟随客户端表面色。 */
 .blind-box-card,
 .blind-box-chip {
-  --blind-box-card-border: var(--border);
+  --blind-box-card-border: #b89ae8;
   --blind-box-card-accent: #8459c7;
-  --blind-box-card-background: var(--surface);
+  --blind-box-card-background: linear-gradient(90deg, #eee5ff 0%, #f7f1ff 52%, var(--color-bg-primary) 100%);
   --blind-box-mapping-border: var(--border);
   --blind-box-mapping-background: var(--surface);
   --blind-box-mapping-shadow: none;
@@ -18,7 +25,9 @@
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='heart'] {
-  --blind-box-card-accent: #d85e6d;
+  --blind-box-card-border: var(--border);
+  --blind-box-card-accent: #f3a2aa;
+  --blind-box-card-background: linear-gradient(90deg, #ffecef 0%, var(--color-bg-primary) 100%);
   --blind-box-icon-background: color-mix(in srgb, #d85e6d 12%, var(--surface));
   --blind-box-name-color: #b54555;
   --blind-box-price-color: #c94f60;
@@ -26,7 +35,9 @@
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='lucky'] {
-  --blind-box-card-accent: #78a83f;
+  --blind-box-card-border: var(--border);
+  --blind-box-card-accent: #b8d983;
+  --blind-box-card-background: linear-gradient(90deg, #f2fadf 0%, var(--color-bg-primary) 100%);
   --blind-box-icon-background: color-mix(in srgb, #78a83f 14%, var(--surface));
   --blind-box-name-color: #56852d;
   --blind-box-price-color: #669735;
@@ -34,7 +45,9 @@
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='xiuxian'] {
+  --blind-box-card-border: #a0bfb6;
   --blind-box-card-accent: #3d7067;
+  --blind-box-card-background: linear-gradient(90deg, #d7e8e0 0%, var(--color-bg-primary) 100%);
   --blind-box-icon-background: color-mix(in srgb, #3d7067 13%, var(--surface));
   --blind-box-name-color: #315f53;
   --blind-box-price-color: var(--blind-box-name-color);
@@ -43,7 +56,9 @@
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='mid-autumn'] {
+  --blind-box-card-border: #e3ba62;
   --blind-box-card-accent: #b98121;
+  --blind-box-card-background: linear-gradient(90deg, #fff1c9 0%, #fff9eb 52%, var(--color-bg-primary) 100%);
   --blind-box-icon-background: color-mix(in srgb, #b98121 14%, var(--surface));
   --blind-box-name-color: #855b1e;
   --blind-box-price-color: var(--blind-box-name-color);
@@ -52,7 +67,9 @@
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='national-day'] {
+  --blind-box-card-border: #e7b070;
   --blind-box-card-accent: #b95437;
+  --blind-box-card-background: linear-gradient(90deg, #ffedce 0%, #fff8ec 52%, var(--color-bg-primary) 100%);
   --blind-box-icon-background: color-mix(in srgb, #b95437 12%, var(--surface));
   --blind-box-name-color: #9b3f2b;
   --blind-box-price-color: var(--blind-box-name-color);

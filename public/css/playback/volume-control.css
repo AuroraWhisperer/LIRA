@@ -4,7 +4,7 @@
   display: grid;
   place-items: center;
   --volume-track-fill: var(--primary);
-  --volume-track-rest: color-mix(in srgb, var(--text) 12%, transparent);
+  --volume-track-rest: var(--color-control-border, color-mix(in srgb, var(--text) 12%, transparent));
   --volume-thumb: var(--color-bg-primary);
 }
 
@@ -95,6 +95,11 @@
   box-shadow: 0 1px 3px rgba(24, 24, 22, 0.25);
   cursor: pointer;
   box-sizing: border-box;
+}
+
+.playback-volume-slider:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 4px;
 }
 
 .playback-volume-value {

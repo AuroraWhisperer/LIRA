@@ -50,7 +50,8 @@
 
 .app-shell .tab.active {
   border-bottom-color: var(--primary);
-  color: var(--text);
+  color: var(--color-primary-text, var(--text));
+  background: var(--color-primary-light);
   font-weight: var(--type-weight-semibold);
 }
 

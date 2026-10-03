@@ -63,7 +63,7 @@ export function bindClockParameters(root, controller) {
       else if (control.value !== draft[key]) control.value = draft[key];
       control.disabled = !loaded || (key === 'label' && transparent);
     }
-    node('clockCustomLabelHelp').textContent = transparent ? '此样式不显示' : '最多 16 个字';
+    node('clockCustomLabelField').hidden = transparent;
     node('clockFlipColors').hidden = draft.style !== 'flip';
     for (const button of styles) {
       const active = button.dataset.clockStyleOption === draft.style;

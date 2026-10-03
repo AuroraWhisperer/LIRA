@@ -1,23 +1,24 @@
-/* 独立页面不加载 desktop/theme.css：这里的取值与桌面主题 token 对齐（页面背景、表面、边框、文字、蓝色强调与语义色）。 */
+/* Local aliases keep audit layout independent from desktop window rules. */
 :root {
-  --bg: #f3f3f1;
-  --surface: #ffffff;
-  --surface2: #efeeeb;
-  --surface3: #f7f7f5;
-  --border: #e1dfda;
-  --border-light: #eae9e5;
-  --border-strong: #cbc8c1;
-  --text: #1c1c1a;
-  --text2: #66625c;
-  --green: #1f8a5a;
-  --green-soft: #ebf6f0;
-  --red: #c8372d;
-  --red-soft: #fcefed;
-  --yellow: #9a5b00;
-  --yellow-soft: #fcf4e4;
-  --blue: #2f62d4;
-  --blue-soft: #eef3fd;
-  --blue-strong: #234fb5;
+  --bg: var(--color-bg-page);
+  --surface: var(--color-bg-primary);
+  --surface2: var(--color-bg-secondary);
+  --surface3: var(--color-bg-tertiary);
+  --border: var(--color-border-default);
+  --border-light: var(--color-border-light);
+  --border-strong: var(--color-button-border-hover);
+  --text: var(--color-text-primary);
+  --text2: var(--color-text-secondary);
+  --green: var(--color-success);
+  --green-soft: var(--color-success-light);
+  --red: var(--color-danger);
+  --red-soft: var(--color-danger-light);
+  --yellow: var(--color-warning);
+  --yellow-soft: var(--color-warning-light);
+  --blue: var(--color-info);
+  --blue-soft: var(--color-info-light);
+  --action: var(--color-primary);
+  --action-strong: var(--color-primary-strong);
   --purple: #a78bfa;
   --orange: #e0883a;
 }
@@ -117,7 +118,7 @@ textarea {
   height: 200px;
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-control-border);
   border-radius: 6px;
   padding: 10px;
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
@@ -125,9 +126,9 @@ textarea {
   resize: vertical;
 }
 textarea:focus {
-  outline: 2px solid rgba(47, 98, 212, 0.38);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 1px;
-  border-color: var(--blue);
+  border-color: var(--action);
 }
 
 .toolbar {
@@ -149,39 +150,68 @@ button,
   font-family: inherit;
   white-space: nowrap;
 }
-button:hover {
+button:hover:not(:disabled) {
   background: var(--surface3);
   border-color: var(--border-strong);
 }
 button.primary {
-  background: var(--blue);
-  border-color: var(--blue);
+  background: var(--action);
+  border-color: var(--action);
   color: #fff;
 }
-button.primary:hover {
-  background: var(--blue-strong);
-  border-color: var(--blue-strong);
+button.primary:hover:not(:disabled) {
+  background: var(--action-strong);
+  border-color: var(--action-strong);
 }
 button.danger {
   color: var(--red);
 }
-button.danger:hover {
+button.danger:hover:not(:disabled) {
   background: var(--red-soft);
 }
 input[type='text'],
 input[type='datetime-local'] {
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-control-border);
   border-radius: 6px;
   padding: 5px 10px;
   font-size: 0.8rem;
   font-family: inherit;
 }
 input:focus {
-  outline: 2px solid rgba(47, 98, 212, 0.38);
+  outline: 2px solid var(--color-control-focus);
   outline-offset: 1px;
-  border-color: var(--blue);
+  border-color: var(--action);
+}
+
+:is(input, textarea):hover:not(:disabled, :focus) {
+  border-color: var(--color-control-border-hover);
+}
+
+button:focus-visible,
+.raw-toggle:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
+
+button.primary:active:not(:disabled) {
+  background: var(--color-primary-active);
+}
+
+button.danger:active:not(:disabled) {
+  background: var(--color-danger-active);
+}
+
+button:disabled,
+button.primary:disabled,
+input:disabled,
+textarea:disabled {
+  background: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  border-color: var(--border);
+  opacity: 1;
+  cursor: not-allowed;
 }
 
 /* Stats row */
@@ -346,6 +376,7 @@ tr:hover td {
   transition:
     opacity 180ms ease,
     transform 180ms ease;
+  cursor: pointer;
 }
 .toast.show {
   opacity: 1;
@@ -409,7 +440,7 @@ tr:hover td {
 /* Collapsible raw */
 .raw-toggle {
   cursor: pointer;
-  color: var(--blue);
+  color: var(--color-primary-text);
   font-size: 0.72rem;
 }
 .raw-content {

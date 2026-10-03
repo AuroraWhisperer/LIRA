@@ -107,27 +107,41 @@ test('registry stays lazy, orders initialized owners and creates fresh descripti
   });
 });
 
-test('clock factory shares the page controller and pauses the small frame only during its lifecycle', async () => {
+test('clock factory keeps the small preview live while shared editor sessions are open', async () => {
   const fixture = await loadOwner('clock-card.js');
   assert.equal(fixture.registry.getComponentPreviews().length, 0);
+  const small = fixture.document.getElementById('clockPreview');
+  const messages = [];
+  small.contentWindow = { postMessage: (message) => messages.push(plain(message)) };
   const controller = fixture.owner.initClockCard();
   fixture.owner.initClockCard();
   await new Promise((resolve) => setImmediate(resolve));
   const [preview] = fixture.registry.getComponentPreviews();
-  const small = fixture.document.getElementById('clockPreview');
+  const source = small.src;
   assert.equal(preview.controller, controller);
-  assert.ok(small.src);
-  preview.onOpen();
-  assert.equal(small.src, undefined);
+  assert.ok(source);
+  preview.onOpen?.();
+  assert.equal(small.src, source, 'Opening an editor session must retain the inline preview.');
   controller.edit({ style: 'timeline-vertical' });
-  assert.equal(small.src, undefined);
+  assert.equal(small.src, source);
+  assert.equal(small.dataset.clockStyle, 'timeline-vertical');
+  assert.equal(messages.at(-1).type, 'component-preview:config');
+  assert.equal(messages.at(-1).config.style, 'timeline-vertical');
   assert.deepEqual(plain(preview.size(controller.getState().draft)), [240, 400]);
-  preview.onClose();
-  assert.match(small.src, /style=timeline-vertical/);
+  preview.onClose?.();
+  assert.equal(small.src, source);
   fixture.document.getElementById('clockOpenPreview').fire('click');
   assert.equal(fixture.opened.length, 1);
   assert.equal(fixture.opened[0].controller, controller);
-  assert.equal(typeof fixture.opened[0].onOpen, 'function');
+  fixture.opened[0].onOpen?.();
+  controller.edit({ style: 'digital', showSeconds: false });
+  assert.equal(small.src, source, 'The clock entry must also keep the existing frame loaded.');
+  assert.equal(messages.at(-1).config.style, 'digital');
+  assert.equal(messages.at(-1).config.showSeconds, false);
+  fixture.opened[0].onClose?.();
+  controller.discard();
+  assert.equal(small.src, source);
+  assert.deepEqual(messages.at(-1).config, plain(controller.getState().saved));
 });
 
 test('queue initialization is idempotent and both entry points reuse its parameter binding and sample data', async () => {

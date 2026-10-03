@@ -6,6 +6,8 @@
 
 ## 文件索引
 
+- [2026-10-02-compact-canvas-address](2026-10-02-compact-canvas-address.md)
+- [2026-10-02-preview-links-lifecycle](2026-10-02-preview-links-lifecycle.md)
 - [2026-10-02-release-5.0.14-validation](2026-10-02-release-5.0.14-validation.md)
 - [2026-10-01-canvas-component-library](2026-10-01-canvas-component-library.md)
 - [2026-10-01-canvas-component-boundaries](2026-10-01-canvas-component-boundaries.md)

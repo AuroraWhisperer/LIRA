@@ -1,10 +1,15 @@
 import { api, localOverlayOrigin, toast } from '../shared/utils.js';
-import { closeComponentPreview, setActiveComponentPreview, releaseComponentPreview } from './component-preview-session.js';
+import { getActiveComponentPreview, closeComponentPreview, setActiveComponentPreview, releaseComponentPreview } from './component-preview-session.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
 
 export function openComponentPreview(selected = null) {
+  const active = getActiveComponentPreview('browser-preview');
+  if (active?.canReuse(selected)) { void active.focus(selected); return active; }
   closeComponentPreview();
   let closed = false;
+  let ready = false;
+  let focusGeneration = 0;
+  const entryLinks = new Map();
   const connections = [];
   const requests = new AbortController();
   const post = (body) => api('/api/component-preview', body, { notifyError: false,
@@ -26,7 +31,44 @@ export function openComponentPreview(selected = null) {
     window.removeEventListener('pagehide', close);
     releaseComponentPreview(handle);
   }
-  const handle = { id: selected?.id || 'canvas', close, focus() {} };
+  async function focus(next = selected) {
+    selected = next;
+    if (!ready || closed) return;
+    const requested = ++focusGeneration;
+    try {
+      const selectedId = next?.id || null;
+      let selectedSize = null;
+      const canvas = connections.find(({ options }) => options.id === 'canvas');
+      if (next && canvas?.options.getComponentSize && !canvas.options.controller.getState().draft.document.items
+        .some((item) => item.type === next.id && item.appearance.mode === 'shared')) {
+        selectedSize = await canvas.options.getComponentSize(next.id,
+          AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]));
+      }
+      if (closed || requested !== focusGeneration) return;
+      const sizeKey = JSON.stringify(selectedSize);
+      let entry = entryLinks.get(selectedId);
+      if (!entry || entry.sizeKey !== sizeKey) {
+        entry = { sizeKey, promise: post({ action: 'link', links: connections.map(({ session }) => session),
+          selectedId, selectedSize }).then(({ data }) => data.key).catch((error) => {
+          if (entryLinks.get(selectedId) === entry) entryLinks.delete(selectedId);
+          throw error;
+        }) };
+        entryLinks.set(selectedId, entry);
+      }
+      const url = new URL('/c', localOverlayOrigin());
+      url.hash = await entry.promise;
+      if (!closed && requested === focusGeneration) window.open(url.href, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      if (!closed && requested === focusGeneration) toast(error.message || '无法打开网页预览。');
+    }
+  }
+  const handle = { id: 'browser-preview', close, focus,
+    canReuse(next) {
+      return !closed && connections.every(({ options, generation, stopped }) =>
+        !stopped && options.controller.getState().generation === generation)
+        && (!next || connections.some(({ options }) => options.id === next.id && options.controller === next.controller)
+          || (!connections.length && selected?.id === next.id && selected.controller === next.controller));
+    } };
   setActiveComponentPreview(handle);
   window.addEventListener('pagehide', close, { once: true });
 
@@ -102,26 +144,8 @@ export function openComponentPreview(selected = null) {
         options.onOpen?.();
         void exchange(connection);
       }
-      const url = new URL('/component-preview', localOverlayOrigin());
-      if (selected) url.searchParams.set('component', selected.id);
-      const params = new URLSearchParams(selected ? connections[0].session : undefined);
-      const canvas = connections.find(({ options }) => options.id === 'canvas');
-      if (canvas) params.set('canvas', JSON.stringify(canvas.session));
-      if (selected && canvas?.options.getComponentSize && !canvas.options.controller.getState().draft.document.items
-        .some((item) => item.type === selected.id && item.appearance.mode === 'shared')) {
-        const size = await canvas.options.getComponentSize(selected.id,
-          AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]));
-        if (closed) return;
-        if (size) params.set('size', JSON.stringify(size));
-      }
-      const others = connections.slice(selected ? 1 : 0).filter(({ options }) => options.id !== 'canvas');
-      if (others.length) params.set('components', JSON.stringify(others
-        .map(({ options, session }) => ({ component: options.id, ...session }))));
-      url.hash = params.toString();
-      // Every fragment capability stays scoped to its original controller.
-      // Electron's external-navigation policy opens the system browser.
-      handle.focus = () => window.open(url.href, '_blank', 'noopener,noreferrer');
-      if (!closed) handle.focus();
+      ready = true;
+      if (!closed) await focus();
     } catch (error) {
       close();
       toast(error.message || '无法打开网页预览。');

@@ -34,6 +34,8 @@ const { createDesktopLogger } = require('./desktop-logger');
 const { createDesktopRuntime } = require('./desktop-runtime');
 const { createDesktopUpdateController } = require('./desktop-update-controller');
 const { createDesktopState } = require('./desktop-state');
+const { createClientAppearance, getClientWindowBackground, bindClientAppearanceWindow } = require('./client-appearance');
+const { registerClientAppearanceIpc } = require('./ipc/client-appearance-ipc');
 const { migrateLegacyUserData, resolveDesktopUserDataPaths } = require('./desktop-user-data');
 const { migrateBrowserData, migrateCacheData } = require('../storage/data-directory-migration');
 const { registerLocalFontPermissionHandler } = require('./desktop-permissions');
@@ -125,6 +127,8 @@ var cloudSyncController = null;
 var remoteGiftController = null;
 var sceneCloudController = null;
 var readinessController = null;
+var clientAppearance = null;
+var disposeClientAppearanceIpc = null;
 var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
 var disposeGiftInteractionIpc = null;
@@ -274,6 +278,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
       disposeFanProfileIpc?.();
       disposeDailyBotIpc?.();
       disposePlannerReminderIpc?.();
+      disposeClientAppearanceIpc?.();
       plannerReminderController?.dispose();
       dynamicLotteryAuth?.dispose();
       const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth].filter(
@@ -286,6 +291,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
       fanProfileController = null;
       await Promise.all([
         integrityStopped,
+        clientAppearance?.whenIdle(),
         dynamicLotteryAuth?.whenIdle(),
         ...controllersToDrain.map((controller) => controller.whenIdle()),
       ]);
@@ -304,6 +310,9 @@ function requestDesktopShutdown({ restart = false } = {}) {
 
 async function startDesktopApp() {
   configureDesktopEnvironment();
+  clientAppearance = createClientAppearance({ dataDir: pathState.dataDir, writeLog });
+  disposeClientAppearanceIpc = registerClientAppearanceIpc({ ipcMain, appearance: clientAppearance,
+    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
   if (process.platform === 'win32') app.setAppUserModelId('com.aurorawhisperer.lira');
   writeLog('user-data-migration', userDataMigrationState.migration);
   const startupStartedAt = Date.now();
@@ -437,6 +446,7 @@ async function startDesktopApp() {
   };
   lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
     dataDir: pathState.dataDir,
+    getClientTheme: clientAppearance.getThemeId,
     safeStorage,
     appVersion: app.getVersion(),
     dynamicLotteryAuth: {
@@ -689,7 +699,7 @@ function createMainWindow(baseUrl, authorized = false) {
     minHeight: 680,
     show: false,
     title: 'LIRA',
-    backgroundColor: '#f7f3ef',
+    backgroundColor: getClientWindowBackground(baseUrl + (authorized ? '/admin' : '/license'), baseUrl, clientAppearance.getThemeId()),
     frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -702,6 +712,7 @@ function createMainWindow(baseUrl, authorized = false) {
   if (fs.existsSync(iconPath)) opts.icon = iconPath;
 
   windowState.main = new BrowserWindow(opts);
+  bindClientAppearanceWindow(windowState.main, baseUrl, clientAppearance.getThemeId);
   lifecycleState.requestAuth.bindWindow(windowState.main, shell);
   writeLog('window', { event: 'create', window: 'main' });
   windowState.main.loadURL(baseUrl + (authorized ? '/admin?desktop=1' : '/license'));

@@ -112,7 +112,10 @@ function createUiFixture() {
           export const showError = (error) => window.messages.push(error.message);
           export const toast = (message) => window.messages.push(message);`;
       } else if (url.pathname === '/js/shared/event-bus.js') {
-        body = `const listeners = new Map(); export const eventBus = { on: (name, callback) => listeners.set(name, callback) };
+        body = `const listeners = new Map(); export const eventBus = {
+          on: (name, callback) => listeners.set(name, callback),
+          emit: (name, data) => listeners.get(name)?.(data),
+        };
           export const Events = { STATE_LOADED: 'state', OVERTIME_UPDATED: 'overtime', GIFT_CATALOG_UPDATED: 'gifts' };
           window.pushState = (state) => listeners.get('state')({ state: { overtime: state } });`;
       } else if (url.pathname === '/js/overlays/socket-client.js') {

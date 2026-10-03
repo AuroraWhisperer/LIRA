@@ -2,7 +2,7 @@
 :root {
   --parameter-range-accent: var(--color-control-accent);
   --parameter-range-accent-hover: color-mix(in srgb, var(--color-control-accent) 82%, #000);
-  --parameter-range-track: var(--color-border-strong, #cbc8c1);
+  --parameter-range-track: var(--color-control-border, var(--color-border-strong, #cbc8c1));
 }
 
 input.parameter-range[type='range'] {
@@ -107,6 +107,12 @@ input.parameter-range[type='range']:disabled::-webkit-slider-thumb {
 
 input.parameter-range[type='range']:disabled::-moz-range-thumb {
   box-shadow: none;
+}
+
+:where(html.desktop-shell, html[data-client-theme]) input.parameter-range[type='range']:disabled {
+  --parameter-range-accent: var(--color-disabled-text);
+  --parameter-range-track: var(--color-disabled-bg);
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

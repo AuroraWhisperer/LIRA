@@ -32,6 +32,20 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 
 礼物 SSE 的原始 JSON 只在 `license/remote-license-client.js` 通过 `normalizeProcessedGiftEvent` 执行严格 wire 字段校验；回调传递的是含整数分派生字段的 canonical event。`remote-gift-controller.js` 使用 `canonicalizeProcessedGiftEvent` 处理该内部对象，不能再次用 wire 字段白名单拒绝这些派生字段；合法且连续的 final 仍走即时 importer，再按游标对账。
 
+## 本机客户端外观
+
+[client-appearance.js](../../../src/electron/client-appearance.js) 在创建 runtime 和主窗口前读取
+`dataDir/client-appearance.json`，只持久化 `{ themeId }`。合法值是 `neutral`、`classic`、
+`terracotta`；未设置默认 `terracotta`（暖陶），坏 JSON、未知 ID 或读取失败本次回退默认并记录适度诊断，
+不覆盖原文件。显式应用按请求顺序写临时文件并原子替换；成功才更新内存快照，失败保留旧状态。
+关停先移除写入 IPC 并等待已接受的写入完成。
+
+它与账号、直播间、业务 settings、云同步和浏览器缓存分离，普通缓存清理不删除外观记录。
+runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
+[server-core.md](../backend/server-core.md)。桥与错误码见 [preload.md](preload.md)。
+主窗口原生底色使用对应页面底：中性 `#f3f3f1`、经典 `#f7f3ef`、暖陶 `#f8f5ef`；
+主 frame 导航时重新选择，登录仍为 `#f7f3ef`，不更改 `nativeTheme`。
+
 ## 1. 进程形态与入口
 
 ### 服务器进场欢迎设置
@@ -185,7 +199,7 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 | 事实           | 值                                                                                                                 | 出处                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
 | 尺寸           | **1280×720**,minWidth 1024,minHeight 680                                                                           | [main.js](../../../src/electron/main.js)          |
-| 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor: '#f7f3ef'`(暖白,防白屏闪烁)、`show: false` 等 `ready-to-show` 再显示 | [main.js](../../../src/electron/main.js) |
+| 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor` 跟随本机客户端外观（登录仍为 `#f7f3ef`）、`show: false` 等 `ready-to-show` 再显示 | [main.js](../../../src/electron/main.js) |
 | 加载 URL       | 已授权且礼物目录已初始化时 `{baseUrl}/admin?desktop=1`，否则 `{baseUrl}/license`                                  | [main.js](../../../src/electron/main.js)                   |
 | webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [main.js](../../../src/electron/main.js) |
 | 图标           | 打包资源 `build/icon.png` 存在时附加                                                                               | [main.js](../../../src/electron/main.js) |

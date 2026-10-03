@@ -109,6 +109,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getStartedPort: () => startedPort,
     getSessionToken: () => sessionToken,
     beginPlaybackSnapshotSession: () => domainServices.playback.beginQueueStateSession(),
+    getClientTheme: runtimeOptions.getClientTheme,
     getWebSocketHub: () => webSocketHub,
     getState,
     getSettings: () => settingsStore.getSettings(),

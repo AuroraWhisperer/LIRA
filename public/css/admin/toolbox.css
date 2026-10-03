@@ -25,5 +25,6 @@
 @import url('./toolbox/start-animation-responsive.css');
 @import url('./toolbox/clock.css');
 @import url('./toolbox/settings.css');
+@import url('./client-appearance.css');
 
 @import url('./toolbox/interactions.css');

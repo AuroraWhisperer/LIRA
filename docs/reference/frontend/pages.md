@@ -8,6 +8,14 @@
 
 管理后台没有单一 `public/pages/admin.html` 文件。HTML 分片位于 [pages/admin/](../../../public/pages/admin)，由 [server/admin-page.js](../../../src/server/admin-page.js) 组合，顺序由 [admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js) 保护。
 
+### 客户端外观
+
+百宝箱 → 设置 → 客户端外观提供中性蓝、经典暖金、暖陶三套浅色配色。选择候选只更新选项，点击“应用配色”后，经桌面桥成功保存才原位更新 `html[data-client-theme]`，不重新挂载播放器、保存业务设置或刷新页面。入口与反馈由 [client-appearance.js](../../../public/js/admin/client-appearance.js) 拥有。
+
+[desktop/palettes.css](../../../public/css/desktop/palettes.css) 只提供作用域内颜色及兼容别名；布局、字体与控件几何共用。默认 `terracotta`（暖陶），选项小样使用 `data-client-theme-preview` 在自身作用域解析别名。独立工具仅加载色板，不加载拖拽等桌面壳规则；新打开的预览与已授权礼物审计读取当前已提交主题，旧页面不自动同步或刷新。初始化白名单见 [服务核心](../backend/server-core.md)，本机保存及首帧底色见 [桌面主进程](../desktop/main.md)。
+
+登录、直播浏览器源、观众点歌页、歌词内容不接入客户端色板；盲盒与加班机专属内容保持独立配色。场景编辑器检查底色固定，实际组件仍由独立 iframe 和组件配置决定。
+
 ## 1. 技术选型
 
 | 事实     | 说明                                                                             |
@@ -45,10 +53,12 @@
 | --- | --- | --- |
 | 管理 HTML（`/`、`/admin`、`/settings`、`/songs`） | 需要本地管理凭据；Electron main 的 [desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 对受信主窗口主 frame 的精确 origin 请求注入 Bearer | `?desktop=1` 只切换表现；旧书签、手动浏览器打开或 `AUTO_OPEN_ADMIN=1` 均不授予权限 |
 | 登录页 `/license` | HTML 无需本地管理凭据，供 Electron 登录流程使用 | 浏览器可读页面不等于拥有 preload/设备会话；登录能力须走受限 IPC |
-| 场景编辑器 `/component-preview`，可选 `?component=danmaku\|clock\|queue\|overtime` | “点歌 → 浏览器源 → 直播场景 → 编辑场景”或原组件预览按钮，经 Electron 既有外部导航策略交给系统默认浏览器 | 直接入口首次为空，后续恢复保存布局；组件入口添加/选中对应组件。顶部“添加组件”小窗按分类选择样式，新增独立外观图层并展开右侧参数；已有图层在画布下方横向排列。编辑页采用浅色工具栏与灰色工作区，直接入口默认收起参数，折叠保留选择与草稿；画布自动适配且不滚动。保存与复制集中在右上角。公共分辨率仅由画布设置改变。“保存并应用”保存各 owner 后发布组合输出，“复制直播源地址”返回一条 `127.0.0.1:<实际端口>/scene…` 地址供 OBS 或哔哩哔哩直播姬使用；后续应用沿用该地址。详见 [预览 API](../backend/api.md#浏览器组件预览)，无 preload 或管理凭据 |
+| 场景编辑器 `/c#<短入口能力>`；兼容旧 `/component-preview` | “点歌 → 浏览器源 → 直播场景 → 编辑场景”或原组件预览按钮，经 Electron 既有外部导航策略交给系统默认浏览器 | 直接入口首次为空，后续恢复保存布局；组件入口添加/选中对应组件。顶部“添加组件”小窗按分类选择样式，新增独立外观图层并展开右侧参数；已有图层在画布下方横向排列。编辑页采用浅色工具栏与灰色工作区，直接入口默认收起参数，折叠保留选择与草稿；画布自动适配且不滚动。保存与复制集中在右上角。公共分辨率仅由画布设置改变。“保存并应用”保存各 owner 后发布组合输出，“复制直播源地址”返回一条 `127.0.0.1:<实际端口>/scene…` 地址供 OBS 或哔哩哔哩直播姬使用；后续应用沿用该地址。详见 [预览 API](../backend/api.md#浏览器组件预览)，无 preload 或管理凭据 |
 | 组件浏览器源目录 | 客户端“点歌 → 浏览器源” | “直播场景”提供编辑场景及复制组合来源，使用说明在标题旁问号中；独立点歌板、萌时钟、加班机、本机弹幕姬继续单独复制。本机弹幕地址 `/danmaku?source=component` 使用已保存的服务器样式和展示数据；在线弹幕源同时保留。场景编辑器地址不用于直播导入。完整步骤见 [组件指南](../../guides/component-sources.md) |
 | 本地展示页 | [access-policy.js](../../../src/server/access-policy.js) 的 `OVERLAY_PAGES` 定义能力范围；HTML 注入本 scope 的 overlay 凭据 | 可供 overlay/本地预览；只能调用本 scope 允许的 HTTP/WS，不能取得管理权限；如 `gift-export` 是内部导出用途，并非普通 浏览器源 |
 | 独立 Node 调试 | `npm start` 保留同一 HTML/API 鉴权；受保护调用必须显式使用当前运行时的有效管理凭据 | 没有 Electron preload、主进程 Device API 代理、分区登录和本地媒体协议，不是完整 Web 管理产品 |
+
+画布编辑页使用单个 fragment 短入口，客户端仍持有原配置控制器时重复打开会沿用连接；旧页可刷新接管继续编辑，未保存修改仍保留。短暂断线自动重试，客户端关闭、账号或配置来源变化时撤销。直播场景地址与编辑页入口不同：成功“保存并应用”后客户端地址目录立即刷新，后续应用沿用正式来源地址。能力及恢复元数据契约见 [预览 API](../backend/api.md#浏览器组件预览)。
 
 [servePageOrAsset](../../../src/server/http-utils.js) 对非展示、非登录、非组件预览 HTML 的匿名请求返回 401“请从桌面应用打开管理页面。”；API 中无效凭据为 401，越权或不受信 Origin 为 403。这些响应说明服务已可达，应检查正常桌面入口与请求身份，不应关闭保护或据此判断 localhost 不可用。
 

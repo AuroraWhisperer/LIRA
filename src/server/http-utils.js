@@ -5,6 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { resolveDataPaths } = require('../shared/data-paths');
+const { normalizeClientThemeId } = require('../shared/client-theme');
 const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
 const { composeComponentPreviewHtml } = require('./component-preview-page');
 const { OVERLAY_PAGES, getOverlayScope, createOverlayToken, resolveRequestPrincipal } = require('./access-policy');
@@ -95,7 +96,7 @@ function sendBuffer(res, status, contentTypeValue, filename, content) {
   res.end(content);
 }
 
-function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPlaybackSnapshotSession) {
+function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPlaybackSnapshotSession, getClientTheme) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendJson(res, 405, {
       ok: false,
@@ -110,6 +111,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     ['/license', 'pages/license.html'],
     ['/scene', 'pages/overlays/scene.html'],
     ['/component-preview', 'pages/component-preview.html'],
+    ['/c', 'pages/component-preview.html'],
     ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
   ]);
   const assetPath = pageMap.get(requestUrl.pathname) || requestUrl.pathname.replace(/^\/+/, '');
@@ -145,6 +147,11 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
       return;
     }
     let body = content;
+    if (isAdminPage || relativePath === 'pages/component-preview.html' || relativePath === 'pages/gift-audit.html') {
+      const themeId = normalizeClientThemeId(getClientTheme?.());
+      body = Buffer.from(body.toString('utf8').replace(/<html\b([^>]*)>/i, (_tag, attributes) =>
+        `<html${attributes.replace(/\sdata-client-theme\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')} data-client-theme="${themeId}">`));
+    }
     if (isAdminPage && req.method === 'GET' && beginPlaybackSnapshotSession) {
       const writer = beginPlaybackSnapshotSession();
       const headEnd = body.indexOf(Buffer.from('</head>'));

@@ -8,7 +8,7 @@
 
 | handler owner | 当前主窗口 webContents / 精确 desktop origin | 主 frame 对象 | pathname 范围 |
 | --- | --- | --- | --- |
-| [main-window-ipc.js](../../../src/electron/ipc/main-window-ipc.js)：music、playback、bilibili、desktop 资源检查 | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
+| [main-window-ipc.js](../../../src/electron/ipc/main-window-ipc.js)：music、playback、bilibili、desktop 资源检查与客户端外观 | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [update-ipc.js](../../../src/electron/ipc/update-ipc.js)：其余 desktop | 必须 | 必须 | 上述路径加 `/license` |
 | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) | 必须 | 必须 | `/`、`/admin`、`/settings` |
 | [planner-reminder-ipc.js](../../../src/electron/ipc/planner-reminder-ipc.js) | 必须 | 必须 | 仅 `/admin` |
@@ -21,14 +21,15 @@
 
 ## 2. renderer → main（invoke）
 
-以下每行的无参数表示 preload 不发送参数；只有资源检查 handler 明确拒绝额外参数。除明确标出的错误封装外，旧 music/bilibili/desktop handler 的异常可使 invoke Promise reject，不能假定所有返回都有 `ok`。
+以下每行的无参数表示 preload 不发送参数；资源检查及客户端外观 handler 明确校验参数数量。除明确标出的错误封装外，旧 music/bilibili/desktop handler 的异常可使 invoke Promise reject，不能假定所有返回都有 `ok`。
 
 ### 2.1 songAssistantDesktop
 
-Owner 为 [update-ipc.js](../../../src/electron/ipc/update-ipc.js)。直接消费者是 [desktop.js](../../../public/js/desktop.js) 的更新/目录入口与窗口控件，以及 [settings-operations.js](../../../public/js/admin/settings-operations.js)；资源检查也由桌面 UI 消费。
+Owner 为 [update-ipc.js](../../../src/electron/ipc/update-ipc.js)，客户端外观由 [client-appearance-ipc.js](../../../src/electron/ipc/client-appearance-ipc.js) 拥有。直接消费者是 [desktop.js](../../../public/js/desktop.js) 的更新/目录入口与窗口控件，以及 [settings-operations.js](../../../public/js/admin/settings-operations.js)；资源检查也由桌面 UI 消费。
 
 | 通道 | 桥方法与输入 | 成功返回 / 公开失败 |
 | --- | --- | --- |
+| `desktop:set-client-theme` | `setClientTheme(themeId)`，恰好一个 `neutral` / `classic` / `terracotta` 字符串 | 成功 `{ok:true,themeId}`；失败 `{ok:false,error}`，错误为 `IPC_SOURCE_INVALID`、`IPC_ARGUMENTS_INVALID`、`CLIENT_THEME_INVALID` 或 `CLIENT_THEME_SAVE_FAILED`，失败不切换已提交状态 |
 | `desktop:get-info` | `getInfo()` | `{version,isPackaged,platform,dataDir,logFile,terminalLogFile,githubRepoUrl,updateState}` |
 | `desktop:get-resource-integrity-state` | `getResourceIntegrityState()` | 资源检查快照；多余参数 `IPC_ARGUMENTS_INVALID` |
 | `desktop:check-resource-integrity` | `checkResourceIntegrity()` | 当前/新任务快照，重复请求合并；同上 |
@@ -45,7 +46,7 @@ Owner 为 [update-ipc.js](../../../src/electron/ipc/update-ipc.js)。直接消�
 | `desktop:minimize-window` | `minimizeWindow()` | `undefined` |
 | `desktop:maximize-window` | `maximizeWindow()` | `undefined`；切换最大化状态 |
 
-资源检查仅接受管理页面；其余本组允许 `/license`。资源快照的 `revision`、状态及错误语义由 [更新文档](update.md)「客户端资源检查」维护。
+资源检查与客户端外观仅接受管理页面；其余本组允许 `/license`。外观桥不接受路径、CSS 或 URL，外部工具页面没有写入权限；新打开工具通过 HTML 获取只读主题。资源快照的 `revision`、状态及错误语义由 [更新文档](update.md)「客户端资源检查」维护。
 
 ### 2.2 musicAPI 与 bilibiliAuth
 

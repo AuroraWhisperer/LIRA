@@ -1,0 +1,172 @@
+/* Colors only: shared by the desktop shell, authorized tools and option samples.
+   Unknown or absent desktop preferences use terracotta; no unmarked page is themed. */
+html.desktop-shell,
+html[data-client-theme],
+[data-client-theme-preview] {
+  --scrollbar-thumb: #aea193;
+  --scrollbar-thumb-hover: #897969;
+  --scrollbar-thumb-active: #68584a;
+  --color-primary: #9e5540;
+  --color-primary-strong: #8d4b37;
+  --color-primary-active: #743a29;
+  --color-primary-text: #8b4935;
+  --color-primary-light: #f5ece4;
+  --color-accent: #9e5540;
+  --color-accent-light: #f5ece4;
+  --color-success: #41745c;
+  --color-success-light: #edf4eb;
+  --color-success-dark: #38664f;
+  --color-warning: #89601c;
+  --color-warning-light: #faf2de;
+  --color-warning-medium: #89601c;
+  --color-danger: #af4052;
+  --color-danger-light: #fbeef0;
+  --color-danger-medium: #983547;
+  --color-danger-active: #f7e4e8;
+  --color-danger-border: #d5a3ad;
+  --color-info: #526b86;
+  --color-info-light: #eff3f7;
+  --color-text-primary: #36312c;
+  --color-text-secondary: #575048;
+  --color-text-muted: #6f655b;
+  --color-bg-page: #f8f5ef;
+  --color-bg-primary: #fffcf7;
+  --color-bg-secondary: #f2eee7;
+  --color-bg-tertiary: #f4efe8;
+  --color-border-default: #ded5c8;
+  --color-border-light: #e9e1d6;
+  --color-border-strong: #d2c7ba;
+  --color-button-border: #d2c7ba;
+  --color-button-border-hover: #b7a797;
+  --color-control-surface: #fffdf9;
+  --color-control-border: #938779;
+  --color-control-border-hover: #796e61;
+  --color-disabled-bg: #eeeae4;
+  --color-disabled-text: #8b8176;
+}
+
+html[data-client-theme='neutral'],
+[data-client-theme-preview='neutral'] {
+  --scrollbar-thumb: #b5b2ac;
+  --scrollbar-thumb-hover: #8c8984;
+  --scrollbar-thumb-active: #6b6864;
+  --color-primary: #2f62d4;
+  --color-primary-strong: #234fb5;
+  --color-primary-active: #1b3f94;
+  --color-primary-text: #234fb5;
+  --color-primary-light: #eef3fd;
+  --color-accent: #2f62d4;
+  --color-accent-light: #eef3fd;
+  --color-success: #23754e;
+  --color-success-light: #ebf6f0;
+  --color-success-dark: #17734a;
+  --color-warning: #9a5b00;
+  --color-warning-light: #fcf4e4;
+  --color-warning-medium: #9a5b00;
+  --color-danger: #bd3027;
+  --color-danger-light: #fcefed;
+  --color-danger-medium: #bd3027;
+  --color-danger-active: #f7e2df;
+  --color-danger-border: #d89e98;
+  --color-info: #2f62d4;
+  --color-info-light: #eef3fd;
+  --color-text-primary: #1c1c1a;
+  --color-text-secondary: #66625c;
+  --color-text-muted: #706b64;
+  --color-bg-page: #f3f3f1;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #efeeeb;
+  --color-bg-tertiary: #f7f7f5;
+  --color-border-default: #e1dfda;
+  --color-border-light: #eae9e5;
+  --color-border-strong: #cbc8c1;
+  --color-button-border: #cbc8c1;
+  --color-button-border-hover: #a8a298;
+  --color-control-surface: #ffffff;
+  --color-control-border: #89847d;
+  --color-control-border-hover: #706b64;
+  --color-disabled-bg: #eae8e4;
+  --color-disabled-text: #857e75;
+}
+
+html[data-client-theme='classic'],
+[data-client-theme-preview='classic'] {
+  --scrollbar-thumb: #91857a;
+  --scrollbar-thumb-hover: #665a50;
+  --scrollbar-thumb-active: #453930;
+  --color-primary: #d92d20;
+  --color-primary-strong: #b42318;
+  --color-primary-active: #912018;
+  --color-primary-text: #b42318;
+  --color-primary-light: #fbeddf;
+  --color-accent: #89601c;
+  --color-accent-light: #faf2de;
+  --color-success: #36734e;
+  --color-success-light: #edf4eb;
+  --color-success-dark: #2c6241;
+  --color-warning: #946200;
+  --color-warning-light: #faf2de;
+  --color-warning-medium: #946200;
+  --color-danger: #b42332;
+  --color-danger-light: #fbeef0;
+  --color-danger-medium: #9c1d2b;
+  --color-danger-active: #f7e4e8;
+  --color-danger-border: #d5a3ad;
+  --color-info: #526b86;
+  --color-info-light: #eff3f7;
+  --color-text-primary: #241a16;
+  --color-text-secondary: #66594e;
+  --color-text-muted: #75665b;
+  --color-bg-page: #f7f3ef;
+  --color-bg-primary: #fffcf8;
+  --color-bg-secondary: #f5eee4;
+  --color-bg-tertiary: #f8f1e7;
+  --color-border-default: #e7d9c7;
+  --color-border-light: #eee3d5;
+  --color-border-strong: #cfbea7;
+  --color-button-border: #cfbea7;
+  --color-button-border-hover: #ad967a;
+  --color-control-surface: #fffdf9;
+  --color-control-border: #918373;
+  --color-control-border-hover: #746553;
+  --color-disabled-bg: #eee6dc;
+  --color-disabled-text: #8b7b69;
+}
+
+/* Resolve aliases in each sample's own scope, not against its parent's palette. */
+html.desktop-shell,
+html[data-client-theme],
+[data-client-theme-preview] {
+  color-scheme: light;
+  --color-control-accent: var(--color-primary);
+  --color-control-accent-light: var(--color-primary-light);
+  --color-control-focus: var(--color-primary-text);
+  --color-border-accent: var(--color-accent);
+  --color-border-primary: var(--color-primary);
+  --color-border-focus: var(--color-primary-text);
+  --color-text-white: #ffffff;
+  --color-text-light: #ffffff;
+  --color-bg-overlay: #181823;
+  --color-bg-overlay-light: rgba(24, 24, 22, 0.4);
+  --color-floating-surface: var(--color-bg-primary);
+  --color-profit: var(--color-success-dark);
+  --color-profit-soft: var(--color-success-light);
+  --color-loss: var(--color-danger);
+  --color-loss-soft: var(--color-danger-light);
+  --shadow-sm: 0 1px 2px rgba(24, 24, 22, 0.05);
+  --shadow-md: 0 2px 8px rgba(24, 24, 22, 0.06);
+  --shadow-floating: 0 10px 28px rgba(24, 24, 22, 0.12), 0 0 0 1px rgba(24, 24, 22, 0.04);
+  --shadow-dialog: 0 24px 60px rgba(24, 24, 22, 0.18);
+  --page-bg: var(--color-bg-page);
+  --surface: var(--color-bg-primary);
+  --surface-2: var(--color-bg-secondary);
+  --border: var(--color-border-default);
+  --text: var(--color-text-primary);
+  --muted: var(--color-text-secondary);
+  --primary: var(--color-primary);
+  --primary-strong: var(--color-primary-strong);
+  --accent: var(--color-accent);
+  --danger: var(--color-danger);
+  --warning: var(--color-warning);
+  --shadow: var(--shadow-sm);
+}

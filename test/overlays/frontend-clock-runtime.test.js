@@ -202,10 +202,12 @@ test('clock preview loads once, shares drafts and only writes on explicit save',
   assert.equal(new URL(source).origin, 'http://localhost:3000');
   assert.equal(new URL(source).searchParams.get('style'), 'digital');
   assert.equal(dom.document.getElementById('clockFixedUrl').textContent, 'http://127.0.0.1:3000/clock');
+  assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, true);
 
   for (const style of ['timeline-vertical', 'soda']) {
     const button = dom.options.find((option) => option.dataset.clockStyleOption === style);
     button.listeners.get('click')();
+    assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, style === 'timeline-vertical');
   }
   const label = dom.document.getElementById('clockCustomLabel');
   label.value = '预览文字';
@@ -350,6 +352,7 @@ test('flip presets and custom colors update and save without reloading the previ
   await flush();
   const source = preview.src;
   assert.equal(dom.document.getElementById('clockFlipColors').hidden, false);
+  assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, true);
   assert.equal(dom.document.getElementById('clockFlipTextColor').value, '#123456');
   dom.palettes.find((button) => button.dataset.clockPalette === 'lilac').listeners.get('click')();
   const textColor = dom.document.getElementById('clockFlipTextColor');
@@ -366,6 +369,7 @@ test('flip presets and custom colors update and save without reloading the previ
   dom.options.find((button) => button.dataset.clockStyleOption === 'orbit').listeners.get('click')();
   assert.equal(dom.document.getElementById('clockFlipColors').hidden, true);
   assert.equal(dom.document.getElementById('clockCustomLabel').disabled, true);
+  assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, true);
 });
 
 test('flip cells animate only changed values, settle on rollover and clean up on style changes', async () => {

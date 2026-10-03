@@ -43,10 +43,7 @@ test('player dock exposes a collapse handle and shares its height with route wor
   assert.match(html, /id="playbackPlayerBody" class="panel-body playback-player"/);
   assert.match(playerStyles, /--player-dock-collapsed-height:\s*0px/);
   assert.match(playerStyles, /body\.player-dock-collapsed\s*\{/);
-  assert.match(
-    playerStyles,
-    /--player-dock-reserve:\s*calc\(var\(--player-dock-height\) \+ var\(--player-dock-toggle-clearance\)\)/,
-  );
+  assert.match(playerStyles, /--player-dock-reserve:\s*var\(--player-dock-height\)/);
   assert.match(playerStyles, /\.playback-player-panel\.is-collapsed \.playback-player\s*\{/);
   assert.match(playbackLayout, /height:\s*calc\(100vh - 58px - var\(--player-dock-reserve, 96px\)\)/);
   assert.match(adminWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-reserve, 96px\)\)/);

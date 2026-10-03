@@ -3,6 +3,7 @@ import { openComponentPreview } from './component-preview-dialog.js';
 import { requestScene } from './scene-api.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
 import { sceneSourceUrl } from './scene-source-url.js';
+import { eventBus } from '../shared/event-bus.js';
 
 export function initCanvasOverlaySource() {
   const address = document.getElementById('liveCanvasUrl');
@@ -36,6 +37,7 @@ export function initCanvasOverlaySource() {
     }
   }
   const stop = observeServerOverlayUrl(refresh);
+  const stopPublication = eventBus.on('scene:published', refresh);
   const tab = document.querySelector('[data-tab="overlayPage"]');
   tab.addEventListener('click', refresh);
   window.addEventListener('focus', refresh);
@@ -59,6 +61,7 @@ export function initCanvasOverlaySource() {
   window.addEventListener('pagehide', () => {
     generation += 1;
     stop();
+    stopPublication();
     tab.removeEventListener('click', refresh);
     window.removeEventListener('focus', refresh);
   }, { once: true });

@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('giftExport', {
 });
 
 contextBridge.exposeInMainWorld('songAssistantDesktop', {
+  setClientTheme: (themeId) => ipcRenderer.invoke('desktop:set-client-theme', themeId),
   getInfo: () => ipcRenderer.invoke('desktop:get-info'),
   getResourceIntegrityState: () => ipcRenderer.invoke('desktop:get-resource-integrity-state'),
   checkResourceIntegrity: () => ipcRenderer.invoke('desktop:check-resource-integrity'),

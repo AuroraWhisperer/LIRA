@@ -73,8 +73,9 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     }, { component, settings: DEFAULT_SETTINGS });
     await desktop.waitForFunction(() => window.externalPreviewUrl);
     const url = await desktop.evaluate(() => window.externalPreviewUrl);
-    assert.equal(new URL(url).pathname, '/component-preview');
-    assert.equal(new URL(url).searchParams.get('component'), component);
+    assert.equal(new URL(url).pathname, '/c');
+    assert.equal(new URL(url).search, '');
+    assert.equal((await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.selectedId, component);
     assert.equal(await desktop.locator('dialog').count(), 0);
     const response = await fetch(url);
     assert.equal(response.status, 200);
@@ -347,7 +348,8 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   assert.equal(await desktop.evaluate(() => window.closedComponents.length), 0, 'Leaving the page preserves the desktop session.');
   await desktop.evaluate(() => { window.externalPreviewUrl = ''; window.reopen(); });
   await desktop.waitForFunction(() => window.externalPreviewUrl);
-  assert.deepEqual(await desktop.evaluate(() => window.closedComponents.sort()), ['canvas', 'clock', 'danmaku', 'overtime', 'queue']);
+  assert.deepEqual(await desktop.evaluate(() => window.closedComponents), [], 'Reopening must reuse the desktop sessions.');
+  assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), url);
   await page.goto(await desktop.evaluate(() => window.externalPreviewUrl));
   await page.locator('[data-preview-field="clockCustomLabel"]').waitFor();
   assert.equal(await page.locator('[data-preview-field="clockCustomLabel"]').inputValue(), '切换后保留');
@@ -364,14 +366,12 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   holdExchanges = true;
   await exchangesHeld;
   const closingUrl = new URL(await desktop.evaluate(() => window.externalPreviewUrl));
-  const capabilities = new URLSearchParams(closingUrl.hash.slice(1));
-  const sessions = [{ id: capabilities.get('id'), token: capabilities.get('token') },
-    ...JSON.parse(capabilities.get('components')), JSON.parse(capabilities.get('canvas'))];
+  const sessions = (await fixture.post({ action: 'resolve' }, closingUrl.hash.slice(1))).data.links;
   for (const session of sessions) {
     const { data } = await fixture.post({ action: 'read', id: session.id }, session.token);
     session.attachmentId = data.attachmentId;
   }
-  const canvasSession = sessions.find(session => session.id === JSON.parse(capabilities.get('canvas')).id);
+  const canvasSession = sessions.find(session => session.component === 'canvas');
   assert.equal((await fixture.post({ action: 'publish', id: canvasSession.id, attachmentId: canvasSession.attachmentId }, canvasSession.token)).status, 200);
   for (const session of sessions) {
     assert.equal((await fixture.post({ action: 'close', id: session.id, attachmentId: session.attachmentId }, session.token)).status, 200);
@@ -380,7 +380,7 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
     === '预览连接已结束，请从客户端重新打开预览。', null, { timeout: 5000 });
   await page.goto('about:blank');
   resumeExchanges();
-  await desktop.waitForFunction(() => window.closedComponents.length === 10 && window.writes.length === 5);
+  await desktop.waitForFunction(() => window.closedComponents.length === 5 && window.writes.length === 5);
   assert.deepEqual(await desktop.evaluate(() => window.writes.slice(3).map(write => write.id).sort()), ['canvas', 'clock']);
   assert.equal(await desktop.evaluate(() => window.controllers.clock.getState().saved.label), '关闭后也保存');
 });

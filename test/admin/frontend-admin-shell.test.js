@@ -45,10 +45,11 @@ test('queue headers group counts with titles and keep passive surfaces still', (
   for (const counterId of ['superChatSize', 'queueSize']) {
     assert.match(html, new RegExp(`<div class="queue-heading">(?:(?!</div>)[\\s\\S])*id="${counterId}"`));
   }
-  const clearRule = styles.match(/\.queues-row \.queue-panel \.panel-header button\.danger\s*\{[\s\S]*?\n\}/)?.[0];
+  const clearRule = styles.match(/\.queues-row \.queue-panel \.panel-header button\.danger:not\(:disabled\)\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(clearRule);
-  assert.match(clearRule, /border:\s*1px solid var\(--border\)/);
-  assert.match(clearRule, /color:\s*var\(--muted\)/);
+  assert.match(clearRule, /border:\s*1px solid var\(--color-danger-border, var\(--border\)\)/);
+  assert.match(clearRule, /color:\s*var\(--danger\)/);
+  assert.match(styles, /button\.danger:active:not\(:disabled\)\s*\{\s*background:\s*var\(--color-danger-active/);
   const emptyRule = styles.match(/\.queues-row \.queue-panel \.queue-list > \.empty\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(emptyRule);
   assert.match(emptyRule, /border:\s*0/);

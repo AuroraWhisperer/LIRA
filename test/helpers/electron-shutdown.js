@@ -179,6 +179,7 @@ function createShutdownHarness(options = {}) {
         showErrorBox: (_title, message) => startupErrors.push(message),
       },
       ipcMain: {
+        removeHandler: (channel) => handlers.delete(channel),
         handle: (channel, handler) =>
           handlers.set(channel, (...args) => {
             const sender = state.window.main?.webContents;
@@ -193,6 +194,11 @@ function createShutdownHarness(options = {}) {
     },
     './desktop-readiness-controller': require('../../src/electron/desktop-readiness-controller'),
     './desktop-state': { createDesktopState: () => state },
+    './client-appearance': {
+      ...require('../../src/electron/client-appearance'),
+      createClientAppearance: () => ({ getThemeId: () => 'neutral', whenIdle: () => options.appearanceIdle?.promise }),
+    },
+    './ipc/client-appearance-ipc': require('../../src/electron/ipc/client-appearance-ipc'),
     './desktop-runtime': require('../../src/electron/desktop-runtime'),
     './desktop-auth-controller': {
       createDesktopAuthController: () => ({

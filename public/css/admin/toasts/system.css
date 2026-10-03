@@ -19,7 +19,7 @@
 .toast {
   --toast-text: var(--text);
   --toast-secondary: var(--muted);
-  --toast-accent: var(--primary);
+  --toast-accent: var(--color-info);
   --toast-success: var(--color-success);
   --toast-warning: var(--color-warning);
   --toast-error: var(--danger);
@@ -38,6 +38,7 @@
   opacity: 0;
   transform: translateY(-8px);
   pointer-events: auto;
+  cursor: pointer;
 }
 
 .toast.show {
@@ -131,7 +132,7 @@
   padding: 6px 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
-  background: var(--toast-accent);
+  background: var(--primary);
   color: #fff;
   font-family: inherit;
   font-size: var(--type-size-control);
@@ -144,8 +145,11 @@
   margin-left: 26px;
   max-width: calc(100% - 26px);
 }
-.toast-action:hover {
-  background: color-mix(in srgb, var(--toast-accent) 88%, #181816);
+.toast-action:hover:not(:disabled) {
+  background: var(--primary-strong);
+}
+.toast-action:active:not(:disabled) {
+  background: var(--color-primary-active, var(--primary-strong));
 }
 .toast-action:focus-visible {
   outline: 2px solid var(--toast-accent);

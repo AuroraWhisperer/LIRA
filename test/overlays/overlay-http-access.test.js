@@ -323,7 +323,7 @@ test('allowed read APIs project data and force song visibility and today-only gi
     ['card-profiles', 'revision'],
   );
   const config = await (await f.request('/api/gifts/display-settings', createOverlayToken(ADMIN, 'gift-feed'))).json();
-  assert.equal(config.data.scrollSpeed, 25);
+  assert.equal(config.data.scrollSpeed, 12);
   assert.equal(config.data.minGiftAmountCents, 0);
   assert.equal(Object.hasOwn(config.data, 'paused'), false);
   f.state.settings.giftDisplayConfig = JSON.stringify({ ...config.data, minGiftAmountCents: 1250 });

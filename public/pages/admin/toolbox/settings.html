@@ -9,9 +9,76 @@
   <div class="other-feature-panel-body stack license-account-panel">
     <header class="license-account-header">
       <div>
-        <h2 class="ui-page-title">账户与网站</h2>
+        <h2 class="ui-page-title">客户端与账户</h2>
       </div>
     </header>
+
+    <section id="clientAppearance" class="license-account-card" aria-labelledby="clientAppearanceTitle">
+      <h3 id="clientAppearanceTitle" class="ui-section-title">客户端外观</h3>
+      <p id="clientAppearanceDescription" class="client-appearance-description">
+        客户端立即生效，网页工具下次打开时跟随；直播画面保持原设置。
+      </p>
+      <fieldset class="client-appearance-choices" aria-label="客户端配色" aria-describedby="clientAppearanceDescription">
+        <label class="client-appearance-choice">
+          <span class="client-appearance-choice-heading">
+            <input type="radio" name="clientTheme" value="neutral" />
+            <span>中性蓝</span>
+            <span class="client-appearance-current" data-client-theme-current="neutral" hidden>当前使用</span>
+          </span>
+          <span class="client-appearance-preview" data-client-theme-preview="neutral" aria-hidden="true">
+            <span class="client-appearance-preview-selected">点歌队列</span>
+            <span class="client-appearance-preview-card">
+              <span>播放设置</span>
+              <span class="client-appearance-preview-actions">
+                <span class="client-appearance-preview-button">预览</span>
+                <span class="client-appearance-preview-button client-appearance-preview-primary">保存</span>
+              </span>
+              <span class="client-appearance-preview-status">✓ 已连接</span>
+            </span>
+          </span>
+        </label>
+        <label class="client-appearance-choice">
+          <span class="client-appearance-choice-heading">
+            <input type="radio" name="clientTheme" value="classic" />
+            <span>经典暖金</span>
+            <span class="client-appearance-current" data-client-theme-current="classic" hidden>当前使用</span>
+          </span>
+          <span class="client-appearance-preview" data-client-theme-preview="classic" aria-hidden="true">
+            <span class="client-appearance-preview-selected">点歌队列</span>
+            <span class="client-appearance-preview-card">
+              <span>播放设置</span>
+              <span class="client-appearance-preview-actions">
+                <span class="client-appearance-preview-button">预览</span>
+                <span class="client-appearance-preview-button client-appearance-preview-primary">保存</span>
+              </span>
+              <span class="client-appearance-preview-status">✓ 已连接</span>
+            </span>
+          </span>
+        </label>
+        <label class="client-appearance-choice">
+          <span class="client-appearance-choice-heading">
+            <input type="radio" name="clientTheme" value="terracotta" />
+            <span>暖陶</span>
+            <span class="client-appearance-current" data-client-theme-current="terracotta" hidden>当前使用</span>
+          </span>
+          <span class="client-appearance-preview" data-client-theme-preview="terracotta" aria-hidden="true">
+            <span class="client-appearance-preview-selected">点歌队列</span>
+            <span class="client-appearance-preview-card">
+              <span>播放设置</span>
+              <span class="client-appearance-preview-actions">
+                <span class="client-appearance-preview-button">预览</span>
+                <span class="client-appearance-preview-button client-appearance-preview-primary">保存</span>
+              </span>
+              <span class="client-appearance-preview-status">✓ 已连接</span>
+            </span>
+          </span>
+        </label>
+      </fieldset>
+      <div class="client-appearance-actions">
+        <button type="button" class="primary" data-client-theme-apply disabled>应用配色</button>
+        <span class="client-appearance-feedback" data-client-theme-feedback role="status" aria-live="polite"></span>
+      </div>
+    </section>
 
     <section id="licenseAccountDevice" class="license-account-card" hidden aria-labelledby="licenseAccountTitle">
       <div class="license-account-card-heading">

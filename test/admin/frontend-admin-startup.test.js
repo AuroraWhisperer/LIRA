@@ -106,6 +106,7 @@ async function createStartupFixture() {
     './ai-assistant-settings.js': { aiAssistantSettings: {} },
     './desktop-lyric.js': { desktopLyric: { initDesktopLyricForm: noop } },
     './song-import.js': { songImports: {} },
+    './client-appearance.js': { initClientAppearance: noop },
     './settings.js': {
       settings: {
         initSettingsForm: () => calls.push('settings'),

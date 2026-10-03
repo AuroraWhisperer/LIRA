@@ -1,3 +1,10 @@
+const giftFeedAvatars = ['viewer', 'captain', 'admiral'];
+const giftFeedGifts = [
+  { giftId: '31036', giftName: '小花花', unitPrice: 0.1, artwork: 'flower' },
+  { giftId: '31039', giftName: '牛哇牛哇', unitPrice: 0.1, artwork: 'cheer' },
+  { giftId: '35534', giftName: '打call', unitPrice: 0.2, artwork: 'call' },
+];
+
 export function sceneExtraPreviewData(type) {
   const session = (game, state) => ({ game, sessionId: `preview-${game}`, eventRevision: 1, state, danmaku: [] });
   const examples = {
@@ -17,7 +24,17 @@ export function sceneExtraPreviewData(type) {
       rating: { sessionId: 'preview-rating', kind: 'rating', phase: 'finished', participants: 100, average: 8.6 },
     } },
     blindbox: { summary: { boxCount: 12, totalCost: 120, totalProfit: 36 }, perUser: [{ userName: '示例观众', boxCount: 8, totalProfit: 42 }, { userName: '另一位观众', boxCount: 4, totalProfit: -6 }] },
-    'gift-feed': { items: Array.from({ length: 5 }, (_, index) => ({ eventId: `preview-${index}`, gift: { userName: `示例观众 ${index + 1}`, giftName: '小花花', giftId: '1', coinType: 'gold', unitPrice: 1, num: index + 1, createdAt: new Date().toISOString(), guardLevel: 0 } })), profiles: [], catalog: [], day: new Date(Date.now() + 28800000).toISOString().slice(0, 10) },
+    'gift-feed': {
+      items: [[0, 0], [1, 1], [2, 2], [0, 1], [1, 2], [2, 0]].map(([viewer, giftIndex], index) => {
+        const { artwork, ...gift } = giftFeedGifts[giftIndex];
+        return { eventId: `preview-${index}`, artworkPath: `/img/overlays/gift-feed/${artwork}.webp`, gift: {
+          ...gift, userName: `示例观众 ${viewer + 1}`,
+          avatarUrl: `/img/overlays/danmaku-ranked/${giftFeedAvatars[viewer]}.webp`,
+          coinType: 'gold', num: index + 1, createdAt: new Date().toISOString(), guardLevel: 0,
+        } };
+      }),
+      profiles: [], catalog: [], day: new Date(Date.now() + 28800000).toISOString().slice(0, 10),
+    },
     'gift-wishes': { items: [{ id: 'preview-wish', period: 'day', giftId: '1', giftName: '小花花', target: 100, count: 36, todayCount: 36, remaining: 64, progress: 36, completed: false, label: '今日小心愿', displayStyle: 'card', textTemplate: '{礼物} {已收}/{目标}', textImagePosition: 'none', textImageFormat: 'static' }], session: { state: 'live', stale: false } },
   };
   return examples[type];

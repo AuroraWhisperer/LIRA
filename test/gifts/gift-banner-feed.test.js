@@ -13,13 +13,14 @@ test('feed speed maps linearly from five seconds to a tenth of a second per row'
   const { giftFeedRowDurationMs } = await loadModuleExports(path.resolve('public/js/shared/gift-feed-state.js'));
   assert.equal(giftFeedRowDurationMs(1), 5000);
   assert.equal(giftFeedRowDurationMs(50), 100);
+  assert.equal(giftFeedRowDurationMs(DEFAULT_GIFT_DISPLAY.scrollSpeed), giftFeedRowDurationMs(25) * 1.5);
   for (let speed = 2; speed <= 50; speed += 1) {
     assert.ok(Math.abs(giftFeedRowDurationMs(speed - 1) - giftFeedRowDurationMs(speed) - 4900 / 49) < 1e-9);
   }
 });
 
 test('display settings validate speed and preserve saved colors and rows from legacy settings', () => {
-  assert.equal(DEFAULT_GIFT_DISPLAY.scrollSpeed, 25);
+  assert.equal(DEFAULT_GIFT_DISPLAY.scrollSpeed, 12);
   for (const scrollSpeed of [1, 26, 50]) {
     const config = { ...DEFAULT_GIFT_DISPLAY, scrollSpeed };
     assert.deepEqual(validateGiftDisplaySettings(config), config);

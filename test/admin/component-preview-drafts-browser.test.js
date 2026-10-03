@@ -25,7 +25,8 @@ test('A06/A07: expired mixed recovery renders every component with no live provi
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.waitForFunction(() => document.querySelectorAll('.scene-editor-item iframe').length === 4);
-  const key = JSON.parse(new URLSearchParams(new URL(url).hash.slice(1)).get('canvas')).draftKey;
+  const key = (await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.links
+    .find(({ component }) => component === 'canvas').draftKey;
   await page.waitForFunction(key => JSON.parse(localStorage.getItem(`lira.preview-draft.v1.${key}`))?.components.canvas, key);
   await desktop.evaluate(() => window.previewHandle.close());
   await page.getByRole('status').filter({ hasText: '预览连接已结束' }).waitFor();
@@ -150,7 +151,8 @@ test('refresh recovers unsent edits and does not repeat a publication whose resp
   await width.press('Tab');
   await label.fill('尚未送达客户端');
   await editBlocked;
-  const draftKey = JSON.parse(new URLSearchParams(new URL(url).hash.slice(1)).get('canvas')).draftKey;
+  const draftKey = (await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.links
+    .find(({ component }) => component === 'canvas').draftKey;
   await page.waitForFunction(key => JSON.parse(localStorage.getItem(`lira.preview-draft.v1.${key}`))
     ?.components.canvas.draft.document.items[0]?.appearance.config.label === '尚未送达客户端', draftKey);
   await page.reload();
@@ -198,7 +200,8 @@ test('revoked refresh retains unsaved layout and parameters, and reopening resto
   await width.fill('777');
   await width.press('Tab');
   await label.fill('尚未完成的配置');
-  const draftKey = JSON.parse(new URLSearchParams(new URL(url).hash.slice(1)).get('canvas')).draftKey;
+  const { draftKey, token: capability } = (await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.links
+    .find(({ component }) => component === 'canvas');
   await page.waitForFunction(key => {
     const snapshot = JSON.parse(localStorage.getItem(`lira.preview-draft.v1.${key}`));
     return snapshot?.components.canvas.draft.document.items[0]?.appearance.config.label === '尚未完成的配置';
@@ -214,8 +217,10 @@ test('revoked refresh retains unsaved layout and parameters, and reopening resto
   assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isDisabled(), true);
   const cached = await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('lira.preview-draft.v1.'))
     .map(key => localStorage.getItem(key)).join(''));
-  const capability = JSON.parse(new URLSearchParams(new URL(url).hash.slice(1)).get('canvas')).token;
   assert.equal(cached.includes(capability), false);
+  const metadata = await page.evaluate(() => JSON.stringify(sessionStorage));
+  assert.equal(metadata.includes(capability), false);
+  assert.equal(metadata.includes(new URL(url).hash.slice(1)), false);
 
   const reopen = async () => {
     const nextUrl = await openCanvasDesktop(desktop, fixture);

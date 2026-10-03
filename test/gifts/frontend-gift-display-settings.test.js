@@ -116,7 +116,7 @@ test('gift feed settings save speed and remove the pause and low-power options',
     minGiftAmountCents: 0,
   });
   await page.getByRole('button', { name: '恢复默认', exact: true }).click();
-  assert.equal(await speed.inputValue(), '25');
+  assert.equal(await speed.inputValue(), '12');
   await page.getByRole('button', { name: '取消修改', exact: true }).click();
   assert.equal(await speed.inputValue(), '50');
 });

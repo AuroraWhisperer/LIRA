@@ -10,7 +10,7 @@
   scrollbar-color: var(--border) var(--surface);
 }
 .component-preview-page ::selection { background: var(--color-primary-light); color: var(--text); }
-.component-preview-page button.primary { color: var(--color-bg-overlay); }
+.component-preview-page button.primary:not(:disabled) { color: var(--color-text-white); }
 .component-preview-page .lira-select { --select-accent: var(--primary-strong); --select-accent-soft: var(--color-primary-light); --select-option-hover: var(--surface-2); }
 #componentPreviewPage { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 #componentPreviewStatus { padding: var(--spacing-lg); }
@@ -30,7 +30,18 @@
 .preview-canvas-layer .preview-canvas-layer-select { min-width: 0; max-width: 180px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preview-canvas-layer button:hover { background: var(--surface-2); }
 .preview-canvas-layer button[aria-pressed='true'] { color: var(--primary-strong); background: var(--color-primary-light); }
-.preview-canvas-layer .preview-canvas-layer-action { color: var(--muted); }
+.preview-canvas-layer .preview-canvas-layer-action { display: grid; place-items: center; width: 36px; color: var(--muted); }
+.preview-canvas-layer-chevron { width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.preview-canvas-layer-action[aria-expanded='true'] .preview-canvas-layer-chevron { transform: rotate(225deg); }
+.preview-canvas-layer-menu { position: fixed; inset: auto; box-sizing: border-box; width: 144px; margin: 0; padding: 4px; border: 0; border-radius: var(--radius-md); background: var(--surface); color: var(--text); box-shadow: var(--shadow-floating); }
+.preview-canvas-layer-menu:popover-open { display: grid; gap: 2px; }
+.preview-canvas-layer-menu button { width: 100%; text-align: left; }
+.preview-canvas-layer-menu button.danger { color: var(--danger); }
+.preview-canvas-layer-menu button.danger:hover:not(:disabled) { background: var(--color-danger-light); }
+.preview-canvas-layer-menu button:disabled { opacity: 0.5; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .preview-canvas-layer-chevron { transition: none; }
+}
 .component-preview-canvas { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; background: var(--preview-workspace); }
 .preview-canvas-controls { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .preview-canvas-controls > button { display: flex; align-items: center; gap: 8px; }
@@ -45,7 +56,7 @@
 .component-preview-page .scene-editor-empty { color: #465166; }
 .component-preview-page .scene-editor-stage-host[data-background='dark'] .scene-editor-canvas { background: #20252d; }
 .component-preview-page .scene-editor-stage-host[data-background='dark'] .scene-editor-empty { color: #f3f4f5; }
-.component-preview-page .scene-editor-stage-host[data-background='light'] .scene-editor-canvas { background: var(--surface); }
+.component-preview-page .scene-editor-stage-host[data-background='light'] .scene-editor-canvas { background: #ffffff; }
 .component-preview-page .scene-editor-item .component-preview-display { padding: 0; }
 .component-preview-page .scene-editor-item .component-preview-stage { border-radius: 0; background: transparent; }
 .component-preview-page .scene-editor-item .component-preview-frame { inset: 0; translate: none; transform-origin: top left; }
@@ -58,7 +69,7 @@
 .component-preview-page .component-preview-panel > h3,
 .component-preview-page .preview-canvas-parameters > h3 { margin: 0 0 16px; font-size: var(--type-size-card-title); font-weight: var(--type-weight-semibold); }
 .component-preview-page .component-preview-panel fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-.component-preview-page .component-preview-panel fieldset:disabled { opacity: 0.65; }
+.component-preview-page .component-preview-panel fieldset:disabled { opacity: 1; }
 .component-preview-page .component-preview-panel .danmaku-style-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .component-preview-page .component-preview-panel .danmaku-style-sample { height: auto; min-height: 48px; aspect-ratio: 16 / 9; padding: 4px; }
 .component-preview-page .component-preview-panel .clock-parameter-section > h3 { display: none; }

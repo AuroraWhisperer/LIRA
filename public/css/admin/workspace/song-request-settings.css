@@ -18,13 +18,9 @@
 }
 
 #songRequestSettingsForm {
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  align-items: start;
-  gap: var(--spacing-md) var(--spacing-lg);
-}
-
-#songRequestSettingsForm > .song-board-section[open] {
-  align-self: stretch;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+  gap: 0;
+  padding: 0;
 }
 
 .song-board-section {
@@ -35,25 +31,27 @@
   background: var(--surface);
 }
 
-.song-board-section > summary {
+.song-request-section {
+  min-width: 0;
+  padding: var(--spacing-lg);
+}
+
+.song-request-blacklist {
+  border-left: 1px solid var(--border);
+}
+
+.song-request-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 4px 0;
-  color: var(--text);
-  cursor: pointer;
-  list-style: none;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-md);
+  min-height: 36px;
 }
 
-.song-board-section > summary::-webkit-details-marker {
-  display: none;
-}
-
-.song-board-section > summary:focus-visible {
-  outline: 2px solid var(--color-control-focus);
-  outline-offset: 4px;
-  border-radius: 4px;
+.song-request-section-header > button {
+  flex: none;
+  margin-left: auto;
 }
 
 .song-board-section-title {
@@ -63,7 +61,6 @@
   gap: 4px 10px;
 }
 
-.song-board-section-title strong,
 .song-board-section-heading {
   margin: 0;
   color: var(--text);
@@ -77,16 +74,6 @@
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
-}
-
-.song-board-section > summary > svg {
-  flex: none;
-  width: 20px;
-  height: 20px;
-}
-
-.song-board-section[open] > summary > svg {
-  transform: rotate(180deg);
 }
 
 .song-board-section-body {
@@ -107,20 +94,12 @@
   grid-column: span 3;
 }
 
-.song-blacklist-toolbar {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--spacing-md);
-}
-
 .song-blacklist-empty {
-  padding: var(--spacing-sm) 0;
+  padding: var(--spacing-lg) var(--spacing-md);
   margin: 0;
-}
-
-.song-blacklist-toolbar button {
-  flex: none;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  text-align: center;
 }
 
 .song-blacklist-words {
@@ -128,6 +107,11 @@
   width: 100%;
   min-width: 0;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  grid-auto-rows: 38px;
+  max-height: calc(38px * 3 + 10px * 2);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
   gap: 10px 12px;
   margin: 0;
   padding: 0;
@@ -150,7 +134,7 @@
 .song-blacklist-word:focus-within {
   border-color: var(--color-control-focus);
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .song-blacklist-word input {
@@ -188,11 +172,18 @@
   display: flex;
   grid-column: 1 / -1;
   justify-content: flex-end;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 1200px) {
   #songRequestSettingsForm {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .song-request-blacklist {
+    border-top: 1px solid var(--border);
+    border-left: 0;
   }
 }
 

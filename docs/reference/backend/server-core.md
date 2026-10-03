@@ -54,6 +54,21 @@ Windows 兼容旧版本：通过系统 TCP 表的精确两端地址/端口查当
 
 `localhost` 是可接受的启动配置输入，会归一化为 `127.0.0.1`；公开访问地址、Host 和 Origin 使用归一化后的 `http://127.0.0.1:<实际端口>`。这不承诺同时接受浏览器的 `http://localhost:<端口>` 别名，二者不是同一个 Origin。客户端应使用启动结果中的 baseUrl，不自行替换主机名。
 
+### 客户端外观 HTML 快照
+
+`createServerRuntime({ getClientTheme })` 将主进程提供的只读 getter 传入
+[runtime-transport.js](../../../src/server/runtime-transport.js) 和
+[http-utils.js](../../../src/server/http-utils.js)。每次生成 Admin（`/`、`/admin`、`/settings`、
+`/songs`）、组件预览（含静态 HTML 别名）或已授权 `/pages/gift-audit.html` 响应时，
+只将白名单主题 ID 写到 `<html data-client-theme="…">`，在 CSS 之前可用。
+缺少桌面 owner 或值非法时使用 `terracotta`（暖陶）。模板和 Admin 片段缓存保持无请求状态，
+响应仍为 `Cache-Control: no-store`；不会缓存已经绑定旧主题的完整页面。
+
+这一属性仅是呈现状态，不授予权限；原先 gift-audit 的授权检查保持不变，不注入管理员
+Token。不向 license、scene 或任何 overlay 注入主题，不新增写入 HTTP API、通知或轮询。
+已打开的外部工具保持原外观，之后新请求读取当前已提交值；不强制刷新编辑器。
+主进程存储及生命周期由 [desktop/main.md](../desktop/main.md) 定义。
+
 ## 3. 环境变量(唯一成表处)
 
 | 变量                   | 默认           | 作用                                                                                       |

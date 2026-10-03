@@ -5,7 +5,7 @@ const DEFAULT_GIFT_DISPLAY = Object.freeze({
   palette: 'bilibili-four',
   thresholds: [3000, 10000, 100000],
   visibleRows: 3,
-  scrollSpeed: 25,
+  scrollSpeed: 12,
   minGiftAmountCents: 0,
 });
 

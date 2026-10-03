@@ -13,6 +13,7 @@ const groups = {
     'admin/canvas-component-library',
     'admin/component-preview-browser',
     'admin/component-preview-drafts-browser',
+    'admin/component-preview-links',
     'admin/component-preview-output',
     'admin/component-preview-recovery',
     'bots/daily-bot-frontend',

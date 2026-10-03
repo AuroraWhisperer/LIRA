@@ -86,6 +86,7 @@ export function createGiftWishCard(wish, documentRef = document) {
     card.append(frame, total);
     return card;
   }
+  card.classList.add('wish-card--bar');
   const fill = element('div', 'wish-card-fill');
   fill.style.transform = `scaleX(${wish.progress / 100})`;
   track.append(fill);

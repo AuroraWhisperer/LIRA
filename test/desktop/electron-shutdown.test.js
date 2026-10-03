@@ -26,6 +26,23 @@ function assertFinalized(harness, restart) {
   assert.equal(harness.clock.pending, 0);
 }
 
+test('shutdown drains accepted appearance writes before closing the runtime', async () => {
+  const appearanceIdle = Promise.withResolvers();
+  const h = createShutdownHarness({ appearanceIdle });
+  await h.start();
+  h.quit();
+  h.cloudIdle.resolve();
+  h.remoteIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:stop'), 0);
+  appearanceIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:stop'), 1);
+  h.backendStop.resolve();
+  await h.settle();
+  assertFinalized(h, false);
+});
+
 test('shutdown drains resource checking before playback and runtime teardown', async () => {
   const integrityIdle = Promise.withResolvers();
   const h = createShutdownHarness({ integrityIdle });

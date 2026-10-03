@@ -1,4 +1,16 @@
 .overtime-console {
+  /* This dedicated console keeps its existing identity inside the themed tools. */
+  --surface: #ffffff;
+  --surface-2: #efeeeb;
+  --border: #e1dfda;
+  --text: #1c1c1a;
+  --muted: #66625c;
+  --primary: #2f62d4;
+  --primary-strong: #234fb5;
+  --color-primary-active: #1b3f94;
+  --color-control-focus: #234fb5;
+  --color-border-strong: #cbc8c1;
+  --color-bg-tertiary: #f7f7f5;
   position: relative;
   isolation: isolate;
   overflow: hidden;

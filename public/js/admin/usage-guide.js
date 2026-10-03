@@ -26,6 +26,7 @@ export function initUsageGuide() {
 
   let sectionOffset = 110;
   let compactToc = true;
+  let tocAtTop = null;
   let tocTimer = null;
 
   function updateTocAvailableHeight() {
@@ -35,11 +36,14 @@ export function initUsageGuide() {
         : window.innerHeight;
     const available = Math.min(scrollerBottom, window.innerHeight) - toc.getBoundingClientRect().bottom - 12;
     toc.style.setProperty('--usage-guide-toc-max-height', `${Math.max(0, available)}px`);
+    if (tocAtTop) {
+      panel.style.setProperty('--usage-guide-toc-space', `${tocMenu.getBoundingClientRect().height + 6}px`);
+    }
   }
 
   function setTocOpen(open) {
     window.clearTimeout(tocTimer);
-    const expanded = open && compactToc && !panel.hidden;
+    const expanded = (open || tocAtTop) && compactToc && !panel.hidden;
     if (expanded) updateTocAvailableHeight();
     if (!expanded && compactToc && tocMenu.contains(document.activeElement)) {
       tocToggle.focus({ preventScroll: true });
@@ -51,8 +55,17 @@ export function initUsageGuide() {
 
   function scheduleToc(open) {
     window.clearTimeout(tocTimer);
-    if (!compactToc || (open && toc.classList.contains('is-open'))) return;
-    tocTimer = window.setTimeout(() => setTocOpen(open), open ? 400 : 600);
+    if (!compactToc || tocAtTop || (open && toc.classList.contains('is-open'))) return;
+    tocTimer = window.setTimeout(() => setTocOpen(open), open ? 200 : 600);
+  }
+
+  function updateTocScrollState() {
+    if (panel.hidden) return;
+    const atTop = compactToc && scroller.scrollTop <= 8 && scroller.getBoundingClientRect().top >= -8;
+    if (atTop === tocAtTop) return;
+    tocAtTop = atTop;
+    toc.classList.toggle('is-at-top', atTop);
+    setTocOpen(false);
   }
 
   toc.addEventListener('pointerenter', (event) => {
@@ -85,6 +98,7 @@ export function initUsageGuide() {
       compactToc = nextCompactToc;
       setTocOpen(false);
     }
+    updateTocScrollState();
     const scrollerStyle = window.getComputedStyle(scroller);
     const scrollerPadding = scrollerStyle.overflowY === 'auto' ? parseFloat(scrollerStyle.paddingTop) : 0;
     sectionOffset =
@@ -144,6 +158,7 @@ export function initUsageGuide() {
     scrollTicking = true;
     window.requestAnimationFrame(() => {
       scrollTicking = false;
+      updateTocScrollState();
       if (toc.classList.contains('is-open')) updateTocAvailableHeight();
       updateActiveOnScroll();
     });
@@ -197,10 +212,11 @@ export function initUsageGuide() {
 
   scroller.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('scroll', onScroll, { passive: true });
-  setTocOpen(false);
   setActiveLink(sections[0].id);
+  updateTocLayout();
   const tocObserver = new ResizeObserver(updateTocLayout);
   tocObserver.observe(toc);
+  tocObserver.observe(tocMenu);
 
   // 绑定重新打开交互式引导按钮
   const reopenTourBtn = document.getElementById('reopenInteractiveTourBtn');

@@ -301,14 +301,20 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
       return request.body.component;
     }, style);
     assert.equal(component, 'danmaku');
+    await page.waitForFunction((style) => window.pendingSaves.some((request) =>
+      request.body.action === 'link' && request.body.links[0].id === `preview-${style}`), style);
+    const selectedId = await page.evaluate((style) => {
+      const request = window.pendingSaves.find((request) => request.body.action === 'link'
+        && request.body.links[0].id === `preview-${style}`);
+      request.resolve({ data: { key: 'a'.repeat(22) } });
+      return request.body.selectedId;
+    }, style);
+    assert.equal(selectedId, 'danmaku');
     await page.waitForFunction((count) => window.opened.length === count, index + 1);
     const preview = new URL(await page.evaluate(() => window.opened.at(-1)));
-    assert.equal(preview.pathname, '/component-preview');
-    assert.equal(preview.searchParams.get('component'), 'danmaku');
-    assert.equal(preview.searchParams.has('token'), false);
-    const session = new URLSearchParams(preview.hash.slice(1));
-    assert.equal(session.get('id'), `preview-${style}`);
-    assert.equal(session.get('token'), `synthetic-preview-${style}`);
+    assert.equal(preview.pathname, '/c');
+    assert.equal(preview.search, '');
+    assert.equal(preview.hash, `#${'a'.repeat(22)}`);
     assert.equal(await page.locator('.component-preview-dialog').count(), 0);
     await page.evaluate(async () => {
       const { closeComponentPreview } = await import('/js/admin/component-preview-session.js');

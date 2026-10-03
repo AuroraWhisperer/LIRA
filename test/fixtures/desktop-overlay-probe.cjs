@@ -174,9 +174,16 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   auth.bindWindow(admin, { openExternal: url => { canvasPreviewUrl = url; } });
   await admin.webContents.executeJavaScript("document.getElementById('liveCanvasPreview').click()");
   await waitFor(() => Boolean(canvasPreviewUrl));
-  assert.equal(new URL(canvasPreviewUrl).pathname, '/component-preview');
+  assert.equal(new URL(canvasPreviewUrl).pathname, '/c');
   assert.equal(new URL(canvasPreviewUrl).search, '');
-  assert.ok(new URLSearchParams(new URL(canvasPreviewUrl).hash.slice(1)).has('canvas'));
+  const previewKey = new URL(canvasPreviewUrl).hash.slice(1);
+  assert.match(previewKey, /^[A-Za-z0-9_-]{22}$/);
+  const previewResponse = await fetch(`${origin}/api/component-preview`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${previewKey}` },
+    body: JSON.stringify({ action: 'resolve' }),
+  });
+  assert.equal(previewResponse.status, 200);
+  assert.ok((await previewResponse.json()).data.links.some(({ component }) => component === 'canvas'));
   context.scenes.list = () => { throw new Error('Synthetic scene read failure'); };
   await admin.webContents.executeJavaScript("window.dispatchEvent(new Event('focus'))");
   await waitFor(() => admin.webContents.executeJavaScript("document.getElementById('liveCanvasSourceStatus').textContent.includes('场景暂时不可用')"));

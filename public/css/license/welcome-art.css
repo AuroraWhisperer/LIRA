@@ -112,23 +112,26 @@
 }
 .license-signal {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 3px;
   height: 16px;
   color: var(--license-muted);
 }
 .license-signal span {
   width: 2px;
-  height: 8px;
+  height: var(--license-signal-bar, 8px);
   border-radius: 1px;
   background: currentColor;
+  transform: scaleY(0.5);
+  transform-origin: center bottom;
+  will-change: transform;
 }
 .license-signal span:nth-child(2),
 .license-signal span:nth-child(4) {
-  height: 13px;
+  --license-signal-bar: 13px;
 }
 .license-signal span:nth-child(3) {
-  height: 16px;
+  --license-signal-bar: 16px;
 }
 @media (prefers-reduced-motion: no-preference) {
   .license-intro h2,
@@ -147,6 +150,21 @@
   }
   .license-intro-caption {
     animation-delay: 240ms;
+  }
+  .license-signal span {
+    animation: license-signal-pulse 1.15s ease-in-out infinite;
+  }
+  .license-signal span:nth-child(2) {
+    animation-delay: 115ms;
+  }
+  .license-signal span:nth-child(3) {
+    animation-delay: 230ms;
+  }
+  .license-signal span:nth-child(4) {
+    animation-delay: 345ms;
+  }
+  .license-signal span:nth-child(5) {
+    animation-delay: 460ms;
   }
   .license-record::before,
   .license-record::after {
@@ -173,7 +191,8 @@
   .license-echo,
   .license-record::before,
   .license-record::after,
-  .license-record-wave path {
+  .license-record-wave path,
+  .license-signal span {
     animation-play-state: var(--license-motion-play-state, paused);
   }
 }
@@ -203,6 +222,15 @@
   100% {
     opacity: 0;
     transform: scale(1.26);
+  }
+}
+@keyframes license-signal-pulse {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
   }
 }
 @keyframes license-record-wave {

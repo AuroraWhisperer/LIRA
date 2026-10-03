@@ -1,9 +1,11 @@
 /* Shared option panel. Light pages share one accent; only the dark onboarding variant differs. */
 .lira-select {
-  --select-accent: var(--color-control-accent);
+  --select-accent: var(--color-primary-text, var(--color-control-accent));
   --select-accent-soft: var(--color-control-accent-light);
   --select-surface: var(--color-floating-surface, #fff);
   --select-border: var(--color-border-default, #d9e0e8);
+  --select-control-border: var(--color-control-border, var(--select-border));
+  --select-control-border-hover: var(--color-control-border-hover, var(--color-border-strong));
   --select-text: var(--text);
   --select-muted: var(--muted);
   --select-option-hover: var(--color-bg-tertiary);
@@ -18,6 +20,8 @@
   --select-option-hover: rgba(255, 255, 255, 0.09);
   --select-surface: #242a3a;
   --select-border: rgba(255, 255, 255, 0.2);
+  --select-control-border: var(--select-border);
+  --select-control-border-hover: var(--select-accent);
   --select-text: #f4f6fb;
   --select-muted: #b8bfce;
 }
@@ -45,7 +49,7 @@
   width: 100%;
   min-height: 36px;
   padding: 7px 10px;
-  border: 1px solid var(--select-border);
+  border: 1px solid var(--select-control-border);
   border-radius: var(--radius-control, 7px);
   background: var(--select-surface);
   color: var(--select-text);
@@ -59,7 +63,7 @@
 }
 
 .lira-select-trigger:hover:not(:disabled) {
-  border-color: var(--color-border-strong, var(--select-accent));
+  border-color: var(--select-control-border-hover);
 }
 
 .lira-select.is-open .lira-select-trigger {
@@ -160,8 +164,8 @@
     color 100ms ease;
 }
 
-.lira-select-option:hover:not(:disabled),
-.lira-select-option.is-keyboard-focused {
+.lira-select-option:hover:not(:disabled, [aria-disabled='true']),
+.lira-select-option.is-keyboard-focused:not(:disabled, [aria-disabled='true']) {
   background: var(--select-option-hover);
 }
 
@@ -191,6 +195,20 @@
   cursor: not-allowed;
   color: var(--select-muted);
   opacity: 0.55;
+}
+
+:where(html.desktop-shell, html[data-client-theme]) .lira-select:not([data-select-variant='onboarding']) :is(.lira-select-trigger, .lira-select-option):is(:disabled, [aria-disabled='true']) {
+  background: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  opacity: 1;
+}
+
+:where(html.desktop-shell, html[data-client-theme]) .lira-select:has(select[aria-invalid='true']) .lira-select-trigger {
+  border-color: var(--color-danger);
+}
+
+:where(html.desktop-shell, html[data-client-theme]) .lira-select:not([data-select-variant='onboarding']) :is(.lira-select-trigger, .lira-select-option):focus-visible {
+  outline-color: var(--color-control-focus);
 }
 
 .lira-select-group {

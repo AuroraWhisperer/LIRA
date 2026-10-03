@@ -339,7 +339,7 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 
 ### 7.2 defaults 外的领域设置与公开投影
 
-`giftDisplayConfig` 是 [display-settings.js](../../../src/bilibili/gift/display-settings.js) 拥有的 JSON 文本，经专属礼物展示 GET/POST 修改，不经普通 settings 默认键白名单。缺失/无效时默认 `{palette:'bilibili-four',thresholds:[3000,10000,100000],visibleRows:3,scrollSpeed:25,minGiftAmountCents:0}`：金额为整数分；三阈值须正安全整数且递增，visibleRows=1–10、scrollSpeed=1–50整数，最小金额为非负安全整数且是10的倍数。旧 intervalSeconds/paused/lowPower 形状兼容为 scrollSpeed=1，不同步到云端。
+`giftDisplayConfig` 是 [display-settings.js](../../../src/bilibili/gift/display-settings.js) 拥有的 JSON 文本，经专属礼物展示 GET/POST 修改，不经普通 settings 默认键白名单。缺失/无效时默认 `{palette:'bilibili-four',thresholds:[3000,10000,100000],visibleRows:3,scrollSpeed:12,minGiftAmountCents:0}`：金额为整数分；三阈值须正安全整数且递增，visibleRows=1–10、scrollSpeed=1–50整数，最小金额为非负安全整数且是10的倍数。旧 intervalSeconds/paused/lowPower 形状兼容为 scrollSpeed=1，不同步到云端。
 
 `giftExportMode`、`giftExportBackground`、`giftExportDirectory` 同样不在 DEFAULT_SETTINGS：缺失时 controller 分别使用 combined、transparent、系统图片目录下 LIRA/礼物导出；空目录字符串代表使用系统默认。仅 giftExport IPC 写入（参数/任务规则见 [preload.md](../desktop/preload.md)），保存绝对自定义路径时含本机信息。这些领域键仍由 getSettings 返回，可进入管理 HTTP/WS；不能把“未在 defaults”误当作私有过滤。overlay settings 由 [overlay-projection.js](../../../src/server/overlay-projection.js) 按 scope 白名单选字段，不下发整个管理 settings。真正过滤的 cloudRoomAccountKey/cloudSongSyncPending 规则见 §8。
 

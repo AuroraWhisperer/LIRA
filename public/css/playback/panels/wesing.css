@@ -86,7 +86,22 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--color-bg-tertiary);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 111, 145, 0.2), transparent 32%),
+    radial-gradient(circle at 88% 84%, rgba(33, 182, 168, 0.18), transparent 34%),
+    linear-gradient(145deg, #fff9fb 0%, #f4fbfa 100%);
+}
+
+.wesing-live-stage::after {
+  position: absolute;
+  right: -86px;
+  bottom: -104px;
+  width: 260px;
+  height: 260px;
+  border: 42px solid rgba(33, 182, 168, 0.09);
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
 }
 
 .wesing-stage-topline,
@@ -165,7 +180,8 @@
   padding: 18px 20px 17px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(8px);
 }
 
 .wesing-lyric-line {

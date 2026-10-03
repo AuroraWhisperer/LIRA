@@ -43,13 +43,14 @@ body.player-dock-expanded .song-workspace {
 }
 
 .queues-row .sc-queue-panel {
-  --queue-accent: var(--color-warning);
-  --queue-tint: var(--color-warning-light);
+  /* Queue categories stay stable when the client's action palette changes. */
+  --queue-accent: #9a5b00;
+  --queue-tint: #fcf4e4;
 }
 
 .queues-row .song-queue-panel {
-  --queue-accent: var(--primary);
-  --queue-tint: var(--color-primary-light);
+  --queue-accent: #2f62d4;
+  --queue-tint: #eef3fd;
 }
 
 .queues-row .queue-panel .panel-header {
@@ -135,9 +136,9 @@ body.player-dock-expanded .song-workspace {
   stroke-linejoin: round;
 }
 
-.queues-row .song-queue-panel .panel-header button.primary {
+.queues-row .song-queue-panel .panel-header button.primary:not(:disabled) {
   border-color: transparent;
-  background: var(--queue-accent);
+  background: var(--primary);
   box-shadow: none;
 }
 
@@ -145,16 +146,24 @@ body.player-dock-expanded .song-workspace {
   background: var(--primary-strong);
 }
 
-.queues-row .queue-panel .panel-header button.danger {
-  border: 1px solid var(--border);
-  color: var(--muted);
+.queues-row .song-queue-panel .panel-header button.primary:active:not(:disabled) {
+  background: var(--color-primary-active, var(--primary-strong));
+}
+
+.queues-row .queue-panel .panel-header button.danger:not(:disabled) {
+  border: 1px solid var(--color-danger-border, var(--border));
+  color: var(--danger);
   background: var(--surface);
 }
 
 .queues-row .queue-panel .panel-header button.danger:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+  border-color: var(--danger);
   color: var(--danger);
   background: var(--color-danger-light);
+}
+
+.queues-row .queue-panel .panel-header button.danger:active:not(:disabled) {
+  background: var(--color-danger-active, var(--color-danger-light));
 }
 
 .queues-row .queue-panel .panel-header button:focus-visible {

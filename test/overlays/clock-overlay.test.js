@@ -218,7 +218,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(script, /button\.disabled = !loaded/);
   assert.match(script, /control\.disabled = !loaded/);
   assert.doesNotMatch(script, /customLabel\.value\s*=\s*''/);
-  assert.match(script, /此样式不显示/);
+  assert.match(panel, /id="clockCustomLabelField"[^>]*for="clockCustomLabel"/);
   assert.match(styles, /aspect-ratio:\s*240\s*\/\s*400/);
   assert.match(styles, /is-timeline-horizontal/);
   assert.match(styles, /is-timeline-vertical/);

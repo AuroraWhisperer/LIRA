@@ -17,7 +17,6 @@ function initClockCard() {
   const preview = document.getElementById('clockPreview');
   if (!preview) return;
   initialized = true;
-  let largePreviewOpen = false;
   const fixedUrl = `${localOverlayOrigin(location)}/clock`;
   const controller = createComponentConfigController({
     initial: clockConfigFromSettings({}),
@@ -36,7 +35,7 @@ function initClockCard() {
   bindClockParameters(document, controller);
   function updatePreview() {
     const state = controller.getState();
-    if (largePreviewOpen || !state.loaded) return;
+    if (!state.loaded) return;
     if (!preview.getAttribute('src')) {
       const url = new URL(buildClockUrl(new URL('/clock', location.href).href, state.draft));
       url.searchParams.set('componentPreview', '1');
@@ -67,10 +66,7 @@ function initClockCard() {
   document.getElementById('clockSave').addEventListener('click', () => controller.save());
   document.getElementById('clockDiscard').addEventListener('click', () => controller.discard());
   document.getElementById('clockReload').addEventListener('click', () => controller.reload());
-  const getClockPreview = () => createClockPreview({ controller,
-    onOpen() { largePreviewOpen = true; preview.removeAttribute('src'); },
-    onClose() { largePreviewOpen = false; updatePreview(); },
-  });
+  const getClockPreview = () => createClockPreview({ controller });
   registerComponentPreview('clock', getClockPreview);
   document.getElementById('clockOpenPreview').addEventListener('click', () => openComponentPreview(getClockPreview()));
   void controller.reload();

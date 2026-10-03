@@ -2,12 +2,10 @@
   --player-dock-height: 96px;
   --player-dock-expanded-height: 218px;
   --player-dock-collapsed-height: 0px;
-  /* The collapse handle hangs above the dock; page layouts reserve its height so it never covers content. */
-  --player-dock-toggle-clearance: 24px;
 }
 
 body {
-  --player-dock-reserve: calc(var(--player-dock-height) + var(--player-dock-toggle-clearance));
+  --player-dock-reserve: var(--player-dock-height);
 }
 
 body.player-dock-expanded {
@@ -236,7 +234,7 @@ body.player-dock-collapsed {
   background: linear-gradient(
     to right,
     var(--primary) var(--seek-pos, 0%),
-    color-mix(in srgb, var(--text) 12%, transparent) var(--seek-pos, 0%)
+    var(--color-control-border, color-mix(in srgb, var(--text) 12%, transparent)) var(--seek-pos, 0%)
   );
   cursor: pointer;
   outline: none;
@@ -246,7 +244,7 @@ body.player-dock-collapsed {
   transition: height 150ms ease;
 }
 
-.playback-seek-wrap:hover input[type='range'] {
+.playback-seek-wrap:hover input[type='range']:not(:disabled) {
   height: 6px;
 }
 
@@ -265,7 +263,7 @@ body.player-dock-collapsed {
   transition: transform 150ms ease;
 }
 
-.playback-seek-wrap input[type='range']::-webkit-slider-thumb:hover {
+.playback-seek-wrap input[type='range']:not(:disabled)::-webkit-slider-thumb:hover {
   transform: scale(1.15);
 }
 
@@ -278,6 +276,11 @@ body.player-dock-collapsed {
   box-shadow: 0 1px 3px rgba(24, 24, 22, 0.25);
   cursor: pointer;
   box-sizing: border-box;
+}
+
+.playback-seek-wrap input[type='range']:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 4px;
 }
 
 /* ===== 添加到歌单按钮 ===== */

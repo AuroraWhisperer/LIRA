@@ -232,6 +232,7 @@ export function createToastStack({
       close(entry);
       callback?.();
     });
+    node.addEventListener('click', () => close(entry));
     node.addEventListener('mouseenter', () => {
       entry.hovered = true;
       pause(entry);

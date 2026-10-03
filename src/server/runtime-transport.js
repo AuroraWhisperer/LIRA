@@ -11,6 +11,7 @@ function createRuntimeTransport({
   getStartedPort,
   getSessionToken,
   beginPlaybackSnapshotSession,
+  getClientTheme,
   getWebSocketHub,
   getState,
   getSettings,
@@ -77,7 +78,7 @@ function createRuntimeTransport({
   }
 
   function servePageOrAsset(req, res, requestUrl) {
-    httpUtils.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession);
+    httpUtils.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession, getClientTheme);
   }
 
   return {

@@ -26,6 +26,13 @@
   --license-placeholder: #8a857e;
   --license-display-font: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei', sans-serif;
   --license-shadow: 0 16px 48px rgba(24, 24, 22, 0.06), 0 1px 3px rgba(24, 24, 22, 0.04);
+  /* Primary action: warm charcoal matching the record, not the blue accent. */
+  --license-action: #2a2a28;
+  --license-action-hover: #3a3936;
+  --license-action-active: #1c1c1a;
+  --license-action-border: #1c1c1a;
+  --license-action-text: #f4f2ee;
+  --license-action-ring: #66625c;
   --color-success-dark: #17734a;
   --color-danger: #c8372d;
 }
@@ -420,23 +427,27 @@ button {
 .license-submit,
 .license-retry {
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   border-radius: var(--radius-md);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   transition:
     transform 140ms ease,
     background 140ms ease,
-    opacity 140ms ease;
+    border-color 140ms ease,
+    box-shadow 180ms ease,
+    color 140ms ease;
 }
 .license-submit {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  border: 1px solid transparent;
-  background: var(--license-primary);
-  color: var(--license-on-primary);
+  gap: 10px;
+  border: 1px solid var(--license-action-border);
+  background: var(--license-action);
+  color: var(--license-action-text);
+  box-shadow: 0 1px 2px rgba(24, 24, 22, 0.16);
 }
 .license-submit svg {
   fill: none;
@@ -444,23 +455,38 @@ button {
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .license-submit:focus-visible,
 .license-retry:focus-visible {
-  outline: 2px solid var(--license-primary);
+  outline: 2px solid var(--license-action-ring);
   outline-offset: 3px;
 }
 .license-submit:hover:not(:disabled) {
-  background: var(--license-primary-strong);
+  background: var(--license-action-hover);
+  box-shadow: 0 6px 18px -8px rgba(24, 24, 22, 0.45);
+}
+.license-submit:hover:not(:disabled) svg {
+  transform: translateX(2px);
 }
 .license-submit:active:not(:disabled),
 .license-retry:active:not(:disabled) {
   transform: translateY(1px);
 }
+.license-submit:active:not(:disabled) {
+  background: var(--license-action-active);
+  box-shadow: inset 0 2px 6px rgba(24, 24, 22, 0.28);
+}
 .license-submit:disabled,
 .license-retry:disabled {
   cursor: wait;
   opacity: 0.6;
+}
+.license-submit:disabled {
+  border-color: var(--license-border);
+  background: transparent;
+  color: var(--license-muted);
+  box-shadow: none;
 }
 .license-retry {
   margin-top: 9px;

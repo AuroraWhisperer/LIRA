@@ -36,7 +36,9 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
     } while (Date.now() < deadline);
     assert.equal(urls.length, count, 'Desktop must hand the editor URL to the external browser.');
     const url = urls.at(-1);
-    assert.equal(new URL(url).pathname, '/component-preview');
+    assert.equal(new URL(url).pathname, '/c');
+    assert.equal(new URL(url).search, '');
+    assert.ok(url.length <= 47);
     assert.equal((await fetch(url)).status, 200);
     const page = await context.newPage();
     page.setDefaultTimeout(5000);
@@ -47,6 +49,8 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
     return page;
   };
   const page = await openPreview(1);
+  await desktop.waitForFunction(() => document.getElementById('liveCanvasUrl').textContent.includes('保存并应用'));
+  assert.equal(await desktop.locator('#copyLiveCanvasUrl').isDisabled(), true);
   assert.equal(app.windows().length, 1);
   assert.equal(await desktop.locator('.component-preview-dialog').count(), 0);
   assert.equal(await page.evaluate(() => Boolean(window.liraLicense || window.__API_TOKEN__)), false);
@@ -117,6 +121,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
   assert.equal(await save.isEnabled(), true);
   assert.equal(await app.evaluate(() => global.canvasTest.componentSize()), null);
+  assert.equal(await desktop.locator('#copyLiveCanvasUrl').isDisabled(), true);
   await save.click();
   await saveState.filter({ hasText: '已保存并应用到直播源' }).waitFor().catch(async (error) => {
     throw new Error(`Publication status: ${await saveState.textContent()}`, { cause: error });
@@ -129,10 +134,20 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
     width: savedScene.document.items[0].width, height: savedScene.document.items[0].height,
   });
   assert.equal(savedScene.publishedVersion, 1);
+  // The desktop remains in the background: publication itself refreshes the address.
+  await desktop.waitForFunction(() => !document.getElementById('copyLiveCanvasUrl').disabled);
+  const liveSource = new URL(await desktop.locator('#liveCanvasUrl').textContent());
+  assert.equal(liveSource.pathname, '/scene');
+  assert.equal(liveSource.searchParams.get('id'), savedScene.document.id);
+  assert.match(liveSource.hash, /^#token=/);
+  assert.equal(await app.evaluate(() => global.canvasTest.requests.filter(request =>
+    request.url.startsWith('/api/scenes/source?')).length), 1, 'Publication refreshes the source once.');
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 1);
   assert.equal(await app.evaluate(() => global.canvasTest.attempts), 2);
   await page.close();
   const reopened = await openPreview(2);
+  const urls = await app.evaluate(() => global.canvasTest.externalUrls);
+  assert.equal(urls[0], urls[1], 'Reopening from Electron must preserve the editor capability.');
   assert.equal(await reopened.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '987');
   assert.equal(await reopened.locator('[data-preview-field="danmakuFontSize"]').inputValue(), '36');
   assert.deepEqual(errors, []);

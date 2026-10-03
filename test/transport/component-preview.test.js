@@ -12,6 +12,69 @@ const { createLayout } = require('../../src/shared/danmaku-layout');
 
 const state = (draft = { label: '示例' }) => ({ draft, saved: draft, generation: 0, loaded: true });
 
+test('short editor links resolve only their verified sessions and cannot grant management authority', async t => {
+  let owner = { scope: 'short-link-owner', epoch: 1 };
+  const fixture = await startComponentPreviewServer({ getOwner: () => owner });
+  t.after(() => fixture.close());
+  const { data: clock } = await fixture.post({ action: 'open', component: 'clock', state: state() });
+  const { data: canvas } = await fixture.post({ action: 'open', component: 'canvas', state: state() });
+  assert.equal((await fixture.post({ action: 'link', links: [clock, canvas] }, clock.token)).status, 401);
+  assert.equal((await fixture.post({ action: 'link', links: [clock, { ...canvas, token: clock.token }] })).status, 403);
+  assert.equal((await fixture.post({ action: 'link', links: [clock, clock] })).status, 400);
+  const linked = await fixture.post({ action: 'link', links: [clock, canvas] });
+  assert.equal(linked.status, 200);
+  const { key } = linked.data;
+  assert.match(key, /^[A-Za-z0-9_-]{22}$/);
+  const resolved = await fixture.post({ action: 'resolve' }, key);
+  assert.equal(resolved.status, 200);
+  assert.deepEqual(resolved.data.links, [{ component: 'clock', ...clock }, { component: 'canvas', ...canvas }]);
+  assert.equal((await fixture.post({ action: 'resolve' }, key, { Origin: 'https://untrusted.test' })).status, 403);
+  assert.equal((await fixture.post({ action: 'resolve' }, key, { Origin: 'null' })).status, 403);
+  assert.equal((await fixture.post({ action: 'resolve' }, 'x'.repeat(22))).status, 410);
+  assert.equal((await fixture.post({ action: 'open', component: 'queue', state: state() }, key)).status, 401);
+  assert.equal((await fixture.post({ action: 'read', id: canvas.id }, key)).status, 403);
+  owner = { scope: 'other-owner', epoch: 2 };
+  assert.equal((await fixture.post({ action: 'resolve' }, key)).status, 410);
+});
+
+test('compact links retain each entry selection and size while reusing the same component sessions', () => {
+  const sessions = createComponentPreviewSessions();
+  const links = ['clock', 'queue', 'canvas'].map(component => sessions.open({ component, state: state() }));
+  const canvas = sessions.link({ links });
+  const clock = sessions.link({ links, selectedId: 'clock', selectedSize: { width: 580, height: 210 } });
+  const queue = sessions.link({ links, selectedId: 'queue' });
+  assert.notEqual(canvas.key, clock.key);
+  assert.notEqual(queue.key, clock.key);
+  assert.equal(sessions.link({ links }).key, canvas.key);
+  assert.equal(sessions.link({ links, selectedId: 'clock', selectedSize: { width: 800, height: 300 } }).key, clock.key);
+  assert.deepEqual(sessions.resolveLink(clock.key), { links: links.map((entry, index) => ({
+    ...entry, component: ['clock', 'queue', 'canvas'][index] })), selectedId: 'clock', selectedSize: { width: 800, height: 300 } });
+  assert.equal(sessions.resolveLink(canvas.key).selectedId, null);
+  assert.equal(sessions.resolveLink(queue.key).selectedId, 'queue');
+  assert.equal(sessions.resolveLink(queue.key).selectedSize, null);
+  for (const selection of [{ selectedId: 'danmaku' }, { selectedId: '__proto__' },
+    { selectedSize: { width: 580, height: 210 } }, { selectedId: 'clock', selectedSize: { width: -1, height: 210 } },
+    { selectedId: 'clock', selectedSize: { width: 580, height: 9000 } }]) {
+    assert.throws(() => sessions.link({ links, ...selection }), { statusCode: 400 });
+  }
+  assert.equal(sessions.resolveLink(clock.key).selectedSize.width, 800);
+});
+
+test('short links expire when any bound component is closed, replaced or revoked', () => {
+  for (const end of ['close', 'replace', 'revoke', 'generation', 'clear']) {
+    const sessions = createComponentPreviewSessions();
+    const clock = sessions.open({ component: 'clock', state: state() });
+    const canvas = sessions.open({ component: 'canvas', state: state() });
+    const { key } = sessions.link({ links: [clock, canvas] });
+    if (end === 'close') sessions.browser({ id: clock.id, action: 'close' }, clock.token);
+    if (end === 'replace') sessions.open({ component: 'clock', state: state() });
+    if (end === 'revoke') sessions.revoke(clock.id);
+    if (end === 'clear') sessions.clear();
+    if (end === 'generation') assert.throws(() => sessions.exchange({ id: clock.id, ack: 0,
+      state: { ...state(), generation: 1 } }), { statusCode: 410 });
+    assert.throws(() => sessions.resolveLink(key), { statusCode: 410 });
+  }
+});
 test('A03: UTF-8 scene pairs fit open/edit/exchange while documents and envelopes remain bounded', async t => {
   const fixture = await startComponentPreviewServer();
   t.after(fixture.close);
@@ -124,9 +187,11 @@ test('only the original desktop can resume a suspended lease without losing pend
   let time = 0;
   const sessions = createComponentPreviewSessions({ now: () => time });
   const session = sessions.open({ component: 'clock', state: state() });
+  const { key } = sessions.link({ links: [session] });
   const browser = (body) => sessions.browser({ id: session.id, ...body }, session.token);
   browser({ action: 'edit', commandId: 1, change: { label: 'pending' } });
   time += 10 * 60000;
+  assert.equal(sessions.resolveLink(key).links[0].id, session.id);
   assert.throws(() => sessions.browser({ id: session.id, action: 'read' }, 'a'.repeat(64)), { statusCode: 403 });
   for (const action of ['read', 'edit', 'attach']) {
     assert.throws(() => browser({ action, change: { label: 'too early' },
@@ -269,6 +334,10 @@ test('browser preview never receives admin authority or bypasses Host/Origin pro
   assert.match(html, /componentPreviewTemplates/);
   assert.doesNotMatch(html, /__API_TOKEN__|lira-overlay-bootstrap|synthetic-desktop-component-preview-token/);
   assert.equal(preview.headers.get('x-frame-options'), 'DENY');
+  const compact = await fetch(`${fixture.origin}/c`);
+  assert.equal(compact.status, 200);
+  assert.equal(compact.headers.get('x-frame-options'), 'DENY');
+  assert.equal(await compact.text(), html);
   const direct = await fetch(`${fixture.origin}/component-preview`);
   assert.equal(direct.status, 200);
   assert.match(await direct.text(), /data-clock-style-option/);

@@ -65,9 +65,10 @@ test('preview retries retain drafts, serialize mutations and publish once after 
   await page.goto(`${fixture.origin}/preview-test-host`);
   await page.evaluate(async url => {
     const { createBrowserPreviewConnection } = await import('/js/admin/component-preview-remote.js');
-    const params = new URLSearchParams(new URL(url).hash.slice(1));
-    window.clock = createBrowserPreviewConnection({ id: params.get('id'), token: params.get('token'), component: 'clock' });
-    window.canvas = createBrowserPreviewConnection({ ...JSON.parse(params.get('canvas')), component: 'canvas' });
+    const { readComponentPreviewLink } = await import('/js/admin/component-preview-link.js');
+    const { links } = await readComponentPreviewLink(new URL(url), new AbortController().signal);
+    window.clock = createBrowserPreviewConnection(links.find(({ component }) => component === 'clock'));
+    window.canvas = createBrowserPreviewConnection(links.find(({ component }) => component === 'canvas'));
     await Promise.all([window.clock.start(), window.canvas.start()]);
   }, url);
 

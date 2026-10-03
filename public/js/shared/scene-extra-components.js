@@ -72,10 +72,10 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   'gift-feed': {
-    title: '礼物滚动', size: [600, 420], path: '/gift-feed',
+    title: '礼物滚动', size: [428, 232], path: '/gift-feed',
     variants: [variant('default', '礼物滚动', '感谢投喂')],
     fields: {
-      visibleRows: number('显示行数', 3, 1, 10), scrollSpeed: number('滚动速率', 25, 1, 50),
+      visibleRows: number('显示行数', 3, 1, 10), scrollSpeed: number('滚动速率', 12, 1, 50),
       minGiftAmountCents: number('最低礼物金额（元）', 0, 0, 100000000, 10),
       threshold1: number('第二档金额（元）', 3000, 1, 100000000),
       threshold2: number('第三档金额（元）', 10000, 1, 100000000),

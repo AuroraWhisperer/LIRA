@@ -55,8 +55,12 @@ async function run() {
           import { setComponentPreviewPreparation, getComponentPreviews } from './component-preview-registry.js';
           import { prepareComponentPreviewCanvas } from './component-preview-canvas-controller.js';
           import { waitForServerOverlayUrlInitialization } from './server-overlay-url.js';
+          import { initCanvasOverlaySource } from './canvas-overlay-source.js';
           const panel = document.getElementById('otherDanmakuFeature');
-          document.body.replaceChildren(panel); panel.hidden = false; panel.style.display = "block";
+          const sources = document.getElementById('overlayPage');
+          const sourceTab = document.querySelector('[data-tab="overlayPage"]');
+          document.body.replaceChildren(panel, sourceTab, sources);
+          panel.hidden = sources.hidden = false; panel.style.display = sources.style.display = "block";
           document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
           const ids = { overlayUrl:'danmakuOverlayUrl', styleChip:'danmakuStyleChip', styleSaveState:'danmakuStyleSaveState',
             fullscreenDurationField:'danmakuFullscreenDurationField', fullscreenDuration:'danmakuFullscreenDurationSeconds',
@@ -67,7 +71,8 @@ async function run() {
           setComponentPreviewPreparation(async () => {
             await waitForServerOverlayUrlInitialization();
             return prepareComponentPreviewCanvas(getComponentPreviews());
-          });`);
+          });
+          initCanvasOverlaySource();`);
         return;
       }
       if (url.pathname === '/js/playback.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(''); return; }

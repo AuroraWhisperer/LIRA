@@ -1,15 +1,10 @@
 <div id="themePage" class="tab-page">
   <div class="panel-body stack">
-    <form id="songRequestSettingsForm" class="stack">
-      <details class="song-board-section" open>
-        <summary>
-          <span class="song-board-section-title">
-            <strong>点歌规则</strong>
-          </span>
-          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </summary>
+    <form id="songRequestSettingsForm" class="stack song-board-section">
+      <section class="song-request-section" aria-labelledby="songRequestRulesTitle">
+        <div class="song-request-section-header">
+          <h3 id="songRequestRulesTitle" class="song-board-section-heading">点歌规则</h3>
+        </div>
         <div class="song-request-rules song-board-section-body">
           <label>
             暂停接收点歌
@@ -17,14 +12,6 @@
               <option value="false">接收点歌</option>
               <option value="true">暂停点歌</option>
             </select>
-          </label>
-          <label>
-            最多排队歌曲数
-            <input id="queueLimit" type="number" min="1" max="300" />
-          </label>
-          <label>
-            同一观众点歌间隔（秒）
-            <input id="userCooldownSeconds" type="number" min="0" max="3600" />
           </label>
           <label>
             只允许点歌库歌曲
@@ -40,32 +27,35 @@
               <option value="false">不允许</option>
             </select>
           </label>
+          <label>
+            最多排队歌曲数
+            <input id="queueLimit" type="number" min="1" max="300" />
+          </label>
+          <label>
+            同一观众点歌间隔（秒）
+            <input id="userCooldownSeconds" type="number" min="0" max="3600" />
+          </label>
         </div>
-      </details>
-      <details class="song-board-section" open>
-        <summary>
-          <span class="song-board-section-title">
-            <strong
-              >点歌板黑名单
+      </section>
+      <section class="song-request-section song-request-blacklist" aria-labelledby="songRequestBlacklistTitle">
+        <div class="song-request-section-header">
+          <div class="song-board-section-title">
+            <h3 id="songRequestBlacklistTitle" class="song-board-section-heading">
+              点歌板黑名单
               <lira-help label="查看黑名单说明" tooltip-id="songRequestBlacklistHint"
                 >仅拦截与词条完全一致的点歌内容，忽略首尾空格。例如 78 拦截「点歌78」，不拦截「点歌78号公路」。</lira-help
-              ></strong
-            >
+              >
+            </h3>
             <span id="songRequestBlacklistCount" class="song-board-section-meta">0 个词条</span>
-          </span>
-          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </summary>
+          </div>
+          <button id="songRequestBlacklistAdd" class="secondary" type="button">添加词条</button>
+        </div>
         <div class="song-board-section-body">
           <input id="songRequestBlacklist" type="hidden" />
-          <div class="song-blacklist-toolbar">
-            <ul id="songRequestBlacklistWords" class="song-blacklist-words" aria-label="点歌板屏蔽词"></ul>
-            <p id="songRequestBlacklistEmpty" class="hint song-blacklist-empty">暂无屏蔽词</p>
-            <button id="songRequestBlacklistAdd" class="secondary" type="button">添加词条</button>
-          </div>
+          <ul id="songRequestBlacklistWords" class="song-blacklist-words" aria-label="点歌板屏蔽词"></ul>
+          <p id="songRequestBlacklistEmpty" class="hint song-blacklist-empty">暂无屏蔽词</p>
         </div>
-      </details>
+      </section>
       <div class="song-board-actions">
         <button class="primary" type="submit">保存点歌设置</button>
       </div>

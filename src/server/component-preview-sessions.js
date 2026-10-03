@@ -46,6 +46,51 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     return session;
   }
 
+  function authenticate(id, token) {
+    const session = get(id);
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)
+      || !crypto.timingSafeEqual(session.tokenHash, crypto.createHash('sha256').update(token).digest())) {
+      fail(403, '此预览链接无效。');
+    }
+    if (session.closed) fail(410, '预览连接已结束，请从客户端重新打开预览。');
+    return session;
+  }
+
+  function link({ links, selectedId = null, selectedSize = null }) {
+    if (!Array.isArray(links) || !links.length || links.length > PREVIEW_SESSION_TYPES.length
+      || links.some((entry) => !record(entry)) || new Set(links.map(({ id }) => id)).size !== links.length) {
+      fail(400, '预览链接无效。');
+    }
+    const entries = links.map(({ id, token }) => {
+      const session = authenticate(id, token);
+      return { component: session.component, id, token, draftKey: session.draftKey };
+    });
+    if (selectedId !== null && (!SHARED_SCENE_TYPES.includes(selectedId)
+      || !entries.some(({ component }) => component === selectedId))) fail(400, '预览组件无效。');
+    if (selectedSize !== null && (!selectedId || !record(selectedSize)
+      || !['width', 'height'].every((axis) => Number.isFinite(selectedSize[axis])
+        && selectedSize[axis] >= 32 && selectedSize[axis] <= 7680))) fail(400, '组件尺寸无效。');
+    const anchor = get(entries.find(({ component }) => component === 'canvas')?.id || entries[0].id);
+    anchor.links ||= new Map();
+    const previous = anchor.links.get(selectedId);
+    const key = previous && JSON.stringify(previous.entries) === JSON.stringify(entries)
+      ? previous.key : crypto.randomBytes(16).toString('base64url');
+    anchor.links.set(selectedId, { key, hash: crypto.createHash('sha256').update(key).digest(), entries, selectedId,
+      selectedSize: selectedSize === null ? null : { width: selectedSize.width, height: selectedSize.height } });
+    return { key };
+  }
+
+  function resolveLink(key) {
+    if (typeof key !== 'string' || !/^(?:[A-Za-z0-9_-]{22}|[A-Za-z0-9_-]{43})$/.test(key)) fail(403, '此预览链接无效。');
+    prune();
+    const hash = crypto.createHash('sha256').update(key).digest();
+    const linked = [...sessions.values()].flatMap((session) => session.links ? [...session.links.values()] : [])
+      .find((entry) => crypto.timingSafeEqual(entry.hash, hash));
+    if (!linked) fail(410, '预览连接已结束，请从客户端重新打开预览。');
+    for (const { id, token } of linked.entries) authenticate(id, token);
+    return copy({ links: linked.entries, selectedId: linked.selectedId, selectedSize: linked.selectedSize });
+  }
+
   function stateOf(value, component) {
     if (!record(value) || !record(value.draft) || !record(value.saved)
       || !Number.isSafeInteger(value.generation)) fail(400, '预览状态无效。');
@@ -99,12 +144,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
   }
 
   function browser({ id, action, change, commandId, attachmentId, previousAttachmentId }, token) {
-    const session = get(id);
-    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)
-      || !crypto.timingSafeEqual(session.tokenHash, crypto.createHash('sha256').update(token).digest())) {
-      fail(403, '此预览链接无效。');
-    }
-    if (session.closed) fail(410, '预览连接已结束，请从客户端重新打开预览。');
+    const session = authenticate(id, token);
     // Keep at most one session per component so the original desktop can resume
     // after suspended timers. Browser capabilities cannot revive an idle lease.
     if (action !== 'close' && now() - session.touched > SESSION_TTL_MS) {
@@ -151,7 +191,8 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     return { sequence };
   }
 
-  return { open, exchange, browser, revoke: (id) => sessions.delete(id), clear: () => sessions.clear() };
+  return { open, exchange, browser, link, resolveLink,
+    revoke: (id) => sessions.delete(id), clear: () => sessions.clear() };
 }
 
 module.exports = { createComponentPreviewSessions, PREVIEW_SESSION_TYPES, SESSION_TTL_MS, MAX_PREVIEW_REQUEST_BYTES };

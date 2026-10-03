@@ -108,6 +108,22 @@ test('canvas library saves every new variant with independent parameters and ren
     await page.waitForFunction(() => document.querySelector('.scene-editor-item.is-selected .component-preview-load-state')?.hidden);
     const preview = page.frameLocator('.scene-editor-item.is-selected iframe');
     await preview.locator(previews[variant] || previews[type]).first().waitFor({ state: 'visible' });
+    if (type === 'gift-feed') {
+      assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '428');
+      assert.equal(await page.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '232');
+      assert.equal(await page.locator('[data-component-parameter="scrollSpeed"]').inputValue(), '12');
+      const feed = await preview.locator('#giftFeedViewport').evaluate(async (viewport) => {
+        const images = [...viewport.querySelectorAll('img')];
+        await Promise.all(images.map((image) => image.decode()));
+        const { width, height } = viewport.getBoundingClientRect();
+        return { width, height, avatars: new Set(images.filter((image) => image.className === 'gift-banner-avatar')
+          .map((image) => image.getAttribute('src'))).size,
+        artwork: new Set(images.filter((image) => image.className === 'gift-banner-artwork')
+          .map((image) => image.getAttribute('src'))).size,
+        placeholders: images.some((image) => image.getAttribute('src').includes('placeholder')) };
+      });
+      assert.deepEqual(feed, { width: 428, height: 232, avatars: 3, artwork: 3, placeholders: false });
+    }
     const input = page.locator(`[data-component-parameter="${key}"]`);
     await input.fill(value); await input.press('Tab');
     for (const [name, size] of [['宽度', '400'], ['高度', '300']]) {
@@ -161,8 +177,8 @@ test('canvas library saves every new variant with independent parameters and ren
   assert.deepEqual(await giftAvatar.evaluate(async () => {
     const { sceneAvatarSource } = await import('/js/overlays/scene-extra-client.js');
     return ['http://i0.hdslb.com/a.webp', 'https://untrusted.example/a.webp', '/api/bilibili/avatar',
-      'https://user:secret@i0.hdslb.com/a.webp'].map(sceneAvatarSource);
-  }), ['', '', '', '']);
+      'https://user:secret@i0.hdslb.com/a.webp', '/img/overlays/danmaku-ranked/../secret.webp'].map(sceneAvatarSource);
+  }), ['', '', '', '', '']);
   activeGame = data.games.sessions['draw-guess'];
   const gameAvatar = output.frameLocator('iframe[src^="/games"]').nth(2).locator('#drawDanmakuFeed img');
   await gameAvatar.waitFor();

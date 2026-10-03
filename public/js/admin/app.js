@@ -9,6 +9,7 @@ import { aiAssistantSettings } from './ai-assistant-settings.js';
 import { desktopLyric } from './desktop-lyric.js';
 import { songImports } from './song-import.js';
 import { settings } from './settings.js';
+import { initClientAppearance } from './client-appearance.js';
 import { display } from './display.js';
 // 编写人：Aurora
 // Admin应用统一入口 - ES6模块化版本
@@ -73,6 +74,7 @@ async function initializeApp() {
   const modules = getLegacyAdminModules();
   modules.desktop?.initDesktopShell?.();
   settings.initSettingsForm();
+  initClientAppearance();
 
   enhanceSelects();
 

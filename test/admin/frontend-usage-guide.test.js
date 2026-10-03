@@ -149,6 +149,7 @@ function createUsageGuideFixture({
   sectionTops = [0, 200],
   scrollerHeight = 400,
   scrollerScrollHeight = 1000,
+  scrollerScrollTop = 0,
 } = {}) {
   const observers = [];
   const windowListeners = new Map();
@@ -219,12 +220,16 @@ function createUsageGuideFixture({
   };
   const tocToggle = createNode();
   const tocCurrent = createNode();
-  const tocMenu = { ...createNode(), contains: (target) => target === tocMenu || links.includes(target) };
+  const tocMenu = {
+    ...createNode(),
+    contains: (target) => target === tocMenu || links.includes(target),
+    getBoundingClientRect: () => ({ height: 200 }),
+  };
   const scrollerListeners = new Map();
   const scroller = {
     clientHeight: scrollerHeight,
     scrollHeight: scrollerScrollHeight,
-    scrollTop: 0,
+    scrollTop: scrollerScrollTop,
     scrollTo({ top }) {
       this.scrollTop = top;
     },
@@ -341,21 +346,48 @@ async function loadUsageGuide(fixture) {
   initUsageGuide();
 }
 
-test('compact guide directory ignores brief hover and opens after 400ms without changing the scroll offset', async () => {
-  const fixture = createUsageGuideFixture({ tocHeight: 48 });
+test('guide directory stays expanded at the top and collapses only after scrolling down', async () => {
+  const fixture = createUsageGuideFixture();
+  await loadUsageGuide(fixture);
+  assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(fixture.tocMenu.inert, false);
+  assert.equal(fixture.panel.style['--usage-guide-toc-space'], '206px');
+
+  fixture.toc.pointerleave({ pointerType: 'mouse' });
+  fixture.document.pointerdown({ target: {} });
+  fixture.advanceTime(1000);
+  assert.equal(fixture.tocMenu.inert, false);
+
+  fixture.links[1].click({ preventDefault() {} });
+  assert.equal(fixture.sections[1].scrollCalls, 1);
+  fixture.scroller.scrollTop = 24;
+  fixture.triggerScrollerScroll();
+  assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(fixture.tocMenu.inert, true);
+  assert.equal(fixture.toc.classList.contains('is-at-top'), false);
+
+  fixture.backToTopButton.click();
+  fixture.triggerScrollerScroll();
+  assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(fixture.tocMenu.inert, false);
+  assert.equal(fixture.toc.classList.contains('is-at-top'), true);
+});
+
+test('compact guide directory ignores brief hover and opens after 200ms without changing the scroll offset', async () => {
+  const fixture = createUsageGuideFixture({ tocHeight: 48, scrollerScrollTop: 24 });
   await loadUsageGuide(fixture);
   fixture.triggerResize();
   const mouse = { pointerType: 'mouse' };
 
   fixture.toc.pointerenter(mouse);
-  fixture.advanceTime(399);
+  fixture.advanceTime(199);
   assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'false');
   fixture.toc.pointerleave(mouse);
   fixture.advanceTime(1000);
   assert.equal(fixture.tocMenu.inert, true);
 
   fixture.toc.pointerenter(mouse);
-  fixture.advanceTime(400);
+  fixture.advanceTime(200);
   assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'true');
   assert.equal(fixture.tocMenu.inert, false);
   assert.equal(fixture.toc.style['--usage-guide-toc-max-height'], '340px');
@@ -363,11 +395,11 @@ test('compact guide directory ignores brief hover and opens after 400ms without 
 });
 
 test('compact guide directory waits 600ms to close and cancels closure when the pointer returns', async () => {
-  const fixture = createUsageGuideFixture();
+  const fixture = createUsageGuideFixture({ scrollerScrollTop: 24 });
   await loadUsageGuide(fixture);
   const mouse = { pointerType: 'mouse' };
   fixture.toc.pointerenter(mouse);
-  fixture.advanceTime(400);
+  fixture.advanceTime(200);
   fixture.toc.pointerleave(mouse);
   fixture.advanceTime(599);
   assert.equal(fixture.tocMenu.inert, false);
@@ -381,7 +413,7 @@ test('compact guide directory waits 600ms to close and cancels closure when the 
 });
 
 test('compact guide directory supports touch and keyboard, keeps focused links open, and closes after selection', async () => {
-  const fixture = createUsageGuideFixture();
+  const fixture = createUsageGuideFixture({ scrollerScrollTop: 24 });
   await loadUsageGuide(fixture);
   fixture.toc.pointerenter({ pointerType: 'touch' });
   fixture.advanceTime(1000);
@@ -404,7 +436,7 @@ test('compact guide directory supports touch and keyboard, keeps focused links o
 });
 
 test('switching to the existing sidebar directory exposes its links and resets the compact popup', async () => {
-  const fixture = createUsageGuideFixture();
+  const fixture = createUsageGuideFixture({ scrollerScrollTop: 24 });
   await loadUsageGuide(fixture);
   fixture.tocToggle.click();
   fixture.toc.flexDirection = 'column';

@@ -138,8 +138,8 @@
   padding: 0 11px 0 12px;
   border: 0;
   border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--muted);
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+  color: var(--color-accent);
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -155,8 +155,9 @@
 }
 
 .gift-history-open-btn:hover {
-  background: color-mix(in srgb, var(--text) 6%, var(--surface-2));
-  color: var(--text);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: color-mix(in srgb, var(--color-accent) 85%, var(--text));
+  transform: translateY(-1px);
 }
 
 .gift-drawer-backdrop {

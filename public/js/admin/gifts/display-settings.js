@@ -90,7 +90,7 @@ export function createGiftDisplaySettings() {
     get('giftDisplayError').textContent = '';
   });
   get('giftDisplayDefaults')?.addEventListener('click', () =>
-    fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 25, minGiftAmountCents: 0 }),
+    fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 }),
   );
   get('giftDisplayForm')?.addEventListener('input', (event) => {
     const boundary = event.target.dataset.giftBoundary;

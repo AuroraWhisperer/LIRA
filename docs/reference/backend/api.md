@@ -14,15 +14,19 @@
 
 `POST /api/component-preview` 由 [component-preview-routes.js](../../../src/server/routes/component-preview-routes.js) 处理，响应 `{ok:true,data}`。这是客户端与默认浏览器之间的临时配置会话；组件保存与绑定场景的发布、来源读取，由创建会话的客户端控制器调用已有领域 owner 处理。
 
-场景编辑器为四个已注册组件及直播场景分别创建会话。从单组件预览进入时，初始组件使用 query `component` 和 fragment 的 `id`/`token`，`components` 携带其他组件的 `{component,id,token}` 数组；从客户端“直播场景”直接进入时没有初始组件 query，四个组件均放入 `components`。`canvas` 携带独立场景会话的 `{id,token}`，沿用原能力标识。场景编辑仅传递 `{document}` 草稿，客户端适配器固定场景 ID，浏览器不能替换绑定 ID、创建或轮换场景凭据。缺少场景会话的旧链接仍可保存组件参数，但公共布局须从客户端重新打开后保存。
+场景编辑器为四个已注册组件及直播场景分别创建会话。客户端经 `link` 将这些会话绑定成短入口：`/c#<22字符base64url能力>`，完整地址在四位端口下为 46 字符，组件及尺寸不再放入 query。浏览器经 `resolve` 读取各组件的独立能力、初始选中组件和已保存尺寸。短入口映射只留在会话内存中，锚定 canvas 会话（缺少 canvas 时为第一个组件），任一成员关闭、替换、撤销或账号/generation 变化后失效；不持久化，也不授予管理或正式直播源权限。相同控制器及 generation 的重复打开复用原会话；每个初始组件（含无初始选择）各保留一个稳定入口，切换入口不会撤销其他入口，尺寸更新沿用该入口能力。
 
-“保存并应用”只等待当前场景及其共享外观 owner 的浏览器编辑被客户端确认，再同步预检、冻结并批量保存这些 owner，最后按 revision 发布组合画面；独立实例不依赖其类型的默认配置，无关默认草稿不保存。全部保存结束后再次检查参与者的读取、保存、冲突、草稿和账号代际状态，以及本次场景保存的规范化结果与 revision；任一失败或出现新的并发修改均停止发布，保留已成功保存的部分。发布请求发出后的后续编辑留作下次草稿。`publish`/`source` 仅允许 canvas 能力排队，结果通过该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。来源仅在显式复制时读取，拼成 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源能力>`；后续正常保存和发布沿用该地址，来源能力不进入文档或模板。
+兼容旧 `/component-preview` 页面和 43 字符短入口的解析。旧 query `component` 与 fragment 的 `id`/`token` 表示初始组件，`components` 携带其他组件的 `{component,id,token,draftKey}` 数组，`canvas` 携带独立场景会话；旧 fragment `size` 及 query `size=<宽>x<高>` 仍可读取。场景编辑仅传递 `{document}` 草稿，客户端适配器固定场景 ID，浏览器不能替换绑定 ID、创建或轮换场景凭据。缺少场景会话的旧链接仍可保存组件参数，但公共布局须从客户端重新打开后保存。短入口在同标签 sessionStorage 中仅缓存组件名及恢复用 draftKey，缓存键使用入口能力的 SHA-256；不缓存明文入口能力或组件 token。已断开页面刷新时仍可只读查看该标签的本地恢复草稿。
 
-每个请求只使用目标会话自己的凭据，能力不可互换。多个图层同时保留各自 renderer，选中组件只切换参数面板。网页刷新/离开只释放当前页面资源；显式 close 时各会话分别处理已接受命令并撤销，不提前撤销其他会话的待保存操作。
+“保存并应用”只等待当前场景及其共享外观 owner 的浏览器编辑被客户端确认，再同步预检、冻结并批量保存这些 owner，最后按 revision 发布组合画面；独立实例不依赖其类型的默认配置，无关默认草稿不保存。全部保存结束后再次检查参与者的读取、保存、冲突、草稿和账号代际状态，以及本次场景保存的规范化结果与 revision；任一失败或出现新的并发修改均停止发布，保留已成功保存的部分。发布请求发出后的后续编辑留作下次草稿。`publish`/`source` 仅允许 canvas 能力排队，结果通过该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。编辑页在显式复制时读取来源，拼成 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源能力>`；客户端地址目录在首次读取、页签点击、窗口 focus 及 `scene:published` 后刷新，未发布场景仍提示先保存并应用。后续正常保存和发布沿用该地址，来源能力不进入文档或模板。
+
+除只用于解析的短入口能力外，每个组件请求只使用目标会话自己的凭据，能力不可互换。多个图层同时保留各自 renderer，选中组件只切换参数面板。网页刷新/离开只释放当前页面资源；新页面接管后，旧页面可刷新继续编辑。显式 close 时各会话分别处理已接受命令并撤销，不提前撤销其他会话的待保存操作。
 
 | action | 身份与请求 | data |
 | --- | --- | --- |
 | `open` | 管理身份；`{component,state,display?}`，component 为 danmaku/clock/queue/overtime/canvas | `{id,token,draftKey}`，256 位随机预览能力；draftKey 仅定位账号/场景的本地恢复草稿，不授予权限；同类型旧会话失效 |
+| `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；一个锚定会话按初始组件保留至多五个短入口；重复申请同一组会话与选择复用 key 并更新尺寸 |
+| `resolve` | 短入口 Bearer；`{action:'resolve'}` | `{links:[{component,id,token,draftKey}],selectedId,selectedSize}`，只返回绑定的有效会话与入口元数据；不续活闲置租约；未知或失效入口为 410 |
 | `exchange` | 管理身份；`{id,state,display?,ack}` | `{commands:[{sequence,action,change?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
 | `revoke` | 管理身份；`{id}` | `{closed}` |
 | `read` | 当前会话 Bearer；`{id,attachmentId?}`；未附页面标识的读取用于接管前取得快照 | `{component,draftKey,state,display,ack,sequence,attachmentId}`，attachmentId 初始为 null；只含组件草稿、已保存值、保存状态和必要展示数据 |
@@ -450,7 +454,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；`startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`amountAbove?`(人民币元，非负且精确到分；单条总金额严格大于该值，留空不限；与其他条件取交集并绑定游标)、`viewRevision`(来源投影版本)；禁止 `sourceId/source_id` | 当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态 | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
 | `POST /api/gifts/selection` | `viewRevision`、可选 `eventIds`（最多 10000）及与 history 相同的筛选/排序 | 固定记录快照，不合并；无 eventIds 时选择全部筛选结果，保留 partial 状态 | 400(无效参数/超限)、409(来源变化或记录失效) |
 | `GET /api/gifts/card-profiles` | 可选 `viewRevision`；来源由当前授权决定，日期固定北京时间今日 | 返回 `viewRevision/day/items/partial`；items 仅含 eventId、senderId、userName、avatarUrl、guardLevel、createdAt。运行时遍历服务端分页并验证来源、日期和同步代次；离线或旧服务器只复用同来源/日期缓存，否则返回空资料及 partial，不猜测身份 | 409(来源或日期变化/来源未就绪) |
-| `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、scrollSpeed(1–50)，后两者须为整数；minGiftAmountCents 为非负安全整数分且是 10 的倍数（界面金额最多一位小数），省略默认 0 | 读取/保存本地礼物展示配置，保存后广播刷新；速率线性对应每行 5–0.1 秒，默认 25。最小金额 0 不过滤，正数仅让当天合并后累计金额严格大于门槛的卡片进入滚动，不影响历史或导出。旧配置/请求缺金额字段补 0；合法 intervalSeconds、paused/lowPower 兼容读入为速率 1，保留配色和行数，返回与保存仅使用新字段 | 400(设置无效) |
+| `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、scrollSpeed(1–50)，后两者须为整数；minGiftAmountCents 为非负安全整数分且是 10 的倍数（界面金额最多一位小数），省略默认 0 | 读取/保存本地礼物展示配置，保存后广播刷新；速率线性对应每行 5–0.1 秒，默认 12（每行 3.9 秒）。最小金额 0 不过滤，正数仅让当天合并后累计金额严格大于门槛的卡片进入滚动，不影响历史或导出。旧配置/请求缺金额字段补 0；合法 intervalSeconds、paused/lowPower 兼容读入为速率 1，保留配色和行数，返回与保存仅使用新字段 | 400(设置无效) |
 | `GET /api/gifts/statistics`         | 查询参数:`query?`、`range?` 同 history;禁止 `sourceId/source_id`                                                          | 当前授权 source 的 8 项整数分 summary、`topGifts`(≤50)、`timeSeries`(≤240)及同步完整性状态 | 400(参数/来源选择器无效)、409(来源未就绪) |
 | `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`                                                                                                           | 盲盒统计                                            | —                                   |
 | `GET /api/gifts/blind-box-analysis` | 查询参数:`viewer?`、`box?`、`view?`(默认 `users`)、`page?`(默认 `1`)、`limit?`(默认 `25`)、`sort?`、`direction?`(默认 `desc`)、`startDate?/endDate?`(本机日期 YYYY-MM-DD，含首尾两天；只给一端为单日，都省略为今天) | 当前授权来源的盲盒开盒分析；`dateRange` 返回生效日期，`today` 仍为本机当天零点 | 400(日期无效或逆序) |
