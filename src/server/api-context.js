@@ -72,6 +72,7 @@ function createApiContext(options) {
       resolveEffect: domainServices.gifts.resolveEffect,
       previewEffect: broadcastGiftEffectPreview,
       previewFrame: broadcastGiftEffectPreview,
+      previewGuardThanks: broadcastGiftEffectPreview,
     },
     giftSync: {
       rebuild: typeof giftSync?.rebuild === 'function' ? giftSync.rebuild : () => false,

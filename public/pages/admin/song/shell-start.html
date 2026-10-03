@@ -5,7 +5,7 @@
         <div class="panel-header">
           <div class="queue-heading">
             <h2 class="ui-section-title">
-              <span class="queue-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 15.5a2 2 0 0 1-2 2H8l-4 3.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z" /><path d="M8.5 9h7" /><path d="M8.5 12.5h4.5" /></svg></span>SC 队列
+              SC 队列
             </h2>
             <span id="superChatSize" class="pill">0 条</span>
           </div>
@@ -27,12 +27,12 @@
         <div class="panel-header">
           <div class="queue-heading">
             <h2 class="ui-section-title">
-              <span class="queue-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 15V6" /><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path d="M12 12H3" /><path d="M16 6H3" /><path d="M12 18H3" /></svg></span>点歌队列
+              点歌队列
             </h2>
             <span id="queueSize" class="pill">0 首</span>
           </div>
           <div class="actions">
-            <button id="randomSongBtn" class="primary" type="button">
+            <button id="randomSongBtn" class="secondary" type="button">
               <svg class="queue-action-icon" aria-hidden="true">
                 <use href="/img/admin/workbench-icons.svg#shuffle"></use>
               </svg>
@@ -60,14 +60,16 @@
 
     <div class="tools-section">
       <section class="panel song-management-panel">
-        <div class="tabs" role="tablist">
+        <div class="tabs" role="tablist" aria-label="点歌管理">
           <button class="tab active" data-tab="songsPage" type="button">
             歌库
           </button>
           <button class="tab" data-tab="settingsPage" type="button">
             设置
           </button>
-          <button class="tab" data-tab="themePage" type="button">点歌板</button>
+          <button class="tab" data-tab="themePage" type="button">
+            点歌板
+          </button>
           <button class="tab" data-tab="displayPage" type="button">
             展示板
           </button>

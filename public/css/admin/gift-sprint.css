@@ -1,0 +1,46 @@
+@import url('../shared/gift-sprint-text.css');
+
+.gift-sprint-overlay-panel {
+  min-width: 0;
+}
+.gift-sprint-source {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border);
+}
+.gift-sprint-source input {
+  flex: 1;
+  min-width: 0;
+}
+.gift-sprint-source :is(label, button),
+.gift-sprint-overlay-footer button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.gift-sprint-preview {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+.gift-sprint-preview .gift-sprint-text {
+  margin-top: var(--spacing-md);
+}
+#giftSprintOverlayStatus {
+  margin: var(--spacing-md) 0 0;
+}
+#giftSprintOverlayStatus:empty {
+  display: none;
+}
+.gift-sprint-overlay-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+}
+.gift-sprint-overlay-footer p {
+  flex: 1;
+  margin: 0;
+}

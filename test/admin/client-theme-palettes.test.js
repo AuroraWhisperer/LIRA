@@ -62,5 +62,11 @@ test('client text, action states, semantic pairs and functional boundaries meet 
     check('--color-primary-text', '--color-primary-light', 4.5);
     for (const role of ['success', 'warning', 'danger', 'info']) check(`--color-${role}`, `--color-${role}-light`, 4.5);
     check('--color-danger', '--color-danger-active', 4.5);
+    for (const surface of ['--color-toast-start', '--color-toast-mid', '--color-toast-end']) {
+      check('--color-toast-text', surface, 4.5);
+      check('--color-toast-secondary', surface, 4.5);
+      for (const role of ['accent', 'success', 'warning', 'error']) check(`--color-toast-${role}`, surface, 3);
+    }
+    for (const role of ['accent', 'success', 'warning', 'error']) check('#ffffff', `--color-toast-${role}`, 4.5);
   }
 });

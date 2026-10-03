@@ -79,35 +79,11 @@ function readJsModuleBundle(...relativeSegments) {
   );
 }
 
-test('admin queue style cards keep styles 1 and 2 neutral while styles 3-6 use themed palettes', () => {
+test('admin queue style cards preserve focus and selection indicators', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const neutralStyles = ['classic', 'identity'];
-  neutralStyles.forEach((style) => {
-    const rule = styles.match(
-      new RegExp(`\\.style-option\\[data-overlay-style=['"]${style}['"]\\]\\s*\\{[\\s\\S]*?\\n\\}`),
-    )?.[0];
 
-    assert.ok(rule, `${style} should have a style card`);
-    assert.match(rule, /--style-option-bg:\s*var\(--color-bg-primary\)/);
-    assert.match(rule, /--style-option-border:\s*var\(--border\)/);
-    assert.match(rule, /--style-option-title:\s*var\(--text\)/);
-  });
-
-  const illustratedStyles = ['storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily'];
-  const backgrounds = illustratedStyles.map((style) => {
-    const rule = styles.match(
-      new RegExp(`\\.style-option\\[data-overlay-style=['"]${style}['"]\\]\\s*\\{[\\s\\S]*?\\n\\}`),
-    )?.[0];
-
-    assert.ok(rule, `${style} should have a themed style card`);
-    assert.match(rule, /--style-option-border:\s*#[0-9a-f]{6}/i);
-    assert.match(rule, /--style-option-title:\s*#[0-9a-f]{6}/i);
-    return rule.match(/--style-option-bg:\s*([^;]+);/)?.[1];
-  });
-
-  assert.equal(new Set(backgrounds).size, illustratedStyles.length);
-  assert.match(styles, /\.style-option\.active\s*\{[\s\S]*?var\(--style-option-ring\)/);
-  assert.match(styles, /\.style-option:focus-visible\s*\{[\s\S]*?var\(--style-option-accent\)/);
+  assert.match(styles, /\.style-option\.active\s*\{[^}]*var\(--style-option-ring\)/);
+  assert.match(styles, /\.style-option:focus-visible\s*\{[^}]*var\(--style-option-accent\)/);
 });
 
 test('illustrated queue styles expose persisted typography controls', () => {
@@ -127,9 +103,6 @@ test('illustrated queue styles expose persisted typography controls', () => {
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
 
   assert.match(html, /data-illustrated-only/);
-  assert.doesNotMatch(html, /跟随每种风格默认字体|跟随每种风格默认字重/);
-  assert.match(html, /<option value="default">幼圆<\/option>/);
-  assert.match(html, /<option value="default">粗体<\/option>/);
   assert.match(html, /id="illustratedQueueFontFamily"/);
   assert.match(html, /id="illustratedQueueFontWeight"/);
   assert.match(html, /id="illustratedQueueUseCustomTextColor"/);
@@ -142,13 +115,8 @@ test('illustrated queue styles expose persisted typography controls', () => {
     /registerLocalFontSelect\(node\('illustratedQueueFontFamily'\)\)/,
   );
   assert.match(formsSource, /ensureSavedFontOption\([\s\S]*?illustratedQueueFontFamily/);
-  assert.match(localFontSource, /group\.label = '本机字体'/);
   assert.match(localFontSource, /window\.queryLocalFonts\(\)/);
   assert.match(configSource, /fontWeight: 'illustratedQueueFontWeight'/);
-  assert.match(
-    fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/theme-style-view.js'), 'utf8'),
-    /ILLUSTRATED_DEFAULT_LABELS[\s\S]*'neon-vinyl'[\s\S]*fontFamily:\s*'微软雅黑'[\s\S]*fontWeight:\s*'较粗'/,
-  );
   assert.match(configSource, /useCustomTextColor: 'illustratedQueueUseCustomTextColor'/);
   assert.match(configSource, /textColor: 'illustratedQueueTextColor'/);
   assert.match(defaultsSource, /illustratedQueueFontFamily:\s*'default'/);

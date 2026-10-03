@@ -195,6 +195,7 @@ export function createBlindboxSettings({
     customConfig.dataset.preserveDirty = 'true';
     customConfig.addEventListener('input', () => {
       customConfig.dataset.dirty = 'true';
+      renderBlindboxList();
     });
     documentRef.getElementById('importBtn').addEventListener('click', () => {
       getImports()?.importSongs?.();

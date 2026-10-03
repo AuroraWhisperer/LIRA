@@ -9,6 +9,7 @@ const {
   validateGiftDisplaySettings,
 } = require('../../bilibili/gift/display-settings');
 const { buildGiftFramePreviewEvent } = require('../../bilibili/gift/frame-config');
+const { buildGuardThanksPreviewEvent } = require('../../bilibili/gift/guard-thanks-config');
 
 const prefixes = ['/api/gifts/'];
 
@@ -171,6 +172,22 @@ const routes = {
       return;
     }
     context.gifts.previewFrame(event);
+    sendJson(res, 200, { ok: true, data: event });
+  },
+
+  async 'POST /api/gifts/guard-thanks/preview'(context, request, res) {
+    const body = await request.body();
+    let event;
+    try {
+      event = buildGuardThanksPreviewEvent(body);
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || '大航海感谢预览参数无效。',
+      });
+      return;
+    }
+    context.gifts.previewGuardThanks(event);
     sendJson(res, 200, { ok: true, data: event });
   },
 

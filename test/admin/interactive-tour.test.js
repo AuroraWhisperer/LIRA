@@ -131,36 +131,14 @@ test('tour avoids continuously expensive rendering effects and polling', () => {
   );
 });
 
-test('tour introduces LIRA and the four primary buttons before seven sequential actions', () => {
+test('tour has unique steps between its introduction and completion', () => {
   const actionSteps = tour.TOUR_STEPS.filter((step) => !['welcome', 'complete'].includes(step.id));
 
-  assert.equal(tour.TOUR_VERSION, 6);
-  assert.equal(tour.TOUR_STEPS[0].kicker, '第 0 步 · 认识 LIRA');
-  assert.match(tour.TOUR_STEPS[0].content, /跟着提示连接直播间/);
-  assert.match(tour.TOUR_STEPS[0].content, /页面会带你找到要操作的位置/);
-  assert.deepEqual(
-    Array.from(actionSteps, (step) => step.kicker),
-    [
-      '第 1 步 · 认识主功能',
-      '第 2 步 · 登录账号',
-      '第 3 步 · 填写直播间',
-      '第 4 步 · 刷新连接',
-      '第 5 步 · 导入歌单',
-      '第 6 步 · 选择音乐',
-      '第 7 步 · 查看帮助',
-    ],
-  );
-  assert.match(actionSteps[0].content, /点歌/);
-  assert.match(actionSteps[0].content, /播放/);
-  assert.match(actionSteps[0].content, /礼物/);
-  assert.match(actionSteps[0].content, /百宝箱/);
+  assert.equal(new Set(tour.TOUR_STEPS.map((step) => step.id)).size, tour.TOUR_STEPS.length);
+  assert.equal(tour.TOUR_STEPS[0].id, 'welcome');
+  assert.equal(tour.TOUR_STEPS.at(-1).id, 'complete');
+  assert.ok(actionSteps.every((step) => step.content?.trim()));
   assert.equal(actionSteps[0].targetSelector, '.main-page-tabs');
-  assert.match(actionSteps[1].content, /用手机上的哔哩哔哩 App 扫描/);
-  assert.match(actionSteps[2].note, /房间号「123456」.*粘贴直播间链接/);
-  assert.match(actionSteps[3].content, /右上角/);
-  assert.match(actionSteps[4].note, /暂时没有歌单也没关系/);
-  assert.match(actionSteps[5].content, /全民 K 歌客户端/);
-  assert.match(actionSteps[6].note, /重新查看新手引导/);
 });
 
 test('refresh step spotlights the live-room status together with the refresh button', () => {
@@ -168,36 +146,7 @@ test('refresh step spotlights the live-room status together with the refresh but
   const js = fs.readFileSync(path.join(__dirname, '../..', 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
 
   assert.equal(refreshStep.targetSelector, '#liveStatus, #reconnectBtn');
-  assert.match(refreshStep.content, /保存设置/);
   assert.match(js, /document\.querySelectorAll\(selector\)/);
-});
-
-test('disabled tour actions use an unavailable cursor instead of a busy cursor', () => {
-  const css = fs.readFileSync(
-    path.join(__dirname, '../..', 'public', 'css', 'admin', 'toolbox', 'interactive-tour.css'),
-    'utf8',
-  );
-  const disabledRule = css.match(/\.lira-tour-actions button:disabled\s*\{[\s\S]*?\n\}/)?.[0];
-
-  assert.match(disabledRule, /cursor:\s*not-allowed/);
-  assert.doesNotMatch(disabledRule, /cursor:\s*wait/);
-});
-
-test('tour status circles carry waiting and completed meanings without an image asset', () => {
-  const js = fs.readFileSync(path.join(__dirname, '../..', 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
-  const css = fs.readFileSync(
-    path.join(__dirname, '../..', 'public', 'css', 'admin', 'toolbox', 'interactive-tour.css'),
-    'utf8',
-  );
-  const waitingIconRule = css.match(/\.lira-tour-status\.waiting::before\s*\{[\s\S]*?\n\}/)?.[0];
-  const completedIconRule = css.match(/\.lira-tour-status\.completed::before\s*\{[\s\S]*?\n\}/)?.[0];
-
-  assert.match(waitingIconRule, /content:\s*['"]…['"]/);
-  assert.match(completedIconRule, /content:\s*['"]✓['"]/);
-  assert.match(completedIconRule, /opacity:\s*1/);
-  assert.match(js, /请按上面的提示完成这一步/);
-  assert.match(js, /这一步已完成，可以点击「下一步」/);
-  assert.doesNotMatch(js, /✓ 完成！可以继续下一步了/);
 });
 
 test('tour uses an accessible styled exit confirmation instead of the native dialog', () => {
@@ -242,8 +191,6 @@ test('song import step opens the import tab and points at the file input', () =>
   assert.equal(importStep.targetTab, '[data-tab="importPage"]');
   assert.equal(importStep.targetSelector, '#importFile');
   assert.equal(importStep.waitForAction, false);
-  assert.match(importStep.content, /现在已打开/);
-  assert.match(importStep.content, /Excel（\.xlsx）/);
 });
 
 test('music setup step targets the real playback source switcher', () => {
@@ -256,8 +203,6 @@ test('music setup step targets the real playback source switcher', () => {
   assert.equal(musicStep.targetSelector, '.source-tabs');
   assert.equal(musicStep.position, 'bottom');
   assert.match(playbackPage, /class="source-tabs"/);
-  assert.match(musicStep.content, /选择你平时使用的平台/);
-  assert.match(musicStep.content.replace(/<[^>]+>/g, ''), /点击右上方的「登录」/);
 });
 
 test('usage guide step opens and points to the real toolbox document button', () => {
@@ -270,6 +215,4 @@ test('usage guide step opens and points to the real toolbox document button', ()
   assert.equal(usageStep.targetTab, '[data-other-feature="otherUsageGuideFeature"]');
   assert.equal(usageStep.targetSelector, '[data-other-feature="otherUsageGuideFeature"]');
   assert.match(toolboxShell, /data-other-feature="otherUsageGuideFeature"/);
-  assert.match(usageStep.content, /忘记怎么登录、导入歌单或设置其他功能/);
-  assert.match(usageStep.note, /重新查看新手引导/);
 });

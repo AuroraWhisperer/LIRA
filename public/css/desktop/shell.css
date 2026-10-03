@@ -172,12 +172,14 @@ body.desktop-shell .win-btn {
   transition:
     background 150ms ease,
     color 150ms ease,
-    opacity 150ms ease;
+    opacity 150ms ease,
+    transform 150ms ease;
 }
 
 body.desktop-shell .win-btn:hover {
   background: rgba(24, 24, 22, 0.06);
   opacity: 1;
+  transform: scale(1.12);
 }
 
 body.desktop-shell .win-btn.close-win:hover {
@@ -188,11 +190,19 @@ body.desktop-shell .win-btn.close-win:hover {
 
 body.desktop-shell .win-btn:active {
   background: rgba(24, 24, 22, 0.1);
+  transform: scale(0.96);
 }
 
 body.desktop-shell .win-btn.close-win:active {
   background: #a92619;
   color: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.desktop-shell .win-btn:hover,
+  body.desktop-shell .win-btn:active {
+    transform: none;
+  }
 }
 
 /* ---- full-screen workspace polish ---- */

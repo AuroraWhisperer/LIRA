@@ -10,6 +10,7 @@ const OVERLAY_PAGES = Object.freeze({
   'gift-effects': 'gift-effects.html',
   'gift-feed': 'gift-feed.html',
   'gift-wishes': 'gift-wishes.html',
+  'gift-sprint': 'gift-sprint.html',
   'gift-export': 'gift-export.html',
   lyrics: 'lyric-window.html',
   games: 'games.html',

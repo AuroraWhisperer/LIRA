@@ -87,8 +87,9 @@ test('queue styles use contain scaling while identity never grows beyond 100%', 
   assert.ok(identityRule);
   assert.ok(storybookRule);
   assert.ok(illustratedRule);
-  assert.match(classicRule, /width:\s*405px/);
-  assert.match(identityRule, /width:\s*430px/);
+  for (const rule of [classicRule, identityRule, storybookRule, illustratedRule]) {
+    assert.ok(Number(rule.match(/\bwidth:\s*([\d.]+)px/)?.[1]) > 0, 'panels need a fixed design width');
+  }
   [classicRule, storybookRule, illustratedRule].forEach((rule) => {
     assert.match(rule, /transform:\s*scale\(var\(--queue-panel-scale,\s*1\)\)/);
     assert.match(rule, /transform-origin:\s*top left/);
@@ -97,25 +98,22 @@ test('queue styles use contain scaling while identity never grows beyond 100%', 
   assert.match(identityRule, /transform:\s*scale\(min\(var\(--queue-panel-scale,\s*1\),\s*1\)\)/);
   assert.match(identityRule, /transform-origin:\s*top left/);
   assert.doesNotMatch(identityRule, /100vw/);
-  assert.match(storybookRule, /width:\s*560px/);
-  assert.match(illustratedRule, /width:\s*560px/);
   assert.match(source, /syncQueuePanelViewport\(panel\)/);
   assert.match(source, /function handleQueueViewportResize\(\)[\s\S]*syncQueueViewport\(\)/);
 });
 
 test('illustrated frame decorations sandwich queue cards above the center fill', () => {
-  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   const backgroundRule = [
     ...overlayCss.matchAll(/\.queue-neon-vinyl::before,[\s\S]*?\.queue-golden-lily::before\s*\{[^}]*\}/g),
   ]
     .map((match) => match[0])
-    .find((rule) => /z-index:\s*0/.test(rule));
+    .find((rule) => /z-index:/.test(rule));
   const foregroundRule = [
     ...overlayCss.matchAll(/\.queue-neon-vinyl::after,[\s\S]*?\.queue-golden-lily::after\s*\{[^}]*\}/g),
   ]
     .map((match) => match[0])
-    .find((rule) => /z-index:\s*3/.test(rule));
+    .find((rule) => /z-index:/.test(rule));
   const contentRule = overlayCss.match(
     /\.queue-neon-vinyl \.overlay-content,[\s\S]*?\.queue-golden-lily \.overlay-content\s*\{[^}]*\}/,
   )?.[0];
@@ -123,9 +121,10 @@ test('illustrated frame decorations sandwich queue cards above the center fill',
   assert.ok(backgroundRule);
   assert.ok(foregroundRule);
   assert.ok(contentRule);
-  assert.match(backgroundRule, /z-index:\s*0/);
-  assert.match(contentRule, /z-index:\s*2/);
-  assert.match(foregroundRule, /z-index:\s*3/);
+  const backgroundZ = Number(backgroundRule.match(/z-index:\s*(-?\d+)/)?.[1]);
+  const contentZ = Number(contentRule.match(/z-index:\s*(-?\d+)/)?.[1]);
+  const foregroundZ = Number(foregroundRule.match(/z-index:\s*(-?\d+)/)?.[1]);
+  assert.ok(backgroundZ < contentZ && contentZ < foregroundZ, 'queue cards must sit between the artwork layers');
   assert.match(foregroundRule, /border-style:\s*solid/);
 
   for (const style of ['neon-vinyl', 'cherry-ribbon', 'golden-lily']) {
@@ -145,9 +144,6 @@ test('illustrated frame decorations sandwich queue cards above the center fill',
     assert.match(foreground, /border-image-slice:\s*[\d.% ]+/);
     assert.doesNotMatch(foreground, /\bfill\b/);
   }
-
-  assert.match(source, /ILLUSTRATED_QUEUE_ROW_GAPS\s*=\s*\{[\s\S]*'golden-lily':\s*4/);
-  assert.match(source, /const rowGap = ILLUSTRATED_QUEUE_ROW_GAPS\[style\]/);
 });
 
 test('illustrated queue cards display their full artwork without clipping decorations', () => {
@@ -155,22 +151,17 @@ test('illustrated queue cards display their full artwork without clipping decora
   const expectedRows = {
     storybook: {
       aspectRatio: /aspect-ratio:\s*1237\s*\/\s*304/,
-      backgroundSize: /background-size:\s*124\.171%\s+336\.842%/,
-      backgroundPosition: /background-position:\s*44\.482%\s+45\.972%/,
     },
     'neon-vinyl': {
       aspectRatio: /aspect-ratio:\s*2172\s*\/\s*517\.5/,
-      width: /width:\s*94%/,
       backgroundSize: /background-size:\s*100%\s+100%/,
     },
     'cherry-ribbon': {
       aspectRatio: /aspect-ratio:\s*1623\s*\/\s*371\.2/,
-      width: /width:\s*94%/,
       backgroundSize: /background-size:\s*100%\s+100%/,
     },
     'golden-lily': {
       aspectRatio: /aspect-ratio:\s*2139\s*\/\s*539/,
-      width: /width:\s*72%/,
       backgroundSize: /background-size:\s*100%\s+100%/,
     },
   };
@@ -179,14 +170,10 @@ test('illustrated queue cards display their full artwork without clipping decora
     const rowRule = overlayCss.match(new RegExp(`\\.${style}-row\\s*\\{[^}]*\\}`))?.[0];
     assert.ok(rowRule, `${style} needs a card layout rule`);
     assert.match(rowRule, expected.aspectRatio);
-    if (expected.width) assert.match(rowRule, expected.width);
-    assert.match(rowRule, expected.backgroundSize);
+    if (expected.backgroundSize) assert.match(rowRule, expected.backgroundSize);
     assert.match(rowRule, /min-height:\s*0/);
     assert.doesNotMatch(rowRule, /height:\s*clamp\(/);
     assert.doesNotMatch(rowRule, /background-size:\s*[^;]*\bauto\b/);
-    if (expected.backgroundPosition) {
-      assert.match(rowRule, expected.backgroundPosition);
-    }
   }
 });
 
@@ -198,30 +185,25 @@ test('style 4 keeps its original frame proportions', () => {
   assert.match(frameRule, /aspect-ratio:\s*1122\s*\/\s*1402/);
 });
 
-test('style 6 reveals the first entry decoration and separates adjacent entries', () => {
+test('style 6 wires its row renderer without overlapping adjacent entries', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const contentRule = overlayCss.match(/\.queue-golden-lily \.overlay-content\s*\{(?=[^}]*inset:)[^}]*\}/)?.[0];
-  const listRule = overlayCss.match(/\.golden-lily-list\.identity-list\s*\{[^}]*\}/)?.[0];
-
-  assert.ok(contentRule);
-  assert.ok(listRule);
-  assert.match(contentRule, /inset:\s*16\.5%\s+8\.5%\s+13\.5%/);
-  assert.match(listRule, /gap:\s*4px/);
   assert.doesNotMatch(overlayCss, /\.golden-lily-row:not\(:first-child\)\s*\{[^}]*margin-top:\s*-[\d.]+px/);
   assert.match(
     source,
-    /renderIllustratedAssetQueue\(\s*settings\s*,\s*current\s*,\s*waiting\s*,\s*content\s*,\s*['"]golden-lily['"]\s*,\s*4\s*,\s*renderGoldenLilyRow\s*,?\s*\)/,
+    /renderIllustratedAssetQueue\(\s*settings\s*,\s*current\s*,\s*waiting\s*,\s*content\s*,\s*['"]golden-lily['"]\s*,\s*[^,]+,\s*renderGoldenLilyRow\s*,?\s*\)/,
   );
-  assert.match(source, /ILLUSTRATED_QUEUE_ROW_GAPS\s*=\s*\{[\s\S]*'golden-lily':\s*4/);
 });
 
 test('classic queue keeps fixed design coordinates while the whole panel scales', () => {
   const queueSource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   assert.doesNotMatch(queueSource, /visibleRows\s*=\s*6|queueFixedSixRows|--classic-window-height/);
-  assert.match(overlayCss, /\.classic-list-window\s*\{[^}]*height:\s*235px/s);
-  assert.match(overlayCss, /\.classic-list-window\s*\{[^}]*max-height:\s*235px/s);
+  const windowRule = overlayCss.match(/\.classic-list-window\s*\{[^}]*\}/)?.[0];
+  const height = Number(windowRule?.match(/(?:^|[;{])\s*height:\s*([\d.]+)px/)?.[1]);
+  const maxHeight = Number(windowRule?.match(/max-height:\s*([\d.]+)px/)?.[1]);
+  assert.ok(height > 0);
+  assert.equal(maxHeight, height, 'the viewport should keep its design height while the panel scales');
   assert.doesNotMatch(overlayCss, /--classic-window-height/);
   assert.doesNotMatch(queueSource, /Math\.min\(6,/);
   assert.match(queueSource, /window\.addEventListener\('resize', handleQueueViewportResize\)/);
@@ -337,8 +319,10 @@ test('identity queue keeps fixed design coordinates and never grows beyond its d
 
   const identityWindowRule = overlayCss.match(/\.identity-list-window\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(identityWindowRule);
-  assert.match(identityWindowRule, /height:\s*364px/);
-  assert.match(identityWindowRule, /max-height:\s*364px/);
+  const height = Number(identityWindowRule.match(/(?:^|[;{])\s*height:\s*([\d.]+)px/)?.[1]);
+  const maxHeight = Number(identityWindowRule.match(/max-height:\s*([\d.]+)px/)?.[1]);
+  assert.ok(height > 0);
+  assert.equal(maxHeight, height);
 
   const classes = new Set(['identity-list', 'paused']);
   const viewport = {

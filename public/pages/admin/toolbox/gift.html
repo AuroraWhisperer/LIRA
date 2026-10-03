@@ -40,11 +40,34 @@
       >
         礼物许愿
       </button>
+      <button
+        id="giftAssistantSprintTab"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="giftSprintOverlayPanel"
+        tabindex="-1"
+        data-gift-tab="sprint"
+      >
+        月底冲刺
+      </button>
+      <button
+        id="giftAssistantGuardTab"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="guardThanksPanel"
+        tabindex="-1"
+        data-gift-tab="guard"
+      >
+        大航海感谢
+      </button>
     </div>
     <section
       id="giftFramePanel"
       class="gift-frame-settings-card"
       data-gift-feature="frame"
+      data-gift-frame-effect="woodland-bloom"
       role="tabpanel"
       aria-labelledby="giftAssistantFrameTab"
     >
@@ -52,10 +75,10 @@
         <div>
           <span class="panel-kicker">观众画面</span>
           <h3 id="giftFrameSettingsTitle" class="ui-section-title">
-            礼物边框
-            <lira-help>礼物金额达到门槛后，在投屏画面四周显示林间花信边框。</lira-help>
+            特效 1 · 林间花信
+            <lira-help>此开关与触发金额只用于特效 1。按最终礼物金额触发；四边同步入场 0.6 秒，完整展示 3 秒，再同步退场 0.4 秒。</lira-help>
           </h3>
-          <p>收到达到触发金额的礼物时，在投屏画面四周播放边框。</p>
+          <p>森林花枝与花瓣铭牌，全程 4 秒。底部显示观众昵称、礼物名称和数量。</p>
         </div>
         <span id="giftFrameSettingsState" class="pill">未启用</span>
       </header>
@@ -63,39 +86,23 @@
         <label class="gift-frame-switch switch-control">
           <input id="giftFrameEnabled" type="checkbox" />
           <span class="switch-track"></span>
-          <span>启用礼物边框</span>
+          <span>启用特效 1</span>
         </label>
         <label>
           <span>触发金额（元） <lira-help>按最终礼物金额判断；0 元表示所有付费礼物。</lira-help></span>
           <input id="giftFrameThresholdRmb" type="number" min="0" step="0.01" inputmode="decimal" value="20" />
         </label>
-        <label>
-          <span>边框主题</span>
-          <select id="giftFrameTheme" data-dropdown-variant="settings">
-            <option value="woodland-bloom">林间花信</option>
-          </select>
-        </label>
-        <label>
-          <span>动效模式</span>
-          <select id="giftFrameMotionMode" data-dropdown-variant="settings">
-            <option value="auto">跟随系统</option>
-            <option value="full">完整动效</option>
-            <option value="reduced">简化动效</option>
-          </select>
-        </label>
       </div>
+      <p class="gift-frame-queue-hint">连续触发按顺序播放，当前特效播完再接下一条；最多等待 50 条，排满后忽略新触发。已排队礼物不会因等待时间被跳过。</p>
       <div class="gift-frame-preview-grid">
         <label><span>预览观众</span><input id="giftFramePreviewUser" type="text" value="观众A" maxlength="80" /></label>
         <label
           ><span>预览礼物</span><input id="giftFramePreviewGift" type="text" value="林间花信" maxlength="80"
         /></label>
         <label><span>数量</span><input id="giftFramePreviewNum" type="number" min="1" step="1" value="2" /></label>
-        <label
-          ><span>金额（元）</span><input id="giftFramePreviewAmount" type="number" min="0.01" step="0.01" value="520"
-        /></label>
       </div>
       <div class="gift-frame-settings-actions">
-        <button id="giftFrameSaveBtn" class="primary" type="button">保存礼物边框设置</button>
+        <button id="giftFrameSaveBtn" class="primary" type="button">保存特效 1 设置</button>
         <button id="giftFramePreviewBtn" class="secondary" type="button">播放预览</button>
         <span id="giftFrameSaveState" class="hint" role="status" aria-live="polite"></span>
       </div>
@@ -269,5 +276,104 @@
       </form>
     </section>
     <!-- admin-fragment: pages/admin/toolbox/gift-wishes.html -->
+    <section
+      id="giftSprintOverlayPanel"
+      class="gift-sprint-overlay-panel"
+      role="tabpanel"
+      aria-labelledby="giftAssistantSprintTab"
+      hidden
+    >
+      <div class="gift-sprint-source">
+        <label for="giftSprintOverlayUrl">浏览器源</label>
+        <input id="giftSprintOverlayUrl" readonly aria-label="月底冲刺浏览器源地址" />
+        <button id="giftSprintCopy" type="button" class="secondary">复制地址</button>
+        <button id="giftSprintPreview" type="button" class="secondary">打开预览</button>
+      </div>
+      <div class="gift-sprint-preview">
+        <span class="hint">实时预览 · 文字版</span>
+        <p id="giftSprintTextPreview" class="gift-sprint-text" hidden></p>
+        <p id="giftSprintOverlayStatus" class="hint" role="status">正在读取月底冲刺进度…</p>
+      </div>
+      <div class="gift-sprint-overlay-footer">
+        <p class="hint">与「礼物 → 月底冲刺」共用目标和进度，剩余金额每 100 元折合 1 个水晶球，不足 1 个按 1 个计。投屏为透明底，建议尺寸 600 × 80。</p>
+        <button id="giftSprintConfigure" type="button" class="secondary">设置冲刺目标</button>
+      </div>
+    </section>
+    <section
+      id="guardThanksPanel"
+      class="guard-thanks-card"
+      data-gift-feature="guard"
+      role="tabpanel"
+      aria-labelledby="giftAssistantGuardTab"
+      hidden
+    >
+      <header class="guard-thanks-heading">
+        <div>
+          <span class="panel-kicker">观众画面</span>
+          <h3 class="ui-section-title">
+            大航海感谢
+            <lira-help
+              >观众开通或续费舰长、提督、总督后，在礼物特效地址中央播放对应的蓝、紫、红感谢动画；多人连续上舰时依次播放。</lira-help
+            >
+          </h3>
+          <p>舰长船锚、提督罗盘、总督船舵，三档各有专属配色与动效。</p>
+        </div>
+        <span id="guardThanksSettingsState" class="pill">未启用</span>
+      </header>
+      <div class="guard-thanks-layout">
+        <div class="guard-thanks-preview">
+          <div id="guardThanksPreviewStage" class="guard-thanks-stage" role="img" aria-label="大航海感谢动画预览">
+            <p class="guard-thanks-stage-hint">选择等级或点「本地预览」播放动画</p>
+          </div>
+          <div class="guard-thanks-tiers" role="radiogroup" aria-label="预览等级">
+            <label class="guard-thanks-tier" data-tier="captain"
+              ><input type="radio" name="guardThanksPreviewTier" value="captain" checked /><span>舰长</span></label
+            >
+            <label class="guard-thanks-tier" data-tier="admiral"
+              ><input type="radio" name="guardThanksPreviewTier" value="admiral" /><span>提督</span></label
+            >
+            <label class="guard-thanks-tier" data-tier="governor"
+              ><input type="radio" name="guardThanksPreviewTier" value="governor" /><span>总督</span></label
+            >
+          </div>
+        </div>
+        <div class="guard-thanks-controls">
+          <label class="guard-thanks-switch switch-control">
+            <input id="guardThanksEnabled" type="checkbox" />
+            <span class="switch-track"></span>
+            <span>启用大航海感谢</span>
+          </label>
+          <label>
+            <span>动画文字</span>
+            <select id="guardThanksTextMode" data-dropdown-variant="settings">
+              <option value="bilingual">中英双语</option>
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <label><span>预览观众</span><input id="guardThanksPreviewUser" type="text" value="观众A" maxlength="100" /></label>
+          <label
+            ><span>预览月数</span
+            ><input id="guardThanksPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric"
+          /></label>
+          <div class="guard-thanks-actions">
+            <button id="guardThanksSaveBtn" class="primary" type="button">保存大航海感谢设置</button>
+            <button id="guardThanksPlayBtn" class="secondary" type="button">本地预览</button>
+            <button id="guardThanksSendBtn" class="secondary" type="button">发送到直播画面</button>
+          </div>
+          <span id="guardThanksSaveState" class="hint" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+      <div class="guard-thanks-url-row">
+        <div>
+          <span>OBS / 直播姬地址 <lira-help>与礼物边框、礼物特效共用同一个全屏浏览器源，已添加过无需重复添加。</lira-help></span
+          ><code id="guardThanksOverlayUrl"></code>
+        </div>
+        <div class="guard-thanks-url-actions">
+          <button id="guardThanksCopyBtn" class="secondary" type="button">复制地址</button
+          ><button id="guardThanksOpenBtn" class="secondary" type="button">打开预览</button>
+        </div>
+      </div>
+    </section>
   </div>
 </section>

@@ -258,13 +258,19 @@
 .gift-frame-settings-grid,
 .gift-frame-preview-grid {
   display: grid;
-  grid-template-columns: minmax(200px, 1.2fr) repeat(3, minmax(140px, 1fr));
+  grid-template-columns: minmax(200px, 1fr) minmax(160px, 1fr);
   gap: 14px;
   margin-top: 20px;
 }
 .gift-frame-preview-grid {
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  grid-template-columns: repeat(2, minmax(160px, 1fr)) minmax(100px, 0.6fr);
   margin-top: 14px;
+}
+.gift-frame-queue-hint {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 1.6;
 }
 .gift-frame-settings-grid label:not(.switch-control),
 .gift-frame-preview-grid label {

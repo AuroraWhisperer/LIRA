@@ -308,7 +308,7 @@ export function createGiftWishes() {
   get('giftWishPeriod').addEventListener('change', (event) => selectPeriod(event.target.value));
   const url = `${localOverlayOrigin(location)}/gift-wishes`;
   get('giftWishUrl').value = url;
-  get('giftWishPreview').href = `${url}?preview=1`;
+  get('giftWishPreview').addEventListener('click', () => window.open(`${url}?preview=1`, '_blank', 'noopener'));
   selectPeriod(period);
   const unsubscribe = eventBus.on(Events.STATE_LOADED, ({ state }) => {
     if (!state?.gifts || state.gifts.viewRevision === revision) return;

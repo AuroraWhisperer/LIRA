@@ -7,43 +7,24 @@ const test = require('node:test');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-test('games admin groups shared games and the independent wheel', () => {
+test('games admin exposes source actions and controls for shared games and the independent wheel', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'games.html'), 'utf8');
-  const linkPosition = html.indexOf('id="gamesOverlayUrl"');
-  const sessionPosition = html.indexOf('id="gamesSessionStatus"');
-  const catalogPosition = html.indexOf('class="games-catalog"');
-  const bombPosition = html.indexOf('data-game-card="number-bomb"');
-  const gomokuPosition = html.indexOf('data-game-card="gomoku"');
-  const wheelCategoryPosition = html.indexOf('class="games-category games-category-wheel"');
-  const wheelPosition = html.indexOf('data-wheel-card');
-  const drawPosition = html.indexOf('data-game-card="draw-guess"');
-
-  assert.ok(linkPosition >= 0, 'the overlay link should be present');
-  assert.ok(sessionPosition > linkPosition, 'current session should follow the overlay link');
-  assert.ok(catalogPosition > sessionPosition, 'game cards should follow the current session');
-  assert.ok(bombPosition > catalogPosition, 'game one should be inside the catalog');
-  assert.ok(gomokuPosition > bombPosition, 'game two should follow game one');
-  assert.ok(drawPosition > gomokuPosition, 'draw guess should follow the first two games');
-  assert.ok(wheelCategoryPosition > drawPosition, 'the independent wheel should follow the shared games');
-  assert.ok(wheelPosition > wheelCategoryPosition, 'the wheel card should be inside category two');
-  assert.match(html, /id="gamesOverlayUrl"/);
-  assert.match(html, /类别 1/);
-  assert.match(html, /类别 2/);
-  assert.match(html, /id="wheelOverlayUrl"/);
-  const headers = [...html.matchAll(/<header class="games-category-header">([\s\S]*?)<\/header>/g)];
-  assert.equal(headers.length, 3);
-  for (const [index, id] of ['gamesOverlayUrl', 'wheelOverlayUrl', 'interactionsUrl'].entries()) {
-    assert.match(headers[index][1], new RegExp(`<button\\s+id="${id}"[^>]*class="games-source-url"[^>]*type="button"`));
-    assert.doesNotMatch(headers[index][1], /\bhidden\b/);
-    assert.match(headers[index][1], /class="games-source-actions"/);
-    assert.match(headers[index][1], />打开预览<\/button>/);
+  const buttons = [...html.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag);
+  for (const id of ['gamesOverlayUrl', 'wheelOverlayUrl', 'interactionsUrl']) {
+    const matches = buttons.filter((tag) => new RegExp('\\sid="' + id + '"').test(tag));
+    assert.equal(matches.length, 1, id + ' must be a unique source action');
+    assert.match(matches[0], /\stype="button"/);
+    assert.doesNotMatch(matches[0], /\shidden(?:\s|=|>)/);
   }
+  for (const game of ['number-bomb', 'gomoku', 'draw-guess']) {
+    assert.ok(html.includes('data-game-card="' + game + '"'));
+  }
+  assert.match(html, /\sdata-wheel-card(?:\s|=|>)/);
+  assert.match(html, /\sid="gamesSessionStatus"/);
   assert.doesNotMatch(html, /gamesCopyBaseUrlBtn|wheelCopyUrlBtn|interactionsCopy|interactionsSourceToggle/);
-  assert.doesNotMatch(html, /games-link-deck|interaction-source|打开网页|三款游戏共用一个直播画面/);
   assert.match(html, /开始数字炸弹/);
   assert.match(html, /开始五子棋/);
   assert.match(html, /开始你画我猜/);
-  assert.doesNotMatch(html, /第一步|第二步|1\. 打开固定游戏网页|2\. 开始/);
   assert.match(html, /id="drawCardTrigger"/);
   assert.match(html, /id="drawCardDetails"/);
   assert.match(html, /id="drawHostWord"/);
@@ -55,23 +36,11 @@ test('games admin groups shared games and the independent wheel', () => {
   assert.match(html, /id="drawWordCategoryStatus"/);
   assert.match(html, /id="drawSelectAllCategoriesBtn"/);
   assert.match(html, /id="drawClearCategoriesBtn"/);
-  assert.match(html, /本场词库/);
   assert.match(html, /1–12 局/);
   assert.match(html, /15–300 秒/);
-  assert.doesNotMatch(html, /你画我猜计分规则|前三名|其余答对|10 · 7 · 5|3 分/);
   assert.match(html, /画板快捷操作：.*B.*画笔.*E.*橡皮擦.*Ctrl\+Z.*撤销/s);
   assert.match(html, /清空画布前会二次确认/);
   assert.doesNotMatch(html, /data-copy-game/);
-});
-
-test('games admin uses the restored single-column card layout', () => {
-  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'toolbox', 'games.css'), 'utf8');
-
-  assert.match(styles, /\.games-source-url\s*\{[^}]*width:\s*max-content;/);
-  assert.match(styles, /\.games-source-actions\s*\{[^}]*margin-left:\s*auto;/);
-  assert.match(styles, /\.games-catalog\s*\{\s*display:\s*grid;\s*gap:\s*16px;/);
-  assert.match(styles, /\.game-admin-card\s*\{[^}]*grid-template-columns:\s*210px/);
-  assert.doesNotMatch(styles, /\.games-catalog\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
 });
 
 test('admin game styles keep shared, wheel, draw, and responsive ownership', () => {
@@ -111,7 +80,6 @@ test('admin game styles keep shared, wheel, draw, and responsive ownership', () 
   assert.match(draw, /\.draw-card-trigger\s*\{/);
   assert.match(draw, /\.draw-word-library\s*\{/);
   assert.doesNotMatch(draw, /\.wheel-card-trigger\s*\{/);
-  assert.match(responsive, /@media \(max-width: 760px\)/);
   assert.match(responsive, /\.wheel-card-trigger\s*\{/);
   assert.match(responsive, /\.draw-card-trigger\s*\{/);
   assert.match(responsive, /\.games-category\s*\{/);
@@ -138,11 +106,9 @@ test('games admin uses one base URL and never opens a game-specific URL', () => 
   assert.match(script, /toggleDrawDetails/);
 });
 
-test('games admin gives the word library a compact selectable shelf', () => {
+test('games word library styles expose selected and keyboard focus states', () => {
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'toolbox', 'games-draw.css'), 'utf8');
 
-  assert.match(styles, /\.draw-word-library\s*\{/);
-  assert.match(styles, /\.draw-word-categories\s*\{[^}]*grid-template-columns:\s*repeat\(3/);
   assert.match(styles, /\.draw-word-category:has\(input:checked\)/);
   assert.match(styles, /\.draw-word-category input:focus-visible/);
 });

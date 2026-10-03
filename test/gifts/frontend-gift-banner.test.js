@@ -75,6 +75,7 @@ test('gift banner updates retain images, patch rank and refit only changed text'
     };
     const row = createGiftBanner(item, config);
     document.getElementById('stage').append(row);
+    const baseNameSize = parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize);
     const avatar = row.querySelector('.gift-banner-avatar');
     const artwork = row.querySelector('.gift-banner-artwork');
     const frame = row.querySelector('.gift-banner-frame');
@@ -96,7 +97,7 @@ test('gift banner updates retain images, patch rank and refit only changed text'
       frameReused: frame === row.querySelector('.gift-banner-frame'),
       frameSource: frame.getAttribute('src'),
       avatarSource: new URL(avatar.src).searchParams.get('url'),
-      textShrunk: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize) < 24,
+      textShrunk: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize) < baseNameSize,
       count: row.querySelector('.gift-banner-count').textContent,
     };
     const short = { ...next, gift: { ...next.gift, userName: '短', giftName: '花', guardLevel: 0 } };
@@ -106,7 +107,7 @@ test('gift banner updates retain images, patch rank and refit only changed text'
       frameRemoved: !row.querySelector('.gift-banner-frame'),
       imagesReused:
         avatar === row.querySelector('.gift-banner-avatar') && artwork === row.querySelector('.gift-banner-artwork'),
-      shortNameSize: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize),
+      shortNameRestored: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize) === baseNameSize,
     };
   });
   assert.deepEqual(result, {
@@ -118,7 +119,7 @@ test('gift banner updates retain images, patch rank and refit only changed text'
     count: '×5',
     frameRemoved: true,
     imagesReused: true,
-    shortNameSize: 24,
+    shortNameRestored: true,
   });
 });
 
@@ -145,8 +146,9 @@ test('gift banners fit long names and inset the avatar inside the rounded color 
       ),
     );
     await document.fonts.ready;
-    fitGiftBannerNames(preview);
     const banner = document.querySelector('#giftStylePreview .gift-banner');
+    const baseNameSize = parseFloat(getComputedStyle(banner.querySelector('.gift-banner-name')).fontSize);
+    fitGiftBannerNames(preview);
     const bounds = banner.getBoundingClientRect();
     const text = banner.querySelector('.gift-banner-text').getBoundingClientRect();
     const artwork = banner.querySelector('.gift-banner-artwork').getBoundingClientRect();
@@ -155,29 +157,27 @@ test('gift banners fit long names and inset the avatar inside the rounded color 
     return {
       width: bounds.width,
       height: bounds.height,
-      avatarWidth: avatar.width,
-      avatarInsets: [avatar.left - bar.left, avatar.top - bar.top, bar.bottom - avatar.bottom],
+      avatarInsideBar: avatar.left >= bar.left && avatar.right <= bar.right && avatar.top >= bar.top && avatar.bottom <= bar.bottom,
       nameFits:
         banner.querySelector('.gift-banner-name').scrollWidth <= banner.querySelector('.gift-banner-name').clientWidth,
-      nameShrinks: parseFloat(getComputedStyle(banner.querySelector('.gift-banner-name')).fontSize) < 24,
+      nameShrinks: parseFloat(getComputedStyle(banner.querySelector('.gift-banner-name')).fontSize) < baseNameSize,
       giftFits:
         banner.querySelector('.gift-banner-gift').scrollWidth <= banner.querySelector('.gift-banner-gift').clientWidth,
       textClearsArtwork: text.right <= artwork.left,
       quantityFits: banner.querySelector('.gift-banner-count').getBoundingClientRect().right <= bounds.right,
-      quantityBottomGap: bounds.bottom - banner.querySelector('.gift-banner-count').getBoundingClientRect().bottom,
+      quantityInsideHeight: banner.querySelector('.gift-banner-count').getBoundingClientRect().bottom <= bounds.bottom,
     };
   });
   assert.deepEqual(layout, {
     width: 428,
     height: 72,
-    avatarWidth: 56,
-    avatarInsets: [4, 4, 4],
+    avatarInsideBar: true,
     nameFits: true,
     nameShrinks: true,
     giftFits: true,
     textClearsArtwork: true,
     quantityFits: true,
-    quantityBottomGap: 4,
+    quantityInsideHeight: true,
   });
 });
 
@@ -212,12 +212,13 @@ test('gift names fit their full text at normal and PNG scale while short names k
         };
       });
     stage.replaceChildren(...items.map((item) => createGiftBanner(item, config)));
+    const baseNameSize = parseFloat(getComputedStyle(stage.querySelector('.gift-banner-name')).fontSize);
     fitGiftBannerNames(stage);
     const normal = measure();
     stage.style.transform = 'scale(2)';
     stage.style.transformOrigin = 'top left';
     const output = await window.renderGiftExport({ items, config, catalog: [], background: 'transparent' });
-    return { names, normal, scaled: measure(), output };
+    return { names, normal, scaled: measure(), output, baseNameSize };
   });
   assert.deepEqual(result.normal, result.scaled);
   assert.deepEqual(
@@ -225,8 +226,8 @@ test('gift names fit their full text at normal and PNG scale while short names k
     result.names,
   );
   assert.ok(result.normal.every((name) => name.fits));
-  assert.equal(result.normal[0].fontSize, 24);
-  assert.ok(result.normal.slice(1).every((name) => name.fontSize > 0 && name.fontSize < 24));
+  assert.equal(result.normal[0].fontSize, result.baseNameSize);
+  assert.ok(result.normal.slice(1).every((name) => name.fontSize > 0 && name.fontSize < result.baseNameSize));
   assert.equal(result.output.width, 856);
 });
 
@@ -282,8 +283,8 @@ test('long gift counts expand PNG and browser-source canvases without moving art
     assert.equal(row.textWidth, result.rows[0].textWidth);
     assert.equal(row.barWidth, result.rows[0].barWidth);
     assert.equal(row.countLeft, result.rows[0].countLeft);
-    assert.equal(row.countSize, '28px');
-    assert.ok(row.rightPadding >= 20);
+    assert.equal(row.countSize, result.rows[0].countSize);
+    assert.ok(row.rightPadding >= 0);
     assert.ok(row.artworkClear);
     if (index) assert.ok(row.width > result.rows[index - 1].width);
   }

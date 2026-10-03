@@ -95,6 +95,7 @@ test('toolbox groups hide and restore only their own features and deep links reo
     liveSceneButtons.every((button) => button.hidden),
     true,
   );
+  assert.ok(liveSceneButtons.every((button) => button.inert), 'closing rows must stop accepting focus immediately');
   assert.equal(runtime.buttons[0].hidden, false);
 
   liveSceneHeading.dispatch('click');
@@ -103,6 +104,7 @@ test('toolbox groups hide and restore only their own features and deep links reo
     liveSceneButtons.every((button) => !button.hidden),
     true,
   );
+  assert.ok(liveSceneButtons.every((button) => !button.inert), 'reopened rows must accept focus again');
   assert.equal(clockButton.hidden, false);
 
   runtime.sandbox.window.AdminApp.other.selectFeature(runtime.root, 'otherClockFeature');
@@ -251,13 +253,7 @@ test('toolbox tabs rely on sidebar titles instead of repeating page headers', ()
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'usage-guide.html'),
     'utf8',
   );
-  assert.match(usageGuideHtml, /<h2 id="usageGuideTitle" class="usage-guide-title">使用文档<\/h2>/);
   assert.doesNotMatch(usageGuideHtml, /class="usage-guide-lead"/);
-  assert.match(usageGuideHtml, /class="usage-guide-hero-actions"/);
   assert.doesNotMatch(usageGuideHtml, /other-feature-page-header/);
   assert.doesNotMatch(styles, /\.other-feature-page-header\b/);
-  assert.match(
-    styles,
-    /\.planner-event-dialog label:not\(\.planner-check-label\),[\s\S]*?font-size:\s*var\(--type-size-control\)/,
-  );
 });

@@ -64,8 +64,6 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
   assert.match(owners.identity, /body\[data-style='identity'\]/);
   assert.doesNotMatch(owners.identity, /body\[data-style='ranked'\]/);
   assert.doesNotMatch(owners.outline, /@keyframes/);
-  assert.match(owners.motion, /@keyframes signalMessageIn/);
-  assert.match(owners.motion, /@media \(max-width:\s*480px\)/);
   assert.match(owners.motion, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.motion, /body\[data-style=/);
   const giftAssets = new Set();

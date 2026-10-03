@@ -348,6 +348,7 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
   assert.equal(advanced.hidden, false);
   editable.value = draft;
   editable.listeners.get('input')();
+  assert.equal(listRenders, 3, 'draft input refreshes its preview without an unrelated state update');
   await assert.rejects(elements.get('giftBlindBoxSaveBtn').listeners.get('click')(), /offline/);
   assert.equal(editable.value, draft);
   assert.equal(editable.dataset.dirty, 'true');

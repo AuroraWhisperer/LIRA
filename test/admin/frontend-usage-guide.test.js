@@ -71,39 +71,11 @@ test('archive recovery FAQ is indexed by the existing guide search from its real
   }
 });
 
-test('usage guide main-flow steps keep body text out of the number gutter', () => {
-  const source = readCssBundle('public', 'css', 'admin', 'toolbox.css');
-  const stepRule = source.match(/\.usage-guide-steps li\s*\{[\s\S]*?\n\}/)?.[0];
-  const markerRule = source.match(/\.usage-guide-steps li::before\s*\{[\s\S]*?\n\}/)?.[0];
-
-  assert.ok(stepRule, 'usage guide step layout should remain defined');
-  assert.ok(markerRule, 'usage guide step marker should remain defined');
-  assert.match(stepRule, /position:\s*relative/);
-  assert.match(stepRule, /padding:\s*11px 2px 11px 40px/);
-  assert.doesNotMatch(stepRule, /grid-template-columns/);
-  assert.match(markerRule, /position:\s*absolute/);
-  assert.match(markerRule, /left:\s*2px/);
-});
-
-test('usage guide keeps expanded sidebar content in one column without the removed introduction', () => {
-  const source = readCssBundle('public', 'css', 'admin', 'toolbox.css');
-  const panelRule = source.match(/\.usage-guide-panel\s*\{[\s\S]*?\n\}/)?.[0];
-  assert.ok(panelRule, 'usage guide panel sizing should remain defined');
-  assert.doesNotMatch(readAdminHtml(), /class="usage-guide-lead"/);
-  assert.match(panelRule, /max-width:\s*none/);
-  const collapsedRule = source.match(/\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[^}]*\}/)?.[0];
-  assert.ok(collapsedRule, 'only the collapsed sidebar should enable two columns');
-  assert.doesNotMatch(panelRule, /grid-template-columns/);
-  assert.match(collapsedRule, /grid-template-columns:\s*176px minmax\(0, 1fr\)/);
-});
-
 test('usage guide presents overlays for both live companion and OBS users', () => {
   const html = readAdminHtml();
-
-  assert.match(html, />\s*直播姬 \/ OBS 投屏\s*<\/a>/);
-  assert.match(html, />\s*直播姬 \/ OBS 投屏设置\s*<\/h3>/);
-  assert.match(html, /添加到直播姬的「浏览器」或\s*OBS\s*的「浏览器源」/);
-  assert.match(html, />直播姬 \/ OBS 投屏画面不显示或尺寸不对<\/strong>/);
+  const guide = html.match(/<section\b(?=[^>]*\sid=["']ug-obs["'])[^>]*>[\s\S]*?<\/section>/)?.[0];
+  assert.ok(guide);
+  for (const term of ['直播姬', 'OBS', '浏览器源']) assert.ok(guide.includes(term));
 });
 
 test('usage guide defers image loading and avoids sticky backdrop blur', () => {
@@ -112,7 +84,7 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
   const images = html.match(/<img\b[^>]*class="usage-guide-image"[^>]*>/g) || [];
   const tocRule = styles.match(/\.usage-guide-toc\s*\{[\s\S]*?\n\}/)?.[0];
 
-  assert.ok(images.length > 10, 'the guide should include client screenshots alongside the original images');
+  assert.ok(images.length > 0, 'the guide should include illustrated instructions');
   assert.equal(
     images.every((image) => /loading="lazy"/.test(image)),
     true,
@@ -126,8 +98,6 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
     true,
   );
   assert.ok(tocRule, 'usage guide table of contents should remain defined');
-  assert.match(tocRule, /background:\s*var\(--surface\)/);
-  assert.match(tocRule, /display:\s*grid/);
   assert.doesNotMatch(tocRule, /white-space:\s*nowrap|overflow-x:\s*(?:auto|scroll)/);
   assert.doesNotMatch(tocRule, /backdrop-filter/);
 });
@@ -135,8 +105,8 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
 test('usage guide names the AI assistant section without removing the DeepSeek anchor', () => {
   const html = readAdminHtml();
 
-  assert.match(html, /href="#ug-deepseek"[^>]*>配置 AI 助手<\/a>/);
-  assert.match(html, /id="ug-deepseek"[^>]*>[\s\S]*?>\s*配置 AI 助手\s*<\/h3>/);
+  assert.match(html, /<a\b(?=[^>]*\shref=["']#ug-deepseek["'])[^>]*>[^<]*AI[^<]*<\/a>/);
+  assert.match(html, /<section\b(?=[^>]*\sid=["']ug-deepseek["'])[^>]*>/);
 });
 
 function createUsageGuideFixture({

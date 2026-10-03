@@ -29,7 +29,7 @@ test('page credentials are independent, revocable and fail closed', () => {
       null,
     );
   }
-  assert.equal(tokens.size, 15);
+  assert.equal(tokens.size, 16);
   assert.throws(() => createOverlayToken(ADMIN, 'admin'));
   assert.throws(() => createOverlayToken('', 'lyrics'));
   url.searchParams.set('token', ADMIN);
@@ -168,6 +168,22 @@ async function fixture(t) {
     });
   return { request, calls, boots: () => boots, state, context };
 }
+
+test('sprint overlay reads only the existing countdown and cannot change its goal or reset progress', async (t) => {
+  const f = await fixture(t);
+  f.state.giftSprint = { targetRmb: 1000, remainingCrystalBalls: 7, receivedRmb: 300, sourceId: SECRET };
+  const token = createOverlayToken(ADMIN, 'gift-sprint');
+  const response = await f.request('/api/state', token, { headers: { Origin: 'null' } });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).data, { giftSprint: { targetRmb: 1000, remainingCrystalBalls: 7 } });
+  for (const pathname of ['/api/gifts/history', '/api/gifts/wishes']) {
+    assert.equal((await f.request(pathname, token)).status, 403);
+  }
+  for (const pathname of ['/api/settings', '/api/gifts/sprint/reset']) {
+    assert.equal((await f.request(pathname, token, { method: 'POST', body: '{}' })).status, 403);
+  }
+  assert.deepEqual(f.calls, []);
+});
 
 test('wish overlay HTTP reads projected counts and rejects writes and source selection', async (t) => {
   const f = await fixture(t);

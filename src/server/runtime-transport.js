@@ -2,6 +2,7 @@
 
 const httpUtils = require('./http-utils');
 const { buildGiftFrameEvent } = require('../bilibili/gift/frame-config');
+const { buildGuardThanksEvent } = require('../bilibili/gift/guard-thanks-config');
 const { normalizeGiftEffectEvent } = require('../bilibili/gift/effect-event');
 
 function createRuntimeTransport({
@@ -36,6 +37,8 @@ function createRuntimeTransport({
     broadcastSnapshot('bilibili:gift');
     const frameEvent = buildGiftFrameEvent(item, getSettings());
     if (frameEvent) getWebSocketHub()?.broadcast(frameEvent);
+    const guardThanksEvent = buildGuardThanksEvent(item, getSettings());
+    if (guardThanksEvent) getWebSocketHub()?.broadcast(guardThanksEvent);
     publishDanmakuItem(message);
   }
 

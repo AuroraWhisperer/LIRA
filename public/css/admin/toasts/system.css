@@ -17,24 +17,29 @@
 }
 
 .toast {
-  --toast-text: var(--text);
-  --toast-secondary: var(--muted);
-  --toast-accent: var(--color-info);
-  --toast-success: var(--color-success);
-  --toast-warning: var(--color-warning);
-  --toast-error: var(--danger);
+  --toast-text: var(--color-toast-text, var(--text));
+  --toast-secondary: var(--color-toast-secondary, var(--muted));
+  --toast-accent: var(--color-toast-accent, var(--color-info));
+  --toast-success: var(--color-toast-success, var(--color-success));
+  --toast-warning: var(--color-toast-warning, var(--color-warning));
+  --toast-error: var(--color-toast-error, var(--danger));
   width: max-content;
-  max-width: min(420px, calc(100vw - 48px));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--color-floating-surface, var(--surface));
+  max-width: min(460px, calc(100vw - 48px));
+  border: 1px solid color-mix(in srgb, var(--toast-accent) 23%, transparent);
+  border-radius: 12px;
+  background: linear-gradient(
+    125deg,
+    var(--color-toast-start, var(--surface)) 0%,
+    var(--color-toast-mid, var(--surface)) 45%,
+    var(--color-toast-end, var(--surface)) 100%
+  );
   color: var(--toast-text);
-  padding: 12px 16px;
+  padding: 14px 20px;
   font-family: var(--font-ui);
-  font-size: var(--type-size-body);
+  font-size: calc(var(--type-size-body) + 2px);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-body);
-  box-shadow: var(--shadow-floating);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--toast-text) 10%, transparent);
   opacity: 0;
   transform: translateY(-8px);
   pointer-events: auto;
@@ -56,8 +61,8 @@
   --toast-accent: var(--toast-error);
 }
 .toast-detailed {
-  width: 360px;
-  padding: 16px;
+  width: 400px;
+  padding: 18px 20px;
 }
 
 /* Shared surface, typography and controls for all business variants. */
@@ -67,7 +72,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
-  row-gap: 8px;
+  row-gap: 10px;
   flex: 0 0 auto;
   overflow-wrap: anywhere;
   transition:
@@ -93,13 +98,13 @@
 }
 .toast-content > strong {
   color: var(--toast-text);
-  font-size: var(--type-size-card-title);
+  font-size: calc(var(--type-size-card-title) + 2px);
   font-weight: var(--type-weight-semibold);
   line-height: var(--type-leading-card-title);
 }
 .toast-content > span {
   color: var(--toast-secondary);
-  font-size: var(--type-size-body);
+  font-size: inherit;
   line-height: var(--type-leading-body);
 }
 .toast-content > strong + span {
@@ -107,9 +112,9 @@
 }
 .toast-content-compact {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 20px minmax(0, 1fr);
   align-items: start;
-  column-gap: 8px;
+  column-gap: 10px;
 }
 .toast-content-compact > .toast-symbol {
   color: var(--toast-accent);
@@ -117,8 +122,8 @@
   line-height: 0;
 }
 .toast-symbol svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 .toast-content-compact > .toast-message {
   color: var(--toast-text);
@@ -127,29 +132,29 @@
 .toast-action {
   grid-column: 1 / -1;
   justify-self: start;
-  min-height: 32px;
+  min-height: 36px;
   max-width: 100%;
   padding: 6px 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
-  background: var(--primary);
+  background: var(--toast-accent);
   color: #fff;
   font-family: inherit;
-  font-size: var(--type-size-control);
+  font-size: calc(var(--type-size-control) + 2px);
   font-weight: var(--type-weight-medium);
   line-height: var(--type-leading-control);
   overflow-wrap: anywhere;
   cursor: pointer;
 }
 .toast-content-compact + .toast-action {
-  margin-left: 26px;
-  max-width: calc(100% - 26px);
+  margin-left: 30px;
+  max-width: calc(100% - 30px);
 }
 .toast-action:hover:not(:disabled) {
-  background: var(--primary-strong);
+  background: color-mix(in srgb, var(--toast-accent) 88%, var(--toast-text));
 }
 .toast-action:active:not(:disabled) {
-  background: var(--color-primary-active, var(--primary-strong));
+  background: color-mix(in srgb, var(--toast-accent) 76%, var(--toast-text));
 }
 .toast-action:focus-visible {
   outline: 2px solid var(--toast-accent);

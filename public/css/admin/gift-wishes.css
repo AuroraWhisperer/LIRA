@@ -8,10 +8,6 @@
   padding-bottom: var(--spacing-md);
   border-bottom: 1px solid var(--border);
 }
-.gift-wishes-heading > button {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
 .gift-wish-periods {
   display: flex;
   align-items: center;
@@ -342,11 +338,6 @@
 }
 .gift-wish-source-actions button {
   flex: 0 0 auto;
-  white-space: nowrap;
-}
-.gift-wish-source-actions a {
-  color: var(--text);
-  text-underline-offset: 4px;
   white-space: nowrap;
 }
 .gift-wish-picker {

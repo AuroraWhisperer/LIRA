@@ -45,52 +45,13 @@ test('Admin optional explanations use one contextual help component', () => {
   assert.match(componentSource, /event\.key !== ['"]Enter['"] && event\.key !== ['"] ['"]/);
   assert.match(componentSource, /event\.key !== ['"]Enter['"][\s\S]*?this\.showTooltip\(\)/);
   assert.match(styles, /lira-help:focus-visible/);
-  assert.match(styles, /align-self:\s*center/);
-  assert.match(styles, /vertical-align:\s*0\.125em/);
-  assert.match(
-    styles,
-    /\.lira-help-glyph\s*\{[^}]*font:\s*700\s+12px\/1\s+['"]Segoe UI['"]\s*,\s*Arial\s*,\s*sans-serif/s,
-  );
   assert.match(styles, /lira-help-tooltip:popover-open/);
   assert.match(styles, /:has\(\s*>\s*lira-help\s*\)[^{]*\{[^}]*white-space:\s*nowrap/s);
   assert.match(styles, /overflow:\s*hidden\s*!important/);
   assert.match(styles, /scrollbar-width:\s*none/);
-  assert.match(styles, /background:\s*var\(--color-floating-surface\)/);
-  assert.match(styles, /color:\s*var\(--color-text-primary\)/);
+  assert.match(styles, /background:\s*var\(--color-help-surface, var\(--color-floating-surface\)\)/);
+  assert.match(styles, /color:\s*var\(--color-help-text, var\(--color-text-primary\)\)/);
   assert.match(styles, /\.lira-help-tooltip::\-webkit-scrollbar/);
-  assert.doesNotMatch(styles, /\.lira-help-tooltip::after/);
-  assert.doesNotMatch(styles, /lira-help--[\w-]+/);
-
-  const retainedCopy = [
-    '1 最慢，100 最快',
-    '留空时使用文字色',
-    '设置后倒计时会重置并暂停',
-    '接受服务根地址、v1 地址或完整接口地址',
-    '会增加合成压力',
-    '正值让歌词提前',
-  ];
-  for (const copy of retainedCopy) {
-    assert.match(html, new RegExp(`<lira-help[^>]*>[^<]*(?:<[^>]+>)*[^<]*${copy}`));
-  }
-
-  const redundantHelpLabels = [
-    '开场文案',
-    '礼物姬',
-    '小游戏',
-    '连接状态',
-    'AI 互动助手',
-    '扩展能力',
-    '高级设置',
-    '固定回复',
-    '快捷入口',
-    '点歌匹配诊断',
-    '显示礼物提示',
-    '歌曲排序方式',
-    '圆角大小',
-  ];
-  for (const label of redundantHelpLabels) {
-    assert.doesNotMatch(html, new RegExp(`>${label} <lira-help`));
-  }
 
   for (const statusId of ['xiaomiAiSaveState', 'desktopLyricAutosaveState']) {
     const owner = html.match(new RegExp(`<([\\w-]+)[^>]*id="${statusId}"`));

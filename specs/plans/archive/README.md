@@ -6,6 +6,10 @@
 
 ## 文件索引
 
+- [2026-10-03-test-assertion-resilience](2026-10-03-test-assertion-resilience.md)
+- [2026-10-03-woodland-effect-one](2026-10-03-woodland-effect-one.md)
+- [2026-10-03-gift-sprint-text](2026-10-03-gift-sprint-text.md)
+- [2026-10-03-client-round-two-fixes](2026-10-03-client-round-two-fixes.md)
 - [2026-10-02-compact-canvas-address](2026-10-02-compact-canvas-address.md)
 - [2026-10-02-preview-links-lifecycle](2026-10-02-preview-links-lifecycle.md)
 - [2026-10-02-release-5.0.14-validation](2026-10-02-release-5.0.14-validation.md)

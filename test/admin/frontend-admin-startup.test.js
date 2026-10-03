@@ -78,6 +78,7 @@ async function createStartupFixture() {
     './dynamic-lottery.js': { initDynamicLottery: () => ({ dispose: noop }) },
     './interactive-tour.js': { initInteractiveTour: () => ({ claimAutoOpen: () => false }) },
     './gift-frame.js': { initGiftFrame: noop },
+    './gift-guard-thanks.js': { initGuardThanks: noop },
     './gifts/history.js': { initGiftHistoryDrawer: noop },
     './gifts/index.js': { renderGiftPanel: noop },
     './song-import-update.js': { initSongImportUpdate: noop },

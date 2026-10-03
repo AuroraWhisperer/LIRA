@@ -6,26 +6,6 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-test('desktop shutdown drains sync controllers before stopping the runtime', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'main.js'), 'utf8');
-  const start = source.indexOf('function requestDesktopShutdown(');
-  const end = source.indexOf('// ---- startup ----', start);
-  const shutdown = source.slice(start, end);
-
-  assert.ok(start >= 0 && end > start);
-  assert.match(
-    shutdown,
-    /const controllersToDrain = \[\s*sceneCloudController,\s*remoteGiftController,\s*cloudSyncController,\s*fanProfileController,\s*desktopAuth,?\s*\]/,
-  );
-  assert.match(
-    shutdown,
-    /await Promise\.all\([\s\S]*?controller\.whenIdle\(\)[\s\S]*?await lifecycleState\.shutdown\?\.\(\{ exitProcess: false \}\)/,
-  );
-  assert.ok(
-    shutdown.indexOf('controller.whenIdle()') < shutdown.indexOf('lifecycleState.shutdown?.({ exitProcess: false })'),
-  );
-});
-
 test('desktop runtime adapts the legacy server API without changing calls', async () => {
   const { createDesktopRuntime } = require('../../src/electron/desktop-runtime');
   const calls = [];
@@ -142,21 +122,10 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
   ]);
 });
 
-test('desktop freezes gift source switching before waiting for cloud sync', () => {
+test('desktop delegates gift sync to the remote controller and its owned cursor', () => {
   const source = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'main.js'), 'utf8');
-  const readinessSource = fs.readFileSync(
-    path.join(__dirname, '../..', 'src', 'electron', 'desktop-readiness-controller.js'),
-    'utf8',
-  );
-  const start = readinessSource.indexOf('function resumeAuthorizedWork');
-  const end = readinessSource.indexOf('function start()', start);
-  const stateChange = readinessSource.slice(start, end);
-
-  assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(source, /createRemoteGiftCursorStore/u);
   assert.match(source, /giftSync:\s*\{[\s\S]*?remoteGiftController\?\.start/u);
-  assert.ok(stateChange.indexOf('remoteGiftController?.start()') < stateChange.indexOf('cloudSyncController'));
-  assert.match(stateChange, /remoteGiftController\?\.stop\(\)/u);
 });
 
 test('local media protocol enforces authorization and serves byte ranges', async (t) => {

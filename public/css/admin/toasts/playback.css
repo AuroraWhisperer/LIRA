@@ -3,7 +3,7 @@
 .playback-health-toast-good,
 .playback-health-toast-warn,
 .music-cookie-refreshed-toast {
-  padding-left: 60px;
+  padding-left: 64px;
 }
 
 .playback-login-toast::before,
@@ -13,8 +13,8 @@
 .music-cookie-refreshed-toast::before {
   content: '';
   position: absolute;
-  left: 16px;
-  top: 16px;
+  left: 20px;
+  top: 18px;
   width: 32px;
   height: 32px;
   border-radius: var(--radius-md);
@@ -28,8 +28,8 @@
 .music-cookie-refreshed-toast::after {
   content: '';
   position: absolute;
-  left: 22px;
-  top: 22px;
+  left: 26px;
+  top: 24px;
   width: 20px;
   height: 20px;
   background: var(--toast-accent);

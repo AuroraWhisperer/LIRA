@@ -259,7 +259,6 @@ test('period selection keeps the unified browser-source URL and source changes d
     assert.equal(await page.locator('#giftWishPeriod').inputValue(), period);
     assert.equal(await page.locator('#giftWishDraftPreview .wish-card').getAttribute('aria-label'), `${label} · 礼物`);
     assert.equal(await page.locator('#giftWishUrl').inputValue(), url);
-    assert.equal(await page.locator('#giftWishPreview').getAttribute('href'), `${url}?preview=1`);
   }
   await page.locator('#giftWishPick').click();
   await page.locator('.gift-wish-option').click();

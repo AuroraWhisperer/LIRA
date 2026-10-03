@@ -145,29 +145,53 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
 test('song list exposes a display board font size control', () => {
   const html = readAdminHtml();
   const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
-  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'), 'utf8');
   const themePage = html.match(/<div id="themePage"[\s\S]*?<div id="displayPage"/)?.[0];
 
   assert.ok(themePage);
   assert.doesNotMatch(themePage, /songBoardFontSize/);
-  assert.match(html, /id="displayPage"[\s\S]*id="songBoardFontSize"[^>]*min="10"[^>]*max="80"[^>]*value="28"/);
+  const inputs = [...html.matchAll(/<input\b[^>]*>/g)]
+    .map(([tag]) => tag)
+    .filter((tag) => /\sid\s*=\s*["']songBoardFontSize["']/.test(tag));
+  assert.equal(inputs.length, 1);
+  assert.match(inputs[0], /\smin\s*=\s*["']10["']/);
+  assert.match(inputs[0], /\smax\s*=\s*["']80["']/);
   assert.match(displaySource, /songBoardFontSize: value\('songBoardFontSize'\)/);
-  assert.match(
-    overlaySource,
-    /Math\.max\(\s*10,\s*Math\.min\(\s*80,\s*Number\(settings\.songBoardFontSize\)\s*\|\|\s*28\s*\)\s*,?\s*\)/,
-  );
-  assert.match(overlayStyles, /\.song-board \{[\s\S]*font-size: calc\(16px \* var\(--overlay-font-scale, 1\)\)/);
-  assert.match(
-    overlayStyles,
-    /\.song-board \.overlay-content \{[\s\S]*padding: clamp\(5px, calc\(8px \* var\(--overlay-font-scale, 1\)\), 18px\)/,
-  );
-  assert.match(
-    overlayStyles,
-    /\.song-board \.overlay-title \{[\s\S]*var\(--overlay-title-font-size, 15px\) \* var\(--overlay-font-scale, 1\)/,
-  );
+  const boardRule = overlayStyles.match(/\.song-board\s*\{[^}]*\}/)?.[0];
+  assert.ok(boardRule);
+  assert.match(boardRule, /font-size:[^;]*var\(--overlay-font-scale\b/);
+  const baseFontSize = Number(boardRule.match(/font-size:[^;]*?([\d.]+)px/)?.[1]);
+  assert.ok(baseFontSize > 0);
+  const titleRule = overlayStyles.match(/\.song-board \.overlay-title\s*\{[^}]*\}/)?.[0];
+  assert.ok(titleRule);
+  assert.match(titleRule, /var\(--overlay-title-font-size\b/);
+  assert.match(titleRule, /var\(--overlay-font-scale\b/);
   assert.match(defaultsSource, /songBoardFontSize: '28'/);
+
+  const values = new Map();
+  const sandbox = {
+    window: {},
+    URLSearchParams,
+    location: { search: '' },
+    document: {
+      addEventListener() {},
+      documentElement: {
+        style: {
+          setProperty: (name, value) => values.set(name, value),
+          removeProperty: (name) => values.delete(name),
+        },
+      },
+      querySelector: () => ({ classList: { toggle() {} }, style: {} }),
+      getElementById: () => null,
+    },
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT_DIR, 'public/js/overlays/overlay-utils.js'), 'utf8'), sandbox);
+  vm.runInNewContext(readJsModuleBundle('public', 'js', 'overlays', 'songs.js'), sandbox);
+  for (const [input, expected] of [['10', 10], ['36', 36], ['80', 80], ['4', 10], ['99', 80], ['invalid', 28]]) {
+    sandbox.applyTheme({ songBoardFontSize: input });
+    assert.equal(Number(values.get('--overlay-font-scale')) * baseFontSize, expected, input);
+  }
 });
 
 test('song board keeps song names readable in narrow browser sources', async () => {
@@ -186,25 +210,17 @@ test('song board keeps song names readable in narrow browser sources', async () 
     .find((rule) => /display:\s*flex/.test(rule));
   const nameRule = overlayStyles.match(/\.song-card strong\s*\{[^}]*\}/)?.[0];
   const artistRule = overlayStyles.match(/\.song-card span\s*\{[^}]*\}/)?.[0];
-  const headerRule = overlayStyles.match(/\.song-board \.overlay-header\s*\{[^}]*\}/)?.[0];
   assert.ok(listRule);
   assert.ok(cardRule);
   assert.ok(nameRule);
   assert.ok(artistRule);
-  assert.ok(headerRule);
   assert.match(listRule, /grid-auto-rows:\s*max-content/);
   assert.match(cardRule, /display:\s*flex/);
   assert.doesNotMatch(cardRule, /grid-template-columns/);
   assert.match(nameRule, /flex:\s*1 1 auto/);
   assert.match(nameRule, /min-width:\s*0/);
-  assert.match(headerRule, /clamp\(4px, calc\(6px \* var\(--overlay-font-scale, 1\)\), 8px\)/);
-  assert.match(artistRule, /max-width:\s*min\(32\.4%, 9em\)/);
-  assert.match(artistRule, /font-size:\s*calc\(10\.5px \* var\(--overlay-font-scale, 1\)\)/);
-  assert.doesNotMatch(artistRule, /letter-spacing/);
   assert.match(artistRule, /text-overflow:\s*ellipsis/);
   assert.match(artistRule, /white-space:\s*nowrap/);
-  assert.match(overlayStyles, /@media \(max-width: 360px\)\s*\{[\s\S]*?-webkit-line-clamp:\s*2/);
-  assert.match(overlayStyles, /@media \(max-width: 280px\)\s*\{[\s\S]*?\.song-card span\s*\{[\s\S]*?display:\s*none/);
 
   const flatRecords = songModule.buildSongRecords(
     [

@@ -1,12 +1,9 @@
 'use strict';
 
 const FRAME_THEME_IDS = Object.freeze(['woodland-bloom']);
-const FRAME_MOTION_MODES = Object.freeze(['auto', 'full', 'reduced']);
 const DEFAULT_FRAME_SETTINGS = Object.freeze({
   giftFrameEnabled: 'false',
   giftFrameThresholdRmb: '20',
-  giftFrameTheme: 'woodland-bloom',
-  giftFrameMotionMode: 'auto',
 });
 
 let previewSequence = 0;
@@ -31,12 +28,7 @@ function normalizeFrameSettings(settings = {}) {
   return {
     enabled: String(settings.giftFrameEnabled ?? DEFAULT_FRAME_SETTINGS.giftFrameEnabled) === 'true',
     thresholdRmb: thresholdRmb === null ? DEFAULT_FRAME_SETTINGS.giftFrameThresholdRmb : thresholdRmb,
-    themeId: FRAME_THEME_IDS.includes(String(settings.giftFrameTheme || ''))
-      ? String(settings.giftFrameTheme)
-      : DEFAULT_FRAME_SETTINGS.giftFrameTheme,
-    motionMode: FRAME_MOTION_MODES.includes(String(settings.giftFrameMotionMode || ''))
-      ? String(settings.giftFrameMotionMode)
-      : DEFAULT_FRAME_SETTINGS.giftFrameMotionMode,
+    themeId: 'woodland-bloom',
   };
 }
 
@@ -45,13 +37,7 @@ function normalizeFrameSettingValue(key, value) {
     return String(value) === 'true' || String(value) === 'false' ? String(value) : null;
   }
   if (key === 'giftFrameThresholdRmb') return normalizeThresholdRmb(value);
-  if (key === 'giftFrameTheme') {
-    return FRAME_THEME_IDS.includes(String(value)) ? String(value) : null;
-  }
-  if (key === 'giftFrameMotionMode') {
-    return FRAME_MOTION_MODES.includes(String(value)) ? String(value) : null;
-  }
-  return String(value);
+  return null;
 }
 
 function buildGiftFrameEvent(item, settings = {}) {
@@ -88,16 +74,14 @@ function buildGiftFrameEvent(item, settings = {}) {
 }
 
 function buildGiftFramePreviewEvent(input = {}) {
-  const totalPriceCents = normalizeRmbCents(input.totalPriceRmb ?? input.amountRmb ?? input.totalPrice);
+  const totalPriceCents = normalizeRmbCents(input.totalPriceRmb ?? input.amountRmb ?? input.totalPrice ?? 0.01);
   if (totalPriceCents === null || totalPriceCents <= 0) {
     throw new Error('预览金额必须是大于 0 的人民币金额。');
   }
   const num = normalizePreviewInteger(input.num ?? input.quantity);
 
-  const themeId = String(input.themeId || DEFAULT_FRAME_SETTINGS.giftFrameTheme);
-  const motionMode = String(input.motionMode || DEFAULT_FRAME_SETTINGS.giftFrameMotionMode);
+  const themeId = String(input.themeId || 'woodland-bloom');
   if (!FRAME_THEME_IDS.includes(themeId)) throw new Error('礼物边框主题无效。');
-  if (!FRAME_MOTION_MODES.includes(motionMode)) throw new Error('礼物边框动效模式无效。');
 
   previewSequence = (previewSequence + 1) % 1000000;
   const previewSessionId = `preview-${Date.now()}-${previewSequence}`;
@@ -111,7 +95,6 @@ function buildGiftFramePreviewEvent(input = {}) {
     totalPriceCents,
     userName: normalizeDisplayText(input.userName ?? input.viewerName, '观众A'),
     themeId,
-    motionMode,
     preview: true,
     previewSessionId,
   };
@@ -137,7 +120,6 @@ function normalizeDisplayText(value, fallback) {
 module.exports = {
   DEFAULT_FRAME_SETTINGS,
   FRAME_THEME_IDS,
-  FRAME_MOTION_MODES,
   normalizeRmbCents,
   normalizeThresholdRmb,
   normalizeFrameSettings,

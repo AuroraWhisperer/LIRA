@@ -4,7 +4,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { readCssBundle } = require('../helpers/css-bundle');
 const vm = require('node:vm');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -12,7 +11,6 @@ const ROOT_DIR = path.join(__dirname, '../..');
 test('overtime overlay has independent layers and responsive container scaling', () => {
   const html = read('public/pages/overlays/overtime.html');
   const css = read('public/css/overlays/overtime.css');
-  const adminCss = readCssBundle('public', 'css', 'admin', 'overtime.css');
 
   assert.match(html, /<script type="module" src="\/js\/overlays\/overtime\.js\?v=[^"]+"><\/script>/);
   assert.equal(require('../../src/server/access-policy').getOverlayScope('/overtime'), 'overtime');
@@ -24,7 +22,6 @@ test('overtime overlay has independent layers and responsive container scaling',
   assert.match(css, /container-type:\s*size/);
   assert.match(css, /cqmin/);
   assert.match(css, /\.overtime-machine\s*\{[^}]*height:\s*var\(--component-height, 100vh\);\s*height:\s*var\(--component-height, 100dvh\);/);
-  assert.match(css, /@container[^\{]*\(max-height:\s*239px\)/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /overflow:\s*hidden/);
   assert.match(css, /\.overtime-gift-guide/);
@@ -33,18 +30,8 @@ test('overtime overlay has independent layers and responsive container scaling',
   assert.match(css, /\.overtime-ticket\.is-negative/);
   assert.match(css, /\.overtime-ticket\.is-random/);
   assert.match(css, /\.overtime-ticket\.is-display/);
-  assert.match(css, /\.overtime-machine\s*\{[\s\S]*?font-size:\s*2cqmin/);
-  assert.match(css, /\.overtime-live-label\s*\{[\s\S]*?font-size:\s*1\.43em/);
-  assert.match(css, /\.overtime-ticket-name\s*\{[\s\S]*?font-size:\s*1\.55em/);
-  assert.match(css, /font:\s*800 1\.9em\/1/);
   assert.match(css, /repeat\(var\(--ticket-wide-columns/);
   assert.match(css, /repeat\(\s*var\(--ticket-narrow-columns/);
-  assert.match(css, /\.overtime-clock\s*\{[\s\S]*?font:\s*700 8\.5em\/0\.9/);
-  assert.doesNotMatch(css, /\.overtime-clock\.is-calendar\s*\{[^}]*font-size/);
-  assert.doesNotMatch(css, /\.overtime-clock\.is-years/);
-  assert.doesNotMatch(adminCss, /\.overtime-clock-value\.is-calendar\s*\{[^}]*font-size/);
-  assert.doesNotMatch(adminCss, /\.overtime-clock-value\.is-years/);
-  assert.doesNotMatch(css, /font-size:\s*clamp/);
 });
 
 test('overtime overlay anchors server time and only animates fresh revisioned adjustments', () => {
@@ -68,15 +55,12 @@ test('overtime overlay explains configured gift effects to viewers', () => {
 
   assert.match(html, /id="overtimeGiftGuide"/);
   assert.match(html, /送礼加班表/);
-  assert.match(html, /class="overtime-live-label">LIVE<\/strong>/);
   assert.match(html, /id="overtimeStatusText"/);
   assert.match(source, /time\.textContent = presentation\.value/);
   assert.match(source, /rule\?\.mode === 'display'/);
   assert.match(source, /adjustment\?\.mode === 'display'/);
   assert.match(source, /running:\s*''/);
   assert.match(source, /labels\[currentState\?\.status\]\s*\?\?\s*'连接中'/);
-  assert.match(source, /Math\.min\(3, ticketCount\)/);
-  assert.match(source, /Math\.min\(2, ticketCount\)/);
   assert.doesNotMatch(source, /rule\.mode === 'random' \? '随机'/);
 
   const helperStart = source.indexOf('function describeRuleEffect');

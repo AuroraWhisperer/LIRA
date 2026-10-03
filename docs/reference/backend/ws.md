@@ -74,9 +74,10 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `queue` | 展示设置、队列歌曲/点歌者展示字段、SC 文本和价格 | 无 |
 | `songlist`、`blindbox` | 各自展示设置 | 无 |
 | `overtime` | 倒计时、背景与展示规则 | `overtime:update` |
-| `gift-effects` | 礼物特效/边框展示设置 | `gift:frame`、`gift:effect` |
+| `gift-effects` | 礼物特效/边框展示设置 | `gift:frame`、`gift:effect`、`gift:guard-thanks` |
 | `gift-feed` | `gifts.viewRevision` | `gift-catalog:update` 仅保留 type，作为刷新通知 |
 | `gift-wishes` | `gifts.viewRevision` | 无专用事件；`gift:wishes` 快照 reason 通知重新读取整数进度 |
+| `gift-sprint` | `giftSprint.targetRmb/remainingCrystalBalls`；复用现有来源隔离的冲刺统计 | 无专用事件；初始及后续快照更新文字倒计数，不开放修改目标、重置或礼物明细 |
 | `lyrics` | 歌词展示设置、`lyricState`、`lyricTimeline` | `lyric-state`、`lyric-timeline` |
 | `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`，另需 topic 订阅 |
 | `games` | 当前全局快照无游戏字段；兼容专用 `games` 字段时仍投影公开会话 | `game:update`、`game:patch`、`game:draw`；不含未公布答案 |
@@ -92,7 +93,8 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | --------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `snapshot`            | `{type, reason, state}`（Admin 完整状态；overlay 按 §2.1 投影）                                                                                 | 连接建立(`reason:'connect'`);业务变更广播                                                                                                                                                                                                                                                                                                                          |
 | `danmaku:message`     | `{type:'danmaku:message', item}`                                                                                     | 实时 B 站弹幕及已结算的礼物提示（公开字段见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1）；仅投递给订阅 `topic=danmaku` 的 Admin 或 danmaku scope，重连后由 snapshot 中的 `danmakuFeed` 恢复                                                                                                                                                                                                                      |
-| `gift:frame` | `{type,eventId,giftEventId,giftId,giftName,num,totalPriceCents,userName,themeId}`；预览另含 `preview/previewSessionId/motionMode` | final 礼物达到边框配置阈值时广播，或管理页显式预览；由 `gift/frame-config.js` 生成，金额单位为人民币分 |
+| `gift:frame` | `{type,eventId,giftEventId,giftId,giftName,num,totalPriceCents,userName,themeId}`；预览另含 `preview/previewSessionId`；`themeId=woodland-bloom` 标识特效 1，旧 motionMode 不再生成/投影 | final 礼物达到边框配置阈值时广播，或管理页显式预览；由 `gift/frame-config.js` 生成，金额单位为人民币分 |
+| `gift:guard-thanks` | `{type,eventId,giftEventId,tier,userName,months,avatarUrl,textMode}`；预览另含 `preview` | final 大航海礼物在 `guardThanksEnabled` 开启时广播，或管理页显式预览；由 `gift/guard-thanks-config.js` 生成；gift-effects scope 不接收 `giftEventId` |
 | `gift:effect` | `{type,source,eventId,giftId,effect}`；effect 为播放素材和布局展示 DTO | 礼物特效发布；仅 Admin 与 gift-effects scope 接收 |
 | `lyric-state`         | `{type:'lyric-state', state}`;state 兼容携带单调 `generation`/`sequence`                                             | 播放页歌词上报([server.js:348](../../../src/server.js#L348))、WeSing 采集状态变化([server.js:187](../../../src/server.js#L187))                                                                                                                                                                                                                                    |
 | `lyric-timeline`      | `{type:'lyric-timeline', timeline}`                                                                                  | 播放页歌词时间轴上报、WeSing 时间轴([server.js:163](../../../src/server.js#L163))                                                                                                                                                                                                                                                                                  |

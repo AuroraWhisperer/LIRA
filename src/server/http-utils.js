@@ -10,6 +10,7 @@ const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
 const { composeComponentPreviewHtml } = require('./component-preview-page');
 const { OVERLAY_PAGES, getOverlayScope, createOverlayToken, resolveRequestPrincipal } = require('./access-policy');
 const { createOverlayBootstrap } = require('./overlay-bootstrap');
+const { serveStaticVideo } = require('./static-video');
 const { isSafeBasename, MAX_IMAGE_BYTES, validateImageBytes } = require('../bilibili/gift/remote-gift-image-cache');
 
 function readJsonBody(req, maxBodyBytes = 0) {
@@ -205,6 +206,10 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     return;
   }
 
+  if (path.extname(resolvedPath).toLowerCase() === '.webm') {
+    serveStaticVideo(resolvedPath, req, res);
+    return;
+  }
   fs.readFile(resolvedPath, sendContent);
 }
 

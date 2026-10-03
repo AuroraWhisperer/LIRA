@@ -4,19 +4,17 @@ import { html, renderPeople, renderDetail, renderReminders } from './view.js';
 import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
 import { profileForm, recordForm, settingsForm, exportForm, guardRosterForm } from './forms.js';
 
-let instance;
+let initialized = false;
 
 function createFanUi() {
   const root = document.getElementById('fanProfilesWorkspace');
-  if (!root) return null;
+  if (!root) return false;
   const get = (id) => document.getElementById(id);
   const editor = get('fanEditor');
   const form = get('fanEditorForm');
   const detailNode = get('fanDetail');
-  const quick = get('fanQuickDialog');
   const panel = get('otherFanProfilesFeature');
-  // Queue shortcuts must remain usable while the toolbox page is hidden.
-  document.body.append(editor, quick);
+  document.body.append(editor);
   const state = {
     contextId: null,
     roomId: '',
@@ -36,7 +34,6 @@ function createFanUi() {
     expanded: false,
   };
   let searchTimer;
-  let returnFocus;
   let pollTimer;
   const renderedMarkup = new WeakMap();
   const transfer = createFanTransferUi({
@@ -287,7 +284,7 @@ function createFanUi() {
     form.querySelector('[autofocus], textarea, input:not([type="checkbox"]), select')?.focus();
   }
 
-  function editProfile(profile = {}, showQuick = false) {
+  function editProfile(profile = {}) {
     openForm(profileForm(profile), async (payload) => {
       try {
         state.profile = await request(profile.id ? 'save' : 'create', payload);
@@ -297,7 +294,6 @@ function createFanUi() {
       }
       await load();
       renderSelected();
-      if (showQuick) showQuickDetail();
     });
   }
 
@@ -319,28 +315,13 @@ function createFanUi() {
     });
   }
 
-  function leaveQuick() {
-    get('fanSplit').append(detailNode);
-    if (quick.open) quick.close();
-    returnFocus?.focus?.();
-  }
-
   async function action(name, element) {
     if (name === 'cancel-edit') {
       if (get('fanSaveButton').disabled) return;
       editor.close();
       return;
     }
-    if (name === 'back-queue') {
-      leaveQuick();
-      return;
-    }
     if (name === 'expand') {
-      if (quick.open) {
-        leaveQuick();
-        document.querySelector('[data-main-page="otherAssistantPage"]')?.click();
-        get('otherFanProfilesFeatureTab')?.click();
-      }
       state.expanded = !state.expanded;
       element.closest('details')?.removeAttribute('open');
       renderList();
@@ -594,9 +575,6 @@ function createFanUi() {
     get('fanRestoreFile').value = '';
     if (file) void transfer.restoreFile(file).catch((error) => showError(error));
   });
-  quick.addEventListener('close', () => {
-    if (detailNode.parentNode === get('fanQuickHost')) leaveQuick();
-  });
   const observer = new MutationObserver(() => {
     if (!panel.hidden)
       void load(true)
@@ -615,7 +593,7 @@ function createFanUi() {
       })
       .catch((error) => showError(error));
   pollTimer = setInterval(() => {
-    if ((!panel.hidden || quick.open) && !editor.open && state.contextId) {
+    if (!panel.hidden && !editor.open && state.contextId) {
       const id = state.profile?.id;
       const selection = state.selection;
       void load(true, true)
@@ -640,33 +618,9 @@ function createFanUi() {
     { once: true },
   );
 
-  function showQuickDetail() {
-    get('fanQuickHost').append(detailNode);
-    if (!quick.open) quick.showModal();
-  }
-
-  return {
-    async openQuick(identity, name) {
-      returnFocus = document.activeElement;
-      await load(true);
-      const profile = await request('find', { identity });
-      if (!profile) {
-        editProfile({ alias: name || identity.value, identity }, true);
-        return;
-      }
-      state.profile = profile;
-      state.tab = 'overview';
-      renderSelected();
-      showQuickDetail();
-    },
-  };
+  return true;
 }
 
 export function initFanProfiles() {
-  if (!instance) instance = createFanUi();
-  return instance;
-}
-
-export async function openFanQuickProfile(identity, name) {
-  return initFanProfiles()?.openQuick(identity, name);
+  if (!initialized) initialized = createFanUi();
 }

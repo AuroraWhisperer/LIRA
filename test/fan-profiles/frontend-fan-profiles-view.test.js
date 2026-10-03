@@ -9,14 +9,21 @@ const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('../helpers/fan-p
 
 const ROOT = path.join(__dirname, '../..');
 
+function actionTags(markup, action) {
+  return markup.match(new RegExp(`<[^>]+\\sdata-fan-action=["']${action}["'][^>]*>`, 'g')) || [];
+}
+
 test('archive scope controls live on the profiles page, not in settings or the notice', () => {
   const markup = fs.readFileSync(path.join(ROOT, 'public/pages/admin/toolbox/fan-profiles.html'), 'utf8');
-  assert.match(markup, /role="group" aria-label="档案范围"/);
-  assert.match(markup, /data-fan-action="back-profiles" aria-pressed="true">当前档案/);
-  assert.match(markup, /data-fan-action="archived" aria-pressed="false">已归档/);
-  assert.equal((markup.match(/data-fan-action="archived"/g) || []).length, 1);
-  assert.equal((markup.match(/data-fan-action="back-profiles"/g) || []).length, 1);
-  assert.doesNotMatch(markup, /已收起的档案|查看已收起|返回档案列表/);
+  const group = markup.match(/<[^>]+\saria-label=["']档案范围["'][^>]*>/)?.[0];
+  assert.ok(group);
+  assert.match(group, /\srole=["']group["']/);
+  for (const [action, pressed] of [['back-profiles', 'true'], ['archived', 'false']]) {
+    const buttons = actionTags(markup, action);
+    assert.equal(buttons.length, 1);
+    assert.match(buttons[0], /^<button\b/);
+    assert.match(buttons[0], new RegExp(`\\saria-pressed=["']${pressed}["']`));
+  }
 });
 
 test('archive empty states distinguish scope from search and never offer creation', async () => {
@@ -38,31 +45,34 @@ test('archived detail exposes one restore action outside more while current deta
   const profile = f.detail(f.create().id);
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const current = view.renderDetail(profile);
-  assert.match(current, /<details class="fan-more">[\s\S]*data-fan-action="archive"[^>]*>归档档案/);
-  assert.match(current, /保留资料与记录，归档期间不显示提醒。/);
+  assert.equal(actionTags(current, 'archive').length, 1);
+  assert.match(current, /保留资料与记录/);
+  assert.match(current, /归档期间不显示提醒/);
   const archived = view.renderDetail({ ...profile, archived: true });
-  assert.equal((archived.match(/data-fan-action="archive"/g) || []).length, 1);
+  assert.equal(actionTags(archived, 'archive').length, 1);
   assert.match(archived, /data-fan-action="archive"[^>]*>恢复到主列表/);
-  assert.ok(archived.indexOf('恢复到主列表') < archived.indexOf('<details class="fan-more">'));
-  assert.doesNotMatch(archived, /收起档案|恢复档案|>归档档案</);
+  for (const details of archived.match(/<details\b[^>]*>[\s\S]*?<\/details>/g) || []) {
+    assert.equal(actionTags(details, 'archive').length, 0, 'restore is available without expanding details');
+  }
 });
 
-test('favorite stars follow the alias and current name while former names appear in basic details', async (t) => {
+test('favorite indicators accompany escaped names while former names remain editable', async (t) => {
   const f = fanFixture(t);
   const p = f.create({ favorite: true, formerNames: ['<旧昵称>', '较早昵称'] });
   f.consume([{ name: '<新昵称>' }]);
   const profile = f.detail(p.id);
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const rendered = view.renderPeople([profile], p.id, false);
-  assert.match(
-    rendered,
-    /小海<wbr><span class="fan-person-platform-name">（&lt;新昵称&gt;）<\/span><\/strong><span class="fan-favorite-star"[^>]*aria-label="特别关注"[^>]*>★/,
+  assert.match(rendered.replace(/<[^>]*>/g, ''), /小海（&lt;新昵称&gt;）/);
+  assert.match(rendered, /\saria-label=["']特别关注["']/);
+  assert.doesNotMatch(rendered, /<新昵称>/);
+  assert.doesNotMatch(
+    view.renderPeople([{ ...profile, favorite: false }], p.id, false),
+    /\saria-label=["']特别关注["']/,
   );
-  assert.doesNotMatch(rendered, /常用称呼：|<新昵称>/);
-  assert.doesNotMatch(view.renderPeople([{ ...profile, favorite: false }], p.id, false), /fan-favorite-star/);
   const detail = view.renderDetail(profile);
-  assert.match(detail, /&lt;新昵称&gt;<\/h3>/);
-  assert.match(detail, /<dt>曾用名<\/dt><dd>&lt;旧昵称&gt;、较早昵称<\/dd>/);
+  assert.match(detail, /&lt;新昵称&gt;/);
+  assert.match(detail.replace(/<[^>]*>/g, ''), /曾用名\s*&lt;旧昵称&gt;、较早昵称/);
   assert.doesNotMatch(detail, /<旧昵称>|<新昵称>/);
   const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'), {
     FormData: class {
@@ -72,9 +82,10 @@ test('favorite stars follow the alias and current name while former names appear
     },
   });
   const description = forms.profileForm(profile);
-  assert.match(description.fields, /列表优先显示常用称呼，括号内为最新平台昵称/);
-  assert.match(description.fields, /name="formerNames"[^>]*>&lt;旧昵称&gt;\n较早昵称/);
-  assert.doesNotMatch(description.fields, /name="alias"[^>]*required/);
+  assert.match(description.fields, /<textarea\b[^>]*\sname=["']formerNames["'][^>]*>&lt;旧昵称&gt;\n较早昵称/);
+  const alias = description.fields.match(/<input\b[^>]*\sname=["']alias["'][^>]*>/)?.[0];
+  assert.ok(alias);
+  assert.doesNotMatch(alias, /\srequired(?:\s|=|\/?>)/);
   const payload = description.read({ alias: '', tags: '', formerNames: ' 修订名字\n较早昵称\n' });
   assert.deepEqual(Array.from(payload.formerNames), ['修订名字', '较早昵称']);
   const saved = f.run('save', payload);
@@ -86,7 +97,7 @@ test('people names escape aliases and omit missing or duplicate platform names',
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const aliased = view.renderPeople([{ id: 'alias', alias: '<小海>', platformName: '海风' }], null, false);
   assert.match(aliased, /title="&lt;小海&gt;（海风）"/);
-  assert.match(aliased, /&lt;小海&gt;<wbr><span class="fan-person-platform-name">（海风）<\/span>/);
+  assert.match(aliased.replace(/<[^>]*>/g, ''), /&lt;小海&gt;（海风）/);
   assert.doesNotMatch(aliased, /<小海>/);
   for (const [alias, platformName, expected] of [
     ['', '海风', '海风'],
@@ -95,8 +106,7 @@ test('people names escape aliases and omit missing or duplicate platform names',
     ['', '', '未命名档案'],
   ]) {
     const rendered = view.renderPeople([{ id: 'name', alias, platformName }], null, false);
-    assert.ok(rendered.includes(`>${expected}</strong>`));
-    assert.doesNotMatch(rendered, /fan-person-platform-name|常用称呼：/);
+    assert.equal(rendered.replace(/<[^>]*>/g, '').trim(), expected);
   }
 });
 
@@ -168,13 +178,13 @@ test('global fan update polling shows scheduled and startup toasts, errors, and 
   assert.equal(listeners.size, 0);
 });
 
-test('profile settings put bulk deletion last and require destructive confirmation', () => {
+test('profile settings expose one bulk deletion action and require destructive confirmation', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public/pages/admin/toolbox/fan-profiles.html'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT, 'public/js/admin/fans/index.js'), 'utf8');
-  assert.match(
-    html,
-    /class="danger" data-fan-action="delete-all">\u6e05\u9664\u5168\u90e8\u6863\u6848<\/button>[\s\S]*?<\/div>\s*<\/section>/,
-  );
+  const buttons = actionTags(html, 'delete-all');
+  assert.equal(buttons.length, 1);
+  assert.match(buttons[0], /^<button\b/);
+  assert.match(buttons[0], /\stype=["']button["']/);
   const start = source.indexOf("if (name === 'delete-all')");
   const end = source.indexOf("if (name === 'export')", start);
   const handler = source.slice(start, end);
@@ -191,8 +201,6 @@ test('guard roster confirmation reuses the room identity without showing its num
     name: '海边直播间 <测试>',
     avatarSource: '/api/bilibili/avatar?token=synthetic&url=avatar',
   });
-  assert.match(description.fields, /class="bilibili-auth-profile"/);
-  assert.match(description.fields, /class="bilibili-auth-avatar"/);
   assert.match(description.fields, /海边直播间 &lt;测试&gt;/);
   assert.match(description.fields, /token=synthetic&amp;url=avatar/);
   assert.doesNotMatch(description.fields, /1743356673/);
@@ -218,14 +226,12 @@ test('list and detail show each synced guard icon without requiring membership d
     const list = view.renderPeople([profile], profile.id, false);
     const detail = view.renderDetail(profile);
     for (const rendered of [list, detail]) {
-      assert.match(rendered, new RegExp(`class="fan-name" data-guard-level="${level}"`));
-      assert.match(
-        rendered,
-        new RegExp(
-          `<img class="fan-status" src="/img/admin/gifts/bilibili-guard-${icon}\\.webp" alt="${label}" title="${label}"`,
-        ),
-      );
-      assert.doesNotMatch(rendered, new RegExp(`>${label}</span>`));
+      assert.match(rendered, new RegExp(`\\sdata-guard-level=["']${level}["']`));
+      const image = rendered.match(
+        new RegExp(`<img\\b[^>]*\\ssrc=["']/img/admin/gifts/bilibili-guard-${icon}\\.webp["'][^>]*>`),
+      )?.[0];
+      assert.ok(image);
+      assert.match(image, new RegExp(`\\salt=["']${label}["']`));
       assert.match(rendered, /&lt;虚构粉丝&gt;/);
       assert.doesNotMatch(rendered, /曾观察到|当前待核实|<虚构粉丝>/);
     }
@@ -256,8 +262,8 @@ test('missing members and ordinary profiles have plain names and no identity pla
   });
   for (const profile of [f.detail(ordinary.id), f.run('find', { identity: IDENTITY })]) {
     for (const rendered of [view.renderPeople([profile], null, false), view.renderDetail(profile)]) {
-      assert.match(rendered, /class="fan-name" data-guard-level=""/);
-      assert.doesNotMatch(rendered, /class="fan-status"|曾观察到|当前待核实|未记录大航海/);
+      assert.match(rendered, /\sdata-guard-level=["']["']/);
+      assert.doesNotMatch(rendered, /bilibili-guard-(?:captain|prefect|governor)\.webp|曾观察到|当前待核实|未记录大航海/);
     }
   }
 });
@@ -325,9 +331,10 @@ test('membership conflicts show both dates and retain both resolution choices wi
   assert.match(rendered, /&lt;上次确认&gt;/);
   assert.match(rendered, /确认前暂停大航海提醒，生日提醒照常/);
   for (const action of ['resolve-adopt', 'resolve-keep']) {
-    assert.match(rendered, new RegExp(`data-fan-action="${action}" data-record-id="${pending.id}"`));
+    const buttons = actionTags(rendered, action);
+    assert.equal(buttons.length, 1);
+    assert.match(buttons[0], new RegExp(`\\sdata-record-id=["']${pending.id}["']`));
   }
-  assert.ok(rendered.indexOf('class="fan-conflict"') < rendered.indexOf('class="fan-history"'));
   assert.doesNotMatch(rendered, /<pre|<上次确认>|JSON|evidenceVerified|Asia\/Shanghai/);
 });
 

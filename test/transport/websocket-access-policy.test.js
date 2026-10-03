@@ -74,6 +74,7 @@ const fullState = {
   lyricState: { lineText: 'Current lyric' },
   danmakuFeed: [{ id: 'one', message: 'Public danmaku' }],
   gifts: { viewRevision: 'gift-source-version', privateGiftHistory: 'private-gift' },
+  giftSprint: { targetRmb: 1000, remainingCrystalBalls: 7, sourceId: 'private-source' },
   bilibiliDiagnostics: { secret: 'private-diagnostic' },
   arbitrarySecret: 'private-root',
 };
@@ -175,6 +176,7 @@ for (const scope of [
   'overtime',
   'gift-effects',
   'gift-feed',
+  'gift-sprint',
   'gift-export',
   'lyrics',
   'games',

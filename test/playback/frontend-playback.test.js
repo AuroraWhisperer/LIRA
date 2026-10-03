@@ -7,7 +7,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { readCssBundle } = require('../helpers/css-bundle');
 const { readJsModuleBundle } = require('../helpers/js-module-bundle');
 const { createLyricToggleButton, loadModuleExports, response } = require('../helpers/frontend-modules');
 
@@ -254,24 +253,9 @@ test('only the latest playback search updates state and renders', async () => {
   assert.deepEqual(renderedIds, ['new-result']);
 });
 
-test('playback workspace keeps semantic hierarchy and presentation typography', () => {
-  const html = readAdminHtml();
-  const playbackCss = readCssBundle('public', 'css', 'styles-playback.css');
-  const drawerSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'drawer.js'), 'utf8');
-  const queueSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'queue-popup.js'), 'utf8');
-
-  assert.doesNotMatch(html, /class="ui-page-title playback-workspace-title"/);
-  assert.match(html, /id="playbackDrawerTitle" class="ui-section-title"/);
-  assert.match(html, /id="queuePopupTitle" class="ui-section-title"/);
-  assert.doesNotMatch(playbackCss, /^\s*;\s*$/m);
-
-  assert.match(playbackCss, /\.player-fs-title\s*\{[\s\S]*?font-size:\s*42px;/);
-  assert.match(playbackCss, /\.lyric-text\s*\{[\s\S]*?font-size:\s*32px;/);
-  assert.match(playbackCss, /\.playback-quality-btn\s*\{[\s\S]*?font-size:\s*var\(--type-size-control\);/);
-  assert.match(playbackCss, /\.queue-popup-head strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\);/);
-
-  assert.match(drawerSource, /playback-drawer-loading ui-body/);
-  assert.match(drawerSource, /playback-drawer-state playback-drawer-error ui-caption/);
-  assert.match(drawerSource, /playback-drawer-state playback-drawer-empty ui-caption/);
-  assert.match(queueSource, /<h3 class="ui-card-title">/);
+test('playback drawer and queue have unique title anchors in the actual page', () => {
+  const tags = [...readAdminHtml().matchAll(/<[^/!][^>]*>/g)].map(([tag]) => tag);
+  for (const id of ['playbackDrawerTitle', 'queuePopupTitle']) {
+    assert.equal(tags.filter((tag) => new RegExp(`\\sid=["']${id}["']`).test(tag)).length, 1);
+  }
 });

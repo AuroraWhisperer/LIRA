@@ -5,6 +5,7 @@
 const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
 const { normalizePositiveInteger } = require('../../shared/utils');
+const { toRankIdentityHint } = require('./rank-identity-hint');
 
 const BILIBILI_ONLINE_RANK_POLL_MS = 60 * 1000;
 const BILIBILI_ONLINE_RANK_PAGE_SIZE = 50;
@@ -62,7 +63,7 @@ class OnlineRankPoller {
           if (localGeneration !== this.localGeneration) return;
           const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(item, context.ownerUid);
           if (userMeta.uid) onlineUids.push(userMeta.uid);
-          const result = this.sink.ingestHint(toIdentityHint(userMeta), {
+          const result = this.sink.ingestHint(toRankIdentityHint(userMeta), {
             ...context,
             source: 'online_rank',
             roomIdentityVerified: userMeta.currentRoomVerified === true,
@@ -84,26 +85,6 @@ class OnlineRankPoller {
       console.log(`[Bilibili] online rank cached ${cachedCount} viewer identity record(s).`);
     }
   }
-}
-
-function toIdentityHint(userMeta) {
-  return {
-    uid: userMeta.uid,
-    name: userMeta.userName,
-    avatarUrl: userMeta.avatarUrl,
-    roomIdentity: {
-      guardKnown: userMeta.currentRoomVerified === true,
-      guardLevel: userMeta.guardLevel,
-      medalKnown: userMeta.currentRoomVerified === true,
-      fansMedal: userMeta.medalName
-        ? {
-            name: userMeta.medalName,
-            level: userMeta.medalLevel,
-            targetUid: userMeta.medalTargetUid,
-          }
-        : null,
-    },
-  };
 }
 
 module.exports = { OnlineRankPoller };

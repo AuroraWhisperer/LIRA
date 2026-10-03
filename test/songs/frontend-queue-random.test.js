@@ -7,12 +7,13 @@ const { readAdminHtml } = require('../helpers/admin-html');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom, createClock } = require('../helpers/toast-dom');
 
-test('queue random button uses the same primary styling before the next button', () => {
-  const html = readAdminHtml();
-  assert.match(
-    html,
-    /id="randomSongBtn" class="primary" type="button"[\s\S]*?随机点歌[\s\S]*?id="nextBtn" class="primary"/,
-  );
+test('queue actions remain unique non-submit buttons in the actual page', () => {
+  const buttons = [...readAdminHtml().matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag);
+  for (const id of ['randomSongBtn', 'nextBtn', 'clearBtn']) {
+    const matches = buttons.filter((tag) => new RegExp(`\\sid\\s*=\\s*["']${id}["']`).test(tag));
+    assert.equal(matches.length, 1, `${id} must be a unique button`);
+    assert.match(matches[0], /\stype\s*=\s*["']button["']/);
+  }
 });
 
 test('queue random click stays disabled while pending and recovers after success or failure', async () => {

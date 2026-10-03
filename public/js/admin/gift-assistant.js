@@ -1,5 +1,6 @@
 import { createGiftDisplaySettings } from './gifts/display-settings.js';
 import { createGiftWishes } from './gifts/wishes.js';
+import { initGiftSprintOverlay } from './gifts/sprint-overlay.js';
 
 let initialized = false;
 
@@ -9,6 +10,7 @@ export function initGiftAssistant() {
   initialized = true;
   const display = createGiftDisplaySettings();
   const wishes = createGiftWishes();
+  initGiftSprintOverlay();
   const tabs = [...root.querySelectorAll('[data-gift-tab]')];
 
   function select(tab) {

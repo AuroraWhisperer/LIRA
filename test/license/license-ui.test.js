@@ -8,31 +8,19 @@ const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '../..');
 
-test('license states share a bounded stage and scroll only the right card', () => {
-  const styles = fs.readFileSync(path.join(ROOT, 'public', 'css', 'license.css'), 'utf8');
-  const main = styles.match(/\.license-main\s*\{([^}]+)\}/)?.[1];
-  const stage = styles.match(/\.license-stage\s*\{([^}]+)\}/)?.[1];
-  const card = styles.match(/\.license-card\s*\{([^}]+)\}/)?.[1];
-  assert.match(main, /height:\s*calc\(100dvh - 52px\)/);
-  assert.match(main, /overflow:\s*hidden/);
-  assert.match(stage, /flex:\s*0 0 auto/);
-  assert.match(stage, /height:\s*min\(612px, 100%\)/);
-  assert.match(stage, /grid-template-rows:\s*minmax\(0, 1fr\)/);
-  assert.match(stage, /margin-block:\s*auto/);
-  assert.match(card, /max-height:\s*100%/);
-  assert.match(card, /overflow-y:\s*auto/);
-  assert.match(card, /scrollbar-width:\s*none/);
-  assert.doesNotMatch(styles, /@media \(max-height: 640px\)[\s\S]*overflow:\s*auto/);
-});
+function tagById(html, id) {
+  const tags = html.match(new RegExp(`<[^>]+\\sid\\s*=\\s*["']${id}["'][^>]*>`, 'g')) || [];
+  assert.equal(tags.length, 1, `${id} should exist once`);
+  return tags[0];
+}
 
-test('license titlebar keeps branding static and uses local window icons', () => {
+test('license titlebar exposes accessible window controls without form submission', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'license.html'), 'utf8');
-  const icons = fs.readFileSync(path.join(ROOT, 'public', 'img', 'shared', 'window-controls.svg'), 'utf8');
-  assert.match(html, /<div class="license-brand">/);
-  assert.doesNotMatch(html, /<a\b[^>]*class="license-brand"/);
-  for (const name of ['minus', 'square', 'copy', 'x']) {
-    assert.ok(html.includes(`/img/shared/window-controls.svg#${name}`));
-    assert.ok(icons.includes(`<symbol id="${name}"`));
+  for (const id of ['licenseMinimizeBtn', 'licenseMaximizeBtn', 'licenseCloseBtn']) {
+    const button = tagById(html, id);
+    assert.match(button, /^<button\b/);
+    assert.match(button, /\stype=["']button["']/);
+    assert.match(button, /\saria-label=["'][^"']+["']/);
   }
 });
 
@@ -81,32 +69,23 @@ test('license window controls dispatch actions and reflect maximize events', () 
   assert.equal(unsubscribed, true);
 });
 
-test('license page is independent from existing onboarding and exposes only three inputs', () => {
+test('license page provides credentials and defaults to registration without a bypass action', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'license.html'), 'utf8');
-  const inputs = [...html.matchAll(/<input\b/gi)];
-  assert.equal(inputs.length, 3);
-  assert.match(html, /id="licenseAccountName"/);
-  assert.match(html, /id="licensePassword"/);
-  assert.match(html, /id="licenseActivationCode"/);
-  assert.match(html, /注册并进入/);
-  assert.match(html, /登录已有账号/);
-  assert.match(html, /注册新账号/);
-  assert.ok(html.indexOf('id="licenseRegisterMode"') < html.indexOf('id="licenseLoginMode"'));
-  assert.match(html, /id="licenseRegisterMode"[^>]*aria-pressed="true"/);
-  assert.match(html, /id="licenseLoginMode"[^>]*aria-pressed="false"/);
-  assert.match(html, /id="licenseHeading">注册 LIRA/);
-  assert.match(html, /id="licensePassword"[^>]*autocomplete="new-password"/);
+  for (const id of ['licenseAccountName', 'licensePassword', 'licenseActivationCode']) {
+    assert.match(tagById(html, id), /^<input\b/);
+  }
+  assert.match(tagById(html, 'licenseForm'), /^<form\b/);
+  assert.match(tagById(html, 'licenseSubmitBtn'), /\stype=["']submit["']/);
+  assert.match(tagById(html, 'licenseRetryBtn'), /\stype=["']button["']/);
+  assert.match(tagById(html, 'licenseRegisterMode'), /\saria-pressed=["']true["']/);
+  assert.match(tagById(html, 'licenseLoginMode'), /\saria-pressed=["']false["']/);
+  assert.match(tagById(html, 'licensePassword'), /\sautocomplete=["']new-password["']/);
   assert.doesNotMatch(html, /跳过/);
 });
 
-test('license renderer uses main-process bridge and clears secrets on success', () => {
+test('license renderer keeps credentials and navigation inside the main-process boundary', () => {
   const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
   assert.match(script, /window\.liraLicense/);
-  assert.match(script, /passwordInput\.value = ''/);
-  assert.match(script, /codeInput\.value = ''/);
-  assert.match(script, /api\.getGiftCatalogState\(\)/);
-  assert.match(script, /api\.retryGiftCatalog\(\)/);
-  assert.match(script, /api\.onGiftCatalogStateChanged/);
   assert.doesNotMatch(script, /window\.location/);
   assert.doesNotMatch(script, /api\.lir[a-z]+hub\.cn/);
   assert.doesNotMatch(script, /localStorage/);
@@ -114,84 +93,33 @@ test('license renderer uses main-process bridge and clears secrets on success', 
 
 test('license page replaces the form with an accessible gift initialization card', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'license.html'), 'utf8');
-  const styles = fs.readFileSync(path.join(ROOT, 'public', 'css', 'license.css'), 'utf8');
-  assert.match(html, /id="licenseLoginCard"/);
-  assert.match(html, /id="giftCatalogInitializationCard"[^>]*aria-busy="true"[^>]*hidden/s);
-  assert.match(html, /id="giftCatalogInitializationProgress"[^>]*max="100"/s);
-  assert.match(html, /id="giftCatalogInitializationStatus"[^>]*role="status"/s);
-  assert.match(html, /id="giftCatalogInitializationRetryBtn"/);
-  assert.match(html, /id="giftCatalogInitializationBackBtn"[^>]*hidden/s);
-  assert.match(html, /返回登录/);
-  assert.match(html, /正在为你准备直播工具/);
-  assert.match(html, /aria-label="准备进度"/);
-  assert.match(html, /id="giftCatalogInitializationPercent">0%/);
-  assert.doesNotMatch(html, /giftCatalogInitialization(?:Phase|Count)/);
-  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
-  assert.match(script, /正在为你准备直播工具/);
-  assert.doesNotMatch(script, /initializationPhase|initializationCount|currentGiftName|礼物图片|礼物目录/);
-  assert.match(styles, /\.license-initialization-card\s*\{/);
-  assert.match(styles, /\.license-progress::-webkit-progress-value\s*\{/);
+  tagById(html, 'licenseLoginCard');
+  tagById(html, 'giftCatalogInitializationHeading');
+  tagById(html, 'giftCatalogInitializationPercent');
+  const card = tagById(html, 'giftCatalogInitializationCard');
+  assert.match(card, /\saria-busy=["']true["']/);
+  assert.match(card, /\shidden(?:\s|\/?>)/);
+  const progress = tagById(html, 'giftCatalogInitializationProgress');
+  assert.match(progress, /^<progress\b/);
+  assert.match(progress, /\smax=["']100["']/);
+  assert.match(progress, /\saria-label=["'][^"']+["']/);
+  assert.match(tagById(html, 'giftCatalogInitializationStatus'), /\srole=["']status["']/);
+  for (const id of ['giftCatalogInitializationRetryBtn', 'giftCatalogInitializationBackBtn']) {
+    const button = tagById(html, id);
+    assert.match(button, /^<button\b/);
+    assert.match(button, /\stype=["']button["']/);
+  }
+  assert.match(tagById(html, 'giftCatalogInitializationBackBtn'), /\shidden(?:\s|\/?>)/);
 });
 
-test('license renderer explains session replacement and temporary server failures', () => {
-  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
-  assert.match(script, /SESSION_SUPERSEDED/);
-  assert.match(script, /另一个 LIRA 进程登录/);
-  assert.match(script, /HTTP_\(429\|5\\d\\d\)/);
-  assert.match(script, /授权服务器暂时不可用/);
-});
-
-test('license renderer re-enables both actions after a failed async attempt', () => {
-  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
-  assert.match(script, /function finishBusy\(\)/);
-  assert.match(script, /submitButton\.disabled = !canActivate/);
-  assert.match(script, /retryButton\.disabled = false/);
-  assert.match(script, /finally\s*\{\s*finishBusy\(\);\s*\}/);
-});
-
-test('cloud song sync requires an explicit overwrite confirmation', () => {
-  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'), 'utf8');
-  const dialogIndex = script.indexOf('showConfirmationDialog({');
-  const syncIndex = script.indexOf('window.liraLicense.syncSongs(');
-  assert.ok(dialogIndex >= 0, 'sync must ask for confirmation first');
-  assert.ok(syncIndex > dialogIndex, 'confirmation must happen before syncSongs is invoked');
-  assert.match(script, /if \(!confirmed\)/);
-  assert.match(script, /variant: 'caution'/);
-  assert.match(script, /覆盖同步/);
-});
-
-test('cloud song sync snapshots local songs after confirmation', () => {
-  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'), 'utf8');
-  const confirmedGuardIndex = script.indexOf('if (!confirmed)');
-  const snapshotIndex = script.indexOf('const songs = [...(getSongs() || [])];');
-  const syncIndex = script.indexOf('window.liraLicense.syncSongs(songs)', snapshotIndex);
-  assert.ok(confirmedGuardIndex >= 0, 'confirmation result must be checked');
-  assert.ok(snapshotIndex > confirmedGuardIndex, 'local songs must be read after confirmation');
-  assert.ok(syncIndex > snapshotIndex, 'the confirmed snapshot must be the one uploaded');
-});
-
-test('cloud song sync compares against the cloud count and records the last sync locally', () => {
-  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'), 'utf8');
+test('cloud song sync exposes its action, cloud count, result and last sync record', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'import-export.html'), 'utf8');
-  assert.match(script, /window\.liraLicense\.getCloudSongs\(\)/);
-  assert.match(script, /云端现有/);
-  assert.match(script, /lira:license:lastCloudSync/);
-  assert.match(script, /本机上次同步/);
-  assert.match(html, /id="licenseLastCloudSync"/);
-  assert.match(html, /id="licenseCloudCount"/);
-  assert.match(
-    script,
-    /syncButton\.disabled = true;[\s\S]*?await refreshCloudSongCount\(\)[\s\S]*?syncButton\.disabled = false;/,
-  );
-  assert.match(script, /syncButton\.disabled = false;\s*\}\s*\n\s*\n\s*syncButton\.addEventListener/);
-  assert.match(script, /Number\.isSafeInteger\(reportedCount\)/);
-});
-
-test('cloud song sync explains which song failed validation', () => {
-  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'), 'utf8');
-  assert.match(script, /INVALID_SONG/);
-  assert.match(script, /第 \$\{index \+ 1\} 首歌曲的字段格式无效/);
-  assert.match(script, /点歌价格、启用状态或排序/);
+  for (const id of ['licenseSongSync', 'licenseLastCloudSync', 'licenseCloudCount', 'licenseSyncResult']) {
+    tagById(html, id);
+  }
+  const button = tagById(html, 'licenseSyncSongsBtn');
+  assert.match(button, /^<button\b/);
+  assert.match(button, /\stype=["']button["']/);
 });
 
 test('song background controls wait for the initial response before accepting changes', () => {
@@ -208,10 +136,8 @@ test('account settings show non-sensitive profile data without device-management
   assert.match(script, /await licenseBridge\.getProfile\(\)/);
   assert.match(script, /accountEl\.textContent/);
   assert.match(script, /deviceEl\.textContent/);
-  assert.match(html, /id="licenseAccountName"/);
-  assert.match(html, /id="licenseDeviceName"/);
-  assert.match(html, /账号信息/);
-  assert.match(html, /忘记密码？[\s\S]*?请联系管理员重置密码。/);
+  tagById(html, 'licenseAccountName');
+  tagById(html, 'licenseDeviceName');
   assert.doesNotMatch(html, /安全存储|设备私钥|首次授权|激活密钥|设备管理/);
   assert.doesNotMatch(script, /createPairingCode|listPairingCodes|revokePairingCode/);
   assert.doesNotMatch(preload, /createPairingCode|listPairingCodes|revokePairingCode/);

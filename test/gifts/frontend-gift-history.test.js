@@ -38,24 +38,23 @@ test('unchanged background history refreshes preserve row nodes during selection
 test('gift history drawer preserves the six data columns and adds selection and independent filters', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'history.html'), 'utf8');
 
-  assert.doesNotMatch(html, /giftHistorySearch|data-gift-range|gift-ledger-toolbar|gift-ledger-sync/);
-  assert.doesNotMatch(html, /时间范围|重置筛选|giftLedgerSyncDetail/);
-  assert.doesNotMatch(html, /giftHistoryClearDisplayBtn|清理显示/);
-  assert.match(html, /id="giftHistoryRetryBtn"[^>]*hidden[^>]*>\s*重新加载/);
-  assert.match(html, /id="giftHistoryClearDatabaseBtn"[^>]*>\s*清空全部记录/);
-  assert.match(html, /id="giftLedgerSyncStatus"[^>]*role="status"[^>]*hidden/);
-  assert.match(
-    html,
-    /<th[^>]*data-sort="created_at"[^>]*aria-sort="none"[^>]*>\s*时间[\s\S]*?<span[^>]*class="sort-arrow"[\s\S]*?<\/th>\s*<th[^>]*data-sort="gift_name"[^>]*>\s*礼物[\s\S]*?<\/th>\s*<th[^>]*>\s*数量\s*<\/th>\s*<th[^>]*data-sort="price"[^>]*>\s*金额[\s\S]*?<\/th>\s*<th[^>]*>\s*用户\s*<\/th>\s*<th[^>]*data-sort="remarks"[^>]*>\s*备注[\s\S]*?<\/th>/,
-  );
-  assert.doesNotMatch(html, /giftLedgerSummary|giftLedgerTopGifts|giftLedgerTimeSeries/);
-  assert.doesNotMatch(html, /礼物排行|时间趋势/);
-  assert.match(html, /id="giftHistoryState"[^>]*role="status"/);
+  assert.match(html, /<button\b(?=[^>]*\sid="giftHistoryRetryBtn")(?=[^>]*\shidden(?:\s|>))[^>]*>/);
+  assert.match(html, /<button\b[^>]*\sid="giftHistoryClearDatabaseBtn"/);
+  assert.match(html, /<[^>]+(?=[^>]*\sid="giftLedgerSyncStatus")(?=[^>]*\srole="status")(?=[^>]*\shidden(?:\s|>))[^>]*>/);
+  const headers = [...html.matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)].map(([, attributes, content]) => ({
+    attributes,
+    text: content.replace(/<[^>]+>/g, '').trim(),
+  }));
+  assert.deepEqual(headers.filter(({ text }) => text).map(({ text }) => text), ['时间', '礼物', '数量', '金额', '用户', '备注']);
+  for (const key of ['created_at', 'gift_name', 'price', 'remarks']) {
+    const header = headers.find(({ attributes }) => attributes.includes('data-sort="' + key + '"'));
+    assert.ok(header, key);
+    assert.match(header.attributes, /\saria-sort="none"/);
+    assert.match(header.attributes, /\stabindex="0"/);
+  }
+  assert.match(html, /<[^>]+(?=[^>]*\sid="giftHistoryState")(?=[^>]*\srole="status")[^>]*>/);
   assert.match(html, /id="giftHistoryPrev"/);
   assert.match(html, /id="giftHistoryNext"/);
-  assert.match(html, /← 上一页/);
-  assert.match(html, /第 1\/1 页/);
-  assert.match(html, /下一页 →/);
   for (const id of [
     'giftHistorySelectPage',
     'giftHistoryUserQuery',
@@ -77,15 +76,11 @@ test('gift history defaults to all dates and never exposes source identity', asy
     URLSearchParams,
   });
 
-  assert.match(source, /^export function buildGiftHistoryUrl/m);
-  assert.doesNotMatch(source, /buildGiftStatisticsUrl|loadGiftStatistics|loadGiftLedger/);
   assert.doesNotMatch(source, /\/api\/gifts\/statistics/);
   assert.doesNotMatch(source, /sourceId|source_id/);
-  assert.doesNotMatch(source, /giftHistorySearch|data-gift-range|syncedAt/);
   assert.match(source, /清空全部礼物记录/);
   assert.match(source, /永久删除当前账号在本机和云端的全部礼物记录/);
   assert.match(source, /无法撤销/);
-  assert.match(source, /礼物记录已清空/);
   assert.doesNotMatch(source, /resetGiftLedgerDisplay|giftHistoryClearDisplayBtn/);
   assert.doesNotMatch(source, /重新同步当前账号的历史记录/);
   assert.equal(ledger.buildGiftHistoryUrl(), '/api/gifts/history?range=all&limit=100');

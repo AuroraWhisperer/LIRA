@@ -1,0 +1,562 @@
+/* 大航海感谢：管理预览与礼物特效投屏共用。设计舞台 1280×1080，由脚本整体等比缩放。
+   不使用 color-mix、容器查询或混合模式，兼容旧版直播软件浏览器内核。 */
+.gt-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 1080px;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.gt-particles {
+  position: absolute;
+  top: 0;
+  left: -320px;
+  z-index: 2;
+  width: 1920px;
+  height: 1080px;
+}
+
+.gt-card {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  visibility: hidden;
+  color: #fff;
+  font-family: 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
+}
+.gt-card.is-live {
+  visibility: visible;
+}
+
+.gt-card[data-tier='captain'] {
+  --gt-main: #2f9bff;
+  --gt-light: #8fd0ff;
+  --gt-pale: #e4f5ff;
+  --gt-deep: #0c4fb6;
+  --gt-ink: #061b45;
+  --gt-ink-a: rgba(6, 27, 69, 0.78);
+  --gt-edge: rgba(143, 208, 255, 0.72);
+  --gt-glow: rgba(47, 155, 255, 0.52);
+  --gt-glow-soft: rgba(47, 155, 255, 0.2);
+  --gt-ray: rgba(176, 226, 255, 0.36);
+  --gt-metal-1: #ffffff;
+  --gt-metal-2: #d2e6fb;
+  --gt-metal-3: #6c8db9;
+  --gt-spark-a: #ffffff;
+  --gt-spark-b: #8fd0ff;
+  --gt-spark-c: #5ef0ff;
+}
+.gt-card[data-tier='admiral'] {
+  --gt-main: #a45cff;
+  --gt-light: #d3b4ff;
+  --gt-pale: #f4ecff;
+  --gt-deep: #5a22c8;
+  --gt-ink: #1e0a4b;
+  --gt-ink-a: rgba(30, 10, 75, 0.78);
+  --gt-edge: rgba(211, 180, 255, 0.72);
+  --gt-glow: rgba(164, 92, 255, 0.52);
+  --gt-glow-soft: rgba(164, 92, 255, 0.2);
+  --gt-ray: rgba(224, 200, 255, 0.36);
+  --gt-metal-1: #ffffff;
+  --gt-metal-2: #e5dcf7;
+  --gt-metal-3: #8877ad;
+  --gt-spark-a: #ffffff;
+  --gt-spark-b: #d3b4ff;
+  --gt-spark-c: #ff9cf2;
+}
+.gt-card[data-tier='governor'] {
+  --gt-main: #f0445a;
+  --gt-light: #ff9ca7;
+  --gt-pale: #fff1df;
+  --gt-deep: #a3122b;
+  --gt-ink: #3b0510;
+  --gt-ink-a: rgba(59, 5, 16, 0.8);
+  --gt-edge: rgba(255, 206, 120, 0.78);
+  --gt-glow: rgba(240, 68, 90, 0.52);
+  --gt-glow-soft: rgba(240, 68, 90, 0.2);
+  --gt-ray: rgba(255, 214, 140, 0.4);
+  --gt-metal-1: #fff6d2;
+  --gt-metal-2: #f4c95e;
+  --gt-metal-3: #9d610e;
+  --gt-spark-a: #fff3c4;
+  --gt-spark-b: #ffcf5a;
+  --gt-spark-c: #ff6b7d;
+}
+
+.gt-halo,
+.gt-rays,
+.gt-wave,
+.gt-emblem,
+.gt-flash,
+.gt-medallion,
+.gt-ribbon,
+.gt-eyebrow,
+.gt-name-pill {
+  will-change: transform, opacity;
+}
+
+/* 背景光：柔和光晕 + 两层反向旋转的光芒，外缘径向淡出。 */
+.gt-halo {
+  position: absolute;
+  top: 20px;
+  left: 160px;
+  width: 960px;
+  height: 960px;
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, var(--gt-glow) 0%, var(--gt-glow-soft) 36%, transparent 100%);
+}
+.gt-rays {
+  position: absolute;
+  top: -120px;
+  left: 20px;
+  width: 1240px;
+  height: 1240px;
+  border-radius: 50%;
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 20%, rgba(0, 0, 0, 0.55) 48%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, #000 20%, rgba(0, 0, 0, 0.55) 48%, transparent 100%);
+}
+.gt-rays-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+.gt-rays-broad {
+  background: repeating-conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--gt-ray) 5deg,
+    transparent 10deg,
+    transparent 15deg
+  );
+}
+.gt-rays-fine {
+  background: repeating-conic-gradient(
+    from 4deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.2) 1.2deg,
+    transparent 2.4deg,
+    transparent 7.5deg
+  );
+}
+
+.gt-wave {
+  position: absolute;
+  top: 350px;
+  left: 490px;
+  width: 300px;
+  height: 300px;
+  box-sizing: border-box;
+  border: 3px solid var(--gt-light);
+  border-radius: 50%;
+  box-shadow:
+    0 0 24px var(--gt-glow),
+    inset 0 0 18px var(--gt-glow);
+  opacity: 0;
+}
+.gt-ping {
+  border-width: 2px;
+}
+
+.gt-flash {
+  position: absolute;
+  top: 180px;
+  left: 320px;
+  width: 640px;
+  height: 640px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.95) 0%,
+    var(--gt-glow) 34%,
+    transparent 72%
+  );
+  opacity: 0;
+}
+
+/* 分档徽记：船锚 / 罗盘 / 船舵。 */
+.gt-emblem {
+  position: absolute;
+  top: 220px;
+  left: 360px;
+  width: 560px;
+  height: 560px;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 18px var(--gt-glow));
+  /* 下缘在丝带后淡出，罗盘与船舵的下方尖端不穿过标语和铭牌。 */
+  -webkit-mask-image: linear-gradient(180deg, #000 76%, transparent 89%);
+  mask-image: linear-gradient(180deg, #000 76%, transparent 89%);
+}
+.gt-emblem-spin,
+.gt-emblem-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.gt-emblem.is-anchor .gt-emblem-spin {
+  transform-origin: 50% 9%;
+}
+.gt-card .gt-m1 {
+  stop-color: var(--gt-metal-1);
+}
+.gt-card .gt-m2 {
+  stop-color: var(--gt-metal-2);
+}
+.gt-card .gt-m3 {
+  stop-color: var(--gt-metal-3);
+}
+.gt-card .gt-r1 {
+  stop-color: var(--gt-light);
+}
+.gt-card .gt-r2 {
+  stop-color: var(--gt-main);
+}
+.gt-card .gt-r3 {
+  stop-color: var(--gt-deep);
+}
+.gt-outline {
+  fill: none;
+  stroke: var(--gt-ink);
+}
+.gt-outline polygon,
+.gt-outline .gt-ball {
+  fill: var(--gt-ink);
+}
+.gt-ridge {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.62);
+  stroke-linecap: round;
+}
+.gt-band {
+  fill: none;
+  stroke: var(--gt-ink-a);
+}
+.gt-ticks {
+  fill: none;
+  stroke: var(--gt-pale);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.gt-points polygon {
+  stroke: var(--gt-ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.gt-fill-light {
+  fill: var(--gt-light);
+}
+.gt-fill-main {
+  fill: var(--gt-main);
+}
+.gt-fill-deep {
+  fill: var(--gt-deep);
+}
+.gt-spokes {
+  stroke: var(--gt-ink);
+  stroke-width: 1.6;
+}
+.gt-inlay {
+  fill: none;
+  stroke: var(--gt-main);
+}
+.gt-edge {
+  fill: none;
+  stroke: var(--gt-ink);
+}
+.gt-stud {
+  fill: var(--gt-pale);
+  stroke: var(--gt-ink);
+  stroke-width: 1.2;
+}
+
+/* 头像徽章。 */
+.gt-medallion {
+  position: absolute;
+  top: 350px;
+  left: 490px;
+  width: 300px;
+  height: 300px;
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
+}
+.gt-medallion-float {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.gt-avatar {
+  position: absolute;
+  top: 28px;
+  left: 28px;
+  width: 244px;
+  height: 244px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--gt-light), var(--gt-main) 46%, var(--gt-deep) 100%);
+}
+.gt-avatar-initial {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 112px;
+  font-weight: 800;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.gt-avatar-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gt-ring,
+.gt-glint {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.gt-ring-back {
+  fill: none;
+  stroke: var(--gt-ink-a);
+}
+.gt-ring-tier {
+  fill: none;
+  stroke: var(--gt-main);
+}
+.gt-ring-inner {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.6);
+}
+.gt-rivet {
+  fill: var(--gt-pale);
+  stroke: var(--gt-ink);
+  stroke-width: 0.8;
+}
+.gt-gem {
+  fill: var(--gt-light);
+  stroke: var(--gt-ink);
+  stroke-width: 1.2;
+}
+.gt-jewel {
+  fill: var(--gt-main);
+  stroke: var(--gt-metal-1);
+  stroke-width: 1.6;
+}
+.gt-glint {
+  opacity: 0;
+  filter: drop-shadow(0 0 6px #fff);
+}
+.gt-glint circle {
+  stroke: #fff;
+}
+
+/* 丝带标题。 */
+.gt-ribbon {
+  position: absolute;
+  top: 600px;
+  left: 300px;
+  width: 680px;
+  height: 124px;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.42));
+}
+.gt-ribbon-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.gt-ribbon-tails polygon {
+  stroke: var(--gt-ink);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+.gt-ribbon-folds {
+  fill: var(--gt-ink);
+}
+.gt-ribbon-gloss {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 2;
+}
+.gt-ribbon-shade {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.28);
+  stroke-width: 2;
+}
+.gt-ribbon-stars {
+  fill: var(--gt-pale);
+}
+.gt-ribbon-sheen {
+  position: absolute;
+  top: 18px;
+  left: 64px;
+  width: 552px;
+  height: 82px;
+  overflow: hidden;
+}
+.gt-ribbon-sheen i {
+  position: absolute;
+  top: -10px;
+  left: 0;
+  width: 90px;
+  height: 102px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: translateX(-200px) skewX(-18deg);
+}
+.gt-ribbon-title {
+  position: absolute;
+  top: 18px;
+  left: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 552px;
+  height: 82px;
+  padding-left: 0.34em;
+  box-sizing: border-box;
+  font-size: 56px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.34em;
+  white-space: nowrap;
+  text-shadow:
+    0 3px 0 var(--gt-ink),
+    0 0 20px var(--gt-glow);
+}
+.gt-card[data-lang='en'] .gt-ribbon-title {
+  padding-left: 0.16em;
+  font-family: Bahnschrift, 'DIN Alternate', 'Segoe UI', 'Arial Narrow', Arial, sans-serif;
+  font-size: 54px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+.gt-ribbon-char {
+  display: inline-block;
+}
+
+.gt-eyebrow {
+  position: absolute;
+  top: 738px;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: var(--gt-pale);
+  font-family: Bahnschrift, 'DIN Alternate', 'Segoe UI', Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.42em;
+  text-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.7),
+    0 0 14px var(--gt-glow);
+}
+.gt-eyebrow[data-lang='zh'] {
+  font-family: inherit;
+  font-size: 24px;
+  letter-spacing: 0.6em;
+}
+.gt-eyebrow-text {
+  padding-left: 0.42em;
+}
+.gt-eyebrow[data-lang='zh'] .gt-eyebrow-text {
+  padding-left: 0.6em;
+}
+.gt-eyebrow-text::before,
+.gt-eyebrow-text::after {
+  color: var(--gt-light);
+  content: '✦';
+}
+.gt-eyebrow-text::before {
+  margin-right: 0.5em;
+}
+.gt-eyebrow-text::after {
+  margin-left: 0.5em;
+}
+.gt-eyebrow-line {
+  display: block;
+  width: 120px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gt-light));
+  transform-origin: 100% 50%;
+}
+.gt-eyebrow-line.is-end {
+  background: linear-gradient(270deg, transparent, var(--gt-light));
+  transform-origin: 0 50%;
+}
+
+/* 感谢铭牌：深色底保证在任意直播画面上可读。 */
+.gt-name-row {
+  position: absolute;
+  top: 782px;
+  right: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+}
+.gt-name-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 1180px;
+  padding: 14px 36px 15px;
+  box-sizing: border-box;
+  border: 2px solid var(--gt-edge);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(16, 20, 44, 0.88), rgba(8, 10, 26, 0.8));
+  box-shadow:
+    0 0 30px var(--gt-glow-soft),
+    0 12px 30px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.gt-name-lead,
+.gt-name-tail {
+  flex: 0 0 auto;
+  color: var(--gt-light);
+  font-size: 28px;
+  font-weight: 700;
+}
+.gt-card[data-lang='en'] .gt-name-lead {
+  font-family: Bahnschrift, 'DIN Alternate', 'Segoe UI', Arial, sans-serif;
+  font-size: 24px;
+  letter-spacing: 0.2em;
+}
+.gt-name {
+  min-width: 0;
+  max-width: 720px;
+  overflow: hidden;
+  color: transparent;
+  background: linear-gradient(100deg, #fff 40%, var(--gt-light) 50%, #fff 60%) 100% 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  font-size: 40px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+}
+.gt-months {
+  flex: 0 0 auto;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--gt-main), var(--gt-deep));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}

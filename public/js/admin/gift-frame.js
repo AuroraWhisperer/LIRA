@@ -6,7 +6,7 @@ import { api, copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 let initialized = false;
 let currentSettings = {};
 const draftFields = new Set();
-const settingIds = ['giftFrameEnabled', 'giftFrameThresholdRmb', 'giftFrameTheme', 'giftFrameMotionMode'];
+const settingIds = ['giftFrameEnabled', 'giftFrameThresholdRmb'];
 
 export function initGiftFrame() {
   if (initialized) return;
@@ -48,8 +48,6 @@ export function renderGiftFrame(settings = {}) {
   }
   for (const [id, fallback] of [
     ['giftFrameThresholdRmb', '20'],
-    ['giftFrameTheme', 'woodland-bloom'],
-    ['giftFrameMotionMode', 'auto'],
   ]) {
     if (!draftFields.has(id)) document.getElementById(id).value = settings[id] || fallback;
   }
@@ -92,10 +90,9 @@ async function saveSettings() {
 }
 
 async function playPreview() {
-  const amount = Number(document.getElementById('giftFramePreviewAmount').value);
   const num = Number(document.getElementById('giftFramePreviewNum').value);
-  if (!Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(num) || num <= 0) {
-    setStatus('预览金额和数量需要填写有效值。', 'error');
+  if (!Number.isSafeInteger(num) || num <= 0) {
+    setStatus('预览数量必须是正整数。', 'error');
     return;
   }
   try {
@@ -103,11 +100,9 @@ async function playPreview() {
       userName: document.getElementById('giftFramePreviewUser').value,
       giftName: document.getElementById('giftFramePreviewGift').value,
       num,
-      totalPriceRmb: amount,
-      themeId: document.getElementById('giftFrameTheme').value,
-      motionMode: document.getElementById('giftFrameMotionMode').value,
+      themeId: 'woodland-bloom',
     });
-    setStatus('预览已发送到礼物边框地址。', 'success');
+    setStatus('特效 1 预览已发送，请在礼物边框画面查看。', 'success');
   } catch (_) {
     setStatus('预览发送失败，请确认投屏页面已打开。', 'error');
   }

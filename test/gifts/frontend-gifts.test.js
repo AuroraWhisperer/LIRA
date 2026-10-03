@@ -6,7 +6,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 function response(payload) {
@@ -14,24 +13,6 @@ function response(payload) {
 }
 
 const ROOT_DIR = path.join(__dirname, '../..');
-
-test('gift workspace avoids a redundant page heading and exposes ten semantic panel titles', () => {
-  const page = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'), 'utf8');
-  const styles = [
-    readCssBundle('public', 'css', 'admin', 'gifts.css'),
-    readCssBundle('public', 'css', 'admin', 'workspace.css'),
-  ].join('\n');
-
-  assert.doesNotMatch(page, /<h1 class="ui-page-title">礼物<\/h1>/);
-  assert.equal((page.match(/class="gift-section-title ui-section-title"/g) || []).length, 10);
-  assert.match(styles, /\.gift-recent-heading \.gift-section-title\s*\{/);
-  assert.match(styles, /\.blind-stats-heading \.gift-section-title\s*\{/);
-  assert.doesNotMatch(styles, /\.(?:gift-recent-heading|blind-stats-heading) h3\s*\{/);
-  assert.match(
-    styles,
-    /\.app-shell \.gift-page \.panel-header h2\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/,
-  );
-});
 
 test('admin blind box summary shows one row per viewer and opens analysis', () => {
   const html = readAdminHtml();

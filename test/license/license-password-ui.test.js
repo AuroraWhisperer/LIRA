@@ -8,25 +8,26 @@ const { createLicensePage } = require('../helpers/license-page');
 
 const ROOT = path.join(__dirname, '../..');
 
-test('license page offers password visibility without the storage footnote', () => {
+test('license page explains password rules and offers visibility without client-side truncation', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public/pages/license.html'), 'utf8');
-  assert.match(html, /<link rel="stylesheet" href="\/css\/styles-base\.css"\s*\/>/);
-  assert.match(html, /<link rel="stylesheet" href="\/css\/components\/contextual-help\.css"\s*\/>/);
-  assert.match(html, /<lira-help\s+label="密码规则"\s+tooltip-id="licensePasswordRules"[\s\S]*?>/);
-  assert.match(html, /8[–-]64/);
-  assert.match(html, /大写/);
-  assert.match(html, /小写/);
-  assert.match(html, /数字/);
-  assert.match(html, /至少三类/);
-  assert.doesNotMatch(html.match(/<input\s+id="licensePassword"[\s\S]*?>/)[0], /maxlength=|minlength=|pattern=/);
-  assert.match(html, /<script type="module" src="\/js\/admin\/contextual-help\.js"><\/script>/);
-  assert.match(html, /placeholder="请输入密码"/);
-  assert.match(
-    html,
-    /id="licensePasswordToggle"[^>]*type="button"[^>]*aria-label="显示密码"[^>]*aria-pressed="false"/s,
-  );
-  assert.match(html, /id="licensePasswordIcon"[^>]*href="\/img\/shared\/password-visibility\.svg#eye"/s);
-  assert.doesNotMatch(html, /密码和激活密钥不会保存在本机。/);
+  const rules = html.match(/<lira-help\b[^>]*\stooltip-id=["']licensePasswordRules["'][^>]*>[\s\S]*?<\/lira-help>/)?.[0];
+  assert.ok(rules);
+  for (const rule of [/8[–-]64/, /大写/, /小写/, /数字/, /至少三类/]) assert.match(rules, rule);
+  const password = html.match(/<input\b[^>]*\sid=["']licensePassword["'][^>]*>/)?.[0];
+  assert.ok(password);
+  assert.match(password, /\stype=["']password["']/);
+  assert.match(password, /\saria-describedby=["']licensePasswordRules["']/);
+  assert.doesNotMatch(password, /\s(?:maxlength|minlength|pattern)\s*=/);
+  const toggle = html.match(/<button\b[^>]*\sid=["']licensePasswordToggle["'][^>]*>/)?.[0];
+  assert.ok(toggle);
+  assert.match(toggle, /\stype=["']button["']/);
+  assert.match(toggle, /\saria-label=["'][^"']+["']/);
+  assert.match(toggle, /\saria-pressed=["']false["']/);
+  assert.match(toggle, /\saria-controls=["']licensePassword["']/);
+  assert.match(html, /<[^>]+\sid=["']licensePasswordIcon["'][^>]*>/);
+  const helpScript = html.match(/<script\b[^>]*\ssrc=["']\/js\/admin\/contextual-help\.js["'][^>]*>/)?.[0];
+  assert.ok(helpScript);
+  assert.match(helpScript, /\stype=["']module["']/);
 });
 
 const VALID_PASSWORD = 'Abc123!?';
@@ -147,19 +148,16 @@ test('password visibility toggles without changing or submitting the password', 
   const page = createLicensePage();
   const password = page.getElementById('licensePassword');
   const toggle = page.getElementById('licensePasswordToggle');
-  const icon = page.getElementById('licensePasswordIcon');
   password.value = ` ${VALID_PASSWORD} `;
-  for (const [type, label, pressed, iconName] of [
-    ['text', '隐藏密码', 'true', 'eye-off'],
-    ['password', '显示密码', 'false', 'eye'],
+  for (const [type, label, pressed] of [
+    ['text', '隐藏密码', 'true'],
+    ['password', '显示密码', 'false'],
   ]) {
     toggle.listeners.get('click')();
     assert.equal(password.type, type);
     assert.equal(password.value, ` ${VALID_PASSWORD} `);
     assert.equal(toggle.getAttribute('aria-label'), label);
-    assert.equal(toggle.title, label);
     assert.equal(toggle.getAttribute('aria-pressed'), pressed);
-    assert.equal(icon.getAttribute('href'), `/img/shared/password-visibility.svg#${iconName}`);
   }
   assert.equal(page.submissions.length, 0);
 });

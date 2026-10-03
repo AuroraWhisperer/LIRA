@@ -71,6 +71,26 @@ test('frame settings allowlist invalid values and preview bypasses live settings
   assert.match(preview.eventId, /^gift-frame:preview-/);
   assert.equal(preview.totalPriceCents, 1);
   assert.equal(preview.num, 3);
+  assert.equal(preview.motionMode, undefined);
+  assert.equal(buildGiftFramePreviewEvent({ num: 2 }).totalPriceCents, 1);
+  assert.notEqual(buildGiftFramePreviewEvent().eventId, buildGiftFramePreviewEvent().eventId);
+  assert.throws(() => buildGiftFramePreviewEvent({ themeId: 'unknown' }), /主题无效/);
+  assert.throws(() => buildGiftFramePreviewEvent({ num: 1.5 }), /正整数/);
+});
+
+test('effect 1 retains its own settings while obsolete settings cannot be written', () => {
+  const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
+  const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
+  assert.equal(DEFAULT_SETTINGS.giftFrameTheme, undefined);
+  assert.equal(DEFAULT_SETTINGS.giftFrameMotionMode, undefined);
+  assert.deepEqual(normalizeSettingsPatch({
+    giftFrameEnabled: true, giftFrameThresholdRmb: '22.50', giftFrameTheme: 'old', giftFrameMotionMode: 'reduced',
+  }, DEFAULT_SETTINGS), { values: { giftFrameEnabled: 'true', giftFrameThresholdRmb: '22.50' } });
+  const payload = buildGiftFrameEvent({ id: 7, total_price: 30 }, {
+    giftFrameEnabled: 'true', giftFrameTheme: 'obsolete', giftFrameMotionMode: 'reduced',
+  });
+  assert.equal(payload.themeId, 'woodland-bloom');
+  assert.equal(payload.motionMode, undefined);
 });
 
 test('frame preview route broadcasts a preview event and validates bad input', async () => {
@@ -84,7 +104,6 @@ test('frame preview route broadcasts a preview event and validates bad input', a
     userName: '观众',
     giftName: '礼物',
     num: 1,
-    totalPriceRmb: 20,
   });
   assert.equal(response.status, 200);
   assert.equal(response.body.data.preview, true);

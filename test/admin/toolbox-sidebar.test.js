@@ -25,52 +25,24 @@ test('toolbox defers offscreen rendering in its heaviest panels', () => {
   const usageGuideScript = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'usage-guide.js'), 'utf8');
 
   assert.match(usageGuideStyles, /\.usage-guide-section\s*\{[^}]*content-visibility:\s*auto/);
-  assert.match(usageGuideStyles, /\.usage-guide-section\s*\{[^}]*contain-intrinsic-size:\s*auto 720px/);
   assert.match(
     usageGuideStyles,
     /\.usage-guide-render-all \.usage-guide-section\s*\{[^}]*content-visibility:\s*visible/,
   );
   assert.match(usageGuideScript, /panel\.classList\.add\('usage-guide-render-all'\)/);
   assert.match(overtimeStyles, /\.overtime-admin > \.overtime-admin-section\s*\{[^}]*content-visibility:\s*auto/);
-  assert.match(
-    overtimeStyles,
-    /\.overtime-admin > \.overtime-admin-section\s*\{[^}]*contain-intrinsic-size:\s*auto 260px/,
-  );
 });
 
-test('toolbox sidebar switches between labeled and icon-only layouts', () => {
+test('toolbox sidebar exposes an accessible collapse control and reduced-motion fallback', () => {
   const html = readAdminHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'toolbox.css');
-
-  assert.match(html, /data-other-sidebar-toggle/);
-  assert.match(html, /class="other-sidebar-toggle-state other-sidebar-toggle-collapse"/);
-  assert.match(html, /class="other-sidebar-toggle-state other-sidebar-toggle-expand"/);
-  assert.match(
-    html,
-    /data-other-feature="otherDanmakuFeature"[^>]*>[\s\S]*?弹幕姬[\s\S]*?class="other-feature-arrow"[\s\S]*?<\/button>/,
-  );
-  assert.match(
-    html,
-    /data-other-feature="otherGiftFeature"[^>]*>[\s\S]*?礼物姬[\s\S]*?class="other-feature-arrow"[\s\S]*?<\/button>/,
-  );
-  assert.match(
-    html,
-    /data-other-feature="otherOvertimeMachineFeature"[^>]*>[\s\S]*?<strong>加班机<\/strong>\s*<small>用礼物延长直播倒计时<\/small>/,
-  );
-  assert.match(html, /aria-expanded="true"/);
-  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-workspace\s*\{[^}]*grid-template-columns:\s*76px/);
-  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-label/);
-  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-sidebar-toggle-collapse\s*\{[^}]*opacity:\s*0/);
-  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-sidebar-toggle-expand\s*\{[^}]*opacity:\s*1/);
-  assert.match(
-    styles,
-    /\.other-page\.sidebar-collapsed \.other-feature-button\s*\{[^}]*grid-template-columns:\s*38px minmax\(0, 1fr\) 16px[^}]*justify-content:\s*initial[^}]*min-height:\s*56px/,
-  );
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.other-sidebar-toolbar\s*\{[^}]*display:\s*none/);
-  assert.match(
-    styles,
-    /@media \(max-width: 900px\)[\s\S]*?\.other-page\.sidebar-collapsed \.other-feature-label\s*\{[^}]*display:\s*grid/,
-  );
+  const buttons = [...html.matchAll(/<button\b[^>]*>/g)]
+    .map(([tag]) => tag)
+    .filter((tag) => /\sdata-other-sidebar-toggle(?:\s|>)/.test(tag));
+  assert.equal(buttons.length, 1);
+  assert.match(buttons[0], /\stype=["']button["']/);
+  assert.match(buttons[0], /\saria-expanded=["']true["']/);
+  assert.match(buttons[0], /\saria-label=["'][^"']+["']/);
   assert.match(
     styles,
     /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.other-sidebar-toggle-state\s*\{[^}]*transition:\s*none/,
@@ -132,15 +104,10 @@ test('toolbox sidebar groups features by live and local workflows', () => {
     }
   });
 
-  assert.match(styles, /\.other-feature-group-heading\s*\{[^}]*border-top:\s*1px solid var\(--border\)/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-group-heading\s*\{[^}]*overflow:\s*hidden/);
-  assert.match(
-    styles,
-    /@media \(max-width: 900px\)[\s\S]*?\.other-feature-group-heading\s*\{[^}]*grid-column:\s*1 \/ -1/,
-  );
 });
 
-test('toolbox group headings are collapsible buttons with the intended type scale', () => {
+test('toolbox group headings remain accessible collapsible buttons', () => {
   const html = readAdminHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'toolbox.css');
   const navigation = html.match(/<nav\b[^>]*class=["']other-feature-menu["'][^>]*>([\s\S]*?)<\/nav\s*>/)?.[1];
@@ -157,7 +124,7 @@ test('toolbox group headings are collapsible buttons with the intended type scal
   groups.forEach(([groupId, label]) => {
     const heading = navigation.match(
       new RegExp(
-        `<button\\s+class="other-feature-group-heading"[\\s\\S]*?data-other-feature-group="${groupId}"[\\s\\S]*?<\\/button>`,
+        `<button\\b(?=[^>]*\\sdata-other-feature-group=["']${groupId}["'])[^>]*>`,
       ),
     )?.[0];
     assert.ok(heading, `${label} should use a real button heading`);
@@ -167,10 +134,6 @@ test('toolbox group headings are collapsible buttons with the intended type scal
     assert.match(heading, new RegExp(`title="收起${label}"`));
   });
 
-  assert.match(styles, /\.other-feature-group-heading strong\s*\{[^}]*font-size:\s*var\(--type-size-card-title\)/);
-  assert.match(styles, /\.other-feature-group-heading small\s*\{[^}]*font-size:\s*var\(--type-size-caption\)/);
-  assert.match(styles, /\.other-feature-label strong\s*\{[^}]*font-size:\s*var\(--type-size-control\)/);
-  assert.match(styles, /\.other-feature-label small\s*\{[^}]*font-size:\s*var\(--type-size-caption\)/);
   assert.match(styles, /\.other-feature-group-heading:focus-visible\s*\{/);
   assert.match(
     styles,

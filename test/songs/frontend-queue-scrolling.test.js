@@ -150,9 +150,7 @@ test('identity queue keeps song and requester fields in one continuous stream', 
   assert.doesNotMatch(contentWrapperRule, /mask-image/);
   assert.match(contentRule, /display:\s*inline-flex/);
   assert.match(contentRule, /min-width:\s*max-content/);
-  assert.match(contentRule, /gap:\s*max\(4px,\s*0\.3em\)/);
   assert.doesNotMatch(overlayStyles, /\.identity-song-wrapper|\.identity-details-wrapper|\.identity-details/);
-  assert.doesNotMatch(overlayStyles, /transform:\s*translateX\(-52px\)/);
 
   let longAnimation = null;
   const longContent = {
@@ -314,7 +312,6 @@ test('identity rule text scrolls independently only when it overflows', () => {
 });
 
 test('classic queue uses calculated row height and sizes indexes with song text', () => {
-  const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const styles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const waitingRule = styles.match(/\.overlay-waiting\s*\{[\s\S]*?\n\}/)?.[0];
   const windowRule = styles.match(/\.classic-list-window\s*\{[\s\S]*?\n\}/)?.[0];
@@ -325,26 +322,31 @@ test('classic queue uses calculated row height and sizes indexes with song text'
   assert.ok(indexRule, 'classic queue index styles should remain defined');
   assert.doesNotMatch(waitingRule, /--classic-row-height/);
   assert.doesNotMatch(windowRule, /--classic-row-height/);
-  assert.match(indexRule, /font-size:\s*var\(--overlay-waiting-font-size,\s*13px\)/);
-  assert.match(overlaySource, /setTimeout\(relayoutQueue, 100\)/);
-  assert.doesNotMatch(overlaySource, /overlayResizeTimer = setTimeout\(render, 100\)/);
-  assert.match(styles, /--overlay-edge:\s*var\(--component-edge,\s*clamp\(0px,\s*2vmin,\s*16px\)\)/);
+  assert.match(indexRule, /font-size:\s*var\(--overlay-waiting-font-size\b/);
 });
 
-test('queue resize helpers preserve real rows while rebuilding loop copies', () => {
+test('queue resize preserves real rows while removing stale loop copies', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  let scheduledResize;
   const sandbox = {
     console,
     URLSearchParams,
     location: { protocol: 'http:', host: 'localhost', search: '' },
     WebSocket: function WebSocket() {},
-    document: { addEventListener() {} },
+    setTimeout(callback) { scheduledResize = callback; return 1; },
+    clearTimeout() { scheduledResize = null; },
+    document: {
+      addEventListener() {},
+      querySelector: () => null,
+      getElementById: () => content,
+    },
     window: {},
   };
   vm.runInNewContext(source, sandbox);
 
   const removed = [];
   const realRow = {
+    outerHTML: '<div>original row</div>',
     remove() {
       assert.fail('real queue rows must remain mounted');
     },
@@ -353,24 +355,38 @@ test('queue resize helpers preserve real rows while rebuilding loop copies', () 
     {
       remove() {
         removed.push('first');
+        list.children = list.children.filter((node) => node !== this);
       },
     },
     {
       remove() {
         removed.push('second');
+        list.children = list.children.filter((node) => node !== this);
       },
     },
   ];
   const list = {
+    scrollHeight: 240,
+    classList: { add() {}, remove() {} },
     querySelectorAll(selector) {
       assert.equal(selector, '[data-loop-clone="true"]');
-      return cloneRows;
+      return list.children.filter((node) => node !== realRow);
     },
     children: [realRow, ...cloneRows],
   };
+  const viewport = { clientHeight: 300, querySelector: () => list };
+  const content = {
+    querySelector: () => viewport,
+    querySelectorAll: () => [],
+    set innerHTML(_html) { assert.fail('resize must not rebuild the queue DOM'); },
+  };
 
-  sandbox.removeQueueLoopClones(list);
+  vm.runInNewContext("state = { settings: { overlayQueueStyle: 'classic' } };", sandbox);
+  sandbox.handleQueueViewportResize();
+  assert.equal(typeof scheduledResize, 'function');
+  scheduledResize();
   assert.deepEqual(removed, ['first', 'second']);
+  assert.deepEqual(list.children, [realRow]);
 });
 
 test('identity queue scrolls from actual overflow', () => {

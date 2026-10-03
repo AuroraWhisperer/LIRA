@@ -10,7 +10,7 @@ lira-help {
   justify-content: center;
   margin-inline-start: 4px;
   border-radius: 50%;
-  color: var(--color-text-muted);
+  color: var(--color-help-accent, var(--color-text-muted));
   vertical-align: 0.125em;
   cursor: help;
   user-select: none;
@@ -32,9 +32,9 @@ lira-help:not(:defined) {
   box-sizing: border-box;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-help-accent, var(--color-border-strong));
   border-radius: 50%;
-  background: transparent;
+  background: var(--color-help-surface, transparent);
   transition:
     border-color 140ms ease,
     background-color 140ms ease,
@@ -53,13 +53,13 @@ lira-help:not(:defined) {
 
 lira-help:hover .lira-help-mark,
 lira-help:focus-visible .lira-help-mark {
-  border-color: var(--color-control-accent);
-  background: var(--color-control-accent);
+  border-color: var(--color-help-accent, var(--color-control-accent));
+  background: var(--color-help-accent, var(--color-control-accent));
   color: var(--color-text-white);
 }
 
 lira-help:focus-visible {
-  outline: 2px solid var(--color-control-focus);
+  outline: 2px solid var(--color-help-accent, var(--color-control-focus));
   outline-offset: 2px;
 }
 
@@ -75,10 +75,10 @@ lira-help:focus-visible {
   overflow: hidden !important;
   overscroll-behavior: none;
   scrollbar-width: none;
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--color-help-border, var(--color-border-default));
   border-radius: var(--radius-md);
-  background: var(--color-floating-surface);
-  color: var(--color-text-primary);
+  background: var(--color-help-surface, var(--color-floating-surface));
+  color: var(--color-help-text, var(--color-text-primary));
   padding: 10px 12px;
   box-shadow: var(--shadow-floating);
   font: 500 12px/1.55 var(--font);

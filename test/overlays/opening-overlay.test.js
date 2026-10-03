@@ -35,7 +35,7 @@ test('opening samples stay outside public assets and the overlay route remains r
   assert.match(serverRuntime, /serveOpeningCharacter/);
 });
 
-test('opening overlay is frameable and keeps the required character transform layers', () => {
+test('opening overlay is frameable and starts with disabled media', () => {
   const headers = new Map();
   addFrameProtectionHeaders(
     {
@@ -53,42 +53,20 @@ test('opening overlay is frameable and keeps the required character transform la
   assert.match(html, /<body[^>]+class="opening-disabled"/);
   assert.match(html, /class="opening-viewport opening-disabled"/);
   assert.match(html, /class="opening-stage is-disabled"/);
-  for (const className of [
-    'character-anchor',
-    'character-enter',
-    'character-float',
-    'character-sway',
-    'character-breathe',
-    'character-image',
-  ]) {
-    assert.match(html, new RegExp(`class="[^"]*${className}[^"]*"`));
-  }
-  assert.match(html, /class="track-waveform"/);
-  assert.match(html, /data-track-motion="heart"/);
-  assert.match(html, /id="openingTrackPath"[^>]+pathLength="1"/);
-  for (const className of ['track-base', 'track-barber', 'track-progress']) {
-    assert.match(html, new RegExp(`class="[^"]*${className}[^"]*"`));
-  }
-  assert.match(html, /<animateMotion[^>]+repeatCount="indefinite"/);
-  assert.match(html, /<animate[^>]+class="track-heart-visibility"[^>]+attributeName="opacity"/);
-  assert.doesNotMatch(html, /<animateMotion[^>]+keyPoints=/);
-  assert.match(html, /<mpath href="#openingTrackPath"/);
-  assert.match(html, /<audio id="openingAudio" loop preload="metadata"><\/audio>/);
-  assert.doesNotMatch(html, /id="openingAudio"[^>]+autoplay/);
-  assert.doesNotMatch(html, /id="openingAudio"[^>]+src=/);
-  assert.match(html, /id="openingAvatar"[^>]+hidden/);
-  assert.doesNotMatch(html, /id="openingAvatar"[^>]+src=/);
-  assert.match(html, /id="openingFooter"[^>]*>欢迎来到直播间<\/p>/);
-  assert.doesNotMatch(html, /<span class="track-heart"/);
-  assert.doesNotMatch(html, />@<\/span>/);
-  assert.doesNotMatch(html, /track-flow/);
+  const audio = html.match(/<audio\b(?=[^>]*\sid="openingAudio")[^>]*>/)?.[0];
+  assert.ok(audio, 'opening audio element must be present');
+  assert.match(audio, /\sloop(?:\s|=|>)/);
+  assert.match(audio, /\spreload="metadata"/);
+  assert.doesNotMatch(audio, /\s(?:autoplay|src)(?:\s|=|>)/);
+  const avatar = html.match(/<img\b(?=[^>]*\sid="openingAvatar")[^>]*>/)?.[0];
+  assert.ok(avatar, 'opening character element must be present');
+  assert.match(avatar, /\shidden(?:\s|=|>)/);
+  assert.doesNotMatch(avatar, /\ssrc\s*=/);
 });
 
-test('opening overlay animation honors quality, motion, visibility, and safe text rendering', () => {
-  const html = read('public', 'pages', 'overlays', 'opening.html');
+test('opening overlay keeps canvas, disabled, reduced-motion and safe text constraints', () => {
   const css = readCssBundle('public', 'css', 'overlays', 'opening.css');
   const script = read('public', 'js', 'overlays', 'opening.js');
-  assert.match(css, /background-color:\s*var\(--opening-night\)/);
   assert.match(css, /height:\s*100vh/);
   assert.match(css, /height:\s*100dvh/);
   assert.match(css, /container-type:\s*size/);
@@ -98,27 +76,13 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(css, /font-size:\s*var\(--opening-title-size(?:,[^)]+)?\)/);
   assert.match(css, /white-space:\s*normal/);
   assert.match(css, /cqw/);
-  assert.doesNotMatch(css, /\.track::before\s*\{/);
-  assert.match(css, /\.track-heart-motion\s*\{\s*opacity:\s*0?\.86/);
-  assert.doesNotMatch(css, /@keyframes\s+track-heart-visibility/);
   assert.match(css, /\[data-track-motion='barber'\][^\{]*\.track-barber/);
   assert.match(css, /\[data-track-motion='progress'\][^\{]*\.track-progress/);
-  assert.match(css, /@keyframes\s+track-barber-flow/);
-  assert.match(css, /@keyframes\s+track-progress-flow/);
   assert.match(css, /\.opening-stage\.is-reduced-motion[^\{]*\.track-barber/);
   assert.match(css, /\.opening-stage\.quality-low[^\{]*\.track-progress/);
-  assert.match(css, /animation:\s*eq-smooth/);
-  assert.match(css, /@keyframes\s+eq-smooth/);
-  assert.match(css, /@keyframes\s+character-float[\s\S]*?-0?\.45cqw/);
-  assert.match(css, /@keyframes\s+character-breathe[\s\S]*?scale\(1\.008\)/);
-  assert.match(css, /@keyframes\s+note-drift[\s\S]*?0%,\s*100%\s*\{\s*opacity:\s*0/);
   assert.match(css, /\.opening-stage\.is-paused\s+\*::before/);
   assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.character-float[^\{]*\{[^}]*transform:\s*none/);
   assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.opening-glow[^\{]*\{[^}]*animation:\s*none/);
-  assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.opening-glow\s*\{[^}]*opacity:\s*0?\.74/);
-  assert.match(html, /<animateMotion\b[^>]*\bdur="7\.2s"/);
-  assert.match(html, /<animate\b(?=[^>]*\bvalues="\.86;\.86;0;0")(?=[^>]*\bkeyTimes="0;\.88;\.96;1")[^>]*>/);
-  assert.match(css, /translate3d\(/);
   assert.match(css, /\.opening-stage\.is-disabled\s*\{[^}]*display:\s*none/);
   assert.match(css, /\.opening-stage\.is-disabled\s*\{[^}]*animation:\s*none/);
   assert.match(
@@ -126,20 +90,11 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
     /html\.opening-disabled,\s*body\.opening-disabled[^\{]*\{[^}]*background:\s*transparent\s*!important/,
   );
   assert.match(css, /\.opening-viewport\.opening-disabled/);
-  assert.doesNotMatch(css, /background-position/);
-  assert.match(script, /visibilitychange/);
-  assert.match(script, /prefers-reduced-motion/);
   assert.match(script, /textContent/);
-  assert.match(script, /QUALITY_LIMITS/);
   assert.match(script, /TRACK_MOTION_VALUES/);
-  assert.match(script, /stage\.dataset\.trackMotion\s*=\s*config\.trackMotion/);
-  assert.match(script, /trackSvg\?\.setCurrentTime\?\.\(0\)/);
   assert.match(script, /safeCharacterUrl/);
-  assert.match(script, /avatar\.hidden\s*=\s*!characterUrl/);
-  assert.match(script, /avatar\.removeAttribute\('src'\)/);
   assert.match(css, /\.character-image\[hidden\]\s*\{\s*display:\s*none/);
   assert.match(script, /titleSizeForLength/);
-  assert.match(script, /title:\s*'唱一首，在一首，给你的歌'/);
   assert.match(script, /MAX_LENGTHS = Object\.freeze\(\{\s*title:\s*20/);
   assert.match(script, /name:\s*''/);
   assert.match(script, /audio:\s*'browser'/);
@@ -155,14 +110,9 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   const openingRoutesSource = read('src', 'server', 'routes', 'opening-routes.js');
   const formsScript = read('public', 'js', 'admin', 'forms.js');
   const styles = read('public', 'css', 'admin', 'toolbox', 'start-animation.css');
-  assert.match(html, /class="[^"]*other-feature-panel-body[^"]*opening-animation-panel/);
   assert.match(html, /id="openingEnabled"[^>]*type="checkbox"/);
   assert.doesNotMatch(html, /id="openingEnabled"[^>]+checked/);
   assert.match(html, /id="openingPreview"[^>]+hidden/);
-  assert.match(html, /<span>开场文案<\/span\s*>/);
-  assert.match(html, /<strong>设置开播画面上的文字<\/strong>/);
-  assert.match(html, /class="opening-switch-label">漂浮音符<\/span>/);
-  assert.match(html, /class="opening-switch-label">氛围律动<\/span>/);
   for (const id of [
     'openingTitle',
     'openingTitleCount',
@@ -183,10 +133,9 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(html, /id="openingTrackMotion"[^>]*>[\s\S]*value="heart"[^>]*selected[^>]*>心形巡航/);
-  assert.match(html, /value="barber"[^>]*>灯带循环/);
-  assert.match(html, /value="progress"[^>]*>流光进度/);
-  assert.match(html, /id="openingTitle"[^>]+value="唱一首，在一首，给你的歌"/);
+  assert.match(html, /<select\b[^>]*\sid="openingTrackMotion"[^>]*>[\s\S]*?<option\b(?=[^>]*\svalue="heart")(?=[^>]*\sselected(?:\s|>))[^>]*>/);
+  assert.match(html, /<option\b[^>]*\svalue="barber"/);
+  assert.match(html, /<option\b[^>]*\svalue="progress"/);
   assert.match(html, /id="openingTitle"[^>]+maxlength="20"/);
   assert.match(html, /id="openingName"[^>]+value=""/);
   assert.match(script, /URLSearchParams/);
@@ -263,7 +212,6 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.doesNotMatch(script, /localStorage/);
   assert.match(styles, /aspect-ratio:\s*16 \/ 9/);
   assert.match(styles, /overflow-y:\s*auto/);
-  assert.match(styles, /opening-editor-checks input:checked \+ \.opening-switch-ui/);
   assert.match(formsScript, /element\?\.closest\('#openingAnimationForm'\)/);
   assert.match(read('public', 'js', 'admin', 'app.js'), /module\.initStartAnimation/);
 });

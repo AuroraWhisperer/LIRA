@@ -29,8 +29,7 @@
   scrollbar-color: var(--color-border-default) transparent;
 }
 .fan-profiles [hidden],
-.fan-editor [hidden],
-.fan-quick [hidden] {
+.fan-editor [hidden] {
   display: none !important;
 }
 .fan-toolbar,
@@ -38,7 +37,6 @@
 .fan-nav,
 .fan-section-title,
 .fan-record-top,
-.fan-quick-top,
 .fan-editor-heading,
 .fan-editor-footer {
   display: flex;
@@ -543,8 +541,7 @@
   font-size: var(--type-size-control);
   color: var(--muted);
 }
-.fan-profiles summary,
-.fan-quick summary {
+.fan-profiles summary {
   cursor: pointer;
   padding: var(--spacing-xs) 0;
 }

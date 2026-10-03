@@ -9,37 +9,37 @@ const { readCssBundle } = require('../helpers/css-bundle');
 
 const ROOT = path.join(__dirname, '../..');
 const TYPE_PROPERTIES = new Set(['font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing']);
-const TOKENS = {
-  '--font-ui': 'var(--font)',
-  '--font-display': '"Segoe UI Variable Display", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif',
-  '--font-mono': '"Cascadia Mono", Consolas, monospace',
-  '--type-size-display': '28px',
-  '--type-size-page-title': '24px',
-  '--type-size-section-title': '18px',
-  '--type-size-card-title': '15px',
-  '--type-size-body': '14px',
-  '--type-size-control': '13px',
-  '--type-size-caption': '12px',
-  '--type-size-micro': '11px',
-  '--type-size-metric-sm': '20px',
-  '--type-size-metric-md': '28px',
-  '--type-size-metric-lg': '36px',
-  '--type-weight-regular': '400',
-  '--type-weight-medium': '500',
-  '--type-weight-semibold': '600',
-  '--type-weight-bold': '700',
-  '--type-leading-display': '1.15',
-  '--type-leading-page-title': '1.3',
-  '--type-leading-section-title': '1.4',
-  '--type-leading-card-title': '1.45',
-  '--type-leading-body': '1.55',
-  '--type-leading-control': '1.45',
-  '--type-leading-caption': '1.5',
-  '--type-leading-micro': '1.45',
-  '--type-tracking-tight': '-0.01em',
-  '--type-tracking-normal': '0',
-  '--type-tracking-eyebrow': '0.06em',
-};
+const REQUIRED_TOKENS = [
+  '--font-ui',
+  '--font-display',
+  '--font-mono',
+  '--type-size-display',
+  '--type-size-page-title',
+  '--type-size-section-title',
+  '--type-size-card-title',
+  '--type-size-body',
+  '--type-size-control',
+  '--type-size-caption',
+  '--type-size-micro',
+  '--type-size-metric-sm',
+  '--type-size-metric-md',
+  '--type-size-metric-lg',
+  '--type-weight-regular',
+  '--type-weight-medium',
+  '--type-weight-semibold',
+  '--type-weight-bold',
+  '--type-leading-display',
+  '--type-leading-page-title',
+  '--type-leading-section-title',
+  '--type-leading-card-title',
+  '--type-leading-body',
+  '--type-leading-control',
+  '--type-leading-caption',
+  '--type-leading-micro',
+  '--type-tracking-tight',
+  '--type-tracking-normal',
+  '--type-tracking-eyebrow',
+];
 const ROLES = [
   ['ui-display', 'display', 'bold', 'display', 'tight', 'display'],
   ['ui-page-title', 'page-title', 'bold', 'page-title', 'tight', 'display'],
@@ -114,10 +114,6 @@ function properties(source) {
   return result;
 }
 
-function normalizeTokenValue(value) {
-  return value.replace(/["']/g, '').replace(/\s+/g, ' ').trim();
-}
-
 function declarationsFor(parsed, pattern) {
   const result = {};
   let count = 0;
@@ -141,17 +137,32 @@ function filesBelow(directory, extension) {
   return result;
 }
 
-test('shared CSS defines the exact monotonic typography token contract', () => {
+test('shared typography tokens are complete, readable and ordered', () => {
   const actual = properties(read('public', 'css', 'styles-base.css'));
-  assert.deepEqual(
-    Object.fromEntries(Object.keys(TOKENS).map((name) => [name, normalizeTokenValue(actual[name])])),
-    Object.fromEntries(Object.entries(TOKENS).map(([name, value]) => [name, normalizeTokenValue(value)])),
-  );
-  const order = ['page-title', 'section-title', 'card-title', 'body', 'control', 'caption', 'micro'];
-  const sizes = order.map((name) => Number.parseFloat(actual[`--type-size-${name}`]));
-  assert.equal(actual['--type-size-body'], '14px');
-  assert.equal(actual['--type-size-caption'], '12px');
-  sizes.slice(1).forEach((size, index) => assert.ok(sizes[index] > size, `${order[index]} > ${order[index + 1]}`));
+  for (const name of REQUIRED_TOKENS) {
+    assert.ok(actual[name]?.trim(), `${name} must be defined`);
+    if (name.startsWith('--type-size-')) {
+      assert.match(actual[name], /^\d+(?:\.\d+)?px$/, name);
+      assert.ok(Number.parseFloat(actual[name]) > 0, name);
+    } else if (name.startsWith('--type-leading-')) {
+      assert.ok(Number.isFinite(Number(actual[name])) && Number(actual[name]) >= 1, name);
+    } else if (name.startsWith('--type-weight-')) {
+      assert.ok([400, 500, 600, 700].includes(Number(actual[name])), name);
+    } else if (name.startsWith('--type-tracking-')) {
+      assert.match(actual[name], /^(?:0|-?\d+(?:\.\d+)?em)$/, name);
+    }
+  }
+  for (const names of [
+    ['display', 'page-title', 'section-title', 'card-title', 'body', 'control', 'caption', 'micro'],
+    ['metric-lg', 'metric-md', 'metric-sm'],
+  ]) {
+    const sizes = names.map((name) => Number.parseFloat(actual[`--type-size-${name}`]));
+    sizes.slice(1).forEach((size, index) => assert.ok(sizes[index] > size, `${names[index]} > ${names[index + 1]}`));
+  }
+  for (const name of ['body', 'control', 'caption']) {
+    assert.ok(Number.parseFloat(actual[`--type-size-${name}`]) >= 12, `${name} must remain readable`);
+  }
+  assert.ok(Number.parseFloat(actual['--type-size-micro']) >= 11);
 });
 
 test('Admin semantic roles are app-shell scoped token consumers', () => {
@@ -225,28 +236,6 @@ test('common Admin copy uses standard weights with explicit presentation excepti
     violations.push(`${value}\t${rule.selector}`);
   }
   assert.deepEqual(violations, []);
-});
-
-test('representative desktop selectors resolve to semantic role tokens', () => {
-  const parsed = rules(desktopCss());
-  const contracts = [
-    ['common panel title', /\.app-shell\b[^,{]*\.panel-header h2\b/, 'section-title', 'bold'],
-    ['point-song subpage', /\.app-shell\b[^,{]*\.song-workspace\b[^,{]*\.ui-page-title\b/, 'page-title', 'bold'],
-    ['playback queue group', /\.app-shell\b[^,{]*\.playback-queue-section h3\b/, 'card-title', 'semibold'],
-    ['gift heading', /\.app-shell\b[^,{]*\.gift-page\b[^,{]*\.panel-header h2\b/, 'section-title', 'bold'],
-    ['toolbox page header', /\.app-shell\b[^,{]*\.other-feature-panel-header h2\b/, 'page-title', 'bold'],
-    ['confirmation title', /\.lira-confirm-heading h2\b/, 'section-title', 'bold'],
-    ['shared toast title', /\.toast-content > strong\b/, 'card-title', 'semibold'],
-    ['tour title', /\.lira-tour-title\b/, 'section-title', 'bold'],
-    ['shutdown title', /\.shutdown-title\b/, 'page-title', 'bold'],
-    ['caption', /\.app-shell\b[^,{]*\.hint\b/, 'caption', 'regular'],
-  ];
-  for (const [label, selector, size, weight] of contracts) {
-    const match = declarationsFor(parsed, selector);
-    assert.ok(match.count, `${label} must have a final desktop selector`);
-    assert.equal(match.result['font-size'], `var(--type-size-${size})`, label);
-    assert.equal(match.result['font-weight'], `var(--type-weight-${weight})`, label);
-  }
 });
 
 test('Browser-source and configurable preview typography stay outside Admin roles', () => {

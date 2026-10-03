@@ -44,7 +44,7 @@ const SETTING_KEYS = {
     desktopLyricTextColor desktopLyricTimeOffsetMs desktopLyricTraditionalMode desktopLyricTranslateX
     desktopLyricTranslateY desktopLyricTranslationOpacity desktopLyricTranslationScale desktopLyricVisibleLines`,
   danmaku: 'danmakuOverlayStyle danmakuFullscreenDurationSeconds',
-  'gift-effects': 'giftEffectDanmakuEnabled giftFrameMotionMode',
+  'gift-effects': 'giftEffectDanmakuEnabled',
   interactions: `interactionOverlayTitle interactionOverlayHint interactionRatingRules interactionTextColor
     interactionBackgroundColor interactionBackgroundOpacity interactionOverallOpacity interactionBarColor interactionTrackColor
     interactionFontSize interactionCornerRadius interactionShowStatus interactionShowParticipants`,
@@ -53,6 +53,7 @@ const SETTING_KEYS = {
   wheel: '',
   'gift-feed': '',
   'gift-wishes': '',
+  'gift-sprint': '',
   'gift-export': '',
   opening: '',
   clock: `clockStyle clockShowDate clockShowSeconds clockHourFormat clockLabel
@@ -122,6 +123,7 @@ const STATE_SCHEMAS = {
   'gift-effects': {},
   'gift-feed': { gifts: fields('viewRevision') },
   'gift-wishes': { gifts: fields('viewRevision') },
+  'gift-sprint': { giftSprint: fields('targetRmb remainingCrystalBalls') },
   overtime: { overtime: OVERTIME },
   lyrics: { lyricState: LYRIC_STATE, lyricTimeline: LYRIC_TIMELINE },
   danmaku: { danmakuFeed: [DANMAKU_ITEM], liveStatus: fields('enabled roomId connected message') },
@@ -203,7 +205,11 @@ const EVENT_SCHEMAS = {
   'gift-catalog:update': { scope: 'gift-feed', schema: {} },
   'gift:frame': {
     scope: 'gift-effects',
-    schema: fields('eventId giftName userName num totalPriceCents themeId motionMode preview'),
+    schema: fields('eventId giftName userName num totalPriceCents themeId preview'),
+  },
+  'gift:guard-thanks': {
+    scope: 'gift-effects',
+    schema: fields('eventId tier userName months avatarUrl textMode preview'),
   },
   'gift:effect': {
     scope: 'gift-effects',

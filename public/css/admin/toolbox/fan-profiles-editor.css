@@ -1,4 +1,3 @@
-.fan-quick,
 .fan-editor {
   color: var(--text);
   font-family: var(--font);
@@ -11,24 +10,11 @@
   max-height: 88vh;
   overflow: auto;
 }
-.fan-quick {
-  width: min(620px, calc(100vw - 48px));
-}
 .fan-editor {
   width: min(720px, calc(100vw - 48px));
 }
-.fan-quick::backdrop,
 .fan-editor::backdrop {
   background: var(--color-bg-overlay-light);
-}
-.fan-quick .fan-detail {
-  border: 0;
-  padding: 20px 0 0;
-  max-height: none;
-}
-.fan-quick .fan-back-list,
-.fan-quick .fan-header-actions [data-fan-action='expand'] {
-  display: none;
 }
 .fan-editor-heading {
   margin-bottom: 24px;
@@ -237,15 +223,13 @@
   white-space: pre-wrap;
 }
 .fan-profiles button:focus-visible,
-.fan-quick button:focus-visible,
 .fan-editor button:focus-visible,
 .fan-more summary:focus-visible {
   outline: 2px solid var(--color-control-focus);
   outline-offset: 3px;
 }
 .fan-profiles button,
-.fan-editor button,
-.fan-quick button {
+.fan-editor button {
   user-select: none;
 }
 .fan-profiles input,
@@ -287,8 +271,7 @@
   .fan-profile-editor .fan-profile-panel {
     grid-template-columns: 1fr;
   }
-  .fan-editor,
-  .fan-quick {
+  .fan-editor {
     padding: 18px;
   }
 }

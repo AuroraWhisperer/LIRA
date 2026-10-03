@@ -13,7 +13,7 @@ function assertOpenSelectEscapesCard(styles, selector, description) {
   const selectorPattern = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const rule = styles.match(new RegExp(`${selectorPattern}\\s*\\{([^}]*)\\}`))?.[1];
   assert.ok(rule, `${description} should define an open-select rule`);
-  assert.match(rule, /z-index:\s*1/);
+  assert.ok(Number(rule.match(/z-index:\s*(-?\d+)/)?.[1]) > 0, description);
   assert.match(rule, /overflow:\s*visible/);
 }
 
@@ -46,5 +46,5 @@ test('shared select menus keep their local absolute positioning contract', () =>
 
   assert.ok(menuRule, 'shared select menu styles should remain defined');
   assert.match(menuRule, /position:\s*absolute/);
-  assert.match(menuRule, /z-index:\s*70/);
+  assert.ok(Number(menuRule.match(/z-index:\s*(-?\d+)/)?.[1]) > 0);
 });

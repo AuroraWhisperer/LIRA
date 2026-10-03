@@ -120,20 +120,23 @@ async function fixture(initialProfile = account('one'), v2 = false) {
   };
 }
 
-test('welcome uses the compact single-editor layout and retains all six feature controls', () => {
+test('welcome exposes unique initially unavailable controls in its hidden editor', () => {
   const html = readAdminHtml();
-  assert.match(html, /id="danmakuWelcomeToggle"\s+type="checkbox"\s+disabled/);
-  assert.match(html, /<section id="danmakuWelcomePanel" data-fixed-editor="welcome" hidden/);
-  assert.ok(html.indexOf('id="danmakuWelcomePanel"') > html.indexOf('id="danmakuCustomRepliesPanel"'));
-  assert.match(html, /id="danmakuWelcomeList" class="danmaku-blessing-list"/);
-  assert.match(html, /舰长、提督、总督/);
-  assert.equal((html.match(/data-fixed-open=/g) || []).length, 4);
-  assert.equal((html.match(/data-fixed-item=/g) || []).length, 6);
-  assert.equal((html.match(/id="danmakuWelcomeToggle"/g) || []).length, 1);
-  const panel = html.match(/<section id="danmakuWelcomePanel"[\s\S]*?<\/section>/)[0];
-  assert.match(panel, /id="danmakuWelcomePinyinToggle"/);
-  assert.equal((html.match(/id="danmakuWelcomePinyinToggle"/g) || []).length, 1);
-  assert.doesNotMatch(html, /switch-caption|danmakuWelcomePinyinStatus/);
+  const tags = [...html.matchAll(/<[^/!][^>]*>/g)].map(([tag]) => tag);
+  const uniqueTag = (id) => {
+    const matches = tags.filter((tag) => new RegExp(`\\sid\\s*=\\s*["']${id}["']`).test(tag));
+    assert.equal(matches.length, 1, id);
+    return matches[0];
+  };
+  const toggle = uniqueTag('danmakuWelcomeToggle');
+  assert.match(toggle, /<input\b/);
+  assert.match(toggle, /\stype=["']checkbox["']/);
+  assert.match(toggle, /\sdisabled(?:\s|>|=)/);
+  const panel = uniqueTag('danmakuWelcomePanel');
+  assert.match(panel, /\sdata-fixed-editor=["']welcome["']/);
+  assert.match(panel, /\shidden(?:\s|>|=)/);
+  uniqueTag('danmakuWelcomeList');
+  uniqueTag('danmakuWelcomePinyinToggle');
 });
 
 test('loads server settings and saves switch independently from message drafts', async () => {

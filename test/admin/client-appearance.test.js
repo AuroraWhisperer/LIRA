@@ -148,9 +148,8 @@ test('appearance controls without the desktop bridge explain where to change the
 test('appearance markup provides the same previews, native radio controls and live feedback', () => {
   const html = readAdminHtml();
   for (const themeId of ['neutral', 'classic', 'terracotta']) {
-    assert.match(html, new RegExp(`type="radio" name="clientTheme" value="${themeId}"`));
+    assert.match(html, new RegExp(`<input\\b(?=[^>]*\\stype=["']radio["'])(?=[^>]*\\sname=["']clientTheme["'])(?=[^>]*\\svalue=["']${themeId}["'])[^>]*>`));
     assert.match(html, new RegExp(`data-client-theme-preview="${themeId}"`));
   }
-  assert.match(html, /data-client-theme-feedback role="status" aria-live="polite"/);
-  assert.match(html, /客户端立即生效，网页工具下次打开时跟随；直播画面保持原设置。/);
+  assert.match(html, /<[^>]+(?=[^>]*\sdata-client-theme-feedback(?:\s|>))(?=[^>]*\srole=["']status["'])(?=[^>]*\saria-live=["']polite["'])[^>]*>/);
 });

@@ -1,0 +1,19 @@
+html,
+body {
+  margin: 0;
+  background: transparent;
+}
+body {
+  padding: 12px;
+  box-sizing: border-box;
+  font-family: 'Microsoft YaHei', sans-serif;
+}
+body.sprint-preview {
+  min-height: 100vh;
+  background: #f2efe9;
+}
+#giftSprintStatus {
+  color: #59534d;
+  font-size: 13px;
+  line-height: 1.7;
+}

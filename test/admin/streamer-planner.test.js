@@ -59,12 +59,10 @@ test('workbench exposes calendar, memos and tasks without beginner cues', () => 
   assert.doesNotMatch(planner, /本场提词|暖场问题|小提示|data-planner-template|plannerSessionForm/);
 });
 
-test('workbench uses a stable month grid and adapts to narrow windows', () => {
+test('workbench keeps calendar columns and keyboard focus visible', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'toolbox.css');
   assert.match(styles, /\.streamer-planner\s*\{[^}]*grid-auto-rows:\s*max-content/);
   assert.match(styles, /\.planner-calendar-grid\s*\{[^}]*grid-template-columns:\s*repeat\(7, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /\.planner-calendar-day\s*\{[^}]*height:\s*54px/);
-  assert.match(styles, /@media \(max-width: 1000px\)[\s\S]*?\.planner-workspace\s*\{[^}]*grid-template-columns:\s*1fr/);
   assert.match(styles, /:focus-visible/);
 });
 

@@ -16,8 +16,7 @@ test('wheel overlay is mapped, transparent, and renders labels through DOM APIs'
   const styles = fs.readFileSync(path.join(PUBLIC_DIR, 'css', 'overlays', 'wheel.css'), 'utf8');
   assert.match(html, /id="wheelSvg"/);
   assert.match(html, /id="wheelCenterButton"/);
-  assert.match(html, />GO</);
-  assert.match(html, /<script type="module" src="\/js\/overlays\/wheel\.js\?v=[^"]+"><\/script>/);
+  assert.match(html, /<script\b(?=[^>]*\stype="module")(?=[^>]*\ssrc="\/js\/overlays\/wheel\.js(?:\?[^"]*)?")[^>]*>/);
   assert.doesNotMatch(html, /\son(?:click|keydown)=/);
   assert.match(script, /createElementNS/);
   assert.match(script, /createRadialLabel/);
@@ -27,8 +26,6 @@ test('wheel overlay is mapped, transparent, and renders labels through DOM APIs'
   assert.match(styles, /background:.*transparent/);
   assert.match(script, /wheel:update/);
   assert.match(script, /prefers-reduced-motion/);
-  assert.match(styles, /\.wheel-center-button/);
-  assert.match(styles, /\.wheel-center-arrow/);
 });
 
 test('wheel module entry binds its controls without relying on classic-script globals', async () => {

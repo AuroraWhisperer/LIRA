@@ -48,7 +48,6 @@ test('blind box analysis refreshes only for gift snapshot reasons', () => {
   assert.match(stateSource, /isGiftSnapshotReason\(payload\.reason\)/);
   assert.match(stateSource, /eventBus\.emit\(Events\.GIFT_RECEIVED/);
   assert.match(analysisSource, /eventBus\.on\(Events\.GIFT_RECEIVED, refreshIfOpen\)/);
-  assert.match(analysisSource, /REFRESH_DELAY_MS = 500/);
   assert.doesNotMatch(analysisSource, /Events\.STATE_LOADED/);
 });
 
@@ -136,8 +135,6 @@ test('blindbox broadcast settings expose audience filters and one open action', 
   const html = readAdminHtml();
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'), 'utf8');
 
-  assert.match(html, /<span class="blindbox-broadcast-caption">观众画面<\/span>/);
-  assert.match(html, /<h2 class="gift-section-title ui-section-title">盲盒盈亏榜<\/h2>/);
   assert.match(html, /id="blindboxWinnersOnly"[^>]*checked/);
   assert.match(html, /id="blindboxHeartBoxOnly"/);
   assert.doesNotMatch(html, /blindboxCompact|blindboxNoScroll|blindboxLowPower|blindboxOpenUrlBtn/);

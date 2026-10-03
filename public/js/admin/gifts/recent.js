@@ -340,9 +340,9 @@ export const giftRecent = (() => {
 
   function getHighValueGiftArtwork(item) {
     const unitPrice = Number(item?.unit_price);
+    if (!Number.isFinite(unitPrice) || unitPrice < HIGH_VALUE_GIFT_MIN_RMB) return null;
     const giftId = String(item?.gift_id ?? '').trim();
     const artworkPath = findGiftArtwork(giftId, item?.gift_name, item?.gift_variant_id);
-    if (!Number.isFinite(unitPrice) || unitPrice < HIGH_VALUE_GIFT_MIN_RMB) return null;
     return { src: artworkPath || GIFT_PLACEHOLDER };
   }
 

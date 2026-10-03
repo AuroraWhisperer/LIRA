@@ -1,12 +1,12 @@
 .admin-live-refresh-toast {
-  padding-left: 60px;
+  padding-left: 64px;
 }
 
 .admin-live-refresh-toast::before {
   content: '';
   position: absolute;
-  left: 16px;
-  top: 16px;
+  left: 20px;
+  top: 18px;
   width: 32px;
   height: 32px;
   background: url('../../../img/shared/live-refresh-icon.webp') center / contain no-repeat;

@@ -8,59 +8,34 @@
     <meta name="referrer" content="no-referrer" />
     <title>礼物特效</title>
     <link rel="stylesheet" href="/css/overlays/base.css?v=20260815-01" />
-    <link rel="stylesheet" href="/css/overlays/gift-effects.css?v=20260825-02" />
+    <link rel="stylesheet" href="/css/overlays/gift-effects.css?v=20261003-02" />
+    <link rel="stylesheet" href="/css/shared/guard-thanks.css?v=20261003-01" />
   </head>
   <body class="overlay-body gift-effects-overlay-body">
     <main id="giftEffectStage" aria-live="off">
       <div id="giftFrame" aria-hidden="true">
-        <div id="giftFrameArtwork" class="gift-frame-artwork">
-          <img
-            id="giftFrameArtworkImage"
-            class="gift-frame-composite"
-            data-frame-part="composite"
-            src="/img/overlays/gift-frame/woodland-bloom/frame-composite.webp?v=20260825-01"
-            alt=""
-            draggable="false"
-          />
-        </div>
-        <div id="giftFrameAccents" class="gift-frame-accents" aria-hidden="true">
-          <img
-            class="gift-frame-accent gift-frame-accent-branch"
-            data-frame-accent="branch"
-            src="/img/overlays/gift-frame/woodland-bloom/accent-branch-sprig.webp?v=20260823-02"
-            alt=""
-            draggable="false"
-          />
-          <img
-            class="gift-frame-accent gift-frame-accent-crystal"
-            data-frame-accent="crystal"
-            src="/img/overlays/gift-frame/woodland-bloom/accent-crystal-charm.webp?v=20260823-02"
-            alt=""
-            draggable="false"
-          />
-          <img
-            class="gift-frame-accent gift-frame-accent-floral"
-            data-frame-accent="floral"
-            src="/img/overlays/gift-frame/woodland-bloom/accent-floral-knot.webp?v=20260823-02"
-            alt=""
-            draggable="false"
-          />
-        </div>
-        <canvas id="particleStage" aria-hidden="true"></canvas>
+        <video
+          id="giftFrameVideo"
+          class="gift-frame-video"
+          src="/img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm"
+          width="1920"
+          height="1080"
+          muted
+          playsinline
+          preload="auto"
+        ></video>
         <div id="giftInfo" class="gift-info" role="status" aria-live="polite">
-          <div class="gift-info-primary">
-            <span id="giftInfoName" class="gift-info-name"></span
-            ><strong id="giftInfoAmount" class="gift-info-amount"></strong>
+          <div class="gift-info-viewer">
+            <span>感谢</span><strong id="giftInfoUser" class="gift-info-user"></strong>
           </div>
-          <div class="gift-info-secondary">
-            <span id="giftInfoUser" class="gift-info-user"></span
-            ><span class="gift-info-separator" aria-hidden="true">×</span
-            ><span id="giftInfoNum" class="gift-info-num"></span>
+          <div class="gift-info-gift">
+            <span>送出</span><strong id="giftInfoName" class="gift-info-name"></strong><strong id="giftInfoNum" class="gift-info-num"></strong>
           </div>
         </div>
       </div>
     </main>
+    <div id="guardThanksRoot" class="guard-thanks-root" aria-live="polite"></div>
     <div id="giftEffectStatus" class="gift-effect-status" role="status" aria-live="polite" hidden></div>
-    <script type="module" src="/js/overlays/gift-effects.js?v=20260825-02"></script>
+    <script type="module" src="/js/overlays/gift-effects.js?v=20261003-02"></script>
   </body>
 </html>

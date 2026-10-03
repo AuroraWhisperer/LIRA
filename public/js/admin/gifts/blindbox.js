@@ -251,8 +251,10 @@ export const giftBlindbox = (() => {
     if (officialCatalogLoadPromise) return officialCatalogLoadPromise;
     officialCatalogLoadPromise = fetch('/api/overtime/gifts/catalog')
       .then((response) => readJsonResponse(response, '礼物目录加载失败'))
-      .then((payload) => {
+      .then(async (payload) => {
         if (payload?.ok === false) throw new Error(payload.error);
+        // Initial icons must refresh without waiting for unrelated state pushes.
+        await giftRecent.loadGiftArtworkCatalog();
         applyOfficialCatalogSnapshot(payload?.data);
       })
       .catch((error) => {
@@ -446,6 +448,7 @@ export const giftBlindbox = (() => {
   // 导出
   const module = {
     renderBlindBoxList,
+    renderBlindBoxMappingStatus,
     applyOfficialCatalogSnapshot,
     loadBlindBoxStats,
     renderBlindBoxStats,

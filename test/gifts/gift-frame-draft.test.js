@@ -51,11 +51,11 @@ async function createFixture() {
 
 test('settings pushes preserve unsaved gift-frame fields and update untouched fields', async () => {
   const { node, render, edit } = await createFixture();
-  render({ giftFrameThresholdRmb: '20', giftFrameTheme: 'woodland-bloom' });
+  render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'false' });
   edit('giftFrameThresholdRmb', '99');
-  render({ giftFrameThresholdRmb: '20', giftFrameTheme: 'new-theme' });
+  render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'true' });
   assert.equal(node('giftFrameThresholdRmb').value, '99');
-  assert.equal(node('giftFrameTheme').value, 'new-theme');
+  assert.equal(node('giftFrameEnabled').checked, true);
 });
 
 test('save uses the submitted draft and preserves edits made while awaiting its response', async () => {
@@ -63,7 +63,7 @@ test('save uses the submitted draft and preserves edits made while awaiting its 
   render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'false' });
   edit('giftFrameThresholdRmb', '99');
   const save = node('giftFrameSaveBtn').handlers.get('click')();
-  assert.equal(requests[0].body.giftFrameThresholdRmb, '99.00');
+  assert.deepEqual(requests[0].body, { giftFrameEnabled: 'false', giftFrameThresholdRmb: '99.00' });
   edit('giftFrameThresholdRmb', '120');
   render({ giftFrameThresholdRmb: '99.00' });
   requests[0].resolve();
@@ -71,4 +71,16 @@ test('save uses the submitted draft and preserves edits made while awaiting its 
   assert.equal(node('giftFrameThresholdRmb').value, '120');
   render({ giftFrameThresholdRmb: '99.00' });
   assert.equal(node('giftFrameThresholdRmb').value, '120');
+});
+
+test('effect 1 preview sends only its identity and editable caption fields', async () => {
+  const { node, requests } = await createFixture();
+  node('giftFramePreviewUser').value = '林间听风';
+  node('giftFramePreviewGift').value = '小花花';
+  node('giftFramePreviewNum').value = '8';
+  const preview = node('giftFramePreviewBtn').handlers.get('click')();
+  assert.deepEqual(requests[0].body, { userName: '林间听风', giftName: '小花花', num: 8, themeId: 'woodland-bloom' });
+  requests[0].resolve();
+  await preview;
+  assert.match(node('giftFrameSaveState').textContent, /特效 1/);
 });

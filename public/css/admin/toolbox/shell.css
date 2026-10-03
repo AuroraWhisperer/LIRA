@@ -1,12 +1,16 @@
 /* “百宝箱”页面壳层：功能模块只需声明导航按钮和对应内容面板。 */
 .other-page {
-  --other-sidebar-duration: 320ms;
-  --other-sidebar-easing: cubic-bezier(0.22, 1, 0.36, 1);
-  --other-sidebar-label-delay: 70ms;
+  --other-sidebar-duration: 280ms;
+  --other-sidebar-easing: cubic-bezier(0.2, 0, 0.2, 1);
+  --other-sidebar-label-delay: 80ms;
+  --other-group-duration: 260ms;
+  --other-group-fade-duration: 160ms;
+  --other-group-fade-delay: 50ms;
+  --other-group-visibility-delay: 0ms;
 }
 
 .other-page.sidebar-collapsed {
-  --other-sidebar-duration: 240ms;
+  --other-sidebar-duration: 220ms;
   --other-sidebar-label-delay: 0ms;
 }
 
@@ -81,9 +85,9 @@ body.player-dock-expanded .other-workspace {
   color: var(--muted);
   cursor: pointer;
   transition:
-    color 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease;
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease;
 }
 
 .other-sidebar-toggle:hover {
@@ -107,8 +111,8 @@ body.player-dock-expanded .other-workspace {
   transform-box: view-box;
   transform-origin: 12px 12px;
   transition:
-    opacity 140ms ease,
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 120ms ease,
+    transform var(--other-sidebar-duration) var(--other-sidebar-easing);
 }
 
 .other-sidebar-toggle-collapse {
@@ -175,7 +179,7 @@ body.player-dock-expanded .other-workspace {
     height var(--other-sidebar-duration) var(--other-sidebar-easing),
     margin var(--other-sidebar-duration) var(--other-sidebar-easing),
     padding var(--other-sidebar-duration) var(--other-sidebar-easing),
-    color 100ms ease var(--other-sidebar-label-delay);
+    color 140ms ease;
 }
 
 .other-feature-group-heading:first-child {
@@ -225,8 +229,12 @@ body.player-dock-expanded .other-workspace {
   margin-left: auto;
   opacity: 0.62;
   transition:
-    transform 180ms ease,
-    opacity 160ms ease;
+    transform var(--other-group-duration) var(--other-sidebar-easing),
+    opacity 140ms ease;
+}
+
+.other-feature-group-heading[aria-expanded='false'] {
+  --other-group-duration: 200ms;
 }
 
 .other-feature-group-heading[aria-expanded='false'] .other-feature-group-arrow {
@@ -237,6 +245,7 @@ body.player-dock-expanded .other-workspace {
   position: relative;
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) 16px;
+  grid-template-rows: 38px;
   align-items: center;
   gap: 11px;
   width: 100%;
@@ -251,38 +260,35 @@ body.player-dock-expanded .other-workspace {
   color: var(--muted);
   text-align: left;
   cursor: pointer;
+  visibility: visible;
   transition:
-    color 180ms ease,
-    background-color 180ms ease,
-    border-color 180ms ease,
-    grid-template-columns 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    padding 220ms var(--other-sidebar-easing),
-    height 220ms var(--other-sidebar-easing),
-    min-height 220ms var(--other-sidebar-easing),
-    margin-bottom 220ms var(--other-sidebar-easing),
-    opacity 180ms ease,
-    display 220ms allow-discrete;
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    padding var(--other-group-duration) var(--other-sidebar-easing),
+    height var(--other-group-duration) var(--other-sidebar-easing),
+    min-height var(--other-group-duration) var(--other-sidebar-easing),
+    margin-bottom var(--other-group-duration) var(--other-sidebar-easing),
+    border-block-width var(--other-group-duration) var(--other-sidebar-easing),
+    opacity var(--other-group-fade-duration) ease var(--other-group-fade-delay),
+    visibility 0s linear var(--other-group-visibility-delay);
 }
 
 .other-page .other-feature-button[hidden][data-other-feature-group-hidden='true'] {
+  --other-group-duration: 200ms;
+  --other-group-fade-duration: 90ms;
+  --other-group-fade-delay: 0ms;
+  --other-group-visibility-delay: var(--other-group-duration);
+  /* Keep group rows mounted for reversible transitions; navigation also makes them inert. */
+  display: grid !important;
   height: 0;
   min-height: 0;
   margin-bottom: 0;
   padding-block: 0;
   border-block-width: 0;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-}
-
-@starting-style {
-  .other-page .other-feature-menu .other-feature-button:not([hidden]) {
-    height: 0;
-    min-height: 0;
-    margin-bottom: 0;
-    padding-block: 0;
-    border-block-width: 0;
-    opacity: 0;
-  }
 }
 
 .other-feature-button::before {
@@ -315,8 +321,8 @@ body.player-dock-expanded .other-workspace {
   background: var(--surface-2);
   color: var(--muted);
   transition:
-    color 160ms ease,
-    background-color 160ms ease;
+    color 140ms ease,
+    background-color 140ms ease;
 }
 
 .other-feature-icon svg {
@@ -337,7 +343,7 @@ body.player-dock-expanded .other-workspace {
   opacity: 1;
   transform: translateX(0);
   transition:
-    opacity 180ms ease var(--other-sidebar-label-delay),
+    opacity 160ms ease var(--other-sidebar-label-delay),
     transform var(--other-sidebar-duration) var(--other-sidebar-easing),
     visibility 0s;
 }
@@ -366,8 +372,8 @@ body.player-dock-expanded .other-workspace {
   height: 16px;
   opacity: 0.55;
   transition:
-    transform 180ms ease,
-    opacity 180ms ease var(--other-sidebar-label-delay),
+    transform 180ms var(--other-sidebar-easing),
+    opacity 140ms ease var(--other-sidebar-label-delay),
     visibility 0s;
 }
 
@@ -440,7 +446,7 @@ body.player-dock-expanded .other-workspace {
 
 .other-page.sidebar-collapsed .other-feature-arrow {
   transition:
-    transform 180ms ease,
+    transform 180ms var(--other-sidebar-easing),
     opacity 90ms ease,
     visibility 0s linear 90ms;
 }

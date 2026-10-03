@@ -193,8 +193,26 @@ function patchNativeValue(state) {
   }
 }
 
+function observeSelect(state) {
+  state.observer.observe(state.select, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['disabled', 'label', 'selected', 'value'],
+  });
+  state.observing = true;
+}
+
 function enhanceSelect(select) {
-  if (!(select instanceof HTMLSelectElement) || select.multiple || enhancedSelects.has(select)) return null;
+  if (!(select instanceof HTMLSelectElement) || select.multiple) return null;
+  const existing = enhancedSelects.get(select);
+  if (existing) {
+    if (!existing.observing) {
+      observeSelect(existing);
+      buildOptions(existing);
+    }
+    return existing;
+  }
   const labelText = getLabelText(select);
   const wrapper = document.createElement('div');
   wrapper.className = 'lira-select';
@@ -289,30 +307,45 @@ function enhanceSelect(select) {
       if (state.open && !wrapper.contains(document.activeElement)) closeMenu(state, { restoreFocus: false });
     }, 0);
   });
-  document.addEventListener('pointerdown', (event) => {
-    if (state.open && !wrapper.contains(event.target)) closeMenu(state, { restoreFocus: false });
-  });
   select.addEventListener('change', () => syncSelectedState(state));
-  select.form?.addEventListener('reset', () => {
-    setTimeout(() => syncSelectedState(state), 0);
-  });
   state.observer = new MutationObserver(() => buildOptions(state));
-  state.observer.observe(select, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['disabled', 'label', 'selected', 'value'],
-  });
+  observeSelect(state);
   return state;
 }
 
 function installSelectObserver() {
   if (selectObserverInstalled || !document.body || typeof MutationObserver === 'undefined') return;
   selectObserverInstalled = true;
+  // Delegate long-lived listeners so they never retain individual controls.
+  document.addEventListener('pointerdown', (event) => {
+    const wrapper = event.target.closest?.('.lira-select');
+    closeOpenMenus(enhancedSelects.get(wrapper?.querySelector('select')));
+  });
+  document.addEventListener('reset', (event) => {
+    const form = event.target;
+    if (form.tagName !== 'FORM') return;
+    setTimeout(() => {
+      for (const select of form.elements) {
+        const state = enhancedSelects.get(select);
+        if (state && select.isConnected) syncSelectedState(state);
+      }
+    }, 0);
+  }, true);
   const observer = new MutationObserver((records) => {
     for (const record of records) {
+      for (const node of record.removedNodes) {
+        if (node.nodeType !== Node.ELEMENT_NODE || node.isConnected) continue;
+        const selects = node.tagName === 'SELECT' ? [node] : node.querySelectorAll('select');
+        for (const select of selects) {
+          const state = enhancedSelects.get(select);
+          if (!state || select.isConnected) continue;
+          closeMenu(state, { restoreFocus: false });
+          state.observer.disconnect();
+          state.observing = false;
+        }
+      }
       for (const node of record.addedNodes) {
-        if (node.nodeType === Node.ELEMENT_NODE) enhanceSelects(node);
+        if (node.nodeType === Node.ELEMENT_NODE && node.isConnected) enhanceSelects(node);
       }
     }
   });
@@ -326,11 +359,4 @@ export function enhanceSelects(root = document) {
   if (root?.querySelectorAll) selects.push(...root.querySelectorAll('select'));
   selects.forEach(enhanceSelect);
   return selects.length;
-}
-
-export function refreshEnhancedSelect(select) {
-  const state = enhancedSelects.get(select);
-  if (!state) return false;
-  buildOptions(state);
-  return true;
 }

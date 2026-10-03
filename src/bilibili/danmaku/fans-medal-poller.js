@@ -3,6 +3,7 @@
 const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
 const { normalizePositiveInteger } = require('../../shared/utils');
+const { toRankIdentityHint } = require('./rank-identity-hint');
 
 const POLL_MS = 5 * 60 * 1000;
 const PAGE_SIZE = 30;
@@ -100,7 +101,7 @@ class FansMedalPoller {
       const items = bilibiliHelpers.readBilibiliFansMembersRankItems(data);
       for (const item of items) {
         const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(item, context.ownerUid);
-        const result = this.sink.ingestHint(toIdentityHint(userMeta), {
+        const result = this.sink.ingestHint(toRankIdentityHint(userMeta), {
           ...context,
           source: 'fans_rank',
           roomIdentityVerified: userMeta.currentRoomVerified === true,
@@ -122,26 +123,6 @@ class FansMedalPoller {
     }
     return { complete: false };
   }
-}
-
-function toIdentityHint(userMeta) {
-  return {
-    uid: userMeta.uid,
-    name: userMeta.userName,
-    avatarUrl: userMeta.avatarUrl,
-    roomIdentity: {
-      guardKnown: userMeta.currentRoomVerified === true,
-      guardLevel: userMeta.guardLevel,
-      medalKnown: userMeta.currentRoomVerified === true,
-      fansMedal: userMeta.medalName
-        ? {
-            name: userMeta.medalName,
-            level: userMeta.medalLevel,
-            targetUid: userMeta.medalTargetUid,
-          }
-        : null,
-    },
-  };
 }
 
 module.exports = { FansMedalPoller };

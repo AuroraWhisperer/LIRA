@@ -213,12 +213,14 @@ export const other = (() => {
     getGroupButtons(heading).forEach((button) => {
       if (!isExpanded) {
         if (!button.hidden) button.dataset.otherFeatureGroupHidden = 'true';
+        if (button.dataset.otherFeatureGroupHidden === 'true') button.inert = true;
         button.hidden = true;
         return;
       }
 
       if (button.dataset.otherFeatureGroupHidden === 'true') {
         button.hidden = false;
+        button.inert = false;
         delete button.dataset.otherFeatureGroupHidden;
       }
     });

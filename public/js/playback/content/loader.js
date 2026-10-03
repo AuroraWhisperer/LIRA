@@ -235,7 +235,7 @@ export class ContentLoader {
   async _fetchLikedTracksAll(title, platform = this.state?.selectedSource || '') {
     const BATCH_SIZE = 100;
     let offset = 0;
-    let allTracks = [];
+    const allTracks = [];
     const seenPages = new Set();
 
     while (true) {
@@ -264,7 +264,7 @@ export class ContentLoader {
       if (tracks.length > 0 && seenPages.has(pageSignature)) break;
       if (tracks.length > 0) seenPages.add(pageSignature);
 
-      allTracks = allTracks.concat(tracks);
+      for (const track of tracks) allTracks.push(track);
       const nextOffset = offset + tracks.length;
       if (nextOffset === offset) break;
       offset = nextOffset;

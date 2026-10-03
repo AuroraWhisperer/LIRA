@@ -14,29 +14,33 @@ import {
 } from './history.js';
 import { publishGiftPanel } from '../legacy-admin-bridge.js';
 
-export function renderGiftPanel(gifts, sprint, live, diagnostics, settings = {}) {
+export function renderGiftPanel(gifts, sprint, live, diagnostics, settings = {}, changedKeys = null) {
+  const changed = (key) => !changedKeys || changedKeys.includes(key);
   // 礼物检测状态
-  giftDetection.renderDetectionStatus(sprint, live);
+  if (changed('giftSprint') || changed('liveStatus') || changed('settings')) {
+    giftDetection.renderDetectionStatus(sprint, live);
+  }
 
   // 礼物提示 toggle
   const notificationToggle = document.getElementById('enableGiftNotification');
-  if (notificationToggle) {
+  if (notificationToggle && changed('settings')) {
     notificationToggle.checked = settings.enableGiftNotification !== 'false';
   }
 
   // 诊断统计
-  giftDetection.renderGiftStatusLine(diagnostics);
+  if (changed('bilibiliDiagnostics')) giftDetection.renderGiftStatusLine(diagnostics);
 
   // 月底冲刺统计
-  giftSprint.renderSprintStats(sprint);
+  if (changed('giftSprint')) giftSprint.renderSprintStats(sprint);
 
   // 最近礼物
   const recentList = Array.isArray(gifts.recent) ? gifts.recent : [];
   giftNotification.notifyNewGift(recentList);
-  giftRecent.renderGiftRecentList(recentList);
+  if (changed('gifts')) giftRecent.renderGiftRecentList(recentList);
 
   // 盲盒映射列表
-  giftBlindbox.renderBlindBoxList();
+  if (changed('settings')) giftBlindbox.renderBlindBoxList();
+  else if (changed('blindBoxMapping')) giftBlindbox.renderBlindBoxMappingStatus();
 }
 
 publishGiftPanel({

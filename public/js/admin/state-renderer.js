@@ -30,8 +30,12 @@ export function createAdminStateRenderer({
     if (changed.has('liveStatus')) renderLive(state.liveStatus || {});
     if (changed.has('categories')) renderCategories(state.categories || []);
     if (changed.has('songCount')) renderSongCount(state.songCount);
-    if (['gifts', 'giftSprint', 'liveStatus', 'bilibiliDiagnostics', 'settings'].some((key) => changed.has(key))) {
-      renderGifts(state);
+    if (
+      ['gifts', 'giftSprint', 'liveStatus', 'bilibiliDiagnostics', 'settings', 'blindBoxMapping'].some((key) =>
+        changed.has(key),
+      )
+    ) {
+      renderGifts(state, changedKeys);
     }
   };
 }

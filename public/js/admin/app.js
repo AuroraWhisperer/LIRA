@@ -27,6 +27,7 @@ import { createToolboxLifecycle } from './toolbox-lifecycle.js';
 import { initDynamicLottery } from './dynamic-lottery.js';
 import { initInteractiveTour } from './interactive-tour.js';
 import { initGiftFrame } from './gift-frame.js';
+import { initGuardThanks } from './gift-guard-thanks.js';
 import { initGiftHistoryDrawer } from './gifts/history.js';
 import { renderGiftPanel } from './gifts/index.js';
 import { initSongImportUpdate } from './song-import-update.js';
@@ -124,6 +125,7 @@ async function initializeApp() {
   metrics.initPerformanceMonitor();
   giftEffects.init();
   initGiftFrame();
+  initGuardThanks();
   todo.init();
   const dynamicLottery = initDynamicLottery();
   window.addEventListener('beforeunload', () => dynamicLottery.dispose(), {
@@ -156,13 +158,14 @@ async function initializeApp() {
   eventBus.on(
     Events.STATE_LOADED,
     createAdminStateRenderer({
-      renderGifts: (state) =>
+      renderGifts: (state, changedKeys) =>
         renderGiftPanel(
           state.gifts || {},
           state.giftSprint || {},
           state.liveStatus || {},
           state.bilibiliDiagnostics || {},
           state.settings || {},
+          changedKeys,
         ),
     }),
   );

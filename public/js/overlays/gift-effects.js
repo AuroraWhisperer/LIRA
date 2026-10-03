@@ -2,89 +2,68 @@
 'use strict';
 
 import { createFrameController } from './gift-effects-frame.js';
+import { createGiftFrameQueue } from './gift-frame-queue.js';
 import { createGiftEffectPlayer } from './gift-effect-player.js';
+import { createGuardThanksQueue } from './gift-effects-guard.js';
 
 (function () {
   const params = new URLSearchParams(location.search);
   const DEBUG = params.get('debug') === '1';
   const PREVIEW_MODE = params.get('preview') === '1';
-  const MAX_PENDING = 3;
-  const MAX_EVENT_AGE_MS = 12000;
-  const TIMELINE = Object.freeze({
-    enterDuration: 900,
-    holdDuration: 2600,
-    exitDuration: 650,
-    watchdogGraceDuration: 500,
-  });
-  const FIREFLY_LIMIT = 6;
-  const FRAME_PERIMETER_ANCHORS = Object.freeze([
-    { x: 0.11, y: 0.14, dx: 8, dy: -18, delay: 80 },
-    { x: 0.37, y: 0.09, dx: -7, dy: 13, delay: 430 },
-    { x: 0.86, y: 0.14, dx: 9, dy: -14, delay: 780 },
-    { x: 0.92, y: 0.55, dx: -10, dy: -17, delay: 1130 },
-    { x: 0.76, y: 0.88, dx: 8, dy: -13, delay: 1480 },
-    { x: 0.12, y: 0.76, dx: 10, dy: -16, delay: 1830 },
-  ]);
-  const ALLOWED_THEMES = new Set(['woodland-bloom']);
-  const ALLOWED_MOTION = new Set(['auto', 'full', 'reduced']);
+  const GUARD_PREVIEW_TIER = params.get('guardPreview');
   const frameRoot = document.getElementById('giftFrame');
-  const particleCanvas = document.getElementById('particleStage');
   const status = document.getElementById('giftEffectStatus');
-  const pending = [];
-  const seenEventIds = new Set();
-  const frameController = createFrameController({ frameRoot, formatAmount });
+  const frameQueue = createGiftFrameQueue({
+    player: createFrameController({ frameRoot }),
+    canPlay: () => !PREVIEW_MODE || document.visibilityState !== 'hidden',
+    onError: (error) => showStatus(`礼物边框播放失败：${error.message || error}`),
+  });
   const effectPlayer = createGiftEffectPlayer({
     stage: document.getElementById('giftEffectStage'),
     onError: (error) => showStatus(error.message),
   });
-  const particleController = createParticleController(particleCanvas);
-  let activeSession = null;
-  let currentSettings = {};
+  const guardThanks = createGuardThanksQueue({
+    root: document.getElementById('guardThanksRoot'),
+    resolveMotion: resolveGuardMotion,
+    onError: (error) => showStatus(`大航海感谢播放失败：${error.message || error}`),
+  });
   let reconnectAttempts = 0;
   let reconnectTimer = null;
+  let socket = null;
+  let disposed = false;
 
   if (DEBUG) document.body.classList.add('is-debug');
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else init();
 
   function init() {
-    window.addEventListener('pagehide', () => effectPlayer.dispose(), { once: true });
-    initFrameAssets();
-    if (PREVIEW_MODE) {
-      window.setTimeout(() => handleFrameEvent(createPreviewPayload()), 80);
+    window.addEventListener(
+      'pagehide',
+      () => {
+        disposed = true;
+        clearTimeout(reconnectTimer);
+        socket?.close();
+        frameQueue.dispose();
+        effectPlayer.dispose();
+        guardThanks.dispose();
+      },
+      { once: true },
+    );
+    if (PREVIEW_MODE && GUARD_PREVIEW_TIER) {
+      window.setTimeout(() => guardThanks.enqueue(createGuardPreviewPayload(GUARD_PREVIEW_TIER)), 80);
+    } else if (PREVIEW_MODE) {
+      window.setTimeout(() => frameQueue.enqueue(createPreviewPayload()), 80);
     }
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) particleController.stop();
-      else playNextFrame();
-    });
-    window.addEventListener('resize', () => particleController.resize(window.innerWidth, window.innerHeight));
-    particleController.resize(window.innerWidth, window.innerHeight);
+    document.addEventListener('visibilitychange', () => frameQueue.resume());
     connectSocket();
   }
 
-  function initFrameAssets() {
-    const artwork = document.getElementById('giftFrameArtworkImage');
-    const accents = Array.from(document.querySelectorAll('[data-frame-accent]'));
-    const hideArtwork = () => {
-      if (artwork) artwork.hidden = true;
-      showStatus('礼物边框素材加载失败。');
-    };
-    artwork?.addEventListener('error', hideArtwork, { once: true });
-    if (artwork?.complete && artwork.naturalWidth === 0) hideArtwork();
-    accents.forEach((accent) => {
-      const hideAccent = () => {
-        accent.hidden = true;
-      };
-      accent.addEventListener('error', hideAccent, { once: true });
-      if (accent.complete && accent.naturalWidth === 0) hideAccent();
-    });
-  }
-
   function connectSocket() {
+    if (disposed) return;
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const token = window.__API_TOKEN__;
     const url = `${protocol}//${location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-    const socket = new WebSocket(url);
+    socket = new WebSocket(url);
     socket.addEventListener('open', () => {
       clearTimeout(reconnectTimer);
       reconnectAttempts = 0;
@@ -97,14 +76,15 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
         return;
       }
       if (payload.type === 'snapshot') {
-        currentSettings = payload.state?.settings || {};
-        effectPlayer.setEnabled(currentSettings.giftEffectDanmakuEnabled === 'true');
+        effectPlayer.setEnabled(payload.state?.settings?.giftEffectDanmakuEnabled === 'true');
         return;
       }
-      if (payload.type === 'gift:frame') handleFrameEvent(payload);
+      if (payload.type === 'gift:frame') frameQueue.enqueue(payload);
       if (payload.type === 'gift:effect') effectPlayer.enqueue(payload);
+      if (payload.type === 'gift:guard-thanks') guardThanks.enqueue(payload);
     });
     socket.addEventListener('close', () => {
+      if (disposed) return;
       effectPlayer.setEnabled(false);
       const delay = Math.min(30000, 1000 * 2 ** Math.min(reconnectAttempts, 5));
       reconnectAttempts += 1;
@@ -112,228 +92,12 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
     });
   }
 
-  function handleFrameEvent(payload) {
-    if (!isValidFramePayload(payload)) return;
-    const isPreview = payload.preview === true;
-    if (!isPreview) {
-      if (seenEventIds.has(payload.eventId)) return;
-      seenEventIds.add(payload.eventId);
-      if (seenEventIds.size > 100) seenEventIds.delete(seenEventIds.values().next().value);
-    }
-    if (pending.length >= MAX_PENDING) {
-      const lowestIndex = findLowestPendingIndex();
-      if (lowestIndex < 0 || Number(payload.totalPriceCents) <= Number(pending[lowestIndex].payload.totalPriceCents))
-        return;
-      pending.splice(lowestIndex, 1);
-    }
-    pending.push({ payload, queuedAt: Date.now() });
-    playNextFrame();
-  }
-
-  function playNextFrame() {
-    if (activeSession || pending.length === 0) return;
-    if (PREVIEW_MODE && document.visibilityState === 'hidden') return;
-    let item = null;
-    while (pending.length > 0) {
-      const candidate = pending.shift();
-      if (Date.now() - candidate.queuedAt <= MAX_EVENT_AGE_MS) {
-        item = candidate;
-        break;
-      }
-    }
-    if (item) playFrame(item.payload);
-  }
-
-  async function playFrame(payload) {
-    const session = new PlaybackSession();
-    activeSession = session;
-    const motionMode = resolveMotionMode(payload);
-    try {
-      frameController.prepare(payload, motionMode);
-      session.watchdog = setTimeout(
-        () => session.abort('watchdog'),
-        TIMELINE.enterDuration + TIMELINE.holdDuration + TIMELINE.exitDuration + TIMELINE.watchdogGraceDuration,
-      );
-      if (motionMode !== 'reduced') particleController.start();
-      await raceAbort(session, async () => {
-        await frameController.playEnterTimeline(session, motionMode);
-        frameController.playHoldingAccents(session, motionMode);
-        await session.wait(TIMELINE.holdDuration);
-        await frameController.playExitTimeline(session, motionMode);
-      });
-    } catch (error) {
-      showStatus(`礼物边框播放失败：${error.message || error}`);
-    } finally {
-      session.cleanup();
-      particleController.stop();
-      frameController.reset();
-      activeSession = null;
-      playNextFrame();
-    }
-  }
-
-  function resolveMotionMode(payload) {
+  function resolveGuardMotion() {
     const explicit = params.get('motion');
     if (explicit === 'full' || explicit === 'reduced') return explicit;
-    const configured = payload.motionMode || currentSettings.giftFrameMotionMode;
-    if (configured === 'full' || configured === 'reduced') return configured;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 'reduced';
-    return 'full';
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'full';
   }
 
-  function createParticleController(canvas) {
-    let context = null;
-    let frameId = 0;
-    let particles = [];
-    return {
-      resize(width, height) {
-        if (!canvas) return;
-        const ratio = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = Math.max(1, Math.round(width * ratio));
-        canvas.height = Math.max(1, Math.round(height * ratio));
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
-        context = canvas.getContext?.('2d');
-        context?.setTransform(ratio, 0, 0, ratio, 0, 0);
-      },
-      start() {
-        if (!context || document.hidden) return;
-        particles = FRAME_PERIMETER_ANCHORS.slice(0, FIREFLY_LIMIT).map((anchor, index) => ({
-          ...anchor,
-          life: 920 + (index % 3) * 120,
-          radius: 1.8 + (index % 2) * 0.45,
-        }));
-        const startedAt = performance.now();
-        const finalElapsed = Math.max(...particles.map((particle) => particle.delay + particle.life));
-        const draw = (now) => {
-          const elapsed = now - startedAt;
-          if (!context || particles.length === 0) return;
-          context.clearRect(0, 0, window.innerWidth, window.innerHeight);
-          particles.forEach((particle) => {
-            const localElapsed = elapsed - particle.delay;
-            if (localElapsed < 0 || localElapsed > particle.life) return;
-            const progress = localElapsed / particle.life;
-            const pulse = Math.sin(Math.PI * progress);
-            const x = window.innerWidth * particle.x + particle.dx * progress;
-            const y = window.innerHeight * particle.y + particle.dy * progress;
-            context.save();
-            context.shadowBlur = 18;
-            context.shadowColor = `rgba(255,224,113,${pulse * 0.9})`;
-            context.fillStyle = `rgba(255,239,165,${pulse * 0.88})`;
-            context.beginPath();
-            context.arc(x, y, particle.radius + pulse * 1.2, 0, Math.PI * 2);
-            context.fill();
-            context.shadowBlur = 0;
-            context.strokeStyle = `rgba(196,255,184,${pulse * 0.48})`;
-            context.lineWidth = 1;
-            context.beginPath();
-            context.arc(x, y, 5 + pulse * 3, 0, Math.PI * 2);
-            context.stroke();
-            context.restore();
-          });
-          if (elapsed < finalElapsed) frameId = requestAnimationFrame(draw);
-          else frameId = 0;
-        };
-        cancelAnimationFrame(frameId);
-        frameId = requestAnimationFrame(draw);
-      },
-      stop() {
-        cancelAnimationFrame(frameId);
-        frameId = 0;
-        particles = [];
-        context?.clearRect(0, 0, window.innerWidth, window.innerHeight);
-      },
-    };
-  }
-
-  class PlaybackSession {
-    constructor() {
-      this.controller = new AbortController();
-      this.animations = [];
-      this.timers = new Set();
-      this.watchdog = null;
-      this.abortPromise = new Promise((resolve) => {
-        this.resolveAbort = resolve;
-      });
-      this.controller.signal.addEventListener('abort', () => this.resolveAbort(), { once: true });
-    }
-    wait(duration) {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          this.timers.delete(timer);
-          resolve();
-        }, duration);
-        this.timers.add(timer);
-        this.controller.signal.addEventListener(
-          'abort',
-          () => {
-            clearTimeout(timer);
-            this.timers.delete(timer);
-            reject(new Error('播放会话已取消。'));
-          },
-          { once: true },
-        );
-      });
-    }
-    abort(reason) {
-      if (this.controller.signal.aborted) return;
-      this.abortReason = reason;
-      this.controller.abort();
-    }
-    throwIfAborted() {
-      if (this.controller.signal.aborted) throw new Error(`播放会话已取消：${this.abortReason || 'abort'}`);
-    }
-    cleanup() {
-      this.abort('cleanup');
-      this.animations.forEach((animation) => animation.cancel?.());
-      this.animations = [];
-      this.timers.forEach((timer) => clearTimeout(timer));
-      this.timers.clear();
-      clearTimeout(this.watchdog);
-    }
-  }
-
-  function raceAbort(session, task) {
-    return Promise.race([
-      Promise.resolve().then(task),
-      session.abortPromise.then(() => {
-        throw new Error('播放会话已取消。');
-      }),
-    ]);
-  }
-
-  function isValidFramePayload(payload) {
-    return (
-      payload &&
-      payload.type === 'gift:frame' &&
-      typeof payload.eventId === 'string' &&
-      payload.eventId.length <= 160 &&
-      typeof payload.giftName === 'string' &&
-      typeof payload.userName === 'string' &&
-      Number.isSafeInteger(Number(payload.num)) &&
-      Number(payload.num) > 0 &&
-      Number.isSafeInteger(Number(payload.totalPriceCents)) &&
-      Number(payload.totalPriceCents) > 0 &&
-      ALLOWED_THEMES.has(String(payload.themeId || 'woodland-bloom')) &&
-      (payload.motionMode === undefined || ALLOWED_MOTION.has(String(payload.motionMode)))
-    );
-  }
-
-  function findLowestPendingIndex() {
-    if (pending.length === 0) return -1;
-    let index = 0;
-    for (let i = 1; i < pending.length; i += 1) {
-      if (
-        Number(pending[i].payload.totalPriceCents) <= Number(pending[index].payload.totalPriceCents) &&
-        pending[i].queuedAt >= pending[index].queuedAt
-      )
-        index = i;
-    }
-    return index;
-  }
-  function formatAmount(cents) {
-    return `¥${(Number(cents) / 100).toFixed(2)}`;
-  }
   function createPreviewPayload() {
     return {
       type: 'gift:frame',
@@ -343,7 +107,19 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
       num: 2,
       totalPriceCents: 52000,
       themeId: 'woodland-bloom',
-      motionMode: resolveMotionMode({}),
+      preview: true,
+    };
+  }
+  function createGuardPreviewPayload(tier) {
+    const textMode = params.get('guardText');
+    const months = Number(params.get('guardMonths'));
+    return {
+      type: 'gift:guard-thanks',
+      eventId: `guard-thanks:local-preview-${Date.now()}`,
+      tier,
+      userName: String(params.get('guardName') || '观众A').slice(0, 100),
+      months: Number.isSafeInteger(months) && months > 0 ? months : 1,
+      textMode: ['bilingual', 'zh', 'en'].includes(textMode) ? textMode : 'bilingual',
       preview: true,
     };
   }

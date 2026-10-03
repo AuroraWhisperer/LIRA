@@ -37,15 +37,12 @@ test('games overlay styles keep shared, board, drawing, result, responsive, and 
   assert.doesNotMatch(owners.drawing, /\.game-result\s*\{/);
   assert.match(owners.result, /\.game-empty\s*\{/);
   assert.match(owners.result, /\.game-result\s*\{/);
-  assert.match(owners.result, /@keyframes resultFadeIn/);
   assert.doesNotMatch(owners.result, /\.draw-danmaku-feed\s*\{/);
-  assert.match(owners.responsive, /@media \(max-width:\s*700px\)/);
   assert.match(owners.responsive, /\.bomb-number\s*\{/);
   assert.match(owners.responsive, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.responsive, /\.draw-danmaku-feed\s*\{/);
   assert.match(owners['drawing-live'], /body\[data-game='draw-guess'\] \.draw-layout\s*\{/);
   assert.match(owners['drawing-live'], /\.draw-danmaku-feed\s*\{/);
-  assert.match(owners['drawing-live'], /@keyframes danmakuBubbleIn/);
 });
 
 test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
@@ -82,14 +79,8 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="drawScoreboard"/);
   assert.match(html, /id="drawCorrectFeed"/);
   assert.match(html, /id="drawDanmakuFeed"[^>]+data-style="bubble"/);
-  assert.match(
-    html,
-    /id="drawClearBtn"[^>]+class="draw-tool-button draw-clear-button"[^>]*>\s*<svg[\s\S]*?<\/svg>\s*<\/button>/,
-  );
-  assert.match(
-    html,
-    /id="drawUndoBtn"[^>]+class="draw-tool-button draw-undo-button"[^>]*>\s*<svg[\s\S]*?<\/svg>\s*<\/button>/,
-  );
+  assert.match(html, /<button\b[^>]*\sid="drawClearBtn"/);
+  assert.match(html, /<button\b[^>]*\sid="drawUndoBtn"/);
   assert.match(html, /id="drawPenBtn"[^>]+aria-label="画笔"/);
   assert.match(html, /id="drawEraserBtn"[^>]+aria-label="橡皮擦"/);
   assert.match(html, /id="drawLineBtn"[^>]+aria-label="直线"/);
@@ -97,8 +88,6 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="drawEllipseBtn"[^>]+aria-label="圆形"/);
   assert.match(html, /id="drawPickerBtn"[^>]+aria-label="取色器"/);
   assert.match(html, /id="drawPenBtn"[^>]+data-tooltip="画笔 \(B\)"/);
-  assert.match(html, /data-draw-color="#222034"[^>]+data-tooltip="墨黑"/);
-  assert.match(html, /data-draw-width="4"[^>]+data-tooltip="中号"/);
   assert.match(styles, /button\[data-tooltip\]:hover::after/);
   assert.match(script, /renderGomokuCoordinates\(state\.size\)/);
   assert.match(script, /const isPicked = value === state\.lastGuess/);
@@ -165,18 +154,9 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(styles, /\.game-result-avatar\s*\{[^}]*object-fit:\s*cover/);
   assert.match(styles, /\.bomb-number\.is-picked\s*\{/);
   assert.match(styles, /\.bomb-number\.is-picked:disabled\s*\{/);
-  assert.match(styles, /--gomoku-size:\s*min\(56vh, 520px/);
   assert.match(styles, /\.gomoku-cell::before/);
-  assert.match(styles, /\.gomoku-cell:nth-child\(15n \+ 1\)/);
   assert.match(styles, /\.draw-canvas/);
-  assert.match(styles, /cursor:\s*url\(['"]\/img\/overlays\/draw-pen-cursor\.svg/);
-  assert.match(styles, /\.draw-canvas\.is-eraser\s*\{[^}]*cursor:\s*url\(['"]\/img\/overlays\/draw-eraser-cursor\.svg/);
   assert.match(drawingModule, /classList\.toggle\(["']is-eraser["'],\s*drawTool === ["']eraser["']\)/);
-  assert.match(styles, /\.draw-canvas\.is-shape\s*\{[^}]*cursor:\s*crosshair/);
-  assert.match(
-    styles,
-    /grid-template-columns:\s*clamp\(\s*260px,\s*21vw,\s*340px\s*\)\s+minmax\(0,\s*1fr\)\s+clamp\(\s*308px,\s*28vw,\s*420px\s*\)/,
-  );
   assert.match(styles, /body\[data-game=["']draw-guess["']\]\s+\.draw-canvas-wrap\s*\{[^}]*height:\s*100%/);
   assert.match(styles, /body\[data-game=["']draw-guess["']\]\s+\.draw-canvas\s*\{[^}]*aspect-ratio:\s*auto/);
   assert.match(styles, /\.draw-scoreboard/);

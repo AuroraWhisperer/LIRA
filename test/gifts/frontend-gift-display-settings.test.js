@@ -47,7 +47,7 @@ async function openSettings(t) {
   return page;
 }
 
-test('style preview holds each palette color for three seconds, animates between them and loops', async (t) => {
+test('style preview holds each palette color, animates between them and loops', async (t) => {
   const page = await openSettings(t);
   for (const file of ['public/css/shared/gift-banner.css', 'public/css/admin/gift-display.css']) {
     await page.addStyleTag({ content: readCssBundle(file) });
@@ -69,18 +69,26 @@ test('style preview holds each palette color for three seconds, animates between
     const colors = banners.map((banner) =>
       ['--gift-start', '--gift-end'].map((name) => banner.style.getPropertyValue(name)),
     );
-    const heldColors = [0, 2999, 3300, 6299, 6600, 9599, 9900, 12899, 13200, 16199].map((time) =>
-      sample(time).flatMap((opacity, index) => (opacity === 1 ? [index] : [])),
-    );
-    const transition = sample(3150);
-    return { colors, palette: GIFT_PALETTE, heldColors, transition, height: preview.getBoundingClientRect().height };
+    const cycle = animations.find((animation) => animation.effect.target === banners[0]);
+    const duration = Number(cycle.effect.getTiming().duration);
+    const keyframes = cycle.effect.getKeyframes();
+    const holdEnd = duration * keyframes.find((frame) => frame.offset > 0 && Number(frame.opacity) === 1).offset;
+    const transitionEnd = duration * keyframes.find((frame) => Number(frame.opacity) === 0).offset;
+    const turn = duration / banners.length;
+    const heldColors = Array.from({ length: banners.length + 1 }, (_, index) => [
+      index * turn,
+      index * turn + holdEnd / 2,
+    ]).flat().map((time) => sample(time).flatMap((opacity, index) => (opacity === 1 ? [index] : [])));
+    const transition = sample((holdEnd + transitionEnd) / 2);
+    return { colors, palette: GIFT_PALETTE, heldColors, transition };
   });
   assert.deepEqual(result.colors, result.palette);
-  assert.deepEqual(result.heldColors, [[0], [0], [1], [1], [2], [2], [3], [3], [0], [0]]);
+  assert.deepEqual(result.heldColors, Array.from({ length: result.palette.length + 1 }, (_, index) =>
+    [[index % result.palette.length], [index % result.palette.length]],
+  ).flat());
   assert.ok(result.transition[0] > 0 && result.transition[0] < 1);
   assert.ok(result.transition[1] > 0 && result.transition[1] < 1);
-  assert.deepEqual(result.transition.slice(2), [0, 0]);
-  assert.equal(result.height, 72);
+  assert.ok(result.transition.slice(2).every((opacity) => opacity === 0));
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   assert.equal(
@@ -92,7 +100,7 @@ test('style preview holds each palette color for three seconds, animates between
   await page.getByRole('tab', { name: '滚动礼物', exact: true }).click();
   await page.locator('#giftStylePreview').scrollIntoViewIfNeeded();
   await page.waitForFunction(() => document.getElementById('giftStylePreview').classList.contains('is-playing'));
-  assert.equal(await page.locator('#giftStylePreview .gift-banner').count(), 4);
+  assert.equal(await page.locator('#giftStylePreview .gift-banner').count(), result.palette.length);
 });
 
 test('gift feed settings save speed and remove the pause and low-power options', async (t) => {

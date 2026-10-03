@@ -32,8 +32,9 @@
 | `songlist` | GET `/songs`，服务端固定 `enabledOnly: true`，保留分类筛选 | 本页歌单主题设置；歌曲仅 `id/name/artist/category_name/language/name_initial` |
 | `blindbox` | GET `/gifts/blind-box-stats`，保留 `boxName` 筛选 | 本页主题设置；统计仅盒数、总成本、总盈亏及榜单显示名/盒数/盈亏 |
 | `overtime` | 无 | `overtime` 的 revision、状态、服务端时间、有效余时、背景与展示规则；`overtime:update` 的同一状态及结算动画字段 |
-| `gift-effects` | 无 | `giftEffectDanmakuEnabled/giftFrameMotionMode`；`gift:frame` 的礼物铭牌/主题/动效字段，`gift:effect` 的播放 URL 与 RGB/alpha 布局 |
+| `gift-effects` | 无 | `giftEffectDanmakuEnabled`；`gift:frame` 的礼物铭牌/特效身份字段，`gift:effect` 的播放 URL 与 RGB/alpha 布局，`gift:guard-thanks` 的等级/昵称/月数/头像/文字模式 |
 | `gift-feed` | GET `/gifts/display-settings`、`/gifts/history`、`/gifts/card-profiles`、`/overtime/gifts/catalog`、`/bilibili/avatar` | `gifts.viewRevision` 与刷新 reason；`gift-catalog:update` 仅为失效通知，不附完整目录 |
+| `gift-sprint` | 无 | `giftSprint.targetRmb/remainingCrystalBalls`；月底冲刺文字版直接使用既有服务端折算数量，未设目标或断线时清空文字，重连恢复；页面 `/gift-sprint`，`preview=1` 显示底色与提示 |
 | `gift-export` | GET `/bilibili/avatar` | 无业务快照或专用消息；导出行、配置和目录由 Electron main 的冻结输入提供，不授予流水选择或导出 IPC 权限 |
 | `lyrics` | 无 | 本页歌词设置、`lyricState/lyricTimeline`；`lyric-state/lyric-timeline` 仅含曲名/艺人、行词文本与时间、播放/排序状态 |
 | `games` | GET `/games/session`、`/games/winner-profile`、`/bilibili/avatar`；POST `/games/session` 仅 `stop/restart`，`/games/session/move` 仅数字/坐标字符串，`/games/session/draw` 仅 `append/undo/clear` | `game:update` 的完整公开游戏态、`game:patch` 的聊天/状态增量、`game:draw` 的画笔操作；兼容已存在的 `state.games`，不新增全局字段 |
@@ -112,25 +113,24 @@
 单条播放、最多 3 条等待、等待超过 12 秒丢弃；错误、30 秒超时和停用统一清理。
 弹幕开关关闭或 WS 断开时停止指令特效并清空其队列；手动预览不受开关限制。
 服务器代码解析、桌面共用测试播放解析器和兼容规则见 [弹幕礼物特效规格](../../../specs/gift-effect-danmaku.md)。内置
-`woodland-bloom` 主题当前使用一张完整合成 WebP 作为边框；上、右、下、左四张分片 WebP
-也保留在资源目录中，但当前页面不直接加载它们，不加载远程美术。礼物名称、观众、
-数量与最终金额由 DOM `textContent` 写入边框底部铭牌区域；中间安全区保持透明。
-结构图之上另有 `branch`、`crystal`、`floral` 三张本地透明装饰 WebP；它们不参与四边拼接，
-由 `FrameController` 独立进入、退场，并在 Holding 阶段分别完成一次花藤轻摆、水晶钟摆和花结
-落位动作。三段动作不循环、位移不超过 8px、旋转不超过 3°；`reduced` 只显示静态装饰。
+**特效 1 · 林间花信**（`themeId: woodland-bloom`）播放本地 `woodland-bloom-v4.webm`，
+1920×1080、30fps、4 秒，具有真实 VP9 Alpha。四边 0–0.6 秒同步入场，0.6–3.6 秒完整动态展示，
+3.6–4 秒同步退场；母版植物与挂饰动作已包含在视频内。`gift-effects-frame.js` 使用原生 video 播放，
+不再逐帧重绘植物。视频与文字共享 1920×1080 舞台，按视口短边等比缩放并居中，不拉伸。
+中央 (130,104)–(1790,944) 保持透明。铭牌在 (574,946)，文字区域在 (676,959)，大小 568×81；
+两行依次为“感谢 {昵称}”“送出 {礼物名} ×{数量}”，由 `textContent` 写入；不显示金额。
+文字跟随视频时间淡入/淡出，完整展示阶段固定；长文字先适量减小字号，再省略尾部，数量独立保留。
+公开 WebM 由 `static-video.js` 支持 Range/HEAD，以保证 Chromium 能从首帧重复播放。
 
-播放由 Overlay 内部 `GiftFrameController` 管理：单个 `PlaybackSession` 按 `900ms` 进入、
-`2600ms` 保持、`650ms` 退场的冻结时序运行，完整边框、独立装饰与信息座
-在进入阶段并行重叠；
-队列最多 3 条 pending，事件等待超过 12 秒丢弃，实时事件按稳定 `gift-frame:<id>` 去重，
-金额更高的新事件可替换 pending 中最低且最晚入队的一条。每个会话拥有 `AbortController`、
-WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都从同一 `finally` 清理出口恢复透明。
+`gift-frame-queue.js` 负责自定义边框的 FIFO 队列：1 条播放、最多 50 条等待；当前播放不被插队或打断，
+满队列忽略新事件，已排队项不因等待时长失效，也不按金额排序。实时与预览均按 eventId 去重，
+预览接口每次生成独立 ID。只接收目前支持的特效身份；后续特效的参数与播放器由其各自模块拥有。
+加载允许 10 秒，媒体进度停滞 5 秒触发清理；加载耗时不扣减正常的 4 秒动画。
+正常结束、解码错误、播放拒绝、超时和 pagehide 都释放回调/计时器并清空画面；错误后后续事件重新加载媒体并推进队列。
+旧静态图、挂饰、Canvas 粒子和 frame motion 模式已移除；URL motion 仍只影响大航海感谢。
+`gift:effect` 官方特效的独立播放器和队列保持既有行为。
 
-粒子 Canvas 最多创建 6 个错峰萤火光点，每个只沿框体周边完成一次短距离漂移和明暗变化，
-不进入中央直播安全区；粒子失败不影响 WebP/DOM 生命周期。
-动效解析优先级为 URL `?motion=` > `gift:frame.motionMode`/快照 settings > 系统
-`prefers-reduced-motion`；`reduced` 关闭粒子和大幅位移但保留边框结构与礼物信息。
-`gift:effect` MP4 查询和测试播放接口保留；弹幕代码与测试播放共用官方特效解析器及播放器。
+**大航海感谢**：同一页面在 `#guardThanksRoot` 消费 `gift:guard-thanks`，由 `overlays/gift-effects-guard.js` 按 eventId 去重（预览不去重）、逐条播放，最多 12 条等待、等待超过 90 秒丢弃，队列满时舍弃最早的最低等级；有等待时缩短停留。渲染器 `shared/guard-thanks-card.js`（徽记 `guard-thanks-emblems.js`、粒子 `guard-thanks-particles.js`、样式 `css/shared/guard-thanks.css`）同时供管理页预览使用：1280×1080 设计舞台按 `min(宽/1280, 高/1080)` 居中缩放，舰长/提督/总督分别为蓝色船锚、紫色罗盘、红金船舵，依次播放冲击波与闪光、徽记入场、头像徽章描边、丝带标题逐字弹出与扫光、标语和感谢铭牌，并有对应的气泡/星芒/彩纸余烬粒子。入场 1.5 秒，停留 3.3/4.0/5.0 秒，退场 0.7 秒；所有 WAAPI 动画、计时器和画布帧都有限且在会话结束时清理。头像只直连 HTTPS hdslb 地址（`no-referrer`），失败或缺失时显示昵称首字，预览使用内置样例头像；文字支持中英双语、中文、英文。`?motion=reduced` 或系统减少动态效果时只淡入淡出；`?preview=1&guardPreview=<tier>` 可在页面内单独预览。
 
 ### 1.5 开播动画(`/opening`)
 
@@ -450,7 +450,7 @@ owner 注册，未知类型立即报错，不反向导入工厂或 owner。`cloc
 | songs        | `/api/state` + `/api/songs`                                          | snapshot                                    | orderKey/layoutKey/motionKey            | `songs:*`/`cloud:songs`/`database:clear`/`database:clear-all`(220ms 重载) |
 | blindbox     | `/api/state` + `/api/gifts/blind-box-stats`                          | snapshot(即时设置)+ 轮询                     | 统计内容相同保留节点                    | `bilibili:gift`/`gift:sprint:reset`/`connect`                  |
 | overtime     | `/api/state`(overtime 字段)                                          | snapshot + `overtime:update`                | `revision` 单调比较                     | `overtime:update` 的 adjustment → 动画入队                     |
-| gift-effects | `/gift-effects` 页面加载完整合成 WebP + 三张独立装饰 WebP；保留四方分片资源 | `gift:frame`                                | `eventId` 稳定去重 + 3 条 pending 队列  | 每个合格 final 礼物一次播放                                    |
+| gift-effects | `/gift-effects` 页面播放特效 1 的 4 秒透明 WebM + 独立 DOM 感谢词条 | `gift:frame`                                | `eventId` 去重 + 50 条 FIFO 等待，无等待时效  | 每个合格 final 礼物一次播放                                    |
 | opening      | `/api/opening/config`                                                | 无                                          | 无；首帧配置经枚举/文本清洗             | 页面加载一次；Admin 预览可由 URL 参数覆盖                      |
 | clock        | `/api/clock/config` + 设备本地时间；URL 参数可覆盖 | clock scope settings snapshot + 秒边界定时器 | HTTP 修订保护；单一计时器 | 初始读取及重连；快照原位更新 |
 | lyrics       | snapshot 中的设置、状态和时间轴                                      | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重                  | 播放页按状态变化推送                                           |

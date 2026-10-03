@@ -12,6 +12,12 @@ const { MIN_CHUNK_INTERVAL_MS, MAX_CHUNK_INTERVAL_MS } = require('../../src/ai/a
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+function tagById(html, id) {
+  const tags = html.match(new RegExp(`<[^>]+\\sid\\s*=\\s*["']${id}["'][^>]*>`, 'g')) || [];
+  assert.equal(tags.length, 1, `${id} should exist once`);
+  return tags[0];
+}
+
 test('AI form number constraints match the server contract', () => {
   const html = readAdminHtml();
   const fieldIds = {
@@ -22,10 +28,10 @@ test('AI form number constraints match the server contract', () => {
   };
 
   for (const [key, id] of Object.entries(fieldIds)) {
-    const input = html.match(new RegExp(`<input\\b(?=[^>]*\\bid=["']${id}["'])[^>]*>`, 's'))?.[0];
-    assert.ok(input, `${id} should exist`);
-    assert.equal(Number(input.match(/\bmin\s*=\s*["']([^"']+)["']/)?.[1]), NUMBER_LIMITS[key][0]);
-    assert.equal(Number(input.match(/\bmax\s*=\s*["']([^"']+)["']/)?.[1]), NUMBER_LIMITS[key][1]);
+    const input = tagById(html, id);
+    assert.match(input, /^<input\b/);
+    assert.equal(Number(input.match(/\smin\s*=\s*["']([^"']+)["']/)?.[1]), NUMBER_LIMITS[key][0]);
+    assert.equal(Number(input.match(/\smax\s*=\s*["']([^"']+)["']/)?.[1]), NUMBER_LIMITS[key][1]);
   }
   assert.equal((html.match(/\bdata-ai-secret\b/g) || []).length, 3);
 });
@@ -34,7 +40,10 @@ test('admin page uses one ordered module entrypoint', () => {
   const html = readAdminHtml();
   const entrySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
 
-  assert.match(html, /<script type="module" src="\/js\/admin\/index\.js\?v=[^"]+"><\/script>/);
+  const scripts = html.match(/<script\b[^>]*>/g) || [];
+  const entries = scripts.filter((tag) => /\ssrc=["']\/js\/admin\/index\.js(?:\?[^"']*)?["']/.test(tag));
+  assert.equal(entries.length, 1);
+  assert.match(entries[0], /\stype=["']module["']/);
   assert.doesNotMatch(html, /<script[^>]+src="\/js\/admin\/queue\.js/);
 
   assert.ok(entrySource.includes("import './gifts/index.js';"));
@@ -51,7 +60,7 @@ test('admin page uses one ordered module entrypoint', () => {
   assert.equal(importLines.at(-1), "import './app.js';");
 });
 
-test('parameter ranges preserve centered values and opt in without changing playback controls', async () => {
+test('parameter ranges preserve centered values and leave playback controls independent', async () => {
   const html = readAdminHtml();
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'components', 'parameter-range.css'), 'utf8');
   const { getParameterRangeOrigin, getParameterRangeProgress } = await loadModuleExports(
@@ -80,71 +89,36 @@ test('parameter ranges preserve centered values and opt in without changing play
     polarity: 'neutral',
   });
 
-  const expectedVariants = {
-    tempo: ['queueScrollSpeedRange', 'identityQueueScrollSpeedRange', 'scrollSecondsRange'],
-    scale: [
-      'queueSongFontSize',
-      'queueTitleFontSize',
-      'identityQueueFontSize',
-      'overlayRuleFontSize',
-      'songBoardFontSize',
-      'songBoardSongFontSize',
-      'songBoardTitleFontSize',
-      'desktopLyricFontSize',
-      'desktopLyricLineHeight',
-      'desktopLyricStrokeWidth',
-      'desktopLyricShadowBlur',
-      'desktopLyricTranslationScale',
-      'desktopLyricScale',
-      'desktopLyricAlignPosition',
-      'desktopLyricPerspective',
-    ],
-    intensity: [
-      'themeOpacity',
-      'backdropBlur',
-      'glowIntensity',
-      'songBoardBackdropBlur',
-      'songBoardGlowIntensity',
-      'songBoardThemeOpacity',
-      'desktopLyricShadowIntensity',
-      'desktopLyricOpacity',
-      'desktopLyricBaseOpacity',
-      'desktopLyricTranslationOpacity',
-      'desktopLyricBgOpacity',
-      'desktopLyricGlobalOpacity',
-      'desktopLyricBrightness',
-      'desktopLyricContrast',
-      'desktopLyricSaturation',
-    ],
-    centered: [
-      'desktopLyricLetterSpacing',
-      'desktopLyricShadowOffsetX',
-      'desktopLyricShadowOffsetY',
-      'desktopLyricInterludeOffsetEm',
-      'desktopLyricTimeOffsetMs',
-      'desktopLyricTranslateX',
-      'desktopLyricTranslateY',
-      'desktopLyricRotateX',
-      'desktopLyricRotateY',
-      'weSingLyricOffsetMs',
-    ],
-  };
-  for (const [variant, ids] of Object.entries(expectedVariants)) {
-    for (const id of ids) {
-      assert.match(
-        html,
-        new RegExp(`id="${id}"\\s+class="parameter-range parameter-range--${variant}"\\s+type="range"`),
-      );
-    }
+  for (const id of [
+    'desktopLyricLetterSpacing',
+    'desktopLyricShadowOffsetX',
+    'desktopLyricShadowOffsetY',
+    'desktopLyricInterludeOffsetEm',
+    'desktopLyricTimeOffsetMs',
+    'desktopLyricTranslateX',
+    'desktopLyricTranslateY',
+    'desktopLyricRotateX',
+    'desktopLyricRotateY',
+    'weSingLyricOffsetMs',
+  ]) {
+    const input = tagById(html, id);
+    assert.match(input, /^<input\b/);
+    assert.match(input, /\stype=["']range["']/);
+    const classes = input.match(/\sclass=["']([^"']*)["']/)?.[1].split(/\s+/) || [];
+    assert.ok(classes.includes('parameter-range'));
+    assert.ok(classes.includes('parameter-range--centered'));
   }
-  assert.doesNotMatch(html, /id="playbackSeek" class="parameter-range"/);
-  assert.doesNotMatch(html, /id="playbackVolume" class="[^\"]*parameter-range/);
-  assert.match(styles, /\.parameter-range\s*\[\s*type\s*=\s*['"]range['"]\s*\]/);
-  assert.match(styles, /:focus-visible\s*\{[^}]*outline: 2px solid/);
-  assert.match(styles, /\.parameter-range--centered\[type='range'\]/);
+  for (const id of ['playbackSeek', 'playbackVolume']) {
+    const classes = tagById(html, id).match(/\sclass=["']([^"']*)["']/)?.[1].split(/\s+/) || [];
+    assert.equal(classes.includes('parameter-range'), false);
+  }
   assert.match(styles, /var\(--parameter-range-origin-length\)/);
   assert.match(styles, /var\(--parameter-range-zero-position\)/);
-  assert.doesNotMatch(styles, /\.parameter-range--(?:tempo|scale|intensity)/);
+  const focusRule = styles.match(/:focus-visible\s*\{([^}]+)\}/)?.[1];
+  assert.ok(focusRule, 'keyboard focus has a visible indicator');
+  const outline = focusRule.match(/(?:^|;)\s*outline\s*:\s*([^;]+)/)?.[1];
+  assert.ok(outline);
+  assert.doesNotMatch(outline, /\b(?:none|transparent)\b|^0(?:px)?(?:\s|$)/);
 });
 
 test('admin form refresh preserves the active edit and updates inactive fields', async () => {
@@ -167,56 +141,60 @@ test('admin form refresh preserves the active edit and updates inactive fields',
 
 test('AI panel mounts its controls with safe defaults', () => {
   const html = readAdminHtml();
-  assert.match(html, /id="xiaomiAiTitle">AI 互动助手<\/h3>/);
-  assert.match(html, /id="xiaomiAiProviderBadge">自动识别</);
-  assert.match(html, /选择你使用的 AI 平台/);
-  assert.match(html, /id="xiaomiAiEnabled"[^>]*checked/);
-  assert.match(html, /id="xiaomiAiModelState">未配置</);
-  assert.match(html, /id="xiaomiAiModel"[^>]*placeholder="填写模型 ID"[^>]*aria-controls="xiaomiAiModelMenu"/);
-  assert.doesNotMatch(html, /id="xiaomiAiModel"[^>]*\blist=/);
-  assert.doesNotMatch(html, /id="xiaomiAiModel"[^>]*value=/);
-  assert.match(html, /id="xiaomiAiFetchModelsBtn"[^>]*type="button"/);
-  assert.match(html, /id="xiaomiAiQWeatherTestBtn"[^>]*type="button"/);
-  assert.match(html, /id="xiaomiAiAmapTestBtn"[^>]*type="button"/);
-  assert.doesNotMatch(html, /<datalist\b/);
-  assert.match(html, /id="xiaomiAiWebSearch"[^>]*checked/);
-  assert.match(html, /id="xiaomiAiReasoning"[^>]*type="checkbox"(?![^>]*checked)/);
-  assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*value="50"/);
-  assert.match(html, /回复长度偏好/);
-  assert.match(html, /优先一条；内容较多时两条，必要时三条/);
+  assert.match(tagById(html, 'xiaomiAiForm'), /^<form\b/);
+  for (const id of [
+    'xiaomiAiTitle',
+    'xiaomiAiProviderBadge',
+    'xiaomiAiModelState',
+    'xiaomiAiProtocolCapability',
+    'xiaomiAiWebSearchCapability',
+    'xiaomiAiReasoningCapability',
+  ]) tagById(html, id);
+  for (const id of ['xiaomiAiEnabled', 'xiaomiAiWebSearch']) {
+    const input = tagById(html, id);
+    assert.match(input, /\stype=["']checkbox["']/);
+    assert.match(input, /\schecked(?:\s|\/?>)/);
+  }
+  const model = tagById(html, 'xiaomiAiModel');
+  assert.match(model, /\saria-controls=["']xiaomiAiModelMenu["']/);
+  assert.doesNotMatch(model, /\s(?:list|value)\s*=/);
+  tagById(html, 'xiaomiAiModelMenu');
+  for (const id of ['xiaomiAiFetchModelsBtn', 'xiaomiAiTestBtn', 'xiaomiAiQWeatherTestBtn', 'xiaomiAiAmapTestBtn']) {
+    const button = tagById(html, id);
+    assert.match(button, /^<button\b/);
+    assert.match(button, /\stype=["']button["']/);
+  }
+  const reasoning = tagById(html, 'xiaomiAiReasoning');
+  assert.match(reasoning, /\stype=["']checkbox["']/);
+  assert.doesNotMatch(reasoning, /\schecked(?:\s|=|\/?>)/);
+  assert.match(tagById(html, 'xiaomiAiReplyMaxChars'), /\svalue=["']50["']/);
+  const interval = (html.match(/<input\b[^>]*>/g) || []).find((tag) => /\svalue="不同回复随机/.test(tag));
+  assert.ok(interval);
+  assert.match(interval, /\sreadonly(?:\s|\/?>)/);
   assert.equal(
-    html.match(/value="(不同回复随机[^"]+)"\s+readonly/)?.[1],
+    interval.match(/\svalue="([^"]+)"/)?.[1],
     `不同回复随机 500–2000 毫秒；同一回复分段随机 ${MIN_CHUNK_INTERVAL_MS}–${MAX_CHUNK_INTERVAL_MS} 毫秒`,
   );
-  assert.match(html, /id="xiaomiAiUserCooldown"[^>]*min="0"[^>]*value="0"/);
+  assert.match(tagById(html, 'xiaomiAiUserCooldown'), /\svalue=["']0["']/);
   assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);
-  assert.match(
-    html,
-    /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="例如：https:\/\/gcli\.ggchan\.dev\/ 或 https:\/\/api\.openai\.com\/v1"/,
-  );
-  assert.match(
-    html,
-    /id="xiaomiAiModelProvider"[\s\S]*?value="deepseek"[\s\S]*?value="openai"[\s\S]*?value="anthropic"[\s\S]*?value="gemini"[\s\S]*?value="custom"/,
-  );
-  assert.match(
-    html,
-    /id="xiaomiAiModelApiProtocol"[\s\S]*?value="auto"[\s\S]*?value="responses"[\s\S]*?value="chat_completions"/,
-  );
-  assert.match(html, /id="xiaomiAiProtocolCapability">等待配置</);
-  assert.match(html, /id="xiaomiAiWebSearchCapability">等待配置</);
-  assert.match(html, /id="xiaomiAiReasoningCapability">等待配置</);
-  assert.match(html, /id="xiaomiAiReasoningEffort"[\s\S]*?value="high">高<[\s\S]*?value="max">最高</);
-  assert.match(html, /id="xiaomiAiProviderManagedReasoning"[^>]*hidden/);
-  assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
-  assert.match(html, /id="xiaomiAiQWeatherKey"[^>]*type="password"/);
-  assert.match(html, /id="xiaomiAiAmapKey"[^>]*type="password"/);
-  assert.match(html, /id="xiaomiAiTrigger"[^>]*placeholder="请自定义触发关键词"/);
-  assert.doesNotMatch(html, /id="xiaomiAiTrigger"[^>]*value="小米"/);
-  assert.match(html, /id="xiaomiAiTestBtn"[^>]*>\s*测试 AI 连接/);
-  assert.match(html, /id="xiaomiAiQWeatherHost"[^>]*type="text"[^>]*placeholder="nn7mdbwku9\.re\.qweatherapi\.com"/);
-  assert.match(html, /<details class="xiaomi-ai-collapsible">[\s\S]*?扩展能力/);
-  assert.match(html, /<details class="xiaomi-ai-collapsible xiaomi-ai-advanced">[\s\S]*?高级设置/);
-  assert.match(html, /id="xiaomiAiSaveBtn"[^>]*type="submit"[^>]*>\s*保存设置/);
+  for (const [id, expected] of [
+    ['xiaomiAiModelProvider', ['deepseek', 'openai', 'anthropic', 'gemini', 'custom']],
+    ['xiaomiAiModelApiProtocol', ['auto', 'responses', 'chat_completions']],
+    ['xiaomiAiReasoningEffort', ['high', 'max']],
+  ]) {
+    assert.match(tagById(html, id), /^<select\b/);
+    const select = html.match(new RegExp(`<select\\b[^>]*\\sid=["']${id}["'][^>]*>[\\s\\S]*?<\\/select>`))?.[0];
+    const values = [...select.matchAll(/<option\b[^>]*\svalue=["']([^"']*)["']/g)].map((match) => match[1]);
+    for (const value of expected) assert.ok(values.includes(value), `${id} supports ${value}`);
+  }
+  assert.match(tagById(html, 'xiaomiAiProviderManagedReasoning'), /\shidden(?:\s|\/?>)/);
+  for (const id of ['xiaomiAiDeepSeekKey', 'xiaomiAiQWeatherKey', 'xiaomiAiAmapKey']) {
+    assert.match(tagById(html, id), /\stype=["']password["']/);
+  }
+  assert.doesNotMatch(tagById(html, 'xiaomiAiTrigger'), /\svalue=["']小米["']/);
+  assert.match(tagById(html, 'xiaomiAiDeepSeekUrl'), /^<input\b/);
+  assert.match(tagById(html, 'xiaomiAiQWeatherHost'), /\stype=["']text["']/);
+  assert.match(tagById(html, 'xiaomiAiSaveBtn'), /\stype=["']submit["']/);
   assert.doesNotMatch(html, /sk-[A-Za-z0-9_-]{8,}/);
 });
 

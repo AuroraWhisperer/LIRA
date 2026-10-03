@@ -20,6 +20,7 @@ const scopes = [
   'gift-effects',
   'gift-feed',
   'gift-wishes',
+  'gift-sprint',
   'gift-export',
   'lyrics',
   'games',
@@ -70,6 +71,7 @@ const state = {
   },
   superChats: [{ message: '留言', price: 30, uid: secret }],
   gifts: { viewRevision: 'revision', activeSource: { secret }, secret },
+  giftSprint: { targetRmb: 1000, remainingCrystalBalls: 7, receivedRmb: 300, sourceId: secret },
   liveStatus: { enabled: true, roomId: '123', connected: true, message: '已连接', cookie: secret },
   danmakuFeed: [item],
   overtime: {
@@ -113,6 +115,7 @@ test('every scope receives only its own snapshot fields and unknown principals f
     'gift-effects': ['settings'],
     'gift-feed': ['gifts'],
     'gift-wishes': ['gifts'],
+    'gift-sprint': ['giftSprint'],
     lyrics: ['settings', 'lyricState', 'lyricTimeline'],
     danmaku: ['settings', 'liveStatus', 'danmakuFeed'],
     clock: ['settings'],

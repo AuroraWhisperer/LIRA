@@ -50,6 +50,14 @@ const REQUIRED_ROUTE_IDS = [
   'ROUTE-OVERLAYS',
 ];
 const ALLOWED_SPEC_STATUSES = new Set(['Draft', 'Accepted', 'In Progress', 'Implemented', 'Reference', 'Superseded']);
+const ACTIVE_PLAN_STATUSES = new Set([
+  'Draft', 'In Progress', 'Needs Review', 'Awaiting Verification',
+  'Awaiting Evidence', 'Deferred', 'Paused', 'Blocked',
+]);
+
+function readPlanStatus(source) {
+  return /^(?:\*\*Status:\*\*|Status:)[ \t]+([^.\r\n—(]+)/m.exec(source)?.[1].trim();
+}
 
 function markdownFiles(directory) {
   return fs.readdirSync(path.join(ROOT_DIR, directory), { withFileTypes: true }).flatMap((entry) => {
@@ -291,19 +299,29 @@ test('relative document links resolve across current and historical documentatio
   assertNoFindings(findings);
 });
 
+test('plan status accepts plain or bold labels while rejecting missing and non-active states', () => {
+  for (const label of ['Status:', '**Status:**']) {
+    for (const status of ACTIVE_PLAN_STATUSES) {
+      assert.equal(readPlanStatus(`${label} ${status} — remaining work`), status);
+    }
+    for (const status of ['Completed', 'Superseded', 'Unknown']) {
+      assert.equal(ACTIVE_PLAN_STATUSES.has(readPlanStatus(`${label} ${status}`)), false);
+    }
+  }
+  for (const source of ['', 'DeploymentStatus: In Progress', 'Status:\nIn Progress']) {
+    assert.equal(readPlanStatus(source), undefined);
+  }
+});
+
 test('active plans have current nonterminal status and appear in the plan index', () => {
-  const allowed = new Set([
-    'Draft', 'In Progress', 'Needs Review', 'Awaiting Verification',
-    'Awaiting Evidence', 'Deferred', 'Paused', 'Blocked',
-  ]);
   const index = read('specs/plans/README.md');
   const plans = fs.readdirSync(absolutePath('specs/plans')).filter((file) =>
     file.endsWith('.md') && !['README.md', 'open-items.md'].includes(file),
   );
   for (const file of plans) {
     const source = read(`specs/plans/${file}`);
-    const status = /^\*\*Status:\*\* ([^.\n—(]+)/m.exec(source)?.[1].trim();
-    assert.ok(allowed.has(status), `${file}: provide a current status or archive the completed/superseded plan`);
+    const status = readPlanStatus(source);
+    assert.ok(ACTIVE_PLAN_STATUSES.has(status), `${file}: provide a current status or archive the completed/superseded plan`);
     assert.ok(index.includes(`](${file}) | ${status} |`), `${file}: plan index status must match the plan`);
   }
   const legacyDirectory = absolutePath('docs/superpowers/plans');

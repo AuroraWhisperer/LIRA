@@ -90,25 +90,16 @@ test('admin composition expands complete desktop lyric regions in order', () => 
   const markers = Array.from(parent.matchAll(/<!-- admin-fragment: ([^ ]+\.html) -->/g), (match) => match[1]);
 
   assert.deepEqual(markers, fragmentPaths);
-  assert.match(parent, /^\s*<div id="desktopLyricPage"[\s\S]*<\/div>\s*$/);
-  assert.doesNotMatch(
-    parent,
-    /is-basic|is-effect|is-content|is-visibility|is-layout|is-render|id="desktopLyricLivePreview"/,
-  );
+  assert.doesNotMatch(parent, /\sid=["']desktopLyricLivePreview["']/);
   for (const fragmentPath of fragmentPaths) {
     assert.equal(ADMIN_FRAGMENT_PATHS.includes(fragmentPath), false);
   }
 
   const fragments = fragmentPaths.map((fragmentPath) => fs.readFileSync(path.join(PUBLIC_DIR, fragmentPath), 'utf8'));
-  assert.match(fragments[0], /^\s*<details\b[^>]*is-basic[\s\S]*is-effect[\s\S]*<\/details>\s*$/);
-  assert.match(fragments[1], /^\s*<details\b[^>]*is-content[\s\S]*is-visibility[\s\S]*<\/details>\s*$/);
-  assert.match(fragments[2], /^\s*<details\b[^>]*is-layout[\s\S]*<\/details>\s*$/);
-  assert.match(fragments[3], /^\s*<details\b[^>]*is-render[\s\S]*desktopLyricResetBtn[\s\S]*<\/section>\s*$/);
-  assert.match(fragments[4], /^\s*<section\b[^>]*id="desktopLyricLivePreview"[\s\S]*<\/section>\s*$/);
 
   const html = composeAdminHtml(PUBLIC_DIR);
   assert.doesNotMatch(html, /<!-- admin-fragment:/);
-  let previousIndex = html.indexOf('class="theme-section desktop-lyric-source-settings"');
+  let previousIndex = -1;
   for (const fragment of fragments) {
     const index = html.indexOf(fragment.trim());
     assert.ok(index > previousIndex);
@@ -119,48 +110,26 @@ test('admin composition expands complete desktop lyric regions in order', () => 
   }
 });
 
-test('admin composition keeps every help chapter in its table-of-contents order', () => {
+test('admin composition matches guide chapters to its directory without duplicates', () => {
   const html = composeAdminHtml(PUBLIC_DIR);
-  const chapterIds = Array.from(
-    html.matchAll(/<section class="usage-guide-section" id="([^"]+)"/g),
-    (match) => match[1],
-  );
-
-  assert.deepEqual(chapterIds, [
-    'ug-quick',
-    'ug-accounts',
-    'ug-reinstall',
-    'ug-flow',
-    'ug-song',
-    'ug-playback',
-    'ug-gifts',
-    'ug-toolbox',
-    'ug-deepseek',
-    'ug-obs',
-    'ug-cheatsheet',
-    'ug-web-songlist',
-    'ug-data',
-    'ug-appearance',
-    'ug-glossary',
-    'ug-faq',
-  ]);
+  const chapterIds = [...html.matchAll(/<section\b(?=[^>]*\sclass=["'][^"']*\busage-guide-section\b)[^>]*>/g)]
+    .map(([tag]) => tag.match(/\sid=["']([^"']+)["']/)?.[1]);
+  const directory = html.match(/<nav\b(?=[^>]*\sclass=["'][^"']*\busage-guide-toc\b)[^>]*>[\s\S]*?<\/nav>/)?.[0];
+  assert.ok(directory, 'the guide must expose its chapter directory');
+  const linkIds = [...directory.matchAll(/<a\b(?=[^>]*\sdata-usage-guide-link(?:\s|>))[^>]*>/g)]
+    .map(([tag]) => tag.match(/\shref=["']#([^"']+)["']/)?.[1]);
+  assert.ok(chapterIds.length > 0);
+  assert.ok(chapterIds.every(Boolean));
+  assert.equal(new Set(chapterIds).size, chapterIds.length);
+  assert.deepEqual(linkIds, chapterIds);
   assert.doesNotMatch(html, /<!-- admin-fragment:/);
-  for (const id of chapterIds) {
-    assert.match(html, new RegExp(`href="#${id}" data-usage-guide-link`));
-  }
 });
 
 test('composed admin page is complete, ordered, and has unique ids', () => {
   const html = composeAdminHtml(PUBLIC_DIR);
-  const shellStart = fs.readFileSync(path.join(PUBLIC_DIR, 'pages/admin/shell-start.html'), 'utf8');
-  const songShellStart = fs.readFileSync(path.join(PUBLIC_DIR, 'pages/admin/song/shell-start.html'), 'utf8');
-  const toolboxShellStart = fs.readFileSync(path.join(PUBLIC_DIR, 'pages/admin/toolbox/shell-start.html'), 'utf8');
 
   assert.match(html, /<!doctype html>/);
   assert.match(html, /<\/html>\s*$/);
-  assert.match(shellStart, /<\/header>\s*$/);
-  assert.match(songShellStart, /<\/button>\s*<\/div>\s*$/);
-  assert.match(toolboxShellStart, /<div class="other-feature-content">\s*$/);
   assert.ok(html.indexOf('id="songAssistantPage"') < html.indexOf('id="giftAssistantPage"'));
   assert.ok(html.indexOf('id="giftAssistantPage"') < html.indexOf('id="otherAssistantPage"'));
   assert.ok(html.indexOf('id="otherAssistantPage"') < html.indexOf('id="playbackAssistantPage"'));

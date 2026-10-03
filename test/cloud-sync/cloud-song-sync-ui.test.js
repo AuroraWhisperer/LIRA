@@ -119,6 +119,33 @@ test('cancelled cloud confirmation sends nothing and validation errors keep the 
   assert.equal(button.disabled, false);
 });
 
+test('cloud sync records only valid response counts and falls back to the uploaded snapshot otherwise', async () => {
+  for (const [count, expected] of [
+    [undefined, 2],
+    [-1, 2],
+    [1.5, 2],
+    [Number.MAX_SAFE_INTEGER + 1, 2],
+    [Infinity, 2],
+    ['invalid', 2],
+    [0, 0],
+    [3, 3],
+  ]) {
+    const ui = await fixture();
+    ui.finishCount([]);
+    await ui.initialized;
+    ui.setSongs([{ name: 'first' }, { name: 'second' }]);
+    ui.bridge.syncSongs = async () => ({ ok: true, count });
+    const button = ui.element('licenseSyncSongsBtn');
+    const syncing = button.events.click();
+    ui.confirm(true);
+    await syncing;
+    assert.equal(JSON.parse(ui.stored.get('lira:license:lastCloudSync')).count, expected, `response count ${count}`);
+    assert.equal(ui.element('licenseCloudCount').textContent, `${expected} 首`);
+    assert.match(ui.element('licenseSyncResult').textContent, new RegExp(`已同步 ${expected} 首`));
+    assert.equal(button.disabled, false);
+  }
+});
+
 test('legacy import entry keeps the parser and cloud initialization APIs wired through ESM', async () => {
   const window = { AdminApp: { utils: {} } };
   await loadModuleExports(path.resolve(__dirname, '../../public/js/admin/song-import.js'), { window });

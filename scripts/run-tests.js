@@ -25,6 +25,8 @@ const groups = {
     'gifts/frontend-gift-feed-pressure',
     'gifts/frontend-gift-history-selection',
     'gifts/frontend-gift-wishes',
+    'gifts/frontend-gift-assistant',
+    'gifts/frontend-guard-thanks',
     'overlays/component-source',
     'ui/frontend-toast',
     'admin/ui-edit-state',

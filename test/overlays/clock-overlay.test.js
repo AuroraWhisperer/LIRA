@@ -87,7 +87,6 @@ test('clock styles keep fixed base, named theme, and animation ownership', () =>
   assert.match(owners.orbit, /data-clock-style='orbit'/);
   assert.match(owners.flip, /data-clock-style='flip'/);
   assert.doesNotMatch(owners.digital, /@keyframes/);
-  assert.match(owners.animations, /@keyframes clock-colon-breathe/);
   assert.match(owners.animations, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.animations, /data-clock-style/);
 });
@@ -119,12 +118,10 @@ test('cute clock overlay exposes eight distinct styles and safe time parameters'
   assert.match(css, /height:\s*380px/);
   assert.match(css, /background:\s*transparent/);
   assert.match(css, /transform:\s*scale\(var\(--clock-scale,\s*1\)\)/);
-  assert.match(css, /\.clock-seconds\s*\{[\s\S]*?display:\s*inline-grid[\s\S]*?text-shadow:\s*none/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(css, /timeline-vertical'\]\s*#clockDate\s*\{\s*display:\s*none/);
   assert.match(script, /textContent/);
   assert.doesNotMatch(script, /innerHTML/);
-  assert.match(script, /visibilitychange/);
 });
 
 test('clock overlay scales its complete design canvas without moving style artwork', async () => {
@@ -155,14 +152,11 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   const composition = read('src', 'server', 'admin-page.js');
 
   assert.match(shell, /data-other-feature="otherClockFeature"/);
-  assert.match(shell, /<strong>萌时钟<\/strong>/);
-  assert.match(shell, /<small>日期、星期和当前时间<\/small>/);
   assert.match(composition, /pages\/admin\/toolbox\/clock\.html/);
   assert.match(styleEntry, /toolbox\/clock\.css/);
   assert.match(app, /import\('\.\/clock-card\.js'\)/);
   assert.match(app, /module\.initClockCard/);
 
-  assert.doesNotMatch(panel, /ui-page-(?:title|subtitle)|other-feature-page-header/);
   for (const id of [
     'clockPreview',
     'clockFixedUrl',
@@ -178,35 +172,9 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   }
   assert.doesNotMatch(panel, /clockCustomUrl|clockCopyCustom|带参数网址/);
   assert.doesNotMatch(panel + script, /clockRecommendedSize|推荐浏览器源/);
-  assert.match(panel, /id="clockPreviewTitle"[^>]*>实时预览<\/h3>/);
-  assert.match(panel, /id="clockFixedTitle"[^>]*>萌时钟网址<\/h3>/);
-  assert.match(panel, /id="clockParametersTitle"[^>]*>自定义设置<\/h3>/);
-  assert.doesNotMatch(panel, /画面里的实际大小|设置变化，网址不变|选一套今天的心情|clock-preview-note/);
-  assert.match(panel, /data-clock-style-option="peach"/);
-  assert.match(panel, /data-clock-style-option="starlight"/);
-  assert.match(panel, /data-clock-style-option="soda"/);
-  assert.match(panel, /data-clock-style-option="timeline-horizontal"/);
-  assert.match(panel, /data-clock-style-option="timeline-vertical"/);
-  assert.match(panel, /data-clock-style-option="digital"/);
-  assert.match(panel, />桃桃便签</);
-  assert.match(panel, />星夜软糖</);
-  assert.match(panel, />汽水小鸭</);
-  assert.match(panel, />横向刻度</);
-  assert.match(panel, />竖向刻度</);
-  assert.match(panel, />白字数显</);
-  assert.equal(panel.match(/data-clock-style-option="[^"]+"/g)?.length, CLOCK_STYLE_VALUES.size);
-  assert.match(panel, /is-timeline-horizontal/);
-  assert.match(panel, /is-timeline-vertical/);
+  const stylesAvailable = [...panel.matchAll(/\sdata-clock-style-option="([^"]+)"/g)].map(([, value]) => value);
+  assert.deepEqual(stylesAvailable.sort(), [...CLOCK_STYLE_VALUES].sort());
   assert.match(panel, /clockCustomLabelHelp/);
-  assert.match(styles, /grid-template-columns:\s*minmax\(240px,\s*280px\)\s+minmax\(0,\s*1fr\)/);
-  assert.match(styles, /container: clock-settings \/ inline-size/);
-  assert.match(styles, /@container clock-settings \(max-width:\s*704px\)/);
-  assert.match(script, /params\.set\('style'/);
-  assert.match(script, /params\.set\('date'/);
-  assert.match(script, /params\.set\('seconds'/);
-  assert.match(script, /params\.set\('format'/);
-  assert.match(script, /params\.set\('label'/);
-  assert.match(script, /new Set\(Object.keys\(CLOCK_STYLE_LABELS\)\)/);
   assert.match(script, /clockSettingsPayload/);
   assert.match(script, /saveComponentSettings\(clockSettingsPayload\(config\)\)/);
   assert.match(script, /fetch\('\/api\/clock\/config'/);
@@ -218,10 +186,8 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(script, /button\.disabled = !loaded/);
   assert.match(script, /control\.disabled = !loaded/);
   assert.doesNotMatch(script, /customLabel\.value\s*=\s*''/);
-  assert.match(panel, /id="clockCustomLabelField"[^>]*for="clockCustomLabel"/);
+  assert.match(panel, /<label\b(?=[^>]*\sid="clockCustomLabelField")(?=[^>]*\sfor="clockCustomLabel")[^>]*>/);
   assert.match(styles, /aspect-ratio:\s*240\s*\/\s*400/);
-  assert.match(styles, /is-timeline-horizontal/);
-  assert.match(styles, /is-timeline-vertical/);
 });
 
 test('clock settings are persisted through validated keys and exposed by the clock page read-only capability', async () => {

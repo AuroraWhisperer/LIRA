@@ -7,7 +7,7 @@ const { loadModuleExports } = require('./frontend-modules');
 const ROOT_DIR = path.join(__dirname, '..', '..');
 
 function response(payload) {
-  return { ok: payload.ok !== false, text: async () => JSON.stringify(payload) };
+  return { ok: payload.ok !== false, text: async () => JSON.stringify(payload), json: async () => payload };
 }
 
 async function flushBlindboxTasks() {
@@ -19,6 +19,7 @@ async function createBlindboxFixture({
   loggedIn = false,
   authAvailable = true,
   mappingState = { mode: 'v2', applied: true, customCount: 1 },
+  includePanel = false,
 } = {}) {
   const container = { innerHTML: '', querySelectorAll: () => [] };
   const textarea = { value: '[]' };
@@ -100,7 +101,8 @@ async function createBlindboxFixture({
     return Promise.resolve(response({ ok: true, data: {} }));
   };
 
-  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), {
+  if (includePanel) window.fetch = fetch;
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', includePanel ? 'index.js' : 'blindbox.js'), {
     document,
     window,
     fetch,

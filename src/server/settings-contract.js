@@ -7,6 +7,7 @@ const {
 } = require('../../public/js/shared/interaction-appearance.js');
 const { parseCustomReplyRules } = require('../bilibili/custom-reply-service');
 const { normalizeFrameSettingValue } = require('../bilibili/gift/frame-config');
+const { normalizeGuardThanksSettingValue } = require('../bilibili/gift/guard-thanks-config');
 const {
   normalizeGiftBlindBoxConfig,
   normalizeGiftBlindBoxCustomConfigV2,
@@ -45,9 +46,8 @@ const JSON_SETTING_KEYS = new Set(['checkinBlessings', 'fortunePool']);
 const FRAME_SETTING_KEYS = new Set([
   'giftFrameEnabled',
   'giftFrameThresholdRmb',
-  'giftFrameTheme',
-  'giftFrameMotionMode',
 ]);
+const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTextMode']);
 const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline']);
 
 function normalizeSettingValue(key, rawValue) {
@@ -75,6 +75,7 @@ function normalizeSettingValue(key, rawValue) {
     return Number.isInteger(number) && number >= min && number <= max ? String(number) : null;
   }
   if (FRAME_SETTING_KEYS.has(key)) return normalizeFrameSettingValue(key, rawValue);
+  if (GUARD_THANKS_SETTING_KEYS.has(key)) return normalizeGuardThanksSettingValue(key, rawValue);
   if (CLOCK_SETTING_KEYS.has(key)) return normalizeClockSettingValue(key, rawValue);
   if (key === 'danmakuOverlayStyle') {
     const value = String(rawValue || '').trim();

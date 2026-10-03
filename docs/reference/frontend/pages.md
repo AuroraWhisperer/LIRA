@@ -30,7 +30,9 @@
 
 桌面 Admin 的通用字体层级由 [styles-base.css](../../../public/css/styles-base.css) 中的 token 与 [admin/layout.css](../../../public/css/admin/layout.css) 中 `.app-shell` 范围内的语义角色共同持有。`styles-base.css` 只声明 token，不得增加会影响普通 `h1`、`p`、`small` 等元素的裸排版规则；页面和组件通过 `ui-*` 角色或组件自有的等价选择器消费这些值。
 
-| 角色            | 字号 | 常用字重 | 用途                                   |
+下表记录通用 token 的默认设计值，具体数值由样式 owner 调整；组件可在相应语义角色基础上调整展示尺寸。自动化测试保护 token 完整性、有效取值、字号层级和以下可读性/作用域边界，不在各页面重复冻结这些数值。用户配置的直播画面字号属于输入输出契约，仍须准确应用。
+
+| 角色            | 默认字号 | 常用字重 | 用途                                   |
 | --------------- | ---: | -------: | -------------------------------------- |
 | display         | 28px |      700 | 少量展示型标题                         |
 | page title      | 24px |      700 | 主工作区与百宝箱功能页锚点             |
@@ -82,6 +84,12 @@
 | `/clock`           | [overlays/clock.html](../../../public/pages/overlays/clock.html)                                                   | OBS/直播姬浏览器源、管理页预览 `<iframe>`                    | 固定萌时钟地址；默认读取已保存设置，兼容 `style=peach                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | starlight | soda | timeline-horizontal | timeline-vertical`、`date=0 | 1`、`seconds=0 | 1`、`format=12 | 24`、`label=` 逐字段覆盖 |
 
 礼物姬在「礼物边框」「滚动礼物」后增加「礼物许愿」。管理片段 `toolbox/gift-wishes.html` 由原礼物片段组合；`admin/gifts/wishes.js` 管理三周期与增改删，`wish-picker.js` 复用在售/全库目录，`shared/gift-wish-card.js` / CSS 与 overlay 共用实际展示。每条许愿可选「礼物卡片」「文字版」或「圆形徽章」。文字版将 `{图片}`、`{礼物}`、`{已收}`、`{目标}` 显示为不可拆开的中文内容块，提供插入按钮、问号说明和相邻的即时预览；支持原生撤销/重做、整块删除、复制/剪切及纯文本粘贴，粘贴已知标记时恢复内容块，保存仍使用原模板格式；默认“许愿{礼物}（{已收}/{目标}）”。图片标记可放任意位置，每处生成一个图片节点，删除全部图片标记即可隐藏；名称和数量使用文本节点，不解析 HTML。共享模板读取函数将旧 `textImagePosition` 的 before/after 转成首尾图片标记，inline 转成第一处礼物名称前的标记（无名称标记时前置）；模板已有 `{图片}` 时优先使用，不重复追加。编辑保存时写入转换后的模板并清除旧位置值为 none，保留内容和顺序。模板含图片标记时显示动态原图/静态 PNG 选择，原图没有动画时仍显示原静态图片，静态转换由 `shared/gift-wish-image.js` 在内存完成。文字颜色依据服务端 todayCount，默认今日未收到为雾蓝 #3b6ea8、已收到为翠绿 #21815c。默认值由共享 renderer 导出；每条许愿可分别自定义 textPendingColor / textReceivedColor，空值使用默认。编辑器提供取色器、恢复默认颜色和两状态对比预览，预览不修改真实收礼状态或数量，颜色随「添加许愿 / 保存修改」生效。已保存预览保留展示内容和编辑/删除操作。空、加载、同步不完整、直播状态未知均有对应提示，离开面板暂停轮询。面向用户的完整规则见内置指南 `usage-guide-toolbox-danmaku-gifts.html#ug-gift-wishes`。
+
+礼物姬最后一个页签「大航海感谢」直接位于 `toolbox/gift.html`，样式为 `css/admin/gift-guard-thanks.css`，动画样式 `css/shared/guard-thanks.css` 由管理页与 `/gift-effects` 共同加载。
+
+「礼物许愿」后新增「月底冲刺」页签，使用 `admin/gifts/sprint-overlay.js` 展示原 `giftSprint` 快照；由现有 `gifts/sprint.js` 同步渲染，不重复轮询或计算。文字与投屏共用 `shared/gift-sprint-text.js` / CSS，显示“还差 N 个水晶球”，达标显示绿色 0，未设目标时留空。复制地址、打开预览与跳转原目标设置表单各有独立按钮。礼物姬标签高度为 26px；许愿地址行的复制、预览、刷新统一使用 secondary 按钮。
+
+`/gift-sprint` 对应 [overlays/gift-sprint.html](../../../public/pages/overlays/gift-sprint.html)，默认透明底，建议尺寸 600 × 80；`preview=1` 显示预览底色和状态提示。使用 WebSocket 初始/后续快照更新，断线清空旧数字，重连恢复当前进度。
 
 | 入口 URL | 实际 HTML | 打开者 | 行为说明 |
 | --- | --- | --- | --- |

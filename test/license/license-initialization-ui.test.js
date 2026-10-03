@@ -125,6 +125,48 @@ test('startup connection and client-version failures remain visible errors', asy
   }
 });
 
+test('license errors explain session replacement and temporary server failures', async () => {
+  for (const [state, error, message] of [
+    ['blocked', 'SESSION_SUPERSEDED', /另一个 LIRA 进程登录/],
+    ['needs_connection', 'HTTP_429', /服务器暂时不可用/],
+    ['needs_connection', 'HTTP_500', /服务器暂时不可用/],
+    ['needs_connection', 'HTTP_503', /服务器暂时不可用/],
+  ]) {
+    const page = await createPage({ licenseSnapshot: { state, error } });
+    assert.equal(page.get('licenseLoginCard').hidden, false);
+    assert.equal(page.get('licenseRetryBtn').hidden, false);
+    assert.match(page.get('licenseStatus').textContent, message);
+  }
+});
+
+for (const action of ['activate', 'retry']) {
+  test(`a rejected ${action} restores both license actions and permits another attempt`, async () => {
+    const attempt = Promise.withResolvers();
+    const page = await createPage({
+      licenseSnapshot: { state: 'needs_connection', error: 'NETWORK_UNAVAILABLE' },
+      authorizationResult: attempt.promise,
+    });
+    page.get('licenseAccountName').value = 'test-account';
+    page.get('licensePassword').value = 'Test-password-123';
+    page.get('licenseActivationCode').value = 'TEST-CODE';
+    const invoke = () => action === 'activate' ? page.submit() : page.click('licenseRetryBtn');
+    const pending = invoke();
+    assert.equal(page.get('licenseSubmitBtn').disabled, true);
+    assert.equal(page.get('licenseRetryBtn').disabled, true);
+    await invoke();
+    assert.equal(page.calls.length, 1, 'pending attempts are not duplicated');
+    attempt.reject(new Error('synthetic connection failure'));
+    await pending;
+    assert.equal(page.get('licenseSubmitBtn').disabled, false);
+    assert.equal(page.get('licenseRetryBtn').disabled, false);
+    assert.match(page.get('licenseStatus').textContent, /检查网络.*重试/);
+    await invoke();
+    assert.equal(page.calls.length, 2);
+    assert.equal(page.get('licenseSubmitBtn').disabled, false);
+    assert.equal(page.get('licenseRetryBtn').disabled, false);
+  });
+}
+
 test('failed preparation offers return to login and explains network failures', async () => {
   const page = await createPage();
   assert.equal(page.get('giftCatalogInitializationCard').hidden, false);

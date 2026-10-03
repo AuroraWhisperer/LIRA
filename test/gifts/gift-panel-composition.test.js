@@ -15,6 +15,8 @@ test('gift panel renders through imported modules after the legacy registry is r
       'enableGiftNotification',
     ].map((id) => [id, {}]),
   );
+  nodes.set('giftSprintTextPreview', { classList: { toggle() {} } });
+  nodes.set('giftSprintOverlayStatus', {});
   const window = { addEventListener() {} };
   const { renderGiftPanel } = await loadModuleExports(path.resolve('public/js/admin/gifts/index.js'), {
     window,
@@ -43,5 +45,6 @@ test('gift panel renders through imported modules after the legacy registry is r
   );
   assert.equal(nodes.get('giftSprintReceived').textContent, '¥40.00');
   assert.equal(nodes.get('giftSprintCrystalBalls').textContent, '1 个');
+  assert.equal(nodes.get('giftSprintTextPreview').textContent, '还差 1 个水晶球');
   assert.equal(nodes.get('enableGiftNotification').checked, false);
 });
