@@ -7,31 +7,31 @@
     <div class="desktop-lyric-control">
       <span class="desktop-lyric-control-copy"
         ><strong
-          >弹性动画
+          ><span id="desktopLyricSpringAnimationLabel">弹性动画</span>
           <lira-help
             ><span id="desktopLyricSpringHint">切换歌词时显示回弹；会持续计算位置，性能充足时再开启。</span></lira-help
           ></strong
         ></span
       ><label class="switch-control"
-        ><input id="desktopLyricSpringAnimation" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
+        ><input aria-labelledby="desktopLyricSpringAnimationLabel" id="desktopLyricSpringAnimation" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
       ></label>
     </div>
     <div class="desktop-lyric-control">
       <span class="desktop-lyric-control-copy"
         ><strong
-          >模糊效果
+          ><span id="desktopLyricBlurEffectLabel">模糊效果</span>
           <lira-help
             ><span id="desktopLyricBlurHint">模糊非当前歌词行；会增加合成压力，性能充足时再开启。</span></lira-help
           ></strong
         ></span
       ><label class="switch-control"
-        ><input id="desktopLyricBlurEffect" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
+        ><input aria-labelledby="desktopLyricBlurEffectLabel" id="desktopLyricBlurEffect" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
       ></label>
     </div>
     <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"><strong>缩放效果</strong></span
+      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricScaleEffectLabel">缩放效果</span></strong></span
       ><label class="switch-control"
-        ><input id="desktopLyricScaleEffect" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
+        ><input aria-labelledby="desktopLyricScaleEffectLabel" id="desktopLyricScaleEffect" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
       ></label>
     </div>
     <label class="desktop-lyric-control"
@@ -40,17 +40,17 @@
       ><input id="desktopLyricVisibleLines" type="number" min="0" max="99" step="1" value="0" inputmode="numeric"
     /></label>
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>整体缩放</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricScaleLabel">整体缩放</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricScale"
+          aria-labelledby="desktopLyricScaleLabel" id="desktopLyricScale"
           class="parameter-range parameter-range--scale"
           type="range"
           min="0.5"
           max="2"
           step="0.1"
           value="1"
-        /><input id="desktopLyricScaleNumber" type="number" min="50" max="200" step="10" value="100" /><span
+        /><input aria-labelledby="desktopLyricScaleLabel" id="desktopLyricScaleNumber" type="number" min="50" max="200" step="10" value="100" /><span
           class="desktop-lyric-unit"
           >%</span
         ></span
@@ -58,17 +58,17 @@
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
       ><span class="desktop-lyric-control-copy"
-        ><strong>基准对齐位置 <lira-help>控制当前歌词行的垂直位置。</lira-help></strong></span
+        ><strong><span id="desktopLyricAlignPositionLabel">基准对齐位置</span> <lira-help>控制当前歌词行的垂直位置。</lira-help></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricAlignPosition"
+          aria-labelledby="desktopLyricAlignPositionLabel" id="desktopLyricAlignPosition"
           class="parameter-range parameter-range--scale"
           type="range"
           min="0"
           max="1"
           step="0.05"
           value="0.5"
-        /><input id="desktopLyricAlignPositionNumber" type="number" min="0" max="100" step="5" value="50" /><span
+        /><input aria-labelledby="desktopLyricAlignPositionLabel" id="desktopLyricAlignPositionNumber" type="number" min="0" max="100" step="5" value="50" /><span
           class="desktop-lyric-unit"
           >%</span
         ></span
@@ -84,85 +84,85 @@
       </select></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>水平位移</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricTranslateXLabel">水平位移</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricTranslateX"
+          aria-labelledby="desktopLyricTranslateXLabel" id="desktopLyricTranslateX"
           class="parameter-range parameter-range--centered"
           type="range"
           min="-500"
           max="500"
           step="5"
           value="0"
-        /><input id="desktopLyricTranslateXNumber" type="number" min="-500" max="500" step="5" value="0" /><span
+        /><input aria-labelledby="desktopLyricTranslateXLabel" id="desktopLyricTranslateXNumber" type="number" min="-500" max="500" step="5" value="0" /><span
           class="desktop-lyric-unit"
           >px</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>垂直位移</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricTranslateYLabel">垂直位移</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricTranslateY"
+          aria-labelledby="desktopLyricTranslateYLabel" id="desktopLyricTranslateY"
           class="parameter-range parameter-range--centered"
           type="range"
           min="-500"
           max="500"
           step="5"
           value="0"
-        /><input id="desktopLyricTranslateYNumber" type="number" min="-500" max="500" step="5" value="0" /><span
+        /><input aria-labelledby="desktopLyricTranslateYLabel" id="desktopLyricTranslateYNumber" type="number" min="-500" max="500" step="5" value="0" /><span
           class="desktop-lyric-unit"
           >px</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>3D 透视强度</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricPerspectiveLabel">3D 透视强度</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricPerspective"
+          aria-labelledby="desktopLyricPerspectiveLabel" id="desktopLyricPerspective"
           class="parameter-range parameter-range--scale"
           type="range"
           min="200"
           max="2000"
           step="50"
           value="800"
-        /><input id="desktopLyricPerspectiveNumber" type="number" min="200" max="2000" step="50" value="800" /><span
+        /><input aria-labelledby="desktopLyricPerspectiveLabel" id="desktopLyricPerspectiveNumber" type="number" min="200" max="2000" step="50" value="800" /><span
           class="desktop-lyric-unit"
           >px</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>上下倾斜角度</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricRotateXLabel">上下倾斜角度</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricRotateX"
+          aria-labelledby="desktopLyricRotateXLabel" id="desktopLyricRotateX"
           class="parameter-range parameter-range--centered"
           type="range"
           min="-45"
           max="45"
           step="1"
           value="0"
-        /><input id="desktopLyricRotateXNumber" type="number" min="-45" max="45" step="1" value="0" /><span
+        /><input aria-labelledby="desktopLyricRotateXLabel" id="desktopLyricRotateXNumber" type="number" min="-45" max="45" step="1" value="0" /><span
           class="desktop-lyric-unit"
           >deg</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>左右倾斜角度</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricRotateYLabel">左右倾斜角度</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricRotateY"
+          aria-labelledby="desktopLyricRotateYLabel" id="desktopLyricRotateY"
           class="parameter-range parameter-range--centered"
           type="range"
           min="-45"
           max="45"
           step="1"
           value="0"
-        /><input id="desktopLyricRotateYNumber" type="number" min="-45" max="45" step="1" value="0" /><span
+        /><input aria-labelledby="desktopLyricRotateYLabel" id="desktopLyricRotateYNumber" type="number" min="-45" max="45" step="1" value="0" /><span
           class="desktop-lyric-unit"
           >deg</span
         ></span

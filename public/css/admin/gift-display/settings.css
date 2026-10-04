@@ -4,7 +4,7 @@
 
 .gift-assistant-tabs {
   display: flex;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-xs);
   min-width: 0;
   overflow-x: auto;
   border-bottom: 1px solid var(--border);
@@ -12,30 +12,31 @@
 
 .gift-assistant-tabs [role='tab'] {
   flex: 0 0 auto;
-  min-height: 64px;
-  padding: 12px 4px 16px;
+  min-height: 36px;
+  padding: 6px 12px;
   border: 0;
-  border-bottom: 3px solid transparent;
-  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
   background: transparent;
   color: var(--muted);
   box-shadow: none;
-  font-size: 22px;
+  font-size: var(--type-size-control);
   font-weight: var(--type-weight-medium);
-  line-height: 1.4;
+  line-height: var(--type-leading-control);
   text-align: left;
   white-space: nowrap;
 }
 
 .gift-assistant-tabs [role='tab']:hover:not([aria-selected='true']) {
-  border-bottom-color: var(--border);
+  background: var(--surface-2);
   color: var(--text);
 }
 
 .gift-assistant-tabs [aria-selected='true'] {
   border-bottom-color: var(--color-selection-marker);
+  background: var(--color-selection-fill, var(--color-primary-light));
   color: var(--color-selection-text);
-  font-weight: var(--type-weight-bold);
+  font-weight: var(--type-weight-semibold);
 }
 
 .gift-assistant-tabs [aria-selected='true']:hover {
@@ -53,18 +54,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
-}
-
-.gift-assistant-heading {
-  margin-bottom: var(--spacing-lg);
-}
-
-.gift-assistant-heading h3 {
-  margin: 0 0 var(--spacing-sm);
-}
-
-.gift-assistant-heading p {
-  margin: 0;
 }
 
 .gift-assistant fieldset {
@@ -101,14 +90,6 @@
 
 .gift-display-group > label {
   margin: var(--spacing-md) 0;
-}
-
-.gift-feed-amount-help {
-  display: inline-flex;
-  margin-left: 6px;
-  vertical-align: middle;
-  color: var(--muted);
-  cursor: help;
 }
 
 .gift-tier-inputs > div {
@@ -217,13 +198,18 @@
   }
 }
 
-#giftFeedPreviewLink {
-  color: var(--text);
-  text-underline-offset: 3px;
+#giftFeedUrl {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-#giftFeedUrl {
-  width: 100%;
+#giftFeedPreviewBtn {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .gift-display-actions {

@@ -124,6 +124,10 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     return bilibiliAuth.getBilibiliUid();
   }
 
+  function getBilibiliSessionRevision() {
+    return accounts.get('bilibili')?.generation || 0;
+  }
+
   async function restoreBilibiliCookieSnapshot() {
     const snapshot = await runAccountOperation('bilibili', () =>
       bilibiliAuth.restoreBilibiliCookieSnapshot(getDataDir()),
@@ -194,6 +198,7 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     getBilibiliAccountProfile,
     getBilibiliCookieHeader,
     getBilibiliUid,
+    getBilibiliSessionRevision,
     restoreBilibiliCookieSnapshot,
     replaceBilibiliCookieHeader,
     loginBilibiliAccount,

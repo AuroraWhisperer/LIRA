@@ -10,6 +10,7 @@ async function fixture() {
   const stored = new Map();
   const uploads = [];
   const dialogs = [];
+  const notices = [];
   let songs = [{ name: 'before' }];
   let finishCount;
   let finishConfirmation;
@@ -50,7 +51,7 @@ async function fixture() {
   );
   const initialized = initCloudSongSync({
     getSongs: () => songs,
-    toast() {},
+    toast: (message, options) => notices.push({ message, ...options }),
     showConfirmationDialog: (options) => {
       dialogs.push(options);
       return new Promise((resolve) => {
@@ -63,6 +64,7 @@ async function fixture() {
     stored,
     uploads,
     dialogs,
+    notices,
     initialized,
     bridge,
     finishCount,
@@ -72,6 +74,27 @@ async function fixture() {
     },
   };
 }
+
+test('cloud sync reports a readable failure and the next successful result', async () => {
+  const ui = await fixture();
+  ui.finishCount([]);
+  await ui.initialized;
+  const button = ui.element('licenseSyncSongsBtn');
+  ui.bridge.syncSongs = async () => ({ ok: false, error: 'NETWORK_UNAVAILABLE' });
+  const failed = button.events.click();
+  ui.confirm(true);
+  await failed;
+  assert.equal(ui.notices.length, 1);
+  assert.equal(ui.notices[0].type, 'error');
+  assert.match(ui.notices[0].message, /歌单没同步成功.*检查网络/);
+  ui.bridge.syncSongs = async () => ({ ok: true, count: 1 });
+  const saved = button.events.click();
+  ui.confirm(true);
+  await saved;
+  assert.equal(ui.notices.length, 2);
+  assert.equal(ui.notices[1].key, ui.notices[0].key);
+  assert.match(ui.notices[1].message, /云端歌单已更新，共 1 首/);
+});
 
 test('cloud sync waits for the initial count and uploads only the post-confirmation snapshot once', async () => {
   const ui = await fixture();

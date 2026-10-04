@@ -21,6 +21,7 @@ import {
   normalizeState,
 } from './streamer-planner-model.js';
 import { dangerConfirm, showConfirmationDialog } from '../shared/confirmation-dialog.js';
+import { toast } from '../shared/toast.js';
 
 import {
   renderTodo,
@@ -109,6 +110,7 @@ export const todo = (() => {
     if (signature === moduleState.reminderSignature) return;
     moduleState.reminderSignature = signature;
     const revision = ++moduleState.reminderRevision;
+    const previousStatus = moduleState.reminderStatus;
     try {
       const result = await window.plannerReminders.sync(reminders);
       if (revision !== moduleState.reminderRevision) return;
@@ -118,6 +120,11 @@ export const todo = (() => {
       moduleState.reminderStatus = 'error';
     }
     if (moduleState.reminderStatus === 'error') moduleState.reminderSignature = null;
+    if (moduleState.reminderStatus === 'error' && previousStatus !== 'error') {
+      toast('日程提醒没设好，请重新保存一次日程。', { key: 'planner-reminders', update: true, type: 'error' });
+    } else if (moduleState.reminderStatus === 'ready' && previousStatus === 'error') {
+      toast('日程提醒已恢复。LIRA 运行时会按时提醒你。', { key: 'planner-reminders', update: true, type: 'success' });
+    }
     updateReminderFields();
   }
 

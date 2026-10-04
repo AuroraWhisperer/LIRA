@@ -91,6 +91,131 @@ test('save echoes do not report conflicts and later config edits remain dirty', 
   assert.equal(controller.getState().dirty, true);
 });
 
+test('a late save acknowledgement cannot undo a newer authoritative configuration', async () => {
+  let confirmations = 0;
+  const latest = { fontSize: 32, color: '#ff0000' };
+  const { controller, writes } = await fixture({ confirm: async () => { confirmations++; return latest; } });
+  controller.edit({ fontSize: 28 });
+  const saving = controller.save();
+  controller.receive({ fontSize: 28, color: '#ffffff' });
+  controller.receive(latest);
+  writes[0].resolve({ fontSize: 28, color: '#ffffff' });
+  assert.equal(await saving, false);
+  assert.equal(confirmations, 1);
+  assert.deepEqual(plain(controller.getState().saved), latest);
+  assert.deepEqual(plain(controller.getState().draft), latest);
+  assert.equal(controller.getState().applied, false);
+  assert.match(controller.getState().error, /其他入口更新/);
+});
+
+test('an older broadcast before the save acknowledgement is reconciled, not preferred', async () => {
+  let confirmations = 0;
+  const confirmed = { fontSize: 28, color: '#eeeeee' };
+  const { controller, writes } = await fixture({ confirm: async () => { confirmations++; return confirmed; } });
+  controller.edit({ fontSize: 28 });
+  const saving = controller.save();
+  controller.receive({ fontSize: 24, color: '#ffffff' });
+  writes[0].resolve(confirmed);
+  assert.equal(await saving, true);
+  assert.equal(confirmations, 1);
+  assert.deepEqual(plain(controller.getState().saved), confirmed);
+  assert.deepEqual(plain(controller.getState().draft), confirmed);
+});
+
+test('uncontested acknowledgements and identical save echoes do not request confirmation', async () => {
+  for (const echo of [false, true]) {
+    const { controller, writes } = await fixture({ confirm: () => assert.fail('unexpected confirmation read') });
+    controller.edit({ fontSize: 28 });
+    const saving = controller.save();
+    if (echo) controller.receive({ fontSize: 28, color: '#ffffff' });
+    writes[0].resolve({ fontSize: 28, color: '#ffffff' });
+    assert.equal(await saving, true);
+  }
+});
+
+test('confirmation preserves new edits and cannot undo broadcasts received while it was pending', async () => {
+  const confirmation = Promise.withResolvers();
+  const started = Promise.withResolvers();
+  const { controller, writes } = await fixture({ confirm: () => { started.resolve(); return confirmation.promise; } });
+  controller.edit({ fontSize: 28 });
+  const saving = controller.save();
+  controller.receive({ fontSize: 28, color: '#ffffff' });
+  controller.receive({ fontSize: 32, color: '#ff0000' });
+  writes[0].resolve({ fontSize: 28, color: '#ffffff' });
+  await started.promise;
+  controller.edit({ fontSize: 36 });
+  controller.receive({ fontSize: 40, color: '#00ff00' });
+  confirmation.resolve({ fontSize: 32, color: '#ff0000' });
+  assert.equal(await saving, false);
+  assert.deepEqual(plain(controller.getState().saved), { fontSize: 40, color: '#00ff00' });
+  assert.deepEqual(plain(controller.getState().draft), { fontSize: 36, color: '#00ff00' });
+  assert.equal(controller.getState().dirty, true);
+  assert.equal(controller.getState().conflict, true);
+});
+
+test('confirmation errors settle without discarding drafts or newer saved state', async () => {
+  const { controller, writes } = await fixture({ confirm: async () => { throw new Error('确认读取失败'); } });
+  controller.edit({ fontSize: 28 });
+  const saving = controller.save();
+  controller.receive({ fontSize: 32, color: '#ff0000' });
+  controller.edit({ fontSize: 36 });
+  writes[0].resolve({ fontSize: 28, color: '#ffffff' });
+  assert.equal(await saving, false);
+  assert.equal(controller.getState().saving, false);
+  assert.equal(controller.getState().saved.fontSize, 32);
+  assert.equal(controller.getState().draft.fontSize, 36);
+  assert.equal(controller.getState().error, '确认读取失败');
+});
+
+test('a reverted edit stays dirty after confirmation without treating unrelated changes as a failed save', async () => {
+  const { controller, writes } = await fixture({ confirm: async () => ({ fontSize: 28, color: '#ff0000' }) });
+  controller.edit({ fontSize: 28 });
+  const saving = controller.save();
+  controller.edit({ fontSize: 24 });
+  controller.receive({ fontSize: 28, color: '#ff0000' });
+  writes[0].resolve({ fontSize: 28, color: '#ffffff' });
+  assert.equal(await saving, true);
+  assert.deepEqual(plain(controller.getState().saved), { fontSize: 28, color: '#ff0000' });
+  assert.deepEqual(plain(controller.getState().draft), { fontSize: 24, color: '#ff0000' });
+  assert.equal(controller.getState().dirty, true);
+  assert.equal(controller.getState().conflict, false);
+});
+
+test('an ambiguous acknowledgement without a read capability preserves authority and requests confirmation', async () => {
+  const { controller, writes } = await fixture();
+  controller.edit({ fontSize: 28 });
+  const saving = controller.save();
+  controller.receive({ fontSize: 28, color: '#ffffff' });
+  controller.receive({ fontSize: 32, color: '#ff0000' });
+  writes[0].resolve({ fontSize: 28, color: '#ffffff' });
+  assert.equal(await saving, false);
+  assert.deepEqual(plain(controller.getState().saved), { fontSize: 32, color: '#ff0000' });
+  assert.deepEqual(plain(controller.getState().draft), { fontSize: 32, color: '#ff0000' });
+  assert.equal(controller.getState().applied, false);
+  assert.match(controller.getState().error, /重新读取/);
+});
+
+test('reset during confirmation invalidates the old save without clearing a new one', async () => {
+  const confirmation = Promise.withResolvers();
+  const started = Promise.withResolvers();
+  const { controller, writes } = await fixture({ confirm: () => { started.resolve(); return confirmation.promise; } });
+  controller.edit({ fontSize: 28 });
+  const oldSave = controller.save();
+  controller.receive({ fontSize: 32, color: '#ff0000' });
+  writes[0].resolve({ fontSize: 28, color: '#ffffff' });
+  await started.promise;
+  controller.reset({ fontSize: 40, color: '#222222' });
+  controller.receive({ fontSize: 40, color: '#222222' });
+  controller.edit({ fontSize: 44 });
+  const newSave = controller.save();
+  confirmation.resolve({ fontSize: 32, color: '#ff0000' });
+  assert.equal(await oldSave, false);
+  assert.equal(controller.getState().saving, true);
+  assert.equal(controller.getState().draft.fontSize, 44);
+  writes[1].resolve(writes[1].draft);
+  assert.equal(await newSave, true);
+});
+
 test('late reads cannot replace newer received config or saved config', async () => {
   let resolveRead;
   const { controller } = await fixture({ read: () => new Promise((resolve) => { resolveRead = resolve; }) });
@@ -100,6 +225,19 @@ test('late reads cannot replace newer received config or saved config', async ()
   await reading;
   assert.equal(controller.getState().draft.fontSize, 32);
   assert.equal(controller.getState().loading, false);
+});
+
+test('reverting to the saved value during a request survives its snapshot and acknowledgement', async () => {
+  const { controller, writes } = await fixture();
+  controller.edit({ fontSize: 28 });
+  const saving = controller.save();
+  controller.edit({ fontSize: 24 });
+  controller.receive({ fontSize: 28, color: '#ffffff' });
+  assert.equal(controller.getState().draft.fontSize, 24);
+  writes[0].resolve({ fontSize: 28, color: '#ffffff' });
+  await saving;
+  assert.equal(controller.getState().draft.fontSize, 24);
+  assert.equal(controller.getState().dirty, true);
 });
 
 test('reset invalidates old account saves and reads without clobbering a new save', async () => {

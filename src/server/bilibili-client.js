@@ -75,6 +75,7 @@ function createBilibiliClient(roomId, context) {
             message: danmaku.message,
             userName: danmaku.userName,
             uid: String(danmaku.uid || ''),
+            captureReplySession: context.captureReplySession,
           });
           if (result.autoReply) {
             void danmakuSender

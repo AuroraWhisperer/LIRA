@@ -22,5 +22,7 @@
 }
 
 .gift-feed-source .gift-directory-actions {
-  margin-top: var(--spacing-md);
+  flex-wrap: nowrap;
+  align-items: stretch;
+  margin-top: 6px;
 }

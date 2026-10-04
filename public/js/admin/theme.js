@@ -11,7 +11,7 @@ import { publishTheme } from './legacy-admin-bridge.js';
 import { renderPresetCards } from './theme-preset-cards.js';
 import { createComponentConfigController } from './component-config-controller.js';
 import { registerComponentSettings } from './component-settings-sync.js';
-import { saveComponentSettings } from './component-settings-save.js';
+import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
 import { createQueuePreview } from './queue-preview.js';
@@ -27,6 +27,7 @@ export const theme = (() => {
     if (!form) return;
     controller = createComponentConfigController({
       initial: queueConfigFromSettings(stateService.getAppState()?.settings || {}),
+      confirm: async () => queueConfigFromSettings(await confirmComponentSettings()),
       persist: async (draft, changed) => {
         const settings = await saveComponentSettings(queueSettingsPayload(draft, changed));
         if (settings.overlayQueueStyle !== draft.overlayQueueStyle) throw new Error('服务端未保存点歌板样式，请更新服务后重试。');

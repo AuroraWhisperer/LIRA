@@ -7,7 +7,8 @@ import { openComponentPreview } from './component-preview-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
 import { bindClockParameters, buildClockUrl, clockStyleChange, createClockPreview, usesDefaultClockLabel } from './clock-preview.js';
 import { registerComponentSettings } from './component-settings-sync.js';
-import { saveComponentSettings } from './component-settings-save.js';
+import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
+import { saveComponentWithFeedback } from './component-save-feedback.js';
 export { buildClockUrl, clockStyleChange, createClockPreview, usesDefaultClockLabel };
 
 let initialized = false;
@@ -20,6 +21,7 @@ function initClockCard() {
   const fixedUrl = `${localOverlayOrigin(location)}/clock`;
   const controller = createComponentConfigController({
     initial: clockConfigFromSettings({}),
+    confirm: async () => clockConfigFromSettings(await confirmComponentSettings()),
     read: async () => {
       const response = await fetch('/api/clock/config', { cache: 'no-store' });
       const payload = await response.json();
@@ -63,7 +65,7 @@ function initClockCard() {
     try { await copyText(fixedUrl); toast('萌时钟固定网址已复制'); }
     catch (error) { toast(error.message || '复制失败，请手动复制网址。'); }
   });
-  document.getElementById('clockSave').addEventListener('click', () => controller.save());
+  document.getElementById('clockSave').addEventListener('click', () => saveComponentWithFeedback(controller, '萌时钟设置'));
   document.getElementById('clockDiscard').addEventListener('click', () => controller.discard());
   document.getElementById('clockReload').addEventListener('click', () => controller.reload());
   const getClockPreview = () => createClockPreview({ controller });

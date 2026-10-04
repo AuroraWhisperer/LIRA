@@ -4,8 +4,14 @@ export function componentField(root, id) {
   return root.querySelector(`[data-preview-field="${id}"], [id="${id}"]`);
 }
 
+export function isComponentFieldEditing(control) {
+  if (!control) return false;
+  const active = (control.ownerDocument || document).activeElement;
+  return control === active || Boolean(control.closest?.('.range-row, .lira-select')?.contains(active));
+}
+
 export function syncComponentFieldValue(control, value, force = false) {
-  if ((force || control !== control.ownerDocument.activeElement) && control.value !== String(value)) {
+  if ((force || !isComponentFieldEditing(control)) && control.value !== String(value)) {
     control.value = String(value);
   }
 }

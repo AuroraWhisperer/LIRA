@@ -17,6 +17,9 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
       addEventListener(type, handler) {
         this.handlers[type] = handler;
       },
+      removeEventListener(type, handler) {
+        if (this.handlers[type] === handler) delete this.handlers[type];
+      },
       focus() {
         this.focused = true;
       },

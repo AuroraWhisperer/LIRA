@@ -6,12 +6,7 @@ import { createPlaybackStateActions } from '../state/actions.js';
 
 import * as PlaybackUtils from '../utils.js';
 import { QueueManager } from '../queue/manager.js';
-
-function isInterruptedMediaPlayError(error) {
-  return (
-    error?.name === 'AbortError' || /play\(\) request was interrupted/i.test(String(error?.message || error || ''))
-  );
-}
+import { isInterruptedMediaPlayError } from '../../shared/media-playback-feedback.js';
 
 export function createPlaybackControls(deps) {
   const {

@@ -226,7 +226,7 @@
 .fan-editor button:focus-visible,
 .fan-more summary:focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 3px;
+  outline-offset: -2px;
 }
 .fan-profiles button,
 .fan-editor button {

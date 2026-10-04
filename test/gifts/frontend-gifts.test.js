@@ -29,7 +29,7 @@ test('admin blind box summary shows one row per viewer and opens analysis', () =
 
 test('blind box summary refreshes on gift events and coalesces in-flight updates', async () => {
   const { EventBus } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'shared', 'event-bus.js'));
-  const section = { dataset: {}, querySelector: () => null };
+  const section = { dataset: {}, querySelector: () => null, classList: { contains: () => false, toggle() {} } };
   const summary = { innerHTML: '', closest: () => section };
   const body = { innerHTML: '', addEventListener() {} };
   const pending = [];

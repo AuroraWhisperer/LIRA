@@ -1,15 +1,3 @@
-.is-wheel .game-card-poster i {
-  right: -20px;
-  top: 28px;
-}
-.is-wheel .game-card-poster i::after {
-  position: absolute;
-  inset: 48px;
-  border-radius: 50%;
-  background: var(--surface);
-  content: '';
-  box-shadow: inset 0 0 0 1px var(--color-border-strong);
-}
 .wheel-card-trigger {
   display: grid;
   grid-column: 1 / -1;

@@ -218,10 +218,11 @@ select:hover:not(:disabled) {
   background-color: var(--color-bg-tertiary);
 }
 
+/* Inset focus rings remain visible at the edges of scroll containers. */
 select:focus-visible {
   border-color: var(--color-control-accent);
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
 select:disabled {
@@ -290,7 +291,7 @@ button:disabled {
   opacity: 0.55;
 }
 
-input,
+input:where(:not([type='checkbox'], [type='radio'], [type='range'])),
 select,
 textarea {
   width: 100%;
@@ -323,7 +324,12 @@ textarea {
 
 :where(html.desktop-shell, html[data-client-theme]) button:focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
+}
+
+:where(html.desktop-shell, html[data-client-theme]) button.primary:focus-visible {
+  outline-color: var(--color-on-primary);
+  outline-offset: -4px;
 }
 
 :where(html.desktop-shell, html[data-client-theme]) button.primary:active:not(:disabled) {
@@ -357,11 +363,15 @@ textarea {
 :where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']), textarea):focus-visible {
   border-color: var(--color-border-focus);
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 0;
+  outline-offset: -2px;
 }
 
 input[type='checkbox'],
 input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
   accent-color: var(--primary);
 }
 

@@ -15,8 +15,8 @@ export function createOvertimeStatusView({
   let clockRafId = null;
   let lastClockValue = '';
 
-  function renderState(nextState) {
-    if (!nextState) return;
+  function renderState(nextState, { allowRevisionReset = false } = {}) {
+    if (!nextState || (!allowRevisionReset && Number(nextState.revision) < Number(overtimeState?.revision))) return false;
     if (nextState.limits) onLimits(nextState.limits);
     overtimeState = { ...overtimeState, ...nextState };
     anchorRemainingMs = Number(overtimeState.effectiveRemainingMs) || 0;
@@ -43,6 +43,7 @@ export function createOvertimeStatusView({
       getRuleEditor()?.renderRules(nextState.rules);
     }
     syncClockLoop();
+    return true;
   }
 
   function renderConsumerStatus() {

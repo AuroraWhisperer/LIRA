@@ -13,18 +13,8 @@
   overflow: visible;
 }
 
-.desktop-lyric-settings-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 48px;
-  padding: 0 2px;
-}
-
-.desktop-lyric-settings-header h3 {
-  margin: 3px 0 0;
-  color: var(--text);
+.desktop-lyric-autosave-state:not(.is-error) {
+  display: none;
 }
 
 .desktop-lyric-autosave-state {
@@ -42,14 +32,6 @@
   border-radius: 50%;
   background: var(--muted);
   content: '';
-}
-
-.desktop-lyric-autosave-state.is-saving::before {
-  background: var(--color-warning-medium);
-}
-
-.desktop-lyric-autosave-state.is-saved::before {
-  background: var(--color-success);
 }
 
 .desktop-lyric-autosave-state.is-error {

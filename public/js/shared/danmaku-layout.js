@@ -2,7 +2,7 @@ import { CANVAS_PRESETS } from './canvas-presets.js';
 
 // Display contract mirrored by the desktop main process and the server.
 const REGION_DEFAULTS = Object.freeze({
-  bubble: [380, 560], signal: [560, 600], minimal: [380, 540],
+  bubble: [380, 560], signal: [560, 600], minimal: [294, 480],
   ranked: [640, 640], transparent: [520, 540], identity: [640, 560],
   outline: null, cream: null, glow: null,
 });

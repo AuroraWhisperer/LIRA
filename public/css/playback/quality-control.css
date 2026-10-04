@@ -6,6 +6,7 @@
 .playback-quality-btn {
   min-width: 42px;
   height: 30px;
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -37,7 +38,7 @@
 
 .playback-quality-btn:focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .playback-quality-btn:disabled {

@@ -423,6 +423,7 @@
 .overtime-duration-control input {
   width: 54px !important;
   height: 34px;
+  min-height: 34px;
   min-width: 0;
   padding-inline: 6px;
   text-align: center;
@@ -443,6 +444,7 @@
 .overtime-factor-control input {
   width: 100% !important;
   height: 34px;
+  min-height: 34px;
   text-align: center;
   font-weight: 700;
 }

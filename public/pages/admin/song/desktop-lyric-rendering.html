@@ -5,9 +5,9 @@
   </summary>
   <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
     <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"><strong>显示背景</strong></span
+      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricBackgroundEnabledLabel">显示背景</span></strong></span
       ><label class="switch-control"
-        ><input id="desktopLyricBackgroundEnabled" type="checkbox" /><span
+        ><input aria-labelledby="desktopLyricBackgroundEnabledLabel" id="desktopLyricBackgroundEnabled" type="checkbox" /><span
           class="switch-track"
           aria-hidden="true"
         ></span
@@ -23,17 +23,17 @@
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
       ><span class="desktop-lyric-control-copy"
-        ><strong>背景不透明度 <lira-help>控制背景图层强度。</lira-help></strong></span
+        ><strong><span id="desktopLyricBgOpacityLabel">背景不透明度</span> <lira-help>控制背景图层强度。</lira-help></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricBgOpacity"
+          aria-labelledby="desktopLyricBgOpacityLabel" id="desktopLyricBgOpacity"
           class="parameter-range parameter-range--intensity"
           type="range"
           min="0"
           max="1"
           step="0.05"
           value="0.15"
-        /><input id="desktopLyricBgOpacityNumber" type="number" min="0" max="100" step="5" value="15" /><span
+        /><input aria-labelledby="desktopLyricBgOpacityLabel" id="desktopLyricBgOpacityNumber" type="number" min="0" max="100" step="5" value="15" /><span
           class="desktop-lyric-unit"
           >%</span
         ></span
@@ -41,68 +41,68 @@
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
       ><span class="desktop-lyric-control-copy"
-        ><strong>全局不透明度 <lira-help>控制整个歌词画面的不透明度。</lira-help></strong></span
+        ><strong><span id="desktopLyricGlobalOpacityLabel">全局不透明度</span> <lira-help>控制整个歌词画面的不透明度。</lira-help></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricGlobalOpacity"
+          aria-labelledby="desktopLyricGlobalOpacityLabel" id="desktopLyricGlobalOpacity"
           class="parameter-range parameter-range--intensity"
           type="range"
           min="0"
           max="1"
           step="0.05"
           value="1"
-        /><input id="desktopLyricGlobalOpacityNumber" type="number" min="0" max="100" step="5" value="100" /><span
+        /><input aria-labelledby="desktopLyricGlobalOpacityLabel" id="desktopLyricGlobalOpacityNumber" type="number" min="0" max="100" step="5" value="100" /><span
           class="desktop-lyric-unit"
           >%</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>亮度</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricBrightnessLabel">亮度</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricBrightness"
+          aria-labelledby="desktopLyricBrightnessLabel" id="desktopLyricBrightness"
           class="parameter-range parameter-range--intensity"
           type="range"
           min="0.2"
           max="2"
           step="0.05"
           value="1"
-        /><input id="desktopLyricBrightnessNumber" type="number" min="20" max="200" step="5" value="100" /><span
+        /><input aria-labelledby="desktopLyricBrightnessLabel" id="desktopLyricBrightnessNumber" type="number" min="20" max="200" step="5" value="100" /><span
           class="desktop-lyric-unit"
           >%</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>对比度</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricContrastLabel">对比度</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricContrast"
+          aria-labelledby="desktopLyricContrastLabel" id="desktopLyricContrast"
           class="parameter-range parameter-range--intensity"
           type="range"
           min="0.2"
           max="2"
           step="0.05"
           value="1"
-        /><input id="desktopLyricContrastNumber" type="number" min="20" max="200" step="5" value="100" /><span
+        /><input aria-labelledby="desktopLyricContrastLabel" id="desktopLyricContrastNumber" type="number" min="20" max="200" step="5" value="100" /><span
           class="desktop-lyric-unit"
           >%</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>饱和度</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricSaturationLabel">饱和度</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricSaturation"
+          aria-labelledby="desktopLyricSaturationLabel" id="desktopLyricSaturation"
           class="parameter-range parameter-range--intensity"
           type="range"
           min="0"
           max="2"
           step="0.05"
           value="1"
-        /><input id="desktopLyricSaturationNumber" type="number" min="0" max="200" step="5" value="100" /><span
+        /><input aria-labelledby="desktopLyricSaturationLabel" id="desktopLyricSaturationNumber" type="number" min="0" max="200" step="5" value="100" /><span
           class="desktop-lyric-unit"
           >%</span
         ></span

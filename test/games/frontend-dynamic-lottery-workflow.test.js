@@ -128,6 +128,7 @@ async function fixture(initial = state()) {
   let responseState = initial;
   let pending = null;
   const calls = [];
+  const notices = [];
   const timers = new Map();
   let nextTimer = 0;
   const { initLotteryWorkflow } = await loadModuleExports(
@@ -152,12 +153,13 @@ async function fixture(initial = state()) {
   );
   const controller = initLotteryWorkflow({
     querySelector: (selector) => elements.get(selector.match(/data-lottery-([\w-]+)/)[1]),
-  });
+  }, { notify: (message, options) => notices.push({ message, ...options }) });
   controller.setAuth({ available: true, loggedIn: true, busy: false });
   await settle();
   return {
     get,
     calls,
+    notices,
     controller,
     timers,
     setState(next) {
@@ -172,6 +174,49 @@ async function fixture(initial = state()) {
     },
   };
 }
+
+test('lottery announces running task outcomes once but does not announce historical results', async (t) => {
+  const f = await fixture(state(task('completed'), { ...result(10), status: 'completed', shortage: 0 }));
+  t.after(() => f.controller.dispose());
+  assert.equal(f.notices.length, 0);
+  await f.click('state-refresh');
+  assert.equal(f.notices.length, 0);
+  f.setState(state(task('collecting'), null, { kind: 'collect', taskId: 'task-1' }));
+  await f.click('state-refresh');
+  f.setState(state(task('ready')));
+  [...f.timers.values()].at(-1)();
+  await settle();
+  assert.match(f.notices.at(-1).message, /名单已准备好/);
+  await f.click('state-refresh');
+  assert.equal(f.notices.length, 1);
+  f.setState(state(task('drawing'), { ...result(0), status: 'drawing' }, { kind: 'draw', taskId: 'task-1' }));
+  await f.click('draw');
+  f.setState(state(task('exhausted'), result(7)));
+  [...f.timers.values()].at(-1)();
+  await settle();
+  assert.equal(f.notices.length, 2);
+  assert.equal(f.notices[1].type, 'warning');
+  assert.match(f.notices[1].message, /7 位.*还差 3 位/);
+});
+
+test('lottery polling errors notify once and disposed requests cannot announce outcomes', async (t) => {
+  const f = await fixture(state(task(), null, { kind: 'collect', taskId: 'task-1' }));
+  t.after(() => f.controller.dispose());
+  f.setPending(Promise.resolve({ ok: false, error: 'LOTTERY_BILIBILI_AUTH_REQUIRED' }));
+  [...f.timers.values()].at(-1)();
+  await settle();
+  [...f.timers.values()].at(-1)();
+  await settle();
+  assert.equal(f.notices.length, 1);
+  assert.equal(f.notices[0].type, 'error');
+  const pending = Promise.withResolvers();
+  f.setPending(pending.promise);
+  [...f.timers.values()].at(-1)();
+  f.controller.dispose();
+  pending.resolve({ ok: true, data: state(task('ready')) });
+  await settle();
+  assert.equal(f.notices.length, 1);
+});
 
 test('setup submits the original rule fields and history remains accessible', async (t) => {
   const f = await fixture();

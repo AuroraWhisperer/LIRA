@@ -83,6 +83,17 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     await page.locator('.component-preview-frame').waitFor();
     await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
     assert.equal(await page.evaluate(() => Boolean(window.liraLicense || window.__API_TOKEN__)), false);
+    if (component === 'queue') {
+      const help = page.locator('lira-help:visible').first();
+      await help.hover();
+      assert.equal(await help.getAttribute('aria-expanded'), 'true');
+      assert.equal(await help.getByRole('tooltip').isVisible(), true);
+      await page.mouse.move(0, 0);
+      await help.focus();
+      assert.equal(await help.getAttribute('aria-expanded'), 'true');
+      await help.press('Escape');
+      assert.equal(await help.getAttribute('aria-expanded'), 'false');
+    }
     const dimensions = page.locator('.scene-editor-item-label');
     const initialSize = { clock: '580 × 210 px', queue: '480 × 800 px', danmaku: '560 × 600 px' };
     let overtimeHeight;

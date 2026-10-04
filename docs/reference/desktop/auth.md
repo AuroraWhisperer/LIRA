@@ -106,6 +106,8 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 存储格式、分区键和正常登录返回值不变。验证见 [真实 Electron 时序测试](../../../test/desktop/desktop-auth-race-electron.test.js)
 及 [退出装配测试](../../../test/desktop/electron-shutdown.test.js)。
 
+内部 `getBilibiliSessionRevision()` 只读暴露既有 Bilibili 账号操作 generation，由主进程注入后端认证 provider 的 `getSessionRevision`。代次在账号操作开始时推进，使此前准入的 AI 任务失效；操作开始后的新任务捕获新代次与当前 UID。该能力不暴露给 renderer 或 IPC，不增加凭据存储或独立认证状态。验证见 [desktop-auth-diagnostics.test.js](../../../test/desktop/desktop-auth-diagnostics.test.js) 和 [AI 会话回归](../../../test/ai/ai-assistant-session.test.js)。
+
 ## 8. 会话恢复时序
 
 `startDesktopApp` 中,快照恢复**先于服务器启动**(保证 provider 首次 API 调用就带 Cookie,见 [main.md](main.md) §2):
@@ -248,5 +250,7 @@ IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用�
 [license-manager.js](../../../src/electron/license/license-manager.js) 在通用 `withAuthorizedToken` 入口捕获可信 `streamerId`、`deviceId`、`licenseId` 与内部生命周期代际；等待授权、首次远端调用、成功提交、失败处理和重试都必须仍属于该上下文。`bootstrap`、`activate` 开始以及会话清理/阻断、`dispose` 使旧代际失效，因此 A → B → A 即使恢复到相同主体和 token，也不会接受第一轮 A 的响应或重发其写入。
 
 同一生命周期内的正常 token 续期保持请求有效，已失效 token 的调用仍可共享一次重新验证，并只向同主体重试一次。公开的 authorization epoch 仍在每次成功认证时更新，供既有消费者使用，不承担这个允许续期的请求代际职责。迟到成功以既有 `LICENSE_NOT_AUTHORIZED` 拒绝；迟到错误可返回原调用方，但不再清空或阻断新会话。`getProfile` 在通用层校验及敏感字段清洗后同步提交，避免后续异步恢复旧资料。
+
+画布预览通过仅供主进程读取的 `getAuthorizationGeneration()` 绑定上述登录生命周期，正常 token 续期不会撤销正在编辑的连接。`getComponentPreviewOwner` 仍校验当前授权、服务器 origin 与 streamerId；重新登录、激活/换账号、阻断清理及 dispose 后旧连接失效。该读取方法不进入 preload/IPC，也不改变其他消费者的 authorization epoch 契约。预览中继及页面接管规则见 [预览 API](../backend/api.md#浏览器组件预览)。
 
 内部凭据读取和 SSE 的完成/失败同样经过该约束；流的取消与事件消费仍由云同步、礼物控制器现有的 `AbortSignal` 和主体检查负责。旧续期、心跳的完成或 `finally` 不得替换新生命周期的共享任务引用或维护计时器。回归场景见 [license-manager-identity.test.js](../../../test/license/license-manager-identity.test.js)，使用合成身份、可控 Promise 与隔离的 manager，不访问真实服务。

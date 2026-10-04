@@ -46,7 +46,6 @@ const EMPTY_CATCH_LIMITS = {
   'src/server/routes/data-routes.js': 1,
   'src/server/ws.js': 3,
   'src/server.js': 1,
-  'public/js/admin/display.js': 1,
   'public/js/admin/toolbox-navigation.js': 2,
   'public/js/admin/overtime.js': 3,
   'public/js/gift-audit/index.js': 2,

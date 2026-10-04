@@ -282,7 +282,7 @@ function createServerRuntime(runtimeOptions = {}) {
   });
 
   const server = createHttpServer({
-    getPreviewOwner: runtimeOptions.getSceneOwner,
+    getPreviewOwner: runtimeOptions.getPreviewOwner || runtimeOptions.getSceneOwner,
     host: HOST,
     startPort: START_PORT,
     rootDir: ROOT_DIR,

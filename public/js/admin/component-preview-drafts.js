@@ -85,8 +85,10 @@ export function createPreviewDraftRecovery({ key, connections, storage }) {
       initialized.set(connection.component, current.generation);
       const previous = cached?.components[connection.component];
       for (const [field, value] of Object.entries(changesFor(connection))) {
+        // The desktop may already retain this draft against a newer saved baseline.
+        if (same(current.draft[field], value)) continue;
         if (!same(current.saved[field], previous.saved[field])
-          || (!same(current.draft[field], previous.saved[field]) && !same(current.draft[field], value))) pending.add(connection.component);
+          || !same(current.draft[field], previous.saved[field])) pending.add(connection.component);
       }
       if (!pending.has(connection.component)) applyChanges(connection);
     }

@@ -297,7 +297,6 @@ async function clearGiftDatabase() {
   if (clearing) return;
   clearing = true;
   const button = get('giftHistoryClearDatabaseBtn');
-  if (button) button.disabled = true;
   let reload = false;
   let confirmed = false;
   try {
@@ -307,6 +306,7 @@ async function clearGiftDatabase() {
       confirmLabel: '清空全部记录',
     });
     if (!confirmed) return;
+    if (button) button.disabled = true;
 
     cancelHistoryLoad();
     historyTools?.clear();

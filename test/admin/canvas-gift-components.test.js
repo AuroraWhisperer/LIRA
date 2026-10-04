@@ -77,13 +77,44 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await framePreview.getByText('新的观众', { exact: true }).waitFor({ state: 'visible' });
   await framePreview.getByText('打call', { exact: true }).waitFor({ state: 'visible' });
   assert.equal((await framePreview.locator('body').evaluate(() => window.receivedGiftEvents.at(-1))).num, 3);
+  await desktop.locator('#guardThanksPreviewTier').selectOption('admiral');
+  await desktop.locator('#guardThanksPreviewUser').fill('上舰观众');
+  await desktop.locator('#guardThanksPreviewMonths').fill('6');
   await open('#guardThanksPlayBtn');
   assert.equal(await page.locator('.scene-editor-item').count(), 2);
   const guardPreview = page.frameLocator('.scene-editor-item.is-selected iframe');
-  await guardPreview.locator('.gt-card.is-live').waitFor({ state: 'visible' });
+  await guardPreview.locator('.gt-card[data-tier="admiral"].is-live').waitFor({ state: 'visible' });
+  assert.equal(await guardPreview.locator('.gt-name').textContent(), '上舰观众');
+  assert.equal(await guardPreview.locator('.gt-months').textContent(), '6 个月');
+  assert.equal(await page.locator('[data-preview-parameter="tier"]').inputValue(), 'admiral');
+  assert.equal(await page.getByRole('textbox', { name: '预览观众', exact: true }).inputValue(), '上舰观众');
+  assert.equal(await page.getByRole('spinbutton', { name: '预览月数', exact: true }).inputValue(), '6');
   assert.equal(await guardPreview.locator('#giftFrame.is-playing').count(), 0);
+  const beforeGuardPreview = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document);
+  await page.getByRole('textbox', { name: '预览观众', exact: true }).fill('星河旅人');
+  const previewMonths = page.getByRole('spinbutton', { name: '预览月数', exact: true });
+  await previewMonths.fill('12');
+  await previewMonths.press('Tab');
+  for (const [tier, title] of [['captain', '舰长'], ['governor', '总督']]) {
+    await page.getByRole('button', { name: '预览等级', exact: true }).click();
+    await page.getByRole('option', { name: title, exact: true }).click();
+    await guardPreview.locator(`.gt-card[data-tier="${tier}"].is-live`).waitFor({ state: 'visible' });
+    assert.equal(await guardPreview.locator('.gt-ribbon-title').textContent(), title);
+    assert.equal(await guardPreview.locator('.gt-name').textContent(), '星河旅人');
+    assert.equal(await guardPreview.locator('.gt-months').textContent(), '12 个月');
+    assert.equal(await guardPreview.locator('.gt-card').count(), 1);
+  }
+  assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document), beforeGuardPreview,
+    'previewing a guard tier, viewer and month count does not edit the scene');
   await page.locator('[data-component-parameter="textMode"]').selectOption('en');
-  await guardPreview.locator('.gt-card[data-lang="en"]').waitFor();
+  await guardPreview.locator('.gt-card[data-tier="governor"][data-lang="en"]').waitFor();
+  assert.equal(await guardPreview.locator('.gt-name').textContent(), '星河旅人');
+  assert.equal(await guardPreview.locator('.gt-months').textContent(), '12 MONTHS');
+  await page.locator('.scene-editor-item[data-component="gift-frame"]').press('Enter');
+  await page.locator('.scene-editor-item[data-component="guard-thanks"]').press('Enter');
+  assert.equal(await page.locator('[data-preview-parameter="tier"]').inputValue(), 'governor');
+  assert.equal(await page.getByRole('textbox', { name: '预览观众', exact: true }).inputValue(), '星河旅人');
+  assert.equal(await previewMonths.inputValue(), '12');
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('640');
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).press('Tab');
   await page.getByRole('spinbutton', { name: '高度', exact: true }).fill('540');
@@ -91,12 +122,25 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
-  assert.doesNotMatch(JSON.stringify(saved), /林间听风|新的观众|previewData/, 'simulated input is not saved into the scene');
+  assert.doesNotMatch(JSON.stringify(saved), /林间听风|新的观众|上舰观众|星河旅人|previewData/, 'simulated input is not saved into the scene');
   assert.deepEqual(saved.document.items.map(item => [item.type, item.width, item.height]),
     [['gift-frame', 960, 540], ['guard-thanks', 640, 540]]);
-  assert.equal(saved.document.items[1].appearance.config.textMode, 'en');
+  assert.deepEqual(saved.document.items[1].appearance.config, { textMode: 'en' });
+  await desktop.evaluate(() => { window.externalPreviewUrl = ''; });
+  await desktop.locator('#guardThanksPreviewMonths').fill('0');
+  await desktop.locator('#guardThanksPlayBtn').click();
+  assert.equal(await desktop.locator('#guardThanksSaveState').textContent(), '预览月数需为 1–999 的整数。');
+  assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), '', 'invalid preview input does not open the canvas');
+  await desktop.locator('#guardThanksPreviewTier').selectOption('captain');
+  await desktop.locator('#guardThanksPreviewUser').fill('新的上舰观众');
+  await desktop.locator('#guardThanksPreviewMonths').fill('24');
   await open('#guardThanksPlayBtn');
   assert.equal(await page.locator('.scene-editor-item').count(), 2, 'reopening selects the existing component');
+  await guardPreview.locator('.gt-card[data-tier="captain"].is-live').waitFor({ state: 'visible' });
+  assert.equal(await guardPreview.locator('.gt-name').textContent(), '新的上舰观众');
+  assert.equal(await guardPreview.locator('.gt-months').textContent(), '24 MONTHS');
+  assert.equal(await page.locator('[data-preview-parameter="tier"]').inputValue(), 'captain');
+  assert.equal(await previewMonths.inputValue(), '24');
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   for (const type of ['gift-frame', 'guard-thanks']) {
     await page.locator(`[data-category="${type}"]`).click();

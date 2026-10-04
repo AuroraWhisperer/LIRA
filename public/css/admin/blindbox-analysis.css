@@ -104,7 +104,7 @@ body.blind-analysis-open .playback-player-panel {
 .blind-analysis-select:focus-visible,
 .blind-analysis-pagination button:focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .blind-analysis-close svg {
@@ -236,12 +236,11 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-select[aria-expanded='true'] {
   border-color: var(--color-control-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-control-accent) 16%, transparent);
 }
 
 .blind-analysis-select:focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .blind-analysis-select > span {

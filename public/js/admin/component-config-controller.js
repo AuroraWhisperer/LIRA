@@ -9,7 +9,7 @@ function equal(left, right) {
     && keys.every((key) => Object.hasOwn(right, key) && equal(left[key], right[key]));
 }
 
-export function createComponentConfigController({ initial = {}, read, persist, validate }) {
+export function createComponentConfigController({ initial = {}, read, persist, confirm: confirmSaved = read, validate }) {
   let saved = clone(initial);
   let draft = clone(initial);
   let loaded = !read;
@@ -23,6 +23,7 @@ export function createComponentConfigController({ initial = {}, read, persist, v
   let editRevision = 0;
   let fieldRevisions = {};
   let submission = null;
+  let submissionRevisions = null;
   let pendingSave = null;
   const listeners = new Set();
 
@@ -51,7 +52,8 @@ export function createComponentConfigController({ initial = {}, read, persist, v
 
   function receive(next) {
     for (const key of new Set([...Object.keys(saved), ...Object.keys(next)])) {
-      const edited = !equal(draft[key], saved[key]);
+      const edited = !equal(draft[key], saved[key])
+        || (submissionRevisions && fieldRevisions[key] !== submissionRevisions[key]);
       if (!edited) {
         if (Object.hasOwn(next, key)) draft[key] = clone(next[key]);
         else delete draft[key];
@@ -119,15 +121,27 @@ export function createComponentConfigController({ initial = {}, read, persist, v
       committed = new Promise((resolve) => { finish = resolve; });
       pendingSave = committed;
       submission = submitted;
+      submissionRevisions = submittedRevisions;
       saving = true;
       error = '';
       authorityRevision += 1;
+      const submittedAuthority = authorityRevision;
       const writing = (async () => {
         try {
           notify();
           if (submittedGeneration !== generation) return false;
-          const next = await persist(clone(submitted), clone(changed));
+          const acknowledged = await persist(clone(submitted), clone(changed));
           if (submittedGeneration !== generation) return false;
+          let next = acknowledged;
+          // HTTP acknowledgement and broadcasts have no shared server revision.
+          // A different broadcast may predate or follow this write: confirm with the owner.
+          if (submittedAuthority !== authorityRevision && !equal(saved, acknowledged)) {
+            if (!confirmSaved) throw new Error('配置已在其他入口更新，请重新读取后确认。');
+            const confirmingAuthority = authorityRevision;
+            next = await confirmSaved();
+            if (submittedGeneration !== generation) return false;
+            if (confirmingAuthority !== authorityRevision) next = saved;
+          }
           for (const key of new Set([...Object.keys(saved), ...Object.keys(next)])) {
             if (fieldRevisions[key] !== submittedRevisions[key]) continue;
             if (Object.hasOwn(next, key)) draft[key] = clone(next[key]);
@@ -135,9 +149,11 @@ export function createComponentConfigController({ initial = {}, read, persist, v
           }
           saved = clone(next);
           authorityRevision += 1;
-          applied = true;
-          conflict = false;
-          return true;
+          const superseded = Object.keys(changed).some((key) => !equal(next[key], acknowledged[key]));
+          applied = !superseded;
+          conflict = Object.keys(changes()).some((key) => !equal(next[key], acknowledged[key]));
+          if (superseded) error = '保存期间配置已在其他入口更新，请确认当前配置。';
+          return !superseded;
         } catch (failure) {
           if (submittedGeneration === generation) error = failure?.message || String(failure || '保存失败，请重试。');
           return false;
@@ -145,6 +161,7 @@ export function createComponentConfigController({ initial = {}, read, persist, v
           if (submittedGeneration === generation) {
             saving = false;
             submission = null;
+            submissionRevisions = null;
             pendingSave = null;
             notify();
           }
@@ -184,7 +201,7 @@ export function createComponentConfigController({ initial = {}, read, persist, v
     loaded = false;
     loading = saving = conflict = applied = false;
     error = '';
-    submission = pendingSave = null;
+    submission = submissionRevisions = pendingSave = null;
     notify();
   }
 

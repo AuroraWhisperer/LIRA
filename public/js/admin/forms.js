@@ -8,6 +8,8 @@ import { value, setValue, normalizeRangeValue } from '../shared/utils.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
 import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { ensureSavedFontOption } from './local-font-library.js';
+import { isComponentFieldEditing } from './component-preview-panel.js';
+import { notifyMediaPlayFailure } from '../shared/media-playback-feedback.js';
 
 /**
  * 表单服务
@@ -38,13 +40,40 @@ export class FormsService {
    * 初始化选项卡
    */
   initTabs() {
-    document.querySelectorAll('.tab').forEach((button) => {
-      button.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
-        document.querySelectorAll('.tab-page').forEach((item) => item.classList.remove('active'));
-        button.classList.add('active');
-        document.getElementById(button.dataset.tab).classList.add('active');
+    document.querySelectorAll('.tabs[role="tablist"]').forEach((tablist) => {
+      const tabs = [...tablist.querySelectorAll('.tab')];
+      const select = (selected) => {
+        for (const tab of tabs) {
+          const active = tab === selected;
+          tab.classList.toggle('active', active);
+          tab.setAttribute('aria-selected', String(active));
+          tab.tabIndex = active ? 0 : -1;
+          const panel = document.getElementById(tab.dataset.tab);
+          panel.classList.toggle('active', active);
+          panel.hidden = !active;
+        }
+      };
+      tabs.forEach((tab, index) => {
+        const panel = document.getElementById(tab.dataset.tab);
+        tab.id ||= `${tab.dataset.tab}Tab`;
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-controls', panel.id);
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', tab.id);
+        tab.addEventListener('click', () => select(tab));
+        tab.addEventListener('keydown', (event) => {
+          let next;
+          if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+          else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+          else if (event.key === 'Home') next = 0;
+          else if (event.key === 'End') next = tabs.length - 1;
+          else return;
+          event.preventDefault();
+          select(tabs[next]);
+          tabs[next].focus();
+        });
       });
+      select(tabs.find((tab) => tab.classList.contains('active')) || tabs[0]);
     });
   }
 
@@ -96,7 +125,7 @@ export class FormsService {
         if (audio) {
           if (audio.paused) {
             audio.play().catch((error) => {
-              console.warn('[playback] play failed:', error);
+              notifyMediaPlayFailure(error, audio);
             });
           } else {
             audio.pause();
@@ -170,45 +199,17 @@ export class FormsService {
    * 填充表单
    */
   fillForm(values) {
+    const setField = (key, inputValue) => {
+      const element = document.getElementById(key);
+      if (!element || element.closest('#openingAnimationForm, #displayForm, #themeForm')) return;
+      if (element.dataset.preserveDirty === 'true' && element.dataset.dirty === 'true') return;
+      if (!isComponentFieldEditing(element)) element.value = inputValue;
+    };
     const overlayStyle = values?.overlayQueueStyle || value('overlayQueueStyle') || 'classic';
     const activeQueueSettings = readQueueStyleSettings(values, overlayStyle);
     ensureSavedFontOption(document.getElementById('illustratedQueueFontFamily'), activeQueueSettings.fontFamily);
-    for (const [key, inputValue] of Object.entries(values || {})) {
-      const element = document.getElementById(key);
-      // Keep an in-progress edit intact while a live state snapshot arrives.
-      if (element?.closest('#openingAnimationForm')) continue;
-      if (element?.dataset.preserveDirty === 'true' && element.dataset.dirty === 'true') {
-        continue;
-      }
-      if (element && element !== document.activeElement) element.value = inputValue;
-    }
+    for (const [key, inputValue] of Object.entries(values || {})) setField(key, inputValue);
     setOverlayStyle(overlayStyle);
-
-    // Song board sync toggle
-    const syncCheckbox = document.getElementById('songBoardSyncTheme');
-    const syncArea = document.getElementById('songBoardThemeArea');
-    if (syncCheckbox && syncArea && values && 'songBoardSyncTheme' in values) {
-      const synced = values.songBoardSyncTheme !== 'false';
-      syncCheckbox.checked = synced;
-      syncArea.hidden = synced;
-      if (synced) {
-        // Copy main theme values into song board fields
-        setValue('songBoardThemePrimary', values.themePrimary || '#ff6f91');
-        setValue('songBoardThemeAccent', values.themeAccent || '#21b6a8');
-        setValue('songBoardThemeText', values.themeText || '#fff7fb');
-        setValue('songBoardThemeBackground', values.themeBackground || '#181823');
-        setValue('songBoardThemeOpacity', values.themeOpacity || '0.48');
-        setValue('songBoardThemeRadius', values.themeRadius || '8');
-        setValue('songBoardBackdropBlur', values.backdropBlur || '14');
-        setValue('songBoardGlowIntensity', values.glowIntensity || '2');
-        setValue('songBoardEnableGradient', values.enableGradient || 'false');
-        setValue('songBoardGradientEnd', values.gradientEnd || '#181823');
-        setValue('songBoardFontFamily', values.overlayFontFamily || 'Microsoft YaHei');
-        setValue('songBoardFontWeight', values.overlayFontWeight || '800');
-        setValue('songBoardSongColor', values.overlaySongColor || '');
-        setValue('songBoardTitle', values.overlayTitle || '');
-      }
-    }
 
     const songFontSize = this.normalizeFontSize(
       values && values.queueSongFontSize,
@@ -222,62 +223,52 @@ export class FormsService {
       40,
       10,
     );
-    setValue('queueSongFontSize', songFontSize);
+    setField('queueSongFontSize', songFontSize);
     if (document.getElementById('queueSongFontSizeNumber')) {
-      setValue('queueSongFontSizeNumber', songFontSize);
+      setField('queueSongFontSizeNumber', songFontSize);
     }
 
-    setValue('queueTitleFontSize', titleFontSize);
+    setField('queueTitleFontSize', titleFontSize);
     if (document.getElementById('queueTitleFontSizeNumber')) {
-      setValue('queueTitleFontSizeNumber', titleFontSize);
+      setField('queueTitleFontSizeNumber', titleFontSize);
     }
     const identityFontSize = this.normalizeFontSize(activeQueueSettings.fontSize, 28, 78, 9);
     if (document.getElementById('identityQueueFontSize')) {
-      setValue('identityQueueFontSize', identityFontSize);
+      setField('identityQueueFontSize', identityFontSize);
     }
     if (document.getElementById('identityQueueFontSizeNumber')) {
-      setValue('identityQueueFontSizeNumber', identityFontSize);
+      setField('identityQueueFontSizeNumber', identityFontSize);
     }
-    setValue('illustratedQueueFontFamily', activeQueueSettings.fontFamily);
-    setValue('illustratedQueueFontWeight', activeQueueSettings.fontWeight);
-    setValue('illustratedQueueUseCustomTextColor', activeQueueSettings.useCustomTextColor);
-    setValue('illustratedQueueTextColor', activeQueueSettings.textColor);
-    setValue('identityQueueScrollMode', activeQueueSettings.scrollMode);
+    setField('illustratedQueueFontFamily', activeQueueSettings.fontFamily);
+    setField('illustratedQueueFontWeight', activeQueueSettings.fontWeight);
+    setField('illustratedQueueUseCustomTextColor', activeQueueSettings.useCustomTextColor);
+    setField('illustratedQueueTextColor', activeQueueSettings.textColor);
+    setField('identityQueueScrollMode', activeQueueSettings.scrollMode);
     const ruleFontSize = this.normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
     if (document.getElementById('overlayRuleFontSize')) {
-      setValue('overlayRuleFontSize', ruleFontSize);
+      setField('overlayRuleFontSize', ruleFontSize);
     }
     if (document.getElementById('overlayRuleFontSizeNumber')) {
-      setValue('overlayRuleFontSizeNumber', ruleFontSize);
+      setField('overlayRuleFontSizeNumber', ruleFontSize);
     }
     if (document.getElementById('themeOpacityNumber')) {
-      setValue('themeOpacityNumber', Math.round(Number(value('themeOpacity')) * 100));
-    }
-    if (document.getElementById('songBoardFontSizeNumber')) {
-      setValue('songBoardFontSizeNumber', value('songBoardFontSize'));
+      setField('themeOpacityNumber', Math.round(Number(value('themeOpacity')) * 100));
     }
     if (document.getElementById('backdropBlurNumber')) {
-      setValue('backdropBlurNumber', value('backdropBlur'));
+      setField('backdropBlurNumber', value('backdropBlur'));
     }
     if (document.getElementById('glowIntensityNumber')) {
-      setValue('glowIntensityNumber', value('glowIntensity'));
-    }
-    if (document.getElementById('scrollSecondsRange')) {
-      const songScrollSpeed = this.normalizeSongScrollSpeedForDisplay(
-        values && values.scrollSeconds !== undefined ? values.scrollSeconds : value('scrollSeconds'),
-      );
-      setValue('scrollSeconds', songScrollSpeed);
-      setValue('scrollSecondsRange', songScrollSpeed);
+      setField('glowIntensityNumber', value('glowIntensity'));
     }
     if (document.getElementById('queueScrollSpeedRange')) {
       const queueScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(values && values.queueScrollSpeed);
-      setValue('queueScrollSpeed', queueScrollSpeed);
-      setValue('queueScrollSpeedRange', queueScrollSpeed);
+      setField('queueScrollSpeed', queueScrollSpeed);
+      setField('queueScrollSpeedRange', queueScrollSpeed);
     }
     if (document.getElementById('identityQueueScrollSpeedRange')) {
       const identityScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(activeQueueSettings.scrollSpeed);
-      setValue('identityQueueScrollSpeed', identityScrollSpeed);
-      setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
+      setField('identityQueueScrollSpeed', identityScrollSpeed);
+      setField('identityQueueScrollSpeedRange', identityScrollSpeed);
     }
     this.refreshParameterRanges();
   }

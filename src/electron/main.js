@@ -28,7 +28,7 @@ const { createPlannerReminderController } = require('./planner-reminder-controll
 const { registerPlannerReminderIpc } = require('./ipc/planner-reminder-ipc');
 const { registerDailyBotIpc } = require('./ipc/daily-bot-ipc');
 const { createRemoteGiftController } = require('./remote-gift-controller');
-const { createSceneCloudController, getSceneOwner } = require('./scene-cloud-controller');
+const { createSceneCloudController, getSceneOwner, getComponentPreviewOwner } = require('./scene-cloud-controller');
 const { createDesktopReadinessController } = require('./desktop-readiness-controller');
 const { createDesktopLogger } = require('./desktop-logger');
 const { createDesktopRuntime } = require('./desktop-runtime');
@@ -92,6 +92,7 @@ const {
   getBilibiliAccountProfile,
   getBilibiliCookieHeader,
   getBilibiliUid,
+  getBilibiliSessionRevision,
   restoreBilibiliCookieSnapshot,
   replaceBilibiliCookieHeader,
   loginBilibiliAccount,
@@ -422,6 +423,7 @@ async function startDesktopApp() {
       getAuthState: getBilibiliAuthState,
       getCookieHeader: getBilibiliCookieHeader,
       getUid: getBilibiliUid,
+      getSessionRevision: getBilibiliSessionRevision,
     },
     giftSync: {
       cardProfiles: (request) => {
@@ -460,6 +462,7 @@ async function startDesktopApp() {
     },
     getFanScope: () => fanScopeFor(licenseManager),
     getSceneOwner: () => getSceneOwner(licenseManager),
+    getPreviewOwner: () => getComponentPreviewOwner(licenseManager),
     onPhase: (phase, durationMs, extra) =>
       writeLog('lifecycle', {
         event: 'PHASE',

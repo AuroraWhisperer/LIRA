@@ -99,7 +99,7 @@
             <label><span>观众</span><input id="giftFramePreviewUser" type="text" value="观众A" maxlength="80" /></label>
             <label><span>礼物</span><input id="giftFramePreviewGift" type="text" value="林间花信" maxlength="80" /></label>
             <label><span>数量</span><input id="giftFramePreviewNum" type="number" min="1" step="1" value="2" /></label>
-            <button id="giftFramePreviewBtn" class="secondary" type="button">在画布中预览</button>
+            <button id="giftFramePreviewBtn" class="secondary" type="button">预览</button>
           </div>
         </section>
       </div>
@@ -113,17 +113,12 @@
       aria-labelledby="giftAssistantDisplayTab"
       hidden
     >
-      <header class="gift-assistant-heading">
-        <h3 class="ui-section-title">礼物词条样式与滚动设置</h3>
-        <p class="hint">词条样式与颜色区间共用于滚动展示、导出预览和导出图片。</p>
-      </header>
       <form id="giftDisplayForm">
         <fieldset id="giftDisplayFields" disabled>
           <div class="gift-display-columns">
             <div class="gift-display-group">
               <div class="gift-display-group-head">
                 <h4>共用词条样式 · 价格分色</h4>
-                <p class="hint">滚动展示与图片导出均按卡片内礼物的累计金额分色；金额不进入横幅。</p>
               </div>
               <div class="gift-tier-inputs">
                 <div>
@@ -210,50 +205,40 @@
             <div class="gift-display-group">
               <div class="gift-display-group-head">
                 <h4>本日礼物循环</h4>
-                <p class="hint">今天同一人送的同款礼物合并展示。卡片超过显示行数时首尾连续滚动，北京时间零点换日。</p>
               </div>
               <label>显示行数<input id="giftFeedRows" type="number" min="1" max="10" required /></label>
               <label
                 >滚动速率（1–50）<input id="giftFeedSpeed" type="number" min="1" max="50" step="1" required
               /></label>
               <label>
-                <span
-                  >最小礼物金额（元）<span
-                    class="gift-feed-amount-help"
-                    title="按同一人当天同款礼物的累计金额筛选，不包含输入的金额，只显示大于该金额的礼物。例如输入 1 元，累计 1 元不显示。0 表示不限制。"
-                    aria-hidden="true"
-                    ><svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.75"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3m.1 4h.01" /></svg></span
-                ></span>
+                <span>
+                  <span id="giftFeedMinAmountLabel">最小礼物金额（元）</span>
+                  <lira-help label="最小礼物金额说明" tooltip-id="giftFeedMinAmountHint">
+                    按同一人当天同款礼物的累计金额筛选，只显示大于输入金额的礼物。例如输入 1 元，累计 1 元不显示。0 表示不限制，最多支持 1 位小数。
+                  </lira-help>
+                </span>
                 <input
                   id="giftFeedMinAmount"
                   type="number"
                   min="0"
                   step="0.1"
                   required
+                  aria-labelledby="giftFeedMinAmountLabel"
                   aria-describedby="giftFeedMinAmountHint"
                 />
               </label>
-              <p id="giftFeedMinAmountHint" class="hint">
-                0 表示不限制，最多 1 位小数；累计金额须大于输入金额，不包含等于该金额的礼物。
-              </p>
               <div class="gift-feed-source">
-                <label>浏览器源<input id="giftFeedUrl" readonly /></label>
+                <label for="giftFeedUrl">浏览器源</label>
                 <div class="gift-directory-actions">
-                  <button id="giftFeedCopy" type="button" class="secondary">复制地址</button
-                  ><a id="giftFeedPreviewLink" target="_blank" rel="noopener">打开本日预览</a>
+                  <button
+                    id="giftFeedUrl"
+                    type="button"
+                    class="secondary"
+                    aria-label="复制滚动礼物浏览器源地址"
+                    title="点击复制地址"
+                  ></button>
+                  <button id="giftFeedPreviewBtn" type="button" class="secondary">预览</button>
                 </div>
-                <p class="hint">浏览器源建议宽度 900，高度随显示行数调整；多位数量会向右延长。关闭此面板后仍继续播放。</p>
               </div>
             </div>
           </div>
@@ -325,9 +310,25 @@
               <option value="en">English</option>
             </select>
           </label>
+          <label>
+            <span>预览等级</span>
+            <select id="guardThanksPreviewTier" data-dropdown-variant="settings">
+              <option value="captain">舰长</option>
+              <option value="admiral">提督</option>
+              <option value="governor">总督</option>
+            </select>
+          </label>
+          <label>
+            <span>预览观众</span>
+            <input id="guardThanksPreviewUser" type="text" value="观众A" maxlength="100" />
+          </label>
+          <label>
+            <span>预览月数</span>
+            <input id="guardThanksPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" />
+          </label>
           <div class="guard-thanks-actions">
             <button id="guardThanksSaveBtn" class="primary" type="button">保存大航海感谢设置</button>
-            <button id="guardThanksPlayBtn" class="secondary" type="button">在画布中预览</button>
+            <button id="guardThanksPlayBtn" class="secondary" type="button">预览</button>
           </div>
           <span id="guardThanksSaveState" class="hint" role="status" aria-live="polite"></span>
         </div>

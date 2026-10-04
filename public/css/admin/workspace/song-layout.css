@@ -272,7 +272,8 @@ body.player-dock-expanded .song-workspace {
   min-height: 420px;
 }
 
-.song-management-panel:has(> #settingsPage.active) {
+.song-management-panel:has(> #settingsPage.active),
+.song-management-panel:has(> #displayPage.active) {
   flex: 0 0 auto;
   min-height: 0;
 }
@@ -280,8 +281,8 @@ body.player-dock-expanded .song-workspace {
 .song-management-panel > .tabs {
   flex: 0 0 auto;
   gap: 4px;
-  min-height: 60px;
-  padding: 8px;
+  min-height: 52px;
+  padding: 4px 8px;
 }
 
 .song-management-panel > .tabs > .tab,
@@ -311,7 +312,7 @@ body.player-dock-expanded .song-workspace {
 }
 
 .song-management-panel > .tabs > .tab-with-help > .tab {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   min-height: 38px;
   padding: 0;

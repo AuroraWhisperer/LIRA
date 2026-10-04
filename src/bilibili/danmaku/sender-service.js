@@ -114,16 +114,21 @@ function createDanmakuSenderService(dependencies) {
     intervalMs = 0,
     rateLimitIntervalMs = minIntervalMs,
     waitForRateLimit = false,
+    assertSessionCurrent,
   }) {
+    assertSessionCurrent?.();
     const nowMs = now();
     const remainingWait = lastSentAt ? rateLimitIntervalMs - (nowMs - lastSentAt) : 0;
     if (remainingWait > 0 && waitForRateLimit) await delay(remainingWait);
     else if (remainingWait > 0) throw new Error('发送过于频繁，请稍后再试。');
+    assertSessionCurrent?.();
     const [auth, room] = await Promise.all([getAuth(), getRoom()]);
+    assertSessionCurrent?.(auth);
     if (!auth || !auth.loggedIn || !auth.cookieHeader) throw new Error('请先登录直播账号。');
     if (!room || !room.roomId) throw new Error('请先设置直播间号。');
 
     const target = normalizeReplyTarget(mentionTarget || (mentionRequester ? await getMentionTarget() : null));
+    assertSessionCurrent?.(auth);
     const messages = mentionEveryChunk
       ? splitDanmakuEveryMentionMessage(message, target)
       : splitDanmakuReplyMessage(message, target);
@@ -133,8 +138,12 @@ function createDanmakuSenderService(dependencies) {
     const sentAfter = now();
     for (let index = 0; index < messages.length; index += 1) {
       if (index > 0 && intervalMs > 0) await delay(intervalMs);
+      assertSessionCurrent?.(auth);
+      // Account changes can happen while resolving the room or waiting between chunks.
+      if (assertSessionCurrent) assertSessionCurrent(await getAuth());
       const replyTarget = mentionEveryChunk || index === 0 ? target : emptyTarget();
       results.push(await client.sendDanmaku(roomInfo.roomId, messages[index], replyTarget));
+      assertSessionCurrent?.(auth);
     }
     const result = {
       message: results.map((item) => item.message).join(''),

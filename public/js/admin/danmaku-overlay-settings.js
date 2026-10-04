@@ -6,6 +6,7 @@ import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 import { isValidFullscreenDuration } from '../shared/danmaku-appearance-draft.js';
 import { createComponentConfigController, componentSaveMessage } from './component-config-controller.js';
 import { bindDanmakuParameters } from './danmaku-parameter-view.js';
+import { saveComponentWithFeedback } from './component-save-feedback.js';
 
 export function initDanmakuOverlaySettings(elements, toast) {
   let overlayUrl = '';
@@ -74,7 +75,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
       }
     });
   }
-  applyButton.addEventListener('click', () => controller.save());
+  applyButton.addEventListener('click', () => saveComponentWithFeedback(controller, '弹幕姬样式', toast));
   discardButton?.addEventListener('click', () => controller.discard());
   reloadButton.addEventListener('click', () => { if (overlayUrl) return controller.reload(); });
   elements.copyOverlayUrlButton.addEventListener('click', async () => {

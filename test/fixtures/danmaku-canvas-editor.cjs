@@ -20,6 +20,9 @@ async function run() {
   const { createSceneStore } = require('../../src/storage/scene-store');
   const { createSceneService } = require('../../src/scenes/scene-service');
   const { createSceneComponentPorts } = require('../../src/server/scene-components');
+  const { getComponentPreviewOwner } = require('../../src/electron/scene-cloud-controller');
+  const { HEARTBEAT_INTERVAL_MS } = require('../../src/electron/license/license-runtime-policy');
+  const { createHarness } = require('../helpers/license-manager-harness');
   const directory = process.argv[2];
   if (!directory || !path.isAbsolute(directory)) throw new Error('An isolated absolute test directory is required.');
   fs.mkdirSync(directory, { recursive: true });
@@ -27,6 +30,15 @@ async function run() {
   app.setPath('sessionData', directory);
   app.setPath('crashDumps', path.join(directory, 'crashes'));
   await app.whenReady();
+  const licenseTasks = new Set();
+  const { manager } = createHarness({
+    identity: { deviceId: 'd', licenseId: 'l', streamerId: 1, publicKeyPem: 'public' },
+    timers: {
+      setTimeout(callback, delay) { const task = { callback, delay }; licenseTasks.add(task); return task; },
+      clearTimeout(task) { licenseTasks.delete(task); },
+    },
+  });
+  await manager.bootstrap();
   const token = 'synthetic-canvas-parent-secret';
   const root = path.resolve(__dirname, '../..');
   let saved = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null,
@@ -42,10 +54,20 @@ async function run() {
       return { style, fullscreenDurationSeconds, styleOptions, layout };
     } } }) });
   global.canvasTest = { writes: [], attempts: 0, requests: [], externalUrls: [], failNext: false,
-    saved: () => saved, scene: () => scenes.list()[0], componentSize: () => scenes.getComponentSize('danmaku') };
+    saved: () => saved, scene: () => scenes.list()[0], componentSize: () => scenes.getComponentSize('danmaku'),
+    authorization: () => ({ epoch: manager.getAuthorizationEpoch(), generation: manager.getAuthorizationGeneration() }),
+    async renewAuthorization() {
+      const task = [...licenseTasks].find(({ delay }) => delay !== HEARTBEAT_INTERVAL_MS);
+      if (!task) throw new Error('Expected a scheduled authorization renewal.');
+      licenseTasks.delete(task);
+      task.callback();
+      await manager.ensureAuthorized();
+    },
+  };
   const server = createHttpServer({
     host: '127.0.0.1', startPort: 0, dataDir: directory, getPhase: () => 'ready',
-    getStartedPort: () => server.address().port, isLicenseAuthorized: () => true,
+    getStartedPort: () => server.address().port, isLicenseAuthorized: () => manager.isAuthorized(),
+    getPreviewOwner: () => getComponentPreviewOwner(manager),
     inflightTracker: { run: (fn) => fn() }, getSettings: () => ({}),
     createApiContext: () => ({ sessionToken: token, scenes, settings: { get: () => ({}) }, system: { dataDir: directory } }),
     servePageOrAsset(req, res, url) {
@@ -95,7 +117,7 @@ async function run() {
   registerLicenseIpc({ ipcMain, getMainWindow: () => window, getDesktopBaseUrl: () => origin,
     hasExactOrigin: (url, expected) => new URL(url).origin === expected,
     licenseManager: {
-      getState: () => 'authorized', onStateChanged: () => () => {},
+      ...manager,
       getProfile: async () => ({ state: 'authorized', streamer: { accountName: 'canvas-test', songPageUrl: 'https://canvas.example.test/' } }),
       getOverlaySettings: async () => saved,
       updateOverlaySettings: async (value) => {
@@ -107,7 +129,7 @@ async function run() {
       },
     },
   });
-  app.once('before-quit', () => { auth.dispose(); server.closeAllConnections(); server.close(); db.close(); });
+  app.once('before-quit', () => { manager.dispose(); auth.dispose(); server.closeAllConnections(); server.close(); db.close(); });
   app.on('window-all-closed', () => app.quit());
   await window.loadURL(`${origin}/admin`);
 }

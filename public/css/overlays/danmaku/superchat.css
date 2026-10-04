@@ -194,23 +194,35 @@ body[data-custom-font='true'] .is-superchat .sc-name {
 .is-superchat .sc-signal .sc-copy { line-height: 1.55; }
 
 /* Minimal: symmetric fine ornaments around a centered message. */
+body[data-style='minimal'] .draw-danmaku-item.is-superchat {
+  width: min(270px, 100%);
+  max-width: 270px;
+  padding: 0;
+  zoom: 1;
+}
 .is-superchat .sc-minimal {
-  padding: 23px 36px 21px;
+  padding: 16px 5% 14px;
   text-align: center;
-  color: #fff;
+  color: #f7f9ff;
+  text-shadow:
+    0 1px 3px rgba(16, 28, 42, 0.9),
+    0 0 2px rgba(16, 28, 42, 0.9),
+    0 0 12px rgb(150 124 226 / 40%);
 }
 .is-superchat .sc-minimal .sc-name {
   display: block;
-  margin-bottom: 8px;
+  width: 70%;
+  margin: 0 auto 8px;
   color: #ece6ff;
-  font-size: 16px;
-  font-weight: 700;
-  text-shadow: 0 1px 3px #000c, 0 0 10px rgb(150 124 226 / 45%);
+  font: 700 16px/1.4 var(--danmaku-ui-font);
+  letter-spacing: 0;
 }
 .is-superchat .sc-minimal .sc-copy {
-  font-family: 'SimSun', 'Songti SC', serif;
-  font-weight: 600;
-  text-shadow: 0 2px 4px #0008;
+  font-family: var(--danmaku-ui-font);
+  font-weight: 400;
+  line-height: 1.5;
+  text-wrap: balance;
+  text-shadow: inherit;
 }
 .is-superchat .sc-bow-edge {
   position: absolute;

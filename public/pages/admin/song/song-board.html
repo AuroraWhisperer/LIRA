@@ -116,8 +116,12 @@
               </select>
             </label>
             <label>
-              <span>歌名颜色 <lira-help>留空时使用文字色。</lira-help></span>
-              <input id="songBoardSongColor" type="color" value="" />
+              <span>歌名颜色 <lira-help>跟随文字色，或设置自定义颜色。</lira-help></span>
+              <select id="songBoardSongColorMode" aria-label="歌名颜色来源" data-dropdown-variant="settings">
+                <option value="inherit">跟随文字色</option>
+                <option value="custom">自定义颜色</option>
+              </select>
+              <input id="songBoardSongColor" type="color" aria-label="自定义歌名颜色" disabled />
             </label>
             <label>
               <span>面板标题 <lira-help>修改歌单板顶部标题；留空时使用默认标题。</lira-help></span>

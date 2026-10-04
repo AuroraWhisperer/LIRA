@@ -25,7 +25,7 @@
 .usage-guide-search:focus-within {
   border-color: var(--primary);
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .usage-guide-search svg {
@@ -69,6 +69,7 @@
   justify-content: center;
   flex: 0 0 28px;
   height: 28px;
+  min-height: 28px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);

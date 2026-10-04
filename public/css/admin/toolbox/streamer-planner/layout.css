@@ -3,7 +3,7 @@
 }
 .streamer-planner :is(button, input, textarea, select):focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 .planner-sr-only {
   position: absolute;

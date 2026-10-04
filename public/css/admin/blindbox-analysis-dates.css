@@ -23,7 +23,7 @@
 
 .blind-analysis-dates button:focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .blind-analysis-dates svg {
@@ -130,6 +130,7 @@
   place-items: center;
   width: 32px;
   height: 32px;
+  min-height: 32px;
   padding: 0;
   border-radius: 6px;
 }
@@ -158,6 +159,7 @@
 .blind-analysis-calendar-days button {
   position: relative;
   height: 34px;
+  min-height: 34px;
   min-width: 0;
   padding: 0;
   border-radius: 6px;

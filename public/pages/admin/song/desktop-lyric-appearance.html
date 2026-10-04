@@ -5,7 +5,7 @@
   </summary>
   <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
     <div class="desktop-lyric-control desktop-lyric-font-control">
-      <span class="desktop-lyric-control-copy"><strong>主字体</strong></span>
+      <label class="desktop-lyric-control-copy" for="desktopLyricFontFamily"><strong>主字体</strong></label>
       <div class="desktop-lyric-font-picker">
         <select id="desktopLyricFontFamily" data-dropdown-variant="settings">
           <option
@@ -38,17 +38,17 @@
       />
     </label>
     <label class="desktop-lyric-control desktop-lyric-range-control">
-      <span class="desktop-lyric-control-copy"><strong>字体大小</strong></span>
+      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricFontSizeLabel">字体大小</span></strong></span>
       <span class="range-row"
         ><input
-          id="desktopLyricFontSize"
+          aria-labelledby="desktopLyricFontSizeLabel" id="desktopLyricFontSize"
           class="parameter-range parameter-range--scale"
           type="range"
           min="24"
           max="72"
           step="2"
           value="56"
-        /><input id="desktopLyricFontSizeNumber" type="number" min="24" max="72" step="2" value="56" /><span
+        /><input aria-labelledby="desktopLyricFontSizeLabel" id="desktopLyricFontSizeNumber" type="number" min="24" max="72" step="2" value="56" /><span
           class="desktop-lyric-unit"
           >px</span
         ></span
@@ -109,34 +109,34 @@
       </div>
     </div>
     <label class="desktop-lyric-control desktop-lyric-range-control">
-      <span class="desktop-lyric-control-copy"><strong>字间距</strong></span>
+      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricLetterSpacingLabel">字间距</span></strong></span>
       <span class="range-row"
         ><input
-          id="desktopLyricLetterSpacing"
+          aria-labelledby="desktopLyricLetterSpacingLabel" id="desktopLyricLetterSpacing"
           class="parameter-range parameter-range--centered"
           type="range"
           min="-0.1"
           max="0.3"
           step="0.01"
           value="0"
-        /><input id="desktopLyricLetterSpacingNumber" type="number" min="-0.1" max="0.3" step="0.01" value="0" /><span
+        /><input aria-labelledby="desktopLyricLetterSpacingLabel" id="desktopLyricLetterSpacingNumber" type="number" min="-0.1" max="0.3" step="0.01" value="0" /><span
           class="desktop-lyric-unit"
           >em</span
         ></span
       >
     </label>
     <label class="desktop-lyric-control desktop-lyric-range-control">
-      <span class="desktop-lyric-control-copy"><strong>行间距</strong></span>
+      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricLineHeightLabel">行间距</span></strong></span>
       <span class="range-row"
         ><input
-          id="desktopLyricLineHeight"
+          aria-labelledby="desktopLyricLineHeightLabel" id="desktopLyricLineHeight"
           class="parameter-range parameter-range--scale"
           type="range"
           min="1"
           max="2"
           step="0.1"
           value="1.4"
-        /><input id="desktopLyricLineHeightNumber" type="number" min="100" max="200" step="10" value="140" /><span
+        /><input aria-labelledby="desktopLyricLineHeightLabel" id="desktopLyricLineHeightNumber" type="number" min="100" max="200" step="10" value="140" /><span
           class="desktop-lyric-unit"
           >%</span
         ></span
@@ -152,9 +152,9 @@
   </summary>
   <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
     <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"><strong>文字描边</strong></span
+      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricStrokeEnabledLabel">文字描边</span></strong></span
       ><label class="switch-control"
-        ><input id="desktopLyricStrokeEnabled" type="checkbox" checked /><span
+        ><input aria-labelledby="desktopLyricStrokeEnabledLabel" id="desktopLyricStrokeEnabled" type="checkbox" checked /><span
           class="switch-track"
           aria-hidden="true"
         ></span
@@ -171,26 +171,26 @@
       />
     </div>
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>描边宽度</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricStrokeWidthLabel">描边宽度</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricStrokeWidth"
+          aria-labelledby="desktopLyricStrokeWidthLabel" id="desktopLyricStrokeWidth"
           class="parameter-range parameter-range--scale"
           type="range"
           min="0"
           max="6"
           step="0.5"
           value="3"
-        /><input id="desktopLyricStrokeWidthNumber" type="number" min="0" max="6" step="0.5" value="3" /><span
+        /><input aria-labelledby="desktopLyricStrokeWidthLabel" id="desktopLyricStrokeWidthNumber" type="number" min="0" max="6" step="0.5" value="3" /><span
           class="desktop-lyric-unit"
           >px</span
         ></span
       ></label
     >
     <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"><strong>文字阴影</strong></span
+      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricShadowEnabledLabel">文字阴影</span></strong></span
       ><label class="switch-control"
-        ><input id="desktopLyricShadowEnabled" type="checkbox" checked /><span
+        ><input aria-labelledby="desktopLyricShadowEnabledLabel" id="desktopLyricShadowEnabled" type="checkbox" checked /><span
           class="switch-track"
           aria-hidden="true"
         ></span
@@ -207,68 +207,68 @@
       />
     </div>
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>阴影强度</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricShadowIntensityLabel">阴影强度</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricShadowIntensity"
+          aria-labelledby="desktopLyricShadowIntensityLabel" id="desktopLyricShadowIntensity"
           class="parameter-range parameter-range--intensity"
           type="range"
           min="0"
           max="1"
           step="0.05"
           value="0.35"
-        /><input id="desktopLyricShadowIntensityNumber" type="number" min="0" max="100" step="5" value="35" /><span
+        /><input aria-labelledby="desktopLyricShadowIntensityLabel" id="desktopLyricShadowIntensityNumber" type="number" min="0" max="100" step="5" value="35" /><span
           class="desktop-lyric-unit"
           >%</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>阴影模糊</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricShadowBlurLabel">阴影模糊</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricShadowBlur"
+          aria-labelledby="desktopLyricShadowBlurLabel" id="desktopLyricShadowBlur"
           class="parameter-range parameter-range--scale"
           type="range"
           min="0"
           max="30"
           step="1"
           value="8"
-        /><input id="desktopLyricShadowBlurNumber" type="number" min="0" max="30" step="1" value="8" /><span
+        /><input aria-labelledby="desktopLyricShadowBlurLabel" id="desktopLyricShadowBlurNumber" type="number" min="0" max="30" step="1" value="8" /><span
           class="desktop-lyric-unit"
           >px</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>阴影水平偏移</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricShadowOffsetXLabel">阴影水平偏移</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricShadowOffsetX"
+          aria-labelledby="desktopLyricShadowOffsetXLabel" id="desktopLyricShadowOffsetX"
           class="parameter-range parameter-range--centered"
           type="range"
           min="-20"
           max="20"
           step="1"
           value="0"
-        /><input id="desktopLyricShadowOffsetXNumber" type="number" min="-20" max="20" step="1" value="0" /><span
+        /><input aria-labelledby="desktopLyricShadowOffsetXLabel" id="desktopLyricShadowOffsetXNumber" type="number" min="-20" max="20" step="1" value="0" /><span
           class="desktop-lyric-unit"
           >px</span
         ></span
       ></label
     >
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong>阴影垂直偏移</strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricShadowOffsetYLabel">阴影垂直偏移</span></strong></span
       ><span class="range-row"
         ><input
-          id="desktopLyricShadowOffsetY"
+          aria-labelledby="desktopLyricShadowOffsetYLabel" id="desktopLyricShadowOffsetY"
           class="parameter-range parameter-range--centered"
           type="range"
           min="-20"
           max="20"
           step="1"
           value="3"
-        /><input id="desktopLyricShadowOffsetYNumber" type="number" min="-20" max="20" step="1" value="3" /><span
+        /><input aria-labelledby="desktopLyricShadowOffsetYLabel" id="desktopLyricShadowOffsetYNumber" type="number" min="-20" max="20" step="1" value="3" /><span
           class="desktop-lyric-unit"
           >px</span
         ></span

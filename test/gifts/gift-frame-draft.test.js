@@ -4,8 +4,12 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createDom, createClock } = require('../helpers/toast-dom');
 
 async function createFixture() {
+  const { documentRef, windowRef } = createDom();
+  const toasts = documentRef.createElement('div');
+  documentRef.body.append(toasts);
   const nodes = new Map();
   function node(id) {
     if (!nodes.has(id))
@@ -24,8 +28,9 @@ async function createFixture() {
   const handlers = new Map();
   const requests = [];
   const module = await loadModuleExports(path.resolve('public/js/admin/gift-frame.js'), {
-    document: { getElementById: node },
-    window: { addEventListener: (name, fn) => handlers.set(name, fn) },
+    document: Object.assign(documentRef, { getElementById: (id) => id === 'toast' ? toasts : node(id) }),
+    window: Object.assign(windowRef, { addEventListener: (name, fn) => handlers.set(name, fn) }),
+    ...createClock(),
     location: { protocol: 'http:', port: '3000' },
     fetch: (url, options) =>
       new Promise((resolve) =>
@@ -46,7 +51,7 @@ async function createFixture() {
     node('otherGiftFeature').handlers.get('input')?.({ target: node(id) });
     node(id).handlers.get('input')?.({ target: node(id) });
   };
-  return { node, requests, render, edit };
+  return { node, requests, render, edit, toasts };
 }
 
 test('settings pushes preserve unsaved gift-frame fields and update untouched fields', async () => {
@@ -59,7 +64,7 @@ test('settings pushes preserve unsaved gift-frame fields and update untouched fi
 });
 
 test('save uses the submitted draft and preserves edits made while awaiting its response', async () => {
-  const { node, requests, render, edit } = await createFixture();
+  const { node, requests, render, edit, toasts } = await createFixture();
   render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'false' });
   edit('giftFrameThresholdRmb', '99');
   const save = node('giftFrameSaveBtn').handlers.get('click')();
@@ -68,6 +73,8 @@ test('save uses the submitted draft and preserves edits made while awaiting its 
   render({ giftFrameThresholdRmb: '99.00' });
   requests[0].resolve();
   await save;
+  assert.equal(toasts.children.length, 1);
+  assert.match(toasts.textContent, /新修改还没保存/);
   assert.equal(node('giftFrameThresholdRmb').value, '120');
   render({ giftFrameThresholdRmb: '99.00' });
   assert.equal(node('giftFrameThresholdRmb').value, '120');

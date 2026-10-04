@@ -7,14 +7,21 @@ export { createOvertimePreview, projectOvertimePreviewState } from './overtime-p
 
 export function createOvertimeAppearance({ initial = {}, onSavedState }) {
   let current = initial;
+  let revisionGeneration = 0;
   const dataListeners = new Set();
   const controller = createComponentConfigController({
     initial: { path: initial.background?.path || '', fit: initial.background?.fit || 'cover' },
     persist: async ({ path, fit }) => {
+      const submittedGeneration = revisionGeneration;
       const response = await api('/api/overtime/config', { path, fit }, { notifyError: false });
+      if (submittedGeneration !== revisionGeneration) throw new Error('加班机状态已重新加载，请确认当前配置后重试。');
       const background = response.data?.background;
       if (!background || !Object.hasOwn(background, 'path') || !Object.hasOwn(background, 'fit')) {
         throw new Error('服务端未确认画面参数，请重试。');
+      }
+      if (Number(response.data.revision) < Number(current.revision)
+        && (background.path !== current.background?.path || background.fit !== current.background?.fit)) {
+        throw new Error('保存期间配置已在其他入口更新，请确认当前配置。');
       }
       onSavedState(response.data);
       return { path: background.path, fit: background.fit };
@@ -34,8 +41,9 @@ export function createOvertimeAppearance({ initial = {}, onSavedState }) {
       ? componentSaveMessage(state)
       : '';
   });
-  function receive(state) {
+  function receive(state, { allowRevisionReset = false } = {}) {
     if (!state) return;
+    if (allowRevisionReset && Number(state.revision) < Number(current.revision)) revisionGeneration += 1;
     current = state;
     if (state.background) controller.receive({ path: state.background.path || '', fit: state.background.fit || 'cover' });
     for (const listener of dataListeners) listener(projectOvertimePreviewState(current));

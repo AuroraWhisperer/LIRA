@@ -105,6 +105,62 @@ test('admin initial song loading does not request application state again', asyn
   assert.deepEqual(service.getSongs(), songs);
 });
 
+for (const newerFirst of [false, true]) {
+  test(`overlapping state reloads resolve with the accepted snapshot (newerFirst=${newerFirst})`, async () => {
+    const requests = [];
+    const globals = createGlobals(() => {
+      const request = Promise.withResolvers();
+      requests.push(request);
+      return request.promise;
+    });
+    const { StateService } = await loadModuleExports(STATE_PATH, globals);
+    const service = new StateService();
+    const older = service.reloadState();
+    const newer = service.reloadState();
+    const resolve = (index) => requests[index].resolve({ json: async () => ({ ok: true, data: { settings: { size: index + 1 } } }) });
+    resolve(newerFirst ? 1 : 0);
+    await Promise.resolve();
+    resolve(newerFirst ? 0 : 1);
+    const snapshots = await Promise.all([older, newer]);
+    assert.equal(requests.length, 2);
+    assert.ok(snapshots.every((snapshot) => snapshot.settings.size === 2));
+    assert.equal(service.getAppState().settings.size, 2);
+  });
+}
+
+test('superseded state reloads settle with the newer failure instead of returning stale state', async () => {
+  const requests = [];
+  const globals = createGlobals(() => {
+    const request = Promise.withResolvers();
+    requests.push(request);
+    return request.promise;
+  });
+  const { StateService } = await loadModuleExports(STATE_PATH, globals);
+  const service = new StateService();
+  const results = Promise.allSettled([service.reloadState(), service.reloadState()]);
+  requests[0].resolve({ json: async () => ({ ok: true, data: { settings: { size: 1 } } }) });
+  requests[1].reject(new Error('最新读取失败'));
+  assert.ok((await results).every((result) => result.status === 'rejected' && result.reason.message === '最新读取失败'));
+  assert.equal(service.getAppState(), null);
+});
+
+test('overlapping state reloads return settings received through WS while loading', async () => {
+  const requests = [];
+  const globals = createGlobals(() => {
+    const request = Promise.withResolvers();
+    requests.push(request);
+    return request.promise;
+  });
+  const { StateService } = await loadModuleExports(STATE_PATH, globals);
+  const service = new StateService();
+  service.connectSocket();
+  const reading = Promise.all([service.reloadState(), service.reloadState()]);
+  service.ws.emit('message', { data: JSON.stringify({ type: 'snapshot', state: { settings: { size: 3 } } }) });
+  for (const request of requests) request.resolve({ json: async () => ({ ok: true, data: { settings: { size: 1 } } }) });
+  assert.ok((await reading).every((snapshot) => snapshot.settings.size === 3));
+  assert.equal(requests.length, 2);
+});
+
 for (const reloadState of [true, false]) {
   for (const olderFirst of [true, false]) {
     test(`Admin accepts only the latest song filter request (reloadState=${reloadState}, olderFirst=${olderFirst})`, async () => {

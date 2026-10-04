@@ -314,7 +314,7 @@
 .wesing-offset-control input[type='number']:focus {
   border-color: var(--primary);
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 0;
+  outline-offset: -2px;
   box-shadow: none;
 }
 

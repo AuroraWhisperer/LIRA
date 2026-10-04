@@ -229,12 +229,8 @@
 }
 
 .gift-frame-settings-card {
-  --type-size-section-title: 20px;
-  --type-size-body: 16px;
-  --type-size-control: 16px;
   container: gift-frame-settings / inline-size;
   min-width: 0;
-  padding: 8px 0 0;
 }
 
 .gift-frame-settings-heading {
@@ -242,7 +238,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: 20px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
 .gift-frame-settings-heading h3 {
@@ -257,8 +253,8 @@
 .gift-frame-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: 24px;
-  padding: 20px 0 24px;
+  gap: var(--spacing-lg);
+  padding: 16px 0;
 }
 .gift-frame-controls > section {
   min-width: 0;
@@ -268,15 +264,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .gift-frame-section-heading h4 {
   margin: 0;
-  font-size: var(--type-size-body);
-  font-weight: 700;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
 }
 .gift-frame-preview {
-  padding-left: 24px;
+  padding-left: var(--spacing-lg);
   border-left: 1px solid var(--border);
 }
 .gift-frame-settings-grid,
@@ -293,7 +289,7 @@
 .gift-frame-preview-grid label {
   display: grid;
   min-width: 0;
-  gap: 8px;
+  gap: 6px;
   color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: 500;
@@ -305,8 +301,8 @@
 }
 .gift-frame-controls input,
 .gift-frame-controls button {
-  min-height: 44px;
-  padding: 8px 12px;
+  min-height: 36px;
+  padding: 6px 10px;
   font-size: var(--type-size-control);
 }
 .gift-frame-status {
@@ -330,7 +326,7 @@
     justify-content: start;
   }
   .gift-frame-preview {
-    padding: 20px 0 0;
+    padding: 16px 0 0;
     border-top: 1px solid var(--border);
     border-left: 0;
   }

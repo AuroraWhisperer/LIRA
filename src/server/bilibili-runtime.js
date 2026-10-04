@@ -221,6 +221,31 @@ function createBilibiliRuntime(options) {
       });
       const nextClient = buildClient(roomId, {
         isShuttingDown: () => !isCurrent(),
+        async captureReplySession() {
+          const sessionAuthProvider = authProvider;
+          const authSessionRevision = authProvider?.getSessionRevision?.();
+          let accountUid;
+          try {
+            accountUid = Number(await (sessionAuthProvider?.getUid?.() ?? authCache.uid)) || 0;
+          } catch (_) {
+            accountUid = null;
+          }
+          return (auth) => {
+            if (
+              isCurrent() &&
+              roomId === getConfiguredRoomId() &&
+              sessionAuthProvider === authProvider &&
+              authSessionRevision === authProvider?.getSessionRevision?.() &&
+              accountUid !== null &&
+              (!auth || (auth.loggedIn && Number(auth.uid) === accountUid))
+            ) {
+              return;
+            }
+            const error = new Error('弹幕会话已变更，已取消旧回复。');
+            error.code = 'DANMAKU_SESSION_CHANGED';
+            throw error;
+          };
+        },
         danmakuSender,
         updateLiveStatus: (status) => {
           if (isCurrent()) updateStatus(status);

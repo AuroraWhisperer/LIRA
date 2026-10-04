@@ -104,7 +104,7 @@ export function showConfirmationDialog(options = {}) {
       if (settled) return;
       settled = true;
       if (closeTimer) clearTimeout(closeTimer);
-      document.removeEventListener('keydown', onKeyDown);
+      backdrop.removeEventListener('keydown', onKeyDown);
       backdrop.remove();
       restoreBackground();
       previousFocus?.focus?.();
@@ -124,6 +124,7 @@ export function showConfirmationDialog(options = {}) {
     function onKeyDown(event) {
       if (event.key === 'Escape') {
         event.preventDefault();
+        event.stopPropagation();
         close(false);
         return;
       }
@@ -158,7 +159,7 @@ export function showConfirmationDialog(options = {}) {
     backdrop.addEventListener('click', (event) => {
       if (closeOnBackdrop && event.target === backdrop) close(false);
     });
-    document.addEventListener('keydown', onKeyDown);
+    backdrop.addEventListener('keydown', onKeyDown);
 
     const focusInitial = () => {
       const initial = options.initialFocus === 'confirm' ? confirmButton : cancelButton;

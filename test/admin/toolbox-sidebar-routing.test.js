@@ -129,6 +129,25 @@ test('toolbox feature arrow navigation loops through visible features only', () 
   assert.equal(runtime.buttons[3].hidden, true);
 });
 
+test('collapsing the selected group keeps a visible tab stop without replacing its content', () => {
+  const runtime = createToolboxRuntime();
+  runtime.other.initOtherPage();
+  const active = runtime.buttons.find((button) => button.getAttribute('aria-selected') === 'true');
+  const panel = runtime.panels.find((item) => item.id === active.dataset.otherFeature);
+  for (const heading of runtime.headings) {
+    heading.dispatch('click');
+    const visible = runtime.buttons.filter((button) => !button.hidden);
+    assert.equal(visible.filter((button) => button.tabIndex === 0).length, visible.length ? 1 : 0);
+    assert.equal(panel.hidden, false);
+  }
+  for (const heading of runtime.headings) {
+    heading.dispatch('click');
+    assert.equal(runtime.buttons.filter((button) => !button.hidden && button.tabIndex === 0).length, 1);
+    assert.equal(panel.hidden, false);
+  }
+  assert.equal(active.tabIndex, 0);
+});
+
 test('danmaku toolbox feature mounts its dedicated panel', () => {
   const html = readAdminHtml();
   assert.match(html, /aria-controls="otherDanmakuFeature"\s+data-other-feature="otherDanmakuFeature"/);

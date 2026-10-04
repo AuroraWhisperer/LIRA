@@ -66,7 +66,7 @@ function createAiAssistantService(dependencies) {
     deliver: deliverReply,
     getConcurrency: () => store.getConfig().generationConcurrency,
     onError(error, item) {
-      if (isShutdownError(error)) return;
+      if (isShutdownError(error) || error?.code === 'DANMAKU_SESSION_CHANGED') return;
       lastError = publicError(error);
       store.logRequest({
         uid: item.uid,
@@ -95,16 +95,16 @@ function createAiAssistantService(dependencies) {
     if (rateReason) return { accepted: false, reason: rateReason };
     if (coordinator.getStatus().queued >= config.queueLimit) return { accepted: false, reason: 'queue_full' };
     if (!localSafety.allowed) {
-      return enqueueReply({
-        ...normalizeDanmaku(danmaku, uid),
-        question,
-        localRefusal: localSafety.safeText,
-      });
+      return enqueueReply(
+        { ...normalizeDanmaku(danmaku, uid), question, localRefusal: localSafety.safeText },
+        danmaku.captureReplySession,
+      );
     }
-    return enqueueReply({ ...normalizeDanmaku(danmaku, uid), question });
+    return enqueueReply({ ...normalizeDanmaku(danmaku, uid), question }, danmaku.captureReplySession);
   }
 
-  function enqueueReply(item) {
+  function enqueueReply(item, captureReplySession) {
+    item.replySession = captureReplySession?.();
     const accepted = coordinator.enqueue(item);
     if (accepted) handledCount += 1;
     return { accepted, reason: accepted ? 'queued' : 'stopped' };
@@ -135,7 +135,9 @@ function createAiAssistantService(dependencies) {
   }
 
   async function generateReply(item, options = {}) {
+    item.assertSessionCurrent = await item.replySession;
     throwIfShuttingDown();
+    item.assertSessionCurrent?.();
     const startedAt = now();
     const config = store.getConfig();
     if (item.localRefusal) {
@@ -336,14 +338,18 @@ function createAiAssistantService(dependencies) {
   }
 
   async function deliverReply(item, result) {
+    const assertSessionCurrent = (auth) => {
+      throwIfShuttingDown();
+      item.assertSessionCurrent?.(auth);
+    };
     let currentResult = result;
     for (let attempt = 1; attempt <= MAX_DELIVERY_ATTEMPTS; attempt += 1) {
-      throwIfShuttingDown();
+      assertSessionCurrent();
       const chunkIntervalMs = randomIntervalMs(random, MIN_CHUNK_INTERVAL_MS, MAX_CHUNK_INTERVAL_MS);
       const waitMs = lastDeliveryAt ? Math.max(0, randomReplyIntervalMs(random) - (now() - lastDeliveryAt)) : 0;
       if (waitMs) {
         await delay(waitMs);
-        throwIfShuttingDown();
+        assertSessionCurrent();
       }
       const mentionTarget = {
         uid: item.uid.startsWith('name:') ? '' : item.uid,
@@ -356,8 +362,9 @@ function createAiAssistantService(dependencies) {
         mentionEveryChunk: true,
         intervalMs: chunkIntervalMs,
         rateLimitIntervalMs: 0,
+        assertSessionCurrent,
       });
-      throwIfShuttingDown();
+      assertSessionCurrent();
       lastDeliveryAt = now();
       const delivered =
         typeof waitForDelivery !== 'function' ||
@@ -367,7 +374,7 @@ function createAiAssistantService(dependencies) {
           timeoutMs: DELIVERY_CONFIRM_TIMEOUT_MS,
           signal: shutdownController.signal,
         }));
-      throwIfShuttingDown();
+      assertSessionCurrent();
       if (delivered) {
         if (['chat', 'tool', 'cache'].includes(currentResult.category)) {
           store.setContext(

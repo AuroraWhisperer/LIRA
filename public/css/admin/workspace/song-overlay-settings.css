@@ -145,8 +145,8 @@
 }
 
 .swatch-row input[type='color'] {
-  padding: 2px;
-  min-height: 40px;
+  padding: 2px 18px 2px 2px;
+  min-height: 36px;
 }
 
 .range-row {

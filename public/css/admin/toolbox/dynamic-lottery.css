@@ -56,7 +56,7 @@
 
 .dynamic-lottery-panel :is(button, input, select, summary, a):focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 3px;
+  outline-offset: -2px;
 }
 
 .dynamic-lottery-panel a {

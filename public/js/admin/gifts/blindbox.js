@@ -397,14 +397,24 @@ export const giftBlindbox = (() => {
     const section = document.querySelector('.gift-blindbox-panel');
     const toggle = document.getElementById('blindBoxStatsToggle');
     const panelHeader = section?.querySelector('.panel-header');
+    const content = document.getElementById('blindBoxStatsCollapsible');
 
-    panelHeader?.addEventListener('click', (e) => {
-      if (e.target.closest('#blindBoxAnalysisOpenBtn')) return;
-      const collapsed = section?.classList.toggle('is-collapsed') || false;
+    const setCollapsed = (collapsed) => {
+      if (collapsed && content?.contains(document.activeElement)) toggle?.focus();
+      section?.classList.toggle('is-collapsed', collapsed);
+      if (content) {
+        content.inert = collapsed;
+        content.setAttribute('aria-hidden', String(collapsed));
+      }
       if (toggle) {
         toggle.setAttribute('aria-expanded', String(!collapsed));
         toggle.title = collapsed ? '展开盲盒盈亏' : '折叠盲盒盈亏';
       }
+    };
+    setCollapsed(section?.classList.contains('is-collapsed') || false);
+    panelHeader?.addEventListener('click', (e) => {
+      if (e.target.closest('#blindBoxAnalysisOpenBtn')) return;
+      setCollapsed(!section.classList.contains('is-collapsed'));
     });
 
     document.getElementById('blindBoxAnalysisOpenBtn')?.addEventListener('click', () => {

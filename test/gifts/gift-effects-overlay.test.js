@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { readAdminHtml } = require('../helpers/admin-html');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
@@ -142,7 +143,7 @@ test('effect 1 uses a transparent video and a separate two-line caption', () => 
   assert.match(css, /width: 1920px;[\s\S]*?height: 1080px;[\s\S]*?scale\(var\(--frame-scale/);
 });
 
-test('toolbox includes a gift effect tab with lookup and preview controls', () => {
+test('toolbox includes gift effect controls that copy the source URL and open its preview', async () => {
   const html = readAdminHtml();
   const indexSource = read('public/js/admin/app.js');
   const toolSource = read('public/js/admin/gift-effects.js');
@@ -158,8 +159,27 @@ test('toolbox includes a gift effect tab with lookup and preview controls', () =
   assert.match(toolSource, /\/api\/gifts\/effects\/preview/);
   assert.doesNotMatch(toolSource, /\?giftId=/);
   assert.doesNotMatch(toolSource, /debug/);
-  assert.match(toolSource, /window\.open\(`\$\{liveUrl\}\?preview=1`, ["']liraGiftEffectPreview["']\)/);
-  assert.match(toolSource, /navigator\.clipboard\.writeText\(liveUrl\)/);
+  const nodes = new Map([
+    'giftEffectLookupForm', 'giftEffectGiftId', 'giftEffectOverlayUrl', 'giftEffectLookupState',
+    'giftEffectMatchSummary', 'giftEffectDanmakuEnabled', 'giftEffectCopyBtn', 'giftEffectOpenBtn',
+  ].map((id) => [id, {
+    handlers: {},
+    addEventListener(type, handler) { this.handlers[type] = handler; },
+  }]));
+  const copied = [];
+  const opened = [];
+  const { giftEffects } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gift-effects.js'), {
+    document: { getElementById: (id) => nodes.get(id) || null },
+    location: { protocol: 'http:', port: '3000' },
+    navigator: { clipboard: { writeText: async (text) => { copied.push(text); } } },
+    window: { addEventListener() {}, open: (...args) => opened.push(args) },
+  });
+  giftEffects.init();
+  await nodes.get('giftEffectCopyBtn').handlers.click();
+  nodes.get('giftEffectOpenBtn').handlers.click();
+  assert.equal(nodes.get('giftEffectOverlayUrl').textContent, 'http://127.0.0.1:3000/gift-effects');
+  assert.deepEqual(copied, ['http://127.0.0.1:3000/gift-effects']);
+  assert.deepEqual(opened, [['http://127.0.0.1:3000/gift-effects?preview=1', 'liraGiftEffectPreview']]);
 });
 
 async function invokeRoute(handler, context, giftId) {

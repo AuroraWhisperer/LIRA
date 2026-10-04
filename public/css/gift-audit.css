@@ -127,7 +127,7 @@ textarea {
 }
 textarea:focus {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 1px;
+  outline-offset: -2px;
   border-color: var(--action);
 }
 
@@ -181,7 +181,7 @@ input[type='datetime-local'] {
 }
 input:focus {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 1px;
+  outline-offset: -2px;
   border-color: var(--action);
 }
 

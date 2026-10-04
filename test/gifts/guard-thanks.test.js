@@ -154,16 +154,19 @@ test('gift assistant owns guard settings and sends previewing to the canvas', ()
   for (const id of [
     'guardThanksEnabled',
     'guardThanksTextMode',
+    'guardThanksPreviewTier',
+    'guardThanksPreviewUser',
+    'guardThanksPreviewMonths',
     'guardThanksPlayBtn',
     'guardThanksSaveBtn',
   ]) {
     assert.ok(html.includes(`id="${id}"`), id);
   }
-  assert.doesNotMatch(html, /id="guardThanks(?:PreviewStage|PreviewUser|PreviewMonths|OverlayUrl|SendBtn|OpenBtn|CopyBtn)"/);
+  assert.doesNotMatch(html, /id="guardThanks(?:PreviewStage|OverlayUrl|SendBtn|OpenBtn|CopyBtn)"/);
   assert.match(html, /href="\/css\/admin\/gift-guard-thanks\.css"/);
   assert.match(read('public/js/admin/app.js'), /initGuardThanks\(\);/);
   assert.match(moduleSource, /\/api\/settings/);
-  assert.match(moduleSource, /openComponentPreview\(\{ id: 'guard-thanks' \}\)/);
+  assert.match(moduleSource, /openComponentPreview\(\{ id: 'guard-thanks', previewData \}\)/);
   assert.match(moduleSource, /app:settings-state/);
   assert.doesNotMatch(moduleSource, /\/gift-effects/);
 });

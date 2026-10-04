@@ -135,7 +135,7 @@ export const other = (() => {
   function applyCollapsedFeatureGroups(root, groupIds) {
     const collapsedIds = new Set(groupIds);
     getFeatureGroupElements(root).forEach((heading) => {
-      setFeatureGroupExpanded(heading, !collapsedIds.has(heading.dataset.otherFeatureGroup));
+      setFeatureGroupExpanded(root, heading, !collapsedIds.has(heading.dataset.otherFeatureGroup));
     });
   }
 
@@ -202,7 +202,7 @@ export const other = (() => {
     return getFeatureGroupElements(root).find((heading) => getGroupButtons(heading).includes(targetButton));
   }
 
-  function setFeatureGroupExpanded(heading, expanded) {
+  function setFeatureGroupExpanded(root, heading, expanded) {
     const isExpanded = Boolean(expanded);
     const groupLabel = heading.querySelector?.('strong')?.textContent?.trim() || '功能分组';
     const actionLabel = `${isExpanded ? '收起' : '展开'}${groupLabel}`;
@@ -224,6 +224,15 @@ export const other = (() => {
         delete button.dataset.otherFeatureGroupHidden;
       }
     });
+    syncFeatureTabStop(root);
+  }
+
+  function syncFeatureTabStop(root) {
+    const { buttons, panels } = getFeatureElements(root);
+    const visible = buttons.filter((button) => isFeatureAvailable(button, panels));
+    const entry = visible.find((button) => button.getAttribute('aria-selected') === 'true')
+      || visible.find((button) => button.tabIndex === 0) || visible[0];
+    buttons.forEach((button) => { button.tabIndex = button === entry ? 0 : -1; });
   }
 
   function isFeatureAvailable(button, panels) {
@@ -260,7 +269,7 @@ export const other = (() => {
     if (targetButton?.hidden) {
       const groupHeading = getFeatureGroupForButton(root, targetButton);
       if (groupHeading?.getAttribute('aria-expanded') === 'false') {
-        setFeatureGroupExpanded(groupHeading, true);
+        setFeatureGroupExpanded(root, groupHeading, true);
         saveCollapsedFeatureGroups(root);
       }
     }
@@ -365,7 +374,7 @@ export const other = (() => {
 
     getFeatureGroupElements(root).forEach((heading) => {
       heading.addEventListener('click', () => {
-        setFeatureGroupExpanded(heading, heading.getAttribute('aria-expanded') !== 'true');
+        setFeatureGroupExpanded(root, heading, heading.getAttribute('aria-expanded') !== 'true');
         saveCollapsedFeatureGroups(root);
       });
     });

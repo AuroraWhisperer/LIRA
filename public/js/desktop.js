@@ -6,6 +6,7 @@
   const utils = window.AdminApp.utils;
   const { toast, showStackedToast, showError } = utils;
   let desktopUpdateNoticeKey = '';
+  let desktopUpdateAction = '';
   let resourceIntegrityInitialized = false;
   let resourceIntegrityState = null;
   let resourceIntegrityPending = false;
@@ -54,16 +55,16 @@
           canInstall: false,
           progress: null,
         });
-        runDesktopAction(() => desktop.checkForUpdates());
+        runDesktopAction(() => desktop.checkForUpdates(), true, 'check');
       });
     }
     if (downloadButton) {
-      downloadButton.addEventListener('click', () => runDesktopAction(() => desktop.downloadUpdate()));
+      downloadButton.addEventListener('click', () => runDesktopAction(() => desktop.downloadUpdate(), true, 'download'));
     }
     if (installButton) {
       installButton.addEventListener('click', async () => {
         if (!(await showRestartConfirmModal())) return;
-        runDesktopAction(() => desktop.installUpdate());
+        runDesktopAction(() => desktop.installUpdate(), true, 'install');
       });
     }
     if (dataButton) {
@@ -230,6 +231,22 @@
   }
 
   function maybeShowDesktopUpdateNotice(state) {
+    if (state?.status === 'downloading') desktopUpdateAction = 'download';
+    if (state?.status === 'error' && desktopUpdateAction) {
+      const titles = { check: '暂时查不了新版本', download: '更新没下载成功', install: '更新没能安装' };
+      showStackedToast({
+        key: `desktop-update:${state.updateVersion || state.version || 'current'}`,
+        update: true,
+        type: 'error',
+        title: titles[desktopUpdateAction],
+        message: desktopUpdateAction === 'install' ? '请到更新页查看原因，再试一次。' : '请检查网络，再到更新页重试。',
+        actionLabel: '打开更新页',
+        onClick: showDesktopUpdatePage,
+      });
+      desktopUpdateAction = '';
+    }
+    if (['not-available', 'downloaded', 'dev-disabled'].includes(state?.status)) desktopUpdateAction = '';
+    if (state?.status === 'available' && desktopUpdateAction === 'check') desktopUpdateAction = '';
     if (!state || (state.status !== 'available' && state.status !== 'downloaded')) return;
 
     const updateVersion = state.updateVersion || state.version || '';
@@ -269,16 +286,17 @@
     });
   }
 
-  async function runDesktopAction(action, shouldRender = true) {
+  async function runDesktopAction(action, shouldRender = true, actionName = '') {
+    if (actionName) desktopUpdateAction = actionName;
     try {
       const state = await action();
       if (shouldRender) {
-        renderDesktopUpdateState(state);
+        handleDesktopUpdateState(state);
         if (state && state.status === 'not-available') showDesktopNoUpdateNotice(desktopUpdateStatusText(state));
       }
     } catch (error) {
       if (shouldRender) {
-        renderDesktopUpdateState({
+        handleDesktopUpdateState({
           status: 'error',
           message: desktopActionErrorMessage(error),
           canDownload: false,

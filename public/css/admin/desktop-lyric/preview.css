@@ -154,11 +154,6 @@
     gap: 14px;
     padding: 58px 20px 150px;
   }
-
-  .desktop-lyric-settings-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 
 @media (max-width: 560px) {

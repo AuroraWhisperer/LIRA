@@ -6,6 +6,15 @@ import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 
 export function createSceneExtraPreview(type, { controller, startPreviewData } = {}) {
   const definition = SCENE_EXTRA_COMPONENTS[type];
+  const previewFields = type === 'guard-thanks' ? {
+    tier: { label: '预览等级', type: 'select', default: 'captain', options: { captain: '舰长', admiral: '提督', governor: '总督' } },
+    userName: { label: '预览观众', type: 'text', default: '观众A', maxLength: 100 },
+    months: { label: '预览月数', type: 'number', default: 1, min: 1, max: 999, step: 1 },
+  } : {};
+  const previewValues = Object.fromEntries(Object.entries(previewFields).map(([key, field]) => [key, field.default]));
+  const previewListeners = new Set();
+  const previewPanels = new Set();
+  let previousPreviewInput;
   if (!controller) {
     const draft = createSceneExtraDefaults(type);
     const getState = () => ({ draft: structuredClone(draft), saved: structuredClone(draft), loaded: true, dirty: false });
@@ -16,21 +25,37 @@ export function createSceneExtraPreview(type, { controller, startPreviewData } =
     size: () => definition.size,
     startData({ emit }) {
       const sample = sceneExtraPreviewData(type);
+      let display;
       let previous;
-      const receive = (display) => {
-        const data = display?.previewData?.[type] || sample;
+      const receive = (value) => {
+        display = value;
+        const source = display?.previewData?.[type] || sample;
+        const input = type === 'guard-thanks' ? display?.previewData?.[type]?.events?.[0] : null;
+        const inputKey = JSON.stringify(input);
+        // 客户端样例改变时才回填，避免轮询覆盖画布中的预览输入。
+        if (input && inputKey !== previousPreviewInput) {
+          previousPreviewInput = inputKey;
+          for (const [key, field] of Object.entries(previewFields)) previewValues[key] = input[key] ?? field.default;
+          for (const sync of previewPanels) sync();
+        }
+        const data = type === 'guard-thanks' && source.preview
+          ? { ...source, events: source.events.map(event => ({ ...event, ...previewValues })) } : source;
         const serialized = JSON.stringify(data);
         if (serialized === previous) return;
         previous = serialized;
         emit(data);
       };
-      if (startPreviewData) return startPreviewData(receive);
-      receive(null);
+      const refresh = () => receive(display);
+      previewListeners.add(refresh);
+      const stop = startPreviewData?.(receive);
+      if (!startPreviewData) receive(null);
+      return () => { previewListeners.delete(refresh); stop?.(); };
     },
     createPanel(host, target = controller) {
       const fields = new Map();
       const grid = previewElement('div', 'component-preview-fields preview-extra-fields');
-      for (const [key, field] of Object.entries(definition.fields)) {
+      for (const [key, field] of Object.entries({ ...definition.fields, ...previewFields })) {
+        const previewOnly = Object.hasOwn(previewFields, key);
         const label = previewElement('label', '', field.label);
         const input = previewElement(['select', 'textarea'].includes(field.type) ? field.type : 'input');
         const cents = type === 'gift-feed' && (key.startsWith('threshold') || key === 'minGiftAmountCents');
@@ -40,7 +65,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData } =
           }
         } else if (field.type === 'textarea') input.rows = 3;
         else input.type = field.type;
-        input.dataset.componentParameter = key;
+        if (previewOnly) input.dataset.previewParameter = key;
+        else input.dataset.componentParameter = key;
         if (field.type === 'number') {
           input.min = String(field.min / (cents ? 100 : 1));
           input.max = String(field.max / (cents ? 100 : 1));
@@ -52,7 +78,10 @@ export function createSceneExtraPreview(type, { controller, startPreviewData } =
           if (!input.checkValidity()) return;
           let value = field.type === 'checkbox' ? input.checked : input.value;
           if (field.type === 'number') value = cents ? Math.round(Number(value) * 100) : Number(value);
-          target.edit({ [key]: typeof field.default === 'string' ? String(value) : value });
+          if (previewOnly) {
+            previewValues[key] = key === 'userName' ? value.trim() || field.default : value;
+            for (const listener of previewListeners) listener();
+          } else target.edit({ [key]: typeof field.default === 'string' ? String(value) : value });
         });
         label.append(input); grid.append(label); fields.set(key, { input, cents });
       }
@@ -63,17 +92,22 @@ export function createSceneExtraPreview(type, { controller, startPreviewData } =
       if (type === 'gift-wishes') host.append(previewElement('p', 'hint', '礼物与目标数量在“礼物许愿”中设置。'));
       if (['gift-frame', 'guard-thanks'].includes(type)) host.append(previewElement('p', 'hint',
         '画布循环展示示例；直播仅在触发时播放。请在“礼物姬”中启用对应效果。'));
-      return { dispose: target.subscribe(({ draft, loaded }) => {
+      const render = ({ draft, loaded }) => {
         for (const [key, { input, cents }] of fields) {
           input.parentElement.hidden = type === 'games' && key === 'showDanmaku' && draft.game !== 'draw-guess'
             || type === 'interactions' && key === 'interactionRatingRules' && draft.kind !== 'rating'
             || type === 'interactions' && ['interactionBarColor', 'interactionTrackColor'].includes(key) && draft.kind !== 'poll'
             || type === 'gift-wishes' && ['textPendingColor', 'textReceivedColor'].includes(key) && !['text', 'original'].includes(draft.displayStyle);
-          if (input.type === 'checkbox') input.checked = draft[key] === true || draft[key] === 'true';
-          else syncComponentFieldValue(input, cents ? Number(draft[key]) / 100 : draft[key]);
+          const value = Object.hasOwn(previewFields, key) ? previewValues[key] : draft[key];
+          if (input.type === 'checkbox') input.checked = value === true || value === 'true';
+          else syncComponentFieldValue(input, cents ? Number(value) / 100 : value);
           input.disabled = !loaded;
         }
-      }) };
+      };
+      const stop = target.subscribe(render);
+      const syncPreview = () => render(target.getState());
+      previewPanels.add(syncPreview);
+      return { dispose() { stop(); previewPanels.delete(syncPreview); } };
     },
   };
 }

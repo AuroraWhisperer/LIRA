@@ -38,9 +38,9 @@
 接管后，网页变更和关闭必须携带当前 attachmentId，轮询也校验附带的标识；旧页面请求返回 409。
 未接管会话保留无标识旧协议。网页在每次接管内串行发送递增 commandId，重试最近一次编号返回
 原 sequence，确认后亦不重复执行；更早编号拒绝。新页面接管后可以重新计数，但不能丢弃已接受命令。
-恢复草稿前等待 `ack === sequence`、state.saving 和 display.busy 结束，避免重放此前已接受的保存/发布。
+恢复草稿前等待 `ack === sequence`、state.saving 和 display.busy 结束，避免重放此前已接受的保存/发布。正常 token 续期保留画布连接；预览 owner 绑定经主进程校验的账号与登录生命周期，见 [授权生命周期](../desktop/auth.md)。
 
-中继拥有分层 UTF-8 大小限制：每份场景 document 仍限 256 KiB；单个 saved/draft 配置或 edit change 限 257 KiB，双份状态封装限 518 KiB，display 限 256 KiB；完整 HTTP 请求限 778 KiB（含 4 KiB 请求元数据余量）。超限不改变已有会话或命令，文档结构和领域配置仍由原保存 owner 校验。每会话最多 64 条待确认命令、每类型最多一会话。有效网页请求或客户端 exchange 续期；双方连续两分钟无有效请求暂停网页操作并返回可重试的 503，保留会话等待原客户端通过认证、同 generation 的 exchange 恢复，网页不能自行续活。账号归属/授权代次变化、控制器 generation 变化、显式 close/revoke 或同类型新会话使旧会话永久失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此端点，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪或页面/操作已被替代，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端关闭撤销会话；网页 pagehide 仅停止当前页面轮询，刷新可继续编辑；领域保存失败保留原控制器草稿。
+中继拥有分层 UTF-8 大小限制：每份场景 document 仍限 256 KiB；单个 saved/draft 配置或 edit change 限 257 KiB，双份状态封装限 518 KiB，display 限 256 KiB；完整 HTTP 请求限 778 KiB（含 4 KiB 请求元数据余量）。超限不改变已有会话或命令，文档结构和领域配置仍由原保存 owner 校验。每会话最多 64 条待确认命令、每类型最多一会话。有效网页请求或客户端 exchange 续期；双方连续两分钟无有效请求暂停网页操作并返回可重试的 503，保留会话等待原客户端通过认证、同 generation 的 exchange 恢复，网页不能自行续活。账号归属/登录生命周期变化、控制器 generation 变化、显式 close/revoke 或同类型新会话使旧会话永久失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此端点，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪或页面/操作已被替代，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端关闭撤销会话；网页 pagehide 仅停止当前页面轮询，刷新可继续编辑；领域保存失败保留原控制器草稿。
 
 ### 本地场景
 
@@ -65,6 +65,8 @@
 输出中的 `projection` 是服务进程签发的类型投影回执，绑定已认证 owner scope/epoch、sceneId、来源 capability、item 选择及发布版本；不含实时数据或来源 token，不独立授予访问能力。父页面在整套 renderer 成功提交时同时记录 version/projection，后续请求携带该 active 回执。服务端仅合并最新文档与已验证 active 回执的类型集合，新版移除某类组件但准备失败时旧版仍获得更新；成功切换后旧类型随回执替换而释放。伪造、跨账号/场景/实例、版本不匹配、轮换或服务重启后的回执返回 403，父页清空旧版与回执后重新读取当前版。省略 projection 的旧客户端沿用仅投影最新文档的行为。没有历史文档缓存或无限版本保留。
 
 上述响应均禁止缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。输出轮询不重叠，约每 750ms 一次；云事件提供本地缓冲 `epoch/nextCursor/reset/gap/events`，不提供服务端历史重放。
+
+`gift-feed` / `gift-wishes` 的展示读取通过真实礼物门面获取 `viewRevision`，缓存按账号、revision 和日期失效。礼物来源尚不可用或正在切换时，相关 `data[type]` 为 `null`，不让整个场景输出失败；来源恢复后重新读取当前 revision 的投影。
 
 包含 `gift-frame` / `guard-thanks` 的场景分别取得 `data[type]={epoch,sequence,events:[{sequence,payload}]}`。
 两者复用现有礼物最终显示事件和手动预览投影，字段与 `gift-effects` WebSocket 白名单一致；

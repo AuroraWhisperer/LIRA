@@ -27,7 +27,7 @@ test('playback success paths do not emit per-render or per-lyric console output'
   assert.doesNotMatch(fullscreenSource, /renderLyrics: re-rendering lyrics/);
   assert.doesNotMatch(fullscreenSource, /renderLyrics: lyric index changed/);
   assert.doesNotMatch(fullscreenSource, /scrollToActiveLyric:/);
-  assert.match(fullscreenSource, /play after seek failed/);
+  assert.match(fullscreenSource, /notifyMediaPlayFailure\(error, audio\)/);
 });
 
 test('fullscreen manual browsing holds position until follow resumes', async () => {

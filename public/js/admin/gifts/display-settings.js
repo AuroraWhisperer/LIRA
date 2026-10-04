@@ -1,4 +1,5 @@
 import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
+import { openComponentPreview } from '../component-preview-dialog.js';
 import {
   createGiftBanner,
   fitGiftBannerNames,
@@ -132,12 +133,13 @@ export function createGiftDisplaySettings() {
       }
     });
   });
-  get('giftFeedCopy')?.addEventListener('click', () =>
+  get('giftFeedUrl')?.addEventListener('click', () =>
     run(async () => {
-      await copyText(get('giftFeedUrl').value);
+      await copyText(get('giftFeedUrl').textContent);
       toast('本日礼物地址已复制');
     }),
   );
+  get('giftFeedPreviewBtn')?.addEventListener('click', () => openComponentPreview({ id: 'gift-feed' }));
 
   return {
     async open() {
@@ -151,8 +153,7 @@ export function createGiftDisplaySettings() {
       config = result.data;
       catalog = nextCatalog;
       const url = `${localOverlayOrigin(location)}/gift-feed`;
-      get('giftFeedUrl').value = url;
-      get('giftFeedPreviewLink').href = `${url}?preview=1`;
+      get('giftFeedUrl').textContent = url;
       get('giftDisplayError').textContent = '';
       fill(config);
       get('giftDisplayFields').disabled = false;

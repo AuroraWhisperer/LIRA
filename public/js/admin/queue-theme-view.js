@@ -4,6 +4,7 @@ import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { initParameterRanges, disposeParameterRanges } from '../shared/parameter-range.js';
 import { componentField, syncComponentFieldValue } from './component-preview-panel.js';
 import { componentSaveMessage } from './component-config-controller.js';
+import { saveComponentWithFeedback } from './component-save-feedback.js';
 import { setOverlayStyle } from './theme-style-view.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 import { collectQueueTheme, pickQueueSettings, QUEUE_STYLE_CONTROLS } from './queue-theme-config.js';
@@ -41,7 +42,7 @@ export function bindQueueTheme(root, controller) {
   };
   root.addEventListener('input', edit);
   root.addEventListener('change', edit);
-  root.addEventListener('submit', (event) => { event.preventDefault(); void controller.save(); });
+  root.addEventListener('submit', (event) => { event.preventDefault(); void saveComponentWithFeedback(controller, '点歌板主题'); });
   for (const button of root.querySelectorAll('[data-overlay-style]')) button.addEventListener('click', () => {
     controller.edit({ overlayQueueStyle: button.dataset.overlayStyle });
   });
@@ -58,8 +59,14 @@ export function bindQueueTheme(root, controller) {
   function render(state) {
     const { draft } = state;
     for (const [key, value] of Object.entries(draft)) {
+      if (key === 'overlaySongColor' || key === 'overlayRequesterColor') continue;
       const control = node(key);
       if (control) syncComponentFieldValue(control, value);
+    }
+    for (const key of ['overlaySongColor', 'overlayRequesterColor']) {
+      node(key).disabled = !draft[key];
+      syncComponentFieldValue(node(`${key}Mode`), draft[key] ? 'custom' : 'inherit');
+      syncComponentFieldValue(node(key), draft[key] || draft.themeText || '#fff7fb');
     }
     const active = readQueueStyleSettings(draft, draft.overlayQueueStyle);
     ensureSavedFontOption(node('illustratedQueueFontFamily'), active.fontFamily);

@@ -1,3 +1,4 @@
+import './contextual-help.js';
 import { previewElement } from './component-preview-surface.js';
 import { createBrowserPreviewConnection, createRemotePreviewController } from './component-preview-remote.js';
 import { createPreviewDraftRecovery, readPreviewDraft } from './component-preview-drafts.js';

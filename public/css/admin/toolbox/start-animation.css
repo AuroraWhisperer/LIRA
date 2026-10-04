@@ -242,7 +242,7 @@
 .opening-animation-editor select:focus-visible {
   border-color: var(--opening-admin-accent);
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 .opening-animation-editor .lira-select-trigger {
   min-height: 38px;

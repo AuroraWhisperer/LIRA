@@ -78,6 +78,7 @@ export function createPlaybackController(initialOptions = {}) {
 
   const statePersistence = createStatePersistence({
     playbackState,
+    toast: (...args) => toast(...args),
     getPlaybackAudio: () => document.getElementById('music-player'),
   });
   const savePlaybackState = statePersistence.savePlaybackState;
@@ -405,6 +406,7 @@ export function createPlaybackController(initialOptions = {}) {
 
   const radioMode = createRadioMode({
     playbackState,
+    toast: (...args) => toast(...args),
     queueManager,
     readJsonResponse,
     playbackRadioRefillThreshold,

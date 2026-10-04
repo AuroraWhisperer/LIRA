@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { readCssBundle } = require('../helpers/css-bundle');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 const { addFrameProtectionHeaders, contentType } = require('../../src/server/http-utils');
 const { prepareSettingsBootstrap } = require('../../src/server/settings-bootstrap');
 const openingRoutes = require('../../src/server/routes/opening-routes');
@@ -97,10 +98,9 @@ test('opening overlay keeps canvas, disabled, reduced-motion and safe text const
   assert.match(script, /audio === 'browser'/);
 });
 
-test('Toolbox opening controls preserve media defaults and the settings boundary', () => {
+test('Toolbox opening controls preserve media defaults and the settings boundary', async () => {
   const html = read('public', 'pages', 'admin', 'toolbox', 'start-animation.html');
   const script = read('public', 'js', 'admin', 'start-animation.js');
-  const formsScript = read('public', 'js', 'admin', 'forms.js');
   const styles = read('public', 'css', 'admin', 'toolbox', 'start-animation.css');
   assert.match(html, /id="openingEnabled"[^>]*type="checkbox"/);
   assert.doesNotMatch(html, /id="openingEnabled"[^>]+checked/);
@@ -189,7 +189,19 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
   assert.doesNotMatch(script, /localStorage/);
   assert.doesNotMatch(html, /<iframe/);
   assert.match(styles, /overflow-y:\s*auto/);
-  assert.match(formsScript, /element\?\.closest\('#openingAnimationForm'\)/);
+  const openingTitle = { value: '未保存的标题', dataset: {},
+    closest: (selector) => selector.split(',').map((part) => part.trim()).includes('#openingAnimationForm') ? {} : null };
+  const ordinarySetting = { value: '旧值', dataset: {}, closest: () => null };
+  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/forms.js'), {
+    document: {
+      getElementById: (id) => ({ openingTitle, ordinarySetting })[id] || null,
+      querySelectorAll: () => [],
+      querySelector: () => null,
+    },
+  });
+  new FormsService().fillForm({ openingTitle: '服务端旧标题', ordinarySetting: '服务端新值' });
+  assert.equal(openingTitle.value, '未保存的标题');
+  assert.equal(ordinarySetting.value, '服务端新值');
   assert.match(read('public', 'js', 'admin', 'app.js'), /module\.initStartAnimation/);
 });
 

@@ -78,6 +78,7 @@ body.player-dock-expanded .other-workspace {
   place-items: center;
   width: 42px;
   height: 34px;
+  min-height: 34px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);

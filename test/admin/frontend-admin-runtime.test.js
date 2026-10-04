@@ -57,20 +57,21 @@ test('blind-box statistics are not reloaded for every state render', () => {
 test('queue theme uses explicit draft saves while the display board retains autosave', () => {
   const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue-theme-view.js'), 'utf8');
   const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
+  const songBoardSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/song-board-settings.js'), 'utf8');
 
   assert.match(themeSource, /root\.addEventListener\('input', edit\)/);
   assert.match(themeSource, /root\.addEventListener\('change', edit\)/);
-  assert.match(themeSource, /'submit'[\s\S]*controller\.save\(\)/);
-  assert.match(displaySource, /displayForm\.addEventListener\('input', autosaveDisplay\)/);
-  assert.match(displaySource, /displayForm\.addEventListener\('change', autosaveDisplay\)/);
+  assert.match(themeSource, /'submit'[\s\S]*saveComponentWithFeedback\(controller, '点歌板主题'\)/);
+  assert.match(songBoardSource, /form\.addEventListener\('input', edit\)/);
+  assert.match(songBoardSource, /form\.addEventListener\('change', edit\)/);
   assert.match(displaySource, /await copyText\(url\)/);
   assert.doesNotMatch(displaySource, /navigator\.clipboard\.writeText\(url\)/);
 
   assert.match(themeSource, /classicPresets[\s\S]*?controller\.edit\(/);
   assert.match(themeSource, /quickBeautifyBtn[\s\S]*?controller\.edit\(/);
   assert.match(themeSource, /resetClassicTheme[\s\S]*?controller\.edit\(/);
-  assert.match(displaySource, /songBoardPresets[\s\S]*?await saveDisplay\(\)/);
-  assert.match(displaySource, /songBoardResetTheme[\s\S]*?await saveDisplay\(\)/);
+  assert.match(songBoardSource, /songBoardPresets[\s\S]*?await save\(\)/);
+  assert.match(songBoardSource, /songBoardResetTheme[\s\S]*?await save\(\)/);
 });
 
 test('early theme preset references receive asynchronously loaded data', async () => {

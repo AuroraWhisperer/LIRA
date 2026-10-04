@@ -61,6 +61,12 @@
   .game-card-poster {
     min-height: 100px;
   }
+  .game-card-poster.is-illustrated {
+    min-height: 200px;
+  }
+  .game-card-poster-image {
+    object-fit: contain;
+  }
   .game-config-grid {
     grid-template-columns: 1fr;
   }

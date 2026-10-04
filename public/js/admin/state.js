@@ -19,6 +19,7 @@ export class StateService {
     this.songReloadTimer = null;
     this.songReloadVersion = 0;
     this.stateReloadVersion = 0;
+    this.pendingStateReload = null;
     this.realtimeVersion = 0;
     this.realtimeFields = new Map();
     this.shuttingDown = false;
@@ -158,15 +159,19 @@ export class StateService {
   /**
    * 重新加载应用状态
    */
-  async reloadState() {
+  reloadState() {
     const requestVersion = ++this.stateReloadVersion;
     const startedAtVersion = this.realtimeVersion;
-    const response = await fetch('/api/state');
-    const payload = await response.json();
-    if (requestVersion !== this.stateReloadVersion) return;
-    if (!payload?.ok) throw new Error(payload?.error || '读取状态失败');
-    if (!isStateSnapshot(payload.data)) throw new Error('读取状态失败：数据格式错误');
-    this.applySnapshot(payload.data, startedAtVersion);
+    this.pendingStateReload = (async () => {
+      const response = await fetch('/api/state');
+      const payload = await response.json();
+      if (requestVersion !== this.stateReloadVersion) return this.pendingStateReload;
+      if (!payload?.ok) throw new Error(payload?.error || '读取状态失败');
+      if (!isStateSnapshot(payload.data)) throw new Error('读取状态失败：数据格式错误');
+      this.applySnapshot(payload.data, startedAtVersion);
+      return this.appState;
+    })();
+    return this.pendingStateReload;
   }
 
   applyRealtimeField(key, state) {
@@ -213,6 +218,7 @@ export class StateService {
       state: this.appState,
       songs: this.songs,
       changedKeys,
+      isConnectionSnapshot,
     });
   }
 

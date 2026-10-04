@@ -1,6 +1,6 @@
 'use strict';
 
-import { readJsonResponse } from '../shared/utils.js';
+import { readJsonResponse, toast } from '../shared/utils.js';
 
 const BASE = '/api/bilibili/dynamic-lottery';
 const ERRORS = {
@@ -58,7 +58,7 @@ function errorText(code) {
   return code ? ERRORS[code] || '操作未完成，已保留进度。请刷新状态后再继续。' : '';
 }
 
-export function initLotteryWorkflow(root) {
+export function initLotteryWorkflow(root, { notify = toast } = {}) {
   const form = root.querySelector('[data-lottery-form]');
   if (!form) return { setAuth() {}, reset() {}, dispose() {} };
   const find = (key) => root.querySelector(`[data-lottery-${key}]`);
@@ -85,6 +85,40 @@ export function initLotteryWorkflow(root) {
   let resultPage = 0;
   let resultRoundId = null;
   let scanViewKey = '';
+  let lastNotice = '';
+
+  function notifyOutcome(previous, initiated) {
+    const taskId = data.task?.id || data.job?.taskId || '';
+    const phase = data.result?.status || data.task?.status;
+    const watching = initiated || (previous.working && (!previous.taskId || previous.taskId === taskId));
+    if (!watching) return;
+    let text = '';
+    let type = 'success';
+    if (data.error) {
+      text = data.error === 'LOTTERY_OPERATION_FAILED'
+        ? '暂时读不到抽奖结果，请刷新状态确认。' : '抽奖操作没完成，请回到动态抽奖查看原因。';
+      type = 'error';
+    } else if (phase === 'ready') {
+      text = '抽奖名单已准备好，可以开奖了。';
+    } else if (phase === 'completed' || phase === 'exhausted') {
+      const count = data.result?.winners?.length || 0;
+      const shortage = data.result?.shortage || 0;
+      text = shortage ? `抽奖已结束，找到 ${count} 位符合条件的观众，还差 ${shortage} 位。`
+        : `抽奖已完成，共 ${count} 位观众中奖。`;
+      if (shortage) type = 'warning';
+    } else if (phase === 'paused' || phase === 'failed') {
+      text = phase === 'failed' ? '抽奖名单没取到，请回到动态抽奖查看原因。'
+        : '抽奖已暂停，进度还在。请回到动态抽奖查看后继续。';
+      type = phase === 'failed' ? 'error' : 'warning';
+    } else {
+      lastNotice = '';
+    }
+    const signature = `${taskId}:${data.result?.roundId || ''}:${phase}:${data.error || ''}`;
+    if (text && signature !== lastNotice) {
+      lastNotice = signature;
+      notify(text, { key: `dynamic-lottery:${taskId || 'current'}`, update: true, type });
+    }
+  }
 
   function listen(element, type, handler) {
     element.addEventListener(type, handler);
@@ -262,6 +296,9 @@ export function initLotteryWorkflow(root) {
 
   async function load(path = '/state', body) {
     if (disposed || !auth.available || auth.busy) return;
+    const previous = { taskId: data.task?.id || data.job?.taskId || '',
+      working: Boolean(data.job) || ['collecting', 'drawing'].includes(data.task?.status) };
+    if (body) lastNotice = '';
     cancelRequest();
     const current = generation;
     controller = new AbortController();
@@ -295,6 +332,7 @@ export function initLotteryWorkflow(root) {
     } finally {
       if (!disposed && current === generation) {
         busy = false;
+        notifyOutcome(previous, Boolean(body));
         render();
         if (data.job)
           timer = setTimeout(() => {
@@ -368,6 +406,7 @@ export function initLotteryWorkflow(root) {
 
   function reset() {
     cancelRequest();
+    lastNotice = '';
     data = { tasks: [], task: null, result: null, job: null, error: '' };
     busy = false;
     selectedId = '';

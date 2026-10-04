@@ -54,6 +54,9 @@
   padding-bottom: var(--spacing-xs);
   border-bottom: 1px solid var(--border);
 }
+#fanPageError {
+  margin: 0 0 12px;
+}
 .fan-editor h2 {
   margin: 0;
   font-size: 21px;
@@ -111,14 +114,16 @@
 }
 #fanSettingsPage {
   flex: 1;
-  padding: 4px 16px 24px 0;
+  padding: 4px 0 24px;
 }
 .fan-settings-group + .fan-settings-group {
   margin-top: var(--spacing-lg);
 }
 .fan-settings-group h3 {
   margin: 0 0 4px;
-  font-size: 16px;
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
 }
 .fan-setting-row {
   display: flex;
@@ -205,9 +210,11 @@
   padding: 6px;
   overflow: auto;
 }
+#fanSettingsPage,
 .fan-profiles :is(.fan-people, .fan-detail) {
   scrollbar-width: none;
 }
+#fanSettingsPage::-webkit-scrollbar,
 .fan-profiles :is(.fan-people, .fan-detail)::-webkit-scrollbar {
   display: none;
 }

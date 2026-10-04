@@ -3,20 +3,13 @@
 }
 .gift-wishes-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--spacing-md);
   padding-bottom: var(--spacing-md);
   border-bottom: 1px solid var(--border);
 }
 .gift-wish-periods {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: var(--spacing-sm);
-}
-.gift-wish-periods select:not(.lira-select-native),
-.gift-wish-periods .lira-select {
-  width: 160px;
+  flex: 0 0 160px;
 }
 .gift-wish-error {
   color: var(--color-danger);
@@ -58,6 +51,9 @@
   grid-template-columns: minmax(200px, 1fr) minmax(280px, 1.3fr);
   gap: var(--spacing-lg);
 }
+.gift-wish-settings input {
+  height: 36px;
+}
 .gift-wish-appearance {
   display: flex;
   flex-wrap: wrap;
@@ -81,6 +77,12 @@
   padding: 0;
   font-size: 13px;
   font-weight: 600;
+}
+.gift-wish-field > label {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  line-height: 20px;
 }
 .gift-wish-editor input:not([type='radio']):not([type='color']),
 .gift-wish-editor select {
@@ -330,11 +332,14 @@
   flex: 1 1 340px;
   min-width: 0;
   gap: var(--spacing-sm);
-  align-items: center;
+  align-items: flex-end;
 }
-.gift-wish-source-actions input {
+.gift-wish-source {
   min-width: 160px;
   flex: 1;
+}
+.gift-wish-source input {
+  height: 36px;
 }
 .gift-wish-source-actions button {
   flex: 0 0 auto;

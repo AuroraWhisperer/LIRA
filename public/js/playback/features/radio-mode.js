@@ -14,16 +14,27 @@ export function createRadioMode(deps) {
     playbackRadioRefillBatchSize,
     savePlaybackState,
     renderPlayback,
+    toast = () => {},
   } = deps;
 
   const queueManager = deps.queueManager || new QueueManager({ state: playbackState });
 
   let playbackRadioRefillRunning = false;
+  let failedRefills = 0;
+  let failureNotified = false;
+  let refillSource = '';
 
   async function ensurePlaybackRadioQueueFilled() {
     if (playbackState.queueType !== 'radio') return;
     if (playbackRadioRefillRunning) return;
     if (playbackState.radioQueue.length >= playbackRadioRefillThreshold) return;
+
+    const source = `${playbackState.selectedSource}:${playbackState.queueSourceKey || ''}`;
+    if (source !== refillSource) {
+      refillSource = source;
+      failedRefills = 0;
+      failureNotified = false;
+    }
 
     playbackRadioRefillRunning = true;
     try {
@@ -45,12 +56,32 @@ export function createRadioMode(deps) {
         : [];
       queueManager.refillRadioQueue(tracks);
 
+      if (source === `${playbackState.selectedSource}:${playbackState.queueSourceKey || ''}`) {
+        if (tracks.length) {
+          if (failureNotified) toast('电台已补上新歌，可以继续听了。', { key: 'radio-refill', update: true, type: 'success' });
+          failedRefills = 0;
+          failureNotified = false;
+        } else {
+          reportRefillFailure();
+        }
+      }
+
       savePlaybackState();
       renderPlayback();
     } catch (error) {
       console.warn('[playback] radio refill failed:', error.message || error);
+      if (playbackState.queueType === 'radio'
+        && source === `${playbackState.selectedSource}:${playbackState.queueSourceKey || ''}`) reportRefillFailure();
     } finally {
       playbackRadioRefillRunning = false;
+    }
+  }
+
+  function reportRefillFailure() {
+    failedRefills += 1;
+    if (!failureNotified && (failedRefills >= 2 || !playbackState.radioQueue.length)) {
+      failureNotified = true;
+      toast('电台暂时没能补上新歌，请检查网络后重新打开电台。', { key: 'radio-refill', update: true, type: 'warning' });
     }
   }
 

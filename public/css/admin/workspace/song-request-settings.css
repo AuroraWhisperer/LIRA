@@ -14,7 +14,7 @@
 
 #themePage > .panel-body {
   gap: var(--spacing-lg);
-  padding: var(--spacing-lg) 0 0;
+  padding: 0;
 }
 
 #songRequestSettingsForm {

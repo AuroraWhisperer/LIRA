@@ -102,6 +102,12 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(await fontSize.inputValue(), '36');
   assert.equal(await app.evaluate(() => global.canvasTest.attempts), 0);
   assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
+  const authorization = await app.evaluate(() => global.canvasTest.authorization());
+  await app.evaluate(() => global.canvasTest.renewAuthorization());
+  await app.evaluate(() => global.canvasTest.renewAuthorization());
+  assert.deepEqual(await app.evaluate(() => global.canvasTest.authorization()), {
+    epoch: authorization.epoch + 2, generation: authorization.generation,
+  });
   await page.reload();
   await fontSize.waitFor();
   assert.equal(await number('宽度'), 987);

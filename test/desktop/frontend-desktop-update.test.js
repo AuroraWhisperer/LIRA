@@ -11,7 +11,7 @@ const root = path.join(__dirname, '../..');
 const markup = fs.readFileSync(path.join(root, 'public/pages/admin/toolbox/desktop-update.html'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'public/js/desktop.js'), 'utf8');
 
-function createFixture() {
+function createFixture(utils = {}) {
   const { documentRef, windowRef } = createDom();
   const nodes = Object.fromEntries(
     [...markup.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => {
@@ -21,7 +21,8 @@ function createFixture() {
     }),
   );
   documentRef.getElementById = (id) => nodes[id] || null;
-  windowRef.AdminApp = { utils: {} };
+  documentRef.querySelectorAll = () => [];
+  windowRef.AdminApp = { utils };
   vm.runInNewContext(source, { document: documentRef, window: windowRef });
   return {
     nodes,
@@ -30,6 +31,37 @@ function createFixture() {
     render: windowRef.AdminApp.desktop.renderDesktopUpdateState,
   };
 }
+
+test('update failures notify once for manual checks and active downloads, keeping background checks quiet', async () => {
+  const notices = [];
+  const { desktop, nodes, windowRef } = createFixture({
+    showStackedToast: (options) => notices.push(options),
+    showError: (error) => { throw error; },
+  });
+  let onState;
+  windowRef.songAssistantDesktop = {
+    onShowUpdatePage() {}, onUpdateState(callback) { onState = callback; },
+    getInfo: async () => ({}),
+    checkForUpdates: async () => {
+      onState({ status: 'error' });
+      throw new Error('offline');
+    },
+  };
+  desktop.initDesktopShell();
+  await new Promise(setImmediate);
+  onState({ status: 'error' });
+  assert.equal(notices.length, 0);
+  nodes.desktopCheckUpdateBtn.listeners.get('click')();
+  await new Promise(setImmediate);
+  assert.equal(notices.length, 1, 'state event plus rejected action must not notify twice');
+  assert.equal(notices[0].title, '暂时查不了新版本');
+  assert.equal(notices[0].actionLabel, '打开更新页');
+  onState({ status: 'downloading', updateVersion: '1.2.3' });
+  onState({ status: 'error', updateVersion: '1.2.3' });
+  onState({ status: 'error', updateVersion: '1.2.3' });
+  assert.equal(notices.length, 2);
+  assert.equal(notices[1].title, '更新没下载成功');
+});
 
 test('desktop update shows only the action for the current update phase', () => {
   const { nodes, render } = createFixture();

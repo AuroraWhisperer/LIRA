@@ -10,7 +10,12 @@ function createSceneExtraDisplay({ getContext, getOwner, now = Date.now }) {
   const cache = new Map();
   function cached(type, context, read) {
     const owner = getOwner();
-    const revision = context.gifts.getViewRevision();
+    let revision;
+    try { revision = context.gifts.getViewRevision(); }
+    catch (error) {
+      if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code)) return null;
+      throw error;
+    }
     const day = shanghaiToday(now());
     const key = JSON.stringify([owner?.scope, owner?.epoch, revision, day]);
     const current = cache.get(type);

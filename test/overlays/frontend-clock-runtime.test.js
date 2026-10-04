@@ -117,6 +117,7 @@ function createClockDom() {
     ...element(),
     documentElement: element(),
     getElementById(id) {
+      if (id === 'toast') return null;
       if (!nodes.has(id)) nodes.set(id, element());
       return nodes.get(id);
     },

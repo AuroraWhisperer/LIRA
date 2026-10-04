@@ -12,13 +12,15 @@ let nextSenderGeneration = 0;
  * @returns {Object} 状态持久化函数集合
  */
 export function createStatePersistence(deps) {
-  const { playbackState, getPlaybackAudio } = deps;
+  const { playbackState, getPlaybackAudio, toast = () => {} } = deps;
 
   const playbackClientId = PlaybackConfig.CLIENT_ID;
   const playbackStateSaveDebounceMs = PlaybackConfig.STATE_SAVE_DEBOUNCE_MS;
   let playbackStateSaveTimer = null;
   let playbackStateSavePending = null;
   let snapshotSequence = 0;
+  let completedSaveSequence = 0;
+  let failedSaves = 0;
   const bootWriter = deps.snapshotWriter || window.__PLAYBACK_SNAPSHOT_WRITER__;
   if (!bootWriter?.writerId || !Number.isSafeInteger(bootWriter.generation) || bootWriter.generation < 1) {
     throw new Error('播放快照启动信息缺失，请重新加载管理页。');
@@ -125,8 +127,23 @@ export function createStatePersistence(deps) {
         body: JSON.stringify({ clientId: playbackClientId, payload }),
       });
       if (!response.ok) retainPendingPayload(payload);
+      reportSaveResult(payload, response.ok);
     } catch (_) {
       retainPendingPayload(payload);
+      reportSaveResult(payload, false);
+    }
+  }
+
+  function reportSaveResult(payload, saved) {
+    const sequence = payload.snapshotVersion.sequence;
+    if (sequence < completedSaveSequence) return;
+    completedSaveSequence = sequence;
+    const notice = { key: 'playback-state-save', update: true };
+    if (saved) {
+      if (failedSaves >= 2) toast('播放队列和进度已保存。', { ...notice, type: 'success' });
+      failedSaves = 0;
+    } else if (++failedSaves === 2) {
+      toast('播放队列和进度还没保存成功，先别关闭 LIRA。', { ...notice, type: 'warning' });
     }
   }
 

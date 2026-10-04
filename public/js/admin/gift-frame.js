@@ -1,7 +1,7 @@
 // 百宝箱 → 礼物姬：礼物四方边框的持久化设置与预览。
 'use strict';
 
-import { api } from '../shared/utils.js';
+import { api, toast } from '../shared/utils.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 
@@ -63,7 +63,7 @@ async function saveSettings() {
     giftFrameThresholdRmb: threshold.toFixed(2),
   };
   try {
-    await api('/api/settings', values);
+    await api('/api/settings', values, { notifyError: false });
     for (const id of settingIds) {
       const current =
         id === 'giftFrameEnabled' ? String(document.getElementById(id).checked) : document.getElementById(id).value;
@@ -72,10 +72,14 @@ async function saveSettings() {
         document.getElementById(id).dataset.dirty = 'false';
       }
     }
-    setStatus('设置已保存。', 'success');
+    const message = draftFields.size ? '礼物边框设置已保存，刚才的新修改还没保存。' : '礼物边框设置已保存。';
+    setStatus(message, 'success');
+    toast(message, { type: 'success' });
     renderGiftFrame({ ...currentSettings, ...values });
   } catch (_) {
-    setStatus('保存失败，请稍后重试。', 'error');
+    const message = '礼物边框设置没保存成功，修改还在，请再试一次。';
+    setStatus(message, 'error');
+    toast(message, { type: 'error' });
   }
 }
 

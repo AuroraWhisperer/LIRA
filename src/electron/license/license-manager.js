@@ -639,6 +639,7 @@ function createLicenseManager(options = {}) {
     isAuthorized,
     getSnapshot,
     getAuthorizationEpoch,
+    getAuthorizationGeneration: () => lifecycleGeneration,
     getCloudSyncIdentity: () =>
       identity ? { streamerId: identity.streamerId, accountName: identity.accountName } : null,
     onStateChanged,

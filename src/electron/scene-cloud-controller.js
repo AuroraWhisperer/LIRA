@@ -23,6 +23,18 @@ function getSceneOwner(licenseManager) {
   }
 }
 
+function getComponentPreviewOwner(licenseManager) {
+  const owner = getSceneOwner(licenseManager);
+  if (!owner) return null;
+  try {
+    // Editing survives token renewal, but never a new authorization lifecycle.
+    const epoch = licenseManager.getAuthorizationGeneration();
+    return Number.isSafeInteger(epoch) && epoch >= 0 ? { ...owner, epoch } : null;
+  } catch {
+    return null;
+  }
+}
+
 function createSceneCloudController({ licenseManager, publish, fetchImpl = fetch, timers = globalThis }) {
   let started = false;
   let disposed = false;
@@ -331,4 +343,4 @@ function displayEvent(value) {
   return result;
 }
 
-module.exports = { createSceneCloudController, getSceneOwner };
+module.exports = { createSceneCloudController, getSceneOwner, getComponentPreviewOwner };

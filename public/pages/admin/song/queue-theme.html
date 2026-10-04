@@ -232,12 +232,20 @@
                 </span>
               </label>
               <label>
-                <span>歌名颜色 <lira-help>留空时使用文字色。</lira-help></span>
-                <input id="overlaySongColor" type="color" value="" />
+                <span>歌名颜色 <lira-help>跟随文字色，或设置自定义颜色。</lira-help></span>
+                <select id="overlaySongColorMode" aria-label="歌名颜色来源" data-dropdown-variant="settings">
+                  <option value="inherit">跟随文字色</option>
+                  <option value="custom">自定义颜色</option>
+                </select>
+                <input id="overlaySongColor" type="color" aria-label="自定义歌名颜色" disabled />
               </label>
               <label>
-                <span>点歌人颜色 <lira-help>留空时使用较淡的文字色。</lira-help></span>
-                <input id="overlayRequesterColor" type="color" value="" />
+                <span>点歌人颜色 <lira-help>跟随较淡的文字色，或设置自定义颜色。</lira-help></span>
+                <select id="overlayRequesterColorMode" aria-label="点歌人颜色来源" data-dropdown-variant="settings">
+                  <option value="inherit">跟随文字色（较淡）</option>
+                  <option value="custom">自定义颜色</option>
+                </select>
+                <input id="overlayRequesterColor" type="color" aria-label="自定义点歌人颜色" disabled />
               </label>
               <label style="grid-column: 1 / -1">
                 <span>面板标题 <lira-help>修改点歌板顶部标题；留空时使用默认标题。</lira-help></span>

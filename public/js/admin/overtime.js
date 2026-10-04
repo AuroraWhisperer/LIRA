@@ -88,10 +88,10 @@ const overtimeStatusView = createOvertimeStatusView({
 });
 const { syncClockLoop, stopClockLoop } = overtimeStatusView;
 
-function renderState(state) {
+function renderState(state, options) {
+  if (overtimeStatusView.renderState(state, options) === false) return;
   displayRevision += 1;
-  overtimeStatusView.renderState(state);
-  appearance?.receive(overtimeStatusView.getState());
+  appearance?.receive(overtimeStatusView.getState(), options);
 }
 
 export function initOvertime(currentState = {}) {
@@ -105,10 +105,10 @@ export function initOvertime(currentState = {}) {
   });
   bindControls();
   if (currentState?.overtime) renderState(currentState.overtime);
-  eventBus.on(Events.STATE_LOADED, ({ state }) => {
+  eventBus.on(Events.STATE_LOADED, ({ state, isConnectionSnapshot }) => {
     giftDetection = state?.giftDetection || giftDetection;
     catalogLiveStatus = state?.liveStatus || catalogLiveStatus;
-    if (state?.overtime) renderState(state.overtime);
+    if (state?.overtime) renderState(state.overtime, { allowRevisionReset: isConnectionSnapshot });
     if (giftCatalogSnapshot?.refreshedAt) renderGiftCatalogStatus();
   });
   eventBus.on(Events.OVERTIME_UPDATED, (payload) => {

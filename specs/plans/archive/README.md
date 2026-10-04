@@ -6,6 +6,11 @@
 
 ## 文件索引
 
+- [2026-10-04-architecture-audit-fixes](2026-10-04-architecture-audit-fixes.md)
+
+- [2026-10-04-status-toast-completion](2026-10-04-status-toast-completion.md)
+- [2026-10-04-shared-ui-fixes](2026-10-04-shared-ui-fixes.md)
+- [2026-10-04-preview-session-renewal](2026-10-04-preview-session-renewal.md)
 - [2026-10-04-canvas-opening](2026-10-04-canvas-opening.md)
 - [2026-10-03-client-review-recovery-fixes](2026-10-03-client-review-recovery-fixes.md)
 - [2026-10-03-client-theme-modularity](2026-10-03-client-theme-modularity.md)

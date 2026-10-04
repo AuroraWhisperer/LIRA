@@ -142,9 +142,8 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
   });
 }
 
-test('song list exposes a display board font size control', () => {
+test('song list exposes a display board font size control', async () => {
   const html = readAdminHtml();
-  const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'), 'utf8');
   const themePage = html.match(/<div id="themePage"[\s\S]*?<div id="displayPage"/)?.[0];
@@ -157,7 +156,11 @@ test('song list exposes a display board font size control', () => {
   assert.equal(inputs.length, 1);
   assert.match(inputs[0], /\smin\s*=\s*["']10["']/);
   assert.match(inputs[0], /\smax\s*=\s*["']80["']/);
-  assert.match(displaySource, /songBoardFontSize: value\('songBoardFontSize'\)/);
+  const form = {
+    querySelector: (selector) => ({ value: selector === '[id="songBoardFontSize"]' ? '42' : '', checked: true }),
+  };
+  const { collectSongBoardSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/song-board-settings.js'));
+  assert.equal(collectSongBoardSettings(form).songBoardFontSize, '42');
   const boardRule = overlayStyles.match(/\.song-board\s*\{[^}]*\}/)?.[0];
   assert.ok(boardRule);
   assert.match(boardRule, /font-size:[^;]*var\(--overlay-font-scale\b/);

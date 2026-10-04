@@ -27,8 +27,8 @@ function songSyncErrorMessage(error) {
   if (code === 'TOO_MANY_SONGS') return '歌库超过 5000 首限制。';
   if (code === 'PAYLOAD_TOO_LARGE') return '歌库数据超过同步大小限制，请减少歌曲或缩短备注、点歌价格和歌切后重新同步。';
   if (code === 'RESPONSE_TOO_LARGE') return '云端歌库超过读取大小限制，请先缩减歌库或联系管理员处理。';
-  if (code === 'NETWORK_UNAVAILABLE') return '无法连接授权服务器，请检查网络后重试。';
-  if (code === 'REQUEST_TIMEOUT') return '连接授权服务器超时，请重试。';
+  if (code === 'NETWORK_UNAVAILABLE') return '暂时连不上云端，请检查网络后重试。';
+  if (code === 'REQUEST_TIMEOUT') return '连接云端超时了，请再试一次。';
   return '请稍后重试。';
 }
 
@@ -121,7 +121,8 @@ export async function initCloudSongSync({ getSongs, toast, showConfirmationDialo
         initialFocus: 'cancel',
       });
     } catch (error) {
-      result.textContent = `同步失败：${error?.message || '请稍后重试'}`;
+      result.textContent = '同步确认没能打开，请再试一次。';
+      toast(result.textContent, { type: 'error' });
     }
     if (!confirmed) {
       syncConfirmationPending = false;
@@ -147,9 +148,10 @@ export async function initCloudSongSync({ getSongs, toast, showConfirmationDialo
       cloudSongCount = syncedCount;
       renderCloudSongCount(cloudCountEl, cloudSongCount);
       renderLastCloudSync(lastSyncEl);
-      toast('云端歌单同步完成');
+      toast(`云端歌单已更新，共 ${syncedCount} 首。`, { key: 'cloud-song-sync', update: true, type: 'success' });
     } catch (error) {
       result.textContent = `同步失败：${songSyncErrorMessage(error)}`;
+      toast(`歌单没同步成功。${songSyncErrorMessage(error)}`, { key: 'cloud-song-sync', update: true, type: 'error' });
     } finally {
       syncConfirmationPending = false;
       syncButton.disabled = false;

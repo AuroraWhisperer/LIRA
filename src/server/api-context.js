@@ -59,6 +59,7 @@ function createApiContext(options) {
     giftCards: options.giftCards,
     giftWishes: domainServices.giftWishes,
     gifts: {
+      getViewRevision: () => domainServices.gifts.getViewRevision(),
       getSelection: (options) => domainServices.gifts.getSelection(options),
       pauseDetection: domainServices.gifts.pauseDetection,
       resumeDetection: domainServices.gifts.resumeDetection,

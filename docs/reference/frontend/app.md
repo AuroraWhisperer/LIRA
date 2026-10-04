@@ -103,11 +103,13 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 桌面配色由 `css/desktop/palettes.css` 拥有，`css/desktop/theme.css` 引入色板并保留公共几何样式。色板同时绑定短别名（`--primary`、`--surface`、`--border` 等）与长名令牌（`--color-control-accent`、`--color-border-default`、`--color-bg-secondary` 等）；布局与控件读取令牌，具体主题 ID 选择器只出现在色板中。礼物、盲盒、粉丝身份色和全屏背景通过 `--client-*` 变量接受主题适配；公共层将可选覆盖重置为 `initial`，组件使用原有业务色或背景预设作为回退。依赖卡片自身强调色的混色在组件作用域计算，避免在根节点提前解析；所有预览同时重绑变量，防止继承父级主题的覆盖。圆角沿用控件 `--radius-control`、面板 `--radius-lg`、对话框 `--radius-xl`；礼物盈亏仍使用 `--color-profit` / `--color-loss`。`css/license.css` 保持独立登录配色。直播画面（`css/overlays/**`、`css/shared/**`、`css/lyrics/**`）不属于客户端界面，保持各主题原有配色；客户端内的直播画面预览区域（弹幕样式缩略图、开播动画预览、时钟样式、队列与歌单主题预览、用户可选颜色的默认值）同样保留原样。页面布局按 `--player-dock-reserve`（播放器高度加折叠把手 `--player-dock-toggle-clearance`）预留底部空间，折叠把手不遮挡内容。
 
-通知视觉采用中性浮层：`--color-floating-surface` 背景、1px `--border` 边框、`--radius-lg` 圆角和 `--shadow-floating` 阴影，背景、文字与动作样式由 `admin/toasts/system.css` 拥有，业务样式只保留图标和专属信息排版；语义色只出现在图标与 `.toast-success`／`.toast-warning`／`.toast-error` 的强调上，不使用渐变。无标题短提示使用 18px 状态图标与 14px 文字同排，不额外生成“成功／注意”标题；有标题的通知使用 15px 半粗标题、14px 说明和 4px 层间距，动作位于正文下方并左对齐。礼物的观众／来源及目录进度计数采用 13px 次级文字，金额独立展示；辅助核对页使用相同底色及短提示布局。
+通知的背景、文字与动作样式由 `admin/toasts/system.css` 拥有，业务样式保留图标与专属信息排版。背景使用 `--color-toast-start/mid/end` 渐变，边框和状态图标使用对应语义的 `--toast-accent`，文字与动作读取 toast 主题令牌。无标题短提示使用 20px 状态图标与正文同排，不额外生成“成功／注意”标题；有标题的通知将标题和说明分行，动作位于正文下方。字号与字重由共享排版令牌计算。
 
 礼物通知通过 `recent.js` 的 `getGiftToastArtwork` 复用本地目录图片索引，优先按 `gift_variant_id` 匹配；旧记录仅在 ID 与名称唯一匹配时使用图片。盲盒通知使用实际产物图片，大航海使用客户端内置徽章。通知只读取本地 WebP，统一在 40×40px 区域内等比完整显示并异步解码；同一通知数量更新时复用相同图片节点。目录未就绪、无匹配图片或加载失败时显示 `gift-toast-fallback.svg`，不发起额外图片下载或全库预加载。
 
 `utils.api(url, body, { notifyError: false })` 允许已有业务 catch 独占错误反馈；省略该选项时保留默认 `showError`，错误对象、HTTP 状态和 payload 仍原样传递。字段就地错误由 `shared/field-feedback.js` 关联 `aria-describedby`/`aria-invalid`，保留原字段说明，输入修改后清理。
+
+状态提示由业务入口触发：点歌板主题、萌时钟和弹幕姬主动保存经 `component-save-feedback.js` 反馈结果，礼物边框和大航海感谢保存仅由业务层提示一次；保存期间的新修改仍明确标为未保存。日程提醒同步失败及恢复会在编辑弹窗外提示。播放快照连续两次保存失败提醒一次，恢复后原位更新，较旧响应不覆盖较新结果；电台连续补歌失败或队列已空时提醒一次。全屏恢复播放排除正常媒体中断及已有播放器错误提示。更新失败只提醒主动检查/安装或已开始下载的操作，重复状态事件与 Promise 拒绝不会重复提示。动态抽奖只提醒当前操作或已观察到运行中的任务结束、暂停与失败，初次读取历史结果保持静默；云端歌单同步保留页面内详情并反馈结果摘要。
 
 `gifts/catalog-update-toast.js` 在 Admin 入口订阅既有授权目录进度桥，以单条 toast 原位显示后续图片下载的开始、已处理数量、完成或失败，完成后自动移除；首次初始化、目录检查和零下载更新不提示。订阅后再读取当前状态，较新的事件优先；本次后台更新在页面加载前已完成时也能显示结果。关闭页面或应用时清理订阅和计时器。进度字段由 [desktop/preload.md](../desktop/preload.md) 定义。
 
@@ -155,9 +157,9 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ### 4.3 settings.js(设置)
 
-- 设置页表单只收集 `roomId`；弹幕姬的 `danmakuMonitoringEnabled` 和礼物页的 `giftMonitoringEnabled` 是默认开启、独立即时保存的监控开关，帮助通过 `lira-help` 展示，服务端同步后不依赖桌面持续运行；点歌板页独立表单收集 `paused/queueLimit/userCooldownSeconds/onlyFromLibrary/allowDuplicate/songRequestBlacklist`，各自提交 `POST /api/settings`。点歌板按点歌规则、黑名单、点歌板样式分成独立折叠区，前两区默认展开，样式默认收起；规则和黑名单显式保存，主题自动保存只处理样式。
+- 设置页表单只收集 `roomId`；弹幕姬的 `danmakuMonitoringEnabled` 和礼物页的 `giftMonitoringEnabled` 是默认开启、独立即时保存的监控开关，帮助通过 `lira-help` 展示，服务端同步后不依赖桌面持续运行；点歌板页独立表单收集 `paused/queueLimit/userCooldownSeconds/onlyFromLibrary/allowDuplicate/songRequestBlacklist`，各自提交 `POST /api/settings`。点歌板按点歌规则、黑名单、点歌板样式分成独立折叠区，前两区默认展开，样式默认收起；规则、黑名单和点歌板主题分别显式保存，彼此不提交对方的草稿。
 - `song-request-blacklist.js` 管理可编辑的词条列表，支持添加、删除和回车新增；单行原生输入框保留长词全文及光标选择，宽窗口三列、较窄窗口两列。列表通过隐藏字段沿用换行分隔的 `songRequestBlacklist` 设置，保存后按服务端返回的规范值刷新。
-- 点歌规则与黑名单编辑复用 `data-preserve-dirty`，主题自动保存或其他状态快照不覆盖草稿；保存成功只清除仍与提交值一致的字段标记，失败或保存期间继续编辑的字段保留草稿。
+- 点歌规则与黑名单编辑复用 `data-preserve-dirty`，主题保存或其他状态快照不覆盖草稿；保存成功只清除仍与提交值一致的字段标记，失败或保存期间继续编辑的字段保留草稿。
 - 立即生效开关:礼物检测 `enableGiftSprint`、礼物提示 `enableGiftNotification`(失败回滚 checkbox)。
 - Bilibili 扫码登录(仅桌面,`window.bilibiliAuth`,Web 模式禁用);登出走 `logoutConfirm` 弹窗。
 - 盲盒映射:表单添加(chip 展示)/高级 JSON 编辑/逐条删除,保存到 `giftBlindBoxCustomConfigV2` 设置；官方项仅展示 `giftCategory=blindBox` 且有该完整身份的核验礼物产物或权益奖池的记录，同名或同 ID 的其他活动不继承奖池。官方卡片显示真实 gift ID，权益只显示名称和价值，不伪造礼物编号。服务器标为非盲盒的资料在目录更新后移出官方映射；¥15 七夕盲盒 `35429` 排除，¥25 七夕盲盒 `35141` 保留。默认显示当前直播间可送的盒型，其余通过带数量的按钮展开/收起。状态显示服务器确认的官方映射就绪情况及非零自定义/接管计数，不再显示旧配置迁移提示；当前服务端统一使用官方目录和新版私有配置。高级编辑的空配置显示说明，保留 dirty 草稿，未编辑的空状态不触发保存。
@@ -166,8 +168,12 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ### 4.4 theme.js(点歌板)与 display.js(展示板)
 
-- 两者共用 `fillForm` 把预设/快照值写回表单,`input/change` 事件 180ms 防抖自动保存到 `/api/settings`(`theme.js` 的 `collectTheme()` 收集约 40 个键;`display.js` 的 `collectDisplay()` 含 `songBoardSyncTheme` 开关——开启时歌单板跟随主主题)。`local-font-library.js` 统一查询、净化、去重并分发本机字体族;点歌板风格 3–6 与桌面歌词选择器共用一次查询,各自保留内置选项和已保存值。
-- 预设卡片点击套用(`classicPresets`/`songBoardPresets`);`quickBeautifyBtn` 一键美化;点歌板样式切换(`overlayQueueStyle`:classic / identity / storybook / neon-vinyl / cherry-ribbon / golden-lily,遗留 festival 归一为 identity,需要重启时提示)。风格 1、2 的选择卡片使用中性底色,风格 3–6 保留素材主题色。管理页复用一组风格 2–6 控件,但通过 `queue-style-settings.js` 只填充并提交当前风格拥有的内容字号与纵向滚动设置;风格 3–6 的字体、字重、自定义正文颜色也分别持久化,切换或自动保存不会覆盖其他风格。风格 2 专属的置顶与规则设置不向插画风格显示或提交。
+- 点歌板由 `queue-theme-view.js` / `queue-theme-config.js` 管理主题草稿，`input/change` 只编辑本地状态，显式保存后才发布到展示端。歌单板由 `song-board-settings.js` 管理独立草稿、回填、range/number 配对和预设；保留 180ms 防抖自动保存及“保存展示板”按钮。`display.js` 组合 controller、设置同步和保存接口，并继续管理展示地址。
+- 两者复用 `component-config-controller.js`：快照合并未编辑字段；保存期间的新修改按字段编辑代次保留，包括改回原值的操作。歌单板即时捕获输入并顺序保存，前次完成后继续提交待保存草稿；失败保留修改，通过后续编辑或保存按钮重试。`FormsService.fillForm()` 不再重复写入这两个表单。
+- 保存期间收到与 HTTP 确认不同的权威快照时，控制器通过 `confirm`（默认复用 `read`）补读确认，不按两条通道的抵达顺序直接覆盖配置。点歌板、歌单板和时钟的确认适配器共用 `StateService.reloadState()` 的 HTTP/WS 排序；该方法返回实际接受的快照，被后继读取取代的调用等待后继结果并传播其失败。正常保存和自己的广播回声不增加确认请求；确认期间的新编辑、广播及账号 reset 仍受保护。若本次提交字段已被后续修改覆盖，保留最新配置、返回 false 并提示确认，不误报“已应用”或继续批量发布。
+- 歌单板歌名颜色，以及点歌板歌名／点歌人颜色，使用明确的“跟随文字色／自定义颜色”选择。继承仍保存原来的空串，自定义黑色是有效颜色；模式选择器和配对数值框不新增持久化键。`songBoardSyncTheme` 开启时展示端跟随点歌板主题，歌单板表单只提交滚动、排序、整体字号及同步开关。
+- `local-font-library.js` 统一查询、净化、去重并分发本机字体族；点歌板风格 3–6 与桌面歌词选择器共用一次查询，各自保留内置选项和已保存值。
+- 预设卡片点击套用(`classicPresets`/`songBoardPresets`);`quickBeautifyBtn` 一键美化;点歌板样式切换(`overlayQueueStyle`:classic / identity / storybook / neon-vinyl / cherry-ribbon / golden-lily,遗留 festival 归一为 identity,需要重启时提示)。风格 1、2 的选择卡片使用中性底色,风格 3–6 保留素材主题色。管理页复用一组风格 2–6 控件,但通过 `queue-style-settings.js` 只填充并提交当前风格拥有的内容字号与纵向滚动设置;风格 3–6 的字体、字重、自定义正文颜色也分别持久化,切换或显式保存不会覆盖其他风格。风格 2 专属的置顶与规则设置不向插画风格显示或提交。
 - `display.initOverlayUrls()` 生成 `/queue`、`/songlist`、`/lyrics` 的 浏览器源地址文本(以 `127.0.0.1` 规范化)。
 
 ### 4.5 song-import.js(批量导入)
@@ -207,6 +213,8 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ## 6. 百宝箱(otherAssistantPage)
 
+加班机状态视图拒绝较旧 revision 的 HTTP 回执，外观保存不能借由 `onSavedState` 把旧背景提升为新权威状态。若仅计时发生更新而背景与保存回执一致，允许保存成功但保留较新时钟；背景已被其他入口改动则提示冲突。StateService 接受的重连快照通过内部 `STATE_LOADED.isConnectionSnapshot` 明确允许 revision 重置，外观模块在实际降代时使重置前的保存失效，保留尚未确认的本地草稿。没有修改 HTTP/WS 报文或新增状态请求。验证见 [overtime-appearance-order.test.js](../../../test/admin/overtime-appearance-order.test.js)。
+
 礼物姬由 [gift-assistant.js](../../../public/js/admin/gift-assistant.js) 在首次打开时初始化，按「礼物边框」「滚动礼物」「礼物许愿」「大航海感谢」分区呈现。滚动礼物分区拥有显示行数、滚动速率（1–50，线性对应每行 5–0.1 秒，默认 25）、浏览器源地址和共用词条价格配色，移除暂停和低功耗选项；草稿切换分区时保留，保存后生效，取消修改恢复已保存值。图片导出设置位于「最近礼物 → 查看全部 → 导出所选」的预览右侧，可调整输出方式、背景和保存文件夹；通过现有桌面接口即时应用于本次导出并保存为后续默认设置。调整导出设置保留记录与样式快照，导出期间禁用设置。滚动与导出共用今日卡片合并规则，导出在分页前按 UID、礼物 ID 和礼物名合并所选今日记录，并采用该用户今日最新已知昵称/等级、累计数量和金额配色；预览区同时显示原始选择条数、卡片数和 PNG 数。历史日期、原始流水及统计不合并，身份资料未就绪时说明部分礼物尚未合并。桌面接口见 [preload 桥](../desktop/preload.md#6-礼物导出任务与取消)。
 
 `toolbox-navigation.js` 只负责**功能导航**(侧边栏整体可折叠、四个功能分组可独立折叠、方向键/WAI-ARIA tab 模式、localStorage 记住整栏折叠与选中项);[shell-start.html](../../../public/pages/admin/toolbox/shell-start.html)将不变的功能 ID 按直播互动、直播画面、主播工作、软件与帮助四组呈现,各面板仍由独立模块初始化:
@@ -217,7 +225,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | 弹幕库编辑器        | [danmaku-libraries.js](../../../public/js/admin/danmaku-libraries.js)                                                                                                                                                                                                                                     | 签到祝福语 / 抽签词库 / DIY 关键词回复 三个编辑器的工厂(加载/增删/脏标记/保存到对应 settings 键)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | AI 互动助手         | [ai-assistant-settings.js](../../../public/js/admin/ai-assistant-settings.js)                                                                                                                                                                                                                             | 模型服务配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`、`/api/ai/models`；电脑端先选自动识别、DeepSeek、OpenAI、Claude、Gemini 或自定义，官方预设锁定地址/协议，自动与自定义允许编辑；按服务端 `modelEndpoint` 显示协议、联网方式与可用推理控件；密钥字段使用 password + `'********'` 遮罩且提交时过滤遮罩值；700ms 自动保存 + 保存失败重试队列                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | 礼物姬 · 礼物边框   | [gift-frame.js](../../../public/js/admin/gift-frame.js)                                                                                                                                                                                                                                                   | 特效 1 只保存 `giftFrameEnabled`、`giftFrameThresholdRmb`；固定 4 秒（0.6+3+0.4），取消旧主题/动效/预览金额。昵称、礼物名、数量预览只发独立 `gift:frame`；串行等待最多 50 条，满队列忽略新触发，无等待超时丢弃。新增特效独立拥有参数，不复用特效 1 设置                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 礼物姬 · 大航海感谢 | [gift-guard-thanks.js](../../../public/js/admin/gift-guard-thanks.js) + [shared/guard-thanks-card.js](../../../public/js/shared/guard-thanks-card.js) | 保存 `guardThanksEnabled`、`guardThanksTextMode`；「在画布中预览」打开并选中独立大航海感谢图层，首次打开时添加。礼物边框同样通过画布预览，两项不再提供旧独立预览与地址区 |
+| 礼物姬 · 大航海感谢 | [gift-guard-thanks.js](../../../public/js/admin/gift-guard-thanks.js) + [shared/guard-thanks-card.js](../../../public/js/shared/guard-thanks-card.js) | 保存 `guardThanksEnabled`、`guardThanksTextMode`；保留预览等级、观众昵称和月数（1–999），点击预览时传入画布并选中独立大航海感谢图层，首次打开时添加。示例参数不写入设置或场景配置。礼物边框同样通过画布预览，两项不再提供旧内嵌预览与地址区 |
 | 加班机              | [overtime.js](../../../public/js/admin/overtime.js) + [overtime-rule-editor.js](../../../public/js/admin/overtime-rule-editor.js) + [overtime-rule-model.js](../../../public/js/admin/overtime-rule-model.js) + [overtime-rule-effect-editor.js](../../../public/js/admin/overtime-rule-effect-editor.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`);规则编辑器只负责编排 DOM 与事件，规则归一化/校验和效果编辑分别由 model/effect-editor 拥有；**Round-trip contract**:前端从 `GET /api/overtime` 的 `limits` 字段获取服务端限制(maxSeconds/maxEffectFactor/maxRandomWeight/maxEnabledRules),用于 UI 提示与客户端验证;前端必须保留服务端接受的任何值,即使超出 UI 输入控件范围(如 999h 小时选择器无法编辑 9999 年的值),只读展示 + 隐藏字段保存,最大值验证交给服务端;详见 [overtime.md](../backend/overtime.md) §4                                                                                                                  |
 | 小游戏直播台        | [games.js](../../../public/js/admin/games.js)                                                                                                                                                                                                                                                             | 固定 `/games` 地址 + 数字炸弹/五子棋/你画我猜单会话互斥；第三张画猜卡片向下展开，可设置 1–12 局和每局 15–300 秒，并从 9 类、每类 100 词的固定题库中全选、清空或组合本场分类，未选分类时禁止开局，开局后锁定选择；`GET /api/games/host-state` 私下显示题词并恢复 `categoryIds`，`game:update` 驱动主持状态与 10/7/5/3 积分；画猜控制拆分为结束作画、公布答案、开始下一题，超时后仍捕捉弹幕但不计分；独立 `/wheel` 不参与互斥                                                                                                                                                                                                                                                                                                                                                                                       |
 | 主播工作台          | [streamer-planner.js](../../../public/js/admin/streamer-planner.js)                                                                                                                                                                                                                                                               | **本机工作台**(`admin.streamerWorkbench.v3`):按月管理直播/工作/个人日程,按天查看时间与备注;备忘支持编辑、置顶、删除和转为待办,待办支持编辑、完成筛选与删除;首次读取 v2 时将已填写场次迁为日程并精确移除历史内置任务,读取 v1 时仅导入自定义任务,两类旧键均保留;当前存储不可读时暂停写入；日程可勾选系统通知，定时日程按开始时间提醒，全天日程自选提醒时间。数据仍存于本机，不经过后端；未来提醒由 Electron 主进程调度，最小化和切页不取消，关闭 LIRA 后不提醒                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -231,17 +239,17 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 ## 7. 设置持久化流程
 
 ```
-表单 input/change ──→ debounce(180ms)/autosave ──→ POST /api/settings {key:value,…}
+表单 input/change → 所属表单草稿 → 显式保存或表单约定的自动保存 → POST /api/settings
    ↑                                                       │
    │                        settings-store 写库(见 storage.md §7)
-   └── WS snapshot(settings 字段)全量回推,fillForm 写回表单(正在编辑的控件除外)
+   └── WS snapshot(settings 字段)回推 → 所属 controller 合并 → 表单呈现
 ```
 
 - 所有设置键经同一个 `/api/settings` 端点(端点定义见 [api.md](../backend/api.md));DB 持久化与默认键见 [storage.md](../backend/storage.md) §7。
-- 前端不维护"已保存"标志:每次快照都回灌表单,保证多窗口/叠加层视觉一致;AI 配置等含密钥的设置**不**走通用 settings(见 [storage.md](../backend/storage.md) §3.1 `ai_configuration`)。
-- 各表单的保存节奏不同:点歌板/展示板 **180ms 防抖自动保存**(input/change),设置页**提交时保存**,桌面歌词 **500ms 自动保存**(带"读取设置中→等待→已保存"状态条与失败重试,[desktop-lyric.js:31-90](../../../public/js/admin/desktop-lyric.js#L31-L90)),AI 互动助手 **700ms 自动保存**。
+- 有草稿的表单由其 controller 区分已保存值和本地编辑，快照不能直接覆盖待保存修改；其他字段通过通用回填更新。AI 配置等含密钥的设置不走通用 settings（见 [storage.md](../backend/storage.md) §3.1 `ai_configuration`）。
+- 各表单的保存节奏不同：点歌板主题显式保存；歌单板 180ms 防抖自动保存；设置页提交时保存；桌面歌词 500ms 自动保存；AI 互动助手 700ms 自动保存。
 - AI 保存只在编辑代次仍匹配时解除草稿字段保护；较旧保存完成后，功能页刷新不能覆盖尚在下一次保存中的新输入。
-- `fillForm` 的"正在编辑不覆盖"规则([forms.js:174-179](../../../public/js/admin/forms.js#L174-L179)):快照回灌时跳过 `document.activeElement`,避免用户输入被实时快照打断。
+- `fillForm` 保留 `data-preserve-dirty` 字段，并将 range/number 的 `.range-row`、增强下拉的 `.lira-select` 视为逻辑编辑控件；焦点位于其中任一成员时，不回写整组。表单已有专门 owner 时，由 owner 负责草稿和回填，避免第二套写入路径。
 
 ## 8. 播放助手页(playbackAssistantPage)
 

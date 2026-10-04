@@ -64,6 +64,23 @@ test('newer saved values and desktop drafts require an explicit recovery choice'
   }
 });
 
+test('a draft already retained by the desktop does not require recovery when its saved baseline changes', async () => {
+  const f = await fixture();
+  const first = f.controller({ label: 'saved' });
+  const previous = f.recover(first);
+  first.edit({ label: 'cached' });
+  previous.dispose();
+  const current = f.controller({ label: 'newer saved' });
+  current.edit({ label: 'cached' });
+  const recovery = f.recover({ ...current, edit() { assert.fail('The desktop already has this draft.'); } });
+  assert.equal(recovery.getState().pending, false);
+  assert.equal(current.getState().draft.label, 'cached');
+  assert.equal(current.getState().saved.label, 'newer saved');
+  assert.equal(current.getState().dirty, true);
+  assert.equal(f.saves(), 0);
+  recovery.dispose();
+});
+
 test('using current settings, discard and successful save do not revive old work', async () => {
   for (const action of ['useCurrent', 'discard', 'save']) {
     const f = await fixture();

@@ -33,6 +33,11 @@ export function collectQueueTheme(root) {
   const style = normalizePersistedQueueStyle(value('overlayQueueStyle'));
   const fields = style === 'classic' ? QUEUE_CLASSIC_FIELDS : style === 'identity' ? QUEUE_IDENTITY_FIELDS : [];
   const payload = { overlayQueueStyle: style, ...Object.fromEntries(fields.map((key) => [key, value(key)])) };
+  if (style === 'classic') {
+    for (const key of ['overlaySongColor', 'overlayRequesterColor']) {
+      if (componentField(root, `${key}Mode`)?.value === 'inherit') payload[key] = '';
+    }
+  }
   const styleValues = style === 'classic'
     ? { scrollMode: value('queueScrollMode'), scrollSpeed: value('queueScrollSpeed') }
     : Object.fromEntries(Object.entries(QUEUE_STYLE_CONTROLS).map(([field, id]) => [field, value(id)]));

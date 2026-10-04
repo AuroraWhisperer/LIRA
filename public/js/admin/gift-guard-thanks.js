@@ -1,8 +1,9 @@
 // 百宝箱 → 礼物姬 → 大航海感谢：触发设置与画布预览入口。
 'use strict';
 
-import { api } from '../shared/utils.js';
+import { api, toast } from '../shared/utils.js';
 import { openComponentPreview } from './component-preview-dialog.js';
+import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 
 const settingIds = ['guardThanksEnabled', 'guardThanksTextMode'];
 const draftFields = new Set();
@@ -24,7 +25,7 @@ export function initGuardThanks() {
   panel.addEventListener('change', markDraft);
 
   document.getElementById('guardThanksSaveBtn').addEventListener('click', saveSettings);
-  document.getElementById('guardThanksPlayBtn').addEventListener('click', () => openComponentPreview({ id: 'guard-thanks' }));
+  document.getElementById('guardThanksPlayBtn').addEventListener('click', playPreview);
   window.addEventListener('app:settings-state', (event) => renderGuardThanks(event.detail || {}));
   renderGuardThanks(currentSettings);
 }
@@ -42,13 +43,28 @@ export function renderGuardThanks(settings = {}) {
   state.dataset.state = enabled.checked ? 'enabled' : 'disabled';
 }
 
+function playPreview() {
+  const months = Number(document.getElementById('guardThanksPreviewMonths').value);
+  if (!Number.isSafeInteger(months) || months < 1 || months > 999) {
+    setStatus('预览月数需为 1–999 的整数。', 'error');
+    return;
+  }
+  const previewData = sceneExtraPreviewData('guard-thanks');
+  const event = previewData.events[0];
+  event.tier = document.getElementById('guardThanksPreviewTier').value;
+  event.userName = document.getElementById('guardThanksPreviewUser').value.trim() || event.userName;
+  event.months = months;
+  setStatus('', '');
+  openComponentPreview({ id: 'guard-thanks', previewData });
+}
+
 async function saveSettings() {
   const submitted = {
     guardThanksEnabled: String(document.getElementById('guardThanksEnabled').checked),
     guardThanksTextMode: document.getElementById('guardThanksTextMode').value,
   };
   try {
-    await api('/api/settings', submitted);
+    await api('/api/settings', submitted, { notifyError: false });
     for (const id of settingIds) {
       const node = document.getElementById(id);
       const current = id === 'guardThanksEnabled' ? String(node.checked) : node.value;
@@ -57,13 +73,15 @@ async function saveSettings() {
         node.dataset.dirty = 'false';
       }
     }
-    setStatus(
-      submitted.guardThanksEnabled === 'true' ? '已保存，之后开通的大航海会播放感谢动画。' : '已保存，大航海感谢已关闭。',
-      'success',
-    );
+    const message = draftFields.size ? '大航海感谢设置已保存，刚才的新修改还没保存。'
+      : submitted.guardThanksEnabled === 'true' ? '大航海感谢已开启，之后上舰会播放感谢动画。' : '大航海感谢已关闭。';
+    setStatus(message, 'success');
+    toast(message, { type: 'success' });
     renderGuardThanks({ ...currentSettings, ...submitted });
   } catch (_) {
-    setStatus('保存失败，请稍后重试。', 'error');
+    const message = '大航海感谢设置没保存成功，修改还在，请再试一次。';
+    setStatus(message, 'error');
+    toast(message, { type: 'error' });
   }
 }
 

@@ -6,7 +6,7 @@ const { createRequire } = require('node:module');
 const test = require('node:test');
 const vm = require('node:vm');
 
-function controller(auth) {
+function controller(auth, login) {
   const filename = require.resolve('../../src/electron/desktop-auth-controller');
   const localRequire = createRequire(filename);
   const module = { exports: {} };
@@ -14,16 +14,45 @@ function controller(auth) {
     fs.readFileSync(filename, 'utf8'),
     {
       module,
+      AbortController,
       require(request) {
         if (request === './bilibili-auth') return auth;
+        if (request === './bilibili-login-window' && login) return { openBilibiliLoginWindow: login };
         if (request === './music-auth-manager' || request === './music-login-window') return {};
         return localRequire(request);
       },
     },
     { filename },
   );
-  return module.exports.createDesktopAuthController({ getDataDir: () => 'synthetic-data' });
+  return module.exports.createDesktopAuthController({
+    getDataDir: () => 'synthetic-data',
+    getMainWindow: () => null,
+    writeLog() {},
+  });
 }
+
+test('Bilibili session revision changes as soon as logout or same-account login starts', async () => {
+  const logout = Promise.withResolvers();
+  const state = { loggedIn: true, uid: 42 };
+  const auth = controller(
+    {
+      replaceBilibiliCookieHeader: async () => state,
+      logoutBilibiliAccount: () => logout.promise,
+    },
+    async () => ({ state }),
+  );
+  assert.equal(auth.getBilibiliSessionRevision(), 0);
+  await auth.replaceBilibiliCookieHeader('synthetic-cookie');
+  const original = auth.getBilibiliSessionRevision();
+  const pendingLogout = auth.logoutBilibiliAccount();
+  assert.equal(auth.getBilibiliSessionRevision(), original + 1);
+  logout.resolve({ loggedIn: false });
+  await pendingLogout;
+  const pendingLogin = auth.loginBilibiliAccount();
+  assert.equal(auth.getBilibiliSessionRevision(), original + 2);
+  assert.equal((await pendingLogin).state.uid, 42);
+  auth.dispose();
+});
 
 test('desktop credential restore/import/logout diagnostics preserve operation results and omit secrets', async (t) => {
   const lines = [];

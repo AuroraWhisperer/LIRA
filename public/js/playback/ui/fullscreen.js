@@ -3,6 +3,7 @@
 'use strict';
 
 import * as PlaybackUtils from '../utils.js';
+import { notifyMediaPlayFailure } from '../../shared/media-playback-feedback.js';
 
 const TONEARM_SVG = `
   <svg viewBox="0 0 240 440" data-player-tonearm="curved" aria-hidden="true">
@@ -380,7 +381,7 @@ export class FullscreenPlayer {
 
     if (audio.paused) {
       audio.play().catch((error) => {
-        console.warn('[playback] play after seek failed:', error);
+        notifyMediaPlayFailure(error, audio);
       });
     }
 

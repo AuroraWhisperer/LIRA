@@ -7,6 +7,7 @@ const { createCipheriv, createDecipheriv, randomBytes, randomUUID } = require('n
 const test = require('node:test');
 const { createServerRuntime } = require('../../src/server');
 const { createOverlayToken } = require('../../src/server/access-policy');
+const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 
 function createSafeStorage() {
   const key = randomBytes(32);
@@ -144,6 +145,34 @@ test('runtime HTTP saves and publishes a scene, retaining its capability and fro
   assert.equal(nextOutput.document.title, draft.title);
   assert.equal(nextOutput.document.items[0].appearance.config.label, '下一次发布');
 });
+
+for (const type of ['gift-feed', 'gift-wishes']) {
+  test(`runtime ${type} output reads the actual gift projection and recovers from an unavailable source`, async (t) => {
+    const { runtime, request } = await fixture(t);
+    const source = runtime.resolveGiftSource('a'.repeat(64));
+    const activeSource = { sourceId: source.id, syncState: 'LIVE', partial: false };
+    runtime.setActiveGiftSource(activeSource);
+    const saved = await createScene(request, [{ ...component(type),
+      appearance: { mode: 'independent', config: createSceneExtraDefaults(type) } }]);
+    const id = saved.document.id;
+    await request('/api/scenes/publish', { body: { id, expectedRevision: saved.revision } });
+    const capability = await request(`/api/scenes/source?id=${id}`);
+    const output = () => request(`/api/scene/output?id=${id}`, { token: capability.token });
+    const first = await output();
+    assert.deepEqual(first.data[type].items, []);
+    assert.equal(first.data[type].viewRevision, runtime.getGiftViewRevision());
+    assert.equal(first.document.items[0].type, type);
+    for (const unavailable of [null, { ...activeSource, syncState: 'SOURCE_SWITCHING' }]) {
+      runtime.setActiveGiftSource(unavailable);
+      assert.equal((await output()).data[type], null);
+    }
+    runtime.setActiveGiftSource(activeSource);
+    const recovered = await output();
+    assert.deepEqual(recovered.data[type].items, []);
+    assert.equal(recovered.data[type].viewRevision, runtime.getGiftViewRevision());
+    assert.notEqual(recovered.data[type].viewRevision, first.data[type].viewRevision);
+  });
+}
 
 test('runtime gift preview broadcasts reach only their independent scene projections', async (t) => {
   const { request, state } = await fixture(t);
