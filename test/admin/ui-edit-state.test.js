@@ -129,6 +129,10 @@ for (const result of [
       input.dispatchEvent(new Event('input', { bubbles: true }));
       document.getElementById('overtimeSaveRulesBtn').click();
     });
+    if (result === 'success-unchanged') {
+      const probabilities = await page.locator('[data-outcome-probability]').allTextContents();
+      assert.deepEqual(probabilities.map((text) => Number(text.match(/([\d.]+)%/)?.[1])), [50, 25, 25]);
+    }
     if (result.endsWith('-edit') || result === 'success-revert')
       await page.evaluate((result) => {
         const input = document.querySelector('[data-outcome-weight]');

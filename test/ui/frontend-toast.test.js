@@ -374,20 +374,24 @@ test('browser keeps toast variants free of close controls, aligns content and pr
   }
   const themed = await page.evaluate(async () => {
     const { showStackedToast } = await import('/js/shared/toast.js');
-    const handle = showStackedToast({ key: 'theme-switch', message: '配色已应用', duration: 0 });
-    const colors = ['terracotta', 'neutral', 'classic'].map((theme) => {
+    const handle = showStackedToast({ key: 'theme-switch', message: '配色已应用', actionLabel: '查看', onClick: () => {}, duration: 0 });
+    const colors = ['terracotta', 'neutral', 'classic', 'clear-jade', 'black-silver'].map((theme) => {
       document.documentElement.dataset.clientTheme = theme;
       const style = getComputedStyle(handle.node);
-      return { background: style.backgroundImage, text: style.color };
+      const actionStyle = getComputedStyle(handle.node.querySelector('.toast-action'));
+      return { background: style.backgroundImage, text: style.color, actionText: actionStyle.color, actionFill: actionStyle.backgroundColor };
     });
     const connected = handle.node.isConnected;
     handle.close(true);
     return { colors, connected };
   });
   assert.equal(themed.connected, true);
-  assert.equal(new Set(themed.colors.map((color) => color.background)).size, 3);
-  assert.equal(new Set(themed.colors.map((color) => color.text)).size, 3);
+  assert.equal(new Set(themed.colors.map((color) => color.background)).size, 5);
+  assert.equal(new Set(themed.colors.map((color) => color.text)).size, 5);
   assert.match(themed.colors[2].background, /rgb\(224, 228, 245\).*rgb\(211, 216, 239\).*rgb\(200, 206, 232\)/);
+  assert.equal(themed.colors[3].actionText, 'rgb(255, 255, 255)');
+  assert.equal(themed.colors[4].actionText, 'rgb(32, 38, 43)');
+  assert.equal(themed.colors[4].actionFill, 'rgb(202, 214, 223)');
   await page.evaluate(async () => {
     const { createToastStack } = await import('/js/shared/toast.js');
     const container = document.createElement('div');

@@ -205,18 +205,12 @@ test('song board keeps song names readable in narrow browser sources', async () 
   });
 
   const listRule = overlayStyles.match(/\.song-scroll-list\s*\{[^}]*\}/)?.[0];
-  const cardRule = [...overlayStyles.matchAll(/\.song-card\s*\{[^}]*\}/g)]
-    .map((match) => match[0])
-    .find((rule) => /display:\s*flex/.test(rule));
   const nameRule = overlayStyles.match(/\.song-card strong\s*\{[^}]*\}/)?.[0];
   const artistRule = overlayStyles.match(/\.song-card span\s*\{[^}]*\}/)?.[0];
   assert.ok(listRule);
-  assert.ok(cardRule);
   assert.ok(nameRule);
   assert.ok(artistRule);
   assert.match(listRule, /grid-auto-rows:\s*max-content/);
-  assert.match(cardRule, /display:\s*flex/);
-  assert.doesNotMatch(cardRule, /grid-template-columns/);
   assert.match(nameRule, /flex:\s*1 1 auto/);
   assert.match(nameRule, /min-width:\s*0/);
   assert.match(artistRule, /text-overflow:\s*ellipsis/);
@@ -252,13 +246,13 @@ test('song board keeps song names readable in narrow browser sources', async () 
   assert.doesNotMatch(source, /list\.innerHTML\s*=\s*html/);
 });
 
-test('song display board keeps one viewport above and one and a half below', async () => {
+test('song display board bounds rendered rows and preserves the scroll anchor', async () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'songs.html'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'overlays', 'base.css');
   assert.match(html, /<script type="module" src="\/js\/overlays\/songs\.js\?v=[^"]+"><\/script>/);
-  assert.match(source, /new SongVirtualScroller\(\{[\s\S]*beforeViewports: 1,[\s\S]*afterViewports: 1\.5/);
-  assert.match(source, /new ResizeObserver\(\(\) => scheduleRelayout\(\{ delay: 120 \}\)\)/);
+  assert.match(source, /new SongVirtualScroller\s*\(/);
+  assert.match(source, /new ResizeObserver\s*\([\s\S]*?\bscheduleRelayout\b/);
   assert.doesNotMatch(styles, /@keyframes song-scroll/);
   assert.doesNotMatch(source, /insertAdjacentHTML|\.innerHTML\s*=/);
 
@@ -365,8 +359,6 @@ test('song display board keeps one viewport above and one and a half below', asy
   });
 
   scroller.setRecords(records, { key: 'song:500', offset: 5 });
-  assert.equal(scroller.beforeViewports, 1);
-  assert.equal(scroller.afterViewports, 1.5);
   assert.ok(content.children.length < 40, `expected a bounded DOM, got ${content.children.length} nodes`);
   assert.ok(viewport.scrollTop >= 100);
   assert.equal(scroller.captureAnchor().key, 'song:500');

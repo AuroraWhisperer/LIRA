@@ -39,7 +39,7 @@ async function startCanvasOutputFixture({ extraContext } = {}) {
   const server = await startComponentPreviewServer({ scenes, getOwner: () => owner, getState: () => runtime,
     readDanmakuDisplay: sceneRuntime.readDanmakuDisplay,
     parentHtml: '<!doctype html><html><body></body></html>' });
-  return { ...server, service, runtime, owner, updateCloud,
+  return { ...server, service, runtime, owner, updateCloud, receiveGift: sceneRuntime.receiveGift,
     configs: Object.fromEntries(['clock', 'queue', 'danmaku', 'overtime'].map(id => [id, ports.getDefaultConfig(id)])),
     failPublication(value) { failPublish = value; },
     async close() { await server.close(); db.close(); },

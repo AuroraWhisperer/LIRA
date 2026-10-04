@@ -9,6 +9,7 @@ const test = require('node:test');
 
 const ROOT = path.resolve(__dirname, '../..');
 const RUNNER = path.join(ROOT, 'scripts/run-tests.js');
+const temporaryRoot = path.join(ROOT, 'tmp/test-runner');
 const runtimeGroups = ['browser', 'desktop', 'installer', 'contracts', 'offline'];
 
 function run(root, ...args) {
@@ -32,10 +33,11 @@ function list(root, ...args) {
 const configuredGroups = Object.fromEntries(runtimeGroups.map((group) => [group, list(ROOT, group)]));
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-test-runner-'));
+  fs.mkdirSync(temporaryRoot, { recursive: true });
+  const root = fs.mkdtempSync(path.join(temporaryRoot, 'run-'));
   t.after(() => {
-    assert.equal(path.dirname(fs.realpathSync(root)), fs.realpathSync(os.tmpdir()));
-    assert.ok(path.basename(root).startsWith('lira-test-runner-'));
+    assert.equal(path.dirname(fs.realpathSync(root)), fs.realpathSync(temporaryRoot));
+    assert.ok(path.basename(root).startsWith('run-'));
     fs.rmSync(root, { recursive: true, force: true });
   });
   const put = (relative, source = '') => {
@@ -88,18 +90,38 @@ test('recursive discovery excludes helpers and probes while preserving distinct 
   assert.deepEqual(list(root, 'browser', '--domain=ui'), ['test/ui/frontend-toast.test.js']);
 });
 
-test('invalid groups, domains and empty intersections fail instead of running an unintended suite', (t) => {
+test('file selectors combine without duplicates and intersect with domains and runtime groups', (t) => {
+  const { root, put } = fixture(t);
+  put('test/sample/first.test.js');
+  put('test/sample/second.test.js');
+  put('test/other/first.test.js');
+  assert.deepEqual(list(root, '--file=test/sample/*.test.js', '--file', 'test/sample/first.test.js'), [
+    'test/sample/first.test.js',
+    'test/sample/second.test.js',
+  ]);
+  assert.deepEqual(list(root, '--domain=sample', '--file=test/**/first.test.js'), ['test/sample/first.test.js']);
+  assert.deepEqual(list(root, '--file=.\\test\\sample\\first.test.js'), ['test/sample/first.test.js']);
+  assert.deepEqual(list(root, 'browser', '--file=test/ui/*.test.js'), ['test/ui/frontend-toast.test.js']);
+});
+
+test('invalid selectors and empty intersections fail instead of running an unintended suite', (t) => {
   const { root, put } = fixture(t);
   put('test/sample/only.test.js');
-  for (const args of [['unknown'], ['--domain=unknown'], ['--domain='], ['--domain'], ['browser', '--domain=sample']]) {
+  for (const args of [
+    ['unknown'], ['--domain=unknown'], ['--domain='], ['--domain'], ['browser', '--domain=sample'],
+    ['--file='], ['--file'], ['--file=test/missing/*.test.js'],
+    ['--file=test/sample/only.test.js', '--file=test/sample/typo.test.js'],
+    ['browser', '--file=test/sample/*.test.js'], ['--domain=sample', '--file=test/ui/*.test.js'],
+  ]) {
     const result = run(root, ...args, '--list');
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Unknown test (group|domain)|No tests selected/);
+    assert.match(result.stderr, /Unknown test (group|domain|file pattern)|No tests selected/);
     assert.equal(result.stdout, '');
   }
   const help = run(root, '--help');
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /--domain=<directory>/);
+  assert.match(help.stdout, /--file=<path-or-glob>/);
   assert.match(help.stdout, /sample/);
 });
 
@@ -119,6 +141,7 @@ test('missing and duplicate dependency assignments fail collection', (t) => {
 
 test('execution forwards Node options, keeps VM modules and process isolation, and propagates failures', (t) => {
   const { root, put } = fixture(t);
+  put('test/sample/unselected.test.js', "throw new Error('unselected file was loaded');");
   for (const name of ['first', 'second']) {
     put(
       `test/sample/${name}.test.js`,
@@ -139,13 +162,15 @@ test('execution forwards Node options, keeps VM modules and process isolation, a
   const result = run(
     root,
     'offline',
-    '--domain=sample',
+    '--file=test/sample/first.test.js',
+    '--file=test/sample/second.test.js',
     '--test-concurrency=1',
     '--test-name-pattern',
     '^selected$',
     '--test-reporter=tap',
   );
   assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /File scope: partial \(2\//);
   const pids = fs.readFileSync(path.join(root, 'pids.txt'), 'utf8').trim().split(/\r?\n/).map(Number);
   assert.equal(pids.length, 2);
   assert.equal(new Set(pids).size, 2);

@@ -36,6 +36,7 @@ function createDom() {
     return {
       listeners: new Map(),
       children: [],
+      elements: [],
       dataset: {},
       hidden: false,
       isConnected: true,
@@ -128,6 +129,38 @@ async function loadOverlay(dom, fetch, search) {
   await loadModuleExports(entry('overlays', 'opening.js'), dom.globals(fetch, search));
   await flush();
 }
+
+test('opening canvas receives media only from its parent and pauses on disconnect or disposal', async () => {
+  const dom = createDom();
+  const messages = [];
+  dom.window.parent = { postMessage: message => messages.push(message) };
+  const globals = dom.globals(() => { throw new Error('canvas must not fetch configuration'); }, '?componentPreview=1&sceneComponent=1');
+  globals.requestAnimationFrame = callback => { callback(); };
+  await loadModuleExports(entry('overlays', 'opening.js'), globals);
+  assert.equal(messages[0].type, 'component-preview:ready');
+  const receive = (type, values = {}, source = dom.window.parent) => dom.window.dispatch('message', {
+    source, origin: 'null', data: { type: `component-preview:${type}`, ...values },
+  });
+  await receive('init', { config: {} });
+  assert.equal(messages.at(-1).type, 'component-preview:prepared');
+  await receive('data', { data: savedConfig() }, {});
+  assert.ok(dom.stage.classList.contains('is-disabled'));
+  await receive('data', { data: savedConfig({ characterUrl: '/opening-character/upload.png' }) });
+  const audio = dom.document.getElementById('openingAudio');
+  assert.equal(audio.src, '/opening-media/sample.ogg');
+  assert.equal(dom.document.getElementById('openingAvatar').src, '/opening-character/upload.png');
+  assert.equal(dom.stage.classList.contains('is-disabled'), false);
+  await receive('data', { data: null });
+  assert.equal(audio.paused, true);
+  assert.equal(audio.getAttribute('src'), null);
+  assert.equal(dom.stage.classList.contains('is-disabled'), true);
+  await receive('data', { data: savedConfig() });
+  await receive('dispose');
+  assert.equal(audio.paused, true);
+  assert.equal(audio.getAttribute('src'), null);
+  await receive('data', { data: savedConfig() });
+  assert.equal(audio.getAttribute('src'), null);
+});
 
 test('opening source polls while disabled and updates text without restarting media or motion', async () => {
   const dom = createDom();
@@ -277,12 +310,58 @@ test('opening accepts only its parent config and preserves it over a late saved 
   assert.ok(dom.stage.classList.contains('no-character'));
 });
 
-test('opening editor keeps one preview and serializes saves with the latest controls', async () => {
+for (const failure of ['http', 'payload', 'network']) {
+  test(`opening editor blocks writes after ${failure} read failure and retries before editing`, async () => {
+    const dom = createDom();
+    const writes = [];
+    let reads = 0;
+    const retry = Promise.withResolvers();
+    const form = dom.document.getElementById('openingAnimationForm');
+    const volume = dom.document.getElementById('openingAudioVolume');
+    const title = dom.document.getElementById('openingTitle');
+    form.elements = [volume, title];
+    const module = await loadModuleExports(entry('admin', 'start-animation.js'), dom.globals(async (_url, options = {}) => {
+      if (options.method) { writes.push(JSON.parse(options.body)); return { ok: true }; }
+      reads += 1;
+      if (reads > 1) return retry.promise;
+      if (failure === 'network') throw new Error('OFFLINE');
+      return failure === 'http' ? { ok: false } : { ok: true, json: async () => ({ ok: false }) };
+    }));
+    module.initStartAnimation();
+    await flush();
+    assert.equal(volume.disabled, true);
+    assert.equal(dom.document.getElementById('openingEnabled').disabled, true);
+    assert.equal(dom.document.getElementById('openingPreviewBtn').disabled, true);
+    assert.match(dom.document.getElementById('openingConfigStatus').textContent, /读取失败/);
+    assert.equal(dom.document.getElementById('openingReload').hidden, false);
+    volume.value = '80';
+    await form.dispatch('input', { target: volume });
+    for (const { callback } of dom.timers.values()) await callback();
+    assert.deepEqual(writes, []);
+
+    const loading = dom.document.getElementById('openingReload').dispatch('click');
+    await dom.document.getElementById('openingReload').dispatch('click');
+    assert.equal(reads, 2, 'retry clicks cannot overlap reads');
+    assert.equal(volume.disabled, true);
+    retry.resolve(reply(savedConfig({ title: '已保存的标题' })));
+    await loading;
+    await flush();
+    assert.equal(volume.disabled, false);
+    assert.equal(dom.document.getElementById('openingReload').hidden, true);
+    assert.equal(title.value, '已保存的标题');
+    volume.value = '80';
+    await form.dispatch('input', { target: volume });
+    await dom.tick(220);
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].openingTitle, '已保存的标题');
+    assert.equal(writes[0].openingAudioVolume, '0.8');
+  });
+}
+
+test('opening editor serializes saves with the latest controls and does not create an inline preview', async () => {
   const dom = createDom();
   const preview = dom.document.getElementById('openingPreview');
-  const messages = [];
   const saves = [];
-  preview.contentWindow = { postMessage: (message, origin) => messages.push({ message, origin }) };
   const globals = dom.globals((_url, options = {}) => {
     if (options.method === 'POST') return new Promise((resolve) => saves.push({ resolve, payload: JSON.parse(options.body) }));
     return Promise.resolve(reply(savedConfig()));
@@ -291,8 +370,7 @@ test('opening editor keeps one preview and serializes saves with the latest cont
   const module = await loadModuleExports(entry('admin', 'start-animation.js'), globals);
   module.initStartAnimation();
   await flush();
-  assert.equal(preview.srcWrites, 1);
-  assert.equal(new URL(preview.src).origin, 'http://localhost:3000');
+  assert.equal(preview.srcWrites, 0);
   assert.equal(dom.document.getElementById('openingUrl').textContent, 'http://127.0.0.1:3000/opening');
   const title = dom.document.getElementById('openingTitle');
   title.value = '第一版';
@@ -310,26 +388,19 @@ test('opening editor keeps one preview and serializes saves with the latest cont
   assert.equal(saves[1].payload.openingTitle, '最新文案');
   saves[1].resolve({ ok: true });
   await firstSave;
-  await preview.dispatch('load');
-  assert.equal(preview.srcWrites, 1);
-  assert.equal(messages.at(-1).message.type, 'lira:opening-preview-config');
-  assert.equal(messages.at(-1).message.config.title, '最新文案');
-  assert.equal(messages.at(-1).origin, '*');
+  assert.equal(dom.document.getElementById('openingPreviewBtn').disabled, false);
+  assert.equal(preview.srcWrites, 0);
   await dom.document.getElementById('openingAnimationForm').dispatch('change', { target: title });
   await dom.tick(220);
   assert.equal(saves.length, 2, 'duplicate input/change must not save the same payload again');
 
   dom.document.getElementById('openingEnabled').checked = false;
   await dom.document.getElementById('openingEnabled').dispatch('change');
-  assert.equal(preview.src, 'about:blank');
-  assert.ok(preview.hidden);
 });
 
-test('opening editor updates uploaded media without navigating the preview', async () => {
+test('opening editor updates the uploaded character name', async () => {
   const dom = createDom();
-  const messages = [];
   const preview = dom.document.getElementById('openingPreview');
-  preview.contentWindow = { postMessage: (message) => messages.push(message) };
   const globals = dom.globals(async (_url, options = {}) => reply(savedConfig({
     characterUrl: options.method === 'POST' ? '/opening-character/uploaded.png' : '',
     characterName: '上传人物',
@@ -341,7 +412,62 @@ test('opening editor updates uploaded media without navigating the preview', asy
   const upload = dom.document.getElementById('openingCharacterFile');
   upload.files = [{ name: 'person.png', size: 32 }];
   await upload.dispatch('change', { target: upload });
-  assert.equal(preview.srcWrites, 1);
-  assert.equal(messages.at(-1).config.characterUrl, '/opening-character/uploaded.png');
-  assert.equal(messages.at(-1).config.audioUrl, '/opening-media/sample.ogg');
+  assert.equal(preview.srcWrites, 0);
+});
+
+test('opening style selection saves while retaining classic-only settings', async () => {
+  const dom = createDom();
+  const writes = [];
+  const preview = dom.document.getElementById('openingPreview');
+  const module = await loadModuleExports(entry('admin', 'start-animation.js'), dom.globals(async (_url, options = {}) => {
+    if (options.method === 'POST') writes.push(JSON.parse(options.body));
+    return reply(savedConfig({ style: 'classic', title: '保留的标题', characterUrl: '/opening-character/custom.png' }));
+  }));
+  module.initStartAnimation();
+  await flush();
+  const style = dom.document.getElementById('openingStyle');
+  style.value = 'pixel-cassette';
+  await dom.document.getElementById('openingAnimationForm').dispatch('change', { target: style });
+  await dom.tick(220);
+  assert.equal(writes[0].openingStyle, 'pixel-cassette');
+  assert.equal(writes[0].openingTitle, '保留的标题');
+  assert.equal(dom.document.getElementById('openingCharacterSection').hidden, false);
+  assert.equal(dom.document.getElementById('openingCharacterHeading').textContent, '头像图片');
+  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '未上传头像');
+  assert.equal(dom.document.getElementById('openingPixelHint').hidden, false);
+  style.value = 'classic';
+  await dom.document.getElementById('openingAnimationForm').dispatch('change', { target: style });
+  assert.equal(dom.document.getElementById('openingCharacterSection').hidden, false);
+  assert.equal(dom.document.getElementById('openingTitle').value, '保留的标题');
+  assert.equal(preview.srcWrites, 0);
+});
+
+test('pixel avatar upload and clear use the pixel slot', async () => {
+  const dom = createDom();
+  const writes = [];
+  const preview = dom.document.getElementById('openingPreview');
+  const globals = dom.globals(async (url, options = {}) => {
+    if (options.method) writes.push({ url, method: options.method });
+    return reply(savedConfig({ style: 'pixel-cassette',
+      characterUrl: '/opening-character/classic.png', characterName: 'classic.png',
+      pixelCharacterUrl: options.method === 'POST' ? '/opening-character/pixel.png' : '',
+      pixelCharacterName: options.method === 'POST' ? 'pixel.png' : '',
+    }));
+  });
+  globals.FormData = class { append() {} };
+  const module = await loadModuleExports(entry('admin', 'start-animation.js'), globals);
+  module.initStartAnimation();
+  await flush();
+  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '未上传头像');
+  const upload = dom.document.getElementById('openingCharacterFile');
+  upload.files = [{ name: 'pixel.png', size: 32 }];
+  await upload.dispatch('change', { target: upload });
+  assert.equal(dom.document.getElementById('openingCharacterName').textContent, 'pixel.png');
+  await dom.document.getElementById('openingResetCharacter').dispatch('click');
+  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '未上传头像');
+  assert.deepEqual(writes, [
+    { url: '/api/opening/character?style=pixel-cassette', method: 'POST' },
+    { url: '/api/opening/character?style=pixel-cassette', method: 'DELETE' },
+  ]);
+  assert.equal(preview.srcWrites, 0);
 });

@@ -1,14 +1,15 @@
 /* Shared option panel. Light pages share one accent; only the dark onboarding variant differs. */
 .lira-select {
-  --select-accent: var(--color-primary-text, var(--color-control-accent));
+  --select-accent: var(--color-selection-text, var(--color-primary-text, var(--color-control-accent)));
   --select-accent-soft: var(--color-control-accent-light);
   --select-surface: var(--color-floating-surface, #fff);
+  --select-control-surface: var(--color-control-surface, var(--select-surface));
   --select-border: var(--color-border-default, #d9e0e8);
   --select-control-border: var(--color-control-border, var(--select-border));
   --select-control-border-hover: var(--color-control-border-hover, var(--color-border-strong));
   --select-text: var(--text);
   --select-muted: var(--muted);
-  --select-option-hover: var(--color-bg-tertiary);
+  --select-option-hover: var(--color-bg-hover, var(--color-bg-tertiary));
   position: relative;
   width: 100%;
   min-width: 0;
@@ -19,6 +20,7 @@
   --select-accent-soft: rgba(245, 183, 47, 0.14);
   --select-option-hover: rgba(255, 255, 255, 0.09);
   --select-surface: #242a3a;
+  --select-control-surface: var(--select-surface);
   --select-border: rgba(255, 255, 255, 0.2);
   --select-control-border: var(--select-border);
   --select-control-border-hover: var(--select-accent);
@@ -51,7 +53,7 @@
   padding: 7px 10px;
   border: 1px solid var(--select-control-border);
   border-radius: var(--radius-control, 7px);
-  background: var(--select-surface);
+  background: var(--select-control-surface);
   color: var(--select-text);
   font: inherit;
   text-align: left;

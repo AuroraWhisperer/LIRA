@@ -235,14 +235,14 @@ html.lira-tour-active .other-feature-panel {
 }
 
 .lira-tour-actions button.primary {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--color-text-white);
+  border-color: transparent;
+  background: var(--color-primary-fill);
+  color: var(--color-on-primary);
 }
 
 .lira-tour-actions button.primary:hover {
-  background: var(--primary-strong);
-  border-color: var(--primary-strong);
+  background: var(--color-primary-fill-hover);
+  border-color: transparent;
 }
 
 .lira-tour-actions button:disabled {
@@ -298,7 +298,7 @@ html.lira-tour-active .other-feature-panel {
   content: '✓';
   border: 0;
   background: var(--color-success-dark);
-  color: var(--color-text-white);
+  color: var(--color-on-success);
   opacity: 1;
 }
 
@@ -406,7 +406,7 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-exit-leave {
   border-color: var(--color-danger);
   background: var(--color-danger);
-  color: var(--color-text-white);
+  color: var(--color-on-danger);
 }
 
 .lira-tour-exit-leave:hover {

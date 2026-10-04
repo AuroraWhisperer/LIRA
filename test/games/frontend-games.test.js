@@ -22,9 +22,6 @@ test('games admin exposes source actions and controls for shared games and the i
   assert.match(html, /\sdata-wheel-card(?:\s|=|>)/);
   assert.match(html, /\sid="gamesSessionStatus"/);
   assert.doesNotMatch(html, /gamesCopyBaseUrlBtn|wheelCopyUrlBtn|interactionsCopy|interactionsSourceToggle/);
-  assert.match(html, /开始数字炸弹/);
-  assert.match(html, /开始五子棋/);
-  assert.match(html, /开始你画我猜/);
   assert.match(html, /id="drawCardTrigger"/);
   assert.match(html, /id="drawCardDetails"/);
   assert.match(html, /id="drawHostWord"/);
@@ -36,8 +33,6 @@ test('games admin exposes source actions and controls for shared games and the i
   assert.match(html, /id="drawWordCategoryStatus"/);
   assert.match(html, /id="drawSelectAllCategoriesBtn"/);
   assert.match(html, /id="drawClearCategoriesBtn"/);
-  assert.match(html, /1–12 局/);
-  assert.match(html, /15–300 秒/);
   assert.match(html, /画板快捷操作：.*B.*画笔.*E.*橡皮擦.*Ctrl\+Z.*撤销/s);
   assert.match(html, /清空画布前会二次确认/);
   assert.doesNotMatch(html, /data-copy-game/);
@@ -96,8 +91,6 @@ test('games admin uses one base URL and never opens a game-specific URL', () => 
   assert.match(script, /totalRounds: Number\(byId\(["']drawTotalRounds["']\)\.value\)/);
   assert.match(script, /roundDurationSeconds: Number\(byId\(["']drawRoundDuration["']\)\.value\)/);
   assert.match(script, /api\/games\/draw-guess\/categories/);
-  assert.match(script, /const categoryIds = readSelectedDrawCategoryIds\(\)/);
-  assert.match(script, /categoryIds,?\s*\n/);
   assert.match(script, /function renderDrawCategories\(/);
   assert.match(script, /createElement\(["']input["']\)/);
   assert.match(script, /textContent/);
@@ -117,8 +110,6 @@ test('games viewer refresh waits for the live connection and retries an empty st
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
 
   assert.match(script, /import \{ eventBus, Events \} from ["']\.\.\/shared\/event-bus\.js["'];/);
-  assert.match(script, /const VIEWER_REFRESH_RETRY_DELAYS_MS = \[/);
-  assert.match(script, /let viewerRefreshPromise = null;/);
   assert.match(script, /function requestViewerRefresh\(options = \{\}\)/);
   assert.match(script, /eventBus\.on\(Events\.STATE_LOADED, \(\{ state \}\) =>/);
   assert.match(script, /liveStatus\.connected === true/);

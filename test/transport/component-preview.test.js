@@ -51,6 +51,11 @@ test('compact links retain each entry selection and size while reusing the same 
     ...entry, component: ['clock', 'queue', 'canvas'][index] })), selectedId: 'clock', selectedSize: { width: 800, height: 300 } });
   assert.equal(sessions.resolveLink(canvas.key).selectedId, null);
   assert.equal(sessions.resolveLink(queue.key).selectedId, 'queue');
+  for (const selectedId of ['gift-frame', 'guard-thanks']) {
+    const entry = sessions.link({ links, selectedId });
+    assert.equal(sessions.resolveLink(entry.key).selectedId, selectedId);
+    assert.throws(() => sessions.link({ links: [links[0]], selectedId }), { statusCode: 400 });
+  }
   assert.equal(sessions.resolveLink(queue.key).selectedSize, null);
   for (const selection of [{ selectedId: 'danmaku' }, { selectedId: '__proto__' },
     { selectedSize: { width: 580, height: 210 } }, { selectedId: 'clock', selectedSize: { width: -1, height: 210 } },

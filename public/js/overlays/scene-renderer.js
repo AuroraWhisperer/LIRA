@@ -1,4 +1,5 @@
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
+import { createSceneGiftDisplay } from './scene-gift-display.js';
 const MAX_PENDING_EVENTS = 200;
 
 export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 12000 } = {}) {
@@ -8,6 +9,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
   let latestData = {};
   let pendingDanmaku = null;
   let dataSequence = 1;
+  const giftDisplay = createSceneGiftDisplay();
   const send = (entry, type, values = {}) => entry.frame.contentWindow?.postMessage({ type: `component-preview:${type}`, ...values }, '*');
   function release(version) {
     if (!version) return;
@@ -26,7 +28,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     const next = staging;
     staging = null;
     clearTimeout(next.timer);
-    data(next, pendingDanmaku ? { ...latestData, danmaku: pendingDanmaku } : latestData);
+    data(next, { ...latestData, ...(pendingDanmaku ? { danmaku: pendingDanmaku } : {}), ...giftDisplay.takePending() });
     pendingDanmaku = null;
     next.root.classList.remove('is-staging');
     release(active);
@@ -86,7 +88,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     getProjection: () => active?.projection || '',
     update(response) {
       if (disposed) return;
-      const values = response.data || {};
+      const values = giftDisplay.update(response.data || {}, active?.entries.map((entry) => entry.item.type) || []);
       const cloud = values.danmaku;
       data(active, values);
       if (cloud && !active?.entries.some((entry) => entry.item.type === 'danmaku')) {
@@ -99,10 +101,11 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
           gap: Boolean(cloud.gap || !reset && previous.gap || events.length > MAX_PENDING_EVENTS),
           events: events.slice(-MAX_PENDING_EVENTS) };
       } else pendingDanmaku = null;
-      latestData = { ...values, ...(cloud ? { danmaku: { ...cloud, reset: false, events: [] } } : {}) };
+      latestData = { ...giftDisplay.withoutEvents(values), ...(cloud ? { danmaku: { ...cloud, reset: false, events: [] } } : {}) };
       if (response.document) prepare(response.document, response.version, response.projection);
     },
     disconnect() {
+      giftDisplay.clear();
       dataSequence += 1;
       pendingDanmaku = null;
       const resets = Object.fromEntries(Object.entries(SCENE_COMPONENTS)
@@ -112,6 +115,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       data(active, resets);
     },
     revoke() {
+      giftDisplay.clear();
       release(staging);
       release(active);
       staging = null;

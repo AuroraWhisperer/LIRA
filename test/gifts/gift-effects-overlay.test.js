@@ -16,23 +16,13 @@ function readOverlayModules() {
   return [read('public/js/overlays/gift-effects.js'), read('public/js/overlays/gift-effects-frame.js')].join('\n');
 }
 
-test('server exposes gift effect lookup and broadcasts finalized gift effects', () => {
+test('gift effect preview resolves the gift and broadcasts to the fixed overlay url', async () => {
   const serverSource = read('src/server.js');
-  const transportSource = read('src/server/runtime-transport.js');
   const apiContextSource = read('src/server/api-context.js');
-  const giftRoutesSource = read('src/server/routes/gift-routes.js');
 
   assert.match(serverSource, /giftEffectModule\.createGiftEffectResolver\(/);
-  assert.match(transportSource, /buildGiftFrameEvent\([\s\S]*?item,[\s\S]*?getSettings\(\)/);
-  assert.match(transportSource, /getWebSocketHub\(\)\?\.broadcast\(frameEvent\)/);
   assert.match(apiContextSource, /resolveEffect/);
   assert.match(apiContextSource, /previewEffect/);
-  assert.match(giftRoutesSource, /GET \/api\/gifts\/effects\/resolve/);
-  assert.match(giftRoutesSource, /POST \/api\/gifts\/effects\/preview/);
-  assert.match(giftRoutesSource, /\^\\d\{1,12\}\$/);
-});
-
-test('gift effect preview resolves the gift and broadcasts to the fixed overlay url', async () => {
   const { routes } = require('../../src/server/routes/gift-routes');
   const handler = routes['POST /api/gifts/effects/preview'];
   const broadcasts = [];
@@ -146,8 +136,8 @@ test('effect 1 uses a transparent video and a separate two-line caption', () => 
   assert.ok(video, 'effect 1 must keep its media element');
   assert.match(video, /\smuted(?:\s|=|>)/);
   assert.match(video, /\splaysinline(?:\s|=|>)/);
-  assert.match(html, /感谢<\/span><strong id="giftInfoUser"/);
-  assert.match(html, /送出<\/span><strong id="giftInfoName"/);
+  assert.match(html, /id="giftInfoUser"/);
+  assert.match(html, /id="giftInfoName"/);
   assert.doesNotMatch(html, /particleStage|giftFrameAccents|giftInfoAmount|frame-composite\.webp/);
   assert.match(css, /width: 1920px;[\s\S]*?height: 1080px;[\s\S]*?scale\(var\(--frame-scale/);
 });

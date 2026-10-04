@@ -55,7 +55,7 @@ lira-help:hover .lira-help-mark,
 lira-help:focus-visible .lira-help-mark {
   border-color: var(--color-help-accent, var(--color-control-accent));
   background: var(--color-help-accent, var(--color-control-accent));
-  color: var(--color-text-white);
+  color: var(--color-on-help-accent, var(--color-text-white));
 }
 
 lira-help:focus-visible {

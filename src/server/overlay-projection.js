@@ -195,7 +195,7 @@ const RESPONSE_SCHEMAS = {
   },
   opening: {
     '/api/opening/config': fields(
-      'enabled title subtitle name footer quality trackMotion showNotes showEq audio volume audioUrl characterUrl',
+      'enabled style title subtitle name footer quality trackMotion showNotes showEq audio volume audioUrl characterUrl pixelCharacterUrl',
     ),
   },
 };

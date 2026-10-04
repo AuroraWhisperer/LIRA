@@ -5,6 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { readAdminHtml } = require('../helpers/admin-html');
+const { CLIENT_THEMES, DEFAULT_CLIENT_THEME_ID } = require('../../src/shared/client-theme');
 
 const MODULE_PATH = path.resolve(__dirname, '../../public/js/admin/client-appearance.js');
 
@@ -26,8 +27,8 @@ function element(properties = {}) {
   };
 }
 
-async function createFixture({ themeId = 'neutral', setClientTheme } = {}) {
-  const choices = ['neutral', 'classic', 'terracotta'].map((value) => element({ value, checked: false }));
+async function createFixture({ themeId = 'neutral', setClientTheme, themes = CLIENT_THEMES } = {}) {
+  const choices = themes.map(({ id }) => element({ value: id, checked: false, defaultChecked: id === DEFAULT_CLIENT_THEME_ID }));
   const labels = choices.map(({ value }) => element({ dataset: { clientThemeCurrent: value } }));
   const applyButton = element();
   const feedback = element();
@@ -147,9 +148,37 @@ test('appearance controls without the desktop bridge explain where to change the
 
 test('appearance markup provides the same previews, native radio controls and live feedback', () => {
   const html = readAdminHtml();
-  for (const themeId of ['neutral', 'classic', 'terracotta']) {
-    assert.match(html, new RegExp(`<input\\b(?=[^>]*\\stype=["']radio["'])(?=[^>]*\\sname=["']clientTheme["'])(?=[^>]*\\svalue=["']${themeId}["'])[^>]*>`));
-    assert.match(html, new RegExp(`data-client-theme-preview="${themeId}"`));
+  const inputs = [...html.matchAll(/<input\b(?=[^>]*\sname="clientTheme")[^>]*>/g)].map(([tag]) => tag);
+  assert.deepEqual(inputs.map((tag) => tag.match(/value="([^"]+)"/)[1]), CLIENT_THEMES.map(({ id }) => id));
+  assert.deepEqual(inputs.filter((tag) => /\schecked(?:\s|>)/.test(tag)).map((tag) => tag.match(/value="([^"]+)"/)[1]), [DEFAULT_CLIENT_THEME_ID]);
+  for (const { id, name } of CLIENT_THEMES) {
+    assert.match(html, new RegExp(`<input\\b(?=[^>]*\\stype=["']radio["'])(?=[^>]*\\sname=["']clientTheme["'])(?=[^>]*\\svalue=["']${id}["'])[^>]*>`));
+    assert.equal((html.match(new RegExp(`data-client-theme-preview="${id}"`, 'g')) || []).length, 1);
+    assert.ok(html.includes(`<span>${name}</span>`));
   }
+  assert.doesNotMatch(html, /\{\{client-theme-|<template data-client-theme-option>/);
   assert.match(html, /<[^>]+(?=[^>]*\sdata-client-theme-feedback(?:\s|>))(?=[^>]*\srole=["']status["'])(?=[^>]*\saria-live=["']polite["'])[^>]*>/);
+});
+
+test('appearance accepts a catalog option without a separate frontend allowlist', async () => {
+  const themes = [...CLIENT_THEMES, { id: 'catalog-addition' }];
+  const fixture = await createFixture({ themes, setClientTheme: (themeId) => ({ ok: true, themeId }) });
+  await fixture.choose('catalog-addition');
+  await fixture.applyButton.dispatch('click');
+  assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'catalog-addition');
+  const restored = await createFixture({ themes, themeId: 'catalog-addition', setClientTheme: () => {} });
+  assert.equal(restored.choices.find((choice) => choice.checked).value, 'catalog-addition');
+});
+
+test('new light and dark choices can be applied, restored and switched back to an existing theme', async () => {
+  const fixture = await createFixture({ setClientTheme: (themeId) => ({ ok: true, themeId }) });
+  for (const themeId of ['clear-jade', 'black-silver', 'rose-lustre', 'classic']) {
+    await fixture.choose(themeId);
+    await fixture.applyButton.dispatch('click');
+    assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, themeId);
+    assert.equal(fixture.labels.find((label) => !label.hidden).dataset.clientThemeCurrent, themeId);
+    const restored = await createFixture({ themeId, setClientTheme: () => {} });
+    assert.equal(restored.choices.find((choice) => choice.checked).value, themeId);
+    assert.equal(restored.applyButton.disabled, true);
+  }
 });

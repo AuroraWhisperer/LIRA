@@ -1,9 +1,11 @@
 'use strict';
 
 import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
+import { openComponentPreview } from './component-preview-dialog.js';
 
 const OPENING_DEFAULTS = Object.freeze({
   enabled: false,
+  style: 'classic',
   title: '唱一首，在一首，给你的歌',
   subtitle: '开播准备中',
   name: '',
@@ -30,6 +32,7 @@ function readStartAnimationConfig(root = document) {
   const trackMotion = value('openingTrackMotion', OPENING_DEFAULTS.trackMotion);
   return {
     enabled: Boolean(root.getElementById('openingEnabled')?.checked),
+    style: value('openingStyle', OPENING_DEFAULTS.style),
     title: value('openingTitle', OPENING_DEFAULTS.title).trim(),
     subtitle: value('openingSubtitle', OPENING_DEFAULTS.subtitle).trim(),
     name: value('openingName', OPENING_DEFAULTS.name).trim(),
@@ -44,27 +47,6 @@ function readStartAnimationConfig(root = document) {
   };
 }
 
-function buildOpeningUrl(origin, config) {
-  const url = new URL('/opening', origin);
-  const params = new URLSearchParams();
-  params.set('enabled', config.enabled ? '1' : '0');
-  params.set('title', config.title || OPENING_DEFAULTS.title);
-  params.set('subtitle', config.subtitle || OPENING_DEFAULTS.subtitle);
-  params.set('name', config.name);
-  params.set('footer', config.footer || OPENING_DEFAULTS.footer);
-  params.set('quality', QUALITY_VALUES.has(config.quality) ? config.quality : OPENING_DEFAULTS.quality);
-  params.set(
-    'trackMotion',
-    TRACK_MOTION_VALUES.has(config.trackMotion) ? config.trackMotion : OPENING_DEFAULTS.trackMotion,
-  );
-  params.set('showNotes', config.showNotes ? '1' : '0');
-  params.set('showEq', config.showEq ? '1' : '0');
-  params.set('volume', String(Number.isFinite(config.volume) ? config.volume : OPENING_DEFAULTS.volume));
-  params.set('audio', 'browser');
-  url.search = params.toString();
-  return url.toString();
-}
-
 function buildOpeningSourceUrl(origin) {
   return new URL('/opening', origin).toString();
 }
@@ -72,6 +54,7 @@ function buildOpeningSourceUrl(origin) {
 function openingSettingsPayload(config) {
   return {
     openingEnabled: config.enabled ? 'true' : 'false',
+    openingStyle: config.style || OPENING_DEFAULTS.style,
     openingTitle: config.title,
     openingSubtitle: config.subtitle,
     openingName: config.name,
@@ -94,6 +77,7 @@ function setFormConfig(root, config) {
     if (element) element.checked = Boolean(value);
   };
   setChecked('openingEnabled', config.enabled);
+  setValue('openingStyle', config.style || OPENING_DEFAULTS.style);
   setValue('openingTitle', config.title);
   setValue('openingSubtitle', config.subtitle);
   setValue('openingName', config.name);
@@ -129,56 +113,46 @@ function initStartAnimation() {
 
   const root = document;
   const urlNode = document.getElementById('openingUrl');
-  const preview = document.getElementById('openingPreview');
+  const previewButton = document.getElementById('openingPreviewBtn');
   const titleCount = document.getElementById('openingTitleCount');
   const audioName = document.getElementById('openingAudioName');
   const audioStatus = document.getElementById('openingAudioStatus');
   const characterName = document.getElementById('openingCharacterName');
   const characterStatus = document.getElementById('openingCharacterStatus');
+  const configStatus = document.getElementById('openingConfigStatus');
+  const reloadButton = document.getElementById('openingReload');
   const origin = localOverlayOrigin(location);
   const sourceUrl = buildOpeningSourceUrl(origin);
-  const previewOrigin = new URL(location.href).origin;
   let persistTimer = null;
   let hydrated = false;
-  let mediaConfig = { audioUrl: '', characterUrl: '' };
+  let loading = false;
+  let characterNames = {};
   let saveInFlight = false;
   let saveQueued = false;
   let lastSavedPayload = '';
 
   const updateMediaConfig = (config) => {
-    mediaConfig = { audioUrl: config.audioUrl || '', characterUrl: config.characterUrl || '' };
-  };
-
-  const updatePreview = () => {
-    const config = readStartAnimationConfig(root);
-    if (!hydrated || !config.enabled) return;
-    preview?.contentWindow?.postMessage(
-      {
-        type: 'lira:opening-preview-config',
-        config: { ...config, ...mediaConfig },
-      },
-      '*',
-    );
+    characterNames = { classic: config.characterName || '', 'pixel-cassette': config.pixelCharacterName || '' };
   };
 
   const render = () => {
     const config = readStartAnimationConfig(root);
+    const pixelStyle = config.style === 'pixel-cassette';
+    for (const id of ['openingCopyHeading', 'openingCopyFields', 'openingTrackMotionField']) {
+      const field = root.getElementById(id);
+      if (field) field.hidden = pixelStyle;
+    }
+    const pixelHint = root.getElementById('openingPixelHint');
+    if (pixelHint) pixelHint.hidden = !pixelStyle;
+    if (characterName) characterName.textContent = characterNames[config.style]
+      || (pixelStyle ? '未上传头像' : '未上传人物图');
+    const characterHeading = root.getElementById('openingCharacterHeading');
+    if (characterHeading) characterHeading.textContent = pixelStyle ? '头像图片' : '人物图片';
+    const clearCharacter = root.getElementById('openingResetCharacter');
+    if (clearCharacter) clearCharacter.textContent = pixelStyle ? '清除头像' : '清除人物图';
     if (titleCount) titleCount.textContent = `${Array.from(config.title).length}/20`;
     updateVolumeOutput(root, config);
     if (urlNode) urlNode.textContent = sourceUrl;
-    if (preview && hydrated) {
-      if (!config.enabled) {
-        preview.hidden = true;
-        if (preview.src !== 'about:blank') preview.src = 'about:blank';
-      } else {
-        preview.hidden = false;
-        if (!preview.getAttribute('src') || preview.src === 'about:blank') {
-          preview.src = buildOpeningUrl(previewOrigin, config);
-        } else {
-          updatePreview();
-        }
-      }
-    }
     return config;
   };
 
@@ -209,44 +183,65 @@ function initStartAnimation() {
   };
 
   const schedulePersist = () => {
+    if (!hydrated) return;
     window.clearTimeout(persistTimer);
     persistTimer = window.setTimeout(persist, 220);
   };
 
+  const updateLoadState = () => {
+    for (const control of form.elements) control.disabled = !hydrated;
+    const enabled = root.getElementById('openingEnabled');
+    if (enabled) enabled.disabled = !hydrated;
+    if (previewButton) previewButton.disabled = !hydrated;
+    const loadState = root.getElementById('openingLoadState');
+    if (loadState) loadState.hidden = hydrated;
+    if (reloadButton) {
+      reloadButton.hidden = hydrated || loading;
+      reloadButton.disabled = loading;
+    }
+  };
+
   const loadSavedConfig = async () => {
+    if (loading || hydrated) return;
+    loading = true;
+    if (configStatus) configStatus.textContent = '正在读取开播配置…';
+    updateLoadState();
     try {
       const response = await fetch(OPENING_CONFIG_ENDPOINT, {
         cache: 'no-store',
       });
-      if (!response.ok) return;
+      if (!response.ok) throw new Error('开播配置读取失败');
       const payload = await response.json();
-      if (!payload?.ok || !payload.data) return;
+      if (!payload?.ok || !payload.data) throw new Error('开播配置读取失败');
       setFormConfig(root, payload.data);
       updateMediaConfig(payload.data);
       if (audioName) audioName.textContent = payload.data.audioName || '未上传音乐';
-      if (characterName) characterName.textContent = payload.data.characterName || '未上传人物图';
       lastSavedPayload = JSON.stringify(openingSettingsPayload(readStartAnimationConfig(root)));
-    } catch {
-      toast('开播配置读取失败，暂时显示默认设置。');
-    } finally {
       hydrated = true;
+    } catch {
+      if (configStatus) configStatus.textContent = '开播配置读取失败，请重新读取后再编辑。';
+    } finally {
+      loading = false;
+      updateLoadState();
       render();
     }
   };
 
   const handleConfigChange = () => {
+    if (!hydrated) return;
     render();
     schedulePersist();
   };
   form.addEventListener('input', handleConfigChange);
   form.addEventListener('change', handleConfigChange);
-  document.getElementById('openingEnabled')?.addEventListener('change', () => {
-    render();
-    schedulePersist();
+  document.getElementById('openingEnabled')?.addEventListener('change', handleConfigChange);
+  reloadButton?.addEventListener('click', () => { void loadSavedConfig(); });
+  previewButton?.addEventListener('click', () => {
+    if (hydrated) openComponentPreview({ id: 'opening' });
   });
-  preview?.addEventListener('load', updatePreview);
 
   document.getElementById('openingAudioFile')?.addEventListener('change', async (event) => {
+    if (!hydrated) return;
     const file = event.target.files?.[0];
     if (!file) return;
     if (audioStatus) audioStatus.textContent = '正在上传歌曲…';
@@ -271,6 +266,7 @@ function initStartAnimation() {
   });
 
   document.getElementById('openingCharacterFile')?.addEventListener('change', async (event) => {
+    if (!hydrated) return;
     const file = event.target.files?.[0];
     if (!file) return;
     const extension = file.name.split('.').pop()?.toLowerCase() || '';
@@ -288,13 +284,14 @@ function initStartAnimation() {
     const body = new FormData();
     body.append('file', file, file.name);
     try {
-      const response = await fetch(OPENING_CHARACTER_ENDPOINT, {
+      const style = readStartAnimationConfig(root).style;
+      const endpoint = style === 'pixel-cassette' ? `${OPENING_CHARACTER_ENDPOINT}?style=pixel-cassette` : OPENING_CHARACTER_ENDPOINT;
+      const response = await fetch(endpoint, {
         method: 'POST',
         body,
       });
       const payload = await response.json();
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '人物图片上传失败');
-      if (characterName) characterName.textContent = payload.data.characterName || file.name;
       if (characterStatus) characterStatus.textContent = '人物图片已保存。';
       updateMediaConfig(payload.data);
       render();
@@ -306,13 +303,15 @@ function initStartAnimation() {
   });
 
   document.getElementById('openingResetCharacter')?.addEventListener('click', async () => {
+    if (!hydrated) return;
     try {
-      const response = await fetch(OPENING_CHARACTER_ENDPOINT, {
+      const style = readStartAnimationConfig(root).style;
+      const endpoint = style === 'pixel-cassette' ? `${OPENING_CHARACTER_ENDPOINT}?style=pixel-cassette` : OPENING_CHARACTER_ENDPOINT;
+      const response = await fetch(endpoint, {
         method: 'DELETE',
       });
       const payload = await response.json();
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '清除人物图失败');
-      if (characterName) characterName.textContent = payload.data.characterName || '未上传人物图';
       if (characterStatus) characterStatus.textContent = '已清除人物图。';
       updateMediaConfig(payload.data);
       render();
@@ -322,6 +321,7 @@ function initStartAnimation() {
   });
 
   document.getElementById('openingResetAudio')?.addEventListener('click', async () => {
+    if (!hydrated) return;
     try {
       const response = await fetch(OPENING_AUDIO_ENDPOINT, {
         method: 'DELETE',
@@ -351,7 +351,6 @@ function initStartAnimation() {
 
 export {
   OPENING_DEFAULTS,
-  buildOpeningUrl,
   buildOpeningSourceUrl,
   initStartAnimation,
   readStartAnimationConfig,

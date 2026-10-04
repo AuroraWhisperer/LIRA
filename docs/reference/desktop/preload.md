@@ -29,7 +29,7 @@ Owner 为 [update-ipc.js](../../../src/electron/ipc/update-ipc.js)，客户端�
 
 | 通道 | 桥方法与输入 | 成功返回 / 公开失败 |
 | --- | --- | --- |
-| `desktop:set-client-theme` | `setClientTheme(themeId)`，恰好一个 `neutral` / `classic` / `terracotta` 字符串 | 成功 `{ok:true,themeId}`；失败 `{ok:false,error}`，错误为 `IPC_SOURCE_INVALID`、`IPC_ARGUMENTS_INVALID`、`CLIENT_THEME_INVALID` 或 `CLIENT_THEME_SAVE_FAILED`，失败不切换已提交状态 |
+| `desktop:set-client-theme` | `setClientTheme(themeId)`，恰好一个合法主题 ID 字符串；枚举及默认项由 [client-theme.js](../../../src/shared/client-theme.js) 的统一目录定义 | 成功 `{ok:true,themeId}`；失败 `{ok:false,error}`，错误为 `IPC_SOURCE_INVALID`、`IPC_ARGUMENTS_INVALID`、`CLIENT_THEME_INVALID` 或 `CLIENT_THEME_SAVE_FAILED`，失败不切换已提交状态 |
 | `desktop:get-info` | `getInfo()` | `{version,isPackaged,platform,dataDir,logFile,terminalLogFile,githubRepoUrl,updateState}` |
 | `desktop:get-resource-integrity-state` | `getResourceIntegrityState()` | 资源检查快照；多余参数 `IPC_ARGUMENTS_INVALID` |
 | `desktop:check-resource-integrity` | `checkResourceIntegrity()` | 当前/新任务快照，重复请求合并；同上 |

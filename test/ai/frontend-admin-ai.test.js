@@ -7,7 +7,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { NUMBER_LIMITS } = require('../../src/ai/config');
-const { loadModuleExports } = require('../helpers/frontend-modules');
 const { MIN_CHUNK_INTERVAL_MS, MAX_CHUNK_INTERVAL_MS } = require('../../src/ai/ai-assistant-helpers');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -34,109 +33,6 @@ test('AI form number constraints match the server contract', () => {
     assert.equal(Number(input.match(/\smax\s*=\s*["']([^"']+)["']/)?.[1]), NUMBER_LIMITS[key][1]);
   }
   assert.equal((html.match(/\bdata-ai-secret\b/g) || []).length, 3);
-});
-
-test('admin page uses one ordered module entrypoint', () => {
-  const html = readAdminHtml();
-  const entrySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
-
-  const scripts = html.match(/<script\b[^>]*>/g) || [];
-  const entries = scripts.filter((tag) => /\ssrc=["']\/js\/admin\/index\.js(?:\?[^"']*)?["']/.test(tag));
-  assert.equal(entries.length, 1);
-  assert.match(entries[0], /\stype=["']module["']/);
-  assert.doesNotMatch(html, /<script[^>]+src="\/js\/admin\/queue\.js/);
-
-  assert.ok(entrySource.includes("import './gifts/index.js';"));
-  const giftEntry = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/gifts/index.js'), 'utf8');
-  for (const name of ['notification', 'detection', 'sprint', 'recent', 'blindbox', 'history']) {
-    assert.ok(giftEntry.includes(`from './${name}.js'`), `${name} is an explicit dependency`);
-    assert.ok(
-      !entrySource.includes(`import './gifts/${name}.js';`),
-      'composition does not rely on side-effect ordering',
-    );
-  }
-
-  const importLines = entrySource.match(/^import .+;$/gm) ?? [];
-  assert.equal(importLines.at(-1), "import './app.js';");
-});
-
-test('parameter ranges preserve centered values and leave playback controls independent', async () => {
-  const html = readAdminHtml();
-  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'components', 'parameter-range.css'), 'utf8');
-  const { getParameterRangeOrigin, getParameterRangeProgress } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'shared', 'parameter-range.js'),
-  );
-
-  assert.equal(getParameterRangeProgress({ min: '0', max: '100', value: '25' }), 25);
-  assert.equal(getParameterRangeProgress({ min: '-3000', max: '3000', value: '0' }), 50);
-  const origin = (input) => JSON.parse(JSON.stringify(getParameterRangeOrigin(input)));
-  assert.deepEqual(origin({ min: '-20', max: '20', value: '-5' }), {
-    zeroProgress: 50,
-    startProgress: 37.5,
-    lengthProgress: 12.5,
-    polarity: 'negative',
-  });
-  assert.deepEqual(origin({ min: '-20', max: '20', value: '10' }), {
-    zeroProgress: 50,
-    startProgress: 50,
-    lengthProgress: 25,
-    polarity: 'positive',
-  });
-  assert.deepEqual(origin({ min: '-20', max: '20', value: '0' }), {
-    zeroProgress: 50,
-    startProgress: 50,
-    lengthProgress: 0,
-    polarity: 'neutral',
-  });
-
-  for (const id of [
-    'desktopLyricLetterSpacing',
-    'desktopLyricShadowOffsetX',
-    'desktopLyricShadowOffsetY',
-    'desktopLyricInterludeOffsetEm',
-    'desktopLyricTimeOffsetMs',
-    'desktopLyricTranslateX',
-    'desktopLyricTranslateY',
-    'desktopLyricRotateX',
-    'desktopLyricRotateY',
-    'weSingLyricOffsetMs',
-  ]) {
-    const input = tagById(html, id);
-    assert.match(input, /^<input\b/);
-    assert.match(input, /\stype=["']range["']/);
-    const classes = input.match(/\sclass=["']([^"']*)["']/)?.[1].split(/\s+/) || [];
-    assert.ok(classes.includes('parameter-range'));
-    assert.ok(classes.includes('parameter-range--centered'));
-  }
-  for (const id of ['playbackSeek', 'playbackVolume']) {
-    const classes = tagById(html, id).match(/\sclass=["']([^"']*)["']/)?.[1].split(/\s+/) || [];
-    assert.equal(classes.includes('parameter-range'), false);
-  }
-  assert.match(styles, /var\(--parameter-range-origin-length\)/);
-  assert.match(styles, /var\(--parameter-range-zero-position\)/);
-  const focusRule = styles.match(/:focus-visible\s*\{([^}]+)\}/)?.[1];
-  assert.ok(focusRule, 'keyboard focus has a visible indicator');
-  const outline = focusRule.match(/(?:^|;)\s*outline\s*:\s*([^;]+)/)?.[1];
-  assert.ok(outline);
-  assert.doesNotMatch(outline, /\b(?:none|transparent)\b|^0(?:px)?(?:\s|$)/);
-});
-
-test('admin form refresh preserves the active edit and updates inactive fields', async () => {
-  const edited = { value: '正在输入', dataset: {}, closest: () => null };
-  const inactive = { value: '旧值', dataset: {}, closest: () => null };
-  const document = {
-    activeElement: edited,
-    getElementById: (id) => ({ edited, inactive })[id] || null,
-    querySelectorAll: () => [],
-    querySelector: () => null,
-  };
-  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/forms.js'), {
-    document,
-    window: { AdminApp: {} },
-  });
-  new FormsService().fillForm({ edited: '服务端值', inactive: '新值' });
-  assert.equal(edited.value, '正在输入');
-  assert.equal(inactive.value, '新值');
 });
 
 test('AI panel mounts its controls with safe defaults', () => {

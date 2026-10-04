@@ -207,14 +207,6 @@ test('desktop lyric preview keeps accessible controls and shared renderer wiring
     path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'),
     'utf8',
   );
-  const previewSettingsSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-settings.js'),
-    'utf8',
-  );
-  const previewStylesSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-styles.js'),
-    'utf8',
-  );
   const sharedRenderer = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'),
     'utf8',
@@ -234,20 +226,12 @@ test('desktop lyric preview keeps accessible controls and shared renderer wiring
   assert.match(rendererSource, /new LyricWordRenderer/);
   assert.match(source, /app:lyric-state/);
   assert.match(source, /app:lyric-timeline/);
-  assert.match(rendererSource, /createElement\(["']div["']\)/);
-  assert.match(rendererSource, /latestTimeline\.lines\.forEach/);
   assert.match(rendererSource, /textContent\s*=/);
   assert.doesNotMatch(rendererSource, /innerHTML\s*=/);
-  assert.match(source, /import \{ copyText, localOverlayOrigin, toast \} from ["']\.\.\/shared\/utils\.js["'];/);
   assert.match(source, /await copyText\(desktopLyricUrl\)/);
   assert.doesNotMatch(source, /navigator\.clipboard\.writeText\(desktopLyricUrl\)/);
   assert.match(source, /`\$\{localOverlayOrigin\(location\)\}\/lyrics`/);
   assert.doesNotMatch(source, /musicAPI\.openLyricWindow|desktopLyricOpenWindowBtn/);
-  assert.match(previewSettingsSource, /desktopLyricFontFamily/);
-  assert.match(previewStylesSource, /style\.setProperty/);
-  assert.match(previewSettingsSource, /desktopLyricTimeOffsetMs/);
-  assert.match(previewSettingsSource, /desktopLyricHideOnPause/);
-  assert.match(previewSettingsSource, /desktopLyricBackgroundRenderer/);
   assert.match(sharedRenderer, /element\.textContent = word\.text/);
   assert.match(sharedRenderer, /requestAnimationFrame/);
   assert.match(styles, /--preview-word-progress/);

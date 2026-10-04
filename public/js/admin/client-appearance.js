@@ -1,6 +1,5 @@
 'use strict';
 
-const THEME_IDS = ['neutral', 'classic', 'terracotta'];
 const initializedPanels = new WeakSet();
 
 export function initClientAppearance({ documentRef = document, desktopBridge = window.songAssistantDesktop } = {}) {
@@ -9,12 +8,13 @@ export function initClientAppearance({ documentRef = document, desktopBridge = w
   initializedPanels.add(panel);
 
   const choices = [...panel.querySelectorAll('input[name="clientTheme"]')];
+  const themeIds = new Set(choices.map((choice) => choice.value));
   const currentLabels = [...panel.querySelectorAll('[data-client-theme-current]')];
   const applyButton = panel.querySelector('[data-client-theme-apply]');
   const feedback = panel.querySelector('[data-client-theme-feedback]');
   const canApply = typeof desktopBridge?.setClientTheme === 'function';
   const initialTheme = documentRef.documentElement.dataset.clientTheme;
-  let currentTheme = THEME_IDS.includes(initialTheme) ? initialTheme : 'terracotta';
+  let currentTheme = themeIds.has(initialTheme) ? initialTheme : choices.find((choice) => choice.defaultChecked).value;
   let candidateTheme = currentTheme;
   let saving = false;
 
@@ -33,7 +33,7 @@ export function initClientAppearance({ documentRef = document, desktopBridge = w
 
   for (const choice of choices) {
     choice.addEventListener('change', () => {
-      if (!saving && canApply && choice.checked && THEME_IDS.includes(choice.value)) {
+      if (!saving && canApply && choice.checked && themeIds.has(choice.value)) {
         candidateTheme = choice.value;
         feedback.textContent = '';
       }
@@ -48,7 +48,7 @@ export function initClientAppearance({ documentRef = document, desktopBridge = w
     render();
     try {
       const result = await desktopBridge.setClientTheme(candidateTheme);
-      if (result?.ok !== true || !THEME_IDS.includes(result.themeId)) {
+      if (result?.ok !== true || !themeIds.has(result.themeId)) {
         throw new Error('Client theme was not saved');
       }
       currentTheme = result.themeId;

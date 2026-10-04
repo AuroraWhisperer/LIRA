@@ -5,8 +5,10 @@ import { createFrameController } from './gift-effects-frame.js';
 import { createGiftFrameQueue } from './gift-frame-queue.js';
 import { createGiftEffectPlayer } from './gift-effect-player.js';
 import { createGuardThanksQueue } from './gift-effects-guard.js';
+import { mountGiftEffectComponent } from './gift-effects-component.js';
 
 (function () {
+  if (mountGiftEffectComponent()) return;
   const params = new URLSearchParams(location.search);
   const DEBUG = params.get('debug') === '1';
   const PREVIEW_MODE = params.get('preview') === '1';

@@ -147,6 +147,8 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 
 歌曲库的新增、编辑、删除和清空由 Electron 客户端本地管理页完成；每次成功 mutation 都在本地事务中保存账号所属的待传快照，并立即触发 songs scope 的完整快照上传。[cloud-song-sync-controller.js](../../../src/electron/cloud-song-sync-controller.js) 负责歌曲恢复、上传和拉取；父控制器保留授权、调度、revision 与 dirty 代次。账号准备阶段同步恢复该账号的待传快照，内容相同时保留原歌曲 ID；每轮及拉取落盘前重新检查待传状态。成功且生命周期仍有效的上传只确认其发送的 `mutationId`，较新的修改与其他账号的快照继续保留，停止或退出不删除待传数据。详见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。Streamer `/manage` 只展示最新同步歌单，不提供歌曲新增、编辑、启用切换、保存或删除控件。服务端既有歌曲 CRUD API 继续保留以兼容既有调用方，初次播种、云端 revision 和完整快照契约不变。
 
+settings 也保留账号所属的持久待传快照：启动或切回账号先恢复，再上传；存在待传记录时拒绝云端拉取覆盖。上传确认同时检查生命周期、修改代次和 `mutationId`，包括携带普通设置的礼物互动提交；迟到响应不能清除更新的修改。原子写入与私有记录格式见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。
+
 ### 2.3 服务端权威礼物接收生命周期
 
 礼物 SSE 额外声明 `X-Lira-Gift-Effects: 1`，接收独立 `gift-effect` frame。
@@ -255,7 +257,7 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 
 ## 7. 关闭序列与播放状态冲刷
 
-`before-quit` 与 `desktop:restart` 共用 [main.js](../../../src/electron/main.js) 的 `requestDesktopShutdown({ restart = false } = {})`，关闭状态保存在 `lifecycleState.shutdownPromise`：
+主窗口 `close`（包括 `desktop:close-window` 和原生关闭）、`before-quit` 与 `desktop:restart` 共用 [main.js](../../../src/electron/main.js) 的 `requestDesktopShutdown({ restart = false } = {})`，关闭状态保存在 `lifecycleState.shutdownPromise`。窗口 `close` 先阻止默认销毁，保留 renderer 完成播放冲刷；最终由 `app.exit(0)` 结束窗口，重复关闭不重置期限：
 
 1. 每个受控 `before-quit` 都先 `event.preventDefault()`，再请求同一关闭任务。尚无后端且没有受控任务时保留 Electron 默认退出；重启入口在后端缺失时也能完成
 2. 首个请求保存共享 Promise 并启动唯一 **5s 总兜底定时器**，后续请求复用任务，不刷新期限，也不改变首次的退出/重启意图

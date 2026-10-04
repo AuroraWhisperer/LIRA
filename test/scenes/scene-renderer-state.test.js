@@ -55,6 +55,31 @@ const connected = events => ({ status: 'connected', epoch: 'one', nextCursor: 2,
 const sceneData = events => ({ danmaku: connected(events) });
 const outputDoc = () => documentOf([item('danmaku', 'independent', { style: 'signal' })]);
 
+test('gift scene replacement delivers new events once and clears pending events on disconnect', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const giftDoc = documentOf([item('gift-frame', 'independent', {})]);
+  const snapshot = (sequence) => ({ 'gift-frame': { epoch: 'gifts', sequence,
+    events: Array.from({ length: sequence }, (_, index) => ({ sequence: index + 1, payload: { eventId: String(index + 1) } })) } });
+  f.renderer.update({ version: 1, document: giftDoc, data: snapshot(1) });
+  const first = f.host.children[0].children[0];
+  f.renderer.update({ version: 1, data: snapshot(2) });
+  f.complete(first);
+  const delivered = (frame) => f.messages.get(frame).filter(message => message.type === 'component-preview:data').flatMap(message => message.data?.events || []);
+  assert.deepEqual(delivered(first), [{ eventId: '2' }]);
+  f.renderer.update({ version: 2, document: giftDoc, data: snapshot(3) });
+  const next = f.host.children[1].children[0];
+  f.complete(next);
+  assert.deepEqual(delivered(first), [{ eventId: '2' }, { eventId: '3' }]);
+  assert.deepEqual(delivered(next), []);
+  f.renderer.update({ version: 2, data: snapshot(3) });
+  assert.deepEqual(delivered(next), []);
+  f.renderer.disconnect();
+  f.renderer.update({ version: 2, data: snapshot(4) });
+  assert.deepEqual(delivered(next), []);
+  f.renderer.update({ version: 2, data: snapshot(5) });
+  assert.deepEqual(delivered(next), [{ eventId: '5' }]);
+});
+
 test('renderer rejects non-string and unknown types without replacing its active version', async t => {
   const f = await rendererFixture(); t.after(() => f.renderer.dispose());
   f.renderer.update({ version: 1, document: outputDoc(), data: sceneData([]) });

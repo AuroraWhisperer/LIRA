@@ -203,14 +203,14 @@
 
 .blind-analysis-calendar-days .is-selected,
 .blind-analysis-date-footer .blind-analysis-date-apply {
-  background: var(--primary);
-  color: var(--color-text-white);
+  background: var(--color-primary-fill);
+  color: var(--color-on-primary);
 }
 
 .blind-analysis-calendar-days .is-selected:hover,
 .blind-analysis-date-footer .blind-analysis-date-apply:hover {
-  background: var(--primary-strong);
-  color: var(--color-text-white);
+  background: var(--color-primary-fill-hover);
+  color: var(--color-on-primary);
 }
 
 .blind-analysis-date-hint {

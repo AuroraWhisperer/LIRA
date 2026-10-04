@@ -112,7 +112,7 @@
   height: 7px;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--color-range-track);
 }
 
 .desktop-update-progress span {

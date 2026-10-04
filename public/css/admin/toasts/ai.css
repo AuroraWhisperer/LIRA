@@ -24,6 +24,7 @@
 }
 .xiaomi-ai-test-toast-warn {
   --toast-accent: var(--toast-warning);
+  --toast-on-accent: var(--color-toast-on-warning);
 }
 .xiaomi-ai-test-toast-warn::after {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3 10 18H2L12 3Z'/%3E%3Cpath d='M12 9v4m0 4h.01'/%3E%3C/svg%3E");

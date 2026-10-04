@@ -362,6 +362,8 @@ test('REST projections retain display fields, strip nested ledger/config metadat
         enabled: true,
         audioUrl: '/opening-media/current.mp3',
         characterUrl: '/opening-character/current.png',
+        pixelCharacterUrl: '/opening-character/pixel.png',
+        pixelCharacterName: secret,
         audioName: secret,
         secret,
       },

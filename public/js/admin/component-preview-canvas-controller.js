@@ -3,6 +3,7 @@ import { createComponentSaveBatch } from './component-save-batch.js';
 import { getCanvasPublicationEntries } from './component-preview-publication.js';
 import { requestScene, readComponentOutputSize } from './scene-api.js';
 import { validateSceneDocument } from './scene-template.js';
+import { startOpeningCanvasData } from './opening-canvas-data.js';
 
 let cached;
 
@@ -82,6 +83,7 @@ export async function prepareComponentPreviewCanvas(components, request = reques
     };
     controller.receive({ document: dto.document });
     return { id: 'canvas', title: '直播场景', controller,
+      startActualData: (emit) => startOpeningCanvasData(controller, emit),
       async getComponentSize(type, signal) {
         assertCurrent();
         const size = await readComponentOutputSize(type, signal);

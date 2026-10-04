@@ -3,6 +3,7 @@
 const { projectOverlayState, projectOverlayResponse } = require('./overlay-projection');
 const { scanTodayGifts, shanghaiToday } = require('../../public/js/shared/gift-feed-state.js');
 const { buildGiftCards } = require('../../public/js/shared/gift-card-model.js');
+const { getOpeningConfig } = require('./routes/opening-routes');
 
 function createSceneExtraDisplay({ getContext, getOwner, now = Date.now }) {
   // Slow gift/profile reads are shared across canvas instances and source polls.
@@ -29,6 +30,7 @@ function createSceneExtraDisplay({ getContext, getOwner, now = Date.now }) {
     const context = getContext();
     const response = (path, value) => projectOverlayResponse(type, path, value);
     switch (type) {
+      case 'opening': return response('/api/opening/config', getOpeningConfig(context));
       case 'songlist': return { songs: response('/api/songs', context.songs.list({ enabledOnly: true })) };
       case 'lyrics': {
         const { lyricState, lyricTimeline } = projectOverlayState(type, context.system.getState());

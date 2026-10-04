@@ -4,6 +4,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { CLIENT_THEMES, DEFAULT_CLIENT_THEME_ID } = require('../shared/client-theme');
 
 const ADMIN_PAGE_ROUTES = new Set(['/', '/admin', '/settings', '/songs']);
 const composedHtmlCache = new Map();
@@ -67,7 +68,13 @@ function composeAdminHtml(publicDir) {
   const cacheKey = path.resolve(String(publicDir));
   const cached = composedHtmlCache.get(cacheKey);
   if (cached !== undefined) return cached;
-  const html = ADMIN_FRAGMENT_PATHS.map((relativePath) => readAdminFragment(publicDir, relativePath)).join('');
+  const fragments = ADMIN_FRAGMENT_PATHS.map((relativePath) => readAdminFragment(publicDir, relativePath)).join('');
+  const html = fragments.replace(/<template data-client-theme-option>([\s\S]*?)<\/template>/, (_marker, template) =>
+    CLIENT_THEMES.map(({ id, name }) => template
+      .replaceAll('{{client-theme-id}}', id)
+      .replaceAll('{{client-theme-name}}', name)
+      .replaceAll('{{client-theme-checked}}', id === DEFAULT_CLIENT_THEME_ID ? 'checked' : '')).join(''),
+  );
   composedHtmlCache.set(cacheKey, html);
   return html;
 }

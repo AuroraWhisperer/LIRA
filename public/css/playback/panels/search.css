@@ -85,7 +85,7 @@
 
 .playback-search-row:hover {
   border-color: var(--color-border-strong);
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-hover, var(--color-bg-tertiary));
 }
 
 .playback-search-row .playback-row-main {

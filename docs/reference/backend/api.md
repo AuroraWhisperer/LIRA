@@ -25,7 +25,7 @@
 | action | 身份与请求 | data |
 | --- | --- | --- |
 | `open` | 管理身份；`{component,state,display?}`，component 为 danmaku/clock/queue/overtime/canvas | `{id,token,draftKey}`，256 位随机预览能力；draftKey 仅定位账号/场景的本地恢复草稿，不授予权限；同类型旧会话失效 |
-| `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；一个锚定会话按初始组件保留至多五个短入口；重复申请同一组会话与选择复用 key 并更新尺寸 |
+| `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型、绑定 canvas 会话时的独立场景类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；一个锚定会话按已注册场景类型分别保留短入口；重复申请同一组会话与选择复用 key 并更新尺寸 |
 | `resolve` | 短入口 Bearer；`{action:'resolve'}` | `{links:[{component,id,token,draftKey}],selectedId,selectedSize}`，只返回绑定的有效会话与入口元数据；不续活闲置租约；未知或失效入口为 410 |
 | `exchange` | 管理身份；`{id,state,display?,ack}` | `{commands:[{sequence,action,change?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
 | `revoke` | 管理身份；`{id}` | `{closed}` |
@@ -65,6 +65,11 @@
 输出中的 `projection` 是服务进程签发的类型投影回执，绑定已认证 owner scope/epoch、sceneId、来源 capability、item 选择及发布版本；不含实时数据或来源 token，不独立授予访问能力。父页面在整套 renderer 成功提交时同时记录 version/projection，后续请求携带该 active 回执。服务端仅合并最新文档与已验证 active 回执的类型集合，新版移除某类组件但准备失败时旧版仍获得更新；成功切换后旧类型随回执替换而释放。伪造、跨账号/场景/实例、版本不匹配、轮换或服务重启后的回执返回 403，父页清空旧版与回执后重新读取当前版。省略 projection 的旧客户端沿用仅投影最新文档的行为。没有历史文档缓存或无限版本保留。
 
 上述响应均禁止缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。输出轮询不重叠，约每 750ms 一次；云事件提供本地缓冲 `epoch/nextCursor/reset/gap/events`，不提供服务端历史重放。
+
+包含 `gift-frame` / `guard-thanks` 的场景分别取得 `data[type]={epoch,sequence,events:[{sequence,payload}]}`。
+两者复用现有礼物最终显示事件和手动预览投影，字段与 `gift-effects` WebSocket 白名单一致；
+合计只保留最近 200 条，按当前授权账号 scope/epoch 清空，不写入业务持久化。序列由父页面消费，
+首读及断线恢复以当前序列为基线，不补播旧记录；准备中有界暂存，已交付旧版的事件不在新版重复播放。
 
 `npm run verify:docs` 的 `GOV-API-001` 从实际 `ROUTE_MODULES` 的 routes 映射推导本地方法/路径，并与本文完整的反引号端点条目双向比较（支持 `GET/POST` 和查询参数）。新增或删除接口时同步修改所属表，不维护另一份路由清单。独立服务器接口放在标题含 `LIRA Server` 的章节；其他位置的远端引用明确使用 `LIRA Server: METHOD /api/path`，不计入本地注册表。
 
@@ -221,6 +226,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` | 样式仅 `bubble/signal/minimal/ranked/transparent/identity/outline`；时长为 number 或十进制数字字符串，安全整数 2–30，存字符串 |
 | 时钟设置 | [clock-contract.js](../../../src/server/clock-contract.js)：style 为八种已登记样式，hourFormat=`12/24`；日期/秒开关经 trim/lowercase 后仅 true/false/0/1；label 去控制符、合并空白、按 Unicode code point 截取前 16 个，存字符串；clockFlipFrameColor / clockFlipFaceColor / clockFlipTextColor 仅接受六位十六进制颜色 #RRGGBB 并统一小写 |
 | `openingTrackMotion` | [opening-contract.js](../../../src/server/opening-contract.js) 的 `heart/barber/progress` 枚举 |
+| `openingStyle` | [opening-contract.js](../../../src/server/opening-contract.js) 的 `classic/pixel-cassette` 枚举；默认 `classic` |
 | 互动外观 | [interaction-appearance.js](../../../public/js/shared/interaction-appearance.js)：标题/提示为字符串且最多 60/80 字素；规则文本转 LF、NFC；显示开关仅 boolean/字符串 true/false；透明度整数 0–100、字号 16–24、圆角 0–32（数字或 1–3 位数字字符串）；颜色为六位十六进制，存小写；数字/布尔存字符串 |
 | `weSingCachePath` / `weSingLyricOffsetMs` | [wesing-cache.js](../../../src/music/wesing-cache.js)：路径转字符串、trim/去外层双引号，必须为绝对路径且末级名为 WeSingCache，长度 ≤1024、无控制字符；偏移 Number 转换、四舍五入后为 -3000～3000 ms，存字符串 |
 | `checkinBlessings` / `fortunePool` | 兼容遗留键；字符串保持原样，其他值 JSON.stringify，null/undefined 按 String 保存；不是云端每日机器人配置入口 |
@@ -234,6 +240,9 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 > 模块文件:[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)
 > 前缀:`/api/opening`
 
+`GET /api/opening/config` 的 `style` 字段返回 `classic` 或 `pixel-cassette`，缺省及非法保存值回退 `classic`；
+opening 页面能力的只读投影包含该字段。管理端通过现有设置接口保存 `openingStyle`，非法枚举返回 400。
+
 | 端点                            | 请求                                                                                                  | 响应(data)                                                                                                                                                                    | 错误码                                         |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `GET /api/opening/config`       | 无；管理身份或 opening 页面能力                                              | 已清洗的文案、画质、开关、音量、轨道动效 `trackMotion`(`heart`/`barber`/`progress`)、当前音频与人物图 URL；未上传或文件缺失时对应 URL/名称为空且 `hasUploaded` 标志为 false，非法轨道值回退 `heart` | —                                              |
@@ -243,6 +252,11 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `DELETE /api/opening/character` | 无                                                                                                    | 清除当前人物图选择，回到无人物图状态；保留已上传文件                                                                                                                           | —                                              |
 
 上传文件使用随机文件名；音频和人物图分别只允许当前设置指向的文件通过 `/opening-media/` 与 `/opening-character/` 读取，原始文件名仅作为界面显示文本。本节写接口仅管理身份可用；opening 页面能力只能读取裁剪后的配置。
+
+人物图上传与清除可携带查询参数 `style=pixel-cassette`，操作动画 2 独立的头像；省略或指定 `classic`
+仍操作经典舞台人物图，非法样式返回 400。两种样式的素材互不覆盖，未上传时均为空。
+配置新增 `pixelCharacterUrl`、`pixelCharacterName`、`hasUploadedPixelCharacter`；opening 页面能力仅接收
+其中的图片 URL。图片读取只允许经典与像素样式各自当前选中的文件，替换或清除后旧文件不再可读。
 
 ### 2.2 normalizeRoomInput 实现细节([shared/utils.js](../../../src/shared/utils.js))
 

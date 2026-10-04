@@ -8,6 +8,7 @@ const giftFeedGifts = [
 export function sceneExtraPreviewData(type) {
   const session = (game, state) => ({ game, sessionId: `preview-${game}`, eventRevision: 1, state, danmaku: [] });
   const examples = {
+    opening: null,
     songlist: { songs: Array.from({ length: 20 }, (_, index) => ({ id: index + 1, name: `示例歌曲 ${index + 1}`, artist: '示例歌手', category_name: '流行', language: '国语', name_initial: 'S' })) },
     lyrics: { lyricTimeline: { trackTitle: '示例歌曲', lines: [
       { startMs: 0, endMs: 10000, text: '把此刻唱成一首歌', translation: 'Sing this moment into a song' },
@@ -35,6 +36,10 @@ export function sceneExtraPreviewData(type) {
       }),
       profiles: [], catalog: [], day: new Date(Date.now() + 28800000).toISOString().slice(0, 10),
     },
+    'gift-frame': { preview: true, events: [{ type: 'gift:frame', eventId: 'canvas-frame-preview',
+      userName: '观众A', giftName: '林间花信', num: 2, totalPriceCents: 52000, themeId: 'woodland-bloom' }] },
+    'guard-thanks': { preview: true, events: [{ type: 'gift:guard-thanks', eventId: 'canvas-guard-preview',
+      userName: '观众A', tier: 'captain', months: 1, textMode: 'bilingual' }] },
     'gift-wishes': { items: [{ id: 'preview-wish', period: 'day', giftId: '1', giftName: '小花花', target: 100, count: 36, todayCount: 36, remaining: 64, progress: 36, completed: false, label: '今日小心愿', displayStyle: 'card', textTemplate: '{礼物} {已收}/{目标}', textImagePosition: 'none', textImageFormat: 'static' }], session: { state: 'live', stale: false } },
   };
   return examples[type];

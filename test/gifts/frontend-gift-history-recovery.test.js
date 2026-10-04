@@ -148,7 +148,10 @@ test('clearing gifts submits once, rejects stale reads, and recovers without gif
   ui.open();
   const staleRead = ui.requests.at(-1);
   const clearing = ui.click('giftHistoryClearDatabaseBtn');
-  assert.match(ui.dialog().innerHTML, /清空全部礼物记录|本机和云端|无法撤销/);
+  const confirmation = ui.dialog().innerHTML;
+  assert.match(confirmation, /清空全部礼物记录/);
+  assert.match(confirmation, /本机和云端/);
+  assert.match(confirmation, /无法撤销/);
   await ui.confirm(true);
   const clearRequest = ui.requests.at(-1);
   assert.equal(clearRequest.url, '/api/database/clear-gifts');

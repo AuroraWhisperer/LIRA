@@ -18,6 +18,7 @@ function createRuntimeTransport({
   getSettings,
   getDanmakuFeedBuffer,
   resolveGiftEffect,
+  publishSceneGift,
 }) {
   function getWebSocketContext(baseUrl) {
     return {
@@ -36,9 +37,9 @@ function createRuntimeTransport({
     const message = getDanmakuFeedBuffer().pushGift(item);
     broadcastSnapshot('bilibili:gift');
     const frameEvent = buildGiftFrameEvent(item, getSettings());
-    if (frameEvent) getWebSocketHub()?.broadcast(frameEvent);
+    if (frameEvent) { getWebSocketHub()?.broadcast(frameEvent); publishSceneGift?.(frameEvent); }
     const guardThanksEvent = buildGuardThanksEvent(item, getSettings());
-    if (guardThanksEvent) getWebSocketHub()?.broadcast(guardThanksEvent);
+    if (guardThanksEvent) { getWebSocketHub()?.broadcast(guardThanksEvent); publishSceneGift?.(guardThanksEvent); }
     publishDanmakuItem(message);
   }
 

@@ -67,23 +67,19 @@ test('gift history drawer preserves the six data columns and adds selection and 
   }
 });
 
-test('gift history defaults to all dates and never exposes source identity', async () => {
+test('gift history builds pagination, sorting and filter requests and reports sync state', async () => {
   const modulePath = path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'history.js');
-  const source = fs.readFileSync(modulePath, 'utf8');
   const ledger = await loadModuleExports(modulePath, {
     document: {},
     location: {},
     URLSearchParams,
   });
 
-  assert.doesNotMatch(source, /\/api\/gifts\/statistics/);
-  assert.doesNotMatch(source, /sourceId|source_id/);
-  assert.match(source, /清空全部礼物记录/);
-  assert.match(source, /永久删除当前账号在本机和云端的全部礼物记录/);
-  assert.match(source, /无法撤销/);
-  assert.doesNotMatch(source, /resetGiftLedgerDisplay|giftHistoryClearDisplayBtn/);
-  assert.doesNotMatch(source, /重新同步当前账号的历史记录/);
   assert.equal(ledger.buildGiftHistoryUrl(), '/api/gifts/history?range=all&limit=100');
+  assert.equal(
+    ledger.buildGiftHistoryUrl({ sourceId: 'private-source', source_id: 'private-source' }),
+    '/api/gifts/history?range=all&limit=100',
+  );
   assert.equal(
     ledger.buildGiftHistoryUrl({
       cursor: 'opaque/+ token',
@@ -240,7 +236,9 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
               items: [
                 {
                   eventId: 'event-escaped',
+                  sourceId: 'private-source',
                   gift: {
+                    source_id: 'private-source',
                     createdAt: '2025-01-02T03:04:05.000Z',
                     giftName: '<script>alert("gift")</script>',
                     num: 2,
@@ -281,6 +279,7 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
 
   assert.deepEqual(requests, ['/api/gifts/history?range=all&limit=100']);
   const body = elements.get('giftHistoryBody').innerHTML;
+  assert.doesNotMatch(body, /private-source/);
   const renderedRows = [...body.matchAll(/<tr data-event-id="[^"]*">([\s\S]*?)<\/tr>/g)];
   assert.equal(renderedRows.length, 2);
   assert.deepEqual(

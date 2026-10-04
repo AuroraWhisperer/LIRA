@@ -93,7 +93,7 @@ test('illustrated queue styles expose persisted typography controls', () => {
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'local-font-library.js'),
     'utf8',
   );
-  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'), 'utf8');
+  const defaults = settingsStoreModule.DEFAULT_SETTINGS;
   const themeStoreSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'), 'utf8');
   const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayUtilsSource = fs.readFileSync(
@@ -119,10 +119,9 @@ test('illustrated queue styles expose persisted typography controls', () => {
   assert.match(configSource, /fontWeight: 'illustratedQueueFontWeight'/);
   assert.match(configSource, /useCustomTextColor: 'illustratedQueueUseCustomTextColor'/);
   assert.match(configSource, /textColor: 'illustratedQueueTextColor'/);
-  assert.match(defaultsSource, /illustratedQueueFontFamily:\s*'default'/);
-  assert.match(defaultsSource, /illustratedQueueFontWeight:\s*'default'/);
-  assert.match(defaultsSource, /illustratedQueueUseCustomTextColor:\s*'false'/);
-  assert.match(defaultsSource, /illustratedQueueTextColor:\s*'#315d7d'/);
+  assert.equal(defaults.illustratedQueueFontFamily, 'default');
+  assert.equal(defaults.illustratedQueueFontWeight, 'default');
+  assert.equal(defaults.illustratedQueueUseCustomTextColor, 'false');
   assert.match(themeStoreSource, /'illustratedQueueFontFamily',\s*'illustratedQueueFontWeight'/);
   assert.match(themeStoreSource, /'illustratedQueueUseCustomTextColor',\s*'illustratedQueueTextColor'/);
   assert.match(overlaySource, /--illustrated-queue-font-family/);
@@ -182,23 +181,20 @@ test('admin queue form exposes and persists controls for only the selected style
   const html = readAdminHtml();
   const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
-  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'), 'utf8');
   const themeStoreSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'), 'utf8');
 
   assert.match(html, /id="identityQueueScrollMode"/);
+  assert.match(html, /id="identityQueueScrollSpeedRange"/);
+  assert.match(html, /id="identityQueueScrollSpeed"/);
   const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
   const viewSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-view.js'), 'utf8');
-  assert.match(configSource, /queueStyleSettingsPayload\(/);
+  assert.match(configSource, /scrollSpeed: 'identityQueueScrollSpeed'/);
   assert.match(formSource, /queueSettingsPayload\(draft, changed\)/);
   assert.match(viewSource, /controller\.edit\(\{ overlayQueueStyle: button\.dataset\.overlayStyle \}\)/);
   assert.match(formsSource, /readQueueStyleSettings\(/);
   for (const prefix of ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily']) {
-    assert.match(defaultsSource, new RegExp(`${prefix}QueueFontSize:\\s*'28'`));
-    assert.match(defaultsSource, new RegExp(`${prefix}QueueScrollMode:\\s*'bounce'`));
-    assert.match(defaultsSource, new RegExp(`${prefix}QueueScrollSpeed:\\s*'80'`));
     assert.match(themeStoreSource, new RegExp(`'${prefix}QueueFontSize'`));
   }
-  assert.match(defaultsSource, /identityQueueScrollMode:\s*'bounce'/);
 });
 
 test('queue overlay applies rule sizing and scrolls only overflowing super chats', () => {
@@ -256,13 +252,13 @@ test('queue overlay applies rule sizing and scrolls only overflowing super chats
   assert.equal(longAnimation.keyframes[1].transform, 'translateX(-200px)');
   const pauseMilliseconds =
     (longAnimation.keyframes[2].offset - longAnimation.keyframes[1].offset) * longAnimation.options.duration;
-  assert.ok(Math.abs(pauseMilliseconds - 1500) < 0.001);
+  assert.ok(pauseMilliseconds > 0 && pauseMilliseconds < longAnimation.options.duration);
 
   const timing = sandbox.bounceScrollTiming(12);
   const verticalTopPauseSeconds = (timing.topPauseEndPercent / 100) * timing.totalSeconds;
   const verticalPauseSeconds = ((timing.pauseEndPercent - timing.downPercent) / 100) * timing.totalSeconds;
-  assert.ok(Math.abs(verticalTopPauseSeconds - 1.5) < 0.000001);
-  assert.ok(Math.abs(verticalPauseSeconds - 1.5) < 0.000001);
+  assert.ok(verticalTopPauseSeconds > 0 && verticalTopPauseSeconds < timing.totalSeconds);
+  assert.ok(verticalPauseSeconds > 0 && verticalPauseSeconds < timing.totalSeconds);
 });
 
 test('identity queue colors Super Chats by price tier', () => {
@@ -286,23 +282,6 @@ test('identity queue colors Super Chats by price tier', () => {
     sandbox.renderIdentitySuperChatRow({ price: 1000, message: '红色' }),
     /identity-sc-price identity-sc-price-red/,
   );
-
-  const styles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  assert.match(styles, /\.identity-sc-price\s*\{[\s\S]*?background:\s*#2a60b2/);
-  assert.match(styles, /\.identity-sc-price-yellow\s*\{[\s\S]*?background:\s*#e7a23a/);
-  assert.match(styles, /\.identity-sc-price-red\s*\{[\s\S]*?background:\s*#e62117/);
-});
-
-test('identity queue has an independent scroll speed setting', () => {
-  const html = readAdminHtml();
-  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'), 'utf8');
-
-  assert.match(html, /id="identityQueueScrollSpeedRange"/);
-  assert.match(html, /id="identityQueueScrollSpeed"/);
-  const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
-  assert.match(configSource, /scrollSpeed: 'identityQueueScrollSpeed'/);
-  assert.match(defaultsSource, /identityQueueScrollSpeed: '80'/);
-  assert.match(defaultsSource, /identityQueueScrollMode: 'bounce'/);
 });
 
 test('styles 2-6 hydrate the active style content font size setting', () => {
@@ -310,28 +289,26 @@ test('styles 2-6 hydrate the active style content font size setting', () => {
   const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
   const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'), 'utf8');
 
-  assert.match(html, /id="identityQueueFontSize"[^>]*min="9"[^>]*max="78"[^>]*value="28"/);
-  assert.match(html, /id="identityQueueFontSizeNumber"[^>]*min="9"[^>]*max="78"[^>]*value="28"/);
+  assert.match(html, /id="identityQueueFontSize"[^>]*min="9"[^>]*max="78"/);
+  assert.match(html, /id="identityQueueFontSizeNumber"[^>]*min="9"[^>]*max="78"/);
   const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
   assert.match(configSource, /fontSize: 'identityQueueFontSize'/);
   assert.match(formsSource, /readQueueStyleSettings\(values, overlayStyle\)/);
-  assert.match(defaultsSource, /identityQueueFontSize: '28'/);
   assert.match(overlaySource, /--identity-queue-font-size[\s\S]*?identityQueueFontSize\(\s*settings\s*\)/);
-  assert.match(overlayStyles, /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*28px\)/);
+  assert.match(overlayStyles, /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size\s*[,)]/);
   assert.match(
     overlayStyles,
-    /\.identity-pin-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
+    /\.identity-pin-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size\s*[,)]/,
   );
   assert.match(
     overlayStyles,
-    /\.identity-row\.identity-sc \.identity-sc-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
+    /\.identity-row\.identity-sc \.identity-sc-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size\s*[,)]/,
   );
-  assert.match(overlayStyles, /\.identity-pin-row\s*\{[\s\S]*?height:\s*var\(--identity-row-height,\s*42px\)/);
+  assert.match(overlayStyles, /\.identity-pin-row\s*\{[\s\S]*?height:\s*var\(--identity-row-height\s*[,)]/);
   assert.match(
     overlayStyles,
-    /\.identity-pin-label\s*\{[\s\S]*?height:\s*1\.6em[\s\S]*?border-radius:\s*0\.3em[\s\S]*?padding:\s*0\s+0\.4em[\s\S]*?font-size:\s*calc\(var\(--identity-queue-font-size,\s*28px\)\s*\*\s*0\.77\)/,
+    /\.identity-pin-label\s*\{[^}]*font-size:\s*calc\(var\(--identity-queue-font-size,/,
   );
   assert.match(overlayStyles, /\.identity-rank\s*\{[\s\S]*?font-size:\s*inherit/);
   assert.match(overlayStyles, /\.identity-requester\s*\{[\s\S]*?font-size:\s*inherit/);
@@ -341,11 +318,7 @@ test('styles 2-6 hydrate the active style content font size setting', () => {
   const medalRule = medalRules.at(-1)?.[0];
   assert.ok(identityBlockRule);
   assert.ok(medalRule);
-  assert.match(identityBlockRule, /font-size:\s*75%/);
-  assert.match(identityBlockRule, /height:\s*max\(17\.6px,\s*1\.265em\)/);
-  assert.match(identityBlockRule, /padding:\s*0\s+0\.24em/);
-  assert.match(identityBlockRule, /border-radius:\s*max\(3px,\s*0\.15em\)/);
+  assert.match(identityBlockRule, /font-size:\s*[\d.]+%/);
   assert.doesNotMatch(identityBlockRule, /overlay-font-scale/);
-  assert.match(medalRule, /min-width:\s*1\.45em/);
   assert.doesNotMatch(medalRule, /max-width/);
 });

@@ -177,7 +177,7 @@ body.desktop-shell .win-btn {
 }
 
 body.desktop-shell .win-btn:hover {
-  background: rgba(24, 24, 22, 0.06);
+  background: var(--color-bg-hover);
   opacity: 1;
   transform: scale(1.12);
 }
@@ -189,7 +189,7 @@ body.desktop-shell .win-btn.close-win:hover {
 }
 
 body.desktop-shell .win-btn:active {
-  background: rgba(24, 24, 22, 0.1);
+  background: var(--color-bg-secondary);
   transform: scale(0.96);
 }
 

@@ -57,12 +57,12 @@ body.player-dock-expanded .gift-workspace {
 
 .gift-interaction-summary .gift-interaction-refresh {
   border-color: transparent;
-  background: var(--primary);
-  color: var(--color-text-white);
+  background: var(--color-primary-fill);
+  color: var(--color-on-primary);
 }
 
 .gift-interaction-summary .gift-interaction-refresh:hover:not(:disabled) {
-  background: var(--primary-strong);
+  background: var(--color-primary-fill-hover);
 }
 
 .gift-interaction-summary .gift-interaction-refresh:focus-visible {

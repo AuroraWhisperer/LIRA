@@ -5,7 +5,10 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { readRawBody, sendJson } = require('../http-utils');
-const { DEFAULT_OPENING_TRACK_MOTION, normalizeOpeningTrackMotion } = require('../opening-contract');
+const {
+  DEFAULT_OPENING_STYLE, normalizeOpeningStyle,
+  DEFAULT_OPENING_TRACK_MOTION, normalizeOpeningTrackMotion,
+} = require('../opening-contract');
 
 const prefixes = ['/api/opening'];
 const OPENING_MUSIC_DIR_NAME = 'opening-music';
@@ -70,6 +73,8 @@ const routes = {
   },
 
   async 'POST /api/opening/character'(context, request, res) {
+    const settingPrefix = characterSettingPrefix(request);
+    if (!settingPrefix) return sendJson(res, 400, { ok: false, error: '不支持的开播动画样式。' });
     const upload = await readMultipartCharacter(request.req);
     if (!upload) {
       sendJson(res, 400, {
@@ -87,8 +92,8 @@ const routes = {
     try {
       fs.writeFileSync(tempPath, upload.content, { flag: 'wx' });
       fs.renameSync(tempPath, filePath);
-      context.settings.set('openingCharacterFile', fileName);
-      context.settings.set('openingCharacterName', upload.name);
+      context.settings.set(`${settingPrefix}File`, fileName);
+      context.settings.set(`${settingPrefix}Name`, upload.name);
       context.broadcastSnapshot('settings');
       sendJson(res, 200, { ok: true, data: getOpeningConfig(context) });
     } catch (error) {
@@ -101,13 +106,21 @@ const routes = {
     }
   },
 
-  async 'DELETE /api/opening/character'(context, _request, res) {
-    context.settings.set('openingCharacterFile', '');
-    context.settings.set('openingCharacterName', '');
+  async 'DELETE /api/opening/character'(context, request, res) {
+    const settingPrefix = characterSettingPrefix(request);
+    if (!settingPrefix) return sendJson(res, 400, { ok: false, error: '不支持的开播动画样式。' });
+    context.settings.set(`${settingPrefix}File`, '');
+    context.settings.set(`${settingPrefix}Name`, '');
     context.broadcastSnapshot('settings');
     sendJson(res, 200, { ok: true, data: getOpeningConfig(context) });
   },
 };
+
+function characterSettingPrefix(request) {
+  const style = normalizeOpeningStyle(request.query?.get('style') ?? DEFAULT_OPENING_STYLE);
+  if (!style) return null;
+  return style === 'pixel-cassette' ? 'openingPixelCharacter' : 'openingCharacter';
+}
 
 function getOpeningConfig(context) {
   const settings = context.settings.get();
@@ -119,10 +132,15 @@ function getOpeningConfig(context) {
   const hasUploadedCharacter = Boolean(
     characterFile && fs.existsSync(path.join(getCharacterDir(context.system.dataDir), characterFile)),
   );
+  const pixelCharacterFile = normalizeStoredCharacterFileName(settings.openingPixelCharacterFile);
+  const hasUploadedPixelCharacter = Boolean(
+    pixelCharacterFile && fs.existsSync(path.join(getCharacterDir(context.system.dataDir), pixelCharacterFile)),
+  );
   const volume = Number(settings.openingAudioVolume);
   const footer = cleanText(settings.openingFooter, MAX_TEXT_LENGTHS.footer);
   return {
     enabled: parseBoolean(settings.openingEnabled, false),
+    style: normalizeOpeningStyle(settings.openingStyle) || DEFAULT_OPENING_STYLE,
     title: cleanText(settings.openingTitle, MAX_TEXT_LENGTHS.title) || '唱一首，在一首，给你的歌',
     subtitle: cleanText(settings.openingSubtitle, MAX_TEXT_LENGTHS.subtitle) || '开播准备中',
     name: cleanText(settings.openingName, MAX_TEXT_LENGTHS.name),
@@ -141,6 +159,11 @@ function getOpeningConfig(context) {
       : DEFAULT_CHARACTER_URL,
     characterName: hasUploadedCharacter ? cleanText(settings.openingCharacterName, 160) || characterFile : '',
     hasUploadedCharacter,
+    pixelCharacterUrl: hasUploadedPixelCharacter
+      ? `/opening-character/${encodeURIComponent(pixelCharacterFile)}` : DEFAULT_CHARACTER_URL,
+    pixelCharacterName: hasUploadedPixelCharacter
+      ? cleanText(settings.openingPixelCharacterName, 160) || pixelCharacterFile : '',
+    hasUploadedPixelCharacter,
   };
 }
 

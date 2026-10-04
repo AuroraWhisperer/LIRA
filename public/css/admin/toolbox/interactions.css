@@ -23,8 +23,8 @@
   line-height: 1;
 }
 .interaction-tabs button[aria-selected='true'] {
-  color: var(--text);
-  border-bottom-color: var(--primary);
+  color: var(--color-selection-text);
+  border-bottom-color: var(--color-selection-marker);
   font-weight: 600;
 }
 .interaction-tabs button:hover:not(:disabled) {

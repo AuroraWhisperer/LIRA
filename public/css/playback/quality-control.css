@@ -31,7 +31,7 @@
 }
 
 .playback-quality-btn:hover {
-  background: rgba(24, 24, 22, 0.1);
+  background: var(--color-bg-hover, rgba(24, 24, 22, 0.1));
   color: var(--text);
 }
 
@@ -108,7 +108,7 @@
 }
 
 .playback-quality-option:hover {
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-hover, var(--color-bg-tertiary));
 }
 
 .playback-quality-option:focus-visible {
@@ -118,7 +118,7 @@
 
 .playback-quality-option.selected {
   background: var(--color-primary-light);
-  color: var(--primary-strong);
+  color: var(--color-selection-text, var(--primary-strong));
 }
 
 .playback-quality-option span {

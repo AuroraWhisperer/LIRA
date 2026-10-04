@@ -731,6 +731,11 @@ function createMainWindow(baseUrl, authorized = false) {
     }
   });
 
+  windowState.main.on('close', function (event) {
+    event.preventDefault();
+    requestDesktopShutdown();
+  });
+
   windowState.main.on('closed', function () {
     writeLog('window', { event: 'closed', window: 'main' });
     windowState.main = null;

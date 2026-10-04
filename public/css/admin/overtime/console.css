@@ -1,16 +1,4 @@
 .overtime-console {
-  /* This dedicated console keeps its existing identity inside the themed tools. */
-  --surface: #ffffff;
-  --surface-2: #efeeeb;
-  --border: #e1dfda;
-  --text: #1c1c1a;
-  --muted: #66625c;
-  --primary: #2f62d4;
-  --primary-strong: #234fb5;
-  --color-primary-active: #1b3f94;
-  --color-control-focus: #234fb5;
-  --color-border-strong: #cbc8c1;
-  --color-bg-tertiary: #f7f7f5;
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -84,8 +72,8 @@
 .overtime-actions button {
   min-height: 40px;
   border-color: transparent;
-  background: var(--primary);
-  color: var(--color-text-white);
+  background: var(--color-primary-fill);
+  color: var(--color-on-primary);
   font-weight: 700;
 }
 .overtime-actions button.secondary {
@@ -95,7 +83,7 @@
 }
 .overtime-actions button:hover:not(:disabled) {
   border-color: transparent;
-  background: var(--primary-strong);
+  background: var(--color-primary-fill-hover);
 }
 .overtime-actions button.secondary:hover:not(:disabled) {
   border-color: var(--color-border-strong);

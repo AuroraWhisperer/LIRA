@@ -12,7 +12,7 @@ function read(relativePath) {
   return fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
 }
 
-test('礼物姬 owns effect 1 toggle, threshold, preview, and overlay address', () => {
+test('礼物姬 owns effect 1 trigger settings and opens its canvas preview', () => {
   const html = readAdminHtml();
   const moduleSource = read('public/js/admin/gift-frame.js');
 
@@ -22,9 +22,13 @@ test('礼物姬 owns effect 1 toggle, threshold, preview, and overlay address', 
   assert.match(html, /最多等待 50 条/);
   assert.doesNotMatch(html, /id="giftFrame(?:Theme|MotionMode|PreviewAmount)"/);
   assert.match(html, /id="giftFramePreviewBtn"/);
-  assert.match(html, /id="giftFrameOverlayUrl"/);
+  for (const field of ['PreviewUser', 'PreviewGift', 'PreviewNum']) {
+    assert.match(html, new RegExp(`id="giftFrame${field}"`));
+  }
+  assert.doesNotMatch(html, /id="giftFrame(?:OverlayUrl|OpenBtn|CopyBtn)"/);
   assert.match(moduleSource, /\/api\/settings/);
-  assert.match(moduleSource, /\/api\/gifts\/frame\/preview/);
+  assert.match(moduleSource, /openComponentPreview\(\{ id: 'gift-frame', previewData \}\)/);
+  assert.doesNotMatch(moduleSource, /\/api\/gifts\/frame\/preview/);
   assert.match(moduleSource, /app:settings-state/);
   assert.match(moduleSource, /giftFrameEnabled/);
 });

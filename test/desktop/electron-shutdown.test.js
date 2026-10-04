@@ -3,6 +3,56 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createShutdownHarness } = require('../helpers/electron-shutdown');
+const { acknowledgePlaybackFlush } = require('../../src/electron/playback-flush');
+
+for (const entry of ['ipc', 'native']) {
+  test(`${entry} window close keeps the renderer alive until its actual playback flush is acknowledged`, async (t) => {
+    const h = createShutdownHarness({ realPlaybackFlush: true });
+    t.after(acknowledgePlaybackFlush);
+    await h.start();
+    const window = h.state.window.main;
+    if (entry === 'ipc') h.handlers.get('desktop:close-window')();
+    else window.close();
+    assert.equal(window.isDestroyed(), false);
+    assert.equal(h.state.window.main, window);
+    window.close();
+    assert.equal(h.count('cloud:dispose'), 1);
+    h.cloudIdle.resolve();
+    h.remoteIdle.resolve();
+    h.backendStop.resolve();
+    await h.settle();
+    assert.equal(h.count('ipc:app:prepare-shutdown'), 1);
+    assert.equal(h.count('app:exit'), 0);
+    assert.equal(window.isDestroyed(), false);
+    assert.equal(acknowledgePlaybackFlush(), true);
+    await h.state.lifecycle.shutdownPromise;
+    assert.equal(window.isDestroyed(), true);
+    assert.equal(h.count('app:exit'), 1);
+    assert.equal(h.logs.find((log) => log.scope === 'playback-flush').value.status, 'ack');
+  });
+}
+
+test('repeated native close retains the existing shutdown deadline when the renderer never acknowledges', async (t) => {
+  const h = createShutdownHarness({ realPlaybackFlush: true });
+  t.after(acknowledgePlaybackFlush);
+  await h.start();
+  const window = h.state.window.main;
+  window.close();
+  h.cloudIdle.resolve();
+  h.remoteIdle.resolve();
+  await h.settle();
+  window.close();
+  assert.deepEqual(h.clock.delays, [5000]);
+  h.clock.advance(5000);
+  await h.state.lifecycle.shutdownPromise;
+  assert.equal(window.isDestroyed(), true);
+  assert.equal(h.count('app:exit'), 1);
+  assert.ok(h.logs.some((log) => log.value?.event === 'QUIT_TIMEOUT'));
+  acknowledgePlaybackFlush();
+  h.backendStop.resolve();
+  await h.settle();
+  assert.equal(h.count('app:exit'), 1);
+});
 
 test('an interrupted installation cannot start an empty backend', async () => {
   const recoveryDataDir = 'D:\\Apps\\LIRA.lira-data-backup';

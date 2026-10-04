@@ -303,7 +303,7 @@ body.player-dock-expanded .other-workspace {
 
 .other-feature-button.active {
   border-color: transparent;
-  background: var(--color-primary-light);
+  background: var(--color-selection-fill, var(--color-primary-light));
   color: var(--primary-strong);
 }
 

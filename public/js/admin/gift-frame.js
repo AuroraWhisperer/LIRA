@@ -1,7 +1,9 @@
 // 百宝箱 → 礼物姬：礼物四方边框的持久化设置与预览。
 'use strict';
 
-import { api, copyText, localOverlayOrigin, toast } from '../shared/utils.js';
+import { api } from '../shared/utils.js';
+import { openComponentPreview } from './component-preview-dialog.js';
+import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 
 let initialized = false;
 let currentSettings = {};
@@ -23,17 +25,8 @@ export function initGiftFrame() {
   root.addEventListener('input', markDraft);
   root.addEventListener('change', markDraft);
 
-  const overlayUrl = `${localOverlayOrigin(location)}/gift-effects`;
-  document.getElementById('giftFrameOverlayUrl').textContent = overlayUrl;
   document.getElementById('giftFrameSaveBtn').addEventListener('click', saveSettings);
   document.getElementById('giftFramePreviewBtn').addEventListener('click', playPreview);
-  document.getElementById('giftFrameCopyBtn').addEventListener('click', async () => {
-    await copyText(overlayUrl);
-    toast('礼物边框地址已复制');
-  });
-  document.getElementById('giftFrameOpenBtn').addEventListener('click', () => {
-    window.open(`${overlayUrl}?preview=1&debug=1`, 'liraGiftFramePreview');
-  });
   window.addEventListener('app:settings-state', (event) => renderGiftFrame(event.detail || {}));
   initialized = true;
   renderGiftFrame(currentSettings);
@@ -51,9 +44,6 @@ export function renderGiftFrame(settings = {}) {
   ]) {
     if (!draftFields.has(id)) document.getElementById(id).value = settings[id] || fallback;
   }
-  const state = document.getElementById('giftFrameSettingsState');
-  state.textContent = enabled.checked ? '已启用' : '未启用';
-  state.dataset.state = enabled.checked ? 'enabled' : 'disabled';
 }
 
 async function saveSettings() {
@@ -82,30 +72,26 @@ async function saveSettings() {
         document.getElementById(id).dataset.dirty = 'false';
       }
     }
-    setStatus('已保存，下一笔达到金额的最终礼物会触发。', 'success');
+    setStatus('设置已保存。', 'success');
     renderGiftFrame({ ...currentSettings, ...values });
   } catch (_) {
     setStatus('保存失败，请稍后重试。', 'error');
   }
 }
 
-async function playPreview() {
+function playPreview() {
   const num = Number(document.getElementById('giftFramePreviewNum').value);
   if (!Number.isSafeInteger(num) || num <= 0) {
     setStatus('预览数量必须是正整数。', 'error');
     return;
   }
-  try {
-    await api('/api/gifts/frame/preview', {
-      userName: document.getElementById('giftFramePreviewUser').value,
-      giftName: document.getElementById('giftFramePreviewGift').value,
-      num,
-      themeId: 'woodland-bloom',
-    });
-    setStatus('特效 1 预览已发送，请在礼物边框画面查看。', 'success');
-  } catch (_) {
-    setStatus('预览发送失败，请确认投屏页面已打开。', 'error');
-  }
+  const previewData = sceneExtraPreviewData('gift-frame');
+  const event = previewData.events[0];
+  event.userName = document.getElementById('giftFramePreviewUser').value.trim() || event.userName;
+  event.giftName = document.getElementById('giftFramePreviewGift').value.trim() || event.giftName;
+  event.num = num;
+  setStatus('', '');
+  openComponentPreview({ id: 'gift-frame', previewData });
 }
 
 function setStatus(message, state) {

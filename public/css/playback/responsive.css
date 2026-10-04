@@ -401,7 +401,7 @@
 
 .playlist-picker-item:hover:not(:disabled) {
   border-color: var(--color-border-strong);
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-hover, var(--color-bg-tertiary));
 }
 
 .playlist-picker-item:disabled {

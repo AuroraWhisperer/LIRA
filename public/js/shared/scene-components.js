@@ -22,7 +22,7 @@ export const SCENE_COMPONENTS = Object.freeze({
   }),
   ...Object.fromEntries(Object.entries(SCENE_EXTRA_COMPONENTS).map(([type, definition]) => [type, Object.freeze({
     resizeAxes: 'xy', contentHeight: false, independentOnly: true,
-    rendererUrl: `${definition.path}?componentPreview=1&sceneComponent=1`, sourceUrl: definition.path,
+    rendererUrl: `${definition.path}${definition.path.includes('?') ? '&' : '?'}componentPreview=1&sceneComponent=1`, sourceUrl: definition.path,
     disconnectedData: () => null,
   })])),
 });

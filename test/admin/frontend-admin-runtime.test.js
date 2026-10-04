@@ -20,10 +20,9 @@ test('admin state events render queue empty states and song data', () => {
   assert.match(source, /songPanel\.renderSongs\s*\(\s*songs\s*,\s*languages\s*,\s*artists\s*,\s*tags\s*,?\s*\)/);
 });
 
-test('admin wires gift catalog updates and exposes the overtime picker controls', () => {
+test('admin wires gift catalog updates into the overtime picker', () => {
   const stateSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'), 'utf8');
   const overtimeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');
-  const html = readAdminHtml();
 
   assert.match(stateSource, /payload\.type === ["']gift-catalog:update["']/);
   assert.match(stateSource, /Events\.GIFT_CATALOG_UPDATED/);
@@ -34,20 +33,6 @@ test('admin wires gift catalog updates and exposes the overtime picker controls'
   assert.match(overtimeSource, /row\.dataset\.imagePath = imagePath/);
   assert.match(stateSource, /assetsUpdatedAt: String\(snapshot\.assetsUpdatedAt/);
   assert.match(overtimeSource, /function openGiftPicker\(row = null\)[\s\S]*refreshGiftCatalog\(\{ notify: false \}\)/);
-  assert.match(html, /id="overtimeGiftCatalogStatus"[^>]*>\s*在售目录：未刷新\s*<\/span\s*>/);
-  assert.match(html, /id="overtimeRefreshGiftsBtn"[^>]*>\s*刷新在售礼物\s*<\/button>/);
-});
-
-test('admin initialization waits for sibling module scripts at interactive ready state', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
-
-  assert.match(source, /document\.readyState === 'complete'/);
-  assert.match(source, /document\.addEventListener\('DOMContentLoaded', initApp, \{ once: true \}\)/);
-});
-
-test('admin initial song loading does not request application state again', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'), 'utf8');
-  assert.match(source, /await this\.reloadSongs\(\{ reloadState: false \}\);/);
 });
 
 test('admin idle timers are lifecycle-bound', () => {
@@ -69,17 +54,6 @@ test('blind-box statistics are not reloaded for every state render', () => {
   assert.match(blindbox, /if \(!statsInitialized\) \{[\s\S]*?loadBlindBoxStats\(\);/);
 });
 
-test('admin loads theme presets before initializing theme forms', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
-  const loadPosition = source.indexOf('await Theme.loadThemeConfig()');
-  const themeFormPosition = source.indexOf('theme.initThemeForm()');
-  const displayFormPosition = source.indexOf('display.initDisplayForm()');
-
-  assert.ok(loadPosition >= 0, 'theme configuration should be loaded');
-  assert.ok(loadPosition < themeFormPosition, 'theme presets should load before the theme form');
-  assert.ok(loadPosition < displayFormPosition, 'theme presets should load before the display form');
-});
-
 test('queue theme uses explicit draft saves while the display board retains autosave', () => {
   const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue-theme-view.js'), 'utf8');
   const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
@@ -97,8 +71,6 @@ test('queue theme uses explicit draft saves while the display board retains auto
   assert.match(themeSource, /resetClassicTheme[\s\S]*?controller\.edit\(/);
   assert.match(displaySource, /songBoardPresets[\s\S]*?await saveDisplay\(\)/);
   assert.match(displaySource, /songBoardResetTheme[\s\S]*?await saveDisplay\(\)/);
-  assert.doesNotMatch(themeSource, /保存后生效/);
-  assert.doesNotMatch(displaySource, /保存后生效/);
 });
 
 test('early theme preset references receive asynchronously loaded data', async () => {
@@ -115,8 +87,8 @@ test('early theme preset references receive asynchronously loaded data', async (
   await themeModule.loadThemeConfig();
   assert.equal(themeModule.getAllClassicPresets(), earlyClassicPresets);
   assert.equal(themeModule.getAllSongBoardPresets(), earlySongBoardPresets);
-  assert.equal(Object.keys(earlyClassicPresets).length, 14);
-  assert.equal(Object.keys(earlySongBoardPresets).length, 14);
+  assert.deepEqual(JSON.parse(JSON.stringify(earlyClassicPresets)), config.presets.classic);
+  assert.deepEqual(JSON.parse(JSON.stringify(earlySongBoardPresets)), config.presets.songBoard);
 });
 
 test('tracked theme defaults match first-run storage defaults', () => {
@@ -137,4 +109,46 @@ test('shared theme compatibility keeps admin theme form methods', async () => {
   assert.equal(typeof browserWindow.AdminApp.theme.loadThemeConfig, 'function');
   const defaultThemeDescriptor = Object.getOwnPropertyDescriptor(browserWindow.AdminApp.theme, 'defaultThemeLook');
   assert.equal(typeof defaultThemeDescriptor.get, 'function');
+});
+
+test('admin page uses one ordered module entrypoint', () => {
+  const html = readAdminHtml();
+  const entrySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
+
+  const scripts = html.match(/<script\b[^>]*>/g) || [];
+  const entries = scripts.filter((tag) => /\ssrc=["']\/js\/admin\/index\.js(?:\?[^"']*)?["']/.test(tag));
+  assert.equal(entries.length, 1);
+  assert.match(entries[0], /\stype=["']module["']/);
+  assert.doesNotMatch(html, /<script[^>]+src="\/js\/admin\/queue\.js/);
+
+  assert.ok(entrySource.includes("import './gifts/index.js';"));
+  const giftEntry = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/gifts/index.js'), 'utf8');
+  for (const name of ['notification', 'detection', 'sprint', 'recent', 'blindbox', 'history']) {
+    assert.ok(giftEntry.includes(`from './${name}.js'`), `${name} is an explicit dependency`);
+    assert.ok(
+      !entrySource.includes(`import './gifts/${name}.js';`),
+      'composition does not rely on side-effect ordering',
+    );
+  }
+
+  const importLines = entrySource.match(/^import .+;$/gm) ?? [];
+  assert.equal(importLines.at(-1), "import './app.js';");
+});
+
+test('admin form refresh preserves the active edit and updates inactive fields', async () => {
+  const edited = { value: '正在输入', dataset: {}, closest: () => null };
+  const inactive = { value: '旧值', dataset: {}, closest: () => null };
+  const document = {
+    activeElement: edited,
+    getElementById: (id) => ({ edited, inactive })[id] || null,
+    querySelectorAll: () => [],
+    querySelector: () => null,
+  };
+  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/forms.js'), {
+    document,
+    window: { AdminApp: {} },
+  });
+  new FormsService().fillForm({ edited: '服务端值', inactive: '新值' });
+  assert.equal(edited.value, '正在输入');
+  assert.equal(inactive.value, '新值');
 });

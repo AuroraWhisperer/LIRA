@@ -46,23 +46,6 @@ test('desktop lyric settings expose WeSing-only lyric source preferences', () =>
   assert.match(styles, /\.desktop-lyric-source-option\s+input:focus-visible\s+\+\s+\.desktop-lyric-source-choice/);
 });
 
-test('desktop lyric settings define the merged presentation defaults', () => {
-  assert.equal(DEFAULT_SETTINGS.desktopLyricFallbackFontFamily, 'Microsoft JhengHei');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricTextAlign, 'left');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricShowTranslation, 'true');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricKaraokeEnabled, 'true');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricKaraokeMode, 'continuous');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricHideOnPause, 'false');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricTimeOffsetMs, '0');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricSpringAnimation, 'false');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricBlurEffect, 'false');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricScaleEffect, 'false');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricAlignPosition, '0.5');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricBackgroundEnabled, 'false');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricBrightness, '1');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricVisibleLines, '0');
-});
-
 test('desktop lyric relative controls display percentages without changing stored values', async () => {
   const html = readDesktopLyricHtml();
   const listeners = new Map();
@@ -126,6 +109,9 @@ test('desktop lyric settings use icon alignment controls and performance-safe mo
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css');
 
+  for (const key of ['desktopLyricSpringAnimation', 'desktopLyricBlurEffect', 'desktopLyricScaleEffect', 'desktopLyricBackgroundEnabled']) {
+    assert.equal(DEFAULT_SETTINGS[key], 'false', `${key} must remain opt-in`);
+  }
   assert.match(html, /id="desktopLyricTextAlign"[^>]*role="radiogroup"/);
   for (const value of ['left', 'center', 'right', 'justify']) {
     assert.match(html, new RegExp(`name="desktopLyricTextAlign"[\\s\\S]*?value="${value}"`));

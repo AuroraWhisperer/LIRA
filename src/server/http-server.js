@@ -126,7 +126,10 @@ function createHttpServer(options = {}) {
       }
 
       if (requestUrl.pathname.startsWith('/opening-character/')) {
-        httpUtils.serveOpeningCharacter(dataDir, req, res, requestUrl, () => getSettings()?.openingCharacterFile || '');
+        httpUtils.serveOpeningCharacter(dataDir, req, res, requestUrl, () => {
+          const settings = getSettings();
+          return [settings?.openingCharacterFile, settings?.openingPixelCharacterFile];
+        });
         return;
       }
 

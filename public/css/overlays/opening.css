@@ -1,4 +1,5 @@
 @import url('./opening-layout.css');
+@import url('./opening-pixel.css');
 
 :root {
   --opening-night: #1d151c;

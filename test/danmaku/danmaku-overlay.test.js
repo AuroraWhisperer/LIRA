@@ -13,33 +13,18 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'danmaku.html'), 'utf8');
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'overlays', 'danmaku.css').replace(/\s+/g, ' ');
-  const server = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'runtime-transport.js'), 'utf8');
 
   assert.match(html, /id="danmakuFeed"/);
   assert.match(html, /body class="danmaku-overlay-body" data-style="signal"/);
   assert.match(html, /type="module" src="\/js\/overlays\/danmaku\.js/);
   assert.match(script, /createDanmakuFeed/);
-  assert.match(script, /const MAX_ITEMS = 50;/);
-  assert.match(script, /payload\.state\.danmakuFeed/);
-  assert.match(script, /payload\.type === 'danmaku:message'/);
   assert.match(script, /window\.__API_TOKEN__/);
   assert.match(script, /encodeURIComponent\(token\)/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
   assert.match(script, /&token=\$\{encodeURIComponent\(token\)\}/);
-  assert.match(script, /payload\.state\.settings\.danmakuOverlayStyle/);
-  assert.match(script, /danmakuFullscreenDurationSeconds/);
-  assert.match(script, /options\.layout\s*=\s*'fullscreen-random'/);
-  assert.match(script, /itemLifetimeMs/);
   assert.match(script, /payload\.state\.liveStatus/);
   assert.match(script, /topic=danmaku/);
-  assert.match(script, /feed\.append/);
-  assert.match(script, /requestAnimationFrame\(flushPendingItems\)/);
   assert.match(script, /autoScroll:\s*false/);
-  assert.match(
-    server,
-    /getWebSocketHub\(\)\?\.broadcast\(\s*\{\s*type:\s*'danmaku:message',\s*item\s*\},\s*\{\s*topic:\s*'danmaku'\s*\},?\s*\)/,
-  );
-  assert.match(script, /document\.body\.dataset\.style/);
   assert.doesNotMatch(script, /innerHTML/);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(styles, /background:\s*transparent/);

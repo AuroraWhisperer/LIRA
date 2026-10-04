@@ -2,6 +2,7 @@ import { previewElement } from './component-preview-surface.js';
 import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
 
 const CATEGORY_ICONS = {
+  opening: 'M3 5h18v14H3Zm7 4 5 3-5 3Z',
   danmaku: 'M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3V6a2 2 0 0 1 1-2Zm3 5h9M8 13h6',
   clock: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-5v5l3 2',
   queue: 'M9 6h11M9 12h11M9 18h7M4 6h.01M4 12h.01M4 18h.01',
@@ -10,6 +11,8 @@ const CATEGORY_ICONS = {
   lyrics: 'M4 6h16M4 12h16M7 18h10',
   '直播小游戏': 'M8 7h8a5 5 0 0 1 5 4l1 5a3 3 0 0 1-5 3l-3-3h-4l-3 3a3 3 0 0 1-5-3l1-5a5 5 0 0 1 5-4Zm-1 3v5m-2-2h4m7-2h.01m2 3h.01',
   'gift-feed': 'M3 8h18v4H3Zm2 4v9h14v-9M12 8v13m0-13H8a3 3 0 1 1 3-3l1 3Zm0 0h4a3 3 0 1 0-3-3l-1 3Z',
+  'gift-frame': 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M7 7h10v10H7Z',
+  'guard-thanks': 'M12 3v16m-4-9h8m-4-7a2 2 0 1 1 0 4 2 2 0 0 1 0-4ZM4 13v3c0 6 16 6 16 0v-3m-18 2 2-2 2 2m12 0 2-2 2 2',
   blindbox: 'm12 3 9 5v9l-9 5-9-5V8Zm0 10 9-5m-9 5L3 8m9 5v9m-5-17 10 6',
   'gift-wishes': 'm12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z',
 };

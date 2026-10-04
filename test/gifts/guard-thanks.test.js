@@ -147,29 +147,25 @@ test('only the gift-effects overlay scope receives the projected thanks fields',
   assert.equal(projectWebSocketPayload({ type: 'overlay', scope: 'danmaku' }, event), null);
 });
 
-test('gift assistant owns the guard thanks tab, settings, previews and shared overlay address', () => {
+test('gift assistant owns guard settings and sends previewing to the canvas', () => {
   const html = readAdminHtml();
   const moduleSource = read('public/js/admin/gift-guard-thanks.js');
   assert.match(html, /<button\b(?=[^>]*\sid="giftAssistantGuardTab")(?=[^>]*\saria-controls="guardThanksPanel")(?=[^>]*\sdata-gift-tab="guard")[^>]*>/);
   for (const id of [
     'guardThanksEnabled',
     'guardThanksTextMode',
-    'guardThanksPreviewStage',
     'guardThanksPlayBtn',
-    'guardThanksSendBtn',
     'guardThanksSaveBtn',
-    'guardThanksOverlayUrl',
   ]) {
     assert.ok(html.includes(`id="${id}"`), id);
   }
-  assert.equal((html.match(/name="guardThanksPreviewTier"/g) || []).length, 3);
-  assert.match(html, /href="\/css\/shared\/guard-thanks\.css"/);
+  assert.doesNotMatch(html, /id="guardThanks(?:PreviewStage|PreviewUser|PreviewMonths|OverlayUrl|SendBtn|OpenBtn|CopyBtn)"/);
   assert.match(html, /href="\/css\/admin\/gift-guard-thanks\.css"/);
   assert.match(read('public/js/admin/app.js'), /initGuardThanks\(\);/);
   assert.match(moduleSource, /\/api\/settings/);
-  assert.match(moduleSource, /\/api\/gifts\/guard-thanks\/preview/);
+  assert.match(moduleSource, /openComponentPreview\(\{ id: 'guard-thanks' \}\)/);
   assert.match(moduleSource, /app:settings-state/);
-  assert.match(moduleSource, /\/gift-effects`/);
+  assert.doesNotMatch(moduleSource, /\/gift-effects/);
 });
 
 test('gift-effects overlay hosts the shared guard thanks renderer without HTML injection', () => {

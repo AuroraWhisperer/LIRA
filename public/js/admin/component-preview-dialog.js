@@ -1,6 +1,9 @@
 import { api, localOverlayOrigin, toast } from '../shared/utils.js';
 import { getActiveComponentPreview, closeComponentPreview, setActiveComponentPreview, releaseComponentPreview } from './component-preview-session.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
+import { SCENE_COMPONENTS } from '../shared/scene-components.js';
+
+const sceneOnly = (component) => SCENE_COMPONENTS[component?.id]?.independentOnly === true;
 
 export function openComponentPreview(selected = null) {
   const active = getActiveComponentPreview('browser-preview');
@@ -11,6 +14,10 @@ export function openComponentPreview(selected = null) {
   let focusGeneration = 0;
   const entryLinks = new Map();
   const connections = [];
+  const previewData = {};
+  if (selected?.previewData) previewData[selected.id] = selected.previewData;
+  const displayOf = (connection) => connection.options.id === 'canvas'
+    ? { ...connection.display, previewData: { ...connection.previewData, ...previewData } } : connection.display;
   const requests = new AbortController();
   const post = (body) => api('/api/component-preview', body, { notifyError: false,
     signal: AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]) });
@@ -33,13 +40,14 @@ export function openComponentPreview(selected = null) {
   }
   async function focus(next = selected) {
     selected = next;
+    if (next?.previewData) previewData[next.id] = next.previewData;
     if (!ready || closed) return;
     const requested = ++focusGeneration;
     try {
       const selectedId = next?.id || null;
       let selectedSize = null;
       const canvas = connections.find(({ options }) => options.id === 'canvas');
-      if (next && canvas?.options.getComponentSize && !canvas.options.controller.getState().draft.document.items
+      if (next && !sceneOnly(next) && canvas?.options.getComponentSize && !canvas.options.controller.getState().draft.document.items
         .some((item) => item.type === next.id && item.appearance.mode === 'shared')) {
         selectedSize = await canvas.options.getComponentSize(next.id,
           AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]));
@@ -66,7 +74,8 @@ export function openComponentPreview(selected = null) {
     canReuse(next) {
       return !closed && connections.every(({ options, generation, stopped }) =>
         !stopped && options.controller.getState().generation === generation)
-        && (!next || connections.some(({ options }) => options.id === next.id && options.controller === next.controller)
+        && (!next || sceneOnly(next) && connections.some(({ options }) => options.id === 'canvas')
+          || connections.some(({ options }) => options.id === next.id && options.controller === next.controller)
           || (!connections.length && selected?.id === next.id && selected.controller === next.controller));
     } };
   setActiveComponentPreview(handle);
@@ -79,7 +88,7 @@ export function openComponentPreview(selected = null) {
     let received = false;
     try {
       const { data } = await post({ action: 'exchange', id: connection.session.id,
-        ack: connection.ack, state: controller.getState(), display: connection.display });
+        ack: connection.ack, state: controller.getState(), display: displayOf(connection) });
       if (closed || controller.getState().generation !== connection.generation) { close(); return; }
       received = true;
       connection.retryDelay = 1000;
@@ -125,15 +134,18 @@ export function openComponentPreview(selected = null) {
     try {
       const available = await prepareComponentPreviews();
       if (closed) return;
-      const previews = selected ? [selected, ...available.filter(({ id }) => id !== selected.id)] : available;
+      const previews = selected && !sceneOnly(selected) ? [selected, ...available.filter(({ id }) => id !== selected.id)] : available;
       if (!previews.length) throw new Error('组件尚未就绪，请重新打开场景编辑器。');
       for (const options of previews) {
         const connection = { options, generation: options.controller.getState().generation,
           ack: 0, display: null, timer: 0, retryDelay: 1000, opened: false };
         connections.push(connection);
-        connection.stopData = options.startActualData?.((data) => { connection.display = data; });
+        connection.stopData = options.startActualData?.((data) => {
+          if (options.id === 'canvas') connection.previewData = data.previewData;
+          else connection.display = data;
+        });
         const response = await post({ action: 'open', component: options.id,
-          state: options.controller.getState(), display: connection.display });
+          state: options.controller.getState(), display: displayOf(connection) });
         connection.session = response.data;
         if (closed || options.controller.getState().generation !== connection.generation) {
           void post({ action: 'revoke', id: connection.session.id }).catch(() => {});

@@ -162,7 +162,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
         name: `${component.title} ${document.items.filter((item) => item.type === component.id).length + 1}`,
         x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
         width, height, visible: true, locked: false,
-        appearance: config ? { mode: 'independent', config } : { mode: 'shared' } });
+        appearance: config || component.sceneOnly ? { mode: 'independent', config: draft } : { mode: 'shared' } });
     });
     select(id);
     setInspectorOpen(true);
@@ -343,7 +343,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     }
     renderStatus();
   }));
-  const existing = model.getDocument().items.find((item) => item.type === selectedId && item.appearance.mode === 'shared');
+  const existing = model.getDocument().items.find((item) => item.type === selectedId
+    && (components.find(({ id }) => id === selectedId)?.sceneOnly || item.appearance.mode === 'shared'));
   if (!selectedId) select(null);
   else if (existing) {
     if (!existing.visible) edit((document) => { document.items.find((item) => item.id === existing.id).visible = true; });

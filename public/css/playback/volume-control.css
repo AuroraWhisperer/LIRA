@@ -4,8 +4,8 @@
   display: grid;
   place-items: center;
   --volume-track-fill: var(--primary);
-  --volume-track-rest: var(--color-control-border, color-mix(in srgb, var(--text) 12%, transparent));
-  --volume-thumb: var(--color-bg-primary);
+  --volume-track-rest: var(--color-range-track, var(--color-control-border, color-mix(in srgb, var(--text) 12%, transparent)));
+  --volume-thumb: var(--color-range-thumb, var(--color-bg-primary));
 }
 
 .playback-volume-panel {

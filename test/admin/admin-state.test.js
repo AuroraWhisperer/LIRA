@@ -84,6 +84,27 @@ function resolveSongs(request, songs) {
   request.resolve({ json: async () => ({ ok: true, data: songs }) });
 }
 
+test('admin initial song loading does not request application state again', async () => {
+  const requests = [];
+  const songs = [{ id: 1, name: '初始歌单' }];
+  const globals = createGlobals(async (url) => {
+    const pathname = new URL(url, 'http://localhost').pathname;
+    requests.push(pathname);
+    assert.ok(['/api/state', '/api/songs'].includes(pathname), `unexpected request: ${url}`);
+    return { json: async () => ({ ok: true, data: pathname === '/api/state' ? { settings: {}, queue: [] } : songs }) };
+  });
+  globals.URLSearchParams = URLSearchParams;
+  globals.document.getElementById = () => ({ value: '' });
+  globals.document.querySelectorAll = () => [];
+  const { StateService } = await loadModuleExports(STATE_PATH, globals);
+  const service = new StateService();
+
+  await service.reloadAll();
+
+  assert.deepEqual(requests, ['/api/state', '/api/songs']);
+  assert.deepEqual(service.getSongs(), songs);
+});
+
 for (const reloadState of [true, false]) {
   for (const olderFirst of [true, false]) {
     test(`Admin accepts only the latest song filter request (reloadState=${reloadState}, olderFirst=${olderFirst})`, async () => {
@@ -237,8 +258,9 @@ test('Admin emits a fresh HTTP lyric version once and ignores duplicate or stale
   assert.equal(service.appState.lyricState.text, 'fresh');
 });
 
-async function createSocketLifecycleHarness() {
+async function createSocketLifecycleHarness(overrides = {}) {
   const globals = createGlobals();
+  Object.assign(globals, overrides);
   const sockets = [];
   const timers = new Map();
   let nextTimer = 0;
@@ -290,6 +312,56 @@ test('Admin cancels pending reconnects when shutdown starts', async () => {
   reconnect();
   service.connectSocket();
   assert.equal(sockets.length, 1);
+});
+
+test('Admin reconciles songs after reconnect with current filters and no duplicate first load', async () => {
+  const requests = [];
+  let songs = [{ id: 1, name: '旧歌单' }];
+  let query = '';
+  const { service, sockets, timers } = await createSocketLifecycleHarness({
+    URLSearchParams,
+    document: {
+      getElementById: (id) => ({ value: id === 'songSearch' ? query : '', hidden: false }),
+      querySelectorAll: () => [],
+    },
+    fetch: async (url) => {
+      requests.push(url);
+      return { json: async () => ({ ok: true, data: url.startsWith('/api/songs') ? songs : {} }) };
+    },
+  });
+  const connectSnapshot = (socket) => socket.emit('message', {
+    data: JSON.stringify({ type: 'snapshot', reason: 'connect', state: {} }),
+  });
+  service.connectSocket();
+  sockets[0].emit('open');
+  connectSnapshot(sockets[0]);
+  await service.reloadAll();
+  assert.equal(timers.size, 0);
+  assert.equal(requests.filter((url) => url.startsWith('/api/songs')).length, 1);
+  sockets[0].emit('close');
+  songs = [{ id: 2, name: '恢复后的歌单' }];
+  query = '新筛选';
+  const [reconnectId, reconnect] = [...timers][0];
+  timers.delete(reconnectId);
+  reconnect();
+  sockets[1].emit('open');
+  connectSnapshot(sockets[1]);
+  assert.equal(timers.size, 1);
+  const [reloadId, reload] = [...timers][0];
+  timers.delete(reloadId);
+  reload();
+  await new Promise(setImmediate);
+  assert.equal(service.getSongs()[0].id, 2);
+  assert.equal(new URL(requests.at(-1), 'http://localhost').searchParams.get('query'), query);
+  assert.equal(requests.filter((url) => url.startsWith('/api/songs')).length, 2);
+
+  service.scheduleSongReload();
+  const staleReload = [...timers.values()][0];
+  service.setShuttingDown(true);
+  assert.equal(timers.size, 0);
+  staleReload();
+  await new Promise(setImmediate);
+  assert.equal(requests.filter((url) => url.startsWith('/api/songs')).length, 2);
 });
 
 test('Admin rejects malformed frames without changing state and continues accepting valid frames', async () => {

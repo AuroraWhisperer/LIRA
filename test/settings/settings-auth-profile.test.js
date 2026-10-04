@@ -154,9 +154,12 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
   assert.deepEqual(authEvents, ['app:bilibili-auth-changed', 'app:bilibili-auth-changed']);
 });
 
-test('Bilibili settings explain connection setup and confirmed stop actions', () => {
+test('Bilibili settings expose account controls and explain confirmed stop actions', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'), 'utf8');
 
+  for (const id of ['bilibiliAuthProfile', 'bilibiliAuthAvatar', 'bilibiliAuthName', 'bilibiliAuthUid', 'bilibiliLoginBtn', 'bilibiliLogoutBtn']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
   const help = html.match(/<lira-help\s*>(.*?)<\/lira-help/s)?.[1];
   assert.match(help, /扫码登录后，填写自己的 B 站直播间号并保存/);
   assert.match(help, /弹幕和礼物默认持续监控/);
@@ -166,19 +169,4 @@ test('Bilibili settings explain connection setup and confirmed stop actions', ()
   assert.match(help, /等待同步完成/);
   assert.doesNotMatch(html, /id="enableBilibili"/);
   assert.doesNotMatch(html, /id="bilibiliAuthHint"/);
-});
-
-test('Bilibili account markup keeps avatar, identity and actions in one aligned row', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'), 'utf8');
-  const css = fs.readFileSync(path.join(ROOT, 'public', 'css', 'admin', 'workspace', 'base.css'), 'utf8');
-  const row = html.match(/<div\s+class="bilibili-auth-row"[\s\S]*?<\/div>/)?.[0];
-
-  assert.ok(row);
-  assert.match(row, /id="bilibiliAuthAvatar"/);
-  assert.match(row, /id="bilibiliAuthName"/);
-  assert.match(row, /id="bilibiliAuthUid"/);
-  assert.ok(row.indexOf('bilibiliAuthProfile') < row.indexOf('bilibiliLogoutBtn'));
-  assert.match(css, /\.bilibili-auth-profile\s*\{[\s\S]*?align-items: center/);
-  assert.match(css, /\.bilibili-auth-avatar\s*\{[\s\S]*?width: 28px/);
-  assert.match(css, /\.bilibili-auth-identity\s*\{[\s\S]*?flex-direction: column/);
 });

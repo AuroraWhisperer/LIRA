@@ -69,6 +69,8 @@ Admin 的 HTTP 与 WS 全量快照统一经过 `StateService.applySnapshot`。HT
 | 局部消息   | `overtime:update`/`wesing-state`/`lyric-state`/`lyric-timeline` 只更新对应字段并派发 CustomEvent(`app:overtime`、`app:wesing-state`、`app:lyric-state`、`app:lyric-timeline`)；`gift-catalog:update` 不写入全量 state，只派发 `Events.GIFT_CATALOG_UPDATED` | [state.js:59-86](../../../public/js/admin/state.js#L59-L86)                                                                |
 | 礼物触发   | reason ∈ {`bilibili:gift`,`gift:clear-recent`,`database:clear-gifts`,`database:clear-all`} 时额外发 `gift:received` 事件                                                                                                                                    | [state.js:215-220](../../../public/js/admin/state.js#L215-L220)                                                            |
 
+Admin 首次成功连接不重复初始歌库加载；后续每次成功重连通过现有 240ms 合并计时器重新获取 `/api/songs`，使用当前筛选条件并保留最新请求版本检查，以恢复断线期间遗漏的歌曲变更。关闭状态同时取消连接和歌库重载计时器，已排队的旧回调不能发起请求。
+
 ### 3.2 指纹去重(叠加层)
 
 叠加层不重渲染"内容没变"的快照:

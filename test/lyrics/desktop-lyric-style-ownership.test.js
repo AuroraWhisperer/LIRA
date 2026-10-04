@@ -31,7 +31,7 @@ test('desktop lyric styles separate admin controls from shared rendering', () =>
   assert.match(controls, /\.desktop-lyric-karaoke-card\s*\{/);
   assert.match(controls, /\.desktop-lyric-control \.range-row\s*\{/);
   assert.match(preview, /\.desktop-lyric-preview-header\s*\{/);
-  assert.match(preview, /@container admin-lyric-preview \(max-width:\s*560px\)/);
+  assert.match(preview, /@container admin-lyric-preview\s*\(/);
   assert.match(renderer, /\.desktop-lyric-preview-card\s*\{/);
   assert.match(renderer, /\.desktop-lyric-preview-stage\s*\{/);
   assert.match(renderer, /\.desktop-lyric-preview-row-text\s*\{/);
@@ -40,7 +40,7 @@ test('desktop lyric styles separate admin controls from shared rendering', () =>
     renderer,
     /\.desktop-lyric-(?:settings|source|control|preview-header|preview-tools|preview-backgrounds|workspace)|admin-lyric-preview/,
   );
-  assert.match(overlay, /\/css\/lyrics\/desktop-lyric\.css\?v=20260913-01/);
+  assert.match(overlay, /\bhref=["']\/css\/lyrics\/desktop-lyric\.css(?:\?[^"']*)?["']/);
   assert.doesNotMatch(overlay, /\/css\/admin\/desktop-lyric-preview\.css/);
   assert.ok(overlay.indexOf('/css/lyrics/desktop-lyric.css') < overlay.indexOf('/css/styles-playback.css'));
 

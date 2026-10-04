@@ -116,8 +116,8 @@
 }
 .gift-wish-text-input::selection,
 .gift-wish-text-input *::selection {
-  background: var(--color-control-accent);
-  color: var(--color-text-white);
+  background: var(--color-text-selection-bg);
+  color: var(--color-text-selection-text);
 }
 .gift-wish-text-token {
   display: inline-block;

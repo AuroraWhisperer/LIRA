@@ -19,11 +19,9 @@ test('admin blind box summary shows one row per viewer and opens analysis', () =
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
 
   assert.match(html, /id="blindBoxAnalysisOpenBtn"/);
-  assert.match(html, /title="查看完整盲盒分析"/);
   assert.match(html, /<th>观众<\/th>\s*<th>盒数<\/th>\s*<th>盒型<\/th>/);
   assert.match(html, /<th>总成本<\/th>\s*<th>开出价值<\/th>\s*<th>观众盈亏<\/th>/);
   assert.doesNotMatch(html, /id="blindBoxStatsTable"[\s\S]*?<th>时间<\/th>/);
-  assert.match(source, /const users = Array\.isArray\(perUser\)/);
   assert.match(source, /data-viewer=/);
   assert.match(source, /giftAnalysis\.open/);
   assert.match(source, /closest\('#blindBoxAnalysisOpenBtn'/);

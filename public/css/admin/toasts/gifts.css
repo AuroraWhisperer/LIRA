@@ -105,7 +105,9 @@
 }
 .gift-notify-toast.gift-blind-box {
   --toast-accent: var(--toast-warning);
+  --toast-on-accent: var(--color-toast-on-warning);
 }
 .gift-notify-toast.gift-premium {
   --toast-accent: var(--toast-warning);
+  --toast-on-accent: var(--color-toast-on-warning);
 }

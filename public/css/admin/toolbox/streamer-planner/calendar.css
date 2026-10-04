@@ -91,7 +91,7 @@
 }
 .streamer-planner .planner-calendar-day.is-selected {
   background: var(--color-primary-light);
-  box-shadow: inset 0 0 0 1.5px var(--color-primary);
+  box-shadow: inset 0 0 0 1.5px var(--color-selection-marker);
 }
 .planner-calendar-day-number {
   display: flex;
@@ -107,7 +107,7 @@
 }
 .planner-calendar-day.is-today .planner-calendar-day-number {
   background: var(--color-primary-strong);
-  color: var(--color-text-white);
+  color: var(--color-on-control-accent);
   font-weight: var(--type-weight-semibold);
 }
 .planner-calendar-event {

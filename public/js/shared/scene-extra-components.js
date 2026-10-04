@@ -8,6 +8,11 @@ const variant = (value, label, sample = label) => ({ value, label, sample });
 const fontWeight = select('字重', '800', { 400: '常规', 500: '中等', 600: '半粗', 700: '加粗', 800: '特粗' });
 
 export const SCENE_EXTRA_COMPONENTS = Object.freeze({
+  opening: {
+    title: '开播动画', size: [1920, 1080], path: '/opening',
+    variants: [variant('default', '开播动画', '跟随开播设置')],
+    fields: {},
+  },
   songlist: {
     title: '展示板', size: [480, 800], path: '/songlist',
     variants: [variant('default', '展示板', '可点歌单')],
@@ -70,6 +75,16 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       interactionFontSize: number('字号', '20', 16, 24), interactionCornerRadius: number('圆角', '20', 0, 32),
       interactionShowStatus: check('显示状态', 'true'), interactionShowParticipants: check('显示人数', 'true'),
     },
+  },
+  'gift-frame': {
+    title: '礼物边框', size: [1920, 1080], path: '/gift-effects?giftComponent=frame',
+    variants: [variant('default', '礼物边框', '林间花信')],
+    fields: {},
+  },
+  'guard-thanks': {
+    title: '大航海感谢', size: [1280, 1080], path: '/gift-effects?giftComponent=guard',
+    variants: [variant('default', '大航海感谢', '欢迎上舰')],
+    fields: { textMode: select('动画文字', 'bilingual', { bilingual: '中英双语', zh: '中文', en: 'English' }) },
   },
   'gift-feed': {
     title: '礼物滚动', size: [428, 232], path: '/gift-feed',

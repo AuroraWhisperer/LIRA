@@ -28,7 +28,7 @@ test('lyrics browser source reuses the neutral live timeline renderer', () => {
   assert.match(html, /type="module"[\s\S]*js\/overlays\/lyric-window\.js/);
   assert.match(
     source,
-    /import \{ desktopLyricRenderer \} from ["']\.\.\/lyrics\/desktop-lyric-renderer\.js\?v=20260913-01["'];/,
+    /import \{ desktopLyricRenderer \} from ["']\.\.\/lyrics\/desktop-lyric-renderer\.js(?:\?[^"']*)?["'];/,
   );
   assert.doesNotMatch(source, /\.\.\/admin\/|window\.AdminApp/);
   assert.match(source, /desktopLyricRenderer\.init\(\)/);

@@ -58,6 +58,29 @@ test('category filter presents each slash-separated category on its own row', as
   );
 });
 
+test('song library multi-select filters allow only one open menu', () => {
+  const html = readAdminHtml();
+
+  assert.match(html, /<details\b(?=[^>]*\bid="categoryFilter")(?=[^>]*\bname="songLibraryFilter")[^>]*>/);
+  assert.match(html, /<details\b(?=[^>]*\bid="tagFilter")(?=[^>]*\bname="songLibraryFilter")[^>]*>/);
+});
+
+test('song library filter menus close only when clicking outside', async () => {
+  const { closeFilterMenusOnOutsideClick } = await loadCategoryFilterModule();
+  const insideTarget = {};
+  const outsideTarget = {};
+  const filter = {
+    open: true,
+    contains: (target) => target === insideTarget,
+  };
+
+  closeFilterMenusOnOutsideClick({ target: insideTarget }, [filter]);
+  assert.equal(filter.open, true);
+
+  closeFilterMenusOnOutsideClick({ target: outsideTarget }, [filter]);
+  assert.equal(filter.open, false);
+});
+
 test('song library requires every selected category and composes with other filters', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-filter-'));
   const databases = createDatabases({ dataDir });

@@ -130,9 +130,23 @@
 旧静态图、挂饰、Canvas 粒子和 frame motion 模式已移除；URL motion 仍只影响大航海感谢。
 `gift:effect` 官方特效的独立播放器和队列保持既有行为。
 
-**大航海感谢**：同一页面在 `#guardThanksRoot` 消费 `gift:guard-thanks`，由 `overlays/gift-effects-guard.js` 按 eventId 去重（预览不去重）、逐条播放，最多 12 条等待、等待超过 90 秒丢弃，队列满时舍弃最早的最低等级；有等待时缩短停留。渲染器 `shared/guard-thanks-card.js`（徽记 `guard-thanks-emblems.js`、粒子 `guard-thanks-particles.js`、样式 `css/shared/guard-thanks.css`）同时供管理页预览使用：1280×1080 设计舞台按 `min(宽/1280, 高/1080)` 居中缩放，舰长/提督/总督分别为蓝色船锚、紫色罗盘、红金船舵，依次播放冲击波与闪光、徽记入场、头像徽章描边、丝带标题逐字弹出与扫光、标语和感谢铭牌，并有对应的气泡/星芒/彩纸余烬粒子。入场 1.5 秒，停留 3.3/4.0/5.0 秒，退场 0.7 秒；所有 WAAPI 动画、计时器和画布帧都有限且在会话结束时清理。头像只直连 HTTPS hdslb 地址（`no-referrer`），失败或缺失时显示昵称首字，预览使用内置样例头像；文字支持中英双语、中文、英文。`?motion=reduced` 或系统减少动态效果时只淡入淡出；`?preview=1&guardPreview=<tier>` 可在页面内单独预览。
+**大航海感谢**：同一页面在 `#guardThanksRoot` 消费 `gift:guard-thanks`，由 `overlays/gift-effects-guard.js` 按 eventId 去重（预览不去重）、逐条播放，最多 12 条等待、等待超过 90 秒丢弃，队列满时舍弃最早的最低等级；有等待时缩短停留。渲染器 `shared/guard-thanks-card.js`（徽记 `guard-thanks-emblems.js`、粒子 `guard-thanks-particles.js`、样式 `css/shared/guard-thanks.css`）同时供画布组件预览使用：1280×1080 设计舞台按 `min(宽/1280, 高/1080)` 居中缩放，舰长/提督/总督分别为蓝色船锚、紫色罗盘、红金船舵，依次播放冲击波与闪光、徽记入场、头像徽章描边、丝带标题逐字弹出与扫光、标语和感谢铭牌，并有对应的气泡/星芒/彩纸余烬粒子。入场 1.5 秒，停留 3.3/4.0/5.0 秒，退场 0.7 秒；所有 WAAPI 动画、计时器和画布帧都有限且在会话结束时清理。头像只直连 HTTPS hdslb 地址（`no-referrer`），失败或缺失时显示昵称首字，预览使用内置样例头像；文字支持中英双语、中文、英文。`?motion=reduced` 或系统减少动态效果时只淡入淡出；`?preview=1&guardPreview=<tier>` 可在页面内单独预览。
 
 ### 1.5 开播动画(`/opening`)
+
+`openingStyle` 在工具箱中选择 `classic`（经典舞台，默认）或 `pixel-cassette`（像素卡带），
+通过配置字段与 URL 参数 `style` 传递；非法值回退经典舞台。切换复用原有预览、轮询、总开关及音乐控制。
+像素样式由 `opening-pixel.js` 在 480×270 Canvas 上绘制，按 16:9 最近邻放大。头像默认留空，
+通过原人物图上传入口携带 `style=pixel-cassette` 单独保存，不与经典舞台共用图片；上传图保持比例、
+居中适配原有 160×160 逻辑像素区域（1920×1080 输出时为 640×640），小图也放大至该区域。
+首次选择像素样式时才创建绘图上下文，头像仅在该样式启用且已上传后请求；替换或清除不会重置动画时间。
+Canvas 使用固定的 `role="img"`
+与无障碍名称；阶梯进度是循环装饰，不逐秒播报。
+进度从 0% 开始，每秒跳 20%，100% 保持 1 秒后清空，6 秒一轮；`loading...` 含句点逐字跳跃，
+头像、卡带卷轴、装饰及不同路径的背景图案持续运动。低画质或减少动态效果时静止装饰，保留阶梯进度；
+隐藏、关闭、切回经典样式或 pagehide 时取消像素帧循环；隐藏后恢复沿用当前进度，关闭后重开或重新
+切入像素样式从 0% 开始。文案和轨道动效只用于经典舞台，
+像素样式下隐藏这些编辑项并保留保存值；漂浮音符、氛围律动及音乐适用于两种样式。
 
 开播页使用本页凭据从只读接口 `GET /api/opening/config` 读取已保存设置，独立浏览器源在每次读取结束
 1 秒后再次读取，关闭画面时也继续同步以支持重新开启。请求不重叠，5 秒超时，失败保留最后有效配置，
@@ -146,12 +160,14 @@ SVG 时间轴，启用画面时统一归零并从首轮立即移动；
 PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-character/`、`/opening-media/`
 当前文件 URL。未上传或清除后隐藏人物图并移除 src，不加载或播放空音频地址。
 
-Admin 预览使用与管理页同 origin 的 sandbox iframe，固定 浏览器源地址仍规范化为 `127.0.0.1`。
-首次加载及 iframe load 后发送最新 `lira:opening-preview-config`，只接受同 origin 的直接父窗口消息；
-收到预览配置后由父窗口负责更新，不再重复轮询。晚到的初始读取不得覆盖正在编辑的值。
+Admin 预览通过「在画布中预览」打开并选中 `opening` 图层；固定浏览器源地址仍规范化为 `127.0.0.1`。
+画布子 iframe 沿用 `sandbox allow-scripts` 与 component-preview 消息，只接受直接父窗口的受限显示数据，
+不自行读取 API 或连接 WebSocket。客户端在场景包含开播图层时单次读取配置，结束后间隔 1 秒刷新；
+失败发送空数据暂停动画，关闭连接取消请求和定时器。正式场景由 `scene-extra-display.js` 读取并投影同一配置。
+画布只保存图层位置、尺寸和空外观配置，文字、样式、媒体与总开关继续由开播设置拥有。
 文本、音量、轨道和画质变化就地应用；只有更换音乐、关闭或重新开启画面才重新加载相应音频。
 相同配置不重建节点或重置轨道，粒子节点仅随画质变化重建，不再运行未使用的粒子变量定时器。
-素材上传/清除同样增量更新预览，关闭总开关仍卸载预览 iframe；设置保存合并并串行执行，重复值不再写入。
+素材上传/清除同样增量更新预览，关闭总开关暂停动画并清空音频，保留画布图层；设置保存合并并串行执行，重复值不再写入。
 
 没有人物图时使用居中文案构图；人物存在时保持左文右图。主标题最低 `3.4cqw`，允许长标题换为两行，
 无人物时最低 `4cqw`；页脚为 `1.25cqw`。文字与无人物构图由 `opening-layout.css` 拥有。
@@ -428,8 +444,14 @@ owner 注册，未知类型立即报错，不反向导入工厂或 owner。`cloc
 后端 `src/shared/scene-component-types.js` 定义渲染类型，`server/scene-components.js`
 的 ports 复用领域配置校验、默认配置及显示投影；`server/component-preview-page.js` 保留
 显式 HTML 片段 allowlist。中继与默认配置草稿缓存保留四个共享类型和 `canvas` 控制类型，不把 canvas 作为可渲染组件。
-`shared/scene-extra-components.js` 定义展示板、歌词、三类小游戏、礼物滚动、盲盒榜、许愿的独立参数与选择项；
+`shared/scene-extra-components.js` 定义开播动画、展示板、歌词、三类小游戏、礼物边框、大航海感谢、礼物滚动、盲盒榜、许愿的独立参数与选择项；
 `admin/scene-extra-preview.js` 直接在画布中创建参数面板，其修改由场景 owner 保存。
+`gift-frame` 和 `guard-thanks` 是两个独立图层，分别通过 `/gift-effects?giftComponent=frame`、
+`/gift-effects?giftComponent=guard` 的无凭据组件模式复用现有播放器，只消费父页传入的对应事件。
+礼物姬预览入口直接打开并选中对应画布图层，不再提供独立播放页或共用来源地址。
+编辑样例每八秒重播，正式来源无样例。`server/scene-gift-events.js` 从既有礼物显示事件接收最多
+200 条按账号 scope/epoch 隔离的投影窗口；`scene-gift-display.js` 在父页按序列去重、暂存准备期事件。
+首次打开、账号代次变化及断线恢复只建立当前基线；已交付事件不会在重发布时补播，子页断线清空队列。
 这些类型不接受共享外观，不创建独立默认配置会话，也不扩展 `component_output_sizes` 的四类型约束。
 `server/scene-extra-display.js` 复用现有领域读口和 overlay 投影；礼物慢读按账号代际、来源版本和日期共享五秒缓存。
 输出异步完成后再次核验账号和场景能力；原展示页的组件模式只接收父页消息，不启动自身 HTTP/WS 数据请求。

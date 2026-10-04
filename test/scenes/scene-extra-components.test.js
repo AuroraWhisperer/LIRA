@@ -82,9 +82,14 @@ test('extra display projection excludes game secrets, keeps lyrics separate from
     system: { getState: () => ({ settings: { roomId: 'private' }, lyricState: { lineText: '真实歌词', playing: true, private: 'hidden' }, lyricTimeline: { lines: [] } }) },
     games: { getSession: () => ({ game: 'number-bomb', state: { min: 1, max: 100, secret: 32 }, token: 'hidden' }) },
     gifts: { getViewRevision: () => revision },
+    settings: { get: () => ({ openingEnabled: 'true', openingStyle: 'pixel-cassette', openingTitle: '即将开播', secret: 'hidden' }) },
     giftWishes: { getSnapshot: async () => { reads++; return { items: [], guards: [{ name: 'private' }], sourceId: 1 }; } },
   };
   const display = createSceneExtraDisplay({ getContext: () => context, getOwner: () => owner });
+  assert.equal(display('opening').style, 'pixel-cassette');
+  assert.equal(display('opening').enabled, true);
+  assert.equal(display('opening').title, '即将开播');
+  assert.equal(display('opening').secret, undefined);
   assert.deepEqual(display('games'), { session: { game: 'number-bomb', state: { min: 1, max: 100 } } });
   assert.deepEqual(display('lyrics'), { lyricState: { lineText: '真实歌词', playing: true }, lyricTimeline: { lines: [] } });
   const [first, second] = await Promise.all([display('gift-wishes'), display('gift-wishes')]);

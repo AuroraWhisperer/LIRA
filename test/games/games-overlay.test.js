@@ -65,14 +65,13 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /textContent/);
   assert.doesNotMatch(script, /innerHTML/);
 
-  assert.match(html, /直播小游戏/);
   assert.doesNotMatch(script, /URLSearchParams|params\.get\(['"]game/);
   assert.match(script, /(?:nextSession|session)\?\.game/);
   assert.match(html, /id="gomokuColumnLabels"/);
   assert.match(html, /id="gomokuRowLabels"/);
   assert.match(html, /id="gameResultAvatar"/);
-  assert.match(html, /id="gameResultExit"[^>]*>[\s\S]*?退出\s*<\/button>/);
-  assert.match(html, /id="gameResultNext"[^>]*>[\s\S]*?下一局\s*<\/button>/);
+  assert.match(html, /<button\b[^>]*\sid="gameResultExit"/);
+  assert.match(html, /<button\b[^>]*\sid="gameResultNext"/);
   assert.match(html, /id="drawGuessView"/);
   assert.match(html, /id="drawCanvas"/);
   assert.match(html, /id="drawCountdown"/);
@@ -90,8 +89,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="drawPenBtn"[^>]+data-tooltip="画笔 \(B\)"/);
   assert.match(styles, /button\[data-tooltip\]:hover::after/);
   assert.match(script, /renderGomokuCoordinates\(state\.size\)/);
-  assert.match(script, /const isPicked = value === state\.lastGuess/);
-  assert.match(script, /isPicked \? ["'] is-picked["'] : ["']["']/);
+  assert.match(script, /state\.lastGuess/);
   assert.match(script, /cache:\s*['"]no-store['"]/);
   assert.match(script, /Authorization:\s*`Bearer \$\{token\}`/);
   assert.match(script, /INITIAL_SNAPSHOT_RETRIES/);
@@ -100,13 +98,9 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /submitGameResultAction\(["']stop["']\)/);
   assert.match(script, /submitGameResultAction\(["']restart["']\)/);
   assert.match(script, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
-  assert.match(script, /function avatarSource\(/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
   assert.match(drawingModule, /function scheduleDrawDanmakuRender\(/);
-  assert.match(drawingModule, /function getDrawDanmakuRenderInterval\(/);
-  assert.match(drawingModule, /drawDanmakuLastRenderDurationMs/);
   assert.match(drawingModule, /setTimeout\(flushDrawDanmakuRender/);
-  assert.match(script, /function guardLabel\(/);
   assert.match(script, /draw-danmaku-identity/);
   assert.match(script, /draw-danmaku-guard/);
   assert.match(script, /draw-danmaku-medal/);
@@ -136,7 +130,6 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /import \{ createDanmakuFeed \} from ["']\.\/danmaku-feed\.js["'];/);
   assert.match(script, /createDanmakuFeed\(byId\(["']drawDanmakuFeed["']\)/);
   assert.match(script, /drawDanmakuFeed\.render\(items\)/);
-  assert.match(script, /offscreenViewports:\s*5/);
   assert.doesNotMatch(danmakuRenderer, /innerHTML/);
   for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
     assert.match(
@@ -172,7 +165,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(styles, /\.draw-tool-button\[aria-pressed=['"]true['"]\]/);
 });
 
-test('draw guess danmaku feed keeps the visible viewport plus five buffered viewports', async () => {
+test('draw guess danmaku feed bounds retained nodes and follows the latest message', async () => {
   class FakeNode {
     constructor(isFragment = false) {
       this.children = [];

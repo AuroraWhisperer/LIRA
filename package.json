@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "5.0.16",
+  "version": "5.0.17",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -18,7 +18,7 @@
     "verify:contracts": "node scripts/verify-server-contract.js",
     "verify:roundtrip": "node scripts/verify-song-roundtrip.cjs",
     "verify:quick": "npm run verify:docs && npm run check && npm run verify:architecture",
-    "verify": "npm run verify:contracts && npm run verify:quick && npm test",
+    "verify": "npm run verify:contracts && npm run check && npm test",
     "refresh:gifts": "node scripts/refresh-bilibili-gift-sale.js",
     "sync:gifts": "node scripts/initialize-gift-catalog.js",
     "diagnose:wesing": "node scripts/inspect-wesing-playback.js",

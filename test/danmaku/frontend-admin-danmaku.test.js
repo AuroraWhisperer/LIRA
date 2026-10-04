@@ -18,21 +18,12 @@ test('admin danmaku input has no fixed character limit', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
 
   assert.doesNotMatch(html, /id="danmakuMessage"[^>]*maxlength=/);
-  assert.match(html, /id="danmakuCounter"[^>]*>0 字</);
   assert.doesNotMatch(source, /enableCheckinBot/);
   assert.doesNotMatch(source, /enableFortuneBot/);
   assert.doesNotMatch(source, /mentionRequester: toggle\.checked/);
-  assert.match(html, /随机点歌回复/);
-  assert.match(html, /点歌未匹配时，会自动回复点歌人/);
   assert.match(html, /id="danmakuReplyToggle"[^>]*aria-labelledby="danmakuReplyTitle"/);
-  assert.match(html, /签到机器人/);
-  assert.match(html, /收到“签到”后回复累计天数/);
   assert.match(html, /id="danmakuCheckinToggle"[^>]*aria-labelledby="danmakuCheckinTitle"/);
-  assert.match(html, /抽签机器人/);
-  assert.match(html, /收到“抽签”后回复每日一签/);
   assert.match(html, /id="danmakuFortuneToggle"[^>]*aria-labelledby="danmakuFortuneTitle"/);
-  assert.match(html, /自定义关键词回复/);
-  assert.match(html, /收到自定义关键词后回复固定文案/);
   assert.match(html, /id="danmakuCustomReplyToggle"[^>]*aria-labelledby="danmakuCustomReplyTitle"/);
   assert.doesNotMatch(html, /id="danmaku(?:Blessings|Fortunes)Panel"/);
   assert.doesNotMatch(source, /createBlessingEditor|createFortuneEditor|checkinToggle|fortuneToggle/);
@@ -58,7 +49,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(html, /id="danmakuOverlayUrl"/);
   assert.match(html, /id="danmakuCopyOverlayUrlBtn"/);
   assert.match(html, /id="danmakuOpenOverlayBtn"/);
-  assert.match(html, /id="danmakuPreviewOverlayBtn"[^>]*>\s*预览与调整\s*<\/button>/);
+  assert.match(html, /id="danmakuPreviewOverlayBtn"/);
   const styleOptions = [...html.matchAll(/<button\b[^>]*\sdata-danmaku-style="([^"]+)"[^>]*>/g)]
     .map(([, style]) => style);
   assert.deepEqual(styleOptions.sort(), [

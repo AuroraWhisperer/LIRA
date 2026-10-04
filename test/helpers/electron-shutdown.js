@@ -85,6 +85,7 @@ function createShutdownHarness(options = {}) {
     relaunch: () => calls.push('app:relaunch'),
     exit(code) {
       assert.equal(code, options.recoveryDataDir || options.migrationError ? 1 : 0);
+      state.window.main?.destroy();
       calls.push('app:exit');
     },
     quit() {
@@ -95,16 +96,31 @@ function createShutdownHarness(options = {}) {
   class FakeWindow extends EventEmitter {
     constructor() {
       super();
+      this.destroyed = false;
       this.webContents = new EventEmitter();
       this.webContents.setWindowOpenHandler = () => {};
-      this.webContents.isDestroyed = () => false;
+      this.webContents.isDestroyed = () => this.destroyed;
       this.webContents.mainFrame = { url: 'http://127.0.0.1:3000/license' };
+      this.webContents.send = (channel) => calls.push('ipc:' + channel);
     }
     loadURL() {
       return Promise.resolve();
     }
     isDestroyed() {
-      return false;
+      return this.destroyed;
+    }
+    destroy() {
+      if (this.destroyed) return;
+      this.destroyed = true;
+      this.emit('closed');
+    }
+    close() {
+      const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+      this.emit('close', event);
+      if (!event.defaultPrevented) {
+        this.destroy();
+        app.emit('window-all-closed');
+      }
     }
   }
 
@@ -310,7 +326,7 @@ function createShutdownHarness(options = {}) {
     },
     './desktop-request-auth': require('../../src/electron/desktop-request-auth'),
     './update-manager': {},
-    './playback-flush': {
+    './playback-flush': options.realPlaybackFlush ? require('../../src/electron/playback-flush') : {
       async requestPlaybackFlush() {
         assert.equal(runtimeOpen, true, 'playback flush precedes resource close');
         calls.push('playback:flush');

@@ -9,11 +9,11 @@
   opacity: 1;
   transition: background-image 600ms ease;
   background-image:
-    radial-gradient(at 18% 14%, var(--fsbg-1) 0px, transparent 55%),
-    radial-gradient(at 82% 12%, var(--fsbg-2) 0px, transparent 55%),
-    radial-gradient(at 24% 82%, var(--fsbg-3) 0px, transparent 55%),
-    radial-gradient(at 78% 86%, var(--fsbg-4) 0px, transparent 55%),
-    linear-gradient(160deg, var(--fsbg-base) 0%, var(--fsbg-5) 100%);
+    radial-gradient(at 18% 14%, var(--client-player-bg-1, var(--fsbg-1)) 0px, transparent 55%),
+    radial-gradient(at 82% 12%, var(--client-player-bg-2, var(--fsbg-2)) 0px, transparent 55%),
+    radial-gradient(at 24% 82%, var(--client-player-bg-3, var(--fsbg-3)) 0px, transparent 55%),
+    radial-gradient(at 78% 86%, var(--client-player-bg-4, var(--fsbg-4)) 0px, transparent 55%),
+    linear-gradient(160deg, var(--client-player-bg-base, var(--fsbg-base)) 0%, var(--client-player-bg-5, var(--fsbg-5)) 100%);
   --fsbg-1: #fbcfe8;
   --fsbg-2: #fde68a;
   --fsbg-3: #bfdbfe;

@@ -27,7 +27,7 @@
 
 .main-page-tab:hover:not(.active) {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--color-bg-hover);
   border-color: transparent;
 }
 

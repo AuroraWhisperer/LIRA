@@ -248,22 +248,26 @@
 }
 
 .gift-card.guard-card {
+  --gift-guard-background: color-mix(in srgb, var(--gift-guard-accent) var(--client-gift-guard-tint), var(--surface));
   border-color: var(--border);
 }
 
 .gift-card.guard-card.guard-1 {
-  border-left-color: #f25f72;
-  background: linear-gradient(90deg, #ffe9ed 0%, var(--color-bg-primary) 100%);
+  --gift-guard-accent: #f25f72;
+  border-left-color: var(--gift-guard-accent);
+  background: linear-gradient(90deg, var(--gift-guard-background, #ffe9ed) 0%, var(--color-bg-primary) 100%);
 }
 
 .gift-card.guard-card.guard-2 {
-  border-left-color: #8d67e8;
-  background: linear-gradient(90deg, #f1eaff 0%, var(--color-bg-primary) 100%);
+  --gift-guard-accent: #8d67e8;
+  border-left-color: var(--gift-guard-accent);
+  background: linear-gradient(90deg, var(--gift-guard-background, #f1eaff) 0%, var(--color-bg-primary) 100%);
 }
 
 .gift-card.guard-card.guard-3 {
-  border-left-color: #4b91e8;
-  background: linear-gradient(90deg, #e8f2ff 0%, var(--color-bg-primary) 100%);
+  --gift-guard-accent: #4b91e8;
+  border-left-color: var(--gift-guard-accent);
+  background: linear-gradient(90deg, var(--gift-guard-background, #e8f2ff) 0%, var(--color-bg-primary) 100%);
 }
 
 .gift-card .gift-blind-box-icon {
@@ -277,18 +281,18 @@
   overflow: hidden;
   border-color: #d6b45f;
   border-left-color: #9f7425;
-  background: linear-gradient(90deg, #c99a3d 0%, #e8c972 34%, #fff4cf 72%, #fffaf0 100%);
-  box-shadow:
+  background: var(--client-gift-premium-background, linear-gradient(90deg, #c99a3d 0%, #e8c972 34%, #fff4cf 72%, #fffaf0 100%));
+  box-shadow: var(--client-gift-premium-shadow,
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 3px 10px rgba(128, 89, 20, 0.12);
+    0 3px 10px rgba(128, 89, 20, 0.12));
 }
 
 .gift-card.high-value-gift-card .gift-name {
-  color: #49320d;
+  color: var(--client-gift-premium-text, #49320d);
 }
 
 .gift-card.high-value-gift-card .gift-meta {
-  color: #49320d;
+  color: var(--client-gift-premium-text, #49320d);
 }
 
 @media (prefers-reduced-motion: no-preference) {

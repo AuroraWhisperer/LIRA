@@ -34,8 +34,11 @@ test('appearance defaults without writing and preserves invalid, future or malfo
 });
 
 test('appearance accepts only theme IDs, atomically saves ID alone and restores on restart', async (t) => {
-  for (const themeId of ['neutral', 'classic', 'terracotta']) {
-    assert.equal(fixture(t, JSON.stringify({ themeId })).owner.getThemeId(), themeId);
+  for (const themeId of ['neutral', 'classic', 'terracotta', 'clear-jade', 'black-silver', 'rose-lustre']) {
+    const saved = fixture(t);
+    assert.deepEqual(await saved.owner.setThemeId(themeId), { ok: true, themeId });
+    assert.deepEqual(JSON.parse(fs.readFileSync(saved.file)), { themeId });
+    assert.equal(createClientAppearance({ dataDir: saved.dataDir }).getThemeId(), themeId);
   }
   const f = fixture(t, '{"themeId":"classic"}');
   for (const value of [undefined, null, {}, ['neutral'], 'NEUTRAL', '../classic', 'neutral" style="']) {
@@ -132,7 +135,7 @@ test('theme IPC rejects foreign windows, frames, origins, tools and license befo
 test('native backgrounds follow main navigation and leave login and child frames unchanged', () => {
   const baseUrl = 'http://127.0.0.1:3000';
   assert.equal(getClientWindowBackground(`${baseUrl}/admin`, baseUrl), '#f8f5ef');
-  for (const [id, color] of Object.entries({ neutral: '#f3f3f1', classic: '#f7f3ef', terracotta: '#f8f5ef' })) {
+  for (const [id, color] of Object.entries({ neutral: '#f3f3f1', classic: '#f7f3ef', terracotta: '#f8f5ef', 'clear-jade': '#ecf0f1', 'black-silver': '#080a0c', 'rose-lustre': '#faf1f4' })) {
     assert.equal(getClientWindowBackground(`${baseUrl}/admin?desktop=1`, baseUrl, id), color);
     assert.equal(getClientWindowBackground(`${baseUrl}/license`, baseUrl, id), '#f7f3ef');
   }

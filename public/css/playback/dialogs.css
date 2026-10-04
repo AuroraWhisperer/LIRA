@@ -72,12 +72,12 @@
 }
 
 .playback-confirm-close:hover {
-  background: rgba(24, 24, 22, 0.06);
+  background: var(--color-bg-hover, rgba(24, 24, 22, 0.06));
   color: var(--text);
 }
 
 .playback-confirm-close:active {
-  background: rgba(24, 24, 22, 0.1);
+  background: var(--color-primary-light);
 }
 
 .playback-confirm-close svg {
@@ -125,16 +125,16 @@
 
 .playback-confirm-btn-cancel:hover {
   border-color: var(--color-border-strong);
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-hover, var(--color-bg-tertiary));
 }
 
 .playback-confirm-btn-confirm {
-  background: var(--primary);
-  color: var(--color-text-white);
+  background: var(--color-primary-fill);
+  color: var(--color-on-primary);
 }
 
 .playback-confirm-btn-confirm:hover {
-  background: var(--primary-strong);
+  background: var(--color-primary-fill-hover);
 }
 
 .playback-confirm-btn:focus-visible {

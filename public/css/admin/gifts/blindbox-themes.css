@@ -1,100 +1,95 @@
-/* 映射芯片使用独立的中性表面。 */
-.blind-box-chip {
-  --surface: #ffffff;
-  --border: #e1dfda;
-  --text: #1c1c1a;
-  --color-border-strong: #cbc8c1;
-}
-
 /* 每张卡片独立初始化主题，保留盲盒原有底纹；渐变末端跟随客户端表面色。 */
 .blind-box-card,
 .blind-box-chip {
-  --blind-box-card-border: #b89ae8;
+  /* Resolve optional client tints here, where this card's accent is known. */
+  --blind-box-client-background: linear-gradient(90deg, color-mix(in srgb, var(--blind-box-card-accent) var(--client-blind-box-tint), var(--surface)), var(--surface));
+  --blind-box-client-price: color-mix(in srgb, var(--blind-box-card-accent) var(--client-blind-box-text-tint), var(--text));
+  --blind-box-card-border: var(--client-blind-box-border, #b89ae8);
   --blind-box-card-accent: #8459c7;
-  --blind-box-card-background: linear-gradient(90deg, #eee5ff 0%, #f7f1ff 52%, var(--color-bg-primary) 100%);
+  --blind-box-card-background: var(--blind-box-client-background, linear-gradient(90deg, #eee5ff 0%, #f7f1ff 52%, var(--color-bg-primary) 100%));
   --blind-box-mapping-border: var(--border);
   --blind-box-mapping-background: var(--surface);
   --blind-box-mapping-shadow: none;
   --blind-box-mapping-hover-border: var(--color-border-strong);
   --blind-box-mapping-hover-shadow: none;
   --blind-box-icon-background: color-mix(in srgb, #8459c7 12%, var(--surface));
-  --blind-box-name-color: var(--text);
-  --blind-box-price-color: #7653ad;
+  --blind-box-name-color: var(--client-blind-box-name, var(--text));
+  --blind-box-price-color: var(--blind-box-client-price, #7653ad);
   --blind-box-price-background: rgba(132, 89, 199, 0.1);
-  --blind-box-source-color: #7653ad;
+  --blind-box-source-color: var(--blind-box-client-price, #7653ad);
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='heart'] {
-  --blind-box-card-border: var(--border);
+  --blind-box-card-border: var(--client-blind-box-border, var(--border));
   --blind-box-card-accent: #f3a2aa;
-  --blind-box-card-background: linear-gradient(90deg, #ffecef 0%, var(--color-bg-primary) 100%);
+  --blind-box-card-background: var(--blind-box-client-background, linear-gradient(90deg, #ffecef 0%, var(--color-bg-primary) 100%));
   --blind-box-icon-background: color-mix(in srgb, #d85e6d 12%, var(--surface));
-  --blind-box-name-color: #b54555;
-  --blind-box-price-color: #c94f60;
+  --blind-box-name-color: var(--client-blind-box-name, #b54555);
+  --blind-box-price-color: var(--blind-box-client-price, #c94f60);
   --blind-box-price-background: rgba(201, 79, 96, 0.09);
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='lucky'] {
-  --blind-box-card-border: var(--border);
+  --blind-box-card-border: var(--client-blind-box-border, var(--border));
   --blind-box-card-accent: #b8d983;
-  --blind-box-card-background: linear-gradient(90deg, #f2fadf 0%, var(--color-bg-primary) 100%);
+  --blind-box-card-background: var(--blind-box-client-background, linear-gradient(90deg, #f2fadf 0%, var(--color-bg-primary) 100%));
   --blind-box-icon-background: color-mix(in srgb, #78a83f 14%, var(--surface));
-  --blind-box-name-color: #56852d;
-  --blind-box-price-color: #669735;
+  --blind-box-name-color: var(--client-blind-box-name, #56852d);
+  --blind-box-price-color: var(--blind-box-client-price, #669735);
   --blind-box-price-background: rgba(102, 151, 53, 0.1);
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='xiuxian'] {
-  --blind-box-card-border: #a0bfb6;
+  --blind-box-card-border: var(--client-blind-box-border, #a0bfb6);
   --blind-box-card-accent: #3d7067;
-  --blind-box-card-background: linear-gradient(90deg, #d7e8e0 0%, var(--color-bg-primary) 100%);
+  --blind-box-card-background: var(--blind-box-client-background, linear-gradient(90deg, #d7e8e0 0%, var(--color-bg-primary) 100%));
   --blind-box-icon-background: color-mix(in srgb, #3d7067 13%, var(--surface));
-  --blind-box-name-color: #315f53;
-  --blind-box-price-color: var(--blind-box-name-color);
+  --blind-box-name-color: var(--client-blind-box-name, #315f53);
+  --blind-box-price-color: var(--blind-box-client-price, var(--blind-box-name-color));
   --blind-box-price-background: rgba(49, 95, 83, 0.1);
-  --blind-box-source-color: var(--blind-box-name-color);
+  --blind-box-source-color: var(--blind-box-client-price, var(--blind-box-name-color));
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='mid-autumn'] {
-  --blind-box-card-border: #e3ba62;
+  --blind-box-card-border: var(--client-blind-box-border, #e3ba62);
   --blind-box-card-accent: #b98121;
-  --blind-box-card-background: linear-gradient(90deg, #fff1c9 0%, #fff9eb 52%, var(--color-bg-primary) 100%);
+  --blind-box-card-background: var(--blind-box-client-background, linear-gradient(90deg, #fff1c9 0%, #fff9eb 52%, var(--color-bg-primary) 100%));
   --blind-box-icon-background: color-mix(in srgb, #b98121 14%, var(--surface));
-  --blind-box-name-color: #855b1e;
-  --blind-box-price-color: var(--blind-box-name-color);
+  --blind-box-name-color: var(--client-blind-box-name, #855b1e);
+  --blind-box-price-color: var(--blind-box-client-price, var(--blind-box-name-color));
   --blind-box-price-background: rgba(133, 91, 30, 0.1);
-  --blind-box-source-color: var(--blind-box-name-color);
+  --blind-box-source-color: var(--blind-box-client-price, var(--blind-box-name-color));
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='national-day'] {
-  --blind-box-card-border: #e7b070;
+  --blind-box-card-border: var(--client-blind-box-border, #e7b070);
   --blind-box-card-accent: #b95437;
-  --blind-box-card-background: linear-gradient(90deg, #ffedce 0%, #fff8ec 52%, var(--color-bg-primary) 100%);
+  --blind-box-card-background: var(--blind-box-client-background, linear-gradient(90deg, #ffedce 0%, #fff8ec 52%, var(--color-bg-primary) 100%));
   --blind-box-icon-background: color-mix(in srgb, #b95437 12%, var(--surface));
-  --blind-box-name-color: #9b3f2b;
-  --blind-box-price-color: var(--blind-box-name-color);
+  --blind-box-name-color: var(--client-blind-box-name, #9b3f2b);
+  --blind-box-price-color: var(--blind-box-client-price, var(--blind-box-name-color));
   --blind-box-price-background: rgba(155, 63, 43, 0.1);
-  --blind-box-source-color: var(--blind-box-name-color);
+  --blind-box-source-color: var(--blind-box-client-price, var(--blind-box-name-color));
 }
 
 /* 这三种盲盒原有专属配色仅用于映射；最近礼物卡片继续使用默认色。 */
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='bear'] {
   --blind-box-icon-background: color-mix(in srgb, #d1568e 12%, var(--surface));
-  --blind-box-name-color: #b34068;
-  --blind-box-price-color: #c94b84;
+  --blind-box-name-color: var(--client-blind-box-name, #b34068);
+  --blind-box-price-color: var(--blind-box-client-price, #c94b84);
   --blind-box-price-background: rgba(201, 75, 132, 0.09);
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='qixi'] {
   --blind-box-icon-background: color-mix(in srgb, #bb63c4 12%, var(--surface));
-  --blind-box-name-color: #9b3fa6;
-  --blind-box-price-color: #a94db4;
+  --blind-box-name-color: var(--client-blind-box-name, #9b3fa6);
+  --blind-box-price-color: var(--blind-box-client-price, #a94db4);
   --blind-box-price-background: rgba(169, 77, 180, 0.1);
 }
 
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='bond'] {
   --blind-box-icon-background: color-mix(in srgb, #e84e9f 12%, var(--surface));
-  --blind-box-name-color: #b43f89;
-  --blind-box-price-color: #2a87b7;
+  --blind-box-name-color: var(--client-blind-box-name, #b43f89);
+  --blind-box-price-color: var(--blind-box-client-price, #2a87b7);
   --blind-box-price-background: rgba(42, 135, 183, 0.1);
 }

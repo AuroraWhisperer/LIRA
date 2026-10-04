@@ -99,13 +99,13 @@
 
 .confirm-dialog-footer .confirm-cancel:hover {
   border-color: var(--color-border-strong);
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-hover, var(--color-bg-tertiary));
 }
 
 .confirm-dialog-footer .confirm-delete {
   border: none;
   background: var(--danger);
-  color: var(--color-text-white);
+  color: var(--color-on-danger);
 }
 
 .confirm-dialog-footer .confirm-delete:hover {

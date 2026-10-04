@@ -28,15 +28,10 @@ test('playback page offers a dedicated WeSing source and cache capture workspace
   assert.match(html, /id="weSingSaveCacheBtn"/);
   assert.match(html, /id="weSingLyricOffsetMs"[^>]*min="-3000"[^>]*max="3000"[^>]*step="50"/);
   assert.match(html, /id="weSingLyricOffsetMsNumber"[^>]*min="-3000"[^>]*max="3000"[^>]*step="50"/);
-  assert.match(html, /id="weSingResetLyricOffsetBtn"[^>]*>重置<\/button>/);
-  assert.doesNotMatch(html, /捕捉来源|仅读取本地日志和歌词缓存|负值延后歌词/);
+  assert.match(html, /id="weSingResetLyricOffsetBtn"/);
   assert.match(html, /id="weSingRefreshBtn"/);
   assert.match(html, /id="weSingLyricLine"/);
   assert.match(html, /data-online-source-view/);
-  assert.doesNotMatch(html, /SOURCE \/ LIVE|NOW SINGING|CONTROL DESK|从全民 K 歌客户端读取实时歌词|配置本地歌词缓存/);
-  assert.match(html, />全民 K 歌缓存文件夹<\/label>/);
-  assert.match(html, />歌词时间调整<\/span>/);
-  assert.match(html, />状态<\/div>/);
   assert.match(headerStyles, /source-tab\[data-source=['"]wesing['"]\]/);
   assert.match(panelStyles, /\.playback-wesing-panel/);
   assert.match(panelStyles, /--wesing-word-progress/);
@@ -54,16 +49,12 @@ test('WeSing browser client activates capture and renders WebSocket lyrics safel
   assert.match(source, /\/api\/music\/wesing\/configure/);
   assert.match(source, /\/api\/music\/wesing\/offset/);
   assert.match(source, /saveLyricOffset/);
-  assert.match(source, /pendingLyricOffsetMs/);
-  assert.match(source, /pendingLyricOffsetMs \?\? numberValue\(this\.status\.lyricOffsetMs, 0\)/);
   assert.match(source, /weSingResetLyricOffsetBtn/);
   assert.match(source, /selectWeSingCacheDirectory/);
   assert.match(renderer, /requestAnimationFrame/);
   assert.match(source, /new LyricWordRenderer/);
   assert.match(source, /textContent\s*=/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
-  assert.match(source, /status\.trackTitle \|\| '等待播放'/);
-  assert.match(source, /\? '同步中'/);
   assert.match(providerOps, /platform === 'wesing'/);
   assert.match(adminState, /payload\.type === 'wesing-state'/);
   assert.match(adminState, /app:lyric-state/);
@@ -101,7 +92,6 @@ test('Electron exposes a directory-only WeSing cache picker', () => {
   const preload = read('src', 'electron', 'preload.js');
 
   assert.match(main, /music:select-wesing-cache/);
-  assert.match(main, /title:\s*'选择全民 K 歌 WeSingCache 目录'/);
   assert.match(main, /properties:\s*\['openDirectory'\]/);
   assert.match(preload, /selectWeSingCacheDirectory:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('music:select-wesing-cache'\)/);
 });

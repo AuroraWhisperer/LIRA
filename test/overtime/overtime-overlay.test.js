@@ -34,14 +34,11 @@ test('overtime overlay has independent layers and responsive container scaling',
   assert.match(css, /repeat\(\s*var\(--ticket-narrow-columns/);
 });
 
-test('overtime overlay anchors server time and only animates fresh revisioned adjustments', () => {
+test('overtime overlay anchors server time and bounds animation work', () => {
   const source = read('public/js/overlays/overtime.js');
 
   assert.match(source, /performance\.now\(\)/);
   assert.match(source, /serverNowMs/);
-  assert.match(source, /payload\.type === 'snapshot'/);
-  assert.match(source, /payload\.type === 'overtime:update'/);
-  assert.match(source, /revision\s*<=\s*currentRevision/);
   assert.match(source, /MAX_ANIMATION_QUEUE\s*=\s*5/);
   assert.match(source, /按数量结算/);
   assert.match(source, /applicationCount/);

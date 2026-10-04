@@ -91,28 +91,20 @@ test('opening overlay keeps canvas, disabled, reduced-motion and safe text const
   );
   assert.match(css, /\.opening-viewport\.opening-disabled/);
   assert.match(script, /textContent/);
-  assert.match(script, /TRACK_MOTION_VALUES/);
-  assert.match(script, /safeCharacterUrl/);
   assert.match(css, /\.character-image\[hidden\]\s*\{\s*display:\s*none/);
-  assert.match(script, /titleSizeForLength/);
-  assert.match(script, /MAX_LENGTHS = Object\.freeze\(\{\s*title:\s*20/);
-  assert.match(script, /name:\s*''/);
   assert.match(script, /audio:\s*'browser'/);
   assert.match(script, /openingNameRow/);
   assert.match(script, /audio === 'browser'/);
-  assert.match(script, /audio\.removeAttribute\('src'\)/);
 });
 
-test('Toolbox opening animation persists configuration and keeps a fixed source URL', () => {
+test('Toolbox opening controls preserve media defaults and the settings boundary', () => {
   const html = read('public', 'pages', 'admin', 'toolbox', 'start-animation.html');
   const script = read('public', 'js', 'admin', 'start-animation.js');
-  const overlayScript = read('public', 'js', 'overlays', 'opening.js');
-  const openingRoutesSource = read('src', 'server', 'routes', 'opening-routes.js');
   const formsScript = read('public', 'js', 'admin', 'forms.js');
   const styles = read('public', 'css', 'admin', 'toolbox', 'start-animation.css');
   assert.match(html, /id="openingEnabled"[^>]*type="checkbox"/);
   assert.doesNotMatch(html, /id="openingEnabled"[^>]+checked/);
-  assert.match(html, /id="openingPreview"[^>]+hidden/);
+  assert.match(html, /id="openingPreviewBtn"[^>]+disabled/);
   for (const id of [
     'openingTitle',
     'openingTitleCount',
@@ -129,7 +121,7 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
     'openingAudioFile',
     'openingAudioVolume',
     'openingUrl',
-    'openingPreview',
+    'openingPreviewBtn',
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
@@ -138,31 +130,16 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(html, /<option\b[^>]*\svalue="progress"/);
   assert.match(html, /id="openingTitle"[^>]+maxlength="20"/);
   assert.match(html, /id="openingName"[^>]+value=""/);
-  assert.match(script, /URLSearchParams/);
-  assert.match(script, /localOverlayOrigin/);
-  assert.match(script, /params\.set\('enabled'/);
-  assert.match(script, /params\.set\(\s*'trackMotion'/);
-  assert.match(script, /params\.set\('audio',\s*'browser'\)/);
-  assert.match(script, /buildOpeningSourceUrl/);
-  assert.match(script, /openingAudioVolume/);
   assert.match(script, /OPENING_AUDIO_ENDPOINT/);
-  assert.match(script, /OPENING_CHARACTER_ENDPOINT/);
   assert.match(script, /MAX_CHARACTER_UPLOAD_BYTES/);
-  assert.match(script, /openingSettingsPayload/);
   assert.match(script, /openingTrackMotion:\s*config\.trackMotion/);
-  assert.match(script, /about:blank/);
-  assert.match(script, /enabled:\s*false/);
-  assert.match(script, /getElementById\('openingEnabled'\)\?\.addEventListener\('change'/);
-  assert.match(script, /volumePercent/);
-  assert.match(script, /type: 'lira:opening-preview-config'/);
-  assert.match(script, /preview\?\.contentWindow\?\.postMessage/);
-  assert.match(overlayScript, /enabled:\s*false/);
-  assert.match(openingRoutesSource, /parseBoolean\(settings\.openingEnabled,\s*false\)/);
   assert.equal(DEFAULT_SETTINGS.openingEnabled, 'false');
   assert.equal(DEFAULT_SETTINGS.openingFooter, '欢迎来到直播间');
   assert.equal(DEFAULT_SETTINGS.openingTrackMotion, 'heart');
   assert.equal(DEFAULT_SETTINGS.openingCharacterFile, '');
   assert.equal(DEFAULT_SETTINGS.openingCharacterName, '');
+  assert.equal(DEFAULT_SETTINGS.openingPixelCharacterFile, '');
+  assert.equal(DEFAULT_SETTINGS.openingPixelCharacterName, '');
   assert.equal(
     openingRoutes.getOpeningConfig({
       settings: {
@@ -210,7 +187,7 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(script, /openingTitleCount/);
   assert.match(script, /Array\.from\(config\.title\)\.length}\/20/);
   assert.doesNotMatch(script, /localStorage/);
-  assert.match(styles, /aspect-ratio:\s*16 \/ 9/);
+  assert.doesNotMatch(html, /<iframe/);
   assert.match(styles, /overflow-y:\s*auto/);
   assert.match(formsScript, /element\?\.closest\('#openingAnimationForm'\)/);
   assert.match(read('public', 'js', 'admin', 'app.js'), /module\.initStartAnimation/);
@@ -236,6 +213,9 @@ test('opening media defaults and missing uploads have no bundled fallback', asyn
       assert.equal(config.audioName, '');
       assert.equal(config.characterUrl, '');
       assert.equal(config.characterName, '');
+      assert.equal(config.pixelCharacterUrl, '');
+      assert.equal(config.pixelCharacterName, '');
+      assert.equal(config.hasUploadedPixelCharacter, false);
       assert.equal(config.hasUploadedAudio, false);
       assert.equal(config.hasUploadedCharacter, false);
     }

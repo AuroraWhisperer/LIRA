@@ -51,15 +51,16 @@ async function start() {
 
 function mount(selectedId, selectedSize = null) {
   const source = document.getElementById('componentPreviewTemplates').content;
+  const canvasConnection = connections.find(({ component }) => component === 'canvas');
   const components = Object.entries(COMPONENT_PREVIEW_DEFINITIONS).flatMap(([id, definition]) => {
     const connection = connections.find(({ component }) => component === id);
     return connection ? [definition.createPreview({ controller: connection.controller, source,
       startActualData: connection.startActualData, embedded: true })]
-      : definition.sceneOnly && connections.some(({ component }) => component === 'canvas') ? [definition.createPreview()] : [];
+      : definition.sceneOnly && canvasConnection
+        ? [definition.createPreview({ startPreviewData: canvasConnection.startActualData })] : [];
   });
   view = mountComponentPreviewCanvas(host, { components, selectedId, selectedSize, source, recovery,
-    canvasConnection: connections.find(({ component }) => component === 'canvas'),
-    canvasController: connections.find(({ component }) => component === 'canvas')?.controller });
+    canvasConnection, canvasController: canvasConnection?.controller });
 }
 
 window.addEventListener('pagehide', dispose, { once: true });

@@ -160,6 +160,30 @@ test('opening character uploads validate image signatures and stay inside the da
     const files = fs.readdirSync(openingRoutes.getCharacterDir(dataDir));
     assert.equal(files.length, 1);
     assert.equal(files[0], settings.values.openingCharacterFile);
+    assert.equal(uploaded.payload.data.pixelCharacterUrl, '');
+    const pixel = makeResponse();
+    const query = new URLSearchParams('style=pixel-cassette');
+    for (const name of ['pixel.png', 'replacement.png']) {
+      await openingRoutes.routes['POST /api/opening/character'](
+        context, { req: makeRequest(name, png), query }, pixel.response,
+      );
+      assert.equal(pixel.response.status, 200);
+      assert.equal(pixel.payload.data.pixelCharacterName, name);
+      assert.equal(pixel.payload.data.hasUploadedPixelCharacter, true);
+      assert.notEqual(settings.values.openingPixelCharacterFile, files[0]);
+      assert.equal(settings.values.openingCharacterFile, files[0]);
+      assert.equal(pixel.payload.data.characterUrl, uploaded.payload.data.characterUrl);
+    }
+    await openingRoutes.routes['DELETE /api/opening/character'](
+      context, { query: new URLSearchParams('style=unknown') }, pixel.response,
+    );
+    assert.equal(pixel.response.status, 400);
+    assert.ok(settings.values.openingPixelCharacterFile);
+    await openingRoutes.routes['DELETE /api/opening/character'](context, { query }, pixel.response);
+    assert.equal(pixel.payload.data.pixelCharacterUrl, '');
+    assert.equal(pixel.payload.data.pixelCharacterName, '');
+    assert.equal(pixel.payload.data.hasUploadedPixelCharacter, false);
+    assert.equal(pixel.payload.data.characterUrl, uploaded.payload.data.characterUrl);
     await openingRoutes.routes['DELETE /api/opening/character'](context, {}, uploaded.response);
     assert.equal(uploaded.payload.data.characterUrl, '');
     assert.equal(uploaded.payload.data.characterName, '');
@@ -233,6 +257,8 @@ test('opening character writes require authentication and only the selected file
 
     const rejected = await requestCharacter(fileName, 'different.png');
     assert.equal(rejected.status, 404);
+    assert.equal((await requestCharacter(fileName, ['classic.png', fileName])).status, 200);
+    assert.equal((await requestCharacter(fileName, ['classic.png', ''])).status, 404);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

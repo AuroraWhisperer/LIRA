@@ -1,7 +1,11 @@
 'use strict';
 
+import { createPixelOpening } from './opening-pixel.js';
+import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
+
 const DEFAULTS = Object.freeze({
   enabled: false,
+  style: 'classic',
   title: '唱一首，在一首，给你的歌',
   subtitle: '开播准备中',
   name: '',
@@ -15,6 +19,7 @@ const DEFAULTS = Object.freeze({
   audioUrl: '',
   audioName: '',
   characterUrl: '',
+  pixelCharacterUrl: '',
   debug: false,
 });
 
@@ -65,6 +70,10 @@ function normalizeTrackMotion(value) {
   return TRACK_MOTION_VALUES.has(candidate) ? candidate : DEFAULTS.trackMotion;
 }
 
+function normalizeStyle(value) {
+  return value === 'pixel-cassette' ? value : DEFAULTS.style;
+}
+
 function parseConfig(search = typeof location === 'undefined' ? '' : location.search) {
   const params = new URLSearchParams(search);
   const quality = params.get('quality');
@@ -74,6 +83,7 @@ function parseConfig(search = typeof location === 'undefined' ? '' : location.se
   const name = cleanText(params.get('name'), MAX_LENGTHS.name);
   return {
     enabled: parseBoolean(params.get('enabled'), DEFAULTS.enabled),
+    style: normalizeStyle(params.get('style')),
     title: title || DEFAULTS.title,
     subtitle: subtitle || DEFAULTS.subtitle,
     name,
@@ -151,13 +161,23 @@ function createOpeningRuntime() {
   const reducedMotion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
   let config = null;
   let disposed = false;
+  let pixel = null;
 
   const updateMotion = () => {
     if (!config) return;
     const paused = !config.enabled || document.hidden;
     stage.classList.toggle('is-paused', paused);
     stage.classList.toggle('is-reduced-motion', Boolean(reducedMotion?.matches));
-    if (paused || reducedMotion?.matches || config.quality === 'low') {
+    if (config.style === 'pixel-cassette' && !pixel) {
+      pixel = createPixelOpening(document.getElementById('openingPixel'));
+    }
+    pixel?.update({
+      ...config,
+      active: config.enabled && config.style === 'pixel-cassette',
+      paused,
+      reducedMotion: Boolean(reducedMotion?.matches),
+    });
+    if (paused || config.style === 'pixel-cassette' || reducedMotion?.matches || config.quality === 'low') {
       trackSvg?.pauseAnimations?.();
     } else {
       trackSvg?.unpauseAnimations?.();
@@ -202,6 +222,7 @@ function createOpeningRuntime() {
       setText('openingFooter', config.footer);
       stage.style.setProperty('--opening-title-size', `${titleSizeForLength(Array.from(config.title).length)}cqw`);
       stage.dataset.trackMotion = config.trackMotion;
+      stage.dataset.style = config.style;
       if (previous?.quality !== config.quality) {
         if (previous) stage.classList.remove(`quality-${previous.quality}`);
         stage.classList.add(`quality-${config.quality}`);
@@ -221,7 +242,7 @@ function createOpeningRuntime() {
         if (characterUrl) avatar.src = characterUrl;
         else avatar.removeAttribute('src');
       }
-      if (config.enabled && (!previous?.enabled || previous.trackMotion !== config.trackMotion)) {
+      if (config.enabled && (!previous?.enabled || previous.style !== config.style || previous.trackMotion !== config.trackMotion)) {
         trackSvg?.setCurrentTime?.(0);
       }
       updateMotion();
@@ -232,6 +253,7 @@ function createOpeningRuntime() {
       document.removeEventListener('visibilitychange', updateMotion);
       reducedMotion?.removeEventListener?.('change', updateMotion);
       trackSvg?.pauseAnimations?.();
+      pixel?.dispose();
       if (audio) {
         audio.pause();
         audio.removeAttribute('src');
@@ -272,6 +294,7 @@ function mergeConfig(
   const source = remote && typeof remote === 'object' ? remote : {};
   const merged = { ...DEFAULTS, ...source, ...query };
   if (!params.has('enabled')) merged.enabled = Boolean(source.enabled ?? DEFAULTS.enabled);
+  merged.style = normalizeStyle(params.has('style') ? query.style : source.style);
   if (!params.has('title')) merged.title = cleanText(source.title, MAX_LENGTHS.title) || DEFAULTS.title;
   if (!params.has('subtitle')) merged.subtitle = cleanText(source.subtitle, MAX_LENGTHS.subtitle) || DEFAULTS.subtitle;
   if (!params.has('name')) merged.name = cleanText(source.name, MAX_LENGTHS.name);
@@ -286,11 +309,20 @@ function mergeConfig(
   merged.audioUrl = safeAudioUrl(source.audioUrl || DEFAULTS.audioUrl);
   merged.audioName = cleanText(source.audioName, 160) || DEFAULTS.audioName;
   merged.characterUrl = safeCharacterUrl(source.characterUrl || DEFAULTS.characterUrl);
+  merged.pixelCharacterUrl = safeCharacterUrl(source.pixelCharacterUrl || DEFAULTS.pixelCharacterUrl);
   return merged;
 }
 
 function initOpeningOverlay() {
   const runtime = createOpeningRuntime();
+  if (isComponentPreview()) {
+    createComponentPreviewClient({
+      onConfig: () => {},
+      onData: (config) => runtime.apply(mergeConfig(config, parseConfig(''), new URLSearchParams())),
+      onDispose: () => runtime.dispose(),
+    });
+    return;
+  }
   const queryConfig = parseConfig();
   let remoteConfig = null;
   let previewConfig = null;

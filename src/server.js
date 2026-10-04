@@ -115,6 +115,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getSettings: () => settingsStore.getSettings(),
     getDanmakuFeedBuffer: () => danmakuFeedBuffer,
     resolveGiftEffect: (giftId) => domainServices.gifts.resolveEffect(giftId),
+    publishSceneGift: (payload) => sceneRuntime?.receiveGift(payload),
   });
   const { resumeAuthorizedWork, pauseAuthorizedWork } = createAuthorizedWorkController({
     isLicenseAuthorized,
@@ -260,7 +261,7 @@ function createServerRuntime(runtimeOptions = {}) {
     musicLyricCacheDir: MUSIC_LYRIC_CACHE_DIR,
     getSessionToken: () => sessionToken,
     broadcastSnapshot,
-    broadcastGiftEffectPreview: (payload) => webSocketHub.broadcast(payload),
+    broadcastGiftEffectPreview: (payload) => { webSocketHub.broadcast(payload); sceneRuntime?.receiveGift(payload); },
     requestCloudSync,
     rebuildGiftProjection: giftRuntime.rebuildGiftProjection,
     clearRemoteGiftHistory: giftRuntime.clearRemoteGiftHistory,
@@ -600,6 +601,11 @@ function createServerRuntime(runtimeOptions = {}) {
     return serializeCloudSettings(settingsStore.getSettings());
   }
 
+  function getPendingCloudSettings(accountKey) {
+    const pending = settingsStore.getPendingCloudSettings(accountKey);
+    return pending ? { ...pending, values: serializeCloudSettings(pending.values) } : null;
+  }
+
   function prepareCloudRoomAccount(accountKey) {
     if (!settingsStore || !bilibiliRuntime) {
       throw new Error('Application runtime not ready.');
@@ -616,7 +622,7 @@ function createServerRuntime(runtimeOptions = {}) {
     if (!settingsStore || !bilibiliRuntime) {
       throw new Error('Application runtime not ready.');
     }
-    settingsStore.setSettings(normalizeCloudSettingsSnapshot(input));
+    settingsStore.setSettings(normalizeCloudSettingsSnapshot(input), { syncPending: false });
     bilibiliRuntime.configure();
     broadcastSnapshot('cloud:settings');
     return getCloudSettingsSnapshot();
@@ -707,6 +713,8 @@ function createServerRuntime(runtimeOptions = {}) {
     importProcessedGiftEvent,
     publishGiftEffect,
     getCloudSettingsSnapshot,
+    getPendingCloudSettings,
+    acknowledgePendingCloudSettings: (key, mutationId) => settingsStore.acknowledgePendingCloudSettings(key, mutationId),
     prepareCloudRoomAccount,
     applyCloudSettingsSnapshot,
     setBlindBoxMappingState,

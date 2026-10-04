@@ -2,7 +2,7 @@
 
 const crypto = require('node:crypto');
 const { MAX_SCENE_BYTES } = require('../scenes/scene-contract');
-const { SHARED_SCENE_TYPES } = require('../shared/scene-component-types');
+const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../shared/scene-component-types');
 
 const PREVIEW_SESSION_TYPES = Object.freeze([...SHARED_SCENE_TYPES, 'canvas']);
 const SESSION_TTL_MS = 2 * 60 * 1000;
@@ -65,8 +65,8 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       const session = authenticate(id, token);
       return { component: session.component, id, token, draftKey: session.draftKey };
     });
-    if (selectedId !== null && (!SHARED_SCENE_TYPES.includes(selectedId)
-      || !entries.some(({ component }) => component === selectedId))) fail(400, '预览组件无效。');
+    if (selectedId !== null && (!SCENE_TYPES.includes(selectedId)
+      || !entries.some(({ component }) => component === (SHARED_SCENE_TYPES.includes(selectedId) ? selectedId : 'canvas')))) fail(400, '预览组件无效。');
     if (selectedSize !== null && (!selectedId || !record(selectedSize)
       || !['width', 'height'].every((axis) => Number.isFinite(selectedSize[axis])
         && selectedSize[axis] >= 32 && selectedSize[axis] <= 7680))) fail(400, '组件尺寸无效。');

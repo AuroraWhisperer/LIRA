@@ -4,8 +4,6 @@
   --ot-accent: var(--primary);
   --ot-coral: var(--danger);
   --ot-gold: var(--color-warning-medium);
-  --ot-action-add: var(--primary);
-  --ot-action-save: var(--primary);
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 14px;

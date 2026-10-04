@@ -12,19 +12,10 @@ const {
   normalizeGiftBlindBoxConfig,
   normalizeGiftBlindBoxCustomConfigV2,
 } = require('../bilibili/gift/blind-box-config');
-const { normalizeOpeningTrackMotion } = require('./opening-contract');
+const { normalizeOpeningStyle, normalizeOpeningTrackMotion } = require('./opening-contract');
 const { normalizeWeSingCachePath, normalizeWeSingLyricOffsetMs } = require('../music/wesing-cache');
 const { CLOCK_SETTING_KEYS, normalizeClockSettingValue } = require('./clock-contract');
-
-const CLOUD_SETTING_KEYS = Object.freeze([
-  'roomId',
-  'enableBilibili',
-  'paused',
-  'queueLimit',
-  'userCooldownSeconds',
-  'onlyFromLibrary',
-  'allowDuplicate',
-]);
+const { CLOUD_SETTING_KEYS, hasCloudSettingChanges } = require('../shared/cloud-settings');
 const CLOUD_BOOLEAN_KEYS = new Set([
   'danmakuMonitoringEnabled',
   'giftMonitoringEnabled',
@@ -33,14 +24,6 @@ const CLOUD_BOOLEAN_KEYS = new Set([
   'paused',
   'onlyFromLibrary',
   'allowDuplicate',
-]);
-const CLOUD_SYNC_KEYS = new Set([
-  'danmakuMonitoringEnabled',
-  'giftMonitoringEnabled',
-  'giftEffectDanmakuEnabled',
-  ...CLOUD_SETTING_KEYS,
-  'giftBlindBoxConfig',
-  'giftBlindBoxCustomConfigV2',
 ]);
 const JSON_SETTING_KEYS = new Set(['checkinBlessings', 'fortunePool']);
 const FRAME_SETTING_KEYS = new Set([
@@ -86,6 +69,7 @@ function normalizeSettingValue(key, rawValue) {
     return value === null ? null : String(value);
   }
   if (key === 'openingTrackMotion') return normalizeOpeningTrackMotion(rawValue);
+  if (key === 'openingStyle') return normalizeOpeningStyle(rawValue);
   if (key === 'roomId') {
     const value = normalizeRoomInput(rawValue);
     return String(rawValue || '').trim() && !value ? null : value;
@@ -188,10 +172,6 @@ function serializeCloudSettings(settings) {
     values.giftBlindBoxCustomConfigV2 = normalizeGiftBlindBoxCustomConfigV2(customConfigV2);
   }
   return values;
-}
-
-function hasCloudSettingChanges(keys) {
-  return keys.some((key) => CLOUD_SYNC_KEYS.has(key));
 }
 
 module.exports = {

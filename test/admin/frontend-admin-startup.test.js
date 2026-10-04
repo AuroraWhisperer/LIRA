@@ -114,8 +114,8 @@ async function createStartupFixture() {
         initBilibiliAuth: noop,
       },
     },
-    './theme.js': { theme: { initThemeForm: noop, renderPresetCards: noop } },
-    './display.js': { display: { initDisplayForm: noop, initOverlayUrls: noop } },
+    './theme.js': { theme: { initThemeForm: () => calls.push('theme-form'), renderPresetCards: noop } },
+    './display.js': { display: { initDisplayForm: () => calls.push('display-form'), initOverlayUrls: noop } },
     './state-renderer.js': { createAdminStateRenderer: noop },
     './component-preview-registry.js': { setComponentPreviewPreparation: noop, getComponentPreviews: () => [] },
     './server-overlay-url.js': { waitForServerOverlayUrlInitialization: async () => {} },
@@ -165,11 +165,13 @@ test('desktop first paint applies body styling before admin modules load', () =>
 
 test('desktop startup waits for theme and initial data while initializing window and workspace controls early', async () => {
   const fixture = await createStartupFixture();
+  assert.deepEqual(fixture.calls, [], 'interactive documents must wait for DOMContentLoaded');
   const starting = fixture.start();
   assert.deepEqual(fixture.calls, ['desktop', 'settings', 'workspace', 'theme']);
   assert.equal(fixture.classes.has('admin-starting'), true);
   fixture.theme.resolve();
   await fixture.dataRequested.promise;
+  assert.deepEqual(fixture.calls.slice(4).sort(), ['display-form', 'theme-form']);
   assert.equal(fixture.classes.has('admin-starting'), true);
   fixture.data.resolve();
   await starting;

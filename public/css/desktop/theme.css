@@ -18,7 +18,7 @@ body.desktop-shell .desktop-lyric-preview-viewport {
 }
 
 body.desktop-shell {
-  background: var(--color-bg-page);
+  background: var(--page-bg);
 }
 
 body.desktop-shell.player-fs-open .topbar {
@@ -36,7 +36,7 @@ body.desktop-shell .topbar {
   padding: 0 0 0 0;
   box-shadow: none;
   min-height: 58px;
-  background: var(--color-bg-primary);
+  background: var(--color-bg-chrome);
 }
 
 body.desktop-shell .topbar > * {

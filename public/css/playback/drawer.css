@@ -82,7 +82,7 @@
 }
 
 .playback-drawer-body .queue-row:hover {
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-hover, var(--color-bg-tertiary));
 }
 
 .playback-drawer-playlist-card {
@@ -99,7 +99,7 @@
 
 .playback-drawer-playlist-card:hover {
   border-color: var(--color-border-strong);
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-hover, var(--color-bg-tertiary));
 }
 
 .playback-drawer-playlist-card .playlist-title {
@@ -134,8 +134,8 @@
 }
 
 .playback-drawer-playlist-card:hover .playlist-card-arrow {
-  background: var(--primary);
-  color: var(--color-text-white);
+  background: var(--color-primary-fill);
+  color: var(--color-on-primary);
 }
 
 .playback-drawer-actions {

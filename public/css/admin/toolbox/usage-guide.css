@@ -69,14 +69,14 @@
 }
 
 .usage-guide-hero-actions a:first-child {
-  background: var(--primary);
-  color: var(--color-text-white);
+  background: var(--color-primary-fill);
+  color: var(--color-on-primary);
 }
 
 .usage-guide-hero-actions a:first-child:hover,
 .usage-guide-hero-actions a:first-child.active {
-  background: var(--primary-strong);
-  color: var(--color-text-white);
+  background: var(--color-primary-fill-hover);
+  color: var(--color-on-primary);
 }
 
 .usage-guide-hero-actions a:nth-child(2) {

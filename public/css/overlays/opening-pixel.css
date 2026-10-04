@@ -1,0 +1,24 @@
+.opening-pixel {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.opening-stage[data-style='pixel-cassette'] {
+  background: #f6dce5;
+  animation: none;
+}
+
+.opening-stage[data-style='pixel-cassette'] > .opening-pixel {
+  display: block;
+}
+
+.opening-stage[data-style='pixel-cassette'] > :is(
+  .opening-backdrop, .opening-particles, .opening-eq, .opening-copy,
+  .opening-character, .opening-notes, .opening-footer
+) {
+  display: none;
+}

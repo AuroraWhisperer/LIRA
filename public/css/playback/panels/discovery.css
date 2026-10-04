@@ -100,7 +100,7 @@
 
 .playback-home-card:hover {
   border-color: var(--color-border-strong);
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-hover, var(--color-bg-tertiary));
 }
 
 .playback-home-card:hover::before,
@@ -110,12 +110,12 @@
 }
 
 .playback-home-card.active {
-  border-color: var(--primary);
+  border-color: var(--color-selection-marker, var(--primary));
   background: var(--color-primary-light);
 }
 
 .playback-home-card.active strong {
-  color: var(--primary-strong);
+  color: var(--color-selection-text, var(--primary-strong));
 }
 
 .playback-home-results {

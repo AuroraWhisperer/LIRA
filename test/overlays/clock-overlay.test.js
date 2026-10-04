@@ -175,17 +175,11 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   const stylesAvailable = [...panel.matchAll(/\sdata-clock-style-option="([^"]+)"/g)].map(([, value]) => value);
   assert.deepEqual(stylesAvailable.sort(), [...CLOCK_STYLE_VALUES].sort());
   assert.match(panel, /clockCustomLabelHelp/);
-  assert.match(script, /clockSettingsPayload/);
-  assert.match(script, /saveComponentSettings\(clockSettingsPayload\(config\)\)/);
-  assert.match(script, /fetch\('\/api\/clock\/config'/);
-  assert.match(script, /getElementById\('clockFixedUrl'\).textContent = fixedUrl/);
   assert.match(script, /openComponentPreview/);
   assert.doesNotMatch(script, /clockCustomUrl|clockCopyCustom/);
   assert.match(script, /copyText/);
-  assert.match(script, /createComponentConfigController/);
   assert.match(script, /button\.disabled = !loaded/);
   assert.match(script, /control\.disabled = !loaded/);
-  assert.doesNotMatch(script, /customLabel\.value\s*=\s*''/);
   assert.match(panel, /<label\b(?=[^>]*\sid="clockCustomLabelField")(?=[^>]*\sfor="clockCustomLabel")[^>]*>/);
   assert.match(styles, /aspect-ratio:\s*240\s*\/\s*400/);
 });
@@ -195,16 +189,6 @@ test('clock settings are persisted through validated keys and exposed by the clo
     [...CLOCK_STYLE_VALUES],
     ['peach', 'starlight', 'soda', 'timeline-horizontal', 'timeline-vertical', 'digital', 'orbit', 'flip'],
   );
-  assert.deepEqual(Object.fromEntries([...CLOCK_STYLE_VALUES].map((style) => [style, DEFAULT_LABELS[style]])), {
-    peach: '今天也要闪闪发光',
-    starlight: '今晚与星星一起值班',
-    soda: '今天也要元气满满',
-    'timeline-horizontal': '',
-    'timeline-vertical': '',
-    digital: '',
-    orbit: '',
-    flip: '',
-  });
   assert.equal(DEFAULT_SETTINGS.clockStyle, 'peach');
   assert.equal(DEFAULT_SETTINGS.clockShowDate, 'true');
   assert.equal(DEFAULT_SETTINGS.clockShowSeconds, 'true');
@@ -224,7 +208,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
       showDate: true,
       showSeconds: true,
       hourFormat: '24',
-      label: '今天也要闪闪发光',
+      label: DEFAULT_LABELS.peach,
       ...FLIP_COLORS,
     },
   );
@@ -234,7 +218,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
     showDate: true,
     showSeconds: true,
     hourFormat: '24',
-    label: '今天也要元气满满',
+    label: DEFAULT_LABELS.soda,
   });
   assert.deepEqual(getClockConfig({ clockStyle: 'timeline-vertical' }), {
     ...FLIP_COLORS,

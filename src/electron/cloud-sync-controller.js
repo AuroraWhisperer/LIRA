@@ -128,18 +128,19 @@ function createCloudSyncController(options = {}) {
         if (!isCurrent(work)) throw Object.assign(new Error(), { code: 'CLOUD_SETTINGS_CHANGED' });
         if (retryNotBefore > now()) throw retryError;
         const dirtyGeneration = dirtyGenerations.settings;
+        const pending = getPendingSettings(work.accountKey);
         // Omit the untouched flag: the server preserves its current value.
         const result = await licenseManager.updateCloudSettings(
-          { ...runtime.getCloudSettingsSnapshot(), [intent.key]: intent.enabled },
+          { ...(pending?.values || runtime.getCloudSettingsSnapshot()), [intent.key]: intent.enabled },
           { signal: work.signal },
         );
         if (!isCurrent(work)) return { ok: false, ...getGiftInteractionState() };
         if (result?.ok === false || !GIFT_INTERACTION_KEYS.every((key) => typeof result?.values?.[key] === 'boolean')) {
           throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
         }
-        if (dirtyGeneration === dirtyGenerations.settings) {
-          await runtime.applyCloudSettingsSnapshot(result.values);
-          if (!isCurrent(work)) return { ok: false, ...getGiftInteractionState() };
+        await acceptSettingsUpload(result, pending, dirtyGeneration, work);
+        if (!isCurrent(work)) return { ok: false, ...getGiftInteractionState() };
+        if (dirtyGeneration === dirtyGenerations.settings && !getPendingSettings(work.accountKey)) {
           dirty.delete('settings');
         }
         revisions.settings = Number(result.revision) || revisions.settings;
@@ -218,6 +219,11 @@ function createCloudSyncController(options = {}) {
       for (const scope of VALID_SCOPES) revisions[scope] = null;
     } else if (roomChanged) {
       dirty.delete('settings');
+    }
+    const pendingSettings = getPendingSettings(nextAccountKey);
+    if (pendingSettings) {
+      runtime.applyCloudSettingsSnapshot(pendingSettings.values);
+      markScopeDirty('settings');
     }
     if (songSync.restorePending(nextAccountKey)) markScopeDirty('songs');
     accountKey = nextAccountKey;
@@ -357,13 +363,31 @@ function createCloudSyncController(options = {}) {
     streamConnections = 0;
   }
 
+  function getPendingSettings(key) {
+    return runtime.getPendingCloudSettings?.(key) || null;
+  }
+
+  async function acceptSettingsUpload(result, pending, generation, work) {
+    const unchanged = generation === dirtyGenerations.settings
+      && getPendingSettings(work.accountKey)?.mutationId === pending?.mutationId;
+    const applied = unchanged && Boolean(result?.values);
+    if (applied) {
+      await runtime.applyCloudSettingsSnapshot(result.values);
+      if (!isCurrent(work)) return false;
+    }
+    if (pending) runtime.acknowledgePendingCloudSettings(work.accountKey, pending.mutationId);
+    return applied;
+  }
+
   async function flushScope(scope, work) {
     if (!dirty.has(scope) || !isCurrent(work)) return false;
     const dirtyGeneration = dirtyGenerations[scope];
     const requestOptions = { signal: work.signal };
     let result;
+    let pendingSettings;
     if (scope === 'settings') {
-      result = await licenseManager.updateCloudSettings(runtime.getCloudSettingsSnapshot(), requestOptions);
+      pendingSettings = getPendingSettings(work.accountKey);
+      result = await licenseManager.updateCloudSettings(pendingSettings?.values || runtime.getCloudSettingsSnapshot(), requestOptions);
     } else if (scope === 'songs') {
       result = await songSync.upload(work);
     } else {
@@ -379,13 +403,15 @@ function createCloudSyncController(options = {}) {
     }
     if (!isCurrent(work)) return false;
     if (scope === 'settings' && result?.values) confirmInteractionState(result.values);
-    if (scope === 'settings' && dirtyGenerations.settings === dirtyGeneration && result?.values) {
-      await runtime.applyCloudSettingsSnapshot(result.values);
+    if (scope === 'settings') {
+      const applied = await acceptSettingsUpload(result, pendingSettings, dirtyGeneration, work);
       if (!isCurrent(work)) return false;
-      runtime.setBlindBoxMappingState?.(result?.blindBoxMapping || null);
+      if (applied) runtime.setBlindBoxMappingState?.(result?.blindBoxMapping || null);
     }
     revisions[scope] = Number(result?.revision) || revisions[scope];
-    if (dirtyGenerations[scope] === dirtyGeneration && (scope !== 'songs' || !songSync.hasPending(work.accountKey)))
+    if (dirtyGenerations[scope] === dirtyGeneration
+      && (scope !== 'settings' || !getPendingSettings(work.accountKey))
+      && (scope !== 'songs' || !songSync.hasPending(work.accountKey)))
       dirty.delete(scope);
     return true;
   }
@@ -418,6 +444,7 @@ function createCloudSyncController(options = {}) {
 
   function shouldApply(scope, cloudRevision, work) {
     if (!isCurrent(work) || dirty.has(scope)) return false;
+    if (scope === 'settings' && getPendingSettings(work.accountKey)) return false;
     if (scope === 'songs' && songSync.hasPending(work.accountKey)) return false;
     const incoming = Number(cloudRevision) || 0;
     const current = revisions[scope];
@@ -486,6 +513,7 @@ function createCloudSyncController(options = {}) {
     }
     clearTimer();
     try {
+      if (getPendingSettings(work.accountKey) && !dirty.has('settings')) markScopeDirty('settings');
       if (songSync.hasPending(work.accountKey) && !dirty.has('songs')) markScopeDirty('songs');
       await flushDirty(work);
       if (!isCurrent(work)) return false;

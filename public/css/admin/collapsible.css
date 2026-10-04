@@ -75,7 +75,7 @@
 .current-song {
   display: grid;
   gap: 8px;
-  border-left: 2px solid var(--primary);
+  border-left: 2px solid var(--color-selection-marker);
   background: var(--color-primary-light);
   padding: 14px;
 }

@@ -23,6 +23,7 @@
   --toast-success: var(--color-toast-success, var(--color-success));
   --toast-warning: var(--color-toast-warning, var(--color-warning));
   --toast-error: var(--color-toast-error, var(--danger));
+  --toast-on-accent: var(--color-toast-on-accent);
   width: max-content;
   max-width: min(460px, calc(100vw - 48px));
   border: 1px solid color-mix(in srgb, var(--toast-accent) 23%, transparent);
@@ -53,12 +54,15 @@
 
 .toast-success {
   --toast-accent: var(--toast-success);
+  --toast-on-accent: var(--color-toast-on-success);
 }
 .toast-warning {
   --toast-accent: var(--toast-warning);
+  --toast-on-accent: var(--color-toast-on-warning);
 }
 .toast-error {
   --toast-accent: var(--toast-error);
+  --toast-on-accent: var(--color-toast-on-error);
 }
 .toast-detailed {
   width: 400px;
@@ -138,7 +142,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   background: var(--toast-accent);
-  color: #fff;
+  color: var(--toast-on-accent);
   font-family: inherit;
   font-size: calc(var(--type-size-control) + 2px);
   font-weight: var(--type-weight-medium);

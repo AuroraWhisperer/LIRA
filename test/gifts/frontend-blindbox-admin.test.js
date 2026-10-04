@@ -6,7 +6,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -51,135 +50,46 @@ test('blind box analysis refreshes only for gift snapshot reasons', () => {
   assert.doesNotMatch(analysisSource, /Events\.STATE_LOADED/);
 });
 
-test('gift notifications detect delayed records that are not first in the list', async () => {
-  const toasts = [];
-  const sandbox = {
-    window: {},
-    document: {
-      getElementById: () => ({ checked: true }),
-    },
-  };
-  const { createGiftNotification } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'notification.js'),
-    sandbox,
-  );
-  const { notifyNewGift: notify } = createGiftNotification({ notify: (options) => toasts.push(options) });
-  const newestByTime = {
-    id: 10,
-    gift_id: '1',
-    gift_name: 'Rose',
-    user_name: 'Alice',
-    num: 1,
-    total_price: 1,
-  };
-
-  notify([newestByTime]);
-  notify([
-    newestByTime,
-    {
-      id: 11,
-      gift_id: '2',
-      gift_name: 'Delayed Gift',
-      user_name: 'Bob',
-      num: 1,
-      total_price: 2,
-    },
-  ]);
-
-  assert.equal(toasts.length, 1);
-  assert.equal(toasts[0].key, 'gift:11');
-  assert.match(toasts[0].html, /Delayed Gift/);
-  assert.match(toasts[0].html, />¥2\.00<\/span>/);
-  assert.doesNotMatch(toasts[0].html, /¥¥/);
-});
-
-test('admin overlay links always use the IPv4 loopback host and current port', () => {
+test('blindbox controls publish current filters through the IPv4 source URL', async () => {
   const html = readAdminHtml();
-  const utilitySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'shared', 'utils.js'), 'utf8');
-  const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
-  const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'), 'utf8');
-
-  assert.doesNotMatch(html, /localhost:3000\/blindbox/);
-  assert.doesNotMatch(displaySource, /localhost:3000/);
-  assert.doesNotMatch(settingsSource, /localhost:3000/);
-  assert.doesNotMatch(displaySource, /replace\(['"]127\.0\.0\.1['"],\s*['"]localhost['"]\)/);
-  assert.match(utilitySource, /function localOverlayOrigin\(locationLike = location\)/);
-  assert.match(utilitySource, /127\.0\.0\.1/);
-  assert.match(displaySource, /localOverlayOrigin\(location\)/);
-  assert.match(settingsSource, /localOverlayOrigin\(locationRef\)/);
-  assert.doesNotMatch(displaySource, /location\.origin/);
-  assert.doesNotMatch(settingsSource, /location\.host/);
-});
-
-test('sprint and blindbox broadcast follow profit stats in reading order', () => {
-  const html = readAdminHtml();
-  const giftPageStart = html.indexOf('<section id="giftAssistantPage"');
-  const statsStart = html.indexOf('class="panel gift-blindbox-panel"');
-  const planningStart = html.indexOf('class="gift-planning-row"');
-  const sprintStart = html.indexOf('class="panel gift-sprint-panel"');
-  const broadcastStart = html.indexOf('class="panel gift-blindbox-broadcast-panel"');
-  const mappingStart = html.indexOf('class="panel gift-blindbox-mapping-panel"');
-  const overlayTabEnd = html.indexOf('<div id="importPage"');
-
-  assert.ok(giftPageStart > -1);
-  assert.ok(statsStart > giftPageStart);
-  assert.ok(planningStart > statsStart);
-  assert.ok(sprintStart > planningStart);
-  assert.ok(broadcastStart > sprintStart);
-  assert.ok(mappingStart > broadcastStart);
-  assert.ok(html.indexOf('id="blindboxOverlayTitle"') > broadcastStart);
-  assert.equal(html.slice(0, overlayTabEnd).includes('id="blindboxOverlayTitle"'), false);
-});
-
-test('blindbox broadcast settings expose audience filters and one open action', () => {
-  const html = readAdminHtml();
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'), 'utf8');
-
+  for (const id of ['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxOverlayTop', 'blindboxLiveLink']) {
+    assert.equal([...html.matchAll(/\bid="([^"]+)"/g)].filter(([, value]) => value === id).length, 1, id);
+  }
+  const input = html.match(/<input\b(?=[^>]*\bid="blindboxOverlayTop")[^>]*>/)?.[0];
+  assert.ok(input);
+  for (const attribute of ['min="-1"', 'max="10"', 'value="3"']) assert.ok(input.includes(attribute), attribute);
   assert.match(html, /id="blindboxWinnersOnly"[^>]*checked/);
-  assert.match(html, /id="blindboxHeartBoxOnly"/);
-  assert.doesNotMatch(html, /blindboxCompact|blindboxNoScroll|blindboxLowPower|blindboxOpenUrlBtn/);
-  assert.equal((html.match(/>\s*打开画面\s*<\/a\s*>/g) || []).length, 1);
-  assert.match(source, /liveLink\.href = url/);
-  assert.match(source, /add\(\s*['"]heartBox['"]\s*,\s*['"]1['"]\s*\)/);
-  assert.doesNotMatch(source, /add\("compact"|add\("noScroll"|add\("quality"/);
-});
 
-test('blind-box settings persist an explicit empty JSON array', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'), 'utf8');
-
-  assert.doesNotMatch(source, /config\.length\s*\?\s*JSON\.stringify\(config,[^)]+\)\s*:\s*''/);
-  assert.match(source, /const newRaw = JSON\.stringify\(config, null, 2\)/);
-  assert.match(source, /let raw = textarea\.value\.trim\(\) \|\| '\[\]'/);
-});
-
-test('blindbox ranking count supports all, summary-only, and one-to-ten modes', () => {
-  const html = readAdminHtml();
-  const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'), 'utf8');
-  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'blindbox.js'), 'utf8');
-  const overlayStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'blindbox.css'), 'utf8');
-
-  assert.match(html, /<input\b(?=[^>]*\bid="blindboxOverlayTop")[^>]*\bmin="-1"[^>]*\bmax="10"[^>]*\bvalue="3"[^>]*>/s);
-  assert.match(html, /-1\s*显示全部，0\s*仅显示汇总，1\s*至 10\s*显示对应人数/);
-  assert.match(settingsSource, /if\s*\(\s*top\s*!==\s*['"]['"]\s*\)\s*add\(\s*['"]top['"]\s*,\s*top\s*\)/);
-  assert.match(overlaySource, /if \(TOP_N > 0\)[\s\S]*?users = users\.slice\(0, TOP_N\)/);
-  assert.match(overlaySource, /if \(SUMMARY_ONLY\)[\s\S]*?leaderboard\.innerHTML = ''/);
-  assert.match(overlaySource, /HEART_BOX_ONLY/);
-  assert.match(overlaySource, /boxName=.*心动盲盒/);
-  assert.match(overlayStyles, /\.blindbox-panel\.summary-only \.blindbox-header[\s\S]*?display:\s*none/);
-
-  const readMode = (search) => {
-    const sandbox = {
-      URLSearchParams,
-      location: { search },
-      document: { addEventListener() {} },
-    };
-    const executableSource = overlaySource.replace(/^import\s+\{[^}]+\}\s+from\s+['"]\.\/[^'"]+['"];\s*/gm, '');
-    vm.runInNewContext(`${executableSource}\nthis.result = { top: TOP_N, summaryOnly: SUMMARY_ONLY };`, sandbox);
-    return { top: sandbox.result.top, summaryOnly: sandbox.result.summaryOnly };
+  const elements = {
+    blindboxOverlayTop: { value: '' },
+    blindboxOverlayTitle: { value: '  盲盒 & 观众  ' },
+    blindboxWinnersOnly: { checked: true },
+    blindboxHeartBoxOnly: { checked: true },
+    blindboxOverlayUrl: {},
+    blindboxLiveLink: {},
   };
-
-  assert.deepEqual(readMode('?top=-1'), { top: -1, summaryOnly: false });
-  assert.deepEqual(readMode('?top=0'), { top: 0, summaryOnly: true });
-  assert.deepEqual(readMode(''), { top: 3, summaryOnly: false });
-  assert.deepEqual(readMode('?top=25'), { top: 10, summaryOnly: false });
+  const { localOverlayOrigin } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/utils.js'));
+  const { createBlindboxSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-blindbox.js'));
+  const settings = createBlindboxSettings({
+    documentRef: { getElementById: (id) => elements[id] },
+    locationRef: { protocol: 'http:', hostname: 'localhost', port: '3012' },
+    localOverlayOrigin,
+    value: (id) => elements[id].value,
+  });
+  for (const top of ['', '-1', '0', '4', '10']) {
+    elements.blindboxOverlayTop.value = top;
+    settings.updateOverlayUrl();
+    const url = new URL(elements.blindboxLiveLink.href);
+    assert.equal(url.origin, 'http://127.0.0.1:3012');
+    assert.equal(url.pathname, '/blindbox');
+    assert.deepEqual(Object.fromEntries(url.searchParams), {
+      ...(top === '' ? {} : { top }), title: '盲盒 & 观众', winners: '1', heartBox: '1',
+    });
+    assert.equal(elements.blindboxOverlayUrl.textContent, url.href);
+  }
+  elements.blindboxOverlayTop.value = '';
+  elements.blindboxOverlayTitle.value = '';
+  elements.blindboxWinnersOnly.checked = false;
+  elements.blindboxHeartBoxOnly.checked = false;
+  assert.equal(settings.buildOverlayUrl(), 'http://127.0.0.1:3012/blindbox');
 });

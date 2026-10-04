@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { readCssBundle } = require('../helpers/css-bundle');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 
@@ -26,6 +27,18 @@ test('playback queue appears above fullscreen player and below playback controls
   assert.ok(fullscreen < queueBackdrop);
   assert.ok(queueBackdrop < queuePopup);
   assert.ok(queuePopup < playbackControls);
+});
+
+test('playback panel styles load feature-owned stylesheets in order', () => {
+  const panelEntry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'panels.css'), 'utf8');
+
+  assert.match(panelEntry, /@import url\('\.\/panels\/search\.css'\);/);
+});
+
+test('an open track menu keeps its song row above hovered siblings', () => {
+  const styles = readCssBundle('public', 'css', 'playback', 'panels.css');
+
+  assert.match(styles, /\.playback-home-row:has\(\.track-menu:not\(\[hidden\]\)\)\s*\{[^}]*z-index:\s*[1-9]\d*;/);
 });
 
 test('playback control styles keep focused ownership and responsive cascade order', () => {

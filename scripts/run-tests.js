@@ -11,11 +11,15 @@ const groups = {
   browser: [
     'admin/canvas-editing',
     'admin/canvas-component-library',
+    'admin/canvas-gift-components',
+    'admin/canvas-opening',
     'admin/component-preview-browser',
     'admin/component-preview-drafts-browser',
     'admin/component-preview-links',
     'admin/component-preview-output',
     'admin/component-preview-recovery',
+    'admin/component-workspace',
+    'admin/scene-editor',
     'bots/daily-bot-frontend',
     'danmaku/frontend-admin-danmaku',
     'gifts/frontend-gift-banner',
@@ -28,6 +32,7 @@ const groups = {
     'gifts/frontend-gift-assistant',
     'gifts/frontend-guard-thanks',
     'overlays/component-source',
+    'scenes/scene-renderer',
     'ui/frontend-toast',
     'admin/ui-edit-state',
   ],
@@ -101,6 +106,7 @@ if (!Object.hasOwn(groups, group)) {
 }
 const domains = [...new Set(files.map((file) => file.split('/')[1]))].sort();
 const selectedDomains = new Set();
+const filePatterns = new Set();
 const nodeArgs = [];
 let list = false;
 let help = false;
@@ -112,6 +118,13 @@ for (let index = 0; index < testArgs.length; index += 1) {
       throw new Error(`Unknown test domain ${domain || '(empty)'}; use ${domains.join(', ')}`);
     }
     selectedDomains.add(domain);
+  } else if (arg === '--file' || arg.startsWith('--file=')) {
+    const value = arg === '--file' ? testArgs[++index] : arg.slice('--file='.length);
+    const pattern = (value || '').replaceAll('\\', '/').replace(/^\.\//, '');
+    if (!pattern || !files.some((file) => path.matchesGlob(file, pattern))) {
+      throw new Error(`Unknown test file pattern ${value || '(empty)'}; use a test/ path or glob`);
+    }
+    filePatterns.add(pattern);
   } else if (arg === '--list') {
     list = true;
   } else if (arg === '--help') {
@@ -120,17 +133,24 @@ for (let index = 0; index < testArgs.length; index += 1) {
     nodeArgs.push(arg);
   }
 }
-const selectedFiles = groups[group].filter((file) => !selectedDomains.size || selectedDomains.has(file.split('/')[1]));
+const selectedFiles = groups[group].filter((file) =>
+  (!selectedDomains.size || selectedDomains.has(file.split('/')[1])) &&
+  (!filePatterns.size || [...filePatterns].some((pattern) => path.matchesGlob(file, pattern))),
+);
 if (help) {
-  console.log('Usage: npm test -- [group] [--domain=<directory>] [--list] [Node test options]');
+  console.log('Usage: npm test -- [group] [--domain=<directory>] [--file=<path-or-glob>] [--list] [Node test options]');
   console.log(`Groups: ${Object.keys(groups).join(', ')}`);
   console.log(`Domains: ${domains.join(', ')}`);
   console.log('Repeat --domain to select multiple domains; the group limits their runtime dependencies.');
+  console.log('Repeat --file to combine test/ paths or quoted globs; files are deduplicated and intersected with the group and domains.');
+  console.log('Node --test-name-pattern filters cases inside the selected files; it does not prevent other files from loading.');
 } else if (!selectedFiles.length) {
-  throw new Error(`No tests selected for group ${group} and domains ${[...selectedDomains].join(', ')}`);
+  throw new Error(`No tests selected for group ${group}, domains ${[...selectedDomains].join(', ')}, files ${[...filePatterns].join(', ')}`);
 } else if (list) {
   console.log(selectedFiles.join('\n'));
 } else {
+  const scope = selectedFiles.length === files.length ? 'full' : 'partial';
+  console.log(`[test] File scope: ${scope} (${selectedFiles.length}/${files.length}); group=${group}`);
   // Native ownership queries keep their production deadline; run them without
   // competing browser, Electron or installer processes from the rest of the suite.
   const nativeOwnershipFile = 'test/desktop/local-instance-windows.test.js';

@@ -234,7 +234,7 @@ Electron 官方已有 `nativeTheme` 与浅色、深色、系统模式的实现�
 实施时的验收建议：
 
 1. 在有正常 preload、IPC 和授权会话的 Electron 中，按公共外观清单验证范围内的组件、局部变体与重要状态；保留项重点检查是否因继承或别名而误改。普通浏览器截图不足以证明桌面启动与偏好行为。
-2. 按实际改动复用[样式 owner 测试](../../test/admin/admin-style-ownership.test.js)、[下拉框定位测试](../../test/ui/frontend-select-menu-overflow.test.js)、[通知测试](../../test/ui/frontend-toast.test.js)、[帮助提示测试](../../test/admin/contextual-help.test.js)。只有新增的主题选择、恢复或监听行为存在具体回归风险时，再补对应测试。
+2. 按实际改动复用[样式 owner 测试](../../test/admin/admin-style-ownership.test.js)、[下拉框定位测试](../../test/ui/ui-surface.test.js)、[通知测试](../../test/ui/frontend-toast.test.js)、[帮助提示测试](../../test/admin/contextual-help.test.js)。只有新增的主题选择、恢复或监听行为存在具体回归风险时，再补对应测试。
 3. 对文字、控件边界、焦点和关键状态做实际配色检查；同时保留文案、图标等非颜色线索。[8][wcag-text] [9][wcag-nontext] [10][wcag-color]
 4. 确认客户端换肤不改变 OBS 投屏、直播素材、导出图片与观众网页的外观配置；切换过程不触发播放或业务数据变化。
 

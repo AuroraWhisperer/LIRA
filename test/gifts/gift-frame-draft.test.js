@@ -73,14 +73,12 @@ test('save uses the submitted draft and preserves edits made while awaiting its 
   assert.equal(node('giftFrameThresholdRmb').value, '120');
 });
 
-test('effect 1 preview sends only its identity and editable caption fields', async () => {
+test('invalid simulated quantity stays in the settings page without sending requests', async () => {
   const { node, requests } = await createFixture();
-  node('giftFramePreviewUser').value = '林间听风';
-  node('giftFramePreviewGift').value = '小花花';
-  node('giftFramePreviewNum').value = '8';
-  const preview = node('giftFramePreviewBtn').handlers.get('click')();
-  assert.deepEqual(requests[0].body, { userName: '林间听风', giftName: '小花花', num: 8, themeId: 'woodland-bloom' });
-  requests[0].resolve();
-  await preview;
-  assert.match(node('giftFrameSaveState').textContent, /特效 1/);
+  for (const quantity of ['0', '-1', '1.5']) {
+    node('giftFramePreviewNum').value = quantity;
+    node('giftFramePreviewBtn').handlers.get('click')();
+    assert.match(node('giftFrameSaveState').textContent, /预览数量必须是正整数/);
+  }
+  assert.equal(requests.length, 0);
 });

@@ -104,7 +104,7 @@
 }
 
 .source-tab:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--color-bg-hover, rgba(255, 255, 255, 0.55));
   color: var(--text);
 }
 

@@ -2,8 +2,9 @@ import { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } from '../shared/scen
 import { previewElement } from './component-preview-surface.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
+import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 
-export function createSceneExtraPreview(type, { controller } = {}) {
+export function createSceneExtraPreview(type, { controller, startPreviewData } = {}) {
   const definition = SCENE_EXTRA_COMPONENTS[type];
   if (!controller) {
     const draft = createSceneExtraDefaults(type);
@@ -11,9 +12,21 @@ export function createSceneExtraPreview(type, { controller } = {}) {
     controller = { getState, subscribe(listener) { listener(getState()); return () => {}; } };
   }
   return { id: type, title: definition.title, controller, sceneOnly: true,
-    url: new URL(`${definition.path}?componentPreview=1`, location.href).href,
+    url: new URL(SCENE_COMPONENTS[type].rendererUrl, location.href).href,
     size: () => definition.size,
-    startData: ({ emit }) => emit(sceneExtraPreviewData(type)),
+    startData({ emit }) {
+      const sample = sceneExtraPreviewData(type);
+      let previous;
+      const receive = (display) => {
+        const data = display?.previewData?.[type] || sample;
+        const serialized = JSON.stringify(data);
+        if (serialized === previous) return;
+        previous = serialized;
+        emit(data);
+      };
+      if (startPreviewData) return startPreviewData(receive);
+      receive(null);
+    },
     createPanel(host, target = controller) {
       const fields = new Map();
       const grid = previewElement('div', 'component-preview-fields preview-extra-fields');
@@ -44,8 +57,12 @@ export function createSceneExtraPreview(type, { controller } = {}) {
         label.append(input); grid.append(label); fields.set(key, { input, cents });
       }
       host.append(grid);
+      if (type === 'opening') host.append(previewElement('p', 'hint',
+        '画面跟随客户端“开播动画”的样式、文案、图片、音乐与总开关；在这里调整位置和大小。'));
       if (definition.category) host.append(previewElement('p', 'hint', '在客户端“直播小游戏”中开始和管理游戏，这里调整展示画面。'));
       if (type === 'gift-wishes') host.append(previewElement('p', 'hint', '礼物与目标数量在“礼物许愿”中设置。'));
+      if (['gift-frame', 'guard-thanks'].includes(type)) host.append(previewElement('p', 'hint',
+        '画布循环展示示例；直播仅在触发时播放。请在“礼物姬”中启用对应效果。'));
       return { dispose: target.subscribe(({ draft, loaded }) => {
         for (const [key, { input, cents }] of fields) {
           input.parentElement.hidden = type === 'games' && key === 'showDanmaku' && draft.game !== 'draw-guess'

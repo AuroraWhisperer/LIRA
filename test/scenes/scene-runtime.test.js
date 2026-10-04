@@ -145,6 +145,30 @@ test('runtime HTTP saves and publishes a scene, retaining its capability and fro
   assert.equal(nextOutput.document.items[0].appearance.config.label, '下一次发布');
 });
 
+test('runtime gift preview broadcasts reach only their independent scene projections', async (t) => {
+  const { request, state } = await fixture(t);
+  const items = ['gift-frame', 'guard-thanks'].map(type => ({ ...component(type),
+    appearance: { mode: 'independent', config: type === 'guard-thanks' ? { textMode: 'zh' } : {} } }));
+  const saved = await createScene(request, items);
+  const id = saved.document.id;
+  await request('/api/scenes/publish', { body: { id, expectedRevision: saved.revision } });
+  const source = await request(`/api/scenes/source?id=${id}`);
+  const output = () => request(`/api/scene/output?id=${id}`, { token: source.token });
+  const before = await output();
+  assert.deepEqual(before.data['gift-frame'].events, []);
+  await request('/api/gifts/frame/preview', { body: { userName: '边框', giftName: '林间花信', num: 2 } });
+  await request('/api/gifts/guard-thanks/preview', { body: { tier: 'captain', userName: '上舰', months: 1 } });
+  const after = await output();
+  assert.deepEqual(after.data['gift-frame'].events.map(event => event.payload.type), ['gift:frame']);
+  assert.deepEqual(after.data['guard-thanks'].events.map(event => event.payload.type), ['gift:guard-thanks']);
+  assert.equal(after.data['gift-frame'].sequence, 2);
+  state.owner = { ...state.owner, epoch: 2 };
+  const renewed = await output();
+  assert.notEqual(renewed.data['gift-frame'].epoch, after.data['gift-frame'].epoch);
+  assert.deepEqual(renewed.data['gift-frame'].events, []);
+  assert.deepEqual(renewed.data['guard-thanks'].events, []);
+});
+
 test('runtime cloud ingress projects current-owner events and fences owner changes and revoked sources', async (t) => {
   const { runtime, request, state } = await fixture(t);
   const owner = state.owner;

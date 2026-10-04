@@ -26,6 +26,7 @@ export class StateService {
     this.songArtists = new Set();
     this.songTags = new Set();
     this.ws = null;
+    this.hasConnected = false;
     this.reconnectTimer = null;
     this.lyricVersion = { generation: null, sequence: 0 };
     this.giftCatalogVersion = '';
@@ -46,6 +47,8 @@ export class StateService {
     this.ws.addEventListener('open', () => {
       if (this.ws !== connection || this.shuttingDown) return;
       status.hidden = true;
+      if (this.hasConnected) this.scheduleSongReload();
+      this.hasConnected = true;
       eventBus.emit('ws:connected');
     });
 
@@ -255,8 +258,11 @@ export class StateService {
    * 延迟重新加载歌曲
    */
   scheduleSongReload() {
+    if (this.shuttingDown) return;
     clearTimeout(this.songReloadTimer);
     this.songReloadTimer = setTimeout(() => {
+      this.songReloadTimer = null;
+      if (this.shuttingDown) return;
       this.reloadSongs({ reloadState: false }).catch(showError);
     }, 240);
   }
@@ -301,6 +307,10 @@ export class StateService {
    */
   setShuttingDown(value) {
     this.shuttingDown = value;
+    if (value) {
+      clearTimeout(this.songReloadTimer);
+      this.songReloadTimer = null;
+    }
     if (value && this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;

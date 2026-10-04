@@ -40,6 +40,48 @@ test('blind boxes show the actual output and update the same event identity', as
   }
 });
 
+test('gift notifications detect delayed records that are not first in the list', async () => {
+  const toasts = [];
+  const sandbox = {
+    window: {},
+    document: {
+      getElementById: () => ({ checked: true }),
+    },
+  };
+  const { createGiftNotification } = await loadModuleExports(
+    path.resolve('public/js/admin/gifts/notification.js'),
+    sandbox,
+  );
+  const { notifyNewGift: notify } = createGiftNotification({ notify: (options) => toasts.push(options) });
+  const newestByTime = {
+    id: 10,
+    gift_id: '1',
+    gift_name: 'Rose',
+    user_name: 'Alice',
+    num: 1,
+    total_price: 1,
+  };
+
+  notify([newestByTime]);
+  notify([
+    newestByTime,
+    {
+      id: 11,
+      gift_id: '2',
+      gift_name: 'Delayed Gift',
+      user_name: 'Bob',
+      num: 1,
+      total_price: 2,
+    },
+  ]);
+
+  assert.equal(toasts.length, 1);
+  assert.equal(toasts[0].key, 'gift:11');
+  assert.match(toasts[0].html, /Delayed Gift/);
+  assert.match(toasts[0].html, />¥2\.00<\/span>/);
+  assert.doesNotMatch(toasts[0].html, /¥¥/);
+});
+
 test('desktop available and downloaded both notify, immediately or after expiry, with phase deduplication', async () => {
   for (const delay of [0, 10000]) {
     const { documentRef, windowRef, container } = createDom();

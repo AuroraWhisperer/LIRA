@@ -16,6 +16,16 @@
   --color-control-accent: #21b6a8;
   --color-control-accent-light: #f0faf8;
   --color-control-focus: rgba(33, 182, 168, 0.32);
+  --color-primary-fill: var(--color-primary);
+  --color-primary-fill-hover: var(--color-primary-strong);
+  --color-primary-fill-active: var(--color-primary-active, var(--color-primary-strong));
+  --color-on-primary: #ffffff;
+  --color-on-control-accent: #ffffff;
+  --color-on-help-accent: #ffffff;
+  --color-selection-marker: var(--color-primary);
+  --color-selection-text: var(--color-primary-text, var(--color-primary-strong));
+  --color-range-track: var(--color-control-border, var(--color-border-strong));
+  --color-range-thumb: var(--color-bg-primary);
 
   /* ===== 语义化颜色 ===== */
   --color-success: #21b6a8;
@@ -28,6 +38,14 @@
   --color-danger-light: #fff7f6;
   --color-danger-medium: #e74c3c;
   --color-info: #4f8df7;
+  --color-on-success: #ffffff;
+  --color-on-warning: #ffffff;
+  --color-on-danger: #ffffff;
+  --color-on-info: #ffffff;
+  --color-toast-on-accent: #ffffff;
+  --color-toast-on-success: #ffffff;
+  --color-toast-on-warning: #ffffff;
+  --color-toast-on-error: #ffffff;
 
   /* Gift profit and loss share one rule everywhere: gain is green, loss is red. */
   --color-profit: var(--color-success-dark);
@@ -50,6 +68,10 @@
   --color-bg-overlay: #181823;
   --color-bg-overlay-light: rgba(24, 24, 35, 0.76);
   --color-floating-surface: #ffffff;
+  --color-bg-chrome: var(--color-bg-primary);
+  --color-bg-nav: var(--color-bg-tertiary);
+  --color-bg-settings: var(--color-bg-secondary);
+  --color-bg-hover: var(--color-bg-tertiary);
 
   /* ===== 边框色 ===== */
   --color-border-default: #d9e0e8;
@@ -222,13 +244,13 @@ button:hover {
 
 button.primary {
   border-color: transparent;
-  background: var(--primary);
-  color: var(--color-text-white);
+  background: var(--color-primary-fill);
+  color: var(--color-on-primary);
 }
 
 button.primary:hover {
   border-color: transparent;
-  background: var(--primary-strong);
+  background: var(--color-primary-fill-hover);
 }
 
 button.danger {
@@ -305,7 +327,7 @@ textarea {
 }
 
 :where(html.desktop-shell, html[data-client-theme]) button.primary:active:not(:disabled) {
-  background: var(--color-primary-active);
+  background: var(--color-primary-fill-active);
 }
 
 :where(html.desktop-shell, html[data-client-theme]) button.danger:active:not(:disabled) {
@@ -341,6 +363,20 @@ textarea {
 input[type='checkbox'],
 input[type='radio'] {
   accent-color: var(--primary);
+}
+
+:where(html.desktop-shell, html[data-client-theme]) ::selection {
+  background: var(--color-text-selection-bg);
+  color: var(--color-text-selection-text);
+}
+
+:where(html.desktop-shell, html[data-client-theme]) :is(input, textarea) {
+  caret-color: var(--color-control-focus);
+}
+
+:where(html.desktop-shell, html[data-client-theme]) ::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
 }
 
 textarea {

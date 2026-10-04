@@ -7,6 +7,8 @@ const { now } = require('../shared/utils');
 const { DEFAULT_SETTINGS } = require('./settings-defaults');
 const settingsMigrations = require('./settings-migrations');
 const { CLOUD_SONG_SYNC_PENDING_PREFIX } = require('./cloud-song-sync-store');
+const { CLOUD_SETTINGS_SYNC_PENDING_PREFIX, createCloudSettingsSyncStore } = require('./cloud-settings-sync-store');
+const { hasCloudSettingChanges } = require('../shared/cloud-settings');
 const CLOUD_ROOM_ACCOUNT_KEY = 'cloudRoomAccountKey';
 const MONITORING_KEYS = ['danmakuMonitoringEnabled', 'giftMonitoringEnabled'];
 
@@ -82,6 +84,7 @@ function createSettingsStore(db) {
   }
 
   let cache = null;
+  const cloudSync = createCloudSettingsSyncStore(db);
   const writeSetting = db.prepare(`
     INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
@@ -97,13 +100,14 @@ function createSettingsStore(db) {
     const rows = db.prepare('SELECT key, value FROM settings').all();
     cache = { ...DEFAULT_SETTINGS };
     for (const row of rows) {
-      if (row.key === CLOUD_ROOM_ACCOUNT_KEY || row.key.startsWith(CLOUD_SONG_SYNC_PENDING_PREFIX)) continue;
+      if (row.key === CLOUD_ROOM_ACCOUNT_KEY || row.key.startsWith(CLOUD_SONG_SYNC_PENDING_PREFIX)
+        || row.key.startsWith(CLOUD_SETTINGS_SYNC_PENDING_PREFIX)) continue;
       cache[row.key] = row.value;
     }
     return { ...cache };
   }
 
-  function setSettings(values) {
+  function setSettings(values, { syncPending = true } = {}) {
     const previous = getSettings();
     const changes = Object.entries(reconcileMonitoringSettings(values, previous))
       .filter(([key, value]) => previous[key] !== value);
@@ -111,6 +115,9 @@ function createSettingsStore(db) {
     db.exec('BEGIN IMMEDIATE');
     try {
       for (const [key, value] of changes) writeSetting.run(key, value, now());
+      if (syncPending && hasCloudSettingChanges(changes.map(([key]) => key))) {
+        cloudSync.capturePending({ ...previous, ...Object.fromEntries(changes) });
+      }
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');
@@ -126,6 +133,8 @@ function createSettingsStore(db) {
     },
 
     getSettings,
+    getPendingCloudSettings: cloudSync.readPending,
+    acknowledgePendingCloudSettings: cloudSync.acknowledge,
 
     prepareCloudRoomAccount(accountKey) {
       const owner = db.prepare('SELECT value FROM settings WHERE key = ?').get(CLOUD_ROOM_ACCOUNT_KEY)?.value;
@@ -145,7 +154,7 @@ function createSettingsStore(db) {
     },
 
     setSetting(key, value) {
-      if (key === 'enableBilibili' || MONITORING_KEYS.includes(key)) {
+      if (hasCloudSettingChanges([key])) {
         setSettings({ [key]: value });
         return;
       }

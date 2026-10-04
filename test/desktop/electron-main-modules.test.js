@@ -216,3 +216,12 @@ test('desktop local font permission requires the exact app origin and explicit a
   assert.equal(await request('notifications', 'http://127.0.0.1:3000/admin?desktop=1'), false);
   assert.equal(prompts.length, 2);
 });
+
+test('desktop injects Electron safeStorage into the server AI secret boundary', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'main.js'), 'utf8');
+  assert.match(source, /protocol,[\s\S]*?safeStorage,[\s\S]*?session/);
+  assert.match(
+    source,
+    /createDesktopRuntime\(serverRuntimeModule, \{[\s\S]*?dataDir: pathState\.dataDir,[\s\S]*?safeStorage[\s\S]*?\}\)/,
+  );
+});

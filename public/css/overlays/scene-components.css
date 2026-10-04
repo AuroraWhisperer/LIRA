@@ -17,3 +17,4 @@ html[data-scene-component='wheel'] .wheel-stage { min-height: 0; height: 100%; }
 html[data-scene-component='gift-wishes'] body { padding: 0; }
 html[data-scene-component='gift-wishes'] #giftWishStage { width: 100%; }
 html[data-scene-component='gift-feed'] #giftFeedViewport { transform-origin: top left; }
+html[data-scene-component='guard-thanks'] #guardThanksRoot { position: fixed; inset: 0; }

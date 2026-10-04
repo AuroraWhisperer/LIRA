@@ -12,22 +12,35 @@
         <span>直播开场</span>
         <div>
           <h2>开播动画</h2>
-          <p>集中设置开场画面、动效和音乐，右侧会同步显示最终效果。</p>
+          <p>集中设置开场画面、动效和音乐，在画布中预览与调整。</p>
         </div>
       </div>
       <label class="opening-master-toggle">
-        <input id="openingEnabled" type="checkbox" />
+        <input id="openingEnabled" type="checkbox" disabled />
         <span class="opening-master-toggle-ui" aria-hidden="true"></span>
         <span class="opening-master-toggle-copy">
           <strong>显示整套特效（动画 + 音乐）</strong>
-          <small>同时控制预览与固定浏览器源</small>
+          <small>同时控制画布预览与直播画面</small>
         </span>
       </label>
     </div>
 
+    <div id="openingLoadState">
+      <p id="openingConfigStatus" class="opening-audio-status" role="status">正在读取开播配置…</p>
+      <button id="openingReload" class="button-quiet" type="button" hidden>重新读取</button>
+    </div>
     <div class="opening-animation-layout">
       <form id="openingAnimationForm" class="opening-animation-editor" novalidate>
-        <div class="opening-editor-heading">
+        <section class="opening-editor-section" aria-label="动画样式">
+          <div class="opening-select-grid">
+            <label class="opening-field-wide">动画样式<select id="openingStyle" name="style">
+              <option value="classic" selected>1 · 经典舞台</option>
+              <option value="pixel-cassette">2 · 像素卡带</option>
+            </select></label>
+          </div>
+          <p id="openingPixelHint" class="opening-audio-status" hidden>头像默认为空，上传后自动等比例适配固定大小。建议使用透明背景图片。</p>
+        </section>
+        <div id="openingCopyHeading" class="opening-editor-heading">
           <div>
             <span>文案设置</span>
             <div class="opening-editor-title">
@@ -35,7 +48,7 @@
             </div>
           </div>
         </div>
-        <div class="opening-copy-fields">
+        <div id="openingCopyFields" class="opening-copy-fields">
           <label class="opening-field-wide"
             ><span class="opening-field-label"
               ><span>主标题</span><output id="openingTitleCount" for="openingTitle">12/20</output></span
@@ -63,7 +76,7 @@
                 <option value="low">低 · 轻量模式</option>
               </select></label
             >
-            <label
+            <label id="openingTrackMotionField"
               >轨道动效<select id="openingTrackMotion" name="trackMotion">
                 <option value="heart" selected>心形巡航</option>
                 <option value="barber">灯带循环</option>
@@ -85,7 +98,7 @@
           </div>
         </section>
 
-        <section class="opening-music-card" aria-labelledby="openingCharacterHeading">
+        <section id="openingCharacterSection" class="opening-music-card" aria-labelledby="openingCharacterHeading">
           <div class="opening-music-heading">
             <div>
               <strong id="openingCharacterHeading">人物图片</strong>
@@ -134,16 +147,10 @@
         <div class="opening-preview-heading">
           <div>
             <strong id="openingPreviewHeading">开播动画预览</strong>
-            <span>16:9 实时画面</span>
           </div>
         </div>
-        <div class="opening-preview-stage">
-          <div class="opening-preview-empty">
-            <strong>预览已暂停</strong>
-            <span>打开整套特效开关后，这里会显示最终开场画面。</span>
-          </div>
-          <iframe sandbox="allow-scripts" id="openingPreview" title="开播动画预览" loading="lazy" hidden></iframe>
-        </div>
+        <p class="hint">在画布中调整开播动画的位置和大小，与其他组件一起预览。打开整套特效开关后显示动画。</p>
+        <button id="openingPreviewBtn" class="secondary" type="button" disabled>在画布中预览</button>
 
         <div class="opening-animation-address">
           <div>

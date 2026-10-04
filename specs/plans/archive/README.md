@@ -6,6 +6,12 @@
 
 ## 文件索引
 
+- [2026-10-04-canvas-opening](2026-10-04-canvas-opening.md)
+- [2026-10-03-client-review-recovery-fixes](2026-10-03-client-review-recovery-fixes.md)
+- [2026-10-03-client-theme-modularity](2026-10-03-client-theme-modularity.md)
+- [2026-10-03-client-test-suite-review](2026-10-03-client-test-suite-review.md)
+- [2026-10-03-client-test-scope](2026-10-03-client-test-scope.md)
+- [2026-10-03-canvas-gift-components](2026-10-03-canvas-gift-components.md)
 - [2026-10-03-test-assertion-resilience](2026-10-03-test-assertion-resilience.md)
 - [2026-10-03-woodland-effect-one](2026-10-03-woodland-effect-one.md)
 - [2026-10-03-gift-sprint-text](2026-10-03-gift-sprint-text.md)

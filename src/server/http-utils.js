@@ -258,7 +258,9 @@ function serveOpeningCharacter(dataDir, req, res, requestUrl, getCurrentFileName
   } catch (_) {
     fileName = '';
   }
-  if (!fileName || path.basename(fileName) !== fileName || fileName !== String(getCurrentFileName?.() || '')) {
+  const selected = getCurrentFileName?.();
+  const selectedNames = Array.isArray(selected) ? selected : [selected];
+  if (!fileName || path.basename(fileName) !== fileName || !selectedNames.includes(fileName)) {
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
