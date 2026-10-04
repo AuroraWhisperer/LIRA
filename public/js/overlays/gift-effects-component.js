@@ -1,6 +1,6 @@
 import { isComponentPreview } from './component-preview-client.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
-import { createFrameController } from './gift-effects-frame.js';
+import { createGiftFramePlayer } from './gift-frame-player.js';
 import { createGiftFrameQueue } from './gift-frame-queue.js';
 import { createGuardThanksQueue } from './gift-effects-guard.js';
 
@@ -9,6 +9,7 @@ export function mountGiftEffectComponent() {
   const frame = new URLSearchParams(location.search).get('giftComponent') === 'frame';
   const type = frame ? 'gift-frame' : 'guard-thanks';
   const frameRoot = document.getElementById('giftFrame');
+  const ribbonRoot = document.getElementById('giftRibbon');
   const video = frameRoot.querySelector('video');
   const videoSource = video.getAttribute('src');
   const guardRoot = document.getElementById('guardThanksRoot');
@@ -27,7 +28,7 @@ export function mountGiftEffectComponent() {
     if (payload.type !== (frame ? 'gift:frame' : 'gift:guard-thanks')) return;
     if (!queue) {
       if (frame) video.setAttribute('src', videoSource);
-      queue = frame ? createGiftFrameQueue({ player: createFrameController({ frameRoot }) })
+      queue = frame ? createGiftFrameQueue({ player: createGiftFramePlayer({ frameRoot, ribbonRoot }) })
         : createGuardThanksQueue({ root: guardRoot,
           resolveMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'full' });
     }

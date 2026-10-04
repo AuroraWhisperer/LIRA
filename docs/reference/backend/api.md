@@ -223,7 +223,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `customReplyRules` | §2.3 的数组/JSON 解析与清洗，结果保存为 JSON 文本；非法 JSON 按该 owner 的既有规则回退空数组 |
 | `songRequestBlacklist` | 仅接受字符串；每行一项，将 CRLF/CR 转 LF、按 `cleanText` 合并行内空白并去首尾空白，去掉空行和重复项；存为换行分隔文本。空字符串清空名单；仅保存在本机 |
 | `giftBlindBoxConfig` / `giftBlindBoxCustomConfigV2` | 数组或 JSON 文本，交给 [blind-box-config.js](../../../src/bilibili/gift/blind-box-config.js) 校验；失败返回无效字段。V2 特许 `null`/`'null'` 保存为 `'null'`（未确认）；`[]` 是明确空配置，不能混同 |
-| 礼物边框四键 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：enabled 仅 boolean/字符串 true/false；阈值用 Number 转换并四舍五入到安全整数分，拒绝空字符串、负数和非有限数，存元数字字符串；theme=`woodland-bloom`，motion=`auto/full/reduced` |
+| 礼物边框四键 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：每个特效一组 enabled + 阈值（特效 1 `giftFrameEnabled`/`giftFrameThresholdRmb`，特效 2 `giftFrameRibbonEnabled`/`giftFrameRibbonThresholdRmb`）；enabled 仅 boolean/字符串 true/false；阈值用 Number 转换并四舍五入到安全整数分，拒绝空字符串、负数和非有限数，存元数字字符串。门槛比较在服务端按整数分进行，同时满足两个门槛时只广播门槛更高的特效（相同播特效 2） |
 | 大航海感谢两键 | [guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)：`guardThanksEnabled` 仅 boolean/字符串 true/false；`guardThanksTextMode`=`bilingual/zh/en` |
 | `danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` | 样式仅 `bubble/signal/minimal/ranked/transparent/identity/outline`；时长为 number 或十进制数字字符串，安全整数 2–30，存字符串 |
 | 时钟设置 | [clock-contract.js](../../../src/server/clock-contract.js)：style 为八种已登记样式，hourFormat=`12/24`；日期/秒开关经 trim/lowercase 后仅 true/false/0/1；label 去控制符、合并空白、按 Unicode code point 截取前 16 个，存字符串；clockFlipFrameColor / clockFlipFaceColor / clockFlipTextColor 仅接受六位十六进制颜色 #RRGGBB 并统一小写 |
@@ -476,7 +476,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`                                                                                                           | 盲盒统计                                            | —                                   |
 | `GET /api/gifts/blind-box-analysis` | 查询参数:`viewer?`、`box?`、`view?`(默认 `users`)、`page?`(默认 `1`)、`limit?`(默认 `25`)、`sort?`、`direction?`(默认 `desc`)、`startDate?/endDate?`(本机日期 YYYY-MM-DD，含首尾两天；只给一端为单日，都省略为今天) | 当前授权来源的盲盒开盒分析；`dateRange` 返回生效日期，`today` 仍为本机当天零点 | 400(日期无效或逆序) |
 | `GET /api/gifts/search`             | 查询参数:`from?`、`to?`、`limit?`(**1–500**,默认 100)                                                                         | 时间范围检索结果                                    | —                                   |
-| `POST /api/gifts/frame/preview`     | `{userName?, giftName?, num?, themeId?}`；themeId 默认 `woodland-bloom`，num 默认 1 | 广播特效 1 的独立 `gift:frame` 预览事件，不读取实时开关/阈值；不再需要金额（内部占位 1 分且不展示），旧金额若提供仍须大于 0，旧 motionMode 忽略 | 400(数量、主题或显式旧金额无效) |
+| `POST /api/gifts/frame/preview`     | `{userName?, giftName?, num?, themeId?}`；themeId 默认 `woodland-bloom`，可选 `satin-ribbon`，num 默认 1 | 广播 `gift:frame` 预览事件，不读取实时开关/阈值；不再需要金额（内部占位 1 分且不展示），旧金额若提供仍须大于 0，旧 motionMode 忽略 | 400(数量、主题或显式旧金额无效) |
 | `POST /api/gifts/guard-thanks/preview` | `{tier, userName?, months?, textMode?}`；tier 为 `captain/admiral/governor`，months 为 1–999 整数（默认 1），textMode 为 `bilingual/zh/en`（默认 `bilingual`） | 广播独立 `gift:guard-thanks` 预览事件（`preview:true`，不带头像），不读取实时开关 | 400(等级、月数或文字模式无效) |
 | `POST /api/gifts/clear-recent`      | `{confirm: true}`(必须)                                                                                                       | 清空最近礼物;广播 `gift:clear-recent`               | 400(`缺少清空确认。`)               |
 

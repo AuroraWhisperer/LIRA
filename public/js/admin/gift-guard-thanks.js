@@ -5,7 +5,7 @@ import { api, toast } from '../shared/utils.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 
-const settingIds = ['guardThanksEnabled', 'guardThanksTextMode'];
+const settingIds = ['guardThanksEnabled', 'guardThanksTextMode', 'guardThanksStyle'];
 const draftFields = new Set();
 let initialized = false;
 let currentSettings = {};
@@ -38,6 +38,9 @@ export function renderGuardThanks(settings = {}) {
   if (!draftFields.has('guardThanksTextMode')) {
     document.getElementById('guardThanksTextMode').value = settings.guardThanksTextMode || 'bilingual';
   }
+  if (!draftFields.has('guardThanksStyle')) {
+    document.getElementById('guardThanksStyle').value = settings.guardThanksStyle || 'aurora';
+  }
   const state = document.getElementById('guardThanksSettingsState');
   state.textContent = enabled.checked ? '已启用' : '未启用';
   state.dataset.state = enabled.checked ? 'enabled' : 'disabled';
@@ -54,6 +57,7 @@ function playPreview() {
   event.tier = document.getElementById('guardThanksPreviewTier').value;
   event.userName = document.getElementById('guardThanksPreviewUser').value.trim() || event.userName;
   event.months = months;
+  event.style = document.getElementById('guardThanksStyle').value;
   setStatus('', '');
   openComponentPreview({ id: 'guard-thanks', previewData });
 }
@@ -62,6 +66,7 @@ async function saveSettings() {
   const submitted = {
     guardThanksEnabled: String(document.getElementById('guardThanksEnabled').checked),
     guardThanksTextMode: document.getElementById('guardThanksTextMode').value,
+    guardThanksStyle: document.getElementById('guardThanksStyle').value,
   };
   try {
     await api('/api/settings', submitted, { notifyError: false });

@@ -62,12 +62,13 @@ LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同�
 | [0014-gift-identity-bound-overtime](adr/0014-gift-identity-bound-overtime.md) | Accepted |
 | [0015-install-local-desktop-data](adr/0015-install-local-desktop-data.md) | Accepted |
 | [0016-separated-client-data-lifecycles](adr/0016-separated-client-data-lifecycles.md) | Accepted |
-| [0017-incremental-modularity-size-gate](adr/0017-incremental-modularity-size-gate.md) | Accepted |
+| [0017-incremental-modularity-size-gate](adr/0017-incremental-modularity-size-gate.md) | Accepted；行数硬门禁与登记政策由 [ADR-0023](adr/0023-purpose-aware-file-size-review.md) 替代 |
 | [0018-unified-logging-and-diagnostics](adr/0018-unified-logging-and-diagnostics.md) | Accepted；分阶段实施，未完成范围见 ADR 状态说明 |
 | [0019-stable-gift-source-owner](adr/0019-stable-gift-source-owner.md) | Accepted；替代 [ADR-0011](adr/0011-source-partitioned-gift-ledger-projection.md) 的旧来源身份 |
 | [0020-shared-danmaku-source](adr/0020-shared-danmaku-source.md) | Proposed；共享源码分发方案，不代表已部署能力 |
 | [0021-atomic-live-gift-progress](adr/0021-atomic-live-gift-progress.md) | Accepted；连续 SSE 礼物和游标原子提交，HTTP 保留恢复与周期核对 |
 | [0022-local-component-scenes](adr/0022-local-component-scenes.md) | Accepted；本地场景 owner、完整外观版本及独立只读来源；本地范围已实现并验证 |
+| [0023-purpose-aware-file-size-review](adr/0023-purpose-aware-file-size-review.md) | Accepted；按文件类型、职责与用途评审，行数仅作提示 |
 
 
 ## 事实地图

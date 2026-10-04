@@ -8,17 +8,21 @@ const vm = require('node:vm');
 const test = require('node:test');
 const { EventEmitter } = require('node:events');
 const { spawnSync } = require('node:child_process');
+const cache = require('../../scripts/verification-cache');
+const { createPlan } = require('../../scripts/check-js');
 
 const checker = path.resolve(__dirname, '../../scripts/check-js.js');
 const source = fs.readFileSync(checker, 'utf8');
 
-async function runFixture({ cpus = 8, failure } = {}) {
+async function runFixture({ cpus = 8, failure, mutate = false } = {}) {
   const calls = [];
   const output = [];
   const errors = [];
   let active = 0;
   let peak = 0;
   let completed = 0;
+  let changed = false;
+  const saved = [];
   const fakeProcess = {
     execPath: process.execPath,
     exitCode: 0,
@@ -34,11 +38,13 @@ async function runFixture({ cpus = 8, failure } = {}) {
   function finish() {
     active -= 1;
     completed += 1;
+    if (mutate) changed = true;
   }
   const fakeRequire = (name) => {
     if (name === 'node:fs')
       return {
         existsSync: () => true,
+        readFileSync: () => '{}',
         readdirSync: (directory) =>
           path.basename(directory) === 'src'
             ? Array.from({ length: 11 }, (_, index) => ({
@@ -62,10 +68,17 @@ async function runFixture({ cpus = 8, failure } = {}) {
           return child;
         },
       };
+    if (name === './verification-cache') return {
+      digest: cache.digest, hashFile: () => changed ? 'changed' : 'bytes', nodeEnvironment: () => ({}),
+      hasProof: () => false, revoke: () => {}, saveProof: (...args) => saved.push(args),
+      assertCacheOptions: () => {}, acquireLock: () => () => {},
+    };
     return require(name);
   };
-  await vm.runInNewContext(source, {
+  const exported = vm.runInNewContext(source, {
     require: fakeRequire,
+    module: { exports: {} },
+    performance,
     __dirname: path.dirname(checker),
     process: fakeProcess,
     console: {
@@ -73,6 +86,7 @@ async function runFixture({ cpus = 8, failure } = {}) {
       error: (message) => errors.push(String(message)),
     },
   });
+  fakeProcess.exitCode = await exported.checkJavaScript();
   return {
     calls,
     output,
@@ -80,6 +94,7 @@ async function runFixture({ cpus = 8, failure } = {}) {
     active,
     peak,
     completed,
+    saved,
     exitCode: fakeProcess.exitCode,
   };
 }
@@ -92,7 +107,7 @@ test('syntax checks cover every file with bounded concurrency and respect availa
     assert.equal(result.completed, 11);
     assert.equal(result.peak, Math.min(4, cpus));
     assert.equal(result.active, 0);
-    assert.deepEqual(result.output, ['Syntax check passed for 11 JavaScript files.']);
+    assert.deepEqual(result.output, ['[syntax] 11 files: run 11, reuse 0.', 'Syntax check passed for 11 JavaScript files.']);
   }
 });
 
@@ -102,7 +117,7 @@ test('syntax failures stop queued work and drain running checks before returning
   assert.ok(result.calls.length <= 4);
   assert.equal(result.completed, result.calls.length);
   assert.equal(result.active, 0);
-  assert.deepEqual(result.output, []);
+  assert.deepEqual(result.output, ['[syntax] 11 files: run 11, reuse 0.']);
 });
 
 test('child startup and signal failures cannot produce a successful syntax check', async () => {
@@ -111,17 +126,27 @@ test('child startup and signal failures cannot produce a successful syntax check
     assert.equal(result.exitCode, 1);
     assert.ok(result.calls.length <= 4);
     assert.equal(result.completed, result.calls.length);
-    assert.deepEqual(result.output, []);
+    assert.deepEqual(result.output, ['[syntax] 11 files: run 11, reuse 0.']);
     if (failure === 'start') assert.match(result.errors.join('\n'), /fixture spawn failure/);
   }
 });
 
-test('checker CLI preserves native CommonJS and ESM syntax checks without executing files', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-check-js-'));
+test('syntax inputs changing during the child checks do not receive proofs', async () => {
+  const result = await runFixture({ mutate: true });
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.completed, 11);
+  assert.deepEqual(result.saved, []);
+  assert.match(result.errors.join('\n'), /inputs changed/);
+});
+
+function fixture(t) {
+  const temporaryRoot = path.resolve(__dirname, '../../tmp/check-js');
+  fs.mkdirSync(temporaryRoot, { recursive: true });
+  const root = fs.mkdtempSync(path.join(temporaryRoot, 'run-'));
   t.after(() => {
     const resolved = fs.realpathSync(root);
-    assert.equal(path.dirname(resolved), fs.realpathSync(os.tmpdir()));
-    assert.ok(path.basename(resolved).startsWith('lira-check-js-'));
+    assert.equal(path.dirname(resolved), fs.realpathSync(temporaryRoot));
+    assert.ok(path.basename(resolved).startsWith('run-'));
     fs.rmSync(resolved, { recursive: true, force: true });
   });
   function put(name, text) {
@@ -130,25 +155,73 @@ test('checker CLI preserves native CommonJS and ESM syntax checks without execut
     fs.writeFileSync(target, text);
   }
   put('scripts/check-js.js', source);
+  put('scripts/verification-cache.js', fs.readFileSync(path.resolve(__dirname, '../../scripts/verification-cache.js'), 'utf8'));
+  const run = (...args) => spawnSync(process.execPath, [path.join(root, 'scripts/check-js.js'), ...args], {
+    cwd: os.tmpdir(), encoding: 'utf8', windowsHide: true, timeout: 15000,
+  });
+  return { root, put, run };
+}
+
+test('checker CLI preserves native CommonJS and ESM syntax checks without executing files', (t) => {
+  const { put, run } = fixture(t);
   put('package.json', '{"type":"commonjs"}');
   put('src/空 格.js', 'throw new Error("must not execute");');
   put('src/ignored.cjs', 'const invalid = ;');
   put('public/package.json', '{"type":"module"}');
   put('public/module.js', 'import missing from "./missing.js"; await missing();');
   put('test/fixture.js', 'module.exports = 1;');
-  const run = () =>
-    spawnSync(process.execPath, [path.join(root, 'scripts/check-js.js')], {
-      cwd: os.tmpdir(),
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 15000,
-    });
   const valid = run();
   assert.equal(valid.status, 0, valid.stderr);
-  assert.match(valid.stdout, /Syntax check passed for 4 JavaScript files\./);
+  assert.match(valid.stdout, /Syntax check passed for 5 JavaScript files\./);
   put('public/module.js', 'export const invalid = ;');
   const invalid = run();
   assert.equal(invalid.status, 1, invalid.stderr);
   assert.match(invalid.stderr, /module\.js[\s\S]*SyntaxError/);
   assert.doesNotMatch(invalid.stdout, /Syntax check passed/);
+});
+
+test('syntax reuse tracks bytes and module boundaries without invalidating on package version changes', (t) => {
+  const { root, put, run } = fixture(t);
+  put('package.json', '{"type":"commonjs","version":"1.0.0"}');
+  put('public/package.json', '{"type":"module"}');
+  put('public/module.js', 'export const value = 1;');
+  assert.equal(run().status, 0);
+  assert.match(run('--plan').stdout, /run 0, reuse 3/);
+  put('package.json', '{"type":"commonjs","version":"2.0.0","description":"changed"}');
+  assert.match(run('--plan').stdout, /run 0, reuse 3/);
+  put('public/module.js', 'export const value = 2;');
+  assert.match(run('--plan').stdout, /run 1, reuse 2/);
+  assert.equal(run().status, 0);
+  put('public/package.json', '{"type":"commonjs"}');
+  assert.match(run('--plan').stdout, /run 1, reuse 2/);
+  const failed = run();
+  assert.notEqual(failed.status, 0);
+  assert.match(run('--plan').stdout, /run 1, reuse 2/);
+  fs.unlinkSync(path.join(root, 'public/module.js'));
+  assert.match(run('--plan').stdout, /2 files: run 0, reuse 2/);
+  put('public/new.js', 'module.exports = 1;');
+  assert.match(run('--plan').stdout, /3 files: run 1, reuse 2/);
+  assert.equal(run().status, 0);
+  const keys = new Map(createPlan(root).map((entry) => [entry.file, entry.key]));
+  put('public/nested/package.json', '{"type":"module"}');
+  put('public/nested/new.js', 'export const value = 1;');
+  assert.equal(createPlan(root).find((entry) => entry.file === 'public/new.js').key, keys.get('public/new.js'));
+  put('scripts/check-js.js', source + '\n// checker changed\n');
+  assert.ok(createPlan(root).every((entry) => !entry.reuse));
+});
+
+test('force revokes existing syntax proofs and locks prevent concurrent writers', (t) => {
+  const { root, put, run } = fixture(t);
+  put('src/value.js', 'const value = 1;');
+  assert.equal(run().status, 0);
+  const before = fs.readFileSync(cache.proofPath(root, 'syntax', 'src/value.js'), 'utf8');
+  const release = cache.acquireLock(root, 'syntax');
+  const locked = run('--force');
+  assert.notEqual(locked.status, 0);
+  assert.match(locked.stderr, /already locked/);
+  release();
+  assert.equal(fs.readFileSync(cache.proofPath(root, 'syntax', 'src/value.js'), 'utf8'), before);
+  assert.match(run('--force', '--plan').stdout, /run 3, reuse 0/);
+  assert.equal(run('--force').status, 0);
+  assert.match(run('--plan').stdout, /run 0, reuse 3/);
 });

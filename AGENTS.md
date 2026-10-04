@@ -58,6 +58,9 @@ Use these only when relevant:
 
 - Solve the requested problem at the owning layer with the smallest correct change.
 - Reuse established patterns/helpers, but do not expand a documented legacy boundary.
+- Judge file size by source kind, cohesive responsibility, and purpose. Line counts
+  are review signals, not automatic split/fail criteria; follow the
+  [file-size review policy](docs/architecture/engineering/modularity-standard.md#file-size-review).
 - Preserve unrelated user changes and behavior; do not refactor, reformat, or
   rename adjacent code or fix unrelated bugs/failures unless they block the task.
 - Do not add speculative requirements, defensive behavior, cleanup, abstractions,

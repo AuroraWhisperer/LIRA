@@ -32,3 +32,25 @@ test('礼物姬 owns effect 1 trigger settings and opens its canvas preview', ()
   assert.match(moduleSource, /app:settings-state/);
   assert.match(moduleSource, /giftFrameEnabled/);
 });
+
+test('礼物姬 hosts effect 2 beside effect 1 with its own switch, threshold and preview', () => {
+  const html = readAdminHtml();
+  const moduleSource = read('public/js/admin/gift-frame.js');
+
+  assert.match(html, /id="giftFramePanel"[^>]+class="gift-frame-effects"[^>]*>[\s\S]*?data-gift-frame-effect="woodland-bloom"/);
+  assert.match(html, /特效 2 · 缎带礼笺/);
+  assert.match(html, /data-gift-frame-effect="satin-ribbon"/);
+  assert.match(html, /<input\b(?=[^>]*\sid="giftFrameRibbonEnabled")(?=[^>]*\stype="checkbox")[^>]*>/);
+  assert.match(html, /<input\b(?=[^>]*\sid="giftFrameRibbonThresholdRmb")(?=[^>]*\stype="number")[^>]*>/);
+  assert.match(html, /id="giftFrameRibbonSaveBtn"/);
+  assert.match(html, /id="giftFrameRibbonPreviewBtn"/);
+  assert.match(html, /id="giftFrameRibbonSaveState"/);
+  for (const field of ['PreviewUser', 'PreviewGift', 'PreviewNum']) {
+    assert.match(html, new RegExp(`id="giftFrameRibbon${field}"`));
+  }
+  // 分档规则写在帮助提示里，两个特效各自独立保存。
+  assert.match(html, /只播放触发金额更高的那个/);
+  for (const key of ['giftFrameRibbonEnabled', 'giftFrameRibbonThresholdRmb', "themeId: 'satin-ribbon'"]) {
+    assert.match(moduleSource, new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});

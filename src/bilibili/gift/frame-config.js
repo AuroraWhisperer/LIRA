@@ -1,9 +1,16 @@
 'use strict';
 
-const FRAME_THEME_IDS = Object.freeze(['woodland-bloom']);
+// 各特效独立持有开关与门槛；数组顺序就是并列时的优先级（后出现者优先）。
+const FRAME_EFFECTS = Object.freeze([
+  Object.freeze({ themeId: 'woodland-bloom', enabledKey: 'giftFrameEnabled', thresholdKey: 'giftFrameThresholdRmb' }),
+  Object.freeze({ themeId: 'satin-ribbon', enabledKey: 'giftFrameRibbonEnabled', thresholdKey: 'giftFrameRibbonThresholdRmb' }),
+]);
+const FRAME_THEME_IDS = Object.freeze(FRAME_EFFECTS.map((effect) => effect.themeId));
 const DEFAULT_FRAME_SETTINGS = Object.freeze({
   giftFrameEnabled: 'false',
   giftFrameThresholdRmb: '20',
+  giftFrameRibbonEnabled: 'false',
+  giftFrameRibbonThresholdRmb: '100',
 });
 
 let previewSequence = 0;
@@ -21,43 +28,52 @@ function normalizeThresholdRmb(value) {
   return cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2);
 }
 
+// 每个特效返回一条：门槛非法或缺失时回落到该特效自己的默认值。
 function normalizeFrameSettings(settings = {}) {
-  const thresholdRmb = normalizeThresholdRmb(
-    settings.giftFrameThresholdRmb ?? DEFAULT_FRAME_SETTINGS.giftFrameThresholdRmb,
-  );
-  return {
-    enabled: String(settings.giftFrameEnabled ?? DEFAULT_FRAME_SETTINGS.giftFrameEnabled) === 'true',
-    thresholdRmb: thresholdRmb === null ? DEFAULT_FRAME_SETTINGS.giftFrameThresholdRmb : thresholdRmb,
-    themeId: 'woodland-bloom',
-  };
+  return FRAME_EFFECTS.map((effect) => {
+    const fallback = DEFAULT_FRAME_SETTINGS[effect.thresholdKey];
+    const thresholdRmb = normalizeThresholdRmb(settings[effect.thresholdKey] ?? fallback);
+    return {
+      themeId: effect.themeId,
+      enabled: String(settings[effect.enabledKey] ?? DEFAULT_FRAME_SETTINGS[effect.enabledKey]) === 'true',
+      thresholdRmb: thresholdRmb === null ? fallback : thresholdRmb,
+    };
+  });
+}
+
+// 同一笔礼物同时够多个门槛时只播门槛最高的那个；同门槛取 FRAME_EFFECTS 中靠后的特效。
+function selectFrameTheme(totalPriceCents, settings = {}) {
+  let picked = null;
+  for (let index = 0; index < FRAME_EFFECTS.length; index += 1) {
+    const effect = normalizeFrameSettings(settings)[index];
+    if (!effect.enabled) continue;
+    const thresholdCents = normalizeRmbCents(effect.thresholdRmb);
+    if (thresholdCents === null || totalPriceCents < thresholdCents) continue;
+    if (!picked || thresholdCents >= picked.thresholdCents) {
+      picked = { themeId: effect.themeId, thresholdCents };
+    }
+  }
+  return picked?.themeId ?? null;
 }
 
 function normalizeFrameSettingValue(key, value) {
-  if (key === 'giftFrameEnabled') {
+  if (key === 'giftFrameEnabled' || key === 'giftFrameRibbonEnabled') {
     return String(value) === 'true' || String(value) === 'false' ? String(value) : null;
   }
-  if (key === 'giftFrameThresholdRmb') return normalizeThresholdRmb(value);
+  if (key === 'giftFrameThresholdRmb' || key === 'giftFrameRibbonThresholdRmb') return normalizeThresholdRmb(value);
   return null;
 }
 
 function buildGiftFrameEvent(item, settings = {}) {
-  const normalizedSettings = normalizeFrameSettings(settings);
-  if (!normalizedSettings.enabled) return null;
   if (item?.detection_status && item.detection_status !== 'final') return null;
 
   const giftEventId = Number(item?.id ?? item?.giftEventId);
   const totalPriceCents = normalizeRmbCents(item?.total_price ?? item?.totalPrice);
-  const thresholdCents = normalizeRmbCents(normalizedSettings.thresholdRmb);
-  if (
-    !Number.isSafeInteger(giftEventId) ||
-    giftEventId <= 0 ||
-    totalPriceCents === null ||
-    totalPriceCents <= 0 ||
-    thresholdCents === null ||
-    totalPriceCents < thresholdCents
-  ) {
+  if (!Number.isSafeInteger(giftEventId) || giftEventId <= 0 || totalPriceCents === null || totalPriceCents <= 0) {
     return null;
   }
+  const themeId = selectFrameTheme(totalPriceCents, settings);
+  if (!themeId) return null;
 
   const giftId = Number(item?.gift_id ?? item?.giftId);
   return {
@@ -69,7 +85,7 @@ function buildGiftFrameEvent(item, settings = {}) {
     num: normalizePositiveInteger(item?.num),
     totalPriceCents,
     userName: normalizeDisplayText(item?.user_name ?? item?.userName, '观众'),
-    themeId: normalizedSettings.themeId,
+    themeId,
   };
 }
 
@@ -119,10 +135,12 @@ function normalizeDisplayText(value, fallback) {
 
 module.exports = {
   DEFAULT_FRAME_SETTINGS,
+  FRAME_EFFECTS,
   FRAME_THEME_IDS,
   normalizeRmbCents,
   normalizeThresholdRmb,
   normalizeFrameSettings,
+  selectFrameTheme,
   normalizeFrameSettingValue,
   buildGiftFrameEvent,
   buildGiftFramePreviewEvent,

@@ -32,7 +32,7 @@ async function openStage(t) {
     if (url.pathname === '/') {
       return route.fulfill({
         contentType: 'text/html',
-        body: '<!doctype html><link rel="stylesheet" href="/css/shared/guard-thanks.css"><div id="root" style="position:fixed;inset:0;overflow:hidden"></div>',
+        body: '<!doctype html><link rel="stylesheet" href="/css/shared/guard-thanks.css"><link rel="stylesheet" href="/css/shared/guard-thanks-aurora.css"><div id="root" style="position:fixed;inset:0;overflow:hidden"></div>',
       });
     }
     const file = path.join(publicRoot, url.pathname);
@@ -52,7 +52,7 @@ test('governor thanks renders tier copy, sample avatar and fitted name, then sto
   const longName = '晚风来信的星河旅人'.repeat(5);
   await page.evaluate((userName) => {
     window.player = window.cards.createGuardThanksPlayer({ root: document.getElementById('root') });
-    window.result = window.player.play({ tier: 'governor', userName, months: 3, textMode: 'bilingual', preview: true });
+    window.result = window.player.play({ tier: 'governor', userName, months: 3, textMode: 'bilingual', preview: true, style: 'classic' });
   }, longName);
   await page.waitForSelector('.gt-card.is-live');
   const view = await page.evaluate(() => {
@@ -110,7 +110,7 @@ test('english copy has no Chinese tail and live avatars fall back to the initial
       root: document.getElementById('root'),
       resolveAvatarUrl: () => '/img/missing-avatar.webp',
     });
-    window.player.play({ tier: 'admiral', userName: 'Aurora', months: 1, textMode: 'en', avatarUrl: 'https://i0.hdslb.com/a.jpg' });
+    window.player.play({ tier: 'admiral', userName: 'Aurora', months: 1, textMode: 'en', avatarUrl: 'https://i0.hdslb.com/a.jpg', style: 'classic' });
   });
   await page.waitForSelector('.gt-card.is-live');
   const view = await page.evaluate(() => ({
@@ -131,7 +131,7 @@ test('reduced motion completes the bounded timeline and removes every played nod
     const player = window.cards.createGuardThanksPlayer({ root: document.getElementById('root') });
     const started = performance.now();
     const result = await player.play(
-      { tier: 'captain', userName: '观众A', textMode: 'zh' },
+      { tier: 'captain', userName: '观众A', textMode: 'zh', style: 'classic' },
       { motion: 'reduced', compressed: true },
     );
     return { result, elapsed: performance.now() - started, cards: document.querySelectorAll('.gt-card').length };
@@ -148,7 +148,7 @@ test('overlay queue validates payloads, de-duplicates live events and lets previ
       root: document.getElementById('root'),
       resolveMotion: () => 'reduced',
     });
-    const live = { type: 'gift:guard-thanks', eventId: 'guard-thanks:7', tier: 'captain', userName: '观众A', months: 1 };
+    const live = { type: 'gift:guard-thanks', eventId: 'guard-thanks:7', tier: 'captain', userName: '观众A', months: 1, style: 'classic' };
     const preview = { ...live, eventId: 'guard-thanks:preview', preview: true };
     const results = [
       queue.enqueue(live),
@@ -165,4 +165,99 @@ test('overlay queue validates payloads, de-duplicates live events and lets previ
   await page.waitForSelector('.gt-card');
   await page.evaluate(() => window.queue.dispose());
   assert.equal(await page.locator('.gt-stage').count(), 0);
+});
+
+test('aurora style is the default and never renders viewer identity', async (t) => {
+  const page = await openStage(t);
+  const userName = '晚风来信的星河旅人';
+  const started = await page.evaluate(() => {
+    window.player = window.cards.createGuardThanksPlayer({ root: document.getElementById('root') });
+    window.startedAt = performance.now();
+    window.result = window.player.play({ tier: 'captain', userName: '晚风来信的星河旅人', months: 12, textMode: 'bilingual' });
+    return document.querySelectorAll('.gt-card').length;
+  });
+  assert.equal(started, 0, 'no classic card is mounted for the aurora default');
+  await page.waitForSelector('.gta-card.is-live');
+  const view = await page.evaluate(() => {
+    const card = document.querySelector('.gta-card');
+    return {
+      tier: card.dataset.tier,
+      lang: card.dataset.lang,
+      material: card.dataset.material,
+      title: card.querySelector('.gta-title').textContent,
+      eyebrow: card.querySelector('.gta-eyebrow-text').textContent,
+      months: card.querySelector('.gta-months').textContent,
+      washes: card.querySelectorAll('.gta-wash').length,
+      ribbons: card.querySelectorAll('.gta-ribbon').length,
+      sigil: card.querySelector('.gta-sigil').className,
+      nameNodes: card.querySelectorAll('.gt-name, .gt-avatar, .gt-avatar-image, .gt-avatar-initial, .gt-medallion, .gt-ribbon, .gt-name-pill').length,
+      text: card.textContent,
+    };
+  });
+  assert.deepEqual({ ...view, text: undefined }, {
+    tier: 'captain',
+    lang: 'zh',
+    material: 'dew',
+    title: '舰长',
+    eyebrow: 'WELCOME ABOARD · CAPTAIN',
+    months: '12 个月',
+    washes: 3,
+    ribbons: 2,
+    sigil: 'gta-sigil is-anchor',
+    nameNodes: 0,
+    text: undefined,
+  });
+  assert.equal(view.text.includes(userName), false, 'viewer name never reaches the aurora card');
+  const finished = await page.evaluate(async () => ({
+    result: await window.result,
+    elapsed: performance.now() - window.startedAt,
+    cards: document.querySelectorAll('.gta-card').length,
+  }));
+  assert.equal(finished.result, true);
+  assert.equal(finished.cards, 0);
+  assert.ok(finished.elapsed >= 5000, `aurora captain must run at least 5s, got ${finished.elapsed}`);
+});
+
+test('aurora tiers escalate layers, material and sigil from captain to governor', async (t) => {
+  const page = await openStage(t);
+  const read = (tier) =>
+    page.evaluate(async (nextTier) => {
+      const player = window.cards.createGuardThanksPlayer({ root: document.getElementById('root') });
+      const running = player.play({ tier: nextTier, userName: '观众A', textMode: 'zh' }, { motion: 'reduced' });
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const card = document.querySelector('.gta-card');
+      const view = {
+        material: card.dataset.material,
+        washes: card.querySelectorAll('.gta-wash').length,
+        ribbons: card.querySelectorAll('.gta-ribbon').length,
+        rings: card.querySelectorAll('.gta-ring').length,
+        ripples: card.querySelectorAll('.gta-ripple').length,
+        etchings: card.querySelectorAll('.gta-etching').length,
+        sigil: card.querySelector('.gta-sigil').className,
+      };
+      player.stop();
+      await running;
+      player.dispose();
+      return view;
+    }, tier);
+  const captain = await read('captain');
+  const governor = await read('governor');
+  assert.deepEqual(captain, {
+    material: 'dew',
+    washes: 3,
+    ribbons: 2,
+    rings: 1,
+    ripples: 2,
+    etchings: 0,
+    sigil: 'gta-sigil is-anchor',
+  });
+  assert.deepEqual(governor, {
+    material: 'gilt',
+    washes: 5,
+    ribbons: 4,
+    rings: 3,
+    ripples: 4,
+    etchings: 2,
+    sigil: 'gta-sigil is-helm',
+  });
 });

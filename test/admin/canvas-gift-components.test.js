@@ -77,9 +77,21 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await framePreview.getByText('新的观众', { exact: true }).waitFor({ state: 'visible' });
   await framePreview.getByText('打call', { exact: true }).waitFor({ state: 'visible' });
   assert.equal((await framePreview.locator('body').evaluate(() => window.receivedGiftEvents.at(-1))).num, 3);
+  await desktop.locator('#giftFrameRibbonPreviewUser').fill('缎带观众');
+  await desktop.locator('#giftFrameRibbonPreviewGift').fill('梦幻城堡');
+  await desktop.locator('#giftFrameRibbonPreviewNum').fill('6');
+  await open('#giftFrameRibbonPreviewBtn');
+  assert.equal(await page.locator('.scene-editor-item').count(), 1, 'the ribbon effect reuses the same gift frame layer');
+  await framePreview.locator('#giftRibbon.is-playing').waitFor({ state: 'visible' });
+  assert.equal(await framePreview.locator('#giftFrame.is-playing').count(), 0);
+  await framePreview.locator('.ribbon-tag-user').getByText('缎带观众', { exact: true }).waitFor({ state: 'visible' });
+  await framePreview.locator('.ribbon-tag-name').getByText('梦幻城堡', { exact: true }).waitFor({ state: 'visible' });
+  assert.equal(await framePreview.locator('.ribbon-tag-num').textContent(), '×6');
+  assert.equal((await framePreview.locator('body').evaluate(() => window.receivedGiftEvents.at(-1))).themeId, 'satin-ribbon');
   await desktop.locator('#guardThanksPreviewTier').selectOption('admiral');
   await desktop.locator('#guardThanksPreviewUser').fill('上舰观众');
   await desktop.locator('#guardThanksPreviewMonths').fill('6');
+  await desktop.locator('#guardThanksStyle').selectOption('classic');
   await open('#guardThanksPlayBtn');
   assert.equal(await page.locator('.scene-editor-item').count(), 2);
   const guardPreview = page.frameLocator('.scene-editor-item.is-selected iframe');
@@ -155,10 +167,11 @@ test('gift settings open separate canvas layers that save, preview and receive o
   const frameOutput = output.frames().find(frame => frame.url().includes('giftComponent=frame'));
   const guardOutput = output.frames().find(frame => frame.url().includes('giftComponent=guard'));
   assert.equal(await frameOutput.locator('#giftFrame.is-playing').count(), 0);
-  assert.equal(await guardOutput.locator('.gt-card').count(), 0, 'published output never plays samples');
+  assert.equal(await guardOutput.locator('.gt-card, .gta-card').count(), 0, 'published output never plays samples');
   fixture.receiveGift({ type: 'gift:frame', eventId: 'live-frame-1', userName: '边框观众', giftName: '真实礼物',
     num: 2, totalPriceCents: 2000, themeId: 'woodland-bloom' });
-  fixture.receiveGift({ type: 'gift:guard-thanks', eventId: 'live-guard-1', userName: '感谢观众', tier: 'admiral', months: 2, textMode: 'zh' });
+  fixture.receiveGift({ type: 'gift:guard-thanks', eventId: 'live-guard-1', userName: '感谢观众', tier: 'admiral', months: 2,
+    textMode: 'zh', style: 'classic' });
   await frameOutput.getByText('边框观众', { exact: true }).waitFor({ state: 'visible' });
   await guardOutput.locator('.gt-card[data-tier="admiral"][data-lang="en"]').waitFor({ state: 'visible' });
   await output.waitForTimeout(1700);

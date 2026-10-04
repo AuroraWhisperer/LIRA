@@ -29,8 +29,10 @@ const JSON_SETTING_KEYS = new Set(['checkinBlessings', 'fortunePool']);
 const FRAME_SETTING_KEYS = new Set([
   'giftFrameEnabled',
   'giftFrameThresholdRmb',
+  'giftFrameRibbonEnabled',
+  'giftFrameRibbonThresholdRmb',
 ]);
-const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTextMode']);
+const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTextMode', 'guardThanksStyle']);
 const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline']);
 
 function normalizeSettingValue(key, rawValue) {

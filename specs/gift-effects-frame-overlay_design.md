@@ -18,6 +18,18 @@ Implemented
 
 代码与契约见 [overlay reference](../docs/reference/frontend/overlays.md)、[API reference](../docs/reference/backend/api.md)、[storage reference](../docs/reference/backend/storage.md)。实施与验证记录见 [实施计划](plans/archive/2026-10-03-woodland-effect-one.md)。
 
+## 2026-10-04 修订 · 特效 2
+
+用户要求再加一个不限定从四边入场的礼物边框。本节与上一节并列生效，只补充第二个特效及其分档规则。
+
+- **特效 2 · 缎带礼笺**（`themeId: satin-ribbon`）：约 5 秒，由 SVG + WAAPI + 复用的大航海感谢粒子在运行时绘制，不使用预渲染视频。礼盒从下方一角弹出 → 两条缎带分别朝相反方向一笔绕屏（沿近侧边向上再横过顶边；沿底边再沿远侧边向上）→ 在对角上方系成蝴蝶结并小幅彩屑 → 礼签垂线摆下显示两行“感谢 {观众昵称}”“送出 {礼物名称} ×{数量}”（与特效 1 相同，不展示金额）→ 保持阶段一次缎带高光扫过 → 礼签淡出、蝴蝶结收拢、缎带沿原路收回礼盒、合盖淡出。左右每播一次交替，入场点不固定于任一边；美术组镜像，礼签位置与文字不镜像。
+- **独立参数**：特效 2 使用 `giftFrameRibbonEnabled`（默认 false）与 `giftFrameRibbonThresholdRmb`（默认 100 元）；特效 1 的 `giftFrameEnabled`、`giftFrameThresholdRmb` 语义不变。两者互不覆盖，也不引入共用参数编辑器。
+- **分档**：同一笔 final 礼物同时满足两个门槛时只广播一个 `gift:frame`，取门槛更高的特效；金额相同取特效 2（由 `frame-config.js` 的 `FRAME_EFFECTS` 顺序决定）。`eventId` 仍是 `gift-frame:<giftEventId>`，只有 `themeId` 区分播放器。管理页两张卡片各自保存、各自预览；预览可指定主题。
+- 客户端：`gift-frame-queue.js` 接受 `woodland-bloom` 和 `satin-ribbon` 两种身份，其余仍拒绝；新增 `gift-frame-player.js` 按 `themeId` 分发到 `gift-effects-frame.js`（特效 1）或 `gift-frame-ribbon.js`（特效 2）。特效 1 的视频、时长、文字与中央安全区行为完全不变。
+- 特效 1 与特效 2 都不改变官方礼物特效、大航海感谢、队列规则（1 条播放 + 最多 50 条等待、按 eventId 去重）和 `/gift-effects` 地址。
+
+代码与契约见 [overlay reference](../docs/reference/frontend/overlays.md)、[API reference](../docs/reference/backend/api.md)、[storage reference](../docs/reference/backend/storage.md)。实施与验证记录见 [实施计划](plans/2026-10-04-gift-frame-satin-ribbon.md)。
+
 ## 历史草案（以下保留原设计沿革，不作为现行播放与设置契约）
 
 ## Goal

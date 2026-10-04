@@ -1,0 +1,662 @@
+/* 大航海感谢 · 辉光（aurora）风格：珍珠白主导、低饱和、无硬边。
+   与 guard-thanks.css 共用 1280×1080 设计舞台与 --gt-* 配色变量，但类名独立在 gta- 命名空间下。
+   不使用 color-mix、容器查询或混合模式，兼容旧版直播软件浏览器内核：柔化只靠径向渐变与 filter: blur。 */
+
+.gta-card {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  visibility: hidden;
+  color: #fff;
+  font-family: 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
+}
+.gta-card.is-live {
+  visibility: visible;
+}
+
+/* 分档配色：珍珠核 55% / 中间色 30% / 深色点缀 15%（深色只用于最细的描边）。 */
+.gta-card[data-tier='captain'] {
+  --gta-pearl: #eafcff;
+  --gta-mid: #8fe9ff;
+  --gta-deep: #3fb6d8;
+  --gt-main: #8fe9ff;
+  --gt-light: #eafcff;
+  --gt-spark-a: #ffffff;
+  --gt-spark-b: #d6f6ff;
+  --gt-spark-c: #8fe9ff;
+}
+.gta-card[data-tier='admiral'] {
+  --gta-pearl: #f1f7ff;
+  --gta-mid: #9fe9d8;
+  --gta-mid-2: #a99cff;
+  --gta-deep: #6d7fe0;
+  --gt-main: #a9e6e2;
+  --gt-light: #f1f7ff;
+  --gt-spark-a: #ffffff;
+  --gt-spark-b: #d9fbf2;
+  --gt-spark-c: #c9bcff;
+}
+.gta-card[data-tier='governor'] {
+  --gta-pearl: #fffaf0;
+  --gta-mid: #ffd98a;
+  --gta-mid-2: #ffc9a6;
+  --gta-deep: #ff9fb0;
+  --gt-main: #ffd98a;
+  --gt-light: #fffaf0;
+  --gt-spark-a: #fffdf6;
+  --gt-spark-b: #ffe6ae;
+  --gt-spark-c: #ffb9c4;
+}
+
+/* 边缘暗角：避免整组元素像硬边圆悬浮在直播画面上。 */
+.gta-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 46% 50% at 50% 46%, transparent 0%, rgba(4, 10, 24, 0.14) 62%, rgba(3, 7, 18, 0.42) 100%);
+  pointer-events: none;
+}
+
+/* 雾底光场：大面积柔光只用径向渐变，不加 blur。
+   位置与尺寸逐层声明；渐变停靠点也逐层还原原设计，不合并成同一套色标。 */
+.gta-wash {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.gta-wash-1 {
+  top: -180px;
+  left: 40px;
+  width: 1200px;
+  height: 1200px;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.34) 0%,
+    var(--gta-mid) 26%,
+    rgba(255, 255, 255, 0) 72%
+  );
+  opacity: 0.5;
+}
+.gta-wash-2 {
+  top: 120px;
+  left: 250px;
+  width: 940px;
+  height: 940px;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.26) 0%,
+    var(--gta-mid-2, var(--gta-mid)) 34%,
+    rgba(255, 255, 255, 0) 78%
+  );
+  opacity: 0.42;
+}
+.gta-wash-3 {
+  top: 40px;
+  left: -140px;
+  width: 1060px;
+  height: 1060px;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.2) 0%,
+    var(--gta-pearl) 30%,
+    rgba(255, 255, 255, 0) 74%
+  );
+  opacity: 0.36;
+}
+.gta-wash-4 {
+  top: -60px;
+  left: 420px;
+  width: 1120px;
+  height: 1120px;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.22) 0%,
+    var(--gta-deep) 24%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  opacity: 0.3;
+}
+.gta-wash-5 {
+  top: 260px;
+  left: -60px;
+  width: 1000px;
+  height: 1000px;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.24) 0%,
+    var(--gta-mid) 28%,
+    rgba(255, 255, 255, 0) 76%
+  );
+  opacity: 0.28;
+}
+
+/* 极光绸带：两端用 mask 淡出，斜向漂移。 */
+.gta-ribbon {
+  position: absolute;
+  top: -220px;
+  left: 120px;
+  width: 1420px;
+  height: 1520px;
+  opacity: 0;
+  transform: rotate(-19deg);
+  transform-origin: 50% 50%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 74%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 74%, transparent 100%);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.gta-ribbon i {
+  position: absolute;
+  inset: 0;
+  display: block;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 42%, #000 58%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 42%, #000 58%, transparent 100%);
+}
+.gta-ribbon-1 {
+  top: -300px;
+  left: 60px;
+  width: 1560px;
+  height: 640px;
+}
+.gta-ribbon-1 i {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.16) 38%,
+    var(--gta-pearl) 52%,
+    rgba(255, 255, 255, 0.12) 66%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0.55;
+}
+.gta-ribbon-2 {
+  top: -120px;
+  left: -120px;
+  width: 1620px;
+  height: 520px;
+  transform: rotate(-23deg);
+}
+.gta-ribbon-2 i {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    var(--gta-mid) 46%,
+    var(--gta-mid-2, var(--gta-mid)) 62%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0.42;
+}
+.gta-ribbon-3 {
+  top: 120px;
+  left: 80px;
+  width: 1500px;
+  height: 560px;
+  transform: rotate(-15deg);
+}
+.gta-ribbon-3 i {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 44%,
+    var(--gta-deep) 58%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0.38;
+}
+.gta-ribbon-4 {
+  top: -420px;
+  left: -260px;
+  width: 2400px;
+  height: 900px;
+  transform: rotate(-27deg);
+}
+.gta-ribbon-4 i {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    var(--gta-pearl) 48%,
+    var(--gta-mid) 58%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0.26;
+}
+
+/* 光晕：双层同心柔光，blur 只作用在小元素上。 */
+.gta-halo {
+  position: absolute;
+  top: 130px;
+  left: 240px;
+  width: 800px;
+  height: 800px;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.gta-halo-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.3) 0%,
+    var(--gta-mid) 30%,
+    rgba(255, 255, 255, 0.06) 58%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  filter: blur(28px);
+}
+
+.gta-ring {
+  position: absolute;
+  top: 190px;
+  left: 300px;
+  width: 680px;
+  height: 680px;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.gta-ring i,
+.gta-ring b {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: 50%;
+}
+.gta-ring i {
+  /* 环宽与颜色参数化：各同轴环只改半径与配色。 */
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0) var(--gta-ring-in, 74%),
+    var(--gta-ring-color, var(--gta-pearl)) var(--gta-ring-at, 82%),
+    rgba(255, 255, 255, 0) var(--gta-ring-out, 88%)
+  );
+  filter: blur(6px);
+}
+.gta-ring b {
+  background: radial-gradient(circle closest-side, rgba(255, 255, 255, 0) 60%, var(--gta-mid) 68%, rgba(255, 255, 255, 0) 76%);
+  opacity: 0.5;
+  filter: blur(18px);
+}
+.gta-ring-2 {
+  top: 226px;
+  left: 336px;
+  width: 608px;
+  height: 608px;
+}
+.gta-ring-2 i {
+  --gta-ring-in: 76%;
+  --gta-ring-at: 84%;
+  --gta-ring-out: 90%;
+  --gta-ring-color: var(--gta-mid);
+}
+.gta-ring-3 {
+  top: 156px;
+  left: 266px;
+  width: 748px;
+  height: 748px;
+}
+.gta-ring-3 i {
+  --gta-ring-in: 72%;
+  --gta-ring-at: 79%;
+  --gta-ring-out: 86%;
+  opacity: 0.7;
+}
+
+/* 刻环：极细分度盘，缓慢反向旋转。 */
+.gta-etching {
+  position: absolute;
+  top: 250px;
+  left: 360px;
+  width: 560px;
+  height: 560px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.42) 0.9deg,
+    transparent 1.8deg,
+    transparent 6deg
+  );
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent 84%, #000 88%, #000 92%, transparent 96%);
+  mask-image: radial-gradient(circle closest-side, transparent 84%, #000 88%, #000 92%, transparent 96%);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.gta-etching-2 {
+  top: 214px;
+  left: 324px;
+  width: 632px;
+  height: 632px;
+  background: repeating-conic-gradient(
+    from 3deg,
+    transparent 0deg,
+    var(--gta-mid) 1.1deg,
+    transparent 2.2deg,
+    transparent 9deg
+  );
+}
+
+/* 涟漪：填充式圆环（annulus），不用描边圆圈。 */
+.gta-ripple {
+  position: absolute;
+  top: 250px;
+  left: 360px;
+  width: 560px;
+  height: 560px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0) 62%,
+    var(--gta-pearl) 78%,
+    var(--gta-mid) 88%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.gta-ripple-2 {
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0) 66%,
+    var(--gta-mid) 84%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+.gta-ripple-3 {
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0) 64%,
+    var(--gta-mid-2, var(--gta-pearl)) 82%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+.gta-ripple-4 {
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0) 68%,
+    var(--gta-pearl) 86%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* 光刻纹章：复用经典档几何，改为描边-only + 泛光底衬。 */
+.gta-sigil {
+  position: absolute;
+  top: 210px;
+  left: 350px;
+  width: 580px;
+  height: 580px;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.gta-sigil-spin,
+.gta-sigil-bloom,
+.gta-sigil-trace,
+.gta-sigil .gt-emblem-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.gta-sigil-spin {
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 74%, transparent 92%);
+  mask-image: radial-gradient(circle closest-side, #000 74%, transparent 92%);
+}
+.gta-sigil-bloom {
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.22) 0%,
+    var(--gta-mid) 30%,
+    rgba(255, 255, 255, 0) 72%
+  );
+  filter: blur(26px);
+  opacity: 0;
+}
+.gta-sigil-trace {
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0) 0deg,
+    var(--gta-pearl) 26deg,
+    rgba(255, 255, 255, 0) 58deg,
+    rgba(255, 255, 255, 0) 360deg
+  );
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent 86%, #000 90%, transparent 96%);
+  mask-image: radial-gradient(circle closest-side, transparent 86%, #000 90%, transparent 96%);
+  opacity: 0;
+}
+
+/* 描边-only 覆盖：不改动 guard-thanks.css 的既有规则，只作用于辉光卡片。 */
+.gta-card .gt-outline,
+.gta-card .gt-outline polygon,
+.gta-card .gt-outline .gt-ball,
+.gta-card .gt-spokes,
+.gta-card .gt-points polygon,
+.gta-card .gt-band,
+.gta-card .gt-ticks,
+.gta-card .gt-inlay,
+.gta-card .gt-edge,
+.gta-card .gt-ridge {
+  fill: none;
+  stroke: var(--gta-pearl);
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.gta-card .gt-outline,
+.gta-card .gt-outline polygon,
+.gta-card .gt-outline .gt-ball {
+  stroke-width: 2.6;
+}
+.gta-card .gt-outline > * {
+  /* 泛光底衬：宽描边 + 低透明度，比 filter 更省且更柔。 */
+  filter: drop-shadow(0 0 6px var(--gta-mid));
+}
+.gta-card .gt-ridge,
+.gta-card .gt-ticks,
+.gta-card .gt-edge {
+  stroke-width: 1.2;
+  opacity: 0.9;
+}
+.gta-card .gt-band,
+.gta-card .gt-inlay {
+  stroke: var(--gta-mid);
+  stroke-width: 1.6;
+}
+.gta-card .gt-points polygon,
+.gta-card .gt-spokes {
+  stroke-width: 1.8;
+}
+/* 金属渐变在辉光风格里统一改成珍珠白，避免出现金色硬朗感。 */
+.gta-card .gt-m1,
+.gta-card .gt-m2 {
+  stop-color: var(--gta-pearl);
+}
+.gta-card .gt-m3 {
+  stop-color: var(--gta-mid);
+}
+.gta-card .gt-fill-light,
+.gta-card .gt-fill-main,
+.gta-card .gt-fill-deep,
+.gta-card .gt-rivet,
+.gta-card .gt-gem,
+.gta-card .gt-jewel,
+.gta-card .gt-stud {
+  fill: none;
+  stroke: var(--gta-mid);
+  stroke-width: 1.2;
+}
+.gta-card .gt-fill-light,
+.gta-card .gt-fill-main,
+.gta-card .gt-fill-deep {
+  fill: none;
+}
+.gta-sigil.is-anchor .gta-sigil-spin {
+  transform-origin: 50% 9%;
+}
+
+/* 专属材质：舰长露珠、提督霜纹、总督金箔。 */
+.gta-material {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+.gta-material-item {
+  position: absolute;
+  display: block;
+  opacity: 0;
+}
+.gta-material.is-dew .gta-material-item {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #fff 0%, rgba(255, 255, 255, 0.5) 42%, rgba(255, 255, 255, 0) 74%);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+}
+.gta-material.is-frost .gta-material-item {
+  width: 46px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), var(--gta-pearl) 50%, rgba(255, 255, 255, 0));
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.28);
+}
+.gta-material.is-gilt .gta-material-item {
+  width: 14px;
+  height: 8px;
+  border-radius: 1px;
+  background: linear-gradient(120deg, var(--gta-mid) 0%, var(--gta-pearl) 48%, var(--gta-mid-2) 100%);
+  box-shadow: 0 0 10px rgba(255, 217, 138, 0.36);
+}
+.gta-material-item-1 {
+  top: 22%;
+  left: 26%;
+}
+.gta-material-item-2 {
+  top: 38%;
+  left: 68%;
+}
+.gta-material-item-3 {
+  top: 62%;
+  left: 36%;
+}
+.gta-material-item-4 {
+  top: 74%;
+  left: 61%;
+}
+
+/* 副标题：极细字重 + 上下发丝光线。 */
+.gta-eyebrow {
+  position: absolute;
+  top: 748px;
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--gta-pearl);
+  font-family: Bahnschrift, 'DIN Alternate', 'Segoe UI', Arial, sans-serif;
+  font-size: 19px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.5em;
+  text-align: center;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.5);
+  will-change: transform, opacity, filter;
+}
+.gta-eyebrow[data-lang='zh'] {
+  font-family: inherit;
+  font-size: 21px;
+  letter-spacing: 0.66em;
+}
+.gta-eyebrow-text {
+  padding-left: 0.5em;
+}
+.gta-eyebrow[data-lang='zh'] .gta-eyebrow-text {
+  padding-left: 0.66em;
+}
+.gta-hairline {
+  display: block;
+  width: 260px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gta-pearl) 50%, transparent);
+  opacity: 0.75;
+}
+
+/* 主视觉文字：细字重 + 大字号，下方一条柔焦暗纱保证直播画面上可读。 */
+.gta-title-row {
+  position: absolute;
+  top: 800px;
+  right: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  will-change: transform, opacity, filter;
+}
+.gta-scrim {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 900px;
+  height: 132px;
+  background: radial-gradient(
+    ellipse closest-side,
+    rgba(3, 8, 20, 0.3) 0%,
+    rgba(3, 8, 20, 0.18) 46%,
+    rgba(3, 8, 20, 0) 100%
+  );
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.gta-title {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  padding-left: 0.3em;
+  color: var(--gta-pearl);
+  font-size: 96px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.3em;
+  white-space: nowrap;
+  text-shadow:
+    0 0 28px rgba(255, 255, 255, 0.42),
+    0 0 70px var(--gta-mid);
+}
+.gta-card[data-lang='en'] .gta-title {
+  padding-left: 0.2em;
+  font-family: Bahnschrift, 'DIN Alternate', 'Segoe UI', 'Arial Narrow', Arial, sans-serif;
+  font-size: 82px;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+}
+.gta-title-char {
+  display: inline-block;
+}
+
+.gta-footer {
+  position: absolute;
+  top: 936px;
+  right: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  will-change: transform, opacity, filter;
+}
+.gta-months {
+  padding: 7px 24px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 22px rgba(255, 255, 255, 0.16),
+    inset 0 0 14px rgba(255, 255, 255, 0.12);
+  color: var(--gta-pearl);
+  font-size: 21px;
+  font-weight: 300;
+  letter-spacing: 0.22em;
+  line-height: 1;
+}

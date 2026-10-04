@@ -6,9 +6,12 @@ const { canonicalizeGuardGiftId } = require('./guard-gift-aliases');
 
 const GUARD_THANKS_TIERS = Object.freeze(['captain', 'admiral', 'governor']);
 const GUARD_THANKS_TEXT_MODES = Object.freeze(['bilingual', 'zh', 'en']);
+// classic：金属徽章硬朗风格（保留旧行为）；aurora：辉光柔和风格。
+const GUARD_THANKS_STYLES = Object.freeze(['aurora', 'classic']);
 const DEFAULT_GUARD_THANKS_SETTINGS = Object.freeze({
   guardThanksEnabled: 'false',
   guardThanksTextMode: 'bilingual',
+  guardThanksStyle: 'aurora',
 });
 const TIER_BY_GUARD_GIFT_ID = Object.freeze({ 'guard-1': 'governor', 'guard-2': 'admiral', 'guard-3': 'captain' });
 const TIER_BY_GIFT_NAME = Object.freeze({ 总督: 'governor', 提督: 'admiral', 舰长: 'captain' });
@@ -27,6 +30,10 @@ function normalizeTextMode(value) {
   return GUARD_THANKS_TEXT_MODES.includes(String(value)) ? String(value) : null;
 }
 
+function normalizeStyle(value) {
+  return GUARD_THANKS_STYLES.includes(String(value)) ? String(value) : null;
+}
+
 function normalizeGuardThanksSettingValue(key, value) {
   if (key === 'guardThanksEnabled') {
     if (value === true || value === 'true') return 'true';
@@ -34,6 +41,7 @@ function normalizeGuardThanksSettingValue(key, value) {
     return null;
   }
   if (key === 'guardThanksTextMode') return normalizeTextMode(value);
+  if (key === 'guardThanksStyle') return normalizeStyle(value);
   return String(value);
 }
 
@@ -52,6 +60,7 @@ function buildGuardThanksEvent(item, settings = {}) {
     months: normalizePositiveInteger(item?.num),
     avatarUrl: normalizeAvatarUrl(item?.avatar_url ?? item?.avatarUrl),
     textMode: normalizeTextMode(settings.guardThanksTextMode) || DEFAULT_GUARD_THANKS_SETTINGS.guardThanksTextMode,
+    style: normalizeStyle(settings.guardThanksStyle) || DEFAULT_GUARD_THANKS_SETTINGS.guardThanksStyle,
   };
 }
 
@@ -61,6 +70,9 @@ function buildGuardThanksPreviewEvent(input = {}) {
   const textMode =
     input.textMode === undefined ? DEFAULT_GUARD_THANKS_SETTINGS.guardThanksTextMode : normalizeTextMode(input.textMode);
   if (!textMode) throw new Error('大航海感谢文字模式无效。');
+  const style =
+    input.style === undefined ? DEFAULT_GUARD_THANKS_SETTINGS.guardThanksStyle : normalizeStyle(input.style);
+  if (!style) throw new Error('大航海感谢动画风格无效。');
   const months = input.months === undefined || String(input.months).trim() === '' ? 1 : Number(input.months);
   if (!Number.isSafeInteger(months) || months <= 0 || months > MAX_PREVIEW_MONTHS) {
     throw new Error(`预览月数必须是 1–${MAX_PREVIEW_MONTHS} 的整数。`);
@@ -75,6 +87,7 @@ function buildGuardThanksPreviewEvent(input = {}) {
     months,
     avatarUrl: '',
     textMode,
+    style,
     preview: true,
   };
 }

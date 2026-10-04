@@ -228,6 +228,11 @@
   gap: 10px;
 }
 
+.gift-frame-effects {
+  display: grid;
+  gap: var(--spacing-xl);
+}
+
 .gift-frame-settings-card {
   container: gift-frame-settings / inline-size;
   min-width: 0;

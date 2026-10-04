@@ -11,10 +11,10 @@
 - **管理页回归**:`npm run test:admin` 固定运行 Admin 页面组合、外壳和 AI 测试并显式启用 ESM VM 模块;测试辅助加载器在未启用该 flag 时自动回退到静态 bundle,因此直接执行管理页测试也不会跳过 ESM 用例。
 - **文档门禁**:`npm run verify:docs` 检查治理文件、相对链接、AI 路由表和规格索引。
 - **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算、前端 ESM 边界与源码规模登记测试。
-- **规模门禁**:`npm run verify:modularity` 直接检查物理行数、601–800 行评估、存量上限及逐文件例外；同一检查已接入架构和全量测试，口径见 [modularity-standard.md](../../architecture/engineering/modularity-standard.md)。
+- **规模审查提示**:`npm run verify:modularity` 按文件类型报告物理行数，超过提示线不单独导致失败；职责与用途由正常变更审查判断，同一报告已接入架构和全量测试，口径见 [modularity-standard.md](../../architecture/engineering/modularity-standard.md#file-size-review)。
 - **快速门禁**:`npm run verify:quick` 按文档 → 语法 → 架构顺序运行,用于日常评审前反馈。
 - **契约输入门禁**:`npm run verify:contracts` 核对固定服务器提交和全部 fixture 的 SHA-256；不下载或切换检出目录。
-- **完整门禁**:`npm run verify` 依次执行契约输入校验、JavaScript 语法检查和 `npm test`。全量测试本身已包含文档和三个架构测试，因此不再先运行 quick 重复检查；`verify:quick` 仍可独立调用。CI 的 quick job 执行快速门禁和离线行为；依赖它的 main full job 只补浏览器、桌面、安装器、契约及 HTTP 往返，避免在同一提交重跑 quick 和离线组。
+- **完整门禁**:`npm run verify` 依次执行实时契约输入校验、JavaScript 语法检查和 `npm run verify:tests`，自动复用有效的完整文件成功记录。全量测试本身已包含文档和三个架构测试，无需先运行 quick 重复检查；`verify:quick` 可独立调用。当前发布使用本地验证，环境与发布入口见 [build.md](build.md#本地发布验证)。
 - **为什么需要 `--experimental-vm-modules`**:源码以 CJS(`require`)为主,但多个前端测试会通过 `vm.SourceTextModule` 或动态 `import()` 加载 `public/js/` 下的 ESM 模块;去掉该 flag 这些测试会失败。
 - **单文件运行**:`node --experimental-vm-modules --test test/ai/ai-config-store.test.js`(flag 必须保留)。
 - **测试方式**:以离线单元和集成测试为主,不访问真实外部网络;服务端模块直接 require 真实实现并注入临时 SQLite 目录或 mock,server smoke 类测试会在随机本地端口启动完整服务;浏览器模块用 vm + 假 `window`/`localStorage` 求值。
@@ -92,6 +92,23 @@ npm test -- --file=test/gifts/frontend-blindbox-overlay.test.js --file=test/ui/f
 
 选择器不自动推断源码依赖。修改共享资源、权限、存储或跨域接线时，按实际消费者补充文件；只调整普通页面样式时，按根 AGENTS 的 Small 工作流进行针对性检查，不默认启动领域全组、浏览器全组或完整发布验证。已通过且相关输入未变的检查不重复执行。
 
+### 测试结果复用
+
+`npm run verify:tests` 沿用原 runner 的分组、`--domain`、`--file` 与原生进程归属测试先运行的顺序，按完整文件保存成功证明。无选择器时覆盖全部测试，局部选择输出 `partial`，不能作为完整发布验收。先以相同范围加 `--plan` 查看 `RUN` / `REUSE` 清单，再执行；计划不启动测试，缺少或损坏的记录按未验证处理。原始 `npm test` 保持无缓存，可用于名称筛选等定位。
+
+```powershell
+npm run verify:tests -- offline --file=test/engineering/run-tests.test.js --plan
+npm run verify:tests -- offline --file=test/engineering/run-tests.test.js
+```
+
+证明键包含测试实现、相关输入的路径与字节、验证工具、包配置和实际运行环境，提交号本身不使证明失效。未知 CJS/ESM、VM、动态加载及读取关系保守使用全仓已跟踪和未忽略文件，删除同样影响键；不能仅按业务目录缩小依赖。五个已审查安装器测试可只使用 `build/`、对应测试/helper、诊断脚本、包配置和验证工具；其测试或 helper 实现摘要不匹配时回退全仓。新增读取关系须重新审查，不能只更新摘要恢复复用。
+
+环境比较实际 Node、操作系统、安装依赖与相关环境设置；保守测试还比较 Playwright 安装，包含无头浏览器程序，仅排除各版本安装目录内 `chrome-win64/debug.log` 与 `chrome-headless-shell-win64/debug.log` 这两处 Chromium 生成的普通日志文件，其余程序与资源继续按字节核验。安装器比较实际 NSIS 编译器、头文件、插件及 PowerShell。测试组只控制选择，不作为运行时依赖边界。契约组每次实时检查锁定服务器提交和 fixture 内容，不能只相信锁文件。工具缺失或外部输入文件改变会使对应记录失效。
+
+只有完整报告确认实际全部通过的文件才能保存证明。失败、取消、skip、TODO、聚焦警告、重复或缺失总结均不能冒充完整文件通过；同批中可明确归因的失败不撤销其他完整成功文件。无法归因的全局错误拒绝该批证明。运行结束再次比较相关输入；完整范围还核对测试清单，避免运行中新加测试被遗漏。`--force` 在启动前撤销所选旧记录，失败后不能恢复旧成功。缓存入口拒绝额外 Node 测试参数、`NODE_OPTIONS` 和父进程 Node flags，定向诊断使用原始入口。
+
+记录和报告位于仓库 `tmp/verification/`；语法与测试各有互斥锁。异常退出后先确认锁中 PID 已停止，再移除该锁，不能删除仍在运行的锁。系统字体或未被文件指纹描述的外部桌面条件变化时使用 `--force` 复验。安装器脚本回归的复用不替代新安装包的最终资源验证。
+
 浏览器测试不因存放在 `admin/` 或 `scenes/` 而成为 offline；经 helper 间接启动 Chromium 的文件同样必须登记到 browser。历史报告与归档计划中的原始执行记录保留当时路径，可点击的本仓库测试链接更新为现位置。
 
 ### 固定服务器契约输入
@@ -154,7 +171,7 @@ npm run verify
 | [run-tests.test.js](../../../test/engineering/run-tests.test.js) | 递归收集、依赖分组、目录筛选、辅助文件排除、进程隔离、参数转发和失败退出码 | 本文 §1 |
 | [check-js.test.js](../../../test/engineering/check-js.test.js)                                                           | 语法检查的并发上限、完整扫描、失败退出与原生 CJS/ESM 语法行为                                   | 本文 §3                                                                                           |
 | [server-contract.test.js](../../../test/engineering/server-contract.test.js) | 固定服务器版本、fixture 完整性、目录选择和运行时漂移拒绝；使用临时 Git 仓库 | 本文 §1 |
-| [modularity-size.test.js](../../../test/engineering/modularity-size.test.js)                                             | `scripts/check-modularity.js`：物理行边界、源码类型、未跟踪文件、增长、过期、无效登记及当前基线 | [modularity-standard.md](../../architecture/engineering/modularity-standard.md) + [modularity-debt.md](../../architecture/engineering/modularity-debt.md)       |
+| [modularity-size.test.js](../../../test/engineering/modularity-size.test.js)                                             | `scripts/check-modularity.js`：物理行计数、分类提示、未跟踪文件、非阻断报告及静态内容边界 | [modularity-standard.md](../../architecture/engineering/modularity-standard.md) + [modularity-debt.md](../../architecture/engineering/modularity-debt.md)       |
 | [governance-docs.test.js](../../../test/engineering/governance-docs.test.js)                                             | 治理文件、路由表、规格索引与范围内 Markdown 链接                                                | 同上 + [legacy-boundaries.md](../../architecture/engineering/legacy-boundaries.md)                                               |
 | **AI 助手**                                                                                                  |                                                                                                 | [backend/ai.md](../backend/ai.md)                                                                 |
 | [ai-api-quota-store.test.js](../../../test/ai/ai-api-quota-store.test.js)                                       | `ai/api-quota-store`(配额存储)                                                                  | 同上                                                                                              |
@@ -317,7 +334,8 @@ npm run verify
 ## 3. 静态检查:npm run check
 
 - 命令:`npm run check` → `node scripts/check-js.js`([package.json:12](../../../package.json#L12))。
-- 行为:[check-js.js](../../../scripts/check-js.js) 递归收集 `src/`、`public/`、`scripts/`、`test/` 下全部 `.js` 文件，排序后以最多 4 个子进程执行原生 `node --check`；并发数同时受可用 CPU 数和文件数限制。仍只校验语法、不执行源码。任一文件失败后停止分配待检查文件，等待已启动的检查结束，保留错误信息并以非零状态退出；全部通过时输出文件总数。
+- 行为:[check-js.js](../../../scripts/check-js.js) 递归收集 `src/`、`public/`、`scripts/`、`test/` 下全部 `.js` 文件，逐文件比较内容、最近包的模块解析配置、实际 Node 和 checker 实现，仅对缺少有效证明的文件执行原生 `node --check`。最多 4 个子进程，并发数同时受可用 CPU 数和文件数限制。应用版本号变化不单独使语法结果失效；模块类型、包边界或文件变化仍重查。失败后停止分配新文件并等待已启动检查，返回非零；输入在检查期间变化不登记成功。
+- `npm run check -- --plan` 只列出待运行文件，`npm run check -- --force` 强制重查并先撤销旧记录。执行输出运行、复用与总文件数，新增文件自动纳入，已删除文件不再计入覆盖。
 - 边界:**仅查语法**,不做类型检查、模块导入一致性或风格检查(旧文档的描述不准确)。
 - 日常按根 [AGENTS.md](../../../AGENTS.md) 的风险分级选择验证：小改动只检查相关文件或运行一次针对性界面验证；单个功能运行自身及直接受影响的测试；跨领域或关键边界变化运行相关完整门禁。`npm run verify:quick` 和 `npm run verify` 仍执行各自完整范围，发布遵循 [RELEASE_GUIDE.md](../../../RELEASE_GUIDE.md)。输入和相关环境未变时，不重复运行已通过的同一检查。
 

@@ -1,0 +1,121 @@
+/* 特效 2 · 缎带礼笺 overlay：与特效 1 共用 1920×1080 设计坐标与 --frame-scale。 */
+#giftRibbon {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--frame-scale, 0));
+  visibility: hidden;
+  pointer-events: none;
+  font-family: 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+}
+
+#giftRibbon.is-playing {
+  visibility: visible;
+}
+
+.ribbon-stage,
+.ribbon-particles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ribbon-particles {
+  pointer-events: none;
+}
+
+.ribbon-tag {
+  position: absolute;
+  inset: 0;
+}
+
+.ribbon-tag-string {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  overflow: visible;
+}
+
+.ribbon-tag-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-sizing: border-box;
+  padding: 13px 26px;
+  border: 2.5px solid #e3c07a;
+  border-radius: 9px;
+  background:
+    linear-gradient(158deg, #fffaf0 0%, #fdf0e2 52%, #f8e2cd 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 6px rgba(168, 121, 47, 0.16),
+    0 2px 0 rgba(168, 121, 47, 0.4),
+    0 14px 30px rgba(74, 22, 36, 0.3),
+    0 3px 8px rgba(74, 22, 36, 0.22);
+  color: #5a2430;
+  overflow: hidden;
+}
+
+/* 内描金线，做出烫金礼笺的双层边。 */
+.ribbon-tag-card::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(227, 192, 122, 0.75);
+  border-radius: 5px;
+  pointer-events: none;
+}
+
+.ribbon-tag-viewer,
+.ribbon-tag-gift {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  height: 34px;
+  font-weight: 400;
+  line-height: 34px;
+  white-space: nowrap;
+}
+
+.ribbon-tag-viewer { font-size: 29px; letter-spacing: 0.4px; }
+.ribbon-tag-gift { font-size: 33px; }
+
+.ribbon-tag-card strong {
+  color: #a82944;
+  font-weight: 600;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.ribbon-tag-viewer > span,
+.ribbon-tag-gift > span {
+  color: #8a6a45;
+  font-size: 0.82em;
+  letter-spacing: 1.5px;
+}
+
+.ribbon-tag-user,
+.ribbon-tag-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ribbon-tag-num,
+.ribbon-tag-viewer > span,
+.ribbon-tag-gift > span {
+  flex: 0 0 auto;
+}
+
+.ribbon-tag-num {
+  font-variant-numeric: tabular-nums;
+  color: #6e1b30;
+}

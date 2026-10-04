@@ -10,6 +10,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData } =
     tier: { label: '预览等级', type: 'select', default: 'captain', options: { captain: '舰长', admiral: '提督', governor: '总督' } },
     userName: { label: '预览观众', type: 'text', default: '观众A', maxLength: 100 },
     months: { label: '预览月数', type: 'number', default: 1, min: 1, max: 999, step: 1 },
+    style: { label: '动画风格', type: 'select', default: 'aurora', options: { aurora: '辉光（柔和）', classic: '经典（徽章）' } },
   } : {};
   const previewValues = Object.fromEntries(Object.entries(previewFields).map(([key, field]) => [key, field.default]));
   const previewListeners = new Set();

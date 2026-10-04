@@ -36,15 +36,15 @@ async function main() {
 
   const head = ensureCleanEnoughGitState();
   proxyUrl = await resolveProxy();
-  ensureTag(head);
   ensureGhToken();
+  checkTag(head);
 
   run('npm', ['run', '--silent', 'make:icon']);
   if (ensureCleanEnoughGitState() !== head) {
     throw new Error('Release source changed while preparing build resources.');
   }
 
-  // Build only once. Builder hooks verify the final NSIS payload before this returns.
+  // Build once; this entry point owns final verification instead of the builder hook.
   run('npx', [
     'electron-builder',
     '--win',
@@ -52,13 +52,15 @@ async function main() {
     '--x64',
     '--publish',
     'never',
+    '--config',
+    'scripts/release-builder-config.js',
     '--config.electronDist=node_modules/electron/dist',
   ]);
   const verifiedDigests = new Map();
   for (const name of EXPECTED_ASSETS) verifiedDigests.set(name, await fileDigest(path.join(OUTPUT_DIR, name)));
   await verifyInstaller(path.join(OUTPUT_DIR, EXE_NAME), { appVersion: VERSION, platform: 'win32', arch: 'x64' });
-  ensureGithubRelease();
 
+  let missing = await findMissingAssets(verifiedDigests);
   let lastPublishError = null;
   for (let attempt = 1; attempt <= MAX_PUBLISH_ATTEMPTS; attempt += 1) {
     // A changed artifact requires a fresh invocation and validation, never an upload retry.
@@ -66,13 +68,22 @@ async function main() {
       if ((await fileDigest(path.join(OUTPUT_DIR, name))) !== digest)
         throw new Error('Verified release artifacts changed before upload.');
     }
+    if (attempt === 1) {
+      if (ensureCleanEnoughGitState() !== head) throw new Error('Release source changed during the build.');
+      ensureTag(head);
+      ensureGithubRelease();
+    }
+    if (missing.length === 0) {
+      log(`All expected assets uploaded: ${EXPECTED_ASSETS.join(', ')}`);
+      return;
+    }
     log(`Verified artifact upload attempt ${attempt}/${MAX_PUBLISH_ATTEMPTS}`);
     try {
       run('gh', [
         'release',
         'upload',
         TAG,
-        ...EXPECTED_ASSETS.map((name) => path.join(OUTPUT_DIR, name)),
+        ...missing.map((name) => path.join(OUTPUT_DIR, name)),
         '--repo',
         `${OWNER}/${REPO}`,
         '--clobber',
@@ -81,14 +92,13 @@ async function main() {
     } catch (error) {
       lastPublishError = error;
       log(`Artifact upload failed: ${error.message}`);
-      continue;
     }
 
     for (const [name, digest] of verifiedDigests) {
       if ((await fileDigest(path.join(OUTPUT_DIR, name))) !== digest)
         throw new Error('Verified release artifacts changed during upload.');
     }
-    const missing = await findMissingAssets();
+    missing = await findMissingAssets(verifiedDigests);
     if (missing.length === 0) {
       log(`All expected assets uploaded: ${EXPECTED_ASSETS.join(', ')}`);
       return;
@@ -154,7 +164,7 @@ function ensureCleanEnoughGitState() {
   return head;
 }
 
-function ensureTag(head) {
+function checkTag(head) {
   const localTag = tryCapture('git', ['rev-parse', '--verify', `${TAG}^{commit}`]).trim();
   if (localTag && localTag !== head) throw new Error(`Local tag ${TAG} does not identify HEAD.`);
   const remoteTags = runCapture('git', ['ls-remote', '--tags', 'origin', TAG, `${TAG}^{}`]);
@@ -170,6 +180,11 @@ function ensureTag(head) {
   );
   const remoteTag = refs.get(`refs/tags/${TAG}^{}`) || refs.get(`refs/tags/${TAG}`);
   if (remoteTag && remoteTag !== head) throw new Error(`Remote tag ${TAG} does not identify HEAD.`);
+  return { localTag, remoteTag };
+}
+
+function ensureTag(head) {
+  const { localTag, remoteTag } = checkTag(head);
   if (!localTag) {
     log(`Creating annotated tag ${TAG}`);
     run('git', ['tag', '-a', TAG, '-m', TAG]);
@@ -198,7 +213,7 @@ function ensureGithubRelease() {
     return;
   }
 
-  log(`Creating GitHub release ${TAG} up front to avoid electron-builder's create-race`);
+  log(`Creating GitHub release ${TAG} for the verified build`);
   // Keep multiline release notes out of command-line arguments.
   const notesPath = path.join(os.tmpdir(), `release-notes-${TAG}.md`);
   fs.writeFileSync(notesPath, extractReleaseNotes(VERSION), 'utf8');
@@ -225,7 +240,7 @@ function extractReleaseNotes(version) {
   return content.slice(afterHeading, sectionEnd).trim() || `Release ${version}`;
 }
 
-async function findMissingAssets() {
+async function findMissingAssets(verifiedDigests) {
   // Deliberately avoid "gh api --jq ..." here: on Windows the jq expression
   // gets mangled by cmd.exe's quoting, which made this always look empty
   // and falsely report every asset as missing. Parse the plain JSON instead.
@@ -250,10 +265,9 @@ async function findMissingAssets() {
       missing.push(name);
       continue;
     }
-    const localDigest = await fileDigest(localPath);
     try {
       const remoteDigest = await publishedAssetDigest(asset);
-      if (remoteDigest !== localDigest) missing.push(name);
+      if (remoteDigest !== verifiedDigests.get(name)) missing.push(name);
     } catch (error) {
       log(`Cannot verify ${name}: ${error.message}`);
       missing.push(name);

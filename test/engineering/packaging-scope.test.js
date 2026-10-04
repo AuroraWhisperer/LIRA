@@ -119,3 +119,12 @@ test('all Windows build commands disable direct publishing and share the final i
     /Direct builder publishing is disabled/,
   );
 });
+
+test('release builder config transfers only the final installer gate to the publisher', async () => {
+  const { getConfig } = require('app-builder-lib/out/util/config/config');
+  const projectDir = path.resolve(__dirname, '../..');
+  const regular = await getConfig(projectDir, null, null);
+  const release = await getConfig(projectDir, 'scripts/release-builder-config.js', null);
+  assert.equal(regular.artifactBuildCompleted, 'scripts/verify-client-installer.js');
+  assert.deepEqual(release, { ...regular, artifactBuildCompleted: null });
+});

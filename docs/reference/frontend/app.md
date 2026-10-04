@@ -208,7 +208,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | blindbox.js                                             | 今日盲盒盈亏(汇总/盈亏榜/映射列表)                                        | `GET /api/gifts/blind-box-stats`                                                                |
 | blindbox-analysis.js / blindbox-analysis-dates.js         | 盲盒分析工作区(单日/日期区间日历,观众排行/盲盒汇总/开盒记录三视图,25 条分页,500ms 刷新防抖) | `GET /api/gifts/blind-box-analysis?...`                                               |
 | history.js                                              | 礼物历史抽屉(时间范围/平台筛选)                                           | `GET /api/gifts/history`;清最近/清礼物走 `/api/gifts/clear-recent`、`/api/database/clear-gifts` |
-| [gift-frame.js](../../../public/js/admin/gift-frame.js) | 礼物姬中特效 1 · 林间花信的独立开关、金额阈值与画布模拟预览 | `/api/settings`、`app:settings-state` |
+| [gift-frame.js](../../../public/js/admin/gift-frame.js) | 礼物姬中特效 1 · 林间花信与特效 2 · 缎带礼笺各自独立的开关、金额阈值与画布模拟预览 | `/api/settings`、`app:settings-state` |
 | [gift-guard-thanks.js](../../../public/js/admin/gift-guard-thanks.js) | 礼物姬「大航海感谢」开关、默认动画文字与画布预览入口 | `/api/settings`、`app:settings-state` |
 
 ## 6. 百宝箱(otherAssistantPage)

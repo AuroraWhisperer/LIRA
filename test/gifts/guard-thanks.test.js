@@ -50,6 +50,7 @@ test('final guard rows become display-only thanks events when enabled', () => {
     months: 3,
     avatarUrl: 'https://i0.hdslb.com/bfs/face/sample.jpg',
     textMode: 'en',
+    style: 'aurora',
   });
   const untrusted = buildGuardThanksEvent(
     { ...guardRow, avatar_url: 'http://example.com/face.jpg', user_name: '' },
@@ -68,14 +69,21 @@ test('final guard rows become display-only thanks events when enabled', () => {
 test('guard thanks settings are allowlisted local settings with safe defaults', () => {
   assert.equal(DEFAULT_SETTINGS.guardThanksEnabled, 'false');
   assert.equal(DEFAULT_SETTINGS.guardThanksTextMode, 'bilingual');
+  assert.equal(DEFAULT_SETTINGS.guardThanksStyle, 'aurora');
   assert.equal(normalizeGuardThanksSettingValue('guardThanksEnabled', true), 'true');
   assert.equal(normalizeGuardThanksSettingValue('guardThanksEnabled', 'yes'), null);
   assert.equal(normalizeGuardThanksSettingValue('guardThanksTextMode', 'zh'), 'zh');
   assert.equal(normalizeGuardThanksSettingValue('guardThanksTextMode', 'fr'), null);
+  assert.equal(normalizeGuardThanksSettingValue('guardThanksStyle', 'classic'), 'classic');
+  assert.equal(normalizeGuardThanksSettingValue('guardThanksStyle', 'neon'), null);
   assert.deepEqual(normalizeSettingsPatch({ guardThanksEnabled: true, guardThanksTextMode: 'en' }, DEFAULT_SETTINGS), {
     values: { guardThanksEnabled: 'true', guardThanksTextMode: 'en' },
   });
   assert.match(normalizeSettingsPatch({ guardThanksTextMode: 'fr' }, DEFAULT_SETTINGS).error, /guardThanksTextMode/);
+  assert.deepEqual(normalizeSettingsPatch({ guardThanksStyle: 'classic' }, DEFAULT_SETTINGS), {
+    values: { guardThanksStyle: 'classic' },
+  });
+  assert.match(normalizeSettingsPatch({ guardThanksStyle: 'neon' }, DEFAULT_SETTINGS).error, /guardThanksStyle/);
 });
 
 test('preview events validate tier, months and text mode without reading live settings', () => {
@@ -143,6 +151,7 @@ test('only the gift-effects overlay scope receives the projected thanks fields',
     months: 3,
     avatarUrl: 'https://i0.hdslb.com/bfs/face/sample.jpg',
     textMode: 'en',
+    style: 'aurora',
   });
   assert.equal(projectWebSocketPayload({ type: 'overlay', scope: 'danmaku' }, event), null);
 });
@@ -154,6 +163,7 @@ test('gift assistant owns guard settings and sends previewing to the canvas', ()
   for (const id of [
     'guardThanksEnabled',
     'guardThanksTextMode',
+    'guardThanksStyle',
     'guardThanksPreviewTier',
     'guardThanksPreviewUser',
     'guardThanksPreviewMonths',
@@ -179,6 +189,7 @@ test('gift-effects overlay hosts the shared guard thanks renderer without HTML i
   assert.match(overlay, /payload\.type === 'gift:guard-thanks'\) guardThanks\.enqueue\(payload\)/);
   for (const file of [
     'public/js/overlays/gift-effects-guard.js',
+    'public/js/overlays/gift-frame-ribbon.js',
     'public/js/shared/guard-thanks-card.js',
     'public/js/shared/guard-thanks-emblems.js',
     'public/js/shared/guard-thanks-particles.js',
@@ -188,6 +199,8 @@ test('gift-effects overlay hosts the shared guard thanks renderer without HTML i
   }
   const css = read('public/css/shared/guard-thanks.css');
   assert.doesNotMatch(css, /mix-blend-mode|\binfinite\b/);
+  const ribbonCss = read('public/css/overlays/gift-frame-ribbon.css');
+  assert.doesNotMatch(ribbonCss, /mix-blend-mode|\binfinite\b/);
 });
 
 async function invokeBodyRoute(handler, context, body) {

@@ -8,6 +8,7 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-04-gift-frame-satin-ribbon](2026-10-04-gift-frame-satin-ribbon.md) | In Progress | 特效 2 · 缎带礼笺的服务端分档、播放器、管理页两张卡片与文档同步；待完成实播/浏览器源目视验收。 |
 | [2026-10-02-client-themes](2026-10-02-client-themes.md) | Awaiting Verification | 实现、自动化与隔离 Electron 验证完成；原生 100% 缩放及实播/真实密集内容人工验收未覆盖。 |
 | [2026-08-18-desktop-lyric-rendering](2026-08-18-desktop-lyric-rendering.md) | Awaiting Verification | 实现与自动化已有记录；剩余硬件加速开/关下 Paint、主线程和帧率对比，没有真实 Electron 性能录制证据。 |
 | [2026-08-23-desktop-typography-hierarchy](2026-08-23-desktop-typography-hierarchy.md) | Awaiting Verification | 剩余 Windows 原生 100%/125% 显示缩放实机验收；不能用窗口缩放替代。 |

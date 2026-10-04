@@ -63,48 +63,84 @@
         大航海感谢
       </button>
     </div>
-    <section
+    <div
       id="giftFramePanel"
-      class="gift-frame-settings-card"
+      class="gift-frame-effects"
       data-gift-feature="frame"
-      data-gift-frame-effect="woodland-bloom"
       role="tabpanel"
       aria-labelledby="giftAssistantFrameTab"
     >
-      <header class="gift-frame-settings-heading">
-        <h3 id="giftFrameSettingsTitle" class="ui-section-title">
-          特效 1 · 林间花信
-          <lira-help>每次播放 4 秒，显示观众、礼物和数量。连续触发依次播放，最多等待 50 条；队满时忽略新触发，已排队项不会过期。</lira-help>
-        </h3>
-        <label class="gift-frame-switch switch-control">
-          <input id="giftFrameEnabled" type="checkbox" />
-          <span class="switch-track"></span>
-          <span>启用</span>
-        </label>
-      </header>
-      <div class="gift-frame-controls">
-        <section aria-labelledby="giftFrameConfigTitle">
-          <header class="gift-frame-section-heading"><h4 id="giftFrameConfigTitle">触发设置</h4></header>
-          <div class="gift-frame-settings-grid">
-            <label>
-              <span>触发金额（元） <lira-help>按最终礼物金额判断；0 元表示所有付费礼物。</lira-help></span>
-              <input id="giftFrameThresholdRmb" type="number" min="0" step="0.01" inputmode="decimal" value="20" />
-            </label>
-            <button id="giftFrameSaveBtn" class="primary" type="button">保存设置</button>
-          </div>
-        </section>
-        <section class="gift-frame-preview" aria-labelledby="giftFramePreviewTitle">
-          <header class="gift-frame-section-heading"><h4 id="giftFramePreviewTitle">模拟预览</h4></header>
-          <div class="gift-frame-preview-grid">
-            <label><span>观众</span><input id="giftFramePreviewUser" type="text" value="观众A" maxlength="80" /></label>
-            <label><span>礼物</span><input id="giftFramePreviewGift" type="text" value="林间花信" maxlength="80" /></label>
-            <label><span>数量</span><input id="giftFramePreviewNum" type="number" min="1" step="1" value="2" /></label>
-            <button id="giftFramePreviewBtn" class="secondary" type="button">预览</button>
-          </div>
-        </section>
-      </div>
-      <p id="giftFrameSaveState" class="hint gift-frame-status" role="status" aria-live="polite"></p>
-    </section>
+      <section class="gift-frame-settings-card" data-gift-frame-effect="woodland-bloom" aria-labelledby="giftFrameSettingsTitle">
+        <header class="gift-frame-settings-heading">
+          <h3 id="giftFrameSettingsTitle" class="ui-section-title">
+            特效 1 · 林间花信
+            <lira-help>每次播放 4 秒，显示观众、礼物和数量。连续触发依次播放，最多等待 50 条；队满时忽略新触发，已排队项不会过期。</lira-help>
+          </h3>
+          <label class="gift-frame-switch switch-control">
+            <input id="giftFrameEnabled" type="checkbox" />
+            <span class="switch-track"></span>
+            <span>启用</span>
+          </label>
+        </header>
+        <div class="gift-frame-controls">
+          <section aria-labelledby="giftFrameConfigTitle">
+            <header class="gift-frame-section-heading"><h4 id="giftFrameConfigTitle">触发设置</h4></header>
+            <div class="gift-frame-settings-grid">
+              <label>
+                <span>触发金额（元） <lira-help>按最终礼物金额判断；0 元表示所有付费礼物。</lira-help></span>
+                <input id="giftFrameThresholdRmb" type="number" min="0" step="0.01" inputmode="decimal" value="20" />
+              </label>
+              <button id="giftFrameSaveBtn" class="primary" type="button">保存设置</button>
+            </div>
+          </section>
+          <section class="gift-frame-preview" aria-labelledby="giftFramePreviewTitle">
+            <header class="gift-frame-section-heading"><h4 id="giftFramePreviewTitle">模拟预览</h4></header>
+            <div class="gift-frame-preview-grid">
+              <label><span>观众</span><input id="giftFramePreviewUser" type="text" value="观众A" maxlength="80" /></label>
+              <label><span>礼物</span><input id="giftFramePreviewGift" type="text" value="林间花信" maxlength="80" /></label>
+              <label><span>数量</span><input id="giftFramePreviewNum" type="number" min="1" step="1" value="2" /></label>
+              <button id="giftFramePreviewBtn" class="secondary" type="button">预览</button>
+            </div>
+          </section>
+        </div>
+        <p id="giftFrameSaveState" class="hint gift-frame-status" role="status" aria-live="polite"></p>
+      </section>
+      <section class="gift-frame-settings-card" data-gift-frame-effect="satin-ribbon" aria-labelledby="giftFrameRibbonSettingsTitle">
+        <header class="gift-frame-settings-heading">
+          <h3 id="giftFrameRibbonSettingsTitle" class="ui-section-title">
+            特效 2 · 缎带礼笺
+            <lira-help>每次播放 5 秒，礼盒从下方一角弹出、缎带绕屏后在对角系成蝴蝶结，礼签显示观众、礼物和数量。两个特效同时满足门槛时只播放触发金额更高的那个，金额相同播放本特效。</lira-help>
+          </h3>
+          <label class="gift-frame-switch switch-control">
+            <input id="giftFrameRibbonEnabled" type="checkbox" />
+            <span class="switch-track"></span>
+            <span>启用</span>
+          </label>
+        </header>
+        <div class="gift-frame-controls">
+          <section aria-labelledby="giftFrameRibbonConfigTitle">
+            <header class="gift-frame-section-heading"><h4 id="giftFrameRibbonConfigTitle">触发设置</h4></header>
+            <div class="gift-frame-settings-grid">
+              <label>
+                <span>触发金额（元） <lira-help>按最终礼物金额判断；0 元表示所有付费礼物。</lira-help></span>
+                <input id="giftFrameRibbonThresholdRmb" type="number" min="0" step="0.01" inputmode="decimal" value="100" />
+              </label>
+              <button id="giftFrameRibbonSaveBtn" class="primary" type="button">保存设置</button>
+            </div>
+          </section>
+          <section class="gift-frame-preview" aria-labelledby="giftFrameRibbonPreviewTitle">
+            <header class="gift-frame-section-heading"><h4 id="giftFrameRibbonPreviewTitle">模拟预览</h4></header>
+            <div class="gift-frame-preview-grid">
+              <label><span>观众</span><input id="giftFrameRibbonPreviewUser" type="text" value="观众A" maxlength="80" /></label>
+              <label><span>礼物</span><input id="giftFrameRibbonPreviewGift" type="text" value="缎带礼笺" maxlength="80" /></label>
+              <label><span>数量</span><input id="giftFrameRibbonPreviewNum" type="number" min="1" step="1" value="2" /></label>
+              <button id="giftFrameRibbonPreviewBtn" class="secondary" type="button">预览</button>
+            </div>
+          </section>
+        </div>
+        <p id="giftFrameRibbonSaveState" class="hint gift-frame-status" role="status" aria-live="polite"></p>
+      </section>
+    </div>
     <section
       id="giftDisplaySettings"
       class="gift-display-settings"
@@ -291,7 +327,7 @@
               >观众开通或续费舰长、提督、总督后，在画布中的大航海感谢组件播放对应动画；多人连续上舰时依次播放。</lira-help
             >
           </h3>
-          <p>舰长船锚、提督罗盘、总督船舵，三档各有专属配色与动效。</p>
+          <p>辉光：柔和艺术风格，只有等级称谓与光影，不出现送礼人信息；经典：舰长船锚、提督罗盘、总督船舵的金属徽章风格。三档各有专属配色与动效。</p>
         </div>
         <span id="guardThanksSettingsState" class="pill">未启用</span>
       </header>
@@ -301,6 +337,13 @@
             <input id="guardThanksEnabled" type="checkbox" />
             <span class="switch-track"></span>
             <span>启用大航海感谢</span>
+          </label>
+          <label>
+            <span>动画风格</span>
+            <select id="guardThanksStyle" data-dropdown-variant="settings">
+              <option value="aurora">辉光（柔和）</option>
+              <option value="classic">经典（徽章）</option>
+            </select>
           </label>
           <label>
             <span>动画文字</span>

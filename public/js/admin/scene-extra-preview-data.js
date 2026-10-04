@@ -39,7 +39,7 @@ export function sceneExtraPreviewData(type) {
     'gift-frame': { preview: true, events: [{ type: 'gift:frame', eventId: 'canvas-frame-preview',
       userName: '观众A', giftName: '林间花信', num: 2, totalPriceCents: 52000, themeId: 'woodland-bloom' }] },
     'guard-thanks': { preview: true, events: [{ type: 'gift:guard-thanks', eventId: 'canvas-guard-preview',
-      userName: '观众A', tier: 'captain', months: 1, textMode: 'bilingual' }] },
+      userName: '观众A', tier: 'captain', months: 1, textMode: 'bilingual', style: 'aurora' }] },
     'gift-wishes': { items: [{ id: 'preview-wish', period: 'day', giftId: '1', giftName: '小花花', target: 100, count: 36, todayCount: 36, remaining: 64, progress: 36, completed: false, label: '今日小心愿', displayStyle: 'card', textTemplate: '{礼物} {已收}/{目标}', textImagePosition: 'none', textImageFormat: 'static' }], session: { state: 'live', stale: false } },
   };
   return examples[type];

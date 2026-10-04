@@ -10,7 +10,7 @@
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `start`               | `node src/server.js`                                                                                                                                              | 纯 Web 模式:仅启动 HTTP 服务,进程模型见 [backend/server-core.md](../backend/server-core.md)                  |
 | `desktop`             | `electron .`                                                                                                                                                      | 桌面模式:Electron 壳与 HTTP 服务同进程                                                                       |
-| `check`               | `node scripts/check-js.js`                                                                                                                                        | 全量 JS 语法检查(见 [test.md](test.md) §3)                                                                   |
+| `check`               | `node scripts/check-js.js`                                                                                                                                        | 全量 JS 语法覆盖，逐文件复用；支持 `--plan` / `--force`（见 [test.md](test.md) §3） |
 | `test` | `node scripts/run-tests.js` | 递归收集业务目录中的测试；默认文件并发 6，支持依赖组、目录和 `--file` 路径/通配符筛选(见 [test.md](test.md)) |
 | `test:admin` | 具体文件清单见 [package.json](../../../package.json) 的 `scripts.test:admin` | 固定管理页组合、外壳、AI、弹幕与加班机回归；显式启用 ESM VM 模块 |
 | `verify:docs`         | `node --test test/engineering/governance-docs.test.js`                                                                                                                        | 治理文件、路由表、规格索引和范围内 Markdown 链接检查                                                         |
@@ -18,7 +18,8 @@
 | `verify:quick`        | `npm run verify:docs && npm run check && npm run verify:architecture`                                                                                             | 日常评审前快速门禁:文档 → 语法 → 架构                                                                        |
 | `verify:contracts` | `node scripts/verify-server-contract.js` | 核对固定服务器提交和 fixture SHA-256；支持 `LIRA_SERVER_ROOT` |
 | `verify:roundtrip` | `node scripts/verify-song-roundtrip.cjs` | 固定服务器真实 HTTP 歌库往返；两仓需安装依赖 |
-| `verify` | `npm run verify:contracts && npm run check && npm test` | 完整门禁:契约输入 → 语法 → 全量测试；文档与架构由全量各执行一次 |
+| `verify:tests` | `node scripts/run-tests.js --cache` | 沿用测试组、目录与文件选择，按有效证明补齐完整文件；支持 `--plan` / `--force` |
+| `verify` | `npm run verify:contracts && npm run check && npm run verify:tests` | 完整门禁:实时契约输入 → 语法 → 测试完整覆盖；已通过且输入未变的文件自动复用 |
 | `diagnose:wesing`     | `node scripts/inspect-wesing-playback.js`                                                                                                                         | 全民 K 歌播放状态交互诊断(见 [test.md](test.md) §4 与 [backend/music/wesing.md](../backend/music/wesing.md)) |
 | `make:icon`           | `node scripts/create-icon.js`                                                                                                                                     | 生成 `build/icon.png` + `build/icon.ico`(见 §5)                                                              |
 | `dist:win`            | `npm run make:icon && electron-builder --win nsis --x64 --publish never`                                                                                                          | 正式打包:下载 Electron 二进制 + 构建 NSIS 安装包                                                             |
@@ -33,7 +34,7 @@
 
 当前仓库已移除 Check 工作流，发布前在 Windows 和 Node.js 24 环境执行 [发布指南](../../../RELEASE_GUIDE.md) 与本地验证命令。
 
-`npm run verify` 先校验 [契约锁](../../../server-contract.lock.json) 指定的服务器提交和夹具，再运行文档、语法、架构及完整测试。服务器检出默认位于平级 `lira-server` 目录，也可通过 `LIRA_SERVER_ROOT` 指向独立的锁定检出；不要为测试重置正在开发的服务器工作区。真实 HTTP 歌库往返由 `npm run verify:roundtrip` 单独执行，要求两边安装依赖。
+`npm run verify` 先实时校验 [契约锁](../../../server-contract.lock.json) 指定的服务器提交和夹具，再补齐语法、文档、架构及完整测试覆盖；有效历史结果与本次成功共同构成覆盖。执行前用 `npm run verify:tests -- --plan` 查看运行和复用文件。依赖安装必须先结束，验证期间不要重装或修改依赖。服务器检出默认位于平级 `lira-server` 目录，也可通过 `LIRA_SERVER_ROOT` 指向独立的锁定检出；不要为测试重置正在开发的服务器工作区。真实 HTTP 歌库往返由 `npm run verify:roundtrip` 单独执行，要求两边安装依赖。缓存输入、失败和强制复验规则统一见[测试结果复用](test.md#测试结果复用)。
 
 原生安装器测试需要 `LIRA_TEST_MAKENSIS` 指向 NSIS 的 `makensis.exe`，`LIRA_TEST_NSIS_PLUGINS` 指向包含 `StdUtils.dll` 和 `nsProcess.dll` 的 `x86-unicode` 插件目录；可复用本机 electron-builder 缓存。发布验证应配置这些路径并检查测试汇总，确保安装、迁移和卸载场景实际执行。
 
@@ -77,7 +78,7 @@
 | `npmRebuild`                                             | `false`                                                       | [package.json](../../../package.json)        | 无原生模块,跳过重编译                                                                  |
 | `afterPack`                                              | `scripts/after-pack.js`                                        | [after-pack.js](../../../scripts/after-pack.js)      | 拒绝直接 builder 发布、移除 default_app.asar，并生成应用资源完整性清单；时序见 §7 |
 | `afterSign` | `scripts/after-sign.js` | [after-sign.js](../../../scripts/after-sign.js) | 签名可能改变 unpacked 文件，签名后重算资源清单；无签名构建不依赖此 hook |
-| `artifactBuildCompleted` | `scripts/verify-client-installer.js` | [verify-client-installer.js](../../../scripts/verify-client-installer.js) | 对 NSIS exe 验证最终嵌入资源，不运行安装器；失败阻断构建/发布 |
+| `artifactBuildCompleted` | `scripts/verify-client-installer.js` | [verify-client-installer.js](../../../scripts/verify-client-installer.js) | 普通构建对 NSIS exe 验证最终嵌入资源；发布专用配置由发布入口调用同一校验，不运行安装器；失败阻断，时序见 §7 |
 | `win.icon`                                               | `build/icon.ico`                                              | [package.json](../../../package.json)        | 由 make:icon 生成                                                                      |
 | `win.target`                                             | nsis / x64                                                    | [package.json](../../../package.json) | 仅 Windows x64                                                                         |
 | `nsis.oneClick`                                          | `false`                                                       | [package.json](../../../package.json)        | 标准安装向导,非一键安装                                                                |
@@ -130,14 +131,14 @@
 
 支持的 Windows 构建入口统一指定 `--publish never`；`afterPack` 拒绝直接启用 builder 发布，以免 blockmap 或安装器在最终验证前开始上传。发布必须经过 `npm run release:win`。
 
-1. 拒绝有未提交/未跟踪修改的工作区，核对本地标签和远端 peeled commit 与 HEAD 一致；保留原标签创建/核验、代理探测和凭据脱敏。
-2. 解析 `GH_TOKEN` 或 gh CLI 登录态；生成图标后再次核验工作区与 HEAD。
-3. 只构建一次：`electron-builder --win nsis --x64 --publish never --config.electronDist=node_modules/electron/dist`。构建失败直接停止，不根据旧附件判定成功。
+1. 拒绝有未提交/未跟踪修改的工作区，解析 `GH_TOKEN` 或 gh CLI 登录态，并只读核对本地标签和远端 peeled commit 与 HEAD 一致；保留代理探测和凭据脱敏。
+2. 生成图标后再次核验工作区与 HEAD。
+3. 只构建一次：`electron-builder --win nsis --x64 --publish never --config scripts/release-builder-config.js --config.electronDist=node_modules/electron/dist`。发布专用配置继承 package.json 的 build，仅将 `artifactBuildCompleted` 设为 null，由发布入口接管最终资源验证。普通 `dist:win` / `dist:win:local` 继续使用原钩子。构建失败直接停止，不根据旧附件判定成功。
 4. `afterPack` 保留删除 default_app.asar 的行为，再按构建上下文版本/平台/架构生成资源清单；发生签名时 `afterSign` 重算最终资源。无签名构建不依赖 afterSign。
-5. `artifactBuildCompleted` 对 NSIS exe 执行最终资源验证；发布脚本再校验目标安装器，并记录 exe、exe.blockmap、latest.yml 的 SHA-256。验证失败不创建或上传发布附件。
-6. 验证后创建或复用 GitHub Release，标题使用当前版本，正文来自 UPDATE.md 的对应版本小节，经临时 notes 文件传入。
-7. 最多三次调用 `gh release upload --clobber` 上传同一组已验证文件；每次先复核全部文件摘要，文件改变则中止。重试不会重新构建。
-8. 每轮上传后核对远端名称、字节数和 SHA-256；远端无摘要时下载至独立临时目录计算并清理。不一致则重试，耗尽后报错。
+5. 发布入口记录 exe、exe.blockmap、latest.yml 的 SHA-256，完整校验最终 NSIS exe 一次。随后复核全部文件摘要，确保产物未变；验证失败或产物改变不创建新标签、Release 或上传附件。
+6. 构建/验证后再次核验工作区、HEAD 和标签；只有一致才创建并推送标签，随后创建或复用 GitHub Release。标题使用当前版本，正文来自 UPDATE.md 的对应版本小节，经临时 notes 文件传入。
+7. 首次上传前及每轮上传后核对远端名称、字节数和已验证的 SHA-256；远端无摘要时下载至独立临时目录计算并清理。本地对比复用固定摘要，上传前后仍复核全部本地文件，变化立即中止。
+8. 最多三次调用 `gh release upload --clobber`，仅上传缺失或未确认一致的附件。命令失败也核对已完成的附件；若远端全部一致可恢复成功，否则只补传剩余附件。无法确认的附件不得判成功，重试耗尽报错；重试不重新构建。
 
 ```mermaid
 flowchart LR
@@ -146,9 +147,11 @@ flowchart LR
   C -->|是| D[签名 / afterSign 重算清单]
   C -->|否| E[生成 NSIS 安装器]
   D --> E
-  E --> F[artifactBuildCompleted: 验证安装器资源]
-  F --> G[发布入口复验 / 固定文件摘要]
-  G --> H[上传前与上传后核验]
+  E --> F{构建入口}
+  F -->|普通 dist| G[artifactBuildCompleted: 验证安装器资源]
+  F -->|release:win| H[固定摘要 / 完整验证安装器一次]
+  H --> I[复核文件与 Git 状态 / 推送标签]
+  I --> J[按附件上传重试 / 本地与远端摘要核验]
 ```
 
 资源摘要证明应用文件与随包清单一致；发布者签名验证是独立保证。`afterSign` hook 存在不代表正式证书配置或签名安装验收已完成，当前签名状态仍见 §12。

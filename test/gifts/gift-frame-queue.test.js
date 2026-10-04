@@ -87,3 +87,17 @@ test('unknown effects and malformed gifts cannot occupy a queue slot', async () 
   assert.equal(plays.length, 0);
   queue.dispose();
 });
+
+test('the ribbon theme is accepted and missing themes still default to effect 1', async () => {
+  const { queue, plays } = await fixture();
+  assert.equal(queue.enqueue({ ...event(1), themeId: 'satin-ribbon' }), true);
+  assert.equal(queue.enqueue({ ...event(2), themeId: undefined }), true);
+  assert.equal(plays.length, 1);
+  assert.equal(plays[0].payload.themeId, 'satin-ribbon');
+  plays[0].resolve();
+  await flush();
+  assert.equal(plays[1].payload.themeId, undefined);
+  plays[1].resolve();
+  await flush();
+  queue.dispose();
+});

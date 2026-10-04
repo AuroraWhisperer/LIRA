@@ -14,9 +14,10 @@ npm version X.Y.Z --no-git-tag-version
 
 ## 2. 验证、提交、推送
 
-发布前运行一次统一验证；它已包含 `npm test`，无需另跑一遍。同一份待发布内容已有通过结果时可复用。环境要求见[本地发布验证](docs/reference/engineering/build.md#本地发布验证)。
+发布前运行统一验证；它会复用仍有效的语法和完整测试文件结果，并补齐完整覆盖，无需再运行一次原始 `npm test`。先查看测试计划，环境要求及复用边界见[本地发布验证](docs/reference/engineering/build.md#本地发布验证)。
 
 ```powershell
+npm run verify:tests -- --plan
 npm run verify
 ```
 
@@ -33,13 +34,13 @@ git push
 npm run release:win
 ```
 
-脚本自动检查并推送版本标签，在构建和安装包验证通过后创建或复用 Release，上传并校验三个附件。输出 `All expected assets uploaded` 且正常退出即完成，无需再人工检查附件完整性。实现细节见[构建与发布参考](docs/reference/engineering/build.md#7-发布流程scriptspublish-releasejs)。
+脚本先检查凭据与版本标签冲突，在构建和一次完整安装包验证通过后创建并推送版本标签，再创建或复用 Release，只上传缺失或内容不一致的附件。输出 `All expected assets uploaded` 且正常退出即完成，无需再人工检查附件完整性。实现细节见[构建与发布参考](docs/reference/engineering/build.md#7-发布流程scriptspublish-releasejs)。
 
 ## 失败处理与可选设置
 
 - **未登录 GitHub**：执行 `gh auth login` 后重跑。
-- **上传失败**：单次运行最多尝试上传三次，期间不重新构建。仍失败时，排除网络或权限问题，在同一提交、同一版本下重跑 `npm run release:win`；重跑会重新构建并覆盖上传三个附件，已有 Release 的正文不会自动更新。
-- **标签与当前提交不一致**：标签可能在构建失败前已经推送。若修复代码后产生了新提交，使用新版本号发布，不覆盖既有远端标签。
+- **上传失败**：单次运行最多尝试上传三次，期间不重新构建；每轮核对远端附件，只补传缺失或内容不一致的文件。仍失败时，排除网络或权限问题，在同一提交、同一版本下重跑 `npm run release:win`；重跑会重新构建并按新产物摘要决定补传范围，已有 Release 的正文不会自动更新。
+- **标签与当前提交不一致**：构建或安装包验证失败不会创建新标签；标签在这些步骤通过后推送，后续上传失败时可能已存在。已有标签若对应另一提交，使用新版本号发布，不覆盖既有远端标签。
 - **指定代理**：脚本会自动探测常用本机代理；需要手动指定时，在当前 PowerShell 会话设置 `$env:HTTPS_PROXY = 'http://127.0.0.1:7890'` 后重跑。
 - **关闭代理自动探测**：设置 `$env:RELEASE_NO_PROXY = '1'`。已有 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量仍优先，不等于强制直连；需要直连时还应清除这些变量。
 

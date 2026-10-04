@@ -4,6 +4,8 @@
 
 Accepted — 2026-09-13。用户要求实施客户端模块化复审报告的批次 D。
 
+2026-10-04：文件行数硬门禁、精确额度及到期登记由 [ADR-0023](0023-purpose-aware-file-size-review.md) 替代。以下保留原接受结论；当前规则见[模块化规范](../engineering/modularity-standard.md#file-size-review)。
+
 ## Context
 
 [复审报告](../../reports/2026-09-13-client-modularity-reassessment.md)将普通人工维护源码纳入 600/800 行规则，现有模块化规范仍只有生产 JavaScript 的 800 行软审查线。既有 CSS、HTML、测试及大型状态工厂需要逐步收敛，不能为通过数值门禁分散资源、事务或授权状态，也不能删测试断言。

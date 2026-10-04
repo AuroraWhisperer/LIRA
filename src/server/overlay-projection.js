@@ -209,7 +209,7 @@ const EVENT_SCHEMAS = {
   },
   'gift:guard-thanks': {
     scope: 'gift-effects',
-    schema: fields('eventId tier userName months avatarUrl textMode preview'),
+    schema: fields('eventId tier userName months avatarUrl textMode style preview'),
   },
   'gift:effect': {
     scope: 'gift-effects',

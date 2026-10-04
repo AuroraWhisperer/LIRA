@@ -82,7 +82,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     fields: {},
   },
   'guard-thanks': {
-    title: '大航海感谢', size: [1280, 1080], path: '/gift-effects?giftComponent=guard',
+    title: '大航海感谢', size: [2560, 1440], path: '/gift-effects?giftComponent=guard',
     variants: [variant('default', '大航海感谢', '欢迎上舰')],
     fields: { textMode: select('动画文字', 'bilingual', { bilingual: '中英双语', zh: '中文', en: 'English' }) },
   },

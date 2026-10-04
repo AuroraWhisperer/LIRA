@@ -1,5 +1,7 @@
 {
   "version": 1,
+  "status": "historical",
+  "supersededBy": "docs/architecture/adr/0023-purpose-aware-file-size-review.md",
   "entries": [
     {
       "path": "src/electron/main.js",

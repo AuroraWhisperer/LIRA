@@ -124,13 +124,30 @@
 
 `gift-frame-queue.js` 负责自定义边框的 FIFO 队列：1 条播放、最多 50 条等待；当前播放不被插队或打断，
 满队列忽略新事件，已排队项不因等待时长失效，也不按金额排序。实时与预览均按 eventId 去重，
-预览接口每次生成独立 ID。只接收目前支持的特效身份；后续特效的参数与播放器由其各自模块拥有。
+预览接口每次生成独立 ID。队列接受 `woodland-bloom` 与 `satin-ribbon` 两个特效身份，
+其他主题一律拒绝；后续特效的参数与播放器由其各自模块拥有。
+
+**特效 2 · 缎带礼笺**（`themeId: satin-ribbon`）与特效 1 并列，由同一 `gift:frame` 事件按 `themeId` 分发：
+`gift-frame-player.js` 把事件交给特效 1 的 `gift-effects-frame.js`，或交给特效 2 的
+`gift-frame-ribbon.js`。特效 2 不使用视频，它在每次播放时用 SVG + WAAPI 现建现拆（礼盒、两条缎带、
+蝴蝶结、礼签），并复用 `shared/guard-thanks-particles.js` 在礼盒与蝴蝶结处各播一次小幅彩屑。
+时间线固定为 5 秒：礼盒入场 0–350ms、开盖 250–550ms、两条缎带一笔绕屏 450–1850ms、
+蝴蝶结系紧 1850–2150ms、礼签垂下 2050–3150ms、缎带高光扫过一次 2700–3600ms、
+礼签淡出 3900–4200ms、蝴蝶结收拢 4050–4350ms、缎带沿原路收回 4200–4800ms、合盖淡出 4600–5000ms。
+礼盒与蝴蝶结每次播放左右交替，因此入场点不固定在上下左右任一边；美术组镜像，礼签位置与文字不镜像。
+文字与特效 1 一致，为“感谢 {昵称}”“送出 {礼物名} ×{数量}”，经 `textContent` 写入 1920×1080 设计坐标，
+长昵称与长礼物名先减小字号再省略，数量列始终完整。`?preview=1&frameTheme=satin-ribbon` 可在页面内单独预览特效 2。
+
+**两个特效的分档**：各自持有独立开关与门槛（特效 1 `giftFrameEnabled` / `giftFrameThresholdRmb`，
+特效 2 `giftFrameRibbonEnabled` / `giftFrameRibbonThresholdRmb`）。同一笔 final 礼物同时满足两者时
+只播触发金额更高的那个，金额相同播特效 2；一笔礼物仍只产生一个 `gift:frame` 事件，
+`eventId` 仍是 `gift-frame:<giftEventId>`。设置键与校验见 [storage reference](../backend/storage.md)。
 加载允许 10 秒，媒体进度停滞 5 秒触发清理；加载耗时不扣减正常的 4 秒动画。
 正常结束、解码错误、播放拒绝、超时和 pagehide 都释放回调/计时器并清空画面；错误后后续事件重新加载媒体并推进队列。
 旧静态图、挂饰、Canvas 粒子和 frame motion 模式已移除；URL motion 仍只影响大航海感谢。
 `gift:effect` 官方特效的独立播放器和队列保持既有行为。
 
-**大航海感谢**：同一页面在 `#guardThanksRoot` 消费 `gift:guard-thanks`，由 `overlays/gift-effects-guard.js` 按 eventId 去重（预览不去重）、逐条播放，最多 12 条等待、等待超过 90 秒丢弃，队列满时舍弃最早的最低等级；有等待时缩短停留。渲染器 `shared/guard-thanks-card.js`（徽记 `guard-thanks-emblems.js`、粒子 `guard-thanks-particles.js`、样式 `css/shared/guard-thanks.css`）同时供画布组件预览使用：1280×1080 设计舞台按 `min(宽/1280, 高/1080)` 居中缩放，舰长/提督/总督分别为蓝色船锚、紫色罗盘、红金船舵，依次播放冲击波与闪光、徽记入场、头像徽章描边、丝带标题逐字弹出与扫光、标语和感谢铭牌，并有对应的气泡/星芒/彩纸余烬粒子。入场 1.5 秒，停留 3.3/4.0/5.0 秒，退场 0.7 秒；所有 WAAPI 动画、计时器和画布帧都有限且在会话结束时清理。头像只直连 HTTPS hdslb 地址（`no-referrer`），失败或缺失时显示昵称首字，预览使用内置样例头像；文字支持中英双语、中文、英文。`?motion=reduced` 或系统减少动态效果时只淡入淡出；`?preview=1&guardPreview=<tier>` 可在页面内单独预览。
+**大航海感谢**：同一页面在 `#guardThanksRoot` 消费 `gift:guard-thanks`，由 `overlays/gift-effects-guard.js` 按 eventId 去重（预览不去重）、逐条播放，最多 12 条等待、等待超过 90 秒丢弃，队列满时舍弃最早的最低等级；有等待时缩短停留。渲染由 `shared/guard-thanks-card.js` 分发到两套互不影响的风格，粒子共用 `guard-thanks-particles.js`，时间与 DOM 工具共用 `guard-thanks-stage.js`，均同时供画布组件预览使用；1280×1080 设计舞台按 `min(宽/1280, 高/1080)` 居中缩放。`guardThanksStyle=classic`（`guard-thanks-classic.js` + `css/shared/guard-thanks.css`）为金属徽章风格：舰长/提督/总督分别为蓝色船锚、紫色罗盘、红金船舵，依次播放冲击波与闪光、徽记入场、头像徽章描边、丝带标题逐字弹出与扫光、标语和感谢铭牌，并有对应的气泡/星芒/彩纸余烬粒子；入场 1.5 秒，停留 3.3/4.0/5.0 秒，退场 0.7 秒；头像只直连 HTTPS hdslb 地址（`no-referrer`），失败或缺失时显示昵称首字，预览使用内置样例头像。`guardThanksStyle=aurora`（默认，`guard-thanks-aurora.js` + `css/shared/guard-thanks-aurora.css`）为辉光柔和风格：珍珠白主导、低饱和配色，由雾底光场、极光绸带、光晕环、光刻纹章与辉光文字构成，**不出现送礼人头像与名字**；三档以层数与专属材质递进（舰长露珠高光、提督霜纹细线、总督金箔飘片），入场 1.8/2.0/2.2 秒、停留 3.0/3.4/4.0 秒、退场 1.0 秒，单次总时长不低于 5 秒；连播压缩更轻（停留取 0.7）。两套风格的文字都支持中英双语、中文、英文。`?motion=reduced` 或系统减少动态效果时只做淡入淡出（辉光保留静帧构图）；`?preview=1&guardPreview=<tier>`（可加 `&guardStyle=aurora|classic`、`&guardText=`、`&guardMonths=`）可在页面内单独预览。
 
 ### 1.5 开播动画(`/opening`)
 
@@ -449,9 +466,9 @@ owner 注册，未知类型立即报错，不反向导入工厂或 owner。`cloc
 `gift-frame` 和 `guard-thanks` 是两个独立图层，分别通过 `/gift-effects?giftComponent=frame`、
 `/gift-effects?giftComponent=guard` 的无凭据组件模式复用现有播放器，只消费父页传入的对应事件。
 礼物姬预览入口直接打开并选中对应画布图层，不再提供独立播放页或共用来源地址。
-大航海感谢参数面板保留预览等级（舰长/提督/总督）、观众昵称和月数（1–999）；修改后立即重播，
+大航海感谢参数面板保留预览等级（舰长/提督/总督）、动画风格（辉光/经典）、观众昵称和月数（1–999）；修改后立即重播，
 客户端礼物姬填写的这三项参数随预览入口带入画布并回填；持续轮询不覆盖画布中随后修改的值。
-切换等级、动画文字或图层选择时保留本页预览输入。这些示例参数不写入场景配置，直播仍使用真实上舰事件。
+切换等级、动画风格、动画文字或图层选择时保留本页预览输入。这些示例参数不写入场景配置，直播仍使用真实上舰事件。
 编辑样例每八秒重播，正式来源无样例。`server/scene-gift-events.js` 从既有礼物显示事件接收最多
 200 条按账号 scope/epoch 隔离的投影窗口；`scene-gift-display.js` 在父页按序列去重、暂存准备期事件。
 首次打开、账号代次变化及断线恢复只建立当前基线；已交付事件不会在重发布时补播，子页断线清空队列。

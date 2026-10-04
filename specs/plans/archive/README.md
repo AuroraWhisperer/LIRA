@@ -6,6 +6,8 @@
 
 ## 文件索引
 
+- [2026-10-04-verification-reuse](2026-10-04-verification-reuse.md)
+- [2026-10-04-release-efficiency](2026-10-04-release-efficiency.md)
 - [2026-10-04-architecture-audit-fixes](2026-10-04-architecture-audit-fixes.md)
 
 - [2026-10-04-status-toast-completion](2026-10-04-status-toast-completion.md)

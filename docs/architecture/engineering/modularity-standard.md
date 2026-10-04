@@ -131,6 +131,8 @@ Status meanings:
 - `Incrementally Enforced`: tests freeze known debt or cover only selected paths.
 - `Migration Target`: desired direction is documented but not comprehensively
   machine-enforced.
+- `Review Required`: reviewers judge the semantic boundary; automated reports
+  provide signals rather than a pass/fail verdict on that boundary.
 
 | Rule ID               | Rule                                                          | Status                 | Enforcement                                                                                                                                                                      |
 | --------------------- | ------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -141,7 +143,7 @@ Status meanings:
 | `MOD-FRONTEND-001`    | New frontend code uses explicit ESM boundaries                | Incrementally Enforced | `test/engineering/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
 | `MOD-SHARED-001`      | Shared utilities remain domain-neutral                        | Migration Target       | Selected regression assertions                                                                                                                                                   |
 | `MOD-CONTRACT-001`    | Public contracts remain compatible by default                 | Incrementally Enforced | Existing regression tests; full inventory deferred                                                                                                                               |
-| `MOD-SIZE-001`        | Ordinary source has an 800-line ceiling; 601–800 needs review | Incrementally Enforced | `test/engineering/modularity-size.test.js` enforces physical lines and exact-file reviewed ceilings; existing overflow is frozen debt                                                        |
+| `MOD-SIZE-001`        | Review file size by source kind, responsibility and purpose | Review Required | `scripts/check-modularity.js` reports advisory size signals; `test/engineering/modularity-size.test.js` verifies counting and reporting, not semantic cohesion |
 | `MOD-FUNCTION-001`    | Long or complex functions need semantic decomposition review  | Migration Target       | Named debt and next-change triggers in [modularity-debt.md](modularity-debt.md); no repository-wide function metric gate                                                         |
 
 Review-only or partial coverage must not be labeled `Enforced`.
@@ -189,79 +191,74 @@ directory-wide gate checks literal CommonJS require paths; computed/dynamic
 imports and frontend composition directions still require review. This is not
 full dependency-graph enforcement.
 
-### File Size Gate And Review
+### File Size Review
 
-[ADR-0017](../adr/0017-incremental-modularity-size-gate.md) adopts the September
-13 reassessment's batch D policy. `npm run verify:modularity` reports the size
-gate directly; `verify:architecture`, `verify:quick`, `verify` and `npm test`
-also run it. Release validation runs these local gates with the pinned server
-checkout and installer test prerequisites described in [build.md](../../reference/engineering/build.md).
+[ADR-0023](../adr/0023-purpose-aware-file-size-review.md) replaces ADR-0017's
+numeric ceilings and expiring size registry. Decide whether to retain or split
+a file by its kind, responsibility, consumers and purpose. Repository size does
+not determine an acceptable file size, and a short file can still mix unrelated
+responsibilities.
 
-- Count physical lines, including comments and blanks. Empty files have zero
-  lines; a final newline adds no phantom line. CRLF, LF and CR use the same
-  counting rule. Directory totals are not size limits.
-- Format changed source with the repository Prettier configuration before
-  counting. The dependency-free gate reads stored text; it does not install or
-  invoke Prettier and does not certify formatting. The September 13 baseline
-  uses the existing Prettier 3.7.4 formatting. Intentionally incomplete HTML
-  in `.prettierignore` remains unformatted but is still counted.
-- The scanner recursively includes `.js`, `.mjs`, `.cjs`, `.css`, `.html`,
-  `.json`, `.ps1`, `.cmd`, `.bat` and `.nsh` in `src/`, `public/`, `scripts/`,
-  `tools/`, `test/` and `build/`. It includes new/untracked files, test helpers
-  and fixtures. These exact roots/extensions define the gate's coverage.
-  Repository-root configuration, Markdown documents, binary/vector media and
-  data outside these roots are not source-size inputs. New source kinds require
-  updating the scanner and its coverage test; they are not implicit exemptions.
-- **Up to 600 lines:** no file-size record is required. This does not waive
-  function, dependency or ownership review.
-- **601–800 lines:** require an exact-file `review` record identifying the owner,
-  cohesive responsibility, alternatives/removal trigger, protection test,
-  reviewed line ceiling and review date. Growth past that ceiling fails even
-  when the file remains below 800.
-- **Above 800 lines:** new ordinary source is prohibited. Current oversized
-  files use `legacy` records with frozen ceilings and concrete extraction plans.
-  They must not gain independent responsibilities, even through line-neutral
-  rewrites. This semantic restriction requires diff review.
-- The machine-readable register is
-  [modularity-baseline.json](modularity-baseline.json). Paths must identify one
-  existing scanned file; duplicate, wildcard, missing, invalid and expired
-  records fail. `reviewBy` is inclusive and evaluated against the UTC date.
-  Shrinking to 600 or below requires removing the file-size record. When a
-  legacy file falls into the warning band, lower its ceiling and change it to
-  `review`. Lower ceilings alongside reductions; do not restore removed debt.
-- Do not regenerate or raise the baseline merely to pass a gate. New warning
-  assessments and changed exceptions require explicit review of the diff and
-  recorded rationale. Raising a legacy ceiling is not ordinary maintenance;
-  split the new responsibility instead. The gate validates registry structure,
-  not approval provenance or the truth of prose assessments.
+| Kind / purpose | Advisory signal | Review focus |
+| --- | --- | --- |
+| Business logic, controllers, adapters and executable scripts | Above 600 physical lines | Independent workflows, state/resource ownership, function complexity and dependency direction. Keep a coherent lifecycle together. |
+| CSS | Above 800 physical lines | Component/page scope, cascade order, repeated overrides and reusable styles. Keep related layout, states, animation and responsive rules together. |
+| HTML and templates | Above 800 physical lines | Complete page/section semantics, repeated components and embedded behavior. Static help content can be longer than an interactive form. |
+| Tests and executable test helpers / fixtures | Above 800 physical lines | Behavior/provider/lifecycle scenarios, isolation and readable setup. Preserve complete integration assertions. |
+| Pure data, catalogs, schemas, snapshots and generated output | No universal line threshold | Structure, validation, source of truth and reproducibility. Review the generator or executable consumer where applicable. |
 
-### Test Policy And Exact-file Exceptions
+These signals are not maximums or automatic exemptions. CSS at 601–800 lines
+does not need a special record; a cohesive file above a signal may also stay
+intact. For a signaled file affected by the task, explain its purpose, why
+retaining it or extracting a real responsibility improves maintenance, and the
+relevant verification in the normal change review. Do not create a separate
+size approval, exact-line budget, expiry date or registry entry. Existing
+unrelated files do not become mandatory cleanup work because a report lists them.
 
-Tests use the same default 600/800 review bands, with scenario cohesion as the
-primary boundary. Split by behavior, provider or lifecycle stage; retain
-cross-layer integration assertions and isolated state. Keep named test commands
-such as `test:admin` synchronized with test moves. A large fake DOM may be
-extracted when consumers justify it; neither all tests nor all fixtures are
-excluded. A larger cohesive test needs its own reviewed `exception` with a
-reason and ceiling. Current oversized tests remain `legacy` work, not fixtures.
+Split when a file gains independently changing responsibilities, unrelated
+consumers, confusing dependencies or hard-to-test behavior. Do not split solely
+at a line boundary, scatter one mutable state owner, add pass-through wrappers,
+remove assertions/comments, or compress formatting to reduce the count.
+Auth, tenant, storage, lifecycle and dependency rules remain binding regardless
+of length. Handwritten migration executors and analyzers are executable logic;
+calling a file a fixture or generated output does not exempt its behavior.
 
-The static-content exception for `public/data/theme-presets.json` keeps a
-fixed-address pure-data catalog. Its ceiling, owner, reason, exit trigger,
-deadline and protection test are recorded in the registry. The help chapters
-formerly covered by `public/pages/admin/toolbox/usage-guide.html` now use
-ordered complete fragments, each within the ordinary size limit; that record
-has been removed. Help content still excludes inline scripts and business
-forms. Exceptions fail on growth or expiry and are reviewed for continued
-static content. Handwritten migration executors and analyzers are ordinary
-source, not generated snapshots or fixtures.
+`npm run verify:modularity` prints advisory findings and succeeds when scanning
+completes, even above a signal. `verify:architecture`, `verify:quick`, `verify`
+and `npm test` retain the reporting tests and the independent architecture
+gates. A successful size report does not certify cohesion or formatting.
+
+- Count stored physical lines including comments and blanks; an empty file has
+  zero lines and a final newline adds no phantom line. CRLF, LF and CR agree.
+  Use the repository formatter for changed source; the scanner does not run it.
+- Scan `.js`, `.mjs`, `.cjs`, `.css`, `.html`, `.json`, `.ps1`, `.cmd`, `.bat`
+  and `.nsh` under `src/`, `public/`, `scripts/`, `tools/`, `test/` and `build/`,
+  including untracked files. CSS/HTML use their own signals; other executable
+  files under `test/` use the test signal. JSON is counted without a length
+  finding. Other data/generated purposes are judged during review, not inferred
+  from a filename to bypass behavioral checks.
+- Root configuration, Markdown, media and runtime data outside these roots are
+  not scanned. The policy still applies when reviewing maintained source outside
+  the scanner's coverage.
+- [modularity-baseline.json](modularity-baseline.json) is a historical snapshot
+  of past assessments. Its line ceilings and dates are inactive; do not renew
+  or update it for current changes. Semantic debt remains in
+  [modularity-debt.md](modularity-debt.md).
+
+Keep named commands such as `test:admin` synchronized when tests move. Preserve
+the fixed-address theme catalog's data contract and the help chapters' content
+boundary: help still excludes inline scripts and business forms. These are
+content contracts, independent of file length.
 
 ### Function Review And Incremental Debt
 
-Functions spanning **81–120 physical lines** normally need semantic extraction;
-those **over 120**, with **branch estimate over 20**, or **nesting over 4** need
-an explicit remediation/defer decision. Count the full function span including
-nested callbacks; moving it into a class or a mutable context bag is not a fix.
-Keep cancellation, tokens, timers, transactions and cleanup with one owner.
+Function spans above **80 physical lines**, especially above **120**, branch
+estimates over **20**, and nesting over **4** are review signals, not mandatory
+extraction criteria. Assess separate responsibilities and cognitive complexity;
+record concrete debt when a real problem is deferred. Count the full span
+including nested callbacks. Keep cancellation, tokens, timers, transactions and
+cleanup with one owner; moving code into a class or mutable context bag is not
+a boundary improvement.
 
 For continuity with the reassessment, the branch estimate starts at 1 and counts
 conditions, loops, non-default switch cases, catch, ternaries and logical
@@ -273,9 +270,9 @@ function gate; do not use regex estimates as a hard gate.
 
 [modularity-debt.md](modularity-debt.md) records known factories, initializers
 and historical migrations, their owners, protections and next-change triggers.
-Reassess these on relevant edits and by the register's review dates. It is not
-an audit of every function below 600 file lines. Preserving a coherent legacy
-state owner does not certify compliance with the 120-line rule.
+Reassess these on relevant edits and their concrete change triggers. It is not
+an audit of every function in a short file. Preserving a coherent legacy state
+owner does not certify that its internal workflows are easy to maintain.
 
 ### Review Remediation Coverage
 

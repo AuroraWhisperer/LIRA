@@ -3,6 +3,7 @@
 
 const MAX_PENDING = 50;
 const SEEN_LIMIT = 200;
+const THEME_IDS = new Set(['woodland-bloom', 'satin-ribbon']);
 
 export function createGiftFrameQueue({ player, onError, canPlay = () => true }) {
   const pending = [];
@@ -54,5 +55,5 @@ function isValidFramePayload(payload) {
     typeof payload.giftName === 'string' && typeof payload.userName === 'string' &&
     Number.isSafeInteger(Number(payload.num)) && Number(payload.num) > 0 &&
     Number.isSafeInteger(Number(payload.totalPriceCents)) && Number(payload.totalPriceCents) > 0 &&
-    (payload.themeId || 'woodland-bloom') === 'woodland-bloom';
+    THEME_IDS.has(payload.themeId || 'woodland-bloom');
 }

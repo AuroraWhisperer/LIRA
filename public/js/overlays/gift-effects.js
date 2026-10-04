@@ -2,6 +2,7 @@
 'use strict';
 
 import { createFrameController } from './gift-effects-frame.js';
+import { createGiftFramePlayer } from './gift-frame-player.js';
 import { createGiftFrameQueue } from './gift-frame-queue.js';
 import { createGiftEffectPlayer } from './gift-effect-player.js';
 import { createGuardThanksQueue } from './gift-effects-guard.js';
@@ -14,9 +15,10 @@ import { mountGiftEffectComponent } from './gift-effects-component.js';
   const PREVIEW_MODE = params.get('preview') === '1';
   const GUARD_PREVIEW_TIER = params.get('guardPreview');
   const frameRoot = document.getElementById('giftFrame');
+  const ribbonRoot = document.getElementById('giftRibbon');
   const status = document.getElementById('giftEffectStatus');
   const frameQueue = createGiftFrameQueue({
-    player: createFrameController({ frameRoot }),
+    player: createGiftFramePlayer({ frameRoot, ribbonRoot }),
     canPlay: () => !PREVIEW_MODE || document.visibilityState !== 'hidden',
     onError: (error) => showStatus(`礼物边框播放失败：${error.message || error}`),
   });
@@ -101,20 +103,22 @@ import { mountGiftEffectComponent } from './gift-effects-component.js';
   }
 
   function createPreviewPayload() {
+    const themeId = params.get('frameTheme') === 'satin-ribbon' ? 'satin-ribbon' : 'woodland-bloom';
     return {
       type: 'gift:frame',
       eventId: `gift-frame:local-preview-${Date.now()}`,
-      giftName: '林间花信',
+      giftName: themeId === 'satin-ribbon' ? '缎带礼笺' : '林间花信',
       userName: '观众A',
       num: 2,
       totalPriceCents: 52000,
-      themeId: 'woodland-bloom',
+      themeId,
       preview: true,
     };
   }
   function createGuardPreviewPayload(tier) {
     const textMode = params.get('guardText');
     const months = Number(params.get('guardMonths'));
+    const style = params.get('guardStyle');
     return {
       type: 'gift:guard-thanks',
       eventId: `guard-thanks:local-preview-${Date.now()}`,
@@ -122,6 +126,7 @@ import { mountGiftEffectComponent } from './gift-effects-component.js';
       userName: String(params.get('guardName') || '观众A').slice(0, 100),
       months: Number.isSafeInteger(months) && months > 0 ? months : 1,
       textMode: ['bilingual', 'zh', 'en'].includes(textMode) ? textMode : 'bilingual',
+      style: ['aurora', 'classic'].includes(style) ? style : 'aurora',
       preview: true,
     };
   }

@@ -8,7 +8,6 @@ const {
   normalizeFrameSettingValue,
   normalizeRmbCents,
 } = require('../../src/bilibili/gift/frame-config');
-
 test('frame adapter uses final total price in integer cents and stable event ids', () => {
   const event = buildGiftFrameEvent(
     {
@@ -93,8 +92,42 @@ test('effect 1 retains its own settings while obsolete settings cannot be writte
   assert.equal(payload.motionMode, undefined);
 });
 
-test('frame preview route broadcasts a preview event and validates bad input', async () => {
-  const { routes } = require('../../src/server/routes/gift-routes');
+test('each frame effect owns its switch and threshold, with the highest qualifying threshold winning', () => {
+  const base = { id: 12, detection_status: 'final', gift_name: '缎带', user_name: '观众B', num: 1 };
+  const both = (threshold, ribbonThreshold) => ({
+    giftFrameEnabled: 'true',
+    giftFrameThresholdRmb: threshold,
+    giftFrameRibbonEnabled: 'true',
+    giftFrameRibbonThresholdRmb: ribbonThreshold,
+  });
+
+  // 只有特效 2 启用：只要够它自己的门槛就播 1 次缎带礼笺。
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 100 }, {
+    giftFrameEnabled: 'false', giftFrameRibbonEnabled: 'true', giftFrameRibbonThresholdRmb: '100',
+  }).themeId, 'satin-ribbon');
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 99.99 }, {
+    giftFrameRibbonEnabled: 'true', giftFrameRibbonThresholdRmb: '100',
+  }), null);
+
+  // 两者都启用：只播门槛更高的那个，并列时特效 2 优先。
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 300 }, both('20', '100')).themeId, 'satin-ribbon');
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 300 }, both('100', '20')).themeId, 'woodland-bloom');
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 300 }, both('50', '50')).themeId, 'satin-ribbon');
+  // 同一笔礼物只产生一个事件，ID 仍然是 final gift group 的稳定 ID。
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 300 }, both('20', '100')).eventId, 'gift-frame:12');
+  // 两个都不满足时没有事件。
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 20 }, both('20.01', '100')), null);
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 0 }, both('0', '0')), null);
+
+  // 特效 2 的键与特效 1 一样做白名单校验。
+  assert.equal(normalizeFrameSettingValue('giftFrameRibbonEnabled', 'yes'), null);
+  assert.equal(normalizeFrameSettingValue('giftFrameRibbonEnabled', 'true'), 'true');
+  assert.equal(normalizeFrameSettingValue('giftFrameRibbonThresholdRmb', '-1'), null);
+  assert.equal(normalizeFrameSettingValue('giftFrameRibbonThresholdRmb', '100'), '100');
+  assert.equal(buildGiftFramePreviewEvent({ themeId: 'satin-ribbon' }).themeId, 'satin-ribbon');
+});
+
+test('frame preview route broadcasts a preview event and validates bad input', async () => {  const { routes } = require('../../src/server/routes/gift-routes');
   const handler = routes['POST /api/gifts/frame/preview'];
   const broadcasts = [];
   const context = {
