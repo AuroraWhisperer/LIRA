@@ -4,6 +4,54 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
+const { randomUUID } = require('node:crypto');
+const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
+
+test('text box instance links select the requested item and keep separate reusable entries', { timeout: 25000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const created = fixture.service.create({ title: '两个文本框', canvas: { width: 1920, height: 1080 } });
+  const items = ['第一个文本框', '第二个文本框'].map((name, index) => ({
+    id: randomUUID(), type: 'text-box', name, x: 80, y: index * 200, width: 640, height: 180,
+    visible: true, locked: false, appearance: { mode: 'independent', config: createTextBoxDefaults() },
+  }));
+  fixture.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items } });
+  const desktop = await browser.newPage();
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  await openCanvasDesktop(desktop, fixture);
+  await desktop.evaluate(async () => {
+    const { openComponentPreview } = await import('/js/admin/component-preview-dialog.js');
+    window.openTextItem = selectedItemId => {
+      window.externalPreviewUrl = '';
+      window.previewHandle = openComponentPreview({ id: 'text-box', selectedItemId });
+    };
+  });
+  const urls = new Map();
+  for (const index of [1, 0, 1]) {
+    await desktop.evaluate(id => window.openTextItem(id), items[index].id);
+    await desktop.waitForFunction(() => window.externalPreviewUrl);
+    const url = await desktop.evaluate(() => window.externalPreviewUrl);
+    if (urls.has(index)) assert.equal(url, urls.get(index));
+    urls.set(index, url);
+    assert.equal((await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.selectedItemId, items[index].id);
+    assert.equal((await fetch(url)).status, 200);
+    await page.goto('about:blank');
+    await page.goto(url);
+    const selected = page.locator('.preview-canvas-layer-select[aria-pressed="true"]');
+    await selected.waitFor();
+    assert.equal(await selected.getAttribute('data-item-id'), items[index].id);
+    assert.equal(await selected.textContent(), items[index].name);
+    assert.equal(await page.locator('.preview-canvas-layer-select').count(), 2);
+  }
+  assert.notEqual(urls.get(0), urls.get(1));
+  await page.reload();
+  const selected = page.locator('.preview-canvas-layer-select[aria-pressed="true"]');
+  await selected.waitFor();
+  assert.equal(await selected.getAttribute('data-item-id'), items[1].id);
+});
 
 test('reopening uses one short link and old pages can refresh into the same editable drafts', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();

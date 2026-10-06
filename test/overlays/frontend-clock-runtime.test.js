@@ -71,6 +71,8 @@ function createClockDom() {
       value: '',
       textContent: '',
       children: [],
+      getBoundingClientRect: () => ({ left: 0, top: 0, right: 560, bottom: 190, width: 560, height: 190 }),
+      querySelectorAll() { return [this]; },
       style: { setProperty(key, value) { this[key] = value; }, getPropertyValue(key) { return this[key] || ''; },
         removeProperty(key) { delete this[key]; } },
       classList: {
@@ -295,6 +297,88 @@ test('clock applies only same-origin parent previews without restarting its time
   dom.document.hidden = false;
   dom.document.listeners.get('visibilitychange')();
   assert.equal(dom.timers.size, 1);
+});
+
+test('moonlit clock retains its full art bounds when date and seconds change, using one timer', async () => {
+  const dom = createClockDom();
+  const messages = [];
+  dom.window.parent.postMessage = message => messages.push(message);
+  await loadModuleExports(entry('overlays', 'clock.js'), {
+    ...dom, URL, URLSearchParams, location: new URL('http://127.0.0.1:3000/clock?componentPreview=1'),
+    fetch: () => assert.fail('preview must not read live settings'),
+  });
+  const receive = config => dom.window.listeners.get('message')({
+    source: dom.window.parent, origin: 'http://127.0.0.1:3000',
+    data: { type: 'component-preview:config', config },
+  });
+  receive({ style: 'moonlit-fan', showDate: true, showSeconds: true, hourFormat: '24' });
+  const card = dom.document.getElementById('clockCard');
+  const scale = card.style.getPropertyValue('--clock-scale');
+  const timer = [...dom.timers.keys()];
+  assert.equal(card.dataset.clockStyle, 'moonlit-fan');
+  assert.equal(card.style.getPropertyValue('--clock-offset-x'), '0px');
+  const initialSize = messages.filter(message => message.type === 'component-preview:resize').at(-1);
+  assert.ok(initialSize);
+  receive({ style: 'moonlit-fan', showDate: false, showSeconds: false, hourFormat: '12' });
+  assert.equal(dom.document.getElementById('clockDateRow').hidden, true);
+  assert.equal(dom.document.getElementById('clockSeconds').hidden, true);
+  assert.match(dom.document.getElementById('clockPeriod').textContent, /^(AM|PM)$/);
+  assert.equal(card.style.getPropertyValue('--clock-scale'), scale);
+  assert.deepEqual(messages.filter(message => message.type === 'component-preview:resize').at(-1), initialSize);
+  assert.deepEqual([...dom.timers.keys()], timer);
+  dom.window.listeners.get('pagehide')();
+  assert.equal(dom.timers.size, 0);
+});
+
+test('moon palettes alternate on clock boundaries and keep fixed choices with one disposable timer', async () => {
+  const dom = createClockDom();
+  dom.window.parent.postMessage = () => {};
+  let now = new Date(2026, 9, 5, 12, 0, 0).getTime();
+  const start = now;
+  class ClockDate extends Date {
+    constructor() { super(now); }
+    static now() { return now; }
+  }
+  await loadModuleExports(entry('overlays', 'clock.js'), {
+    ...dom, Date: ClockDate, URL, URLSearchParams,
+    location: new URL('http://127.0.0.1:3000/clock?componentPreview=1'),
+  });
+  const config = { style: 'moonlit-fan', moonMode: 'auto', moonIntervalSeconds: 2 };
+  const receive = () => dom.window.listeners.get('message')({ source: dom.window.parent,
+    origin: 'http://127.0.0.1:3000', data: { type: 'component-preview:config', config } });
+  const card = dom.document.getElementById('clockCard');
+  receive();
+  assert.equal(card.dataset.moonTone, 'light');
+  for (const [elapsed, tone] of [[1999, 'light'], [2000, 'dark'], [3999, 'dark'], [4000, 'light'], [6000, 'dark']]) {
+    now = start + elapsed;
+    [...dom.timers.values()][0]();
+    assert.equal(card.dataset.moonTone, tone);
+    assert.equal(dom.timers.size, 1);
+  }
+  receive();
+  assert.equal(card.dataset.moonTone, 'dark', 'repeated settings do not restart the alternating phase');
+  config.moonMode = 'light';
+  receive();
+  now += 2000;
+  [...dom.timers.values()][0]();
+  assert.equal(card.dataset.moonTone, 'light');
+  config.moonMode = 'dark';
+  receive();
+  assert.equal(card.dataset.moonTone, 'dark');
+  config.moonMode = 'auto';
+  config.moonIntervalSeconds = 4;
+  receive();
+  assert.equal(card.dataset.moonTone, 'light');
+  dom.document.hidden = true;
+  dom.document.listeners.get('visibilitychange')();
+  assert.equal(dom.timers.size, 0);
+  now = start + 12000;
+  dom.document.hidden = false;
+  dom.document.listeners.get('visibilitychange')();
+  assert.equal(card.dataset.moonTone, 'dark');
+  assert.equal(dom.timers.size, 1);
+  dom.window.listeners.get('pagehide')();
+  assert.equal(dom.timers.size, 0);
 });
 
 test('browser source reveals saved settings and current time together, retaining query overrides', async () => {

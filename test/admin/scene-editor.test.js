@@ -305,7 +305,7 @@ test('resize handles follow zoom, update the inspector, and keep one undo entry 
   await drag();
   await page.mouse.up();
   assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '168');
-  assert.equal(await page.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '112');
+  assert.equal(await page.getByRole('spinbutton', { name: '高度（自动）', exact: true }).inputValue(), '112');
   await page.getByRole('button', { name: '撤销', exact: true }).click();
   assert.equal(await item.evaluate(node => node.style.width), '120px');
   assert.equal(await page.getByRole('button', { name: '撤销', exact: true }).isDisabled(), true);

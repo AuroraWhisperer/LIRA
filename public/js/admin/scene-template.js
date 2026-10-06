@@ -1,4 +1,7 @@
 import { SCENE_TYPES, SCENE_COMPONENTS } from '../shared/scene-components.js';
+import { isSceneItemGeometryValid } from '../shared/scene-geometry.js';
+import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
+import { normalizeTextBoxConfig } from '../shared/text-box-config.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const FORBIDDEN = new Set(['__proto__', 'prototype', 'constructor', 'queue', 'superchats', 'gifts',
@@ -10,12 +13,14 @@ function invalid() {
   return new Error('场景模板仅允许有效的显示文档，不允许凭据、运行状态或业务数据。');
 }
 
-function safeJson(value, ancestors = new Set(), depth = 0) {
+function safeJson(value, ancestors = new Set(), depth = 0, path = [], allowBrowserUrls = false) {
   if (depth > 64) throw invalid();
   if (value === null || typeof value === 'boolean') return value;
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
-    if (/(?:[?&#]|%26|%3f|%23)(?:[^=&\s]*(?:token|secret|password|credential)|authorization|cookie)=|\bBearer\s+\S+/i.test(value)) throw invalid();
+    const sourceUrl = allowBrowserUrls && path.length === 5 && path[0] === 'items'
+      && /^(0|[1-9]\d*)$/.test(path[1]) && path[2] === 'appearance' && path[3] === 'config' && path[4] === 'url';
+    if (!sourceUrl && /(?:[?&#]|%26|%3f|%23)(?:[^=&\s]*(?:token|secret|password|credential)|authorization|cookie)=|\bBearer\s+\S+/i.test(value)) throw invalid();
     return value;
   }
   if (!value || typeof value !== 'object' || ancestors.has(value)) throw invalid();
@@ -31,7 +36,7 @@ function safeJson(value, ancestors = new Set(), depth = 0) {
     if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value') || FORBIDDEN.has(key)
       || FORBIDDEN.has(normalized) || /token|secret|password|credential|authorization|cookie/i.test(key)) throw invalid();
     if (Array.isArray(value) && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length)) throw invalid();
-    result[key] = safeJson(descriptor.value, ancestors, depth + 1);
+    result[key] = safeJson(descriptor.value, ancestors, depth + 1, [...path, key], allowBrowserUrls);
   }
   if (Array.isArray(value) && Object.keys(result).length !== value.length) throw invalid();
   ancestors.delete(value);
@@ -48,14 +53,14 @@ function name(value) {
 }
 
 export function validateSceneDocument(input) {
-  const document = safeJson(input);
+  const document = safeJson(input, new Set(), 0, [], true);
   if (new TextEncoder().encode(JSON.stringify(document)).length > 256 * 1024) throw invalid();
   exactKeys(document, ['schemaVersion', 'id', 'title', 'canvas', 'items']);
   if (document.schemaVersion !== 1 || !UUID.test(document.id)) throw invalid();
   name(document.title);
   exactKeys(document.canvas, ['width', 'height']);
   if (!Object.values(document.canvas).every((size) => Number.isInteger(size) && size >= 320 && size <= 7680)) throw invalid();
-  if (!Array.isArray(document.items) || document.items.length > 32) throw invalid();
+  if (!Array.isArray(document.items) || document.items.filter(item => item?.type !== 'text-box').length > 32) throw invalid();
   const ids = new Set();
   for (const item of document.items) {
     exactKeys(item, ['id', 'type', 'name', 'x', 'y', 'width', 'height', 'visible', 'locked', 'appearance']);
@@ -63,9 +68,7 @@ export function validateSceneDocument(input) {
     ids.add(item.id.toLowerCase());
     name(item.name);
     if (typeof item.visible !== 'boolean' || typeof item.locked !== 'boolean'
-      || ![item.x, item.y, item.width, item.height].every(Number.isFinite)
-      || item.x < 0 || item.y < 0 || item.width < 32 || item.height < 32
-      || item.x + item.width > document.canvas.width || item.y + item.height > document.canvas.height) throw invalid();
+      || !isSceneItemGeometryValid(item, document.canvas)) throw invalid();
     if (item.appearance?.mode === 'shared') {
       if (SCENE_COMPONENTS[item.type].independentOnly) throw invalid();
       exactKeys(item.appearance, ['mode']);
@@ -73,13 +76,20 @@ export function validateSceneDocument(input) {
     else if (item.appearance?.mode === 'independent') {
       exactKeys(item.appearance, ['mode', 'config']);
       if (!item.appearance.config || typeof item.appearance.config !== 'object' || Array.isArray(item.appearance.config)) throw invalid();
+      // Provider capabilities are allowed only in this external source URL.
+      // Every owned component keeps the ordinary credential-free config rules.
+      if (item.type === 'browser') item.appearance.config = normalizeBrowserSourceConfig(item.appearance.config, { allowEmptyUrl: true });
+      else if (item.type === 'text-box') item.appearance.config = normalizeTextBoxConfig(item.appearance.config);
+      else safeJson(item.appearance.config);
     } else throw invalid();
   }
   return document;
 }
 
 export function exportSceneTemplate(document) {
-  return JSON.stringify(validateSceneDocument(document));
+  const template = validateSceneDocument(document);
+  for (const item of template.items) if (item.type === 'browser') item.appearance.config.url = '';
+  return JSON.stringify(template);
 }
 
 function collectBindings(document) {
@@ -99,9 +109,13 @@ function collectBindings(document) {
     }
   }
   for (const item of document.items) {
+    if (item.type === 'browser') {
+      add(item, 'browser-url', '', ['url']);
+      continue;
+    }
     if (item.appearance.mode === 'shared') add(item, 'source', 'default');
     else resources(item, item.appearance.config);
-    if (item.type !== 'clock') add(item, 'source', item.type);
+    if (!['clock', 'text-box', 'background'].includes(item.type)) add(item, 'source', item.type);
   }
   return bindings;
 }
@@ -109,6 +123,7 @@ function collectBindings(document) {
 export function importSceneTemplate(input, { createId = () => globalThis.crypto.randomUUID() } = {}) {
   if (typeof input === 'string' && new TextEncoder().encode(input).length > 256 * 1024) throw invalid();
   const document = validateSceneDocument(typeof input === 'string' ? JSON.parse(input) : input);
+  for (const item of document.items) if (item.type === 'browser') item.appearance.config.url = '';
   const usedIds = new Set([document.id, ...document.items.map((item) => item.id)].map((id) => id.toLowerCase()));
   function freshId() {
     const id = createId();
@@ -129,6 +144,11 @@ export function importSceneTemplate(input, { createId = () => globalThis.crypto.
         const resolution = resolutions[binding.id];
         exactKeys(resolution, ['confirmed', 'value']);
         if (resolution.confirmed !== true || typeof resolution.value !== 'string') throw new Error('请明确确认每个字体、素材和逻辑来源的绑定。');
+        if (binding.kind === 'browser-url') {
+          const item = resolved.items.find((entry) => entry.id === binding.itemId);
+          item.appearance.config = normalizeBrowserSourceConfig({ ...item.appearance.config, url: resolution.value });
+          continue;
+        }
         if (binding.kind === 'source') {
           if (resolution.value !== binding.source) throw new Error('逻辑来源必须绑定到当前账户的对应组件。');
           continue;
@@ -136,6 +156,9 @@ export function importSceneTemplate(input, { createId = () => globalThis.crypto.
         let target = resolved.items.find((item) => item.id === binding.itemId).appearance.config;
         for (const key of binding.path.slice(0, -1)) target = target[key];
         target[binding.path.at(-1)] = resolution.value;
+      }
+      for (const item of resolved.items) if (item.type === 'text-box') {
+        item.appearance.config.nodes = item.appearance.config.nodes.filter(node => node.type === 'text' || node.src !== '');
       }
       return validateSceneDocument(resolved);
     },

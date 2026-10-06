@@ -26,6 +26,7 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
   const frame = previewElement('iframe', 'component-preview-frame');
   frame.title = `${title}展示预览`;
   frame.setAttribute('sandbox', 'allow-scripts');
+  frame.allow = 'autoplay';
   const output = previewElement('p', 'component-preview-output');
   const dimensions = previewElement('span', 'component-preview-dimensions');
   const loadState = previewElement('p', 'component-preview-load-state', '正在加载预览…');

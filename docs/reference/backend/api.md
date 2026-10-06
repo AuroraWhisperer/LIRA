@@ -10,11 +10,28 @@
 
 ## 0. 路由机制与通用约定
 
+### 组件样式库
+
+[component-style-routes.js](../../../src/server/routes/component-style-routes.js) 提供以下入口，响应为 `{ok:true,data}`；失败为 `{ok:false,error}`。管理入口要求桌面管理身份；画布入口要求当前 canvas Bearer 以及查询参数 `id`、`attachmentId`，复用 `authorizeCanvasMedia`，不接受短入口或其他组件能力。写入在读取请求体后再次验证当前权限，上传中撤销或断开不能安装。所有入口拒绝外站及 opaque Origin；库为本机设备共享的素材，不含账号凭据或业务数据。
+
+| 管理端点 | 绑定画布端点 | 请求与结果 |
+| --- | --- | --- |
+| `GET /api/component-styles/list` | `GET /api/component-preview/styles/list` | 返回包数组；包含 `id/name/packageId?/version?/bytes/createdAt/styles`，样式含 `id/type/name/config`；过滤已移除样式 |
+| `POST /api/component-styles/add` | `POST /api/component-preview/styles/add` | 原始媒体 bytes；查询 `description` 为 URL 编码 JSON `{type,filename,name,width,height,media?}`。校验并安装一个样式，返回包 |
+| `POST /api/component-styles/inspect` | `POST /api/component-preview/styles/inspect` | 原始 ZIP bytes；校验并暂存，返回包含临时 `id` 的套装清单供确认，此时不可用于场景 |
+| `POST /api/component-styles/install` | `POST /api/component-preview/styles/install` | JSON `{id}`，确认暂存包；原子登记并返回包；重复内容返回 `alreadyInstalled:true`，恢复已移除样式返回 `restored:true` |
+| `POST /api/component-styles/remove` | `POST /api/component-preview/styles/remove` | JSON `{id}`，此处 id 为样式 ID；从库中移除，返回 `{id}`，保留场景引用文件 |
+| `POST /api/component-styles/cancel` | `POST /api/component-preview/styles/cancel` | JSON `{id}`，删除本次暂存包；返回 `{id}`，重复取消安全 |
+
+API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身份缺失，403 为权限或 Origin 无效，404 为样式不存在，409 为同版本不同内容或画布接管冲突，410 为会话失效，413 为流体积超限，503 为会话暂不可用。JSON 操作体不超过 4 KiB。单素材上限 512 MiB；ZIP 上限 1 GiB，展开总量 2 GiB、256 条目、64 样式；清单及单份说明各 256 KiB。CRC、解压长度、路径、重复文件名、链接、加密和媒体签名均需校验。普通媒体只允许 PNG/JPEG/GIF/WebP/MP4/WebM；ZIP 另允许每份不超过 1 MiB 的 SVG/WOFF2 资源、根清单及 TXT/MD 说明。schemaVersion 1 保持兼容；2 允许受信预设资源型样式，必须声明该预设的完整资源映射且格式匹配；不执行包内脚本。
+
+`GET/HEAD /component-media/<包 UUID>/<SHA-256>.<扩展名>` 提供匿名本机媒体读取，保留原 Host 闸门；严格匹配路径，拒绝链接及非普通文件。支持单段 byte Range（206/416）、正确 MIME、nosniff、immutable 缓存和浏览器源所需 CORS。SVG 额外使用 `sandbox; default-src 'none'; style-src 'unsafe-inline'` CSP，禁止导航执行脚本或请求外部资源；WOFF2 使用 font/woff2。素材没有目录枚举接口。持久化见[存储合同](storage.md#本地组件样式库)，清单格式见[作者指南](../../guides/component-style-packages.md)。
+
 ### 浏览器组件预览
 
 `POST /api/component-preview` 由 [component-preview-routes.js](../../../src/server/routes/component-preview-routes.js) 处理，响应 `{ok:true,data}`。这是客户端与默认浏览器之间的临时配置会话；组件保存与绑定场景的发布、来源读取，由创建会话的客户端控制器调用已有领域 owner 处理。
 
-场景编辑器为四个已注册组件及直播场景分别创建会话。客户端经 `link` 将这些会话绑定成短入口：`/c#<22字符base64url能力>`，完整地址在四位端口下为 46 字符，组件及尺寸不再放入 query。浏览器经 `resolve` 读取各组件的独立能力、初始选中组件和已保存尺寸。短入口映射只留在会话内存中，锚定 canvas 会话（缺少 canvas 时为第一个组件），任一成员关闭、替换、撤销或账号/generation 变化后失效；不持久化，也不授予管理或正式直播源权限。相同控制器及 generation 的重复打开复用原会话；每个初始组件（含无初始选择）各保留一个稳定入口，切换入口不会撤销其他入口，尺寸更新沿用该入口能力。
+场景编辑器为四个已注册组件及直播场景分别创建会话。客户端经 `link` 将这些会话绑定成短入口：`/c#<22字符base64url能力>`，完整地址在四位端口下为 46 字符，组件及尺寸不再放入 query。浏览器经 `resolve` 读取各组件的独立能力、初始选中组件和已保存尺寸。短入口映射只留在会话内存中，锚定 canvas 会话（缺少 canvas 时为第一个组件），任一成员关闭、替换、撤销或账号/generation 变化后失效；不持久化，也不授予管理或正式直播源权限。相同控制器及 generation 的重复打开复用原会话；每个初始组件（含无初始选择）各保留一个稳定入口，切换入口不会撤销其他入口，尺寸更新沿用该入口能力。可选 selectedItemId 将入口定位到具体场景实例，同类型不同实例保留不同稳定入口；link 与 resolve 均核对当前 canvas 草稿中的实例 ID 和类型。省略时保持原响应结构与按类型选择行为。
 
 兼容旧 `/component-preview` 页面和 43 字符短入口的解析。旧 query `component` 与 fragment 的 `id`/`token` 表示初始组件，`components` 携带其他组件的 `{component,id,token,draftKey}` 数组，`canvas` 携带独立场景会话；旧 fragment `size` 及 query `size=<宽>x<高>` 仍可读取。场景编辑仅传递 `{document}` 草稿，客户端适配器固定场景 ID，浏览器不能替换绑定 ID、创建或轮换场景凭据。缺少场景会话的旧链接仍可保存组件参数，但公共布局须从客户端重新打开后保存。短入口在同标签 sessionStorage 中仅缓存组件名及恢复用 draftKey，缓存键使用入口能力的 SHA-256；不缓存明文入口能力或组件 token。已断开页面刷新时仍可只读查看该标签的本地恢复草稿。
 
@@ -33,6 +50,7 @@
 | `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
 | `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?}`，edit 只允许该组件已有草稿字段 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准 |
 | `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}`，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
+| `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}` 或 `{action:'create',title,duplicate:boolean}` | 仅选择桌面 state.presets 列出的预设，或由桌面新建/复制；结果 `{id}` 经 display 返回，不发布、不授予通用管理权限 |
 | `close` | 当前会话 Bearer；`{id,attachmentId?}` | `{}`，显式关闭浏览器访问；客户端先处理已经接受的修改/保存，再撤销会话 |
 
 接管后，网页变更和关闭必须携带当前 attachmentId，轮询也校验附带的标识；旧页面请求返回 409。
@@ -40,9 +58,24 @@
 原 sequence，确认后亦不重复执行；更早编号拒绝。新页面接管后可以重新计数，但不能丢弃已接受命令。
 恢复草稿前等待 `ack === sequence`、state.saving 和 display.busy 结束，避免重放此前已接受的保存/发布。正常 token 续期保留画布连接；预览 owner 绑定经主进程校验的账号与登录生命周期，见 [授权生命周期](../desktop/auth.md)。
 
-中继拥有分层 UTF-8 大小限制：每份场景 document 仍限 256 KiB；单个 saved/draft 配置或 edit change 限 257 KiB，双份状态封装限 518 KiB，display 限 256 KiB；完整 HTTP 请求限 778 KiB（含 4 KiB 请求元数据余量）。超限不改变已有会话或命令，文档结构和领域配置仍由原保存 owner 校验。每会话最多 64 条待确认命令、每类型最多一会话。有效网页请求或客户端 exchange 续期；双方连续两分钟无有效请求暂停网页操作并返回可重试的 503，保留会话等待原客户端通过认证、同 generation 的 exchange 恢复，网页不能自行续活。账号归属/登录生命周期变化、控制器 generation 变化、显式 close/revoke 或同类型新会话使旧会话永久失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此端点，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪或页面/操作已被替代，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端关闭撤销会话；网页 pagehide 仅停止当前页面轮询，刷新可继续编辑；领域保存失败保留原控制器草稿。
+canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发布的 `activeSceneTitle`。
+切换预设后 draftKey 随当前文档 ID 更新，恢复副本不能跨预设写入或重放。短链接记住入口所属
+预设；切换后刷新该链接不再添加或选中旧入口组件，显式从客户端重新打开组件则绑定当前预设。
+
+中继拥有分层 UTF-8 大小限制：每份场景 document 仍限 256 KiB；单个 saved/draft 配置或 edit change 限 257 KiB，双份状态封装限 518 KiB，display 限 256 KiB；完整 HTTP 请求限 778 KiB（含 4 KiB 请求元数据余量）。超限不改变已有会话或命令，文档结构和领域配置仍由原保存 owner 校验。每会话最多 64 条待确认命令、每类型最多一会话。有效网页请求或客户端 exchange 续期；双方连续两分钟无有效请求暂停网页操作并返回可重试的 503，保留会话等待原客户端通过认证、同 generation 的 exchange 恢复，网页不能自行续活。账号归属/登录生命周期变化、控制器 generation 变化、显式 close/revoke 或同类型新会话使旧会话永久失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此中继及下述受限画布文本素材接口，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪或页面/操作已被替代，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端关闭撤销会话；网页 pagehide 仅停止当前页面轮询，刷新可继续编辑；领域保存失败保留原控制器草稿。
 
 ### 本地场景
+
+画布文本素材由 [scene-text-media-routes.js](../../../src/server/routes/scene-text-media-routes.js) 共享处理：桌面入口使用管理鉴权；外部画布入口仅接受 canvas 会话的 Bearer 能力，以及查询参数 `id`、`attachmentId`。能力必须属于当前账号、未关闭且在活动租期内，配置已读取，并匹配当前 attachment；读取请求体或目录后再次复核，替代页面及撤销期间的慢请求不能写入文件或返回目录。素材操作不续租、不提交场景，也不授予通用管理或加班接口权限。所有素材 API 拒绝 opaque/外站 Origin，沿用服务 Host 与授权闸门。
+
+| 端点 | 输入 | 输出与行为 |
+| --- | --- | --- |
+| `POST /api/scenes/text-image` | 管理身份；原始图片 bytes，Content-Type 为 image/png、image/jpeg、image/gif 或 image/webp | `{ok:true,data:{imagePath}}`；最大 5 MiB，校验文件签名，保留动画原字节；不接受客户端文件路径 |
+| `GET /api/scenes/text-gifts` | 管理身份；source=room（默认）或 all | `{ok:true,data:{gifts,guards,...目录元数据}}`；只读本房间或全局缓存，不触发同步或读取礼物账本 |
+| `POST /api/component-preview/text-image` | canvas Bearer；id、attachmentId 查询；图片 bytes 与 Content-Type 同桌面入口 | 同桌面上传；其他组件或短入口能力不能使用 |
+| `GET /api/component-preview/text-gifts` | canvas Bearer；id、attachmentId、source 查询 | 同桌面目录；只开放此受限读取，不能使用通用加班接口 |
+
+素材 API 响应禁止缓存；400 格式或来源参数无效，401 桌面入口未认证，403 能力/Origin 无效，409 attachment 已替换或配置未读取，410 会话已结束，413 超过 5 MiB，503 租期暂停，500 存储或目录暂时不可用。图片通过 `/scene-text-images/<UUID v4>.<png|jpg|gif|webp>` 提供 GET/HEAD，支持匿名浏览器源读取，仍受本地 Host 闸门；严格匹配文件名并拒绝符号链接、非普通文件、超限及签名不符的文件，设置正确 MIME、nosniff 与 immutable 缓存。目录与保留规则见 [存储合同](storage.md#本地场景持久化)。
 
 管理接口沿用管理页鉴权，并由 main 当前授权的 Server origin 与 streamerId 决定归属。`document` 是展示文档；管理 DTO 为 `{document,revision,publishedVersion,hasPublication}`，普通读写不包含凭据。领域模型见 [场景规格](../../../specs/component-scenes.md)。
 
@@ -51,22 +84,28 @@
 | 端点 | 输入 | 输出与行为 |
 | --- | --- | --- |
 | `GET /api/scenes/list` | 无 | 管理 DTO 数组，仅当前账号 |
+| `GET /api/scenes/canvas` | 无；当前账号至少有一个场景 | `{outputId,activeSceneId,publishedVersion,activeSceneTitle}`，首次绑定原有首个场景，此后输出 ID 固定 |
 | `GET /api/scenes/document?id=UUID` | 场景 ID | 管理 DTO |
 | `POST /api/scenes/validate` | `{document}` | 规范化后的展示文档；模板导入先验证所有独立外观，不写入或创建场景 |
 | `POST /api/scenes/create` | `{title,canvas:{width,height}}` | 空场景管理 DTO，凭据仅加密保存 |
 | `POST /api/scenes/save` | `{id,expectedRevision,document}` | 更新草稿并递增 revision，不改变已发布版；旧 revision 返回 409 |
 | `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 固定所有有效外观后原子发布，递增 publishedVersion；编辑器传共享类型外观快照确认，缓存尚未同步或已变化返回 503；失败保留旧版 |
+| `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源；事务检查预设 revision 和来源 publishedVersion，提交发布快照、当前预设和共享尺寸；任一冲突返回 409、失败保留旧输出 |
 | `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds}`，itemIds 为已发布实例 ID，仅显式复制来源使用 |
 | `POST /api/scenes/rotate` | `{id}` | 新 `{id,token}`，旧凭据立即失效 |
 | `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?` 查询；场景 Bearer | `{sceneId,version,projection,document,data}`；相同发布版本 document 为 null；item 可选 UUID 只投影该发布实例，移至原点并使用保存宽高；凭据权限仍属于整个场景 |
-| `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，仅此路径允许不带凭据的预检，实际 GET 必须验凭据 |
+| `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
+| `GET /api/scene/events` | `id,version,item?,projection?` 查询；场景 Bearer | `text/event-stream`，仅通知 `ready` / `change` / `revoked` 与注释心跳；数据仍从 output 读取；本地运行时最多四条连接，超限 429 |
+| `OPTIONS /api/scene/events` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
 | `GET /api/component/size` | clock/queue/overtime/danmaku 的 overlay 凭据；管理请求使用 type 查询 | `{ok:true,data:{width,height}\|null}`；组件 scope 取自凭据，不能由查询覆盖；当前账号尚无保存尺寸时为 null |
 
 输出中的 `projection` 是服务进程签发的类型投影回执，绑定已认证 owner scope/epoch、sceneId、来源 capability、item 选择及发布版本；不含实时数据或来源 token，不独立授予访问能力。父页面在整套 renderer 成功提交时同时记录 version/projection，后续请求携带该 active 回执。服务端仅合并最新文档与已验证 active 回执的类型集合，新版移除某类组件但准备失败时旧版仍获得更新；成功切换后旧类型随回执替换而释放。伪造、跨账号/场景/实例、版本不匹配、轮换或服务重启后的回执返回 403，父页清空旧版与回执后重新读取当前版。省略 projection 的旧客户端沿用仅投影最新文档的行为。没有历史文档缓存或无限版本保留。
 
-上述响应均禁止缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。输出轮询不重叠，约每 750ms 一次；云事件提供本地缓冲 `epoch/nextCursor/reset/gap/events`，不提供服务端历史重放。
+上述响应均禁止缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。通知使用 fetch SSE、Authorization 请求头和省略凭据模式，不接受查询参数中的 token。流绑定当前 owner scope/epoch、sceneId、capability 和可选 item，复用 output 的 active projection 验证；成功发布/轮换或对应类型的运行时变化触发通知，40ms 合并突发变化。每次通知及每秒心跳都复核访问和 HTTP server 的实际 license/lifecycle；撤销发送 `revoked` 后关闭，不可用或关闭阶段直接断流。消息不含组件数据、外部 URL 或业务事件 ID；慢客户端被关闭，shutdown 在 inflight drain 前释放所有流。
 
-`gift-feed` / `gift-wishes` 的展示读取通过真实礼物门面获取 `viewRevision`，缓存按账号、revision 和日期失效。礼物来源尚不可用或正在切换时，相关 `data[type]` 为 `null`，不让整个场景输出失败；来源恢复后重新读取当前 revision 的投影。
+客户端输出读取不重叠，请求开始至少间隔 100ms；通知正常时每五秒补读检查，断线、未实现或超出连接上限时回退为响应结束后约 750ms 重读，并有限退避重连。通知接口初次 HTTP 失败本身不清空有效输出；明确的 `revoked` 或 output 授权失败才撤销。提交新 renderer 版本/回执后重开通知订阅，准备失败继续订阅旧版所需类型。云事件仍提供本地缓冲 `epoch/nextCursor/reset/gap/events`，不提供服务端历史重放。
+
+`gift-feed` / `gift-wishes` 的展示读取通过真实礼物门面获取 `viewRevision`，缓存按账号、revision 和日期失效。许愿配置变化另清除 gift-wishes 缓存，礼物目录更新清除这两类缓存，随后通知对应类型；失效前的慢读取不能覆盖新缓存。礼物来源尚不可用或正在切换时，相关 `data[type]` 为 `null`，不让整个场景输出失败；来源恢复后重新读取当前 revision 的投影。
 
 包含 `gift-frame` / `guard-thanks` 的场景分别取得 `data[type]={epoch,sequence,events:[{sequence,payload}]}`。
 两者复用现有礼物最终显示事件和手动预览投影，字段与 `gift-effects` WebSocket 白名单一致；
@@ -223,10 +262,10 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `customReplyRules` | §2.3 的数组/JSON 解析与清洗，结果保存为 JSON 文本；非法 JSON 按该 owner 的既有规则回退空数组 |
 | `songRequestBlacklist` | 仅接受字符串；每行一项，将 CRLF/CR 转 LF、按 `cleanText` 合并行内空白并去首尾空白，去掉空行和重复项；存为换行分隔文本。空字符串清空名单；仅保存在本机 |
 | `giftBlindBoxConfig` / `giftBlindBoxCustomConfigV2` | 数组或 JSON 文本，交给 [blind-box-config.js](../../../src/bilibili/gift/blind-box-config.js) 校验；失败返回无效字段。V2 特许 `null`/`'null'` 保存为 `'null'`（未确认）；`[]` 是明确空配置，不能混同 |
-| 礼物边框四键 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：每个特效一组 enabled + 阈值（特效 1 `giftFrameEnabled`/`giftFrameThresholdRmb`，特效 2 `giftFrameRibbonEnabled`/`giftFrameRibbonThresholdRmb`）；enabled 仅 boolean/字符串 true/false；阈值用 Number 转换并四舍五入到安全整数分，拒绝空字符串、负数和非有限数，存元数字字符串。门槛比较在服务端按整数分进行，同时满足两个门槛时只广播门槛更高的特效（相同播特效 2） |
+| 礼物边框设置 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：`giftFrameEnabled` / `giftFrameThresholdRmb` 控制林间花信；enabled 仅 boolean/字符串 true/false；阈值用 Number 转换并四舍五入到安全整数分，拒绝空字符串、负数和非有限数，存元数字字符串。门槛比较在服务端按整数分进行；已撤销的缎带设置不再接受写入 |
 | 大航海感谢两键 | [guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)：`guardThanksEnabled` 仅 boolean/字符串 true/false；`guardThanksTextMode`=`bilingual/zh/en` |
 | `danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` | 样式仅 `bubble/signal/minimal/ranked/transparent/identity/outline`；时长为 number 或十进制数字字符串，安全整数 2–30，存字符串 |
-| 时钟设置 | [clock-contract.js](../../../src/server/clock-contract.js)：style 为八种已登记样式，hourFormat=`12/24`；日期/秒开关经 trim/lowercase 后仅 true/false/0/1；label 去控制符、合并空白、按 Unicode code point 截取前 16 个，存字符串；clockFlipFrameColor / clockFlipFaceColor / clockFlipTextColor 仅接受六位十六进制颜色 #RRGGBB 并统一小写 |
+| 时钟设置 | [clock-contract.js](../../../src/server/clock-contract.js)：style 为九种已登记样式，hourFormat=`12/24`；日期/秒开关经 trim/lowercase 后仅 true/false/0/1；label 去控制符、合并空白、按 Unicode code point 截取前 16 个，存字符串；clockFlipFrameColor / clockFlipFaceColor / clockFlipTextColor 仅接受六位十六进制颜色 #RRGGBB 并统一小写；clockMoonMode 仅 light/dark/auto，clockMoonIntervalSeconds 仅 1–86400 整数秒，默认 light/30 |
 | `openingTrackMotion` | [opening-contract.js](../../../src/server/opening-contract.js) 的 `heart/barber/progress` 枚举 |
 | `openingStyle` | [opening-contract.js](../../../src/server/opening-contract.js) 的 `classic/pixel-cassette` 枚举；默认 `classic` |
 | 互动外观 | [interaction-appearance.js](../../../public/js/shared/interaction-appearance.js)：标题/提示为字符串且最多 60/80 字素；规则文本转 LF、NFC；显示开关仅 boolean/字符串 true/false；透明度整数 0–100、字号 16–24、圆角 0–32（数字或 1–3 位数字字符串）；颜色为六位十六进制，存小写；数字/布尔存字符串 |
@@ -293,7 +332,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 
 | 端点                    | 请求                                                       | 响应(data)                                                                                               | 错误码 |
 | ----------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（八套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`、`flipFrameColor`、`flipFaceColor`、`flipTextColor`；非法存量值回退原默认配置 | —      |
+| `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（九套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`、`flipFrameColor`、`flipFaceColor`、`flipTextColor`、`moonMode`（light/dark/auto）、`moonIntervalSeconds`（1–86400 的整数，默认 30）；非法存量值回退默认配置 | —      |
 
 ## 3. WeSing 采集域(wesing)
 
@@ -461,7 +500,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 礼物许愿接口由 `routes/gift-wish-routes.js` 合并到礼物路由。`GET /api/gifts/wishes` 返回当前授权来源的 `viewRevision/asOf/day/partial/session/items`；管理页额外取得内置舰队选择项。`POST /api/gifts/wishes/save` 接收 `viewRevision`、整数 `target`（1–999999999）、`label`（最多 40 字）；新建另需 `period`（`long/day/session`）及目录 `giftKey`（variantId 优先，舰队使用 guard ID），编辑只需 `id`，不改变礼物和起算时间。每个来源最多 30 条。`POST /api/gifts/wishes/delete` 接收 `viewRevision/id`。非法参数返回 400，来源未就绪或版本变化返回 409，客户端禁止选择 sourceId。保存/删除广播 `gift:wishes` 快照刷新通知。计数与时间窗口合同见 [礼物许愿](bilibili/gift.md#礼物许愿)。
 
-保存支持可选 `displayStyle`（`card` / `text` / `circle`）、`textTemplate`（最多 240 个 Unicode code point，含标记，去除首尾空白）、`textImagePosition`（`none` / `before` / `after` / `inline`，兼容旧位置配置）和 `textImageFormat`（`animated` / `static`）。新建缺省为卡片、空模板、不显示图片及动态原图；旧编辑请求省略字段时保留已保存值，非法枚举返回 400。另支持可选 `textPendingColor` / `textReceivedColor`（`#` 加六位十六进制颜色，保存为小写；空字符串使用默认色，新建省略同空字符串，编辑省略保留旧值，非法值返回 400）。两色字段同时包含在管理与 overlay 许愿投影中，按每条许愿保存，只作用于文字版。当前编辑器统一将图片位置写入模板的 `{图片}`，并将 `textImagePosition` 保存为 `none`；读取旧配置时转换成对应标记，显式图片标记优先，避免重复显示。上限为旧 200 字模板加图片标记留出空间。切换样式不改变礼物、创建时间或已收数量。这些字段及服务端计算的 `todayCount` 均包含在管理与 overlay 的许愿条目中，图片和动态标记的展示规则见 [前端页面](../frontend/pages.md)。
+保存支持可选 `displayStyle`（`card` / `text` / `circle` / `moonlit`）、`textTemplate`（最多 240 个 Unicode code point，含标记，去除首尾空白）、`textImagePosition`（`none` / `before` / `after` / `inline`，兼容旧位置配置）和 `textImageFormat`（`animated` / `static`）。新建缺省为卡片、空模板、不显示图片及动态原图；旧编辑请求省略字段时保留已保存值，非法枚举返回 400。另支持可选 `textPendingColor` / `textReceivedColor`（`#` 加六位十六进制颜色，保存为小写；空字符串使用默认色，新建省略同空字符串，编辑省略保留旧值，非法值返回 400）。两色字段同时包含在管理与 overlay 许愿投影中，按每条许愿保存，只作用于文字版。当前编辑器统一将图片位置写入模板的 `{图片}`，并将 `textImagePosition` 保存为 `none`；读取旧配置时转换成对应标记，显式图片标记优先，避免重复显示。上限为旧 200 字模板加图片标记留出空间。切换样式不改变礼物、创建时间或已收数量。这些字段及服务端计算的 `todayCount` 均包含在管理与 overlay 的许愿条目中，图片和动态标记的展示规则见 [前端页面](../frontend/pages.md)。
 
 | 端点                                | 请求                                                                                                                          | 响应(data)                                          | 错误码                              |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- |
@@ -476,7 +515,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`                                                                                                           | 盲盒统计                                            | —                                   |
 | `GET /api/gifts/blind-box-analysis` | 查询参数:`viewer?`、`box?`、`view?`(默认 `users`)、`page?`(默认 `1`)、`limit?`(默认 `25`)、`sort?`、`direction?`(默认 `desc`)、`startDate?/endDate?`(本机日期 YYYY-MM-DD，含首尾两天；只给一端为单日，都省略为今天) | 当前授权来源的盲盒开盒分析；`dateRange` 返回生效日期，`today` 仍为本机当天零点 | 400(日期无效或逆序) |
 | `GET /api/gifts/search`             | 查询参数:`from?`、`to?`、`limit?`(**1–500**,默认 100)                                                                         | 时间范围检索结果                                    | —                                   |
-| `POST /api/gifts/frame/preview`     | `{userName?, giftName?, num?, themeId?}`；themeId 默认 `woodland-bloom`，可选 `satin-ribbon`，num 默认 1 | 广播 `gift:frame` 预览事件，不读取实时开关/阈值；不再需要金额（内部占位 1 分且不展示），旧金额若提供仍须大于 0，旧 motionMode 忽略 | 400(数量、主题或显式旧金额无效) |
+| `POST /api/gifts/frame/preview`     | `{userName?, giftName?, num?, themeId?}`；themeId 仅支持 `woodland-bloom`（默认），num 默认 1 | 广播 `gift:frame` 预览事件，不读取实时开关/阈值；不再需要金额（内部占位 1 分且不展示），旧金额若提供仍须大于 0，旧 motionMode 忽略 | 400(数量、主题或显式旧金额无效) |
 | `POST /api/gifts/guard-thanks/preview` | `{tier, userName?, months?, textMode?}`；tier 为 `captain/admiral/governor`，months 为 1–999 整数（默认 1），textMode 为 `bilingual/zh/en`（默认 `bilingual`） | 广播独立 `gift:guard-thanks` 预览事件（`preview:true`，不带头像），不读取实时开关 | 400(等级、月数或文字模式无效) |
 | `POST /api/gifts/clear-recent`      | `{confirm: true}`(必须)                                                                                                       | 清空最近礼物;广播 `gift:clear-recent`               | 400(`缺少清空确认。`)               |
 

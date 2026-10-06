@@ -3,14 +3,11 @@
 // 各特效独立持有开关与门槛；数组顺序就是并列时的优先级（后出现者优先）。
 const FRAME_EFFECTS = Object.freeze([
   Object.freeze({ themeId: 'woodland-bloom', enabledKey: 'giftFrameEnabled', thresholdKey: 'giftFrameThresholdRmb' }),
-  Object.freeze({ themeId: 'satin-ribbon', enabledKey: 'giftFrameRibbonEnabled', thresholdKey: 'giftFrameRibbonThresholdRmb' }),
 ]);
 const FRAME_THEME_IDS = Object.freeze(FRAME_EFFECTS.map((effect) => effect.themeId));
 const DEFAULT_FRAME_SETTINGS = Object.freeze({
   giftFrameEnabled: 'false',
   giftFrameThresholdRmb: '20',
-  giftFrameRibbonEnabled: 'false',
-  giftFrameRibbonThresholdRmb: '100',
 });
 
 let previewSequence = 0;
@@ -57,10 +54,10 @@ function selectFrameTheme(totalPriceCents, settings = {}) {
 }
 
 function normalizeFrameSettingValue(key, value) {
-  if (key === 'giftFrameEnabled' || key === 'giftFrameRibbonEnabled') {
+  if (key === 'giftFrameEnabled') {
     return String(value) === 'true' || String(value) === 'false' ? String(value) : null;
   }
-  if (key === 'giftFrameThresholdRmb' || key === 'giftFrameRibbonThresholdRmb') return normalizeThresholdRmb(value);
+  if (key === 'giftFrameThresholdRmb') return normalizeThresholdRmb(value);
   return null;
 }
 

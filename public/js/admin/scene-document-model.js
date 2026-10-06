@@ -1,5 +1,6 @@
 import { validateSceneDocument } from './scene-template.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
+import { MIN_SCENE_ITEM_VISIBLE, getSceneItemPositionBounds, clampSceneItemPosition } from '../shared/scene-geometry.js';
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
@@ -27,15 +28,15 @@ export function createSceneDocumentModel(document) {
     const result = mutator(draft);
     const next = result === undefined ? draft : result;
     for (const item of next.items) {
-      if (item.appearance.mode !== 'shared') continue;
       const previous = base.items.find((entry) => entry.id === item.id);
       if (!previous || item.width === previous.width && item.height === previous.height) continue;
+      clampSceneItemPosition(item, next.canvas);
+      if (item.appearance.mode !== 'shared') continue;
       for (const reference of next.items) {
         if (reference.id === item.id || reference.type !== item.type || reference.appearance.mode !== 'shared') continue;
         reference.width = item.width;
         reference.height = item.height;
-        reference.x = Math.min(reference.x, next.canvas.width - reference.width);
-        reference.y = Math.min(reference.y, next.canvas.height - reference.height);
+        clampSceneItemPosition(reference, next.canvas);
       }
     }
     return freeze(validateSceneDocument(next));
@@ -135,8 +136,9 @@ export function resizeSceneCanvas(document, canvas) {
   for (const item of next.items) {
     item.width = Math.min(canvas.width, Math.max(32, Math.round(item.width * ratio)));
     item.height = Math.min(canvas.height, Math.max(32, Math.round(item.height * ratio)));
-    item.x = Math.max(0, Math.min(canvas.width - item.width, Math.round(item.x * ratio)));
-    item.y = Math.max(0, Math.min(canvas.height - item.height, Math.round(item.y * ratio)));
+    item.x = Math.round(item.x * ratio);
+    item.y = Math.round(item.y * ratio);
+    clampSceneItemPosition(item, canvas);
   }
   return validateSceneDocument(next);
 }
@@ -162,8 +164,15 @@ export function moveSceneItems(document, ids, deltaX, deltaY, { snap = false } =
   const box = bounds(items);
   const requestedX = snap ? snapSceneCoordinate(box.left + deltaX) - box.left : deltaX;
   const requestedY = snap ? snapSceneCoordinate(box.top + deltaY) - box.top : deltaY;
-  const offsetX = Math.max(-box.left, Math.min(next.canvas.width - box.right, requestedX));
-  const offsetY = Math.max(-box.top, Math.min(next.canvas.height - box.bottom, requestedY));
+  const limits = items.map((item) => {
+    const limit = getSceneItemPositionBounds(item, next.canvas);
+    return { minX: limit.minX - item.x, maxX: limit.maxX - item.x,
+      minY: limit.minY - item.y, maxY: limit.maxY - item.y };
+  });
+  const offsetX = Math.max(Math.max(...limits.map((limit) => limit.minX)),
+    Math.min(Math.min(...limits.map((limit) => limit.maxX)), requestedX));
+  const offsetY = Math.max(Math.max(...limits.map((limit) => limit.minY)),
+    Math.min(Math.min(...limits.map((limit) => limit.maxY)), requestedY));
   for (const item of items) {
     item.x += offsetX;
     item.y += offsetY;
@@ -178,18 +187,41 @@ export function resizeSceneItem(document, id, handle, deltaX, deltaY, { snap = f
   const coordinate = (value) => snap ? snapSceneCoordinate(value) : value;
   const right = item.x + item.width;
   const bottom = item.y + item.height;
+  if (SCENE_COMPONENTS[item.type].lockAspectRatio) {
+    const horizontal = handle.includes('w') ? -deltaX : handle.includes('e') ? deltaX : 0;
+    const vertical = handle.includes('n') ? -deltaY : handle.includes('s') ? deltaY : 0;
+    const change = Math.abs(horizontal / item.width) >= Math.abs(vertical / item.height)
+      ? (coordinate(item.width + horizontal) - item.width) / item.width
+      : (coordinate(item.height + vertical) - item.height) / item.height;
+    const minWidth = Math.max(32, handle.includes('w')
+      ? right - next.canvas.width + MIN_SCENE_ITEM_VISIBLE : MIN_SCENE_ITEM_VISIBLE - item.x);
+    const minHeight = Math.max(32, handle.includes('n')
+      ? bottom - next.canvas.height + MIN_SCENE_ITEM_VISIBLE : MIN_SCENE_ITEM_VISIBLE - item.y);
+    const scale = Math.max(minWidth / item.width, minHeight / item.height,
+      Math.min(1 + change, next.canvas.width / item.width, next.canvas.height / item.height));
+    item.width = Math.round(item.width * scale);
+    item.height = Math.round(item.height * scale);
+    if (handle.includes('w')) item.x = right - item.width;
+    if (handle.includes('n')) item.y = bottom - item.height;
+    clampSceneItemPosition(item, next.canvas);
+    return next;
+  }
   if (handle.includes('w')) {
-    item.x = Math.max(0, Math.min(right - 32, coordinate(item.x + deltaX)));
+    item.x = Math.max(right - next.canvas.width,
+      Math.min(right - 32, next.canvas.width - MIN_SCENE_ITEM_VISIBLE, coordinate(item.x + deltaX)));
     item.width = right - item.x;
   } else if (handle.includes('e')) {
-    item.width = Math.max(32, Math.min(next.canvas.width, coordinate(right + deltaX)) - item.x);
+    item.width = Math.max(32, MIN_SCENE_ITEM_VISIBLE - item.x,
+      Math.min(next.canvas.width, coordinate(right + deltaX) - item.x));
   }
   if (SCENE_COMPONENTS[item.type].resizeAxes.includes('y')) {
     if (handle.includes('n')) {
-      item.y = Math.max(0, Math.min(bottom - 32, coordinate(item.y + deltaY)));
+      item.y = Math.max(bottom - next.canvas.height,
+        Math.min(bottom - 32, next.canvas.height - MIN_SCENE_ITEM_VISIBLE, coordinate(item.y + deltaY)));
       item.height = bottom - item.y;
     } else if (handle.includes('s')) {
-      item.height = Math.max(32, Math.min(next.canvas.height, coordinate(bottom + deltaY)) - item.y);
+      item.height = Math.max(32, MIN_SCENE_ITEM_VISIBLE - item.y,
+        Math.min(next.canvas.height, coordinate(bottom + deltaY) - item.y));
     }
   }
   return next;
@@ -209,6 +241,7 @@ export function alignSceneItems(document, ids, alignment) {
     if (alignment === 'bottom') item.y = box.bottom - item.height;
     if (alignment === 'center-x') item.x = (box.left + box.right - item.width) / 2;
     if (alignment === 'center-y') item.y = (box.top + box.bottom - item.height) / 2;
+    clampSceneItemPosition(item, next.canvas);
   }
   return next;
 }

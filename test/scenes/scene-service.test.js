@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { createCipheriv, createDecipheriv, randomBytes, randomUUID, createHash } = require('node:crypto');
-const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { MAX_SCENE_BYTES, normalizeSceneDocument } = require('../../src/scenes/scene-contract');
@@ -41,6 +41,7 @@ function fixture(t, persistent = false) {
   });
   migrateScenes(db);
   migrateComponentOutputSizes(db);
+  migrateCanvasPresets(db);
   const store = createSceneStore(db);
   const state = {
     owner: { scope: 'https://server.test/streamer-a', epoch: 1 },
@@ -81,6 +82,7 @@ function fixture(t, persistent = false) {
       db = new DatabaseSync(filename);
       migrateScenes(db);
       migrateComponentOutputSizes(db);
+  migrateCanvasPresets(db);
       return createSceneService({ ...ports, store: createSceneStore(db) });
     },
   };
@@ -93,6 +95,53 @@ function create(service) {
 function saveItems(service, created, items) {
   return service.save({ id: created.document.id, expectedRevision: created.revision, document: { ...created.document, items } });
 }
+
+test('canvas presets retain independent drafts and switch one persistent live source only on apply', t => {
+  const f = fixture(t, true);
+  const first = create(f.service);
+  const binding = f.service.getCanvas();
+  const source = f.service.getSource(binding.outputId);
+  f.service.publishCanvas({ id: first.document.id, expectedRevision: 1, expectedPublishedVersion: 0 });
+  const second = f.service.create({ title: '游戏预设', canvas: { width: 1280, height: 720 } });
+  const saved = saveItems(f.service, second, [item()]);
+  assert.equal(f.service.getOutput({ ...source, version: 0 }).document.title, first.document.title);
+  assert.equal(f.service.getCanvas().outputId, first.document.id);
+  f.service.publishCanvas({ id: saved.document.id, expectedRevision: saved.revision, expectedPublishedVersion: 1 });
+  const output = f.service.getOutput({ ...source, version: 0 });
+  assert.equal(output.version, 2);
+  assert.equal(output.document.title, '游戏预设');
+  assert.equal(output.document.id, source.id);
+  assert.deepEqual(output.document.canvas, second.document.canvas);
+  assert.deepEqual(f.service.get(first.document.id).document, first.document);
+  assert.deepEqual(f.service.get(second.document.id).document, saved.document);
+  assert.equal(f.service.getSource(source.id).token, source.token);
+  const restarted = f.restart();
+  assert.equal(restarted.getCanvas().activeSceneId, second.document.id);
+  assert.equal(restarted.getCanvas().outputId, source.id);
+  assert.equal(restarted.getOutput({ ...source, version: 0 }).document.title, '游戏预设');
+});
+
+test('failed, stale and cross-owner preset publications preserve the active scene, output and dimensions', t => {
+  const { db, service, store, state } = fixture(t);
+  const first = create(service);
+  const binding = service.getCanvas();
+  service.publishCanvas({ id: first.document.id, expectedRevision: 1, expectedPublishedVersion: 0 });
+  const second = saveItems(service, create(service), [item()]);
+  const input = { id: second.document.id, expectedRevision: second.revision, expectedPublishedVersion: 1 };
+  assert.throws(() => service.publishCanvas({ ...input, expectedRevision: 1 }), { statusCode: 409 });
+  assert.throws(() => service.publishCanvas({ ...input, expectedPublishedVersion: 0 }), { statusCode: 409 });
+  const before = store.get(state.owner.scope, binding.outputId);
+  db.exec(`CREATE TRIGGER reject_canvas_switch BEFORE UPDATE ON component_canvas
+    BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END;`);
+  assert.throws(() => service.publishCanvas(input), { statusCode: 500 });
+  assert.deepEqual(store.get(state.owner.scope, binding.outputId), before);
+  assert.equal(service.getCanvas().activeSceneId, first.document.id);
+  assert.equal(store.getComponentSize(state.owner.scope, 'clock'), null);
+  state.owner = { scope: 'other-account', epoch: 2 };
+  assert.throws(() => service.publishCanvas(input), { statusCode: 404 });
+  const other = create(service);
+  assert.equal(service.getCanvas().outputId, other.document.id);
+});
 
 test('output projection receipts bind version, scene, item, owner epoch, capability and process lifetime', t => {
   const { service, state, ports } = fixture(t);
@@ -225,7 +274,7 @@ const invalidChanges = [
   ['canvas too big', (value) => { value.canvas.height = 7681; }],
   ['fractional canvas', (value) => { value.canvas.width = 1920.5; }],
   ['too many items', (value) => { value.items = Array.from({ length: 33 }, () => item()); }],
-  ['negative position', (value) => { value.items[0].x = -1; }],
+  ['insufficient visible width', (value) => { value.items[0].x = 23 - value.items[0].width; }],
   ['infinite geometry', (value) => { value.items[0].height = Infinity; }],
   ['NaN geometry', (value) => { value.items[0].width = NaN; }],
   ['string geometry', (value) => { value.items[0].x = '0'; }],
@@ -540,4 +589,88 @@ test('corrupt newly encrypted packages cannot create or rotate a source', (t) =>
   expectError(() => broken.rotate(id), 'SCENE_SOURCE_UNAVAILABLE', 503);
   assert.equal(service.list().length, 1);
   assert.deepEqual(store.get(state.owner.scope, id), before);
+});
+
+test('output access retains active projection types without display reads or secret decryption', (t) => {
+  const { ports, state } = fixture(t);
+  const { normalizeBrowserSourceConfig } = require('../../public/js/shared/scene-browser-source.js');
+  const service = createSceneService({ ...ports, normalizeConfig(type, config) {
+    return type === 'browser' ? normalizeBrowserSourceConfig(config) : ports.normalizeConfig(type, config);
+  } });
+  const browser = item('browser', { appearance: { mode: 'independent', config: {
+    url: 'https://widgets.example.test/display?token=private-provider', viewportWidth: 800, viewportHeight: 600,
+  } } });
+  const saved = saveItems(service, create(service), [item('queue'), browser]);
+  const id = saved.document.id;
+  service.publish({ id, expectedRevision: saved.revision });
+  const source = service.getSource(id);
+  const output = service.getOutput({ ...source, version: 0 });
+  const active = { ...source, version: output.version, projection: output.projection };
+  const replacement = saveItems(service, saved, [item('clock'), browser]);
+  service.publish({ id, expectedRevision: replacement.revision });
+  state.decryptFailure = true;
+  state.dataCalls.length = 0;
+
+  const access = service.getOutputAccess(active);
+  assert.equal(access.version, 2);
+  assert.deepEqual(access.types, ['clock', 'browser', 'queue']);
+  const current = service.getOutputAccess({ ...source, version: 0 });
+  assert.deepEqual(current.types, ['clock', 'browser']);
+  assert.equal(current.binding, access.binding);
+  assert.doesNotMatch(JSON.stringify(access), /private-provider/);
+  assert.ok(!access.binding.includes(source.token));
+
+  state.decryptFailure = false;
+  const rotated = service.rotate(id);
+  state.decryptFailure = true;
+  expectError(() => service.getOutputAccess({ ...active, token: rotated.token }), 'SCENE_PROJECTION_EXPIRED', 403);
+  const rotatedAccess = service.getOutputAccess({ ...rotated, version: 0 });
+  assert.notEqual(rotatedAccess.binding, access.binding);
+  state.owner.epoch++;
+  assert.notEqual(service.getOutputAccess({ ...rotated, version: 0 }).binding, rotatedAccess.binding);
+  assert.deepEqual(state.dataCalls, []);
+});
+
+test('output change notifications observe committed publication and rotation but skip drafts and failed writes', (t) => {
+  const { ports, state, db } = fixture(t);
+  const notifications = [];
+  const service = createSceneService({ ...ports, onOutputChanged(event) {
+    const source = service.getSource(event.id);
+    notifications.push({ event, source, access: service.getOutputAccess({ ...source, version: 0 }) });
+  } });
+  const saved = saveItems(service, create(service), [item('queue')]);
+  const id = saved.document.id;
+  const original = service.getSource(id);
+  assert.deepEqual(notifications, []);
+  expectError(() => service.publish({ id, expectedRevision: saved.revision - 1 }), 'SCENE_CONFLICT', 409);
+  assert.deepEqual(notifications, []);
+
+  const first = service.publish({ id, expectedRevision: saved.revision });
+  assert.equal(notifications.length, 1);
+  assert.deepEqual(notifications[0].event, { id });
+  assert.equal(notifications[0].access.version, first.publishedVersion);
+  assert.equal(notifications[0].source.token, original.token);
+  const replacement = saveItems(service, saved, [item('clock')]);
+  assert.equal(notifications.length, 1);
+  db.exec(`CREATE TRIGGER fail_notified_publish AFTER UPDATE OF published_json ON component_scenes
+    BEGIN SELECT RAISE(ABORT, 'synthetic publication failure'); END;`);
+  expectError(() => service.publish({ id, expectedRevision: replacement.revision }), 'SCENE_OPERATION_FAILED', 500);
+  assert.equal(notifications.length, 1);
+  db.exec('DROP TRIGGER fail_notified_publish');
+
+  const second = service.publish({ id, expectedRevision: replacement.revision });
+  assert.equal(notifications.length, 2);
+  assert.equal(notifications[1].access.version, second.publishedVersion);
+  assert.deepEqual(notifications[1].access.types, ['clock']);
+  state.encryptFailure = true;
+  expectError(() => service.rotate(id), 'SCENE_SOURCE_UNAVAILABLE', 503);
+  assert.equal(notifications.length, 2);
+  state.encryptFailure = false;
+  const rotated = service.rotate(id);
+  assert.equal(notifications.length, 3);
+  assert.deepEqual(notifications[2].event, { id });
+  assert.equal(notifications[2].source.token, rotated.token);
+  assert.notEqual(notifications[2].source.token, original.token);
+  assert.equal(notifications[2].access.version, second.publishedVersion);
+  expectError(() => service.getOutputAccess({ ...original, version: 0 }), 'SCENE_ACCESS_DENIED', 403);
 });

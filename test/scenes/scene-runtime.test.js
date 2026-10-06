@@ -276,3 +276,45 @@ test('standalone danmaku reads the shared cloud projection without a scene and k
   assert.deepEqual(switched.data.events, []);
   assert.equal(update('connected', { type: 'danmaku', liveSessionId: 'live-standalone', message: 'stale' }), false);
 });
+
+test('runtime scene streams notify game updates, drawing operations and round patches without ordinary WebSocket clients', { timeout: 10000 }, async t => {
+  const { request, baseUrl } = await fixture(t);
+  const saved = await createScene(request, [{ ...component('games'), appearance: { mode: 'independent',
+    config: { ...createSceneExtraDefaults('games'), game: 'draw-guess' } } }]);
+  const id = saved.document.id;
+  await request('/api/scenes/publish', { body: { id, expectedRevision: saved.revision } });
+  const source = await request(`/api/scenes/source?id=${id}`);
+  const abort = new AbortController();
+  const events = await fetch(`${baseUrl}/api/scene/events?id=${id}`, {
+    headers: { Authorization: `Bearer ${source.token}` },
+    signal: AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]),
+  });
+  assert.equal(events.status, 200);
+  const reader = events.body.getReader();
+  const decoder = new TextDecoder();
+  async function expectEvent(event) {
+    let text = '';
+    while (!text.includes(`data: ${event}\n\n`)) {
+      const chunk = await reader.read();
+      assert.equal(chunk.done, false);
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+  }
+  const session = async () => (await request(`/api/scene/output?id=${id}`, { token: source.token })).data.games.session;
+  try {
+    await expectEvent('ready');
+    const started = await request('/api/games/session', { body: { game: 'draw-guess', totalRounds: 2 } });
+    await expectEvent('change');
+    assert.equal((await session()).state.phase, 'drawing');
+    await request('/api/games/session/draw', { body: { action: 'append', clientId: 'scene-test', strokeId: 'stroke-1',
+      sessionId: started.sessionId, round: 1, color: '#222034', width: 4, points: [{ x: 0.1, y: 0.1 }] } });
+    await expectEvent('change');
+    assert.equal((await session()).state.canvas.strokes[0].id, 'stroke-1');
+    await request('/api/games/session/move', { body: { value: { action: 'finish-round' } } });
+    await expectEvent('change');
+    assert.equal((await session()).state.phase, 'round-result');
+  } finally {
+    abort.abort();
+    await reader.cancel().catch(() => {});
+  }
+});

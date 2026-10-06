@@ -364,20 +364,22 @@ test('compact guide directory ignores brief hover and opens after 200ms without 
   assert.equal(fixture.scrollOffset, '68px');
 });
 
-test('compact guide directory waits 600ms to close and cancels closure when the pointer returns', async () => {
+test('compact guide directory waits 300ms to close and cancels closure when the pointer returns', async () => {
   const fixture = createUsageGuideFixture({ scrollerScrollTop: 24 });
   await loadUsageGuide(fixture);
   const mouse = { pointerType: 'mouse' };
   fixture.toc.pointerenter(mouse);
   fixture.advanceTime(200);
   fixture.toc.pointerleave(mouse);
-  fixture.advanceTime(599);
+  fixture.advanceTime(299);
   assert.equal(fixture.tocMenu.inert, false);
   fixture.toc.pointerenter(mouse);
   fixture.advanceTime(1000);
   assert.equal(fixture.tocMenu.inert, false);
   fixture.toc.pointerleave(mouse);
-  fixture.advanceTime(600);
+  fixture.advanceTime(299);
+  assert.equal(fixture.tocMenu.inert, false);
+  fixture.advanceTime(1);
   assert.equal(fixture.tocMenu.inert, true);
   assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'false');
 });

@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { chromium } = require('playwright');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
+const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 
 let browser;
@@ -95,7 +96,7 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
       assert.equal(await help.getAttribute('aria-expanded'), 'false');
     }
     const dimensions = page.locator('.scene-editor-item-label');
-    const initialSize = { clock: '580 × 210 px', queue: '480 × 800 px', danmaku: '560 × 600 px' };
+    const initialSize = { clock: '580 × 203 px', queue: '480 × 800 px', danmaku: '560 × 600 px' };
     let overtimeHeight;
     let overtimeFont;
     if (component === 'overtime') {
@@ -107,7 +108,10 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
       assert.equal(await page.getByRole('spinbutton', { name: '高度（自动）' }).getAttribute('readonly'), '');
       assert.equal(await page.locator('.component-preview-frame').evaluate(node => getComputedStyle(node).colorScheme), 'normal');
       assert.equal(await dimensions.evaluate(node => node.getBoundingClientRect().bottom <= node.closest('.scene-editor-item').getBoundingClientRect().top), true);
-    } else assert.ok((await dimensions.textContent()).endsWith(initialSize[component]));
+    } else {
+      await page.waitForFunction(size => document.querySelector('.scene-editor-item-label').textContent.endsWith(size), initialSize[component]);
+      assert.ok((await dimensions.textContent()).endsWith(initialSize[component]));
+    }
     assert.equal(await dimensions.isVisible(), true);
     const labelHeight = await dimensions.evaluate(node => node.getBoundingClientRect().height);
     await page.getByRole('button', { name: '画布设置', exact: true }).click();
@@ -205,6 +209,186 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     assert.notEqual(reopened, url);
   });
 }
+
+test('clock frames follow each style and visible fields, preserve scale, and match saved output', { timeout: 30000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  fixture.configs.clock.style = fixture.runtime.settings.clockStyle = 'flip';
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  t.after(async () => { await context.close(); await fixture.close(); });
+  const desktop = await context.newPage();
+  const page = await context.newPage();
+  page.setDefaultTimeout(5000);
+  const url = await openCanvasDesktop(desktop, fixture, 'clock');
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.frameLocator('iframe').locator('#clockCard:not([hidden])').waitFor();
+  const frame = page.frames().find(value => new URL(value.url()).pathname === '/clock');
+  const setWidth = async width => {
+    await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill(String(width));
+    await page.getByRole('spinbutton', { name: '宽度', exact: true }).press('Tab');
+    await frame.waitForFunction(expected => innerWidth === expected, width, { timeout: 5000 });
+  };
+  const settledSize = async () => {
+    await desktop.waitForFunction(() => {
+      const item = window.controllers.canvas.getState().draft.document.items[0];
+      return item?.height > 0;
+    }, null, { timeout: 5000 });
+    const size = await frame.evaluate(() => ({ width: innerWidth, height: innerHeight,
+      scale: Number(document.getElementById('clockCard').style.getPropertyValue('--clock-scale')) }));
+    await page.waitForFunction(({ width, height }) => document.querySelector('.scene-editor-item-label').textContent
+      .endsWith(`${width} × ${height} px`), size, { timeout: 5000 });
+    return size;
+  };
+  await setWidth(1624);
+  await frame.waitForFunction(() => innerHeight === 464, null, { timeout: 5000 });
+  const margins = await frame.locator('.clock-content').evaluate(node => {
+    const rect = node.getBoundingClientRect();
+    return [rect.left, rect.top, innerWidth - rect.right, innerHeight - rect.bottom];
+  });
+  assert.ok(margins.every(value => value >= 3.9 && value <= 5), 'the selection must hug the flip frame on every side');
+  await setWidth(462);
+  await frame.waitForFunction(() => innerHeight === 136, null, { timeout: 5000 });
+  const sizes = {};
+  for (const style of ['peach', 'starlight', 'soda', 'timeline-horizontal', 'timeline-vertical', 'digital', 'orbit', 'flip']) {
+    await page.locator(`[data-clock-style-option="${style}"]`).click();
+    await frame.waitForFunction(expected => document.documentElement.dataset.clockStyle === expected, style, { timeout: 5000 });
+    await frame.waitForFunction(() => {
+      const card = document.getElementById('clockCard');
+      const scale = Number(card.style.getPropertyValue('--clock-scale'));
+      return Math.abs(scale - 1) < 0.02;
+    }, null, { timeout: 5000 });
+    const fixedFrame = { flip: [462, 136] }[style];
+    if (fixedFrame) await frame.waitForFunction(([width, height]) => innerWidth === width && innerHeight === height,
+      fixedFrame, { timeout: 5000 });
+    sizes[style] = await settledSize();
+    const clipped = await frame.locator('.clock-time > span, .clock-date-row > span, .clock-year, .clock-period').evaluateAll(nodes =>
+      nodes.filter(node => {
+        const rect = node.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && (rect.left < -1 || rect.top < -1 || rect.right > innerWidth + 1 || rect.bottom > innerHeight + 1);
+      }).map(node => node.id));
+    assert.deepEqual(clipped, [], `${style} must keep all visible fields within its frame`);
+  }
+  assert.ok(sizes['timeline-horizontal'].height < sizes.peach.height / 2);
+  assert.ok(sizes['timeline-vertical'].width < sizes['timeline-vertical'].height / 2);
+  assert.ok(sizes.flip.width < sizes.peach.width && sizes.flip.height < sizes.peach.height, JSON.stringify(sizes));
+  const full = sizes.flip;
+  await page.locator('[data-preview-field="clockShowSeconds"]').uncheck();
+  await frame.waitForFunction(width => innerWidth < width - 50, full.width, { timeout: 5000 });
+  const withoutSeconds = await settledSize();
+  assert.ok(Math.abs(withoutSeconds.scale - full.scale) < 0.02);
+  assert.equal(withoutSeconds.height, full.height);
+  await page.locator('[data-preview-field="clockShowDate"]').uncheck();
+  await frame.waitForFunction(width => innerWidth < width - 50, withoutSeconds.width, { timeout: 5000 });
+  await page.locator('[data-preview-field="clockHourFormat"]').selectOption('12', { force: true });
+  await frame.waitForFunction(height => innerHeight > height + 20, full.height, { timeout: 5000 });
+  for (const field of ['clockShowDate', 'clockShowSeconds']) await page.locator(`[data-preview-field="${field}"]`).check();
+  await page.locator('[data-preview-field="clockHourFormat"]').selectOption('24', { force: true });
+  await frame.waitForFunction(() => innerWidth === 462 && innerHeight === 136, null, { timeout: 5000 });
+  await desktop.waitForFunction(() => {
+    const draft = window.controllers.clock.getState().draft;
+    return draft.style === 'flip' && draft.showDate && draft.showSeconds && draft.hourFormat === '24';
+  }, null, { timeout: 5000 });
+  fixture.runtime.settings.clockLabel = await desktop.evaluate(() => window.controllers.clock.getState().draft.label);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  assert.deepEqual(fixture.service.getComponentSize('clock'), { width: 462, height: 136 });
+  const outputUrl = `${fixture.origin}/clock`;
+  assert.equal((await fetch(outputUrl)).status, 200);
+  const output = await context.newPage();
+  await output.goto(outputUrl);
+  await output.waitForFunction(() => document.documentElement.style.getPropertyValue('--component-width') === '462px', null, { timeout: 5000 });
+  const outputBounds = await output.locator('.clock-content').boundingBox();
+  assert.ok(Math.abs(outputBounds.width - 454) < 1 && Math.abs(outputBounds.height - 128) < 1);
+});
+
+test('legacy moon clock palettes remain editable without a default style button', { timeout: 25000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  fixture.configs.clock.style = fixture.runtime.settings.clockStyle = 'moonlit-fan';
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const errors = [];
+  t.after(async () => {
+    await context.close();
+    await fixture.close();
+    assert.deepEqual(errors, []);
+  });
+  const desktop = await context.newPage();
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(error.message));
+  desktop.on('pageerror', error => errors.push(error.message));
+  page.setDefaultTimeout(5000);
+  const url = await openCanvasDesktop(desktop, fixture, 'clock');
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.frameLocator('iframe').locator('#clockCard:not([hidden])').waitFor();
+  const palettes = page.locator('[data-preview-field="clockMoonColors"]');
+  assert.equal(await page.locator('[data-clock-style-option="moonlit-fan"]').count(), 0);
+  const frame = page.frames().find(value => new URL(value.url()).pathname === '/clock');
+  const mode = page.locator('[data-preview-field="clockMoonMode"]');
+  const interval = page.locator('[data-preview-field="clockMoonIntervalSeconds"]');
+  const intervalField = page.locator('[data-preview-field="clockMoonIntervalField"]');
+  await frame.locator('#clockCard[data-moon-tone="light"]').waitFor();
+  assert.equal(await palettes.isVisible(), true);
+  assert.equal(await mode.inputValue(), 'light');
+  assert.equal(await interval.inputValue(), '30');
+  assert.equal(await intervalField.isVisible(), false);
+  const size = await frame.evaluate(() => [innerWidth, innerHeight]);
+  await mode.selectOption('dark', { force: true });
+  await frame.locator('#clockCard[data-moon-tone="dark"]').waitFor();
+  const colors = await frame.locator('#clockCard').evaluate(card => ({
+    time: getComputedStyle(card.querySelector('.clock-time')).color,
+    face: getComputedStyle(card.querySelector('.clock-moon-face')).backgroundColor,
+  }));
+  assert.deepEqual(colors, { time: 'rgb(237, 245, 255)', face: 'rgb(32, 57, 86)' });
+  await mode.selectOption('light', { force: true });
+  await frame.locator('#clockCard[data-moon-tone="light"]').waitFor();
+  await mode.selectOption('auto', { force: true });
+  assert.equal(await intervalField.isVisible(), true);
+  await interval.fill('2');
+  await interval.press('Tab');
+  await desktop.waitForFunction(() => {
+    const draft = window.controllers.clock.getState().draft;
+    return draft.moonMode === 'auto' && draft.moonIntervalSeconds === 2;
+  });
+  assert.deepEqual(await frame.evaluate(() => [innerWidth, innerHeight]), size);
+  // The fixture's controller returns its draft; mirror the pending write into
+  // its synthetic runtime for the shared-scene publication consistency check.
+  const { clockSettingsPayload } = require('../../public/js/shared/clock-settings.js');
+  const draft = await desktop.evaluate(() => window.controllers.clock.getState().draft);
+  Object.assign(fixture.runtime.settings, clockSettingsPayload(draft));
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const saved = await desktop.evaluate(() => window.controllers.clock.getState().saved);
+  assert.equal(saved.moonMode, 'auto');
+  assert.equal(saved.moonIntervalSeconds, 2);
+  const sceneId = await desktop.evaluate(() => window.controllers.canvas.getState().saved.document.id);
+  const source = fixture.service.getSource(sceneId);
+  assert.deepEqual(fixture.service.getOutput({ id: source.id, token: source.token }).document.items[0].appearance.config, saved);
+  const outputUrl = `${fixture.origin}/clock`;
+  assert.equal((await fetch(outputUrl)).status, 200);
+  const output = await context.newPage();
+  output.on('pageerror', error => errors.push(error.message));
+  await output.goto(outputUrl);
+  await output.locator('#clockCard:not([hidden])[data-clock-style="moonlit-fan"]').waitFor();
+  await page.reload();
+  await page.frameLocator('iframe').locator('#clockCard:not([hidden])').waitFor();
+  assert.equal(await mode.inputValue(), 'auto');
+  assert.equal(await interval.inputValue(), '2');
+  const reloadedFrame = page.frames().find(value => new URL(value.url()).pathname === '/clock');
+  let tone = await output.locator('#clockCard').getAttribute('data-moon-tone');
+  for (let transition = 0; transition < 3; transition += 1) {
+    tone = tone === 'light' ? 'dark' : 'light';
+    await output.locator(`#clockCard[data-moon-tone="${tone}"]`).waitFor({ timeout: 3500 });
+    await reloadedFrame.locator(`#clockCard[data-moon-tone="${tone}"]`).waitFor({ timeout: 1000 });
+  }
+  await mode.selectOption('dark', { force: true });
+  await reloadedFrame.locator('#clockCard[data-moon-tone="dark"]').waitFor();
+  assert.equal(await intervalField.isVisible(), false);
+  const started = Date.now();
+  await reloadedFrame.waitForFunction(time => Date.now() >= time + 2100, started, { timeout: 3000 });
+  assert.equal(await reloadedFrame.locator('#clockCard').getAttribute('data-moon-tone'), 'dark');
+  await page.locator('[data-clock-style-option="flip"]').click();
+  assert.equal(await palettes.isVisible(), false);
+});
 
 test('shared canvas retains multiple layers, custom resolution and drafts, and drains every save on closure', { timeout: 45000 }, async (t) => {
   const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><html><body></body></html>' });

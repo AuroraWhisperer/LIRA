@@ -13,6 +13,25 @@
       </div>
     </header>
 
+    <section id="licenseAccountDevice" class="license-account-card" hidden aria-labelledby="licenseAccountTitle">
+      <div class="license-account-card-heading">
+        <div>
+          <h3 id="licenseAccountTitle" class="ui-section-title">账号信息</h3>
+        </div>
+        <span class="pill good">已授权</span>
+      </div>
+      <dl class="license-account-details">
+        <div>
+          <dt>登录账户</dt>
+          <dd id="licenseAccountName">正在读取…</dd>
+        </div>
+        <div>
+          <dt>当前设备</dt>
+          <dd id="licenseDeviceName">正在读取…</dd>
+        </div>
+      </dl>
+    </section>
+
     <section id="clientAppearance" class="license-account-card" aria-labelledby="clientAppearanceTitle">
       <h3 id="clientAppearanceTitle" class="ui-section-title">客户端外观</h3>
       <fieldset class="client-appearance-choices" aria-label="客户端配色">
@@ -41,25 +60,6 @@
         <button type="button" class="primary" data-client-theme-apply disabled>应用配色</button>
         <span class="client-appearance-feedback" data-client-theme-feedback role="status" aria-live="polite"></span>
       </div>
-    </section>
-
-    <section id="licenseAccountDevice" class="license-account-card" hidden aria-labelledby="licenseAccountTitle">
-      <div class="license-account-card-heading">
-        <div>
-          <h3 id="licenseAccountTitle" class="ui-section-title">账号信息</h3>
-        </div>
-        <span class="pill good">已授权</span>
-      </div>
-      <dl class="license-account-details">
-        <div>
-          <dt>登录账户</dt>
-          <dd id="licenseAccountName">正在读取…</dd>
-        </div>
-        <div>
-          <dt>当前设备</dt>
-          <dd id="licenseDeviceName">正在读取…</dd>
-        </div>
-      </dl>
     </section>
 
     <section class="license-account-card" aria-labelledby="licenseWebsitesTitle">

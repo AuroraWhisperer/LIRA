@@ -304,6 +304,8 @@ function displayEvent(value) {
       giftCount: integer(value.giftCount, 1),
       ...(value.giftTotalPrice === undefined ? {} : { giftTotalPrice: amount(value.giftTotalPrice) }),
       ...(value.giftImageUrl === undefined ? {} : { giftImageUrl: imageUrl(value.giftImageUrl) }),
+      ...(value.avatarUrl === undefined ? {} : { avatarUrl: imageUrl(value.avatarUrl) }),
+      ...(value.giftGuardLevel === undefined ? {} : { giftGuardLevel: integer(value.giftGuardLevel, 1, 3) }),
     };
   }
   result.message = text(value.message, type === 'danmaku' ? 500 : 64 * 1024);

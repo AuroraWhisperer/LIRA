@@ -46,6 +46,29 @@ test('Playwright remains available only as a development dependency', () => {
   assert.equal(lock.packages['node_modules/playwright-core'].dev, true);
 });
 
+test('Moonlit resources stay out of the EXE while shared assets and trusted renderers remain', async () => {
+  const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
+  const projectDir = path.resolve(__dirname, '../..');
+  const output = path.join(projectDir, 'tmp/moonlit-packaging-match');
+  const matchers = getMainFileMatchers(projectDir, output, value => value, {}, { info: { projectDir,
+    buildResourcesDir: path.join(projectDir, pkg.build.directories.buildResources), config: pkg.build,
+    debugLogger: { isEnabled: false } } }, output, false);
+  const filter = matchers[0].createFilter();
+  let count = 0;
+  for (const entry of await fs.readdir(path.join(projectDir, 'public'), { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const file = path.join(entry.parentPath, entry.name);
+    const relative = path.relative(projectDir, file).replaceAll('\\', '/');
+    if (!/^public\/(img|fonts)\//.test(relative) || !/moonlit|moon-fan|clock-moon-serif/.test(relative)) continue;
+    count++; assert.equal(filter(file, await fs.stat(file)), false, relative);
+  }
+  assert.ok(count >= 35);
+  for (const relative of ['public/fonts/guard-thanks-serif-400.woff2', 'public/js/overlays/opening-moon-fan.js',
+    'public/css/overlays/clock/moonlit-fan.css', 'public/img/overlays/danmaku-previews/transparent.png']) {
+    const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), true, relative);
+  }
+});
+
 test('packaging excludes opening samples and only the converted PNG groups', async () => {
   assert.ok(pkg.build.files.includes('!public/img/overlays/opening/**/*'));
   for (const directory of [

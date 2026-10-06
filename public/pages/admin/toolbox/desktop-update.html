@@ -83,16 +83,16 @@
       <div class="desktop-support-row">
         <div class="desktop-support-copy">
           <strong>客户端资源检查</strong>
-          <span>核对当前安装的应用资源，不检查或修改个人数据</span>
+          <span>检查应用文件是否缺失或损坏</span>
         </div>
         <button id="desktopIntegrityCheckBtn" class="desktop-support-action" type="button" disabled>开始检查</button>
       </div>
-      <div class="desktop-integrity-result" aria-labelledby="desktopIntegrityStatus">
+      <div id="desktopIntegrityResult" class="desktop-integrity-result" aria-labelledby="desktopIntegrityStatus">
+        <svg class="desktop-integrity-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path id="desktopIntegrityIcon" d="M12 11v5 M12 8h.01" />
+        </svg>
         <p id="desktopIntegrityStatus" role="status" aria-live="polite">等待桌面端连接</p>
-        <p class="hint">
-          检查应用归档 app.asar
-          及随包外置资源，不覆盖完整运行环境，不代替网络和功能诊断；本地校验清单不是防篡改或正版认证。
-        </p>
         <p id="desktopIntegrityMeta" class="hint" hidden></p>
         <ul id="desktopIntegrityDetails" hidden></ul>
         <p id="desktopIntegrityHint" class="hint" hidden></p>

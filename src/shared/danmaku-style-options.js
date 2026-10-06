@@ -54,6 +54,15 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     giftImage: true,
     defaultTextColor: '#ffffff',
   },
+  moonlit: {
+    scrollDirection: true,
+    label: '月渡花汀',
+    minFontSize: 18,
+    maxFontSize: 42,
+    background: true,
+    giftImage: true,
+    defaultTextColor: '#fffaf2',
+  },
   outline: {
     layout: 'fullscreen-random',
     label: '简洁白卡',

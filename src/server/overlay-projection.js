@@ -57,7 +57,7 @@ const SETTING_KEYS = {
   'gift-export': '',
   opening: '',
   clock: `clockStyle clockShowDate clockShowSeconds clockHourFormat clockLabel
-    clockFlipFrameColor clockFlipFaceColor clockFlipTextColor`,
+    clockFlipFrameColor clockFlipFaceColor clockFlipTextColor clockMoonMode clockMoonIntervalSeconds`,
 };
 
 function fields(names) {
@@ -191,7 +191,7 @@ const RESPONSE_SCHEMAS = {
   },
   wheel: { '/api/wheel': WHEEL, '/api/wheel/spin': WHEEL },
   clock: {
-    '/api/clock/config': fields('style showDate showSeconds hourFormat label flipFrameColor flipFaceColor flipTextColor'),
+    '/api/clock/config': fields('style showDate showSeconds hourFormat label flipFrameColor flipFaceColor flipTextColor moonMode moonIntervalSeconds'),
   },
   opening: {
     '/api/opening/config': fields(

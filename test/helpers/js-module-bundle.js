@@ -9,7 +9,7 @@ const LOCAL_IMPORT_PATTERN = /^import\s+(?:['"]([^'"]+)['"]|[\s\S]*?\s+from\s+['
 function readJsModuleBundle(...relativeSegments) {
   const visited = new Set();
 
-  function read(filePath) {
+  function read(filePath, entry = false) {
     const resolvedPath = path.resolve(filePath);
     if (visited.has(resolvedPath)) return '';
     visited.add(resolvedPath);
@@ -24,10 +24,24 @@ function readJsModuleBundle(...relativeSegments) {
       dependencies.push(read(path.resolve(path.dirname(resolvedPath), importPath)));
       return '';
     });
-    return `${dependencies.join('\n')}\n${body.replace(/^export\s*\{[^}]*\};?\s*$/gm, '').replace(/^export\s+/gm, '')}`;
+    const exports = [...body.matchAll(/^export\s+(?:async\s+)?(?:function|class|const|let)\s+(\w+)/gm)]
+      .map(([, name]) => name);
+    for (const [, names] of body.matchAll(/^export\s+(?:const|let)\s*\{([^}]+)\}/gm)) {
+      exports.push(...names.split(',').map(name => name.trim()).filter(Boolean));
+    }
+    for (const [, names] of body.matchAll(/^export\s*\{([^}]*)\};?\s*$/gm)) {
+      exports.push(...names.split(',').map(name => name.trim()).filter(name =>
+        name && new RegExp(`\\b(?:function|class|const|let)\\s+${name}\\b`).test(body)));
+    }
+    const script = body.replace(/^export\s*\{[^}]*\};?\s*$/gm, '').replace(/^export\s+/gm, '');
+    // Dependencies keep their private declarations inside their own module scope.
+    const scoped = entry ? script : exports.length
+      ? `Object.assign(globalThis, (() => {\n${script}\nreturn { ${exports.join(', ')} };\n})());`
+      : `(() => {\n${script}\n})();`;
+    return `${dependencies.join('\n')}\n${scoped}`;
   }
 
-  return read(path.join(ROOT_DIR, ...relativeSegments));
+  return read(path.join(ROOT_DIR, ...relativeSegments), true);
 }
 
 module.exports = { readJsModuleBundle };

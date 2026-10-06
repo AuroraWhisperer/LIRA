@@ -56,7 +56,14 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     return session;
   }
 
-  function link({ links, selectedId = null, selectedSize = null }) {
+  function checkSelectedItem(entries, selectedId, selectedItemId) {
+    if (selectedItemId === undefined) return;
+    const canvas = entries.find(({ component }) => component === 'canvas');
+    if (typeof selectedItemId !== 'string' || !canvas || !get(canvas.id).state.draft.document?.items
+      ?.some((item) => item.id === selectedItemId && item.type === selectedId)) fail(400, '预览组件实例无效。');
+  }
+
+  function link({ links, selectedId = null, selectedSize = null, selectedItemId }) {
     if (!Array.isArray(links) || !links.length || links.length > PREVIEW_SESSION_TYPES.length
       || links.some((entry) => !record(entry)) || new Set(links.map(({ id }) => id)).size !== links.length) {
       fail(400, '预览链接无效。');
@@ -70,12 +77,16 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     if (selectedSize !== null && (!selectedId || !record(selectedSize)
       || !['width', 'height'].every((axis) => Number.isFinite(selectedSize[axis])
         && selectedSize[axis] >= 32 && selectedSize[axis] <= 7680))) fail(400, '组件尺寸无效。');
+    checkSelectedItem(entries, selectedId, selectedItemId);
     const anchor = get(entries.find(({ component }) => component === 'canvas')?.id || entries[0].id);
     anchor.links ||= new Map();
-    const previous = anchor.links.get(selectedId);
+    const sceneId = anchor.component === 'canvas' ? anchor.state.saved.document?.id : null;
+    const selectionKey = JSON.stringify([selectedId, selectedItemId, sceneId]);
+    const previous = anchor.links.get(selectionKey);
     const key = previous && JSON.stringify(previous.entries) === JSON.stringify(entries)
       ? previous.key : crypto.randomBytes(16).toString('base64url');
-    anchor.links.set(selectedId, { key, hash: crypto.createHash('sha256').update(key).digest(), entries, selectedId,
+    anchor.links.set(selectionKey, { key, hash: crypto.createHash('sha256').update(key).digest(), entries, selectedId, sceneId,
+      ...(selectedItemId === undefined ? {} : { selectedItemId }),
       selectedSize: selectedSize === null ? null : { width: selectedSize.width, height: selectedSize.height } });
     return { key };
   }
@@ -88,7 +99,12 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       .find((entry) => crypto.timingSafeEqual(entry.hash, hash));
     if (!linked) fail(410, '预览连接已结束，请从客户端重新打开预览。');
     for (const { id, token } of linked.entries) authenticate(id, token);
-    return copy({ links: linked.entries, selectedId: linked.selectedId, selectedSize: linked.selectedSize });
+    const canvas = linked.entries.find(({ component }) => component === 'canvas');
+    const sameScene = !linked.sceneId || get(canvas.id).state.saved.document?.id === linked.sceneId;
+    if (sameScene) checkSelectedItem(linked.entries, linked.selectedId, linked.selectedItemId);
+    return copy({ links: linked.entries.map(entry => ({ ...entry, draftKey: get(entry.id).draftKey })),
+      selectedId: sameScene ? linked.selectedId : null, selectedSize: sameScene ? linked.selectedSize : null,
+      ...(!sameScene || linked.selectedItemId === undefined ? {} : { selectedItemId: linked.selectedItemId }) });
   }
 
   function stateOf(value, component) {
@@ -100,7 +116,12 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     return copy({ draft: value.draft, saved: value.saved, generation: value.generation,
       loaded: value.loaded === true, loading: value.loading === true, saving: value.saving === true,
       dirty: value.dirty === true, conflict: value.conflict === true, applied: value.applied === true,
-      error: typeof value.error === 'string' ? value.error.slice(0, 500) : '' });
+      error: typeof value.error === 'string' ? value.error.slice(0, 500) : '',
+      ...(component === 'canvas' && Array.isArray(value.presets) ? {
+        presets: value.presets.map(({ id, title, dirty }) => ({ id, title, dirty: dirty === true })),
+        activeSceneId: value.activeSceneId || null,
+        activeSceneTitle: value.activeSceneTitle || '',
+      } : {}) });
   }
 
   function publicState(session) {
@@ -136,6 +157,9 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     }
     if (!Number.isSafeInteger(ack) || ack < session.ack || ack > session.sequence) fail(400, '预览确认序号无效。');
     session.state = next;
+    if (session.component === 'canvas') session.draftKey = crypto.createHash('sha256').update(JSON.stringify([
+      getOwner()?.scope || anonymousScope, 'canvas', next.saved.document?.id,
+    ])).digest('hex');
     session.display = copy(display);
     session.ack = ack;
     session.commands = session.commands.filter((command) => command.sequence > ack);
@@ -168,7 +192,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     if (action === 'close') { session.closed = true; session.touched = now(); return {}; }
     if (action === 'read') { session.touched = now(); return publicState(session); }
     if (!['edit', 'save', 'discard'].includes(action)
-      && !(session.component === 'canvas' && ['publish', 'source'].includes(action))) fail(400, '不支持的预览操作。');
+      && !(session.component === 'canvas' && ['publish', 'source', 'preset'].includes(action))) fail(400, '不支持的预览操作。');
     if (commandId !== undefined) {
       if (!Number.isSafeInteger(commandId) || commandId < 1) fail(400, '预览操作编号无效。');
       if (commandId < session.lastCommand?.id) fail(409, '预览操作已过期，请重新打开预览。');
@@ -184,14 +208,30 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       fail(400, '预览参数无效。');
     }
     if (action === 'edit') checkConfig(change, session.component);
+    if (action === 'preset' && (!Array.isArray(session.state.presets) || !record(change)
+      || (change.action === 'select' ? Object.keys(change).some(key => !['action', 'id'].includes(key))
+        || !session.state.presets?.some(preset => preset.id === change.id)
+        : change.action === 'create' ? Object.keys(change).some(key => !['action', 'title', 'duplicate'].includes(key))
+          || typeof change.title !== 'string' || !change.title.trim() || change.title.length > 80
+          || typeof change.duplicate !== 'boolean' : true))) fail(400, '场景预设参数无效。');
     const sequence = ++session.sequence;
-    session.commands.push({ sequence, action, ...(action === 'edit' ? { change: copy(change) } : {}) });
+    session.commands.push({ sequence, action, ...(['edit', 'preset'].includes(action) ? { change: copy(change) } : {}) });
     if (commandId !== undefined) session.lastCommand = { id: commandId, sequence };
     session.touched = now();
     return { sequence };
   }
 
-  return { open, exchange, browser, link, resolveLink,
+  function authorizeCanvasMedia({ id, attachmentId }, token) {
+    const session = authenticate(id, token);
+    if (session.component !== 'canvas') fail(403, '此预览无权访问画布素材。');
+    if (now() - session.touched > SESSION_TTL_MS) fail(503, '正在等待客户端恢复连接，未保存修改仍保留。');
+    if (!session.attachmentId || attachmentId !== session.attachmentId) {
+      fail(409, '编辑已在其他页面继续，请刷新此页后重试。');
+    }
+    if (!session.state.loaded) fail(409, '配置尚未读取，请稍后重试。');
+  }
+
+  return { open, exchange, browser, link, resolveLink, authorizeCanvasMedia,
     revoke: (id) => sessions.delete(id), clear: () => sessions.clear() };
 }
 

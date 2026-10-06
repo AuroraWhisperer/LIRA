@@ -1,6 +1,8 @@
 'use strict';
 
 import { createPixelOpening } from './opening-pixel.js';
+import { createMoonFanOpening } from './opening-moon-fan.js';
+import { createMediaEventPlayer } from './component-media.js';
 import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
 
 const DEFAULTS = Object.freeze({
@@ -71,7 +73,7 @@ function normalizeTrackMotion(value) {
 }
 
 function normalizeStyle(value) {
-  return value === 'pixel-cassette' ? value : DEFAULTS.style;
+  return value === 'pixel-cassette' || value === 'moonlit-fan' ? value : DEFAULTS.style;
 }
 
 function parseConfig(search = typeof location === 'undefined' ? '' : location.search) {
@@ -162,6 +164,7 @@ function createOpeningRuntime() {
   let config = null;
   let disposed = false;
   let pixel = null;
+  let moonFan = null;
 
   const updateMotion = () => {
     if (!config) return;
@@ -177,7 +180,16 @@ function createOpeningRuntime() {
       paused,
       reducedMotion: Boolean(reducedMotion?.matches),
     });
-    if (paused || config.style === 'pixel-cassette' || reducedMotion?.matches || config.quality === 'low') {
+    if (config.style === 'moonlit-fan' && !moonFan) {
+      moonFan = createMoonFanOpening(document.getElementById('openingMoonFan'));
+    }
+    moonFan?.update({
+      ...config,
+      active: config.enabled && config.style === 'moonlit-fan',
+      paused,
+      reducedMotion: Boolean(reducedMotion?.matches),
+    });
+    if (paused || config.style !== 'classic' || reducedMotion?.matches || config.quality === 'low') {
       trackSvg?.pauseAnimations?.();
     } else {
       trackSvg?.unpauseAnimations?.();
@@ -254,6 +266,7 @@ function createOpeningRuntime() {
       reducedMotion?.removeEventListener?.('change', updateMotion);
       trackSvg?.pauseAnimations?.();
       pixel?.dispose();
+      moonFan?.dispose();
       if (audio) {
         audio.pause();
         audio.removeAttribute('src');
@@ -314,12 +327,35 @@ function mergeConfig(
 }
 
 function initOpeningOverlay() {
-  const runtime = createOpeningRuntime();
+  let runtime = createOpeningRuntime();
   if (isComponentPreview()) {
+    let appearance = {};
+    let data = null;
+    let mediaPlayer = null;
+    let enabled = false;
+    const render = () => {
+      if (appearance.mediaStyle) {
+        runtime.apply({ ...DEFAULTS, enabled: false });
+        if (data?.enabled && !enabled) void mediaPlayer.play({ userName: data.name || '' });
+        if (!data?.enabled) mediaPlayer.stop();
+        enabled = Boolean(data?.enabled);
+      } else runtime.apply(mergeConfig(
+        appearance.style === 'moonlit-fan' ? { ...data, style: appearance.style } : data,
+        parseConfig(''), new URLSearchParams(),
+      ));
+    };
     createComponentPreviewClient({
-      onConfig: () => {},
-      onData: (config) => runtime.apply(mergeConfig(config, parseConfig(''), new URLSearchParams())),
-      onDispose: () => runtime.dispose(),
+      onConfig: (config) => {
+        if (appearance.resourceStyle?.id !== config?.resourceStyle?.id) {
+          runtime.dispose(); runtime = createOpeningRuntime();
+        }
+        appearance = config || {}; mediaPlayer?.dispose(); enabled = false;
+        mediaPlayer = appearance.mediaStyle ? createMediaEventPlayer(appearance.mediaStyle) : null;
+        render();
+        return mediaPlayer?.ready();
+      },
+      onData: (config) => { data = config; render(); },
+      onDispose: () => { mediaPlayer?.dispose(); runtime.dispose(); },
     });
     return;
   }

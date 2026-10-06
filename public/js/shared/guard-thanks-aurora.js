@@ -1,55 +1,23 @@
-// 大航海感谢 · 辉光（aurora）风格：光线在雾气中成形、又缓缓散回雾气。
-// 不出现送礼人头像与名字；三档靠层数、材质与时长递进，而不是靠文字。
-import { buildEmblem } from './guard-thanks-emblems.js';
-import {
-  AURORA_EXIT_MS,
-  EASE_BREATH,
-  EASE_ORGANIC,
-  element,
-} from './guard-thanks-stage.js';
+// 大航海感谢 · 辉光：分档珠贝纹章、流动反光与随卡片收尾的光饰。
+import { buildEmblem, svgNode } from './guard-thanks-emblems.js';
+import { AURORA_EXIT_MS, EASE_ORGANIC, element } from './guard-thanks-stage.js';
 
-// 入场 / 停留 / 退场（毫秒）。柔和的东西不能收得太快，退场统一 1000ms。
+const ARTWORK_ROOT = '/img/overlays/guard-thanks/';
+const ARTWORK_WAIT_MS = 1400;
 const AURORA_TIERS = Object.freeze({
   captain: Object.freeze({
-    emblem: 'anchor',
-    layers: 3,
-    ribbons: 2,
-    rings: 1,
-    ripples: 2,
-    motes: 26,
-    enterMs: 1800,
-    holdMs: 3000,
-    material: 'dew',
+    emblem: 'anchor', rings: 1, motes: 18, enterMs: 2800, material: 'blue-pearl',
+    glints: [[292, 94], [212, 202], [452, 458]],
   }),
   admiral: Object.freeze({
-    emblem: 'compass',
-    layers: 4,
-    ribbons: 3,
-    rings: 2,
-    ripples: 3,
-    motes: 44,
-    orbit: 10,
-    enterMs: 2000,
-    holdMs: 3400,
-    material: 'frost',
+    emblem: 'compass', rings: 3, motes: 32, enterMs: 3000, material: 'violet-pearl',
+    glints: [[320, 110], [478, 316], [261, 381], [181, 228], [346, 464], [214, 406]],
   }),
   governor: Object.freeze({
-    emblem: 'helm',
-    layers: 5,
-    ribbons: 4,
-    rings: 3,
-    ripples: 4,
-    motes: 64,
-    orbit: 16,
-    converge: 30,
-    veilSweep: true,
-    enterMs: 2200,
-    holdMs: 4000,
-    material: 'gilt',
+    emblem: 'helm', rings: 5, motes: 50, enterMs: 3200, material: 'ruby-pearl',
+    glints: [[320, 304], [181, 159], [495, 294], [322, 511], [193, 448], [442, 164], [160, 314], [425, 447]],
   }),
 });
-// 各层呼吸周期取互质，避免多层同时亮暗。
-const BREATH_PERIOD_SECONDS = Object.freeze([7.3, 9.1, 11.7, 8.3, 10.1]);
 
 export function buildAuroraCard(payload, tier, copy, uid) {
   const motion = AURORA_TIERS[payload.tier];
@@ -59,367 +27,251 @@ export function buildAuroraCard(payload, tier, copy, uid) {
   card.dataset.material = motion.material;
   const parts = { card, motion };
 
-  parts.veil = element('div', 'gta-veil');
-  parts.washes = Array.from({ length: motion.layers }, (_, index) =>
-    element('div', `gta-wash gta-wash-${index + 1}`),
-  );
-
-  parts.ribbons = Array.from({ length: motion.ribbons }, (_, index) => {
-    const ribbon = element('div', `gta-ribbon gta-ribbon-${index + 1}`);
-    ribbon.append(element('i'));
-    return ribbon;
-  });
-
+  parts.aura = element('div', 'gta-aura');
+  parts.rays = element('div', 'gta-rays');
   parts.halo = element('div', 'gta-halo');
-  parts.haloCore = element('div', 'gta-halo-core');
-  parts.halo.append(parts.haloCore);
-  parts.rings = Array.from({ length: motion.rings }, (_, index) => {
-    const ring = element('div', `gta-ring gta-ring-${index + 1}`);
-    ring.append(element('i'), element('b'));
-    return ring;
+  parts.orbit = svgNode('svg', { class: 'gta-orbit', viewBox: '0 0 800 760', 'aria-hidden': 'true' });
+  const paths = [
+    'M132 478 C50 272 208 72 420 96 C618 110 716 284 666 442',
+    'M176 580 C354 690 660 570 688 350',
+    'M128 338 C158 150 450 64 616 236',
+    'M184 616 C370 710 646 624 712 440',
+    'M90 402 C54 218 234 58 406 70',
+  ];
+  parts.orbitPaths = paths.slice(0, motion.rings).map((d, index) => svgNode('path', {
+    d, class: `gta-orbit-path gta-orbit-path-${index + 1}`, pathLength: 1,
+  }));
+  parts.trails = paths.slice(0, motion.rings).map((d, index) => {
+    const trail = svgNode('g', { class: `gta-orbit-trail gta-orbit-trail-${index + 1}` });
+    trail.append(
+      svgNode('path', { d, class: 'gta-trail-tail', pathLength: 1 }),
+      svgNode('path', { d, class: 'gta-trail-head', pathLength: 1 }),
+    );
+    return trail;
   });
-  // 刻环：提督 1 圈、总督 2 圈反向旋转。
-  parts.etchings = Array.from({ length: Math.max(0, motion.rings - 1) }, (_, index) =>
-    element('div', `gta-etching gta-etching-${index + 1}`),
-  );
-  parts.ripples = Array.from({ length: motion.ripples }, (_, index) => element('div', `gta-ripple gta-ripple-${index + 1}`));
+  parts.orbit.append(...parts.orbitPaths, ...parts.trails);
 
-  // 光刻纹章：复用经典档的矢量几何，由 CSS 覆盖为描边-only。
+  parts.regaliaLines = [];
+  parts.regaliaStars = [];
+  parts.crownRays = [];
+  parts.ripples = [];
+  if (payload.tier !== 'captain') {
+    parts.regalia = svgNode('svg', { class: 'gta-orbit gta-regalia', viewBox: '0 0 800 760', 'aria-hidden': 'true' });
+    parts.regaliaLines = [
+      'M154 104 A348 348 0 0 0 154 596',
+      'M646 104 A348 348 0 0 1 646 596',
+    ].map((d) => svgNode('path', { d, class: 'gta-regalia-line', pathLength: 1 }));
+    const starsPerSide = payload.tier === 'governor' ? 6 : 4;
+    parts.regaliaStars = Array.from({ length: starsPerSide * 2 }, (_, index) => {
+      const angle = (145 + index % starsPerSide * 70 / (starsPerSide - 1) + (index < starsPerSide ? 0 : 180)) * Math.PI / 180;
+      const x = 400 + Math.cos(angle) * 348;
+      const y = 350 + Math.sin(angle) * 348;
+      return svgNode('path', { class: 'gta-regalia-star', d: `M${x} ${y - 5} L${x + 3} ${y} L${x} ${y + 5} L${x - 3} ${y} Z` });
+    });
+    if (payload.tier === 'governor') {
+      parts.crownRays = Array.from({ length: 9 }, (_, index) => {
+        const angle = (-130 + index * 10) * Math.PI / 180;
+        const radius = 352 + (index === 4 ? 20 : index % 2 === 0 ? 10 : 0);
+        return svgNode('path', {
+          class: 'gta-crown-ray', pathLength: 1,
+          d: `M${400 + Math.cos(angle) * 322} ${350 + Math.sin(angle) * 322} L${400 + Math.cos(angle) * radius} ${350 + Math.sin(angle) * radius}`,
+        });
+      });
+      parts.ripples = Array.from({ length: 2 }, () => element('div', 'gta-ripple'));
+    }
+    parts.regalia.append(...parts.regaliaLines, ...parts.regaliaStars, ...parts.crownRays);
+  }
+
   parts.sigil = element('div', `gta-sigil is-${motion.emblem}`);
-  parts.sigilSpin = element('div', 'gta-sigil-spin');
-  parts.sigilBloom = element('div', 'gta-sigil-bloom');
-  parts.sigilTrace = element('div', 'gta-sigil-trace');
-  parts.sigilSpin.append(buildEmblem(motion.emblem, uid));
-  parts.sigil.append(parts.sigilBloom, parts.sigilSpin, parts.sigilTrace);
+  parts.artwork = element('img', 'gta-artwork');
+  parts.artwork.alt = '';
+  parts.artwork.draggable = false;
+  parts.artwork.decoding = 'async';
+  // 与 CSS 蒙版使用相同请求模式，让显示图与反光共用一份素材。
+  parts.artwork.crossOrigin = 'anonymous';
+  parts.artwork.src = `${ARTWORK_ROOT}${payload.tier}-pearl-v1.webp`;
+  parts.sigil.style.setProperty('--gta-artwork', `url("${parts.artwork.getAttribute('src')}")`);
+  parts.reflection = element('div', 'gta-reflection');
+  parts.glints = motion.glints.map(([x, y], index) => {
+    const glint = element('i', 'gta-glint');
+    glint.style.left = `${x}px`;
+    glint.style.top = `${y}px`;
+    glint.style.setProperty('--gta-glint-size', `${index === 0 ? 42 : 28}px`);
+    return glint;
+  });
+  parts.fallback = element('div', 'gta-sigil-fallback');
+  parts.fallback.append(buildEmblem(motion.emblem, uid));
+  parts.sigil.append(parts.fallback, parts.artwork, parts.reflection, ...parts.glints);
 
+  parts.motes = Array.from({ length: motion.motes }, (_, index) => {
+    const angle = index * 2.4;
+    const radius = 268 + index % 5 * 19;
+    const mote = element('i', `gta-mote${index % 6 === 0 ? ' is-star' : ''}${index % 3 === 0 ? ' is-accent' : ''}`);
+    mote.style.left = `${640 + Math.cos(angle) * radius * 1.08}px`;
+    mote.style.top = `${444 + Math.sin(angle) * radius * 0.86}px`;
+    mote.style.setProperty('--gta-mote-size', `${index % 6 === 0 ? 16 : 4 + index % 3}px`);
+    return mote;
+  });
+
+  parts.caption = element('div', 'gta-caption');
+  parts.titleRow = element('div', 'gta-title-row');
   parts.titleBlock = element('div', 'gta-title');
   parts.titleChars = Array.from(copy.title, (character) => element('span', 'gta-title-char', character));
   parts.titleBlock.append(...parts.titleChars);
-  parts.scrim = element('div', 'gta-scrim');
-  parts.titleRow = element('div', 'gta-title-row');
-  parts.titleRow.append(parts.scrim, parts.titleBlock);
-
+  parts.titleRow.append(parts.titleBlock);
   parts.eyebrow = element('div', 'gta-eyebrow');
-  parts.eyebrowBottomLine = element('i', 'gta-hairline');
-  parts.eyebrowTopLine = element('i', 'gta-hairline');
   parts.eyebrow.dataset.lang = copy.eyebrowLang || copy.lang;
-  parts.eyebrow.append(
-    parts.eyebrowTopLine,
-    element('span', 'gta-eyebrow-text', copy.eyebrow),
-    parts.eyebrowBottomLine,
-  );
-
+  parts.eyebrow.append(element('i', 'gta-hairline'), element('span', 'gta-eyebrow-text', copy.eyebrow), element('i', 'gta-hairline'));
   parts.footer = element('div', 'gta-footer');
-  if (copy.months) parts.months = element('span', 'gta-months', copy.months);
-  parts.footer.append(...(parts.months ? [parts.months] : []));
-
-  parts.material = element('div', `gta-material is-${motion.material}`);
-  parts.materialItems = Array.from({ length: motion.material === 'gilt' ? 14 : motion.material === 'frost' ? 9 : 12 }, (_, index) =>
-    element('i', `gta-material-item gta-material-item-${(index % 4) + 1}`),
-  );
-  parts.material.append(...parts.materialItems);
-
-  card.append(
-    parts.veil,
-    ...parts.washes,
-    ...parts.ribbons,
-    parts.halo,
-    ...parts.rings,
-    ...parts.etchings,
-    ...parts.ripples,
-    parts.sigil,
-    parts.material,
-    parts.eyebrow,
-    parts.titleRow,
-    parts.footer,
-  );
+  if (copy.months) {
+    parts.months = element('span', 'gta-months', copy.months);
+    parts.footer.append(parts.months);
+  }
+  parts.caption.append(parts.titleRow, parts.eyebrow, parts.footer);
+  card.append(parts.aura, parts.rays, parts.halo, ...parts.ripples);
+  if (parts.regalia) card.append(parts.regalia);
+  card.append(parts.orbit, parts.sigil, ...parts.motes, parts.caption);
   return parts;
 }
 
+async function prepareAurora(session, parts) {
+  // 素材解码与标题字体都在入场前准备；超时使用矢量后备，播放中不突然换图。
+  const artworkReady = parts.artwork.decode().then(() => true, () => false);
+  const fontReady = document.fonts.load('400 96px "Lira Guard Serif"', parts.titleBlock.textContent).catch(() => []);
+  const ready = await Promise.race([
+    Promise.all([artworkReady, fontReady]).then(([artwork, fonts]) => ({ artwork, font: fonts.length > 0 })),
+    session.wait(ARTWORK_WAIT_MS).then(() => null),
+    session.abortPromise.then(() => null),
+  ]);
+  if (session.aborted) return;
+  if (ready?.artwork) parts.sigil.classList.add('has-artwork');
+  if (ready?.font) parts.card.classList.add('has-title-font');
+}
+
 export function scheduleAurora(session, parts, tier, holdMs) {
-  const motion = parts.motion;
-  const enterMs = motion.enterMs;
+  const { enterMs } = parts.motion;
   const exitAt = enterMs + holdMs;
   const total = exitAt + AURORA_EXIT_MS;
-  const enter = (node, keyframes, duration, delay, easing = EASE_ORGANIC) =>
-    session.animate(node, keyframes, { duration, delay, easing });
-  const later = (node, keyframes, duration, delay, easing = EASE_ORGANIC) =>
-    session.animate(node, keyframes, { duration, delay, easing, fill: 'forwards' });
+  const enter = (node, frames, duration, delay = 0, easing = EASE_ORGANIC) =>
+    session.animate(node, frames, { duration, delay, easing });
+  const later = (node, frames, duration, delay, easing = 'ease-in-out') =>
+    session.animate(node, frames, { duration, delay, easing, fill: 'forwards' });
 
-  // 1. 雾底光场：错位偏移、缓慢缩放横移，各层按互质周期呼吸。
-  parts.washes.forEach((wash, index) => {
-    const drift = index % 2 === 0 ? 40 : -34;
-    enter(wash, [{ opacity: 0, transform: 'scale(.86) translateX(0)' }, { opacity: 1, transform: 'scale(1) translateX(0)' }], 1400, index * 130);
-    enter(
-      wash,
-      [
-        { opacity: 1, transform: `scale(1) translateX(0px)` },
-        { opacity: 0.82, transform: `scale(1.06) translateX(${drift}px)`, offset: 0.5 },
-        { opacity: 1, transform: 'scale(1) translateX(0px)' },
-      ],
-      BREATH_PERIOD_SECONDS[index % BREATH_PERIOD_SECONDS.length] * 1000,
-      enterMs,
-      'linear',
-    );
+  // 先勾勒弧线，再浮现纹章；光环、文字与星芒依次进入，各层保留自己的节奏。
+  enter(parts.aura, [
+    { opacity: 0, transform: 'scale(.88)' },
+    { opacity: 0.9, transform: 'scale(1)', offset: 0.25 },
+    { opacity: 0.65, transform: 'scale(1.04)', offset: 0.6 },
+    { opacity: 0.85, transform: 'scale(1)' },
+  ], exitAt, 0, 'ease-in-out');
+  enter(parts.rays, [
+    { opacity: 0, transform: 'rotate(-22deg) scale(.9)' },
+    { opacity: 0.8, transform: 'rotate(-8deg) scale(1)', offset: 0.3 },
+    { opacity: 0.55, transform: 'rotate(12deg) scale(1.035)', offset: 0.7 },
+    { opacity: 0.7, transform: 'rotate(28deg) scale(1)' },
+  ], exitAt - 1400, 1400, 'linear');
+  enter(parts.halo, [
+    { opacity: 0, transform: 'scale(.82) rotate(-25deg)' },
+    { opacity: 0.85, transform: 'scale(1) rotate(0deg)', offset: 0.32 },
+    { opacity: 0.65, transform: 'scale(1.05) rotate(25deg)', offset: 0.65 },
+    { opacity: 0.8, transform: 'scale(1.01) rotate(45deg)' },
+  ], exitAt - 1100, 1100, 'ease-in-out');
+  enter(parts.orbit, [{ opacity: 0 }, { opacity: 1 }], 600, 80);
+  parts.orbitPaths.forEach((path, index) => {
+    enter(path, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], 1000, 120 + index * 240);
+  });
+  parts.trails.forEach((trail, index) => {
+    const from = 1 - index * 0.2;
+    const delay = 1800 + index * 280;
+    enter(trail, [
+      { opacity: 0, strokeDashoffset: from },
+      { opacity: 0.9, strokeDashoffset: from - 0.2, offset: 0.1 },
+      { opacity: 0.9, strokeDashoffset: from - 1.9, offset: 0.88 },
+      { opacity: 0, strokeDashoffset: from - 2.2 },
+    ], exitAt - delay - 150, delay, 'linear');
+  });
+  // 中心纹章始终固定，只淡入淡出；空间运动全部留给外围光饰。
+  enter(parts.sigil, [{ opacity: 0 }, { opacity: 1 }], 1000, 600);
+  later(parts.orbit, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(12deg)' }], holdMs, enterMs, 'linear');
+
+  // 提督沿两侧逐点亮起星链；总督再以金色冠芒和双重光环完成加冕。
+  parts.regaliaLines.forEach((line, index) => {
+    enter(line, [{ opacity: 0, strokeDashoffset: 1 }, { opacity: 0.5, strokeDashoffset: 0 }], 1100, 1800 + index * 200);
+  });
+  parts.regaliaStars.forEach((star, index) => {
+    session.animate(star, [
+      { opacity: 0, transform: 'scale(.4)' },
+      { opacity: 0.9, transform: 'scale(1.15)', offset: 0.18 },
+      { opacity: 0.55, transform: 'scale(1)', offset: 0.5 },
+      { opacity: 0.8, transform: 'scale(1.1)', offset: 0.8 },
+      { opacity: 0.45, transform: 'scale(1)' },
+    ], { duration: 2800, delay: 2300 + index * 70, iterations: 2, direction: 'alternate', easing: 'ease-in-out' });
+  });
+  parts.crownRays.forEach((ray, index) => {
+    enter(ray, [
+      { opacity: 0, strokeDashoffset: 1 },
+      { opacity: 0.8, strokeDashoffset: 0, offset: 0.5 },
+      { opacity: 0.5, strokeDashoffset: 0 },
+    ], 1100, 2150 + Math.abs(index - 4) * 80);
+  });
+  parts.ripples.forEach((ripple, index) => {
+    enter(ripple, [
+      { opacity: 0, transform: 'scale(.74)' },
+      { opacity: 0.55, transform: 'scale(.86)', offset: 0.25 },
+      { opacity: 0, transform: 'scale(1.1)' },
+    ], 1550, 1650 + index * 640, 'ease-out');
   });
 
-  // 2. 极光绸带：反向漂移 + 宽度呼吸。
-  parts.ribbons.forEach((ribbon, index) => {
-    const forward = index % 2 === 0;
-    enter(
-      ribbon,
-      [
-        { opacity: 0, transform: `translateX(${forward ? -90 : 90}px) scaleY(.7)` },
-        { opacity: 1, transform: 'translateX(0px) scaleY(1)' },
-      ],
-      1500,
-      220 + index * 150,
-    );
-    enter(
-      ribbon.querySelector('i'),
-      [
-        { opacity: 0.9, transform: 'scaleY(.75)' },
-        { opacity: 1, transform: 'scaleY(1.15)', offset: 0.5 },
-        { opacity: 0.9, transform: 'scaleY(.75)' },
-      ],
-      6800 + index * 1100,
-      enterMs - 400,
-      'linear',
-    );
+  // 反光由原图 alpha 裁切，只掠过珠贝表面；星点附着在各自纹章的受光位置。
+  session.animate(parts.reflection, [
+    { opacity: 0, backgroundPosition: '165% 0' },
+    { opacity: 0.75, backgroundPosition: '125% 0', offset: 0.2 },
+    { opacity: 0.75, backgroundPosition: '-20% 0', offset: 0.75 },
+    { opacity: 0, backgroundPosition: '-65% 0' },
+  ], { duration: 2600, delay: 1700, iterations: 2, easing: 'ease-in-out' });
+  parts.glints.forEach((glint, index) => {
+    session.animate(glint, [
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(.35) rotate(-12deg)' },
+      { opacity: 0.9, transform: 'translate(-50%, -50%) scale(1) rotate(0deg)', offset: 0.25 },
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(.5) rotate(18deg)', offset: 0.6 },
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(.35) rotate(18deg)' },
+    ], { duration: 2350 + index * 170, delay: 2300 + index * 270, iterations: 2, easing: 'ease-in-out' });
   });
 
-  // 3. 光晕环：从略大温和收到 0.62，边缘靠双层 blur 消硬边。
-  enter(parts.halo, [{ opacity: 0 }, { opacity: 1 }], 1100, 120);
-  enter(
-    parts.haloCore,
-    [
-      { opacity: 0, transform: 'scale(1.15)' },
-      { opacity: 1, transform: 'scale(.72)', offset: 0.72 },
-      { opacity: 1, transform: 'scale(.62)' },
-    ],
-    enterMs,
-    260,
-  );
-  // 中段一次呼吸：亮度 +12%、尺寸 +3%，让画面"活着"。
-  if (holdMs > 1200) {
-    const breathAt = enterMs + holdMs / 2 - 450;
-    later(
-      parts.haloCore,
-      [
-        { opacity: 1, transform: 'scale(.62)' },
-        { opacity: 1, transform: 'scale(.639)', offset: 0.5 },
-        { opacity: 1, transform: 'scale(.62)' },
-      ],
-      900,
-      breathAt,
-      EASE_BREATH,
-    );
-  }
-
-  parts.rings.forEach((ring, index) => {
-    enter(
-      ring,
-      [
-        { opacity: 0, transform: 'scale(1.1)' },
-        { opacity: 1, transform: 'scale(1)', offset: 0.6 },
-        { opacity: 0.86, transform: 'scale(.99)' },
-      ],
-      1500,
-      420 + index * 220,
-    );
+  // 文字不参与高光或虚化，短距离淡入后保持稳定。
+  enter(parts.caption, [{ opacity: 0 }, { opacity: 1 }], 360, 1500);
+  parts.titleChars.forEach((character, index) => {
+    enter(character, [
+      { opacity: 0, transform: 'translateY(8px)' },
+      { opacity: 1, transform: 'translateY(0)' },
+    ], 650, 1580 + index * 35);
   });
-  parts.etchings.forEach((etching, index) =>
-    enter(etching, [{ opacity: 0 }, { opacity: .7 }], 1200, 900 + index * 300),
-  );
-  parts.etchings.forEach((etching, index) =>
-    enter(
-      etching,
-      [{ transform: `rotate(0deg)` }, { transform: `rotate(${index % 2 === 0 ? 46 : -52}deg)` }],
-      holdMs + AURORA_EXIT_MS,
-      enterMs,
-      'linear',
-    ),
-  );
+  enter(parts.eyebrow, [{ opacity: 0, transform: 'translateY(5px)' }, { opacity: 1, transform: 'translateY(0)' }], 550, 2080);
+  if (parts.months) enter(parts.months, [{ opacity: 0 }, { opacity: 1 }], 400, 2380);
 
-  // 4. 涟漪：填充式圆环，不用描边圆圈。
-  parts.ripples.forEach((ripple, index) =>
-    enter(
-      ripple,
-      [
-        { opacity: 0, transform: 'scale(.42)' },
-        { opacity: 0.82, transform: 'scale(.58)', offset: 0.08 },
-        { opacity: 0, transform: 'scale(2.9)' },
-      ],
-      2100 + index * 160,
-      520 + index * 380,
-      'cubic-bezier(.2,.7,.3,1)',
-    ),
-  );
+  // 六枚一组错峰点亮，后续批次延续到停留段，所有动效统一随卡片结束。
+  parts.motes.forEach((mote, index) => {
+    const drift = Math.sin(index * 1.7) * 48;
+    const rise = 56 + index % 4 * 14;
+    session.animate(mote, [
+      { opacity: 0, transform: 'translate(0, 12px) scale(.6)' },
+      { opacity: 0.82, transform: `translate(${drift * 0.3}px, -8px) scale(1)`, offset: 0.25 },
+      { opacity: 0.55, transform: `translate(${drift * 0.75}px, ${-rise * 0.6}px) scale(.8)`, offset: 0.68 },
+      { opacity: 0, transform: `translate(${drift}px, ${-rise}px) scale(.4)` },
+    ], { duration: 2700 + index % 4 * 240, delay: 1500 + Math.floor(index / 6) * 420 + index % 6 * 70, iterations: 2, easing: 'ease-in-out' });
+  });
 
-  // 5. 光刻纹章：底衬泛光先亮，再让光沿轮廓"画"出来，最后彗尾收束。
-  enter(parts.sigilBloom, [{ opacity: 0 }, { opacity: 1 }], 1200, 760);
-  enter(
-    parts.sigil,
-    [
-      { opacity: 0, transform: 'scale(.9)' },
-      { opacity: 1, transform: 'scale(1)' },
-    ],
-    1600,
-    620,
-  );
-  enter(parts.sigilSpin, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(12deg)' }], total, 0, 'linear');
-  enter(
-    parts.sigilTrace,
-    [
-      { opacity: 0, transform: 'rotate(0deg)' },
-      { opacity: 1, transform: 'rotate(0deg)', offset: 0.12 },
-      { opacity: 1, transform: 'rotate(300deg)', offset: 0.62 },
-      { opacity: 0, transform: 'rotate(330deg)' },
-    ],
-    1900,
-    780,
-  );
-
-  // 6. 专属材质：舰长露珠、提督霜纹、总督金箔。
-  enter(parts.material, [{ opacity: 0 }, { opacity: 1 }], 1400, 1000);
-  parts.materialItems.forEach((item, index) =>
-    enter(
-      item,
-      [
-        { opacity: 0, transform: 'translateY(14px) scale(.7) rotate(0deg)' },
-        { opacity: 0.9, transform: 'translateY(-6px) scale(1) rotate(60deg)', offset: 0.55 },
-        { opacity: 0.35, transform: 'translateY(-22px) scale(.94) rotate(150deg)' },
-      ],
-      3200 + index * 120,
-      1050 + index * 90,
-      EASE_BREATH,
-    ),
-  );
-
-  // 7. 文字：整块一次模糊聚焦，逐字只做透明度与位移。
-  enter(
-    parts.eyebrow,
-    [
-      { opacity: 0, filter: 'blur(8px)', transform: 'translateY(10px)' },
-      { opacity: 1, filter: 'blur(0px)', transform: 'translateY(0)' },
-    ],
-    1100,
-    1150,
-  );
-  [parts.eyebrowTopLine, parts.eyebrowBottomLine].forEach((line, index) =>
-    enter(line, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], 900, 1250 + index * 120),
-  );
-  enter(
-    parts.titleRow,
-    [
-      { opacity: 0, filter: 'blur(14px)' },
-      { opacity: 1, filter: 'blur(0px)' },
-    ],
-    1400,
-    1280,
-  );
-  enter(parts.scrim, [{ opacity: 0, transform: 'scaleX(.6)' }, { opacity: 1, transform: 'scaleX(1)' }], 1200, 1380);
-  parts.titleChars.forEach((character, index) =>
-    enter(
-      character,
-      [
-        { opacity: 0, transform: 'translateY(18px)', letterSpacing: '.62em' },
-        { opacity: 1, transform: 'translateY(0)', letterSpacing: '.3em' },
-      ],
-      1200,
-      1400 + index * 110,
-    ),
-  );
-  if (parts.months) {
-    enter(
-      parts.months,
-      [
-        { opacity: 0, transform: 'scale(.82)' },
-        { opacity: 1, transform: 'scale(1)' },
-      ],
-      900,
-      1900,
-    );
-  }
-
-  // 8. 整体缓慢漂移，制造手持镜头感。
-  enter(
-    parts.card,
-    [
-      { transform: 'translate(0px, 0px)' },
-      { transform: 'translate(-4px, -6px)', offset: 0.32 },
-      { transform: 'translate(5px, -2px)', offset: 0.68 },
-      { transform: 'translate(0px, 0px)' },
-    ],
-    total,
-    0,
-    'linear',
-  );
-
-  // 退场：上浮虚化，不缩放。
-  const fadeOut = (node, delay, distance = -24, blur = 10) =>
-    later(
-      node,
-      [
-        { opacity: 1, filter: 'blur(0px)', transform: 'translateY(0px)' },
-        { opacity: 0, filter: `blur(${blur}px)`, transform: `translateY(${distance}px)` },
-      ],
-      680,
-      delay,
-      EASE_ORGANIC,
-    );
-  fadeOut(parts.footer, exitAt, -18, 6);
-  fadeOut(parts.eyebrow, exitAt + 60, -20, 6);
-  fadeOut(parts.titleRow, exitAt + 40, -26, 10);
-  later(parts.material, [{ opacity: 1 }, { opacity: 0 }], 700, exitAt + 20, 'linear');
-  later(
-    parts.sigil,
-    [
-      { opacity: 1, transform: 'scale(1)' },
-      { opacity: 0, transform: 'scale(1.06)' },
-    ],
-    760,
-    exitAt + 80,
-    EASE_ORGANIC,
-  );
-  parts.ripples.slice(0, 2).forEach((ripple, index) =>
-    later(
-      ripple,
-      [
-        { opacity: 0, transform: 'scale(.9)' },
-        { opacity: 0.5, transform: 'scale(1.05)', offset: 0.35 },
-        { opacity: 0, transform: 'scale(2.1)' },
-      ],
-      1200,
-      exitAt + index * 140,
-      EASE_ORGANIC,
-    ),
-  );
-  later(parts.halo, [{ opacity: 1 }, { opacity: 0 }], 900, exitAt, 'linear');
-  parts.rings.forEach((ring, index) =>
-    later(
-      ring,
-      [
-        { opacity: .86, transform: 'scale(.99)' },
-        { opacity: 0, transform: 'scale(1.04)' },
-      ],
-      800,
-      exitAt + index * 90,
-      EASE_ORGANIC,
-    ),
-  );
-  later(parts.veil, [{ opacity: .9 }, { opacity: 0 }], 1000, exitAt + 120, 'linear');
+  later(parts.card, [
+    { opacity: 1 },
+    { opacity: 0 },
+  ], AURORA_EXIT_MS, exitAt, 'cubic-bezier(.4,0,.7,1)');
   return total;
 }
 
-// 减少动态效果时保留静帧构图，只做柔和淡入淡出，而不是退化成纯色闪一下。
 export function scheduleAuroraReduced(session, parts, holdMs, enterMs, total) {
   session.animate(parts.card, [{ opacity: 0 }, { opacity: 1 }], { duration: 520, easing: EASE_ORGANIC });
   session.animate(parts.card, [{ opacity: 1 }, { opacity: 0 }], {
-    duration: 620,
-    delay: total - 620,
-    easing: EASE_ORGANIC,
-    fill: 'forwards',
+    duration: 620, delay: total - 620, easing: EASE_ORGANIC, fill: 'forwards',
   });
   return total;
 }
@@ -427,6 +279,7 @@ export function scheduleAuroraReduced(session, parts, holdMs, enterMs, total) {
 export const auroraRenderer = Object.freeze({
   id: 'aurora',
   needsAvatar: false,
+  prepare: prepareAurora,
   build: buildAuroraCard,
   schedule: scheduleAurora,
   scheduleReduced: scheduleAuroraReduced,

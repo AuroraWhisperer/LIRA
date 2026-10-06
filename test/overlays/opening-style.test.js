@@ -11,7 +11,7 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 test('opening style defaults to the existing stage and validates before settings are written', () => {
   assert.equal(DEFAULT_SETTINGS.openingStyle, 'classic');
-  for (const style of ['classic', 'pixel-cassette']) {
+  for (const style of ['classic', 'pixel-cassette', 'moonlit-fan']) {
     const patch = normalizeSettingsPatch({ openingStyle: ` ${style} ` }, DEFAULT_SETTINGS);
     assert.equal(patch.error, undefined);
     assert.equal(patch.values.openingStyle, style);
@@ -31,10 +31,10 @@ test('opening source follows the saved style unless its URL explicitly overrides
   );
   const remote = { style: 'pixel-cassette' };
   assert.equal(mergeConfig(remote, parseConfig(''), new URLSearchParams()).style, 'pixel-cassette');
-  for (const style of ['classic', 'pixel-cassette', 'invalid']) {
+  for (const style of ['classic', 'pixel-cassette', 'moonlit-fan', 'invalid']) {
     const query = `?style=${style}`;
     assert.equal(mergeConfig(remote, parseConfig(query), new URLSearchParams(query)).style,
-      style === 'pixel-cassette' ? style : 'classic');
+      style === 'invalid' ? 'classic' : style);
   }
 });
 

@@ -12,6 +12,9 @@ const html = fs.readFileSync('public/pages/admin/toolbox/gift.html', 'utf8').rep
 
 async function open(t) {
   const page = await fixture(t, 'gift-assistant');
+  await page.route('**/js/admin/component-preview-dialog.js', route => route.fulfill({
+    contentType: 'text/javascript', body: 'export const openComponentPreview = options => { window.openedComponent = options.id; };',
+  }));
   await page.setContent(html);
   await page.evaluate(async () => {
     document.getElementById('otherGiftFeature').hidden = false;
@@ -26,34 +29,34 @@ async function open(t) {
   return page;
 }
 
-test('gift assistant preview keeps a fixed URL across reporting periods', async (t) => {
+test('gift wishes open the canvas component across reporting periods and keep their source URL', async (t) => {
   const page = await open(t);
-  await page.evaluate(() => { window.open = (url) => { window.openedWishPreview = url; }; });
   for (const period of ['long', 'day', 'session']) {
     await page.locator('#giftWishPeriod').selectOption(period);
     await page.locator('#giftWishPreview').click();
-    assert.equal(await page.evaluate(() => window.openedWishPreview), 'http://lira-ui.test/gift-wishes?preview=1');
+    assert.equal(await page.evaluate(() => window.openedComponent), 'gift-wishes');
+    assert.equal(await page.locator('#giftWishUrl').inputValue(), 'http://lira-ui.test/gift-wishes');
   }
 });
 
-test('sprint tab shares the server countdown, opens its source and returns to the existing goal form', async (t) => {
+test('sprint lives under wishes, opens its canvas and returns to the existing goal form', async (t) => {
   const page = await open(t);
   await page.evaluate(async () => {
     const { renderGiftSprintOverlay } = await import('/js/admin/gifts/sprint-overlay.js');
     window.renderSprintPreview = renderGiftSprintOverlay;
-    window.openedSprintPreviews = [];
-    window.open = (url) => window.openedSprintPreviews.push(url);
     document.body.insertAdjacentHTML('beforeend', '<button data-main-page="giftAssistantPage">礼物</button><form id="giftSprintForm"><input id="giftSprintTargetRmb"></form>');
     document.querySelector('[data-main-page="giftAssistantPage"]').onclick = () => { window.visitedGiftPage = true; };
     renderGiftSprintOverlay({ targetRmb: 1000, remainingCrystalBalls: 7, enabled: true });
   });
-  await page.getByRole('tab', { name: '月底冲刺', exact: true }).click();
+  assert.equal(await page.getByRole('tab', { name: '月底冲刺', exact: true }).count(), 0);
+  assert.equal(await page.locator('#giftSprintPreview').isVisible(), false);
+  await page.locator('#giftWishesPanel #giftSprintOverlayPanel > summary').click();
   assert.equal(await page.locator('#giftSprintTextPreview').textContent(), '还差 7 个水晶球');
-  assert.equal(await page.locator('#giftWishesPanel').isVisible(), false);
+  assert.equal(await page.locator('#giftWishesPanel').isVisible(), true);
   await page.locator('#giftSprintCopy').click();
   assert.equal(await page.evaluate(() => window.messages.filter(message => message === '月底冲刺地址已复制').length), 1);
   await page.locator('#giftSprintPreview').click();
-  assert.deepEqual(await page.evaluate(() => window.openedSprintPreviews), ['http://lira-ui.test/gift-sprint?preview=1']);
+  assert.equal(await page.evaluate(() => window.openedComponent), 'gift-sprint');
   assert.equal(await page.locator('#giftSprintOverlayUrl').inputValue(), 'http://lira-ui.test/gift-sprint');
   await page.evaluate(() => window.renderSprintPreview({ targetRmb: 1000, remainingCrystalBalls: 0 }));
   assert.equal(await page.locator('#giftSprintTextPreview.is-complete').textContent(), '还差 0 个水晶球');

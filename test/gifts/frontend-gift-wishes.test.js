@@ -368,6 +368,7 @@ test('custom text uses the selected gift and switches between all three styles w
   assert.equal(await page.evaluate(() => window.wishSaves.length), 0);
   await page.getByRole('radio', { name: '文字版', exact: true }).check();
   assert.equal(await draft.textContent(), '许愿小花花（0/10）');
+  assert.equal(await page.locator('#giftWishTextEditor [data-wish-token="{礼物}"]').textContent(), '礼物名称·小花花');
   assert.equal(await draft.locator('img, [role=progressbar]').count(), 0);
   await page.locator('#giftWishTextEditor').fill('今天想要');
   await page.getByRole('button', { name: '插入礼物名称', exact: true }).click();
@@ -381,7 +382,10 @@ test('custom text uses the selected gift and switches between all three styles w
   assert.equal(await page.evaluate(() => window.wishSaves[0].giftKey), 'flower-v1');
   await page.getByRole('button', { name: '编辑', exact: true }).click();
   assert.equal(await page.getByRole('radio', { name: '文字版', exact: true }).isChecked(), true);
+  assert.equal(await page.locator('#giftWishTextEditor [data-wish-token="{已收}"]').textContent(), '已收数量·3');
   await page.locator('#giftWishTarget').fill('20');
+  assert.equal(await page.locator('#giftWishTextEditor [data-wish-token="{目标}"]').textContent(), '目标数量·20');
+  assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), '今天想要{礼物}\n已收 {已收} / {目标}');
   assert.equal(await draft.textContent(), '今天想要小花花\n已收 3 / 20');
   await page.getByRole('radio', { name: '礼物卡片', exact: true }).check();
   assert.equal(await page.locator('#giftWishTextFields').isVisible(), false);
@@ -437,6 +441,52 @@ test('circle overlay displays the gift WebP and updates numeric progress on comp
   assert.equal(await page.locator('.wish-card--circle.is-complete').count(), 1);
   assert.equal(await page.locator('[role=progressbar]').getAttribute('aria-valuenow'), '20');
   assert.equal(await page.locator('[role=progressbar]').getAttribute('aria-valuetext'), '已收集 23 个，目标 20 个');
+});
+
+test('new wishes offer built-in styles and keep collected gifts when reopened', async (t) => {
+  const page = await open(t);
+  await page.locator('#giftWishPick').click();
+  await page.locator('.gift-wish-option').click();
+  assert.equal(await page.getByRole('radio', { name: '月渡花汀', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('radio', { name: '礼物卡片', exact: true }).isChecked(), true);
+  await page.locator('#giftWishSave').click();
+  await page.locator('#giftWishCards .wish-card').waitFor();
+  assert.equal(await page.evaluate(() => window.wishSaves[0].displayStyle), 'card');
+  await page.getByRole('button', { name: '编辑', exact: true }).click();
+  assert.equal(await page.getByRole('radio', { name: '礼物卡片', exact: true }).isChecked(), true);
+  assert.equal(await page.locator('#giftWishDraftPreview .wish-card-count').textContent(), '3');
+});
+
+test('moonlit progress updates in place, clamps overflow and stops decorative motion when requested', async (t) => {
+  const page = await openOverlay(t, 'long', [], { displayStyle: 'moonlit', count: 0, progress: 0 });
+  await page.addStyleTag({ content: fs.readFileSync('public/css/shared/gift-wish-card.css', 'utf8').replace(/^@import[^;]+;/, '')
+    + fs.readFileSync('public/css/shared/gift-wish-moonlit.css', 'utf8') });
+  const track = page.locator('.wish-moon-track');
+  await track.waitFor();
+  await page.evaluate(() => { window.originalWish = document.querySelector('.wish-card'); });
+  assert.equal(await page.locator('.wish-card.is-empty').count(), 1);
+  for (const count of [4, 13]) {
+    await page.evaluate(count => {
+      Object.assign(window.wishData.items[0], { count, progress: Math.min(100, count * 10), completed: count >= 10 });
+      window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+    }, count);
+    await page.waitForFunction(count => document.querySelector('.wish-card-count').textContent === String(count), count);
+    assert.equal(await page.evaluate(() => window.originalWish === document.querySelector('.wish-card')), true);
+    assert.equal(await track.getAttribute('aria-valuenow'), String(Math.min(count, 10)));
+    assert.equal(await page.locator('.wish-moon-fill').evaluate(el => el.style.width), `${Math.min(count * 10, 100)}%`);
+  }
+  assert.equal(await page.locator('.wish-card--moonlit.is-complete').count(), 1);
+  assert.equal(await page.locator('.wish-card').count(), 1);
+  assert.equal(await page.evaluate(() => window.wishRequests), 3);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await page.locator('.wish-moon-petal').first().evaluate(el => getComputedStyle(el).animationName), 'none');
+  assert.equal(await page.locator('.wish-moon-fill').evaluate(el => getComputedStyle(el).transitionDuration), '0s');
+  await page.evaluate(() => {
+    window.wishData.items[0].giftName = '<img src=x onerror=alert(1)>';
+    window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+  });
+  await page.waitForFunction(() => document.querySelector('.wish-moon-name').textContent.startsWith('<img'));
+  assert.equal(await page.locator('.wish-moon-name img').count(), 0);
 });
 
 for (const period of ['long', 'day', 'session']) {
@@ -562,14 +612,21 @@ test('wish text chips insert, delete and restore as a whole through native undo 
     document.getElementById('giftWishTextTemplate').addEventListener('input', () => window.templateChanges++);
   });
   assert.equal(await editor.locator('[contenteditable=false]').count(), 3);
+  assert.deepEqual(await editor.locator('[data-wish-token]').allTextContents(), ['礼物名称·未选择', '已收数量·0', '目标数量·10']);
   await editor.press('Control+Home');
   await page.getByRole('button', { name: '插入礼物图片', exact: true }).click();
   assert.equal(await value(), `{图片}${original}`);
+  assert.equal(await editor.locator('[data-wish-token="{图片}"]').textContent(), '礼物图片·未选择');
   assert.equal(await page.evaluate(() => window.templateChanges), 1);
   await editor.press('Control+z');
   assert.equal(await value(), original);
+  await page.locator('#giftWishPick').click();
+  await page.locator('.gift-wish-option').click();
   await editor.press('Control+y');
   assert.equal(await value(), `{图片}${original}`);
+  assert.equal(await editor.locator('[data-wish-token="{图片}"]').textContent(), '礼物图片·小花花');
+  assert.equal(await editor.locator('[data-wish-token="{礼物}"]').textContent(), '礼物名称·小花花');
+  assert.equal(await page.evaluate(() => window.templateChanges), 3);
   await editor.press('Control+Home');
   await editor.press('Delete');
   assert.equal(await value(), original);
@@ -584,7 +641,7 @@ test('wish text chips insert, delete and restore as a whole through native undo 
   await editor.press('Enter');
   await page.keyboard.insertText('谢谢大家');
   assert.equal(await value(), `{图片}${original}\n谢谢大家`);
-  assert.equal(await page.locator('#giftWishDraftPreview .wish-card-text').textContent(), '许愿礼物（0/10）\n谢谢大家');
+  assert.equal(await page.locator('#giftWishDraftPreview .wish-card-text').textContent(), '许愿小花花（0/10）\n谢谢大家');
   await editor.press('Control+z');
   assert.equal((await value()).includes('谢谢大家'), false);
   await page.getByRole('combobox', { name: '许愿统计周期' }).selectOption('day');
@@ -598,12 +655,12 @@ test('wish text clipboard preserves complete tokens, treats HTML as text and sup
   await page.getByRole('radio', { name: '文字版', exact: true }).check();
   const editor = page.locator('#giftWishTextEditor');
   const value = () => page.locator('#giftWishTextTemplate').inputValue();
-  // A selection ending inside a token must copy/cut the complete variable.
+  // Selecting a token's display suffix must copy/cut the complete variable.
   const copyOrCut = (type) => editor.evaluate((node, type) => {
     const text = node.querySelector('[data-wish-token="{礼物}"]').firstChild;
     const range = document.createRange();
-    range.setStart(text, 1);
-    range.setEnd(text, 2);
+    range.setStart(text, text.length - 2);
+    range.setEnd(text, text.length);
     node.focus();
     window.getSelection().removeAllRanges();
     window.getSelection().addRange(range);

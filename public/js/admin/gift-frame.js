@@ -24,23 +24,6 @@ const EFFECTS = [
       previewBtn: 'giftFramePreviewBtn',
     },
   },
-  {
-    label: '缎带礼笺',
-    themeId: 'satin-ribbon',
-    enabledKey: 'giftFrameRibbonEnabled',
-    thresholdKey: 'giftFrameRibbonThresholdRmb',
-    fallback: '100',
-    ids: {
-      enabled: 'giftFrameRibbonEnabled',
-      threshold: 'giftFrameRibbonThresholdRmb',
-      save: 'giftFrameRibbonSaveBtn',
-      status: 'giftFrameRibbonSaveState',
-      previewUser: 'giftFrameRibbonPreviewUser',
-      previewGift: 'giftFrameRibbonPreviewGift',
-      previewNum: 'giftFrameRibbonPreviewNum',
-      previewBtn: 'giftFrameRibbonPreviewBtn',
-    },
-  },
 ];
 
 let initialized = false;

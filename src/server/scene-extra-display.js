@@ -31,10 +31,11 @@ function createSceneExtraDisplay({ getContext, getOwner, now = Date.now }) {
     cache.set(type, entry);
     return entry.promise;
   }
-  return function getExtraDisplay(type) {
+  function getExtraDisplay(type) {
     const context = getContext();
     const response = (path, value) => projectOverlayResponse(type, path, value);
     switch (type) {
+      case 'gift-sprint': return projectOverlayState(type, context.system.getState()).giftSprint ?? null;
       case 'opening': return response('/api/opening/config', getOpeningConfig(context));
       case 'songlist': return { songs: response('/api/songs', context.songs.list({ enabledOnly: true })) };
       case 'lyrics': {
@@ -69,7 +70,11 @@ function createSceneExtraDisplay({ getContext, getOwner, now = Date.now }) {
       });
       default: return null;
     }
+  }
+  getExtraDisplay.invalidate = (types) => {
+    for (const type of types) cache.delete(type);
   };
+  return getExtraDisplay;
 }
 
 module.exports = { createSceneExtraDisplay };

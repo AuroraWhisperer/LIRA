@@ -54,16 +54,19 @@
 | dependencies    | `@clamber_l/crypto` | `0.1.12`   | QQ音乐加密音频解码                                                      |
 | dependencies    | `@jixun/qmweb-sign` | `2.0.3`    | QQ音乐 zzcSign 请求签名([package.json](../../../package.json))   |
 | dependencies    | `qrc-decoder`       | `1.0.2`    | QQ音乐 QRC 歌词 3DES 解密([package.json](../../../package.json)) |
+| dependencies    | `yauzl`            | `3.4.0`    | 有限体积、逐项读取本机素材 ZIP；精确锁定 |
 | dependencies    | `electron-updater`  | `^6.8.4`   | 应用内自动更新(运行时见 [desktop/update.md](../desktop/update.md))      |
 | devDependencies | `electron`          | `43.2.0`   | Electron 运行时,精确锁定([package.json](../../../package.json))  |
 | devDependencies | `electron-builder`  | `^26.11.1` | 打包器([package.json](../../../package.json))                    |
 | devDependencies | `playwright`        | `^1.62.1`  | 开发期浏览器自动化工具;不随正式应用打包,包括其依赖 `playwright-core`      |
 
-**engines:`node >=24`**([package.json](../../../package.json))。运行时依赖 4 个,开发依赖 3 个;版本与依赖归类以 [package.json](../../../package.json) 为准。
+**engines:`node >=24`**([package.json](../../../package.json))。运行时依赖 5 个,开发依赖 3 个;版本与依赖归类以 [package.json](../../../package.json) 为准。
 
 **npm overrides**([package.json](../../../package.json)):js-yaml 强制 `^4.3.1` 以解决 GHSA-5p4m-2wfm-xmqj(CVE-2026-59870,!!omap 二次方 CPU 消耗)。该漏洞影响 electron-updater 与 electron-builder 的传递依赖 js-yaml 4.0.0-4.3.0;override 后生产依赖审计为 0 高危漏洞。
 
 ## 3. electron-builder 配置(唯一成表处)
+
+本机导入的组件素材存储在 `dataDir/component-library/`，位于打包白名单之外。月渡花汀专用背景/开播/时钟/弹幕/许愿图片、WebM、字体和缩略图已从 `build.files` 排除，原始文件保留在源码；小型受信渲染 JS/CSS 继续打包。`node scripts/package-moonlit-suite.js` 生成独立 ZIP，主播导入后选用。排除的运行媒体与预览约 44.52 MiB（不是安装器最终减少量）；实际过滤由 packaging-scope 测试验证。未重新构建安装器。ZIP 格式见[套装指南](../../guides/component-style-packages.md)。
 
 全部配置内联在 [package.json](../../../package.json) 的 `build` 字段,无独立 electron-builder 配置文件。
 

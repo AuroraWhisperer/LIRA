@@ -43,8 +43,6 @@ const DEFAULT_SETTINGS = {
   giftFrameEnabled: 'false',
   giftEffectDanmakuEnabled: 'false',
   giftFrameThresholdRmb: '20',
-  giftFrameRibbonEnabled: 'false',
-  giftFrameRibbonThresholdRmb: '100',
   guardThanksEnabled: 'false',
   guardThanksTextMode: 'bilingual',
   guardThanksStyle: 'aurora',
@@ -252,6 +250,8 @@ const DEFAULT_SETTINGS = {
   clockFlipFrameColor: '#e4e4e4',
   clockFlipFaceColor: '#ffffff',
   clockFlipTextColor: '#303030',
+  clockMoonMode: 'light',
+  clockMoonIntervalSeconds: '30',
 };
 
 module.exports = { DEFAULT_SETTINGS };

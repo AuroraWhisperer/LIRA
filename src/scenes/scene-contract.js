@@ -1,7 +1,7 @@
 'use strict';
 
-const { SCENE_TYPES } = require('../shared/scene-component-types');
-const { SCENE_EXTRA_COMPONENTS } = require('../../public/js/shared/scene-extra-components.js');
+const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../shared/scene-component-types');
+const { isSceneItemGeometryValid } = require('../../public/js/shared/scene-geometry.js');
 
 const SCENE_SCHEMA_VERSION = 1;
 const MAX_SCENE_BYTES = 256 * 1024;
@@ -70,7 +70,7 @@ function normalizeSceneDocument(input, { normalizeConfig } = {}) {
   for (const size of Object.values(document.canvas)) {
     if (!Number.isInteger(size) || size < 320 || size > 7680) throw invalidDocument();
   }
-  if (!Array.isArray(document.items) || document.items.length > 32) throw invalidDocument();
+  if (!Array.isArray(document.items) || document.items.filter(item => item?.type !== 'text-box').length > 32) throw invalidDocument();
   const ids = new Set();
   for (const item of document.items) {
     assertRecord(item, ['id', 'type', 'name', 'x', 'y', 'width', 'height', 'visible', 'locked', 'appearance']);
@@ -79,14 +79,10 @@ function normalizeSceneDocument(input, { normalizeConfig } = {}) {
     ids.add(item.id);
     item.name = normalizeName(item.name);
     if (typeof item.visible !== 'boolean' || typeof item.locked !== 'boolean') throw invalidDocument();
-    if (![item.x, item.y, item.width, item.height].every(Number.isFinite)) throw invalidDocument();
-    if (item.x < 0 || item.y < 0 || item.width < 32 || item.height < 32
-      || item.x + item.width > document.canvas.width || item.y + item.height > document.canvas.height) {
-      throw invalidDocument();
-    }
+    if (!isSceneItemGeometryValid(item, document.canvas)) throw invalidDocument();
     assertRecord(item.appearance);
     if (item.appearance.mode === 'shared') {
-      if (Object.hasOwn(SCENE_EXTRA_COMPONENTS, item.type)) throw invalidDocument();
+      if (!SHARED_SCENE_TYPES.includes(item.type)) throw invalidDocument();
       assertRecord(item.appearance, ['mode']);
     } else if (item.appearance.mode === 'independent') {
       assertRecord(item.appearance, ['mode', 'config']);

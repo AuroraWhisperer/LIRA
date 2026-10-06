@@ -52,6 +52,7 @@ export function createDanmakuFeed(root, options = {}) {
     getGuardLabel: options.getGuardLabel,
   });
   const fitViewport = !fullscreen && offscreenViewports === 0;
+  const smoothMoonlit = fitViewport && options.style === 'moonlit';
   const requestedLifetime = Number(options.itemLifetimeMs);
   const itemLifetimeMs = Number.isFinite(requestedLifetime) && requestedLifetime > 0 ? requestedLifetime : 0;
   const expireItems = options.expireItems !== false;
@@ -77,20 +78,29 @@ export function createDanmakuFeed(root, options = {}) {
     typeof ResizeObserver === 'function'
       ? new ResizeObserver(() => {
           updateViewportHeight();
-          if (fullscreen || fitViewport) scheduleLayout();
+          if (smoothMoonlit) {
+            if (layoutFrame !== null) globalThis.cancelAnimationFrame?.(layoutFrame);
+            layoutFrame = null;
+            updateLayout();
+          } else if (fullscreen || fitViewport) scheduleLayout();
           else pruneOldMessages();
         })
       : null;
   resizeObserver?.observe(root);
-  reducedMotion?.addEventListener?.('change', finishFades);
+  reducedMotion?.addEventListener?.('change', finishMotion);
 
-  function cancelFade(entry) {
+  function cancelAnimations(entry) {
     entry.fade?.cancel();
     entry.fade = null;
+    if (entry.motion) {
+      entry.motion.onfinish = null;
+      entry.motion.cancel();
+      entry.motion = null;
+    }
   }
 
-  function finishFades() {
-    if (reducedMotion?.matches) renderedEntries.forEach(cancelFade);
+  function finishMotion() {
+    if (reducedMotion?.matches) renderedEntries.forEach(cancelAnimations);
   }
 
   function render(items) {
@@ -136,7 +146,7 @@ export function createDanmakuFeed(root, options = {}) {
     const node = createBubble(item, renderedSequence);
     const height = estimateItemHeight(item);
     root.append(node);
-    const entry = { node, height, item, timer: null };
+    const entry = { node, height, item, timer: null, entering: smoothMoonlit };
     renderedEntries.push(entry);
     renderedContentHeight += height;
     renderedSequence += 1;
@@ -179,16 +189,47 @@ export function createDanmakuFeed(root, options = {}) {
     renderedContentHeight = renderedEntries.reduce((total, entry) => {
       const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
       const measured = Number(entry.node.offsetHeight) * zoom;
-      entry.height = measured > 0 ? measured + 1 : estimateItemHeight(entry.item);
+      entry.height = measured > 0 ? measured : estimateItemHeight(entry.item);
       return total + entry.height;
     }, 0);
-    // One batched read uses layout height, unaffected by entrance transforms.
+    // Keep the boundary message while any part is visible; CSS clips the rest.
+    // Layout heights ignore entrance transforms and work in either scroll direction.
     while (
       renderedEntries.length > 1 &&
       (renderedEntries.length > maxItems ||
-        (viewportHeight > 0 && renderedContentHeight + gap * (renderedEntries.length - 1) + padding > viewportHeight))
+        (viewportHeight > 0 && renderedContentHeight - renderedEntries[0].height +
+          gap * (renderedEntries.length - 1) + padding >= viewportHeight))
     ) {
       removeEntry(renderedEntries[0]);
+    }
+    if (smoothMoonlit) animateMoonlitLayout(gap, styles?.flexDirection === 'column-reverse' ? -1 : 1);
+  }
+
+  function animateMoonlitLayout(gap, direction) {
+    // Read all final positions before writing. Keep the visible transform when
+    // another gift arrives during a move, so the feed never snaps back.
+    const positions = renderedEntries.map((entry) => {
+      const top = entry.node.offsetTop;
+      const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
+      const dy = entry.entering ? direction * (entry.height + gap) / zoom : (entry.top ?? top) - top;
+      const transform = dy ? globalThis.getComputedStyle?.(entry.node)?.transform : null;
+      return { entry, top, dy, transform };
+    });
+    for (const { entry, top, dy, transform } of positions) {
+      entry.top = top;
+      entry.entering = false;
+      if (!dy) continue;
+      cancelAnimations(entry);
+      if (reducedMotion?.matches || typeof entry.node.animate !== 'function') continue;
+      const motion = entry.node.animate([
+        { transform: `translateY(${dy}px) ${transform && transform !== 'none' ? transform : ''}` },
+        { transform: 'none' },
+      ], { duration: 520, easing: 'cubic-bezier(.22, .61, .36, 1)' });
+      entry.motion = motion;
+      motion.onfinish = () => {
+        motion.cancel();
+        if (entry.motion === motion) entry.motion = null;
+      };
     }
   }
 
@@ -235,7 +276,7 @@ export function createDanmakuFeed(root, options = {}) {
       entry.timer = null;
     }
     renderedEntries.splice(index, 1);
-    cancelFade(entry);
+    cancelAnimations(entry);
     resizeObserver?.unobserve?.(entry.node);
     renderedContentHeight = Math.max(0, renderedContentHeight - entry.height);
     if (entry.node.parentNode === root || Array.from(root.children || []).includes(entry.node)) {
@@ -248,7 +289,7 @@ export function createDanmakuFeed(root, options = {}) {
     renderedEntries.forEach((entry) => {
       if (entry.timer !== null) cancelTimeout(entry.timer);
       entry.timer = null;
-      cancelFade(entry);
+      cancelAnimations(entry);
     });
   }
 
@@ -405,7 +446,7 @@ export function createDanmakuFeed(root, options = {}) {
       if (layoutFrame !== null) globalThis.cancelAnimationFrame?.(layoutFrame);
       layoutFrame = null;
       resizeObserver?.disconnect();
-      reducedMotion?.removeEventListener?.('change', finishFades);
+      reducedMotion?.removeEventListener?.('change', finishMotion);
       clearExpirationTimers();
       renderedSequence = 0;
       viewportHeight = 0;

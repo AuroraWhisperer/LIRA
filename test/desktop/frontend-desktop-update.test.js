@@ -128,7 +128,7 @@ test('preparing a download does not show fabricated download metrics', () => {
   assert.equal(nodes.desktopUpdateSpeed.textContent, '');
 });
 
-test('resource checks show scope-limited results, incomplete issues and safe bounded details', () => {
+test('resource checks distinguish results, incomplete issues and safe bounded details', () => {
   const { nodes, desktop } = createFixture();
   const initial = {
     revision: 1,
@@ -142,7 +142,8 @@ test('resource checks show scope-limited results, incomplete issues and safe bou
   };
   desktop.renderResourceIntegrityState(initial);
   assert.equal(nodes.desktopIntegrityCheckBtn.disabled, true);
-  assert.match(nodes.desktopIntegrityStatus.textContent, /正在读取并验证校验清单/);
+  assert.match(nodes.desktopIntegrityStatus.textContent, /正在读取校验清单/);
+  assert.equal(nodes.desktopIntegrityMeta.hidden, true);
   assert.equal(nodes.desktopIntegrityMeta.textContent.includes('0 / 0'), false);
   desktop.renderResourceIntegrityState({
     ...initial,
@@ -155,7 +156,8 @@ test('resource checks show scope-limited results, incomplete issues and safe bou
     complete: false,
     details: Array.from({ length: 25 }, () => ({ path: 'app.asar.unpacked/<img>', reasonCode: 'FILE_UNREADABLE' })),
   });
-  assert.match(nodes.desktopIntegrityStatus.textContent, /已发现 25.*部分项目未完成/);
+  assert.match(nodes.desktopIntegrityStatus.textContent, /发现 25.*部分项目未完成/);
+  assert.equal(nodes.desktopIntegrityResult.dataset.tone, 'danger');
   assert.equal(nodes.desktopIntegrityDetails.children.length, 20);
   assert.equal(nodes.desktopIntegrityDetails.children[0].textContent, 'app.asar.unpacked/<img>：无法读取文件');
   assert.equal(nodes.desktopIntegrityDetails.children[0].children.length, 0);
@@ -170,10 +172,18 @@ test('resource checks show scope-limited results, incomplete issues and safe bou
     complete: true,
   });
   desktop.renderResourceIntegrityState({ ...initial, revision: 2, status: 'checking' });
-  assert.match(nodes.desktopIntegrityStatus.textContent, /本次检查范围内.*不代表所有功能正常/);
+  assert.equal(nodes.desktopIntegrityStatus.textContent, '检查通过，未发现资源异常');
+  assert.equal(nodes.desktopIntegrityResult.dataset.tone, 'success');
+  assert.equal(nodes.desktopIntegrityHint.hidden, true);
   assert.equal(nodes.desktopIntegrityCheckBtn.textContent, '重新检查');
   assert.equal(nodes.desktopIntegrityDetails.hidden, true);
   assert.equal(nodes.desktopIntegrityGithubBtn.hidden, true);
+  desktop.renderResourceIntegrityState({ ...initial, revision: 4, status: 'inconclusive', reasonCode: 'CHECK_TIMEOUT' });
+  assert.equal(nodes.desktopIntegrityResult.dataset.tone, 'warning');
+  assert.match(nodes.desktopIntegrityStatus.textContent, /检查未完成.*超时/);
+  desktop.renderResourceIntegrityState({ ...initial, revision: 5, status: 'cancelled', issueCount: 1 });
+  assert.equal(nodes.desktopIntegrityResult.dataset.tone, 'danger');
+  assert.match(nodes.desktopIntegrityStatus.textContent, /检查已停止.*发现 1 项资源异常/);
 });
 
 test('resource check subscription is registered once and an old initial snapshot cannot replace a newer event', async () => {

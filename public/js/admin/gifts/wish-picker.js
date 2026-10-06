@@ -3,8 +3,8 @@ import { createGiftCatalogRoleLookup } from '../../shared/gift-catalog-roles.js'
 import { requestGiftWish } from '../../shared/gift-wish-client.js';
 import { WISH_CATEGORIES } from '../../shared/gift-wish-card.js';
 
-export function createWishPicker(onSelect) {
-  const get = (id) => document.getElementById(id);
+export function createWishPicker(onSelect, { root, request = requestGiftWish, requireVariant = true } = {}) {
+  const get = (id) => root ? root.querySelector(`[data-wish-id="${id}"]`) : document.getElementById(id);
   const dialog = get('giftWishPicker');
   let source = 'room';
   let guards = [];
@@ -25,7 +25,7 @@ export function createWishPicker(onSelect) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'gift-wish-option';
-      button.disabled = gift.giftCategory !== 'guard' && !gift.variantId;
+      button.disabled = requireVariant && gift.giftCategory !== 'guard' && !gift.variantId;
       const image = document.createElement('img');
       image.alt = '';
       setGiftImage(image, gift.imagePath);
@@ -35,7 +35,7 @@ export function createWishPicker(onSelect) {
       category.textContent = role(gift) || WISH_CATEGORIES[gift.giftCategory] || '礼物';
       const identity = document.createElement('small');
       identity.textContent =
-        gift.giftCategory === 'guard' ? '按购买数量统计' : `ID ${gift.id} · ¥${Number(gift.rmb || 0).toFixed(2)}`;
+        gift.giftCategory === 'guard' ? (requireVariant ? '按购买数量统计' : '大航海') : `ID ${gift.id} · ¥${Number(gift.rmb || 0).toFixed(2)}`;
       if (button.disabled) identity.textContent += ' · 资料待同步，请刷新礼物库';
       button.append(image, name, category, identity);
       button.addEventListener('click', () => {
@@ -77,19 +77,20 @@ export function createWishPicker(onSelect) {
     render();
     try {
       let data;
-      if (source === 'all') data = await requestGiftWish('/api/overtime/gifts/catalog', undefined, controller.signal);
+      if (source === 'all') data = await request('/api/overtime/gifts/catalog', undefined, controller.signal);
       else {
         try {
-          data = await requestGiftWish('/api/overtime/gifts/refresh', {}, controller.signal);
+          data = await request('/api/overtime/gifts/refresh', {}, controller.signal);
         } catch (error) {
           if (controller.signal.aborted || current !== generation) return;
-          data = await requestGiftWish('/api/overtime/gifts', undefined, controller.signal);
+          data = await request('/api/overtime/gifts', undefined, controller.signal);
           if (current === generation)
             get('giftWishPickerStatus').textContent = '在售列表暂未刷新，正在显示上次成功缓存。';
         }
       }
       if (current !== generation) return;
       snapshot = data;
+      if (data.guards) guards = data.guards;
       if (!data?.gifts?.length)
         get('giftWishPickerStatus').textContent = '礼物目录尚未缓存，连接直播间后重新打开即可。';
       else if (!get('giftWishPickerStatus').textContent.includes('上次成功缓存')) {
@@ -116,7 +117,7 @@ export function createWishPicker(onSelect) {
     controller?.abort();
   });
   return {
-    open(nextGuards) {
+    open(nextGuards = []) {
       guards = nextGuards;
       get('giftWishSearch').value = '';
       dialog.showModal();

@@ -111,6 +111,8 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
   const pageMap = new Map([
     ['/license', 'pages/license.html'],
     ['/scene', 'pages/overlays/scene.html'],
+    ['/text-box', 'pages/overlays/text-box.html'],
+    ['/background', 'pages/overlays/background.html'],
     ['/component-preview', 'pages/component-preview.html'],
     ['/c', 'pages/component-preview.html'],
     ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
@@ -134,6 +136,8 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     isHtml &&
     !overlayScope &&
     relativePath !== 'pages/overlays/scene.html' &&
+    relativePath !== 'pages/overlays/text-box.html' &&
+    relativePath !== 'pages/overlays/background.html' &&
     relativePath !== 'pages/component-preview.html' &&
     relativePath !== 'pages/license.html' &&
     !verifyToken({ sessionToken }, req, requestUrl)
@@ -170,7 +174,9 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     }
 
     if (isHtml) {
-      addFrameProtectionHeaders(res, relativePath === 'pages/overlays/scene.html' ? '/scene' : overlayScope ? `/${overlayScope}` : requestUrl.pathname);
+      addFrameProtectionHeaders(res, relativePath === 'pages/overlays/scene.html' ? '/scene'
+        : relativePath === 'pages/overlays/text-box.html' ? '/text-box'
+        : relativePath === 'pages/overlays/background.html' ? '/background' : overlayScope ? `/${overlayScope}` : requestUrl.pathname);
     } else {
       // Sandboxed overlays have opaque origins. Only public static assets may
       // be read cross-origin; API data and HTML use their own access policy.
@@ -371,6 +377,7 @@ function contentType(filePath) {
     '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
     '.webp': 'image/webp',
+    '.woff2': 'font/woff2',
     '.ogg': 'audio/ogg',
     '.mp3': 'audio/mpeg',
     '.flac': 'audio/flac',
@@ -404,7 +411,7 @@ function validateOrigin(req, allowedOrigins) {
 }
 
 function addFrameProtectionHeaders(res, pathname) {
-  if (getOverlayScope(pathname) || pathname === '/scene') {
+  if (getOverlayScope(pathname) || pathname === '/scene' || pathname === '/text-box' || pathname === '/background') {
     // Do not add allow-same-origin: an embedded overlay must not call the
     // privileged parent frame or inherit its credentials.
     res.setHeader('Content-Security-Policy', 'sandbox allow-scripts');

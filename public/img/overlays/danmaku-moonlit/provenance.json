@@ -1,0 +1,43 @@
+{
+  "guard-landscape.webp": {
+    "model": "gpt-image-2.5-flare",
+    "quality": "high",
+    "prompt": "Create a single premium Chinese guofeng livestream overlay ornament on a fully transparent background, no text or letters. Wide low panoramic arrangement occupying lower two thirds of the canvas with ample transparent margin. Main ornament ratio about 3:1. A silvery blue hand-painted ink mountain range with fine pale-silver contour lines, layered rolling mist, delicate pale blue silk streamers sweeping outward on both sides, a very large circular dry-brush moon ring rising at center behind an EMPTY TRANSPARENT circular opening for an avatar. Avatar opening must remain clear, no painted disk. A few fine lunar-phase accents above the ring. Small ivory white plum blossom twigs on far lower corners only. Restrained dusty ink blue #45647a, pale silver #dbe8ea, moon white #faf8ef. Elegant, finely detailed oriental fantasy illustration, same visual world as a moonlit blue and white folding fan and white camellia branches. Separate cutout illustration, no card rectangle, no opaque background, no checkerboard, no black, no gold ornament, NO birds (animated separately), no avatar, no lettering. Crisp layered paper and watercolor mountain edges, translucent wispy brush tails, professional VTuber broadcast design asset. Symmetric visual balance but naturally asymmetric mountain peaks.",
+    "processing": "Cropped transparent margins, suppressed saturated fringe and resized."
+  },
+  "brush.webp": {
+    "model": "gpt-image-2.5-flare",
+    "quality": "high",
+    "prompt": "Single simple horizontal charcoal ink brushstroke cutout on genuine transparent background, a clean filled wide rectangular brush bar of aspect ratio exactly 7:1 across the center. Flat even near-black ink center, extremely fine dry brush bristle edges along top and bottom, tapered ragged short ends. Solid center area must be perfectly opaque for an overlay background, edge texture restrained and thin, no holes except wispy outer edges, very little splatter. All corners remain rectangular, not rounded. Large generous transparent empty margins around it. This is an alpha mask asset for a Chinese guofeng chat caption frame. No text, no symbols, no paper, no background, no gradients, no other elements.",
+    "processing": "Cropped horizontal brush and resized for an alpha mask."
+  },
+  "scroll-frame.webp": {
+    "model": "gpt-image-2.5-flare",
+    "quality": "high",
+    "requestId": "dd656897-f63b-4de2-bc14-02f193b93e39",
+    "prompt": "Create one exquisite original Chinese guofeng livestream notification SCROLL FRAME illustration, as an isolated transparent PNG asset. This is the art, not a UI mockup, no content or typography. Very wide horizontal unfolded handscroll, length-to-height ratio about 4.2:1, centered in the canvas with ample completely transparent margins. Front facing, no perspective. Muted moon-white and silver-blue palette: cool ivory silk-paper interior, a thick midnight dusty-blue painted outer frame with lightly dry-brushed edge, fine ivory inner keyline and pale blue inlay. The central flat rectangular ivory paper area must be COMPLETELY EMPTY and large, at least 75 percent of the scroll width and 60 percent of height, reserved for real avatar and text. At the left edge a slim beautifully crafted vertical blue-black scroll roller with understated silver engraved endcaps. At top-left corner an elegant small cluster of white magnolia and plum blossoms with pale silver-blue leaves, delicate stamens and thin ink twigs. At bottom-right a fuller matching cluster with a few pearl-like buds, visible softly shaded silk petals. Long narrow silver-blue translucent SILK RIBBONS weave around the TOP and BOTTOM frame edges, a few graceful curled ribbon tails flowing just beyond left and right, layered folds and satin highlights, never crossing the blank central paper area. One tiny silver knot and slender pale tassel hanging close to the right outside edge. Refined professional bespoke VTuber stream overlay artwork: expressive but restrained, dense craftsmanship at corners, clean quiet interior, hand-painted mineral pigments and ink texture, exceptional fine illustration detail. Keep top and bottom edges largely straight and horizontal so the center strips can stretch for longer messages. The entire object including ribbons, flowers and roller has a CRISP genuine alpha cutout. No scene, no backdrop, no checkerboard, no shadow on a ground, no avatar, no people, no mountains, no birds, no logo, no words, no letters, no numerals. This silver-blue original frame should feel like a beautifully layered traditional silk mounting, not a simple CSS rectangle and not a fantasy gold game panel.",
+    "processing": "Desaturated stray saturated fringe and encoded WebP at quality 93."
+  },
+  "scroll-roller.webp": {
+    "model": "gpt-image-2.5-flare",
+    "quality": "high",
+    "requestId": "dd656897-f63b-4de2-bc14-02f193b93e39",
+    "prompt": "Create one exquisite original Chinese guofeng livestream notification SCROLL FRAME illustration, as an isolated transparent PNG asset. This is the art, not a UI mockup, no content or typography. Very wide horizontal unfolded handscroll, length-to-height ratio about 4.2:1, centered in the canvas with ample completely transparent margins. Front facing, no perspective. Muted moon-white and silver-blue palette: cool ivory silk-paper interior, a thick midnight dusty-blue painted outer frame with lightly dry-brushed edge, fine ivory inner keyline and pale blue inlay. The central flat rectangular ivory paper area must be COMPLETELY EMPTY and large, at least 75 percent of the scroll width and 60 percent of height, reserved for real avatar and text. At the left edge a slim beautifully crafted vertical blue-black scroll roller with understated silver engraved endcaps. At top-left corner an elegant small cluster of white magnolia and plum blossoms with pale silver-blue leaves, delicate stamens and thin ink twigs. At bottom-right a fuller matching cluster with a few pearl-like buds, visible softly shaded silk petals. Long narrow silver-blue translucent SILK RIBBONS weave around the TOP and BOTTOM frame edges, a few graceful curled ribbon tails flowing just beyond left and right, layered folds and satin highlights, never crossing the blank central paper area. One tiny silver knot and slender pale tassel hanging close to the right outside edge. Refined professional bespoke VTuber stream overlay artwork: expressive but restrained, dense craftsmanship at corners, clean quiet interior, hand-painted mineral pigments and ink texture, exceptional fine illustration detail. Keep top and bottom edges largely straight and horizontal so the center strips can stretch for longer messages. The entire object including ribbons, flowers and roller has a CRISP genuine alpha cutout. No scene, no backdrop, no checkerboard, no shadow on a ground, no avatar, no people, no mountains, no birds, no logo, no words, no letters, no numerals. This silver-blue original frame should feel like a beautifully layered traditional silk mounting, not a simple CSS rectangle and not a fantasy gold game panel.",
+    "processing": "Crop (202, 0, 286, 700) from the generated scroll illustration."
+  },
+  "flowers.webp": {
+    "origin": "LIRA public/img/overlays/opening-moon-fan/flowers-ne.webp; cropped and resized for the matching danmaku theme."
+  },
+  "crane.webp": {
+    "origin": "LIRA public/img/overlays/opening-moon-fan/crane-body.webp, crane-wing-far.webp and crane-wing-near.webp; composed into one crane, rendered exactly three times by DOM."
+  },
+  "captain.webp": {
+    "origin": "LIRA public/img/admin/gifts/bilibili-guard-captain.webp; existing Bilibili captain badge, image pixels preserved."
+  },
+  "admiral.webp": {
+    "origin": "LIRA public/img/admin/gifts/bilibili-guard-prefect.webp; existing Bilibili admiral badge, image pixels preserved."
+  },
+  "governor.webp": {
+    "origin": "LIRA public/img/admin/gifts/bilibili-guard-governor.webp; existing Bilibili governor badge, image pixels preserved."
+  }
+}

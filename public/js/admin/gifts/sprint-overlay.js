@@ -1,5 +1,6 @@
 import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
 import { renderGiftSprintText } from '../../shared/gift-sprint-text.js';
+import { openComponentPreview } from '../component-preview-dialog.js';
 
 export function initGiftSprintOverlay() {
   const url = `${localOverlayOrigin(location)}/gift-sprint`;
@@ -10,7 +11,7 @@ export function initGiftSprintOverlay() {
       .catch(() => toast('复制失败，请手动复制地址。'));
   });
   document.getElementById('giftSprintPreview').addEventListener('click', () => {
-    window.open(`${url}?preview=1`, '_blank', 'noopener');
+    openComponentPreview({ id: 'gift-sprint' });
   });
   document.getElementById('giftSprintConfigure').addEventListener('click', () => {
     document.querySelector('[data-main-page="giftAssistantPage"]').click();

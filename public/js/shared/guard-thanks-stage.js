@@ -16,7 +16,6 @@ export const EASE_IN = 'cubic-bezier(.55,0,.75,.2)';
 export const EASE_SWAY = 'cubic-bezier(.45,0,.55,1)';
 // 有机的光不该匀速：辉光风格统一使用这条慢出曲线。
 export const EASE_ORGANIC = 'cubic-bezier(.32,.72,0,1)';
-export const EASE_BREATH = 'cubic-bezier(.37,0,.63,1)';
 
 export function element(tagName, className, text) {
   const node = document.createElement(tagName);

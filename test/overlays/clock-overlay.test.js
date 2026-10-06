@@ -23,6 +23,7 @@ const ROOT_DIR = path.join(__dirname, '../..');
 const CLOCK_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'clock.js');
 const CLOCK_CARD_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'admin', 'clock-card.js');
 const FLIP_COLORS = { flipFrameColor: '#e4e4e4', flipFaceColor: '#ffffff', flipTextColor: '#303030' };
+const MOON_DEFAULTS = { moonMode: 'light', moonIntervalSeconds: 30 };
 const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
 test('cute clock overlay owns a fixed frameable route and complete assets', () => {
@@ -61,12 +62,13 @@ test('clock styles keep fixed base, named theme, and animation ownership', () =>
     "@import url('./clock/digital.css');",
     "@import url('./clock/orbit.css');",
     "@import url('./clock/flip.css');",
+    "@import url('./clock/moonlit-fan.css');",
     "@import url('./clock/animations.css');",
   ];
   assert.deepEqual(entry.match(/@import url\('[^']+'\);/g), expectedImports);
 
   const owners = Object.fromEntries(
-    ['base', 'peach', 'starlight', 'soda', 'timeline', 'digital', 'orbit', 'flip', 'animations'].map((name) => [
+    ['base', 'peach', 'starlight', 'soda', 'timeline', 'digital', 'orbit', 'flip', 'moonlit-fan', 'animations'].map((name) => [
       name,
       fs.readFileSync(path.join(styleRoot, 'clock', `${name}.css`), 'utf8'),
     ]),
@@ -86,12 +88,13 @@ test('clock styles keep fixed base, named theme, and animation ownership', () =>
   assert.match(owners.digital, /data-clock-style='digital'/);
   assert.match(owners.orbit, /data-clock-style='orbit'/);
   assert.match(owners.flip, /data-clock-style='flip'/);
+  assert.match(owners['moonlit-fan'], /data-clock-style='moonlit-fan'/);
   assert.doesNotMatch(owners.digital, /@keyframes/);
   assert.match(owners.animations, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.animations, /data-clock-style/);
 });
 
-test('cute clock overlay exposes eight distinct styles and safe time parameters', () => {
+test('cute clock overlay exposes nine distinct styles and safe time parameters', () => {
   const html = read('public', 'pages', 'overlays', 'clock.html');
   const css = readCssBundle('public', 'css', 'overlays', 'clock.css');
   const script = read('public', 'js', 'overlays', 'clock.js');
@@ -124,21 +127,25 @@ test('cute clock overlay exposes eight distinct styles and safe time parameters'
   assert.doesNotMatch(script, /innerHTML/);
 });
 
-test('clock overlay scales its complete design canvas without moving style artwork', async () => {
+test('clock overlay scales content bounds with a narrow frame gutter', async () => {
   const module = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
 
   assert.deepEqual([...module.CLOCK_STYLE_VALUES], [...CLOCK_STYLE_VALUES]);
-  assert.equal(module.clockScaleForViewport(580, 210), 1);
-  assert.equal(module.clockScaleForViewport(300, 115), 0.5);
-  assert.equal(module.clockScaleForViewport(1140, 400), 2);
+  assert.equal(module.clockScaleForViewport(568, 198), 1);
+  assert.equal(module.clockScaleForViewport(288, 103), 0.5);
+  assert.equal(module.clockScaleForViewport(1128, 388), 2);
+  assert.equal(module.clockScaleForViewport(916, 264, 'flip', { width: 454, height: 128 }), 2);
   assert.equal(module.clockLayoutForStyle('timeline-horizontal').width, 560);
   assert.equal(module.clockLayoutForStyle('timeline-horizontal').height, 190);
   assert.equal(module.clockLayoutForStyle('timeline-vertical').width, 220);
   assert.equal(module.clockLayoutForStyle('timeline-vertical').height, 380);
   assert.equal(module.clockLayoutForStyle('digital').width, 560);
   assert.equal(module.clockLayoutForStyle('digital').height, 190);
-  assert.equal(module.clockScaleForViewport(580, 210, 'timeline-horizontal'), 1);
-  assert.equal(module.clockScaleForViewport(240, 400, 'timeline-vertical'), 1);
+  assert.equal(module.clockLayoutForStyle('moonlit-fan').width, 560);
+  assert.equal(module.clockLayoutForStyle('moonlit-fan').height, 360);
+  assert.equal(module.clockScaleForViewport(288, 188, 'moonlit-fan'), 0.5);
+  assert.equal(module.clockScaleForViewport(568, 198, 'timeline-horizontal'), 1);
+  assert.equal(module.clockScaleForViewport(228, 388, 'timeline-vertical'), 1);
 });
 
 test('toolbox composes the named clock card with fixed URL and custom controls', () => {
@@ -173,7 +180,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.doesNotMatch(panel, /clockCustomUrl|clockCopyCustom|带参数网址/);
   assert.doesNotMatch(panel + script, /clockRecommendedSize|推荐浏览器源/);
   const stylesAvailable = [...panel.matchAll(/\sdata-clock-style-option="([^"]+)"/g)].map(([, value]) => value);
-  assert.deepEqual(stylesAvailable.sort(), [...CLOCK_STYLE_VALUES].sort());
+  assert.deepEqual(stylesAvailable.sort(), [...CLOCK_STYLE_VALUES].filter(style => style !== 'moonlit-fan').sort());
   assert.match(panel, /clockCustomLabelHelp/);
   assert.match(script, /openComponentPreview/);
   assert.doesNotMatch(script, /clockCustomUrl|clockCopyCustom/);
@@ -187,7 +194,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
 test('clock settings are persisted through validated keys and exposed by the clock page read-only capability', async () => {
   assert.deepEqual(
     [...CLOCK_STYLE_VALUES],
-    ['peach', 'starlight', 'soda', 'timeline-horizontal', 'timeline-vertical', 'digital', 'orbit', 'flip'],
+    ['peach', 'starlight', 'soda', 'timeline-horizontal', 'timeline-vertical', 'digital', 'orbit', 'flip', 'moonlit-fan'],
   );
   assert.equal(DEFAULT_SETTINGS.clockStyle, 'peach');
   assert.equal(DEFAULT_SETTINGS.clockShowDate, 'true');
@@ -209,11 +216,11 @@ test('clock settings are persisted through validated keys and exposed by the clo
       showSeconds: true,
       hourFormat: '24',
       label: DEFAULT_LABELS.peach,
-      ...FLIP_COLORS,
+      ...FLIP_COLORS, ...MOON_DEFAULTS,
     },
   );
   assert.deepEqual(getClockConfig({ clockStyle: 'soda' }), {
-    ...FLIP_COLORS,
+    ...FLIP_COLORS, ...MOON_DEFAULTS,
     style: 'soda',
     showDate: true,
     showSeconds: true,
@@ -221,7 +228,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
     label: DEFAULT_LABELS.soda,
   });
   assert.deepEqual(getClockConfig({ clockStyle: 'timeline-vertical' }), {
-    ...FLIP_COLORS,
+    ...FLIP_COLORS, ...MOON_DEFAULTS,
     style: 'timeline-vertical',
     showDate: true,
     showSeconds: true,
@@ -229,7 +236,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
     label: '',
   });
   assert.deepEqual(getClockConfig({ clockStyle: 'digital' }), {
-    ...FLIP_COLORS,
+    ...FLIP_COLORS, ...MOON_DEFAULTS,
     style: 'digital',
     showDate: true,
     showSeconds: true,
@@ -323,7 +330,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
   ]);
   assert.equal(configureCalls, 1);
   assert.deepEqual(getClockConfig(Object.fromEntries(writes)), {
-    ...FLIP_COLORS,
+    ...FLIP_COLORS, ...MOON_DEFAULTS,
     style: 'starlight',
     showDate: false,
     showSeconds: true,
@@ -359,12 +366,12 @@ test('clock settings are persisted through validated keys and exposed by the clo
   assert.equal(publicResponse.payload.ok, true);
 });
 
-test('digital clock config round-trips through admin payload and fixed URL query overrides', async () => {
+for (const style of ['digital', 'moonlit-fan']) test(`${style} clock config round-trips through admin payload and fixed URL query overrides`, async () => {
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
   const config = {
-    ...FLIP_COLORS,
-    style: 'digital',
+    ...FLIP_COLORS, ...MOON_DEFAULTS,
+    style,
     showDate: false,
     showSeconds: true,
     hourFormat: '12',
@@ -373,7 +380,7 @@ test('digital clock config round-trips through admin payload and fixed URL query
 
   const payload = { ...admin.clockSettingsPayload(config) };
   assert.deepEqual(payload, {
-    clockStyle: 'digital',
+    clockStyle: style,
     clockShowDate: 'false',
     clockShowSeconds: 'true',
     clockHourFormat: '12',
@@ -381,8 +388,13 @@ test('digital clock config round-trips through admin payload and fixed URL query
     clockFlipFrameColor: '#e4e4e4',
     clockFlipFaceColor: '#ffffff',
     clockFlipTextColor: '#303030',
+    clockMoonMode: 'light',
+    clockMoonIntervalSeconds: '30',
   });
   assert.deepEqual(getClockConfig(payload), config);
+
+  const { normalizeSceneConfig } = require('../../src/server/scene-components');
+  assert.deepEqual(normalizeSceneConfig('clock', config), config);
 
   const fixedUrl = admin.buildClockUrl('http://127.0.0.1:3000/clock', config);
   const params = new URL(fixedUrl).searchParams;
@@ -390,12 +402,12 @@ test('digital clock config round-trips through admin payload and fixed URL query
   assert.deepEqual(
     { ...queryConfig },
     {
-      style: 'digital',
+      style,
       showDate: false,
       showSeconds: true,
       hour12: true,
       label: '',
-      ...FLIP_COLORS,
+      ...FLIP_COLORS, ...MOON_DEFAULTS,
     },
   );
   assert.deepEqual(
@@ -403,12 +415,12 @@ test('digital clock config round-trips through admin payload and fixed URL query
       ...overlay.mergeClockConfig(config, queryConfig, params),
     },
     {
-      style: 'digital',
+      style,
       showDate: false,
       showSeconds: true,
       hour12: true,
       label: '',
-      ...FLIP_COLORS,
+      ...FLIP_COLORS, ...MOON_DEFAULTS,
     },
   );
 });
@@ -433,7 +445,7 @@ test('clock overlay loads saved settings while explicit legacy parameters still 
       showSeconds: false,
       hour12: true,
       label: '自定义夜班',
-      ...FLIP_COLORS,
+      ...FLIP_COLORS, ...MOON_DEFAULTS,
     },
   );
 
@@ -447,7 +459,7 @@ test('clock overlay loads saved settings while explicit legacy parameters still 
       showSeconds: true,
       hour12: true,
       label: '今天也要闪闪发光',
-      ...FLIP_COLORS,
+      ...FLIP_COLORS, ...MOON_DEFAULTS,
     },
   );
 
@@ -470,7 +482,7 @@ test('flip colors are validated, persisted and exposed only through the clock pr
   const { projectOverlayResponse } = require('../../src/server/overlay-projection');
   const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
-  const config = { style: 'flip', showDate: true, showSeconds: true, hourFormat: '24', label: '',
+  const config = { ...MOON_DEFAULTS, style: 'flip', showDate: true, showSeconds: true, hourFormat: '24', label: '',
     flipFrameColor: '#cb69e3', flipFaceColor: '#ffffff', flipTextColor: '#bc59d6' };
   const payload = { ...admin.clockSettingsPayload(config) };
   for (const [key, value] of Object.entries(payload)) assert.notEqual(normalizeClockSettingValue(key, value), null);
@@ -490,4 +502,39 @@ test('flip colors are validated, persisted and exposed only through the clock pr
   assert.equal(merged.flipTextColor, FLIP_COLORS.flipTextColor);
   assert.equal(getClockConfig({ clockStyle: 'orbit' }).style, 'orbit');
   assert.equal(getClockConfig({ clockStyle: 'flip', clockFlipFaceColor: 'invalid' }).flipFaceColor, '#ffffff');
+});
+
+test('moon palettes round-trip through settings, scene appearances and scoped overlay responses', async () => {
+  const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
+  const { normalizeSceneConfig } = require('../../src/server/scene-components');
+  const { projectOverlayResponse } = require('../../src/server/overlay-projection');
+  const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
+  const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
+  for (const mode of ['light', 'dark', 'auto']) {
+    const config = { ...getClockConfig({ clockStyle: 'moonlit-fan' }), moonMode: mode, moonIntervalSeconds: 7 };
+    const payload = { ...admin.clockSettingsPayload(config) };
+    assert.equal(normalizeSettingsPatch(payload, DEFAULT_SETTINGS).error, undefined);
+    assert.deepEqual(getClockConfig(payload), config);
+    assert.deepEqual(normalizeSceneConfig('clock', config), config);
+    assert.deepEqual(projectOverlayResponse('clock', '/api/clock/config', { ...config, secret: 'private' }), config);
+    const params = new URL(admin.buildClockUrl('http://127.0.0.1:3000/clock', config)).searchParams;
+    assert.equal(overlay.readClockConfig(params).moonMode, mode);
+    assert.equal(overlay.readClockConfig(params).moonIntervalSeconds, 7);
+  }
+  for (const value of ['', 'night', true, null]) {
+    assert.ok(normalizeSettingsPatch({ clockMoonMode: value }, DEFAULT_SETTINGS).error);
+  }
+  for (const value of ['', 0, -1, 1.5, 86401, 'NaN', true, null]) {
+    assert.ok(normalizeSettingsPatch({ clockMoonIntervalSeconds: value }, DEFAULT_SETTINGS).error);
+  }
+  assert.equal(getClockConfig({ clockMoonMode: 'bad', clockMoonIntervalSeconds: 0 }).moonMode, 'light');
+  assert.equal(getClockConfig({ clockMoonIntervalSeconds: 0 }).moonIntervalSeconds, 30);
+  const legacy = { style: 'moonlit-fan', showDate: true, showSeconds: true, hourFormat: '24', label: '', ...FLIP_COLORS };
+  assert.deepEqual(normalizeSceneConfig('clock', legacy), { ...legacy, ...MOON_DEFAULTS });
+  assert.throws(() => normalizeSceneConfig('clock', { ...legacy, moonMode: 'bad' }), { code: 'INVALID_SCENE_CONFIG' });
+  const params = new URLSearchParams('moonMode=dark');
+  const merged = overlay.mergeClockConfig({ ...legacy, moonMode: 'auto', moonIntervalSeconds: 7 },
+    overlay.readClockConfig(params), params);
+  assert.equal(merged.moonMode, 'dark');
+  assert.equal(merged.moonIntervalSeconds, 7);
 });

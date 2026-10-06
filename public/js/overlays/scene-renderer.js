@@ -1,5 +1,7 @@
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { createSceneGiftDisplay } from './scene-gift-display.js';
+import { configureBrowserSourceFrame } from '../shared/browser-source-frame.js';
+import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
 const MAX_PENDING_EVENTS = 200;
 
 export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 12000 } = {}) {
@@ -10,11 +12,50 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
   let pendingDanmaku = null;
   let dataSequence = 1;
   const giftDisplay = createSceneGiftDisplay();
-  const send = (entry, type, values = {}) => entry.frame.contentWindow?.postMessage({ type: `component-preview:${type}`, ...values }, '*');
+  const send = (entry, type, values = {}) => {
+    if (!entry.external) entry.frame.contentWindow?.postMessage({ type: `component-preview:${type}`, ...values }, '*');
+  };
+  function layout(entry, item, index) {
+    const { frame } = entry;
+    entry.item = item;
+    frame.title = item.name;
+    frame.style.left = `${item.x}px`;
+    frame.style.top = `${item.y}px`;
+    frame.style.zIndex = String(index);
+    if (entry.external) configureBrowserSourceFrame(frame, item.appearance.config, item.width, item.height);
+    else {
+      frame.style.width = `${item.width}px`;
+      frame.style.height = `${item.height}px`;
+    }
+  }
+  function updateLayout(document, items, version, projection) {
+    if (!active || active.entries.length !== items.length) return false;
+    const existing = new Map(active.entries.map((entry) => [entry.item.id, entry]));
+    if (!items.every((item) => {
+      const entry = existing.get(item.id);
+      return entry?.item.type === item.type && (entry.external
+        ? entry.item.appearance.config.url === item.appearance.config.url
+        : JSON.stringify(entry.item.appearance.config) === JSON.stringify(item.appearance.config));
+    })) return false;
+    // Keep frames in their current DOM parent so live connections and animations survive.
+    active.entries = items.map((item, index) => {
+      const entry = existing.get(item.id);
+      layout(entry, item, index);
+      return entry;
+    });
+    active.root.style.width = `${document.canvas.width}px`;
+    active.root.style.height = `${document.canvas.height}px`;
+    Object.assign(active, { document, version, projection });
+    onStatus('', version);
+    return true;
+  }
   function release(version) {
     if (!version) return;
     clearTimeout(version.timer);
-    for (const entry of version.entries) send(entry, 'dispose');
+    for (const entry of version.entries) {
+      send(entry, 'dispose');
+      if (entry.onLoad) entry.frame.removeEventListener('load', entry.onLoad);
+    }
     version.root.remove();
   }
   function data(version, values) {
@@ -35,48 +76,63 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     active = next;
     onStatus('', active.version);
   }
-  function fail() {
+  function fail(message) {
     release(staging);
     staging = null;
-    onStatus('新版准备失败，继续显示上一版本。', active?.version || 0);
+    onStatus(typeof message === 'string' ? `新版准备失败：${message}${active ? ' 继续显示上一版本。' : ''}`
+      : '新版准备失败，继续显示上一版本。', active?.version || 0);
   }
   function receive(event) {
     if (disposed || !staging || event.origin !== 'null') return;
     const entry = staging.entries.find((candidate) => candidate.frame.contentWindow === event.source);
-    if (!entry) return;
+    if (!entry || entry.external) return;
     if (event.data?.type === 'component-preview:ready') {
       entry.ready = true;
       send(entry, 'init', { config: entry.item.appearance.config, editable: false });
     } else if (event.data?.type === 'component-preview:prepared' && entry.ready) {
       entry.prepared = true;
       commit();
-    } else if (event.data?.type === 'component-preview:status') fail();
+    } else if (event.data?.type === 'component-preview:status') fail(event.data.message);
   }
   function prepare(document, version, projection) {
     if (disposed || version === active?.version || version === staging?.version) return;
     release(staging);
     staging = null;
-    const root = window.document.createElement('div');
-    root.className = 'scene-version is-staging';
-    root.style.width = `${document.canvas.width}px`;
-    root.style.height = `${document.canvas.height}px`;
-    const entries = [];
-    for (const item of document.items.filter((value) => value.visible)) {
+    const items = document.items.filter((value) => value.visible);
+    for (const item of items) {
       if (typeof item.type !== 'string' || !Object.hasOwn(SCENE_COMPONENTS, item.type)
         || item.appearance.mode !== 'independent') {
         onStatus('场景版本无效，继续显示上一版本。', active?.version || 0);
         return;
       }
+      if (SCENE_COMPONENTS[item.type].external) {
+        try { normalizeBrowserSourceConfig(item.appearance.config); }
+        catch { onStatus('浏览器源配置无效，继续显示上一版本。', active?.version || 0); return; }
+      }
+    }
+    if (updateLayout(document, items, version, projection)) return;
+    const root = window.document.createElement('div');
+    root.className = 'scene-version is-staging';
+    root.style.width = `${document.canvas.width}px`;
+    root.style.height = `${document.canvas.height}px`;
+    const entries = [];
+    for (const [index, item] of items.entries()) {
+      const external = SCENE_COMPONENTS[item.type].external;
       const frame = window.document.createElement('iframe');
-      frame.title = item.name;
       frame.setAttribute('sandbox', 'allow-scripts');
-      frame.style.left = `${item.x}px`;
-      frame.style.top = `${item.y}px`;
-      frame.style.width = `${item.width}px`;
-      frame.style.height = `${item.height}px`;
-      frame.src = SCENE_COMPONENTS[item.type].rendererUrl;
+      frame.allow = 'autoplay';
+      const entry = { item, frame, external, ready: false, prepared: false };
+      if (external) {
+        entry.onLoad = () => {
+          if (disposed || !staging?.entries.includes(entry)) return;
+          entry.ready = entry.prepared = true;
+          commit();
+        };
+        frame.addEventListener('load', entry.onLoad, { once: true });
+      } else frame.src = SCENE_COMPONENTS[item.type].rendererUrl;
+      layout(entry, item, index);
       root.append(frame);
-      entries.push({ item, frame, ready: false, prepared: false });
+      entries.push(entry);
     }
     staging = { root, document, version, projection, entries, timer: setTimeout(fail, timeoutMs) };
     host.append(root);

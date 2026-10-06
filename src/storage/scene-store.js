@@ -16,6 +16,14 @@ function decodeScene(row) {
 
 function createSceneStore(db) {
   return {
+    bindCanvas(scope, id) {
+      db.prepare(`INSERT INTO component_canvas (owner_scope, output_scene_id, active_scene_id)
+        SELECT owner_scope, id, id FROM component_scenes WHERE owner_scope = ? AND id = ?
+        ON CONFLICT (owner_scope) DO NOTHING`).run(scope, id);
+      const row = db.prepare('SELECT * FROM component_canvas WHERE owner_scope = ?').get(scope);
+      return row ? { outputId: row.output_scene_id, activeSceneId: row.active_scene_id } : null;
+    },
+
     list(scope) {
       return db.prepare('SELECT * FROM component_scenes WHERE owner_scope = ? ORDER BY id').all(scope).map(decodeScene);
     },
@@ -44,14 +52,25 @@ function createSceneStore(db) {
       return row ? { width: row.width, height: row.height } : null;
     },
 
-    publish({ scope, id, expectedRevision, document, componentSizes = {} }) {
+    publish({ scope, id, expectedRevision, document, componentSizes = {}, preset }) {
       db.exec('SAVEPOINT publish_component_scene');
       try {
+        if (preset && !db.prepare(`SELECT 1 FROM component_scenes AS source
+          JOIN component_scenes AS output ON output.owner_scope = source.owner_scope
+          JOIN component_canvas AS canvas ON canvas.owner_scope = source.owner_scope AND canvas.output_scene_id = output.id
+          WHERE source.owner_scope = ? AND source.id = ? AND source.revision = ?
+            AND output.id = ? AND output.published_version = ?`)
+          .get(scope, preset.id, preset.revision, id, preset.expectedPublishedVersion)) {
+          db.exec('RELEASE publish_component_scene');
+          return null;
+        }
         const published = decodeScene(db.prepare(`
           UPDATE component_scenes SET published_json = ?, published_version = published_version + 1
           WHERE owner_scope = ? AND id = ? AND revision = ? RETURNING *
         `).get(JSON.stringify(document), scope, id, expectedRevision));
         if (published) {
+          if (preset) db.prepare('UPDATE component_canvas SET active_scene_id = ? WHERE owner_scope = ?')
+            .run(preset.id, scope);
           const saveSize = db.prepare(`INSERT INTO component_output_sizes (owner_scope, component_type, width, height)
             VALUES (?, ?, ?, ?) ON CONFLICT (owner_scope, component_type)
             DO UPDATE SET width = excluded.width, height = excluded.height`);

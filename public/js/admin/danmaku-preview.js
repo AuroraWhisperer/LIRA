@@ -20,7 +20,8 @@ function createPanel(host, controller, source, embedded) {
   for (const original of source.querySelectorAll('[data-danmaku-style]')) {
     const button = original.cloneNode(true);
     button.addEventListener('click', () => {
-      controller.edit({ style: button.dataset.danmakuStyle });
+      controller.edit({ style: button.dataset.danmakuStyle, ...(controller.getState().draft.mediaStyle ? { mediaStyle: null } : {}),
+        ...(controller.getState().draft.resourceStyle ? { resourceStyle: null } : {}) });
     });
     choices.append(button);
   }

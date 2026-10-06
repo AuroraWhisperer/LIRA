@@ -15,8 +15,8 @@ app.setPath('sessionData', path.join(directory, 'session-data'));
 app.setAppLogsPath(path.join(directory, 'logs'));
 const root = path.resolve(__dirname, '../..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
-const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
-<style>${read('public/css/styles-base.css')}${read('public/css/desktop/update.css')}</style></head><body>
+const html = `<!doctype html><html lang="zh-CN" class="desktop-shell"><head><meta charset="utf-8">
+<style>${read('public/css/styles-base.css')}${read('public/css/desktop/palettes.css')}${read('public/css/desktop/theme.css')}${read('public/css/desktop/update.css')}</style></head><body class="desktop-shell">
 ${read('public/pages/admin/toolbox/desktop-update.html')}
 <script>window.AdminApp={utils:{toast(){}}};</script>
 <script>${read('public/js/desktop.js')}</script>
@@ -35,10 +35,11 @@ async function clickAndWait() {
     return new Promise((resolve) => {
       let ticks = 0;
       const interval = setInterval(() => { ticks += 1; }, 10);
-      const unsubscribe = bridge.onResourceIntegrityState((state) => {
+      const unsubscribe = bridge.onResourceIntegrityState(async (state) => {
         if (state.status === 'checking') return;
         clearInterval(interval);
         unsubscribe();
+        await new Promise((painted) => requestAnimationFrame(() => requestAnimationFrame(painted)));
         resolve({ state, ticks, text: document.getElementById('desktopIntegrityStatus').textContent });
       });
       document.getElementById('desktopIntegrityCheckBtn').click();
@@ -83,6 +84,7 @@ async function run() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: false,
     },
   });
   await window.loadURL(`${baseUrl}/admin`);
@@ -92,7 +94,10 @@ async function run() {
   const first = await clickAndWait();
   clearInterval(heartbeat);
   assert.equal(first.state.status, 'passed');
-  assert.match(first.text, /本次检查范围内/);
+  assert.match(first.text, /检查通过，未发现资源异常/);
+  await window.webContents
+    .capturePage()
+    .then((image) => fs.writeFileSync(path.join(directory, 'passed.png'), image.toPNG()));
   assert.ok(beats > 0 && first.ticks > 0, 'Main and renderer event loops should respond while streaming');
   const archive = path.join(directory, 'resources/app.asar');
   const handle = await rawFs.promises.open(archive, 'r+');
@@ -104,7 +109,7 @@ async function run() {
   const changed = await clickAndWait();
   assert.equal(changed.state.status, 'issues');
   assert.equal(changed.state.details[0].reasonCode, 'HASH_MISMATCH');
-  assert.match(changed.text, /已发现 1/);
+  assert.match(changed.text, /发现 1 项资源异常/);
   await window.webContents
     .capturePage()
     .then((image) => fs.writeFileSync(path.join(directory, 'issues.png'), image.toPNG()));

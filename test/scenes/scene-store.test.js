@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
-const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { createDatabases, closeDatabases, getSchemaVersions } = require('../../src/storage/database');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
@@ -46,6 +46,7 @@ function fixture(t) {
   const db = open();
   migrateScenes(db);
   migrateComponentOutputSizes(db);
+  migrateCanvasPresets(db);
   return { db, open, close, store: createSceneStore(db) };
 }
 
@@ -64,7 +65,7 @@ test('songDb scene migrations preserve v7 rows and are idempotent after restart'
   `);
   const before = db.prepare('SELECT * FROM requests').all();
   const result = runAllMigrations(databases);
-  assert.deepEqual(result.find((entry) => entry.key === 'song_db'), { key: 'song_db', from: 7, to: 9, applied: 2 });
+  assert.deepEqual(result.find((entry) => entry.key === 'song_db'), { key: 'song_db', from: 7, to: 10, applied: 3 });
   const store = createSceneStore(db);
   const created = store.create({ scope: 'server/account', document: document(), capability: capability() });
   migrateScenes(db);
@@ -72,9 +73,24 @@ test('songDb scene migrations preserve v7 rows and are idempotent after restart'
   assert.deepEqual(db.prepare('SELECT * FROM requests').all(), before);
   closeDatabases(databases);
   databases = createDatabases({ dataDir: directory });
-  assert.equal(getSchemaVersions(databases).songDb, 9);
+  assert.equal(getSchemaVersions(databases).songDb, 10);
   assert.deepEqual(databases.songDb.prepare('SELECT * FROM requests').all(), before);
   assert.deepEqual(createSceneStore(databases.songDb).get('server/account', created.document.id), created);
+});
+
+test('v10 binds the previously first scene without rewriting drafts or credentials and remains stable after new presets', t => {
+  const { db, store } = fixture(t);
+  const first = { ...document('Existing'), id: '22222222-2222-4222-8222-222222222222' };
+  store.create({ scope: 'owner', document: first, capability: capability() });
+  const before = store.get('owner', first.id);
+  migrateCanvasPresets(db);
+  assert.deepEqual(store.bindCanvas('owner', first.id), { outputId: first.id, activeSceneId: first.id });
+  const next = { ...document('New'), id: '11111111-1111-4111-8111-111111111111' };
+  store.create({ scope: 'owner', document: next, capability: capability() });
+  migrateCanvasPresets(db);
+  assert.equal(store.bindCanvas('owner', next.id).outputId, first.id);
+  assert.deepEqual(store.get('owner', first.id), before);
+  assert.equal(store.bindCanvas('another-owner', first.id), null);
 });
 
 test('v9 upgrades an existing v8 database and atomically publishes default dimensions', (t) => {
@@ -86,8 +102,9 @@ test('v9 upgrades an existing v8 database and atomically publishes default dimen
   const original = store.create({ scope: 'owner', document: document(), capability: capability() });
   db.exec("DROP TABLE component_output_sizes; UPDATE schema_version SET version = 8 WHERE key = 'song_db'");
   assert.deepEqual(runAllMigrations(databases).find((entry) => entry.key === 'song_db'),
-    { key: 'song_db', from: 8, to: 9, applied: 1 });
+    { key: 'song_db', from: 8, to: 10, applied: 2 });
   migrateComponentOutputSizes(db);
+  migrateCanvasPresets(db);
   assert.deepEqual(store.get('owner', original.document.id), original);
   const input = { scope: 'owner', id: original.document.id, expectedRevision: 1, document: original.document,
     componentSizes: { clock: { width: 800, height: 400 } } };

@@ -4,7 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream', 'glow'];
+const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'moonlit', 'outline', 'cream', 'glow'];
+const randomStyles = ['outline', 'cream', 'glow'];
 
 async function fixture(search = '?preview=1', savedStyle) {
   const nodes = new Map();
@@ -177,7 +178,7 @@ test('all local styles replay every example through the live feed without connec
   for (const style of styles) {
     const start = f.appends.length;
     const fullscreen = ['outline', 'cream', 'glow'].includes(style);
-    const sampleCount = fullscreen ? 12 : 19;
+    const sampleCount = fullscreen ? 12 : style === 'moonlit' ? 22 : 19;
     f.node(style).events.click();
     f.flushFrames();
     f.advanceMessages(sampleCount - 1);
@@ -200,9 +201,15 @@ test('all local styles replay every example through the live feed without connec
     assert.ok(members.every((item) => item.isStreamer !== true));
     assert.ok(items.some((item) => !item.kind && !item.medalName && !item.isStreamer));
     assert.ok(items.some((item) => item.kind === 'gift' && item.giftCount === 10));
-    assert.equal(items.filter((item) => item.kind === 'gift').length, 3);
+    assert.equal(items.filter((item) => item.kind === 'gift').length, style === 'moonlit' ? 6 : 3);
+    if (style === 'moonlit') {
+      assert.ok(items[0].kind === 'gift' && !items[0].giftGuardLevel, 'ordinary gift thanks appears immediately');
+      assert.equal(items[1].giftGuardLevel, 3, 'guard thanks follows the ordinary gift');
+      assert.equal(new Set(items.map((item) => item.id.replace(/-\d+$/u, ''))).size, sampleCount);
+      assert.deepEqual(Array.from(items.filter((item) => item.giftGuardLevel), (item) => item.giftGuardLevel).sort(), [1, 2, 3]);
+    }
     assert.equal(items.find((item) => item.kind === 'gift' && item.giftCount === 10).giftTotalPrice, 1);
-    assert.equal(f.options.at(-1).showGiftTotal, ['transparent', 'cream'].includes(style));
+    assert.equal(f.options.at(-1).showGiftTotal, ['transparent', 'cream', 'moonlit'].includes(style));
     assert.ok(items.every((item) => !item.id.startsWith('preview-thanks')));
     assert.equal(f.options.at(-1).resolveEmoteUrl(members[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
     const superChats = items.filter((item) => item.kind === 'superchat');
@@ -336,7 +343,7 @@ test('scaled appearance edits keep logical font sizes and reset only the selecte
 });
 
 test('fixed canvas regions scale all content with width while height controls message capacity', async () => {
-  for (const style of styles.slice(0, 6)) {
+  for (const style of styles.filter((style) => !randomStyles.includes(style))) {
     const f = await fixture(`?preview=1&style=${style}`);
     const variables = f.node('root').style;
     const width = Number(f.node('regionWidth').value);
@@ -374,7 +381,7 @@ test('resizing a fixed region preserves logical typography and random regions re
   f.node('regionWidth').value = '560';
   f.node('regionWidth').events.change();
   assert.equal(f.node('previewFontSize').value, '40');
-  for (const style of styles.slice(6)) {
+  for (const style of randomStyles) {
     f.node(style).events.click();
     f.node('regionWidth').value = '960';
     f.node('regionWidth').events.change();

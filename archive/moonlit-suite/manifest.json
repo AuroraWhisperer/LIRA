@@ -1,0 +1,2270 @@
+{
+  "capturedOn": "2026-10-06",
+  "sourceRoot": "D:/Work/Live",
+  "scope": "Curated local design archive; copies preserve originals; not a full repository backup.",
+  "threadCount": 11,
+  "fileCount": 288,
+  "totalBytes": 401225283,
+  "sourceReferences": [
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/bc91898d-0de4-4609-a4df-5cff5f21de80/image-1.png",
+      "threadIds": [
+        "01a10a4e-187b-79a2-9124-e62895883fbc"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/09-image-1.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/cbe32f7f-f79b-424c-b491-088b5b81153b/image-1.png",
+      "threadIds": [
+        "01a10a4e-187b-79a2-9124-e62895883fbc",
+        "01a10af7-3791-7102-aa34-d15b2af3120e"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/10-image-1.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/cbe32f7f-f79b-424c-b491-088b5b81153b/image-2.png",
+      "threadIds": [
+        "01a10a4e-187b-79a2-9124-e62895883fbc",
+        "01a10af7-3791-7102-aa34-d15b2af3120e"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/11-image-2.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-2.png",
+      "threadIds": [
+        "01a10af7-3791-7102-aa34-d15b2af3120e"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/04-image-2.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-3.png",
+      "threadIds": [
+        "01a10af7-3791-7102-aa34-d15b2af3120e"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/05-image-3.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-1.png",
+      "threadIds": [
+        "01a10af7-3791-7102-aa34-d15b2af3120e"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/03-image-1.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-5.png",
+      "threadIds": [
+        "01a10af7-3791-7102-aa34-d15b2af3120e"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/07-image-5.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-4.png",
+      "threadIds": [
+        "01a10af7-3791-7102-aa34-d15b2af3120e"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/06-image-4.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-04c15a71-200c-45fc-9858-8a87e6f2fd26.png",
+      "threadIds": [
+        "01a10af7-3791-7102-aa34-d15b2af3120e"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/12-codex-clipboard-04c15a71-200c-45fc-9858-8a87e6f2fd26.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-f15b361c-6db4-419a-9da1-dfd42d2762ab.png",
+      "threadIds": [
+        "01a10b45-dee9-7563-959b-73041590ddf7"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/29-codex-clipboard-f15b361c-6db4-419a-9da1-dfd42d2762ab.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-8f8f91e1-b416-4ad8-bf8f-3bee45be40d0.png",
+      "threadIds": [
+        "01a10b45-dee9-7563-959b-73041590ddf7"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/24-codex-clipboard-8f8f91e1-b416-4ad8-bf8f-3bee45be40d0.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-20c756c5-60a8-473c-83bf-36dd2ba3d916.png",
+      "threadIds": [
+        "01a10b45-dee9-7563-959b-73041590ddf7"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/15-codex-clipboard-20c756c5-60a8-473c-83bf-36dd2ba3d916.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-37d595c9-4b6f-48db-b6c4-9163d97cb033.png",
+      "threadIds": [
+        "01a10b45-dee9-7563-959b-73041590ddf7"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/16-codex-clipboard-37d595c9-4b6f-48db-b6c4-9163d97cb033.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-702b2fe1-2b1d-4336-9efe-e91a243cd64a.png",
+      "threadIds": [
+        "01a10b45-dee9-7563-959b-73041590ddf7"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/22-codex-clipboard-702b2fe1-2b1d-4336-9efe-e91a243cd64a.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-406a7f92-0166-4339-867e-c23beec556b8.png",
+      "threadIds": [
+        "01a10b45-dee9-7563-959b-73041590ddf7"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/17-codex-clipboard-406a7f92-0166-4339-867e-c23beec556b8.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-a2187fd0-5f9d-45bd-99f3-d74825e7f4e6.png",
+      "threadIds": [
+        "01a10b48-7e75-71a1-bf6d-28759fbf4f69"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/27-codex-clipboard-a2187fd0-5f9d-45bd-99f3-d74825e7f4e6.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-ff58eddb-a62b-4f14-857a-cf038a3ae4c1.png",
+      "threadIds": [
+        "01a10b48-7e75-71a1-bf6d-28759fbf4f69"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/30-codex-clipboard-ff58eddb-a62b-4f14-857a-cf038a3ae4c1.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-536fafa3-af93-4c51-9259-2345b7e5cc37.png",
+      "threadIds": [
+        "01a10b48-7e75-71a1-bf6d-28759fbf4f69"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/21-codex-clipboard-536fafa3-af93-4c51-9259-2345b7e5cc37.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-052dfb0d-af60-4151-b019-23e9ce7945e4.png",
+      "threadIds": [
+        "01a10b47-007d-7392-8262-7a07ad6f3600"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/13-codex-clipboard-052dfb0d-af60-4151-b019-23e9ce7945e4.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-10ecb5a0-bd2d-4311-8626-41082fe809a3.png",
+      "threadIds": [
+        "01a10b63-0344-7091-b25e-c33ff469595a"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/14-codex-clipboard-10ecb5a0-bd2d-4311-8626-41082fe809a3.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-41c63649-5da3-49e7-9caa-62a3a1973309.png",
+      "threadIds": [
+        "01a10b63-0344-7091-b25e-c33ff469595a"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/18-codex-clipboard-41c63649-5da3-49e7-9caa-62a3a1973309.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/7c61ef3e-55d5-42ee-98d7-28b9669c1364/image-1.png",
+      "threadIds": [
+        "01a10bf5-3eeb-7342-9a06-9969d39b065a"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/08-image-1.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-4b81f5b3-1339-4064-9eb5-45e392d13961.png",
+      "threadIds": [
+        "01a10bf5-3eeb-7342-9a06-9969d39b065a"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/19-codex-clipboard-4b81f5b3-1339-4064-9eb5-45e392d13961.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-a053404d-84eb-43dd-86ab-2762adc0a4bd.png",
+      "threadIds": [
+        "01a10bf5-3eeb-7342-9a06-9969d39b065a"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/26-codex-clipboard-a053404d-84eb-43dd-86ab-2762adc0a4bd.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-d40b5b34-0e52-44fd-a988-df987fd860ac.png",
+      "threadIds": [
+        "01a10c34-6cab-79d2-855f-cbea5be8dc50"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/28-codex-clipboard-d40b5b34-0e52-44fd-a988-df987fd860ac.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-516690a3-cf97-47ca-bbb2-409f4277b2b1.png",
+      "threadIds": [
+        "01a10c34-6cab-79d2-855f-cbea5be8dc50"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/20-codex-clipboard-516690a3-cf97-47ca-bbb2-409f4277b2b1.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-91c99f98-a597-412d-ab6d-0da2ce0ec085.png",
+      "threadIds": [
+        "01a10c34-6cab-79d2-855f-cbea5be8dc50"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/25-codex-clipboard-91c99f98-a597-412d-ab6d-0da2ce0ec085.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-727f7331-3994-4903-b80a-2ae621345a48.png",
+      "threadIds": [
+        "01a10bbd-aaf2-7183-abd1-3b5b8d60336a"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/23-codex-clipboard-727f7331-3994-4903-b80a-2ae621345a48.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/552878b7-c0e4-40d7-bf4a-079c00c34bad/image-2.png",
+      "threadIds": [
+        "01a10bbd-aaf2-7183-abd1-3b5b8d60336a"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/02-image-2.png"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/552878b7-c0e4-40d7-bf4a-079c00c34bad/image-1.png",
+      "threadIds": [
+        "01a10bbd-aaf2-7183-abd1-3b5b8d60336a"
+      ],
+      "existsAtCapture": true,
+      "archivePath": "references/01-image-1.png"
+    }
+  ],
+  "files": [
+    {
+      "originalPath": "D:/Work/Live/public/css/overlays/background.css",
+      "archivePath": "files/public/css/overlays/background.css",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 280,
+      "sha256": "e31bb2d41a0bae00d87abca3b707291b1aa50bdaebd20eadbc061094a78df9c4"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/css/overlays/clock/moonlit-fan.css",
+      "archivePath": "files/public/css/overlays/clock/moonlit-fan.css",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 5502,
+      "sha256": "4bdc4a1ba4d768ee2778403b2c23773a1cb768a04af65b65bde8d7cb589e212c"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/css/overlays/danmaku/moonlit.css",
+      "archivePath": "files/public/css/overlays/danmaku/moonlit.css",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 12694,
+      "sha256": "6d42fe2c5b95cb724556168167eeb2f8f1aec02bd3c88001502256968f1b2439"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/css/overlays/opening-moon-fan.css",
+      "archivePath": "files/public/css/overlays/opening-moon-fan.css",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 471,
+      "sha256": "39c3c6d2cce9fb15f211cfee3be232176052d44fd722a14511bde4f130204351"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/css/shared/gift-wish-moonlit.css",
+      "archivePath": "files/public/css/shared/gift-wish-moonlit.css",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 4384,
+      "sha256": "1b5d000e65470f1487772575c35566eef1403664d20c26efdfbf5fda7f79c9fe"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/component-previews/background-moonlit-animated-hq.webp",
+      "archivePath": "files/public/img/component-previews/background-moonlit-animated-hq.webp",
+      "role": "production-thumbnail-snapshot",
+      "bytes": 97062,
+      "sha256": "45c15b0063cf7d664d7fd72dc924a317109a2920bc6d2c01682c7129e2c02c6e"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/component-previews/background-moonlit-animated.webp",
+      "archivePath": "files/public/img/component-previews/background-moonlit-animated.webp",
+      "role": "production-thumbnail-snapshot",
+      "bytes": 69864,
+      "sha256": "4e56e08c31aa14ae8997210bdd0fc35df252fdbe0d99ecb625e9a7fb6cfb41a4"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/component-previews/background-moonlit.webp",
+      "archivePath": "files/public/img/component-previews/background-moonlit.webp",
+      "role": "production-thumbnail-snapshot",
+      "bytes": 78398,
+      "sha256": "f030f47143df3771fb8fbbcfa18bfd085230e01260080b867436781cffec751a"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/component-previews/clock-moonlit-fan.webp",
+      "archivePath": "files/public/img/component-previews/clock-moonlit-fan.webp",
+      "role": "production-thumbnail-snapshot",
+      "bytes": 97344,
+      "sha256": "8529104aa16726b97111cb05a74eb99ae4427bb7761f75d45638029671604e02"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/component-previews/gift-wishes-moonlit.webp",
+      "archivePath": "files/public/img/component-previews/gift-wishes-moonlit.webp",
+      "role": "production-thumbnail-snapshot",
+      "bytes": 61088,
+      "sha256": "d6d7f8466064e11953fa7d1673be1a17cf3909ca2d040acb7de698b70a737915"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/component-previews/gift-wishes-moonlit.webp.json",
+      "archivePath": "files/public/img/component-previews/gift-wishes-moonlit.webp.json",
+      "role": "production-thumbnail-snapshot",
+      "bytes": 500,
+      "sha256": "c5d74b7b44d73fc54f78650cb5c944b7ed030d20bfb38cc07601c2381d89482f"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/component-previews/opening-moonlit-fan.webp",
+      "archivePath": "files/public/img/component-previews/opening-moonlit-fan.webp",
+      "role": "production-thumbnail-snapshot",
+      "bytes": 76382,
+      "sha256": "9cdcfee4f31dc0063b4190d77ec51cf7574914fead649cc6fde4205735606c83"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/backgrounds/moonlit.webp",
+      "archivePath": "files/public/img/overlays/backgrounds/moonlit.webp",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 652350,
+      "sha256": "0495ba38bd6e8e58abb6c5f4a6f8f0fe0865a7ecce0ce82d447bc8774a255c1c"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/backgrounds/README.md",
+      "archivePath": "files/public/img/overlays/backgrounds/README.md",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 3160,
+      "sha256": "196688d4148148ab96aa8face53e8dcb27d0d2d4d50f97b7a2f9b56397437bc3"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/clock-moonlit-fan/moon-landscape.webp",
+      "archivePath": "files/public/img/overlays/clock-moonlit-fan/moon-landscape.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 45132,
+      "sha256": "bd71a808bac1b5df48e0eded2040c785ef1f37527a274f527c2e24ffed833220"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/clock-moonlit-fan/README.md",
+      "archivePath": "files/public/img/overlays/clock-moonlit-fan/README.md",
+      "role": "production-asset-snapshot",
+      "bytes": 569,
+      "sha256": "494364429c75a3ea3b466c880bc7436f21d8080efb3236a2accbeb3a9e815f2c"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/admiral.webp",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/admiral.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 4832,
+      "sha256": "7d660d0c60db36be5fed9ac35dab6fdc1a2a27853039c483f999905f610ed46c"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/admiral.webp.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/admiral.webp.json",
+      "role": "production-asset-snapshot",
+      "bytes": 174,
+      "sha256": "2efcbd7c9128b165cee6b5e290a23aed4a224f9b1d71d9a13f27f032ab5dff62"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/brush.webp",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/brush.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 26568,
+      "sha256": "2a67da085222fb959b6a64052c5434050c81f8be2e6c7f670f06c0eb7ca0522c"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/brush.webp.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/brush.webp.json",
+      "role": "production-asset-snapshot",
+      "bytes": 769,
+      "sha256": "fc3550456ee4e78eadca59d78a70e5dbe86a2a6cbe42511f4d1290bb3501524c"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/captain.webp",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/captain.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 4364,
+      "sha256": "0398fda6c3e832a7f673c840aeb2103da1b8ac5a9e2ab4794ce22859615d783e"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/captain.webp.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/captain.webp.json",
+      "role": "production-asset-snapshot",
+      "bytes": 174,
+      "sha256": "d99cd0fc245cbb3b3dd3bb60d0722bb887427b8b418d1d0547ec610a33493374"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/crane.webp",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/crane.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 14610,
+      "sha256": "e23425639dc8aaef7537f4ede88cc755b6c34a886d301ce5d8cecdf588da7603"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/crane.webp.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/crane.webp.json",
+      "role": "production-asset-snapshot",
+      "bytes": 227,
+      "sha256": "61b2e63095bed11babed72ae179c8f50373791fb72813d08e798b9dc067e2b73"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/flowers.webp",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/flowers.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 39908,
+      "sha256": "ccc98601fd30cf343e64a76a9d9e9b115df1007cea04005107d0c80b0f5507ae"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/flowers.webp.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/flowers.webp.json",
+      "role": "production-asset-snapshot",
+      "bytes": 171,
+      "sha256": "1460e2a82aff0af82297bb4c1d0f7fd8c3407ebe4f9295ed6fb7d5a5ec98adcc"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/governor.webp",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/governor.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 6366,
+      "sha256": "26991a85d107e4cc9bf2904485b68c6a580dea8343e762bc312f83d27f3e3ef2"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/governor.webp.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/governor.webp.json",
+      "role": "production-asset-snapshot",
+      "bytes": 176,
+      "sha256": "00df2c4c44f1bb9efc9287a5f6b4489ee584807cee172a21acce4ae253a1506b"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/guard-landscape.webp",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/guard-landscape.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 197140,
+      "sha256": "731cf0ac0518343b3a46bf54859369194438379d0f466a1446c8aa358757a48d"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/guard-landscape.webp.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/guard-landscape.webp.json",
+      "role": "production-asset-snapshot",
+      "bytes": 1354,
+      "sha256": "5d0a74a878c1c686c721d924ab1d83eae85024041c4bccf49a3f94790e8801fb"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/provenance.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/provenance.json",
+      "role": "production-asset-snapshot",
+      "bytes": 8139,
+      "sha256": "c35938af1ecad13d012afc992a2635407866497dc930a70b64f5c19f8014a180"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/README.md",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/README.md",
+      "role": "production-asset-snapshot",
+      "bytes": 1757,
+      "sha256": "7a1723f6c02ac5c584566710ff63ff4e83c46d6450dc192ede9b8497b3edd4bb"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/scroll-frame.webp",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/scroll-frame.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 411986,
+      "sha256": "150da263ed37bdf30fdabaa0a85aa6a118439ea86afd746a7ccc2deae7884d1c"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/scroll-frame.webp.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/scroll-frame.webp.json",
+      "role": "production-asset-snapshot",
+      "bytes": 2256,
+      "sha256": "c0f441fe7af754efd556fe7b8fb8bbd15b508bd0542980e48cb9fb9741727f18"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/scroll-roller.webp",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/scroll-roller.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 38404,
+      "sha256": "b8f95c6632bc8e251dc2a45d4fe846a60db881a7b7d9d681491b84d32e266cfe"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/scroll-roller.webp.json",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/scroll-roller.webp.json",
+      "role": "production-asset-snapshot",
+      "bytes": 2256,
+      "sha256": "df544c111e4fc3046cf1a386a146573b134056a84c08f638a364659efd8bab0e"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/danmaku-moonlit/silk.svg",
+      "archivePath": "files/public/img/overlays/danmaku-moonlit/silk.svg",
+      "role": "production-asset-snapshot",
+      "bytes": 982,
+      "sha256": "300d565823563ea648e55c5de55bb52c80d90552aa0d3eb67959a501982cf209"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/crane-body.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/crane-body.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 74586,
+      "sha256": "02e1d14928db66c126d2ca5956b8cbefa76cf66e63dbf86de2abb6ab33b562e2"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/crane-wing-far.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/crane-wing-far.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 67768,
+      "sha256": "287e2c43592fc20a31aa9891ae50437bc445ed61eb325d7ec8ab8c3b391d1a57"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/crane-wing-near.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/crane-wing-near.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 89860,
+      "sha256": "f3258073872706f814e4dc0950aaedbcd0559f186a6da922469e57e08aac60e4"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/fan.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/fan.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 515132,
+      "sha256": "6efc1897f0fd1d4c73ac9b86c418a4b0c0903b19bf433fbd38f02dce84ef01a5"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/flowers-ne.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/flowers-ne.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 116368,
+      "sha256": "4f8637627c9b9be390cc5d9da0ab2ac58e16e31b1020b8c65efb2e09a2087f69"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/flowers-nw.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/flowers-nw.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 177420,
+      "sha256": "624379c277c63963227effa863b7399d5e410eb42c0ca0520f6d9392c19d214e"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/flowers-se.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/flowers-se.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 173544,
+      "sha256": "c49cfc7908c1f53e86d0dfc0f43560ef8c7ee93c9ec8ce8eaf025d6b92d78186"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/flowers-sw.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/flowers-sw.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 142576,
+      "sha256": "7227bcc9157351694341560a0557f6714eabe9589d444eb7b068a79d2bbe7bff"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/jewel-left.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/jewel-left.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 109018,
+      "sha256": "e48a94458dc9e4083549cf2334894845b1b0223e6eec6846fcc1a950d9fdaabb"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/landscape.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/landscape.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 655314,
+      "sha256": "4155ae99c019ab01c957aa7d538b493efa399060a45778aa7afab8f45b48a129"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/README.md",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/README.md",
+      "role": "production-asset-snapshot",
+      "bytes": 1408,
+      "sha256": "0810a548d09f0653395a1ec0d9f549874b0f2f451803df8bf3ecaa9f023e42c9"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/silk.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/silk.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 15722,
+      "sha256": "16c3057dc995967628b92e7dbd5abc7f4eb3289f05a498868cc43c006029906a"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/overlays/opening-moon-fan/title.webp",
+      "archivePath": "files/public/img/overlays/opening-moon-fan/title.webp",
+      "role": "production-asset-snapshot",
+      "bytes": 195806,
+      "sha256": "03c8b32c4c154dc9cf072a40eb15ef7d14789794179d59d5c5d7eb2e0d886ac7"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/shared/gift-wish-moonlit-start.svg",
+      "archivePath": "files/public/img/shared/gift-wish-moonlit-start.svg",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 878,
+      "sha256": "11892eedc0eda6bf90e36fa4d5f3286f0620c229e005641175e32c5cade2dff2"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/shared/gift-wish-moonlit.webp",
+      "archivePath": "files/public/img/shared/gift-wish-moonlit.webp",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 260810,
+      "sha256": "137b8c087820d0a0b0885b9105ed6e2b27931d2fd9197dd86205a686617064aa"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/img/shared/gift-wish-moonlit.webp.json",
+      "archivePath": "files/public/img/shared/gift-wish-moonlit.webp.json",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 5850,
+      "sha256": "f4a49e81e2eba8e55d5882854d00f581b4f7df840cf60eae2351fccd2070c39d"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/js/admin/component-preview-suites.js",
+      "archivePath": "files/public/js/admin/component-preview-suites.js",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 711,
+      "sha256": "25efcc791f81d87520f6fad881fb288707c45d408315e05e82653f405c1ef7a6"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/js/overlays/background-moonlit.js",
+      "archivePath": "files/public/js/overlays/background-moonlit.js",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 1649,
+      "sha256": "c1ad9289e22de6e9398511e889c5adb97659e59a55cd3501995d22db5be77f91"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/js/overlays/background.js",
+      "archivePath": "files/public/js/overlays/background.js",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 1329,
+      "sha256": "d495a0e8c31e24a493d40fccde5576326b09b5fec192912794cf526fefac1c93"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/js/overlays/clock.js",
+      "archivePath": "files/public/js/overlays/clock.js",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 16525,
+      "sha256": "d83c7f961728cae38bb2c1b068bcdcb0c2ecc7c2e7f8b404684f111941c575a3"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/js/overlays/danmaku-moonlit.js",
+      "archivePath": "files/public/js/overlays/danmaku-moonlit.js",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 3622,
+      "sha256": "0e9ce7347cc20eca7b79ecd5aeb07a5e0d719960ef1ec8684955406ac7b58b4d"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/js/overlays/opening-moon-fan-art.js",
+      "archivePath": "files/public/js/overlays/opening-moon-fan-art.js",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 15848,
+      "sha256": "6edf2555467252b6a893cbb88ec66c5b5337b4137d189d495d4fb84e6e93872d"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/js/overlays/opening-moon-fan.js",
+      "archivePath": "files/public/js/overlays/opening-moon-fan.js",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 3919,
+      "sha256": "8b5db91e41638ba70c355741bff5da7234413faa5b93dab943f4fabe7b47fe20"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/js/shared/clock-settings.js",
+      "archivePath": "files/public/js/shared/clock-settings.js",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 2191,
+      "sha256": "9815e0e490e0c4beb62a39c18090a8cfb6ccc4567008f198710afe2878485084"
+    },
+    {
+      "originalPath": "D:/Work/Live/public/js/shared/gift-wish-moonlit.js",
+      "archivePath": "files/public/js/shared/gift-wish-moonlit.js",
+      "role": "production-owner-snapshot-not-a-complete-application",
+      "bytes": 2587,
+      "sha256": "cd1defbfc81e707f986a8b07750872da8fc0e95368132078dc5c02d80a0f6ea1"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/clock-moon-palettes/qa/light-dark-comparison.png",
+      "archivePath": "files/tmp/clock-moon-palettes/qa/light-dark-comparison.png",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 301907,
+      "sha256": "b9fe633dbe80cfee7be549750eac94a7f786f85ebbec4870c10a679803e7121f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/clock-moon-palettes/qa/observations.json",
+      "archivePath": "files/tmp/clock-moon-palettes/qa/observations.json",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 670,
+      "sha256": "491c5a0f17fe1957faedf67f011c546f9fefe3e89e15441860373797732d0299"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/clock-moonlit-fan/export-preview.py",
+      "archivePath": "files/tmp/clock-moonlit-fan/export-preview.py",
+      "role": "historical-process-source",
+      "bytes": 898,
+      "sha256": "cf5b8e50cef37e52b32816b8cf7986789bcd8b74fc36ff293e0991d649adbbc6"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/clock-moonlit-fan/prepare-assets.py",
+      "archivePath": "files/tmp/clock-moonlit-fan/prepare-assets.py",
+      "role": "historical-process-source",
+      "bytes": 1870,
+      "sha256": "d327b51d69e78a5af52267293f133f8c8d8f71a78da86f231b30ee34bea423fc"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/clock-moonlit-fan/qa/final-backgrounds.png",
+      "archivePath": "files/tmp/clock-moonlit-fan/qa/final-backgrounds.png",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 278768,
+      "sha256": "041d4b90b483ae0d7e3a1b5105275ac344fc7dedeedfb12d667d371cd31b0779"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/clock-moonlit-fan/qa/results.json",
+      "archivePath": "files/tmp/clock-moonlit-fan/qa/results.json",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 318,
+      "sha256": "2cefd1fc859b5f2a741e02a5326c6872af1bf0529208f52bab7a320d4db6f581"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/clock-moonlit-fan/qa.md",
+      "archivePath": "files/tmp/clock-moonlit-fan/qa.md",
+      "role": "historical-process-source",
+      "bytes": 814,
+      "sha256": "b6d3ec8a2dde05b5de31c8451d778298fa56d5c9d4ccd5d6e91debdc25d2163a"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/brush-strip.png",
+      "archivePath": "files/tmp/danmaku-moonlit/brush-strip.png",
+      "role": "required-process-input",
+      "bytes": 338629,
+      "sha256": "9096310f195177773bae4e9df17ef7f6ff5f41369df5d81c677c061a4e897442"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/embed-provenance.py",
+      "archivePath": "files/tmp/danmaku-moonlit/embed-provenance.py",
+      "role": "historical-process-source",
+      "bytes": 3095,
+      "sha256": "0f0d9a292cedf8a0ee2c3b1583e51d8259028f2f7ffd750a9cb88d4f45ee0f6f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/embed-scroll-preview.py",
+      "archivePath": "files/tmp/danmaku-moonlit/embed-scroll-preview.py",
+      "role": "historical-process-source",
+      "bytes": 1229,
+      "sha256": "abef87f3f32e1518f29235fb44b05b823483906e4257da6b33f6983aa7605079"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/export-preview.py",
+      "archivePath": "files/tmp/danmaku-moonlit/export-preview.py",
+      "role": "historical-process-source",
+      "bytes": 878,
+      "sha256": "004aae7e67b4ce09033d9074ba5cf193709494c0b62b6a2ffd82e4be9d1c4926"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/export-v2.py",
+      "archivePath": "files/tmp/danmaku-moonlit/export-v2.py",
+      "role": "historical-process-source",
+      "bytes": 1543,
+      "sha256": "77774a4b7cf2c0b0ead69f628e58a4b05ea5500dcd9be2e5a452e335515a60ae"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/gallery-v2.js",
+      "archivePath": "files/tmp/danmaku-moonlit/gallery-v2.js",
+      "role": "historical-process-source",
+      "bytes": 3485,
+      "sha256": "3a40755613462da5cec5e182ed9ccbd5f326a60b2cbdbb04c134aa9906aa8d30"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/generation-calls.txt",
+      "archivePath": "files/tmp/danmaku-moonlit/generation-calls.txt",
+      "role": "required-process-input",
+      "bytes": 5813,
+      "sha256": "2eb1fb4d447d66d2917bf1d39797527471b9148549c495d5553bb235a4f6fb2a"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/guard-landscape.png",
+      "archivePath": "files/tmp/danmaku-moonlit/guard-landscape.png",
+      "role": "required-process-input",
+      "bytes": 1817897,
+      "sha256": "b24af1ec7a5d434e09dac406c23d5a6095475f496c7e6fd85fdbb6db1d301679"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/integrate.py",
+      "archivePath": "files/tmp/danmaku-moonlit/integrate.py",
+      "role": "historical-process-source",
+      "bytes": 6814,
+      "sha256": "30ce598aca44155cd4fb75753732ee58b73cc709abeca3023e34ae48b0f20923"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/moonlit-v2.css",
+      "archivePath": "files/tmp/danmaku-moonlit/moonlit-v2.css",
+      "role": "historical-process-source",
+      "bytes": 11642,
+      "sha256": "5e3efa492a6c77ccf675ec690f2faa2c6329553fe2aa5013a0a30a6f3f267fcc"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/prepare-assets.py",
+      "archivePath": "files/tmp/danmaku-moonlit/prepare-assets.py",
+      "role": "historical-process-source",
+      "bytes": 2473,
+      "sha256": "8a2bae968e552eddf2fa11f608e60678fee433e0424f1b09d4f83dbfefd5d954"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/prepare-v2.py",
+      "archivePath": "files/tmp/danmaku-moonlit/prepare-v2.py",
+      "role": "historical-process-source",
+      "bytes": 1752,
+      "sha256": "bd76701ee5515b846c2e53d51d239423d83b27c3776690776c56ad51bb18f0ce"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/revision-v2-before/danmaku-moonlit.js",
+      "archivePath": "files/tmp/danmaku-moonlit/revision-v2-before/danmaku-moonlit.js",
+      "role": "required-dependency-of-fullscreen-thanks-builder",
+      "bytes": 3574,
+      "sha256": "ef975730c9725abe81006fb37bf844f4b68e3cc5025adc7a5c05a5ef56d7cc65"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/revision-v2-before/danmaku-superchat-renderer.js",
+      "archivePath": "files/tmp/danmaku-moonlit/revision-v2-before/danmaku-superchat-renderer.js",
+      "role": "required-dependency-of-fullscreen-thanks-builder",
+      "bytes": 5091,
+      "sha256": "502dc6e59a8548a5a72377f183f64c560be200795e8020eefee0f0715da32f82"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/revision-v2-before/moonlit.css",
+      "archivePath": "files/tmp/danmaku-moonlit/revision-v2-before/moonlit.css",
+      "role": "required-dependency-of-fullscreen-thanks-builder",
+      "bytes": 13840,
+      "sha256": "4640c22131473ea2eecc98315b3bf11684593653325e7deddd53d27f5361b12c"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/revision-v6/01-paper-opening.png",
+      "archivePath": "files/tmp/danmaku-moonlit/revision-v6/01-paper-opening.png",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 88403,
+      "sha256": "c38aeb7660eca62abf1526522b9029fb00c3311db6510eb0d3097ec88b2beca4"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/revision-v6/02-decoration-wipe.png",
+      "archivePath": "files/tmp/danmaku-moonlit/revision-v6/02-decoration-wipe.png",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 252787,
+      "sha256": "25a824bf3e229b7ff627441dc854851c31a8967c528b89336ddf97d3e616474f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/revision-v6/03-complete.png",
+      "archivePath": "files/tmp/danmaku-moonlit/revision-v6/03-complete.png",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 285842,
+      "sha256": "a89d6a1e69b94b618e02d7f3275c528269e6501b59d7002c3c5d7a278af9c397"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/revision-v6/moonlit-motion-2x-60fps.webm",
+      "archivePath": "files/tmp/danmaku-moonlit/revision-v6/moonlit-motion-2x-60fps.webm",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 1242922,
+      "sha256": "e82fe5acccc37a69fd76c6b331c151c356d06c0dde2bf4df7591dcf86f5ca9e6"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/scroll-details-preview.html",
+      "archivePath": "files/tmp/danmaku-moonlit/scroll-details-preview.html",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 419810,
+      "sha256": "6c8f8e90cef688da6e022a3d15ea0a485260e1d86b63feae904496888f1e273d"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/scroll-landscape-opening.png",
+      "archivePath": "files/tmp/danmaku-moonlit/scroll-landscape-opening.png",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 48307,
+      "sha256": "4b66bb965cf04d641d9bb35dd883ca97a1e37bb0dedd4ad9ed9f28ca9a4ee3f6"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/scroll-ornament-v2.png",
+      "archivePath": "files/tmp/danmaku-moonlit/scroll-ornament-v2.png",
+      "role": "required-process-input",
+      "bytes": 1939596,
+      "sha256": "bd3ae3bf46eeb0a78128ac0b0d0f4ba172a60eee2d8e664387e37d9ac620e141"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/sync-docs-v2.py",
+      "archivePath": "files/tmp/danmaku-moonlit/sync-docs-v2.py",
+      "role": "historical-process-source",
+      "bytes": 10156,
+      "sha256": "5b2a775c45003ab61833a346c5198d5256b9e8ad27a450beca073ecd999ec59c"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/thumbnail-source.png",
+      "archivePath": "files/tmp/danmaku-moonlit/thumbnail-source.png",
+      "role": "generation-source-or-prompt",
+      "bytes": 189833,
+      "sha256": "faf4cf6bcc3c820fe359336c12206e4261b3ceb9423c246a1acfe5938eb2e605"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/update-contracts.py",
+      "archivePath": "files/tmp/danmaku-moonlit/update-contracts.py",
+      "role": "historical-process-source",
+      "bytes": 4079,
+      "sha256": "d14ae900eaaf7364c0697e21fbe0031b605bf317cc9df7e71c593a6df442fc26"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/update-docs.py",
+      "archivePath": "files/tmp/danmaku-moonlit/update-docs.py",
+      "role": "historical-process-source",
+      "bytes": 5969,
+      "sha256": "b7aec201620273be1966a307219c3809eea56a91818b0672c0cae5770c9670fd"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/danmaku-moonlit/verification-v2.md",
+      "archivePath": "files/tmp/danmaku-moonlit/verification-v2.md",
+      "role": "historical-process-source",
+      "bytes": 1577,
+      "sha256": "ed1ca7d0b2e99938efdecdeb9285fc14b015d8c0c91e93cc97d24a8321980e0b"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/build-preview.cjs",
+      "archivePath": "files/tmp/gift-wish-moonlit/build-preview.cjs",
+      "role": "historical-process-source",
+      "bytes": 5419,
+      "sha256": "cfe0ca73431b756fe5be74e81bc0fe9fed3e620b800d24fded518528a2db8aa9"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/direction.md",
+      "archivePath": "files/tmp/gift-wish-moonlit/direction.md",
+      "role": "historical-process-source",
+      "bytes": 2651,
+      "sha256": "cc5da01112c7bdac6ae09a4310c666972045e0e7f2c5cc03644989ea1715497e"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/frame-prompt.txt",
+      "archivePath": "files/tmp/gift-wish-moonlit/frame-prompt.txt",
+      "role": "generation-source-or-prompt",
+      "bytes": 2365,
+      "sha256": "cd156fdc7c76f017fb7ca782869dac545e0879a3ccf6670f39949b122fb234dc"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/frame-source.png",
+      "archivePath": "files/tmp/gift-wish-moonlit/frame-source.png",
+      "role": "generation-source-or-prompt",
+      "bytes": 1460953,
+      "sha256": "863575b9666cb649e452eb18d050dce7592eb551d0abbb599b1e0f4467180d42"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/prepare-art-v2.py",
+      "archivePath": "files/tmp/gift-wish-moonlit/prepare-art-v2.py",
+      "role": "historical-process-source",
+      "bytes": 2440,
+      "sha256": "41ab19b7216d56334868b1e7208a221e5a18baac7d614779b27e148e1238e6fc"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/prepare-art-v3.py",
+      "archivePath": "files/tmp/gift-wish-moonlit/prepare-art-v3.py",
+      "role": "historical-process-source",
+      "bytes": 2393,
+      "sha256": "5ca4c814dd36d8334b2b4eb47bf2ecc041a92c5c8f4884d3eaef6f24c2d4bfba"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/prepare-art-v4.py",
+      "archivePath": "files/tmp/gift-wish-moonlit/prepare-art-v4.py",
+      "role": "historical-process-source",
+      "bytes": 2407,
+      "sha256": "371a4662a1dd93f2ecbc6c13182b11bb3fd1c43ffe3982518cb0732ef07f106d"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/prepare-art.py",
+      "archivePath": "files/tmp/gift-wish-moonlit/prepare-art.py",
+      "role": "historical-process-source",
+      "bytes": 1088,
+      "sha256": "bc6af4fe834b891d0d9a95fb06a32c03f6aa8a8cac19358b6ef62f0938cb8763"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/qa/revision-v2/banner-before.webp",
+      "archivePath": "files/tmp/gift-wish-moonlit/qa/revision-v2/banner-before.webp",
+      "role": "required-process-input",
+      "bytes": 348766,
+      "sha256": "18d5ecc34e42e28bf4c0a9bf235171429001f2446e4c1652aa241c9b6cfc3048"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/qa/revision-v4/banner-before.webp.json",
+      "archivePath": "files/tmp/gift-wish-moonlit/qa/revision-v4/banner-before.webp.json",
+      "role": "required-process-input",
+      "bytes": 4861,
+      "sha256": "7a79e02c357a612a9556b096e4404647c72062dafafb7e74ad58fdc6916c520d"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/qa/revision-v4/functional.json",
+      "archivePath": "files/tmp/gift-wish-moonlit/qa/revision-v4/functional.json",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 321,
+      "sha256": "09ce2d5849f7fba21a44bbeb01046f0825da33ad6fa8903ac818713110637234"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/qa/revision-v4/garden-720.png",
+      "archivePath": "files/tmp/gift-wish-moonlit/qa/revision-v4/garden-720.png",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 625748,
+      "sha256": "b2fd12da5555dbc03df1536e29251765aa6c482ff16de50c75c2f3b9621062ca"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/ring-v2-prompt.txt",
+      "archivePath": "files/tmp/gift-wish-moonlit/ring-v2-prompt.txt",
+      "role": "generation-source-or-prompt",
+      "bytes": 1998,
+      "sha256": "b350ff47692aebb3e0263650d45e51c5398b08d80864d2745e5c81478a082337"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/ring-v2-source.png",
+      "archivePath": "files/tmp/gift-wish-moonlit/ring-v2-source.png",
+      "role": "generation-source-or-prompt",
+      "bytes": 1045392,
+      "sha256": "535323970e0c2d173bfe2fe36741681738e8bfb8c0ac1aa9bde4fde07dd0f736"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/ring-v3-prompt.txt",
+      "archivePath": "files/tmp/gift-wish-moonlit/ring-v3-prompt.txt",
+      "role": "generation-source-or-prompt",
+      "bytes": 1897,
+      "sha256": "9667e9a34167978938a8c642fda1ec4333df48a29b17d3f52f270d9ea154c7e0"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/ring-v3-source.png",
+      "archivePath": "files/tmp/gift-wish-moonlit/ring-v3-source.png",
+      "role": "generation-source-or-prompt",
+      "bytes": 1578130,
+      "sha256": "2a3f1973dbffea3bc710bc5595b7085ff285c3f920f82e04c16e6e024ee0fc45"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/ring-v4-prompt.txt",
+      "archivePath": "files/tmp/gift-wish-moonlit/ring-v4-prompt.txt",
+      "role": "generation-source-or-prompt",
+      "bytes": 2579,
+      "sha256": "7c3ef563ce272b41d821858bf6c692542a995b8344a160e99c8a87aff55e3d20"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/ring-v4-source.png",
+      "archivePath": "files/tmp/gift-wish-moonlit/ring-v4-source.png",
+      "role": "generation-source-or-prompt",
+      "bytes": 2081915,
+      "sha256": "4880ff75297ec5e25f4a17a4219796d6016d655bdd8be591c2d7216fce180900"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/月渡花汀-礼物心愿动态预览.html",
+      "archivePath": "files/tmp/gift-wish-moonlit/月渡花汀-礼物心愿动态预览.html",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 1266075,
+      "sha256": "66d32445db174f4ce94b0b02dd2b3b4c3ad3096f8b352aa9bb8db4f41fa1f3f9"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/gift-wish-moonlit/月渡花汀-礼物心愿效果.png",
+      "archivePath": "files/tmp/gift-wish-moonlit/月渡花汀-礼物心愿效果.png",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 277354,
+      "sha256": "0025300000dd31ea3907baf73a147d067d2b614ae28193aea76403e6bbe4562d"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background/grade.py",
+      "archivePath": "files/tmp/moonlit-background/grade.py",
+      "role": "historical-process-source",
+      "bytes": 1591,
+      "sha256": "7327bd3adf5b45d8612bbd602966c8af74518c263476375b5d1170845fbff89c"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/compositor.html",
+      "archivePath": "files/tmp/moonlit-background-hq/compositor.html",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 314,
+      "sha256": "5311786f742fd4081d7afd1e65f4f9800f4da02742440e15ca2b8f9aafeea2f4"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/landscape.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/landscape.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1998938,
+      "sha256": "cffeb9a11eb216382935706febcaf30724ff6d36bc82b8eca114d70444ac7689"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/lantern.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/lantern.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 83140,
+      "sha256": "5cc80f7cf4be8e4323fb34c2485b7e720807952f6b0a13909225d89390b5ddb7"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/leaf-0.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/leaf-0.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 48574,
+      "sha256": "f5cc0c1ae3023adadc16f95a1fda0b312dcdedb38487c5789f93173c0db1c587"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/leaf-1.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/leaf-1.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 50158,
+      "sha256": "9b8fe92d646c8052837da9221723cbde9cc515942881eb603aaedf63537c33d4"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/leaf-2.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/leaf-2.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 40692,
+      "sha256": "06abf5c2a2252eeb07939435573ca28c016a8cd2196fa747cbc10f94f2745243"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/leaf-3.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/leaf-3.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 53606,
+      "sha256": "be543d6e7a1bb8df2b892c5a8380788ee01278ff7cbf148d6a6694ec0019ad3e"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/leaf-4.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/leaf-4.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 38714,
+      "sha256": "f3456b2a3ceb3e2068e1ffdb0f690b850808657c6b9ce0d0a159d5935a2173eb"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/leaf-5.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/leaf-5.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 75104,
+      "sha256": "846b30afff732dab6989390e94ed30cf72568a000a01db46f21a2806ef6160a4"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/mist.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/mist.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 168526,
+      "sha256": "f38112156c44295911bb099bd9bbe1d70e1620317e78bbc2a4f33d790d1bc4ee"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/moon.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/moon.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 234346,
+      "sha256": "b7018b2e9057a01075da838f39d7bd83b03e452d9d55c4bb094299e248b10044"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/layers/petal.webp",
+      "archivePath": "files/tmp/moonlit-background-hq/layers/petal.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 27022,
+      "sha256": "8579d89877bc6799eb5f8d788f0388eac60205c444c514e7fb6103b21a2038a3"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/moonlit-composite-hq-60.mp4",
+      "archivePath": "files/tmp/moonlit-background-hq/moonlit-composite-hq-60.mp4",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 44302157,
+      "sha256": "627b11d2d8cfb976e9c0c674986c66d5a175523ca9ed5d12540d8fec66a5a2ff"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/moonlit-loop-hq-60.webm",
+      "archivePath": "files/tmp/moonlit-background-hq/moonlit-loop-hq-60.webm",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 42092957,
+      "sha256": "86b048c46fe1c3f0fa1525a77646d1d28769a6043fbeba9fa95e2a21256bc4b8"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/prepare-assets.py",
+      "archivePath": "files/tmp/moonlit-background-hq/prepare-assets.py",
+      "role": "historical-process-source",
+      "bytes": 1683,
+      "sha256": "41455f8c71cf966e2c57fc9f8d15b25bb5a69fb1e72283688b24b645916ef5aa"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/preview.html",
+      "archivePath": "files/tmp/moonlit-background-hq/preview.html",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 1356,
+      "sha256": "9193948a9b14a7662c00879d20135ece8b4503c74f870dd4ec69a5715865caaa"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/qa/acceptance.md",
+      "archivePath": "files/tmp/moonlit-background-hq/qa/acceptance.md",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 869,
+      "sha256": "a02a9dd1072c451956034b5f9e1918740bd500b68b60d41383607eab57631b01"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/qa/encoding-plan.json",
+      "archivePath": "files/tmp/moonlit-background-hq/qa/encoding-plan.json",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 320,
+      "sha256": "2c685b7bcca80296b5b6d416039a42b271d9e9efdeeb0f3d180a493a6b93f524"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/qa/final-1440.png",
+      "archivePath": "files/tmp/moonlit-background-hq/qa/final-1440.png",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 6024442,
+      "sha256": "63a356b802d35a3d41b93a70a32e4bd57cd35a03050ba35f3cd93a9e942940b2"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/qa/final-detail-comparison.png",
+      "archivePath": "files/tmp/moonlit-background-hq/qa/final-detail-comparison.png",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 1401027,
+      "sha256": "872688810d56373164b7a1120400a5eb7cb8f1995b5b18159c496c8e04b86f3e"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/qa/final-verification.json",
+      "archivePath": "files/tmp/moonlit-background-hq/qa/final-verification.json",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 776,
+      "sha256": "09871455f08e486b990bc83f584dafd3348d75d9f0f20337120165546a8c3ce4"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/render-scene.js",
+      "archivePath": "files/tmp/moonlit-background-hq/render-scene.js",
+      "role": "historical-process-source",
+      "bytes": 8488,
+      "sha256": "f7bc828715e69f7396c3efc2cb3d31f6789b5c3837fa140cbfb6741cefe26361"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/serve-preview.cjs",
+      "archivePath": "files/tmp/moonlit-background-hq/serve-preview.cjs",
+      "role": "historical-process-source",
+      "bytes": 1794,
+      "sha256": "cf379ea6a12147a9dccfe4003162b66810e4ba84a00ea94ad9fbe35acb8eeb12"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-hq/source/landscape-hq.png",
+      "archivePath": "files/tmp/moonlit-background-hq/source/landscape-hq.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 3051515,
+      "sha256": "d913f2fc4e119df7b0650ae727fe2e5f8844719f71774cde6e655b2ce4173f90"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/compositor.html",
+      "archivePath": "files/tmp/moonlit-background-rebuild/compositor.html",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 314,
+      "sha256": "5311786f742fd4081d7afd1e65f4f9800f4da02742440e15ca2b8f9aafeea2f4"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/landscape.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/landscape.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 678188,
+      "sha256": "27a2e58d073a142c04bab6d37e2f7a0fcf004269cbe9ce8852ded6a99881c3da"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/lantern.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/lantern.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 41634,
+      "sha256": "5e3eb7ea92d98f938d86c8d172c7d6cbc92c7ec54930e3aa23034f6119ab91ad"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/leaf-0.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/leaf-0.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 9926,
+      "sha256": "9b300fa8edce7295686f694c8ac34c600b6e9a8f3bcc92a1295bb6861ba5c46e"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/leaf-1.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/leaf-1.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 11060,
+      "sha256": "04b8a1d39c0c4ae2ed2c5a8886cc24f21641d64f0aaecf1645f14d74c2eeadbd"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/leaf-2.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/leaf-2.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 8212,
+      "sha256": "4c667f15bcf3af57098f1bbe5af3176a4e5fdc9f31316df42c642d5398b97aa3"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/leaf-3.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/leaf-3.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 11288,
+      "sha256": "16e3277feb76e4cdc607a1b41aac41d7695c97e30305dfd929cdd19cdd1bdfae"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/leaf-4.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/leaf-4.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 8728,
+      "sha256": "5213f3379d8f7a04d759d041f3820fdacb632b890359beb8628226309b16ce90"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/leaf-5.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/leaf-5.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 15900,
+      "sha256": "d4c79ba31ea21970d81ca3083b0ec989c2072f58ab955d295aee618c983d31ea"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/mist.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/mist.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 154222,
+      "sha256": "29f969ecf15973e12f06f25d9570d5aeee7b9aa77036640cdeb1610a86eb11fc"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/moon.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/moon.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 234250,
+      "sha256": "25972ea6c62b0725261d78ea30c906c2be01aa8afde68c992eb0e6f3d9509f0e"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/layers/petal.webp",
+      "archivePath": "files/tmp/moonlit-background-rebuild/layers/petal.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 8506,
+      "sha256": "9a7ee6e0a4e5a91c8177fca3fd82024a1c1cfb58696f805b19e358aaf1790ebd"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/loops/lanterns.webm",
+      "archivePath": "files/tmp/moonlit-background-rebuild/loops/lanterns.webm",
+      "role": "1080p-editable-layer-loops",
+      "bytes": 1635017,
+      "sha256": "e08668c8cddc402b88988600d5c79447c2367865d701e6257b47f4b9b8570475"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/loops/mist.webm",
+      "archivePath": "files/tmp/moonlit-background-rebuild/loops/mist.webm",
+      "role": "1080p-editable-layer-loops",
+      "bytes": 4716441,
+      "sha256": "26a7f60a06a27c7cf3900225d49567bbd930636e00241bed050aa3c9edd0e1ee"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/loops/moon.webm",
+      "archivePath": "files/tmp/moonlit-background-rebuild/loops/moon.webm",
+      "role": "1080p-editable-layer-loops",
+      "bytes": 1651432,
+      "sha256": "f50ce415cc4a860aa4dd5b3de42398725fef754b3b1f60067b56f6e4e4baf4c5"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/loops/petals.webm",
+      "archivePath": "files/tmp/moonlit-background-rebuild/loops/petals.webm",
+      "role": "1080p-editable-layer-loops",
+      "bytes": 1618053,
+      "sha256": "699f6368da03048c5d3af8409dfee73c38b9233bcf6ca7ef75c7c875f16f8bcd"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/loops/placements.json",
+      "archivePath": "files/tmp/moonlit-background-rebuild/loops/placements.json",
+      "role": "1080p-editable-layer-loops",
+      "bytes": 1046,
+      "sha256": "c3ea8b9d45c7b383280fbfdf2caab064f00e18af8f08f95acbb23bef921fddad"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/loops/water.webm",
+      "archivePath": "files/tmp/moonlit-background-rebuild/loops/water.webm",
+      "role": "1080p-editable-layer-loops",
+      "bytes": 18357284,
+      "sha256": "ca8552589320a9333ed42a42758a5f0896b0199bae747ff2a9f6a202d35270fb"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/loops/willow.webm",
+      "archivePath": "files/tmp/moonlit-background-rebuild/loops/willow.webm",
+      "role": "1080p-editable-layer-loops",
+      "bytes": 35065573,
+      "sha256": "5cfb5d39124b11be10d9386e1cf5219144d2709b8956db1706e2f2aea1749f50"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/prepare-assets.py",
+      "archivePath": "files/tmp/moonlit-background-rebuild/prepare-assets.py",
+      "role": "historical-process-source",
+      "bytes": 1448,
+      "sha256": "a5dc67bfe8f5f9c1064ef9fd35cf77d32f888f00b3ac416606d5edb88dbc06d8"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/qa/final-evidence.json",
+      "archivePath": "files/tmp/moonlit-background-rebuild/qa/final-evidence.json",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 913,
+      "sha256": "270bef5be3530cd03807bd24354d8fc328e17dff32c94478425869b8c85b3270"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/render-scene.js",
+      "archivePath": "files/tmp/moonlit-background-rebuild/render-scene.js",
+      "role": "historical-process-source",
+      "bytes": 8248,
+      "sha256": "d90f0c3e3af5988ca553d84e6b9539fe3da8b6583f40a0f84e4c32d938de889e"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/source/elements-atlas.png",
+      "archivePath": "files/tmp/moonlit-background-rebuild/source/elements-atlas.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1875707,
+      "sha256": "82ac992f6479b493007a8fddcb1e00e1b234001de6f853bc2ea76d2f5a5b75d2"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/source/landscape-clean.png",
+      "archivePath": "files/tmp/moonlit-background-rebuild/source/landscape-clean.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 2740138,
+      "sha256": "d4f8b37841fbe34ef89e73ed361a063e59cf253ce5e21b243567358e74901632"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/source/prompts.json",
+      "archivePath": "files/tmp/moonlit-background-rebuild/source/prompts.json",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 4664,
+      "sha256": "0186db4f66b000cd7beeb649671f9d5db88d27e242538207e6ddf4d050bfd33f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/source/willow-leaves.png",
+      "archivePath": "files/tmp/moonlit-background-rebuild/source/willow-leaves.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1505544,
+      "sha256": "d4a68f0eefc3e187b03934b9e4f47c70ecfb563d470c8a7402a8a7e953fb761f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-background-rebuild/制作说明.md",
+      "archivePath": "files/tmp/moonlit-background-rebuild/制作说明.md",
+      "role": "historical-process-source",
+      "bytes": 1192,
+      "sha256": "93ee8f40441161f35263151aeb5020566ce7cb4ba56e590625eddc281ed0e4e2"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/cartouche.webp",
+      "archivePath": "files/tmp/moonlit-thanks/assets/cartouche.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 595134,
+      "sha256": "1b12cc60c345ba92a462bbdbbd1aa24fefe1a0a2f1606242062c0ea86494c4e8"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/flowers-ne.webp",
+      "archivePath": "files/tmp/moonlit-thanks/assets/flowers-ne.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 116368,
+      "sha256": "4f8637627c9b9be390cc5d9da0ab2ac58e16e31b1020b8c65efb2e09a2087f69"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/flowers-nw.webp",
+      "archivePath": "files/tmp/moonlit-thanks/assets/flowers-nw.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 177420,
+      "sha256": "624379c277c63963227effa863b7399d5e410eb42c0ca0520f6d9392c19d214e"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/flowers-se.webp",
+      "archivePath": "files/tmp/moonlit-thanks/assets/flowers-se.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 173544,
+      "sha256": "c49cfc7908c1f53e86d0dfc0f43560ef8c7ee93c9ec8ce8eaf025d6b92d78186"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/flowers-sw.webp",
+      "archivePath": "files/tmp/moonlit-thanks/assets/flowers-sw.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 142576,
+      "sha256": "7227bcc9157351694341560a0557f6714eabe9589d444eb7b068a79d2bbe7bff"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/great-vibes.woff2",
+      "archivePath": "files/tmp/moonlit-thanks/assets/great-vibes.woff2",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 161964,
+      "sha256": "3428616e9909cdb5b9fe04aa12e322db640c78f94f6aa42196c6ca0fe78e69e8"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/GreatVibes-Regular.ttf",
+      "archivePath": "files/tmp/moonlit-thanks/assets/GreatVibes-Regular.ttf",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 457588,
+      "sha256": "8d509802186f1b51572531ecf313e8098f9a5bfdfaca93f0c9b34467f9982d15"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/moonlit-serif.woff2",
+      "archivePath": "files/tmp/moonlit-thanks/assets/moonlit-serif.woff2",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 2623360,
+      "sha256": "3f6b914b5d63b8894d27e363bc7b1bcd2ec71aea75f5738800d69eb0dc643d0c"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/OFL-GreatVibes.txt",
+      "archivePath": "files/tmp/moonlit-thanks/assets/OFL-GreatVibes.txt",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 4399,
+      "sha256": "61093a21f5e63dedf54222b3c09997e54c0fe43e3851d21386e02ddcbc246d49"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/OFL-NotoSerifSC.txt",
+      "archivePath": "files/tmp/moonlit-thanks/assets/OFL-NotoSerifSC.txt",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 4350,
+      "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/sample-avatar.webp",
+      "archivePath": "files/tmp/moonlit-thanks/assets/sample-avatar.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 12946,
+      "sha256": "3a40175323762b70ed805a81f19e3860e15dab39890cd1e328227c5fb2834587"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/side-filigree.webp",
+      "archivePath": "files/tmp/moonlit-thanks/assets/side-filigree.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 559502,
+      "sha256": "ce43469ab86bdca3160995e1163a3a60a83036060701eed03bd2a633f1b2314c"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/assets/silk.webp",
+      "archivePath": "files/tmp/moonlit-thanks/assets/silk.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 15722,
+      "sha256": "16c3057dc995967628b92e7dbd5abc7f4eb3289f05a498868cc43c006029906a"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/BRIEF.md",
+      "archivePath": "files/tmp/moonlit-thanks/BRIEF.md",
+      "role": "historical-process-source",
+      "bytes": 2999,
+      "sha256": "18e3c07430130b9ebe6993aff62e61fe0fccc185438c065f6429d73e553f1dac"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/build-standalone.py",
+      "archivePath": "files/tmp/moonlit-thanks/build-standalone.py",
+      "role": "historical-process-source",
+      "bytes": 980,
+      "sha256": "b40d3b890482876a2c378db52e77bf766077305e97a8af4e1e7399a258115ca9"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/index.html",
+      "archivePath": "files/tmp/moonlit-thanks/index.html",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 2430,
+      "sha256": "b99539f76229521ce3b57a9af76bac809bd4583311f1464e89f42b04f5fe9704"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/prepare-assets.py",
+      "archivePath": "files/tmp/moonlit-thanks/prepare-assets.py",
+      "role": "historical-process-source",
+      "bytes": 2543,
+      "sha256": "4babfd666eab9e88d3219c3a293e277e0dbd659bf80dcf508c01e636018d8fc1"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/preview.css",
+      "archivePath": "files/tmp/moonlit-thanks/preview.css",
+      "role": "historical-process-source",
+      "bytes": 3511,
+      "sha256": "4707f8000c5a5058291d7571bfb64f9fcc73f6f993bd9327d7cc0156e1f1faa2"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/preview.js",
+      "archivePath": "files/tmp/moonlit-thanks/preview.js",
+      "role": "historical-process-source",
+      "bytes": 4895,
+      "sha256": "2e043bd141e590e7be208183c696861caab240fde025367c29cb2f0aa2168689"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/asset-metadata.json",
+      "archivePath": "files/tmp/moonlit-thanks/source/asset-metadata.json",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 397,
+      "sha256": "164a8057c8de7e8302f5ae87afedbe8a692e4dbc64c826db03e4514f6a1f6d61"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/base-jade-v2.png",
+      "archivePath": "files/tmp/moonlit-thanks/source/base-jade-v2.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 915246,
+      "sha256": "87057c6cc389995ce62c6ae9e39d08a9abbe7ad1934e7c375cbdf323f946f36e"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/base-jade-v2.prompt.txt",
+      "archivePath": "files/tmp/moonlit-thanks/source/base-jade-v2.prompt.txt",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 2978,
+      "sha256": "66d82d1da1315a1443edbc9a1b6c5cdf56a680a52d54633afce34ef3b7bc3266"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/jade-slip-v3.png",
+      "archivePath": "files/tmp/moonlit-thanks/source/jade-slip-v3.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 639652,
+      "sha256": "e1030b74261c2a04a721055561155db26dee2fed6cb545849b90f49bfa01692e"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/jade-slip-v3.prompt.txt",
+      "archivePath": "files/tmp/moonlit-thanks/source/jade-slip-v3.prompt.txt",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1609,
+      "sha256": "d750e90188a1b2b775a9e9100910ae66d699fa5bc73106a52e015cb55f19f7c8"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/jade-xuanji-v3.png",
+      "archivePath": "files/tmp/moonlit-thanks/source/jade-xuanji-v3.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1145313,
+      "sha256": "1d65e7f1a932af996adad1517d49c956b9b634ca7e53669fe94a12235d41c30f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/jade-xuanji-v3.prompt.txt",
+      "archivePath": "files/tmp/moonlit-thanks/source/jade-xuanji-v3.prompt.txt",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1534,
+      "sha256": "02ffdef99e2296df61dee7b27057c20b2301f30efe6cae9a1222077a84a8905d"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/NotoSerifSC-variable.ttf",
+      "archivePath": "files/tmp/moonlit-thanks/source/NotoSerifSC-variable.ttf",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 25125512,
+      "sha256": "050080d9255a86808f2945bffac582b31ef32bc36411ce29563b4961670c66f9"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/prompts.json",
+      "archivePath": "files/tmp/moonlit-thanks/source/prompts.json",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 10280,
+      "sha256": "51a19440b322433c7abf8416d1e77fe0b6b17a7e9baedc27f47823c72b459e7d"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/side-filigree-v1.png",
+      "archivePath": "files/tmp/moonlit-thanks/source/side-filigree-v1.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1607073,
+      "sha256": "73cb1810bcb3ef33e83d42083a63e379899b36cb350592efd4afa6ea59daa1b6"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/source/thanks-cartouche-v1.png",
+      "archivePath": "files/tmp/moonlit-thanks/source/thanks-cartouche-v1.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1597180,
+      "sha256": "0e2622fecb25def200f2b6ae5c3da35cb4cf11100054ea2ea32d23a9567377e8"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/thanks-art.js",
+      "archivePath": "files/tmp/moonlit-thanks/thanks-art.js",
+      "role": "historical-process-source",
+      "bytes": 16265,
+      "sha256": "894724ff967002503af5e2b8ecfb82d6424a71e727773f7985f2b55c7f5b3e09"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/使用说明.md",
+      "archivePath": "files/tmp/moonlit-thanks/使用说明.md",
+      "role": "historical-process-source",
+      "bytes": 4527,
+      "sha256": "e4f302b406c081c2afc61d0a30054f7e214f3d27166b25224b8ac3b94570ab9b"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks/月渡花汀-感谢动画.html",
+      "archivePath": "files/tmp/moonlit-thanks/月渡花汀-感谢动画.html",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 6132473,
+      "sha256": "ac7d7df05fe642700eded829d94a04a83368194cb3a9f3187fd0ab40d61299c7"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/assets/moon-parasol.webp",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/assets/moon-parasol.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1214408,
+      "sha256": "bf051b7945e3b809878dca1dcce5291bacd67c932e1890f8a5ded73c6b49bde4"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/assets/moon-shore.webp",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/assets/moon-shore.webp",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1181350,
+      "sha256": "93c552280dd82a16052835a098da0e84907011df2fa10bc8e40b872bdd64bb68"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/assets/moonlit-title-OFL.txt",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/assets/moonlit-title-OFL.txt",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 5171,
+      "sha256": "1a25e35da1031c6c3436fde545bb9cb5aca954e9873afe510c834b8b79bd21a0"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/assets/moonlit-title.woff2",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/assets/moonlit-title.woff2",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 4800,
+      "sha256": "b7f0be21633231fb2bd864d05c92f14f1047d9097e0d7119b06edde9ed5cd1e8"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/build-full-preview.py",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/build-full-preview.py",
+      "role": "historical-process-source",
+      "bytes": 2764,
+      "sha256": "1a2c51a91dba48315a74e21c8696969c9ac6be1a9eaa3e0a82277480c8388360"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/create-revision-source.py",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/create-revision-source.py",
+      "role": "historical-process-source",
+      "bytes": 1902,
+      "sha256": "013340262629d24dc25713346f17602ff26e8a720907bf58ac8432a15d811f66"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/full-preview.html",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/full-preview.html",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 12303,
+      "sha256": "20d63786164cb389689355cbf2c4465fec717ace6bcee3725373487b1fb81e5f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/moon-border.js",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/moon-border.js",
+      "role": "historical-process-source",
+      "bytes": 3082,
+      "sha256": "0c30b7d1d5a5230e76b7943f0d74d4c8a40a266338c360ec763f4417c41f4f88"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/prepare-moon-art.py",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/prepare-moon-art.py",
+      "role": "historical-process-source",
+      "bytes": 840,
+      "sha256": "f9c0404892adc4104cc6f9a0295a3a3ef746aebda7a728046f4eae3e5c2e9946"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/qa/revision-checks.json",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/qa/revision-checks.json",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 1219,
+      "sha256": "b7873cca52433cdd158046f2c0e2cccf125f5f81bce1764038b5b3b31758483a"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/qa/timeline-contact.jpg",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/qa/timeline-contact.jpg",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 229195,
+      "sha256": "a473f07d0ca094ce34aacd6d342d0a1cfcbd396bc57e5ddcad5e5e4ecd889809"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/qa/typography-checks.json",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/qa/typography-checks.json",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 1363,
+      "sha256": "c9b811a81924c40772391fd2f88519895f85825502cc41405873193cda1aaf65"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/qa.md",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/qa.md",
+      "role": "historical-process-source",
+      "bytes": 971,
+      "sha256": "0029e6f4348464ad0986e9227a1ef72c9c4a6d9fc9542a35ed8fd52de5b154f2"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/REVISION.md",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/REVISION.md",
+      "role": "historical-process-source",
+      "bytes": 1981,
+      "sha256": "afdc93d741a188837e5ee11f38d5c178e8c84d6f1012fcc77057123b095d06d7"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/source/asset-report.json",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/source/asset-report.json",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 311,
+      "sha256": "207196c0df80a66563fc952e4ce6d645edd7e5f1ac6f97f819c9a08d87ab9f70"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/source/generation-prompts.json",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/source/generation-prompts.json",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 4070,
+      "sha256": "2d2f5d26d5f25430859c24171906f138a0ec5a5a4bc2eefd92f2ce0c84fc238f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/source/LXGWWenKai-Regular-v1.522.ttf",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/source/LXGWWenKai-Regular-v1.522.ttf",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 25575676,
+      "sha256": "39ad71264b588165b469e35e6afb162a378dacd1f95348160240ba9038ac3009"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/source/moon-parasol-v1.png",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/source/moon-parasol-v1.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1824204,
+      "sha256": "6bde5f50f0b5b1c5dd17498398212d94953c33c5f9bef398e1cd564adf80f843"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/source/moon-shore-v1.png",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/source/moon-shore-v1.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1636512,
+      "sha256": "296817b326ae815a0ddc495e5f316637f67fb54337cc073b8f6e5309d222a375"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/thanks-art.js",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/thanks-art.js",
+      "role": "historical-process-source",
+      "bytes": 12568,
+      "sha256": "9ec7a879245c7ba4f67607954eab89c74f1fe362da606f15a623a22d9b530e82"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/water-ornament.js",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/water-ornament.js",
+      "role": "historical-process-source",
+      "bytes": 1305,
+      "sha256": "9fb75c0cd99ffc6af7097f1e175fcdff1f5232dc089982c187e113c834a26f90"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/使用说明-月伞花汀.md",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/使用说明-月伞花汀.md",
+      "role": "historical-process-source",
+      "bytes": 4493,
+      "sha256": "88818c10ccdc8ce302107ec4bd0572d0f6e7b3c45eac8e7bf062138829e836ce"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/月渡花汀-上任感谢-月伞花汀.png",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/月渡花汀-上任感谢-月伞花汀.png",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 2037002,
+      "sha256": "b52986278e7637cd1f344fa72637730043a68f80375b1fc4eeb195b8c7103f5f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/月渡花汀-上任感谢-透明.png",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/月渡花汀-上任感谢-透明.png",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 2511606,
+      "sha256": "b8459944859a74a30381103478f68cb8db06d2027f1d936c09015af7bf7ddc5a"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/月渡花汀-完整感谢动画.html",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/月渡花汀-完整感谢动画.html",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 14378317,
+      "sha256": "a66398778d7990bf8dc3a9d31271f3aaf5a0107be3cb648234e1de634e738f24"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/月渡花汀-月伞花汀-完整动画.mp4",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/月渡花汀-月伞花汀-完整动画.mp4",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 17878708,
+      "sha256": "18783daf5919ae144da87e12e87f3eea0eeecd0db59783bfef0ee153fb6870a9"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/月渡花汀-礼物感谢-月伞花汀.png",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/月渡花汀-礼物感谢-月伞花汀.png",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 1970645,
+      "sha256": "7d707424df95f79eda7268c72de90e2c4b2f48c1de1e5ebd04b9757a84ecacca"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-thanks-refinement/月渡花汀-礼物感谢-透明.png",
+      "archivePath": "files/tmp/moonlit-thanks-refinement/月渡花汀-礼物感谢-透明.png",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 2414011,
+      "sha256": "730eb8c2c724d52b3528780f0071cac51505c9056e56270f974f35f18adf69b6"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/build-preview.cjs",
+      "archivePath": "files/tmp/opening-moon-fan/build-preview.cjs",
+      "role": "historical-process-source",
+      "bytes": 1205,
+      "sha256": "542769a328c0e71bedb3c0fab8422a43b7ff2b82e85ba7dbb0a2f08aafa2df57"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/concept-16x9.png",
+      "archivePath": "files/tmp/opening-moon-fan/concept-16x9.png",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 2673506,
+      "sha256": "69fdc057cd49edb8c5e3de7b288c5f8d4d1dd6ac3c3de8592b6174e89b5e3b3b"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/design-direction.md",
+      "archivePath": "files/tmp/opening-moon-fan/design-direction.md",
+      "role": "historical-process-source",
+      "bytes": 5402,
+      "sha256": "10628e8dfd5ac9bea18b3cb457bd6cbbc9ce1038d99336e255876751ae8fe467"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/generation-prompt.txt",
+      "archivePath": "files/tmp/opening-moon-fan/generation-prompt.txt",
+      "role": "generation-source-or-prompt",
+      "bytes": 4184,
+      "sha256": "0dd73f738f523fdf155e5fcbda9204e1a7e1227de3b2aeaa6429dcc6351e9a00"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/prepare-assets.py",
+      "archivePath": "files/tmp/opening-moon-fan/prepare-assets.py",
+      "role": "historical-process-source",
+      "bytes": 3850,
+      "sha256": "3ac555c14e8a65eb2c6ce03fbc31f20d7fdf849b71863b2723e7034e3ca28f17"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/prepare-revision-assets.py",
+      "archivePath": "files/tmp/opening-moon-fan/prepare-revision-assets.py",
+      "role": "historical-process-source",
+      "bytes": 1383,
+      "sha256": "b1ad2e4c3a554016ca451ef71938c7de26d8db982d14ed7c9113ff8c9dde8b9a"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/preview.html",
+      "archivePath": "files/tmp/opening-moon-fan/preview.html",
+      "role": "template-or-historical-preview-not-latest-production",
+      "bytes": 3374,
+      "sha256": "e74dceea2f8319d108c5d59342dd5702940df4ecdf8388289940cdc59c5e6c5b"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/qa/balanced-v2-full.png",
+      "archivePath": "files/tmp/opening-moon-fan/qa/balanced-v2-full.png",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 3497618,
+      "sha256": "770d37ded7e8d937013e335e40ad943cb41a7a6ad07f8c3c985052aba1ea2273"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/qa/final-ui-checks.json",
+      "archivePath": "files/tmp/opening-moon-fan/qa/final-ui-checks.json",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 256,
+      "sha256": "5ae9576045cc221c023afd62ec4668fb6c6bf0c971783ef89e423883a1470ad2"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/qa/video-v2-contact-final.jpg",
+      "archivePath": "files/tmp/opening-moon-fan/qa/video-v2-contact-final.jpg",
+      "role": "historical-QA-evidence-not-rerun-today",
+      "bytes": 598967,
+      "sha256": "9286cd24727dc898b037b7f5e79ca8d5242e277c604ff16f0192efd23831e1c4"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/asset-bounds.json",
+      "archivePath": "files/tmp/opening-moon-fan/source/asset-bounds.json",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1472,
+      "sha256": "f105348c7be00920b4991e4c3974c3965cb823e6224058ef74f5699f10d3f233"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/botanicals-v1.png",
+      "archivePath": "files/tmp/opening-moon-fan/source/botanicals-v1.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 2595568,
+      "sha256": "3a91d5153d13b30ff72196d592a09466c79f2805e7109380e36e8daf0e12edff"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/calligraphy-v1.png",
+      "archivePath": "files/tmp/opening-moon-fan/source/calligraphy-v1.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 514964,
+      "sha256": "b3a01c2bfa1147899dd8a2797b66e12a30f903b30fe772c96d82a7051c31a47a"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/canopy-v2.png",
+      "archivePath": "files/tmp/opening-moon-fan/source/canopy-v2.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1984607,
+      "sha256": "469528af372eb395ac6e79282d3eef9bdda7e39673021630f9280d1c4a13ea67"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/crane-v1.png",
+      "archivePath": "files/tmp/opening-moon-fan/source/crane-v1.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1851478,
+      "sha256": "c26e62fed85f3abc921444125ae5b79a5c8caf4c109aec961a175554400ba131"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/fan-v1.png",
+      "archivePath": "files/tmp/opening-moon-fan/source/fan-v1.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 2664365,
+      "sha256": "e750ef38b238766252d1fbd495080f5a30116e4ca8c279573118e26d2af7df56"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/generation-prompts.json",
+      "archivePath": "files/tmp/opening-moon-fan/source/generation-prompts.json",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 7799,
+      "sha256": "d46ccbe0cdf7914d842c19e9e7c06f04cd268a8091004dc1663f52770f21c2ab"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/jewels-v2.png",
+      "archivePath": "files/tmp/opening-moon-fan/source/jewels-v2.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 1509310,
+      "sha256": "b2c8258b1cabdf5a7925a340833ab1002770d94924294c6719600e7ef97add16"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/landscape-v1.png",
+      "archivePath": "files/tmp/opening-moon-fan/source/landscape-v1.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 2198571,
+      "sha256": "48489d425dc5694f869e0efba8eef277c5ebd5691b41cfdf216d8e4bc2dd7a48"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/landscape-v2.png",
+      "archivePath": "files/tmp/opening-moon-fan/source/landscape-v2.png",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 3383680,
+      "sha256": "f400e745f7f340f23a0ce89374bffd72bc5c026ef446562ea36247deab723621"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/source/revision-prompts.json",
+      "archivePath": "files/tmp/opening-moon-fan/source/revision-prompts.json",
+      "role": "generation-source-or-processed-layer",
+      "bytes": 4888,
+      "sha256": "502ce526d1e4bb20bd7cb29e69d5e3ef6bf86db810fc9b0050a79350cdf01af5"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/使用说明.md",
+      "archivePath": "files/tmp/opening-moon-fan/使用说明.md",
+      "role": "historical-process-source",
+      "bytes": 2537,
+      "sha256": "e46f3340f7af0542e2427f0eaf56f2d0e1ea3944f3767cea853ddab03e7e7c1f"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/月渡花汀-v2-完整往复动画.webm",
+      "archivePath": "files/tmp/opening-moon-fan/月渡花汀-v2-完整往复动画.webm",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 37138626,
+      "sha256": "ce3b39810c0b4c3ad30bf8eea2bfb53eef0b1f8effabbb0c48096dcfa40b984b"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/opening-moon-fan/月渡花汀-动画预览.html",
+      "archivePath": "files/tmp/opening-moon-fan/月渡花汀-动画预览.html",
+      "role": "selected-final-preview-or-delivery",
+      "bytes": 3134104,
+      "sha256": "f389895cb9b597a01a806809bce61da6721da44cdda8d07a2da00583b097d9f8"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/552878b7-c0e4-40d7-bf4a-079c00c34bad/image-1.png",
+      "archivePath": "references/01-image-1.png",
+      "role": "user-reference-image",
+      "bytes": 1650172,
+      "sha256": "64affa73643eb9f39c48fd528d5da49788f01aeed9e0730300cbc7cc5a1bd7ef"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/552878b7-c0e4-40d7-bf4a-079c00c34bad/image-2.png",
+      "archivePath": "references/02-image-2.png",
+      "role": "user-reference-image",
+      "bytes": 1588345,
+      "sha256": "1e45e932ecc3c050b17b1d278c5a67d8d6a8d15e20b65489cf805a25d6d831b0"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-1.png",
+      "archivePath": "references/03-image-1.png",
+      "role": "user-reference-image",
+      "bytes": 1706462,
+      "sha256": "3005f2a9fd85e5afa095ecccdb97cfee280ce59a655c3d3ba886b6bb30de9dff"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-2.png",
+      "archivePath": "references/04-image-2.png",
+      "role": "user-reference-image",
+      "bytes": 527598,
+      "sha256": "c906c7a26ffb5d2f1ffe8b64fbbdf86272a5be644e03a085b24993cf7dd487fa"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-3.png",
+      "archivePath": "references/05-image-3.png",
+      "role": "user-reference-image",
+      "bytes": 1681576,
+      "sha256": "ea08a3b9d4e145981a3e9eadf240df047e11dbb4643d20ac5b009318f61119d8"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-4.png",
+      "archivePath": "references/06-image-4.png",
+      "role": "user-reference-image",
+      "bytes": 1659257,
+      "sha256": "cd91c6d7a12b9135759778acf610abfeedeee30fee3ad93647a394f7d43b4d54"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/616ab6b3-d562-4fa7-87d1-29147fe03705/image-5.png",
+      "archivePath": "references/07-image-5.png",
+      "role": "user-reference-image",
+      "bytes": 1615232,
+      "sha256": "63b689c550f5a6513afb4368988820603f6aa1cfb9bf9a66cdef3b899e572b37"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/7c61ef3e-55d5-42ee-98d7-28b9669c1364/image-1.png",
+      "archivePath": "references/08-image-1.png",
+      "role": "user-reference-image",
+      "bytes": 1096470,
+      "sha256": "97da528cadf077f5078445d501c1065f8d5ed459a9df5513f636170b14e7056b"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/bc91898d-0de4-4609-a4df-5cff5f21de80/image-1.png",
+      "archivePath": "references/09-image-1.png",
+      "role": "user-reference-image",
+      "bytes": 2909872,
+      "sha256": "67294f000810d666321ef1e9cbe789177ee138ce0c339ea4f13b79b87efefeb1"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/cbe32f7f-f79b-424c-b491-088b5b81153b/image-1.png",
+      "archivePath": "references/10-image-1.png",
+      "role": "user-reference-image",
+      "bytes": 1602597,
+      "sha256": "41936a7632ab5711203f36353fd835fa9171759ce31c877e7b0179e523d0ab7d"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/attachments/cbe32f7f-f79b-424c-b491-088b5b81153b/image-2.png",
+      "archivePath": "references/11-image-2.png",
+      "role": "user-reference-image",
+      "bytes": 1664190,
+      "sha256": "fdd0e977285da913114147bd2c21aa30dea912157afedc93da320732811b37da"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-04c15a71-200c-45fc-9858-8a87e6f2fd26.png",
+      "archivePath": "references/12-codex-clipboard-04c15a71-200c-45fc-9858-8a87e6f2fd26.png",
+      "role": "user-reference-image",
+      "bytes": 57317,
+      "sha256": "129a081e0db1336b6f068c1ba288ed5d136228c3667b73829cf326cf8353cee9"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-052dfb0d-af60-4151-b019-23e9ce7945e4.png",
+      "archivePath": "references/13-codex-clipboard-052dfb0d-af60-4151-b019-23e9ce7945e4.png",
+      "role": "user-reference-image",
+      "bytes": 114422,
+      "sha256": "b710c875cf140e419f14b97e076291890937165d0b917a345e3361b5183b69fb"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-10ecb5a0-bd2d-4311-8626-41082fe809a3.png",
+      "archivePath": "references/14-codex-clipboard-10ecb5a0-bd2d-4311-8626-41082fe809a3.png",
+      "role": "user-reference-image",
+      "bytes": 361018,
+      "sha256": "9820ec3c2d321324ab89c96e6cc3bbe66b4d48f79b2868248a7978bc0411a8e5"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-20c756c5-60a8-473c-83bf-36dd2ba3d916.png",
+      "archivePath": "references/15-codex-clipboard-20c756c5-60a8-473c-83bf-36dd2ba3d916.png",
+      "role": "user-reference-image",
+      "bytes": 25016,
+      "sha256": "9cf59433afb848cd108426d1feca3ccbcc9080e0483fe30d6b2192444487f471"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-37d595c9-4b6f-48db-b6c4-9163d97cb033.png",
+      "archivePath": "references/16-codex-clipboard-37d595c9-4b6f-48db-b6c4-9163d97cb033.png",
+      "role": "user-reference-image",
+      "bytes": 18525,
+      "sha256": "b99d93950be0b9f1dc0e7a76c6933d3fa1b2fa56fe86f66a6010856b181e8619"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-406a7f92-0166-4339-867e-c23beec556b8.png",
+      "archivePath": "references/17-codex-clipboard-406a7f92-0166-4339-867e-c23beec556b8.png",
+      "role": "user-reference-image",
+      "bytes": 80559,
+      "sha256": "538a6446f24cea508faf87344044c5b18cdcf2cc32061abe1eaf3cdd8f5f59ea"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-41c63649-5da3-49e7-9caa-62a3a1973309.png",
+      "archivePath": "references/18-codex-clipboard-41c63649-5da3-49e7-9caa-62a3a1973309.png",
+      "role": "user-reference-image",
+      "bytes": 253207,
+      "sha256": "2111c98e0f7803d6a8c8aad816e2af86cb86f56619efdc50888e73c6d3fba187"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-4b81f5b3-1339-4064-9eb5-45e392d13961.png",
+      "archivePath": "references/19-codex-clipboard-4b81f5b3-1339-4064-9eb5-45e392d13961.png",
+      "role": "user-reference-image",
+      "bytes": 184397,
+      "sha256": "bf4b6009995d7473ff5542bc94871f571e87f86779892edfa9376bdffeeba381"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-516690a3-cf97-47ca-bbb2-409f4277b2b1.png",
+      "archivePath": "references/20-codex-clipboard-516690a3-cf97-47ca-bbb2-409f4277b2b1.png",
+      "role": "user-reference-image",
+      "bytes": 107737,
+      "sha256": "694cd30ad820ab3c32a1f6ddfccf9d296091a475efc870fbd947f0f8ab88c04c"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-536fafa3-af93-4c51-9259-2345b7e5cc37.png",
+      "archivePath": "references/21-codex-clipboard-536fafa3-af93-4c51-9259-2345b7e5cc37.png",
+      "role": "user-reference-image",
+      "bytes": 97731,
+      "sha256": "a24f8bfe219b62c6024748525aad14fd6912f42d566b220b3cf66c924fec7a28"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-702b2fe1-2b1d-4336-9efe-e91a243cd64a.png",
+      "archivePath": "references/22-codex-clipboard-702b2fe1-2b1d-4336-9efe-e91a243cd64a.png",
+      "role": "user-reference-image",
+      "bytes": 50218,
+      "sha256": "5d79367841b8804eb191e4e93971ad4759ea6a186049e29327d591321432a67e"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-727f7331-3994-4903-b80a-2ae621345a48.png",
+      "archivePath": "references/23-codex-clipboard-727f7331-3994-4903-b80a-2ae621345a48.png",
+      "role": "user-reference-image",
+      "bytes": 22398,
+      "sha256": "941c9dfadcfd1ff2df089bef3dc5f1378153e261f9a41a7838f4e7e12b9089ec"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-8f8f91e1-b416-4ad8-bf8f-3bee45be40d0.png",
+      "archivePath": "references/24-codex-clipboard-8f8f91e1-b416-4ad8-bf8f-3bee45be40d0.png",
+      "role": "user-reference-image",
+      "bytes": 1962632,
+      "sha256": "cc2859060c2eb2234776e0bbd7e3b74fbf857f5d66737b468b44fc36ca0a1d81"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-91c99f98-a597-412d-ab6d-0da2ce0ec085.png",
+      "archivePath": "references/25-codex-clipboard-91c99f98-a597-412d-ab6d-0da2ce0ec085.png",
+      "role": "user-reference-image",
+      "bytes": 4603967,
+      "sha256": "4734af6f34e6c1b97b5d0ab19d18cdcdf8b1ae4cc6a99186ea327e60f0479b37"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-a053404d-84eb-43dd-86ab-2762adc0a4bd.png",
+      "archivePath": "references/26-codex-clipboard-a053404d-84eb-43dd-86ab-2762adc0a4bd.png",
+      "role": "user-reference-image",
+      "bytes": 221024,
+      "sha256": "cf73cfae334635e3323b806169d509c2f61419f5661d938909bb23d986ca2965"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-a2187fd0-5f9d-45bd-99f3-d74825e7f4e6.png",
+      "archivePath": "references/27-codex-clipboard-a2187fd0-5f9d-45bd-99f3-d74825e7f4e6.png",
+      "role": "user-reference-image",
+      "bytes": 89101,
+      "sha256": "303b43a17a8cad84cb97316c2cbbaf18876b6d87ec3f6e4a655f3a2154977b24"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-d40b5b34-0e52-44fd-a988-df987fd860ac.png",
+      "archivePath": "references/28-codex-clipboard-d40b5b34-0e52-44fd-a988-df987fd860ac.png",
+      "role": "user-reference-image",
+      "bytes": 3626093,
+      "sha256": "cdaa2696c15c410d772a7ea334971d188d0e5ff5cf28d8a692c913661521f043"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-f15b361c-6db4-419a-9da1-dfd42d2762ab.png",
+      "archivePath": "references/29-codex-clipboard-f15b361c-6db4-419a-9da1-dfd42d2762ab.png",
+      "role": "user-reference-image",
+      "bytes": 52725,
+      "sha256": "cf482e2ceef10773877d56e39b58d87ac5bc5ea51d344a82472055f876345f40"
+    },
+    {
+      "originalPath": "C:/Users/Tom/AppData/Local/Temp/codex-clipboard-ff58eddb-a62b-4f14-857a-cf038a3ae4c1.png",
+      "archivePath": "references/30-codex-clipboard-ff58eddb-a62b-4f14-857a-cf038a3ae4c1.png",
+      "role": "user-reference-image",
+      "bytes": 704163,
+      "sha256": "4c555cdbbae88f65d0d738cef80130f02d440c48d94d2439834f2f3bf459afef"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-suite-archive/thread-excerpts.json",
+      "archivePath": "conversations/thread-excerpts.json",
+      "role": "selected-visible-conversation-evidence",
+      "bytes": 149540,
+      "sha256": "fab6c66889f2b1ce305d8cdd34f6df1d0f991103ea0d8bd3029e5046c52af08e"
+    },
+    {
+      "originalPath": "C:/Users/Tom/.codex/visualizations/2026/10/05/01a10bf5-3eeb-7342-9a06-9969d39b065a/gift-scroll-details.html",
+      "archivePath": "references/gift-scroll-details.html",
+      "role": "proposal-only-not-production",
+      "bytes": 348317,
+      "sha256": "d7a9ec00dacbb5f37b110d7394a79dd27493401848c0f403b42cb851426b5cff"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-suite-archive/reference-sheet-1.jpg",
+      "archivePath": "references/reference-sheet-1.jpg",
+      "role": "archive-navigation-contact-sheet",
+      "bytes": 280039,
+      "sha256": "cb7a755e65f6bf82997866dfcdc6085a075cf1c34cf840400031c58a3fd9975d"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-suite-archive/reference-sheet-2.jpg",
+      "archivePath": "references/reference-sheet-2.jpg",
+      "role": "archive-navigation-contact-sheet",
+      "bytes": 207444,
+      "sha256": "2b727fb811e9ae47aa3ae36b23744a81958ce5b7a6676f13bbdaaff61e7f3e63"
+    },
+    {
+      "originalPath": "D:/Work/Live/tmp/moonlit-suite-archive/current-contact.jpg",
+      "archivePath": "references/current-contact.jpg",
+      "role": "archive-navigation-contact-sheet",
+      "bytes": 252857,
+      "sha256": "863ee592e6071310686562a3d2c239381a321741088190fe8e0f2850f61eeb44"
+    }
+  ]
+}

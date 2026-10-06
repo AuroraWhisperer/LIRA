@@ -20,12 +20,13 @@ export function initCanvasOverlaySource() {
     try {
       const scenes = await requestScene('list');
       if (requested !== generation) return;
-      const canvas = scenes[0];
+      const canvas = scenes.length ? await requestScene('canvas') : null;
+      if (requested !== generation) return;
       if (!canvas?.publishedVersion) {
         address.textContent = '请先编辑场景，保存并应用后显示地址';
         return;
       }
-      const source = await requestScene('source', undefined, canvas.document.id);
+      const source = await requestScene('source', undefined, canvas.outputId);
       if (requested !== generation) return;
       sourceUrl = sceneSourceUrl(source);
       address.textContent = sourceUrl;

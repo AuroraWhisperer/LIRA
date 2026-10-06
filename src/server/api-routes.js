@@ -7,9 +7,13 @@ const { resolveRequestPrincipal, isOverlayRequestAllowed, isOverlayRoute } = req
 const { handleOverlayApi } = require('./overlay-http');
 const { handleSceneOutput, publicRoutes: scenePublicRoutes } = require('./routes/scene-routes');
 const { handleComponentPreview } = require('./routes/component-preview-routes');
+const textMediaRoutes = require('./routes/scene-text-media-routes');
+const componentStyleRoutes = require('./routes/component-style-routes');
 
 // 按前缀顺序匹配；每个模块只关心自己领域的路由表
 const ROUTE_MODULES = [
+  componentStyleRoutes,
+  textMediaRoutes,
   require('./routes/component-preview-routes'),
   require('./routes/scene-routes'),
   require('./routes/danmaku-display-routes'),
@@ -59,9 +63,13 @@ async function handleApi(context, req, res, requestUrl) {
   const method = req.method || 'GET';
   const pathName = requestUrl.pathname;
   if (pathName === '/api/component-preview') return handleComponentPreview(context, req, res, requestUrl);
+  if (pathName.startsWith('/api/component-preview/styles/')) return componentStyleRoutes.handleStyles(context, req, res, requestUrl, true);
+  if (['/api/component-preview/text-image', '/api/component-preview/text-gifts'].includes(pathName)) {
+    return textMediaRoutes.handleCanvasTextMedia(context, req, res, requestUrl);
+  }
   const sceneOutputRoute = scenePublicRoutes[`${method} ${pathName}`];
   if (sceneOutputRoute) return sceneOutputRoute(context, req, res, requestUrl);
-  if (pathName === '/api/scene/output') return handleSceneOutput(context, req, res, requestUrl);
+  if (['/api/scene/output', '/api/scene/events'].includes(pathName)) return handleSceneOutput(context, req, res, requestUrl);
   const principal = resolveRequestPrincipal(context, req, requestUrl);
   const origin = req.headers?.origin;
   if (origin === 'null') {

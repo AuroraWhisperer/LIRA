@@ -30,6 +30,8 @@
 .scene-editor-item .component-preview-toolbar, .scene-editor-item .component-preview-output { display: none; }
 .scene-editor-item .component-preview-stage { background: transparent; }
 .scene-editor-item iframe { pointer-events: none; }
+.scene-browser-source { position: absolute; inset: 0; overflow: hidden; }
+.scene-browser-source iframe { position: absolute; left: 0; top: 0; border: 0; background: transparent; transform-origin: top left; }
 .scene-editor-item .component-preview-load-state { pointer-events: none; font-size: calc(12px * var(--scene-inverse-scale)); }
 .scene-editor-item-label { display: none; position: absolute; left: 0; top: 0; z-index: 2; padding: 3px 6px; background: var(--surface); color: var(--text); font-size: 12px; line-height: 1.4; transform: scale(var(--scene-inverse-scale)); transform-origin: top left; pointer-events: none; white-space: nowrap; }
 .scene-editor-item.is-selected .scene-editor-item-label { display: block; }
@@ -48,10 +50,10 @@
 .scene-editor-resize-handle[data-resize='sw'] { left: 0; bottom: 0; transform: translate(-50%, 50%); cursor: nesw-resize; }
 .scene-editor-resize-handle[data-resize='nw'] { left: 0; top: 0; transform: translate(-50%, -50%); cursor: nwse-resize; }
 .scene-editor-item[data-component='overtime'] iframe { color-scheme: normal; }
-.scene-editor-item[data-component='overtime'] .scene-editor-item-label.is-above {
+.scene-editor-item .scene-editor-item-label.is-above {
   transform: scale(var(--scene-inverse-scale)) translateY(calc(-100% - 6px));
 }
-.scene-editor-item[data-component='overtime'] .scene-editor-item-label.is-below {
+.scene-editor-item .scene-editor-item-label.is-below {
   top: 100%;
   transform: scale(var(--scene-inverse-scale)) translateY(6px);
 }

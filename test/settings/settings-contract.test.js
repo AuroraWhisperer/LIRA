@@ -54,6 +54,23 @@ test('invalid setting batches do not commit earlier valid fields', async (t) => 
   assert.deepEqual(f.dirtyScopes, []);
 });
 
+test('clock moon settings default on old stores and persist atomically across reopening', async (t) => {
+  const f = fixture(t);
+  const { getClockConfig } = require('../../src/server/clock-contract');
+  assert.equal(getClockConfig(f.store.getSettings()).moonMode, 'light');
+  assert.equal(getClockConfig(f.store.getSettings()).moonIntervalSeconds, 30);
+  assert.equal((await f.post({ clockMoonMode: 'auto', clockMoonIntervalSeconds: 7 })).status, 200);
+  const reopened = createSettingsStore(f.db).getSettings();
+  assert.equal(reopened.clockMoonMode, 'auto');
+  assert.equal(reopened.clockMoonIntervalSeconds, '7');
+  for (const value of [0, 1.5, 86401]) {
+    assert.equal((await f.post({ clockMoonMode: 'dark', clockMoonIntervalSeconds: value })).status, 400);
+    assert.equal(f.store.getSettings().clockMoonMode, 'auto');
+    assert.equal(f.store.getSettings().clockMoonIntervalSeconds, '7');
+  }
+  for (const value of [1, 86400]) assert.equal((await f.post({ clockMoonIntervalSeconds: value })).status, 200);
+});
+
 test('song request blacklist persists normalized lines locally and can be cleared', async (t) => {
   const f = fixture(t);
   assert.equal(f.store.getSettings().songRequestBlacklist, '');

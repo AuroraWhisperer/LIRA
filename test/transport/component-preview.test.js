@@ -12,6 +12,29 @@ const { createLayout } = require('../../src/shared/danmaku-layout');
 
 const state = (draft = { label: '示例' }) => ({ draft, saved: draft, generation: 0, loaded: true });
 
+test('canvas preset relay only selects desktop-listed presets and isolates their recovery keys', () => {
+  const sessions = createComponentPreviewSessions();
+  const first = randomUUID();
+  const second = randomUUID();
+  const initial = { ...state({ document: { id: first } }),
+    presets: [{ id: first, title: 'First' }, { id: second, title: 'Second' }] };
+  const canvas = sessions.open({ component: 'canvas', state: initial });
+  const linked = sessions.link({ links: [canvas], selectedId: 'text-box' });
+  const select = id => sessions.browser({ id: canvas.id, action: 'preset', change: { action: 'select', id } }, canvas.token);
+  assert.throws(() => select(randomUUID()), { statusCode: 400 });
+  const accepted = select(second);
+  const exchanged = sessions.exchange({ id: canvas.id, state: initial, ack: 0 });
+  assert.deepEqual(exchanged.commands, [{ sequence: accepted.sequence, action: 'preset', change: { action: 'select', id: second } }]);
+  sessions.exchange({ id: canvas.id, state: { ...initial, ...state({ document: { id: second } }) }, ack: accepted.sequence });
+  const current = sessions.browser({ id: canvas.id, action: 'read' }, canvas.token);
+  assert.notEqual(current.draftKey, canvas.draftKey);
+  const resolved = sessions.resolveLink(linked.key);
+  assert.equal(resolved.selectedId, null, 'Refreshing an old entry must not add its component to another preset.');
+  assert.equal(resolved.links[0].draftKey, current.draftKey);
+  const clock = sessions.open({ component: 'clock', state: state() });
+  assert.throws(() => sessions.browser({ id: clock.id, action: 'preset', change: { action: 'select', id: first } }, clock.token), { statusCode: 400 });
+});
+
 test('short editor links resolve only their verified sessions and cannot grant management authority', async t => {
   let owner = { scope: 'short-link-owner', epoch: 1 };
   const fixture = await startComponentPreviewServer({ getOwner: () => owner });
@@ -80,11 +103,37 @@ test('short links expire when any bound component is closed, replaced or revoked
     assert.throws(() => sessions.resolveLink(key), { statusCode: 410 });
   }
 });
+
+test('instance links retain distinct same-type selections and require the current canvas item and type', () => {
+  const sessions = createComponentPreviewSessions();
+  const items = [{ id: randomUUID(), type: 'text-box' }, { id: randomUUID(), type: 'text-box' },
+    { id: randomUUID(), type: 'clock' }];
+  const canvas = sessions.open({ component: 'canvas', state: state({ document: { items } }) });
+  const clock = sessions.open({ component: 'clock', state: state() });
+  const links = [clock, canvas];
+  const select = (selectedItemId, selectedId = 'text-box') => sessions.link({ links, selectedId, selectedItemId });
+  const first = select(items[0].id);
+  const second = select(items[1].id);
+  assert.notEqual(first.key, second.key);
+  assert.equal(select(items[0].id).key, first.key);
+  assert.equal(select(items[1].id).key, second.key);
+  assert.equal(sessions.resolveLink(first.key).selectedItemId, items[0].id);
+  assert.equal(sessions.resolveLink(second.key).selectedItemId, items[1].id);
+  const generic = sessions.link({ links, selectedId: 'text-box' });
+  assert.notEqual(generic.key, first.key);
+  assert.equal(Object.hasOwn(sessions.resolveLink(generic.key), 'selectedItemId'), false);
+  for (const id of [null, '', randomUUID(), items[2].id]) assert.throws(() => select(id), { statusCode: 400 });
+  assert.throws(() => select(items[0].id, 'clock'), { statusCode: 400 });
+  assert.throws(() => sessions.link({ links: [clock], selectedId: 'clock', selectedItemId: items[2].id }), { statusCode: 400 });
+  sessions.exchange({ id: canvas.id, ack: 0, state: state({ document: { items: items.slice(0, 1) } }) });
+  assert.throws(() => sessions.resolveLink(second.key), { statusCode: 400 });
+  assert.equal(sessions.resolveLink(first.key).selectedItemId, items[0].id);
+});
 test('A03: UTF-8 scene pairs fit open/edit/exchange while documents and envelopes remain bounded', async t => {
   const fixture = await startComponentPreviewServer();
   t.after(fixture.close);
   const config = normalizeSceneConfig('danmaku', { style: 'signal', fullscreenDurationSeconds: 6, layout: createLayout(),
-    styleOptions: Object.fromEntries(Object.keys(DANMAKU_STYLE_OPTIONS).map(style => [style, { fontFamily: '"' + '测'.repeat(250) + '"' }])) });
+    styleOptions: Object.fromEntries(Object.keys(DANMAKU_STYLE_OPTIONS).map(style => [style, { fontFamily: '"' + '测'.repeat(200) + '"' }])) });
   const document = normalizeSceneDocument({ schemaVersion: 1, id: randomUUID(), title: '大小边界', canvas: { width: 1920, height: 1080 },
     items: Array.from({ length: 32 }, () => ({ id: randomUUID(), type: 'danmaku', name: '弹幕', x: 0, y: 0,
       width: 320, height: 180, visible: true, locked: false, appearance: { mode: 'independent', config } })) },

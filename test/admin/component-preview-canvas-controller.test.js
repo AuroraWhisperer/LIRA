@@ -17,9 +17,12 @@ async function fixture(records = [], read) {
   const components = [{ id: 'danmaku', controller }];
   const calls = [];
   let conflict = false;
+  let binding;
   const request = async (action, body, id) => {
     calls.push({ action, body: copy(body || {}) });
     if (action === 'list') return copy(records);
+    if (action === 'canvas') return copy(binding ||= { outputId: records[0].document.id,
+      activeSceneId: records[0].document.id, publishedVersion: records[0].publishedVersion || 0 });
     if (action === 'document') return copy(records.find(({ document }) => document.id === id));
     if (action === 'source') return { id, token: 'a'.repeat(64) };
     if (action === 'create') {
@@ -30,7 +33,12 @@ async function fixture(records = [], read) {
     if (conflict) throw Object.assign(new Error('场景已更新，请重新加载后重试。'), { status: 409 });
     const current = records.find(({ document }) => document.id === body.id);
     assert.equal(body.expectedRevision, current.revision);
-    if (action === 'publish') { current.publishedVersion = (current.publishedVersion || 0) + 1; return copy(current); }
+    if (action === 'canvas-publish') {
+      assert.equal(body.expectedPublishedVersion, binding.publishedVersion);
+      binding.publishedVersion += 1;
+      binding.activeSceneId = current.document.id;
+      return { publishedVersion: binding.publishedVersion };
+    }
     current.document = copy(body.document);
     current.revision += 1;
     return copy(current);
@@ -39,11 +47,34 @@ async function fixture(records = [], read) {
     conflict: () => { conflict = true; }, request };
 }
 
+test('preset selection retains drafts and applies the selected document to the fixed output', async () => {
+  const f = await fixture();
+  const canvas = await f.prepare();
+  const original = canvas.controller.getState().draft.document;
+  canvas.controller.edit({ document: { ...original, title: '未保存的原预设' } });
+  await canvas.preset({ action: 'create', title: '游戏预设', duplicate: false });
+  const second = canvas.controller.getState().draft.document.id;
+  assert.notEqual(second, original.id);
+  assert.equal(canvas.controller.getState().presets.length, 2);
+  await canvas.preset({ action: 'select', id: original.id });
+  assert.equal(canvas.controller.getState().draft.document.title, '未保存的原预设');
+  assert.equal(canvas.controller.getState().dirty, true);
+  await canvas.preset({ action: 'select', id: second });
+  await canvas.publish();
+  assert.equal((await canvas.source()).id, original.id);
+  assert.equal(canvas.controller.getState().activeSceneId, second);
+  assert.equal(f.records[0].document.title, original.title);
+  assert.equal(f.records[1].document.title, '游戏预设');
+  const writes = f.calls.length;
+  await assert.rejects(canvas.preset({ action: 'select', id: randomUUID() }), /不存在/);
+  assert.equal(f.calls.length, writes);
+});
+
 test('common canvas uses the prior danmaku size once and shares initialization across preview openings', async () => {
   const f = await fixture();
   const [first, second] = await Promise.all([f.prepare(), f.prepare()]);
   assert.equal(first, second);
-  assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'create']);
+  assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'create', 'canvas']);
   assert.deepEqual(copy(first.controller.getState().draft.document.canvas), { width: 2560, height: 1440 });
   const document = copy(first.controller.getState().draft.document);
   document.canvas = { width: 1280, height: 720 };
@@ -58,13 +89,13 @@ test('existing scene geometry is retained and saves stay bound to its scene iden
   const f = await fixture([{ document: { schemaVersion: 1, id: randomUUID(), title: '保留的画布',
     canvas: { width: 1080, height: 1920 }, items: [] }, revision: 7 }]);
   const { controller } = await f.prepare();
-  assert.deepEqual(f.calls.map(({ action }) => action), ['list']);
+  assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'canvas']);
   const document = copy(controller.getState().draft.document);
   document.id = randomUUID();
   controller.edit({ document });
   assert.equal(await controller.save(), false);
   assert.match(controller.getState().error, /标识不匹配/);
-  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls.length, 2);
 });
 
 test('existing canvas opens without waiting for unrelated danmaku settings', async () => {
@@ -80,7 +111,7 @@ test('existing canvas opens without waiting for unrelated danmaku settings', asy
   await loading;
   const canvas = await preparing;
   assert.equal(openedWhileLoading, true);
-  assert.deepEqual(f.calls.map(({ action }) => action), ['list']);
+  assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'canvas']);
   assert.equal(canvas.controller.getState().draft.document.canvas.width, 1920);
 });
 
@@ -103,7 +134,7 @@ test('first canvas waits for danmaku dimensions once and rejects an owner change
     } else {
       const [first, second] = await preparing;
       assert.equal(first, second);
-      assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'create']);
+      assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'create', 'canvas']);
       assert.equal(first.controller.getState().draft.document.canvas.width, 3840);
     }
     assert.deepEqual(whileLoading, ['list']);
@@ -140,7 +171,7 @@ test('canvas applies saved drafts and reuses one bound output capability across 
   document.canvas = { width: 2000, height: 1200 };
   canvas.controller.edit({ document });
   assert.equal((await canvas.publish()).publishedVersion, 1);
-  assert.deepEqual(f.calls.slice(-2).map(call => call.action), ['save', 'publish']);
+  assert.deepEqual(f.calls.slice(-2).map(call => call.action), ['save', 'canvas-publish']);
   assert.equal(canvas.controller.getState().dirty, false);
   const first = await canvas.source();
   assert.equal(first.id, document.id);
@@ -160,7 +191,7 @@ test('failed canvas save stops publication and preserves the editable draft', as
   canvas.controller.edit({ document });
   f.conflict();
   await assert.rejects(canvas.publish(), /其他入口更新/);
-  assert.equal(f.calls.some(call => call.action === 'publish'), false);
+  assert.equal(f.calls.some(call => call.action === 'canvas-publish'), false);
   assert.equal(canvas.controller.getState().dirty, true);
 });
 

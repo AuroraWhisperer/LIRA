@@ -8,6 +8,7 @@ const giftFeedGifts = [
 export function sceneExtraPreviewData(type) {
   const session = (game, state) => ({ game, sessionId: `preview-${game}`, eventRevision: 1, state, danmaku: [] });
   const examples = {
+    'gift-sprint': { targetRmb: 10000, remainingCrystalBalls: 100 },
     opening: null,
     songlist: { songs: Array.from({ length: 20 }, (_, index) => ({ id: index + 1, name: `示例歌曲 ${index + 1}`, artist: '示例歌手', category_name: '流行', language: '国语', name_initial: 'S' })) },
     lyrics: { lyricTimeline: { trackTitle: '示例歌曲', lines: [

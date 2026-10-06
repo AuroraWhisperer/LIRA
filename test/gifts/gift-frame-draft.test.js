@@ -80,21 +80,14 @@ test('save uses the submitted draft and preserves edits made while awaiting its 
   assert.equal(node('giftFrameThresholdRmb').value, '120');
 });
 
-test('each effect saves only its own two settings and keeps its own draft', async () => {
+test('saving woodland does not resubmit retired ribbon settings', async () => {
   const { node, requests, render, edit } = await createFixture();
-  render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'false', giftFrameRibbonThresholdRmb: '100', giftFrameRibbonEnabled: 'true' });
+  render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'true', giftFrameRibbonThresholdRmb: '100', giftFrameRibbonEnabled: 'true' });
   edit('giftFrameThresholdRmb', '99');
-  edit('giftFrameRibbonThresholdRmb', '520');
-  const save = node('giftFrameRibbonSaveBtn').handlers.get('click')();
-  assert.deepEqual(requests[0].body, { giftFrameRibbonEnabled: 'true', giftFrameRibbonThresholdRmb: '520.00' });
+  const save = node('giftFrameSaveBtn').handlers.get('click')();
+  assert.deepEqual(requests[0].body, { giftFrameEnabled: 'true', giftFrameThresholdRmb: '99.00' });
   requests[0].resolve();
   await save;
-  // 特效 1 的未保存草稿不受特效 2 保存影响。
-  assert.equal(node('giftFrameThresholdRmb').value, '99');
-  const saveFirst = node('giftFrameSaveBtn').handlers.get('click')();
-  assert.deepEqual(requests[1].body, { giftFrameEnabled: 'false', giftFrameThresholdRmb: '99.00' });
-  requests[1].resolve();
-  await saveFirst;
 });
 
 test('invalid simulated quantity stays in the settings page without sending requests', async () => {

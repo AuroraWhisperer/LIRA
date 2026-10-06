@@ -41,17 +41,6 @@
         礼物许愿
       </button>
       <button
-        id="giftAssistantSprintTab"
-        type="button"
-        role="tab"
-        aria-selected="false"
-        aria-controls="giftSprintOverlayPanel"
-        tabindex="-1"
-        data-gift-tab="sprint"
-      >
-        月底冲刺
-      </button>
-      <button
         id="giftAssistantGuardTab"
         type="button"
         role="tab"
@@ -104,41 +93,6 @@
           </section>
         </div>
         <p id="giftFrameSaveState" class="hint gift-frame-status" role="status" aria-live="polite"></p>
-      </section>
-      <section class="gift-frame-settings-card" data-gift-frame-effect="satin-ribbon" aria-labelledby="giftFrameRibbonSettingsTitle">
-        <header class="gift-frame-settings-heading">
-          <h3 id="giftFrameRibbonSettingsTitle" class="ui-section-title">
-            特效 2 · 缎带礼笺
-            <lira-help>每次播放 5 秒，礼盒从下方一角弹出、缎带绕屏后在对角系成蝴蝶结，礼签显示观众、礼物和数量。两个特效同时满足门槛时只播放触发金额更高的那个，金额相同播放本特效。</lira-help>
-          </h3>
-          <label class="gift-frame-switch switch-control">
-            <input id="giftFrameRibbonEnabled" type="checkbox" />
-            <span class="switch-track"></span>
-            <span>启用</span>
-          </label>
-        </header>
-        <div class="gift-frame-controls">
-          <section aria-labelledby="giftFrameRibbonConfigTitle">
-            <header class="gift-frame-section-heading"><h4 id="giftFrameRibbonConfigTitle">触发设置</h4></header>
-            <div class="gift-frame-settings-grid">
-              <label>
-                <span>触发金额（元） <lira-help>按最终礼物金额判断；0 元表示所有付费礼物。</lira-help></span>
-                <input id="giftFrameRibbonThresholdRmb" type="number" min="0" step="0.01" inputmode="decimal" value="100" />
-              </label>
-              <button id="giftFrameRibbonSaveBtn" class="primary" type="button">保存设置</button>
-            </div>
-          </section>
-          <section class="gift-frame-preview" aria-labelledby="giftFrameRibbonPreviewTitle">
-            <header class="gift-frame-section-heading"><h4 id="giftFrameRibbonPreviewTitle">模拟预览</h4></header>
-            <div class="gift-frame-preview-grid">
-              <label><span>观众</span><input id="giftFrameRibbonPreviewUser" type="text" value="观众A" maxlength="80" /></label>
-              <label><span>礼物</span><input id="giftFrameRibbonPreviewGift" type="text" value="缎带礼笺" maxlength="80" /></label>
-              <label><span>数量</span><input id="giftFrameRibbonPreviewNum" type="number" min="1" step="1" value="2" /></label>
-              <button id="giftFrameRibbonPreviewBtn" class="secondary" type="button">预览</button>
-            </div>
-          </section>
-        </div>
-        <p id="giftFrameRibbonSaveState" class="hint gift-frame-status" role="status" aria-live="polite"></p>
       </section>
     </div>
     <section
@@ -288,29 +242,6 @@
       </form>
     </section>
     <!-- admin-fragment: pages/admin/toolbox/gift-wishes.html -->
-    <section
-      id="giftSprintOverlayPanel"
-      class="gift-sprint-overlay-panel"
-      role="tabpanel"
-      aria-labelledby="giftAssistantSprintTab"
-      hidden
-    >
-      <div class="gift-sprint-source">
-        <label for="giftSprintOverlayUrl">浏览器源</label>
-        <input id="giftSprintOverlayUrl" readonly aria-label="月底冲刺浏览器源地址" />
-        <button id="giftSprintCopy" type="button" class="secondary">复制地址</button>
-        <button id="giftSprintPreview" type="button" class="secondary">打开预览</button>
-      </div>
-      <div class="gift-sprint-preview">
-        <span class="hint">实时预览 · 文字版</span>
-        <p id="giftSprintTextPreview" class="gift-sprint-text" hidden></p>
-        <p id="giftSprintOverlayStatus" class="hint" role="status">正在读取月底冲刺进度…</p>
-      </div>
-      <div class="gift-sprint-overlay-footer">
-        <p class="hint">与「礼物 → 月底冲刺」共用目标和进度，剩余金额每 100 元折合 1 个水晶球，不足 1 个按 1 个计。投屏为透明底，建议尺寸 600 × 80。</p>
-        <button id="giftSprintConfigure" type="button" class="secondary">设置冲刺目标</button>
-      </div>
-    </section>
     <section
       id="guardThanksPanel"
       class="guard-thanks-card"

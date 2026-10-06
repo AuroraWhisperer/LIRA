@@ -1,7 +1,42 @@
 import { previewElement } from './component-preview-surface.js';
 import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
+import { mountBrowserSourceFields } from './browser-source-preview.js';
+import { createTextBoxDefaults } from '../shared/text-box-config.js';
+import { renderTextBox } from '../shared/text-box-renderer.js';
+import { mountComponentStyleLibrary } from './component-style-library.js';
+import { componentStyleMedia } from '../shared/component-resource-style.js';
+import { MEDIA_STYLE_TYPES } from '../shared/component-media-style.js';
+
+// Content bounds in the existing 640 × 400 thumbnails; retain room for shadows.
+const PREVIEW_IMAGE_BOUNDS = {
+  'clock-digital': [44, 100, 504, 196],
+  'clock-flip': [72, 128, 496, 160],
+  'clock-orbit': [48, 104, 552, 204],
+  'clock-peach': [16, 84, 608, 232],
+  'clock-soda': [16, 84, 608, 232],
+  'clock-starlight': [8, 84, 624, 240],
+  'clock-timeline-horizontal': [116, 144, 408, 104],
+  'clock-timeline-vertical': [272, 56, 100, 288],
+  'queue-classic': [88, 8, 464, 384],
+  'queue-identity': [116, 8, 412, 384],
+  'queue-storybook': [196, 16, 248, 340],
+  'queue-neon-vinyl': [168, 8, 304, 384],
+  'queue-cherry-ribbon': [168, 8, 304, 384],
+  'queue-golden-lily': [184, 8, 272, 384],
+  'songlist-default': [132, 8, 376, 384],
+  'lyrics-default': [8, 84, 396, 236],
+  'games-number-bomb': [8, 64, 624, 272],
+  'games-gomoku': [124, 8, 392, 384],
+  'wheel-default': [124, 8, 392, 384],
+  'gift-wishes-card': [16, 140, 616, 120],
+  'gift-wishes-text': [8, 160, 256, 80],
+  'gift-wishes-circle': [140, 8, 360, 376],
+  'gift-sprint-default': [24, 160, 592, 80],
+};
 
 const CATEGORY_ICONS = {
+  background: 'M3 4h18v16H3Zm0 12 5-5 4 4 3-3 6 6M16 8h.01',
+  'text-box': 'M4 4h16v4M12 4v16m-4 0h8',
   opening: 'M3 5h18v14H3Zm7 4 5 3-5 3Z',
   danmaku: 'M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3V6a2 2 0 0 1 1-2Zm3 5h9M8 13h6',
   clock: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-5v5l3 2',
@@ -28,51 +63,113 @@ function pickerIcon(path) {
   return icon;
 }
 
-export function mountComponentPreviewPicker({ components, source, add, report }) {
+export function mountComponentPreviewPicker({ components, source, add, report, getTextBoxes = () => [], requestStyles }) {
   const dialog = previewElement('dialog', 'preview-component-picker');
   dialog.setAttribute('aria-labelledby', 'componentPickerTitle');
-  dialog.setAttribute('aria-describedby', 'componentPickerDescription');
   const header = previewElement('header', 'preview-picker-heading');
-  const heading = previewElement('div');
   const title = previewElement('h2', '', '添加组件');
   title.id = 'componentPickerTitle';
-  const description = previewElement('p', '', '预览为示例效果，添加后可调整。');
-  description.id = 'componentPickerDescription';
-  heading.append(title, description);
   const close = previewElement('button', 'secondary preview-picker-close');
   close.type = 'button';
   close.setAttribute('aria-label', '关闭');
   close.title = '关闭';
   close.append(pickerIcon('m6 6 12 12M18 6 6 18'));
   close.addEventListener('click', () => dialog.close());
-  header.append(heading, close);
+  header.append(title, close);
   const body = previewElement('div', 'preview-picker-body');
   const categories = previewElement('nav', 'preview-picker-categories');
   categories.setAttribute('aria-label', '组件分类');
   const content = previewElement('section', 'preview-picker-content');
-  const contentHeading = previewElement('div', 'preview-picker-section-heading');
-  const contentTitle = previewElement('h3');
-  const styleCount = previewElement('span');
-  contentHeading.append(contentTitle, styleCount);
   const subcategories = previewElement('nav', 'preview-picker-subcategories');
   subcategories.setAttribute('aria-label', '小游戏分类');
   const styles = previewElement('div', 'preview-picker-styles');
-  content.append(contentHeading, subcategories, styles);
+  const browserForm = previewElement('form', 'preview-browser-form');
+  const localStyles = previewElement('div');
+  let styleLibrary;
+  browserForm.hidden = true;
+  content.append(subcategories, styles, browserForm, localStyles);
   body.append(categories, content);
   dialog.append(header, body);
   document.body.append(dialog);
   const choices = new Map();
   const groups = new Map();
+  const textPreviews = new ResizeObserver(entries => {
+    const samples = new Set(entries.map(({ target }) => target.closest('.preview-picker-text-preview')));
+    for (const sample of samples) {
+      const text = sample.firstElementChild;
+      if (!text.offsetWidth || !text.offsetHeight) continue;
+      sample.style.aspectRatio = String(Math.min(2.4, Math.max(1, text.offsetWidth / text.offsetHeight)));
+      const width = sample.clientWidth - 32;
+      const height = sample.clientHeight - 32;
+      if (width <= 0 || height <= 0) continue;
+      const scale = Math.min(2, width / text.offsetWidth, height / text.offsetHeight);
+      text.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+  });
+  dialog.addEventListener('close', () => { textPreviews.disconnect(); styleLibrary?.dispose(); });
   for (const component of components) {
+    if (component.id === 'browser') continue;
     const category = COMPONENT_PREVIEW_DEFINITIONS[component.id].category || component.id;
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category).push(component);
   }
 
+  function showTextBoxes(component) {
+    for (const item of [null, ...getTextBoxes()]) {
+      const button = previewElement('button', 'preview-picker-style preview-picker-text-card');
+      button.type = 'button';
+      button.setAttribute('aria-label', item ? `添加副本：${item.name}` : '新建文本框');
+      const sample = previewElement('div', 'preview-picker-text-preview');
+      sample.setAttribute('aria-hidden', 'true');
+      if (item) {
+        button.dataset.textBoxSource = item.id;
+        const text = previewElement('div');
+        renderTextBox(text, item.appearance.config);
+        for (const image of text.querySelectorAll('img')) image.loading = 'lazy';
+        sample.append(text);
+        textPreviews.observe(sample);
+        textPreviews.observe(text);
+      } else {
+        button.dataset.pickerStyle = 'default';
+        sample.classList.add('preview-picker-text-new');
+        sample.append(pickerIcon('M12 5v14M5 12h14'));
+      }
+      const caption = previewElement('span', 'preview-picker-caption');
+      caption.append(previewElement('strong', '', item?.name || '新建文本框'));
+      if (item) {
+        button.title = item.name;
+        caption.append(previewElement('span', 'preview-picker-add', '添加副本'));
+      }
+      button.append(sample, caption);
+      button.addEventListener('click', () => {
+        try {
+          if (item) {
+            const current = getTextBoxes().find(candidate => candidate.id === item.id);
+            if (!current) throw new Error('这个文本框已被移除，请重新打开添加组件。');
+            add(component, structuredClone(current.appearance.config), {
+              name: `${current.name.slice(0, 75)} 副本`, size: [current.width, current.height],
+            });
+          } else add(component, createTextBoxDefaults());
+          dialog.close();
+        } catch (error) { report(error.message); }
+      });
+      styles.append(button);
+    }
+  }
+
   function show(component) {
+    styleLibrary?.dispose();
+    if (MEDIA_STYLE_TYPES.includes(component.id)) styleLibrary = mountComponentStyleLibrary(localStyles, {
+      type: component.id, request: requestStyles,
+      onUse(style) { add(component, style.config, { name: style.name, size: [componentStyleMedia(style.config).width, componentStyleMedia(style.config).height] }); dialog.close(); },
+    });
+    textPreviews.disconnect();
     const category = COMPONENT_PREVIEW_DEFINITIONS[component.id].category || component.id;
     for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === category));
+    styles.hidden = false;
+    browserForm.hidden = true;
     subcategories.replaceChildren();
+    subcategories.setAttribute('aria-label', category === '直播小游戏' ? '小游戏分类' : '组件类型');
     const members = groups.get(category);
     subcategories.hidden = members.length < 2;
     if (members.length > 1) for (const member of members) {
@@ -84,47 +181,86 @@ export function mountComponentPreviewPicker({ components, source, add, report })
     }
     content.setAttribute('aria-label', `${component.title}样式`);
     styles.replaceChildren();
+    content.scrollTop = 0;
+    if (component.id === 'text-box') { showTextBoxes(component); return; }
+    const options = styleOptions(component);
+    for (const option of options) showStyle(component, option);
+  }
+
+  function styleOptions(component) {
     const definition = COMPONENT_PREVIEW_DEFINITIONS[component.id];
     const attribute = definition.styleAttribute;
-    const options = definition.variants?.map((variant) => ({ variant }))
-      || (attribute ? [...source.querySelectorAll(`[${attribute}]`)] : [null]).map((original) => ({ original }));
-    contentTitle.textContent = definition.category || component.title;
-    styleCount.textContent = `${options.length} 款样式`;
-    content.scrollTop = 0;
-    for (const { original, variant } of options) {
-      const preset = variant || definition.defaultStyle;
-      const label = original ? original.querySelector('strong, .danmaku-style-name').textContent : preset.label;
-      const style = variant?.value || original?.getAttribute(attribute) || 'default';
-      const button = previewElement('button', 'preview-picker-style');
-      button.type = 'button';
-      button.setAttribute('aria-label', `添加${label}`);
-      button.dataset.pickerStyle = style;
-      const image = previewElement('img', 'preview-picker-image');
-      image.src = original?.querySelector('img')?.getAttribute('src') || `/img/component-previews/${component.id}-${style}.webp`;
-      image.alt = `${label}示例效果`;
-      image.width = 640;
-      image.height = 400;
-      image.loading = 'lazy';
-      image.decoding = 'async';
-      image.draggable = false;
-      const caption = previewElement('span', 'preview-picker-caption');
-      const action = previewElement('span', 'preview-picker-add', '添加');
-      action.prepend(pickerIcon('M12 5v14M5 12h14'));
-      caption.append(previewElement('strong', '', label), action);
-      button.append(image, caption);
-      button.addEventListener('click', () => {
-        try {
-          const { draft, loaded } = component.controller.getState();
-          if (!loaded) throw new Error('组件尚未连接，请从客户端重新打开。');
-          const change = definition.styleChange(draft, button.dataset.pickerStyle);
-          const config = { ...(component.projectConfig?.(draft) || draft), ...change };
-          add(variant ? { ...component, title: label } : component, config);
-          dialog.close();
-        } catch (error) { report(error.message); }
-      });
-      styles.append(button);
-    }
+    return definition.variants?.map(variant => ({ variant }))
+      || (attribute ? [...source.querySelectorAll(`[${attribute}]`)] : [null]).map(original => ({ original }));
   }
+
+  function showStyle(component, { original, variant }) {
+    const definition = COMPONENT_PREVIEW_DEFINITIONS[component.id];
+    const preset = variant || definition.defaultStyle;
+    const label = original ? original.querySelector('strong, .danmaku-style-name').textContent : preset.label;
+    const style = variant?.value || original?.getAttribute(definition.styleAttribute) || 'default';
+    const button = previewElement('button', 'preview-picker-style');
+    button.type = 'button';
+    button.setAttribute('aria-label', `添加${label}`);
+    button.dataset.pickerStyle = style;
+    button.dataset.pickerComponent = component.id;
+    const image = previewElement('img', 'preview-picker-image');
+    const sourceImage = variant?.image || original?.querySelector('img')?.getAttribute('src');
+    image.src = sourceImage || `/img/component-previews/${component.id}-${style}.webp`;
+    image.alt = `${label}示例效果`;
+    image.width = 640;
+    image.height = 400;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.draggable = false;
+    image.addEventListener('load', () => {
+      const bounds = !sourceImage && PREVIEW_IMAGE_BOUNDS[`${component.id}-${style}`];
+      const [x, y, width, height] = bounds || [0, 0, image.naturalWidth, image.naturalHeight];
+      if (bounds) image.style.objectViewBox = `inset(${y / image.naturalHeight * 100}% ${(image.naturalWidth - x - width) / image.naturalWidth * 100}% ${(image.naturalHeight - y - height) / image.naturalHeight * 100}% ${x / image.naturalWidth * 100}%)`;
+      image.style.aspectRatio = String(Math.min(2.5, Math.max(1, width / height)));
+    }, { once: true });
+    const caption = previewElement('span', 'preview-picker-caption');
+    const action = previewElement('span', 'preview-picker-add', '添加');
+    action.prepend(pickerIcon('M12 5v14M5 12h14'));
+    caption.append(previewElement('strong', '', label), action);
+    button.append(image, caption);
+    button.addEventListener('click', () => {
+      try {
+        const { draft, loaded } = component.controller.getState();
+        if (!loaded) throw new Error('组件尚未连接，请从客户端重新打开。');
+        const change = definition.styleChange(draft, button.dataset.pickerStyle);
+        const config = { ...(component.projectConfig?.(draft) || draft), ...change };
+        add(variant ? { ...component, title: label } : component, config);
+        dialog.close();
+      } catch (error) { report(error.message); }
+    });
+    styles.append(button);
+  }
+
+  function showSuites() {
+    styleLibrary?.dispose();
+    styleLibrary = mountComponentStyleLibrary(localStyles, { request: requestStyles,
+      onUse(style) {
+        const component = components.find(entry => entry.id === style.type);
+        if (!component) throw new Error('当前画布不支持这个组件，请重新打开。');
+        const media = componentStyleMedia(style.config);
+        add(component, style.config, { name: style.name, size: [media.width, media.height] }); dialog.close();
+      },
+    });
+    textPreviews.disconnect();
+    for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === 'suites'));
+    styles.hidden = browserForm.hidden = subcategories.hidden = true;
+    styles.replaceChildren(); subcategories.replaceChildren();
+    content.setAttribute('aria-label', '样式与套装'); content.scrollTop = 0;
+  }
+  const suites = previewElement('button');
+  suites.type = 'button';
+  suites.dataset.category = 'suites';
+  suites.append(pickerIcon('M3 3h7v7H3Zm11 0h7v7h-7ZM3 14h7v7H3Zm11 0h7v7h-7Z'), previewElement('span', '', '套装'));
+  suites.addEventListener('click', () => showSuites());
+  choices.set('suites', suites);
+  categories.append(suites);
+
   for (const [category, members] of groups) {
     const component = members[0];
     const button = previewElement('button');
@@ -135,8 +271,47 @@ export function mountComponentPreviewPicker({ components, source, add, report })
     choices.set(category, button);
     categories.append(button);
   }
+  const browser = components.find(({ id }) => id === 'browser');
+  if (browser) {
+    const more = previewElement('button', 'preview-picker-more');
+    more.type = 'button';
+    more.dataset.category = 'browser';
+    more.append(pickerIcon('M12 5v14M5 12h14'), previewElement('span', '', '更多'));
+    more.addEventListener('click', () => {
+      styleLibrary?.dispose();
+      textPreviews.disconnect();
+      for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === 'browser'));
+      subcategories.hidden = styles.hidden = true;
+      browserForm.hidden = false;
+      content.setAttribute('aria-label', '导入浏览器源');
+      content.scrollTop = 0;
+    });
+    choices.set('browser', more);
+    categories.append(more);
+    const nameLabel = previewElement('label', '', '组件名称');
+    const name = previewElement('input');
+    name.type = 'text'; name.required = true; name.maxLength = 80; name.defaultValue = '浏览器源';
+    nameLabel.append(name);
+    browserForm.append(previewElement('p', 'hint', '粘贴其他工具提供的浏览器源链接。网页需允许嵌入，内容与样式在原工具中设置。'), nameLabel);
+    const fields = mountBrowserSourceFields(browserForm);
+    const error = previewElement('p', 'preview-browser-error');
+    error.setAttribute('role', 'alert'); error.hidden = true;
+    const submit = previewElement('button', 'primary', '添加到画布');
+    submit.type = 'submit';
+    browserForm.append(error, submit);
+    browserForm.addEventListener('input', () => { error.hidden = true; });
+    browserForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      try {
+        if (!name.value.trim()) throw new Error('请填写组件名称。');
+        add(browser, fields.read(), { name: name.value.trim() });
+        dialog.close();
+        browserForm.reset();
+      } catch (failure) { error.textContent = failure.message; error.hidden = false; }
+    });
+  }
   return {
-    open() { show(components[0]); dialog.showModal(); },
-    dispose() { dialog.close(); dialog.remove(); },
+    open() { show(groups.values().next().value[0]); dialog.showModal(); },
+    dispose() { styleLibrary?.dispose(); textPreviews.disconnect(); dialog.close(); dialog.remove(); },
   };
 }

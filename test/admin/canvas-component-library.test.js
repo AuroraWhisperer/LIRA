@@ -61,6 +61,7 @@ test('canvas library saves every new variant with independent parameters and ren
     ['gift-feed', null, ['default']],
     ['blindbox', null, ['default']],
     ['gift-wishes', null, ['card', 'text', 'circle']],
+    ['gift-wishes', '月底冲刺', ['default']],
     ['queue', null, ['classic', 'identity', 'storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily']],
   ];
   const thumbnailSources = new Set();
@@ -70,7 +71,7 @@ test('canvas library saves every new variant with independent parameters and ren
     const cards = picker.locator('[data-picker-style]');
     assert.deepEqual(await cards.evaluateAll((buttons) => buttons.map((button) => button.dataset.pickerStyle)), variants,
       `${subcategory || category} shows each style once, including after switching categories`);
-    assert.equal(await picker.getByRole('button', { name: /^添加.+/ }).count(), variants.length);
+    assert.equal(await picker.locator('[data-picker-style][aria-label^="添加"]').count(), variants.length);
     assert.equal(await picker.locator('iframe').count(), 0, 'the library uses thumbnails without starting live renderers');
     for (const card of await cards.all()) {
       await card.scrollIntoViewIfNeeded();
@@ -79,7 +80,7 @@ test('canvas library saves every new variant with independent parameters and ren
       thumbnailSources.add(await card.locator('img').getAttribute('src'));
     }
   }
-  assert.equal(thumbnailSources.size, 37, 'every style has its own preview image');
+  assert.equal(thumbnailSources.size, 38, 'every built-in style has its own preview image');
   await picker.getByRole('button', { name: '关闭', exact: true }).click();
   const cases = [
     ['songlist', null, 'default', 'songBoardTitle', '我的歌单'],

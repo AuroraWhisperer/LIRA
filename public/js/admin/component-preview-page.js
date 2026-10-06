@@ -13,12 +13,14 @@ let connections = [];
 let view;
 let recovery;
 let links = [];
+let stopCanvas;
 const requests = new AbortController();
 
 function dispose() {
   if (closed) return;
   closed = true;
   requests.abort();
+  stopCanvas?.();
   recovery?.dispose();
   view?.dispose();
   for (const connection of connections) connection.detach();
@@ -30,7 +32,7 @@ async function start() {
   host.replaceChildren(loading);
   const entry = await readComponentPreviewLink(location, requests.signal);
   if (closed) return;
-  const { selectedId, selectedSize } = entry;
+  const { selectedId, selectedSize, selectedItemId } = entry;
   links = entry.links;
   if (links.length > Object.keys(COMPONENT_PREVIEW_DEFINITIONS).length + 1
     || new Set(links.map((link) => link?.component)).size !== links.length
@@ -47,10 +49,22 @@ async function start() {
   if (closed) return;
   recovery = createPreviewDraftRecovery({ connections,
     key: (connections.find(({ component }) => component === 'canvas') || connections[0]).draftKey });
-  mount(selectedId, selectedSize);
+  mount(selectedId, selectedSize, selectedItemId);
+  const canvas = connections.find(({ component }) => component === 'canvas');
+  if (canvas) {
+    let sceneId = canvas.controller.getState().draft.document.id;
+    stopCanvas = canvas.controller.subscribe(({ draft }) => {
+      if (closed || draft.document.id === sceneId) return;
+      sceneId = draft.document.id;
+      recovery.dispose();
+      view.dispose();
+      recovery = createPreviewDraftRecovery({ connections, key: canvas.draftKey });
+      mount(null);
+    });
+  }
 }
 
-function mount(selectedId, selectedSize = null) {
+function mount(selectedId, selectedSize = null, selectedItemId) {
   const source = document.getElementById('componentPreviewTemplates').content;
   const canvasConnection = connections.find(({ component }) => component === 'canvas');
   const components = Object.entries(COMPONENT_PREVIEW_DEFINITIONS).flatMap(([id, definition]) => {
@@ -58,9 +72,10 @@ function mount(selectedId, selectedSize = null) {
     return connection ? [definition.createPreview({ controller: connection.controller, source,
       startActualData: connection.startActualData, embedded: true })]
       : definition.sceneOnly && canvasConnection
-        ? [definition.createPreview({ startPreviewData: canvasConnection.startActualData })] : [];
+        ? [definition.createPreview({ startPreviewData: canvasConnection.startActualData,
+          media: canvasConnection.requestTextBoxMedia })] : [];
   });
-  view = mountComponentPreviewCanvas(host, { components, selectedId, selectedSize, source, recovery,
+  view = mountComponentPreviewCanvas(host, { components, selectedId, selectedSize, selectedItemId, source, recovery,
     canvasConnection, canvasController: canvasConnection?.controller });
 }
 

@@ -16,6 +16,8 @@
 
 ### 本地场景持久化
 
+文本框的用户上传图片由 [scene-text-images.js](../../../src/server/scene-text-images.js) 保存在 `dataDir/scene-text-images/`，属于持久素材，不进入可清理的礼物图片缓存。文件名由服务生成 UUID v4，扩展名仅 png/jpg/gif/webp；单文件上限 5 MiB，原字节保留动画，以同目录独占临时文件写入后重命名，失败清理临时文件。场景结构化 token 仅保存本地图片路径，不保存原始文件路径或二进制；删除 token 或放弃草稿不自动删除素材，防止破坏已发布场景的引用。当前没有自动清理策略；上传/读取权限见 [HTTP API](api.md#本地场景)。
+
 songDb 的 v8 迁移通过 `scene-migration.js` 新增 `component_scenes`，不改写旧表。列为 `id`、`owner_scope`、`draft_json`、`revision`、`published_json`、`published_version`、`capability_version`、`capability_hash`、`capability_encrypted`；按 owner_scope 建索引。草稿与发布 JSON 均限制为 256KiB。`scene-store.js` 用单条带归属和期望版本条件的 UPDATE/RETURNING 原子提交；失败不改变旧行。
 
 v9 追加 `component_output_sizes`：主键 `(owner_scope, component_type)`，列 `width/height`
@@ -24,7 +26,26 @@ v9 追加 `component_output_sizes`：主键 `(owner_scope, component_type)`，�
 组件的默认输出尺寸，任一写入失败整体回滚。独立实例尺寸仍只保存在场景文档中。
 删除场景中的共享图层不会删除已保存的默认尺寸；记录随本地库保留，读取受当前账号限制。
 
+v10 追加 `component_canvas`：`owner_scope` 为主键，`output_scene_id` 固定组合直播源，
+`active_scene_id` 记录最近应用的预设，后两列引用已有场景。迁移按旧列表的 ID 排序选首个
+场景作为初始绑定，保留所有草稿、发布快照和来源凭据；新账号首次打开画布时绑定。
+新建预设不会改变绑定。画布发布在同一保存点中检查预设修订号与输出发布版本，提交固定
+来源的发布快照、活动预设及共享尺寸；两个场景的草稿都不被覆盖。跨预设浏览器 URL
+按固定输出场景 ID 重新加密绑定，任何失败整体回滚。选择中的预设和未保存草稿属于编辑会话。
+
 capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保存 safeStorage 加密的 schema、归属、scene ID、凭据版本和 token 包。无明文回退；解密后复核全部绑定与摘要。历史、选择、实时事件与业务状态不入场景表；场景随本地数据库保留，没有自动删除策略。接口见 [HTTP API](api.md#本地场景)，边界见 [ADR-0022](../../architecture/adr/0022-local-component-scenes.md)。
+
+独立 `browser` 场景项的第三方 URL 在写入 `draft_json` 或 `published_json` 前，由场景 owner 使用同一 secret codec 加密为 `{ schemaVersion: 1, encrypted }`；密文包绑定 owner scope、scene ID 和 item ID。授权读取时校验绑定并恢复 URL，模板及持久化编辑恢复副本不保留 URL。既有场景 JSON 不变，不新增表或迁移；加密后的完整 JSON 仍受 256 KiB 上限约束。显示视口与图层尺寸的合同见 [组件场景规格](../../../specs/component-scenes.md)。
+
+## 本地组件样式库
+
+[component-style-store.js](../../../src/storage/component-style-store.js) 拥有设备本机 `dataDir/component-library/`，不写云设置或礼物数据库。`index.json` 为 `{version:1,packages:[]}`，写入同目录随机临时文件后 rename 替换；素材保存为 `<包 UUID>/<SHA-256>.<扩展名>`。场景的独立外观配置持有 `mediaStyle` 或 `resourceStyle` 快照，两者互斥，新增可选字段不改变旧场景格式。
+
+上传及 ZIP 检查只写 `.pending-<UUID>/`；确认时将整个目录 rename 为最终 UUID，再原子更新索引；索引失败则移回暂存。操作失败或显式取消清理本次暂存，进程异常中断可能留下暂存目录，不作为已安装素材读取。当前不自动回收文件。
+
+相同作者 ID、版本、ZIP 摘要重复安装幂等，并能恢复该包曾移除的样式；同 ID 同版本不同内容返回冲突，作者需提高版本。不同版本并存，已有场景不自动升级。库最多登记 1000 包。删除样式只设 `removed` 并从列表过滤，保留索引和媒体文件，保证未打开的预设和已发布场景仍能使用；删除不立即释放磁盘空间。目录随应用数据备份和迁移，不随 EXE 更新覆盖；不支持只复制场景到其他电脑而不带素材目录。
+
+文件与导入限制见 [API 合同](api.md#组件样式库)，样式字段见 [overlay 合同](../frontend/overlays.md#本地媒体样式)。
 
 ## 1. 技术选型
 
@@ -67,6 +88,8 @@ data/
 ├── bilibili-auth/cookies.enc          # B站 Cookie 快照
 ├── license/                   # 设备授权资料与 safeStorage 加密私钥
 ├── opening-music/             # 用户上传音乐，保持持久保存
+├── scene-text-images/         # 文本框上传图片，保持原字节与持久保存
+├── component-library/        # 本机组件素材、索引与待确认套装
 └── local-media-access.json      # 本地媒体文件允许清单
 ```
 
@@ -186,7 +209,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 | 库          | key             | 版本  | 步骤内容                                                                                                                                                                                                                                                                                                                      |
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| songDb      | `song_db`       | v1-v9 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高 |
+| songDb      | `song_db`       | v1-v10 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设 |
 | superChatDb | `super_chat_db` | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | giftDb      | `gift_db`       | v1-v16 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
@@ -304,14 +327,14 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 | 首次启动引导 | `onboardingVersion`、`onboardingCompletedAt`、`onboardingSkippedOptional`；仅保存完成契约版本、完成时间和可选步骤跳过记录                                                                                                                                                                                                                                                                                            |
 | 点歌行为     | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest`                                                                                                                                                                                                                                                                                                                                                           |
 | 弹幕机器人   | `enableRandomTagReply`、`enableCheckinBot`、`enableFortuneBot`、`enableCustomReplyBot`、`checkinBlessings`、`fortunePool`、`customReplyRules`                                                                                                                                                                                                                                                                        |
-| 礼物         | `enableGiftSprint`、`giftSprintTargetRmb`、legacy `giftBlindBoxConfig`、云端私有 `giftBlindBoxCustomConfigV2`、`enableGiftNotification`、`giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameRibbonEnabled`、`giftFrameRibbonThresholdRmb`、`guardThanksEnabled`、`guardThanksTextMode`；特效 1 · 林间花信默认关闭、阈值为 20 元；特效 2 · 缎带礼笺默认关闭、阈值为 100 元；两个特效各自独立，同一笔礼物同时满足门槛时只播门槛更高的那个，金额相同播特效 2。旧 `giftFrameTheme`/`giftFrameMotionMode` 历史行原样保留但不参与运行，已从默认值/HTTP 可写键/overlay 投影移除；大航海感谢默认关闭、文字为 `bilingual`。官方映射来自只读 v2 目录缓存，不写回设置；缺少 v2 私有字段表示不覆盖，合法 `[]` 只清空自定义层。非空 legacy 配置保持迁移待确认，不按名称猜 ID |
+| 礼物         | `enableGiftSprint`、`giftSprintTargetRmb`、legacy `giftBlindBoxConfig`、云端私有 `giftBlindBoxCustomConfigV2`、`enableGiftNotification`、`giftFrameEnabled`、`giftFrameThresholdRmb`、`guardThanksEnabled`、`guardThanksTextMode`；特效 1 · 林间花信默认关闭、阈值为 20 元。已撤销的 `giftFrameRibbonEnabled` / `giftFrameRibbonThresholdRmb` 及旧 `giftFrameTheme` / `giftFrameMotionMode` 历史行原样保留但不参与运行，已从默认值/HTTP 可写键/overlay 投影移除；大航海感谢默认关闭、文字为 `bilingual`。官方映射来自只读 v2 目录缓存，不写回设置；缺少 v2 私有字段表示不覆盖，合法 `[]` 只清空自定义层。非空 legacy 配置保持迁移待确认，不按名称猜 ID |
 | 滚动/字号    | `scrollSeconds`、风格 1 的 `queueScrollMode`/`queueScrollSpeed`/`queueSongFontSize`、风格 2 的 `identityQueueScrollMode`/`identityQueueScrollSpeed`/`identityQueueFontSize`、风格 3–6 各自的 `storybook*`/`neonVinyl*`/`cherryRibbon*`/`goldenLily*` 字号与滚动键、`songBoardFontSize` 及各 `*RangeVersion`/`queueStyleSettingsVersion` 迁移版本键；`queueStyleSettingsVersion=1` 首次升级时把旧共享值复制到各风格键 |
 | 主题         | `themePrimary/themeAccent/themeText/themeBackground/themeOpacity/themeRadius/themeFontScale` 等 + `songBoard*` 独立一套                                                                                                                                                                                                                                                                                              |
 | 悬浮层       | `danmakuOverlayStyle`(`bubble`/`signal`/`minimal`/`ranked`/`transparent`/`identity`/`outline`，默认 `signal`)、`danmakuFullscreenDurationSeconds`(默认 `6`，服务端限制 2–30 的安全整数)、`overlayQueueStyle`(`classic`/`identity`/`storybook`/`neon-vinyl`/`cherry-ribbon`/`golden-lily`,遗留 `festival` 按 identity 使用)、插画风格各自的 `*QueueFontFamily`/`*QueueFontWeight`/`*QueueUseCustomTextColor`/`*QueueTextColor`、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号       |
 | 桌面歌词     | `desktopLyric*` 全套(字体/描边/大小/透明度/缩放/逐字高亮方式)                                                                                                                                                                                                                                                                                                                                                        |
 | WeSing       | `weSingCachePath`、`weSingLyricOffsetMs`                                                                                                                                                                                                                                                                                                                                                                             |
 | 开播动画     | `openingEnabled`、`openingTitle`、`openingSubtitle`、`openingName`、`openingFooter`、`openingQuality`、`openingTrackMotion`(`heart`/`barber`/`progress`，默认 `heart`)、`openingShowNotes`、`openingShowEq`、`openingAudioFile`、`openingAudioName`、`openingAudioVolume`、`openingCharacterFile`、`openingCharacterName`、`openingPixelCharacterFile`、`openingPixelCharacterName`（动画 2 独立头像，默认空）；上传音频与人物图分别位于 data 目录 `opening-music/`、`opening-character/`                 |
-| 萌时钟       | `clockStyle`(`peach`/`starlight`/`soda`/`timeline-horizontal`/`timeline-vertical`/`digital`/`orbit`/`flip`)、`clockShowDate`、`clockShowSeconds`、`clockHourFormat`(`12`/`24`)、`clockLabel`、`clockFlipFrameColor`（默认 #e4e4e4）、`clockFlipFaceColor`（默认 #ffffff）、`clockFlipTextColor`（默认 #303030）；供固定 `/clock` Browser Source 首帧读取                                                                                                                                                                                                         |
+| 萌时钟       | `clockStyle`(`peach`/`starlight`/`soda`/`timeline-horizontal`/`timeline-vertical`/`digital`/`orbit`/`flip`/`moonlit-fan`)、`clockShowDate`、`clockShowSeconds`、`clockHourFormat`(`12`/`24`)、`clockLabel`、`clockFlipFrameColor`（默认 #e4e4e4）、`clockFlipFaceColor`（默认 #ffffff）、`clockFlipTextColor`（默认 #303030）、`clockMoonMode`（light/dark/auto，默认 light）、`clockMoonIntervalSeconds`（1–86400 整数秒，默认字符串 '30'）；旧库补足默认值，无 schema 迁移；供固定 `/clock` Browser Source 首帧读取 |
 | 投票与评分外观 | `interactionOverlayTitle`/`interactionOverlayHint`（默认空、留空隐藏，分别最多 60/80 字素）；`interactionRatingRules`（多行纯文本，默认“发弹幕评分：1–10 分”“只发整数，不带其他内容”“多次评分，以最后一次为准”三行，可为空）；`interactionTextColor`(`#172b3a`)、`interactionBackgroundColor`(`#ffffff`)、`interactionBarColor`(`#bee9e2`)、`interactionTrackColor`(`#f0f3f6`)；`interactionBackgroundOpacity`/`interactionOverallOpacity`（默认 `100`，0–100 整数，分别影响底色/整个卡片）；`interactionFontSize`（默认 `20`，16–24px）、`interactionCornerRadius`（默认 `20`，0–32px）；`interactionShowStatus`/`interactionShowParticipants`（默认 `true`）。本地 settings 现有表保存，旧库按缺失键插入默认值，不覆盖已存值，不参与云端设置同步。 |
 | 保留期       | `giftRawJsonRetentionDays`(30)、`giftEventRetentionDays`(0)、`requestRetentionDays`(0)、`superChatRetentionDays`(0)、`autoRetentionOnStartup`                                                                                                                                                                                                                                                                        |
 | 更新         | `enableAutoUpdate`                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -332,7 +355,7 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 | `enableCheckinBot='true'`、`enableFortuneBot='true'`、`checkinBlessings`/`fortunePool` 为内置词库 JSON | 本地旧数据兼容，**不代表云端实际启用值**，不在 CLOUD_SYNC_KEYS | 当前界面经 dailyBots IPC 读取/修改服务器状态；旧词库仅由显式接管 action 读取，不能恢复本地执行 |
 | `danmakuOverlayStyle='signal'`、`danmakuFullscreenDurationSeconds='6'` | 本地展示设置；不是服务器 overlay 配置的权威副本 | 本地 HTTP 校验与展示 scope 消费；服务器样式独立经 liraLicense IPC，允许值差异见 [preload.md](../desktop/preload.md) |
 | `weSingCachePath` 为 Windows APPDATA 下 Tencent/WeSing/WeSingCache（否则空）、`weSingLyricOffsetMs='0'` | 本机路径/时钟，不同步 | 目录选择 IPC 只返回路径，HTTP 保存先 prepare 再写库；[wesing-cache.js](../../../src/music/wesing-cache.js) 校验绝对目录与偏移 |
-| `giftFrameEnabled='false'`、`giftFrameThresholdRmb='20'`、`giftFrameRibbonEnabled='false'`、`giftFrameRibbonThresholdRmb='100'` | 每个特效专属开关/金额，不加入云设置范围；新增特效独立拥有参数 | 设置 HTTP → gift frame/overlay；[frame-config.js](../../../src/bilibili/gift/frame-config.js) |
+| `giftFrameEnabled='false'`、`giftFrameThresholdRmb='20'` | 林间花信的专属开关/金额，不加入云设置范围；缎带旧设置保留历史行但不再读取或写入 | 设置 HTTP → gift frame/overlay；[frame-config.js](../../../src/bilibili/gift/frame-config.js) |
 | `guardThanksEnabled='false'`、`guardThanksTextMode='bilingual'` | 本地大航海感谢开关与动画文字，不加入云设置范围 | 设置 HTTP → `gift:guard-thanks`/overlay；[guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js) |
 | `openingEnabled='false'`、openingAudioFile/Name、openingCharacterFile/Name、openingPixelCharacterFile/Name | 本机上传素材与开播展示；每次 bootstrap 强制关闭 openingEnabled | 专属上传/删除路由保存素材路径，普通设置不是任意路径导入；目录见本文件 §1 |
 | `enableAutoUpdate='false'` | 本机偏好，不同步 | 管理设置 HTTP；desktop:set-auto-update 仅记日志；[update.md](../desktop/update.md) |

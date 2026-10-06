@@ -1,0 +1,36 @@
+.component-style-library { margin-block: 16px; }
+.component-style-library > header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.component-style-library > header h3 { margin: 0; flex: 1; font-size: 14px; }
+.component-style-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.component-style-pack-heading { grid-column: 1 / -1; margin: 6px 0 0; font-size: 14px; }
+.component-style-card { position: relative; min-width: 0; }
+.component-style-select, .component-style-add { width: 100%; min-height: 112px; border: 1px solid var(--color-border, #d8d8df); border-radius: 10px; background: var(--color-bg-primary, #fff); color: inherit; padding: 10px; cursor: pointer; }
+.component-style-select img, .component-style-select video { display: block; width: 100%; height: 78px; object-fit: contain; margin-bottom: 6px; }
+.component-style-select span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.component-style-add { border-style: dashed; color: var(--color-text-secondary, #667); }
+.component-style-delete { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 1px solid var(--color-border, #ccc); background: var(--color-bg-primary, #fff); cursor: pointer; }
+.component-style-select:hover, .component-style-add:hover { border-color: var(--color-control-accent, #21b6a8); }
+.component-style-dialog { box-sizing: border-box; width: min(920px, 94vw); max-height: 88vh; overflow: auto; border: 1px solid var(--color-border, #ddd); border-radius: 16px; padding: 20px; background: var(--color-bg-primary, #fff); color: var(--color-text-primary, #262634); }
+.component-style-dialog::backdrop { background: #15152566; }
+.component-style-dialog > header { display: flex; gap: 16px; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.component-style-dialog h2 { margin: 0; font-size: 18px; }
+.component-style-editor { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 24px; align-items: start; }
+.component-style-preview { position: relative; width: 100%; overflow: hidden; aspect-ratio: 16 / 9; background: repeating-conic-gradient(#353541 0% 25%, #424250 0% 50%) 0 0 / 20px 20px; border-radius: 8px; }
+.component-style-preview > img, .component-style-preview > video { display: block; width: 100%; height: 100%; object-fit: fill; }
+.component-style-area { position: absolute; border: 2px dashed #a8a6ff; background: #2223; display: flex; align-items: center; justify-content: center; cursor: move; touch-action: none; white-space: pre-line; text-align: center; }
+.component-style-area span { pointer-events: none; }
+.component-style-area .component-style-area-resize { position: absolute; width: 14px; height: 14px; bottom: -5px; right: -5px; background: #c9c8ff; border: 2px solid #57529a; pointer-events: auto; cursor: nwse-resize; }
+.component-style-form, .component-style-fields { display: grid; gap: 10px; }
+.component-style-fields label, .component-style-form > label { display: grid; gap: 4px; font-size: 13px; }
+.component-style-fields input, .component-style-form input { box-sizing: border-box; width: 100%; min-height: 32px; }
+.component-style-advanced { margin-top: 10px; }
+.component-style-advanced summary { cursor: pointer; margin-bottom: 10px; }
+.component-style-advanced .component-style-fields { grid-template-columns: 1fr 1fr; }
+.component-style-dialog .hint { line-height: 1.6; font-size: 12px; }
+.component-style-dialog > button + button { margin-inline-start: 8px; }
+.component-style-fields label:has(input[type='checkbox']) { display: flex; align-items: center; gap: 8px; }
+.component-style-fields input[type='checkbox'] { width: 18px; min-height: 18px; margin: 0; }
+.component-style-pack-list { line-height: 1.8; }
+.has-media-style .clock-style-options, .has-media-style .danmaku-style-options,
+.has-media-style .danmaku-parameters { display: none; }
+@media (max-width: 700px) { .component-style-editor { grid-template-columns: 1fr; } }

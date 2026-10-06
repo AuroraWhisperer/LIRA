@@ -1,4 +1,5 @@
 import { createSuperChatCard } from './danmaku-superchat-renderer.js';
+import { decorateMoonlitMessage } from './danmaku-moonlit.js';
 
 export const DEFAULT_DANMAKU_CLASSES = Object.freeze({
   item: 'draw-danmaku-item',
@@ -84,6 +85,9 @@ export function createDanmakuMessageRenderer({
     body.append(identity, messageElement);
     if (avatar) bubble.append(avatar);
     bubble.append(body);
+    if (style === 'moonlit') {
+      decorateMoonlitMessage(document, bubble, item, { avatar, body, identity, message: messageElement });
+    }
     return bubble;
   }
 

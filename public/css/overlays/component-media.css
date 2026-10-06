@@ -1,0 +1,61 @@
+.component-media-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+}
+.component-media-content {
+  position: absolute !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.component-media-playback { position: fixed; inset: 0; z-index: 100; overflow: hidden; }
+.component-media-playback[hidden], .component-media-thanks[hidden] { display: none; }
+.component-media-thanks {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  white-space: pre-wrap;
+  font-family: 'Microsoft YaHei', sans-serif;
+  text-shadow: 0 1px 4px #0009;
+}
+html[data-media-style='background'] #backgroundImage,
+html[data-media-style='background'] #backgroundAnimation { visibility: hidden; }
+html[data-media-style='clock'] .clock-card {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--media-text-color) !important;
+}
+html[data-media-style='clock'] #clockCard .clock-content { color: var(--media-text-color); padding: 0; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+html[data-media-style='clock'] #clockCard .clock-time { font-size: var(--media-font-size); color: inherit; justify-content: center; }
+html[data-media-style='clock'] #clockCard .clock-seconds { font-size: 1em; }
+html[data-media-style='clock'] #clockCard .clock-date-row { color: inherit; font-size: calc(var(--media-font-size) * .3); justify-content: center; }
+html[data-media-style='danmaku'] .draw-danmaku-text,
+html[data-media-style='danmaku'] .sc-copy { color: var(--media-text-color) !important; font-size: var(--media-font-size) !important; }
+html[data-media-style='gift-wishes'] .wish-card {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  --wish-ink: var(--media-text-color);
+  color: var(--media-text-color) !important;
+}
+html[data-media-style='gift-wishes'] .wish-card-count,
+html[data-media-style='gift-wishes'] .wish-card-title,
+html[data-media-style='gift-wishes'] .wish-card-text { color: var(--media-text-color); font-size: var(--media-font-size); }

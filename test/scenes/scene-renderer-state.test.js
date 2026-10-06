@@ -24,7 +24,12 @@ async function rendererFixture() {
   const timers = new Map();
   let serial = 0;
   function node(tag) {
-    const result = { tag, style: {}, children: [], classList: { remove() {} }, setAttribute() {},
+    const attributes = new Map();
+    const events = new Map();
+    const result = { tag, style: {}, children: [], classList: { remove() {} },
+      setAttribute: (name, value) => attributes.set(name, value), getAttribute: name => attributes.get(name),
+      addEventListener: (name, listener) => events.set(name, listener), removeEventListener: name => events.delete(name),
+      dispatch: name => events.get(name)?.(),
       append(child) { child.parent = result; result.children.push(child); },
       remove() { if (result.parent) result.parent.children = result.parent.children.filter(child => child !== result); } };
     if (tag === 'iframe') {
@@ -35,7 +40,7 @@ async function rendererFixture() {
     return result;
   }
   const window = { document: { createElement: node }, addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name) };
-  const { createSceneRenderer } = await load('overlays/scene-renderer.js', { window,
+  const { createSceneRenderer } = await load('overlays/scene-renderer.js', { window, URL,
     setTimeout(fn) { timers.set(++serial, fn); return serial; }, clearTimeout(id) { timers.delete(id); } });
   const host = node('host');
   const renderer = createSceneRenderer(host);
@@ -48,12 +53,101 @@ async function rendererFixture() {
   function fail(frame) {
     listeners.get('message')({ origin: 'null', source: frame.contentWindow, data: { type: 'component-preview:status', message: 'Synthetic renderer failure' } });
   }
-  return { renderer, host, complete, signal, fail, messages };
+  return { renderer, host, complete, signal, fail, messages, timers };
 }
 const connected = events => ({ status: 'connected', epoch: 'one', nextCursor: 2, reset: false, gap: false,
   state: { liveStatus: 1, liveSessionId: 'live', confirmationMessage: 'Live' }, events });
 const sceneData = events => ({ danmaku: connected(events) });
 const outputDoc = () => documentOf([item('danmaku', 'independent', { style: 'signal' })]);
+
+test('external browser frames use their viewport, commit on load and never exchange the component protocol', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const config = { url: 'https://source.example.test/widget?token=provider', viewportWidth: 800, viewportHeight: 600 };
+  const browser = item('browser', 'independent', config);
+  browser.width = 400; browser.height = 300;
+  f.renderer.update({ version: 1, document: documentOf([browser]), data: { browser: { private: 'never sent' } } });
+  const frame = f.host.children[0].children[0];
+  assert.equal(frame.getAttribute('sandbox'), 'allow-scripts');
+  assert.equal(frame.getAttribute('referrerpolicy'), 'no-referrer');
+  assert.equal(frame.src, config.url);
+  assert.deepEqual(frame.style, { left: '0px', top: '0px', zIndex: '0', width: '800px', height: '600px',
+    transformOrigin: '0 0', transform: 'scale(0.5, 0.5)' });
+  f.complete(frame);
+  f.fail(frame);
+  assert.equal(f.renderer.getVersion(), 0, 'external ready/prepared/status messages are ignored');
+  frame.dispatch('load');
+  assert.equal(f.renderer.getVersion(), 1);
+  f.renderer.update({ data: { browser: { private: 'never sent' } } });
+  f.renderer.disconnect();
+  f.renderer.revoke();
+  frame.dispatch('load');
+  assert.equal(f.renderer.getVersion(), 0);
+  assert.deepEqual(f.messages.get(frame), []);
+});
+
+test('layout publications preserve live frames and receipts while replacing obsolete staging', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const browser = item('browser', 'independent', { url: 'https://source.example.test/widget', viewportWidth: 800, viewportHeight: 600 });
+  const original = documentOf([item('danmaku', 'independent', { style: 'signal' }), browser]);
+  f.renderer.update({ version: 1, projection: 'first', document: original, data: sceneData([]) });
+  const active = f.host.children[0];
+  const [danmaku, external] = active.children;
+  f.complete(danmaku); external.dispatch('load');
+
+  const changedUrl = structuredClone(original);
+  changedUrl.items[1].appearance.config.url = 'https://source.example.test/replacement';
+  f.renderer.update({ version: 2, document: changedUrl, data: sceneData([]) });
+  const obsolete = f.host.children[1].children[1];
+  assert.equal(f.renderer.getVersion(), 1);
+
+  const layout = structuredClone(original);
+  layout.canvas = { width: 1280, height: 720 };
+  Object.assign(layout.items[1], { name: 'Moved', x: 80, y: 40, width: 600, height: 400 });
+  Object.assign(layout.items[1].appearance.config, { viewportWidth: 1200, viewportHeight: 800 });
+  layout.items.reverse();
+  f.renderer.update({ version: 3, projection: 'layout', document: layout, data: sceneData([{ message: 'once' }]) });
+  obsolete.dispatch('load');
+  assert.equal(f.renderer.getVersion(), 3);
+  assert.equal(f.renderer.getProjection(), 'layout');
+  assert.deepEqual(f.host.children, [active]);
+  assert.deepEqual(active.children, [danmaku, external]);
+  assert.equal(f.timers.size, 0);
+  assert.deepEqual(active.style, { width: '1280px', height: '720px' });
+  assert.deepEqual(external.style, { left: '80px', top: '40px', zIndex: '0', width: '1200px', height: '800px',
+    transformOrigin: '0 0', transform: 'scale(0.5, 0.5)' });
+  assert.equal(danmaku.style.zIndex, '1');
+  assert.deepEqual(f.messages.get(external), []);
+  assert.deepEqual(f.messages.get(danmaku).flatMap(message => message.data?.events || []), [{ message: 'once' }]);
+
+  const invalid = structuredClone(layout);
+  invalid.items[0].appearance.config.viewportWidth = 0;
+  f.renderer.update({ version: 4, document: invalid, data: {} });
+  assert.equal(f.renderer.getVersion(), 3);
+  assert.equal(external.style.width, '1200px');
+  f.renderer.update({ version: 5, projection: 'replacement', document: changedUrl, data: sceneData([]) });
+  const replacement = f.host.children[1];
+  replacement.children[1].dispatch('load');
+  assert.equal(f.renderer.getVersion(), 3, 'A changed URL still waits for the entire replacement.');
+  f.complete(replacement.children[0]);
+  assert.equal(f.renderer.getVersion(), 5);
+  assert.equal(f.renderer.getProjection(), 'replacement');
+  assert.deepEqual(f.host.children, [replacement]);
+});
+
+test('an external browser timeout retains the old publication and a late load cannot commit it', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  f.renderer.update({ version: 1, document: documentOf(), data: {} });
+  f.complete(f.host.children[0].children[0]);
+  const active = f.host.children[0];
+  const browser = item('browser', 'independent', { url: 'https://source.example.test/slow', viewportWidth: 800, viewportHeight: 600 });
+  f.renderer.update({ version: 2, document: documentOf([browser]), data: {} });
+  const stalled = f.host.children[1].children[0];
+  [...f.timers.values()][0]();
+  assert.equal(f.renderer.getVersion(), 1);
+  assert.deepEqual(f.host.children, [active]);
+  stalled.dispatch('load');
+  assert.equal(f.renderer.getVersion(), 1);
+});
 
 test('gift scene replacement delivers new events once and clears pending events on disconnect', async t => {
   const f = await rendererFixture(); t.after(() => f.renderer.dispose());
@@ -66,7 +160,7 @@ test('gift scene replacement delivers new events once and clears pending events 
   f.complete(first);
   const delivered = (frame) => f.messages.get(frame).filter(message => message.type === 'component-preview:data').flatMap(message => message.data?.events || []);
   assert.deepEqual(delivered(first), [{ eventId: '2' }]);
-  f.renderer.update({ version: 2, document: giftDoc, data: snapshot(3) });
+  f.renderer.update({ version: 2, document: documentOf([item('gift-frame', 'independent', {})]), data: snapshot(3) });
   const next = f.host.children[1].children[0];
   f.complete(next);
   assert.deepEqual(delivered(first), [{ eventId: '2' }, { eventId: '3' }]);

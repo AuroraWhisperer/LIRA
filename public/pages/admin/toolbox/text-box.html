@@ -1,0 +1,32 @@
+<section id="otherTextBoxFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="otherTextBoxFeatureTab" data-other-feature-panel hidden>
+  <div id="textBoxPage" class="other-feature-panel-body text-box-page">
+    <header class="text-box-page-heading">
+      <h2 class="ui-section-title">文本框</h2>
+      <div class="text-box-heading-actions"><button class="secondary" type="button" data-text-box="discard" disabled>放弃修改</button><button class="primary" type="button" data-text-box="save" disabled>保存并应用</button></div>
+    </header>
+    <div class="text-box-workspace">
+      <nav class="text-box-library" aria-label="文本框列表">
+        <div class="text-box-list" data-text-box="list"></div>
+        <button class="secondary" type="button" data-text-box="add" disabled>新建文本框</button>
+      </nav>
+      <div class="text-box-empty" data-text-box="empty">
+        <svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect x="5" y="7" width="38" height="34" rx="6" stroke="currentColor" stroke-width="2"/><path d="M15 17h18M24 17v15m-5 0h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <h3>还没有文本框</h3><p>点击上方“新建文本框”开始编辑。</p>
+      </div>
+      <section class="text-box-detail" data-text-box="detail" aria-label="文本框详情" hidden>
+        <div class="text-box-detail-heading">
+          <input data-text-box="name" aria-label="文本框名称" maxlength="80" required />
+          <button class="secondary" type="button" data-text-box="duplicate">复制</button>
+          <button class="secondary" type="button" data-text-box="remove">删除</button>
+        </div>
+        <div data-text-box="editor"></div>
+        <section class="text-box-live-section">
+          <div class="text-box-live-heading"><h3>预览</h3><button class="secondary" type="button" data-text-box="canvas">在画布中调整</button></div>
+          <div class="text-box-live" data-text-box="preview"></div>
+          <div class="text-box-live-actions"><button class="secondary" type="button" data-text-box="copy">复制直播地址</button></div>
+        </section>
+      </section>
+    </div>
+    <div class="text-box-page-status"><p data-text-box="status" role="status" aria-live="polite">正在读取文本框…</p><button class="secondary" type="button" data-text-box="retry" hidden>重新读取</button></div>
+  </div>
+</section>

@@ -32,4 +32,17 @@ function migrateComponentOutputSizes(db) {
   `);
 }
 
-module.exports = { migrateScenes, migrateComponentOutputSizes };
+function migrateCanvasPresets(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS component_canvas (
+      owner_scope TEXT PRIMARY KEY,
+      output_scene_id TEXT NOT NULL REFERENCES component_scenes(id),
+      active_scene_id TEXT NOT NULL REFERENCES component_scenes(id)
+    );
+    INSERT INTO component_canvas (owner_scope, output_scene_id, active_scene_id)
+      SELECT owner_scope, MIN(id), MIN(id) FROM component_scenes GROUP BY owner_scope
+      ON CONFLICT (owner_scope) DO NOTHING;
+  `);
+}
+
+module.exports = { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets };

@@ -57,7 +57,8 @@ export async function readComponentPreviewLink(location, signal) {
     const size = query.get('size');
     const [width, height] = (size || '').split('x').map(Number);
     return { links, selectedId: selectedId || entry.selectedId || null,
-      selectedSize: size ? { width, height } : entry.selectedSize || null };
+      selectedSize: size ? { width, height } : entry.selectedSize || null,
+      ...(entry.selectedItemId === undefined ? {} : { selectedItemId: entry.selectedItemId }) };
   }
   const params = new URLSearchParams(fragment);
   const others = JSON.parse(params.get('components') || '[]');

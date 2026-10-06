@@ -25,7 +25,7 @@ const GUARD_WISH_GIFTS = [
   },
 ];
 const PERIODS = new Set(['long', 'day', 'session']);
-const DISPLAY_STYLES = new Set(['card', 'text', 'circle']);
+const DISPLAY_STYLES = new Set(['card', 'text', 'circle', 'moonlit']);
 const TEXT_IMAGE_POSITIONS = new Set(['none', 'before', 'after', 'inline']);
 const TEXT_IMAGE_FORMATS = new Set(['animated', 'static']);
 
@@ -193,4 +193,4 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
   return { getSnapshot, save, remove };
 }
 
-module.exports = { createGiftWishService };
+module.exports = { createGiftWishService, GUARD_WISH_GIFTS };

@@ -42,6 +42,16 @@
   }
 }
 
+@keyframes clock-moon-sway {
+  0%,
+  100% {
+    transform: rotate(-1deg);
+  }
+  50% {
+    transform: rotate(1deg);
+  }
+}
+
 [hidden] {
   display: none !important;
 }
@@ -50,7 +60,8 @@
   .clock-colon,
   .clock-sparkles i,
   .night-star,
-  .soda-bubble {
+  .soda-bubble,
+  .clock-moon-jewel {
     animation: none !important;
   }
 }

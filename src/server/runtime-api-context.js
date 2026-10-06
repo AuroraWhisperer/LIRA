@@ -13,6 +13,7 @@ function createRuntimeApiContextFactory(options = {}) {
     return createApiContext({
       giftCards: options.giftCards,
       scenes: options.getScenes?.(),
+      sceneEvents: options.getSceneEvents?.(),
       readDanmakuDisplay: options.getDanmakuDisplay?.(),
       maxBodyBytes: options.maxBodyBytes,
       sessionToken: options.getSessionToken(),

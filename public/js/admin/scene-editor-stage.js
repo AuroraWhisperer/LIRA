@@ -2,6 +2,8 @@ import { previewElement, mountComponentPreview } from './component-preview-surfa
 import { createSceneItemController } from './scene-item-controller.js';
 import { moveSceneItems, resizeSceneItem } from './scene-document-model.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
+import { createBrowserSourcePreview, mountBrowserSourcePreview } from './browser-source-preview.js';
+import { createTextBoxPreview } from './text-box-preview.js';
 
 export function mountSceneEditorStage(host, { model, components, getSelection, select, report }) {
   const viewport = previewElement('div', 'scene-editor-viewport');
@@ -32,10 +34,14 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
         model.edit((document) => {
           for (const [id, size] of sizes) {
             const item = document.items.find((entry) => entry.id === id);
-            if (!item || Math.round(item.width) !== size.width) continue;
+            if (!item || item.appearance.config?.mediaStyle || Math.round(item.width) !== size.width) continue;
             if (item.locked) { contentSizes.set(id, size); continue; }
+            if (SCENE_COMPONENTS[item.type].lockAspectRatio && Number.isFinite(size.contentWidth) && size.contentWidth > 0) {
+              const scale = Math.min(1, document.canvas.width / size.contentWidth, document.canvas.height / size.height);
+              item.width = Math.max(32, Math.floor(size.contentWidth * scale));
+              size.height *= scale;
+            }
             item.height = Math.max(32, Math.min(document.canvas.height, Math.ceil(size.height)));
-            item.y = Math.min(item.y, document.canvas.height - item.height);
           }
         }, { recordHistory: false });
       } catch (error) { report(error.message); }
@@ -55,7 +61,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     for (const entry of entries.values()) positionContentLabel(entry);
   }
   function positionContentLabel(entry) {
-    if (!SCENE_COMPONENTS[entry.host.dataset.component].contentHeight) return;
+    if (!SCENE_COMPONENTS[entry.host.dataset.component].contentHeight && entry.host.dataset.component !== 'gift-sprint') return;
     const space = entry.label.offsetHeight + 6;
     const above = entry.host.offsetTop * scale >= space;
     const below = (canvas.clientHeight - entry.host.offsetTop - entry.host.offsetHeight) * scale >= space;
@@ -124,7 +130,8 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
       if (!item.visible) continue;
       let entry = entries.get(item.id);
       if (!entry) {
-        const component = components.find((value) => value.id === item.type);
+        const component = components.find((value) => value.id === item.type)
+          || (item.type === 'browser' ? createBrowserSourcePreview() : item.type === 'text-box' ? createTextBoxPreview() : null);
         const node = previewElement('div', 'scene-editor-item');
         node.dataset.itemId = item.id;
         node.dataset.component = item.type;
@@ -135,7 +142,8 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
         canvas.append(node);
         const controller = createSceneItemController(model, item.id, component.controller);
         const capabilities = SCENE_COMPONENTS[item.type];
-        const surface = mountComponentPreview(node, { ...component, controller,
+        const mountPreview = item.type === 'browser' ? mountBrowserSourcePreview : mountComponentPreview;
+        const surface = mountPreview(node, { ...component, controller,
           onOpen: undefined, onClose: undefined, onEdit: undefined, bounds: undefined,
           dataModes: undefined,
           startData: component.startLayerData || component.startData,

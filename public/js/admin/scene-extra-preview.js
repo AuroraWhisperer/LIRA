@@ -3,6 +3,7 @@ import { previewElement } from './component-preview-surface.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
+import { COMPONENT_RESOURCE_PRESETS, isExternalComponentStyle } from '../shared/component-resource-style.js';
 
 export function createSceneExtraPreview(type, { controller, startPreviewData } = {}) {
   const definition = SCENE_EXTRA_COMPONENTS[type];
@@ -82,14 +83,21 @@ export function createSceneExtraPreview(type, { controller, startPreviewData } =
           if (previewOnly) {
             previewValues[key] = key === 'userName' ? value.trim() || field.default : value;
             for (const listener of previewListeners) listener();
-          } else target.edit({ [key]: typeof field.default === 'string' ? String(value) : value });
+          } else {
+            const draft = target.getState().draft;
+            const preset = COMPONENT_RESOURCE_PRESETS[draft.resourceStyle?.preset];
+            target.edit({ [key]: typeof field.default === 'string' ? String(value) : value,
+              ...(['style', 'displayStyle'].includes(key) && draft.mediaStyle ? { mediaStyle: null } : {}),
+              ...(['style', 'displayStyle'].includes(key) && preset && !preset.styles.includes(value) ? { resourceStyle: null } : {}) });
+          }
         });
         label.append(input); grid.append(label); fields.set(key, { input, cents });
       }
       host.append(grid);
       if (type === 'opening') host.append(previewElement('p', 'hint',
-        '画面跟随客户端“开播动画”的样式、文案、图片、音乐与总开关；在这里调整位置和大小。'));
-      if (definition.category) host.append(previewElement('p', 'hint', '在客户端“直播小游戏”中开始和管理游戏，这里调整展示画面。'));
+        '文案、图片、音乐与总开关跟随客户端“开播动画”；展示样式可独立选择。'));
+      if (definition.category === '直播小游戏') host.append(previewElement('p', 'hint', '在客户端“直播小游戏”中开始和管理游戏，这里调整展示画面。'));
+      if (type === 'gift-sprint') host.append(previewElement('p', 'hint', '这里显示示例进度。直播画面跟随“礼物 → 月底冲刺”的目标与进度，未设目标时隐藏。'));
       if (type === 'gift-wishes') host.append(previewElement('p', 'hint', '礼物与目标数量在“礼物许愿”中设置。'));
       if (['gift-frame', 'guard-thanks'].includes(type)) host.append(previewElement('p', 'hint',
         '画布循环展示示例；直播仅在触发时播放。请在“礼物姬”中启用对应效果。'));
@@ -100,6 +108,13 @@ export function createSceneExtraPreview(type, { controller, startPreviewData } =
             || type === 'interactions' && ['interactionBarColor', 'interactionTrackColor'].includes(key) && draft.kind !== 'poll'
             || type === 'gift-wishes' && ['textPendingColor', 'textReceivedColor'].includes(key) && !['text', 'original'].includes(draft.displayStyle);
           const value = Object.hasOwn(previewFields, key) ? previewValues[key] : draft[key];
+          if (input.tagName === 'SELECT' && ['style', 'displayStyle'].includes(key)) {
+            const preset = COMPONENT_RESOURCE_PRESETS[draft.resourceStyle?.preset];
+            for (const option of input.options) {
+              option.hidden = isExternalComponentStyle(option.value) && value !== option.value && !preset?.styles.includes(option.value);
+              option.disabled = option.hidden;
+            }
+          }
           if (input.type === 'checkbox') input.checked = value === true || value === 'true';
           else syncComponentFieldValue(input, cents ? Number(value) / 100 : value);
           input.disabled = !loaded;

@@ -9,10 +9,14 @@ const root = path.resolve(__dirname, '..');
 // tests use Node, VM modules and isolated local HTTP/SQLite fixtures.
 const groups = {
   browser: [
+    'admin/canvas-browser-source',
     'admin/canvas-editing',
     'admin/canvas-component-library',
+    'admin/canvas-component-suites',
     'admin/canvas-gift-components',
     'admin/canvas-opening',
+    'admin/canvas-text-box-picker',
+    'admin/component-style-library',
     'admin/component-preview-browser',
     'admin/component-preview-drafts-browser',
     'admin/component-preview-links',
@@ -31,8 +35,8 @@ const groups = {
     'gifts/frontend-gift-wishes',
     'gifts/frontend-gift-assistant',
     'gifts/frontend-guard-thanks',
-    'gifts/frontend-gift-frame-ribbon',
     'overlays/component-source',
+    'scenes/scene-live-updates',
     'scenes/scene-renderer',
     'ui/frontend-toast',
     'admin/ui-edit-state',

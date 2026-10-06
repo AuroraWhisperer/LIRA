@@ -2,9 +2,99 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
+const { createMoonlitZip } = require('../../scripts/package-moonlit-suite');
 const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
+
+test('sprint opens from wishes, saves a canvas layer and follows live goals without child requests', { timeout: 40000 }, async t => {
+  const fixture = await startCanvasOutputFixture({ extraContext: {}, notifications: true });
+  fixture.runtime.giftSprint = { targetRmb: 1000, remainingCrystalBalls: 7 };
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  const childRequests = [];
+  const sockets = [];
+  context.on('page', target => {
+    target.setDefaultTimeout(6000);
+    target.on('pageerror', error => errors.push(error.message));
+    target.on('websocket', socket => sockets.push(socket.url()));
+  });
+  context.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/api/') && request.frame().parentFrame()) childRequests.push(request.url());
+  });
+  t.after(async () => { await browser.close(); await fixture.close();
+    assert.deepEqual(errors, []); assert.deepEqual(childRequests, []); assert.deepEqual(sockets, []); });
+  const desktop = await context.newPage();
+  const page = await context.newPage();
+  await openCanvasDesktop(desktop, fixture);
+  await desktop.evaluate(async html => {
+    document.body.innerHTML = html;
+    document.getElementById('giftWishesPanel').hidden = false;
+    const { initGiftSprintOverlay } = await import('/js/admin/gifts/sprint-overlay.js');
+    initGiftSprintOverlay();
+    window.externalPreviewUrl = '';
+  }, fs.readFileSync('public/pages/admin/toolbox/gift-wishes.html', 'utf8'));
+  await desktop.locator('#giftSprintOverlayPanel > summary').click();
+  for (const file of ['styles-base.css', 'styles-admin.css', 'admin/gift-wishes.css', 'admin/gift-sprint.css']) {
+    await desktop.addStyleTag({ url: `${fixture.origin}/css/${file}` });
+  }
+  await desktop.evaluate(async () => {
+    document.body.style.padding = '24px';
+    const { renderGiftSprintOverlay } = await import('/js/admin/gifts/sprint-overlay.js');
+    renderGiftSprintOverlay({ targetRmb: 1000, remainingCrystalBalls: 7 });
+  });
+  fs.mkdirSync('tmp/gift-sprint-canvas', { recursive: true });
+  await desktop.screenshot({ path: 'tmp/gift-sprint-canvas/wishes.png' });
+  await desktop.locator('#giftSprintPreview').click();
+  await desktop.waitForFunction(() => window.externalPreviewUrl);
+  const url = await desktop.evaluate(() => window.externalPreviewUrl);
+  assert.equal(new URL(url).pathname, '/c');
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const preview = page.frameLocator('.scene-editor-item[data-component="gift-sprint"] iframe');
+  await preview.getByText('还差 100 个水晶球', { exact: true }).waitFor();
+  assert.equal(await page.locator('.scene-editor-item[data-component="gift-sprint"]').count(), 1);
+  const itemBounds = await page.locator('.scene-editor-item[data-component="gift-sprint"]').boundingBox();
+  const labelBounds = await page.locator('.scene-editor-item[data-component="gift-sprint"] .scene-editor-item-label').boundingBox();
+  assert.ok(labelBounds.y + labelBounds.height <= itemBounds.y, 'The canvas label does not cover the sprint text.');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  const saved = fixture.service.list()[0];
+  assert.deepEqual(saved.document.items.map(item => [item.type, item.width, item.height, item.appearance]),
+    [['gift-sprint', 600, 80, { mode: 'independent', config: {} }]]);
+  const source = fixture.service.getSource(saved.document.id);
+  const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
+  assert.equal((await fetch(outputUrl)).status, 200);
+  const output = await context.newPage();
+  await output.goto(outputUrl);
+  const live = output.frameLocator('.scene-version:not(.is-staging) iframe');
+  for (const remainingCrystalBalls of [7, 3, 0, 10]) {
+    fixture.runtime.giftSprint.remainingCrystalBalls = remainingCrystalBalls;
+    fixture.notify({ types: ['gift-sprint'] });
+    await live.getByText(`还差 ${remainingCrystalBalls} 个水晶球`, { exact: true }).waitFor();
+  }
+  fixture.runtime.giftSprint = { targetRmb: 0, remainingCrystalBalls: 0 };
+  fixture.notify({ types: ['gift-sprint'] });
+  await live.locator('#giftSprintText').waitFor({ state: 'hidden' });
+  fixture.runtime.giftSprint = { targetRmb: 1000, remainingCrystalBalls: 2 };
+  fixture.notify({ types: ['gift-sprint'] });
+  await live.getByText('还差 2 个水晶球', { exact: true }).waitFor();
+  await output.route('**/api/scene/output*', route => route.fulfill({ status: 503, json: { ok: false } }));
+  fixture.notify({ types: ['gift-sprint'] });
+  await live.locator('#giftSprintText').waitFor({ state: 'hidden' });
+  await output.unroute('**/api/scene/output*');
+  await live.getByText('还差 2 个水晶球', { exact: true }).waitFor();
+  await desktop.evaluate(() => { window.externalPreviewUrl = ''; });
+  await desktop.locator('#giftSprintPreview').click();
+  await desktop.waitForFunction(() => window.externalPreviewUrl);
+  assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), url);
+  await page.reload();
+  await preview.getByText('还差 100 个水晶球', { exact: true }).waitFor();
+  assert.equal(await page.locator('.scene-editor-item[data-component="gift-sprint"]').count(), 1);
+  await page.screenshot({ path: 'tmp/gift-sprint-canvas/canvas.png' });
+});
 
 test('gift settings open separate canvas layers that save, preview and receive only their live effects', { timeout: 60000 }, async t => {
   const fixture = await startCanvasOutputFixture();
@@ -77,17 +167,7 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await framePreview.getByText('新的观众', { exact: true }).waitFor({ state: 'visible' });
   await framePreview.getByText('打call', { exact: true }).waitFor({ state: 'visible' });
   assert.equal((await framePreview.locator('body').evaluate(() => window.receivedGiftEvents.at(-1))).num, 3);
-  await desktop.locator('#giftFrameRibbonPreviewUser').fill('缎带观众');
-  await desktop.locator('#giftFrameRibbonPreviewGift').fill('梦幻城堡');
-  await desktop.locator('#giftFrameRibbonPreviewNum').fill('6');
-  await open('#giftFrameRibbonPreviewBtn');
-  assert.equal(await page.locator('.scene-editor-item').count(), 1, 'the ribbon effect reuses the same gift frame layer');
-  await framePreview.locator('#giftRibbon.is-playing').waitFor({ state: 'visible' });
-  assert.equal(await framePreview.locator('#giftFrame.is-playing').count(), 0);
-  await framePreview.locator('.ribbon-tag-user').getByText('缎带观众', { exact: true }).waitFor({ state: 'visible' });
-  await framePreview.locator('.ribbon-tag-name').getByText('梦幻城堡', { exact: true }).waitFor({ state: 'visible' });
-  assert.equal(await framePreview.locator('.ribbon-tag-num').textContent(), '×6');
-  assert.equal((await framePreview.locator('body').evaluate(() => window.receivedGiftEvents.at(-1))).themeId, 'satin-ribbon');
+  assert.equal(await desktop.locator('[data-gift-frame-effect]').count(), 1);
   await desktop.locator('#guardThanksPreviewTier').selectOption('admiral');
   await desktop.locator('#guardThanksPreviewUser').fill('上舰观众');
   await desktop.locator('#guardThanksPreviewMonths').fill('6');
@@ -184,4 +264,70 @@ test('gift settings open separate canvas layers that save, preview and receive o
     assert.deepEqual(await child.evaluate(() => window.receivedGiftEvents), [], 'refresh starts at current events');
     assert.equal(await child.evaluate(() => window.__API_TOKEN__), undefined);
   }
+});
+
+test('moonlit wishes save from the canvas picker and render live progress in the browser-source sandbox', { timeout: 30000 }, async t => {
+  const dataDir = fs.mkdtempSync(path.resolve('tmp/moonlit-wishes-'));
+  const wish = { id: 'moon-wish', period: 'long', giftName: '舰长', imagePath: '/img/admin/gifts/bilibili-guard-captain.webp',
+    displayStyle: 'card', target: 50, count: 20, progress: 40, completed: false };
+  const fixture = await startCanvasOutputFixture({ dataDir, notifications: true, extraContext: {
+    gifts: { getViewRevision: () => 'moon-test' },
+    giftWishes: { getSnapshot: async () => ({ items: [{ ...wish }], session: { state: 'live', stale: false } }) },
+  } });
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const desktop = await context.newPage();
+  const page = await context.newPage();
+  const errors = [];
+  for (const target of [desktop, page]) {
+    target.setDefaultTimeout(6000);
+    target.on('pageerror', error => errors.push(error.message));
+  }
+  t.after(async () => {
+    await browser.close(); await fixture.close();
+    fs.rmSync(dataDir, { recursive: true, force: true });
+    assert.deepEqual(errors, []);
+  });
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  await page.locator('[data-category="gift-wishes"]').click();
+  const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
+  const zipPath = path.join(dataDir, 'moonlit.zip');
+  fs.writeFileSync(zipPath, createMoonlitZip());
+  await picker.locator('input[type="file"][accept=".zip"]').setInputFiles(zipPath);
+  const confirm = page.getByRole('dialog', { name: '确认导入套装', exact: true });
+  await confirm.getByRole('button', { name: '导入套装', exact: true }).click();
+  await confirm.waitFor({ state: 'hidden' });
+  await picker.getByRole('button', { name: '添加到画布：月渡花汀 · 礼物许愿', exact: true }).click();
+  const preview = page.frameLocator('.scene-editor-item.is-selected iframe');
+  await preview.locator('.wish-card--moonlit').waitFor();
+  assert.equal(await page.locator('[data-component-parameter="displayStyle"]').inputValue(), 'moonlit');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  const saved = fixture.service.list()[0];
+  assert.equal(saved.document.items[0].appearance.config.displayStyle, 'moonlit');
+  const source = fixture.service.getSource(saved.document.id);
+  const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
+  assert.equal((await fetch(outputUrl)).status, 200);
+  const output = await context.newPage();
+  output.setDefaultTimeout(6000);
+  output.on('pageerror', error => errors.push(error.message));
+  await output.goto(outputUrl);
+  const rendered = output.frameLocator('.scene-version:not(.is-staging) iframe');
+  await rendered.locator('.wish-card--moonlit').waitFor();
+  assert.equal(await rendered.locator('.wish-moon-name').textContent(), '舰长');
+  assert.equal(await rendered.locator('.wish-card-total').textContent(), '20/50');
+  assert.equal(await rendered.locator('[role="progressbar"]').getAttribute('aria-valuenow'), '20');
+  const artwork = saved.document.items[0].appearance.config.resourceStyle.resources['/img/shared/gift-wish-moonlit.webp'];
+  assert.ok((await rendered.locator('.wish-card--moonlit').evaluate(el => getComputedStyle(el).backgroundImage)).includes(artwork));
+  assert.ok(await rendered.locator('.wish-card-image').evaluate(async image => { await image.decode(); return image.naturalWidth > 0; }));
+  await rendered.locator('.wish-card').evaluate(el => { window.liveWishNode = el; });
+  Object.assign(wish, { count: 55, progress: 100, completed: true });
+  fixture.notify({ types: ['gift-wishes'], invalidateTypes: ['gift-wishes'] });
+  await rendered.locator('.wish-card-count').filter({ hasText: '55' }).waitFor();
+  assert.equal(await rendered.locator('.wish-card').evaluate(el => el === window.liveWishNode), true);
+  assert.equal(await rendered.locator('.wish-card').count(), 1);
+  assert.equal(await rendered.locator('[role="progressbar"]').getAttribute('aria-valuenow'), '50');
 });

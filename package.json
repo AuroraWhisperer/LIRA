@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "5.0.20",
+  "version": "5.1.0",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -40,7 +40,8 @@
     "@clamber_l/crypto": "0.1.12",
     "@jixun/qmweb-sign": "2.0.3",
     "electron-updater": "^6.8.4",
-    "qrc-decoder": "1.0.2"
+    "qrc-decoder": "1.0.2",
+    "yauzl": "3.4.0"
   },
   "devDependencies": {
     "electron": "43.2.0",
@@ -67,6 +68,14 @@
       "!public/img/shared/live-refresh-icon.png",
       "!public/img/admin/nav-icons/*.png",
       "!public/img/overlays/opening/**/*",
+      "!public/img/overlays/backgrounds/moonlit*",
+      "!public/img/overlays/opening-moon-fan/**/*",
+      "!public/img/overlays/clock-moonlit-fan/**/*",
+      "!public/img/overlays/danmaku-moonlit/**/*",
+      "!public/img/overlays/danmaku-previews/moonlit.png",
+      "!public/img/shared/gift-wish-moonlit*",
+      "!public/img/component-previews/*moonlit*",
+      "!public/fonts/clock-moon-serif-400.woff2",
       "!public/img/overlays/gift-frame/woodland-bloom/*.png",
       "!public/img/overlays/danmaku-ranked/*.png",
       "!public/img/overlays/danmaku-guard/*.png",

@@ -40,14 +40,18 @@ export function mountSceneTemplateImport(host, { onImport, report }) {
       for (const binding of pending.bindings) {
         const item = pending.document.items.find((entry) => entry.id === binding.itemId);
         const row = previewElement('div', 'scene-editor-binding');
-        const label = previewElement('label', '', `${item.name} · ${{ font: '字体', media: '素材', source: '逻辑来源' }[binding.kind]}`);
-        const value = previewElement(binding.kind === 'source' ? 'input' : 'select');
-        if (binding.kind === 'source') {
+        const label = previewElement('label', '', `${item.name} · ${{ font: '字体', media: '素材', source: '逻辑来源', 'browser-url': '浏览器源地址' }[binding.kind]}`);
+        const value = previewElement(['source', 'browser-url'].includes(binding.kind) ? 'input' : 'select');
+        if (binding.kind === 'browser-url') {
+          value.type = 'url'; value.required = true; value.placeholder = 'https://'; value.autocomplete = 'off';
+          row.append(previewElement('p', 'hint', '模板不包含原浏览器源地址，请重新输入。'));
+        } else if (binding.kind === 'source') {
           value.type = 'text'; value.value = binding.source; value.readOnly = true;
         } else {
           const options = binding.kind === 'font'
             ? binding.component === 'danmaku' ? [['default', '使用样式默认字体']]
               : [['', '移除此字体引用'], ['sans-serif', '系统无衬线字体'], ['serif', '系统衬线字体'], ['monospace', '系统等宽字体']]
+            : binding.component === 'text-box' ? [['', '移除此图片块'], [binding.source, '保留原图片（需在本机可用）']]
             : [['', '移除此素材引用'], ...[...(document.getElementById('overtimeBackgroundPath')?.options || [])]
               .filter((option) => option.value).map((option) => [option.value, option.textContent])];
           for (const [optionValue, text] of options) {
@@ -60,8 +64,9 @@ export function mountSceneTemplateImport(host, { onImport, report }) {
         const confirmation = previewElement('label', 'scene-editor-binding-confirm');
         const checkbox = previewElement('input');
         checkbox.type = 'checkbox';
-        confirmation.append(checkbox, document.createTextNode(binding.kind === 'source'
-          ? '确认绑定到当前账号的此组件' : '确认使用已选择的本机资源或移除引用'));
+        confirmation.append(checkbox, document.createTextNode(binding.kind === 'browser-url'
+          ? '确认使用此浏览器源地址' : binding.kind === 'source'
+            ? '确认绑定到当前账号的此组件' : '确认使用已选择的本机资源或移除引用'));
         row.append(label, confirmation);
         panel.append(row);
         resolutions.set(binding.id, { value, checkbox });

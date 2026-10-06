@@ -1,3 +1,7 @@
+.other-feature-panel-body.gift-assistant {
+  padding-top: var(--spacing-sm);
+}
+
 .gift-assistant [hidden] {
   display: none !important;
 }

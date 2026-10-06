@@ -1,0 +1,4 @@
+@import url('../shared/text-box.css');
+
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+#textBox { width: 640px; transform-origin: top left; }

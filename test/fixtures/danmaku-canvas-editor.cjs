@@ -16,7 +16,7 @@ async function run() {
   const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
   const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
   const { DatabaseSync } = require('node:sqlite');
-  const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
+  const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
   const { createSceneStore } = require('../../src/storage/scene-store');
   const { createSceneService } = require('../../src/scenes/scene-service');
   const { createSceneComponentPorts } = require('../../src/server/scene-components');
@@ -46,6 +46,7 @@ async function run() {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
   migrateComponentOutputSizes(db);
+  migrateCanvasPresets(db);
   const scenes = createSceneService({ store: createSceneStore(db), getOwner: () => ({ scope: 'canvas-test', epoch: 1 }),
     secretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() },

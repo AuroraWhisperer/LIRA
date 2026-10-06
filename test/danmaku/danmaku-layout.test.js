@@ -54,6 +54,19 @@ test('invalid layout values never become a partial valid configuration', () => {
     assert.throws(() => layout.normalizeLayout(invalid), { code: 'INVALID_OVERLAY_LAYOUT' });
 });
 
+test('old nine-style layouts gain only the moonlit default without moving existing regions', () => {
+  const original = layout.resizeCanvas(layout.createLayout(), { width: 1280, height: 720 });
+  const legacy = structuredClone(original);
+  delete legacy.regions.moonlit;
+  legacy.regions.signal.x = 123;
+  const upgraded = layout.normalizeLayout(legacy);
+  assert.deepEqual(upgraded.regions.moonlit, original.regions.moonlit);
+  for (const [style, region] of Object.entries(legacy.regions)) assert.deepEqual(upgraded.regions[style], region);
+  assert.equal(Object.hasOwn(legacy.regions, 'moonlit'), false);
+  delete legacy.regions.signal;
+  assert.throws(() => layout.normalizeLayout(legacy), { code: 'INVALID_OVERLAY_LAYOUT' });
+});
+
 test('Node and browser layout contracts stay identical', () => {
   const root = path.join(__dirname, '../..');
   const browser = fs.readFileSync(path.join(root, 'public/js/shared/danmaku-layout.js'), 'utf8');

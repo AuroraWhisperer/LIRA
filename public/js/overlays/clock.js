@@ -2,8 +2,8 @@
 
 import { createFlipCell } from './clock-flip.js';
 import { createOverlaySocket } from './socket-client.js';
-import { clockConfigFromSettings } from '../shared/clock-settings.js';
-import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
+import { clockConfigFromSettings, readClockMoonConfig } from '../shared/clock-settings.js';
+import { createComponentPreviewClient, isComponentPreview, isSceneComponent } from './component-preview-client.js';
 import { componentOutputViewport, watchComponentOutputSize } from './component-output-size.js';
 
 const CLOCK_STYLE_VALUES = new Set([
@@ -15,6 +15,7 @@ const CLOCK_STYLE_VALUES = new Set([
   'digital',
   'orbit',
   'flip',
+  'moonlit-fan',
 ]);
 const DEFAULT_LABELS = Object.freeze({
   peach: '今天也要闪闪发光',
@@ -25,10 +26,11 @@ const DEFAULT_LABELS = Object.freeze({
   digital: '',
   orbit: '',
   flip: '',
+  'moonlit-fan': '',
 });
 const FLIP_COLORS = Object.freeze({ flipFrameColor: '#e4e4e4', flipFaceColor: '#ffffff', flipTextColor: '#303030' });
 const MAX_LABEL_LENGTH = 16;
-const CLOCK_FRAME_GUTTER = 20;
+const CLOCK_FRAME_GUTTER = 8;
 const CLOCK_LAYOUTS = Object.freeze({
   peach: Object.freeze({ width: 560, height: 190 }),
   starlight: Object.freeze({ width: 560, height: 190 }),
@@ -38,6 +40,7 @@ const CLOCK_LAYOUTS = Object.freeze({
   digital: Object.freeze({ width: 560, height: 190 }),
   orbit: Object.freeze({ width: 560, height: 190 }),
   flip: Object.freeze({ width: 560, height: 190 }),
+  'moonlit-fan': Object.freeze({ width: 560, height: 360 }),
 });
 
 function readFlipColors(source) {
@@ -53,11 +56,32 @@ function clockLayoutForStyle(style = 'peach') {
   return CLOCK_LAYOUTS[CLOCK_STYLE_VALUES.has(style) ? style : 'peach'];
 }
 
-function clockScaleForViewport(width, height, style = 'peach') {
-  const layout = clockLayoutForStyle(style);
+function clockScaleForViewport(width, height, style = 'peach', layout = clockLayoutForStyle(style)) {
   const widthScale = Math.max(0, width - CLOCK_FRAME_GUTTER) / layout.width;
   const heightScale = Math.max(0, height - CLOCK_FRAME_GUTTER) / layout.height;
   return Math.min(widthScale, heightScale);
+}
+
+function clockContentBounds(card) {
+  const style = card.dataset.clockStyle;
+  const layout = clockLayoutForStyle(style);
+  if (['peach', 'starlight', 'soda', 'moonlit-fan'].includes(style)) return { x: 0, y: 0, ...layout };
+  const selectors = style === 'flip'
+    ? '.clock-content, .clock-period'
+    : '.clock-year, .clock-time > *, .clock-date-row > *, .clock-period, .clock-orbit-art use';
+  const origin = card.getBoundingClientRect();
+  const scale = Number(card.style.getPropertyValue('--clock-scale')) || 1;
+  const rects = [...card.querySelectorAll(selectors)].map((node) => node.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0);
+  const left = Math.min(...rects.map((rect) => rect.left));
+  const top = Math.min(...rects.map((rect) => rect.top));
+  const unscale = (value) => Math.round(value / scale * 1000) / 1000;
+  return {
+    x: unscale(left - origin.left),
+    y: unscale(top - origin.top),
+    width: unscale(Math.max(...rects.map((rect) => rect.right)) - left),
+    height: unscale(Math.max(...rects.map((rect) => rect.bottom)) - top),
+  };
 }
 
 function booleanParameter(params, key, fallback) {
@@ -80,13 +104,15 @@ function cleanLabel(value, fallback) {
 function readClockConfig(params) {
   const requestedStyle = params.get('style');
   const style = CLOCK_STYLE_VALUES.has(requestedStyle) ? requestedStyle : 'peach';
+  const source = Object.fromEntries(params);
   return {
     style,
     showDate: booleanParameter(params, 'date', true),
     showSeconds: booleanParameter(params, 'seconds', true),
     hour12: params.get('format') === '12',
     label: cleanLabel(params.get('label'), DEFAULT_LABELS[style]),
-    ...readFlipColors(Object.fromEntries(params)),
+    ...readFlipColors(source),
+    ...readClockMoonConfig(source),
   };
 }
 
@@ -100,6 +126,7 @@ function normalizeSavedClockConfig(value) {
     hour12: source.hourFormat === '12',
     label: cleanLabel(source.label, DEFAULT_LABELS[style]),
     ...readFlipColors(source),
+    ...readClockMoonConfig(source),
   };
 }
 
@@ -111,6 +138,8 @@ function mergeClockConfig(savedConfig, queryConfig, params) {
     showDate: params.has('date') ? queryConfig.showDate : saved.showDate,
     showSeconds: params.has('seconds') ? queryConfig.showSeconds : saved.showSeconds,
     hour12: params.has('format') ? queryConfig.hour12 : saved.hour12,
+    moonMode: params.has('moonMode') ? queryConfig.moonMode : saved.moonMode,
+    moonIntervalSeconds: params.has('moonIntervalSeconds') ? queryConfig.moonIntervalSeconds : saved.moonIntervalSeconds,
     ...Object.fromEntries(Object.keys(FLIP_COLORS).map((key) => [key, params.has(key) ? queryConfig[key] : saved[key]])),
     label: params.has('label')
       ? cleanLabel(params.get('label'), DEFAULT_LABELS[style])
@@ -161,6 +190,7 @@ async function initClock() {
   const queryConfig = readClockConfig(params);
   const completeQuery = ['style', 'date', 'seconds', 'format'].every((key) => params.has(key));
   const componentPreview = isComponentPreview();
+  const editingPreview = componentPreview && !isSceneComponent();
   const legacyPreview = window.parent !== window && completeQuery;
   let config = mergeClockConfig(null, queryConfig, params);
   let stateRevision = 0;
@@ -168,6 +198,11 @@ async function initClock() {
   let clockStarted = false;
   let socketController = null;
   let stopOutputSize = null;
+  let previewClient = null;
+  let previousSize = '';
+  let previousBounds = null;
+  let previousViewportWidth = 0;
+  let contentWidth = 0;
   let formatters = createClockFormatters(config);
   const card = document.getElementById('clockCard');
   const timeNode = document.getElementById('clockTime');
@@ -195,11 +230,29 @@ async function initClock() {
   }
 
   function syncCardScale() {
+    if (card.hidden) return;
+    const decorated = document.documentElement.dataset.mediaStyle === 'clock';
+    if (decorated) return;
     const viewport = componentOutputViewport();
-    card.style.setProperty(
-      '--clock-scale',
-      String(clockScaleForViewport(viewport.width, viewport.height, config.style)),
-    );
+    const bounds = clockContentBounds(card);
+    if (!previousBounds || viewport.width !== previousViewportWidth) contentWidth = viewport.width;
+    if (editingPreview && previousBounds && Math.abs(bounds.width - previousBounds.width) > 0.1) {
+      contentWidth = (contentWidth - CLOCK_FRAME_GUTTER) * bounds.width / previousBounds.width + CLOCK_FRAME_GUTTER;
+    }
+    if (editingPreview) contentWidth = Math.round(contentWidth);
+    previousBounds = bounds;
+    previousViewportWidth = viewport.width;
+    const scale = clockScaleForViewport(contentWidth, editingPreview ? Infinity : viewport.height, config.style, bounds);
+    card.style.setProperty('--clock-offset-x', `${-bounds.x}px`);
+    card.style.setProperty('--clock-offset-y', `${-bounds.y}px`);
+    card.style.setProperty('--clock-scale', String(scale));
+    const size = { width: Math.round(viewport.width), contentWidth: Math.round(contentWidth),
+      height: Math.ceil(bounds.height * scale + CLOCK_FRAME_GUTTER) };
+    const key = JSON.stringify(size);
+    if (editingPreview && key !== previousSize) {
+      previousSize = key;
+      previewClient.resize(size);
+    }
   }
 
   function applyConfig(nextConfig) {
@@ -219,9 +272,8 @@ async function initClock() {
     periodNode.hidden = !config.hour12;
     yearNode.hidden = !config.showDate;
     dateRow.hidden = !config.showDate;
-    syncCardScale();
-    render();
     card.hidden = false;
+    render();
     if (styleChanged) {
       styleTransition?.cancel();
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -248,13 +300,19 @@ async function initClock() {
 
   function render() {
     const now = new Date();
+    if (config.style === 'moonlit-fan') {
+      const tone = config.moonMode === 'auto'
+        ? (Math.floor(now.getTime() / (config.moonIntervalSeconds * 1000)) % 2 === 0 ? 'light' : 'dark')
+        : config.moonMode;
+      if (card.dataset.moonTone !== tone) card.dataset.moonTone = tone;
+    }
     const parts = formatters.time.formatToParts(now);
     const hours = partValue(parts, 'hour', '00').padStart(2, '0');
     const minutes = partValue(parts, 'minute', '00').padStart(2, '0');
     const seconds = partValue(parts, 'second', '00').padStart(2, '0');
     const period = partValue(parts, 'dayPeriod');
 
-    periodNode.textContent = ['digital', 'flip', 'orbit'].includes(config.style)
+    periodNode.textContent = ['digital', 'flip', 'orbit', 'moonlit-fan'].includes(config.style)
       ? (now.getHours() < 12 ? 'AM' : 'PM')
       : period;
     const dateParts = formatters.date.formatToParts(now);
@@ -290,6 +348,7 @@ async function initClock() {
     }
     timeNode.dateTime = now.toISOString();
     timeNode.setAttribute('aria-label', `${hours}点${minutes}分${config.showSeconds ? `${seconds}秒` : ''}`);
+    syncCardScale();
   }
 
   function schedule() {
@@ -323,7 +382,7 @@ async function initClock() {
   }
   window.addEventListener('pagehide', dispose, { once: true });
   if (componentPreview) {
-    createComponentPreviewClient({ onConfig: (value) => showConfig(normalizeSavedClockConfig(value)), onDispose: dispose });
+    previewClient = createComponentPreviewClient({ onConfig: (value) => showConfig(normalizeSavedClockConfig(value)), onDispose: dispose });
     return;
   }
   if (legacyPreview) { showConfig(config); return; }

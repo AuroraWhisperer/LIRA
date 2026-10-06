@@ -5,7 +5,7 @@ const TOKEN_LABELS = {
   '{目标}': '目标数量',
 };
 
-function createContent(value) {
+function createContent(value, tokenLabels) {
   const content = document.createElement('div');
   for (const part of value.split(/(\{(?:图片|礼物|已收|目标)\})/u)) {
     if (!part) continue;
@@ -17,7 +17,7 @@ function createContent(value) {
     token.className = 'gift-wish-text-token';
     token.contentEditable = 'false';
     token.dataset.wishToken = part;
-    token.textContent = TOKEN_LABELS[part];
+    token.textContent = tokenLabels[part];
     content.append(token);
   }
   return content;
@@ -39,6 +39,7 @@ function readContent(node) {
 
 export function createWishTextEditor(editor, input) {
   let savedRange = null;
+  let tokenLabels = TOKEN_LABELS;
   const selection = () => window.getSelection();
   const disabled = () => editor.contentEditable !== 'true';
 
@@ -103,7 +104,7 @@ export function createWishTextEditor(editor, input) {
     selectRange(range);
     // Native editing commands keep typing, chip insertion and paste in Chromium's undo history.
     // HTML is built only from text nodes and the fixed token vocabulary above.
-    document.execCommand('insertHTML', false, createContent(value.replace(/\r\n?/g, '\n')).innerHTML);
+    document.execCommand('insertHTML', false, createContent(value.replace(/\r\n?/g, '\n'), tokenLabels).innerHTML);
   }
 
   editor.addEventListener('input', sync);
@@ -149,8 +150,18 @@ export function createWishTextEditor(editor, input) {
 
   return {
     insert,
+    setContext({ giftName, count, target }) {
+      const values = { '{图片}': giftName, '{礼物}': giftName, '{已收}': count, '{目标}': target };
+      tokenLabels = Object.fromEntries(
+        Object.entries(TOKEN_LABELS).map(([token, label]) => [token, `${label}·${values[token]}`]),
+      );
+      for (const token of editor.querySelectorAll('[data-wish-token]')) {
+        const label = tokenLabels[token.dataset.wishToken];
+        if (token.textContent !== label) token.textContent = label;
+      }
+    },
     setValue(value) {
-      editor.replaceChildren(...createContent(value).childNodes);
+      editor.replaceChildren(...createContent(value, tokenLabels).childNodes);
       input.value = value;
       savedRange = null;
     },

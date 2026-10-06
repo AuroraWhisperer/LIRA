@@ -45,6 +45,7 @@ export function openComponentPreview(selected = null) {
     const requested = ++focusGeneration;
     try {
       const selectedId = next?.id || null;
+      const selectedItemId = next?.selectedItemId;
       let selectedSize = null;
       const canvas = connections.find(({ options }) => options.id === 'canvas');
       if (next && !sceneOnly(next) && canvas?.options.getComponentSize && !canvas.options.controller.getState().draft.document.items
@@ -54,14 +55,15 @@ export function openComponentPreview(selected = null) {
       }
       if (closed || requested !== focusGeneration) return;
       const sizeKey = JSON.stringify(selectedSize);
-      let entry = entryLinks.get(selectedId);
+      const selectionKey = JSON.stringify([selectedId, selectedItemId, canvas?.options.controller.getState().draft.document.id]);
+      let entry = entryLinks.get(selectionKey);
       if (!entry || entry.sizeKey !== sizeKey) {
         entry = { sizeKey, promise: post({ action: 'link', links: connections.map(({ session }) => session),
-          selectedId, selectedSize }).then(({ data }) => data.key).catch((error) => {
-          if (entryLinks.get(selectedId) === entry) entryLinks.delete(selectedId);
+          selectedId, selectedSize, ...(selectedItemId === undefined ? {} : { selectedItemId }) }).then(({ data }) => data.key).catch((error) => {
+          if (entryLinks.get(selectionKey) === entry) entryLinks.delete(selectionKey);
           throw error;
         }) };
-        entryLinks.set(selectedId, entry);
+        entryLinks.set(selectionKey, entry);
       }
       const url = new URL('/c', localOverlayOrigin());
       url.hash = await entry.promise;
@@ -97,13 +99,13 @@ export function openComponentPreview(selected = null) {
         if (command.action === 'edit') controller.edit(command.change);
         else if (command.action === 'discard') controller.discard();
         else if (command.action === 'save') void controller.save();
-        else if (connection.options.id === 'canvas' && ['publish', 'source'].includes(command.action)) {
+        else if (connection.options.id === 'canvas' && ['publish', 'source', 'preset'].includes(command.action)) {
           connection.display = { sequence: command.sequence, busy: true };
           void (async () => {
             try {
               const action = connection.options[command.action];
               if (!action) throw new Error('请从客户端重新打开场景编辑器。');
-              const result = await action();
+              const result = await action(command.change);
               connection.display = { sequence: command.sequence, busy: false, result };
             } catch (error) {
               connection.display = { sequence: command.sequence, busy: false, error: error.message };

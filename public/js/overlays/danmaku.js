@@ -75,17 +75,23 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       renderData: sceneDisplay.update,
       renderSamples(style, options, duration) {
-        const samples = previewItems().filter((item) =>
+        const samples = previewItems(style).filter((item) =>
           !isRandomDanmakuStyle(style) || item.kind !== 'superchat');
         clearTimeout(previewTimer);
         applyConfiguration(style, duration, options, true);
         applyItems([]);
         let remainingSamples = [];
+        // Show both thank-you compositions immediately when this theme opens.
+        const openingSamples = style === 'moonlit'
+          ? [samples.find((item) => item.kind === 'gift' && !item.giftGuardLevel),
+            samples.find((item) => item.giftGuardLevel === 3)] : [];
         playNext = () => {
           if (document.hidden) return;
           // Draw without replacement so every SC tier appears before the next round.
           if (!remainingSamples.length) remainingSamples = [...samples];
-          const [sample] = remainingSamples.splice(Math.floor(Math.random() * remainingSamples.length), 1);
+          const opening = openingSamples.shift();
+          const index = opening ? remainingSamples.indexOf(opening) : Math.floor(Math.random() * remainingSamples.length);
+          const [sample] = remainingSamples.splice(index, 1);
           previewSequence += 1;
           appendItem({ ...sample, id: `${sample.id}-${previewSequence}`, timestamp: Date.now() });
           const delay = PREVIEW_MESSAGE_MIN_DELAY_MS
@@ -220,7 +226,7 @@ function createOverlayFeed(style, durationSeconds) {
         : '',
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'glow'].includes(style),
-    showGiftTotal: ['transparent', 'cream'].includes(style),
+    showGiftTotal: ['transparent', 'cream', 'moonlit'].includes(style),
   };
   if (isRandomDanmakuStyle(style)) {
     options.layout = 'fullscreen-random';
@@ -334,7 +340,7 @@ export function describeDanmakuConnection(liveStatus, localConnected) {
   };
 }
 
-function previewItems() {
+function previewItems(style) {
   const emotes = [
     {
       text: '[打call]',
@@ -407,6 +413,11 @@ function previewItems() {
       giftTotalPrice: giftCount / 10,
       giftImageUrl: '/img/gift-placeholder.png',
     })),
+    ...(style === 'moonlit' ? [3, 2, 1].map((giftGuardLevel) => ({
+      id: `preview-guard-${giftGuardLevel}`, kind: 'gift', name: ['金色航线', '云端来信', '阿沐'][giftGuardLevel - 1],
+      giftName: guardLabel(giftGuardLevel), giftCount: 1, giftGuardLevel,
+      avatarUrl: '/img/overlays/danmaku-ranked/viewer.webp',
+    })) : []),
     ...[
       [2, '橘子汽水', '这首好听！'],
       [30, '晚风来信', '今天的歌单太喜欢了，这首可以再唱一次吗？'],

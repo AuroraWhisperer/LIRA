@@ -1,0 +1,379 @@
+/* 月渡花汀：身份底色保留；纸面先展开，外围装饰随后显现。 */
+body[data-style='moonlit'] {
+  --moonlit-font: 'Songti SC', 'SimSun', 'Noto Serif CJK SC', serif;
+}
+body[data-style='moonlit'] .danmaku-signal-header { display: none; }
+body[data-style='moonlit'] .draw-danmaku-feed { gap: 14px; zoom: var(--ranked-scale); }
+body[data-style='moonlit'] .draw-danmaku-item {
+  --moonlit-ink: #505661;
+  --moonlit-deep: #303640;
+  --moonlit-pale: #dce0e4;
+  --moonlit-hue: 0deg;
+  --gift-ink: #2e4b5b;
+  --gift-accent: #365b71;
+  --gift-name: #2e4b5b;
+  width: 600px;
+  min-width: 600px;
+  max-width: 600px;
+  min-height: 84px;
+  padding: 6px 42px 12px 34px;
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  isolation: isolate;
+  overflow: visible;
+  animation: none;
+}
+body[data-style='moonlit'] .draw-danmaku-item[data-identity='captain'] {
+  --moonlit-ink: #41677e;
+  --moonlit-deep: #203e51;
+  --moonlit-pale: #d5e8f0;
+}
+body[data-style='moonlit'] .draw-danmaku-item[data-identity='admiral'] {
+  --moonlit-ink: #76617f;
+  --moonlit-deep: #44334d;
+  --moonlit-pale: #eee0f2;
+  --moonlit-hue: 66deg;
+}
+body[data-style='moonlit'] .draw-danmaku-item[data-identity='governor'] {
+  --moonlit-ink: #984f60;
+  --moonlit-deep: #5b2634;
+  --moonlit-pale: #f6e1e2;
+  --moonlit-hue: 133deg;
+}
+body[data-style='moonlit'] .draw-danmaku-item::after { display: none; }
+.moonlit-brush {
+  position: absolute;
+  inset: 27px 42px 17px 64px;
+  z-index: -2;
+  background: var(--moonlit-deep);
+  opacity: var(--danmaku-background-opacity, 1);
+}
+.moonlit-ink-sweep {
+  position: absolute;
+  inset: 17px 0 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--moonlit-ink), var(--moonlit-deep) 35%, var(--moonlit-deep) 90%, var(--moonlit-ink));
+  mask: url('/img/overlays/danmaku-moonlit/brush.webp') center / 100% 100% no-repeat;
+  opacity: var(--danmaku-background-opacity, 1);
+  animation: moonlitRevealAcross 1600ms 500ms cubic-bezier(.25, .1, .55, 1) both;
+}
+.moonlit-chat:is([data-identity='viewer'], [data-identity='fan']) .moonlit-ink-sweep { background: var(--moonlit-ink); }
+body[data-style='moonlit'] .draw-danmaku-avatar {
+  position: relative;
+  align-self: start;
+  width: 66px;
+  height: 66px;
+  margin: 0;
+  border: 2px solid #f4f2e8;
+  border-radius: 50%;
+  outline: 1px solid var(--moonlit-ink);
+  outline-offset: 3px;
+  clip-path: none;
+  background-color: #d5e1e5;
+}
+body[data-style='moonlit'] .draw-danmaku-body { align-self: start; }
+body[data-style='moonlit'] .draw-danmaku-identity {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 14px;
+  margin: -3px 0 4px -8px;
+  border-radius: 16px;
+  color: #fffaf2;
+  background: var(--moonlit-ink);
+}
+body[data-style='moonlit'] .draw-danmaku-identity strong {
+  color: inherit;
+  font: 500 18px/1.25 var(--moonlit-font);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body[data-style='moonlit'] .draw-danmaku-badge { padding: 0; border: 0; color: var(--moonlit-pale); background: none; }
+body[data-style='moonlit'] :is(.draw-danmaku-guard, .draw-danmaku-medal-name) { display: none; }
+body[data-style='moonlit'] .draw-danmaku-body p {
+  margin: 0;
+  color: #fffaf2;
+  font: 600 var(--danmaku-font-size)/1.35 var(--moonlit-font);
+}
+.moonlit-guard-icon {
+  position: absolute;
+  z-index: 3;
+  left: 77px;
+  top: 44px;
+  width: 34px;
+  height: 38px;
+  background: var(--moonlit-icon) center / contain no-repeat;
+}
+.moonlit-icon-captain { --moonlit-icon: url('/img/overlays/danmaku-moonlit/captain.webp'); }
+.moonlit-icon-admiral { --moonlit-icon: url('/img/overlays/danmaku-moonlit/admiral.webp'); }
+.moonlit-icon-governor { --moonlit-icon: url('/img/overlays/danmaku-moonlit/governor.webp'); }
+.moonlit-chat-flowers {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  right: 0;
+  bottom: 0;
+  width: 84px;
+  height: 58px;
+  background: url('/img/overlays/danmaku-moonlit/flowers.webp') right bottom / contain no-repeat;
+  filter: hue-rotate(var(--moonlit-hue));
+  animation: moonlitRevealAcross 1600ms 500ms cubic-bezier(.25, .1, .55, 1) both;
+}
+.moonlit-chat:is([data-identity='viewer'], [data-identity='fan']) .moonlit-chat-flowers { display: none; }
+
+/* The paper grows with the message; flowers and the roller keep their proportions. */
+body[data-style='moonlit'] .draw-danmaku-item:is(.moonlit-scroll, .moonlit-guard) {
+  display: block;
+  width: 600px;
+  min-width: 600px;
+  max-width: 600px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+  zoom: 1;
+}
+.moonlit-scroll {
+  --moonlit-scroll-left: 41px;
+  --moonlit-scroll-right: 29px;
+  --moonlit-scroll-travel: calc(600px - var(--moonlit-scroll-left) - var(--moonlit-scroll-right));
+}
+.moonlit-scroll-paper {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  min-height: 150px;
+  margin-inline: var(--moonlit-scroll-left) var(--moonlit-scroll-right);
+  padding: 34px calc(58px - var(--moonlit-scroll-right)) 36px calc(72px - var(--moonlit-scroll-left));
+  animation: moonlitScrollOpen 1400ms cubic-bezier(.22, .61, .36, 1) both;
+}
+.moonlit-scroll-paper::before {
+  content: '';
+  position: absolute;
+  inset: 22px 0 24px 5px;
+  z-index: -1;
+  background: #f5f4ed;
+  opacity: var(--danmaku-background-opacity, 1);
+}
+.moonlit-scroll-ink, .moonlit-scroll-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: moonlitRevealAcross 1200ms 1400ms cubic-bezier(.22, .61, .36, 1) both;
+}
+.moonlit-scroll-ink { z-index: -1; }
+.moonlit-scroll-decoration { z-index: 3; }
+.moonlit-scroll-decoration::before {
+  content: '';
+  position: absolute;
+  inset: 22px 28px 24px 50px;
+  border: 5px double #7896a5;
+  opacity: var(--danmaku-background-opacity, 1);
+}
+.moonlit-scroll-ink::before {
+  content: '';
+  position: absolute;
+  inset: 15px 10px 16px 28px;
+  background: #547386;
+  mask: url('/img/overlays/danmaku-moonlit/brush.webp') center / 100% 100% no-repeat;
+  opacity: var(--danmaku-background-opacity, 1);
+}
+body[data-style='moonlit'] .moonlit-scroll .draw-danmaku-body { display: block; grid-area: auto; min-height: 0; padding: 0; }
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-avatar, .sc-avatar) {
+  grid-area: auto;
+  align-self: start;
+  width: 64px;
+  height: 68px;
+  margin: 0;
+  border: 1px solid #94a9b3;
+  border-radius: 0;
+  outline: 2px solid #f6f6ef;
+  outline-offset: 1px;
+  background-color: #dce7e7;
+  color: #365b71;
+}
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-identity, .moonlit-scroll-head) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 3px 10px;
+  width: 100%;
+  margin: 0 0 5px;
+  padding: 2px 9px;
+  border-radius: 12px;
+  background: #c6d8df;
+  color: #294454;
+}
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-identity strong, .sc-name) {
+  flex: 1 1 0;
+  color: inherit;
+  font: 500 16px/1.3 var(--moonlit-font);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-gift-amount, .sc-money) {
+  margin-left: auto;
+  color: #365b71;
+  font: 500 17px/1.2 var(--danmaku-num-font);
+  font-variant-numeric: tabular-nums;
+}
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-gift, .sc-copy) {
+  display: block;
+  margin: 0;
+  padding: 0 2px;
+  color: #2e4b5b;
+  font: 500 var(--danmaku-font-size)/1.4 var(--moonlit-font);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+body[data-style='moonlit'] .moonlit-scroll .draw-danmaku-gift-copy {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 9px;
+}
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-gift-name, .draw-danmaku-gift-count) { font: inherit; color: inherit; }
+body[data-style='moonlit'] .moonlit-scroll .draw-danmaku-gift-count { font-family: var(--danmaku-num-font); }
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-gift-amount, .sc-money) { flex: 0 0 auto; white-space: nowrap; }
+body[data-style='moonlit'] .moonlit-scroll .draw-danmaku-gift-art:not(.has-image) { display: none; }
+body[data-style='moonlit'] .moonlit-scroll .draw-danmaku-gift-art.has-image {
+  position: static;
+  float: right;
+  width: 42px;
+  height: 42px;
+  margin: 0 0 5px 8px;
+  transform: none;
+}
+.moonlit-scroll-roller {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  bottom: 16px;
+  left: calc(var(--moonlit-scroll-left) - 9px);
+  width: 18px;
+  background: url('/img/overlays/danmaku-moonlit/scroll-roller.webp') center / 100% 100% no-repeat;
+  pointer-events: none;
+  transform: translateX(0);
+  animation: moonlitRollerOpen 1400ms cubic-bezier(.22, .61, .36, 1) both;
+}
+.moonlit-scroll-flowers {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+  background: url('/img/overlays/danmaku-moonlit/flowers.webp') right bottom / 100px auto no-repeat;
+}
+.moonlit-scroll-flowers::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: var(--moonlit-scroll-left);
+  width: 74px;
+  height: 40px;
+  background: url('/img/overlays/danmaku-moonlit/flowers.webp') center / contain no-repeat;
+  transform: rotate(-12deg);
+}
+
+/* Central portrait and diagonal two-glyph titles follow the supplied reference. */
+body[data-style='moonlit'] .draw-danmaku-item.moonlit-guard {
+  min-height: 238px;
+  padding: 194px 112px 8px;
+}
+.moonlit-guard-scene {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 216px;
+  animation: moonlitRevealDown 1450ms cubic-bezier(.25, .1, .55, 1) both;
+}
+.moonlit-guard-landscape {
+  position: absolute;
+  inset: 0;
+  background: url('/img/overlays/danmaku-moonlit/guard-landscape.webp') center / contain no-repeat;
+  filter: hue-rotate(var(--moonlit-hue));
+  opacity: var(--danmaku-background-opacity, 1);
+}
+body[data-style='moonlit'] .moonlit-guard .draw-danmaku-avatar {
+  position: absolute;
+  left: 243px;
+  top: 61px;
+  width: 114px;
+  height: 114px;
+  margin: 0;
+  border: 3px solid #f4f2e8;
+  outline: 1px solid var(--moonlit-ink);
+}
+.moonlit-guard .moonlit-guard-icon { left: 219px; top: 51px; width: 44px; height: 50px; }
+.moonlit-guard-lettering {
+  position: relative;
+  margin: -194px -112px -8px;
+  padding: 194px 112px 8px;
+  min-height: 238px;
+  animation: moonlitRevealAcross 1550ms 1500ms cubic-bezier(.25, .1, .55, 1) both;
+}
+.moonlit-guard-title, .moonlit-guard-action {
+  position: absolute;
+  top: 84px;
+  width: 94px;
+  height: 102px;
+  color: #fffaf2;
+  font: 400 52px/1 var(--moonlit-font);
+  text-shadow: 0 2px 5px var(--moonlit-deep), 0 1px 1px var(--moonlit-deep);
+}
+.moonlit-guard-title { left: 149px; }
+.moonlit-guard-action { right: 135px; top: 95px; }
+.moonlit-guard-title span, .moonlit-guard-action span { position: absolute; left: 0; top: 0; }
+.moonlit-guard-title span + span, .moonlit-guard-action span + span { left: 29px; top: 37px; }
+.moonlit-guard-name {
+  position: relative;
+  isolation: isolate;
+  padding: 4px 24px 6px;
+  color: #fffaf2;
+  font: 500 24px/1.35 var(--moonlit-font);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.moonlit-guard-name::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, var(--moonlit-ink) 12%, var(--moonlit-ink) 88%, transparent);
+  border-block: 1px solid var(--moonlit-pale);
+  opacity: var(--danmaku-background-opacity, 1);
+}
+.moonlit-birds { position: absolute; inset: 0; pointer-events: none; }
+.moonlit-bird {
+  position: absolute;
+  top: 44px;
+  right: 105px;
+  width: 83px;
+  height: 54px;
+  background: url('/img/overlays/danmaku-moonlit/crane.webp') center / contain no-repeat;
+}
+.moonlit-bird:nth-child(2) { top: 66px; right: 62px; width: 57px; height: 38px; transform: rotate(12deg); }
+.moonlit-bird:nth-child(3) { top: 34px; right: 39px; width: 41px; height: 28px; transform: rotate(-8deg); }
+body[data-style='moonlit'] .draw-danmaku-empty { display: none; }
+@keyframes moonlitRevealAcross { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes moonlitRevealDown { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+@keyframes moonlitScrollOpen { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0); } }
+@keyframes moonlitRollerOpen {
+  from { transform: translateX(var(--moonlit-scroll-travel)); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='moonlit'] *, body[data-style='moonlit'] *::before, body[data-style='moonlit'] *::after { animation: none !important; }
+}

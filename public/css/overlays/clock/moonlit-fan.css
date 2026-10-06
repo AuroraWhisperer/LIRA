@@ -1,0 +1,221 @@
+/* 月渡花汀：银蓝山水折扇、花枝与月轮，沿用开播主题原画。 */
+@font-face {
+  font-family: 'Lira Moon Serif';
+  src: url('/fonts/clock-moon-serif-400.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+.clock-moon-art {
+  display: none;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] {
+  --moon-ink: #253553;
+  --moon-secondary: #516889;
+  --moon-date-ink: #425b7e;
+  --moon-rule: #b5c5d9;
+  --moon-accent: #8199b8;
+  --moon-paper: #fff;
+  --moon-rim: #acbcd0;
+  --moon-inner-rim: rgb(164 184 209 / 65%);
+  --moon-rim-light: rgb(253 254 255 / 70%);
+  width: 560px;
+  height: 360px;
+  aspect-ratio: 14 / 9;
+  color: var(--moon-ink);
+  background: transparent;
+  font-family: 'Lira Moon Serif', 'Songti SC', 'SimSun', serif;
+}
+
+.clock-card[data-clock-style='moonlit-fan'][data-moon-tone='dark'] {
+  --moon-ink: #edf5ff;
+  --moon-secondary: #bdcfe9;
+  --moon-date-ink: #c5d5ed;
+  --moon-rule: #647e9f;
+  --moon-accent: #a6bddc;
+  --moon-paper: #203956;
+  --moon-rim: #7691b3;
+  --moon-inner-rim: rgb(176 200 234 / 45%);
+  --moon-rim-light: rgb(155 184 224 / 22%);
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-moon-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.clock-moon-art > i {
+  position: absolute;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-moon-fan {
+  top: 66px;
+  left: 6px;
+  width: 334px;
+  height: 223px;
+  background-image: url('/img/overlays/opening-moon-fan/fan.webp');
+  transform: rotate(-24deg);
+  filter: drop-shadow(0 4px 5px rgb(27 48 79 / 18%));
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-moon-branch {
+  top: 8px;
+  right: 20px;
+  width: 164px;
+  height: 128px;
+  background-image: url('/img/overlays/opening-moon-fan/flowers-ne.webp');
+  transform: rotate(19deg);
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-moon-face {
+  top: 18px;
+  left: 152px;
+  width: 316px;
+  height: 316px;
+  border: 1px solid var(--moon-rim);
+  border-radius: 50%;
+  background-color: var(--moon-paper);
+  background-image: url('/img/overlays/clock-moonlit-fan/moon-landscape.webp');
+  background-blend-mode: multiply;
+  box-shadow: inset 0 0 0 4px var(--moon-rim-light);
+  filter: drop-shadow(0 5px 6px rgb(30 48 77 / 16%));
+}
+
+.clock-moon-face::before {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid var(--moon-inner-rim);
+  border-radius: inherit;
+  content: '';
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-moon-jewel {
+  top: 181px;
+  right: 56px;
+  width: 43px;
+  height: 161px;
+  background-image: url('/img/overlays/opening-moon-fan/jewel-left.webp');
+  transform-origin: 50% 0;
+  animation: clock-moon-sway 10s ease-in-out infinite;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-moon-flowers-left {
+  left: 35px;
+  bottom: 0;
+  width: 267px;
+  height: 164px;
+  background-image: url('/img/overlays/opening-moon-fan/flowers-sw.webp');
+  transform: rotate(-9deg);
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-moon-flowers-right {
+  right: 7px;
+  bottom: 26px;
+  width: 138px;
+  height: 164px;
+  background-image: url('/img/overlays/opening-moon-fan/flowers-se.webp');
+  transform: rotate(8deg);
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-sparkles,
+.clock-card[data-clock-style='moonlit-fan'] .clock-peach-mascot,
+.clock-card[data-clock-style='moonlit-fan'] .clock-night-mascot,
+.clock-card[data-clock-style='moonlit-fan'] .clock-soda-mascot,
+.clock-card[data-clock-style='moonlit-fan'] .clock-label,
+.clock-card[data-clock-style='moonlit-fan'] .clock-year {
+  display: none;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-content {
+  top: 96px;
+  left: 156px;
+  align-items: center;
+  justify-content: center;
+  width: 308px;
+  height: 176px;
+  padding: 0 12px;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-kicker-row {
+  position: absolute;
+  top: 8px;
+  right: 39px;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-period {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  color: var(--moon-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-time {
+  align-items: baseline;
+  justify-content: center;
+  margin: 0;
+  font: 400 66px/1.15 'Lira Moon Serif', 'Songti SC', 'SimSun', serif;
+  letter-spacing: -0.035em;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-colon {
+  margin: 0 0.035em;
+  font-size: 0.76em;
+  animation: none;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-seconds {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-left: 5px;
+  padding: 0;
+  border: 0;
+  color: var(--moon-secondary);
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-seconds::before {
+  margin-right: 4px;
+  content: ':';
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-date-row {
+  position: relative;
+  gap: 12px;
+  margin-top: 25px;
+  color: var(--moon-date-ink);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-date-row::before {
+  position: absolute;
+  top: -13px;
+  right: 12px;
+  left: 12px;
+  height: 1px;
+  background: var(--moon-rule);
+  content: '';
+}
+
+.clock-card[data-clock-style='moonlit-fan'] .clock-date-row > i {
+  width: 3px;
+  height: 3px;
+  border-radius: 0;
+  background: var(--moon-accent);
+  transform: rotate(45deg);
+}

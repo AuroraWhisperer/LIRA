@@ -3,7 +3,7 @@
 
 const MAX_PENDING = 50;
 const SEEN_LIMIT = 200;
-const THEME_IDS = new Set(['woodland-bloom', 'satin-ribbon']);
+const THEME_IDS = new Set(['woodland-bloom']);
 
 export function createGiftFrameQueue({ player, onError, canPlay = () => true }) {
   const pending = [];

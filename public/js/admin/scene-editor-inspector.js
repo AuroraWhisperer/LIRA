@@ -1,11 +1,16 @@
 import { previewElement } from './component-preview-surface.js';
 import { createSceneItemController } from './scene-item-controller.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
+import { getSceneItemPositionBounds } from '../shared/scene-geometry.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
+import { createBrowserSourcePreview } from './browser-source-preview.js';
+import { createTextBoxPreview } from './text-box-preview.js';
+import { mountComponentStyleInspector } from './component-style-inspector.js';
 
-export function mountSceneEditorInspector(host, { model, components, getSelection, report, embedded = false }) {
+export function mountSceneEditorInspector(host, { model, components, getSelection, report, embedded = false, requestStyles }) {
   let key = '';
   let panel = null;
+  let stylePanel = null;
   let stopDefault = null;
   let fields = {};
   let target;
@@ -35,6 +40,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     return wrapper;
   }
   function clear() {
+    stylePanel?.dispose(); stylePanel = null;
     panel?.dispose?.();
     stopDefault?.();
     panel = stopDefault = null;
@@ -44,7 +50,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
   function render(force = false) {
     const selected = model.getDocument().items.filter((item) => getSelection().has(item.id));
     const item = selected.length === 1 ? selected[0] : null;
-    const nextKey = item ? `${item.id}:${item.appearance.mode}:${item.locked}` : `count:${selected.length}`;
+    const nextKey = item ? `${item.id}:${item.appearance.mode}:${item.locked}:${item.appearance.config?.mediaStyle?.id || item.appearance.config?.resourceStyle?.id || ''}` : `count:${selected.length}`;
     if (key !== nextKey) {
       key = nextKey;
       clear();
@@ -55,15 +61,16 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
           : '点击画布或左侧图层。按住 Shift 点击可多选。'));
         return;
       }
-      const component = components.find((entry) => entry.id === item.type);
+      const component = components.find((entry) => entry.id === item.type)
+        || (item.type === 'browser' ? createBrowserSourcePreview() : item.type === 'text-box' ? createTextBoxPreview() : null);
       const geometry = previewElement('fieldset', 'scene-editor-geometry');
       geometry.disabled = item.locked;
       geometry.append(field(embedded ? '组件名称' : '实例名称', 'name', 'text'));
       const grid = previewElement('div', 'component-preview-fields');
       for (const [label, property] of [['X', 'x'], ['Y', 'y'], ['宽度', 'width'], ['高度', 'height']]) {
-        grid.append(field(SCENE_COMPONENTS[item.type].contentHeight && property === 'height' ? '高度（自动）' : label, property));
+        grid.append(field(SCENE_COMPONENTS[item.type].contentHeight && !item.appearance.config?.mediaStyle && property === 'height' ? '高度（自动）' : label, property));
       }
-      fields.height.readOnly = SCENE_COMPONENTS[item.type].contentHeight;
+      fields.height.readOnly = SCENE_COMPONENTS[item.type].contentHeight && !item.appearance.config?.mediaStyle;
       geometry.append(grid);
       target = previewElement('p', 'scene-editor-target');
       mode = previewElement('button', 'secondary');
@@ -80,9 +87,11 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       });
       parameters = previewElement('fieldset', 'scene-editor-parameters');
       parameters.disabled = item.locked;
+      parameters.classList.toggle('has-media-style', Boolean(item.appearance.config?.mediaStyle));
       const controller = item.appearance.mode === 'shared' ? component.controller
         : createSceneItemController(model, item.id, component.controller);
       host.append(geometry, target, ...(embedded || SCENE_COMPONENTS[item.type].independentOnly ? [] : [mode]), parameters);
+      stylePanel = mountComponentStyleInspector(parameters, { item, model, component, request: requestStyles, report });
       panel = component.createPanel(parameters, controller);
       if (item.appearance.mode === 'shared' && !embedded) {
         saveDefault = previewElement('button', 'secondary', '单独保存组件默认配置');
@@ -109,15 +118,19 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       }
     }
     if (!item) return;
+    stylePanel?.update?.(item, force);
     if (embedded) host.firstElementChild.textContent = `${item.name}参数`;
     for (const [property, input] of Object.entries(fields)) {
-      syncComponentFieldValue(input, item[property], force);
+      syncComponentFieldValue(input, item[property], force || input.readOnly);
     }
     const { canvas } = model.getDocument();
-    fields.x.max = String(canvas.width - item.width);
-    fields.y.max = String(canvas.height - item.height);
-    fields.width.max = String(canvas.width - item.x);
-    fields.height.max = String(canvas.height - item.y);
+    const bounds = getSceneItemPositionBounds(item, canvas);
+    fields.x.min = String(bounds.minX);
+    fields.x.max = String(bounds.maxX);
+    fields.y.min = String(bounds.minY);
+    fields.y.max = String(bounds.maxY);
+    fields.width.max = String(canvas.width);
+    fields.height.max = String(canvas.height);
     target.textContent = embedded ? (item.appearance.mode === 'shared' ? '样式与尺寸和默认组件共用；保存并应用后，原单组件地址同步更新。' : '独立组件；保存并应用后可复制此组件的单独地址。') : item.appearance.mode === 'shared'
       ? '编辑目标：当前组件默认配置。更改会影响其他共享此默认配置的入口；场景发布时固定外观。'
       : '编辑目标：仅此场景实例。更改随场景草稿保存。';

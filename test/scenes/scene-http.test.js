@@ -7,9 +7,10 @@ const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { createCipheriv, createDecipheriv, randomBytes, randomUUID } = require('node:crypto');
 const { createSceneStore } = require('../../src/storage/scene-store');
-const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
+const { createSceneOutputEvents } = require('../../src/server/scene-output-events');
 const { createHttpServer } = require('../../src/server/http-server');
 const { servePageOrAsset } = require('../../src/server/http-utils');
 const { createWebSocketHub } = require('../../src/server/ws');
@@ -42,18 +43,22 @@ async function fixture(t) {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
   migrateComponentOutputSizes(db);
-  const state = { owner: { scope: 'https://server.test/streamer-a', epoch: 1 }, licensed: true };
+  migrateCanvasPresets(db);
+  const state = { owner: { scope: 'https://server.test/streamer-a', epoch: 1 }, licensed: true, phase: 'ready' };
   const display = {
     settings: { clockLabel: 'HTTP clock', aiApiKey: PRIVATE },
     queue: { current: { song_name: 'Public song', filePath: PRIVATE }, waiting: [] },
     secret: PRIVATE,
   };
+  let events;
   const service = createSceneService({
     store: createSceneStore(db), getOwner: () => state.owner, secretCodec: secretCodec(),
     ...createSceneComponentPorts({ getState: () => display, cloud: { getSnapshot: () => ({ events: [] }) } }),
+    onOutputChanged: (change) => events?.notify(change),
   });
+  events = createSceneOutputEvents({ getAccess: service.getOutputAccess, heartbeatMs: 40, coalesceMs: 5 });
   const context = {
-    sessionToken: ADMIN, scenes: service, maxBodyBytes: 300 * 1024,
+    sessionToken: ADMIN, scenes: service, sceneEvents: events, maxBodyBytes: 300 * 1024,
     system: { getState: () => display }, settings: { get: () => display.settings },
   };
   const hub = createWebSocketHub({ closeTimeoutMs: 20 });
@@ -61,7 +66,7 @@ async function fixture(t) {
   const server = createHttpServer({
     host: '127.0.0.1', startPort: 0,
     getStartedPort: () => server.address()?.port,
-    getPhase: () => 'ready', isLicenseAuthorized: () => state.licensed,
+    getPhase: () => state.phase, isLicenseAuthorized: () => state.licensed,
     inflightTracker: { run: (work) => work() }, createApiContext: () => context,
     getSettings: () => display.settings,
     servePageOrAsset: (req, res, url) => servePageOrAsset(PUBLIC_DIRECTORY, req, res, url, ADMIN),
@@ -73,6 +78,7 @@ async function fixture(t) {
     socket.once('close', () => connections.delete(socket));
   });
   t.after(async () => {
+    events.dispose();
     hub.stop();
     for (const socket of connections) socket.destroy();
     await new Promise((resolve) => server.close(resolve));
@@ -118,7 +124,7 @@ async function fixture(t) {
     service.publish({ id: created.document.id, expectedRevision: created.revision });
     return { ...created, source: service.getSource(created.document.id) };
   }
-  return { request, upgrade, service, state, context, base, publishedScene };
+  return { request, upgrade, service, state, context, base, publishedScene, events };
 }
 
 function assertNoStore(response) {
@@ -128,6 +134,118 @@ function assertNoStore(response) {
 function outputRoute(id, suffix = '') {
   return `/api/scene/output?id=${id}${suffix}`;
 }
+
+test('canvas preset publication requires desktop management authority and keeps the original source', async t => {
+  const f = await fixture(t);
+  const first = f.service.create({ title: 'First', canvas: { width: 1920, height: 1080 } });
+  const canvas = await f.request('/api/scenes/canvas', { token: ADMIN });
+  assert.equal(canvas.status, 200);
+  assert.equal(canvas.body.data.outputId, first.document.id);
+  const source = f.service.getSource(first.document.id);
+  const second = f.service.create({ title: 'Second', canvas: { width: 1280, height: 720 } });
+  const body = { id: second.document.id, expectedRevision: 1, expectedPublishedVersion: 0 };
+  for (const [token, status] of [[undefined, 401], [source.token, 401], [createOverlayToken(ADMIN, 'clock'), 403]]) {
+    assert.equal((await f.request('/api/scenes/canvas', { token })).status, status);
+    assert.equal((await f.request('/api/scenes/canvas-publish', { token, method: 'POST', body })).status, status);
+  }
+  const applied = await f.request('/api/scenes/canvas-publish', { token: ADMIN, method: 'POST', body });
+  assert.equal(applied.status, 200);
+  const output = await f.request(outputRoute(source.id), { token: source.token });
+  assert.equal(output.status, 200);
+  assert.equal(output.body.data.document.title, 'Second');
+});
+
+async function openNotifications(t, f, source, suffix = '') {
+  const controller = new AbortController();
+  t.after(() => controller.abort());
+  const response = await fetch(`${f.base}/api/scene/events?id=${source.id}${suffix}`, {
+    headers: { Authorization: `Bearer ${source.token}`, Origin: 'null' },
+    signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('access-control-allow-origin'), 'null');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.match(response.headers.get('content-type'), /^text\/event-stream/);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  return { abort: () => controller.abort(), async next() {
+    while (true) {
+      const end = buffer.indexOf('\n\n');
+      if (end !== -1) {
+        const block = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
+        if (block.startsWith('data: ')) return block.slice(6);
+        continue;
+      }
+      const { value, done } = await reader.read();
+      if (done) return null;
+      buffer += decoder.decode(value, { stream: true });
+    }
+  } };
+}
+
+test('scene notifications authorize the exact scene and expose only update hints', async t => {
+  const f = await fixture(t);
+  const { source } = f.publishedScene();
+  const path = `/api/scene/events?id=${source.id}`;
+  for (const token of [undefined, ADMIN, createOverlayToken(ADMIN, 'clock'), f.publishedScene().source.token]) {
+    assert.equal((await f.request(path, { token })).status, 403);
+  }
+  assert.equal((await f.request(`${path}&token=${source.token}`)).status, 403);
+  assert.equal((await f.request(`${path}&projection=forged&version=1`, { token: source.token })).status, 403);
+  assert.equal((await f.request(`${path}&item=${randomUUID()}`, { token: source.token })).status, 404);
+  assert.equal((await f.request(path, { token: source.token, headers: { Origin: 'https://untrusted.test' } })).status, 403);
+  assert.equal((await f.request(path, { token: source.token, method: 'POST', headers: { Origin: 'null' } })).status, 405);
+  const preflight = await f.request(path, { method: 'OPTIONS', headers: { Origin: 'null',
+    'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization' } });
+  assert.equal(preflight.status, 204);
+  assert.equal((await f.request(path, { method: 'OPTIONS', headers: { Origin: 'null',
+    'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'cookie' } })).status, 403);
+
+  const stream = await openNotifications(t, f, source);
+  assert.equal(await stream.next(), 'ready');
+  f.service.publish({ id: source.id, expectedRevision: 1 });
+  assert.equal(await stream.next(), 'change');
+  f.service.rotate(source.id);
+  assert.equal(await stream.next(), 'revoked');
+  assert.equal(await stream.next(), null);
+});
+
+for (const boundary of ['owner', 'owner epoch', 'license', 'shutdown']) {
+  test(`an established notification stream rechecks ${boundary} without a new HTTP request`, async t => {
+    const f = await fixture(t);
+    const { source } = f.publishedScene();
+    const stream = await openNotifications(t, f, source);
+    assert.equal(await stream.next(), 'ready');
+    if (boundary === 'owner') f.state.owner = { scope: 'another-owner', epoch: 1 };
+    else if (boundary === 'owner epoch') f.state.owner.epoch += 1;
+    else if (boundary === 'license') f.state.licensed = false;
+    else f.state.phase = 'quiescing';
+    if (boundary !== 'shutdown') assert.equal(await stream.next(), 'revoked');
+    assert.equal(await stream.next(), null);
+  });
+}
+
+test('notification streams reserve HTTP capacity and close when their single item disappears', async t => {
+  const f = await fixture(t);
+  const { source, document } = f.publishedScene();
+  const item = { id: randomUUID(), type: 'clock', name: 'Clock', x: 0, y: 0, width: 320, height: 180,
+    visible: true, locked: false, appearance: { mode: 'shared' } };
+  const saved = f.service.save({ id: source.id, expectedRevision: 1, document: { ...document, items: [item] } });
+  f.service.publish({ id: source.id, expectedRevision: saved.revision });
+  const single = await openNotifications(t, f, source, `&item=${item.id}`);
+  assert.equal(await single.next(), 'ready');
+  for (let index = 0; index < 3; index++) {
+    assert.equal(await (await openNotifications(t, f, source)).next(), 'ready');
+  }
+  assert.equal((await f.request(`/api/scene/events?id=${source.id}`, { token: source.token })).status, 429);
+  assert.equal((await f.request(outputRoute(source.id), { token: source.token })).status, 200);
+  const removed = f.service.save({ id: source.id, expectedRevision: saved.revision, document });
+  f.service.publish({ id: source.id, expectedRevision: removed.revision });
+  assert.equal(await single.next(), 'revoked');
+  assert.equal(await single.next(), null);
+});
 
 test('HTTP output accepts only authentic active projection receipts and keeps old clients compatible', async t => {
   const { request, publishedScene } = await fixture(t);

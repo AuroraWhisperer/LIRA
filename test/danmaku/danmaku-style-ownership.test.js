@@ -24,6 +24,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
     "@import url('./danmaku/cream.css');",
     "@import url('./danmaku/glow.css');",
     "@import url('./danmaku/superchat.css');",
+    "@import url('./danmaku/moonlit.css');",
     "@import url('./danmaku/motion.css');",
     "@import url('./danmaku/canvas.css');",
     "@import url('./danmaku/preview.css');",

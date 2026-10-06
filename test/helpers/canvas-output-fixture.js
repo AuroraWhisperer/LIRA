@@ -1,17 +1,18 @@
 'use strict';
 
 const { DatabaseSync } = require('node:sqlite');
-const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 const { createLayout } = require('../../src/shared/danmaku-layout');
 const { startComponentPreviewServer } = require('./component-preview-server');
 
-async function startCanvasOutputFixture({ extraContext } = {}) {
+async function startCanvasOutputFixture({ extraContext, notifications = false, dataDir } = {}) {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
   migrateComponentOutputSizes(db);
+  migrateCanvasPresets(db);
   const owner = { scope: 'synthetic-canvas-owner', epoch: 1 };
   const runtime = { settings: { ...DEFAULT_SETTINGS }, queue: { current: null,
     waiting: [{ id: 1, song_name: '合成实时歌曲', requester: '合成观众' }] }, superChats: [],
@@ -35,14 +36,18 @@ async function startCanvasOutputFixture({ extraContext } = {}) {
   const scenes = { ...service, publish(body) {
     if (failPublish) throw Object.assign(new Error('模拟发布失败'), { statusCode: 503 });
     return service.publish(body);
+  }, publishCanvas(body) {
+    if (failPublish) throw Object.assign(new Error('模拟发布失败'), { statusCode: 503 });
+    return service.publishCanvas(body);
   } };
-  const server = await startComponentPreviewServer({ scenes, getOwner: () => owner, getState: () => runtime,
+  const server = await startComponentPreviewServer({ scenes, dataDir, getOwner: () => owner, getState: () => runtime,
+    sceneEvents: notifications ? sceneRuntime.events : undefined,
     readDanmakuDisplay: sceneRuntime.readDanmakuDisplay,
     parentHtml: '<!doctype html><html><body></body></html>' });
-  return { ...server, service, runtime, owner, updateCloud, receiveGift: sceneRuntime.receiveGift,
+  return { ...server, service, runtime, owner, updateCloud, receiveGift: sceneRuntime.receiveGift, notify: sceneRuntime.notify,
     configs: Object.fromEntries(['clock', 'queue', 'danmaku', 'overtime'].map(id => [id, ports.getDefaultConfig(id)])),
     failPublication(value) { failPublish = value; },
-    async close() { await server.close(); db.close(); },
+    async close() { sceneRuntime.dispose(); await server.close(); db.close(); },
   };
 }
 

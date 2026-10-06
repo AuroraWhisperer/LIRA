@@ -16,11 +16,13 @@ export function buildClockUrl(baseUrl, config) {
   for (const key of ['flipFrameColor', 'flipFaceColor', 'flipTextColor']) {
     if (config[key]) params.set(key, config[key]);
   }
+  params.set('moonMode', config.moonMode ?? 'light');
+  params.set('moonIntervalSeconds', String(config.moonIntervalSeconds ?? 30));
   return url.href;
 }
 
 function isTransparentClockStyle(style) {
-  return ['timeline-horizontal', 'timeline-vertical', 'digital', 'orbit', 'flip'].includes(style);
+  return ['timeline-horizontal', 'timeline-vertical', 'digital', 'orbit', 'flip', 'moonlit-fan'].includes(style);
 }
 
 export function usesDefaultClockLabel(style, label) {
@@ -29,20 +31,22 @@ export function usesDefaultClockLabel(style, label) {
 }
 
 export function clockStyleChange(draft, style) {
-  return { style, ...(!isTransparentClockStyle(style) && usesDefaultClockLabel(draft.style, draft.label)
+  return { style, ...(draft.mediaStyle ? { mediaStyle: null } : {}), ...(draft.resourceStyle ? { resourceStyle: null } : {}), ...(!isTransparentClockStyle(style) && usesDefaultClockLabel(draft.style, draft.label)
     ? { label: CLOCK_STYLE_LABELS[style] } : {}) };
 }
 
 export function bindClockParameters(root, controller) {
   const node = (id) => componentField(root, id);
   const fields = { showDate: 'clockShowDate', showSeconds: 'clockShowSeconds', hourFormat: 'clockHourFormat',
-    label: 'clockCustomLabel', flipFrameColor: 'clockFlipFrameColor', flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor' };
+    label: 'clockCustomLabel', flipFrameColor: 'clockFlipFrameColor', flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor',
+    moonMode: 'clockMoonMode', moonIntervalSeconds: 'clockMoonIntervalSeconds' };
   const styles = Array.from(root.querySelectorAll('[data-clock-style-option]'));
   const palettes = Array.from(root.querySelectorAll('[data-clock-palette]'));
   for (const [key, id] of Object.entries(fields)) {
     const control = node(id);
-    control.addEventListener(['hourFormat', 'showDate', 'showSeconds'].includes(key) ? 'change' : 'input', () => {
-      controller.edit({ [key]: key.startsWith('show') ? control.checked : control.value });
+    control.addEventListener(['hourFormat', 'showDate', 'showSeconds', 'moonMode', 'moonIntervalSeconds'].includes(key) ? 'change' : 'input', () => {
+      controller.edit({ [key]: key.startsWith('show') ? control.checked
+        : key === 'moonIntervalSeconds' ? Number(control.value) : control.value });
     });
   }
   for (const button of styles) button.addEventListener('click', () => {
@@ -60,11 +64,14 @@ export function bindClockParameters(root, controller) {
     for (const [key, id] of Object.entries(fields)) {
       const control = node(id);
       if (key.startsWith('show')) control.checked = draft[key];
-      else if (control.value !== draft[key]) control.value = draft[key];
-      control.disabled = !loaded || (key === 'label' && transparent);
+      else if (control.value !== String(draft[key])) control.value = draft[key];
+      control.disabled = !loaded || (key === 'label' && transparent)
+        || (key === 'moonIntervalSeconds' && draft.moonMode !== 'auto');
     }
     node('clockCustomLabelField').hidden = transparent;
     node('clockFlipColors').hidden = draft.style !== 'flip';
+    node('clockMoonColors').hidden = draft.style !== 'moonlit-fan';
+    node('clockMoonIntervalField').hidden = draft.moonMode !== 'auto';
     for (const button of styles) {
       const active = button.dataset.clockStyleOption === draft.style;
       button.classList.toggle('active', active);
@@ -82,7 +89,8 @@ export function bindClockParameters(root, controller) {
 export function createClockPreview({ controller, source = document, onOpen, onClose }) {
   return { id: 'clock', title: '萌时钟', controller,
     url: new URL('/clock?componentPreview=1', location.href).href, dataLabel: '设备当前时间',
-    size: (draft) => draft.style === 'timeline-vertical' ? [240, 400] : [580, 210],
+    size: (draft) => draft.style === 'timeline-vertical' ? [240, 400]
+      : draft.style === 'moonlit-fan' ? [580, 380] : [580, 210],
     createPanel: (host, targetController = controller) => {
       const panel = cloneComponentPanel(source.querySelector('.clock-parameter-section'), 'preview-clock');
       host.append(panel);

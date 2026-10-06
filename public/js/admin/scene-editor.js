@@ -7,6 +7,7 @@ import { getActiveComponentPreview, closeComponentPreview, setActiveComponentPre
 import { createSceneEditorSession } from './scene-editor-state.js';
 import { requestScene } from './scene-api.js';
 import { alignSceneItems, moveSceneItems } from './scene-document-model.js';
+import { clampSceneItemPosition } from '../shared/scene-geometry.js';
 import { mountSceneEditorStage } from './scene-editor-stage.js';
 import { mountSceneEditorInspector } from './scene-editor-inspector.js';
 import { downloadSceneTemplate, mountSceneTemplateImport } from './scene-editor-template.js';
@@ -88,14 +89,15 @@ export function openSceneEditor() {
       button(add, `添加${component.title}`, () => {
         const id = crypto.randomUUID();
         edit((document) => {
-          if (document.items.length >= 32) throw new Error('一个场景最多添加 32 个组件。');
+          if (component.id !== 'text-box' && document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('一个场景最多添加 32 个非文本框组件。');
           const [width, height] = component.size(component.controller.getState().draft);
           document.items.push({ id, type: component.id, name: `${component.title} ${document.items.filter((item) => item.type === component.id).length + 1}`,
             x: 0, y: 0, width: Math.min(width, document.canvas.width), height: Math.min(height, document.canvas.height),
-            visible: true, locked: false, appearance: { mode: 'shared' } });
+            visible: true, locked: false, appearance: component.id === 'text-box'
+              ? { mode: 'independent', config: component.controller.getState().draft } : { mode: 'shared' } });
         });
         select(id);
-      }).disabled = !session || session.model.getDocument().items.length >= 32;
+      }).disabled = !session || component.id !== 'text-box' && session.model.getDocument().items.filter(item => item.type !== 'text-box').length >= 32;
     }
     layers.append(add, previewElement('h3', '', '图层 · 上方在前'));
     if (!session) return;
@@ -160,12 +162,12 @@ export function openSceneEditor() {
     const ids = [];
     edit((document) => {
       const items = document.items.filter((item) => selection.has(item.id) && !item.locked);
-      if (document.items.length + items.length > 32) throw new Error('复制后将超过 32 个组件。');
+      if ([...document.items, ...items].filter(item => item.type !== 'text-box').length > 32) throw new Error('复制后将超过 32 个非文本框组件。');
       for (const item of items) {
         const id = crypto.randomUUID(); ids.push(id);
-        document.items.push({ ...item, id, name: `${item.name.slice(0, 76)} 副本`,
-          x: Math.min(item.x + 16, document.canvas.width - item.width),
-          y: Math.min(item.y + 16, document.canvas.height - item.height) });
+        const copy = { ...item, id, name: `${item.name.slice(0, 76)} 副本`, x: item.x + 16, y: item.y + 16 };
+        clampSceneItemPosition(copy, document.canvas);
+        document.items.push(copy);
       }
     });
     selection = new Set(ids); stage?.syncSelection(); inspector?.render(); renderLayers(); renderState();

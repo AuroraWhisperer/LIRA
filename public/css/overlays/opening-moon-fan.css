@@ -1,0 +1,23 @@
+.opening-moon-fan {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.opening-stage[data-style='moonlit-fan'] {
+  background: #f0f4fa;
+  animation: none;
+}
+
+.opening-stage[data-style='moonlit-fan'] > .opening-moon-fan {
+  display: block;
+}
+
+.opening-stage[data-style='moonlit-fan'] > :is(
+  .opening-backdrop, .opening-particles, .opening-eq, .opening-copy,
+  .opening-character, .opening-notes, .opening-footer
+) {
+  display: none;
+}

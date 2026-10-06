@@ -1,4 +1,5 @@
 import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
+import { openComponentPreview } from '../component-preview-dialog.js';
 import {
   createGiftWishCard,
   getGiftWishTextTemplate,
@@ -91,6 +92,7 @@ export function createGiftWishes() {
     const textTemplate = get('giftWishTextTemplate').value;
     const targetInput = get('giftWishTarget');
     const target = targetInput.validity.valid ? targetInput.valueAsNumber : 10;
+    textEditor.setContext({ giftName: selected?.name || '未选择', count, target });
     get('giftWishTextFields').hidden = displayStyle !== 'text';
     get('giftWishEditorGrid').classList.toggle('is-text', displayStyle === 'text');
     get('giftWishImageFields').hidden = displayStyle !== 'text' || !textTemplate.includes('{图片}');
@@ -308,7 +310,7 @@ export function createGiftWishes() {
   get('giftWishPeriod').addEventListener('change', (event) => selectPeriod(event.target.value));
   const url = `${localOverlayOrigin(location)}/gift-wishes`;
   get('giftWishUrl').value = url;
-  get('giftWishPreview').addEventListener('click', () => window.open(`${url}?preview=1`, '_blank', 'noopener'));
+  get('giftWishPreview').addEventListener('click', () => openComponentPreview({ id: 'gift-wishes' }));
   selectPeriod(period);
   const unsubscribe = eventBus.on(Events.STATE_LOADED, ({ state }) => {
     if (!state?.gifts || state.gifts.viewRevision === revision) return;

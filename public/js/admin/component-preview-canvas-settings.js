@@ -4,6 +4,19 @@ import { resizeSceneCanvas } from './scene-document-model.js';
 
 export function mountPreviewCanvasSettings(host, { model, report }) {
   host.append(previewElement('h3', '', '画布设置'));
+  const nameLabel = previewElement('label', 'preview-canvas-preset', '预设名称');
+  const name = previewElement('input');
+  name.setAttribute('aria-label', '预设名称');
+  name.maxLength = 80;
+  name.required = true;
+  name.value = model.getDocument().title;
+  name.addEventListener('change', () => {
+    if (!name.reportValidity()) return;
+    try { model.edit(document => { document.title = name.value.trim(); }); }
+    catch (error) { report(error.message); name.value = model.getDocument().title; }
+  });
+  nameLabel.append(name);
+  host.append(nameLabel);
   const label = previewElement('label', 'preview-canvas-preset', '分辨率预设');
   const presets = previewElement('select');
   presets.setAttribute('aria-label', '公共画布分辨率');
@@ -19,6 +32,7 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
   const fields = previewElement('div', 'component-preview-fields');
   const inputs = {};
   let renderedCanvas = null;
+  let renderedTitle = model.getDocument().title;
   function resize(canvas) {
     try { model.edit((document) => resizeSceneCanvas(document, canvas)); }
     catch (error) { report(error.message); render(true); }
@@ -41,6 +55,8 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
   });
   host.append(label, fields);
   function render(force = false) {
+    const { title } = model.getDocument();
+    if (title !== renderedTitle) { name.value = title; renderedTitle = title; }
     const { width, height } = model.getDocument().canvas;
     if (!force && renderedCanvas?.width === width && renderedCanvas?.height === height) return;
     renderedCanvas = { width, height };

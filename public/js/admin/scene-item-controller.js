@@ -10,7 +10,11 @@ export function createSceneItemController(model, itemId, defaultController) {
     edit(change) {
       model.edit((document) => {
         const item = document.items.find((entry) => entry.id === itemId);
-        if (item && !item.locked && item.appearance.mode === 'independent') Object.assign(item.appearance.config, change);
+        if (item && !item.locked && item.appearance.mode === 'independent') {
+          Object.assign(item.appearance.config, change);
+          if (change.mediaStyle === null) delete item.appearance.config.mediaStyle;
+          if (change.resourceStyle === null) delete item.appearance.config.resourceStyle;
+        }
       });
     },
     subscribe(listener) {

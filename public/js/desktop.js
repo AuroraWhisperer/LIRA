@@ -167,6 +167,18 @@
     const status = document.getElementById('desktopIntegrityStatus');
     if (!button || !status) return;
     const checking = state.status === 'checking';
+    const tone = state.issueCount || state.status === 'issues'
+      ? 'danger'
+      : { passed: 'success', inconclusive: 'warning', cancelled: 'warning' }[state.status] || 'neutral';
+    const result = document.getElementById('desktopIntegrityResult');
+    result.dataset.tone = tone;
+    result.hidden = state.status === 'idle';
+    document.getElementById('desktopIntegrityIcon').setAttribute('d', {
+      success: 'M8 12l3 3 5-6',
+      danger: 'M9 9l6 6 M15 9l-6 6',
+      warning: 'M12 7v6 M12 16h.01',
+      neutral: 'M12 11v5 M12 8h.01',
+    }[tone]);
     button.disabled = resourceIntegrityPending || checking || state.status === 'unavailable';
     button.textContent = checking
       ? '检查中…'
@@ -177,22 +189,26 @@
           : '重试';
     const reason = integrityReasons[state.reasonCode] || '暂不能确认资源完整性';
     const counts =
-      state.totalFiles == null ? '正在读取并验证校验清单' : `已检查 ${state.checkedFiles} / ${state.totalFiles} 个文件`;
-    const knownIssues = state.issueCount ? `已发现 ${state.issueCount} 个文件缺失或内容不一致。` : '';
+      state.totalFiles == null ? '正在读取校验清单' : `已检查 ${state.checkedFiles} / ${state.totalFiles} 个文件`;
+    const knownIssues = state.issueCount ? `发现 ${state.issueCount} 项资源异常` : '';
     const messages = {
-      idle: '可在内置页面或资源异常时检查当前安装。',
-      checking: `正在检查客户端资源，${counts}。`,
-      passed: '本次检查范围内的资源与校验清单一致；不代表所有功能正常。',
-      issues: `${knownIssues}${state.complete ? '' : '部分项目未完成，无法确认全部检查范围。'}`,
-      inconclusive: `无法完成检查：${reason}。`,
+      idle: '等待检查',
+      checking: `检查中 · ${counts}`,
+      passed: '检查通过，未发现资源异常',
+      issues: `${knownIssues}${state.complete ? '' : '（部分项目未完成）'}`,
+      inconclusive: `检查未完成：${reason}`,
       unavailable: reason,
-      cancelled: `${knownIssues}检查已停止，未完成全部项目。`,
+      cancelled: `检查已停止${knownIssues ? `，${knownIssues}` : '，未完成全部项目'}`,
     };
     status.textContent = messages[state.status] || '无法读取检查状态，请查看日志。';
     const meta = document.getElementById('desktopIntegrityMeta');
     const timestamp = state.finishedAt || state.startedAt;
-    meta.textContent = `当前版本：${state.appVersion || '--'}${timestamp ? ` · 检查时间：${new Date(timestamp).toLocaleString()}` : ''}${state.totalFiles == null ? '' : ` · 已检查 ${state.checkedFiles} / ${state.totalFiles} 个文件`}${state.unresolvedCount ? ` · 未确定 ${state.unresolvedCount} 项` : ''}`;
-    meta.hidden = false;
+    meta.textContent = [
+      state.totalFiles == null ? '' : counts,
+      state.unresolvedCount ? `${state.unresolvedCount} 项未确定` : '',
+      timestamp ? new Date(timestamp).toLocaleString() : '',
+    ].filter(Boolean).join(' · ');
+    meta.hidden = checking || !meta.textContent;
     const details = document.getElementById('desktopIntegrityDetails');
     details.replaceChildren();
     for (const detail of (state.details || []).slice(0, 20)) {
@@ -203,14 +219,12 @@
     details.hidden = !details.children.length;
     const hint = document.getElementById('desktopIntegrityHint');
     const totalDetails = state.issueCount + state.unresolvedCount;
-    const truncated = totalDetails > 20 ? `异常或未确定共 ${totalDetails} 项，仅展示前 20 项详情。` : '';
+    const truncated = totalDetails > 20 ? `共 ${totalDetails} 项异常或未确定，仅显示前 20 项。` : '';
     const nextStep = state.issueCount
-      ? '建议先备份重要业务数据，关闭客户端后从官方渠道重新安装适用安装包；重装不保证解决所有故障。'
-      : state.status === 'passed'
-        ? '如果问题仍在，请通过上方日志目录继续排查其他原因。'
-        : ['inconclusive', 'cancelled'].includes(state.status)
-          ? '可重试或通过上方日志目录查看诊断信息，无法读取不等于资源损坏。'
-          : '';
+      ? '请备份重要数据，关闭客户端后从官方渠道重新安装。'
+      : ['inconclusive', 'cancelled'].includes(state.status)
+        ? '请重试，或打开日志目录排查。'
+        : '';
     hint.textContent = `${truncated}${state.reasonCode && state.status === 'issues' ? `${reason}。` : ''}${nextStep}`;
     hint.hidden = !hint.textContent;
     document.getElementById('desktopIntegrityGithubBtn').hidden = !state.issueCount;

@@ -11,6 +11,7 @@ import { songImports } from './song-import.js';
 import { settings } from './settings.js';
 import { initClientAppearance } from './client-appearance.js';
 import { display } from './display.js';
+import { initComponentStyleLibraries } from './component-style-client.js';
 // 编写人：Aurora
 // Admin应用统一入口 - ES6模块化版本
 ('use strict');
@@ -46,6 +47,7 @@ const toolbox = createToolboxLifecycle({
     otherStartAnimationFeature: () => import('./start-animation.js').then((module) => module.initStartAnimation),
     otherClockFeature: () => import('./clock-card.js').then((module) => module.initClockCard),
     otherGamesFeature: () => import('./games.js').then((module) => module.initGames),
+    otherTextBoxFeature: () => import('./text-box.js').then((module) => module.initTextBoxes),
     otherOvertimeMachineFeature: () =>
       import('./overtime.js').then((module) => () => module.initOvertime(stateService.getAppState())),
   },
@@ -119,6 +121,7 @@ async function initializeApp() {
     await waitForServerOverlayUrlInitialization();
     return prepareComponentPreviewCanvas(getComponentPreviews());
   });
+  initComponentStyleLibraries();
   display.initDisplayForm();
   display.initOverlayUrls();
   desktopLyric.initDesktopLyricForm();

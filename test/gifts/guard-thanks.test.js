@@ -189,7 +189,6 @@ test('gift-effects overlay hosts the shared guard thanks renderer without HTML i
   assert.match(overlay, /payload\.type === 'gift:guard-thanks'\) guardThanks\.enqueue\(payload\)/);
   for (const file of [
     'public/js/overlays/gift-effects-guard.js',
-    'public/js/overlays/gift-frame-ribbon.js',
     'public/js/shared/guard-thanks-card.js',
     'public/js/shared/guard-thanks-emblems.js',
     'public/js/shared/guard-thanks-particles.js',
@@ -199,8 +198,6 @@ test('gift-effects overlay hosts the shared guard thanks renderer without HTML i
   }
   const css = read('public/css/shared/guard-thanks.css');
   assert.doesNotMatch(css, /mix-blend-mode|\binfinite\b/);
-  const ribbonCss = read('public/css/overlays/gift-frame-ribbon.css');
-  assert.doesNotMatch(ribbonCss, /mix-blend-mode|\binfinite\b/);
 });
 
 async function invokeBodyRoute(handler, context, body) {

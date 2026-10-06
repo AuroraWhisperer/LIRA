@@ -7,7 +7,7 @@ const { normalizeLyricState } = require('../music/lyric-state');
 const { createWeSingCapture } = require('../music/wesing-capture');
 const { createWeSingOnlineLyricResolver } = require('../music/wesing-online-lyrics');
 
-function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSocketHub }) {
+function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSocketHub, onLyricsChanged }) {
   const lyricsService = createLyricsService({
     apiCacheDir: dataDir.apiCacheDir,
     lyricCacheDir: dataDir.lyricCacheDir,
@@ -70,13 +70,15 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
   const publishLyricTimeline = (input) => {
     const nextTimeline = normalizeLyricTimeline(input);
     const nextKey = JSON.stringify(nextTimeline);
-    if (nextKey !== lyricTimelineKey) {
+    const changed = nextKey !== lyricTimelineKey;
+    if (changed) {
       lyricGeneration += 1;
       lyricSequence = 0;
       lyricTimelineKey = nextKey;
     }
     lyricTimeline = nextTimeline;
     webSocketHub.broadcast({ type: 'lyric-timeline', timeline: lyricTimeline });
+    if (changed) onLyricsChanged?.();
     return lyricTimeline;
   };
   const weSingCapture = createWeSingCapture({
@@ -98,6 +100,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
       if (!nextState) return;
       lyricState = nextState;
       webSocketHub.broadcast({ type: 'lyric-state', state: lyricState });
+      onLyricsChanged?.();
     },
     onTimeline(timeline) {
       if (timeline.active) publishLyricTimeline(timeline);
@@ -121,6 +124,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
       }
       lyricState = versionedState;
       webSocketHub.broadcast({ type: 'lyric-state', state: versionedState });
+      onLyricsChanged?.();
       return lyricState;
     },
     publishLyricTimeline,

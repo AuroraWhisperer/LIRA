@@ -18,6 +18,23 @@ function documentFor(type, config = createSceneExtraDefaults(type)) {
       visible: true, locked: false, appearance: { mode: 'independent', config } }] };
 }
 
+test('backgrounds default to empty and preserve explicit legacy presets through template import', () => {
+  const { importSceneTemplate } = require('../../public/js/admin/scene-template.js');
+  const input = documentFor('background', { style: 'moonlit' });
+  assert.deepEqual(normalizeSceneConfig('background', {}), { style: 'none' });
+  const imported = importSceneTemplate(input);
+  assert.deepEqual(imported.bindings, []);
+  assert.equal(imported.document.items[0].appearance.config.style, 'moonlit');
+  assert.notEqual(imported.document.items[0].id, input.items[0].id);
+});
+
+test('opening appearances preserve client-following defaults and allow the moonlit suite style only', () => {
+  assert.deepEqual(normalizeSceneConfig('opening', {}), { style: 'original' });
+  assert.deepEqual(normalizeSceneConfig('opening', { style: 'moonlit-fan' }), { style: 'moonlit-fan' });
+  assert.throws(() => normalizeSceneConfig('opening', { style: 'unknown' }), { code: 'INVALID_SCENE_CONFIG' });
+  assert.throws(() => normalizeSceneConfig('opening', { style: 'moonlit-fan', enabled: true }), { code: 'INVALID_SCENE_CONFIG' });
+});
+
 test('each extra component accepts all declared presets and preserves its geometry and parameter types', () => {
   for (const [type, definition] of Object.entries(SCENE_EXTRA_COMPONENTS)) {
     for (const preset of definition.variants) {
@@ -74,6 +91,20 @@ test('asynchronous output rejects account changes and source revocation before r
   await assert.rejects(pendingToken, { code: 'SCENE_ACCESS_DENIED' });
 });
 
+test('sprint canvas projects only the existing countdown and templates contain no business state', () => {
+  const { exportSceneTemplate, importSceneTemplate } = require('../../public/js/admin/scene-template.js');
+  const state = { giftSprint: { targetRmb: 1000, remainingCrystalBalls: 7, receivedRmb: 300, private: 'hidden' } };
+  const display = createSceneExtraDisplay({ getContext: () => ({ system: { getState: () => state } }) });
+  assert.deepEqual(display('gift-sprint'), { targetRmb: 1000, remainingCrystalBalls: 7 });
+  state.giftSprint = null;
+  assert.equal(display('gift-sprint'), null);
+  const document = documentFor('gift-sprint');
+  const imported = importSceneTemplate(exportSceneTemplate(document));
+  assert.deepEqual(imported.document.items[0].appearance, { mode: 'independent', config: {} });
+  assert.deepEqual(imported.bindings.map(({ component, kind, source }) => ({ component, kind, source })),
+    [{ component: 'gift-sprint', kind: 'source', source: 'gift-sprint' }]);
+});
+
 test('extra display projection excludes game secrets, keeps lyrics separate from settings and shares slow reads', async () => {
   const owner = { scope: 'a', epoch: 1 };
   let reads = 0;
@@ -97,4 +128,31 @@ test('extra display projection excludes game secrets, keeps lyrics separate from
   await display('gift-wishes'); assert.equal(reads, 1);
   revision = 'gift-b'; await display('gift-wishes'); assert.equal(reads, 2);
   owner.epoch++; await display('gift-wishes'); assert.equal(reads, 3);
+});
+
+test('targeted display invalidation refreshes configuration immediately and an older pending read cannot replace the new cache', async () => {
+  let label = '原许愿';
+  let reads = 0;
+  let release;
+  const context = {
+    gifts: { getViewRevision: () => 'unchanged-gift-revision' },
+    giftWishes: { getSnapshot() {
+      reads++;
+      if (reads === 1) return new Promise(resolve => { release = resolve; });
+      return { items: [{ label }] };
+    } },
+  };
+  const display = createSceneExtraDisplay({ getContext: () => context, getOwner: () => ({ scope: 'owner', epoch: 1 }) });
+  const pending = display('gift-wishes');
+  await Promise.resolve();
+  label = '更新后许愿';
+  display.invalidate(['gift-wishes']);
+  assert.deepEqual(await display('gift-wishes'), { items: [{ label }] });
+  release({ items: [{ label: '原许愿' }] });
+  await pending;
+  assert.deepEqual(await display('gift-wishes'), { items: [{ label }] });
+  assert.equal(reads, 2);
+  display.invalidate(['gift-feed']);
+  await display('gift-wishes');
+  assert.equal(reads, 2, 'Unrelated invalidation must retain the wish cache.');
 });

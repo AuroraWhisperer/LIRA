@@ -58,6 +58,17 @@ test('opening settings preview reuses a canvas layer and published output follow
   await desktop.locator('#openingEnabled').check();
   await desktop.locator('#openingStyle').selectOption('pixel-cassette');
   await opening.locator('#openingPixel').waitFor({ state: 'visible' });
+  assert.equal(await desktop.locator('#openingStyle option[value="moonlit-fan"]').count(), 0,
+    'External suite styles are selected from the imported library.');
+  assert.equal(await desktop.locator('#openingTitle').inputValue(), '新的开播标题');
+  await desktop.locator('#openingQuality').selectOption('low');
+  await opening.locator('#openingStage.quality-low').waitFor({ state: 'visible' });
+  await desktop.locator('#openingQuality').selectOption('normal');
+  await opening.locator('#openingStage.quality-normal').waitFor({ state: 'visible' });
+  await desktop.locator('#openingEnabled').uncheck();
+  await opening.locator('#openingStage.is-disabled').waitFor({ state: 'attached' });
+  await desktop.locator('#openingEnabled').check();
+  await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   await desktop.locator('#openingStyle').selectOption('classic');
   await opening.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('960');
@@ -70,7 +81,7 @@ test('opening settings preview reuses a canvas layer and published output follow
   assert.equal(await page.locator('.scene-editor-item').count(), 1);
   const saved = fixture.service.list()[0];
   assert.deepEqual(saved.document.items.map(item => [item.type, item.width, item.height, item.appearance.config]),
-    [['opening', 960, 540, {}]]);
+    [['opening', 960, 540, { style: 'original' }]]);
   const source = fixture.service.getSource(saved.document.id);
   const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
   assert.equal((await fetch(outputUrl)).status, 200);

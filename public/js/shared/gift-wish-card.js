@@ -1,5 +1,6 @@
 import { setGiftImage } from './gift-image-fallback.js';
 import { setGiftWishTextImage } from './gift-wish-image.js';
+import { mountMoonlitGiftWish, updateMoonlitGiftWish } from './gift-wish-moonlit.js';
 
 export const WISH_PERIODS = {
   long: '长效许愿',
@@ -43,6 +44,7 @@ export function createGiftWishCard(wish, documentRef = document) {
   const card = element('article', `wish-card${wish.completed ? ' is-complete' : ''}`);
   card.dataset.wishId = wish.id;
   card.setAttribute('aria-label', [WISH_PERIODS[wish.period], wish.giftName, wish.label].filter(Boolean).join(' · '));
+  if (wish.displayStyle === 'moonlit') return mountMoonlitGiftWish(card, wish, documentRef);
   if (wish.displayStyle === 'text') {
     card.classList.add('wish-card--text');
     card.classList.toggle('is-received-today', wish.todayCount > 0);
@@ -93,4 +95,19 @@ export function createGiftWishCard(wish, documentRef = document) {
   progress.append(total, track);
   card.append(image, progress);
   return card;
+}
+
+export function renderGiftWishCards(root, wishes) {
+  const previous = new Map([...root.children].map(card => [card.dataset.wishId, card]));
+  const retained = new Set();
+  wishes.forEach((wish, index) => {
+    let card = previous.get(wish.id);
+    if (wish.displayStyle === 'moonlit' && card?.classList.contains('wish-card--moonlit')) {
+      updateMoonlitGiftWish(card, wish);
+    } else card = createGiftWishCard(wish, root.ownerDocument);
+    retained.add(card);
+    // Keep live moonlit nodes attached so progress transitions and particles continue.
+    if (root.children[index] !== card) root.insertBefore(card, root.children[index] || null);
+  });
+  for (const card of [...root.children]) if (!retained.has(card)) card.remove();
 }

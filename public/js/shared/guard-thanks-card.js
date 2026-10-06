@@ -50,32 +50,19 @@ export const GUARD_TIERS = Object.freeze({
   }),
 });
 
-// 辉光风格的三档时长与粒子计划，与渲染器内的分层配置分开维护。
-const AURORA_PLANS = Object.freeze({
+// 辉光的粒子由卡片自己管理；共用播放器只负责时长与取消。
+const AURORA_TIMINGS = Object.freeze({
   captain: Object.freeze({
     holdMs: 3000,
-    enterMs: 1800,
-    bursts: [{ at: 900, count: 30, kinds: ['mote', 'halo', 'mote', 'blade'], spread: 1.15 }],
-    ambient: { kind: 'mote', rate: 12 },
+    enterMs: 2800,
   }),
   admiral: Object.freeze({
     holdMs: 3400,
-    enterMs: 2000,
-    bursts: [
-      { at: 1000, count: 42, kinds: ['mote', 'halo', 'blade', 'mote'], spread: 1.3 },
-      { at: 2600, count: 20, kinds: ['mote', 'halo'], spread: 0.7, origin: { x: 640, y: 330 } },
-    ],
-    ambient: { kind: 'orbit', rate: 9 },
+    enterMs: 3000,
   }),
   governor: Object.freeze({
     holdMs: 4000,
-    enterMs: 2200,
-    bursts: [
-      { at: 1100, count: 56, kinds: ['mote', 'halo', 'blade', 'petal'], spread: 1.45 },
-      { at: 2500, count: 34, kinds: ['converge', 'mote'], spread: 0.55, origin: { x: 640, y: 470 } },
-      { at: 3400, count: 46, kinds: ['halo', 'mote', 'petal'], spread: 1.7 },
-    ],
-    ambient: { kind: 'petal', rate: 12 },
+    enterMs: 3200,
   }),
 });
 
@@ -203,13 +190,12 @@ function loadAvatar(avatar, source) {
 // 按风格决定停留时长：辉光更柔和，连播压缩得更轻，避免总督档被压垮。
 function resolveMotion(renderer, tier, compressed) {
   if (renderer.id === 'aurora') {
-    const plan = AURORA_PLANS[tier.key] || AURORA_PLANS.captain;
+    const timing = AURORA_TIMINGS[tier.key];
     const ratio = compressed ? AURORA_COMPRESSED_HOLD_RATIO : 1;
-    return { holdMs: Math.round(plan.holdMs * ratio), plan, enterMs: plan.enterMs, aura: true };
+    return { holdMs: Math.round(timing.holdMs * ratio), enterMs: timing.enterMs, aura: true };
   }
   return {
     holdMs: Math.round(tier.holdMs * (compressed ? COMPRESSED_HOLD_RATIO : 1)),
-    plan: null,
     enterMs: ENTER_MS,
     aura: false,
   };
@@ -241,6 +227,7 @@ export function createGuardThanksPlayer({ root, resolveAvatarUrl = safeGuardAvat
 
   function stop() {
     active?.abort();
+    particles.stop();
   }
 
   async function play(payload, { motion = 'full', compressed = false } = {}) {
@@ -258,6 +245,10 @@ export function createGuardThanksPlayer({ root, resolveAvatarUrl = safeGuardAvat
     stage.insertBefore(parts.card, canvas);
     root.classList.add('is-playing');
     try {
+      if (renderer.prepare) {
+        await renderer.prepare(session, parts);
+        if (session.aborted) return false;
+      }
       if (renderer.needsAvatar) {
         const avatarSource = payload.avatarUrl
           ? resolveAvatarUrl(payload.avatarUrl)
@@ -278,27 +269,15 @@ export function createGuardThanksPlayer({ root, resolveAvatarUrl = safeGuardAvat
         total = renderer.schedule(session, parts, tier, timing.holdMs);
       }
       parts.card.classList.add('is-live');
-      if (motion !== 'reduced') {
-        particles.start(
-          timing.aura
-            ? {
-                origin: { x: MEDALLION_CENTER.x, y: MEDALLION_CENTER.y - 40 },
-                colors: SPARK_VARS.map((name) => cssColor(parts.card, name)),
-                bursts: timing.plan.bursts,
-                ambient: { ...timing.plan.ambient, from: timing.enterMs, until: timing.enterMs + timing.holdMs },
-                endAt: total,
-                resolution: Math.min(1, scale * (window.devicePixelRatio || 1)),
-                soft: true,
-              }
-            : {
-                origin: { x: MEDALLION_CENTER.x + PARTICLE_OFFSET_X, y: MEDALLION_CENTER.y },
-                colors: SPARK_VARS.map((name) => cssColor(parts.card, name)),
-                bursts: tier.bursts,
-                ambient: { ...tier.ambient, from: ENTER_MS, until: ENTER_MS + timing.holdMs },
-                endAt: total,
-                resolution: scale * (window.devicePixelRatio || 1),
-              },
-        );
+      if (motion !== 'reduced' && !timing.aura) {
+        particles.start({
+          origin: { x: MEDALLION_CENTER.x + PARTICLE_OFFSET_X, y: MEDALLION_CENTER.y },
+          colors: SPARK_VARS.map((name) => cssColor(parts.card, name)),
+          bursts: tier.bursts,
+          ambient: { ...tier.ambient, from: ENTER_MS, until: ENTER_MS + timing.holdMs },
+          endAt: total,
+          resolution: scale * (window.devicePixelRatio || 1),
+        });
       }
       await Promise.race([session.wait(total), session.abortPromise]);
       return !session.aborted;

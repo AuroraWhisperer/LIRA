@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 140" fill="none">
+  <defs>
+    <linearGradient id="silk" x1="0" y1="0" x2="600" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e5f0f5" stop-opacity="0"/>
+      <stop offset=".18" stop-color="#aec7d8" stop-opacity=".8"/>
+      <stop offset=".5" stop-color="#eaf4f8" stop-opacity=".5"/>
+      <stop offset=".82" stop-color="#a0bdcf" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#e5f0f5" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M0 87C66 23 112 21 161 68C216 119 243 130 317 109C399 85 446 27 508 49C549 63 570 82 600 57C565 94 545 78 502 66C445 50 396 103 321 124C243 147 203 123 153 79C105 35 60 45 0 87Z" fill="url(#silk)"/>
+  <path d="M0 112C80 129 107 53 178 64C249 75 319 128 394 92C487 47 522 16 600 31" stroke="url(#silk)" stroke-width="2"/>
+  <path d="M0 106C80 123 106 47 177 58C248 69 318 122 393 86C486 41 521 10 600 25" stroke="url(#silk)" stroke-width=".7"/>
+</svg>

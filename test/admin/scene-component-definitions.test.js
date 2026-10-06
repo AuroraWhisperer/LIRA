@@ -10,13 +10,18 @@ const { COMPONENT_PORTS } = require('../../src/server/scene-components');
 const { PREVIEW_SESSION_TYPES } = require('../../src/server/component-preview-sessions');
 const { COMPONENT_PREVIEW_FRAGMENTS } = require('../../src/server/component-preview-page');
 const { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
+const { BROWSER_SOURCE_DEFAULTS } = require('../../public/js/shared/scene-browser-source.js');
+const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
 
-const load = (file) => loadModuleExports(path.resolve(__dirname, '../../public/js', file), { TextEncoder });
+const load = (file) => loadModuleExports(path.resolve(__dirname, '../../public/js', file), { TextEncoder, URL });
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const scene = (type) => ({ schemaVersion: 1, id: randomUUID(), title: '类型契约',
   canvas: { width: 1920, height: 1080 }, items: [{ id: randomUUID(), type, name: type,
     x: 0, y: 0, width: 320, height: 180, visible: true, locked: false,
-    appearance: Object.hasOwn(SCENE_EXTRA_COMPONENTS, type)
+    appearance: type === 'browser'
+      ? { mode: 'independent', config: { ...BROWSER_SOURCE_DEFAULTS, url: 'https://example.test/source?token=display' } }
+      : type === 'text-box' ? { mode: 'independent', config: createTextBoxDefaults() }
+      : Object.hasOwn(SCENE_EXTRA_COMPONENTS, type)
       ? { mode: 'independent', config: createSceneExtraDefaults(type) } : { mode: 'shared' } }] });
 
 test('frontend capabilities, browser factories and backend adapters agree on production scene types', async () => {
@@ -31,8 +36,10 @@ test('frontend capabilities, browser factories and backend adapters agree on pro
   for (const type of SCENE_TYPES) {
     const definition = definitions[type];
     assert.equal(typeof definition.createPreview, 'function');
-    assert.equal(typeof definition.styleChange, 'function');
-    assert.ok(definition.styleAttribute || definition.defaultStyle?.label || definition.variants?.length, `${type} must declare picker styles`);
+    if (!shared.SCENE_COMPONENTS[type].external) {
+      assert.equal(typeof definition.styleChange, 'function');
+      assert.ok(type === 'background' || definition.styleAttribute || definition.defaultStyle?.label || definition.variants?.length, `${type} must declare picker styles`);
+    }
     assert.ok(['x', 'xy'].includes(shared.SCENE_COMPONENTS[type].resizeAxes));
   }
 });

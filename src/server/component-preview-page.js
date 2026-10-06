@@ -7,7 +7,7 @@ const { SCENE_EXTRA_COMPONENTS } = require('../../public/js/shared/scene-extra-c
 
 const COMPONENT_PREVIEW_FRAGMENTS = Object.freeze({ danmaku: 'toolbox/danmaku', clock: 'toolbox/clock',
   queue: 'song/queue-theme', overtime: 'toolbox/overtime',
-  ...Object.fromEntries(Object.keys(SCENE_EXTRA_COMPONENTS).map((type) => [type, null])) });
+  ...Object.fromEntries(Object.keys(SCENE_EXTRA_COMPONENTS).map((type) => [type, null])), 'text-box': null, browser: null });
 
 function composeComponentPreviewHtml(publicDir, component) {
   const shell = fs.readFileSync(path.join(publicDir, 'pages/component-preview.html'), 'utf8');

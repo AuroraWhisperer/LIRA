@@ -217,18 +217,66 @@
 }
 
 .desktop-integrity-result {
+  --integrity-color: var(--text);
+  --integrity-surface: var(--color-bg-tertiary);
   display: grid;
-  gap: var(--spacing-sm);
-  padding-bottom: var(--spacing-md);
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--spacing-sm) 12px;
+  margin-bottom: var(--spacing-md);
+  padding: 12px var(--spacing-md);
+  border: 1px solid color-mix(in srgb, var(--integrity-color) 20%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--integrity-surface);
+  color: var(--integrity-color);
+}
+
+.desktop-integrity-result[data-tone='success'] {
+  --integrity-color: var(--color-success-dark);
+  --integrity-surface: var(--color-success-light);
+}
+
+.desktop-integrity-result[data-tone='danger'] {
+  --integrity-color: var(--danger);
+  --integrity-surface: var(--color-danger-light);
+}
+
+.desktop-integrity-result[data-tone='warning'] {
+  --integrity-color: var(--warning);
+  --integrity-surface: var(--color-warning-light);
+}
+
+.desktop-integrity-icon {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+#desktopIntegrityStatus {
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-body);
 }
 
 .desktop-integrity-result p,
 .desktop-integrity-result ul {
+  grid-column: 2;
   margin: 0;
   overflow-wrap: anywhere;
 }
 
+.desktop-integrity-result .hint {
+  margin: 0;
+  color: inherit;
+}
+
+.desktop-integrity-result ul {
+  padding-left: var(--spacing-md);
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-body);
+}
+
 .desktop-integrity-result .desktop-support-action {
+  grid-column: 2;
   justify-self: start;
 }
 

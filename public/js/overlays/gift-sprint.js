@@ -1,5 +1,6 @@
 import { renderGiftSprintText } from '../shared/gift-sprint-text.js';
 import { createOverlaySocket } from './socket-client.js';
+import { mountSceneExtraClient } from './scene-extra-client.js';
 
 const preview = new URLSearchParams(location.search).get('preview') === '1';
 const text = document.getElementById('giftSprintText');
@@ -23,5 +24,9 @@ const socket = createOverlaySocket({
     setStatus('连接已断开，正在重新连接…');
   },
 });
-socket.start();
+const component = mountSceneExtraClient('gift-sprint', {
+  onConfig() {},
+  onData(data) { renderGiftSprintText(text, data); status.hidden = true; },
+});
+if (!component) socket.start();
 window.addEventListener('pagehide', () => socket.dispose());

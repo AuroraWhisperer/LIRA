@@ -2,6 +2,7 @@
 // 使用文档：目录与快捷链接平滑滚动，随滚动高亮当前章节。
 'use strict';
 
+import { initUsageGuideLightbox } from './usage-guide-lightbox.js';
 import { initUsageGuideSearch } from './usage-guide-search.js';
 
 let initialized = false;
@@ -56,7 +57,7 @@ export function initUsageGuide() {
   function scheduleToc(open) {
     window.clearTimeout(tocTimer);
     if (!compactToc || tocAtTop || (open && toc.classList.contains('is-open'))) return;
-    tocTimer = window.setTimeout(() => setTocOpen(open), open ? 200 : 600);
+    tocTimer = window.setTimeout(() => setTocOpen(open), open ? 200 : 300);
   }
 
   function updateTocScrollState() {
@@ -198,6 +199,7 @@ export function initUsageGuide() {
   });
 
   initUsageGuideSearch(panel, navigateToTarget);
+  initUsageGuideLightbox(panel);
 
   backToTopButton?.addEventListener('click', () => {
     window.clearTimeout(navigationCorrectionTimer);

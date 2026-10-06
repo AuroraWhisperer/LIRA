@@ -8,8 +8,7 @@ const MAX_EVENT_AGE_MS = 90000;
 const SEEN_LIMIT = 200;
 const TIER_RANK = Object.freeze(Object.fromEntries(Object.keys(GUARD_TIERS).map((tier, index) => [tier, index])));
 
-export function createGuardThanksQueue({ root, resolveMotion, onError }) {
-  const player = createGuardThanksPlayer({ root });
+export function createGuardThanksQueue({ root, resolveMotion, onError, player = createGuardThanksPlayer({ root }) }) {
   const pending = [];
   const seen = new Set();
   let playing = false;

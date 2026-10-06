@@ -4,7 +4,7 @@
 const DEFAULT_OPENING_TRACK_MOTION = 'heart';
 const OPENING_TRACK_MOTION_VALUES = new Set(['heart', 'barber', 'progress']);
 const DEFAULT_OPENING_STYLE = 'classic';
-const OPENING_STYLE_VALUES = new Set(['classic', 'pixel-cassette']);
+const OPENING_STYLE_VALUES = new Set(['classic', 'pixel-cassette', 'moonlit-fan']);
 
 function normalizeOpeningStyle(value) {
   const candidate = String(value ?? '').trim();

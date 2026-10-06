@@ -22,15 +22,17 @@ function sceneRequest(document) {
   return { calls, async request(action, body) {
     calls.push({ action, body: plain(body || {}) });
     if (action === 'list') return [plain(current)];
+    if (action === 'canvas') return { outputId: current.document.id, activeSceneId: current.document.id,
+      publishedVersion: current.publishedVersion };
     if (action === 'save') current = { ...current, document: plain(body.document), revision: current.revision + 1 };
-    if (action === 'publish') current.publishedVersion++;
+    if (action === 'canvas-publish') current.publishedVersion++;
     return plain(current);
   } };
 }
 
 test('canvas session preserves version conflict through edits and discard reloads the owning revision', async () => {
   const { prepareComponentPreviewCanvas } = await load('admin/component-preview-canvas-controller.js');
-  for (const failedAction of ['save', 'publish']) {
+  for (const failedAction of ['save', 'canvas-publish']) {
     const original = documentOf();
     const remote = { ...original, title: 'Changed elsewhere' };
     let conflict = true;
@@ -39,6 +41,7 @@ test('canvas session preserves version conflict through edits and discard reload
     const request = async (action, body) => {
       calls.push({ action, body });
       if (action === 'list') return [{ document: original, revision: 1, publishedVersion: 0 }];
+      if (action === 'canvas') return { outputId: original.id, activeSceneId: original.id, publishedVersion: 0 };
       if (action === 'document') return new Promise(resolve => { resolveRead = resolve; });
       if (conflict && action === failedAction) throw Object.assign(new Error('stale'), { status: 409 });
       return { document: body?.document || remote, revision: 8, publishedVersion: 2 };
@@ -74,7 +77,7 @@ test('A01: independent clock publication ignores an unused unloaded component', 
   const f = sceneRequest(documentOf());
   const canvas = await prepare([{ id: 'danmaku', controller: unused }, { id: 'clock', controller: create({ initial: clockConfig }) }], f.request);
   assert.equal((await canvas.publish()).publishedVersion, 1);
-  assert.deepEqual(f.calls.map(call => call.action), ['list', 'publish']);
+  assert.deepEqual(f.calls.map(call => call.action), ['list', 'canvas', 'canvas-publish']);
 });
 
 test('A01: independent clock publication preserves an unrelated queue draft', async () => {
@@ -110,7 +113,7 @@ test('A02: concurrent work on an earlier owner stops publication after the batch
   finish();
   await assert.rejects(publication, /仍有未保存修改/);
   assert.equal(clock.getState().dirty, true);
-  assert.equal(f.calls.some(call => call.action === 'publish'), false);
+  assert.equal(f.calls.some(call => call.action === 'canvas-publish'), false);
   assert.equal(clock.getState().draft.label, 'later unsaved');
 });
 
@@ -127,7 +130,7 @@ test('publication preflights every shared owner before saving any draft', async 
     const canvas = await prepare(entries, f.request);
     await assert.rejects(canvas.publish(), /尚未读取完成|缺少共享组件/);
     assert.equal(writes, 0);
-    assert.equal(f.calls.some(call => call.action === 'publish'), false);
+    assert.equal(f.calls.some(call => call.action === 'canvas-publish'), false);
   }
 });
 
@@ -151,7 +154,7 @@ test('canvas edits and participant resets during another owner save stop publica
     if (mutation === 'generation') clock.reset();
     finish();
     await assert.rejects(publication, /仍有未保存修改|来源已变化|save failed/);
-    assert.equal(f.calls.some(call => call.action === 'publish'), false);
+    assert.equal(f.calls.some(call => call.action === 'canvas-publish'), false);
   }
 });
 
@@ -161,7 +164,7 @@ test('edits after dispatch stay as drafts without invalidating the submitted pub
   const clock = create({ initial: clockConfig });
   const f = sceneRequest(documentOf([item('clock', 'shared')]));
   const canvas = await prepare([{ id: 'clock', controller: clock }], async (action, body) => {
-    if (action === 'publish') clock.edit({ label: 'next publication' });
+    if (action === 'canvas-publish') clock.edit({ label: 'next publication' });
     return f.request(action, body);
   });
   assert.equal((await canvas.publish()).publishedVersion, 1);

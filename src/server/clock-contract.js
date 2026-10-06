@@ -9,6 +9,7 @@ const CLOCK_STYLE_VALUES = new Set([
   'digital',
   'orbit',
   'flip',
+  'moonlit-fan',
 ]);
 const CLOCK_BOOLEAN_SETTING_KEYS = new Set(['clockShowDate', 'clockShowSeconds']);
 const CLOCK_COLOR_DEFAULTS = Object.freeze({
@@ -21,6 +22,8 @@ const CLOCK_SETTING_KEYS = new Set([
   ...CLOCK_BOOLEAN_SETTING_KEYS,
   'clockHourFormat',
   'clockLabel',
+  'clockMoonMode',
+  'clockMoonIntervalSeconds',
   ...Object.keys(CLOCK_COLOR_DEFAULTS),
 ]);
 const DEFAULT_LABELS = Object.freeze({
@@ -32,6 +35,7 @@ const DEFAULT_LABELS = Object.freeze({
   digital: '',
   orbit: '',
   flip: '',
+  'moonlit-fan': '',
 });
 const MAX_LABEL_LENGTH = 16;
 
@@ -67,6 +71,15 @@ function normalizeClockSettingValue(key, rawValue) {
     return value === '12' || value === '24' ? value : null;
   }
   if (key === 'clockLabel') return cleanClockLabel(rawValue);
+  if (key === 'clockMoonMode') {
+    const value = String(rawValue ?? '').trim();
+    return ['light', 'dark', 'auto'].includes(value) ? value : null;
+  }
+  if (key === 'clockMoonIntervalSeconds') {
+    const value = String(rawValue ?? '').trim();
+    const seconds = /^\d+$/.test(value) ? Number(value) : NaN;
+    return Number.isInteger(seconds) && seconds >= 1 && seconds <= 86400 ? String(seconds) : null;
+  }
   return null;
 }
 
@@ -84,6 +97,8 @@ function getClockConfig(settings = {}) {
       normalizeClockSettingValue('clockFlipFaceColor', settings.clockFlipFaceColor) || CLOCK_COLOR_DEFAULTS.clockFlipFaceColor,
     flipTextColor:
       normalizeClockSettingValue('clockFlipTextColor', settings.clockFlipTextColor) || CLOCK_COLOR_DEFAULTS.clockFlipTextColor,
+    moonMode: normalizeClockSettingValue('clockMoonMode', settings.clockMoonMode) || 'light',
+    moonIntervalSeconds: Number(normalizeClockSettingValue('clockMoonIntervalSeconds', settings.clockMoonIntervalSeconds) || 30),
   };
 }
 

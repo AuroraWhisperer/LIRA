@@ -130,7 +130,8 @@ test('all seven protocol types keep live-session ordering and only appearance al
     { type: 'danmaku', liveSessionId: 'session-a', timestamp: TIMESTAMP, name: '观众', message: '[喝彩]',
       avatarUrl: '', guardLevel: 3, medalName: '', medalLevel: 1, isStreamer: true,
       emotes: [{ text: '[喝彩]', url: 'https://i0.hdslb.com/bfs/emote/cheer.png', width: 192, height: 192, kind: 'inline' }] },
-    { ...gift(), giftTotalPrice: 2.5, giftImageUrl: 'https://i0.hdslb.com/bfs/gift.png' },
+    { ...gift(), giftTotalPrice: 2.5, giftImageUrl: 'https://i0.hdslb.com/bfs/gift.png',
+      avatarUrl: 'https://i0.hdslb.com/bfs/face.png', giftGuardLevel: 3 },
     { type: 'superchat', liveSessionId: 'session-a', timestamp: TIMESTAMP, name: '观众', message: '  原文\n不截断  ',
       price: 2, avatarUrl: '', colors: { priceColor: '#7497CD' } },
     { type: 'overlay-settings', style: 'bubble', timestamp: TIMESTAMP, fullscreenDurationSeconds: 12,
@@ -180,6 +181,8 @@ for (const [name, events] of [
   ['private event type', [state(), { type: 'gift-event', cookie: 'PRIVATE' }]],
   ['invalid appearance', [state(), { type: 'overlay-settings', style: 'signal', timestamp: TIMESTAMP, styleOptions: { signal: { token: 'PRIVATE' } } }]],
   ['invalid nested image', [state(), { ...gift(), giftImageUrl: 'https://user:PRIVATE@i0.hdslb.com/image.png' }]],
+  ['invalid gift avatar', [state(), { ...gift(), avatarUrl: 'https://untrusted.test/image.png' }]],
+  ['invalid purchased rank', [state(), { ...gift(), giftGuardLevel: 4 }]],
 ]) {
   test(`rejects ${name} and resets with safe status`, async (t) => {
     const env = fixture(t);

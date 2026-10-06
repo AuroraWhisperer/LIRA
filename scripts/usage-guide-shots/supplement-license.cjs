@@ -66,9 +66,10 @@ const SHOTS = [
   {
     id: 'A9',
     file: 'client-tour-bubble',
-    title: '聚光灯引导：登录你的直播账号',
+    title: '聚光灯引导：登录你的 B 站账号',
     feature: 'otherUsageGuideFeature',
     click: ['#reopenInteractiveTourBtn', '.lira-tour-next', '.lira-tour-next'],
+    wait: '.lira-tour-title:has-text("登录你的 B 站账号")',
   },
   { id: 'A10', file: 'client-topbar-status', title: '顶部导航、直播状态与窗口按钮', clip: '.topbar' },
 ];

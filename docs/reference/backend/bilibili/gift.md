@@ -41,12 +41,10 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 ```
 
 礼物边框事件由 `src/bilibili/gift/frame-config.js` 作为 final 行之后的具名 Frame Adapter 负责：
-每个特效各有自己的开关与门槛（特效 1 `giftFrameEnabled`/`giftFrameThresholdRmb`，特效 2
-`giftFrameRibbonEnabled`/`giftFrameRibbonThresholdRmb`）。Adapter 只读取 final 行权威 `total_price`，
-按人民币元转换为整数分逐个比较，同一笔礼物只广播一个事件：同时满足两个门槛时取门槛更高的特效，
-金额相同取特效 2；合格事件使用稳定的 `gift-frame:<giftEventId>` ID 广播为 `gift:frame`，
-`themeId` 为 `woodland-bloom` 或 `satin-ribbon`。Adapter 不使用 `unit_price * num` 重算，
-也不读取官方媒体映射；全部开关关闭、非 final、零金额或都不达阈值的行不广播。
+林间花信由 `giftFrameEnabled` / `giftFrameThresholdRmb` 控制。Adapter 只读取 final 行权威 `total_price`，
+按人民币元转换为整数分比较门槛，合格事件以稳定的 `gift-frame:<giftEventId>` ID 广播为 `gift:frame`，
+`themeId` 为 `woodland-bloom`。Adapter 不使用 `unit_price * num` 重算，也不读取官方媒体映射；
+开关关闭、非 final、零金额或不达阈值的行不广播。已撤销的缎带设置不参与触发。
 管理页预览通过 `/api/gifts/frame/preview` 使用独立的预览 ID，不污染实时去重集合。
 
 大航海感谢由 `src/bilibili/gift/guard-thanks-config.js` 在同一 final 回调中生成：`guardThanksEnabled` 为 `true` 时，先用 `guard-gift-aliases.js` 规范化礼物 ID（`guard-3/2/1` 及其别名）识别舰长/提督/总督，ID 无法识别时只接受完全等于「舰长」「提督」「总督」的礼物名。合格行以稳定 ID `guard-thanks:<giftEventId>` 广播 `gift:guard-thanks`，携带等级、昵称、月数（礼物 `num`）、通过 HTTPS hdslb 白名单的头像和 `guardThanksTextMode`；不读取金额阈值，也不改变记账、统计或边框。管理页预览经 `/api/gifts/guard-thanks/preview` 使用独立预览 ID。

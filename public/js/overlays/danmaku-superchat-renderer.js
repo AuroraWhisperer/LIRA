@@ -1,3 +1,5 @@
+import { createMoonlitScroll } from './danmaku-moonlit.js';
+
 // Bilibili price_configs: background_color / background_bottom_color / background_price_color.
 // Live packet colors take precedence; 2-yuan messages share the 30-yuan fallback.
 const SUPERCHAT_PALETTES = [
@@ -48,7 +50,13 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
   amount.append(node('span', 'sc-currency', '¥'), node('span', 'sc-value', price));
   root.setAttribute('aria-label', `醒目留言，¥${price}`);
 
-  if (style === 'ranked') {
+  if (style === 'moonlit') {
+    const header = node('div', 'moonlit-scroll-head');
+    header.append(node('span', 'sc-name', name), amount);
+    card.append(header, copy);
+    createMoonlitScroll(document, root, { avatar: avatar(), body: card });
+    return root;
+  } else if (style === 'ranked') {
     const header = node('div', 'sc-classic-head');
     const person = node('div', 'sc-person');
     person.append(avatar(), node('span', 'sc-name', name));

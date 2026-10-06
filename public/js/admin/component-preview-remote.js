@@ -1,3 +1,6 @@
+import { requestTextBoxMedia } from './text-box-media.js';
+import { requestComponentStyles } from './component-style-api.js';
+
 export function createRemotePreviewController(initial, send) {
   let state = initial;
   let pending = [];
@@ -153,6 +156,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
     try {
       const update = await request({ action: 'read' });
       if (closed) return;
+      draftKey = update.draftKey;
       controller.receive(update);
       display = update.display;
       for (const listener of displayListeners) listener(display);
@@ -164,10 +168,10 @@ export function createBrowserPreviewConnection({ id, token, component }) {
     }
   }
 
-  async function run(action) {
-    if (component !== 'canvas' || !['publish', 'source'].includes(action)) throw new Error('不支持的场景操作。');
+  async function run(action, change) {
+    if (component !== 'canvas' || !['publish', 'source', 'preset'].includes(action)) throw new Error('不支持的场景操作。');
     await controller.flush();
-    const { sequence } = await send({ action });
+    const { sequence } = await send({ action, ...(change ? { change } : {}) });
     return new Promise((resolve, reject) => {
       const finish = (error, result) => {
         displayListeners.delete(receive);
@@ -187,10 +191,18 @@ export function createBrowserPreviewConnection({ id, token, component }) {
 
   return {
     component,
+    requestTextBoxMedia(kind, options) {
+      if (closed || component !== 'canvas') return Promise.reject(new Error('预览连接已结束，请从客户端重新打开。'));
+      return requestTextBoxMedia(kind, options, { id, token, attachmentId });
+    },
+    requestComponentStyles(action, options) {
+      if (closed || component !== 'canvas') return Promise.reject(new Error('预览连接已结束，请从客户端重新打开。'));
+      return requestComponentStyles(action, options, { id, token, attachmentId });
+    },
     get draftKey() { return draftKey; },
     get controller() { return controller; },
-    execute(action) {
-      const next = operation.then(() => run(action));
+    execute(action, change) {
+      const next = operation.then(() => run(action, change));
       operation = next.catch(() => {});
       return next;
     },

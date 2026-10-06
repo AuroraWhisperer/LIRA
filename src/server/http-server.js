@@ -7,6 +7,8 @@ const { SERVICE_ID } = require('./lifecycle');
 const apiRoutes = require('./api-routes');
 const { redactCredentials } = require('../shared/log-redaction');
 const { createComponentPreviewSessions } = require('./component-preview-sessions');
+const { TEXT_IMAGE_PREFIX, serveSceneTextImage } = require('./scene-text-images');
+const { serveComponentMedia } = require('./component-media-files');
 
 /**
  * Build the HTTP/upgrade transport for one server runtime.
@@ -116,7 +118,19 @@ function createHttpServer(options = {}) {
       }
 
       if (requestUrl.pathname.startsWith('/api/')) {
-        await inflightTracker.run(() => apiRoutes.handleApi({ ...createApiContext(), componentPreviews }, req, res, requestUrl));
+        await inflightTracker.run(() => apiRoutes.handleApi({ ...createApiContext(), componentPreviews,
+          getSceneOutputStatus: () => getPhase() !== 'ready' ? 503 : isLicenseAuthorized() ? 200 : 423,
+        }, req, res, requestUrl));
+        return;
+      }
+
+      if (requestUrl.pathname.startsWith(TEXT_IMAGE_PREFIX)) {
+        await serveSceneTextImage(dataDir, req, res, requestUrl);
+        return;
+      }
+
+      if (requestUrl.pathname.startsWith('/component-media/')) {
+        await serveComponentMedia(dataDir, req, res, requestUrl);
         return;
       }
 

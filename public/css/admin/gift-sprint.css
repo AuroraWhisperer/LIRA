@@ -2,6 +2,20 @@
 
 .gift-sprint-overlay-panel {
   min-width: 0;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border);
+}
+.gift-sprint-overlay-panel > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.gift-sprint-overlay-panel > summary .hint {
+  margin-left: var(--spacing-md);
+  font-weight: 400;
+}
+.gift-sprint-overlay-panel[open] > summary {
+  margin-bottom: var(--spacing-md);
 }
 .gift-sprint-source {
   display: flex;

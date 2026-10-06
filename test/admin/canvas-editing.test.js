@@ -28,7 +28,7 @@ async function editor(t) {
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
-  return { page, desktop };
+  return { page, desktop, fixture };
 }
 
 async function poll(page) {
@@ -77,36 +77,53 @@ test('canvas inputs preserve native selection, clipboard and undo across preview
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[0].name === 'Canvas title');
 });
 
-test('canvas layer menus hide and delete their own component and undo restores its configuration', { timeout: 30000 }, async (t) => {
+test('canvas layer controls toggle visibility and locking, preserve selection and support undo', { timeout: 30000 }, async (t) => {
   const { page, desktop } = await editor(t);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   await page.locator('[data-category="clock"]').click();
   await page.locator('.preview-picker-style').first().click();
+  await page.waitForFunction(() => [...document.querySelectorAll('.scene-editor-item .component-preview-load-state')]
+    .every(node => node.hidden));
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 2);
   const before = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document);
   const clockId = before.items[1].id;
   const row = page.locator(`.preview-canvas-layer[data-item-id="${clockId}"]`);
+  const visible = row.getByRole('button', { name: `显示 ${before.items[1].name}`, exact: true });
+  const lock = row.getByRole('button', { name: `锁定 ${before.items[1].name}`, exact: true });
+  const clock = page.locator(`.scene-editor-item[data-item-id="${clockId}"]`);
   const toggle = row.locator('.preview-canvas-layer-action');
   const menu = row.getByRole('menu');
   await page.locator('.preview-canvas-layer-select').last().click();
+  assert.equal(await visible.getAttribute('aria-pressed'), 'true');
+  assert.equal(await lock.getAttribute('aria-pressed'), 'false');
+  await visible.click();
+  assert.equal(await page.locator('.scene-editor-item').count(), 1);
+  assert.equal(await visible.getAttribute('aria-pressed'), 'false');
+  assert.equal(await visible.evaluate(node => document.activeElement === node), true);
+  assert.equal(await page.locator('.scene-editor-item.is-selected').getAttribute('data-component'), 'danmaku');
+  await page.keyboard.press('Control+z');
+  assert.equal(await page.locator('.scene-editor-item').count(), 2);
+  assert.equal(await visible.getAttribute('aria-pressed'), 'true');
+  await visible.press('Space');
+  assert.equal(await page.locator('.scene-editor-item').count(), 1);
+  await visible.press('Enter');
+  assert.equal(await page.locator('.scene-editor-item').count(), 2);
   await toggle.click();
   assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
   const bounds = await menu.boundingBox();
   const trigger = await toggle.boundingBox();
   assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= trigger.y, 'The menu appears above the scrolling layer strip.');
-  await menu.getByRole('menuitem', { name: '隐藏', exact: true }).click();
-  assert.equal(await page.locator('.scene-editor-item').count(), 1);
-  await toggle.click();
-  await menu.getByRole('menuitem', { name: '显示', exact: true }).click();
-  assert.equal(await page.locator('.scene-editor-item').count(), 2);
+  await page.keyboard.press('Escape');
   await toggle.press('ArrowDown');
-  await menu.getByRole('menuitem', { name: '隐藏', exact: true }).waitFor({ state: 'visible' });
+  await menu.getByRole('menuitem', { name: '删除', exact: true }).waitFor({ state: 'visible' });
   await page.keyboard.press('Escape');
   assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
   await toggle.click();
   await page.getByRole('button', { name: '画布设置', exact: true }).click();
   assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
   await page.locator('.preview-canvas-layer-select').last().click();
+  await poll(page);
+  const beforeRemoval = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document);
   await toggle.click();
   await menu.getByRole('menuitem', { name: '删除', exact: true }).click();
   assert.equal(await page.locator('.scene-editor-item').count(), 1);
@@ -116,14 +133,154 @@ test('canvas layer menus hide and delete their own component and undo restores i
   await page.keyboard.press('Control+z');
   assert.equal(await page.locator('.scene-editor-item.is-selected').getAttribute('data-item-id'), clockId);
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 2);
-  assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document), before);
-  await page.getByRole('button', { name: '锁定', exact: true }).click();
+  assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document), beforeRemoval);
+  await lock.click();
+  assert.equal(await lock.getAttribute('aria-pressed'), 'true');
+  assert.equal(await lock.evaluate(node => document.activeElement === node), true);
+  assert.equal(await page.getByRole('button', { name: '解锁', exact: true }).count(), 1);
+  assert.equal(await clock.locator('.scene-editor-resize-handle:visible').count(), 0);
+  const geometry = () => clock.evaluate(node => ['left', 'top', 'width', 'height'].map(key => node.style[key]));
+  const lockedGeometry = await geometry();
+  const lockedBounds = await clock.boundingBox();
+  await page.mouse.move(lockedBounds.x + 40, lockedBounds.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(lockedBounds.x + 80, lockedBounds.y + 64, { steps: 5 });
+  await page.mouse.up();
+  assert.deepEqual(await geometry(), lockedGeometry);
+  await visible.click();
+  assert.equal(await clock.count(), 0, 'Visibility can be changed while movement is locked.');
+  assert.equal(await lock.getAttribute('aria-pressed'), 'true');
+  await visible.click();
+  assert.equal(await clock.count(), 1);
+  assert.equal(await clock.locator('.scene-editor-resize-handle:visible').count(), 0);
   await toggle.click();
   assert.equal(await menu.getByRole('menuitem', { name: '删除', exact: true }).isDisabled(), true);
-  assert.equal(await menu.getByRole('menuitem', { name: '隐藏', exact: true }).isDisabled(), true);
   await page.keyboard.press('Escape');
   await page.keyboard.press('Delete');
   assert.equal(await page.locator('.scene-editor-item').count(), 2);
+  await lock.press('Space');
+  assert.equal(await lock.getAttribute('aria-pressed'), 'false');
+  assert.equal(await clock.locator('.scene-editor-resize-handle:visible').count(), 8);
+  await page.keyboard.press('Control+z');
+  assert.equal(await lock.getAttribute('aria-pressed'), 'true');
+  await page.getByRole('button', { name: '解锁', exact: true }).click();
+  assert.equal(await lock.getAttribute('aria-pressed'), 'false');
+});
+
+test('layer visibility and locking survive publication and reloading a component entry', { timeout: 30000 }, async t => {
+  const { page, fixture } = await editor(t);
+  const visible = page.getByRole('button', { name: '显示 弹幕姬 1', exact: true });
+  const lock = page.getByRole('button', { name: '锁定 弹幕姬 1', exact: true });
+  await visible.click();
+  await lock.click();
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.getByText('已保存并应用到直播源', { exact: true }).waitFor();
+  const source = fixture.service.getSource(fixture.service.getCanvas().outputId);
+  const published = fixture.service.getOutput({ ...source, version: 0 }).document.items[0];
+  assert.equal(published.visible, false);
+  assert.equal(published.locked, true);
+  await page.reload();
+  await visible.waitFor();
+  assert.equal(await visible.getAttribute('aria-pressed'), 'false');
+  assert.equal(await lock.getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('.scene-editor-item').count(), 0);
+  await visible.click();
+  assert.equal(await page.locator('.scene-editor-item.is-locked').count(), 1);
+  assert.equal(await page.locator('.scene-editor-resize-handle:visible').count(), 0);
+});
+
+test('layer drag commits only inside the strip on release, cancels outside or on Escape, and undoes once', { timeout: 30000 }, async t => {
+  const { page, desktop } = await editor(t);
+  await page.getByRole('button', { name: '保存预设', exact: true }).click();
+  await page.getByText('预设已保存，直播画面保持当前场景', { exact: true }).waitFor();
+  await desktop.evaluate(() => {
+    const document = window.controllers.canvas.getState().draft.document;
+    document.items = ['底层', '中层', '顶层'].map(name => ({ ...document.items[0], id: crypto.randomUUID(), name }));
+    window.controllers.canvas.edit({ document });
+  });
+  const layers = page.locator('.preview-canvas-layers');
+  await layers.getByRole('button', { name: '顶层', exact: true }).waitFor();
+  const rowOrder = () => page.locator('.preview-canvas-layer-select').allTextContents();
+  const stageOrder = () => page.locator('.scene-editor-item').evaluateAll(nodes =>
+    nodes.map(node => [node.dataset.itemId, node.style.zIndex]));
+  const before = await stageOrder();
+  const drag = async () => {
+    const from = await layers.getByRole('button', { name: '顶层', exact: true }).boundingBox();
+    const to = await layers.locator('.preview-canvas-layer').filter({ hasText: '底层' }).boundingBox();
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x + to.width - 2, to.y + to.height / 2, { steps: 8 });
+  };
+  await drag();
+  assert.deepEqual(await rowOrder(), ['中层', '底层', '顶层']);
+  assert.deepEqual(await stageOrder(), before);
+  await page.mouse.up();
+  assert.notDeepEqual(await stageOrder(), before);
+  await page.keyboard.press('Control+z');
+  assert.deepEqual(await rowOrder(), ['顶层', '中层', '底层']);
+  assert.deepEqual(await stageOrder(), before);
+  await drag();
+  await page.mouse.move(400, 200);
+  await page.mouse.up();
+  assert.deepEqual(await rowOrder(), ['顶层', '中层', '底层']);
+  assert.deepEqual(await stageOrder(), before);
+  await drag();
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  assert.deepEqual(await rowOrder(), ['顶层', '中层', '底层']);
+  assert.deepEqual(await stageOrder(), before);
+});
+
+test('scene presets save and retain drafts independently while one live source changes only after applying', { timeout: 30000 }, async t => {
+  const { page, desktop, fixture } = await editor(t);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.getByText('已保存并应用到直播源', { exact: true }).waitFor();
+  const first = fixture.service.getCanvas();
+  const source = fixture.service.getSource(first.outputId);
+  const live = () => fixture.service.getOutput({ ...source, version: 0 });
+  const selectPreset = async name => {
+    await page.getByRole('button', { name: '场景预设', exact: true }).click();
+    await page.getByRole('option', { name, exact: true }).click();
+  };
+  await page.getByRole('button', { name: '新建', exact: true }).click();
+  await desktop.waitForFunction(id => window.controllers.canvas.getState().draft.document.id !== id, first.outputId);
+  await page.waitForFunction(() => document.querySelectorAll('.preview-canvas-layer').length === 0);
+  assert.equal(live().document.items.length, 1);
+  await page.getByRole('button', { name: '画布设置', exact: true }).click();
+  await page.getByRole('textbox', { name: '预设名称', exact: true }).fill('游戏场景');
+  await page.getByRole('textbox', { name: '预设名称', exact: true }).press('Tab');
+  await page.getByRole('button', { name: '保存预设', exact: true }).click();
+  await page.getByText('预设已保存，直播画面保持当前场景', { exact: true }).waitFor();
+  assert.equal(live().version, 1);
+  await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).fill('1600');
+  await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).press('Tab');
+  await selectPreset('直播场景');
+  await page.locator('.preview-canvas-layers').getByRole('button', { name: '弹幕姬 1', exact: true }).waitFor();
+  await selectPreset('游戏场景 · 未保存');
+  await page.getByRole('button', { name: '画布设置', exact: true }).click();
+  assert.equal(await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).inputValue(), '1600');
+  await page.reload();
+  await page.getByRole('button', { name: '画布设置', exact: true }).click();
+  assert.equal(await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).inputValue(), '1600');
+  fixture.failPublication(true);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.getByText('模拟发布失败', { exact: true }).waitFor();
+  assert.equal(live().version, 1);
+  fixture.failPublication(false);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.getByText('已保存并应用到直播源', { exact: true }).waitFor();
+  assert.equal(live().document.title, '游戏场景');
+  assert.equal(live().document.canvas.width, 1600);
+  assert.equal(live().document.items.length, 0);
+  assert.equal(fixture.service.getSource(first.outputId).token, source.token);
+  await selectPreset('直播场景');
+  await page.locator('.preview-canvas-layers').getByRole('button', { name: '弹幕姬 1', exact: true }).waitFor();
+  assert.equal(live().document.title, '游戏场景');
+  await page.getByRole('button', { name: '复制', exact: true }).click();
+  await page.getByRole('button', { name: '场景预设', exact: true }).filter({ hasText: '直播场景 副本' }).waitFor();
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.title === '直播场景 副本');
+  assert.equal(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items[0].appearance.mode), 'independent');
+  assert.equal(live().document.title, '游戏场景');
 });
 
 test('canvas Delete and Ctrl+Z restore deletion, resize and move as separate edits', { timeout: 30000 }, async (t) => {
@@ -162,7 +319,7 @@ test('canvas Delete and Ctrl+Z restore deletion, resize and move as separate edi
   await page.keyboard.press('Escape');
 });
 
-test('canvas edge and corner resizing stays in bounds, cancels cleanly, and saves the resulting size', { timeout: 30000 }, async (t) => {
+test('canvas edge and corner resizing permits overflow, cancels cleanly, and saves the resulting size', { timeout: 30000 }, async (t) => {
   const { page, desktop } = await editor(t);
   const item = page.locator('.scene-editor-item');
   const geometry = () => item.evaluate(node => ['left', 'top', 'width', 'height'].map(key => parseFloat(node.style[key])));
@@ -190,16 +347,51 @@ test('canvas edge and corner resizing stays in bounds, cancels cleanly, and save
   await drag('w', -1000, 0);
   await page.mouse.up();
   const bounded = await geometry();
-  assert.equal(bounded[0], 0);
-  assert.equal(bounded[2], enlarged[0] + enlarged[2]);
+  assert.ok(bounded[0] < 0);
+  assert.equal(bounded[2], 1920);
+  assert.equal(bounded[0] + bounded[2], enlarged[0] + enlarged[2]);
   assert.deepEqual(bounded.slice(3), enlarged.slice(3));
   await page.getByRole('button', { name: '锁定', exact: true }).click();
   assert.equal(await item.locator('.scene-editor-resize-handle:visible').count(), 0);
   await page.getByRole('button', { name: '解锁', exact: true }).click();
   assert.equal(await item.locator('.scene-editor-resize-handle:visible').count(), 8);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await desktop.waitForFunction(() => window.controllers.canvas.getState().saved.document.items[0]?.x === 0);
+  await desktop.waitForFunction(x => window.controllers.canvas.getState().saved.document.items[0]?.x === x, bounded[0]);
   assert.equal(await desktop.evaluate(() => window.controllers.canvas.getState().saved.document.items[0].width), bounded[2]);
+});
+
+test('canvas dragging retains a visible corner and negative coordinate edits survive publication and reload', { timeout: 30000 }, async t => {
+  const { page, desktop, fixture } = await editor(t);
+  const item = page.locator('.scene-editor-item');
+  const start = await item.boundingBox();
+  await page.mouse.move(start.x + 40, start.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(-1000, -1000, { steps: 5 });
+  await page.mouse.up();
+  const corner = await item.evaluate(node => ({ x: parseFloat(node.style.left), y: parseFloat(node.style.top),
+    width: parseFloat(node.style.width), height: parseFloat(node.style.height) }));
+  assert.equal(corner.x + corner.width, 24);
+  assert.equal(corner.y + corner.height, 24);
+  assert.equal(await page.locator('.scene-editor-extent').evaluate(node => getComputedStyle(node).overflow), 'hidden');
+  const x = page.getByRole('spinbutton', { name: 'X', exact: true });
+  const y = page.getByRole('spinbutton', { name: 'Y', exact: true });
+  await x.fill('-120');
+  await x.press('Tab');
+  await y.fill('-80');
+  await y.press('Tab');
+  const published = page.waitForResponse(async response => response.url().endsWith('/api/component-preview')
+    && (await response.json()).data?.display?.result?.publishedVersion === 1);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await published;
+  const saved = fixture.service.list()[0];
+  assert.deepEqual([saved.document.items[0].x, saved.document.items[0].y], [-120, -80]);
+  assert.deepEqual(await desktop.evaluate(() => {
+    const item = window.controllers.canvas.getState().saved.document.items[0];
+    return [item.x, item.y];
+  }), [-120, -80]);
+  await page.reload();
+  await item.waitFor();
+  assert.deepEqual(await item.evaluate(node => [parseFloat(node.style.left), parseFloat(node.style.top)]), [-120, -80]);
 });
 
 test('queue typing and geometry drafts survive updates while overtime exposes width-only resizing', { timeout: 30000 }, async (t) => {

@@ -116,6 +116,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getDanmakuFeedBuffer: () => danmakuFeedBuffer,
     resolveGiftEffect: (giftId) => domainServices.gifts.resolveEffect(giftId),
     publishSceneGift: (payload) => sceneRuntime?.receiveGift(payload),
+    notifySceneOutput: (change) => sceneRuntime?.notify(change),
   });
   const { resumeAuthorizedWork, pauseAuthorizedWork } = createAuthorizedWorkController({
     isLicenseAuthorized,
@@ -146,12 +147,19 @@ function createServerRuntime(runtimeOptions = {}) {
       webSocketHub = wsTransport.createWebSocketHub();
       danmakuFeedBuffer = createDanmakuFeedBuffer();
       ({ games: gameSessionService, interactions: interactionSessionService } = createGameRuntime({
-        broadcast: (payload) => webSocketHub.broadcast(payload),
+        broadcast: (payload) => {
+          webSocketHub.broadcast(payload);
+          if (['game:update', 'game:draw', 'game:patch'].includes(payload.type)) sceneRuntime?.notify({ types: ['games'] });
+          if (payload.type === 'interaction:update') sceneRuntime?.notify({ types: ['interactions'] });
+        },
         getSourceState: () => bilibiliRuntime.getRealtimeState(),
         subscribe: (listener) => bilibiliRuntime.subscribeRealtime(listener),
       }));
       wheelSessionService = createWheelSessionService({
-        broadcast: (payload) => webSocketHub.broadcast(payload),
+        broadcast: (payload) => {
+          webSocketHub.broadcast(payload);
+          sceneRuntime?.notify({ types: ['wheel'] });
+        },
       });
       giftEffectResolver = giftEffectModule.createGiftEffectResolver();
       domainServices = createDomainServices({
@@ -191,6 +199,7 @@ function createServerRuntime(runtimeOptions = {}) {
         runtimeOptions,
         settingsStore,
         webSocketHub,
+        onLyricsChanged: () => sceneRuntime?.notify({ types: ['lyrics'] }),
       });
       publishOvertimeUpdate = broadcastOvertimeUpdate;
       bilibiliRuntime = createBilibiliRuntime({
@@ -267,6 +276,7 @@ function createServerRuntime(runtimeOptions = {}) {
     clearRemoteGiftHistory: giftRuntime.clearRemoteGiftHistory,
     getDomainServices: () => domainServices,
     getScenes: () => sceneRuntime?.service,
+    getSceneEvents: () => sceneRuntime?.events,
     getDanmakuDisplay: () => sceneRuntime?.readDanmakuDisplay,
     getMusicRuntime: () => musicRuntime,
     getBilibiliRuntime: () => bilibiliRuntime,
@@ -433,6 +443,7 @@ function createServerRuntime(runtimeOptions = {}) {
       webSocketHub?.stop({
         shutdownPayload: { type: 'shutdown', reason: 'manual' },
       });
+      sceneRuntime?.dispose();
 
       // Flush renderer state before closing the server (e.g., save playback snapshot)
       if (preShutdownHook) {
@@ -469,6 +480,7 @@ function createServerRuntime(runtimeOptions = {}) {
   async function disposeApplication(options = {}) {
     const steps = [
       ['Bilibili', () => bilibiliRuntime?.stop()],
+      ['scene events', () => sceneRuntime?.dispose()],
       [
         'WebSocket',
         () =>

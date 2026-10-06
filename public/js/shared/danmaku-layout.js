@@ -4,6 +4,7 @@ import { CANVAS_PRESETS } from './canvas-presets.js';
 const REGION_DEFAULTS = Object.freeze({
   bubble: [380, 560], signal: [560, 600], minimal: [294, 480],
   ranked: [640, 640], transparent: [520, 540], identity: [640, 560],
+  moonlit: [640, 720],
   outline: null, cream: null, glow: null,
 });
 
@@ -43,10 +44,12 @@ function normalizeLayout(value) {
   const { canvas, contentScale, regions } = value;
   if (!Object.values(canvas).every((n) => Number.isInteger(n) && n >= 320 && n <= 7680)
     || !Number.isFinite(contentScale) || contentScale < 0.1 || contentScale > 8
-    || !keysAre(regions, Object.keys(REGION_DEFAULTS))) fail();
+    || (!keysAre(regions, Object.keys(REGION_DEFAULTS))
+      && !keysAre(regions, Object.keys(REGION_DEFAULTS).filter((style) => style !== 'moonlit')))) fail();
   const normalized = {};
   for (const style of Object.keys(REGION_DEFAULTS)) {
-    const region = regions[style];
+    const region = style === 'moonlit' && !Object.hasOwn(regions, style)
+      ? defaultRegion(style, canvas, contentScale) : regions[style];
     if (!keysAre(region, ['x', 'y', 'width', 'height']) || !Object.values(region).every(Number.isInteger)
       || region.x < 0 || region.y < 0 || region.width < 64 || region.height < 64
       || region.x + region.width > canvas.width || region.y + region.height > canvas.height) fail();

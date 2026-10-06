@@ -8,10 +8,15 @@ const variant = (value, label, sample = label) => ({ value, label, sample });
 const fontWeight = select('字重', '800', { 400: '常规', 500: '中等', 600: '半粗', 700: '加粗', 800: '特粗' });
 
 export const SCENE_EXTRA_COMPONENTS = Object.freeze({
+  background: {
+    title: '背景', size: [1920, 1080], path: '/background', variantKey: 'style',
+    variants: [],
+    fields: { style: select('背景样式', 'none', { none: '无背景', moonlit: '月渡花汀 · 静态', 'moonlit-animated': '月渡花汀 · 动态' }) },
+  },
   opening: {
     title: '开播动画', size: [1920, 1080], path: '/opening',
     variants: [variant('default', '开播动画', '跟随开播设置')],
-    fields: {},
+    fields: { style: select('展示样式', 'original', { original: '跟随客户端', 'moonlit-fan': '月渡花汀' }) },
   },
   songlist: {
     title: '展示板', size: [480, 800], path: '/songlist',
@@ -115,11 +120,16 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     variants: [variant('card', '许愿卡片', '心愿进度'), variant('text', '文字许愿', '距离目标还差…'), variant('circle', '圆环许愿', '完成进度')],
     fields: {
       period: select('许愿周期', 'all', { all: '全部', long: '长期', day: '每日', session: '本场' }),
-      displayStyle: select('展示样式', 'card', { original: '跟随每条许愿', card: '卡片', text: '文字', circle: '圆环' }),
+      displayStyle: select('展示样式', 'card', { original: '跟随每条许愿', card: '卡片', text: '文字', circle: '圆环', moonlit: '月渡花汀' }),
       showCompleted: check('显示已完成许愿'), limit: number('最多显示条数', 10, 1, 30),
       gap: number('条目间距', 12, 0, 80), textPendingColor: color('当日未收到的文字颜色', '#3b6ea8'),
       textReceivedColor: color('当日已收到的文字颜色', '#21815c'),
     },
+  },
+  'gift-sprint': {
+    title: '月底冲刺', category: 'gift-wishes', size: [600, 80], path: '/gift-sprint',
+    variants: [variant('default', '月底冲刺', '还差 100 个水晶球')],
+    fields: {},
   },
 });
 

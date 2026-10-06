@@ -4,6 +4,8 @@ import { createQueuePreview } from './queue-preview.js';
 import { createOvertimePreview } from './overtime-preview-factory.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import { createSceneExtraPreview } from './scene-extra-preview.js';
+import { createBrowserSourcePreview } from './browser-source-preview.js';
+import { createTextBoxPreview } from './text-box-preview.js';
 
 export const COMPONENT_PREVIEW_DEFINITIONS = Object.freeze({
   danmaku: Object.freeze({
@@ -29,6 +31,10 @@ export const COMPONENT_PREVIEW_DEFINITIONS = Object.freeze({
   ...Object.fromEntries(Object.entries(SCENE_EXTRA_COMPONENTS).map(([type, definition]) => [type, Object.freeze({
     sceneOnly: true, category: definition.category, variants: definition.variants,
     createPreview: (options) => createSceneExtraPreview(type, options),
-    styleChange: (_draft, value) => definition.variantKey ? { [definition.variantKey]: value } : {},
+    styleChange: (_draft, value) => type === 'opening' && value !== 'default' ? { style: value }
+      : definition.variantKey ? { [definition.variantKey]: value } : {},
   })])),
+  'text-box': Object.freeze({ sceneOnly: true, createPreview: createTextBoxPreview,
+    defaultStyle: Object.freeze({ label: '文本框', sample: '欢迎来到直播间' }), styleChange: () => ({}) }),
+  browser: Object.freeze({ sceneOnly: true, createPreview: createBrowserSourcePreview }),
 });

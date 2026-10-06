@@ -10,10 +10,15 @@ const { DEFAULT_SETTINGS } = require('../storage/settings-store');
 const { SceneError } = require('../scenes/scene-contract');
 const { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 const { normalizeSceneExtraConfig } = require('./scene-extra-config');
+const { normalizeBrowserSourceConfig } = require('../../public/js/shared/scene-browser-source.js');
+const { normalizeTextBoxConfig, createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
+const { normalizeMediaStyle } = require('../../public/js/shared/component-media-style.js');
+const { normalizeResourceStyle } = require('../../public/js/shared/component-resource-style.js');
 
 const CLOCK_KEYS = { style: 'clockStyle', showDate: 'clockShowDate', showSeconds: 'clockShowSeconds',
   hourFormat: 'clockHourFormat', label: 'clockLabel', flipFrameColor: 'clockFlipFrameColor',
-  flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor' };
+  flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor',
+  moonMode: 'clockMoonMode', moonIntervalSeconds: 'clockMoonIntervalSeconds' };
 const QUEUE_DEFAULTS = projectOverlayState('queue', { settings: DEFAULT_SETTINGS }).settings;
 
 function invalidConfig() {
@@ -36,10 +41,12 @@ const COMPONENT_PORTS = Object.freeze({
     normalizeConfig(config) {
       assertKeys(config, Object.keys(CLOCK_KEYS));
       assertScalarValues(config);
+      // Existing saved clock appearances predate the optional moon palette controls.
+      const appearance = { moonMode: 'light', moonIntervalSeconds: 30, ...config };
       const settings = {};
       for (const [field, key] of Object.entries(CLOCK_KEYS)) {
-        if (!Object.hasOwn(config, field)) throw invalidConfig();
-        const value = normalizeClockSettingValue(key, config[field]);
+        if (!Object.hasOwn(appearance, field)) throw invalidConfig();
+        const value = normalizeClockSettingValue(key, appearance[field]);
         if (value === null) throw invalidConfig();
         settings[key] = value;
       }
@@ -97,10 +104,22 @@ const COMPONENT_PORTS = Object.freeze({
     getDefault: () => createSceneExtraDefaults(type),
     getDisplay: (_state, _cloud, _request, getExtraDisplay) => getExtraDisplay?.(type) ?? null,
   })])),
+  'text-box': Object.freeze({ normalizeConfig: normalizeTextBoxConfig, getDefault: createTextBoxDefaults }),
+  browser: Object.freeze({ normalizeConfig: normalizeBrowserSourceConfig, getDefault: () => null }),
 });
 
 function normalizeSceneConfig(type, config) {
   if (typeof type !== 'string' || !Object.hasOwn(COMPONENT_PORTS, type)) throw invalidConfig();
+  if (config && Object.hasOwn(config, 'resourceStyle')) {
+    if (Object.hasOwn(config, 'mediaStyle')) throw invalidConfig();
+    const { resourceStyle, ...base } = config;
+    const normalized = COMPONENT_PORTS[type].normalizeConfig(base);
+    return { ...normalized, resourceStyle: normalizeResourceStyle(type, resourceStyle, normalized) };
+  }
+  if (config && Object.hasOwn(config, 'mediaStyle')) {
+    const { mediaStyle, ...base } = config;
+    return { ...COMPONENT_PORTS[type].normalizeConfig(base), mediaStyle: normalizeMediaStyle(type, mediaStyle) };
+  }
   return COMPONENT_PORTS[type].normalizeConfig(config);
 }
 
@@ -113,11 +132,12 @@ function createSceneComponentPorts({ getState, cloud, getExtraDisplay }) {
     return normalizeSceneConfig(type, config);
   }
   function getDisplayData(types, request) {
-    const state = getState();
+    let state;
     const data = {};
     const pending = [];
     for (const [type, port] of Object.entries(COMPONENT_PORTS)) {
       if (!types.includes(type) || !port.getDisplay) continue;
+      state ??= getState();
       const display = port.getDisplay(state, cloud, request, getExtraDisplay);
       if (display?.then) pending.push(display.then((value) => { data[type] = value; }));
       else if (display !== undefined) data[type] = display;

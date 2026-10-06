@@ -13,6 +13,52 @@ const { createSceneComponentPorts } = require('../../src/server/scene-components
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
 const { randomUUID } = require('node:crypto');
 
+test('published layers are clipped at all four canvas edges in a letterboxed source', { timeout: 30000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const created = fixture.service.create({ title: 'partial overflow', canvas: { width: 800, height: 600 } });
+  const items = [[-120, -80], [680, -80], [-120, 520], [680, 520]].map(([x, y]) => ({
+    id: randomUUID(), type: 'clock', name: 'clock', x, y, width: 320, height: 180,
+    visible: true, locked: false, appearance: { mode: 'independent', config: fixture.configs.clock },
+  }));
+  const saved = fixture.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items } });
+  fixture.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
+  const { id, token } = fixture.service.getSource(saved.document.id);
+  const url = `${fixture.origin}/scene?id=${id}#token=${token}`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.locator('.scene-version:not(.is-staging)').waitFor();
+  const visible = await page.evaluate(() => new Promise(resolve => {
+    const root = document.querySelector('.scene-version:not(.is-staging)');
+    const frames = [...root.querySelectorAll('iframe')];
+    const observer = new IntersectionObserver(entries => {
+      if (entries.length !== frames.length) return;
+      const canvas = root.getBoundingClientRect();
+      const result = entries.map(entry => {
+        const full = entry.boundingClientRect;
+        const clipped = entry.intersectionRect;
+        return { width: clipped.width, height: clipped.height,
+          expectedWidth: Math.min(full.right, canvas.right) - Math.max(full.left, canvas.left),
+          expectedHeight: Math.min(full.bottom, canvas.bottom) - Math.max(full.top, canvas.top),
+          fullyVisible: clipped.width === full.width && clipped.height === full.height };
+      });
+      observer.disconnect();
+      resolve(result);
+    });
+    frames.forEach(frame => observer.observe(frame));
+  }));
+  assert.equal(visible.length, 4);
+  for (const area of visible) {
+    assert.equal(area.fullyVisible, false);
+    assert.ok(area.width > 0 && area.height > 0);
+    assert.ok(Math.abs(area.width - area.expectedWidth) < 1);
+    assert.ok(Math.abs(area.height - area.expectedHeight) < 1);
+  }
+});
+
 test('real polling keeps removed queue data until the replacement successfully commits', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   const browser = await chromium.launch({ headless: true });
@@ -69,6 +115,14 @@ test('real source prepares complete versions, keeps prior output on failure and 
   const errors = [];
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
+    if (url.pathname === '/api/scene/events') {
+      res.setHeader('Access-Control-Allow-Origin', 'null');
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization');
+      if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+      assert.equal(req.headers.authorization, 'Bearer synthetic-source-secret');
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false }));
+    }
     if (url.pathname === '/api/scene/output') {
       res.setHeader('Access-Control-Allow-Origin', 'null');
       res.setHeader('Access-Control-Allow-Headers', 'Authorization');

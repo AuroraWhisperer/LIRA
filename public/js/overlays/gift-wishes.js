@@ -1,4 +1,4 @@
-import { createGiftWishCard, WISH_PERIODS } from '../shared/gift-wish-card.js';
+import { renderGiftWishCards, WISH_PERIODS } from '../shared/gift-wish-card.js';
 import { createGiftWishFeed } from '../shared/gift-wish-client.js';
 import { createOverlaySocket } from './socket-client.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
@@ -19,7 +19,7 @@ const feed = createGiftWishFeed({
     const items = period ? data.items.filter((wish) => wish.period === period) : data.items;
     const next = JSON.stringify(items);
     if (signature !== next) {
-      stage.replaceChildren(...items.map((wish) => createGiftWishCard(wish)));
+      renderGiftWishCards(stage, items);
       signature = next;
     }
     const messages = [];
@@ -63,7 +63,7 @@ function renderComponent() {
   if (signature === next) return;
   signature = next;
   stage.style.gap = `${componentConfig.gap}px`;
-  stage.replaceChildren(...items.map((wish) => createGiftWishCard({ ...wish,
+  renderGiftWishCards(stage, items.map((wish) => ({ ...wish,
     ...(componentConfig.displayStyle !== 'original' ? { displayStyle: componentConfig.displayStyle } : {}),
     textPendingColor: componentConfig.textPendingColor, textReceivedColor: componentConfig.textReceivedColor,
   })));

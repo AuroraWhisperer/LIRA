@@ -362,7 +362,7 @@ test('circle wishes persist and switching display styles preserves the gift and 
   assert.equal(first.displayStyle, 'circle');
   assert.equal(first.imagePath, '/overtime-gift-images/flower.webp');
   assert.equal(first.count, 3);
-  for (const displayStyle of ['card', 'text', 'circle']) {
+  for (const displayStyle of ['card', 'text', 'circle', 'moonlit']) {
     service.save({ id, viewRevision: `source-${f.source}`, target: 20, label: '', displayStyle });
     assert.deepEqual((await service.getSnapshot()).items[0], { ...first, displayStyle });
   }

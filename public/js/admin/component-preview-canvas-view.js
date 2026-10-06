@@ -6,8 +6,10 @@ import { mountPreviewCanvasSettings } from './component-preview-canvas-settings.
 import { enhanceSelects } from '../shared/select-menu.js';
 import { mountComponentPreviewPicker } from './component-preview-picker.js';
 import { mountPreviewCanvasOutput } from './component-preview-canvas-output.js';
+import { mountPreviewLayerDrag } from './component-preview-layer-drag.js';
+import { mountPreviewPresets } from './component-preview-presets.js';
 
-export function mountComponentPreviewCanvas(host, { components, canvasController, canvasConnection, selectedId, selectedSize, source, recovery }) {
+export function mountComponentPreviewCanvas(host, { components, canvasController, canvasConnection, selectedId, selectedSize, selectedItemId, source, recovery }) {
   const initial = canvasController?.getState().draft.document || {
     schemaVersion: 1, id: crypto.randomUUID(), title: '直播场景',
     canvas: { width: 1920, height: 1080 }, items: [],
@@ -25,6 +27,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   let message = '';
   let closed = false;
   let output;
+  let presets;
   let outputBusy = false;
   let inspectorOpen = Boolean(selectedId);
   const subscriptions = [];
@@ -35,6 +38,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   navigation.setAttribute('aria-label', '组件和图层');
   const library = previewElement('div', 'component-preview-list');
   const layers = previewElement('div', 'preview-canvas-layers');
+  layers.setAttribute('aria-label', '图层，左侧在上；拖动排序，松开应用');
+  layers.title = '拖动调整图层：左侧在上，右侧在下；拖出此栏松开可取消';
   const layerHeading = previewElement('h2', '', '组件');
   const center = previewElement('section', 'component-preview-canvas');
   const canvasControls = previewElement('div', 'preview-canvas-controls');
@@ -55,6 +60,14 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   sidebar.append(inspectorHost);
   toolbar.append(library, canvasControls, actions);
   const report = (text) => { message = text; renderStatus(); };
+  const layerDrag = mountPreviewLayerDrag(layers, { report,
+    beforeDrag() { closeLayerMenu(); stage?.cancelGesture(); },
+    commit(ids) {
+      edit(document => {
+        const items = new Map(document.items.map(item => [item.id, item]));
+        document.items = ids.toReversed().map(id => items.get(id));
+      });
+    } });
   function button(parent, text, action, className = 'secondary') {
     const node = previewElement('button', className, text);
     node.type = 'button';
@@ -102,6 +115,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   });
   function validateInputs() {
     stage.cancelGesture();
+    layerDrag.cancel();
     const invalid = [...inspectorHost.querySelectorAll('input, select, textarea')].find((input) => !input.checkValidity());
     if (invalid) { setInspectorOpen(true); invalid.reportValidity(); return false; }
     return true;
@@ -115,11 +129,18 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     getSelection: () => model.getDocument().items.find((item) => item.id === selected),
     setBusy(value) { outputBusy = value; renderStatus(); } });
   host.replaceChildren(toolbar, body);
-  const picker = mountComponentPreviewPicker({ components, source, add, report });
+  if (canvasConnection && canvasController.getState().presets) presets = mountPreviewPresets(toolbar, {
+    controller: canvasController, connection: canvasConnection, beforeChange: validateInputs, report,
+    setBusy(value) { outputBusy = value; renderStatus(); },
+  });
+  const picker = mountComponentPreviewPicker({ components, source, add, report,
+    requestStyles: canvasConnection?.requestComponentStyles,
+    getTextBoxes: () => model.getSnapshot().items.filter(item => item.type === 'text-box') });
   button(library, '添加组件', () => picker.open(), 'secondary component-preview-add');
   function edit(mutator) {
     if (canvasController && !canvasController.getState().loaded) return;
     stage?.cancelGesture();
+    layerDrag.cancel();
     model.edit(mutator);
   }
   function remove(id) {
@@ -149,20 +170,24 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     } catch (error) { report(error.message); }
   }
   document.addEventListener('keydown', keydown);
-  function add(component, config) {
+  function add(component, config, { name, size } = {}) {
     const id = crypto.randomUUID();
     edit((document) => {
-      if (document.items.length >= 32) throw new Error('一个场景最多添加 32 个组件。');
+      if (component.id !== 'text-box' && document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('一个场景最多添加 32 个非文本框组件。');
       const draft = config || component.controller.getState().draft;
       const region = !config && selectedSize ? selectedSize : component.bounds?.(draft);
-      const [defaultWidth, defaultHeight] = region ? [region.width, region.height] : component.size(draft);
-      const width = Math.min(defaultWidth, document.canvas.width);
-      const height = Math.min(defaultHeight, document.canvas.height);
-      document.items.push({ id, type: component.id,
-        name: `${component.title} ${document.items.filter((item) => item.type === component.id).length + 1}`,
+      const background = component.id === 'background';
+      const [defaultWidth, defaultHeight] = background ? [document.canvas.width, document.canvas.height]
+        : size || (region ? [region.width, region.height] : component.size(draft));
+      const scale = component.id === 'browser' ? Math.min(1, document.canvas.width / defaultWidth, document.canvas.height / defaultHeight) : 1;
+      const width = Math.max(32, Math.min(defaultWidth * scale, document.canvas.width));
+      const height = Math.max(32, Math.min(defaultHeight * scale, document.canvas.height));
+      const item = { id, type: component.id,
+        name: name || `${component.title} ${document.items.filter((item) => item.type === component.id).length + 1}`,
         x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
         width, height, visible: true, locked: false,
-        appearance: config || component.sceneOnly ? { mode: 'independent', config: draft } : { mode: 'shared' } });
+        appearance: config || component.sceneOnly ? { mode: 'independent', config: draft } : { mode: 'shared' } };
+      document.items.push(item);
     });
     select(id);
     setInspectorOpen(true);
@@ -177,7 +202,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       const parameters = previewElement('div', 'preview-canvas-parameters');
       inspectorHost.append(parameters);
       inspector = mountSceneEditorInspector(parameters, { model, components,
-        getSelection: () => new Set([selected]), report, embedded: true });
+        getSelection: () => new Set([selected]), report, embedded: true, requestStyles: canvasConnection?.requestComponentStyles });
       const actions = previewElement('div', 'preview-canvas-item-actions');
       const center = button(actions, '居中', () => edit((document) => {
         const item = document.items.find((entry) => entry.id === selected);
@@ -193,7 +218,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     } else inspector = mountPreviewCanvasSettings(inspectorHost, { model, report });
     stage?.syncSelection();
     renderLayers();
-    layers.querySelector('button[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    layers.querySelector('.preview-canvas-layer-select[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     renderStatus();
     enhanceSelects();
   }
@@ -207,6 +232,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     const document = model.getSnapshot();
     const signature = JSON.stringify([selected, document.items.map(({ id, name, visible, locked }) => [id, name, visible, locked])]);
     if (signature === layerSignature) return;
+    layerDrag.cancel();
     layerSignature = signature;
     const scrollLeft = layers.scrollLeft;
     closeLayerMenu();
@@ -218,11 +244,27 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       const choose = button(row, item.name, () => { select(item.id); setInspectorOpen(true); }, 'preview-canvas-layer-select');
       choose.dataset.itemId = item.id;
       choose.setAttribute('aria-pressed', String(selected === item.id));
+      for (const [field, label, title] of [
+        ['visible', '显示', item.visible ? '隐藏组件' : '显示组件'],
+        ['locked', '锁定', item.locked ? '解锁组件' : '锁定组件，禁止移动和缩放'],
+      ]) {
+        const control = button(row, '', () => {
+          edit((next) => { const current = next.items.find((entry) => entry.id === item.id); current[field] = !current[field]; });
+          [...layers.children].find((layer) => layer.dataset.itemId === item.id)
+            ?.querySelector(`.preview-canvas-layer-${field}`).focus({ preventScroll: true });
+        }, `preview-canvas-layer-state preview-canvas-layer-${field}`);
+        control.setAttribute('aria-label', `${label} ${item.name}`);
+        control.setAttribute('aria-pressed', String(item[field]));
+        control.title = title;
+        const icon = previewElement('span', 'preview-canvas-layer-state-icon');
+        icon.setAttribute('aria-hidden', 'true');
+        control.append(icon);
+      }
       const toggle = button(row, '', () => {}, 'preview-canvas-layer-action');
       toggle.setAttribute('aria-label', `${item.name}操作`);
       toggle.setAttribute('aria-haspopup', 'menu');
       toggle.setAttribute('aria-expanded', 'false');
-      toggle.title = item.locked ? '解锁组件后可隐藏或删除' : '隐藏或删除组件';
+      toggle.title = item.locked ? '解锁组件后可删除' : '删除组件';
       const chevron = previewElement('span', 'preview-canvas-layer-chevron');
       chevron.setAttribute('aria-hidden', 'true');
       toggle.append(chevron);
@@ -233,16 +275,9 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       menu.setAttribute('aria-label', `${item.name}操作`);
       toggle.setAttribute('aria-controls', menu.id);
       toggle.popoverTargetElement = menu;
-      const visible = button(menu, item.visible ? '隐藏' : '显示', () => {
-        menu.hidePopover();
-        edit((next) => { next.items.find((entry) => entry.id === item.id).visible = !item.visible; });
-        [...layers.children].find((layer) => layer.dataset.itemId === item.id)?.querySelector('.preview-canvas-layer-action').focus();
-      });
       const removeButton = button(menu, '删除', () => { menu.hidePopover(); remove(item.id); }, 'danger');
-      for (const action of [visible, removeButton]) {
-        action.setAttribute('role', 'menuitem');
-        action.disabled = item.locked;
-      }
+      removeButton.setAttribute('role', 'menuitem');
+      removeButton.disabled = item.locked;
       menu.addEventListener('beforetoggle', (event) => {
         const open = event.newState === 'open';
         toggle.setAttribute('aria-expanded', String(open));
@@ -307,7 +342,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     if (restore) restore.disabled = !connected || saving || outputBusy;
     library.inert = canvasControls.inert = layers.inert = stageHost.inert = inspectorHost.inert = !connected || outputBusy || Boolean(recoveryState?.pending);
     canvasButton.disabled = !connected || outputBusy || Boolean(recoveryState?.pending);
-    output?.render(connected && !recoveryState?.pending, saving);
+    output?.render(connected && !recoveryState?.pending && !outputBusy, saving);
+    presets?.render(outputBusy || Boolean(recoveryState?.pending));
   }
   if (recovery) subscriptions.push(recovery.subscribe(renderStatus));
   for (const component of components) {
@@ -343,21 +379,21 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     }
     renderStatus();
   }));
-  const existing = model.getDocument().items.find((item) => item.type === selectedId
+  const existing = model.getDocument().items.find((item) => item.id === selectedItemId && item.type === selectedId)
+    || model.getDocument().items.find((item) => item.type === selectedId
     && (components.find(({ id }) => id === selectedId)?.sceneOnly || item.appearance.mode === 'shared'));
   if (!selectedId) select(null);
-  else if (existing) {
-    if (!existing.visible) edit((document) => { document.items.find((item) => item.id === existing.id).visible = true; });
-    select(existing.id);
-  } else add(components.find(({ id }) => id === selectedId));
+  else if (existing) select(existing.id);
+  else add(components.find(({ id }) => id === selectedId));
   return { dispose() {
     closed = true;
+    layerDrag.dispose();
     closeLayerMenu();
     document.removeEventListener('keydown', keydown);
     window.removeEventListener('resize', closeLayerMenu);
     layoutObserver.disconnect();
     for (const stop of subscriptions) stop();
-    inspector?.dispose(); stage.dispose(); picker.dispose(); output?.dispose();
+    inspector?.dispose(); stage.dispose(); picker.dispose(); output?.dispose(); presets?.dispose();
     host.replaceChildren();
   } };
 }

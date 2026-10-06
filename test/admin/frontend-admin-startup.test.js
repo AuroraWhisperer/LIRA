@@ -120,6 +120,7 @@ async function createStartupFixture() {
     './component-preview-registry.js': { setComponentPreviewPreparation: noop, getComponentPreviews: () => [] },
     './server-overlay-url.js': { waitForServerOverlayUrlInitialization: async () => {} },
     './component-preview-canvas-controller.js': { prepareComponentPreviewCanvas: noop },
+    './component-style-client.js': { initComponentStyleLibraries: noop },
   };
   const entry = new vm.SourceTextModule(fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/app.js'), 'utf8'), {
     context,

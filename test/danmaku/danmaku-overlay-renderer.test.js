@@ -335,7 +335,7 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   assert.equal(root.children[0].children[1].children[1].textContent, '继续聊天');
 });
 
-test('fixed danmaku feed prunes incremental nodes outside its visible viewport', async () => {
+test('fixed danmaku feed retains partially visible messages and prunes only fully clipped nodes', async () => {
   class FakeNode {
     constructor(tagName = '') {
       this.tagName = tagName.toUpperCase();
@@ -396,20 +396,26 @@ test('fixed danmaku feed prunes incremental nodes outside its visible viewport',
   const firstBubble = root.children[0];
   feed.append({ name: '第三位', message: '第三条' });
 
-  assert.equal(root.children.length, 2);
-  assert.notEqual(root.children[0], firstBubble);
+  assert.equal(root.children.length, 3, 'the first bubble still has four visible pixels');
+  assert.equal(root.children[0], firstBubble);
 
   root.children[0].offsetHeight = 100;
   root.children[1].offsetHeight = 80;
   feed.append({ name: '第四位', message: '图片加载后高度变大' });
-  assert.equal(root.children.length, 1, 'pruning must use measured image/name height');
-  assert.equal(root.children[0].children[1].children[0].children[0].textContent, '第四位');
+  assert.equal(root.children.length, 3, 'only the fully clipped first bubble is removed after image growth');
+  assert.equal(root.children[0].children[1].children[0].children[0].textContent, '第二位');
 
   root.clientHeight = 150;
-  root.children[0].offsetHeight = 80;
-  root.children[0].zoom = 1.5;
+  root.children[2].offsetHeight = 80;
+  root.children[2].zoom = 1.5;
   feed.append({ name: '第五位', message: '放大卡片占用实际高度' });
-  assert.equal(root.children.length, 1, 'scaled cards must not leave a clipped older message');
-  assert.equal(root.children[0].children[1].children[0].children[0].textContent, '第五位');
+  assert.equal(root.children.length, 2, 'the scaled fourth card remains partially visible');
+  assert.equal(root.children[0].children[1].children[0].children[0].textContent, '第四位');
+  const scaledBubble = root.children[0];
+  feed.append({ name: '第六位', message: '仍然保留剩余部分' });
+  assert.equal(root.children[0], scaledBubble);
+  feed.append({ name: '第七位', message: '完全越界后移除' });
+  assert.equal(root.children.length, 3);
+  assert.notEqual(root.children[0], scaledBubble);
   feed.destroy();
 });

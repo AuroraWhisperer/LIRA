@@ -6,6 +6,30 @@
 
 ## 文件索引
 
+- [2026-10-06-external-moonlit-suite](2026-10-06-external-moonlit-suite.md)（月渡花汀外置 ZIP、默认入口与打包排除、隔离导入及渲染验证）
+
+- [2026-10-06-component-styles](2026-10-06-component-styles.md)（本机素材、标准套装导入、七类组件适配与隔离验收）
+
+- [2026-10-06-canvas-presets](2026-10-06-canvas-presets.md)（拖拽图层排序、多预设保留及单直播源显式应用）
+
+- [2026-10-05-gift-sprint-canvas](2026-10-05-gift-sprint-canvas.md)（月底冲刺收进礼物许愿、画布组件与真实进度投影）
+
+- [2026-10-05-moonlit-background-motion](2026-10-05-moonlit-background-motion.md)（浅色背景环境动效、静态/动态选项与实际视频预览）
+- [2026-10-05-moonlit-background](2026-10-05-moonlit-background.md)（浅银蓝静态壁纸、套装与背景分类、画布置底和输出）
+- [2026-10-05-component-suites](2026-10-05-component-suites.md)（画布月渡花汀套装入口与独立开播样式）
+- [2026-10-05-danmaku-moonlit](2026-10-05-danmaku-moonlit.md)（弹幕染色、三档上任与礼物/SC 花枝卷轴；桌面与服务器同步）
+- [2026-10-05-clock-moon-palettes](2026-10-05-clock-moon-palettes.md)（时钟深浅配色、固定选择与自动交替）
+- [2026-10-05-gift-wish-moonlit](2026-10-05-gift-wish-moonlit.md)（月渡花汀礼物心愿装饰与动态进度）
+- [2026-10-05-opening-moonlit-fan-revision](2026-10-05-opening-moonlit-fan-revision.md)（中等背景密度、15 秒往复动画）
+- [2026-10-05-opening-moonlit-fan](2026-10-05-opening-moonlit-fan.md)
+- [2026-10-05-remove-satin-ribbon](2026-10-05-remove-satin-ribbon.md)（删除完成）
+- [2026-10-04-gift-frame-satin-ribbon](2026-10-04-gift-frame-satin-ribbon.md)（用户撤销样式）
+
+- [2026-10-05-text-box-appearance](2026-10-05-text-box-appearance.md)
+- [2026-10-05-scene-live-updates](2026-10-05-scene-live-updates.md)
+- [2026-10-05-text-box](2026-10-05-text-box.md)
+- [2026-10-05-canvas-browser-source](2026-10-05-canvas-browser-source.md)
+- [2026-10-05-canvas-overflow](2026-10-05-canvas-overflow.md)
 - [2026-10-04-verification-reuse](2026-10-04-verification-reuse.md)
 - [2026-10-04-release-efficiency](2026-10-04-release-efficiency.md)
 - [2026-10-04-architecture-audit-fixes](2026-10-04-architecture-audit-fixes.md)

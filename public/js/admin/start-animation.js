@@ -138,12 +138,23 @@ function initStartAnimation() {
   const render = () => {
     const config = readStartAnimationConfig(root);
     const pixelStyle = config.style === 'pixel-cassette';
-    for (const id of ['openingCopyHeading', 'openingCopyFields', 'openingTrackMotionField']) {
+    const moonStyle = config.style === 'moonlit-fan';
+    for (const id of ['openingCopyHeading', 'openingCopyFields']) {
       const field = root.getElementById(id);
       if (field) field.hidden = pixelStyle;
     }
     const pixelHint = root.getElementById('openingPixelHint');
     if (pixelHint) pixelHint.hidden = !pixelStyle;
+    const moonHint = root.getElementById('openingMoonFanHint');
+    if (moonHint) moonHint.hidden = !moonStyle;
+    const trackField = root.getElementById('openingTrackMotionField');
+    if (trackField) trackField.hidden = pixelStyle || moonStyle;
+    const characterSection = root.getElementById('openingCharacterSection');
+    if (characterSection) characterSection.hidden = moonStyle;
+    const notesLabel = root.getElementById('openingNotesLabel');
+    if (notesLabel) notesLabel.textContent = moonStyle ? '飘落花瓣' : '漂浮音符';
+    const eqLabel = root.getElementById('openingEqLabel');
+    if (eqLabel) eqLabel.textContent = moonStyle ? '翩飞蝴蝶' : '氛围律动';
     if (characterName) characterName.textContent = characterNames[config.style]
       || (pixelStyle ? '未上传头像' : '未上传人物图');
     const characterHeading = root.getElementById('openingCharacterHeading');
@@ -227,8 +238,17 @@ function initStartAnimation() {
     }
   };
 
-  const handleConfigChange = () => {
+  const handleConfigChange = (event) => {
     if (!hydrated) return;
+    if (event?.target?.id === 'openingStyle' && event.target.value === 'moonlit-fan') {
+      for (const [id, previous, next] of [
+        ['openingTitle', OPENING_DEFAULTS.title, '月渡花汀'],
+        ['openingSubtitle', OPENING_DEFAULTS.subtitle, '直播即将开始'],
+      ]) {
+        const field = root.getElementById(id);
+        if (field && field.value === previous) field.value = next;
+      }
+    }
     render();
     schedulePersist();
   };

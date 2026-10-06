@@ -135,7 +135,9 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   const source = { id: canvasId, token: 'synthetic-scene-source' };
   context.scenes = {
     list: () => [canvasDto],
-    publish: () => { canvasDto.publishedVersion += 1; return canvasDto; },
+    getCanvas: () => ({ outputId: canvasId, activeSceneId: canvasId,
+      activeSceneTitle: canvasDto.document.title, publishedVersion: canvasDto.publishedVersion }),
+    publishCanvas: () => { canvasDto.publishedVersion += 1; return canvasDto; },
     getSource: id => { assert.equal(id, canvasId); return source; },
   };
   await admin.webContents.executeJavaScript(`(async () => {
