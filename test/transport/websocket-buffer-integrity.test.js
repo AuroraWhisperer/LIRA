@@ -3,18 +3,10 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
+const { maskedFrame } = require('../helpers/transport-fixtures');
 const { createWebSocketHub } = require('../../src/server/ws');
 
-function frame(body, opcode = 9, fin = true) {
-  const payload = Buffer.from(body);
-  assert.ok(payload.length < 126);
-  const result = Buffer.alloc(6 + payload.length);
-  result[0] = (fin ? 0x80 : 0) | opcode;
-  result[1] = 0x80 | payload.length;
-  result.set([0x12, 0x34, 0x56, 0x78], 2);
-  for (let index = 0; index < payload.length; index += 1) result[6 + index] = payload[index] ^ result[2 + (index % 4)];
-  return result;
-}
+const frame = (body, opcode = 9, fin = true) => maskedFrame(body, { opcode, fin });
 
 function fixture(t) {
   const hub = createWebSocketHub();

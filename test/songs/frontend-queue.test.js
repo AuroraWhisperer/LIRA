@@ -10,7 +10,7 @@ const vm = require('node:vm');
 const { DatabaseSync } = require('node:sqlite');
 const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { readJsModuleBundle: readRawJsModuleBundle } = require('../helpers/js-module-bundle');
+const { readQueueOverlayBundle: readJsModuleBundle } = require('../helpers/queue-overlay-bundle');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 const settingsStoreModule = require('../../src/storage/settings-store');
@@ -72,13 +72,6 @@ test('queue opacity percentages survive form refresh and preset sync without cha
   assert.equal(theme.collectTheme().themeOpacity, '0.85');
 });
 
-function readJsModuleBundle(...relativeSegments) {
-  return readRawJsModuleBundle(...relativeSegments).replace(
-    /^\s*(?:export\s+)?\{\s*applyTheme,\s*setIdentityRuleThemeVars\s*\}\s+from\s+['"]\.\/queue-theme\.js['"];\s*/gm,
-    '',
-  );
-}
-
 test('admin queue style cards preserve focus and selection indicators', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'workspace.css');
 
@@ -86,51 +79,52 @@ test('admin queue style cards preserve focus and selection indicators', () => {
   assert.match(styles, /\.style-option:focus-visible\s*\{[^}]*var\(--style-option-accent\)/);
 });
 
-test('illustrated queue styles expose persisted typography controls', () => {
+test('queue style controls exist, default to inherited typography and persist only the selected style', async () => {
   const html = readAdminHtml();
-  const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
-  const localFontSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'local-font-library.js'),
-    'utf8',
-  );
   const defaults = settingsStoreModule.DEFAULT_SETTINGS;
-  const themeStoreSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'), 'utf8');
-  const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
-  const overlayUtilsSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'),
-    'utf8',
-  );
+  const { OVERLAY_THEME_KEYS } = require('../../src/storage/theme-store');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const { QUEUE_STYLE_CONTROLS, collectQueueTheme, queueSettingsPayload } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'),
+  );
 
   assert.match(html, /data-illustrated-only/);
-  assert.match(html, /id="illustratedQueueFontFamily"/);
-  assert.match(html, /id="illustratedQueueFontWeight"/);
-  assert.match(html, /id="illustratedQueueUseCustomTextColor"/);
+  for (const id of [...Object.values(QUEUE_STYLE_CONTROLS), 'identityQueueScrollSpeedRange']) {
+    assert.match(html, new RegExp(`\\sid="${id}"`), `${id} control`);
+  }
   assert.match(html, /id="illustratedQueueTextColor"[^>]*type="color"/);
-  const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
-  const viewSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-view.js'), 'utf8');
-  assert.match(configSource, /fontFamily: 'illustratedQueueFontFamily'/);
-  assert.match(
-    viewSource,
-    /registerLocalFontSelect\(node\('illustratedQueueFontFamily'\)\)/,
-  );
-  assert.match(formsSource, /ensureSavedFontOption\([\s\S]*?illustratedQueueFontFamily/);
-  assert.match(localFontSource, /window\.queryLocalFonts\(\)/);
-  assert.match(configSource, /fontWeight: 'illustratedQueueFontWeight'/);
-  assert.match(configSource, /useCustomTextColor: 'illustratedQueueUseCustomTextColor'/);
-  assert.match(configSource, /textColor: 'illustratedQueueTextColor'/);
   assert.equal(defaults.illustratedQueueFontFamily, 'default');
   assert.equal(defaults.illustratedQueueFontWeight, 'default');
   assert.equal(defaults.illustratedQueueUseCustomTextColor, 'false');
-  assert.match(themeStoreSource, /'illustratedQueueFontFamily',\s*'illustratedQueueFontWeight'/);
-  assert.match(themeStoreSource, /'illustratedQueueUseCustomTextColor',\s*'illustratedQueueTextColor'/);
-  assert.match(overlaySource, /--illustrated-queue-font-family/);
-  assert.match(overlayUtilsSource, /const multilingualFontFallback\s*=\s*['"]"Microsoft YaHei"/);
-  assert.match(overlaySource, /--illustrated-queue-font-weight/);
-  assert.match(overlaySource, /--illustrated-queue-text-color/);
-  assert.match(overlayStyles, /\.illustrated-custom-font/);
-  assert.match(overlayStyles, /\.illustrated-custom-weight/);
-  assert.match(overlayStyles, /\.illustrated-custom-text-color/);
+  for (const className of ['illustrated-custom-font', 'illustrated-custom-weight', 'illustrated-custom-text-color']) {
+    assert.ok(overlayStyles.includes(`.${className}`), `${className} must have overlay styles`);
+  }
+
+  const values = {
+    overlayQueueStyle: 'neon-vinyl',
+    identityQueueFontSize: '41',
+    illustratedQueueFontFamily: 'KaiTi',
+    illustratedQueueFontWeight: '700',
+    illustratedQueueUseCustomTextColor: 'true',
+    illustratedQueueTextColor: '#123456',
+    identityQueueScrollMode: 'loop',
+    identityQueueScrollSpeed: '64',
+  };
+  const payload = collectQueueTheme({ getElementById: (id) => ({ value: values[id] ?? '' }) });
+  const styleKeys = Object.keys(payload).filter((key) => key !== 'overlayQueueStyle');
+  assert.equal(payload.overlayQueueStyle, 'neon-vinyl');
+  assert.equal(payload.neonVinylQueueFontFamily, 'KaiTi');
+  assert.equal(payload.neonVinylQueueScrollSpeed, '64');
+  assert.ok(styleKeys.length > 0 && styleKeys.every((key) => key.startsWith('neonVinylQueue')), styleKeys.join(', '));
+  for (const key of styleKeys) assert.ok(OVERLAY_THEME_KEYS.includes(key), `${key} must be a persisted theme key`);
+  for (const prefix of ['storybook', 'cherryRibbon', 'goldenLily']) {
+    assert.ok(OVERLAY_THEME_KEYS.includes(`${prefix}QueueFontSize`), `${prefix} keeps its own persisted size`);
+  }
+
+  assert.deepEqual(
+    { ...queueSettingsPayload({ overlayQueueStyle: 'golden-lily' }, { goldenLilyQueueFontSize: '30', unrelated: 'x' }) },
+    { goldenLilyQueueFontSize: '30', overlayQueueStyle: 'golden-lily' },
+  );
 });
 
 test('queue styles migrate shared typography and scrolling into independent persisted values', () => {
@@ -177,24 +171,16 @@ test('queue styles migrate shared typography and scrolling into independent pers
   }
 });
 
-test('admin queue form exposes and persists controls for only the selected style', () => {
-  const html = readAdminHtml();
+test('admin queue editors wire saved fonts and selected-style payloads without a runtime harness', () => {
+  // Style-card selection is exercised in admin/canvas-queue.test.js; these calls have no offline runtime fixture.
   const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
-  const themeStoreSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'), 'utf8');
-
-  assert.match(html, /id="identityQueueScrollMode"/);
-  assert.match(html, /id="identityQueueScrollSpeedRange"/);
-  assert.match(html, /id="identityQueueScrollSpeed"/);
-  const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
   const viewSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-view.js'), 'utf8');
-  assert.match(configSource, /scrollSpeed: 'identityQueueScrollSpeed'/);
-  assert.match(formSource, /queueSettingsPayload\(draft, changed\)/);
-  assert.match(viewSource, /controller\.edit\(\{ overlayQueueStyle: button\.dataset\.overlayStyle \}\)/);
+
+  assert.match(viewSource, /registerLocalFontSelect\(node\('illustratedQueueFontFamily'\)\)/);
+  assert.match(formsSource, /ensureSavedFontOption\([\s\S]*?illustratedQueueFontFamily/);
   assert.match(formsSource, /readQueueStyleSettings\(/);
-  for (const prefix of ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily']) {
-    assert.match(themeStoreSource, new RegExp(`'${prefix}QueueFontSize'`));
-  }
+  assert.match(formSource, /queueSettingsPayload\(draft, changed\)/);
 });
 
 test('queue overlay applies rule sizing and scrolls only overflowing super chats', () => {

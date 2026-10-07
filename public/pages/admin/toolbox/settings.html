@@ -39,19 +39,15 @@
           <label class="client-appearance-choice">
             <span class="client-appearance-choice-heading">
               <input type="radio" name="clientTheme" value="{{client-theme-id}}" {{client-theme-checked}} />
-              <span>{{client-theme-name}}</span>
-              <span class="client-appearance-current" data-client-theme-current="{{client-theme-id}}" hidden>当前使用</span>
+              <span class="client-appearance-choice-copy">
+                <span>{{client-theme-name}}</span>
+                <span class="client-appearance-current" data-client-theme-current="{{client-theme-id}}" hidden>当前使用</span>
+              </span>
             </span>
             <span class="client-appearance-preview" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true">
-              <span class="client-appearance-preview-selected">点歌队列</span>
-              <span class="client-appearance-preview-card">
-                <span>播放设置</span>
-                <span class="client-appearance-preview-actions">
-                  <span class="client-appearance-preview-button">预览</span>
-                  <span class="client-appearance-preview-button client-appearance-preview-primary">保存</span>
-                </span>
-                <span class="client-appearance-preview-status">✓ 已连接</span>
-              </span>
+              <span class="client-appearance-preview-surface"></span>
+              <span class="client-appearance-preview-primary"></span>
+              <span class="client-appearance-preview-marker"></span>
             </span>
           </label>
         </template>

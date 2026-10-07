@@ -214,6 +214,9 @@
 .danmaku-style-options-fixed {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+.danmaku-style-group-floating .danmaku-style-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .danmaku-style-options-random {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -358,6 +361,7 @@
   align-items: start;
 }
 .danmaku-parameter-field {
+  --color-control-height: 32px;
   display: grid;
   gap: 8px;
   min-width: 0;

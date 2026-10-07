@@ -10,8 +10,11 @@ function createHarness({
   verifyExpiresInSeconds = () => undefined,
   verifyExpiresAt = () => undefined,
   timers,
+  randomSource,
 } = {}) {
   const state = { value: identity };
+  // Mutable so a test can start or stop failing challenges after bootstrap.
+  const control = { challengeError };
   const backgroundCalls = [];
   const calls = {
     challenges: 0,
@@ -24,6 +27,8 @@ function createHarness({
     giftHistoryRequests: [],
     giftHistoryClearRequests: [],
     giftWatchRequests: [],
+    cloudSettingsRequests: [],
+    bilibiliCredentialRequests: [],
   };
   const generated = crypto.generateKeyPairSync('ec', {
     namedCurve: 'prime256v1',
@@ -54,7 +59,7 @@ function createHarness({
     baseUrl: 'https://api.example.test',
     challenge: async () => {
       calls.challenges += 1;
-      if (challengeError) throw challengeError;
+      if (control.challengeError) throw control.challengeError;
       return { challengeId: `c${calls.challenges}`, nonce: 'n' };
     },
     verify: async () => {
@@ -93,6 +98,22 @@ function createHarness({
       calls.cloudSongsTokens = calls.cloudSongsTokens || [];
       calls.cloudSongsTokens.push(token);
       return { songs: [{ name: '云端歌' }] };
+    },
+    updateCloudSettings: async (settings, token) => {
+      calls.cloudSettingsRequests.push({ settings, token });
+      return { initialized: true, revision: 5, values: settings };
+    },
+    getBilibiliCredentials: async (token) => {
+      calls.bilibiliCredentialRequests.push({ action: 'get', token });
+      return { initialized: true, revision: 4, loggedIn: false };
+    },
+    setBilibiliCredentials: async (cookie, token) => {
+      calls.bilibiliCredentialRequests.push({ action: 'set', cookie, token });
+      return { initialized: true, revision: 7, loggedIn: true };
+    },
+    clearBilibiliCredentials: async (token) => {
+      calls.bilibiliCredentialRequests.push({ action: 'clear', token });
+      return { initialized: true, revision: 7, loggedIn: false };
     },
     getGiftCatalog: async (etag, token) => {
       calls.catalog.push({ etag, token });
@@ -158,13 +179,14 @@ function createHarness({
     fingerprintProvider,
     remoteClient: remote,
     timers,
+    randomSource,
     buildInfoProvider: () => ({
       appVersion: '3.7.11',
       buildId: 'dev',
       integrityStatus: 'unverified',
     }),
   });
-  return { manager, state, backgroundCalls, calls, remote };
+  return { manager, state, backgroundCalls, calls, remote, control };
 }
 
 module.exports = { createHarness };

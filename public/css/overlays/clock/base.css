@@ -36,7 +36,7 @@ body {
   height: 190px;
   aspect-ratio: 560 / 190;
   overflow: hidden;
-  transform: scale(var(--clock-scale, 1)) translate(var(--clock-offset-x, 0px), var(--clock-offset-y, 0px));
+  transform: scale(var(--clock-scale, 1)) translate(var(--clock-offset-x, 0px), var(--clock-offset-y, 0px)) var(--component-transform, translate(0px, 0px));
   transform-origin: left top;
   font-variant-numeric: tabular-nums;
 }

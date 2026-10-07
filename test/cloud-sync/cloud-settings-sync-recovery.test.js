@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { DatabaseSync } = require('node:sqlite');
+const { openSqliteDatabase } = require('../../src/storage/database');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSettingsStore } = require('../../src/storage/settings-store');
 const { normalizeCloudSettingsSnapshot, serializeCloudSettings } = require('../../src/server/settings-contract');
@@ -32,7 +32,8 @@ function fixture(t) {
     return cloud.get(key());
   }
   function open() {
-    db = new DatabaseSync(file);
+    // Production pragmas (WAL, synchronous NORMAL): the 243 default-setting inserts otherwise fsync one by one.
+    db = openSqliteDatabase(file);
     db.exec(SONG_SCHEMA);
     settings = createSettingsStore(db);
     active = createFixture({

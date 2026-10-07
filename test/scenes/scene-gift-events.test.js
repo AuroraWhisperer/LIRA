@@ -7,8 +7,20 @@ const { createSceneGiftDisplay } = require('../../public/js/overlays/scene-gift-
 const { createRuntimeTransport } = require('../../src/server/runtime-transport');
 
 const frame = (id) => ({ type: 'gift:frame', eventId: `frame:${id}`, userName: '观众', giftName: '小花花',
-  num: 1, totalPriceCents: 2000, themeId: 'woodland-bloom' });
+  num: 1, totalPriceCents: 2000, themeId: 'woodland-bloom', avatarUrl: 'https://i0.hdslb.com/bfs/face/viewer.webp' });
 const thanks = { type: 'gift:guard-thanks', eventId: 'guard:1', userName: '舰长', tier: 'captain', months: 1, textMode: 'zh' };
+
+test('both enabled guard styles survive scene event deduplication for one purchase', () => {
+  const { buildGuardThanksEvents } = require('../../src/bilibili/gift/guard-thanks-config');
+  const buffer = createSceneGiftEvents({ getOwner: () => ({ scope: 'a', epoch: 1 }) });
+  const events = buildGuardThanksEvents({ id: 1, gift_id: 'guard-3' }, {
+    guardThanksAuroraEnabled: 'true', guardThanksAuroraTextMode: 'zh',
+    guardThanksClassicEnabled: 'true', guardThanksClassicTextMode: 'en',
+  });
+  for (const event of events) { assert.equal(buffer.receive(event), true); assert.equal(buffer.receive(event), false); }
+  assert.deepEqual(buffer.getSnapshot('guard-thanks').events.map(({ payload }) => [payload.style, payload.textMode]),
+    [['aurora', 'zh'], ['classic', 'en']]);
+});
 
 test('scene gift window isolates types and owners, projects fields, deduplicates and stays bounded', () => {
   let owner = { scope: 'a', epoch: 1 };

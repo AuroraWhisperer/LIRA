@@ -3,7 +3,9 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
+const { createGiftProjectionService } = require('../../src/bilibili/gift');
 const { createFixture } = require('../helpers/overtime-service-fixture');
+const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const randomRule = {
@@ -77,25 +79,46 @@ for (const quantity of [100001, Number.MAX_SAFE_INTEGER]) {
   });
 }
 
-test('100000 items settle fully and once, while group mode remains one draw for a large group', (t) => {
+test('100000 items imported through the gift projection settle fully and once, while group mode stays one draw', (t) => {
   const f = createFixture();
   let draws = 0;
-  const service = f.createService({ randomInt: () => draws++ % 2 });
+  const service = f.createService({
+    randomInt(totalWeight) {
+      assert.equal(totalWeight, 2);
+      return draws++ % 2;
+    },
+  });
+  const projection = createGiftProjectionService(
+    { db: f.db, settings: () => ({}) },
+    {
+      getOvertimeEpoch: service.getCurrentEpoch,
+      onGiftFinalized: (row) => service.finalizeGift({ giftEventId: row.id }),
+    },
+  );
   t.after(() => {
+    projection.dispose();
     service.dispose();
     f.close();
   });
   service.act('enable');
   service.setTime({ remainingSeconds: 60 });
   service.replaceRules([randomRule]);
-  const event = f.insertFinalGift({ giftId: 'guard-3', num: 100000, overtimeEpoch: service.getCurrentEpoch() });
-  assert.equal(service.finalizeGift(event), true);
-  assert.equal(service.finalizeGift(event), false);
+  const source = createGiftSource(f.db.giftDb);
+  // Gift ID 10003 is the room alias of the canonical guard-3 rule.
+  const event = makeProcessedGiftEvent({ giftId: '10003', giftName: '舰长', num: 100000, totalPrice: 10000 });
+  const row = projection.importProcessedEvent(event, source);
   assert.equal(draws, 100000);
-  const audit = JSON.parse(f.getSettlement(event.giftEventId).outcomes_json);
+  assert.equal(service.getSnapshot().effectiveRemainingMs, 50_060_000);
+  const audit = JSON.parse(f.getSettlement(row.id).outcomes_json);
+  assert.equal(audit.version, 3);
   assert.equal(audit.quantity, 100000);
   assert.equal(audit.selectedIndexes.length, 100000);
+  assert.ok(audit.selectedIndexes.every((value, index) => value === index % 2));
   assert.ok(Buffer.byteLength(JSON.stringify(audit)) < 201000);
+  projection.importProcessedEvent(event, source);
+  assert.equal(draws, 100000);
+  assert.equal(f.countSettlements(row.id), 1);
+
   service.replaceRules([{ ...randomRule, quantityMode: 'group' }]);
   const group = f.insertFinalGift({
     giftId: 'guard-3',

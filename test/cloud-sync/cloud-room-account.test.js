@@ -6,20 +6,21 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
+const { openSqliteDatabase } = require('../../src/storage/database');
 const { createSettingsStore } = require('../../src/storage/settings-store');
 const { createCloudSyncController } = require('../../src/electron/cloud-sync-controller');
 
 test('room ownership survives closing and reopening the settings database', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-room-store-'));
   const filename = path.join(directory, 'settings.db');
-  let db = new DatabaseSync(filename);
+  let db = openSqliteDatabase(filename);
   try {
     db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
     const original = createSettingsStore(db);
     original.prepareCloudRoomAccount('first');
     original.setSetting('roomId', '111');
     db.close();
-    db = new DatabaseSync(filename);
+    db = openSqliteDatabase(filename);
     const restored = createSettingsStore(db);
     assert.equal(restored.prepareCloudRoomAccount('first'), false);
     assert.equal(restored.getSettings().roomId, '111');

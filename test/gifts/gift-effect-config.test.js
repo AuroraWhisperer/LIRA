@@ -7,7 +7,7 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 const test = require('node:test');
 const vm = require('node:vm');
-const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gifts');
+const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
 const {
   EFFECT_API_URL,
   buildEffectMap,

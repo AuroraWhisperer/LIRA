@@ -9,7 +9,8 @@ if (process.versions.electron) run().catch((error) => {
 async function run() {
   const path = require('node:path');
   const fs = require('node:fs');
-  const { app, BrowserWindow, session, ipcMain } = require('electron');
+  const { app, BrowserWindow, session, ipcMain, dialog } = require('electron');
+  const { createComponentWebPicker } = require('../../src/electron/component-web-picker');
   const { createHttpServer } = require('../../src/server/http-server');
   const { servePageOrAsset } = require('../../src/server/http-utils');
   const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
@@ -51,8 +52,8 @@ async function run() {
     secretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() },
     ...createSceneComponentPorts({ getState: () => ({ settings: {} }), cloud: { getSettings: () => {
-      const { style, fullscreenDurationSeconds, styleOptions, layout } = saved;
-      return { style, fullscreenDurationSeconds, styleOptions, layout };
+      const { style, fullscreenDurationSeconds, styleOptions, layout, styleParameters } = saved;
+      return { style, fullscreenDurationSeconds, styleOptions, layout, ...(styleParameters ? { styleParameters } : {}) };
     } } }) });
   global.canvasTest = { writes: [], attempts: 0, requests: [], externalUrls: [], failNext: false,
     saved: () => saved, scene: () => scenes.list()[0], componentSize: () => scenes.getComponentSize('danmaku'),
@@ -65,12 +66,13 @@ async function run() {
       await manager.ensureAuthorized();
     },
   };
+  const pickComponentWebFile = createComponentWebPicker({ dialog, getWindow: () => window });
   const server = createHttpServer({
     host: '127.0.0.1', startPort: 0, dataDir: directory, getPhase: () => 'ready',
     getStartedPort: () => server.address().port, isLicenseAuthorized: () => manager.isAuthorized(),
     getPreviewOwner: () => getComponentPreviewOwner(manager),
     inflightTracker: { run: (fn) => fn() }, getSettings: () => ({}),
-    createApiContext: () => ({ sessionToken: token, scenes, settings: { get: () => ({}) }, system: { dataDir: directory } }),
+    createApiContext: () => ({ sessionToken: token, scenes, settings: { get: () => ({}) }, system: { dataDir: directory, pickComponentWebFile } }),
     servePageOrAsset(req, res, url) {
       if (url.pathname === '/js/admin/index.js') {
         res.setHeader('Content-Type', 'application/javascript');

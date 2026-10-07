@@ -82,60 +82,58 @@ test('parseGiftConfig and buildGiftCatalog keep unknown sale IDs without local a
   ]);
 });
 
-test('expandBlindBoxSaleIds adds outputs only for sale boxes and prefers non-bag duplicate gifts', () => {
-  const config = parseGiftConfig({
-    data: {
-      list: [
-        { id: 10, name: '在售盲盒', price: 5000, bag_gift: 0 },
-        { id: 11, name: '重复产物', price: 2000, bag_gift: 1 },
-        { id: 12, name: '重复产物', price: 2000, bag_gift: 0 },
-        { id: 13, name: '唯一产物', price: 3000, bag_gift: 0 },
-        { id: 20, name: '未售盲盒', price: 5000, bag_gift: 0 },
-        { id: 21, name: '不应加入', price: 4000, bag_gift: 0 },
-      ],
-    },
+for (const scenario of [
+  {
+    name: 'adds outputs only for sale boxes and prefers non-bag duplicate gifts',
+    gifts: [
+      { id: 10, name: '在售盲盒', price: 5000, bag_gift: 0 },
+      { id: 11, name: '重复产物', price: 2000, bag_gift: 1 },
+      { id: 12, name: '重复产物', price: 2000, bag_gift: 0 },
+      { id: 13, name: '唯一产物', price: 3000, bag_gift: 0 },
+      { id: 20, name: '未售盲盒', price: 5000, bag_gift: 0 },
+      { id: 21, name: '不应加入', price: 4000, bag_gift: 0 },
+    ],
+    saleIds: [10],
+    boxes: [
+      {
+        name: '在售盲盒',
+        outputs: [
+          { name: '重复产物', price: 2 },
+          { name: '唯一产物', price: 3 },
+        ],
+      },
+      { name: '未售盲盒', outputs: [{ name: '不应加入', price: 4 }] },
+    ],
+    expected: [10, 12, 13],
+  },
+  {
+    name: 'distinguishes same-name gifts by configured price',
+    gifts: [
+      { id: 31134, name: '守护之翼', price: 200000, bag_gift: 1 },
+      { id: 35461, name: '羁绊宝盒', price: 33000, bag_gift: 0 },
+      { id: 35465, name: '守护之翼', price: 100000, bag_gift: 0 },
+    ],
+    saleIds: [35461],
+    boxes: [{ name: '羁绊宝盒', outputs: [{ name: '守护之翼', price: 100 }] }],
+    expected: [35461, 35465],
+  },
+]) {
+  test(`expandBlindBoxSaleIds ${scenario.name}`, () => {
+    const config = parseGiftConfig({ data: { list: scenario.gifts } });
+    const expanded = expandBlindBoxSaleIds(new Set(scenario.saleIds), config, scenario.boxes);
+    assert.deepEqual(
+      [...expanded].sort((left, right) => left - right),
+      scenario.expected,
+    );
   });
-  const expanded = expandBlindBoxSaleIds(new Set([10]), config, [
-    {
-      name: '在售盲盒',
-      outputs: [
-        { name: '重复产物', price: 2 },
-        { name: '唯一产物', price: 3 },
-      ],
-    },
-    { name: '未售盲盒', outputs: [{ name: '不应加入', price: 4 }] },
-  ]);
-  assert.deepEqual(
-    [...expanded].sort((left, right) => left - right),
-    [10, 12, 13],
-  );
-});
-
-test('expandBlindBoxSaleIds distinguishes same-name gifts by configured price', () => {
-  const config = parseGiftConfig({
-    data: {
-      list: [
-        { id: 31134, name: '守护之翼', price: 200000, bag_gift: 1 },
-        { id: 35461, name: '羁绊宝盒', price: 33000, bag_gift: 0 },
-        { id: 35465, name: '守护之翼', price: 100000, bag_gift: 0 },
-      ],
-    },
-  });
-  const expanded = expandBlindBoxSaleIds(new Set([35461]), config, [
-    { name: '羁绊宝盒', outputs: [{ name: '守护之翼', price: 100 }] },
-  ]);
-
-  assert.deepEqual(
-    [...expanded].sort((left, right) => left - right),
-    [35461, 35465],
-  );
-});
+}
 
 test('gift sale service validates room ID, caches refreshes, persists snapshots, and needs no public assets', async (t) => {
   const fixture = createFixture(t);
   let nowMs = Date.parse('2026-08-16T06:00:00.000Z');
   let roomId = '22637261';
   let fetchCount = 0;
+  const endpoints = [];
   const service = createGiftSaleCatalogService({
     dataDir: fixture.dataDir,
     getRoomId: () => roomId,
@@ -144,6 +142,7 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
     minRefreshMs: 10_000,
     async fetchJson(name) {
       fetchCount += 1;
+      endpoints.push(name);
       if (name === 'gift_data')
         return {
           code: 0,
@@ -183,7 +182,7 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
     refreshed.gifts.map((gift) => gift.id),
     ['100', '101'],
   );
-  assert.equal(fetchCount, 2);
+  assert.deepEqual(endpoints, ['gift_data', 'gift_config']);
   assert.deepEqual(
     refreshed.gifts.map((gift) => gift.imagePath),
     ['', ''],
@@ -230,46 +229,6 @@ test('gift sale service does not call upstream without a configured room', async
   });
   await assert.rejects(service.refresh(), /直播间号/);
   assert.equal(called, false);
-});
-
-test('gift sale service requests only room panel/config and does not infer historical bag gifts', async (t) => {
-  const fixture = createFixture(t);
-  const endpoints = [];
-  const service = createGiftSaleCatalogService({
-    dataDir: fixture.dataDir,
-    getRoomId: () => '22637261',
-    async fetchJson(name) {
-      endpoints.push(name);
-      if (name === 'gift_data') {
-        return {
-          code: 0,
-          data: { room_gift_list: { gold_list: [{ gift_id: 100 }] } },
-        };
-      }
-      return {
-        code: 0,
-        data: {
-          list: [
-            { id: 100, name: '面板礼物', price: 1000, coin_type: 'gold' },
-            {
-              id: 35600,
-              name: '历史背包礼物',
-              price: 3000000,
-              coin_type: 'gold',
-              bag_gift: 1,
-            },
-          ],
-        },
-      };
-    },
-  });
-
-  const refreshed = await service.refresh();
-  assert.deepEqual(endpoints, ['gift_data', 'gift_config']);
-  assert.deepEqual(
-    refreshed.gifts.map((gift) => gift.id),
-    ['100'],
-  );
 });
 
 test('gift sale service ignores legacy snapshots that may contain backpack gifts', (t) => {

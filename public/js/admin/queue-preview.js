@@ -6,7 +6,8 @@ import { pickQueueSettings } from './queue-theme-config.js';
 export function createQueuePreview({ controller, source = document }) {
   return { id: 'queue', title: '点歌板', controller,
     url: new URL('/queue?componentPreview=1', localOverlayOrigin()).href,
-    size: () => [480, 800], projectConfig: pickQueueSettings,
+    size: () => [480, 800], projectConfig: draft => ({ ...pickQueueSettings(draft),
+      ...(draft.resourceStyle ? { resourceStyle: draft.resourceStyle } : {}) }),
     createPanel: (host, targetController = controller) => {
       const panel = cloneComponentPanel(source.querySelector('#themeForm'), 'preview-queue');
       componentField(panel, 'queueThemeActions').remove();

@@ -8,7 +8,7 @@
     <meta name="referrer" content="no-referrer" />
     <title>礼物特效</title>
     <link rel="stylesheet" href="/css/overlays/base.css?v=20260815-01" />
-    <link rel="stylesheet" href="/css/overlays/gift-effects.css?v=20261004-01" />
+    <link rel="stylesheet" href="/css/overlays/gift-effects.css?v=20261007-caption" />
     <link rel="stylesheet" href="/css/shared/guard-thanks.css?v=20261003-01" />
     <link rel="stylesheet" href="/css/shared/guard-thanks-aurora.css?v=20261004-01" />
   </head>
@@ -18,19 +18,17 @@
         <video
           id="giftFrameVideo"
           class="gift-frame-video"
-          src="/img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm"
-          width="1920"
-          height="1080"
+          src="/img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm?v=20261006-2k"
+          width="2560"
+          height="1440"
           muted
           playsinline
           preload="auto"
         ></video>
         <div id="giftInfo" class="gift-info" role="status" aria-live="polite">
-          <div class="gift-info-viewer">
-            <span>感谢</span><strong id="giftInfoUser" class="gift-info-user"></strong>
-          </div>
+          <img id="giftInfoAvatar" class="gift-info-avatar" alt="" width="96" height="96" referrerpolicy="no-referrer" />
           <div class="gift-info-gift">
-            <span>送出</span><strong id="giftInfoName" class="gift-info-name"></strong><strong id="giftInfoNum" class="gift-info-num"></strong>
+            <span>感谢&nbsp;</span><strong id="giftInfoName" class="gift-info-name"></strong><strong id="giftInfoNum" class="gift-info-num"></strong><span>&nbsp;~</span>
           </div>
         </div>
       </div>

@@ -9,6 +9,32 @@ const { getOpeningConfig } = require('../../src/server/routes/opening-routes');
 const { projectOverlayResponse } = require('../../src/server/overlay-projection');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
+// Progress cells are found from the drawing itself: rows of five equal cells
+// that stay in place while their colour changes. Filled cells are those whose
+// colour differs from the empty first frame, so artwork coordinates and palette
+// values can change without editing this test.
+function fiveCellRows(rects) {
+  const rows = new Map();
+  for (const rect of rects) {
+    const key = `${rect.y}:${rect.width}:${rect.height}`;
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push(rect);
+  }
+  return new Map([...rows].filter(([, cells]) => cells.length === 5 && new Set(cells.map(cell => cell.x)).size === 5));
+}
+
+function progressCounter(emptyFrame) {
+  const empty = fiveCellRows(emptyFrame);
+  return (rects) => {
+    const counts = [...fiveCellRows(rects)]
+      .filter(([key, cells]) => empty.has(key) && cells.every((cell, index) => cell.x === empty.get(key)[index].x))
+      .map(([key, cells]) => cells.filter((cell, index) => cell.color !== empty.get(key)[index].color).length)
+      .filter(count => count > 0);
+    assert.ok(counts.every(count => count === counts[0]), 'every progress indicator agrees');
+    return counts[0] || 0;
+  };
+}
+
 test('opening style defaults to the existing stage and validates before settings are written', () => {
   assert.equal(DEFAULT_SETTINGS.openingStyle, 'classic');
   for (const style of ['classic', 'pixel-cassette', 'moonlit-fan']) {
@@ -92,22 +118,23 @@ test('only the progress loops after six seconds while the scene keeps its animat
   const runtime = createPixelOpening({ getContext: () => ctx });
   runtime.update({ active: true, quality: 'normal', showNotes: true, showEq: true,
     pixelCharacterUrl: '/opening-character/test.png' });
-  const samples = [0, 0.95, 1, 2, 3, 4, 5, 5.95, 6, 6.1, 7].map(time => {
+  const drawn = [0, 0.95, 1, 2, 3, 4, 5, 5.95, 6, 6.1, 7].map(time => {
     rectangles = [];
     nextFrame(time * 1000);
-    return {
-      portrait,
-      progress: rectangles.filter(rect => rect.y === 204 && rect.width === 32 && rect.height === 8
-        && rect.color === '#d35d8a').length,
-      letters: rectangles.filter(rect => rect.y > 230),
-      background: rectangles.slice(1, 20),
-    };
+    return { portrait, rectangles };
   });
+  const progress = progressCounter(drawn[0].rectangles);
+  const samples = drawn.map(({ portrait, rectangles }) => ({
+    portrait,
+    progress: progress(rectangles),
+    letters: rectangles.filter(rect => rect.y > 230),
+    background: rectangles.slice(1, 20),
+  }));
   assert.deepEqual(samples.map(frame => frame.progress), [0, 0, 1, 2, 3, 4, 5, 5, 0, 0, 1]);
   assert.notDeepEqual(samples[8].letters, samples[0].letters);
   assert.notDeepEqual(samples[8].background, samples[0].background);
   assert.notDeepEqual(samples[9].letters, samples[8].letters);
-  assert.ok(samples.every(frame => frame.portrait.x === 160));
+  assert.ok(samples.every(frame => frame.portrait.x === samples[0].portrait.x), 'the portrait stays horizontally fixed');
   assert.ok(new Set(samples.map(frame => frame.portrait.y)).size > 1);
   runtime.dispose();
 });
@@ -116,11 +143,9 @@ test('pixel avatars start empty, fit the fixed area and update without restartin
   const images = [];
   const drawn = [];
   let nextFrame;
-  let progress;
+  let rectangles = [];
   const ctx = {
-    fillRect(x, y, width, height) {
-      if (x === 155 && y === 204 && height === 8) progress = this.fillStyle;
-    },
+    fillRect(x, y, width, height) { rectangles.push({ x, y, width, height, color: this.fillStyle }); },
     drawImage(image, x, y, width, height) { drawn.push({ image, x, y, width, height }); },
   };
   const { createPixelOpening, mergeConfig } = {
@@ -138,6 +163,8 @@ test('pixel avatars start empty, fit the fixed area and update without restartin
   const config = { active: true, quality: 'normal', characterUrl: '/opening-character/classic.png' };
   runtime.update(config);
   nextFrame(0);
+  const progress = progressCounter(rectangles);
+  const frame = (time) => { rectangles = []; nextFrame(time); return progress(rectangles); };
   assert.equal(images.length, 0, 'classic images and bundled assets are not pixel defaults');
   assert.equal(drawn.length, 0);
   const sizes = [[32, 32], [4096, 4096], [2048, 1024], [800, 1600]];
@@ -146,19 +173,18 @@ test('pixel avatars start empty, fit the fixed area and update without restartin
     runtime.update(next);
     runtime.update(next);
     assert.equal(images.length, index + 1, 'config polling must reuse the current image');
-    nextFrame((index + 1) * 1000 - 100);
+    frame((index + 1) * 1000 - 100);
     assert.equal(drawn.length, index, 'pending replacement must not draw the previous image');
     Object.assign(images.at(-1), { complete: true, naturalWidth, naturalHeight });
-    nextFrame((index + 1) * 1000);
+    const filled = frame((index + 1) * 1000);
     const output = drawn.at(-1);
     assert.equal(Math.max(output.width, output.height), 160);
     assert.equal(output.width / output.height, naturalWidth / naturalHeight);
     assert.equal(output.x + output.width / 2, 240);
-    assert.equal(progress, '#d35d8a', 'uploading must not reset elapsed progress');
+    assert.equal(filled, index + 1, 'uploading must not reset elapsed progress');
   });
   runtime.update(config);
-  nextFrame(5000);
+  assert.equal(frame(5000), 5, 'clearing must not reset elapsed progress');
   assert.equal(drawn.length, 4);
-  assert.equal(progress, '#d35d8a', 'clearing must not reset elapsed progress');
   runtime.dispose();
 });

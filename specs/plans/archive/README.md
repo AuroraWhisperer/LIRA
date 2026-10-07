@@ -6,6 +6,38 @@
 
 ## 文件索引
 
+- [2026-10-07-current-test-failures](2026-10-07-current-test-failures.md)（修复过期夹具、预览同步、打包资源和重复标题；五个分组合计 3803 项通过，记录 Windows 临时文件占用现象）
+
+- [2026-10-07-background-color-audit](2026-10-07-background-color-audit.md)（Shoost 参数来源核对、MIT 版 CAT02/LGG、旧样式兼容及背景美术工作流；像素、ZIP 和隔离桌面验收通过）
+
+- [2026-10-07-code-document-alignment](2026-10-07-code-document-alignment.md)（区分实现偏差与文档滞后；修复刷新失败的账号/生命周期隔离，更新五份技术参考；273 项相关测试及文档/语法/架构检查通过，记录跨仓锁定检出限制）
+
+- [2026-10-07-background-filters](2026-10-07-background-filters.md)（背景白平衡、分区调色、辉光、周边模糊、暗角、色阶、颗粒与 ZIP 参数合同；沙箱像素、视频连续播放、桌面保存及原色恢复通过，记录无关检查失败）
+
+- [2026-10-07-nautical-guard-thanks](2026-10-07-nautical-guard-thanks.md)（航海旗帜三档动画、实时头像昵称、正式 ZIP 与客户端导入；隔离 Electron 保存应用及事件测试通过，本地安装包已生成，记录既有测试失败与临时目录清理限制）
+
+- [2026-10-07-client-modularity-refactor](2026-10-07-client-modularity-refactor.md)（画布轮询与快照复用、选择器/粉丝编辑/IPC/互动状态职责拆分、退役入口清理；相关回归与架构门禁通过，记录全量原有失败及临时副本清理限制）
+
+- [2026-10-07-component-style-parameters](2026-10-07-component-style-parameters.md)（9 款时钟及 16 款弹幕逐样式效果、导入能力边界、进房开关；桌面/浏览器和协议验收，记录无关检查限制；未部署）
+
+- [2026-10-07-starlight-danmaku](2026-10-07-starlight-danmaku.md)（星语固定弹幕；普通消息、礼物与 SC，桌面/服务端渲染及契约验证通过，未部署）
+
+- [2026-10-07-starveil-danmaku](2026-10-07-starveil-danmaku.md)（星幕浮语六色随机胶囊，62 项 Node 测试、4 项浏览器用例及隔离桌面保存回读验证）
+
+- [2026-10-06-third-party-component-import](2026-10-06-third-party-component-import.md)（HTML/CSS 配套资源、浏览器地址统一导入；36 项新增测试与独立 Electron 验证，记录现有无关门禁失败）
+
+- [2026-10-06-background-parameters](2026-10-06-background-parameters.md)（背景外观与视频参数、ZIP 默认快照、独立实例及桌面保存验证；记录两项无关门禁失败）
+
+- [2026-10-06-comet-danmaku](2026-10-06-comet-danmaku.md)（彩色彗尾飘窗、完整离场、两端契约及桌面保存回读验证）
+
+- [2026-10-06-random-danmaku-position](2026-10-06-random-danmaku-position.md)（区域随机中心倾向、离散程度、数学分布及两端保存/预览验证）
+
+- [2026-10-06-floating-danmaku](2026-10-06-floating-danmaku.md)（飘窗弹幕、速率参数、全画布默认及两端配置与桌面保存验证）
+
+- [2026-10-06-guard-thanks-settings](2026-10-06-guard-thanks-settings.md)（辉光/经典独立设置、紧凑布局、共用更多样式与旧配置兼容验证）
+
+- [2026-10-06-preview-reuse](2026-10-06-preview-reuse.md)（已连接画布复用、组件定位确认、未保存草稿与关闭重开回归）
+
 - [2026-10-06-external-moonlit-suite](2026-10-06-external-moonlit-suite.md)（月渡花汀外置 ZIP、默认入口与打包排除、隔离导入及渲染验证）
 
 - [2026-10-06-component-styles](2026-10-06-component-styles.md)（本机素材、标准套装导入、七类组件适配与隔离验收）
@@ -339,3 +371,5 @@
 - [gift-effect-danmaku](gift-effect-danmaku.md)
 - [gift-wish-display-styles](gift-wish-display-styles.md)
 - [gift-wishes](gift-wishes.md)
+
+- [2026-10-07-sketch-danmaku](2026-10-07-sketch-danmaku.md)（绿萌简笔画、主题换色、两端样式与隔离浏览器验证；记录并行 styleParameters 文档检查失败）

@@ -68,4 +68,34 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   assert.deepEqual(unnamed, []);
   assert.equal(await page.getByRole('checkbox', { name: '弹性动画', exact: true }).count(), 1);
   assert.equal(await page.getByRole('spinbutton', { name: '整体缩放', exact: true }).count(), 1);
+
+  // Contextual help opens from pointer, focus and keys, but never acts as its label's control.
+  await page.getByRole('tab', { name: '展示板', exact: true }).click();
+  const sync = page.locator('#songBoardSyncTheme');
+  const help = page.locator('label:has(#songBoardSyncTheme) lira-help');
+  const tooltip = help.getByRole('tooltip');
+  const syncChecked = await sync.isChecked();
+  await help.hover();
+  assert.equal(await help.getAttribute('aria-expanded'), 'true');
+  assert.equal(await tooltip.isVisible(), true);
+  await help.click();
+  assert.equal(await help.getAttribute('aria-expanded'), 'true', 'Clicking does not toggle the open tooltip.');
+  assert.equal(await sync.isChecked(), syncChecked, 'Clicking help inside a label does not toggle its control.');
+  await page.mouse.move(0, 0);
+  await page.locator('body').click({ position: { x: 1, y: 1 } });
+  assert.equal(await help.getAttribute('aria-expanded'), 'false');
+  await help.hover();
+  await page.mouse.move(0, 0);
+  assert.equal(await help.getAttribute('aria-expanded'), 'false', 'Pointer leave closes a tooltip without keyboard focus.');
+  await help.focus();
+  await help.press('Escape');
+  assert.equal(await help.getAttribute('aria-expanded'), 'false');
+  await help.press('Enter');
+  assert.equal(await help.getAttribute('aria-expanded'), 'true');
+  assert.equal(await sync.isChecked(), syncChecked, 'Activating help by keyboard does not toggle its control.');
+  await help.hover();
+  await page.mouse.move(0, 0);
+  assert.equal(await help.getAttribute('aria-expanded'), 'true', 'Pointer leave keeps keyboard-focused help open.');
+  await help.press('Escape');
+  assert.equal(await tooltip.isVisible(), false);
 });

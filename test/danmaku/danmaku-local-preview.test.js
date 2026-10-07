@@ -4,8 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'moonlit', 'outline', 'cream', 'glow'];
-const randomStyles = ['outline', 'cream', 'glow'];
+const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'starlight', 'moonlit', 'outline', 'whiteframe', 'cream', 'glow', 'starveil'];
+const randomStyles = ['outline', 'whiteframe', 'cream', 'glow', 'starveil'];
 
 async function fixture(search = '?preview=1', savedStyle) {
   const nodes = new Map();
@@ -40,7 +40,7 @@ async function fixture(search = '?preview=1', savedStyle) {
     button.querySelector = () => ({ textContent: `${style} description`, firstChild: { textContent: style } });
     return button;
   });
-  node('danmakuPreviewControls').querySelectorAll = () => buttons;
+  node('danmakuPreviewControls').querySelectorAll = (selector) => selector === '[data-preview-style]' ? buttons : [];
   const listeners = {};
   const document = {
     hidden: false,
@@ -110,11 +110,13 @@ async function fixture(search = '?preview=1', savedStyle) {
     URL,
     window: {
       location, history, innerWidth: 1366, innerHeight: 900,
+      Event,
       addEventListener(name, handler) {
         if (!windowListeners.has(name)) windowListeners.set(name, new Set());
         windowListeners.get(name).add(handler);
       },
       removeEventListener(name, handler) { windowListeners.get(name)?.delete(handler); },
+      dispatchEvent(event) { windowListeners.get(event.type)?.forEach(handler => handler(event)); },
     },
     WebSocket: class {
       constructor() {
@@ -136,6 +138,7 @@ async function fixture(search = '?preview=1', savedStyle) {
   });
   const read = (file) => fs.readFileSync(path.join(__dirname, '../../public/js/overlays', file), 'utf8');
   context.window.parent = context.window;
+  document.defaultView = context.window;
   const module = new vm.SourceTextModule(read('danmaku.js'), { context, identifier: path.resolve(__dirname, '../../public/js/overlays/danmaku.js') });
   const cache = new Map();
   await module.link((specifier, parent) => {
@@ -177,7 +180,7 @@ test('all local styles replay every example through the live feed without connec
   assert.equal(f.document.body.dataset.style, 'cream');
   for (const style of styles) {
     const start = f.appends.length;
-    const fullscreen = ['outline', 'cream', 'glow'].includes(style);
+    const fullscreen = ['outline', 'whiteframe', 'cream', 'glow', 'starveil'].includes(style);
     const sampleCount = fullscreen ? 12 : style === 'moonlit' ? 22 : 19;
     f.node(style).events.click();
     f.flushFrames();
@@ -209,7 +212,7 @@ test('all local styles replay every example through the live feed without connec
       assert.deepEqual(Array.from(items.filter((item) => item.giftGuardLevel), (item) => item.giftGuardLevel).sort(), [1, 2, 3]);
     }
     assert.equal(items.find((item) => item.kind === 'gift' && item.giftCount === 10).giftTotalPrice, 1);
-    assert.equal(f.options.at(-1).showGiftTotal, ['transparent', 'cream', 'moonlit'].includes(style));
+    assert.equal(f.options.at(-1).showGiftTotal, ['transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch'].includes(style));
     assert.ok(items.every((item) => !item.id.startsWith('preview-thanks')));
     assert.equal(f.options.at(-1).resolveEmoteUrl(members[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
     const superChats = items.filter((item) => item.kind === 'superchat');
@@ -340,6 +343,31 @@ test('scaled appearance edits keep logical font sizes and reset only the selecte
   assert.equal(fontSize.value, '80');
   assert.equal(f.history.state.danmakuStyleOptions.signal.fontSize, 40);
   assert.match(f.node('previewSaveState').textContent, /请输入 36～96 之间的整数/);
+});
+
+test('random position controls reach the preview feed, reject invalid edits and reset per style', async () => {
+  const f = await fixture('?preview=1&style=outline');
+  assert.equal(f.node('previewCenterBiasField').hidden, false);
+  for (const [id, key, value] of [['previewCenterBias', 'centerBias', 45], ['previewDispersion', 'dispersion', 38]]) {
+    const control = f.node(id);
+    control.min = '1'; control.max = '50'; control.value = String(value);
+    control.events.change();
+    assert.equal(f.history.state.danmakuStyleOptions.outline[key], value);
+    assert.equal(f.options.at(-1)[key], value);
+    control.value = '51';
+    control.events.change();
+    assert.equal(control.value, String(value));
+  }
+  f.node('cream').events.click();
+  assert.equal(f.node('previewCenterBias').value, '1');
+  f.node('outline').events.click();
+  assert.equal(f.node('previewCenterBias').value, '45');
+  f.node('previewAppearanceReset').events.click();
+  assert.equal(f.node('previewCenterBias').value, '1');
+  assert.equal(f.options.at(-1).dispersion, 1);
+  f.node('signal').events.click();
+  assert.equal(f.node('previewCenterBiasField').hidden, true);
+  assert.equal(f.node('previewDispersionField').hidden, true);
 });
 
 test('fixed canvas regions scale all content with width while height controls message capacity', async () => {

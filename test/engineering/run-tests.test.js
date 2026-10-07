@@ -87,7 +87,7 @@ test('recursive discovery excludes helpers and probes while preserving distinct 
     'test/sample/nested/b.test.js',
   ]);
   assert.deepEqual(list(root, 'offline', '--domain=other', '--domain=sample'), list(root, 'offline'));
-  assert.deepEqual(list(root, 'browser', '--domain=ui'), ['test/ui/frontend-toast.test.js']);
+  assert.deepEqual(list(root, 'browser', '--domain=ui'), configuredGroups.browser.filter((file) => file.startsWith('test/ui/')));
 });
 
 test('file selectors combine without duplicates and intersect with domains and runtime groups', (t) => {
@@ -101,7 +101,7 @@ test('file selectors combine without duplicates and intersect with domains and r
   ]);
   assert.deepEqual(list(root, '--domain=sample', '--file=test/**/first.test.js'), ['test/sample/first.test.js']);
   assert.deepEqual(list(root, '--file=.\\test\\sample\\first.test.js'), ['test/sample/first.test.js']);
-  assert.deepEqual(list(root, 'browser', '--file=test/ui/*.test.js'), ['test/ui/frontend-toast.test.js']);
+  assert.deepEqual(list(root, 'browser', '--file=test/ui/*.test.js'), configuredGroups.browser.filter((file) => file.startsWith('test/ui/')));
 });
 
 test('invalid selectors and empty intersections fail instead of running an unintended suite', (t) => {

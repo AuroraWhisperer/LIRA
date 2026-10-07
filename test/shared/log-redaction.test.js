@@ -65,15 +65,38 @@ test('error redaction strips credentials from message and stack', () => {
   assert.ok(out.message.includes('state=retry'), 'non-sensitive params must survive');
 });
 
-test('string redaction covers activation and pairing codes in URLs', () => {
-  const out = redactCredentials(
+for (const [name, input, hidden, kept] of [
+  [
+    'string redaction covers activation and pairing codes in URLs',
     'POST https://lirahub.cn/api/device/activate?activationCode=SECRET-CODE&pairingCode=PAIR-9&privateKey=PEM&state=ok',
-  );
-  assert.ok(!out.includes('SECRET-CODE'));
-  assert.ok(!out.includes('PAIR-9'));
-  assert.ok(!out.includes('PEM'));
-  assert.ok(out.includes('state=ok'));
-});
+    ['SECRET-CODE', 'PAIR-9', 'PEM'],
+    ['state=ok'],
+  ],
+  [
+    'URL object redaction covers license params and keeps others',
+    new URL('https://lirahub.cn/api/device/pairing-codes?activationCode=SECRET-CODE&signature=SIG&page=2'),
+    ['SECRET-CODE', 'SIG'],
+    ['page=2'],
+  ],
+  [
+    'URL object redaction handles userinfo and license params together',
+    new URL('https://user:password@lirahub.cn/api/device/activate?activationCode=SECRET-CODE&signature=SIG&page=2'),
+    ['user:password', 'SECRET-CODE', 'SIG'],
+    ['page=2'],
+  ],
+  [
+    'URL object redaction covers token variants and private-key fields',
+    new URL('https://lirahub.cn/api/device/verify?access_token=ACCESS&refresh_token=REFRESH&private_key_pem=PEM&state=ok'),
+    ['ACCESS', 'REFRESH', 'PEM'],
+    ['state=ok'],
+  ],
+]) {
+  test(name, () => {
+    const out = redactCredentials(input);
+    for (const value of hidden) assert.ok(!out.includes(value), `${value} must be redacted`);
+    for (const value of kept) assert.ok(out.includes(value), `${value} must survive`);
+  });
+}
 
 test('snake_case credential fields cannot bypass redaction', () => {
   const object = redactCredentials({
@@ -93,34 +116,6 @@ test('snake_case credential fields cannot bypass redaction', () => {
   );
   for (const value of ['PEM', 'ACTIVATION', 'ACCESS', 'ENCODED']) assert.ok(!string.includes(value));
   assert.ok(string.includes('state=ok'));
-});
-
-test('URL object redaction covers license params and keeps others', () => {
-  const url = new URL('https://lirahub.cn/api/device/pairing-codes?activationCode=SECRET-CODE&signature=SIG&page=2');
-  const out = redactCredentials(url);
-  assert.ok(!out.includes('SECRET-CODE'));
-  assert.ok(!out.includes('SIG'));
-  assert.ok(out.includes('page=2'));
-});
-
-test('URL object redaction handles userinfo and license params together', () => {
-  const url = new URL(
-    'https://user:password@lirahub.cn/api/device/activate?activationCode=SECRET-CODE&signature=SIG&page=2',
-  );
-  const out = redactCredentials(url);
-  assert.ok(!out.includes('user:password'));
-  assert.ok(!out.includes('SECRET-CODE'));
-  assert.ok(!out.includes('SIG'));
-  assert.ok(out.includes('page=2'));
-});
-
-test('URL object redaction covers token variants and private-key fields', () => {
-  const url = new URL(
-    'https://lirahub.cn/api/device/verify?access_token=ACCESS&refresh_token=REFRESH&private_key_pem=PEM&state=ok',
-  );
-  const out = redactCredentials(url);
-  for (const value of ['ACCESS', 'REFRESH', 'PEM']) assert.ok(!out.includes(value));
-  assert.ok(out.includes('state=ok'));
 });
 
 test('authorization and cookie headers stay redacted', () => {

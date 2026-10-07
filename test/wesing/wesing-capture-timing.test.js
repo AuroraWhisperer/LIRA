@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
 const { createWeSingCapture } = require('../../src/music/wesing-capture');
-const { createFixture } = require('../helpers/wesing-capture-fixture');
+const { createFixture, startTimedCapture } = require('../helpers/wesing-capture-fixture');
 
 test('WeSing capture activates an injected monitor and derives live lyric state', async (t) => {
   const fixture = createFixture();
@@ -87,19 +87,9 @@ test('WeSing capture activates an injected monitor and derives live lyric state'
   assert.equal(capture.getStatus().active, false);
 });
 
-test('WeSing capture stays paused until progress text becomes available', async () => {
-  let onSample = null;
+test('WeSing capture stays paused until progress text becomes available', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
   onSample({
     detected: true,
     title: '全民K歌 - 失控',
@@ -135,19 +125,9 @@ test('WeSing capture stays paused until progress text becomes available', async 
   assert.equal(state.playing, true);
 });
 
-test('WeSing capture waits for measured progress after the client finishes loading', async () => {
-  let onSample = null;
+test('WeSing capture waits for measured progress after the client finishes loading', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
   onSample({
     detected: true,
     title: '全民K歌 - 失控',
@@ -286,19 +266,9 @@ test('WeSing capture delays the forced lyric refresh until one second after play
   await capture.setActive(false);
 });
 
-test('WeSing capture freezes on a confirmed pause and preserves it through unavailable samples', async () => {
-  let onSample = null;
+test('WeSing capture freezes on a confirmed pause and preserves it through unavailable samples', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
   onSample({
     detected: true,
     title: '全民K歌 - 失控',
@@ -336,19 +306,9 @@ test('WeSing capture freezes on a confirmed pause and preserves it through unava
   assert.equal(capture.getStatus().playing, false);
 });
 
-test('WeSing capture accepts backward progress as replay or seek calibration', async () => {
-  let onSample = null;
+test('WeSing capture accepts backward progress as replay or seek calibration', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
   onSample({
     detected: true,
     title: '全民K歌 - 失控',
@@ -382,19 +342,9 @@ test('WeSing capture accepts backward progress as replay or seek calibration', a
   assert.equal(capture.getStatus().playing, true);
 });
 
-test('WeSing capture restarts timing after the client returns and freezes on monitor errors', async () => {
-  let onSample = null;
+test('WeSing capture restarts timing after the client returns and freezes on monitor errors', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
   onSample({
     detected: true,
     title: '全民K歌 - 失控',

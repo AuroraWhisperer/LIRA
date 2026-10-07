@@ -100,3 +100,12 @@ test('URL string redaction retains hosts, ports and noncredential path text', ()
   const publicUrl = 'https://example.test:443/path/contact:user@example.test?state=ok';
   assert.equal(redactCredentials(publicUrl), publicUrl);
 });
+
+test('scene fragment secrets are redacted in URL objects, strings and errors while ordinary anchors survive', () => {
+  for (const input of ['http://127.0.0.1/scene?id=one#token=private&view=one',
+    new URL('http://127.0.0.1/scene?id=one#token=private&view=one'),
+    new Error('Failed http://127.0.0.1/scene?id=one#token=private')]) {
+    assert.doesNotMatch(JSON.stringify(redactCredentials(input)), /private/);
+  }
+  assert.match(redactCredentials(new URL('https://example.test/doc#chapter-1')), /#chapter-1$/);
+});

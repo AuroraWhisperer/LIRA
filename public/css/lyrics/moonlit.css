@@ -1,0 +1,130 @@
+/* Loaded only by the Moonlit resource preset; typography and playback keep the shared controls. */
+.lyric-window-card {
+  --moonlit-gold: #93682f;
+  --moonlit-thread: #c4ad7e;
+  --moonlit-paper: #faf8f0;
+}
+
+.lyric-window-card .desktop-lyric-preview-timeline {
+  gap: clamp(12px, 3vh, 24px);
+  padding-block: 50vh;
+  padding-inline: clamp(28px, 5vw, 64px);
+}
+
+.lyric-window-card .desktop-lyric-preview-row {
+  width: 100%;
+  min-height: 108px;
+  padding: 4px clamp(36px, 6vw, 72px);
+  border-radius: 0;
+  isolation: isolate;
+  content-visibility: visible;
+}
+
+.lyric-window-card .desktop-lyric-preview-row-text {
+  font-size: var(--preview-size);
+  text-wrap: balance;
+}
+
+.lyric-window-card .desktop-lyric-preview-row-translation,
+.lyric-window-card .desktop-lyric-preview-row-roma {
+  font-size: var(--preview-translation-size);
+  font-weight: var(--preview-weight);
+}
+
+.lyric-window-card .desktop-lyric-preview-row-roma {
+  font-size: calc(var(--preview-translation-size) * 0.86);
+}
+
+.lyric-window-card.is-current-enhanced .desktop-lyric-preview-row.is-active {
+  background: linear-gradient(90deg, transparent, rgb(250 248 240 / 88%) 18%, rgb(250 248 240 / 94%) 50%, rgb(250 248 240 / 88%) 82%, transparent);
+  box-shadow: none;
+}
+
+.lyric-window-card .desktop-lyric-preview-row::before,
+.lyric-window-card .desktop-lyric-preview-row::after {
+  position: absolute;
+  z-index: -1;
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 460ms ease-out;
+}
+
+/* Two fine threads frame the sung line without adding another content row. */
+.lyric-window-card .desktop-lyric-preview-row::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 3%, var(--moonlit-thread) 28%, var(--moonlit-paper) 50%, var(--moonlit-thread) 72%, transparent 97%) top / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent 12%, var(--moonlit-thread) 35%, var(--moonlit-paper) 50%, var(--moonlit-thread) 65%, transparent 88%) bottom / 100% 1px no-repeat;
+}
+
+.lyric-window-card .desktop-lyric-preview-row::after {
+  top: -24px;
+  right: -18px;
+  width: clamp(80px, 15vw, 160px);
+  height: clamp(64px, 9vw, 96px);
+  background: url('/img/overlays/opening-moon-fan/flowers-ne.webp') center / contain no-repeat;
+}
+
+.lyric-window-card.is-current-enhanced .desktop-lyric-preview-row.is-active::before,
+.lyric-window-card.is-current-enhanced .desktop-lyric-preview-row.is-active::after {
+  opacity: 1;
+}
+
+.lyric-window-card .desktop-lyric-preview-word-highlight {
+  color: var(--moonlit-gold);
+}
+
+.lyric-window-card .desktop-lyric-preview-countdown {
+  align-self: var(--preview-row-align);
+}
+
+.lyric-window-card .desktop-lyric-preview-countdown-dot {
+  background: var(--moonlit-thread);
+  box-shadow: none;
+}
+
+.lyric-window-card .desktop-lyric-preview-empty {
+  color: var(--preview-color);
+  font-family: var(--preview-font);
+  opacity: var(--preview-opacity);
+}
+
+.lyric-window-card .desktop-lyric-preview-progress {
+  right: 10%;
+  bottom: 12px;
+  left: 10%;
+  width: auto;
+  height: 1px;
+  background: rgb(196 173 126 / 20%);
+  opacity: var(--preview-global-opacity);
+}
+
+.lyric-window-card .desktop-lyric-preview-progress span {
+  background: var(--moonlit-thread);
+}
+
+.lyric-window-card.is-paused-hidden .desktop-lyric-preview-progress {
+  opacity: 0;
+}
+
+.lyric-window-card .desktop-lyric-preview-viewport:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--moonlit-thread);
+}
+
+.lyric-window-card ::selection {
+  color: var(--preview-color);
+  background: #e6ddc9;
+}
+
+.lyric-window-card .is-low-power .desktop-lyric-preview-row::before,
+.lyric-window-card .is-low-power .desktop-lyric-preview-row::after {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lyric-window-card .desktop-lyric-preview-row::before,
+  .lyric-window-card .desktop-lyric-preview-row::after {
+    transition: none;
+  }
+}

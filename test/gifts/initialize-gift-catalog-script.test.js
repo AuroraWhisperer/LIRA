@@ -8,6 +8,7 @@ const test = require('node:test');
 const { run } = require('../../scripts/initialize-gift-catalog');
 const { CACHE_FILE_NAME } = require('../../src/bilibili/gift/remote-catalog-cache');
 const { STATE_FILE_NAME } = require('../../src/bilibili/gift/gift-catalog-initializer');
+const { webpBytes } = require('../helpers/remote-catalog-fixture');
 
 const QUIET_LOGGER = { debug() {}, warn() {} };
 
@@ -111,11 +112,3 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
   assert.equal(completion.available, 1);
   assert.equal(completion.failed, 0);
 });
-
-function webpBytes() {
-  const bytes = Buffer.alloc(16);
-  bytes.write('RIFF', 0, 'ascii');
-  bytes.writeUInt32LE(8, 4);
-  bytes.write('WEBP', 8, 'ascii');
-  return bytes;
-}

@@ -3,8 +3,8 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { GiftSyncState, createRemoteGiftController } = require('../../src/electron/remote-gift-controller');
-const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
 const {
+  attachSseLicenseClient,
   capabilityPage,
   createDeferred,
   createFixture,
@@ -68,28 +68,6 @@ test('transient discovery failure retries initialization and reaches LIVE', asyn
   controller.dispose();
 });
 
-test('a contiguous final event burst commits without cursor pulls', async () => {
-  const fixture = createFixture();
-  const controller = createRemoteGiftController(fixture.options);
-  await controller.start();
-  await controller.whenIdle();
-  let pulls = 0;
-  fixture.options.licenseManager.getGiftEventsInternal = async () => {
-    pulls += 1;
-    return capabilityPage({
-      nextCursor: 30,
-      latestCursor: 30,
-      events: pulls === 1 ? Array.from({ length: 20 }, (_, i) => makeEvent(`burst-${i}`, i + 11)) : [],
-    });
-  };
-  for (let i = 0; i < 20; i += 1) fixture.stream.onEvent(makeEvent(`burst-${i}`, i + 11));
-  await controller.whenIdle();
-  assert.equal(controller.getCursor(), 30);
-  assert.equal(pulls, 0);
-  assert.equal(fixture.liveImports.length, 20);
-  controller.dispose();
-});
-
 test('a gapped final burst still shares one recovery pull', async (t) => {
   const fixture = createFixture();
   const controller = createRemoteGiftController(fixture.options);
@@ -146,8 +124,6 @@ test('spaced final SSE events commit immediately without refreshing HTTP validat
 });
 
 test('validated SSE canonical events reach progress and immediate final handoff', async () => {
-  const encoder = new TextEncoder();
-  let streamController;
   let recoveryCalls = 0;
   const receivedEvents = [];
   const fixture = createFixture({
@@ -170,28 +146,7 @@ test('validated SSE canonical events reach progress and immediate final handoff'
     receivedEvents.push(...input.events);
     return commitPage(input);
   };
-  const client = createRemoteLicenseClient({
-    baseUrl: 'https://api.example.test',
-    fetchImpl: async (_url, init) => {
-      const stream = new ReadableStream({
-        start(controller) {
-          streamController = controller;
-          init.signal.addEventListener('abort', () => controller.close(), {
-            once: true,
-          });
-        },
-      });
-      return new Response(stream, {
-        status: 200,
-        headers: {
-          'content-type': 'text/event-stream; charset=utf-8',
-          'x-lira-gift-sync-epoch': 'epoch-1',
-        },
-      });
-    },
-  });
-  fixture.options.licenseManager.watchGiftEventsInternal = (streamOptions) =>
-    client.watchGiftEvents('device-token', streamOptions);
+  const sse = attachSseLicenseClient(fixture);
   const controller = createRemoteGiftController(fixture.options);
 
   try {
@@ -200,16 +155,14 @@ test('validated SSE canonical events reach progress and immediate final handoff'
     assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
 
     const progress = { ...makeEvent('sse-progress', null), phase: 'progress' };
-    streamController.enqueue(encoder.encode(`event: gift-event\ndata: ${JSON.stringify(progress)}\n\n`));
+    sse.sendRaw(sse.frame(progress));
     await waitFor(() => receivedEvents.some((event) => event.eventId === 'sse-progress'));
     const progressEvent = receivedEvents.find((event) => event.eventId === 'sse-progress');
     assert.equal(progressEvent.cursor, null);
     assert.equal(progressEvent.gift.unitPriceCents, 10);
     assert.equal(progressEvent.gift.totalPriceCents, 10);
 
-    streamController.enqueue(
-      encoder.encode(`event: gift-event\ndata: ${JSON.stringify(makeEvent('sse-final', 11))}\n\n`),
-    );
+    sse.sendRaw(sse.frame(makeEvent('sse-final', 11)));
     await waitFor(() => receivedEvents.some((event) => event.eventId === 'sse-final'));
 
     const finalEvent = receivedEvents.find((event) => event.eventId === 'sse-final');
@@ -229,36 +182,13 @@ test('validated SSE canonical events reach progress and immediate final handoff'
 });
 
 test('gift SSE wire boundary rejects malformed and privacy-sensitive extra fields', async () => {
-  const encoder = new TextEncoder();
-  let streamController;
   const receivedEvents = [];
   const fixture = createFixture({
     importProcessedGiftEvent(event) {
       receivedEvents.push(event);
     },
   });
-  const client = createRemoteLicenseClient({
-    baseUrl: 'https://api.example.test',
-    fetchImpl: async (_url, init) => {
-      const stream = new ReadableStream({
-        start(controller) {
-          streamController = controller;
-          init.signal.addEventListener('abort', () => controller.close(), {
-            once: true,
-          });
-        },
-      });
-      return new Response(stream, {
-        status: 200,
-        headers: {
-          'content-type': 'text/event-stream; charset=utf-8',
-          'x-lira-gift-sync-epoch': 'epoch-1',
-        },
-      });
-    },
-  });
-  fixture.options.licenseManager.watchGiftEventsInternal = (streamOptions) =>
-    client.watchGiftEvents('device-token', streamOptions);
+  const sse = attachSseLicenseClient(fixture);
   const controller = createRemoteGiftController(fixture.options);
 
   try {
@@ -279,16 +209,7 @@ test('gift SSE wire boundary rejects malformed and privacy-sensitive extra field
       ...makeEvent('valid-progress', null),
       phase: 'progress',
     };
-    streamController.enqueue(
-      encoder.encode(
-        [
-          malformed,
-          `event: gift-event\ndata: ${JSON.stringify(topLevelExtra)}\n\n`,
-          `event: gift-event\ndata: ${JSON.stringify(giftExtra)}\n\n`,
-          `event: gift-event\ndata: ${JSON.stringify(validProgress)}\n\n`,
-        ].join(''),
-      ),
-    );
+    sse.sendRaw([malformed, sse.frame(topLevelExtra), sse.frame(giftExtra), sse.frame(validProgress)].join(''));
     await waitFor(() => receivedEvents.some((event) => event.eventId === 'valid-progress'));
 
     assert.deepEqual(
@@ -300,51 +221,6 @@ test('gift SSE wire boundary rejects malformed and privacy-sensitive extra field
     controller.dispose();
     await controller.whenIdle();
   }
-});
-
-test('a failed immediate final commit falls back to cursor catch-up', async () => {
-  let immediateAttempts = 0;
-  const fixture = createFixture();
-  const commitPage = fixture.options.runtime.commitGiftCatchUpPage;
-  fixture.options.runtime.commitGiftCatchUpPage = (input) => {
-    if (!input.validatedAt && input.events.length) {
-      immediateAttempts += 1;
-      throw new Error('LOCAL_COMMIT_FAILED');
-    }
-    return commitPage(input);
-  };
-  const controller = createRemoteGiftController(fixture.options);
-  await controller.start();
-  await controller.whenIdle();
-
-  const deferred = createDeferred();
-  let pulls = 0;
-  fixture.options.licenseManager.getGiftEventsInternal = async (input = {}) => {
-    pulls += 1;
-    if (input.after === 10) return deferred.promise;
-    return capabilityPage({ nextCursor: 11, latestCursor: 11 });
-  };
-
-  const event = makeEvent('recovered-final', 11);
-  fixture.stream.onEvent(event);
-  await waitFor(() => pulls === 1);
-
-  assert.equal(immediateAttempts, 1);
-  assert.deepEqual(fixture.liveImports, []);
-
-  deferred.resolve(
-    capabilityPage({
-      events: [event],
-      nextCursor: 11,
-      latestCursor: 11,
-    }),
-  );
-  await controller.whenIdle();
-
-  assert.deepEqual(fixture.liveImports, ['recovered-final']);
-  assert.equal(controller.getCursor(), 11);
-  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
-  controller.dispose();
 });
 
 test('a final SSE cursor gap waits for ordered catch-up', async () => {

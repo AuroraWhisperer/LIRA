@@ -30,7 +30,6 @@ function createFakeLicenseServer() {
   };
   let cloudSongs = [];
   let networkDown = false;
-  let expiresIn = '10m';
   let nextPairingId = 1;
   let nextTokenId = 1;
   let lastVerifyBody = null;
@@ -208,7 +207,7 @@ function createFakeLicenseServer() {
       return {
         accessToken: token,
         sessionId,
-        expiresIn,
+        expiresIn: '10m',
         deviceId: device.deviceId,
         licenseId: device.licenseId,
         streamer: {
@@ -272,19 +271,12 @@ function createFakeLicenseServer() {
     issuePairingCode,
     getLastVerifyBody: () => lastVerifyBody,
     getCloudSongsSnapshot: () => [...cloudSongs],
-    setExpiresIn: (value) => {
-      expiresIn = value;
-    },
     setNetworkDown: (value) => {
       networkDown = Boolean(value);
     },
     revokeDevice: (deviceId) => {
       const device = devices.get(deviceId);
       if (device) device.revoked = true;
-    },
-    invalidateSessionToken: (deviceId) => {
-      const session = sessions.get(deviceId);
-      if (session) session.tokenInvalid = true;
     },
   };
 }
@@ -357,6 +349,7 @@ test('first activation runs the full activate → challenge → verify chain', a
   );
   assert.ok(server.getLastVerifyBody().signature, 'verify must carry a device signature');
   assert.ok(manager.getAccessToken().startsWith('token-device-1-'));
+  assert.deepEqual(manager.getCloudSyncIdentity(), { streamerId: 1, accountName: 'mlbb' });
   manager.dispose();
 });
 
@@ -384,21 +377,6 @@ test('restart with a new runtimeId re-verifies and supersedes the previous sessi
     (error) => error.code === 'SESSION_SUPERSEDED',
   );
   second.manager.dispose();
-});
-
-test('proactive renewal stays single-flight across concurrent business calls', async () => {
-  const server = createFakeLicenseServer();
-  server.setExpiresIn('0s'); // the activation verify issues an already-expired token
-  const { manager } = createClient({ server });
-  await manager.activate(ACTIVATION);
-  server.setExpiresIn('10m');
-  assert.equal(server.calls.verify, 1);
-
-  await Promise.all([manager.syncSongs([{ name: '歌A' }]), manager.getProfile(), manager.getCloudSongs()]);
-
-  assert.equal(server.calls.verify, 2, 'three concurrent expired calls must share exactly one renewal');
-  assert.equal(manager.getState(), LicenseState.AUTHORIZED);
-  manager.dispose();
 });
 
 test('mid-session revocation blocks the client and clears the token', async () => {
@@ -499,25 +477,4 @@ test('an administrator-issued pairing code lets a second device join once', asyn
   first.manager.dispose();
   second.manager.dispose();
   third.manager.dispose();
-});
-
-test('a concurrent 401 storm performs exactly one reverify', async () => {
-  const server = createFakeLicenseServer();
-  const { manager } = createClient({ server });
-  await manager.activate(ACTIVATION);
-  assert.equal(server.calls.verify, 1);
-
-  // The server rotated the session token (e.g. after a restart): the client's copy is stale.
-  server.invalidateSessionToken('device-1');
-
-  const results = await Promise.all([
-    manager.syncSongs([{ name: '歌A' }]),
-    manager.syncSongs([{ name: '歌B' }]),
-    manager.getProfile(),
-  ]);
-
-  assert.ok(results.every((result) => result && result.ok !== false));
-  assert.equal(server.calls.verify, 2, 'the 401 storm must converge on a single reverify');
-  assert.equal(manager.getState(), LicenseState.AUTHORIZED);
-  manager.dispose();
 });

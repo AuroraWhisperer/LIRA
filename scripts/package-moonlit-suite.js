@@ -14,6 +14,8 @@ const MEMBERS = [
   ['moonlit-clock', '时钟', '/img/component-previews/clock-moonlit-fan.webp'],
   ['moonlit-danmaku', '弹幕姬', '/img/overlays/danmaku-previews/moonlit.png'],
   ['moonlit-wishes', '礼物许愿', '/img/component-previews/gift-wishes-moonlit.webp'],
+  ['moonlit-queue', '点歌板', '/img/component-previews/queue-moonlit.webp'],
+  ['moonlit-lyrics', '桌面歌词', '/img/component-previews/lyrics-moonlit.webp'],
 ];
 
 function createMoonlitEntries() {
@@ -23,17 +25,18 @@ function createMoonlitEntries() {
     if (!files.has(name)) files.set(name, fs.readFileSync(path.join(root, 'public', source)));
     return name;
   };
-  const manifest = { schemaVersion: 2, id: 'lira.moonlit', name: '月渡花汀', version: '1.0.0',
+  const manifest = { schemaVersion: 2, id: 'lira.moonlit', name: '月渡花汀', version: '1.0.7',
     styles: MEMBERS.map(([key, name, preview, config]) => {
       const preset = COMPONENT_RESOURCE_PRESETS[key];
       return { type: preset.type, name: `月渡花汀 · ${name}`, preset: key, width: preset.size[0], height: preset.size[1],
         config: config || preset.config, preview: resource(preview),
-        resources: Object.fromEntries(preset.resources.map(source => [source, resource(source)])) };
+        resources: Object.fromEntries(preset.resources.concat(preset.optionalResources || []).map(source => [source, resource(source)])) };
     }) };
   return new Map([
     ['lira-pack.json', Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`)],
-    ['README.txt', Buffer.from('月渡花汀 1.0.0\n\n需要支持 schemaVersion 2 资源套装的 LIRA 客户端。\n在客户端「样式与套装」中点击「导入套装」，直接选择本 ZIP，无需解压。\n确认 6 个样式后导入；在画布「添加组件 → 套装」或对应组件中选用，最后「保存并应用」。\n套装包含：静态背景、动态背景、开播动画、时钟、弹幕姬、礼物许愿。\n开播文案与开关跟随客户端，弹幕、时间、礼物进度继续使用真实数据。\n删除样式只移出素材库，场景中已使用的组件继续可用；删除画布组件不删除素材。\n之前使用默认月渡花汀的场景，请导入后通过「更换样式」关联本机资源。\n只含素材与声明清单，不含可执行插件。Noto Serif SC 子集字体许可证见附件。\n')],
+    ['README.txt', Buffer.from('月渡花汀 1.0.7\n\n需要支持 schemaVersion 2 资源套装的 LIRA 客户端。\n在客户端「样式与套装」中点击「导入套装」，直接选择本 ZIP，无需解压。\n确认 8 个样式后导入；在画布「添加组件 → 套装」或对应组件中选用，最后「保存并应用」。\n套装包含：静态背景、动态背景、开播动画、时钟、弹幕姬、礼物许愿、点歌板、桌面歌词。\n桌面歌词默认仅显示当前一句，字号保持 48，默认诗笺高度 108px；内置霞鹜文楷 Light（字体参数名：月渡花汀文楷），离线可用；采用月白诗笺、雾蓝手写字、暖金逐字高亮与银蓝花枝，沿用桌面歌词的字体、字号、行高、颜色、翻译、描边、同步与暂停隐藏参数。\n点歌板加入暖色满月、群山、湖面与月光倒影，花仅作岸边点缀；采用 1145×1374 原生透明素材和无损 WebP，歌名与点歌人仍实时渲染。\n开播文案与开关跟随客户端，弹幕、时间、礼物进度与点歌队列继续使用真实数据。\n删除样式只移出素材库，场景中已使用的组件继续可用；删除画布组件不删除素材。\n之前使用默认月渡花汀的场景，请导入后通过「更换样式」关联本机资源。\n只含素材与声明清单，不含可执行插件。Noto Serif SC 与霞鹜文楷字体许可证见附件。\n')],
     ['licenses/OFL-NotoSerifSC.txt', fs.readFileSync(path.join(root, 'public/fonts/OFL-NotoSerifSC.txt'))],
+    ['licenses/OFL-LXGWWenKai.txt', fs.readFileSync(path.join(root, 'public/fonts/moonlit-wenkai/OFL.txt'))],
     ...files,
   ]);
 }
@@ -62,7 +65,7 @@ function createMoonlitZip() {
 }
 
 if (require.main === module) {
-  const destination = path.resolve(root, process.argv[2] || 'output/月渡花汀-1.0.0.zip');
+  const destination = path.resolve(root, process.argv[2] || 'output/月渡花汀-1.0.7.zip');
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   const archive = createMoonlitZip(); fs.writeFileSync(destination, archive);
   console.log(JSON.stringify({ path: destination, bytes: archive.length, sha256: createHash('sha256').update(archive).digest('hex') }, null, 2));

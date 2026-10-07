@@ -17,31 +17,43 @@ const groups = {
     'admin/canvas-opening',
     'admin/canvas-text-box-picker',
     'admin/component-style-library',
+    'admin/component-source-import',
     'admin/component-preview-browser',
     'admin/component-preview-drafts-browser',
     'admin/component-preview-links',
     'admin/component-preview-output',
     'admin/component-preview-recovery',
-    'admin/component-workspace',
-    'admin/scene-editor',
     'bots/daily-bot-frontend',
     'danmaku/frontend-admin-danmaku',
+    'danmaku/danmaku-feed-motion',
     'gifts/frontend-gift-banner',
     'gifts/frontend-gift-display-settings',
     'gifts/frontend-gift-export-settings',
     'gifts/frontend-gift-feed',
-    'gifts/frontend-gift-feed-pressure',
     'gifts/frontend-gift-history-selection',
     'gifts/frontend-gift-wishes',
-    'gifts/frontend-gift-assistant',
+    'gifts/frontend-gift-sprint',
     'gifts/frontend-guard-thanks',
+    'gifts/guard-nautical-player',
     'overlays/component-source',
+    'overlays/component-style-effects',
     'scenes/scene-live-updates',
     'scenes/scene-renderer',
-    'ui/frontend-toast',
+    'ui/frontend-toast-browser',
+    'ui/frontend-color-control',
     'admin/ui-edit-state',
+    'danmaku/danmaku-panel-edit-state',
+    'overtime/overtime-overlay-state-ordering',
+    'overtime/overtime-overlay-runtime',
+    'admin/canvas-queue',
+    'admin/canvas-songlist',
+    'songs/frontend-song-virtual-scroller',
+    'admin/shared-ui-interactions',
+    'admin/song-board-settings',
+    'admin/text-box-editor',
   ],
   desktop: [
+    'desktop/background-filters-electron',
     'desktop/danmaku-canvas-electron',
     'engineering/build-integrity',
     'desktop/desktop-auth-race-electron',
@@ -61,16 +73,14 @@ const groups = {
   contracts: [
     'bots/daily-bot-controller',
     'fan-profiles/fan-profiles-protocol',
-    'gifts/frontend-gifts-panel',
+    'gifts/frontend-recent-gifts-contract',
     'gifts/gift-category',
     'gifts/gift-identity-catalog',
     'license/license-password-contract',
     'license/license-protocol',
-    'overtime/overtime-gift-picker',
+    'overtime/overtime-gift-picker-contract',
     'gifts/pk-report-settings-ipc',
     'gifts/processed-gift-contract',
-    'gifts/processed-gift-import',
-    'gifts/processed-gift-source',
   ],
 };
 const files = [];
@@ -104,12 +114,7 @@ for (const [name, names] of Object.entries(groups)) {
 groups.offline = files.filter((file) => !assigned.has(file));
 groups.all = files;
 
-const originalArgs = process.argv.slice(2);
-const cached = originalArgs.includes('--cache');
-const plan = originalArgs.includes('--plan');
-const force = originalArgs.includes('--force');
-if ((plan || force) && !cached) throw new Error('--plan and --force require --cache (npm run verify:tests).');
-const testArgs = originalArgs.filter((arg) => !['--cache', '--plan', '--force'].includes(arg));
+const testArgs = process.argv.slice(2);
 const group = testArgs[0]?.startsWith('--') ? 'all' : testArgs.shift() || 'all';
 if (!Object.hasOwn(groups, group)) {
   throw new Error(`Unknown test group ${group}; use ${Object.keys(groups).join(', ')}`);
@@ -147,7 +152,6 @@ const selectedFiles = groups[group].filter((file) =>
   (!selectedDomains.size || selectedDomains.has(file.split('/')[1])) &&
   (!filePatterns.size || [...filePatterns].some((pattern) => path.matchesGlob(file, pattern))),
 );
-if (cached && nodeArgs.length) throw new Error('Cached verification accepts only complete files; Node test options require npm test without --cache.');
 if (help) {
   console.log('Usage: npm test -- [group] [--domain=<directory>] [--file=<path-or-glob>] [--list] [Node test options]');
   console.log(`Groups: ${Object.keys(groups).join(', ')}`);
@@ -155,7 +159,6 @@ if (help) {
   console.log('Repeat --domain to select multiple domains; the group limits their runtime dependencies.');
   console.log('Repeat --file to combine test/ paths or quoted globs; files are deduplicated and intersected with the group and domains.');
   console.log('Node --test-name-pattern filters cases inside the selected files; it does not prevent other files from loading.');
-  console.log('npm run verify:tests -- [group] [selectors] [--plan] [--force] reuses complete-file proofs; npm test remains uncached.');
 } else if (!selectedFiles.length) {
   throw new Error(`No tests selected for group ${group}, domains ${[...selectedDomains].join(', ')}, files ${[...filePatterns].join(', ')}`);
 } else if (list) {
@@ -170,9 +173,7 @@ if (help) {
     selectedFiles.filter((file) => file === nativeOwnershipFile),
     selectedFiles.filter((file) => file !== nativeOwnershipFile),
   ];
-  if (cached) {
-    process.exitCode = require('./verify-tests').verifyTests({ root, files: selectedFiles, allFiles: files, groups, batches, plan, force });
-  } else for (const batch of batches) {
+  for (const batch of batches) {
     if (!batch.length) continue;
     const result = spawnSync(
       process.execPath,

@@ -54,12 +54,13 @@ const socket = createOverlaySocket({
 });
 let componentConfig;
 let componentData;
+let contentObserver;
 function renderComponent() {
   if (!componentConfig) return;
   const items = (componentData?.items || []).filter((wish) =>
     (componentConfig.period === 'all' || wish.period === componentConfig.period)
     && (componentConfig.showCompleted || !wish.completed)).slice(0, componentConfig.limit);
-  const next = JSON.stringify([items, componentConfig]);
+  const next = JSON.stringify([items, componentConfig, componentData?.message]);
   if (signature === next) return;
   signature = next;
   stage.style.gap = `${componentConfig.gap}px`;
@@ -67,12 +68,21 @@ function renderComponent() {
     ...(componentConfig.displayStyle !== 'original' ? { displayStyle: componentConfig.displayStyle } : {}),
     textPendingColor: componentConfig.textPendingColor, textReceivedColor: componentConfig.textReceivedColor,
   })));
-  status.hidden = true;
+  status.textContent = componentData?.preview ? componentData.message || '' : '';
+  status.hidden = !status.textContent;
 }
 const component = mountSceneExtraClient('gift-wishes', {
   onConfig(config) { componentConfig = config; renderComponent(); },
   onData(data) { componentData = data; renderComponent(); },
+  onDispose() { contentObserver?.disconnect(); },
 });
+if (component) {
+  contentObserver = new ResizeObserver(() => {
+    if (!stage.children.length) return;
+    component.resize({ width: Math.round(innerWidth), height: Math.ceil(stage.getBoundingClientRect().height) });
+  });
+  contentObserver.observe(stage);
+}
 if (!component) { feed.start(); socket.start(); }
 window.addEventListener('pagehide', () => {
   feed.stop();

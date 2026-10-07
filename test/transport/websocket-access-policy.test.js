@@ -5,6 +5,7 @@ const { EventEmitter } = require('node:events');
 const http = require('node:http');
 const path = require('node:path');
 const test = require('node:test');
+const { maskedFrame } = require('../helpers/transport-fixtures');
 const { broadcastSnapshot, createWebSocketHub, handleWebSocketUpgrade, sendWebSocket } = require('../../src/server/ws');
 const { createRuntimeTransport } = require('../../src/server/runtime-transport');
 
@@ -57,16 +58,7 @@ function messages(socket) {
     });
 }
 
-function frame(payload, opcode = 1, fin = true) {
-  const data = Buffer.from(payload);
-  const mask = Buffer.from([1, 2, 3, 4]);
-  assert.ok(data.length < 126);
-  return Buffer.concat([
-    Buffer.from([(fin ? 0x80 : 0) | opcode, 0x80 | data.length]),
-    mask,
-    Buffer.from(data.map((value, index) => value ^ mask[index % 4])),
-  ]);
-}
+const frame = (payload, opcode = 1, fin = true) => maskedFrame(payload, { opcode, fin });
 
 const fullState = {
   queue: { current: { song_name: 'Requested song' }, waiting: [] },

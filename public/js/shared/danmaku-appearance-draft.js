@@ -1,5 +1,5 @@
 export function readAppearanceValue(key, rawValue, min, max) {
-  if (!['fontSize', 'backgroundOpacity'].includes(key)) return rawValue;
+  if (!['fontSize', 'backgroundOpacity', 'speedPixelsPerSecond', 'centerBias', 'dispersion'].includes(key)) return rawValue;
   const value = Number(rawValue);
   if (!Number.isInteger(value) || value < Number(min) || value > Number(max)) {
     throw new Error(`请输入 ${min}～${max} 之间的整数。`);

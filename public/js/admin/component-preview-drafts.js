@@ -79,7 +79,7 @@ export function createPreviewDraftRecovery({ key, connections, storage }) {
     const dirty = connections.some(({ controller }) => controller.getState().dirty);
     const message = pending.size
       ? '发现上次未保存进度，但当前配置已有变化。请选择恢复草稿或使用当前配置。'
-      : restored && dirty ? '已恢复上次未保存进度，尚未应用到直播。' : '';
+      : restored && dirty ? '已恢复草稿，尚未应用到直播。' : '';
     const canvas = connections.find(({ component }) => component === 'canvas')?.controller.getState();
     const missingUrls = cached?.components.canvas && browserItems(canvas?.draft).some(item => !item.appearance.config.url);
     const browserMessage = canvas?.loaded && !pending.has('canvas')

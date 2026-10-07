@@ -82,3 +82,131 @@ test('gift subviews skip unrelated state updates while corrections, catalogs and
   assert.match(f.status.textContent, /自定义 3 项/);
   assert.deepEqual(writes, beforeMapping);
 });
+
+test('gift panel renders through imported modules after the legacy registry is replaced', async () => {
+  const nodes = new Map(
+    [
+      'giftSprintTarget',
+      'giftSprintReceived',
+      'giftSprintRemaining',
+      'giftSprintCrystalBalls',
+      'enableGiftNotification',
+    ].map((id) => [id, {}]),
+  );
+  nodes.set('giftSprintTextPreview', { classList: { toggle() {} } });
+  nodes.set('giftSprintOverlayStatus', {});
+  const window = { addEventListener() {} };
+  const { renderGiftPanel } = await loadModuleExports(path.resolve('public/js/admin/gifts/index.js'), {
+    window,
+    document: {
+      readyState: 'loading',
+      addEventListener() {},
+      getElementById: (id) => nodes.get(id) || null,
+      querySelectorAll: () => [],
+    },
+    fetch: async () => ({ ok: true, text: async () => JSON.stringify({ ok: true, data: [] }) }),
+  });
+  assert.equal(window.AdminApp.gifts.renderGiftPanel, renderGiftPanel);
+  assert.equal(typeof window.AdminApp.gifts.initGiftHistoryDrawer, 'function');
+  window.AdminApp.gifts = {};
+  renderGiftPanel(
+    { recent: [] },
+    {
+      targetRmb: 100,
+      receivedRmb: 40,
+      remainingRmb: 60,
+      remainingCrystalBalls: 1,
+    },
+    {},
+    {},
+    { enableGiftNotification: 'false' },
+  );
+  assert.equal(nodes.get('giftSprintReceived').textContent, '¥40.00');
+  assert.equal(nodes.get('giftSprintCrystalBalls').textContent, '1 个');
+  assert.equal(nodes.get('giftSprintTextPreview').textContent, '还差 1 个水晶球');
+  assert.equal(nodes.get('enableGiftNotification').checked, false);
+});
+
+test('gift detection updates its switch without a redundant state label and keeps connection errors visible', async () => {
+  const toggle = { checked: true };
+  const status = {};
+  const { giftDetection } = await loadModuleExports(path.join(__dirname, '../../public/js/admin/gifts/detection.js'), {
+    document: {
+      getElementById: (id) => ({ giftDetectToggle: toggle, giftSprintStatus: status })[id] || null,
+    },
+  });
+
+  giftDetection.renderDetectionStatus({ enabled: false }, {});
+  assert.equal(toggle.checked, false);
+  assert.equal(status.textContent, '未开启');
+
+  giftDetection.renderDetectionStatus({ enabled: true }, { connected: true, message: '未开播，历史消息监听中' });
+  assert.equal(toggle.checked, true);
+  assert.equal(status.textContent, '待开播');
+  assert.equal(status.title, '未开播，历史消息监听中');
+
+  giftDetection.renderDetectionStatus({ enabled: true }, { connected: false, message: '连接失败，请重试' });
+  assert.equal(status.textContent, '连接失败，请重试');
+});
+
+test('gift panel renders empty and populated recent gifts without legacy history registration', async (t) => {
+  const list = {
+    innerHTML: '',
+    classList: { toggle: t.mock.fn() },
+    querySelectorAll: () => [],
+  };
+  const gifts = {};
+  const sprintNodes = new Map(
+    ['giftSprintTarget', 'giftSprintReceived', 'giftSprintRemaining', 'giftSprintCrystalBalls'].map((id) => [id, {}]),
+  );
+  const globals = {
+    console: { error: t.mock.fn() },
+    window: {
+      addEventListener() {},
+      AdminApp: {
+        gifts,
+        utils: {
+          escapeHtml: (value) => String(value),
+          formatTime: (value) => String(value),
+          formatMoney: (value) => String(value),
+        },
+      },
+      getComputedStyle: () => ({ gridTemplateColumns: '270px 270px' }),
+    },
+    document: {
+      readyState: 'loading',
+      addEventListener() {},
+      getElementById: (id) => (id === 'giftRecentList' ? list : sprintNodes.get(id) || null),
+    },
+    fetch: async () => ({ ok: true, text: async () => JSON.stringify({ ok: true, data: { gifts: [] } }) }),
+  };
+  const moduleDir = path.join(__dirname, '../..', 'public', 'js', 'admin', 'gifts');
+  await loadModuleExports(path.join(moduleDir, 'index.js'), globals);
+  t.mock.method(gifts.notification, 'notifyNewGift');
+
+  assert.equal(gifts.history, undefined);
+  gifts.renderGiftPanel({ recent: [] }, {}, {}, {});
+
+  assert.match(list.innerHTML, /class="empty gift-recent-empty"/);
+  assert.deepEqual([...list.classList.toggle.mock.calls.at(-1).arguments], ['is-empty', true]);
+
+  const items = [
+    {
+      gift_name: 'Example gift',
+      user_name: 'Test viewer',
+      num: 2,
+      total_price: 10,
+      created_at: '2026-09-05T12:00:00.000Z',
+    },
+  ];
+  gifts.renderGiftPanel({ recent: items }, {}, {}, {});
+
+  assert.match(list.innerHTML, /class="gift-card-content"/);
+  assert.match(list.innerHTML, /Example gift x2/);
+  assert.match(list.innerHTML, /Test viewer/);
+  assert.doesNotMatch(list.innerHTML, /gift-recent-empty/);
+  assert.deepEqual([...list.classList.toggle.mock.calls.at(-1).arguments], ['is-empty', false]);
+  assert.equal(gifts.notification.notifyNewGift.mock.callCount(), 2);
+  assert.equal(gifts.notification.notifyNewGift.mock.calls.at(-1).arguments[0], items);
+  assert.equal(globals.console.error.mock.callCount(), 0);
+});

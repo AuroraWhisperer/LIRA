@@ -13,6 +13,8 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     fontFamily: byId('previewFontFamily'), fontSize: byId('previewFontSize'),
     textColor: byId('previewTextColor'), backgroundOpacity: byId('previewBackgroundOpacity'),
     giftImage: byId('previewGiftImage'), scrollDirection: byId('previewScrollDirection'),
+    speedPixelsPerSecond: byId('previewSpeedPixelsPerSecond'),
+    centerBias: byId('previewCenterBias'), dispersion: byId('previewDispersion'),
   };
   for (const [key, control] of Object.entries(fields)) {
     control.addEventListener('change', () => {
@@ -54,6 +56,7 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     const draft = getDraft();
     const options = styleOptionsFor(draft.style, draft.styleOptions);
     const limits = DANMAKU_STYLE_OPTIONS[draft.style];
+    byId('previewTextColorLabel').textContent = draft.style === 'sketch' ? '主题颜色' : '正文颜色';
     const scale = canvasContentScale(draft.layout, draft.style);
     addFonts([{ value: options.fontFamily, label: options.fontFamily }]);
     for (const [key, control] of Object.entries(fields)) control.value = String(options[key]);
@@ -63,7 +66,10 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     byId('previewBackgroundField').hidden = !limits.background;
     byId('previewGiftField').hidden = !limits.giftImage;
     byId('previewDirectionField').hidden = !limits.scrollDirection;
+    byId('previewSpeedField').hidden = !limits.speed;
     byId('previewDurationField').hidden = !isRandomDanmakuStyle(draft.style);
+    byId('previewCenterBiasField').hidden = !isRandomDanmakuStyle(draft.style);
+    byId('previewDispersionField').hidden = !isRandomDanmakuStyle(draft.style);
     byId('previewDuration').value = String(draft.fullscreenDurationSeconds);
   }
   return { render, addFonts };

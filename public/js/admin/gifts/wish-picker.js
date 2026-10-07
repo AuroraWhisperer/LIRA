@@ -1,4 +1,4 @@
-import { setGiftImage } from '../../shared/gift-image-fallback.js';
+import { createGiftPickerButton } from './picker-option.js';
 import { createGiftCatalogRoleLookup } from '../../shared/gift-catalog-roles.js';
 import { requestGiftWish } from '../../shared/gift-wish-client.js';
 import { WISH_CATEGORIES } from '../../shared/gift-wish-card.js';
@@ -22,13 +22,9 @@ export function createWishPicker(onSelect, { root, request = requestGiftWish, re
       `${gift.name} ${gift.id}`.toLowerCase().includes(query),
     );
     for (const gift of gifts.slice(0, visibleCount)) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'gift-wish-option';
-      button.disabled = requireVariant && gift.giftCategory !== 'guard' && !gift.variantId;
-      const image = document.createElement('img');
-      image.alt = '';
-      setGiftImage(image, gift.imagePath);
+      const button = createGiftPickerButton(gift, { className: 'gift-wish-option',
+        disabled: requireVariant && gift.giftCategory !== 'guard' && !gift.variantId,
+        onSelect: (selected) => { onSelect(selected); dialog.close(); } });
       const name = document.createElement('span');
       name.textContent = gift.name;
       const category = document.createElement('small');
@@ -37,11 +33,7 @@ export function createWishPicker(onSelect, { root, request = requestGiftWish, re
       identity.textContent =
         gift.giftCategory === 'guard' ? (requireVariant ? '按购买数量统计' : '大航海') : `ID ${gift.id} · ¥${Number(gift.rmb || 0).toFixed(2)}`;
       if (button.disabled) identity.textContent += ' · 资料待同步，请刷新礼物库';
-      button.append(image, name, category, identity);
-      button.addEventListener('click', () => {
-        onSelect(gift);
-        dialog.close();
-      });
+      button.append(name, category, identity);
       root.append(button);
     }
     if (gifts.length > visibleCount) {

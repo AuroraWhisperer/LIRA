@@ -58,12 +58,18 @@ body[data-style='moonlit'] .draw-danmaku-item::after { display: none; }
   inset: 17px 0 0;
   z-index: -1;
   pointer-events: none;
+  opacity: var(--danmaku-background-opacity, 1);
+  animation: moonlitRevealAcross 900ms calc(500ms / 1.5) cubic-bezier(.25, .1, .55, 1) both;
+}
+/* The brush mask lives on the pseudo-element so the element can carry the soft reveal mask. */
+.moonlit-ink-sweep::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: linear-gradient(90deg, var(--moonlit-ink), var(--moonlit-deep) 35%, var(--moonlit-deep) 90%, var(--moonlit-ink));
   mask: url('/img/overlays/danmaku-moonlit/brush.webp') center / 100% 100% no-repeat;
-  opacity: var(--danmaku-background-opacity, 1);
-  animation: moonlitRevealAcross 1600ms 500ms cubic-bezier(.25, .1, .55, 1) both;
 }
-.moonlit-chat:is([data-identity='viewer'], [data-identity='fan']) .moonlit-ink-sweep { background: var(--moonlit-ink); }
+.moonlit-chat:is([data-identity='viewer'], [data-identity='fan']) .moonlit-ink-sweep::before { background: var(--moonlit-ink); }
 body[data-style='moonlit'] .draw-danmaku-avatar {
   position: relative;
   align-self: start;
@@ -126,7 +132,7 @@ body[data-style='moonlit'] .draw-danmaku-body p {
   height: 58px;
   background: url('/img/overlays/danmaku-moonlit/flowers.webp') right bottom / contain no-repeat;
   filter: hue-rotate(var(--moonlit-hue));
-  animation: moonlitRevealAcross 1600ms 500ms cubic-bezier(.25, .1, .55, 1) both;
+  animation: moonlitRevealAcross 900ms calc(500ms / 1.5) cubic-bezier(.25, .1, .55, 1) both;
 }
 .moonlit-chat:is([data-identity='viewer'], [data-identity='fan']) .moonlit-chat-flowers { display: none; }
 
@@ -153,20 +159,48 @@ body[data-style='moonlit'] .draw-danmaku-item:is(.moonlit-scroll, .moonlit-guard
   isolation: isolate;
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
-  align-items: start;
+  align-content: center;
+  align-items: center;
   gap: 14px;
   min-height: 150px;
   margin-inline: var(--moonlit-scroll-left) var(--moonlit-scroll-right);
-  padding: 34px calc(58px - var(--moonlit-scroll-right)) 36px calc(72px - var(--moonlit-scroll-left));
+  padding: 38px calc(58px - var(--moonlit-scroll-right)) 40px calc(72px - var(--moonlit-scroll-left));
   animation: moonlitScrollOpen 1400ms cubic-bezier(.22, .61, .36, 1) both;
 }
 .moonlit-scroll-paper::before {
   content: '';
   position: absolute;
   inset: 22px 0 24px 5px;
-  z-index: -1;
+  z-index: -2;
   background: #f5f4ed;
   opacity: var(--danmaku-background-opacity, 1);
+}
+.moonlit-scroll-paper-details {
+  position: absolute;
+  inset: 27px 5px 29px 10px;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--danmaku-background-opacity, 1);
+}
+.moonlit-scroll-landscape {
+  position: absolute;
+  inset: 0;
+  opacity: .55;
+  background: url('/img/overlays/danmaku-moonlit/scroll-landscape.webp') right 47% / 100% auto no-repeat;
+  mix-blend-mode: multiply;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 100%);
+}
+.moonlit-scroll-sheen {
+  position: absolute;
+  top: -40%;
+  bottom: -40%;
+  left: 0;
+  width: 27%;
+  opacity: 0;
+  transform: translateX(-150%) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, #d8e6eb55 20%, #fffdf2e8 48%, #c2dce580 60%, transparent);
+  animation: moonlitScrollSheen 1800ms 2600ms ease-in-out both;
 }
 .moonlit-scroll-ink, .moonlit-scroll-decoration {
   position: absolute;
@@ -194,7 +228,7 @@ body[data-style='moonlit'] .draw-danmaku-item:is(.moonlit-scroll, .moonlit-guard
 body[data-style='moonlit'] .moonlit-scroll .draw-danmaku-body { display: block; grid-area: auto; min-height: 0; padding: 0; }
 body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-avatar, .sc-avatar) {
   grid-area: auto;
-  align-self: start;
+  align-self: center;
   width: 64px;
   height: 68px;
   margin: 0;
@@ -367,12 +401,22 @@ body[data-style='moonlit'] .moonlit-guard .draw-danmaku-avatar {
 .moonlit-bird:nth-child(2) { top: 66px; right: 62px; width: 57px; height: 38px; transform: rotate(12deg); }
 .moonlit-bird:nth-child(3) { top: 34px; right: 39px; width: 41px; height: 28px; transform: rotate(-8deg); }
 body[data-style='moonlit'] .draw-danmaku-empty { display: none; }
-@keyframes moonlitRevealAcross { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
-@keyframes moonlitRevealDown { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+/* Reveals move a feathered edge (20% of the element) so ink spreads instead of being cut. */
+:is(.moonlit-ink-sweep, .moonlit-chat-flowers, .moonlit-scroll-ink, .moonlit-scroll-decoration, .moonlit-guard-lettering) {
+  mask: linear-gradient(90deg, #000 45.45%, transparent 54.55%) 0 0 / 220% 100% no-repeat;
+}
+.moonlit-guard-scene { mask: linear-gradient(#000 45.45%, transparent 54.55%) 0 0 / 100% 220% no-repeat; }
+@keyframes moonlitRevealAcross { from { mask-position: 100% 0; } to { mask-position: 0 0; } }
+@keyframes moonlitRevealDown { from { mask-position: 0 100%; } to { mask-position: 0 0; } }
 @keyframes moonlitScrollOpen { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0); } }
 @keyframes moonlitRollerOpen {
   from { transform: translateX(var(--moonlit-scroll-travel)); }
   to { transform: translateX(0); }
+}
+@keyframes moonlitScrollSheen {
+  0% { transform: translateX(-150%) skewX(-18deg); opacity: 0; }
+  18%, 75% { opacity: .52; }
+  100% { transform: translateX(500%) skewX(-18deg); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='moonlit'] *, body[data-style='moonlit'] *::before, body[data-style='moonlit'] *::after { animation: none !important; }

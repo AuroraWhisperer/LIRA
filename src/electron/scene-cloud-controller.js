@@ -4,6 +4,7 @@ const { randomUUID } = require('node:crypto');
 const { readBoundedSse, parseEventBlock } = require('../shared/bounded-sse-reader');
 const { isDnsHostname } = require('../shared/remote-url-policy');
 const { DANMAKU_STYLE_OPTIONS, normalizeStyleOptions } = require('../shared/danmaku-style-options');
+const { normalizeStyleParameters } = require('../shared/component-style-parameters');
 const { normalizeLayout } = require('../shared/danmaku-layout');
 
 function getSceneOwner(licenseManager) {
@@ -274,6 +275,7 @@ function appearance(value) {
     ...(value.fullscreenDurationSeconds === undefined ? {} : {
       fullscreenDurationSeconds: integer(value.fullscreenDurationSeconds, 2, 30),
     }),
+    ...(value.styleParameters === undefined ? {} : { styleParameters: normalizeStyleParameters('danmaku', value.styleParameters) }),
     ...(value.styleOptions === undefined ? {} : { styleOptions: normalizeStyleOptions(value.styleOptions) }),
     ...(value.layout === undefined ? {} : { layout: normalizeLayout(value.layout) }),
   };
@@ -292,11 +294,12 @@ function displayEvent(value) {
     return { type, ...appearance(value), state: value.state, liveStatus: value.liveStatus, liveSessionId, confirmationMessage };
   }
   if (type === 'overlay-settings') return { type, ...appearance(value), timestamp: timestamp(value.timestamp) };
-  requireValid(['live-started', 'live-ended', 'danmaku', 'gift', 'superchat'].includes(type));
+  requireValid(['live-started', 'live-ended', 'danmaku', 'gift', 'superchat', 'entry'].includes(type));
   const result = { type, liveSessionId: text(value.liveSessionId, 128), timestamp: timestamp(value.timestamp) };
   if (type === 'live-ended') return result;
   if (type === 'live-started') return { ...result, message: text(value.message, 200) };
   result.name = text(value.name, 80);
+  if (type === 'entry') return { ...result, guardLevel: integer(value.guardLevel, 0, 3) };
   if (type === 'gift') {
     return {
       ...result,

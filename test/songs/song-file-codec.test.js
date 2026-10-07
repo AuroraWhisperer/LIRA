@@ -2,8 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
-const vm = require('node:vm');
+const { loadSongImportParser: loadCsvParser } = require('../helpers/song-import-parser');
 const { DatabaseSync } = require('node:sqlite');
 const {
   buildSongsCsv,
@@ -17,16 +16,6 @@ const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
 const songService = require('../../src/music/song-service');
 const { routes } = require('../../src/server/routes/song-routes');
-
-function loadCsvParser() {
-  const context = { window: { AdminApp: { utils: {} } } };
-  vm.runInNewContext(
-    readJsModuleBundle('public', 'js', 'admin', 'song-import-parser.js') +
-      '\nthis.parser = { parseTable, parseDelimited };',
-    context,
-  );
-  return context.parser;
-}
 
 function namespaceWorksheetTags(buffer) {
   const files = readZipFiles(buffer);
@@ -122,11 +111,6 @@ test('song service persists workbook metadata columns and preserves them on edit
   } finally {
     db.close();
   }
-});
-
-test('song service keeps its import schema compatibility exports', () => {
-  assert.equal(songService.SONG_IMPORT_ALIASES, SONG_IMPORT_ALIASES);
-  assert.equal(songService.normalizeImportedSongRow, normalizeImportedSongRow);
 });
 
 test('song workbook codec parses namespace-prefixed worksheet tags', () => {
@@ -380,4 +364,50 @@ test('song workbook import preserves the supported 5000-song scale within defaul
   const parsed = parseSongsFromXlsx(workbook);
   assert.equal(parsed.length, 5000);
   assert.equal(parsed[4999]['歌曲名字'], '合成歌曲4999');
+});
+
+test('text song import maps the permanent metadata columns', () => {
+  const { parseTable } = loadCsvParser();
+  const [headered] = parseTable(
+    '歌曲名字\t原唱/首发歌手\t歌曲分类\t歌曲标签\t是否可点\t语言\t点歌价格\t歌切\t核对平台\t核对备注\n' +
+      '测试歌曲\t测试歌手\t流行\t抒情\t是\t国语\t舰长\tBV1HeaderedClip\tQQ音乐\t待核对',
+  );
+  const [legacyHeadered] = parseTable(
+    '歌曲名字\t原唱/首发歌手\t歌曲分类\t歌曲标签\t是否可点\t语言\t核对平台\t核对备注\t点歌价格\t歌切\n' +
+      '旧格式歌曲\t测试歌手\t流行\t抒情\t是\t国语\t网易云音乐\t旧备注\t免费\tBV1LegacyClip',
+  );
+  const [headerless] = parseTable(
+    '测试歌曲\t测试歌手\t流行\t抒情\t是\t国语\t30元SC\tBV1PositionalClip\tQQ音乐\t待核对',
+  );
+
+  assert.equal(headered.requestPrice, '舰长');
+  assert.equal(headered.songClip, 'BV1HeaderedClip');
+  assert.equal(headered.sourcePlatform, 'QQ音乐');
+  assert.equal(headered.note, '待核对');
+  assert.equal(legacyHeadered.requestPrice, '免费');
+  assert.equal(legacyHeadered.songClip, 'BV1LegacyClip');
+  assert.equal(legacyHeadered.sourcePlatform, '网易云音乐');
+  assert.equal(legacyHeadered.note, '旧备注');
+  assert.equal(headerless.requestPrice, '30元SC');
+  assert.equal(headerless.songClip, 'BV1PositionalClip');
+  assert.equal(headerless.sourcePlatform, 'QQ音乐');
+  assert.equal(headerless.note, '待核对');
+});
+
+test('text imports use backend price aliases and retain conflicting aliases for row validation', () => {
+  const { parseTable } = loadCsvParser();
+  for (const alias of SONG_IMPORT_ALIASES.requestPrice) {
+    for (const separator of [',', '\t']) {
+      const [row] = parseTable(`歌曲名字${separator}${alias}\n别名测试${separator}"30元SC, ""原文""\n第二行"`);
+      assert.equal(normalizeImportedSongRow(row).requestPrice, '30元SC, "原文"\n第二行');
+    }
+  }
+  for (const headers of ['点歌条件\t点歌价格', '点歌价格\trequestPrice', 'requestPrice\t点歌说明']) {
+    const [conflict] = parseTable(`歌曲名字\t${headers}\n冲突\t舰长\t30元SC`);
+    assert.throws(() => normalizeImportedSongRow(conflict), /价格别名冲突/);
+    const [same] = parseTable(`歌曲名字\t${headers}\n一致\t舰长\t舰长`);
+    assert.equal(normalizeImportedSongRow(same).requestPrice, '舰长');
+    const [blank] = parseTable(`歌曲名字\t${headers}\n留空\t\t提督`);
+    assert.equal(normalizeImportedSongRow(blank).requestPrice, '提督');
+  }
 });

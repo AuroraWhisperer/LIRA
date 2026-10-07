@@ -1,9 +1,10 @@
 import { CANVAS_PRESETS, createLayout, defaultRegion, fitRegion, normalizeLayout, resizeCanvas } from '../shared/danmaku-layout.js';
-import { isRandomDanmakuStyle, normalizeStyleOptions } from '../shared/danmaku-style-options.js';
+import { isRandomDanmakuStyle, isFloatingDanmakuStyle, normalizeStyleOptions } from '../shared/danmaku-style-options.js';
 import { applyCanvas } from './danmaku-canvas.js';
 import { initRegionEditor } from './danmaku-region-editor.js';
 import { initPreviewAppearance } from './danmaku-preview-appearance.js';
 import { createComponentPreviewClient, isComponentPreview, isSceneComponent } from './component-preview-client.js';
+import { enhanceColorControls } from '../shared/color-control.js';
 
 function initComponentCanvas({ initialStyle, styleOptions, duration, renderSamples, renderConfiguration, renderData }) {
   const host = document.getElementById('danmakuCanvasHost');
@@ -26,7 +27,7 @@ function initComponentCanvas({ initialStyle, styleOptions, duration, renderSampl
     onConfig(config, canEdit) {
       if (!Object.hasOwn(draft.layout.regions, config?.style)) return false;
       try {
-        draft = { style: config.style, styleOptions: normalizeStyleOptions(config.styleOptions || {}),
+        draft = { ...config, style: config.style, styleOptions: normalizeStyleOptions(config.styleOptions || {}),
           fullscreenDurationSeconds: config.fullscreenDurationSeconds, layout: normalizeLayout(config.layout ?? null) || createLayout() };
       } catch { return false; }
       editable = canEdit && !layer && Boolean(config.layout);
@@ -38,10 +39,10 @@ function initComponentCanvas({ initialStyle, styleOptions, duration, renderSampl
         renderConfiguration(draft);
         return;
       }
-      const nextSampleKey = JSON.stringify([draft.style, draft.styleOptions, draft.fullscreenDurationSeconds]);
+      const nextSampleKey = JSON.stringify([draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.styleParameters]);
       if (nextSampleKey !== sampleKey) {
         sampleKey = nextSampleKey;
-        renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout);
+        renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft);
       }
     },
     onData(data) { if (isSceneComponent()) renderData(data); },
@@ -58,6 +59,7 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   if (isComponentPreview()) return initComponentCanvas({ initialStyle, styleOptions, duration, renderSamples, renderConfiguration, renderData });
   const byId = (id) => document.getElementById(id);
   const controls = byId('danmakuPreviewControls');
+  enhanceColorControls(controls);
   const buttons = Array.from(controls.querySelectorAll('[data-preview-style]'));
   const host = byId('danmakuCanvasHost');
   const status = byId('previewSaveState');
@@ -71,7 +73,7 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
     style: initialStyle || savedHistory.danmakuPreviewStyle || 'signal',
     styleOptions: styleOptions || {},
     fullscreenDurationSeconds: Number(duration) || 6,
-    layout: savedHistory.danmakuLayout || createLayout(),
+    layout: normalizeLayout(savedHistory.danmakuLayout ?? null) || createLayout(),
   };
   if (!buttons.some((button) => button.dataset.previewStyle === draft.style)) draft.style = 'signal';
   let scale = 1;
@@ -103,13 +105,15 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
     const label = buttons.find((button) => button.dataset.previewStyle === draft.style).querySelector('span').firstChild.textContent;
     byId('danmakuPreviewDescription').textContent = `${canvas.width} × ${canvas.height} · ${label}`;
     byId('selectionLabel').textContent = `${region.width} × ${region.height}`;
-    byId('regionHint').textContent = isRandomDanmakuStyle(draft.style)
+    byId('regionHint').textContent = isFloatingDanmakuStyle(draft.style)
+      ? '弹幕从右向左飘过区域；默认铺满画布，可拖动边框调整范围。'
+      : isRandomDanmakuStyle(draft.style)
       ? '弹幕在框内随机出现；缩小区域可避开直播主体。'
       : '拖动区域移动，拖动边框调整大小。方向键微调，Shift 加速。';
     byId('canvasSourceHint').textContent = `直播软件网页来源设为 ${canvas.width} × ${canvas.height}，即可还原位置。`;
     fit();
     appearance.render();
-    if (refreshSamples) renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout);
+    if (refreshSamples) renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft);
     if (historyAvailable) try {
       window.history.replaceState({ ...savedHistory, danmakuPreviewStyle: draft.style,
         danmakuStyleOptions: draft.styleOptions, danmakuDuration: draft.fullscreenDurationSeconds, danmakuLayout: draft.layout },
@@ -156,9 +160,9 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   byId('regionFill').addEventListener('click', () => regionChange({ x: 0, y: 0, ...draft.layout.canvas }));
   byId('regionReset').addEventListener('click', () => {
     regionChange(defaultRegion(draft.style, draft.layout.canvas, draft.layout.contentScale));
-    renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout);
+    renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft);
   });
-  byId('previewRefresh').addEventListener('click', () => renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout));
+  byId('previewRefresh').addEventListener('click', () => renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft));
   byId('previewClose').addEventListener('click', () => send('danmaku-editor:close'));
   apply.addEventListener('click', () => { if (canApply && !saving) send('danmaku-editor:apply', { draft }); });
   initRegionEditor(byId('danmakuSelection'), { getLayout: () => draft.layout, getStyle: () => draft.style,
@@ -172,7 +176,7 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
       const incoming = data.draft;
       if (!buttons.some((button) => button.dataset.previewStyle === incoming?.style)) return;
       try {
-        draft = { style: incoming.style, styleOptions: normalizeStyleOptions(incoming.styleOptions || {}),
+        draft = { ...incoming, style: incoming.style, styleOptions: normalizeStyleOptions(incoming.styleOptions || {}),
           fullscreenDurationSeconds: incoming.fullscreenDurationSeconds,
           layout: normalizeLayout(incoming.layout ?? null) || createLayout() };
       } catch { return; }

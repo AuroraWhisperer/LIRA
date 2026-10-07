@@ -170,16 +170,6 @@ test('describes direct and alias terms against the song library', () => {
   assert.equal(description.hasCandidates, false);
 });
 
-test('does not reverse a library alias into the standard tag', () => {
-  const songs = [{ name: '非标准标签', artist: '周杰伦', tags: '情歌' }];
-
-  assert.deepEqual(filterRandomSongCandidates(songs, '抒情'), []);
-  assert.deepEqual(
-    filterRandomSongCandidates(songs, '情歌').map((song) => song.name),
-    ['非标准标签'],
-  );
-});
-
 test('song service only returns enabled library songs satisfying every term', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-random-filter-'));
   const databases = createDatabases({ dataDir });

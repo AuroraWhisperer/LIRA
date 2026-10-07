@@ -187,9 +187,6 @@
               <p class="hint">金额单位为元。包含起始金额、不含结束金额；相邻区间自动衔接。</p>
               <div class="gift-display-preview">
                 <div id="giftStylePreview" class="gift-banner-stage" role="img" aria-label="礼物词条四色样式预览"></div>
-                <p class="hint">
-                  四色示例每种展示 3 秒后循环切换；达到分界时进入新档。修改只更新草稿，保存后应用于滚动展示和之后的图片导出。
-                </p>
               </div>
             </div>
             <div class="gift-display-group">
@@ -236,7 +233,7 @@
           <div class="gift-display-actions">
             <button class="primary" type="submit">保存滚动与样式设置</button
             ><button id="giftDisplayDefaults" class="secondary" type="button">恢复默认</button
-            ><button id="giftDisplayCancel" class="secondary" type="button">取消修改</button>
+            ><button id="giftDisplayCancel" class="secondary" type="button" hidden>取消修改</button>
           </div>
         </fieldset>
       </form>
@@ -244,69 +241,90 @@
     <!-- admin-fragment: pages/admin/toolbox/gift-wishes.html -->
     <section
       id="guardThanksPanel"
-      class="guard-thanks-card"
+      class="guard-thanks-panel"
       data-gift-feature="guard"
       role="tabpanel"
       aria-labelledby="giftAssistantGuardTab"
       hidden
     >
-      <header class="guard-thanks-heading">
-        <div>
-          <h3 class="ui-section-title">
-            大航海感谢
-            <lira-help
-              >观众开通或续费舰长、提督、总督后，在画布中的大航海感谢组件播放对应动画；多人连续上舰时依次播放。</lira-help
-            >
-          </h3>
-          <p>辉光：柔和艺术风格，只有等级称谓与光影，不出现送礼人信息；经典：舰长船锚、提督罗盘、总督船舵的金属徽章风格。三档各有专属配色与动效。</p>
-        </div>
-        <span id="guardThanksSettingsState" class="pill">未启用</span>
-      </header>
-      <div class="guard-thanks-layout">
-        <div class="guard-thanks-controls">
+      <p class="guard-thanks-intro">观众开通或续费大航海时播放；两款可分别启用，同时启用时依次播放。
+        <lira-help>舰长、提督、总督各有专属配色与动效。预览使用示例数据，直播仅在上舰时触发；在画布中添加大航海感谢组件并保存后显示。</lira-help>
+      </p>
+      <section class="guard-thanks-card" data-guard-thanks-style="aurora" aria-labelledby="guardThanksAuroraTitle">
+        <header class="guard-thanks-heading">
+          <div><h3 id="guardThanksAuroraTitle" class="ui-section-title">辉光</h3><p>珠贝纹章与柔和光影，呈现等级称谓和月数，不显示观众头像与昵称。</p></div>
           <label class="guard-thanks-switch switch-control">
-            <input id="guardThanksEnabled" type="checkbox" />
-            <span class="switch-track"></span>
-            <span>启用大航海感谢</span>
+            <input id="guardThanksAuroraEnabled" type="checkbox" aria-label="启用辉光" />
+            <span class="switch-track"></span><span>启用</span>
           </label>
-          <label>
-            <span>动画风格</span>
-            <select id="guardThanksStyle" data-dropdown-variant="settings">
-              <option value="aurora">辉光（柔和）</option>
-              <option value="classic">经典（徽章）</option>
-            </select>
-          </label>
-          <label>
-            <span>动画文字</span>
-            <select id="guardThanksTextMode" data-dropdown-variant="settings">
-              <option value="bilingual">中英双语</option>
-              <option value="zh">中文</option>
-              <option value="en">English</option>
-            </select>
-          </label>
-          <label>
-            <span>预览等级</span>
-            <select id="guardThanksPreviewTier" data-dropdown-variant="settings">
-              <option value="captain">舰长</option>
-              <option value="admiral">提督</option>
-              <option value="governor">总督</option>
-            </select>
-          </label>
-          <label>
-            <span>预览观众</span>
-            <input id="guardThanksPreviewUser" type="text" value="观众A" maxlength="100" />
-          </label>
-          <label>
-            <span>预览月数</span>
-            <input id="guardThanksPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" />
-          </label>
-          <div class="guard-thanks-actions">
-            <button id="guardThanksSaveBtn" class="primary" type="button">保存大航海感谢设置</button>
-            <button id="guardThanksPlayBtn" class="secondary" type="button">预览</button>
-          </div>
-          <span id="guardThanksSaveState" class="hint" role="status" aria-live="polite"></span>
+        </header>
+        <div class="guard-thanks-controls">
+          <section aria-labelledby="guardThanksAuroraSettingsTitle">
+            <h4 id="guardThanksAuroraSettingsTitle">动画设置</h4>
+            <div class="guard-thanks-settings-grid">
+              <label><span>动画文字</span>
+                <select id="guardThanksAuroraTextMode" data-dropdown-variant="settings">
+                  <option value="bilingual">中英双语</option><option value="zh">中文</option><option value="en">English</option>
+                </select>
+              </label>
+              <button id="guardThanksAuroraSaveBtn" class="primary" type="button">保存设置</button>
+            </div>
+          </section>
+          <section class="guard-thanks-preview" aria-labelledby="guardThanksAuroraPreviewTitle">
+            <h4 id="guardThanksAuroraPreviewTitle">模拟预览</h4>
+            <div class="guard-thanks-preview-grid">
+              <label><span>等级</span>
+                <select id="guardThanksAuroraPreviewTier" data-dropdown-variant="settings">
+                  <option value="captain">舰长</option><option value="admiral">提督</option><option value="governor">总督</option>
+                </select>
+              </label>
+              <label><span>月数</span><input id="guardThanksAuroraPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
+              <button id="guardThanksAuroraPlayBtn" class="secondary" type="button">预览</button>
+            </div>
+          </section>
         </div>
-      </div>
+        <p id="guardThanksAuroraSaveState" class="hint guard-thanks-status" role="status" aria-live="polite"></p>
+      </section>
+      <section class="guard-thanks-card" data-guard-thanks-style="classic" aria-labelledby="guardThanksClassicTitle">
+        <header class="guard-thanks-heading">
+          <div><h3 id="guardThanksClassicTitle" class="ui-section-title">经典 · 徽章</h3><p>金属徽章与丝带，呈现观众头像、昵称与开通月数。</p></div>
+          <label class="guard-thanks-switch switch-control">
+            <input id="guardThanksClassicEnabled" type="checkbox" aria-label="启用经典 · 徽章" />
+            <span class="switch-track"></span><span>启用</span>
+          </label>
+        </header>
+        <div class="guard-thanks-controls">
+          <section aria-labelledby="guardThanksClassicSettingsTitle">
+            <h4 id="guardThanksClassicSettingsTitle">动画设置</h4>
+            <div class="guard-thanks-settings-grid">
+              <label><span>动画文字</span>
+                <select id="guardThanksClassicTextMode" data-dropdown-variant="settings">
+                  <option value="bilingual">中英双语</option><option value="zh">中文</option><option value="en">English</option>
+                </select>
+              </label>
+              <button id="guardThanksClassicSaveBtn" class="primary" type="button">保存设置</button>
+            </div>
+          </section>
+          <section class="guard-thanks-preview" aria-labelledby="guardThanksClassicPreviewTitle">
+            <h4 id="guardThanksClassicPreviewTitle">模拟预览</h4>
+            <div class="guard-thanks-preview-grid">
+              <label><span>等级</span>
+                <select id="guardThanksClassicPreviewTier" data-dropdown-variant="settings">
+                  <option value="captain">舰长</option><option value="admiral">提督</option><option value="governor">总督</option>
+                </select>
+              </label>
+              <label><span>观众</span><input id="guardThanksClassicPreviewUser" type="text" value="观众A" maxlength="100" /></label>
+              <label><span>月数</span><input id="guardThanksClassicPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
+              <button id="guardThanksClassicPlayBtn" class="secondary" type="button">预览</button>
+            </div>
+          </section>
+        </div>
+        <p id="guardThanksClassicSaveState" class="hint guard-thanks-status" role="status" aria-live="polite"></p>
+      </section>
+      <section id="guardThanksStyleLibrary" class="guard-thanks-more" aria-labelledby="guardThanksMoreTitle">
+        <h3 id="guardThanksMoreTitle" class="ui-section-title">更多样式</h3>
+        <p class="hint">从「＋ 添加样式」选择大航海感谢样式，支持 LIRA 样式包、HTML / CSS 和图片 / 视频。选用后在画布保存应用；上舰触发沿用上方的启用设置，至少启用一款并保存。</p>
+      </section>
     </section>
   </div>
 </section>

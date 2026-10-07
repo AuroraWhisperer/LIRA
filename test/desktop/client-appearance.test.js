@@ -7,6 +7,7 @@ const test = require('node:test');
 const { EventEmitter } = require('node:events');
 const { createClientAppearance, getClientWindowBackground, bindClientAppearanceWindow } = require('../../src/electron/client-appearance');
 const { registerClientAppearanceIpc } = require('../../src/electron/ipc/client-appearance-ipc');
+const { CLIENT_THEME_BACKGROUNDS } = require('../../src/shared/client-theme');
 
 function fixture(t, record, overrides = {}) {
   const root = path.resolve(__dirname, '../../tmp');
@@ -135,7 +136,7 @@ test('theme IPC rejects foreign windows, frames, origins, tools and license befo
 test('native backgrounds follow main navigation and leave login and child frames unchanged', () => {
   const baseUrl = 'http://127.0.0.1:3000';
   assert.equal(getClientWindowBackground(`${baseUrl}/admin`, baseUrl), '#f8f5ef');
-  for (const [id, color] of Object.entries({ neutral: '#f3f3f1', classic: '#f7f3ef', terracotta: '#f8f5ef', 'clear-jade': '#ecf0f1', 'black-silver': '#080a0c', 'rose-lustre': '#faf1f4' })) {
+  for (const [id, color] of Object.entries(CLIENT_THEME_BACKGROUNDS)) {
     assert.equal(getClientWindowBackground(`${baseUrl}/admin?desktop=1`, baseUrl, id), color);
     assert.equal(getClientWindowBackground(`${baseUrl}/license`, baseUrl, id), '#f7f3ef');
   }

@@ -68,6 +68,7 @@ async function createStartupFixture() {
       },
     },
     '../shared/parameter-range.js': { initParameterRanges: noop },
+    '../shared/color-control.js': { enhanceColorControls: noop },
     '../shared/select-menu.js': { enhanceSelects: noop },
     './legacy-admin-bridge.js': {
       getLegacyAdminModules: () => modules,

@@ -7,6 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { createHybridGiftSaleCatalogService } = require('../../src/bilibili/gift/hybrid-catalog');
 const { STATE_FILE_NAME } = require('../../src/bilibili/gift/gift-catalog-initializer');
+const { webpBytes } = require('../helpers/remote-catalog-fixture');
 
 const HOURS_12 = 12 * 60 * 60 * 1000;
 const LOGGER = { warn() {}, debug() {} };
@@ -379,12 +380,4 @@ function nextReady(service) {
       resolve(state);
     });
   });
-}
-
-function webpBytes() {
-  const bytes = Buffer.alloc(16);
-  bytes.write('RIFF', 0, 'ascii');
-  bytes.writeUInt32LE(8, 4);
-  bytes.write('WEBP', 8, 'ascii');
-  return bytes;
 }

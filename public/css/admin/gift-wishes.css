@@ -150,15 +150,12 @@
   color: var(--text);
 }
 .gift-wish-colors {
-  display: inline-flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
   gap: var(--spacing-md);
-  vertical-align: middle;
 }
 .gift-wish-colors .gift-wish-field {
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
+  display: grid;
   gap: var(--spacing-sm);
 }
 .gift-wish-colors .gift-wish-field > label {
@@ -166,7 +163,7 @@
   font-weight: 400;
 }
 #giftWishResetColors {
-  margin-left: var(--spacing-md);
+  margin-top: var(--spacing-md);
   padding: 6px 8px;
   font-size: 12px;
 }

@@ -193,6 +193,15 @@ test('songs invalidation rejects in-flight content immediately and clear-all ref
   assert.deepEqual(f.read('songs'), []);
 });
 
+test('songs schedule a library reload for cloud and local song invalidations only', () => {
+  for (const [reason, reloads] of [['cloud:songs', true], ['songs:created', true], ['live:status', false]]) {
+    const f = fixture('songs');
+    f.context.connectSocket();
+    f.message(snapshot({}, reason));
+    assert.equal([...f.timers.values()].some((timer) => timer.delay === 220), reloads, reason);
+  }
+});
+
 test('queue keeps newer WS and HTTP state, deduplicates unchanged loads and invalidates deferred refreshes', async () => {
   const f = fixture('queue');
   f.context.connectSocket();

@@ -210,6 +210,36 @@ test('gate errors do not enable; remote logout/room change resets; new account r
   assert.deepEqual(f.controller.getGiftInteractionState().values, flags());
 });
 
+test('refresh reports current errors but ignores failures after account change or stop', async (t) => {
+  for (const transition of ['current', 'account', 'stop']) {
+    await t.test(transition, async (t) => {
+      const f = fixture(t);
+      await f.controller.start();
+      const pending = deferred();
+      const entered = deferred();
+      const getCloudState = f.manager.getCloudState;
+      f.manager.getCloudState = () => {
+        f.manager.getCloudState = getCloudState;
+        entered.resolve();
+        return pending.promise;
+      };
+      const refreshing = f.controller.refreshGiftInteractionState();
+      await entered.promise;
+      if (transition === 'account') f.switchAccount();
+      else if (transition === 'stop') f.controller.stop();
+      const updates = [];
+      const unsubscribe = f.controller.onGiftInteractionStateChanged((state) => updates.push(state));
+      t.after(unsubscribe);
+      pending.reject(Object.assign(new Error('old account request failed'), { code: 'NETWORK_UNAVAILABLE' }));
+      await refreshing;
+      await f.controller.whenIdle();
+      assert.equal(updates.some((state) => state.error === 'NETWORK_UNAVAILABLE'), transition === 'current');
+      assert.equal(f.controller.getGiftInteractionState().error, transition === 'current' ? 'NETWORK_UNAVAILABLE' : null);
+      assert.deepEqual(f.controller.getGiftInteractionState().values, flags());
+    });
+  }
+});
+
 test('IPC checks exact frame and origin, sanitizes responses/events and removes handlers', async () => {
   const handlers = new Map();
   const frame = { url: 'http://127.0.0.1:3000/admin' };

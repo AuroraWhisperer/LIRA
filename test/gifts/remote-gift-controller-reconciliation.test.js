@@ -89,46 +89,28 @@ test('silent-stream reconciliation does not overlap a pending cursor pull', asyn
   controller.dispose();
 });
 
-test('stop invalidates a silent-stream reconciliation callback before it pulls', async () => {
-  const fixture = createFixture();
-  const controller = createRemoteGiftController(fixture.options);
+for (const action of ['stop', 'dispose']) {
+  test(`${action} invalidates a silent-stream reconciliation callback before it pulls`, async () => {
+    const fixture = createFixture();
+    const controller = createRemoteGiftController(fixture.options);
 
-  await controller.start();
-  await controller.whenIdle();
-  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
-  assert.ok(timer);
-  const pullCount = fixture.pullCalls.length;
+    await controller.start();
+    await controller.whenIdle();
+    const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
+    assert.ok(timer);
+    const pullCount = fixture.pullCalls.length;
 
-  controller.stop();
-  timer.callback();
-  await controller.whenIdle();
+    controller[action]();
+    timer.callback();
+    await controller.whenIdle();
 
-  assert.equal(timer.cleared, true);
-  assert.equal(fixture.pullCalls.length, pullCount);
-  assert.deepEqual(fixture.liveImports, []);
-  assert.equal(controller.getStatus().state, GiftSyncState.OFFLINE);
-  controller.dispose();
-});
-
-test('dispose invalidates a silent-stream reconciliation callback before it writes', async () => {
-  const fixture = createFixture();
-  const controller = createRemoteGiftController(fixture.options);
-
-  await controller.start();
-  await controller.whenIdle();
-  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
-  assert.ok(timer);
-  const pullCount = fixture.pullCalls.length;
-
-  controller.dispose();
-  timer.callback();
-  await controller.whenIdle();
-
-  assert.equal(timer.cleared, true);
-  assert.equal(fixture.pullCalls.length, pullCount);
-  assert.deepEqual(fixture.liveImports, []);
-  assert.equal(controller.getStatus().state, GiftSyncState.OFFLINE);
-});
+    assert.equal(timer.cleared, true);
+    assert.equal(fixture.pullCalls.length, pullCount);
+    assert.deepEqual(fixture.liveImports, []);
+    assert.equal(controller.getStatus().state, GiftSyncState.OFFLINE);
+    controller.dispose();
+  });
+}
 
 test('restart invalidates the previous silent-stream callback', async () => {
   const fixture = createFixture();

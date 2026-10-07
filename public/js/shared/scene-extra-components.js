@@ -1,3 +1,5 @@
+import { BACKGROUND_FIELDS } from './background-appearance.js';
+
 // Canvas appearance only. Sessions, gift accounting and library edits keep their existing owners.
 const text = (label, value = '', maxLength = 80) => ({ label, type: 'text', default: value, maxLength });
 const number = (label, value, min, max, step = 1) => ({ label, type: 'number', default: value, min, max, step });
@@ -11,12 +13,14 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
   background: {
     title: '背景', size: [1920, 1080], path: '/background', variantKey: 'style',
     variants: [],
-    fields: { style: select('背景样式', 'none', { none: '无背景', moonlit: '月渡花汀 · 静态', 'moonlit-animated': '月渡花汀 · 动态' }) },
+    fields: { style: select('背景样式', 'none', { none: '无背景', moonlit: '月渡花汀 · 静态', 'moonlit-animated': '月渡花汀 · 动态' }), ...BACKGROUND_FIELDS },
   },
   opening: {
-    title: '开播动画', size: [1920, 1080], path: '/opening',
-    variants: [variant('default', '开播动画', '跟随开播设置')],
-    fields: { style: select('展示样式', 'original', { original: '跟随客户端', 'moonlit-fan': '月渡花汀' }) },
+    title: '开播动画', size: [1920, 1080], path: '/opening', variantKey: 'style',
+    variants: [{ ...variant('classic', '经典舞台'), image: '/img/component-previews/opening-default.webp' },
+      variant('pixel-cassette', '像素卡带')],
+    fields: { style: select('展示样式', 'original', { original: '跟随客户端', classic: '经典舞台',
+      'pixel-cassette': '像素卡带', 'moonlit-fan': '月渡花汀' }) },
   },
   songlist: {
     title: '展示板', size: [480, 800], path: '/songlist',
@@ -24,7 +28,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     fields: {
       songBoardTitle: text('标题', '可点歌单'), category: text('歌曲分类（留空显示全部）'),
       songBoardSortMode: select('歌曲排序', 'initial', { initial: '首字母', category: '歌曲分类', artist: '歌手', language: '语种', length: '歌名长度' }),
-      scrollSeconds: number('滚动速度', '45', 1, 100),
+      scrollSeconds: number('滚动速度（数值越大越快）', '45', 1, 100),
       songBoardFontFamily: text('字体', 'Microsoft YaHei'), songBoardFontWeight: fontWeight,
       songBoardSongFontSize: number('歌曲字号', '28', 10, 100), songBoardTitleFontSize: number('标题字号', '24', 10, 100),
       songBoardSongColor: color('歌曲颜色', '#fff7fb'), songBoardThemeText: color('文字颜色', '#fff7fb'),
@@ -34,9 +38,10 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   lyrics: {
-    title: '桌面歌词', size: [960, 480], path: '/lyrics',
+    title: '桌面歌词', size: [960, 480], path: '/lyrics', variantKey: 'style',
     variants: [variant('default', '桌面歌词', '逐字歌词')],
     fields: {
+      style: select('展示样式', 'default', { default: '桌面歌词', moonlit: '月渡花汀' }),
       desktopLyricFontFamily: text('字体', 'Microsoft YaHei'), desktopLyricFontWeight: fontWeight,
       desktopLyricFontSize: number('字号', '56', 24, 72), desktopLyricTextColor: color('文字颜色', '#000000'),
       desktopLyricTextAlign: select('文字对齐', 'left', { left: '左对齐', center: '居中', right: '右对齐' }),
@@ -52,8 +57,10 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   games: {
-    title: '直播间互动', category: '直播小游戏', size: [960, 720], path: '/games', variantKey: 'game',
-    variants: [variant('number-bomb', '数字炸弹', '1—100'), variant('gomoku', '五子棋', 'A1—O15'), variant('draw-guess', '你画我猜', '主播画 · 弹幕猜')],
+    title: '直播间互动', category: '直播小游戏', size: [800, 360], path: '/games', variantKey: 'game',
+    variants: [variant('number-bomb', '数字炸弹', '1—100'),
+      { ...variant('gomoku', '五子棋', 'A1—O15'), size: [600, 600] },
+      { ...variant('draw-guess', '你画我猜', '主播画 · 弹幕猜'), size: [1280, 720] }],
     fields: {
       game: select('游戏', 'number-bomb', { 'number-bomb': '数字炸弹', gomoku: '五子棋', 'draw-guess': '你画我猜' }),
       showTitle: check('显示游戏标题'), showDanmaku: check('显示你画我猜弹幕'),
@@ -89,7 +96,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
   'guard-thanks': {
     title: '大航海感谢', size: [2560, 1440], path: '/gift-effects?giftComponent=guard',
     variants: [variant('default', '大航海感谢', '欢迎上舰')],
-    fields: { textMode: select('动画文字', 'bilingual', { bilingual: '中英双语', zh: '中文', en: 'English' }) },
+    fields: { textMode: select('动画文字', 'follow', { follow: '跟随样式设置', bilingual: '中英双语', zh: '中文', en: 'English' }) },
   },
   'gift-feed': {
     title: '礼物滚动', size: [428, 232], path: '/gift-feed',

@@ -2,9 +2,9 @@ import { applyCanvas } from './danmaku-canvas.js';
 import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
 import { watchComponentOutputSize } from './component-output-size.js';
 
-export function initDanmakuComponentSource({ configure, clear, append, status, getStyle, dispose }) {
+export function initDanmakuComponentSource({ configure, clear, append, status, getStyle, showEntryMessages, dispose }) {
   const host = document.getElementById('danmakuCanvasHost');
-  const display = createSceneDanmakuDisplay({ clear, append, status, getStyle });
+  const display = createSceneDanmakuDisplay({ clear, append, status, getStyle, showEntryMessages });
   let configuration = null;
   let configKey = '';
   let epoch = '';

@@ -74,8 +74,10 @@ test('preview retries retain drafts, serialize mutations and publish once after 
 
   failExchange = true;
   await page.evaluate(() => { void window.clock.controller.edit({ label: 'pending desktop' }); });
-  await page.waitForTimeout(1300);
-  assert.ok(failedExchanges >= 2, 'Desktop transport failures must be retried without revocation.');
+  for (const deadline = Date.now() + 5000; failedExchanges < 2;) {
+    assert.ok(Date.now() < deadline, 'Desktop transport failures must be retried without revocation.');
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
   assert.equal(await page.evaluate(() => window.clock.controller.getState().draft.label), 'pending desktop');
   assert.equal(await page.evaluate(() => window.clock.controller.getState().loaded), true);
   failExchange = false;

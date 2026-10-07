@@ -1,11 +1,25 @@
+/* The fixed feed owns row movement; theme decorations keep their own animations. */
+.draw-danmaku-feed[data-smooth-layout='true'] > .draw-danmaku-item {
+  animation: none;
+}
+
+/* Rows leaving the fixed region fade out instead of being cut by a hard edge. */
+.draw-danmaku-feed[data-smooth-layout='true'] {
+  mask: linear-gradient(transparent, #000 32px);
+}
+
+body[data-scroll-direction='down'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  mask: linear-gradient(#000 calc(100% - 32px), transparent);
+}
+
 @keyframes signalMessageIn {
   from {
     opacity: 0;
-    transform: translateX(-18px);
+    transform: translateX(-18px) var(--component-transform, translate(0px, 0px));
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateX(0) var(--component-transform, translate(0px, 0px));
   }
 }
 @keyframes giftSheen {
@@ -31,41 +45,41 @@
 @keyframes bubbleMessageIn {
   from {
     opacity: 0;
-    transform: translateY(calc(8px * var(--danmaku-entry-direction, 1))) scale(0.97);
+    transform: translateY(calc(8px * var(--danmaku-entry-direction, 1))) scale(0.97) var(--component-transform, translate(0px, 0px));
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0) scale(1) var(--component-transform, translate(0px, 0px));
   }
 }
 @keyframes minimalMessageIn {
   from {
     opacity: 0;
-    transform: translateY(calc(5px * var(--danmaku-entry-direction, 1)));
+    transform: translateY(calc(5px * var(--danmaku-entry-direction, 1))) var(--component-transform, translate(0px, 0px));
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) var(--component-transform, translate(0px, 0px));
   }
 }
 @keyframes rankedMessageIn {
   from {
     opacity: 0;
-    transform: translateX(-12px);
+    transform: translateX(-12px) var(--component-transform, translate(0px, 0px));
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateX(0) var(--component-transform, translate(0px, 0px));
   }
 }
 @keyframes outlineMessageIn {
   from {
     opacity: 0;
-    transform: translateY(3px);
+    transform: translateY(3px) var(--component-transform, translate(0px, 0px));
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) var(--component-transform, translate(0px, 0px));
   }
 }
 

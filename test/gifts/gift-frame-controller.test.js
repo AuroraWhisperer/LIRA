@@ -25,8 +25,9 @@ async function fixture() {
   };
   const caption = { style: {} };
   const text = () => ({ textContent: '', scrollWidth: 100, clientWidth: 100, parentElement: { style: {} } });
-  const user = text(); const gift = text(); const num = text();
-  const nodes = { video, '.gift-info': caption, '#giftInfoUser': user, '#giftInfoName': gift, '#giftInfoNum': num };
+  const avatar = { src: '', alt: '', onerror: null, removeAttribute(name) { if (name === 'src') this.src = ''; } };
+  const gift = text(); const num = text();
+  const nodes = { video, '.gift-info': caption, '#giftInfoAvatar': avatar, '#giftInfoName': gift, '#giftInfoNum': num };
   const frameRoot = { querySelector: (selector) => nodes[selector], style: { setProperty(key, value) { this[key] = value; } }, classList: { add: (name) => classes.add(name), remove: (name) => classes.delete(name) } };
   const windowHandlers = new Map();
   const window = { innerWidth: 960, innerHeight: 540, addEventListener: (name, fn) => windowHandlers.set(name, fn), removeEventListener: (name) => windowHandlers.delete(name) };
@@ -37,7 +38,7 @@ async function fixture() {
   });
   const player = createFrameController({ frameRoot });
   const emit = (name, time) => { if (time !== undefined) video.currentTime = time; listeners.get(name)?.(); };
-  return { player, emit, video, user, gift, num, caption, classes, timers, frames, listeners, frameRoot, window, windowHandlers, playRequests, pauses: () => pauses };
+  return { player, emit, video, avatar, gift, num, caption, classes, timers, frames, listeners, frameRoot, window, windowHandlers, playRequests, pauses: () => pauses };
 }
 const payload = { userName: '<img src=x>', giftName: '林间花信', num: 2 };
 
@@ -45,27 +46,32 @@ test('caption follows media time, stays fixed during hold, and fully clears on e
   const f = await fixture();
   const done = f.player.play(payload);
   assert.equal(f.video.currentTime, 0);
-  assert.equal(f.user.textContent, payload.userName);
+  assert.equal(f.avatar.alt, `${payload.userName}的头像`);
+  assert.equal(f.avatar.src, '/img/gift-avatar-placeholder.svg');
   assert.equal(f.num.textContent, '×2');
   assert.equal(f.caption.style.opacity, '0');
   assert.equal(f.frameRoot.style['--frame-scale'], 0.5);
   f.emit('playing', 0);
-  f.emit('timeupdate', 0.6);
+  f.emit('timeupdate', 1.1);
   assert.equal(f.caption.style.opacity, '1');
   assert.equal(f.caption.style.transform, 'translateY(0px)');
-  f.emit('timeupdate', 3.6);
-  assert.equal(f.caption.style.opacity, '1');
-  assert.equal(f.caption.style.transform, 'translateY(0px)');
-  f.emit('timeupdate', 3.9);
+  for (const time of [3.9, 5.6, 7.2]) {
+    f.emit('timeupdate', time);
+    assert.equal(f.caption.style.opacity, '1');
+    assert.equal(f.caption.style.transform, 'translateY(0px)');
+  }
+  f.emit('timeupdate', 7.8);
   assert.equal(f.caption.style.opacity, '0');
-  f.emit('ended', 4);
+  f.emit('ended', 8);
   await done;
-  assert.equal(f.user.textContent, '');
+  assert.equal(f.avatar.src, '');
+  assert.equal(f.avatar.alt, '');
+  assert.equal(f.avatar.onerror, null);
   assert.equal(f.classes.size + f.timers.size + f.frames.size + f.listeners.size, 0);
   const replay = f.player.play(payload);
   assert.equal(f.video.currentTime, 0);
   f.emit('playing', 0);
-  f.emit('ended', 4);
+  f.emit('ended', 8);
   await replay;
   f.player.dispose();
   assert.equal(f.windowHandlers.size, 0);
@@ -102,7 +108,7 @@ test('dispose cancels pending playback and late play rejection cannot clear a ne
   await first;
   f.playRequests[0].reject(new Error('old play interrupted'));
   await Promise.resolve();
-  assert.equal(f.user.textContent, '第二位');
+  assert.equal(f.avatar.alt, '第二位的头像');
   f.window.innerWidth = 1000; f.window.innerHeight = 1000;
   f.windowHandlers.get('resize')();
   assert.equal(f.frameRoot.style['--frame-scale'], 1000 / 1920);
@@ -111,4 +117,25 @@ test('dispose cancels pending playback and late play rejection cannot clear a ne
   await f.player.play(payload);
   assert.equal(f.playRequests.length, 2);
   assert.equal(f.classes.size + f.timers.size + f.frames.size + f.listeners.size, 0);
+});
+
+test('sender avatar uses the existing proxy, falls back once, and resets for the next gift', async () => {
+  const f = await fixture();
+  f.window.__API_TOKEN__ = 'synthetic-overlay-token';
+  const avatarUrl = 'https://i0.hdslb.com/bfs/face/viewer.webp';
+  const done = f.player.play({ ...payload, avatarUrl });
+  const source = new URL(f.avatar.src, 'http://127.0.0.1:3000');
+  assert.equal(source.pathname, '/api/bilibili/avatar');
+  assert.equal(source.searchParams.get('url'), avatarUrl);
+  assert.equal(source.searchParams.get('token'), 'synthetic-overlay-token');
+  f.avatar.onerror();
+  assert.equal(f.avatar.src, '/img/gift-avatar-placeholder.svg');
+  assert.equal(f.avatar.onerror, null);
+  f.emit('ended', 8);
+  await done;
+  const preview = f.player.play({ ...payload, preview: true });
+  assert.equal(f.avatar.src, '/img/overlays/danmaku-ranked/viewer.webp');
+  f.emit('ended', 8);
+  await preview;
+  f.player.dispose();
 });

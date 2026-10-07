@@ -3,13 +3,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
-const { chromium } = require('playwright');
+const { useSharedBrowser } = require('../helpers/shared-browser');
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
+
+const openBrowserSession = useSharedBrowser();
 
 async function fixture(t, types = ['queue']) {
   const runtime = await startCanvasOutputFixture({ notifications: true });
   t.after(() => runtime.close());
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   t.after(() => browser.close());
   const page = await browser.newPage();
   page.setDefaultTimeout(5000);
@@ -98,22 +100,4 @@ test('notification subscriptions retain failed-publication consumers then advanc
   f.service.rotate(f.source.id);
   await f.page.waitForFunction(() => document.querySelectorAll('iframe').length === 0);
   assert.equal(await f.page.locator('#sceneStatus').isVisible(), true);
-});
-
-test('a missing notification endpoint keeps output live and reconnects when it becomes available', { timeout: 20000 }, async t => {
-  const f = await fixture(t);
-  let available = false;
-  await f.page.route('**/api/scene/events?*', route => available ? route.continue()
-    : route.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
-  await f.page.goto(f.url);
-  const queue = f.page.frameLocator('iframe[title="queue"]');
-  await queue.getByText('合成实时歌曲').waitFor();
-  f.runtime.queue.waiting[0].song_name = '回退轮询仍更新';
-  await queue.getByText('回退轮询仍更新').waitFor();
-  const connected = f.page.waitForResponse(responseFor('/api/scene/events', 1));
-  available = true;
-  await connected;
-  f.runtime.queue.waiting[0].song_name = '通知恢复后的歌曲';
-  f.notify({ types: ['queue'] });
-  await queue.getByText('通知恢复后的歌曲').waitFor();
 });

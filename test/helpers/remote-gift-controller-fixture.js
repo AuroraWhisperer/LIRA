@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { FIXED_CREATED_AT, makeProcessedGiftEvent } = require('./processed-gift-fixture');
 
 function createFixture(options = {}) {
   const source = { id: 7, sourceKey: null };
@@ -265,26 +266,7 @@ function makeHistoryRecord(eventId) {
 }
 
 function makeEvent(eventId, cursor) {
-  return {
-    eventId,
-    cursor,
-    phase: 'final',
-    gift: {
-      giftId: '33988',
-      giftName: '人气票',
-      userName: 'Alice',
-      num: 1,
-      unitPrice: 0.1,
-      totalPrice: 0.1,
-      coinType: 'gold',
-      isBlindBox: false,
-      blindBoxId: null,
-      blindBoxName: '',
-      blindBoxPrice: null,
-      blindProfit: null,
-      createdAt: '2027-01-15T08:00:00.000Z',
-    },
-  };
+  return makeProcessedGiftEvent({ createdAt: FIXED_CREATED_AT }, { eventId, cursor });
 }
 
 function createDeferred() {
@@ -297,6 +279,44 @@ function createDeferred() {
   return { promise, resolve, reject };
 }
 
+// Routes the controller's stream through the real license client SSE parser.
+function attachSseLicenseClient(fixture) {
+  const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
+  const encoder = new TextEncoder();
+  let streamController;
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://api.example.test',
+    fetchImpl: async (_url, init) => {
+      const stream = new ReadableStream({
+        start(controller) {
+          streamController = controller;
+          init.signal.addEventListener('abort', () => controller.close(), { once: true });
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          'content-type': 'text/event-stream; charset=utf-8',
+          'x-lira-gift-sync-epoch': 'epoch-1',
+        },
+      });
+    },
+  });
+  fixture.options.licenseManager.watchGiftEventsInternal = (streamOptions) =>
+    client.watchGiftEvents('device-token', streamOptions);
+  return {
+    sendRaw(text) {
+      streamController.enqueue(encoder.encode(text));
+    },
+    frame(event) {
+      return `event: gift-event
+data: ${JSON.stringify(event)}
+
+`;
+    },
+  };
+}
+
 async function waitFor(predicate) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     if (predicate()) return;
@@ -306,6 +326,7 @@ async function waitFor(predicate) {
 }
 
 module.exports = {
+  attachSseLicenseClient,
   capabilityPage,
   createDeferred,
   createFixture,

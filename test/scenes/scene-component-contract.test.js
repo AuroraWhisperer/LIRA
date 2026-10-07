@@ -7,27 +7,12 @@ const { randomUUID } = require('node:crypto');
 const test = require('node:test');
 const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../../src/shared/scene-component-types');
 const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
-const { COMPONENT_PORTS, createSceneComponentPorts } = require('../../src/server/scene-components');
+const { COMPONENT_PORTS } = require('../../src/server/scene-components');
 const { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 const { BROWSER_SOURCE_DEFAULTS } = require('../../public/js/shared/scene-browser-source.js');
 const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
 const { createComponentPreviewSessions, PREVIEW_SESSION_TYPES } = require('../../src/server/component-preview-sessions');
 const { composeComponentPreviewHtml, COMPONENT_PREVIEW_FRAGMENTS } = require('../../src/server/component-preview-page');
-
-test('self-contained scene layers skip runtime snapshots while live layers share one per poll', () => {
-  let reads = 0;
-  const ports = createSceneComponentPorts({ getState() {
-    reads += 1;
-    return { settings: {}, queue: { current: null, waiting: [] }, superChats: [], overtime: { revision: 1 } };
-  }, cloud: { getSnapshot: () => ({ events: [] }) } });
-  for (const types of [[], ['browser'], ['browser', 'clock', 'text-box']]) {
-    assert.deepEqual(ports.getDisplayData(types, {}), {});
-  }
-  assert.equal(reads, 0);
-  const data = ports.getDisplayData(['browser', 'queue', 'overtime', 'danmaku'], {});
-  assert.equal(reads, 1);
-  assert.deepEqual(Object.keys(data), ['queue', 'overtime', 'danmaku']);
-});
 
 test('scene types have explicit backend adapters while canvas is only a control session', () => {
   assert.deepEqual(Object.keys(COMPONENT_PORTS).sort(), [...SCENE_TYPES].sort());

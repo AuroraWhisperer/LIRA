@@ -13,7 +13,10 @@ const { normalizeSceneExtraConfig } = require('./scene-extra-config');
 const { normalizeBrowserSourceConfig } = require('../../public/js/shared/scene-browser-source.js');
 const { normalizeTextBoxConfig, createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
 const { normalizeMediaStyle } = require('../../public/js/shared/component-media-style.js');
+const { normalizeComponentCssStyle } = require('../../public/js/shared/component-css-style.js');
 const { normalizeResourceStyle } = require('../../public/js/shared/component-resource-style.js');
+const { BACKGROUND_FIELDS, getBackgroundAppearance } = require('../../public/js/shared/background-appearance.js');
+const { normalizeStyleParameters } = require('../shared/component-style-parameters');
 
 const CLOCK_KEYS = { style: 'clockStyle', showDate: 'clockShowDate', showSeconds: 'clockShowSeconds',
   hourFormat: 'clockHourFormat', label: 'clockLabel', flipFrameColor: 'clockFlipFrameColor',
@@ -110,6 +113,25 @@ const COMPONENT_PORTS = Object.freeze({
 
 function normalizeSceneConfig(type, config) {
   if (typeof type !== 'string' || !Object.hasOwn(COMPONENT_PORTS, type)) throw invalidConfig();
+  if (config && Object.hasOwn(config, 'styleParameters')) {
+    const { styleParameters, ...base } = config;
+    try { return { ...normalizeSceneConfig(type, base), styleParameters: normalizeStyleParameters(type, styleParameters) }; }
+    catch { throw invalidConfig(); }
+  }
+  if (config && Object.hasOwn(config, 'cssStyle')) {
+    if (type === 'browser' || config.mediaStyle || config.resourceStyle) throw invalidConfig();
+    const { cssStyle, ...base } = config;
+    return { ...normalizeSceneConfig(type, base), cssStyle: normalizeComponentCssStyle(type, cssStyle) };
+  }
+  if (type === 'background' && config && Object.hasOwn(config, 'backgroundDefaults')) {
+    const { backgroundDefaults, ...appearance } = config;
+    assertKeys(backgroundDefaults, Object.keys(BACKGROUND_FIELDS));
+    const defaults = getBackgroundAppearance(normalizeSceneExtraConfig(type, backgroundDefaults));
+    return { ...normalizeSceneConfig(type, appearance), backgroundDefaults: defaults };
+  }
+  if (type === 'background' && config?.mediaStyle) {
+    config = { fit: 'fill', volume: config.mediaStyle.volume ?? 0, ...config };
+  }
   if (config && Object.hasOwn(config, 'resourceStyle')) {
     if (Object.hasOwn(config, 'mediaStyle')) throw invalidConfig();
     const { resourceStyle, ...base } = config;

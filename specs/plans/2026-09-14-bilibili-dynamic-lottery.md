@@ -134,7 +134,7 @@
 
 ## Task 1 / M0：证明来源能力并建立读取适配器
 
-**新增：** `src/bilibili/dynamic-lottery/link.js`、`provider.js`、`src/electron/dynamic-lottery-session.js`、`test/games/dynamic-lottery-provider.test.js`、`test/games/dynamic-lottery-session.test.js`、`test/bilibili/bilibili-wbi-signer.test.js`。
+**新增：** `src/bilibili/dynamic-lottery/link.js`、`provider.js`、`src/electron/dynamic-lottery-session.js`、`test/dynamic-lottery/dynamic-lottery-provider.test.js`、`test/dynamic-lottery/dynamic-lottery-session.test.js`、`test/bilibili/bilibili-wbi-signer.test.js`。
 
 **修改：** `src/bilibili/wbi-signer.js`，仅提取纯计算并由旧导出调用，以便新 provider 的所有网络都受调度。
 
@@ -175,13 +175,13 @@ assert.throws(() => normalizeDynamicLink('https://bilibili.com.evil.invalid/opus
 assert.throws(() => normalizeDynamicLink('http://127.0.0.1/opus/1'));
 ```
 
-**验证：** `node --test test/games/dynamic-lottery-provider.test.js test/games/dynamic-lottery-session.test.js test/bilibili/bilibili-wbi-signer.test.js test/bilibili/bilibili-auth-profile.test.js`。首先观察新用例因能力缺失失败，实现后全部通过；真实来源验证单独记录，不以单测替代。
+**验证：** `node --test test/dynamic-lottery/dynamic-lottery-provider.test.js test/dynamic-lottery/dynamic-lottery-session.test.js test/bilibili/bilibili-wbi-signer.test.js test/bilibili/bilibili-auth-profile.test.js`。首先观察新用例因能力缺失失败，实现后全部通过；真实来源验证单独记录，不以单测替代。
 
 **退出条件：** 至少评论枚举和所需关注语义经验证可用，或报告明确指出本次环境不能交付哪一种活动。没有证据的来源不进入 M3 对外功能。
 
 ## Task 2 / M1：存储、调度和采集恢复
 
-**新增：** `src/storage/dynamic-lottery-schema.js`、`dynamic-lottery-store.js`、`src/bilibili/dynamic-lottery/request-scheduler.js`、`collection-service.js`、`test/games/dynamic-lottery-store.test.js`、`test/games/dynamic-lottery-scheduler.test.js`、`test/games/dynamic-lottery-collection.test.js`。
+**新增：** `src/storage/dynamic-lottery-schema.js`、`dynamic-lottery-store.js`、`src/bilibili/dynamic-lottery/request-scheduler.js`、`collection-service.js`、`test/dynamic-lottery/dynamic-lottery-store.test.js`、`test/dynamic-lottery/dynamic-lottery-scheduler.test.js`、`test/dynamic-lottery/dynamic-lottery-collection.test.js`。
 
 **修改：** `src/storage/database.js`、`src/storage/database-migrations.js`、`docs/reference/backend/storage.md`。
 
@@ -220,7 +220,7 @@ commitPage：断言旧游标 -> 按稳定键写证据 -> 更新游标/覆盖状�
 所有必要来源 exhausted 后，最终批次才允许转 ready
 ```
 
-**验证：** `node --test test/games/dynamic-lottery-store.test.js test/games/dynamic-lottery-scheduler.test.js test/games/dynamic-lottery-collection.test.js test/storage/database-maintenance.test.js`。用 3 页合成输入覆盖重复置顶、重复游标、空异常页、时间过滤、取消、崩溃、重启和账号切换；检查无真实网络调用。
+**验证：** `node --test test/dynamic-lottery/dynamic-lottery-store.test.js test/dynamic-lottery/dynamic-lottery-scheduler.test.js test/dynamic-lottery/dynamic-lottery-collection.test.js test/storage/database-maintenance.test.js`。用 3 页合成输入覆盖重复置顶、重复游标、空异常页、时间过滤、取消、崩溃、重启和账号切换；检查无真实网络调用。
 
 **退出条件：** 采集范围与进度可恢复、预算可解释、会话不串用、旧用户库升级及重复启动通过。此阶段不提供正式抽奖按钮。
 
@@ -293,7 +293,7 @@ for (let first = 0; first < 3; first += 1) {
 assert.equal(permutations.size, 6);
 ```
 
-**验证：** `node --test test/dynamic-lottery-rules.test.js test/dynamic-lottery-draw.test.js test/games/dynamic-lottery-store.test.js`。以固定顺序 `[101,102,103]` 验证：101 不符合、102 未知、103 符合时停在 102；重启后先核验 102。用两个奖项覆盖跨项重复开/关、池大小只满足单项的不同结果、三种补抽设置、关闭领奖时限和补抽批次独立截止。补抽随机源调用次数在重试/恢复后不增加；并发双击、授奖后断连、同键异参和发布重试均需覆盖。时间用例包含截止前一秒、截止时刻、后一秒，以及次日采集仍使用同一截止。
+**验证：** `node --test test/dynamic-lottery-rules.test.js test/dynamic-lottery-draw.test.js test/dynamic-lottery/dynamic-lottery-store.test.js`。以固定顺序 `[101,102,103]` 验证：101 不符合、102 未知、103 符合时停在 102；重启后先核验 102。用两个奖项覆盖跨项重复开/关、池大小只满足单项的不同结果、三种补抽设置、关闭领奖时限和补抽批次独立截止。补抽随机源调用次数在重试/恢复后不增加；并发双击、授奖后断连、同键异参和发布重试均需覆盖。时间用例包含截止前一秒、截止时刻、后一秒，以及次日采集仍使用同一截止。
 
 **退出条件：** 每条 P0 规则有可解释输出，均匀无放回性质成立，恢复/补位不会改变已提交机会。
 
@@ -307,7 +307,7 @@ assert.equal(permutations.size, 6);
 
 **清理接入：** `src/storage/database-maintenance.js`、`src/storage/database-clear-coordinator.js`、`src/storage/database-clear-operations.js`、`src/storage/database-clear-result.js`、`src/server/domain-services.js`、`src/server/api-context.js`、`src/server/routes/data-routes.js`、`public/js/admin/settings-operations.js`。沿用 `clearAllData` 的既有位置参数，通过可选 options 传入新库和可信当前所属范围；不从 HTTP 请求接收数据库或所属身份。数据路由调用新 runtime 的暂停/等待能力后才清理，不只暂停旧礼物/加班机写入器。
 
-**新增测试：** `test/dynamic-lottery-routes.test.js`、`test/dynamic-lottery-runtime.test.js`、`test/games/frontend-dynamic-lottery.test.js`、`test/dynamic-lottery-export.test.js`、`test/dynamic-lottery-presentation.test.js`。
+**新增测试：** `test/dynamic-lottery-routes.test.js`、`test/dynamic-lottery-runtime.test.js`、`test/dynamic-lottery/frontend-dynamic-lottery.test.js`、`test/dynamic-lottery-export.test.js`、`test/dynamic-lottery-presentation.test.js`。
 
 **接口：**
 
@@ -343,7 +343,7 @@ renderLotteryPosterPages(resultSnapshot); // 浏览器 Canvas，固定快照逐�
 
 展示端口另覆盖：未绑定任意网卡、错误 Host/Origin、读凭据调用 draw、控制凭据调用非白名单动作、跨轮次参数、过期/撤销/登出/重启凭据、路径穿越及获取 /admin。确认主服务拒绝展示来源跨域读取，页面/资源/报错不包含管理 token、Cookie 或未中奖名单；不能只测“界面没有按钮”。
 
-**验证：** `node --experimental-vm-modules --test test/dynamic-lottery-routes.test.js test/dynamic-lottery-runtime.test.js test/games/frontend-dynamic-lottery.test.js test/dynamic-lottery-export.test.js test/dynamic-lottery-presentation.test.js test/admin/admin-page-composition.test.js test/admin/toolbox-sidebar.test.js test/storage/database-clear-all.test.js test/storage/data-clear-all-recovery.test.js test/server/server-lifecycle.test.js test/desktop/electron-main-modules.test.js test/desktop/local-media-access.test.js`。
+**验证：** `node --experimental-vm-modules --test test/dynamic-lottery-routes.test.js test/dynamic-lottery-runtime.test.js test/dynamic-lottery/frontend-dynamic-lottery.test.js test/dynamic-lottery-export.test.js test/dynamic-lottery-presentation.test.js test/admin/admin-page-composition.test.js test/admin/toolbox-sidebar.test.js test/storage/database-clear-all.test.js test/storage/data-clear-all-recovery.test.js test/server/server-lifecycle.test.js test/desktop/electron-main-modules.test.js test/desktop/local-media-access.test.js`。
 
 **退出条件：** 在真实 Electron 中用专门测试账号完成评论+关注、暂停恢复、按所选方式补抽，并从较小软件窗口打开系统浏览器全屏开奖。验证双页/桌面并发后结果一致；用 100 个合成名额及长昵称检查每页 PNG 清晰、无漏人/截字/版本混合，现场截图不含凭据或内部名单。记录浏览器和 LIRA 的资源增量；不拿真实用户数据做压力测试。
 

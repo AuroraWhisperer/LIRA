@@ -260,18 +260,52 @@ test('song library requires every selected complete tag and composes with catego
   }
 });
 
-test('song library table displays the language column for rows and empty results', () => {
+test('song library table displays the escaped language column and spans empty results across it', async () => {
   const html = readAdminHtml();
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'), 'utf8');
-  const header =
-    html.match(
-      /<tbody id="songsTable"><\/tbody>[\s\S]*?<thead>|<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/,
-    )?.[0] ?? html.match(/<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/)?.[0];
-
+  const header = html.match(/<thead>((?:(?!<\/thead>)[\s\S])*)<\/thead>\s*<tbody id="songsTable"><\/tbody>/)?.[1];
   assert.ok(header, 'song table markup should remain present');
-  assert.match(header, /<th>歌曲标签<\/th>\s*<th>语言<\/th>\s*<th>状态<\/th>/);
-  assert.match(source, /escapeHtml\(song\.language \|\| ''\)/);
-  assert.match(source, /colspan="9">暂无歌曲/);
+  assert.match(header, /<th>语言<\/th>/);
+  const columnCount = header.match(/<th\b/g).length;
+
+  const elements = {
+    songsTable: { innerHTML: '' },
+    songNoteColumnHeader: { hidden: false },
+    languageFilter: { value: '', innerHTML: '' },
+    artistFilter: { value: '', innerHTML: '' },
+    tagFilterOptions: { innerHTML: '' },
+    tagFilterSummary: { textContent: '' },
+    clearTagFilter: { disabled: false },
+  };
+  const escapeHtml = (value) => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const songsModule = await loadSongsModule({
+    document: { getElementById: (id) => elements[id], querySelectorAll: () => [] },
+    window: {
+      AdminApp: {
+        utils: {
+          escapeHtml,
+          escapeAttr: escapeHtml,
+          value: () => '',
+          setValue() {},
+          toast() {},
+          showError() {},
+          api: async () => {},
+          debounce: (handler) => handler,
+          dangerConfirm: async () => false,
+        },
+      },
+    },
+  });
+  const filters = [new Set(), new Set(), new Set()];
+
+  songsModule.renderSongs([{ id: 1, name: '双语歌曲', artist: '', is_enabled: true, language: '<b>英语</b>' }], ...filters);
+  assert.match(elements.songsTable.innerHTML, /&lt;b&gt;英语&lt;\/b&gt;/);
+  assert.doesNotMatch(elements.songsTable.innerHTML, /<b>英语/);
+
+  songsModule.renderSongs([], ...filters);
+  const colspan = Number(elements.songsTable.innerHTML.match(/colspan="(\d+)"/)?.[1]);
+  assert.match(header, /id="songNoteColumnHeader"/);
+  const visibleColumns = columnCount - (elements.songNoteColumnHeader.hidden ? 1 : 0);
+  assert.equal(colspan, visibleColumns, 'the empty-result row must span every visible table column');
 });
 
 test('song library folds row actions into an accessible bordered menu', () => {

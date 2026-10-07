@@ -1,55 +1,12 @@
 'use strict';
-const { DANMAKU_STYLE_OPTIONS, normalizeStyleOptions } = require('../../shared/danmaku-style-options');
-const { normalizeLayout } = require('../../shared/danmaku-layout');
 
-const { isDnsHostname } = require('../../shared/remote-url-policy');
-const {
-  overlayFilterParameters,
-  sanitizeOverlayFilters,
-  sanitizeOverlayViewers,
-} = require('../../shared/overlay-filters-contract');
-const {
-  welcomeV2Parameters,
-  sanitizeWelcomeV2,
-  sanitizeWelcomeFieldErrors,
-} = require('../../shared/welcome-settings-contract');
-const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
-const SAFE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
-const OVERLAY_STYLES = new Set(Object.keys(DANMAKU_STYLE_OPTIONS));
-const SAFE_LICENSE_STATES = new Set([
-  'checking',
-  'needs_activation',
-  'needs_connection',
-  'authorizing',
-  'authorized',
-  'blocked',
-]);
+const { registerLicenseOverlayIpc } = require('./license-overlay-ipc');
+const { registerLicenseSongsIpc } = require('./license-songs-ipc');
+const { safeState, safeErrorCode, safeErrorIndex, safeString, sanitizePublicUrl } = require('./license-public-values');
+const { sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
+
 const SAFE_GIFT_CATALOG_STATUSES = new Set(['required', 'running', 'updating', 'ready', 'error']);
 const SAFE_GIFT_CATALOG_PHASES = new Set(['idle', 'catalog', 'images', 'complete', 'error']);
-const SONG_PUBLIC_FIELDS = [
-  'id',
-  'title',
-  'name',
-  'artist',
-  'categoryName',
-  'category_name',
-  'tags',
-  'language',
-  'sourcePlatform',
-  'source_platform',
-  'note',
-  'requestPrice',
-  'request_price',
-  'songClip',
-  'song_clip',
-  'enabled',
-  'isEnabled',
-  'is_enabled',
-  'sortOrder',
-  'sort_order',
-  'createdAt',
-  'updatedAt',
-];
 function registerLicenseIpc(options = {}) {
   const {
     ipcMain,
@@ -138,94 +95,8 @@ function registerLicenseIpc(options = {}) {
   safeHandle('license:get-profile', () =>
     licenseManager.getProfile().then((snapshot) => ({ ok: true, ...sanitizeStateSnapshot(snapshot) })),
   );
-  safeHandle('license:get-overlay-settings', async () =>
-    sanitizeOverlaySettings(await licenseManager.getOverlaySettings()),
-  );
-  safeHandle(
-    'license:get-overlay-filters',
-    async () => sanitizeOverlayFilters(await licenseManager.getOverlayFilters()),
-    true,
-  );
-  safeHandle(
-    'license:update-overlay-filters',
-    async (settings) =>
-      sanitizeOverlayFilters(await licenseManager.updateOverlayFilters(overlayFilterParameters(settings))),
-    true,
-  );
-  safeHandle(
-    'license:get-overlay-viewers',
-    async () => sanitizeOverlayViewers(await licenseManager.getOverlayViewers()),
-    true,
-  );
-  safeHandle('license:get-welcome-settings', async () =>
-    sanitizeWelcomeSettings(await licenseManager.getWelcomeSettings()),
-  );
-  safeHandle('license:get-welcome-settings-v2', async () => {
-    const result = await licenseManager.getWelcomeSettingsV2();
-    return result?.schemaVersion === 1
-      ? { ...sanitizeWelcomeSettings(result), schemaVersion: 1 }
-      : sanitizeWelcomeV2(result);
-  });
-  safeHandle('license:update-welcome-settings-v2', async (settings) =>
-    sanitizeWelcomeV2(await licenseManager.updateWelcomeSettingsV2(welcomeV2Parameters(settings))),
-  );
-  safeHandle('license:get-pk-report-settings', async () =>
-    sanitizePkReportSettings(await licenseManager.getPkReportSettings()),
-  );
-  safeHandle('license:update-pk-report-settings', async (settings) =>
-    sanitizePkReportSettings(await licenseManager.updatePkReportSettings(pkReportParameters(settings))),
-  );
-  safeHandle('license:update-welcome-settings', async (settings) =>
-    sanitizeWelcomeSettings(await licenseManager.updateWelcomeSettings(welcomeParameters(settings))),
-  );
-  safeHandle('license:update-overlay-settings', async (settings) => {
-    const parameters = overlayParameters(settings);
-    return sanitizeOverlaySettings(await licenseManager.updateOverlaySettings(parameters));
-  });
-  safeHandle('license:sync-songs', (songs) => {
-    if (!Array.isArray(songs) || songs.length > 5000)
-      return {
-        ok: false,
-        state: safeState(licenseManager.getState()),
-        error: 'SONG_LIST_INVALID',
-      };
-    if (JSON.stringify(songs).length > 4 * 1024 * 1024)
-      return {
-        ok: false,
-        state: safeState(licenseManager.getState()),
-        error: 'SONG_LIST_TOO_LARGE',
-      };
-    return licenseManager.syncSongs(songs).then((result) => sanitizeSyncResponse(result));
-  });
-  safeHandle('license:get-song-page-background', () =>
-    licenseManager.getSongPageBackground().then((result) => sanitizeBackgroundResponse(result)),
-  );
-  safeHandle('license:get-cloud-songs', () =>
-    licenseManager.getCloudSongs().then((result) => sanitizeCloudSongsResponse(result)),
-  );
-  safeHandle('license:upload-song-page-background', (payload) => {
-    const bytes = payload?.bytes;
-    if (!(bytes instanceof Uint8Array) || !bytes.length) {
-      return {
-        ok: false,
-        state: safeState(licenseManager.getState()),
-        error: 'BACKGROUND_IMAGE_REQUIRED',
-      };
-    }
-    if (bytes.byteLength > SONG_BACKGROUND_MAX_BYTES) {
-      return {
-        ok: false,
-        state: safeState(licenseManager.getState()),
-        error: 'PAYLOAD_TOO_LARGE',
-      };
-    }
-    return licenseManager
-      .uploadSongPageBackground(bytes, payload?.fileName)
-      .then((result) => sanitizeBackgroundResponse({ ok: true, ...result }));
-  });
-  safeHandle('license:delete-song-page-background', () =>
-    licenseManager.deleteSongPageBackground().then((result) => sanitizeBackgroundResponse(result)),
-  );
+  registerLicenseOverlayIpc({ safeHandle, licenseManager });
+  registerLicenseSongsIpc({ safeHandle, licenseManager });
 
   const disposeLicenseState = licenseManager.onStateChanged((snapshot) => {
     const window = getMainWindow();
@@ -241,15 +112,6 @@ function registerLicenseIpc(options = {}) {
     disposeGiftCatalogState?.();
     disposeLicenseState?.();
   };
-}
-
-function safeErrorCode(error) {
-  const value = String(error?.code || error?.message || 'LICENSE_ERROR');
-  return SAFE_ERROR_CODE_PATTERN.test(value) ? value : 'LICENSE_ERROR';
-}
-
-function safeState(value) {
-  return SAFE_LICENSE_STATES.has(value) ? value : 'checking';
 }
 
 function sanitizeStateResponse(snapshot = {}) {
@@ -303,101 +165,9 @@ function safeNonNegativeInteger(value) {
   return Number.isSafeInteger(number) && number >= 0 ? number : 0;
 }
 
-function safeErrorIndex(value) {
-  return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
-}
-
 function sanitizeOptionalError(value) {
   if (value === undefined || value === null || value === '') return null;
   return safeErrorCode({ code: value });
-}
-
-function welcomeParameters(value) {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    !Object.keys(value).length ||
-    Object.keys(value).some((key) => !['enabled', 'messages'].includes(key)) ||
-    (Object.hasOwn(value, 'enabled') && typeof value.enabled !== 'boolean')
-  ) {
-    throw Object.assign(new Error(), { code: 'INVALID_WELCOME_SETTINGS' });
-  }
-  if (
-    Object.hasOwn(value, 'messages') &&
-    (!Array.isArray(value.messages) ||
-      value.messages.length < 1 ||
-      value.messages.length > 30 ||
-      value.messages.some(
-        (item) =>
-          typeof item !== 'string' || !item.trim() || Array.from(item).length > 80 || /[\x00-\x1f\x7f]/u.test(item),
-      ))
-  ) {
-    throw Object.assign(new Error(), { code: 'INVALID_WELCOME_MESSAGES' });
-  }
-  return {
-    ...(Object.hasOwn(value, 'enabled') ? { enabled: value.enabled } : {}),
-    ...(Object.hasOwn(value, 'messages') ? { messages: value.messages.map((item) => item.trim()) } : {}),
-  };
-}
-
-function pkReportParameters(value) {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    Object.keys(value).length !== 1 ||
-    typeof value.enabled !== 'boolean'
-  ) {
-    throw Object.assign(new Error(), { code: 'INVALID_PK_REPORT_SETTINGS' });
-  }
-  return { enabled: value.enabled };
-}
-
-function sanitizePkReportSettings(value) {
-  if (value?.ok !== true || typeof value.enabled !== 'boolean')
-    throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
-  return { ok: true, enabled: value.enabled };
-}
-
-function sanitizeWelcomeSettings(value) {
-  if (value?.ok === false || typeof value?.enabled !== 'boolean' || !Array.isArray(value?.messages))
-    throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
-  return { ok: true, ...welcomeParameters({ enabled: value.enabled, messages: value.messages }) };
-}
-
-function overlayParameters(value) {
-  if (!OVERLAY_STYLES.has(value?.style)) {
-    throw Object.assign(new Error('INVALID_OVERLAY_STYLE'), { code: 'INVALID_OVERLAY_STYLE' });
-  }
-  const duration = value?.fullscreenDurationSeconds;
-  if (!Number.isInteger(duration) || duration < 2 || duration > 30) {
-    throw Object.assign(new Error('INVALID_OVERLAY_DURATION'), { code: 'INVALID_OVERLAY_DURATION' });
-  }
-  return {
-    style: value.style,
-    fullscreenDurationSeconds: duration,
-    ...(value.layout === undefined ? {} : { layout: normalizeLayout(value.layout) }),
-    ...(value.styleOptions === undefined
-      ? {}
-      : {
-          styleOptions: normalizeStyleOptions(value.styleOptions),
-        }),
-  };
-}
-
-function sanitizeOverlaySettings(value) {
-  const parameters = overlayParameters(value);
-  const overlayUrl = sanitizePublicUrl(value?.overlayUrl);
-  if (
-    !overlayUrl ||
-    !/^\/overlay\/[A-Za-z0-9_-]{16}$/.test(new URL(overlayUrl).pathname) ||
-    new URL(overlayUrl).search ||
-    new URL(overlayUrl).hash
-  ) {
-    throw Object.assign(new Error('INVALID_RESPONSE'), { code: 'INVALID_RESPONSE' });
-  }
-  return { ok: true, ...parameters, overlayUrl };
 }
 
 function sanitizeStreamer(value) {
@@ -422,125 +192,6 @@ function sanitizeDevice(value) {
     status: safeString(value.status, 32),
     licenseId: safeString(value.licenseId, 128),
   };
-}
-
-function safeString(value, maxLength) {
-  return typeof value === 'string' ? value.slice(0, maxLength) : '';
-}
-
-function sanitizeSyncResponse(result = {}) {
-  const response = { ok: result?.ok !== false };
-  copyPrimitiveField(response, result, 'count');
-  const index = safeErrorIndex(result?.index);
-  if (index !== undefined) response.index = index;
-  const songPageUrl = sanitizePublicUrl(result?.songPageUrl);
-  if (songPageUrl !== undefined) response.songPageUrl = songPageUrl;
-  return response;
-}
-
-function sanitizeCloudSongsResponse(result = {}) {
-  const rawSongs = Array.isArray(result)
-    ? result
-    : Array.isArray(result?.songs)
-      ? result.songs
-      : Array.isArray(result?.items)
-        ? result.items
-        : [];
-  const songs = rawSongs.map(sanitizeSong).filter(Boolean);
-  return { songs };
-}
-
-function sanitizeSong(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const result = {};
-  for (const key of SONG_PUBLIC_FIELDS) copyPrimitiveField(result, value, key);
-  return result;
-}
-
-function sanitizeBackgroundResponse(result = {}) {
-  const response = { ok: result?.ok !== false, background: null };
-  const background = sanitizeBackgroundInfo(result?.background);
-  if (background) response.background = background;
-  return response;
-}
-
-function sanitizeBackgroundInfo(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const result = {};
-  const url = sanitizeRelativeUrl(value.url);
-  const previewUrl = sanitizePublicUrl(value.previewUrl);
-  if (url !== undefined) result.url = url;
-  if (previewUrl !== undefined) result.previewUrl = previewUrl;
-  copyPrimitiveField(result, value, 'bytes');
-  copyPrimitiveField(result, value, 'updatedAt');
-  return Object.keys(result).length ? result : null;
-}
-
-function copyPrimitiveField(target, source, key) {
-  if (!source || typeof source !== 'object' || !Object.prototype.hasOwnProperty.call(source, key)) return;
-  const value = source[key];
-  if (
-    value === null ||
-    typeof value === 'string' ||
-    typeof value === 'boolean' ||
-    (typeof value === 'number' && Number.isFinite(value))
-  ) {
-    target[key] = typeof value === 'string' ? value.slice(0, 4096) : value;
-  }
-}
-
-function sanitizeRelativeUrl(value) {
-  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return undefined;
-  try {
-    const parsed = new URL(value, 'https://license.invalid');
-    if (parsed.origin !== 'https://license.invalid' || parsed.username || parsed.password || hasCredentialQuery(parsed))
-      return undefined;
-    return value.slice(0, 2048);
-  } catch (_) {
-    return undefined;
-  }
-}
-
-function sanitizePublicUrl(value) {
-  if (typeof value !== 'string') return undefined;
-  try {
-    const parsed = new URL(value);
-    if (
-      parsed.protocol !== 'https:' ||
-      !isDnsHostname(parsed.hostname) ||
-      parsed.username ||
-      parsed.password ||
-      hasCredentialQuery(parsed)
-    )
-      return undefined;
-    return parsed.href.slice(0, 2048);
-  } catch (_) {
-    return undefined;
-  }
-}
-
-function hasCredentialQuery(url) {
-  for (const key of url.searchParams.keys()) {
-    const normalized = key.toLowerCase().replace(/[_-]/g, '');
-    if (
-      normalized === 'authorization' ||
-      normalized === 'cookie' ||
-      normalized === 'password' ||
-      normalized === 'passwd' ||
-      normalized === 'key' ||
-      normalized === 'activationcode' ||
-      normalized === 'pairingcode' ||
-      normalized === 'fingerprint' ||
-      normalized === 'hardwareid' ||
-      normalized.includes('privatekey') ||
-      normalized.endsWith('token') ||
-      normalized.endsWith('secret') ||
-      normalized.endsWith('apikey') ||
-      normalized.endsWith('signature')
-    )
-      return true;
-  }
-  return false;
 }
 
 function validateActivationPayload(payload) {

@@ -1,0 +1,15 @@
+html, body, #app { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+body { font-family: sans-serif; color: white; font-size: 24px; }
+yt-live-chat-renderer, yt-live-chat-item-list-renderer, #live { display: flex; flex-direction: column; height: 100%; }
+#item-scroller, #live { overflow: hidden; }
+#items, .danmaku-list { margin-top: auto; }
+yt-live-chat-text-message-renderer, yt-live-chat-paid-message-renderer { display: block; margin: 6px 0; padding: 8px; overflow-wrap: anywhere; }
+yt-live-chat-author-chip, #author-name { display: inline; }
+#author-name, .danmaku-author-name { font-weight: bold; margin-right: 8px; }
+#author-photo { display: inline-block; width: 32px; height: 32px; margin-right: 8px; vertical-align: middle; }
+#author-photo img, .danmaku-author-face { width: 32px; height: 32px; border-radius: 50%; }
+#timestamp { display: none; }
+yt-live-chat-text-message-renderer > #content { display: inline; }
+.emoji { max-height: 1.5em; vertical-align: middle; }
+.danmaku-item { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; }
+.danmaku-content { overflow-wrap: anywhere; }

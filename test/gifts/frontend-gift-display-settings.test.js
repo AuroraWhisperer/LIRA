@@ -6,14 +6,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 const { readCssBundle } = require('../helpers/css-bundle');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const fixture = createUiFixture();
-const html = fs
-  .readFileSync(path.resolve('public/pages/admin/toolbox/gift.html'), 'utf8')
-  .replace(
-    '<!-- admin-fragment: pages/admin/toolbox/gift-wishes.html -->',
-    fs.readFileSync(path.resolve('public/pages/admin/toolbox/gift-wishes.html'), 'utf8'),
-  );
+const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
 const historyHtml = fs.readFileSync(path.resolve('public/pages/admin/gifts/history.html'), 'utf8');
 
 async function openSettings(t) {
@@ -106,7 +102,9 @@ test('style preview holds each palette color, animates between them and loops', 
 test('gift feed settings save speed and remove the pause and low-power options', async (t) => {
   const page = await openSettings(t);
   const speed = page.getByRole('spinbutton', { name: '滚动速率（1–50）', exact: true });
+  const cancel = page.getByRole('button', { name: '取消修改', exact: true, includeHidden: true });
   assert.equal(await speed.inputValue(), '26');
+  assert.equal(await cancel.isHidden(), true);
   assert.equal(await page.locator('#giftFeedSpeedHint').count(), 0);
   assert.equal(await page.locator('#giftFeedPaused, #giftFeedLowPower, #giftFeedInterval').count(), 0);
   for (const invalid of ['0', '51', '1.5']) {
@@ -116,6 +114,8 @@ test('gift feed settings save speed and remove the pause and low-power options',
   await speed.fill('50');
   await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
   await page.waitForFunction(() => window.displaySaves.length === 1);
+  await page.waitForFunction(() => !document.getElementById('giftDisplayFields').disabled);
+  assert.equal(await cancel.isHidden(), true);
   assert.deepEqual(await page.evaluate(() => window.savedDisplay), {
     palette: 'bilibili-four',
     thresholds: [10000, 50000, 100000],
@@ -125,8 +125,37 @@ test('gift feed settings save speed and remove the pause and low-power options',
   });
   await page.getByRole('button', { name: '恢复默认', exact: true }).click();
   assert.equal(await speed.inputValue(), '12');
-  await page.getByRole('button', { name: '取消修改', exact: true }).click();
+  assert.equal(await cancel.isVisible(), true);
+  await cancel.click();
   assert.equal(await speed.inputValue(), '50');
+  assert.equal(await cancel.isHidden(), true);
+  assert.equal(await page.evaluate(() => window.messages.at(-1)), '已恢复上次保存的设置');
+});
+
+test('cancel appears for unsaved fields and hides when their saved values are restored', async (t) => {
+  const page = await openSettings(t);
+  const cancel = page.locator('#giftDisplayCancel');
+  for (const [id, changed] of [
+    ['giftTierEnd0', '125.25'],
+    ['giftTier2', '600.5'],
+    ['giftTierEnd2', '1200.5'],
+    ['giftFeedRows', '5'],
+    ['giftFeedSpeed', '30'],
+    ['giftFeedMinAmount', '1.1'],
+  ]) {
+    const input = page.locator(`#${id}`);
+    const saved = await input.inputValue();
+    await input.fill(changed);
+    assert.equal(await cancel.isVisible(), true, id);
+    await input.fill(`${saved}.0`);
+    assert.equal(await cancel.isHidden(), true, id);
+  }
+  await page.locator('#giftFeedMinAmount').fill('');
+  assert.equal(await cancel.isVisible(), true);
+  await cancel.click();
+  assert.equal(await page.locator('#giftFeedMinAmount').inputValue(), '0');
+  assert.equal(await cancel.isHidden(), true);
+  assert.deepEqual(await page.evaluate(() => window.displaySaves), []);
 });
 
 test('feed minimum accepts one decimal place, saves cents and restores saved or default amounts', async (t) => {

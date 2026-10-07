@@ -4,6 +4,8 @@ import { getCanvasPublicationEntries } from './component-preview-publication.js'
 import { requestScene, readComponentOutputSize } from './scene-api.js';
 import { validateSceneDocument } from './scene-template.js';
 import { startOpeningCanvasData } from './opening-canvas-data.js';
+import { startGamesCanvasData } from './games-canvas-data.js';
+import { startGiftWishesCanvasData } from './gift-wishes-canvas-data.js';
 
 let cached;
 
@@ -193,7 +195,17 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       try { return await action(); } finally { busy = false; }
     }
     return { id: 'canvas', title: '直播场景', controller,
-      startActualData: emit => startOpeningCanvasData(controller, emit),
+      startActualData(emit) {
+        const previewData = {};
+        const receive = data => {
+          Object.assign(previewData, data.previewData);
+          emit({ previewData: { ...previewData } });
+        };
+        const stopOpening = startOpeningCanvasData(controller, receive);
+        const stopGames = startGamesCanvasData(controller, receive);
+        const stopWishes = startGiftWishesCanvasData(controller, receive);
+        return () => { stopOpening(); stopGames(); stopWishes(); };
+      },
       getComponentSize: (...args) => active.getComponentSize(...args),
       source: () => active.source(),
       publish: () => exclusive(() => active.publish()),

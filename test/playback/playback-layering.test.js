@@ -7,9 +7,10 @@ const path = require('node:path');
 const { readCssBundle } = require('../helpers/css-bundle');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
+const readCss = (relativePath) => fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
 
 function readZIndex(relativePath, selector) {
-  const source = fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
+  const source = readCss(relativePath);
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const rule = source.match(new RegExp(`${escapedSelector}\\s*\\{[\\s\\S]*?\\n\\}`))?.[0];
   const value = rule?.match(/z-index:\s*(\d+)/)?.[1];
@@ -29,10 +30,32 @@ test('playback queue appears above fullscreen player and below playback controls
   assert.ok(queuePopup < playbackControls);
 });
 
-test('playback panel styles load feature-owned stylesheets in order', () => {
-  const panelEntry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'panels.css'), 'utf8');
-
-  assert.match(panelEntry, /@import url\('\.\/panels\/search\.css'\);/);
+test('playback stylesheets import existing feature owners in cascade order', () => {
+  for (const [entry, orderedImports] of [
+    ['public/css/playback/panels.css', ['./panels/search.css']],
+    [
+      'public/css/styles-playback.css',
+      [
+        './playback/player.css',
+        './playback/quality-control.css',
+        './playback/volume-control.css',
+        './playback/drawer.css',
+        './playback/responsive.css',
+      ],
+    ],
+    [
+      'public/css/styles-playback.css',
+      ['./playback/fullscreen.css', './playback/fullscreen-visuals.css', './playback/responsive.css'],
+    ],
+  ]) {
+    const imports = Array.from(readCss(entry).matchAll(/@import url\('([^']+)'\);/g), (match) => match[1]);
+    for (const imported of imports) {
+      assert.ok(fs.existsSync(path.join(ROOT_DIR, path.dirname(entry), imported)), `${entry} imports missing ${imported}`);
+    }
+    const positions = orderedImports.map((imported) => imports.indexOf(imported));
+    assert.ok(positions.every((position) => position >= 0), `${entry} must import ${orderedImports.join(', ')}`);
+    assert.deepEqual(positions, [...positions].sort((a, b) => a - b), `${entry} cascade order`);
+  }
 });
 
 test('an open track menu keeps its song row above hovered siblings', () => {
@@ -41,28 +64,7 @@ test('an open track menu keeps its song row above hovered siblings', () => {
   assert.match(styles, /\.playback-home-row:has\(\.track-menu:not\(\[hidden\]\)\)\s*\{[^}]*z-index:\s*[1-9]\d*;/);
 });
 
-test('playback control styles keep focused ownership and responsive cascade order', () => {
-  const readCss = (relativePath) => fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
-  const entry = readCss('public/css/styles-playback.css');
-  const imports = [
-    "@import url('./playback/player.css');",
-    "@import url('./playback/quality-control.css');",
-    "@import url('./playback/volume-control.css');",
-    "@import url('./playback/drawer.css');",
-    "@import url('./playback/responsive.css');",
-  ];
-  const positions = imports.map((statement) => entry.indexOf(statement));
-
-  assert.equal(
-    positions.every((position) => position >= 0),
-    true,
-    'playback entry should import every control owner',
-  );
-  assert.deepEqual(
-    positions,
-    [...positions].sort((a, b) => a - b),
-  );
-
+test('playback control styles keep focused ownership', () => {
   const player = readCss('public/css/playback/player.css');
   const quality = readCss('public/css/playback/quality-control.css');
   const volume = readCss('public/css/playback/volume-control.css');
@@ -78,26 +80,7 @@ test('playback control styles keep focused ownership and responsive cascade orde
   assert.match(player, /\.playback-player-panel\.is-external-source \.playback-quality-wrap/);
 });
 
-test('fullscreen visuals keep artwork ownership and load before responsive overrides', () => {
-  const readCss = (relativePath) => fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
-  const entry = readCss('public/css/styles-playback.css');
-  const imports = [
-    "@import url('./playback/fullscreen.css');",
-    "@import url('./playback/fullscreen-visuals.css');",
-    "@import url('./playback/responsive.css');",
-  ];
-  const positions = imports.map((statement) => entry.indexOf(statement));
-
-  assert.equal(
-    positions.every((position) => position >= 0),
-    true,
-    'playback entry should import the fullscreen visual owner',
-  );
-  assert.deepEqual(
-    positions,
-    [...positions].sort((a, b) => a - b),
-  );
-
+test('fullscreen visuals keep artwork ownership', () => {
   const fullscreen = readCss('public/css/playback/fullscreen.css');
   const visuals = readCss('public/css/playback/fullscreen-visuals.css');
 

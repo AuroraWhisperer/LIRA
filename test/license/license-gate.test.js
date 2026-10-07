@@ -44,15 +44,8 @@ test('Electron startup restores authorized work and owns the system-resume liste
     path.join(__dirname, '../..', 'src', 'electron', 'desktop-readiness-controller.js'),
     'utf8',
   );
-  const listenerIndex = readiness.indexOf('licenseManager.onStateChanged');
-  const initialResumeIndex = readiness.indexOf(
-    'if (licenseManager.getState() === LicenseState.AUTHORIZED)',
-    listenerIndex,
-  );
   assert.ok(bootstrapIndex >= 0 && windowIndex > bootstrapIndex);
   assert.ok(source.indexOf('readinessController.start()', windowIndex) > windowIndex);
-  assert.ok(listenerIndex >= 0 && initialResumeIndex > listenerIndex);
-  assert.match(readiness.slice(initialResumeIndex, initialResumeIndex + 350), /resumeAuthorizedWork/);
   assert.match(
     source,
     /createLicenseResumeHandler\(\{\s*powerMonitor,\s*getLicenseManager: \(\) => licenseManager,\s*afterResume: async \(\) => \{[^]*?cloudSyncController\?\.syncNow\(\)[^]*?remoteGiftController\?\.resume\(\)[^]*?\},\s*writeLog,?\s*\}\)/,
@@ -63,28 +56,9 @@ test('Electron startup restores authorized work and owns the system-resume liste
     source,
     /giftCatalog:\s*\{[^]*?getGiftCatalogInitializationState[^]*?initializeGiftCatalog[^]*?onGiftCatalogInitializationStateChanged/,
   );
-  assert.match(
-    readiness,
-    /licenseManager\.getState\(\) === LicenseState\.AUTHORIZED &&\s*runtime\.isGiftCatalogInitialized\(\)/,
-  );
-  assert.match(readiness, /snapshot\?\.status === 'ready'[^]*?navigateMain\('admin'\)/);
-  assert.match(readiness, /onGiftCatalogInitializationStateChanged\(onCatalogChanged\)/);
+  // Readiness ordering, catalog gating and navigation generations: test/desktop/desktop-readiness-controller.test.js.
   assert.match(readiness, /refreshGiftCatalog\(\s*runtime,[^]*?'authorized-session'/);
-  assert.match(readiness, /refreshGiftCatalog\(\s*runtime,\s*runtime\.isGiftCatalogInitialized\(\)/);
-  assert.match(readiness, /let navigationGeneration = 0/);
-  assert.match(
-    readiness,
-    /const generation = \+\+navigationGeneration[^]*?generation === navigationGeneration &&\s*mainRoute === route[^]*?mainRoute = ''/,
-  );
   assert.match(source, /app\.on\(["']before-quit["'][^]*?licenseResumeController\?\.unregister\(\)/);
-  const recoveryStart = readiness.indexOf('function resumeAuthorizedWork');
-  const initialGiftStart = readiness.indexOf('remoteGiftController?.start()', recoveryStart);
-  const initialStart = readiness.indexOf('cloudSyncController', initialGiftStart);
-  const initialStartThen = readiness.indexOf('cloudReady?.then', initialStart);
-  assert.ok(initialGiftStart > recoveryStart);
-  assert.ok(initialStart > initialGiftStart);
-  assert.ok(initialStartThen > initialStart);
-  assert.match(readiness, /remoteGiftController\?\.stop\(\)/);
 
   const resumeSync = source.indexOf('cloudSyncController?.syncNow()');
   const resumeGifts = source.indexOf('remoteGiftController?.resume()');
@@ -96,6 +70,8 @@ test('Electron startup restores authorized work and owns the system-resume liste
 
   const preload = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'preload.js'), 'utf8');
   assert.doesNotMatch(preload, /remoteGift|gift-events|watchGiftEvents|accessToken|Authorization|EventSource/u);
-  const licenseIpc = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'ipc', 'license-ipc.js'), 'utf8');
-  assert.doesNotMatch(licenseIpc, /getGiftEventsInternal|watchGiftEventsInternal|gift-events/u);
+  for (const file of ['license-ipc.js', 'license-overlay-ipc.js', 'license-songs-ipc.js', 'license-public-values.js']) {
+    const licenseIpc = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'ipc', file), 'utf8');
+    assert.doesNotMatch(licenseIpc, /getGiftEventsInternal|watchGiftEventsInternal|gift-events/u, file);
+  }
 });

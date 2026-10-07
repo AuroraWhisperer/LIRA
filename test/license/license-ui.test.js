@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT = path.join(__dirname, '../..');
 
@@ -112,30 +113,106 @@ test('license page replaces the form with an accessible gift initialization card
   assert.match(tagById(html, 'giftCatalogInitializationBackBtn'), /\shidden(?:\s|\/?>)/);
 });
 
-test('cloud song sync exposes its action, cloud count, result and last sync record', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'import-export.html'), 'utf8');
-  for (const id of ['licenseSongSync', 'licenseLastCloudSync', 'licenseCloudCount', 'licenseSyncResult']) {
-    tagById(html, id);
-  }
-  const button = tagById(html, 'licenseSyncSongsBtn');
-  assert.match(button, /^<button\b/);
-  assert.match(button, /\stype=["']button["']/);
-});
+function controlElement() {
+  const attributes = new Map();
+  return {
+    hidden: true,
+    disabled: false,
+    textContent: '',
+    events: {},
+    addEventListener(name, callback) {
+      this.events[name] = callback;
+    },
+    removeAttribute(name) {
+      attributes.delete(name);
+      if (name === 'src') delete this.src;
+    },
+  };
+}
 
-test('song background controls wait for the initial response before accepting changes', () => {
-  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'), 'utf8');
-  assert.match(script, /fileInput\.disabled = isBusy/);
-  assert.match(script, /setBusy\(true\);[\s\S]*?await refreshSongBackground\(\)[\s\S]*?setBusy\(false\);/);
-});
+for (const [label, previewUrl, rendered] of [
+  ['an https preview', 'https://cdn.example.test/bg.png', true],
+  ['an unsafe preview URL', 'javascript:alert(1)', false],
+]) {
+  test(`song background controls stay disabled until the initial response renders ${label}`, async () => {
+    const ids = [
+      'licenseSongBackground',
+      'licenseSongBgPreview',
+      'licenseSongBgEmpty',
+      'licenseSongBgMeta',
+      'licenseSongBgFile',
+      'licenseSongBgPickBtn',
+      'licenseSongBgDeleteBtn',
+      'licenseSongBgResult',
+    ];
+    const elements = new Map(ids.map((id) => [id, controlElement()]));
+    let finishInitial;
+    const initial = new Promise((resolve) => {
+      finishInitial = resolve;
+    });
+    const { initCloudSongBackground } = await loadModuleExports(
+      path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'),
+      {
+        URL,
+        document: { getElementById: (id) => elements.get(id) || null },
+        window: { liraLicense: { getSongPageBackground: () => initial } },
+      },
+    );
+    const controls = ['licenseSongBgFile', 'licenseSongBgPickBtn', 'licenseSongBgDeleteBtn'].map((id) =>
+      elements.get(id),
+    );
+    const initialized = initCloudSongBackground();
+    assert.deepEqual(
+      controls.map((control) => control.disabled),
+      [true, true, true],
+    );
+    finishInitial({ background: { previewUrl, bytes: 2048 } });
+    await initialized;
+    assert.deepEqual(
+      controls.map((control) => control.disabled),
+      [false, false, false],
+    );
+    const preview = elements.get('licenseSongBgPreview');
+    assert.equal(preview.src, rendered ? previewUrl : undefined);
+    assert.equal(preview.hidden, !rendered);
+    assert.equal(elements.get('licenseSongBgResult').textContent === '', rendered);
+  });
+}
 
-test('account settings show non-sensitive profile data without device-management controls', () => {
+for (const [label, profile, expected] of [
+  ['profile names', { streamer: { accountName: '<b>mlbb</b>' }, device: { name: 'Studio PC' } }, ['<b>mlbb</b>', 'Studio PC']],
+  ['an error response', { ok: false, error: 'LICENSE_NOT_AUTHORIZED' }, null],
+]) {
+  test(`account settings render ${label} as text from the license bridge`, async () => {
+    const elements = new Map(
+      ['licenseAccountDevice', 'licenseAccountName', 'licenseDeviceName'].map((id) => [id, controlElement()]),
+    );
+    const { initLicenseAccountDevice } = await loadModuleExports(
+      path.join(ROOT, 'public', 'js', 'admin', 'settings-license.js'),
+    );
+    let requests = 0;
+    await initLicenseAccountDevice({
+      documentRef: { getElementById: (id) => elements.get(id) || null },
+      licenseBridge: {
+        getProfile: async () => {
+          requests++;
+          return profile;
+        },
+      },
+    });
+    assert.equal(requests, 1);
+    assert.equal(elements.get('licenseAccountDevice').hidden, false);
+    const rendered = [elements.get('licenseAccountName').textContent, elements.get('licenseDeviceName').textContent];
+    if (expected) assert.deepEqual(rendered, expected);
+    else assert.ok(rendered.every((text) => text && !text.includes('LICENSE_NOT_AUTHORIZED')));
+  });
+}
+
+test('account settings page has no device-management controls', () => {
   const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'settings-license.js'), 'utf8');
   const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'toolbox', 'settings.html'), 'utf8');
   const preload = fs.readFileSync(path.join(ROOT, 'src', 'electron', 'preload.js'), 'utf8');
 
-  assert.match(script, /await licenseBridge\.getProfile\(\)/);
-  assert.match(script, /accountEl\.textContent/);
-  assert.match(script, /deviceEl\.textContent/);
   tagById(html, 'licenseAccountName');
   tagById(html, 'licenseDeviceName');
   assert.doesNotMatch(html, /安全存储|设备私钥|首次授权|激活密钥|设备管理/);

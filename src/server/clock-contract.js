@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizeStyleParameters } = require('../shared/component-style-parameters');
+
 const CLOCK_STYLE_VALUES = new Set([
   'peach',
   'starlight',
@@ -19,6 +21,7 @@ const CLOCK_COLOR_DEFAULTS = Object.freeze({
 });
 const CLOCK_SETTING_KEYS = new Set([
   'clockStyle',
+  'clockStyleParameters',
   ...CLOCK_BOOLEAN_SETTING_KEYS,
   'clockHourFormat',
   'clockLabel',
@@ -57,6 +60,10 @@ function normalizeBooleanSetting(value) {
 }
 
 function normalizeClockSettingValue(key, rawValue) {
+  if (key === 'clockStyleParameters') {
+    try { return JSON.stringify(normalizeStyleParameters('clock', JSON.parse(String(rawValue)))); }
+    catch { return null; }
+  }
   if (Object.hasOwn(CLOCK_COLOR_DEFAULTS, key)) {
     const value = String(rawValue ?? '').trim();
     return /^#[\da-f]{6}$/i.test(value) ? value.toLowerCase() : null;
@@ -87,6 +94,8 @@ function getClockConfig(settings = {}) {
   const style = normalizeClockSettingValue('clockStyle', settings.clockStyle) || 'peach';
   return {
     style,
+    ...(settings.clockStyleParameters === undefined ? {} : { styleParameters:
+      JSON.parse(normalizeClockSettingValue('clockStyleParameters', settings.clockStyleParameters) || '{}') }),
     showDate: normalizeClockSettingValue('clockShowDate', settings.clockShowDate) !== 'false',
     showSeconds: normalizeClockSettingValue('clockShowSeconds', settings.clockShowSeconds) !== 'false',
     hourFormat: normalizeClockSettingValue('clockHourFormat', settings.clockHourFormat) || '24',

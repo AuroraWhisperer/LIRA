@@ -1,87 +1,66 @@
-/* 颜色选择器：用色片和展开提示表达可点击性，避免输入框套色块的视觉。 */
-.song-workspace input[type='color'],
-.interaction-color-fields input[type='color'],
-input.color-control {
-  -webkit-appearance: none;
+/* Native picker, with a shared full-width swatch and value presentation. */
+.lira-color-control {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  color: var(--text);
+  font-weight: 400;
+}
+.lira-color-control > input[type='color'] {
   appearance: none;
-  width: 64px;
-  min-width: 64px;
-  height: 36px;
-  min-height: 36px;
-  padding: 4px 18px 4px 4px;
-  border: 0;
-  border-radius: 10px;
-  background-color: transparent;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 10px 6px;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: var(--color-control-height, 36px);
+  min-height: var(--color-control-height, 36px);
+  margin: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--color-control-border, var(--border));
+  border-radius: var(--radius-control, 6px);
+  background: var(--color-control-surface, var(--color-bg-primary));
   box-shadow: none;
   cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
 }
-
-.song-workspace input[type='color']::-webkit-color-swatch-wrapper,
-.interaction-color-fields input[type='color']::-webkit-color-swatch-wrapper,
-input.color-control::-webkit-color-swatch-wrapper {
+.lira-color-control > input::-webkit-color-swatch-wrapper {
+  width: calc(var(--color-control-height, 36px) - 12px);
   padding: 0;
 }
-
-.song-workspace input[type='color']::-webkit-color-swatch,
-.interaction-color-fields input[type='color']::-webkit-color-swatch,
-input.color-control::-webkit-color-swatch {
-  border: 0;
-  border-radius: 7px;
-  box-shadow:
-    inset 0 0 0 1px rgba(24, 24, 22, 0.14),
-    0 1px 3px rgba(24, 24, 22, 0.12);
+.lira-color-control > input::-webkit-color-swatch {
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }
-
-.song-workspace input[type='color']::-moz-color-swatch,
-.interaction-color-fields input[type='color']::-moz-color-swatch,
-input.color-control::-moz-color-swatch {
-  border: 0;
-  border-radius: 7px;
-  box-shadow:
-    inset 0 0 0 1px rgba(24, 24, 22, 0.14),
-    0 1px 3px rgba(24, 24, 22, 0.12);
+.lira-color-control > input::-moz-color-swatch {
+  width: calc(var(--color-control-height, 36px) - 12px);
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }
-
-.song-workspace input[type='color']:hover,
-.interaction-color-fields input[type='color']:hover,
-input.color-control:hover {
-  background-color: var(--color-bg-hover, var(--color-bg-tertiary));
+.lira-color-control > input:hover:not(:disabled, :focus) {
+  border-color: var(--color-control-border-hover, var(--border));
 }
-
-.song-workspace input[type='color']:active,
-.interaction-color-fields input[type='color']:active,
-input.color-control:active {
-  transform: translateY(0) scale(0.97);
-}
-
-.song-workspace input[type='color']:focus-visible,
-.interaction-color-fields input[type='color']:focus-visible,
-input.color-control:focus-visible {
+.lira-color-control > input:focus-visible {
   outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
-  background-color: var(--color-control-accent-light);
 }
-
-.song-workspace input[type='color']:disabled,
-.interaction-color-fields input[type='color']:disabled,
-input.color-control:disabled {
-  cursor: not-allowed;
+.lira-color-control > .lira-color-value {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(var(--color-control-height, 36px) + 10px);
+  display: flex;
+  align-items: center;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.lira-color-control:has(> input:disabled) {
   opacity: 0.55;
-  transform: none;
 }
-
-/* 只显示色块的紧凑入口。 */
-input.color-control {
-  width: 40px;
-  min-width: 40px;
-  padding: 0;
-  background-image: none;
+.lira-color-control > input:disabled {
+  cursor: not-allowed;
+}
+.lira-color-control:has(> input[hidden]) {
+  display: none;
 }

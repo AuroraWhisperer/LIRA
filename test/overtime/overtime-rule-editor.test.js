@@ -54,7 +54,10 @@ function createFakeElement() {
     addEventListener(type, handler) {
       this.listeners[type] = handler;
     },
-    setAttribute() {},
+    attributes: {},
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+    },
     querySelector() {
       return createFakeElement();
     },
@@ -135,10 +138,16 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
   const toggle = findByClass(row, 'overtime-rule-toggle');
   assert.equal(newRuleBody.hidden, false);
   assert.equal(toggle.textContent, '收起设置');
+  assert.equal(toggle.attributes['aria-expanded'], 'true');
+  assert.deepEqual(
+    [...new Set(findAllByDataset(row, 'ruleOperation').map((option) => option.value))].sort(),
+    ['add', 'clear', 'divide', 'multiply', 'subtract'],
+  );
 
   toggle.listeners.click();
   assert.equal(newRuleBody.hidden, true);
   assert.equal(toggle.textContent, '展开设置');
+  assert.equal(toggle.attributes['aria-expanded'], 'false');
   const guardQuantityOptions = findAllByDataset(row, 'ruleQuantityMode');
   assert.equal(guardQuantityOptions.find((option) => option.value === 'item').checked, true);
   assert.equal(guardQuantityOptions.find((option) => option.value === 'group').checked, false);

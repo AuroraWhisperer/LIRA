@@ -11,9 +11,14 @@ const ILLUSTRATED_DEFAULT_LABELS = {
   'golden-lily': { fontFamily: '微软雅黑', fontWeight: '较粗' },
 };
 
-export function setOverlayStyle(style, root = document) {
+export function setOverlayStyle(style, root = document, resourcePreset) {
   const { classicThemePresets, classicPresetLabels, classicPresetSwatches } = theme;
   const nextStyle = normalizePersistedQueueStyle(style);
+  const moonlit = resourcePreset === 'moonlit-queue';
+  const titleArea = componentField(root, 'queueTitleArea');
+  const indexArea = componentField(root, 'queueIndexArea');
+  if (titleArea) titleArea.hidden = nextStyle !== 'classic';
+  if (indexArea) indexArea.hidden = !['classic', 'identity'].includes(nextStyle);
   const styleControl = componentField(root, 'overlayQueueStyle');
   if (styleControl) styleControl.value = nextStyle;
   const illustratedDefaults = ILLUSTRATED_DEFAULT_LABELS[nextStyle] || ILLUSTRATED_DEFAULT_LABELS.storybook;
@@ -30,7 +35,7 @@ export function setOverlayStyle(style, root = document) {
     if (classicArea) classicArea.hidden = true;
     if (identityArea) identityArea.hidden = false;
     identityArea?.querySelectorAll('[data-identity-only]').forEach((section) => {
-      section.hidden = nextStyle !== 'identity';
+      section.hidden = nextStyle !== 'identity' || (moonlit && section.hasAttribute('data-identity-rules'));
     });
     identityArea?.querySelectorAll('[data-illustrated-only]').forEach((section) => {
       section.hidden = !ILLUSTRATED_QUEUE_STYLES.has(nextStyle);

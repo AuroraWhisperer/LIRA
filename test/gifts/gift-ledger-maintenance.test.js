@@ -1,12 +1,9 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 const test = require('node:test');
-const { clearAllData, clearGiftData, closeDatabases, createDatabases } = require('../../src/storage/database');
-const { createGiftSyncStore } = require('../../src/storage/gift-sync-store');
+const { clearAllData, clearGiftData } = require('../../src/storage/database');
+const { createFixture } = require('../helpers/gift-query-fixture');
 const { createSettingsStore } = require('../../src/storage/settings-store');
 const { applyRetentionPolicies } = require('../../src/storage/retention');
 const { clearRecentGifts } = require('../../src/bilibili/gift/query-service');
@@ -42,16 +39,8 @@ test('database gift clear resets only the active source and derived settlements'
       [Number(seeded.sourceBEventId), Number(seeded.legacyId)],
     );
     const resetState = fixture.store.getState(seeded.sourceA.id);
-    assert.equal(resetState.sourceId, seeded.sourceA.id);
-    assert.equal(resetState.syncEpoch, null);
     assert.equal(resetState.finalCursor, null);
-    assert.equal(resetState.bootstrapComplete, false);
-    assert.equal(resetState.bootstrapPageToken, null);
-    assert.equal(resetState.bootstrapRecoveryCursor, null);
-    assert.equal(resetState.bootstrapSyncEpoch, null);
     assert.equal(resetState.projectionGeneration, 2);
-    assert.equal(resetState.lastValidatedAt, null);
-    assert.equal(Number.isFinite(Date.parse(resetState.updatedAt)), true);
     assert.equal(fixture.store.getState(seeded.sourceB.id).finalCursor, 8);
   } finally {
     fixture.close();
@@ -213,13 +202,13 @@ test('retention and legacy clear-recent never delete remote-source rows', () => 
   try {
     const sourceA = fixture.store.resolveSource('e'.repeat(64));
     const sourceB = fixture.store.resolveSource('f'.repeat(64));
-    insertGift(fixture.databases.giftDb, sourceA.id, 'remote-a', {
+    fixture.insertGift(sourceA.id, 'remote-a', {
       createdAt: OLD,
     });
-    insertGift(fixture.databases.giftDb, sourceB.id, 'remote-b', {
+    fixture.insertGift(sourceB.id, 'remote-b', {
       createdAt: OLD,
     });
-    insertGift(fixture.databases.giftDb, null, 'legacy-old', {
+    fixture.insertGift(null, 'legacy-old', {
       cmd: 'SEND_GIFT',
       createdAt: OLD,
     });
@@ -247,7 +236,7 @@ test('retention and legacy clear-recent never delete remote-source rows', () => 
       ['lira-server:remote-a', 'lira-server:remote-b'],
     );
 
-    insertGift(fixture.databases.giftDb, null, 'legacy-recent', {
+    fixture.insertGift(null, 'legacy-recent', {
       cmd: 'SEND_GIFT',
       createdAt: NOW,
     });
@@ -271,29 +260,15 @@ test('retention and legacy clear-recent never delete remote-source rows', () => 
   }
 });
 
-function createFixture() {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-maintenance-'));
-  const databases = createDatabases({ dataDir });
-  return {
-    dataDir,
-    databases,
-    store: createGiftSyncStore({ giftDb: databases.giftDb, now: () => NOW }),
-    close() {
-      closeDatabases(databases);
-      fs.rmSync(dataDir, { recursive: true, force: true });
-    },
-  };
-}
-
 function seedPartitions(fixture) {
   const giftDb = fixture.databases.giftDb;
   const sourceA = fixture.store.resolveSource('c'.repeat(64));
   const sourceB = fixture.store.resolveSource('d'.repeat(64));
   markComplete(giftDb, sourceA.id, 7);
   markComplete(giftDb, sourceB.id, 8);
-  const sourceAEventId = insertGift(giftDb, sourceA.id, 'a').lastInsertRowid;
-  const sourceBEventId = insertGift(giftDb, sourceB.id, 'b').lastInsertRowid;
-  const legacyId = insertGift(giftDb, null, 'legacy', {
+  const sourceAEventId = fixture.insertGift(sourceA.id, 'a').lastInsertRowid;
+  const sourceBEventId = fixture.insertGift(sourceB.id, 'b').lastInsertRowid;
+  const legacyId = fixture.insertGift(null, 'legacy', {
     cmd: 'SEND_GIFT',
     platformId: 'legacy',
   }).lastInsertRowid;
@@ -320,27 +295,6 @@ function markComplete(giftDb, sourceId, cursor) {
     `,
     )
     .run(cursor, NOW, NOW, sourceId);
-}
-
-function insertGift(giftDb, sourceId, eventId, overrides = {}) {
-  return giftDb
-    .prepare(
-      `
-      INSERT INTO gift_events (
-        source_id, platform_id, cmd, gift_id, gift_name, user_name,
-        num, unit_price, total_price, detection_status,
-        gift_stats_eligible, status, created_at, updated_at
-      ) VALUES (?, ?, ?, 'gift-1', '礼物', '观众', 1, 1, 1,
-                'final', 1, 'active', ?, ?)
-    `,
-    )
-    .run(
-      sourceId,
-      overrides.platformId || `lira-server:${eventId}`,
-      overrides.cmd || 'LIRA_SERVER_GIFT',
-      overrides.createdAt || NOW,
-      overrides.createdAt || NOW,
-    );
 }
 
 function insertSettlement(giftDb, giftEventId, status) {

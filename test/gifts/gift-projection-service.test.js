@@ -5,100 +5,22 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gifts');
+const {
+  createFakeClock,
+  createGiftSource,
+  makeProcessedGiftEvent,
+  readGift,
+} = require('../helpers/processed-gift-fixture');
 const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
 const {
   createGiftConsumerRegistry,
   createGiftProjectionService,
   createGiftStatisticsConsumer,
 } = require('../../src/bilibili/gift');
-const {
-  DB_FILE_NAMES,
-  closeDatabases,
-  createDatabases,
-  getSchemaVersions,
-  openSqliteDatabase,
-} = require('../../src/storage/database');
-
-test('gift database v4 exposes the shared projection ledger columns', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-ledger-'));
-  const db = createDatabases({ dataDir });
-
-  try {
-    assert.equal(getSchemaVersions(db).giftDb, 16);
-    const columns = new Set(
-      db.giftDb
-        .prepare('PRAGMA table_info(gift_events)')
-        .all()
-        .map((column) => column.name),
-    );
-    assert.deepEqual(
-      [...columns].filter((name) =>
-        [
-          'detection_status',
-          'first_detected_at_ms',
-          'last_platform_at_ms',
-          'finalized_at_ms',
-          'gift_stats_eligible',
-          'gift_stats_delivered',
-          'overtime_epoch',
-        ].includes(name),
-      ),
-      [
-        'detection_status',
-        'first_detected_at_ms',
-        'last_platform_at_ms',
-        'finalized_at_ms',
-        'gift_stats_eligible',
-        'gift_stats_delivered',
-        'overtime_epoch',
-      ],
-    );
-  } finally {
-    closeDatabases(db);
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
-});
-
-test('gift database v3 upgrades before creating indexes that depend on v4 columns', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-upgrade-'));
-  let db = createDatabases({ dataDir });
-
-  try {
-    closeDatabases(db);
-    const giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
-    giftDb.exec(`
-      DROP INDEX IF EXISTS idx_gift_events_detection_pending;
-      DROP INDEX IF EXISTS idx_gift_events_gift_stats_delivery;
-      DROP INDEX IF EXISTS idx_gift_events_source_time;
-      DROP INDEX IF EXISTS idx_gift_events_source_recent;
-      DROP INDEX IF EXISTS idx_gift_events_source_time_asc;
-      ALTER TABLE gift_events DROP COLUMN overtime_epoch;
-      ALTER TABLE gift_events DROP COLUMN gift_stats_delivered;
-      ALTER TABLE gift_events DROP COLUMN gift_stats_eligible;
-      ALTER TABLE gift_events DROP COLUMN finalized_at_ms;
-      ALTER TABLE gift_events DROP COLUMN last_platform_at_ms;
-      ALTER TABLE gift_events DROP COLUMN first_detected_at_ms;
-      ALTER TABLE gift_events DROP COLUMN detection_status;
-      UPDATE schema_version SET version = 3 WHERE key = 'gift_db';
-    `);
-    giftDb.close();
-
-    db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 16);
-    const indexes = new Set(
-      db.giftDb
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
-        .all()
-        .map((row) => row.name),
-    );
-    assert.equal(indexes.has('idx_gift_events_detection_pending'), true);
-    assert.equal(indexes.has('idx_gift_events_gift_stats_delivery'), true);
-  } finally {
-    closeDatabases(db);
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
-});
+const { closeDatabases, createDatabases } = require('../../src/storage/database');
+const { getGiftHistory } = require('../../src/bilibili/gift/query-service');
+const { normalizeProcessedGiftEvent } = require('../../src/shared/processed-gift-contract');
+const { createFixture: createQueryFixture } = require('../helpers/gift-query-fixture');
 
 test('consumer registry isolates a failing consumer from the remaining consumers', () => {
   const delivered = [];
@@ -318,40 +240,54 @@ test('a transient database read failure during consumer retry is contained and r
   }
 });
 
-function readGift(db, id) {
-  return db.giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(id);
-}
-
-function createFakeClock(startMs) {
-  let currentMs = startMs;
-  let nextId = 1;
-  const timers = new Map();
-
-  function runDueTimers() {
-    while (true) {
-      const due = [...timers.values()]
-        .filter((timer) => timer.at <= currentMs)
-        .sort((left, right) => left.at - right.at || left.id - right.id)[0];
-      if (!due) return;
-      timers.delete(due.id);
-      due.callback();
-    }
-  }
-
-  return {
-    now: () => currentMs,
-    setTimeout(callback, delay) {
-      const timer = { id: nextId, at: currentMs + delay, callback, unref() {} };
-      nextId += 1;
-      timers.set(timer.id, timer);
-      return timer;
-    },
-    clearTimeout(timer) {
-      if (timer) timers.delete(timer.id);
-    },
-    advance(deltaMs) {
-      currentMs += deltaMs;
-      runDueTimers();
+test('optional display v1 survives projection and repeated final deliveries without exposing viewer identity', (t) => {
+  const fx = createQueryFixture();
+  t.after(() => fx.close());
+  const source = fx.resolveSource('a'.repeat(64));
+  fx.setActiveSource(source.id);
+  const service = createGiftProjectionService(fx.context);
+  t.after(() => service.dispose());
+  const event = {
+    eventId: 'profile-test',
+    cursor: 1,
+    phase: 'final',
+    gift: {
+      giftId: '1',
+      giftName: '礼物',
+      userName: '观众',
+      num: 1,
+      unitPrice: 100,
+      totalPrice: 100,
+      coinType: 'gold',
+      isBlindBox: false,
+      blindBoxId: null,
+      blindBoxName: '',
+      blindBoxPrice: null,
+      blindProfit: null,
+      createdAt: '2026-09-01T12:00:00Z',
+      display: {
+        version: 1,
+        avatarUrl: 'https://i0.hdslb.com/bfs/face/test.webp',
+        guardLevel: 3,
+      },
     },
   };
-}
+  const normalized = normalizeProcessedGiftEvent(event);
+  service.importProcessedEvent(normalized, source.id);
+  service.importProcessedEvent(normalized, source.id);
+  const history = getGiftHistory(fx.context, { range: 'all' });
+  assert.equal(history.items.length, 1);
+  assert.equal(history.items[0].gift.guardLevel, 3);
+  assert.equal(history.items[0].gift.avatarUrl, event.gift.display.avatarUrl);
+  const old = structuredClone(event);
+  delete old.gift.display;
+  assert.doesNotThrow(() => normalizeProcessedGiftEvent(old));
+  for (const display of [
+    { ...event.gift.display, version: 2 },
+    { ...event.gift.display, guardLevel: 4 },
+    { ...event.gift.display, avatarUrl: 'https://evil.invalid/image.png' },
+    { ...event.gift.display, uid: '1' },
+  ]) {
+    assert.throws(() => normalizeProcessedGiftEvent({ ...event, gift: { ...event.gift, display } }));
+  }
+});

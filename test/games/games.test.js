@@ -165,19 +165,16 @@ test('draw guess accepts bounded round and duration settings', () => {
   assert.equal(fallback.roundDurationMs, 90000);
 });
 
-test('draw guess provides nine unique 100-word categories', () => {
+test('draw guess categories have unique IDs and the full library never repeats a word', () => {
   const categories = getDrawGuessCategories();
 
-  assert.equal(categories.length, 9);
-  assert.deepEqual(
-    categories.map((category) => category.count),
-    Array(9).fill(100),
-  );
-  assert.equal(new Set(categories.map((category) => category.id)).size, 9);
+  assert.ok(categories.length > 1);
+  assert.ok(categories.every((category) => category.count > 0));
+  assert.equal(new Set(categories.map((category) => category.id)).size, categories.length);
 
   const state = createDrawGuessState({ random: () => 0, nowMs: 0 });
-  assert.equal(state.words.length, 900);
-  assert.equal(new Set(state.words.map((entry) => entry.word)).size, 900);
+  assert.equal(state.words.length, categories.reduce((total, category) => total + category.count, 0));
+  assert.equal(new Set(state.words.map((entry) => entry.word)).size, state.words.length);
 });
 
 test('draw guess only selects words from requested categories and rejects invalid selections', () => {

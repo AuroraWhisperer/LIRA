@@ -2,8 +2,28 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+
+function tagById(html, id) {
+  const tags = html.match(new RegExp(`<[^>]+\\sid\\s*=\\s*["']${id}["'][^>]*>`, 'g')) || [];
+  assert.equal(tags.length, 1, `${id} should exist once`);
+  return tags[0];
+}
+
+test('import page exposes the cloud song sync action, cloud count, result and last sync record once', () => {
+  const html = fs.readFileSync(
+    path.resolve(__dirname, '../../public/pages/admin/song/import-export.html'),
+    'utf8',
+  );
+  for (const id of ['licenseSongSync', 'licenseLastCloudSync', 'licenseCloudCount', 'licenseSyncResult']) {
+    tagById(html, id);
+  }
+  const button = tagById(html, 'licenseSyncSongsBtn');
+  assert.match(button, /^<button\b/);
+  assert.match(button, /\stype=["']button["']/);
+});
 
 async function fixture() {
   const elements = new Map();

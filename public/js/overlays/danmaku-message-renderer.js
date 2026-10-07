@@ -1,3 +1,4 @@
+import { decorateSketchMessage } from './danmaku-sketch.js';
 import { createSuperChatCard } from './danmaku-superchat-renderer.js';
 import { decorateMoonlitMessage } from './danmaku-moonlit.js';
 
@@ -63,6 +64,13 @@ export function createDanmakuMessageRenderer({
     bubble.className = `${classNames.item} ${classNames.bubble}`;
     if (item.kind === 'gift') bubble.className += ' is-gift';
     bubble.dataset.tone = String(index % 4);
+    if (style === 'starveil') {
+      // Stable per-message randomness survives re-rendering and ignores viewer rank.
+      const seed = [item.id, item.uid, item.timestamp, item.name, item.message].join('|');
+      let hash = 2166136261;
+      for (const character of seed) hash = Math.imul(hash ^ character.codePointAt(0), 16777619);
+      bubble.dataset.palette = String((hash >>> 0) % 6);
+    }
     bubble.dataset.identity = identityVariant(item.guardLevel, item.medalName);
     if (item.isStreamer === true) bubble.dataset.streamer = 'true';
     if (fullscreen) bubble.style.setProperty('visibility', 'hidden');
@@ -88,6 +96,7 @@ export function createDanmakuMessageRenderer({
     if (style === 'moonlit') {
       decorateMoonlitMessage(document, bubble, item, { avatar, body, identity, message: messageElement });
     }
+    if (style === 'sketch') decorateSketchMessage(document, bubble, item);
     return bubble;
   }
 
@@ -121,21 +130,20 @@ export function createDanmakuMessageRenderer({
     copy.className = 'draw-danmaku-gift-copy';
     const action = document.createElement('span');
     action.className = 'draw-danmaku-gift-action';
-    action.textContent = '送出';
+    action.textContent = style === 'starlight' ? '赠送' : '送出';
     const name = document.createElement('strong');
     name.className = 'draw-danmaku-gift-name';
     name.textContent = String(item.giftName || '礼物');
     const count = document.createElement('b');
     count.className = 'draw-danmaku-gift-count';
-    count.textContent = `× ${item.giftCount}`;
+    count.textContent = style === 'starlight' ? `x${item.giftCount}` : `× ${item.giftCount}`;
     copy.append(action, name);
     if (showGiftTotal) {
       const amount = document.createElement('b');
       amount.className = 'draw-danmaku-gift-amount';
-      amount.textContent =
-        Number.isFinite(item.giftTotalPrice) && item.giftTotalPrice >= 0
-          ? `¥${item.giftTotalPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}`
-          : '—';
+      const total = Number.isFinite(item.giftTotalPrice) && item.giftTotalPrice >= 0
+        ? item.giftTotalPrice.toLocaleString('zh-CN', { minimumFractionDigits: style === 'sketch' ? 2 : 0, maximumFractionDigits: 2 }) : null;
+      amount.textContent = total === null ? '—' : ['whiteframe', 'sketch'].includes(style) ? `${total}¥` : `¥${total}`;
       copy.append(count);
       rootElement.append(art, copy, amount);
     } else rootElement.append(art, copy, count);

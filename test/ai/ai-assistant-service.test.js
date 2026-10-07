@@ -9,7 +9,7 @@ const {
   getReplyLengthBudget,
   failureReply,
 } = require('../../src/ai/ai-assistant-service');
-const { SYSTEM_PROMPT } = require('../../src/ai/prompt');
+const { SYSTEM_PROMPT, ANSWER_QUALITY_POLICY, buildTools } = require('../../src/ai/prompt');
 const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 
 test('trigger extraction removes 小米 and preserves the question', () => {
@@ -26,12 +26,19 @@ test('failure replies identify search failures separately from route failures', 
   assert.match(failureReply({ code: 'AI_NOT_CONFIGURED' }), /AI 服务/);
 });
 
-test('food and drink questions are required to use a search tool', () => {
-  assert.match(SYSTEM_PROMPT, /美食\/小吃\/饮料/);
-  assert.match(SYSTEM_PROMPT, /至少调用 search_places 或 web_search/);
+test('system prompt describes exactly the tools the service offers', () => {
+  const offered = buildTools({
+    webSearchEnabled: true,
+    weatherEnabled: true,
+    placesEnabled: true,
+    routesEnabled: true,
+  }).map((tool) => tool.name || tool.type);
+  const tags = new Set(Array.from(SYSTEM_PROMPT.matchAll(/<(\w+)>/g), (match) => match[1]));
+  const mentioned = new Set((SYSTEM_PROMPT.match(/\b[a-z]+(?:_[a-z]+)+\b/g) || []).filter((name) => !tags.has(name)));
+  assert.deepEqual([...mentioned].sort(), [...offered].sort());
 });
 
-test('reply instructions prefer one message and allow up to three based on the mention length', () => {
+test('reply instructions put the persona first and carry the budget derived from the mention length', () => {
   const budget = getReplyLengthBudget('哈极光dd_', 50);
   const instructions = buildReplyInstructions('固定人格', 50, new Set(), true, '哈极光dd_');
 
@@ -41,29 +48,19 @@ test('reply instructions prefer one message and allow up to three based on the m
     threeMessages: 96,
     preferred: 50,
   });
-  assert.match(instructions, /1 条弹幕可放 32 个字符/);
-  assert.match(instructions, /优先只用 1 条/);
-  assert.match(instructions, /信息较多时可用 2 条/);
-  assert.match(instructions, /确有必要完整说明时才使用第 3 条/);
-  assert.match(instructions, /50 个字符只是长度偏好/);
-  assert.match(instructions, /正文写约 18–22 个汉字/);
-  assert.match(instructions, /一个简短的标点组合或颜文字/);
-  assert.match(instructions, /Σ\(ﾟдﾟ\)/);
-  assert.match(instructions, /按语气自然轮换/);
-  assert.match(instructions, /不要连续回复重复同一个颜文字/);
-  assert.match(instructions, /不要为了接近长度偏好/);
-  assert.match(buildReplyInstructions('固定人格', 50, new Set(['get_weather']), true), /必须改用 web_search/);
+  assert.ok(instructions.startsWith('固定人格'));
+  assert.ok(instructions.includes(ANSWER_QUALITY_POLICY));
+  for (const value of Object.values(budget)) assert.match(instructions, new RegExp(`\\b${value}\\b`));
 });
 
-test('runtime policy keeps persona separate from intent and avoids unnecessary interrogation', () => {
-  const instructions = buildReplyInstructions('只影响语气的人格', 50);
-
-  assert.match(instructions, /人格预设只影响语气、措辞和角色表现/);
-  assert.match(instructions, /不得改变用户问题的含义/);
-  assert.match(instructions, /信息足够时直接回答/);
-  assert.match(instructions, /一次最多只问一个问题/);
-  assert.match(instructions, /明确条件.*视为硬约束/);
-  assert.match(instructions, /不展示分析过程/);
+test('reply instructions redirect to web search only when a tool was disabled by its quota', () => {
+  const normal = buildReplyInstructions('固定人格', 50, new Set(), true);
+  const quotaLimited = buildReplyInstructions('固定人格', 50, new Set(['get_weather']), true);
+  const withoutSearch = buildReplyInstructions('固定人格', 50, new Set(['get_weather']), false);
+  assert.doesNotMatch(normal, /web_search/);
+  assert.match(quotaLimited, /改用 web_search/);
+  assert.ok(quotaLimited.startsWith(normal));
+  assert.doesNotMatch(withoutSearch, /改用 web_search/);
 });
 
 test('local unsafe input is rejected without calling DeepSeek', async () => {

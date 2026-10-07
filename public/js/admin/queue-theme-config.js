@@ -5,7 +5,8 @@ export const QUEUE_CLASSIC_FIELDS = `themePrimary themeAccent themeText themeBac
   queueSongFontSize queueTitleFontSize backdropBlur glowIntensity overlayLowPowerMode enableGradient gradientEnd
   overlayFontFamily overlayFontWeight overlaySongColor overlayRequesterColor overlayTitle overlayShowIndex
   overlayIndexThreshold overlayIndexColor`.split(/\s+/);
-export const QUEUE_IDENTITY_FIELDS = ['overlayPin1', 'overlayPin2', 'overlayPin3', 'overlayRuleFontSize',
+export const QUEUE_IDENTITY_FIELDS = ['overlayTitle', 'queueTitleFontSize', 'overlayShowIndex', 'overlayIndexThreshold',
+  'overlayIndexColor', 'overlayPin1', 'overlayPin2', 'overlayPin3', 'overlayRuleFontSize',
   ...Array.from({ length: 6 }, (_, index) => `overlayRule${index + 1}`),
   ...Array.from({ length: 6 }, (_, index) => `overlayRuleColor${index + 1}`)];
 export const QUEUE_STYLE_CONTROLS = {

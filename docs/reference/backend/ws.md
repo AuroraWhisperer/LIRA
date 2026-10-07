@@ -25,7 +25,7 @@ Admin 完整消息的礼物身份扩展沿用既有封套；overlay 仅接收下
 
 入站帧按 [RFC 6455 §5](https://www.rfc-editor.org/rfc/rfc6455.html#section-5) 校验：客户端必须掩码，未协商扩展时 RSV 必须为零；保留 opcode、非最短长度编码、非法分片顺序、被分片或超过 125 字节的控制帧以 1002 关闭。Admin 分片文本使用严格增量 UTF-8 校验（允许字符跨分片，并在 FIN 检查未完成字符），不保留已校验的消息正文；非法文本或两类连接的 close reason 使用 1007；帧/消息超限使用 1009。合法 Close 载荷回显，非法/保留状态码不回显。服务端仍不执行业务客户端消息。
 
-HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，恰好处理一次。TCP 未完整帧的缓冲按几何容量增长，已消费的前缀在需要追加时压实；单字节网络分块和 WebSocket continuation 不再重复拷贝整个累积正文。回归和加速生命周期证据见 `test/transport/websocket-upgrade-head.test.js`、`test/transport/websocket-resource-bounds.test.js`。
+HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，恰好处理一次。TCP 未完整帧的缓冲按几何容量增长，已消费的前缀在需要追加时压实；单字节网络分块和 WebSocket continuation 不再重复拷贝整个累积正文。回归和加速生命周期证据见 `test/server/http-websocket-boundary.test.js`、`test/transport/websocket-resource-bounds.test.js`。
 
 所有 Close 路径立即移出广播集合并释放输入缓冲，但 hub 保留关闭期限直到物理 `close`；正常关闭取消计时器，超时销毁，写入失败/背压则立即销毁。`closeAllConnections()` 不拥有 HTTP 升级后的连接，不能代替这项回收责任。关闭期限不延长 Electron 的总退出期限；测试可用 `closeTimeoutMs` 缩短等待。
 
@@ -41,7 +41,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **17 个字段**；overlay 不接收这个完整对象：
 
-`topic=danmaku` 仅选择高频 `danmaku:message` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅该增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/transport/websocket-snapshot-contract.test.js` 和 `test/transport/websocket-access-policy.test.js`。
+`topic=danmaku` 仅选择高频 `danmaku:message` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅该增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/transport/websocket-access-policy.test.js` 和 `test/transport/websocket-access-policy.test.js`。
 
 | 字段                  | 生产者                                     | 内容概述                                                                                                          |
 | --------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -82,7 +82,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`，另需 topic 订阅 |
 | `games` | 当前全局快照无游戏字段；兼容专用 `games` 字段时仍投影公开会话 | `game:update`、`game:patch`、`game:draw`；不含未公布答案 |
 | `wheel` | 空 state | `wheel:update` |
-| `clock` | 十个 `clock*` 展示设置键（含 `clockMoonMode`、`clockMoonIntervalSeconds`）；不含其他业务字段 | 无；通过 settings 快照更新 |
+| `clock` | `overlay-projection.js` 的 clock 设置白名单，含 `clockMoonMode`、`clockMoonIntervalSeconds` 和 JSON 字符串 `clockStyleParameters`；不按前缀放行其他设置 | 无；通过 settings 快照更新 |
 | `gift-export`、`opening` | 空 state | 无 |
 
 全部已知 overlay scope 允许 `{type:'shutdown', reason}`；未列出的专用消息默认不投递。Admin 保持完整消息能力，包括 `wesing-state` 和完整目录更新。scope 对初始与后续广播始终相同，不能通过连接重建、topic、兼容发送函数或伪造业务入站消息升级。
@@ -93,8 +93,8 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | --------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `snapshot`            | `{type, reason, state}`（Admin 完整状态；overlay 按 §2.1 投影）                                                                                 | 连接建立(`reason:'connect'`);业务变更广播                                                                                                                                                                                                                                                                                                                          |
 | `danmaku:message`     | `{type:'danmaku:message', item}`                                                                                     | 实时 B 站弹幕及已结算的礼物提示（公开字段见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1）；仅投递给订阅 `topic=danmaku` 的 Admin 或 danmaku scope，重连后由 snapshot 中的 `danmakuFeed` 恢复                                                                                                                                                                                                                      |
-| `gift:frame` | `{type,eventId,giftEventId,giftId,giftName,num,totalPriceCents,userName,themeId}`；预览另含 `preview/previewSessionId`；`themeId` 为 `woodland-bloom`，旧 motionMode 不再生成/投影 | final 礼物达到林间花信配置阈值时广播，或管理页显式预览；由 `gift/frame-config.js` 生成，一笔礼物只产生一个事件，金额单位为人民币分 |
-| `gift:guard-thanks` | `{type,eventId,giftEventId,tier,userName,months,avatarUrl,textMode}`；预览另含 `preview` | final 大航海礼物在 `guardThanksEnabled` 开启时广播，或管理页显式预览；由 `gift/guard-thanks-config.js` 生成；gift-effects scope 不接收 `giftEventId` |
+| `gift:frame` | `{type,eventId,giftEventId,giftId,giftName,num,totalPriceCents,userName,avatarUrl,themeId}`；头像缺失为空字符串，旧事件可省略；预览另含 `preview/previewSessionId`；`themeId` 为 `woodland-bloom`，旧 motionMode 不再生成/投影 | final 礼物达到林间花信配置阈值时广播，或管理页显式预览；由 `gift/frame-config.js` 生成，一笔礼物只产生一个事件，金额单位为人民币分；头像仅接受已知 HTTPS B 站 CDN URL，并投影至 gift-effects 与场景 |
+| `gift:guard-thanks` | `{type,eventId,giftEventId,tier,userName,months,avatarUrl,textMode,style}`；style 为 aurora/classic，预览另含 `preview` | final 大航海礼物按各风格的独立开关生成事件，或管理页显式预览；由 `gift/guard-thanks-config.js` 生成；实时事件 ID 含风格后缀，旧设置兼容与广播顺序见 [礼物契约](bilibili/gift.md)；gift-effects scope 保留 style，但不接收 `giftEventId` |
 | `gift:effect` | `{type,source,eventId,giftId,effect}`；effect 为播放素材和布局展示 DTO | 礼物特效发布；仅 Admin 与 gift-effects scope 接收 |
 | `lyric-state`         | `{type:'lyric-state', state}`;state 兼容携带单调 `generation`/`sequence`                                             | 播放页歌词上报([server.js:348](../../../src/server.js#L348))、WeSing 采集状态变化([server.js:187](../../../src/server.js#L187))                                                                                                                                                                                                                                    |
 | `lyric-timeline`      | `{type:'lyric-timeline', timeline}`                                                                                  | 播放页歌词时间轴上报、WeSing 时间轴([server.js:163](../../../src/server.js#L163))                                                                                                                                                                                                                                                                                  |
@@ -134,7 +134,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 [StateService](../../../public/js/admin/state.js) 对所有合法 snapshot 应用状态并更新各字段实时版本；`isSongsSnapshotReason` 实际接受 `songs:` 前缀和 `cloud:songs`，但生产者合法后缀仍以上表为准。`isGiftSnapshotReason` 只包含表中四个明确标注的值。其余 reason 不触发这两类额外副作用；视图由 changedKeys 渲染，不能把事件回调与完整重渲染等同。
 
-`createWebSocketHub.broadcastSnapshot` 在同一 microtask 窗口覆盖 `pendingSnapshot`，flush 时读取最新 `getState()`，**只保留最后一个 reason**，不保存 reason 数组。连接初始快照直接发送；兼容层导出的广播函数不经此合并。消费者不能假定每次业务操作都有一条 reason，也不能据此补造事件。相关证据：[websocket-snapshot-contract.test.js](../../../test/transport/websocket-snapshot-contract.test.js)、[admin-state-ordering.test.js](../../../test/admin/admin-state-ordering.test.js)、[runtime-event-publication.test.js](../../../test/server/runtime-event-publication.test.js)。
+`createWebSocketHub.broadcastSnapshot` 在同一 microtask 窗口覆盖 `pendingSnapshot`，flush 时读取最新 `getState()`，**只保留最后一个 reason**，不保存 reason 数组。连接初始快照直接发送；兼容层导出的广播函数不经此合并。消费者不能假定每次业务操作都有一条 reason，也不能据此补造事件。相关证据：[websocket-transport.test.js](../../../test/transport/websocket-transport.test.js)、[admin-state-ordering.test.js](../../../test/admin/admin-state-ordering.test.js)、[runtime-event-publication.test.js](../../../test/server/runtime-event-publication.test.js)。
 
 ### 3.2 `overtime:update` 的 reason 枚举
 

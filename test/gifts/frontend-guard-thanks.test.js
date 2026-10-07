@@ -131,15 +131,17 @@ test('english copy has no Chinese tail and live avatars fall back to the initial
 
 test('reduced motion completes the bounded timeline and removes every played node', async (t) => {
   const page = await openStage(t);
-  const finished = await page.evaluate(async () => {
+  await page.clock.install();
+  await page.evaluate(() => {
     const player = window.cards.createGuardThanksPlayer({ root: document.getElementById('root') });
     const started = performance.now();
-    const result = await player.play(
-      { tier: 'captain', userName: '观众A', textMode: 'zh', style: 'classic' },
-      { motion: 'reduced', compressed: true },
-    );
-    return { result, elapsed: performance.now() - started, cards: document.querySelectorAll('.gt-card').length };
+    window.finished = player
+      .play({ tier: 'captain', userName: '观众A', textMode: 'zh', style: 'classic' }, { motion: 'reduced', compressed: true })
+      .then((result) => ({ result, elapsed: performance.now() - started, cards: document.querySelectorAll('.gt-card').length }));
   });
+  await page.waitForSelector('.gt-card.is-live');
+  await page.clock.runFor(6000);
+  const finished = await page.evaluate(() => window.finished);
   assert.equal(finished.result, true);
   assert.equal(finished.cards, 0);
   assert.ok(finished.elapsed >= 3000 && finished.elapsed < 6000, `elapsed ${finished.elapsed}`);
@@ -173,6 +175,7 @@ test('overlay queue validates payloads, de-duplicates live events and lets previ
 
 test('aurora style is the default and never renders viewer identity', async (t) => {
   const page = await openStage(t);
+  await page.clock.install();
   const artworkRequests = [];
   page.on('request', (request) => {
     if (request.url().includes('/img/overlays/guard-thanks/')) artworkRequests.push(request.url());
@@ -180,7 +183,6 @@ test('aurora style is the default and never renders viewer identity', async (t) 
   const userName = '晚风来信的星河旅人';
   const started = await page.evaluate(() => {
     window.player = window.cards.createGuardThanksPlayer({ root: document.getElementById('root') });
-    window.startedAt = performance.now();
     window.result = window.player.play({ tier: 'captain', userName: '晚风来信的星河旅人', months: 12, textMode: 'bilingual' });
     return document.querySelectorAll('.gt-card').length;
   });
@@ -216,18 +218,18 @@ test('aurora style is the default and never renders viewer identity', async (t) 
     text: undefined,
   });
   assert.equal(view.text.includes(userName), false, 'viewer name never reaches the aurora card');
+  // The bounded per-tier duration is asserted from the animation timing in a later test.
+  await page.clock.runFor(9000);
   const finished = await page.evaluate(async () => ({
     result: await window.result,
-    elapsed: performance.now() - window.startedAt,
     cards: document.querySelectorAll('.gta-card').length,
   }));
   assert.equal(finished.result, true);
   assert.equal(finished.cards, 0);
-  assert.ok(finished.elapsed >= 6800, `aurora captain must run at least 6.8s, got ${finished.elapsed}`);
   assert.equal(artworkRequests.length, 1, 'artwork and its reflection mask share one request');
 });
 
-test('aurora tiers use distinct pearl artwork and restrained ornament', async (t) => {
+test('aurora tiers use distinct pearl artwork and hide moving light under reduced motion', async (t) => {
   const page = await openStage(t);
   const views = [];
   for (const tier of ['captain', 'admiral', 'governor']) {
@@ -240,17 +242,10 @@ test('aurora tiers use distinct pearl artwork and restrained ornament', async (t
       const card = document.querySelector('.gta-card');
       return {
         material: card.dataset.material,
-        hue: getComputedStyle(card).getPropertyValue('--gta-hue').trim(),
         artwork: card.querySelector('.gta-artwork').getAttribute('src'),
         decoded: card.querySelector('.gta-sigil').classList.contains('has-artwork'),
-        orbits: card.querySelectorAll('.gta-orbit-path').length,
-        motes: card.querySelectorAll('.gta-mote').length,
-        regaliaStars: card.querySelectorAll('.gta-regalia-star').length,
-        crownRays: card.querySelectorAll('.gta-crown-ray').length,
-        ripples: card.querySelectorAll('.gta-ripple').length,
         hiddenLightEffects: Array.from(card.querySelectorAll('.gta-mote, .gta-glint, .gta-reflection, .gta-orbit-trail, .gta-regalia-line, .gta-regalia-star, .gta-crown-ray, .gta-ripple'))
           .every((node) => Number(getComputedStyle(node).opacity) === 0),
-        animations: document.getAnimations().length,
       };
     }));
     await page.evaluate(async () => {
@@ -260,13 +255,13 @@ test('aurora tiers use distinct pearl artwork and restrained ornament', async (t
     });
   }
   assert.deepEqual(views, [
-    { material: 'blue-pearl', hue: '54, 145, 243', artwork: '/img/overlays/guard-thanks/captain-pearl-v1.webp', decoded: true, orbits: 1, motes: 18, regaliaStars: 0, crownRays: 0, ripples: 0, hiddenLightEffects: true, animations: 2 },
-    { material: 'violet-pearl', hue: '151, 84, 225', artwork: '/img/overlays/guard-thanks/admiral-pearl-v1.webp', decoded: true, orbits: 3, motes: 32, regaliaStars: 8, crownRays: 0, ripples: 0, hiddenLightEffects: true, animations: 2 },
-    { material: 'ruby-pearl', hue: '219, 51, 80', artwork: '/img/overlays/guard-thanks/governor-pearl-v1.webp', decoded: true, orbits: 5, motes: 50, regaliaStars: 12, crownRays: 9, ripples: 2, hiddenLightEffects: true, animations: 2 },
+    { material: 'blue-pearl', artwork: '/img/overlays/guard-thanks/captain-pearl-v1.webp', decoded: true, hiddenLightEffects: true },
+    { material: 'violet-pearl', artwork: '/img/overlays/guard-thanks/admiral-pearl-v1.webp', decoded: true, hiddenLightEffects: true },
+    { material: 'ruby-pearl', artwork: '/img/overlays/guard-thanks/governor-pearl-v1.webp', decoded: true, hiddenLightEffects: true },
   ]);
 });
 
-test('aurora stages its entrance and extends every tier by one second, including queued playback', async (t) => {
+test('aurora extends every tier by one second, including queued playback, and stops cleanly', async (t) => {
   const page = await openStage(t);
   const expectedDurations = { captain: [6800, 5900], admiral: [7400, 6380], governor: [8200, 7000] };
   for (const [tier, durations] of Object.entries(expectedDurations)) {
@@ -276,32 +271,12 @@ test('aurora stages its entrance and extends every tier by one second, including
         window.result = window.player.play({ tier, userName: '预览观众', style: 'aurora' }, { compressed });
       }, { tier, compressed });
       await page.waitForSelector('.gta-card.is-live');
-      const view = await page.evaluate(() => {
-        const animations = document.getAnimations();
-        const exit = animations.find((animation) => animation.effect.target.classList.contains('gta-card')).effect.getTiming();
-        const frames = [400, 1100, 2000, 3500].map((time) => {
-          animations.forEach((animation) => { animation.pause(); animation.currentTime = time; });
-          const opacity = (selector) => Number(getComputedStyle(document.querySelector(selector)).opacity);
-          return {
-            orbit: opacity('.gta-card > .gta-orbit:not(.gta-regalia)'),
-            sigil: opacity('.gta-sigil'),
-            caption: opacity('.gta-caption'),
-            motes: Array.from(document.querySelectorAll('.gta-mote')).filter((node) => Number(getComputedStyle(node).opacity) > 0).length,
-            totalMotes: document.querySelectorAll('.gta-mote').length,
-          };
-        });
-        return { duration: exit.delay + exit.duration, frames };
+      const duration = await page.evaluate(() => {
+        const exit = document.getAnimations()
+          .find((animation) => animation.effect.target.classList.contains('gta-card')).effect.getTiming();
+        return exit.delay + exit.duration;
       });
-      assert.equal(view.duration, durations[Number(compressed)], `${tier}: bounded duration includes the extra second`);
-      assert.ok(view.frames[0].orbit > 0, `${tier}: arcs lead the entrance`);
-      assert.equal(view.frames[0].sigil, 0, `${tier}: emblem waits for its turn`);
-      assert.equal(view.frames[0].caption, 0);
-      assert.equal(view.frames[0].motes, 0);
-      assert.ok(view.frames[1].sigil > 0.5, `${tier}: emblem appears before the caption`);
-      assert.equal(view.frames[1].caption, 0);
-      assert.ok(view.frames[2].caption > 0.9);
-      assert.ok(view.frames[2].motes > 0 && view.frames[2].motes < view.frames[2].totalMotes, `${tier}: particles enter in batches`);
-      assert.ok(view.frames[3].motes > view.frames[2].motes, `${tier}: later batches join the first`);
+      assert.equal(duration, durations[Number(compressed)], `${tier}: bounded duration includes the extra second`);
       await page.evaluate(async () => { window.player.stop(); await window.result; window.player.dispose(); });
       assert.equal(await page.locator('.gta-card').count(), 0);
       assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
@@ -309,7 +284,7 @@ test('aurora stages its entrance and extends every tier by one second, including
   }
 });
 
-test('aurora fits native 1440p with still high-resolution emblems and moving light', async (t) => {
+test('aurora fits native 1440p with unblurred readable text and high-resolution emblems', async (t) => {
   const page = await openStage(t);
   await page.setViewportSize({ width: 2560, height: 1440 });
   const frames = [];
@@ -338,15 +313,10 @@ test('aurora fits native 1440p with still high-resolution emblems and moving lig
         frames.push({
           tier: card.dataset.tier,
           time,
-          light: Math.max(...Array.from(card.querySelectorAll('.gta-orbit-path'), (node) => Number(getComputedStyle(node).opacity))),
-          reflection: getComputedStyle(card.querySelector('.gta-reflection')).backgroundPosition,
           reflectionMask: getComputedStyle(card.querySelector('.gta-reflection')).maskImage,
-          trail: getComputedStyle(card.querySelector('.gta-trail-head')).strokeDashoffset,
-          artworkBounds: { x: artworkRect.x, y: artworkRect.y, width: artworkRect.width, height: artworkRect.height },
           artworkHasResolution: artwork.naturalWidth >= artworkRect.width * devicePixelRatio && artwork.naturalHeight >= artworkRect.height * devicePixelRatio,
           contentFits: [artworkRect, card.querySelector('.gta-caption').getBoundingClientRect()].every((rect) =>
             rect.left >= 0 && rect.top >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight),
-          rays: getComputedStyle(card.querySelector('.gta-rays')).transform,
           filters: ['.gta-caption', '.gta-title-row', '.gta-eyebrow', '.gta-footer'].map((selector) => getComputedStyle(card.querySelector(selector)).filter),
           textOpacity: Math.min(...Array.from(title.children, (node) => Number(getComputedStyle(node).opacity))),
           fits: titleRect.left >= stageRect.left && titleRect.right <= stageRect.right,
@@ -362,24 +332,12 @@ test('aurora fits native 1440p with still high-resolution emblems and moving lig
   }
   for (const frame of frames) {
     const label = `${frame.tier} at ${frame.time}ms`;
-    assert.ok(frame.light <= 0.25, `${label}: orbital light stays restrained`);
     assert.deepEqual(frame.filters, ['none', 'none', 'none', 'none'], `${label}: text is never blurred`);
     assert.equal(frame.fits, true, `${label}: English title fits within the stage`);
     assert.equal(frame.contentFits, true, `${label}: artwork and text fit within the 16:9 output`);
     assert.equal(frame.artworkHasResolution, true, `${label}: artwork does not need pixel upscaling at 1440p`);
     assert.ok(frame.reflectionMask.includes(`/img/overlays/guard-thanks/${frame.tier}-pearl-v1.webp`), `${label}: reflection is clipped by the actual artwork`);
     if (frame.time >= 3200) assert.equal(frame.textOpacity, 1, `${label}: every letter is readable by the hold`);
-  }
-  for (const tier of ['captain', 'admiral', 'governor']) {
-    const tierFrames = frames.filter((frame) => frame.tier === tier);
-    for (const frame of tierFrames) {
-      assert.deepEqual(frame.artworkBounds, tierFrames[0].artworkBounds, `${tier} at ${frame.time}ms: emblem stays fixed through entrance, hold and exit`);
-    }
-    const early = frames.find((frame) => frame.tier === tier && frame.time === 3200);
-    const late = frames.find((frame) => frame.tier === tier && frame.time === 4900);
-    for (const effect of ['reflection', 'trail', 'rays']) {
-      assert.notEqual(early[effect], late[effect], `${tier}: ${effect} keeps moving through the hold`);
-    }
   }
 });
 

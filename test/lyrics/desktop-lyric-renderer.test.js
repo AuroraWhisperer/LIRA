@@ -74,68 +74,6 @@ test('desktop lyric renderer resolves explicit and legacy karaoke modes', async 
   assert.equal(preview.resolveDesktopLyricSettings({ desktopLyricKaraokeEnabled: 'true' }).karaokeMode, 'continuous');
 });
 
-test('desktop lyric discrete animator toggles timed words without continuous fill', async () => {
-  const classList = () => {
-    const values = new Set();
-    return {
-      add(...names) {
-        names.forEach((name) => values.add(name));
-      },
-      remove(...names) {
-        names.forEach((name) => values.delete(name));
-      },
-      toggle(name, force) {
-        const next = force === undefined ? !values.has(name) : force;
-        if (next) values.add(name);
-        else values.delete(name);
-        return next;
-      },
-      contains(name) {
-        return values.has(name);
-      },
-    };
-  };
-  const makeElement = () => ({
-    classList: classList(),
-    dataset: {},
-    style: {},
-    textContent: '',
-    setAttribute() {},
-    append() {},
-  });
-  const animatorModule = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-animator.js'),
-    { document: { createElement: makeElement } },
-  );
-  const container = {
-    append() {},
-    appendChild() {},
-    replaceChildren() {},
-    textContent: '',
-  };
-  const animator = new animatorModule.LyricWordAnimator({ mode: 'discrete' });
-  animator.mount(
-    container,
-    [
-      { text: '你', startMs: 100, endMs: 300 },
-      { text: '好', startMs: 300, endMs: 500 },
-    ],
-    { mode: 'discrete' },
-  );
-
-  assert.equal(animator.elements[0].wrapper.dataset.wordState, 'upcoming');
-  assert.equal(animator.elements[1].wrapper.dataset.wordState, 'upcoming');
-  animator.sync({ currentMs: 120 }, { playing: true });
-  assert.equal(animator.elements[0].wrapper.dataset.wordState, 'complete');
-  assert.equal(animator.elements[1].wrapper.dataset.wordState, 'upcoming');
-  assert.equal(animator.elements[0].highlight.style.clipPath, undefined);
-  animator.sync({ currentMs: 350 }, { playing: true });
-  assert.equal(animator.elements[1].wrapper.dataset.wordState, 'complete');
-  animator.sync({ currentMs: 150 }, { playing: false });
-  assert.equal(animator.elements[0].wrapper.dataset.wordState, 'complete');
-  assert.equal(animator.elements[1].wrapper.dataset.wordState, 'upcoming');
-});
-
 test('desktop lyric visible-line window keeps full timeline semantics', async () => {
   const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));
 

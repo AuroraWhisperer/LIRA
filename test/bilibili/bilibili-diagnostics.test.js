@@ -7,7 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { installTerminalLog } = require('../../src/electron/terminal-log');
 const { createBilibiliClient } = require('../../src/server/bilibili-client');
-const { logDanmakuCommand } = require('../../src/bilibili/bilibili-message-handler');
+const { formatBilibiliCommandLog, logDanmakuCommand } = require('../../src/bilibili/bilibili-message-handler');
 const { HistoryPoller } = require('../../src/bilibili/danmaku/history-poller');
 const { MessageDeduplicator } = require('../../src/bilibili/danmaku/message-deduplicator');
 const {
@@ -170,4 +170,19 @@ test('queue refusal codes preserve useful distinctions without echoing request t
     ['secret unknown error', 'unexpected-error'],
   ])
     assert.equal(songRequestReason(reason), code);
+});
+
+test('command log lines report the queue outcome with the connection trace', () => {
+  const command = { message: '点歌 日落', userName: 'Alice', uid: 123, messageTimestamp: 1785769654000 };
+  for (const [source, cmd, attempt, result, outcome] of [
+    ['danmaku', 'DANMU_MSG', 3, { accepted: true, queueItem: { song_name: '日落' } }, 'song="日落"'],
+    ['history', 'HISTORY', 4, { accepted: false, reason: '用户冷却中。' }, 'reason="用户冷却中。"'],
+  ]) {
+    const line = formatBilibiliCommandLog({ ...command, source, connectionGeneration: 2, connectionAttempt: attempt, cmd }, result);
+    assert.ok(line.startsWith(`[Bilibili][Command] status=${result.accepted ? 'accepted' : 'ignored'} `), line);
+    for (const field of ['time=2026-08-03T15:07:34.000Z', `source=${source}`, 'user="Alice"', 'uid="123"', 'message="点歌 日落"', outcome]) {
+      assert.ok(line.includes(field), `${source}: ${field}`);
+    }
+    assert.deepEqual(JSON.parse(line.slice(line.indexOf('trace=') + 6)), { connectionGeneration: 2, connectionAttempt: attempt, cmd });
+  }
 });

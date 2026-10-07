@@ -11,6 +11,17 @@ const MAIN_PATH = path.resolve(__dirname, '../../src/electron/main.js');
 const MAIN_SOURCE = fs.readFileSync(MAIN_PATH, 'utf8');
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+// Unmodelled main dependencies resolve to inert stubs so one new require does not
+// break every shutdown scenario; electron-shutdown.test.js reports them instead.
+function createInertModule() {
+  const inert = new Proxy(function inertStub() {}, {
+    get: (_target, key) => (key === 'then' ? undefined : inert),
+    apply: () => inert,
+    construct: () => inert,
+  });
+  return inert;
+}
+
 function createClock() {
   let now = 0;
   let nextId = 0;
@@ -58,7 +69,10 @@ function createShutdownHarness(options = {}) {
   let startPromise;
   let runtimeOpen = false;
   let requestRestart;
+  const unmodelledDependencies = [];
   let runtimeOptions;
+  let runtimeStartOptions;
+  const safeStorage = { synthetic: 'safe-storage' };
   let publishSceneCloud;
   const sceneUpdates = [];
 
@@ -125,7 +139,8 @@ function createShutdownHarness(options = {}) {
   }
 
   const runtime = {
-    start() {
+    start(startOptions) {
+      runtimeStartOptions = startOptions;
       calls.push('runtime:start');
       runtimeOpen = true;
       startPromise = Promise.resolve(options.runtimeStart?.promise).then(() => ({
@@ -204,6 +219,7 @@ function createShutdownHarness(options = {}) {
       },
       Menu: { setApplicationMenu() {} },
       protocol: { registerSchemesAsPrivileged() {} },
+      safeStorage,
       session: { defaultSession: {} },
       shell: {},
       powerMonitor,
@@ -270,7 +286,13 @@ function createShutdownHarness(options = {}) {
     './remote-gift-controller': {
       createRemoteGiftController() {
         calls.push('remote:create');
-        return controller('remote', remoteIdle);
+        return {
+          ...controller('remote', remoteIdle),
+          start() {
+            calls.push('remote:start');
+            return true;
+          },
+        };
       },
     },
     './scene-cloud-controller': {
@@ -345,6 +367,7 @@ function createShutdownHarness(options = {}) {
     },
     './ipc/gift-export-ipc': { registerGiftExportIpc: () => () => {} },
     './gift-export-controller': { createGiftExportController: () => ({}) },
+    './component-web-picker': { createComponentWebPicker: () => async () => null },
     './license/license-manager': {
       LicenseState: { AUTHORIZED: 'AUTHORIZED' },
       createLicenseManager() {
@@ -367,8 +390,9 @@ function createShutdownHarness(options = {}) {
     MAIN_SOURCE + '\ncaptureRestart(() => requestDesktopShutdown({ restart: true }));',
     {
       require(id) {
-        assert.ok(Object.hasOwn(modules, id), `Unexpected main dependency: ${id}`);
-        return modules[id];
+        if (Object.hasOwn(modules, id)) return modules[id];
+        unmodelledDependencies.push(id);
+        return createInertModule();
       },
       __dirname: path.dirname(MAIN_PATH),
       process: { env: {}, platform: 'win32', pid: 12345 },
@@ -404,6 +428,7 @@ function createShutdownHarness(options = {}) {
     cloudIdle,
     backendStop,
     startupErrors,
+    unmodelledDependencies,
     storageCalls,
     powerMonitor,
     handlers,
@@ -412,6 +437,10 @@ function createShutdownHarness(options = {}) {
     get runtimeOptions() {
       return runtimeOptions;
     },
+    get runtimeStartOptions() {
+      return runtimeStartOptions;
+    },
+    safeStorage,
     quit,
     settle,
     get runtimeOpen() {

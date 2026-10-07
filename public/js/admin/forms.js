@@ -201,7 +201,7 @@ export class FormsService {
   fillForm(values) {
     const setField = (key, inputValue) => {
       const element = document.getElementById(key);
-      if (!element || element.closest('#openingAnimationForm, #displayForm, #themeForm')) return;
+      if (!element || element.closest('#openingAnimationForm, #displayForm, #themeForm, #guardThanksPanel')) return;
       if (element.dataset.preserveDirty === 'true' && element.dataset.dirty === 'true') return;
       if (!isComponentFieldEditing(element)) element.value = inputValue;
     };

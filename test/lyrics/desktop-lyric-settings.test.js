@@ -4,7 +4,6 @@ const { readAdminHtml } = require('../helpers/admin-html');
 const { readCssBundle } = require('../helpers/css-bundle');
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
@@ -39,8 +38,6 @@ test('desktop lyric settings expose WeSing-only lyric source preferences', () =>
   );
   assert.match(html, /<input\b(?=[^>]*\stype=["']radio["'])(?=[^>]*\sname=["']weSingLyricSource["'])(?=[^>]*\svalue=["']qq["'])[^>]*>/);
   assert.match(html, /<input[\s\S]*?id="weSingSmartLyricMatch"[\s\S]*?type="checkbox"[\s\S]*?checked/);
-  assert.match(html, /仅在本地 QRC 不可用/);
-  assert.match(html, /不影响 QQ[\s\S]*?音乐和网易云音乐的歌词来源/);
   assert.doesNotMatch(html, /\bsource-tab\b/);
   assert.match(styles, /\.desktop-lyric-source-option input:checked \+ \.desktop-lyric-source-choice/);
   assert.match(styles, /\.desktop-lyric-source-option\s+input:focus-visible\s+\+\s+\.desktop-lyric-source-choice/);
@@ -106,7 +103,6 @@ test('desktop lyric frontend defaults match storage defaults', async () => {
 
 test('desktop lyric settings use icon alignment controls and performance-safe motion defaults', () => {
   const html = readDesktopLyricHtml();
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css');
 
   for (const key of ['desktopLyricSpringAnimation', 'desktopLyricBlurEffect', 'desktopLyricScaleEffect', 'desktopLyricBackgroundEnabled']) {
@@ -120,7 +116,6 @@ test('desktop lyric settings use icon alignment controls and performance-safe mo
   assert.match(html, /id="desktopLyricBlurEffect"[\s\S]*?type="checkbox"/);
   assert.match(html, /id="desktopLyricScaleEffect"[\s\S]*?type="checkbox"/);
   assert.match(html, /id="desktopLyricVisibleLines"[\s\S]*?type="number"/);
-  assert.doesNotMatch(source, /\['desktopLyricVisibleLines', 0, 99, 0\]/);
   assert.match(html, /\sid=["']desktopLyricSpringHint["']/);
   assert.match(html, /\sid=["']desktopLyricBlurHint["']/);
   assert.match(styles, /label:has\(input:focus-visible\)/);
@@ -171,12 +166,10 @@ test('desktop lyric settings expose all persisted presentation controls', () => 
 
 test('desktop lyric display strategy presents continuous and discrete highlighting clearly', () => {
   const html = readDesktopLyricHtml();
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css');
 
   for (const value of ['off', 'continuous', 'discrete']) {
     assert.match(html, new RegExp(`name="desktopLyricKaraokeMode"[\\s\\S]*?value="${value}"`));
   }
-  assert.match(source, /desktopLyricKaraokeMode/);
   assert.match(styles, /\.desktop-lyric-preview-card\.is-karaoke-discrete/);
 });

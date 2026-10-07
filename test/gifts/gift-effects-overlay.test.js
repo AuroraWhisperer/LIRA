@@ -4,10 +4,20 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { invokeBodyRoute, invokeQueryRoute } = require('../helpers/route-invoke');
 const { readAdminHtml } = require('../helpers/admin-html');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
+
+test('gift effects can read the avatar proxy without gaining other overlay or admin routes', () => {
+  const { isOverlayRequestAllowed } = require('../../src/server/access-policy');
+  assert.equal(isOverlayRequestAllowed('gift-effects', 'GET', '/api/bilibili/avatar'), true);
+  for (const [method, pathname] of [['POST', '/api/bilibili/avatar'], ['GET', '/api/gifts/history'],
+    ['GET', '/api/bilibili/auth/state'], ['POST', '/api/settings']]) {
+    assert.equal(isOverlayRequestAllowed('gift-effects', method, pathname), false);
+  }
+});
 
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
@@ -81,11 +91,11 @@ test('gift effect lookup validates ids and returns only resolved effect data', a
     },
   };
 
-  const invalid = await invokeRoute(handler, context, 'abc');
+  const invalid = await invokeQueryRoute(handler, context, { giftId: 'abc' });
   assert.equal(invalid.status, 400);
   assert.deepEqual(calls, []);
 
-  const found = await invokeRoute(handler, context, '31645');
+  const found = await invokeQueryRoute(handler, context, { giftId: '31645' });
   assert.equal(found.status, 200);
   assert.deepEqual(found.body.data, {
     giftId: 31645,
@@ -95,7 +105,7 @@ test('gift effect lookup validates ids and returns only resolved effect data', a
     },
   });
 
-  const missing = await invokeRoute(handler, context, '31643');
+  const missing = await invokeQueryRoute(handler, context, { giftId: '31643' });
   assert.equal(missing.status, 404);
 });
 
@@ -128,7 +138,7 @@ test('gift effects overlay uses official frame metadata without cropping or inve
   assert.doesNotMatch(css, /mix-blend-mode/);
 });
 
-test('effect 1 uses a transparent video and a separate two-line caption', () => {
+test('effect 1 uses a transparent video, sender avatar, and a single-line gift caption', () => {
   const html = read('public/pages/overlays/gift-effects.html');
   const css = read('public/css/overlays/gift-effects.css');
   const asset = path.join(ROOT_DIR, 'public/img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm');
@@ -137,7 +147,8 @@ test('effect 1 uses a transparent video and a separate two-line caption', () => 
   assert.ok(video, 'effect 1 must keep its media element');
   assert.match(video, /\smuted(?:\s|=|>)/);
   assert.match(video, /\splaysinline(?:\s|=|>)/);
-  assert.match(html, /id="giftInfoUser"/);
+  assert.match(html, /id="giftInfoAvatar"/);
+  assert.doesNotMatch(html, /id="giftInfoUser"/);
   assert.match(html, /id="giftInfoName"/);
   assert.doesNotMatch(html, /particleStage|giftFrameAccents|giftInfoAmount|frame-composite\.webp/);
   assert.match(css, /width: 1920px;[\s\S]*?height: 1080px;[\s\S]*?scale\(var\(--frame-scale/);
@@ -181,33 +192,3 @@ test('toolbox includes gift effect controls that copy the source URL and open it
   assert.deepEqual(copied, ['http://127.0.0.1:3000/gift-effects']);
   assert.deepEqual(opened, [['http://127.0.0.1:3000/gift-effects?preview=1', 'liraGiftEffectPreview']]);
 });
-
-async function invokeRoute(handler, context, giftId) {
-  let status = 0;
-  let body = null;
-  const response = {
-    writeHead(nextStatus) {
-      status = nextStatus;
-    },
-    end(content) {
-      body = JSON.parse(content);
-    },
-  };
-  await handler(context, { query: new URLSearchParams({ giftId }) }, response);
-  return { status, body };
-}
-
-async function invokeBodyRoute(handler, context, body) {
-  let status = 0;
-  let responseBody = null;
-  const response = {
-    writeHead(nextStatus) {
-      status = nextStatus;
-    },
-    end(content) {
-      responseBody = JSON.parse(content);
-    },
-  };
-  await handler(context, { body: async () => body }, response);
-  return { status, body: responseBody };
-}

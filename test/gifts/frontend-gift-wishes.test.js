@@ -4,16 +4,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const fixture = createUiFixture();
-const html = fs
-  .readFileSync('public/pages/admin/toolbox/gift.html', 'utf8')
-  .replace(
-    '<!-- admin-fragment: pages/admin/toolbox/gift-wishes.html -->',
-    fs.readFileSync('public/pages/admin/toolbox/gift-wishes.html', 'utf8'),
-  );
+const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
 
 async function open(t) {
   const page = await fixture(t, 'wishes');
+  await page.route('**/js/admin/component-preview-dialog.js', (route) => route.fulfill({
+    contentType: 'text/javascript',
+    body: 'export const openComponentPreview = options => { window.openedComponent = options.id; };',
+  }));
   await page.route('**/js/shared/event-bus.js', (route) =>
     route.fulfill({
       contentType: 'text/javascript',
@@ -245,7 +245,7 @@ test('choose room or cached gifts, enforce integer targets, edit without resetti
   assert.equal(await page.locator('#giftWishCards .wish-card').count(), 0);
 });
 
-test('period selection keeps the unified browser-source URL and source changes discard an in-progress edit', async (t) => {
+test('period selection keeps the unified browser-source URL and canvas preview, and source changes discard an in-progress edit', async (t) => {
   const page = await open(t);
   await page.evaluate(async () => {
     const { enhanceSelects } = await import('/js/shared/select-menu.js');
@@ -259,6 +259,9 @@ test('period selection keeps the unified browser-source URL and source changes d
     assert.equal(await page.locator('#giftWishPeriod').inputValue(), period);
     assert.equal(await page.locator('#giftWishDraftPreview .wish-card').getAttribute('aria-label'), `${label} · 礼物`);
     assert.equal(await page.locator('#giftWishUrl').inputValue(), url);
+    await page.evaluate(() => { window.openedComponent = null; });
+    await page.locator('#giftWishPreview').click();
+    assert.equal(await page.evaluate(() => window.openedComponent), 'gift-wishes');
   }
   await page.locator('#giftWishPick').click();
   await page.locator('.gift-wish-option').click();
@@ -729,7 +732,9 @@ test('static text images are PNG first frames and today color resets even when t
     context.drawImage(image, 0, 0);
     return [...context.getImageData(0, 0, 1, 1).data];
   }), [255, 0, 0, 255], 'the first frame is red, not the second green frame');
-  assert.equal(await page.locator('.wish-card-text').evaluate((node) => getComputedStyle(node).color), 'rgb(33, 129, 92)');
+  const textColor = () => page.locator('.wish-card-text').evaluate((node) => getComputedStyle(node).color);
+  // Default colours are design values; only the received-today/pending switch is a behaviour.
+  const receivedColor = await textColor();
   await page.evaluate(() => {
     window.wishData.items[0].todayCount = 0;
     window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
@@ -737,7 +742,7 @@ test('static text images are PNG first frames and today color resets even when t
   await page.waitForFunction(() => !document.querySelector('.is-received-today') && document.querySelector('.wish-card img')?.src.startsWith('data:image/png'));
   assert.equal(await page.locator('.wish-card img').getAttribute('src'), png);
   assert.equal(await page.locator('.wish-card.is-complete').count(), 1);
-  assert.equal(await page.locator('.wish-card-text').evaluate((node) => getComputedStyle(node).color), 'rgb(59, 110, 168)');
+  assert.notEqual(await textColor(), receivedColor);
   await page.evaluate(() => {
     Object.assign(window.wishData.items[0], { count: 1, completed: false, todayCount: 1, textImageFormat: 'animated', textTemplate: '谢谢大家{图片}' });
     window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
@@ -745,7 +750,7 @@ test('static text images are PNG first frames and today color resets even when t
   await page.waitForFunction(() => document.querySelector('.is-received-today img')?.src.startsWith('data:image/webp'));
   assert.equal(await page.locator('.wish-card.is-complete').count(), 0);
   assert.equal(await page.locator('.wish-card-text > :last-child').getAttribute('src'), animatedWishImage);
-  assert.equal(await page.locator('.wish-card-text').evaluate((node) => getComputedStyle(node).color), 'rgb(33, 129, 92)');
+  assert.equal(await textColor(), receivedColor);
   for (const [todayCount, color] of [[0, 'rgb(102, 51, 153)'], [1, 'rgb(180, 83, 9)']]) {
     await page.evaluate((todayCount) => {
       Object.assign(window.wishData.items[0], { todayCount, textPendingColor: '#663399', textReceivedColor: '#b45309' });

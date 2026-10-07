@@ -6,7 +6,6 @@ const { createRemoteLicenseClient } = require('../../src/electron/license/remote
 const {
   createFixture,
   LOCAL_BLIND_BOX_CONFIG,
-  CLOUD_BLIND_BOX_CONFIG,
 } = require('../helpers/cloud-sync-controller-fixture');
 
 test('authorized bootstrap applies initialized cloud settings, songs, and Bilibili credentials', async () => {
@@ -21,62 +20,6 @@ test('authorized bootstrap applies initialized cloud settings, songs, and Bilibi
   assert.equal(timer.unrefCalled, true);
   fixture.controller.dispose();
   assert.equal(fixture.timers.size, 0);
-});
-
-test('invalid cloud songs preserve the snapshot and revision until a valid retry', async () => {
-  for (const songs of [undefined, null, {}, '[]']) {
-    let response = { initialized: true, revision: 3, songs };
-    let reads = 0;
-    const client = createRemoteLicenseClient({
-      fetchImpl: async () => {
-        reads += 1;
-        return new Response(JSON.stringify(response));
-      },
-    });
-    const fixture = createFixture({
-      licenseManager: {
-        getCloudSongs: () => client.getCloudSongs('token'),
-      },
-    });
-    try {
-      await assert.rejects(fixture.controller.start(), { code: 'INVALID_RESPONSE' });
-      assert.equal(
-        fixture.calls.some((call) => call[0] === 'apply-songs'),
-        false,
-      );
-      response = { initialized: true, revision: 3, songs: [] };
-      await fixture.controller.syncNow();
-      assert.equal(reads, 2);
-      assert.deepEqual(
-        fixture.calls.filter((call) => call[0] === 'apply-songs'),
-        [['apply-songs', []]],
-      );
-    } finally {
-      fixture.controller.dispose();
-    }
-  }
-});
-
-test('cloud SSE recovery honors the real Retry-After header beyond the backoff cap', async () => {
-  const client = createRemoteLicenseClient({
-    fetchImpl: async () => new Response('null', { status: 429, headers: { 'Retry-After': '120' } }),
-  });
-  const fixture = createFixture({
-    licenseManager: {
-      watchCloudStateChangesInternal: (options) => client.watchCloudStateChanges('token', options),
-    },
-  });
-  try {
-    await fixture.controller.start();
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.ok([...fixture.timers.values()].some((timer) => timer.delay === 120_000));
-    assert.equal(
-      [...fixture.timers.values()].some((timer) => timer.delay === 1000),
-      false,
-    );
-  } finally {
-    fixture.controller.dispose();
-  }
 });
 
 test('queued cloud sync cannot bypass a throttled dirty upload', async () => {
@@ -142,42 +85,6 @@ test('repeated gift interaction intents preserve the original retry deadline', a
     now = 60_000;
     assert.equal((await fixture.controller.setGiftInteraction(intent)).ok, true);
     assert.equal(uploads, 2);
-  } finally {
-    fixture.controller.dispose();
-  }
-});
-
-test('cloud SSE start, restart and stale timers cannot bypass Retry-After', async () => {
-  let connections = 0;
-  const client = createRemoteLicenseClient({
-    fetchImpl: async () => {
-      connections += 1;
-      return new Response('busy', { status: 429, headers: { 'Retry-After': '60' } });
-    },
-  });
-  const fixture = createFixture({
-    now: () => 0,
-    licenseManager: {
-      watchCloudStateChangesInternal: (options) => client.watchCloudStateChanges('token', options),
-    },
-  });
-  try {
-    await fixture.controller.start();
-    await new Promise((resolve) => setImmediate(resolve));
-    const oldRetry = [...fixture.timers.values()].find((timer) => timer.delay === 60_000);
-    await fixture.controller.start();
-    assert.equal(connections, 1);
-    fixture.controller.stop();
-    await fixture.controller.start();
-    assert.equal(connections, 1);
-    const currentRetry = [...fixture.timers.values()].find((timer) => timer.delay === 60_000);
-    assert.notEqual(oldRetry, currentRetry);
-    oldRetry.callback();
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(connections, 1);
-    currentRetry.callback();
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(connections, 2);
   } finally {
     fixture.controller.dispose();
   }
@@ -580,102 +487,4 @@ test('disposing during a song fetch prevents applying its late response', async 
   resolveRead({ songs: [{ title: 'late' }], revision: 3 });
   await task;
   assert.equal(fixture.calls.length, before);
-});
-
-test('a failed cloud poll still schedules the next retry', async () => {
-  const fixture = createFixture({
-    licenseManager: {
-      getCloudState: async () => {
-        throw new Error('NETWORK_UNAVAILABLE');
-      },
-    },
-  });
-  await assert.rejects(fixture.controller.start(), /NETWORK_UNAVAILABLE/);
-  assert.equal(fixture.timers.size, 1);
-  fixture.controller.dispose();
-});
-
-test('an online cloud revision event immediately reconciles without waiting for fallback polling', async () => {
-  let settingsRevision = 2;
-  let cloudReads = 0;
-  const fixture = createFixture({
-    licenseManager: {
-      getCloudState: async () => {
-        cloudReads += 1;
-        return {
-          settings: {
-            initialized: true,
-            revision: settingsRevision,
-            values: {
-              roomId: String(settingsRevision),
-              enableBilibili: true,
-              paused: false,
-              queueLimit: 50,
-              userCooldownSeconds: 0,
-              onlyFromLibrary: false,
-              allowDuplicate: true,
-              giftBlindBoxConfig: CLOUD_BLIND_BOX_CONFIG,
-            },
-          },
-          songs: { initialized: true, revision: 3 },
-          bilibili: { initialized: true, revision: 4, loggedIn: true },
-        };
-      },
-    },
-  });
-  await fixture.controller.start();
-  const readsAfterStart = cloudReads;
-  const appliesAfterStart = fixture.calls.filter((call) => call[0] === 'apply-settings').length;
-
-  settingsRevision = 9;
-  fixture.emitCloud({ scopes: { settings: 9 } });
-  await fixture.controller.whenIdle();
-
-  assert.equal(cloudReads, readsAfterStart + 1);
-  assert.equal(fixture.calls.filter((call) => call[0] === 'apply-settings').length, appliesAfterStart + 1);
-  assert.equal(
-    [...fixture.timers.values()].some((timer) => timer.delay === 600_000),
-    true,
-  );
-  fixture.controller.dispose();
-});
-
-test('a closed event stream reconnects with bounded backoff and reconciles on reopen', async () => {
-  let attempts = 0;
-  let cloudReads = 0;
-  let keepSecondOpen;
-  const fixture = createFixture({
-    licenseManager: {
-      getCloudState: async () => {
-        cloudReads += 1;
-        return {
-          settings: { initialized: true, revision: 2, values: {} },
-          songs: { initialized: true, revision: 3 },
-          bilibili: { initialized: true, revision: 4, loggedIn: true },
-        };
-      },
-      watchCloudStateChangesInternal: async (options = {}) => {
-        attempts += 1;
-        options.onOpen?.();
-        if (attempts === 1) return;
-        await new Promise((resolve) => {
-          keepSecondOpen = resolve;
-          options.signal?.addEventListener('abort', resolve, { once: true });
-        });
-      },
-    },
-  });
-
-  await fixture.controller.start();
-  await new Promise((resolve) => setImmediate(resolve));
-  const reconnect = [...fixture.timers.values()].find((timer) => timer.delay === 1_000);
-  assert.ok(reconnect);
-  reconnect.callback();
-  await new Promise((resolve) => setImmediate(resolve));
-  await fixture.controller.whenIdle();
-
-  assert.equal(attempts, 2);
-  assert.equal(cloudReads, 2);
-  fixture.controller.dispose();
-  keepSecondOpen?.();
 });

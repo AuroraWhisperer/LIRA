@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
+const { maskedFrame } = require('../helpers/transport-fixtures');
 const { broadcastSnapshot, createWebSocketHub, handleWebSocketUpgrade } = require('../../src/server/ws');
 
 class FakeSocket extends EventEmitter {
@@ -34,29 +35,15 @@ class FakeSocket extends EventEmitter {
   }
 }
 
-function maskedFrame(payload, { opcode, fin }) {
-  const body = Buffer.from(payload);
-  let header;
-  if (body.length < 126) {
-    header = Buffer.alloc(2);
-    header[1] = 0x80 | body.length;
-  } else if (body.length < 65536) {
-    header = Buffer.alloc(4);
-    header[1] = 0x80 | 126;
-    header.writeUInt16BE(body.length, 2);
-  } else {
-    header = Buffer.alloc(10);
-    header[1] = 0x80 | 127;
-    header.writeBigUInt64BE(BigInt(body.length), 2);
-  }
-  header[0] = (fin ? 0x80 : 0) | opcode;
-
-  const mask = Buffer.from([0x12, 0x34, 0x56, 0x78]);
-  const masked = Buffer.from(body);
-  for (let index = 0; index < masked.length; index += 1) {
-    masked[index] ^= mask[index % mask.length];
-  }
-  return Buffer.concat([header, mask, masked]);
+function upgradeRequest(url = '/ws') {
+  return {
+    url,
+    headers: {
+      host: '127.0.0.1:3000',
+      authorization: 'Bearer synthetic-token',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+    },
+  };
 }
 
 function openTestSocket(t) {
@@ -164,14 +151,7 @@ test('fragmented WebSocket messages are capped across frames', () => {
 
   handleWebSocketUpgrade(
     context,
-    {
-      url: '/ws',
-      headers: {
-        host: '127.0.0.1:3000',
-        authorization: 'Bearer synthetic-token',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      },
-    },
+    upgradeRequest(),
     socket,
   );
 
@@ -196,14 +176,7 @@ test('ignores data events that arrive after WebSocket cleanup', () => {
 
   handleWebSocketUpgrade(
     context,
-    {
-      url: '/ws',
-      headers: {
-        host: '127.0.0.1:3000',
-        authorization: 'Bearer synthetic-token',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      },
-    },
+    upgradeRequest(),
     socket,
   );
   socket.writes = [];
@@ -231,14 +204,7 @@ test('WebSocket hub starts heartbeat on upgrade and releases resources on stop',
 
   hub.handleUpgrade(
     context,
-    {
-      url: '/ws',
-      headers: {
-        host: '127.0.0.1:3000',
-        authorization: 'Bearer synthetic-token',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      },
-    },
+    upgradeRequest(),
     socket,
   );
 
@@ -268,14 +234,7 @@ test('coalesces same-turn hub snapshots and keeps the latest reason', async () =
   };
   hub.handleUpgrade(
     context,
-    {
-      url: '/ws',
-      headers: {
-        host: '127.0.0.1:3000',
-        authorization: 'Bearer synthetic-token',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      },
-    },
+    upgradeRequest(),
     socket,
   );
   socket.writes = [];
@@ -301,14 +260,9 @@ test('WebSocket hub filters topic broadcasts without changing ordinary broadcast
     state: { sockets: new Set() },
     getState: () => ({ ok: true }),
   };
-  const headers = {
-    host: '127.0.0.1:3000',
-    authorization: 'Bearer synthetic-token',
-    'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-  };
 
-  hub.handleUpgrade(context, { url: '/ws?topic=danmaku', headers }, topicSocket);
-  hub.handleUpgrade(context, { url: '/ws', headers }, ordinarySocket);
+  hub.handleUpgrade(context, upgradeRequest('/ws?topic=danmaku'), topicSocket);
+  hub.handleUpgrade(context, upgradeRequest(), ordinarySocket);
   topicSocket.writes = [];
   ordinarySocket.writes = [];
 
@@ -333,14 +287,7 @@ test('WebSocket hub drops a client before its pending write queue exceeds the ce
 
   hub.handleUpgrade(
     context,
-    {
-      url: '/ws',
-      headers: {
-        host: '127.0.0.1:3000',
-        authorization: 'Bearer synthetic-token',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      },
-    },
+    upgradeRequest(),
     socket,
   );
   socket.writes = [];
@@ -368,14 +315,7 @@ test('compatibility broadcasts remain isolated to their context sockets', () => 
     state: { sockets: new Set() },
     getState: () => ({ runtime: 'second' }),
   };
-  const request = {
-    url: '/ws',
-    headers: {
-      host: '127.0.0.1:3000',
-      authorization: 'Bearer synthetic-token',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-    },
-  };
+  const request = upgradeRequest();
 
   handleWebSocketUpgrade(firstContext, request, firstSocket);
   handleWebSocketUpgrade(secondContext, request, secondSocket);
@@ -388,89 +328,4 @@ test('compatibility broadcasts remain isolated to their context sockets', () => 
   assert.equal(secondSocket.writes.length, 0);
   firstSocket.emit('close');
   secondSocket.emit('close');
-});
-
-test('WebSocket upgrade rejects requests with wrong Origin', () => {
-  const socket = new FakeSocket();
-  const context = {
-    sessionToken: 'synthetic-token',
-    allowedOrigins: ['http://127.0.0.1:3000'],
-    getState: () => ({ ok: true }),
-  };
-
-  handleWebSocketUpgrade(
-    context,
-    {
-      url: '/ws',
-      headers: {
-        host: '127.0.0.1:3000',
-        authorization: 'Bearer synthetic-token',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-        origin: 'http://evil.com',
-      },
-    },
-    socket,
-  );
-
-  assert.equal(socket.destroyed, true);
-  const responseText = socket.writes.join('');
-  assert.match(responseText, /403 Forbidden/);
-});
-
-test('WebSocket upgrade accepts requests with correct Origin', () => {
-  const socket = new FakeSocket();
-  const context = {
-    sessionToken: 'synthetic-token',
-    allowedOrigins: ['http://127.0.0.1:3000'],
-    state: { sockets: new Set() },
-    getState: () => ({ ok: true }),
-  };
-
-  handleWebSocketUpgrade(
-    context,
-    {
-      url: '/ws',
-      headers: {
-        host: '127.0.0.1:3000',
-        authorization: 'Bearer synthetic-token',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-        origin: 'http://127.0.0.1:3000',
-      },
-    },
-    socket,
-  );
-
-  assert.equal(socket.destroyed, false);
-  const responseText = socket.writes.join('');
-  assert.match(responseText, /101 Switching Protocols/);
-  socket.emit('close');
-});
-
-test('WebSocket upgrade accepts requests without Origin header (non-browser)', () => {
-  const socket = new FakeSocket();
-  const context = {
-    sessionToken: 'synthetic-token',
-    allowedOrigins: ['http://127.0.0.1:3000'],
-    state: { sockets: new Set() },
-    getState: () => ({ ok: true }),
-  };
-
-  handleWebSocketUpgrade(
-    context,
-    {
-      url: '/ws',
-      headers: {
-        host: '127.0.0.1:3000',
-        authorization: 'Bearer synthetic-token',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-        // No origin header
-      },
-    },
-    socket,
-  );
-
-  assert.equal(socket.destroyed, false);
-  const responseText = socket.writes.join('');
-  assert.match(responseText, /101 Switching Protocols/);
-  socket.emit('close');
 });

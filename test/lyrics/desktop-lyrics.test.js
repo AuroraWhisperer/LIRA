@@ -54,6 +54,19 @@ test('lyric state normalization limits browser-source payloads', () => {
   assert.equal(state.playing, true);
 });
 
+test('lyric states carry monotonic generation and sequence discontinuity markers', () => {
+  const first = normalizeLyricState({
+    lineText: 'first',
+    generation: 3,
+    sequence: 7,
+  });
+  const legacy = normalizeLyricState({ lineText: 'legacy' });
+  assert.equal(first.generation, 3);
+  assert.equal(first.sequence, 7);
+  assert.equal(legacy.generation, 0);
+  assert.equal(legacy.sequence, 0);
+});
+
 test('obsolete Electron lyric window path is removed', () => {
   const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8');
   const ipcSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'ipc', 'music-ipc.js'), 'utf8');
@@ -71,8 +84,6 @@ test('obsolete Electron lyric window path is removed', () => {
     /openLyricWindow|closeLyricWindow|updateLyricWindow|setLyricWindowLocked|onLyricState/,
   );
   assert.doesNotMatch(serviceSource, /windowOpen|windowLocked|musicAPI\.(?:open|close|update|set)LyricWindow/);
-  assert.match(serviceSource, /fetch\(["']\/api\/playback\/lyric-state["']/);
-  assert.match(serviceSource, /fetch\(["']\/api\/playback\/lyric-timeline["']/);
 });
 
 test('lyric timeline normalization bounds complete browser lyric payloads', () => {

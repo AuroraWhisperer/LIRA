@@ -95,200 +95,63 @@ function seedSettlement(db, giftEventId, status = 'pending') {
   );
 }
 
-test('gift-maintenance-store: orphan prevention', (t) => {
-  const { db, tempPath } = createTestGiftDb();
-  try {
-    const maintenance = createGiftMaintenanceStore(db);
-    const giftId = seedGift(db);
-    seedSettlement(db, giftId, 'pending');
+const countSettlements = (db, status) =>
+  db.prepare('SELECT COUNT(*) AS count FROM overtime_settlements WHERE status = ?').get(status).count;
 
-    // Verify settlement exists and is pending
-    let settlement = db.prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?').get(giftId);
-    assert.equal(settlement.status, 'pending');
-
-    // Delete gift with coordination
-    const result = maintenance.deleteGiftsWithSettlements([giftId], 'test:orphan-prevention', new Date().toISOString());
-
-    // Assert gift deleted
-    assert.equal(result.deletedGifts, 1);
-    const gift = db.prepare('SELECT * FROM gift_events WHERE id = ?').get(giftId);
-    assert.equal(gift, undefined);
-
-    // Assert settlement marked as ignored
-    assert.equal(result.ignoredSettlements, 1);
-    settlement = db.prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?').get(giftId);
-    assert.equal(settlement.status, 'ignored');
-    assert.equal(settlement.rule_mode, 'ignored');
-    assert.equal(settlement.settle_after_ms, 0);
-    assert.ok(settlement.last_error.includes('test:orphan-prevention'));
-  } finally {
-    db.close();
-    fs.unlinkSync(tempPath);
-  }
-});
-
-test('gift-maintenance-store: audit preservation', (t) => {
-  const { db, tempPath } = createTestGiftDb();
-  try {
-    const maintenance = createGiftMaintenanceStore(db);
-    const giftId = seedGift(db);
-    seedSettlement(db, giftId, 'applied');
-
-    // Delete gift
-    const result = maintenance.deleteGiftsWithSettlements(
-      [giftId],
-      'test:audit-preservation',
-      new Date().toISOString(),
-    );
-
-    // Assert gift deleted
-    assert.equal(result.deletedGifts, 1);
-    const gift = db.prepare('SELECT * FROM gift_events WHERE id = ?').get(giftId);
-    assert.equal(gift, undefined);
-
-    // Assert applied settlement preserved (not deleted, not modified)
-    assert.equal(result.ignoredSettlements, 0);
-    const settlement = db.prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?').get(giftId);
-    assert.ok(settlement, 'Applied settlement should be preserved');
-    assert.equal(settlement.status, 'applied');
-  } finally {
-    db.close();
-    fs.unlinkSync(tempPath);
-  }
-});
-
-test('gift-maintenance-store: clearRecentGifts coordination', (t) => {
-  const { db, tempPath } = createTestGiftDb();
-  try {
-    const maintenance = createGiftMaintenanceStore(db);
-    const giftIds = [];
-
-    // Seed 50 eligible gifts with mix of pending/applied settlements
-    for (let i = 0; i < 50; i++) {
-      const giftId = seedGift(db, { gift_name: `Gift ${i}` });
-      giftIds.push(giftId);
-      if (i % 3 === 0) {
-        seedSettlement(db, giftId, 'pending');
-      } else if (i % 3 === 1) {
-        seedSettlement(db, giftId, 'applied');
+for (const scenario of [
+  {
+    name: 'clearRecentGifts predicate',
+    reason: 'manual:clear-recent',
+    seed(db) {
+      // Every third gift has a pending settlement, the next an applied one, the last none.
+      for (let i = 0; i < 50; i++) {
+        const giftId = seedGift(db, { gift_name: `Gift ${i}` });
+        if (i % 3 === 0) seedSettlement(db, giftId, 'pending');
+        else if (i % 3 === 1) seedSettlement(db, giftId, 'applied');
       }
-      // i % 3 === 2: no settlement
-    }
-
-    // Delete all eligible gifts
-    const whereClause = `
-      status = 'active' AND total_price > 0
-      AND detection_status = 'final' AND gift_stats_eligible = 1
-    `.trim();
-
-    const result = maintenance.deleteGiftsByPredicate(whereClause, [], 'manual:clear-recent', new Date().toISOString());
-
-    // Assert all gifts deleted
-    assert.equal(result.deletedGifts, 50);
-    const remainingGifts = db.prepare('SELECT COUNT(*) AS count FROM gift_events').get();
-    assert.equal(remainingGifts.count, 0);
-
-    // Assert no orphaned pending settlements
-    const pendingCount = db
-      .prepare(
-        `
-      SELECT COUNT(*) AS count FROM overtime_settlements WHERE status = 'pending'
-    `,
-      )
-      .get();
-    assert.equal(pendingCount.count, 0);
-
-    // Assert applied settlements intact (every 3rd gift starting at 1: indices 1,4,7,10,13,16,19,22,25,28,31,34,37,40,43,46,49)
-    const appliedCount = db
-      .prepare(
-        `
-      SELECT COUNT(*) AS count FROM overtime_settlements WHERE status = 'applied'
-    `,
-      )
-      .get();
-    const expectedApplied = Math.floor((50 - 1) / 3) + 1; // 17 gifts have applied settlements
-    assert.equal(appliedCount.count, expectedApplied);
-
-    // Assert ignored settlements created
-    const ignoredCount = db
-      .prepare(
-        `
-      SELECT COUNT(*) AS count FROM overtime_settlements WHERE status = 'ignored'
-    `,
-      )
-      .get();
-    assert.ok(ignoredCount.count > 0);
-  } finally {
-    db.close();
-    fs.unlinkSync(tempPath);
-  }
-});
-
-test('gift-maintenance-store: retention coordination', (t) => {
-  const { db, tempPath } = createTestGiftDb();
-  try {
-    const maintenance = createGiftMaintenanceStore(db);
-    const now = new Date();
-    const oldDate = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString(); // 60 days ago
-    const recentDate = now.toISOString();
-
-    // Seed old gifts with settlements
-    const oldGiftIds = [];
-    for (let i = 0; i < 10; i++) {
-      const giftId = seedGift(db, { created_at: oldDate, updated_at: oldDate });
-      oldGiftIds.push(giftId);
-      if (i % 2 === 0) {
-        seedSettlement(db, giftId, 'pending');
-      } else {
-        seedSettlement(db, giftId, 'applied');
+      return {
+        where: "status = 'active' AND total_price > 0 AND detection_status = 'final' AND gift_stats_eligible = 1",
+        params: [],
+      };
+    },
+    expected: { deleted: 50, remaining: 0, ignored: 17, applied: 17 },
+  },
+  {
+    name: 'retention predicate',
+    reason: 'retention:expired',
+    seed(db) {
+      const now = Date.now();
+      const oldDate = new Date(now - 60 * 24 * 60 * 60 * 1000).toISOString();
+      for (let i = 0; i < 10; i++) {
+        const giftId = seedGift(db, { created_at: oldDate, updated_at: oldDate });
+        seedSettlement(db, giftId, i % 2 === 0 ? 'pending' : 'applied');
       }
+      for (let i = 0; i < 5; i++) seedGift(db);
+      return { where: 'created_at < ?', params: [new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString()] };
+    },
+    expected: { deleted: 10, remaining: 5, ignored: 5, applied: 5 },
+  },
+]) {
+  test(`gift-maintenance-store: ${scenario.name} ignores pending and keeps applied settlements`, () => {
+    const { db, tempPath } = createTestGiftDb();
+    try {
+      const maintenance = createGiftMaintenanceStore(db);
+      const { where, params } = scenario.seed(db);
+
+      const result = maintenance.deleteGiftsByPredicate(where, params, scenario.reason, new Date().toISOString());
+
+      assert.equal(result.deletedGifts, scenario.expected.deleted);
+      assert.equal(result.ignoredSettlements, scenario.expected.ignored);
+      assert.equal(db.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, scenario.expected.remaining);
+      assert.equal(countSettlements(db, 'pending'), 0);
+      assert.equal(countSettlements(db, 'ignored'), scenario.expected.ignored);
+      assert.equal(countSettlements(db, 'applied'), scenario.expected.applied);
+    } finally {
+      db.close();
+      fs.unlinkSync(tempPath);
     }
-
-    // Seed recent gifts
-    for (let i = 0; i < 5; i++) {
-      seedGift(db, { created_at: recentDate, updated_at: recentDate });
-    }
-
-    // Apply retention: delete gifts older than 30 days
-    const threshold = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const result = maintenance.deleteGiftsByPredicate(
-      'created_at < ?',
-      [threshold],
-      'retention:expired',
-      now.toISOString(),
-    );
-
-    // Assert old gifts deleted
-    assert.equal(result.deletedGifts, 10);
-
-    // Assert recent gifts preserved
-    const remainingCount = db.prepare('SELECT COUNT(*) AS count FROM gift_events').get();
-    assert.equal(remainingCount.count, 5);
-
-    // Assert old pending settlements ignored
-    const pendingCount = db
-      .prepare(
-        `
-      SELECT COUNT(*) AS count FROM overtime_settlements WHERE status = 'pending'
-    `,
-      )
-      .get();
-    assert.equal(pendingCount.count, 0);
-
-    // Assert old applied settlements preserved
-    const appliedCount = db
-      .prepare(
-        `
-      SELECT COUNT(*) AS count FROM overtime_settlements WHERE status = 'applied'
-    `,
-      )
-      .get();
-    assert.equal(appliedCount.count, 5);
-  } finally {
-    db.close();
-    fs.unlinkSync(tempPath);
-  }
-});
+  });
+}
 
 test('gift-maintenance-store: countPending accuracy', (t) => {
   const { db, tempPath } = createTestGiftDb();
@@ -363,24 +226,26 @@ test('gift-maintenance-store: empty deletion', (t) => {
   }
 });
 
-test('gift-maintenance-store: transaction rollback on error', (t) => {
+test('gift-maintenance-store: a failed gift delete rolls back the settlement update', () => {
   const { db, tempPath } = createTestGiftDb();
   try {
     const maintenance = createGiftMaintenanceStore(db);
     const giftId = seedGift(db);
     seedSettlement(db, giftId, 'pending');
+    // Fail after the settlement update so the transaction must undo it.
+    db.exec("CREATE TRIGGER fail_delete BEFORE DELETE ON gift_events BEGIN SELECT RAISE(ABORT, 'delete failure'); END");
 
-    // Force an error by closing the database
-    db.close();
-
-    // Attempt deletion - should throw
-    assert.throws(() => {
-      maintenance.deleteGiftsWithSettlements([giftId], 'test:rollback', new Date().toISOString());
-    });
+    assert.throws(
+      () => maintenance.deleteGiftsWithSettlements([giftId], 'test:rollback', new Date().toISOString()),
+      /delete failure/,
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM gift_events WHERE id = ?').get(giftId).count, 1);
+    const settlement = db.prepare('SELECT status, last_error FROM overtime_settlements WHERE gift_event_id = ?').get(giftId);
+    assert.equal(settlement.status, 'pending');
+    assert.notEqual(settlement.last_error, 'test:rollback');
+    assert.equal(db.isTransaction, false);
   } finally {
-    try {
-      if (db) db.close();
-    } catch (_) {}
+    db.close();
     fs.unlinkSync(tempPath);
   }
 });
@@ -412,39 +277,37 @@ test('gift-maintenance-store: countGiftsByPredicate for dry-run', (t) => {
   }
 });
 
-test('gift-maintenance-store: mixed settlement states', (t) => {
+test('gift-maintenance-store: deleting gifts ignores only pending settlements and preserves audit rows', () => {
   const { db, tempPath } = createTestGiftDb();
   try {
     const maintenance = createGiftMaintenanceStore(db);
-    const gift1 = seedGift(db);
-    const gift2 = seedGift(db);
-    const gift3 = seedGift(db);
+    const pendingGift = seedGift(db);
+    const appliedGift = seedGift(db);
+    const ignoredGift = seedGift(db);
+    seedSettlement(db, pendingGift, 'pending');
+    seedSettlement(db, appliedGift, 'applied');
+    seedSettlement(db, ignoredGift, 'ignored');
 
-    seedSettlement(db, gift1, 'pending');
-    seedSettlement(db, gift2, 'applied');
-    seedSettlement(db, gift3, 'ignored');
-
-    // Delete all three
     const result = maintenance.deleteGiftsWithSettlements(
-      [gift1, gift2, gift3],
+      [pendingGift, appliedGift, ignoredGift],
       'test:mixed-states',
       new Date().toISOString(),
     );
 
-    // Assert all gifts deleted
     assert.equal(result.deletedGifts, 3);
-
-    // Assert only pending settlement was updated
     assert.equal(result.ignoredSettlements, 1);
-
-    // Verify settlement states
-    const s1 = db.prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?').get(gift1);
-    const s2 = db.prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?').get(gift2);
-    const s3 = db.prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?').get(gift3);
-
-    assert.equal(s1.status, 'ignored');
-    assert.equal(s2.status, 'applied'); // unchanged
-    assert.equal(s3.status, 'ignored'); // unchanged
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 0);
+    const settlement = (giftId) =>
+      db.prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?').get(giftId);
+    // The orphaned pending settlement can no longer be applied.
+    const orphan = settlement(pendingGift);
+    assert.equal(orphan.status, 'ignored');
+    assert.equal(orphan.rule_mode, 'ignored');
+    assert.equal(orphan.settle_after_ms, 0);
+    assert.ok(orphan.last_error.includes('test:mixed-states'));
+    // Applied and already-ignored settlements remain as the audit trail.
+    assert.equal(settlement(appliedGift).status, 'applied');
+    assert.equal(settlement(ignoredGift).status, 'ignored');
   } finally {
     db.close();
     fs.unlinkSync(tempPath);

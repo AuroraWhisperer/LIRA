@@ -125,3 +125,35 @@ test('hybrid server search reports unavailable when refresh has no cache', async
   });
   await assert.rejects(hybrid.searchRemote('礼物'), /服务器礼物目录本地缓存尚不可用/);
 });
+
+test('rule artwork lookup checks only the requested gift, not all catalog images', () => {
+  let snapshots = 0;
+  let imageChecks = 0;
+  let imagePath = 'first';
+  const catalog = createHybridGiftSaleCatalogService({
+    local: {
+      getSnapshot: () => ({ gifts: [] }),
+      refresh: async () => ({ gifts: [] }),
+    },
+    remoteCatalog: {
+      getSnapshot() {
+        snapshots += 1;
+        return { gifts: [] };
+      },
+      getGift: (id) => (id === '1001' ? { id, imagePath } : null),
+      refresh: async () => ({ gifts: [] }),
+    },
+    remoteImageCache: {
+      getCachedGiftImagePath(gift) {
+        imageChecks += 1;
+        return gift.imagePath;
+      },
+    },
+  });
+  const initialSnapshots = snapshots;
+  assert.equal(catalog.resolveGiftImagePath('1001'), 'first');
+  imagePath = 'updated';
+  assert.equal(catalog.resolveGiftImagePath('1001'), 'updated');
+  assert.equal(snapshots, initialSnapshots);
+  assert.equal(imageChecks, 2);
+});

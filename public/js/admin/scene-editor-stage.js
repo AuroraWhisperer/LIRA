@@ -4,6 +4,7 @@ import { moveSceneItems, resizeSceneItem } from './scene-document-model.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { createBrowserSourcePreview, mountBrowserSourcePreview } from './browser-source-preview.js';
 import { createTextBoxPreview } from './text-box-preview.js';
+import { componentCssRendererUrl } from '../shared/component-css-style.js';
 
 export function mountSceneEditorStage(host, { model, components, getSelection, select, report }) {
   const viewport = previewElement('div', 'scene-editor-viewport');
@@ -48,7 +49,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     });
   }
   function fit() {
-    const document = model.getDocument();
+    const document = model.getSnapshot();
     scale = zoom === 'fit' ? Math.max(0.03, Math.min(
       (viewport.clientWidth - 48) / document.canvas.width,
       (viewport.clientHeight - 48) / document.canvas.height, 1)) : Number(zoom) / 100;
@@ -90,7 +91,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     entries.get(id)?.host.focus({ preventScroll: true });
     const toggle = event.shiftKey || event.ctrlKey || event.metaKey;
     if (toggle || !getSelection().has(id)) select(id, toggle);
-    const item = model.getDocument().items.find((entry) => entry.id === id);
+    const item = model.getSnapshot().items.find((entry) => entry.id === id);
     if (toggle || !item || item.locked) return;
     const ids = [...getSelection()];
     const handle = event.target.closest('[data-resize]')?.dataset.resize;
@@ -118,9 +119,10 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   }
   function render() {
     if (closed) return;
-    const document = model.getDocument();
+    const document = model.getSnapshot();
     for (const [id, entry] of entries) {
-      if (document.items.some((item) => item.id === id && item.visible)) continue;
+      if (document.items.some((item) => item.id === id && item.visible && item.type === entry.host.dataset.component
+        && (item.appearance.config?.cssStyle?.engine || '') === entry.cssEngine)) continue;
       entry.surface.dispose();
       entry.host.remove();
       entries.delete(id);
@@ -144,6 +146,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
         const capabilities = SCENE_COMPONENTS[item.type];
         const mountPreview = item.type === 'browser' ? mountBrowserSourcePreview : mountComponentPreview;
         const surface = mountPreview(node, { ...component, controller,
+          url: componentCssRendererUrl(item.appearance.config, component.url),
           onOpen: undefined, onClose: undefined, onEdit: undefined, bounds: undefined,
           dataModes: undefined,
           startData: component.startLayerData || component.startData,
@@ -151,7 +154,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
             onResize(size) { contentSizes.set(item.id, size); scheduleContentResize(); },
           } : {}),
           size: () => {
-            const current = model.getDocument().items.find((value) => value.id === item.id) || item;
+            const current = model.getSnapshot().items.find((value) => value.id === item.id) || item;
             return [current.width, current.height];
           },
         });
@@ -168,7 +171,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
             select(item.id, event.shiftKey || event.ctrlKey || event.metaKey);
           }
         });
-        entry = { host: node, label, surface };
+        entry = { host: node, label, surface, cssEngine: item.appearance.config?.cssStyle?.engine || '' };
         entries.set(item.id, entry);
       }
       entry.host.style.left = `${item.x}px`;
@@ -197,7 +200,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   });
   canvas.addEventListener('pointerdown', (event) => { if (event.target === canvas) select(null); });
   window.addEventListener('blur', cancelGesture);
-  const unsubscribe = model.subscribe(render);
+  const unsubscribe = model.subscribeSnapshot(render);
   const observer = new ResizeObserver(fit);
   observer.observe(viewport);
   return { fit, syncSelection, cancelGesture, setZoom(value) { zoom = value; fit(); },

@@ -1,9 +1,11 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
-import { isSceneComponent } from './component-preview-client.js';
+import { createComponentStyleEffects } from './component-style-effects.js';
+import { styleParametersFor } from '../shared/component-style-parameters.js';
+import { isSceneComponent, isComponentPreview } from './component-preview-client.js';
 import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
 import { initDanmakuComponentSource } from './danmaku-component-source.js';
-import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, applyStyleOptions, parseStyleOptions } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, applyStyleOptions, parseStyleOptions } from '../shared/danmaku-style-options.js';
 
 ('use strict');
 
@@ -41,19 +43,33 @@ let renderFrame = null;
 let currentOverlayStyle = 'signal';
 let currentFullscreenDurationSeconds = DEFAULT_FULLSCREEN_DURATION_SECONDS;
 let currentGiftImage = 'theme';
+let currentSpeedPixelsPerSecond = 120;
+let currentRandomPlacement = {};
+let effectConfig = {};
+let effects;
+function configureEffects(config) {
+  effectConfig = config;
+  effects?.update('danmaku', config);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
+  effects = isComponentPreview() ? null : createComponentStyleEffects(document);
   syncRankedOverlayScale();
   window.addEventListener('resize', syncRankedOverlayScale);
   if (!previewMode && params.get('source') === 'component') {
     createOverlayFeed(currentOverlayStyle, currentFullscreenDurationSeconds);
     initDanmakuComponentSource({
-      configure: (config) => applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions, true),
+      configure: (config) => {
+        applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions, true);
+        configureEffects(config);
+      },
+      showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true,
       clear: () => applyItems([]), append: appendItem, status: setConnectionState, getStyle: () => currentOverlayStyle,
       dispose() {
         window.removeEventListener('resize', syncRankedOverlayScale);
         if (renderFrame !== null) cancelAnimationFrame(renderFrame);
         feed?.destroy();
+        effects?.dispose();
       },
     });
     return;
@@ -64,21 +80,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let previewSequence = 0;
     let playNext;
     const sceneDisplay = createSceneDanmakuDisplay({ clear: () => applyItems([]), append: appendItem,
-      status: setConnectionState, getStyle: () => currentOverlayStyle });
+      status: setConnectionState, getStyle: () => currentOverlayStyle, showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true });
     initDanmakuPreview({
       initialStyle: params.get('style'),
       styleOptions: previewOptions,
       duration: params.get('fullscreenDurationSeconds') || previewHistory.danmakuDuration,
       renderConfiguration(config) {
+        effectConfig = config;
         applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions, true);
         applyItems([]);
       },
       renderData: sceneDisplay.update,
-      renderSamples(style, options, duration) {
+      renderSamples(style, options, duration, layout, config = { style }) {
+        effectConfig = config;
         const samples = previewItems(style).filter((item) =>
-          !isRandomDanmakuStyle(style) || item.kind !== 'superchat');
+          (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
+        if (styleParametersFor(config).showEntryMessages) samples.push({ id: 'preview-entry', kind: 'entry', name: '新来的观众', message: '进入了直播间' });
         clearTimeout(previewTimer);
         applyConfiguration(style, duration, options, true);
+        configureEffects(config);
         applyItems([]);
         let remainingSamples = [];
         // Show both thank-you compositions immediately when this theme opens.
@@ -112,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (renderFrame !== null) cancelAnimationFrame(renderFrame);
       feed?.destroy();
       feed = null;
+      effects?.dispose();
       window.removeEventListener('pagehide', disposePreview);
       window.removeEventListener('lira:preview-dispose', disposePreview);
     };
@@ -225,11 +246,16 @@ function createOverlayFeed(style, durationSeconds) {
           : bilibiliAvatarSource(value)
         : '',
     getGuardLabel: guardLabel,
-    showAvatar: !['outline', 'glow'].includes(style),
-    showGiftTotal: ['transparent', 'cream', 'moonlit'].includes(style),
+    showAvatar: !['outline', 'whiteframe', 'starveil', 'glow', 'starlight', 'sketch'].includes(style) && !isFloatingDanmakuStyle(style),
+    showGiftTotal: ['transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch'].includes(style),
   };
+  if (isFloatingDanmakuStyle(style)) {
+    options.layout = 'floating';
+    options.speedPixelsPerSecond = currentSpeedPixelsPerSecond;
+  }
   if (isRandomDanmakuStyle(style)) {
     options.layout = 'fullscreen-random';
+    Object.assign(options, currentRandomPlacement);
     options.itemLifetimeMs = durationSeconds * 1000;
   }
   feed = createDanmakuFeed(document.getElementById('danmakuFeed'), options);
@@ -256,6 +282,10 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   currentOverlayStyle = style;
   currentFullscreenDurationSeconds = duration;
   currentGiftImage = appearance.giftImage;
+  currentRandomPlacement = { centerBias: appearance.centerBias, dispersion: appearance.dispersion };
+  feed?.setRandomPlacement?.(currentRandomPlacement);
+  currentSpeedPixelsPerSecond = appearance.speedPixelsPerSecond || 120;
+  if (isFloatingDanmakuStyle(style)) feed?.setSpeedPixelsPerSecond?.(currentSpeedPixelsPerSecond);
   document.body.dataset.style = style;
   if (changed || refreshPreview) createOverlayFeed(style, duration);
   syncRankedOverlayScale();

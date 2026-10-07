@@ -151,6 +151,7 @@ function createApiContext(options) {
     },
     system: {
       dataDir: system.dataDir,
+      pickComponentWebFile: system.pickComponentWebFile,
       getHealth: () => ({
         serviceId: lifecycle.SERVICE_ID,
         rootDir: system.rootDir,

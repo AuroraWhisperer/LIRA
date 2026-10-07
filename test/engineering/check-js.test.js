@@ -225,3 +225,17 @@ test('force revokes existing syntax proofs and locks prevent concurrent writers'
   assert.equal(run('--force').status, 0);
   assert.match(run('--plan').stdout, /run 0, reuse 3/);
 });
+
+test('corrupt syntax proofs are unverified and custom Node options fail closed', (t) => {
+  const { root, put, run } = fixture(t);
+  put('src/value.js', 'const value = 1;');
+  assert.equal(run().status, 0);
+  put(path.relative(root, cache.proofPath(root, 'syntax', 'src/value.js')), '{broken');
+  assert.match(run('--plan').stdout, /run 1, reuse 2/);
+  const result = spawnSync(process.execPath, [path.join(root, 'scripts/check-js.js'), '--plan'], {
+    cwd: os.tmpdir(), encoding: 'utf8', windowsHide: true, timeout: 15000,
+    env: { ...process.env, NODE_OPTIONS: '--no-warnings' },
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /without NODE_OPTIONS/);
+});

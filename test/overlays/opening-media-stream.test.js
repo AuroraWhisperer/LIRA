@@ -3,9 +3,9 @@
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 // A missing stream error handler must fail only this child, not the test runner.
 const probe = String.raw`
@@ -116,10 +116,13 @@ const watchdog = setTimeout(() => process.exit(2), 3000);
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 `;
 
+// Both routes delegate streaming to serveOpeningFile, so its failure branches run
+// once; each route keeps GET/HEAD checks for its own wiring.
+const failures = ['removed-after-stat', 'read-failure', 'open-failure', 'client-abort'];
 for (const kind of ['opening-music', 'opening-character']) {
-  for (const scenario of ['removed-after-stat', 'read-failure', 'open-failure', 'client-abort', 'GET', 'HEAD']) {
+  for (const scenario of [...(kind === 'opening-music' ? failures : []), 'GET', 'HEAD']) {
     test(`${kind} handles ${scenario} without an unhandled stream error`, (t) => {
-      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-stream-'));
+      const root = createScratchDirectory('lira-opening-stream-');
       t.after(() => {
         const directory = path.join(root, kind);
         if (fs.existsSync(directory)) {

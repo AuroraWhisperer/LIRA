@@ -6,16 +6,9 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('../helpers/css-bundle');
-const { readJsModuleBundle: readRawJsModuleBundle } = require('../helpers/js-module-bundle');
+const { readQueueOverlayBundle: readJsModuleBundle } = require('../helpers/queue-overlay-bundle');
 
 const ROOT_DIR = path.join(__dirname, '../..');
-
-function readJsModuleBundle(...relativeSegments) {
-  return readRawJsModuleBundle(...relativeSegments).replace(
-    /^\s*(?:export\s+)?\{\s*applyTheme,\s*setIdentityRuleThemeVars\s*\}\s+from\s+['"]\.\/queue-theme\.js['"];\s*/gm,
-    '',
-  );
-}
 
 test('identity content scrolls as one stream only when its rendered width overflows', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
@@ -241,18 +234,13 @@ test('overlay utility helpers preserve shared formatting behavior', () => {
   vm.runInNewContext(source, sandbox);
   const utils = sandbox.window.OverlayUtils;
 
+  // Colour parsing and low-power selection are owned by overlays/overlay-shared-helpers.test.js.
   assert.equal(utils.escapeHtml('"quoted" & <tag>'), '&quot;quoted&quot; &amp; &lt;tag&gt;');
-  const rgb = utils.hexToRgb('#abc');
-  assert.equal(rgb.r, 170);
-  assert.equal(rgb.g, 187);
-  assert.equal(rgb.b, 204);
-  assert.equal(utils.hexToRgba('#123456', 2), 'rgba(18, 52, 86, 1)');
-  assert.equal(
-    utils.withMultilingualFallback('Noto Sans'),
-    'Noto Sans, "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif',
-  );
+  const fallback = utils.withMultilingualFallback('Noto Sans').split(/,\s*/);
+  assert.equal(fallback[0], 'Noto Sans', 'the selected font must stay first');
+  assert.ok(fallback.includes('"Microsoft YaHei"') && fallback.includes('"Noto Sans JP"'), 'CJK fallbacks remain available');
+  assert.equal(fallback.at(-1), 'sans-serif');
   assert.equal(utils.scrollTravelSeconds(12, 800, 300), 32);
-  assert.equal(utils.overlayLowPowerEnabled({ overlayLowPowerMode: 'false' }), true);
 });
 
 test('identity rule text scrolls independently only when it overflows', () => {
@@ -496,14 +484,24 @@ test('identity queue scrolls from actual overflow', () => {
   assert.equal(bounceClasses.has('paused'), false);
   assert.equal(bounceClasses.has('scrolling-bounce'), true);
 
+  const fittingClasses = new Set(['identity-list', 'paused']);
   const fittingList = {
     scrollHeight: 280,
-    classList: { add() {}, remove() {} },
+    classList: {
+      add: (...names) => names.forEach((name) => fittingClasses.add(name)),
+      remove: (...names) => names.forEach((name) => fittingClasses.delete(name)),
+    },
     insertAdjacentHTML() {
       assert.fail('fitting content must not be duplicated');
     },
   };
-  assert.equal(sandbox.configureIdentityVerticalScroll({ clientHeight: 300 }, fittingList, {}, '', 4), false);
+  const fittingViewport = { clientHeight: 300, style: {}, parentElement: null, getBoundingClientRect: () => ({ top: 40 }) };
+  for (const settings of [{}, { queueScrollMode: 'bounce', identityQueueScrollSpeed: '42' }]) {
+    assert.equal(sandbox.configureIdentityVerticalScroll(fittingViewport, fittingList, settings, '<div>rows</div>', 4), false);
+    assert.equal(fittingViewport.style.height, undefined, 'fitting identity content must not resize its viewport');
+    assert.equal(fittingViewport.style.maxHeight, undefined);
+    assert.equal(fittingClasses.has('scrolling') || fittingClasses.has('scrolling-bounce'), false);
+  }
 
   const shortDistance = 200;
   const longDistance = 800;

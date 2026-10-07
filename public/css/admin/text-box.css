@@ -6,7 +6,6 @@
 .text-box-heading-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; gap: 8px; }
 .text-box-workspace { display: grid; gap: 24px; min-width: 0; }
 .text-box-library { display: flex; align-items: center; gap: 16px; min-width: 0; border-bottom: 1px solid var(--border); }
-.text-box-library > button { flex-shrink: 0; margin-bottom: 8px; }
 .text-box-live-heading h3 { margin: 0; font-size: 15px; font-weight: 650; }
 .text-box-list { display: flex; flex: 1; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 .text-box-list .text-box-list-item { flex-shrink: 0; max-width: 220px; border: 0; border-bottom: 2px solid transparent; padding: 12px 16px; border-radius: 0; background: transparent; color: var(--muted); text-align: left; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: none; }
@@ -39,7 +38,7 @@
 .text-box-color { position: relative; display: grid; place-items: center; width: 30px; height: 30px; font-size: 18px; font-weight: 650; color: var(--text); cursor: pointer; }
 .text-box-color::after { content: ''; position: absolute; bottom: 2px; width: 16px; height: 3px; background: var(--text-box-current-color); outline: 1px solid var(--border); }
 .text-box-toolbar button:hover { background: var(--surface-2); }
-.text-box-toolbar button:focus-visible, .text-box-custom-color input:focus-visible { outline: 2px solid var(--color-control-focus); outline-offset: 2px; }
+.text-box-toolbar button:focus-visible { outline: 2px solid var(--color-control-focus); outline-offset: 2px; }
 .text-box-toolbar button[aria-expanded='true'] { background: var(--surface-2); }
 .text-box-format-popover { position: fixed; width: 224px; max-width: calc(100vw - 16px); padding: 10px; border-radius: var(--radius-md); background: var(--surface); color: var(--text); box-shadow: var(--shadow-floating); }
 .text-box-format-popover[hidden], .text-box-recent-colors[hidden] { display: none; }
@@ -51,7 +50,7 @@
 .text-box-color-swatch::before { content: ''; display: block; width: 100%; height: 100%; border-radius: 3px; background: var(--text-box-swatch); }
 .text-box-toolbar .text-box-color-swatch[aria-pressed='true'] { border-color: var(--primary-strong); outline: 1px solid var(--primary-strong); background: transparent; }
 .text-box-custom-color { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 10px 3px 0; border-top: 1px solid var(--border); font-size: 13px; cursor: pointer; }
-.text-box-custom-color input[type='color'] { width: 44px; height: 28px; min-height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; }
+.text-box-custom-color .lira-color-control { --color-control-height: 28px; width: 124px; }
 .text-box-effect-toggle::after { content: ''; margin-left: auto; width: 10px; height: 5px; }
 .text-box-effect-toggle[aria-pressed='true']::after { border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); }
 .text-box-effect-toggle[aria-pressed='mixed']::after { height: 0; border-bottom: 2px solid currentColor; }

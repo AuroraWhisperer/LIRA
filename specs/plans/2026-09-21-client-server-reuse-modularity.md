@@ -70,7 +70,7 @@ Contracts: `docs/reference/backend/bilibili/gift.md`, storage rules and
 - [x] Update fixtures to supply stores, protect SQL-free query modules, reduce old SQL debt budget and update ownership documentation.
 - [x] Run focused query/statistics/analysis/maintenance/import/display/optimization tests, then architecture gates and final diff/status checks.
 
-Verification command (client): `node --test test/gifts/gift-query-service.test.js test/gifts/gift-statistics-service.test.js test/gifts/gift-analysis-service.test.js test/gifts/gift-ledger-maintenance.test.js test/gifts/processed-gift-import.test.js test/gifts/gift-display-query.test.js test/gifts/gift-display-profile.test.js test/storage/query-optimization.test.js test/gifts/remote-gift-owner-isolation.test.js test/engineering/module-boundaries.test.js`.
+Verification command (client): `node --test test/gifts/gift-query-service.test.js test/gifts/gift-statistics-service.test.js test/gifts/gift-analysis-service.test.js test/gifts/gift-ledger-maintenance.test.js test/gifts/processed-gift-import.test.js test/gifts/gift-display-query.test.js test/gifts/gift-projection-service.test.js test/storage/query-optimization.test.js test/gifts/remote-gift-owner-isolation.test.js test/engineering/module-boundaries.test.js`.
 
 ## Failure handling
 

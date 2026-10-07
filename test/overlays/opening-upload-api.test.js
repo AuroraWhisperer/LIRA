@@ -2,16 +2,16 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { Readable, Writable } = require('node:stream');
 const test = require('node:test');
 const { serveOpeningCharacter } = require('../../src/server/http-utils');
 const { handleApi } = require('../../src/server/api-routes');
 const openingRoutes = require('../../src/server/routes/opening-routes');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 test('opening music uploads stay inside the configured data directory', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-test-'));
+  const dataDir = createScratchDirectory('lira-opening-test-');
   const settings = {
     values: {
       openingEnabled: 'true',
@@ -80,7 +80,7 @@ test('opening music uploads stay inside the configured data directory', async ()
 });
 
 test('opening character uploads validate image signatures and stay inside the data directory', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-character-test-'));
+  const dataDir = createScratchDirectory('lira-opening-character-test-');
   const settings = {
     values: {
       openingEnabled: 'true',
@@ -213,7 +213,7 @@ test('opening character writes require authentication and only the selected file
   assert.equal(authResponse.status, 401);
   assert.equal(authPayload.ok, false);
 
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-character-media-test-'));
+  const dataDir = createScratchDirectory('lira-opening-character-media-test-');
   const characterDir = openingRoutes.getCharacterDir(dataDir);
   const fileName = 'opening-character-selected.png';
   const content = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);

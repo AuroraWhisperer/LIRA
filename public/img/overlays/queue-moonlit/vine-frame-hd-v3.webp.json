@@ -1,0 +1,15 @@
+{
+  "provider": "LiraHub",
+  "model": "gpt-image-2.5-flare",
+  "quality": "max",
+  "requestId": "0a364426-f926-4b88-a889-66b9af9af58b",
+  "sourceSize": [1187, 1325],
+  "outputSize": [1187, 1325],
+  "processing": "Native-resolution bright warm botanical frame. Removed isolated saturated red generation-fringe pixels while preserving warm gold, coral and yellow-green colors and all remaining alpha. Lossless WebP, no upscaling. Full generation prompt is included with the delivered material archive.",
+  "palette": {
+    "vine": "#e0a33a",
+    "foliage": "#a1b74c",
+    "blossom": "#ee8d70",
+    "highlight": "#f9db87"
+  }
+}

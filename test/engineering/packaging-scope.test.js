@@ -143,8 +143,10 @@ test('all Windows build commands disable direct publishing and share the final i
   );
 });
 
-test('release builder config transfers only the final installer gate to the publisher', async () => {
+test('release builder config transfers only the final installer gate to the publisher', async (t) => {
   const { getConfig } = require('app-builder-lib/out/util/config/config');
+  // Keep builder diagnostics on the test runner's channel instead of multipart stdout writes.
+  t.mock.method(require('builder-util').log, 'info', (fields, message) => t.diagnostic(`${message}: ${fields.file}`));
   const projectDir = path.resolve(__dirname, '../..');
   const regular = await getConfig(projectDir, null, null);
   const release = await getConfig(projectDir, 'scripts/release-builder-config.js', null);

@@ -9,6 +9,7 @@ html[data-scene-component='songlist'] .song-scroll-window { flex: 1; height: aut
 html[data-scene-component='songlist'] .song-card strong { font-size: var(--overlay-song-font-size, 28px); }
 html[data-scene-component='songlist'] .overlay-title { font-size: var(--overlay-title-font-size, 24px); }
 html[data-scene-component='games'] .game-stage { min-height: 0; height: 100%; background: transparent; }
+html[data-scene-component='games'] .gomoku-board-wrap { --gomoku-size: min(calc(100vw - 64px), calc(100vh - 64px)); }
 html[data-scene-component='games'] .game-result-actions,
 html[data-scene-component='games'] .draw-toolbar { display: none; }
 html[data-scene-component='games'] body[data-hide-game-title='true'] :is(.bomb-title, .gomoku-title, .draw-title),

@@ -4,15 +4,17 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
-const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
+const { useSharedBrowser } = require('../helpers/shared-browser');
+
+const openBrowserSession = useSharedBrowser();
 
 async function setup(t) {
   const root = path.resolve(__dirname, '../../tmp');
   fs.mkdirSync(root, { recursive: true });
   const dataDir = fs.mkdtempSync(path.join(root, 'component-style-browser-'));
   const fixture = await startCanvasOutputFixture({ dataDir });
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
   const context = await browser.newContext({ viewport: { width: 1500, height: 1000 } });
   const page = await context.newPage();
@@ -34,6 +36,83 @@ async function setup(t) {
   }
   return { fixture, context, page, errors, media, request };
 }
+
+test('style ZIP classification and import apply to every registered component', async t => {
+  const { fixture, page, errors } = await setup(t);
+  await openCanvasDesktop(page, fixture);
+  await page.evaluate(async () => {
+    const { mountComponentStyleLibrary } = await import('/js/admin/component-style-library.js');
+    const { COMPONENT_PREVIEW_DEFINITIONS } = await import('/js/admin/component-preview-definitions.js');
+    const style = (type, name) => ({ id: name, type, name, config: { mediaStyle: {
+      kind: 'image', src: '/img/component-previews/clock-moonlit-fan.webp', width: 640, height: 400,
+    } } });
+    window.examplePacks = [
+      { id: 'single', packageId: 'old.single', name: '独立感谢', version: '1.0.0', bytes: 100,
+        styles: [style('guard-thanks', '独立感谢')] },
+      { id: 'variants', packageId: 'old.variants', name: '感谢变体', version: '1.0.0', bytes: 100,
+        styles: [style('guard-thanks', '蓝色感谢'), style('guard-thanks', '紫色感谢')] },
+      { id: 'suite', packageId: 'real.suite', name: '时钟背景套装', version: '1.0.0', bytes: 100,
+        styles: [style('clock', '套装时钟'), style('background', '套装背景')] },
+      ...Object.keys(COMPONENT_PREVIEW_DEFINITIONS).filter(type => type !== 'guard-thanks').map(type => ({
+        id: type, packageId: `test.${type}`, name: `${type} 样式`, version: '1.0.0', bytes: 100,
+        styles: [style(type, `${type} 普通`), type === 'clock'
+          ? { ...style('browser', 'clock 网页'), category: 'clock' } : style(type, `${type} 动效`)],
+      })),
+    ];
+    window.cancelledStyleImports = [];
+    window.inspectStylePack = window.examplePacks[1];
+    const request = async (action, args) => {
+      if (action === 'list') return window.examplePacks;
+      if (action === 'inspect') return window.inspectStylePack;
+      if (action === 'cancel') { window.cancelledStyleImports.push(args.id); return {}; }
+      throw Error(`Unexpected action: ${action}`);
+    };
+    window.showStyleLibrary = options => {
+      window.styleLibraryTest?.dispose();
+      window.styleLibraryTest = mountComponentStyleLibrary(document.body, { ...options, request });
+    };
+    window.showStyleLibrary({ suitesOnly: true });
+  });
+  const library = page.locator('.component-style-library');
+  await library.getByRole('button', { name: '添加到画布：套装背景', exact: true }).waitFor();
+  assert.equal(await library.locator('.component-style-card').count(), 2);
+  const archive = { name: 'style.zip', mimeType: 'application/zip', buffer: Buffer.from('synthetic upload') };
+  await library.locator('input[accept=".zip"]').setInputFiles(archive);
+  await library.getByRole('status').filter({ hasText: '这是大航海感谢的样式包' }).waitFor();
+  assert.deepEqual(await page.evaluate(() => window.cancelledStyleImports), ['variants']);
+  await page.evaluate(() => { window.showStyleLibrary({ type: 'guard-thanks' }); window.inspectStylePack = window.examplePacks[2]; });
+  await library.getByRole('button', { name: '添加到画布：紫色感谢', exact: true }).waitFor();
+  assert.equal(await library.locator('.component-style-card').count(), 3);
+  assert.equal(await library.getByRole('button', { name: '导入套装', exact: true }).count(), 0);
+  await library.locator('input[accept=".zip"]').setInputFiles(archive);
+  await library.getByRole('status').filter({ hasText: '这是多个组件组合的套装' }).waitFor();
+  assert.deepEqual(await page.evaluate(() => window.cancelledStyleImports), ['variants', 'suite']);
+  await page.evaluate(() => { window.inspectStylePack = window.examplePacks[1]; });
+  await library.locator('input[accept=".zip"]').setInputFiles(archive);
+  const confirmation = page.getByRole('dialog', { name: '确认添加样式', exact: true });
+  await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
+  await confirmation.getByRole('button', { name: '取消', exact: true }).click();
+  const types = await page.evaluate(() => window.examplePacks.slice(3).map(pack => pack.id));
+  for (const type of types) {
+    await page.evaluate(type => {
+      window.showStyleLibrary({ type });
+      window.inspectStylePack = window.examplePacks.find(pack => pack.id === type);
+    }, type);
+    const add = library.getByRole('button', { name: '＋ 添加样式', exact: true });
+    await add.waitFor();
+    const expectedCards = type === 'browser' ? 3 : ['clock', 'background'].includes(type) ? 3 : 2;
+    assert.equal(await library.locator('.component-style-card').count(), expectedCards, type);
+    assert.equal(await library.getByRole('button', { name: '导入套装', exact: true }).count(), 0, type);
+    await add.click();
+    const source = page.getByRole('dialog', { name: '添加第三方样式', exact: true });
+    const chooser = page.waitForEvent('filechooser');
+    await source.getByRole('button', { name: '选择 LIRA 样式包（ZIP）', exact: true }).click();
+    await (await chooser).setFiles(archive);
+    await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
+    await confirmation.getByRole('button', { name: '取消', exact: true }).click();
+  }
+  assert.deepEqual(errors, []);
+});
 
 test('local styles import, replace in place, publish and survive library removal', { timeout: 60000 }, async t => {
   const { fixture, context, page, errors, media, request } = await setup(t);
@@ -132,6 +211,84 @@ test('local styles import, replace in place, publish and survive library removal
   assert.deepEqual(errors, []);
 });
 
+test('background controls keep author defaults, instance isolation and published appearance', { timeout: 60000 }, async t => {
+  const { fixture, context, page, errors, media, request } = await setup(t);
+  const defaults = { opacity: 0.8, blur: 2, fit: 'contain', brightness: 1.1, saturation: 0.9,
+    contrast: 1.05, overlayColor: '#ffffff', overlayOpacity: 0.1 };
+  const description = { type: 'background', filename: media.name, name: '测试背景', width: 640, height: 400, config: defaults };
+  const installed = await request(`add?description=${encodeURIComponent(JSON.stringify(description))}`, media.buffer);
+  const style = installed.styles[0];
+  const desktop = await context.newPage();
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  async function addBackground() {
+    await page.getByRole('button', { name: '添加组件', exact: true }).click();
+    const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
+    await picker.locator('[data-category="background"]').click();
+    await picker.getByRole('button', { name: '添加到画布：测试背景', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.scene-editor-item.is-selected .component-preview-load-state')?.hidden);
+  }
+  await addBackground();
+  await addBackground();
+  const field = key => page.locator(`[data-component-parameter="${key}"]`);
+  assert.equal(await field('opacity').inputValue(), '80');
+  assert.equal(await field('playbackRate').isVisible(), false);
+  const frame = page.frameLocator('.scene-editor-item.is-selected iframe');
+  const artwork = frame.locator('.component-media-art');
+  await page.locator('[data-background-slider="opacity"]').fill('55');
+  await artwork.evaluate(image => { image.dataset.originalBackground = 'true'; });
+  await field('blur').fill('8');
+  await field('fit').selectOption('cover');
+  await page.locator('.background-parameters summary').filter({ hasText: '基础调色' }).click();
+  for (const [key, value] of Object.entries({ brightness: '120', saturation: '70', contrast: '90', overlayOpacity: '25' })) {
+    await field(key).fill(value);
+  }
+  await field('overlayColor').fill('#123456');
+  await page.waitForFunction(() => document.querySelector('[data-component-parameter="opacity"]').value === '55');
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.at(-1).appearance.config.overlayColor === '#123456');
+  const edited = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items);
+  assert.equal(edited[0].appearance.config.opacity, 0.8, 'The other instance retains its defaults.');
+  assert.equal(edited.at(-1).appearance.config.backgroundDefaults.opacity, 0.8);
+  assert.deepEqual((await request('list'))[0].styles[0].config, style.config, 'Editing does not mutate the library template.');
+  await artwork.evaluate(image => {
+    if (getComputedStyle(image).filter !== 'blur(8px) brightness(1.2) saturate(0.7) contrast(0.9)') throw new Error('Appearance not applied');
+  });
+  assert.equal(await artwork.getAttribute('data-original-background'), 'true');
+  assert.equal(await frame.locator('body').evaluate(body => getComputedStyle(body).opacity), '0.55');
+  assert.equal(await frame.locator('body').evaluate(body => getComputedStyle(body, '::after').backgroundColor), 'rgb(18, 52, 86)');
+  assert.equal(await frame.locator('body').evaluate(body => getComputedStyle(body, '::after').opacity), '0.25');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  const saved = fixture.service.list()[0];
+  assert.equal(saved.document.items.at(-1).appearance.config.blur, 8);
+  const source = fixture.service.getSource(saved.document.id);
+  const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
+  assert.equal((await fetch(outputUrl)).status, 200);
+  const output = await context.newPage();
+  await output.goto(outputUrl);
+  const published = output.frameLocator('.scene-version:not(.is-staging) iframe').last();
+  await published.locator('.component-media-art').waitFor();
+  assert.equal(await published.locator('body').evaluate(body => getComputedStyle(body).opacity), '0.55');
+  assert.equal(await published.locator('.component-media-art').evaluate(image => getComputedStyle(image).objectFit), 'cover');
+  await output.close();
+  await request('remove', { id: style.id });
+  await page.getByRole('button', { name: '恢复样式默认', exact: true }).click();
+  assert.equal(await field('opacity').inputValue(), '80');
+  assert.equal(await field('blur').inputValue(), '2');
+  assert.equal(await field('fit').inputValue(), 'contain');
+  assert.equal(await field('overlayOpacity').inputValue(), '10');
+  const replacement = await request(`add?description=${encodeURIComponent(JSON.stringify({ ...description, name: '新背景', config: { opacity: 0.9, blur: 1 } }))}`, media.buffer);
+  await page.getByRole('button', { name: '更换样式 / 添加素材', exact: true }).click();
+  await page.getByRole('dialog', { name: '背景样式', exact: true }).getByRole('button', { name: '更换「测试背景」的样式：新背景', exact: true }).click();
+  await desktop.waitForFunction(id => window.controllers.canvas.getState().draft.document.items.at(-1).appearance.config.mediaStyle.id === id, replacement.styles[0].id);
+  assert.equal(await field('opacity').inputValue(), '90');
+  assert.equal(await field('blur').inputValue(), '1');
+  const replaced = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items.at(-1));
+  for (const key of ['id', 'name', 'x', 'y', 'width', 'height']) assert.equal(replaced[key], edited.at(-1)[key]);
+  assert.deepEqual(errors, []);
+});
+
 test('custom media keeps live wishes, ordered gift events and opening/video lifecycle', { timeout: 60000 }, async t => {
   const { fixture, page, errors, media, request } = await setup(t);
   const hostUrl = `${fixture.origin}/preview-test-host`;
@@ -163,7 +320,8 @@ test('custom media keeps live wishes, ordered gift events and opening/video life
   };
   const send = data => page.evaluate(value => window.sendMediaData(value), data);
   const wishes = await mount('/gift-wishes', await makeStyle('gift-wishes', { textColor: '#aaffdd', fontSize: 32 }));
-  const data = await page.evaluate(async () => (await import('/js/admin/scene-extra-preview-data.js')).sceneExtraPreviewData('gift-wishes'));
+  const data = { items: [{ id: 'synthetic-wish', period: 'day', giftName: '合成礼物',
+    target: 100, count: 36, todayCount: 36, progress: 36, remaining: 64, displayStyle: 'card' }] };
   await send(data);
   await wishes.locator('.wish-card').waitFor({ state: 'visible' });
   data.items[0].count = 72; data.items[0].todayCount = 72; data.items[0].progress = 72; data.items[0].remaining = 28;
@@ -196,7 +354,10 @@ test('custom media keeps live wishes, ordered gift events and opening/video life
   await opening.locator('.component-media-playback').waitFor({ state: 'visible' });
   await send({ enabled: false });
   await opening.locator('.component-media-playback').waitFor({ state: 'hidden' });
-  const longPreview = await mount('/gift-effects?giftComponent=frame', await makeStyle('gift-frame', { durationMs: 9000 }));
+  const longStyle = await makeStyle('gift-frame', { durationMs: 9000 });
+  // Fake timers let the 8-second preview limit elapse without waiting in real time.
+  await page.clock.install();
+  const longPreview = await mount('/gift-effects?giftComponent=frame', longStyle);
   await send({ preview: true, events: [{ type: 'gift:frame', eventId: 'long', userName: '长动画观众', giftName: '礼物', num: 1, totalPriceCents: 1000 }] });
   await longPreview.locator('.component-media-playback').waitFor({ state: 'visible' });
   await longPreview.locator('.component-media-playback').evaluate(element => {
@@ -204,7 +365,7 @@ test('custom media keeps live wishes, ordered gift events and opening/video life
     new MutationObserver(records => { element.dataset.visibilityChanges = String(Number(element.dataset.visibilityChanges) + records.length); })
       .observe(element, { attributes: true, attributeFilter: ['hidden'] });
   });
-  await page.waitForTimeout(8250);
+  await page.clock.fastForward(8250);
   assert.equal(await longPreview.locator('.component-media-playback').getAttribute('data-long-preview'), 'original', 'Long previews are not recreated at eight seconds.');
   assert.equal(await longPreview.locator('.component-media-playback').isVisible(), true);
   assert.equal(await longPreview.locator('.component-media-playback').getAttribute('data-visibility-changes'), '0');
@@ -230,6 +391,16 @@ test('custom media keeps live wishes, ordered gift events and opening/video life
     if (video.currentTime > 0) resolve(); else video.addEventListener('timeupdate', resolve, { once: true });
   }));
   assert.equal(await background.locator('video.component-media-art').evaluate(video => video.loop && !video.paused), true);
+  await background.locator('video.component-media-art').evaluate(video => { video.dataset.originalVideo = 'true'; });
+  await page.evaluate(config => document.querySelector('iframe').contentWindow.postMessage({ type: 'component-preview:config', config }, '*'),
+    { ...videoConfig, opacity: 0.6, blur: 5, playbackRate: 0.75, volume: 0.2 });
+  await background.locator('video.component-media-art').evaluate(video => new Promise((resolve, reject) => {
+    const timer = setInterval(() => { if (video.playbackRate === 0.75) { clearInterval(timer); clearTimeout(timeout); resolve(); } }, 20);
+    const timeout = setTimeout(() => { clearInterval(timer); reject(new Error('Video appearance did not update')); }, 3000);
+  }));
+  assert.deepEqual(await background.locator('video.component-media-art').evaluate(video => ({ original: video.dataset.originalVideo,
+    rate: video.playbackRate, volume: video.volume, fit: getComputedStyle(video).objectFit, opacity: getComputedStyle(document.body).opacity })),
+    { original: 'true', rate: 0.75, volume: 0.2, fit: 'cover', opacity: '0.6' });
   const eventVideo = await mount('/opening', await makeStyle('opening', { durationMs: 120000 }, videoBytes, 'opening.webm'));
   await send({ enabled: true });
   await eventVideo.locator('.component-media-playback').waitFor({ state: 'visible' });

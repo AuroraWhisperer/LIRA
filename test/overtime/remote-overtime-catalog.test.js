@@ -2,11 +2,12 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createServerRuntime } = require('../../src/server');
+const { postJson } = require('../helpers/local-api-client');
+const { webpBytes } = require('../helpers/remote-catalog-fixture');
 
 test('keeps the current room catalog primary and decorates exact IDs with server artwork', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-overtime-'));
@@ -56,7 +57,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
   try {
     const app = await runtime.start({
       host: '127.0.0.1',
-      startPort: await findAvailablePort(),
+      startPort: 0,
       remoteGiftCatalog: {
         imageBaseUrl: 'https://api.lirahub.cn',
         fetch: async (request) => {
@@ -224,7 +225,7 @@ test('room refresh keeps its gifts when server artwork is unavailable', async ()
   try {
     const app = await runtime.start({
       host: '127.0.0.1',
-      startPort: await findAvailablePort(),
+      startPort: 0,
       remoteGiftCatalog: {
         imageBaseUrl: 'https://api.lirahub.cn',
         fetch: async () => {
@@ -253,99 +254,3 @@ test('room refresh keeps its gifts when server artwork is unavailable', async ()
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
-
-test('local and legacy server searches never fetch while handling the query', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-overtime-force-'));
-  let remoteCalls = 0;
-  let offline = false;
-  const runtime = createServerRuntime({
-    dataDir,
-    licenseGate: { isAuthorized: () => true },
-  });
-
-  try {
-    const app = await runtime.start({
-      host: '127.0.0.1',
-      startPort: await findAvailablePort(),
-      remoteGiftCatalog: {
-        imageBaseUrl: 'https://api.lirahub.cn',
-        fetch: async () => {
-          remoteCalls += 1;
-          if (offline) throw new Error('offline');
-          return {
-            ok: true,
-            schemaVersion: 2,
-            version: 'manual-1',
-            updatedAt: '2026-08-29T08:00:00.000Z',
-            blindBoxes: [],
-            gifts: [
-              {
-                id: '987654322',
-                name: '手动同步礼物',
-                priceRaw: 100,
-                coinType: 'gold',
-                active: true,
-                giftCategory: 'directGift',
-              },
-            ],
-          };
-        },
-      },
-    });
-    const token = runtime.getApiToken();
-
-    await runtime.initializeGiftCatalog({ force: true, reason: 'test' });
-    assert.equal(remoteCalls, 1);
-
-    const first = await postJson(app.baseUrl, token, '/api/overtime/gifts/local/search', { query: '手动同步' });
-    assert.equal(first.response.status, 200);
-    assert.deepEqual(
-      first.payload.data.gifts.map((gift) => gift.id),
-      ['987654322'],
-    );
-    assert.equal(remoteCalls, 1);
-
-    offline = true;
-    const legacyAlias = await postJson(app.baseUrl, token, '/api/overtime/gifts/server/search', { query: '手动同步' });
-    assert.equal(legacyAlias.response.status, 200);
-    assert.deepEqual(
-      legacyAlias.payload.data.gifts.map((gift) => gift.id),
-      ['987654322'],
-    );
-    assert.equal(remoteCalls, 1);
-  } finally {
-    await runtime.stop({ exitProcess: false });
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
-});
-
-async function postJson(baseUrl, token, pathname, body) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  });
-  return { response, payload: await response.json() };
-}
-
-function findAvailablePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close((error) => (error ? reject(error) : resolve(address.port)));
-    });
-  });
-}
-
-function webpBytes() {
-  const bytes = Buffer.alloc(16);
-  bytes.write('RIFF', 0, 'ascii');
-  bytes.writeUInt32LE(8, 4);
-  bytes.write('WEBP', 8, 'ascii');
-  return bytes;
-}

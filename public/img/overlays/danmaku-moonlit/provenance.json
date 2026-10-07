@@ -39,5 +39,9 @@
   },
   "governor.webp": {
     "origin": "LIRA public/img/admin/gifts/bilibili-guard-governor.webp; existing Bilibili governor badge, image pixels preserved."
+  },
+  "scroll-landscape.webp": {
+    "origin": "LIRA public/img/overlays/opening-moon-fan/landscape.webp",
+    "processing": "Resized proportionally to 960x540 and encoded WebP at quality 88; identical to the approved gift-scroll-details preview."
   }
 }

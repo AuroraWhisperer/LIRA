@@ -22,6 +22,8 @@ async function mount(t, nodes = []) {
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.evaluate(async (nodes) => {
+    const { enhanceColorControls } = await import('/js/shared/color-control.js');
+    enhanceColorControls();
     const { createTextBoxDefaults } = await import('/js/shared/text-box-config.js');
     const { mountTextBoxEditor, readTextBoxNodes } = await import('/js/admin/text-box-editor.js');
     const { mountTextBoxMedia } = await import('/js/admin/text-box-media.js');

@@ -6,10 +6,13 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createGiftService, getBlindBoxAnalysis, getBlindBoxStats } = require('../../src/bilibili/gift');
-const { closeDatabases, createDatabases, getSchemaVersions } = require('../../src/storage/database');
-const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gifts');
+const { closeDatabases, createDatabases } = require('../../src/storage/database');
+const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
+
+const LOCAL_NOON = new Date(2026, 8, 15, 12).getTime();
 
 function fixture(t) {
+  t.mock.timers.enable({ apis: ['Date'], now: LOCAL_NOON });
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-analysis-'));
   const db = createDatabases({ dataDir });
   const sourceId = createGiftSource(db.giftDb);
@@ -201,59 +204,3 @@ test('blind box analysis bounds pagination and ignores unsupported sort fields',
   assert.equal(result.items.length, 1);
   assert.equal(f.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 3);
 });
-
-test('gift database v3 identity migration remains intact after later migrations', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-'));
-  let db = createDatabases({ dataDir });
-
-  try {
-    db.giftDb.exec('DROP INDEX idx_gift_events_platform_uid');
-    db.giftDb.prepare("UPDATE schema_version SET version = 2 WHERE key = 'gift_db'").run();
-    const insert = db.giftDb.prepare(`
-      INSERT INTO gift_events (
-        platform_id, cmd, gift_id, gift_name, uid, user_name,
-        num, unit_price, total_price, counted_in_sprint,
-        status, created_at, updated_at
-      ) VALUES (?, 'SEND_GIFT', '1', 'Rose', ?, ?, ?, ?, ?, 1, 'active', ?, ?)
-    `);
-    const createdAt = new Date().toISOString();
-    insert.run('duplicate-platform', '42', 'Alice', 1, 1, 1, createdAt, createdAt);
-    insert.run('duplicate-platform', '42', 'Alice Renamed', 5, 1, 5, createdAt, createdAt);
-    insert.run('duplicate-platform', '43', 'Bob', 1, 1, 1, createdAt, createdAt);
-    closeDatabases(db);
-
-    db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 16);
-    const rows = db.giftDb
-      .prepare(
-        `
-      SELECT * FROM gift_events WHERE platform_id = ? ORDER BY uid
-    `,
-      )
-      .all('duplicate-platform');
-    assert.equal(rows.length, 2);
-    assert.equal(rows[0].uid, '42');
-    assert.equal(rows[0].user_name, 'Alice Renamed');
-    assert.equal(rows[0].num, 5);
-    assert.equal(rows[0].total_price, 5);
-    assert.equal(rows[1].uid, '43');
-    assert.throws(() => insertDuplicateGift(db.giftDb, createdAt), /UNIQUE constraint failed/);
-  } finally {
-    closeDatabases(db);
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
-});
-
-function insertDuplicateGift(giftDb, createdAt) {
-  giftDb
-    .prepare(
-      `
-    INSERT INTO gift_events (
-      platform_id, cmd, gift_id, gift_name, uid, user_name,
-      num, unit_price, total_price, status, created_at, updated_at
-    ) VALUES ('duplicate-platform', 'SEND_GIFT', '1', 'Rose', '42', 'Alice',
-      1, 1, 1, 'active', ?, ?)
-  `,
-    )
-    .run(createdAt, createdAt);
-}

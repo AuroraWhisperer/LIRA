@@ -30,7 +30,8 @@ const FRAME_SETTING_KEYS = new Set([
   'giftFrameEnabled',
   'giftFrameThresholdRmb',
 ]);
-const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTextMode', 'guardThanksStyle']);
+const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTextMode', 'guardThanksStyle',
+  'guardThanksAuroraEnabled', 'guardThanksAuroraTextMode', 'guardThanksClassicEnabled', 'guardThanksClassicTextMode']);
 const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline']);
 
 function normalizeSettingValue(key, rawValue) {

@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderComponent() {
   const next = componentData?.sessions?.[componentConfig?.game] || componentData?.session;
   renderGame(next?.game === componentConfig?.game ? next : null);
-  byId('gameEmptyView').hidden = true;
+  byId('gameEmptyView').hidden = Boolean(session) || !componentData?.preview;
 }
 
 async function loadSnapshot(attempt = 0) {

@@ -11,50 +11,71 @@ const {
   normalizeProcessedGiftHistoryPage,
   normalizeProcessedGiftPage,
 } = require('../../src/shared/processed-gift-contract');
+const { getGiftSnapshot } = require('../../src/bilibili/gift/query-service');
+const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
 const { createFixture, makeEvent } = require('../helpers/processed-gift-fixture');
 
 const giftSyncFixture = readServerFixture('docs/protocol/fixtures/gift-sync-v1.json');
+const heartBox = readServerFixture('test/fixtures/heart-blind-box-events.json');
 
-test('processed importer rejects malformed or privacy-sensitive transport shapes', () => {
+test('heart-box output metadata survives remote import and recent snapshot projection', () => {
   const fixture = createFixture();
   try {
-    assert.throws(
-      () =>
-        fixture.importProcessedEvent({
-          ...makeEvent('final', 1),
-          eventId: '../tenant',
-        }),
-      /INVALID_PROCESSED_GIFT_EVENT/,
-    );
-    assert.throws(
-      () =>
-        fixture.importProcessedEvent({
-          ...makeEvent('final', 1),
-          gift: { ...makeEvent('final', 1).gift, totalPrice: 0 },
-        }),
-      /INVALID_PROCESSED_GIFT_EVENT/,
-    );
-    assert.throws(
-      () =>
-        fixture.importProcessedEvent({
-          ...makeEvent('final', 1),
-          gift: { ...makeEvent('final', 1).gift, totalPrice: 0.001 },
-        }),
-      /INVALID_PROCESSED_GIFT_EVENT/,
-    );
-
-    const imported = fixture.importProcessedEvent({
-      ...makeEvent('final', 13),
-      uid: 'must-not-be-used',
-      rawJson: '{"secret":true}',
-      gift: {
-        ...makeEvent('final', 13).gift,
-        uid: 'must-not-be-used',
-        rawJson: '{"secret":true}',
-      },
+    for (const [index, item] of heartBox.outputs.entries()) {
+      const event = makeEvent('final', index + 1, {
+        giftId: item.id,
+        giftName: item.name,
+        unitPrice: item.rmb,
+        totalPrice: item.rmb,
+        isBlindBox: true,
+        blindBoxId: heartBox.box.id,
+        blindBoxName: heartBox.box.name,
+        blindBoxPrice: heartBox.box.rmb,
+        blindProfit: item.profit,
+      });
+      event.eventId = `heart-output-${index}`;
+      fixture.importProcessedEvent(event);
+      fixture.importProcessedEvent(event);
+    }
+    const snapshot = getGiftSnapshot({
+      queryStore: createGiftQueryStore(fixture.db.giftDb),
+      getActiveGiftSource: () => ({ sourceId: fixture.sourceId }),
     });
-    assert.equal(imported.uid, '');
-    assert.equal(imported.raw_json, '');
+    assert.equal(snapshot.recent.length, 2);
+    for (const item of heartBox.outputs) {
+      const row = snapshot.recent.find((gift) => gift.gift_id === item.id);
+      assert.equal(row.is_blind_box, true);
+      assert.equal(row.blind_box_id, heartBox.box.id);
+      assert.equal(row.blind_box_name, heartBox.box.name);
+      assert.equal(row.total_price, item.rmb);
+      assert.equal(row.blind_box_price, heartBox.box.rmb);
+      assert.equal(row.blind_profit, item.profit);
+    }
+  } finally {
+    fixture.close();
+  }
+});
+
+test('negotiated identity fixture imports atomically, rejects rebinding, and accepts legacy replay', () => {
+  const event = structuredClone(readServerFixture('docs/protocol/fixtures/gift-event-identity.json').event);
+  const fixture = createFixture();
+  try {
+    const normalized = normalizeProcessedGiftEvent(event);
+    const row = fixture.importProcessedEvent(normalized);
+    assert.equal(row.gift_variant_id, event.gift.giftVariantId);
+    assert.equal(row.blind_box_variant_id, null);
+    const changed = structuredClone(event);
+    changed.gift.giftVariantId = `gv_${'f'.repeat(64)}`;
+    assert.throws(() => fixture.importProcessedEvent(changed), /PROCESSED_GIFT_EVENT_CONFLICT/);
+    const legacy = structuredClone(event);
+    delete legacy.gift.giftVariantId;
+    delete legacy.gift.blindBoxVariantId;
+    assert.equal(fixture.importProcessedEvent(legacy).gift_variant_id, event.gift.giftVariantId);
+    const malformed = structuredClone(event);
+    delete malformed.gift.blindBoxVariantId;
+    assert.throws(() => normalizeProcessedGiftEvent(malformed), /INVALID_PROCESSED_GIFT_EVENT/);
+    malformed.gift.blindBoxVariantId = 'not-an-identity';
+    assert.throws(() => normalizeProcessedGiftEvent(malformed), /INVALID_PROCESSED_GIFT_EVENT/);
   } finally {
     fixture.close();
   }

@@ -273,6 +273,7 @@
 .desktop-lyric-preview-word {
   position: relative;
   display: inline-block;
+  transform-origin: center bottom;
   --preview-word-progress: 0%;
   color: var(--preview-color);
 }

@@ -16,8 +16,17 @@ import {
 export function applyTheme(settings, style) {
   const panel = document.querySelector('.overlay-panel');
   panel.className = `overlay-panel queue-${style}`;
+  const moonlit = style === 'identity' && settings.resourceStyle?.preset === 'moonlit-queue';
+  const resources = settings.resourceStyle?.resources;
+  const landscape = Boolean(resources?.['/img/overlays/queue-moonlit/moon-lake-frame-hd-v4.webp']);
+  panel.classList.toggle('queue-moonlit', moonlit);
+  panel.classList.toggle('queue-moonlit-hd', moonlit &&
+    Boolean(landscape || resources?.['/img/overlays/queue-moonlit/vine-frame-hd-v3.webp']));
+  panel.classList.toggle('queue-moonlit-landscape', moonlit && landscape);
   const root = document.documentElement;
   applyOverlayTheme(root, panel, settings);
+  // Transparent artwork must not inherit the classic panel's frosted backdrop.
+  if (style !== 'classic') panel.classList.remove('has-backdrop-blur');
   root.style.setProperty('--overlay-index-color', settings.overlayIndexColor || '');
   setIdentityRuleThemeVars(root, settings);
 

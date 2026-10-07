@@ -141,6 +141,20 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
   timer.callback();
   assert.equal(root.children.length, 0);
 
+  const { findRandomDanmakuPosition } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-random-position.js'));
+  const expiredCenter = { x: Number.parseFloat(firstLeft) + 60, y: Number.parseFloat(firstTop) + 21 };
+  feed.setRandomPlacement({ centerBias: 50, dispersion: 50 });
+  const nextItem = { id: 'after-expiry', name: '下一条', message: '上一条已过期', timestamp: 1100 };
+  feed.append(nextItem);
+  const expectedPosition = findRandomDanmakuPosition({ width: 120, height: 42,
+    entry: { item: nextItem, previousPosition: expiredCenter } }, root.clientWidth, root.clientHeight, [],
+  { centerBias: 50, dispersion: 50 });
+  assert.equal(root.children[0].style.getPropertyValue('left'), `${expectedPosition.left}px`);
+  assert.equal(root.children[0].style.getPropertyValue('top'), `${expectedPosition.top}px`);
+  feed.setRandomPlacement({ centerBias: 1, dispersion: 1 });
+  resizeObservers.at(-1).trigger();
+  assert.equal(root.children[0].style.getPropertyValue('left'), `${expectedPosition.left}px`);
+
   feed.render([{ ...item, timestamp: 1100 }]);
   const activeTimer = scheduled.at(-1);
   feed.destroy();

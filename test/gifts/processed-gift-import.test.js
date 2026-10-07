@@ -16,10 +16,6 @@ const { createGiftService } = require('../../src/bilibili/gift');
 const { buildGiftFrameEvent } = require('../../src/bilibili/gift/frame-config');
 const { createOvertimeConsumer, createOvertimeService } = require('../../src/overtime');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
-const { readServerFixture } = require('../../scripts/verify-server-contract');
-const heartBox = readServerFixture('test/fixtures/heart-blind-box-events.json');
-const { getGiftSnapshot } = require('../../src/bilibili/gift/query-service');
-const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
 const {
   createFakeClock,
   createFixture,
@@ -29,39 +25,55 @@ const {
   readGift,
 } = require('../helpers/processed-gift-fixture');
 
-test('heart-box output metadata survives remote import and recent snapshot projection', () => {
+test('processed live importer requires an explicit captured source', () => {
   const fixture = createFixture();
   try {
-    for (const [index, item] of heartBox.outputs.entries()) {
-      const event = makeEvent('final', index + 1, {
-        giftId: item.id,
-        giftName: item.name,
-        unitPrice: item.rmb,
-        totalPrice: item.rmb,
-        isBlindBox: true,
-        blindBoxId: heartBox.box.id,
-        blindBoxName: heartBox.box.name,
-        blindBoxPrice: heartBox.box.rmb,
-        blindProfit: item.profit,
-      });
-      event.eventId = `heart-output-${index}`;
-      fixture.importProcessedEvent(event);
-      fixture.importProcessedEvent(event);
-    }
-    const snapshot = getGiftSnapshot({
-      queryStore: createGiftQueryStore(fixture.db.giftDb),
-      getActiveGiftSource: () => ({ sourceId: fixture.sourceId }),
+    assert.throws(() => fixture.detection.importProcessedEvent(makeEvent('final', 15)), /REMOTE_GIFT_SOURCE_REQUIRED/);
+  } finally {
+    fixture.close();
+  }
+});
+
+test('processed importer rejects malformed or privacy-sensitive transport shapes', () => {
+  const fixture = createFixture();
+  try {
+    assert.throws(
+      () =>
+        fixture.importProcessedEvent({
+          ...makeEvent('final', 1),
+          eventId: '../tenant',
+        }),
+      /INVALID_PROCESSED_GIFT_EVENT/,
+    );
+    assert.throws(
+      () =>
+        fixture.importProcessedEvent({
+          ...makeEvent('final', 1),
+          gift: { ...makeEvent('final', 1).gift, totalPrice: 0 },
+        }),
+      /INVALID_PROCESSED_GIFT_EVENT/,
+    );
+    assert.throws(
+      () =>
+        fixture.importProcessedEvent({
+          ...makeEvent('final', 1),
+          gift: { ...makeEvent('final', 1).gift, totalPrice: 0.001 },
+        }),
+      /INVALID_PROCESSED_GIFT_EVENT/,
+    );
+
+    const imported = fixture.importProcessedEvent({
+      ...makeEvent('final', 13),
+      uid: 'must-not-be-used',
+      rawJson: '{"secret":true}',
+      gift: {
+        ...makeEvent('final', 13).gift,
+        uid: 'must-not-be-used',
+        rawJson: '{"secret":true}',
+      },
     });
-    assert.equal(snapshot.recent.length, 2);
-    for (const item of heartBox.outputs) {
-      const row = snapshot.recent.find((gift) => gift.gift_id === item.id);
-      assert.equal(row.is_blind_box, true);
-      assert.equal(row.blind_box_id, heartBox.box.id);
-      assert.equal(row.blind_box_name, heartBox.box.name);
-      assert.equal(row.total_price, item.rmb);
-      assert.equal(row.blind_box_price, heartBox.box.rmb);
-      assert.equal(row.blind_profit, item.profit);
-    }
+    assert.equal(imported.uid, '');
+    assert.equal(imported.raw_json, '');
   } finally {
     fixture.close();
   }

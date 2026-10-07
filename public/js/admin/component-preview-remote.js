@@ -81,6 +81,8 @@ export function createBrowserPreviewConnection({ id, token, component }) {
   let display;
   let draftKey;
   let attachmentId;
+  let focusId;
+  let focusListener;
   let operation = Promise.resolve();
   let rejectOperation;
   let commandId = 0;
@@ -108,6 +110,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
     controller?.disconnect(error.message);
     requests.abort(error);
     rejectOperation?.(error);
+    focusListener = null;
     displayListeners.clear();
   }
 
@@ -160,6 +163,12 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       controller.receive(update);
       display = update.display;
       for (const listener of displayListeners) listener(display);
+      if (update.focus && update.focus.id !== focusId && focusListener) {
+        focusListener(update.focus);
+        focusId = update.focus.id;
+        // Confirm immediately; background tabs may throttle the next polling timer.
+        await request({ action: 'read', focusId });
+      }
       timer = window.setTimeout(poll, 250);
     } catch (error) {
       if (!closed) {
@@ -201,6 +210,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
     },
     get draftKey() { return draftKey; },
     get controller() { return controller; },
+    onFocus(listener) { focusListener = listener; },
     execute(action, change) {
       const next = operation.then(() => run(action, change));
       operation = next.catch(() => {});

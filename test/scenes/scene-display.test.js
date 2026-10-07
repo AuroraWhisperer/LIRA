@@ -237,8 +237,8 @@ test('component defaults are complete isolated appearance copies and cloud unava
   const fixture = componentFixture();
   assert.deepEqual(fixture.ports.getDefaultConfig('clock'), getClockConfig(fixture.state.settings));
   const queue = fixture.ports.getDefaultConfig('queue');
-  assert.equal(queue.overlayQueueStyle, 'classic');
-  assert.equal(queue.queueSongFontSize, '28');
+  assert.equal(queue.overlayQueueStyle, DEFAULT_SETTINGS.overlayQueueStyle);
+  assert.equal(queue.queueSongFontSize, DEFAULT_SETTINGS.queueSongFontSize);
   assert.equal(Object.hasOwn(queue, 'deviceToken'), false);
   assert.equal(Object.hasOwn(queue, 'roomId'), false);
   assert.deepEqual(fixture.ports.getDefaultConfig('overtime'), { path: '', fit: 'contain' });
@@ -262,7 +262,11 @@ test('component ports deduplicate live data reads and omit absent or unknown pro
     cloud: { getSnapshot(request) { requests.push(request); return { events: [] }; } },
   });
   const request = { epoch: 'synthetic', cursor: 3 };
-  assert.deepEqual(ports.getDisplayData(['danmaku', 'danmaku', 'overtime', 'clock', 'constructor', 'unknown'], request),
+  for (const types of [[], ['browser'], ['browser', 'clock', 'text-box']]) {
+    assert.deepEqual(ports.getDisplayData(types, request), {}, 'self-contained layers need no runtime snapshot');
+  }
+  assert.equal(stateReads, 0);
+  assert.deepEqual(ports.getDisplayData(['danmaku', 'danmaku', 'overtime', 'browser', 'clock', 'text-box', 'constructor', 'unknown'], request),
     { danmaku: { events: [] } });
   assert.equal(stateReads, 1);
   assert.deepEqual(requests, [request]);
@@ -291,6 +295,6 @@ test('appearance normalization rejects private keys, nested objects, nonfinite v
   ]) assert.throws(() => normalizeSceneConfig(type, config), { code: 'INVALID_SCENE_CONFIG', statusCode: 400 }, type);
   assert.deepEqual(normalizeSceneConfig('clock', clock), clock);
   assert.deepEqual(normalizeSceneConfig('overtime', { path: '', fit: 'contain' }), { path: '', fit: 'contain' });
-  assert.equal(normalizeSceneConfig('queue', {}).queueSongFontSize, '28');
+  assert.equal(normalizeSceneConfig('queue', {}).queueSongFontSize, DEFAULT_SETTINGS.queueSongFontSize);
   assert.equal(normalizeSceneConfig('queue', { overlayQueueStyle: 'festival' }).overlayQueueStyle, 'festival');
 });

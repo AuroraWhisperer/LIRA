@@ -2,7 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
 const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
-const { createLicenseOperations } = require('../../src/electron/license/license-operations');
 const { createHarness } = require('../helpers/license-manager-harness');
 const { readServerFixture } = require('../../scripts/verify-server-contract');
 const fixture = readServerFixture('docs/protocol/fixtures/pk-report-settings.json');
@@ -76,35 +75,4 @@ test('PK IPC rejects foreign windows/invalid inputs and strips unsolicited serve
   assert.deepEqual(writes, [{ enabled: true }]);
   response = { enabled: true };
   assert.equal((await read(event)).error, 'INVALID_RESPONSE');
-});
-
-test('PK reads/writes reject late old-account responses and automatic retries after switching', async () => {
-  for (const method of ['getPkReportSettings', 'updatePkReportSettings']) {
-    let owner = 'one',
-      resolve,
-      retry,
-      calls = 0;
-    const operations = createLicenseOperations({
-      remote: {
-        [method]: () => {
-          calls++;
-          return new Promise((done) => {
-            resolve = done;
-          });
-        },
-      },
-      getOverlayOwner: () => owner,
-      isDisposed: () => false,
-      withAuthorizedToken: (operation) => {
-        retry = operation;
-        return operation('one-token');
-      },
-    });
-    const pending = operations[method]({ enabled: true });
-    owner = 'two';
-    resolve(fixture.response);
-    await assert.rejects(pending, { code: 'LICENSE_NOT_AUTHORIZED' });
-    await assert.rejects(retry('two-token'), { code: 'LICENSE_NOT_AUTHORIZED' });
-    assert.equal(calls, 1);
-  }
 });

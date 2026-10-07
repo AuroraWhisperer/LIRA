@@ -259,6 +259,7 @@ function createServerRuntime(runtimeOptions = {}) {
     defaultSettings: DEFAULT_SETTINGS,
     systemPaths: {
       rootDir: ROOT_DIR,
+      pickComponentWebFile: runtimeOptions.pickComponentWebFile,
       dataDir: DATA_DIR,
       songDbPath: SONG_DB_PATH,
       superChatDbPath: SUPER_CHAT_DB_PATH,

@@ -35,7 +35,7 @@ test('reopening restores unsaved fields without saving and leaves unchanged fiel
   assert.equal(current.getState().saved.label, 'saved');
   assert.equal(current.getState().dirty, true);
   assert.equal(f.saves(), 0);
-  assert.match(restored.getState().message, /已恢复.*未保存/);
+  assert.match(restored.getState().message, /已恢复草稿/);
   const writes = f.writes();
   current.edit({ label: 'unfinished' });
   assert.equal(f.writes(), writes, 'Identical notifications must not rewrite storage.');
@@ -248,7 +248,7 @@ test('a browser geometry-only draft restores without requesting its unchanged UR
   const recovery = f.recoverCanvas(current);
   assert.equal(current.getState().draft.document.items[0].width, 960);
   assert.equal(current.getState().draft.document.items[0].appearance.config.url, url);
-  assert.match(recovery.getState().message, /已恢复.*未保存/);
+  assert.match(recovery.getState().message, /已恢复草稿/);
   assert.doesNotMatch(recovery.getState().message, /网址|重新填写/);
   recovery.dispose();
 });
@@ -267,7 +267,7 @@ test('browser geometry restores with current authorized URLs and ignores URL cha
   assert.deepEqual(plain(current.getState().saved), canvas(browserItem(currentUrl)));
   assert.equal(current.getState().dirty, true);
   assert.equal(f.saves(), 0);
-  assert.match(recovery.getState().message, /已恢复.*未保存/);
+  assert.match(recovery.getState().message, /已恢复草稿/);
   assert.match(recovery.getState().message, /网址.*重新填写/);
   recovery.dispose();
 });

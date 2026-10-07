@@ -1,7 +1,7 @@
 <!-- ============ 数据保存 ============ -->
 <section class="usage-guide-section" id="ug-data">
   <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">13</span>数据保存与换电脑
+    <span class="usage-guide-section-index" aria-hidden="true">14</span>数据保存与换电脑
   </h3>
   <p class="usage-guide-section-intro">
     登录同一个 LIRA 账号，能找回一部分数据，但这不是整台电脑的备份。换电脑前，先分清下面三类。
@@ -29,6 +29,7 @@
       <ul>
         <li>点歌队列、播放队列、LIRA 里的播放历史。</li>
         <li>点歌板、展示板、桌面歌词、开播动画、萌时钟、礼物边框、滚动礼物、礼物许愿的设置，投票与评分的外观。</li>
+        <li>直播场景布局、场景预设、文本框和导入的素材库。</li>
         <li>礼物导出目录、月底冲刺目标、礼物提示开关。</li>
         <li>QQ 音乐和网易云的登录状态、全民 K 歌缓存路径。换电脑后要重新登录音乐平台，重新选缓存位置。</li>
         <li>日历、备忘、待办、粉丝档案、小游戏历史、动态抽奖最近 50 场记录。</li>
@@ -53,10 +54,11 @@
       <ol class="usage-guide-checks">
         <li>在旧电脑打开「点歌 → 导入导出」，导出歌库。确认云端歌库是你要留的那份。</li>
         <li>
-          打开「百宝箱 → 粉丝档案 → 设置」，点「保存备份」存一份完整备份。要留的素材、导出文件和这台电脑上的设置，另外存好。
+          打开「百宝箱 → 粉丝档案 → 设置」，在「保存完整备份」下点「保存备份」。另外保存套装原始 ZIP、图片、视频和导出文件，并记录要沿用的画面布局与设置。
         </li>
         <li>找管理员要短效登录码，在新电脑上选「登录已有账号」。别重新注册。</li>
         <li>等账号数据读完，核对歌库和直播间设置。重新登录音乐平台，恢复粉丝档案备份，再把画面设置重新调一遍。</li>
+        <li>需要本机素材时，在新电脑重新导入套装 ZIP 或添加原图片、视频，再在画布中选用并核对布局，最后点「保存并应用」。素材导入不会自动恢复旧电脑的布局。</li>
         <li>在新电脑上，从对应面板重新复制投屏地址，到直播姬或 OBS 里检查画面。</li>
       </ol>
       <p class="usage-guide-notice" data-tone="warning">
@@ -85,10 +87,15 @@
 <!-- ============ 外观速查 ============ -->
 <section class="usage-guide-section" id="ug-appearance">
   <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">14</span>外观速查
+    <span class="usage-guide-section-index" aria-hidden="true">15</span>外观速查
   </h3>
   <p class="usage-guide-section-intro">先找到你想改的画面，再去对应的设置。直播画面和观众网页歌单的外观在不同地方改。</p>
   <div class="usage-guide-grid">
+    <article class="usage-guide-card" id="ug-client-appearance">
+      <strong>客户端配色</strong>
+      <p>打开「百宝箱 → 设置 → 客户端外观」，选一套配色，点「应用配色」。看到「配色已应用」，卡片上标了「当前使用」，就换好了。</p>
+      <p>这里改 LIRA 软件界面的颜色。想改直播画面或观众网页歌单，去下面各自的设置里改。</p>
+    </article>
     <article class="usage-guide-card">
       <strong>点歌板</strong>
       <p>
@@ -112,7 +119,7 @@
     <article class="usage-guide-card">
       <strong>弹幕姬</strong>
       <p>
-        「百宝箱 → 弹幕姬」：先选固定位置或区域随机样式，再调参数，点「应用到直播画面」。网页主播中心里对应的按钮是「保存样式」。
+        「百宝箱 → 弹幕姬」：先选固定位置或区域随机样式，再调参数，点「应用到直播画面」。网页主播中心只提供服务器弹幕姬地址，样式在客户端设置。
       </p>
     </article>
     <article class="usage-guide-card">
@@ -124,7 +131,7 @@
     <article class="usage-guide-card">
       <strong>时钟与开播动画</strong>
       <p>
-        「百宝箱 → 萌时钟」：选风格，改了自动保存。「开播动画」能改文字、人物图、音乐和画质，总开关同时管预览和投屏。
+        「百宝箱 → 萌时钟」：选风格，改完点「保存时钟设置」。「开播动画」能改文字、人物图、音乐和画质，总开关同时管预览和投屏。
       </p>
     </article>
     <article class="usage-guide-card">
@@ -184,7 +191,7 @@
 <!-- ============ 名词小词典 ============ -->
 <section class="usage-guide-section" id="ug-glossary">
   <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">15</span>名词小词典
+    <span class="usage-guide-section-index" aria-hidden="true">16</span>名词小词典
   </h3>
   <p class="usage-guide-section-intro">看到不熟悉的词，可以直接在文档搜索框里搜。</p>
   <div class="usage-guide-grid">
@@ -244,7 +251,7 @@
     </article>
     <article class="usage-guide-card">
       <strong>网页歌单与主播中心</strong>
-      <p>网页歌单公开给观众挑歌。主播中心要用 LIRA 账号登录，用来看礼物、改网页歌单外观、设置服务器弹幕姬。</p>
+      <p>网页歌单公开给观众挑歌。主播中心要用 LIRA 账号登录，用来看礼物、改网页歌单外观、复制服务器弹幕姬地址。</p>
     </article>
     <article class="usage-guide-card">
       <strong>注册激活码 短效登录码 密码重置码</strong>

@@ -1,0 +1,45 @@
+{
+  "reference": "https://www.bilibili.com/video/BV1dt42137TX/",
+  "skin": "https://i1.xuehusang.cn/openlivechat-css/fullScreenCele/default_skin.css",
+  "assets": [
+    {
+      "file": "default_captain_1_loop.webp",
+      "source": "https://i1.xuehusang.cn/openlivechat-css/fullScreenCele/default_captain_1_loop.webp",
+      "bytes": 20830270,
+      "sha256": "af431f30b489ba07821e8b6e4ed50724e6c0a857e45fe86e97e4447ea94f8640",
+      "frames": 150,
+      "durationMs": 4950,
+      "width": 1920,
+      "height": 1080,
+      "alpha": true,
+      "animated": true,
+      "loopCount": 0
+    },
+    {
+      "file": "default_captain_2_loop.webp",
+      "source": "https://i1.xuehusang.cn/openlivechat-css/fullScreenCele/default_captain_2_loop.webp",
+      "bytes": 20862318,
+      "sha256": "8343c8f7bbbb323fd1615046454e1ed47cced9c51a71df407c23758bd05d4dfb",
+      "frames": 150,
+      "durationMs": 4950,
+      "width": 1920,
+      "height": 1080,
+      "alpha": true,
+      "animated": true,
+      "loopCount": 0
+    },
+    {
+      "file": "captain_test_loop_2.webp",
+      "source": "https://i1.xuehusang.cn/openlivechat-css/fullScreenCele/captain_test_loop_2.webp",
+      "bytes": 19687540,
+      "sha256": "83b7a7d49c0e4558640359774938053bf93a27041371b1576b5d291e31680f58",
+      "frames": 151,
+      "durationMs": 4983,
+      "width": 1920,
+      "height": 1080,
+      "alpha": true,
+      "animated": true,
+      "loopCount": 0
+    }
+  ]
+}

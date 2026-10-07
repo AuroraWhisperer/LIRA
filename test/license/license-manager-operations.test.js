@@ -261,3 +261,44 @@ test('song background upload validates size and filename before authorization re
   assert.equal(backgroundCalls.length, 0);
   manager.dispose();
 });
+
+test('cloud settings and Bilibili credential writes validate input and need an authorized session', async () => {
+  const { manager, calls } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  await manager.bootstrap();
+
+  for (const settings of [null, undefined, [], 'queueLimit=1', 7]) {
+    await assert.rejects(manager.updateCloudSettings(settings), { code: 'INVALID_SYNC_SETTINGS' });
+  }
+  for (const cookie of ['', '   ', null, undefined, 'SESSDATA=a\r\nX-Injected: 1', 'SESSDATA=a\nb', 'SESSDATA=a\0b', 'x'.repeat(12_001)]) {
+    await assert.rejects(manager.setBilibiliCredentialsInternal(cookie), { code: 'BILIBILI_CREDENTIALS_INVALID' });
+  }
+  assert.deepEqual(calls.cloudSettingsRequests, []);
+  assert.deepEqual(calls.bilibiliCredentialRequests, []);
+
+  const boundary = `SESSDATA=${'x'.repeat(12_000 - 'SESSDATA='.length)}`;
+  await manager.setBilibiliCredentialsInternal(`  ${boundary}  `);
+  await manager.updateCloudSettings({ queueLimit: 7 });
+  await manager.getBilibiliCredentialsInternal();
+  await manager.clearBilibiliCredentialsInternal();
+  assert.deepEqual(calls.cloudSettingsRequests, [{ settings: { queueLimit: 7 }, token: 'token' }]);
+  assert.deepEqual(calls.bilibiliCredentialRequests, [
+    { action: 'set', cookie: boundary, token: 'token' },
+    { action: 'get', token: 'token' },
+    { action: 'clear', token: 'token' },
+  ]);
+  manager.dispose();
+
+  const unauthorized = createHarness();
+  await unauthorized.manager.bootstrap();
+  for (const operation of [
+    () => unauthorized.manager.updateCloudSettings({ queueLimit: 7 }),
+    () => unauthorized.manager.setBilibiliCredentialsInternal('SESSDATA=a'),
+    () => unauthorized.manager.getBilibiliCredentialsInternal(),
+    () => unauthorized.manager.clearBilibiliCredentialsInternal(),
+  ]) {
+    await assert.rejects(operation(), (error) => error.message === 'LICENSE_NOT_AUTHORIZED');
+  }
+  assert.deepEqual(unauthorized.calls.cloudSettingsRequests, []);
+  assert.deepEqual(unauthorized.calls.bilibiliCredentialRequests, []);
+  unauthorized.manager.dispose();
+});

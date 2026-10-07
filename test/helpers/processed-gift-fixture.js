@@ -64,7 +64,7 @@ function makeHistoryRecord(giftOverrides = {}) {
   };
 }
 
-function createSource(giftDb, sourceKey) {
+function createSource(giftDb, sourceKey = 'e'.repeat(64)) {
   const timestamp = '2026-09-01T00:00:00.000Z';
   const result = giftDb
     .prepare(
@@ -80,11 +80,13 @@ function createSource(giftDb, sourceKey) {
   return Number(result.lastInsertRowid);
 }
 
-function makeEvent(phase, cursor, giftOverrides = {}) {
+const FIXED_CREATED_AT = '2027-01-15T08:00:00.000Z';
+
+function makeProcessedGiftEvent(gift = {}, { eventId = 'gift-1', phase = 'final', cursor = 1 } = {}) {
   return {
-    eventId: 'gift-event-1',
-    cursor,
+    eventId,
     phase,
+    cursor: phase === 'progress' ? null : cursor,
     gift: {
       giftId: '33988',
       giftName: '人气票',
@@ -98,10 +100,17 @@ function makeEvent(phase, cursor, giftOverrides = {}) {
       blindBoxName: '',
       blindBoxPrice: null,
       blindProfit: null,
-      createdAt: '2027-01-15T08:00:00.000Z',
-      ...giftOverrides,
+      createdAt: new Date().toISOString(),
+      ...gift,
     },
   };
+}
+
+function makeEvent(phase, cursor, giftOverrides = {}) {
+  return makeProcessedGiftEvent(
+    { createdAt: FIXED_CREATED_AT, ...giftOverrides },
+    { eventId: 'gift-event-1', phase, cursor },
+  );
 }
 
 function readGift(db, id) {
@@ -138,10 +147,13 @@ function createFakeClock(startMs) {
 }
 
 module.exports = {
+  FIXED_CREATED_AT,
   createFakeClock,
   createFixture,
+  createGiftSource: createSource,
   createSource,
   makeEvent,
+  makeProcessedGiftEvent,
   makeHistoryRecord,
   readGift,
 };

@@ -1,0 +1,141 @@
+/* 星幕浮语：每条消息保持一组雅色，昵称悬于细光胶囊上方。 */
+body[data-style='starveil'] .danmaku-signal-stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+body[data-style='starveil'] .danmaku-signal-header,
+body[data-style='starveil'] .draw-danmaku-avatar,
+body[data-style='starveil'] .draw-danmaku-badge,
+body[data-style='starveil'] .draw-danmaku-item::after,
+body[data-style='starveil'] .draw-danmaku-gift-art {
+  display: none;
+}
+body[data-style='starveil'] .draw-danmaku-feed {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
+}
+body[data-style='starveil'] .draw-danmaku-item {
+  --starveil-accent: #dcc593;
+  --starveil-ink: #fff0cf;
+  --gift-ink: var(--starveil-ink);
+  --gift-accent: var(--starveil-ink);
+  --gift-name: var(--starveil-ink);
+  position: absolute;
+  display: block;
+  width: max-content;
+  min-width: min(250px, calc(100% - 32px));
+  max-width: min(600px, calc(100% - 32px));
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  color: var(--starveil-ink);
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', 'Songti SC', serif;
+  animation: outlineMessageIn 260ms ease-out both;
+}
+body[data-style='starveil'] .draw-danmaku-item[data-palette='1'] {
+  --starveil-accent: #cd9ec6;
+  --starveil-ink: #f7d9ef;
+}
+body[data-style='starveil'] .draw-danmaku-item[data-palette='2'] {
+  --starveil-accent: #9cbcdc;
+  --starveil-ink: #dceeff;
+}
+body[data-style='starveil'] .draw-danmaku-item[data-palette='3'] {
+  --starveil-accent: #b5a6d7;
+  --starveil-ink: #e9dfff;
+}
+body[data-style='starveil'] .draw-danmaku-item[data-palette='4'] {
+  --starveil-accent: #99c6b7;
+  --starveil-ink: #dbf4e9;
+}
+body[data-style='starveil'] .draw-danmaku-item[data-palette='5'] {
+  --starveil-accent: #d4aaa0;
+  --starveil-ink: #ffe2d7;
+}
+body[data-style='starveil'] .draw-danmaku-item .draw-danmaku-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  padding: 0;
+  text-align: center;
+}
+body[data-style='starveil'] .draw-danmaku-item .draw-danmaku-identity {
+  justify-content: center;
+  padding: 0 20px;
+  background: transparent;
+}
+body[data-style='starveil'] .draw-danmaku-item .draw-danmaku-identity strong {
+  color: var(--starveil-ink);
+  font: 600 calc(var(--danmaku-font-size) * 0.78)/1.35 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', 'Songti SC', serif;
+  letter-spacing: 0.06em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  text-shadow: 0 1px 3px #14121f, 0 0 5px var(--starveil-accent);
+}
+body[data-style='starveil'] .draw-danmaku-item .draw-danmaku-body p {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 11px 32px 12px;
+  border: 1.5px solid var(--starveil-accent);
+  border-radius: calc(var(--danmaku-font-size) * 0.7 + 14px);
+  color: var(--starveil-ink);
+  background: rgb(14 15 23 / calc(0.8 * var(--danmaku-background-opacity, 1)));
+  box-shadow: 0 3px 9px rgb(5 5 13 / 20%),
+    0 0 3px var(--starveil-accent), inset 0 0 2px var(--starveil-accent);
+  font-size: var(--danmaku-font-size);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.025em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-shadow: 0 0 4px var(--starveil-accent);
+}
+body[data-style='starveil'] .draw-danmaku-emote {
+  max-width: 100%;
+  object-fit: contain;
+  filter: none;
+}
+/* Gift copy keeps its real name/count inside the same capsule. */
+body[data-style='starveil'] .draw-danmaku-item.is-gift {
+  display: block;
+  width: max-content;
+  min-width: min(250px, calc(100% - 32px));
+  max-width: min(600px, calc(100% - 32px));
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-style='starveil'] .draw-danmaku-feed .draw-danmaku-item.is-gift::after { display: none; }
+body[data-style='starveil'] .draw-danmaku-item .draw-danmaku-gift {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 12px;
+}
+body[data-style='starveil'] .draw-danmaku-gift-copy {
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}

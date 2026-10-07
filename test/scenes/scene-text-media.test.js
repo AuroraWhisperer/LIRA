@@ -11,21 +11,14 @@ const { createComponentPreviewSessions, SESSION_TTL_MS } = require('../../src/se
 const { handleCanvasTextMedia } = require('../../src/server/routes/scene-text-media-routes');
 const { MAX_TEXT_IMAGE_BYTES } = require('../../src/server/scene-text-images');
 const { createOverlayToken } = require('../../src/server/access-policy');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 const state = { draft: { document: {} }, saved: { document: {} }, generation: 0, loaded: true };
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64');
 const gif = Buffer.from('47494638396101000100800000000000ffffff21ff0b4e45545343415045322e30030100000021f904000a0000002c000000000100010000020244010021f904000a0000002c00000000010001000002024c01003b', 'hex');
 
-function temporaryDirectory(t) {
-  const root = path.resolve(__dirname, '../../tmp');
-  fs.mkdirSync(root, { recursive: true });
-  const directory = fs.mkdtempSync(path.join(root, 'scene-text-media-'));
-  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  return directory;
-}
-
 async function fixture(t, options = {}) {
-  const dataDir = temporaryDirectory(t);
+  const dataDir = createScratchDirectory('scene-text-media-', t);
   const server = await startComponentPreviewServer({ dataDir, overtime: {
     getGiftCatalog: () => ({ schemaVersion: 3, gifts: [{ id: 'room-gift' }], blindBoxes: [] }),
     getGlobalGiftCatalog: () => ({ schemaVersion: 3, gifts: [{ id: 'all-gift' }], blindBoxes: [] }),
@@ -182,7 +175,7 @@ test('canvas media rejects suspended, unloaded, closed and revoked sessions with
 });
 
 test('a slow upload cannot write after its attachment is replaced', async t => {
-  const dataDir = temporaryDirectory(t);
+  const dataDir = createScratchDirectory('scene-text-media-', t);
   const sessions = createComponentPreviewSessions();
   const session = sessions.open({ component: 'canvas', state });
   const attachmentId = randomUUID();

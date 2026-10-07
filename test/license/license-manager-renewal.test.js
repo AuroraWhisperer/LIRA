@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { LicenseState } = require('../../src/electron/license/license-manager');
+const { LicenseState, parseExpiresIn, resolveTokenExpiresAt } = require('../../src/electron/license/license-manager');
 const { RemoteLicenseError } = require('../../src/electron/license/remote-license-client');
 const { createHarness } = require('../helpers/license-manager-harness');
 
@@ -13,11 +13,12 @@ test('concurrent protected calls share one token renewal', async () => {
   });
   await manager.bootstrap();
 
-  await Promise.all([manager.syncSongs([]), manager.syncSongs([])]);
+  await Promise.all([manager.syncSongs([]), manager.syncSongs([]), manager.getProfile(), manager.getCloudSongs()]);
 
   assert.equal(calls.challenges, 2);
   assert.equal(calls.verifies, 2);
   assert.deepEqual(calls.syncTokens, ['token-2', 'token-2']);
+  assert.deepEqual(calls.cloudSongsTokens, ['token-2']);
   manager.dispose();
 });
 
@@ -103,23 +104,37 @@ test('terminal renewal rejection stays blocked even when wrapped as retryable', 
   manager.dispose();
 });
 
-test('retryable server failure during bootstrap preserves identity and needs connection', async () => {
-  const identity = { deviceId: 'd', publicKeyPem: 'public' };
-  const failure = new RemoteLicenseError('HTTP_503', 'unavailable', {
-    status: 503,
-    retryable: true,
-  });
-  const { manager, state } = createHarness({
-    identity,
-    challengeError: failure,
-  });
-
+test('manager requires activation without a local identity', async () => {
+  const { manager } = createHarness();
   await manager.bootstrap();
-
-  assert.equal(manager.getState(), LicenseState.NEEDS_CONNECTION);
-  assert.equal(state.value, identity);
+  assert.equal(manager.getState(), LicenseState.NEEDS_ACTIVATION);
   manager.dispose();
 });
+
+for (const [name, failure] of [
+  [
+    'retryable server failure',
+    new RemoteLicenseError('HTTP_503', 'unavailable', {
+      status: 503,
+      retryable: true,
+    }),
+  ],
+  ['plain request timeout without a retryable flag', Object.assign(new Error('timeout'), { code: 'REQUEST_TIMEOUT' })],
+]) {
+  test(`${name} during bootstrap preserves identity and needs connection`, async () => {
+    const identity = { deviceId: 'd', publicKeyPem: 'public' };
+    const { manager, state } = createHarness({
+      identity,
+      challengeError: failure,
+    });
+
+    await manager.bootstrap();
+
+    assert.equal(manager.getState(), LicenseState.NEEDS_CONNECTION);
+    assert.equal(state.value, identity);
+    manager.dispose();
+  });
+}
 
 test('transient protected failure keeps a still-valid session authorized', async () => {
   const { manager, remote } = createHarness({
@@ -188,5 +203,35 @@ test('heartbeat waits for an in-flight renewal and uses the replacement token', 
   assert.deepEqual(calls.heartbeatTokens, ['token-2']);
   assert.equal(calls.challenges, 2);
   assert.equal(calls.verifies, 2);
+  manager.dispose();
+});
+
+test('token expiry parsing accepts server TTL units and absolute metadata', () => {
+  assert.equal(parseExpiresIn('2d'), 2 * 24 * 60 * 60 * 1000);
+  assert.equal(parseExpiresIn('250ms'), 250);
+  assert.equal(parseExpiresIn(600), 600 * 1000);
+  assert.equal(parseExpiresIn('0s'), 0);
+  assert.equal(parseExpiresIn('not-a-duration'), 10 * 60 * 1000);
+  assert.equal(parseExpiresIn(Number.MAX_VALUE), 10 * 60 * 1000);
+
+  const now = Date.parse('2026-08-29T00:00:00.000Z');
+  assert.equal(resolveTokenExpiresAt({ expiresIn: '2d', expiresInSeconds: 3600 }, now), now + 3600 * 1000);
+  assert.equal(
+    resolveTokenExpiresAt({ expiresIn: '0s', expiresAt: '2026-08-29T01:00:00.000Z' }, now),
+    Date.parse('2026-08-29T01:00:00.000Z'),
+  );
+  assert.equal(resolveTokenExpiresAt({ expiresIn: '2h', expiresInSeconds: null }, now), now + 2 * 60 * 60 * 1000);
+  assert.equal(resolveTokenExpiresAt({ expiresIn: '2h', expiresInSeconds: true }, now), now + 2 * 60 * 60 * 1000);
+});
+
+test('manager prefers valid server expiry metadata over a legacy short TTL', async () => {
+  const { manager, calls } = createHarness({
+    identity: { deviceId: 'd', publicKeyPem: 'public' },
+    verifyExpiresIn: () => '0s',
+    verifyExpiresInSeconds: () => 600,
+  });
+  await manager.bootstrap();
+  await manager.syncSongs([]);
+  assert.equal(calls.verifies, 1);
   manager.dispose();
 });

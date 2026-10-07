@@ -14,10 +14,9 @@ npm version X.Y.Z --no-git-tag-version
 
 ## 2. 验证、提交、推送
 
-发布前运行统一验证；它会复用仍有效的语法和完整测试文件结果，并补齐完整覆盖，无需再运行一次原始 `npm test`。先查看测试计划，环境要求及复用边界见[本地发布验证](docs/reference/engineering/build.md#本地发布验证)。
+发布前运行统一验证；它依次执行契约输入校验、语法检查和全量 `npm test`，无需再单独运行一次 `npm test`。环境要求见[本地发布验证](docs/reference/engineering/build.md#本地发布验证)。
 
 ```powershell
-npm run verify:tests -- --plan
 npm run verify
 ```
 

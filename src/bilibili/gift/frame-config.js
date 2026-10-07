@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizeAvatarUrl } = require('./avatar-url');
+
 // 各特效独立持有开关与门槛；数组顺序就是并列时的优先级（后出现者优先）。
 const FRAME_EFFECTS = Object.freeze([
   Object.freeze({ themeId: 'woodland-bloom', enabledKey: 'giftFrameEnabled', thresholdKey: 'giftFrameThresholdRmb' }),
@@ -82,6 +84,7 @@ function buildGiftFrameEvent(item, settings = {}) {
     num: normalizePositiveInteger(item?.num),
     totalPriceCents,
     userName: normalizeDisplayText(item?.user_name ?? item?.userName, '观众'),
+    avatarUrl: normalizeAvatarUrl(item?.avatar_url ?? item?.avatarUrl),
     themeId,
   };
 }
@@ -107,6 +110,7 @@ function buildGiftFramePreviewEvent(input = {}) {
     num,
     totalPriceCents,
     userName: normalizeDisplayText(input.userName ?? input.viewerName, '观众A'),
+    avatarUrl: '',
     themeId,
     preview: true,
     previewSessionId,

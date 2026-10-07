@@ -6,7 +6,10 @@ const { giftVariantId } = require('../../src/shared/gift-identity');
 const { createOvertimeConsumer } = require('../../src/overtime');
 const { createOvertimeStore } = require('../../src/overtime/overtime-store');
 const { clearGiftData } = require('../../src/storage/database');
+const { createGiftProjectionService } = require('../../src/bilibili/gift');
+const { normalizeProcessedGiftEvent } = require('../../src/shared/processed-gift-contract');
 const { createFixture, fixedRule } = require('../helpers/overtime-service-fixture');
+const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
 
 test('progress creates pending, disable ignores it, and old epochs never reopen it', () => {
   const fixture = createFixture();
@@ -309,4 +312,58 @@ test('legacy numeric rules retain effects but need reselection, and ignored hist
     service.dispose();
     fixture.close();
   }
+});
+
+test('1000 distinct final gifts and their replays settle once with one countdown timer', (t) => {
+  const fixture = createFixture();
+  const timers = new Set();
+  let peakTimers = 0;
+  const service = fixture.createService({
+    setTimeout(callback, delay) {
+      const timer = fixture.clock.setTimeout(callback, delay);
+      timers.add(timer);
+      peakTimers = Math.max(peakTimers, timers.size);
+      return timer;
+    },
+    clearTimeout(timer) {
+      timers.delete(timer);
+      fixture.clock.clearTimeout(timer);
+    },
+  });
+  const projection = createGiftProjectionService(
+    { db: fixture.db, settings: () => ({}) },
+    {
+      getOvertimeEpoch: service.getCurrentEpoch,
+      onGiftFinalized: (row) => service.finalizeGift({ giftEventId: row.id }),
+    },
+  );
+  t.after(() => {
+    projection.dispose();
+    service.dispose();
+    fixture.close();
+  });
+  service.act('enable');
+  service.setTime({ remainingSeconds: 10 });
+  service.act('start');
+  service.replaceRules([{ giftId: 'guard-3', giftName: '舰长', mode: 'fixed', fixedSeconds: 1, enabled: true }]);
+  const source = createGiftSource(fixture.db.giftDb);
+  for (let index = 0; index < 1000; index++) {
+    const event = makeProcessedGiftEvent(
+      { giftId: '10003', giftName: '舰长' },
+      {
+        eventId: `pressure-${index}`,
+        cursor: index + 1,
+      },
+    );
+    normalizeProcessedGiftEvent(event);
+    projection.importProcessedEvent(event, source);
+    projection.importProcessedEvent(event, source);
+  }
+  assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements').get().count, 1000);
+  assert.equal(service.getSnapshot().effectiveRemainingMs, 1_010_000);
+  assert.equal(peakTimers, 1);
+  assert.equal(timers.size, 1);
+  projection.dispose();
+  service.dispose();
+  assert.equal(timers.size, 0);
 });

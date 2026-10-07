@@ -6,8 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createRemoteGiftImageCache, MAX_IMAGE_BYTES } = require('../../src/bilibili/gift/remote-gift-image-cache');
-
-const QUIET_LOGGER = { debug() {}, warn() {} };
+const { QUIET_LOGGER, webpBytes } = require('../helpers/remote-catalog-fixture');
 
 test('downloads configured server images into a reusable local cache', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-'));
@@ -446,14 +445,6 @@ test('same-ID image failures reuse only that identity across restart', async (t)
     '',
   );
 });
-
-function webpBytes() {
-  const bytes = Buffer.alloc(16);
-  bytes.write('RIFF', 0, 'ascii');
-  bytes.writeUInt32LE(8, 4);
-  bytes.write('WEBP', 8, 'ascii');
-  return bytes;
-}
 
 function pngBytes() {
   return Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);

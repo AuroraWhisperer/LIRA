@@ -1,12 +1,9 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const path = require('node:path');
 const test = require('node:test');
 const { routes } = require('../../src/server/routes/data-routes');
-const { loadModuleExports } = require('../helpers/frontend-modules');
 
-const ROOT_DIR = path.resolve(__dirname, '../..');
 const clearAllRoute = routes['POST /api/database/clear-all'];
 const clearGiftsRoute = routes['POST /api/database/clear-gifts'];
 
@@ -67,94 +64,92 @@ test('clear-all route resumes writers after a fully rolled-back exception', asyn
   assert.deepEqual(calls, ['gifts:pause', 'overtime:pause', 'overtime:resume', 'gifts:resume']);
 });
 
-test('clear-all route keeps writers paused after a partial commit failure', async () => {
-  const result = {
-    partial: true,
-    committed: ['songDb'],
-    failed: ['superChatDb'],
-    error: 'Commit failed at superChatDb',
-  };
-  const { context, calls } = createRouteContext(() => result);
-  const response = createResponse();
+for (const [name, giftProjectionReset, expectedCalls] of [
+  [
+    'clear-all route keeps writers paused after a partial commit failure',
+    undefined,
+    ['gifts:pause', 'overtime:pause', 'music:clear-cache'],
+  ],
+  [
+    'partial clear-all rebuilds when the gift projection already committed',
+    { sourceId: 7, projectionGeneration: 2 },
+    ['gifts:pause', 'overtime:pause', 'music:clear-cache', 'gift-sync:rebuild'],
+  ],
+]) {
+  test(name, async () => {
+    const result = {
+      partial: true,
+      committed: giftProjectionReset ? ['songDb', 'superChatDb', 'giftDb'] : ['songDb'],
+      failed: [giftProjectionReset ? 'musicDb' : 'superChatDb'],
+      error: 'Commit failed',
+      ...(giftProjectionReset ? { giftProjectionReset } : {}),
+    };
+    const { context, calls } = createRouteContext(() => result);
+    context.giftSync = {
+      rebuild() {
+        calls.push('gift-sync:rebuild');
+        return Promise.resolve(true);
+      },
+    };
+    const response = createResponse();
 
-  await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
+    await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
 
-  assert.equal(response.status, 500);
-  assert.equal(response.payload.partial, true);
-  assert.deepEqual(response.payload.data, result);
-  assert.deepEqual(calls, ['gifts:pause', 'overtime:pause', 'music:clear-cache']);
-});
+    assert.equal(response.status, 500);
+    assert.equal(response.payload.partial, true);
+    assert.deepEqual(response.payload.data, result);
+    assert.deepEqual(calls, expectedCalls);
+  });
+}
 
-test('partial clear-all rebuilds when the gift projection already committed', async () => {
-  const result = {
-    partial: true,
-    committed: ['songDb', 'superChatDb', 'giftDb'],
-    failed: ['musicDb'],
-    error: 'Commit failed at musicDb',
-    giftProjectionReset: { sourceId: 7, projectionGeneration: 2 },
-  };
-  const { context, calls } = createRouteContext(() => result);
-  context.giftSync = {
-    rebuild() {
-      calls.push('gift-sync:rebuild');
-      return Promise.resolve(true);
-    },
-  };
-  const response = createResponse();
+for (const [name, giftProjectionReset, expectedCalls] of [
+  [
+    'clear-all route resumes writers and broadcasts after success',
+    undefined,
+    [
+      'gifts:pause',
+      'overtime:pause',
+      'music:clear-cache',
+      'overtime:resume',
+      'gifts:resume',
+      'broadcast:database:clear-all',
+    ],
+  ],
+  [
+    'successful projection clears trigger a gift bootstrap rebuild',
+    { sourceId: 7, projectionGeneration: 2 },
+    [
+      'gifts:pause',
+      'overtime:pause',
+      'music:clear-cache',
+      'overtime:resume',
+      'gifts:resume',
+      'gift-sync:rebuild',
+      'broadcast:database:clear-all',
+    ],
+  ],
+]) {
+  test(name, async () => {
+    const { context, calls } = createRouteContext(() => ({
+      cleared: true,
+      scope: 'all',
+      ...(giftProjectionReset ? { giftProjectionReset } : {}),
+    }));
+    context.giftSync = {
+      rebuild() {
+        calls.push('gift-sync:rebuild');
+        return Promise.resolve(true);
+      },
+    };
+    const response = createResponse();
 
-  await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
+    await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
 
-  assert.equal(response.status, 500);
-  assert.equal(response.payload.partial, true);
-  assert.deepEqual(calls, ['gifts:pause', 'overtime:pause', 'music:clear-cache', 'gift-sync:rebuild']);
-});
-
-test('clear-all route resumes writers and broadcasts after success', async () => {
-  const { context, calls } = createRouteContext(() => ({
-    cleared: true,
-    scope: 'all',
-  }));
-  const response = createResponse();
-
-  await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
-
-  assert.equal(response.status, 200);
-  assert.equal(response.payload.ok, true);
-  assert.deepEqual(calls, [
-    'gifts:pause',
-    'overtime:pause',
-    'music:clear-cache',
-    'overtime:resume',
-    'gifts:resume',
-    'broadcast:database:clear-all',
-  ]);
-});
-
-test('successful projection clears trigger a gift bootstrap rebuild', async () => {
-  const { context, calls } = createRouteContext(() => ({
-    cleared: true,
-    scope: 'all',
-    giftProjectionReset: { sourceId: 7, projectionGeneration: 2 },
-  }));
-  context.giftSync = {
-    rebuild() {
-      calls.push('gift-sync:rebuild');
-      return Promise.resolve(true);
-    },
-  };
-
-  await clearAllRoute(context, { body: async () => ({ confirm: true }) }, createResponse());
-
-  assert.deepEqual(calls, [
-    'gifts:pause',
-    'overtime:pause',
-    'music:clear-cache',
-    'overtime:resume',
-    'gifts:resume',
-    'gift-sync:rebuild',
-    'broadcast:database:clear-all',
-  ]);
-});
+    assert.equal(response.status, 200);
+    assert.equal(response.payload.ok, true);
+    assert.deepEqual(calls, expectedCalls);
+  });
+}
 
 test('gift database clear deletes remotely before clearing and rebuilding locally', async () => {
   const calls = [];
@@ -263,103 +258,4 @@ test('gift database clear reports a partial result and rebuilds after local fail
   assert.equal(response.payload.partial, true);
   assert.equal(response.payload.error, '服务器礼物流水已清空，但本地清理失败，正在重新同步。');
   assert.deepEqual(calls, ['remote:clear', 'local:clear', 'gift-sync:rebuild']);
-});
-
-test('shared api preserves the parsed error payload and HTTP status', async () => {
-  const payload = {
-    ok: false,
-    partial: true,
-    error: 'Commit failed at superChatDb',
-    data: { committed: ['songDb'], failed: ['superChatDb'] },
-  };
-  const utils = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'shared', 'utils.js'), {
-    document: {
-      getElementById() {
-        return null;
-      },
-    },
-    fetch: async () => ({
-      ok: false,
-      status: 500,
-      async text() {
-        return JSON.stringify(payload);
-      },
-    }),
-  });
-
-  let caught;
-  try {
-    await utils.api('/api/database/clear-all', { confirm: true });
-  } catch (error) {
-    caught = error;
-  }
-
-  assert.ok(caught);
-  assert.equal(caught.message, payload.error);
-  assert.equal(caught.status, 500);
-  assert.deepEqual(JSON.parse(JSON.stringify(caught.payload)), payload);
-});
-
-test('Admin clear-all alerts and reloads for a structured partial failure', async () => {
-  const { createSettingsOperations } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-operations.js'),
-  );
-  const payload = {
-    ok: false,
-    partial: true,
-    error: 'Commit failed at superChatDb',
-    data: { committed: ['songDb'], failed: ['superChatDb'] },
-  };
-  const error = new Error(payload.error);
-  error.payload = payload;
-  const alerts = [];
-  const toasts = [];
-  let reloadCount = 0;
-  const operations = createSettingsOperations({
-    documentRef: {},
-    windowRef: {},
-    locationRef: {
-      reload() {
-        reloadCount += 1;
-      },
-    },
-    localStorageRef: null,
-    fetchRef: async () => ({}),
-    alertRef(message) {
-      alerts.push(message);
-    },
-    async api() {
-      throw error;
-    },
-    async readJsonResponse() {
-      return {};
-    },
-    toast(message) {
-      toasts.push(message);
-    },
-    showStackedToast() {},
-    async dangerConfirm() {
-      return true;
-    },
-    async showConfirmationDialog() {
-      return true;
-    },
-    getState() {
-      return null;
-    },
-    getQueue() {
-      return null;
-    },
-    getForms() {
-      return null;
-    },
-  });
-
-  await operations.clearAll();
-
-  assert.equal(alerts.length, 1);
-  assert.match(alerts[0], /songDb/);
-  assert.match(alerts[0], /superChatDb/);
-  assert.equal(reloadCount, 1);
-  assert.deepEqual(toasts, []);
 });

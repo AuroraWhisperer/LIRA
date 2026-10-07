@@ -14,9 +14,9 @@ async function handleComponentPreview(context, req, res, url) {
       return sendJson(res, 400, { ok: false, error: '预览请求无效。' });
     }
     let data;
-    if (['open', 'exchange', 'revoke', 'link'].includes(body.action)) {
+    if (['open', 'exchange', 'revoke', 'link', 'focus'].includes(body.action)) {
       if (!verifyToken(context, req, url)) return sendJson(res, 401, { ok: false, error: '请从客户端打开预览。' });
-      data = body.action === 'revoke' ? { closed: sessions.revoke(body.id) } : sessions[body.action](body);
+      data = body.action === 'revoke' ? { closed: sessions.revoke(body.id) } : await sessions[body.action](body);
     } else if (body.action === 'resolve') {
       data = sessions.resolveLink(/^Bearer ([A-Za-z0-9_-]{22}|[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization || '')?.[1]);
     } else {

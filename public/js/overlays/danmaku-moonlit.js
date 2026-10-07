@@ -77,6 +77,9 @@ export function createMoonlitScroll(document, root, { avatar, body }) {
   root.className += ' moonlit-scroll';
   const paper = document.createElement('div');
   paper.className = 'moonlit-scroll-paper';
+  const details = ornament(document, 'moonlit-scroll-paper-details');
+  details.append(ornament(document, 'moonlit-scroll-landscape'), ornament(document, 'moonlit-scroll-sheen'));
+  paper.append(details);
   if (avatar) paper.append(avatar);
   paper.append(body);
   const decoration = ornament(document, 'moonlit-scroll-decoration');

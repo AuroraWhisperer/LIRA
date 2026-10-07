@@ -6,6 +6,9 @@ import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.j
 import { mountComponentPreviewCanvas } from './component-preview-canvas-view.js';
 import { loadThemeConfig } from '../shared/theme.js';
 import { readComponentPreviewLink } from './component-preview-link.js';
+import { enhanceColorControls } from '../shared/color-control.js';
+
+enhanceColorControls();
 
 const host = document.getElementById('componentPreviewPage');
 let closed = false;
@@ -51,6 +54,7 @@ async function start() {
     key: (connections.find(({ component }) => component === 'canvas') || connections[0]).draftKey });
   mount(selectedId, selectedSize, selectedItemId);
   const canvas = connections.find(({ component }) => component === 'canvas');
+  (canvas || connections[0]).onFocus(selection => view.focus(selection));
   if (canvas) {
     let sceneId = canvas.controller.getState().draft.document.id;
     stopCanvas = canvas.controller.subscribe(({ draft }) => {

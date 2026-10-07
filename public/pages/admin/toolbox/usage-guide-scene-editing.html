@@ -1,0 +1,33 @@
+  <h4 class="usage-guide-subsection-title">场景预设与画布操作</h4>
+  <div class="usage-guide-feature-list">
+    <article class="usage-guide-feature" id="ug-scene-presets">
+      <div class="usage-guide-feature-head"><strong>把不同布局存成预设</strong></div>
+      <p>打开「点歌 → 浏览器源 → 直播场景 → 编辑场景」。在预设区点「新建」，从空白画布开始；也可以点「复制」，照着已有的布局改。想改名字，到「画布设置 → 预设名称」里填。</p>
+      <ul>
+        <li><strong>保存预设：</strong>把这套布局和设置存下来，正在直播的画面不变。</li>
+        <li><strong>保存并应用：</strong>直播画面换成这一套。地址还是原来的，OBS 或直播姬里不用重新粘贴。</li>
+        <li><strong>切换预设：</strong>这次编辑中没保存的内容会暂时留着，可以切到别的预设再回来改，离开前记得保存。直播正在用哪套，看「当前直播」，别只看自己正在编辑哪套。</li>
+      </ul>
+      <p>看到「恢复上次草稿」时，可以先恢复，看看组件和位置对不对，再点「保存并应用」。保存或应用失败了，就按提示处理，原来的直播画面不会被换掉。</p>
+    </article>
+    <article class="usage-guide-feature" id="ug-scene-layers">
+      <div class="usage-guide-feature-head"><strong>摆位置、改大小和调整图层</strong></div>
+      <ul>
+        <li>拖组件内部改位置，拖边框改大小。想填准确的数值，到右侧参数区改。画布宽高和直播软件里这个浏览器源的宽高要一样。</li>
+        <li>下方图层栏里，越靠左越在画面前面，越靠右越在后面。新加的组件在最前面。背景挡住其他东西了，就把背景图层往右拖。</li>
+        <li>点图层旁的更多菜单，可以隐藏、显示、锁定或解锁。锁定后不能拖动、改大小或删除，想再改就先解锁。</li>
+        <li>Ctrl + Z 撤销修改，拖到一半按 Esc 可以取消这次拖动。预览的棋盘格、浅色和深色背景只是方便你看清画面，不会出现在直播里。</li>
+      </ul>
+      <p>改好后点「保存并应用」，再到 OBS 或直播姬看一眼效果。只想存下来备用，就点「保存预设」。</p>
+    </article>
+    <article class="usage-guide-feature" id="ug-external-browser-source">
+      <div class="usage-guide-feature-head"><strong>把其他工具的网页源加进来</strong></div>
+      <ol class="usage-guide-checks">
+        <li>在画布里点「添加组件」，再点分类列表最下面的「更多」。</li>
+        <li>填组件名称，粘贴完整的 HTTP 或 HTTPS 浏览器源地址，再填网页宽高，默认 800 × 600。</li>
+        <li>点「添加到画布」，摆好位置和大小，再点「保存并应用」。可以复制整个场景的地址，也可以选中这个组件，只复制它的直播源地址。</li>
+      </ol>
+      <p>「网页宽高」是让原网页按多大的窗口排版，画布上的大小是它在直播里占多大，两处改起来效果不一样。想改网页里面的内容和样式，还是去提供链接的那个工具里改。</p>
+      <p>这个网页要允许放进其他页面。需要单独登录、要原工具一直开着，或者不允许嵌入的网页，可能显示不出来。画面空白时，先看原工具对浏览器源的使用说明。</p>
+    </article>
+  </div>

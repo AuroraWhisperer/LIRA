@@ -1,3 +1,5 @@
+import { normalizeStyleParameters } from './component-style-parameters.js';
+
 export const CLOCK_STYLE_LABELS = Object.freeze({
   peach: '今天也要闪闪发光', starlight: '今晚与星星一起值班', soda: '今天也要元气满满',
   'timeline-horizontal': '', 'timeline-vertical': '', digital: '', orbit: '', flip: '', 'moonlit-fan': '',
@@ -17,7 +19,8 @@ export function readClockMoonConfig(source) {
 }
 
 export function clockSettingsPayload(config) {
-  return { clockStyle: config.style, clockShowDate: config.showDate ? 'true' : 'false',
+  return { ...(config.styleParameters === undefined ? {} : { clockStyleParameters: JSON.stringify(config.styleParameters) }),
+    clockStyle: config.style, clockShowDate: config.showDate ? 'true' : 'false',
     clockShowSeconds: config.showSeconds ? 'true' : 'false', clockHourFormat: config.hourFormat,
     clockLabel: config.label, clockFlipFrameColor: config.flipFrameColor || FLIP_PALETTES.light[0],
     clockFlipFaceColor: config.flipFaceColor || FLIP_PALETTES.light[1],
@@ -27,7 +30,12 @@ export function clockSettingsPayload(config) {
 
 export function clockConfigFromSettings(settings) {
   const style = Object.hasOwn(CLOCK_STYLE_LABELS, settings.clockStyle) ? settings.clockStyle : 'peach';
-  return { style, showDate: settings.clockShowDate !== 'false', showSeconds: settings.clockShowSeconds !== 'false',
+  let styleParameters;
+  if (settings.clockStyleParameters !== undefined) {
+    try { styleParameters = normalizeStyleParameters('clock', JSON.parse(settings.clockStyleParameters)); }
+    catch { styleParameters = {}; }
+  }
+  return { ...(styleParameters === undefined ? {} : { styleParameters }), style, showDate: settings.clockShowDate !== 'false', showSeconds: settings.clockShowSeconds !== 'false',
     hourFormat: settings.clockHourFormat === '12' ? '12' : '24', label: settings.clockLabel || CLOCK_STYLE_LABELS[style],
     flipFrameColor: settings.clockFlipFrameColor || FLIP_PALETTES.light[0],
     flipFaceColor: settings.clockFlipFaceColor || FLIP_PALETTES.light[1],

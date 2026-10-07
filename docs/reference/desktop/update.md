@@ -66,7 +66,7 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 
 快照字段：`revision`、`status`、`appVersion`、`scope`、`startedAt`、`finishedAt`、`totalFiles`（未知为 null）、`checkedFiles`、`complete`、`issueCount`、`unresolvedCount`、`details[{path,reasonCode}]`、`reasonCode`。状态为 idle/checking/passed/issues/inconclusive/unavailable/cancelled。确定缺失或不一致优先为 issues；存在读取失败/变化/超时则 complete=false，保留已确认异常。取消后不会被晚到回调覆盖，新一轮重新读取全部资源。
 
-通过仅表示「本次检查范围内的资源与校验清单一致」，不是完整运行环境或防篡改认证。异常时建议备份后手动重装；日志与官方项目页面沿用已有受控入口，不自动更新、删除或修复。清单及最终安装器发布门禁见 [build.md](../engineering/build.md)。测试：`resource-integrity-files`、`resource-integrity-manager`、`resource-integrity-bridge`、真实 `resource-integrity-electron`，以及既有更新页、IPC、退出回归。
+通过仅表示「本次检查范围内的资源与校验清单一致」，不是完整运行环境或防篡改认证。异常时建议备份后手动重装；日志与官方项目页面沿用已有受控入口，不自动更新、删除或修复。清单及最终安装器发布门禁见 [build.md](../engineering/build.md)。测试：`resource-integrity-files`、`resource-integrity-manager`、`desktop-resource-integrity`、`desktop-update-controller`、真实 `resource-integrity-electron`，以及既有更新页、IPC、退出回归。
 
 ## 4. IPC 与 UI 同步
 

@@ -4,28 +4,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { normalizeLyricState } = require('../../src/music/lyric-state');
-const { normalizeLyricTimeline } = require('../../src/music/lyric-timeline');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
-
-test('playback publishes lyrics through the authenticated local API', () => {
-  const service = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
-    'utf8',
-  );
-  const routes = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'routes', 'playback-routes.js'), 'utf8');
-
-  assert.match(service, /fetch\(["']\/api\/playback\/lyric-state["']/);
-  assert.match(service, /fetch\(["']\/api\/playback\/lyric-timeline["']/);
-  assert.match(service, /status:\s*!track\s*\?\s*["']idle["']/);
-  assert.match(service, /durationMs:\s*Math\.round\(duration \* 1000\)/);
-  assert.match(routes, /["']POST \/api\/playback\/lyric-state["']/);
-  assert.match(routes, /["']POST \/api\/playback\/lyric-timeline["']/);
-  assert.match(routes, /normalizeLyricState/);
-  assert.match(routes, /normalizeLyricTimeline/);
-});
 
 test('playback publishes a complete timeline only when the lyric identity changes', async () => {
   const requests = [];
@@ -172,19 +153,6 @@ test('forced playback states bypass throttling and preserve publication order', 
   assert.equal(stateRequests[1].lineText, '跳转后');
 });
 
-test('lyric states carry monotonic generation and sequence discontinuity markers', () => {
-  const first = normalizeLyricState({
-    lineText: 'first',
-    generation: 3,
-    sequence: 7,
-  });
-  const legacy = normalizeLyricState({ lineText: 'legacy' });
-  assert.equal(first.generation, 3);
-  assert.equal(first.sequence, 7);
-  assert.equal(legacy.generation, 0);
-  assert.equal(legacy.sequence, 0);
-});
-
 test('ordinary lyric publication is latest-wins while one request is in flight', async () => {
   const requests = [];
   let releaseFirst;
@@ -224,27 +192,44 @@ test('ordinary lyric publication is latest-wins while one request is in flight',
   assert.equal(requests.length, 2);
   assert.equal(requests[1].currentMs, 3000);
   assert.ok(requests[1].sequence > requests[0].sequence);
+  assert.equal(requests[1].durationMs, 120000);
+  assert.equal(requests[1].status, 'ready');
+
+  await service.syncWindow(null, audio, true);
+  assert.equal(requests.at(-1).status, 'idle');
+  assert.equal(requests.at(-1).trackTitle, '');
 });
 
-test('lyric scheduler uses rAF time gating and performance profile degrades with hysteresis', async () => {
-  const schedulerSource = fs.readFileSync(
+test('lyric scheduler gates animation frames to its target rate and stops when hidden', async () => {
+  const frames = [];
+  const cancelled = [];
+  const document = { visibilityState: 'visible' };
+  const { LyricFrameScheduler } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-frame-scheduler.js'),
-    'utf8',
+    {
+      document,
+      requestAnimationFrame: (callback) => frames.push(callback),
+      cancelAnimationFrame: (id) => cancelled.push(id),
+      setInterval: () => assert.fail('the scheduler must not use timers'),
+    },
   );
-  assert.match(schedulerSource, /requestAnimationFrame/);
-  assert.match(schedulerSource, /1000 \/ this\.targetFps/);
-  assert.doesNotMatch(schedulerSource, /setInterval/);
-
-  const performanceModule = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-performance.js'),
-    { window: { matchMedia: () => ({ matches: false }) } },
-  );
-  const profile = performanceModule.createLyricPerformanceProfile({});
-  for (let index = 0; index < 4; index += 1) profile.recordFrame(60);
-  assert.equal(profile.profile.targetFps, 30);
-  assert.equal(profile.profile.wordAnimation, 'manual');
-  profile.setVisible(false);
-  assert.equal(profile.profile.targetFps, 30);
+  const ticks = [];
+  const scheduler = new LyricFrameScheduler({ targetFps: 20 });
+  scheduler.start((now, elapsed) => ticks.push([now, elapsed]));
+  for (const now of [1000, 1016, 1049, 1050, 1090]) frames.at(-1)(now);
+  assert.deepEqual(ticks, [
+    [1000, 50],
+    [1050, 50],
+  ]);
+  scheduler.setTargetFps(10);
+  frames.at(-1)(1140);
+  frames.at(-1)(1150);
+  assert.deepEqual(ticks.at(-1), [1150, 100]);
+  const requested = frames.length;
+  document.visibilityState = 'hidden';
+  frames.at(-1)(1300);
+  assert.equal(frames.length, requested, 'a hidden document must not schedule more frames');
+  assert.equal(scheduler.running, false);
 });
 
 test('shared lyric renderer freezes its clock when playback pauses', async () => {

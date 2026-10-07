@@ -18,7 +18,7 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 服务器权威合同：lira-server `docs/protocol/pk-opponent-report.md` 和 Device OpenAPI。
 共享示例为服务器 `docs/protocol/fixtures/pk-report-settings.json`，客户端通过
 `server-contract.lock.json` 和 `readServerFixture` 校验提交与 SHA-256 后消费；验收
-`test/gifts/pk-report-settings-ipc.test.js` / `test/gifts/frontend-pk-report.test.js` 覆盖认证通路、
+`test/gifts/pk-report-settings-ipc.test.js` / `test/gifts/pk-report-settings-owner.test.js` / `test/gifts/frontend-pk-report.test.js` 覆盖认证通路、
 非法 IPC、最小响应、切账号、同步失败和页面释放。UI 使用
 `public/js/admin/danmaku-pk-report.js` 和同名 fixed-reply fragment。
 
@@ -75,8 +75,8 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 注音在底部独立显示公开发送范围。IPC 通道定义见 [preload.md](preload.md)。
 
 验收：开关不覆盖词库、保存不改变开关、增删改、读取或保存期间继续编辑、关闭失败、
-账号切换、IPC 拒绝非法输入与外部窗口。测试为 `welcome-settings-ipc.test.js` 和
-`frontend-welcome.test.js`，V2 增加 `welcome-v2-ipc.test.js`；实际 Electron 验证为
+账号切换、IPC 拒绝非法输入与外部窗口。测试为 `welcome-settings-ipc.test.js`（V1 与 V2）和
+`frontend-welcome.test.js`；实际 Electron 验证为
 `scripts/verify-welcome-settings.cjs`，使用合成账号、真实页面片段/样式及 IPC，
 不连接直播间。页面入口为 `danmaku-tool.js` / `danmaku-welcome.js`。
 
@@ -125,7 +125,7 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 
 `license-manager.js` 是设备身份状态、内存 access token、续期和 heartbeat 的唯一所有者。持久化文件只保存公开设备资料;私钥由 Electron `safeStorage` 加密,access token 不写磁盘也不进入 preload/renderer 返回值。
 
-`remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录独立限制为 32 MiB，按解码后的响应流累计字节；超过时取消读取并返回 `RESPONSE_TOO_LARGE`，不替换上一份完整内存/磁盘目录或 ETag。首次没有可用目录时保持初始化失败，仍沿用现有重试入口。固定来源、总期限、结构校验和完整目录 schema 不变，不截断礼物或分页。该容量约为 2026-09-25 官方目录实测 1,689,296 字节的 19.9 倍；超过支持容量时需显式调整合同。验收见 [容量边界与旧缓存保留](../../../test/gifts/remote-catalog-capacity.test.js)。
+`remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录独立限制为 32 MiB，按解码后的响应流累计字节；超过时取消读取并返回 `RESPONSE_TOO_LARGE`，不替换上一份完整内存/磁盘目录或 ETag。首次没有可用目录时保持初始化失败，仍沿用现有重试入口。固定来源、总期限、结构校验和完整目录 schema 不变，不截断礼物或分页。该容量约为 2026-09-25 官方目录实测 1,689,296 字节的 19.9 倍；超过支持容量时需显式调整合同。验收见 [容量边界与旧缓存保留](../../../test/gifts/remote-catalog-cache.test.js)。
 
 - 状态为 `CHECKING / NEEDS_ACTIVATION / NEEDS_CONNECTION / AUTHORIZING / AUTHORIZED / BLOCKED`;只有 `AUTHORIZED` 打开本地业务 gate
 - token 续期使用全局单飞 Promise,其他受保护请求和 heartbeat 必须等待该 Promise,避免旧 `token_jti` 与新 token 并发
@@ -148,6 +148,8 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 歌曲库的新增、编辑、删除和清空由 Electron 客户端本地管理页完成；每次成功 mutation 都在本地事务中保存账号所属的待传快照，并立即触发 songs scope 的完整快照上传。[cloud-song-sync-controller.js](../../../src/electron/cloud-song-sync-controller.js) 负责歌曲恢复、上传和拉取；父控制器保留授权、调度、revision 与 dirty 代次。账号准备阶段同步恢复该账号的待传快照，内容相同时保留原歌曲 ID；每轮及拉取落盘前重新检查待传状态。成功且生命周期仍有效的上传只确认其发送的 `mutationId`，较新的修改与其他账号的快照继续保留，停止或退出不删除待传数据。详见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。Streamer `/manage` 只展示最新同步歌单，不提供歌曲新增、编辑、启用切换、保存或删除控件。服务端既有歌曲 CRUD API 继续保留以兼容既有调用方，初次播种、云端 revision 和完整快照契约不变。
 
 settings 也保留账号所属的持久待传快照：启动或切回账号先恢复，再上传；存在待传记录时拒绝云端拉取覆盖。上传确认同时检查生命周期、修改代次和 `mutationId`，包括携带普通设置的礼物互动提交；迟到响应不能清除更新的修改。原子写入与私有记录格式见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。
+
+[gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有自动感谢、数据查询两个开关的提交状态、订阅和公开结果。它使用 `cloud-sync-controller.js` 注入的同一账号代次与串行队列；设置上传、持久待传确认、revision/dirty 更新和重试仍由同步控制器完成，不维护第二套同步状态。
 
 ### 2.3 服务端权威礼物接收生命周期
 

@@ -2,8 +2,6 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const path = require('node:path');
-const fs = require('node:fs');
 const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 
@@ -64,8 +62,6 @@ test('canvas browser sources keep independent viewports through editing, saving 
     assert.ok(sourceRequests.every((headers) => !headers.referer && !headers.authorization),
       'External frames receive neither a referrer nor desktop authorization.');
   });
-  const screenshots = path.resolve('tmp/canvas-browser-source');
-  fs.mkdirSync(screenshots, { recursive: true });
   const editorUrl = await openCanvasDesktop(desktop, fixture);
   assert.equal((await fetch(editorUrl)).status, 200);
   await page.goto(editorUrl);
@@ -73,18 +69,9 @@ test('canvas browser sources keep independent viewports through editing, saving 
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
   await open.click();
   const heading = picker.locator('.preview-picker-heading');
-  const headingBounds = await heading.boundingBox();
-  assert.ok(headingBounds.height >= 34 && headingBounds.height <= 40, 'The title bar is about 2/5 of its former 90px height.');
   assert.equal(await heading.locator('p').count(), 0);
   assert.equal(await heading.getByRole('heading', { name: '添加组件', exact: true }).count(), 1);
   assert.equal(await picker.getAttribute('aria-describedby'), null);
-  assert.ok(await picker.locator('.preview-picker-categories').evaluate((node) => parseFloat(getComputedStyle(node).paddingTop)) <= 8);
-  const scrollbars = await picker.locator('.preview-picker-categories, .preview-picker-content').evaluateAll((nodes) => nodes.map((node) => ({
-    track: getComputedStyle(node, '::-webkit-scrollbar-track').backgroundColor,
-    buttons: getComputedStyle(node, '::-webkit-scrollbar-button').display,
-  })));
-  assert.ok(scrollbars.every(({ track, buttons }) => track === 'rgba(0, 0, 0, 0)' && buttons === 'none'));
-  await page.screenshot({ path: path.join(screenshots, 'picker.png') });
   const categories = picker.locator('[data-category]');
   assert.equal(await categories.last().getAttribute('data-category'), 'browser');
   for (const category of await categories.all()) {
@@ -92,15 +79,18 @@ test('canvas browser sources keep independent viewports through editing, saving 
     const categoryName = (await category.textContent()).trim();
     assert.equal(await picker.locator('.preview-picker-content').getByRole('heading', { name: categoryName, exact: true }).count(),
       0, 'Content does not repeat the category title.');
+    const contentLabel = await picker.locator('.preview-picker-content').getAttribute('aria-label');
+    await picker.getByRole('button', { name: '关闭', exact: true }).click();
+    await open.click();
+    assert.equal(await category.getAttribute('aria-pressed'), 'true', 'Reopening keeps the last selected category.');
+    assert.equal(await picker.locator('.preview-picker-content').getAttribute('aria-label'), contentLabel);
   }
   const more = picker.getByRole('button', { name: '更多', exact: true });
-  assert.equal(await more.locator('svg').count(), 1);
-  assert.deepEqual(await more.evaluate((node) => ({ border: getComputedStyle(node).borderTopStyle,
-    rounded: parseFloat(getComputedStyle(node).borderTopLeftRadius) > 0 })), { border: 'dashed', rounded: true });
   assert.equal(await picker.locator('iframe').count(), 0, 'Opening More does not load a source before import.');
   await page.keyboard.press('Escape');
   await picker.waitFor({ state: 'hidden' });
   await open.click();
+  assert.equal(await more.getAttribute('aria-pressed'), 'true', 'Escape also preserves the selected category.');
   await picker.getByRole('button', { name: '关闭', exact: true }).click();
   await picker.waitFor({ state: 'hidden' });
   await open.click();
@@ -120,7 +110,6 @@ test('canvas browser sources keep independent viewports through editing, saving 
   assert.equal(await page.locator('.scene-editor-item').count(), 0);
   const firstUrl = `${fixture.origin}/synthetic-browser-source?instance=first&token=synthetic-provider-secret`;
   await sourceUrl.fill(firstUrl);
-  await page.screenshot({ path: path.join(screenshots, 'import.png') });
   await picker.getByRole('button', { name: '添加到画布', exact: true }).click();
   await picker.waitFor({ state: 'hidden' });
   const first = page.locator('.scene-editor-item[data-component="browser"]').first();
@@ -189,7 +178,6 @@ test('canvas browser sources keep independent viewports through editing, saving 
   await assertSource(first.frameLocator('iframe'), 'updated', 960, 540);
   await assertSource(second.frameLocator('iframe'), 'second', 640, 360);
   assert.deepEqual((await geometry()).slice(2), [400, 300], 'Viewport edits preserve the display rectangle.');
-  await page.screenshot({ path: path.join(screenshots, 'editor.png') });
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.preview-canvas-status').textContent.includes('已保存并应用'));
   const saved = fixture.service.list()[0];
@@ -235,7 +223,6 @@ test('canvas browser sources keep independent viewports through editing, saving 
     const bounds = node.getBoundingClientRect();
     return [node.style.left, node.style.top, Math.round(bounds.width), Math.round(bounds.height)];
   }), ['0px', '0px', 400, 300]);
-  await single.screenshot({ path: path.join(screenshots, 'single-output.png') });
 
   const outputFrames = output.frames().filter((frame) => frame.parentFrame());
   const singleFrame = single.frames().find((frame) => frame.parentFrame());

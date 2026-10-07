@@ -1,6 +1,6 @@
 import { toast } from '../../shared/utils.js';
 import { html, dateLabel } from './view.js';
-import { legacyForm } from './forms.js';
+import { legacyForm, exportForm } from './forms.js';
 
 export function createFanTransferUi({ request, openForm, getProfile, onProfile, onReset }) {
   async function mergeDraft(patch, targetId) {
@@ -174,5 +174,16 @@ export function createFanTransferUi({ request, openForm, getProfile, onProfile, 
     });
   }
 
-  return { mergeDraft, snapshots, suppressions, download, restoreFile, legacy };
+  async function backup() {
+    const data = await request('backup');
+    download(JSON.stringify(data, null, 2), 'LIRA-粉丝档案备份.json', 'application/json');
+  }
+
+  function exportList() {
+    openForm({ ...exportForm(), saveLabel: '导出表格' }, async (payload) =>
+      download(await request('export-list', payload), 'LIRA-粉丝档案列表.csv', 'text/csv;charset=utf-8'),
+    );
+  }
+
+  return { mergeDraft, snapshots, suppressions, backup, exportList, restoreFile, legacy };
 }

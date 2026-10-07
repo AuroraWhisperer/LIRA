@@ -279,7 +279,7 @@
 }
 .interaction-color-fields {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
   gap: var(--spacing-sm);
 }
 .interaction-color-fields label {

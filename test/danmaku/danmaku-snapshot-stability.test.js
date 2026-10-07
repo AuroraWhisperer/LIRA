@@ -70,8 +70,11 @@ async function fixture() {
       this.listeners[name]?.(value);
     }
   }
+  const window = { innerWidth: 1280, __API_TOKEN__: 'synthetic-token',
+    addEventListener() {}, removeEventListener() {}, dispatchEvent() {}, Event: class {} };
   await loadModuleExports(path.resolve(__dirname, '../../public/js/overlays/danmaku.js'), {
     document: {
+      defaultView: window,
       body: new Node('body'),
       documentElement: new Node('html'),
       getElementById: element,
@@ -80,8 +83,9 @@ async function fixture() {
       },
       createElement: (tag) => new Node(tag),
       createDocumentFragment: () => Object.assign(new Node(), { isFragment: true }),
+      querySelectorAll: () => [],
     },
-    window: { innerWidth: 1280, addEventListener() {}, __API_TOKEN__: 'synthetic-token' },
+    window,
     location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
     URL,
     URLSearchParams,

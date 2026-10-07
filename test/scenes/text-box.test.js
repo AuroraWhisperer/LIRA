@@ -3,11 +3,9 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { randomUUID } = require('node:crypto');
-const { chromium } = require('playwright');
 const { createTextBoxDefaults, normalizeTextBoxConfig } = require('../../public/js/shared/text-box-config.js');
 const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
 const { normalizeSceneConfig } = require('../../src/server/scene-components');
-const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
 const { validateSceneDocument, exportSceneTemplate, importSceneTemplate } = require('../../public/js/admin/scene-template.js');
 
 function item(config, x = 0) {
@@ -102,57 +100,4 @@ test('text box templates explicitly retain or remove image nodes without changin
   resolutions[pending.bindings[1].id].value = '';
   assert.deepEqual(pending.resolve(resolutions).items[0].appearance.config.nodes, [nodes[0], nodes[3]]);
   assert.deepEqual(pending.document.items[0].appearance.config.nodes, nodes);
-});
-
-test('published text boxes use isolated configs and the shared renderer in sandboxed scene output', { timeout: 30000 }, async (t) => {
-  const fixture = await startCanvasOutputFixture();
-  t.after(() => fixture.close());
-  const browser = await chromium.launch({ headless: true });
-  t.after(() => browser.close());
-  const page = await browser.newPage();
-  const first = createTextBoxDefaults();
-  first.nodes = [{ type: 'text', text: '<b>literal</b> 😀\n第二行', bold: true, italic: true, stroke: true, shadow: true, color: '#00ff00', fontSize: 48 },
-    { type: 'gift', name: '舰长', src: '/img/admin/gifts/bilibili-guard-captain.webp', giftId: '1' }];
-  const second = createTextBoxDefaults();
-  second.nodes = [{ type: 'text', text: '独立的第二个文本框' }];
-  const created = fixture.service.create({ title: 'text boxes', canvas: { width: 1920, height: 1080 } });
-  const saved = fixture.service.save({ id: created.document.id, expectedRevision: created.revision,
-    document: { ...created.document, items: [item(first), item(second, 700)] } });
-  fixture.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
-  const source = fixture.service.getSource(saved.document.id);
-  const shell = await fetch(`${fixture.origin}/text-box?componentPreview=1&sceneComponent=1`);
-  assert.equal(shell.status, 200);
-  assert.equal(shell.headers.get('content-security-policy'), 'sandbox allow-scripts');
-  assert.doesNotMatch(await shell.text(), /ov1:|__LIRA_OVERLAY/);
-  const url = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
-  assert.equal((await fetch(url)).status, 200);
-  await page.goto(url);
-  await page.locator('.scene-version:not(.is-staging) iframe').first().waitFor();
-  const frames = page.frames().filter(frame => new URL(frame.url()).pathname === '/text-box');
-  assert.equal(frames.length, 2);
-  assert.equal(await frames[0].locator('#textBox').textContent(), first.nodes[0].text);
-  assert.equal(await frames[0].locator('#textBox b').count(), 0);
-  assert.equal(await frames[1].locator('#textBox').textContent(), second.nodes[0].text);
-  const styles = await frames[0].locator('#textBox > span').first().evaluate(span => ({
-    bold: span.style.fontWeight, italic: span.style.fontStyle, size: span.style.fontSize, color: span.style.color,
-  }));
-  assert.deepEqual(styles, { bold: '700', italic: 'italic', size: '48px', color: 'rgb(0, 255, 0)' });
-  const effectStyles = await frames[0].locator('#textBox > span').first().evaluate(span => ({
-    stroke: getComputedStyle(span).webkitTextStrokeWidth, shadow: getComputedStyle(span).textShadow, order: span.style.paintOrder,
-  }));
-  assert.equal(parseFloat(effectStyles.stroke), 48 * 0.06);
-  assert.notEqual(effectStyles.shadow, 'none');
-  assert.equal(effectStyles.order, 'stroke');
-  const defaultStyles = await frames[1].locator('#textBox > span').first().evaluate(span => ({
-    stroke: getComputedStyle(span).webkitTextStrokeWidth, shadow: getComputedStyle(span).textShadow,
-  }));
-  assert.deepEqual(defaultStyles, { stroke: '0px', shadow: 'none' });
-  assert.equal(await frames[0].locator('.text-box-token').getAttribute('contenteditable'), 'false');
-  assert.equal(await frames[0].locator('.text-box-token img').getAttribute('src'), first.nodes[1].src);
-  await frames[0].evaluate(async (config) => {
-    const { renderTextBox } = await import('/js/shared/text-box-renderer.js');
-    renderTextBox(document.querySelector('#textBox'), config, { editable: true });
-  }, first);
-  assert.deepEqual(JSON.parse(await frames[0].locator('.text-box-token').getAttribute('data-text-box-node')), first.nodes[1]);
-  assert.equal(await frames[0].locator('.text-box-token').textContent(), '礼物图片·舰长');
 });

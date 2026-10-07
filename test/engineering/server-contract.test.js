@@ -12,18 +12,31 @@ const VERIFIER_PATH = path.resolve(__dirname, '../../scripts/verify-server-contr
 const FIRST_FIXTURE = 'docs/protocol/fixtures/synthetic.json';
 const SECOND_FIXTURE = 'test/fixtures/synthetic.json';
 
-function fixture(t) {
-  const temporaryParent = fs.realpathSync(os.tmpdir());
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(temporaryParent, 'lira server contract-')));
-  t.after(() => {
-    assert.equal(path.dirname(root), temporaryParent);
-    assert.equal(fs.realpathSync(root), root);
-    fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
-  });
+function gitEnvironment(root) {
+  return {
+    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key))),
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: path.join(root, 'empty-git-config'),
+  };
+}
+
+function gitIn(serverRoot, gitEnv) {
+  return (...args) =>
+    execFileSync('git', ['-C', serverRoot, ...args], {
+      encoding: 'utf8',
+      env: gitEnv,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+}
+
+const temporaryParent = fs.realpathSync(os.tmpdir());
+let template;
+
+// The committed synthetic server checkout and client lock are built once; each test receives its own copy.
+function createTemplate() {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(temporaryParent, 'lira server contract template-')));
   const serverRoot = path.join(root, 'lira-server');
-  const clientRoot = path.join(root, 'client');
-  const script = path.join(clientRoot, 'scripts/verify-server-contract.js');
-  const lockPath = path.join(clientRoot, 'server-contract.lock.json');
   const write = (relativePath, value) => {
     const filename = path.join(serverRoot, relativePath);
     fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -34,45 +47,21 @@ function fixture(t) {
   write('src/index.js', "module.exports = 'synthetic';\n");
   write('package.json', '{"name":"synthetic-server"}\n');
   write('package-lock.json', '{"lockfileVersion":3}\n');
-  fs.mkdirSync(path.dirname(script), { recursive: true });
-  fs.copyFileSync(VERIFIER_PATH, script);
-  const emptyGitConfig = path.join(root, 'empty-git-config');
-  fs.writeFileSync(emptyGitConfig, '');
-  const gitEnv = {
-    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key))),
-    GIT_CONFIG_NOSYSTEM: '1',
-    GIT_CONFIG_GLOBAL: emptyGitConfig,
-  };
-  const git = (...args) =>
-    execFileSync('git', ['-C', serverRoot, ...args], {
-      encoding: 'utf8',
-      env: gitEnv,
-      windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }).trim();
+  fs.mkdirSync(path.join(root, 'client/scripts'), { recursive: true });
+  fs.copyFileSync(VERIFIER_PATH, path.join(root, 'client/scripts/verify-server-contract.js'));
+  fs.writeFileSync(path.join(root, 'empty-git-config'), '');
+  const git = gitIn(serverRoot, gitEnvironment(root));
   git('init', '--quiet');
   git('config', 'core.autocrlf', 'false');
   git('config', 'core.hooksPath', path.join(root, 'no-hooks'));
   git('config', 'core.fsmonitor', 'false');
   git('config', 'commit.gpgsign', 'false');
-  const commit = () => {
-    git('add', '--', '.');
-    git(
-      '-c',
-      'user.name=Contract Fixture',
-      '-c',
-      'user.email=fixture@example.test',
-      'commit',
-      '--quiet',
-      '-m',
-      'Synthetic contract input',
-    );
-    return git('rev-parse', 'HEAD');
-  };
+  git('add', '--', '.');
+  git('-c', 'user.name=Contract Fixture', '-c', 'user.email=fixture@example.test', 'commit', '--quiet', '-m', 'Synthetic contract input');
   const lock = {
     schemaVersion: 1,
     repository: 'synthetic/server',
-    revision: commit(),
+    revision: git('rev-parse', 'HEAD'),
     fixtures: Object.fromEntries(
       [FIRST_FIXTURE, SECOND_FIXTURE].map((relativePath) => [
         relativePath,
@@ -83,14 +72,49 @@ function fixture(t) {
       ]),
     ),
   };
-  fs.writeFileSync(lockPath, JSON.stringify(lock));
+  fs.writeFileSync(path.join(root, 'client/server-contract.lock.json'), JSON.stringify(lock));
+  return { root, lock };
+}
+
+test.after(() => {
+  if (!template) return;
+  assert.equal(path.dirname(template.root), temporaryParent);
+  fs.rmSync(template.root, { recursive: true, force: true, maxRetries: 3 });
+});
+
+function fixture(t) {
+  template ??= createTemplate();
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(temporaryParent, 'lira server contract-')));
+  t.after(() => {
+    assert.equal(path.dirname(root), temporaryParent);
+    assert.equal(fs.realpathSync(root), root);
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+  });
+  fs.cpSync(template.root, root, { recursive: true });
+  const serverRoot = path.join(root, 'lira-server');
+  const clientRoot = path.join(root, 'client');
+  const script = path.join(clientRoot, 'scripts/verify-server-contract.js');
+  const lockPath = path.join(clientRoot, 'server-contract.lock.json');
+  const write = (relativePath, value) => {
+    const filename = path.join(serverRoot, relativePath);
+    fs.mkdirSync(path.dirname(filename), { recursive: true });
+    fs.writeFileSync(filename, value);
+  };
+  const gitEnv = gitEnvironment(root);
+  const git = gitIn(serverRoot, gitEnv);
+  git('config', 'core.hooksPath', path.join(root, 'no-hooks'));
+  const commit = () => {
+    git('add', '--', '.');
+    git('-c', 'user.name=Contract Fixture', '-c', 'user.email=fixture@example.test', 'commit', '--quiet', '-m', 'Synthetic contract input');
+    return git('rev-parse', 'HEAD');
+  };
   return {
     root,
     clientRoot,
     serverRoot,
     script,
     lockPath,
-    lock,
+    lock: template.lock,
     write,
     git,
     commit,

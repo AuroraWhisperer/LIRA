@@ -1,0 +1,168 @@
+/* 月渡花汀沿用风格 2 的列表和滚动，暖金山月湖光配深暖紫字与浅金描边。 */
+.queue-identity.queue-moonlit {
+  --moon-ink: #6a2544;
+  --moon-secondary: #875038;
+  --moon-outline: #fff3d0;
+  position: relative;
+  padding: 0;
+  color: var(--moon-ink);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.queue-moonlit .overlay-header {
+  display: none;
+}
+
+.queue-moonlit::before {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: solid transparent;
+  border-width: 72px 36px 42px 40px;
+  border-image: url('/img/overlays/queue-moonlit/vine-frame-gold-jade-v2.webp') 280 200 140 250 stretch;
+  filter: drop-shadow(0 1px 1px rgb(61 25 9 / 42%));
+  content: '';
+  pointer-events: none;
+}
+
+.queue-moonlit .overlay-content {
+  position: relative;
+  padding: 72px 38px 44px 42px;
+  background: transparent;
+}
+
+.queue-identity.queue-moonlit-hd {
+  transform: scale(var(--queue-panel-scale, 1));
+}
+
+.queue-moonlit-hd::before {
+  border-width: 72px 56px 49px 63px;
+  border-image-source: url('/img/overlays/queue-moonlit/vine-frame-hd-v3.webp');
+  border-image-slice: 200 154 135 175;
+}
+
+.queue-moonlit-hd .overlay-content {
+  padding: 72px 58px 51px 65px;
+}
+
+.queue-moonlit-landscape::before {
+  border-width: 94px 40px;
+  border-image-source: url('/img/overlays/queue-moonlit/moon-lake-frame-hd-v4.webp');
+  border-image-slice: 250 107 251 107;
+}
+
+.queue-moonlit-landscape .overlay-content {
+  padding: 96px 42px 96px 46px;
+}
+
+.queue-moonlit .identity-row,
+.queue-moonlit .identity-pin-row {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--moon-ink);
+  font-weight: 500;
+  text-shadow: none;
+}
+
+.queue-moonlit .identity-row {
+  --identity-bg: #f0e5ca;
+  --identity-text: #513348;
+  --medal-bg: var(--identity-bg);
+  --medal-text: var(--identity-text);
+  gap: 6px;
+  padding: 4px 2px;
+}
+
+.queue-moonlit .identity-row.guard-3 {
+  --identity-bg: #e2ead4;
+}
+.queue-moonlit .identity-row.guard-2 {
+  --identity-bg: #eedfee;
+}
+.queue-moonlit .identity-row.guard-1 {
+  --identity-bg: #f1dcdf;
+}
+
+.queue-moonlit .identity-content { gap: 0.22em; }
+
+.queue-moonlit .identity-song,
+.queue-moonlit .identity-requester,
+.queue-moonlit .identity-rank,
+.queue-moonlit .identity-sc-text,
+.queue-moonlit .identity-pin-content,
+.queue-moonlit .identity-empty {
+  -webkit-text-stroke: 2px var(--moon-outline);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 1.5px rgb(42 17 31 / 22%);
+}
+
+.queue-moonlit .identity-song { color: var(--moon-ink); font-weight: 700; }
+.queue-moonlit .identity-requester {
+  color: var(--moon-secondary);
+  font-size: 0.9em;
+  font-weight: 500;
+  -webkit-text-stroke-width: 1.2px;
+}
+.queue-moonlit .identity-rank {
+  min-width: 1.2em;
+  color: var(--overlay-index-color, #735020);
+  font-size: 0.8em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  -webkit-text-stroke-width: 1.2px;
+}
+.queue-moonlit .identity-badge,
+.queue-moonlit .identity-medal {
+  height: 1.4em;
+  padding: 0 0.22em;
+  border: 1px solid rgb(155 115 57 / 38%);
+  border-radius: 3px;
+  font-size: 66%;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.queue-moonlit .identity-badge.identity-fan { background: var(--identity-bg); color: var(--identity-text); }
+
+.queue-moonlit .identity-guard-image {
+  flex: 0 0 auto;
+  width: 1.1em;
+  height: 1.1em;
+  object-fit: contain;
+}
+
+.queue-moonlit .identity-pin-label {
+  height: 1.45em;
+  border: 1px solid #bd9858;
+  border-radius: 3px;
+  background: var(--moon-ink);
+  color: var(--moon-outline);
+  font-size: calc(var(--identity-queue-font-size, 30px) * 0.7);
+  font-weight: 600;
+}
+
+.queue-moonlit .identity-row.identity-sc .identity-sc-price {
+  height: 1.45em;
+  border: 1px solid #bd9858;
+  border-radius: 3px;
+  background: var(--moon-ink);
+  color: var(--moon-outline);
+  font-size: 68%;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.queue-moonlit .identity-row.identity-sc .identity-sc-content { font-size: 0.9em; }
+.queue-moonlit .identity-row.identity-sc .identity-sc-price-yellow { background: #6f491b; }
+.queue-moonlit .identity-row.identity-sc .identity-sc-price-red { background: #762e46; }
+
+.queue-moonlit .identity-empty {
+  color: var(--moon-secondary);
+  font-size: var(--identity-queue-font-size, 30px);
+  font-weight: 500;
+}
+.queue-moonlit ::selection { background: #eedaa5; color: var(--moon-ink); }

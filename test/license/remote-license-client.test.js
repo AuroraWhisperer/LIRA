@@ -514,3 +514,56 @@ test('cloud HTTP operations preserve their caller cancellation signal', async ()
     true,
   );
 });
+
+test('daily bot requests use fixed Device endpoints and reject unsafe operations before any request', async () => {
+  const requests = [];
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://synthetic-api.example',
+    fetchImpl: async (url, init) => {
+      requests.push({ url, init });
+      return new Response(JSON.stringify({ ok: true }));
+    },
+  });
+  const id = 'a1b2c3d4-e5f6-7890';
+  const body = { value: 1 };
+  for (const [operation, input, method, pathname] of [
+    ['read', {}, 'GET', '/api/device/daily-bot-settings'],
+    ['update', { kind: 'checkin', body }, 'PUT', '/api/device/daily-bot-settings/checkin'],
+    ['update', { kind: 'fortune', body }, 'PUT', '/api/device/daily-bot-settings/fortune'],
+    ['decide', { body }, 'PUT', '/api/device/daily-bot-takeover'],
+    ['start', { body }, 'POST', '/api/device/daily-bot-imports'],
+    ['status', { id }, 'GET', `/api/device/daily-bot-imports/${id}`],
+    ['upload', { id, sequence: 0, body }, 'PUT', `/api/device/daily-bot-imports/${id}/batches/0`],
+    ['upload', { id, sequence: 199, body }, 'PUT', `/api/device/daily-bot-imports/${id}/batches/199`],
+    ['preflight', { id, body }, 'POST', `/api/device/daily-bot-imports/${id}/preflight`],
+    ['commit', { id, body }, 'POST', `/api/device/daily-bot-imports/${id}/commit`],
+    ['cancel', { id, body }, 'POST', `/api/device/daily-bot-imports/${id}/cancel`],
+  ]) {
+    requests.length = 0;
+    await client.dailyBotRequest(operation, input, 'device-token');
+    assert.equal(requests.length, 1, operation);
+    assert.equal(requests[0].url, `https://synthetic-api.example${pathname}`);
+    assert.equal(requests[0].init.method, method);
+    assert.equal(requests[0].init.headers.Authorization, 'Bearer device-token');
+    assert.equal(requests[0].init.body, method === 'GET' ? undefined : JSON.stringify(body));
+  }
+
+  requests.length = 0;
+  const unsafe = [
+    ['unknown', {}],
+    ['update', { kind: 'other', body }],
+    ['update', { kind: '../takeover', body }],
+    ...['../escape', 'short-id', 'aaaaaaaaaaaaaaaa/b', 'aaaaaaaaaaaaaaaa?x=1', 'a'.repeat(81), undefined].flatMap(
+      (badId) => ['status', 'upload', 'preflight', 'commit', 'cancel'].map((operation) => [operation, { id: badId, sequence: 0, body }]),
+    ),
+    ...[-1, 200, 1.5, '1', null, undefined].map((sequence) => ['upload', { id, sequence, body }]),
+  ];
+  for (const [operation, input] of unsafe) {
+    assert.throws(
+      () => client.dailyBotRequest(operation, input, 'device-token'),
+      { code: 'DAILY_BOT_INVALID_REQUEST' },
+      `${operation} ${JSON.stringify(input)}`,
+    );
+  }
+  assert.equal(requests.length, 0);
+});

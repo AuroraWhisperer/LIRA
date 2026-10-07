@@ -7,6 +7,7 @@ export class LyricWordAnimator {
     this.wordClass = options.wordClass || 'lyric-word';
     this.highlightClass = options.highlightClass || 'lyric-word-highlight';
     this.mode = options.mode || (LyricWordAnimator.supported() ? 'waapi' : 'manual');
+    this.motionEnabled = options.motionEnabled === true;
     this.animations = [];
     this.words = [];
     this.elements = [];
@@ -46,6 +47,7 @@ export class LyricWordAnimator {
     const currentMs = Number(position.currentMs) || 0;
     const playing = options.playing === true;
     const force = options.force === true;
+    this.syncMotion(currentMs, playing, force);
     if (this.mode === 'discrete') {
       this.syncDiscrete(currentMs);
       return;
@@ -70,10 +72,13 @@ export class LyricWordAnimator {
         const shouldAnchor =
           force ||
           !playing ||
+          currentMs < startMs ||
+          currentMs >= endMs ||
+          animation.playState === 'paused' ||
           animation.currentTime === null ||
           Math.abs(Number(animation.currentTime) - animationTime) > DRIFT_THRESHOLD_MS;
         if (shouldAnchor) animation.currentTime = animationTime;
-        if (playing) animation.play();
+        if (playing && currentMs >= startMs && currentMs < endMs) animation.play();
         else animation.pause();
       } else if (this.mode === 'manual') {
         entry.highlight.style.clipPath = `inset(0 ${100 - progress * 100}% 0 0)`;
@@ -99,7 +104,55 @@ export class LyricWordAnimator {
     this.discreteLastMs = targetMs;
   }
 
+  syncMotion(currentMs, playing, force) {
+    if (!this.motionEnabled || !['waapi', 'discrete'].includes(this.mode)) return;
+    this.elements.forEach((entry) => {
+      const startMs = numberValue(entry.word.startMs, 0);
+      const sungMs = Math.max(180, numberValue(entry.word.endMs, startMs) - startMs);
+      const duration = sungMs + 180;
+      const time = currentMs - startMs;
+      if (time < 0 || time >= duration) {
+        entry.motion?.cancel();
+        entry.motion = null;
+        return;
+      }
+      if (typeof entry.wrapper.animate !== 'function' || !entry.word.text?.trim()) return;
+      if (!entry.motion) {
+        // Bound horizontal growth for multi-character timing tokens; never invent syllable times.
+        const growth = 0.045 / Math.max(1, Array.from(entry.word.text).length);
+        entry.motion = entry.wrapper.animate([
+          { transform: 'translateY(0) scale(1)', offset: 0, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+          { transform: `translateY(-0.09em) scale(${1 + growth})`, offset: Math.min(120, sungMs * 0.3) / duration,
+            easing: 'ease-in-out' },
+          { transform: `translateY(-0.065em) scale(${1 + growth * 0.6})`, offset: Math.min(260, sungMs * 0.7) / duration },
+          { transform: `translateY(-0.065em) scale(${1 + growth * 0.6})`, offset: sungMs / duration,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
+          { transform: 'translateY(0) scale(1)', offset: 1 },
+        ], { duration, fill: 'both' });
+        entry.motion.pause();
+      }
+      const animation = entry.motion;
+      if (force || !playing || animation.playState !== 'running'
+        || Math.abs(Number(animation.currentTime) - time) > DRIFT_THRESHOLD_MS) animation.currentTime = time;
+      if (playing && animation.playState !== 'running') animation.play();
+      else if (!playing) animation.pause();
+    });
+  }
+
+  setMotionEnabled(enabled) {
+    this.motionEnabled = enabled === true;
+    if (!this.motionEnabled) this.clearMotion();
+  }
+
+  clearMotion() {
+    this.elements.forEach((entry) => {
+      entry.motion?.cancel();
+      entry.motion = null;
+    });
+  }
+
   clear(options = {}) {
+    this.clearMotion();
     this.animations.forEach((animation) => animation?.cancel?.());
     this.animations = [];
     if (options.commit && this.container)
@@ -115,6 +168,7 @@ export class LyricWordAnimator {
   setMode(mode) {
     if (!['waapi', 'manual', 'static', 'discrete'].includes(mode)) return;
     if (mode === this.mode) return;
+    this.clearMotion();
     this.animations.forEach((animation) => animation?.cancel?.());
     this.animations = [];
     if (this.mode === 'discrete' && mode !== 'discrete') {

@@ -3,6 +3,8 @@
 const { readJsonBody, sendJson, validateOrigin } = require('../http-utils');
 const { resolveRequestPrincipal } = require('../access-policy');
 const { createComponentStyleLibrary } = require('../component-style-library');
+const { createComponentWebLibrary } = require('../component-web-library');
+const { readWebUpload } = require('../component-web-files');
 
 async function handleStyles(context, req, res, url, canvas = false) {
   const authorize = () => {
@@ -23,7 +25,17 @@ async function handleStyles(context, req, res, url, canvas = false) {
     let data;
     if (action === 'list' && req.method === 'GET') data = library.list();
     else if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: '不支持的操作。' });
-    else if (action === 'add') {
+    else if (action === 'web') {
+      const description = JSON.parse(url.searchParams.get('description') || '{}');
+      data = await createComponentWebLibrary(context.system.dataDir).add(readWebUpload(req), description, authorize);
+    } else if (action === 'pick-web') {
+      const body = await readJsonBody(req, 4096);
+      authorize();
+      if (!context.system.pickComponentWebFile) return sendJson(res, 503, { ok: false, error: '请使用文件选择或素材文件夹导入。', code: 'FILE_PICKER_UNAVAILABLE' });
+      const selected = await context.system.pickComponentWebFile(body?.kind);
+      authorize();
+      data = selected ? await createComponentWebLibrary(context.system.dataDir).add(selected.files, { ...body.description, entry: selected.entry }, authorize) : null;
+    } else if (action === 'add') {
       const description = JSON.parse(url.searchParams.get('description') || '{}');
       data = await library.add(req, description, authorize);
     } else if (action === 'inspect') data = await library.inspect(req, authorize);
@@ -40,7 +52,7 @@ async function handleStyles(context, req, res, url, canvas = false) {
   }
 }
 
-const actions = ['list', 'add', 'inspect', 'install', 'remove', 'cancel'];
+const actions = ['list', 'add', 'web', 'pick-web', 'inspect', 'install', 'remove', 'cancel'];
 const routes = Object.fromEntries(actions.map(action => [`${action === 'list' ? 'GET' : 'POST'} /api/component-styles/${action}`,
   (context, request, res) => handleStyles(context, request.req, res, new URL(request.req.url, `http://${request.req.headers.host}`))]));
 const publicRoutes = Object.fromEntries(actions.map(action => [`${action === 'list' ? 'GET' : 'POST'} /api/component-preview/styles/${action}`,

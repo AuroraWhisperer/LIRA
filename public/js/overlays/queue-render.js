@@ -27,6 +27,12 @@ import { applyTheme, setIdentityRuleThemeVars } from './queue-theme.js';
 
 export { applyTheme, setIdentityRuleThemeVars } from './queue-theme.js';
 
+const BILIBILI_GUARD_IMAGES = {
+  1: '/img/admin/gifts/bilibili-guard-governor.webp',
+  2: '/img/admin/gifts/bilibili-guard-prefect.webp',
+  3: '/img/admin/gifts/bilibili-guard-captain.webp',
+};
+
 function displaySongName(value) {
   return String(value ?? '').trimStart();
 }
@@ -80,6 +86,7 @@ export function renderClassicQueue(settings, current, waiting, content) {
 }
 
 export function renderIdentityQueue(settings, current, waiting, content, superChats = []) {
+  const moonlit = settings.resourceStyle?.preset === 'moonlit-queue';
   const songItems = [current].concat(waiting).filter(Boolean);
   const scItems = (Array.isArray(superChats) ? superChats : []).filter((item) => Number(item.price || 0) >= 2);
   const baseFontSize = identityQueueFontSize(settings);
@@ -110,7 +117,7 @@ export function renderIdentityQueue(settings, current, waiting, content, superCh
     </div>
   `
     : '';
-  const rules = [
+  const rules = moonlit ? [] : [
     settings.overlayRule1,
     settings.overlayRule2,
     settings.overlayRule3,
@@ -138,7 +145,7 @@ export function renderIdentityQueue(settings, current, waiting, content, superCh
 
   const scRowsHtml = scItems.map((item) => renderIdentitySuperChatRow(item)).join('');
   const songRowsHtml =
-    songItems.length > 0 ? songItems.map((item, i) => renderIdentityRow(item, i, shouldShowIndex)).join('') : '';
+    songItems.length > 0 ? songItems.map((item, i) => renderIdentityRow(item, i, shouldShowIndex, moonlit)).join('') : '';
   const combinedRows = scRowsHtml + songRowsHtml;
   const totalRows = scItems.length + songItems.length;
 
@@ -185,12 +192,16 @@ export function renderIdentitySuperChatRow(item) {
   `;
 }
 
-export function renderIdentityRow(item, index, showIndex = true) {
+export function renderIdentityRow(item, index, showIndex = true, useGuardImages = false) {
   const guardLevel = normalizeGuardLevel(item.requester_guard_level);
   const medalLevel = Number(item.requester_medal_level || 0);
   const medalName = String(item.requester_medal_name || '').trim();
   const identityText = requesterIdentityLabel(guardLevel, medalName);
   const identityClass = requesterIdentityClass(guardLevel, medalLevel);
+  const guardImage = useGuardImages && BILIBILI_GUARD_IMAGES[guardLevel];
+  const identityHtml = guardImage
+    ? `<img class="identity-guard-image" src="${guardImage}" alt="${guardLabel(guardLevel)}" />`
+    : identityText ? `<span class="identity-badge ${identityClass}">${escapeHtml(identityText)}</span>` : '';
   const medalClass = medalLevelClass(medalLevel);
   const songName = escapeHtml(displaySongName(item.song_name));
   const songPrefix = item.is_pinned ? '📌 ' : '';
@@ -203,7 +214,7 @@ export function renderIdentityRow(item, index, showIndex = true) {
         <span class="identity-content">
           <span class="identity-song">${fullSongText}</span>
           <span class="identity-requester">${escapeHtml(item.requester_name || '观众')}</span>
-          ${identityText ? `<span class="identity-badge ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
+          ${identityHtml}
           ${medalLevel > 0 ? `<span class="identity-medal">${medalLevel}</span>` : ''}
         </span>
       </span>

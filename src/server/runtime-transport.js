@@ -2,7 +2,7 @@
 
 const httpUtils = require('./http-utils');
 const { buildGiftFrameEvent } = require('../bilibili/gift/frame-config');
-const { buildGuardThanksEvent } = require('../bilibili/gift/guard-thanks-config');
+const { buildGuardThanksEvents } = require('../bilibili/gift/guard-thanks-config');
 const { normalizeGiftEffectEvent } = require('../bilibili/gift/effect-event');
 
 const SNAPSHOT_SCENE_TYPES = ['queue', 'overtime', 'songlist', 'opening', 'lyrics', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'];
@@ -53,8 +53,9 @@ function createRuntimeTransport({
     broadcastSnapshot('bilibili:gift');
     const frameEvent = buildGiftFrameEvent(item, getSettings());
     if (frameEvent) { getWebSocketHub()?.broadcast(frameEvent); publishSceneGift?.(frameEvent); }
-    const guardThanksEvent = buildGuardThanksEvent(item, getSettings());
-    if (guardThanksEvent) { getWebSocketHub()?.broadcast(guardThanksEvent); publishSceneGift?.(guardThanksEvent); }
+    for (const event of buildGuardThanksEvents(item, getSettings())) {
+      getWebSocketHub()?.broadcast(event); publishSceneGift?.(event);
+    }
     publishDanmakuItem(message);
   }
 

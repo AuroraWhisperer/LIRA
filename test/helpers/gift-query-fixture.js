@@ -12,11 +12,16 @@ const { createGiftStatisticsStore } = require('../../src/storage/gift-statistics
 
 const AS_OF = '2026-09-02T00:00:00.000Z';
 
-function createFixture() {
+function createFixture(options = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-query-'));
   const databases = createDatabases({ dataDir });
   const giftDb = databases.giftDb;
-  const store = createGiftSyncStore({ giftDb, now: () => AS_OF });
+  const store = createGiftSyncStore({
+    giftDb,
+    now: () => AS_OF,
+    importHistoryRecord: options.importHistoryRecord,
+    importLiveEvent: options.importLiveEvent,
+  });
   let activeSource = null;
   const insert = giftDb.prepare(`
     INSERT INTO gift_events (
@@ -30,6 +35,7 @@ function createFixture() {
   return {
     databases,
     giftDb,
+    store,
     context: {
       projectionStore: createGiftProjectionStore(giftDb),
       statisticsStore: createGiftStatisticsStore(giftDb),
@@ -64,7 +70,7 @@ function createFixture() {
       const blindBoxPrice = isBlindBox ? (overrides.blindBoxPrice ?? null) : null;
       return insert.run(
         sourceId,
-        `lira-server:${eventId}`,
+        overrides.platformId || `lira-server:${eventId}`,
         overrides.cmd || 'LIRA_SERVER_GIFT',
         overrides.giftId || 'gift-1',
         overrides.giftName || '礼物',

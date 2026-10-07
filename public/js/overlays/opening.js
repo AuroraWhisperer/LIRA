@@ -340,7 +340,7 @@ function initOpeningOverlay() {
         if (!data?.enabled) mediaPlayer.stop();
         enabled = Boolean(data?.enabled);
       } else runtime.apply(mergeConfig(
-        appearance.style === 'moonlit-fan' ? { ...data, style: appearance.style } : data,
+        ['classic', 'pixel-cassette', 'moonlit-fan'].includes(appearance.style) ? { ...data, style: appearance.style } : data,
         parseConfig(''), new URLSearchParams(),
       ));
     };

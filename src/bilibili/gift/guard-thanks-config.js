@@ -3,6 +3,8 @@
 // 大航海感谢：final 礼物行之后识别舰长/提督/总督，生成礼物特效地址播放的感谢事件。
 
 const { canonicalizeGuardGiftId } = require('./guard-gift-aliases');
+const { normalizeAvatarUrl } = require('./avatar-url');
+const { GUARD_THANKS_EFFECTS, readGuardThanksEffect } = require('../../../public/js/shared/guard-thanks-settings.js');
 
 const GUARD_THANKS_TIERS = Object.freeze(['captain', 'admiral', 'governor']);
 const GUARD_THANKS_TEXT_MODES = Object.freeze(['bilingual', 'zh', 'en']);
@@ -35,12 +37,12 @@ function normalizeStyle(value) {
 }
 
 function normalizeGuardThanksSettingValue(key, value) {
-  if (key === 'guardThanksEnabled') {
+  if (['guardThanksEnabled', 'guardThanksAuroraEnabled', 'guardThanksClassicEnabled'].includes(key)) {
     if (value === true || value === 'true') return 'true';
     if (value === false || value === 'false') return 'false';
     return null;
   }
-  if (key === 'guardThanksTextMode') return normalizeTextMode(value);
+  if (['guardThanksTextMode', 'guardThanksAuroraTextMode', 'guardThanksClassicTextMode'].includes(key)) return normalizeTextMode(value);
   if (key === 'guardThanksStyle') return normalizeStyle(value);
   return String(value);
 }
@@ -62,6 +64,16 @@ function buildGuardThanksEvent(item, settings = {}) {
     textMode: normalizeTextMode(settings.guardThanksTextMode) || DEFAULT_GUARD_THANKS_SETTINGS.guardThanksTextMode,
     style: normalizeStyle(settings.guardThanksStyle) || DEFAULT_GUARD_THANKS_SETTINGS.guardThanksStyle,
   };
+}
+
+function buildGuardThanksEvents(item, settings = {}) {
+  return GUARD_THANKS_EFFECTS.flatMap((effect) => {
+    const { enabled, textMode } = readGuardThanksEffect(settings, effect);
+    const event = buildGuardThanksEvent(item, {
+      guardThanksEnabled: String(enabled), guardThanksTextMode: textMode, guardThanksStyle: effect.style,
+    });
+    return event ? [{ ...event, eventId: `${event.eventId}:${effect.style}` }] : [];
+  });
 }
 
 function buildGuardThanksPreviewEvent(input = {}) {
@@ -92,17 +104,6 @@ function buildGuardThanksPreviewEvent(input = {}) {
   };
 }
 
-function normalizeAvatarUrl(value) {
-  if (typeof value !== 'string' || !value || value.length > 2048) return '';
-  try {
-    const url = new URL(value);
-    const trusted = url.hostname === 'hdslb.com' || url.hostname.endsWith('.hdslb.com');
-    return url.protocol === 'https:' && trusted && !url.username && !url.password ? url.toString() : '';
-  } catch {
-    return '';
-  }
-}
-
 function normalizePositiveInteger(value) {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
@@ -120,5 +121,6 @@ module.exports = {
   resolveGuardTier,
   normalizeGuardThanksSettingValue,
   buildGuardThanksEvent,
+  buildGuardThanksEvents,
   buildGuardThanksPreviewEvent,
 };

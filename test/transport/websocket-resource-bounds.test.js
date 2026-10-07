@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
+const { maskedFrame } = require('../helpers/transport-fixtures');
 const { createWebSocketHub } = require('../../src/server/ws');
 
 class CountingSocket extends EventEmitter {
@@ -29,17 +30,8 @@ class CountingSocket extends EventEmitter {
   }
 }
 
-function frame(payload, opcode = 1, fin = true) {
-  const body = Buffer.from(payload);
-  const headerBytes = body.length < 126 ? 2 : 4;
-  const result = Buffer.alloc(headerBytes + 4 + body.length);
-  result[0] = (fin ? 0x80 : 0) | opcode;
-  result[1] = 0x80 | (headerBytes === 2 ? body.length : 126);
-  if (headerBytes === 4) result.writeUInt16BE(body.length, 2);
-  // A zero mask is valid; the payload still goes through server unmasking.
-  body.copy(result, headerBytes + 4);
-  return result;
-}
+// A zero mask is valid; the payload still goes through server unmasking.
+const frame = (payload, opcode = 1, fin = true) => maskedFrame(payload, { opcode, fin, mask: [0, 0, 0, 0] });
 
 function openSocket(hub, context) {
   const socket = new CountingSocket();

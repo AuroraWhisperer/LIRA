@@ -1,0 +1,281 @@
+/* 绿萌简笔画：主题色同时染色描线、文字和中间的柔边色带。 */
+body[data-style='sketch'] {
+  --sketch-ink: var(--danmaku-text-color, #7f9f76);
+  --sketch-line: color-mix(in srgb, var(--sketch-ink) 15%, #f5fff9);
+  --sketch-paper: color-mix(in srgb, var(--sketch-ink) 9%, #fffdeb);
+  --sketch-glow: color-mix(in srgb, var(--sketch-ink) 45%, transparent);
+}
+body[data-style='sketch'] .danmaku-signal-header,
+body[data-style='sketch'] .draw-danmaku-avatar,
+body[data-style='sketch'] .draw-danmaku-badge,
+body[data-style='sketch'] .draw-danmaku-gift-art,
+body[data-style='sketch'] .draw-danmaku-gift-action,
+body[data-style='sketch'] .draw-danmaku-feed .draw-danmaku-item::before,
+body[data-style='sketch'] .draw-danmaku-feed .draw-danmaku-item::after,
+body[data-style='sketch'] .draw-danmaku-feed .draw-danmaku-item.is-gift::after {
+  display: none;
+}
+body[data-style='sketch'] .draw-danmaku-feed {
+  gap: 8px;
+}
+body[data-style='sketch'] .draw-danmaku-feed .draw-danmaku-item {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  padding: 10px 16px 26px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  font-size: var(--danmaku-font-size);
+  color: var(--sketch-line);
+  animation: none;
+  zoom: 1;
+}
+body[data-style='sketch'] .draw-danmaku-feed .draw-danmaku-body {
+  display: block;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  padding: 0;
+  text-shadow: none;
+}
+body[data-style='sketch'] .draw-danmaku-item .draw-danmaku-identity {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: .45em;
+  width: 100%;
+  padding: 0 .6em .38em;
+  background: transparent;
+}
+body[data-style='sketch'] .draw-danmaku-item .draw-danmaku-identity strong {
+  min-width: 0;
+  color: var(--sketch-line);
+  font: 700 .86em/1.4 var(--danmaku-ui-font);
+  letter-spacing: .09em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  text-shadow: 0 0 4px var(--sketch-glow);
+}
+body[data-style='sketch'] .draw-danmaku-identity::before,
+body[data-style='sketch'] .draw-danmaku-identity::after {
+  content: '';
+  flex: 0 1 112px;
+  height: 28px;
+  background: var(--sketch-line);
+  mask: var(--sketch-swirl) center / contain no-repeat;
+}
+body[data-style='sketch'] .draw-danmaku-identity::after { transform: scaleX(-1); }
+body[data-style='sketch'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body > p,
+body[data-style='sketch'] .sc-copy {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-height: 88px;
+  margin: 0;
+  padding: .6em 1.9em;
+  border: 2px solid var(--sketch-line);
+  border-radius: 36px 7px 36px 7px;
+  background: linear-gradient(90deg, transparent 9%, var(--sketch-paper) 22%, var(--sketch-paper) 78%, transparent 91%) center / 100% calc(100% - 30px) no-repeat;
+  color: var(--sketch-ink);
+  font-size: 1em;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: .08em;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-shadow: none;
+  box-shadow: 0 0 3px var(--sketch-glow), inset 0 0 3px var(--sketch-glow);
+}
+body[data-style='sketch'][data-custom-background='true'] {
+  --sketch-paper: color-mix(in srgb, color-mix(in srgb, var(--sketch-ink) 9%, #fffdeb) var(--danmaku-background-weight), transparent);
+}
+body[data-style='sketch'] .sketch-ornaments {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: var(--sketch-line);
+  filter: drop-shadow(0 0 2px var(--sketch-glow));
+}
+body[data-style='sketch'] .sketch-ornaments i {
+  position: absolute;
+  display: block;
+  background: currentColor;
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+body[data-style='sketch'] .sketch-star {
+  width: 1.5em;
+  height: 1.5em;
+  top: -.38em;
+  right: -.2em;
+  mask-image: var(--sketch-stars);
+}
+body[data-style='sketch'] .sketch-left {
+  width: 1.7em;
+  height: 4em;
+  left: -.4em;
+  bottom: -.5em;
+  mask-image: var(--sketch-ear);
+}
+body[data-style='sketch'] .sketch-right {
+  width: 1.3em;
+  height: .9em;
+  right: 1.15em;
+  bottom: -.03em;
+  mask-image: var(--sketch-tiny-rabbits);
+}
+body[data-style='sketch'] [data-sketch-variant='1'] .draw-danmaku-identity {
+  justify-content: flex-start;
+  gap: .18em;
+  padding-left: .8em;
+}
+body[data-style='sketch'] [data-sketch-variant='1'] .draw-danmaku-identity::before {
+  flex: 0 0 .72em;
+  height: .8em;
+  mask-image: var(--sketch-tiny-rabbits);
+  mask-size: 200% 100%;
+  mask-position: left;
+}
+body[data-style='sketch'] [data-sketch-variant='1'] .draw-danmaku-identity::after { display: none; }
+body[data-style='sketch'] [data-sketch-variant='1'] .sketch-left {
+  width: 2.5em;
+  height: 3.6em;
+  left: -.7em;
+  bottom: -.95em;
+  mask-image: var(--sketch-vine);
+}
+body[data-style='sketch'] [data-sketch-variant='1'] .sketch-right {
+  width: 5.2em;
+  height: 3.5em;
+  right: -.4em;
+  bottom: -1.02em;
+  mask-image: var(--sketch-cats);
+}
+body[data-style='sketch'] [data-sketch-variant='1'] .draw-danmaku-body > p {
+  padding-right: 3.8em;
+  padding-left: 1.9em;
+}
+/* The membership frame has a botanical band behind the live text. */
+body[data-style='sketch'] [data-sketch-variant='1']:not(.is-gift) .draw-danmaku-body > p {
+  isolation: isolate;
+}
+body[data-style='sketch'] [data-sketch-variant='1']:not(.is-gift) .draw-danmaku-body > p::before {
+  position: absolute;
+  z-index: -1;
+  inset: 15px 9%;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--sketch-ink) 40%, #d0f4dd);
+  mask-image: var(--sketch-foliage), linear-gradient(90deg, transparent, #000 14%, #000 84%, transparent);
+  mask-size: cover, 100% 100%;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-composite: intersect;
+  opacity: var(--danmaku-background-opacity, 1);
+  pointer-events: none;
+  content: '';
+}
+/* The gift line keeps live name/count/amount; its frame is deliberately open. */
+body[data-style='sketch'] .draw-danmaku-feed .draw-danmaku-item.is-gift {
+  padding: 10px 1.8em 18px;
+}
+body[data-style='sketch'] .is-gift .draw-danmaku-identity {
+  justify-content: flex-start;
+  width: calc(100% - 3.7em);
+  min-height: 1.65em;
+  margin-left: 1.75em;
+  padding: 0 0 .1em;
+  border-bottom: 1.5px solid var(--sketch-line);
+}
+body[data-style='sketch'] .is-gift .draw-danmaku-identity::before,
+body[data-style='sketch'] .is-gift .draw-danmaku-identity::after { display: none; }
+body[data-style='sketch'] .draw-danmaku-item.is-gift .draw-danmaku-gift {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: .1em .6em;
+  padding: .2em 2.4em 0 0;
+  color: var(--sketch-line);
+  background: transparent;
+  font-size: 1em;
+}
+body[data-style='sketch'] .is-gift .draw-danmaku-gift-copy { flex-wrap: wrap; gap: .15em; }
+body[data-style='sketch'] .is-gift .draw-danmaku-gift-name,
+body[data-style='sketch'] .is-gift .draw-danmaku-gift-count {
+  color: var(--sketch-line);
+  font-size: .7em;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+body[data-style='sketch'] .is-gift .draw-danmaku-gift-amount {
+  color: var(--sketch-line);
+  font: 400 1.05em/1.3 'Segoe Print', 'KaiTi', cursive;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+body[data-style='sketch'] .is-gift .sketch-left {
+  width: 2.05em;
+  height: 2.2em;
+  top: -.22em;
+  left: -.35em;
+  mask-image: var(--sketch-crystal);
+}
+body[data-style='sketch'] .is-gift .sketch-star {
+  top: .08em;
+  right: 1.8em;
+  width: 1.1em;
+  height: 1.1em;
+}
+body[data-style='sketch'] .is-gift .sketch-right {
+  width: 2em;
+  height: 2.3em;
+  right: -.1em;
+  bottom: -.1em;
+  mask-image: var(--sketch-rabbit);
+}
+body[data-style='sketch'] .draw-danmaku-emote { filter: none; max-width: 100%; object-fit: contain; }
+body[data-style='sketch'] .sc-sketch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .35em;
+  color: var(--sketch-line);
+}
+body[data-style='sketch'] .sc-name,
+body[data-style='sketch'] .sc-money {
+  color: var(--sketch-line);
+  font: 700 .86em/1.4 var(--danmaku-ui-font);
+  overflow-wrap: anywhere;
+}
+body[data-style='sketch'] .sc-money { white-space: nowrap; }
+body[data-style='sketch'] .sc-copy { grid-column: 1 / -1; grid-row: 2; }
+body[data-style='sketch'][data-custom-font='true'] :is(.draw-danmaku-identity strong, .sc-name, .sc-copy) {
+  font-family: var(--danmaku-custom-font);
+}
+
+/* Authored vector masks, traced from the user-provided visual reference. */
+body[data-style='sketch'] {
+  --sketch-swirl: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20130%2032%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%209C4%201%200%2019%2012%2019C25%2019%2026%2011%2045%2013C65%2016%2086%2031%20109%2025C124%2021%20119%208%20109%2015C99%2023%2083%2014%2066%2012C48%2010%2032%2020%2026%2020M44%2014C68%2012%2096%207%20113%2014C128%2020%20120%2028%20109%2024%22%2F%3E%3Ccircle%20cx%3D%22128%22%20cy%3D%2220%22%20r%3D%221%22%20fill%3D%22black%22%2F%3E%3C%2Fsvg%3E");
+  --sketch-stars: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2050%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20fill%3D%22black%22%20stroke%3D%22none%22%20d%3D%22M21%201C24%2018%2027%2020%2040%2024C27%2026%2024%2029%2021%2046C18%2030%2015%2027%202%2024C15%2021%2018%2018%2021%201ZM42%2030C43%2036%2044%2038%2048%2039C44%2040%2043%2042%2042%2048C41%2042%2040%2040%2036%2039C40%2038%2041%2036%2042%2030Z%22%2F%3E%3C%2Fsvg%3E");
+  --sketch-ear: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2055%20132%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M26%2015Q33-4%2041%2015M48%2016Q55-3%2061%2015M10%20103Q22%20123%2037%20124Q35%20143%2028%20129M1%20101Q13%20122%2028%20128%22%2F%3E%3Cpath%20fill%3D%22black%22%20stroke%3D%22none%22%20d%3D%22M26%2090Q27%20100%2038%20102Q28%20103%2026%20115Q24%20104%2015%20102Q24%2099%2026%2090Z%22%2F%3E%3Cpath%20d%3D%22M40%2025q5%204%208%200%22%2F%3E%3Ccircle%20cx%3D%2231%22%20cy%3D%2223%22%20r%3D%221.3%22%20fill%3D%22black%22%2F%3E%3Ccircle%20cx%3D%2253%22%20cy%3D%2223%22%20r%3D%221.3%22%20fill%3D%22black%22%2F%3E%3Ccircle%20cx%3D%2244%22%20cy%3D%22117%22%20r%3D%221.2%22%20fill%3D%22black%22%2F%3E%3Ccircle%20cx%3D%2246%22%20cy%3D%22130%22%20r%3D%221%22%20fill%3D%22black%22%2F%3E%3C%2Fsvg%3E");
+  --sketch-tiny-rabbits: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2030%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20fill%3D%22black%22%20stroke%3D%22none%22%20d%3D%22M3%2029Q0%2022%205%2018Q0%202%205%204Q9%207%2010%2017Q13%202%2016%205Q19%207%2014%2019Q20%2021%2017%2029Q13%2032%2010%2029Q6%2032%203%2029ZM27%2029Q22%2022%2028%2017Q24%200%2028%201Q32%201%2033%2016Q36-2%2039%202Q43%206%2038%2018Q45%2024%2041%2030Z%22%2F%3E%3C%2Fsvg%3E");
+  --sketch-vine: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2078%20116%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M52%2091C26%2089%2013%2062%2017%2041M54%2087C20%2079%208%2047%2013%2013M18%2052Q-1%2047%205%2039Q14%2041%2018%2052M17%2039Q29%2028%2025%2020Q16%2027%2017%2039M13%2022Q1%2021%200%209Q10%2012%2013%2022M23%2065Q37%2054%2031%2044Q22%2052%2023%2065M31%2076Q12%2077%2011%2066Q22%2066%2031%2076M49%2082Q29%2090%2032%2077%22%2F%3E%3Cpath%20fill%3D%22black%22%20stroke%3D%22none%22%20d%3D%22M39%205Q40%2017%2051%2019Q40%2021%2039%2033Q36%2022%2027%2020Q37%2017%2039%205ZM38%2089C28%2087%2026%2090%2029%2095C33%2098%2031%20116%2036%20116C42%20116%2038%2094%2045%2094C47%2094%2044%20108%2050%20108C56%20108%2050%2094%2056%2094C64%2099%2068%2091%2073%2092L74%2088Z%22%2F%3E%3C%2Fsvg%3E");
+  --sketch-cats: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20175%20119%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M62%2075Q63%2054%2068%2044Q75%2031%2080%2034L91%2048Q101%2045%20107%2049Q119%2030%20125%2040Q133%2060%20132%2079M69%2044L77%2039L81%2045ZM114%2047L122%2041L125%2049ZM47%2079L48%2069L52%2064L57%2070L61%2065L64%2073M145%2077C159%2066%20173%2057%20166%2029M153%2065C153%2051%20153%2030%20135%2019M148%2046Q132%2043%20133%2031Q144%2032%20148%2046M155%2039Q173%2038%20173%2023Q159%2028%20155%2039M144%2028Q128%2029%20121%2018Q136%2014%20144%2028M164%2059Q176%2056%20174%2049Q168%2049%20164%2059%22%2F%3E%3Cellipse%20cx%3D%2283%22%20cy%3D%2258%22%20rx%3D%221.6%22%20ry%3D%222.5%22%2F%3E%3Cellipse%20cx%3D%22110%22%20cy%3D%2257%22%20rx%3D%221.6%22%20ry%3D%222.5%22%2F%3E%3Cpath%20d%3D%22M94%2062q2%208%205%200zM50%2074v1M59%2074v1M145%2077q-1-5%204-5M11%2082C5%2080%203%2088%2010%2090%22%2F%3E%3Cpath%20fill%3D%22black%22%20stroke%3D%22none%22%20d%3D%22M18%2080C11%2080%209%2089%2019%2090L38%2089C41%2090%2036%20117%2042%20118C49%20119%2046%2091%2052%2091C56%2089%2058%2094%2064%2091C68%2089%2077%2094%2083%2091C89%2088%2094%2094%2098%2091C104%2090%20100%20110%20107%20110C116%20110%20108%2093%20116%2093C122%2094%20123%20100%20130%2099C137%2098%20132%2089%20141%2090C157%2090%20157%2080%20146%2080Z%22%2F%3E%3Ccircle%20cx%3D%22166%22%20cy%3D%2292%22%20r%3D%222.4%22%2F%3E%3Ccircle%20cx%3D%22157%22%20cy%3D%2291%22%20r%3D%221%22%20fill%3D%22black%22%2F%3E%3C%2Fsvg%3E");
+  --sketch-crystal: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2076%2078%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M63%2031C66%2050%2049%2065%2030%2058C7%2051%206%2028%2016%2015C28-2%2055%203%2061%2020C66%2035%2060%2054%2042%2058C24%2063%2012%2052%2010%2038M31%2010L47%2022L50%2043L31%2052L18%2034ZM31%2010L31%2027L47%2022M18%2034L31%2027L50%2043M31%2027L31%2052M22%2014L18%2034M17%2049L26%2039M27%2058L34%2045M44%2059L45%2047%22%2F%3E%3Cpath%20fill%3D%22black%22%20stroke%3D%22none%22%20d%3D%22M65%201Q67%208%2073%2010Q67%2011%2065%2019Q63%2012%2058%2010Q63%208%2065%201ZM7%2051Q9%2059%2015%2062Q8%2062%206%2070Q5%2064%200%2063Q5%2059%207%2051Z%22%2F%3E%3C%2Fsvg%3E");
+  --sketch-rabbit: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2075%2086%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M22%2040C5%209%208%202%2016%207C23%2011%2026%2026%2028%2036L39%2036C34%2012%2039%201%2045%203C56%206%2051%2022%2047%2039C56%2043%2059%2060%2061%2068C61%2076%2054%2072%2049%2072C44%2078%2036%2079%2031%2074C26%2077%2017%2077%2016%2072C8%2075%207%2068%2010%2063C12%2053%2015%2045%2022%2040Z%22%2F%3E%3Ccircle%20cx%3D%2226%22%20cy%3D%2249%22%20r%3D%221.7%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3Ccircle%20cx%3D%2242%22%20cy%3D%2248%22%20r%3D%221.7%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3Cpath%20d%3D%22M32%2054q2%203%204%200M3%2039l3%203M0%2046l5%201M62%2041l4-5M65%2048l6-1M64%2054l5%203%22%2F%3E%3C%2Fsvg%3E");
+}
+
+body[data-style='sketch'] {
+  --sketch-foliage: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20480%2068%22%3E%0A%3Cdefs%3E%3Cmask%20id%3D%22petals%22%20maskUnits%3D%22userSpaceOnUse%22%20x%3D%220%22%20y%3D%220%22%20width%3D%22480%22%20height%3D%2268%22%3E%3Crect%20width%3D%22480%22%20height%3D%2268%22%20fill%3D%22white%22%2F%3E%3Cg%20fill%3D%22black%22%20fill-opacity%3D%22.7%22%3E%0A%3Cpath%20d%3D%22M32-5C42%206%2061%2011%2076%2041C59%2032%2040%2030%2032-5ZM71%2023C70%2012%2078%205%2082-8C88%203%2087%2016%2071%2023ZM81%2037C94%2037%2099%2048%20107%2061C94%2056%2083%2047%2081%2037Z%22%2F%3E%0A%3Cpath%20d%3D%22M111%2014L114%205L119%208L123%200L126%2010L135%2012L128%2019L130%2027L122%2023L115%2028L113%2020L106%2019ZM173%204L178-2L183%203L192%202L186%2010L188%2017L179%2013L171%2017L173%2010L166%207Z%22%2F%3E%0A%3Cpath%20d%3D%22M278%2051L282%2043L287%2048L295%2045L292%2054L296%2060L287%2059L281%2067L279%2059L271%2057ZM408%209L414%202L418%209L427%209L421%2017L424%2024L415%2020L408%2024L409%2016L402%2014Z%22%2F%3E%0A%3C%2Fg%3E%3C%2Fmask%3E%3C%2Fdefs%3E%3Cg%20fill%3D%22black%22%20mask%3D%22url(%23petals)%22%3E%0A%3Cpath%20opacity%3D%22.3%22%20d%3D%22M39-5C76%205%20108%201%20134%204S180%2029%20220%2020S274-4%20301%2012S354%2024%20369%2070H37Z%22%2F%3E%0A%3Cpath%20opacity%3D%22.2%22%20d%3D%22M132%2072C149%2043%20168%2064%20190%2048S230%2041%20249%2053S277%2050%20300%2063L310%2072Z%22%2F%3E%0A%3Cg%20opacity%3D%22.46%22%3E%0A%3Cpath%20d%3D%22M33%200C45%208%2063%2011%2070%2033C51%2030%2037%2017%2033%200ZM60-9C79-4%2089%2010%2094%2029C80%2022%2071%207%2060-9ZM82%2068C62%2061%2054%2047%2056%2031C69%2037%2078%2054%2082%2068ZM17%2025C36%2028%2044%2040%2050%2055C32%2053%2023%2040%2017%2025Z%22%2F%3E%0A%3Cpath%20d%3D%22M102%2012C116%2011%20125%2025%20127%2040C111%2035%20105%2025%20102%2012ZM128%2028C138%2010%20152%209%20165%209C162%2027%20147%2034%20128%2028ZM106%2069C117%2051%20131%2052%20143%2060C133%2068%20119%2072%20106%2069Z%22%2F%3E%0A%3Cpath%20d%3D%22M316-7C321%206%20324%2023%20325%2037C310%2029%20309%207%20316-7ZM334%2032C340%2011%20354%207%20365%209C360%2021%20348%2028%20334%2032ZM356%2069C339%2062%20335%2046%20338%2034C350%2042%20356%2055%20356%2069ZM371-5C389-2%20393%2015%20395%2028C380%2023%20375%2012%20371-5Z%22%2F%3E%0A%3C%2Fg%3E%0A%3Cg%20opacity%3D%22.34%22%3E%0A%3Cpath%20d%3D%22M82%2070C71%2032%2060%2015%2051-8M118%2070C121%2048%20128%2034%20147%2019M330%2070C325%2041%20322%2022%20316-4M380%2069C379%2033%20382%2016%20389-8%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%2F%3E%0A%3Cpath%20d%3D%22M195%2070C174%2061%20167%2053%20161%2043C180%2043%20193%2051%20195%2070ZM202-2C218%207%20222%2016%20223%2028C207%2021%20202%2011%20202-2ZM234%206C248-2%20256-3%20271%200C262%2012%20248%2014%20234%206ZM248%2069C257%2057%20271%2052%20285%2053C277%2064%20264%2069%20248%2069Z%22%2F%3E%0A%3C%2Fg%3E%0A%3Cg%20opacity%3D%22.15%22%3E%0A%3Cpath%20d%3D%22M5-2C22%207%2039%2020%2040%2039C21%2029%2012%2018%205-2ZM273-8C297-3%20307%2012%20309%2026C294%2020%20282%209%20273-8ZM396%2065C397%2050%20410%2040%20424%2038C422%2055%20410%2064%20396%2065Z%22%2F%3E%0A%3C%2Fg%3E%0A%3C%2Fg%3E%0A%3C%2Fsvg%3E");
+}

@@ -5,6 +5,11 @@ const test = require('node:test');
 const { createShutdownHarness } = require('../helpers/electron-shutdown');
 const { acknowledgePlaybackFlush } = require('../../src/electron/playback-flush');
 
+test('every main process dependency is modelled for shutdown review', () => {
+  const h = createShutdownHarness();
+  assert.deepEqual(h.unmodelledDependencies, [], 'add each new main.js dependency to helpers/electron-shutdown.js');
+});
+
 for (const entry of ['ipc', 'native']) {
   test(`${entry} window close keeps the renderer alive until its actual playback flush is acknowledged`, async (t) => {
     const h = createShutdownHarness({ realPlaybackFlush: true });
@@ -76,58 +81,33 @@ function assertFinalized(harness, restart) {
   assert.equal(harness.clock.pending, 0);
 }
 
-test('shutdown drains accepted appearance writes before closing the runtime', async () => {
-  const appearanceIdle = Promise.withResolvers();
-  const h = createShutdownHarness({ appearanceIdle });
-  await h.start();
-  h.quit();
-  h.cloudIdle.resolve();
-  h.remoteIdle.resolve();
-  await h.settle();
-  assert.equal(h.count('runtime:stop'), 0);
-  appearanceIdle.resolve();
-  await h.settle();
-  assert.equal(h.count('runtime:stop'), 1);
-  h.backendStop.resolve();
-  await h.settle();
-  assertFinalized(h, false);
-});
-
-test('shutdown drains resource checking before playback and runtime teardown', async () => {
-  const integrityIdle = Promise.withResolvers();
-  const h = createShutdownHarness({ integrityIdle });
-  await h.start();
-  h.quit();
-  h.remoteIdle.resolve();
-  h.cloudIdle.resolve();
-  await h.settle();
-  assert.ok(h.count('integrity:stop') > 0);
-  assert.equal(h.count('runtime:stop'), 0);
-  integrityIdle.resolve();
-  await h.settle();
-  assert.equal(h.count('runtime:stop'), 1);
-  h.backendStop.resolve();
-  await h.settle();
-  assertFinalized(h, false);
-});
-
-test('shutdown drains ordinary login writes before stopping the backend', async () => {
-  const authIdle = Promise.withResolvers();
-  const h = createShutdownHarness({ authIdle });
-  await h.start();
-  h.quit();
-  h.remoteIdle.resolve();
-  h.cloudIdle.resolve();
-  await h.settle();
-  assert.equal(h.count('auth:dispose'), 1);
-  assert.equal(h.count('runtime:stop'), 0);
-  authIdle.resolve();
-  await h.settle();
-  assert.equal(h.count('runtime:stop'), 1);
-  h.backendStop.resolve();
-  await h.settle();
-  assertFinalized(h, false);
-});
+// Each owner must be released during quit and drained before the backend and database stop.
+for (const [idleOption, disposedOnce, stoppedAtLeastOnce] of [
+  ['appearanceIdle', [], []],
+  ['integrityIdle', [], ['integrity:stop']],
+  ['authIdle', ['auth:dispose'], []],
+  ['lotteryIdle', ['lottery:dispose', 'lottery:remove-ipc'], []],
+  ['fanIdle', ['fan:dispose', 'fan:remove-ipc'], []],
+]) {
+  test(`shutdown drains ${idleOption} before stopping the runtime`, async () => {
+    const idle = Promise.withResolvers();
+    const h = createShutdownHarness({ [idleOption]: idle });
+    await h.start();
+    h.quit();
+    h.remoteIdle.resolve();
+    h.cloudIdle.resolve();
+    await h.settle();
+    for (const call of disposedOnce) assert.equal(h.count(call), 1, call);
+    for (const call of stoppedAtLeastOnce) assert.ok(h.count(call) > 0, call);
+    assert.equal(h.count('runtime:stop'), 0);
+    idle.resolve();
+    await h.settle();
+    assert.equal(h.count('runtime:stop'), 1);
+    h.backendStop.resolve();
+    await h.state.lifecycle.shutdownPromise;
+    assertFinalized(h, false);
+  });
+}
 
 test('every quit event waits for one sync drain, playback flush and runtime stop', async () => {
   const playbackFlush = Promise.withResolvers();
@@ -199,25 +179,6 @@ test('registered restart IPC drains both controllers before stopping and relaunc
   assertFinalized(h, true);
   assert.ok(h.calls.indexOf('runtime:stopped') < h.calls.indexOf('app:relaunch'));
   assert.ok(h.calls.indexOf('app:relaunch') < h.calls.indexOf('app:exit'));
-});
-
-test('shutdown closes dedicated lottery auth and waits for its writes before playback and runtime stop', async () => {
-  const lotteryIdle = Promise.withResolvers();
-  const h = createShutdownHarness({ lotteryIdle });
-  await h.start();
-  h.quit();
-  assert.equal(h.count('lottery:dispose'), 1);
-  assert.equal(h.count('lottery:remove-ipc'), 1);
-  h.remoteIdle.resolve();
-  h.cloudIdle.resolve();
-  await h.settle();
-  assert.equal(h.count('runtime:stop'), 0);
-  lotteryIdle.resolve();
-  await h.settle();
-  assert.equal(h.count('runtime:stop'), 1);
-  h.backendStop.resolve();
-  await h.state.lifecycle.shutdownPromise;
-  assertFinalized(h, false);
 });
 
 for (const firstIntent of ['quit', 'restart']) {
@@ -407,25 +368,6 @@ test('update install IPC keeps delegating to the existing updater', async () => 
   assert.equal(h.count('remote:dispose'), 0);
   assert.equal(h.count('runtime:stop'), 0);
   assert.equal(h.count('app:relaunch'), 0);
-});
-
-test('fan synchronization is disposed and drained before database shutdown', async () => {
-  const fanIdle = Promise.withResolvers();
-  const h = createShutdownHarness({ fanIdle });
-  await h.start();
-  h.quit();
-  assert.equal(h.count('fan:remove-ipc'), 1);
-  assert.equal(h.count('fan:dispose'), 1);
-  h.remoteIdle.resolve();
-  h.cloudIdle.resolve();
-  await h.settle();
-  assert.equal(h.count('runtime:stop'), 0);
-  fanIdle.resolve();
-  await h.settle();
-  assert.equal(h.count('runtime:stop'), 1);
-  h.backendStop.resolve();
-  await h.state.lifecycle.shutdownPromise;
-  assertFinalized(h, false);
 });
 
 for (const intent of ['quit', 'restart']) {

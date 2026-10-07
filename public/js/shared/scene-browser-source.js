@@ -1,6 +1,13 @@
+import { isComponentWebSource } from './component-css-style.js';
+import { normalizeStyleParameters } from './component-style-parameters.js';
+
 export const BROWSER_SOURCE_DEFAULTS = Object.freeze({ url: '', viewportWidth: 800, viewportHeight: 600 });
 
 export function normalizeBrowserSourceConfig(config, { allowEmptyUrl = false } = {}) {
+  if (config && Object.hasOwn(config, 'styleParameters')) {
+    const { styleParameters, ...base } = config;
+    return { ...normalizeBrowserSourceConfig(base, { allowEmptyUrl }), styleParameters: normalizeStyleParameters('browser', styleParameters) };
+  }
   const invalid = (message) => Object.assign(new Error(message), { code: 'INVALID_SCENE_CONFIG', statusCode: 400 });
   if (!config || typeof config !== 'object' || Array.isArray(config)
     || Object.keys(config).length !== 3
@@ -16,6 +23,7 @@ export function normalizeBrowserSourceConfig(config, { allowEmptyUrl = false } =
   }
   const value = config.url.trim();
   if (!value && allowEmptyUrl) return { url: '', viewportWidth, viewportHeight };
+  if (isComponentWebSource(value) && /\.html?$/i.test(value)) return { url: value, viewportWidth, viewportHeight };
   try {
     if (!/^https?:\/\//i.test(value)) throw new Error();
     const url = new URL(value);

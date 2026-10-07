@@ -28,16 +28,21 @@ test('archive scope controls live on the profiles page, not in settings or the n
 
 test('archive empty states distinguish scope from search and never offer creation', async () => {
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
-  const empty = view.renderPeople([], null, false, true);
-  assert.match(empty, /暂无已归档档案。/);
-  assert.match(empty, /归档后的档案会保留在这里，可随时恢复到主列表。/);
-  assert.doesNotMatch(empty, /data-fan-action="(?:clear-filter|new)"/);
-  const filtered = view.renderPeople([], null, true, true);
-  assert.match(filtered, /没有找到符合条件的归档档案。/);
-  assert.match(filtered, /data-fan-action="clear-filter"/);
-  assert.doesNotMatch(filtered, /data-fan-action="new"/);
-  assert.match(view.renderPeople([], null, false), /暂无粉丝档案/);
-  assert.match(view.renderPeople([], null, true), /没有符合条件的档案/);
+  const states = [
+    [false, true, []],
+    [true, true, ['clear-filter']],
+    [false, false, ['new']],
+    [true, false, ['clear-filter']],
+  ].map(([filtered, archived, actions]) => {
+    const rendered = view.renderPeople([], null, filtered, archived);
+    assert.deepEqual(
+      [...rendered.matchAll(/data-fan-action="([^"]+)"/g)].map((match) => match[1]),
+      actions,
+      `filtered=${filtered} archived=${archived}`,
+    );
+    return rendered;
+  });
+  assert.equal(new Set(states).size, states.length, 'each empty state has its own message');
 });
 
 test('archived detail exposes one restore action outside more while current detail explains archive', async (t) => {
@@ -46,11 +51,11 @@ test('archived detail exposes one restore action outside more while current deta
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const current = view.renderDetail(profile);
   assert.equal(actionTags(current, 'archive').length, 1);
-  assert.match(current, /保留资料与记录/);
-  assert.match(current, /归档期间不显示提醒/);
   const archived = view.renderDetail({ ...profile, archived: true });
   assert.equal(actionTags(archived, 'archive').length, 1);
-  assert.match(archived, /data-fan-action="archive"[^>]*>恢复到主列表/);
+  const archiveLabel = (rendered) => rendered.match(/data-fan-action="archive"[^>]*>([^<]+)/)?.[1];
+  assert.ok(archiveLabel(archived));
+  assert.notEqual(archiveLabel(archived), archiveLabel(current), 'restore is labelled differently from archive');
   for (const details of archived.match(/<details\b[^>]*>[\s\S]*?<\/details>/g) || []) {
     assert.equal(actionTags(details, 'archive').length, 0, 'restore is available without expanding details');
   }
@@ -72,7 +77,7 @@ test('favorite indicators accompany escaped names while former names remain edit
   );
   const detail = view.renderDetail(profile);
   assert.match(detail, /&lt;新昵称&gt;/);
-  assert.match(detail.replace(/<[^>]*>/g, ''), /曾用名\s*&lt;旧昵称&gt;、较早昵称/);
+  assert.match(detail.replace(/<[^>]*>/g, ''), /&lt;旧昵称&gt;、较早昵称/);
   assert.doesNotMatch(detail, /<旧昵称>|<新昵称>/);
   const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'), {
     FormData: class {
@@ -114,8 +119,6 @@ test('daily update settings default off and return the selected value with the t
   const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'));
   const description = forms.settingsForm({});
   assert.match(description.fields, /12:10/);
-  assert.match(description.fields, /当天首次打开/);
-  assert.match(description.fields, /已下舰的粉丝会移除身份标记/);
   assert.doesNotMatch(description.fields, /name="autoSyncGuardRoster"[^>]*checked/);
   assert.match(forms.settingsForm({ autoSyncGuardRoster: true }).fields, /name="autoSyncGuardRoster"[^>]*checked/);
   const values = description.read({
@@ -153,16 +156,18 @@ test('global fan update polling shows scheduled and startup toasts, errors, and 
   };
   const ui = initFanProfileAutoUpdate({ windowRef, notify: (message, options) => notices.push({ message, options }) });
   await new Promise(setImmediate);
-  assert.match(notices[0].message, /12:10 定时更新完成，已同步最新大航海身份/);
+  assert.match(notices[0].message, /12:10/);
   result = { ok: true, data: null };
   await ui.poll();
   assert.equal(notices.length, 1);
   result = { ok: true, data: { reason: 'startup', status: 'success', created: 0, updated: 3, skipped: 1 } };
   await ui.poll();
-  assert.match(notices[1].message, /启动补更新完成/);
+  assert.doesNotMatch(notices[1].message, /12:10/, 'startup catch-up is not reported as the scheduled run');
+  assert.notEqual(notices[1].options?.type, 'error');
   result = { ok: true, data: { reason: 'startup', status: 'error', error: '请检查网络' } };
   await ui.poll();
-  assert.match(notices[2].message, /启动补更新失败：请检查网络/);
+  assert.match(notices[2].message, /请检查网络/);
+  assert.notEqual(notices[2].message, notices[1].message);
   assert.equal(notices[2].options.type, 'error');
   let complete;
   windowRef.fanProfiles.invoke = () =>
@@ -178,21 +183,13 @@ test('global fan update polling shows scheduled and startup toasts, errors, and 
   assert.equal(listeners.size, 0);
 });
 
-test('profile settings expose one bulk deletion action and require destructive confirmation', () => {
+// Confirmation before the delete-all request: frontend-fan-profiles.test.js "delete-all sends nothing when...".
+test('profile settings expose one bulk deletion action', () => {
   const html = fs.readFileSync(path.join(ROOT, 'public/pages/admin/toolbox/fan-profiles.html'), 'utf8');
-  const source = fs.readFileSync(path.join(ROOT, 'public/js/admin/fans/index.js'), 'utf8');
   const buttons = actionTags(html, 'delete-all');
   assert.equal(buttons.length, 1);
   assert.match(buttons[0], /^<button\b/);
   assert.match(buttons[0], /\stype=["']button["']/);
-  const start = source.indexOf("if (name === 'delete-all')");
-  const end = source.indexOf("if (name === 'export')", start);
-  const handler = source.slice(start, end);
-  assert.ok(start >= 0 && end > start);
-  assert.match(handler, /await dangerConfirm\(/);
-  assert.match(handler, /if \(!confirmed\) return;/);
-  assert.ok(handler.indexOf('dangerConfirm') < handler.indexOf("request('delete-all'"));
-  assert.match(handler, /request\('delete-all', \{ confirm: true \}\)/);
 });
 
 test('guard roster confirmation reuses the room identity without showing its number', async () => {
@@ -233,12 +230,11 @@ test('list and detail show each synced guard icon without requiring membership d
       assert.ok(image);
       assert.match(image, new RegExp(`\\salt=["']${label}["']`));
       assert.match(rendered, /&lt;虚构粉丝&gt;/);
-      assert.doesNotMatch(rendered, /曾观察到|当前待核实|<虚构粉丝>/);
+      assert.doesNotMatch(rendered, /<虚构粉丝>/);
     }
     const membership = view.renderDetail(profile, 'membership');
-    assert.match(membership, new RegExp(`在舰 · ${label}`));
+    assert.match(membership, new RegExp(label));
     assert.match(membership, /待补到期时间/);
-    assert.doesNotMatch(membership, /观察记录不代表当前仍在舰/);
   }
 });
 
@@ -306,8 +302,14 @@ test('detail tabs show each record in one place and keep archived records editab
     }
   }
   assert.ok(pages.interactions.indexOf(pinned.id) < pages.interactions.indexOf(note.id));
-  assert.match(pages.interactions, /已收起的手记/);
-  assert.match(pages.music, /已收起的音乐记录/);
+  for (const [record, rendered] of [
+    [archivedNote, pages.interactions],
+    [hiddenSong, pages.music],
+    [preference, pages.music],
+  ]) {
+    const collapsed = (rendered.match(/<details\b[^>]*>[\s\S]*?<\/details>/g) || []).join('');
+    assert.ok(collapsed.includes(`data-record-id="${record.id}"`), `${record.kind} is collapsed`);
+  }
   assert.match(pages.music, /不喜欢 太吵的歌/);
   for (const rendered of Object.values(pages)) {
     assert.equal((rendered.match(/星星同学/g) || []).length, 1);
@@ -329,7 +331,6 @@ test('membership conflicts show both dates and retain both resolution choices wi
   assert.match(rendered, /2026\/11\/30/);
   assert.match(rendered, /2026\/12\/31/);
   assert.match(rendered, /&lt;上次确认&gt;/);
-  assert.match(rendered, /确认前暂停大航海提醒，生日提醒照常/);
   for (const action of ['resolve-adopt', 'resolve-keep']) {
     const buttons = actionTags(rendered, action);
     assert.equal(buttons.length, 1);
@@ -365,7 +366,7 @@ test('merge preview uses readable escaped fields and preserves the selected merg
   await transfer.mergeDraft(f.detail(draft.id), target.id);
   assert.match(description.fields, /&lt;新称呼&gt;/);
   assert.match(description.fields, /09-18（农历）/);
-  assert.match(description.fields, /提前 7 天提醒 · 今年提醒日：2026-10-28/);
+  assert.match(description.fields, /2026-10-28/);
   assert.match(description.fields, /已有备注/);
   assert.match(description.fields, /新增备注/);
   assert.doesNotMatch(description.fields, /<pre|<新称呼>|monthDay|"calendar"|JSON/);

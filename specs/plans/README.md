@@ -8,6 +8,8 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-07-client-test-suite-remediation](2026-10-07-client-test-suite-remediation.md) | Awaiting Verification | P0–P3 已落实（547→518 文件，offline 无新增失败）；剩 browser 组并发下 suite-clock 超时待查与 contracts 组未运行。 |
+| [2026-10-06-woodland-frame-avatar](2026-10-06-woodland-frame-avatar.md) | Awaiting Verification | 宽边、头像及铭牌已实现；54 项测试与隔离展示检查通过。仅契约门禁因服务器检出版本与锁定版本不一致待补验。 |
 | [2026-10-02-client-themes](2026-10-02-client-themes.md) | Awaiting Verification | 实现、自动化与隔离 Electron 验证完成；原生 100% 缩放及实播/真实密集内容人工验收未覆盖。 |
 | [2026-08-18-desktop-lyric-rendering](2026-08-18-desktop-lyric-rendering.md) | Awaiting Verification | 实现与自动化已有记录；剩余硬件加速开/关下 Paint、主线程和帧率对比，没有真实 Electron 性能录制证据。 |
 | [2026-08-23-desktop-typography-hierarchy](2026-08-23-desktop-typography-hierarchy.md) | Awaiting Verification | 剩余 Windows 原生 100%/125% 显示缩放实机验收；不能用窗口缩放替代。 |

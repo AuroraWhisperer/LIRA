@@ -5,7 +5,6 @@ import { createTextBoxDefaults } from '../shared/text-box-config.js';
 import { renderTextBox } from '../shared/text-box-renderer.js';
 import { mountComponentStyleLibrary } from './component-style-library.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
-import { MEDIA_STYLE_TYPES } from '../shared/component-media-style.js';
 
 // Content bounds in the existing 640 × 400 thumbnails; retain room for shadows.
 const PREVIEW_IMAGE_BOUNDS = {
@@ -159,9 +158,10 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
 
   function show(component) {
     styleLibrary?.dispose();
-    if (MEDIA_STYLE_TYPES.includes(component.id)) styleLibrary = mountComponentStyleLibrary(localStyles, {
+    styleLibrary = mountComponentStyleLibrary(localStyles, {
       type: component.id, request: requestStyles,
-      onUse(style) { add(component, style.config, { name: style.name, size: [componentStyleMedia(style.config).width, componentStyleMedia(style.config).height] }); dialog.close(); },
+      onUse(style) { add(components.find(entry => entry.id === style.type) || component, style.config,
+        { name: style.name, size: [componentStyleMedia(style.config).width, componentStyleMedia(style.config).height] }); dialog.close(); },
     });
     textPreviews.disconnect();
     const category = COMPONENT_PREVIEW_DEFINITIONS[component.id].category || component.id;
@@ -220,9 +220,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       image.style.aspectRatio = String(Math.min(2.5, Math.max(1, width / height)));
     }, { once: true });
     const caption = previewElement('span', 'preview-picker-caption');
-    const action = previewElement('span', 'preview-picker-add', '添加');
-    action.prepend(pickerIcon('M12 5v14M5 12h14'));
-    caption.append(previewElement('strong', '', label), action);
+    caption.append(previewElement('strong', '', label));
     button.append(image, caption);
     button.addEventListener('click', () => {
       try {
@@ -239,7 +237,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
 
   function showSuites() {
     styleLibrary?.dispose();
-    styleLibrary = mountComponentStyleLibrary(localStyles, { request: requestStyles,
+    styleLibrary = mountComponentStyleLibrary(localStyles, { request: requestStyles, suitesOnly: true,
       onUse(style) {
         const component = components.find(entry => entry.id === style.type);
         if (!component) throw new Error('当前画布不支持这个组件，请重新打开。');
@@ -251,7 +249,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === 'suites'));
     styles.hidden = browserForm.hidden = subcategories.hidden = true;
     styles.replaceChildren(); subcategories.replaceChildren();
-    content.setAttribute('aria-label', '样式与套装'); content.scrollTop = 0;
+    content.setAttribute('aria-label', '套装'); content.scrollTop = 0;
   }
   const suites = previewElement('button');
   suites.type = 'button';
@@ -311,7 +309,12 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     });
   }
   return {
-    open() { show(groups.values().next().value[0]); dialog.showModal(); },
+    open() {
+      const selected = categories.querySelector('[aria-pressed="true"]');
+      if (selected) selected.click();
+      else show(groups.values().next().value[0]);
+      dialog.showModal();
+    },
     dispose() { styleLibrary?.dispose(); textPreviews.disconnect(); dialog.close(); dialog.remove(); },
   };
 }

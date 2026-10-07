@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const { MAX_SCENE_BYTES } = require('../scenes/scene-contract');
 const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../shared/scene-component-types');
+const { normalizeStyleParameters } = require('../shared/component-style-parameters');
 
 const PREVIEW_SESSION_TYPES = Object.freeze([...SHARED_SCENE_TYPES, 'canvas']);
 const SESSION_TTL_MS = 2 * 60 * 1000;
@@ -32,10 +33,15 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
   const anonymousScope = crypto.randomUUID();
   const owner = () => JSON.stringify(getOwner());
 
+  function remove(id) {
+    sessions.get(id)?.focusRequest?.finish(false);
+    return sessions.delete(id);
+  }
+
   function prune() {
     const currentOwner = owner();
     for (const [id, session] of sessions) {
-      if (session.owner !== currentOwner) sessions.delete(id);
+      if (session.owner !== currentOwner) remove(id);
     }
   }
 
@@ -107,6 +113,23 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       ...(!sameScene || linked.selectedItemId === undefined ? {} : { selectedItemId: linked.selectedItemId }) });
   }
 
+  function focus({ key }) {
+    const { links, ...selection } = resolveLink(key);
+    const session = get(links.find(({ component }) => component === 'canvas')?.id || links[0].id);
+    session.focusRequest?.finish(false);
+    if (!session.attachmentId) return Promise.resolve({ focused: false });
+    return new Promise(resolve => {
+      const request = { selection: { id: crypto.randomUUID(), ...selection }, attachmentId: session.attachmentId,
+        finish(focused) {
+          clearTimeout(timer);
+          if (session.focusRequest === request) session.focusRequest = null;
+          resolve({ focused });
+        } };
+      const timer = setTimeout(() => request.finish(false), 2000);
+      session.focusRequest = request;
+    });
+  }
+
   function stateOf(value, component) {
     if (!record(value) || !record(value.draft) || !record(value.saved)
       || !Number.isSafeInteger(value.generation)) fail(400, '预览状态无效。');
@@ -127,7 +150,8 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
   function publicState(session) {
     return copy({ component: session.component, draftKey: session.draftKey,
       state: session.state, display: session.display, ack: session.ack,
-      sequence: session.sequence, attachmentId: session.attachmentId || null });
+      sequence: session.sequence, attachmentId: session.attachmentId || null,
+      ...(session.focusRequest ? { focus: session.focusRequest.selection } : {}) });
   }
 
   function open({ component, state, display = null }) {
@@ -135,7 +159,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     if (!PREVIEW_SESSION_TYPES.includes(component)) fail(400, '未知预览组件。');
     const initial = stateOf(state, component);
     checkSize(display, 256 * 1024);
-    for (const [id, session] of sessions) if (session.component === component) sessions.delete(id);
+    for (const [id, session] of sessions) if (session.component === component) remove(id);
     const id = crypto.randomUUID();
     const token = crypto.randomBytes(32).toString('hex');
     const scope = getOwner()?.scope || anonymousScope;
@@ -152,7 +176,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     const next = stateOf(state, session.component);
     checkSize(display, 256 * 1024);
     if (next.generation !== session.state.generation) {
-      sessions.delete(id);
+      remove(id);
       fail(410, '配置来源已变化，请重新打开预览。');
     }
     if (!Number.isSafeInteger(ack) || ack < session.ack || ack > session.sequence) fail(400, '预览确认序号无效。');
@@ -167,7 +191,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     return copy({ commands: session.commands, closed: session.closed === true });
   }
 
-  function browser({ id, action, change, commandId, attachmentId, previousAttachmentId }, token) {
+  function browser({ id, action, change, commandId, attachmentId, previousAttachmentId, focusId }, token) {
     const session = authenticate(id, token);
     // Keep at most one session per component so the original desktop can resume
     // after suspended timers. Browser capabilities cannot revive an idle lease.
@@ -180,6 +204,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       }
       if (attachmentId !== session.attachmentId) {
         if (previousAttachmentId !== (session.attachmentId || null)) fail(409, '编辑已在其他页面继续，请刷新此页后重试。');
+        session.focusRequest?.finish(false);
         session.attachmentId = attachmentId;
         session.lastCommand = undefined;
       }
@@ -189,8 +214,14 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     if ((action !== 'read' || attachmentId !== undefined) && attachmentId !== session.attachmentId) {
       fail(409, '编辑已在其他页面继续，请刷新此页后重试。');
     }
-    if (action === 'close') { session.closed = true; session.touched = now(); return {}; }
-    if (action === 'read') { session.touched = now(); return publicState(session); }
+    if (action === 'close') { session.focusRequest?.finish(false); session.closed = true; session.touched = now(); return {}; }
+    if (action === 'read') {
+      if (session.focusRequest && session.focusRequest.selection.id === focusId && session.focusRequest.attachmentId === attachmentId) {
+        session.focusRequest.finish(true);
+      }
+      session.touched = now();
+      return publicState(session);
+    }
     if (!['edit', 'save', 'discard'].includes(action)
       && !(session.component === 'canvas' && ['publish', 'source', 'preset'].includes(action))) fail(400, '不支持的预览操作。');
     if (commandId !== undefined) {
@@ -204,10 +235,14 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     if (!session.state.loaded) fail(409, '配置尚未读取，请稍后重试。');
     if (session.commands.length >= 64) fail(429, '预览操作过于频繁，请稍后重试。');
     if (action === 'edit' && (!record(change) || Object.keys(change).some((key) =>
-      !Object.hasOwn(session.state.draft, key) || ['__proto__', 'constructor', 'prototype'].includes(key)))) {
+      (!Object.hasOwn(session.state.draft, key) && !(key === 'styleParameters' && ['clock', 'danmaku'].includes(session.component)))
+      || ['__proto__', 'constructor', 'prototype'].includes(key)))) {
       fail(400, '预览参数无效。');
     }
     if (action === 'edit') checkConfig(change, session.component);
+    if (action === 'edit' && Object.hasOwn(change, 'styleParameters')) {
+      change = { ...change, styleParameters: normalizeStyleParameters(session.component, change.styleParameters) };
+    }
     if (action === 'preset' && (!Array.isArray(session.state.presets) || !record(change)
       || (change.action === 'select' ? Object.keys(change).some(key => !['action', 'id'].includes(key))
         || !session.state.presets?.some(preset => preset.id === change.id)
@@ -231,8 +266,8 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     if (!session.state.loaded) fail(409, '配置尚未读取，请稍后重试。');
   }
 
-  return { open, exchange, browser, link, resolveLink, authorizeCanvasMedia,
-    revoke: (id) => sessions.delete(id), clear: () => sessions.clear() };
+  return { open, exchange, browser, link, resolveLink, focus, authorizeCanvasMedia,
+    revoke: remove, clear: () => { for (const id of sessions.keys()) remove(id); } };
 }
 
 module.exports = { createComponentPreviewSessions, PREVIEW_SESSION_TYPES, SESSION_TTL_MS, MAX_PREVIEW_REQUEST_BYTES };

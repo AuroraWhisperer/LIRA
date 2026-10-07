@@ -23,16 +23,17 @@ test('admin state events render queue empty states and song data', () => {
 test('admin wires gift catalog updates into the overtime picker', () => {
   const stateSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'), 'utf8');
   const overtimeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');
+  const pickerSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime-gift-picker.js'), 'utf8');
 
   assert.match(stateSource, /payload\.type === ["']gift-catalog:update["']/);
   assert.match(stateSource, /Events\.GIFT_CATALOG_UPDATED/);
   assert.match(overtimeSource, /eventBus\.on\(Events\.GIFT_CATALOG_UPDATED/);
-  assert.match(overtimeSource, /requestGeneration !== giftCatalogApplyGeneration/);
+  assert.match(pickerSource, /requestGeneration !== giftCatalogApplyGeneration/);
   assert.match(overtimeSource, /snapshot\?\.source === ["']server["'][\s\S]*applyServerGiftArtwork\(snapshot\)/);
-  assert.match(overtimeSource, /renderRules: \(rules\) =>\s*ruleEditor\.renderRules\(decorateOvertimeRules\(rules\)\)/);
-  assert.match(overtimeSource, /row\.dataset\.imagePath = imagePath/);
+  assert.match(overtimeSource, /renderRules: \(rules\) =>\s*ruleEditor\.renderRules\(giftPicker\.decorateRules\(rules\)\)/);
+  assert.match(pickerSource, /row\.dataset\.imagePath = imagePath/);
   assert.match(stateSource, /assetsUpdatedAt: String\(snapshot\.assetsUpdatedAt/);
-  assert.match(overtimeSource, /function openGiftPicker\(row = null\)[\s\S]*refreshGiftCatalog\(\{ notify: false \}\)/);
+  assert.match(pickerSource, /function openGiftPicker\(row = null\)[\s\S]*refreshGiftCatalog\(\{ notify: false \}\)/);
 });
 
 test('admin idle timers are lifecycle-bound', () => {
@@ -139,9 +140,11 @@ test('admin page uses one ordered module entrypoint', () => {
 test('admin form refresh preserves the active edit and updates inactive fields', async () => {
   const edited = { value: '正在输入', dataset: {}, closest: () => null };
   const inactive = { value: '旧值', dataset: {}, closest: () => null };
+  const guardThanksAuroraTextMode = { value: 'en', dataset: {},
+    closest: selector => selector.split(',').some(part => part.trim() === '#guardThanksPanel') ? {} : null };
   const document = {
     activeElement: edited,
-    getElementById: (id) => ({ edited, inactive })[id] || null,
+    getElementById: (id) => ({ edited, inactive, guardThanksAuroraTextMode })[id] || null,
     querySelectorAll: () => [],
     querySelector: () => null,
   };
@@ -149,7 +152,8 @@ test('admin form refresh preserves the active edit and updates inactive fields',
     document,
     window: { AdminApp: {} },
   });
-  new FormsService().fillForm({ edited: '服务端值', inactive: '新值' });
+  new FormsService().fillForm({ edited: '服务端值', inactive: '新值', guardThanksAuroraTextMode: '' });
   assert.equal(edited.value, '正在输入');
   assert.equal(inactive.value, '新值');
+  assert.equal(guardThanksAuroraTextMode.value, 'en', 'generic hydration cannot replace resolved legacy guard settings with empty storage values');
 });

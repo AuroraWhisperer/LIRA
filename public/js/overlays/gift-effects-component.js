@@ -1,9 +1,11 @@
 import { isComponentPreview } from './component-preview-client.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
 import { createGiftFramePlayer } from './gift-frame-player.js';
+import { FRAME_DURATION_MS } from './gift-effects-frame.js';
 import { createGiftFrameQueue } from './gift-frame-queue.js';
 import { createGuardThanksQueue } from './gift-effects-guard.js';
 import { createMediaEventPlayer } from './component-media.js';
+import { createNauticalGuardPlayer } from './guard-nautical-player.js';
 
 export function mountGiftEffectComponent() {
   if (!isComponentPreview()) return false;
@@ -34,11 +36,18 @@ export function mountGiftEffectComponent() {
     mediaPlayer = null;
   }
   function currentMediaPlayer() {
+    if (!mediaPlayer && !frame && config.resourceStyle?.preset === 'nautical-guard-thanks') {
+      mediaPlayer = createNauticalGuardPlayer({ root: guardRoot });
+    }
     if (!mediaPlayer && config.mediaStyle) mediaPlayer = createMediaEventPlayer(config.mediaStyle);
     return mediaPlayer;
   }
   function enqueue(payload) {
     if (payload.type !== (frame ? 'gift:frame' : 'gift:guard-thanks')) return;
+    if (config.resourceStyle?.preset === 'nautical-guard-thanks' && !payload.preview) {
+      // Both native styles may emit for one purchase; this artwork plays that purchase once.
+      payload = { ...payload, eventId: payload.eventId?.replace(/^guard-thanks:(\d+):(?:aurora|classic)$/, 'guard-thanks:$1') };
+    }
     if (!queue) {
       const media = currentMediaPlayer();
       // Configuration owns the loaded media; a queue reset only stops playback.
@@ -49,7 +58,8 @@ export function mountGiftEffectComponent() {
           ...(player ? { player } : {}),
           resolveMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'full' });
     }
-    queue.enqueue(frame ? payload : { ...payload, textMode: config.textMode });
+    queue.enqueue(frame || !config.textMode || config.textMode === 'follow'
+      ? payload : { ...payload, textMode: config.textMode });
   }
   function preview() {
     clear();
@@ -57,7 +67,8 @@ export function mountGiftEffectComponent() {
     const current = generation;
     void Promise.resolve(mediaPlayer?.ready()).then(() => {
       if (current !== generation) return;
-      const interval = mediaPlayer ? Math.max(3000, mediaPlayer.durationMs * sample.events.length + 1000) : 8000;
+      const interval = mediaPlayer ? Math.max(3000, mediaPlayer.durationMs * sample.events.length + 1000)
+        : frame ? FRAME_DURATION_MS * sample.events.length + 1500 : 8000;
       timer = setTimeout(preview, interval);
     }).catch(() => {});
   }

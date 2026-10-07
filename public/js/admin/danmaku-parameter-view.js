@@ -1,3 +1,4 @@
+import { mountStyleParameters } from './component-style-parameters.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
 import { readAppearanceValue, editStyleOption, resetStyleOptions, isValidFullscreenDuration } from '../shared/danmaku-appearance-draft.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
@@ -6,10 +7,11 @@ import { componentField, syncComponentFieldValue } from './component-preview-pan
 
 export function bindDanmakuParameters(root, controller, onError) {
   const node = (id) => componentField(root, id);
-  const controls = Object.fromEntries(['fontFamily', 'fontSize', 'textColor', 'backgroundOpacity', 'giftImage', 'scrollDirection']
+  const controls = Object.fromEntries(['fontFamily', 'fontSize', 'textColor', 'backgroundOpacity', 'giftImage', 'scrollDirection', 'speedPixelsPerSecond', 'centerBias', 'dispersion']
     .map((key) => [key, node(`danmaku${key[0].toUpperCase()}${key.slice(1)}`)]));
   const unregisterFont = registerLocalFontSelect(controls.fontFamily);
-  initParameterRanges(controls.backgroundOpacity);
+  const ranges = ['backgroundOpacity', 'centerBias', 'dispersion'];
+  ranges.forEach((key) => initParameterRanges(controls[key]));
 
   function render({ draft, loaded }, force = false) {
     const limits = DANMAKU_STYLE_OPTIONS[draft.style];
@@ -19,7 +21,7 @@ export function bindDanmakuParameters(root, controller, onError) {
     node('danmakuParametersHint').textContent = !loaded ? '登录并读取配置后可调节参数。'
       : !supported ? '当前服务器尚不支持参数调节，请更新服务器。' : '';
     node('danmakuParametersHint').hidden = loaded && supported;
-    const selectedFont = { default: draft.style === 'outline' ? '"Segoe UI"' : '"Microsoft YaHei UI"',
+    const selectedFont = { default: draft.style === 'starveil' ? '"SimSun"' : draft.style === 'outline' ? '"Segoe UI"' : '"Microsoft YaHei UI"',
       sans: '"Microsoft YaHei UI"', serif: '"SimSun"', kai: '"KaiTi"' }[options.fontFamily] || options.fontFamily;
     ensureSavedFontOption(controls.fontFamily, selectedFont);
     controls.fontFamily.value = selectedFont;
@@ -27,7 +29,7 @@ export function bindDanmakuParameters(root, controller, onError) {
     controls.fontSize.max = String(limits.maxFontSize);
     syncComponentFieldValue(controls.fontSize, options.fontSize, force);
     controls.textColor.value = options.textColor;
-    node('danmakuTextColorValue').textContent = options.textColor.toUpperCase();
+    node('danmakuTextColorLabel').textContent = draft.style === 'sketch' ? '主题颜色' : '正文颜色';
     node('danmakuFontSizeHint').textContent = `${limits.minFontSize}～${limits.maxFontSize} px`;
     node('danmakuBackgroundOpacityField').hidden = !limits.background;
     controls.backgroundOpacity.value = String(options.backgroundOpacity);
@@ -37,6 +39,15 @@ export function bindDanmakuParameters(root, controller, onError) {
     controls.giftImage.value = options.giftImage;
     node('danmakuScrollDirectionField').hidden = !limits.scrollDirection;
     controls.scrollDirection.value = options.scrollDirection;
+    node('danmakuSpeedField').hidden = !limits.speed;
+    syncComponentFieldValue(controls.speedPixelsPerSecond, options.speedPixelsPerSecond || 120, force);
+    for (const key of ['centerBias', 'dispersion']) {
+      const name = key[0].toUpperCase() + key.slice(1);
+      node(`danmaku${name}Field`).hidden = !isRandomDanmakuStyle(draft.style);
+      controls[key].value = String(options[key] ?? 1);
+      node(`danmaku${name}Value`).textContent = controls[key].value;
+      refreshParameterRange(controls[key]);
+    }
     for (const control of Object.values(controls)) control.disabled = !loaded || !supported;
     node('danmakuResetParameters').disabled = !loaded || !supported || !Object.keys(draft.styleOptions?.[draft.style] || {}).length;
     node('danmakuFullscreenDurationField').hidden = !isRandomDanmakuStyle(draft.style);
@@ -45,7 +56,7 @@ export function bindDanmakuParameters(root, controller, onError) {
   }
 
   for (const [key, control] of Object.entries(controls)) {
-    control.addEventListener(['backgroundOpacity', 'textColor'].includes(key) ? 'input' : 'change', () => {
+    control.addEventListener([...ranges, 'textColor'].includes(key) ? 'input' : 'change', () => {
       const state = controller.getState();
       if (!state.loaded || !Object.hasOwn(state.draft, 'styleOptions')) return;
       try {
@@ -71,6 +82,7 @@ export function bindDanmakuParameters(root, controller, onError) {
     }
     controller.edit({ fullscreenDurationSeconds: duration });
   });
+  const effects = mountStyleParameters(node('danmakuParametersTitle').closest('.danmaku-parameters'), controller, 'danmaku');
   const unsubscribe = controller.subscribe(render);
-  return { dispose() { unsubscribe(); unregisterFont?.(); disposeParameterRanges(controls.backgroundOpacity); } };
+  return { dispose() { effects.dispose(); unsubscribe(); unregisterFont?.(); ranges.forEach((key) => disposeParameterRanges(controls[key])); } };
 }

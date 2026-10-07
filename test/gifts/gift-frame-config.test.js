@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const { invokeBodyRoute } = require('../helpers/route-invoke');
 const {
   buildGiftFrameEvent,
   buildGiftFramePreviewEvent,
@@ -37,10 +38,24 @@ test('frame adapter uses final total price in integer cents and stable event ids
     num: 2,
     totalPriceCents: 2000,
     userName: '观众A',
+    avatarUrl: '',
     themeId: 'woodland-bloom',
   });
   assert.equal(normalizeRmbCents('19.99'), 1999);
   assert.equal(normalizeRmbCents('20.005'), 2001);
+});
+
+test('frame avatars use the known sender profile and reject untrusted URLs', () => {
+  const base = { id: 1, total_price: 20 };
+  const settings = { giftFrameEnabled: 'true' };
+  const avatar = 'https://i0.hdslb.com/bfs/face/viewer.webp';
+  assert.equal(buildGiftFrameEvent({ ...base, avatar_url: avatar }, settings).avatarUrl, avatar);
+  assert.equal(buildGiftFrameEvent({ ...base, avatarUrl: avatar }, settings).avatarUrl, avatar);
+  for (const avatarUrl of ['http://i0.hdslb.com/face.jpg', 'https://hdslb.com.evil.test/face.jpg',
+    'https://secret@i0.hdslb.com/face.jpg', 'file:///private/avatar', 'x'.repeat(2049)]) {
+    assert.equal(buildGiftFrameEvent({ ...base, avatarUrl }, settings).avatarUrl, '');
+  }
+  assert.equal(buildGiftFramePreviewEvent({ avatarUrl: avatar }).avatarUrl, '');
 });
 
 test('frame adapter rejects disabled, progress, zero, and below-threshold gifts', () => {
@@ -77,7 +92,7 @@ test('frame settings allowlist invalid values and preview bypasses live settings
   assert.throws(() => buildGiftFramePreviewEvent({ num: 1.5 }), /正整数/);
 });
 
-test('effect 1 retains its own settings while obsolete settings cannot be written', () => {
+test('effect 1 retains its own settings while obsolete and retired ribbon settings cannot be written or trigger', () => {
   const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
   const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
   assert.equal(DEFAULT_SETTINGS.giftFrameTheme, undefined);
@@ -93,9 +108,6 @@ test('effect 1 retains its own settings while obsolete settings cannot be writte
   });
   assert.equal(payload.themeId, 'woodland-bloom');
   assert.equal(payload.motionMode, undefined);
-});
-
-test('retired ribbon settings cannot trigger gifts or override woodland', () => {
   const gift = { id: 12, detection_status: 'final', total_price: 300 };
   const retired = { giftFrameRibbonEnabled: 'true', giftFrameRibbonThresholdRmb: '100' };
   assert.equal(buildGiftFrameEvent(gift, retired), null);
@@ -127,18 +139,3 @@ test('frame preview route broadcasts a preview event and validates bad input', a
   assert.equal(retired.status, 400);
   assert.equal(broadcasts.length, 1);
 });
-
-async function invokeBodyRoute(handler, context, body) {
-  let status = 0;
-  let responseBody = null;
-  const response = {
-    writeHead(nextStatus) {
-      status = nextStatus;
-    },
-    end(content) {
-      responseBody = JSON.parse(content);
-    },
-  };
-  await handler(context, { body: async () => body }, response);
-  return { status, body: responseBody };
-}

@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createWeSingOnlineLyricResolver, selectWeSingLyricTrack } = require('../../src/music/wesing-online-lyrics');
@@ -188,15 +189,59 @@ test('WeSing lyric source rejects unknown stored values by falling back to NetEa
   assert.deepEqual(requestedPlatforms, ['netease']);
 });
 
-test('WeSing lyric preferences default to NetEase smart matching and are injected dynamically', () => {
+function loadRuntimeCapturingResolver() {
+  const Module = require('node:module');
+  const originalLoad = Module._load;
+  const runtimePath = require.resolve('../../src/server/music-runtime');
+  const captured = [];
+  try {
+    Module._load = function (request, parent, isMain) {
+      const loaded = originalLoad.call(this, request, parent, isMain);
+      if (request === '../music/wesing-online-lyrics' && parent?.filename === runtimePath) {
+        return {
+          ...loaded,
+          createWeSingOnlineLyricResolver(options) {
+            captured.push(options);
+            return loaded.createWeSingOnlineLyricResolver(options);
+          },
+        };
+      }
+      return loaded;
+    };
+    delete require.cache[runtimePath];
+    return { ...require(runtimePath), captured };
+  } finally {
+    delete require.cache[runtimePath];
+    Module._load = originalLoad;
+  }
+}
+
+test('WeSing lyric preferences default to NetEase smart matching and are read from current settings', (t) => {
   assert.equal(DEFAULT_SETTINGS.weSingLyricSource, 'netease');
   assert.equal(DEFAULT_SETTINGS.weSingSmartLyricMatch, 'true');
 
-  const runtimeSource = fs.readFileSync(path.join(__dirname, '../..', 'src', 'server', 'music-runtime.js'), 'utf8');
-  assert.match(runtimeSource, /getPreferences\(\)\s*\{/);
-  assert.match(runtimeSource, /const settings = settingsStore\.getSettings\(\)/);
-  assert.match(runtimeSource, /preferredPlatform:\s*settings\.weSingLyricSource/);
-  assert.match(runtimeSource, /smartMatch:\s*settings\.weSingSmartLyricMatch/);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-wesing-preferences-'));
+  const { buildMusicRuntime, captured } = loadRuntimeCapturingResolver();
+  let settings = { weSingCachePath: '', weSingLyricOffsetMs: '0', weSingLyricSource: 'netease', weSingSmartLyricMatch: 'true' };
+  const runtime = buildMusicRuntime({
+    dataDir: { apiCacheDir: path.join(dir, 'api'), lyricCacheDir: path.join(dir, 'lyrics') },
+    runtimeOptions: { weSingPlatform: 'linux' },
+    settingsStore: { getSettings: () => settings, setSetting() {} },
+    webSocketHub: { broadcast() {} },
+  });
+  t.after(() => {
+    runtime.weSingCapture.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  assert.equal(captured.length, 1);
+  assert.deepEqual({ ...captured[0].getPreferences() }, { preferredPlatform: 'netease', smartMatch: 'true' });
+  settings = { ...settings, weSingLyricSource: 'qq', weSingSmartLyricMatch: 'false' };
+  assert.deepEqual(
+    { ...captured[0].getPreferences() },
+    { preferredPlatform: 'qq', smartMatch: 'false' },
+    'changed settings apply to the next lyric request without rebuilding the runtime',
+  );
 });
 
 function createTrackingLyricsService(requestedPlatforms, options = {}) {

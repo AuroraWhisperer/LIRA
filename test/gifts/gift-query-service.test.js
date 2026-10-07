@@ -331,7 +331,9 @@ test('history sorting is deterministic across keyset pages with stable totals', 
   }
 });
 
-test('legacy gift page reads and sprint reset stay within the active source', () => {
+test('legacy gift page reads and sprint reset stay within the active source', (t) => {
+  // Blind-box reads use the machine-local day; pin local noon so rows created now stay in today.
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 15, 12).getTime() });
   const fixture = createFixture();
   try {
     const sourceA = fixture.resolveSource('e'.repeat(64));

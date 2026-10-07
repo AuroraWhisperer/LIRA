@@ -2,11 +2,12 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createServerRuntime } = require('../../src/server');
+const { postJson } = require('../helpers/local-api-client');
+const { webpBytes } = require('../helpers/remote-catalog-fixture');
 
 test('overtime API requires auth, validates commands, extends snapshots, and broadcasts updates', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-overtime-routes-'));
@@ -43,7 +44,7 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
   try {
     const app = await runtime.start({
       host: '127.0.0.1',
-      startPort: await findAvailablePort(),
+      startPort: 0,
       bilibiliAuth: {
         getAuthState: async () => ({ loggedIn: true, uid: 1 }),
         getUid: async () => 1,
@@ -243,7 +244,7 @@ test('catalog initialization caches images and both searches stay local', async 
   try {
     const app = await runtime.start({
       host: '127.0.0.1',
-      startPort: await findAvailablePort(),
+      startPort: 0,
       remoteGiftCatalog: {
         imageBaseUrl: 'https://api.example.test',
         fetch: async () => {
@@ -333,14 +334,6 @@ test('catalog initialization caches images and both searches stay local', async 
   }
 });
 
-function webpBytes() {
-  const bytes = Buffer.alloc(16);
-  bytes.write('RIFF', 0, 'ascii');
-  bytes.writeUInt32LE(8, 4);
-  bytes.write('WEBP', 8, 'ascii');
-  return bytes;
-}
-
 async function requestJson(baseUrl, token, pathname, options = {}) {
   const response = await fetch(`${baseUrl}${pathname}`, {
     ...options,
@@ -353,18 +346,6 @@ async function requestJson(baseUrl, token, pathname, options = {}) {
   const payload = await response.json();
   assert.equal(response.status, 200, payload.error || pathname);
   return payload.data;
-}
-
-async function postJson(baseUrl, token, pathname, body) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  });
-  return { response, payload: await response.json() };
 }
 
 function readNextWebSocketMessage(baseUrl, token, afterOpen, predicate = () => true) {
@@ -403,16 +384,5 @@ function readNextWebSocketMessage(baseUrl, token, afterOpen, predicate = () => t
       },
       { once: true },
     );
-  });
-}
-
-function findAvailablePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close((error) => (error ? reject(error) : resolve(address.port)));
-    });
   });
 }

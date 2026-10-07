@@ -2,6 +2,7 @@
 
 const { randomUUID } = require('node:crypto');
 const { DANMAKU_STYLE_OPTIONS, normalizeStyleOptions } = require('../shared/danmaku-style-options');
+const { normalizeStyleParameters } = require('../shared/component-style-parameters');
 const { normalizeLayout } = require('../shared/danmaku-layout');
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -16,12 +17,14 @@ function appearance(event) {
   if (!Object.hasOwn(DANMAKU_STYLE_OPTIONS, event.style) || !Number.isInteger(duration) || duration < 2 || duration > 30) return null;
   try {
     return { style: event.style, fullscreenDurationSeconds: duration,
+      ...(event.styleParameters === undefined ? {} : { styleParameters: normalizeStyleParameters('danmaku', event.styleParameters) }),
       styleOptions: normalizeStyleOptions(event.styleOptions ?? {}), layout: normalizeLayout(event.layout ?? null) };
   } catch { return null; }
 }
 
 function displayEvent(event) {
   const result = pick(event, 'type liveSessionId timestamp name');
+  if (event.type === 'entry') return { ...result, ...pick(event, 'guardLevel') };
   if (event.type === 'gift') return { ...result, ...pick(event, 'giftName giftCount giftTotalPrice giftImageUrl') };
   Object.assign(result, pick(event, 'message avatarUrl'));
   if (event.type === 'superchat') {
@@ -108,7 +111,7 @@ function createCloudDisplayBuffer({ getOwner }) {
       if (!state.liveSessionId || state.liveSessionId !== event.liveSessionId) return false;
       reset();
       state = { type: 'overlay-state', liveStatus: 0, liveSessionId: null, confirmationMessage: null, state: 'running' };
-    } else if (['danmaku', 'gift', 'superchat'].includes(event.type)) {
+    } else if (['danmaku', 'gift', 'superchat', 'entry'].includes(event.type)) {
       if (!state?.liveSessionId || event.liveSessionId !== state.liveSessionId) return false;
       events.push({ cursor: ++cursor, event: displayEvent(event) });
       if (events.length > 200) events.shift();

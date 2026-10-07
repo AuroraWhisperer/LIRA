@@ -1,8 +1,10 @@
+import { createFanEditor } from './editor.js';
+import { createFanProfileActions } from './profile-actions.js';
 import { createFanTransferUi } from './transfer-ui.js';
 import { dangerConfirm, toast } from '../../shared/utils.js';
-import { html, renderPeople, renderDetail, renderReminders } from './view.js';
+import { renderPeople, renderDetail, renderReminders } from './view.js';
 import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
-import { profileForm, recordForm, settingsForm, exportForm, guardRosterForm } from './forms.js';
+import { settingsForm, guardRosterForm } from './forms.js';
 
 let initialized = false;
 
@@ -30,21 +32,34 @@ function createFanUi() {
     sequence: 0,
     selection: 0,
     selectionId: null,
-    editor: null,
     expanded: false,
   };
   let searchTimer;
   let pollTimer;
   const renderedMarkup = new WeakMap();
+  const formEditor = createFanEditor({ editor, form, onError: (error) => showError(error, true) });
+  const openForm = formEditor.open;
+  async function receiveProfile(profile, tab) {
+    state.profile = profile;
+    if (tab) state.tab = tab;
+    await load();
+    renderSelected();
+  }
+  const profileActions = createFanProfileActions({
+    request,
+    openForm,
+    onProfile: receiveProfile,
+    async onDeleted() {
+      state.profile = null;
+      updateMarkup(detailNode, '<p class="fan-empty">档案已删除。</p>');
+      await load();
+    },
+  });
   const transfer = createFanTransferUi({
     request,
     openForm,
     getProfile: () => state.profile,
-    onProfile: async (profile) => {
-      state.profile = profile;
-      await load();
-      renderSelected();
-    },
+    onProfile: receiveProfile,
     onReset: async () => {
       state.profile = null;
       updateMarkup(detailNode, '<p class="fan-empty">恢复完成，请重新选择档案。</p>');
@@ -271,43 +286,6 @@ function createFanUi() {
     showPage();
   }
 
-  function openForm(description, save) {
-    state.editor = { ...description, save };
-    editor.classList.toggle('fan-profile-editor', !!description.profileEditor);
-    get('fanEditorTitle').textContent = description.title;
-    get('fanEditorFields').innerHTML = description.fields;
-    get('fanEditorHint').textContent = description.hint || '';
-    get('fanEditorError').hidden = true;
-    get('fanSaveButton').textContent = description.saveLabel || '保存';
-    description.bind?.(form);
-    if (!editor.open) editor.showModal();
-    form.querySelector('[autofocus], textarea, input:not([type="checkbox"]), select')?.focus();
-  }
-
-  function editProfile(profile = {}) {
-    openForm(profileForm(profile), async (payload) => {
-      try {
-        state.profile = await request(profile.id ? 'save' : 'create', payload);
-      } catch (error) {
-        if (error.existingId && profile.id && !profile.identity) error.mergeInput = payload;
-        throw error;
-      }
-      await load();
-      renderSelected();
-    });
-  }
-
-  function editRecord(kind, record) {
-    const profileId = state.profile.id;
-    openForm(recordForm(kind, record), async (payload) => {
-      const result = await request('save-record', { ...payload, profileId });
-      state.profile = result.profile;
-      if (kind === 'note') state.tab = 'interactions';
-      await load();
-      renderSelected();
-    });
-  }
-
   function settings() {
     openForm(settingsForm(state.settings), async (payload) => {
       state.settings = await request('configure', payload);
@@ -358,7 +336,7 @@ function createFanUi() {
       return;
     }
     if (name === 'new') {
-      editProfile();
+      profileActions.editProfile();
       return;
     }
     if (name === 'settings') {
@@ -379,8 +357,7 @@ function createFanUi() {
       return;
     }
     if (name === 'backup') {
-      const data = await request('backup');
-      transfer.download(JSON.stringify(data, null, 2), 'LIRA-粉丝档案备份.json', 'application/json');
+      await transfer.backup();
       return;
     }
     if (name === 'restore') {
@@ -416,9 +393,7 @@ function createFanUi() {
       return;
     }
     if (name === 'export') {
-      openForm({ ...exportForm(), saveLabel: '导出表格' }, async (payload) =>
-        transfer.download(await request('export-list', payload), 'LIRA-粉丝档案列表.csv', 'text/csv;charset=utf-8'),
-      );
+      transfer.exportList();
       return;
     }
     if (name === 'open-reminder') {
@@ -436,7 +411,7 @@ function createFanUi() {
     }
     if (!state.profile) return;
     if (name === 'edit-profile') {
-      editProfile(state.profile);
+      profileActions.editProfile(state.profile);
       return;
     }
     if (name === 'legacy') {
@@ -444,12 +419,12 @@ function createFanUi() {
       return;
     }
     if (name.startsWith('new-')) {
-      editRecord(name.slice(4));
+      profileActions.editRecord(state.profile.id, name.slice(4));
       return;
     }
     if (name === 'edit-record') {
       const record = state.profile.records.find((r) => r.id === element.dataset.recordId);
-      if (record) editRecord(record.kind, record);
+      if (record) profileActions.editRecord(state.profile.id, record.kind, record);
       return;
     }
     if (name.startsWith('resolve-')) {
@@ -481,26 +456,7 @@ function createFanUi() {
         favorite: !state.profile.favorite,
       });
     } else if (name === 'delete') {
-      const id = state.profile.id;
-      openForm(
-        {
-          title: '永久删除档案',
-          saveLabel: '确认永久删除',
-          hint: '档案、手记与提醒状态会删除，原始礼物账本不受影响。此操作不能撤销。',
-          fields: `<p class="fan-field-wide">即将删除 ${html(state.profile.alias || state.profile.platformName)}。建议先保存完整备份。</p><label class="fan-check"><input name="suppress" type="checkbox" checked />不再为这位粉丝自动建档</label><label class="fan-check"><input name="confirm" type="checkbox" required />我确认永久删除</label>`,
-          read: (value) => ({
-            id,
-            confirm: value.elements.confirm.checked,
-            suppress: value.elements.suppress.checked,
-          }),
-        },
-        async (payload) => {
-          await request('delete', payload);
-          state.profile = null;
-          updateMarkup(detailNode, '<p class="fan-empty">档案已删除。</p>');
-          await load();
-        },
-      );
+      profileActions.deleteProfile(state.profile);
       return;
     }
     await load();
@@ -536,33 +492,6 @@ function createFanUi() {
         await load();
       }
     })().catch((error) => showError(error));
-  });
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const description = state.editor;
-    if (!description || get('fanSaveButton').disabled) return;
-    get('fanSaveButton').disabled = true;
-    get('fanSaveButton').textContent = description.busyLabel || '正在保存…';
-    form.querySelector('[data-fan-action="cancel-edit"]').disabled = true;
-    form.setAttribute('aria-busy', 'true');
-    get('fanEditorError').hidden = true;
-    try {
-      const result = await description.save(description.read(form));
-      if (!result?.keepOpen) {
-        editor.close();
-        toast(result?.message || '已保存到本机');
-      }
-    } catch (error) {
-      showError(error, true);
-    } finally {
-      get('fanSaveButton').disabled = false;
-      get('fanSaveButton').textContent = state.editor.saveLabel || '保存';
-      form.querySelector('[data-fan-action="cancel-edit"]').disabled = false;
-      form.removeAttribute('aria-busy');
-    }
-  });
-  editor.addEventListener('cancel', (event) => {
-    if (get('fanSaveButton').disabled) event.preventDefault();
   });
   get('fanSearch').addEventListener('input', () => {
     clearTimeout(searchTimer);
@@ -610,6 +539,7 @@ function createFanUi() {
   window.addEventListener(
     'pagehide',
     () => {
+      formEditor.dispose();
       observer.disconnect();
       namesObserver.disconnect();
       clearInterval(pollTimer);

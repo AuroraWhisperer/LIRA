@@ -439,7 +439,7 @@ HTTP 与 WS 使用同一份公开快照。客户端比较同 runtimeId 的 revis
 | `test/games/games.test.js`、`test/games/game-routes.test.js` | 类别 1 开始/重开门禁、旧会话和原有接口 |
 | `test/games/frontend-games.test.js`、`test/games/games-overlay.test.js` | 类别 1 管理流程、旧 `/games` 展示 |
 | `test/overlays/overlay-http-access.test.js`、`test/overlays/overlay-projection.test.js` | 新 scope 的只读边界与字段隐藏、原 scope 隔离 |
-| `test/bilibili/bilibili-runtime.test.js`、`test/danmaku/danmaku-client.test.js`、`test/bilibili/bilibili-danmaku-parser.test.js`、`test/transport/websocket-connection.test.js` | 真实就绪口径、消息来源、接入顺序、重连与旧命令链路 |
+| `test/bilibili/bilibili-runtime.test.js`、`test/danmaku/danmaku-client.test.js`、`test/bilibili/bilibili-danmaku-parser.test.js`、`test/bilibili/bilibili-websocket-connection.test.js` | 真实就绪口径、消息来源、接入顺序、重连与旧命令链路 |
 
 确定性测试使用虚拟 UID、假时钟和临时状态，不连接真实平台或写入用户数据。浏览器检查前先确认准确路由及状态码；桌面主持流程使用正常 Electron 预加载和授权环境，不能用匿名浏览器代替。
 

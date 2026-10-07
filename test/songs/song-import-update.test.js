@@ -2,8 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
-const vm = require('node:vm');
+const { loadSongImportParser } = require('../helpers/song-import-parser');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
@@ -28,13 +27,7 @@ function fixture(t) {
 }
 
 function textParser() {
-  const context = { window: { AdminApp: { utils: {} } } };
-  vm.runInNewContext(
-    readJsModuleBundle('public', 'js', 'admin', 'song-import-parser.js') +
-      '\nthis.parser = { parseTable, parseDelimited };',
-    context,
-  );
-  return context.parser.parseTable;
+  return loadSongImportParser().parseTable;
 }
 
 test('update preview preserves omitted and blank fields and matches exact artist including disabled songs', (t) => {

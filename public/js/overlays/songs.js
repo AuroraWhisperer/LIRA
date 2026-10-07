@@ -237,7 +237,7 @@ function scheduleRelayout({ anchor = scroller?.captureAnchor() ?? null, delay = 
         console.warn('[overlay-songs] font loading failed:', error.message || error);
       }
     }
-    if (revision !== relayoutRevision || !scroller) return;
+    if (revision !== relayoutRevision || !scroller || scroller.records.length === 0) return;
     scroller.relayout(anchor);
     if (!document.hidden) scroller.start();
   }, delay);

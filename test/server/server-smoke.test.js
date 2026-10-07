@@ -62,10 +62,10 @@ test('server normalizes localhost to the IPv4 loopback address', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-loopback-'));
   const { createServerRuntime } = require('../../src/server');
   const runtime = createServerRuntime({ dataDir });
-  const port = await findAvailablePort();
 
   try {
-    const app = await runtime.start({ host: 'localhost', startPort: port });
+    const app = await runtime.start({ host: 'localhost', startPort: 0 });
+    const port = app.port;
     assert.equal(app.host, '127.0.0.1');
     assert.equal(app.baseUrl, `http://127.0.0.1:${port}`);
   } finally {
@@ -99,100 +99,55 @@ test('server rejects non-loopback host addresses', async () => {
   }
 });
 
-test('server rejects requests with mismatched Host header', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-host-header-'));
+test('server enforces Host and browser Origin while allowing non-browser clients', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-host-origin-'));
   const { createServerRuntime } = require('../../src/server');
   const runtime = createServerRuntime({ dataDir });
-  const port = await findAvailablePort();
 
   try {
-    const app = await runtime.start({ host: '127.0.0.1', startPort: port });
-    _testToken = runtime.getApiToken();
-
-    // Use http.request to set a custom Host header (fetch normalizes it)
-    const response = await new Promise((resolve, reject) => {
-      const req = http.request(
-        {
-          hostname: '127.0.0.1',
-          port,
-          path: '/api/state',
-          method: 'GET',
-          headers: {
-            Host: 'evil.com',
-            Authorization: `Bearer ${_testToken}`,
+    const app = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+    const token = runtime.getApiToken();
+    // http.request keeps a custom Host header; fetch normalizes it.
+    const send = ({ method, urlPath, headers, body }) =>
+      new Promise((resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: '127.0.0.1',
+            port: app.port,
+            path: urlPath,
+            method,
+            headers: { Authorization: `Bearer ${token}`, ...headers },
           },
-        },
-        resolve,
-      );
-      req.on('error', reject);
-      req.end();
+          async (response) => {
+            let text = '';
+            for await (const chunk of response) text += chunk;
+            resolve({ status: response.statusCode, payload: JSON.parse(text) });
+          },
+        );
+        req.on('error', reject);
+        req.end(body);
+      });
+    const jsonPost = (headers, queueLimit) => ({
+      method: 'POST',
+      urlPath: '/api/settings',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ queueLimit }),
     });
 
-    let body = '';
-    for await (const chunk of response) {
-      body += chunk;
+    for (const [name, request, status, expected] of [
+      [
+        'mismatched Host',
+        { method: 'GET', urlPath: '/api/state', headers: { Host: 'evil.com' } },
+        400,
+        { error: 'Invalid Host header.' },
+      ],
+      ['wrong Origin on a state change', jsonPost({ Origin: 'http://evil.com' }, 5), 403, { error: 'Origin not allowed.' }],
+      ['non-browser client without Origin', jsonPost({}, 7), 200, { ok: true }],
+    ]) {
+      const { status: actualStatus, payload } = await send(request);
+      assert.equal(actualStatus, status, name);
+      for (const [key, value] of Object.entries(expected)) assert.equal(payload[key], value, name);
     }
-
-    assert.equal(response.statusCode, 400);
-    const payload = JSON.parse(body);
-    assert.equal(payload.error, 'Invalid Host header.');
-  } finally {
-    await runtime.stop({ exitProcess: false });
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
-});
-
-test('server rejects state-changing requests with wrong Origin', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-origin-'));
-  const { createServerRuntime } = require('../../src/server');
-  const runtime = createServerRuntime({ dataDir });
-  const port = await findAvailablePort();
-
-  try {
-    const app = await runtime.start({ host: '127.0.0.1', startPort: port });
-    _testToken = runtime.getApiToken();
-
-    const response = await fetch(`${app.baseUrl}/api/settings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${_testToken}`,
-        Origin: 'http://evil.com',
-      },
-      body: JSON.stringify({ queueLimit: 5 }),
-    });
-    assert.equal(response.status, 403);
-    const payload = await response.json();
-    assert.equal(payload.error, 'Origin not allowed.');
-  } finally {
-    await runtime.stop({ exitProcess: false });
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
-});
-
-test('server allows requests without Origin header (non-browser clients)', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-no-origin-'));
-  const { createServerRuntime } = require('../../src/server');
-  const runtime = createServerRuntime({ dataDir });
-  const port = await findAvailablePort();
-
-  try {
-    const app = await runtime.start({ host: '127.0.0.1', startPort: port });
-    _testToken = runtime.getApiToken();
-
-    // POST without Origin header should succeed (simulates curl, scripts, etc.)
-    const response = await fetch(`${app.baseUrl}/api/settings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${_testToken}`,
-        // No Origin header
-      },
-      body: JSON.stringify({ queueLimit: 7 }),
-    });
-    assert.equal(response.status, 200);
-    const payload = await response.json();
-    assert.equal(payload.ok, true);
   } finally {
     await runtime.stop({ exitProcess: false });
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -203,7 +158,6 @@ test('server quiesce rejects new API work and retains the port until cleanup fin
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-quiesce-'));
   const { createServerRuntime } = require('../../src/server');
   const runtime = createServerRuntime({ dataDir });
-  const port = await findAvailablePort();
   let releaseHook;
   let hookStartedResolve;
   const hookStarted = new Promise((resolve) => {
@@ -218,7 +172,8 @@ test('server quiesce rejects new API work and retains the port until cleanup fin
   );
 
   try {
-    const app = await runtime.start({ host: '127.0.0.1', startPort: port });
+    const app = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+    const port = app.port;
     const stop = runtime.stop({ exitProcess: false });
     await hookStarted;
 
@@ -299,7 +254,7 @@ test('server runtimes isolate sequential data directories', async () => {
     firstRuntime = createServerRuntime({ dataDir: firstDataDir });
     await firstRuntime.start({
       host: '127.0.0.1',
-      startPort: await findAvailablePort(),
+      startPort: 0,
     });
     assert.equal(firstRuntime.getSetting('queueLimit'), '50');
     assert.equal(fs.existsSync(path.join(firstDataDir, '.session-token')), true);
@@ -309,7 +264,7 @@ test('server runtimes isolate sequential data directories', async () => {
     secondRuntime = createServerRuntime({ dataDir: secondDataDir });
     await secondRuntime.start({
       host: '127.0.0.1',
-      startPort: await findAvailablePort(),
+      startPort: 0,
     });
     assert.equal(fs.existsSync(path.join(secondDataDir, '.session-token')), true);
     await secondRuntime.stop({ exitProcess: false });
@@ -333,7 +288,7 @@ test('server runtime stops once with an upgraded peer that never sends FIN', asy
     hookCalls += 1;
   });
   try {
-    const app = await runtime.start({ host: '127.0.0.1', startPort: await findAvailablePort() });
+    const app = await runtime.start({ host: '127.0.0.1', startPort: 0 });
     client = net.createConnection({ host: app.host, port: app.port, allowHalfOpen: true });
     const received = [];
     client.on('data', (chunk) => received.push(chunk));

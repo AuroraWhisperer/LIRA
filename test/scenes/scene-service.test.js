@@ -10,6 +10,7 @@ const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = req
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { MAX_SCENE_BYTES, normalizeSceneDocument } = require('../../src/scenes/scene-contract');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 function item(type = 'clock', changes = {}) {
   return {
@@ -30,9 +31,7 @@ function normalizeConfig(type, config) {
 }
 
 function fixture(t, persistent = false) {
-  const root = path.resolve(__dirname, '../../tmp');
-  if (persistent) fs.mkdirSync(root, { recursive: true });
-  const directory = persistent ? fs.mkdtempSync(path.join(root, 'scene-service-')) : null;
+  const directory = persistent ? createScratchDirectory('scene-service-') : null;
   const filename = directory ? path.join(directory, 'scenes.sqlite') : ':memory:';
   let db = new DatabaseSync(filename);
   t.after(() => {

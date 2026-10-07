@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizeStyleParameters } = require('../shared/component-style-parameters');
+
 // Page capabilities select fields, never a whole runtime object or settings prefix.
 const SETTING_KEYS = {
   queue: `backdropBlur enableGradient glowIntensity gradientEnd
@@ -57,7 +59,7 @@ const SETTING_KEYS = {
   'gift-export': '',
   opening: '',
   clock: `clockStyle clockShowDate clockShowSeconds clockHourFormat clockLabel
-    clockFlipFrameColor clockFlipFaceColor clockFlipTextColor clockMoonMode clockMoonIntervalSeconds`,
+    clockFlipFrameColor clockFlipFaceColor clockFlipTextColor clockMoonMode clockMoonIntervalSeconds clockStyleParameters`,
 };
 
 function fields(names) {
@@ -205,7 +207,7 @@ const EVENT_SCHEMAS = {
   'gift-catalog:update': { scope: 'gift-feed', schema: {} },
   'gift:frame': {
     scope: 'gift-effects',
-    schema: fields('eventId giftName userName num totalPriceCents themeId preview'),
+    schema: fields('eventId giftName userName avatarUrl num totalPriceCents themeId preview'),
   },
   'gift:guard-thanks': {
     scope: 'gift-effects',
@@ -301,6 +303,14 @@ function projectOverlayResponse(scope, pathName, data) {
   if (scope === 'games' && ['/api/games/session', '/api/games/session/move'].includes(pathName))
     return projectGameSession(data);
   if (scope === 'interactions' && pathName === '/api/interactions/session') return projectInteraction(data);
+  if (scope === 'clock' && pathName === '/api/clock/config') {
+    const result = select(data, RESPONSE_SCHEMAS.clock[pathName]);
+    if (data?.styleParameters !== undefined) {
+      try { result.styleParameters = normalizeStyleParameters('clock', data.styleParameters); }
+      catch { delete result.styleParameters; }
+    }
+    return result;
+  }
   const schema = RESPONSE_SCHEMAS[scope]?.[pathName];
   return schema ? select(data, schema) : null;
 }

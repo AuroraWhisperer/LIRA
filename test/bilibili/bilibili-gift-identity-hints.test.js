@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { extractBilibiliGiftIdentity } = require('../../src/bilibili/users/gift-identity-hints');
 const { MessageHandlers } = require('../../src/bilibili/danmaku/message-handlers');
+const { isBilibiliDuplicateGuardToast } = require('../../src/bilibili/parsers/gift-command-utils');
 
 test('gift messages supply identity only, independently of amounts and gift metadata', () => {
   const packet = {
@@ -105,4 +106,19 @@ test('local message handling only ingests user hints even if a caller supplies a
   assert.equal(identities[0].context.roomIdentityVerified, true);
   assert.equal(handler.diagnostics.parsedGiftCount, 0);
   assert.equal(handler.handleGift, undefined);
+});
+
+test('guard toast source supports option and top-level variants without replacing zero', () => {
+  for (const data of [
+    { option: { source: 2 } },
+    { source: 2 },
+    { source: '2' },
+    { option: { source: null }, source: 2 },
+  ]) {
+    assert.equal(isBilibiliDuplicateGuardToast({ cmd: 'USER_TOAST_MSG_V2', data }), true);
+  }
+  for (const data of [{}, { option: { source: 0 }, source: 2 }, { option: { source: 1 }, source: 2 }]) {
+    assert.equal(isBilibiliDuplicateGuardToast({ cmd: 'USER_TOAST_MSG_V2', data }), false);
+  }
+  assert.equal(isBilibiliDuplicateGuardToast({ cmd: 'GUARD_BUY', data: { source: 2 } }), false);
 });

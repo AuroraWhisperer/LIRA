@@ -1,3 +1,4 @@
+import { mountStyleParameters } from './component-style-parameters.js';
 import { CLOCK_STYLE_LABELS, FLIP_PALETTES } from '../shared/clock-settings.js';
 import { cloneComponentPanel, componentField } from './component-preview-panel.js';
 
@@ -59,7 +60,8 @@ export function bindClockParameters(root, controller) {
     const [flipFrameColor, flipFaceColor, flipTextColor] = FLIP_PALETTES[button.dataset.clockPalette];
     controller.edit({ flipFrameColor, flipFaceColor, flipTextColor });
   });
-  return { dispose: controller.subscribe(({ draft, loaded }) => {
+  const effects = mountStyleParameters(node('clockShowDate').closest('.clock-parameter-section'), controller, 'clock');
+  const stop = controller.subscribe(({ draft, loaded }) => {
     const transparent = isTransparentClockStyle(draft.style);
     for (const [key, id] of Object.entries(fields)) {
       const control = node(id);
@@ -83,16 +85,18 @@ export function bindClockParameters(root, controller) {
       button.setAttribute('aria-pressed', String(FLIP_PALETTES[button.dataset.clockPalette].every((color, index) =>
         color === draft[['flipFrameColor', 'flipFaceColor', 'flipTextColor'][index]])));
     }
-  }) };
+  });
+  return { dispose() { stop(); effects.dispose(); } };
 }
 
 export function createClockPreview({ controller, source = document, onOpen, onClose }) {
   return { id: 'clock', title: '萌时钟', controller,
     url: new URL('/clock?componentPreview=1', location.href).href, dataLabel: '设备当前时间',
-    size: (draft) => draft.style === 'timeline-vertical' ? [240, 400]
+    size: (draft) => draft.style === 'timeline-vertical' ? [48, 80]
       : draft.style === 'moonlit-fan' ? [580, 380] : [580, 210],
     createPanel: (host, targetController = controller) => {
       const panel = cloneComponentPanel(source.querySelector('.clock-parameter-section'), 'preview-clock');
+      panel.querySelector('[data-local-styles]')?.remove();
       host.append(panel);
       return bindClockParameters(panel, targetController);
     },

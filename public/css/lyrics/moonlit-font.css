@@ -1,0 +1,208 @@
+/* LXGW WenKai Light v1.522, SIL OFL 1.1. Full character coverage split for package size limits. */
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-00.woff2') format('woff2');
+  unicode-range: U+20-2469;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-01.woff2') format('woff2');
+  unicode-range: U+246A-34B4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-02.woff2') format('woff2');
+  unicode-range: U+34B5-3CB4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-03.woff2') format('woff2');
+  unicode-range: U+3CB5-44B4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-04.woff2') format('woff2');
+  unicode-range: U+44B5-4CB4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-05.woff2') format('woff2');
+  unicode-range: U+4CB5-54B4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-06.woff2') format('woff2');
+  unicode-range: U+54B5-5CB4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-07.woff2') format('woff2');
+  unicode-range: U+5CB5-64B4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-08.woff2') format('woff2');
+  unicode-range: U+64B5-6CB4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-09.woff2') format('woff2');
+  unicode-range: U+6CB5-74B4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-10.woff2') format('woff2');
+  unicode-range: U+74B5-7CB4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-11.woff2') format('woff2');
+  unicode-range: U+7CB5-84B4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-12.woff2') format('woff2');
+  unicode-range: U+84B5-8CB4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-13.woff2') format('woff2');
+  unicode-range: U+8CB5-94B4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-14.woff2') format('woff2');
+  unicode-range: U+94B5-9CB4;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-15.woff2') format('woff2');
+  unicode-range: U+9CB5-B074;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-16.woff2') format('woff2');
+  unicode-range: U+B075-B874;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-17.woff2') format('woff2');
+  unicode-range: U+B875-C074;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-18.woff2') format('woff2');
+  unicode-range: U+C075-C874;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-19.woff2') format('woff2');
+  unicode-range: U+C875-D074;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-20.woff2') format('woff2');
+  unicode-range: U+D075-F9C5;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-21.woff2') format('woff2');
+  unicode-range: U+F9C6-277F0;
+}
+
+@font-face {
+  font-family: '月渡花汀文楷';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/moonlit-wenkai/wenkai-22.woff2') format('woff2');
+  unicode-range: U+278B2-FFFFD;
+}

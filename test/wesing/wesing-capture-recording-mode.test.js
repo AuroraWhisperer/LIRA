@@ -2,22 +2,12 @@
 'use strict';
 
 const { test } = require('node:test');
-const assert = require('node:assert');
-const { createWeSingCapture } = require('../../src/music/wesing-capture');
+const assert = require('node:assert/strict');
+const { startTimedCapture } = require('../helpers/wesing-capture-fixture');
 
-test('WeSing capture waits for progress change when starting at 0 seconds', async () => {
-  let onSample = null;
+test('WeSing capture waits for progress change when starting at 0 seconds', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
 
   // 首次采样：进度为 0，应该等待
   onSample({
@@ -54,23 +44,11 @@ test('WeSing capture waits for progress change when starting at 0 seconds', asyn
   state = capture.getStatus();
   assert.equal(state.playing, true, '进度开始变化时应该启动播放');
   assert.equal(state.waitingForPlayback, false);
-
-  await capture.setActive(false);
 });
 
-test('WeSing capture distinguishes an unchanged integer second from a confirmed pause', async () => {
-  let onSample = null;
+test('WeSing capture distinguishes an unchanged integer second from a confirmed pause', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
 
   // 首次采样：进度为 58 秒（录制模式的静态显示）
   onSample({
@@ -144,23 +122,11 @@ test('WeSing capture distinguishes an unchanged integer second from a confirmed 
   });
   state = capture.getStatus();
   assert.equal(state.playing, true, '进度变化时应该恢复播放');
-
-  await capture.setActive(false);
 });
 
-test('WeSing capture resets lyrics to 0 during loading state', async () => {
-  let onSample = null;
+test('WeSing capture resets lyrics to 0 during loading state', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
 
   // 开始播放一首歌
   onSample({
@@ -231,23 +197,11 @@ test('WeSing capture resets lyrics to 0 during loading state', async () => {
   });
   state = capture.getStatus();
   assert.equal(state.playing, true, '进度变化时应该开始播放');
-
-  await capture.setActive(false);
 });
 
-test('WeSing capture handles pause and resume with integer-second progress', async () => {
-  let onSample = null;
+test('WeSing capture handles pause and resume with integer-second progress', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
 
   // 开始播放
   onSample({
@@ -334,23 +288,11 @@ test('WeSing capture handles pause and resume with integer-second progress', asy
   });
   state = capture.getStatus();
   assert.equal(state.playing, true, '进度变化应该恢复播放');
-
-  await capture.setActive(false);
 });
 
-test('WeSing capture freezes immediately when recording removes the progress text', async () => {
-  let onSample = null;
+test('WeSing capture freezes immediately when recording removes the progress text', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
   onSample({
     detected: true,
     title: '全民K歌 - 测试',
@@ -387,23 +329,11 @@ test('WeSing capture freezes immediately when recording removes the progress tex
   });
   assert.equal(capture.getStatus().currentMs, stoppedAt);
   assert.equal(capture.getStatus().playing, false);
-
-  await capture.setActive(false);
 });
 
-test('WeSing capture uses audio activity when current WeSing exposes no progress text', async () => {
-  let onSample = null;
+test('WeSing capture uses audio activity when current WeSing exposes no progress text', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
 
   onSample({
     detected: true,
@@ -473,23 +403,11 @@ test('WeSing capture uses audio activity when current WeSing exposes no progress
   });
   assert.equal(capture.getStatus().playing, true, '恢复播放时应继续歌词时钟');
   assert.equal(capture.getStatus().currentMs, stoppedAt);
-
-  await capture.setActive(false);
 });
 
-test('WeSing capture lets explicit audio inactivity override stale UI progress', async () => {
-  let onSample = null;
+test('WeSing capture lets explicit audio inactivity override stale UI progress', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
   onSample({
     detected: true,
     title: '全民K歌 - 测试',
@@ -509,23 +427,11 @@ test('WeSing capture lets explicit audio inactivity override stale UI progress',
   });
   assert.equal(capture.getStatus().playing, false);
   assert.equal(capture.getStatus().currentMs, 10130, '暂停时应锚定全民报告的真实进度');
-
-  await capture.setActive(false);
 });
 
-test('WeSing capture keeps a measured pause frozen even when the audio session stays active', async () => {
-  let onSample = null;
+test('WeSing capture keeps a measured pause frozen even when the audio session stays active', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
   const sample = (currentSec) =>
     onSample({
       detected: true,
@@ -553,23 +459,11 @@ test('WeSing capture keeps a measured pause frozen even when the audio session s
   sample(32);
   assert.equal(capture.getStatus().playing, true, '真实进度重新变化后才恢复');
   assert.ok(capture.getStatus().currentMs >= 32130);
-
-  await capture.setActive(false);
 });
 
-test('WeSing capture resets a same-title replay when measured progress returns to zero', async () => {
-  let onSample = null;
+test('WeSing capture resets a same-title replay when measured progress returns to zero', async (t) => {
   let currentTime = 1000;
-  const capture = createWeSingCapture({
-    platform: 'win32',
-    now: () => currentTime,
-    monitorFactory(callback) {
-      onSample = callback;
-      return { start() {}, stop() {} };
-    },
-  });
-
-  await capture.setActive(true);
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
   const sample = (currentSec, audioActive = true) =>
     onSample({
       detected: true,
@@ -603,6 +497,4 @@ test('WeSing capture resets a same-title replay when measured progress returns t
   sample(1, true);
   assert.equal(capture.getStatus().playing, true);
   assert.ok(capture.getStatus().currentMs >= 1130 && capture.getStatus().currentMs < 1200);
-
-  await capture.setActive(false);
 });

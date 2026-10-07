@@ -30,7 +30,7 @@
 
 | 责任 | 拥有者 / 消费者 | 合同 / 检查 |
 | --- | --- | --- |
-| 连接、鉴权、帧入口 | `src/bilibili/danmaku/websocket-connection.js` | `docs/reference/backend/bilibili/protocol.md`、`test/transport/websocket-connection.test.js` |
+| 连接、鉴权、帧入口 | `src/bilibili/danmaku/websocket-connection.js` | `docs/reference/backend/bilibili/protocol.md`、`test/bilibili/bilibili-websocket-connection.test.js` |
 | 实时解析与命令过滤 | `src/bilibili/danmaku/message-handlers.js`、`src/bilibili/parsers/danmaku-parser.js` | `docs/reference/backend/bilibili/danmaku.md`、`test/bilibili/bilibili-danmaku-parser.test.js` |
 | 房间/账号及连接代次 | `src/bilibili/danmaku-client.js`、`src/server/bilibili-runtime.js`、`src/server/bilibili-client.js` | `test/danmaku/danmaku-client.test.js`、`test/bilibili/bilibili-runtime.test.js` |
 | 游戏会话与组合 | `src/games/game-session-service.js`、`src/server.js` | `test/games/games.test.js`、`test/games/game-routes.test.js` |
@@ -68,7 +68,7 @@
 - [x] 在 `src/server.js` 组合根协调类别 1/3 开始与重开；409 保留旧结果，finished/interrupted 不占用跨类别收集资格。
 - [x] 假时钟与可控消息源覆盖 L1–L3、C1–C6，包括同秒 `8→9→8`、较旧平台时间、事件重放、异步帧反序和迟到定时器。
 
-验证：`node --test test/games/interactions.test.js test/games/games.test.js test/danmaku/danmaku-client.test.js test/bilibili/bilibili-danmaku-parser.test.js test/transport/websocket-connection.test.js test/bilibili/bilibili-runtime.test.js`。
+验证：`node --test test/games/interactions.test.js test/games/games.test.js test/danmaku/danmaku-client.test.js test/bilibili/bilibili-danmaku-parser.test.js test/bilibili/bilibili-websocket-connection.test.js test/bilibili/bilibili-runtime.test.js`。
 
 ## M2：接口、权限与同步
 

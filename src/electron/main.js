@@ -58,6 +58,7 @@ const { createLicenseManager, LicenseState } = require('./license/license-manage
 const { resolveConfiguredBaseUrl } = require('./license/remote-license-client');
 const { createLicenseResumeHandler } = require('./license/license-resume');
 const serverRuntimeModule = require('../server');
+const { createComponentWebPicker } = require('./component-web-picker');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/LIRA';
@@ -448,6 +449,7 @@ async function startDesktopApp() {
   };
   lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
     dataDir: pathState.dataDir,
+    pickComponentWebFile: createComponentWebPicker({ dialog, getWindow: () => windowState.main }),
     getClientTheme: clientAppearance.getThemeId,
     safeStorage,
     appVersion: app.getVersion(),

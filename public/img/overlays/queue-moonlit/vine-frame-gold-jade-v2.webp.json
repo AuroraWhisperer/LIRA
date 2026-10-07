@@ -1,0 +1,13 @@
+{
+  "source": "vine-frame-v1.webp",
+  "processing": "Deterministic Pillow/NumPy recolor: layered antique gold vines, jade-green foliage and plum-purple blossoms, with softened highlights. Original alpha and geometry preserved.",
+  "palette": {
+    "text": "#501b46",
+    "requester": "#633552",
+    "textOutline": "#fff3d0",
+    "index": "#735020",
+    "vine": "#ddb153",
+    "foliage": "#356928",
+    "blossom": "#973d7e"
+  }
+}

@@ -1,9 +1,6 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 const test = require('node:test');
 const {
   MAX_OVERTIME_SECONDS,
@@ -14,8 +11,7 @@ const {
   MAX_RANDOM_OUTCOMES,
   MAX_DISPLAY_TEXT_LENGTH,
 } = require('../../src/overtime/overtime-contract');
-const { createOvertimeService } = require('../../src/overtime/overtime-service');
-const { createDatabases, closeDatabases } = require('../../src/storage/database');
+const { createFixture } = require('../helpers/overtime-service-fixture');
 
 test('overtime service getOverview includes limits from contract', () => {
   const fixture = createFixture();
@@ -40,44 +36,69 @@ test('overtime service getOverview includes limits from contract', () => {
   }
 });
 
-test('backend accepts maximum boundary time values without rejection', () => {
-  const fixture = createFixture();
-  const service = fixture.createService();
+const boundaryCases = [
+  {
+    name: 'accepts the maximum initial time',
+    run: (service) => assert.equal(service.setTime({ initialSeconds: MAX_OVERTIME_SECONDS }).initialSeconds, MAX_OVERTIME_SECONDS),
+    check: (service) => assert.equal(service.getSnapshot().initialSeconds, MAX_OVERTIME_SECONDS),
+  },
+  {
+    name: 'accepts the maximum effect factor',
+    rules: [{ giftId: 'test-multiply', giftName: 'Max Multiply', imagePath: '', mode: 'fixed', enabled: true, sortOrder: 0,
+      fixedEffect: { operation: 'multiply', value: MAX_EFFECT_FACTOR } }],
+    check: (_, saved) => assert.equal(saved.rules[0].fixedEffect.value, MAX_EFFECT_FACTOR),
+  },
+  {
+    name: 'accepts the maximum total random weight',
+    rules: [{ giftId: 'test-random', giftName: 'Max Weight', imagePath: '', mode: 'random', enabled: true, sortOrder: 0,
+      outcomes: [{ operation: 'add', value: 100, weight: MAX_RANDOM_WEIGHT - 1 }, { operation: 'subtract', value: 50, weight: 1 }] }],
+    check: (_, saved) => {
+      assert.equal(saved.rules[0].outcomes[0].weight, MAX_RANDOM_WEIGHT - 1);
+      assert.equal(saved.rules[0].outcomes.reduce((sum, outcome) => sum + outcome.weight, 0), MAX_RANDOM_WEIGHT);
+    },
+  },
+  {
+    name: 'accepts an effect with the maximum seconds value',
+    rules: [{ giftId: 'test-add', giftName: 'Max Add', imagePath: '', mode: 'fixed', enabled: true, sortOrder: 0,
+      fixedEffect: { operation: 'add', value: MAX_OVERTIME_SECONDS } }],
+    check: (_, saved) => assert.equal(saved.rules[0].fixedEffect.value, MAX_OVERTIME_SECONDS),
+  },
+  {
+    name: 'rejects time above the contract maximum',
+    run: (service) => service.setTime({ initialSeconds: MAX_OVERTIME_SECONDS + 1 }),
+    error: /initialSeconds must be between/,
+  },
+  {
+    name: 'rejects an effect factor above the contract maximum',
+    rules: [{ giftId: 'test', mode: 'fixed', fixedEffect: { operation: 'multiply', value: MAX_EFFECT_FACTOR + 1 } }],
+    error: /value must be between/,
+  },
+  {
+    name: 'rejects a total random weight above the contract maximum',
+    rules: [{ giftId: 'test', mode: 'random', outcomes: [
+      { operation: 'add', value: 100, weight: 1 }, { operation: 'subtract', value: 50, weight: MAX_RANDOM_WEIGHT }] }],
+    error: /total weight cannot exceed/,
+  },
+];
 
-  try {
-    service.act('enable');
-    const result = service.setTime({ initialSeconds: MAX_OVERTIME_SECONDS });
-    assert.equal(result.initialSeconds, MAX_OVERTIME_SECONDS);
-    assert.equal(service.getSnapshot().initialSeconds, MAX_OVERTIME_SECONDS);
-  } finally {
-    service.dispose();
-    fixture.close();
-  }
-});
-
-test('backend accepts maximum boundary effect factor values', () => {
-  const fixture = createFixture();
-  const service = fixture.createService();
-
-  try {
-    service.act('enable');
-    const rules = service.replaceRules([
-      {
-        giftId: 'test-multiply',
-        giftName: 'Max Multiply',
-        imagePath: '',
-        mode: 'fixed',
-        fixedEffect: { operation: 'multiply', value: MAX_EFFECT_FACTOR },
-        enabled: true,
-        sortOrder: 0,
-      },
-    ]);
-    assert.equal(rules.rules[0].fixedEffect.value, MAX_EFFECT_FACTOR);
-  } finally {
-    service.dispose();
-    fixture.close();
-  }
-});
+for (const boundary of boundaryCases) {
+  test(`backend ${boundary.name}`, () => {
+    const fixture = createFixture();
+    const service = fixture.createService();
+    try {
+      service.act('enable');
+      const run = boundary.run || ((target) => target.replaceRules(boundary.rules));
+      if (boundary.error) {
+        assert.throws(() => run(service), boundary.error);
+      } else {
+        boundary.check(service, run(service));
+      }
+    } finally {
+      service.dispose();
+      fixture.close();
+    }
+  });
+}
 
 test('backend accepts only configured remote catalog artwork paths', () => {
   const fixture = createFixture();
@@ -206,144 +227,3 @@ test('backend resolves legacy bundled gift artwork by gift ID without removing t
     fixture.close();
   }
 });
-
-test('backend accepts maximum boundary random weight values', () => {
-  const fixture = createFixture();
-  const service = fixture.createService();
-
-  try {
-    service.act('enable');
-    const rules = service.replaceRules([
-      {
-        giftId: 'test-random',
-        giftName: 'Max Weight',
-        imagePath: '',
-        mode: 'random',
-        outcomes: [
-          { operation: 'add', value: 100, weight: MAX_RANDOM_WEIGHT - 1 },
-          { operation: 'subtract', value: 50, weight: 1 },
-        ],
-        enabled: true,
-        sortOrder: 0,
-      },
-    ]);
-    assert.equal(rules.rules[0].outcomes[0].weight, MAX_RANDOM_WEIGHT - 1);
-    assert.equal(
-      rules.rules[0].outcomes.reduce((sum, o) => sum + o.weight, 0),
-      MAX_RANDOM_WEIGHT,
-    );
-  } finally {
-    service.dispose();
-    fixture.close();
-  }
-});
-
-test('backend accepts effect with maximum seconds value', () => {
-  const fixture = createFixture();
-  const service = fixture.createService();
-
-  try {
-    service.act('enable');
-    const rules = service.replaceRules([
-      {
-        giftId: 'test-add',
-        giftName: 'Max Add',
-        imagePath: '',
-        mode: 'fixed',
-        fixedEffect: { operation: 'add', value: MAX_OVERTIME_SECONDS },
-        enabled: true,
-        sortOrder: 0,
-      },
-    ]);
-    assert.equal(rules.rules[0].fixedEffect.value, MAX_OVERTIME_SECONDS);
-  } finally {
-    service.dispose();
-    fixture.close();
-  }
-});
-
-test('backend rejects time exceeding contract maximum', () => {
-  const fixture = createFixture();
-  const service = fixture.createService();
-
-  try {
-    service.act('enable');
-    assert.throws(
-      () => service.setTime({ initialSeconds: MAX_OVERTIME_SECONDS + 1 }),
-      /initialSeconds must be between/,
-    );
-  } finally {
-    service.dispose();
-    fixture.close();
-  }
-});
-
-test('backend rejects effect factor exceeding contract maximum', () => {
-  const fixture = createFixture();
-  const service = fixture.createService();
-
-  try {
-    service.act('enable');
-    assert.throws(
-      () =>
-        service.replaceRules([
-          {
-            giftId: 'test',
-            mode: 'fixed',
-            fixedEffect: {
-              operation: 'multiply',
-              value: MAX_EFFECT_FACTOR + 1,
-            },
-          },
-        ]),
-      /value must be between/,
-    );
-  } finally {
-    service.dispose();
-    fixture.close();
-  }
-});
-
-test('backend rejects random weight exceeding contract maximum', () => {
-  const fixture = createFixture();
-  const service = fixture.createService();
-
-  try {
-    service.act('enable');
-    assert.throws(
-      () =>
-        service.replaceRules([
-          {
-            giftId: 'test',
-            mode: 'random',
-            outcomes: [
-              { operation: 'add', value: 100, weight: 1 },
-              { operation: 'subtract', value: 50, weight: MAX_RANDOM_WEIGHT },
-            ],
-          },
-        ]),
-      /total weight cannot exceed/,
-    );
-  } finally {
-    service.dispose();
-    fixture.close();
-  }
-});
-
-function createFixture() {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'overtime-limits-'));
-  const db = createDatabases({ dataDir });
-  return {
-    db,
-    createService(options = {}) {
-      return createOvertimeService({
-        giftDb: db.giftDb,
-        ...options,
-      });
-    },
-    close() {
-      closeDatabases(db);
-      fs.rmSync(dataDir, { recursive: true, force: true });
-    },
-  };
-}

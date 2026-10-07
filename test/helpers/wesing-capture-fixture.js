@@ -37,7 +37,27 @@ function createFixture() {
   return { root, cachePath, mid };
 }
 
+// Activates a Windows capture driven by a test-controlled clock and returns the
+// monitor sample callback; the capture is always deactivated after the test.
+async function startTimedCapture(t, now, options = {}) {
+  const { createWeSingCapture } = require('../../src/music/wesing-capture');
+  let monitorCallback = null;
+  const capture = createWeSingCapture({
+    platform: 'win32',
+    now,
+    monitorFactory(callback) {
+      monitorCallback = callback;
+      return { start() {}, stop() {} };
+    },
+    ...options,
+  });
+  t.after(() => capture.setActive(false));
+  await capture.setActive(true);
+  return { capture, onSample: (sample) => monitorCallback(sample) };
+}
+
 module.exports = {
   createFixture,
   qrcXml,
+  startTimedCapture,
 };

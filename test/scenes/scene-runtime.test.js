@@ -8,6 +8,7 @@ const test = require('node:test');
 const { createServerRuntime } = require('../../src/server');
 const { createOverlayToken } = require('../../src/server/access-policy');
 const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
+const { SCRATCH_ROOT, createScratchDirectory } = require('../helpers/scratch-directory');
 
 function createSafeStorage() {
   const key = randomBytes(32);
@@ -28,9 +29,7 @@ function createSafeStorage() {
 }
 
 async function fixture(t) {
-  const scratchRoot = path.resolve(__dirname, '../../tmp');
-  fs.mkdirSync(scratchRoot, { recursive: true });
-  const dataDir = fs.mkdtempSync(path.join(scratchRoot, 'scene-runtime-'));
+  const dataDir = createScratchDirectory('scene-runtime-');
   const safeStorage = createSafeStorage();
   const state = { owner: { scope: '["https://scene.test","streamer-1"]', epoch: 1 }, authorized: false };
   const externalRequests = [];
@@ -46,7 +45,7 @@ async function fixture(t) {
   let app;
   t.after(async () => {
     await runtime?.stop({ exitProcess: false });
-    assert.equal(path.dirname(fs.realpathSync(dataDir)), fs.realpathSync(scratchRoot));
+    assert.equal(path.dirname(fs.realpathSync(dataDir)), fs.realpathSync(SCRATCH_ROOT));
     fs.rmSync(dataDir, { recursive: true, force: true });
     assert.deepEqual(externalRequests, []);
   });

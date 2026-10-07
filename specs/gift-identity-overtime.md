@@ -23,7 +23,7 @@ The complete catalog response must have a finite decoded-byte budget as specifie
 
 ## Acceptance criteria
 
-- 完整目录读取遵守 [桌面响应容量合同](../docs/reference/desktop/main.md#21-设备授权生命周期)。达到上限的合法正文可读取；多一个字节即取消 reader、返回 `RESPONSE_TOO_LARGE`，已有内存/磁盘目录及 ETag 不变。不得截断身份或把不完整目录写成成功版本。验证：`test/gifts/remote-catalog-capacity.test.js`。
+- 完整目录读取遵守 [桌面响应容量合同](../docs/reference/desktop/main.md#21-设备授权生命周期)。达到上限的合法正文可读取；多一个字节即取消 reader、返回 `RESPONSE_TOO_LARGE`，已有内存/磁盘目录及 ETag 不变。不得截断身份或把不完整目录写成成功版本。验证：`test/gifts/remote-catalog-cache.test.js`（32 MiB 容量用例）。
 
 - 同 ID 的旧名称、新名称、同名新标价三个规则并存，分别触发 30、60、90 秒；没有身份的同 ID 事件不触发，重放与重启不二次结算。
 - 旧数字 ID 规则迁移后保留原设置并提示重新选择；选择新礼物后仅后续该身份事件生效。
@@ -42,7 +42,8 @@ Owners: `src/shared/gift-identity.js`, `src/bilibili/gift/variant-catalog-contra
 `src/bilibili/gift/remote-catalog-cache.js`, `src/bilibili/gift/hybrid-catalog.js`,
 `src/storage/gift-identity-migration.js`, `src/overtime`, and Admin overtime modules.
 Verification: `test/gifts/gift-category.test.js`, `test/gifts/gift-identity-catalog.test.js`, `test/overtime/overtime-service.test.js`,
-`test/overtime/overtime-gift-picker.test.js`, `test/gifts/processed-gift-import.test.js`, and
+`test/overtime/overtime-gift-picker.test.js`, `test/overtime/overtime-gift-picker-contract.test.js`,
+`test/gifts/processed-gift-import.test.js`, and
 `test/gifts/remote-gift-image-cache.test.js`, `test/gifts/gift-artwork-identity.test.js`,
 `test/gifts/gift-image-fallback.test.js`. Shared wire/catalog fixtures live in
 the adjacent lira-server repository's normative protocol fixtures directory.

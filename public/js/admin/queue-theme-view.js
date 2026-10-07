@@ -44,7 +44,8 @@ export function bindQueueTheme(root, controller) {
   root.addEventListener('change', edit);
   root.addEventListener('submit', (event) => { event.preventDefault(); void saveComponentWithFeedback(controller, '点歌板主题'); });
   for (const button of root.querySelectorAll('[data-overlay-style]')) button.addEventListener('click', () => {
-    controller.edit({ overlayQueueStyle: button.dataset.overlayStyle });
+    controller.edit({ overlayQueueStyle: button.dataset.overlayStyle,
+      ...(controller.getState().draft.resourceStyle ? { resourceStyle: null } : {}) });
   });
   node('classicPresets').addEventListener('click', (event) => {
     const card = event.target.closest('[data-theme]');
@@ -74,7 +75,7 @@ export function bindQueueTheme(root, controller) {
     node('queueScrollSpeedRange').value = draft.queueScrollSpeed;
     node('identityQueueScrollSpeedRange').value = active.scrollSpeed;
     for (const [rangeId, numberId, , , , scale = 1] of RANGE_PAIRS) syncComponentFieldValue(node(numberId), Number(node(rangeId).value) * scale);
-    setOverlayStyle(draft.overlayQueueStyle, root);
+    setOverlayStyle(draft.overlayQueueStyle, root, draft.resourceStyle?.preset);
     initParameterRanges(root);
     const save = node('queueThemeSave');
     if (save) { save.disabled = !state.dirty || state.saving; save.textContent = state.saving ? '正在保存…' : '保存点歌板主题'; }

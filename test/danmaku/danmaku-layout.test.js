@@ -54,17 +54,38 @@ test('invalid layout values never become a partial valid configuration', () => {
     assert.throws(() => layout.normalizeLayout(invalid), { code: 'INVALID_OVERLAY_LAYOUT' });
 });
 
-test('old nine-style layouts gain only the moonlit default without moving existing regions', () => {
-  const original = layout.resizeCanvas(layout.createLayout(), { width: 1280, height: 720 });
-  const legacy = structuredClone(original);
-  delete legacy.regions.moonlit;
-  legacy.regions.signal.x = 123;
-  const upgraded = layout.normalizeLayout(legacy);
-  assert.deepEqual(upgraded.regions.moonlit, original.regions.moonlit);
-  for (const [style, region] of Object.entries(legacy.regions)) assert.deepEqual(upgraded.regions[style], region);
-  assert.equal(Object.hasOwn(legacy.regions, 'moonlit'), false);
-  delete legacy.regions.signal;
-  assert.throws(() => layout.normalizeLayout(legacy), { code: 'INVALID_OVERLAY_LAYOUT' });
+// Styles added after the first saved layouts may be absent from older settings.
+const OPTIONAL_REGIONS = ['sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight'];
+
+test('older layouts gain each missing newer region at its default without moving saved regions', () => {
+  for (const canvas of [undefined, { width: 1280, height: 720 }, { width: 1080, height: 1920 }]) {
+    const original = canvas ? layout.resizeCanvas(layout.createLayout(), canvas) : layout.createLayout();
+    for (const missing of [...OPTIONAL_REGIONS.map((style) => [style]), OPTIONAL_REGIONS]) {
+      const legacy = structuredClone(original);
+      missing.forEach((style) => delete legacy.regions[style]);
+      legacy.regions.signal.x = 123;
+      legacy.regions.glow.x = 100;
+      legacy.regions.glow.width -= 100;
+      const upgraded = layout.normalizeLayout(legacy);
+      for (const style of missing) {
+        assert.deepEqual(upgraded.regions[style], layout.defaultRegion(style, original.canvas, original.contentScale), style);
+      }
+      for (const [style, region] of Object.entries(legacy.regions)) assert.deepEqual(upgraded.regions[style], region, style);
+      assert.equal(missing.some((style) => Object.hasOwn(legacy.regions, style)), false, 'input is not mutated');
+    }
+  }
+  const required = Object.keys(layout.REGION_DEFAULTS).filter((style) => !OPTIONAL_REGIONS.includes(style));
+  assert.ok(required.includes('signal'));
+  for (const style of required) {
+    const invalid = layout.createLayout();
+    delete invalid.regions[style];
+    assert.throws(() => layout.normalizeLayout(invalid), { code: 'INVALID_OVERLAY_LAYOUT' }, style);
+  }
+  const upgraded = layout.normalizeLayout(Object.assign(layout.createLayout(), {
+    regions: Object.fromEntries(Object.entries(layout.createLayout().regions).filter(([style]) => !['floating', 'comet'].includes(style))),
+  }));
+  assert.deepEqual(layout.resizeCanvas(upgraded, { width: 1080, height: 1920 }).regions.floating, { x: 0, y: 0, width: 1080, height: 1920 },
+    'restored random regions keep filling the canvas after resizing');
 });
 
 test('Node and browser layout contracts stay identical', () => {

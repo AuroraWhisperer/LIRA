@@ -1,20 +1,30 @@
+import { mountStyleParameters } from './component-style-parameters.js';
 import { previewElement } from './component-preview-surface.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { BROWSER_SOURCE_DEFAULTS, normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
-import { configureBrowserSourceFrame } from '../shared/browser-source-frame.js';
+import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from '../shared/browser-source-frame.js';
+import { isComponentWebSource } from '../shared/component-css-style.js';
 
 export function mountBrowserSourceFields(host, config = BROWSER_SOURCE_DEFAULTS, onChange) {
   const fields = new Map();
+  let importedSource = '';
   const grid = previewElement('div', 'component-preview-fields preview-browser-fields');
   const error = previewElement('p', 'preview-browser-error');
   error.setAttribute('role', 'alert');
   error.hidden = true;
   function read() {
-    return normalizeBrowserSourceConfig({ url: fields.get('url').value.trim(),
+    return normalizeBrowserSourceConfig({ url: importedSource || fields.get('url').value.trim(),
       viewportWidth: Number(fields.get('viewportWidth').value), viewportHeight: Number(fields.get('viewportHeight').value) });
   }
+  function syncSource(value) {
+    const input = fields.get('url');
+    importedSource = isComponentWebSource(value) ? value : '';
+    input.readOnly = Boolean(importedSource);
+    input.parentElement.firstChild.textContent = importedSource ? '本地网页文件' : '浏览器源地址';
+    syncComponentFieldValue(input, importedSource ? decodeURIComponent(value.split('/').at(-1)) : value);
+  }
   for (const [key, title, type] of [
-    ['url', '浏览器源地址', 'url'], ['viewportWidth', '网页宽度', 'number'], ['viewportHeight', '网页高度', 'number'],
+    ['url', '浏览器源地址', 'text'], ['viewportWidth', '网页宽度', 'number'], ['viewportHeight', '网页高度', 'number'],
   ]) {
     const label = previewElement('label', '', title);
     const input = previewElement('input');
@@ -40,7 +50,11 @@ export function mountBrowserSourceFields(host, config = BROWSER_SOURCE_DEFAULTS,
   }
   host.append(grid, previewElement('p', 'hint preview-browser-hint',
     '网页分辨率决定内容布局；拖动画布边框只改变显示大小。'), error);
-  return { read, sync(value) { for (const [key, input] of fields) syncComponentFieldValue(input, value[key]); } };
+  syncSource(config.url);
+  return { read, sync(value) {
+    syncSource(value.url);
+    for (const [key, input] of fields) if (key !== 'url') syncComponentFieldValue(input, value[key]);
+  } };
 }
 
 export function createBrowserSourcePreview() {
@@ -51,7 +65,8 @@ export function createBrowserSourcePreview() {
     createPanel(host, target = controller) {
       const fields = mountBrowserSourceFields(host, target.getState().draft, (config) => target.edit(config));
       const stop = target.subscribe(({ draft }) => fields.sync(draft));
-      return { dispose: stop };
+      const effects = mountStyleParameters(host, target, 'browser');
+      return { dispose() { stop(); effects.dispose(); } };
     },
   };
 }
@@ -75,6 +90,7 @@ export function mountBrowserSourcePreview(host, { controller, size }) {
     const config = controller.getState().draft;
     if (!config.url) {
       clearTimeout(timer);
+      disposeBrowserSourceFrame(frame);
       frame.removeAttribute('src');
       frame.hidden = true;
       status.textContent = '请重新填写浏览器源地址。';
@@ -99,6 +115,7 @@ export function mountBrowserSourcePreview(host, { controller, size }) {
   observer.observe(host);
   return { fit, dispose() {
     stop(); observer.disconnect(); clearTimeout(timer);
+    disposeBrowserSourceFrame(frame);
     frame.removeEventListener('load', loaded);
     surface.remove();
   } };

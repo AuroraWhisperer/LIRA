@@ -38,6 +38,12 @@ export function openComponentPreview(selected = null) {
     window.removeEventListener('pagehide', close);
     releaseComponentPreview(handle);
   }
+  async function syncCanvas() {
+    const canvas = connections.find(({ options }) => options.id === 'canvas');
+    if (!ready || !canvas) return;
+    await canvas.exchanging;
+    if (closed || !await exchange(canvas)) throw new Error('画布同步失败，请稍后重新打开预览。');
+  }
   async function focus(next = selected) {
     selected = next;
     if (next?.previewData) previewData[next.id] = next.previewData;
@@ -48,12 +54,17 @@ export function openComponentPreview(selected = null) {
       const selectedItemId = next?.selectedItemId;
       let selectedSize = null;
       const canvas = connections.find(({ options }) => options.id === 'canvas');
-      if (next && !sceneOnly(next) && canvas?.options.getComponentSize && !canvas.options.controller.getState().draft.document.items
+      if (next && selectedItemId === undefined && !sceneOnly(next) && canvas?.options.getComponentSize && !canvas.options.controller.getState().draft.document.items
         .some((item) => item.type === next.id && item.appearance.mode === 'shared')) {
         selectedSize = await canvas.options.getComponentSize(next.id,
           AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]));
       }
       if (closed || requested !== focusGeneration) return;
+      if (selectedItemId !== undefined && canvas) {
+        // A reused session may still contain the document from before this item was added.
+        await syncCanvas();
+        if (closed || requested !== focusGeneration) return;
+      }
       const sizeKey = JSON.stringify(selectedSize);
       const selectionKey = JSON.stringify([selectedId, selectedItemId, canvas?.options.controller.getState().draft.document.id]);
       let entry = entryLinks.get(selectionKey);
@@ -67,12 +78,14 @@ export function openComponentPreview(selected = null) {
       }
       const url = new URL('/c', localOverlayOrigin());
       url.hash = await entry.promise;
-      if (!closed && requested === focusGeneration) window.open(url.href, '_blank', 'noopener,noreferrer');
+      if (closed || requested !== focusGeneration) return;
+      const { data } = await post({ action: 'focus', key: url.hash.slice(1) });
+      if (!closed && requested === focusGeneration && !data.focused) window.open(url.href, '_blank', 'noopener,noreferrer');
     } catch (error) {
       if (!closed && requested === focusGeneration) toast(error.message || '无法打开网页预览。');
     }
   }
-  const handle = { id: 'browser-preview', close, focus,
+  const handle = { id: 'browser-preview', close, focus, syncCanvas,
     canReuse(next) {
       return !closed && connections.every(({ options, generation, stopped }) =>
         !stopped && options.controller.getState().generation === generation)
@@ -83,7 +96,14 @@ export function openComponentPreview(selected = null) {
   setActiveComponentPreview(handle);
   window.addEventListener('pagehide', close, { once: true });
 
-  async function exchange(connection) {
+  function exchange(connection) {
+    if (connection.exchanging) return connection.exchanging;
+    window.clearTimeout(connection.timer);
+    connection.exchanging = exchangeOnce(connection).finally(() => { connection.exchanging = null; });
+    return connection.exchanging;
+  }
+
+  async function exchangeOnce(connection) {
     const { controller } = connection.options;
     if (closed || connection.stopped) return;
     if (controller.getState().generation !== connection.generation) { close(); return; }
@@ -120,6 +140,7 @@ export function openComponentPreview(selected = null) {
         return;
       }
       connection.timer = window.setTimeout(() => exchange(connection), 200);
+      return true;
     } catch (error) {
       if (closed || connection.stopped) return;
       if (!received && (!error.status || error.status === 408 || error.status === 429 || error.status >= 500)) {

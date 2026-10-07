@@ -133,7 +133,7 @@ export function updateGiftBanner(root, item, config, catalog = [], retryAvatar =
   return textChanged;
 }
 
-function giftAvatarSource(value) {
+export function giftAvatarSource(value) {
   const token = globalThis.window?.__API_TOKEN__ || '';
   return value
     ? `/api/bilibili/avatar?url=${encodeURIComponent(value)}${token ? `&token=${encodeURIComponent(token)}` : ''}`

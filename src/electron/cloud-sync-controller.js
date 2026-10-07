@@ -1,12 +1,12 @@
 'use strict';
 
 const { createCloudSongSyncController } = require('./cloud-song-sync-controller');
+const { createGiftInteractionController, assertGiftInteractionResult } = require('./gift-interaction-controller');
 
 const DEFAULT_INTERVAL_MS = 600_000;
 const STREAM_RETRY_MIN_MS = 1_000;
 const STREAM_RETRY_MAX_MS = 60_000;
 const VALID_SCOPES = new Set(['settings', 'songs', 'bilibili']);
-const GIFT_INTERACTION_KEYS = ['giftAutoThanksEnabled', 'giftStatsQueryEnabled'];
 
 function createCloudSyncController(options = {}) {
   const licenseManager = options.licenseManager;
@@ -47,120 +47,53 @@ function createCloudSyncController(options = {}) {
   let streamConnections = 0;
   let retryNotBefore = 0;
   let retryError = null;
-  let interactionState = emptyInteractionState();
-  let interactionSaving = false;
-  const interactionListeners = new Set();
-
-  function emptyInteractionState() {
-    return {
-      values: { giftAutoThanksEnabled: false, giftStatsQueryEnabled: false },
-      status: 'unconfirmed',
-      error: null,
-    };
-  }
-
-  function getGiftInteractionState() {
-    return { ...interactionState, values: { ...interactionState.values } };
-  }
-
-  function publishInteractionState(patch) {
-    interactionState = { ...interactionState, ...patch };
-    for (const listener of interactionListeners) {
-      listener(getGiftInteractionState());
-    }
-  }
-
-  function confirmInteractionState(values) {
-    publishInteractionState({
-      values: Object.fromEntries(GIFT_INTERACTION_KEYS.map((key) => [key, values?.[key] === true])),
-      status: interactionSaving ? 'pending' : 'confirmed',
-      error: null,
-    });
-  }
-
-  function onGiftInteractionStateChanged(listener) {
-    interactionListeners.add(listener);
-    return () => interactionListeners.delete(listener);
-  }
-
-  async function refreshGiftInteractionState() {
-    try {
-      if (!isAuthorized()) throw Object.assign(new Error(), { code: 'LICENSE_NOT_AUTHORIZED' });
-      await start();
-    } catch (error) {
-      publishInteractionState({ status: 'unconfirmed', error: interactionError(error) });
-    }
-    return getGiftInteractionState();
-  }
-
-  function interactionError(error) {
-    const code = String(error?.code || 'CLOUD_SYNC_FAILED');
-    return /^[A-Z][A-Z0-9_]{0,63}$/.test(code) ? code : 'CLOUD_SYNC_FAILED';
-  }
-
-  async function setGiftInteraction(intent) {
-    if (
-      !intent ||
-      typeof intent !== 'object' ||
-      Array.isArray(intent) ||
-      Object.keys(intent).length !== 2 ||
-      !GIFT_INTERACTION_KEYS.includes(intent.key) ||
-      typeof intent.enabled !== 'boolean'
-    ) {
-      throw Object.assign(new Error(), { code: 'INVALID_GIFT_INTERACTION' });
-    }
-    if (interactionSaving) {
-      throw Object.assign(new Error(), { code: 'GIFT_INTERACTION_PENDING' });
-    }
-    if (!isAuthorized() || !prepareAccount() || !active) {
-      publishInteractionState({ status: 'unconfirmed', error: 'LICENSE_NOT_AUTHORIZED' });
-      return { ok: false, ...getGiftInteractionState() };
-    }
-    const work = {
-      generation: lifecycleGeneration,
-      accountKey,
-      signal: requestController?.signal,
-    };
-    interactionSaving = true;
-    publishInteractionState({ status: 'pending', error: null });
-    return enqueue(async () => {
-      try {
-        if (!isCurrent(work)) throw Object.assign(new Error(), { code: 'CLOUD_SETTINGS_CHANGED' });
-        if (retryNotBefore > now()) throw retryError;
-        const dirtyGeneration = dirtyGenerations.settings;
-        const pending = getPendingSettings(work.accountKey);
-        // Omit the untouched flag: the server preserves its current value.
-        const result = await licenseManager.updateCloudSettings(
-          { ...(pending?.values || runtime.getCloudSettingsSnapshot()), [intent.key]: intent.enabled },
-          { signal: work.signal },
-        );
-        if (!isCurrent(work)) return { ok: false, ...getGiftInteractionState() };
-        if (result?.ok === false || !GIFT_INTERACTION_KEYS.every((key) => typeof result?.values?.[key] === 'boolean')) {
-          throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
-        }
-        await acceptSettingsUpload(result, pending, dirtyGeneration, work);
-        if (!isCurrent(work)) return { ok: false, ...getGiftInteractionState() };
-        if (dirtyGeneration === dirtyGenerations.settings && !getPendingSettings(work.accountKey)) {
-          dirty.delete('settings');
-        }
-        revisions.settings = Number(result.revision) || revisions.settings;
-        interactionSaving = false;
-        confirmInteractionState(result.values);
-        const matched = result.values[intent.key] === intent.enabled;
-        return {
-          ...getGiftInteractionState(),
-          ok: matched,
-          error: matched ? null : 'CLOUD_SETTINGS_CHANGED',
-        };
-      } catch (error) {
-        interactionSaving = false;
-        if (isCurrent(work) && retryNotBefore <= now()) rememberRetry(error);
-        if (isCurrent(work)) publishInteractionState({ status: 'unconfirmed', error: interactionError(error) });
-        return { ok: false, ...getGiftInteractionState() };
-      } finally {
-        interactionSaving = false;
+  const giftInteraction = createGiftInteractionController({
+    prepareWork() {
+      if (!isAuthorized() || !prepareAccount() || !active) return null;
+      return { generation: lifecycleGeneration, accountKey, signal: requestController?.signal };
+    },
+    enqueue,
+    write: writeGiftInteraction,
+    isCurrent,
+    async refresh() {
+      if (!isAuthorized()) {
+        giftInteraction.fail({ code: 'LICENSE_NOT_AUTHORIZED' });
+        return;
       }
-    });
+      const pending = start();
+      const work = { generation: lifecycleGeneration, accountKey, signal: requestController?.signal };
+      try {
+        await pending;
+      } catch (error) {
+        if (isCurrent(work)) giftInteraction.fail(error);
+      }
+    },
+  });
+
+  async function writeGiftInteraction(work, intent) {
+    try {
+      if (!isCurrent(work)) throw Object.assign(new Error(), { code: 'CLOUD_SETTINGS_CHANGED' });
+      if (retryNotBefore > now()) throw retryError;
+      const dirtyGeneration = dirtyGenerations.settings;
+      const pending = getPendingSettings(work.accountKey);
+      // Omit the untouched flag: the server preserves its current value.
+      const result = await licenseManager.updateCloudSettings(
+        { ...(pending?.values || runtime.getCloudSettingsSnapshot()), [intent.key]: intent.enabled },
+        { signal: work.signal },
+      );
+      if (!isCurrent(work)) return null;
+      assertGiftInteractionResult(result);
+      await acceptSettingsUpload(result, pending, dirtyGeneration, work);
+      if (!isCurrent(work)) return null;
+      if (dirtyGeneration === dirtyGenerations.settings && !getPendingSettings(work.accountKey)) {
+        dirty.delete('settings');
+      }
+      revisions.settings = Number(result.revision) || revisions.settings;
+      return result.values;
+    } catch (error) {
+      if (isCurrent(work) && retryNotBefore <= now()) rememberRetry(error);
+      throw error;
+    }
   }
 
   const removeLocalListener = runtime.onCloudSyncRequested?.((scope) => {
@@ -230,7 +163,7 @@ function createCloudSyncController(options = {}) {
     retryNotBefore = 0;
     retryError = null;
     streamRetryNotBefore = 0;
-    publishInteractionState(emptyInteractionState());
+    giftInteraction.reset();
     return true;
   }
 
@@ -402,7 +335,7 @@ function createCloudSyncController(options = {}) {
       }
     }
     if (!isCurrent(work)) return false;
-    if (scope === 'settings' && result?.values) confirmInteractionState(result.values);
+    if (scope === 'settings' && result?.values) giftInteraction.confirmState(result.values);
     if (scope === 'settings') {
       const applied = await acceptSettingsUpload(result, pendingSettings, dirtyGeneration, work);
       if (!isCurrent(work)) return false;
@@ -458,7 +391,7 @@ function createCloudSyncController(options = {}) {
 
   async function reconcileSettings(state, work) {
     if (!isCurrent(work)) return;
-    if (state?.initialized) confirmInteractionState(state.values);
+    if (state?.initialized) giftInteraction.confirmState(state.values);
     if (!state?.initialized) {
       await seedScope('settings', work);
       return;
@@ -541,7 +474,7 @@ function createCloudSyncController(options = {}) {
       return isCurrent(work);
     } catch (error) {
       if (isCurrent(work)) rememberRetry(error);
-      if (isCurrent(work)) publishInteractionState({ status: 'unconfirmed', error: interactionError(error) });
+      if (isCurrent(work)) giftInteraction.fail(error);
       throw error;
     } finally {
       if (isCurrent(work)) schedule();
@@ -581,7 +514,7 @@ function createCloudSyncController(options = {}) {
     clearTimer();
     stopEventStream();
     runtime.setBlindBoxMappingState?.(null);
-    publishInteractionState({ status: 'unconfirmed' });
+    giftInteraction.stop();
   }
 
   function markDirty(scope) {
@@ -606,15 +539,15 @@ function createCloudSyncController(options = {}) {
     stop();
     removeLocalListener?.();
     removeLicenseListener?.();
-    interactionListeners.clear();
+    giftInteraction.dispose();
   }
 
   return {
     dispose,
-    getGiftInteractionState,
-    onGiftInteractionStateChanged,
-    refreshGiftInteractionState,
-    setGiftInteraction,
+    getGiftInteractionState: giftInteraction.getState,
+    onGiftInteractionStateChanged: giftInteraction.subscribe,
+    refreshGiftInteractionState: giftInteraction.refresh,
+    setGiftInteraction: giftInteraction.set,
     markDirty,
     start,
     stop,

@@ -360,10 +360,10 @@
   gap: 8px;
 }
 .clock-color-fields {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 12px;
+  grid-column: 1 / -1;
 }
 .clock-flip-color-controls,
 .clock-detail-fields {
@@ -371,33 +371,10 @@
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
 }
-.clock-color-fields .clock-form-field {
-  grid-template-columns: max-content 24px;
-  align-items: center;
-  gap: 8px;
-}
 .clock-palette-options [aria-pressed='true'] {
   border-color: var(--accent);
   background: var(--color-accent-light);
 }
-.clock-color-fields input[type='color'] {
-  width: 24px;
-  min-height: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  cursor: pointer;
-}
-.clock-color-fields input[type='color']::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-.clock-color-fields input[type='color']::-webkit-color-swatch {
-  border: 0;
-}
-
 .clock-toggle-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -462,6 +439,7 @@
 }
 
 .clock-form-field {
+  --color-control-height: 35px;
   display: grid;
   gap: 5px;
   color: var(--text);

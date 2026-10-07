@@ -2,13 +2,15 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 const { randomUUID } = require('node:crypto');
+const { useSharedBrowser } = require('../helpers/shared-browser');
 
-test('A06/A07: expired mixed recovery renders every component with no live provider or complete owner cache', { timeout: 45000 }, async t => {
+const openBrowserSession = useSharedBrowser();
+
+test('expired mixed recovery renders every component with no live provider or complete owner cache', { timeout: 45000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   const desktop = await browser.newPage();
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(6000);
@@ -53,7 +55,7 @@ test('A06/A07: expired mixed recovery renders every component with no live provi
 
 test('refresh keeps desktop-owned drafts editable and saves later changes once', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   const desktop = await browser.newPage();
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(5000);
@@ -63,6 +65,11 @@ test('refresh keeps desktop-owned drafts editable and saves later changes once',
   for (const target of [desktop, page]) target.on('pageerror', error => errors.push(error.message));
   page.on('request', request => {
     if (new URL(request.url()).pathname === '/api/component-preview') commands.push(request.postDataJSON());
+  });
+  await page.addInitScript(() => {
+    window.addEventListener('message', event => {
+      if (event.data?.type === 'component-preview:resize') window.previewSize = event.data.size;
+    });
   });
   const url = await openCanvasDesktop(desktop, fixture);
   assert.equal((await fetch(url)).status, 200);
@@ -89,6 +96,13 @@ test('refresh keeps desktop-owned drafts editable and saves later changes once',
   await label.fill('刷新后继续编辑');
   await width.fill('888');
   await width.press('Tab');
+  await page.waitForFunction(() => window.previewSize?.width === 888);
+  const appliedSize = await page.evaluate(() => window.previewSize);
+  await desktop.waitForFunction(size => {
+    const item = window.controllers.canvas.getState().draft.document.items[0];
+    return item?.width === size.width && item.height === Math.ceil(size.height)
+      && item.appearance.config.label === '刷新后继续编辑';
+  }, appliedSize);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor().catch(async error => {
     throw new Error(`Publication status: ${await page.locator('.preview-canvas-status').textContent()}; version: ${fixture.service.list()[0].publishedVersion}`, { cause: error });
@@ -101,7 +115,7 @@ test('refresh keeps desktop-owned drafts editable and saves later changes once',
 
 test('reopening a retained clock draft after a saved settings update allows editing without recovery', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   const desktop = await browser.newPage();
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(5000);
@@ -140,7 +154,7 @@ test('reopening a retained clock draft after a saved settings update allows edit
 
 test('refresh recovers unsent edits and does not repeat a publication whose response was lost', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   const desktop = await browser.newPage();
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(5000);
@@ -153,6 +167,11 @@ test('refresh recovers unsent edits and does not repeat a publication whose resp
   let accepted;
   const editBlocked = new Promise(resolve => { blocked = resolve; });
   const publicationAccepted = new Promise(resolve => { accepted = resolve; });
+  await page.addInitScript(() => {
+    window.addEventListener('message', event => {
+      if (event.data?.type === 'component-preview:resize') window.previewSize = event.data.size;
+    });
+  });
   t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(errors, []); });
   for (const target of [desktop, page]) target.on('pageerror', error => errors.push(error.message));
   await page.route('**/api/component-preview', async route => {
@@ -181,6 +200,12 @@ test('refresh recovers unsent edits and does not repeat a publication whose resp
   await page.locator('.preview-picker-style').first().click();
   const save = page.getByRole('button', { name: '保存并应用', exact: true });
   const status = page.getByRole('status');
+  await page.waitForFunction(() => window.previewSize);
+  const initialSize = await page.evaluate(() => window.previewSize);
+  await desktop.waitForFunction(size => {
+    const item = window.controllers.canvas.getState().draft.document.items[0];
+    return item?.width === size.contentWidth && item.height === size.height;
+  }, initialSize);
   await save.click();
   await status.filter({ hasText: '已保存并应用到直播源' }).waitFor();
   blockEdits = true;
@@ -215,7 +240,7 @@ test('refresh recovers unsent edits and does not repeat a publication whose resp
 
 test('revoked refresh retains unsaved layout and parameters, and reopening restores without publishing', { timeout: 45000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   const desktop = await browser.newPage();
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(5000);
@@ -268,7 +293,7 @@ test('revoked refresh retains unsaved layout and parameters, and reopening resto
     await page.getByRole('button', { name: '添加组件', exact: true }).waitFor();
   };
   await reopen();
-  assert.match(await page.locator('.preview-canvas-status').textContent(), /已恢复上次未保存进度/);
+  assert.match(await page.locator('.preview-canvas-status').textContent(), /已恢复草稿/);
   await page.locator('.preview-canvas-layer-select').click();
   assert.equal(await width.inputValue(), '777');
   assert.equal(await label.inputValue(), '尚未完成的配置');

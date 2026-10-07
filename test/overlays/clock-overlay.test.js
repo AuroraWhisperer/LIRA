@@ -18,6 +18,7 @@ const settingsRoutes = require('../../src/server/routes/settings-routes');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { assertClockRoundTrip } = require('../helpers/clock-round-trip');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 const CLOCK_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'clock.js');
@@ -479,19 +480,15 @@ test('clock card keeps custom text that matches another style default', async ()
 });
 
 test('flip colors are validated, persisted and exposed only through the clock projection', async () => {
-  const { projectOverlayResponse } = require('../../src/server/overlay-projection');
   const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   const config = { ...MOON_DEFAULTS, style: 'flip', showDate: true, showSeconds: true, hourFormat: '24', label: '',
     flipFrameColor: '#cb69e3', flipFaceColor: '#ffffff', flipTextColor: '#bc59d6' };
-  const payload = { ...admin.clockSettingsPayload(config) };
-  for (const [key, value] of Object.entries(payload)) assert.notEqual(normalizeClockSettingValue(key, value), null);
+  assertClockRoundTrip(config);
   assert.equal(normalizeClockSettingValue('clockFlipTextColor', ' #ABCDEF '), '#abcdef');
   for (const bad of ['red', '#fff', '#abcdzz', 'url(https://example.test)', '', null]) {
     assert.equal(normalizeClockSettingValue('clockFlipFaceColor', bad), null);
   }
-  assert.deepEqual(getClockConfig(payload), config);
-  assert.deepEqual(projectOverlayResponse('clock', '/api/clock/config', { ...getClockConfig(payload), secret: 'private' }), config);
   const params = new URL(admin.buildClockUrl('http://127.0.0.1:3000/clock', config)).searchParams;
   assert.equal(overlay.readClockConfig(params).flipFrameColor, config.flipFrameColor);
   params.delete('flipFaceColor');
@@ -507,16 +504,11 @@ test('flip colors are validated, persisted and exposed only through the clock pr
 test('moon palettes round-trip through settings, scene appearances and scoped overlay responses', async () => {
   const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
   const { normalizeSceneConfig } = require('../../src/server/scene-components');
-  const { projectOverlayResponse } = require('../../src/server/overlay-projection');
   const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   for (const mode of ['light', 'dark', 'auto']) {
     const config = { ...getClockConfig({ clockStyle: 'moonlit-fan' }), moonMode: mode, moonIntervalSeconds: 7 };
-    const payload = { ...admin.clockSettingsPayload(config) };
-    assert.equal(normalizeSettingsPatch(payload, DEFAULT_SETTINGS).error, undefined);
-    assert.deepEqual(getClockConfig(payload), config);
-    assert.deepEqual(normalizeSceneConfig('clock', config), config);
-    assert.deepEqual(projectOverlayResponse('clock', '/api/clock/config', { ...config, secret: 'private' }), config);
+    assertClockRoundTrip(config);
     const params = new URL(admin.buildClockUrl('http://127.0.0.1:3000/clock', config)).searchParams;
     assert.equal(overlay.readClockConfig(params).moonMode, mode);
     assert.equal(overlay.readClockConfig(params).moonIntervalSeconds, 7);

@@ -12,6 +12,63 @@ const { createLayout } = require('../../src/shared/danmaku-layout');
 
 const state = (draft = { label: '示例' }) => ({ draft, saved: draft, generation: 0, loaded: true });
 
+test('preview focus needs management authority and confirmation from the current page', async t => {
+  const fixture = await startComponentPreviewServer();
+  t.after(() => fixture.close());
+  const { data: canvas } = await fixture.post({ action: 'open', component: 'canvas', state: state() });
+  const { data: { key } } = await fixture.post({ action: 'link', links: [canvas], selectedId: 'opening' });
+  for (const token of [canvas.token, key]) {
+    assert.equal((await fixture.post({ action: 'focus', key }, token)).status, 401);
+  }
+  assert.deepEqual((await fixture.post({ action: 'focus', key })).data, { focused: false });
+  assert.equal((await fixture.post({ action: 'focus', key: 'x'.repeat(22) })).status, 410);
+
+  const sessions = createComponentPreviewSessions();
+  const local = sessions.open({ component: 'canvas', state: state() });
+  const linked = sessions.link({ links: [local], selectedId: 'opening' });
+  const attachmentId = randomUUID();
+  const browser = body => sessions.browser({ id: local.id, attachmentId, ...body }, local.token);
+  browser({ action: 'attach', previousAttachmentId: null });
+  const pending = sessions.focus(linked);
+  const { focus } = browser({ action: 'read' });
+  assert.equal(focus.selectedId, 'opening');
+  assert.equal(focus.selectedSize, null);
+  assert.equal(browser({ action: 'read', attachmentId: undefined, focusId: focus.id }).focus.id, focus.id,
+    'An unbound startup read cannot confirm delivery.');
+  assert.throws(() => browser({ action: 'read', attachmentId: randomUUID(), focusId: focus.id }), { statusCode: 409 });
+  assert.equal(browser({ action: 'read', focusId: 'wrong' }).focus.id, focus.id);
+  assert.equal(Object.hasOwn(browser({ action: 'read', focusId: focus.id }), 'focus'), false);
+  assert.deepEqual(await pending, { focused: true });
+  assert.equal(sessions.exchange({ id: local.id, state: state(), ack: 0 }).commands.length, 0);
+});
+
+test('preview focus expires or is cancelled without discarding drafts and accepted edits', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sessions = createComponentPreviewSessions();
+  t.after(() => sessions.clear());
+  const canvas = sessions.open({ component: 'canvas', state: state() });
+  const link = sessions.link({ links: [canvas] });
+  const attachmentId = randomUUID();
+  const browser = body => sessions.browser({ id: canvas.id, attachmentId, ...body }, canvas.token);
+  browser({ action: 'attach', previousAttachmentId: null });
+  browser({ action: 'edit', change: { label: 'pending' } });
+  const expired = sessions.focus(link);
+  const oldId = browser({ action: 'read' }).focus.id;
+  t.mock.timers.tick(2000);
+  assert.deepEqual(await expired, { focused: false });
+  assert.equal(Object.hasOwn(browser({ action: 'read' }), 'focus'), false);
+  const superseded = sessions.focus(link);
+  const latest = sessions.focus(link);
+  assert.deepEqual(await superseded, { focused: false });
+  assert.notEqual(browser({ action: 'read', focusId: oldId }).focus.id, oldId);
+  browser({ action: 'attach', attachmentId: randomUUID(), previousAttachmentId: attachmentId });
+  assert.deepEqual(await latest, { focused: false });
+  assert.equal(sessions.exchange({ id: canvas.id, state: state(), ack: 0 }).commands[0].change.label, 'pending');
+  const revoked = sessions.focus(link);
+  sessions.revoke(canvas.id);
+  assert.deepEqual(await revoked, { focused: false });
+});
+
 test('canvas preset relay only selects desktop-listed presets and isolates their recovery keys', () => {
   const sessions = createComponentPreviewSessions();
   const first = randomUUID();
@@ -134,10 +191,12 @@ test('A03: UTF-8 scene pairs fit open/edit/exchange while documents and envelope
   t.after(fixture.close);
   const config = normalizeSceneConfig('danmaku', { style: 'signal', fullscreenDurationSeconds: 6, layout: createLayout(),
     styleOptions: Object.fromEntries(Object.keys(DANMAKU_STYLE_OPTIONS).map(style => [style, { fontFamily: '"' + '测'.repeat(200) + '"' }])) });
-  const document = normalizeSceneDocument({ schemaVersion: 1, id: randomUUID(), title: '大小边界', canvas: { width: 1920, height: 1080 },
-    items: Array.from({ length: 32 }, () => ({ id: randomUUID(), type: 'danmaku', name: '弹幕', x: 0, y: 0,
-      width: 320, height: 180, visible: true, locked: false, appearance: { mode: 'independent', config } })) },
-  { normalizeConfig: normalizeSceneConfig });
+  const input = { schemaVersion: 1, id: randomUUID(), title: '大小边界', canvas: { width: 1920, height: 1080 }, items: [] };
+  while (Buffer.byteLength(JSON.stringify(input)) < MAX_SCENE_BYTES * 0.8) {
+    input.items.push({ id: randomUUID(), type: 'danmaku', name: '弹幕', x: 0, y: 0,
+      width: 320, height: 180, visible: true, locked: false, appearance: { mode: 'independent', config } });
+  }
+  const document = normalizeSceneDocument(input, { normalizeConfig: normalizeSceneConfig });
   const bytes = Buffer.byteLength(JSON.stringify(document));
   assert.ok(bytes > MAX_SCENE_BYTES * 0.75 && bytes <= MAX_SCENE_BYTES);
   const draft = { ...structuredClone(document), title: '不同的草稿' };

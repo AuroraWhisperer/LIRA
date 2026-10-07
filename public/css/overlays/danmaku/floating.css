@@ -1,0 +1,88 @@
+/* One sender per floating window; guard tiers share the darker surface. */
+body:is([data-style='floating'], [data-style='comet']) .danmaku-signal-stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+body:is([data-style='floating'], [data-style='comet']) .danmaku-signal-header { display: none; }
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-feed {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+}
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-item {
+  --floating-background: #707070;
+  position: absolute;
+  display: block;
+  width: max-content;
+  min-width: min(280px, 100%);
+  max-width: min(680px, 100%);
+  min-height: 100px;
+  padding: 14px 26px 18px;
+  border: 3px solid #ededed;
+  border-radius: 22px;
+  color: #fff;
+  background: color-mix(in srgb, var(--floating-background) var(--danmaku-background-weight, 100%), transparent);
+  box-shadow: 0 4px 9px rgb(0 0 0 / 40%), inset 0 0 0 1px rgb(0 0 0 / 35%);
+  font-family: var(--danmaku-custom-font, var(--danmaku-ui-font));
+  clip-path: none;
+  animation: none;
+  will-change: transform;
+}
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-item:is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor']) {
+  --floating-background: #353535;
+}
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-item::after { display: none; }
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-body {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-identity {
+  justify-content: center;
+  max-width: 100%;
+  padding: 0;
+  color: #fff;
+  background: transparent;
+}
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-identity strong {
+  max-width: 100%;
+  font: 700 18px/1.35 var(--danmaku-custom-font, var(--danmaku-ui-font));
+  color: inherit;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-overflow: clip;
+}
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-body p {
+  max-width: 100%;
+  margin: 0;
+  color: #fff;
+  font-size: var(--danmaku-font-size);
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-emote {
+  width: auto;
+  height: 1.4em;
+  max-width: 100%;
+  object-fit: contain;
+  vertical-align: middle;
+}
+body:is([data-style='floating'], [data-style='comet']) .is-emote-only .draw-danmaku-emote { height: 76px; }
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-gift-art { display: none; }
+body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-gift {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}

@@ -156,5 +156,106 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(urls[0], urls[1], 'Reopening from Electron must preserve the editor capability.');
   assert.equal(await reopened.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '987');
   assert.equal(await reopened.locator('[data-preview-field="danmakuFontSize"]').inputValue(), '36');
+  for (const style of ['floating', 'comet']) {
+    await reopened.getByRole('button', { name: '添加组件', exact: true }).click();
+    await reopened.locator('[data-category="danmaku"]').click();
+    await reopened.locator(`[data-picker-style="${style}"]`).click();
+    assert.equal(await reopened.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '2560');
+    assert.equal(await reopened.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '1440');
+    const speed = reopened.locator('[data-preview-field="danmakuSpeedPixelsPerSecond"]');
+    assert.equal(await speed.inputValue(), '120');
+    await speed.fill('240');
+    await speed.press('Tab');
+    await reopened.getByRole('button', { name: '保存并应用', exact: true }).click();
+    await reopened.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+    const floating = await app.evaluate((_, style) => global.canvasTest.scene().document.items.find(item => item.appearance.config?.style === style), style);
+    assert.deepEqual([floating.x, floating.y, floating.width, floating.height], [0, 0, 2560, 1440]);
+    assert.equal(floating.appearance.config.styleOptions[style].speedPixelsPerSecond, 240);
+    await reopened.reload();
+    await reopened.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
+    await reopened.locator('.preview-canvas-layer-select').first().click();
+    assert.equal(await reopened.locator('[data-preview-field="danmakuSpeedPixelsPerSecond"]').inputValue(), '240');
+  }
+  assert.equal(await reopened.locator('[data-preview-field="danmakuCenterBiasField"]').isHidden(), true);
+  await reopened.getByRole('button', { name: '添加组件', exact: true }).click();
+  await reopened.locator('[data-category="danmaku"]').click();
+  await reopened.locator('[data-picker-style="outline"]').click();
+  for (const [name, value] of [['CenterBias', '42'], ['Dispersion', '37']]) {
+    const slider = reopened.locator(`[data-preview-field="danmaku${name}"]`);
+    assert.equal(await slider.isVisible(), true);
+    assert.equal(await slider.getAttribute('min'), '1');
+    assert.equal(await slider.getAttribute('max'), '50');
+    await slider.fill(value);
+    assert.equal(await reopened.locator(`[data-preview-field="danmaku${name}Value"]`).textContent(), value);
+  }
+  await reopened.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await reopened.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const random = await app.evaluate(() => global.canvasTest.scene().document.items.find(item => item.appearance.config?.style === 'outline'));
+  assert.deepEqual(random.appearance.config.styleOptions.outline, { centerBias: 42, dispersion: 37 });
+  await reopened.reload();
+  await reopened.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
+  await reopened.locator('.preview-canvas-layer-select').first().click();
+  assert.equal(await reopened.locator('[data-preview-field="danmakuCenterBias"]').inputValue(), '42');
+  assert.equal(await reopened.locator('[data-preview-field="danmakuDispersion"]').inputValue(), '37');
+  await reopened.locator('[data-preview-field="danmakuResetParameters"]').click();
+  assert.equal(await reopened.locator('[data-preview-field="danmakuCenterBias"]').inputValue(), '1');
+  assert.equal(await reopened.locator('[data-preview-field="danmakuDispersion"]').inputValue(), '1');
+  assert.deepEqual(errors, []);
+});
+
+test('effect controls retain each style, save through desktop IPC, publish, reopen and reset', { timeout: 45000 }, async (t) => {
+  const root = path.resolve(__dirname, '../../tmp');
+  await fs.mkdir(root, { recursive: true });
+  const directory = await fs.mkdtemp(path.join(root, 'style-parameters-'));
+  const app = await electron.launch({ cwd: path.resolve(__dirname, '../..'),
+    args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close(); await app.close();
+    assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(root));
+    await fs.rm(directory, { recursive: true, force: true });
+  });
+  const desktop = await app.firstWindow();
+  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  await desktop.locator('#danmakuPreviewOverlayBtn').click();
+  let url;
+  for (let attempt = 0; attempt < 100 && !url; attempt++) {
+    url = (await app.evaluate(() => global.canvasTest.externalUrls)).at(-1);
+    if (!url) await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  assert.equal((await fetch(url)).status, 200);
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  page.setDefaultTimeout(7000);
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(url);
+  const shadow = page.locator('[data-effect-enabled="shadow"]');
+  await page.locator('[data-effect-group="shadow"] > summary').click();
+  await shadow.check();
+  await page.locator('[data-effect-field="shadow.blur"]').fill('24');
+  await page.locator('[data-effect-field="shadow.blur"]').press('Tab');
+  await page.locator('[data-show-entry-messages]').check();
+  await page.locator('[data-danmaku-style="bubble"]').click();
+  assert.equal(await shadow.isChecked(), false);
+  assert.equal(await page.locator('[data-show-entry-messages]').isChecked(), false);
+  await page.locator('[data-danmaku-style="signal"]').click();
+  assert.equal(await shadow.isChecked(), true);
+  assert.equal(await page.locator('[data-effect-field="shadow.blur"]').inputValue(), '24');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.waitForFunction(() => document.body.textContent.includes('已保存并应用到直播源'));
+  const saved = await app.evaluate(() => global.canvasTest.saved().styleParameters);
+  assert.equal(saved.signal.shadow.blur, 24);
+  assert.equal(saved.signal.showEntryMessages, true);
+  assert.ok((await app.evaluate(() => global.canvasTest.scene())).publishedVersion > 0);
+  await page.reload();
+  await shadow.waitFor({ state: 'attached' });
+  assert.equal(await shadow.isChecked(), true);
+  assert.equal(await page.locator('[data-effect-field="shadow.blur"]').inputValue(), '24');
+  await page.getByRole('button', { name: '恢复当前样式效果', exact: true }).click();
+  assert.equal(await shadow.isChecked(), false);
+  assert.equal(await page.locator('[data-show-entry-messages]').isChecked(), false);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.waitForFunction(() => document.body.textContent.includes('已保存并应用到直播源'));
+  assert.deepEqual(await app.evaluate(() => global.canvasTest.saved().styleParameters.signal), {});
   assert.deepEqual(errors, []);
 });

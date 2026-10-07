@@ -2,14 +2,16 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 const { randomUUID } = require('node:crypto');
 const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
+const { useSharedBrowser } = require('../helpers/shared-browser');
+
+const openBrowserSession = useSharedBrowser();
 
 test('text box instance links select the requested item and keep separate reusable entries', { timeout: 25000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
   const created = fixture.service.create({ title: '两个文本框', canvas: { width: 1920, height: 1080 } });
   const items = ['第一个文本框', '第二个文本框'].map((name, index) => ({
@@ -31,6 +33,7 @@ test('text box instance links select the requested item and keep separate reusab
   });
   const urls = new Map();
   for (const index of [1, 0, 1]) {
+    await page.goto('about:blank');
     await desktop.evaluate(id => window.openTextItem(id), items[index].id);
     await desktop.waitForFunction(() => window.externalPreviewUrl);
     const url = await desktop.evaluate(() => window.externalPreviewUrl);
@@ -38,7 +41,6 @@ test('text box instance links select the requested item and keep separate reusab
     urls.set(index, url);
     assert.equal((await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.selectedItemId, items[index].id);
     assert.equal((await fetch(url)).status, 200);
-    await page.goto('about:blank');
     await page.goto(url);
     const selected = page.locator('.preview-canvas-layer-select[aria-pressed="true"]');
     await selected.waitFor();
@@ -51,11 +53,20 @@ test('text box instance links select the requested item and keep separate reusab
   const selected = page.locator('.preview-canvas-layer-select[aria-pressed="true"]');
   await selected.waitFor();
   assert.equal(await selected.getAttribute('data-item-id'), items[1].id);
+  for (const index of [0, 1, 0]) {
+    await desktop.evaluate(async id => {
+      window.externalPreviewUrl = '';
+      await window.previewHandle.focus({ id: 'text-box', selectedItemId: id });
+    }, items[index].id);
+    assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), '');
+    assert.equal(await selected.getAttribute('data-item-id'), items[index].id);
+    assert.equal(await page.locator('.preview-canvas-layer-select').count(), 2);
+  }
 });
 
-test('reopening uses one short link and old pages can refresh into the same editable drafts', { timeout: 30000 }, async t => {
+test('reopening and style changes reuse one short link and connected canvas, and old pages refresh into the same drafts', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   const desktop = await browser.newPage();
   const page = await browser.newPage();
   const second = await browser.newPage();
@@ -79,13 +90,16 @@ test('reopening uses one short link and old pages can refresh into the same edit
   const label = page.locator('[data-preview-field="clockCustomLabel"]');
   await label.fill('保留未保存编辑');
   await desktop.waitForFunction(() => window.controllers.clock.getState().draft.label === '保留未保存编辑');
+  const sceneId = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.id);
+  const focused = desktop.waitForResponse(async response => new URL(response.url()).pathname === '/api/component-preview'
+    && response.request().postDataJSON().action === 'focus' && (await response.json()).data.focused);
   await desktop.evaluate(() => {
     window.originalHandle = window.previewHandle;
     window.reopen('clock'); window.reopen('clock'); window.reopen('clock');
   });
-  await desktop.waitForFunction(() => window.externalPreviewUrl);
+  await focused;
   assert.equal(await desktop.evaluate(() => window.previewHandle === window.originalHandle), true);
-  assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), url);
+  assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), '');
   assert.equal(commands.filter(({ action }) => action === 'open').length, 5);
   assert.equal(commands.filter(({ action }) => action === 'link').length, 1);
   assert.equal(commands.filter(({ action }) => action === 'revoke').length, 0);
@@ -98,15 +112,36 @@ test('reopening uses one short link and old pages can refresh into the same edit
   await desktop.waitForFunction(() => window.controllers.clock.getState().draft.label === '刷新后继续编辑');
   assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isEnabled(), true);
   assert.equal(fixture.service.list()[0].publishedVersion, 0);
+  // Changing the style refocuses the same canvas page and keeps its unsaved draft.
+  await page.evaluate(() => { window.originalCanvas = document.querySelector('.scene-editor-canvas'); });
+  const styleFocus = desktop.waitForResponse(async response => new URL(response.url()).pathname === '/api/component-preview'
+    && response.request().postDataJSON().action === 'focus' && (await response.json()).data.focused);
+  await desktop.evaluate(() => { window.externalPreviewUrl = ''; window.controllers.clock.edit({ style: 'flip' }); window.reopen('clock'); });
+  await styleFocus;
+  await page.frameLocator('iframe').locator('#clockCard[data-clock-style="flip"]').waitFor();
+  assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), '');
+  assert.equal(await label.inputValue(), '刷新后继续编辑');
+  assert.equal(await page.evaluate(() => window.originalCanvas === document.querySelector('.scene-editor-canvas')), true);
+  assert.equal(await page.locator('.preview-canvas-layer-select').count(), 1);
   // Each component entry keeps its selection while sharing the same relay.
+  const switchedFocus = desktop.waitForResponse(async response => new URL(response.url()).pathname === '/api/component-preview'
+    && response.request().postDataJSON().action === 'focus' && (await response.json()).data.focused);
   await desktop.evaluate(() => window.reopen('danmaku'));
-  await desktop.waitForFunction(() => window.externalPreviewUrl);
-  const switched = new URL(await desktop.evaluate(() => window.externalPreviewUrl));
-  assert.equal(switched.search, '');
-  assert.notEqual(switched.hash, new URL(url).hash);
-  assert.equal((await fixture.post({ action: 'resolve' }, switched.hash.slice(1))).data.selectedId, 'danmaku');
+  await switchedFocus;
+  assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), '');
+  await page.locator('.preview-canvas-layer-select[aria-pressed="true"]').filter({ hasText: '弹幕姬' }).waitFor();
+  assert.equal(commands.filter(({ action }) => action === 'link').at(-1).selectedId, 'danmaku');
+  assert.equal(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.id), sceneId);
+  assert.equal(await page.locator('.preview-canvas-layer-select').count(), 2);
   assert.equal((await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.selectedId, 'clock');
   assert.equal(commands.filter(({ action }) => action === 'open').length, 5);
+  await page.close();
+  await second.close();
+  await desktop.evaluate(async () => {
+    window.externalPreviewUrl = '';
+    await window.previewHandle.focus({ id: 'clock', controller: window.controllers.clock });
+  });
+  assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), url, 'Without an attached page, focusing reopens the same link.');
   await desktop.evaluate(() => {
     window.previewHandle.close();
     window.reopen('clock');
@@ -121,7 +156,7 @@ test('reopening uses one short link and old pages can refresh into the same edit
 
 test('short-link startup retries transient errors and old long links remain editable', { timeout: 25000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
   const desktop = await browser.newPage();
   const page = await browser.newPage();

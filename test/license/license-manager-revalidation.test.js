@@ -212,13 +212,32 @@ test('concurrent 401 storm triggers exactly one shared reverify', async () => {
     return { ok: true, count: 0 };
   };
 
-  const results = await Promise.all([manager.syncSongs([]), manager.syncSongs([]), manager.syncSongs([])]);
+  // Profile and cloud song reads share the same invalid session as the three song uploads.
+  const profile = remote.profile;
+  remote.profile = async (token) => {
+    if (token === 'token') throw new RemoteLicenseError('DEVICE_SESSION_INVALID', 'invalid', { status: 401 });
+    return profile(token);
+  };
+  const getCloudSongs = remote.getCloudSongs;
+  remote.getCloudSongs = async (token) => {
+    if (token === 'token') throw new RemoteLicenseError('DEVICE_SESSION_INVALID', 'invalid', { status: 401 });
+    return getCloudSongs(token);
+  };
 
-  assert.ok(results.every((result) => result?.ok));
-  assert.equal(calls.verifies, 2, 'three concurrent 401s must share a single reverify');
+  const results = await Promise.all([
+    manager.syncSongs([]),
+    manager.syncSongs([]),
+    manager.syncSongs([]),
+    manager.getProfile(),
+    manager.getCloudSongs(),
+  ]);
+
+  assert.ok(results.every((result) => result && result.ok !== false));
+  assert.equal(calls.verifies, 2, 'concurrent 401s must share a single reverify');
   assert.equal(calls.challenges, 2);
   assert.deepEqual(calls.syncTokens.slice(0, 3), ['token', 'token', 'token']);
   assert.deepEqual(calls.syncTokens.slice(3), ['token-2', 'token-2', 'token-2']);
+  assert.deepEqual(calls.cloudSongsTokens, ['token-2']);
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
   manager.dispose();
 });

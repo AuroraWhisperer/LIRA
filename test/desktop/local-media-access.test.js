@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createLocalMediaAccess, hasExactOrigin } = require('../../src/electron/local-media-access');
+const { registerLocalMediaProtocol } = require('../../src/electron/local-media-protocol');
 
 test('explicit local media access survives a cold start and remains path-specific', (t) => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
@@ -118,4 +119,45 @@ test('linked paths are canonicalized to prevent escape', (t) => {
   // Both linked and real paths should resolve to the same canonical path.
   assert.equal(access.isAllowed(linkedFile), true);
   assert.equal(access.isAllowed(realFile), true);
+});
+
+test('local media protocol enforces authorization and serves byte ranges', async (t) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-local-media-'));
+  const allowedPath = path.join(tempDir, 'allowed.mp3');
+  const blockedPath = path.join(tempDir, 'blocked.mp3');
+  fs.writeFileSync(allowedPath, Buffer.from('abcdef'));
+  fs.writeFileSync(blockedPath, Buffer.from('blocked'));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+
+  let handler = null;
+  registerLocalMediaProtocol(
+    {
+      handle(scheme, nextHandler) {
+        assert.equal(scheme, 'local-media');
+        handler = nextHandler;
+      },
+    },
+    (filePath) => filePath === allowedPath,
+  );
+
+  const allowedUrl = `local-media://media/${Buffer.from(allowedPath).toString('base64url')}`;
+  const partial = await handler({
+    url: allowedUrl,
+    headers: new Headers({ range: 'bytes=1-3' }),
+  });
+  assert.equal(partial.status, 206);
+  assert.equal(partial.headers.get('content-range'), 'bytes 1-3/6');
+  assert.equal(Buffer.from(await partial.arrayBuffer()).toString('utf8'), 'bcd');
+
+  const inverted = await handler({
+    url: allowedUrl,
+    headers: new Headers({ range: 'bytes=4-2' }),
+  });
+  assert.equal(inverted.status, 200);
+  assert.equal(inverted.headers.get('content-range'), null);
+  assert.equal(Buffer.from(await inverted.arrayBuffer()).toString('utf8'), 'abcdef');
+
+  const blockedUrl = `local-media://media/${Buffer.from(blockedPath).toString('base64url')}`;
+  const blocked = await handler({ url: blockedUrl, headers: new Headers() });
+  assert.equal(blocked.status, 403);
 });

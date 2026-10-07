@@ -48,7 +48,8 @@ lira-help:not(:defined) {
     Arial,
     sans-serif;
   text-align: center;
-  transform: translateY(0.5px);
+  letter-spacing: 0;
+  transform: translateY(-0.5px);
 }
 
 lira-help:hover .lira-help-mark,

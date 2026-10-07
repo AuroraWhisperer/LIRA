@@ -13,43 +13,6 @@ const { normalizeGiftBlindBoxConfig } = require('../../src/bilibili/gift/blind-b
 const defaultBlindBoxConfig = require('../../src/storage/default-blind-box-config.json');
 const { DEFAULT_SETTINGS, migrateBlindBoxConfig } = settingsStoreModule;
 
-const qixiOutputs = [
-  ['宸星定情', 1200],
-  ['星河相拥', 500],
-  ['云桥缘续', 66],
-  ['鹊语相思', 26],
-  ['锦书传意', 19],
-  ['月下牵丝', 5],
-];
-
-const bondOutputs = [
-  ['暖心陪伴', 5],
-  ['星光点点', 20],
-  ['甜蜜契约', 35],
-  ['守护之翼', 100],
-  ['心电共鸣', 200],
-  ['时光羁绊', 800],
-  ['命运交响', 2888],
-];
-
-test('default blind-box config keeps 七夕鹊匣 fourth and adds 羁绊宝盒 fifth', () => {
-  const config = JSON.parse(DEFAULT_SETTINGS.giftBlindBoxConfig);
-  assert.deepEqual(config, defaultBlindBoxConfig);
-  assert.equal(config.length, 5);
-  assert.equal(config[3].name, '七夕鹊匣');
-  assert.equal(config[3].price, 25);
-  assert.deepEqual(
-    config[3].outputs.map((output) => [output.name, output.price]),
-    qixiOutputs,
-  );
-  assert.equal(config[4].name, '羁绊宝盒');
-  assert.equal(config[4].price, 33);
-  assert.deepEqual(
-    config[4].outputs.map((output) => [output.name, output.price]),
-    bondOutputs,
-  );
-});
-
 test('blind-box migration appends missing defaults without replacing user entries', () => {
   const existing = [
     { name: '心动盲盒', price: 15, outputs: [] },
@@ -275,4 +238,121 @@ test('blind-box prices must remain positive after two-decimal normalization', ()
   assert.throws(() => normalizeGiftBlindBoxConfig(config(0.001)), /INVALID_GIFT_BLIND_BOX_CONFIG/);
   assert.throws(() => normalizeGiftBlindBoxConfig(config(0.01, 0.001)), /INVALID_GIFT_BLIND_BOX_CONFIG/);
   assert.deepEqual(normalizeGiftBlindBoxConfig(config(0.01)), config(0.01));
+});
+
+test('blind-box migration upgrades legacy string outputs by known price and is stable on rerun', () => {
+  let stored = JSON.stringify([
+    { name: '心动盲盒', price: 15, outputs: ['电影票', '未知礼物', { name: '已有对象', price: 3 }] },
+    { name: '用户盲盒', price: 6, outputs: ['棉花糖'] },
+  ]);
+  const db = {
+    prepare(sql) {
+      if (sql.includes('SELECT value FROM settings')) return { get: () => ({ value: stored }) };
+      if (sql.includes('UPDATE settings SET value')) {
+        return {
+          run: (value) => {
+            stored = value;
+          },
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+
+  migrateBlindBoxConfig(db);
+  const migrated = JSON.parse(stored);
+  // Known 心动盲盒 prices become objects; unknown names and other boxes stay untouched.
+  assert.deepEqual(migrated[0].outputs, [{ name: '电影票', price: 2 }, '未知礼物', { name: '已有对象', price: 3 }]);
+  assert.deepEqual(migrated[1], { name: '用户盲盒', price: 6, outputs: ['棉花糖'] });
+  assert.deepEqual(
+    migrated.slice(2).map((box) => box.name),
+    defaultBlindBoxConfig.map((box) => box.name).filter((name) => name !== '心动盲盒'),
+  );
+
+  const firstValue = stored;
+  migrateBlindBoxConfig(db);
+  assert.equal(stored, firstValue);
+});
+
+test('custom V2 blind-box settings are normalized and invalid configurations are rejected before saving', () => {
+  const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
+  const save = (value) => normalizeSettingsPatch({ giftBlindBoxCustomConfigV2: value }, DEFAULT_SETTINGS);
+  const box = (overrides = {}) => ({
+    giftId: '32251',
+    name: '自定义盒',
+    price: 10,
+    outputs: [{ giftId: '100', name: '产物' }],
+    ...overrides,
+  });
+
+  assert.deepEqual(save(null), { values: { giftBlindBoxCustomConfigV2: 'null' } });
+  assert.deepEqual(
+    save([
+      box({
+        customId: 'A1B2C3D4-0000-4000-8000-000000000000',
+        giftId: 32251,
+        name: ' Café 盒 ',
+        price: 1.234,
+        outputs: [
+          { giftId: '100', name: ' 产物 ', price: 2.345 },
+          { giftId: 101, name: '无价产物' },
+        ],
+      }),
+      box({ giftId: null, name: '未绑定礼物盒' }),
+    ]),
+    {
+      values: {
+        giftBlindBoxCustomConfigV2: JSON.stringify([
+          {
+            customId: 'a1b2c3d4-0000-4000-8000-000000000000',
+            giftId: '32251',
+            name: 'Café 盒',
+            price: 1.23,
+            outputs: [
+              { giftId: '100', name: '产物', price: 2.35 },
+              { giftId: '101', name: '无价产物' },
+            ],
+          },
+          { giftId: null, name: '未绑定礼物盒', price: 10, outputs: [{ giftId: '100', name: '产物' }] },
+        ]),
+      },
+    },
+  );
+
+  const longName = '名'.repeat(100);
+  const oversized = Array.from({ length: 3 }, (_, boxIndex) =>
+    box({
+      giftId: String(1000 + boxIndex),
+      name: `大盒${boxIndex}`,
+      outputs: Array.from({ length: 200 }, (_, index) => ({ giftId: String(index + 1), name: longName })),
+    }),
+  );
+  for (const [label, value] of [
+    ['not an array', { boxes: [] }],
+    ['malformed JSON', '[{'],
+    [
+      'too many boxes',
+      Array.from({ length: 101 }, (_, index) => box({ giftId: String(index + 1), name: `盒${index}` })),
+    ],
+    ['duplicate name', [box(), box({ giftId: '32252' })]],
+    ['duplicate gift id', [box(), box({ name: '另一盒' })]],
+    [
+      'duplicate custom id',
+      [
+        box({ customId: 'a1b2c3d4-0000-4000-8000-000000000000', giftId: null }),
+        box({ customId: 'A1B2C3D4-0000-4000-8000-000000000000', giftId: null, name: '另一盒' }),
+      ],
+    ],
+    ['invalid custom id', [box({ customId: 'not-a-uuid' })]],
+    ['invalid gift id', [box({ giftId: '0' })]],
+    ['empty outputs', [box({ outputs: [] })]],
+    ['duplicate output gift id', [box({ outputs: [{ giftId: '100', name: 'A' }, { giftId: '100', name: 'B' }] })]],
+    ['missing output gift id', [box({ outputs: [{ name: '产物' }] })]],
+    ['control character in name', [box({ name: '盒\u0001' })]],
+    ['name over 100 characters', [box({ name: `${longName}长` })]],
+    ['non-positive price', [box({ price: 0 })]],
+    ['serialized size over 64 KiB', oversized],
+  ]) {
+    assert.deepEqual(save(value), { error: '设置 giftBlindBoxCustomConfigV2 的值无效。' }, label);
+  }
 });

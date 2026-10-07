@@ -1,0 +1,222 @@
+/* 星语：透明白字、细线和四角星。尺寸随现有画布与字号一起缩放。 */
+body[data-style='starlight'] {
+  --starlight-ink: #fff;
+  --starlight-shadow: 0 2px 3px rgb(13 25 47 / 65%);
+  --starlight-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0C14 9 15 10 24 12C15 14 14 15 12 24C10 15 9 14 0 12C9 10 10 9 12 0Z'/%3E%3C/svg%3E");
+}
+body[data-style='starlight'] .danmaku-signal-header,
+body[data-style='starlight'] .draw-danmaku-avatar,
+body[data-style='starlight'] .draw-danmaku-badge,
+body[data-style='starlight'] .draw-danmaku-gift-art {
+  display: none;
+}
+body[data-style='starlight'] .draw-danmaku-feed {
+  gap: 28px;
+  mask: linear-gradient(transparent, #000 24px);
+}
+body[data-style='starlight'][data-scroll-direction='down'] .draw-danmaku-feed {
+  mask: linear-gradient(#000 calc(100% - 24px), transparent);
+}
+body[data-style='starlight'] .draw-danmaku-feed .draw-danmaku-item {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  padding: 14px 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  overflow: visible;
+  color: var(--starlight-ink);
+  text-shadow: var(--starlight-shadow);
+  animation: none;
+  zoom: 1;
+}
+body[data-style='starlight'] .draw-danmaku-feed .draw-danmaku-item::before,
+body[data-style='starlight'] .draw-danmaku-feed .draw-danmaku-item::after,
+body[data-style='starlight'] .draw-danmaku-feed .draw-danmaku-item.is-gift::after {
+  display: none;
+}
+body[data-style='starlight'] .draw-danmaku-body {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  text-align: center;
+  text-shadow: inherit;
+}
+body[data-style='starlight'] .draw-danmaku-identity,
+body[data-style='starlight'] .sc-name {
+  position: relative;
+  display: block;
+  padding: 0 22px 9px;
+  border-bottom: 1px solid rgb(255 255 255 / 85%);
+}
+body[data-style='starlight'] .draw-danmaku-identity strong,
+body[data-style='starlight'] .is-gift .draw-danmaku-identity strong,
+body[data-style='starlight'] .sc-name {
+  color: var(--starlight-ink);
+  font: 700 calc(var(--danmaku-font-size) * .75)/1.35 var(--danmaku-ui-font);
+  letter-spacing: .07em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-shadow: inherit;
+}
+body[data-style='starlight'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-identity strong::before,
+body[data-style='starlight'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-identity strong::after {
+  content: '+';
+  margin: 0 .35em;
+}
+body[data-style='starlight'] .draw-danmaku-body > p {
+  margin: 8px 16px 0;
+  color: var(--starlight-ink);
+  font-size: calc(var(--danmaku-font-size) * .62);
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: .06em;
+  white-space: pre-wrap;
+}
+body[data-style='starlight'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
+  height: 1.5em;
+}
+/* Star ornaments stay on the content, separate from the feed's row movement. */
+body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::before,
+body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::after,
+body[data-style='starlight'] :is(.draw-danmaku-gift-amount, .sc-money)::before {
+  position: absolute;
+  display: block;
+  width: 15px;
+  height: 15px;
+  background: var(--starlight-ink);
+  mask: var(--starlight-star) center / contain no-repeat;
+  content: '';
+  pointer-events: none;
+  animation: starlightTwinkle 3.2s ease-in-out infinite;
+}
+body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::before {
+  left: 12px;
+  bottom: 12px;
+}
+body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::after {
+  right: 8px;
+  bottom: -23px;
+  animation-delay: -1.6s;
+}
+body[data-style='starlight'] .draw-danmaku-item.is-gift .draw-danmaku-body,
+body[data-style='starlight'] .sc-starlight {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 24px;
+  padding: 0 16px 0 0;
+  text-align: left;
+  text-shadow: var(--starlight-shadow);
+}
+body[data-style='starlight'] .is-gift .draw-danmaku-identity,
+body[data-style='starlight'] .sc-name {
+  display: block;
+  grid-column: 1;
+  width: calc(100% - 52px);
+  padding: 0 0 5px 34px;
+}
+body[data-style='starlight'] .is-gift .draw-danmaku-identity::before,
+body[data-style='starlight'] .sc-name::before {
+  left: -2px;
+  bottom: -8px;
+}
+body[data-style='starlight'] .is-gift .draw-danmaku-identity::after,
+body[data-style='starlight'] .sc-name::after {
+  display: none;
+}
+body[data-style='starlight'] .draw-danmaku-item.is-gift .draw-danmaku-gift {
+  display: contents;
+}
+body[data-style='starlight'] .is-gift .draw-danmaku-gift-copy,
+body[data-style='starlight'] .sc-copy {
+  position: relative;
+  display: block;
+  grid-column: 1;
+  grid-row: 2;
+  margin: 7px 0 0;
+  padding-left: 34px;
+  color: var(--starlight-ink);
+  font-size: calc(var(--danmaku-font-size) * .75);
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: .06em;
+  white-space: pre-wrap;
+}
+body[data-style='starlight'] :is(.draw-danmaku-gift-copy, .sc-copy)::before {
+  content: '+';
+  margin-right: .45em;
+}
+body[data-style='starlight'] .is-gift :is(.draw-danmaku-gift-action, .draw-danmaku-gift-name, .draw-danmaku-gift-count) {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+}
+body[data-style='starlight'] .draw-danmaku-gift-action {
+  margin-right: .5em;
+}
+body[data-style='starlight'] .is-gift .draw-danmaku-gift-amount,
+body[data-style='starlight'] .sc-money {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  padding-left: 30px;
+  color: var(--starlight-ink);
+  font: 700 calc(var(--danmaku-font-size) * 1.1)/1.2 'Segoe UI', var(--danmaku-ui-font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .07em;
+  white-space: nowrap;
+  text-shadow: inherit;
+}
+body[data-style='starlight'] :is(.draw-danmaku-gift-amount, .sc-money)::before {
+  top: calc(50% - 13px);
+  left: 0;
+  width: 26px;
+  height: 26px;
+  animation-delay: -.8s;
+}
+body[data-style='starlight'] .sc-currency {
+  margin: 0;
+  font-size: 1em;
+  font-weight: inherit;
+}
+/* Keep the amount with the sender and give long SC messages the full row. */
+body[data-style='starlight'] .sc-starlight {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  row-gap: 8px;
+}
+body[data-style='starlight'] .sc-name {
+  flex: 1 1 14ch;
+  width: auto;
+}
+body[data-style='starlight'] .sc-money {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-left: auto;
+}
+body[data-style='starlight'] .sc-copy {
+  order: 1;
+  flex: 1 0 100%;
+  margin-top: 4px;
+}
+body[data-style='starlight'][data-custom-font='true'] :is(.draw-danmaku-identity strong, .draw-danmaku-gift-copy, .sc-name, .sc-copy) {
+  font-family: var(--danmaku-custom-font);
+}
+@keyframes starlightTwinkle {
+  0%, 100% { opacity: .95; transform: scale(1); }
+  40% { opacity: .2; transform: scale(.45); }
+  65% { opacity: 1; transform: scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='starlight'] *::before,
+  body[data-style='starlight'] *::after { animation: none; }
+}

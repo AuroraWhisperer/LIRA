@@ -2,9 +2,15 @@ const opening = name => `/img/overlays/opening-moon-fan/${name}.webp`;
 const danmaku = name => `/img/overlays/danmaku-moonlit/${name}.webp`;
 const background = '/img/overlays/backgrounds/moonlit.webp';
 const movie = '/img/overlays/backgrounds/moonlit-loop-hq-60.webm';
+export const NAUTICAL_GUARD_ART = Object.freeze(Object.fromEntries(
+  ['captain', 'admiral', 'governor'].map(tier => [tier, `/img/overlays/guard-nautical/${tier}.webp`])));
+export const NAUTICAL_GUARD_AVATAR = '/img/overlays/guard-nautical/avatar.png';
 
 // These are trusted client renderers, never code supplied by an archive.
 export const COMPONENT_RESOURCE_PRESETS = Object.freeze({
+  'nautical-guard-thanks': { type: 'guard-thanks', config: { textMode: 'follow' },
+    size: [1920, 1080], resources: [...Object.values(NAUTICAL_GUARD_ART), NAUTICAL_GUARD_AVATAR],
+    sheets: ['/css/overlays/guard-nautical.css'] },
   'moonlit-background': { type: 'background', config: { style: 'moonlit' }, styles: ['moonlit', 'moonlit-animated'],
     size: [1920, 1080], resources: [background, movie], sheets: [] },
   'moonlit-opening': { type: 'opening', config: { style: 'moonlit-fan' }, styles: ['moonlit-fan', 'original'],
@@ -16,28 +22,54 @@ export const COMPONENT_RESOURCE_PRESETS = Object.freeze({
     sheets: ['/css/overlays/clock/moonlit-fan.css'], fontFamily: 'Lira Moon Serif' },
   'moonlit-danmaku': { type: 'danmaku', config: { style: 'moonlit' }, styles: ['moonlit'], size: [480, 800],
     resources: ['brush', 'captain', 'admiral', 'governor', 'flowers', 'scroll-roller', 'guard-landscape', 'crane'].map(danmaku),
+    optionalResources: [danmaku('scroll-landscape')],
     sheets: ['/css/overlays/danmaku/moonlit.css'] },
-  'moonlit-wishes': { type: 'gift-wishes', config: { displayStyle: 'moonlit' }, styles: ['moonlit'], size: [640, 400],
+  'moonlit-wishes': { type: 'gift-wishes', config: { displayStyle: 'moonlit' }, styles: ['moonlit'], size: [640, 451],
     resources: ['/img/shared/gift-wish-moonlit.webp', '/img/shared/gift-wish-moonlit-start.svg'],
     sheets: ['/css/shared/gift-wish-moonlit.css'] },
+  'moonlit-lyrics': { type: 'lyrics', config: { style: 'moonlit', desktopLyricFontFamily: '月渡花汀文楷',
+    desktopLyricFontWeight: '400', desktopLyricFontSize: '48', desktopLyricTextColor: '#48657a',
+    desktopLyricTextAlign: 'center', desktopLyricLineHeight: '1.2', desktopLyricVisibleLines: '1',
+    desktopLyricStrokeWidth: '0.5', desktopLyricStrokeColor: '#f8f6ef', desktopLyricShadowEnabled: 'false' },
+    styles: ['moonlit'], size: [960, 480], resources: [opening('flowers-ne')],
+    optionalResources: Array.from({ length: 23 }, (_, index) => `/fonts/moonlit-wenkai/wenkai-${String(index).padStart(2, '0')}.woff2`),
+    sheets: ['/css/lyrics/moonlit-font.css', '/css/lyrics/moonlit.css'], fontFamily: '月渡花汀文楷' },
+  'moonlit-queue': { type: 'queue', config: { overlayQueueStyle: 'identity', identityQueueFontSize: '30',
+    overlayShowIndex: 'true', overlayIndexThreshold: '0', overlayIndexColor: '#735020',
+    overlayPin1: '', overlayPin2: '', overlayPin3: '',
+    overlayRule1: '', overlayRule2: '', overlayRule3: '',
+    overlayRule4: '', overlayRule5: '', overlayRule6: '',
+    identityQueueScrollMode: 'bounce', identityQueueScrollSpeed: '80', backdropBlur: '0', glowIntensity: '0' },
+    styles: ['identity'], size: [391, 506], resources: [opening('flowers-ne')],
+    optionalResources: ['flowers-nw', 'flowers-sw', 'flowers-se'].map(opening)
+      .concat('/img/overlays/queue-moonlit/vine-frame-v1.webp', '/img/overlays/queue-moonlit/vine-frame-gold-jade-v2.webp',
+        '/img/overlays/queue-moonlit/vine-frame-hd-v3.webp', '/img/overlays/queue-moonlit/moon-lake-frame-hd-v4.webp'),
+    sheets: ['/css/overlays/base/queue-moonlit.css'] },
 });
+
+export function hasResourceStyles(type) {
+  return Object.values(COMPONENT_RESOURCE_PRESETS).some(preset => preset.type === type);
+}
 
 const SOURCE = /^\/component-media\/([a-f0-9-]{36})\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4|webm|svg|woff2)$/;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const KEYS = ['id', 'preset', 'preview', 'width', 'height', 'resources'];
 
 export function normalizeResourceStyle(type, input, config) {
-  const fail = () => { throw new Error('套装资源无效或不受支持，请更新客户端后重新导入套装。'); };
+  const fail = () => { throw new Error('样式资源无效或不受支持，请更新客户端后重新导入素材包。'); };
   if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !KEYS.includes(key))) return fail();
   const preset = Object.hasOwn(COMPONENT_RESOURCE_PRESETS, input.preset) && COMPONENT_RESOURCE_PRESETS[input.preset];
   if (!preset || preset.type !== type || !UUID.test(input.id) || !SOURCE.test(input.preview)
-    || !/\.(png|jpg|webp)$/.test(input.preview) || !preset.styles.includes(config?.style || config?.displayStyle)) return fail();
+    || !/\.(png|jpg|webp)$/.test(input.preview)
+    || (preset.styles && !preset.styles.includes(type === 'queue' ? config?.overlayQueueStyle : config?.style || config?.displayStyle))) return fail();
   for (const axis of ['width', 'height']) if (!Number.isInteger(input[axis]) || input[axis] < 1 || input[axis] > 7680) return fail();
   const resources = input.resources;
+  const allowed = preset.resources.concat(preset.optionalResources || []);
   if (!resources || typeof resources !== 'object' || Array.isArray(resources)
-    || Object.keys(resources).length !== preset.resources.length) return fail();
+    || preset.resources.some(key => !Object.hasOwn(resources, key))
+    || Object.keys(resources).some(key => !allowed.includes(key))) return fail();
   const pack = SOURCE.exec(input.preview)[1];
-  for (const key of preset.resources) {
+  for (const key of Object.keys(resources)) {
     const match = SOURCE.exec(resources[key]);
     if (!match || match[1] !== pack || !resources[key].endsWith(key.slice(key.lastIndexOf('.')))) return fail();
   }
@@ -45,6 +77,8 @@ export function normalizeResourceStyle(type, input, config) {
 }
 
 export function componentStyleMedia(config) {
+  if (config.cssStyle) return { ...config.cssStyle, kind: 'css' };
+  if (Object.hasOwn(config, 'url')) return { kind: 'html', width: config.viewportWidth, height: config.viewportHeight };
   return config.resourceStyle ? { ...config.resourceStyle, src: config.resourceStyle.preview, kind: 'image' } : config.mediaStyle;
 }
 

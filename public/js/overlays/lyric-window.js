@@ -2,6 +2,7 @@
 
 import { desktopLyricRenderer } from '../lyrics/desktop-lyric-renderer.js?v=20260913-01';
 import { mountSceneExtraClient } from './scene-extra-client.js';
+import { COMPONENT_RESOURCE_PRESETS } from '../shared/component-resource-style.js';
 
 let reconnectTimer = 0;
 let reconnectAttempts = 0;
@@ -10,7 +11,12 @@ let componentTimeline = '';
 document.addEventListener('DOMContentLoaded', () => {
   desktopLyricRenderer.init();
   if (mountSceneExtraClient('lyrics', {
-    onConfig: (config) => desktopLyricRenderer.applySettings(config),
+    onConfig(config) {
+      const resource = config.resourceStyle;
+      const fontFamily = COMPONENT_RESOURCE_PRESETS[resource?.preset]?.fontFamily;
+      desktopLyricRenderer.applySettings(fontFamily && config.desktopLyricFontFamily === fontFamily
+        ? { ...config, desktopLyricFontFamily: `${fontFamily}-${resource.id}` } : config);
+    },
     onData(data) {
       const timeline = data?.lyricTimeline || { lines: [] };
       const signature = JSON.stringify(timeline);

@@ -214,6 +214,14 @@
                 <img src="/img/overlays/danmaku-previews/transparent.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">透明文字</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="sketch" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/sketch.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">绿萌简笔画</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="starlight" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/starlight.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">星语</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="identity" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/identity.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">头像横卡</span>
@@ -233,6 +241,10 @@
                 <img src="/img/overlays/danmaku-previews/outline.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">简洁白卡</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="whiteframe" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/whiteframe.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">白线框</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="cream" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/cream.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">奶油气泡</span>
@@ -241,9 +253,26 @@
                 <img src="/img/overlays/danmaku-previews/glow.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">流光气泡</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="starveil" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/starveil.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">星幕浮语</span>
+              </button>
             </div>
           </section>
         </div>
+        <section class="danmaku-style-group danmaku-style-group-floating" aria-labelledby="danmakuFloatingStyleTitle">
+          <div class="danmaku-style-group-heading"><strong id="danmakuFloatingStyleTitle">飘窗弹幕</strong></div>
+          <div class="danmaku-style-options" role="group" aria-label="选择飘窗弹幕样式">
+            <button class="danmaku-style-option" type="button" data-danmaku-style="floating" aria-pressed="false">
+              <img src="/img/overlays/danmaku-previews/floating.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">飘窗弹幕</span>
+            </button>
+            <button class="danmaku-style-option" type="button" data-danmaku-style="comet" aria-pressed="false">
+              <img src="/img/overlays/danmaku-previews/comet.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">鹤映鎏金</span>
+            </button>
+          </div>
+        </section>
         <section class="danmaku-parameters" aria-labelledby="danmakuParametersTitle">
           <div class="danmaku-filter-heading">
             <h5 id="danmakuParametersTitle">参数调节 · 深色面板</h5>
@@ -280,8 +309,8 @@
               />
             </label>
             <label class="danmaku-parameter-field" for="danmakuTextColor">
-              <span><strong>正文颜色</strong> <output id="danmakuTextColorValue" for="danmakuTextColor">#EAF2FF</output></span>
-              <input id="danmakuTextColor" class="color-control" type="color" value="#eaf2ff" disabled />
+              <span><strong id="danmakuTextColorLabel">正文颜色</strong></span>
+              <input id="danmakuTextColor" type="color" value="#eaf2ff" disabled />
             </label>
             <label id="danmakuBackgroundOpacityField" class="danmaku-parameter-field" for="danmakuBackgroundOpacity">
               <span
@@ -306,6 +335,10 @@
                 <option value="gift">礼物原图</option>
               </select>
             </label>
+            <label id="danmakuSpeedField" class="danmaku-parameter-field" for="danmakuSpeedPixelsPerSecond" hidden>
+              <span><strong>移动速率<lira-help label="移动速率说明">20～600 像素/秒，默认 120；数值越大移动越快。</lira-help></strong></span>
+              <input id="danmakuSpeedPixelsPerSecond" type="number" min="20" max="600" step="1" value="120" disabled />
+            </label>
             <label id="danmakuScrollDirectionField" class="danmaku-parameter-field" for="danmakuScrollDirection">
               <span><strong>滚动方向</strong></span>
               <select id="danmakuScrollDirection" disabled>
@@ -324,6 +357,14 @@
                 value="6"
                 inputmode="numeric"
               />
+            </label>
+            <label id="danmakuCenterBiasField" class="danmaku-parameter-field" for="danmakuCenterBias" hidden>
+              <span><strong>中心倾向<lira-help label="中心倾向说明">1～50，数值越高，越容易出现在区域中间，越少出现在边缘和角落；1 为均匀随机。</lira-help></strong><output id="danmakuCenterBiasValue" for="danmakuCenterBias">1</output></span>
+              <input id="danmakuCenterBias" class="parameter-range" type="range" min="1" max="50" step="1" value="1" disabled />
+            </label>
+            <label id="danmakuDispersionField" class="danmaku-parameter-field" for="danmakuDispersion" hidden>
+              <span><strong>离散程度<lira-help label="离散程度说明">1～50，数值越高，新弹幕越倾向于远离上一条弹幕（按中心点直线距离）。与中心倾向共同生效，并受可用空间限制。</lira-help></strong><output id="danmakuDispersionValue" for="danmakuDispersion">1</output></span>
+              <input id="danmakuDispersion" class="parameter-range" type="range" min="1" max="50" step="1" value="1" disabled />
             </label>
           </div>
         </section>

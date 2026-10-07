@@ -1,8 +1,10 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { readAdminHtml } = require('../helpers/admin-html');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom, createClock } = require('../helpers/toast-dom');
 
@@ -35,6 +37,7 @@ async function createFixture() {
     fetch: (url, options) =>
       new Promise((resolve) =>
         requests.push({
+          url,
           body: JSON.parse(options.body),
           resolve: () =>
             resolve({
@@ -68,6 +71,7 @@ test('save uses the submitted draft and preserves edits made while awaiting its 
   render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'false' });
   edit('giftFrameThresholdRmb', '99');
   const save = node('giftFrameSaveBtn').handlers.get('click')();
+  assert.equal(requests[0].url, '/api/settings');
   assert.deepEqual(requests[0].body, { giftFrameEnabled: 'false', giftFrameThresholdRmb: '99.00' });
   edit('giftFrameThresholdRmb', '120');
   render({ giftFrameThresholdRmb: '99.00' });
@@ -98,4 +102,18 @@ test('invalid simulated quantity stays in the settings page without sending requ
     assert.match(node('giftFrameSaveState').textContent, /预览数量必须是正整数/);
   }
   assert.equal(requests.length, 0);
+});
+
+test('the real gift page exposes only the woodland frame controls and the module previews through the canvas', () => {
+  const html = readAdminHtml();
+  const moduleSource = fs.readFileSync(path.resolve('public/js/admin/gift-frame.js'), 'utf8');
+  assert.match(html, /id="otherGiftFeature"[^>]+data-other-feature-panel[\s\S]*?id="giftFrameEnabled"/);
+  assert.match(html, /<input\b(?=[^>]*\sid="giftFrameThresholdRmb")(?=[^>]*\stype="number")[^>]*>/);
+  for (const field of ['PreviewBtn', 'PreviewUser', 'PreviewGift', 'PreviewNum']) {
+    assert.match(html, new RegExp(`id="giftFrame${field}"`));
+  }
+  assert.deepEqual([...html.matchAll(/data-gift-frame-effect="([^"]+)"/g)].map((match) => match[1]), ['woodland-bloom']);
+  assert.doesNotMatch(html, /id="giftFrame(?:Theme|MotionMode|PreviewAmount|OverlayUrl|OpenBtn|CopyBtn)"|giftFrameRibbon/);
+  assert.match(moduleSource, /openComponentPreview\(\{ id: 'gift-frame', previewData \}\)/);
+  assert.doesNotMatch(moduleSource, /\/api\/gifts\/frame\/preview/);
 });

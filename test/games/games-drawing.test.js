@@ -61,6 +61,14 @@ async function createDrawingFixture(t) {
       stroke() {
         painted.push(this.strokeStyle);
       },
+      // A sampled #ef476f canvas pixel for the color picker.
+      getImageData: () => ({ data: [239, 71, 111, 255] }),
+    };
+    const toolbarButton = (dataset) => ({ dataset, attributes: {}, addEventListener() {},
+      setAttribute(name, value) { this.attributes[name] = value; } });
+    const toolbar = {
+      '[data-draw-color]': ['#222034', '#ef476f', '#118ab2'].map((drawColor) => toolbarButton({ drawColor })),
+      '[data-draw-width]': ['2', '4', '8', '12'].map((drawWidth) => toolbarButton({ drawWidth })),
     };
     function byId(id) {
       if (!nodes.has(id))
@@ -70,7 +78,10 @@ async function createDrawingFixture(t) {
             this.listeners.set(type, listener);
           },
           classList: { toggle() {} },
-          setAttribute() {},
+          attributes: {},
+          setAttribute(name, value) {
+            this.attributes[name] = value;
+          },
           setPointerCapture() {},
           width: 100,
           height: 100,
@@ -88,7 +99,7 @@ async function createDrawingFixture(t) {
       path.join(__dirname, '../..', 'public', 'js', 'overlays', 'games-drawing.js'),
       {
         document: {
-          querySelectorAll: () => [],
+          querySelectorAll: (selector) => toolbar[selector] || [],
           addEventListener: (type, listener) => keyboard.set(type, listener),
         },
         crypto: { randomUUID: () => clientId },
@@ -142,6 +153,14 @@ async function createDrawingFixture(t) {
         controller.redrawCanvas(session.state.canvas);
       },
       undo: () => byId('drawUndoBtn').listeners.get('click')(),
+      key: (key, extra = {}) => {
+        const preventDefault = t.mock.fn();
+        keyboard.get('keydown')({ key, target: null, preventDefault, ...extra });
+        return preventDefault.mock.callCount();
+      },
+      pressed: () => Object.entries({ pen: 'drawPenBtn', eraser: 'drawEraserBtn', line: 'drawLineBtn',
+        rectangle: 'drawRectangleBtn', ellipse: 'drawEllipseBtn', picker: 'drawPickerBtn' })
+        .filter(([, id]) => byId(id).attributes['aria-pressed'] === 'true').map(([tool]) => tool),
       shortcut: (modifier) => {
         const preventDefault = t.mock.fn();
         keyboard.get('keydown')({ key: 'z', [modifier]: true, preventDefault });
@@ -310,4 +329,53 @@ test('queued drawing is discarded after its round is replaced', async (t) => {
   await pending;
   assert.equal(f.requests.length, 0);
   assert.deepEqual(f.host.canvas().strokes, []);
+});
+
+test('keyboard shortcuts select tools and widths, and each tool submits its own stroke geometry', async (t) => {
+  const fixture = await createDrawingFixture(t);
+  const { host } = fixture;
+  const drawStroke = async (from, to) => {
+    const before = fixture.requests.length;
+    host.pointer('pointerdown', from);
+    host.pointer('pointermove', (from + to) / 2);
+    host.pointer('pointermove', to);
+    host.pointer('pointerup', to);
+    await fixture.flushRequests();
+    const operations = fixture.requests.slice(before);
+    assert.ok(operations.length > 0);
+    assert.equal(new Set(operations.map((operation) => operation.strokeId)).size, 1);
+    return { ...operations[0], points: operations.flatMap((operation) => operation.points) };
+  };
+
+  assert.equal(host.key('e'), 1);
+  assert.deepEqual(host.pressed(), ['eraser']);
+  assert.equal((await drawStroke(10, 30)).color, '#ffffff', 'the eraser paints the canvas background');
+  assert.equal(host.key('e', { ctrlKey: true }), 0, 'modified keys are not tool shortcuts');
+  assert.equal(host.key('b', { target: { tagName: 'INPUT' } }), 0, 'typing in a field never switches tools');
+  assert.deepEqual(host.pressed(), ['eraser']);
+  host.key('b');
+  assert.deepEqual(host.pressed(), ['pen']);
+
+  for (const [key, width] of [[']', 8], [']', 12], [']', 12], ['[', 8]]) {
+    host.key(key);
+    const pressedWidth = (await drawStroke(10, 30)).width;
+    assert.equal(pressedWidth, width, key);
+  }
+
+  for (const [key, tool, count] of [['l', 'line', 2], ['r', 'rectangle', 5], ['o', 'ellipse', 41]]) {
+    host.key(key);
+    assert.deepEqual(host.pressed(), [tool]);
+    const stroke = await drawStroke(10, 60);
+    assert.equal(stroke.points.length, count, tool);
+    assert.equal(stroke.points[0].x, tool === 'ellipse' ? 0.6 : 0.1, tool);
+  }
+
+  host.key('i');
+  assert.deepEqual(host.pressed(), ['picker']);
+  const requests = fixture.requests.length;
+  host.pointer('pointerdown', 50);
+  await fixture.flushRequests();
+  assert.equal(fixture.requests.length, requests, 'picking a color sends no stroke');
+  assert.deepEqual(host.pressed(), ['pen'], 'the picker returns to the pen');
+  assert.equal((await drawStroke(10, 30)).color, '#ef476f', 'the nearest palette color is selected');
 });

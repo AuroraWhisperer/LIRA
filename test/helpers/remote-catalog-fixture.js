@@ -40,10 +40,20 @@ function normalizeRemoteCatalog(response, options) {
   return normalizeRemoteCatalogImpl(v2CatalogResponse(response), options);
 }
 
+// Minimal RIFF/WEBP header accepted by the gift image signature check.
+function webpBytes() {
+  const bytes = Buffer.alloc(16);
+  bytes.write('RIFF', 0, 'ascii');
+  bytes.writeUInt32LE(8, 4);
+  bytes.write('WEBP', 8, 'ascii');
+  return bytes;
+}
+
 module.exports = {
   QUIET_LOGGER,
   UPDATED_AT,
   createRemoteGiftCatalogCache,
   normalizeRemoteCatalog,
   v2CatalogResponse,
+  webpBytes,
 };

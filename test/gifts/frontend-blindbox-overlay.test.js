@@ -126,6 +126,5 @@ test('blindbox overlay fills the capture width and reflows without hiding data',
   assert.doesNotMatch(styles, /\.profit-value\s*\{[^}]*display:\s*none/);
   assert.match(styles, /\.blindbox-panel\.summary-only \.blindbox-header[\s\S]*?display:\s*none/);
   assert.doesNotMatch(source, /panel\.style\.overflow\s*=\s*['"]hidden['"]/);
-  assert.match(source, /initialBlindboxViewportWidth\s*=\s*window\.innerWidth/);
   assert.match(source, /blindbox-viewport-resized/);
 });

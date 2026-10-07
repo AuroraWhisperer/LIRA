@@ -144,7 +144,8 @@ test('WS event scope matrix strips nested extras while preserving display and dr
     ['gift-feed', { type: 'gift-catalog:update', snapshot: { secret } }],
     [
       'gift-effects',
-      { type: 'gift:frame', eventId: 'frame', userName: '观众', giftName: '花', num: 2, totalPriceCents: 100, secret },
+      { type: 'gift:frame', eventId: 'frame', userName: '观众', giftName: '花', num: 2, totalPriceCents: 100,
+        avatarUrl: 'https://i0.hdslb.com/bfs/face/viewer.webp', secret },
     ],
     [
       'gift-effects',
@@ -221,6 +222,8 @@ test('WS event scope matrix strips nested extras while preserving display and dr
     type: 'gift-catalog:update',
   });
   const draw = projectWebSocketPayload({ type: 'overlay', scope: 'games' }, events[4][1]);
+  assert.equal(projectWebSocketPayload({ type: 'overlay', scope: 'gift-effects' }, events[2][1]).avatarUrl,
+    'https://i0.hdslb.com/bfs/face/viewer.webp');
   assert.deepEqual(draw.operation.points, [{ x: 0.1, y: 0.2 }]);
   assert.equal(draw.operation.clientId, 'one');
   assert.equal(projectWebSocketPayload({ type: 'overlay', scope: 'wheel' }, events[6][1]).state.spin.index, 0);

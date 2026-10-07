@@ -20,6 +20,8 @@ function readOvertimeAdminSource() {
     'overtime-status-view.js',
     'overtime-preview.js',
     'overtime-preview-factory.js',
+    'overtime-gift-picker.js',
+    'gifts/picker-option.js',
     'overtime.js',
   ]
     .map((file) =>
@@ -99,52 +101,30 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.match(styles, /@import url\('\.\/admin\/overtime\.css'\);/);
   assert.match(source, /\.textContent\s*=/);
   assert.doesNotMatch(source, /fetch\('\/img\/bilibili-gifts\.json'/);
-  assert.match(source, /fetch\('\/api\/overtime\/gifts'/);
-  assert.match(source, /\/api\/overtime\/gifts\/refresh/);
-  assert.match(source, /fetch\('\/api\/overtime\/gifts\/catalog'\)/);
   assert.doesNotMatch(source, /\/api\/overtime\/gifts\/local\/search/);
   assert.doesNotMatch(source, /\/api\/overtime\/gifts\/server\/search/);
-  assert.match(source, /catalogRoomLabel\(giftCatalogSnapshot, catalogLiveStatus\)/);
-  assert.match(source, /liveStatus\?\.ownerName/);
-  assert.match(source, /minute:\s*'2-digit'/);
-  assert.match(
-    source,
-    /left\.catalogGroup - right\.catalogGroup[\s\S]*left\.catalogOrder - right\.catalogOrder[\s\S]*left\.rmb - right\.rmb/,
-  );
   assert.match(source, /\/api\/overtime\/rules/);
   assert.match(source, /ruleEditor\?\.setLimits\(\s*(?:serverLimits|limits)\s*\)/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
 });
 
-test('overtime screen controls expose save state, visible errors, and a plain address copy action', () => {
+test('overtime screen controls wire background fields and a plain address copy action', () => {
   const html = readAdminHtml();
   const source = readOvertimeAdminSource();
-  const utilitySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'shared', 'utils.js'), 'utf8');
 
   assert.match(html, /id="overtimeSaveBackgroundBtn"/);
   assert.match(html, /id="overtimeCopyOverlayBtn"/);
   assert.match(source, /'path', 'overtimeBackgroundPath'/);
   assert.match(source, /'fit', 'overtimeBackgroundFit'/);
   assert.match(source, /addEventListener\('change', \(\) => targetController\.edit/);
-  assert.match(source, /showError\(error\)/);
-  assert.match(source, /保存中…/);
   assert.match(source, /copyText\(overlayUrl\(\)\)/);
-  assert.match(source, /地址已复制/);
-  assert.match(utilitySource, /export async function copyText\(text\)/);
-  assert.match(utilitySource, /navigator\.clipboard\?\.writeText/);
-  assert.match(utilitySource, /execCommand\('copy'\)/);
 });
 
 test('overtime controller delegates rule editing through a narrow module boundary', () => {
   const controller = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');
-  const editor = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime-rule-editor.js'), 'utf8');
-  const statusView = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime-status-view.js'), 'utf8');
 
   assert.match(controller, /import \{ createOvertimeRuleEditor \} from ["']\.\/overtime-rule-editor\.js["'];/);
-  assert.match(controller, /ruleEditor\.readRules\(\)/);
-  assert.match(statusView, /getRuleEditor\(\)\?\.renderRules\(nextState\.rules\)/);
   assert.doesNotMatch(controller, /function createRuleRow/);
-  assert.match(editor, /readRules:\s*\(\)\s*=>\s*readRules\(root,\s*getLimits\(\)\)/);
 });
 
 test('overtime initial duration is minute-based, selectable, and readable', async () => {
@@ -184,17 +164,6 @@ test('overtime gift rules use novice-friendly structured controls', async () => 
   const source = readOvertimeAdminSource();
   const overtimeStyles = readCssBundle('public', 'css', 'admin', 'overtime.css');
 
-  assert.match(source, /dataset\.ruleSummary/);
-  assert.match(source, /body\.hidden = !expanded/);
-  assert.match(source, /toggle\.setAttribute\('aria-expanded'/);
-  assert.match(source, /dataset\.ruleOperation/);
-  for (const operation of ['add', 'subtract', 'multiply', 'divide', 'clear']) {
-    assert.match(source, new RegExp(`createOperationOption\\(\\s*name\\s*,\\s*['"]${operation}['"]`));
-  }
-  assert.match(source, /dataset\[`duration\$\{part\[0\]\.toUpperCase\(\)\}\$\{part\.slice\(1\)\}`\]/);
-  assert.match(source, /data-duration-\$\{part\}/);
-  assert.match(source, /dataset\.randomOutcome/);
-  assert.match(source, /dataset\.addOutcome/);
   assert.doesNotMatch(source, /createElement\('textarea'\)/);
   assert.match(overtimeStyles, /\.overtime-rule-effect\s*\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);
 

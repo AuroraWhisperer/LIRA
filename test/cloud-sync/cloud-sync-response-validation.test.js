@@ -64,3 +64,37 @@ test('malformed cloud credentials preserve the login and remain retryable', asyn
     }
   }
 });
+
+test('invalid cloud songs preserve the snapshot and revision until a valid retry', async () => {
+  for (const songs of [undefined, null, {}, '[]']) {
+    let response = { initialized: true, revision: 3, songs };
+    let reads = 0;
+    const client = createRemoteLicenseClient({
+      fetchImpl: async () => {
+        reads += 1;
+        return new Response(JSON.stringify(response));
+      },
+    });
+    const fixture = createFixture({
+      licenseManager: {
+        getCloudSongs: () => client.getCloudSongs('token'),
+      },
+    });
+    try {
+      await assert.rejects(fixture.controller.start(), { code: 'INVALID_RESPONSE' });
+      assert.equal(
+        fixture.calls.some((call) => call[0] === 'apply-songs'),
+        false,
+      );
+      response = { initialized: true, revision: 3, songs: [] };
+      await fixture.controller.syncNow();
+      assert.equal(reads, 2);
+      assert.deepEqual(
+        fixture.calls.filter((call) => call[0] === 'apply-songs'),
+        [['apply-songs', []]],
+      );
+    } finally {
+      fixture.controller.dispose();
+    }
+  }
+});

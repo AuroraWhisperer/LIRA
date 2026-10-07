@@ -20,6 +20,7 @@ const { createSettingsStore } = require('../../src/storage/settings-store');
 const { createDomainServices } = require('../../src/server/domain-services');
 const { createRuntimeApiContextFactory } = require('../../src/server/runtime-api-context');
 const { routes } = require('../../src/server/routes/data-routes');
+const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
 const clearAll = routes['POST /api/database/clear-all'];
 
 function fixture(t) {
@@ -91,36 +92,12 @@ function request() {
 }
 
 function importGift(f) {
-  const timestamp = '2026-09-13T00:00:00.000Z';
-  const source = f.db.giftDb
-    .prepare(
-      `
-    INSERT INTO gift_sources (source_key, created_at, updated_at) VALUES (?, ?, ?)
-  `,
-    )
-    .run('c'.repeat(64), timestamp, timestamp);
   return f.services.gifts.importProcessedEvent(
-    {
-      eventId: 'clear-all-late-gift',
-      phase: 'final',
-      cursor: 1,
-      gift: {
-        giftId: '1',
-        giftName: '测试礼物',
-        num: 1,
-        unitPrice: 1,
-        totalPrice: 1,
-        userName: '测试观众',
-        coinType: 'gold',
-        isBlindBox: false,
-        blindBoxId: null,
-        blindBoxName: '',
-        blindBoxPrice: null,
-        blindProfit: null,
-        createdAt: timestamp,
-      },
-    },
-    Number(source.lastInsertRowid),
+    makeProcessedGiftEvent(
+      { giftId: '1', giftName: '测试礼物', unitPrice: 1, totalPrice: 1, createdAt: '2026-09-13T00:00:00.000Z' },
+      { eventId: 'clear-all-late-gift' },
+    ),
+    createGiftSource(f.db.giftDb),
   );
 }
 

@@ -14,6 +14,8 @@
 | 第三方模型配置 | [使用指南](guides/third-party-api-support.md) | 使用者操作与产品限制 |
 | 组件统一编排或独立导入直播软件 | [组件与浏览器源指南](guides/component-sources.md) | 统一预览、组合来源、单组件地址及尺寸设置 |
 | 外置图片/视频套装如何打包和导入 | [本机素材套装指南](guides/component-style-packages.md) | 作者 ZIP 清单、格式限制、主播操作 |
+| 为横屏背景制作可调滤镜包 | [背景样式包作者指南](guides/background-style-packages.md) | AI 制作接口、示例清单、导入和恢复作者默认 |
+| 核对背景滤镜与制作方式 | [背景美术与滤镜来源](guides/background-art-workflow.md) | Shoost 参数差异、成熟工具、分层合成及交付格式 |
 | 制作配套直播视觉主题 | [套装制作指南：月渡花汀](guides/overlay-suites/README.md) | 分层流程、提示词、参考路径、制作档案与版本状态 |
 | Bilibili 外部协议资料 | [上游参考](bilibili-live-api/README.md) | 外部资料，不代表本客户端支持全部上游接口 |
 

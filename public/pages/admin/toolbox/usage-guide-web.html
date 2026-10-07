@@ -4,7 +4,7 @@
     <span class="usage-guide-section-index" aria-hidden="true">12</span>网页歌单与主播中心
   </h3>
   <p class="usage-guide-section-intro">
-    网页歌单给观众挑歌。网页主播中心给你看礼物记录、管理网页歌单和直播弹幕姬。B 站账号和直播间还是在 LIRA 客户端里设置。
+    网页歌单给观众挑歌。网页主播中心给你看礼物记录、管理网页歌单和复制直播弹幕姬地址。B 站账号和直播间还是在 LIRA 客户端里设置。
   </p>
   <div class="usage-guide-feature-list">
     <article class="usage-guide-feature" id="ug-web-share">
@@ -155,12 +155,12 @@
         </li>
         <li><strong>网页歌单：</strong>看同步上来的歌，改名称、背景和外观，复制网址或下载二维码。</li>
         <li>
-          <strong>直播弹幕姬：</strong>选样式并预览，点「保存样式」更新直播画面。再复制地址，加到 OBS
-          或直播姬的浏览器源。它和客户端弹幕姬用的是同一份服务器设置。
+          <strong>直播弹幕姬：</strong>复制浏览器源地址，加到 OBS 或直播姬。样式和参数在客户端「百宝箱 →
+          弹幕姬」调整，点「应用到直播画面」后生效；网页主播中心只提供地址，不提供样式编辑。
         </li>
       </ul>
       <details class="usage-guide-foldout">
-        <summary>查看礼物流水、数据分析和弹幕姬的画面</summary>
+        <summary>查看礼物流水和数据分析的画面</summary>
         <figure class="usage-guide-figure">
           <img
             class="usage-guide-image"
@@ -173,36 +173,33 @@
           />
           <figcaption>礼物流水：上面筛选，下面看记录和翻页。</figcaption>
         </figure>
-        <div class="usage-guide-grid">
-          <figure class="usage-guide-figure">
-            <img
-              class="usage-guide-image"
-              src="/img/usage-guide/S/server-manage-analytics.webp"
-              width="1440"
-              height="1000"
-              loading="lazy"
-              decoding="async"
-              alt="网页主播中心数据分析页，有日期筛选、收礼趋势图和收礼概览"
-            />
-            <figcaption>数据分析：选日期，看趋势和概览。</figcaption>
-          </figure>
-          <figure class="usage-guide-figure">
-            <img
-              class="usage-guide-image"
-              src="/img/usage-guide/S/server-manage-danmaku-url.webp"
-              width="1440"
-              height="900"
-              loading="lazy"
-              decoding="async"
-              alt="网页主播中心直播弹幕姬页，上方是弹幕样式缩略图，下方有预览草稿、保存样式按钮和浏览器源地址"
-            />
-            <figcaption>直播弹幕姬：点「保存样式」，再复制你自己的地址。</figcaption>
-          </figure>
-        </div>
+        <figure class="usage-guide-figure">
+          <img
+            class="usage-guide-image"
+            src="/img/usage-guide/S/server-manage-analytics.webp"
+            width="1440"
+            height="1000"
+            loading="lazy"
+            decoding="async"
+            alt="网页主播中心数据分析页，有日期筛选、收礼趋势图和收礼概览"
+          />
+          <figcaption>数据分析：选日期，看趋势和概览。</figcaption>
+        </figure>
       </details>
       <p>
         记录是空的：先清空筛选，核对日期和登录的账号，再到客户端看看直播间连上没有。服务器只能显示已经记下来的礼物，页面空白不代表历史礼物都补齐了。
       </p>
+    </article>
+    <article class="usage-guide-feature" id="ug-web-gift-analysis">
+      <div class="usage-guide-feature-head"><strong>礼物构成与盲盒明细怎么读</strong></div>
+      <p>在网页主播中心打开礼物记录或数据分析，选好日期和筛选条件，再展开「礼物构成」。想把流水和图表放在一起看，先确认两边选的是同一段时间。</p>
+      <ol class="usage-guide-checks">
+        <li>「统计日期」默认选「本月」，和上面的查询日期分开。想用同一段时间，就选「跟随查询」。自己选起止日期时，选「自定义日期」，填完再点「应用日期」。</li>
+        <li>点「按价值」看礼物价值占了多少，点「按件数」看数量占了多少。同样送 10 件，不同礼物的价值可能差很多。</li>
+        <li>先看普通礼物、大航海和盲盒的分类，再看「盲盒构成」。想看某个盒子，在「盲盒详情」里选；盒子多时，可以搜名字或从列表里找。</li>
+        <li>选好盒子，下面能看开出了什么、多少件、值多少、占多少。再看「已知成本」「对应开出价值」「开出价值差额」，别漏看旁边关于成本是否完整的提示。</li>
+      </ol>
+      <p>日期按北京时间算，只统计 LIRA 已经记下来的付费礼物。「礼物价值」按礼物标价算，不是平台结算后你能拿到的钱。提示数据没拿全或成本不完整时，别把缺的部分当成 0，也别拿已有的差额当全部盈亏。</p>
     </article>
     <article class="usage-guide-feature" id="ug-password-reset">
       <div class="usage-guide-feature-head"><strong>忘记 LIRA 密码怎么办</strong></div>

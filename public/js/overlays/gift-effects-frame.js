@@ -1,10 +1,15 @@
 // 特效 1 · 林间花信：原生透明视频与独立感谢文字共享 1920×1080 坐标。
 'use strict';
 
+import { giftAvatarSource } from '../shared/gift-banner.js';
+
+const AVATAR_PLACEHOLDER = '/img/gift-avatar-placeholder.svg';
+export const FRAME_DURATION_MS = 8000;
+
 export function createFrameController({ frameRoot }) {
   const video = frameRoot.querySelector('video');
   const caption = frameRoot.querySelector('.gift-info');
-  const user = frameRoot.querySelector('#giftInfoUser');
+  const avatar = frameRoot.querySelector('#giftInfoAvatar');
   const gift = frameRoot.querySelector('#giftInfoName');
   const quantity = frameRoot.querySelector('#giftInfoNum');
   let stop = null;
@@ -25,21 +30,27 @@ export function createFrameController({ frameRoot }) {
   }
 
   function updateCaption(time) {
-    const enter = smooth((time - 0.36) / 0.24);
-    const exit = smooth((time - 3.6) / 0.26);
-    caption.style.opacity = String(enter * (1 - exit) * (1 - smooth((time - 3.6) / 0.4)));
-    const offset = time < 0.6 ? 120 * (1 - time / 0.6) ** 3 : 120 * smooth((time - 3.6) / 0.4);
+    const enter = smooth((time - 0.65) / 0.45);
+    const exitStart = FRAME_DURATION_MS / 1000 - 0.8;
+    const exit = smooth((time - exitStart) / 0.5);
+    caption.style.opacity = String(enter * (1 - exit));
+    const offset = time < 1.1 ? 120 * (1 - time / 1.1) ** 3 : 120 * smooth((time - exitStart) / 0.8);
     caption.style.transform = `translateY(${offset}px)`;
   }
 
   function play(payload) {
     if (disposed) return Promise.resolve();
     stop?.();
-    user.textContent = payload.userName;
+    avatar.alt = `${payload.userName || '送礼人'}的头像`;
+    avatar.onerror = () => {
+      avatar.onerror = null;
+      avatar.src = AVATAR_PLACEHOLDER;
+    };
+    avatar.src = payload.avatarUrl ? giftAvatarSource(payload.avatarUrl)
+      : payload.preview ? '/img/overlays/danmaku-ranked/viewer.webp' : AVATAR_PLACEHOLDER;
     gift.textContent = payload.giftName;
     quantity.textContent = `×${payload.num}`;
-    fitText(user, 28, 22);
-    fitText(gift, 34, 26);
+    fitText(gift, 38, 26);
     updateCaption(0);
 
     return new Promise((resolve, reject) => {
@@ -61,7 +72,10 @@ export function createFrameController({ frameRoot }) {
         video.pause();
         frameRoot.classList.remove('is-playing');
         updateCaption(0);
-        user.textContent = gift.textContent = quantity.textContent = '';
+        avatar.onerror = null;
+        avatar.removeAttribute('src');
+        avatar.alt = '';
+        gift.textContent = quantity.textContent = '';
         stop = null;
         if (error) {
           needsReload = true;

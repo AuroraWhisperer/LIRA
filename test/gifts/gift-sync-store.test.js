@@ -1,26 +1,21 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 const test = require('node:test');
-const { closeDatabases, createDatabases, getSchemaVersions } = require('../../src/storage/database');
-const { createGiftSyncStore } = require('../../src/storage/gift-sync-store');
+const { createFixture } = require('../helpers/gift-query-fixture');
 
 test('gift migration partitions remote rows and fails closed without a source', () => {
   const fixture = createFixture();
   try {
-    assert.equal(getSchemaVersions(fixture.databases).giftDb, 16);
     assert.equal(fixture.giftDb.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
     assert.equal(hasColumn(fixture.giftDb, 'gift_events', 'source_id'), true);
     assert.equal(hasColumn(fixture.giftDb, 'gift_events', 'blind_box_id'), true);
     assert.equal(hasTable(fixture.giftDb, 'gift_sources'), true);
     assert.equal(hasTable(fixture.giftDb, 'gift_sync_state'), true);
 
-    assert.throws(() => insertRemoteGift(fixture.giftDb, null, 'event-without-source'), /REMOTE_GIFT_SOURCE_REQUIRED/);
+    assert.throws(() => fixture.insertGift(null, 'event-without-source'), /REMOTE_GIFT_SOURCE_REQUIRED/);
     assert.throws(
-      () => insertRemoteGift(fixture.giftDb, 999_999, 'unknown-source'),
+      () => fixture.insertGift(999_999, 'unknown-source'),
       /REMOTE_GIFT_SOURCE_REQUIRED|FOREIGN KEY constraint failed/,
     );
 
@@ -50,9 +45,9 @@ test('gift migration partitions remote rows and fails closed without a source', 
 
     const sourceA = fixture.store.resolveSource('a'.repeat(64));
     const sourceB = fixture.store.resolveSource('b'.repeat(64));
-    insertRemoteGift(fixture.giftDb, sourceA.id, 'same-event');
-    insertRemoteGift(fixture.giftDb, sourceB.id, 'same-event');
-    assert.throws(() => insertRemoteGift(fixture.giftDb, sourceA.id, 'same-event'), /UNIQUE constraint failed/);
+    fixture.insertGift(sourceA.id, 'same-event');
+    fixture.insertGift(sourceB.id, 'same-event');
+    assert.throws(() => fixture.insertGift(sourceA.id, 'same-event'), /UNIQUE constraint failed/);
   } finally {
     fixture.close();
   }
@@ -63,7 +58,7 @@ test('history page rows and progress token commit or roll back together', () => 
   const fixture = createFixture({
     importHistoryRecord(record, sourceId) {
       if (record.eventId === 'bad') throw new Error('INVALID_HISTORY_RECORD');
-      insertRemoteGift(fixture.giftDb, sourceId, record.eventId);
+      fixture.insertGift(sourceId, record.eventId);
       imported.push(record.eventId);
     },
   });
@@ -125,10 +120,10 @@ test('history page rows and progress token commit or roll back together', () => 
 test('catch-up and projection replacement fence stale generations', () => {
   const fixture = createFixture({
     importHistoryRecord(record, sourceId) {
-      insertRemoteGift(fixture.giftDb, sourceId, record.eventId);
+      fixture.insertGift(sourceId, record.eventId);
     },
     importLiveEvent(event, sourceId) {
-      insertRemoteGift(fixture.giftDb, sourceId, event.eventId);
+      fixture.insertGift(sourceId, event.eventId);
     },
   });
   try {
@@ -181,10 +176,10 @@ test('catch-up and projection replacement fence stale generations', () => {
 test('epoch catch-up rejects cursor gaps without committing rows or progress', () => {
   const fixture = createFixture({
     importHistoryRecord(record, sourceId) {
-      insertRemoteGift(fixture.giftDb, sourceId, record.eventId);
+      fixture.insertGift(sourceId, record.eventId);
     },
     importLiveEvent(event, sourceId) {
-      insertRemoteGift(fixture.giftDb, sourceId, event.eventId);
+      fixture.insertGift(sourceId, event.eventId);
     },
   });
   try {
@@ -222,7 +217,7 @@ test('legacy page effects are discarded on rollback and run after commit', () =>
   const fixture = createFixture({
     importLiveEvent(event, sourceId, importOptions) {
       if (event.eventId === 'bad') throw new Error('INVALID_LIVE_EVENT');
-      insertRemoteGift(fixture.giftDb, sourceId, event.eventId);
+      fixture.insertGift(sourceId, event.eventId);
       importOptions.registerAfterCommit(() => {
         effects.push({
           eventId: event.eventId,
@@ -265,7 +260,7 @@ test('legacy page effects are discarded on rollback and run after commit', () =>
 test('expired bootstrap token restart clears anchors but preserves partial rows', () => {
   const fixture = createFixture({
     importHistoryRecord(record, sourceId) {
-      insertRemoteGift(fixture.giftDb, sourceId, record.eventId);
+      fixture.insertGift(sourceId, record.eventId);
     },
   });
   try {
@@ -304,43 +299,6 @@ test('expired bootstrap token restart clears anchors but preserves partial rows'
 
 const NOW = '2026-09-01T00:00:00.000Z';
 
-function createFixture(options = {}) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-sync-'));
-  const databases = createDatabases({ dataDir });
-  const fixture = {
-    dataDir,
-    databases,
-    giftDb: databases.giftDb,
-    store: null,
-    close() {
-      closeDatabases(databases);
-      fs.rmSync(dataDir, { recursive: true, force: true });
-    },
-  };
-  fixture.store = createGiftSyncStore({
-    giftDb: fixture.giftDb,
-    now: () => NOW,
-    importHistoryRecord: options.importHistoryRecord,
-    importLiveEvent: options.importLiveEvent,
-  });
-  return fixture;
-}
-
-function insertRemoteGift(giftDb, sourceId, eventId) {
-  return giftDb
-    .prepare(
-      `
-      INSERT INTO gift_events (
-        source_id, platform_id, cmd, gift_id, gift_name, user_name,
-        num, unit_price, total_price, detection_status, status,
-        created_at, updated_at
-      ) VALUES (?, ?, 'LIRA_SERVER_GIFT', '1', 'Gift', 'Viewer',
-                1, 1, 1, 'final', 'active', ?, ?)
-    `,
-    )
-    .run(sourceId, `lira-server:${eventId}`, NOW, NOW);
-}
-
 function countEvent(giftDb, sourceId, eventId) {
   return giftDb
     .prepare(
@@ -370,12 +328,12 @@ test('clear and rebuild reset the same metadata but preserve their different del
       const source = fixture.store.resolveSource('a'.repeat(64));
       const other = fixture.store.resolveSource('b'.repeat(64));
       seedResetState(fixture.giftDb, source.id);
-      insertRemoteGift(fixture.giftDb, source.id, 'remote');
-      insertRemoteGift(fixture.giftDb, source.id, 'other-command');
+      fixture.insertGift(source.id, 'remote');
+      fixture.insertGift(source.id, 'other-command');
       fixture.giftDb
         .prepare("UPDATE gift_events SET cmd = 'SEND_GIFT' WHERE platform_id = 'lira-server:other-command'")
         .run();
-      insertRemoteGift(fixture.giftDb, other.id, 'other-source');
+      fixture.insertGift(other.id, 'other-source');
       const otherState = fixture.store.getState(other.id);
       if (mode === 'clear') {
         require('../../src/storage/database').clearGiftData(fixture.giftDb, { sourceId: source.id });
@@ -416,7 +374,7 @@ test('reset metadata and row deletion roll back together in each owning transact
     try {
       const source = fixture.store.resolveSource('a'.repeat(64));
       seedResetState(fixture.giftDb, source.id);
-      insertRemoteGift(fixture.giftDb, source.id, 'retained');
+      fixture.insertGift(source.id, 'retained');
       const before = fixture.store.getState(source.id);
       // Fail after metadata changed in clear; fail after deletion in rebuild.
       fixture.giftDb.exec(

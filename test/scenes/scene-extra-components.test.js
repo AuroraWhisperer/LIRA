@@ -21,16 +21,82 @@ function documentFor(type, config = createSceneExtraDefaults(type)) {
 test('backgrounds default to empty and preserve explicit legacy presets through template import', () => {
   const { importSceneTemplate } = require('../../public/js/admin/scene-template.js');
   const input = documentFor('background', { style: 'moonlit' });
-  assert.deepEqual(normalizeSceneConfig('background', {}), { style: 'none' });
+  assert.deepEqual(normalizeSceneConfig('background', {}), createSceneExtraDefaults('background'));
   const imported = importSceneTemplate(input);
   assert.deepEqual(imported.bindings, []);
   assert.equal(imported.document.items[0].appearance.config.style, 'moonlit');
   assert.notEqual(imported.document.items[0].id, input.items[0].id);
 });
 
-test('opening appearances preserve client-following defaults and allow the moonlit suite style only', () => {
+test('background parameters preserve legacy fit and validate default snapshots independently', () => {
+  const { getBackgroundAppearance } = require('../../public/js/shared/background-appearance.js');
+  const { createMediaStyle } = require('../../public/js/shared/component-media-style.js');
+  const mediaStyle = createMediaStyle('background', { id: randomUUID(), kind: 'video', width: 1920, height: 1080,
+    src: `/component-media/${randomUUID()}/${'a'.repeat(64)}.webm` });
+  mediaStyle.volume = 0.25;
+  const legacy = normalizeSceneConfig('background', { style: 'none', mediaStyle });
+  assert.equal(legacy.fit, 'fill');
+  assert.equal(legacy.volume, 0.25);
+  assert.equal(legacy.opacity, 1);
+  assert.equal(legacy.blur, 0);
+  for (const key of ['fit', 'volume']) assert.throws(() => normalizeSceneConfig('background', { ...legacy, [key]: null }), { code: 'INVALID_SCENE_CONFIG' });
+  assert.equal(normalizeSceneConfig('background', { style: 'moonlit' }).fit, 'cover');
+  const defaults = { opacity: 0.7, blur: 4, fit: 'contain', playbackRate: 0.75 };
+  const config = normalizeSceneConfig('background', { ...legacy, opacity: 0.4, blur: 12, backgroundDefaults: defaults });
+  assert.equal(config.opacity, 0.4);
+  assert.deepEqual(config.backgroundDefaults, getBackgroundAppearance(defaults));
+  const normalized = normalizeSceneDocument(documentFor('background', config), { normalizeConfig: normalizeSceneConfig });
+  assert.deepEqual(normalized.items[0].appearance.config, config);
+  assert.notEqual(normalized.items[0].appearance.config.backgroundDefaults, config.backgroundDefaults);
+  for (const value of [null, [], { blur: 31 }, { playbackRate: 0.4 }, { opacity: -0.1 }, { volume: 1.1 },
+    { overlayColor: 'url(private)' }, { style: 'moonlit' }, { backgroundDefaults: {} }, { token: 'secret' }]) {
+    assert.throws(() => normalizeSceneConfig('background', { style: 'none', backgroundDefaults: value }), { code: 'INVALID_SCENE_CONFIG' });
+  }
+  assert.throws(() => normalizeSceneConfig('opening', { style: 'original', backgroundDefaults: defaults }), { code: 'INVALID_SCENE_CONFIG' });
+});
+
+test('background filters validate relations and preserve authored defaults through scene normalization', () => {
+  const filters = { colorProcessing: 'standard', temperature: 35, tint: -10, liftRed: 0.05, gammaBlue: 1.2, gainGreen: 0.9,
+    preserveLuminance: false, shadowColor: '#789abc', shadowStrength: 0.2,
+    glowMode: 'star', glowStrength: 0.8, glowThreshold: 0.65, glowSoftness: 0.15, irisBlur: 12,
+    vignetteOpacity: 0.3, levelsChannel: 'b', inputBlack: 10, inputWhite: 230, gamma: 1.2, grainSize: 2.5, grainStrength: 0.1 };
+  const config = normalizeSceneConfig('background', { ...filters, backgroundDefaults: filters });
+  const scene = normalizeSceneDocument(documentFor('background', config), { normalizeConfig: normalizeSceneConfig });
+  for (const [key, value] of Object.entries(filters)) {
+    assert.equal(scene.items[0].appearance.config[key], value);
+    assert.equal(scene.items[0].appearance.config.backgroundDefaults[key], value);
+  }
+  for (const invalid of [{ inputBlack: 50, inputWhite: 50 }, { outputBlack: 150, outputWhite: 100 }, { gamma: 0 },
+    { temperature: 101 }, { grainSize: 1.1 }, { glowMode: 'unknown' }, { colorProcessing: 'shoost' },
+    { liftRed: 1.1 }, { gammaBlue: 0 }, { gainGreen: 3.1 }, { liftBlue: .001 }]) {
+    assert.throws(() => normalizeSceneConfig('background', invalid), { code: 'INVALID_SCENE_CONFIG' });
+    assert.throws(() => normalizeSceneConfig('background', { backgroundDefaults: invalid }), { code: 'INVALID_SCENE_CONFIG' });
+  }
+  assert.equal(normalizeSceneConfig('background', {}).glowStrength, 0);
+});
+
+test('background color processing preserves old non-neutral values and defaults new appearances to standard', () => {
+  const { getBackgroundAppearance } = require('../../public/js/shared/background-appearance.js');
+  for (const [config, mode] of [
+    [{}, 'standard'], [{ temperature: 0, tint: '0' }, 'standard'], [{ glowStrength: .3 }, 'standard'],
+    [{ temperature: 20 }, 'legacy'], [{ tint: '-10' }, 'legacy'], [{ midtoneStrength: .2 }, 'legacy'],
+    [{ colorProcessing: 'standard', temperature: 20 }, 'standard'],
+    [{ colorProcessing: 'legacy', temperature: 0 }, 'legacy'],
+  ]) {
+    const normalized = normalizeSceneConfig('background', { ...config, backgroundDefaults: config });
+    assert.equal(getBackgroundAppearance(config).colorProcessing, mode);
+    assert.equal(normalized.colorProcessing, mode);
+    assert.equal(normalized.backgroundDefaults.colorProcessing, mode);
+    assert.deepEqual(normalizeSceneConfig('background', normalized), normalized);
+  }
+});
+
+test('opening appearances expose both built-in styles and preserve client-following and suite styles', () => {
+  assert.deepEqual(SCENE_EXTRA_COMPONENTS.opening.variants.map(({ value }) => value), ['classic', 'pixel-cassette']);
   assert.deepEqual(normalizeSceneConfig('opening', {}), { style: 'original' });
-  assert.deepEqual(normalizeSceneConfig('opening', { style: 'moonlit-fan' }), { style: 'moonlit-fan' });
+  for (const style of ['classic', 'pixel-cassette', 'moonlit-fan']) {
+    assert.deepEqual(normalizeSceneConfig('opening', { style }), { style });
+  }
   assert.throws(() => normalizeSceneConfig('opening', { style: 'unknown' }), { code: 'INVALID_SCENE_CONFIG' });
   assert.throws(() => normalizeSceneConfig('opening', { style: 'moonlit-fan', enabled: true }), { code: 'INVALID_SCENE_CONFIG' });
 });

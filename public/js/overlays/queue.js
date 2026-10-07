@@ -24,7 +24,7 @@ import { syncQueuePanelViewport } from './queue-viewport.js';
 import { watchComponentOutputSize } from './component-output-size.js';
 import { normalizePersistedQueueStyle, resolveQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { createOverlaySocket } from './socket-client.js';
-import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
+import { createComponentPreviewClient, isComponentPreview, isSceneComponent } from './component-preview-client.js';
 
 const ILLUSTRATED_QUEUE_RENDERERS = {
   storybook: renderStorybookQueue,
@@ -48,11 +48,15 @@ let overlayResizeTimer = null;
 let lastRenderKey = null;
 let stateRevision = 0;
 let liveStatusRevision = 0;
+let previewClient = null;
+let editingPreview = false;
+let previousSize = '';
 document.addEventListener('DOMContentLoaded', () => {
   if (isComponentPreview()) {
+    editingPreview = !isSceneComponent();
     let settings = {};
     let data = { queue: { current: null, waiting: [] }, superChats: [] };
-    createComponentPreviewClient({
+    previewClient = createComponentPreviewClient({
       onConfig(config) { settings = config; applyState({ settings, ...data }); },
       onData(value) { data = value; applyState({ settings, ...data }); },
       onDispose: disposeSocket,
@@ -166,6 +170,7 @@ function computeStateKey(nextState) {
       return (item.price || 0) + '|' + (item.message || '');
     }),
     settings.overlayQueueStyle,
+    settings.resourceStyle?.preset,
     settings.themePrimary,
     settings.themeAccent,
     settings.themeText,
@@ -243,7 +248,19 @@ function render() {
 
 function syncQueueViewport() {
   const panel = document.querySelector('.overlay-panel');
-  return syncQueuePanelViewport(panel);
+  const scale = syncQueuePanelViewport(panel, { contentHeight: editingPreview });
+  if (editingPreview && panel) {
+    const bounds = panel.getBoundingClientRect();
+    const size = { width: Math.round(window.innerWidth),
+      contentWidth: Math.round(bounds.width + 2 * bounds.left),
+      height: Math.ceil(bounds.height + 2 * bounds.top) };
+    const key = JSON.stringify(size);
+    if (key !== previousSize) {
+      previousSize = key;
+      previewClient.resize(size);
+    }
+  }
+  return scale;
 }
 
 function relayoutQueue() {

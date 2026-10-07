@@ -4,7 +4,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 test('games overlay styles keep shared, board, drawing, result, responsive, and late drawing ownership', () => {
@@ -45,124 +44,44 @@ test('games overlay styles keep shared, board, drawing, result, responsive, and 
   assert.match(owners['drawing-live'], /\.draw-danmaku-feed\s*\{/);
 });
 
+// Drawing shortcuts, tools, shape geometry and the color picker run in
+// games-drawing.test.js; the danmaku feed bound runs below. These checks keep
+// the page's unique entries, accessible tool labels and the overlay's
+// request/protocol boundaries, which have no offline runtime harness.
 test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../..', 'public', 'pages', 'overlays', 'games.html'), 'utf8');
-  const script = fs.readFileSync(path.join(__dirname, '../..', 'public', 'js', 'overlays', 'games.js'), 'utf8');
-  const danmakuRenderer = fs.readFileSync(
-    path.join(__dirname, '../..', 'public', 'js', 'overlays', 'danmaku-message-renderer.js'),
-    'utf8',
-  );
-  const drawingModule = fs.readFileSync(
-    path.join(__dirname, '../..', 'public', 'js', 'overlays', 'games-drawing.js'),
-    'utf8',
-  );
-  const drawingGeometryModule = fs.readFileSync(
-    path.join(__dirname, '../..', 'public', 'js', 'overlays', 'games-drawing-geometry.js'),
-    'utf8',
-  );
-  const styles = readCssBundle('public', 'css', 'overlays', 'games.css');
-  assert.match(html, /id="gameStage"/);
-  assert.match(script, /textContent/);
-  assert.doesNotMatch(script, /innerHTML/);
-
-  assert.doesNotMatch(script, /URLSearchParams|params\.get\(['"]game/);
-  assert.match(script, /(?:nextSession|session)\?\.game/);
-  assert.match(html, /id="gomokuColumnLabels"/);
-  assert.match(html, /id="gomokuRowLabels"/);
-  assert.match(html, /id="gameResultAvatar"/);
-  assert.match(html, /<button\b[^>]*\sid="gameResultExit"/);
-  assert.match(html, /<button\b[^>]*\sid="gameResultNext"/);
-  assert.match(html, /id="drawGuessView"/);
-  assert.match(html, /id="drawCanvas"/);
-  assert.match(html, /id="drawCountdown"/);
-  assert.match(html, /id="drawScoreboard"/);
-  assert.match(html, /id="drawCorrectFeed"/);
+  const read = (...parts) => fs.readFileSync(path.join(__dirname, '../..', 'public', ...parts), 'utf8');
+  const html = read('pages', 'overlays', 'games.html');
+  const script = read('js', 'overlays', 'games.js');
+  const drawingModule = read('js', 'overlays', 'games-drawing.js');
+  for (const id of ['gameStage', 'gomokuColumnLabels', 'gomokuRowLabels', 'gameResultAvatar', 'drawGuessView', 'drawCanvas',
+    'drawCountdown', 'drawScoreboard', 'drawCorrectFeed']) {
+    assert.match(html, new RegExp(`id="${id}"`), id);
+  }
+  for (const id of ['gameResultExit', 'gameResultNext', 'drawClearBtn', 'drawUndoBtn']) {
+    assert.match(html, new RegExp(`<button\\b[^>]*\\sid="${id}"`), id);
+  }
   assert.match(html, /id="drawDanmakuFeed"[^>]+data-style="bubble"/);
-  assert.match(html, /<button\b[^>]*\sid="drawClearBtn"/);
-  assert.match(html, /<button\b[^>]*\sid="drawUndoBtn"/);
-  assert.match(html, /id="drawPenBtn"[^>]+aria-label="画笔"/);
-  assert.match(html, /id="drawEraserBtn"[^>]+aria-label="橡皮擦"/);
-  assert.match(html, /id="drawLineBtn"[^>]+aria-label="直线"/);
-  assert.match(html, /id="drawRectangleBtn"[^>]+aria-label="矩形"/);
-  assert.match(html, /id="drawEllipseBtn"[^>]+aria-label="圆形"/);
-  assert.match(html, /id="drawPickerBtn"[^>]+aria-label="取色器"/);
-  assert.match(html, /id="drawPenBtn"[^>]+data-tooltip="画笔 \(B\)"/);
-  assert.match(styles, /button\[data-tooltip\]:hover::after/);
-  assert.match(script, /renderGomokuCoordinates\(state\.size\)/);
-  assert.match(script, /state\.lastGuess/);
-  assert.match(script, /cache:\s*['"]no-store['"]/);
-  assert.match(script, /Authorization:\s*`Bearer \$\{token\}`/);
-  assert.match(script, /INITIAL_SNAPSHOT_RETRIES/);
-  assert.match(script, /scheduleSnapshotRetry/);
-  assert.match(script, /api\/games\/winner-profile/);
-  assert.match(script, /submitGameResultAction\(["']stop["']\)/);
-  assert.match(script, /submitGameResultAction\(["']restart["']\)/);
-  assert.match(script, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
-  assert.match(script, /api\/bilibili\/avatar\?url=/);
-  assert.match(drawingModule, /function scheduleDrawDanmakuRender\(/);
-  assert.match(drawingModule, /setTimeout\(flushDrawDanmakuRender/);
-  assert.match(script, /draw-danmaku-identity/);
-  assert.match(script, /draw-danmaku-guard/);
-  assert.match(script, /draw-danmaku-medal/);
-  assert.match(script, /avatar\.src\s*=\s*avatarSource\(profile\.avatarUrl\)/);
-  assert.match(script, /getBoundingClientRect/);
-  assert.match(script, /positionGameResult/);
-  assert.match(script, /game:draw/);
-  assert.match(drawingModule, /pointerup/);
-  assert.match(drawingModule, /showConfirmationDialog/);
-  assert.match(drawingModule, /key === ["']b["']/);
-  assert.match(drawingModule, /key === ["']e["']/);
-  assert.match(drawingModule, /key === ["']\[["']/);
-  assert.match(drawingModule, /key === ["']\]["']/);
-  assert.match(drawingGeometryModule, /export function createShapePoints\(/);
-  assert.match(drawingGeometryModule, /tool === ["']line["']/);
-  assert.match(drawingGeometryModule, /tool === ["']rectangle["']/);
-  assert.match(drawingGeometryModule, /tool === ["']ellipse["']/);
-  assert.match(drawingModule, /function pickDrawColor\(/);
-  assert.match(drawingModule, /getImageData/);
-  assert.match(drawingModule, /data-draw-color/);
-  assert.match(drawingModule, /getContext\(["']2d["']\)/);
-  assert.match(script, /renderDrawGuess/);
-  assert.match(drawingModule, /byId\(["']drawCountdown["']\)\.textContent = countdown/);
-  assert.match(script, /Object\.prototype\.hasOwnProperty\.call\(payload\.state, ['"]games['"]\)/);
-  assert.doesNotMatch(script, /payload\.state\?\.games \|\| null/);
-  assert.match(script, /revealedAnswer/);
-  assert.match(script, /import \{ createDanmakuFeed \} from ["']\.\/danmaku-feed\.js["'];/);
-  assert.match(script, /createDanmakuFeed\(byId\(["']drawDanmakuFeed["']\)/);
-  assert.match(script, /drawDanmakuFeed\.render\(items\)/);
-  assert.doesNotMatch(danmakuRenderer, /innerHTML/);
-  for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
-    assert.match(
-      styles,
-      new RegExp(
-        `\\.draw-danmaku-feed\\[data-style=["']bubble["']\\]\\s+\\.draw-danmaku-item\\[data-identity=["']${identity}["']\\]`,
-      ),
-    );
+  for (const [id, label] of [['drawPenBtn', '画笔'], ['drawEraserBtn', '橡皮擦'], ['drawLineBtn', '直线'],
+    ['drawRectangleBtn', '矩形'], ['drawEllipseBtn', '圆形'], ['drawPickerBtn', '取色器']]) {
+    assert.match(html, new RegExp(`id="${id}"[^>]+aria-label="${label}"`), id);
+  }
+  for (const source of [script, drawingModule, read('js', 'overlays', 'danmaku-message-renderer.js')]) {
+    assert.doesNotMatch(source, /innerHTML/);
   }
   assert.doesNotMatch(script, /\$\{state\.category\}/);
-  assert.match(styles, /\.game-stage-header\s*\{\s*display:\s*none;/);
-  assert.match(styles, /\.game-result\[hidden\]\s*\{\s*display:\s*none;/);
-  assert.match(styles, /\.game-result\s*\{\s*position:\s*absolute/);
-  assert.match(styles, /\.game-result-avatar\s*\{[^}]*aspect-ratio:\s*1/);
-  assert.match(styles, /\.game-result-avatar\s*\{[^}]*object-fit:\s*cover/);
-  assert.match(styles, /\.bomb-number\.is-picked\s*\{/);
-  assert.match(styles, /\.bomb-number\.is-picked:disabled\s*\{/);
-  assert.match(styles, /\.gomoku-cell::before/);
-  assert.match(styles, /\.draw-canvas/);
-  assert.match(drawingModule, /classList\.toggle\(["']is-eraser["'],\s*drawTool === ["']eraser["']\)/);
-  assert.match(styles, /body\[data-game=["']draw-guess["']\]\s+\.draw-canvas-wrap\s*\{[^}]*height:\s*100%/);
-  assert.match(styles, /body\[data-game=["']draw-guess["']\]\s+\.draw-canvas\s*\{[^}]*aspect-ratio:\s*auto/);
-  assert.match(styles, /\.draw-scoreboard/);
-  assert.match(styles, /\.draw-danmaku-identity/);
-  assert.match(styles, /\.draw-danmaku-avatar\s*\{[^}]*overflow:\s*hidden/);
-  assert.match(styles, /\.draw-danmaku-avatar img\s*\{[^}]*object-fit:\s*cover/);
-  assert.match(styles, /\.draw-danmaku-guard/);
-  assert.match(styles, /\.draw-danmaku-medal/);
-  assert.match(styles, /\.draw-danmaku-bubble/);
-  assert.match(styles, /width:\s*min\(100%,\s*var\(--danmaku-width\)\)/);
-  assert.match(styles, /min-height:\s*var\(--danmaku-height\)/);
-  assert.match(styles, /--bubble-tail/);
-  assert.match(styles, /\.draw-tool-button\[aria-pressed=['"]true['"]\]/);
+  assert.doesNotMatch(script, /URLSearchParams|params\.get\(['"]game/, 'the server session selects the game, not the URL');
+  assert.match(script, /(?:nextSession|session)\?\.game/);
+  assert.match(script, /cache:\s*['"]no-store['"]/);
+  assert.match(script, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
+  assert.match(script, /api\/games\/winner-profile/);
+  assert.match(script, /api\/bilibili\/avatar\?url=/);
+  assert.match(script, /submitGameResultAction\(["']stop["']\)/);
+  assert.match(script, /submitGameResultAction\(["']restart["']\)/);
+  assert.match(script, /game:draw/);
+  assert.match(script, /Object\.prototype\.hasOwnProperty\.call\(payload\.state, ['"]games['"]\)/,
+    'an absent games field keeps the current session; only an explicit null clears it');
+  assert.doesNotMatch(script, /payload\.state\?\.games \|\| null/);
+  assert.match(script, /createDanmakuFeed\(byId\(["']drawDanmakuFeed["']\)/);
 });
 
 test('draw guess danmaku feed bounds retained nodes and follows the latest message', async () => {

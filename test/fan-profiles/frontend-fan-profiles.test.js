@@ -10,6 +10,85 @@ const { createDom, createClock } = require('../helpers/toast-dom');
 
 const ROOT = path.join(__dirname, '../..');
 
+async function editorUi(t) {
+  const { documentRef, windowRef, container } = createDom();
+  const clock = createClock();
+  const nodes = new Map(['fanEditorTitle', 'fanEditorFields', 'fanEditorHint', 'fanEditorError', 'fanSaveButton']
+    .map((id) => [id, documentRef.createElement('div')]));
+  documentRef.getElementById = (id) => id === 'toast' ? container : nodes.get(id);
+  const editor = documentRef.createElement('dialog');
+  editor.classList.toggle = (name, enabled) => editor.classList[enabled ? 'add' : 'remove'](name);
+  editor.showModal = () => { editor.open = true; };
+  editor.close = () => { editor.open = false; };
+  const form = documentRef.createElement('form');
+  const cancel = documentRef.createElement('button');
+  form.querySelector = (selector) => selector === '[data-fan-action="cancel-edit"]' ? cancel : null;
+  const errors = [];
+  const { createFanEditor } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/editor.js'), {
+    document: documentRef,
+    window: windowRef,
+    setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout,
+  });
+  const controller = createFanEditor({ editor, form, onError: (error) => errors.push(error) });
+  t.after(() => controller.dispose());
+  return { controller, editor, form, cancel, nodes, errors, container,
+    submit: () => form.fire('submit', { preventDefault() {} }) };
+}
+
+test('fan editor prevents repeated saves and cancellation while pending, preserving input on failure', async (t) => {
+  const ui = await editorUi(t);
+  const pending = deferred();
+  const failure = new Error('保存失败');
+  let writes = 0;
+  ui.controller.open({ title: '编辑档案', fields: '<textarea>未保存内容</textarea>', read: () => '草稿' }, async (value) => {
+    assert.equal(value, '草稿');
+    writes++;
+    await pending.promise;
+    throw failure;
+  });
+  const saving = ui.submit();
+  await ui.submit();
+  let prevented = false;
+  ui.editor.fire('cancel', { preventDefault() { prevented = true; } });
+  assert.equal(writes, 1);
+  assert.equal(prevented, true);
+  assert.equal(ui.cancel.disabled, true);
+  assert.equal(ui.form.getAttribute('aria-busy'), 'true');
+  pending.resolve();
+  await saving;
+  assert.equal(ui.editor.open, true);
+  assert.match(ui.nodes.get('fanEditorFields').innerHTML, /未保存内容/);
+  assert.deepEqual(ui.errors, [failure]);
+  assert.equal(ui.nodes.get('fanSaveButton').disabled, false);
+  assert.equal(ui.cancel.disabled, false);
+  assert.equal(ui.form.getAttribute('aria-busy'), null);
+  ui.controller.dispose();
+  await ui.submit();
+  assert.equal(writes, 1);
+});
+
+test('fan editor keeps the next confirmation step open and submits its current description', async (t) => {
+  const ui = await editorUi(t);
+  let confirmed = 0;
+  ui.controller.open({ title: '预览', fields: '', read: () => 'preview' }, async () => {
+    ui.controller.open({ title: '确认恢复', fields: '', saveLabel: '确认恢复', read: () => 'confirmed' }, async (value) => {
+      assert.equal(value, 'confirmed');
+      confirmed++;
+      return { message: '恢复完成' };
+    });
+    return { keepOpen: true };
+  });
+  await ui.submit();
+  assert.equal(ui.editor.open, true);
+  assert.equal(ui.nodes.get('fanSaveButton').textContent, '确认恢复');
+  assert.equal(ui.container.textContent, '');
+  await ui.submit();
+  assert.equal(confirmed, 1);
+  assert.equal(ui.editor.open, false);
+  assert.match(ui.container.textContent, /恢复完成/);
+});
+
 function deferred() {
   let resolve;
   const promise = new Promise((done) => {
@@ -68,6 +147,7 @@ async function archiveUi(t) {
     scopes,
     nodes,
     clock,
+    documentRef,
     calls: [],
     handlers: new Map(),
     contextId: 'test-context',
@@ -492,4 +572,48 @@ test('a delayed poll cannot interrupt a newer profile selection', async (t) => {
   await ui.flush();
   assert.match(ui.detail(), /当前观众C/);
   assert.doesNotMatch(ui.detail(), /当前观众A/);
+});
+
+test('delete-all sends nothing when the destructive confirmation is cancelled and one confirmed request otherwise', async (t) => {
+  const ui = await archiveUi(t);
+  const created = [];
+  const dialogs = () => created.filter((element) => element.classList.contains('lira-confirm-backdrop'));
+  const createElement = ui.documentRef.createElement;
+  ui.documentRef.createElement = (tagName) => {
+    const element = createElement(tagName);
+    const parts = new Map();
+    element.dataset = {};
+    element.querySelector = (selector) => {
+      if (!parts.has(selector)) parts.set(selector, createElement('button'));
+      return parts.get(selector);
+    };
+    element.querySelectorAll = () => [];
+    created.push(element);
+    return element;
+  };
+  const answer = async (selector) => {
+    const backdrop = dialogs().at(-1);
+    assert.equal(backdrop.dataset.variant, 'destructive');
+    backdrop.querySelector(selector).fire('click');
+    ui.clock.tick(1000);
+    await ui.flush();
+  };
+  const deleteCalls = () => ui.calls.filter((call) => call.action === 'delete-all');
+
+  await ui.click({ fanAction: 'delete-all' });
+  assert.equal(dialogs().length, 1);
+  await answer('.lira-confirm-cancel');
+  assert.equal(dialogs()[0].parentNode, null);
+  assert.deepEqual(deleteCalls(), []);
+  assert.match(ui.people(), /当前观众A/);
+
+  await ui.click({ fanAction: 'delete-all' });
+  assert.equal(dialogs().length, 2);
+  await answer('.lira-confirm-confirm');
+  assert.deepEqual(
+    deleteCalls().map((call) => call.payload),
+    [{ confirm: true }],
+  );
+  assert.doesNotMatch(ui.people(), /当前观众A/);
+  for (const archived of [false, true]) assert.deepEqual(ui.f.run('list', { archived }).profiles, []);
 });

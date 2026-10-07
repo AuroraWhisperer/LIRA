@@ -11,12 +11,7 @@ const { createSceneStore } = require('../../src/storage/scene-store');
 const { createDatabases, closeDatabases, getSchemaVersions } = require('../../src/storage/database');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
 const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../../src/shared/scene-component-types');
-
-function temporaryDirectory() {
-  const root = path.resolve(__dirname, '../../tmp');
-  fs.mkdirSync(root, { recursive: true });
-  return fs.mkdtempSync(path.join(root, 'scene-store-'));
-}
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 function document(title = '场景') {
   return { schemaVersion: 1, id: randomUUID(), title, canvas: { width: 1920, height: 1080 }, items: [] };
@@ -27,7 +22,7 @@ function capability(version = 1) {
 }
 
 function fixture(t) {
-  const directory = temporaryDirectory();
+  const directory = createScratchDirectory('scene-store-');
   const filename = path.join(directory, 'scenes.sqlite');
   const connections = new Set();
   const open = () => {
@@ -51,7 +46,7 @@ function fixture(t) {
 }
 
 test('songDb scene migrations preserve v7 rows and are idempotent after restart', (t) => {
-  const directory = temporaryDirectory();
+  const directory = createScratchDirectory('scene-store-');
   let databases = createDatabases({ dataDir: directory });
   t.after(() => {
     closeDatabases(databases);
@@ -94,7 +89,7 @@ test('v10 binds the previously first scene without rewriting drafts or credentia
 });
 
 test('v9 upgrades an existing v8 database and atomically publishes default dimensions', (t) => {
-  const directory = temporaryDirectory();
+  const directory = createScratchDirectory('scene-store-');
   const databases = createDatabases({ dataDir: directory });
   t.after(() => { closeDatabases(databases); fs.rmSync(directory, { recursive: true, force: true }); });
   const db = databases.songDb;

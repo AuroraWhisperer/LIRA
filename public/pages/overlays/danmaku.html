@@ -48,6 +48,14 @@
           <img src="/img/overlays/danmaku-previews/transparent.png" alt="" />
           <span>透明文字<small>无底色，文字直接叠加</small></span>
         </button>
+        <button type="button" data-preview-style="sketch" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/sketch.png" alt="" />
+          <span>绿萌简笔画</span>
+        </button>
+        <button type="button" data-preview-style="starlight" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/starlight.png" alt="" />
+          <span>星语<small>透明细线、闪星与右侧金额</small></span>
+        </button>
         <button type="button" data-preview-style="moonlit" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/moonlit.png" alt="" />
           <span>月渡花汀<small>花鸟墨条，上任感谢与礼物卷轴</small></span>
@@ -63,6 +71,10 @@
           <img src="/img/overlays/danmaku-previews/outline.png" alt="" />
           <span>简洁白卡<small>白底圆角，只显示昵称和正文</small></span>
         </button>
+        <button type="button" data-preview-style="whiteframe" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/whiteframe.png" alt="" />
+          <span>白线框<small>透明白线圆角框，昵称在上、礼物金额在下</small></span>
+        </button>
         <button type="button" data-preview-style="cream" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/cream.png" alt="" />
           <span>奶油气泡<small>奶油底色，粉边与外置头像</small></span>
@@ -70,6 +82,21 @@
         <button type="button" data-preview-style="glow" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/glow.png" alt="" />
           <span>流光气泡<small>昵称在框上方，经典身份色柔光</small></span>
+        </button>
+        <button type="button" data-preview-style="starveil" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/starveil.png" alt="" />
+          <span>星幕浮语<small>随机雅色，细光胶囊与外置昵称</small></span>
+        </button>
+      </div>
+      <div class="danmaku-preview-choices" role="group" aria-label="飘窗弹幕">
+        <h2>飘窗弹幕</h2>
+        <button type="button" data-preview-style="floating" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/floating.png" alt="" />
+          <span>飘窗弹幕<small>从右向左，大航海深色、普通浅色</small></span>
+        </button>
+        <button type="button" data-preview-style="comet" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/comet.png" alt="" />
+          <span>鹤映鎏金<small>香槟金框、花枝白鹤，独立昵称牌</small></span>
         </button>
       </div>
       <section class="canvas-settings" aria-labelledby="regionSettingsTitle">
@@ -92,11 +119,14 @@
         <label>字体<select id="previewFontFamily"><option value="default">样式默认</option><option value="sans">微软雅黑</option><option value="serif">宋体</option><option value="kai">楷体</option></select></label>
         <div class="canvas-fields">
           <label>画布字号<input id="previewFontSize" type="number" step="1" /></label>
-          <label>正文颜色<input id="previewTextColor" type="color" /></label>
+          <label><span id="previewTextColorLabel">正文颜色</span><input id="previewTextColor" type="color" /></label>
           <label id="previewBackgroundField">背景不透明度<input id="previewBackgroundOpacity" type="number" min="0" max="100" step="1" /></label>
           <label id="previewGiftField">礼物图片<select id="previewGiftImage"><option value="theme">样式插画</option><option value="gift">礼物原图</option></select></label>
           <label id="previewDirectionField">滚动方向<select id="previewScrollDirection"><option value="up">向上</option><option value="down">向下</option></select></label>
+          <label id="previewSpeedField" hidden>移动速率（像素/秒）<input id="previewSpeedPixelsPerSecond" type="number" min="20" max="600" step="1" value="120" /></label>
           <label id="previewDurationField">停留秒数<input id="previewDuration" type="number" min="2" max="30" step="1" /></label>
+          <label id="previewCenterBiasField" hidden>中心倾向<input id="previewCenterBias" type="number" min="1" max="50" step="1" value="1" /><small>1～50，越高越靠近中间。</small></label>
+          <label id="previewDispersionField" hidden>离散程度<input id="previewDispersion" type="number" min="1" max="50" step="1" value="1" /><small>1～50，越高越倾向于远离上一条；受中心倾向和可用空间共同影响。</small></label>
         </div>
         <button id="previewAppearanceReset" type="button">恢复当前样式参数</button>
       </section>

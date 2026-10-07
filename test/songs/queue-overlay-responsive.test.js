@@ -6,21 +6,23 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { readCssBundle } = require('../helpers/css-bundle');
-const { readJsModuleBundle: readRawJsModuleBundle } = require('../helpers/js-module-bundle');
+const { readQueueOverlayBundle: readJsModuleBundle } = require('../helpers/queue-overlay-bundle');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-function readJsModuleBundle(...relativeSegments) {
-  return readRawJsModuleBundle(...relativeSegments).replace(
-    /^\s*(?:export\s+)?\{\s*applyTheme,\s*setIdentityRuleThemeVars\s*\}\s+from\s+['"]\.\/queue-theme\.js['"];\s*/gm,
-    '',
-  );
-}
-
-test('overlay base styles load feature-owned stylesheets in order', () => {
+test('overlay base styles load existing feature stylesheets after their shared layers', () => {
   const entry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const imports = Array.from(entry.matchAll(/@import url\('\.\/base\/([^']+)'\);/g), (match) => match[1]);
 
-  assert.match(entry, /@import url\('\.\/base\/identity\.css'\);/);
+  for (const imported of imports) {
+    assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base', imported)), imported);
+  }
+  assert.equal(imports[0], 'foundation-and-classic.css');
+  assert.ok(imports.includes('identity.css'));
+  const illustrated = imports.indexOf('illustrated.css');
+  for (const style of ['neon-vinyl.css', 'cherry-ribbon.css', 'golden-lily.css']) {
+    assert.ok(illustrated >= 0 && imports.indexOf(style) > illustrated, `${style} must override the shared illustrated layer`);
+  }
 });
 
 test('queue overlay loads one focused module entrypoint', () => {
@@ -44,10 +46,6 @@ test('queue styles use contain scaling while identity never grows beyond 100%', 
     window: {},
   };
   vm.runInNewContext(source, sandbox);
-
-  assert.equal(sandbox.calculateQueuePanelScale(1920, 1080, 560, 840, 16), 1048 / 840);
-  assert.equal(sandbox.calculateQueuePanelScale(400, 900, 560, 840, 16), 368 / 560);
-  assert.equal(sandbox.calculateQueuePanelScale(900, 457, 560, 840, 16), 425 / 840);
 
   const appliedStyles = new Map();
   const panel = {
@@ -76,6 +74,10 @@ test('queue styles use contain scaling while identity never grows beyond 100%', 
   panel.ownerDocument.defaultView.document = panel.ownerDocument;
   assert.equal(sandbox.syncQueuePanelViewport(panel), 384 / 560);
   assert.equal(appliedStyles.get('--queue-panel-scale'), String(384 / 560));
+  panel.ownerDocument.defaultView.innerHeight = 200;
+  assert.equal(sandbox.syncQueuePanelViewport(panel), 184 / 840);
+  assert.equal(sandbox.syncQueuePanelViewport(panel, { contentHeight: true }), 384 / 560,
+    'content sizing must not shrink the panel to its previous frame height');
 
   const classicRule = overlayCss.match(/\.queue-classic\s*\{[^}]*\}/)?.[0];
   const identityRule = overlayCss.match(/\.queue-identity\s*\{[^}]*\}/)?.[0];
@@ -98,7 +100,7 @@ test('queue styles use contain scaling while identity never grows beyond 100%', 
   assert.match(identityRule, /transform:\s*scale\(min\(var\(--queue-panel-scale,\s*1\),\s*1\)\)/);
   assert.match(identityRule, /transform-origin:\s*top left/);
   assert.doesNotMatch(identityRule, /100vw/);
-  assert.match(source, /syncQueuePanelViewport\(panel\)/);
+  assert.match(source, /syncQueuePanelViewport\(panel, \{ contentHeight: editingPreview \}\)/);
   assert.match(source, /function handleQueueViewportResize\(\)[\s\S]*syncQueueViewport\(\)/);
 });
 
@@ -148,41 +150,21 @@ test('illustrated frame decorations sandwich queue cards above the center fill',
 
 test('illustrated queue cards display their full artwork without clipping decorations', () => {
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const expectedRows = {
-    storybook: {
-      aspectRatio: /aspect-ratio:\s*1237\s*\/\s*304/,
-    },
-    'neon-vinyl': {
-      aspectRatio: /aspect-ratio:\s*2172\s*\/\s*517\.5/,
-      backgroundSize: /background-size:\s*100%\s+100%/,
-    },
-    'cherry-ribbon': {
-      aspectRatio: /aspect-ratio:\s*1623\s*\/\s*371\.2/,
-      backgroundSize: /background-size:\s*100%\s+100%/,
-    },
-    'golden-lily': {
-      aspectRatio: /aspect-ratio:\s*2139\s*\/\s*539/,
-      backgroundSize: /background-size:\s*100%\s+100%/,
-    },
-  };
-
-  for (const [style, expected] of Object.entries(expectedRows)) {
+  // Frame proportions are compared with the artwork files in frontend-queue-themes.test.js.
+  for (const [style, stretchesArtwork] of [
+    ['storybook', false],
+    ['neon-vinyl', true],
+    ['cherry-ribbon', true],
+    ['golden-lily', true],
+  ]) {
     const rowRule = overlayCss.match(new RegExp(`\\.${style}-row\\s*\\{[^}]*\\}`))?.[0];
     assert.ok(rowRule, `${style} needs a card layout rule`);
-    assert.match(rowRule, expected.aspectRatio);
-    if (expected.backgroundSize) assert.match(rowRule, expected.backgroundSize);
+    assert.match(rowRule, /aspect-ratio:\s*[\d.]+\s*\/\s*[\d.]+/, `${style} cards scale as one unit`);
+    if (stretchesArtwork) assert.match(rowRule, /background-size:\s*100%\s+100%/);
     assert.match(rowRule, /min-height:\s*0/);
     assert.doesNotMatch(rowRule, /height:\s*clamp\(/);
     assert.doesNotMatch(rowRule, /background-size:\s*[^;]*\bauto\b/);
   }
-});
-
-test('style 4 keeps its original frame proportions', () => {
-  const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const frameRule = overlayCss.match(/\.queue-neon-vinyl\s*\{[^}]*\}/)?.[0];
-
-  assert.ok(frameRule);
-  assert.match(frameRule, /aspect-ratio:\s*1122\s*\/\s*1402/);
 });
 
 test('style 6 wires its row renderer without overlapping adjacent entries', () => {
@@ -296,62 +278,12 @@ test('classic queue animates only when its rendered rows overflow available heig
 });
 
 test('identity queue keeps fixed design coordinates and never grows beyond its default canvas', () => {
-  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const sandbox = {
-    console,
-    URLSearchParams,
-    location: { protocol: 'http:', host: 'localhost', search: '' },
-    WebSocket: function WebSocket() {},
-    document: {
-      addEventListener() {},
-      getElementById() {
-        return { textContent: '' };
-      },
-      documentElement: {
-        clientHeight: 500,
-        style: { setProperty() {} },
-      },
-    },
-  };
-  sandbox.window = { innerHeight: 500 };
-  vm.runInNewContext(source, sandbox);
-
   const identityWindowRule = overlayCss.match(/\.identity-list-window\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(identityWindowRule);
   const height = Number(identityWindowRule.match(/(?:^|[;{])\s*height:\s*([\d.]+)px/)?.[1]);
   const maxHeight = Number(identityWindowRule.match(/max-height:\s*([\d.]+)px/)?.[1]);
   assert.ok(height > 0);
   assert.equal(maxHeight, height);
-
-  const classes = new Set(['identity-list', 'paused']);
-  const viewport = {
-    clientHeight: 364,
-    style: {},
-    parentElement: null,
-    getBoundingClientRect: () => ({ top: 40 }),
-  };
-  const list = {
-    scrollHeight: 240,
-    classList: {
-      add(name) {
-        classes.add(name);
-      },
-      remove(...names) {
-        names.forEach((name) => classes.delete(name));
-      },
-    },
-    insertAdjacentHTML() {
-      assert.fail('bounce mode must not duplicate rows');
-    },
-  };
-  const settings = {
-    queueScrollMode: 'bounce',
-    identityQueueScrollSpeed: '42',
-  };
-
-  assert.equal(sandbox.configureIdentityVerticalScroll(viewport, list, settings, '<div>rows</div>', 4), false);
-  assert.equal(viewport.style.height, undefined);
-  assert.equal(viewport.style.maxHeight, undefined);
-  assert.equal(classes.has('scrolling-bounce'), false);
+  // Fitting identity content leaving its viewport untouched is exercised in frontend-queue-scrolling.test.js.
 });

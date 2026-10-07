@@ -32,7 +32,7 @@ test('playback save notifications follow the latest response and allow a new fai
     await saving;
     assert.equal(notices.length, i === 0 ? 0 : 1);
   }
-  assert.match(notices[0].message, /先别关闭 LIRA/);
+  assert.equal(notices[0].type, 'warning');
   const late = save();
   const lateRequest = requests.at(-1);
   const recovery = save();

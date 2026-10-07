@@ -87,6 +87,9 @@ function createDom() {
       addEventListener(type, listener) {
         listeners.set(type, listener);
       },
+      removeEventListener(type, listener) {
+        if (listeners.get(type) === listener) listeners.delete(type);
+      },
       fire(type, event = {}) {
         return listeners.get(type)?.(event);
       },

@@ -37,27 +37,92 @@ test('playback page offers a dedicated WeSing source and cache capture workspace
   assert.match(panelStyles, /--wesing-word-progress/);
 });
 
-test('WeSing browser client activates capture and renders WebSocket lyrics safely', () => {
+test('WeSing browser client renders lyrics through the shared text renderer', () => {
   const source = read('public', 'js', 'playback', 'services', 'wesing-service.js');
-  const renderer = read('public', 'js', 'shared', 'lyric-word-renderer.js');
-  const state = read('public', 'js', 'playback', 'state', 'manager.js');
-  const providerOps = read('public', 'js', 'playback', 'operations', 'provider-operations.js');
-  const adminState = read('public', 'js', 'admin', 'state.js');
 
-  assert.match(state, /\['qq', 'netease', 'wesing'\]/);
-  assert.match(source, /\/api\/music\/wesing\/active/);
-  assert.match(source, /\/api\/music\/wesing\/configure/);
-  assert.match(source, /\/api\/music\/wesing\/offset/);
-  assert.match(source, /saveLyricOffset/);
-  assert.match(source, /weSingResetLyricOffsetBtn/);
-  assert.match(source, /selectWeSingCacheDirectory/);
-  assert.match(renderer, /requestAnimationFrame/);
   assert.match(source, /new LyricWordRenderer/);
   assert.match(source, /textContent\s*=/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
-  assert.match(providerOps, /platform === 'wesing'/);
-  assert.match(adminState, /payload\.type === 'wesing-state'/);
-  assert.match(adminState, /app:lyric-state/);
+});
+
+test('WeSing browser client activates capture, saves settings and follows live state events', async () => {
+  const listeners = new Map();
+  const windowListeners = new Map();
+  const requests = [];
+  const element = (id) => ({
+    id,
+    value: '',
+    textContent: '',
+    className: '',
+    style: { setProperty() {} },
+    classList: { toggle() {} },
+    addEventListener: (type, handler) => listeners.set(`${id}:${type}`, handler),
+    replaceChildren() {},
+    appendChild() {},
+  });
+  const elements = new Map();
+  const document = {
+    activeElement: null,
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, element(id));
+      return elements.get(id);
+    },
+    createElement: () => element('created'),
+  };
+  const window = {
+    __API_TOKEN__: 'test-token',
+    addEventListener: (type, handler) => windowListeners.set(type, handler),
+    musicAPI: { selectWeSingCacheDirectory: async () => ({ canceled: false, path: 'D:\\Synthetic\\WeSingCache' }) },
+  };
+  const { WeSingService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'wesing-service.js'),
+    {
+      document,
+      window,
+      performance: { now: () => 0 },
+      requestAnimationFrame: () => 0,
+      cancelAnimationFrame() {},
+      fetch: async (url, options) => {
+        requests.push({ url, authorization: options.headers.Authorization, body: JSON.parse(options.body) });
+        return { ok: true, json: async () => ({ ok: true, data: { lyricOffsetMs: 0 } }) };
+      },
+    },
+  );
+  const playbackState = { selectedSource: 'qq' };
+  const service = new WeSingService({ playbackState });
+  service.init();
+
+  await service.setSelected(true);
+  await listeners.get('weSingResetLyricOffsetBtn:click')();
+  await listeners.get('weSingSelectCacheBtn:click')();
+  await new Promise(setImmediate);
+  assert.deepEqual(
+    requests.map(({ url, body }) => [url, body]),
+    [
+      ['/api/music/wesing/active', { active: true }],
+      ['/api/music/wesing/offset', { offsetMs: 0 }],
+      ['/api/music/wesing/configure', { cachePath: 'D:\\Synthetic\\WeSingCache' }],
+    ],
+  );
+  assert.ok(requests.every((request) => request.authorization === 'Bearer test-token'));
+
+  windowListeners.get('app:wesing-state')({ detail: { supported: true, cacheReady: true, platformDetected: true } });
+  assert.equal(service.getProviderHealth().ok, true);
+  assert.equal(service.getAuthState().loggedIn, true);
+
+  windowListeners.get('app:lyric-state')({ detail: { lineText: '其他音源' } });
+  assert.equal(service.status.lyricState.lineText, '', 'lyrics from another selected source are ignored');
+  playbackState.selectedSource = 'wesing';
+  windowListeners.get('app:lyric-state')({ detail: { lineText: '全民歌词' } });
+  assert.equal(service.status.lyricState.lineText, '全民歌词');
+});
+
+test('playback state accepts WeSing as a persisted source', async () => {
+  const { createInitialState, validateState } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'state', 'manager.js'),
+  );
+  assert.equal(validateState({ ...createInitialState(), selectedSource: 'wesing' }), true);
+  assert.equal(validateState({ ...createInitialState(), selectedSource: 'unknown' }), false);
 });
 
 test('WeSing lyric-offset preview survives older live status while saving', async () => {

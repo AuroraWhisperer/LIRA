@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
+const { openSqliteDatabase } = require('../../src/storage/database');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
 const { createSettingsStore } = require('../../src/storage/settings-store');
@@ -124,14 +125,14 @@ test('acknowledgement matches the account and mutation, preserving newer edits a
 test('pending edits survive closing and reopening SQLite', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-song-pending-'));
   const filename = path.join(directory, 'songs.db');
-  let db = new DatabaseSync(filename);
+  let db = openSqliteDatabase(filename);
   try {
     db.exec(SONG_SCHEMA);
     createSettingsStore(db).prepareCloudRoomAccount(ACCOUNT_A);
     songService.saveSong(createSongStore(db), { name: 'Offline edit' });
     const pending = createCloudSongSyncStore(db).readPending(ACCOUNT_A);
     db.close();
-    db = new DatabaseSync(filename);
+    db = openSqliteDatabase(filename);
     assert.ok(pending?.mutationId);
     assert.deepEqual(createCloudSongSyncStore(db).readPending(ACCOUNT_A), pending);
   } finally {

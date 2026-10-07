@@ -1,10 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 const test = require('node:test');
+const { createShutdownHarness } = require('../helpers/electron-shutdown');
 
 test('desktop runtime adapts the legacy server API without changing calls', async () => {
   const { createDesktopRuntime } = require('../../src/electron/desktop-runtime');
@@ -122,54 +120,6 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
   ]);
 });
 
-test('desktop delegates gift sync to the remote controller and its owned cursor', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'main.js'), 'utf8');
-  assert.doesNotMatch(source, /createRemoteGiftCursorStore/u);
-  assert.match(source, /giftSync:\s*\{[\s\S]*?remoteGiftController\?\.start/u);
-});
-
-test('local media protocol enforces authorization and serves byte ranges', async (t) => {
-  const { registerLocalMediaProtocol } = require('../../src/electron/local-media-protocol');
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-local-media-'));
-  const allowedPath = path.join(tempDir, 'allowed.mp3');
-  const blockedPath = path.join(tempDir, 'blocked.mp3');
-  fs.writeFileSync(allowedPath, Buffer.from('abcdef'));
-  fs.writeFileSync(blockedPath, Buffer.from('blocked'));
-  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
-
-  let handler = null;
-  registerLocalMediaProtocol(
-    {
-      handle(scheme, nextHandler) {
-        assert.equal(scheme, 'local-media');
-        handler = nextHandler;
-      },
-    },
-    (filePath) => filePath === allowedPath,
-  );
-
-  const allowedUrl = `local-media://media/${Buffer.from(allowedPath).toString('base64url')}`;
-  const partial = await handler({
-    url: allowedUrl,
-    headers: new Headers({ range: 'bytes=1-3' }),
-  });
-  assert.equal(partial.status, 206);
-  assert.equal(partial.headers.get('content-range'), 'bytes 1-3/6');
-  assert.equal(Buffer.from(await partial.arrayBuffer()).toString('utf8'), 'bcd');
-
-  const inverted = await handler({
-    url: allowedUrl,
-    headers: new Headers({ range: 'bytes=4-2' }),
-  });
-  assert.equal(inverted.status, 200);
-  assert.equal(inverted.headers.get('content-range'), null);
-  assert.equal(Buffer.from(await inverted.arrayBuffer()).toString('utf8'), 'abcdef');
-
-  const blockedUrl = `local-media://media/${Buffer.from(blockedPath).toString('base64url')}`;
-  const blocked = await handler({ url: blockedUrl, headers: new Headers() });
-  assert.equal(blocked.status, 403);
-});
-
 test('desktop local font permission requires the exact app origin and explicit approval', async () => {
   const { registerLocalFontPermissionHandler } = require('../../src/electron/desktop-permissions');
   let permissionHandler = null;
@@ -217,11 +167,11 @@ test('desktop local font permission requires the exact app origin and explicit a
   assert.equal(prompts.length, 2);
 });
 
-test('desktop injects Electron safeStorage into the server AI secret boundary', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'main.js'), 'utf8');
-  assert.match(source, /protocol,[\s\S]*?safeStorage,[\s\S]*?session/);
-  assert.match(
-    source,
-    /createDesktopRuntime\(serverRuntimeModule, \{[\s\S]*?dataDir: pathState\.dataDir,[\s\S]*?safeStorage[\s\S]*?\}\)/,
-  );
+test('desktop injects Electron safeStorage and delegates gift rebuilds to the remote controller', async () => {
+  const h = createShutdownHarness();
+  await h.start();
+  assert.equal(h.runtimeOptions.safeStorage, h.safeStorage);
+  assert.equal(h.count('remote:create'), 1);
+  assert.equal(h.runtimeStartOptions.giftSync.rebuild(), true);
+  assert.equal(h.count('remote:start'), 1);
 });

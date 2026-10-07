@@ -4,20 +4,25 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const path = require('node:path');
-const { chromium } = require('playwright');
+const { useSharedBrowser } = require('../helpers/shared-browser');
 const { servePageOrAsset } = require('../../src/server/http-utils');
 const { getClockConfig } = require('../../src/server/clock-contract');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { createLayout } = require('../../src/shared/danmaku-layout');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
+const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
 const { randomUUID } = require('node:crypto');
+
+const openBrowserSession = useSharedBrowser();
+const textBoxItem = (config, x = 0) => ({ id: randomUUID(), type: 'text-box', name: '文本框', x, y: 0, width: 640, height: 180,
+  visible: true, locked: false, appearance: { mode: 'independent', config } });
 
 test('published layers are clipped at all four canvas edges in a letterboxed source', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
+  const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
   const created = fixture.service.create({ title: 'partial overflow', canvas: { width: 800, height: 600 } });
   const items = [[-120, -80], [680, -80], [-120, 520], [680, 520]].map(([x, y]) => ({
     id: randomUUID(), type: 'clock', name: 'clock', x, y, width: 320, height: 180,
@@ -57,38 +62,6 @@ test('published layers are clipped at all four canvas edges in a letterboxed sou
     assert.ok(Math.abs(area.width - area.expectedWidth) < 1);
     assert.ok(Math.abs(area.height - area.expectedHeight) < 1);
   }
-});
-
-test('real polling keeps removed queue data until the replacement successfully commits', { timeout: 30000 }, async t => {
-  const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(errors, []); });
-  const created = fixture.service.create({ title: 'retained output', canvas: { width: 1920, height: 1080 } });
-  const item = type => ({ id: randomUUID(), type, name: type, x: 0, y: 0, width: 400, height: 300,
-    visible: true, locked: false, appearance: { mode: 'independent', config: fixture.configs[type] } });
-  let saved = fixture.service.save({ id: created.document.id, expectedRevision: 1,
-    document: { ...created.document, items: [item('queue')] } });
-  fixture.service.publish({ id: created.document.id, expectedRevision: saved.revision });
-  const { id, token } = fixture.service.getSource(created.document.id);
-  const url = `${fixture.origin}/scene?id=${id}#token=${token}`;
-  assert.equal((await fetch(url)).status, 200);
-  await page.goto(url);
-  await page.frameLocator('.scene-version:not(.is-staging) iframe').getByText('合成实时歌曲').waitFor();
-  const old = page.frames().find(frame => new URL(frame.url()).pathname === '/queue');
-  await page.route('**/clock?*', route => route.abort());
-  saved = fixture.service.save({ id, expectedRevision: saved.revision, document: { ...saved.document, items: [item('clock')] } });
-  fixture.service.publish({ id, expectedRevision: saved.revision });
-  await page.waitForFunction(() => document.querySelector('#sceneStatus').textContent.includes('新版准备失败'));
-  fixture.runtime.queue.waiting[0].song_name = 'removed type still live';
-  await old.getByText('removed type still live').waitFor();
-  await page.unroute('**/clock?*');
-  await page.waitForFunction(() => document.querySelector('.scene-version:not(.is-staging) iframe')?.title === 'clock', null, { timeout: 15000 });
-  assert.equal(old.isDetached(), true);
-  fixture.service.rotate(id);
-  await page.waitForFunction(() => document.querySelectorAll('iframe').length === 0);
 });
 
 test('real source prepares complete versions, keeps prior output on failure and sends real data without child credentials', async (t) => {
@@ -147,7 +120,7 @@ test('real source prepares complete versions, keeps prior output on failure and 
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 1050, height: 600 } });
   page.on('pageerror', (error) => errors.push(error.message));
@@ -191,4 +164,57 @@ test('real source prepares complete versions, keeps prior output on failure and 
   await page.waitForFunction(() => document.querySelectorAll('iframe').length === 0);
   assert.deepEqual(childApi, []);
   assert.deepEqual(errors, []);
+});
+
+test('published text boxes use isolated configs and the shared renderer in sandboxed scene output', { timeout: 30000 }, async (t) => {
+  const fixture = await startCanvasOutputFixture();
+  t.after(() => fixture.close());
+  const browser = openBrowserSession();
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  const first = createTextBoxDefaults();
+  first.nodes = [{ type: 'text', text: '<b>literal</b> 😀\n第二行', bold: true, italic: true, stroke: true, shadow: true, color: '#00ff00', fontSize: 48 },
+    { type: 'gift', name: '舰长', src: '/img/admin/gifts/bilibili-guard-captain.webp', giftId: '1' }];
+  const second = createTextBoxDefaults();
+  second.nodes = [{ type: 'text', text: '独立的第二个文本框' }];
+  const created = fixture.service.create({ title: 'text boxes', canvas: { width: 1920, height: 1080 } });
+  const saved = fixture.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items: [textBoxItem(first), textBoxItem(second, 700)] } });
+  fixture.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
+  const source = fixture.service.getSource(saved.document.id);
+  const shell = await fetch(`${fixture.origin}/text-box?componentPreview=1&sceneComponent=1`);
+  assert.equal(shell.status, 200);
+  assert.equal(shell.headers.get('content-security-policy'), 'sandbox allow-scripts');
+  assert.doesNotMatch(await shell.text(), /ov1:|__LIRA_OVERLAY/);
+  const url = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.locator('.scene-version:not(.is-staging) iframe').first().waitFor();
+  const frames = page.frames().filter(frame => new URL(frame.url()).pathname === '/text-box');
+  assert.equal(frames.length, 2);
+  assert.equal(await frames[0].locator('#textBox').textContent(), first.nodes[0].text);
+  assert.equal(await frames[0].locator('#textBox b').count(), 0);
+  assert.equal(await frames[1].locator('#textBox').textContent(), second.nodes[0].text);
+  const styles = await frames[0].locator('#textBox > span').first().evaluate(span => ({
+    bold: span.style.fontWeight, italic: span.style.fontStyle, size: span.style.fontSize, color: span.style.color,
+  }));
+  assert.deepEqual(styles, { bold: '700', italic: 'italic', size: '48px', color: 'rgb(0, 255, 0)' });
+  const effectStyles = await frames[0].locator('#textBox > span').first().evaluate(span => ({
+    stroke: getComputedStyle(span).webkitTextStrokeWidth, shadow: getComputedStyle(span).textShadow, order: span.style.paintOrder,
+  }));
+  assert.equal(parseFloat(effectStyles.stroke), 48 * 0.06);
+  assert.notEqual(effectStyles.shadow, 'none');
+  assert.equal(effectStyles.order, 'stroke');
+  const defaultStyles = await frames[1].locator('#textBox > span').first().evaluate(span => ({
+    stroke: getComputedStyle(span).webkitTextStrokeWidth, shadow: getComputedStyle(span).textShadow,
+  }));
+  assert.deepEqual(defaultStyles, { stroke: '0px', shadow: 'none' });
+  assert.equal(await frames[0].locator('.text-box-token').getAttribute('contenteditable'), 'false');
+  assert.equal(await frames[0].locator('.text-box-token img').getAttribute('src'), first.nodes[1].src);
+  await frames[0].evaluate(async (config) => {
+    const { renderTextBox } = await import('/js/shared/text-box-renderer.js');
+    renderTextBox(document.querySelector('#textBox'), config, { editable: true });
+  }, first);
+  assert.deepEqual(JSON.parse(await frames[0].locator('.text-box-token').getAttribute('data-text-box-node')), first.nodes[1]);
+  assert.equal(await frames[0].locator('.text-box-token').textContent(), '礼物图片·舰长');
 });

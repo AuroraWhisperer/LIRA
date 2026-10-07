@@ -3,59 +3,10 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
+const { FakeNode, createFakeDocument } = require('../helpers/fake-dom');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
-
-test('avatar backdrops follow each successfully loaded, resolved image independently', async () => {
-  const document = {
-    createElement() {
-      return {
-        children: [],
-        dataset: {},
-        listeners: {},
-        style: {
-          setProperty(name, value) {
-            this[name] = value;
-          },
-        },
-        append(...nodes) {
-          this.children.push(...nodes);
-        },
-        setAttribute() {},
-        addEventListener(type, listener) {
-          this.listeners[type] = listener;
-        },
-        remove() {
-          this.removed = true;
-        },
-      };
-    },
-  };
-  const renderer = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-message-renderer.js'));
-  const render = renderer.createDanmakuMessageRenderer({
-    document,
-    classNames: renderer.DEFAULT_DANMAKU_CLASSES,
-    resolveAvatarUrl: (source) => (source === 'rejected' ? '' : `/avatar?url=${encodeURIComponent(source)}`),
-  });
-  const first = render({ name: '晚风', message: '浅色头像', avatarUrl: 'light.webp' });
-  const second = render({ name: '夜色', message: '深色头像', avatarUrl: 'dark.webp' });
-  assert.equal(first.children[0].children[0].referrerPolicy, 'no-referrer');
-  assert.equal(first.children[0].children[0].decoding, 'async');
-  assert.equal(first.style['--danmaku-avatar-image'], undefined);
-  second.children[0].children[0].listeners.load();
-  first.children[0].children[0].listeners.load();
-  assert.equal(first.style['--danmaku-avatar-image'], 'url("/avatar?url=light.webp")');
-  assert.equal(second.style['--danmaku-avatar-image'], 'url("/avatar?url=dark.webp")');
-
-  const failed = render({ name: '失效', avatarUrl: 'missing.webp' });
-  const failedImage = failed.children[0].children[0];
-  failedImage.listeners.error();
-  assert.equal(failedImage.removed, true);
-  assert.equal(failed.children[0].textContent, '失');
-  assert.equal(failed.style['--danmaku-avatar-image'], undefined);
-  assert.equal(render({ avatarUrl: 'rejected' }).children[0].children.length, 0);
-});
 
 test('ranked danmaku fits the shared horizontal inset without shrinking for height', async () => {
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), {
@@ -76,55 +27,9 @@ test('ranked danmaku fits the shared horizontal inset without shrinking for heig
 });
 
 test('shared danmaku renderer replaces whole and inline emote triggers with safe images', async () => {
-  class FakeNode {
-    constructor(tagName = '') {
-      this.tagName = tagName.toUpperCase();
-      this.children = [];
-      this.dataset = {};
-      this.style = { setProperty() {} };
-      this.listeners = {};
-      this.textContent = '';
-      this.className = '';
-    }
-
-    append(...nodes) {
-      for (const node of nodes) {
-        if (node.isFragment) {
-          node.children.forEach((child) => {
-            child.parentNode = this;
-          });
-          this.children.push(...node.children);
-        } else {
-          node.parentNode = this;
-          this.children.push(node);
-        }
-      }
-    }
-
-    replaceChildren(...nodes) {
-      this.children = [];
-      this.append(...nodes);
-    }
-
-    addEventListener(type, listener) {
-      this.listeners[type] = listener;
-    }
-    removeChild(node) {
-      this.children = this.children.filter((child) => child !== node);
-      node.parentNode = null;
-    }
-    setAttribute() {}
-    replaceWith(node) {
-      this.replacement = node;
-    }
-  }
-
   const root = new FakeNode('div');
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
-    document: {
-      createElement: (tagName) => new FakeNode(tagName),
-      createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
-    },
+    document: createFakeDocument(),
   });
   const feed = module.createDanmakuFeed(root, {
     maxItems: 2,
@@ -183,7 +88,8 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   assert.equal(emoteImage.tagName, 'IMG');
   assert.equal(emoteImage.alt, '[打call]');
   emoteImage.listeners.error();
-  assert.equal(emoteImage.replacement.textContent, '[打call]');
+  assert.notEqual(emoteMessage.children[0], emoteImage);
+  assert.equal(emoteMessage.children[0].textContent, '[打call]');
 
   for (const [kind, text, enlarged] of [
     ['inline', '[喝彩]', false],
@@ -336,51 +242,10 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
 });
 
 test('fixed danmaku feed retains partially visible messages and prunes only fully clipped nodes', async () => {
-  class FakeNode {
-    constructor(tagName = '') {
-      this.tagName = tagName.toUpperCase();
-      this.children = [];
-      this.dataset = {};
-      this.style = { setProperty() {} };
-      this.className = '';
-      this.textContent = '';
-    }
-
-    append(...nodes) {
-      nodes.forEach((node) => {
-        if (node.isFragment) {
-          node.children.forEach((child) => {
-            child.parentNode = this;
-          });
-          this.children.push(...node.children);
-        } else {
-          node.parentNode = this;
-          this.children.push(node);
-        }
-      });
-    }
-
-    replaceChildren(...nodes) {
-      this.children = [];
-      this.append(...nodes);
-    }
-
-    removeChild(node) {
-      this.children = this.children.filter((child) => child !== node);
-      node.parentNode = null;
-    }
-
-    addEventListener() {}
-    setAttribute() {}
-  }
-
   const root = new FakeNode('div');
   root.clientHeight = 130;
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
-    document: {
-      createElement: (tagName) => new FakeNode(tagName),
-      createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
-    },
+    document: createFakeDocument(),
     getComputedStyle: (node) => ({ zoom: String(node.zoom || 1) }),
   });
   const feed = module.createDanmakuFeed(root, {

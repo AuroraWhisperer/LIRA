@@ -27,6 +27,9 @@ export function createComponentResources() {
           if (!response.ok) throw new Error('组件样式加载失败');
           let css = await response.text();
           for (const [original, imported] of Object.entries(resource.resources)) css = css.replaceAll(original, imported);
+          for (const original of preset.optionalResources || []) {
+            if (!resource.resources[original]) css = css.replaceAll(`url('${original}')`, 'none');
+          }
           // Keep an imported font distinct from legacy bundled faces and other package versions.
           if (preset.fontFamily) css = css.replaceAll(preset.fontFamily, `${preset.fontFamily}-${resource.id}`);
           return css;
@@ -38,7 +41,7 @@ export function createComponentResources() {
         await Promise.all(Object.values(resource.resources).filter(src => src.endsWith('.woff2')).map(src =>
           new window.FontFace('Lira Resource Check', `url('${src}')`).load()));
         await Promise.all(Object.values(resource.resources).filter(src => /\.(mp4|webm)$/.test(src)).map(async src => {
-          if (!(await fetch(src, { method: 'HEAD' })).ok) throw new Error('套装视频不可用');
+          if (!(await fetch(src, { method: 'HEAD' })).ok) throw new Error('样式视频不可用');
         }));
         if (current !== generation) return;
         activeResources = resource.resources;

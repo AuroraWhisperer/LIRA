@@ -7,12 +7,16 @@ const test = require('node:test');
 const { createHttpServer } = require('../../src/server/http-server');
 const { createInstanceProof, CHALLENGE_HEADER, requestVerifiedShutdown } = require('../../src/server/local-instance');
 
-test('health minimizes anonymous data and checks Host in every lifecycle phase', async (t) => {
+test('health minimizes anonymous data and checks Host in every lifecycle phase', { timeout: 10000 }, async (t) => {
   const token = 'synthetic-health-key';
   const challenge = 'a'.repeat(64);
   let phase = 'starting';
   let detailReads = 0;
   let shutdowns = 0;
+  let shutdownRequested;
+  const shutdownCalled = new Promise((resolve) => {
+    shutdownRequested = resolve;
+  });
   const server = createHttpServer({
     host: '127.0.0.1',
     startPort: 0,
@@ -37,6 +41,7 @@ test('health minimizes anonymous data and checks Host in every lifecycle phase',
         },
         shutdown: () => {
           shutdowns += 1;
+          shutdownRequested();
         },
       },
     }),
@@ -84,6 +89,6 @@ test('health minimizes anonymous data and checks Host in every lifecycle phase',
   t.mock.method(childProcess, 'execFileSync', () => 'null');
   const attempt = await requestVerifiedShutdown({ port, token, rootDir: 'unrelated-root' });
   assert.equal(attempt.verified, true);
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await shutdownCalled;
   assert.equal(shutdowns, 1);
 });

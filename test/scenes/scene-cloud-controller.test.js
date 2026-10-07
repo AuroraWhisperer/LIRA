@@ -119,7 +119,7 @@ test('one public connection preserves split UTF-8/CRLF events and strips non-dis
   assert.equal(JSON.stringify(env.updates).includes('PRIVATE'), false);
 });
 
-test('all seven protocol types keep live-session ordering and only appearance allowlists', async (t) => {
+test('all eight protocol types keep live-session ordering and only appearance allowlists', async (t) => {
   const env = fixture(t);
   env.controller.start();
   await flush();
@@ -132,6 +132,7 @@ test('all seven protocol types keep live-session ordering and only appearance al
       emotes: [{ text: '[喝彩]', url: 'https://i0.hdslb.com/bfs/emote/cheer.png', width: 192, height: 192, kind: 'inline' }] },
     { ...gift(), giftTotalPrice: 2.5, giftImageUrl: 'https://i0.hdslb.com/bfs/gift.png',
       avatarUrl: 'https://i0.hdslb.com/bfs/face.png', giftGuardLevel: 3 },
+    { type: 'entry', liveSessionId: 'session-a', timestamp: TIMESTAMP, name: '进房观众', guardLevel: 3 },
     { type: 'superchat', liveSessionId: 'session-a', timestamp: TIMESTAMP, name: '观众', message: '  原文\n不截断  ',
       price: 2, avatarUrl: '', colors: { priceColor: '#7497CD' } },
     { type: 'overlay-settings', style: 'bubble', timestamp: TIMESTAMP, fullscreenDurationSeconds: 12,

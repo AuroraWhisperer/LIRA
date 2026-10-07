@@ -2,13 +2,16 @@
 .component-style-library > header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .component-style-library > header h3 { margin: 0; flex: 1; font-size: 14px; }
 .component-style-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.component-style-inline-host, .component-style-library-inline, .component-style-library-inline > .component-style-list { display: contents; }
+.component-style-library-inline > header[hidden], .component-style-library-inline > .hint[hidden] { display: none; }
+.component-style-library-inline > .hint { grid-column: 1 / -1; }
 .component-style-pack-heading { grid-column: 1 / -1; margin: 6px 0 0; font-size: 14px; }
 .component-style-card { position: relative; min-width: 0; }
 .component-style-select, .component-style-add { width: 100%; min-height: 112px; border: 1px solid var(--color-border, #d8d8df); border-radius: 10px; background: var(--color-bg-primary, #fff); color: inherit; padding: 10px; cursor: pointer; }
 .component-style-select img, .component-style-select video { display: block; width: 100%; height: 78px; object-fit: contain; margin-bottom: 6px; }
 .component-style-select span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .component-style-add { border-style: dashed; color: var(--color-text-secondary, #667); }
-.component-style-delete { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 1px solid var(--color-border, #ccc); background: var(--color-bg-primary, #fff); cursor: pointer; }
+.component-style-delete { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 24px; height: 24px; min-height: 24px; padding: 0; border-radius: 50%; border: 1px solid var(--color-border, #ccc); background: var(--color-bg-primary, #fff); font-size: 16px; line-height: 1; cursor: pointer; }
 .component-style-select:hover, .component-style-add:hover { border-color: var(--color-control-accent, #21b6a8); }
 .component-style-dialog { box-sizing: border-box; width: min(920px, 94vw); max-height: 88vh; overflow: auto; border: 1px solid var(--color-border, #ddd); border-radius: 16px; padding: 20px; background: var(--color-bg-primary, #fff); color: var(--color-text-primary, #262634); }
 .component-style-dialog::backdrop { background: #15152566; }
@@ -31,6 +34,22 @@
 .component-style-fields label:has(input[type='checkbox']) { display: flex; align-items: center; gap: 8px; }
 .component-style-fields input[type='checkbox'] { width: 18px; min-height: 18px; margin: 0; }
 .component-style-pack-list { line-height: 1.8; }
+.component-source-import form { display: grid; gap: 16px; }
+.component-source-import label { display: grid; gap: 6px; }
+.component-source-import textarea { box-sizing: border-box; width: 100%; resize: vertical; font-family: monospace; }
+.component-source-import .component-style-fields { grid-template-columns: 2fr 1fr 1fr; }
+.component-source-modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.component-source-modes [aria-pressed='true'] { border-color: var(--color-control-accent); color: var(--color-control-accent); }
+.component-style-select .component-source-thumbnail { display: grid; place-items: center; height: 78px; font-size: 20px; color: var(--color-text-secondary); }
+.background-parameters, .background-parameter-fields { display: grid; gap: 14px; }
+.background-parameter-fields[hidden] { display: none; }
+.background-parameter { display: grid; gap: 6px; }
+.background-parameter-control { display: flex; align-items: center; gap: 12px; }
+.background-parameter-control input[type='range'] { flex: 1; width: 0; min-width: 0; padding: 0; accent-color: var(--color-control-accent); }
+.background-parameter-control input[type='number'] { width: 86px; flex: 0 0 86px; font-variant-numeric: tabular-nums; }
+.background-parameter-control select { width: 100%; }
+.background-parameters .hint { margin: 0; line-height: 1.6; }
+.background-parameters > button { justify-self: start; }
 .has-media-style .clock-style-options, .has-media-style .danmaku-style-options,
 .has-media-style .danmaku-parameters { display: none; }
 @media (max-width: 700px) { .component-style-editor { grid-template-columns: 1fr; } }

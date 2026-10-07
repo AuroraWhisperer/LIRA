@@ -32,6 +32,7 @@ const OVERLAY_ROUTES = {
     'GET /api/bilibili/avatar',
   ],
   'gift-export': ['GET /api/bilibili/avatar'],
+  'gift-effects': ['GET /api/bilibili/avatar'],
   'gift-wishes': ['GET /api/gifts/wishes'],
   interactions: ['GET /api/interactions/session'],
   games: [

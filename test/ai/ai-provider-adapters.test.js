@@ -320,82 +320,62 @@ test('DeepSeek official Responses API uses its root path and mapped reasoning ef
   assert.deepEqual(captured.body.reasoning, { effort: 'high' });
 });
 
-test('OpenAI provider preset fixes the official Responses endpoint', async () => {
-  let captured;
-  const client = createDeepSeekClient({
-    fetchImpl: async (url, options) => {
-      captured = { url: String(url), body: JSON.parse(options.body) };
-      return jsonResponse({ id: 'resp_openai', output_text: 'ok' });
-    },
-  });
-
-  await client.createResponse({
+for (const scenario of [
+  {
+    name: 'OpenAI',
     config: {
       modelProvider: 'openai',
       deepseekResponsesUrl: 'https://untrusted.example.test',
       modelApiProtocol: 'chat_completions',
-      deepseekApiKey: 'secret',
       model: 'gpt-test',
-      reasoningEnabled: true,
       reasoningEffort: 'high',
-      requestTimeoutMs: 3000,
     },
-    input: 'hello',
-  });
-
-  assert.equal(captured.url, 'https://api.openai.com/v1/responses');
-  assert.deepEqual(captured.body.reasoning, { effort: 'high' });
-});
-
-test('Claude provider preset uses the official OpenAI compatibility endpoint', async () => {
-  let captured;
-  const client = createDeepSeekClient({
-    fetchImpl: async (url, options) => {
-      captured = { url: String(url), body: JSON.parse(options.body) };
-      return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+    response: { id: 'resp_openai', output_text: 'ok' },
+    url: 'https://api.openai.com/v1/responses',
+    assertBody: (body) => assert.deepEqual(body.reasoning, { effort: 'high' }),
+  },
+  {
+    name: 'Claude',
+    config: { modelProvider: 'anthropic', model: 'claude-test', reasoningEffort: 'high' },
+    response: { choices: [{ message: { content: 'ok' } }] },
+    url: 'https://api.anthropic.com/v1/chat/completions',
+    assertBody(body) {
+      assert.equal(body.reasoning, undefined);
+      assert.equal(body.reasoning_effort, undefined);
+      assert.equal(body.thinking, undefined);
     },
-  });
-
-  await client.createResponse({
-    config: {
-      modelProvider: 'anthropic',
-      deepseekApiKey: 'secret',
-      model: 'claude-test',
-      reasoningEnabled: true,
-      reasoningEffort: 'high',
-      requestTimeoutMs: 3000,
+  },
+  {
+    name: 'Gemini',
+    config: { modelProvider: 'gemini', model: 'gemini-test', reasoningEffort: 'xhigh' },
+    response: { choices: [{ message: { content: 'ok' } }] },
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    assertBody(body) {
+      assert.equal(body.reasoning_effort, 'high');
+      assert.equal(body.thinking, undefined);
     },
-    input: 'hello',
+  },
+]) {
+  test(`${scenario.name} provider preset fixes its official endpoint and reasoning mapping`, async () => {
+    let captured;
+    const client = createDeepSeekClient({
+      fetchImpl: async (url, options) => {
+        captured = { url: String(url), body: JSON.parse(options.body) };
+        return jsonResponse(scenario.response);
+      },
+    });
+
+    await client.createResponse({
+      config: {
+        deepseekApiKey: 'secret',
+        reasoningEnabled: true,
+        requestTimeoutMs: 3000,
+        ...scenario.config,
+      },
+      input: 'hello',
+    });
+
+    assert.equal(captured.url, scenario.url);
+    scenario.assertBody(captured.body);
   });
-
-  assert.equal(captured.url, 'https://api.anthropic.com/v1/chat/completions');
-  assert.equal(captured.body.reasoning, undefined);
-  assert.equal(captured.body.reasoning_effort, undefined);
-  assert.equal(captured.body.thinking, undefined);
-});
-
-test('Gemini provider preset uses the official compatibility endpoint and reasoning effort', async () => {
-  let captured;
-  const client = createDeepSeekClient({
-    fetchImpl: async (url, options) => {
-      captured = { url: String(url), body: JSON.parse(options.body) };
-      return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
-    },
-  });
-
-  await client.createResponse({
-    config: {
-      modelProvider: 'gemini',
-      deepseekApiKey: 'secret',
-      model: 'gemini-test',
-      reasoningEnabled: true,
-      reasoningEffort: 'xhigh',
-      requestTimeoutMs: 3000,
-    },
-    input: 'hello',
-  });
-
-  assert.equal(captured.url, 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
-  assert.equal(captured.body.reasoning_effort, 'high');
-  assert.equal(captured.body.thinking, undefined);
-});
+}

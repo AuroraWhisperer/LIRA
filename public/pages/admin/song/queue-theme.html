@@ -93,6 +93,67 @@
           </button>
         </div>
 
+        <fieldset id="queueTitleArea" class="theme-section">
+          <legend>标题设置</legend>
+          <div class="grid-2">
+            <label style="grid-column: 1 / -1">
+              <span>面板标题 <lira-help>修改点歌板顶部标题；留空时使用默认标题。</lira-help></span>
+              <input id="overlayTitle" placeholder="留空显示默认：可点歌单 / 点歌队列" />
+            </label>
+            <label>
+              队列标题字号
+              <span class="range-row">
+                <input
+                  id="queueTitleFontSize"
+                  class="parameter-range parameter-range--scale"
+                  type="range"
+                  min="10"
+                  max="40"
+                  step="1"
+                />
+                <span class="range-value">
+                  <input
+                    id="queueTitleFontSizeNumber"
+                    type="number"
+                    aria-label="队列标题字号，像素"
+                    min="10"
+                    max="40"
+                    step="1"
+                  />
+                  <span class="range-unit" aria-hidden="true">px</span>
+                </span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset id="queueIndexArea" class="theme-section">
+          <legend>序号显示</legend>
+          <div class="grid-2">
+            <label>
+              显示歌曲序号
+              <select id="overlayShowIndex" data-dropdown-variant="settings">
+                <option value="true">显示</option>
+                <option value="false">隐藏</option>
+              </select>
+            </label>
+            <label>
+              <span>序号颜色 <lira-help>留空时使用辅助色。</lira-help></span>
+              <input id="overlayIndexColor" type="color" value="" />
+            </label>
+            <label style="grid-column: 1 / -1">
+              <span>仅在歌曲超过此数量时显示 <lira-help>选择“始终显示”时不受歌曲数量限制。</lira-help></span>
+              <select id="overlayIndexThreshold" data-dropdown-variant="settings">
+                <option value="0">始终显示</option>
+                <option value="2">超过 2 首</option>
+                <option value="3">超过 3 首</option>
+                <option value="4">超过 4 首</option>
+                <option value="5">超过 5 首</option>
+              </select>
+            </label>
+          </div>
+        </fieldset>
+
         <!-- ====== 点歌板风格 1 专属设置 ====== -->
         <div id="classicThemeArea" class="theme-area">
           <fieldset class="theme-section">
@@ -208,30 +269,6 @@
                 </span>
               </label>
               <label>
-                队列标题字号
-                <span class="range-row">
-                  <input
-                    id="queueTitleFontSize"
-                    class="parameter-range parameter-range--scale"
-                    type="range"
-                    min="10"
-                    max="40"
-                    step="1"
-                  />
-                  <span class="range-value">
-                    <input
-                      id="queueTitleFontSizeNumber"
-                      type="number"
-                      aria-label="队列标题字号，像素"
-                      min="10"
-                      max="40"
-                      step="1"
-                    />
-                    <span class="range-unit" aria-hidden="true">px</span>
-                  </span>
-                </span>
-              </label>
-              <label>
                 <span>歌名颜色 <lira-help>跟随文字色，或设置自定义颜色。</lira-help></span>
                 <select id="overlaySongColorMode" aria-label="歌名颜色来源" data-dropdown-variant="settings">
                   <option value="inherit">跟随文字色</option>
@@ -247,39 +284,9 @@
                 </select>
                 <input id="overlayRequesterColor" type="color" aria-label="自定义点歌人颜色" disabled />
               </label>
-              <label style="grid-column: 1 / -1">
-                <span>面板标题 <lira-help>修改点歌板顶部标题；留空时使用默认标题。</lira-help></span>
-                <input id="overlayTitle" placeholder="留空显示默认：可点歌单 / 点歌队列" />
-              </label>
             </div>
           </fieldset>
 
-          <fieldset class="theme-section">
-            <legend>序号显示</legend>
-            <div class="grid-2">
-              <label>
-                显示歌曲序号
-                <select id="overlayShowIndex" data-dropdown-variant="settings">
-                  <option value="true">显示</option>
-                  <option value="false">隐藏</option>
-                </select>
-              </label>
-              <label>
-                <span>序号颜色 <lira-help>留空时使用辅助色。</lira-help></span>
-                <input id="overlayIndexColor" type="color" value="" />
-              </label>
-              <label style="grid-column: 1 / -1">
-                <span>仅在歌曲超过此数量时显示 <lira-help>选择“始终显示”时不受歌曲数量限制。</lira-help></span>
-                <select id="overlayIndexThreshold" data-dropdown-variant="settings">
-                  <option value="0">始终显示</option>
-                  <option value="2">超过 2 首</option>
-                  <option value="3">超过 3 首</option>
-                  <option value="4">超过 4 首</option>
-                  <option value="5">超过 5 首</option>
-                </select>
-              </label>
-            </div>
-          </fieldset>
 
           <fieldset class="theme-section">
             <legend>面板外观</legend>
@@ -372,7 +379,7 @@
           <fieldset class="theme-section">
             <legend>文字设置</legend>
             <label>
-              <span>点歌内容字号 <lira-help>控制点歌板全部队列文字，默认 28 px。</lira-help></span>
+              <span>点歌内容字号 <lira-help>控制歌名、点歌人、序号与身份信息的整体大小。</lira-help></span>
               <span class="range-row">
                 <input
                   id="identityQueueFontSize"
@@ -491,7 +498,7 @@
             </div>
           </fieldset>
 
-          <fieldset class="theme-section" data-identity-only>
+          <fieldset class="theme-section" data-identity-only data-identity-rules>
             <legend>规则展示</legend>
             <div class="identity-rule-panel">
               <label class="identity-rule-font">

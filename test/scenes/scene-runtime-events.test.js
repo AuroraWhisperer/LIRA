@@ -4,7 +4,6 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
-const { setTimeout: delay } = require('node:timers/promises');
 const test = require('node:test');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
 const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
@@ -97,7 +96,8 @@ test('committed publication and capability rotation reach the runtime event serv
   assert.deepEqual(changes, [{ id: source.id }]);
 });
 
-test('scene subscribers receive runtime events without WebSocket clients and disposal cancels pending notifications', async t => {
+test('scene subscribers receive runtime events without WebSocket clients and disposal cancels pending notifications', t => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const { runtime } = fixture(t);
   const source = publish(runtime, 'gift-frame');
   const res = response();
@@ -105,7 +105,7 @@ test('scene subscribers receive runtime events without WebSocket clients and dis
   assert.equal(res.status, 200);
   assert.deepEqual(res.writes, ['data: ready\n\n']);
   assert.equal(runtime.receiveGift({ type: 'gift:frame', eventId: 'gift-1' }), true);
-  await delay(60);
+  t.mock.timers.tick(60);
   assert.deepEqual(res.writes, ['data: ready\n\n', 'data: change\n\n']);
   runtime.receiveGift({ type: 'gift:frame', eventId: 'gift-2' });
   runtime.dispose();
@@ -113,7 +113,7 @@ test('scene subscribers receive runtime events without WebSocket clients and dis
   assert.equal(res.listenerCount('close'), 0);
   assert.equal(res.listenerCount('error'), 0);
   runtime.notify({ types: ['gift-frame'] });
-  await delay(60);
+  t.mock.timers.tick(60);
   assert.equal(res.writes.length, 2);
   assert.throws(() => runtime.events.open(response(), source, () => 200), { statusCode: 503 });
 });

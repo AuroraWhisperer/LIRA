@@ -83,14 +83,16 @@ Token。不向 license、scene 或任何 overlay 注入主题，不新增写入 
 
 领域事件发布统一由 [runtime-transport.js](../../../src/server/runtime-transport.js) 适配：`publishGiftFlushed` 保持快照→礼物边框顺序且不逐条输出成功日志，`publishGiftCatalogUpdate` 发布目录快照，`publishDanmaku` 保留 feed 缓冲及 topic，`publishOvertimeUpdate` 保留可选 adjustment。server 通过 getter 接线，仍按数据库、领域服务、音乐/直播/AI、启动恢复阶段创建资源，并在 initializeApplication 失败时统一 dispose；传输模块不拥有这些资源。
 
-[server.js](../../../src/server.js) 的 `http.createServer` 回调先检查 runtime phase，再按序分发:
+[http-server.js](../../../src/server/http-server.js) 的 `createHttpServer` 由 server 组合根接线，其 HTTP 回调读取 runtime phase 后按序分发:
 
 1. **Host 头验证**(H06):所有 HTTP 生命周期阶段先检查 `req.headers.host` 与运行时 baseUrl，不匹配返回 400。
 2. phase 非 `ready` 时，仅 `/api/health` 返回 `{serviceId,phase}`；其他正确 Host 的 HTTP 请求返回 503，WebSocket upgrade 同样拒绝。
-3. **Origin 验证**(H06):对状态变更请求(`POST`/`PUT`/`DELETE`/`PATCH`)，检查 `req.headers.origin` 是否在允许列表内(当前仅运行时 baseUrl)。无 Origin 头的请求(非浏览器客户端，如 curl)放行。不匹配返回 403。`Origin: null` 的 API 请求交由下述 scope 鉴权处理，绝不作为普通受信任来源。
-4. `pathname === '/ws'` → 直接 400(提示用 WebSocket 客户端;升级请求走 `server.on('upgrade')`)；升级入口捕获 URL 解析异常，畸形 Host/请求 URL 返回 400 并关闭该连接，不使服务退出。
-5. `pathname.startsWith('/api/')` → 经 [inflight-tracker.js](../../../src/server/inflight-tracker.js) 接纳并跟踪，再调用 [api-routes.js](../../../src/server/api-routes.js) 的 `handleApi(createApiContext(), req, res, requestUrl)`。
-6. 其余 → `httpUtils.servePageOrAsset(PUBLIC_DIR, …)` 静态页面/资源。
+3. **许可门**：未授权时清理预览会话；`/`、`/admin`、`/settings`、`/songs` 重定向到 `/license`，除 health 外的 API 返回 423。
+4. **Origin 验证**(H06):对状态变更请求(`POST`/`PUT`/`DELETE`/`PATCH`)，检查 `req.headers.origin` 是否在允许列表内(当前仅运行时 baseUrl)。无 Origin 头的请求(非浏览器客户端，如 curl)放行。不匹配返回 403。`Origin: null` 的 API 请求交由下述 scope 鉴权处理，绝不作为普通受信任来源。
+5. `pathname === '/ws'` → 直接 400(提示用 WebSocket 客户端;升级请求走 `server.on('upgrade')`)；升级入口捕获 URL 解析异常，畸形 Host/请求 URL 返回 400 并关闭该连接，不使服务退出。
+6. `pathname.startsWith('/api/')` → 经 [inflight-tracker.js](../../../src/server/inflight-tracker.js) 接纳并跟踪，再调用 [api-routes.js](../../../src/server/api-routes.js) 的 `handleApi`；传入当前领域 context、预览会话和场景输出的许可/生命周期状态 getter。
+7. 场景文本图片、组件素材/导入网页、开播媒体/人物图及礼物图片缓存由各自 handler 读取 dataDir 下的资源；它们不经过 publicDir 静态文件解析。组件导入网页的 CSP 与资源合同见 [组件样式库](api.md#组件样式库)。
+8. 其余 → 传输适配器的 `servePageOrAsset`，再交给 `httpUtils.servePageOrAsset(PUBLIC_DIR, …)`。
 
 phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:port 校验，不匹配返回 400，再把通过许可门的 `/ws` 交给 `webSocketHub.handleUpgrade`，继续独立校验 Origin/token；无 Origin 的非浏览器客户端同样必须匹配运行时 Host。starting/quiescing 阶段返回 503。`inflight-tracker` 只统计 quiesce 前已接纳的 API handler，quiesce 后的 health/503 不进入 drain 集合。
 
@@ -109,22 +111,23 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 [src/server/api-routes.js](../../../src/server/api-routes.js) 无状态:业务状态全部通过 context 注入。
 
 - 路由模块按 `ROUTE_MODULES` 数组顺序前缀匹配(完整端点清单见 [api.md](api.md))。
-- **身份与权限**：[access-policy.js](../../../src/server/access-policy.js) 由 Bearer/query 凭据解析冻结的 `admin` 或 `overlay(scope)`。显式 Authorization 优先，错误头不能回退 query；空运行密钥拒绝认证。只有 `GET /api/health` 匿名可用；overlay 先检查精确 method/path，再进入 [overlay-http.js](../../../src/server/overlay-http.js) 的受限参数适配与字段投影。无效凭据 401，跨 scope/管理接口 403。时钟和开播配置由各自页面能力读取。
+- **专用能力路由**：组件预览中继、预览素材接口以及场景输出/通知先交由各自 handler 校验管理身份、绑定预览会话或场景能力。这些能力不进入通用 principal，也不能访问任意领域接口；精确方法、权限与错误码见 [API 契约](api.md)。
+- **常规领域身份与权限**：[access-policy.js](../../../src/server/access-policy.js) 由 Bearer/query 凭据解析冻结的 `admin` 或 `overlay(scope)`。显式 Authorization 优先，错误头不能回退 query；空运行密钥拒绝认证。该路径只有 `GET /api/health` 匿名可用；overlay 先检查精确 method/path，再进入 [overlay-http.js](../../../src/server/overlay-http.js) 的受限参数适配与字段投影。无效凭据 401，跨 scope/管理接口 403。时钟和开播配置由各自页面能力读取。
 - **405 与 404 区分**:`findRoute` 在模块前缀命中但方法不匹配时标记 `pathExists` → 405;否则 404。
 - **请求体惰性读取**:`createBodyReader` 只在 handler 真正调用时读一次 JSON([api-routes.js:42-47](../../../src/server/api-routes.js#L42-L47)),上限 `MAX_BODY_BYTES = 16 MB`([server.js:35](../../../src/server.js#L35)),超限/非法 JSON 在 `readJsonBody` 中拒绝。
 - 顶层异常兜底:500 + `{ok:false, error}`。
 
 ### 4.2 API Context 注入
 
-`server.js` 内的轻量适配函数 `createApiContext()`([server.js:201](../../../src/server.js#L201))只收集当前运行时依赖,实际的 Context 结构由 [api-context.js:7](../../../src/server/api-context.js#L7) 统一构建。Context **按领域分组**注入,避免退化成平铺 Fat Context:`songs / queue / superChat / gifts / overtime / data / playback / playbackLyrics / weSing / theme / bilibili / ai / settings / system / music / cloudSync / giftSync / games / wheel` 共 19 组,外加 `maxBodyBytes`、`sessionToken`、`broadcastSnapshot`。各组内部函数来自领域服务或显式注入的运行时组件。
+`server.js` 注入 getter，由 [runtime-api-context.js](../../../src/server/runtime-api-context.js) 的 `createRuntimeApiContextFactory` 在每次请求时读取当前运行时依赖，再由 [api-context.js](../../../src/server/api-context.js) 构建 Context。Context 按歌曲、礼物、播放、互动等领域分组，包含场景、动态抽奖、礼物卡片/心愿等端口；各组内部函数来自领域服务或显式注入的运行时组件。HTTP owner 另注入预览会话与场景可用性 getter，不把这些生命周期状态放到领域服务中。
 
 ### 4.3 静态页面服务与页面能力
 
 [http-utils.js](../../../src/server/http-utils.js) 的 `servePageOrAsset` 按 [access-policy.js](../../../src/server/access-policy.js) 固定页面表解析 scope；raw HTML、规范 URL 同权，大小写与文件路径按实际解析处理，路径必须留在 publicDir 内。禁止冒号文件别名，避免 Windows NTFS `::$DATA` 将 HTML 伪装成普通资源。
 
 - 管理组合页和 raw 管理片段要求管理身份，任何 HTML 都不包含管理 token。管理页 CSP 另设 `worker-src 'none'`：Chromium 可将 dedicated/blob worker 请求归属主 frame，不能只靠请求 frame 元数据排除 worker；当前管理 UI 没有 worker 消费者。Electron main 给受信主窗口请求加头，见 [desktop/auth.md](../desktop/auth.md)；Node 调试脚本须自持 Bearer，匿名浏览器不获得管理入口。
-- 只有 13 个已知 overlay 页面注入 [overlay-bootstrap.js](../../../src/server/overlay-bootstrap.js) 与该 scope 的凭据，`window.__API_TOKEN__` 仅表示本页能力。fetch 包装保留 Request/Headers 语义，仅为精确本机 origin 的 API 加头；WS 只向精确本机 `/ws` 添加 query 凭据，外域、异端口和相似路径不带凭据。
-- overlay HTML 返回 `Content-Security-Policy: sandbox allow-scripts`，不含 allow-same-origin。公开静态 JS/CSS/字体等返回 `Access-Control-Allow-Origin: *`；HTML 不开放跨域读取。API 的 opaque-origin 预检只描述 overlay 已知路径/方法/头，实际请求仍验证 scope；管理凭据的 `Origin: null` 请求拒绝。没有 cookie 或 allow-credentials 例外。
+- 只有 `access-policy.js` 登记的 overlay 页面在普通独立来源模式下注入 [overlay-bootstrap.js](../../../src/server/overlay-bootstrap.js) 与该 scope 的凭据，`window.__API_TOKEN__` 仅表示本页能力；组件预览子页不注入该凭据。fetch 包装保留 Request/Headers 语义，仅为精确本机 origin 的 API 加头；WS 只向精确本机 `/ws` 添加 query 凭据，外域、异端口和相似路径不带凭据。
+- overlay HTML 返回 `Content-Security-Policy: sandbox allow-scripts`，不含 allow-same-origin。公开静态 JS/CSS/字体等返回 `Access-Control-Allow-Origin: *`；`servePageOrAsset` 的 HTML 不开放跨域读取。导入的 `/component-web/` 资源由独立 handler 设置 MIME/CORS，HTML/SVG 响应额外施加 sandbox、禁用 object 和表单提交，不注入 LIRA 凭据。API 的 opaque-origin 预检只描述 overlay 已知路径/方法/头，实际请求仍验证 scope；管理凭据的 `Origin: null` 请求拒绝。没有 cookie 或 allow-credentials 例外。
 - 浏览器源会话恢复：本机 WS 断开或 API 返回 401 后，使用旧页面能力请求其最小 `/api/state`；仅再次 401 才刷新。此错误响应可被 opaque 页面读取，不能借此读取数据。探测单飞、5 秒超时，离线/启动中/凭据有效不刷新，pagehide 取消探测。
 - 页面仍为 `Cache-Control: no-store`。只有已认证管理组合页的实际 GET 分配 `__PLAYBACK_SNAPSHOT_WRITER__`；HEAD、未授权页面、raw 片段和 overlay 都不改变播放代次。该字段用于顺序控制，不是认证凭据。
 

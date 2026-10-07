@@ -7,5 +7,6 @@
   padding: 3px;
   border: 0;
   border-radius: 10px;
-  background: var(--color-bg-secondary);
+  background: var(--client-main-nav-bg, var(--color-bg-secondary));
+  box-shadow: var(--client-main-nav-shadow, none);
 }

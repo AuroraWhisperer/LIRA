@@ -13,7 +13,7 @@ export const SCENE_COMPONENTS = Object.freeze({
     rendererUrl: '/clock?componentPreview=1&sceneComponent=1', sourceUrl: '/clock',
   }),
   queue: Object.freeze({
-    resizeAxes: 'xy', contentHeight: false,
+    resizeAxes: 'xy', contentHeight: true, lockAspectRatio: true,
     rendererUrl: '/queue?componentPreview=1&sceneComponent=1', sourceUrl: '/queue',
   }),
   overtime: Object.freeze({
@@ -21,7 +21,7 @@ export const SCENE_COMPONENTS = Object.freeze({
     rendererUrl: '/overtime?componentPreview=1&sceneComponent=1', sourceUrl: '/overtime',
   }),
   ...Object.fromEntries(Object.entries(SCENE_EXTRA_COMPONENTS).map(([type, definition]) => [type, Object.freeze({
-    resizeAxes: 'xy', contentHeight: false, independentOnly: true,
+    resizeAxes: type === 'gift-wishes' ? 'x' : 'xy', contentHeight: type === 'gift-wishes', independentOnly: true,
     rendererUrl: `${definition.path}${definition.path.includes('?') ? '&' : '?'}componentPreview=1&sceneComponent=1`, sourceUrl: definition.path,
     disconnectedData: () => null,
   })])),

@@ -13,6 +13,7 @@ const openingRoutes = require('../../src/server/routes/opening-routes');
 const settingsRoutes = require('../../src/server/routes/settings-routes');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const settingsStoreModule = require('../../src/storage/settings-store');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { DEFAULT_SETTINGS } = settingsStoreModule;
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -206,7 +207,7 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
 });
 
 test('opening media defaults and missing uploads have no bundled fallback', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-empty-'));
+  const dataDir = createScratchDirectory('lira-opening-empty-');
   try {
     for (const values of [
       {},
@@ -316,7 +317,7 @@ test('opening track motion settings reject values outside the public enum', asyn
 });
 
 test('opening animation starts disabled for every application session', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-startup-'));
+  const dataDir = createScratchDirectory('lira-opening-startup-');
   const databases = createDatabases({
     dataDir,
     defaultSettings: DEFAULT_SETTINGS,

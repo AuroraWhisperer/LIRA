@@ -109,3 +109,90 @@ test('missing internal owner identity cannot fall back to the renderer snapshot'
     controller.dispose();
   }
 });
+
+test('remote gift source key is tenant-specific without storing tenant text', () => {
+  const alice = createRemoteGiftSourceKey(
+    'https://api.example.test/',
+    { streamerId: 10, accountName: 'Alice', subdomain: 'Alice' },
+    { id: 'device-a' },
+  );
+  const bob = createRemoteGiftSourceKey(
+    'https://api.example.test',
+    { streamerId: 11, accountName: 'Bob', subdomain: 'Bob' },
+    { id: 'device-b' },
+  );
+  assert.match(alice, /^[a-f0-9]{64}$/u);
+  assert.notEqual(alice, bob);
+  assert.equal(alice.includes('alice'), false);
+  assert.throws(() => createRemoteGiftSourceKey('https://api.example.test'), /REMOTE_GIFT_SOURCE_UNAVAILABLE/);
+});
+
+test('remote gift source key uses canonical origin, account and stable owner', () => {
+  const expected = createRemoteGiftSourceKey(
+    'https://api.example.test',
+    { streamerId: 10, accountName: 'alice', subdomain: 'old-subdomain' },
+    { id: 'old-device' },
+  );
+  assert.equal(
+    createRemoteGiftSourceKey(
+      'HTTPS://API.EXAMPLE.TEST:443/',
+      { streamerId: 10, accountName: 'ALICE', subdomain: 'new-subdomain' },
+      { id: 'new-device' },
+    ),
+    expected,
+  );
+  assert.notEqual(
+    createRemoteGiftSourceKey('https://other.example.test', {
+      streamerId: 10,
+      accountName: 'alice',
+    }),
+    expected,
+  );
+  for (const invalidUrl of [
+    'http://127.0.0.1:13000',
+    'http://localhost:13000',
+    'http://api.example.test',
+    'https://localhost',
+    'https://127.0.0.1',
+    'https://[::1]',
+    'https://bad_host.example',
+    'https://user@api.example.test',
+    'https://api.example.test/path',
+    'https://api.example.test/?token=secret',
+    'https://api.example.test/#fragment',
+  ]) {
+    assert.throws(
+      () =>
+        createRemoteGiftSourceKey(invalidUrl, {
+          streamerId: 10,
+          accountName: 'alice',
+        }),
+      /INVALID_GIFT_SOURCE_ORIGIN/,
+    );
+  }
+});
+
+test('same-name recreated owner cannot reuse a source and missing owner fails closed', () => {
+  const origin = 'https://api.example.test';
+  const original = createRemoteGiftSourceKey(origin, {
+    accountName: 'alice',
+    streamerId: 10,
+  });
+  assert.notEqual(
+    createRemoteGiftSourceKey(origin, {
+      accountName: 'alice',
+      streamerId: 11,
+    }),
+    original,
+  );
+  for (const streamerId of [undefined, null, '10', 0, -1, 1.5, NaN]) {
+    assert.throws(
+      () =>
+        createRemoteGiftSourceKey(origin, {
+          accountName: 'alice',
+          streamerId,
+        }),
+      /REMOTE_GIFT_SOURCE_UNAVAILABLE/,
+    );
+  }
+});

@@ -70,6 +70,7 @@
   color: var(--overlay-song-color, var(--overlay-text, var(--color-text-light)));
   overflow-wrap: anywhere;
   font-size: calc(16px * var(--overlay-font-scale, 1));
+  font-weight: var(--overlay-font-weight, 800);
   word-break: break-word;
   line-height: 1.25;
 }

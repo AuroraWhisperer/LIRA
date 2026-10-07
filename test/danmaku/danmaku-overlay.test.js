@@ -6,10 +6,11 @@ const path = require('node:path');
 const test = require('node:test');
 const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { FakeNode, allNodes } = require('../helpers/fake-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-test('fixed danmaku overlay consumes snapshot and incremental feed events safely', () => {
+test('fixed danmaku overlay page, styles and guard artwork stay wired', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'danmaku.html'), 'utf8');
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'overlays', 'danmaku.css').replace(/\s+/g, ' ');
@@ -17,14 +18,6 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(html, /id="danmakuFeed"/);
   assert.match(html, /body class="danmaku-overlay-body" data-style="signal"/);
   assert.match(html, /type="module" src="\/js\/overlays\/danmaku\.js/);
-  assert.match(script, /createDanmakuFeed/);
-  assert.match(script, /window\.__API_TOKEN__/);
-  assert.match(script, /encodeURIComponent\(token\)/);
-  assert.match(script, /api\/bilibili\/avatar\?url=/);
-  assert.match(script, /&token=\$\{encodeURIComponent\(token\)\}/);
-  assert.match(script, /payload\.state\.liveStatus/);
-  assert.match(script, /topic=danmaku/);
-  assert.match(script, /autoScroll:\s*false/);
   assert.doesNotMatch(script, /innerHTML/);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(styles, /background:\s*transparent/);
@@ -52,6 +45,62 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   ]) {
     assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public', 'img', 'overlays', 'danmaku-guard', asset)));
   }
+});
+
+test('fixed danmaku overlay subscribes with the encoded token and renders snapshot emotes through the token proxy', async () => {
+  const elements = new Map();
+  const element = (id) => {
+    if (!elements.has(id)) elements.set(id, Object.assign(new FakeNode('section'), { clientWidth: 1280, clientHeight: 720 }));
+    return elements.get(id);
+  };
+  const classList = { add() {}, remove() {}, toggle() {} };
+  const sockets = [];
+  let ready;
+  class Socket {
+    constructor(url) {
+      this.url = url;
+      this.listeners = {};
+      sockets.push(this);
+    }
+    addEventListener(name, listener) {
+      this.listeners[name] = listener;
+    }
+  }
+  const window = { innerWidth: 1280, __API_TOKEN__: 'synthetic token&1', addEventListener() {}, removeEventListener() {},
+    dispatchEvent() {}, Event: class {}, MutationObserver: class { observe() {} disconnect() {} }, getComputedStyle: () => ({}) };
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), {
+    document: {
+      defaultView: window,
+      body: Object.assign(new FakeNode('body'), { classList }),
+      documentElement: new FakeNode('html'),
+      getElementById: element,
+      addEventListener: (_, listener) => { ready = listener; },
+      createElement: (tag) => Object.assign(new FakeNode(tag), { classList }),
+      createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
+      querySelectorAll: () => [],
+    },
+    window,
+    location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
+    URL,
+    URLSearchParams,
+    WebSocket: Socket,
+    requestAnimationFrame: (callback) => { callback(); return 1; },
+    cancelAnimationFrame() {},
+    setTimeout: () => 1,
+    clearTimeout() {},
+  });
+  ready();
+  assert.deepEqual(sockets.map((socket) => socket.url), ['ws://127.0.0.1:3000/ws?token=synthetic%20token%261&topic=danmaku']);
+  const emoteUrl = 'https://i0.hdslb.com/bfs/live/emote.png';
+  sockets[0].listeners.open();
+  sockets[0].listeners.message({ data: JSON.stringify({ type: 'snapshot', state: {
+    danmakuFeed: [{ id: '1', name: '观众', message: '你好[星]', timestamp: 1, emotes: [{ text: '[星]', url: emoteUrl, kind: 'inline' }] }],
+    settings: { danmakuOverlayStyle: 'signal' },
+    liveStatus: { enabled: true, roomId: '1', connected: true },
+  } }) });
+  const images = allNodes(element('danmakuFeed')).filter((node) => node.src);
+  assert.deepEqual(images.map((node) => node.src),
+    [`/api/bilibili/avatar?url=${encodeURIComponent(emoteUrl)}&token=synthetic%20token%261`]);
 });
 
 test('fixed danmaku overlay derives its label from Bilibili live status', async () => {

@@ -51,6 +51,7 @@ export class SongVirtualScroller {
     this.running = false;
     this.frameId = null;
     this.lastFrameTime = null;
+    this.scrollRemainder = 0;
     this.tick = this.tick.bind(this);
   }
 
@@ -106,7 +107,7 @@ export class SongVirtualScroller {
     this.records = [];
     this.isScrollable = false;
     this.content.replaceChildren();
-    this.viewport.scrollTop = 0;
+    this.setScrollPosition(0);
   }
 
   tick(timestamp) {
@@ -124,14 +125,21 @@ export class SongVirtualScroller {
 
   advanceBy(distance) {
     if (!this.isScrollable || !(distance > 0)) return;
-    this.viewport.scrollTop += distance;
+    this.setScrollPosition(this.viewport.scrollTop + this.scrollRemainder + distance);
     this.recycleTopRecords();
     this.fillAfterBuffer();
   }
 
+  setScrollPosition(position) {
+    this.viewport.scrollTop = position;
+    // Chromium rounds scrollTop; carry that fraction into the next frame so
+    // low speeds keep moving and the rate does not depend on refresh frequency.
+    this.scrollRemainder = position - this.viewport.scrollTop;
+  }
+
   renderWindow(anchor) {
     this.content.replaceChildren();
-    this.viewport.scrollTop = 0;
+    this.setScrollPosition(0);
     this.isScrollable = false;
     if (this.records.length === 0) return;
 
@@ -162,7 +170,7 @@ export class SongVirtualScroller {
 
     const targetScrollTop = Math.max(0, beforeHeight + Number(anchor?.offset ?? 0));
     this.fillAfterBuffer(targetScrollTop);
-    this.viewport.scrollTop = targetScrollTop;
+    this.setScrollPosition(targetScrollTop);
     this.isScrollable = true;
   }
 
@@ -204,7 +212,7 @@ export class SongVirtualScroller {
       const removedHeight = Math.max(1, this.recordTop(next) - this.recordTop(first));
       const lastIndex = Number(this.content.lastElementChild?.dataset?.recordIndex) || 0;
       first.remove();
-      this.viewport.scrollTop = Math.max(0, this.viewport.scrollTop - removedHeight);
+      this.setScrollPosition(Math.max(0, this.viewport.scrollTop + this.scrollRemainder - removedHeight));
       this.content.append(this.createRecordNode(wrapIndex(lastIndex + 1, this.records.length)));
     }
   }

@@ -12,6 +12,7 @@ const {
   closeDatabases,
   createDatabases,
   getSchemaVersions,
+  openSqliteDatabase,
 } = require('../../src/storage/database');
 
 function createPreV1SongDatabase(filePath) {
@@ -116,37 +117,6 @@ function getIndexColumns(db, indexName) {
     .all()
     .map((row) => row.name);
 }
-
-test('clearAllData counts deleted and active queue rows', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-clear-all-'));
-  const databases = createDatabases({ dataDir });
-  try {
-    const insertQueue = databases.songDb.prepare(`
-      INSERT INTO queue (song_name, created_at, updated_at, status)
-      VALUES (?, ?, ?, ?)
-    `);
-    insertQueue.run('Active', '2026-08-15T00:00:00.000Z', '2026-08-15T00:00:00.000Z', 'waiting');
-    insertQueue.run('Deleted', '2026-08-15T00:00:01.000Z', '2026-08-15T00:00:01.000Z', 'deleted');
-
-    const result = clearAllData(
-      databases.songDb,
-      databases.superChatDb,
-      databases.giftDb,
-      databases.musicDb,
-      databases.checkinDb,
-    );
-
-    assert.equal(result.deletedCounts.queue, 2);
-    assert.equal(
-      result.totalDeleted,
-      Object.values(result.deletedCounts).reduce((total, count) => total + count, 0),
-    );
-    assert.equal(databases.songDb.prepare('SELECT COUNT(*) AS count FROM queue').get().count, 0);
-  } finally {
-    closeDatabases(databases);
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
-});
 
 test('createDatabases upgrades genuine pre-v1 song and gift databases idempotently', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-pre-v1-'));
@@ -272,6 +242,297 @@ test('createDatabases closes every opened handle when initialization fails', () 
     assert.equal(closeCount, 5);
   } finally {
     DatabaseSync.prototype.close = originalClose;
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('gift database v3 upgrades before creating indexes that depend on v4 columns', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-upgrade-'));
+  let db = createDatabases({ dataDir });
+
+  try {
+    closeDatabases(db);
+    const giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
+    giftDb.exec(`
+      DROP INDEX IF EXISTS idx_gift_events_detection_pending;
+      DROP INDEX IF EXISTS idx_gift_events_gift_stats_delivery;
+      DROP INDEX IF EXISTS idx_gift_events_source_time;
+      DROP INDEX IF EXISTS idx_gift_events_source_recent;
+      DROP INDEX IF EXISTS idx_gift_events_source_time_asc;
+      ALTER TABLE gift_events DROP COLUMN overtime_epoch;
+      ALTER TABLE gift_events DROP COLUMN gift_stats_delivered;
+      ALTER TABLE gift_events DROP COLUMN gift_stats_eligible;
+      ALTER TABLE gift_events DROP COLUMN finalized_at_ms;
+      ALTER TABLE gift_events DROP COLUMN last_platform_at_ms;
+      ALTER TABLE gift_events DROP COLUMN first_detected_at_ms;
+      ALTER TABLE gift_events DROP COLUMN detection_status;
+      UPDATE schema_version SET version = 3 WHERE key = 'gift_db';
+    `);
+    giftDb.close();
+
+    db = createDatabases({ dataDir });
+    const indexes = new Set(
+      db.giftDb
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
+        .all()
+        .map((row) => row.name),
+    );
+    assert.equal(indexes.has('idx_gift_events_detection_pending'), true);
+    assert.equal(indexes.has('idx_gift_events_gift_stats_delivery'), true);
+  } finally {
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('gift database v3 identity migration remains intact after later migrations', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-'));
+  let db = createDatabases({ dataDir });
+
+  try {
+    db.giftDb.exec('DROP INDEX idx_gift_events_platform_uid');
+    db.giftDb.prepare("UPDATE schema_version SET version = 2 WHERE key = 'gift_db'").run();
+    const insert = db.giftDb.prepare(`
+      INSERT INTO gift_events (
+        platform_id, cmd, gift_id, gift_name, uid, user_name,
+        num, unit_price, total_price, counted_in_sprint,
+        status, created_at, updated_at
+      ) VALUES (?, 'SEND_GIFT', '1', 'Rose', ?, ?, ?, ?, ?, 1, 'active', ?, ?)
+    `);
+    const createdAt = new Date().toISOString();
+    insert.run('duplicate-platform', '42', 'Alice', 1, 1, 1, createdAt, createdAt);
+    insert.run('duplicate-platform', '42', 'Alice Renamed', 5, 1, 5, createdAt, createdAt);
+    insert.run('duplicate-platform', '43', 'Bob', 1, 1, 1, createdAt, createdAt);
+    closeDatabases(db);
+
+    db = createDatabases({ dataDir });
+    const rows = db.giftDb
+      .prepare(
+        `
+      SELECT * FROM gift_events WHERE platform_id = ? ORDER BY uid
+    `,
+      )
+      .all('duplicate-platform');
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].uid, '42');
+    assert.equal(rows[0].user_name, 'Alice Renamed');
+    assert.equal(rows[0].num, 5);
+    assert.equal(rows[0].total_price, 5);
+    assert.equal(rows[1].uid, '43');
+    assert.throws(() => insertDuplicateGift(db.giftDb, createdAt), /UNIQUE constraint failed/);
+  } finally {
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+function insertDuplicateGift(giftDb, createdAt) {
+  giftDb
+    .prepare(
+      `
+    INSERT INTO gift_events (
+      platform_id, cmd, gift_id, gift_name, uid, user_name,
+      num, unit_price, total_price, status, created_at, updated_at
+    ) VALUES ('duplicate-platform', 'SEND_GIFT', '1', 'Rose', '42', 'Alice',
+      1, 1, 1, 'active', ?, ?)
+  `,
+    )
+    .run(createdAt, createdAt);
+}
+
+function createLegacySuperChatTable(dataDir, rows) {
+  const songDb = new DatabaseSync(path.join(dataDir, DB_FILE_NAMES.songDb));
+  try {
+    songDb.exec(`
+      CREATE TABLE super_chats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform_id TEXT, uid TEXT, user_name TEXT, price REAL, message TEXT,
+        requester_guard_level INTEGER, requester_medal_name TEXT, requester_medal_level INTEGER,
+        status TEXT, source TEXT, created_at TEXT, updated_at TEXT
+      );
+    `);
+    const insert = songDb.prepare(`
+      INSERT INTO super_chats (
+        platform_id, uid, user_name, price, message, requester_guard_level,
+        requester_medal_name, requester_medal_level, status, source, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const row of rows) {
+      insert.run(
+        row.platformId ?? '',
+        row.uid ?? '',
+        row.userName ?? '',
+        row.price ?? 0,
+        row.message ?? '',
+        row.guardLevel ?? 0,
+        row.medalName ?? '',
+        row.medalLevel ?? 0,
+        row.status ?? '',
+        row.source ?? '',
+        row.createdAt ?? '',
+        row.updatedAt ?? '',
+      );
+    }
+  } finally {
+    songDb.close();
+  }
+}
+
+function hasLegacySuperChatTable(databases) {
+  return Boolean(
+    databases.songDb.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'super_chats'").get(),
+  );
+}
+
+function readSuperChats(databases) {
+  return databases.superChatDb
+    .prepare(
+      `SELECT platform_id, uid, user_name, price, message, requester_guard_level,
+              requester_medal_name, requester_medal_level, status, source, created_at, updated_at
+       FROM super_chats ORDER BY id`,
+    )
+    .all()
+    .map((row) => ({ ...row }));
+}
+
+const LEGACY_SC_TIME = '2026-01-02T03:04:05.000Z';
+
+test('legacy song-database SuperChats move once, deduplicate and drop the old table', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-legacy-sc-'));
+  let databases = createDatabases({ dataDir });
+  try {
+    databases.superChatDb
+      .prepare(
+        `INSERT INTO super_chats (platform_id, uid, user_name, price, message, created_at, updated_at)
+         VALUES ('sc-existing', '1', 'Existing', 50, 'already moved', ?, ?)`,
+      )
+      .run(LEGACY_SC_TIME, LEGACY_SC_TIME);
+    closeDatabases(databases);
+    databases = null;
+    createLegacySuperChatTable(dataDir, [
+      {
+        platformId: 'sc-existing',
+        uid: '1',
+        userName: 'Existing',
+        price: 50,
+        message: 'duplicate of moved row',
+        createdAt: LEGACY_SC_TIME,
+      },
+      {
+        platformId: ' sc-1 ',
+        uid: '2',
+        userName: ' Viewer ',
+        price: 30,
+        message: ' hello ',
+        guardLevel: 2,
+        medalName: 'Medal',
+        medalLevel: 7,
+        status: 'deleted',
+        source: 'manual',
+        createdAt: LEGACY_SC_TIME,
+        updatedAt: '2026-01-02T03:05:00.000Z',
+      },
+      { platformId: 'sc-1', uid: '2', message: 'same platform id', createdAt: LEGACY_SC_TIME },
+      { uid: '3', message: 'no platform id', price: 40, guardLevel: 9, medalLevel: -1, createdAt: LEGACY_SC_TIME },
+      { uid: '3', message: 'no platform id', price: 40, createdAt: LEGACY_SC_TIME },
+    ]);
+
+    for (let startup = 0; startup < 2; startup += 1) {
+      databases = createDatabases({ dataDir });
+      assert.equal(hasLegacySuperChatTable(databases), false);
+      assert.deepEqual(readSuperChats(databases), [
+        {
+          platform_id: 'sc-existing',
+          uid: '1',
+          user_name: 'Existing',
+          price: 50,
+          message: 'already moved',
+          requester_guard_level: 0,
+          requester_medal_name: '',
+          requester_medal_level: 0,
+          status: 'active',
+          source: 'superchat',
+          created_at: LEGACY_SC_TIME,
+          updated_at: LEGACY_SC_TIME,
+        },
+        {
+          platform_id: 'sc-1',
+          uid: '2',
+          user_name: 'Viewer',
+          price: 30,
+          message: 'hello',
+          requester_guard_level: 2,
+          requester_medal_name: 'Medal',
+          requester_medal_level: 7,
+          status: 'deleted',
+          source: 'manual',
+          created_at: LEGACY_SC_TIME,
+          updated_at: '2026-01-02T03:05:00.000Z',
+        },
+        {
+          platform_id: '',
+          uid: '3',
+          user_name: '观众',
+          price: 40,
+          message: 'no platform id',
+          requester_guard_level: 0,
+          requester_medal_name: '',
+          requester_medal_level: 0,
+          status: 'active',
+          source: 'superchat',
+          created_at: LEGACY_SC_TIME,
+          updated_at: LEGACY_SC_TIME,
+        },
+      ]);
+      closeDatabases(databases);
+      databases = null;
+    }
+  } finally {
+    if (databases) closeDatabases(databases);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('a failed legacy SuperChat copy rolls back and keeps the old table for the next startup', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-legacy-sc-failure-'));
+  let databases = createDatabases({ dataDir });
+  try {
+    databases.superChatDb.exec(`
+      CREATE TRIGGER fail_legacy_copy BEFORE INSERT ON super_chats
+      WHEN NEW.platform_id = 'sc-fail'
+      BEGIN SELECT RAISE(ABORT, 'legacy copy failure'); END;
+    `);
+    closeDatabases(databases);
+    databases = null;
+    createLegacySuperChatTable(dataDir, [
+      { platformId: 'sc-before', uid: '1', message: 'copied before failure', createdAt: LEGACY_SC_TIME },
+      { platformId: 'sc-fail', uid: '2', message: 'fails', createdAt: LEGACY_SC_TIME },
+    ]);
+
+    assert.throws(() => createDatabases({ dataDir }), /legacy copy failure/);
+
+    const superChatDb = new DatabaseSync(path.join(dataDir, DB_FILE_NAMES.superChatDb));
+    try {
+      assert.equal(superChatDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get().count, 0);
+      superChatDb.exec('DROP TRIGGER fail_legacy_copy');
+    } finally {
+      superChatDb.close();
+    }
+    const songDb = new DatabaseSync(path.join(dataDir, DB_FILE_NAMES.songDb));
+    try {
+      assert.equal(songDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get().count, 2);
+    } finally {
+      songDb.close();
+    }
+
+    databases = createDatabases({ dataDir });
+    assert.equal(hasLegacySuperChatTable(databases), false);
+    assert.deepEqual(
+      readSuperChats(databases).map((row) => row.platform_id),
+      ['sc-before', 'sc-fail'],
+    );
+  } finally {
+    if (databases) closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });

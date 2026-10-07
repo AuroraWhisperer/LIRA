@@ -22,6 +22,7 @@ import * as Utils from '../shared/utils.js';
 import * as Theme from '../shared/theme.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
 import { enhanceSelects } from '../shared/select-menu.js';
+import { enhanceColorControls } from '../shared/color-control.js';
 import { getLegacyAdminModules, publishNavigation } from './legacy-admin-bridge.js';
 import { initUsageGuide } from './usage-guide.js';
 import { createToolboxLifecycle } from './toolbox-lifecycle.js';
@@ -80,6 +81,7 @@ async function initializeApp() {
   initClientAppearance();
 
   enhanceSelects();
+  enhanceColorControls();
 
   initParameterRanges();
 

@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { FakeNode } = require('../helpers/fake-dom');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
@@ -84,19 +86,6 @@ test('games admin uses one base URL and never opens a game-specific URL', () => 
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
   assert.doesNotMatch(script, /data-copy-game|overlayUrl\(game\)/);
   assert.match(script, /byId\('gamesOverlayUrl'\)\.addEventListener\('click', \(\) => copyUrl\(overlayBaseUrl\(\)\)/);
-  assert.match(script, /button\.disabled = Boolean\(session\)/);
-  assert.match(script, /card\.classList\.toggle\(\s*["']is-running["']/);
-  assert.match(script, /api\/games\/host-state/);
-  assert.match(script, /draw-guess/);
-  assert.match(script, /totalRounds: Number\(byId\(["']drawTotalRounds["']\)\.value\)/);
-  assert.match(script, /roundDurationSeconds: Number\(byId\(["']drawRoundDuration["']\)\.value\)/);
-  assert.match(script, /api\/games\/draw-guess\/categories/);
-  assert.match(script, /function renderDrawCategories\(/);
-  assert.match(script, /createElement\(["']input["']\)/);
-  assert.match(script, /textContent/);
-  assert.match(script, /finish-round/);
-  assert.match(script, /next-round/);
-  assert.match(script, /toggleDrawDetails/);
 });
 
 test('games word library styles expose selected and keyboard focus states', () => {
@@ -106,24 +95,180 @@ test('games word library styles expose selected and keyboard focus states', () =
   assert.match(styles, /\.draw-word-category input:focus-visible/);
 });
 
-test('games viewer refresh waits for the live connection and retries an empty startup snapshot', () => {
-  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
+test('wheel admin applies entry, label and weight limits from server state', async () => {
+  const nodes = new Map();
+  const node = (id) => {
+    if (!nodes.has(id)) nodes.set(id, Object.assign(new FakeNode('div'), { classList: { toggle() {} } }));
+    return nodes.get(id);
+  };
+  const limits = { minEntries: 2, maxEntries: 3, minWeight: 1, maxWeight: 7, maxLabelLength: 9 };
+  const wheel = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games-wheel.js'), {
+    document: {
+      getElementById: node,
+      querySelector: () => node('wheelCard'),
+      createElement: (tag) => new FakeNode(tag),
+    },
+    window: { addEventListener() {} },
+    location: { protocol: 'http:', host: '127.0.0.1:3000', origin: 'http://127.0.0.1:3000' },
+    fetch: async (url) => {
+      assert.equal(url, '/api/wheel');
+      const body = {
+        ok: true,
+        data: { entries: [{ label: '唱歌', weight: 2 }], totalWeight: 2, spin: null, lastResult: null, limits },
+      };
+      return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+    },
+  });
+  wheel.renderWheelState({ entries: [], totalWeight: 0, spin: null, lastResult: null }, { syncEntries: true });
+  assert.equal(node('wheelEntries').children.length, 0, 'no editor rows before the server reports limits');
+  assert.equal(node('wheelAddEntryBtn').disabled, true);
+  assert.equal(node('wheelSpinBtn').disabled, true);
 
-  assert.match(script, /import \{ eventBus, Events \} from ["']\.\.\/shared\/event-bus\.js["'];/);
-  assert.match(script, /function requestViewerRefresh\(options = \{\}\)/);
-  assert.match(script, /eventBus\.on\(Events\.STATE_LOADED, \(\{ state \}\) =>/);
-  assert.match(script, /liveStatus\.connected === true/);
-  assert.match(script, /requestViewerRefresh\(\{ notify: false \}\)/);
-  assert.match(script, /requestViewerRefresh\(\{ notify: true \}\)/);
-  assert.match(script, /fetch\(["']\/api\/games\/viewers["']\)/);
+  await wheel.initWheelAdmin();
+  const rows = () => node('wheelEntries').children;
+  const input = (row, className) => row.querySelector(`.${className}`);
+  assert.equal(rows().length, 1);
+  assert.equal(input(rows()[0], 'wheel-label-input').maxLength, 9);
+  assert.equal(input(rows()[0], 'wheel-weight-input').min, '1');
+  assert.equal(input(rows()[0], 'wheel-weight-input').max, '7');
+  assert.equal(node('wheelSpinBtn').disabled, true, 'spinning needs the minimum entry count');
+  for (const expected of [2, 3, 3]) {
+    node('wheelAddEntryBtn').listeners.click();
+    assert.equal(rows().length, expected, 'adding stops at the server maximum');
+  }
+  assert.ok(rows().every((row) => input(row, 'wheel-remove-entry').disabled === false));
+  assert.equal(input(rows()[2], 'wheel-weight-input').value, '1', 'new entries start at the minimum weight');
+
+  wheel.renderWheelState(
+    {
+      entries: [
+        { label: 'a', weight: 1 },
+        { label: 'b', weight: 1 },
+      ],
+      totalWeight: 2,
+      spin: null,
+      lastResult: null,
+      limits: { ...limits, maxEntries: 2, maxWeight: 3 },
+    },
+    { syncEntries: true },
+  );
+  assert.equal(node('wheelAddEntryBtn').disabled, true);
+  assert.equal(node('wheelSpinBtn').disabled, false);
+  assert.equal(input(rows()[0], 'wheel-weight-input').max, '3');
+  assert.ok(
+    rows().every((row) => input(row, 'wheel-remove-entry').disabled),
+    'the minimum entry count cannot be removed',
+  );
 });
 
-test('wheel admin consumes limits from server state', () => {
-  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games-wheel.js'), 'utf8');
+test('games admin retries an empty viewer list with backoff and fills both viewer pickers once', async () => {
+  const nodes = new Map();
+  // Elements are created on first lookup; parents stop after one level so ancestor walks terminate.
+  class PageNode extends FakeNode {
+    constructor(tag, id = '') {
+      super(tag);
+      Object.assign(this, { id, value: '', hidden: false, disabled: false, checked: false });
+      this.classList = { toggle() {}, add() {}, remove() {}, contains: () => false };
+    }
+    get options() {
+      return this.children;
+    }
+    get parentElement() {
+      return this.id.endsWith(':parent') ? null : node(`${this.id}:parent`);
+    }
+    closest() {
+      return null;
+    }
+    querySelector(selector) {
+      return node(`${this.id} ${selector}`);
+    }
+    querySelectorAll() {
+      return [];
+    }
+    getBoundingClientRect() {
+      return { top: 0, left: 0, width: 0, height: 0 };
+    }
+    focus() {}
+    after() {}
+    prepend(child) {
+      this.children.unshift(child);
+    }
+  }
+  function node(id) {
+    if (!nodes.has(id)) nodes.set(id, new PageNode('div', id));
+    return nodes.get(id);
+  }
+  const viewerBodies = [];
+  let viewerRequests = 0;
+  const timers = [];
+  const fetch = async (url) => {
+    if (url === '/api/games/viewers') viewerRequests += 1;
+    const body =
+      url === '/api/games/viewers'
+        ? viewerBodies.shift()
+        : url.startsWith('/api/interactions/')
+          ? { ok: true, data: { runtimeId: 'runtime', revision: 0, session: null } }
+          : { ok: true, data: null };
+    return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+  };
+  const location = { origin: 'http://127.0.0.1:3000', protocol: 'http:', host: '127.0.0.1:3000', search: '' };
+  const games = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), {
+    document: {
+      hidden: false,
+      getElementById: node,
+      querySelector: (selector) => node(selector),
+      querySelectorAll: () => [],
+      createElement: (tag) => new PageNode(tag),
+      addEventListener() {},
+    },
+    window: { addEventListener() {}, removeEventListener() {}, open() {}, location },
+    location,
+    fetch,
+    MutationObserver: class {
+      observe() {}
+      disconnect() {}
+    },
+    setTimeout: (callback, delay) => timers.push({ callback, delay }),
+    clearTimeout() {},
+    setInterval: () => 1,
+    clearInterval() {},
+  });
+  const settle = async () => {
+    for (let index = 0; index < 30; index += 1) await new Promise(setImmediate);
+  };
+  const runRetry = async (delay) => {
+    const timer = timers.findLast((item) => item.delay === delay);
+    assert.ok(timer, `a ${delay} ms retry is scheduled`);
+    timers.splice(timers.indexOf(timer), 1);
+    timer.callback();
+    await settle();
+  };
+  const pickerTexts = (id) => node(id).children.map((option) => option.textContent);
 
-  assert.match(script, /if \(state\?\.limits\) wheelLimits = state\.limits/);
-  assert.match(script, /labelInput\.maxLength = wheelLimits\.maxLabelLength/);
-  assert.match(script, /weightInput\.max = String\(wheelLimits\.maxWeight\)/);
-  assert.match(script, /rows\.length >= wheelLimits\.maxEntries/);
-  assert.doesNotMatch(script, /maxLength = 40|weightInput\.max = ["']100["']|rows\.length >= 12/);
+  viewerBodies.push({ ok: true, data: [] }, { ok: true, data: [] }, { ok: true, data: [{ uid: '7', name: '观众' }] });
+  games.initGames();
+  await settle();
+  assert.equal(viewerRequests, 1);
+  assert.deepEqual(pickerTexts('numberBombViewer'), [], 'an empty first answer is not rendered while retrying');
+  await runRetry(250);
+  assert.equal(viewerRequests, 2);
+  node('gamesRefreshViewersBtn').listeners.click();
+  await settle();
+  assert.equal(viewerRequests, 2, 'a manual refresh joins the retry already in flight');
+  const pendingTimers = timers.length;
+  await runRetry(500);
+  assert.equal(viewerRequests, 3);
+  for (const id of ['numberBombViewer', 'gomokuViewer']) {
+    assert.deepEqual(pickerTexts(id), ['请选择观众', '观众']);
+    assert.equal(node(id).children[1].value, '7');
+  }
+  assert.equal(timers.length, pendingTimers - 1, 'a non-empty answer schedules no further retry');
+
+  viewerBodies.push(...Array.from({ length: 5 }, () => ({ ok: true, data: [] })));
+  node('gamesRefreshViewersBtn').listeners.click();
+  await settle();
+  for (const delay of [250, 500, 1000, 2000]) await runRetry(delay);
+  assert.equal(viewerRequests, 8, 'an empty room stops after the last backoff step');
+  assert.equal(viewerBodies.length, 0);
+  assert.deepEqual(pickerTexts('gomokuViewer'), ['暂无当前在线观众']);
 });

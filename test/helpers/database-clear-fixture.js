@@ -89,6 +89,15 @@ function seedSongBusinessData(songDb, timestamp) {
   `,
     )
     .run(timestamp, timestamp);
+  // Soft-deleted queue rows are still physical rows and must be counted.
+  songDb
+    .prepare(
+      `
+    INSERT INTO queue (song_name, artist, requester_name, source, status, created_at, updated_at)
+    VALUES ('已删除歌曲', '测试歌手', '观众', 'danmaku', 'deleted', ?, ?)
+  `,
+    )
+    .run(timestamp, timestamp);
 
   songDb
     .prepare(
@@ -363,7 +372,7 @@ function assertDeletedCounts(result) {
   // Assert deleted counts returned
   assert.strictEqual(result.deletedCounts.songs, 1);
   assert.strictEqual(result.deletedCounts.categories, 1);
-  assert.strictEqual(result.deletedCounts.queue, 1);
+  assert.strictEqual(result.deletedCounts.queue, 2);
   assert.strictEqual(result.deletedCounts.requests, 1);
   assert.strictEqual(result.deletedCounts.importBatches, 1);
   assert.strictEqual(result.deletedCounts.userCooldowns, 1);
@@ -378,7 +387,10 @@ function assertDeletedCounts(result) {
   assert.strictEqual(result.deletedCounts.playHistory, 1);
   assert.strictEqual(result.deletedCounts.playQueueState, 1);
   assert.strictEqual(result.deletedCounts.checkins, 1);
-  assert(result.totalDeleted >= 17);
+  assert.strictEqual(
+    result.totalDeleted,
+    Object.values(result.deletedCounts).reduce((total, count) => total + count, 0),
+  );
 
   // Assert recreated list
   assert(Array.isArray(result.recreated));

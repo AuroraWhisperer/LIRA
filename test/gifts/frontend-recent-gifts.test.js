@@ -84,7 +84,7 @@ test('recent gift cards render escaped metadata and retain blind-box timestamps 
     assert.ok(list.innerHTML.includes('&lt;观众&gt;'));
     assert.ok(list.innerHTML.includes('计入 ¥20.00'));
     assert.ok(list.innerHTML.includes('12:34:56'));
-    if (isBlindBox) assert.ok(list.innerHTML.includes('-¥3.00'));
+    if (isBlindBox) assert.match(list.innerHTML, /class="profit-down">-¥3\.00</);
   }
 });
 
@@ -101,16 +101,11 @@ test('recent guard gift cards preserve the three guard levels', async () => {
   }
 });
 
-test('recent blind box cards consume shared theme colors and preserve profit colors', () => {
-  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
+test('recent blind box profit classes use the shared gain and loss color tokens', () => {
+  // Rendered profit classes are asserted by the escaped-metadata test above and
+  // frontend-recent-gifts-contract; this keeps their colors on the shared semantic tokens.
   const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
 
-  assert.match(
-    script,
-    /profitClass\s*=\s*blindProfit\s*>\s*0\s*\?\s*['"]profit-up['"]\s*:\s*blindProfit\s*<\s*0\s*\?\s*['"]profit-down['"]\s*:\s*['"]profit-neutral['"]/,
-  );
-  assert.match(script, /className: type\?\.className \|\| 'blind-box-default'/);
-  assert.doesNotMatch(script, /\/img\/bilibili-gifts/);
   // Gain is green and loss is red, the same rule the overlays and the analysis workspace use.
   assert.match(styles, /\.gift-card\.blind-box-card \.profit-up\s*\{[^}]*color:\s*var\(--color-profit\)/);
   assert.match(styles, /\.gift-card\.blind-box-card \.profit-down\s*\{[^}]*color:\s*var\(--color-loss\)/);
@@ -316,7 +311,6 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
 });
 
 test('recent gift totals worth at least 1000 RMB use gold while unit-value artwork comes from the catalog', async () => {
-  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
   const list = {
     classList: { toggle() {} },
     querySelectorAll: () => [],
@@ -378,5 +372,56 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
   assert.equal((list.innerHTML.match(/high-value-gift-card/g) || []).length, 2);
   assert.equal((list.innerHTML.match(/gift-high-value-icon/g) || []).length, 1);
   assert.equal((list.innerHTML.match(/\/overtime-gift-images\/35792\.webp/g) || []).length, 1);
-  assert.doesNotMatch(script, /HIGH_VALUE_GIFT_ARTWORK/);
+});
+
+test('recent blind-box icon names stay escaped at the HTML attribute boundary', async () => {
+  const { escapeHtml } = await loadModuleExports(path.join(__dirname, '../../public/js/shared/utils.js'));
+  const list = {
+    innerHTML: '',
+    classList: { toggle() {} },
+    querySelectorAll: () => [],
+  };
+  const globals = {
+    window: {
+      AdminApp: {
+        utils: { escapeHtml, formatTime: () => '', formatMoney: String },
+      },
+      getComputedStyle: () => ({ gridTemplateColumns: '270px' }),
+    },
+    document: { getElementById: () => list },
+  };
+  await loadModuleExports(path.join(__dirname, '../../public/js/admin/gifts/recent.js'), globals);
+  const recent = globals.window.AdminApp.gifts.recent;
+  const names = [
+    {
+      raw: '自定义" data-audit-probe="name',
+      escaped: '自定义&quot; data-audit-probe=&quot;name',
+    },
+    {
+      raw: '"><span data-audit-probe="node"> & \'</span>',
+      escaped: '&quot;&gt;&lt;span data-audit-probe=&quot;node&quot;&gt; &amp; &#39;&lt;/span&gt;',
+    },
+    {
+      raw: '&quot; & < > \' "',
+      escaped: '&amp;quot; &amp; &lt; &gt; &#39; &quot;',
+    },
+  ];
+
+  for (const field of ['blind_box_name', 'name', 'gift_name']) {
+    for (const { raw, escaped } of names) {
+      const row = { is_blind_box: true, gift_name: '普通礼物', [field]: raw };
+      recent.renderGiftRecentList([row]);
+
+      assert.equal(recent.getBlindBoxIcon(row).name, raw);
+      assert.equal(row[field], raw);
+      assert.ok(
+        list.innerHTML.includes(
+          `<img class="gift-type-icon gift-blind-box-icon" src="/img/gift-placeholder.png" alt="${escaped}图标" title="${escaped}">`,
+        ),
+        `expected an escaped icon for ${field}: ${raw}`,
+      );
+      assert.doesNotMatch(list.innerHTML, /" data-audit-probe="/);
+      assert.doesNotMatch(list.innerHTML, /<span data-audit-probe=/);
+    }
+  }
 });

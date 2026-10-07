@@ -81,16 +81,15 @@ test('hidden preview waits, resumes FIFO, and disposal clears pending work', asy
 
 test('unknown effects and malformed gifts cannot occupy a queue slot', async () => {
   const { queue, plays } = await fixture();
-  for (const patch of [{ eventId: '' }, { themeId: 'unknown' }, { num: 0 }, { totalPriceCents: 0 }, { giftName: null }]) {
+  for (const patch of [{ eventId: '' }, { themeId: 'unknown' }, { themeId: 'satin-ribbon' }, { num: 0 }, { totalPriceCents: 0 }, { giftName: null }]) {
     assert.equal(queue.enqueue({ ...event(1), ...patch }), false);
   }
   assert.equal(plays.length, 0);
   queue.dispose();
 });
 
-test('the removed ribbon theme is rejected and missing themes still default to effect 1', async () => {
+test('missing themes still default to effect 1', async () => {
   const { queue, plays } = await fixture();
-  assert.equal(queue.enqueue({ ...event(1), themeId: 'satin-ribbon' }), false);
   assert.equal(queue.enqueue({ ...event(2), themeId: undefined }), true);
   assert.equal(plays.length, 1);
   assert.equal(plays[0].payload.themeId, undefined);

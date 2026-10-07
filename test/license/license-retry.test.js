@@ -1,11 +1,11 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const crypto = require('node:crypto');
 const test = require('node:test');
 const { createRetryPolicy } = require('../../src/electron/license/retry-policy');
-const { createLicenseManager, LicenseState } = require('../../src/electron/license/license-manager');
+const { LicenseState } = require('../../src/electron/license/license-manager');
 const { RemoteLicenseError } = require('../../src/electron/license/remote-license-client');
+const { createHarness } = require('../helpers/license-manager-harness');
 
 // ---- retry policy unit tests ----
 
@@ -50,7 +50,11 @@ test('retry policy returns null after maxAttempts and reset restarts the sequenc
 
 // ---- license manager integration ----
 
-function createFakeTimers() {
+const NOW = Date.parse('2026-10-07T00:00:00.000Z');
+const HEARTBEAT_DELAY = 150000;
+const MAINTENANCE_DELAY = 510000; // 10m token minus the 90s early-renewal window
+
+function createFakeTimers(clock) {
   const handles = [];
   let nextId = 0;
   return {
@@ -63,7 +67,7 @@ function createFakeTimers() {
       if (handle) handle.cleared = true;
     },
     pending: () => handles.filter((h) => !h.cleared),
-    runPendingWithDelay: (delay) => {
+    runPendingWithDelay: (delay, { advanceClock = false } = {}) => {
       const handle = handles.find((h) => !h.cleared && h.delay === delay);
       assert.ok(
         handle,
@@ -75,117 +79,44 @@ function createFakeTimers() {
         }`,
       );
       handle.cleared = true;
+      if (advanceClock) clock.now += delay;
       handle.fn();
     },
     delays: () => handles.filter((h) => !h.cleared).map((h) => h.delay),
   };
 }
 
-function createManagerHarness({ verifyExpiresIn = () => '10m', randomSource = () => 0.5 } = {}) {
-  const identity = { deviceId: 'd', publicKeyPem: 'public' };
-  const state = { value: identity };
-  const calls = { challenges: 0, verifies: 0 };
-  const generated = crypto.generateKeyPairSync('ec', {
-    namedCurve: 'prime256v1',
-    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-    publicKeyEncoding: { type: 'spki', format: 'pem' },
-  });
-  const keyPair = {
-    privateKeyPem: generated.privateKey,
-    publicKeyPem: generated.publicKey,
-    keyProtection: 'dpapi',
-  };
-  const stateStore = {
-    read: () => state.value,
-    write: (value) => (state.value = value),
-  };
-  const keyStore = {
-    loadPrivateKey: () => keyPair.privateKeyPem,
-    prepareActivation: () => ({ keyPair, stage() {}, commit() {}, complete() {} }),
-  };
-  const fingerprintProvider = {
-    collect: async () => ({
-      version: 1,
-      machineGuidHash: 'a'.repeat(64),
-      smbiosUuidHash: 'b'.repeat(64),
-    }),
-  };
-  const remoteControl = { challengeError: null };
-  const remote = {
-    challenge: async () => {
-      calls.challenges += 1;
-      if (remoteControl.challengeError) throw remoteControl.challengeError;
-      return { challengeId: `c${calls.challenges}`, nonce: 'n' };
-    },
-    verify: async () => {
-      calls.verifies += 1;
-      return {
-        accessToken: `token-${calls.verifies}`,
-        sessionId: 'session-1',
-        expiresIn: verifyExpiresIn(calls.verifies),
-        deviceId: 'd',
-        licenseId: 'l',
-        streamer: { accountName: 'mlbb', subdomain: 'mlbb' },
-      };
-    },
-    heartbeat: async () => ({ ok: true }),
-    profile: async () => ({ streamer: { accountName: 'mlbb' } }),
-    syncSongs: async (songs, token) => ({
-      ok: true,
-      count: songs.length,
-      token,
-    }),
-    getSongPageBackground: async () => ({ ok: true, background: null }),
-    uploadSongPageBackground: async () => ({ ok: true, background: null }),
-    deleteSongPageBackground: async () => ({ ok: true, background: null }),
-  };
-  const timers = createFakeTimers();
-  const manager = createLicenseManager({
-    stateStore,
-    keyStore,
-    fingerprintProvider,
-    remoteClient: remote,
-    buildInfoProvider: () => ({
-      appVersion: '4.0.0',
-      buildId: 'dev',
-      integrityStatus: 'unverified',
-    }),
-    randomSource,
+function createRetryHarness(t, options = {}) {
+  const clock = { now: NOW };
+  t.mock.method(Date, 'now', () => clock.now);
+  const timers = createFakeTimers(clock);
+  const harness = createHarness({
+    identity: { deviceId: 'd', publicKeyPem: 'public' },
+    randomSource: () => 0.5,
     timers,
+    ...options,
   });
-  return { manager, calls, remoteControl, timers };
+  t.after(() => harness.manager.dispose());
+  return { ...harness, timers };
 }
 
 async function flushMicrotasks(rounds = 20) {
   for (let i = 0; i < rounds; i += 1) await new Promise((resolve) => setImmediate(resolve));
 }
 
-// The maintenance renewal delay derives from two Date.now() calls, so it can
-// be a few ms below the nominal 510s under parallel test load. Locate it as
-// "the pending timer that is not the 150s heartbeat" instead of exact match.
-const HEARTBEAT_DELAY = 150000;
+const retryableTimeout = () => new RemoteLicenseError('REQUEST_TIMEOUT', 'timeout', { retryable: true });
 
-function renewalDelayOf(timers) {
-  const delays = timers.delays().filter((d) => d !== HEARTBEAT_DELAY);
-  assert.equal(delays.length, 1, `expected exactly one renewal timer, got ${delays.join(',')}`);
-  return delays[0];
-}
-
-test('renewal failure schedules bounded exponential retries and exhausts into needs_connection', async () => {
-  const { manager, calls, remoteControl, timers } = createManagerHarness();
+test('renewal failure schedules bounded exponential retries and exhausts into needs_connection', async (t) => {
+  const { manager, calls, control, timers } = createRetryHarness(t);
   await manager.bootstrap();
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
-  const maintenanceDelay = renewalDelayOf(timers);
-  assert.ok(
-    maintenanceDelay > 500000 && maintenanceDelay <= 510000,
-    `maintenance renewal should be ~510s, got ${maintenanceDelay}`,
-  );
+  assert.deepEqual(timers.delays().sort((a, b) => a - b), [HEARTBEAT_DELAY, MAINTENANCE_DELAY]);
 
-  remoteControl.challengeError = new RemoteLicenseError('REQUEST_TIMEOUT', 'timeout', { retryable: true });
-
-  const expectedDelays = [5000, 10000, 20000, 40000, 60000, 60000, 60000, 60000, 60000, 60000];
-  let timerDelay = maintenanceDelay;
-  for (const expected of expectedDelays) {
+  const bootstrapChallenges = calls.challenges;
+  control.challengeError = retryableTimeout();
+  const retryDelays = [5000, 10000, 20000, 40000, 60000, 60000, 60000, 60000, 60000, 60000];
+  let timerDelay = MAINTENANCE_DELAY;
+  for (const expected of retryDelays) {
     timers.runPendingWithDelay(timerDelay);
     await flushMicrotasks();
     assert.equal(
@@ -193,6 +124,7 @@ test('renewal failure schedules bounded exponential retries and exhausts into ne
       LicenseState.AUTHORIZED,
       'token still valid: state must stay authorized while retrying',
     );
+    assert.deepEqual(timers.delays().filter((delay) => delay !== HEARTBEAT_DELAY), [expected]);
     timerDelay = expected;
   }
 
@@ -201,50 +133,42 @@ test('renewal failure schedules bounded exponential retries and exhausts into ne
   await flushMicrotasks();
   assert.equal(manager.getState(), LicenseState.NEEDS_CONNECTION);
   assert.equal(timers.pending().length, 0, 'no further retry timers may be scheduled');
-  assert.ok(calls.challenges >= 11, `expected at least 11 challenge attempts, got ${calls.challenges}`);
-  manager.dispose();
+  // One maintenance renewal plus every scheduled retry; nothing after exhaustion.
+  assert.equal(calls.challenges - bootstrapChallenges, 1 + retryDelays.length);
 });
 
-test('renewal retry delay is clamped by the remaining token lifetime', async () => {
-  const { manager, remoteControl, timers } = createManagerHarness({
-    verifyExpiresIn: () => '3s',
-  });
+test('renewal retry delay is clamped by the remaining token lifetime', async (t) => {
+  const { manager, control, timers } = createRetryHarness(t, { verifyExpiresIn: () => '3s' });
   await manager.bootstrap();
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
-
-  remoteControl.challengeError = new RemoteLicenseError('REQUEST_TIMEOUT', 'timeout', { retryable: true });
-  timers.runPendingWithDelay(renewalDelayOf(timers));
+  // A 3s token renews at half its lifetime; the 5s backoff would outlive the remaining 1.5s.
+  control.challengeError = retryableTimeout();
+  timers.runPendingWithDelay(1500, { advanceClock: true });
   await flushMicrotasks();
-
-  const retryDelays = timers.delays().filter((d) => d !== 150000);
-  assert.equal(retryDelays.length, 1);
-  assert.ok(retryDelays[0] <= 3000, `retry delay ${retryDelays[0]} must not outlive the token`);
-  assert.ok(retryDelays[0] >= 1000, `retry delay ${retryDelays[0]} must stay above the 1s floor`);
-  manager.dispose();
+  assert.deepEqual(timers.delays().filter((delay) => delay !== HEARTBEAT_DELAY), [1500]);
 });
 
-test('successful renewal resets the backoff sequence', async () => {
-  const { manager, remoteControl, timers } = createManagerHarness();
+test('successful renewal resets the backoff sequence', async (t) => {
+  const { manager, control, timers } = createRetryHarness(t);
   await manager.bootstrap();
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
+  const renewalDelays = () => timers.delays().filter((delay) => delay !== HEARTBEAT_DELAY);
 
-  remoteControl.challengeError = new RemoteLicenseError('REQUEST_TIMEOUT', 'timeout', { retryable: true });
-  timers.runPendingWithDelay(renewalDelayOf(timers));
+  control.challengeError = retryableTimeout();
+  timers.runPendingWithDelay(MAINTENANCE_DELAY);
   await flushMicrotasks();
   timers.runPendingWithDelay(5000);
   await flushMicrotasks();
-  assert.ok(timers.delays().includes(10000), 'second retry should use the 10s backoff step');
+  assert.deepEqual(renewalDelays(), [10000]);
 
-  remoteControl.challengeError = null;
+  control.challengeError = null;
   timers.runPendingWithDelay(10000);
   await flushMicrotasks();
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
-  const rescheduled = renewalDelayOf(timers);
-  assert.ok(rescheduled > 500000 && rescheduled <= 510000, 'success should reschedule normal maintenance');
+  assert.deepEqual(renewalDelays(), [MAINTENANCE_DELAY], 'success reschedules normal maintenance');
 
-  remoteControl.challengeError = new RemoteLicenseError('REQUEST_TIMEOUT', 'timeout', { retryable: true });
-  timers.runPendingWithDelay(rescheduled);
+  control.challengeError = retryableTimeout();
+  timers.runPendingWithDelay(MAINTENANCE_DELAY);
   await flushMicrotasks();
-  assert.ok(timers.delays().includes(5000), 'backoff must restart from the base delay after a success');
-  manager.dispose();
+  assert.deepEqual(renewalDelays(), [5000], 'backoff restarts from the base delay after a success');
 });

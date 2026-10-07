@@ -7,17 +7,13 @@ import { createBrowserSourcePreview } from './browser-source-preview.js';
 import { createTextBoxPreview } from './text-box-preview.js';
 import { mountComponentStyleInspector } from './component-style-inspector.js';
 
-export function mountSceneEditorInspector(host, { model, components, getSelection, report, embedded = false, requestStyles }) {
+export function mountSceneEditorInspector(host, { model, components, getSelection, report, requestStyles }) {
   let key = '';
   let panel = null;
   let stylePanel = null;
-  let stopDefault = null;
   let fields = {};
   let target;
-  let mode;
   let parameters;
-  let saveDefault;
-  let defaultState;
   function edit(mutator) {
     try { model.edit(mutator); } catch (error) { report(error.message); render(true); }
   }
@@ -42,30 +38,27 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
   function clear() {
     stylePanel?.dispose(); stylePanel = null;
     panel?.dispose?.();
-    stopDefault?.();
-    panel = stopDefault = null;
+    panel = null;
     fields = {};
     host.replaceChildren();
   }
   function render(force = false) {
-    const selected = model.getDocument().items.filter((item) => getSelection().has(item.id));
+    const selected = model.getSnapshot().items.filter((item) => getSelection().has(item.id));
     const item = selected.length === 1 ? selected[0] : null;
-    const nextKey = item ? `${item.id}:${item.appearance.mode}:${item.locked}:${item.appearance.config?.mediaStyle?.id || item.appearance.config?.resourceStyle?.id || ''}` : `count:${selected.length}`;
+    const nextKey = item ? `${item.id}:${item.type}:${item.appearance.mode}:${item.locked}:${item.appearance.config?.cssStyle?.id || item.appearance.config?.mediaStyle?.id || item.appearance.config?.resourceStyle?.id || ''}` : `count:${selected.length}`;
     if (key !== nextKey) {
       key = nextKey;
       clear();
-      host.append(previewElement('h3', '', item ? (embedded ? `${item.name}参数` : '实例属性') : selected.length ? `已选择 ${selected.length} 个组件` : '选择组件'));
+      host.append(previewElement('h3', '', item ? `${item.name}参数` : '选择组件'));
       if (!item) {
-        host.append(previewElement('p', 'hint', selected.length
-          ? '使用工具栏进行组合移动、对齐或图层操作。锁定的组件不会被移动或修改。'
-          : '点击画布或左侧图层。按住 Shift 点击可多选。'));
+        host.append(previewElement('p', 'hint', '点击画布或图层选择组件。'));
         return;
       }
       const component = components.find((entry) => entry.id === item.type)
         || (item.type === 'browser' ? createBrowserSourcePreview() : item.type === 'text-box' ? createTextBoxPreview() : null);
       const geometry = previewElement('fieldset', 'scene-editor-geometry');
       geometry.disabled = item.locked;
-      geometry.append(field(embedded ? '组件名称' : '实例名称', 'name', 'text'));
+      geometry.append(field('组件名称', 'name', 'text'));
       const grid = previewElement('div', 'component-preview-fields');
       for (const [label, property] of [['X', 'x'], ['Y', 'y'], ['宽度', 'width'], ['高度', 'height']]) {
         grid.append(field(SCENE_COMPONENTS[item.type].contentHeight && !item.appearance.config?.mediaStyle && property === 'height' ? '高度（自动）' : label, property));
@@ -73,57 +66,22 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       fields.height.readOnly = SCENE_COMPONENTS[item.type].contentHeight && !item.appearance.config?.mediaStyle;
       geometry.append(grid);
       target = previewElement('p', 'scene-editor-target');
-      mode = previewElement('button', 'secondary');
-      mode.type = 'button';
-      mode.addEventListener('click', () => {
-        const state = component.controller.getState();
-        if (item.appearance.mode === 'shared' && !state.loaded) { report('请先读取组件默认配置。'); return; }
-        edit((document) => {
-          const current = document.items.find((entry) => entry.id === item.id);
-          if (!current || current.locked) return;
-          current.appearance = current.appearance.mode === 'shared'
-            ? { mode: 'independent', config: component.projectConfig?.(state.draft) || state.draft } : { mode: 'shared' };
-        });
-      });
       parameters = previewElement('fieldset', 'scene-editor-parameters');
       parameters.disabled = item.locked;
       parameters.classList.toggle('has-media-style', Boolean(item.appearance.config?.mediaStyle));
       const controller = item.appearance.mode === 'shared' ? component.controller
         : createSceneItemController(model, item.id, component.controller);
-      host.append(geometry, target, ...(embedded || SCENE_COMPONENTS[item.type].independentOnly ? [] : [mode]), parameters);
+      host.append(geometry, target, parameters);
       stylePanel = mountComponentStyleInspector(parameters, { item, model, component, request: requestStyles, report });
       panel = component.createPanel(parameters, controller);
-      if (item.appearance.mode === 'shared' && !embedded) {
-        saveDefault = previewElement('button', 'secondary', '单独保存组件默认配置');
-        const discardDefault = previewElement('button', 'secondary', '放弃默认配置修改');
-        saveDefault.type = 'button';
-        discardDefault.type = 'button';
-        defaultState = previewElement('p', 'hint');
-        defaultState.setAttribute('role', 'status');
-        host.append(saveDefault, discardDefault, defaultState);
-        stopDefault = controller.subscribe((state) => {
-          saveDefault.disabled = item.locked || !state.loaded || !state.dirty || state.saving || state.loading;
-          discardDefault.disabled = item.locked || state.saving || state.loading
-            || (!state.dirty && !state.conflict && !state.error);
-          defaultState.textContent = state.error || (state.loading ? '默认配置读取中…' : !state.loaded ? '尚未读取默认配置。'
-            : state.saving ? '默认配置保存中…' : state.conflict ? '默认配置存在冲突，请明确保存或放弃修改。' : state.dirty
-            ? '默认配置有未保存修改；保存场景不会保存这些修改。' : '默认配置已保存。');
-        });
-        discardDefault.addEventListener('click', () => controller.discard());
-        saveDefault.addEventListener('click', () => {
-          const invalid = [...parameters.querySelectorAll('input, select, textarea')].find((input) => !input.checkValidity());
-          if (invalid) { invalid.reportValidity(); return; }
-          void controller.save();
-        });
-      }
     }
     if (!item) return;
     stylePanel?.update?.(item, force);
-    if (embedded) host.firstElementChild.textContent = `${item.name}参数`;
+    host.firstElementChild.textContent = `${item.name}参数`;
     for (const [property, input] of Object.entries(fields)) {
       syncComponentFieldValue(input, item[property], force || input.readOnly);
     }
-    const { canvas } = model.getDocument();
+    const { canvas } = model.getSnapshot();
     const bounds = getSceneItemPositionBounds(item, canvas);
     fields.x.min = String(bounds.minX);
     fields.x.max = String(bounds.maxX);
@@ -131,13 +89,11 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     fields.y.max = String(bounds.maxY);
     fields.width.max = String(canvas.width);
     fields.height.max = String(canvas.height);
-    target.textContent = embedded ? (item.appearance.mode === 'shared' ? '样式与尺寸和默认组件共用；保存并应用后，原单组件地址同步更新。' : '独立组件；保存并应用后可复制此组件的单独地址。') : item.appearance.mode === 'shared'
-      ? '编辑目标：当前组件默认配置。更改会影响其他共享此默认配置的入口；场景发布时固定外观。'
-      : '编辑目标：仅此场景实例。更改随场景草稿保存。';
+    target.textContent = item.appearance.mode === 'shared'
+      ? '样式与尺寸和默认组件共用；保存并应用后，原单组件地址同步更新。'
+      : '独立组件；保存并应用后可复制此组件的单独地址。';
     target.hidden = false;
-    mode.textContent = item.appearance.mode === 'shared' ? '复制当前外观为独立配置' : '改用组件默认配置';
-    mode.disabled = item.locked;
   }
-  const unsubscribe = model.subscribe(() => render());
+  const unsubscribe = model.subscribeSnapshot(() => render());
   return { render, dispose() { unsubscribe(); clear(); } };
 }

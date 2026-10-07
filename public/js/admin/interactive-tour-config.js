@@ -30,7 +30,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '欢迎使用 LIRA',
     kicker: '第 0 步 · 认识 LIRA',
     content:
-      '跟着提示连接直播间、添加歌曲，再选择音乐平台。<br><strong>页面会带你找到要操作的位置</strong>，照着提示做即可。',
+      '跟着提示连接直播间、添加歌曲、认识直播画布，再选择音乐平台。<br><strong>页面会带你找到要操作的位置</strong>，照着提示做即可。',
     targetPage: null, // 不切换页面
     targetSelector: null, // 不高亮元素
     position: 'center', // 居中显示
@@ -120,9 +120,22 @@ export const TOUR_CONFIG_STEPS = [
     waitForAction: false,
   },
   {
+    id: 'live-canvas',
+    title: '用画布编排直播画面',
+    kicker: '第 6 步 · 认识画布',
+    content:
+      '点击高亮的<strong class="lira-tour-keyword">「编辑场景」</strong>打开画布，把点歌板、弹幕、时钟等组件放到同一个直播画面中。通过<strong class="lira-tour-keyword">「添加组件」</strong>选择内容，拖动调整位置和大小，并设置样式。完成后点<strong class="lira-tour-keyword">「保存并应用」</strong>，复制直播场景地址，添加到 OBS 或哔哩哔哩直播姬的浏览器源，就能一起显示。',
+    note: '浏览器源宽高与画布分辨率保持一致；以后调整场景可沿用同一地址。现在只需认识入口，也可以直接点「下一步」。',
+    targetPage: 'songAssistantPage',
+    targetTab: '[data-tab="overlayPage"]',
+    targetSelector: '#liveCanvasPreview',
+    position: 'bottom',
+    waitForAction: false,
+  },
+  {
     id: 'music-platform',
     title: '选择平时听歌的平台',
-    kicker: '第 6 步 · 选择音乐',
+    kicker: '第 7 步 · 选择音乐',
     content:
       '现在已打开<strong class="lira-tour-keyword">「播放」</strong>页。先在左上方选择你平时使用的平台：QQ音乐、网易云音乐或全民 K 歌。使用 QQ音乐或网易云音乐时，点击右上方的<strong class="lira-tour-keyword">「登录」</strong>；使用全民 K 歌时，请先在全民 K 歌客户端登录。',
     note: '这一步只告诉你登录入口，不要求现在登录；选好后可以继续。',
@@ -135,7 +148,7 @@ export const TOUR_CONFIG_STEPS = [
   {
     id: 'usage-guide',
     title: '不会用时，从这里找帮助',
-    kicker: '第 7 步 · 查看帮助',
+    kicker: '第 8 步 · 查看帮助',
     content:
       '这里是「百宝箱 → 使用文档」。以后忘记怎么登录、导入歌单或设置其他功能，就点击左侧的<strong class="lira-tour-keyword">「使用文档」</strong>，再按目录查找。',
     note: '使用文档顶部还有「重新查看新手引导」按钮，随时可以从头再看一遍。',

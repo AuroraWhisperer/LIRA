@@ -72,14 +72,9 @@ async function fixture(profile = account('one')) {
   };
 }
 
-test('PK report card is composed in fixed replies and starts disabled', () => {
+test('PK report toggle starts disabled in the real admin page', () => {
   const html = readAdminHtml();
   assert.match(html, /id="danmakuPkReportToggle"[^>]*disabled/);
-  assert.match(html, /PK 对手信息播报/);
-  assert.match(html, /榜单可能不全/);
-  assert.match(html, /金额按当前贡献值估算/);
-  assert.match(html, /三个档位不重复统计/);
-  assert.match(html, /1 元＝10 贡献值/);
 });
 
 test('pending and failed writes preserve confirmed state, failed disable warns explicitly', async () => {

@@ -3,29 +3,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const { FakeNode, createFakeDocument } = require('../helpers/fake-dom');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 test('live poll updates preserve row nodes and scroll position while showing zero and small percentages', async () => {
-  function node() {
-    return {
-      dataset: {},
-      children: [],
-      style: {},
-      textContent: '',
-      scrollTop: 0,
-      append(...children) {
-        this.children.push(...children);
-      },
-      replaceChildren() {
-        this.children = [];
-      },
-    };
-  }
   const { renderPollRows } = await loadModuleExports(
     path.resolve(__dirname, '../../public/js/shared/interaction-view.js'),
-    { document: { createElement: node } },
+    { document: createFakeDocument() },
   );
-  const container = node();
+  const container = new FakeNode('div');
   const session = {
     sessionId: 'one',
     phase: 'collecting',

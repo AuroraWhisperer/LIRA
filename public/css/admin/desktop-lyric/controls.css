@@ -270,16 +270,6 @@
   border: 0;
 }
 
-.song-workspace input.desktop-lyric-color {
-  width: 48px;
-  min-width: 48px;
-  height: 36px;
-  justify-self: end;
-  padding: 3px 18px 3px 3px;
-  border-radius: var(--radius-control);
-  cursor: pointer;
-}
-
 .desktop-lyric-range-control {
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;

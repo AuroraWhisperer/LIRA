@@ -322,8 +322,78 @@ test('queue style settings resolve and persist only the selected style', async (
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'identityQueueFontSize'), false);
 });
 
-test('queue viewport helper exposes uncapped proportional scaling', async () => {
+test('queue viewport helper exposes uncapped proportional contain scaling', async () => {
   const namespace = await loadModuleExports(VIEWPORT_STATE_ENTRY, {});
-  assert.equal(namespace.calculateQueuePanelScale(900, 1000, 405, 320, 16), 868 / 405);
-  assert.equal(namespace.calculateQueuePanelScale(320, 900, 405, 320, 8), 304 / 405);
+  for (const [args, expected] of [
+    [[900, 1000, 405, 320, 16], 868 / 405],
+    [[320, 900, 405, 320, 8], 304 / 405],
+    [[1920, 1080, 560, 840, 16], 1048 / 840],
+    [[400, 900, 560, 840, 16], 368 / 560],
+    [[900, 457, 560, 840, 16], 425 / 840],
+  ]) {
+    assert.equal(namespace.calculateQueuePanelScale(...args), expected, args.join(' × '));
+  }
+});
+
+test('illustrated queue rows escape viewer text and keep each style rank rule', async () => {
+  const dom = createQueueDom();
+  const render = await loadQueueOverlay(dom);
+  const entry = await loadQueueOverlay(createQueueDom(), QUEUE_ENTRY);
+  const item = {
+    song_name: '<img src=x onerror=alert(1)>超长歌名',
+    requester_name: '<b>点歌人</b>',
+    requester_guard_level: 2,
+    requester_medal_name: '<i>灯牌</i>',
+    requester_medal_level: 26,
+  };
+
+  for (const [style, row, rank] of [
+    ['storybook', render.renderStorybookRow(item, 0), /storybook-rank">1<\/span>/],
+    ['neon-vinyl', render.renderNeonVinylRow(item), null],
+    ['cherry-ribbon', render.renderCherryRibbonRow(item, 1), null],
+    ['golden-lily', render.renderGoldenLilyRow(item, 5), /golden-lily-rank illustrated-rank">6<\/span>/],
+  ]) {
+    assert.equal(entry.normalizeQueueStyle(style), style);
+    assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/, style);
+    assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/, style);
+    assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/, `${style} must not inject viewer markup`);
+    if (style === 'storybook') {
+      assert.match(row, /storybook-info-viewport[\s\S]*storybook-info/);
+      assert.match(row, /storybook-song[\s\S]*storybook-requester[\s\S]*storybook-badge[\s\S]*storybook-medal/);
+    } else {
+      assert.match(row, /提督/, style);
+      assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26/, style);
+      assert.doesNotMatch(row, /illustrated-label/, style);
+    }
+    if (rank) assert.match(row, rank, style);
+    else assert.doesNotMatch(row, /illustrated-rank/, `${style} omits queue ranks`);
+  }
+  assert.equal(entry.normalizeQueueStyle('festival'), 'identity');
+  assert.equal(entry.normalizeQueueStyle('unknown'), 'classic');
+});
+
+test('illustrated typography settings apply only to illustrated queue styles', async () => {
+  const settings = {
+    ...BASE_SETTINGS,
+    illustratedQueueFontFamily: 'KaiTi',
+    illustratedQueueFontWeight: '700',
+    illustratedQueueUseCustomTextColor: 'true',
+    illustratedQueueTextColor: '#123456',
+  };
+  for (const [style, applied] of [
+    ['neon-vinyl', true],
+    ['storybook', true],
+    ['identity', false],
+    ['classic', false],
+  ]) {
+    const dom = createQueueDom();
+    const namespace = await loadQueueOverlay(dom);
+    namespace.applyTheme({ ...settings, overlayQueueStyle: style }, style);
+    assert.match(dom.rootVars.get('--illustrated-queue-font-family'), /^KaiTi, /);
+    assert.equal(dom.rootVars.get('--illustrated-queue-font-weight'), '700');
+    assert.equal(dom.rootVars.get('--illustrated-queue-text-color'), '#123456');
+    for (const className of ['illustrated-custom-font', 'illustrated-custom-weight', 'illustrated-custom-text-color']) {
+      assert.equal(dom.panelClasses.has(className), applied, `${style} ${className}`);
+    }
+  }
 });

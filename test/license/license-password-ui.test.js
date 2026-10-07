@@ -99,31 +99,23 @@ test('license form keeps existing account password checks on the server', async 
   assert.equal(page.getElementById('licenseStatus').textContent, '用户名或密码错误。');
 });
 
-test('valid passwords are passed to activation unchanged', async () => {
-  const page = createLicensePage({
-    state: 'needs_activation',
-    error: 'NETWORK_UNAVAILABLE',
+for (const [name, password] of [
+  ['a valid password', VALID_PASSWORD],
+  ['a valid 64-character password', `Aa1!${'a'.repeat(60)}`],
+]) {
+  test(`${name} is passed to activation unchanged`, async () => {
+    const page = createLicensePage({
+      state: 'needs_activation',
+      error: 'NETWORK_UNAVAILABLE',
+    });
+    page.getElementById('licensePassword').value = password;
+    await page.submit();
+    assert.equal(page.submissions.length, 1);
+    assert.equal(page.submissions[0].accountName, 'test-account');
+    assert.equal(page.submissions[0].password, password);
+    assert.equal(page.submissions[0].activationCode, 'TEST-CODE');
   });
-  page.getElementById('licensePassword').value = VALID_PASSWORD;
-  await page.submit();
-  assert.equal(page.submissions.length, 1);
-  assert.equal(page.submissions[0].accountName, 'test-account');
-  assert.equal(page.submissions[0].password, VALID_PASSWORD);
-  assert.equal(page.submissions[0].activationCode, 'TEST-CODE');
-});
-
-test('a valid 64-character password is passed to activation unchanged', async () => {
-  const page = createLicensePage({
-    state: 'needs_activation',
-    error: 'NETWORK_UNAVAILABLE',
-  });
-  const password = `Aa1!${'a'.repeat(60)}`;
-  page.getElementById('licensePassword').value = password;
-  await page.submit();
-  assert.equal(password.length, 64);
-  assert.equal(page.submissions.length, 1);
-  assert.equal(page.submissions[0].password, password);
-});
+}
 
 test('every printable ASCII punctuation character can satisfy the special-symbol rule', async () => {
   const punctuation = Array.from({ length: 94 }, (_, index) => String.fromCharCode(33 + index)).filter(

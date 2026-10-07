@@ -1,0 +1,19 @@
+.component-style-parameters { margin-top: 20px; min-width: 0; }
+.component-style-parameters > .hint { margin: 6px 0 12px; line-height: 1.6; }
+.component-parameter-group { border-top: 1px solid var(--color-border-light); }
+.component-parameter-group > summary,
+.component-parameter-advanced > summary { padding: 10px 0; cursor: pointer; color: var(--color-text-primary); }
+.component-parameter-state { float: right; margin-left: 8px; color: var(--color-text-secondary); font-size: 12px; }
+.component-parameter-toggle { display: flex; align-items: center; gap: 8px; margin: 8px 0 12px; font-size: 13px; }
+.component-style-parameters input[type='checkbox'] { width: 16px; height: 16px; min-height: 0; margin: 0; }
+.component-parameter-fields { display: grid; gap: 12px; margin: 0 0 16px; padding: 0; border: 0; min-width: 0; }
+.component-parameter-field { display: grid; gap: 6px; font-size: 12px; }
+.component-parameter-inputs { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.component-parameter-inputs input[type='range'] { flex: 1; min-width: 36px; width: 0; }
+.component-parameter-inputs input[type='number'] { width: 76px; flex: 0 0 76px; font-variant-numeric: tabular-nums; }
+.component-parameter-inputs input[type='color'] { width: 100%; }
+.component-parameter-fields:disabled { opacity: .55; }
+.component-parameter-advanced { margin-bottom: 12px; border-top: 1px solid var(--color-border-light); }
+.component-parameter-advanced > summary { font-weight: 600; }
+.component-style-parameter-error { color: var(--color-danger); font-size: 12px; line-height: 1.5; }
+.component-style-parameters summary:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }

@@ -1,5 +1,7 @@
 'use strict';
 
+import { createComponentStyleEffects } from './component-style-effects.js';
+import { componentEffectBounds } from './component-effect-filters.js';
 import { createFlipCell } from './clock-flip.js';
 import { createOverlaySocket } from './socket-client.js';
 import { clockConfigFromSettings, readClockMoonConfig } from '../shared/clock-settings.js';
@@ -69,10 +71,14 @@ function clockContentBounds(card) {
   const selectors = style === 'flip'
     ? '.clock-content, .clock-period'
     : '.clock-year, .clock-time > *, .clock-date-row > *, .clock-period, .clock-orbit-art use';
+  const effect = card.style.getPropertyValue('--component-transform');
+  card.style.setProperty('--component-transform', 'translate(0px, 0px)');
   const origin = card.getBoundingClientRect();
   const scale = Number(card.style.getPropertyValue('--clock-scale')) || 1;
   const rects = [...card.querySelectorAll(selectors)].map((node) => node.getBoundingClientRect())
     .filter((rect) => rect.width > 0 && rect.height > 0);
+  if (effect) card.style.setProperty('--component-transform', effect);
+  else card.style.removeProperty('--component-transform');
   const left = Math.min(...rects.map((rect) => rect.left));
   const top = Math.min(...rects.map((rect) => rect.top));
   const unscale = (value) => Math.round(value / scale * 1000) / 1000;
@@ -121,6 +127,7 @@ function normalizeSavedClockConfig(value) {
   const style = CLOCK_STYLE_VALUES.has(source.style) ? source.style : 'peach';
   return {
     style,
+    ...(source.styleParameters ? { styleParameters: source.styleParameters } : {}),
     showDate: source.showDate !== false,
     showSeconds: source.showSeconds !== false,
     hour12: source.hourFormat === '12',
@@ -135,6 +142,7 @@ function mergeClockConfig(savedConfig, queryConfig, params) {
   const style = params.has('style') ? queryConfig.style : saved.style;
   return {
     style,
+    ...(saved.styleParameters ? { styleParameters: saved.styleParameters } : {}),
     showDate: params.has('date') ? queryConfig.showDate : saved.showDate,
     showSeconds: params.has('seconds') ? queryConfig.showSeconds : saved.showSeconds,
     hour12: params.has('format') ? queryConfig.hour12 : saved.hour12,
@@ -190,6 +198,7 @@ async function initClock() {
   const queryConfig = readClockConfig(params);
   const completeQuery = ['style', 'date', 'seconds', 'format'].every((key) => params.has(key));
   const componentPreview = isComponentPreview();
+  const effects = componentPreview ? null : createComponentStyleEffects(document);
   const editingPreview = componentPreview && !isSceneComponent();
   const legacyPreview = window.parent !== window && completeQuery;
   let config = mergeClockConfig(null, queryConfig, params);
@@ -234,13 +243,14 @@ async function initClock() {
     const decorated = document.documentElement.dataset.mediaStyle === 'clock';
     if (decorated) return;
     const viewport = componentOutputViewport();
-    const bounds = clockContentBounds(card);
+    const naturalBounds = clockContentBounds(card);
+    const bounds = componentEffectBounds(card, card.offsetWidth, card.offsetHeight, naturalBounds);
     if (!previousBounds || viewport.width !== previousViewportWidth) contentWidth = viewport.width;
-    if (editingPreview && previousBounds && Math.abs(bounds.width - previousBounds.width) > 0.1) {
-      contentWidth = (contentWidth - CLOCK_FRAME_GUTTER) * bounds.width / previousBounds.width + CLOCK_FRAME_GUTTER;
+    if (editingPreview && previousBounds && Math.abs(naturalBounds.width - previousBounds.width) > 0.1) {
+      contentWidth = (contentWidth - CLOCK_FRAME_GUTTER) * naturalBounds.width / previousBounds.width + CLOCK_FRAME_GUTTER;
     }
     if (editingPreview) contentWidth = Math.round(contentWidth);
-    previousBounds = bounds;
+    previousBounds = naturalBounds;
     previousViewportWidth = viewport.width;
     const scale = clockScaleForViewport(contentWidth, editingPreview ? Infinity : viewport.height, config.style, bounds);
     card.style.setProperty('--clock-offset-x', `${-bounds.x}px`);
@@ -274,6 +284,7 @@ async function initClock() {
     dateRow.hidden = !config.showDate;
     card.hidden = false;
     render();
+    effects?.update('clock', config);
     if (styleChanged) {
       styleTransition?.cancel();
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -286,6 +297,7 @@ async function initClock() {
   }
 
   window.addEventListener('resize', syncCardScale);
+  window.addEventListener('lira:effects-updated', syncCardScale);
   const receiveLegacyPreview = (event) => {
     if (
       !legacyPreview || window.parent === window ||
@@ -304,7 +316,10 @@ async function initClock() {
       const tone = config.moonMode === 'auto'
         ? (Math.floor(now.getTime() / (config.moonIntervalSeconds * 1000)) % 2 === 0 ? 'light' : 'dark')
         : config.moonMode;
-      if (card.dataset.moonTone !== tone) card.dataset.moonTone = tone;
+      if (card.dataset.moonTone !== tone) {
+        card.dataset.moonTone = tone;
+        window.dispatchEvent(new Event('lira:effect-theme-change'));
+      }
     }
     const parts = formatters.time.formatToParts(now);
     const hours = partValue(parts, 'hour', '00').padStart(2, '0');
@@ -372,10 +387,12 @@ async function initClock() {
     stateRevision += 1;
     window.clearTimeout(timer);
     socketController?.dispose();
+    effects?.dispose();
     stopOutputSize?.();
     styleTransition?.cancel();
     flipCells?.forEach((cell) => cell.dispose());
     window.removeEventListener('resize', syncCardScale);
+    window.removeEventListener('lira:effects-updated', syncCardScale);
     window.removeEventListener('message', receiveLegacyPreview);
     document.removeEventListener('visibilitychange', schedule);
     window.removeEventListener('pagehide', dispose);

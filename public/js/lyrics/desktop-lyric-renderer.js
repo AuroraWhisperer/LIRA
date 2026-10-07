@@ -86,11 +86,13 @@ function init() {
   performanceProfile = createLyricPerformanceProfile({
     onChange: (profile) => {
       activeWordAnimator?.setMode(resolveWordAnimationMode(profile));
+      activeWordAnimator?.setMotionEnabled(profile.effects === 'full');
       stage.classList.toggle('is-low-power', profile.effects === 'low');
     },
   });
   activeWordAnimator = new LyricWordAnimator({
     mode: resolveWordAnimationMode(),
+    motionEnabled: performanceProfile.profile.effects === 'full',
     wordClass: 'desktop-lyric-preview-word',
     highlightClass: 'desktop-lyric-preview-word-highlight',
   });
@@ -246,11 +248,13 @@ function renderActiveWords() {
     return;
   }
 
+  textElement.replaceChildren();
   activeWordAnimator?.mount(textElement, words, {
     mode: resolveWordAnimationMode(),
   });
   activeWordIndex = activeIndex;
   activeWordSignature = signature;
+  updateActiveWordProgress(resolveLyricTime(currentPreviewPosition(), currentDisplaySettings));
 }
 
 function resetActiveWords() {

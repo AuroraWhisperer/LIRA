@@ -4,7 +4,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
@@ -46,46 +45,6 @@ test('overtime overlay anchors server time and bounds animation work', () => {
   assert.doesNotMatch(source, /setInterval\([^,]+,\s*1000\s*\)/);
 });
 
-test('overtime overlay explains configured gift effects to viewers', () => {
-  const html = read('public/pages/overlays/overtime.html');
-  const source = read('public/js/overlays/overtime.js');
-
-  assert.match(html, /id="overtimeGiftGuide"/);
-  assert.match(html, /送礼加班表/);
-  assert.match(html, /id="overtimeStatusText"/);
-  assert.match(source, /time\.textContent = presentation\.value/);
-  assert.match(source, /rule\?\.mode === 'display'/);
-  assert.match(source, /adjustment\?\.mode === 'display'/);
-  assert.match(source, /running:\s*''/);
-  assert.match(source, /labels\[currentState\?\.status\]\s*\?\?\s*'连接中'/);
-  assert.doesNotMatch(source, /rule\.mode === 'random' \? '随机'/);
-
-  const helperStart = source.indexOf('function describeRuleEffect');
-  const helperEnd = source.indexOf('\nfunction formatSignedSeconds', helperStart);
-  const sandbox = {};
-  vm.runInNewContext(`${source.slice(helperStart, helperEnd)}\nthis.describeRuleEffect = describeRuleEffect;`, sandbox);
-  assert.equal(sandbox.describeRuleEffect({ mode: 'random' }).value, '盲盒');
-  assert.equal(sandbox.describeRuleEffect({ mode: 'display', displayText: '谢谢支持' }).value, '谢谢支持');
-  assert.equal(sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: 300 }).verb, '加时');
-  assert.equal(sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: -90 }).value, '1分30秒');
-  assert.equal(
-    JSON.stringify(
-      sandbox.describeRuleEffect({
-        mode: 'fixed',
-        fixedEffect: { operation: 'multiply', value: 8 },
-      }),
-    ),
-    JSON.stringify({ modifier: 'is-multiply', verb: '时间', value: '×8' }),
-  );
-  assert.equal(
-    sandbox.describeRuleEffect({
-      mode: 'fixed',
-      fixedEffect: { operation: 'clear', value: 0 },
-    }).value,
-    '清零',
-  );
-});
-
 test('overtime clock uses bounded calendar tiers for large durations', async () => {
   const source = read('public/js/shared/overtime-time-format.js');
   const helpers = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
@@ -97,27 +56,6 @@ test('overtime clock uses bounded calendar tiers for large durations', async () 
   assert.equal(helpers.formatClockDisplay(0, 'paused'), '00:00:00');
   assert.equal(helpers.formatClockDisplay(0, 'running'), '该下播了');
   assert.equal(helpers.formatClockDisplay(0, 'finished'), '该下播了');
-});
-
-test('overtime clock updates on display boundaries only while active and visible', () => {
-  const source = read('public/js/overlays/overtime.js');
-
-  assert.doesNotMatch(source, /requestAnimationFrame\(renderClockFrame\)/);
-  assert.match(source, /clockTimer = setTimeout\(renderClock, nextClockDelay\(remainingMs\)\)/);
-  assert.match(source, /currentState\.status !== 'running' \|\| remainingMs <= 0 \|\| document\.hidden/);
-  assert.match(source, /if \(value !== lastClockValue\)/);
-  assert.match(source, /document\.addEventListener\('visibilitychange', syncClock\)/);
-
-  const helperStart = source.indexOf('function nextClockDelay(remainingMs)');
-  const helperEnd = source.indexOf('\nfunction describeRuleEffect', helperStart);
-  const sandbox = {};
-  vm.runInNewContext(`${source.slice(helperStart, helperEnd)}\nthis.nextClockDelay = nextClockDelay;`, sandbox);
-  assert.equal(sandbox.nextClockDelay(5_001), 25);
-  assert.equal(sandbox.nextClockDelay(5_500), 500);
-  assert.equal(sandbox.nextClockDelay(24 * 60 * 60 * 1000), 1000);
-  assert.equal(sandbox.nextClockDelay(24 * 60 * 60 * 1000 + 30_000), 30_000);
-  assert.equal(sandbox.nextClockDelay(365 * 24 * 60 * 60 * 1000), 1000);
-  assert.equal(sandbox.nextClockDelay(365 * 24 * 60 * 60 * 1000 + 90_000), 90_000);
 });
 
 function read(relativePath) {

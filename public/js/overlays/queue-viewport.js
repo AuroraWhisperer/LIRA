@@ -17,7 +17,7 @@ export function calculateQueuePanelScale(viewportWidth, viewportHeight, panelWid
   return Math.min(availableWidth / safePanelWidth, availableHeight / safePanelHeight);
 }
 
-export function syncQueuePanelViewport(panel) {
+export function syncQueuePanelViewport(panel, { contentHeight = false } = {}) {
   if (!panel || !panel.style) return 1;
 
   const ownerDocument = panel.ownerDocument || document;
@@ -31,7 +31,9 @@ export function syncQueuePanelViewport(panel) {
   const viewportHeight = Number(viewport.height || ownerDocument.documentElement?.clientHeight) || 1;
   const panelWidth = Number(panel.offsetWidth || panel.clientWidth) || 1;
   const panelHeight = Number(panel.offsetHeight || panel.clientHeight) || 1;
-  const scale = calculateQueuePanelScale(viewportWidth, viewportHeight, panelWidth, panelHeight, edge);
+  // Editing derives the frame height from the panel, so the old frame height
+  // must not constrain its scale. Published sources still contain both axes.
+  const scale = calculateQueuePanelScale(viewportWidth, contentHeight ? Infinity : viewportHeight, panelWidth, panelHeight, edge);
 
   panel.style.setProperty('--queue-panel-scale', String(scale));
   return scale;

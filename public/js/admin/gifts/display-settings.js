@@ -75,6 +75,19 @@ export function createGiftDisplaySettings() {
     }
   }
 
+  function updateCancelVisibility() {
+    const savedValues = [
+      ...[1, 2, 3].map((n) => [`giftTier${n}`, config.thresholds[n - 1] / 100]),
+      ['giftFeedRows', config.visibleRows],
+      ['giftFeedSpeed', config.scrollSpeed],
+      ['giftFeedMinAmount', (config.minGiftAmountCents ?? 0) / 100],
+    ];
+    get('giftDisplayCancel').hidden = savedValues.every(([id, value]) => {
+      const input = get(id);
+      return input.value !== '' && Number(input.value) === value;
+    });
+  }
+
   function fill(value) {
     [1, 2, 3].forEach((n) => {
       get(`giftTier${n}`).value = value.thresholds[n - 1] / 100;
@@ -84,11 +97,13 @@ export function createGiftDisplaySettings() {
     get('giftFeedSpeed').value = value.scrollSpeed;
     get('giftFeedMinAmount').value = (value.minGiftAmountCents ?? 0) / 100;
     preview();
+    updateCancelVisibility();
   }
 
   get('giftDisplayCancel')?.addEventListener('click', () => {
     fill(config);
     get('giftDisplayError').textContent = '';
+    toast('已恢复上次保存的设置');
   });
   get('giftDisplayDefaults')?.addEventListener('click', () =>
     fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 }),
@@ -101,6 +116,7 @@ export function createGiftDisplaySettings() {
       }
     }
     preview();
+    updateCancelVisibility();
   });
   get('giftDisplayForm')?.addEventListener('submit', (event) => {
     event.preventDefault();

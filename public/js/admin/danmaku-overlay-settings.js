@@ -7,6 +7,7 @@ import { isValidFullscreenDuration } from '../shared/danmaku-appearance-draft.js
 import { createComponentConfigController, componentSaveMessage } from './component-config-controller.js';
 import { bindDanmakuParameters } from './danmaku-parameter-view.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
+import { normalizeStyleParameters } from '../shared/component-style-parameters.js';
 
 export function initDanmakuOverlaySettings(elements, toast) {
   let overlayUrl = '';
@@ -24,6 +25,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
       throw new Error('服务器返回的弹幕姬配置无效。');
     }
     return { style: response.style, fullscreenDurationSeconds: response.fullscreenDurationSeconds,
+      ...(response.styleParameters === undefined ? {} : { styleParameters: response.styleParameters }),
       ...(response.styleOptions === undefined ? {} : { styleOptions: response.styleOptions }),
       ...(response.layout === undefined ? {} : { layout: response.layout }) };
   }
@@ -39,6 +41,10 @@ export function initDanmakuOverlaySettings(elements, toast) {
       const saved = settingsFrom(await bridge.updateOverlaySettings(submitted), expectedUrl);
       if (Object.hasOwn(submitted, 'styleOptions') && !Object.hasOwn(saved, 'styleOptions')) {
         throw new Error('服务器未保存样式参数，请更新服务器后重试。');
+      }
+      if (Object.hasOwn(submitted, 'styleParameters') && Object.entries(normalizeStyleParameters('danmaku', submitted.styleParameters))
+        .some(([style, parameters]) => JSON.stringify(saved.styleParameters?.[style]) !== JSON.stringify(parameters))) {
+        throw new Error('服务器未完整保存效果参数，请更新服务器后重试。');
       }
       if (Object.hasOwn(submitted, 'layout') && !Object.hasOwn(saved, 'layout')) {
         throw new Error('服务器未保存画布，请更新服务器后重试。');

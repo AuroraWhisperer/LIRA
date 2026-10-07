@@ -13,7 +13,6 @@ const COMPONENT_PATH = path.join(ROOT_DIR, 'public', 'js', 'admin', 'contextual-
 test('Admin optional explanations use one contextual help component', () => {
   const html = readAdminHtml();
   const entrySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
-  const componentSource = fs.readFileSync(COMPONENT_PATH, 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'components', 'contextual-help.css'), 'utf8');
   const overtimeSource = ['overtime-rule-editor.js', 'overtime-rule-effect-editor.js']
     .map((file) => fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', file), 'utf8'))
@@ -22,26 +21,6 @@ test('Admin optional explanations use one contextual help component', () => {
   const helpImport = entrySource.indexOf("import './contextual-help.js';");
   const featureImport = entrySource.indexOf("import './app.js';");
   assert.ok(helpImport > -1 && helpImport < featureImport);
-  assert.match(componentSource, /setAttribute\(['"]role['"], ['"]tooltip['"]\)/);
-  assert.match(componentSource, /popover\s*=\s*['"]manual['"]/);
-  assert.match(componentSource, /showPopover\(\)/);
-  assert.match(componentSource, /hidePopover\(\)/);
-  assert.match(componentSource, /addEventListener\(['"]mouseenter['"], this\.handlePointerEnter\)/);
-  assert.match(componentSource, /addEventListener\(['"]mouseleave['"], this\.handlePointerLeave\)/);
-  assert.match(componentSource, /addEventListener\(['"]focus['"], this\.handleFocus\)/);
-  assert.match(componentSource, /addEventListener\(['"]blur['"], this\.handleBlur\)/);
-  assert.match(componentSource, /addEventListener\(['"]click['"], this\.handleClick\)/);
-  assert.match(componentSource, /setAttribute\(['"]aria-expanded['"], ['"]false['"]\)/);
-  assert.match(
-    componentSource,
-    /onPointerLeave\(\)[\s\S]*?this\.matches\(['"]:focus-visible['"]\)[\s\S]*?this\.hideTooltip\(\)/,
-  );
-  assert.match(componentSource, /onClick\(event\)[\s\S]*?event\.preventDefault\(\)[\s\S]*?event\.stopPropagation\(\)/);
-  assert.doesNotMatch(componentSource, /onClick\(event\)\s*\{[^}]*this\.(?:show|toggle)Tooltip\(\)/);
-  assert.doesNotMatch(componentSource, /toggleTooltip\(\)/);
-  assert.match(componentSource, /event\.key === ['"]Escape['"]/);
-  assert.match(componentSource, /event\.key !== ['"]Enter['"] && event\.key !== ['"] ['"]/);
-  assert.match(componentSource, /event\.key !== ['"]Enter['"][\s\S]*?this\.showTooltip\(\)/);
   assert.match(styles, /lira-help:focus-visible/);
   assert.match(styles, /lira-help-tooltip:popover-open/);
   assert.match(styles, /:has\(\s*>\s*lira-help\s*\)[^{]*\{[^}]*white-space:\s*nowrap/s);

@@ -18,10 +18,16 @@
 | --- | --- | --- |
 | `GET /api/component-styles/list` | `GET /api/component-preview/styles/list` | 返回包数组；包含 `id/name/packageId?/version?/bytes/createdAt/styles`，样式含 `id/type/name/config`；过滤已移除样式 |
 | `POST /api/component-styles/add` | `POST /api/component-preview/styles/add` | 原始媒体 bytes；查询 `description` 为 URL 编码 JSON `{type,filename,name,width,height,media?}`。校验并安装一个样式，返回包 |
-| `POST /api/component-styles/inspect` | `POST /api/component-preview/styles/inspect` | 原始 ZIP bytes；校验并暂存，返回包含临时 `id` 的套装清单供确认，此时不可用于场景 |
+| `POST /api/component-styles/web` | `POST /api/component-preview/styles/web` | 查询 `description` 为 URL 编码 JSON `{type,entry,name?,width?,height?}`；请求体第一行为 UTF-8 JSON 数组 `[{path,size}]` 加换行，随后按顺序拼接各文件 bytes。验证配套资源并原子安装，返回包 |
+| `POST /api/component-styles/pick-web` | `POST /api/component-preview/styles/pick-web` | JSON `{kind:"html"或"css",description:{type,name?,width?,height?}}`；主进程打开文件选择器并复制配套目录，renderer 不提供磁盘路径。取消返回 `data:null`；无桌面选择器返回 503 与 `code:"FILE_PICKER_UNAVAILABLE"`，供显式文件/文件夹选择回退 |
+| `POST /api/component-styles/inspect` | `POST /api/component-preview/styles/inspect` | 原始 ZIP bytes；校验并暂存，返回包含临时 `id` 的素材包清单供确认，兼容单组件样式包与跨组件套装，此时不可用于场景 |
 | `POST /api/component-styles/install` | `POST /api/component-preview/styles/install` | JSON `{id}`，确认暂存包；原子登记并返回包；重复内容返回 `alreadyInstalled:true`，恢复已移除样式返回 `restored:true` |
 | `POST /api/component-styles/remove` | `POST /api/component-preview/styles/remove` | JSON `{id}`，此处 id 为样式 ID；从库中移除，返回 `{id}`，保留场景引用文件 |
 | `POST /api/component-styles/cancel` | `POST /api/component-preview/styles/cancel` | JSON `{id}`，删除本次暂存包；返回 `{id}`，重复取消安全 |
+
+网页导入最多 1024 文件、总量 512 MiB；HTML/CSS/JS/MJS/JSON 单文件最多 4 MiB，上传清单最多 256 KiB。入口为 HTML/HTM/CSS，配套资源允许常见图片、音视频和字体；拒绝路径穿越、链接和大小写重复路径，保留原相对目录。静态 HTML/CSS/JS 引用缺失时返回具体文件名；动态运行结果不由静态校验保证。HTML 样式 `type:browser`，额外 `category` 保留原组件分类；CSS 样式保存原生组件配置及 `cssStyle`。安装前再次校验权限；仅 pending 目录 rename 的瞬时 EPERM/EBUSY 可重试最多 4 次，每次重试前重验权限。
+
+`GET/HEAD /component-web/<包 UUID>/<原相对路径>` 匿名读取已导入网页资源，保留 Host 校验，无目录枚举；按扩展名设置 MIME、nosniff、CORS `*`、immutable 缓存和 no-referrer。HTML/HTM/SVG 响应强制 `sandbox allow-scripts; object-src 'none'; form-action 'none'`，不给管理凭据、桌面桥或 same-origin 权限；脚本仍可访问作者外部服务，须遵守服务自身的 Origin/登录约束。其他 HTTP 方法返回 405，非法/缺失资源为 404。
 
 API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身份缺失，403 为权限或 Origin 无效，404 为样式不存在，409 为同版本不同内容或画布接管冲突，410 为会话失效，413 为流体积超限，503 为会话暂不可用。JSON 操作体不超过 4 KiB。单素材上限 512 MiB；ZIP 上限 1 GiB，展开总量 2 GiB、256 条目、64 样式；清单及单份说明各 256 KiB。CRC、解压长度、路径、重复文件名、链接、加密和媒体签名均需校验。普通媒体只允许 PNG/JPEG/GIF/WebP/MP4/WebM；ZIP 另允许每份不超过 1 MiB 的 SVG/WOFF2 资源、根清单及 TXT/MD 说明。schemaVersion 1 保持兼容；2 允许受信预设资源型样式，必须声明该预设的完整资源映射且格式匹配；不执行包内脚本。
 
@@ -37,18 +43,19 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 
 “保存并应用”只等待当前场景及其共享外观 owner 的浏览器编辑被客户端确认，再同步预检、冻结并批量保存这些 owner，最后按 revision 发布组合画面；独立实例不依赖其类型的默认配置，无关默认草稿不保存。全部保存结束后再次检查参与者的读取、保存、冲突、草稿和账号代际状态，以及本次场景保存的规范化结果与 revision；任一失败或出现新的并发修改均停止发布，保留已成功保存的部分。发布请求发出后的后续编辑留作下次草稿。`publish`/`source` 仅允许 canvas 能力排队，结果通过该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。编辑页在显式复制时读取来源，拼成 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源能力>`；客户端地址目录在首次读取、页签点击、窗口 focus 及 `scene:published` 后刷新，未发布场景仍提示先保存并应用。后续正常保存和发布沿用该地址，来源能力不进入文档或模板。
 
-除只用于解析的短入口能力外，每个组件请求只使用目标会话自己的凭据，能力不可互换。多个图层同时保留各自 renderer，选中组件只切换参数面板。网页刷新/离开只释放当前页面资源；新页面接管后，旧页面可刷新继续编辑。显式 close 时各会话分别处理已接受命令并撤销，不提前撤销其他会话的待保存操作。
+除只用于解析的短入口能力外，每个组件请求只使用目标会话自己的凭据，能力不可互换。多个图层同时保留各自 renderer，选中组件只切换参数面板。客户端再次进入预览时，先通过管理端 `focus` 请求已连接页面定位组件；网页在当前画布中选中现有实例，缺少对应组件时沿用原添加逻辑，保留场景、其他图层与未保存草稿。当前 attachment 确认收到后不再打开标签页；尚无 attachment 或两秒内未确认时打开稳定短入口。网页刷新/离开只释放当前页面资源；新页面接管后，旧页面可刷新继续编辑。显式 close 时各会话分别处理已接受命令并撤销，不提前撤销其他会话的待保存操作。
 
 | action | 身份与请求 | data |
 | --- | --- | --- |
 | `open` | 管理身份；`{component,state,display?}`，component 为 danmaku/clock/queue/overtime/canvas | `{id,token,draftKey}`，256 位随机预览能力；draftKey 仅定位账号/场景的本地恢复草稿，不授予权限；同类型旧会话失效 |
 | `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型、绑定 canvas 会话时的独立场景类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；一个锚定会话按已注册场景类型分别保留短入口；重复申请同一组会话与选择复用 key 并更新尺寸 |
 | `resolve` | 短入口 Bearer；`{action:'resolve'}` | `{links:[{component,id,token,draftKey}],selectedId,selectedSize}`，只返回绑定的有效会话与入口元数据；不续活闲置租约；未知或失效入口为 410 |
+| `focus` | 管理身份；`{key}`，再次验证短入口及其全部成员 | `{focused}`；锚定会话当前 attachment 经 read 确认定位才为 true；无页面、两秒超时、被更新请求取代或会话结束时为 false。定位请求不排入配置命令，不修改持久化状态 |
 | `exchange` | 管理身份；`{id,state,display?,ack}` | `{commands:[{sequence,action,change?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
 | `revoke` | 管理身份；`{id}` | `{closed}` |
-| `read` | 当前会话 Bearer；`{id,attachmentId?}`；未附页面标识的读取用于接管前取得快照 | `{component,draftKey,state,display,ack,sequence,attachmentId}`，attachmentId 初始为 null；只含组件草稿、已保存值、保存状态和必要展示数据 |
+| `read` | 当前会话 Bearer；`{id,attachmentId?,focusId?}`；未附页面标识的读取用于接管前取得快照；只有当前 attachment 可用 focusId 确认定位 | `{component,draftKey,state,display,ack,sequence,attachmentId,focus?}`，attachmentId 初始为 null；focus 仅请求待处理时存在，为 `{id,selectedId,selectedSize,selectedItemId?}`；确认或过期后移除 |
 | `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
-| `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?}`，edit 只允许该组件已有草稿字段 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准 |
+| `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?}`，edit 允许该组件已有草稿字段；clock/danmaku 另允许向旧草稿新增经类型校验的 styleParameters，禁止原型键 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准 |
 | `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}`，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
 | `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}` 或 `{action:'create',title,duplicate:boolean}` | 仅选择桌面 state.presets 列出的预设，或由桌面新建/复制；结果 `{id}` 经 display 返回，不发布、不授予通用管理权限 |
 | `close` | 当前会话 Bearer；`{id,attachmentId?}` | `{}`，显式关闭浏览器访问；客户端先处理已经接受的修改/保存，再撤销会话 |
@@ -160,8 +167,10 @@ QQ 流的上游响应字节预算、主动读取超时、背压及取消见 [音
 
 | Scope | 允许的本地 API | 附加限制 |
 | --- | --- | --- |
-| 全部 15 页 | `GET /api/state` | 仅本页最小状态；无 snapshot 消费者返回 `{}`，也用于旧凭据恢复检查 |
-| queue / overtime / lyrics / gift-effects | 无额外 REST | 专用推送见 [ws.md](ws.md) |
+| 全部已登记 overlay scope | `GET /api/state` | 仅本页最小状态；无 snapshot 消费者返回 `{}`，也用于旧凭据恢复检查 |
+| queue / overtime | `GET /api/component/size` | 只读本 scope 的已保存输出尺寸；无保存值时为 null，不接受查询参数切换组件 |
+| lyrics / gift-sprint | 无额外 REST | 专用推送与快照字段见 [ws.md](ws.md) |
+| gift-effects | `GET /api/bilibili/avatar` | 仅通过既有受限 B 站头像代理读取送礼头像；无礼物历史或管理接口权限，专用推送见 [ws.md](ws.md) |
 | songlist | `GET /api/songs` | 服务端强制 enabledOnly，仅 category 展示过滤；不返回文件路径、禁用歌或导入元数据 |
 | blindbox | `GET /api/gifts/blind-box-stats` | 可选 boxName，仅公开统计字段 |
 | gift-feed | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/gifts/card-profiles`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | history 强制北京时间今日、100 条、created_at 升序；只允许 cursor/viewRevision；card-profiles 只转发 viewRevision，返回当日 eventId、senderId 与昵称/头像/等级证据，禁止客户端选择旧日期、来源或其他用户过滤 |
@@ -169,14 +178,14 @@ QQ 流的上游响应字节预算、主动读取超时、背压及取消见 [音
 | gift-wishes | `GET /api/gifts/wishes` | 仅心愿展示字段、整数计数、进度及直播窗口；无来源 ID、送礼人或管理写权限 |
 | interactions | `GET /api/interactions/session` | 只读投票/评分公开结果；禁止写入与 host-state |
 | games | `GET /api/games/session`、`/api/games/winner-profile`、`/api/bilibili/avatar`；`POST /api/games/session`、`/api/games/session/move`、`/api/games/session/draw` | session 仅 stop/restart；move 的 value 仅 number/string，禁止夹带主持动作对象；draw 仅 append/undo/clear。不能新开配置、读取 host-state/词库/观众或揭晓答案 |
-| danmaku | `GET /api/bilibili/avatar`、`GET /api/danmaku/display` | 保留现有头像/表情 CDN 校验；display 仅返回当前账号的已规范化弹幕外观及展示缓冲投影 |
+| danmaku | `GET /api/bilibili/avatar`、`GET /api/danmaku/display`、`GET /api/component/size` | 保留现有头像/表情 CDN 校验；display 仅返回当前账号的已规范化弹幕外观及展示缓冲投影；size 只读本 scope 尺寸 |
 | wheel | `GET /api/wheel`、`POST /api/wheel/spin` | 只读展示配置与抽取，不允许编辑配置 |
 | opening | `GET /api/opening/config` | 仅文案、展示参数、当前媒体 URL |
-| clock | `GET /api/clock/config` | 仅时钟显示参数 |
+| clock | `GET /api/clock/config`、`GET /api/component/size` | 仅时钟显示参数及本 scope 尺寸 |
 
 HTML sandbox 使展示请求的 Origin 为 `null`。该值本身没有权限：预检仅对上表已知方法/路径开放 Authorization/Content-Type，实际请求再校验有效 scope；管理凭据对此来源一律拒绝。仅上述路径的实际错误响应允许页面读取，以便旧凭据收到 401 后刷新，不返回额外状态。没有 `Access-Control-Allow-Credentials`。
 
-`GET /api/danmaku/display?epoch=…&cursor=…` 由 [danmaku-display-routes.js](../../../src/server/routes/danmaku-display-routes.js) 处理，供本机独立地址 `/danmaku?source=component` 使用。响应 `{ok:true,data:{config,data}}`，其中 `config` 为已保存的 `{style,fullscreenDurationSeconds,styleOptions,layout}`，配置尚未取得时为 `null`；内层 `data` 是已有云展示缓冲的 `{epoch,status,state,nextCursor,reset,gap,events}`。读口由 `scene-runtime` 复用当前账号的同一缓冲，不创建场景或第二条上游连接。首次/无效 cursor/切账号按已有缓冲契约 reset，不重放旧直播消息。每次读取 `no-store`，未就绪端口为 503；匿名为 401，其他 overlay scope、管理凭据配 opaque Origin 或写方法均被拒绝。固定页仍只注入 danmaku 展示凭据，不能读取管理配置。
+`GET /api/danmaku/display?epoch=…&cursor=…` 由 [danmaku-display-routes.js](../../../src/server/routes/danmaku-display-routes.js) 处理，供本机独立地址 `/danmaku?source=component` 使用。响应 `{ok:true,data:{config,data}}`，其中 `config` 为已保存的 `{style,fullscreenDurationSeconds,styleOptions,layout,styleParameters?}`，可选 styleParameters 按 danmaku 类型校验，配置尚未取得时为 `null`；内层 `data` 是已有云展示缓冲的 `{epoch,status,state,nextCursor,reset,gap,events}`。读口由 `scene-runtime` 复用当前账号的同一缓冲，不创建场景或第二条上游连接。首次/无效 cursor/切账号按已有缓冲契约 reset，不重放旧直播消息。每次读取 `no-store`，未就绪端口为 503；匿名为 401，其他 overlay scope、管理凭据配 opaque Origin 或写方法均被拒绝。固定页仍只注入 danmaku 展示凭据，不能读取管理配置。
 
 ---
 
@@ -263,7 +272,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `songRequestBlacklist` | 仅接受字符串；每行一项，将 CRLF/CR 转 LF、按 `cleanText` 合并行内空白并去首尾空白，去掉空行和重复项；存为换行分隔文本。空字符串清空名单；仅保存在本机 |
 | `giftBlindBoxConfig` / `giftBlindBoxCustomConfigV2` | 数组或 JSON 文本，交给 [blind-box-config.js](../../../src/bilibili/gift/blind-box-config.js) 校验；失败返回无效字段。V2 特许 `null`/`'null'` 保存为 `'null'`（未确认）；`[]` 是明确空配置，不能混同 |
 | 礼物边框设置 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：`giftFrameEnabled` / `giftFrameThresholdRmb` 控制林间花信；enabled 仅 boolean/字符串 true/false；阈值用 Number 转换并四舍五入到安全整数分，拒绝空字符串、负数和非有限数，存元数字字符串。门槛比较在服务端按整数分进行；已撤销的缎带设置不再接受写入 |
-| 大航海感谢两键 | [guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)：`guardThanksEnabled` 仅 boolean/字符串 true/false；`guardThanksTextMode`=`bilingual/zh/en` |
+| 大航海感谢 | [guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)：`guardThanksAuroraEnabled`、`guardThanksClassicEnabled` 仅 boolean/字符串 true/false；对应 `guardThanksAuroraTextMode`、`guardThanksClassicTextMode`=`bilingual/zh/en`。旧 `guardThanksEnabled`、`guardThanksTextMode` 和 `guardThanksStyle`（`aurora/classic`）保留兼容；新键的存储空值仅用于继承旧配置，HTTP 不接受空值 |
 | `danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` | 样式仅 `bubble/signal/minimal/ranked/transparent/identity/outline`；时长为 number 或十进制数字字符串，安全整数 2–30，存字符串 |
 | 时钟设置 | [clock-contract.js](../../../src/server/clock-contract.js)：style 为九种已登记样式，hourFormat=`12/24`；日期/秒开关经 trim/lowercase 后仅 true/false/0/1；label 去控制符、合并空白、按 Unicode code point 截取前 16 个，存字符串；clockFlipFrameColor / clockFlipFaceColor / clockFlipTextColor 仅接受六位十六进制颜色 #RRGGBB 并统一小写；clockMoonMode 仅 light/dark/auto，clockMoonIntervalSeconds 仅 1–86400 整数秒，默认 light/30 |
 | `openingTrackMotion` | [opening-contract.js](../../../src/server/opening-contract.js) 的 `heart/barber/progress` 枚举 |
@@ -332,7 +341,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 
 | 端点                    | 请求                                                       | 响应(data)                                                                                               | 错误码 |
 | ----------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（九套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`、`flipFrameColor`、`flipFaceColor`、`flipTextColor`、`moonMode`（light/dark/auto）、`moonIntervalSeconds`（1–86400 的整数，默认 30）；非法存量值回退默认配置 | —      |
+| `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（九套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`、`flipFrameColor`、`flipFaceColor`、`flipTextColor`、`moonMode`（light/dark/auto）、`moonIntervalSeconds`（1–86400 的整数，默认 30），以及可选对象 `styleParameters`（由已保存的 clockStyleParameters JSON 解析，按 clock 类型校验）；非法存量值回退默认配置 | —      |
 
 ## 3. WeSing 采集域(wesing)
 

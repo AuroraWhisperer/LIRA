@@ -140,13 +140,8 @@
 
 .swatch-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
   gap: 10px;
-}
-
-.swatch-row input[type='color'] {
-  padding: 2px 18px 2px 2px;
-  min-height: 36px;
 }
 
 .range-row {
@@ -215,13 +210,13 @@
 
 .identity-rule-settings {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 10px 12px;
 }
 
 .identity-rule-setting {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 46px;
+  grid-template-columns: 52px minmax(0, 1fr) 132px;
   gap: 8px;
   align-items: center;
   border: 1px solid var(--border);
@@ -230,15 +225,10 @@
   padding: 10px;
 }
 
-.identity-rule-setting > span {
+.identity-rule-setting > span:not(.lira-color-control) {
   color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-bold);
-}
-
-.identity-rule-setting input[type='color'] {
-  min-height: 34px;
-  padding: 2px;
 }
 
 .style-picker {

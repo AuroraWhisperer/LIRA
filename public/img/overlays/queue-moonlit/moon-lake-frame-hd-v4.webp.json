@@ -1,0 +1,16 @@
+{
+  "provider": "LiraHub",
+  "model": "gpt-image-2.5-flare",
+  "quality": "max",
+  "requestId": "d1847758-a94e-4d35-a769-5cf62487e6dc",
+  "sourceSize": [1145, 1374],
+  "outputSize": [1145, 1374],
+  "processing": "Native-resolution transparent frame featuring a warm full moon, layered apricot mountains, a golden lake and reflected moonlight. Flowers are small shore accents. Removed isolated pure-red/blue generation fringes, retained other native pixels and alpha, and encoded lossless WebP without upscaling. Full generation prompt is included with the delivered material archive.",
+  "palette": {
+    "frame": "#e0a33a",
+    "mountains": "#eead77",
+    "moon": "#fff0cb",
+    "lake": "#f9db87",
+    "blossom": "#ee8d70"
+  }
+}

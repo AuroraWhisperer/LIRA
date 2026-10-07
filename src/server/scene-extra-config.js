@@ -1,6 +1,7 @@
 'use strict';
 
 const { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
+const { getBackgroundAppearance } = require('../../public/js/shared/background-appearance.js');
 const { validateGiftDisplaySettings } = require('../bilibili/gift/display-settings');
 
 function normalizeSceneExtraConfig(type, config) {
@@ -26,6 +27,10 @@ function normalizeSceneExtraConfig(type, config) {
     if (field.type === 'select' && !Object.hasOwn(field.options, value)) throw invalid();
     if (['text', 'textarea'].includes(field.type) && (Array.from(value).length > field.maxLength || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value))) throw invalid();
     result[key] = typeof field.default === 'string' ? String(value) : value;
+  }
+  if (type === 'background') {
+    if (result.inputBlack >= result.inputWhite || result.outputBlack >= result.outputWhite) throw invalid();
+    result.colorProcessing = getBackgroundAppearance(config).colorProcessing;
   }
   if (type === 'gift-feed') {
     try { validateGiftDisplaySettings({ ...result, palette: 'bilibili-four', thresholds: [result.threshold1, result.threshold2, result.threshold3] }); }

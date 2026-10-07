@@ -9,6 +9,7 @@ const { redactCredentials } = require('../shared/log-redaction');
 const { createComponentPreviewSessions } = require('./component-preview-sessions');
 const { TEXT_IMAGE_PREFIX, serveSceneTextImage } = require('./scene-text-images');
 const { serveComponentMedia } = require('./component-media-files');
+const { serveComponentWeb } = require('./component-web-files');
 
 /**
  * Build the HTTP/upgrade transport for one server runtime.
@@ -131,6 +132,11 @@ function createHttpServer(options = {}) {
 
       if (requestUrl.pathname.startsWith('/component-media/')) {
         await serveComponentMedia(dataDir, req, res, requestUrl);
+        return;
+      }
+
+      if (requestUrl.pathname.startsWith('/component-web/')) {
+        await serveComponentWeb(dataDir, req, res, requestUrl);
         return;
       }
 

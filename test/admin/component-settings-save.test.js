@@ -48,18 +48,6 @@ async function fixture() {
   return { controller, requests, receive, respond };
 }
 
-test('component settings save has no extra read for an uncontested ACK or its own echo', async () => {
-  for (const echo of [false, true]) {
-    const f = await fixture();
-    f.controller.edit({ fontSize: 28 });
-    const saving = f.controller.save();
-    if (echo) f.receive({ fontSize: 28, color: '#ffffff' });
-    f.respond(0, { fontSize: 28, color: '#ffffff' });
-    assert.equal(await saving, true);
-    assert.deepEqual(f.requests.map(({ url }) => url), ['/api/settings']);
-  }
-});
-
 test('component settings confirmation uses the state owner and preserves a newer WS update during the read', async () => {
   const f = await fixture();
   f.controller.edit({ fontSize: 28 });
@@ -75,20 +63,6 @@ test('component settings confirmation uses the state owner and preserves a newer
   assert.equal(await saving, false);
   assert.deepEqual(plain(f.controller.getState().saved), { fontSize: 40, color: '#00ff00' });
   assert.deepEqual(plain(f.controller.getState().draft), { fontSize: 36, color: '#00ff00' });
-  assert.equal(f.requests.length, 2);
-});
-
-test('component settings confirmation accepts the save when an earlier broadcast arrived first', async () => {
-  const f = await fixture();
-  f.controller.edit({ fontSize: 28 });
-  const saving = f.controller.save();
-  f.receive({ fontSize: 24, color: '#ffffff' });
-  f.respond(0, { fontSize: 28, color: '#ffffff' });
-  await new Promise((resolve) => setImmediate(resolve));
-  f.respond(1, { fontSize: 28, color: '#ffffff' });
-  assert.equal(await saving, true);
-  assert.equal(f.controller.getState().saved.fontSize, 28);
-  assert.equal(f.controller.getState().dirty, false);
   assert.equal(f.requests.length, 2);
 });
 

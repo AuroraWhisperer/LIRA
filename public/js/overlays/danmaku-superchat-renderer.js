@@ -45,12 +45,16 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
   const card = node('div', `sc-message sc-${style}`);
   const copy = node('p', 'sc-copy', String(item.message ?? ''));
   const name = String(item.name || '观众').trim() || '观众';
-  const price = Number(item.price).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+  const price = Number(item.price).toLocaleString('zh-CN', {
+    minimumFractionDigits: ['starlight', 'sketch'].includes(style) ? 2 : 0, maximumFractionDigits: 2,
+  });
   const amount = node('span', 'sc-money');
   amount.append(node('span', 'sc-currency', '¥'), node('span', 'sc-value', price));
   root.setAttribute('aria-label', `醒目留言，¥${price}`);
 
-  if (style === 'moonlit') {
+  if (['starlight', 'sketch'].includes(style)) {
+    card.append(node('span', 'sc-name', name), copy, amount);
+  } else if (style === 'moonlit') {
     const header = node('div', 'moonlit-scroll-head');
     header.append(node('span', 'sc-name', name), amount);
     card.append(header, copy);

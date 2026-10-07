@@ -24,40 +24,35 @@ test('fan sectors share one closed direction and retain contiguous artwork when 
 
 test('every act opens, holds, fades its copy, folds away and leaves the garden before reopening', async () => {
   const { LOOP_SECONDS, moonFanFrame } = await loadModuleExports(artPath);
-  assert.equal(LOOP_SECONDS, 15);
-  const intro = moonFanFrame(1.3);
-  assert.ok(intro.fan > 0 && intro.fan < 1);
-  assert.equal(intro.lettering, 0);
-  const idle = moonFanFrame(7);
-  const repeated = moonFanFrame(7 + LOOP_SECONDS * 2);
-  assert.equal(idle.phase, repeated.phase);
-  for (const key of ['scenery', 'flowers', 'fan', 'ribbon', 'lettering', 'detail']) {
-    assert.equal(idle[key], 1);
-    assert.equal(repeated[key], 1);
-    assert.equal(moonFanFrame(0, true)[key], 1);
-  }
-  assert.equal(idle.bird, 0);
-  assert.equal(repeated.bird, 0);
-  assert.equal(moonFanFrame(99, true).phase, 0);
-  assert.ok(moonFanFrame(10).lettering < 1);
-  assert.equal(moonFanFrame(11).lettering, 0);
-  const closing = [10.2, 10.8, 11.4, 12, 12.6, 13.2].map(time => moonFanFrame(time).fan);
-  assert.equal(closing[0], 1);
-  assert.equal(closing.at(-1), 0);
-  assert.ok(closing.every((value, index) => !index || value < closing[index - 1]));
-  assert.ok(moonFanFrame(13).fanOpacity > 0.95, 'folding remains visible before its fade');
-  for (const time of [14, 14.5, 14.99, LOOP_SECONDS]) {
-    const frame = moonFanFrame(time);
-    assert.equal(frame.scenery, 1, 'the interval must never flash to an empty background');
+  const visible = ['scenery', 'flowers', 'fan', 'ribbon', 'lettering', 'detail'];
+  const times = Array.from({ length: Math.round(LOOP_SECONDS * 20) }, (_, index) => index / 20);
+  const frames = times.map(time => ({ time, ...moonFanFrame(time) }));
+  const hold = frames.findIndex(frame => visible.every(key => frame[key] === 1));
+  assert.ok(hold > 0, 'the fan opens before a fully visible hold');
+  assert.ok(frames[0].fan < 1 && frames[0].lettering === 0, 'each act starts closed without copy');
+  const held = frames.filter(frame => visible.every(key => frame[key] === 1));
+  assert.ok(held.some(frame => frame.bird === 0), 'the bird passes only briefly during the hold');
+  const closing = frames.findIndex((frame, index) => index > hold && frame.fan < 1);
+  assert.ok(closing > hold, 'the fan folds after the hold');
+  assert.ok(frames[closing].lettering < 1, 'copy fades before the fan folds');
+  const folded = frames.slice(closing);
+  assert.ok(folded.every((frame, index) => !index || frame.fan <= folded[index - 1].fan), 'folding never reopens');
+  assert.ok(folded.some(frame => frame.fan > 0 && frame.fan < 1 && frame.fanOpacity > 0.95), 'folding remains visible before its fade');
+  const interval = folded.filter(frame => frame.fanOpacity === 0);
+  assert.ok(interval.length > 0, 'the garden is shown alone before reopening');
+  for (const frame of [...interval, { time: LOOP_SECONDS, ...moonFanFrame(LOOP_SECONDS) }]) {
+    assert.equal(frame.scenery, 1, `the interval must never flash to an empty background at ${frame.time}s`);
     for (const key of ['fanOpacity', 'lettering', 'detail', 'ribbon', 'flowers', 'bird']) {
-      assert.equal(frame[key], 0, `${key} has left at ${time}s`);
+      assert.equal(frame[key], 0, `${key} has left at ${frame.time}s`);
     }
   }
-  for (const time of [1.5, 3, 7, 10, 11.5, 13.5, 14]) {
-    const first = moonFanFrame(time);
-    const second = moonFanFrame(time + LOOP_SECONDS);
-    for (const key of Object.keys(first)) assert.equal(second[key], first[key], `${key} repeats at ${time}s`);
+  for (const time of times.filter((_, index) => index % 10 === 0)) {
+    const once = moonFanFrame(time + LOOP_SECONDS);
+    const twice = moonFanFrame(time + LOOP_SECONDS * 2);
+    for (const key of Object.keys(once)) assert.equal(twice[key], once[key], `${key} repeats at ${time}s`);
   }
+  for (const key of visible) assert.equal(moonFanFrame(0, true)[key], 1, 'reduced motion shows the complete still frame');
+  assert.equal(moonFanFrame(99, true).phase, 0);
 });
 
 async function createHarness(decode = async () => {}) {

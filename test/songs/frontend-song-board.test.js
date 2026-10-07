@@ -10,6 +10,7 @@ const vm = require('node:vm');
 const { readCssBundle } = require('../helpers/css-bundle');
 const { readJsModuleBundle } = require('../helpers/js-module-bundle');
 const { createLyricToggleButton, loadModuleExports, response } = require('../helpers/frontend-modules');
+const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
@@ -145,7 +146,6 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
 test('song list exposes a display board font size control', async () => {
   const html = readAdminHtml();
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'), 'utf8');
   const themePage = html.match(/<div id="themePage"[\s\S]*?<div id="displayPage"/)?.[0];
 
   assert.ok(themePage);
@@ -170,7 +170,6 @@ test('song list exposes a display board font size control', async () => {
   assert.ok(titleRule);
   assert.match(titleRule, /var\(--overlay-title-font-size\b/);
   assert.match(titleRule, /var\(--overlay-font-scale\b/);
-  assert.match(defaultsSource, /songBoardFontSize: '28'/);
 
   const values = new Map();
   const sandbox = {
@@ -195,6 +194,12 @@ test('song list exposes a display board font size control', async () => {
     sandbox.applyTheme({ songBoardFontSize: input });
     assert.equal(Number(values.get('--overlay-font-scale')) * baseFontSize, expected, input);
   }
+  sandbox.applyTheme({ songBoardFontSize: DEFAULT_SETTINGS.songBoardFontSize });
+  assert.equal(
+    Number(values.get('--overlay-font-scale')) * baseFontSize,
+    28,
+    'the stored default must match the overlay fallback size',
+  );
 });
 
 test('song board keeps song names readable in narrow browser sources', async () => {

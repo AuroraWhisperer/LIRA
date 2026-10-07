@@ -3,11 +3,11 @@ import { openComponentStyleLibrary } from './component-style-library.js';
 import { mountMediaStyleFields } from './component-style-editor.js';
 import { MEDIA_STYLE_TYPES } from '../shared/component-media-style.js';
 import { loadComponentStyleCss } from './component-style-api.js';
+import { getBackgroundAppearance } from '../shared/background-appearance.js';
 
 export function mountComponentStyleInspector(host, { item, model, component, request, report }) {
-  if (!MEDIA_STYLE_TYPES.includes(item.type)) return { dispose() {} };
   loadComponentStyleCss();
-  const change = previewElement('button', 'secondary', '更换样式 / 添加素材'); change.type = 'button'; change.disabled = item.locked;
+  const change = previewElement('button', 'secondary', MEDIA_STYLE_TYPES.includes(item.type) ? '更换样式 / 添加素材' : '更换样式'); change.type = 'button'; change.disabled = item.locked;
   let library;
   let mediaFields;
   host.append(change);
@@ -17,27 +17,44 @@ export function mountComponentStyleInspector(host, { item, model, component, req
         model.edit(document => {
           const current = document.items.find(entry => entry.id === item.id);
           if (!current || current.locked) throw new Error('组件已删除或锁定，请重新选择。');
+          if (style.type !== current.type || style.type === 'browser') {
+            const history = current.type === style.type ? current.appearance.config?.styleParameters : undefined;
+            current.type = style.type;
+            current.appearance = { mode: 'independent', config: { ...structuredClone(style.config),
+              ...(history ? { styleParameters: history } : {}) } };
+            return;
+          }
           const previous = current.appearance.mode === 'independent' ? current.appearance.config
             : component.projectConfig?.(component.controller.getState().draft) || component.controller.getState().draft;
           const next = { ...previous };
-          delete next.mediaStyle; delete next.resourceStyle;
-          const key = style.config.resourceStyle ? 'resourceStyle' : 'mediaStyle';
+          delete next.mediaStyle; delete next.resourceStyle; delete next.cssStyle;
+          const key = style.config.cssStyle ? 'cssStyle' : style.config.resourceStyle ? 'resourceStyle' : 'mediaStyle';
           next[key] = structuredClone(style.config[key]);
-          for (const key of ['style', 'displayStyle', 'styleOptions']) if (Object.hasOwn(style.config, key)) next[key] = structuredClone(style.config[key]);
+          for (const key of ['style', 'displayStyle', 'styleOptions', 'overlayQueueStyle']) if (Object.hasOwn(style.config, key)) next[key] = structuredClone(style.config[key]);
+          if (item.type === 'background') {
+            Object.assign(next, getBackgroundAppearance(style.config));
+            next.backgroundDefaults = getBackgroundAppearance(style.config.backgroundDefaults || style.config);
+          }
           current.appearance = { mode: 'independent', config: next };
         });
       },
     });
   });
-  if (item.appearance.config?.mediaStyle) {
+  if (item.appearance.config?.mediaStyle || item.appearance.config?.cssStyle) {
     const builtin = previewElement('button', 'secondary', '改用内置样式'); builtin.type = 'button'; builtin.disabled = item.locked;
     builtin.addEventListener('click', () => {
       try { model.edit(document => {
         const current = document.items.find(entry => entry.id === item.id);
-        if (current && !current.locked) delete current.appearance.config.mediaStyle;
+        if (current && !current.locked) {
+          delete current.appearance.config.mediaStyle;
+          delete current.appearance.config.cssStyle;
+          if (item.type === 'background') delete current.appearance.config.backgroundDefaults;
+        }
       }); } catch (error) { report(error.message); }
     });
     host.append(builtin);
+  }
+  if (item.appearance.config?.mediaStyle && item.type !== 'background') {
     const fields = previewElement('fieldset', 'component-style-fields'); fields.disabled = item.locked;
     mediaFields = mountMediaStyleFields(fields, item.appearance.config.mediaStyle, mediaStyle => {
       try {

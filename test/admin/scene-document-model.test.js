@@ -5,11 +5,14 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../../src/shared/scene-component-types');
+const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
+const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const admin = path.join(__dirname, '../../public/js/admin');
 const modules = Promise.all(['scene-document-model.js', 'scene-template.js'].map((file) =>
-  loadModuleExports(path.join(admin, file), { TextEncoder, crypto: { randomUUID } })));
+  loadModuleExports(path.join(admin, file), { TextEncoder, URL, crypto: { randomUUID } })));
 
 function fixture() {
   return {
@@ -54,7 +57,15 @@ test('model owns immutable document snapshots and isolated subscription values',
     snapshot.items[0].x = 700;
   });
   let captured;
+  let snapshot;
+  const stopSnapshot = model.subscribeSnapshot((_state, value) => { snapshot = value; });
+  const originalSnapshot = snapshot;
+  assert.equal(snapshot, model.getSnapshot());
+  assert.equal(Object.isFrozen(snapshot.items[0]), true);
   model.edit((draft) => { captured = draft; draft.title = '修改'; });
+  assert.equal(snapshot, model.getSnapshot());
+  assert.notEqual(snapshot, originalSnapshot);
+  assert.equal(originalSnapshot.title, '场景');
   captured.items[0].x = 600;
   const copy = model.getDocument();
   copy.items[0].x = 300;
@@ -62,6 +73,7 @@ test('model owns immutable document snapshots and isolated subscription values',
   assert.equal(model.getState().canUndo, true);
   assert.equal(notices, 2);
   unsubscribe();
+  stopSnapshot();
   model.undo();
   assert.equal(notices, 2);
   assert.equal(model.getDocument().title, '场景');
@@ -122,7 +134,7 @@ test('resizing anchors opposite edges, permits overflow and respects size limits
   const [{ resizeSceneItem }] = await modules;
   const document = fixture();
   const item = document.items[0];
-  item.type = 'queue';
+  item.type = 'danmaku';
   const geometry = ({ x, y, width, height }) => ({ x, y, width, height });
   const expected = {
     n: [40, 64, 100, 44], e: [40, 48, 124, 60], s: [40, 48, 100, 76], w: [64, 48, 76, 60],
@@ -149,17 +161,18 @@ test('resizing anchors opposite edges, permits overflow and respects size limits
   assert.deepEqual(geometry(document.items[0]), { x: 40, y: 48, width: 100, height: 60 });
 });
 
-test('clock resize handles scale both dimensions and preserve the opposite anchor', async () => {
+test('clock and queue resize handles scale both dimensions and preserve the opposite anchor', async () => {
   const [{ resizeSceneItem }] = await modules;
   const document = fixture();
-  const item = document.items[0];
-  for (const handle of ['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw']) {
-    const resized = resizeSceneItem(document, item.id, handle, 24, 16).items[0];
-    assert.ok(Math.abs(resized.width / resized.height - item.width / item.height) < 0.02, handle);
-    assert.equal(handle.includes('w') ? resized.x + resized.width : resized.x,
-      handle.includes('w') ? item.x + item.width : item.x);
-    assert.equal(handle.includes('n') ? resized.y + resized.height : resized.y,
-      handle.includes('n') ? item.y + item.height : item.y);
+  for (const item of document.items.slice(0, 2)) {
+    for (const handle of ['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw']) {
+      const resized = resizeSceneItem(document, item.id, handle, 24, 16).items.find(entry => entry.id === item.id);
+      assert.ok(Math.abs(resized.width / resized.height - item.width / item.height) < 0.02, handle);
+      assert.equal(handle.includes('w') ? resized.x + resized.width : resized.x,
+        handle.includes('w') ? item.x + item.width : item.x);
+      assert.equal(handle.includes('n') ? resized.y + resized.height : resized.y,
+        handle.includes('n') ? item.y + item.height : item.y);
+    }
   }
 });
 
@@ -351,4 +364,127 @@ test('resource resolution is atomic and revalidates credentials; generated IDs c
   assert.throws(() => importSceneTemplate(document, { createId: () => document.id }));
   const repeated = randomUUID();
   assert.throws(() => importSceneTemplate(document, { createId: () => repeated }));
+});
+
+// Browser-source template cases load with URL available for capability URL validation.
+const loadWithUrl = (file) => loadModuleExports(path.resolve(__dirname, '../../public/js', file), { TextEncoder, URL });
+const browserUrl = 'https://source.example.test/overlay?access_token=private#secret=fragment';
+const browserDocument = () => ({ schemaVersion: 1, id: randomUUID(), title: '浏览器模板', canvas: { width: 1920, height: 1080 },
+  items: [{ id: randomUUID(), type: 'browser', name: '外部来源', x: 10, y: 20, width: 400, height: 300,
+    visible: true, locked: false, appearance: { mode: 'independent', config: { url: browserUrl, viewportWidth: 800, viewportHeight: 600 } } }] });
+
+test('only browser config URL permits provider capabilities and an empty URL is an editable draft', async () => {
+  const { validateSceneDocument } = await loadWithUrl('admin/scene-template.js');
+  assert.equal(validateSceneDocument(browserDocument()).items[0].appearance.config.url, browserUrl);
+  const missing = browserDocument(); missing.items[0].appearance.config.url = '';
+  assert.equal(validateSceneDocument(missing).items[0].appearance.config.url, '');
+  for (const mutate of [
+    (value) => { value.items[0].type = 'clock'; },
+    (value) => { value.items[0].name = browserUrl; },
+    (value) => { value.items[0].appearance.config.token = 'private'; },
+    (value) => { value.items[0].appearance.config.url = 'javascript:alert(1)'; },
+    (value) => { value.items[0].appearance = { mode: 'shared' }; },
+  ]) {
+    const value = browserDocument(); mutate(value); assert.throws(() => validateSceneDocument(value));
+  }
+});
+
+test('export and import remove browser URLs and require an explicit valid replacement without leaking bindings', async () => {
+  const { exportSceneTemplate, importSceneTemplate } = await loadWithUrl('admin/scene-template.js');
+  const original = browserDocument();
+  const serialized = exportSceneTemplate(original);
+  assert.doesNotMatch(serialized, /source\.example|access_token|private|fragment/);
+  assert.equal(original.items[0].appearance.config.url, browserUrl);
+  const pending = importSceneTemplate(original, { createId: randomUUID });
+  assert.doesNotMatch(JSON.stringify(pending), /source\.example|access_token|private|fragment/);
+  assert.notEqual(pending.document.id, original.id);
+  assert.deepEqual(plain(pending.bindings.map(({ kind, source }) => [kind, source])), [['browser-url', '']]);
+  const binding = pending.bindings[0].id;
+  for (const resolution of [{ confirmed: false, value: browserUrl }, { confirmed: true, value: '' }, { confirmed: true, value: 'file:///private' }]) {
+    assert.throws(() => pending.resolve({ [binding]: resolution }));
+  }
+  const resolved = pending.resolve({ [binding]: { confirmed: true, value: browserUrl } });
+  assert.equal(resolved.items[0].appearance.config.url, browserUrl);
+  assert.equal(pending.document.items[0].appearance.config.url, '');
+});
+
+test('moving and resizing browser layers keeps their webpage viewport unchanged', async () => {
+  const { resizeSceneItem, moveSceneItems } = await loadWithUrl('admin/scene-document-model.js');
+  const initial = browserDocument();
+  const id = initial.items[0].id;
+  const resized = resizeSceneItem(initial, id, 'se', 160, 80);
+  const moved = moveSceneItems(resized, [id], 40, 30);
+  assert.deepEqual(plain(moved.items[0].appearance.config), initial.items[0].appearance.config);
+  assert.deepEqual([moved.items[0].x, moved.items[0].y, moved.items[0].width, moved.items[0].height], [50, 50, 560, 380]);
+});
+
+function overflowScene(type = 'queue') {
+  return { schemaVersion: 1, id: randomUUID(), title: '越界布局', canvas: { width: 800, height: 600 },
+    items: [{ id: randomUUID(), type, name: type, x: 100, y: 100, width: 320, height: 180,
+      visible: true, locked: false, appearance: SHARED_SCENE_TYPES.includes(type) ? { mode: 'shared' }
+        : { mode: 'independent', config: type === 'browser'
+          ? { url: 'https://example.com/', viewportWidth: 800, viewportHeight: 600 }
+          : type === 'text-box' ? createTextBoxDefaults() : {} } }] };
+}
+
+test('every component can cross every edge and corner; frontend and backend enforce the same visible minimum', async () => {
+  const [{ moveSceneItems }, { validateSceneDocument }] = await modules;
+  for (const type of SCENE_TYPES) {
+    const document = overflowScene(type);
+    for (const [dx, dy, x, y] of [
+      [-2000, 0, -296, 104], [2000, 0, 776, 104], [0, -2000, 104, -156], [0, 2000, 104, 576],
+      [-2000, -2000, -296, -156], [2000, -2000, 776, -156],
+      [-2000, 2000, -296, 576], [2000, 2000, 776, 576],
+    ]) {
+      const moved = plain(moveSceneItems(document, [document.items[0].id], dx, dy, { snap: true }));
+      assert.deepEqual([moved.items[0].x, moved.items[0].y], [x, y], type);
+      assert.deepEqual(plain(validateSceneDocument(moved)), moved);
+      assert.deepEqual(normalizeSceneDocument(moved, { normalizeConfig: (_type, config) => config }), moved);
+    }
+    for (const geometry of [{ x: -297 }, { x: 777 }, { y: -157 }, { y: 577 }, { width: 801 }, { height: 601 }]) {
+      const invalid = { ...document, items: [{ ...document.items[0], ...geometry }] };
+      assert.throws(() => validateSceneDocument(invalid), type);
+      assert.throws(() => normalizeSceneDocument(invalid, { normalizeConfig: (_type, config) => config }),
+        { code: 'SCENE_INVALID_DOCUMENT' }, type);
+    }
+  }
+});
+
+test('resizing partially outside layers preserves anchors and enough visible area', async () => {
+  const [{ resizeSceneItem }, { validateSceneDocument }] = await modules;
+  for (const type of ['queue', 'clock', 'overtime']) {
+    for (const [x, y] of [[-296, -156], [776, 576]]) {
+      const document = overflowScene(type);
+      Object.assign(document.items[0], { x, y });
+      for (const handle of ['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw']) {
+        for (const delta of [-2000, 2000]) {
+          const resized = resizeSceneItem(document, document.items[0].id, handle, delta, delta, { snap: true });
+          assert.doesNotThrow(() => validateSceneDocument(resized), `${type} ${handle} ${delta}`);
+          const item = resized.items[0];
+          assert.equal(handle.includes('w') ? item.x + item.width : item.x,
+            handle.includes('w') ? x + 320 : x);
+          assert.equal(handle.includes('n') ? item.y + item.height : item.y,
+            handle.includes('n') ? y + 180 : y);
+        }
+      }
+    }
+  }
+});
+
+test('canvas resize, shared size updates, automatic height and undo preserve partial overflow', async () => {
+  const [{ createSceneDocumentModel, resizeSceneCanvas, alignSceneItems }, { validateSceneDocument }] = await modules;
+  const document = overflowScene();
+  Object.assign(document.items[0], { x: -296, y: -156 });
+  document.items.push({ ...document.items[0], id: randomUUID(), x: 776, y: 576 });
+  const scaled = resizeSceneCanvas(document, { width: 1600, height: 1200 });
+  assert.deepEqual(plain(scaled.items.map(item => [item.x, item.y])), [[-592, -312], [1552, 1152]]);
+  const model = createSceneDocumentModel(document);
+  model.edit(draft => { draft.items[0].width = 100; draft.items[0].height = 60; }, { recordHistory: false });
+  assert.deepEqual(plain(model.getDocument().items.map(item => [item.x, item.y])), [[-76, -36], [776, 576]]);
+  model.edit(draft => { draft.items[0].x += 8; });
+  model.undo();
+  assert.equal(model.getDocument().items[0].x, -76);
+  for (const alignment of ['left', 'right', 'top', 'bottom', 'center-x', 'center-y']) {
+    assert.doesNotThrow(() => validateSceneDocument(alignSceneItems(document, document.items.map(item => item.id), alignment)));
+  }
 });

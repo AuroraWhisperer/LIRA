@@ -1,7 +1,8 @@
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { createSceneGiftDisplay } from './scene-gift-display.js';
-import { configureBrowserSourceFrame } from '../shared/browser-source-frame.js';
+import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from '../shared/browser-source-frame.js';
 import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
+import { componentCssRendererUrl } from '../shared/component-css-style.js';
 const MAX_PENDING_EVENTS = 200;
 
 export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 12000 } = {}) {
@@ -54,6 +55,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     clearTimeout(version.timer);
     for (const entry of version.entries) {
       send(entry, 'dispose');
+      if (entry.external) disposeBrowserSourceFrame(entry.frame);
       if (entry.onLoad) entry.frame.removeEventListener('load', entry.onLoad);
     }
     version.root.remove();
@@ -129,7 +131,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
           commit();
         };
         frame.addEventListener('load', entry.onLoad, { once: true });
-      } else frame.src = SCENE_COMPONENTS[item.type].rendererUrl;
+      } else frame.src = componentCssRendererUrl(item.appearance.config, SCENE_COMPONENTS[item.type].rendererUrl);
       layout(entry, item, index);
       root.append(frame);
       entries.push(entry);

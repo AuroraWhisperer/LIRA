@@ -26,6 +26,7 @@ function createNode() {
     append(...children) { this.children.push(...children); },
     querySelectorAll() { return []; },
     querySelector(selector) { return this.getElementById(selector); },
+    closest() { return this; },
     setAttribute(name, value) { this[name] = value; },
     getAttribute(name) { return this[name]; },
     removeAttribute(name) { delete this[name]; },
@@ -48,6 +49,7 @@ async function loadOwner(filename, overrides = {}) {
     './component-preview-panel.js': { cloneComponentPanel: createNode,
       componentField: (root, id) => root.getElementById(id) },
     './forms.js': { formsService: {} },
+    './component-style-parameters.js': { mountStyleParameters: () => ({ dispose() {} }) },
     './state.js': { stateService: { getAppState: () => ({ settings: {} }) } },
     './queue.js': { applyAdminQueueFontPreview() {} },
     './theme-style-view.js': { setOverlayStyle() {} },
@@ -127,7 +129,7 @@ test('clock factory keeps the small preview live while shared editor sessions ar
   assert.equal(small.dataset.clockStyle, 'timeline-vertical');
   assert.equal(messages.at(-1).type, 'component-preview:config');
   assert.equal(messages.at(-1).config.style, 'timeline-vertical');
-  assert.deepEqual(plain(preview.size(controller.getState().draft)), [240, 400]);
+  assert.deepEqual(plain(preview.size(controller.getState().draft)), [48, 80]);
   preview.onClose?.();
   assert.equal(small.src, source);
   fixture.document.getElementById('clockOpenPreview').fire('click');

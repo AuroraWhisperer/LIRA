@@ -26,6 +26,7 @@ async function fixture() {
         hidden: false,
         dataset: {},
         events: {},
+        closest() { return null; },
         addEventListener(name, listener) {
           this.events[name] = listener;
         },
@@ -91,6 +92,13 @@ async function fixture() {
   await module.link((specifier, parent) => {
     const filename = path.resolve(path.dirname(parent.identifier), specifier);
     if (modules.has(filename)) return modules.get(filename);
+    if (filename === path.resolve(__dirname, '../../public/js/admin/component-style-parameters.js')) {
+      const effects = new vm.SyntheticModule(['mountStyleParameters'], function () {
+        this.setExport('mountStyleParameters', () => ({ dispose() {} }));
+      }, { context });
+      modules.set(filename, effects);
+      return effects;
+    }
     const dependency = !['utils.js', 'danmaku-canvas-dialog.js', 'server-overlay-url.js'].includes(path.basename(filename))
       ? new vm.SourceTextModule(fs.readFileSync(filename, 'utf8'), { context, identifier: filename })
       : new vm.SyntheticModule(

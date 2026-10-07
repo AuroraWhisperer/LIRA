@@ -72,7 +72,10 @@ function createClockDom() {
       textContent: '',
       children: [],
       getBoundingClientRect: () => ({ left: 0, top: 0, right: 560, bottom: 190, width: 560, height: 190 }),
-      querySelectorAll() { return [this]; },
+      querySelectorAll() { return []; },
+      querySelector() { return null; },
+      closest(selector) { return selector === '.clock-parameter-section' ? this : null; },
+      remove() {},
       style: { setProperty(key, value) { this[key] = value; }, getPropertyValue(key) { return this[key] || ''; },
         removeProperty(key) { delete this[key]; } },
       classList: {
@@ -118,13 +121,16 @@ function createClockDom() {
   const document = {
     ...element(),
     documentElement: element(),
+    head: element(),
     getElementById(id) {
       if (id === 'toast') return null;
       if (!nodes.has(id)) nodes.set(id, element());
       return nodes.get(id);
     },
-    querySelectorAll: (selector) => selector === '[data-clock-palette]' ? palettes : options,
+    querySelectorAll: (selector) => selector === '[data-clock-palette]' ? palettes
+      : selector === '[data-clock-style-option]' ? options : [],
     createElement: element,
+    createTextNode: (textContent) => ({ ...element(), textContent }),
   };
   document.getElementById('clockCard').hidden = true;
   const window = {
@@ -134,6 +140,8 @@ function createClockDom() {
     innerWidth: 580,
     innerHeight: 210,
     matchMedia: () => ({ matches: false }),
+    Event: class { constructor(type) { this.type = type; } },
+    dispatchEvent(event) { this.listeners.get(event.type)?.(event); },
     setTimeout(callback) {
       timers.set(++timerId, callback);
       return timerId;
@@ -142,6 +150,7 @@ function createClockDom() {
       timers.delete(id);
     },
   };
+  document.defaultView = window;
   const sockets = [];
   class WebSocket {
     constructor() { this.listeners = new Map(); sockets.push(this); }
@@ -149,7 +158,7 @@ function createClockDom() {
     close() { this.closed = true; }
   }
   return { document, window, options, palettes, timers, animations, sockets, WebSocket,
-    AbortController, setTimeout: window.setTimeout, clearTimeout: window.clearTimeout };
+    AbortController, Event: window.Event, setTimeout: window.setTimeout, clearTimeout: window.clearTimeout };
 }
 
 test('clock preview loads once, shares drafts and only writes on explicit save', async () => {

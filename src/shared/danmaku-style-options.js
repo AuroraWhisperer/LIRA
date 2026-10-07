@@ -54,6 +54,24 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     giftImage: true,
     defaultTextColor: '#ffffff',
   },
+  sketch: {
+    scrollDirection: true,
+    label: '绿萌简笔画',
+    minFontSize: 18,
+    maxFontSize: 48,
+    background: true,
+    giftImage: false,
+    defaultTextColor: '#7f9f76',
+  },
+  starlight: {
+    scrollDirection: true,
+    label: '星语',
+    minFontSize: 18,
+    maxFontSize: 48,
+    background: false,
+    giftImage: false,
+    defaultTextColor: '#ffffff',
+  },
   moonlit: {
     scrollDirection: true,
     label: '月渡花汀',
@@ -72,6 +90,15 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     giftImage: true,
     defaultTextColor: '#1d1d1f',
   },
+  whiteframe: {
+    layout: 'fullscreen-random',
+    label: '白线框',
+    minFontSize: 18,
+    maxFontSize: 40,
+    background: false,
+    giftImage: false,
+    defaultTextColor: '#ffffff',
+  },
   cream: {
     layout: 'fullscreen-random',
     label: '奶油气泡',
@@ -80,6 +107,35 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     background: true,
     giftImage: true,
     defaultTextColor: '#584941',
+  },
+  floating: {
+    layout: 'floating',
+    label: '飘窗弹幕',
+    minFontSize: 18,
+    maxFontSize: 40,
+    background: true,
+    giftImage: false,
+    speed: true,
+    defaultTextColor: '#ffffff',
+  },
+  comet: {
+    layout: 'floating',
+    label: '鹤映鎏金',
+    minFontSize: 18,
+    maxFontSize: 40,
+    background: true,
+    giftImage: false,
+    speed: true,
+    defaultTextColor: '#c29670',
+  },
+  starveil: {
+    layout: 'fullscreen-random',
+    label: '星幕浮语',
+    minFontSize: 18,
+    maxFontSize: 40,
+    background: true,
+    giftImage: false,
+    defaultTextColor: '#ffffff',
   },
   glow: {
     layout: 'fullscreen-random',
@@ -133,6 +189,10 @@ function normalizeStyleOptions(value) {
       else if (key === 'giftImage' && limits.giftImage && ['theme', 'gift'].includes(item)) normalized[key] = item;
       else if (key === 'scrollDirection' && limits.scrollDirection && ['up', 'down'].includes(item))
         normalized[key] = item;
+      else if (key === 'speedPixelsPerSecond' && limits.speed && Number.isInteger(item) && item >= 20 && item <= 600)
+        normalized[key] = item;
+      else if (['centerBias', 'dispersion'].includes(key) && limits.layout === 'fullscreen-random'
+        && Number.isInteger(item) && item >= 1 && item <= 50) normalized[key] = item;
       else fail();
     }
     result[style] = normalized;
@@ -148,6 +208,8 @@ function styleOptionsFor(style, options = {}) {
     backgroundOpacity: 100,
     giftImage: 'theme',
     scrollDirection: 'up',
+    ...(DANMAKU_STYLE_OPTIONS[style]?.layout === 'fullscreen-random' ? { centerBias: 1, dispersion: 1 } : {}),
+    ...(DANMAKU_STYLE_OPTIONS[style]?.speed ? { speedPixelsPerSecond: 120 } : {}),
   };
   try {
     return { ...defaults, ...normalizeStyleOptions({ [style]: options[style] || {} })[style] };

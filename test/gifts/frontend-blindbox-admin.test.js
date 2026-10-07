@@ -14,7 +14,6 @@ test('blind box analysis is a separate accessible workspace module', () => {
   const html = readAdminHtml();
   const entry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
   const stylesEntry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox-analysis.js'), 'utf8');
 
   assert.match(entry, /import \{ giftAnalysis \} from '\.\/blindbox-analysis\.js';/);
   assert.match(stylesEntry, /admin\/blindbox-analysis\.css/);
@@ -32,22 +31,68 @@ test('blind box analysis is a separate accessible workspace module', () => {
   assert.match(html, /id="blindBoxAnalysisBody"/);
   assert.match(html, /id="blindBoxAnalysisPrev"/);
   assert.match(html, /id="blindBoxAnalysisNext"/);
-  assert.match(source, /refreshIfOpen/);
-  assert.match(source, /AbortController/);
-  assert.match(source, /setTimeout/);
 });
 
-test('blind box analysis refreshes only for gift snapshot reasons', () => {
+test('admin state forwards only gift snapshot reasons as gift events', () => {
   const stateSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'), 'utf8');
-  const analysisSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox-analysis.js'),
-    'utf8',
-  );
 
   assert.match(stateSource, /isGiftSnapshotReason\(payload\.reason\)/);
   assert.match(stateSource, /eventBus\.emit\(Events\.GIFT_RECEIVED/);
-  assert.match(analysisSource, /eventBus\.on\(Events\.GIFT_RECEIVED, refreshIfOpen\)/);
-  assert.doesNotMatch(analysisSource, /Events\.STATE_LOADED/);
+});
+
+test('open blind box analysis debounces gift events into one quiet reload and stops after closing', async () => {
+  const elements = new Map();
+  const element = (id = '') => {
+    if (id && elements.has(id)) return elements.get(id);
+    const node = {
+      id, hidden: true, dataset: {}, textContent: '', innerHTML: '', disabled: false,
+      classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+      addEventListener() {}, setAttribute() {}, getAttribute: () => null, focus() {},
+      querySelector: () => element(), querySelectorAll: () => [],
+    };
+    if (id) elements.set(id, node);
+    return node;
+  };
+  const timers = [];
+  const requests = [];
+  const window = {};
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox-analysis.js'), {
+    window,
+    HTMLElement: class {},
+    AbortController,
+    URLSearchParams,
+    document: {
+      readyState: 'complete', activeElement: null, body: element(),
+      addEventListener() {}, getElementById: (id) => element(id),
+      querySelector: () => null, querySelectorAll: () => [],
+    },
+    setTimeout: (callback, delay) => timers.push({ callback, delay, cleared: false }) - 1,
+    clearTimeout: (index) => {
+      if (timers[index]) timers[index].cleared = true;
+    },
+    fetch: (url, { signal }) => {
+      requests.push({ url, signal });
+      return new Promise(() => {});
+    },
+  });
+  const { eventBus, gifts } = window.AdminApp;
+  const pendingTimers = () => timers.filter((timer) => !timer.cleared);
+
+  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  assert.equal(pendingTimers().length, 0, 'a closed workspace ignores gift events');
+  gifts.analysis.open();
+  assert.equal(requests.length, 1);
+  assert.match(requests[0].url, /^\/api\/gifts\/blind-box-analysis\?view=users&page=1/);
+  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  assert.equal(pendingTimers().length, 1, 'gift bursts share one delayed reload');
+  pendingTimers()[0].callback();
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].signal.aborted, true, 'the newer reload aborts the older request');
+  gifts.analysis.close();
+  assert.equal(requests[1].signal.aborted, true);
+  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  assert.equal(pendingTimers().length, 0);
 });
 
 test('blindbox controls publish current filters through the IPv4 source URL', async () => {

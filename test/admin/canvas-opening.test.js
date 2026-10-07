@@ -38,12 +38,16 @@ test('opening settings preview reuses a canvas layer and published output follow
   }, fs.readFileSync('public/pages/admin/toolbox/start-animation.html', 'utf8'));
   const open = async () => {
     await desktop.evaluate(() => { window.externalPreviewUrl = ''; });
+    const focus = desktop.waitForResponse(response => new URL(response.url()).pathname === '/api/component-preview'
+      && response.request().postDataJSON()?.action === 'focus' && response.status() === 200);
     await desktop.locator('#openingPreviewBtn').click();
-    await desktop.waitForFunction(() => window.externalPreviewUrl);
-    const url = await desktop.evaluate(() => window.externalPreviewUrl);
-    assert.equal((await fetch(url)).status, 200);
-    await page.goto('about:blank');
-    await page.goto(url);
+    const { data } = await (await focus).json();
+    if (!data.focused) {
+      await desktop.waitForFunction(() => window.externalPreviewUrl);
+      const url = await desktop.evaluate(() => window.externalPreviewUrl);
+      assert.equal((await fetch(url)).status, 200);
+      await page.goto(url);
+    }
     await page.waitForFunction(() => document.querySelector('.scene-editor-item.is-selected .component-preview-load-state')?.hidden);
   };
   await open();
@@ -97,15 +101,32 @@ test('opening settings preview reuses a canvas layer and published output follow
   settings.openingStyle = 'classic';
   settings.openingTitle = '唱一首，在一首，给你的歌';
   await published.getByText(settings.openingTitle, { exact: true }).waitFor({ state: 'visible' });
-  fs.mkdirSync('tmp', { recursive: true });
-  await published.locator('body').screenshot({ path: 'tmp/opening-default.png', animations: 'disabled' });
   await page.bringToFront();
   await opening.getByText(settings.openingTitle, { exact: true }).waitFor({ state: 'visible' });
-  await page.screenshot({ path: 'tmp/opening-canvas.png', animations: 'disabled' });
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   await page.locator('[data-category="opening"]').click();
-  await page.locator('.preview-picker-styles img').evaluate(image => image.decode());
+  assert.deepEqual(await page.locator('.preview-picker-caption strong').allTextContents(), ['经典舞台', '像素卡带']);
+  await page.locator('.preview-picker-styles img').evaluateAll(images => Promise.all(images.map(image => image.decode())));
   assert.equal(await published.locator('body').evaluate(() => window.__API_TOKEN__), undefined);
+  await page.getByRole('button', { name: '添加经典舞台', exact: true }).click();
+  await opening.locator('#openingStage[data-style="classic"]').waitFor({ state: 'visible' });
+  settings.openingStyle = 'pixel-cassette';
+  const following = page.locator('.scene-editor-item').first().frameLocator('iframe');
+  await following.locator('#openingPixel').waitFor({ state: 'visible' });
+  assert.equal(await opening.locator('#openingStage').getAttribute('data-style'), 'classic');
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  await page.locator('[data-category="opening"]').click();
+  await page.getByRole('button', { name: '添加像素卡带', exact: true }).click();
+  await opening.locator('#openingPixel').waitFor({ state: 'visible' });
+  settings.openingStyle = 'classic';
+  await following.locator('#openingStage[data-style="classic"]').waitFor({ state: 'visible' });
+  assert.equal(await opening.locator('#openingStage').getAttribute('data-style'), 'pixel-cassette');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  assert.deepEqual(fixture.service.list()[0].document.items.map(item => item.appearance.config.style),
+    ['original', 'classic', 'pixel-cassette']);
+  await published.nth(1).locator('#openingStage[data-style="classic"]').waitFor({ state: 'visible' });
+  await published.nth(2).locator('#openingPixel').waitFor({ state: 'visible' });
   assert.deepEqual(childRequests, []);
   assert.deepEqual(errors, []);
 });

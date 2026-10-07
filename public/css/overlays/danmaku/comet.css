@@ -1,0 +1,93 @@
+/* 鹤映鎏金: a champagne frame with independently anchored floral corners. */
+body[data-style='comet'] .draw-danmaku-item {
+  --danmaku-trail-width: 0px;
+  --comet-ink: #c29670;
+  width: max-content;
+  min-width: 540px;
+  max-width: 700px;
+  min-height: 207px;
+  padding: 12px 150px 27px 100px;
+  border: 0;
+  border-radius: 0;
+  color: var(--comet-ink);
+  background: none;
+  box-shadow: none;
+  isolation: isolate;
+  overflow: visible;
+}
+body[data-style='comet'] .draw-danmaku-body p::before,
+body[data-style='comet'] .draw-danmaku-body p::after,
+body[data-style='comet'] .draw-danmaku-identity::before,
+body[data-style='comet'] .draw-danmaku-identity::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  box-sizing: border-box;
+  pointer-events: none;
+  opacity: var(--danmaku-background-opacity, 1);
+  border: 0 solid transparent;
+}
+body[data-style='comet'] .draw-danmaku-body p::before,
+body[data-style='comet'] .draw-danmaku-body p::after {
+  inset: -76.5px -150px -27px -100px;
+}
+body[data-style='comet'] .draw-danmaku-body p::before {
+  border-image: url('/img/overlays/danmaku-comet/crane-frame.webp') 65 153 39 112 fill / 97.5px 229.5px 58.5px 168px / 0 stretch;
+}
+body[data-style='comet'] .draw-danmaku-body p::after {
+  /* Each corner follows its own edge as the message panel grows. */
+  background:
+    url('/img/overlays/danmaku-comet/crane-top-left.webp') left 8px top 20px / 166px auto no-repeat,
+    url('/img/overlays/danmaku-comet/crane-bottom-left.webp') left 10px bottom 11px / 154px auto no-repeat,
+    url('/img/overlays/danmaku-comet/crane-top-right.webp') right 4px top 4px / 192px auto no-repeat,
+    url('/img/overlays/danmaku-comet/crane-bottom-right.webp') right 7px bottom 0 / 210px auto no-repeat;
+}
+body[data-style='comet'] .draw-danmaku-body {
+  position: relative;
+  gap: 6px;
+}
+body[data-style='comet'] .draw-danmaku-identity {
+  position: relative;
+  isolation: isolate;
+  z-index: 1;
+  min-width: 0;
+  min-height: 58.5px;
+  padding: 12px 76px;
+  color: var(--comet-ink);
+}
+body[data-style='comet'] .draw-danmaku-identity::before {
+  border-image: url('/img/overlays/danmaku-comet/crane-nameplate.webp') 16 35 16 35 fill / 24px 52.5px 24px 52.5px / 0 stretch;
+}
+body[data-style='comet'] .draw-danmaku-identity::after {
+  background:
+    url('/img/overlays/danmaku-comet/crane-flower.webp') left 24px center / 27px 27px no-repeat,
+    url('/img/overlays/danmaku-comet/crane-flower.webp') right 24px center / 27px 27px no-repeat;
+}
+body[data-style='comet'] .draw-danmaku-identity strong {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+body[data-style='comet'] .draw-danmaku-body p {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+  width: 100%;
+  align-content: center;
+  min-height: 103.5px;
+  padding: 23px 0;
+  color: var(--comet-ink);
+  font-weight: 700;
+  line-height: 1.4;
+}
+body[data-style='comet'] .draw-danmaku-identity strong,
+body[data-style='comet'] .draw-danmaku-body p {
+  paint-order: stroke fill;
+  -webkit-text-stroke: 1.5px rgb(255 255 250 / 92%);
+  text-shadow: 0 0 3px #fffdf0, 0 0 6px #fffdf0;
+}
+body[data-style='comet'] .draw-danmaku-body .draw-danmaku-gift {
+  display: flex;
+  align-items: center;
+}

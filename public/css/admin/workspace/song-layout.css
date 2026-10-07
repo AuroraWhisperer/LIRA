@@ -368,21 +368,13 @@ body.player-dock-expanded .song-workspace {
   min-width: 0;
 }
 
-.song-workspace .identity-rule-setting input[type='color'] {
-  width: 54px;
-  min-width: 54px;
-  height: 36px;
-  min-height: 36px;
-  padding-right: 15px;
-  background-position-x: right 4px;
-}
-
 .song-workspace .identity-rule-settings {
   row-gap: 8px;
 }
 
 .song-workspace .identity-rule-setting {
-  grid-template-columns: 52px minmax(0, 1fr) 54px;
+  --color-control-height: 32px;
+  grid-template-columns: 52px minmax(0, 1fr) 132px;
   padding-block: 5px;
 }
 

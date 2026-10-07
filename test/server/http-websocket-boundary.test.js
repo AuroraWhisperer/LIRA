@@ -7,6 +7,7 @@ const { once } = require('node:events');
 const test = require('node:test');
 const { createHttpServer } = require('../../src/server/http-server');
 const { createWebSocketHub } = require('../../src/server/ws');
+const { listenHttpServer } = require('../helpers/transport-fixtures');
 
 test('HTTP upgrade enforces the runtime Host before independent WS authorization', async (t) => {
   const token = 'synthetic-upgrade-token';
@@ -51,6 +52,7 @@ test('HTTP upgrade enforces the runtime Host before independent WS authorization
     { name: 'foreign Host, valid token and Origin', host: 'foreign.invalid', origin, status: 400 },
     { name: 'wrong port', host: `127.0.0.1:${port + 1}`, status: 400 },
     { name: 'localhost alias is not the runtime Host', host: `localhost:${port}`, status: 400 },
+    { name: 'malformed Host is rejected inside the transport handler', host: '[', status: 400 },
     { name: 'canonical Host, non-browser client', status: 101 },
     { name: 'canonical Host and Origin', origin, status: 101 },
     { name: 'valid Host does not bypass Origin', origin: 'http://foreign.invalid', status: 403 },
@@ -146,4 +148,46 @@ test('HTTP upgrade enforces the runtime Host before independent WS authorization
       assert.equal(serverSocket.destroyed, true);
     });
   }
+});
+
+test('a frame arriving with the HTTP upgrade is processed exactly once', async (t) => {
+  const hub = createWebSocketHub({ closeTimeoutMs: 20 });
+  t.after(() => hub.stop());
+  const { port } = await listenHttpServer(t, {
+    getWebSocketHub: () => hub,
+    getWebSocketContext: () => ({ sessionToken: 'synthetic-token', getState: () => ({}) }),
+  });
+  const client = net.createConnection({ host: '127.0.0.1', port });
+  t.after(() => client.destroy());
+  await once(client, 'connect');
+  const handshake = Buffer.from(
+    [
+      'GET /ws?token=synthetic-token HTTP/1.1',
+      `Host: 127.0.0.1:${port}`,
+      'Connection: Upgrade',
+      'Upgrade: websocket',
+      'Sec-WebSocket-Version: 13',
+      'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+      '',
+      '',
+    ].join('\r\n'),
+  );
+  // Masked ping with a zero mask, immediately followed by the close frame.
+  const frames = Buffer.from([0x89, 0x84, 0, 0, 0, 0, 112, 105, 110, 103, 0x88, 0x80, 0, 0, 0, 0]);
+  let received = Buffer.alloc(0);
+  const completed = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Upgrade head was not consumed.')), 2000);
+    t.after(() => clearTimeout(timer));
+    client.on('error', reject);
+    client.on('data', (chunk) => {
+      received = Buffer.concat([received, chunk]);
+    });
+    client.on('end', resolve);
+  });
+  client.write(Buffer.concat([handshake, frames]));
+  await completed;
+  const pong = Buffer.from([0x8a, 4, 112, 105, 110, 103]);
+  const first = received.indexOf(pong);
+  assert.ok(first > 0, 'the initial ping must receive a pong');
+  assert.equal(received.indexOf(pong, first + 1), -1, 'head bytes must not be processed twice');
 });

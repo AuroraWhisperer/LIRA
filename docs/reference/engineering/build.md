@@ -18,8 +18,7 @@
 | `verify:quick`        | `npm run verify:docs && npm run check && npm run verify:architecture`                                                                                             | 日常评审前快速门禁:文档 → 语法 → 架构                                                                        |
 | `verify:contracts` | `node scripts/verify-server-contract.js` | 核对固定服务器提交和 fixture SHA-256；支持 `LIRA_SERVER_ROOT` |
 | `verify:roundtrip` | `node scripts/verify-song-roundtrip.cjs` | 固定服务器真实 HTTP 歌库往返；两仓需安装依赖 |
-| `verify:tests` | `node scripts/run-tests.js --cache` | 沿用测试组、目录与文件选择，按有效证明补齐完整文件；支持 `--plan` / `--force` |
-| `verify` | `npm run verify:contracts && npm run check && npm run verify:tests` | 完整门禁:实时契约输入 → 语法 → 测试完整覆盖；已通过且输入未变的文件自动复用 |
+| `verify` | `npm run verify:contracts && npm run check && npm test` | 完整门禁:实时契约输入 → 语法 → 全量测试 |
 | `diagnose:wesing`     | `node scripts/inspect-wesing-playback.js`                                                                                                                         | 全民 K 歌播放状态交互诊断(见 [test.md](test.md) §4 与 [backend/music/wesing.md](../backend/music/wesing.md)) |
 | `make:icon`           | `node scripts/create-icon.js`                                                                                                                                     | 生成 `build/icon.png` + `build/icon.ico`(见 §5)                                                              |
 | `dist:win`            | `npm run make:icon && electron-builder --win nsis --x64 --publish never`                                                                                                          | 正式打包:下载 Electron 二进制 + 构建 NSIS 安装包                                                             |
@@ -34,7 +33,7 @@
 
 当前仓库已移除 Check 工作流，发布前在 Windows 和 Node.js 24 环境执行 [发布指南](../../../RELEASE_GUIDE.md) 与本地验证命令。
 
-`npm run verify` 先实时校验 [契约锁](../../../server-contract.lock.json) 指定的服务器提交和夹具，再补齐语法、文档、架构及完整测试覆盖；有效历史结果与本次成功共同构成覆盖。执行前用 `npm run verify:tests -- --plan` 查看运行和复用文件。依赖安装必须先结束，验证期间不要重装或修改依赖。服务器检出默认位于平级 `lira-server` 目录，也可通过 `LIRA_SERVER_ROOT` 指向独立的锁定检出；不要为测试重置正在开发的服务器工作区。真实 HTTP 歌库往返由 `npm run verify:roundtrip` 单独执行，要求两边安装依赖。缓存输入、失败和强制复验规则统一见[测试结果复用](test.md#测试结果复用)。
+`npm run verify` 先实时校验 [契约锁](../../../server-contract.lock.json) 指定的服务器提交和夹具，再运行语法检查（逐文件复用）和完整 `npm test`，后者已包含文档与架构测试。依赖安装必须先结束，验证期间不要重装或修改依赖。服务器检出按显式路径、`LIRA_SERVER_ROOT`、已存在的平级 `lira-server-contract`、平级 `lira-server` 的顺序选择；准备方式与失败语义见 [测试参考](test.md#固定服务器契约输入)。不要为测试重置正在开发的服务器工作区。真实 HTTP 歌库往返由 `npm run verify:roundtrip` 单独执行，要求两边安装依赖。
 
 原生安装器测试需要 `LIRA_TEST_MAKENSIS` 指向 NSIS 的 `makensis.exe`，`LIRA_TEST_NSIS_PLUGINS` 指向包含 `StdUtils.dll` 和 `nsProcess.dll` 的 `x86-unicode` 插件目录；可复用本机 electron-builder 缓存。发布验证应配置这些路径并检查测试汇总，确保安装、迁移和卸载场景实际执行。
 
