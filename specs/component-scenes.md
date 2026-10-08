@@ -39,6 +39,8 @@ measurement in the editor and saves that measured output rectangle. Original
 sources without saved dimensions retain legacy behavior. Online server sources
 and manual transforms in streaming software are outside this local output contract.
 
+Preset deletion requires explicit confirmation and the desktop-held expected revision. Only the currently selected, desktop-listed preset can be deleted through the canvas capability. The service and store reject deletion of the fixed output scene and the active preset; other deletions preserve the bound source, live publication, other drafts and media assets. A failed delete keeps the selected draft; success returns to the live preset or the first remaining preset. No schema or credential changes are needed.
+
 ## Ownership And Compatibility
 
 - Scene service owns scene draft, publication, capability and bounded display-event buffer. Store owns SQLite transactions in existing songDb, through an appended migration. No new database process or framework.

@@ -16,13 +16,14 @@
 
 | 管理端点 | 绑定画布端点 | 请求与结果 |
 | --- | --- | --- |
-| `GET /api/component-styles/list` | `GET /api/component-preview/styles/list` | 返回包数组；包含 `id/name/packageId?/version?/bytes/createdAt/styles`，样式含 `id/type/name/config`；过滤已移除样式 |
+| `GET /api/component-styles/list` | `GET /api/component-preview/styles/list` | 返回包数组；包含 `id/name/packageId?/version?/bytes/createdAt/styles/isSuite`，样式含 `id/type/name/config`；过滤已移除包及样式；套装分类基于完整历史成员，不受逐项移除或新版减少成员影响 |
 | `POST /api/component-styles/add` | `POST /api/component-preview/styles/add` | 原始媒体 bytes；查询 `description` 为 URL 编码 JSON `{type,filename,name,width,height,media?}`。校验并安装一个样式，返回包 |
 | `POST /api/component-styles/web` | `POST /api/component-preview/styles/web` | 查询 `description` 为 URL 编码 JSON `{type,entry,name?,width?,height?}`；请求体第一行为 UTF-8 JSON 数组 `[{path,size}]` 加换行，随后按顺序拼接各文件 bytes。验证配套资源并原子安装，返回包 |
 | `POST /api/component-styles/pick-web` | `POST /api/component-preview/styles/pick-web` | JSON `{kind:"html"或"css",description:{type,name?,width?,height?}}`；主进程打开文件选择器并复制配套目录，renderer 不提供磁盘路径。取消返回 `data:null`；无桌面选择器返回 503 与 `code:"FILE_PICKER_UNAVAILABLE"`，供显式文件/文件夹选择回退 |
-| `POST /api/component-styles/inspect` | `POST /api/component-preview/styles/inspect` | 原始 ZIP bytes；校验并暂存，返回包含临时 `id` 的素材包清单供确认，兼容单组件样式包与跨组件套装，此时不可用于场景 |
-| `POST /api/component-styles/install` | `POST /api/component-preview/styles/install` | JSON `{id}`，确认暂存包；原子登记并返回包；重复内容返回 `alreadyInstalled:true`，恢复已移除样式返回 `restored:true` |
+| `POST /api/component-styles/inspect` | `POST /api/component-preview/styles/inspect` | 原始 ZIP bytes；校验并暂存，返回临时 `id`、清单、`isSuite` 和 `replaces:[{id,name,version}]`（同 packageId 将被替换的已安装版本）；兼容单组件样式包与跨组件套装，此时不修改已安装列表、不可用于场景 |
+| `POST /api/component-styles/install` | `POST /api/component-preview/styles/install` | JSON `{id}`，确认暂存包；原子登记套装并撤下同 packageId 其他版本，返回包及 `replaced` 数量；重复内容返回 `alreadyInstalled:true`，恢复已移除包或样式返回 `restored:true`；保留旧场景及资源 |
 | `POST /api/component-styles/remove` | `POST /api/component-preview/styles/remove` | JSON `{id}`，此处 id 为样式 ID；从库中移除，返回 `{id}`，保留场景引用文件 |
+| `POST /api/component-styles/remove-pack` | `POST /api/component-preview/styles/remove-pack` | JSON `{id}`，此处 id 为安装包 UUID；整包从库中移除，返回 `{id}`；重复删除安全，保留场景引用文件，可用原 ZIP 恢复 |
 | `POST /api/component-styles/cancel` | `POST /api/component-preview/styles/cancel` | JSON `{id}`，删除本次暂存包；返回 `{id}`，重复取消安全 |
 
 网页导入最多 1024 文件、总量 512 MiB；HTML/CSS/JS/MJS/JSON 单文件最多 4 MiB，上传清单最多 256 KiB。入口为 HTML/HTM/CSS，配套资源允许常见图片、音视频和字体；拒绝路径穿越、链接和大小写重复路径，保留原相对目录。静态 HTML/CSS/JS 引用缺失时返回具体文件名；动态运行结果不由静态校验保证。HTML 样式 `type:browser`，额外 `category` 保留原组件分类；CSS 样式保存原生组件配置及 `cssStyle`。安装前再次校验权限；仅 pending 目录 rename 的瞬时 EPERM/EBUSY 可重试最多 4 次，每次重试前重验权限。
@@ -51,13 +52,13 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 | `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型、绑定 canvas 会话时的独立场景类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；一个锚定会话按已注册场景类型分别保留短入口；重复申请同一组会话与选择复用 key 并更新尺寸 |
 | `resolve` | 短入口 Bearer；`{action:'resolve'}` | `{links:[{component,id,token,draftKey}],selectedId,selectedSize}`，只返回绑定的有效会话与入口元数据；不续活闲置租约；未知或失效入口为 410 |
 | `focus` | 管理身份；`{key}`，再次验证短入口及其全部成员 | `{focused}`；锚定会话当前 attachment 经 read 确认定位才为 true；无页面、两秒超时、被更新请求取代或会话结束时为 false。定位请求不排入配置命令，不修改持久化状态 |
-| `exchange` | 管理身份；`{id,state,display?,ack}` | `{commands:[{sequence,action,change?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
+| `exchange` | 管理身份；`{id,state,display?,ack}` | `{commands:[{sequence,action,change?,baseItemIds?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
 | `revoke` | 管理身份；`{id}` | `{closed}` |
 | `read` | 当前会话 Bearer；`{id,attachmentId?,focusId?}`；未附页面标识的读取用于接管前取得快照；只有当前 attachment 可用 focusId 确认定位 | `{component,draftKey,state,display,ack,sequence,attachmentId,focus?}`，attachmentId 初始为 null；focus 仅请求待处理时存在，为 `{id,selectedId,selectedSize,selectedItemId?}`；确认或过期后移除 |
 | `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
-| `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?}`，edit 允许该组件已有草稿字段；clock/danmaku 另允许向旧草稿新增经类型校验的 styleParameters，禁止原型键 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准 |
+| `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?,baseItemIds?}`，edit 允许该组件已有草稿字段；clock/danmaku 另允许向旧草稿新增经类型校验的 styleParameters，禁止原型键。baseItemIds 仅允许 canvas 文档 edit，为编辑前已知的 UUID 列表 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准。可选 baseItemIds 经 exchange 原样转发，桌面应用文档时保留当前场景中不在此基线和提交文档中的新增图层；已知图层删除仍生效。旧请求保持原替换语义，基线不持久化 |
 | `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}`，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
-| `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}` 或 `{action:'create',title,duplicate:boolean}` | 仅选择桌面 state.presets 列出的预设，或由桌面新建/复制；结果 `{id}` 经 display 返回，不发布、不授予通用管理权限 |
+| `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}`、`{action:'create',title,duplicate:boolean}` 或 `{action:'delete',id}` | 仅操作桌面 state.presets 列出的预设；删除还须匹配当前草稿 ID，由桌面持有的 revision 提交。结果 `{id}` 为最终选中预设，经 display 返回；不发布、不授予通用管理权限 |
 | `close` | 当前会话 Bearer；`{id,attachmentId?}` | `{}`，显式关闭浏览器访问；客户端先处理已经接受的修改/保存，再撤销会话 |
 
 接管后，网页变更和关闭必须携带当前 attachmentId，轮询也校验附带的标识；旧页面请求返回 409。
@@ -96,6 +97,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 | `POST /api/scenes/validate` | `{document}` | 规范化后的展示文档；模板导入先验证所有独立外观，不写入或创建场景 |
 | `POST /api/scenes/create` | `{title,canvas:{width,height}}` | 空场景管理 DTO，凭据仅加密保存 |
 | `POST /api/scenes/save` | `{id,expectedRevision,document}` | 更新草稿并递增 revision，不改变已发布版；旧 revision 返回 409 |
+| `POST /api/scenes/delete` | `{id,expectedRevision}` | 删除当前账号的指定预设，返回 `{id}`；版本冲突、固定输出预设或正在使用的预设返回 409，不存在或跨账号返回 404。保留画布绑定、直播输出和其他预设 |
 | `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 固定所有有效外观后原子发布，递增 publishedVersion；编辑器传共享类型外观快照确认，缓存尚未同步或已变化返回 503；失败保留旧版 |
 | `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源；事务检查预设 revision 和来源 publishedVersion，提交发布快照、当前预设和共享尺寸；任一冲突返回 409、失败保留旧输出 |
 | `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds}`，itemIds 为已发布实例 ID，仅显式复制来源使用 |
@@ -271,7 +273,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `customReplyRules` | §2.3 的数组/JSON 解析与清洗，结果保存为 JSON 文本；非法 JSON 按该 owner 的既有规则回退空数组 |
 | `songRequestBlacklist` | 仅接受字符串；每行一项，将 CRLF/CR 转 LF、按 `cleanText` 合并行内空白并去首尾空白，去掉空行和重复项；存为换行分隔文本。空字符串清空名单；仅保存在本机 |
 | `giftBlindBoxConfig` / `giftBlindBoxCustomConfigV2` | 数组或 JSON 文本，交给 [blind-box-config.js](../../../src/bilibili/gift/blind-box-config.js) 校验；失败返回无效字段。V2 特许 `null`/`'null'` 保存为 `'null'`（未确认）；`[]` 是明确空配置，不能混同 |
-| 礼物边框设置 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：`giftFrameEnabled` / `giftFrameThresholdRmb` 控制林间花信；enabled 仅 boolean/字符串 true/false；阈值用 Number 转换并四舍五入到安全整数分，拒绝空字符串、负数和非有限数，存元数字字符串。门槛比较在服务端按整数分进行；已撤销的缎带设置不再接受写入 |
+| 全屏礼物感谢设置 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：`giftFrameEnabled` / `giftFrameThresholdRmb` 控制林间花信；enabled 仅 boolean/字符串 true/false；阈值用 Number 转换并四舍五入到安全整数分，拒绝空字符串、负数和非有限数，存元数字字符串。门槛比较在服务端按整数分进行；已撤销的缎带设置不再接受写入 |
 | 大航海感谢 | [guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)：`guardThanksAuroraEnabled`、`guardThanksClassicEnabled` 仅 boolean/字符串 true/false；对应 `guardThanksAuroraTextMode`、`guardThanksClassicTextMode`=`bilingual/zh/en`。旧 `guardThanksEnabled`、`guardThanksTextMode` 和 `guardThanksStyle`（`aurora/classic`）保留兼容；新键的存储空值仅用于继承旧配置，HTTP 不接受空值 |
 | `danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` | 样式仅 `bubble/signal/minimal/ranked/transparent/identity/outline`；时长为 number 或十进制数字字符串，安全整数 2–30，存字符串 |
 | 时钟设置 | [clock-contract.js](../../../src/server/clock-contract.js)：style 为九种已登记样式，hourFormat=`12/24`；日期/秒开关经 trim/lowercase 后仅 true/false/0/1；label 去控制符、合并空白、按 Unicode code point 截取前 16 个，存字符串；clockFlipFrameColor / clockFlipFaceColor / clockFlipTextColor 仅接受六位十六进制颜色 #RRGGBB 并统一小写；clockMoonMode 仅 light/dark/auto，clockMoonIntervalSeconds 仅 1–86400 整数秒，默认 light/30 |

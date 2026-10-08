@@ -167,7 +167,7 @@ const routes = {
     } catch (error) {
       sendJson(res, 400, {
         ok: false,
-        error: error.message || '礼物边框预览参数无效。',
+        error: error.message || '全屏礼物感谢预览参数无效。',
       });
       return;
     }

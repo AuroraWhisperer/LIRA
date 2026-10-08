@@ -1,5 +1,5 @@
 .scene-editor-stage-host { position: relative; min-width: 0; min-height: 0; }
-.scene-editor-viewport { position: absolute; inset: 0; overflow: auto; background: var(--bg); padding: 24px; }
+.scene-editor-viewport { position: absolute; inset: 0; overflow: auto; background: var(--bg); padding: 12px; }
 .scene-editor-extent { position: relative; margin: auto; overflow: hidden; }
 .scene-editor-canvas { position: relative; transform-origin: top left; background-color: #303741; background-image: conic-gradient(#ffffff0d 25%, transparent 0 50%, #ffffff0d 0 75%, transparent 0); background-size: 32px 32px; }
 .scene-editor-item { position: absolute; touch-action: none; cursor: move; }

@@ -179,8 +179,26 @@ test('every store read and mutation is owner scoped', (t) => {
   const mutation = { scope: 'owner-b', id, expectedRevision: 1, document: initial.document };
   assert.equal(store.save(mutation), null);
   assert.equal(store.publish(mutation), null);
+  assert.equal(store.delete(mutation), null);
   assert.equal(store.rotate({ ...mutation, expectedCapabilityVersion: 1, capability: capability(2) }), null);
   assert.deepEqual(store.get('owner-a', id), initial);
+});
+
+test('preset deletion checks the latest revision and canvas binding inside SQLite', t => {
+  const { store, db } = fixture(t);
+  const first = store.create({ scope: 'owner', document: document(), capability: capability() });
+  const extra = store.create({ scope: 'owner', document: document('Extra'), capability: capability() });
+  store.bindCanvas('owner', first.document.id);
+  const input = { scope: 'owner', id: extra.document.id, expectedRevision: 1 };
+  assert.equal(store.delete({ ...input, id: first.document.id }), null);
+  db.prepare('UPDATE component_canvas SET active_scene_id = ? WHERE owner_scope = ?').run(input.id, input.scope);
+  assert.equal(store.delete(input), null);
+  db.prepare('UPDATE component_canvas SET active_scene_id = ? WHERE owner_scope = ?').run(first.document.id, input.scope);
+  store.save({ ...input, document: extra.document });
+  assert.equal(store.delete(input), null);
+  assert.deepEqual(store.delete({ ...input, expectedRevision: 2 }), { id: input.id });
+  assert.equal(store.get(input.scope, input.id), null);
+  assert.deepEqual(store.get('owner', first.document.id), first);
 });
 
 test('failed SQLite publication and capability rotation leave the complete prior row intact', (t) => {

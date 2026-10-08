@@ -1,4 +1,4 @@
-// 礼物边框播放器：只播放当前支持的林间花信主题。
+// 全屏礼物感谢播放器：只播放当前支持的林间花信主题。
 'use strict';
 
 import { createFrameController } from './gift-effects-frame.js';

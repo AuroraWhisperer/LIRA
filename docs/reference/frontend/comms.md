@@ -122,4 +122,4 @@ Admin 首次成功连接不重复初始歌库加载；后续每次成功重连�
        播放页:本地 state/actions 先行,state-persistence 防抖落盘(HTTP + IPC 双通道)
 ```
 
-管理快照提供完整恢复状态，overlay 快照按已验证 scope 裁剪；游戏画布、转盘、礼物边框和实时弹幕另有专用消息/恢复语义，见 [ws.md](../backend/ws.md)。HTTP 用于命令及状态查询，普通 JSON 响应使用 `{ok}` 信封；WebSocket 按 `{type,...}` 分发，音频、图片与其他二进制响应不使用 JSON 信封。去重和退避由各消费者按其契约执行。
+管理快照提供完整恢复状态，overlay 快照按已验证 scope 裁剪；游戏画布、转盘、全屏礼物感谢和实时弹幕另有专用消息/恢复语义，见 [ws.md](../backend/ws.md)。HTTP 用于命令及状态查询，普通 JSON 响应使用 `{ok}` 信封；WebSocket 按 `{type,...}` 分发，音频、图片与其他二进制响应不使用 JSON 信封。去重和退避由各消费者按其契约执行。

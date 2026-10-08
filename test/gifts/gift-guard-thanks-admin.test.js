@@ -114,6 +114,6 @@ test('the real gift page exposes every style control and the module previews thr
   assert.doesNotMatch(html, /id="guardThanks(?:PreviewStage|OverlayUrl|SendBtn|OpenBtn|CopyBtn)"/);
   assert.match(html, /href="\/css\/admin\/gift-guard-thanks\.css"/);
   assert.match(fs.readFileSync(path.resolve('public/js/admin/app.js'), 'utf8'), /initGuardThanks\(\);/);
-  assert.match(moduleSource, /openComponentPreview\(\{ id: 'guard-thanks', previewData \}\)/);
+  assert.match(moduleSource, /openComponentPreview\(\{ id: 'guard-thanks', previewData, selectedItemId: item.id \}\)/);
   assert.doesNotMatch(moduleSource, /\/gift-effects/);
 });

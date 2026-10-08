@@ -95,6 +95,38 @@ function saveItems(service, created, items) {
   return service.save({ id: created.document.id, expectedRevision: created.revision, document: { ...created.document, items } });
 }
 
+test('deleting surplus presets preserves live output and rejects protected, stale or foreign scenes', t => {
+  const f = fixture(t, true);
+  const { service, state } = f;
+  const first = create(service);
+  const binding = service.getCanvas();
+  const live = create(service);
+  service.publishCanvas({ id: live.document.id, expectedRevision: 1, expectedPublishedVersion: 0 });
+  const source = service.getSource(binding.outputId);
+  const output = service.getOutput({ ...source, version: 0 });
+  const remove = dto => service.delete({ id: dto.document.id, expectedRevision: dto.revision });
+  assert.throws(() => remove(first), { code: 'SCENE_OUTPUT_PROTECTED' });
+  assert.throws(() => remove(live), { code: 'SCENE_ACTIVE_PROTECTED' });
+  const extra = create(service);
+  const updated = service.save({ id: extra.document.id, expectedRevision: extra.revision,
+    document: { ...extra.document, title: 'Updated' } });
+  assert.throws(() => remove(extra), { code: 'SCENE_CONFLICT' });
+  const owner = state.owner;
+  state.owner = { scope: 'another-owner', epoch: 1 };
+  assert.throws(() => remove(updated), { code: 'SCENE_NOT_FOUND' });
+  state.owner = owner;
+  assert.deepEqual(remove(updated), { id: extra.document.id });
+  assert.throws(() => service.get(extra.document.id), { code: 'SCENE_NOT_FOUND' });
+  assert.throws(() => remove(updated), { code: 'SCENE_NOT_FOUND' });
+  assert.equal(service.list().length, 2);
+  assert.deepEqual(service.getSource(binding.outputId), source);
+  const after = service.getOutput({ ...source, version: 0 });
+  assert.deepEqual(after.document, output.document);
+  assert.equal(after.version, output.version);
+  assert.equal(service.getCanvas().activeSceneId, live.document.id);
+  assert.equal(f.restart().list().some(dto => dto.document.id === extra.document.id), false);
+});
+
 test('canvas presets retain independent drafts and switch one persistent live source only on apply', t => {
   const f = fixture(t, true);
   const first = create(f.service);

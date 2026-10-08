@@ -122,7 +122,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `queue:${action}` | 同路由 handleAction 返回后；action 仅 `next/clear/pin/unpin/delete/done/skip`，校验 owner 为 [queue-service.js](../../../src/music/queue-service.js) | 仅状态应用 |
 | `superchat:${action}` | [superchat-routes.js](../../../src/server/routes/superchat-routes.js) 成功后；仅 `assist/unassist/delete`，owner 为 [superchat-service.js](../../../src/bilibili/superchat-service.js) | 仅状态应用 |
 | `bilibili:danmaku` / `bilibili:superchat` | [bilibili-client.js](../../../src/server/bilibili-client.js) 本地消息被接受或 SC 入账后 | 仅状态应用；overlay 自有 reason 筛选见 [overlays.md](../frontend/overlays.md) |
-| `bilibili:gift` | [runtime-transport.js](../../../src/server/runtime-transport.js) `publishGiftFlushed`；另独立广播礼物边框和弹幕提示 | 发出 `Events.GIFT_RECEIVED` |
+| `bilibili:gift` | [runtime-transport.js](../../../src/server/runtime-transport.js) `publishGiftFlushed`；另独立广播全屏礼物感谢和弹幕提示 | 发出 `Events.GIFT_RECEIVED` |
 | `live:status` | [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 更新直播状态后 | 仅状态应用 |
 | `gift:source` | [gift-export-runtime.js](../../../src/server/gift-export-runtime.js) 来源 viewEpoch 变化，或退出 SOURCE_SWITCHING | 仅状态应用，不自动伪造礼物收到通知 |
 | `gift:wishes` | [gift-wish-routes.js](../../../src/server/routes/gift-wish-routes.js) 非 getSnapshot 动作成功 | 仅状态应用 |

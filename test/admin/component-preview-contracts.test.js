@@ -57,6 +57,7 @@ test('preview client accepts only its exact parent and origin and releases liste
     removeEventListener: (name) => listeners.delete(name) };
   const { createComponentPreviewClient } = await loadModuleExports(entry('overlays/component-preview-client.js'), {
     window, URL, URLSearchParams, location: new URL('http://127.0.0.1:3000/queue?componentPreview=1'),
+    requestAnimationFrame: callback => callback(),
   });
   const client = createComponentPreviewClient({ onConfig: (config) => configs.push(config), onDispose: () => disposed++ });
   assert.equal(messages[0][1], 'http://127.0.0.1:3000');
@@ -65,8 +66,9 @@ test('preview client accepts only its exact parent and origin and releases liste
   receive({ source: {}, origin: 'http://127.0.0.1:3000', data });
   receive({ source: parent, origin: 'https://untrusted.test', data });
   assert.equal(configs.length, 0);
-  receive({ source: parent, origin: 'http://127.0.0.1:3000', data });
+  await receive({ source: parent, origin: 'http://127.0.0.1:3000', data });
   assert.equal(configs.length, 1);
+  assert.equal(messages.at(-1)[0].type, 'component-preview:prepared');
   client.dispose();
   client.dispose();
   receive({ source: parent, origin: 'http://127.0.0.1:3000', data });

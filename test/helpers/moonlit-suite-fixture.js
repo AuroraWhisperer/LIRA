@@ -19,7 +19,7 @@ async function installMoonlitSuite(dataDir) {
     process.once('exit', () => fs.rmSync(directory, { recursive: true, force: true }));
     const library = createComponentStyleLibrary(directory);
     const pack = await library.inspect(Readable.from([createMoonlitZip()]), () => {});
-    library.install(pack.id);
+    await library.install(pack.id);
     return directory;
   })();
   fs.cpSync(await template, dataDir, { recursive: true });

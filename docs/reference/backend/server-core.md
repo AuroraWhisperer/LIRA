@@ -81,7 +81,7 @@ Token。不向 license、scene 或任何 overlay 注入主题，不新增写入 
 
 ## 4. 请求管线
 
-领域事件发布统一由 [runtime-transport.js](../../../src/server/runtime-transport.js) 适配：`publishGiftFlushed` 保持快照→礼物边框顺序且不逐条输出成功日志，`publishGiftCatalogUpdate` 发布目录快照，`publishDanmaku` 保留 feed 缓冲及 topic，`publishOvertimeUpdate` 保留可选 adjustment。server 通过 getter 接线，仍按数据库、领域服务、音乐/直播/AI、启动恢复阶段创建资源，并在 initializeApplication 失败时统一 dispose；传输模块不拥有这些资源。
+领域事件发布统一由 [runtime-transport.js](../../../src/server/runtime-transport.js) 适配：`publishGiftFlushed` 保持快照→全屏礼物感谢顺序且不逐条输出成功日志，`publishGiftCatalogUpdate` 发布目录快照，`publishDanmaku` 保留 feed 缓冲及 topic，`publishOvertimeUpdate` 保留可选 adjustment。server 通过 getter 接线，仍按数据库、领域服务、音乐/直播/AI、启动恢复阶段创建资源，并在 initializeApplication 失败时统一 dispose；传输模块不拥有这些资源。
 
 [http-server.js](../../../src/server/http-server.js) 的 `createHttpServer` 由 server 组合根接线，其 HTTP 回调读取 runtime phase 后按序分发:
 

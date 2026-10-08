@@ -11,7 +11,7 @@ export async function requestComponentStyles(action, { file, description, id, ki
     body: action === 'list' ? undefined : file || JSON.stringify(action === 'pick-web' ? { kind, description } : { id }), signal, credentials: 'omit', cache: 'no-store' });
   const payload = await response.json();
   if (!response.ok || !payload.ok) throw Object.assign(new Error(payload.error || '样式操作失败，请重试。'), { code: payload.code });
-  if (['add', 'web', 'pick-web', 'install', 'remove'].includes(action) && payload.data) window.dispatchEvent(new Event('component-styles:changed'));
+  if (['add', 'web', 'pick-web', 'install', 'remove', 'remove-pack'].includes(action) && payload.data) window.dispatchEvent(new Event('component-styles:changed'));
   return payload.data;
 }
 

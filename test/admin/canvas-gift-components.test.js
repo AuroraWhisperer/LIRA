@@ -189,7 +189,7 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await desktop.locator('#guardThanksAuroraPreviewMonths').fill('9');
   await open('#guardThanksAuroraPlayBtn');
   await guardPreview.locator('.gta-card[data-tier="governor"][data-lang="en"]').waitFor();
-  assert.equal(await page.locator('.scene-editor-item').count(), 2, 'both style previews reuse the guard component');
+  assert.equal(await page.locator('.scene-editor-item').count(), 3, 'each style preview owns a separate guard component');
   await open('#guardThanksClassicPlayBtn');
   await guardPreview.locator('.gt-card[data-tier="admiral"][data-lang="zh"]').waitFor();
   const beforeGuardPreview = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document);
@@ -213,7 +213,7 @@ test('gift settings open separate canvas layers that save, preview and receive o
   assert.equal(await guardPreview.locator('.gt-name').textContent(), '星河旅人');
   assert.equal(await guardPreview.locator('.gt-months').textContent(), '12 MONTHS');
   await page.locator('.scene-editor-item[data-component="gift-frame"]').press('Enter');
-  await page.locator('.scene-editor-item[data-component="guard-thanks"]').press('Enter');
+  await page.locator('.scene-editor-item[data-component="guard-thanks"]').first().press('Enter');
   assert.equal(await page.locator('[data-preview-parameter="tier"]').inputValue(), 'governor');
   assert.equal(await page.getByRole('textbox', { name: '预览观众', exact: true }).inputValue(), '星河旅人');
   assert.equal(await previewMonths.inputValue(), '12');
@@ -226,8 +226,9 @@ test('gift settings open separate canvas layers that save, preview and receive o
   const saved = fixture.service.list()[0];
   assert.doesNotMatch(JSON.stringify(saved), /林间听风|新的观众|上舰观众|星河旅人|previewData/, 'simulated input is not saved into the scene');
   assert.deepEqual(saved.document.items.map(item => [item.type, item.width, item.height]),
-    [['gift-frame', 960, 540], ['guard-thanks', 640, 540]]);
-  assert.deepEqual(saved.document.items[1].appearance.config, { textMode: 'en' });
+    [['gift-frame', 960, 540], ['guard-thanks', 640, 540], ['guard-thanks', 1920, 1080]]);
+  assert.deepEqual(saved.document.items[1].appearance.config, { style: 'classic', textMode: 'en' });
+  assert.deepEqual(saved.document.items[2].appearance.config, { style: 'aurora', textMode: 'follow' });
   await desktop.evaluate(() => { window.externalPreviewUrl = ''; });
   await desktop.locator('#guardThanksClassicPreviewMonths').fill('0');
   await desktop.locator('#guardThanksClassicPlayBtn').click();
@@ -237,7 +238,7 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await desktop.locator('#guardThanksClassicPreviewUser').fill('新的上舰观众');
   await desktop.locator('#guardThanksClassicPreviewMonths').fill('24');
   await open('#guardThanksClassicPlayBtn');
-  assert.equal(await page.locator('.scene-editor-item').count(), 2, 'reopening selects the existing component');
+  assert.equal(await page.locator('.scene-editor-item').count(), 3, 'reopening selects the existing style component');
   await guardPreview.locator('.gt-card[data-tier="captain"].is-live').waitFor({ state: 'visible' });
   assert.equal(await guardPreview.locator('.gt-name').textContent(), '新的上舰观众');
   assert.equal(await guardPreview.locator('.gt-months').textContent(), '24 MONTHS');
@@ -246,8 +247,10 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   for (const type of ['gift-frame', 'guard-thanks']) {
     await page.locator(`[data-category="${type}"]`).click();
-    await page.locator('.preview-picker-styles img').evaluate(image => image.decode());
+    await page.locator('.preview-picker-styles img').evaluateAll(images => Promise.all(images.map(image => image.decode())));
   }
+  assert.deepEqual(await page.locator('[data-picker-component="guard-thanks"]').allTextContents(),
+    ['大航海感谢 · 辉光', '大航海感谢 · 经典']);
   const source = fixture.service.getSource(saved.document.id);
   const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
   assert.equal((await fetch(outputUrl)).status, 200);
@@ -256,6 +259,7 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await output.locator('.scene-version:not(.is-staging) iframe').first().waitFor();
   const frameOutput = output.frames().find(frame => frame.url().includes('giftComponent=frame'));
   const guardOutput = output.frames().find(frame => frame.url().includes('giftComponent=guard'));
+  const auroraOutput = output.frames().filter(frame => frame.url().includes('giftComponent=guard'))[1];
   assert.equal(await frameOutput.locator('#giftFrame.is-playing').count(), 0);
   assert.equal(await guardOutput.locator('.gt-card, .gta-card').count(), 0, 'published output never plays samples');
   fixture.receiveGift({ type: 'gift:frame', eventId: 'live-frame-1', userName: '边框观众', giftName: '真实礼物',
@@ -264,9 +268,14 @@ test('gift settings open separate canvas layers that save, preview and receive o
     textMode: 'zh', style: 'classic' });
   await frameOutput.locator('#giftInfoAvatar[alt="边框观众的头像"]').waitFor({ state: 'visible' });
   await guardOutput.locator('.gt-card[data-tier="admiral"][data-lang="en"]').waitFor({ state: 'visible' });
-  await output.waitForTimeout(1700);
+  await auroraOutput.waitForFunction(() => window.receivedGiftEvents.some(event => event.eventId === 'live-guard-1'));
+  assert.equal(await auroraOutput.locator('.gt-card, .gta-card').count(), 0, 'aurora does not play classic events');
+  fixture.receiveGift({ type: 'gift:guard-thanks', eventId: 'live-guard-2', userName: '辉光观众', tier: 'captain', months: 1,
+    textMode: 'zh', style: 'aurora' });
+  await auroraOutput.locator('.gta-card[data-tier="captain"][data-lang="zh"]').waitFor({ state: 'visible' });
+  assert.equal(await guardOutput.locator('.gta-card').count(), 0, 'classic does not play aurora events');
   assert.deepEqual(await frameOutput.evaluate(() => window.receivedGiftEvents.map(event => event.eventId)), ['live-frame-1']);
-  assert.deepEqual(await guardOutput.evaluate(() => window.receivedGiftEvents.map(event => event.eventId)), ['live-guard-1']);
+  assert.deepEqual(await guardOutput.evaluate(() => window.receivedGiftEvents.map(event => event.eventId)), ['live-guard-1', 'live-guard-2']);
   await output.reload();
   await output.locator('.scene-version:not(.is-staging) iframe').first().waitFor();
   await output.waitForTimeout(1000);

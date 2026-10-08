@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement, previewToolbarIcon } from './component-preview-surface.js';
 import { copyText, localOverlayOrigin } from '../shared/utils.js';
 import { sceneSourceUrl } from './scene-source-url.js';
 import { getCanvasPublicationEntries } from './component-preview-publication.js';
@@ -11,8 +11,13 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
   source.readOnly = true;
   source.hidden = true;
   source.setAttribute('aria-label', '直播源地址');
-  const copy = previewElement('button', 'secondary', '复制直播源地址');
-  const copyComponent = previewElement('button', 'secondary', '复制单组件地址');
+  const copy = previewElement('button', 'secondary preview-canvas-icon-button');
+  copy.title = '复制整个场景的直播源地址';
+  copy.setAttribute('aria-label', '复制场景地址');
+  copy.append(previewToolbarIcon('link'));
+  const copyComponent = previewElement('button', 'secondary', '组件地址');
+  copyComponent.setAttribute('aria-label', '复制组件地址');
+  copyComponent.title = '复制所选组件的直播源地址';
   const apply = previewElement('button', 'primary', '保存并应用');
   copy.type = copyComponent.type = apply.type = 'button';
   sourceHost.append(source, copy, copyComponent);

@@ -2,22 +2,10 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createServerRuntime } = require('../../src/server');
-
-function findAvailablePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close(() => resolve(address.port));
-    });
-  });
-}
 
 async function requestJson(url, token, options = {}) {
   const response = await fetch(url, {
@@ -59,7 +47,7 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
 
   const app = await runtime.start({
     host: '127.0.0.1',
-    startPort: await findAvailablePort(),
+    startPort: 0,
   });
   const token = runtime.getApiToken();
   const unauthorized = await fetch(`${app.baseUrl}/api/music/wesing/status`);

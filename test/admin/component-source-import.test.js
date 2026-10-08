@@ -49,7 +49,7 @@ async function openImport(page, type) {
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
   await picker.locator(`[data-category="${type}"]`).click();
-  await picker.locator('.component-style-add').click();
+  await picker.getByRole('button', { name: '添加样式', exact: true }).click();
   return { picker, dialog: page.getByRole('dialog', { name: '添加第三方样式', exact: true }) };
 }
 

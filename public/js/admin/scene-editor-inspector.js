@@ -68,6 +68,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       target = previewElement('p', 'scene-editor-target');
       parameters = previewElement('fieldset', 'scene-editor-parameters');
       parameters.disabled = item.locked;
+      parameters.classList.toggle('is-danmaku', item.type === 'danmaku');
       parameters.classList.toggle('has-media-style', Boolean(item.appearance.config?.mediaStyle));
       const controller = item.appearance.mode === 'shared' ? component.controller
         : createSceneItemController(model, item.id, component.controller);

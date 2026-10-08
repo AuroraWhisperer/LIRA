@@ -124,13 +124,18 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     await page.getByRole('button', { name: '画布设置', exact: true }).click();
     await dimensions.waitFor({ state: 'hidden' });
     await page.locator('.preview-canvas-layer-select').click();
-    const key = component === 'clock' ? 'label' : component === 'queue' ? 'overlayQueueStyle' : component === 'danmaku' ? 'style' : 'fit';
-    const expected = component === 'clock' ? '网页修改' : component === 'queue' ? 'storybook' : component === 'danmaku' ? 'cream' : 'contain';
+    const key = component === 'clock' ? 'label' : component === 'queue' ? 'overlayQueueStyle' : component === 'danmaku' ? 'styleOptions' : 'fit';
+    const expected = component === 'clock' ? '网页修改' : component === 'queue' ? 'storybook' : component === 'danmaku' ? { signal: { fontSize: 36 } } : 'contain';
     if (component === 'clock') await page.locator('[data-preview-field="clockCustomLabel"]').fill(expected);
     if (component === 'queue') await page.locator('[data-overlay-style="storybook"]').click();
-    if (component === 'danmaku') await page.locator('[data-danmaku-style="cream"]').click();
+    if (component === 'danmaku') {
+      assert.equal(await page.locator('[data-danmaku-style]').count(), 0);
+      assert.equal(await page.getByRole('button', { name: /更换样式|改用内置样式/ }).count(), 0);
+      await page.locator('[data-preview-field="danmakuFontSize"]').fill('36');
+      await page.locator('[data-preview-field="danmakuFontSize"]').press('Tab');
+    }
     if (component === 'overtime') await page.locator('[data-preview-field="overtimeBackgroundFit"]').selectOption(expected, { force: true });
-    await desktop.waitForFunction(({ key, expected }) => window.controller.getState().draft[key] === expected, { key, expected });
+    await desktop.waitForFunction(({ key, expected }) => JSON.stringify(window.controller.getState().draft[key]) === JSON.stringify(expected), { key, expected });
     assert.equal(await desktop.evaluate(() => window.writes.length), 0);
     if (component === 'overtime') {
       await page.getByRole('button', { name: '锁定', exact: true }).click();
@@ -193,7 +198,7 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     await page.getByRole('button', { name: '保存并应用', exact: true }).click();
     await desktop.waitForFunction(() => window.writes.length === 1);
     await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
-    assert.equal(await desktop.evaluate(key => window.writes[0][key], key), expected);
+    assert.deepEqual(await desktop.evaluate(key => window.writes[0][key], key), expected);
     if (component === 'overtime') {
       await page.getByRole('button', { name: '加班机展示数据', exact: true }).click();
       await page.getByRole('option', { name: '示例 · 运行中', exact: true }).click();

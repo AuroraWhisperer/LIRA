@@ -188,9 +188,14 @@
           <h4 id="danmakuAppearanceTitle">弹幕样式</h4>
         </div>
         <div class="danmaku-style-picker">
-          <section class="danmaku-style-group danmaku-style-group-fixed" aria-labelledby="danmakuFixedStyleTitle">
+          <div class="danmaku-style-tabs" role="tablist" aria-label="弹幕显示方式">
+            <button id="danmakuFixedStyleTab" type="button" role="tab" aria-selected="true" aria-controls="danmakuFixedStyles">固定位置</button>
+            <button id="danmakuRandomStyleTab" type="button" role="tab" aria-selected="false" aria-controls="danmakuRandomStyles" tabindex="-1">区域随机</button>
+            <button id="danmakuFloatingStyleTab" type="button" role="tab" aria-selected="false" aria-controls="danmakuFloatingStyles" tabindex="-1">飘窗弹幕</button>
+          </div>
+          <section id="danmakuFixedStyles" class="danmaku-style-group danmaku-style-group-fixed" role="tabpanel" aria-labelledby="danmakuFixedStyleTab">
             <div class="danmaku-style-group-heading">
-              <strong id="danmakuFixedStyleTitle">固定位置弹幕</strong>
+              <p>弹幕在固定区域内依次排列，适合集中展示聊天记录。</p>
               <lira-help label="添加弹幕样式说明">想要其他样式，可通过微信发截图。</lira-help>
             </div>
             <div class="danmaku-style-options danmaku-style-options-fixed" role="group" aria-label="选择固定位置弹幕样式">
@@ -228,9 +233,9 @@
               </button>
             </div>
           </section>
-          <section class="danmaku-style-group danmaku-style-group-random" aria-labelledby="danmakuRandomStyleTitle">
+          <section id="danmakuRandomStyles" class="danmaku-style-group danmaku-style-group-random" role="tabpanel" aria-labelledby="danmakuRandomStyleTab" hidden>
             <div class="danmaku-style-group-heading">
-              <strong id="danmakuRandomStyleTitle">区域随机弹幕</strong>
+              <p>弹幕在设定区域内随机出现，停留一段时间后消失。</p>
             </div>
             <div
               class="danmaku-style-options danmaku-style-options-random"
@@ -259,20 +264,22 @@
               </button>
             </div>
           </section>
+          <section id="danmakuFloatingStyles" class="danmaku-style-group danmaku-style-group-floating" role="tabpanel" aria-labelledby="danmakuFloatingStyleTab" hidden>
+            <div class="danmaku-style-group-heading">
+              <p>弹幕以飘窗形式移动显示，可调整移动速率。</p>
+            </div>
+            <div class="danmaku-style-options" role="group" aria-label="选择飘窗弹幕样式">
+              <button class="danmaku-style-option" type="button" data-danmaku-style="floating" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/floating.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">飘窗弹幕</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="comet" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/comet.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">鹤映鎏金</span>
+              </button>
+            </div>
+          </section>
         </div>
-        <section class="danmaku-style-group danmaku-style-group-floating" aria-labelledby="danmakuFloatingStyleTitle">
-          <div class="danmaku-style-group-heading"><strong id="danmakuFloatingStyleTitle">飘窗弹幕</strong></div>
-          <div class="danmaku-style-options" role="group" aria-label="选择飘窗弹幕样式">
-            <button class="danmaku-style-option" type="button" data-danmaku-style="floating" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/floating.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">飘窗弹幕</span>
-            </button>
-            <button class="danmaku-style-option" type="button" data-danmaku-style="comet" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/comet.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">鹤映鎏金</span>
-            </button>
-          </div>
-        </section>
         <section class="danmaku-parameters" aria-labelledby="danmakuParametersTitle">
           <div class="danmaku-filter-heading">
             <h5 id="danmakuParametersTitle">参数调节 · 深色面板</h5>
@@ -328,13 +335,6 @@
                 disabled
               />
             </label>
-            <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">
-              <span><strong>礼物通知图片<lira-help label="礼物通知图片说明">原图不可用时显示样式插画。</lira-help></strong></span>
-              <select id="danmakuGiftImage" disabled>
-                <option value="theme">样式插画</option>
-                <option value="gift">礼物原图</option>
-              </select>
-            </label>
             <label id="danmakuSpeedField" class="danmaku-parameter-field" for="danmakuSpeedPixelsPerSecond" hidden>
               <span><strong>移动速率<lira-help label="移动速率说明">20～600 像素/秒，默认 120；数值越大移动越快。</lira-help></strong></span>
               <input id="danmakuSpeedPixelsPerSecond" type="number" min="20" max="600" step="1" value="120" disabled />
@@ -358,15 +358,44 @@
                 inputmode="numeric"
               />
             </label>
-            <label id="danmakuCenterBiasField" class="danmaku-parameter-field" for="danmakuCenterBias" hidden>
-              <span><strong>中心倾向<lira-help label="中心倾向说明">1～50，数值越高，越容易出现在区域中间，越少出现在边缘和角落；1 为均匀随机。</lira-help></strong><output id="danmakuCenterBiasValue" for="danmakuCenterBias">1</output></span>
-              <input id="danmakuCenterBias" class="parameter-range" type="range" min="1" max="50" step="1" value="1" disabled />
-            </label>
-            <label id="danmakuDispersionField" class="danmaku-parameter-field" for="danmakuDispersion" hidden>
-              <span><strong>离散程度<lira-help label="离散程度说明">1～50，数值越高，新弹幕越倾向于远离上一条弹幕（按中心点直线距离）。与中心倾向共同生效，并受可用空间限制。</lira-help></strong><output id="danmakuDispersionValue" for="danmakuDispersion">1</output></span>
-              <input id="danmakuDispersion" class="parameter-range" type="range" min="1" max="50" step="1" value="1" disabled />
-            </label>
           </div>
+          <details class="danmaku-advanced">
+            <summary>
+              <strong>高级参数</strong>
+              <span class="danmaku-advanced-hint">消息显示与外观细节</span>
+              <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </summary>
+            <div class="danmaku-advanced-body">
+              <section class="danmaku-advanced-section" aria-labelledby="danmakuMessageOptionsTitle">
+                <h6 id="danmakuMessageOptionsTitle">消息显示</h6>
+                <div id="danmakuMessageOptions" class="danmaku-parameter-grid danmaku-message-options">
+                  <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">
+                    <span><strong>礼物通知图片<lira-help label="礼物通知图片说明">原图不可用时显示样式插画。</lira-help></strong></span>
+                    <select id="danmakuGiftImage" disabled>
+                      <option value="theme">样式插画</option>
+                      <option value="gift">礼物原图</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+              <section id="danmakuDistributionOptions" class="danmaku-advanced-section" aria-labelledby="danmakuDistributionTitle" hidden>
+                <h6 id="danmakuDistributionTitle">随机分布</h6>
+                <div class="danmaku-parameter-grid">
+                  <label id="danmakuCenterBiasField" class="danmaku-parameter-field" for="danmakuCenterBias" hidden>
+                    <span><strong>中心倾向<lira-help label="中心倾向说明">1～50，数值越高，越容易出现在区域中间，越少出现在边缘和角落；1 为均匀随机。</lira-help></strong><output id="danmakuCenterBiasValue" for="danmakuCenterBias">1</output></span>
+                    <input id="danmakuCenterBias" class="parameter-range" type="range" min="1" max="50" step="1" value="1" disabled />
+                  </label>
+                  <label id="danmakuDispersionField" class="danmaku-parameter-field" for="danmakuDispersion" hidden>
+                    <span><strong>离散程度<lira-help label="离散程度说明">1～50，数值越高，新弹幕越倾向于远离上一条弹幕（按中心点直线距离）。与中心倾向共同生效，并受可用空间限制。</lira-help></strong><output id="danmakuDispersionValue" for="danmakuDispersion">1</output></span>
+                    <input id="danmakuDispersion" class="parameter-range" type="range" min="1" max="50" step="1" value="1" disabled />
+                  </label>
+                </div>
+              </section>
+              <div id="danmakuAppearanceEffects"></div>
+            </div>
+          </details>
         </section>
         <div class="danmaku-style-footer">
           <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite"></p>

@@ -83,6 +83,13 @@ test('canvas library saves every new variant with independent parameters and ren
     assert.equal(await picker.locator('[data-picker-style][aria-label^="添加"]').count(), variants.length);
     assert.equal(await picker.locator('iframe').count(), 0, 'the library uses thumbnails without starting live renderers');
     for (const card of await cards.all()) {
+      if (category === 'danmaku') {
+        const group = await card.evaluate(async button => {
+          const { DANMAKU_STYLE_OPTIONS } = await import('/js/shared/danmaku-style-options.js');
+          return DANMAKU_STYLE_OPTIONS[button.dataset.pickerStyle].layout;
+        });
+        await picker.getByRole('button', { name: group === 'floating' ? '飘窗弹幕' : group === 'fullscreen-random' ? '随机弹幕' : '固定弹幕', exact: true }).click();
+      }
       await card.scrollIntoViewIfNeeded();
       assert.equal(await card.locator('img').count(), 1);
       await card.locator('img').evaluate((image) => image.decode());
@@ -164,7 +171,7 @@ test('canvas library saves every new variant with independent parameters and ren
   assert.deepEqual(sizes, saved.document.items.map(item => [`${item.width}px`, `${item.height}px`]));
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   await page.locator('[data-category="直播小游戏"]').click();
-  assert.equal(await page.locator('.preview-picker-subcategories button').count(), 3);
+  assert.equal(await page.locator('.preview-picker-subcategories button[aria-pressed]').count(), 3);
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   const source = fixture.service.getSource(saved.document.id);
   const output = await context.newPage();

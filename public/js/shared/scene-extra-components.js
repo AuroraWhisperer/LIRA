@@ -89,14 +89,17 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   'gift-frame': {
-    title: '礼物边框', size: [1920, 1080], path: '/gift-effects?giftComponent=frame',
-    variants: [variant('default', '礼物边框', '林间花信')],
+    title: '全屏礼物感谢', size: [1920, 1080], path: '/gift-effects?giftComponent=frame',
+    variants: [{ ...variant('default', '全屏礼物感谢', '林间花信'), image: '/img/component-previews/gift-frame-default.webp?v=20261007-v4' }],
     fields: {},
   },
   'guard-thanks': {
-    title: '大航海感谢', size: [2560, 1440], path: '/gift-effects?giftComponent=guard',
-    variants: [variant('default', '大航海感谢', '欢迎上舰')],
-    fields: { textMode: select('动画文字', 'follow', { follow: '跟随样式设置', bilingual: '中英双语', zh: '中文', en: 'English' }) },
+    title: '大航海感谢', size: [2560, 1440], path: '/gift-effects?giftComponent=guard', variantKey: 'style',
+    variants: [variant('aurora', '大航海感谢 · 辉光'), variant('classic', '大航海感谢 · 经典')],
+    fields: {
+      style: select('动画风格', 'follow', { follow: '跟随已启用效果', aurora: '辉光', classic: '经典' }),
+      textMode: select('动画文字', 'follow', { follow: '跟随样式设置', bilingual: '中英双语', zh: '中文', en: 'English' }),
+    },
   },
   'gift-feed': {
     title: '礼物滚动', size: [428, 232], path: '/gift-feed',

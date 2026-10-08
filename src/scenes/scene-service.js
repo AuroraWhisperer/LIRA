@@ -219,6 +219,25 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
       return withOwner((owner) => managementDto(read(owner.scope, normalizeSceneId(id))));
     },
 
+    delete(input) {
+      const result = withOwner((owner, assertCurrent) => {
+        const id = normalizeSceneId(input?.id);
+        const { expectedRevision } = input;
+        checkRevision(readStored(owner.scope, id), expectedRevision);
+        const binding = canvasBinding(owner.scope);
+        if (id === binding.outputId) throw new SceneError('SCENE_OUTPUT_PROTECTED', 409,
+          '此预设承载固定直播源，不能删除；可以清空组件后重新使用。');
+        if (id === binding.activeSceneId) throw new SceneError('SCENE_ACTIVE_PROTECTED', 409,
+          '此预设正在直播使用，请先对其他预设“保存并应用”后再删除。');
+        assertCurrent();
+        const deleted = store.delete({ scope: owner.scope, id, expectedRevision });
+        if (!deleted) throw conflict();
+        return deleted;
+      });
+      onOutputChanged({ id: result.id });
+      return result;
+    },
+
     getComponentSize(type) {
       if (!SCENE_TYPES.includes(type)) throw new SceneError('SCENE_INVALID_COMPONENT', 400, '组件类型无效。');
       // Legacy standalone sources also work before an account has created a scene.

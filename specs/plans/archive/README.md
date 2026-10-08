@@ -6,6 +6,14 @@
 
 ## 文件索引
 
+- [2026-10-08-canvas-concurrent-add](2026-10-08-canvas-concurrent-add.md)（修复并发新增图层、实例定位、Windows 素材锁定与测试端口竞态；3,830 项测试及统一发布校验通过）
+
+- [2026-10-07-scene-preset-actions](2026-10-07-scene-preset-actions.md)（预设删除、直播源保护与操作延迟修复；聚焦回归、隔离 Electron 和 quick 门禁通过）
+
+- [2026-10-07-canvas-guard-styles](2026-10-07-canvas-guard-styles.md)（画布辉光/经典独立卡片、持久化风格及事件隔离；聚焦测试与隔离 Electron 通过，记录无关检查和临时目录清理限制）
+
+- [2026-10-07-suite-lifecycle](2026-10-07-suite-lifecycle.md)（套装整体管理、同包版本替换及旧场景资源保留；后端、界面与隔离 Electron 验证通过）
+
 - [2026-10-07-current-test-failures](2026-10-07-current-test-failures.md)（修复过期夹具、预览同步、打包资源和重复标题；五个分组合计 3803 项通过，记录 Windows 临时文件占用现象）
 
 - [2026-10-07-background-color-audit](2026-10-07-background-color-audit.md)（Shoost 参数来源核对、MIT 版 CAT02/LGG、旧样式兼容及背景美术工作流；像素、ZIP 和隔离桌面验收通过）

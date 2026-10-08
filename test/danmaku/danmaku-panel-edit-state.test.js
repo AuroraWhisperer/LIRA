@@ -107,9 +107,27 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
   for (const [id, value] of [['danmakuCustomReplyList', '测试关键词']]) {
     assert.equal(await page.locator(`#${id} input`).first().inputValue(), value);
   }
+  const visibleGroups = page.locator('.danmaku-style-group:visible');
+  assert.equal(await visibleGroups.count(), 1);
+  assert.equal(await visibleGroups.getAttribute('id'), 'danmakuFixedStyles');
+  const requestCount = await page.evaluate(() => window.requests.length);
+  const randomTab = page.getByRole('tab', { name: '区域随机', exact: true });
+  await randomTab.click();
+  assert.equal(await visibleGroups.getAttribute('id'), 'danmakuRandomStyles');
+  assert.equal(await visibleGroups.locator('[data-danmaku-style]').count(), 5);
+  assert.equal(await page.locator('[data-danmaku-style="signal"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('#danmakuApplyOverlayBtn').isDisabled(), true);
+  assert.equal(await page.evaluate(() => window.requests.length), requestCount, 'Browsing categories must not write settings.');
+  await randomTab.press('End');
+  assert.equal(await visibleGroups.getAttribute('id'), 'danmakuFloatingStyles');
+  await page.getByRole('tab', { name: '飘窗弹幕', exact: true }).press('ArrowRight');
+  assert.equal(await visibleGroups.getAttribute('id'), 'danmakuFixedStyles');
+  assert.equal(await page.locator('#danmakuFixedStyleTab').evaluate(tab => tab === document.activeElement), true);
   const styleButtons = page.locator('#otherDanmakuFeature [data-danmaku-style]');
   for (let index = 0; index < (await styleButtons.count()); index += 1) {
     const button = styleButtons.nth(index);
+    const groupId = await button.evaluate(node => node.closest('[role="tabpanel"]').id);
+    await page.locator(`[aria-controls="${groupId}"]`).click();
     await button.click();
     assert.equal(await button.getAttribute('aria-pressed'), 'true');
     const style = await button.getAttribute('data-danmaku-style');
@@ -152,6 +170,16 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
       closeComponentPreview();
     });
   }
+  await page.locator('#danmakuDiscardOverlayBtn').click();
+  assert.equal(await visibleGroups.getAttribute('id'), 'danmakuFixedStyles');
+  assert.equal(await page.locator('[data-danmaku-style="signal"]').getAttribute('aria-pressed'), 'true');
+  await page.evaluate(() => {
+    window.liraLicense.getOverlaySettings = async () => ({ ok: true, style: 'cream', fullscreenDurationSeconds: 6,
+      overlayUrl: 'https://lira-ui.test/overlay/syntheticKey_123' });
+  });
+  await page.locator('#danmakuReloadOverlayBtn').click();
+  await page.waitForFunction(() => !document.getElementById('danmakuRandomStyles').hidden);
+  assert.equal(await page.locator('[data-danmaku-style="cream"]').getAttribute('aria-pressed'), 'true');
 });
 
 const libraries = [

@@ -12,6 +12,24 @@ const { createLayout } = require('../../src/shared/danmaku-layout');
 
 const state = (draft = { label: '示例' }) => ({ draft, saved: draft, generation: 0, loaded: true });
 
+test('canvas edit baselines are bounded UUID metadata and remain optional for older clients', () => {
+  const sessions = createComponentPreviewSessions();
+  const document = { id: randomUUID(), items: [] };
+  const canvas = sessions.open({ component: 'canvas', state: state({ document }) });
+  const send = command => sessions.browser({ id: canvas.id, action: 'edit', change: { document }, ...command }, canvas.token);
+  const baseItemIds = [randomUUID()];
+  send({ baseItemIds });
+  send({});
+  const { commands } = sessions.exchange({ id: canvas.id, state: state({ document }), ack: 0 });
+  assert.deepEqual(commands[0].baseItemIds, baseItemIds);
+  assert.equal(Object.hasOwn(commands[1], 'baseItemIds'), false);
+  for (const invalid of [null, {}, ['invalid'], [42]]) assert.throws(() => send({ baseItemIds: invalid }), { statusCode: 400 });
+  assert.throws(() => send({ action: 'save', baseItemIds }), { statusCode: 400 });
+  assert.throws(() => send({ baseItemIds: ['x'.repeat(MAX_SCENE_BYTES)] }), { statusCode: 413 });
+  const clock = sessions.open({ component: 'clock', state: state() });
+  assert.throws(() => sessions.browser({ id: clock.id, action: 'edit', change: { label: 'changed' }, baseItemIds }, clock.token), { statusCode: 400 });
+});
+
 test('preview focus needs management authority and confirmation from the current page', async t => {
   const fixture = await startComponentPreviewServer();
   t.after(() => fixture.close());
@@ -88,6 +106,12 @@ test('canvas preset relay only selects desktop-listed presets and isolates their
   const resolved = sessions.resolveLink(linked.key);
   assert.equal(resolved.selectedId, null, 'Refreshing an old entry must not add its component to another preset.');
   assert.equal(resolved.links[0].draftKey, current.draftKey);
+  const remove = id => sessions.browser({ id: canvas.id, action: 'preset', change: { action: 'delete', id } }, canvas.token);
+  assert.throws(() => remove(first), { statusCode: 400 }, 'Deletion must target the selected preset.');
+  assert.throws(() => remove(randomUUID()), { statusCode: 400 });
+  const deleted = remove(second);
+  assert.deepEqual(sessions.exchange({ id: canvas.id, state: { ...initial, ...state({ document: { id: second } }) },
+    ack: accepted.sequence }).commands, [{ sequence: deleted.sequence, action: 'preset', change: { action: 'delete', id: second } }]);
   const clock = sessions.open({ component: 'clock', state: state() });
   assert.throws(() => sessions.browser({ id: clock.id, action: 'preset', change: { action: 'select', id: first } }, clock.token), { statusCode: 400 });
 });

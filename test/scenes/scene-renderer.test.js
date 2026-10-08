@@ -202,7 +202,7 @@ test('published text boxes use isolated configs and the shared renderer in sandb
   const effectStyles = await frames[0].locator('#textBox > span').first().evaluate(span => ({
     stroke: getComputedStyle(span).webkitTextStrokeWidth, shadow: getComputedStyle(span).textShadow, order: span.style.paintOrder,
   }));
-  assert.equal(parseFloat(effectStyles.stroke), 48 * 0.06);
+  assert.equal(effectStyles.stroke, '4.8px');
   assert.notEqual(effectStyles.shadow, 'none');
   assert.equal(effectStyles.order, 'stroke');
   const defaultStyles = await frames[1].locator('#textBox > span').first().evaluate(span => ({

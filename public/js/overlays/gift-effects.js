@@ -19,7 +19,7 @@ import { mountGiftEffectComponent } from './gift-effects-component.js';
   const frameQueue = createGiftFrameQueue({
     player: createGiftFramePlayer({ frameRoot }),
     canPlay: () => !PREVIEW_MODE || document.visibilityState !== 'hidden',
-    onError: (error) => showStatus(`礼物边框播放失败：${error.message || error}`),
+    onError: (error) => showStatus(`全屏礼物感谢播放失败：${error.message || error}`),
   });
   const effectPlayer = createGiftEffectPlayer({
     stage: document.getElementById('giftEffectStage'),

@@ -44,6 +44,7 @@ let frame = null;
 let previousTime = null;
 let progress = 0;
 let componentItems = [];
+let componentPreview = false;
 
 async function request(url, signal) {
   // Browser sources may use a Chromium version without AbortSignal.any/timeout.
@@ -258,6 +259,9 @@ function renderComponent() {
     BigInt(item.cardTotalCents ?? Math.round(item.gift.unitPrice * 100) * item.gift.num) > minimum);
   state.replace(items);
   render();
+  status.textContent = componentPreview && !items.length
+    ? '没有符合金额门槛的示例礼物。请调低“最低礼物金额”查看效果。' : '';
+  status.hidden = !status.textContent;
 }
 let componentResize;
 const component = mountSceneExtraClient('gift-feed', {
@@ -267,6 +271,7 @@ const component = mountSceneExtraClient('gift-feed', {
   },
   onData(data) {
     componentItems = data?.items || [];
+    componentPreview = data?.preview === true;
     const nextCatalog = data?.catalog || [];
     if (JSON.stringify(catalog) !== JSON.stringify(nextCatalog)) catalogVersion += 1;
     catalog = nextCatalog;

@@ -6,6 +6,14 @@
 .component-style-library-inline > header[hidden], .component-style-library-inline > .hint[hidden] { display: none; }
 .component-style-library-inline > .hint { grid-column: 1 / -1; }
 .component-style-pack-heading { grid-column: 1 / -1; margin: 6px 0 0; font-size: 14px; }
+.component-style-suite, .component-style-empty { grid-column: 1 / -1; min-width: 0; }
+.component-style-suite + .component-style-suite { margin-top: 14px; padding-top: 20px; border-top: 1px solid var(--color-border); }
+.component-style-suite-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 8px 0 12px; }
+.component-style-suite-title { min-width: 0; overflow-wrap: anywhere; }
+.component-style-suite-title h4, .component-style-empty h4 { margin: 0; font-size: 14px; }
+.component-style-suite-title .hint { margin: 4px 0 0; }
+.component-style-suite-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.component-style-empty { padding-block: 24px; }
 .component-style-card { position: relative; min-width: 0; }
 .component-style-select, .component-style-add { width: 100%; min-height: 112px; border: 1px solid var(--color-border, #d8d8df); border-radius: 10px; background: var(--color-bg-primary, #fff); color: inherit; padding: 10px; cursor: pointer; }
 .component-style-select img, .component-style-select video { display: block; width: 100%; height: 78px; object-fit: contain; margin-bottom: 6px; }

@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createMoonlitZip } = require('../../scripts/package-moonlit-suite');
 const { installMoonlitSuite } = require('../helpers/moonlit-suite-fixture');
+const { createComponentStyleLibrary } = require('../../src/server/component-style-library');
 const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
@@ -94,7 +95,9 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   await frame.locator('.desktop-lyric-preview-row-translation').waitFor({ state: 'visible' });
   const pause = page.locator('[data-component-parameter="desktopLyricHideOnPause"]');
   await pause.check();
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-viewport')).opacity === '0');
+  assert.equal(await pause.isChecked(), true);
+  // Static editor samples stay visible; pause hiding belongs to the published playback state.
+  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-viewport')).opacity === '1');
   await pause.uncheck();
   await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-viewport')).opacity === '1');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
@@ -200,7 +203,7 @@ test('wish canvas fits three catalog gifts and publishes only actual wishes', { 
     preview: resources[preset.resources[0]], resources };
   const config = normalizeSceneConfig('gift-wishes', { ...preset.config, resourceStyle });
   store.stage({ id: packId, name: '月渡花汀', styles: [{ id: resourceStyle.id, type: 'gift-wishes', name: '月渡花汀 · 礼物许愿', config }] });
-  store.install(packId);
+  await createComponentStyleLibrary(fixture.dataDir).install(packId);
   const browser = openBrowserSession();
   const desktop = await browser.newPage();
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
@@ -326,7 +329,7 @@ test('moonlit queue parameters edit the installed preset and survive scene publi
   for (let index = 1; index <= 6; index++) assert.equal(preset.config[`overlayRule${index}`], '');
   const config = normalizeSceneConfig('queue', { ...preset.config, resourceStyle, overlayRule1: '旧套装规则' });
   store.stage({ id: packId, name: '月渡花汀', styles: [{ id: resourceStyle.id, type: 'queue', name: '月渡花汀 · 点歌板', config }] });
-  store.install(packId);
+  await createComponentStyleLibrary(fixture.dataDir).install(packId);
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const desktop = await context.newPage();
   const page = await context.newPage();
@@ -423,11 +426,18 @@ test('canvas suite imports appear in client component lists and refresh without 
   await desktop.locator('[data-local-styles="clock"] .component-style-card').waitFor();
   assert.equal(await desktop.locator('.component-style-card').count(), 4);
   assert.equal(await desktop.locator('[data-local-styles]').count(), 6);
-  await desktop.locator('[data-local-styles="clock"] .component-style-delete').click();
-  await desktop.locator('[data-local-styles="clock"] .component-style-card').waitFor({ state: 'detached' });
-  await picker.locator('[data-category="clock"]').click();
-  await picker.locator('.component-style-add').waitFor();
-  assert.equal(await picker.locator('.component-style-card').count(), 0);
+  await picker.locator('[data-category="suites"]').click();
+  await picker.getByRole('button', { name: '删除套装', exact: true }).click();
+  await page.getByRole('dialog', { name: '删除套装', exact: true })
+    .getByRole('button', { name: '删除整套', exact: true }).click();
+  await picker.getByRole('heading', { name: '还没有套装', exact: true }).waitFor();
+  await desktop.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await desktop.waitForFunction(() => !document.querySelector('.component-style-card'));
+  for (const type of ['clock', 'danmaku', 'opening', 'gift-wishes']) {
+    await picker.locator(`[data-category="${type}"]`).click();
+    await picker.getByRole('button', { name: '添加样式', exact: true }).waitFor();
+    assert.equal(await picker.locator('.component-style-card').count(), 0, type);
+  }
 });
 
 test('adding a suite clock from the client synchronizes its instance before reusing the canvas', { timeout: 60000 }, async t => {

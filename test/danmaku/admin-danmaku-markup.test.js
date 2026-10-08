@@ -40,9 +40,11 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'starlight', 'outline', 'whiteframe', 'cream', 'glow', 'starveil', 'floating', 'comet',
   ].sort());
   assert.match(html, /<button\b(?=[^>]*\sdata-danmaku-style="signal")(?=[^>]*\saria-pressed="true")[^>]*>/);
-  for (const group of ['fixed', 'random']) {
-    const title = `danmaku${group[0].toUpperCase()}${group.slice(1)}StyleTitle`;
-    assert.match(html, new RegExp(`class="danmaku-style-group danmaku-style-group-${group}"[^>]+aria-labelledby="${title}"[\\s\\S]*id="${title}"[\\s\\S]*aria-label="[^"]+"`));
+  for (const group of ['Fixed', 'Random', 'Floating']) {
+    const tab = `danmaku${group}StyleTab`;
+    const panel = `danmaku${group}Styles`;
+    assert.match(html, new RegExp(`<button\\b[^>]*id="${tab}"[^>]*role="tab"[^>]*aria-controls="${panel}"`));
+    assert.match(html, new RegExp(`<section\\b[^>]*id="${panel}"[^>]*role="tabpanel"[^>]*aria-labelledby="${tab}"`));
   }
   assert.match(html, /id="danmakuStyleSaveState"[^>]+role="status"[^>]+aria-live="polite"[^>]*><\/p>/);
   assert.match(html, /id="danmakuFullscreenDurationSeconds"[^>]+type="number"[^>]+min="2"[^>]+max="30"[^>]+step="1"/);

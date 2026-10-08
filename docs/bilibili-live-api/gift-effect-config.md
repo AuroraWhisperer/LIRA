@@ -61,7 +61,7 @@ alpha = max(r, g, b)
 
 - 查询礼物 ID：`GET /api/gifts/effects/resolve?giftId=31645`
 - 历史直播监听 overlay：`/gift-effects`（旧 `gift:effect` 消费路径已退役）
-- 手动预览：旧工具仍可输入礼物 ID，通过 WebSocket 发送 `gift:effect` 给显式兼容消费者；新的礼物边框预览使用 `POST /api/gifts/frame/preview`
+- 手动预览：旧工具仍可输入礼物 ID，通过 WebSocket 发送 `gift:effect` 给显式兼容消费者；新的全屏礼物感谢预览使用 `POST /api/gifts/frame/preview`
 - 服务端解析：`src/bilibili/gift/effect-config.js`
 - 百宝箱工具：`public/pages/admin/toolbox/gift-effects.html`
 - 旧透明合成：`public/js/overlays/gift-effects.js` 中的隔离兼容代码；当前边框渲染只消费 `gift:frame`

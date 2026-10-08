@@ -46,8 +46,10 @@ test('song board parameters reach the canvas renderer and persist into the live 
   assert.equal(await page.locator('[data-component-parameter="songBoardThemePrimary"]').count(), 0);
   await edit('songBoardTitle', '我的展示板');
   await frame.getByText('我的展示板', { exact: true }).waitFor();
+  await edit('songBoardSortMode', 'category');
   await edit('category', '不存在的分类');
-  await frame.getByText('歌库还没有可展示歌曲', { exact: true }).waitFor();
+  await frame.locator('.song-group-title').filter({ hasText: '不存在的分类' }).first().waitFor();
+  await frame.locator('.song-card').first().waitFor();
   await edit('category', '流行');
   await frame.locator('.song-card').first().waitFor();
   for (const [sort, heading] of [['artist', '示例歌手'], ['category', '流行'], ['language', '国语'], ['initial', 'S']]) {

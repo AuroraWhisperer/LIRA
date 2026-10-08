@@ -42,8 +42,8 @@ async function handleStyles(context, req, res, url, canvas = false) {
     else {
       const body = await readJsonBody(req, 4096);
       authorize();
-      if (!['install', 'remove', 'cancel'].includes(action)) return sendJson(res, 404, { ok: false });
-      data = library[action](body?.id);
+      if (!['install', 'remove', 'remove-pack', 'cancel'].includes(action)) return sendJson(res, 404, { ok: false });
+      data = await library[action](body?.id, authorize);
     }
     return sendJson(res, 200, { ok: true, data });
   } catch (error) {
@@ -52,7 +52,7 @@ async function handleStyles(context, req, res, url, canvas = false) {
   }
 }
 
-const actions = ['list', 'add', 'web', 'pick-web', 'inspect', 'install', 'remove', 'cancel'];
+const actions = ['list', 'add', 'web', 'pick-web', 'inspect', 'install', 'remove', 'remove-pack', 'cancel'];
 const routes = Object.fromEntries(actions.map(action => [`${action === 'list' ? 'GET' : 'POST'} /api/component-styles/${action}`,
   (context, request, res) => handleStyles(context, request.req, res, new URL(request.req.url, `http://${request.req.headers.host}`))]));
 const publicRoutes = Object.fromEntries(actions.map(action => [`${action === 'list' ? 'GET' : 'POST'} /api/component-preview/styles/${action}`,

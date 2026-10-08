@@ -160,7 +160,7 @@ const SHOTS = [
     feature: 'otherDesktopUpdateFeature',
     update: { status: 'downloaded', version: '5.0.4', canInstall: true, message: '更新已下载完成，重启后安装。' },
   },
-  { id: 'E15', file: 'gift-frame-settings', title: '礼物边框金额、动效与预览', feature: 'otherGiftFeature' },
+  { id: 'E15', file: 'gift-frame-settings', title: '全屏礼物感谢金额、动效与预览', feature: 'otherGiftFeature' },
   {
     id: 'E16',
     file: 'gift-feed-settings',

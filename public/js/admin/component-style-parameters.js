@@ -4,8 +4,9 @@ import { previewElement } from './component-preview-surface.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 
-export function mountStyleParameters(host, controller, type) {
+export function mountStyleParameters(host, controller, type, { messageHost } = {}) {
   host.querySelector('[data-style-parameters-panel]')?.remove();
+  messageHost?.querySelector('[data-show-entry-messages]')?.closest('label').remove();
   if (!document.querySelector('link[data-style-parameters-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = '/css/admin/component-style-parameters.css';
@@ -79,11 +80,13 @@ export function mountStyleParameters(host, controller, type) {
   }
   root.append(advanced);
   let entry;
+  let entryLabel;
   if (type === 'danmaku') {
-    const label = previewElement('label', 'component-parameter-toggle');
+    entryLabel = previewElement('label', 'component-parameter-toggle');
     entry = previewElement('input'); entry.type = 'checkbox'; entry.dataset.showEntryMessages = '';
     entry.addEventListener('change', () => change('showEntryMessages', entry.checked));
-    label.append(entry, document.createTextNode('显示进房消息')); root.append(label);
+    entryLabel.append(entry, document.createTextNode('显示进房消息'));
+    (messageHost || root).append(entryLabel);
   }
   const reset = previewElement('button', 'secondary', '恢复当前样式效果'); reset.type = 'button';
   reset.addEventListener('click', () => {
@@ -122,5 +125,5 @@ export function mountStyleParameters(host, controller, type) {
     if (entry) { entry.checked = parameters.showEntryMessages === true; entry.disabled = !loaded; }
     reset.disabled = !loaded || !Object.keys(parameters).length;
   });
-  return { dispose() { stop(); root.remove(); } };
+  return { dispose() { stop(); entryLabel?.remove(); root.remove(); } };
 }

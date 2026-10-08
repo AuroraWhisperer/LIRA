@@ -9,8 +9,8 @@ export function sceneExtraPreviewData(type) {
   const session = (game, state) => ({ game, sessionId: `preview-${game}`, eventRevision: 1, state, danmaku: [] });
   const examples = {
     'gift-sprint': { targetRmb: 10000, remainingCrystalBalls: 100 },
-    opening: null,
-    songlist: { songs: Array.from({ length: 20 }, (_, index) => ({ id: index + 1, name: `示例歌曲 ${index + 1}`, artist: '示例歌手', category_name: '流行', language: '国语', name_initial: 'S' })) },
+    opening: { enabled: true, audio: 'none' },
+    songlist: { preview: true, songs: Array.from({ length: 20 }, (_, index) => ({ id: index + 1, name: `示例歌曲 ${index + 1}`, artist: '示例歌手', category_name: '流行', language: '国语', name_initial: 'S' })) },
     lyrics: { lyricTimeline: { trackTitle: '示例歌曲', lines: [
       { startMs: 0, endMs: 10000, text: '把此刻唱成一首歌', translation: 'Sing this moment into a song' },
       { startMs: 10000, endMs: 20000, text: '让旋律陪伴每一刻', translation: '' },
@@ -27,6 +27,7 @@ export function sceneExtraPreviewData(type) {
     } },
     blindbox: { summary: { boxCount: 12, totalCost: 120, totalProfit: 36 }, perUser: [{ userName: '示例观众', boxCount: 8, totalProfit: 42 }, { userName: '另一位观众', boxCount: 4, totalProfit: -6 }] },
     'gift-feed': {
+      preview: true,
       items: [[0, 0], [1, 1], [2, 2], [0, 1], [1, 2], [2, 0]].map(([viewer, giftIndex], index) => {
         const { artwork, ...gift } = giftFeedGifts[giftIndex];
         return { eventId: `preview-${index}`, artworkPath: `/img/overlays/gift-feed/${artwork}.webp`, gift: {

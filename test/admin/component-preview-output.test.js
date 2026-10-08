@@ -122,7 +122,7 @@ test('publication ignores unloaded unused owners and follows late owner state up
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   const status = page.locator('.preview-canvas-status');
-  await status.filter({ hasText: '有未保存修改' }).waitFor();
+  await status.filter({ hasText: '未保存' }).waitFor();
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await status.filter({ hasText: '本次已应用，新修改仍需保存' }).waitFor();
   assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), true);
@@ -228,7 +228,7 @@ test('canvas save updates the original default source and separate instance URLs
   };
   const copy = async () => {
     await page.evaluate(() => { window.copiedSource = ''; });
-    await page.getByRole('button', { name: '复制单组件地址', exact: true }).click();
+    await page.getByRole('button', { name: '复制组件地址', exact: true }).click();
     await page.waitForFunction(() => window.copiedSource);
     return page.evaluate(() => window.copiedSource);
   };
@@ -357,7 +357,7 @@ test('empty editor adds independent styles and publishes every layer through one
   assert.equal(clocks[0].appearance.config.label, '仅第一只时钟');
   assert.notEqual(clocks[1].appearance.config.label, '仅第一只时钟');
   assert.ok(first.document.items.every(item => item.appearance.mode === 'independent'));
-  await page.getByRole('button', { name: '复制直播源地址', exact: true }).click();
+  await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
   await page.waitForFunction(() => window.copiedSource);
   const source = await page.evaluate(() => window.copiedSource);
   const address = new URL(source);
@@ -386,7 +386,7 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
   await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('更新后的时钟').waitFor();
-  await page.getByRole('button', { name: '复制直播源地址', exact: true }).click();
+  await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '直播源地址已复制' }).waitFor();
   assert.equal(await page.evaluate(() => window.copiedSource), source);
   await page.goto('about:blank');

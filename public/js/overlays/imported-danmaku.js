@@ -5,8 +5,14 @@ import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
 const host = document.getElementById('app');
 let engine = '';
 let currentConfig = {};
-let previewEntry;
 let items;
+let previewTimer;
+let previewIndex = 0;
+const previewMessages = [
+  { name: '小星星', message: '晚上好，今天也来听歌啦！' },
+  { name: '舰长观众', guardLevel: 3, message: '这条弹幕用于检查字体和配套图片。' },
+  { name: '支持者', kind: 'superchat', price: 30, message: '测试醒目留言样式' },
+];
 function node(tag, className = '', id = '', text = '') {
   const element = document.createElement(tag);
   element.className = className;
@@ -69,17 +75,32 @@ function append(item) {
   items.parentElement.scrollTop = items.parentElement.scrollHeight;
 }
 const display = createSceneDanmakuDisplay({ clear: () => items?.replaceChildren(), append, status() {}, getStyle: () => 'transparent', showEntryMessages: () => styleParametersFor(currentConfig).showEntryMessages === true });
+function samples() {
+  return styleParametersFor(currentConfig).showEntryMessages
+    ? [...previewMessages, { name: '新来的观众', message: '进入了直播间' }] : previewMessages;
+}
+function playSample() {
+  clearTimeout(previewTimer);
+  if (isSceneComponent() || document.hidden || !items) return;
+  const messages = samples();
+  append(messages[previewIndex++ % messages.length]);
+  previewTimer = setTimeout(playSample, 1500);
+}
+function renderSamples() {
+  if (isSceneComponent()) return;
+  clearTimeout(previewTimer);
+  items.replaceChildren();
+  previewIndex = 0;
+  for (const item of samples()) append(item);
+  if (!document.hidden) previewTimer = setTimeout(playSample, 1500);
+}
+if (!isSceneComponent()) document.addEventListener('visibilitychange', playSample);
 createComponentPreviewClient({
   onConfig(config) {
     const next = config.cssStyle?.engine;
     if (!['blivechat', 'blc'].includes(next)) return false;
     currentConfig = config;
-    previewEntry?.remove();
-    if (!isSceneComponent() && styleParametersFor(config).showEntryMessages && engine === next) {
-      append({ name: '新来的观众', message: '进入了直播间' });
-      previewEntry = items.lastElementChild;
-    }
-    if (engine === next) return;
+    if (engine === next) { renderSamples(); return; }
     engine = next; host.replaceChildren();
     if (engine === 'blc') {
       const live = node('div', '', 'live'); items = node('div', 'danmaku-list'); live.append(items); host.append(live);
@@ -89,16 +110,12 @@ createComponentPreviewClient({
       items = node('div', 'style-scope yt-live-chat-item-list-renderer', 'items');
       scroller.append(items); list.append(scroller); chat.append(list); host.append(chat);
     }
-    if (!isSceneComponent()) for (const item of [
-      { name: '小星星', message: '晚上好，今天也来听歌啦！' },
-      { name: '舰长观众', guardLevel: 3, message: '这条弹幕用于检查字体和配套图片。' },
-      { name: '支持者', kind: 'superchat', price: 30, message: '测试醒目留言样式' },
-    ]) append(item);
-    if (!isSceneComponent() && styleParametersFor(config).showEntryMessages) {
-      append({ name: '新来的观众', message: '进入了直播间' });
-      previewEntry = items.lastElementChild;
-    }
+    renderSamples();
   },
   onData: display.update,
-  onDispose: () => host.replaceChildren(),
+  onDispose() {
+    clearTimeout(previewTimer);
+    document.removeEventListener('visibilitychange', playSample);
+    host.replaceChildren();
+  },
 });

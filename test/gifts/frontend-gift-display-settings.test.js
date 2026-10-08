@@ -91,7 +91,7 @@ test('style preview holds each palette color, animates between them and loops', 
     await page.locator('#giftStylePreview .gift-banner').first().evaluate((banner) => getComputedStyle(banner).transform),
     'matrix(1, 0, 0, 1, 0, 0)',
   );
-  await page.getByRole('tab', { name: '礼物边框', exact: true }).click();
+  await page.getByRole('tab', { name: '全屏礼物感谢', exact: true }).click();
   await page.waitForFunction(() => !document.getElementById('giftStylePreview').classList.contains('is-playing'));
   await page.getByRole('tab', { name: '滚动礼物', exact: true }).click();
   await page.locator('#giftStylePreview').scrollIntoViewIfNeeded();
@@ -224,7 +224,7 @@ test('defaults reset both range endpoints and cancelling discards the draft', as
   await page.locator('#giftTier1').fill('150');
   await page.getByRole('button', { name: '取消修改', exact: true }).click();
   assert.deepEqual(await page.evaluate(() => window.displaySaves), []);
-  await page.getByRole('tab', { name: '礼物边框', exact: true }).click();
+  await page.getByRole('tab', { name: '全屏礼物感谢', exact: true }).click();
   await page.getByRole('tab', { name: '滚动礼物', exact: true }).click();
   assert.equal(await page.locator('#giftTier1').inputValue(), '100');
   assert.equal(await page.locator('#giftTierEnd0').inputValue(), '100');
@@ -233,10 +233,10 @@ test('defaults reset both range endpoints and cancelling discards the draft', as
 test('gift assistant keeps frame and display settings while export settings live in history', async (t) => {
   const page = await openSettings(t);
   await page.locator('#giftFeedRows').fill('5');
-  await page.getByRole('tab', { name: '礼物边框', exact: true }).click();
+  await page.getByRole('tab', { name: '全屏礼物感谢', exact: true }).click();
   assert.equal(await page.locator('#giftFramePanel').isVisible(), true);
   assert.equal(await page.locator('#giftDisplaySettings').isHidden(), true);
-  await page.getByRole('tab', { name: '礼物边框', exact: true }).press('ArrowRight');
+  await page.getByRole('tab', { name: '全屏礼物感谢', exact: true }).press('ArrowRight');
   assert.equal(await page.locator('#giftFeedRows').inputValue(), '5');
   assert.equal(await page.getByRole('tab', { name: '滚动礼物', exact: true }).getAttribute('aria-selected'), 'true');
   await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();

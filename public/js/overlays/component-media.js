@@ -108,6 +108,7 @@ export function createMediaEventPlayer(style) {
   return {
     ready,
     get durationMs() { return duration(); },
+    setMuted(muted) { if (style.kind === 'video') media.muted = muted || style.volume === 0; },
     play(payload = {}) {
       if (disposed) return Promise.resolve();
       finish?.();

@@ -99,8 +99,17 @@ export function openComponentPreview(selected = null) {
   function exchange(connection) {
     if (connection.exchanging) return connection.exchanging;
     window.clearTimeout(connection.timer);
-    connection.exchanging = exchangeOnce(connection).finally(() => { connection.exchanging = null; });
+    connection.exchanging = exchangeOnce(connection).finally(() => {
+      connection.exchanging = null;
+      if (connection.resync) { connection.resync = false; return syncResult(connection); }
+    });
     return connection.exchanging;
+  }
+
+  function syncResult(connection) {
+    if (closed || connection.stopped) return;
+    if (connection.exchanging) connection.resync = true;
+    else return exchange(connection);
   }
 
   async function exchangeOnce(connection) {
@@ -116,9 +125,18 @@ export function openComponentPreview(selected = null) {
       connection.retryDelay = 1000;
       for (const command of data.commands) {
         if (command.sequence <= connection.ack) continue;
-        if (command.action === 'edit') controller.edit(command.change);
+        if (command.action === 'edit') {
+          let change = command.change;
+          const current = controller.getState().draft.document;
+          if (command.baseItemIds && current?.id === change.document?.id) {
+            const known = new Set([...command.baseItemIds, ...change.document.items.map(item => item.id)]);
+            change = { ...change, document: { ...change.document,
+              items: [...change.document.items, ...current.items.filter(item => !known.has(item.id))] } };
+          }
+          controller.edit(change);
+        }
         else if (command.action === 'discard') controller.discard();
-        else if (command.action === 'save') void controller.save();
+        else if (command.action === 'save') void controller.save().finally(() => syncResult(connection));
         else if (connection.options.id === 'canvas' && ['publish', 'source', 'preset'].includes(command.action)) {
           connection.display = { sequence: command.sequence, busy: true };
           void (async () => {
@@ -130,10 +148,13 @@ export function openComponentPreview(selected = null) {
             } catch (error) {
               connection.display = { sequence: command.sequence, busy: false, error: error.message };
             }
+            syncResult(connection);
           })();
         }
         connection.ack = command.sequence;
       }
+      // Return accepted edits immediately instead of waiting for another polling tick.
+      if (data.commands.length) connection.resync = true;
       if (data.closed) {
         stopConnection(connection);
         if (connections.every((item) => item.stopped)) close();

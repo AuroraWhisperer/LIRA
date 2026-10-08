@@ -82,6 +82,162 @@ test('standard ZIP previews without installation, commits atomically and recogni
   assert.ok(!fs.existsSync(createComponentStyleStore(f.dataDir).directory(cancelled.data.id, true)));
 });
 
+test('whole suites remove and restore without duplicating packages or invalidating scene media', async t => {
+  const f = await fixture(t);
+  const manifest = { schemaVersion: 1, id: 'test.lifecycle', name: '整套管理', version: '1.0.0',
+    styles: ['clock', 'background'].map(type => ({ type, name: type, file: 'frame.png', width: 640, height: 360 })) };
+  const bytes = zip([['lira-pack.json', JSON.stringify(manifest)], ['frame.png', png]]);
+  const { data: preview } = await f.request('inspect', bytes);
+  assert.equal(preview.isSuite, true);
+  const { data: installed } = await f.request('install', { id: preview.id });
+  await f.request('remove', { id: installed.styles[0].id });
+  assert.equal((await f.request('list')).data[0].isSuite, true, 'Legacy member removal must not change suite classification.');
+  assert.equal((await f.request('remove-pack', { id: installed.id }, '')).status, 401);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    assert.equal((await f.request('remove-pack', { id: installed.id })).status, 200);
+    assert.deepEqual((await f.request('list')).data, []);
+  }
+  for (const style of installed.styles) assert.equal((await fetch(`${f.origin}${style.config.mediaStyle.src}`)).status, 200);
+  const restore = await f.request('inspect', bytes);
+  const result = await f.request('install', { id: restore.data.id });
+  assert.equal(result.data.restored, true);
+  assert.equal(result.data.id, installed.id);
+  assert.deepEqual(result.data.styles, installed.styles);
+  const store = createComponentStyleStore(f.dataDir);
+  assert.equal(store.read().packages.length, 1);
+  assert.equal(store.list()[0].styles.length, 2);
+  assert.equal((await f.request('remove-pack', { id: randomUUID() })).status, 404);
+});
+
+test('suite updates replace old versions by package identity, including reduced membership and legacy parallel versions', async t => {
+  const f = await fixture(t);
+  const manifest = { schemaVersion: 1, id: 'test.updates', name: '更新套装', version: '1.0.0',
+    styles: ['clock', 'background'].map(type => ({ type, name: type, file: 'frame.png', width: 640, height: 360 })) };
+  const inspect = () => f.request('inspect', zip([['lira-pack.json', JSON.stringify(manifest)], ['frame.png', png]]));
+  const original = await inspect();
+  await f.request('install', { id: original.data.id });
+  const store = createComponentStyleStore(f.dataDir);
+  // Simulate the previous client's concurrently installed versions.
+  const index = store.read();
+  index.packages.push({ ...index.packages[0], id: randomUUID(), version: '1.1.0' });
+  fs.writeFileSync(path.join(store.root, 'index.json'), JSON.stringify(index));
+  manifest.id = 'test.unrelated';
+  const unrelated = await inspect();
+  await f.request('install', { id: unrelated.data.id });
+  manifest.id = 'test.updates'; manifest.version = '2.0.0'; manifest.styles.pop();
+  const update = await inspect();
+  assert.equal(update.data.isSuite, true, 'An existing suite may reduce to one component type.');
+  assert.deepEqual(update.data.replaces.map(pack => pack.version), ['1.0.0', '1.1.0']);
+  assert.equal((await f.request('list')).data.length, 3, 'Inspect must not retire installed versions.');
+  const result = await f.request('install', { id: update.data.id });
+  assert.equal(result.data.replaced, 2);
+  assert.deepEqual(store.list().map(pack => pack.id), [unrelated.data.id, result.data.id]);
+  assert.equal(store.list()[1].isSuite, true);
+  assert.equal((await fetch(`${f.origin}${original.data.styles[0].config.mediaStyle.src}`)).status, 200);
+  const duplicate = await inspect();
+  assert.equal((await f.request('install', { id: duplicate.data.id })).data.alreadyInstalled, true);
+  manifest.styles[0].name = '同版本内容修改';
+  const conflict = await inspect();
+  assert.equal((await f.request('install', { id: conflict.data.id })).status, 409);
+  assert.deepEqual(store.list().map(pack => pack.id), [unrelated.data.id, result.data.id]);
+  await f.request('cancel', { id: conflict.data.id });
+  const restore = await f.request('inspect', zip([['lira-pack.json', JSON.stringify({ ...manifest, name: '更新套装',
+    version: '1.0.0', styles: ['clock', 'background'].map(type => ({ type, name: type, file: 'frame.png', width: 640, height: 360 })) })], ['frame.png', png]]));
+  const restored = await f.request('install', { id: restore.data.id });
+  assert.equal(restored.data.id, original.data.id);
+  assert.equal(restored.data.replaced, 1);
+  assert.equal(restored.data.restored, true);
+});
+
+for (const revoke of [false, true]) test(`suite installation rechecks authorization after a temporary rename lock (revoke=${revoke})`, async t => {
+  const directory = createScratchDirectory('suite-rename-', t);
+  const store = createComponentStyleStore(directory);
+  const library = createComponentStyleLibrary(directory);
+  const pack = { id: randomUUID(), styles: [{ id: randomUUID(), type: 'clock' }] };
+  store.stage(pack);
+  const rename = fs.renameSync;
+  let attempts = 0;
+  let checks = 0;
+  t.mock.method(fs, 'renameSync', (source, target) => {
+    if (source === store.directory(pack.id, true) && ++attempts === 1) {
+      throw Object.assign(new Error('Temporary Windows file lock'), { code: 'EPERM', syscall: 'rename', path: source, dest: target });
+    }
+    return rename(source, target);
+  });
+  const installation = library.install(pack.id, () => {
+    checks++;
+    assert.deepEqual(store.list(), [], 'Retry must precede index mutation.');
+    if (revoke && checks > 1) throw Object.assign(new Error('Preview expired'), { statusCode: 410 });
+  });
+  if (revoke) {
+    await assert.rejects(installation, { statusCode: 410 });
+    assert.equal(attempts, 1);
+    assert.deepEqual(store.list(), []);
+    assert.ok(fs.existsSync(store.directory(pack.id, true)));
+  } else {
+    assert.equal((await installation).id, pack.id);
+    assert.equal(attempts, 2);
+    assert.equal(store.list().length, 1);
+    assert.ok(!fs.existsSync(store.directory(pack.id, true)));
+  }
+  assert.equal(checks, 2);
+});
+
+test('temporary index locks preserve one atomic write during install and removal', async t => {
+  const directory = createScratchDirectory('suite-index-lock-', t);
+  const store = createComponentStyleStore(directory);
+  const library = createComponentStyleLibrary(directory);
+  const pack = { id: randomUUID(), styles: [{ id: randomUUID(), type: 'clock' }] };
+  store.stage(pack);
+  const rename = fs.renameSync;
+  const attempts = new Map();
+  t.mock.method(fs, 'renameSync', (source, target) => {
+    if (target === path.join(store.root, 'index.json')) {
+      const count = (attempts.get(source) || 0) + 1;
+      attempts.set(source, count);
+      if (count === 1) throw Object.assign(new Error('Temporary index lock'), { code: 'EPERM' });
+    }
+    return rename(source, target);
+  });
+  await library.install(pack.id);
+  assert.equal(store.list()[0].styles.length, 1);
+  store.remove(pack.styles[0].id);
+  assert.equal(store.list()[0].styles.length, 0);
+  assert.equal(store.read().packages.length, 1);
+  assert.deepEqual([...attempts.values()], [2, 2], 'Each prepared index is renamed again without replaying its transaction.');
+});
+
+test('failed suite index commit preserves the old version and leaves the new import retryable', async t => {
+  const directory = createScratchDirectory('suite-atomic-', t);
+  const store = createComponentStyleStore(directory);
+  const library = createComponentStyleLibrary(directory);
+  const pack = { id: randomUUID(), packageId: 'test.atomic', version: '1.0.0', digest: 'old',
+    styles: [{ id: randomUUID(), type: 'clock' }, { id: randomUUID(), type: 'background' }] };
+  store.stage(pack); await library.install(pack.id);
+  const next = { ...pack, id: randomUUID(), version: '2.0.0', digest: 'new' };
+  store.stage(next);
+  const rename = fs.renameSync;
+  let commits = 0;
+  const commitSources = new Set();
+  const mocked = t.mock.method(fs, 'renameSync', (source, target) => {
+    if (target === path.join(store.root, 'index.json')) {
+      commits++;
+      commitSources.add(source);
+      throw Object.assign(new Error('simulated commit failure'), { code: 'EPERM', syscall: 'rename', path: source, dest: target });
+    }
+    return rename(source, target);
+  });
+  await assert.rejects(library.install(next.id), /simulated commit failure/);
+  assert.equal(commits, 5, 'A persistent file lock exhausts the bounded rename retries.');
+  assert.equal(commitSources.size, 1, 'The prepared index must not be rebuilt or the transaction replayed.');
+  assert.deepEqual(store.list().map(item => item.id), [pack.id]);
+  assert.ok(fs.existsSync(store.directory(next.id, true)));
+  assert.ok(!fs.existsSync(store.directory(next.id)));
+  mocked.mock.restore();
+  assert.equal((await library.install(next.id)).replaced, 1);
+  assert.deepEqual(store.list().map(item => item.id), [next.id]);
+});
+
 test('background ZIP defaults survive instance overrides, removal and a newer package', async t => {
   const f = await fixture(t);
   const { createMoonlitEntries } = require('../../scripts/package-moonlit-suite');
@@ -231,7 +387,7 @@ test('nautical ZIP installs one guard style with three original animated tiers a
   const library = createComponentStyleLibrary(directory);
   const pack = await library.inspect(Readable.from(createNauticalGuardZip()), () => {});
   assert.deepEqual(library.list(), [], 'Inspection must not install.');
-  library.install(pack.id);
+  await library.install(pack.id);
   assert.equal(library.list().length, 1);
   assert.equal(pack.styles.length, 1);
   const style = pack.styles[0];

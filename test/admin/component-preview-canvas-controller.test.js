@@ -35,6 +35,10 @@ async function fixture(records = [], read) {
     if (conflict) throw Object.assign(new Error('场景已更新，请重新加载后重试。'), { status: 409 });
     const current = records.find(({ document }) => document.id === body.id);
     assert.equal(body.expectedRevision, current.revision);
+    if (action === 'delete') {
+      records.splice(records.indexOf(current), 1);
+      return { id: body.id };
+    }
     if (action === 'canvas-publish') {
       assert.equal(body.expectedPublishedVersion, binding.publishedVersion);
       binding.publishedVersion += 1;
@@ -70,6 +74,29 @@ test('preset selection retains drafts and applies the selected document to the f
   const writes = f.calls.length;
   await assert.rejects(canvas.preset({ action: 'select', id: randomUUID() }), /不存在/);
   assert.equal(f.calls.length, writes);
+});
+
+test('preset deletion retains other drafts and keeps the selected draft on failure', async () => {
+  const f = await fixture();
+  const canvas = await f.prepare();
+  const original = canvas.controller.getState().draft.document;
+  canvas.controller.edit({ document: { ...original, title: '保留草稿' } });
+  await canvas.preset({ action: 'create', title: '多余预设', duplicate: false });
+  const extra = canvas.controller.getState().draft.document;
+  await assert.rejects(canvas.preset({ action: 'delete', id: original.id }), /当前预设已变化/);
+  await canvas.preset({ action: 'delete', id: extra.id });
+  assert.equal(canvas.controller.getState().draft.document.id, original.id);
+  assert.equal(canvas.controller.getState().draft.document.title, '保留草稿');
+  assert.equal(canvas.controller.getState().dirty, true);
+  assert.equal(canvas.controller.getState().presets.length, 1);
+  assert.equal(f.records.length, 1);
+  await canvas.preset({ action: 'create', title: '保留失败草稿', duplicate: false });
+  const failed = canvas.controller.getState().draft.document;
+  canvas.controller.edit({ document: { ...failed, title: '未保存修改' } });
+  f.conflict();
+  await assert.rejects(canvas.preset({ action: 'delete', id: failed.id }), /已更新/);
+  assert.equal(canvas.controller.getState().draft.document.title, '未保存修改');
+  assert.equal(canvas.controller.getState().presets.length, 2);
 });
 
 test('common canvas uses the prior danmaku size once and shares initialization across preview openings', async () => {

@@ -10,7 +10,7 @@ export function mountComponentStyleInspector(host, { item, model, component, req
   const change = previewElement('button', 'secondary', MEDIA_STYLE_TYPES.includes(item.type) ? '更换样式 / 添加素材' : '更换样式'); change.type = 'button'; change.disabled = item.locked;
   let library;
   let mediaFields;
-  host.append(change);
+  if (item.type !== 'danmaku') host.append(change);
   change.addEventListener('click', () => {
     library = openComponentStyleLibrary({ type: item.type, request, actionLabel: `更换「${item.name}」的样式`,
       onUse(style) {
@@ -40,7 +40,7 @@ export function mountComponentStyleInspector(host, { item, model, component, req
       },
     });
   });
-  if (item.appearance.config?.mediaStyle || item.appearance.config?.cssStyle) {
+  if (item.type !== 'danmaku' && (item.appearance.config?.mediaStyle || item.appearance.config?.cssStyle)) {
     const builtin = previewElement('button', 'secondary', '改用内置样式'); builtin.type = 'button'; builtin.disabled = item.locked;
     builtin.addEventListener('click', () => {
       try { model.edit(document => {

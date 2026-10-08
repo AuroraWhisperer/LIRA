@@ -58,7 +58,9 @@ test('opening settings preview reuses a canvas layer and published output follow
   await desktop.locator('#openingTitle').fill('新的开播标题');
   await opening.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
   await desktop.locator('#openingEnabled').uncheck();
-  await opening.locator('#openingStage.is-disabled').waitFor({ state: 'attached' });
+  await desktop.waitForResponse(response => response.url().endsWith('/api/settings')
+    && response.request().postDataJSON()?.openingEnabled === 'false');
+  await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   await desktop.locator('#openingEnabled').check();
   await desktop.locator('#openingStyle').selectOption('pixel-cassette');
   await opening.locator('#openingPixel').waitFor({ state: 'visible' });
@@ -70,7 +72,9 @@ test('opening settings preview reuses a canvas layer and published output follow
   await desktop.locator('#openingQuality').selectOption('normal');
   await opening.locator('#openingStage.quality-normal').waitFor({ state: 'visible' });
   await desktop.locator('#openingEnabled').uncheck();
-  await opening.locator('#openingStage.is-disabled').waitFor({ state: 'attached' });
+  await desktop.waitForResponse(response => response.url().endsWith('/api/settings')
+    && response.request().postDataJSON()?.openingEnabled === 'false');
+  await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   await desktop.locator('#openingEnabled').check();
   await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   await desktop.locator('#openingStyle').selectOption('classic');

@@ -5,6 +5,9 @@ import { api, toast } from '../shared/utils.js';
 import { GUARD_THANKS_EFFECTS, readGuardThanksEffect } from '../shared/guard-thanks-settings.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
+import { prepareComponentPreviews } from './component-preview-registry.js';
+import { getActiveComponentPreview } from './component-preview-session.js';
+import { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } from '../shared/scene-extra-components.js';
 
 const settingIds = GUARD_THANKS_EFFECTS.flatMap(({ prefix }) => [`${prefix}Enabled`, `${prefix}TextMode`]);
 const draftFields = new Set();
@@ -45,7 +48,9 @@ export function renderGuardThanks(settings = {}) {
   }
 }
 
-function playPreview(effect) {
+async function playPreview(effect) {
+  const button = field(effect, 'PlayBtn');
+  if (button.disabled) return;
   const months = Number(field(effect, 'PreviewMonths').value);
   if (!Number.isSafeInteger(months) || months < 1 || months > 999) {
     setStatus(effect, '预览月数需为 1–999 的整数。', 'error');
@@ -59,7 +64,34 @@ function playPreview(effect) {
   event.style = effect.style;
   event.textMode = field(effect, 'TextMode').value;
   setStatus(effect, '', '');
-  openComponentPreview({ id: 'guard-thanks', previewData });
+  button.disabled = true;
+  try {
+    const entries = await prepareComponentPreviews();
+    const canvas = entries.find(entry => entry.id === 'canvas');
+    if (!canvas?.controller.getState().loaded) throw new Error('画布尚未准备完成，请稍后重试。');
+    await getActiveComponentPreview('browser-preview')?.syncCanvas();
+    const document = canvas.controller.getState().draft.document;
+    let item = document.items.find(item => item.type === 'guard-thanks'
+      && item.appearance.config?.style === effect.style
+      && !item.appearance.config.mediaStyle && !item.appearance.config.resourceStyle);
+    if (!item) {
+      if (document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('当前场景已满，请在画布中新建场景。');
+      const [defaultWidth, defaultHeight] = SCENE_EXTRA_COMPONENTS['guard-thanks'].size;
+      const width = Math.min(defaultWidth, document.canvas.width);
+      const height = Math.min(defaultHeight, document.canvas.height);
+      item = { id: crypto.randomUUID(), type: 'guard-thanks', name: `大航海感谢 · ${effect.label}`,
+        x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
+        width, height, visible: true, locked: false,
+        appearance: { mode: 'independent', config: { ...createSceneExtraDefaults('guard-thanks'), style: effect.style } } };
+      document.items.push(item);
+      canvas.controller.edit({ document });
+    }
+    openComponentPreview({ id: 'guard-thanks', previewData, selectedItemId: item.id });
+  } catch (error) {
+    setStatus(effect, error.message || '无法打开画布，请稍后重试。', 'error');
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function saveSettings(effect) {

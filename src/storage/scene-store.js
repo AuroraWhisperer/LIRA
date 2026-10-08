@@ -47,6 +47,15 @@ function createSceneStore(db) {
       `).get(JSON.stringify(document), scope, id, expectedRevision));
     },
 
+    delete({ scope, id, expectedRevision }) {
+      const row = db.prepare(`DELETE FROM component_scenes
+        WHERE owner_scope = ? AND id = ? AND revision = ?
+          AND NOT EXISTS (SELECT 1 FROM component_canvas
+            WHERE owner_scope = ? AND (output_scene_id = ? OR active_scene_id = ?))
+        RETURNING id`).get(scope, id, expectedRevision, scope, id, id);
+      return row ? { id: row.id } : null;
+    },
+
     getComponentSize(scope, type) {
       const row = db.prepare('SELECT width, height FROM component_output_sizes WHERE owner_scope = ? AND component_type = ?').get(scope, type);
       return row ? { width: row.width, height: row.height } : null;

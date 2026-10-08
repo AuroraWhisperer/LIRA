@@ -95,6 +95,11 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       };
       controller.receive({ document: dto.document });
       return { id: 'canvas', title: '直播场景', controller,
+        async delete() {
+          assertCurrent();
+          await request('delete', { id, expectedRevision: revision });
+          assertCurrent();
+        },
         async getComponentSize(type, signal) {
           assertCurrent();
           const size = await readComponentOutputSize(type, signal);
@@ -170,7 +175,7 @@ export async function prepareComponentPreviewCanvas(components, request = reques
     function retain(dto) {
       const preset = createPreset(dto);
       presets.set(dto.document.id, preset);
-      preset.controller.subscribe(notify);
+      preset.unsubscribe = preset.controller.subscribe(notify);
       return preset;
     }
     for (const record of scenes.length ? scenes : [dto]) retain(record);
@@ -229,6 +234,13 @@ export async function prepareComponentPreviewCanvas(components, request = reques
             next.controller.edit({ document: { ...created.document, items } });
           }
           active = next;
+        } else if (input?.action === 'delete') {
+          const id = active.controller.getState().draft.document.id;
+          if (input.id !== id) throw new Error('当前预设已变化，请重新选择后删除。');
+          await active.delete();
+          active.unsubscribe();
+          presets.delete(id);
+          active = presets.get(binding.activeSceneId) || presets.values().next().value;
         } else throw new Error('不支持的场景预设操作。');
         notify();
         return { id: active.controller.getState().draft.document.id };

@@ -1,5 +1,5 @@
 import { isFloatingDanmakuStyle } from '../shared/danmaku-style-options.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement, previewToolbarIcon } from './component-preview-surface.js';
 import { createSceneDocumentModel } from './scene-document-model.js';
 import { mountSceneEditorStage } from './scene-editor-stage.js';
 import { mountSceneEditorInspector } from './scene-editor-inspector.js';
@@ -44,6 +44,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   const layerHeading = previewElement('h2', '', '组件');
   const center = previewElement('section', 'component-preview-canvas');
   const canvasControls = previewElement('div', 'preview-canvas-controls');
+  const canvasTools = previewElement('div', 'preview-canvas-tools');
   const dimensions = previewElement('span', 'preview-canvas-resolution');
   const stageHost = previewElement('div', 'scene-editor-stage-host');
   stageHost.tabIndex = -1;
@@ -56,10 +57,11 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   const applyActions = previewElement('div', 'preview-canvas-apply-actions');
   const status = previewElement('p', 'preview-canvas-status');
   status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
-  actions.append(sourceActions, applyActions, status);
-  navigation.append(layerHeading, layers);
+  actions.append(sourceActions, applyActions);
+  navigation.append(layerHeading, layers, status);
   sidebar.append(inspectorHost);
-  toolbar.append(library, canvasControls, actions);
+  canvasTools.append(library, canvasControls);
+  toolbar.append(canvasTools, actions);
   const report = (text) => { message = text; renderStatus(); };
   const layerDrag = mountPreviewLayerDrag(layers, { report,
     beforeDrag() { closeLayerMenu(); stage?.cancelGesture(); },
@@ -78,23 +80,28 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     parent.append(node);
     return node;
   }
-  const canvasButton = button(canvasControls, '画布设置', () => { select(null); setInspectorOpen(true); });
+  const canvasButton = button(canvasControls, '', () => { select(null); setInspectorOpen(true); });
   canvasButton.setAttribute('aria-label', '画布设置');
-  canvasButton.append(dimensions);
-  const backgroundLabel = previewElement('label', '', '底色');
+  canvasButton.title = '画布设置';
+  canvasButton.append(previewToolbarIcon('canvas'), dimensions);
+  const backgroundLabel = previewElement('label');
+  backgroundLabel.title = '预览底色，不影响直播画面';
   const background = previewElement('select');
   background.setAttribute('aria-label', '公共画布检查底色');
-  for (const [value, text] of [['checker', '透明棋盘'], ['dark', '深色'], ['light', '浅色']]) {
+  for (const [value, text] of [['checker', '透明'], ['dark', '深色'], ['light', '浅色']]) {
     const option = previewElement('option', '', text); option.value = value; background.append(option);
   }
   backgroundLabel.append(background); canvasControls.append(backgroundLabel);
-  const panelToggle = button(canvasControls, '', () => setInspectorOpen(!inspectorOpen));
+  const panelToggle = button(canvasControls, '', () => setInspectorOpen(!inspectorOpen), 'secondary preview-canvas-icon-button');
   panelToggle.setAttribute('aria-controls', sidebar.id);
+  panelToggle.append(previewToolbarIcon('panel'));
   function setInspectorOpen(open) {
     inspectorOpen = open;
     sidebar.hidden = !open;
     body.classList.toggle('is-inspector-collapsed', !open);
-    panelToggle.textContent = open ? '收起参数' : '展开参数';
+    panelToggle.title = open ? '收起参数' : '展开参数';
+    panelToggle.setAttribute('aria-label', panelToggle.title);
+    panelToggle.setAttribute('aria-pressed', String(open));
     panelToggle.setAttribute('aria-expanded', String(open));
     canvasButton.setAttribute('aria-pressed', String(open && !selected));
     stage?.fit();
@@ -152,7 +159,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   function keydown(event) {
     if (event.defaultPrevented || event.isComposing || event.altKey || stageHost.inert
       || (!host.contains(event.target) && event.target !== document.body)
-      || event.target.isContentEditable || event.target.closest('input, select, textarea, [role="textbox"], .lira-select')) return;
+      || event.target.isContentEditable || event.target.closest('input, select, textarea, [role="textbox"], .lira-select, .preview-canvas-preset-menu')) return;
     try {
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
         event.preventDefault();
@@ -287,7 +294,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
         toggle.setAttribute('aria-expanded', String(open));
         if (!open) return;
         const rect = toggle.getBoundingClientRect();
-        menu.style.left = `${Math.max(8, Math.min(rect.right - 144, window.innerWidth - 152))}px`;
+        menu.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - 72, window.innerWidth - 152))}px`;
         menu.style.bottom = `${window.innerHeight - rect.top + 8}px`;
       });
       toggle.addEventListener('keydown', (event) => {
@@ -331,8 +338,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     status.classList.toggle('has-error', failures.length > 0 || Boolean(recoveryState?.pending));
     status.textContent = failures.length ? [...errors].map(([error, titles]) =>
       titles.length === states.length ? error : `${titles.join('、')}：${error}`).join('\n')
-      : recoveryState?.message || (typeof message === 'function' ? message() : message)
-        || (saving ? '正在保存…' : dirty.length ? '有未保存修改' : '');
+      : (recoveryState?.pending ? recoveryState.message : '') || (typeof message === 'function' ? message() : message) || recoveryState?.message
+        || (saving ? '正在保存…' : dirty.length ? '未保存' : '');
     if (!canvasController) status.textContent += ' 此旧链接仅保存组件参数；保存布局请从客户端重新打开。';
     if (save) save.disabled = saving || !dirty.length || dirty.some((state) => !state.loaded);
     const discardStates = states.filter(isDiscardTarget);
@@ -353,8 +360,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   stage = mountSceneEditorStage(stageHost, { model, components, getSelection: () => new Set(selected ? [selected] : []), select, report });
   function updateInspectorWidth() {
     const { width, height } = model.getSnapshot().canvas;
-    // Reserve the height-fitted canvas and its 24px viewport padding on each side.
-    const fitWidth = Math.min(width, Math.max(0, stageHost.clientHeight - 48) * width / height);
+    // Reserve the height-fitted canvas and its 12px viewport padding on each side.
+    const fitWidth = Math.min(width, Math.max(0, stageHost.clientHeight - 24) * width / height);
     body.style.setProperty('--preview-canvas-fit-width', `${Math.ceil(fitWidth)}px`);
   }
   const layoutObserver = new ResizeObserver(updateInspectorWidth);
@@ -373,20 +380,26 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     renderLayers();
     renderStatus();
   }));
+  let pendingFocus;
   if (canvasController) subscriptions.push(canvasController.subscribe(({ draft }) => {
     if (!model.isGestureActive() && JSON.stringify(draft.document) !== JSON.stringify(model.getSnapshot())) {
       receiving = true;
       try { model.reset(draft.document); } finally { receiving = false; }
     }
+    if (pendingFocus) focus(pendingFocus);
     renderStatus();
   }));
   function focus(selection) {
     if (!selection.selectedId) return;
     selectedSize = selection.selectedSize;
     const component = components.find(({ id }) => id === selection.selectedId);
-    const existing = model.getSnapshot().items.find((item) => item.id === selection.selectedItemId && item.type === selection.selectedId)
-      || model.getSnapshot().items.find((item) => item.type === selection.selectedId
-      && (component?.sceneOnly || item.appearance.mode === 'shared'));
+    const existing = selection.selectedItemId
+      ? model.getSnapshot().items.find((item) => item.id === selection.selectedItemId && item.type === selection.selectedId)
+      : model.getSnapshot().items.find((item) => item.type === selection.selectedId
+        && (component?.sceneOnly || item.appearance.mode === 'shared'));
+    // An unconfirmed local edit can temporarily hide a newly linked desktop item.
+    if (selection.selectedItemId && !existing) { pendingFocus = selection; return; }
+    pendingFocus = null;
     if (existing) {
       if (selected !== existing.id) select(existing.id);
       setInspectorOpen(true);

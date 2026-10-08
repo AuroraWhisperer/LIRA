@@ -52,7 +52,7 @@ export function createComponentPreviewClient({ onConfig, onData, onDispose }) {
         await decoration.ready();
         if (disposed || current !== configuration) return;
         effects?.update(effectType, message.config);
-        if (sceneMode) requestAnimationFrame(() => requestAnimationFrame(() => { if (current === configuration) send('prepared'); }));
+        requestAnimationFrame(() => requestAnimationFrame(() => { if (current === configuration) send('prepared'); }));
       } catch {
         if (current === configuration) send('status', { message: message.config?.cssStyle ? 'CSS 无法加载或内容无效，请检查配套资源后重新导入。' : message.config?.resourceStyle
           ? '样式素材加载失败，请重新导入素材包并更换此组件的样式。' : '组件外观准备失败。' });

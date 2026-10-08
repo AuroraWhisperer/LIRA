@@ -37,6 +37,10 @@ const routes = {
     const body = await request.body();
     return reply(res, () => context.scenes.save(body));
   },
+  async 'POST /api/scenes/delete'(context, request, res) {
+    const body = await request.body();
+    return reply(res, () => context.scenes.delete(body));
+  },
   async 'POST /api/scenes/publish'(context, request, res) {
     const body = await request.body();
     return reply(res, () => context.scenes.publish(body));

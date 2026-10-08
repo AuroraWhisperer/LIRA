@@ -37,6 +37,11 @@ async function poll(page) {
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
 }
 
+async function presetAction(page, name) {
+  await page.getByRole('button', { name: '预设操作', exact: true }).click();
+  await page.getByRole('menuitem', { name, exact: true }).click();
+}
+
 test('canvas inputs preserve native selection, clipboard and undo across preview polling', { timeout: 30000 }, async (t) => {
   const { page, desktop } = await editor(t);
   const font = page.locator('[data-preview-field="danmakuFontSize"]');
@@ -205,7 +210,7 @@ test('layer visibility and locking survive publication and reloading a component
 
 test('layer drag commits only inside the strip on release, cancels outside or on Escape, and undoes once', { timeout: 30000 }, async t => {
   const { page, desktop } = await editor(t);
-  await page.getByRole('button', { name: '保存预设', exact: true }).click();
+  await presetAction(page, '保存预设');
   await page.getByText('预设已保存，直播画面保持当前场景', { exact: true }).waitFor();
   await desktop.evaluate(() => {
     const document = window.controllers.canvas.getState().draft.document;
@@ -266,14 +271,14 @@ test('scene presets save and retain drafts independently while one live source c
     await page.getByRole('button', { name: '场景预设', exact: true }).click();
     await page.getByRole('option', { name, exact: true }).click();
   };
-  await page.getByRole('button', { name: '新建', exact: true }).click();
+  await presetAction(page, '新建预设');
   await desktop.waitForFunction(id => window.controllers.canvas.getState().draft.document.id !== id, first.outputId);
   await page.waitForFunction(() => document.querySelectorAll('.preview-canvas-layer').length === 0);
   assert.equal(live().document.items.length, 1);
   await page.getByRole('button', { name: '画布设置', exact: true }).click();
   await page.getByRole('textbox', { name: '预设名称', exact: true }).fill('游戏场景');
   await page.getByRole('textbox', { name: '预设名称', exact: true }).press('Tab');
-  await page.getByRole('button', { name: '保存预设', exact: true }).click();
+  await presetAction(page, '保存预设');
   await page.getByText('预设已保存，直播画面保持当前场景', { exact: true }).waitFor();
   assert.equal(live().version, 1);
   await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).fill('1600');
@@ -300,11 +305,37 @@ test('scene presets save and retain drafts independently while one live source c
   await selectPreset('直播场景');
   await page.locator('.preview-canvas-layers').getByRole('button', { name: '弹幕姬 1', exact: true }).waitFor();
   assert.equal(live().document.title, '游戏场景');
-  await page.getByRole('button', { name: '复制', exact: true }).click();
+  await presetAction(page, '复制预设');
   await page.getByRole('button', { name: '场景预设', exact: true }).filter({ hasText: '直播场景 副本' }).waitFor();
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.title === '直播场景 副本');
   assert.equal(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items[0].appearance.mode), 'independent');
   assert.equal(live().document.title, '游戏场景');
+  await presetAction(page, '删除预设');
+  const confirmation = page.getByRole('dialog', { name: '删除预设“直播场景 副本”？', exact: true });
+  await confirmation.getByRole('button', { name: '取消', exact: true }).click();
+  await confirmation.waitFor({ state: 'hidden' });
+  assert.equal(fixture.service.list().length, 3);
+  await presetAction(page, '删除预设');
+  await confirmation.getByRole('button', { name: '删除预设', exact: true }).click();
+  await page.getByRole('button', { name: '场景预设', exact: true }).filter({ hasText: '游戏场景' }).waitFor();
+  assert.equal(fixture.service.list().length, 2);
+  assert.equal(live().version, 2);
+  assert.equal(fixture.service.getSource(first.outputId).token, source.token);
+  await presetAction(page, '删除预设');
+  await page.getByRole('dialog').getByRole('button', { name: '删除预设', exact: true }).click();
+  await page.getByText('此预设正在直播使用，请先对其他预设“保存并应用”后再删除。', { exact: true }).waitFor();
+  assert.equal(fixture.service.list().length, 2);
+  assert.equal(live().document.title, '游戏场景');
+  await selectPreset('直播场景');
+  await page.getByRole('button', { name: '画布设置', exact: true }).click();
+  await page.getByRole('textbox', { name: '预设名称', exact: true }).fill('未保存原场景');
+  await page.getByRole('textbox', { name: '预设名称', exact: true }).press('Tab');
+  await page.reload();
+  await page.getByText('已恢复草稿，尚未应用到直播。', { exact: true }).waitFor();
+  await presetAction(page, '删除预设');
+  await page.getByRole('dialog').getByRole('button', { name: '删除预设', exact: true }).click();
+  await page.getByText('此预设承载固定直播源，不能删除；可以清空组件后重新使用。', { exact: true }).waitFor();
+  assert.equal(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.title), '未保存原场景');
 });
 
 test('canvas Delete and Ctrl+Z restore deletion, resize and move as separate edits', { timeout: 30000 }, async (t) => {

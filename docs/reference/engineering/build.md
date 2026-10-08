@@ -99,7 +99,7 @@
 
 正式应用不包含开发依赖 Playwright/Playwright Core 或 Electron 默认示例程序。`afterPack` 删除构建输出里的默认示例文件并生成资源清单；不修改开发环境的 Electron 分发目录。离线回归覆盖见 `test/engineering/packaging-scope.test.js`。
 
-礼物边框与弹幕装饰的 18 个 PNG 后缀资源保留为源码素材,对应 WebP 进入安装包:其中 15 张 PNG 无损转换,3 张守护气泡图原本就是 WebP 编码,保留原始字节并使用正确后缀;已有第 3–6 套队列主题 WebP 不变。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
+全屏礼物感谢与弹幕装饰的 18 个 PNG 后缀资源保留为源码素材,对应 WebP 进入安装包:其中 15 张 PNG 无损转换,3 张守护气泡图原本就是 WebP 编码,保留原始字节并使用正确后缀;已有第 3–6 套队列主题 WebP 不变。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
 
 | 产物                                | 说明                                     |
 | ----------------------------------- | ---------------------------------------- |

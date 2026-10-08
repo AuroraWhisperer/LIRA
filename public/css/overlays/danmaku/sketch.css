@@ -85,7 +85,7 @@ body[data-style='sketch'] .sc-copy {
   padding: .6em 1.9em;
   border: 2px solid var(--sketch-line);
   border-radius: 36px 7px 36px 7px;
-  background: linear-gradient(90deg, transparent 9%, var(--sketch-paper) 22%, var(--sketch-paper) 78%, transparent 91%) center / 100% calc(100% - 30px) no-repeat;
+  background: linear-gradient(90deg, transparent 5%, var(--sketch-paper) 10%, var(--sketch-paper) 90%, transparent 95%) center / 100% calc(100% - 30px) no-repeat;
   color: var(--sketch-ink);
   font-size: 1em;
   font-weight: 700;
@@ -174,10 +174,10 @@ body[data-style='sketch'] [data-sketch-variant='1']:not(.is-gift) .draw-danmaku-
 body[data-style='sketch'] [data-sketch-variant='1']:not(.is-gift) .draw-danmaku-body > p::before {
   position: absolute;
   z-index: -1;
-  inset: 15px 9%;
+  inset: 15px 5%;
   border-radius: 14px;
   background: color-mix(in srgb, var(--sketch-ink) 40%, #d0f4dd);
-  mask-image: var(--sketch-foliage), linear-gradient(90deg, transparent, #000 14%, #000 84%, transparent);
+  mask-image: var(--sketch-foliage), linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
   mask-size: cover, 100% 100%;
   mask-position: center;
   mask-repeat: no-repeat;

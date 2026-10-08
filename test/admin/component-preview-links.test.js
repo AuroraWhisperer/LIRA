@@ -64,6 +64,63 @@ test('text box instance links select the requested item and keep separate reusab
   }
 });
 
+for (const delay of ['receipt', 'submission']) test(`instance focus preserves new layers during delayed edit ${delay}`, { timeout: 20000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = openBrowserSession();
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  t.after(async () => { release(); await browser.close(); await fixture.close(); });
+  const created = fixture.service.create({ title: '延迟确认', canvas: { width: 1920, height: 1080 } });
+  const first = { id: randomUUID(), type: 'text-box', name: '第一个文本框', x: 80, y: 80, width: 640, height: 180,
+    visible: true, locked: false, appearance: { mode: 'independent', config: createTextBoxDefaults() } };
+  fixture.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items: [first] } });
+  const desktop = await browser.newPage();
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000); desktop.setDefaultTimeout(5000);
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.locator(`[data-item-id="${first.id}"].preview-canvas-layer-select`).click();
+  let observed;
+  const accepted = new Promise(resolve => { observed = resolve; });
+  let intercepted = false;
+  await page.route('**/api/component-preview', async route => {
+    if (route.request().postDataJSON().action !== 'edit' || intercepted) return route.continue();
+    intercepted = true;
+    if (delay === 'submission') { observed(); await held; }
+    const response = await route.fetch();
+    if (delay === 'receipt') { observed(); await held; }
+    await route.fulfill({ response });
+  });
+  await page.getByRole('spinbutton', { name: 'X', exact: true }).fill('96');
+  await page.getByRole('spinbutton', { name: 'X', exact: true }).press('Tab');
+  await accepted;
+  if (delay === 'receipt') await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[0].x === 96);
+  const second = { ...first, id: randomUUID(), name: '第二个文本框', y: 320 };
+  const focusRead = page.waitForRequest(request => new URL(request.url()).pathname === '/api/component-preview'
+    && request.postDataJSON()?.focusId);
+  const focusing = desktop.evaluate(async item => {
+    const controller = window.controllers.canvas;
+    const document = controller.getState().draft.document;
+    document.items.push(item); controller.edit({ document });
+    await window.previewHandle.focus({ id: 'text-box', selectedItemId: item.id });
+  }, second);
+  await focusRead;
+  release();
+  await focusing;
+  await page.locator(`[data-item-id="${second.id}"].preview-canvas-layer-select[aria-pressed="true"]`).waitFor();
+  assert.equal(await page.locator('.preview-canvas-layer-select').count(), 2);
+  assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items.map(item => item.id)),
+    [first.id, second.id]);
+  await page.locator(`[data-item-id="${first.id}"].preview-canvas-layer-select`).click();
+  await page.getByRole('button', { name: '移除组件', exact: true }).click();
+  await desktop.waitForFunction(id => {
+    const items = window.controllers.canvas.getState().draft.document.items;
+    return items.length === 1 && items[0].id === id;
+  }, second.id);
+});
+
 test('reopening and style changes reuse one short link and connected canvas, and old pages refresh into the same drafts', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   const browser = openBrowserSession();

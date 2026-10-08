@@ -191,7 +191,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     return copy({ commands: session.commands, closed: session.closed === true });
   }
 
-  function browser({ id, action, change, commandId, attachmentId, previousAttachmentId, focusId }, token) {
+  function browser({ id, action, change, baseItemIds, commandId, attachmentId, previousAttachmentId, focusId }, token) {
     const session = authenticate(id, token);
     // Keep at most one session per component so the original desktop can resume
     // after suspended timers. Browser capabilities cannot revive an idle lease.
@@ -240,17 +240,27 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       fail(400, '预览参数无效。');
     }
     if (action === 'edit') checkConfig(change, session.component);
+    if (baseItemIds !== undefined) {
+      checkSize(baseItemIds, MAX_SCENE_BYTES);
+      if (action !== 'edit' || session.component !== 'canvas' || !record(change.document)
+        || !Array.isArray(baseItemIds) || baseItemIds.some(value => typeof value !== 'string'
+          || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))) {
+        fail(400, '画布编辑基线无效。');
+      }
+    }
     if (action === 'edit' && Object.hasOwn(change, 'styleParameters')) {
       change = { ...change, styleParameters: normalizeStyleParameters(session.component, change.styleParameters) };
     }
     if (action === 'preset' && (!Array.isArray(session.state.presets) || !record(change)
-      || (change.action === 'select' ? Object.keys(change).some(key => !['action', 'id'].includes(key))
+      || (['select', 'delete'].includes(change.action) ? Object.keys(change).some(key => !['action', 'id'].includes(key))
         || !session.state.presets?.some(preset => preset.id === change.id)
+        || (change.action === 'delete' && change.id !== session.state.draft.document?.id)
         : change.action === 'create' ? Object.keys(change).some(key => !['action', 'title', 'duplicate'].includes(key))
           || typeof change.title !== 'string' || !change.title.trim() || change.title.length > 80
           || typeof change.duplicate !== 'boolean' : true))) fail(400, '场景预设参数无效。');
     const sequence = ++session.sequence;
-    session.commands.push({ sequence, action, ...(['edit', 'preset'].includes(action) ? { change: copy(change) } : {}) });
+    session.commands.push({ sequence, action, ...(['edit', 'preset'].includes(action) ? { change: copy(change) } : {}),
+      ...(baseItemIds === undefined ? {} : { baseItemIds: [...baseItemIds] }) });
     if (commandId !== undefined) session.lastCommand = { id: commandId, sequence };
     session.touched = now();
     return { sequence };

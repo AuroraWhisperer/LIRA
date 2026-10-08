@@ -97,7 +97,7 @@ function buildGiftFramePreviewEvent(input = {}) {
   const num = normalizePreviewInteger(input.num ?? input.quantity);
 
   const themeId = String(input.themeId || 'woodland-bloom');
-  if (!FRAME_THEME_IDS.includes(themeId)) throw new Error('礼物边框主题无效。');
+  if (!FRAME_THEME_IDS.includes(themeId)) throw new Error('全屏礼物感谢主题无效。');
 
   previewSequence = (previewSequence + 1) % 1000000;
   const previewSessionId = `preview-${Date.now()}-${previewSequence}`;

@@ -148,6 +148,28 @@ test('nested styles preserve underline from ancestors and only a terminal placeh
   assert.equal(result[0].underline, true);
 });
 
+test('mixed underline selection becomes uniformly underlined and toggles off without changing media', async (t) => {
+  const gift = { type: 'gift', name: '舰长', src: '/img/admin/gifts/bilibili-guard-captain.webp' };
+  const original = [{ type: 'text', text: '甲', underline: true }, gift,
+    { type: 'text', text: '乙' }, { type: 'text', text: '丙', underline: true }];
+  const page = await mount(t, original);
+  await page.locator('.text-box-editor').focus();
+  await page.keyboard.press('Control+a');
+  const toggle = page.getByRole('button', { name: '下划线 (Ctrl+U)', exact: true });
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'mixed');
+  await toggle.click();
+  assert.ok(letters(await read(page)).every(node => node.underline));
+  assert.deepEqual((await read(page)).find(node => node.type === 'gift'), gift);
+  await page.keyboard.press('Control+u');
+  assert.ok(letters(await read(page)).every(node => !node.underline));
+  await page.keyboard.press('Control+z');
+  assert.ok(letters(await read(page)).every(node => node.underline));
+  await page.keyboard.press('Control+z');
+  assert.deepEqual(await read(page), original);
+  await page.keyboard.press('Control+Shift+z');
+  assert.ok(letters(await read(page)).every(node => node.underline));
+});
+
 test('formatting appears above selected text only and never changes defaults from an empty selection', async (t) => {
   const page = await mount(t, [{ type: 'text', text: '欢迎来到直播间' }]);
   page.setDefaultTimeout(5000);
@@ -274,6 +296,145 @@ test('stroke and shadow affect selected text only, preserve marks and support na
   await page.keyboard.press('Escape');
   assert.equal(await page.getByRole('group', { name: '文字效果', exact: true }).isVisible(), false);
   assert.deepEqual(await page.evaluate(() => window.failures), []);
+});
+
+async function mountPreview(t) {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  t.after(() => page.close());
+  page.setDefaultTimeout(5000);
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  assert.equal((await fetch(`${fixture.origin}/text-box?preview=1&componentPreview=1`)).status, 200);
+  await page.goto(url);
+  await page.addStyleTag({ url: `${fixture.origin}/css/admin/component-preview.css` });
+  await page.addStyleTag({ content: '#host { display: flex; gap: 24px; margin-top: 160px; } .component-preview-stage { width: 640px; height: 180px; flex: none; }' });
+  await page.evaluate(async () => {
+    const { createTextBoxPreview } = await import('/js/admin/text-box-preview.js');
+    const { createTextBoxDefaults } = await import('/js/shared/text-box-config.js');
+    const { createComponentConfigController } = await import('/js/admin/component-config-controller.js');
+    const { mountComponentPreview } = await import('/js/admin/component-preview-surface.js');
+    const controller = createComponentConfigController({ initial: createTextBoxDefaults(), persist: async config => config });
+    window.controller = controller;
+    const definition = createTextBoxPreview();
+    const editorHost = document.createElement('div');
+    const previewHost = document.createElement('div');
+    document.getElementById('host').append(editorHost, previewHost);
+    definition.createPanel(editorHost, controller);
+    mountComponentPreview(previewHost, { ...definition, controller });
+  });
+  await page.frameLocator('.component-preview-frame').locator('#textBox span').waitFor();
+  return page;
+}
+
+test('text effects visibly update the live preview and disappear when toggled off', async (t) => {
+  const page = await mountPreview(t);
+  const output = page.frameLocator('.component-preview-frame').locator('#textBox');
+  await output.locator('span').waitFor();
+  const frame = page.frames().find(frame => new URL(frame.url()).pathname === '/text-box');
+  const waitForEffects = (stroke, shadow) => frame.waitForFunction(({ stroke, shadow }) => {
+    const node = document.querySelector('#textBox span');
+    if (!node) return false;
+    const style = getComputedStyle(node);
+    return (parseFloat(style.webkitTextStrokeWidth) > 0) === stroke && (style.textShadow !== 'none') === shadow;
+  }, { stroke, shadow });
+  const toggle = name => page.getByRole('button', { name, exact: true }).click();
+  const background = page.getByLabel('文本框检查底色', { exact: true });
+  for (const color of ['dark', 'light']) {
+    await background.selectOption(color);
+    const plain = await output.screenshot();
+    await page.getByRole('textbox', { name: '文本框内容' }).focus();
+    await page.keyboard.press('Control+a');
+    await toggle('更多文字格式');
+    await toggle('文字描边');
+    await waitForEffects(true, false);
+    assert.notDeepEqual(await output.screenshot(), plain, `${color}: stroke changes preview pixels`);
+    await toggle('文字描边');
+    await waitForEffects(false, false);
+    await toggle('轻阴影');
+    await waitForEffects(false, true);
+    const shadow = await output.screenshot();
+    assert.notDeepEqual(shadow, plain, `${color}: shadow changes preview pixels`);
+    await toggle('文字描边');
+    await waitForEffects(true, true);
+    assert.notDeepEqual(await output.screenshot(), shadow, `${color}: effects work together`);
+    await toggle('文字描边');
+    await toggle('轻阴影');
+    await waitForEffects(false, false);
+    assert.deepEqual(await output.screenshot(), plain, `${color}: toggling off restores plain text`);
+    await page.keyboard.press('Escape');
+  }
+});
+
+test('rapid format toggles preserve content and undo without accumulating markup', async (t) => {
+  const page = await mountPreview(t);
+  await page.getByLabel('文本框检查底色', { exact: true }).selectOption('dark');
+  await page.evaluate(async () => {
+    const { enhanceSelects } = await import('/js/shared/select-menu.js');
+    enhanceSelects();
+    const gift = { type: 'gift', name: '舰长', src: '/img/admin/gifts/bilibili-guard-captain.webp' };
+    controller.edit({ nodes: [{ type: 'text', text: '在这里输入文字' }, gift, gift] });
+  });
+  await page.locator('.text-box-editor').focus();
+  await page.keyboard.press('Control+a');
+  for (let cycle = 0; cycle < 60; cycle++) {
+    for (const name of ['加粗 (Ctrl+B)', '斜体 (Ctrl+I)', '下划线 (Ctrl+U)']) {
+      await page.getByRole('button', { name, exact: true }).click();
+    }
+    const more = page.getByRole('button', { name: '更多文字格式', exact: true });
+    if (await more.getAttribute('aria-expanded') === 'false') await more.click();
+    await page.getByRole('button', { name: '文字描边', exact: true }).click();
+    await page.getByRole('button', { name: '轻阴影', exact: true }).click();
+  }
+  const result = await page.evaluate(() => ({ nodes: controller.getState().draft.nodes,
+    elements: document.querySelector('.text-box-editor').querySelectorAll('*').length }));
+  assert.equal(result.nodes[0].text, '在这里输入文字');
+  for (const key of ['bold', 'italic', 'underline', 'stroke', 'shadow']) assert.ok(!result.nodes[0][key], key);
+  assert.equal(result.nodes.filter(node => node.type === 'gift').length, 2);
+  assert.ok(result.elements < 20, 'repeated formatting must not accumulate nested wrappers');
+  await page.keyboard.press('Control+z');
+  assert.equal(await page.evaluate(() => controller.getState().draft.nodes[0].shadow), true);
+  await page.keyboard.press('Control+Shift+z');
+  assert.equal(await page.evaluate(() => Boolean(controller.getState().draft.nodes[0].shadow)), false);
+  await page.locator('.text-box-editor').focus();
+  await page.keyboard.press('Control+a');
+  await page.getByRole('button', { name: '下划线 (Ctrl+U)', exact: true }).click();
+  const output = page.frameLocator('.component-preview-frame').locator('#textBox > span').first();
+  const frame = page.frames().find(frame => new URL(frame.url()).pathname === '/text-box');
+  await frame.waitForFunction(() => getComputedStyle(document.querySelector('#textBox > span')).textDecorationLine === 'underline');
+  assert.equal(await output.evaluate(node => getComputedStyle(node).textDecorationSkipInk), 'none');
+  assert.ok(await output.evaluate(node => parseFloat(getComputedStyle(node).textUnderlineOffset) > 0));
+  const underlineIsVisible = async () => {
+    const png = await output.screenshot();
+    return page.evaluate(async base64 => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${base64}`;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = image.width; canvas.height = image.height;
+      const context = canvas.getContext('2d');
+      context.drawImage(image, 0, 0);
+      const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+      for (let y = Math.floor(canvas.height / 2); y < canvas.height; y++) {
+        let white = 0;
+        for (let x = 0; x < canvas.width; x++) {
+          const offset = (y * canvas.width + x) * 4;
+          if (data[offset] > 220 && data[offset + 1] > 220 && data[offset + 2] > 220) white++;
+        }
+        if (white > canvas.width * 0.9) return true;
+      }
+      return false;
+    }, png.toString('base64'));
+  };
+  assert.equal(await underlineIsVisible(), true, 'the underline spans the whole Chinese text');
+  const more = page.getByRole('button', { name: '更多文字格式', exact: true });
+  if (await more.getAttribute('aria-expanded') === 'false') await more.click();
+  await page.getByRole('button', { name: '文字描边', exact: true }).click();
+  await page.getByRole('button', { name: '轻阴影', exact: true }).click();
+  await frame.waitForFunction(() => {
+    const style = getComputedStyle(document.querySelector('#textBox > span'));
+    return parseFloat(style.webkitTextStrokeWidth) > 0 && style.textShadow !== 'none';
+  });
+  assert.equal(await underlineIsVisible(), true, 'stroke and shadow must not paint the underline black');
 });
 
 test('clear format resets mixed selected text in one undo step while keeping media and unselected styles', async (t) => {

@@ -1,6 +1,6 @@
 export const MEDIA_STYLE_TYPES = Object.freeze(['background', 'opening', 'danmaku', 'clock', 'gift-wishes', 'gift-frame', 'guard-thanks']);
 export const MEDIA_STYLE_TITLES = Object.freeze({ background: '背景', opening: '开播动画', danmaku: '弹幕装饰', clock: '时钟底图',
-  'gift-wishes': '许愿装饰', 'gift-frame': '礼物感谢', 'guard-thanks': '大航海感谢', queue: '点歌板' });
+  'gift-wishes': '许愿装饰', 'gift-frame': '全屏礼物感谢', 'guard-thanks': '大航海感谢', queue: '点歌板' });
 export const COMPONENT_MEDIA_SOURCE = /^\/component-media\/[a-f0-9-]{36}\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4|webm)$/;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const KEYS = ['id', 'src', 'kind', 'width', 'height', 'content', 'textColor', 'fontSize', 'showText', 'textTemplate', 'textDelayMs', 'durationMs', 'volume'];

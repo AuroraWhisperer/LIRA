@@ -14,8 +14,9 @@ export function renderTextBox(host, input, { editable = false } = {}) {
       span.textContent = node.text;
       Object.assign(span.style, { color: node.color ?? config.color, fontWeight: node.bold ? '700' : '400',
         fontStyle: node.italic ? 'italic' : 'normal', textDecoration: node.underline ? 'underline' : 'none',
-        webkitTextStroke: node.stroke ? '0.06em #141a24' : '0px', paintOrder: 'stroke fill',
-        textShadow: node.shadow ? '0 0.06em 0.16em rgb(0 0 0 / 60%)' : 'none' });
+        textDecorationColor: node.color ?? config.color,
+        webkitTextStroke: node.stroke ? '0.1em #000000' : '0px', paintOrder: 'stroke fill',
+        textShadow: node.shadow ? '0 0.1em 0.12em rgb(0 0 0 / 85%)' : 'none' });
     } else {
       span.className = 'text-box-token';
       span.contentEditable = 'false';

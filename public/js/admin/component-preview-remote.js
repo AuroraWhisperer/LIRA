@@ -23,6 +23,10 @@ export function createRemotePreviewController(initial, send) {
   function enqueue(action, change) {
     if (stopped || !state.loaded) return;
     const command = { action, ...(change ? { change: structuredClone(change) } : {}) };
+    const document = getState().draft.document;
+    if (action === 'edit' && change?.document?.id === document?.id && Array.isArray(document?.items)) {
+      command.baseItemIds = document.items.map(item => item.id);
+    }
     pending.push(command);
     notify();
     chain = chain.then(async () => {
@@ -77,6 +81,8 @@ export function createRemotePreviewController(initial, send) {
 export function createBrowserPreviewConnection({ id, token, component }) {
   let closed = false;
   let timer = 0;
+  let polling = false;
+  let pendingSequence = 0;
   let controller;
   let display;
   let draftKey;
@@ -150,12 +156,19 @@ export function createBrowserPreviewConnection({ id, token, component }) {
 
   function send(command) {
     // One unconfirmed mutation at a time lets the relay retain a bounded replay receipt.
-    const next = commands.then(() => request({ ...command, commandId: ++commandId }));
+    const next = commands.then(() => request({ ...command, commandId: ++commandId })).then(result => {
+      pendingSequence = Math.max(pendingSequence, result.sequence);
+      window.clearTimeout(timer);
+      void poll();
+      return result;
+    });
     commands = next.catch(() => {});
     return next;
   }
 
   async function poll() {
+    if (closed || polling) return;
+    polling = true;
     try {
       const update = await request({ action: 'read' });
       if (closed) return;
@@ -169,11 +182,13 @@ export function createBrowserPreviewConnection({ id, token, component }) {
         // Confirm immediately; background tabs may throttle the next polling timer.
         await request({ action: 'read', focusId });
       }
-      timer = window.setTimeout(poll, 250);
+      timer = window.setTimeout(poll, update.ack < pendingSequence || rejectOperation ? 40 : 250);
     } catch (error) {
       if (!closed) {
         stop(error);
       }
+    } finally {
+      polling = false;
     }
   }
 

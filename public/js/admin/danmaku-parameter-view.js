@@ -41,6 +41,7 @@ export function bindDanmakuParameters(root, controller, onError) {
     controls.scrollDirection.value = options.scrollDirection;
     node('danmakuSpeedField').hidden = !limits.speed;
     syncComponentFieldValue(controls.speedPixelsPerSecond, options.speedPixelsPerSecond || 120, force);
+    node('danmakuDistributionOptions').hidden = !isRandomDanmakuStyle(draft.style);
     for (const key of ['centerBias', 'dispersion']) {
       const name = key[0].toUpperCase() + key.slice(1);
       node(`danmaku${name}Field`).hidden = !isRandomDanmakuStyle(draft.style);
@@ -82,7 +83,9 @@ export function bindDanmakuParameters(root, controller, onError) {
     }
     controller.edit({ fullscreenDurationSeconds: duration });
   });
-  const effects = mountStyleParameters(node('danmakuParametersTitle').closest('.danmaku-parameters'), controller, 'danmaku');
+  const effects = mountStyleParameters(node('danmakuAppearanceEffects'), controller, 'danmaku', {
+    messageHost: node('danmakuMessageOptions'),
+  });
   const unsubscribe = controller.subscribe(render);
   return { dispose() { effects.dispose(); unsubscribe(); unregisterFont?.(); ranges.forEach((key) => disposeParameterRanges(controls[key])); } };
 }

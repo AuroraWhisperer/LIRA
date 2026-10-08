@@ -53,7 +53,7 @@ test('client imports nautical style, applies it and renders tier, live identity,
   await canvas.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = canvas.getByRole('dialog', { name: '添加组件', exact: true });
   await picker.locator('[data-category="suites"]').click();
-  await picker.locator('.component-style-library [role="status"]').filter({ hasText: '套装由多个组件类型' }).waitFor();
+  await picker.getByRole('heading', { name: '还没有套装', exact: true }).waitFor();
   assert.equal(await picker.locator('[data-custom-style-id]').count(), 0, 'One guard style must not appear as a suite.');
   await picker.locator('[data-category="guard-thanks"]').click();
   await picker.getByRole('button', { name: '添加到画布：航海旗帜 · 上舰感谢', exact: true }).waitFor();

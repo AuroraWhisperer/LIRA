@@ -88,9 +88,9 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   await page.mouse.up();
   assert.ok(await number('X') > previousX);
   await change('宽度', 740);
-  await page.locator('[data-danmaku-style="bubble"]').click();
+  assert.equal(await page.locator('[data-danmaku-style]').count(), 0);
+  assert.equal(await page.getByRole('button', { name: /更换样式|改用内置样式/ }).count(), 0);
   assert.equal(await number('宽度'), 740);
-  await page.locator('[data-danmaku-style="signal"]').click();
   const fontSize = page.locator('[data-preview-field="danmakuFontSize"]');
   await fontSize.fill('36');
   await fontSize.press('Tab');
@@ -159,6 +159,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   for (const style of ['floating', 'comet']) {
     await reopened.getByRole('button', { name: '添加组件', exact: true }).click();
     await reopened.locator('[data-category="danmaku"]').click();
+    await reopened.getByRole('button', { name: '飘窗弹幕', exact: true }).click();
     await reopened.locator(`[data-picker-style="${style}"]`).click();
     assert.equal(await reopened.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '2560');
     assert.equal(await reopened.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '1440');
@@ -179,7 +180,11 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(await reopened.locator('[data-preview-field="danmakuCenterBiasField"]').isHidden(), true);
   await reopened.getByRole('button', { name: '添加组件', exact: true }).click();
   await reopened.locator('[data-category="danmaku"]').click();
+  await reopened.getByRole('button', { name: '随机弹幕', exact: true }).click();
   await reopened.locator('[data-picker-style="outline"]').click();
+  assert.equal(await reopened.locator('[data-preview-field="danmakuFullscreenDurationSeconds"]').isVisible(), true);
+  assert.equal(await reopened.locator('[data-preview-field="danmakuCenterBias"]').isHidden(), true);
+  await reopened.locator('.danmaku-advanced > summary').click();
   for (const [name, value] of [['CenterBias', '42'], ['Dispersion', '37']]) {
     const slider = reopened.locator(`[data-preview-field="danmaku${name}"]`);
     assert.equal(await slider.isVisible(), true);
@@ -203,7 +208,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.deepEqual(errors, []);
 });
 
-test('effect controls retain each style, save through desktop IPC, publish, reopen and reset', { timeout: 45000 }, async (t) => {
+test('effect controls retain each component style, save through desktop IPC, publish, reopen and reset', { timeout: 45000 }, async (t) => {
   const root = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(root, { recursive: true });
   const directory = await fs.mkdtemp(path.join(root, 'style-parameters-'));
@@ -230,15 +235,35 @@ test('effect controls retain each style, save through desktop IPC, publish, reop
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
   const shadow = page.locator('[data-effect-enabled="shadow"]');
+  await page.locator('.danmaku-advanced > summary').waitFor();
+  assert.equal(await page.locator('[data-preview-field="danmakuFontSize"]').isVisible(), true);
+  assert.equal(await page.locator('[data-preview-field="danmakuGiftImage"]').isHidden(), true);
+  assert.equal(await page.locator('[data-show-entry-messages]').count(), 1);
+  assert.equal(await page.locator('[data-style-parameters-panel]').isHidden(), true);
+  await page.locator('.danmaku-advanced > summary').click();
+  assert.equal(await page.locator('[data-preview-field="danmakuGiftImage"]').isVisible(), true);
+  assert.equal(await page.locator('[data-preview-field="danmakuMessageOptions"] [data-show-entry-messages]').count(), 1);
+  assert.equal(await page.locator('[data-preview-field="danmakuDistributionOptions"]').isHidden(), true);
   await page.locator('[data-effect-group="shadow"] > summary').click();
   await shadow.check();
   await page.locator('[data-effect-field="shadow.blur"]').fill('24');
   await page.locator('[data-effect-field="shadow.blur"]').press('Tab');
   await page.locator('[data-show-entry-messages]').check();
-  await page.locator('[data-danmaku-style="bubble"]').click();
+  await page.locator('.danmaku-advanced > summary').click();
+  assert.equal(await page.locator('[data-style-parameters-panel]').isHidden(), true);
+  assert.equal(await page.locator('[data-effect-field="shadow.blur"]').inputValue(), '24');
+  assert.equal(await page.locator('[data-show-entry-messages]').isChecked(), true);
+  assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 0);
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  await page.locator('[data-category="danmaku"]').click();
+  await page.locator('[data-picker-style="bubble"]').click();
+  await page.locator('.danmaku-advanced > summary').click();
+  await page.locator('[data-effect-group="shadow"] > summary').click();
   assert.equal(await shadow.isChecked(), false);
   assert.equal(await page.locator('[data-show-entry-messages]').isChecked(), false);
-  await page.locator('[data-danmaku-style="signal"]').click();
+  await page.locator('.preview-canvas-layer-select').last().click();
+  await page.locator('.danmaku-advanced > summary').click();
+  await page.locator('[data-effect-group="shadow"] > summary').click();
   assert.equal(await shadow.isChecked(), true);
   assert.equal(await page.locator('[data-effect-field="shadow.blur"]').inputValue(), '24');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
@@ -248,9 +273,12 @@ test('effect controls retain each style, save through desktop IPC, publish, reop
   assert.equal(saved.signal.showEntryMessages, true);
   assert.ok((await app.evaluate(() => global.canvasTest.scene())).publishedVersion > 0);
   await page.reload();
+  await page.locator('.preview-canvas-layer-select').last().click();
   await shadow.waitFor({ state: 'attached' });
   assert.equal(await shadow.isChecked(), true);
   assert.equal(await page.locator('[data-effect-field="shadow.blur"]').inputValue(), '24');
+  await page.locator('.danmaku-advanced > summary').click();
+  assert.equal(await page.locator('[data-show-entry-messages]').count(), 1);
   await page.getByRole('button', { name: '恢复当前样式效果', exact: true }).click();
   assert.equal(await shadow.isChecked(), false);
   assert.equal(await page.locator('[data-show-entry-messages]').isChecked(), false);

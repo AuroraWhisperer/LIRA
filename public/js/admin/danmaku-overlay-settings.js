@@ -9,6 +9,39 @@ import { bindDanmakuParameters } from './danmaku-parameter-view.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
 import { normalizeStyleParameters } from '../shared/component-style-parameters.js';
 
+function bindStyleGroups() {
+  const groups = ['Fixed', 'Random', 'Floating'].map((name) => ({
+    tab: document.getElementById(`danmaku${name}StyleTab`),
+    panel: document.getElementById(`danmaku${name}Styles`),
+  }));
+  function select(index) {
+    groups.forEach(({ tab, panel }, current) => {
+      const active = current === index;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+      panel.hidden = !active;
+    });
+  }
+  groups.forEach(({ tab }, index) => {
+    tab.addEventListener('click', () => select(index));
+    tab.addEventListener('keydown', (event) => {
+      let next;
+      if (event.key === 'ArrowRight') next = (index + 1) % groups.length;
+      else if (event.key === 'ArrowLeft') next = (index + groups.length - 1) % groups.length;
+      else if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = groups.length - 1;
+      else return;
+      event.preventDefault();
+      groups[next].tab.focus();
+      select(next);
+    });
+  });
+  return (style) => {
+    const layout = DANMAKU_STYLE_OPTIONS[style].layout;
+    select(layout === 'floating' ? 2 : layout === 'fullscreen-random' ? 1 : 0);
+  };
+}
+
 export function initDanmakuOverlaySettings(elements, toast) {
   let overlayUrl = '';
   let canvasEditor = null;
@@ -16,6 +49,8 @@ export function initDanmakuOverlaySettings(elements, toast) {
   const applyButton = document.getElementById('danmakuApplyOverlayBtn');
   const reloadButton = document.getElementById('danmakuReloadOverlayBtn');
   const discardButton = document.getElementById('danmakuDiscardOverlayBtn');
+  const showStyleGroup = bindStyleGroups();
+  let displayedStyle;
 
   function settingsFrom(response, expectedUrl) {
     if (!response?.ok) throw new Error(response?.error === 'NETWORK_UNAVAILABLE'
@@ -55,6 +90,10 @@ export function initDanmakuOverlaySettings(elements, toast) {
   registerComponentPreview('danmaku', () => createDanmakuPreview({ controller }));
   controller.subscribe((state) => {
     const { draft, loaded, dirty, saving, loading } = state;
+    if (draft.style !== displayedStyle) {
+      showStyleGroup(draft.style);
+      displayedStyle = draft.style;
+    }
     elements.overlayUrl.value = overlayUrl;
     elements.overlayUrl.placeholder = '登录 LIRA 后显示直播画面链接';
     for (const button of elements.styleButtons) {

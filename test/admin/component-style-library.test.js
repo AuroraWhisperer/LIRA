@@ -34,7 +34,7 @@ async function setup(t) {
     assert.equal(response.status, 200, result.error);
     return result.data;
   }
-  return { fixture, context, page, errors, media, request };
+  return { fixture, context, page, errors, media, request, dataDir };
 }
 
 test('style ZIP classification and import apply to every registered component', async t => {
@@ -51,7 +51,7 @@ test('style ZIP classification and import apply to every registered component', 
         styles: [style('guard-thanks', '独立感谢')] },
       { id: 'variants', packageId: 'old.variants', name: '感谢变体', version: '1.0.0', bytes: 100,
         styles: [style('guard-thanks', '蓝色感谢'), style('guard-thanks', '紫色感谢')] },
-      { id: 'suite', packageId: 'real.suite', name: '时钟背景套装', version: '1.0.0', bytes: 100,
+      { id: 'suite', packageId: 'real.suite', name: '时钟背景套装', version: '1.0.0', bytes: 100, isSuite: true,
         styles: [style('clock', '套装时钟'), style('background', '套装背景')] },
       ...Object.keys(COMPONENT_PREVIEW_DEFINITIONS).filter(type => type !== 'guard-thanks').map(type => ({
         id: type, packageId: `test.${type}`, name: `${type} 样式`, version: '1.0.0', bytes: 100,
@@ -111,6 +111,192 @@ test('style ZIP classification and import apply to every registered component', 
     await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
     await confirmation.getByRole('button', { name: '取消', exact: true }).click();
   }
+  assert.deepEqual(errors, []);
+});
+
+test('suite management groups versions, confirms whole deletion and replaces through the canvas capability', async t => {
+  const { fixture, context, page, errors, request, dataDir } = await setup(t);
+  const { randomUUID } = require('node:crypto');
+  const { createComponentStyleStore } = require('../../src/storage/component-style-store');
+  const store = createComponentStyleStore(dataDir);
+  const pack = { id: randomUUID(), packageId: 'test.ui-suite', name: '测试套装', version: '1.0.0', bytes: 100, digest: 'v1',
+    styles: ['clock', 'background'].map(type => ({ id: randomUUID(), type, name: `测试套装 · ${type === 'clock' ? '时钟' : '背景'}`,
+      config: { mediaStyle: { kind: 'image', src: '/img/component-previews/clock-moonlit-fan.webp', width: 640, height: 400 } } })) };
+  store.stage(pack); store.install(pack.id);
+  const desktop = await context.newPage();
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
+  await picker.getByRole('button', { name: '套装', exact: true }).click();
+  const library = picker.locator('.component-style-library');
+  const group = library.getByRole('region', { name: '测试套装 1.0.0', exact: true });
+  await group.waitFor();
+  assert.match(await group.textContent(), /版本 1\.0\.0 · 2 个组件样式/);
+  assert.equal(await group.locator('.component-style-delete').count(), 0);
+  await group.getByRole('button', { name: '删除套装', exact: true }).click();
+  const deletion = page.getByRole('dialog', { name: '删除套装', exact: true });
+  await deletion.getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal((await request('list')).length, 1);
+  let inspected;
+  await page.route('**/api/component-preview/styles/inspect?*', route => route.fulfill({
+    json: { ok: true, data: store.describe(inspected) },
+  }));
+  const archive = { name: 'update.zip', mimeType: 'application/zip', buffer: Buffer.from('inspection fixture') };
+  const uploadUpdate = async () => {
+    const chooser = page.waitForEvent('filechooser');
+    await library.getByRole('button', { name: '更新套装', exact: true }).click();
+    await (await chooser).setFiles(archive);
+  };
+  inspected = { ...pack, id: randomUUID(), packageId: 'test.wrong-suite', version: '2.0.0' };
+  store.stage(inspected);
+  await uploadUpdate();
+  await library.getByRole('status').filter({ hasText: '请选择「测试套装」的更新包' }).waitFor();
+  assert.ok(!fs.existsSync(store.directory(inspected.id, true)));
+  assert.equal((await request('list'))[0].version, '1.0.0');
+  inspected = { ...pack, id: randomUUID(), version: '2.0.0', digest: 'v2', styles: [pack.styles[0]] };
+  store.stage(inspected);
+  await uploadUpdate();
+  const confirmation = page.getByRole('dialog', { name: '确认导入套装', exact: true });
+  await confirmation.getByText('将替换已安装版本 1.0.0 → 2.0.0，样式库只保留本次导入的版本。', { exact: true }).waitFor();
+  await confirmation.getByRole('button', { name: '取消', exact: true }).click();
+  await confirmation.waitFor({ state: 'hidden' });
+  assert.equal((await request('list'))[0].version, '1.0.0');
+  inspected = { ...inspected, id: randomUUID() }; store.stage(inspected);
+  await uploadUpdate();
+  await confirmation.getByRole('button', { name: '替换套装', exact: true }).click();
+  const updated = library.getByRole('region', { name: '测试套装 2.0.0', exact: true });
+  await updated.waitFor();
+  assert.equal(await library.locator('.component-style-suite').count(), 1);
+  assert.equal(await library.locator('.component-style-card').count(), 1);
+  assert.deepEqual((await request('list')).map(item => item.id), [inspected.id]);
+  inspected = { ...inspected, id: randomUUID() }; store.stage(inspected);
+  await library.locator('input[accept=".zip"]').setInputFiles(archive);
+  await confirmation.getByRole('button', { name: '导入套装', exact: true }).click();
+  await library.getByRole('status').filter({ hasText: '这个版本已经导入。' }).waitFor();
+  assert.equal(await library.locator('.component-style-suite').count(), 1);
+  await updated.getByRole('button', { name: '删除套装', exact: true }).click();
+  await deletion.getByRole('button', { name: '删除整套', exact: true }).click();
+  await library.getByRole('heading', { name: '还没有套装', exact: true }).waitFor();
+  assert.deepEqual(await request('list'), []);
+  assert.deepEqual(errors, []);
+});
+
+test('every component combines built-in, standalone and suite styles in its own category', { timeout: 30000 }, async t => {
+  const { fixture, context, page, errors } = await setup(t);
+  const desktop = await context.newPage();
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const types = await page.evaluate(async () => {
+    const { COMPONENT_PREVIEW_DEFINITIONS } = await import('/js/admin/component-preview-definitions.js');
+    const { SCENE_EXTRA_COMPONENTS } = await import('/js/shared/scene-extra-components.js');
+    return Object.entries(COMPONENT_PREVIEW_DEFINITIONS).filter(([id]) => id !== 'browser')
+      .map(([id, definition]) => ({ id, category: definition.category || id,
+        subcategory: definition.category ? SCENE_EXTRA_COMPONENTS[id].title : null }));
+  });
+  const style = type => ({ id: `suite-${type}`, type, name: `${type} 套装样式`, config: { mediaStyle: {
+    kind: 'image', src: '/img/component-previews/clock-moonlit-fan.webp', width: 640, height: 400,
+  } } });
+  const packs = [
+    { id: 'suite', isSuite: true, name: '分类测试套装', version: '1.0.0', styles: types.map(({ id }) => style(id)) },
+    { id: 'standalone', styles: [{ ...style('clock'), id: 'standalone-clock', name: '单独导入的时钟' },
+      { id: 'web-clock', type: 'browser', category: 'clock', name: '网页时钟',
+        config: { url: 'https://example.test/clock', viewportWidth: 640, viewportHeight: 400 } }] },
+  ];
+  let listRequests = 0;
+  await page.route('**/api/component-preview/styles/list?*', route => {
+    listRequests += 1;
+    return route.fulfill({ json: { ok: true, data: packs } });
+  });
+  await page.route('https://example.test/clock', route => route.fulfill({ contentType: 'text/html', body: '<p>网页时钟</p>' }));
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
+  for (const { id, category, subcategory } of types) {
+    await picker.locator(`[data-category="${category}"]`).click();
+    if (subcategory) await picker.locator('.preview-picker-subcategories').getByRole('button', { name: subcategory, exact: true }).click();
+    const custom = picker.locator(`[data-custom-style-id="suite-${id}"]`);
+    await custom.waitFor();
+    assert.equal(await picker.getByRole('heading', { name: '本机样式' }).count(), 0);
+    assert.equal(await picker.getByRole('button', { name: '添加样式', exact: true }).count(), 1);
+    assert.equal(await picker.locator('.preview-picker-styles').count(), 1);
+    const contents = await custom.evaluate(card => ({
+      builtinCount: card.parentElement.querySelectorAll('[data-picker-style]').length,
+      customIds: [...card.parentElement.querySelectorAll('[data-custom-style-id]')].map(node => node.dataset.customStyleId),
+    }));
+    if (id !== 'background') assert.ok(contents.builtinCount > 0, `${id} combines built-ins with imported styles`);
+    assert.deepEqual(contents.customIds, id === 'clock' ? ['suite-clock', 'standalone-clock', 'web-clock'] : [`suite-${id}`]);
+  }
+  await picker.locator('[data-category="clock"]').click();
+  await picker.getByRole('button', { name: '添加到画布：网页时钟', exact: true }).waitFor();
+  const requestsBeforeRefresh = listRequests;
+  const refreshed = page.waitForResponse(response => response.url().includes('/styles/list?'));
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await refreshed;
+  assert.equal(listRequests, requestsBeforeRefresh + 1, 'only the active category retains its refresh listener');
+  assert.equal(await picker.locator('[data-custom-style-id="web-clock"]').count(), 1);
+  await picker.getByRole('button', { name: '添加到画布：网页时钟', exact: true }).click();
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 1);
+  const added = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items[0]);
+  assert.equal(added.type, 'browser', 'an imported HTML clock retains its browser renderer');
+  assert.equal(added.name, '网页时钟');
+  assert.deepEqual(errors, []);
+});
+
+test('danmaku picker groups all sources by motion and preserves the selected style through edits and reload', { timeout: 45000 }, async t => {
+  const { fixture, context, page, errors, media, request } = await setup(t);
+  const desktop = await context.newPage();
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
+  await picker.locator('[data-category="danmaku"]').click();
+  await picker.getByRole('button', { name: '添加样式', exact: true }).click();
+  await page.getByRole('dialog', { name: '添加第三方样式' }).waitFor();
+  await page.getByRole('dialog', { name: '添加第三方样式' }).getByRole('button', { name: '取消', exact: true }).click();
+  await picker.locator('.component-style-library input[type="file"]').first().setInputFiles(media);
+  const editor = page.getByRole('dialog', { name: '添加弹幕装饰', exact: true });
+  await editor.getByLabel('样式名称').fill('测试弹幕样式');
+  await editor.getByRole('button', { name: '添加样式', exact: true }).click();
+  await editor.waitFor({ state: 'hidden' });
+  const imported = (await request('list'))[0].styles[0];
+  const custom = picker.locator(`[data-custom-style-id="${imported.id}"]`);
+  await custom.waitFor();
+  assert.equal(await picker.getByRole('heading', { name: '本机样式' }).count(), 0);
+  assert.equal(await custom.evaluate(card => card.parentElement.querySelector('[data-picker-style="bubble"]')?.hidden), false);
+  const builtinBox = await picker.locator('[data-picker-style="bubble"]').boundingBox();
+  const customBox = await custom.boundingBox();
+  assert.ok(Math.abs(builtinBox.width - customBox.width) < 1, 'built-in and imported cards share the grid');
+  for (const [label, style] of [['随机弹幕', 'starveil'], ['飘窗弹幕', 'comet']]) {
+    await picker.getByRole('button', { name: label, exact: true }).click();
+    assert.equal(await picker.locator(`[data-picker-style="${style}"]`).isVisible(), true);
+    assert.equal(await picker.locator('[data-picker-style="bubble"]').isHidden(), true);
+    assert.equal(await custom.isHidden(), true);
+  }
+  await picker.getByRole('button', { name: '固定弹幕', exact: true }).click();
+  await custom.getByRole('button', { name: '添加到画布：测试弹幕样式', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: /更换样式|改用内置样式/ }).count(), 0);
+  assert.equal(await page.locator('[data-danmaku-style]').count(), 0);
+  assert.equal(await page.locator('[data-preview-field="danmakuFontSize"]').isVisible(), false);
+  await page.locator('[data-media-field="fontSize"]').fill('42');
+  await page.locator('[data-media-field="fontSize"]').press('Tab');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  const saved = fixture.service.list()[0].document.items[0];
+  assert.equal(saved.appearance.config.mediaStyle.id, imported.id);
+  assert.equal(saved.appearance.config.mediaStyle.fontSize, 42);
+  await page.reload();
+  await page.locator('.preview-canvas-layer-select').click();
+  assert.equal(await page.locator('[data-media-field="fontSize"]').inputValue(), '42');
+  assert.equal(await page.getByRole('button', { name: /更换样式|改用内置样式/ }).count(), 0);
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  await picker.locator('[data-category="danmaku"]').click();
+  await custom.getByRole('button', { name: '删除样式：测试弹幕样式', exact: true }).click();
+  await custom.waitFor({ state: 'detached' });
+  assert.equal(await picker.locator('[data-picker-style="bubble"]').count(), 1, 'library refresh does not duplicate built-ins');
+  assert.equal(fixture.service.list()[0].document.items[0].appearance.config.mediaStyle.id, imported.id);
   assert.deepEqual(errors, []);
 });
 

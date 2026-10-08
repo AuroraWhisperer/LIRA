@@ -7,6 +7,51 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const entry = path.resolve(__dirname, '../../public/js/admin/component-preview-remote.js');
 const state = (label = 'saved') => ({ saved: { label: 'saved' }, draft: { label }, generation: 0, loaded: true });
 
+test('pending browser edits poll promptly without overlapping reads, then return to idle frequency', async () => {
+  const timers = new Map();
+  let timerId = 0;
+  let sequence = 0;
+  let ack = 0;
+  let readCount = 0;
+  let finishRead;
+  const { createBrowserPreviewConnection } = await loadModuleExports(entry, {
+    structuredClone, AbortController, AbortSignal, crypto: require('node:crypto'),
+    window: { setTimeout(fn, delay) { timers.set(++timerId, { fn, delay }); return timerId; },
+      clearTimeout(id) { timers.delete(id); } },
+    fetch: async (url, options) => {
+      const command = JSON.parse(options.body);
+      let data;
+      if (command.action === 'edit') data = { sequence: ++sequence };
+      else {
+        if (command.action === 'read' && ++readCount > 2) await new Promise(resolve => { finishRead = resolve; });
+        data = { component: 'canvas', state: state(), attachmentId: command.attachmentId,
+          ack, sequence, draftKey: 'test' };
+      }
+      return { ok: true, json: async () => ({ ok: true, data }) };
+    },
+  });
+  const connection = createBrowserPreviewConnection({ id: 'test', token: 'synthetic', component: 'canvas' });
+  try {
+    await connection.start();
+    assert.deepEqual([...timers.values()].map(({ delay }) => delay), [250]);
+    await connection.controller.edit({ label: 'first' });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(readCount, 2);
+    assert.deepEqual([...timers.values()].map(({ delay }) => delay), [40]);
+    const [id, timer] = [...timers][0];
+    timers.delete(id);
+    const reading = timer.fn();
+    await connection.controller.edit({ label: 'second' });
+    assert.equal(readCount, 3, 'The second edit reuses the in-flight read.');
+    ack = sequence;
+    finishRead();
+    await reading;
+    await connection.controller.flush();
+    assert.deepEqual([...timers.values()].map(({ delay }) => delay), [250]);
+  } finally { connection.detach(); }
+  assert.equal(timers.size, 0);
+});
+
 test('browser edits survive older snapshots and save follows preceding edits', async () => {
   const { createRemotePreviewController } = await loadModuleExports(entry, { structuredClone });
   const commands = [];

@@ -1,4 +1,4 @@
-// 百宝箱 → 礼物姬：各礼物边框特效独立的持久化设置与预览。
+// 百宝箱 → 礼物姬：各全屏礼物感谢特效独立的持久化设置与预览。
 'use strict';
 
 import { api, toast } from '../shared/utils.js';
@@ -8,7 +8,7 @@ import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 // 每个特效自成一组：设置键、控件 id 和预览输入都只属于自己。
 const EFFECTS = [
   {
-    label: '礼物边框',
+    label: '全屏礼物感谢',
     themeId: 'woodland-bloom',
     enabledKey: 'giftFrameEnabled',
     thresholdKey: 'giftFrameThresholdRmb',

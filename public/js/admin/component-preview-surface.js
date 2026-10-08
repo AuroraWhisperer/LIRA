@@ -5,6 +5,23 @@ export function previewElement(tag, className, text) {
   return node;
 }
 
+export function previewToolbarIcon(name) {
+  const paths = {
+    more: 'M5 12h.01M12 12h.01M19 12h.01',
+    canvas: 'M4 4h16v12H4ZM8 20h8m-4-4v4',
+    panel: 'M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm10 0v16',
+    link: 'm10 14 4-4M9 7l2-2a4.24 4.24 0 0 1 6 6l-2 2M15 17l-2 2a4.24 4.24 0 0 1-6-6l2-2',
+  };
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.setAttribute('focusable', 'false');
+  const shape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  shape.setAttribute('d', paths[name]);
+  icon.append(shape);
+  return icon;
+}
+
 export function mountComponentPreview(host, { title, controller, url, projectConfig = (draft) => draft,
   size, bounds, onEdit, onResize, dataLabel = '示例数据 · 不影响直播', dataModes, startData, onOpen, onClose }) {
   onOpen?.();
@@ -85,7 +102,7 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
   function beginData() {
     stopData?.();
     const source = ++dataGeneration;
-    stopData = startData?.({ mode, emit: (data) => {
+    stopData = startData?.({ mode, controller, emit: (data) => {
       if (!closed && source === dataGeneration) send('data', { source, data });
     } });
   }
@@ -110,20 +127,22 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
     if (closed || event.source !== frame.contentWindow || event.origin !== 'null') return;
     if (event.data?.type === 'component-preview:ready') {
       ready = true;
-      window.clearTimeout(loadTimer);
-      loadState.hidden = true;
       fit();
       const state = controller.getState();
       const values = { config: projectConfig(state.draft), editable: state.loaded };
       send('init', values);
       previousConfig = JSON.stringify(values);
       beginData();
+    } else if (event.data?.type === 'component-preview:prepared') {
+      window.clearTimeout(loadTimer);
+      loadState.hidden = true;
     } else if (event.data?.type === 'component-preview:edit' && controller.getState().loaded) {
       onEdit?.(event.data.change);
     } else if (event.data?.type === 'component-preview:resize' && ready && controller.getState().loaded) {
       const size = event.data.size;
       if (Number.isFinite(size?.width) && size.width > 0 && Number.isFinite(size.height) && size.height > 0) onResize?.(size);
     } else if (event.data?.type === 'component-preview:status') {
+      window.clearTimeout(loadTimer);
       loadState.textContent = String(event.data.message || '预览加载失败，请关闭后重试。');
       loadState.hidden = false;
     }
@@ -132,7 +151,7 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
   observer.observe(stage);
   const unsubscribe = controller.subscribe(update);
   const loadTimer = window.setTimeout(() => {
-    if (!ready && !closed) loadState.textContent = '预览未能加载，请关闭后重试。';
+    if (!closed) loadState.textContent = '预览未能加载，请关闭后重试。';
   }, 12000);
   background.addEventListener('change', () => { stage.dataset.background = background.value; });
   window.addEventListener('focus', trackFrameFocus);

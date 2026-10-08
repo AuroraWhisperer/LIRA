@@ -11,6 +11,7 @@ const groups = {
   browser: [
     'admin/canvas-browser-source',
     'admin/canvas-editing',
+    'admin/canvas-empty-previews',
     'admin/canvas-component-library',
     'admin/canvas-component-suites',
     'admin/canvas-gift-components',
@@ -62,6 +63,7 @@ const groups = {
     'desktop/local-instance-windows',
     'desktop/resource-lifecycle-electron',
     'desktop/resource-integrity-electron',
+    'desktop/text-box-electron',
   ],
   installer: [
     'engineering/installer-app-exit',

@@ -101,6 +101,17 @@ test('opening appearances expose both built-in styles and preserve client-follow
   assert.throws(() => normalizeSceneConfig('opening', { style: 'moonlit-fan', enabled: true }), { code: 'INVALID_SCENE_CONFIG' });
 });
 
+test('guard thanks preserves legacy event styles and saves each explicit built-in style', () => {
+  assert.deepEqual(SCENE_EXTRA_COMPONENTS['guard-thanks'].variants.map(({ value }) => value), ['aurora', 'classic']);
+  assert.deepEqual(normalizeSceneConfig('guard-thanks', {}), { style: 'follow', textMode: 'follow' });
+  assert.deepEqual(normalizeSceneConfig('guard-thanks', { textMode: 'en' }), { style: 'follow', textMode: 'en' });
+  for (const style of ['aurora', 'classic']) {
+    const input = documentFor('guard-thanks', { style, textMode: 'zh' });
+    assert.deepEqual(normalizeSceneDocument(input, { normalizeConfig: normalizeSceneConfig }), input);
+  }
+  assert.throws(() => normalizeSceneConfig('guard-thanks', { style: 'unknown' }), { code: 'INVALID_SCENE_CONFIG' });
+});
+
 test('each extra component accepts all declared presets and preserves its geometry and parameter types', () => {
   for (const [type, definition] of Object.entries(SCENE_EXTRA_COMPONENTS)) {
     for (const preset of definition.variants) {

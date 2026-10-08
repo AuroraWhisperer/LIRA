@@ -51,8 +51,8 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   function fit() {
     const document = model.getSnapshot();
     scale = zoom === 'fit' ? Math.max(0.03, Math.min(
-      (viewport.clientWidth - 48) / document.canvas.width,
-      (viewport.clientHeight - 48) / document.canvas.height, 1)) : Number(zoom) / 100;
+      (viewport.clientWidth - 24) / document.canvas.width,
+      (viewport.clientHeight - 24) / document.canvas.height, 1)) : Number(zoom) / 100;
     extent.style.width = `${document.canvas.width * scale}px`;
     extent.style.height = `${document.canvas.height * scale}px`;
     canvas.style.width = `${document.canvas.width}px`;

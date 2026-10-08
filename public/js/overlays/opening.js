@@ -333,12 +333,28 @@ function initOpeningOverlay() {
     let data = null;
     let mediaPlayer = null;
     let enabled = false;
+    let replayTimer = null;
+    let mediaGeneration = 0;
+    const stopMedia = () => {
+      mediaGeneration += 1;
+      window.clearTimeout(replayTimer);
+      mediaPlayer?.stop();
+      enabled = false;
+    };
+    const playMedia = async () => {
+      const player = mediaPlayer;
+      const generation = mediaGeneration;
+      try { await player.ready(); } catch { return; } // Preparation reports the resource error to the parent.
+      if (generation !== mediaGeneration || !enabled) return;
+      await player.play({ userName: data.name || '' });
+      if (generation === mediaGeneration && enabled && data?.preview) replayTimer = window.setTimeout(playMedia, 1000);
+    };
     const render = () => {
       if (appearance.mediaStyle) {
         runtime.apply({ ...DEFAULTS, enabled: false });
-        if (data?.enabled && !enabled) void mediaPlayer.play({ userName: data.name || '' });
-        if (!data?.enabled) mediaPlayer.stop();
-        enabled = Boolean(data?.enabled);
+        if (data?.preview) mediaPlayer.setMuted(data.audio === 'none');
+        if (!data?.enabled) stopMedia();
+        else if (!enabled) { enabled = true; void playMedia(); }
       } else runtime.apply(mergeConfig(
         ['classic', 'pixel-cassette', 'moonlit-fan'].includes(appearance.style) ? { ...data, style: appearance.style } : data,
         parseConfig(''), new URLSearchParams(),
@@ -346,16 +362,17 @@ function initOpeningOverlay() {
     };
     createComponentPreviewClient({
       onConfig: (config) => {
+        stopMedia();
         if (appearance.resourceStyle?.id !== config?.resourceStyle?.id) {
           runtime.dispose(); runtime = createOpeningRuntime();
         }
-        appearance = config || {}; mediaPlayer?.dispose(); enabled = false;
+        appearance = config || {}; mediaPlayer?.dispose();
         mediaPlayer = appearance.mediaStyle ? createMediaEventPlayer(appearance.mediaStyle) : null;
         render();
         return mediaPlayer?.ready();
       },
       onData: (config) => { data = config; render(); },
-      onDispose: () => { mediaPlayer?.dispose(); runtime.dispose(); },
+      onDispose: () => { stopMedia(); mediaPlayer?.dispose(); runtime.dispose(); },
     });
     return;
   }

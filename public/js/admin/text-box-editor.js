@@ -129,8 +129,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
   }
   function command(name, value) {
     edit(() => {
-      const range = restore();
-      if (marks.has(name) && !hasTextSelection(range)) return false;
+      restore();
       document.execCommand(name, false, value);
     });
   }
@@ -139,7 +138,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
       const range = expandAtoms(restore());
       if (!hasTextSelection(range)) return false;
       const config = getConfig();
-      const nodes = readTextBoxNodes(editor, config, range).map(transform);
+      const nodes = transform(readTextBoxNodes(editor, config, range));
       const fragment = previewElement('div');
       renderTextBox(fragment, { ...config, nodes }, { editable: true });
       const span = previewElement('span');
@@ -160,10 +159,16 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
     });
   }
   function format(property, value) {
-    transformSelection(node => node.type === 'text' || property === 'fontSize' ? { ...node, [property]: value } : node);
+    transformSelection(nodes => nodes.map(node => node.type === 'text' || property === 'fontSize' ? { ...node, [property]: value } : node));
   }
   function clearFormat() {
-    transformSelection(node => node.type === 'text' ? { type: 'text', text: node.text } : node);
+    transformSelection(nodes => nodes.map(node => node.type === 'text' ? { type: 'text', text: node.text } : node));
+  }
+  function toggleMark(key) {
+    transformSelection(nodes => {
+      const enabled = !nodes.filter(node => node.type === 'text').every(node => node[key]);
+      return nodes.map(node => node.type === 'text' ? { ...node, [key]: enabled } : node);
+    });
   }
   for (const [key, label, text] of [['bold', '加粗 (Ctrl+B)', 'B'], ['italic', '斜体 (Ctrl+I)', 'I'], ['underline', '下划线 (Ctrl+U)', 'U']]) {
     const button = previewElement('button', `text-box-format text-box-format-${key}`, text);
@@ -172,7 +177,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
     button.setAttribute('aria-label', label);
     button.setAttribute('aria-pressed', 'false');
     listen(button, 'mousedown', event => event.preventDefault());
-    listen(button, 'click', () => command(key));
+    listen(button, 'click', () => toggleMark(key));
     toolbar.append(button);
     marks.set(key, button);
   }
@@ -200,8 +205,12 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
       const right = Math.min(window.innerWidth - toolbar.offsetWidth - 8, Math.max(left, bounds.right - toolbar.offsetWidth));
       toolbar.style.left = `${Math.max(left, Math.min(rect.left + rect.width / 2 - toolbar.offsetWidth / 2, right))}px`;
       toolbar.style.top = `${Math.max(8, rect.top - toolbar.offsetHeight - 10)}px`;
-      for (const [key, button] of marks) button.setAttribute('aria-pressed', String(document.queryCommandState(key)));
       const selectedNodes = readTextBoxNodes(editor, getConfig(), range);
+      const text = selectedNodes.filter(node => node.type === 'text');
+      for (const [key, button] of marks) {
+        const count = text.filter(node => node[key]).length;
+        button.setAttribute('aria-pressed', count === text.length ? 'true' : count ? 'mixed' : 'false');
+      }
       if (!toolbar.contains(document.activeElement)) {
         size.value = String(selectedNodes.find(node => node.type === 'text')?.fontSize || getConfig().fontSize);
       }
@@ -226,7 +235,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
     if (key) {
       event.preventDefault();
       const range = currentRange();
-      if (hasTextSelection(range)) { savedRange = range.cloneRange(); command(key); }
+      if (hasTextSelection(range)) { savedRange = range.cloneRange(); toggleMark(key); }
     }
   });
   listen(editor, 'paste', event => {

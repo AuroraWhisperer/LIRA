@@ -3,8 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { setTimeout: delay } = require('node:timers/promises');
 const { createComponentStyleStore } = require('../storage/component-style-store');
+const { installComponentStyle } = require('./component-style-install');
 const { saveWebFiles, webFilePath, webResourceUrl } = require('./component-web-files');
 const { normalizeSceneConfig } = require('./scene-components');
 const { getClockConfig } = require('./clock-contract');
@@ -88,16 +88,7 @@ function createComponentWebLibrary(dataDir) {
         authorize();
         const style = { id: styleId, type: html ? 'browser' : description.type, category: description.type, name: name.trim(), config };
         store.stage({ id, name: style.name, createdAt: Date.now(), styles: [style], bytes });
-        for (let attempt = 0; ; attempt++) {
-          authorize();
-          try { return store.install(id); }
-          catch (error) {
-            // Windows may briefly hold freshly copied files. Retry only before installation has mutated the index.
-            if (attempt >= 4 || !['EPERM', 'EBUSY'].includes(error.code) || error.syscall !== 'rename'
-              || error.path !== store.directory(id, true) || error.dest !== store.directory(id)) throw error;
-            await delay(50 * (attempt + 1));
-          }
-        }
+        return await installComponentStyle(store, id, authorize);
       } finally { store.removePending(id); }
     },
   };

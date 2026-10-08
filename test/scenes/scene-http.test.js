@@ -334,7 +334,7 @@ test('every management route requires an admin principal and rejects opaque admi
   const routes = [
     ['/api/scenes/list', 'GET'], [`/api/scenes/document?id=${id}`, 'GET'], [`/api/scenes/source?id=${id}`, 'GET'],
     ['/api/scenes/create', 'POST'], ['/api/scenes/save', 'POST'], ['/api/scenes/publish', 'POST'], ['/api/scenes/rotate', 'POST'],
-    ['/api/scenes/validate', 'POST'],
+    ['/api/scenes/validate', 'POST'], ['/api/scenes/delete', 'POST'],
   ];
   for (const [route, method] of routes) {
     for (const [token, expected] of [[undefined, 401], [scene.source.token, 401], ['forged', 401], [createOverlayToken(ADMIN, 'clock'), 403]]) {
@@ -348,6 +348,22 @@ test('every management route requires an admin principal and rejects opaque admi
     assert.equal(opaque.status, 403, route);
     assert.equal(opaque.headers.get('access-control-allow-origin'), null);
   }
+});
+
+test('preset delete HTTP confirms revision and preserves the bound live source', async t => {
+  const { service, request } = await fixture(t);
+  const first = service.create({ title: 'Fixed', canvas: { width: 1920, height: 1080 } });
+  service.getCanvas();
+  const extra = service.create({ title: 'Extra', canvas: first.document.canvas });
+  const remove = body => request('/api/scenes/delete', { token: ADMIN, method: 'POST', body });
+  assert.equal((await remove({ id: first.document.id, expectedRevision: 1 })).body.code, 'SCENE_OUTPUT_PROTECTED');
+  assert.equal((await remove({ id: extra.document.id, expectedRevision: 2 })).status, 409);
+  const deleted = await remove({ id: extra.document.id, expectedRevision: 1 });
+  assert.equal(deleted.status, 200);
+  assertNoStore(deleted);
+  assert.deepEqual(deleted.body.data, { id: extra.document.id });
+  assert.equal(service.getCanvas().outputId, first.document.id);
+  assert.equal((await remove({ id: extra.document.id, expectedRevision: 1 })).status, 404);
 });
 
 test('scene capability never becomes a common HTTP principal or authorizes an admin URL fallback', async (t) => {

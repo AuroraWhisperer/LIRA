@@ -325,7 +325,7 @@ test('rename recovery does not replay a failed library index commit', async t =>
     await assert.rejects(createComponentWebLibrary(f.dataDir).add(files([['index.html', '<h1>Clock</h1>']]), description, () => {}),
       { code: 'EPERM', dest: indexPath });
     assert.equal(packageRenames, 1);
-    assert.equal(indexRenames, 1);
+    assert.equal(indexRenames, 5);
     assertEmptyLibrary(f.dataDir);
   } finally { fs.renameSync = originalRename; }
 });

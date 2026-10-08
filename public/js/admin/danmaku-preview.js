@@ -17,7 +17,7 @@ export function applyDanmakuRegionEdit(controller, change) {
 function createPanel(host, controller, source, embedded) {
   const choices = document.createElement('div');
   choices.className = 'danmaku-style-options';
-  for (const original of source.querySelectorAll('[data-danmaku-style]')) {
+  for (const original of embedded ? [] : source.querySelectorAll('[data-danmaku-style]')) {
     const button = original.cloneNode(true);
     button.addEventListener('click', () => {
       controller.edit({ style: button.dataset.danmakuStyle, ...(controller.getState().draft.mediaStyle ? { mediaStyle: null } : {}),
@@ -28,16 +28,11 @@ function createPanel(host, controller, source, embedded) {
   const parameters = cloneComponentPanel(source.querySelector('.danmaku-parameters'), 'preview-danmaku');
   const error = document.createElement('p');
   error.setAttribute('role', 'status');
-  host.append(choices, parameters, error);
+  if (!embedded) host.append(choices);
+  host.append(parameters, error);
   const parameterView = bindDanmakuParameters(parameters, controller, (message) => { error.textContent = message; });
   if (embedded) {
-    const stop = controller.subscribe(({ draft, loaded }) => {
-      for (const button of choices.querySelectorAll('button')) {
-        button.disabled = !loaded;
-        button.setAttribute('aria-pressed', String(button.dataset.danmakuStyle === draft.style));
-      }
-    });
-    return { dispose() { stop(); parameterView.dispose(); } };
+    return { dispose() { parameterView.dispose(); } };
   }
   const heading = document.createElement('h3');
   heading.textContent = '画布与弹幕区域';

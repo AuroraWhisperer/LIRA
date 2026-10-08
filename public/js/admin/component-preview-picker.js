@@ -5,6 +5,7 @@ import { createTextBoxDefaults } from '../shared/text-box-config.js';
 import { renderTextBox } from '../shared/text-box-renderer.js';
 import { mountComponentStyleLibrary } from './component-style-library.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
+import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 
 // Content bounds in the existing 640 × 400 thumbnails; retain room for shadows.
 const PREVIEW_IMAGE_BOUNDS = {
@@ -81,12 +82,11 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
   const content = previewElement('section', 'preview-picker-content');
   const subcategories = previewElement('nav', 'preview-picker-subcategories');
   subcategories.setAttribute('aria-label', '小游戏分类');
-  const styles = previewElement('div', 'preview-picker-styles');
+  const styles = previewElement('div');
   const browserForm = previewElement('form', 'preview-browser-form');
-  const localStyles = previewElement('div');
   let styleLibrary;
   browserForm.hidden = true;
-  content.append(subcategories, styles, browserForm, localStyles);
+  content.append(subcategories, styles, browserForm);
   body.append(categories, content);
   dialog.append(header, body);
   document.body.append(dialog);
@@ -113,7 +113,8 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     groups.get(category).push(component);
   }
 
-  function showTextBoxes(component) {
+  function textBoxCards(component) {
+    const cards = [];
     for (const item of [null, ...getTextBoxes()]) {
       const button = previewElement('button', 'preview-picker-style preview-picker-text-card');
       button.type = 'button';
@@ -152,18 +153,15 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
           dialog.close();
         } catch (error) { report(error.message); }
       });
-      styles.append(button);
+      cards.push(button);
     }
+    return cards;
   }
 
   function show(component) {
     styleLibrary?.dispose();
-    styleLibrary = mountComponentStyleLibrary(localStyles, {
-      type: component.id, request: requestStyles,
-      onUse(style) { add(components.find(entry => entry.id === style.type) || component, style.config,
-        { name: style.name, size: [componentStyleMedia(style.config).width, componentStyleMedia(style.config).height] }); dialog.close(); },
-    });
     textPreviews.disconnect();
+    content.classList.add('has-style-grid');
     const category = COMPONENT_PREVIEW_DEFINITIONS[component.id].category || component.id;
     for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === category));
     styles.hidden = false;
@@ -171,7 +169,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     subcategories.replaceChildren();
     subcategories.setAttribute('aria-label', category === '直播小游戏' ? '小游戏分类' : '组件类型');
     const members = groups.get(category);
-    subcategories.hidden = members.length < 2;
+    subcategories.hidden = false;
     if (members.length > 1) for (const member of members) {
       const button = previewElement('button', 'secondary', member.title);
       button.type = 'button';
@@ -180,11 +178,45 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       subcategories.append(button);
     }
     content.setAttribute('aria-label', `${component.title}样式`);
-    styles.replaceChildren();
     content.scrollTop = 0;
-    if (component.id === 'text-box') { showTextBoxes(component); return; }
-    const options = styleOptions(component);
-    for (const option of options) showStyle(component, option);
+    styleLibrary = mountComponentStyleLibrary(styles, {
+      type: component.id, request: requestStyles, inline: true,
+      renderList: componentStyleList(component),
+      onUse(style) { add(components.find(entry => entry.id === style.type) || component, style.config,
+        { name: style.name, size: [componentStyleMedia(style.config).width, componentStyleMedia(style.config).height] }); dialog.close(); },
+    });
+  }
+
+  function componentStyleList(component) {
+    const danmaku = component.id === 'danmaku';
+    const types = danmaku ? [['fixed', '固定弹幕'], ['fullscreen-random', '随机弹幕'], ['floating', '飘窗弹幕']] : [];
+    const group = style => danmaku ? DANMAKU_STYLE_OPTIONS[style]?.layout || 'fixed' : 'all';
+    const builtinCards = component.id === 'text-box' ? textBoxCards(component)
+      : styleOptions(component).map(option => styleCard(component, option));
+    const builtins = builtinCards.map(card => ({ group: group(card.dataset.pickerStyle), card }));
+    let active = danmaku ? 'fixed' : 'all';
+    let entries = builtins;
+    if (danmaku) subcategories.setAttribute('aria-label', '弹幕类型');
+    const tabs = types.map(([id, label]) => {
+      const button = previewElement('button', 'secondary', label);
+      button.type = 'button';
+      button.addEventListener('click', () => { active = id; filter(); content.scrollTop = 0; });
+      subcategories.append(button);
+      return { id, button };
+    });
+    function filter() {
+      for (const { id, button } of tabs) button.setAttribute('aria-pressed', String(id === active));
+      for (const entry of entries) entry.card.hidden = entry.group !== active;
+    }
+    return ({ list, cards, add }) => {
+      list.classList.add('preview-picker-styles');
+      entries = [...builtins, ...cards.map(({ style, card }) => ({ group: group(style.config.style), card }))];
+      list.replaceChildren(...entries.map(entry => entry.card));
+      add.className = 'secondary preview-picker-import';
+      add.replaceChildren(pickerIcon('M12 5v14M5 12h14'), previewElement('span', '', '添加样式'));
+      subcategories.append(add);
+      filter();
+    };
   }
 
   function styleOptions(component) {
@@ -194,7 +226,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       || (attribute ? [...source.querySelectorAll(`[${attribute}]`)] : [null]).map(original => ({ original }));
   }
 
-  function showStyle(component, { original, variant }) {
+  function styleCard(component, { original, variant }) {
     const definition = COMPONENT_PREVIEW_DEFINITIONS[component.id];
     const preset = variant || definition.defaultStyle;
     const label = original ? original.querySelector('strong, .danmaku-style-name').textContent : preset.label;
@@ -217,7 +249,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       const bounds = !sourceImage && PREVIEW_IMAGE_BOUNDS[`${component.id}-${style}`];
       const [x, y, width, height] = bounds || [0, 0, image.naturalWidth, image.naturalHeight];
       if (bounds) image.style.objectViewBox = `inset(${y / image.naturalHeight * 100}% ${(image.naturalWidth - x - width) / image.naturalWidth * 100}% ${(image.naturalHeight - y - height) / image.naturalHeight * 100}% ${x / image.naturalWidth * 100}%)`;
-      image.style.aspectRatio = String(Math.min(2.5, Math.max(1, width / height)));
+      if (component.id !== 'danmaku') image.style.aspectRatio = String(Math.min(2.5, Math.max(1, width / height)));
     }, { once: true });
     const caption = previewElement('span', 'preview-picker-caption');
     caption.append(previewElement('strong', '', label));
@@ -228,16 +260,20 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
         if (!loaded) throw new Error('组件尚未连接，请从客户端重新打开。');
         const change = definition.styleChange(draft, button.dataset.pickerStyle);
         const config = { ...(component.projectConfig?.(draft) || draft), ...change };
+        if (component.id === 'danmaku') {
+          delete config.mediaStyle; delete config.resourceStyle; delete config.cssStyle;
+        }
         add(variant ? { ...component, title: label } : component, config);
         dialog.close();
       } catch (error) { report(error.message); }
     });
-    styles.append(button);
+    return button;
   }
 
   function showSuites() {
     styleLibrary?.dispose();
-    styleLibrary = mountComponentStyleLibrary(localStyles, { request: requestStyles, suitesOnly: true,
+    content.classList.remove('has-style-grid');
+    styleLibrary = mountComponentStyleLibrary(styles, { request: requestStyles, suitesOnly: true,
       onUse(style) {
         const component = components.find(entry => entry.id === style.type);
         if (!component) throw new Error('当前画布不支持这个组件，请重新打开。');
@@ -247,8 +283,9 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     });
     textPreviews.disconnect();
     for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === 'suites'));
-    styles.hidden = browserForm.hidden = subcategories.hidden = true;
-    styles.replaceChildren(); subcategories.replaceChildren();
+    styles.hidden = false;
+    browserForm.hidden = subcategories.hidden = true;
+    subcategories.replaceChildren();
     content.setAttribute('aria-label', '套装'); content.scrollTop = 0;
   }
   const suites = previewElement('button');
@@ -277,6 +314,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     more.append(pickerIcon('M12 5v14M5 12h14'), previewElement('span', '', '更多'));
     more.addEventListener('click', () => {
       styleLibrary?.dispose();
+      content.classList.remove('has-style-grid');
       textPreviews.disconnect();
       for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === 'browser'));
       subcategories.hidden = styles.hidden = true;

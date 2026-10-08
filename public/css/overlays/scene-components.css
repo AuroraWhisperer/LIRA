@@ -18,4 +18,5 @@ html[data-scene-component='wheel'] .wheel-stage { min-height: 0; height: 100%; }
 html[data-scene-component='gift-wishes'] body { padding: 0; }
 html[data-scene-component='gift-wishes'] #giftWishStage { width: 100%; }
 html[data-scene-component='gift-feed'] #giftFeedViewport { transform-origin: top left; }
+html[data-scene-component='gift-feed'] #giftFeedStatus:not([hidden]) { position: absolute; inset: 0; display: flex; align-items: center; margin: 40px 20px 20px; max-width: none; font: 24px/1.6 'Microsoft YaHei', sans-serif; color: #3d4450; }
 html[data-scene-component='guard-thanks'] #guardThanksRoot { position: fixed; inset: 0; }

@@ -6,6 +6,7 @@ const { randomUUID } = require('node:crypto');
 const { crc32 } = require('node:zlib');
 const yauzl = require('yauzl');
 const { createComponentStyleStore } = require('../storage/component-style-store');
+const { installComponentStyle } = require('./component-style-install');
 const { receiveMedia, saveMedia, MAX_MEDIA_BYTES } = require('./component-media-files');
 const { normalizeSceneConfig } = require('./scene-components');
 const { getClockConfig } = require('./clock-contract');
@@ -78,8 +79,9 @@ function createComponentStyleLibrary(dataDir) {
   return {
     list: () => store.list(),
     remove: id => store.remove(id),
+    'remove-pack': id => store.removePack(id),
     cancel: id => { store.removePending(id); return { id }; },
-    install: id => store.install(id),
+    install: (id, authorize = () => {}) => installComponentStyle(store, id, authorize),
     async add(stream, description, authorize) {
       const id = randomUUID();
       try {
@@ -87,7 +89,7 @@ function createComponentStyleLibrary(dataDir) {
         const style = createStyle(id, description, media);
         authorize();
         store.stage({ id, name: style.name, createdAt: Date.now(), styles: [style], bytes: media.size });
-        return store.install(id);
+        return await installComponentStyle(store, id, authorize);
       } finally { store.removePending(id); }
     },
     async inspect(stream, authorize) {
@@ -141,8 +143,9 @@ function createComponentStyleLibrary(dataDir) {
         const pack = { id, packageId: manifest.id, name: title(manifest.name), version: manifest.version,
           createdAt: Date.now(), digest: uploaded.digest, styles, bytes: total };
         store.stage(pack);
+        const preview = store.describe(pack);
         complete = true;
-        return pack;
+        return preview;
       } finally {
         zip?.close();
         await fs.promises.rm(archive, { force: true });
