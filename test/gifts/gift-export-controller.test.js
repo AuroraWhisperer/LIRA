@@ -216,6 +216,25 @@ test('a source change prevents any subsequent file being written', async (t) => 
   assert.match(result.error, /来源/);
 });
 
+test('reconfiguring a partially failed export allocates a new directory and keeps the first batch', async (t) => {
+  const widths = [856, 9000];
+  const { controller } = fixture(t, widths);
+  const task = await controller.prepare({});
+  await controller.configure({ id: task.id, mode: 'separate', background: 'transparent' });
+  const failed = await controller.save({ id: task.id });
+  assert.equal(failed.ok, false);
+  assert.equal(failed.saved, 1);
+  const next = await controller.configure({ id: task.id, mode: 'separate', background: 'transparent' });
+  assert.notEqual(next.directory, task.directory);
+  assert.deepEqual(fs.readdirSync(task.directory), ['礼物_001.png']);
+  widths[1] = 856;
+  const retried = await controller.save({ id: task.id });
+  assert.equal(retried.ok, true);
+  assert.equal(retried.saved, 2);
+  assert.deepEqual(fs.readdirSync(next.directory), ['礼物_001.png', '礼物_002.png']);
+  assert.deepEqual(fs.readdirSync(task.directory), ['礼物_001.png']);
+});
+
 test('a conflicting output directory reports failure without overwriting or claiming saved files', async (t) => {
   const { controller, windows } = fixture(t);
   const task = await controller.prepare({});

@@ -2,6 +2,16 @@
 // 播放助手工具函数模块
 'use strict';
 
+export function getSongRequestKey(item) {
+  if (item?.id === undefined || item.id === null) return '';
+  // Clearing song data can restart numeric queue IDs; creation time distinguishes the new request.
+  return JSON.stringify([String(item.id), String(item.created_at || '')]);
+}
+
+export function getQueueTrackKey(track) {
+  return track.songRequestKey ? `request:${track.songRequestKey}` : track.id;
+}
+
 const QUALITY_OPTIONS = {
   qq: [
     { id: 'standard', label: '标准', detail: '128kbps' },

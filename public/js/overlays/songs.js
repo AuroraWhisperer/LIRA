@@ -1,6 +1,7 @@
 import { SongVirtualScroller } from './song-virtual-scroller.js';
 import { createOverlaySocket } from './socket-client.js';
 import { isComponentPreview } from './component-preview-client.js';
+import { SONG_BOARD_THEME_FIELDS } from '../shared/song-board-theme-fields.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
 
 ('use strict');
@@ -30,7 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (isComponentPreview()) {
     mountSceneExtraClient('songlist', {
       onConfig(config) {
-        state = { settings: { ...config, songBoardSyncTheme: 'false' } };
+        state = { settings: { ...config, ...(config.songBoardSyncTheme === 'true'
+          ? Object.fromEntries(Object.entries(SONG_BOARD_THEME_FIELDS).map(([field, key]) => [key, config[field]]))
+          : { songBoardSyncTheme: 'false' }) } };
         componentCategory = config.category;
         updateComponentSongs();
       },

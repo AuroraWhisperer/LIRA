@@ -55,8 +55,14 @@ test('opening source follows the saved style unless its URL explicitly overrides
   const { parseConfig, mergeConfig } = await loadModuleExports(
     path.join(__dirname, '../../public/js/overlays/opening.js'), { URLSearchParams },
   );
-  const remote = { style: 'pixel-cassette' };
+  const remote = { style: 'pixel-cassette', quality: 'low', enabled: false,
+    styles: { classic: { style: 'classic', quality: 'high', audioUrl: '/opening-media/classic.mp3' },
+      'pixel-cassette': { style: 'pixel-cassette', quality: 'low', audioUrl: '/opening-media/pixel.mp3' } } };
   assert.equal(mergeConfig(remote, parseConfig(''), new URLSearchParams()).style, 'pixel-cassette');
+  const classic = mergeConfig(remote, parseConfig('?style=classic'), new URLSearchParams('style=classic'));
+  assert.equal(classic.quality, 'high');
+  assert.equal(classic.audioUrl, '/opening-media/classic.mp3');
+  assert.equal(classic.enabled, false);
   for (const style of ['classic', 'pixel-cassette', 'moonlit-fan', 'invalid']) {
     const query = `?style=${style}`;
     assert.equal(mergeConfig(remote, parseConfig(query), new URLSearchParams(query)).style,

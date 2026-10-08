@@ -89,6 +89,14 @@ test('blindbox ranking renders all, summary-only and bounded audience counts fro
   }
 });
 
+test('blindbox saved appearance updates existing sources while explicit legacy URL filters win', () => {
+  for (const [search, expected] of [['', [6, true, true]], ['?top=2&winners=0&heartBox=0', [2, false, false]]]) {
+    const { sandbox } = createOverlay(search);
+    vm.runInNewContext('state = { settings: { blindboxOverlayTop: "6", blindboxWinnersOnly: "true", blindboxHeartBoxOnly: "true" } }; receiveAppearance();', sandbox);
+    assert.deepEqual(Array.from(vm.runInNewContext('[TOP_N, WINNERS_ONLY, HEART_BOX_ONLY]', sandbox)), expected);
+  }
+});
+
 test('blindbox filtering requests the selected box and hides losses only in winner mode', async () => {
   const perUser = [
     { userName: 'Winner', boxCount: 1, totalProfit: 8 },

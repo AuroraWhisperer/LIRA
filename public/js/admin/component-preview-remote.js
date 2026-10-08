@@ -1,5 +1,6 @@
 import { requestTextBoxMedia } from './text-box-media.js';
 import { requestComponentStyles } from './component-style-api.js';
+import { requestOpeningSettings } from './opening-settings-api.js';
 
 export function createRemotePreviewController(initial, send) {
   let state = initial;
@@ -215,6 +216,21 @@ export function createBrowserPreviewConnection({ id, token, component }) {
 
   return {
     component,
+    async requestAppearance(body, signal) {
+      if (closed || component !== 'canvas') throw new Error('预览连接已结束，请从客户端重新打开。');
+      const url = new URL('/api/component-preview/appearance', location.origin);
+      url.searchParams.set('id', id); url.searchParams.set('attachmentId', attachmentId);
+      const response = await fetch(url, { method: 'POST', credentials: 'omit', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body), signal: AbortSignal.any([requests.signal, ...(signal ? [signal] : []), AbortSignal.timeout(10000)]) });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || '共享参数暂时不可用，请重试。');
+      return payload.data;
+    },
+    requestOpeningSettings(kind, options) {
+      if (closed || component !== 'canvas') return Promise.reject(new Error('预览连接已结束，请从客户端重新打开。'));
+      return requestOpeningSettings(kind, options, { id, token, attachmentId });
+    },
     requestTextBoxMedia(kind, options) {
       if (closed || component !== 'canvas') return Promise.reject(new Error('预览连接已结束，请从客户端重新打开。'));
       return requestTextBoxMedia(kind, options, { id, token, attachmentId });

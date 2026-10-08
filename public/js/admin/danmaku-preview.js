@@ -14,7 +14,7 @@ export function applyDanmakuRegionEdit(controller, change) {
   } catch { return; }
 }
 
-function createPanel(host, controller, source, embedded) {
+function createPanel(host, controller, source, embedded, panelPrefix) {
   const choices = document.createElement('div');
   choices.className = 'danmaku-style-options';
   for (const original of embedded ? [] : source.querySelectorAll('[data-danmaku-style]')) {
@@ -25,7 +25,7 @@ function createPanel(host, controller, source, embedded) {
     });
     choices.append(button);
   }
-  const parameters = cloneComponentPanel(source.querySelector('.danmaku-parameters'), 'preview-danmaku');
+  const parameters = cloneComponentPanel(source.querySelector('.danmaku-parameters'), panelPrefix);
   const error = document.createElement('p');
   error.setAttribute('role', 'status');
   if (!embedded) host.append(choices);
@@ -127,10 +127,10 @@ function createPanel(host, controller, source, embedded) {
   return { dispose() { unsubscribe(); parameterView.dispose(); } };
 }
 
-export function createDanmakuPreview({ controller, source = document, embedded = false }) {
+export function createDanmakuPreview({ controller, source = document, embedded = false, panelPrefix = 'preview-danmaku' }) {
   return { id: 'danmaku', title: '弹幕姬', controller,
     url: new URL(`/danmaku?preview=1&componentPreview=1${embedded ? '&componentLayer=1' : ''}`, localOverlayOrigin()).href,
-    createPanel: (host, targetController = controller) => createPanel(host, targetController, source, embedded),
+    createPanel: (host, targetController = controller) => createPanel(host, targetController, source, embedded, panelPrefix),
     projectConfig: (draft) => ({ ...draft, ...(Object.hasOwn(draft, 'layout') ? { layout: draft.layout || createLayout() } : {}) }),
     size: (draft) => { const canvas = (draft.layout || createLayout()).canvas; return [canvas.width, canvas.height]; },
     bounds: (draft) => (draft.layout || createLayout()).regions[draft.style],

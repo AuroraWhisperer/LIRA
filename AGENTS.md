@@ -219,6 +219,14 @@ suites. Reserve full suites for cross-cutting/critical changes or explicit
 requests, and do not build temporary infrastructure merely to prove a trivial
 change.
 
+When a full suite fails, collect its failures and resolve them together with
+focused checks before another full run. An isolated pass does not resolve a
+failure seen only under concurrency: reproduce the triggering conditions and
+verify the fix there. Before repeating a full run, state what caused each known
+failure, what changed, and which focused evidence passed. Unexplained intermittent
+failures require diagnosis, not repeated full runs. For releases, follow
+[the release guide](RELEASE_GUIDE.md#2-验证提交推送).
+
 Tests must not use real user data. Deterministic tests must isolate temporary
 state, restore modified globals, and avoid external services.
 

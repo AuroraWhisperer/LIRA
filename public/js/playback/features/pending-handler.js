@@ -22,21 +22,22 @@ export function createPendingHandler(deps) {
    * 处理待确认操作（确认/忽略）
    * @param {string} action - 'confirm' 或 'ignore'
    * @param {number} index - 待确认请求的索引
-   * @param {Function} playPlaybackTrack - 播放轨道的函数
+   * @param {Function} insertPlaybackTracksNext - 插入下一首的函数
    */
-  function handlePlaybackPendingAction(action, index, playPlaybackTrack) {
+  function handlePlaybackPendingAction(action, index, insertPlaybackTracksNext) {
     const pending = playbackState.pendingRequests[index];
     if (!pending) return;
 
     if (action === 'confirm') {
-      stateActions.removePending(index);
       const track = pending.track;
       if (track) {
-        playPlaybackTrack(track, {
-          origin: 'requested',
+        insertPlaybackTracksNext([{
+          ...track,
+          songRequestKey: pending.songRequestKey || track.songRequestKey || '',
           requestedBy: pending.requesterName,
-        });
+        }]);
       }
+      stateActions.removePending(index);
     } else if (action === 'ignore') {
       stateActions.removePending(index);
     }

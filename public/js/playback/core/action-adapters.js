@@ -63,7 +63,7 @@ export function createPlaybackActionAdapters({
     handlePlaybackSearchAction: (action, index) =>
       searchHandler.handlePlaybackSearchAction(action, index, searchCallbacks),
     handlePlaybackPendingAction: (action, index) =>
-      pendingHandler.handlePlaybackPendingAction(action, index, playPlaybackTrack),
+      pendingHandler.handlePlaybackPendingAction(action, index, insertPlaybackTracksNext),
     importSongQueueToPlayback: () =>
       importHandler.importSongQueueToPlayback({
         insertPlaybackTracksNext,

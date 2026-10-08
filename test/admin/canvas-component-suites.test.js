@@ -11,6 +11,11 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
+function storedResourceConfig(fixture, item) {
+  return createComponentStyleLibrary(fixture.dataDir).list().flatMap(pack => pack.styles)
+    .find(style => style.id === item.appearance.config.resourceStyle.id).config;
+}
+
 // Only the import-list test uploads the 60 MB ZIP; other tests start with the suite installed.
 async function suiteFixture(t, options = {}, { installed = true } = {}) {
   const directory = path.resolve(__dirname, '../../tmp'); fs.mkdirSync(directory, { recursive: true });
@@ -105,7 +110,7 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   const saved = fixture.service.list()[0];
   const config = saved.document.items[0].appearance.config;
   assert.equal(config.resourceStyle.preset, 'moonlit-lyrics');
-  assert.equal(config.desktopLyricFontSize, '32');
+  assert.equal(storedResourceConfig(fixture, saved.document.items[0]).desktopLyricFontSize, '32');
   assert.equal(saved.document.items.length, 1);
   const source = fixture.service.getSource(saved.document.id);
   const output = await context.newPage();
@@ -169,14 +174,29 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   await live.locator('.desktop-lyric-preview-empty').waitFor();
   assert.equal(await live.locator('.desktop-lyric-preview-empty').textContent(), '纯音乐，请欣赏');
   assert.equal(await live.locator('.desktop-lyric-preview-row').count(), 0);
+  let releaseNativeRead;
+  const nativeRead = new Promise(resolve => { releaseNativeRead = resolve; });
+  t.after(() => releaseNativeRead());
+  await page.route('**/api/component-preview/appearance?*', async route => {
+    const body = route.request().postDataJSON();
+    if (body.action === 'read' && body.items.some(item => item.type === 'lyrics' && !item.config.resourceStyle)) await nativeRead;
+    await route.continue();
+  });
   await page.locator('[data-component-parameter="style"]').selectOption('default');
   await frame.waitForFunction(() => !document.querySelector('style[data-component-resources]'));
-  assert.equal(await size.inputValue(), '32');
+  assert.equal(await size.isDisabled(), true, 'native parameters cannot be edited before their shared settings arrive');
+  releaseNativeRead();
+  await page.waitForFunction(expected => {
+    const input = document.querySelector('[data-component-parameter="desktopLyricFontSize"]');
+    return !input.disabled && input.value === expected;
+  }, fixture.runtime.settings.desktopLyricFontSize);
+  assert.equal(await size.inputValue(), fixture.runtime.settings.desktopLyricFontSize,
+    'switching to the native style restores its shared settings');
   assert.equal(await frame.locator('.desktop-lyric-preview-row.is-active').evaluate(el => getComputedStyle(el, '::after').backgroundImage), 'none');
   assert.deepEqual(errors, []);
 });
 
-test('wish canvas fits three catalog gifts and publishes only actual wishes', { timeout: 45000 }, async t => {
+test('wish canvas fits the selected number of catalog examples and publishes only actual wishes', { timeout: 45000 }, async t => {
   const { randomUUID } = require('node:crypto');
   const { createComponentStyleStore } = require('../../src/storage/component-style-store');
   const { saveMedia } = require('../../src/server/component-media-files');
@@ -246,7 +266,12 @@ test('wish canvas fits three catalog gifts and publishes only actual wishes', { 
     assert.equal(await page.getByRole('spinbutton', { name: '高度（自动）', exact: true }).inputValue(), String(height));
     return height;
   }
+  const limit = page.locator('[data-component-parameter="limit"]');
+  assert.equal(await limit.inputValue(), '1');
+  const oneWish = await fitted(1, 'moonlit');
+  await limit.fill('3'); await limit.press('Tab');
   const threeWishes = await fitted(3, 'moonlit');
+  assert.ok(threeWishes > oneWish);
   const selectedGifts = await frame.locator('.wish-card-image').evaluateAll(async images => {
     await Promise.all(images.map(image => image.decode()));
     return images.map(image => ({ name: image.alt, path: image.getAttribute('src') }));
@@ -266,15 +291,17 @@ test('wish canvas fits three catalog gifts and publishes only actual wishes', { 
   assert.ok(widerCards > widerGap, 'Wider cards grow the fitted height.');
   assert.deepEqual(await frame.locator('.wish-card-image').evaluateAll(images => images.map(image =>
     ({ name: image.alt, path: image.getAttribute('src') }))), selectedGifts);
-  const limit = page.locator('[data-component-parameter="limit"]');
   await limit.fill('2'); await limit.press('Tab');
   assert.ok(await fitted(2, 'moonlit') < widerCards);
-  await limit.fill('10'); await limit.press('Tab');
-  await fitted(3, 'moonlit');
+  await limit.fill('4'); await limit.press('Tab');
+  assert.ok(await fitted(4, 'moonlit') > widerCards);
+  await limit.fill('1'); await limit.press('Tab');
+  const finalHeight = await fitted(1, 'moonlit');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
-  assert.equal(saved.document.items[0].height, widerCards);
+  assert.equal(saved.document.items[0].height, finalHeight);
+  assert.equal(storedResourceConfig(fixture, saved.document.items[0]).limit, 1);
   assert.equal(JSON.stringify(saved.document).includes('preview-wish-'), false);
   const source = fixture.service.getSource(saved.document.id);
   const output = await browser.newPage();
@@ -299,7 +326,7 @@ test('wish canvas fits three catalog gifts and publishes only actual wishes', { 
   assert.equal(await published.locator('[role="progressbar"]').getAttribute('aria-valuenow'), '50');
   for (const [style, className] of [['card', 'bar'], ['text', 'text'], ['circle', 'circle']]) {
     await page.locator('[data-component-parameter="displayStyle"]').selectOption(style);
-    await fitted(3, className);
+    await fitted(1, className);
   }
   assert.equal(catalogReads, 1);
 });
@@ -380,7 +407,7 @@ test('moonlit queue parameters edit the installed preset and survive scene publi
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
   const savedConfig = saved.document.items[0].appearance.config;
-  assert.equal(savedConfig.overlayShowIndex, 'false');
+  assert.equal(storedResourceConfig(fixture, saved.document.items[0]).overlayShowIndex, 'false');
   assert.equal(savedConfig.resourceStyle.preset, 'moonlit-queue');
   await page.reload();
   await frame.locator('.identity-list.no-index').waitFor();
@@ -406,6 +433,8 @@ test('canvas suite imports appear in client component lists and refresh without 
     for (const panel of document.querySelectorAll('section[hidden]')) panel.hidden = false;
     const { initComponentStyleLibraries } = await import('/js/admin/component-style-client.js');
     initComponentStyleLibraries(); initComponentStyleLibraries();
+    const { initStartAnimation } = await import('/js/admin/start-animation.js');
+    initStartAnimation(); initStartAnimation();
   }, fragments);
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
@@ -450,11 +479,13 @@ test('adding a suite clock from the client synchronizes its instance before reus
   const url = await openCanvasDesktop(desktop, fixture);
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
-  await desktop.evaluate(async () => {
-    document.body.innerHTML = '<section id="otherClockFeature"><div class="clock-style-options"></div></section>';
+  await desktop.evaluate(async html => {
+    document.body.innerHTML = html;
+    document.getElementById('otherClockFeature').hidden = false;
     const { initComponentStyleLibraries } = await import('/js/admin/component-style-client.js');
     initComponentStyleLibraries();
-  });
+  }, fs.readFileSync(path.resolve(__dirname, '../../public/pages/admin/toolbox/clock.html'), 'utf8'));
+  await desktop.getByRole('button', { name: '调整样式：月渡花汀 · 时钟', exact: true }).click();
   await page.getByRole('button', { name: '添加组件', exact: true }).waitFor();
   for (let count = 1; count <= 2; count += 1) {
     let release;
@@ -475,7 +506,7 @@ test('adding a suite clock from the client synchronizes its instance before reus
     await inFlight;
     const linked = desktop.waitForResponse(response => response.request().postDataJSON()?.action === 'link');
     try {
-      await desktop.getByRole('button', { name: '添加到画布：月渡花汀 · 时钟', exact: true }).click();
+      await desktop.getByRole('button', { name: '在画布中使用', exact: true }).click();
     } finally { release(); }
     const response = await linked;
     assert.equal(response.status(), 200, JSON.stringify(await response.json()));
@@ -592,14 +623,13 @@ test('moonlit suite adds each matching style once and keeps the opening style th
   assert.deepEqual(await desktop.evaluate(() => Object.fromEntries(['clock', 'danmaku']
     .map(id => [id, window.controllers[id].getState().draft]))), defaults);
   await page.locator(`.preview-canvas-layer-select[data-item-id="${opening.id}"]`).click();
-  await page.locator('[data-component-parameter="style"]').selectOption('original');
-  await openingFrame.locator('#openingStage[data-style="classic"]').waitFor({ state: 'visible' });
-  await page.locator('[data-component-parameter="style"]').selectOption('moonlit-fan');
+  assert.equal(await page.locator('[data-component-parameter="style"]').isVisible(), false);
+  await page.locator('[data-component-parameter="title"]').fill('月渡独立标题');
   await openingFrame.locator('#openingMoonFan').waitFor({ state: 'visible' });
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
-  assert.equal(saved.document.items.find(item => item.type === 'clock').appearance.config.moonMode, 'dark');
+  assert.equal(storedResourceConfig(fixture, saved.document.items.find(item => item.type === 'clock')).moonMode, 'dark');
   assert.equal(saved.document.items.length, 6);
   assert.equal(saved.document.items.at(-1).type, 'background');
   for (const [type, key, style] of members) {
@@ -615,7 +645,7 @@ test('moonlit suite adds each matching style once and keeps the opening style th
   await published.locator('#openingMoonFan[data-ready="true"]').waitFor({ state: 'visible' });
   settings.openingStyle = 'pixel-cassette';
   settings.openingTitle = '更新的合成标题';
-  await published.locator('#openingMoonFan[aria-label^="更新的合成标题"]').waitFor();
+  await published.locator('#openingMoonFan[aria-label^="月渡独立标题"]').waitFor();
   settings.openingEnabled = 'false';
   await published.locator('#openingStage.is-disabled').waitFor({ state: 'attached' });
   settings.openingEnabled = 'true';
@@ -671,7 +701,10 @@ test('animated wallpaper can switch to static, publish, reload and honor reduced
   await page.locator('[data-component-parameter="opacity"]').fill('65');
   await page.locator('[data-component-parameter="blur"]').fill('4');
   await page.locator('[data-component-parameter="playbackRate"]').fill('0.75');
-  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[0].appearance.config.playbackRate === 0.75);
+  await canvas.evaluate(video => new Promise(resolve => {
+    if (video.playbackRate === 0.75) resolve();
+    else video.addEventListener('ratechange', resolve, { once: true });
+  }));
   assert.deepEqual(await canvas.evaluate(video => ({ marker: video.dataset.parameterTest, rate: video.playbackRate,
     progressed: video.currentTime >= 5, opacity: getComputedStyle(document.body).opacity, filter: getComputedStyle(video).filter })),
     { marker: 'same-video', rate: 0.75, progressed: true, opacity: '0.65', filter: 'blur(4px) brightness(1) saturate(1) contrast(1)' });
@@ -682,7 +715,7 @@ test('animated wallpaper can switch to static, publish, reload and honor reduced
   await page.locator('.background-parameters summary').filter({ hasText: '辉光' }).click();
   await page.locator('[data-component-parameter="glowStrength"]').fill('60');
   await page.locator('[data-component-parameter="glowMode"]').selectOption('star');
-  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[0].appearance.config.glowMode === 'star');
+  await frame.locator('[data-background-filters] filter').waitFor({ state: 'attached' });
   assert.deepEqual(await canvas.evaluate(video => [video.dataset.parameterTest, video.currentTime >= 5]), ['same-video', true]);
   assert.equal(await frame.locator('[data-background-filters] filter').count(), 1);
   await page.locator('[data-component-parameter="style"]').selectOption('moonlit');
@@ -700,11 +733,12 @@ test('animated wallpaper can switch to static, publish, reload and honor reduced
   assert.equal(saved.document.items.length, 1);
   assert.equal(saved.document.items[0].appearance.config.style, 'moonlit-animated');
   assert.equal(saved.document.items[0].appearance.config.backgroundDefaults.opacity, 1);
-  assert.equal(saved.document.items[0].appearance.config.opacity, 0.65);
-  assert.equal(saved.document.items[0].appearance.config.playbackRate, 0.75);
-  assert.equal(saved.document.items[0].appearance.config.temperature, 35);
-  assert.equal(saved.document.items[0].appearance.config.preserveLuminance, false);
-  assert.equal(saved.document.items[0].appearance.config.glowStrength, 0.6);
+  const appearance = storedResourceConfig(fixture, saved.document.items[0]);
+  assert.equal(appearance.opacity, 0.65);
+  assert.equal(appearance.playbackRate, 0.75);
+  assert.equal(appearance.temperature, 35);
+  assert.equal(appearance.preserveLuminance, false);
+  assert.equal(appearance.glowStrength, 0.6);
   assert.equal(saved.document.items[0].appearance.config.backgroundDefaults.glowStrength, 0);
   const source = fixture.service.getSource(saved.document.id);
   const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;

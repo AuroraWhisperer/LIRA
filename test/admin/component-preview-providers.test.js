@@ -9,7 +9,7 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const adminPath = path.join(__dirname, '../../public/js/admin');
 
-test('wish previews sample three distinct catalog gifts once and cancel late replies', async () => {
+test('wish previews fill the supported limit from distinct catalog gifts once and cancel late replies', async () => {
   const reads = [];
   const emitted = [];
   let listener;
@@ -31,7 +31,9 @@ test('wish previews sample three distinct catalog gifts once and cancel late rep
   finish({ ok: true, json: async () => ({ ok: true, data: { gifts: [...gifts, gifts[0], { id: 'missing-art', name: '无图片' }] } }) });
   await new Promise(resolve => setImmediate(resolve));
   const items = emitted[0].previewData['gift-wishes'].items;
-  assert.deepEqual(Array.from(items, item => item.giftId), ['4', '3', '2']);
+  assert.equal(items.length, 30);
+  assert.equal(new Set(items.map(item => item.id)).size, 30);
+  assert.deepEqual(Array.from(items.slice(0, 4), item => item.giftId), ['4', '3', '2', '1']);
   for (const item of items) {
     const gift = gifts.find(gift => gift.id === item.giftId);
     assert.equal(item.giftName, gift.name);
@@ -70,7 +72,7 @@ test('wish previews fall back to the room cache and explain an empty catalog', a
     });
     stop();
     assert.deepEqual(reads, ['/api/overtime/gifts/catalog', '/api/overtime/gifts']);
-    assert.equal(value.previewData['gift-wishes'].items.length, empty ? 0 : 3);
+    assert.equal(value.previewData['gift-wishes'].items.length, empty ? 0 : 30);
     assert.equal(Boolean(value.previewData['gift-wishes'].message), empty);
   }
 });

@@ -59,6 +59,9 @@ function createDom() {
       },
       style: { setProperty: (name, value) => styles.set(name, value) },
       getAttribute: (name) => attributes.get(name) ?? null,
+      setAttribute: (name, value) => attributes.set(name, String(value)),
+      querySelectorAll: () => [],
+      closest: () => null,
       removeAttribute: (name) => attributes.delete(name),
       append(node) { this.children.push(node); },
       replaceChildren(...children) { this.children = children; },
@@ -80,7 +83,9 @@ function createDom() {
     documentElement: element(),
     body: element(),
     getElementById(id) {
-      if (!nodes.has(id)) nodes.set(id, element());
+      if (!nodes.has(id)) {
+        const node = element(); node.id = id; nodes.set(id, node);
+      }
       return nodes.get(id);
     },
     querySelector: () => document.getElementById('viewport'),
@@ -114,7 +119,8 @@ function createDom() {
     },
     globals(fetch, search = '') {
       return {
-        document, window, fetch, URL, URLSearchParams, AbortController,
+        document, window, fetch: (url, options) => String(url).includes('/api/component-styles/list')
+          ? Promise.resolve(reply([])) : fetch(url, options), URL, URLSearchParams, AbortController,
         performance,
         location: new URL(`http://127.0.0.1:3000/opening${search}`),
         matchMedia: () => motion,
@@ -372,12 +378,16 @@ test('opening editor serializes saves with the latest controls and does not crea
   await flush();
   assert.equal(preview.srcWrites, 0);
   assert.equal(dom.document.getElementById('openingUrl').textContent, 'http://127.0.0.1:3000/opening');
+  const saveStatus = dom.document.getElementById('openingSaveStatus');
+  assert.equal(saveStatus.textContent, '修改自动保存');
   const title = dom.document.getElementById('openingTitle');
   title.value = '第一版';
   await dom.document.getElementById('openingAnimationForm').dispatch('input', { target: title });
+  assert.equal(saveStatus.dataset.state, 'pending');
   const firstSave = dom.tick(220);
   await flush();
   assert.equal(saves.length, 1);
+  assert.equal(saveStatus.textContent, '保存中…');
   title.value = '最新文案';
   await dom.document.getElementById('openingAnimationForm').dispatch('input', { target: title });
   await dom.tick(220);
@@ -386,8 +396,10 @@ test('opening editor serializes saves with the latest controls and does not crea
   await flush();
   assert.equal(saves.length, 2);
   assert.equal(saves[1].payload.openingTitle, '最新文案');
+  assert.equal(saveStatus.dataset.state, 'saving', 'a completed request cannot claim newer queued edits are saved');
   saves[1].resolve({ ok: true });
   await firstSave;
+  assert.equal(saveStatus.textContent, '已保存 · 修改自动保存');
   assert.equal(dom.document.getElementById('openingPreviewBtn').disabled, false);
   assert.equal(preview.srcWrites, 0);
   await dom.document.getElementById('openingAnimationForm').dispatch('change', { target: title });
@@ -396,6 +408,116 @@ test('opening editor serializes saves with the latest controls and does not crea
 
   dom.document.getElementById('openingEnabled').checked = false;
   await dom.document.getElementById('openingEnabled').dispatch('change');
+});
+
+test('opening save feedback waits for edits made before their debounce timer fires', async () => {
+  const dom = createDom();
+  const saves = [];
+  const module = await loadModuleExports(entry('admin', 'start-animation.js'), dom.globals((_url, options = {}) => {
+    if (options.method === 'POST') return new Promise(resolve => saves.push({ resolve, payload: JSON.parse(options.body) }));
+    return Promise.resolve(reply(savedConfig()));
+  }));
+  module.initStartAnimation();
+  await flush();
+  const form = dom.document.getElementById('openingAnimationForm');
+  const title = dom.document.getElementById('openingTitle');
+  const status = dom.document.getElementById('openingSaveStatus');
+  title.value = '第一版';
+  await form.dispatch('input', { target: title });
+  const firstSave = dom.tick(220);
+  await flush();
+  title.value = '尚未发出的最新版';
+  await form.dispatch('input', { target: title });
+  saves[0].resolve({ ok: true });
+  await firstSave;
+  assert.equal(status.dataset.state, 'pending');
+  assert.equal(saves.length, 1);
+  const secondSave = dom.tick(220);
+  await flush();
+  assert.equal(status.dataset.state, 'saving');
+  assert.equal(saves[1].payload.openingTitle, '尚未发出的最新版');
+  saves[1].resolve({ ok: true });
+  await secondSave;
+  assert.equal(status.dataset.state, 'saved');
+});
+
+for (const failure of ['http', 'network']) {
+  test(`opening ${failure} save failure stays visible and retries the retained edits`, async () => {
+    const dom = createDom();
+    const get = dom.document.getElementById;
+    dom.document.getElementById = id => id === 'toast' ? null : get(id);
+    const writes = [];
+    let fail = true;
+    const retried = Promise.withResolvers();
+    const module = await loadModuleExports(entry('admin', 'start-animation.js'), dom.globals(async (_url, options = {}) => {
+      if (options.method !== 'POST') return reply(savedConfig());
+      writes.push(JSON.parse(options.body));
+      if (!fail) return retried.promise;
+      if (failure === 'network') throw new Error('OFFLINE');
+      return { ok: false };
+    }));
+    module.initStartAnimation();
+    await flush();
+    const title = get('openingTitle');
+    title.value = '重试后保留文案';
+    await get('openingAnimationForm').dispatch('input', { target: title });
+    await dom.tick(220);
+    const status = get('openingSaveStatus');
+    const retry = get('openingRetrySave');
+    assert.equal(status.textContent, '保存失败，修改未保存');
+    assert.equal(retry.hidden, false);
+    assert.equal(retry.disabled, false);
+    assert.equal(get('openingLoadState').hidden, true, 'save failure does not reopen initial loading UI');
+    fail = false;
+    await retry.dispatch('click');
+    assert.equal(status.dataset.state, 'saving');
+    assert.equal(retry.disabled, true);
+    assert.equal(writes.length, 2);
+    assert.deepEqual(writes[1], writes[0]);
+    retried.resolve({ ok: true });
+    await flush();
+    assert.equal(status.dataset.state, 'saved');
+    assert.equal(retry.hidden, true);
+    assert.equal(title.value, '重试后保留文案');
+  });
+}
+
+test('opening focus refresh preserves newer edits and permits restoring a value changed in the canvas', async () => {
+  const dom = createDom();
+  const writes = [];
+  const config = extra => {
+    const classic = savedConfig({ style: 'classic', ...extra });
+    return { ...classic, styles: { classic, 'pixel-cassette': savedConfig({ style: 'pixel-cassette' }) } };
+  };
+  let remote = config({ title: '原文案' });
+  let holdRead = false;
+  let finishRead;
+  const module = await loadModuleExports(entry('admin', 'start-animation.js'), dom.globals(async (_url, options = {}) => {
+    if (options.method === 'POST') { writes.push(JSON.parse(options.body)); return { ok: true }; }
+    if (holdRead) return new Promise(resolve => { finishRead = resolve; });
+    return reply(remote);
+  }));
+  module.initStartAnimation();
+  await flush();
+  holdRead = true;
+  const refreshing = dom.window.dispatch('focus');
+  const title = dom.document.getElementById('openingTitle');
+  title.value = '客户端新输入';
+  await dom.document.getElementById('openingAnimationForm').dispatch('input', { target: title });
+  finishRead(reply(config({ title: '过时的返回值' })));
+  await refreshing;
+  assert.equal(title.value, '客户端新输入');
+  await dom.tick(220);
+  assert.equal(writes[0].openingTitle, '客户端新输入');
+  holdRead = false;
+  remote = config({ title: '画布修改' });
+  await dom.window.dispatch('focus');
+  assert.equal(title.value, '画布修改');
+  title.value = '客户端新输入';
+  await dom.document.getElementById('openingAnimationForm').dispatch('input', { target: title });
+  await dom.tick(220);
+  assert.equal(writes.length, 2, 'the former client payload must not suppress a save after a canvas edit');
+  assert.equal(writes[1].openingTitle, '客户端新输入');
 });
 
 test('opening editor updates the uploaded character name', async () => {
@@ -432,8 +554,8 @@ test('opening style selection saves while retaining classic-only settings', asyn
   assert.equal(writes[0].openingStyle, 'pixel-cassette');
   assert.equal(writes[0].openingTitle, '保留的标题');
   assert.equal(dom.document.getElementById('openingCharacterSection').hidden, false);
-  assert.equal(dom.document.getElementById('openingCharacterHeading').textContent, '头像图片');
-  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '未上传头像');
+  assert.equal(dom.document.getElementById('openingCharacterHeading').textContent, '大头贴图片');
+  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '未上传大头贴');
   assert.equal(dom.document.getElementById('openingPixelHint').hidden, false);
   style.value = 'classic';
   await dom.document.getElementById('openingAnimationForm').dispatch('change', { target: style });
@@ -458,13 +580,13 @@ test('pixel avatar upload and clear use the pixel slot', async () => {
   const module = await loadModuleExports(entry('admin', 'start-animation.js'), globals);
   module.initStartAnimation();
   await flush();
-  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '未上传头像');
+  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '未上传大头贴');
   const upload = dom.document.getElementById('openingCharacterFile');
   upload.files = [{ name: 'pixel.png', size: 32 }];
   await upload.dispatch('change', { target: upload });
   assert.equal(dom.document.getElementById('openingCharacterName').textContent, 'pixel.png');
   await dom.document.getElementById('openingResetCharacter').dispatch('click');
-  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '未上传头像');
+  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '未上传大头贴');
   assert.deepEqual(writes, [
     { url: '/api/opening/character?style=pixel-cassette', method: 'POST' },
     { url: '/api/opening/character?style=pixel-cassette', method: 'DELETE' },

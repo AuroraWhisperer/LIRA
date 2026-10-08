@@ -2,7 +2,7 @@
 
 import { eventBus, Events } from '../shared/event-bus.js';
 import { createOvertimeGiftPicker } from './overtime-gift-picker.js';
-import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
+import { api, copyText, localOverlayOrigin, readJsonResponse, showConfirmationDialog, showError, toast } from '../shared/utils.js';
 import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 import { createOvertimeTimeView } from './overtime-time-view.js';
 import { createOvertimeStatusView } from './overtime-status-view.js';
@@ -19,6 +19,7 @@ let appearance = null;
 let displayRevision = 0;
 let catalogLiveStatus = null;
 let ruleEditor = null;
+let timeChangePending = false;
 
 const giftPicker = createOvertimeGiftPicker({
   getLiveStatus: () => catalogLiveStatus,
@@ -133,15 +134,24 @@ function bindControls() {
 }
 
 async function runAction(action) {
+  if (action === 'reset' && timeChangePending) return;
+  if (action === 'reset') timeChangePending = true;
   try {
+    if (action === 'reset' && !(await confirmTimeReset(overtimeStatusView.getState()?.initialSeconds || 0))) return;
     const result = await api('/api/overtime/action', { action });
     renderState(result.data);
-  } catch (_) {}
+  } catch (_) {
+  } finally {
+    if (action === 'reset') timeChangePending = false;
+  }
 }
 
 async function applyTime() {
+  if (timeChangePending) return;
+  timeChangePending = true;
   try {
     const initialSeconds = parseInitialDuration(byId('overtimeInitialTime').value);
+    if (!(await confirmTimeReset(initialSeconds, true))) return;
     const result = await api('/api/overtime/time', {
       initialSeconds,
       remainingSeconds: initialSeconds,
@@ -150,7 +160,18 @@ async function applyTime() {
     toast('初始时间已设置，倒计时已重置并暂停');
   } catch (error) {
     showError(error);
+  } finally {
+    timeChangePending = false;
   }
+}
+
+function confirmTimeReset(initialSeconds, applying = false) {
+  return showConfirmationDialog({
+    variant: 'caution',
+    title: applying ? '设置初始时间并重置倒计时？' : '重置倒计时？',
+    message: `当前剩余时间将被替换为 ${formatClockDisplay(initialSeconds * 1000, 'paused')}，倒计时会停止。已累积的剩余时间无法恢复。`,
+    confirmLabel: applying ? '设置并重置' : '重置倒计时',
+  });
 }
 
 async function saveRules() {

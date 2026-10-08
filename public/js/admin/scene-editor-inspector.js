@@ -6,14 +6,18 @@ import { syncComponentFieldValue } from './component-preview-panel.js';
 import { createBrowserSourcePreview } from './browser-source-preview.js';
 import { createTextBoxPreview } from './text-box-preview.js';
 import { mountComponentStyleInspector } from './component-style-inspector.js';
+import { componentSaveMessage } from './component-config-controller.js';
+import { sharedControllerAppearance } from '../shared/scene-shared-appearance.js';
 
-export function mountSceneEditorInspector(host, { model, components, getSelection, report, requestStyles }) {
+export function mountSceneEditorInspector(host, { model, components, getSelection, report, requestStyles, sharedAppearance }) {
   let key = '';
   let panel = null;
   let stylePanel = null;
   let fields = {};
   let target;
   let parameters;
+  let stopStatus;
+  let hasSharedAppearance = false;
   function edit(mutator) {
     try { model.edit(mutator); } catch (error) { report(error.message); render(true); }
   }
@@ -36,6 +40,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     return wrapper;
   }
   function clear() {
+    stopStatus?.(); stopStatus = null;
     stylePanel?.dispose(); stylePanel = null;
     panel?.dispose?.();
     panel = null;
@@ -71,10 +76,24 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       parameters.classList.toggle('is-danmaku', item.type === 'danmaku');
       parameters.classList.toggle('has-media-style', Boolean(item.appearance.config?.mediaStyle));
       const controller = item.appearance.mode === 'shared' ? component.controller
-        : createSceneItemController(model, item.id, component.controller);
+        : createSceneItemController(model, item.id, component.controller, sharedAppearance);
       host.append(geometry, target, parameters);
       stylePanel = mountComponentStyleInspector(parameters, { item, model, component, request: requestStyles, report });
       panel = component.createPanel(parameters, controller);
+      const shared = sharedAppearance?.getState(item) || Object.keys(sharedControllerAppearance(item.type,
+        item.appearance.config || {}, component.controller.getState().draft)).length;
+      hasSharedAppearance = Boolean(shared);
+      if (shared) {
+        const status = previewElement('p', 'hint'); status.setAttribute('role', 'status');
+        const retry = previewElement('button', 'secondary', '重试保存参数'); retry.type = 'button';
+        retry.addEventListener('click', () => { void (controller.getState().dirty ? controller.save?.() : controller.reload?.()); });
+        parameters.append(status, retry);
+        stopStatus = controller.subscribe(state => {
+          status.textContent = componentSaveMessage(state);
+          retry.textContent = state.dirty ? '重试保存参数' : '重新读取参数';
+          retry.hidden = !state.error; retry.disabled = state.saving || state.loading;
+        });
+      }
     }
     if (!item) return;
     stylePanel?.update?.(item, force);
@@ -92,7 +111,8 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     fields.height.max = String(canvas.height);
     target.textContent = item.appearance.mode === 'shared'
       ? '样式与尺寸和默认组件共用；保存并应用后，原单组件地址同步更新。'
-      : '独立组件；保存并应用后可复制此组件的单独地址。';
+      : hasSharedAppearance ? '公共参数与客户端及同样式组件同步；位置、尺寸和图层单独保存。'
+        : '参数和布局保存在当前场景中。';
     target.hidden = false;
   }
   const unsubscribe = model.subscribeSnapshot(() => render());

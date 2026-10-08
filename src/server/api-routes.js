@@ -9,9 +9,13 @@ const { handleSceneOutput, publicRoutes: scenePublicRoutes } = require('./routes
 const { handleComponentPreview } = require('./routes/component-preview-routes');
 const textMediaRoutes = require('./routes/scene-text-media-routes');
 const componentStyleRoutes = require('./routes/component-style-routes');
+const openingPreviewRoutes = require('./routes/opening-preview-routes');
+const sceneAppearanceRoutes = require('./routes/scene-appearance-routes');
 
 // 按前缀顺序匹配；每个模块只关心自己领域的路由表
 const ROUTE_MODULES = [
+  sceneAppearanceRoutes,
+  openingPreviewRoutes,
   componentStyleRoutes,
   textMediaRoutes,
   require('./routes/component-preview-routes'),
@@ -63,6 +67,8 @@ async function handleApi(context, req, res, requestUrl) {
   const method = req.method || 'GET';
   const pathName = requestUrl.pathname;
   if (pathName === '/api/component-preview') return handleComponentPreview(context, req, res, requestUrl);
+  if (pathName === '/api/component-preview/appearance') return sceneAppearanceRoutes.handleCanvasAppearance(context, req, res, requestUrl);
+  if (pathName.startsWith('/api/component-preview/opening/')) return openingPreviewRoutes.handleCanvasOpening(context, req, res, requestUrl);
   if (pathName.startsWith('/api/component-preview/styles/')) return componentStyleRoutes.handleStyles(context, req, res, requestUrl, true);
   if (['/api/component-preview/text-image', '/api/component-preview/text-gifts'].includes(pathName)) {
     return textMediaRoutes.handleCanvasTextMedia(context, req, res, requestUrl);

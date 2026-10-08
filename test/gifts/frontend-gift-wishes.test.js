@@ -10,6 +10,11 @@ const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
 
 async function open(t) {
   const page = await fixture(t, 'wishes');
+  // Imported appearances use the authorized component renderer, covered by the desktop test.
+  await page.route('**/js/admin/gifts/wish-style-preview.js', route => route.fulfill({
+    contentType: 'text/javascript',
+    body: 'export const createWishStylePreview = () => ({ clear() {}, dispose() {} });',
+  }));
   await page.route('**/js/admin/component-preview-dialog.js', (route) => route.fulfill({
     contentType: 'text/javascript',
     body: 'export const openComponentPreview = options => { window.openedComponent = options.id; };',
@@ -288,6 +293,45 @@ test('room picker distinguishes blind boxes and outputs without relationship met
     assert.match(await page.locator('.gift-wish-option').textContent(), new RegExp(label));
     await page.locator('#giftWishPickerClose').click();
   }
+});
+
+test('wish drafts survive cancelled item and period changes and discard only after confirmation', async (t) => {
+  const page = await open(t);
+  await page.evaluate(async () => {
+    const { enhanceSelects } = await import('/js/shared/select-menu.js');
+    enhanceSelects();
+    window.wishData.items = ['one', 'two'].map((id) => ({
+      id, period: 'long', giftId: id, giftName: id, target: 10, count: 0,
+      todayCount: 0, label: '', displayStyle: 'card', giftCategory: 'directGift',
+    }));
+  });
+  await page.locator('#giftWishesRefresh').click();
+  const edit = page.locator('#giftWishCards').getByRole('button', { name: '编辑', exact: true });
+  await edit.first().click();
+  await page.locator('#giftWishTarget').fill('25');
+  await edit.nth(1).click();
+  await page.getByRole('button', { name: '继续编辑', exact: true }).click();
+  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
+  assert.equal(await page.locator('#giftWishTarget').inputValue(), '25');
+  assert.equal(await page.locator('#giftWishSelectedName').textContent(), 'one');
+  await page.getByRole('button', { name: '许愿统计周期', exact: true }).click();
+  await page.getByRole('option', { name: '本日许愿', exact: true }).click();
+  await page.getByRole('button', { name: '继续编辑', exact: true }).click();
+  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
+  assert.equal(await page.locator('#giftWishPeriod').inputValue(), 'long');
+  assert.equal(await page.locator('#giftWishTarget').inputValue(), '25');
+  await edit.nth(1).click();
+  await page.getByRole('button', { name: '放弃修改', exact: true }).click();
+  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
+  assert.equal(await page.locator('#giftWishSelectedName').textContent(), 'two');
+  assert.equal(await page.locator('#giftWishTarget').inputValue(), '10');
+  await page.locator('#giftWishLabel').fill('未保存');
+  await page.getByRole('button', { name: '许愿统计周期', exact: true }).click();
+  await page.getByRole('option', { name: '本日许愿', exact: true }).click();
+  await page.getByRole('button', { name: '放弃修改', exact: true }).click();
+  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
+  assert.equal(await page.locator('#giftWishPeriod').inputValue(), 'day');
+  assert.equal(await page.locator('#giftWishLabel').inputValue(), '');
 });
 
 test('picker marks unresolved room gifts as unavailable until their identity is synced', async (t) => {
@@ -648,6 +692,8 @@ test('wish text chips insert, delete and restore as a whole through native undo 
   await editor.press('Control+z');
   assert.equal((await value()).includes('谢谢大家'), false);
   await page.getByRole('combobox', { name: '许愿统计周期' }).selectOption('day');
+  await page.getByRole('button', { name: '放弃修改', exact: true }).click();
+  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
   await page.getByRole('radio', { name: '文字版', exact: true }).check();
   await editor.press('Control+z');
   assert.equal(await value(), original);

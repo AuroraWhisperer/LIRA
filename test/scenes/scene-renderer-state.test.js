@@ -60,6 +60,25 @@ const connected = events => ({ status: 'connected', epoch: 'one', nextCursor: 2,
 const sceneData = events => ({ danmaku: connected(events) });
 const outputDoc = () => documentOf([item('danmaku', 'independent', { style: 'signal' })]);
 
+test('saved shared appearances update active frames without replaying events or changing layout', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const document = outputDoc();
+  const id = document.items[0].id;
+  f.renderer.update({ version: 1, document, appearances: { [id]: { fullscreenDurationSeconds: 7 } }, data: sceneData([{ message: 'once' }]) });
+  const root = f.host.children[0];
+  const frame = root.children[0];
+  f.complete(frame);
+  f.renderer.update({ version: 1, document: null, appearances: { [id]: { fullscreenDurationSeconds: 12 } }, data: sceneData([]) });
+  f.renderer.update({ version: 1, document: null, appearances: { [id]: { fullscreenDurationSeconds: 12 } }, data: sceneData([]) });
+  assert.equal(f.host.children[0], root);
+  assert.equal(root.children[0], frame);
+  assert.equal(frame.style.left, '0px');
+  const configs = f.messages.get(frame).filter(message => message.type === 'component-preview:config');
+  assert.equal(configs.length, 1);
+  assert.equal(configs[0].config.fullscreenDurationSeconds, 12);
+  assert.deepEqual(f.messages.get(frame).flatMap(message => message.data?.events || []), [{ message: 'once' }]);
+});
+
 test('external browser frames use their viewport, commit on load and never exchange the component protocol', async t => {
   const f = await rendererFixture(); t.after(() => f.renderer.dispose());
   const config = { url: 'https://source.example.test/widget?token=provider', viewportWidth: 800, viewportHeight: 600 };

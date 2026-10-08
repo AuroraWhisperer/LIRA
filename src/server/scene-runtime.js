@@ -8,6 +8,7 @@ const { createSceneComponentPorts } = require('./scene-components');
 const { createSceneExtraDisplay } = require('./scene-extra-display');
 const { createSceneGiftEvents } = require('./scene-gift-events');
 const { createSceneOutputEvents } = require('./scene-output-events');
+const { readSceneSharedAppearances } = require('./scene-shared-appearance');
 
 function createSceneRuntime({ songDb, runtimeOptions, getState, getContext }) {
   const getOwner = runtimeOptions.getSceneOwner || (() => null);
@@ -19,6 +20,12 @@ function createSceneRuntime({ songDb, runtimeOptions, getState, getContext }) {
     events.notify(change);
   }
   const service = createSceneService({ store: createSceneStore(songDb), getOwner,
+    getSharedAppearances: items => {
+      const context = getContext?.() || {};
+      return readSceneSharedAppearances({ ...context,
+        settings: context.settings || { get: () => getState().settings },
+        system: { getState, ...context.system }, readDanmakuDisplay: () => ({ config: cloud.getSettings() }) }, items);
+    },
     onOutputChanged: notify,
     secretCodec: runtimeOptions.sceneSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
     ...createSceneComponentPorts({ getState, cloud,

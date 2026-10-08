@@ -160,7 +160,7 @@
 
 .opening-animation-layout {
   display: grid;
-  grid-template-columns: minmax(390px, 0.82fr) minmax(520px, 1.18fr);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.7fr);
   gap: 16px;
   align-items: start;
 }
@@ -175,6 +175,45 @@
   display: grid;
   gap: 16px;
   padding: 18px;
+}
+.opening-style-picker {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--opening-admin-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.opening-style-picker h3 { margin: 0; font-size: var(--type-size-card-title); }
+.opening-style-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.opening-style-options > button,
+.opening-style-options .component-style-select,
+.opening-style-options .component-style-add {
+  width: auto;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--opening-admin-border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--type-size-control);
+}
+.opening-style-options [aria-pressed='true'] {
+  color: var(--opening-admin-accent-strong);
+  background: var(--opening-admin-accent-soft);
+  border-color: var(--opening-admin-accent);
+}
+.opening-style-options button:focus-visible { outline: 2px solid var(--color-control-focus); outline-offset: 2px; }
+.opening-style-options .component-style-card:has(.component-style-delete) .component-style-select { padding-right: 36px; }
+.opening-style-options .component-style-select span { white-space: normal; }
+#openingAnimationForm,
+#openingImportedSettings { display: grid; gap: 16px; min-width: 0; }
+#openingImportedSettings .component-preview-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+#openingImportedSettings .component-preview-fields > label { display: grid; gap: 6px; color: var(--muted); }
+#openingImportedSettings .component-preview-fields > label:has(input[type='checkbox']) { display: flex; align-items: center; justify-content: space-between; }
+.opening-animation-panel [hidden] { display: none !important; }
+@media (max-width: 1000px) {
+  .opening-animation-layout { grid-template-columns: minmax(0, 1fr); }
 }
 .opening-editor-heading,
 .opening-preview-heading {

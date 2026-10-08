@@ -33,6 +33,8 @@
 
 当前仓库已移除 Check 工作流，发布前在 Windows 和 Node.js 24 环境执行 [发布指南](../../../RELEASE_GUIDE.md) 与本地验证命令。
 
+Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。24.15.0 及更早 24.x 的 TCP 连接存在可能无 JavaScript 错误输出的原生崩溃，修复见 [Node #62561](https://github.com/nodejs/node/pull/62561) 与 [24.16.0 发布记录](https://nodejs.org/en/blog/release/v24.16.0)。可在 `tmp/` 使用校验过官方 SHA-256 的便携运行时并仅为当前命令设置 PATH，不需要重装依赖或修改系统 Node；这不改变桌面使用的 Electron 版本。
+
 `npm run verify` 先实时校验 [契约锁](../../../server-contract.lock.json) 指定的服务器提交和夹具，再运行语法检查（逐文件复用）和完整 `npm test`，后者已包含文档与架构测试。依赖安装必须先结束，验证期间不要重装或修改依赖。服务器检出按显式路径、`LIRA_SERVER_ROOT`、已存在的平级 `lira-server-contract`、平级 `lira-server` 的顺序选择；准备方式与失败语义见 [测试参考](test.md#固定服务器契约输入)。不要为测试重置正在开发的服务器工作区。真实 HTTP 歌库往返由 `npm run verify:roundtrip` 单独执行，要求两边安装依赖。
 
 原生安装器测试需要 `LIRA_TEST_MAKENSIS` 指向 NSIS 的 `makensis.exe`，`LIRA_TEST_NSIS_PLUGINS` 指向包含 `StdUtils.dll` 和 `nsProcess.dll` 的 `x86-unicode` 插件目录；可复用本机 electron-builder 缓存。发布验证应配置这些路径并检查测试汇总，确保安装、迁移和卸载场景实际执行。

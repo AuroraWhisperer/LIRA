@@ -1,3 +1,5 @@
+import { MOONLIT_OPENING_DEFAULTS } from './opening-appearance.js';
+
 const opening = name => `/img/overlays/opening-moon-fan/${name}.webp`;
 const danmaku = name => `/img/overlays/danmaku-moonlit/${name}.webp`;
 const background = '/img/overlays/backgrounds/moonlit.webp';
@@ -13,7 +15,7 @@ export const COMPONENT_RESOURCE_PRESETS = Object.freeze({
     sheets: ['/css/overlays/guard-nautical.css'] },
   'moonlit-background': { type: 'background', config: { style: 'moonlit' }, styles: ['moonlit', 'moonlit-animated'],
     size: [1920, 1080], resources: [background, movie], sheets: [] },
-  'moonlit-opening': { type: 'opening', config: { style: 'moonlit-fan' }, styles: ['moonlit-fan', 'original'],
+  'moonlit-opening': { type: 'opening', config: { style: 'moonlit-fan', ...MOONLIT_OPENING_DEFAULTS }, styles: ['moonlit-fan', 'original'],
     size: [1920, 1080], resources: ['landscape', 'fan', 'title', 'silk', 'flowers-nw', 'flowers-ne', 'flowers-sw',
       'flowers-se', 'crane-body', 'crane-wing-near', 'crane-wing-far', 'jewel-left'].map(opening), sheets: [] },
   'moonlit-clock': { type: 'clock', config: { style: 'moonlit-fan' }, styles: ['moonlit-fan'], size: [580, 380],
@@ -24,7 +26,7 @@ export const COMPONENT_RESOURCE_PRESETS = Object.freeze({
     resources: ['brush', 'captain', 'admiral', 'governor', 'flowers', 'scroll-roller', 'guard-landscape', 'crane'].map(danmaku),
     optionalResources: [danmaku('scroll-landscape')],
     sheets: ['/css/overlays/danmaku/moonlit.css'] },
-  'moonlit-wishes': { type: 'gift-wishes', config: { displayStyle: 'moonlit' }, styles: ['moonlit'], size: [640, 451],
+  'moonlit-wishes': { type: 'gift-wishes', config: { displayStyle: 'moonlit' }, styles: ['moonlit'], size: [640, 143],
     resources: ['/img/shared/gift-wish-moonlit.webp', '/img/shared/gift-wish-moonlit-start.svg'],
     sheets: ['/css/shared/gift-wish-moonlit.css'] },
   'moonlit-lyrics': { type: 'lyrics', config: { style: 'moonlit', desktopLyricFontFamily: '月渡花汀文楷',

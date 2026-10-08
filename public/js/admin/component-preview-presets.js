@@ -4,9 +4,9 @@ import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
 export function mountPreviewPresets(host, { controller, connection, beforeChange, setBusy, report }) {
   const bar = previewElement('div', 'preview-canvas-presets');
-  const label = previewElement('label', '', '预设');
+  const label = previewElement('label', '', '场景');
   const select = previewElement('select');
-  select.setAttribute('aria-label', '场景预设');
+  select.setAttribute('aria-label', '场景');
   label.append(select);
   const live = previewElement('span', 'preview-canvas-live-preset');
   const buttons = [];
@@ -16,8 +16,8 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
   bar.append(label);
   const more = previewElement('button', 'secondary preview-canvas-icon-button preview-canvas-preset-more');
   more.type = 'button';
-  more.title = '预设操作：新建、复制、保存、删除';
-  more.setAttribute('aria-label', '预设操作');
+  more.title = '场景操作：新建、复制、保存、删除';
+  more.setAttribute('aria-label', '场景操作');
   more.setAttribute('aria-haspopup', 'menu');
   more.setAttribute('aria-expanded', 'false');
   more.append(previewToolbarIcon('more'));
@@ -25,7 +25,7 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
   menu.id = 'previewPresetMenu';
   menu.popover = 'auto';
   menu.setAttribute('role', 'menu');
-  menu.setAttribute('aria-label', '预设操作');
+  menu.setAttribute('aria-label', '场景操作');
   more.setAttribute('aria-controls', menu.id);
   more.popoverTargetElement = menu;
   bar.append(more, menu);
@@ -71,11 +71,11 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
       await controller.flush();
       if (change?.action === 'delete') {
         const { document } = controller.getState().draft;
-        if (document.id !== change.id) throw new Error('当前预设已变化，请重新选择后删除。');
+        if (document.id !== change.id) throw new Error('当前场景已变化，请重新选择后删除。');
         const confirmed = await showConfirmationDialog({
-          title: `删除预设“${document.title}”？`,
-          description: '将删除此预设及其未保存修改，无法撤销。正在直播使用的预设和固定直播源会受到保护。',
-          variant: 'destructive', confirmLabel: '删除预设',
+          title: `删除场景“${document.title}”？`,
+          description: '将删除此场景及其未保存修改，无法撤销。正在直播使用的场景和固定直播源会受到保护。',
+          variant: 'destructive', confirmLabel: '删除场景',
         });
         if (!confirmed || disposed) return;
       }
@@ -88,12 +88,12 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
         }
         const state = controller.getState();
         if (state.error || state.dirty) throw new Error(state.error || '仍有未保存修改，请重试。');
-        report('预设已保存，直播画面保持当前场景');
+        report('场景已保存，直播画面保持当前场景');
       } else {
-        report(change.action === 'create' ? (change.duplicate ? '正在复制预设…' : '正在新建预设…')
-          : change.action === 'delete' ? '正在删除预设…' : '正在切换预设…');
+        report(change.action === 'create' ? (change.duplicate ? '正在复制场景…' : '正在新建场景…')
+          : change.action === 'delete' ? '正在删除场景…' : '正在切换场景…');
         await connection.execute('preset', change);
-        if (!disposed) report(change.action === 'delete' ? '预设已删除' : '');
+        if (!disposed) report(change.action === 'delete' ? '场景已删除' : '');
       }
     } catch (error) {
       if (!disposed) report(error.message);
@@ -108,10 +108,10 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
     void run('preset', { action: 'create', title, duplicate });
   }
   select.addEventListener('change', () => { void run('preset', { action: 'select', id: select.value }); });
-  button('新建预设', () => create(false));
-  button('复制预设', () => create(true));
-  button('保存预设', () => { void run('save'); });
-  button('删除预设', () => { void run('preset', { action: 'delete', id: controller.getState().draft.document.id }); }, 'secondary danger');
+  button('新建场景', () => create(false));
+  button('复制场景', () => create(true));
+  button('保存场景', () => { void run('save'); });
+  button('删除场景', () => { void run('preset', { action: 'delete', id: controller.getState().draft.document.id }); }, 'secondary danger');
   bar.append(live);
   host.prepend(bar);
   function render(disabled = false) {

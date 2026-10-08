@@ -1,6 +1,7 @@
 'use strict';
 
 const { normalizeStyleParameters } = require('../shared/component-style-parameters');
+const { CLOCK_APPEARANCE_KEYS, clockStyleOptions } = require('../../public/js/shared/clock-settings.js');
 
 const CLOCK_STYLE_VALUES = new Set([
   'peach',
@@ -22,6 +23,7 @@ const CLOCK_COLOR_DEFAULTS = Object.freeze({
 const CLOCK_SETTING_KEYS = new Set([
   'clockStyle',
   'clockStyleParameters',
+  'clockStyleOptions',
   ...CLOCK_BOOLEAN_SETTING_KEYS,
   'clockHourFormat',
   'clockLabel',
@@ -60,6 +62,10 @@ function normalizeBooleanSetting(value) {
 }
 
 function normalizeClockSettingValue(key, rawValue) {
+  if (key === 'clockStyleOptions') {
+    try { return JSON.stringify(normalizeClockStyleOptions(JSON.parse(String(rawValue)))); }
+    catch { return null; }
+  }
   if (key === 'clockStyleParameters') {
     try { return JSON.stringify(normalizeStyleParameters('clock', JSON.parse(String(rawValue)))); }
     catch { return null; }
@@ -92,7 +98,7 @@ function normalizeClockSettingValue(key, rawValue) {
 
 function getClockConfig(settings = {}) {
   const style = normalizeClockSettingValue('clockStyle', settings.clockStyle) || 'peach';
-  return {
+  const config = {
     style,
     ...(settings.clockStyleParameters === undefined ? {} : { styleParameters:
       JSON.parse(normalizeClockSettingValue('clockStyleParameters', settings.clockStyleParameters) || '{}') }),
@@ -109,6 +115,22 @@ function getClockConfig(settings = {}) {
     moonMode: normalizeClockSettingValue('clockMoonMode', settings.clockMoonMode) || 'light',
     moonIntervalSeconds: Number(normalizeClockSettingValue('clockMoonIntervalSeconds', settings.clockMoonIntervalSeconds) || 30),
   };
+  if (settings.clockStyleOptions === undefined) return config;
+  const options = clockStyleOptions(config, JSON.parse(normalizeClockSettingValue('clockStyleOptions', settings.clockStyleOptions) || '{}'));
+  return { ...config, ...options[style], styleOptions: options };
+}
+
+function normalizeClockStyleOptions(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('时钟样式参数无效。');
+  return Object.fromEntries(Object.entries(value).map(([style, fields]) => {
+    if (!CLOCK_STYLE_VALUES.has(style) || !fields || typeof fields !== 'object' || Array.isArray(fields)) throw new Error('时钟样式参数无效。');
+    return [style, Object.fromEntries(Object.entries(fields).map(([field, input]) => {
+      if (!Object.hasOwn(CLOCK_APPEARANCE_KEYS, field)) throw new Error('时钟样式参数无效。');
+      const normalized = normalizeClockSettingValue(CLOCK_APPEARANCE_KEYS[field], input);
+      if (normalized === null) throw new Error('时钟样式参数无效。');
+      return [field, field.startsWith('show') ? normalized === 'true' : field === 'moonIntervalSeconds' ? Number(normalized) : normalized];
+    }))];
+  }));
 }
 
 module.exports = {
@@ -118,4 +140,5 @@ module.exports = {
   cleanClockLabel,
   getClockConfig,
   normalizeClockSettingValue,
+  normalizeClockStyleOptions,
 };

@@ -40,11 +40,12 @@ async function handleStyles(context, req, res, url, canvas = false) {
       data = await library.add(req, description, authorize);
     } else if (action === 'inspect') data = await library.inspect(req, authorize);
     else {
-      const body = await readJsonBody(req, 4096);
+      const body = await readJsonBody(req, action === 'config' ? 64 * 1024 : 4096);
       authorize();
-      if (!['install', 'remove', 'remove-pack', 'cancel'].includes(action)) return sendJson(res, 404, { ok: false });
-      data = await library[action](body?.id, authorize);
+      if (!['install', 'remove', 'remove-pack', 'cancel', 'config'].includes(action)) return sendJson(res, 404, { ok: false });
+      data = await library[action](action === 'config' ? body : body?.id, authorize);
     }
+    if (action === 'config') context.broadcastSnapshot?.('component:styles');
     return sendJson(res, 200, { ok: true, data });
   } catch (error) {
     const status = [400, 403, 404, 409, 410, 413, 503].includes(error.statusCode) ? error.statusCode : 400;
@@ -52,7 +53,7 @@ async function handleStyles(context, req, res, url, canvas = false) {
   }
 }
 
-const actions = ['list', 'add', 'web', 'pick-web', 'inspect', 'install', 'remove', 'remove-pack', 'cancel'];
+const actions = ['list', 'add', 'web', 'pick-web', 'inspect', 'install', 'remove', 'remove-pack', 'cancel', 'config'];
 const routes = Object.fromEntries(actions.map(action => [`${action === 'list' ? 'GET' : 'POST'} /api/component-styles/${action}`,
   (context, request, res) => handleStyles(context, request.req, res, new URL(request.req.url, `http://${request.req.headers.host}`))]));
 const publicRoutes = Object.fromEntries(actions.map(action => [`${action === 'list' ? 'GET' : 'POST'} /api/component-preview/styles/${action}`,

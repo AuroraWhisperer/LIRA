@@ -31,10 +31,18 @@ const FRAME_SETTING_KEYS = new Set([
   'giftFrameThresholdRmb',
 ]);
 const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTextMode', 'guardThanksStyle',
-  'guardThanksAuroraEnabled', 'guardThanksAuroraTextMode', 'guardThanksClassicEnabled', 'guardThanksClassicTextMode']);
+  'guardThanksAuroraEnabled', 'guardThanksAuroraTextMode', 'guardThanksClassicEnabled', 'guardThanksClassicTextMode', 'guardThanksNauticalEnabled']);
 const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline']);
 
 function normalizeSettingValue(key, rawValue) {
+  if (['blindboxWinnersOnly', 'blindboxHeartBoxOnly'].includes(key)) {
+    return [true, false, 'true', 'false'].includes(rawValue) ? String(rawValue) : null;
+  }
+  if (key === 'blindboxOverlayTop') {
+    const value = Number(rawValue);
+    return ['string', 'number'].includes(typeof rawValue) && String(rawValue).trim() !== ''
+      && Number.isInteger(value) && value >= -1 && value <= 10 ? String(value) : null;
+  }
   if (Object.hasOwn(INTERACTION_APPEARANCE_DEFAULTS, key)) return normalizeInteractionAppearanceValue(key, rawValue);
   if (key === 'weSingCachePath' || key === 'weSingLyricOffsetMs') {
     try {
@@ -71,6 +79,15 @@ function normalizeSettingValue(key, rawValue) {
   }
   if (key === 'openingTrackMotion') return normalizeOpeningTrackMotion(rawValue);
   if (key === 'openingStyle') return normalizeOpeningStyle(rawValue);
+  if (key === 'openingPixelQuality') return ['normal', 'high', 'low'].includes(rawValue) ? rawValue : null;
+  if (['openingPixelShowNotes', 'openingPixelShowEq'].includes(key)) {
+    return [true, false, 'true', 'false'].includes(rawValue) ? String(rawValue) : null;
+  }
+  if (key === 'openingPixelAudioVolume') {
+    const value = Number(rawValue);
+    return ['string', 'number'].includes(typeof rawValue) && String(rawValue).trim() !== ''
+      && Number.isFinite(value) && value >= 0 && value <= 1 ? String(value) : null;
+  }
   if (key === 'roomId') {
     const value = normalizeRoomInput(rawValue);
     return String(rawValue || '').trim() && !value ? null : value;

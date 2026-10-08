@@ -149,6 +149,32 @@ test('refresh step spotlights the live-room status together with the refresh but
   assert.match(js, /document\.querySelectorAll\(selector\)/);
 });
 
+test('tour waits for the saved room and an actually connected live status', async () => {
+  const window = {};
+  const roomInput = { value: '12345' };
+  let liveClass = '';
+  const liveStatus = { classList: { contains: (name) => name === liveClass } };
+  const config = await loadModuleExports(
+    path.join(__dirname, '../..', 'public/js/admin/interactive-tour-config.js'),
+    {
+      window,
+      document: { getElementById: (id) => id === 'roomId' ? roomInput : liveStatus },
+      fetch: async () => ({ json: async () => ({ ok: true, data: { settings: { roomId: '12345' } } }) }),
+    },
+  );
+  const roomStep = config.TOUR_CONFIG_STEPS.find((step) => step.id === 'room-id');
+  const liveStep = config.TOUR_CONFIG_STEPS.find((step) => step.id === 'refresh-live');
+  assert.equal(roomStep.checkCompleted(), false);
+  await window.AdminApp.state.reloadState();
+  assert.equal(roomStep.checkCompleted(), true);
+  roomInput.value = '67890';
+  assert.equal(roomStep.checkCompleted(), false);
+  for (const status of ['', 'warn', 'good']) {
+    liveClass = status;
+    assert.equal(liveStep.checkCompleted(), status === 'good');
+  }
+});
+
 test('tour uses an accessible styled exit confirmation instead of the native dialog', () => {
   const js = fs.readFileSync(path.join(__dirname, '../..', 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
   const css = fs.readFileSync(

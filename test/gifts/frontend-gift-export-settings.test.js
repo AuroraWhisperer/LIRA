@@ -13,6 +13,9 @@ async function openExport(t) {
   const page = await fixture(t, 'gift-display');
   await page.setContent(historyHtml);
   await page.evaluate(async () => {
+    const drawer = document.getElementById('giftHistoryDrawer');
+    drawer.inert = false;
+    drawer.setAttribute('aria-hidden', 'false');
     const items = [1, 2].map((num) => ({
       eventId: String(num),
       gift: {
@@ -55,7 +58,8 @@ async function openExport(t) {
         if (options.directoryAction)
           task.root = options.directoryAction === 'choose' ? 'Chosen/Gifts' : 'Pictures/LIRA';
         if (options.remember) window.exportDefaults.root = task.root;
-        task.directory = task.root + '/batch';
+        task.directory = task.root + (task.attempted ? '/retry-batch' : '/batch');
+        task.attempted = false;
         return { ok: true, data: describe() };
       },
       async settings(options) {
@@ -64,6 +68,8 @@ async function openExport(t) {
       },
       async save(id) {
         window.savedExportId = id;
+        task.attempted = true;
+        if (window.exportFailure) return window.exportFailure;
         return { ok: true, saved: describe().files.length };
       },
       onProgress() {
@@ -138,4 +144,21 @@ test('failed settings restore the current format and pending settings cannot exp
   await page.evaluate(() => window.finishConfigure());
   assert.equal(await page.locator('#giftExportPanel').isHidden(), true);
   assert.equal(await page.evaluate(() => window.exportDefaults.mode), 'combined');
+});
+
+test('failed gift exports can retry in a new batch while keeping the original saved files', async (t) => {
+  const page = await openExport(t);
+  await page.evaluate(() => { window.exportFailure = { ok: false, saved: 1, error: '图片生成失败' }; });
+  await page.locator('#giftExportSave').click();
+  await page.getByRole('button', { name: '重新导出', exact: true }).waitFor();
+  assert.equal(await page.locator('#giftExportSave').isEnabled(), true);
+  assert.equal(await page.locator('#giftExportOpenFolder').isVisible(), true);
+  assert.match(await page.locator('#giftExportStatus').textContent(), /已保存 1 张，文件已保留/);
+  assert.match(await page.locator('#giftExportStatus').textContent(), /新文件夹/);
+  await page.evaluate(() => { window.exportFailure = null; });
+  await page.locator('#giftExportSave').click();
+  await page.waitForFunction(() => document.getElementById('giftExportStatus').dataset.state === 'success');
+  assert.deepEqual(await page.evaluate(() => window.exportCalls), [{ id: '1', mode: 'combined', background: 'transparent' }]);
+  assert.equal(await page.locator('#giftExportDirectory').textContent(), 'Pictures/LIRA/retry-batch');
+  assert.equal(await page.locator('#giftExportSave').isDisabled(), true);
 });

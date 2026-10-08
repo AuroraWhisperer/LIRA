@@ -263,6 +263,9 @@ export class PlaybackBar {
     document.querySelectorAll('.source-tab').forEach((button) => {
       const shouldBeActive = button.dataset.source === selectedSource;
       button.classList.toggle('active', shouldBeActive);
+      button.setAttribute('aria-selected', String(shouldBeActive));
+      button.tabIndex = shouldBeActive ? 0 : -1;
+      if (shouldBeActive) document.getElementById('playbackSourcePanel')?.setAttribute('aria-labelledby', button.id);
       console.log(`[PlaybackBar] Tab ${button.dataset.source}: active=${shouldBeActive}`);
     });
 

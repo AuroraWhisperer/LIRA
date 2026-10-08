@@ -87,8 +87,8 @@ test('song board protects paired fields and enhanced selects through old snapsho
 });
 
 test('standalone theme hydrates every pair and preserves inheritance, custom black and failed edits', async (t) => {
-  const pairs = { songBoardThemeOpacity: '0', songBoardBackdropBlur: '14', songBoardGlowIntensity: '8',
-    songBoardSongFontSize: '24', songBoardTitleFontSize: '22' };
+  const pairs = { songBoardThemeOpacity: '0.48', songBoardBackdropBlur: '14', songBoardGlowIntensity: '8',
+    songBoardSongFontSize: '72', songBoardTitleFontSize: '80' };
   const page = await fixture(t, { songBoardSyncTheme: 'false', ...pairs });
   for (const [key, value] of Object.entries(pairs)) {
     assert.equal(await page.locator(`#${key}`).inputValue(), value);

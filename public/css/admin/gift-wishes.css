@@ -168,10 +168,9 @@
   font-size: 12px;
 }
 .gift-wish-styles {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--spacing-sm);
-  max-width: 480px;
 }
 .gift-wish-styles label {
   position: relative;
@@ -187,7 +186,7 @@
   opacity: 0;
   cursor: inherit;
 }
-.gift-wish-styles span {
+.gift-wish-styles label > span {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -216,6 +215,38 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+.gift-wish-styles label,
+.gift-wish-styles .component-style-card,
+.gift-wish-styles .component-style-add {
+  min-width: 112px;
+}
+.gift-wish-styles .component-style-select,
+.gift-wish-styles .component-style-add {
+  width: auto;
+  min-height: 40px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  box-shadow: none;
+}
+.gift-wish-styles .component-style-select[aria-pressed='true'] {
+  border-color: var(--primary);
+  background: var(--color-primary-light);
+  color: var(--primary-strong);
+  font-weight: 600;
+}
+.gift-wish-styles .component-style-card:has(.component-style-delete) .component-style-select {
+  padding-right: 36px;
+}
+.gift-wish-styles .component-style-delete {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.gift-wish-styles .component-style-select:focus-visible,
+.gift-wish-styles .component-style-add:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
 .gift-wish-draft {
   min-width: 0;
   padding: var(--spacing-md);
@@ -241,6 +272,38 @@
 }
 .gift-wish-draft-preview > .wish-card {
   max-width: 440px;
+}
+.gift-wish-draft-preview.has-imported-style {
+  justify-items: stretch;
+}
+.gift-wish-style-preview {
+  position: relative;
+  height: 200px;
+}
+.gift-wish-style-preview .component-preview-display {
+  height: 100%;
+  padding: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+.gift-wish-style-preview .component-preview-toolbar,
+.gift-wish-style-preview .component-preview-output,
+.gift-wish-style-preview .component-preview-dimensions {
+  display: none;
+}
+.gift-wish-style-preview .component-preview-stage {
+  background: transparent;
+}
+.gift-wish-style-preview .component-preview-frame {
+  inset: 50% auto auto 50%;
+  translate: -50% -50%;
+  transform-origin: center;
+}
+.gift-wish-style-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 .gift-wish-pick {
   display: flex;

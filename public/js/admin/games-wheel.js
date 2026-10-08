@@ -4,6 +4,8 @@ import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast }
 
 let wheelState = null;
 let wheelLimits = null;
+let savedEntries = '';
+let pending = false;
 
 export function initWheelAdmin() {
   byId('wheelCardTrigger').addEventListener('click', toggleWheelDetails);
@@ -25,6 +27,7 @@ async function refreshWheel() {
 }
 
 export function renderWheelState(state, options = {}) {
+  const syncEntries = options.syncEntries || !hasWheelDraft();
   wheelState = state || {
     entries: [],
     totalWeight: 0,
@@ -32,27 +35,51 @@ export function renderWheelState(state, options = {}) {
     lastResult: null,
   };
   if (state?.limits) wheelLimits = state.limits;
-  if (options.syncEntries) renderWheelEntries(wheelState.entries || []);
+  const entries = wheelState.entries?.length ? wheelState.entries
+    : Array.from({ length: wheelLimits?.minEntries || 0 }, () => ({ label: '', weight: wheelLimits.minWeight }));
+  savedEntries = JSON.stringify(entries.map((entry) => ({ label: String(entry.label || '').trim(), weight: Number(entry.weight) })));
+  if (syncEntries) {
+    renderWheelEntries(entries);
+  }
+  updateWheelTotal();
   const spinning = Boolean(wheelState.spin);
-  const entryCount = (wheelState.entries || []).length;
-  const canSpin = Boolean(wheelLimits) && entryCount >= wheelLimits.minEntries && !spinning;
-  byId('wheelSpinBtn').disabled = !canSpin;
-  byId('wheelSaveBtn').disabled = spinning;
-  byId('wheelAddEntryBtn').disabled = spinning || !wheelLimits || entryCount >= wheelLimits.maxEntries;
-  byId('wheelStatus').textContent = spinning
-    ? '转盘正在转动…'
-    : wheelState.lastResult?.label
-      ? `上次抽中：${wheelState.lastResult.label}`
-      : canSpin
-        ? '设置已就绪，可以开始转动'
-        : '至少配置两个选项后开始';
   byId('wheelCardResult').textContent = spinning
     ? '转盘转动中…'
     : wheelState.lastResult?.label
       ? `抽中：${wheelState.lastResult.label}`
       : '尚未抽取';
-  byId('wheelTotalWeight').textContent = `总份数 ${Number(wheelState.totalWeight) || 0}`;
   document.querySelector('[data-wheel-card]').classList.toggle('is-running', spinning);
+}
+
+function hasWheelDraft() {
+  return Boolean(savedEntries) && JSON.stringify(readWheelEntries()) !== savedEntries;
+}
+
+function updateWheelControls() {
+  const spinning = Boolean(wheelState?.spin);
+  const locked = spinning || pending;
+  const dirty = hasWheelDraft();
+  const rows = byId('wheelEntries').children;
+  const canSpin = Boolean(wheelLimits) && (wheelState?.entries || []).length >= wheelLimits.minEntries;
+  byId('wheelSpinBtn').disabled = locked || dirty || !canSpin;
+  byId('wheelSaveBtn').disabled = locked;
+  byId('wheelAddEntryBtn').disabled = locked || !wheelLimits || rows.length >= wheelLimits.maxEntries;
+  for (const row of rows) {
+    row.querySelector('.wheel-label-input').disabled = locked;
+    row.querySelector('.wheel-weight-input').disabled = locked;
+    row.querySelector('.wheel-remove-entry').disabled = locked || rows.length <= wheelLimits.minEntries;
+  }
+  byId('wheelStatus').textContent = spinning
+    ? '转盘正在转动…'
+    : pending
+      ? '正在处理…'
+      : dirty
+        ? '选项有未保存的修改，请先保存再开始转动'
+        : wheelState?.lastResult?.label
+          ? `上次抽中：${wheelState.lastResult.label}`
+          : canSpin
+            ? '设置已就绪，可以开始转动'
+            : '至少配置两个选项后开始';
 }
 
 function toggleWheelDetails() {
@@ -119,7 +146,7 @@ function renderWheelEntries(entries) {
 }
 
 function addWheelEntry() {
-  if (!wheelLimits) return;
+  if (!wheelLimits || pending || wheelState?.spin) return;
   const rows = byId('wheelEntries').children;
   if (rows.length >= wheelLimits.maxEntries) return;
   const entries = readWheelEntries();
@@ -149,19 +176,34 @@ function updateWheelTotal() {
     0,
   );
   byId('wheelTotalWeight').textContent = `总份数 ${total}`;
+  updateWheelControls();
 }
 
 async function saveWheel() {
-  const result = await api('/api/wheel/config', {
-    entries: readWheelEntries(),
-  });
-  renderWheelState(result.data, { syncEntries: true });
-  toast('转盘设置已保存');
+  if (pending || wheelState?.spin) return;
+  pending = true;
+  updateWheelControls();
+  try {
+    const result = await api('/api/wheel/config', { entries: readWheelEntries() });
+    renderWheelState(result.data, { syncEntries: true });
+    toast('转盘设置已保存');
+  } finally {
+    pending = false;
+    updateWheelControls();
+  }
 }
 
 async function spinWheel() {
-  const result = await api('/api/wheel/spin');
-  renderWheelState(result.data);
+  if (hasWheelDraft() || pending || wheelState?.spin) return;
+  pending = true;
+  updateWheelControls();
+  try {
+    const result = await api('/api/wheel/spin');
+    renderWheelState(result.data);
+  } finally {
+    pending = false;
+    updateWheelControls();
+  }
 }
 
 function wheelOverlayUrl() {

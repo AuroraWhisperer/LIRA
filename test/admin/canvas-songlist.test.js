@@ -28,13 +28,33 @@ test('song board parameters reach the canvas renderer and persist into the live 
   const edit = async (key, value) => {
     const field = page.locator(`[data-component-parameter="${key}"]`);
     const kind = await field.evaluate(input => input.tagName === 'SELECT' ? 'select' : input.type);
-    if (kind === 'select') await field.selectOption(value);
-    else if (kind === 'color') await field.evaluate((input, value) => {
-      input.value = value;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }, value);
+    const shared = Object.hasOwn(fixture.runtime.settings, key);
+    const saved = shared ? page.waitForResponse(response => response.url().includes('/api/component-preview/appearance?')
+      && response.request().postDataJSON()?.patch?.[key] === value).catch(error => ({ error })) : null;
+    if (kind === 'select') {
+      const title = await field.locator(`option[value="${value}"]`).textContent();
+      const trigger = field.locator('..').getByRole('button').first();
+      if (await trigger.count()) {
+        await trigger.click();
+        await page.getByRole('option', { name: title, exact: true }).click();
+      } else await field.selectOption(value);
+    }
+    else if (kind === 'checkbox') await field.setChecked(value === 'true');
+    else if (kind === 'color') {
+      const inherit = field.locator('..').locator('input[type="checkbox"]');
+      if (await inherit.count()) await inherit.uncheck();
+      await field.evaluate((input, value) => {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }, value);
+    }
     else { await field.fill(value); await field.press('Tab'); }
-    await desktop.waitForFunction(({ key, value }) =>
+    if (shared) {
+      const response = await saved;
+      if (response.error) throw new Error(`Shared save failed: ${key}=${value}, saved=${fixture.runtime.settings[key]}, input=${await field.inputValue()}`, { cause: response.error });
+      assert.equal(response.status(), 200, JSON.stringify(await response.json()));
+      assert.equal(fixture.runtime.settings[key], value);
+    } else await desktop.waitForFunction(({ key, value }) =>
       window.controllers.canvas.getState().draft.document.items[0]?.appearance.config[key] === value, { key, value });
   };
   const renderedStyle = async (selector, key, expected) => {
@@ -44,6 +64,7 @@ test('song board parameters reach the canvas renderer and persist into the live 
     }, { selector, key, expected });
   };
   assert.equal(await page.locator('[data-component-parameter="songBoardThemePrimary"]').count(), 0);
+  await edit('songBoardSyncTheme', 'false');
   await edit('songBoardTitle', '我的展示板');
   await frame.getByText('我的展示板', { exact: true }).waitFor();
   await edit('songBoardSortMode', 'category');
@@ -95,8 +116,9 @@ test('song board parameters reach the canvas renderer and persist into the live 
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
   const config = saved.document.items[0].appearance.config;
-  assert.equal(config.scrollSeconds, '15');
-  assert.equal(config.songBoardFontWeight, '800');
+  assert.equal(config.category, '流行');
+  assert.equal(fixture.runtime.settings.scrollSeconds, '15');
+  assert.equal(fixture.runtime.settings.songBoardFontWeight, '800');
   const source = fixture.service.getSource(saved.document.id);
   const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
   assert.equal((await fetch(outputUrl)).status, 200);

@@ -17,6 +17,7 @@
 | 管理端点 | 绑定画布端点 | 请求与结果 |
 | --- | --- | --- |
 | `GET /api/component-styles/list` | `GET /api/component-preview/styles/list` | 返回包数组；包含 `id/name/packageId?/version?/bytes/createdAt/styles/isSuite`，样式含 `id/type/name/config`；过滤已移除包及样式；套装分类基于完整历史成员，不受逐项移除或新版减少成员影响 |
+| `POST /api/component-styles/config` | `POST /api/component-preview/styles/config` | JSON `{id,patch}`（至多 64 KiB），修改已安装资源型样式的共享外观；禁止替换 `resourceStyle/mediaStyle/cssStyle`，合并后通过场景配置合同校验并原子保存；返回样式 `{id,type,name,config}`。第三方媒体/网页/CSS 不支持此操作，已移除样式返回 404；同 ID 的画布及发布实例跟随新值，场景 JSON 不批量改写 |
 | `POST /api/component-styles/add` | `POST /api/component-preview/styles/add` | 原始媒体 bytes；查询 `description` 为 URL 编码 JSON `{type,filename,name,width,height,media?}`。校验并安装一个样式，返回包 |
 | `POST /api/component-styles/web` | `POST /api/component-preview/styles/web` | 查询 `description` 为 URL 编码 JSON `{type,entry,name?,width?,height?}`；请求体第一行为 UTF-8 JSON 数组 `[{path,size}]` 加换行，随后按顺序拼接各文件 bytes。验证配套资源并原子安装，返回包 |
 | `POST /api/component-styles/pick-web` | `POST /api/component-preview/styles/pick-web` | JSON `{kind:"html"或"css",description:{type,name?,width?,height?}}`；主进程打开文件选择器并复制配套目录，renderer 不提供磁盘路径。取消返回 `data:null`；无桌面选择器返回 503 与 `code:"FILE_PICKER_UNAVAILABLE"`，供显式文件/文件夹选择回退 |
@@ -34,6 +35,14 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 
 `GET/HEAD /component-media/<包 UUID>/<SHA-256>.<扩展名>` 提供匿名本机媒体读取，保留原 Host 闸门；严格匹配路径，拒绝链接及非普通文件。支持单段 byte Range（206/416）、正确 MIME、nosniff、immutable 缓存和浏览器源所需 CORS。SVG 额外使用 `sandbox; default-src 'none'; style-src 'unsafe-inline'` CSP，禁止导航执行脚本或请求外部资源；WOFF2 使用 font/woff2。素材没有目录枚举接口。持久化见[存储合同](storage.md#本地组件样式库)，清单格式见[作者指南](../../guides/component-style-packages.md)。
 
+### 画布共享参数
+
+`POST /api/component-preview/appearance?id=…&attachmentId=…` 要求当前已连接 canvas 会话的 Bearer；拒绝管理 token、其他组件能力、外站及 opaque Origin，读取请求体后再次授权。JSON 最大 2 MiB，响应 `{ok:true,data}`，禁止缓存。
+
+- `{action:'read',items:[{type,config}]}`：最多 100 项，逐项使用场景配置合同验证；返回以 `sceneAppearanceKey(type,config)` 为键的公共参数。
+- `{action:'patch',type,config,patch}`：只写入该样式已公开的公共字段。资源型样式复用库 config 校验；礼物滚动复用礼物显示配置校验；展示板、歌词、互动、盲盒、开播和感谢语言复用各自 settings 键。全部补丁校验后再写入；禁止业务字段及素材身份替换。
+- 原生 clock/queue/danmaku/overtime 的写入仍通过已有桌面会话控制器；此入口不能代替远端弹幕授权。保存广播 settings 更新；失败保留客户端草稿。400 参数无效，403 权限或 Origin 无效，404 样式已移除，409 接管冲突，410 会话失效，413 体积超限，503 暂不可用。
+
 ### 浏览器组件预览
 
 `POST /api/component-preview` 由 [component-preview-routes.js](../../../src/server/routes/component-preview-routes.js) 处理，响应 `{ok:true,data}`。这是客户端与默认浏览器之间的临时配置会话；组件保存与绑定场景的发布、来源读取，由创建会话的客户端控制器调用已有领域 owner 处理。
@@ -42,7 +51,7 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 
 兼容旧 `/component-preview` 页面和 43 字符短入口的解析。旧 query `component` 与 fragment 的 `id`/`token` 表示初始组件，`components` 携带其他组件的 `{component,id,token,draftKey}` 数组，`canvas` 携带独立场景会话；旧 fragment `size` 及 query `size=<宽>x<高>` 仍可读取。场景编辑仅传递 `{document}` 草稿，客户端适配器固定场景 ID，浏览器不能替换绑定 ID、创建或轮换场景凭据。缺少场景会话的旧链接仍可保存组件参数，但公共布局须从客户端重新打开后保存。短入口在同标签 sessionStorage 中仅缓存组件名及恢复用 draftKey，缓存键使用入口能力的 SHA-256；不缓存明文入口能力或组件 token。已断开页面刷新时仍可只读查看该标签的本地恢复草稿。
 
-“保存并应用”只等待当前场景及其共享外观 owner 的浏览器编辑被客户端确认，再同步预检、冻结并批量保存这些 owner，最后按 revision 发布组合画面；独立实例不依赖其类型的默认配置，无关默认草稿不保存。全部保存结束后再次检查参与者的读取、保存、冲突、草稿和账号代际状态，以及本次场景保存的规范化结果与 revision；任一失败或出现新的并发修改均停止发布，保留已成功保存的部分。发布请求发出后的后续编辑留作下次草稿。`publish`/`source` 仅允许 canvas 能力排队，结果通过该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。编辑页在显式复制时读取来源，拼成 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源能力>`；客户端地址目录在首次读取、页签点击、窗口 focus 及 `scene:published` 后刷新，未发布场景仍提示先保存并应用。后续正常保存和发布沿用该地址，来源能力不进入文档或模板。
+“保存并应用”只等待当前场景及其共享外观 owner 的浏览器编辑被客户端确认，再同步预检、冻结并批量保存这些 owner，最后按 revision 发布组合画面；原生时钟、队列、弹幕和加班机的独立实例也参与对应公共 owner 的保存，无关默认草稿不保存。全部保存结束后再次检查参与者的读取、保存、冲突、草稿和账号代际状态，以及本次场景保存的规范化结果与 revision；任一失败或出现新的并发修改均停止发布，保留已成功保存的部分。发布请求发出后的后续编辑留作下次草稿。`publish`/`source` 仅允许 canvas 能力排队，结果通过该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。编辑页在显式复制时读取来源，拼成 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源能力>`；客户端地址目录在首次读取、页签点击、窗口 focus 及 `scene:published` 后刷新，未发布场景仍提示先保存并应用。后续正常保存和发布沿用该地址，来源能力不进入文档或模板。
 
 除只用于解析的短入口能力外，每个组件请求只使用目标会话自己的凭据，能力不可互换。多个图层同时保留各自 renderer，选中组件只切换参数面板。客户端再次进入预览时，先通过管理端 `focus` 请求已连接页面定位组件；网页在当前画布中选中现有实例，缺少对应组件时沿用原添加逻辑，保留场景、其他图层与未保存草稿。当前 attachment 确认收到后不再打开标签页；尚无 attachment 或两秒内未确认时打开稳定短入口。网页刷新/离开只释放当前页面资源；新页面接管后，旧页面可刷新继续编辑。显式 close 时各会话分别处理已接受命令并撤销，不提前撤销其他会话的待保存操作。
 
@@ -98,11 +107,11 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 | `POST /api/scenes/create` | `{title,canvas:{width,height}}` | 空场景管理 DTO，凭据仅加密保存 |
 | `POST /api/scenes/save` | `{id,expectedRevision,document}` | 更新草稿并递增 revision，不改变已发布版；旧 revision 返回 409 |
 | `POST /api/scenes/delete` | `{id,expectedRevision}` | 删除当前账号的指定预设，返回 `{id}`；版本冲突、固定输出预设或正在使用的预设返回 409，不存在或跨账号返回 404。保留画布绑定、直播输出和其他预设 |
-| `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 固定所有有效外观后原子发布，递增 publishedVersion；编辑器传共享类型外观快照确认，缓存尚未同步或已变化返回 503；失败保留旧版 |
+| `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 原子发布布局、样式选择及场景自有字段，递增 publishedVersion；旧 shared 模式传外观快照确认，缓存尚未同步或已变化返回 503；失败保留旧版布局，共享参数继续跟随各 owner 已保存值 |
 | `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源；事务检查预设 revision 和来源 publishedVersion，提交发布快照、当前预设和共享尺寸；任一冲突返回 409、失败保留旧输出 |
 | `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds}`，itemIds 为已发布实例 ID，仅显式复制来源使用 |
 | `POST /api/scenes/rotate` | `{id}` | 新 `{id,token}`，旧凭据立即失效 |
-| `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?` 查询；场景 Bearer | `{sceneId,version,projection,document,data}`；相同发布版本 document 为 null；item 可选 UUID 只投影该发布实例，移至原点并使用保存宽高；凭据权限仍属于整个场景 |
+| `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?` 查询；场景 Bearer | `{sceneId,version,projection,document,data,appearances}`；相同发布版本 document 为 null，appearances 仍按已发布 item ID 返回当前共享字段；item 可选 UUID 只投影该发布实例，移至原点并使用保存宽高；凭据权限仍属于整个场景 |
 | `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
 | `GET /api/scene/events` | `id,version,item?,projection?` 查询；场景 Bearer | `text/event-stream`，仅通知 `ready` / `change` / `revoked` 与注释心跳；数据仍从 output 读取；本地运行时最多四条连接，超限 429 |
 | `OPTIONS /api/scene/events` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
@@ -295,6 +304,10 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 `GET /api/opening/config` 的 `style` 字段返回 `classic` 或 `pixel-cassette`，缺省及非法保存值回退 `classic`；
 opening 页面能力的只读投影包含该字段。管理端通过现有设置接口保存 `openingStyle`，非法枚举返回 400。
 
+内置样式各自拥有参数：原 `opening*` 参数仍属于经典舞台；像素卡带使用 `openingPixelQuality`、`openingPixelShowNotes`、`openingPixelShowEq`、`openingPixelAudioVolume` 以及独立音乐文件/名称。配置顶层表示当前内置样式，`styles.classic` 与 `styles['pixel-cassette']` 提供各自清洗后的配置，固定样式的画布图层与 URL 覆盖读取对应项。页面能力中的 styles 只投影显示字段和当前媒体 URL，不含文件路径或原始文件名；总开关仍是共同的 `openingEnabled`。
+
+资源开播样式的 `config` 可携带 `title/subtitle/name/footer/quality/trackMotion/showNotes/showEq`（按原生渲染器显示实际支持的字段）。旧稀疏场景不强制补齐这些字段。`moonlit-opening` 导入时合并自己的默认文案与装饰配置，包内显式 config 优先；旧资源样式缺字段时同样回退月渡花汀默认值，不读取经典文案或音乐。
+
 | 端点                            | 请求                                                                                                  | 响应(data)                                                                                                                                                                    | 错误码                                         |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `GET /api/opening/config`       | 无；管理身份或 opening 页面能力                                              | 已清洗的文案、画质、开关、音量、轨道动效 `trackMotion`(`heart`/`barber`/`progress`)、当前音频与人物图 URL；未上传或文件缺失时对应 URL/名称为空且 `hasUploaded` 标志为 false，非法轨道值回退 `heart` | —                                              |
@@ -303,12 +316,25 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 | `POST /api/opening/character`   | `multipart/form-data`，字段 `file`；内容 ≤ 16 MB，扩展名限 `.png/.jpg/.jpeg/.webp` 且必须匹配图片签名 | 保存至 data 目录下 `opening-character/` 并将其设为当前人物图                                                                                                                  | 400(缺少、不支持或签名不匹配)、413(请求体超限) |
 | `DELETE /api/opening/character` | 无                                                                                                    | 清除当前人物图选择，回到无人物图状态；保留已上传文件                                                                                                                           | —                                              |
 
-上传文件使用随机文件名；音频和人物图分别只允许当前设置指向的文件通过 `/opening-media/` 与 `/opening-character/` 读取，原始文件名仅作为界面显示文本。本节写接口仅管理身份可用；opening 页面能力只能读取裁剪后的配置。
+上传文件使用随机文件名；音频和人物图分别只允许当前设置指向的文件通过 `/opening-media/` 与 `/opening-character/` 读取，原始文件名仅作为界面显示文本。`/api/opening/*` 写接口仅管理身份可用；opening 页面能力只能读取裁剪后的配置。
 
 人物图上传与清除可携带查询参数 `style=pixel-cassette`，操作动画 2 独立的头像；省略或指定 `classic`
 仍操作经典舞台人物图，非法样式返回 400。两种样式的素材互不覆盖，未上传时均为空。
 配置新增 `pixelCharacterUrl`、`pixelCharacterName`、`hasUploadedPixelCharacter`；opening 页面能力仅接收
 其中的图片 URL。图片读取只允许经典与像素样式各自当前选中的文件，替换或清除后旧文件不再可读。
+
+音乐上传和清除同样接受 `style=pixel-cassette`；省略或 `classic` 操作原经典音乐，其他值返回 400。音乐文件服务只允许经典与卡带两个当前选择的文件，清除一款不会清除另一款。
+
+画布通过 [opening-preview-routes.js](../../../src/server/routes/opening-preview-routes.js) 操作相同的内置样式设置。所有接口要求 Bearer 画布能力、当前 `id` 与 `attachmentId`，校验 Origin、账号归属、连接期限和加载状态；不接受管理令牌或 overlay 能力替代。读取请求体/上传完成后再次鉴权，失效连接不能落盘或写设置。
+
+| 端点 | 请求与效果 |
+| --- | --- |
+| `GET /api/component-preview/opening/config` | 返回管理侧开播配置及各样式当前媒体显示名称，不包含磁盘路径。 |
+| `POST /api/component-preview/opening/config` | `style=classic/pixel-cassette`；JSON 为参数增量。经典允许 `title/subtitle/name/footer/quality/trackMotion/showNotes/showEq/volume`，卡带只允许 `quality/showNotes/showEq/volume`；映射为既有设置键并通过设置校验器原子保存，广播 settings。其他字段/样式返回 400，不允许修改总开关或客户端当前样式。 |
+| `POST/DELETE /api/component-preview/opening/character` | 同上人物图上传/清除合同，支持按 `style` 选择人物图或卡带头像；复用既有 handler 与存储。 |
+| `POST/DELETE /api/component-preview/opening/music` | 同上音乐上传/清除合同，按 `style` 选择音乐槽位。 |
+
+画布修改自动保存并同步所有使用该内置样式的组件；布局保存/放弃不撤销已经保存的共享开播设置。导入资源样式仍保持图层独立外观，不经过这些写接口。
 
 ### 2.2 normalizeRoomInput 实现细节([shared/utils.js](../../../src/shared/utils.js))
 
@@ -343,7 +369,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 
 | 端点                    | 请求                                                       | 响应(data)                                                                                               | 错误码 |
 | ----------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（九套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`、`flipFrameColor`、`flipFaceColor`、`flipTextColor`、`moonMode`（light/dark/auto）、`moonIntervalSeconds`（1–86400 的整数，默认 30），以及可选对象 `styleParameters`（由已保存的 clockStyleParameters JSON 解析，按 clock 类型校验）；非法存量值回退默认配置 | —      |
+| `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（九套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`、`flipFrameColor`、`flipFaceColor`、`flipTextColor`、`moonMode`（light/dark/auto）、`moonIntervalSeconds`（1–86400 的整数，默认 30），以及 `styleOptions`（按内置样式保存的白名单外观）和可选对象 `styleParameters`（由已保存的 clockStyleParameters JSON 解析，按 clock 类型校验）；非法存量值回退默认配置 | —      |
 
 ## 3. WeSing 采集域(wesing)
 

@@ -83,7 +83,7 @@ test('preset deletion retains other drafts and keeps the selected draft on failu
   canvas.controller.edit({ document: { ...original, title: '保留草稿' } });
   await canvas.preset({ action: 'create', title: '多余预设', duplicate: false });
   const extra = canvas.controller.getState().draft.document;
-  await assert.rejects(canvas.preset({ action: 'delete', id: original.id }), /当前预设已变化/);
+  await assert.rejects(canvas.preset({ action: 'delete', id: original.id }), /当前场景已变化/);
   await canvas.preset({ action: 'delete', id: extra.id });
   assert.equal(canvas.controller.getState().draft.document.id, original.id);
   assert.equal(canvas.controller.getState().draft.document.title, '保留草稿');
@@ -237,6 +237,7 @@ function sceneRequest(document) {
 
 test('save and publication conflicts stop publication, keep drafts and discard reloads the owning revision', async () => {
   const { prepareComponentPreviewCanvas } = await load('admin/component-preview-canvas-controller.js');
+  const { createComponentConfigController } = await load('admin/component-config-controller.js');
   for (const failedAction of ['save', 'canvas-publish']) {
     const original = documentOf();
     const remote = { ...original, title: 'Changed elsewhere' };
@@ -251,7 +252,7 @@ test('save and publication conflicts stop publication, keep drafts and discard r
       if (conflict && action === failedAction) throw Object.assign(new Error('stale'), { status: 409 });
       return { document: body?.document || remote, revision: 8, publishedVersion: 2 };
     };
-    const canvas = await prepareComponentPreviewCanvas([], request);
+    const canvas = await prepareComponentPreviewCanvas([{ id: 'clock', controller: createComponentConfigController({ initial: clockConfig }) }], request);
     const states = [];
     const stop = canvas.controller.subscribe(state => states.push(state));
     if (failedAction === 'save') canvas.controller.edit({ document: { ...original, title: 'Local' } });

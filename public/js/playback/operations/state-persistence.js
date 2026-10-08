@@ -56,6 +56,9 @@ export function createStatePersistence(deps) {
       vip: track.vip,
       unavailable: (track.source === 'local' && !track.objectUrl) || false,
       playedAt: track.playedAt || 0,
+      songRequestKey: track.songRequestKey || '',
+      requestedBy: track.requestedBy || '',
+      playNext: track.playNext === true,
     };
   }
 
@@ -75,6 +78,7 @@ export function createStatePersistence(deps) {
       queueTitle: playbackState.queueTitle,
       queueSourceKey: playbackState.queueSourceKey,
       playlistIndex: playbackState.playlistIndex,
+      importedSongRequestKeys: playbackState.importedSongRequestKeys,
       pendingRequests: playbackState.pendingRequests
         .map((item) => ({
           ...item,

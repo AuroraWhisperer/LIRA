@@ -62,11 +62,12 @@ test('opening settings preview reuses a canvas layer and published output follow
     && response.request().postDataJSON()?.openingEnabled === 'false');
   await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   await desktop.locator('#openingEnabled').check();
-  await desktop.locator('#openingStyle').selectOption('pixel-cassette');
+  await desktop.getByRole('button', { name: '像素卡带', exact: true }).click();
   await opening.locator('#openingPixel').waitFor({ state: 'visible' });
   assert.equal(await desktop.locator('#openingStyle option[value="moonlit-fan"]').count(), 0,
     'External suite styles are selected from the imported library.');
-  assert.equal(await desktop.locator('#openingTitle').inputValue(), '新的开播标题');
+  assert.equal(await desktop.locator('#openingCopyFields').isVisible(), false,
+    'Pixel cassette does not expose the classic copy fields.');
   await desktop.locator('#openingQuality').selectOption('low');
   await opening.locator('#openingStage.quality-low').waitFor({ state: 'visible' });
   await desktop.locator('#openingQuality').selectOption('normal');
@@ -77,7 +78,7 @@ test('opening settings preview reuses a canvas layer and published output follow
   await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   await desktop.locator('#openingEnabled').check();
   await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
-  await desktop.locator('#openingStyle').selectOption('classic');
+  await desktop.getByRole('button', { name: '经典舞台', exact: true }).click();
   await opening.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('960');
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).press('Tab');

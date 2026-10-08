@@ -145,3 +145,34 @@ test('failure to publish completion keeps the journal recoverable after all rena
   assert.equal(read('cache/music-api-cache/a.json'), 'cached');
   assert.equal(migrateCacheData({ dataDir: root }).status, 'migrated');
 });
+
+for (const code of ['EPERM', 'EBUSY', 'EIO']) {
+  for (const persistent of [false, true]) {
+    test(`journal replacement ${code} preserves migration state (persistent=${persistent})`, (t) => {
+      const { root, put, read } = fixture(t);
+      put('music-api-cache/a.json', 'cached');
+      const journalPath = path.join(root, '.cache-layout-v1.json');
+      const journalSources = [];
+      let moves = 0;
+      const fileSystem = Object.create(fs);
+      fileSystem.renameSync = (source, destination) => {
+        if (destination === journalPath && fs.existsSync(journalPath)) {
+          journalSources.push(source);
+          if (persistent || journalSources.length === 1) throw Object.assign(new Error('journal occupied'), { code });
+        } else if (destination !== journalPath) moves++;
+        fs.renameSync(source, destination);
+      };
+      const migrate = () => migrateCacheData({ dataDir: root, fileSystem });
+      const recoverable = code !== 'EIO' && !persistent;
+      if (recoverable) assert.equal(migrate().status, 'migrated');
+      else assert.throws(migrate, { code });
+      assert.equal(moves, 1, 'journal retry never repeats data moves');
+      assert.equal(read('cache/music-api-cache/a.json'), 'cached');
+      assert.equal(JSON.parse(read('.cache-layout-v1.json')).status, recoverable ? 'complete' : 'pending');
+      assert.equal(journalSources.length, code === 'EIO' ? 1 : persistent ? 5 : 2);
+      assert.equal(new Set(journalSources).size, 1, 'retry uses the same prepared journal');
+      assert.equal(fs.readdirSync(root).some(name => name.endsWith('.tmp')), false);
+      if (!recoverable) assert.equal(migrateCacheData({ dataDir: root }).status, 'migrated');
+    });
+  }
+}

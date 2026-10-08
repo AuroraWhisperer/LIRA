@@ -264,7 +264,7 @@ test('songs HTTP settings survive a live-status patch without reverting the live
 
 const stats = (profit) => ({ summary: { boxCount: 1, totalCost: 10, totalProfit: profit }, perUser: [] });
 
-test('blindbox applies WS settings without rebuilding unchanged data or accepting late settings', async () => {
+test('blindbox applies WS settings without rebuilding unchanged data or accepting late settings', { timeout: 5000 }, async () => {
   const f = fixture('blindbox');
   f.context.connectSocket();
   const pending = f.context.loadStateThenStats();
@@ -275,8 +275,11 @@ test('blindbox applies WS settings without rebuilding unchanged data or acceptin
   assert.equal(f.element('blindboxSummary').writes, writes);
   f.requests[0].resolve({ settings: { blindboxOverlayTitle: '旧标题' } });
   await flush();
-  f.requests[1].resolve(stats(5));
+  assert.equal(f.requests.length, 3, 'settings changes also refresh filtered statistics');
+  f.requests[2].resolve(stats(5));
   await pending;
+  f.requests[1].resolve(stats(-1));
+  await flush();
   assert.equal(f.element('blindboxTitle').textContent, '最新盲盒标题');
   assert.equal(f.element('blindboxSummary').writes, writes);
   f.message(snapshot({}));

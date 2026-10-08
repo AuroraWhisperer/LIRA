@@ -2,6 +2,8 @@
 
 import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 import { openComponentPreview } from './component-preview-dialog.js';
+import { mountOpeningStylePicker } from './opening-style-picker.js';
+import { OPENING_STYLE_SETTING_KEYS, openingStyleSettingsPatch } from '../shared/opening-settings.js';
 
 const OPENING_DEFAULTS = Object.freeze({
   enabled: false,
@@ -52,18 +54,12 @@ function buildOpeningSourceUrl(origin) {
 }
 
 function openingSettingsPayload(config) {
+  const style = config.style || OPENING_DEFAULTS.style;
   return {
     openingEnabled: config.enabled ? 'true' : 'false',
-    openingStyle: config.style || OPENING_DEFAULTS.style,
-    openingTitle: config.title,
-    openingSubtitle: config.subtitle,
-    openingName: config.name,
-    openingFooter: config.footer,
-    openingQuality: config.quality,
-    openingTrackMotion: config.trackMotion,
-    openingShowNotes: config.showNotes ? 'true' : 'false',
-    openingShowEq: config.showEq ? 'true' : 'false',
-    openingAudioVolume: String(config.volume),
+    openingStyle: style,
+    ...openingStyleSettingsPatch(style, Object.fromEntries(Object.keys(OPENING_STYLE_SETTING_KEYS[style])
+      .map(key => [key, typeof config[key] === 'boolean' || key === 'volume' ? String(config[key]) : config[key]]))),
   };
 }
 
@@ -121,6 +117,8 @@ function initStartAnimation() {
   const characterStatus = document.getElementById('openingCharacterStatus');
   const configStatus = document.getElementById('openingConfigStatus');
   const reloadButton = document.getElementById('openingReload');
+  const saveStatus = document.getElementById('openingSaveStatus');
+  const retrySaveButton = document.getElementById('openingRetrySave');
   const origin = localOverlayOrigin(location);
   const sourceUrl = buildOpeningSourceUrl(origin);
   let persistTimer = null;
@@ -130,40 +128,63 @@ function initStartAnimation() {
   let saveInFlight = false;
   let saveQueued = false;
   let lastSavedPayload = '';
+  let activeStyle = 'classic';
+  let styleConfigs = {};
+  let pendingSettings = {};
+  let picker;
+
+  const setSaveState = (state) => {
+    if (saveStatus) {
+      saveStatus.dataset.state = state;
+      saveStatus.textContent = {
+        auto: '修改自动保存',
+        pending: '有修改，等待自动保存…',
+        saving: '保存中…',
+        saved: '已保存 · 修改自动保存',
+        error: '保存失败，修改未保存',
+      }[state];
+    }
+    if (retrySaveButton) {
+      retrySaveButton.hidden = state !== 'error';
+      retrySaveButton.disabled = state !== 'error';
+    }
+  };
 
   const updateMediaConfig = (config) => {
     characterNames = { classic: config.characterName || '', 'pixel-cassette': config.pixelCharacterName || '' };
+    for (const [style, value] of Object.entries(config.styles || { [config.style]: config })) {
+      styleConfigs[style] = { ...styleConfigs[style], audioName: value.audioName };
+    }
+    if (audioName) audioName.textContent = styleConfigs[activeStyle]?.audioName || '未上传音乐';
   };
 
   const render = () => {
     const config = readStartAnimationConfig(root);
     const pixelStyle = config.style === 'pixel-cassette';
-    const moonStyle = config.style === 'moonlit-fan';
     for (const id of ['openingCopyHeading', 'openingCopyFields']) {
       const field = root.getElementById(id);
       if (field) field.hidden = pixelStyle;
     }
     const pixelHint = root.getElementById('openingPixelHint');
     if (pixelHint) pixelHint.hidden = !pixelStyle;
-    const moonHint = root.getElementById('openingMoonFanHint');
-    if (moonHint) moonHint.hidden = !moonStyle;
     const trackField = root.getElementById('openingTrackMotionField');
-    if (trackField) trackField.hidden = pixelStyle || moonStyle;
+    if (trackField) trackField.hidden = pixelStyle;
     const characterSection = root.getElementById('openingCharacterSection');
-    if (characterSection) characterSection.hidden = moonStyle;
+    if (characterSection) characterSection.hidden = false;
     const notesLabel = root.getElementById('openingNotesLabel');
-    if (notesLabel) notesLabel.textContent = moonStyle ? '飘落花瓣' : '漂浮音符';
+    if (notesLabel) notesLabel.textContent = '漂浮音符';
     const eqLabel = root.getElementById('openingEqLabel');
-    if (eqLabel) eqLabel.textContent = moonStyle ? '翩飞蝴蝶' : '氛围律动';
+    if (eqLabel) eqLabel.textContent = '氛围律动';
     if (characterName) characterName.textContent = characterNames[config.style]
-      || (pixelStyle ? '未上传头像' : '未上传人物图');
+      || (pixelStyle ? '未上传大头贴' : '未上传人物图');
     const characterHeading = root.getElementById('openingCharacterHeading');
-    if (characterHeading) characterHeading.textContent = pixelStyle ? '头像图片' : '人物图片';
+    if (characterHeading) characterHeading.textContent = pixelStyle ? '大头贴图片' : '人物图片';
     const clearCharacter = root.getElementById('openingResetCharacter');
-    if (clearCharacter) clearCharacter.textContent = pixelStyle ? '清除头像' : '清除人物图';
+    if (clearCharacter) clearCharacter.textContent = pixelStyle ? '清除大头贴' : '清除人物图';
     if (titleCount) titleCount.textContent = `${Array.from(config.title).length}/20`;
     updateVolumeOutput(root, config);
     if (urlNode) urlNode.textContent = sourceUrl;
+    picker?.render();
     return config;
   };
 
@@ -172,29 +193,46 @@ function initStartAnimation() {
     saveQueued = true;
     if (saveInFlight) return;
     saveInFlight = true;
+    let failed = false;
+    setSaveState('saving');
     try {
       while (saveQueued) {
         saveQueued = false;
-        const body = JSON.stringify(openingSettingsPayload(readStartAnimationConfig(root)));
+        const submitted = pendingSettings;
+        pendingSettings = {};
+        const body = JSON.stringify(submitted);
+        if (!Object.keys(submitted).length) continue;
         if (body === lastSavedPayload) continue;
-        const response = await fetch(SETTINGS_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body,
-        });
-        if (!response.ok) throw new Error('配置保存失败');
+        try {
+          const response = await fetch(SETTINGS_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body,
+          });
+          if (!response.ok) throw new Error('配置保存失败');
+        } catch (error) {
+          pendingSettings = { ...submitted, ...pendingSettings };
+          throw error;
+        }
         lastSavedPayload = body;
       }
     } catch (error) {
+      failed = true;
+      setSaveState('error');
       toast(error.message || '配置保存失败，请重试。');
     } finally {
       saveInFlight = false;
       if (saveQueued) void persist();
+      else if (!failed) setSaveState(Object.keys(pendingSettings).length ? 'pending' : 'saved');
     }
   };
 
   const schedulePersist = () => {
     if (!hydrated) return;
+    const config = { ...readStartAnimationConfig(root), style: activeStyle };
+    styleConfigs[activeStyle] = { ...styleConfigs[activeStyle], ...config };
+    pendingSettings = { ...pendingSettings, ...openingSettingsPayload(config) };
+    setSaveState(saveInFlight ? 'saving' : 'pending');
     window.clearTimeout(persistTimer);
     persistTimer = window.setTimeout(persist, 220);
   };
@@ -204,8 +242,11 @@ function initStartAnimation() {
     const enabled = root.getElementById('openingEnabled');
     if (enabled) enabled.disabled = !hydrated;
     if (previewButton) previewButton.disabled = !hydrated;
+    picker?.setReady(hydrated);
     const loadState = root.getElementById('openingLoadState');
     if (loadState) loadState.hidden = hydrated;
+    const saveFeedback = root.getElementById('openingSaveFeedback');
+    if (saveFeedback) saveFeedback.hidden = !hydrated;
     if (reloadButton) {
       reloadButton.hidden = hydrated || loading;
       reloadButton.disabled = loading;
@@ -224,9 +265,11 @@ function initStartAnimation() {
       if (!response.ok) throw new Error('开播配置读取失败');
       const payload = await response.json();
       if (!payload?.ok || !payload.data) throw new Error('开播配置读取失败');
-      setFormConfig(root, payload.data);
+      activeStyle = payload.data.style === 'pixel-cassette' ? 'pixel-cassette' : 'classic';
+      styleConfigs = payload.data.styles || { classic: payload.data,
+        'pixel-cassette': { ...OPENING_DEFAULTS, style: 'pixel-cassette' } };
+      setFormConfig(root, { ...payload.data, ...styleConfigs[activeStyle], style: activeStyle });
       updateMediaConfig(payload.data);
-      if (audioName) audioName.textContent = payload.data.audioName || '未上传音乐';
       lastSavedPayload = JSON.stringify(openingSettingsPayload(readStartAnimationConfig(root)));
       hydrated = true;
     } catch {
@@ -240,24 +283,58 @@ function initStartAnimation() {
 
   const handleConfigChange = (event) => {
     if (!hydrated) return;
-    if (event?.target?.id === 'openingStyle' && event.target.value === 'moonlit-fan') {
-      for (const [id, previous, next] of [
-        ['openingTitle', OPENING_DEFAULTS.title, '月渡花汀'],
-        ['openingSubtitle', OPENING_DEFAULTS.subtitle, '直播即将开始'],
-      ]) {
-        const field = root.getElementById(id);
-        if (field && field.value === previous) field.value = next;
-      }
+    if (event?.target?.id === 'openingStyle' && event.target.value !== activeStyle) {
+      schedulePersist();
+      const enabled = root.getElementById('openingEnabled').checked;
+      activeStyle = event.target.value;
+      setFormConfig(root, { ...styleConfigs[activeStyle], enabled, style: activeStyle });
+      if (audioName) audioName.textContent = styleConfigs[activeStyle]?.audioName || '未上传音乐';
+      if (audioStatus) audioStatus.textContent = '';
+      if (characterStatus) characterStatus.textContent = '支持 PNG、JPG、WebP，最大 16 MB。';
     }
     render();
     schedulePersist();
   };
+  let refreshing = false;
+  async function refreshSharedSettings() {
+    if (!hydrated || refreshing || saveInFlight || Object.keys(pendingSettings).length) return;
+    refreshing = true;
+    const before = JSON.stringify(readStartAnimationConfig(root));
+    try {
+      const response = await fetch(OPENING_CONFIG_ENDPOINT, { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok || !payload.data) throw new Error('开播设置同步失败');
+      if (saveInFlight || Object.keys(pendingSettings).length
+        || before !== JSON.stringify(readStartAnimationConfig(root))) return;
+      styleConfigs = payload.data.styles;
+      setFormConfig(root, { ...payload.data, ...styleConfigs[activeStyle], style: activeStyle });
+      updateMediaConfig(payload.data);
+      lastSavedPayload = JSON.stringify(openingSettingsPayload(readStartAnimationConfig(root)));
+      render();
+    } catch { toast('开播设置同步失败，已保留当前输入，请重新切回页面重试。'); }
+    finally { refreshing = false; }
+  }
+  window.addEventListener('focus', refreshSharedSettings);
+  window.addEventListener('app:settings-state', () => { void refreshSharedSettings(); });
+  picker = mountOpeningStylePicker({ beforeSelect: schedulePersist, onBuiltin(style) {
+    const select = root.getElementById('openingStyle');
+    select.value = style;
+    handleConfigChange({ target: select });
+  } });
   form.addEventListener('input', handleConfigChange);
   form.addEventListener('change', handleConfigChange);
   document.getElementById('openingEnabled')?.addEventListener('change', handleConfigChange);
   reloadButton?.addEventListener('click', () => { void loadSavedConfig(); });
-  previewButton?.addEventListener('click', () => {
-    if (hydrated) openComponentPreview({ id: 'opening' });
+  retrySaveButton?.addEventListener('click', () => {
+    window.clearTimeout(persistTimer);
+    void persist();
+  });
+  previewButton?.addEventListener('click', async () => {
+    if (!hydrated) return;
+    try {
+      if (picker.isImported()) await picker.useImported();
+      else { await persist(); openComponentPreview({ id: 'opening' }); }
+    } catch (error) { toast(error.message); }
   });
 
   document.getElementById('openingAudioFile')?.addEventListener('change', async (event) => {
@@ -268,13 +345,12 @@ function initStartAnimation() {
     const body = new FormData();
     body.append('file', file, file.name);
     try {
-      const response = await fetch(OPENING_AUDIO_ENDPOINT, {
+      const response = await fetch(activeStyle === 'pixel-cassette' ? `${OPENING_AUDIO_ENDPOINT}?style=pixel-cassette` : OPENING_AUDIO_ENDPOINT, {
         method: 'POST',
         body,
       });
       const payload = await response.json();
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '歌曲上传失败');
-      if (audioName) audioName.textContent = payload.data.audioName || file.name;
       if (audioStatus) audioStatus.textContent = '歌曲已保存到开播音乐文件夹。';
       updateMediaConfig(payload.data);
       render();
@@ -300,7 +376,8 @@ function initStartAnimation() {
       event.target.value = '';
       return;
     }
-    if (characterStatus) characterStatus.textContent = '正在上传人物图片…';
+    const imageLabel = activeStyle === 'pixel-cassette' ? '大头贴' : '人物图';
+    if (characterStatus) characterStatus.textContent = `正在上传${imageLabel}…`;
     const body = new FormData();
     body.append('file', file, file.name);
     try {
@@ -312,7 +389,7 @@ function initStartAnimation() {
       });
       const payload = await response.json();
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '人物图片上传失败');
-      if (characterStatus) characterStatus.textContent = '人物图片已保存。';
+      if (characterStatus) characterStatus.textContent = `${imageLabel}已保存。`;
       updateMediaConfig(payload.data);
       render();
     } catch (error) {
@@ -332,7 +409,7 @@ function initStartAnimation() {
       });
       const payload = await response.json();
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '清除人物图失败');
-      if (characterStatus) characterStatus.textContent = '已清除人物图。';
+      if (characterStatus) characterStatus.textContent = style === 'pixel-cassette' ? '已清除大头贴。' : '已清除人物图。';
       updateMediaConfig(payload.data);
       render();
     } catch (error) {
@@ -343,12 +420,11 @@ function initStartAnimation() {
   document.getElementById('openingResetAudio')?.addEventListener('click', async () => {
     if (!hydrated) return;
     try {
-      const response = await fetch(OPENING_AUDIO_ENDPOINT, {
+      const response = await fetch(activeStyle === 'pixel-cassette' ? `${OPENING_AUDIO_ENDPOINT}?style=pixel-cassette` : OPENING_AUDIO_ENDPOINT, {
         method: 'DELETE',
       });
       const payload = await response.json();
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '清除音乐失败');
-      if (audioName) audioName.textContent = payload.data.audioName || '未上传音乐';
       if (audioStatus) audioStatus.textContent = '已清除音乐。';
       updateMediaConfig(payload.data);
       render();
@@ -365,6 +441,7 @@ function initStartAnimation() {
       toast(error.message || '复制失败，请手动复制地址。');
     }
   });
+  setSaveState('auto');
   render();
   loadSavedConfig();
 }

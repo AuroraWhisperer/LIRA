@@ -10,7 +10,9 @@ import { createGiftWishFeed, requestGiftWish } from '../../shared/gift-wish-clie
 import { setGiftImage } from '../../shared/gift-image-fallback.js';
 import { createWishPicker } from './wish-picker.js';
 import { createWishTextEditor } from './wish-text-editor.js';
+import { createWishStylePreview } from './wish-style-preview.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
+import { showConfirmationDialog } from '../../shared/confirmation-dialog.js';
 
 const PERIOD_HINTS = {
   long: '从创建时开始累计，不重置。',
@@ -22,6 +24,9 @@ export function createGiftWishes() {
   const get = (id) => document.getElementById(id);
   if (!get('giftWishesPanel')) return { open() {}, close() {} };
   const textEditor = createWishTextEditor(get('giftWishTextEditor'), get('giftWishTextTemplate'));
+  const stylePreview = createWishStylePreview(get('giftWishDraftPreview'));
+  let importedStyle = null;
+  let builtinStyle = 'card';
   let period = 'long';
   let snapshot = null;
   let revision = null;
@@ -30,6 +35,7 @@ export function createGiftWishes() {
   let busy = false;
   let signature = '';
   let feedError = false;
+  let savedForm = '';
   const fail = (error) => {
     get('giftWishError').textContent = error.message;
   };
@@ -82,11 +88,11 @@ export function createGiftWishes() {
   }
 
   function getDisplayStyle() {
-    return get('giftWishDisplayStyle').querySelector('input:checked').value;
+    return get('giftWishDisplayStyle').querySelector('input:checked')?.value || builtinStyle;
   }
 
   function updateDraftPreview() {
-    const displayStyle = getDisplayStyle();
+    const displayStyle = importedStyle ? 'imported' : getDisplayStyle();
     const saved = snapshot?.items.find((wish) => wish.id === editing);
     const count = saved?.count || 0;
     const textTemplate = get('giftWishTextTemplate').value;
@@ -98,24 +104,24 @@ export function createGiftWishes() {
     get('giftWishImageFields').hidden = displayStyle !== 'text' || !textTemplate.includes('{图片}');
     get('giftWishColorFields').hidden = displayStyle !== 'text';
     get('giftWishPreviewStateField').hidden = displayStyle !== 'text';
-    get('giftWishDraftPreview').replaceChildren(
-      createGiftWishCard({
-        id: 'draft',
-        period,
-        giftName: selected?.name || '礼物',
-        imagePath: selected ? selected.imagePath : '/img/admin/nav-icons/nav-gift.webp',
-        count,
-        todayCount: get('giftWishPreviewState').value === 'received' ? 1 : 0,
-        target,
-        progress: Math.min(100, (count / target) * 100),
-        completed: count >= target,
-        displayStyle,
-        textTemplate,
-        textImageFormat: get('giftWishTextImageFormat').value,
-        textPendingColor: get('giftWishTextPendingColor').value,
-        textReceivedColor: get('giftWishTextReceivedColor').value,
-      }),
-    );
+    const wish = {
+      id: 'draft',
+      period,
+      giftName: selected?.name || '礼物',
+      imagePath: selected ? selected.imagePath : '/img/admin/nav-icons/nav-gift.webp',
+      count,
+      todayCount: get('giftWishPreviewState').value === 'received' ? 1 : 0,
+      target,
+      progress: Math.min(100, (count / target) * 100),
+      completed: count >= target,
+      displayStyle: getDisplayStyle(),
+      textTemplate,
+      textImageFormat: get('giftWishTextImageFormat').value,
+      textPendingColor: get('giftWishTextPendingColor').value,
+      textReceivedColor: get('giftWishTextReceivedColor').value,
+    };
+    if (importedStyle) stylePreview.update(importedStyle, wish);
+    else get('giftWishDraftPreview').replaceChildren(createGiftWishCard(wish));
   }
 
   function resetTextColors() {
@@ -123,7 +129,28 @@ export function createGiftWishes() {
     get('giftWishTextReceivedColor').value = DEFAULT_WISH_TEXT_COLORS.received;
   }
 
+  function readWishForm() {
+    return JSON.stringify([
+      selected?.variantId || selected?.id || '', getDisplayStyle(),
+      ...['giftWishTarget', 'giftWishLabel', 'giftWishTextTemplate', 'giftWishTextImageFormat',
+        'giftWishTextPendingColor', 'giftWishTextReceivedColor'].map((id) => get(id).value),
+    ]);
+  }
+
+  async function confirmDiscard() {
+    if (!savedForm || readWishForm() === savedForm) return true;
+    return showConfirmationDialog({
+      variant: 'caution',
+      title: '放弃未保存的许愿修改？',
+      description: '当前表单中尚未保存的内容将会丢失。',
+      confirmLabel: '放弃修改',
+      cancelLabel: '继续编辑',
+      initialFocus: 'cancel',
+    });
+  }
+
   function resetEditor() {
+    selectImportedStyle(null);
     editing = null;
     selected = null;
     picker.close();
@@ -134,9 +161,11 @@ export function createGiftWishes() {
     get('giftWishCancel').hidden = true;
     get('giftWishSave').textContent = '添加许愿';
     showSelected();
+    savedForm = readWishForm();
   }
 
   function edit(wish) {
+    selectImportedStyle(null);
     editing = wish.id;
     selected = {
       id: wish.giftId,
@@ -160,6 +189,7 @@ export function createGiftWishes() {
     showSelected();
     get('giftWishCancel').hidden = false;
     get('giftWishSave').textContent = '保存修改';
+    savedForm = readWishForm();
     get('giftWishTarget').focus();
     get('giftWishForm').scrollIntoView({ block: 'nearest' });
   }
@@ -193,8 +223,12 @@ export function createGiftWishes() {
       const modify = document.createElement('button');
       modify.type = 'button';
       modify.textContent = '编辑';
-      modify.addEventListener('click', () => {
-        if (!busy) edit(wish);
+      modify.addEventListener('click', async () => {
+        if (busy || editing === wish.id) return;
+        const viewRevision = snapshot?.viewRevision;
+        if (!await confirmDiscard() || busy || snapshot?.viewRevision !== viewRevision) return;
+        const current = snapshot?.items.find((item) => item.id === wish.id);
+        if (current) edit(current);
       });
       const remove = document.createElement('button');
       remove.type = 'button';
@@ -281,7 +315,21 @@ export function createGiftWishes() {
   });
   get('giftWishPick').addEventListener('click', () => picker.open(snapshot?.guards || []));
   get('giftWishCancel').addEventListener('click', resetEditor);
-  get('giftWishDisplayStyle').addEventListener('change', updateDraftPreview);
+  function selectImportedStyle(style) {
+    builtinStyle = getDisplayStyle();
+    importedStyle = style;
+    const field = get('giftWishDisplayStyle');
+    field.dataset.previewStyleId = style?.id || '';
+    for (const input of field.querySelectorAll('input[type="radio"]')) {
+      input.checked = !style && input.value === builtinStyle;
+    }
+    for (const button of field.querySelectorAll('.component-style-select')) {
+      button.setAttribute('aria-pressed', String(button.closest('[data-custom-style-id]').dataset.customStyleId === style?.id));
+    }
+    if (!style) stylePreview.clear();
+  }
+  get('giftWishDisplayStyle').addEventListener('gift-wish:style', event => { selectImportedStyle(event.detail); updateDraftPreview(); });
+  get('giftWishDisplayStyle').addEventListener('change', () => { selectImportedStyle(null); updateDraftPreview(); });
   get('giftWishTextTemplate').addEventListener('input', updateDraftPreview);
   get('giftWishImageFields').addEventListener('change', updateDraftPreview);
   get('giftWishColorFields').addEventListener('input', updateDraftPreview);
@@ -307,7 +355,11 @@ export function createGiftWishes() {
       .then(() => toast('许愿地址已复制'))
       .catch(fail),
   );
-  get('giftWishPeriod').addEventListener('change', (event) => selectPeriod(event.target.value));
+  get('giftWishPeriod').addEventListener('change', async (event) => {
+    const next = event.target.value;
+    event.target.value = period;
+    if (next !== period && await confirmDiscard()) selectPeriod(next);
+  });
   const url = `${localOverlayOrigin(location)}/gift-wishes`;
   get('giftWishUrl').value = url;
   get('giftWishPreview').addEventListener('click', () => openComponentPreview({ id: 'gift-wishes' }));
@@ -324,6 +376,7 @@ export function createGiftWishes() {
     feed.refresh();
   });
   window.addEventListener('pagehide', () => {
+    stylePreview.dispose();
     feed.stop();
     picker.close();
     unsubscribe?.();
@@ -335,6 +388,7 @@ export function createGiftWishes() {
     close() {
       feed.stop();
       picker.close();
+      if (importedStyle) stylePreview.clear();
     },
   };
 }

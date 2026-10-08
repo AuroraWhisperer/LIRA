@@ -19,6 +19,7 @@ export function createInitialState() {
     queueSourceKey: '',
     playlistIndex: -1,
     pendingRequests: [],
+    importedSongRequestKeys: [],
     history: [],
     displayHistory: [],
     mode: 'sequence',
@@ -51,6 +52,7 @@ export function validateState(state) {
     'normalQueue',
     'radioQueue',
     'pendingRequests',
+    'importedSongRequestKeys',
     'history',
     'displayHistory',
     'shuffleOrder',
@@ -98,6 +100,7 @@ export function normalizeState(state) {
     'normalQueueTracks',
     'radioQueue',
     'pendingRequests',
+    'importedSongRequestKeys',
     'history',
     'displayHistory',
     'shuffleOrder',
@@ -107,6 +110,9 @@ export function normalizeState(state) {
       normalized[field] = [];
     }
   });
+  normalized.importedSongRequestKeys = [...new Set(normalized.importedSongRequestKeys.filter(
+    (key) => typeof key === 'string' && key,
+  ))];
 
   // 确保音量在合法范围
   if (typeof normalized.volume !== 'number' || normalized.volume < 0 || normalized.volume > 1) {

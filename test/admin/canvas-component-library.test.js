@@ -8,11 +8,12 @@ const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canv
 const { sceneExtraPreviewData } = require('../../public/js/admin/scene-extra-preview-data.js');
 const { SCENE_EXTRA_COMPONENTS } = require('../../public/js/shared/scene-extra-components.js');
 const { useSharedBrowser } = require('../helpers/shared-browser');
+const { createSceneSharedAppearance } = require('../../src/server/scene-shared-appearance');
 
 const openBrowserSession = useSharedBrowser();
 const extraVariants = type => SCENE_EXTRA_COMPONENTS[type].variants.map(variant => variant.value);
 
-test('canvas library saves every new variant with independent parameters and renders real output at saved sizes', { timeout: 120000 }, async (t) => {
+test('canvas library saves variant layouts and shared parameters and renders real output at saved sizes', { timeout: 120000 }, async (t) => {
   const data = Object.fromEntries(['songlist', 'lyrics', 'games', 'wheel', 'interactions', 'gift-feed', 'blindbox', 'gift-wishes']
     .map((type) => [type, sceneExtraPreviewData(type)]));
   data['gift-wishes'] = { items: [{ id: 'synthetic-wish', period: 'day', giftName: '小花花',
@@ -143,6 +144,7 @@ test('canvas library saves every new variant with independent parameters and ren
       });
       assert.deepEqual(feed, { width: 428, height: 232, avatars: 3, artwork: 3, placeholders: false });
     }
+    if (type === 'songlist') await page.locator('[data-component-parameter="songBoardSyncTheme"]').uncheck();
     const input = page.locator(`[data-component-parameter="${key}"]`);
     await input.fill(value); await input.press('Tab');
     for (const [name, size] of [['宽度', '400'], ['高度', '300']]) {
@@ -159,7 +161,10 @@ test('canvas library saves every new variant with independent parameters and ren
   assert.equal(saved.document.items.length, cases.length);
   saved.document.items.forEach((item, index) => {
     assert.equal(item.type, cases[index][0]);
-    assert.equal(String(item.appearance.config[cases[index][3]]), cases[index][4]);
+    const shared = createSceneSharedAppearance({ settings: { get: () => fixture.runtime.settings }, system: {} })
+      .read(item.type, item.appearance.config);
+    const expected = item.type === 'interactions' ? '实时评分' : cases[index][4];
+    assert.equal(String({ ...item.appearance.config, ...shared }[cases[index][3]]), expected);
     assert.equal(item.appearance.mode, 'independent');
     assert.equal(item.width, 400);
     if (item.type === 'gift-wishes') assert.ok(item.height > 32);
@@ -179,7 +184,9 @@ test('canvas library saves every new variant with independent parameters and ren
   const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
   assert.equal((await fetch(outputUrl)).status, 200);
   await output.goto(outputUrl);
-  await output.waitForFunction((count) => document.querySelectorAll('.scene-version:not(.is-staging) iframe').length === count, cases.length);
+  await output.waitForFunction((count) => document.querySelectorAll('.scene-version:not(.is-staging) iframe').length === count, cases.length).catch(async error => {
+    throw new Error(`Scene output: ${await output.locator('#sceneStatus').textContent()}; errors: ${JSON.stringify(errors)}`, { cause: error });
+  });
   const songFrame = output.frameLocator('iframe[src^="/songlist"]');
   await songFrame.getByText('实时歌曲', { exact: true }).waitFor();
   assert.equal(await songFrame.locator('#songBoardTitle').textContent(), '我的歌单');

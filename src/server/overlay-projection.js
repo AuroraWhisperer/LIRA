@@ -1,6 +1,7 @@
 'use strict';
 
 const { normalizeStyleParameters } = require('../shared/component-style-parameters');
+const { normalizeClockStyleOptions } = require('./clock-contract');
 
 // Page capabilities select fields, never a whole runtime object or settings prefix.
 const SETTING_KEYS = {
@@ -29,7 +30,7 @@ const SETTING_KEYS = {
     songBoardFontWeight songBoardGlowIntensity songBoardGradientEnd songBoardSongColor songBoardSongFontSize
     songBoardSortMode songBoardSyncTheme songBoardThemeAccent songBoardThemeBackground songBoardThemeOpacity
     songBoardThemePrimary songBoardThemeRadius songBoardThemeText songBoardTitle songBoardTitleFontSize`,
-  blindbox: `backdropBlur blindboxOverlayTitle enableGradient glowIntensity gradientEnd
+  blindbox: `backdropBlur blindboxOverlayTitle blindboxOverlayTop blindboxWinnersOnly blindboxHeartBoxOnly enableGradient glowIntensity gradientEnd
     overlayFontFamily overlayFontWeight overlayLowPowerMode overlayRequesterColor overlaySongColor
     themeAccent themeBackground themeFontScale themeOpacity themePrimary themeRadius themeText`,
   lyrics: `desktopLyricAlignAnchor desktopLyricAlignPosition desktopLyricBackgroundEnabled
@@ -59,7 +60,7 @@ const SETTING_KEYS = {
   'gift-export': '',
   opening: '',
   clock: `clockStyle clockShowDate clockShowSeconds clockHourFormat clockLabel
-    clockFlipFrameColor clockFlipFaceColor clockFlipTextColor clockMoonMode clockMoonIntervalSeconds clockStyleParameters`,
+    clockFlipFrameColor clockFlipFaceColor clockFlipTextColor clockMoonMode clockMoonIntervalSeconds clockStyleParameters clockStyleOptions`,
 };
 
 function fields(names) {
@@ -196,9 +197,11 @@ const RESPONSE_SCHEMAS = {
     '/api/clock/config': fields('style showDate showSeconds hourFormat label flipFrameColor flipFaceColor flipTextColor moonMode moonIntervalSeconds'),
   },
   opening: {
-    '/api/opening/config': fields(
-      'enabled style title subtitle name footer quality trackMotion showNotes showEq audio volume audioUrl characterUrl pixelCharacterUrl',
-    ),
+    '/api/opening/config': {
+      ...fields('enabled style title subtitle name footer quality trackMotion showNotes showEq audio volume audioUrl characterUrl pixelCharacterUrl'),
+      styles: Object.fromEntries(['classic', 'pixel-cassette'].map(style => [style,
+        fields('style title subtitle name footer quality trackMotion showNotes showEq audio volume audioUrl characterUrl pixelCharacterUrl')])),
+    },
   },
 };
 const EVENT_SCHEMAS = {
@@ -308,6 +311,10 @@ function projectOverlayResponse(scope, pathName, data) {
     if (data?.styleParameters !== undefined) {
       try { result.styleParameters = normalizeStyleParameters('clock', data.styleParameters); }
       catch { delete result.styleParameters; }
+    }
+    if (data?.styleOptions !== undefined) {
+      try { result.styleOptions = normalizeClockStyleOptions(data.styleOptions); }
+      catch { delete result.styleOptions; }
     }
     return result;
   }

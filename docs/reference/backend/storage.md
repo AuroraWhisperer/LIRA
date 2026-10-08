@@ -43,6 +43,10 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 
 ## 本地组件样式库
 
+资源型配套样式的共享参数由样式库 `updateConfig` 在单次同步索引事务中修改：服务层合并补丁并经 `normalizeSceneConfig` 校验后原子替换索引。素材身份、路径、包摘要和文件保持不变；保存失败不改变原索引。重启、同版本重新安装和软删除恢复保留已保存值，新版本使用新包默认值。同 ID 的场景实例读取库中共享参数；软删除后仍读取保留索引的最后保存值，但拒绝继续写入，重新导入可恢复。普通媒体/CSS 保留场景快照。
+
+2026-10-08 的共享参数变更不批量重写已有场景。读取时以客户端已保存字段覆盖旧副本，布局保持独立。新增 `clockStyleOptions`（JSON 字符串，默认 `{}`）按受支持的内置时钟样式保存白名单外观字段；首次读取从原客户端标量设置补齐，旧标量写入只更新选中样式。新增 `blindboxOverlayTop`（-1–10，默认 3）、`blindboxWinnersOnly`（默认 true）、`blindboxHeartBoxOnly`（默认 false）和 `blindboxOverlayTitle`（默认空字符串，页面回退“今日盲盒盈亏”），使新复制的盲盒地址跟随保存设置。均使用现有 settings 存储，无新表或 schema 迁移。
+
 [component-style-store.js](../../../src/storage/component-style-store.js) 拥有设备本机 `dataDir/component-library/`，不写云设置或礼物数据库。`index.json` 为 `{version:1,packages:[]}`，写入同目录随机临时文件后 rename 替换；媒体保存为 `<包 UUID>/<SHA-256>.<扩展名>`，网页保存为 `<包 UUID>/web/<原相对路径>`。场景的独立外观配置持有互斥的 `mediaStyle`、`resourceStyle` 或 `cssStyle` 快照，新增可选字段不改变旧场景格式。HTML 导入保存为 browser 配置，库中可选 `category` 记录原组件分类；浏览器地址仍走既有加密保存与模板脱敏合同。
 
 上传及 ZIP 检查只写 `.pending-<UUID>/`；确认时将整个目录 rename 为最终 UUID，再原子更新索引；索引失败则移回暂存。操作失败或显式取消清理本次暂存，进程异常中断可能留下暂存目录，不作为已安装素材读取。当前不自动回收文件。
@@ -95,7 +99,7 @@ data/
 ├── music-auth/netease.cookies.enc     # 网易云 Cookie 快照
 ├── bilibili-auth/cookies.enc          # B站 Cookie 快照
 ├── license/                   # 设备授权资料与 safeStorage 加密私钥
-├── opening-music/             # 用户上传音乐，保持持久保存
+├── opening-music/             # 用户上传音乐，经典舞台与像素卡带分别保存选择
 ├── scene-text-images/         # 文本框上传图片，保持原字节与持久保存
 ├── component-library/        # 本机组件素材、索引与待确认套装
 └── local-media-access.json      # 本地媒体文件允许清单
@@ -103,7 +107,7 @@ data/
 
 认证文件格式与生命周期见 [desktop/auth.md](../desktop/auth.md);`logs/` 目录(ai.log / terminal.log / desktop.log)位于 data 目录的**父目录**。
 
-路径由 [data-paths.js](../../../src/shared/data-paths.js) 统一计算；`dataDir` 与数据库/授权/上传路径未改变。桌面持有原数据根的单实例锁后，[data-directory-migration.js](../../../src/storage/data-directory-migration.js) 在 ready 前迁移已知浏览器文件与缓存。独立服务及礼物初始化脚本在使用缓存前执行相同缓存迁移。迁移采用落盘日志与同卷重命名，中断可续作，目标冲突、缺失条目、符号链接及活动服务阻止迁移；未知文件保留原处。`browser` 包含登录和界面资料，不能整目录当缓存清理。具体取舍见 [ADR-0016](../../architecture/adr/0016-separated-client-data-lifecycles.md)。
+路径由 [data-paths.js](../../../src/shared/data-paths.js) 统一计算；`dataDir` 与数据库/授权/上传路径未改变。桌面持有原数据根的单实例锁后，[data-directory-migration.js](../../../src/storage/data-directory-migration.js) 在 ready 前迁移已知浏览器文件与缓存。独立服务及礼物初始化脚本在使用缓存前执行相同缓存迁移。迁移采用落盘日志与同卷重命名，中断可续作，目标冲突、缺失条目、符号链接及活动服务阻止迁移；未知文件保留原处。日志原子替换遇到 `EPERM` / `EBUSY` 时，仅对同一准备文件最多重试四次，累计等待最多 500ms，不重放数据移动；持续失败保留原日志并中止启动。`browser` 包含登录和界面资料，不能整目录当缓存清理。具体取舍见 [ADR-0016](../../architecture/adr/0016-separated-client-data-lifecycles.md)。
 
 ## 3. 六库 × 表清单(唯一成表处)
 
@@ -342,7 +346,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 | 桌面歌词     | `desktopLyric*` 全套(字体/描边/大小/透明度/缩放/逐字高亮方式)                                                                                                                                                                                                                                                                                                                                                        |
 | WeSing       | `weSingCachePath`、`weSingLyricOffsetMs`                                                                                                                                                                                                                                                                                                                                                                             |
 | 开播动画     | `openingEnabled`、`openingTitle`、`openingSubtitle`、`openingName`、`openingFooter`、`openingQuality`、`openingTrackMotion`(`heart`/`barber`/`progress`，默认 `heart`)、`openingShowNotes`、`openingShowEq`、`openingAudioFile`、`openingAudioName`、`openingAudioVolume`、`openingCharacterFile`、`openingCharacterName`、`openingPixelCharacterFile`、`openingPixelCharacterName`（动画 2 独立头像，默认空）；上传音频与人物图分别位于 data 目录 `opening-music/`、`opening-character/`                 |
-| 萌时钟       | `clockStyleParameters`（逐样式效果 JSON，默认字符串 `{}`）、`clockStyle`(`peach`/`starlight`/`soda`/`timeline-horizontal`/`timeline-vertical`/`digital`/`orbit`/`flip`/`moonlit-fan`)、`clockShowDate`、`clockShowSeconds`、`clockHourFormat`(`12`/`24`)、`clockLabel`、`clockFlipFrameColor`（默认 #e4e4e4）、`clockFlipFaceColor`（默认 #ffffff）、`clockFlipTextColor`（默认 #303030）、`clockMoonMode`（light/dark/auto，默认 light）、`clockMoonIntervalSeconds`（1–86400 整数秒，默认字符串 '30'）；旧库补足默认值，无 schema 迁移；供固定 `/clock` Browser Source 首帧读取 |
+| 萌时钟       | `clockStyleOptions`（逐样式公共外观 JSON，默认字符串 `{}`，读取时兼容原标量）、`clockStyleParameters`（逐样式效果 JSON，默认字符串 `{}`）、`clockStyle`(`peach`/`starlight`/`soda`/`timeline-horizontal`/`timeline-vertical`/`digital`/`orbit`/`flip`/`moonlit-fan`)、`clockShowDate`、`clockShowSeconds`、`clockHourFormat`(`12`/`24`)、`clockLabel`、`clockFlipFrameColor`（默认 #e4e4e4）、`clockFlipFaceColor`（默认 #ffffff）、`clockFlipTextColor`（默认 #303030）、`clockMoonMode`（light/dark/auto，默认 light）、`clockMoonIntervalSeconds`（1–86400 整数秒，默认字符串 '30'）；旧库补足默认值，无 schema 迁移；供固定 `/clock` Browser Source 首帧读取 |
 | 投票与评分外观 | `interactionOverlayTitle`/`interactionOverlayHint`（默认空、留空隐藏，分别最多 60/80 字素）；`interactionRatingRules`（多行纯文本，默认“发弹幕评分：1–10 分”“只发整数，不带其他内容”“多次评分，以最后一次为准”三行，可为空）；`interactionTextColor`(`#172b3a`)、`interactionBackgroundColor`(`#ffffff`)、`interactionBarColor`(`#bee9e2`)、`interactionTrackColor`(`#f0f3f6`)；`interactionBackgroundOpacity`/`interactionOverallOpacity`（默认 `100`，0–100 整数，分别影响底色/整个卡片）；`interactionFontSize`（默认 `20`，16–24px）、`interactionCornerRadius`（默认 `20`，0–32px）；`interactionShowStatus`/`interactionShowParticipants`（默认 `true`）。本地 settings 现有表保存，旧库按缺失键插入默认值，不覆盖已存值，不参与云端设置同步。 |
 | 保留期       | `giftRawJsonRetentionDays`(30)、`giftEventRetentionDays`(0)、`requestRetentionDays`(0)、`superChatRetentionDays`(0)、`autoRetentionOnStartup`                                                                                                                                                                                                                                                                        |
 | 更新         | `enableAutoUpdate`                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -350,6 +354,8 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 本节是设置分组与代表项，不是逐键字典。完整默认键、类型与默认值以 [settings-defaults.js](../../../src/storage/settings-defaults.js) 的 `DEFAULT_SETTINGS` 为准，输入约束以 [settings-contract.js](../../../src/server/settings-contract.js) 和领域 normalizer 为准。公开设置经 WS 快照 `settings` 字段投影下发，过滤约束见 [ws.md](ws.md)；账号归属与歌曲待传的私有持久键单列于 §8，不属于可编辑设置或公开快照；未进入 defaults 的领域设置不一定私有，见下文。
 
 ### 7.1 关键设置的归属与约束
+
+开播样式保持独立：经典舞台沿用原键；像素卡带新增 `openingPixelQuality='normal'`、`openingPixelShowNotes='true'`、`openingPixelShowEq='true'`、`openingPixelAudioVolume='0.35'`、`openingPixelAudioFile=''`、`openingPixelAudioName=''`。既有 settings 默认值补齐负责旧库升级，不覆盖经典配置，无 schema 迁移。导入资源样式的公共参数由组件库 config 拥有，覆盖已有场景中的旧副本；不写内置样式设置。
 
 settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用十进制文本，结构数据使用 JSON 文本。defaults 是默认键清单，不是所有运行期持久键的完整清单。下表聚焦同步、路径和非显然语义；HTTP 输入范围集中于 [api.md](api.md) 的 settings 契约，不另维护第二份校验算法。
 
@@ -365,6 +371,7 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 | `weSingCachePath` 为 Windows APPDATA 下 Tencent/WeSing/WeSingCache（否则空）、`weSingLyricOffsetMs='0'` | 本机路径/时钟，不同步 | 目录选择 IPC 只返回路径，HTTP 保存先 prepare 再写库；[wesing-cache.js](../../../src/music/wesing-cache.js) 校验绝对目录与偏移 |
 | `giftFrameEnabled='false'`、`giftFrameThresholdRmb='20'` | 林间花信的专属开关/金额，不加入云设置范围；缎带旧设置保留历史行但不再读取或写入 | 设置 HTTP → gift frame/overlay；[frame-config.js](../../../src/bilibili/gift/frame-config.js) |
 | `guardThanksAuroraEnabled/TextMode`、`guardThanksClassicEnabled/TextMode`（四键默认 `''`） | 两套本地开关与文字独立保存，不加入云设置范围。空值继承旧配置：仅 `guardThanksStyle` 指定的风格继承旧开关，两者继承旧文字；独立保存后该风格不再受旧键影响。旧默认仍为 `false/bilingual/aurora`，新安装两套均关闭。无数据库结构迁移 | 设置 HTTP → 每个启用风格的 `gift:guard-thanks`/overlay；[guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)、[共用兼容解析](../../../public/js/shared/guard-thanks-settings.js) |
+| `guardThanksNauticalEnabled`（默认 `''`） | 航海旗帜本地开关，`true/false` 独立生效；空值兼容任一内置感谢已启用的旧行为。新安装保持关闭，不加入云设置范围 | 同一 final 上舰行投影为专属 `style:nautical` 场景事件，不广播给旧独立礼物特效页，不触发其他样式 |
 | `openingEnabled='false'`、openingAudioFile/Name、openingCharacterFile/Name、openingPixelCharacterFile/Name | 本机上传素材与开播展示；每次 bootstrap 强制关闭 openingEnabled | 专属上传/删除路由保存素材路径，普通设置不是任意路径导入；目录见本文件 §1 |
 | `enableAutoUpdate='false'` | 本机偏好，不同步 | 管理设置 HTTP；desktop:set-auto-update 仅记日志；[update.md](../desktop/update.md) |
 | `interaction*`、`clock*` | 本机展示，不同步 | 各自 HTTP normalizer/展示 projection，默认值见代表项及 defaults |

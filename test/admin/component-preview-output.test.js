@@ -38,8 +38,9 @@ test('canvas discard restores its shared and independent edits without clearing 
   await receivedDrafts;
   await page.locator(`.preview-canvas-layer-select[data-item-id="${independentId}"]`).click();
   await page.locator('[data-preview-field="clockCustomLabel"]').fill('Local draft');
-  await desktop.waitForFunction(id => window.controllers.canvas.getState().draft.document.items
-    .find(item => item.id === id).appearance.config.label === 'Local draft', independentId);
+  await desktop.waitForFunction(() => window.controllers.clock.getState().draft.label === 'Local draft');
+  assert.notEqual(await desktop.evaluate(id => window.controllers.canvas.getState().draft.document.items
+    .find(item => item.id === id).appearance.config.label, independentId), 'Local draft');
   await page.locator(`.preview-canvas-layer-select[data-item-id="${sharedId}"]`).click();
   await page.getByRole('button', { name: '移除组件', exact: true }).click();
   await page.getByRole('button', { name: '放弃修改', exact: true }).click();
@@ -354,8 +355,9 @@ test('empty editor adds independent styles and publishes every layer through one
   assert.equal(first.document.items.length, 5);
   const clocks = first.document.items.filter(item => item.type === 'clock');
   assert.deepEqual(clocks.map(item => item.appearance.config.style), ['peach', 'flip']);
-  assert.equal(clocks[0].appearance.config.label, '仅第一只时钟');
-  assert.notEqual(clocks[1].appearance.config.label, '仅第一只时钟');
+  const { appearances } = await fixture.service.getOutput(fixture.service.getSource(first.document.id));
+  assert.equal(appearances[clocks[0].id].label, '仅第一只时钟');
+  assert.notEqual(appearances[clocks[1].id].label, '仅第一只时钟');
   assert.ok(first.document.items.every(item => item.appearance.mode === 'independent'));
   await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
   await page.waitForFunction(() => window.copiedSource);
@@ -381,7 +383,7 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '模拟发布失败' }).waitFor();
   assert.equal(fixture.service.list()[0].publishedVersion, 1);
-  await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('仅第一只时钟').waitFor();
+  await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('更新后的时钟').waitFor();
   fixture.failPublication(false);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();

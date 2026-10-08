@@ -6,6 +6,20 @@
 
 ## 文件索引
 
+- [2026-10-08-release-journal-retry](2026-10-08-release-journal-retry.md)（迁移日志占用恢复、Windows 原生查询提速、发布夹具同步与 Node 环境纠正；3,899 项测试及完整发布门禁通过）
+
+- [2026-10-08-client-ux-decisions](2026-10-08-client-ux-decisions.md)（下一首与导入身份、重启点歌恢复、礼物组合筛选、小游戏确认与存档恢复；定向自动化和隔离 Electron 检查通过，其余四项仅讨论）
+
+- [2026-10-08-client-ux-fixes](2026-10-08-client-ux-fixes.md)（桌面与网页明确的编辑、焦点、保存和失败恢复修复；定向自动化与隔离 Electron 检查通过，产品规则单列待讨论，临时数据清理受自动审批限制）
+
+- [2026-10-08-shared-canvas-appearance](2026-10-08-shared-canvas-appearance.md)（客户端/画布公共参数双向同步、已发布输出实时外观、独立空图片槽；定向回归、隔离 Electron、语法、架构和文档检查通过）
+
+- [2026-10-08-opening-canvas-settings](2026-10-08-opening-canvas-settings.md)（画布开播参数、头像和音乐上传与客户端共享；接口权限、隔离桌面流程、双向同步、语法、架构及文档检查通过）
+
+- [2026-10-08-resource-style-settings](2026-10-08-resource-style-settings.md)（配套样式功能页参数、默认值保存与航海旗帜独立控制；聚焦回归、隔离 Electron、语法、架构及文档检查通过）
+
+- [2026-10-08-opening-style-settings](2026-10-08-opening-style-settings.md)（开播统一选择、内置独立配置与包参数；聚焦回归、隔离 Electron、语法与架构检查通过，记录工作区无关文档失败）
+
 - [2026-10-08-canvas-concurrent-add](2026-10-08-canvas-concurrent-add.md)（修复并发新增图层、实例定位、Windows 素材锁定与测试端口竞态；3,830 项测试及统一发布校验通过）
 
 - [2026-10-07-scene-preset-actions](2026-10-07-scene-preset-actions.md)（预设删除、直播源保护与操作延迟修复；聚焦回归、隔离 Electron 和 quick 门禁通过）

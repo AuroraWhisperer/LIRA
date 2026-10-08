@@ -20,6 +20,9 @@ async function openHistory(t) {
     .gift-history-marquee { position: absolute; pointer-events: none; }
   </style>${html}`);
   await page.evaluate(async () => {
+    const drawer = document.getElementById('giftHistoryDrawer');
+    drawer.inert = false;
+    drawer.removeAttribute('aria-hidden');
     window.historyState = {
       items: Array.from({ length: 100 }, (_, index) => ({ eventId: `gift-${index}` })),
       selected: new Set(),
@@ -49,6 +52,33 @@ async function openHistory(t) {
 }
 
 const selected = (page) => page.evaluate(() => [...historyState.selected].sort());
+
+test('switching export panes moves focus from hidden controls to a visible action', async (t) => {
+  const page = await openHistory(t);
+  await page.locator('[data-gift-select="gift-0"]').click();
+  await page.locator('#giftHistoryExport').focus();
+  await page.evaluate(() => historyTools.showPane('export'));
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'giftExportBack');
+  await page.evaluate(async () => {
+    const { activateModalFocus } = await import('/js/shared/modal-focus.js');
+    window.releaseHistoryFocus = activateModalFocus(document.getElementById('giftHistoryDrawer'), {
+      initialFocus: document.getElementById('giftExportBack'),
+    });
+    document.getElementById('giftExportSettingsFields').disabled = true;
+  });
+  await page.locator('#giftExportNext').press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'giftExportSave', 'Disabled fieldsets do not trap the keyboard while exporting.');
+  await page.evaluate(() => historyTools.showPane('list'));
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'giftHistoryExport');
+  await page.evaluate(() => {
+    historyTools.showPane('export');
+    historyState.selected.clear();
+    historyTools.showPane('list');
+  });
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'giftHistoryClose');
+  await page.evaluate(() => window.releaseHistoryFocus());
+});
+
 async function dragRows(page, from, to) {
   const start = await page.locator(`#giftHistoryBody tr:nth-child(${from + 1})`).boundingBox();
   const end = await page.locator(`#giftHistoryBody tr:nth-child(${to + 1})`).boundingBox();

@@ -71,6 +71,31 @@ test('clock moon settings default on old stores and persist atomically across re
   for (const value of [1, 86400]) assert.equal((await f.post({ clockMoonIntervalSeconds: value })).status, 200);
 });
 
+test('clock style profiles migrate desktop values, isolate styles, and validate legacy and profile writes atomically', async t => {
+  const f = fixture(t);
+  const { getClockConfig } = require('../../src/server/clock-contract');
+  f.store.setSettings({ clockLabel: '已有客户端文案', clockShowDate: 'false' });
+  const first = getClockConfig(f.store.getSettings());
+  assert.equal(first.styleOptions.peach.label, '已有客户端文案');
+  assert.equal(first.styleOptions.flip.showDate, false);
+  const options = structuredClone(first.styleOptions);
+  options.flip.flipTextColor = '#abcdef';
+  assert.equal((await f.post({ clockStyleOptions: JSON.stringify(options) })).status, 200);
+  assert.equal((await f.post({ clockStyle: 'peach', clockLabel: '旧入口写入' })).status, 200);
+  let config = getClockConfig(createSettingsStore(f.db).getSettings());
+  assert.equal(config.styleOptions.peach.label, '旧入口写入');
+  assert.equal(config.styleOptions.flip.label, '已有客户端文案');
+  assert.equal(config.styleOptions.flip.flipTextColor, '#abcdef');
+  assert.equal((await f.post({ clockStyle: 'flip' })).status, 200);
+  config = getClockConfig(f.store.getSettings());
+  assert.equal(config.label, '已有客户端文案');
+  assert.equal(config.flipTextColor, '#abcdef');
+  for (const invalid of [{ flip: { extra: true } }, { unknown: {} }, { flip: { showDate: 'invalid' } }, null]) {
+    assert.equal((await f.post({ clockLabel: '不应写入', clockStyleOptions: JSON.stringify(invalid) })).status, 400);
+    assert.equal(f.store.getSettings().clockLabel, '旧入口写入');
+  }
+});
+
 test('song request blacklist persists normalized lines locally and can be cleared', async (t) => {
   const f = fixture(t);
   assert.equal(f.store.getSettings().songRequestBlacklist, '');

@@ -37,20 +37,18 @@ export function mountGiftEffectComponent() {
   }
   function currentMediaPlayer() {
     if (!mediaPlayer && !frame && config.resourceStyle?.preset === 'nautical-guard-thanks') {
-      mediaPlayer = createNauticalGuardPlayer({ root: guardRoot });
+      mediaPlayer = createNauticalGuardPlayer({ root: guardRoot, config });
     }
     if (!mediaPlayer && config.mediaStyle) mediaPlayer = createMediaEventPlayer(config.mediaStyle);
     return mediaPlayer;
   }
   function enqueue(payload) {
     if (payload.type !== (frame ? 'gift:frame' : 'gift:guard-thanks')) return;
+    const nautical = config.resourceStyle?.preset === 'nautical-guard-thanks';
+    if (!payload.preview && !frame && nautical !== (payload.style === 'nautical')) return;
     if (!frame && !config.mediaStyle && !config.resourceStyle && ['aurora', 'classic'].includes(config.style)) {
       if (!payload.preview && (payload.style || 'aurora') !== config.style) return;
       payload = { ...payload, style: config.style };
-    }
-    if (config.resourceStyle?.preset === 'nautical-guard-thanks' && !payload.preview) {
-      // Both native styles may emit for one purchase; this artwork plays that purchase once.
-      payload = { ...payload, eventId: payload.eventId?.replace(/^guard-thanks:(\d+):(?:aurora|classic)$/, 'guard-thanks:$1') };
     }
     if (!queue) {
       const media = currentMediaPlayer();

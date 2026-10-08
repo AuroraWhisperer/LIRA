@@ -14,6 +14,7 @@ export function createGiftExportPreview({ showPane }) {
   let running = false;
   let configuring = false;
   let attempted = false;
+  let retry = false;
   let sequence = 0;
   const status = (text, state = '') => {
     get('giftExportStatus').textContent = text;
@@ -53,8 +54,8 @@ export function createGiftExportPreview({ showPane }) {
   }
 
   function controls() {
-    get('giftExportSave').disabled = running || configuring || attempted;
-    get('giftExportSave').textContent = running ? '正在导出…' : '导出 PNG';
+    get('giftExportSave').disabled = running || configuring || (attempted && !retry);
+    get('giftExportSave').textContent = running ? '正在导出…' : retry ? '重新导出' : '导出 PNG';
     get('giftExportSettingsFields').disabled = running || configuring;
     get('giftExportCancel').hidden = !running;
   }
@@ -87,6 +88,7 @@ export function createGiftExportPreview({ showPane }) {
       if (request !== sequence) return;
       task = next;
       attempted = false;
+      retry = false;
       page = 0;
       get('giftExportOpenFolder').hidden = true;
       await render();
@@ -126,8 +128,8 @@ export function createGiftExportPreview({ showPane }) {
   );
   get('giftExportSave')?.addEventListener('click', () =>
     run(async () => {
-      if (!task || running || configuring || attempted) return;
-      const current = task;
+      if (!task || running || configuring || (attempted && !retry)) return;
+      let current = task;
       running = true;
       attempted = true;
       controls();
@@ -136,13 +138,31 @@ export function createGiftExportPreview({ showPane }) {
         if (task === current && progress.id === current.id) status(`已保存 ${progress.saved} / ${progress.total} 张`);
       });
       try {
+        if (retry) {
+          const next = unwrap(await window.giftExport.configure({
+            id: current.id, mode: current.mode, background: current.background,
+          }));
+          if (task !== current) return;
+          task = current = next;
+          retry = false;
+          get('giftExportOpenFolder').hidden = true;
+          await render();
+          if (task !== current) return;
+        }
         const result = await window.giftExport.save(current.id);
         if (task !== current) return;
+        retry = !result.ok && !result.cancelled;
         status(
-          result.ok ? `已保存 ${result.saved} 张 PNG` : `${result.error}。已保存 ${result.saved || 0} 张，文件已保留。`,
+          result.ok ? `已保存 ${result.saved} 张 PNG`
+            : `${result.error}。已保存 ${result.saved || 0} 张，文件已保留。${retry ? '重新导出会创建新文件夹并重新生成全部图片。' : ''}`,
           result.ok ? 'success' : 'error',
         );
         get('giftExportOpenFolder').hidden = !(result.saved > 0);
+      } catch (error) {
+        if (task === current) {
+          retry = true;
+          status(error.message, 'error');
+        }
       } finally {
         unsubscribe();
         if (task === current) {
@@ -166,6 +186,7 @@ export function createGiftExportPreview({ showPane }) {
       task = next;
       configuring = false;
       attempted = false;
+      retry = false;
       page = 0;
       get('giftExportOpenFolder').hidden = true;
       status(

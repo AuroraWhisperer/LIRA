@@ -23,7 +23,7 @@ function normalizeSceneExtraConfig(type, config) {
       if (![true, false, 'true', 'false'].includes(raw)) throw invalid();
       value = raw === true || raw === 'true';
     } else if (typeof raw !== 'string') throw invalid();
-    if (field.type === 'color' && !/^#[\da-f]{6}$/i.test(value)) throw invalid();
+    if (field.type === 'color' && !(field.allowEmpty && value === '') && !/^#[\da-f]{6}$/i.test(value)) throw invalid();
     if (field.type === 'select' && !Object.hasOwn(field.options, value)) throw invalid();
     if (['text', 'textarea'].includes(field.type) && (Array.from(value).length > field.maxLength || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value))) throw invalid();
     result[key] = typeof field.default === 'string' ? String(value) : value;

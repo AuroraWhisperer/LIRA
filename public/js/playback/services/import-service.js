@@ -2,6 +2,8 @@
 // 点歌队列导入服务 - 负责从点歌队列导入歌曲到播放队列
 'use strict';
 
+import { getSongRequestKey } from '../utils.js';
+
 /**
  * 点歌队列导入服务类
  */
@@ -31,6 +33,7 @@ export class ImportService {
         pending: 0,
         skipped: 0,
         tracks: [],
+        importedRequestKeys: [],
       };
     }
 
@@ -39,7 +42,22 @@ export class ImportService {
     let pending = 0;
     let skipped = 0;
     const importedTracks = [];
-    const items = queueData.items.slice(0, maxItems);
+    const activeKeys = new Set(queueData.items.map(getSongRequestKey).filter(Boolean));
+    const knownKeys = [
+      ...(options.importedRequestKeys || []),
+      ...(this.matchService?.getPendingRequests?.() || []).map((request) => request.songRequestKey),
+    ];
+    const importedRequestKeys = new Set(knownKeys.filter((key) => activeKeys.has(key)));
+    const seenKeys = new Set(importedRequestKeys);
+    const items = queueData.items.filter((item) => {
+      const key = getSongRequestKey(item);
+      if (key && seenKeys.has(key)) {
+        skipped++;
+        return false;
+      }
+      if (key) seenKeys.add(key);
+      return true;
+    }).slice(0, maxItems);
 
     for (const item of items) {
       try {
@@ -53,6 +71,10 @@ export class ImportService {
         } else {
           skipped++;
         }
+        if (result.type === 'imported' || result.type === 'pending') {
+          const key = getSongRequestKey(item);
+          if (key) importedRequestKeys.add(key);
+        }
       } catch (error) {
         console.warn('[ImportService] process item failed:', error.message || error);
         skipped++;
@@ -64,6 +86,7 @@ export class ImportService {
       pending,
       skipped,
       tracks: importedTracks,
+      importedRequestKeys: [...importedRequestKeys],
     };
   }
 
@@ -110,6 +133,7 @@ export class ImportService {
         type: 'imported',
         track: {
           ...matched.track,
+          songRequestKey: getSongRequestKey(item),
           requestedBy: item.requester_name || item.requesterName || '观众',
         },
       };

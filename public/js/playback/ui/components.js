@@ -172,7 +172,9 @@ export function renderQueueRow(track, origin, index, readonly, currentTrack, cur
   const needsFile = isLocal && !track.objectUrl;
   const fileMissing = isLocal && track.fileMissing;
   const meta = `${PlaybackUtils.formatTrackMeta(track)}${fileMissing ? ' · 文件已移动，请重新选择' : needsFile ? ' · 需重新选择文件' : ''}`;
-  const isActive = origin === currentOrigin && currentTrack && track.id === currentTrack.id;
+  const isActive =
+    origin === currentOrigin && currentTrack &&
+    PlaybackUtils.getQueueTrackKey(track) === PlaybackUtils.getQueueTrackKey(currentTrack);
 
   return `
     <div class="queue-row playback-queue-row${isActive ? ' active' : ''}">

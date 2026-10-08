@@ -21,6 +21,31 @@
 .component-style-add { border-style: dashed; color: var(--color-text-secondary, #667); }
 .component-style-delete { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 24px; height: 24px; min-height: 24px; padding: 0; border-radius: 50%; border: 1px solid var(--color-border, #ccc); background: var(--color-bg-primary, #fff); font-size: 16px; line-height: 1; cursor: pointer; }
 .component-style-select:hover, .component-style-add:hover { border-color: var(--color-control-accent, #21b6a8); }
+.component-style-select[aria-pressed='true'] { border-color: var(--color-control-accent); background: var(--color-bg-secondary); }
+.resource-style-settings-host { grid-column: 1 / -1; min-width: 0; }
+.resource-style-settings { padding-block: 20px; border-top: 1px solid var(--color-border); }
+.resource-style-settings[hidden], .resource-style-preview[hidden] { display: none; }
+.resource-style-heading, .resource-style-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.resource-style-heading h3 { flex: 1; margin: 0; }
+.resource-style-parameters { margin-block: 20px; }
+.resource-style-parameters .clock-style-options, .resource-style-parameters .style-picker { display: none; }
+.resource-style-parameters .component-preview-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.resource-style-parameters .component-preview-fields > label { display: grid; gap: 6px; }
+.resource-style-parameters .component-preview-fields > label[hidden] { display: none; }
+.resource-style-parameters .component-preview-fields > label:has(input[type='checkbox']) { display: flex; align-items: center; }
+.resource-style-parameters input[type='checkbox'] { width: auto; }
+.resource-style-preview { margin-top: 20px; }
+.resource-style-preview .component-preview-stage { height: 360px; }
+#otherClockFeature.has-resource-style .clock-tool-layout { grid-template-columns: minmax(0, 1fr); }
+#otherClockFeature.has-resource-style .clock-preview-card,
+#otherClockFeature.has-resource-style .clock-settings-card > :not(.clock-parameter-section),
+#otherClockFeature.has-resource-style .clock-settings-card > .clock-parameter-section > :not(h3, .clock-style-options, .resource-style-settings-host),
+#otherDanmakuFeature.has-resource-style .danmaku-settings-block > .danmaku-parameters,
+#otherDanmakuFeature.has-resource-style .danmaku-style-footer,
+#otherDanmakuFeature.has-resource-style #danmakuStyleChip,
+#otherDanmakuFeature.has-resource-style #danmakuPreviewOverlayBtn,
+#otherDanmakuFeature.has-resource-style [aria-labelledby='danmakuOverlayLinkTitle'],
+#themeForm.has-resource-style > :not(.style-picker) { display: none; }
 .component-style-dialog { box-sizing: border-box; width: min(920px, 94vw); max-height: 88vh; overflow: auto; border: 1px solid var(--color-border, #ddd); border-radius: 16px; padding: 20px; background: var(--color-bg-primary, #fff); color: var(--color-text-primary, #262634); }
 .component-style-dialog::backdrop { background: #15152566; }
 .component-style-dialog > header { display: flex; gap: 16px; justify-content: space-between; align-items: center; margin-bottom: 18px; }

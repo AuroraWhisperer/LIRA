@@ -71,6 +71,8 @@ export class StorageManager {
         queueTitle: state.queueTitle,
         queueSourceKey: state.queueSourceKey,
         playlistIndex: state.playlistIndex,
+        pendingRequests: state.pendingRequests,
+        importedSongRequestKeys: state.importedSongRequestKeys,
         history: state.history.slice(-50), // 只保留最近 50 条
         displayHistory: state.displayHistory.slice(-20), // 只保留最近 20 条
         mode: state.mode,

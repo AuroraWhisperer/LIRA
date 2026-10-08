@@ -1,5 +1,7 @@
 'use strict';
 
+import { stateService } from './state.js';
+
 /**
  * Static configuration and first-run state for the interactive tour.
  *
@@ -73,10 +75,10 @@ export const TOUR_CONFIG_STEPS = [
   },
   {
     id: 'room-id',
-    title: '填写你的直播间',
-    kicker: '第 3 步 · 填写直播间',
+    title: '填写并保存你的直播间',
+    kicker: '第 3 步 · 保存直播间',
     content:
-      '点击高亮的输入框，填写你正在直播的<strong class="lira-tour-keyword">房间号</strong>；也可以直接粘贴<strong class="lira-tour-keyword">直播间网址</strong>。填好后，这一步会自动显示为已完成。',
+      '点击高亮的输入框，填写你正在直播的<strong class="lira-tour-keyword">房间号</strong>；也可以直接粘贴<strong class="lira-tour-keyword">直播间网址</strong>。填好后点击<strong class="lira-tour-keyword">「保存设置」</strong>，保存成功才算完成这一步。',
     note: '例如：房间号「123456」，也可以直接粘贴直播间链接。',
     targetPage: 'songAssistantPage',
     targetTab: '[data-tab="settingsPage"]',
@@ -85,7 +87,8 @@ export const TOUR_CONFIG_STEPS = [
     waitForAction: true,
     checkCompleted: () => {
       const input = document.getElementById('roomId');
-      return input && input.value.trim().length > 0;
+      const savedRoomId = String(stateService.getAppState()?.settings?.roomId || '').trim();
+      return Boolean(savedRoomId && input?.value.trim() === savedRoomId);
     },
   },
   {
@@ -93,8 +96,8 @@ export const TOUR_CONFIG_STEPS = [
     title: '让 LIRA 连接直播间',
     kicker: '第 4 步 · 刷新连接',
     content:
-      '先在「点歌 → 设置」开启<strong class="lira-tour-keyword">「接收弹幕和礼物」</strong>并点击<strong class="lira-tour-keyword">「保存设置」</strong>，再查看右上角的直播间连接状态。连接异常时，点击<strong class="lira-tour-keyword">「刷新直播」</strong>。',
-    note: '请按连接状态的文字提示处理。仍未连接时，检查 B 站账号、直播间号和接收开关是否已保存。',
+      '保存直播间后，查看右上角的连接状态。连接异常时，点击<strong class="lira-tour-keyword">「刷新直播」</strong>。需要弹幕或礼物功能时，分别到<strong class="lira-tour-keyword">「百宝箱 → 弹幕姬」</strong>开启「监控弹幕」，到<strong class="lira-tour-keyword">「礼物」</strong>开启「监控礼物」；这两个开关会自动保存。',
+    note: '请按连接状态的文字提示处理。仍未连接时，检查 B 站账号和已保存的直播间号。',
     targetPage: 'songAssistantPage',
     targetTab: null,
     targetSelector: '#liveStatus, #reconnectBtn',
@@ -103,7 +106,7 @@ export const TOUR_CONFIG_STEPS = [
     checkCompleted: () => {
       // 检查直播状态是否已连接
       const liveStatus = document.getElementById('liveStatus');
-      return liveStatus && !liveStatus.classList.contains('warn');
+      return Boolean(liveStatus?.classList.contains('good'));
     },
   },
   {

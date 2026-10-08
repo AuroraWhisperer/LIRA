@@ -4,6 +4,8 @@
 
 const { sendJson } = require('../http-utils');
 const { normalizeSettingsPatch, hasCloudSettingChanges } = require('../settings-contract');
+const { getClockConfig } = require('../clock-contract');
+const { CLOCK_APPEARANCE_KEYS } = require('../../../public/js/shared/clock-settings.js');
 
 const prefixes = ['/api/settings'];
 const routes = {
@@ -25,6 +27,15 @@ const routes = {
         sendJson(res, 400, { ok: false, error: error.message || String(error) });
         return;
       }
+    }
+    if (!Object.hasOwn(result.values, 'clockStyleOptions')
+      && Object.values(CLOCK_APPEARANCE_KEYS).some(key => Object.hasOwn(result.values, key))) {
+      const current = context.settings.get();
+      const options = getClockConfig({ ...current, clockStyleOptions: current.clockStyleOptions || '{}' }).styleOptions;
+      const changed = getClockConfig({ ...current, ...result.values, clockStyleOptions: undefined });
+      const patch = Object.fromEntries(Object.entries(CLOCK_APPEARANCE_KEYS)
+        .filter(([, key]) => Object.hasOwn(result.values, key)).map(([field]) => [field, changed[field]]));
+      result.values.clockStyleOptions = JSON.stringify({ ...options, [changed.style]: { ...options[changed.style], ...patch } });
     }
     const changedKeys = context.settings.setMany(result.values);
     if (preparedWeSing) await preparedWeSing.apply();

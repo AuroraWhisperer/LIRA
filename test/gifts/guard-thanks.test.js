@@ -71,6 +71,7 @@ test('guard thanks settings are allowlisted local settings with safe defaults', 
   assert.equal(DEFAULT_SETTINGS.guardThanksEnabled, 'false');
   assert.equal(DEFAULT_SETTINGS.guardThanksTextMode, 'bilingual');
   assert.equal(DEFAULT_SETTINGS.guardThanksStyle, 'aurora');
+  assert.equal(DEFAULT_SETTINGS.guardThanksNauticalEnabled, '');
   assert.equal(normalizeGuardThanksSettingValue('guardThanksEnabled', true), 'true');
   assert.equal(normalizeGuardThanksSettingValue('guardThanksEnabled', 'yes'), null);
   assert.equal(normalizeGuardThanksSettingValue('guardThanksTextMode', 'zh'), 'zh');
@@ -85,6 +86,10 @@ test('guard thanks settings are allowlisted local settings with safe defaults', 
     values: { guardThanksStyle: 'classic' },
   });
   assert.match(normalizeSettingsPatch({ guardThanksStyle: 'neon' }, DEFAULT_SETTINGS).error, /guardThanksStyle/);
+  assert.deepEqual(normalizeSettingsPatch({ guardThanksNauticalEnabled: true }, DEFAULT_SETTINGS), {
+    values: { guardThanksNauticalEnabled: 'true' },
+  });
+  assert.match(normalizeSettingsPatch({ guardThanksNauticalEnabled: 'yes' }, DEFAULT_SETTINGS).error, /guardThanksNauticalEnabled/);
 });
 
 test('independent styles preserve legacy selection and generate distinct events with their own text', () => {
@@ -188,7 +193,20 @@ test('finalized guard gifts broadcast thanks after the frame event and only when
   transport.publishGiftFlushed({ ...guardRow, id: 43 });
   assert.deepEqual(sent.slice(-2).map(event => [event.eventId, event.textMode]),
     [['guard-thanks:43:aurora', 'zh'], ['guard-thanks:43:classic', 'en']]);
-  assert.deepEqual(sceneEvents.slice(-2), sent.slice(-2));
+  assert.deepEqual(sceneEvents.slice(-3, -1), sent.slice(-2));
+  assert.equal(sceneEvents.at(-1).style, 'nautical');
+  settings = { guardThanksAuroraEnabled: 'false', guardThanksClassicEnabled: 'false', guardThanksNauticalEnabled: 'true' };
+  transport.publishGiftFlushed({ ...guardRow, id: 44 });
+  assert.equal(sent.at(-1).type, 'snapshot', 'The resource event must not trigger a builtin or third-party standalone effect.');
+  assert.equal(sceneEvents.at(-1).eventId, 'guard-thanks:44:nautical');
+  const count = sceneEvents.length;
+  settings.guardThanksNauticalEnabled = 'false';
+  transport.publishGiftFlushed({ ...guardRow, id: 45 });
+  assert.equal(sceneEvents.length, count);
+  settings.guardThanksClassicEnabled = 'true';
+  transport.publishGiftFlushed({ ...guardRow, id: 46 });
+  assert.equal(sceneEvents.length, count + 1);
+  assert.equal(sceneEvents.at(-1).style, 'classic', 'Disabling nautical must preserve enabled builtin effects.');
 });
 
 test('only the gift-effects overlay scope receives the projected thanks fields', () => {

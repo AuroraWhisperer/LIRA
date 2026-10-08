@@ -171,7 +171,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
     await reopened.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
     const floating = await app.evaluate((_, style) => global.canvasTest.scene().document.items.find(item => item.appearance.config?.style === style), style);
     assert.deepEqual([floating.x, floating.y, floating.width, floating.height], [0, 0, 2560, 1440]);
-    assert.equal(floating.appearance.config.styleOptions[style].speedPixelsPerSecond, 240);
+    assert.equal(await app.evaluate((_, style) => global.canvasTest.saved().styleOptions[style].speedPixelsPerSecond, style), 240);
     await reopened.reload();
     await reopened.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
     await reopened.locator('.preview-canvas-layer-select').first().click();
@@ -195,8 +195,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   }
   await reopened.getByRole('button', { name: '保存并应用', exact: true }).click();
   await reopened.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
-  const random = await app.evaluate(() => global.canvasTest.scene().document.items.find(item => item.appearance.config?.style === 'outline'));
-  assert.deepEqual(random.appearance.config.styleOptions.outline, { centerBias: 42, dispersion: 37 });
+  assert.deepEqual(await app.evaluate(() => global.canvasTest.saved().styleOptions.outline), { centerBias: 42, dispersion: 37 });
   await reopened.reload();
   await reopened.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
   await reopened.locator('.preview-canvas-layer-select').first().click();

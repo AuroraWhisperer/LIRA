@@ -133,7 +133,8 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
   assert.match(html, /id="openingName"[^>]+value=""/);
   assert.match(script, /OPENING_AUDIO_ENDPOINT/);
   assert.match(script, /MAX_CHARACTER_UPLOAD_BYTES/);
-  assert.match(script, /openingTrackMotion:\s*config\.trackMotion/);
+  const { openingSettingsPayload } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/start-animation.js'));
+  assert.equal(openingSettingsPayload({ style: 'classic', trackMotion: 'barber' }).openingTrackMotion, 'barber');
   assert.equal(DEFAULT_SETTINGS.openingEnabled, 'false');
   assert.equal(DEFAULT_SETTINGS.openingFooter, '欢迎来到直播间');
   assert.equal(DEFAULT_SETTINGS.openingTrackMotion, 'heart');

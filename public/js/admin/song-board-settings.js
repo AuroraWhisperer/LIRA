@@ -19,8 +19,8 @@ const RANGE_PAIRS = [
   ['songBoardThemeOpacity', 'songBoardThemeOpacityNumber', 0, 1, 0.35],
   ['songBoardBackdropBlur', 'songBoardBackdropBlurNumber', 0, 30, 0],
   ['songBoardGlowIntensity', 'songBoardGlowIntensityNumber', 0, 20, 0],
-  ['songBoardSongFontSize', 'songBoardSongFontSizeNumber', 10, 40, 16],
-  ['songBoardTitleFontSize', 'songBoardTitleFontSizeNumber', 10, 28, 15],
+  ['songBoardSongFontSize', 'songBoardSongFontSizeNumber', 10, 100, 16],
+  ['songBoardTitleFontSize', 'songBoardTitleFontSizeNumber', 10, 100, 15],
 ];
 
 export function songBoardConfigFromSettings(settings) {

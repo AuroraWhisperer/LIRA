@@ -20,7 +20,8 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
       initialSeconds: 120, serverNowMs: Date.now(), rules: [], settlements: [], background: { path: '', fit: 'cover' } } };
   // The injected test codec handles synthetic data in an in-memory database only.
   const sceneRuntime = createSceneRuntime({ songDb: db, getState: () => runtime,
-    getContext: extraContext ? () => ({ ...extraContext, system: { getState: () => runtime } }) : undefined, runtimeOptions: {
+    getContext: () => ({ settings: { get: () => runtime.settings }, ...extraContext,
+      system: { dataDir, getState: () => runtime } }), runtimeOptions: {
     getSceneOwner: () => owner,
     sceneSecretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() } } });
@@ -32,6 +33,7 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
     layout: createLayout(), state: 'running', liveStatus: 1, liveSessionId: 'synthetic-live', confirmationMessage: '合成开播确认' });
   const ports = createSceneComponentPorts({ getState: () => runtime,
     cloud: { getSettings: () => sceneRuntime.readDanmakuDisplay().config } });
+  const configs = Object.fromEntries(['clock', 'queue', 'danmaku', 'overtime'].map(id => [id, ports.getDefaultConfig(id)]));
   let failPublish = false;
   const scenes = { ...service, publish(body) {
     if (failPublish) throw Object.assign(new Error('模拟发布失败'), { statusCode: 503 });
@@ -41,11 +43,18 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
     return service.publishCanvas(body);
   } };
   const server = await startComponentPreviewServer({ scenes, dataDir, getOwner: () => owner, getState: () => runtime,
+    settings: { get: () => runtime.settings, defaults: DEFAULT_SETTINGS,
+      setMany(patch) {
+        Object.assign(runtime.settings, patch);
+        if (Object.keys(patch).some(key => key.startsWith('clock'))) configs.clock = ports.getDefaultConfig('clock');
+        sceneRuntime.notify();
+        return Object.keys(patch);
+      } },
     sceneEvents: notifications ? sceneRuntime.events : undefined,
     readDanmakuDisplay: sceneRuntime.readDanmakuDisplay,
     parentHtml: '<!doctype html><html><body></body></html>' });
   return { ...server, service, runtime, owner, updateCloud, receiveGift: sceneRuntime.receiveGift, notify: sceneRuntime.notify,
-    configs: Object.fromEntries(['clock', 'queue', 'danmaku', 'overtime'].map(id => [id, ports.getDefaultConfig(id)])),
+    configs,
     failPublication(value) { failPublish = value; },
     async close() { sceneRuntime.dispose(); await server.close(); db.close(); },
   };
@@ -66,7 +75,15 @@ async function openCanvasDesktop(page, fixture, selectedId = null) {
     window.controllers = {};
     window.open = value => { window.externalPreviewUrl = value; };
     for (const [id, initial] of Object.entries(configs)) {
-      const controller = createComponentConfigController({ initial, persist: async draft => draft });
+      const controller = createComponentConfigController({ initial, persist: async draft => {
+        if (id === 'clock') {
+          const { clockSettingsPayload } = await import('/js/shared/clock-settings.js');
+          const response = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(clockSettingsPayload(draft)) });
+          if (!response.ok) throw new Error('Clock settings save failed');
+        }
+        return draft;
+      } });
       window.controllers[id] = controller;
       registerComponentPreview(id, () => ({ id, controller }));
     }

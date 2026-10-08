@@ -141,7 +141,10 @@ function createHttpServer(options = {}) {
       }
 
       if (requestUrl.pathname.startsWith('/opening-media/')) {
-        httpUtils.serveOpeningMedia(dataDir, req, res, requestUrl, () => getSettings()?.openingAudioFile || '');
+        httpUtils.serveOpeningMedia(dataDir, req, res, requestUrl, () => {
+          const settings = getSettings();
+          return [settings?.openingAudioFile, settings?.openingPixelAudioFile];
+        });
         return;
       }
 

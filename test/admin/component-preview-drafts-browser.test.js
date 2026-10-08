@@ -83,7 +83,7 @@ test('refresh keeps desktop-owned drafts editable and saves later changes once',
   await width.press('Tab');
   await label.fill('刷新前未保存');
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[0]?.width === 777
-    && window.controllers.canvas.getState().draft.document.items[0]?.appearance.config.label === '刷新前未保存');
+    && window.controllers.clock.getState().draft.label === '刷新前未保存');
   await page.reload();
   await page.getByRole('button', { name: '添加组件', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isEnabled(), true);
@@ -101,7 +101,7 @@ test('refresh keeps desktop-owned drafts editable and saves later changes once',
   await desktop.waitForFunction(size => {
     const item = window.controllers.canvas.getState().draft.document.items[0];
     return item?.width === size.width && item.height === Math.ceil(size.height)
-      && item.appearance.config.label === '刷新后继续编辑';
+      && window.controllers.clock.getState().draft.label === '刷新后继续编辑';
   }, appliedSize);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor().catch(async error => {
@@ -109,7 +109,7 @@ test('refresh keeps desktop-owned drafts editable and saves later changes once',
   });
   assert.equal(fixture.service.list()[0].publishedVersion, 1);
   assert.equal(fixture.service.list()[0].document.items[0].width, 888);
-  assert.equal(fixture.service.list()[0].document.items[0].appearance.config.label, '刷新后继续编辑');
+  assert.equal(fixture.runtime.settings.clockLabel, '刷新后继续编辑');
   assert.equal(commands.filter(command => command.action === 'close').length, 0, 'Pagehide only detaches the page.');
 });
 
@@ -218,7 +218,7 @@ test('refresh recovers unsent edits and does not repeat a publication whose resp
   const draftKey = (await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.links
     .find(({ component }) => component === 'canvas').draftKey;
   await page.waitForFunction(key => JSON.parse(localStorage.getItem(`lira.preview-draft.v1.${key}`))
-    ?.components.canvas.draft.document.items[0]?.appearance.config.label === '尚未送达客户端', draftKey);
+    ?.components.clock.draft.label === '尚未送达客户端', draftKey);
   await page.reload();
   await page.locator('.preview-canvas-layer-select').click();
   assert.equal(await width.inputValue(), '777');
@@ -268,7 +268,7 @@ test('revoked refresh retains unsaved layout and parameters, and reopening resto
     .find(({ component }) => component === 'canvas');
   await page.waitForFunction(key => {
     const snapshot = JSON.parse(localStorage.getItem(`lira.preview-draft.v1.${key}`));
-    return snapshot?.components.canvas.draft.document.items[0]?.appearance.config.label === '尚未完成的配置';
+    return snapshot?.components.clock.draft.label === '尚未完成的配置';
   }, draftKey);
   assert.equal(fixture.service.list()[0].publishedVersion, 0);
   assert.equal(fixture.service.list()[0].document.items.length, 0);
@@ -318,7 +318,7 @@ test('revoked refresh retains unsaved layout and parameters, and reopening resto
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
   assert.equal(fixture.service.list()[0].publishedVersion, 1);
-  assert.equal(fixture.service.list()[0].document.items[0].appearance.config.label, '尚未完成的配置');
+  assert.equal(fixture.runtime.settings.clockLabel, '尚未完成的配置');
   await width.fill('888');
   await width.press('Tab');
   await page.getByRole('button', { name: '放弃修改', exact: true }).click();

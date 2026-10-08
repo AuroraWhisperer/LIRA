@@ -36,7 +36,7 @@ function checkRevision(record, expectedRevision) {
   if (record.revision !== expectedRevision) throw conflict();
 }
 
-function createSceneService({ store, getOwner, secretCodec, normalizeConfig, getDefaultConfig, getDisplayData, onOutputChanged = () => {} }) {
+function createSceneService({ store, getOwner, secretCodec, normalizeConfig, getDefaultConfig, getDisplayData, getSharedAppearances, onOutputChanged = () => {} }) {
   const projections = createSceneOutputProjection();
   const browserSources = createSceneBrowserSourceCodec(secretCodec);
   function withOwner(work) {
@@ -226,9 +226,9 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
         checkRevision(readStored(owner.scope, id), expectedRevision);
         const binding = canvasBinding(owner.scope);
         if (id === binding.outputId) throw new SceneError('SCENE_OUTPUT_PROTECTED', 409,
-          '此预设承载固定直播源，不能删除；可以清空组件后重新使用。');
+          '此场景承载固定直播源，不能删除；可以清空组件后重新使用。');
         if (id === binding.activeSceneId) throw new SceneError('SCENE_ACTIVE_PROTECTED', 409,
-          '此预设正在直播使用，请先对其他预设“保存并应用”后再删除。');
+          '此场景正在直播使用，请先对其他场景“保存并应用”后再删除。');
         assertCurrent();
         const deleted = store.delete({ scope: owner.scope, id, expectedRevision });
         if (!deleted) throw conflict();
@@ -312,6 +312,7 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
             throw new SceneError('SCENE_ACCESS_DENIED', 403, '场景来源凭据无效。');
           }
           const outputDocument = version === record.publishedVersion ? null : browserSources.decodeDocument(document, owner.scope);
+          const appearances = getSharedAppearances?.(document.items);
           assertCurrent();
           return {
             sceneId: id,
@@ -319,6 +320,7 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
             projection: projections.issue(binding, record.publishedVersion, types),
             document: outputDocument,
             data: display,
+            ...(appearances ? { appearances } : {}),
           };
         };
         return data?.then ? data.then(finish) : finish(data);

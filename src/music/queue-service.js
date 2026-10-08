@@ -84,13 +84,6 @@ function getQueueSnapshot(context) {
   return { current: null, waiting: context.store.listActive() };
 }
 
-function clearActiveQueueOnStartup(context) {
-  const changes = context.store.clearActive(now());
-  if (changes > 0) {
-    console.log(`[Startup] cleared ${changes} old queue item(s).`);
-  }
-}
-
 function ensureUnifiedQueue(context) {
   context.store.normalizeCurrentToWaiting(now());
 }
@@ -99,6 +92,5 @@ module.exports = {
   addQueueItem,
   handleQueueAction,
   getQueueSnapshot,
-  clearActiveQueueOnStartup,
   ensureUnifiedQueue,
 };

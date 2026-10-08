@@ -173,6 +173,8 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await desktop.locator('#guardThanksClassicPreviewUser').fill('上舰观众');
   await desktop.locator('#guardThanksClassicPreviewMonths').fill('6');
   await desktop.locator('#guardThanksClassicTextMode').selectOption('zh');
+  await desktop.locator('#guardThanksClassicSaveBtn').click();
+  await desktop.locator('#guardThanksClassicSaveState').filter({ hasText: '设置已保存' }).waitFor();
   await open('#guardThanksClassicPlayBtn');
   assert.equal(await page.locator('.scene-editor-item').count(), 2);
   const guardPreview = page.frameLocator('.scene-editor-item.is-selected iframe');
@@ -183,8 +185,10 @@ test('gift settings open separate canvas layers that save, preview and receive o
   assert.equal(await page.getByRole('textbox', { name: '预览观众', exact: true }).inputValue(), '上舰观众');
   assert.equal(await page.getByRole('spinbutton', { name: '预览月数', exact: true }).inputValue(), '6');
   assert.equal(await guardPreview.locator('#giftFrame.is-playing').count(), 0);
-  assert.equal(await page.locator('[data-component-parameter="textMode"]').inputValue(), 'follow');
+  assert.equal(await page.locator('[data-component-parameter="textMode"]').inputValue(), 'zh');
   await desktop.locator('#guardThanksAuroraTextMode').selectOption('en');
+  await desktop.locator('#guardThanksAuroraSaveBtn').click();
+  await desktop.locator('#guardThanksAuroraSaveState').filter({ hasText: '设置已保存' }).waitFor();
   await desktop.locator('#guardThanksAuroraPreviewTier').selectOption('governor');
   await desktop.locator('#guardThanksAuroraPreviewMonths').fill('9');
   await open('#guardThanksAuroraPlayBtn');
@@ -227,8 +231,10 @@ test('gift settings open separate canvas layers that save, preview and receive o
   assert.doesNotMatch(JSON.stringify(saved), /林间听风|新的观众|上舰观众|星河旅人|previewData/, 'simulated input is not saved into the scene');
   assert.deepEqual(saved.document.items.map(item => [item.type, item.width, item.height]),
     [['gift-frame', 960, 540], ['guard-thanks', 640, 540], ['guard-thanks', 1920, 1080]]);
-  assert.deepEqual(saved.document.items[1].appearance.config, { style: 'classic', textMode: 'en' });
-  assert.deepEqual(saved.document.items[2].appearance.config, { style: 'aurora', textMode: 'follow' });
+  assert.equal(saved.document.items[1].appearance.config.style, 'classic');
+  assert.equal(fixture.runtime.settings.guardThanksClassicTextMode, 'en');
+  assert.equal(saved.document.items[2].appearance.config.style, 'aurora');
+  assert.equal(fixture.runtime.settings.guardThanksAuroraTextMode, 'en');
   await desktop.evaluate(() => { window.externalPreviewUrl = ''; });
   await desktop.locator('#guardThanksClassicPreviewMonths').fill('0');
   await desktop.locator('#guardThanksClassicPlayBtn').click();
@@ -272,7 +278,7 @@ test('gift settings open separate canvas layers that save, preview and receive o
   assert.equal(await auroraOutput.locator('.gt-card, .gta-card').count(), 0, 'aurora does not play classic events');
   fixture.receiveGift({ type: 'gift:guard-thanks', eventId: 'live-guard-2', userName: '辉光观众', tier: 'captain', months: 1,
     textMode: 'zh', style: 'aurora' });
-  await auroraOutput.locator('.gta-card[data-tier="captain"][data-lang="zh"]').waitFor({ state: 'visible' });
+  await auroraOutput.locator('.gta-card[data-tier="captain"][data-lang="en"]').waitFor({ state: 'visible' });
   assert.equal(await guardOutput.locator('.gta-card').count(), 0, 'classic does not play aurora events');
   assert.deepEqual(await frameOutput.evaluate(() => window.receivedGiftEvents.map(event => event.eventId)), ['live-frame-1']);
   assert.deepEqual(await guardOutput.evaluate(() => window.receivedGiftEvents.map(event => event.eventId)), ['live-guard-1', 'live-guard-2']);

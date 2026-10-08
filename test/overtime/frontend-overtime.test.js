@@ -8,8 +8,50 @@ const path = require('node:path');
 const test = require('node:test');
 const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createFixture, deferred } = require('../helpers/overtime-gift-picker-fixture');
 
 const ROOT_DIR = path.join(__dirname, '../..');
+
+test('cancelling reset or applying a new duration leaves the overtime countdown untouched', async () => {
+  const fixture = await createFixture({
+    initialState: { overtime: { initialSeconds: 3600, effectiveRemainingMs: 9000000, status: 'running' } },
+    parsedDuration: 7200,
+    confirmImpl: async () => false,
+  });
+  await fixture.document.getElementById('overtimeResetBtn').dispatchEvent('click');
+  await fixture.document.getElementById('overtimeApplyTimeBtn').dispatchEvent('click');
+  assert.equal(fixture.state.apiCalls.length, 0);
+  assert.equal(fixture.state.confirmationCalls.length, 2);
+  assert.match(fixture.state.confirmationCalls[0].message, /3600 秒/);
+  assert.match(fixture.state.confirmationCalls[1].message, /7200 秒/);
+});
+
+test('pending time confirmation blocks duplicate resets and applies only the accepted action', async () => {
+  const confirmation = deferred();
+  const fixture = await createFixture({
+    initialState: { overtime: { initialSeconds: 3600 } },
+    parsedDuration: 7200,
+    confirmImpl: () => confirmation.promise,
+  });
+  const reset = fixture.document.getElementById('overtimeResetBtn');
+  const apply = fixture.document.getElementById('overtimeApplyTimeBtn');
+  const pendingReset = reset.dispatchEvent('click');
+  await reset.dispatchEvent('click');
+  await apply.dispatchEvent('click');
+  assert.equal(fixture.state.confirmationCalls.length, 1);
+  assert.equal(fixture.state.apiCalls.length, 0);
+  confirmation.resolve(true);
+  await pendingReset;
+  assert.equal(fixture.state.apiCalls.length, 1);
+  assert.equal(fixture.state.apiCalls[0].url, '/api/overtime/action');
+  assert.equal(fixture.state.apiCalls[0].body.action, 'reset');
+
+  await apply.dispatchEvent('click');
+  assert.equal(fixture.state.apiCalls.length, 2);
+  assert.equal(fixture.state.apiCalls[1].url, '/api/overtime/time');
+  assert.equal(fixture.state.apiCalls[1].body.initialSeconds, 7200);
+  assert.equal(fixture.state.apiCalls[1].body.remainingSeconds, 7200);
+});
 
 function readOvertimeAdminSource() {
   return [

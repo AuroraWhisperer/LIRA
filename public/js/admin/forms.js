@@ -10,6 +10,7 @@ import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { ensureSavedFontOption } from './local-font-library.js';
 import { isComponentFieldEditing } from './component-preview-panel.js';
 import { notifyMediaPlayFailure } from '../shared/media-playback-feedback.js';
+import { activateModalFocus } from '../shared/modal-focus.js';
 
 /**
  * 表单服务
@@ -114,12 +115,18 @@ export class FormsService {
     // 播放器默认收起，避免遮挡主工作区；用户仍可通过手柄展开。
     this.setPlayerDockCollapsed(true);
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && fsEl?.classList.contains('open')) {
+    const handleFullscreenKeydown = (e) => {
+      if (!fsEl?.classList.contains('open') || fsEl.closest('[inert]') || e.defaultPrevented) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
         this.closeFullscreenPlayer();
+        return;
       }
       // 空格键控制播放/暂停（在全屏播放器打开时）
-      if (e.key === ' ' && fsEl?.classList.contains('open')) {
+      if (e.key === ' ' && !e.target.closest(
+        'button, input, select, textarea, a, summary, [role="button"], [contenteditable="true"]',
+      )) {
         e.preventDefault();
         const audio = document.getElementById('music-player');
         if (audio) {
@@ -132,7 +139,9 @@ export class FormsService {
           }
         }
       }
-    });
+    };
+    fsEl?.addEventListener('keydown', handleFullscreenKeydown);
+    playerPanel?.addEventListener('keydown', handleFullscreenKeydown);
   }
 
   /**
@@ -140,10 +149,22 @@ export class FormsService {
    */
   openFullscreenPlayer() {
     const fsEl = document.getElementById('playerFullscreen');
-    if (!fsEl) return;
+    if (!fsEl || fsEl.classList.contains('open')) return;
     fsEl.classList.add('open');
+    fsEl.inert = false;
     fsEl.removeAttribute('aria-hidden');
     document.body.classList.add('player-fs-open');
+    this.releaseFullscreenFocus = activateModalFocus(fsEl, {
+      initialFocus: document.getElementById('playerFsClose'),
+      returnFocus: document.activeElement === document.body ? null : document.activeElement,
+      fallbackFocus: document.getElementById('playerDockToggle'),
+      additionalRoots: [
+        document.querySelector('.playback-player-panel'),
+        document.getElementById('queuePopup'),
+        document.getElementById('pendingConfirmPopup'),
+      ],
+      backdrop: document.getElementById('queuePopupBackdrop'),
+    });
   }
 
   /**
@@ -153,8 +174,11 @@ export class FormsService {
     const fsEl = document.getElementById('playerFullscreen');
     if (!fsEl) return;
     fsEl.classList.remove('open');
+    fsEl.inert = true;
     fsEl.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('player-fs-open');
+    this.releaseFullscreenFocus?.();
+    this.releaseFullscreenFocus = null;
   }
 
   setPlayerDockCollapsed(collapsed) {
@@ -163,17 +187,18 @@ export class FormsService {
     const playerDockToggle = document.getElementById('playerDockToggle');
     const label = collapsed ? '展开播放器' : '收起播放器';
 
+    if (collapsed) this.closeDockDependentPlaybackUi();
+    if (collapsed && playerBody?.contains(document.activeElement)) playerDockToggle?.focus();
     document.body.classList.toggle('player-dock-collapsed', collapsed);
     playerPanel?.classList.toggle('is-collapsed', collapsed);
     playerBody?.setAttribute('aria-hidden', String(collapsed));
+    if (playerBody) playerBody.inert = collapsed;
 
     if (playerDockToggle) {
       playerDockToggle.title = label;
       playerDockToggle.setAttribute('aria-label', label);
       playerDockToggle.setAttribute('aria-expanded', String(!collapsed));
     }
-
-    if (collapsed) this.closeDockDependentPlaybackUi();
   }
 
   closeDockDependentPlaybackUi() {

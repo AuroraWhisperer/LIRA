@@ -31,7 +31,7 @@ let TOP_N = Number.isFinite(requestedTop) ? Math.min(10, Math.max(-1, requestedT
 let SUMMARY_ONLY = TOP_N === 0;
 let COMPACT = param('compact', 'c') === '1';
 let WINNERS_ONLY = param('winners', 'w') === '1' || urlParams.get('show') === 'winners';
-const HEART_BOX_ONLY = param('heartBox', 'hb') === '1';
+let HEART_BOX_ONLY = param('heartBox', 'hb') === '1';
 const CUSTOM_TITLE = (param('title', 'tt') || '').trim();
 let HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
 const REFRESH_SEC = Math.max(10, parseInt(param('refresh', 'r') || '0', 10) || 0);
@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state = { settings: config };
         TOP_N = config.top; SUMMARY_ONLY = TOP_N === 0; COMPACT = config.compact;
         WINNERS_ONLY = config.winnersOnly; HIDE_LOSS = config.hideLoss; NO_SCROLL = config.noScroll;
+        HEART_BOX_ONLY = config.heartBoxOnly;
         for (const [name, active] of [['compact', COMPACT], ['winners-only', WINNERS_ONLY], ['no-scroll', NO_SCROLL], ['summary-only', SUMMARY_ONLY]]) panel.classList.toggle(name, active);
         stopPages?.(); stopPages = NO_SCROLL ? startOverlayPages(panel) : null;
         lastContentKey = null;
@@ -91,7 +92,7 @@ async function loadStateThenStats() {
   try {
     const response = await fetch('/api/state');
     const payload = await response.json();
-    if (payload.ok && revision === stateRevision) state = payload.data;
+    if (payload.ok && revision === stateRevision) { state = payload.data; receiveAppearance(); }
   } catch (error) {
     console.warn('[overlay-blindbox] loadState failed:', error.message || error);
   }
@@ -123,11 +124,12 @@ function connectSocket() {
       if (payload.state) {
         stateRevision += 1;
         state = payload.state;
+        receiveAppearance();
         render(lastStats);
       }
       // 礼物相关更新时刷新统计数据
       const reason = payload.reason || '';
-      if (reason.startsWith('bilibili:gift') || reason === 'gift:sprint:reset' || reason === 'connect') {
+      if (reason.startsWith('bilibili:gift') || reason === 'gift:sprint:reset' || reason === 'connect' || reason === 'settings') {
         loadStats();
       }
     },
@@ -144,6 +146,20 @@ function disposeSocket() {
   window.removeEventListener('resize', handleBlindboxViewportResize);
   socketController?.dispose();
   socketController = null;
+}
+
+function receiveAppearance() {
+  const settings = state?.settings || {};
+  if (param('top', 't') === null && settings.blindboxOverlayTop !== undefined) {
+    TOP_N = Math.max(-1, Math.min(10, Number(settings.blindboxOverlayTop)));
+    SUMMARY_ONLY = TOP_N === 0;
+  }
+  if (param('winners', 'w') === null && !urlParams.has('show')) WINNERS_ONLY = settings.blindboxWinnersOnly === 'true';
+  if (param('heartBox', 'hb') === null) HEART_BOX_ONLY = settings.blindboxHeartBoxOnly === 'true';
+  HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
+  const panel = document.querySelector('.blindbox-panel');
+  panel?.classList.toggle('winners-only', WINNERS_ONLY);
+  panel?.classList.toggle('summary-only', SUMMARY_ONLY);
 }
 
 function render(stats) {

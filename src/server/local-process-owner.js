@@ -7,10 +7,10 @@ const path = require('node:path');
 function readPortOwner(port, remotePort) {
   if (process.platform !== 'win32' || !validPort(port)) return null;
   if (remotePort !== undefined && !validPort(remotePort)) return null;
-  // Query the provider through WMI to reduce native lookup overhead.
-  // MSFT_NetTCPConnection states: Listen = 2, Established = 5.
-  const connection =
-    remotePort === undefined ? 'State=2' : `State=5 AND RemoteAddress='127.0.0.1' AND RemotePort=${remotePort}`;
+  // Read the native numeric table directly; the TCP WMI provider can take seconds.
+  const remote = remotePort === undefined ? '0\\.0\\.0\\.0:0' : `127\\.0\\.0\\.1:${remotePort}`;
+  const state = remotePort === undefined ? 'LISTENING' : 'ESTABLISHED';
+  const endpoint = `^\\s*TCP\\s+127\\.0\\.0\\.1:${port}\\s+${remote}\\s+${state}\\s+([0-9]+)\\s*$`;
   try {
     const output = childProcess.execFileSync(
       'powershell.exe',
@@ -18,9 +18,12 @@ function readPortOwner(port, remotePort) {
         '-NoProfile',
         '-NonInteractive',
         '-Command',
-        `$ownerId = Get-WmiObject -Namespace root/StandardCimv2 -Class MSFT_NetTCPConnection -Filter "LocalAddress='127.0.0.1' AND LocalPort=${port} AND ${connection}" -ErrorAction Stop | Select-Object -First 1 -ExpandProperty OwningProcess; ` +
-          'if ($ownerId) { ' +
-          '$ownerProcess = Get-WmiObject Win32_Process -Filter "ProcessId=$ownerId" -ErrorAction Stop; ' +
+        "$ErrorActionPreference = 'Stop'; " +
+          '$ownerIds = @(& "$env:SystemRoot\\System32\\netstat.exe" -ano -p TCP | ' +
+          `ForEach-Object { if ($_ -match '${endpoint}') { [int]$Matches[1] } }); ` +
+          'if ($LASTEXITCODE -ne 0) { exit 1 }; ' +
+          'if ($ownerIds.Count -eq 1 -and $ownerIds[0] -gt 0) { $ownerId = $ownerIds[0]; ' +
+          '$ownerProcess = [wmi]("Win32_Process.Handle=\'$ownerId\'"); ' +
           '$ownerSid = $ownerProcess.GetOwnerSid().Sid; ' +
           'if ($ownerSid -eq [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value) { ' +
           '$ownerProcess | Select-Object ProcessId,ExecutablePath,CommandLine,CreationDate | ConvertTo-Json -Compress } }',

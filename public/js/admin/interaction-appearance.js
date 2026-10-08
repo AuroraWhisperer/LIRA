@@ -25,6 +25,7 @@ export function initInteractionAppearance() {
   let dirty = false;
   let disposed = false;
   let kind = 'poll';
+  let saved = readInteractionAppearance({});
 
   function draft() {
     return Object.fromEntries(
@@ -36,6 +37,7 @@ export function initInteractionAppearance() {
   }
   function fill(settings) {
     const appearance = readInteractionAppearance(settings);
+    saved = appearance;
     for (const [key, input] of Object.entries(controls)) {
       if (input.type === 'checkbox') input.checked = appearance[key] === 'true';
       else input.value = appearance[key];
@@ -124,7 +126,8 @@ export function initInteractionAppearance() {
     fields.disabled = true;
     status.textContent = '正在应用…';
     try {
-      const response = await api('/api/settings', draft(), { notifyError: false });
+      const patch = Object.fromEntries(Object.entries(draft()).filter(([key, value]) => value !== saved[key]));
+      const response = await api('/api/settings', patch, { notifyError: false });
       if (disposed) return;
       fill(response.data.settings);
       dirty = false;
@@ -145,11 +148,27 @@ export function initInteractionAppearance() {
   observer.observe(get('pollOptions'), { childList: true });
   fill(INTERACTION_APPEARANCE_DEFAULTS);
   void load();
+  const receive = event => {
+    if (!loaded || disposed) return;
+    const incoming = readInteractionAppearance(event.detail);
+    const current = draft();
+    for (const [key, input] of Object.entries(controls)) {
+      if (current[key] !== saved[key]) continue;
+      if (input.type === 'checkbox') input.checked = incoming[key] === 'true';
+      else input.value = incoming[key];
+    }
+    saved = incoming;
+    dirty = Object.entries(draft()).some(([key, value]) => value !== saved[key]);
+    apply.disabled = saving || !dirty;
+    preview();
+  };
+  window.addEventListener('app:settings-state', receive);
   window.addEventListener(
     'app:shutdown',
     () => {
       disposed = true;
       observer.disconnect();
+      window.removeEventListener('app:settings-state', receive);
     },
     { once: true },
   );

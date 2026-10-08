@@ -15,6 +15,23 @@ function item(type = 'clock', mode = 'independent', config = clockConfig) {
     appearance: mode === 'shared' ? { mode } : { mode, config } };
 }
 const documentOf = (items = [item()]) => ({ schemaVersion: 1, id: randomUUID(), title: 'Audit', canvas: { width: 1920, height: 1080 }, items });
+
+test('replacing an installed style edits only the scene and never patches the previous resource', async () => {
+  const { createSceneItemController } = await load('admin/scene-item-controller.js');
+  const layer = item('queue', 'independent', { overlayQueueStyle: 'identity', resourceStyle: { id: 'installed' } });
+  const document = documentOf([layer]);
+  const defaults = { getState: () => ({ draft: {}, saved: {} }) };
+  const owned = { getState: () => ({ draft: { ...layer.appearance.config }, saved: { ...layer.appearance.config } }),
+    edit() { assert.fail('style replacement must not mutate the old installed resource'); } };
+  const model = { getSnapshot: () => document, edit: change => change(document) };
+  const controller = createSceneItemController(model, layer.id, defaults, owned);
+  controller.edit({ overlayQueueStyle: 'identity', resourceStyle: null });
+  assert.deepEqual(layer.appearance.config, { overlayQueueStyle: 'identity' });
+  controller.edit({ overlayQueueStyle: 'identity', resourceStyle: { id: 'replacement' }, overlayShowIndex: 'false' });
+  assert.deepEqual(layer.appearance.config, {
+    overlayQueueStyle: 'identity', resourceStyle: { id: 'replacement' }, overlayShowIndex: 'false',
+  });
+});
 test('A08: moving one item does not notify unchanged appearances across 32 instances', async () => {
   const { createSceneDocumentModel } = await load('admin/scene-document-model.js');
   const { createSceneItemController } = await load('admin/scene-item-controller.js');
@@ -32,28 +49,31 @@ test('A08: moving one item does not notify unchanged appearances across 32 insta
   stops.forEach(stop => stop());
 });
 
-test('appearance and shared-default edits notify only their consumers, including undo and gestures', async () => {
+test('same-style instances share edits while a different clock style and scene geometry stay independent', async () => {
   const { createSceneDocumentModel } = await load('admin/scene-document-model.js');
   const { createSceneItemController } = await load('admin/scene-item-controller.js');
   const { createComponentConfigController } = await load('admin/component-config-controller.js');
-  const document = documentOf([item(), item(), item('clock', 'shared')]);
+  const document = documentOf([item(), item(), item('clock', 'shared'), item('clock', 'independent', { ...clockConfig, style: 'flip' })]);
   const model = createSceneDocumentModel(document);
   const defaults = createComponentConfigController({ initial: clockConfig });
-  const notices = [0, 0, 0];
+  const notices = [0, 0, 0, 0];
   const controllers = document.items.map(item => createSceneItemController(model, item.id, defaults));
   const stops = controllers.map((controller, index) => controller.subscribe(() => { notices[index]++; }));
-  assert.deepEqual(notices, [1, 1, 1]);
+  assert.deepEqual(notices, [1, 1, 1, 1]);
   controllers[0].edit({ label: 'independent' });
-  assert.deepEqual(notices, [2, 1, 1]);
-  defaults.edit({ label: 'shared' });
-  assert.deepEqual(notices, [2, 1, 2]);
+  assert.deepEqual(notices.slice(0, 3), [2, 2, 2]);
+  assert.equal(controllers[1].getState().draft.label, 'independent');
+  assert.notEqual(controllers[3].getState().draft.label, 'independent');
+  const { clockAppearanceChange } = await load('shared/clock-settings.js');
+  defaults.edit(clockAppearanceChange(defaults.getState().draft, { label: 'shared' }));
+  assert.equal(controllers[0].getState().draft.label, 'shared');
+  const beforeGeometry = [...notices];
   model.beginGesture();
   model.updateGesture(draft => { draft.items[0].x += 20; });
   model.commitGesture();
   model.undo();
-  assert.deepEqual(notices, [2, 1, 2]);
-  model.undo();
-  assert.deepEqual(notices, [3, 1, 2]);
+  assert.deepEqual(notices, beforeGeometry);
+  assert.equal(model.undo(), false, 'appearance edits belong to the shared owner, not scene history');
   assert.equal(Object.isFrozen(model.getSnapshot().items[0].appearance.config), true);
   controllers[0].getState().draft.label = 'external mutation';
   assert.notEqual(model.getSnapshot().items[0].appearance.config.label, 'external mutation');

@@ -2,13 +2,14 @@
 
 const httpUtils = require('./http-utils');
 const { buildGiftFrameEvent } = require('../bilibili/gift/frame-config');
-const { buildGuardThanksEvents } = require('../bilibili/gift/guard-thanks-config');
+const { buildGuardThanksEvents, buildNauticalGuardThanksEvent } = require('../bilibili/gift/guard-thanks-config');
 const { normalizeGiftEffectEvent } = require('../bilibili/gift/effect-event');
 
 const SNAPSHOT_SCENE_TYPES = ['queue', 'overtime', 'songlist', 'opening', 'lyrics', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'];
 const GIFT_SCENE_TYPES = ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'];
 
 function snapshotSceneTypes(reason) {
+  if (reason === 'settings' || reason === 'component:styles') return undefined;
   if (reason === 'gift:wishes') return ['gift-wishes'];
   if (/^(?:gift:|bilibili:gift$|database:clear-gifts$)/.test(reason)) return GIFT_SCENE_TYPES;
   if (/^(?:queue:|superchat:|bilibili:(?:danmaku|superchat)$|database:clear-superchats$)/.test(reason)) return ['queue'];
@@ -45,7 +46,8 @@ function createRuntimeTransport({
     const baseUrl = `http://${getHost()}:${getStartedPort() || defaultPort}`;
     getWebSocketHub()?.broadcastSnapshot(getWebSocketContext(baseUrl), reason);
     notifySceneOutput?.({ types: snapshotSceneTypes(reason),
-      ...(reason === 'gift:wishes' ? { invalidateTypes: ['gift-wishes'] } : {}) });
+      ...(reason === 'gift:wishes' ? { invalidateTypes: ['gift-wishes'] }
+        : reason === 'settings' ? { invalidateTypes: ['blindbox'] } : {}) });
   }
 
   function publishGiftFlushed(item) {
@@ -56,6 +58,8 @@ function createRuntimeTransport({
     for (const event of buildGuardThanksEvents(item, getSettings())) {
       getWebSocketHub()?.broadcast(event); publishSceneGift?.(event);
     }
+    const nauticalEvent = buildNauticalGuardThanksEvent(item, getSettings());
+    if (nauticalEvent) publishSceneGift?.(nauticalEvent);
     publishDanmakuItem(message);
   }
 

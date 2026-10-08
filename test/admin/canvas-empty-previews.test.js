@@ -18,6 +18,7 @@ test('canvas keeps opening styles visible when disabled or configuration is unav
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   page.setDefaultTimeout(5000);
   let unavailable = false;
+  fixture.runtime.settings.openingTitle = '尚未启用的开播画面';
   const url = await openCanvasDesktop(desktop, fixture);
   await desktop.route('**/api/opening/config', route => route.fulfill({ status: unavailable ? 503 : 200,
     json: unavailable ? { ok: false } : { ok: true, data: { enabled: false, title: '尚未启用的开播画面',
@@ -36,7 +37,7 @@ test('canvas keeps opening styles visible when disabled or configuration is unav
   }
   unavailable = true;
   const classic = page.locator('.scene-editor-item[data-component="opening"]').first().frameLocator('iframe');
-  await classic.getByText('唱一首，在一首，给你的歌', { exact: true }).waitFor();
+  await classic.getByText('尚未启用的开播画面', { exact: true }).waitFor();
   await classic.locator('#openingStage:not(.is-disabled)').waitFor();
   assert.equal(fixture.runtime.settings.openingEnabled, 'false');
 });
@@ -99,8 +100,6 @@ test('preview filters keep samples visible without changing live filtering', { t
   const lyrics = await add('lyrics', 'default');
   await lyrics.locator('.desktop-lyric-preview-row').first().waitFor();
   await page.locator('[data-component-parameter="desktopLyricHideOnPause"]').check();
-  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items
-    .find(item => item.type === 'lyrics')?.appearance.config.desktopLyricHideOnPause === 'true');
   assert.equal(await page.locator('[data-component-parameter="desktopLyricHideOnPause"]').isChecked(), true);
   assert.equal(await lyrics.locator('.is-paused-hidden').count(), 0);
   assert.equal(await lyrics.locator('.desktop-lyric-preview-viewport').evaluate(node => getComputedStyle(node).opacity), '1');
@@ -116,7 +115,7 @@ test('preview filters keep samples visible without changing live filtering', { t
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
-  assert.equal(saved.document.items.find(item => item.type === 'lyrics').appearance.config.desktopLyricHideOnPause, 'true');
+  assert.equal(fixture.runtime.settings.desktopLyricHideOnPause, 'true');
   assert.equal(saved.document.items.find(item => item.type === 'gift-wishes').appearance.config.period, 'long');
   const source = fixture.service.getSource(saved.document.id);
   const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;

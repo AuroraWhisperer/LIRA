@@ -248,10 +248,10 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | `skip`          | → `skipped`                                                                                                |
 | 其他            | 抛"未知队列操作。"                                                                                         |
 
-### 8.4 快照与启动清理
+### 8.4 快照与重启恢复
 
 - `getQueueSnapshot`([queue-service.js](../../../../src/music/queue-service.js)):返回 **`{ current: null, waiting: [...] }`**——`current` 恒为 null,前端自行消费(与 WS 快照 `queue` 字段一一对应,见 [ws.md](../ws.md) §2);waiting 排序同 `next`,并 LEFT JOIN `requests.message AS request_message`
-- `clearActiveQueueOnStartup`([queue-service.js](../../../../src/music/queue-service.js)):启动时活跃项全部 → `deleted`(调用点见 [server-core.md](../server-core.md) §5 启动修复链)
+- 启动调用 `ensureUnifiedQueue`([queue-service.js](../../../../src/music/queue-service.js))，仅将历史 `current` 态归位为 `waiting`；未完成点歌的 ID、内容、时间和置顶顺序保留，已完成/删除/跳过的项不恢复。只有显式完成或清空操作改变相应状态（调用点见 [server-core.md](../server-core.md) §5 启动修复链）。
 
 ## 9. 歌曲匹配(song-matcher.js)
 

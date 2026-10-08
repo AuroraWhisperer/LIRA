@@ -82,8 +82,9 @@ test('final gift ingress reuses existing eligibility for both scene types withou
   const row = { id: 1, gift_id: 'guard-3', gift_name: '舰长', user_name: '观众', num: 1,
     total_price: 198000, coin_type: 'gold', detection_status: 'final' };
   transport.publishGiftFlushed(row);
-  assert.deepEqual(received.map((event) => event.type), ['gift:frame', 'gift:guard-thanks']);
+  assert.deepEqual(received.map((event) => event.type), ['gift:frame', 'gift:guard-thanks', 'gift:guard-thanks']);
+  assert.equal(received.at(-1).style, 'nautical');
   settings = { giftFrameEnabled: 'false', guardThanksEnabled: 'false' };
   transport.publishGiftFlushed({ ...row, id: 2 });
-  assert.equal(received.length, 2);
+  assert.equal(received.length, 3);
 });

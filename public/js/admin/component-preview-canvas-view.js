@@ -9,6 +9,8 @@ import { mountComponentPreviewPicker } from './component-preview-picker.js';
 import { mountPreviewCanvasOutput } from './component-preview-canvas-output.js';
 import { mountPreviewLayerDrag } from './component-preview-layer-drag.js';
 import { mountPreviewPresets } from './component-preview-presets.js';
+import { createCanvasSharedAppearance } from './canvas-shared-appearance.js';
+import { SHARED_CONTROLLER_TYPES, hasInstalledAppearance } from '../shared/scene-shared-appearance.js';
 
 export function mountComponentPreviewCanvas(host, { components, canvasController, canvasConnection, selectedId, selectedSize, selectedItemId, source, recovery }) {
   const initial = canvasController?.getState().draft.document || {
@@ -63,6 +65,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   canvasTools.append(library, canvasControls);
   toolbar.append(canvasTools, actions);
   const report = (text) => { message = text; renderStatus(); };
+  const sharedAppearance = createCanvasSharedAppearance({ model, request: canvasConnection?.requestAppearance });
   const layerDrag = mountPreviewLayerDrag(layers, { report,
     beforeDrag() { closeLayerMenu(); stage?.cancelGesture(); },
     commit(ids) {
@@ -87,6 +90,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   const backgroundLabel = previewElement('label');
   backgroundLabel.title = '预览底色，不影响直播画面';
   const background = previewElement('select');
+  background.dataset.dropdownVariant = 'canvas-background';
   background.setAttribute('aria-label', '公共画布检查底色');
   for (const [value, text] of [['checker', '透明'], ['dark', '深色'], ['light', '浅色']]) {
     const option = previewElement('option', '', text); option.value = value; background.append(option);
@@ -116,6 +120,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   const discard = button(applyActions, '放弃修改', () => {
     if (recovery?.getState().pending) { recovery.useCurrent(); return; }
     stage.cancelGesture();
+    sharedAppearance.discardAll();
     for (const { controller } of controllers.filter(isDiscardTarget)) {
       const state = controller.getState();
       if (state.dirty || state.error) controller.discard();
@@ -133,7 +138,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     for (const { controller } of controllers) if (controller.getState().dirty) void controller.save();
   }, 'primary');
   if (canvasConnection) output = mountPreviewCanvasOutput({ sourceHost: sourceActions, applyHost: applyActions, connection: canvasConnection,
-    controllers, beforeApply: validateInputs, report,
+    controllers, beforeApply: validateInputs, flushAppearance: sharedAppearance.flush, report,
     getSelection: () => model.getSnapshot().items.find((item) => item.id === selected),
     setBusy(value) { outputBusy = value; renderStatus(); } });
   host.replaceChildren(toolbar, body);
@@ -212,7 +217,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       const parameters = previewElement('div', 'preview-canvas-parameters');
       inspectorHost.append(parameters);
       inspector = mountSceneEditorInspector(parameters, { model, components,
-        getSelection: () => new Set([selected]), report, requestStyles: canvasConnection?.requestComponentStyles });
+        getSelection: () => new Set([selected]), report, requestStyles: canvasConnection?.requestComponentStyles, sharedAppearance });
       const actions = previewElement('div', 'preview-canvas-item-actions');
       const center = button(actions, '居中', () => edit((document) => {
         const item = document.items.find((entry) => entry.id === selected);
@@ -318,12 +323,13 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   }
   function renderStatus() {
     if (closed) return;
-    if (itemActions) {
+    if (itemActions && model.getSnapshot().items.some(entry => entry.id === selected)) {
       const item = model.getSnapshot().items.find((entry) => entry.id === selected);
       itemActions.center.disabled = itemActions.remove.disabled = item.locked;
       itemActions.lock.textContent = item.locked ? '解锁' : '锁定';
     }
-    const states = controllers.map(({ id, title, controller }) => ({ id, title, ...controller.getState() }));
+    const sharedStates = sharedAppearance.getStates().map(state => ({ id: 'appearance', title: '共享参数', ...state }));
+    const states = [...controllers.map(({ id, title, controller }) => ({ id, title, ...controller.getState() })), ...sharedStates];
     const saving = states.some((state) => state.saving);
     const dirty = states.filter((state) => state.dirty);
     const failures = states.filter((state) => state.error);
@@ -342,7 +348,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
         || (saving ? '正在保存…' : dirty.length ? '未保存' : '');
     if (!canvasController) status.textContent += ' 此旧链接仅保存组件参数；保存布局请从客户端重新打开。';
     if (save) save.disabled = saving || !dirty.length || dirty.some((state) => !state.loaded);
-    const discardStates = states.filter(isDiscardTarget);
+    const discardStates = [...states.filter(isDiscardTarget), ...sharedStates];
     discard.disabled = discardStates.some((state) => state.saving) || outputBusy
       || (!discardStates.some((state) => state.dirty || state.error) && !recoveryState?.pending);
     const connected = !canvasController || canvasController.getState().loaded;
@@ -354,10 +360,11 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     presets?.render(outputBusy || Boolean(recoveryState?.pending));
   }
   if (recovery) subscriptions.push(recovery.subscribe(renderStatus));
+  subscriptions.push(sharedAppearance.subscribe(renderStatus));
   for (const component of components) {
     subscriptions.push(component.controller.subscribe(renderStatus));
   }
-  stage = mountSceneEditorStage(stageHost, { model, components, getSelection: () => new Set(selected ? [selected] : []), select, report });
+  stage = mountSceneEditorStage(stageHost, { model, components, getSelection: () => new Set(selected ? [selected] : []), select, report, sharedAppearance });
   function updateInspectorWidth() {
     const { width, height } = model.getSnapshot().canvas;
     // Reserve the height-fitted canvas and its 12px viewport padding on each side.
@@ -371,7 +378,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     message = '';
     const document = model.getSnapshot();
     // Keep shared owners involved in this edit, including layers removed before discard.
-    for (const item of document.items) if (item.appearance.mode === 'shared') sharedTypes.add(item.type);
+    for (const item of document.items) if (item.appearance.mode === 'shared'
+      || SHARED_CONTROLLER_TYPES.includes(item.type) && !hasInstalledAppearance(item.appearance.config)) sharedTypes.add(item.type);
     if (selected && !document.items.some((item) => item.id === selected)) select(null);
     dimensions.textContent = `${document.canvas.width} × ${document.canvas.height}`;
     updateInspectorWidth();
@@ -409,6 +417,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   else select(null);
   return { focus, dispose() {
     closed = true;
+    sharedAppearance.dispose();
     layerDrag.dispose();
     closeLayerMenu();
     document.removeEventListener('keydown', keydown);

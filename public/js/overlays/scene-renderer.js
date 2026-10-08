@@ -12,6 +12,8 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
   let latestData = {};
   let pendingDanmaku = null;
   let dataSequence = 1;
+  let latestAppearances = {};
+  let appearanceVersion = 0;
   const giftDisplay = createSceneGiftDisplay();
   const send = (entry, type, values = {}) => {
     if (!entry.external) entry.frame.contentWindow?.postMessage({ type: `component-preview:${type}`, ...values }, '*');
@@ -66,6 +68,17 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       if (entry.ready && values[entry.item.type] !== undefined) send(entry, 'data', { data: values[entry.item.type], source: dataSequence });
     }
   }
+  function appearance(version) {
+    if (!version || version.version !== appearanceVersion) return;
+    for (const entry of version.entries) {
+      if (entry.external) continue;
+      const config = { ...entry.item.appearance.config, ...latestAppearances[entry.item.id] };
+      const serialized = JSON.stringify(config);
+      if (serialized === entry.configKey) continue;
+      entry.configKey = serialized;
+      if (entry.ready) send(entry, 'config', { config, editable: false });
+    }
+  }
   function commit() {
     if (!staging || staging.entries.some((entry) => !entry.prepared)) return;
     const next = staging;
@@ -90,7 +103,10 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     if (!entry || entry.external) return;
     if (event.data?.type === 'component-preview:ready') {
       entry.ready = true;
-      send(entry, 'init', { config: entry.item.appearance.config, editable: false });
+      const config = { ...entry.item.appearance.config,
+        ...(staging.version === appearanceVersion ? latestAppearances[entry.item.id] : {}) };
+      entry.configKey = JSON.stringify(config);
+      send(entry, 'init', { config, editable: false });
     } else if (event.data?.type === 'component-preview:prepared' && entry.ready) {
       entry.prepared = true;
       commit();
@@ -112,7 +128,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
         catch { onStatus('浏览器源配置无效，继续显示上一版本。', active?.version || 0); return; }
       }
     }
-    if (updateLayout(document, items, version, projection)) return;
+    if (updateLayout(document, items, version, projection)) { appearance(active); return; }
     const root = window.document.createElement('div');
     root.className = 'scene-version is-staging';
     root.style.width = `${document.canvas.width}px`;
@@ -146,6 +162,10 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     getProjection: () => active?.projection || '',
     update(response) {
       if (disposed) return;
+      latestAppearances = response.appearances || {};
+      appearanceVersion = response.version;
+      appearance(active);
+      appearance(staging);
       const values = giftDisplay.update(response.data || {}, active?.entries.map((entry) => entry.item.type) || []);
       const cloud = values.danmaku;
       data(active, values);

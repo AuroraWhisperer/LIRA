@@ -162,7 +162,7 @@ test('reopening and style changes reuse one short link and connected canvas, and
   assert.equal(commands.filter(({ action }) => action === 'revoke').length, 0);
   await second.goto(url);
   await second.locator('[data-preview-field="clockCustomLabel"]').waitFor();
-  await page.getByRole('status').filter({ hasText: '编辑已在其他页面继续' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '编辑已在其他页面继续' }).waitFor();
   await page.reload();
   assert.equal(await label.inputValue(), '保留未保存编辑');
   await label.fill('刷新后继续编辑');

@@ -69,6 +69,8 @@ async function postApi(baseUrl, token, route, body) {
 }
 
 async function seedQueueViaApi(baseUrl, token) {
+  // Only the isolated documentation fixture resets its example queue on startup.
+  await postApi(baseUrl, token, '/api/queue/action', { action: 'clear' });
   const items = [
     { songName: '起风了', artist: '买辣椒也用券', categoryName: '华语流行', viewer: 0, pinned: true },
     { songName: 'Lemon', artist: '米津玄師', categoryName: '日语', viewer: 1 },

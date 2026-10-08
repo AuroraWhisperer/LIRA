@@ -138,7 +138,8 @@ function normalizeSavedClockConfig(value) {
 }
 
 function mergeClockConfig(savedConfig, queryConfig, params) {
-  const saved = normalizeSavedClockConfig(savedConfig);
+  const profile = params.has('style') ? savedConfig?.styleOptions?.[queryConfig.style] : null;
+  const saved = normalizeSavedClockConfig({ ...savedConfig, ...profile, ...(profile ? { style: queryConfig.style } : {}) });
   const style = params.has('style') ? queryConfig.style : saved.style;
   return {
     style,
@@ -151,7 +152,7 @@ function mergeClockConfig(savedConfig, queryConfig, params) {
     ...Object.fromEntries(Object.keys(FLIP_COLORS).map((key) => [key, params.has(key) ? queryConfig[key] : saved[key]])),
     label: params.has('label')
       ? cleanLabel(params.get('label'), DEFAULT_LABELS[style])
-      : params.has('style')
+      : params.has('style') && !profile
         ? DEFAULT_LABELS[style]
         : saved.label,
   };

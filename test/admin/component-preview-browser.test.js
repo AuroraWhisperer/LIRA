@@ -206,7 +206,7 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
       assert.equal(await desktop.evaluate(() => window.writes.length), 1);
     }
     await desktop.evaluate(() => window.handle.close());
-    await page.getByRole('status').filter({ hasText: '预览连接已结束' }).waitFor();
+    await page.locator('.preview-canvas-status').filter({ hasText: '预览连接已结束' }).waitFor();
     await page.waitForFunction(() => document.querySelector('.preview-canvas-status').textContent
       === '预览连接已结束，请从客户端重新打开预览。', null, { timeout: 5000 });
     assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isDisabled(), true);
@@ -320,7 +320,8 @@ test('clock frames follow each style and visible fields, preserve scale, and mat
 
 test('legacy moon clock palettes remain editable without a default style button', { timeout: 25000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  fixture.configs.clock.style = fixture.runtime.settings.clockStyle = 'moonlit-fan';
+  fixture.runtime.settings.clockStyle = 'moonlit-fan';
+  fixture.configs.clock = require('../../src/server/clock-contract').getClockConfig(fixture.runtime.settings);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const errors = [];
   t.after(async () => {

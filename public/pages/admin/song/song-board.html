@@ -109,6 +109,8 @@
             <label>
               字重
               <select id="songBoardFontWeight" data-dropdown-variant="settings">
+                <option value="400">常规</option>
+                <option value="500">略粗</option>
                 <option value="600">较细</option>
                 <option value="700">中等</option>
                 <option value="800" selected>粗体（默认）</option>
@@ -141,10 +143,10 @@
                   class="parameter-range parameter-range--scale"
                   type="range"
                   min="10"
-                  max="40"
+                  max="100"
                   step="1"
                 />
-                <input id="songBoardSongFontSizeNumber" type="number" min="10" max="40" step="1" />
+                <input id="songBoardSongFontSizeNumber" type="number" min="10" max="100" step="1" />
               </span>
             </label>
             <label>
@@ -155,10 +157,10 @@
                   class="parameter-range parameter-range--scale"
                   type="range"
                   min="10"
-                  max="28"
+                  max="100"
                   step="1"
                 />
-                <input id="songBoardTitleFontSizeNumber" type="number" min="10" max="28" step="1" />
+                <input id="songBoardTitleFontSizeNumber" type="number" min="10" max="100" step="1" />
               </span>
             </label>
           </div>
@@ -234,7 +236,7 @@
             </label>
             <label>
               <span>圆角大小</span>
-              <input id="songBoardThemeRadius" type="number" min="0" max="24" />
+              <input id="songBoardThemeRadius" type="number" min="0" max="60" />
             </label>
           </div>
         </fieldset>

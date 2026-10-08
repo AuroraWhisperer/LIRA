@@ -1,4 +1,4 @@
-export async function requestComponentStyles(action, { file, description, id, kind, signal } = {}, access) {
+export async function requestComponentStyles(action, { file, description, id, kind, patch, signal } = {}, access) {
   const url = new URL(`${access ? '/api/component-preview/styles' : '/api/component-styles'}/${action}`, location.origin);
   const headers = {};
   if (access) {
@@ -8,10 +8,10 @@ export async function requestComponentStyles(action, { file, description, id, ki
   if (description && action !== 'pick-web') url.searchParams.set('description', JSON.stringify(description));
   if (action !== 'list') headers['Content-Type'] = file ? 'application/octet-stream' : 'application/json';
   const response = await fetch(url, { method: action === 'list' ? 'GET' : 'POST', headers,
-    body: action === 'list' ? undefined : file || JSON.stringify(action === 'pick-web' ? { kind, description } : { id }), signal, credentials: 'omit', cache: 'no-store' });
+    body: action === 'list' ? undefined : file || JSON.stringify(action === 'pick-web' ? { kind, description } : action === 'config' ? { id, patch } : { id }), signal, credentials: 'omit', cache: 'no-store' });
   const payload = await response.json();
   if (!response.ok || !payload.ok) throw Object.assign(new Error(payload.error || '样式操作失败，请重试。'), { code: payload.code });
-  if (['add', 'web', 'pick-web', 'install', 'remove', 'remove-pack'].includes(action) && payload.data) window.dispatchEvent(new Event('component-styles:changed'));
+  if (['add', 'web', 'pick-web', 'install', 'remove', 'remove-pack', 'config'].includes(action) && payload.data) window.dispatchEvent(new Event('component-styles:changed'));
   return payload.data;
 }
 

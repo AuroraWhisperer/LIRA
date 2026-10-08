@@ -3,13 +3,13 @@ import { cloneComponentPanel, componentField } from './component-preview-panel.j
 import { bindQueueTheme } from './queue-theme-view.js';
 import { pickQueueSettings } from './queue-theme-config.js';
 
-export function createQueuePreview({ controller, source = document }) {
+export function createQueuePreview({ controller, source = document, panelPrefix = 'preview-queue' }) {
   return { id: 'queue', title: '点歌板', controller,
     url: new URL('/queue?componentPreview=1', localOverlayOrigin()).href,
     size: () => [480, 800], projectConfig: draft => ({ ...pickQueueSettings(draft),
       ...(draft.resourceStyle ? { resourceStyle: draft.resourceStyle } : {}) }),
     createPanel: (host, targetController = controller) => {
-      const panel = cloneComponentPanel(source.querySelector('#themeForm'), 'preview-queue');
+      const panel = cloneComponentPanel(source.querySelector('#themeForm'), panelPrefix);
       componentField(panel, 'queueThemeActions').remove();
       componentField(panel, 'queueThemeSaveState').remove();
       host.append(panel);

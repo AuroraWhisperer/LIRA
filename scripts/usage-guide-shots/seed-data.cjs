@@ -104,9 +104,8 @@ function seedSongs(songDb, categoryIds) {
   return ids;
 }
 
-// 注意：不播种点歌队列（queue 表）——服务启动时会清空未完成的队列
-// （src/music/queue-service.js clearActiveQueueOnStartup），
-// 队列由 capture.cjs 在服务启动后通过 POST /api/queue/add 写入。
+// 点歌队列由 capture.cjs 在服务启动后通过 API 重建，
+// 使隔离截图夹具每次都使用相同的示例队列；正常启动会保留未完成点歌。
 
 function seedSuperChats(superChatDb) {
   const insert = superChatDb.prepare(

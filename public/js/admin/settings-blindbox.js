@@ -50,24 +50,9 @@ export function createBlindboxSettings({
   localOverlayOrigin,
 }) {
   const invalid = (id, message) => showFieldError(documentRef.getElementById(id), message, documentRef);
-  const checked = (id) => Boolean(documentRef.getElementById(id)?.checked);
 
   function buildOverlayUrl() {
-    const base = `${localOverlayOrigin(locationRef)}/blindbox`;
-    const params = [];
-    const add = (key, currentValue) => {
-      if (currentValue) {
-        params.push(`${key}=${encodeURIComponent(currentValue)}`);
-      }
-    };
-
-    const top = value('blindboxOverlayTop');
-    if (top !== '') add('top', top);
-    const title = value('blindboxOverlayTitle').trim();
-    if (title) add('title', title);
-    if (checked('blindboxWinnersOnly')) add('winners', '1');
-    if (checked('blindboxHeartBoxOnly')) add('heartBox', '1');
-    return params.length ? `${base}?${params.join('&')}` : base;
+    return `${localOverlayOrigin(locationRef)}/blindbox`;
   }
 
   function updateOverlayUrl() {
@@ -173,9 +158,7 @@ export function createBlindboxSettings({
       element.addEventListener('input', updateOverlayUrl);
       element.addEventListener('change', () => {
         updateOverlayUrl();
-        if (id === 'blindboxOverlayTitle') {
-          saveSettings({ blindboxOverlayTitle: element.value.trim() }).catch(() => {});
-        }
+        saveSettings({ [id]: element.type === 'checkbox' ? String(element.checked) : element.value.trim() }).catch(() => {});
       });
     }
 
@@ -191,6 +174,16 @@ export function createBlindboxSettings({
     });
 
     updateOverlayUrl();
+    const receiveAppearance = settings => {
+      for (const id of ['blindboxOverlayTitle', 'blindboxOverlayTop', 'blindboxWinnersOnly', 'blindboxHeartBoxOnly']) {
+        const input = documentRef.getElementById(id);
+        if (!input || settings?.[id] === undefined || documentRef.activeElement === input) continue;
+        if (input.type === 'checkbox') input.checked = settings[id] === 'true';
+        else input.value = settings[id];
+      }
+    };
+    receiveAppearance(getState()?.getAppState?.()?.settings);
+    documentRef.defaultView?.addEventListener('app:settings-state', event => receiveAppearance(event.detail));
     const customConfig = documentRef.getElementById('giftBlindBoxCustomConfigV2');
     customConfig.dataset.preserveDirty = 'true';
     customConfig.addEventListener('input', () => {

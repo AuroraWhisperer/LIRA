@@ -46,7 +46,8 @@ function createSceneExtraDisplay({ getContext, getOwner, now = Date.now }) {
       case 'wheel': return response('/api/wheel', context.wheel.getState());
       case 'interactions': return response('/api/interactions/session', context.interactions.getState());
       case 'blindbox':
-        try { return response('/api/gifts/blind-box-stats', context.gifts.getBlindBoxStats({})); }
+        try { return response('/api/gifts/blind-box-stats', context.gifts.getBlindBoxStats(
+          context.settings.get().blindboxHeartBoxOnly === 'true' ? { boxName: '心动盲盒' } : {})); }
         catch (error) {
           if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code)) return null;
           throw error;

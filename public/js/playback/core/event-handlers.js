@@ -118,6 +118,12 @@ export function createEventHandlers(deps) {
     document.getElementById('playbackQueueBtn')?.addEventListener('click', toggleQueuePopup);
     document.getElementById('queuePopupClose')?.addEventListener('click', closeQueuePopup);
     document.getElementById('queuePopupBackdrop')?.addEventListener('click', closeQueuePopup);
+    document.getElementById('queuePopup')?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      closeQueuePopup();
+    });
   }
 
   function setupDrawerButtons() {
@@ -192,7 +198,8 @@ export function createEventHandlers(deps) {
   }
 
   function setupSourceTabs() {
-    document.querySelectorAll('.source-tab').forEach((button) => {
+    const tabs = [...document.querySelectorAll('.source-tab')];
+    tabs.forEach((button, index) => {
       button.addEventListener('click', () => {
         const newSource = button.dataset.source;
         console.log('[Playback] Tab clicked:', newSource, 'Current:', playbackState.selectedSource);
@@ -213,6 +220,17 @@ export function createEventHandlers(deps) {
         if (newSource !== 'wesing') void syncPlaybackLyricWindow(true);
 
         console.log('[Playback] After click, selectedSource:', playbackState.selectedSource);
+      });
+      button.addEventListener('keydown', (event) => {
+        let next;
+        if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+        else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = tabs.length - 1;
+        else return;
+        event.preventDefault();
+        tabs[next].click();
+        tabs[next].focus();
       });
     });
   }

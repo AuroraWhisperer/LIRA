@@ -95,7 +95,7 @@ test('open blind box analysis debounces gift events into one quiet reload and st
   assert.equal(pendingTimers().length, 0);
 });
 
-test('blindbox controls publish current filters through the IPv4 source URL', async () => {
+test('blindbox controls keep a stable IPv4 source URL that follows saved settings', async () => {
   const html = readAdminHtml();
   for (const id of ['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxOverlayTop', 'blindboxLiveLink']) {
     assert.equal([...html.matchAll(/\bid="([^"]+)"/g)].filter(([, value]) => value === id).length, 1, id);
@@ -127,9 +127,7 @@ test('blindbox controls publish current filters through the IPv4 source URL', as
     const url = new URL(elements.blindboxLiveLink.href);
     assert.equal(url.origin, 'http://127.0.0.1:3012');
     assert.equal(url.pathname, '/blindbox');
-    assert.deepEqual(Object.fromEntries(url.searchParams), {
-      ...(top === '' ? {} : { top }), title: '盲盒 & 观众', winners: '1', heartBox: '1',
-    });
+    assert.deepEqual(Object.fromEntries(url.searchParams), {});
     assert.equal(elements.blindboxOverlayUrl.textContent, url.href);
   }
   elements.blindboxOverlayTop.value = '';

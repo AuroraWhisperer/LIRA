@@ -77,6 +77,7 @@ function mount(selectedId, selectedSize = null, selectedItemId) {
       startActualData: connection.startActualData, embedded: true })]
       : definition.sceneOnly && canvasConnection
         ? [definition.createPreview({ startPreviewData: canvasConnection.startActualData,
+          openingSettings: canvasConnection.requestOpeningSettings,
           media: canvasConnection.requestTextBoxMedia })] : [];
   });
   view = mountComponentPreviewCanvas(host, { components, selectedId, selectedSize, selectedItemId, source, recovery,

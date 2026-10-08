@@ -140,7 +140,14 @@ function writeJournal(fileSystem, journalPath, journal) {
       flag: 'wx',
       flush: true,
     });
-    fileSystem.renameSync(temporaryPath, journalPath);
+    for (let attempt = 0; ; attempt++) {
+      try { fileSystem.renameSync(temporaryPath, journalPath); break; }
+      catch (error) {
+        if (attempt >= 4 || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
+        // Retry only the prepared journal replacement, never the data moves.
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 * (attempt + 1));
+      }
+    }
   } finally {
     if (fileSystem.existsSync(temporaryPath)) fileSystem.unlinkSync(temporaryPath);
   }

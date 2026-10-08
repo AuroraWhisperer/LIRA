@@ -12,3 +12,9 @@ export function readGuardThanksEffect(settings, effect) {
     textMode: settings[`${effect.prefix}TextMode`] || settings.guardThanksTextMode || 'bilingual',
   };
 }
+
+export function readNauticalGuardEnabled(settings = {}) {
+  const value = settings.guardThanksNauticalEnabled;
+  if (value === 'true' || value === 'false') return value === 'true';
+  return GUARD_THANKS_EFFECTS.some(effect => readGuardThanksEffect(settings, effect).enabled);
+}

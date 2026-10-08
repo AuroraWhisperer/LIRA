@@ -7,8 +7,9 @@ import { getActiveComponentPreview } from './component-preview-session.js';
 import { validateSceneDocument } from './scene-template.js';
 import { loadComponentStyleCss, requestComponentStyles } from './component-style-api.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
+import { mountResourceStyleSettings } from './component-resource-settings-panel.js';
 
-async function addStyleToCanvas(style) {
+export async function addStyleToCanvas(style) {
   const entries = await prepareComponentPreviews();
   const canvas = entries.find(entry => entry.id === 'canvas');
   if (!canvas?.controller.getState().loaded) throw new Error('画布尚未准备完成，请稍后重试。');
@@ -35,6 +36,7 @@ export function initComponentStyleLibraries() {
   loadComponentStyleCss();
   const requests = new AbortController();
   const libraries = [];
+  const settingsViews = [];
   let pendingList;
   function request(action, options) {
     if (action !== 'list') return requestComponentStyles(action, options);
@@ -49,17 +51,81 @@ export function initComponentStyleLibraries() {
   const locations = [
     ['#otherClockFeature .clock-style-options', 'clock'],
     ['#otherDanmakuFeature .danmaku-style-options-fixed', 'danmaku'],
-    ['#otherStartAnimationFeature .opening-editor-section[aria-label="动画样式"]', 'opening'],
     ['#giftWishDisplayStyle', 'gift-wishes'],
     ['#giftFramePanel', 'gift-frame'], ['#guardThanksStyleLibrary', 'guard-thanks'],
+    ['#themeForm .style-picker', 'queue'], ['#desktopLyricForm', 'lyrics'],
   ];
   for (const [selector, type] of locations) {
     const host = document.querySelector(selector);
     if (!host || host.querySelector('[data-local-styles]')) continue;
-    const list = previewElement('div', ['clock', 'danmaku'].includes(type) ? 'component-style-inline-host' : 'component-style-list');
+    const list = previewElement('div', ['clock', 'danmaku', 'gift-wishes'].includes(type) ? 'component-style-inline-host' : 'component-style-list');
     list.dataset.localStyles = type;
-    host.append(list);
-    libraries.push(mountComponentStyleLibrary(list, { type, request, onUse: addStyleToCanvas, inline: true }));
+    const wishes = type === 'gift-wishes';
+    (wishes ? host.querySelector('.gift-wish-styles') : host).append(list);
+    const feature = host.closest('#otherClockFeature, #otherDanmakuFeature, #themeForm') || host;
+    const previewWish = style => host.dispatchEvent(new CustomEvent('gift-wish:style', { detail: style }));
+    const settings = previewElement('div', 'resource-style-settings-host');
+    settings.dataset.resourceStyleSettings = type;
+    (host.closest('form, .danmaku-style-picker') || host).after(settings);
+    const editors = new Map();
+    let selectedId = '';
+    let nativeSelection = [];
+    function select(style) {
+      const nextId = style?.config.resourceStyle ? style.id : '';
+      if (!selectedId && nextId) {
+        nativeSelection = [...feature.querySelectorAll('[data-clock-style-option], [data-danmaku-style], [data-overlay-style]')]
+          .filter(button => !button.closest('.resource-style-settings'))
+          .map(button => ({ button, active: button.classList.contains('active'), pressed: button.getAttribute('aria-pressed') }));
+      }
+      selectedId = nextId;
+      for (const { button, active, pressed } of nativeSelection) {
+        button.classList.toggle('active', !selectedId && active);
+        if (pressed !== null) button.setAttribute('aria-pressed', selectedId ? 'false' : pressed);
+      }
+      if (!selectedId) nativeSelection = [];
+      if (selectedId && !editors.has(selectedId)) editors.set(selectedId,
+        mountResourceStyleSettings(settings, { style, request, onUse: addStyleToCanvas, onPreview: wishes ? previewWish : undefined }));
+      for (const [id, editor] of editors) editor.show(id === selectedId);
+      feature.classList.toggle('has-resource-style', Boolean(selectedId));
+      for (const card of list.querySelectorAll('[data-custom-style-id]')) {
+        if (!wishes) card.querySelector('.component-style-select').setAttribute('aria-pressed', String(card.dataset.customStyleId === selectedId));
+      }
+    }
+    settingsViews.push({ dispose() { for (const editor of editors.values()) editor.dispose(); settings.remove(); } });
+    feature.addEventListener('click', event => {
+      if (event.target.closest('[data-clock-style-option], [data-danmaku-style], [data-overlay-style]')) select(null);
+    }, { signal: requests.signal, capture: true });
+    host.addEventListener('change', event => {
+      if (wishes && event.target.matches('input[type="radio"]')) select(null);
+    }, { signal: requests.signal });
+    libraries.push(mountComponentStyleLibrary(list, { type, request, inline: true,
+      actionLabel: wishes ? '预览样式' : '添加到画布',
+      onUse: style => {
+        select(style);
+        if (wishes && !style.config.resourceStyle) previewWish(style);
+        else if (!style.config.resourceStyle) return addStyleToCanvas(style);
+      },
+      renderList({ cards }) {
+        for (const { style, card } of cards) {
+          const button = card.querySelector('.component-style-select');
+          if (wishes) {
+            button.firstElementChild.remove();
+            button.setAttribute('aria-pressed', String(style.id === host.dataset.previewStyleId));
+          } else if (style.config.resourceStyle) {
+            button.setAttribute('aria-label', `调整样式：${style.name}`);
+            button.setAttribute('aria-pressed', String(style.id === selectedId));
+          }
+          editors.get(style.id)?.update(style);
+        }
+        for (const [id, editor] of editors) if (!cards.some(({ style }) => style.id === id)) {
+          editor.dispose(); editors.delete(id);
+          if (id === selectedId) select(null);
+        }
+        if (wishes && host.dataset.previewStyleId && !cards.some(({ style }) => style.id === host.dataset.previewStyleId)) {
+          host.dispatchEvent(new CustomEvent('gift-wish:style', { detail: null }));
+        }
+      },
+    }));
   }
   const refresh = () => { for (const library of libraries) void library.refresh(); };
   window.addEventListener('focus', refresh, { signal: requests.signal });
@@ -67,5 +133,6 @@ export function initComponentStyleLibraries() {
   window.addEventListener('pagehide', () => {
     requests.abort();
     for (const library of libraries) library.dispose();
+    for (const view of settingsViews) view.dispose();
   }, { once: true });
 }

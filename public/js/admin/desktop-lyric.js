@@ -3,6 +3,7 @@
 'use strict';
 
 import { DESKTOP_LYRIC_DEFAULTS } from '../lyrics/desktop-lyric-defaults.js';
+import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import * as sharedUtils from '../shared/utils.js';
 import { formsService } from './forms.js';
 import { stateService } from './state.js';
@@ -71,6 +72,10 @@ export function createDesktopLyric({
     // Range ↔ Number 双向绑定
     if (forms.bindRangePair) {
       RANGE_PAIRS.forEach(([key, minimum, maximum, fallback, displayScale = 1]) => {
+        const step = SCENE_EXTRA_COMPONENTS.lyrics.fields[key].step;
+        const range = document.getElementById(key), number = document.getElementById(`${key}Number`);
+        if (range) range.step = String(step);
+        if (number) number.step = String(step * displayScale);
         forms.bindRangePair(key, `${key}Number`, minimum, maximum, fallback, displayScale);
       });
     }

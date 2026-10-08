@@ -11,6 +11,21 @@ const test = require('node:test');
 const lifecycle = require('../../src/server/lifecycle');
 const { readPortOwner } = require('../../src/server/local-process-owner');
 
+function mockTcpTable(t, getRows, transform = (command) => command) {
+  const nativeExec = childProcess.execFileSync;
+  t.mock.method(childProcess, 'execFileSync', (file, args, options) => {
+    const invocation = '& "$env:SystemRoot\\System32\\netstat.exe" -ano -p TCP';
+    assert.ok(args.at(-1).includes(invocation));
+    const fixture = `
+      function Get-WmiObject { Start-Sleep -Milliseconds 6000 }
+      function Get-TestTcpTable { ${getRows()} }
+      $global:LASTEXITCODE = 0;
+    `;
+    const command = transform(args.at(-1).replace(invocation, 'Get-TestTcpTable'));
+    return nativeExec(file, [...args.slice(0, -1), fixture + command], options);
+  });
+}
+
 test(
   'Windows native TCP/process lookup safely shuts down an owned legacy child',
   { skip: process.platform !== 'win32', timeout: 20000 },
@@ -115,25 +130,55 @@ test(
 );
 
 test(
+  'native ownership avoids TCP provider and process enumeration delays',
+  { skip: process.platform !== 'win32', timeout: 15000 },
+  (t) => {
+    mockTcpTable(t, () => '"  TCP  127.0.0.1:3000  0.0.0.0:0  LISTENING  $PID"');
+    const owner = readPortOwner(3000);
+    assert.ok(owner?.ProcessId > 0);
+    assert.ok(owner.CreationDate);
+    assert.match(owner.ExecutablePath, /powershell\.exe$/i);
+  },
+);
+
+test(
   'native ownership script rejects a different Windows user SID',
   { skip: process.platform !== 'win32', timeout: 15000 },
   (t) => {
-    const nativeExec = childProcess.execFileSync;
     let sameUser = false;
-    t.mock.method(childProcess, 'execFileSync', (file, args, options) => {
-      const fixture = `
-      function Get-WmiObject { param($Class,$Namespace,$Filter,$ErrorAction)
-        if ($Class -eq 'MSFT_NetTCPConnection') { [pscustomobject]@{OwningProcess=12345} }
-        else {
-          [pscustomobject]@{ProcessId=12345; ExecutablePath='C:\\Runtime\\node.exe'; CommandLine='node.exe C:\\Apps\\Lira\\src\\server.js'; CreationDate='synthetic-created'} |
-            Add-Member -MemberType ScriptMethod -Name GetOwnerSid -Value { [pscustomobject]@{Sid=${sameUser ? '[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value' : "'synthetic-other-user'"}} } -PassThru
-        }
-      }
-    `;
-      return nativeExec(file, [...args.slice(0, -1), fixture + args.at(-1)], options);
-    });
+    mockTcpTable(t,
+      () => '"  TCP  127.0.0.1:3000  127.0.0.1:4000  ESTABLISHED  $PID"',
+      (command) => sameUser ? command : command.replace(
+        '$ownerSid = $ownerProcess.GetOwnerSid().Sid;',
+        "$ownerSid = 'synthetic-other-user';",
+      ),
+    );
     assert.equal(readPortOwner(3000, 4000), null);
     sameUser = true;
-    assert.equal(readPortOwner(3000, 4000).ProcessId, 12345);
+    assert.ok(readPortOwner(3000, 4000)?.ProcessId > 0);
+  },
+);
+
+test(
+  'native ownership rejects mismatched, malformed, ambiguous and failed TCP snapshots',
+  { skip: process.platform !== 'win32', timeout: 15000 },
+  (t) => {
+    let rows = `
+      " TCP 127.0.0.2:3000 127.0.0.1:4000 ESTABLISHED $PID"
+      " TCP 127.0.0.1:30001 127.0.0.1:4000 ESTABLISHED $PID"
+      " TCP 127.0.0.1:3000 127.0.0.2:4000 ESTABLISHED $PID"
+      " TCP 127.0.0.1:3000 127.0.0.1:40001 ESTABLISHED $PID"
+      " TCP 127.0.0.1:3000 127.0.0.1:4000 CLOSE_WAIT $PID"
+      " TCP 127.0.0.1:3000 127.0.0.1:4000 ESTABLISHED invalid"
+    `;
+    mockTcpTable(t, () => rows);
+    assert.equal(readPortOwner(3000, 4000), null);
+    const matching = '" TCP 127.0.0.1:3000 127.0.0.1:4000 ESTABLISHED $PID"';
+    rows = `${matching}; ${matching}`;
+    assert.equal(readPortOwner(3000, 4000), null);
+    rows = `${matching}; $global:LASTEXITCODE = 1`;
+    assert.equal(readPortOwner(3000, 4000), null);
+    rows = matching;
+    assert.ok(readPortOwner(3000, 4000)?.ProcessId > 0);
   },
 );

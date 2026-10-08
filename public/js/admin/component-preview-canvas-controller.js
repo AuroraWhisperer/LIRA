@@ -144,7 +144,8 @@ export async function prepareComponentPreviewCanvas(components, request = reques
           }
           if (controller.getState().generation !== initial.generation || revision !== expectedRevision
             || JSON.stringify(controller.getState().saved.document) !== document) throw new Error('场景已变化，请再次保存并应用。');
-          const expectedDefaults = Object.fromEntries(targets.filter((entry) => entry.id !== 'canvas')
+          const sharedTypes = new Set(JSON.parse(document).items.filter(item => item.appearance.mode === 'shared').map(item => item.type));
+          const expectedDefaults = Object.fromEntries(targets.filter((entry) => sharedTypes.has(entry.id))
             .map((entry) => {
               const { saved } = entry.controller.getState();
               return [entry.id, entry.projectConfig?.(saved) || saved];
@@ -217,7 +218,7 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       preset: input => exclusive(async () => {
         if (input?.action === 'select') {
           const next = presets.get(input.id);
-          if (!next) throw new Error('场景预设不存在，请重新打开画布。');
+          if (!next) throw new Error('场景不存在，请重新打开画布。');
           active = next;
         } else if (input?.action === 'create') {
           const original = active.controller.getState().draft.document;
@@ -236,12 +237,12 @@ export async function prepareComponentPreviewCanvas(components, request = reques
           active = next;
         } else if (input?.action === 'delete') {
           const id = active.controller.getState().draft.document.id;
-          if (input.id !== id) throw new Error('当前预设已变化，请重新选择后删除。');
+          if (input.id !== id) throw new Error('当前场景已变化，请重新选择后删除。');
           await active.delete();
           active.unsubscribe();
           presets.delete(id);
           active = presets.get(binding.activeSceneId) || presets.values().next().value;
-        } else throw new Error('不支持的场景预设操作。');
+        } else throw new Error('不支持的场景操作。');
         notify();
         return { id: active.controller.getState().draft.document.id };
       }),

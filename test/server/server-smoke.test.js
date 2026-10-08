@@ -277,6 +277,82 @@ test('server runtimes isolate sequential data directories', async () => {
   }
 });
 
+test('server restarts preserve unfinished song requests and respect explicit completion and clearing', async () => {
+  const { addQueueItem } = require('../../src/music/queue-service');
+  const { createDatabases, closeDatabases } = require('../../src/storage/database');
+  const { createQueueStore } = require('../../src/storage/queue-store');
+  const { createServerRuntime } = require('../../src/server');
+  const temporaryRoot = path.resolve(__dirname, '../../tmp');
+  fs.mkdirSync(temporaryRoot, { recursive: true });
+  const dataDir = fs.mkdtempSync(path.join(temporaryRoot, 'queue-restart-'));
+  let runtime;
+  let database;
+
+  try {
+    database = createDatabases({ dataDir });
+    const store = createQueueStore(database.songDb);
+    const settings = { queueLimit: '50', allowDuplicate: 'true', onlyFromLibrary: 'false' };
+    const context = { store, settings: () => settings, defaults: () => settings };
+    const first = addQueueItem(context, { songName: 'Earlier request', createdAt: '2026-10-07T01:00:00.000Z' });
+    const pinned = addQueueItem(context, {
+      songName: 'Pinned request', createdAt: '2026-10-07T02:00:00.000Z', isPinned: true,
+    });
+    const legacyCurrent = addQueueItem(context, {
+      songName: 'Legacy current request', createdAt: '2026-10-07T03:00:00.000Z',
+    });
+    store.setStatus(legacyCurrent.id, 'current', '2026-10-07T03:01:00.000Z');
+    for (const status of ['done', 'deleted', 'skipped']) {
+      const item = addQueueItem(context, { songName: `${status} request` });
+      store.setStatus(item.id, status, '2026-10-07T04:00:00.000Z');
+    }
+    closeDatabases(database);
+    database = null;
+
+    const expected = [pinned, first, legacyCurrent].map((item) => ({
+      id: item.id, songName: item.song_name, createdAt: item.created_at, pinned: item.is_pinned,
+    }));
+    const readItems = (queue) => {
+      assert.equal(queue.current, null);
+      assert.ok(queue.waiting.every((item) => item.status === 'waiting'));
+      return queue.waiting.map((item) => ({
+        id: item.id, songName: item.song_name, createdAt: item.created_at, pinned: item.is_pinned,
+      }));
+    };
+
+    for (let restart = 0; restart < 4; restart += 1) {
+      runtime = createServerRuntime({ dataDir });
+      const app = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+      const request = async (urlPath, body) => {
+        const response = await fetch(`${app.baseUrl}${urlPath}`, {
+          method: body ? 'POST' : 'GET',
+          headers: { Authorization: `Bearer ${runtime.getApiToken()}`, 'Content-Type': 'application/json' },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+        });
+        assert.equal(response.status, 200);
+        const payload = await response.json();
+        assert.equal(payload.ok, true, payload.error);
+        return payload.data;
+      };
+      const state = await request('/api/state');
+      assert.deepEqual(readItems(state.queue), expected, `restart ${restart + 1}`);
+      if (restart === 1) {
+        expected.shift();
+        assert.deepEqual(readItems(await request('/api/queue/action', { action: 'next' })), expected);
+      }
+      if (restart === 2) {
+        expected.length = 0;
+        assert.deepEqual(readItems(await request('/api/queue/action', { action: 'clear' })), expected);
+      }
+      await runtime.stop({ exitProcess: false });
+      runtime = null;
+    }
+  } finally {
+    if (database) closeDatabases(database);
+    if (runtime) await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('server runtime stops once with an upgraded peer that never sends FIN', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-ws-stop-'));
   const { createServerRuntime } = require('../../src/server');

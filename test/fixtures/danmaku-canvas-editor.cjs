@@ -12,14 +12,17 @@ async function run() {
   const { app, BrowserWindow, session, ipcMain, dialog } = require('electron');
   const { createComponentWebPicker } = require('../../src/electron/component-web-picker');
   const { createHttpServer } = require('../../src/server/http-server');
+  const { createWebSocketHub } = require('../../src/server/ws');
   const { servePageOrAsset } = require('../../src/server/http-utils');
   const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
   const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
   const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
   const { DatabaseSync } = require('node:sqlite');
+  const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
   const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
   const { createSceneStore } = require('../../src/storage/scene-store');
   const { createSceneService } = require('../../src/scenes/scene-service');
+  const { readSceneSharedAppearances } = require('../../src/server/scene-shared-appearance');
   const { createSceneComponentPorts } = require('../../src/server/scene-components');
   const { getComponentPreviewOwner } = require('../../src/electron/scene-cloud-controller');
   const { HEARTBEAT_INTERVAL_MS } = require('../../src/electron/license/license-runtime-policy');
@@ -42,6 +45,9 @@ async function run() {
   await manager.bootstrap();
   const token = 'synthetic-canvas-parent-secret';
   const root = path.resolve(__dirname, '../..');
+  const openingSettings = {};
+  const getState = () => ({ settings: { ...DEFAULT_SETTINGS, ...openingSettings } });
+  const hub = createWebSocketHub({ closeTimeoutMs: 20 });
   let saved = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null,
     overlayUrl: 'https://canvas.example.test/overlay/syntheticKey_123' };
   const db = new DatabaseSync(':memory:');
@@ -49,13 +55,16 @@ async function run() {
   migrateComponentOutputSizes(db);
   migrateCanvasPresets(db);
   const scenes = createSceneService({ store: createSceneStore(db), getOwner: () => ({ scope: 'canvas-test', epoch: 1 }),
+    getSharedAppearances: items => readSceneSharedAppearances({ settings: { get: () => openingSettings },
+      system: { dataDir: directory, getState }, readDanmakuDisplay: () => ({ config: saved }) }, items),
     secretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() },
-    ...createSceneComponentPorts({ getState: () => ({ settings: {} }), cloud: { getSettings: () => {
+    ...createSceneComponentPorts({ getState: () => ({ settings: openingSettings }), cloud: { getSettings: () => {
       const { style, fullscreenDurationSeconds, styleOptions, layout, styleParameters } = saved;
       return { style, fullscreenDurationSeconds, styleOptions, layout, ...(styleParameters ? { styleParameters } : {}) };
     } } }) });
   global.canvasTest = { writes: [], attempts: 0, requests: [], externalUrls: [], failNext: false,
+    openingSettings,
     saved: () => saved, scene: () => scenes.list()[0], componentSize: () => scenes.getComponentSize('danmaku'),
     authorization: () => ({ epoch: manager.getAuthorizationEpoch(), generation: manager.getAuthorizationGeneration() }),
     async renewAuthorization() {
@@ -71,8 +80,14 @@ async function run() {
     host: '127.0.0.1', startPort: 0, dataDir: directory, getPhase: () => 'ready',
     getStartedPort: () => server.address().port, isLicenseAuthorized: () => manager.isAuthorized(),
     getPreviewOwner: () => getComponentPreviewOwner(manager),
-    inflightTracker: { run: (fn) => fn() }, getSettings: () => ({}),
-    createApiContext: () => ({ sessionToken: token, scenes, settings: { get: () => ({}) }, system: { dataDir: directory, pickComponentWebFile } }),
+    inflightTracker: { run: (fn) => fn() }, getSettings: () => openingSettings,
+    getWebSocketHub: () => hub,
+    getWebSocketContext: base => ({ sessionToken: token, allowedOrigins: [base], getState }),
+    createApiContext: () => ({ sessionToken: token, scenes, settings: { get: () => openingSettings, defaults: DEFAULT_SETTINGS,
+      set(key, value) { openingSettings[key] = value; },
+      setMany(patch) { Object.assign(openingSettings, patch); return Object.keys(patch); } },
+      bilibili: { configure() {} }, broadcastSnapshot(reason) { hub.broadcastSnapshot({ getState }, reason); },
+      system: { dataDir: directory, pickComponentWebFile, getState } }),
     servePageOrAsset(req, res, url) {
       if (url.pathname === '/js/admin/index.js') {
         res.setHeader('Content-Type', 'application/javascript');
@@ -132,7 +147,7 @@ async function run() {
       },
     },
   });
-  app.once('before-quit', () => { manager.dispose(); auth.dispose(); server.closeAllConnections(); server.close(); db.close(); });
+  app.once('before-quit', () => { manager.dispose(); auth.dispose(); hub.stop(); server.closeAllConnections(); server.close(); db.close(); });
   app.on('window-all-closed', () => app.quit());
   await window.loadURL(`${origin}/admin`);
 }

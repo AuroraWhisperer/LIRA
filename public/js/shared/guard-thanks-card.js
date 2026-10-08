@@ -95,7 +95,7 @@ export function isGuardThanksPayload(payload) {
       Number.isSafeInteger(months) &&
       months > 0 &&
       (payload.textMode === undefined || GUARD_TEXT_MODES.includes(payload.textMode)) &&
-      (payload.style === undefined || GUARD_STYLES.includes(payload.style)) &&
+      (payload.style === undefined || payload.style === 'nautical' || GUARD_STYLES.includes(payload.style)) &&
       (payload.avatarUrl === undefined || typeof payload.avatarUrl === 'string'),
   );
 }
@@ -231,7 +231,7 @@ export function createGuardThanksPlayer({ root, resolveAvatarUrl = safeGuardAvat
   }
 
   async function play(payload, { motion = 'full', compressed = false } = {}) {
-    if (!isGuardThanksPayload(payload)) return false;
+    if (!isGuardThanksPayload(payload) || payload.style === 'nautical') return false;
     stop();
     const session = createSession();
     active = session;

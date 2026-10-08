@@ -91,6 +91,9 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
       closest() {
         return null;
       },
+      contains() {
+        return false;
+      },
     };
   };
 
@@ -138,6 +141,7 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
   assert.equal(body.classList.contains('player-dock-collapsed'), true);
   assert.equal(playerPanel.classList.contains('is-collapsed'), true);
   assert.equal(playerBody.getAttribute('aria-hidden'), 'true');
+  assert.equal(playerBody.inert, true);
   assert.equal(dockToggle.getAttribute('aria-expanded'), 'false');
   assert.equal(dockToggle.getAttribute('aria-label'), '展开播放器');
 
@@ -156,6 +160,7 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
   assert.equal(body.classList.contains('player-dock-collapsed'), false);
   assert.equal(playerPanel.classList.contains('is-collapsed'), false);
   assert.equal(playerBody.getAttribute('aria-hidden'), 'false');
+  assert.equal(playerBody.inert, false);
 
   assert.equal(dockToggle.getAttribute('aria-expanded'), 'true');
   assert.equal(dockToggle.getAttribute('aria-label'), '收起播放器');

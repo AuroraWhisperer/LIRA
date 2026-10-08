@@ -133,11 +133,10 @@ node scripts/verify-song-roundtrip.cjs D:\Work\Live D:\Work\lira-server
 
 上述安装目录、数据保护、自动关闭，以及[卸载保留与清理测试](../../../test/engineering/installer-uninstall.test.js)需要 Windows 和 NSIS。[installer-tools.js](../../../test/helpers/installer-tools.js) 优先使用 `LIRA_TEST_MAKENSIS`（编译器）和 `LIRA_TEST_NSIS_PLUGINS`（包含 `StdUtils.dll`、`nsProcess.dll` 的 Unicode 插件目录）；未指定的路径从已有 electron-builder 缓存查找。缓存根目录采用 `ELECTRON_BUILDER_CACHE`，缺省为 `%LOCALAPPDATA%/electron-builder/Cache`，支持 `nsis-3.0.4.1`、`nsis-resources-3.4.1` 的平铺和嵌套解压目录。
 
-发现过程只读，不下载工具或修改全局环境。显式配置的无效路径会使实际执行失败，不会被缓存覆盖；缺少工具或不在 Windows 时仍明确报告跳过。完整 Windows 验证前可检查工具，然后通过普通测试入口执行：
+发现过程只读，不下载工具或修改全局环境。显式配置的无效路径会使实际执行失败，不会被缓存覆盖；缺少工具或不在 Windows 时仍明确报告跳过。完整 Windows 验证前可检查工具；`verify` 已包含安装器测试，无需先单跑该组：
 
 ```powershell
 node -e "const tools = require('./test/helpers/installer-tools').resolveInstallerTools(); if (!tools.compiler || !tools.plugins) throw new Error('Configure the NSIS compiler and Unicode plugins first'); console.log(tools)"
-npm run test:installer
 npm run verify
 ```
 

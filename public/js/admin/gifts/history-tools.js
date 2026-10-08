@@ -16,10 +16,16 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
   });
   function showPane(pane) {
     rowSelection.cancel();
+    const focusedPane = document.activeElement?.closest('[data-gift-pane]');
     document.querySelectorAll?.('#giftHistoryDrawer [data-gift-pane]').forEach((node) => {
       node.hidden = node.dataset.giftPane !== pane;
     });
     get('giftHistoryDrawer').dataset.view = pane;
+    if (focusedPane?.hidden) {
+      const focusId = pane === 'export' ? 'giftExportBack'
+        : state.selected.size > 0 ? 'giftHistoryExport' : 'giftHistoryClose';
+      get(focusId)?.focus();
+    }
   }
   const exporter = createGiftExportPreview({ showPane });
   const run = (fn) =>

@@ -315,21 +315,30 @@ body {
   z-index: 2;
   inset: auto auto 9% 9%;
   width: 40%;
-  height: 8%;
+  height: 7%;
   display: flex;
-  align-items: flex-end;
-  gap: 0.26cqw;
-  opacity: 0.18;
+  align-items: center;
+  justify-content: space-between;
+  opacity: 0.66;
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.opening-eq::before {
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 1px;
+  background: var(--opening-pink-soft);
+  opacity: 0.16;
+  content: '';
 }
 .opening-eq span {
   position: relative;
   inset: auto;
-  flex: 1;
+  flex: 0 0 0.22cqw;
   height: calc(var(--eq-height) * 100%);
-  min-height: 0.1cqw;
-  border-radius: 99px 99px 0 0;
-  background: var(--opening-pink);
-  transform-origin: 50% 100%;
+  min-height: 0.22cqw;
+  border-radius: 99px;
+  background: linear-gradient(180deg, var(--opening-pink-soft), var(--opening-pink) 50%, var(--opening-pink-soft));
+  transform-origin: center;
   animation: eq-smooth var(--eq-duration, 3s) ease-in-out var(--eq-delay, 0s) infinite alternate;
   will-change: transform, opacity;
 }
@@ -386,7 +395,7 @@ body {
 .opening-stage:not(.show-eq) .opening-eq,
 .opening-stage.quality-normal .opening-notes span:nth-child(n + 5),
 .opening-stage.quality-normal .opening-particles span:nth-child(n + 13),
-.opening-stage.quality-normal .opening-eq span:nth-child(n + 11) {
+.opening-stage.quality-normal .opening-eq span:nth-child(n + 41) {
   display: none;
 }
 .opening-stage.quality-low .opening-vinyl,
@@ -544,16 +553,16 @@ body.opening-disabled,
 }
 @keyframes eq-smooth {
   0% {
-    opacity: 0.58;
-    transform: scaleY(0.68);
+    opacity: 0.5;
+    transform: scaleY(0.44);
   }
   50% {
-    opacity: 0.82;
-    transform: scaleY(1.08);
+    opacity: 0.9;
+    transform: scaleY(1);
   }
   100% {
-    opacity: 0.64;
-    transform: scaleY(0.82);
+    opacity: 0.62;
+    transform: scaleY(0.64);
   }
 }
 

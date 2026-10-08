@@ -18,6 +18,7 @@ export function syncComponentFieldValue(control, value, force = false) {
 
 export function cloneComponentPanel(source, prefix) {
   const panel = source.cloneNode(true);
+  panel.querySelectorAll('[data-resource-style-settings], [data-local-styles]').forEach(node => node.remove());
   const names = new Map();
   for (const node of [panel, ...panel.querySelectorAll('[id]')]) {
     if (!node.id) continue;

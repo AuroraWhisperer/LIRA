@@ -4,7 +4,7 @@
 
 const { canonicalizeGuardGiftId } = require('./guard-gift-aliases');
 const { normalizeAvatarUrl } = require('./avatar-url');
-const { GUARD_THANKS_EFFECTS, readGuardThanksEffect } = require('../../../public/js/shared/guard-thanks-settings.js');
+const { GUARD_THANKS_EFFECTS, readGuardThanksEffect, readNauticalGuardEnabled } = require('../../../public/js/shared/guard-thanks-settings.js');
 
 const GUARD_THANKS_TIERS = Object.freeze(['captain', 'admiral', 'governor']);
 const GUARD_THANKS_TEXT_MODES = Object.freeze(['bilingual', 'zh', 'en']);
@@ -37,7 +37,7 @@ function normalizeStyle(value) {
 }
 
 function normalizeGuardThanksSettingValue(key, value) {
-  if (['guardThanksEnabled', 'guardThanksAuroraEnabled', 'guardThanksClassicEnabled'].includes(key)) {
+  if (['guardThanksEnabled', 'guardThanksAuroraEnabled', 'guardThanksClassicEnabled', 'guardThanksNauticalEnabled'].includes(key)) {
     if (value === true || value === 'true') return 'true';
     if (value === false || value === 'false') return 'false';
     return null;
@@ -74,6 +74,11 @@ function buildGuardThanksEvents(item, settings = {}) {
     });
     return event ? [{ ...event, eventId: `${event.eventId}:${effect.style}` }] : [];
   });
+}
+
+function buildNauticalGuardThanksEvent(item, settings = {}) {
+  const event = buildGuardThanksEvent(item, { guardThanksEnabled: String(readNauticalGuardEnabled(settings)) });
+  return event ? { ...event, eventId: `${event.eventId}:nautical`, style: 'nautical' } : null;
 }
 
 function buildGuardThanksPreviewEvent(input = {}) {
@@ -122,5 +127,6 @@ module.exports = {
   normalizeGuardThanksSettingValue,
   buildGuardThanksEvent,
   buildGuardThanksEvents,
+  buildNauticalGuardThanksEvent,
   buildGuardThanksPreviewEvent,
 };

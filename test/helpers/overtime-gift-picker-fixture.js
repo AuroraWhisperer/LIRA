@@ -18,6 +18,8 @@ async function createFixture({
   },
   fetchImpl = null,
   initialState = {},
+  confirmImpl = async () => true,
+  parsedDuration = 0,
 } = {}) {
   const document = createFakeDocument();
   const window = { AdminApp: {} };
@@ -25,6 +27,10 @@ async function createFixture({
     fetchCalls: [],
     apiCalls: [],
     addedGifts: [],
+    confirmationCalls: [],
+    confirmImpl,
+    parsedDuration,
+    overtimeState: initialState.overtime || null,
     fetchImpl: fetchImpl || (() => Promise.resolve({ ok: true, payload: fetchPayload })),
   };
   const namespace = await loadOvertimeModule({
@@ -123,6 +129,10 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
       showError(error) {
         state.lastError = error;
       },
+      showConfirmationDialog(options) {
+        state.confirmationCalls.push(options);
+        return state.confirmImpl(options);
+      },
       toast() {},
     }),
     './overtime-rule-editor.js': stub({
@@ -151,16 +161,18 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
         syncDurationSelectorsFromInput() {},
         syncDurationInputFromSelectors() {},
         renderInitialDuration() {},
-        parseInitialDuration: () => 0,
-        formatClockDisplay: () => '',
+        parseInitialDuration: () => state.parsedDuration,
+        formatClockDisplay: (milliseconds) => `${milliseconds / 1000} 秒`,
       }),
     }),
     './overtime-status-view.js': stub({
       createOvertimeStatusView: () => ({
-        renderState() {},
+        renderState(next) {
+          state.overtimeState = { ...state.overtimeState, ...next };
+        },
         syncClockLoop() {},
         stopClockLoop() {},
-        getState: () => null,
+        getState: () => state.overtimeState,
       }),
     }),
     './overtime-preview.js': stub({

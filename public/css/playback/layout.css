@@ -3,6 +3,10 @@
   display: none;
 }
 
+.playback-source-panel {
+  display: contents;
+}
+
 .playback-page.active {
   display: grid;
   grid-template-columns: 1fr;

@@ -5,6 +5,108 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
+for (const [queueType, mode] of [['queue', 'sequence'], ['queue', 'shuffle'], ['playlist', 'sequence'], ['playlist', 'shuffle'], ['radio', 'shuffle']]) {
+  test(`confirming a request queues the next song without interrupting audio (${queueType}/${mode})`, async () => {
+    const current = track('playing', '正在播放');
+    const next = track('old-next', '原下一首');
+    const request = { ...track('requested', '观众点歌'), songRequestKey: '["81","2026-10-08T09:00:00Z"]' };
+    const app = await createPlaybackApp({
+      current,
+      currentOrigin: queueType === 'radio' ? 'radio' : 'normal',
+      queueType,
+      mode,
+      volume: 0.75,
+      selectedSource: 'qq',
+      normalQueue: queueType === 'radio' ? [] : [next],
+      radioQueue: queueType === 'radio' ? [next] : [],
+      normalQueueTracks: queueType === 'playlist' ? [current, next] : [],
+      playlistIndex: queueType === 'playlist' ? 0 : -1,
+      shuffleOrder: [next.id],
+      shuffleCursor: 0,
+      pendingRequests: [{ id: 'pending:81:requested', songRequestKey: request.songRequestKey, track: request, requesterName: '观众甲' }],
+    });
+    await app.init();
+    await flushAsyncWork();
+    await app.emit('playbackPlayPause', 'click');
+    await flushAsyncWork();
+    app.element('music-player').currentTime = 37;
+    const playCalls = app.audioPlayCalls();
+    const audioSource = app.element('music-player').src;
+
+    await app.emit('pendingConfirmAcceptBtn', 'click');
+    await app.emit('pendingConfirmAcceptBtn', 'click');
+    await flushAsyncWork();
+    const saved = app.savedState();
+    const queue = queueType === 'radio' ? saved.radioQueue : saved.normalQueue;
+    assert.equal(saved.current.id, current.id);
+    assert.equal(app.element('music-player').src, audioSource);
+    assert.equal(app.element('music-player').currentTime, 37);
+    assert.equal(app.audioPlayCalls(), playCalls);
+    assert.equal(saved.pendingRequests.length, 0);
+    assert.deepEqual(queue.map((item) => item.id), [request.id, next.id]);
+    assert.equal(queue[0].requestedBy, '观众甲');
+    assert.equal(queue[0].songRequestKey, request.songRequestKey);
+    if (queueType === 'playlist') {
+      assert.deepEqual(saved.normalQueueTracks.map((item) => item.id), [current.id, request.id, next.id]);
+      assert.equal(saved.playlistIndex, 0);
+    }
+
+    await app.emit('playbackNext', 'click');
+    await flushAsyncWork();
+    assert.equal(app.savedState().current.id, request.id);
+    assert.equal(app.audioPlayCalls(), playCalls + 1);
+  });
+}
+
+test('confirming a request with no current song waits for the normal play control', async () => {
+  const app = await createPlaybackApp({
+    mode: 'sequence', volume: 0.75, selectedSource: 'qq',
+    pendingRequests: [{ id: 'pending:1:requested', track: track('requested', '观众点歌') }],
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('pendingConfirmAcceptBtn', 'click');
+  assert.equal(app.savedState().current, null);
+  assert.equal(app.audioPlayCalls(), 0);
+  assert.equal(app.savedState().normalQueue[0].id, 'requested');
+  await app.emit('playbackPlayPause', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'requested');
+});
+
+test('repeated imports keep different requests of the same song and do not interrupt playback', async () => {
+  let fetchCount = 0;
+  let releaseQueue;
+  const queueReady = new Promise((resolve) => { releaseQueue = resolve; });
+  const items = [1, 2].map((id) => ({ id, created_at: '2026-10-08T09:00:00Z', song_name: '同一首歌', requester_name: `观众${id}` }));
+  const options = {
+    songQueue: async () => { fetchCount++; await queueReady; return { current: null, waiting: items }; },
+  };
+  const app = await createPlaybackApp({
+    current: track('playing', '正在播放'), mode: 'sequence', volume: 0.75, selectedSource: 'qq',
+  }, options);
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  await flushAsyncWork();
+  const first = app.emit('playbackImportSongQueue', 'click');
+  const duplicate = app.emit('playbackImportSongQueue', 'click');
+  assert.equal(app.element('playbackImportSongQueue').disabled, true);
+  releaseQueue();
+  await Promise.all([first, duplicate]);
+  await app.emit('playbackImportSongQueue', 'click');
+  const saved = app.savedState();
+  assert.equal(fetchCount, 2, 'overlapping import clicks share the in-flight operation');
+  assert.equal(saved.current.id, 'playing');
+  assert.equal(app.audioPlayCalls(), 1);
+  assert.equal(saved.normalQueue.length, 2);
+  assert.equal(new Set(saved.normalQueue.map((item) => item.id)).size, 1);
+  assert.equal(new Set(saved.normalQueue.map((item) => item.songRequestKey)).size, 2);
+  assert.deepEqual(saved.normalQueue.map((item) => item.requestedBy), ['观众1', '观众2']);
+  assert.equal(saved.importedSongRequestKeys.length, 2);
+  assert.equal(app.element('playbackImportSongQueue').disabled, false);
+});
+
 for (const action of ['ended', 'next', 'error']) {
   test(`repeat-one only repeats on natural completion (${action})`, async () => {
     const current = track('repeat-a', '循环歌曲');

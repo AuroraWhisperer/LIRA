@@ -96,7 +96,7 @@ playbackControls → audio.load()/play()
 | stream-service | 播放流解析 `POST /api/music/resolve-stream`(`forceRefresh` + `quality`),URL 缓存 + 30s 刷新边距 + 1 次重试;Provider 返回的实际 `quality` 回写 track,用于展示权益降级                                                                             |
 | lyric-service  | 歌词加载、行定位、浏览器端 lyric-state/timeline 上报(§3)                                                                                                                                                                                         |
 | match-service  | 点歌匹配:`/api/music/search` 候选 → `POST /api/music/match-track` 匹配,未匹配进入 `pendingRequests` 待确认(弹确认弹窗)                                                                                                                           |
-| import-service | 点歌队列导入:读 `/api/state` 的 queue 快照 → 按 track 结构转换后插入播放队列                                                                                                                                                                     |
+| import-service | 点歌队列导入:读 `/api/state` 的 queue 快照，过滤已处理请求后最多匹配 30 条；自动接受结果插入下一首，其余候选进入待确认                                                                                                                                 |
 | home-service   | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后 toast"已自动更新")                                                                                               |
 | wesing-service | 全民 K 歌适配层:`/api/music/wesing/*`(active/refresh/configure/offset)+ WS `wesing-state` 实时状态 + `LyricWordRenderer` 逐字现场(详见 [backend/music/wesing.md](../backend/music/wesing.md));源切换用 `activationQueue` 串行化,避免后端状态错乱 |
 
@@ -108,8 +108,8 @@ playbackControls → audio.load()/play()
 
 `state/actions.js` 是当前曲目、历史、播放偏好和待确认请求的写入入口；恢复保持原状态对象身份，完成的同步变更通过 `commit()` 按保存、渲染顺序通知。异步流解析和请求代次仍由 playback-controls 拥有，只在接受结果后提交状态。`queue/manager.js` 独占队列转换、歌单游标和随机顺序；`features/queue-operations.js` 编排音频清理与队列操作，不再维护第二套队列算法。原先未被实际使用的 StateManager 订阅包装已移除，初始状态、规范化及校验仍在 `state/manager.js`。
 
-- **三种队列形态**:`normalQueue`(点歌队列/歌单播放)、`radioQueue`(电台)、`normalQueueTracks`(歌单全量,`playlistIndex` 游标);`queueType` ∈ queue/playlist/radio;`requestedQueue` 承载观众点歌待确认项。`insertTracksNext` 在 playlist 模式从 `playlistIndex+1` 处插入,`removeTrack` 同步从全量列表剔除;`clearQueue` 复位全部队列与 shuffle 游标([queue/manager.js:83-95](../../../public/js/playback/queue/manager.js#L83-L95))。
-- **播放模式**:UI 经 `getNextMode()` 在 sequence/shuffle/repeat-one 间轮换；服务端快照和本地 v2/v1 恢复均接受 repeat-one，旧值 single 归一化为 repeat-one，保留旧值 loop 的兼容接纳。shuffle 用 `shuffleOrder` 曲目 ID 数组 + `shuffleCursor` 游标(`rebuildShuffleOrder` Fisher–Yates,游标越界回退顺序取队首)。
+- **三种队列形态**:`normalQueue`(点歌队列/歌单播放)、`radioQueue`(电台)、`normalQueueTracks`(歌单全量,`playlistIndex` 游标);`queueType` ∈ queue/playlist/radio。待确认请求由 `pendingRequests` 保存，旧 `requestedQueue` 仅兼容读取。`insertTracksNext` 在 playlist 模式从 `playlistIndex+1` 处插入，保留当前曲目、音频和游标；`removeTrack` 同步从全量列表剔除；`clearQueue` 复位全部队列与 shuffle 游标。待确认通知的「下一首播放」使用同一插入操作，空闲时等用户按播放开始。
+- **播放模式**:UI 经 `getNextMode()` 在 sequence/shuffle/repeat-one 间轮换；服务端快照和本地 v2/v1 恢复均接受 repeat-one，旧值 single 归一化为 repeat-one，保留旧值 loop 的兼容接纳。shuffle 用 `shuffleOrder` 曲目键数组 + `shuffleCursor` 游标(`rebuildShuffleOrder` Fisher–Yates,游标越界回退顺序取队首)。普通曲目沿用 ID，导入请求使用 `request:<songRequestKey>`，区分同曲的不同请求。明确插入下一首时，活动队列条目标记 `playNext`，快照保留该标记；重新打乱队列后仍先消费这批条目，取出时移除标记，歌单全量副本不保留临时优先级。当前单曲循环规则保持不变。
 - **电台补量**:`features/radio-mode.js` 在电台队列 ≤3 首时按 10 首一批 `POST /api/music/home`(action=radio),过滤最近 30 首历史与队列内重复(请求归 radio-mode，去重入队归 QueueManager.refillRadioQueue)。
 - **收藏/歌单**:`playlist-operations.js` 走 `/api/music/playlists/tracks/add|remove`、`/api/music/home`(歌单列表)与 `POST /api/playback/favorites` 系列;收藏/歌单数据经 `CacheManager` 24h 缓存跨启动保留。
 - **缓存统计**:`cache-operations.js` 展示 `GET /api/music/cache` 并支持 `/api/music/cache/clear`。
@@ -127,6 +127,8 @@ playbackControls → audio.load()/play()
 **恢复顺序**:`restoreState()` 优先 `GET /api/playback/queue-state?clientId=default` → localStorage v2 → v1 迁移([state/storage.js:97-120](../../../public/js/playback/state/storage.js#L97-L120))。`currentTime` 恢复为 `restoredTime`(不保存播放位置,见 [state/storage.js:81](../../../public/js/playback/state/storage.js#L81))。恢复的本地曲目经 `restoreLocalFileUrls()` 用 `musicAPI.resolveLocalMediaUrls(paths)` 批量解析成 `local-media://` URL,失败标记 `fileMissing`。
 
 QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最后一项必须跨重启送回 Provider,否则 HAR 中 `songtype: 1` 的付费歌曲会被错误降为类型 `0`。`qualityPreferences` 按 Provider 保存:QQ 为 `standard/high/lossless/premium/immersive`,网易云为 `standard/higher/exhigh/lossless/hires`;后两项通过本地 QMC2 Range 代理，不能承诺 QQ 客户端的 Dolby/空间 DSP 效果。
+
+点歌导入记录 `importedSongRequestKeys`，轨道与待确认条目保留 `songRequestKey`、点歌人。请求键由现有点歌项 `id` 和 `created_at` 组成，避免清理数据后数字 ID 复用误判。记录随现有快照和 localStorage v1/v2 恢复，不新增数据库表或更改接口；旧快照缺省为空，不按歌名推测旧曲目的请求归属。成功读取点歌队列后，只保留仍活跃请求的记录；已经播放、忽略或从播放队列清除的请求在点歌队列仍活跃期间不会再次导入。匹配失败不写处理记录，可重试。仅产生待确认项的导入也保存快照。
 
 ## 7. 本地文件与桌面集成
 
@@ -151,6 +153,6 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 
 ## 9. 与点歌业务的关系
 
-- 点歌队列导入:播放页"导入点歌队列"把 `/api/state` 的 `queue` 快照转成播放队列(import-service),不经过 match。
+- 点歌队列导入:播放页「导入点歌队列」读取 `/api/state` 的 `queue` 快照，通过 match-service 搜索和匹配。先按请求键跳过已导入或已进入待确认的请求，再应用每批 30 条限制；不同请求点同一首歌可分别导入。导入期间禁用按钮并合并重复触发，失败后恢复重试。
 - 点歌匹配诊断:管理页"点歌匹配诊断"区(match-handler)把当前队列条目与在线搜索/匹配结果对照,定位匹配失败原因。
 - 曲库互操作:`initPlaybackAssistant` 注入 `getSongs/reloadSongs`,播放页可用歌库曲目一键入队(来源 `admin`)。

@@ -1,6 +1,7 @@
 import * as songUtils from '../shared/utils.js';
 import { stateService } from './state.js';
 import { publishSongs } from './legacy-admin-bridge.js';
+import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 // 编写人：Aurora
 // 歌曲库管理
 ('use strict');
@@ -14,8 +15,29 @@ import {
 
 export function createSongs({ state = stateService, utils = songUtils } = {}) {
   const { escapeHtml, escapeAttr, value, setValue, toast, api, debounce, dangerConfirm } = utils;
+  let savedForm = null;
+
+  function readSongForm() {
+    return JSON.stringify([
+      'songId', 'songName', 'songArtist', 'songCategory', 'songTags', 'songIsEnabled',
+      'songLanguage', 'songRequestPrice', 'songClip', 'songSourcePlatform', 'songNote',
+    ].map((id) => document.getElementById(id)?.value || ''));
+  }
+
+  async function confirmDiscard() {
+    if (savedForm === null || readSongForm() === savedForm) return true;
+    return showConfirmationDialog({
+      variant: 'caution',
+      title: '放弃未保存的歌曲修改？',
+      description: '当前表单中尚未保存的内容将会丢失。',
+      confirmLabel: '放弃修改',
+      cancelLabel: '继续编辑',
+      initialFocus: 'cancel',
+    });
+  }
 
   function initSongForm() {
+    savedForm = readSongForm();
     document.getElementById('songRequestPrice').addEventListener('input', () => {
       setValue('songPricePreset', '');
       updateSongPricePreview();
@@ -49,7 +71,9 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
       await state.reloadAll();
     });
 
-    document.getElementById('resetSongForm').addEventListener('click', resetSongForm);
+    document.getElementById('resetSongForm').addEventListener('click', async () => {
+      if (await confirmDiscard()) resetSongForm();
+    });
     document.getElementById('songSearch').addEventListener(
       'input',
       debounce(() => {
@@ -206,11 +230,16 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     updateSongPricePreview();
     setValue('songSourcePlatform', '');
     setValue('songNote', '');
+    savedForm = readSongForm();
   }
 
   function renderSongs(songs, songLanguages, songArtists, songTags) {
-    songLanguages.clear();
-    songArtists.clear();
+    const filtered = ['songSearch', 'languageFilter', 'artistFilter'].some((id) => value(id))
+      || value('enabledFilter') === 'true' || readSelectedCategories().length || readSelectedTags().length;
+    if (!filtered) {
+      songLanguages.clear();
+      songArtists.clear();
+    }
     for (const song of songs) {
       for (const language of splitSongLanguages(song.language)) songLanguages.add(language);
       for (const artist of splitSongArtists(song.artist)) songArtists.add(artist);
@@ -265,10 +294,18 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     });
 
     document.querySelectorAll('[data-edit-song]').forEach((button) => {
-      button.addEventListener('click', () => {
+      button.addEventListener('click', async () => {
         closeSongActionsFor(button);
         const song = songs.find((item) => String(item.id) === button.dataset.editSong);
         if (!song) return;
+        if (String(song.id) === value('songId')) {
+          document.getElementById('songName')?.focus();
+          return;
+        }
+        if (!await confirmDiscard()) {
+          document.getElementById('songName')?.focus();
+          return;
+        }
         setValue('songId', song.id);
         setValue('songName', song.name);
         setValue('songArtist', song.artist || '');
@@ -282,6 +319,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
         updateSongPricePreview();
         setValue('songSourcePlatform', song.source_platform || '');
         setValue('songNote', song.note || '');
+        savedForm = readSongForm();
         document.getElementById('songName')?.focus();
       });
     });

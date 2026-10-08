@@ -30,6 +30,9 @@ export function createPlaybackStateActions(state, { save = () => {}, render = ()
     clearPending() {
       state.pendingRequests = [];
     },
+    setImportedSongRequestKeys(keys) {
+      state.importedSongRequestKeys = keys;
+    },
     addPending(request) {
       state.pendingRequests.push(request);
     },

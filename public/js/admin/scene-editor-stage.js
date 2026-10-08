@@ -6,7 +6,7 @@ import { createBrowserSourcePreview, mountBrowserSourcePreview } from './browser
 import { createTextBoxPreview } from './text-box-preview.js';
 import { componentCssRendererUrl } from '../shared/component-css-style.js';
 
-export function mountSceneEditorStage(host, { model, components, getSelection, select, report }) {
+export function mountSceneEditorStage(host, { model, components, getSelection, select, report, sharedAppearance }) {
   const viewport = previewElement('div', 'scene-editor-viewport');
   const extent = previewElement('div', 'scene-editor-extent');
   const canvas = previewElement('div', 'scene-editor-canvas');
@@ -142,7 +142,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
         const label = previewElement('span', 'scene-editor-item-label');
         node.append(label);
         canvas.append(node);
-        const controller = createSceneItemController(model, item.id, component.controller);
+        const controller = createSceneItemController(model, item.id, component.controller, sharedAppearance);
         const capabilities = SCENE_COMPONENTS[item.type];
         const mountPreview = item.type === 'browser' ? mountBrowserSourcePreview : mountComponentPreview;
         const surface = mountPreview(node, { ...component, controller,

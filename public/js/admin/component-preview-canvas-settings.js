@@ -4,9 +4,9 @@ import { resizeSceneCanvas } from './scene-document-model.js';
 
 export function mountPreviewCanvasSettings(host, { model, report }) {
   host.append(previewElement('h3', '', '画布设置'));
-  const nameLabel = previewElement('label', 'preview-canvas-preset', '预设名称');
+  const nameLabel = previewElement('label', 'preview-canvas-preset', '场景名称');
   const name = previewElement('input');
-  name.setAttribute('aria-label', '预设名称');
+  name.setAttribute('aria-label', '场景名称');
   name.maxLength = 80;
   name.required = true;
   name.value = model.getDocument().title;

@@ -156,6 +156,20 @@ export function createGiftDisplaySettings() {
     }),
   );
   get('giftFeedPreviewBtn')?.addEventListener('click', () => openComponentPreview({ id: 'gift-feed' }));
+  const receiveSettings = event => {
+    if (!config || saving || !event.detail?.giftDisplayConfig) return;
+    let next;
+    try { next = JSON.parse(event.detail.giftDisplayConfig); } catch { return; }
+    const draft = values();
+    const merged = { ...next };
+    for (const key of ['visibleRows', 'scrollSpeed', 'minGiftAmountCents', 'thresholds']) {
+      if (JSON.stringify(draft[key]) !== JSON.stringify(config[key])) merged[key] = draft[key];
+    }
+    config = next;
+    fill(merged);
+  };
+  window.addEventListener('app:settings-state', receiveSettings);
+  window.addEventListener('pagehide', () => window.removeEventListener('app:settings-state', receiveSettings), { once: true });
 
   return {
     async open() {

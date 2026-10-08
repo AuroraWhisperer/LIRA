@@ -5,6 +5,7 @@ const { createLyricToggleButton, loadModuleExports } = require('./frontend-modul
 
 async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
   function element() {
+    const attributes = new Map();
     return {
       ...createLyricToggleButton(),
       style: { setProperty() {} },
@@ -14,6 +15,25 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
       textContent: '',
       innerHTML: '',
       disabled: false,
+      isConnected: true,
+      setAttribute(name, value) {
+        attributes.set(name, String(value));
+      },
+      getAttribute(name) {
+        return attributes.get(name) ?? null;
+      },
+      removeAttribute(name) {
+        attributes.delete(name);
+      },
+      closest() {
+        return null;
+      },
+      matches(selector) {
+        return selector === ':disabled' && this.disabled;
+      },
+      checkVisibility() {
+        return true;
+      },
       addEventListener(type, handler) {
         this.handlers[type] = handler;
       },

@@ -155,6 +155,16 @@ async function createPlaybackApp(initialState, options = {}) {
         },
       });
     }
+    if (url === '/api/state') {
+      const queue = typeof appOptions.songQueue === 'function' ? await appOptions.songQueue() : appOptions.songQueue;
+      return response({ ok: true, data: { queue: queue || { current: null, waiting: [] } } });
+    }
+    if (url === '/api/music/match-track') {
+      const matched = typeof appOptions.matchTrack === 'function'
+        ? await appOptions.matchTrack(JSON.parse(options.body))
+        : { autoAccept: true, score: 100, track: track('matched', '点歌曲目') };
+      return response({ ok: true, data: { results: matched ? [matched] : [] } });
+    }
     if (url === '/api/music/resolve-stream') {
       resolveStreamRequestCount += 1;
       const requestBody = options.body ? JSON.parse(options.body) : {};

@@ -78,6 +78,15 @@ function createComponentStyleLibrary(dataDir) {
   const store = createComponentStyleStore(dataDir);
   return {
     list: () => store.list(),
+    config({ id, patch }, authorize = () => {}) {
+      authorize();
+      if (!patch || typeof patch !== 'object' || Array.isArray(patch)
+        || Object.keys(patch).some(key => ['resourceStyle', 'mediaStyle', 'cssStyle'].includes(key))) fail('只能调整样式参数，不能替换素材。');
+      return store.updateConfig(id, style => {
+        if (!style.config.resourceStyle) fail('此样式不支持客户端参数设置。');
+        return normalizeSceneConfig(style.type, { ...style.config, ...patch });
+      });
+    },
     remove: id => store.remove(id),
     'remove-pack': id => store.removePack(id),
     cancel: id => { store.removePending(id); return { id }; },

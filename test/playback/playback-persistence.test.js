@@ -5,6 +5,86 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
+test('pending-only imports and handled request IDs survive restart and confirmation', async () => {
+  const item = { id: 8, created_at: '2026-10-08T09:00:00Z', song_name: '需要确认', requester_name: '观众甲' };
+  let matches = 0;
+  const options = {
+    localState: null,
+    songQueue: { current: null, waiting: [item] },
+    matchTrack: () => { matches++; return { autoAccept: false, score: 60, track: track('pending-song', '需要确认') }; },
+  };
+  const app = await createPlaybackApp({ mode: 'sequence', volume: 0.75, selectedSource: 'qq' }, options);
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackImportSongQueue', 'click');
+  await app.emitPrepareShutdown();
+  const saved = app.ipcSavedState();
+  assert.equal(saved.current, null);
+  assert.equal(saved.normalQueue.length, 0);
+  assert.equal(saved.pendingRequests.length, 1);
+  assert.equal(saved.importedSongRequestKeys.length, 1);
+  assert.equal(saved.pendingRequests[0].songRequestKey, JSON.stringify(['8', item.created_at]));
+
+  const restored = await createPlaybackApp(saved, options);
+  await restored.init();
+  await flushAsyncWork();
+  const matchesBefore = matches;
+  await restored.emit('playbackImportSongQueue', 'click');
+  assert.equal(matches, matchesBefore);
+  assert.equal(restored.savedState().pendingRequests.length, 1);
+  await restored.emit('pendingConfirmAcceptBtn', 'click');
+  await restored.emit('playbackImportSongQueue', 'click');
+  const confirmed = restored.savedState();
+  assert.equal(confirmed.normalQueue.length, 1);
+  assert.equal(confirmed.normalQueue[0].songRequestKey, saved.pendingRequests[0].songRequestKey);
+  assert.equal(confirmed.normalQueue[0].requestedBy, '观众甲');
+  assert.equal(confirmed.normalQueue[0].playNext, true);
+  assert.equal(confirmed.pendingRequests.length, 0);
+  assert.equal(matches, matchesBefore);
+
+  const ready = await createPlaybackApp({ ...confirmed, mode: 'shuffle' }, options);
+  await ready.init();
+  await flushAsyncWork();
+  await ready.emit('playbackPlayPause', 'click');
+  await flushAsyncWork();
+  assert.equal(ready.savedState().current.songRequestKey, saved.pendingRequests[0].songRequestKey);
+  assert.equal(ready.savedState().current.playNext, false, 'priority is consumed when the queued song starts');
+
+  await restored.emit('playbackClearQueue', 'click');
+  const cleared = await createPlaybackApp(restored.savedState(), options);
+  await cleared.init();
+  await flushAsyncWork();
+  await cleared.emit('playbackImportSongQueue', 'click');
+  assert.equal(cleared.savedState().normalQueue.length, 0);
+  assert.equal(cleared.savedState().pendingRequests.length, 0);
+  assert.equal(matches, matchesBefore, 'explicit playback clearing does not reimport the still-active source request');
+});
+
+test('local fallback preserves imported request history and pending entries during v1 migration', async () => {
+  const key = '["15","2026-10-08T09:00:00Z"]';
+  const saved = {
+    current: { ...track('current', '正在播放'), songRequestKey: key, requestedBy: '观众甲' },
+    pendingRequests: [{ id: 'pending:16:next', songRequestKey: '["16","2026-10-08T09:01:00Z"]', track: track('next', '待确认') }],
+    importedSongRequestKeys: [key, '["16","2026-10-08T09:01:00Z"]'],
+    mode: 'sequence', volume: 0.75, selectedSource: 'qq',
+  };
+  const storage = new Map();
+  const first = await createPlaybackApp(saved, { serverState: {}, storage });
+  await first.init();
+  await flushAsyncWork();
+  const migrated = JSON.parse(storage.get('playbackState:v2'));
+  assert.deepEqual(migrated.importedSongRequestKeys, saved.importedSongRequestKeys);
+  assert.equal(migrated.pendingRequests.length, 1);
+  const restored = await createPlaybackApp({}, { serverState: {}, localState: null, storage });
+  await restored.init();
+  await flushAsyncWork();
+  await restored.emitWindow('pagehide');
+  assert.deepEqual(restored.ipcSavedState().importedSongRequestKeys, saved.importedSongRequestKeys);
+  assert.equal(restored.ipcSavedState().pendingRequests.length, 1);
+  assert.equal(restored.ipcSavedState().current.songRequestKey, key);
+  assert.equal(restored.ipcSavedState().current.requestedBy, '观众甲');
+});
+
 for (const mode of ['repeat-one', 'single']) {
   for (const source of ['server', 'v2', 'v1']) {
     test(`single-track repeat restores its queue and position from ${source} (${mode})`, async () => {

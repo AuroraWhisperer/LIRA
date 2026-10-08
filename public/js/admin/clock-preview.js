@@ -1,5 +1,5 @@
 import { mountStyleParameters } from './component-style-parameters.js';
-import { CLOCK_STYLE_LABELS, FLIP_PALETTES } from '../shared/clock-settings.js';
+import { CLOCK_STYLE_LABELS, FLIP_PALETTES, clockAppearanceChange } from '../shared/clock-settings.js';
 import { cloneComponentPanel, componentField } from './component-preview-panel.js';
 
 const CLOCK_STYLE_VALUES = new Set(Object.keys(CLOCK_STYLE_LABELS));
@@ -32,6 +32,9 @@ export function usesDefaultClockLabel(style, label) {
 }
 
 export function clockStyleChange(draft, style) {
+  if (draft.styleOptions?.[style] && !draft.mediaStyle && !draft.resourceStyle && !draft.cssStyle) {
+    return { style, ...draft.styleOptions[style] };
+  }
   return { style, ...(draft.mediaStyle ? { mediaStyle: null } : {}), ...(draft.resourceStyle ? { resourceStyle: null } : {}), ...(!isTransparentClockStyle(style) && usesDefaultClockLabel(draft.style, draft.label)
     ? { label: CLOCK_STYLE_LABELS[style] } : {}) };
 }
@@ -46,8 +49,10 @@ export function bindClockParameters(root, controller) {
   for (const [key, id] of Object.entries(fields)) {
     const control = node(id);
     control.addEventListener(['hourFormat', 'showDate', 'showSeconds', 'moonMode', 'moonIntervalSeconds'].includes(key) ? 'change' : 'input', () => {
-      controller.edit({ [key]: key.startsWith('show') ? control.checked
-        : key === 'moonIntervalSeconds' ? Number(control.value) : control.value });
+      const draft = controller.getState().draft;
+      const patch = { [key]: key.startsWith('show') ? control.checked
+        : key === 'moonIntervalSeconds' ? Number(control.value) : control.value };
+      controller.edit(draft.resourceStyle || draft.mediaStyle || draft.cssStyle ? patch : clockAppearanceChange(draft, patch));
     });
   }
   for (const button of styles) button.addEventListener('click', () => {
@@ -58,7 +63,7 @@ export function bindClockParameters(root, controller) {
   });
   for (const button of palettes) button.addEventListener('click', () => {
     const [flipFrameColor, flipFaceColor, flipTextColor] = FLIP_PALETTES[button.dataset.clockPalette];
-    controller.edit({ flipFrameColor, flipFaceColor, flipTextColor });
+    controller.edit(clockAppearanceChange(controller.getState().draft, { flipFrameColor, flipFaceColor, flipTextColor }));
   });
   const effects = mountStyleParameters(node('clockShowDate').closest('.clock-parameter-section'), controller, 'clock');
   const stop = controller.subscribe(({ draft, loaded }) => {
@@ -89,13 +94,13 @@ export function bindClockParameters(root, controller) {
   return { dispose() { stop(); effects.dispose(); } };
 }
 
-export function createClockPreview({ controller, source = document, onOpen, onClose }) {
+export function createClockPreview({ controller, source = document, onOpen, onClose, panelPrefix = 'preview-clock' }) {
   return { id: 'clock', title: '萌时钟', controller,
     url: new URL('/clock?componentPreview=1', location.href).href, dataLabel: '设备当前时间',
     size: (draft) => draft.style === 'timeline-vertical' ? [48, 80]
       : draft.style === 'moonlit-fan' ? [580, 380] : [580, 210],
     createPanel: (host, targetController = controller) => {
-      const panel = cloneComponentPanel(source.querySelector('.clock-parameter-section'), 'preview-clock');
+      const panel = cloneComponentPanel(source.querySelector('.clock-parameter-section'), panelPrefix);
       panel.querySelector('[data-local-styles]')?.remove();
       host.append(panel);
       return bindClockParameters(panel, targetController);

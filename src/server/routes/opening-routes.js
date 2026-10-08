@@ -34,7 +34,10 @@ const routes = {
   },
 
   async 'POST /api/opening/music'(context, request, res) {
+    const settingPrefix = musicSettingPrefix(request);
+    if (!settingPrefix) return sendJson(res, 400, { ok: false, error: '不支持的开播动画样式。' });
     const upload = await readMultipartAudio(request.req);
+    request.authorize?.();
     if (!upload) {
       sendJson(res, 400, {
         ok: false,
@@ -51,8 +54,8 @@ const routes = {
     try {
       fs.writeFileSync(tempPath, upload.content, { flag: 'wx' });
       fs.renameSync(tempPath, filePath);
-      context.settings.set('openingAudioFile', fileName);
-      context.settings.set('openingAudioName', upload.name);
+      context.settings.set(`${settingPrefix}File`, fileName);
+      context.settings.set(`${settingPrefix}Name`, upload.name);
       context.broadcastSnapshot('settings');
       sendJson(res, 200, { ok: true, data: getOpeningConfig(context) });
     } catch (error) {
@@ -65,9 +68,11 @@ const routes = {
     }
   },
 
-  async 'DELETE /api/opening/music'(context, _request, res) {
-    context.settings.set('openingAudioFile', '');
-    context.settings.set('openingAudioName', '');
+  async 'DELETE /api/opening/music'(context, request, res) {
+    const settingPrefix = musicSettingPrefix(request);
+    if (!settingPrefix) return sendJson(res, 400, { ok: false, error: '不支持的开播动画样式。' });
+    context.settings.set(`${settingPrefix}File`, '');
+    context.settings.set(`${settingPrefix}Name`, '');
     context.broadcastSnapshot('settings');
     sendJson(res, 200, { ok: true, data: getOpeningConfig(context) });
   },
@@ -76,6 +81,7 @@ const routes = {
     const settingPrefix = characterSettingPrefix(request);
     if (!settingPrefix) return sendJson(res, 400, { ok: false, error: '不支持的开播动画样式。' });
     const upload = await readMultipartCharacter(request.req);
+    request.authorize?.();
     if (!upload) {
       sendJson(res, 400, {
         ok: false,
@@ -122,6 +128,11 @@ function characterSettingPrefix(request) {
   return style === 'pixel-cassette' ? 'openingPixelCharacter' : 'openingCharacter';
 }
 
+function musicSettingPrefix(request) {
+  const style = request.query?.get('style') ?? DEFAULT_OPENING_STYLE;
+  return style === 'classic' ? 'openingAudio' : style === 'pixel-cassette' ? 'openingPixelAudio' : null;
+}
+
 function getOpeningConfig(context) {
   const settings = context.settings.get();
   const audioFile = normalizeStoredFileName(settings.openingAudioFile);
@@ -138,7 +149,7 @@ function getOpeningConfig(context) {
   );
   const volume = Number(settings.openingAudioVolume);
   const footer = cleanText(settings.openingFooter, MAX_TEXT_LENGTHS.footer);
-  return {
+  const classic = {
     enabled: parseBoolean(settings.openingEnabled, false),
     style: normalizeOpeningStyle(settings.openingStyle) || DEFAULT_OPENING_STYLE,
     title: cleanText(settings.openingTitle, MAX_TEXT_LENGTHS.title) || '唱一首，在一首，给你的歌',
@@ -165,6 +176,20 @@ function getOpeningConfig(context) {
       ? cleanText(settings.openingPixelCharacterName, 160) || pixelCharacterFile : '',
     hasUploadedPixelCharacter,
   };
+  const pixelAudioFile = normalizeStoredFileName(settings.openingPixelAudioFile);
+  const pixelAudioExists = Boolean(pixelAudioFile && fs.existsSync(path.join(getMusicDir(context.system.dataDir), pixelAudioFile)));
+  const pixelVolume = Number(settings.openingPixelAudioVolume ?? 0.35);
+  const pixel = { ...classic, style: 'pixel-cassette',
+    quality: QUALITY_VALUES.has(settings.openingPixelQuality) ? settings.openingPixelQuality : 'normal',
+    showNotes: parseBoolean(settings.openingPixelShowNotes, true),
+    showEq: parseBoolean(settings.openingPixelShowEq, true),
+    volume: Number.isFinite(pixelVolume) ? Math.max(0, Math.min(1, pixelVolume)) : 0.35,
+    audioUrl: pixelAudioExists ? `/opening-media/${encodeURIComponent(pixelAudioFile)}` : '',
+    audioName: pixelAudioExists ? cleanText(settings.openingPixelAudioName, 160) || pixelAudioFile : '',
+    hasUploadedAudio: pixelAudioExists,
+  };
+  const styles = { classic: { ...classic, style: 'classic' }, 'pixel-cassette': pixel };
+  return { ...(classic.style === 'pixel-cassette' ? pixel : classic), styles };
 }
 
 function getMusicDir(dataDir) {

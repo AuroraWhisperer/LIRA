@@ -35,10 +35,10 @@ function initQueueForm() {
   document.getElementById('nextBtn').addEventListener('click', () => queueAction('next'));
   document.getElementById('clearBtn').addEventListener('click', async () => {
     const confirmed = await dangerConfirm({
-      title: '清空全部队列',
-      message: '当前歌曲和所有等待中的歌曲都会被移除，此操作不可撤销。',
-      deletes: ['当前播放歌曲', '全部等待队列'],
-      confirmLabel: '确认清空队列',
+      title: '清空点歌队列',
+      message: '点歌队列中的全部歌曲都会被移除，此操作不可撤销。',
+      deletes: ['点歌队首歌曲', '全部等待点歌'],
+      confirmLabel: '清空点歌队列',
     });
     if (confirmed) await queueAction('clear');
   });

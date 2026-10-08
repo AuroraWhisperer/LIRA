@@ -101,7 +101,6 @@ function createDomainServices(options) {
     getSnapshot: () => queueService.getQueueSnapshot(queueContext),
     add: (input) => queueService.addQueueItem(queueContext, input),
     handleAction: (action, id) => queueService.handleQueueAction(queueContext, action, id),
-    clearOnStartup: () => queueService.clearActiveQueueOnStartup(queueContext),
     ensureUnified: () => queueService.ensureUnifiedQueue(queueContext),
   };
 

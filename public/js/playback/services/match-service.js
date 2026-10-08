@@ -142,8 +142,11 @@ export class MatchService {
   addPendingRequest(item, matched) {
     if (!this.state || !matched || !matched.track) return;
 
+    const songRequestKey = PlaybackUtils.getSongRequestKey(item);
+    if (songRequestKey && this.state.pendingRequests.some((request) => request.songRequestKey === songRequestKey)) return;
     const pendingRequest = {
       id: `pending:${item.id || Date.now()}:${matched.track.id}`,
+      songRequestKey,
       songName: item.song_name || item.songName || '',
       artist: item.artist || '',
       requesterName: item.requester_name || item.requesterName || '观众',
@@ -171,6 +174,7 @@ export class MatchService {
 
     return {
       ...item.track,
+      songRequestKey: item.songRequestKey || '',
       requestedBy: item.requesterName || '观众',
     };
   }

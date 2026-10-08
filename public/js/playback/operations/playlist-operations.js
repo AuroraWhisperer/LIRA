@@ -4,6 +4,7 @@
 
 import * as PlaybackUtils from '../utils.js';
 import * as PlaybackComponents from '../ui/components.js';
+import { activateModalFocus } from '../../shared/modal-focus.js';
 
 /**
  * 创建歌单操作模块
@@ -36,6 +37,8 @@ export function createPlaylistOperations(deps) {
       backdrop.className = 'playlist-picker-backdrop';
       backdrop.setAttribute('role', 'dialog');
       backdrop.setAttribute('aria-modal', 'true');
+      backdrop.setAttribute('aria-label', `添加到${platformLabel}歌单`);
+      backdrop.tabIndex = -1;
       const availableCount = playlists.filter((item) => item.containsTrack === false).length;
       backdrop.innerHTML = `
         <div class="playlist-picker-dialog">
@@ -70,15 +73,20 @@ export function createPlaylistOperations(deps) {
       `;
 
       let settled = false;
+      let releaseFocus;
       const close = (playlist = null) => {
         if (settled) return;
         settled = true;
-        document.removeEventListener('keydown', handleKeydown);
+        backdrop.removeEventListener('keydown', handleKeydown);
         backdrop.remove();
+        releaseFocus?.();
         resolve(playlist);
       };
       const handleKeydown = (event) => {
-        if (event.key === 'Escape') close();
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        event.stopPropagation();
+        close();
       };
       backdrop.addEventListener('click', (event) => {
         if (event.target === backdrop || event.target.closest('.playlist-picker-close, .playlist-picker-cancel')) {
@@ -89,9 +97,12 @@ export function createPlaylistOperations(deps) {
         if (!button || button.disabled) return;
         close(playlists[Number(button.dataset.playlistPickerIndex)] || null);
       });
-      document.addEventListener('keydown', handleKeydown);
+      backdrop.addEventListener('keydown', handleKeydown);
       document.body.appendChild(backdrop);
-      backdrop.querySelector('.playlist-picker-item:not(:disabled), .playlist-picker-close')?.focus();
+      releaseFocus = activateModalFocus(backdrop, {
+        initialFocus: backdrop.querySelector('.playlist-picker-item:not(:disabled)') ||
+          backdrop.querySelector('.playlist-picker-close'),
+      });
     });
   }
 

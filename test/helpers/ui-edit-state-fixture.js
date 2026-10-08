@@ -105,8 +105,9 @@ function createUiFixture() {
             : kind === 'overlay'
               ? fs.readFileSync(path.join(publicRoot, 'pages/overlays/overtime.html'), 'utf8')
               : '<!doctype html><body></body>';
-      } else if (url.pathname === '/js/shared/utils.js') {
-        body = `export const api = (url, body) => new Promise((resolve, reject) => window.pendingSaves.push({ url, body: structuredClone(body), resolve, reject }));
+      } else if (url.pathname === '/js/shared/utils.js' && !url.searchParams.has('actual')) {
+        body = `export * from '/js/shared/utils.js?actual=1';
+          export const api = (url, body) => new Promise((resolve, reject) => window.pendingSaves.push({ url, body: structuredClone(body), resolve, reject }));
           export const copyText = async () => {}; export const localOverlayOrigin = () => 'http://lira-ui.test';
           export const readJsonResponse = (response) => response.json();
           export const showError = (error) => window.messages.push(error.message);

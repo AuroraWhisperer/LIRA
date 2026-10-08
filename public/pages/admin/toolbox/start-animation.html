@@ -12,7 +12,7 @@
         <span>直播开场</span>
         <div>
           <h2>开播动画</h2>
-          <p>集中设置开场画面、动效和音乐，在画布中预览与调整。</p>
+          <p>选择开播样式，分别设置画面、动效和音乐。</p>
         </div>
       </div>
       <label class="opening-master-toggle">
@@ -29,18 +29,26 @@
       <p id="openingConfigStatus" class="opening-audio-status" role="status">正在读取开播配置…</p>
       <button id="openingReload" class="button-quiet" type="button" hidden>重新读取</button>
     </div>
+    <section class="opening-style-picker" aria-label="动画样式">
+      <h3>动画样式</h3>
+      <div id="openingStyleOptions" class="opening-style-options">
+        <button type="button" data-opening-style="classic" aria-pressed="true" disabled>经典舞台</button>
+        <button type="button" data-opening-style="pixel-cassette" aria-pressed="false" disabled>像素卡带</button>
+      </div>
+    </section>
     <div class="opening-animation-layout">
-      <form id="openingAnimationForm" class="opening-animation-editor" novalidate>
-        <section class="opening-editor-section" aria-label="动画样式">
-          <div class="opening-select-grid">
-            <label class="opening-field-wide">动画样式<select id="openingStyle" name="style">
-              <option value="classic" selected>1 · 经典舞台</option>
-              <option value="pixel-cassette">2 · 像素卡带</option>
-            </select></label>
+      <div class="opening-animation-editor">
+        <div class="opening-section-heading"><strong id="openingSelectedStyle">经典舞台</strong></div>
+        <form id="openingAnimationForm" novalidate>
+          <div id="openingSaveFeedback" class="opening-section-heading" hidden>
+            <span id="openingSaveStatus" class="opening-audio-status" role="status" aria-live="polite">修改自动保存</span>
+            <button id="openingRetrySave" class="button-quiet" type="button" hidden>重试保存</button>
           </div>
-          <p id="openingPixelHint" class="opening-audio-status" hidden>头像默认为空，上传后自动等比例适配固定大小。建议使用透明背景图片。</p>
-          <p id="openingMoonFanHint" class="opening-audio-status" hidden>银蓝山水折扇、花枝与绢带的古风开场。每 15 秒展开、停留并收拢退场，再次开场。无需人物图片。</p>
-        </section>
+          <div hidden><select id="openingStyle" name="style" aria-label="动画样式" hidden>
+            <option value="classic" selected>经典舞台</option>
+            <option value="pixel-cassette">像素卡带</option>
+          </select></div>
+          <p id="openingPixelHint" class="opening-audio-status" hidden>大头贴默认为空，与经典舞台的人物图分开上传。上传后自动等比例适配固定大小，建议使用透明背景头像。</p>
         <div id="openingCopyHeading" class="opening-editor-heading">
           <div>
             <span>文案设置</span>
@@ -142,7 +150,9 @@
           </label>
           <p id="openingAudioStatus" class="opening-audio-status" role="status" aria-live="polite"></p>
         </section>
-      </form>
+        </form>
+        <div id="openingImportedSettings" hidden></div>
+      </div>
 
       <section class="opening-animation-preview" aria-labelledby="openingPreviewHeading">
         <div class="opening-preview-heading">
@@ -150,10 +160,10 @@
             <strong id="openingPreviewHeading">开播动画预览</strong>
           </div>
         </div>
-        <p class="hint">在画布中调整开播动画的位置和大小，与其他组件一起预览。打开整套特效开关后显示动画。</p>
+        <p id="openingPreviewHint" class="hint">在画布中调整当前样式的位置和大小。打开整套特效开关后显示动画。</p>
         <button id="openingPreviewBtn" class="secondary" type="button" disabled>预览</button>
 
-        <div class="opening-animation-address">
+        <div id="openingSourceAddress" class="opening-animation-address">
           <div>
             <span>固定浏览器源地址</span>
             <code id="openingUrl"></code>

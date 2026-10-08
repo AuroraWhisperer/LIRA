@@ -40,10 +40,12 @@ export class QueuePopup {
    * 关闭队列弹窗
    */
   close() {
+    const restoreFocus = this.popup?.contains(document.activeElement);
     this.isOpen = false;
     this.popup?.classList.remove('open');
     this.backdrop?.classList.remove('open');
     this.queueBtn?.classList.remove('active');
+    if (restoreFocus) this.queueBtn?.focus();
   }
 
   /**

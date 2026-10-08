@@ -30,9 +30,9 @@ const scopes = [
   'clock',
 ];
 const secret = 'PRIVATE_SENTINEL';
-test('clock snapshot allows exactly the ten clock settings and no other domain state', () => {
+test('clock snapshot allows its scalar settings and style profiles without other domain state', () => {
   const clockKeys = ['clockStyle', 'clockShowDate', 'clockShowSeconds', 'clockHourFormat', 'clockLabel',
-    'clockFlipFrameColor', 'clockFlipFaceColor', 'clockFlipTextColor', 'clockMoonMode', 'clockMoonIntervalSeconds'];
+    'clockFlipFrameColor', 'clockFlipFaceColor', 'clockFlipTextColor', 'clockMoonMode', 'clockMoonIntervalSeconds', 'clockStyleOptions'];
   const settings = Object.fromEntries(clockKeys.map((key) => [key, 'value']));
   const projected = projectOverlayState('clock', { settings: { ...settings, roomId: secret, aiApiKey: secret },
     queue: { private: true }, overtime: { private: true } });

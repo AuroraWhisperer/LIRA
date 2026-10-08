@@ -12,6 +12,105 @@ const { createLyricToggleButton, loadModuleExports, response } = require('../hel
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('queue rows highlight the current request without marking another request of the same song active', async () => {
+  const { renderQueueRow } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/components.js'));
+  const song = { id: 'qq:same-song', source: 'qq', title: '同一首歌', artists: ['歌手'] };
+  const current = { ...song, songRequestKey: '["1","2026-10-08T09:00:00Z"]' };
+  const waiting = { ...song, songRequestKey: '["2","2026-10-08T09:00:01Z"]' };
+  for (const origin of ['normal', 'radio']) {
+    assert.doesNotMatch(renderQueueRow(waiting, origin, 0, false, current, origin), /playback-queue-row active/);
+    assert.match(renderQueueRow(current, origin, 0, false, current, origin), /playback-queue-row active/);
+    assert.doesNotMatch(renderQueueRow(song, origin, 0, false, current, origin), /playback-queue-row active/);
+    assert.doesNotMatch(renderQueueRow(waiting, origin, 0, false, song, origin), /playback-queue-row active/);
+    assert.match(renderQueueRow(song, origin, 0, false, song, origin), /playback-queue-row active/);
+  }
+  assert.doesNotMatch(renderQueueRow(current, 'normal', 0, false, current, 'radio'), /playback-queue-row active/);
+});
+
+test('song import filters handled request IDs before the batch limit and keeps later requests reachable', async () => {
+  const { ImportService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/import-service.js'));
+  const matchedIds = [];
+  const service = new ImportService({
+    matchService: {
+      async matchQueueItem(item) {
+        matchedIds.push(item.id);
+        return { autoAccept: true, track: { id: 'same-song', title: '同一首歌' } };
+      },
+    },
+  });
+  const items = Array.from({ length: 31 }, (_, index) => ({ id: index + 1, created_at: '2026-10-08T09:00:00Z' }));
+  service.fetchSongQueue = async () => ({ items: [...items, items[30]] });
+  const first = await service.importFromSongQueue({ maxItems: 30 });
+  assert.equal(first.imported, 30);
+  const second = await service.importFromSongQueue({ maxItems: 30, importedRequestKeys: first.importedRequestKeys });
+  assert.equal(second.imported, 1);
+  assert.equal(second.tracks[0].songRequestKey, JSON.stringify(['31', items[30].created_at]));
+  const third = await service.importFromSongQueue({ maxItems: 30, importedRequestKeys: second.importedRequestKeys });
+  assert.equal(third.imported, 0);
+  assert.deepEqual(matchedIds, items.map((item) => item.id));
+});
+
+test('song import retries failed matches and distinguishes reused numeric IDs by creation time', async () => {
+  const { ImportService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/import-service.js'));
+  let failed = true;
+  let createdAt = '2026-10-08T09:00:00Z';
+  const service = new ImportService({
+    matchService: {
+      async matchQueueItem() { return failed ? null : { autoAccept: true, track: { id: 'same-song' } }; },
+    },
+  });
+  service.fetchSongQueue = async () => ({ items: [{ id: 1, created_at: createdAt }] });
+  const first = await service.importFromSongQueue();
+  assert.equal(first.skipped, 1);
+  assert.equal(first.importedRequestKeys.length, 0);
+  failed = false;
+  const retry = await service.importFromSongQueue({ importedRequestKeys: first.importedRequestKeys });
+  assert.equal(retry.imported, 1);
+  const duplicate = await service.importFromSongQueue({ importedRequestKeys: retry.importedRequestKeys });
+  assert.equal(duplicate.imported, 0);
+  createdAt = '2026-10-09T09:00:00Z';
+  const afterClear = await service.importFromSongQueue({ importedRequestKeys: retry.importedRequestKeys });
+  assert.equal(afterClear.imported, 1);
+  assert.equal(afterClear.importedRequestKeys.length, 1, 'keys for requests no longer active are pruned');
+  assert.notEqual(afterClear.importedRequestKeys[0], retry.importedRequestKeys[0]);
+});
+
+test('failed queue reads restore the import control and leave request history available for retry', async () => {
+  const button = { disabled: false };
+  const state = { importedSongRequestKeys: ['already-imported'], selectedSource: 'qq' };
+  const errors = [];
+  let failed = true;
+  let inserted = 0;
+  let saved = 0;
+  const { createImportHandler } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/playback/features/import-handler.js'),
+    { document: { getElementById: () => button } },
+  );
+  const handler = createImportHandler({
+    playbackState: state,
+    importService: {
+      async importFromSongQueue() {
+        if (failed) throw new Error('读取点歌队列失败');
+        return { tracks: [{ id: 'new' }], imported: 1, pending: 0, skipped: 0, importedRequestKeys: ['already-imported', 'new-request'] };
+      },
+    },
+    showError: (error) => errors.push(error.message),
+    toast() {},
+  });
+  const callbacks = { insertPlaybackTracksNext: () => inserted++, savePlaybackState: () => saved++, renderPlayback() {} };
+  await handler.importSongQueueToPlayback(callbacks);
+  assert.deepEqual(errors, ['读取点歌队列失败']);
+  assert.equal(button.disabled, false);
+  assert.deepEqual(state.importedSongRequestKeys, ['already-imported']);
+  assert.equal(saved, 0);
+  failed = false;
+  await handler.importSongQueueToPlayback(callbacks);
+  assert.equal(inserted, 1);
+  assert.equal(saved, 1);
+  assert.equal(button.disabled, false);
+  assert.deepEqual(state.importedSongRequestKeys, ['already-imported', 'new-request']);
+});
+
 test('playback success paths do not emit per-render or per-lyric console output', () => {
   const rendererSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'core', 'renderer.js'),

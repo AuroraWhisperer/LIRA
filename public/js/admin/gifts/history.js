@@ -5,6 +5,7 @@
 import { dangerConfirm, readJsonResponse, toast } from '../../shared/utils.js';
 import { createGiftHistoryTools } from './history-tools.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
+import { activateModalFocus } from '../../shared/modal-focus.js';
 
 import {
   renderHistoryLoadingView,
@@ -35,7 +36,7 @@ let historyWaitStartedAt = 0;
 let historyLoaded = false;
 let clearing = false;
 let clearOutcome = null;
-let previousFocus = null;
+let releaseDrawerFocus = null;
 const giftLedgerState = createGiftLedgerState();
 let historyTools = null;
 
@@ -108,7 +109,6 @@ export function initGiftHistoryDrawer() {
   const sortableHeaders = getSortableHeaders();
 
   openButton?.addEventListener('click', () => {
-    previousFocus = openButton;
     resetGiftLedgerPagination(giftLedgerState);
     openGiftHistoryDrawer();
     loadGiftHistory();
@@ -170,8 +170,10 @@ export function initGiftHistoryDrawer() {
   });
   renderGiftHistorySort();
 
-  document.addEventListener('keydown', (event) => {
+  get('giftHistoryDrawer')?.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && isGiftHistoryOpen()) {
+      event.preventDefault();
+      event.stopPropagation();
       closeGiftHistoryDrawer();
     }
   });
@@ -180,18 +182,31 @@ export function initGiftHistoryDrawer() {
 }
 
 export function openGiftHistoryDrawer() {
-  get('giftHistoryDrawer')?.classList.add('open');
+  const drawer = get('giftHistoryDrawer');
+  if (!drawer || isGiftHistoryOpen()) return;
+  drawer.classList.add('open');
+  drawer.inert = false;
+  drawer.removeAttribute('aria-hidden');
   get('giftHistoryBackdrop')?.classList.add('open');
-  get('giftHistoryClose')?.focus();
+  releaseDrawerFocus = activateModalFocus(drawer, {
+    initialFocus: get('giftHistoryClose'),
+    backdrop: get('giftHistoryBackdrop'),
+    fallbackFocus: get('giftHistoryOpenBtn'),
+  });
 }
 
 export function closeGiftHistoryDrawer() {
   cancelHistoryLoad();
   historyTools?.close();
-  get('giftHistoryDrawer')?.classList.remove('open');
+  const drawer = get('giftHistoryDrawer');
+  if (drawer) {
+    drawer.classList.remove('open');
+    drawer.inert = true;
+    drawer.setAttribute('aria-hidden', 'true');
+  }
   get('giftHistoryBackdrop')?.classList.remove('open');
-  previousFocus?.focus?.();
-  previousFocus = null;
+  releaseDrawerFocus?.();
+  releaseDrawerFocus = null;
 }
 
 export async function loadGiftHistory({ background = false } = {}) {

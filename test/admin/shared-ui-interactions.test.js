@@ -38,6 +38,13 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   });
 
   await page.locator('#giftHistoryOpenBtn').click();
+  await page.waitForFunction(() => document.activeElement.id === 'giftHistoryClose');
+  await page.locator('#giftHistoryClose').press('Shift+Tab');
+  assert.equal(await page.locator('#giftHistoryDrawer').evaluate(node => node.contains(document.activeElement)), true);
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'giftHistoryClose');
+  await page.locator('#giftHistoryOpenBtn').evaluate(node => node.focus());
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'giftHistoryClose', 'Covered controls cannot take focus.');
   await page.locator('#giftHistoryClearDatabaseBtn').click();
   await page.locator('.lira-confirm-cancel').press('Escape');
   await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
@@ -46,6 +53,10 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   assert.equal(await page.evaluate(() => window.clearCalls), 0);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#giftHistoryDrawer').evaluate(node => node.classList.contains('open')), false);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'giftHistoryOpenBtn');
+  assert.equal(await page.locator('#playerFullscreen').evaluate(node => node.inert), true, 'Closing a drawer preserves existing inert state.');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.locator('#giftHistoryDrawer').evaluate(node => node.contains(document.activeElement)), false);
 
   await page.locator('#blindBoxStatsToggle').click();
   const content = page.locator('#blindBoxStatsCollapsible');
@@ -98,4 +109,142 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   assert.equal(await help.getAttribute('aria-expanded'), 'true', 'Pointer leave keeps keyboard-focused help open.');
   await help.press('Escape');
   assert.equal(await tooltip.isVisible(), false);
+
+  await page.evaluate(async () => {
+    const { formsService } = await import('/js/admin/forms.js');
+    const { createEventHandlers } = await import('/js/playback/core/event-handlers.js');
+    const { createPlaylistOperations } = await import('/js/playback/operations/playlist-operations.js');
+    const { PlaybackBar } = await import('/js/playback/ui/playback-bar.js');
+    const { QueuePopup } = await import('/js/playback/ui/queue-popup.js');
+    const { escapeHtml } = await import('/js/shared/utils.js');
+    window.selectMain('playbackAssistantPage');
+    window.testForms = formsService;
+    formsService.initWorkspaceControls();
+    window.audioPlayCalls = 0;
+    window.pendingActions = [];
+    const audio = document.getElementById('music-player');
+    audio.play = () => { window.audioPlayCalls++; return Promise.resolve(); };
+    const state = { selectedSource: 'qq', current: { source: 'qq', sourceSongId: 1, title: '测试歌曲' } };
+    const bar = new PlaybackBar();
+    const queue = new QueuePopup();
+    queue.init();
+    window.fetch = async () => new Response(JSON.stringify({ ok: true, data: { playlists: [
+      { id: '1', dirId: '1', title: '已添加歌单', containsTrack: true },
+      { id: '2', dirId: '2', title: '可添加歌单', containsTrack: false },
+    ] } }));
+    const playlistOperations = createPlaylistOperations({
+      playbackState: state, homeService: {}, toast() {}, showError(error) { throw error; },
+      readJsonResponse: response => response.json(), escapeHtml,
+    });
+    document.getElementById('playbackAddToPlaylistBtn').disabled = false;
+    createEventHandlers({
+      playbackState: state, getPlaybackAudio: () => audio,
+      savePlaybackState() {}, renderPlayback: () => bar.renderProviderState({}, {}, state.selectedSource),
+      homeService: { clearHomeState() {} }, searchService: { clearResults() {} },
+      renderPlaybackSearchResults() {}, closePlaybackDrawer() {},
+      refreshSelectedMusicProviderState() {}, syncPlaybackLyricWindow() {},
+      toggleQueuePopup: () => queue.toggle(), closeQueuePopup: () => queue.close(),
+      handlePlaybackPendingAction: action => {
+        window.pendingActions.push(action);
+        document.getElementById('pendingConfirmPopup').classList.remove('visible');
+      },
+      addCurrentTrackToPlaylist: () => playlistOperations.addCurrentTrackToPlaylist(),
+    }).setupEventHandlers();
+  });
+
+  await page.locator('#playerDockToggle').focus();
+  await page.keyboard.press('Tab');
+  assert.equal(await page.locator('#playbackPlayerBody').evaluate(node => node.contains(document.activeElement)), false);
+  await page.locator('#playerDockToggle').click();
+  await page.locator('#playbackPlayPause').focus();
+  await page.evaluate(() => window.testForms.openFullscreenPlayer());
+  await page.waitForFunction(() => document.activeElement.id === 'playerFsClose');
+  await page.locator('#playbackSearchKeyword').evaluate(node => node.focus());
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playerFsClose');
+  await page.locator('#playerFsClose').press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playerFsLyrics');
+  await page.locator('#playerFsLyrics').press('Space');
+  assert.equal(await page.evaluate(() => window.audioPlayCalls), 1);
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playerDockToggle', 'The visible shared player stays keyboard accessible.');
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playerFsLyrics');
+  await page.locator('#playbackQueueBtn').click();
+  await page.locator('#queuePopupClose').press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playerFsClose', 'The opened queue joins the player focus cycle.');
+  await page.locator('#queuePopupClose').press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackQueueBtn');
+  await page.locator('#playbackQueueBtn').click();
+  await page.locator('#queuePopupClose').press('Escape');
+  assert.equal(await page.locator('#queuePopup').evaluate(node => node.classList.contains('open')), false);
+  assert.equal(await page.locator('#playerFullscreen').evaluate(node => node.classList.contains('open')), true);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackQueueBtn');
+  await page.locator('#pendingConfirmPopup').evaluate(node => node.classList.add('visible'));
+  await page.locator('#playerFsClose').press('Shift+Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'pendingConfirmRejectBtn', 'A visible request notice stays operable above fullscreen.');
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'pendingConfirmAcceptBtn');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  assert.deepEqual(await page.evaluate(() => window.pendingActions), ['ignore']);
+  assert.equal(await page.locator('#playerFullscreen').evaluate(node => node.classList.contains('open')), true);
+  await page.locator('#playerFsClose').press('Shift+Tab');
+  assert.equal(await page.locator('#pendingConfirmPopup').evaluate(node => node.contains(document.activeElement)), false);
+  await page.locator('#playerFsClose').press('Space');
+  assert.equal(await page.locator('#playerFullscreen').evaluate(node => node.classList.contains('open')), false);
+  assert.equal(await page.evaluate(() => window.audioPlayCalls), 1, 'Space on a button keeps its native action.');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackPlayPause');
+
+  await page.evaluate(() => window.testForms.openFullscreenPlayer());
+  await page.locator('#playbackAddToPlaylistBtn').click();
+  await page.locator('.playlist-picker-backdrop').waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement.textContent.trim().includes('可添加歌单')), true);
+  await page.locator('.playlist-picker-cancel').press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.className), 'playlist-picker-close');
+  await page.locator('.playlist-picker-close').press('Shift+Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.className), 'playlist-picker-cancel');
+  await page.locator('#playbackAddToPlaylistBtn').evaluate(node => node.focus());
+  assert.equal(await page.evaluate(() => document.activeElement.className), 'playlist-picker-cancel');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('.playlist-picker-backdrop').count(), 0);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackAddToPlaylistBtn');
+  assert.equal(await page.locator('#playerFullscreen').evaluate(node => node.classList.contains('open')), true);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#playerFullscreen').evaluate(node => node.classList.contains('open')), false);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackPlayPause');
+
+  await page.getByRole('tab', { name: 'QQ音乐', exact: true }).press('ArrowRight');
+  assert.equal(await page.getByRole('tab', { name: '网易云音乐', exact: true }).getAttribute('aria-selected'), 'true');
+  assert.equal(await page.getByRole('tabpanel', { name: '网易云音乐', exact: true }).count(), 1);
+  await page.keyboard.press('End');
+  assert.equal(await page.getByRole('tab', { name: '全民 K歌', exact: true }).getAttribute('aria-selected'), 'true');
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await page.getByRole('tab', { name: 'QQ音乐', exact: true }).getAttribute('aria-selected'), 'true');
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await page.getByRole('tab', { name: '全民 K歌', exact: true }).getAttribute('aria-selected'), 'true');
+  await page.keyboard.press('Home');
+  assert.equal(await page.locator('.source-tab[tabindex="0"]').count(), 1);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackSourceQqTab');
+
+  await page.evaluate(() => {
+    const popup = document.getElementById('pendingConfirmPopup');
+    const before = document.createElement('button');
+    before.id = 'pendingFocusBefore';
+    before.textContent = '通知之前';
+    const after = document.createElement('button');
+    after.id = 'pendingFocusAfter';
+    after.textContent = '通知之后';
+    popup.before(before);
+    popup.after(after);
+  });
+  await page.locator('#pendingFocusBefore').press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'pendingFocusAfter', 'A closed request notice has no keyboard stops.');
+  await page.locator('#pendingConfirmPopup').evaluate(node => node.classList.add('visible'));
+  await page.locator('#pendingFocusBefore').press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'pendingConfirmAcceptBtn');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'pendingConfirmRejectBtn');
+  await page.locator('#pendingConfirmPopup').evaluate(node => node.classList.remove('visible'));
+  await page.locator('#pendingFocusBefore').press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'pendingFocusAfter');
 });

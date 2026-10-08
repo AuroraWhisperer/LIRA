@@ -235,7 +235,7 @@ function createServerRuntime(runtimeOptions = {}) {
       musicRuntime.setMusicRegistry(options.musicAuth || {});
       bilibiliRuntime.setAuthProvider(options.bilibiliAuth);
       domainServices.songs.ensureCategory('默认');
-      domainServices.queue.clearOnStartup();
+      domainServices.queue.ensureUnified();
       runStartupRetention(settingsStore, domainServices.data);
       domainServices.overtimeGiftCatalog.start?.();
       reportPhase('startup-repair', Date.now() - phaseStartedAt);

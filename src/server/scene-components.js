@@ -1,6 +1,6 @@
 'use strict';
 
-const { getClockConfig, normalizeClockSettingValue } = require('./clock-contract');
+const { getClockConfig, normalizeClockSettingValue, normalizeClockStyleOptions } = require('./clock-contract');
 const { normalizeSettingsPatch } = require('./settings-contract');
 const { projectOverlayState } = require('./overlay-projection');
 const { validateBackground } = require('../overtime/overtime-contract');
@@ -113,6 +113,11 @@ const COMPONENT_PORTS = Object.freeze({
 
 function normalizeSceneConfig(type, config) {
   if (typeof type !== 'string' || !Object.hasOwn(COMPONENT_PORTS, type)) throw invalidConfig();
+  if (type === 'clock' && config && Object.hasOwn(config, 'styleOptions')) {
+    const { styleOptions, ...base } = config;
+    try { return { ...normalizeSceneConfig(type, base), styleOptions: normalizeClockStyleOptions(styleOptions) }; }
+    catch { throw invalidConfig(); }
+  }
   if (config && Object.hasOwn(config, 'styleParameters')) {
     const { styleParameters, ...base } = config;
     try { return { ...normalizeSceneConfig(type, base), styleParameters: normalizeStyleParameters(type, styleParameters) }; }

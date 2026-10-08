@@ -112,7 +112,8 @@ test('scene notifications select dynamic projections even with no ordinary WebSo
     assert.deepEqual(changes.pop(), { types }, reason);
   }
   transport.broadcastSnapshot('settings');
-  assert.deepEqual(changes.pop(), { types: ['queue', 'overtime', 'songlist', 'opening', 'lyrics', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'] });
+  assert.deepEqual(changes.pop(), { types: undefined, invalidateTypes: ['blindbox'] },
+    'settings refresh every shared appearance and invalidate cached blindbox filtering');
   transport.publishOvertimeUpdate({ reason: 'tick', state: { remainingMs: 1000 } });
   assert.deepEqual(changes.pop(), { types: ['overtime'] });
   transport.publishDanmaku({ text: 'local-only event' });

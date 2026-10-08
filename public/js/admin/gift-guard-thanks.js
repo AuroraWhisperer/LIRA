@@ -2,7 +2,8 @@
 'use strict';
 
 import { api, toast } from '../shared/utils.js';
-import { GUARD_THANKS_EFFECTS, readGuardThanksEffect } from '../shared/guard-thanks-settings.js';
+import { GUARD_THANKS_EFFECTS, readGuardThanksEffect, readNauticalGuardEnabled } from '../shared/guard-thanks-settings.js';
+import { previewElement } from './component-preview-surface.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
@@ -134,4 +135,27 @@ function setStatus(effect, message, state) {
   const node = field(effect, 'SaveState');
   node.textContent = message;
   node.dataset.state = state;
+}
+
+export function mountNauticalGuardToggle(host) {
+  const label = previewElement('label', 'guard-thanks-switch switch-control');
+  const input = previewElement('input'); input.type = 'checkbox'; input.setAttribute('aria-label', '启用航海旗帜');
+  input.checked = readNauticalGuardEnabled(currentSettings);
+  label.append(input, previewElement('span', 'switch-track'), document.createTextNode('启用'));
+  const status = previewElement('span', 'hint'); status.setAttribute('role', 'status');
+  host.append(label, status);
+  const receive = event => { if (!input.disabled) input.checked = readNauticalGuardEnabled(event.detail || {}); };
+  window.addEventListener('app:settings-state', receive);
+  input.addEventListener('change', async () => {
+    const enabled = input.checked;
+    input.disabled = true; status.textContent = '正在保存…';
+    try {
+      await api('/api/settings', { guardThanksNauticalEnabled: String(enabled) }, { notifyError: false });
+      currentSettings = { ...currentSettings, guardThanksNauticalEnabled: String(enabled) };
+      status.textContent = enabled ? '已启用' : '已关闭';
+    } catch {
+      input.checked = !enabled; status.textContent = '启用设置未保存，请重试。';
+    } finally { input.disabled = false; }
+  });
+  return { dispose() { window.removeEventListener('app:settings-state', receive); label.remove(); status.remove(); } };
 }

@@ -7,7 +7,7 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 const { createNauticalGuardZip } = require('../../scripts/package-guard-nautical');
-const { buildGuardThanksEvents } = require('../../src/bilibili/gift/guard-thanks-config');
+const { buildGuardThanksEvents, buildNauticalGuardThanksEvent } = require('../../src/bilibili/gift/guard-thanks-config');
 
 test('client imports nautical style, applies it and renders tier, live identity, deduplication and reset', { timeout: 90000 }, async t => {
   const root = path.resolve(__dirname, '../../tmp');
@@ -42,7 +42,9 @@ test('client imports nautical style, applies it and renders tier, live identity,
   const confirmation = desktop.getByRole('dialog', { name: '确认添加样式' });
   await confirmation.getByRole('button', { name: '添加样式', exact: true }).click();
   await confirmation.waitFor({ state: 'hidden' });
-  await library.getByRole('button', { name: '添加到画布：航海旗帜 · 上舰感谢', exact: true }).click();
+  await library.getByRole('button', { name: '调整样式：航海旗帜 · 上舰感谢', exact: true }).click();
+  const settings = desktop.getByRole('region', { name: '航海旗帜 · 上舰感谢设置', exact: true });
+  await settings.getByRole('button', { name: '在画布中使用', exact: true }).click();
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 1);
   const canvas = await context.newPage();
   const editorUrl = await desktop.evaluate(() => window.externalPreviewUrl);
@@ -87,11 +89,14 @@ test('client imports nautical style, applies it and renders tier, live identity,
     [tier, fs.statSync(`public/img/overlays/guard-nautical/${tier}.webp`).size]));
   const tiers = ['captain', 'admiral', 'governor', 'captain'];
   for (const [index, tier] of tiers.entries()) {
-    const events = buildGuardThanksEvents({ id: index + 1, gift_id: `guard-${tier === 'captain' ? 3 : tier === 'admiral' ? 2 : 1}`,
+    const row = { id: index + 1, gift_id: `guard-${tier === 'captain' ? 3 : tier === 'admiral' ? 2 : 1}`,
       user_name: index === 3 ? '<img src=x onerror=alert(1)>' : `真实观众${index}`, num: 1, detection_status: 'final',
-      avatar_url: 'https://i0.hdslb.com/bfs/face/synthetic-viewer.png' }, fixture.runtime.settings);
+      avatar_url: 'https://i0.hdslb.com/bfs/face/synthetic-viewer.png' };
+    const events = buildGuardThanksEvents(row, fixture.runtime.settings);
     assert.equal(events.length, 2);
     for (const event of events) fixture.receiveGift(event);
+    fixture.receiveGift(buildNauticalGuardThanksEvent(row, fixture.runtime.settings));
+    fixture.receiveGift(buildNauticalGuardThanksEvent(row, fixture.runtime.settings));
     fixture.notify({ types: ['guard-thanks'] });
     await stage.locator(`.ng-stage[data-tier="${tier}"]:not([hidden])`).waitFor();
     assert.equal(await stage.locator('.ng-name').textContent(), events[0].userName);

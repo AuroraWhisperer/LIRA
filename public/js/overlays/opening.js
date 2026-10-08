@@ -1,6 +1,7 @@
 'use strict';
 
 import { createPixelOpening } from './opening-pixel.js';
+import { MOONLIT_OPENING_DEFAULTS, resolveOpeningAppearance } from '../shared/opening-appearance.js';
 import { createMoonFanOpening } from './opening-moon-fan.js';
 import { createMediaEventPlayer } from './component-media.js';
 import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
@@ -32,8 +33,8 @@ const MAX_LENGTHS = Object.freeze({
   footer: 48,
 });
 const QUALITY_LIMITS = Object.freeze({
-  high: Object.freeze({ notes: 6, particles: 24, eq: 16 }),
-  normal: Object.freeze({ notes: 4, particles: 12, eq: 10 }),
+  high: Object.freeze({ notes: 6, particles: 24, eq: 56 }),
+  normal: Object.freeze({ notes: 4, particles: 12, eq: 40 }),
   low: Object.freeze({ notes: 0, particles: 0, eq: 0 }),
 });
 const TRACK_MOTION_VALUES = new Set(['heart', 'barber', 'progress']);
@@ -145,7 +146,8 @@ function createNodes(config) {
 
   for (let index = 0; index < limits.eq; index += 1) {
     const bar = document.createElement('span');
-    bar.style.setProperty('--eq-height', `${0.2 + ((index * 13) % 7) / 10}`);
+    const envelope = Math.sin((index / (limits.eq - 1)) * Math.PI);
+    bar.style.setProperty('--eq-height', `${0.14 + envelope * (0.3 + 0.48 * Math.sin(index * 1.7) ** 2)}`);
     bar.style.setProperty('--eq-duration', `${2.4 + (index % 5) * 0.34}s`);
     bar.style.setProperty('--eq-delay', `${-(index * 0.22)}s`);
     eq?.append(bar);
@@ -304,14 +306,18 @@ function mergeConfig(
   query,
   params = new URLSearchParams(typeof location === 'undefined' ? '' : location.search),
 ) {
-  const source = remote && typeof remote === 'object' ? remote : {};
+  const remoteSource = remote && typeof remote === 'object' ? remote : {};
+  const style = normalizeStyle(params.has('style') ? query.style : remoteSource.style);
+  const source = { ...remoteSource, ...remoteSource.styles?.[style], enabled: remoteSource.enabled };
+  const defaults = style === 'moonlit-fan' ? { ...DEFAULTS, ...MOONLIT_OPENING_DEFAULTS } : DEFAULTS;
   const merged = { ...DEFAULTS, ...source, ...query };
   if (!params.has('enabled')) merged.enabled = Boolean(source.enabled ?? DEFAULTS.enabled);
   merged.style = normalizeStyle(params.has('style') ? query.style : source.style);
-  if (!params.has('title')) merged.title = cleanText(source.title, MAX_LENGTHS.title) || DEFAULTS.title;
-  if (!params.has('subtitle')) merged.subtitle = cleanText(source.subtitle, MAX_LENGTHS.subtitle) || DEFAULTS.subtitle;
+  if (!params.has('title')) merged.title = cleanText(source.title, MAX_LENGTHS.title) || defaults.title;
+  if (!params.has('subtitle')) merged.subtitle = cleanText(source.subtitle, MAX_LENGTHS.subtitle) || defaults.subtitle;
   if (!params.has('name')) merged.name = cleanText(source.name, MAX_LENGTHS.name);
-  if (!params.has('footer')) merged.footer = normalizeFooter(source.footer);
+  if (!params.has('footer')) merged.footer = style === 'moonlit-fan'
+    ? cleanText(source.footer, MAX_LENGTHS.footer) || defaults.footer : normalizeFooter(source.footer);
   if (!params.has('quality'))
     merged.quality = Object.hasOwn(QUALITY_LIMITS, source.quality) ? source.quality : DEFAULTS.quality;
   merged.trackMotion = normalizeTrackMotion(params.has('trackMotion') ? query.trackMotion : source.trackMotion);
@@ -356,7 +362,7 @@ function initOpeningOverlay() {
         if (!data?.enabled) stopMedia();
         else if (!enabled) { enabled = true; void playMedia(); }
       } else runtime.apply(mergeConfig(
-        ['classic', 'pixel-cassette', 'moonlit-fan'].includes(appearance.style) ? { ...data, style: appearance.style } : data,
+        resolveOpeningAppearance(data, appearance),
         parseConfig(''), new URLSearchParams(),
       ));
     };

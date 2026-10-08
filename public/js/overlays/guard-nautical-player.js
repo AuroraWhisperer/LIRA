@@ -3,7 +3,7 @@ import { resolveComponentResource } from './component-resources.js';
 import { sceneAvatarSource } from './scene-extra-client.js';
 
 // The artwork carries the flags and waves; purchaser identity stays live DOM text.
-export function createNauticalGuardPlayer({ root }) {
+export function createNauticalGuardPlayer({ root, config = {} }) {
   const loading = new AbortController();
   let prepared;
   let blobs;
@@ -56,8 +56,9 @@ export function createNauticalGuardPlayer({ root }) {
           avatar.src = sceneAvatarSource(payload.avatarUrl) || fallback;
           const name = document.createElement('div');
           name.className = 'ng-name'; name.textContent = payload.userName;
+          name.style.fontSize = `${config.nameFontSize ?? 45}px`;
           stage.dataset.tier = payload.tier;
-          stage.replaceChildren(art, avatar, name); stage.hidden = false;
+          stage.replaceChildren(art, ...(config.showAvatar === false ? [] : [avatar]), ...(config.showUserName === false ? [] : [name])); stage.hidden = false;
           timer = setTimeout(complete, 5000);
         }).catch(complete);
       });

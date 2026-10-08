@@ -4,7 +4,7 @@ import { sceneSourceUrl } from './scene-source-url.js';
 import { getCanvasPublicationEntries } from './component-preview-publication.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 
-export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, controllers, beforeApply, getSelection, setBusy, report }) {
+export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, controllers, beforeApply, flushAppearance, getSelection, setBusy, report }) {
   let disposed = false;
   let busy = false;
   const source = previewElement('input', 'preview-canvas-source');
@@ -29,6 +29,7 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
     report(action === 'publish' ? '正在保存组件并更新直播源…' : '正在获取直播源地址…');
     try {
       if (action === 'publish') {
+        await flushAppearance?.();
         const targets = getCanvasPublicationEntries(controllers);
         const canvas = targets.at(-1).controller;
         const document = JSON.stringify(canvas.getState().draft.document);

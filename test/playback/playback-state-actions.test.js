@@ -49,3 +49,29 @@ test('queue owner consumes persisted shuffle IDs once and keeps playlist positio
   assert.equal(new Set([queue.takeNext().track.id, queue.takeNext().track.id]).size, 2);
   assert.equal(queue.takeNext(), null);
 });
+
+test('explicit next priority survives shuffle rebuilds and keeps same-song request positions separate', async () => {
+  const { QueueManager } = await loadModuleExports(entry('queue/manager.js'));
+  const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
+  const state = createInitialState();
+  const queue = new QueueManager({ state });
+  queue.startCollection([{ id: 'same-song' }, { id: 'old-next' }], 0, 'playlist');
+  state.mode = 'shuffle';
+  queue.insertTracksNext([
+    { id: 'same-song', songRequestKey: 'first-request' },
+    { id: 'same-song', songRequestKey: 'second-request' },
+  ]);
+  queue.appendTracks([{ id: 'appended' }]);
+  queue.rebuildShuffleOrder();
+  state.shuffleOrder = ['appended', 'old-next', 'request:second-request', 'request:first-request'];
+  const first = queue.takeNext().track;
+  assert.equal(first.songRequestKey, 'first-request');
+  assert.equal(first.playNext, undefined);
+  assert.equal(state.playlistIndex, 1);
+  assert.equal(queue.takeNext().track.songRequestKey, 'second-request');
+  assert.equal(state.playlistIndex, 2);
+  assert.equal(state.normalQueueTracks.some((track) => track.playNext), false);
+  assert.equal(queue.takeNext().track.id, 'appended');
+  assert.equal(queue.takeNext().track.id, 'old-next');
+  assert.equal(queue.takeNext(), null);
+});

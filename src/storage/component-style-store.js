@@ -93,6 +93,15 @@ function createComponentStyleStore(dataDir) {
       write(index);
       return { id };
     },
+    updateConfig(styleId, update) {
+      const index = read();
+      const pack = index.packages.find(item => !item.removed && item.styles.some(style => style.id === styleId && !style.removed));
+      const style = pack?.styles.find(item => item.id === styleId);
+      if (!style) throw Object.assign(new Error('样式已移除，请重新选择。'), { statusCode: 404 });
+      style.config = update(style);
+      write(index);
+      return style;
+    },
     remove(styleId) {
       const index = read();
       const pack = index.packages.find(pack => pack.styles.some(style => style.id === styleId));

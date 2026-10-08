@@ -319,7 +319,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
     response,
   );
   assert.equal(response.status, 200);
-  assert.deepEqual(writes, [
+  assert.deepEqual(writes.filter(([key]) => key !== 'clockStyleOptions'), [
     ['clockStyle', 'starlight'],
     ['clockShowDate', 'false'],
     ['clockShowSeconds', 'true'],
@@ -330,7 +330,10 @@ test('clock settings are persisted through validated keys and exposed by the clo
     ['clockFlipTextColor', '#123abc'],
   ]);
   assert.equal(configureCalls, 1);
-  assert.deepEqual(getClockConfig(Object.fromEntries(writes)), {
+  const { styleOptions, ...activeClock } = getClockConfig(Object.fromEntries(writes));
+  assert.equal(styleOptions.starlight.label, '今晚 一起值班');
+  assert.equal(styleOptions.peach.label, DEFAULT_LABELS.peach);
+  assert.deepEqual(activeClock, {
     ...FLIP_COLORS, ...MOON_DEFAULTS,
     style: 'starlight',
     showDate: false,
@@ -468,6 +471,24 @@ test('clock overlay loads saved settings while explicit legacy parameters still 
   merged = module.mergeClockConfig(saved, module.readClockConfig(params), params);
   assert.equal(merged.style, 'starlight');
   assert.equal(merged.label, '今晚与星星一起值班');
+});
+
+test('clock URLs select their saved style profile before applying explicit overrides', async () => {
+  const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
+  const saved = {
+    style: 'starlight', showDate: true, showSeconds: true, label: '当前客户端样式',
+    styleOptions: { peach: { showDate: false, showSeconds: false, hourFormat: '12', label: '', flipFaceColor: '#123456' } },
+  };
+  const params = new URLSearchParams('style=peach&seconds=1');
+  const merged = overlay.mergeClockConfig(saved, overlay.readClockConfig(params), params);
+  assert.equal(merged.style, 'peach');
+  assert.equal(merged.showDate, false);
+  assert.equal(merged.showSeconds, true);
+  assert.equal(merged.hour12, true);
+  assert.equal(merged.flipFaceColor, '#123456');
+  assert.equal(merged.label, DEFAULT_LABELS.peach);
+  saved.styleOptions.peach.label = '该样式的自定义文案';
+  assert.equal(overlay.mergeClockConfig(saved, overlay.readClockConfig(params), params).label, '该样式的自定义文案');
 });
 
 test('clock card keeps custom text that matches another style default', async () => {

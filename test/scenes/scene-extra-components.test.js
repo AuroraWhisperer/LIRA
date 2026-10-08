@@ -103,10 +103,10 @@ test('opening appearances expose both built-in styles and preserve client-follow
 
 test('guard thanks preserves legacy event styles and saves each explicit built-in style', () => {
   assert.deepEqual(SCENE_EXTRA_COMPONENTS['guard-thanks'].variants.map(({ value }) => value), ['aurora', 'classic']);
-  assert.deepEqual(normalizeSceneConfig('guard-thanks', {}), { style: 'follow', textMode: 'follow' });
-  assert.deepEqual(normalizeSceneConfig('guard-thanks', { textMode: 'en' }), { style: 'follow', textMode: 'en' });
+  assert.deepEqual(normalizeSceneConfig('guard-thanks', {}), { style: 'follow', textMode: 'follow', showAvatar: true, showUserName: true, nameFontSize: 45 });
+  assert.deepEqual(normalizeSceneConfig('guard-thanks', { textMode: 'en' }), { style: 'follow', textMode: 'en', showAvatar: true, showUserName: true, nameFontSize: 45 });
   for (const style of ['aurora', 'classic']) {
-    const input = documentFor('guard-thanks', { style, textMode: 'zh' });
+    const input = documentFor('guard-thanks', { style, textMode: 'zh', showAvatar: true, showUserName: true, nameFontSize: 45 });
     assert.deepEqual(normalizeSceneDocument(input, { normalizeConfig: normalizeSceneConfig }), input);
   }
   assert.throws(() => normalizeSceneConfig('guard-thanks', { style: 'unknown' }), { code: 'INVALID_SCENE_CONFIG' });
