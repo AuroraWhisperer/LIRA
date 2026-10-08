@@ -6,6 +6,14 @@
 
 ## 文件索引
 
+- [2026-10-08-concurrent-test-stability](2026-10-08-concurrent-test-stability.md)（界面就绪、认证探针退出与导入重试断言修复；排除 DSH 范围后并发 8 的 3960 项测试全部通过）
+
+- [2026-10-08-woodland-style-package](2026-10-08-woodland-style-package.md)（林间花信 1.0.0 外置 ZIP、原生客户端/画布布局和参数保留、打包素材清理；真实 Electron 导入与实际 ASAR 检查通过，未重建 NSIS 安装器）
+
+- [2026-10-08-simple-style-import](2026-10-08-simple-style-import.md)（统一文件入口、自动识别粘贴内容及默认折叠设置；定向导入、隔离 Electron 与架构检查通过，记录既有 gift-frame 断言差异）
+
+- [2026-10-08-ux-bug-fixes](2026-10-08-ux-bug-fixes.md)（歌曲保存草稿、自动跳过不可播歌曲、电台补歌归属与歌单高亮；98 项定向回归、10 项文档检查、语法与差异检查通过）
+
 - [2026-10-08-release-journal-retry](2026-10-08-release-journal-retry.md)（迁移日志占用恢复、Windows 原生查询提速、发布夹具同步与 Node 环境纠正；3,899 项测试及完整发布门禁通过）
 
 - [2026-10-08-client-ux-decisions](2026-10-08-client-ux-decisions.md)（下一首与导入身份、重启点歌恢复、礼物组合筛选、小游戏确认与存档恢复；定向自动化和隔离 Electron 检查通过，其余四项仅讨论）

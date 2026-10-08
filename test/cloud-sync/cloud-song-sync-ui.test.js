@@ -191,8 +191,10 @@ test('cloud sync records only valid response counts and falls back to the upload
 
 test('legacy import entry keeps the parser and cloud initialization APIs wired through ESM', async () => {
   const window = { AdminApp: { utils: {} } };
-  await loadModuleExports(path.resolve(__dirname, '../../public/js/admin/song-import.js'), { window });
-  const imports = window.AdminApp.imports;
+  const { songImports: imports } = await loadModuleExports(
+    path.resolve(__dirname, '../../public/js/admin/song-import.js'),
+    { window },
+  );
   assert.equal(imports.parseTable('name\trequestPrice\n歌曲\t舰长')[0].requestPrice, '舰长');
   assert.equal(typeof imports.parseDelimited, 'function');
   assert.equal(typeof imports.readTextFile, 'function');

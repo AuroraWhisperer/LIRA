@@ -2,7 +2,7 @@
 
 const path = require('node:path');
 const { createHttpServer } = require('../../src/server/http-server');
-const { servePageOrAsset } = require('../../src/server/http-utils');
+const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createWebSocketHub } = require('../../src/server/ws');
 
 async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, getState, readDanmakuDisplay, dataDir, overtime, settings } = {}) {

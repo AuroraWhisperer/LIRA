@@ -5,9 +5,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Readable, Writable } = require('node:stream');
 const test = require('node:test');
-const { serveOpeningCharacter } = require('../../src/server/http-utils');
+const { serveOpeningCharacter } = require('../../src/server/opening-media-http');
 const { handleApi } = require('../../src/server/api-routes');
 const openingRoutes = require('../../src/server/routes/opening-routes');
+const { getMusicDir, getCharacterDir } = require('../../src/server/opening-media-store');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 test('opening music uploads stay inside the configured data directory', async () => {
@@ -65,7 +66,7 @@ test('opening music uploads stay inside the configured data directory', async ()
     assert.equal(response.status, 200);
     assert.equal(responsePayload.ok, true);
     assert.equal(responsePayload.data.audioName, 'custom.mp3');
-    const files = fs.readdirSync(openingRoutes.getMusicDir(dataDir));
+    const files = fs.readdirSync(getMusicDir(dataDir));
     assert.equal(files.length, 1);
     assert.match(files[0], /^opening-.*\.mp3$/);
     assert.equal(responsePayload.data.hasUploadedAudio, true);
@@ -73,7 +74,7 @@ test('opening music uploads stay inside the configured data directory', async ()
     assert.equal(responsePayload.data.audioUrl, '');
     assert.equal(responsePayload.data.audioName, '');
     assert.equal(responsePayload.data.hasUploadedAudio, false);
-    assert.ok(fs.existsSync(path.join(openingRoutes.getMusicDir(dataDir), files[0])));
+    assert.ok(fs.existsSync(path.join(getMusicDir(dataDir), files[0])));
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
@@ -157,7 +158,7 @@ test('opening character uploads validate image signatures and stay inside the da
     assert.equal(uploaded.payload.data.characterName, 'custom.png');
     assert.equal(uploaded.payload.data.hasUploadedCharacter, true);
     assert.match(uploaded.payload.data.characterUrl, /^\/opening-character\/opening-character-.*\.png$/);
-    const files = fs.readdirSync(openingRoutes.getCharacterDir(dataDir));
+    const files = fs.readdirSync(getCharacterDir(dataDir));
     assert.equal(files.length, 1);
     assert.equal(files[0], settings.values.openingCharacterFile);
     assert.equal(uploaded.payload.data.pixelCharacterUrl, '');
@@ -188,7 +189,7 @@ test('opening character uploads validate image signatures and stay inside the da
     assert.equal(uploaded.payload.data.characterUrl, '');
     assert.equal(uploaded.payload.data.characterName, '');
     assert.equal(uploaded.payload.data.hasUploadedCharacter, false);
-    assert.ok(fs.existsSync(path.join(openingRoutes.getCharacterDir(dataDir), files[0])));
+    assert.ok(fs.existsSync(path.join(getCharacterDir(dataDir), files[0])));
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
@@ -214,7 +215,7 @@ test('opening character writes require authentication and only the selected file
   assert.equal(authPayload.ok, false);
 
   const dataDir = createScratchDirectory('lira-opening-character-media-test-');
-  const characterDir = openingRoutes.getCharacterDir(dataDir);
+  const characterDir = getCharacterDir(dataDir);
   const fileName = 'opening-character-selected.png';
   const content = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   fs.mkdirSync(characterDir, { recursive: true });

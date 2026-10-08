@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -144,11 +144,12 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
 }
 
 test('song list exposes a display board font size control', async () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/song/song-board.html');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const themePage = html.match(/<div id="themePage"[\s\S]*?<div id="displayPage"/)?.[0];
+  const themePage = readAdminFragmentHtml('pages/admin/song/queue-theme.html');
 
-  assert.ok(themePage);
+  assert.match(themePage, /<div id="themePage"/);
+  assert.match(html, /<div id="displayPage"/);
   assert.doesNotMatch(themePage, /songBoardFontSize/);
   const inputs = [...html.matchAll(/<input\b[^>]*>/g)]
     .map(([tag]) => tag)
@@ -392,7 +393,7 @@ test('song display board bounds rendered rows and preserves the scroll anchor', 
 });
 
 test('song board scroll speed stays constant as content grows', async () => {
-  const adminHtml = readAdminHtml();
+  const adminHtml = readAdminFragmentHtml('pages/admin/song/song-board.html');
   assert.match(
     adminHtml,
     /<input\b(?=[^>]*\bid="scrollSecondsRange")[^>]*\bclass="parameter-range parameter-range--tempo"[^>]*\btype="range"[^>]*\bmin="1"[^>]*\bmax="100"[^>]*>/s,

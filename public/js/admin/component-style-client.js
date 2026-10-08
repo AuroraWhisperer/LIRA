@@ -61,6 +61,7 @@ export function initComponentStyleLibraries() {
     const list = previewElement('div', ['clock', 'danmaku', 'gift-wishes'].includes(type) ? 'component-style-inline-host' : 'component-style-list');
     list.dataset.localStyles = type;
     const wishes = type === 'gift-wishes';
+    const hasResourceSettings = style => type !== 'gift-frame' && Boolean(style?.config.resourceStyle);
     (wishes ? host.querySelector('.gift-wish-styles') : host).append(list);
     const feature = host.closest('#otherClockFeature, #otherDanmakuFeature, #themeForm') || host;
     const previewWish = style => host.dispatchEvent(new CustomEvent('gift-wish:style', { detail: style }));
@@ -71,7 +72,7 @@ export function initComponentStyleLibraries() {
     let selectedId = '';
     let nativeSelection = [];
     function select(style) {
-      const nextId = style?.config.resourceStyle ? style.id : '';
+      const nextId = hasResourceSettings(style) ? style.id : '';
       if (!selectedId && nextId) {
         nativeSelection = [...feature.querySelectorAll('[data-clock-style-option], [data-danmaku-style], [data-overlay-style]')]
           .filter(button => !button.closest('.resource-style-settings'))
@@ -103,7 +104,7 @@ export function initComponentStyleLibraries() {
       onUse: style => {
         select(style);
         if (wishes && !style.config.resourceStyle) previewWish(style);
-        else if (!style.config.resourceStyle) return addStyleToCanvas(style);
+        else if (!hasResourceSettings(style)) return addStyleToCanvas(style);
       },
       renderList({ cards }) {
         for (const { style, card } of cards) {
@@ -111,7 +112,7 @@ export function initComponentStyleLibraries() {
           if (wishes) {
             button.firstElementChild.remove();
             button.setAttribute('aria-pressed', String(style.id === host.dataset.previewStyleId));
-          } else if (style.config.resourceStyle) {
+          } else if (hasResourceSettings(style)) {
             button.setAttribute('aria-label', `调整样式：${style.name}`);
             button.setAttribute('aria-pressed', String(style.id === selectedId));
           }

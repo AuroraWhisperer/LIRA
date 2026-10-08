@@ -56,6 +56,81 @@ test('song editing protects drafts when changing songs or clearing the form', as
   assert.equal(await page.locator('[role="dialog"]').count(), 0);
 });
 
+test('a completed song save clears the unchanged submitted form', async (t) => {
+  const page = await open(t);
+  await page.locator('#songName').fill('新歌曲');
+  await page.getByRole('button', { name: '保存歌曲', exact: true }).click();
+  await page.waitForFunction(() => window.pendingSaves.length === 1);
+  await page.evaluate(() => window.pendingSaves[0].resolve({ ok: true, data: { id: 3 } }));
+  await page.waitForFunction(() => window.messages.includes('歌曲已保存到本地'));
+  assert.equal(await page.locator('#songName').inputValue(), '');
+  assert.equal(await page.locator('#songId').inputValue(), '');
+});
+
+test('a completed song save preserves later edits and advances the saved baseline', async (t) => {
+  const page = await open(t);
+  await page.locator('[data-edit-song="1"]').dispatchEvent('click');
+  await page.waitForFunction(() => document.getElementById('songId').value === '1');
+  await page.locator('#songName').fill('保存的标题');
+  await page.getByRole('button', { name: '保存歌曲', exact: true }).click();
+  await page.waitForFunction(() => window.pendingSaves.length === 1);
+  await page.locator('#songName').fill('保存期间继续编辑的标题');
+  await page.evaluate(() => window.pendingSaves[0].resolve({ ok: true, data: { id: 1 } }));
+  await page.waitForFunction(() => window.messages.includes('歌曲已保存到本地'));
+  assert.equal(await page.locator('#songName').inputValue(), '保存期间继续编辑的标题');
+  assert.equal(await page.locator('#songId').inputValue(), '1');
+  await page.locator('#resetSongForm').click();
+  await page.getByRole('button', { name: '继续编辑', exact: true }).click();
+  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
+  await page.locator('#songName').fill('保存的标题');
+  await page.locator('[data-edit-song="2"]').dispatchEvent('click');
+  await page.waitForFunction(() => document.getElementById('songId').value === '2');
+  assert.equal(await page.locator('[role="dialog"]').count(), 0);
+});
+
+test('later edits to a newly saved song keep its id for the next save', async (t) => {
+  const page = await open(t);
+  await page.locator('#songName').fill('新歌曲');
+  await page.getByRole('button', { name: '保存歌曲', exact: true }).click();
+  await page.waitForFunction(() => window.pendingSaves.length === 1);
+  await page.locator('#songName').fill('新歌曲的后续标题');
+  await page.evaluate(() => window.pendingSaves[0].resolve({ ok: true, data: { id: 3 } }));
+  await page.waitForFunction(() => document.getElementById('songId').value === '3');
+  assert.equal(await page.locator('#songName').inputValue(), '新歌曲的后续标题');
+  await page.getByRole('button', { name: '保存歌曲', exact: true }).click();
+  await page.waitForFunction(() => window.pendingSaves.length === 2);
+  assert.deepEqual(await page.evaluate(() => {
+    const { id, name } = window.pendingSaves[1].body;
+    return { id, name };
+  }), { id: '3', name: '新歌曲的后续标题' });
+  await page.evaluate(() => window.pendingSaves[1].resolve({ ok: true, data: { id: 3 } }));
+  await page.waitForFunction(() => document.getElementById('songName').value === '');
+});
+
+test('an earlier save cannot clear a different song or a reopened editor', async (t) => {
+  const page = await open(t);
+  await page.locator('[data-edit-song="1"]').dispatchEvent('click');
+  await page.waitForFunction(() => document.getElementById('songId').value === '1');
+  await page.getByRole('button', { name: '保存歌曲', exact: true }).click();
+  await page.waitForFunction(() => window.pendingSaves.length === 1);
+  await page.locator('[data-edit-song="2"]').dispatchEvent('click');
+  await page.waitForFunction(() => document.getElementById('songId').value === '2');
+  await page.evaluate(() => window.pendingSaves[0].resolve({ ok: true, data: { id: 1 } }));
+  await page.waitForFunction(() => window.messages.length === 1);
+  assert.equal(await page.locator('#songId').inputValue(), '2');
+  assert.equal(await page.locator('#songName').inputValue(), '歌曲乙');
+
+  await page.getByRole('button', { name: '保存歌曲', exact: true }).click();
+  await page.waitForFunction(() => window.pendingSaves.length === 2);
+  await page.locator('#resetSongForm').click();
+  await page.locator('[data-edit-song="2"]').dispatchEvent('click');
+  await page.waitForFunction(() => document.getElementById('songId').value === '2');
+  await page.evaluate(() => window.pendingSaves[1].resolve({ ok: true, data: { id: 2 } }));
+  await page.waitForFunction(() => window.messages.length === 2);
+  assert.equal(await page.locator('#songId').inputValue(), '2');
+  assert.equal(await page.locator('#songName').inputValue(), '歌曲乙');
+});
+
 test('song filter candidates survive filtering and refresh after clearing all filters', async (t) => {
   const page = await open(t);
   await page.locator('#artistFilter').selectOption('歌手甲');

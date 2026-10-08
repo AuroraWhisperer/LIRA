@@ -52,7 +52,7 @@ function createTestService(overrides = {}) {
 function createAnsweringDeepseek(nextAnswer) {
   return {
     async createResponse(request) {
-      if (request.tools.length) {
+      if (request.purpose === 'generation' || request.purpose === 'tool_followup') {
         return { text: nextAnswer(), functionCalls: [], usage: {} };
       }
       const answer = String(request.input).match(/(?:answer|lost)-\d+/)?.[0] || '';

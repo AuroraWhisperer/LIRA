@@ -12,7 +12,7 @@ const {
   getClockConfig,
   normalizeClockSettingValue,
 } = require('../../src/server/clock-contract');
-const { addFrameProtectionHeaders } = require('../../src/server/http-utils');
+const { addFrameProtectionHeaders } = require('../../src/server/page-assets');
 const clockRoutes = require('../../src/server/routes/clock-routes');
 const settingsRoutes = require('../../src/server/routes/settings-routes');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');

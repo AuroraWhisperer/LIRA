@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml, readAdminHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -18,7 +18,7 @@ function tagById(html, id) {
 }
 
 test('AI form number constraints match the server contract', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku-ai.html');
   const fieldIds = {
     replyMaxChars: 'xiaomiAiReplyMaxChars',
     generationConcurrency: 'xiaomiAiConcurrency',
@@ -36,7 +36,7 @@ test('AI form number constraints match the server contract', () => {
 });
 
 test('AI panel mounts its controls with safe defaults', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku-ai.html');
   assert.match(tagById(html, 'xiaomiAiForm'), /^<form\b/);
   for (const id of [
     'xiaomiAiTitle',
@@ -91,7 +91,10 @@ test('AI panel mounts its controls with safe defaults', () => {
   assert.match(tagById(html, 'xiaomiAiDeepSeekUrl'), /^<input\b/);
   assert.match(tagById(html, 'xiaomiAiQWeatherHost'), /\stype=["']text["']/);
   assert.match(tagById(html, 'xiaomiAiSaveBtn'), /\stype=["']submit["']/);
-  assert.doesNotMatch(html, /sk-[A-Za-z0-9_-]{8,}/);
+});
+
+test('the complete admin document contains no hardcoded AI API key', () => {
+  assert.doesNotMatch(readAdminHtml(), /sk-[A-Za-z0-9_-]{8,}/);
 });
 
 test('AI configuration renders API text without HTML injection', () => {

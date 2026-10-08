@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { servePageOrAsset } = require('../../src/server/http-utils');
+const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createOverlayToken } = require('../../src/server/access-policy');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 

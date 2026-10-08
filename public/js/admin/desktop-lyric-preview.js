@@ -5,7 +5,6 @@ import { desktopLyricRenderer } from '../lyrics/desktop-lyric-renderer.js';
 import { DESKTOP_LYRIC_DEFAULTS } from '../lyrics/desktop-lyric-defaults.js';
 import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 import { stateService } from './state.js';
-import { publishDesktopLyricPreview } from './legacy-admin-bridge.js';
 import { readDesktopLyricFormSettings, setDesktopLyricBackground } from './desktop-lyric-controls.js';
 
 let initialized = false;
@@ -53,5 +52,3 @@ export const desktopLyricPreview = {
   ...desktopLyricRenderer,
   init,
 };
-
-publishDesktopLyricPreview(desktopLyricPreview);

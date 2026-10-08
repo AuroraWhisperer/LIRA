@@ -264,5 +264,6 @@ test('Browser-source and configurable preview typography stay outside Admin role
     read('public', 'js', 'overlays', 'overlay-theme.js'),
   ].join('\n');
   assert.match(queue, /--overlay-font-family/);
-  assert.match(queue, /settings\.overlayFontFamily/);
+  // 主题键经共享 resolve 读取，仍必须落在 overlayFontFamily 设置上。
+  assert.match(queue, /resolve\(\s*'overlayFontFamily'/);
 });

@@ -2,29 +2,12 @@
 
 import { createPixelOpening } from './opening-pixel.js';
 import { MOONLIT_OPENING_DEFAULTS, resolveOpeningAppearance } from '../shared/opening-appearance.js';
+import { OPENING_DEFAULTS } from '../shared/opening-settings.js';
 import { createMoonFanOpening } from './opening-moon-fan.js';
 import { createMediaEventPlayer } from './component-media.js';
 import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
 
-const DEFAULTS = Object.freeze({
-  enabled: false,
-  style: 'classic',
-  title: '唱一首，在一首，给你的歌',
-  subtitle: '开播准备中',
-  name: '',
-  footer: '欢迎来到直播间',
-  quality: 'normal',
-  trackMotion: 'heart',
-  showNotes: true,
-  showEq: true,
-  audio: 'browser',
-  volume: 0.35,
-  audioUrl: '',
-  audioName: '',
-  characterUrl: '',
-  pixelCharacterUrl: '',
-  debug: false,
-});
+const DEFAULTS = OPENING_DEFAULTS;
 
 const MAX_LENGTHS = Object.freeze({
   title: 20,

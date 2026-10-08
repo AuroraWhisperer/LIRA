@@ -62,7 +62,7 @@
 
 画布编辑页使用单个 fragment 短入口，客户端仍持有原配置控制器时重复打开会沿用连接；旧页可刷新接管继续编辑，未保存修改仍保留。短暂断线自动重试，客户端关闭、账号或配置来源变化时撤销。直播场景地址与编辑页入口不同：成功“保存并应用”后客户端地址目录立即刷新，后续应用沿用正式来源地址。能力及恢复元数据契约见 [预览 API](../backend/api.md#浏览器组件预览)。
 
-[servePageOrAsset](../../../src/server/http-utils.js) 对非展示、非登录、非组件预览 HTML 的匿名请求返回 401“请从桌面应用打开管理页面。”；API 中无效凭据为 401，越权或不受信 Origin 为 403。这些响应说明服务已可达，应检查正常桌面入口与请求身份，不应关闭保护或据此判断 localhost 不可用。
+[servePageOrAsset](../../../src/server/page-assets.js) 对非展示、非登录、非组件预览 HTML 的匿名请求返回 401“请从桌面应用打开管理页面。”；API 中无效凭据为 401，越权或不受信 Origin 为 403。这些响应说明服务已可达，应检查正常桌面入口与请求身份，不应关闭保护或据此判断 localhost 不可用。
 
 
 | 入口 URL           | 实际 HTML                                                                                                          | 打开者                                                       | 行为说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -167,7 +167,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录和搜索�
 
 | 文件                                                                        | 说明                                                                                                                                                                   |
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `overlay-utils.js`                                                          | 共享工具(转义/颜色/字体回退/滚动时长换算/低功耗判定),挂 `window.OverlayUtils`                                                                                          |
+| `overlay-utils.js`                                                          | 共享工具(转义/颜色/字体回退/滚动时长换算/低功耗判定),挂 `window.OverlayUtils`;模块消费者经 `overlay-utils-module.js` 具名导入 |
 | `song-virtual-scroller.js`                                                  | 歌单虚拟滚动器(环形 DOM 窗口)                                                                                                                                          |
 | `queue.js` / `songs.js` / `blindbox.js` / `overtime.js` / `lyric-window.js` | 各叠加层逻辑,详见 [overlays.md](overlays.md)                                                                                                                           |
 | `games.js`                                                                  | 直播小游戏入口与会话渲染；你画我猜在本地预览图形后把直线/矩形/圆形拆为归一化坐标点，取色器只吸附到现有安全色板；通过 `danmaku-feed.js` 的显式 ESM 接口消费你画我猜弹幕 |
@@ -186,6 +186,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录和搜索�
 | `shared/lyric-word-renderer.js` | 逐字歌词渲染器(rAF 驱动,WeSing 面板/桌面歌词预览/歌词窗口共用)                       |
 | `shared/parameter-range.js`     | Admin 参数滑块进度与零点区段同步；扫描显式 `parameter-range` 控件并维护轨道 CSS 变量 |
 | `shared/color-control.js`       | `enhanceColorControls(root = document)` 原位增强原生颜色输入框，自动接入动态节点和克隆面板；同步用户选色、程序赋值及表单重置，不派发额外业务事件 |
+| `shared/fit-text-to-width.js`   | `fitTextToWidth(elements)` 按元素可用宽度收缩字号；礼物横幅与粉丝档案名单共用，选择器与 DOM 查询留在各自视图 |
 | `desktop.js`                    | 桌面外壳:更新检查/下载/安装、打开数据目录、`window.songAssistantDesktop` 检测        |
 | `playback.js`                   | 播放助手兼容入口(`import './playback/index.js'`)                                     |
 

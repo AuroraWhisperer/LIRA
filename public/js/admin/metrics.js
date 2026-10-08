@@ -3,7 +3,6 @@
 'use strict';
 
 import { formatDateTime, formatBytes, formatDuration, toast, showError } from '../shared/utils.js';
-import { publishMetrics } from './legacy-admin-bridge.js';
 
 export const metrics = (() => {
   const METRICS_SAMPLE_SECONDS = 5;
@@ -302,4 +301,3 @@ export const metrics = (() => {
     metricLevel,
   };
 })();
-publishMetrics(metrics);

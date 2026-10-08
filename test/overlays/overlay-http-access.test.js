@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { createHttpServer } = require('../../src/server/http-server');
-const { servePageOrAsset } = require('../../src/server/http-utils');
+const { servePageOrAsset } = require('../../src/server/page-assets');
 const { OVERLAY_PAGES, createOverlayToken, resolveRequestPrincipal } = require('../../src/server/access-policy');
 
 const ADMIN = 'synthetic-private-management-credential';

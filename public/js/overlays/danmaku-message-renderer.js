@@ -1,6 +1,7 @@
 import { decorateSketchMessage } from './danmaku-sketch.js';
 import { createSuperChatCard } from './danmaku-superchat-renderer.js';
 import { decorateMoonlitMessage } from './danmaku-moonlit.js';
+import { createPrismaticIdentity, decoratePrismaticMessage } from './danmaku-prismatic.js';
 
 export const DEFAULT_DANMAKU_CLASSES = Object.freeze({
   item: 'draw-danmaku-item',
@@ -56,7 +57,7 @@ export function createDanmakuMessageRenderer({
 
   function createBubble(item = {}, index = 0) {
     if (item.kind === 'superchat') {
-      return createSuperChatCard(document, item, style, resolveAvatarUrl, classNames);
+      return createSuperChatCard(document, item, style === 'prismatic' ? 'ranked' : style, resolveAvatarUrl, classNames);
     }
     const message = String(item.message || '').trim();
     const metrics = measureDanmakuText(message);
@@ -72,16 +73,17 @@ export function createDanmakuMessageRenderer({
       bubble.dataset.palette = String((hash >>> 0) % 6);
     }
     bubble.dataset.identity = identityVariant(item.guardLevel, item.medalName);
+    if (style === 'prismatic') decoratePrismaticMessage(bubble, item);
     if (item.isStreamer === true) bubble.dataset.streamer = 'true';
     if (fullscreen) bubble.style.setProperty('visibility', 'hidden');
     bubble.style.setProperty('--danmaku-width', `${metrics.width}%`);
     bubble.style.setProperty('--danmaku-height', `${metrics.height}px`);
     bubble.style.setProperty('--danmaku-lines', String(metrics.lines));
     bubble.style.setProperty('--danmaku-delay', `${Math.min(index, 8) * 24}ms`);
-    if (isEmoteOnlyMessage(message, item.emotes)) bubble.className += ' is-emote-only';
+    if (isEmoteOnlyMessage(message, item.emotes, style === 'prismatic')) bubble.className += ' is-emote-only';
 
     const name = String(item.name || '观众').trim() || '观众';
-    const avatar = createAvatar(item, name, bubble);
+    const avatar = style === 'prismatic' && item.kind === 'gift' ? null : createAvatar(item, name, bubble);
 
     const body = document.createElement('div');
     body.className = classNames.body;
@@ -105,7 +107,7 @@ export function createDanmakuMessageRenderer({
     const art = document.createElement('span');
     art.className = 'draw-danmaku-gift-art';
     art.setAttribute('aria-hidden', 'true');
-    const giftSource = options.resolveGiftImageUrl?.(item.giftImageUrl);
+    const giftSource = style === 'prismatic' ? '' : options.resolveGiftImageUrl?.(item.giftImageUrl);
     if (giftSource) {
       const image = document.createElement('img');
       image.alt = '';
@@ -130,7 +132,7 @@ export function createDanmakuMessageRenderer({
     copy.className = 'draw-danmaku-gift-copy';
     const action = document.createElement('span');
     action.className = 'draw-danmaku-gift-action';
-    action.textContent = style === 'starlight' ? '赠送' : '送出';
+    action.textContent = style === 'prismatic' ? '赠送了' : style === 'starlight' ? '赠送' : '送出';
     const name = document.createElement('strong');
     name.className = 'draw-danmaku-gift-name';
     name.textContent = String(item.giftName || '礼物');
@@ -138,14 +140,15 @@ export function createDanmakuMessageRenderer({
     count.className = 'draw-danmaku-gift-count';
     count.textContent = style === 'starlight' ? `x${item.giftCount}` : `× ${item.giftCount}`;
     copy.append(action, name);
-    if (showGiftTotal) {
+    if (showGiftTotal || style === 'prismatic') {
       const amount = document.createElement('b');
       amount.className = 'draw-danmaku-gift-amount';
       const total = Number.isFinite(item.giftTotalPrice) && item.giftTotalPrice >= 0
         ? item.giftTotalPrice.toLocaleString('zh-CN', { minimumFractionDigits: style === 'sketch' ? 2 : 0, maximumFractionDigits: 2 }) : null;
       amount.textContent = total === null ? '—' : ['whiteframe', 'sketch'].includes(style) ? `${total}¥` : `¥${total}`;
-      copy.append(count);
-      rootElement.append(art, copy, amount);
+      if (style !== 'prismatic' || Number(item.giftCount) > 1) copy.append(count);
+      if (style !== 'prismatic') rootElement.append(art);
+      rootElement.append(copy, amount);
     } else rootElement.append(art, copy, count);
   }
 
@@ -181,6 +184,7 @@ export function createDanmakuMessageRenderer({
   }
 
   function createIdentity(item, name) {
+    if (style === 'prismatic') return createPrismaticIdentity(document, item, name, classNames, resolveEmoteUrl);
     const identity = document.createElement('div');
     identity.className = classNames.identity;
     const nameElement = document.createElement('strong');
@@ -302,9 +306,10 @@ function findNextEmote(message, cursor, emotes) {
   return next;
 }
 
-function isEmoteOnlyMessage(message, emotes) {
+function isEmoteOnlyMessage(message, emotes, requireSticker = false) {
   const tokens = normalizeRenderableEmotes(emotes);
-  return tokens.length === 1 && tokens[0].kind !== 'inline' && tokens[0].text === message;
+  return tokens.length === 1 && tokens[0].text === message
+    && (requireSticker ? tokens[0].kind === 'sticker' : tokens[0].kind !== 'inline');
 }
 
 function identityVariant(guardLevel, medalName) {

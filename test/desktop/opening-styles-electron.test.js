@@ -5,14 +5,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { _electron: electron, chromium } = require('playwright');
+const { chromium } = require('playwright');
+const { launchElectron } = require('../helpers/shared-electron');
 const { createComponentStyleStore } = require('../../src/storage/component-style-store');
 const { createComponentStyleLibrary } = require('../../src/server/component-style-library');
 const { saveMedia } = require('../../src/server/component-media-files');
 const { normalizeSceneConfig } = require('../../src/server/scene-components');
 const { COMPONENT_RESOURCE_PRESETS } = require('../../public/js/shared/component-resource-style.js');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
-const { getOpeningConfig } = require('../../src/server/routes/opening-routes');
+const { getOpeningConfig } = require('../../src/server/opening-service');
 
 test('desktop opening styles share one picker and retain their own settings and imported defaults', { timeout: 60000 }, async t => {
   const root = path.resolve(__dirname, '../..');
@@ -37,7 +38,7 @@ test('desktop opening styles share one picker and retain their own settings and 
   const config = normalizeSceneConfig('opening', { ...preset.config, title: '包内开场', resourceStyle });
   store.stage({ id: packId, name: '测试开播套装', styles: [{ id, type: 'opening', name: '月渡花汀 · 开播动画', config }] });
   await createComponentStyleLibrary(directory).install(packId);
-  app = await electron.launch({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const page = await app.firstWindow(); page.setDefaultTimeout(7000);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   const values = { ...DEFAULT_SETTINGS, openingTitle: '经典原文', openingQuality: 'high' };
@@ -127,7 +128,7 @@ test('desktop and canvas share pixel controls, animated avatar and music without
     assert.equal(path.dirname(fs.realpathSync(directory)), fs.realpathSync(scratch));
     fs.rmSync(directory, { recursive: true, force: true });
   });
-  app = await electron.launch({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow(); desktop.setDefaultTimeout(7000);
   await app.evaluate(() => Object.assign(global.canvasTest.openingSettings, {
     openingEnabled: 'false', openingStyle: 'pixel-cassette', openingQuality: 'high', openingTitle: '经典保留文案',

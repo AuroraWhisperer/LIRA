@@ -2,7 +2,8 @@
 
 const { randomUUID } = require('node:crypto');
 
-const { cleanText, normalizeGuardLevel, normalizePositiveInteger } = require('../shared/utils');
+const { cleanText, normalizePositiveInteger } = require('../shared/utils');
+const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 
 function createQueueStore(
   songDb,

@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { ADMIN_FRAGMENT_PATHS, composeAdminHtml, isAdminPageRoute } = require('../../src/server/admin-page');
-const { servePageOrAsset } = require('../../src/server/http-utils');
+const { servePageOrAsset } = require('../../src/server/page-assets');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');

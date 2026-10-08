@@ -46,8 +46,10 @@ test('heart-box output cards require source identity evidence for artwork and pr
     },
     document: { getElementById: () => list },
   };
-  await loadModuleExports(path.join(__dirname, '../../public/js/admin/gifts/recent.js'), globals);
-  const recent = globals.window.AdminApp.gifts.recent;
+  const { giftRecent: recent } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
+    globals,
+  );
   await recent.loadGiftArtworkCatalog();
   for (const name of [heartBox.box.name, '']) {
     for (const item of heartBox.outputs) {

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'starlight', 'moonlit', 'outline', 'whiteframe', 'cream', 'glow', 'starveil'];
+const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'starlight', 'moonlit', 'outline', 'whiteframe', 'cream', 'glow', 'starveil'];
 const randomStyles = ['outline', 'whiteframe', 'cream', 'glow', 'starveil'];
 
 async function fixture(search = '?preview=1', savedStyle) {
@@ -212,7 +212,7 @@ test('all local styles replay every example through the live feed without connec
       assert.deepEqual(Array.from(items.filter((item) => item.giftGuardLevel), (item) => item.giftGuardLevel).sort(), [1, 2, 3]);
     }
     assert.equal(items.find((item) => item.kind === 'gift' && item.giftCount === 10).giftTotalPrice, 1);
-    assert.equal(f.options.at(-1).showGiftTotal, ['transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch'].includes(style));
+    assert.equal(f.options.at(-1).showGiftTotal, ['transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic'].includes(style));
     assert.ok(items.every((item) => !item.id.startsWith('preview-thanks')));
     assert.equal(f.options.at(-1).resolveEmoteUrl(members[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
     const superChats = items.filter((item) => item.kind === 'superchat');
@@ -230,6 +230,29 @@ test('all local styles replay every example through the live feed without connec
       assert.equal(f.options.at(-1).showAvatar, style === 'cream');
     }
   }
+});
+
+test('prismatic preview preserves its opening sequence and room identities for a complete round', async () => {
+  const f = await fixture('?preview=1&style=prismatic');
+  f.advanceMessages(18);
+  const samples = f.appends;
+  const ids = samples.map((item) => item.id.replace(/-\d+$/u, ''));
+  assert.equal(samples.length, 19);
+  assert.deepEqual(ids.slice(0, 3), ['preview-4714', 'preview-emote', 'preview-gift-10']);
+  assert.equal(new Set(ids).size, 19, 'each sample appears once before the next round');
+  const longSuperChat = samples.find((item) => item.id.startsWith('preview-superchat-2000-'));
+  assert.ok(longSuperChat?.message.includes('\n'), 'the last multiline SC stays in the round');
+
+  for (const [id, guard] of [['preview-1091', 1], ['preview-1822', 2], ['preview-4714', 3], ['preview-565', 0]]) {
+    const sample = samples.find((item) => item.id.startsWith(`${id}-`));
+    assert.equal(sample.roomGuardLevel, guard, id);
+    assert.equal(sample.roomMedal.name, '粉丝团灯牌', id);
+    assert.equal(sample.roomMedal.guardLevel, guard, id);
+    assert.ok(sample.roomMedal.level > 0 && sample.honorLevel > 0, id);
+    assert.equal(sample.roomMedal.colorText, '#FFFFFF', id);
+    assert.ok(sample.avatarUrl, id);
+  }
+  f.pagehide();
 });
 
 test('preview mixes every sample at varied intervals, reshuffles each round and stops on close', async () => {

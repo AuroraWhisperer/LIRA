@@ -2,37 +2,41 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { listenHttpServer } = require('../helpers/transport-fixtures');
 
-test('local runtime gates admin, business API and websocket before license authorization', async (t) => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-license-gate-'));
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
-  const runtime = require('../../src/server').createServerRuntime({
-    dataDir,
-    licenseGate: { isAuthorized: () => false },
+test('HTTP license gate redirects admin and rejects business API before dispatch', async (t) => {
+  let authorized = false;
+  const pages = [];
+  const { origin } = await listenHttpServer(t, {
+    isLicenseAuthorized: () => authorized,
+    createApiContext: () => assert.fail('unauthorized requests must not reach business state'),
+    inflightTracker: { run: (callback) => callback() },
+    servePageOrAsset(req, res, url) {
+      pages.push(url.pathname);
+      res.end('synthetic page');
+    },
   });
-  try {
-    const info = await runtime.start({ host: '127.0.0.1', startPort: 0 });
-    const admin = await fetch(`${info.baseUrl}/admin`, { redirect: 'manual' });
-    assert.equal(admin.status, 302);
-    assert.equal(admin.headers.get('location'), '/license');
-    const license = await fetch(`${info.baseUrl}/license`);
-    assert.equal(license.status, 200);
-    assert.match(await license.text(), /licenseForm/);
-    const api = await fetch(`${info.baseUrl}/api/state`);
-    assert.equal(api.status, 423);
-    assert.deepEqual(await api.json(), {
-      ok: false,
-      error: 'LICENSE_REQUIRED',
-    });
-  } finally {
-    await runtime.stop({ exitProcess: false });
-    try {
-      fs.rmSync(dataDir, { recursive: true, force: true });
-    } catch (_) {}
-  }
+  const admin = await fetch(`${origin}/admin`, { redirect: 'manual' });
+  assert.equal(admin.status, 302);
+  assert.equal(admin.headers.get('location'), '/license');
+  const license = await fetch(`${origin}/license`);
+  assert.equal(license.status, 200);
+  await license.text();
+  const api = await fetch(`${origin}/api/state`);
+  assert.equal(api.status, 423);
+  assert.deepEqual(await api.json(), { ok: false, error: 'LICENSE_REQUIRED' });
+  assert.deepEqual(pages, ['/license']);
+
+  authorized = true;
+  const unlocked = await fetch(`${origin}/admin`, { redirect: 'manual' });
+  assert.equal(unlocked.status, 200);
+  await unlocked.text();
+  assert.deepEqual(pages, ['/license', '/admin']);
+  // Runtime-to-transport license wiring: test/server/server-cleanup-failures.test.js.
+  // WebSocket authorization belongs to test/server/http-websocket-boundary.test.js;
+  // license form markup belongs to license-ui.test.js.
 });
 
 test('Electron startup restores authorized work and owns the system-resume listener', () => {

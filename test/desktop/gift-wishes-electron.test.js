@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { _electron: electron } = require('playwright');
+const { launchElectron } = require('../helpers/shared-electron');
 const { createComponentStyleStore } = require('../../src/storage/component-style-store');
 const { createComponentStyleLibrary } = require('../../src/server/component-style-library');
 const { saveMedia } = require('../../src/server/component-media-files');
@@ -38,7 +38,7 @@ test('desktop wish styles show names and preview imported appearances before add
     { id: resourceStyle.id, type: 'gift-wishes', name: '月渡花汀 · 礼物许愿', config },
   ] });
   await createComponentStyleLibrary(directory).install(packId);
-  app = await electron.launch({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const page = await app.firstWindow();
   page.setDefaultTimeout(7000);
   const errors = [];
@@ -81,8 +81,6 @@ test('desktop wish styles show names and preview imported appearances before add
   await page.getByRole('button', { name: '全部缓存礼物', exact: true }).click({ force: true });
   await page.getByRole('button', { name: /小花花/ }).click({ force: true });
   await frame.locator('.wish-moon-name').filter({ hasText: '小花花' }).waitFor();
-  await page.locator('#giftWishDisplayStyle').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: path.join(scratch, 'gift-wish-style-preview.png'), fullPage: true });
   await styles.locator('input[value="circle"]').check({ force: true });
   assert.equal(await page.locator('#giftWishDraftPreview iframe').count(), 0);
   assert.equal(await page.locator('#giftWishDraftPreview .wish-card--circle').count(), 1);

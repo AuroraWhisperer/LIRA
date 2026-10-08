@@ -3,12 +3,15 @@
 const http = require('node:http');
 const { URL } = require('node:url');
 const httpUtils = require('./http-utils');
+const { serveOpeningMedia, serveOpeningCharacter } = require('./opening-media-http');
+const { serveOvertimeGiftImage } = require('./gift-image-http');
 const { SERVICE_ID } = require('./lifecycle');
 const apiRoutes = require('./api-routes');
 const { redactCredentials } = require('../shared/log-redaction');
 const { createComponentPreviewSessions } = require('./component-preview-sessions');
 const { TEXT_IMAGE_PREFIX, serveSceneTextImage } = require('./scene-text-images');
 const { serveComponentMedia } = require('./component-media-files');
+const { WOODLAND_GIFT_VIDEO, serveGiftFrameResource } = require('./gift-frame-resource');
 const { serveComponentWeb } = require('./component-web-files');
 
 /**
@@ -135,13 +138,18 @@ function createHttpServer(options = {}) {
         return;
       }
 
+      if (requestUrl.pathname === WOODLAND_GIFT_VIDEO) {
+        serveGiftFrameResource(dataDir, req, res);
+        return;
+      }
+
       if (requestUrl.pathname.startsWith('/component-web/')) {
         await serveComponentWeb(dataDir, req, res, requestUrl);
         return;
       }
 
       if (requestUrl.pathname.startsWith('/opening-media/')) {
-        httpUtils.serveOpeningMedia(dataDir, req, res, requestUrl, () => {
+        serveOpeningMedia(dataDir, req, res, requestUrl, () => {
           const settings = getSettings();
           return [settings?.openingAudioFile, settings?.openingPixelAudioFile];
         });
@@ -149,7 +157,7 @@ function createHttpServer(options = {}) {
       }
 
       if (requestUrl.pathname.startsWith('/opening-character/')) {
-        httpUtils.serveOpeningCharacter(dataDir, req, res, requestUrl, () => {
+        serveOpeningCharacter(dataDir, req, res, requestUrl, () => {
           const settings = getSettings();
           return [settings?.openingCharacterFile, settings?.openingPixelCharacterFile];
         });
@@ -157,7 +165,7 @@ function createHttpServer(options = {}) {
       }
 
       if (requestUrl.pathname.startsWith('/overtime-gift-images/')) {
-        httpUtils.serveOvertimeGiftImage(dataDir, req, res, requestUrl);
+        serveOvertimeGiftImage(dataDir, req, res, requestUrl);
         return;
       }
 

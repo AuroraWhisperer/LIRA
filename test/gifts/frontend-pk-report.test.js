@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const saved = (enabled) => ({ ok: true, enabled });
 const account = (name) => ({
@@ -73,7 +73,7 @@ async function fixture(profile = account('one')) {
 }
 
 test('PK report toggle starts disabled in the real admin page', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html');
   assert.match(html, /id="danmakuPkReportToggle"[^>]*disabled/);
 });
 

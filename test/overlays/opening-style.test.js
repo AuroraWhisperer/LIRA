@@ -5,7 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
-const { getOpeningConfig } = require('../../src/server/routes/opening-routes');
+const { getOpeningConfig } = require('../../src/server/opening-service');
 const { projectOverlayResponse } = require('../../src/server/overlay-projection');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 

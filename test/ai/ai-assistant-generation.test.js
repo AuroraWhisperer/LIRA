@@ -200,8 +200,8 @@ test('a monthly API quota result makes the next tool round rely on web search', 
     config: { trigger: 'AI' },
     deepseek: {
       async createResponse(request) {
-        if (!request.tools.length) {
-          const isOutputReview = String(request.input).includes('web result');
+        if (request.purpose === 'input_review' || request.purpose === 'output_review') {
+          const isOutputReview = request.purpose === 'output_review';
           return {
             text: isOutputReview
               ? '{"allowed":true,"riskType":"","safeText":"web result"}'

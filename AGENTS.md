@@ -130,6 +130,39 @@ or delegation do not by themselves require a plan.
 A useful plan records decisions, boundaries, dependencies, and verification. It
 should not restate obvious implementation steps merely to create ceremony.
 
+## Test And Documentation Synchronization
+
+Affected tests, technical documentation, and user guidance are part of the same
+task as the implementation. Check their impact before editing, update them as
+each behavior is completed, and resolve known drift before declaring the task
+done. Do not defer this work to commit or release preparation.
+
+- Locate the relevant tests and document owners using the existing route table
+  and [documentation map](docs/README.md). Record affected material in the existing
+  plan when one is required; small changes do not need a separate checklist.
+- **Tests:** update expectations and fixtures when intended behavior changes;
+  add coverage when the risk-based verification rules below call for it. Expected
+  outcomes must follow the requirement or accepted contract. Do not weaken valid
+  assertions merely to make the changed implementation pass. For refactors that
+  preserve behavior, retain behavioral coverage and run the affected tests.
+- **Technical documentation:** update the owning reference when interfaces,
+  fields, defaults, limits, configuration, or documented implementation facts
+  change, including module ownership and paths. Update architecture documents
+  when their responsibilities or boundaries change; follow the documentation
+  map instead of duplicating contracts.
+- **User guidance:** when features, entry points, operating steps, configuration,
+  or user-visible limits change, check the relevant `docs/guides/`, README files,
+  in-app `public/pages/admin/toolbox/usage-guide*.html`, and
+  `public/js/admin/interactive-tour-config.js`. Update affected instructions,
+  examples, and screenshots when they would otherwise mislead the user.
+- If existing tests still cover the intended behavior or a documentation category
+  is unaffected, leave it unchanged and give a brief reason in the completion
+  report. Impact assessment is required; edits to every category are not.
+- Use the focused verification below and the existing `npm run verify:docs` gate
+  when changing current Markdown documentation or its navigation. That gate does
+  not prove that behavior descriptions or user instructions are accurate; compare
+  affected content with the implementation and relevant runtime evidence.
+
 ## Scope And Architecture
 
 Every changed line should trace to the current task.
@@ -202,6 +235,19 @@ Do not require a new regression test for every trivial fix when existing evidenc
 is sufficient. Add or update a test when it materially protects the behavior,
 captures a non-obvious regression, or is required by an existing contract.
 
+Before adding coverage, search the owning suite for existing cases, helpers, and
+fixtures. Prefer reusing or extending matching coverage; add a new case only for
+a concrete coverage gap. Keep each case focused on one behavior or contract,
+and assert shared rules at their owning layer. Consumer tests should cover their
+own integration, without repeating the owner's internal details. Reuse must not
+couple mutable state, execution order, or unrelated responsibilities.
+
+If a local change requires many unrelated test edits, first distinguish actual
+contract impacts from duplicated assertions or overly broad shared fixtures.
+Address coupling within the task's scope instead of bulk-changing expectations;
+preserve coverage of distinct failure modes. Detailed reuse criteria live in the
+[testing conventions](docs/reference/engineering/test.md#复用与职责范围).
+
 Verification is **risk-based, not a mandatory ladder**.
 
 - **Small:** final diff plus one affected test, syntax check, or runtime inspection
@@ -220,7 +266,10 @@ requests, and do not build temporary infrastructure merely to prove a trivial
 change.
 
 When a full suite fails, collect its failures and resolve them together with
-focused checks before another full run. An isolated pass does not resolve a
+focused checks before another full run. Do not edit, format or stage the files
+under test while the suite is running: a whole-suite run observes files when it
+loads them, so code that changes mid-run produces results that cannot be
+attributed to one revision and must be rerun. An isolated pass does not resolve a
 failure seen only under concurrency: reproduce the triggering conditions and
 verify the fix there. Before repeating a full run, state what caused each known
 failure, what changed, and which focused evidence passed. Unexplained intermittent
@@ -252,7 +301,9 @@ longer tasks, update only on meaningful findings, decisions, blockers, or
 verification results.
 
 Final responses normally state: what changed, important files touched,
-verification actually run, and any remaining risk or limitation.
+verification actually run, the synchronization outcome for tests, technical
+documentation, and user guidance (including brief reasons for unchanged
+categories), and any remaining risk or limitation.
 
 ## Commands And Style
 

@@ -9,15 +9,19 @@ const DEFAULT_RECONNECT_EXPONENT_MAX = 6;
  * @param {Object} [options]
  * @param {Location} [options.locationRef]
  * @param {string} [options.token]
+ * @param {string} [options.topic] Subscription topic, e.g. the danmaku overlay.
  * @returns {string}
  */
 export function buildOverlaySocketUrl({
   locationRef = globalThis.location,
   token = globalThis.window?.__API_TOKEN__,
+  topic = '',
 } = {}) {
   const protocol = locationRef?.protocol === 'https:' ? 'wss:' : 'ws:';
-  const query = token ? `?token=${encodeURIComponent(String(token))}` : '';
-  return `${protocol}//${locationRef?.host || ''}/ws${query}`;
+  const query = [];
+  if (token) query.push(`token=${encodeURIComponent(String(token))}`);
+  if (topic) query.push(`topic=${encodeURIComponent(String(topic))}`);
+  return `${protocol}//${locationRef?.host || ''}/ws${query.length ? `?${query.join('&')}` : ''}`;
 }
 
 /**
@@ -32,6 +36,8 @@ export function buildOverlaySocketUrl({
  * @param {number} [options.reconnectBaseDelayMs]
  * @param {number} [options.reconnectMaxDelayMs]
  * @param {number} [options.reconnectExponentMax]
+ * @param {string} [options.topic] Subscription topic appended to the socket URL.
+ * @param {boolean} [options.closeOnError] Close the current socket on a connection error so the close path reconnects.
  * @param {Function} [options.WebSocketClass]
  * @param {Function} [options.setTimeoutFn]
  * @param {Function} [options.clearTimeoutFn]
@@ -50,6 +56,8 @@ export function createOverlaySocket(options = {}) {
     reconnectExponentMax = DEFAULT_RECONNECT_EXPONENT_MAX,
     locationRef,
     token,
+    topic = '',
+    closeOnError = false,
     WebSocketClass = globalThis.WebSocket,
     setTimeoutFn = globalThis.setTimeout,
     clearTimeoutFn = globalThis.clearTimeout,
@@ -126,7 +134,7 @@ export function createOverlaySocket(options = {}) {
     const generation = ++connectionGeneration;
     let candidate;
     try {
-      candidate = new WebSocketClass(buildOverlaySocketUrl({ locationRef, token }));
+      candidate = new WebSocketClass(buildOverlaySocketUrl({ locationRef, token, topic }));
     } catch (error) {
       onError?.(error);
       scheduleReconnect();
@@ -136,7 +144,9 @@ export function createOverlaySocket(options = {}) {
     candidate.addEventListener('open', (event) => handleOpen(candidate, generation, event));
     candidate.addEventListener('message', (event) => handleMessage(candidate, generation, event));
     candidate.addEventListener('error', (event) => {
-      if (isCurrentConnection(candidate, generation)) onError?.(event);
+      if (!isCurrentConnection(candidate, generation)) return;
+      onError?.(event);
+      if (closeOnError) candidate.close();
     });
     candidate.addEventListener('close', (event) => handleClose(candidate, generation, event));
     return candidate;

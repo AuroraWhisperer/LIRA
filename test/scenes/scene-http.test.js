@@ -12,7 +12,7 @@ const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { createSceneOutputEvents } = require('../../src/server/scene-output-events');
 const { createHttpServer } = require('../../src/server/http-server');
-const { servePageOrAsset } = require('../../src/server/http-utils');
+const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createWebSocketHub } = require('../../src/server/ws');
 const { createOverlayToken, resolveRequestPrincipal } = require('../../src/server/access-policy');
 

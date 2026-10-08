@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml, readAdminHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
@@ -8,12 +8,12 @@ const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 
 const browserFixture = createUiFixture();
 
-async function createDanmakuPage(t, state = {}) {
+async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html')) {
   const page = await browserFixture(t, 'danmaku');
   await page.evaluate(
     async ({ html, state }) => {
       const parsed = new DOMParser().parseFromString(html, 'text/html');
-      document.body.append(parsed.getElementById('otherAssistantPage'));
+      document.body.append(parsed.getElementById('otherAssistantPage') || parsed.getElementById('otherDanmakuFeature'));
       for (const id of [
         'bilibiliAuthStatus',
         'bilibiliAuthProfile',
@@ -23,7 +23,8 @@ async function createDanmakuPage(t, state = {}) {
         'bilibiliLoginBtn',
         'bilibiliLogoutBtn',
       ]) {
-        document.body.append(parsed.getElementById(id));
+        const node = parsed.getElementById(id);
+        if (node) document.body.append(node);
       }
       document.getElementById('otherDanmakuFeature').hidden = false;
       window.danmakuState = {
@@ -62,7 +63,7 @@ async function createDanmakuPage(t, state = {}) {
       });
       await window.AdminApp.danmakuTool.refresh();
     },
-    { html: readAdminHtml(), state },
+    { html, state },
   );
   return page;
 }
@@ -109,7 +110,9 @@ for (const scenario of [
 }
 
 test('successful Bilibili login refreshes danmaku once and enables sending', async (t) => {
-  const page = await createDanmakuPage(t, { loggedIn: false, canSend: false });
+  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html') +
+    readAdminFragmentHtml('pages/admin/song/settings.html');
+  const page = await createDanmakuPage(t, { loggedIn: false, canSend: false }, html);
   assert.equal(await page.locator('#danmakuSendBtn').isEnabled(), false);
   await page.evaluate(async () => {
     const { initBilibiliAuth } = await import('/js/admin/settings-auth.js');
@@ -137,7 +140,7 @@ test('successful Bilibili login refreshes danmaku once and enables sending', asy
 });
 
 test('opening a disconnected danmaku panel reconnects once and renders the refreshed state', async (t) => {
-  const page = await createDanmakuPage(t, { connected: false });
+  const page = await createDanmakuPage(t, { connected: false }, readAdminHtml());
   assert.equal(await page.locator('#danmakuToolStatus').textContent(), '可发送，监听未连接');
   assert.equal(await page.locator('#danmakuToolStatus').getAttribute('class'), 'connection-bad');
   await page.evaluate(async () => {

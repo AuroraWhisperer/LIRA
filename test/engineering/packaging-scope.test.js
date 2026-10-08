@@ -72,7 +72,6 @@ test('Moonlit resources stay out of the EXE while shared assets and trusted rend
 test('packaging excludes opening samples and only the converted PNG groups', async () => {
   assert.ok(pkg.build.files.includes('!public/img/overlays/opening/**/*'));
   for (const directory of [
-    'public/img/overlays/gift-frame/woodland-bloom',
     'public/img/overlays/danmaku-ranked',
     'public/img/overlays/danmaku-guard',
   ]) {
@@ -82,6 +81,27 @@ test('packaging excludes opening samples and only the converted PNG groups', asy
       if (!name.endsWith('.png')) continue;
       await fs.access(path.join(sourceDir, `${path.parse(name).name}.webp`));
     }
+  }
+});
+
+test('packaging omits external woodland media and authoring files while retaining its native renderer', async () => {
+  const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
+  const projectDir = path.resolve(__dirname, '../..');
+  const output = path.join(projectDir, 'tmp/woodland-packaging-match');
+  const matchers = getMainFileMatchers(projectDir, output, value => value, {}, { info: { projectDir,
+    buildResourcesDir: path.join(projectDir, pkg.build.directories.buildResources), config: pkg.build,
+    debugLogger: { isEnabled: false } } }, output, false);
+  const filter = matchers[0].createFilter();
+  const artwork = 'public/img/overlays/gift-frame/woodland-bloom';
+  const excluded = (await fs.readdir(path.join(projectDir, artwork))).map(name => `${artwork}/${name}`);
+  excluded.push('public/img/component-previews/gift-frame-default.webp', 'src/electron/AGENTS.md',
+    'public/js/admin/AGENTS.md', 'public/img/overlays/danmaku-comet/provenance.json');
+  for (const relative of excluded) {
+    const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), false, relative);
+  }
+  for (const relative of ['public/js/overlays/gift-effects-frame.js', 'public/css/overlays/gift-effects.css',
+    'public/img/gift-avatar-placeholder.svg', 'public/fonts/OFL-NotoSerifSC.txt']) {
+    const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), true, relative);
   }
 });
 

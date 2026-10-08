@@ -26,4 +26,34 @@ function formatBilibiliApiError(endpointName, response, payload, extraHint) {
   return `直播平台 API ${endpointName} failed: http=${response.status} code=${code} message=${message}. ${hint}${extraHint ? ` ${extraHint}` : ''}${data}`;
 }
 
-module.exports = { formatBilibiliApiError };
+function publicBilibiliErrorMessage(error, isReconnect = false) {
+  const prefix = isReconnect ? '重连失败' : '连接失败';
+  const message = error && error.message ? error.message : String(error);
+  if (message.includes('code=-352')) {
+    return `${prefix}：直播平台风控/校验失败（-352），请看启动窗口详情。`;
+  }
+  if (message.includes('code=-101')) {
+    return `${prefix}：直播平台要求登录信息，请看启动窗口详情。`;
+  }
+  if (message.includes('code=60004')) {
+    return `${prefix}：直播间不存在，请检查房间号。`;
+  }
+  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout/i.test(message)) {
+    return `${prefix}：无法连接直播平台服务，请检查网络或稍后重试。`;
+  }
+  if (/non-JSON|Unexpected token|Unexpected end/i.test(message)) {
+    return `${prefix}：直播平台接口返回异常内容，请稍后重试。`;
+  }
+  if (message.includes('room_init')) {
+    return `${prefix}：直播间信息获取失败，请检查房间号。`;
+  }
+  if (message.includes('getDanmuInfo')) {
+    return `${prefix}：弹幕连接信息获取失败，请看启动窗口详情。`;
+  }
+  if (message.includes('wbi_nav')) {
+    return `${prefix}：直播平台签名参数获取失败，请看启动窗口详情。`;
+  }
+  return `${prefix}：${message.slice(0, 80)}`;
+}
+
+module.exports = { formatBilibiliApiError, publicBilibiliErrorMessage };

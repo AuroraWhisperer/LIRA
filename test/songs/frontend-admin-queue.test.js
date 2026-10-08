@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom, createClock } = require('../helpers/toast-dom');
 
@@ -103,9 +103,9 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true 
       },
     },
   };
-  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/queue.js'), globals);
+  const queue = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/queue.js'), globals);
   return {
-    queue: globals.window.AdminApp.queue,
+    queue,
     elements,
     copied,
     messages,
@@ -171,7 +171,7 @@ test('SC copy reports failure when neither clipboard path succeeds', async () =>
 });
 
 test('queue actions remain unique non-submit buttons in the actual page', () => {
-  const buttons = [...readAdminHtml().matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag);
+  const buttons = [...readAdminFragmentHtml('pages/admin/song/shell-start.html').matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag);
   for (const id of ['randomSongBtn', 'nextBtn', 'clearBtn']) {
     const matches = buttons.filter((tag) => new RegExp(`\\sid\\s*=\\s*["']${id}["']`).test(tag));
     assert.equal(matches.length, 1, `${id} must be a unique button`);

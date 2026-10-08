@@ -1,7 +1,6 @@
 // 编写人：Aurora
 // 最近礼物模块 - 负责最近礼物列表渲染和图标工具函数
 import { eventBus, Events } from '../../shared/event-bus.js';
-import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { escapeHtml, formatTime, formatMoney } from '../../shared/utils.js';
 import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
 import { findBlindBoxTheme } from './blindbox-theme.js';
@@ -9,6 +8,12 @@ import { findBlindBoxTheme } from './blindbox-theme.js';
 ('use strict');
 
 let giftArtworkById = null;
+// 名称索引随目录快照整体重建：按 (id, 规范化名称) 归并，避免每行查询都扫描整个目录。
+let giftArtworkByName = null;
+
+function giftArtworkNameKey(id, normalizedName) {
+  return `${id}\u0000${normalizedName}`;
+}
 
 function normalizedGiftName(value) {
   return String(value || '')
@@ -18,14 +23,24 @@ function normalizedGiftName(value) {
     .replace(/[A-Z]/gu, (letter) => letter.toLowerCase());
 }
 
+function buildGiftArtworkNameIndex(artworkById) {
+  const byName = new Map();
+  for (const gift of artworkById?.values() || []) {
+    const key = giftArtworkNameKey(gift.id, gift.name);
+    const entry = byName.get(key);
+    if (entry) entry.count += 1;
+    else byName.set(key, { count: 1, imagePath: gift.imagePath });
+  }
+  return byName;
+}
+
 function findGiftArtwork(id, name, variantId) {
   if (variantId) return giftArtworkById?.get(variantId)?.imagePath || '';
   const normalizedName = normalizedGiftName(name);
   if (!id || !normalizedName) return '';
-  const matches = [...(giftArtworkById?.values() || [])].filter(
-    (gift) => gift.id === id && gift.name === normalizedName,
-  );
-  return matches.length === 1 ? matches[0].imagePath : '';
+  // 同一 (id, 名称) 对应多个候选时无法区分，沿用原行为不返回图片。
+  const entry = giftArtworkByName?.get(giftArtworkNameKey(id, normalizedName));
+  return entry && entry.count === 1 ? entry.imagePath : '';
 }
 
 /**
@@ -180,8 +195,14 @@ export const giftRecent = (() => {
 
     const loadedArtwork = await giftArtworkLoadPromise;
     giftArtworkLoadPromise = null;
-    if (!giftArtworkById && requestRevision === giftArtworkRevision) giftArtworkById = loadedArtwork;
-    if (!giftArtworkById) giftArtworkById = new Map();
+    if (!giftArtworkById && requestRevision === giftArtworkRevision) {
+      giftArtworkById = loadedArtwork;
+      giftArtworkByName = buildGiftArtworkNameIndex(loadedArtwork);
+    }
+    if (!giftArtworkById) {
+      giftArtworkById = new Map();
+      giftArtworkByName = new Map();
+    }
     if (latestRecentGiftItems.length > 0) renderGiftRecentList(latestRecentGiftItems);
     return giftArtworkById;
   }
@@ -213,6 +234,7 @@ export const giftRecent = (() => {
       addGiftArtwork(artworkById, gift);
     }
     giftArtworkById = artworkById;
+    giftArtworkByName = buildGiftArtworkNameIndex(artworkById);
     if (latestRecentGiftItems.length > 0) renderGiftRecentList(latestRecentGiftItems);
   }
 
@@ -358,4 +380,3 @@ export const giftRecent = (() => {
   initGiftArtworkCatalog(eventBus, Events);
   return module;
 })();
-publishGiftModule('recent', giftRecent);

@@ -140,13 +140,12 @@ export class QueueManager {
       }
 
       if (track && this.state.queueType === 'playlist') {
-        if (this.state.mode === 'sequence') {
-          this.state.playlistIndex = Math.min(this.state.normalQueueTracks.length - 1, this.state.playlistIndex + 1);
-        } else {
-          this.state.playlistIndex = this.state.normalQueueTracks.findIndex(
-            (item) => getQueueTrackKey(item) === getQueueTrackKey(track),
-          );
-        }
+        const nextIndex = this.state.playlistIndex + 1;
+        const nextTrack = this.state.normalQueueTracks[nextIndex];
+        const key = getQueueTrackKey(track);
+        this.state.playlistIndex = nextTrack && getQueueTrackKey(nextTrack) === key
+          ? nextIndex
+          : this.state.normalQueueTracks.findIndex((item) => getQueueTrackKey(item) === key);
       }
 
       if (track) delete track.playNext;
@@ -250,6 +249,9 @@ export class QueueManager {
     this.state.queueType = type;
     this.state.queueTitle = queueTitle || (type === 'radio' ? '电台队列' : '歌单队列');
     this.state.queueSourceKey = String(queueSourceKey || '');
+    if (type === 'radio' && !this.state.queueSourceKey) {
+      this.state.queueSourceKey = `${items[index].source || this.state.selectedSource}:radio`;
+    }
     this.state.playlistIndex = type === 'playlist' ? index : -1;
     this.state.shuffleOrder = [];
     this.state.shuffleCursor = 0;

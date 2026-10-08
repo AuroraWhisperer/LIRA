@@ -15,7 +15,6 @@ import {
   dangerConfirm,
 } from '../shared/utils.js';
 import { stateService } from './state.js';
-import { publishQueue } from './legacy-admin-bridge.js';
 
 function initQueueForm() {
   const randomButton = document.getElementById('randomSongBtn');
@@ -271,16 +270,5 @@ function stripRandomScopePrefix(val) {
   }
   return text;
 }
-
-publishQueue({
-  initQueueForm,
-  renderState,
-  renderSuperChatQueue,
-  applyAdminQueueFontPreview,
-  queueAction,
-  superChatAction,
-  requesterLabel,
-  sourceLabel,
-});
 
 export { initQueueForm, renderState, renderQueueState, renderSuperChatQueue, applyAdminQueueFontPreview };

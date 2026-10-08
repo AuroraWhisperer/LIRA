@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom, createClock } = require('../helpers/toast-dom');
 
@@ -100,7 +100,8 @@ test('invalid preview months are reported independently without opening or savin
 });
 
 test('the real gift page exposes every style control and the module previews through the canvas', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
+  const shell = readAdminFragmentHtml('pages/admin/shell-start.html');
   const moduleSource = fs.readFileSync(path.resolve('public/js/admin/gift-guard-thanks.js'), 'utf8');
   assert.match(html, /<button\b(?=[^>]*\sid="giftAssistantGuardTab")(?=[^>]*\saria-controls="guardThanksPanel")(?=[^>]*\sdata-gift-tab="guard")[^>]*>/);
   for (const prefix of ['guardThanksAurora', 'guardThanksClassic']) {
@@ -112,7 +113,7 @@ test('the real gift page exposes every style control and the module previews thr
   assert.doesNotMatch(html, /id="guardThanks(?:Style|Enabled|AuroraPreviewUser)"/);
   assert.equal(html.split('id="guardThanksStyleLibrary"').length - 1, 1);
   assert.doesNotMatch(html, /id="guardThanks(?:PreviewStage|OverlayUrl|SendBtn|OpenBtn|CopyBtn)"/);
-  assert.match(html, /href="\/css\/admin\/gift-guard-thanks\.css"/);
+  assert.match(shell, /href="\/css\/admin\/gift-guard-thanks\.css"/);
   assert.match(fs.readFileSync(path.resolve('public/js/admin/app.js'), 'utf8'), /initGuardThanks\(\);/);
   assert.match(moduleSource, /openComponentPreview\(\{ id: 'guard-thanks', previewData, selectedItemId: item.id \}\)/);
   assert.doesNotMatch(moduleSource, /\/gift-effects/);

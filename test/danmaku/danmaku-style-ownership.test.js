@@ -33,6 +33,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
     "@import url('./danmaku/starlight.css');",
     "@import url('./danmaku/whiteframe.css');",
     "@import url('./danmaku/sketch.css');",
+    "@import url('./danmaku/prismatic.css');",
     "@import url('./danmaku/preview.css');",
   ];
   assert.deepEqual(entry.match(/@import url\('[^']+'\);/g), expectedImports);

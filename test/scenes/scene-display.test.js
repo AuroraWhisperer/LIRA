@@ -156,24 +156,37 @@ test('only display fields leave the buffer, snapshots and appearance cannot muta
   state.styleOptions.signal.fontSize = 40;
   assert.equal(fixture.buffer.getSettings().styleOptions.signal.fontSize, 30);
   const initial = fixture.buffer.getSnapshot();
-  fixture.update('connected', { ...gift(), uid: 'PRIVATE', capability: 'PRIVATE', raw: { cookie: 'PRIVATE' } });
+  fixture.update('connected', { ...gift(), honorLevel: 45, avatarUrl: 'https://i0.hdslb.com/face.png', giftGuardLevel: 3,
+    uid: 'PRIVATE', capability: 'PRIVATE', raw: { cookie: 'PRIVATE' } });
   fixture.update('connected', { type: 'danmaku', liveSessionId: 'session-a', timestamp, name: '观众', message: '内容',
     avatarUrl: '', medalName: '', medalLevel: 0, guardLevel: 0, isStreamer: true,
+    honorLevel: 32, roomGuardLevel: 3,
+    roomMedal: { name: '当前房间', level: 28, guardLevel: 3, isLight: true,
+      colorStart: '#3FB4F699', colorEnd: '#3FB4F699', colorBorder: '#5FC7F4', colorText: '#FFFFFF', ruid: 'PRIVATE' },
     emotes: [{ text: '表情', url: 'https://i0.hdslb.com/emote.png', kind: 'inline', width: 30, height: 30, cookie: 'PRIVATE' }] });
   fixture.update('connected', { type: 'superchat', liveSessionId: 'session-a', timestamp, name: '观众', message: '原文\n内容',
     avatarUrl: '', price: 2, colors: { priceColor: '#123456', cookie: 'PRIVATE' }, uid: 'PRIVATE' });
   const snapshot = fixture.buffer.getSnapshot({ epoch: initial.epoch, cursor: 0 });
   assert.doesNotMatch(JSON.stringify(snapshot), /PRIVATE|cookie|capability|uid/);
   assert.equal(snapshot.events.length, 3);
+  assert.equal(snapshot.events[0].honorLevel, 45);
+  assert.equal(snapshot.events[0].avatarUrl, 'https://i0.hdslb.com/face.png');
+  assert.equal(snapshot.events[0].giftGuardLevel, 3);
+  assert.equal(snapshot.events[1].honorLevel, 32);
+  assert.equal(snapshot.events[1].roomGuardLevel, 3);
+  assert.deepEqual(snapshot.events[1].roomMedal, { name: '当前房间', level: 28, guardLevel: 3, isLight: true,
+    colorStart: '#3FB4F699', colorEnd: '#3FB4F699', colorBorder: '#5FC7F4', colorText: '#FFFFFF' });
   assert.equal(snapshot.events[2].message, '原文\n内容');
   snapshot.events[0].giftName = 'changed';
   snapshot.events[1].emotes[0].url = 'changed';
+  snapshot.events[1].roomMedal.name = 'changed';
   snapshot.state.confirmationMessage = 'changed';
   const settings = fixture.buffer.getSettings();
   settings.styleOptions.signal.fontSize = 48;
   const again = fixture.buffer.getSnapshot({ epoch: initial.epoch, cursor: 0 });
   assert.equal(again.events[0].giftName, '灯牌');
   assert.equal(again.events[1].emotes[0].url, 'https://i0.hdslb.com/emote.png');
+  assert.equal(again.events[1].roomMedal.name, '当前房间');
   assert.equal(again.state.confirmationMessage, '开播');
   assert.equal(fixture.buffer.getSettings().styleOptions.signal.fontSize, 30);
 });

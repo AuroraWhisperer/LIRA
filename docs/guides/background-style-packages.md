@@ -66,7 +66,7 @@ Compress-Archive -Path .\lira-pack.json, .\assets -DestinationPath ..\soft-backg
 
 ZIP 根目录必须直接是 `lira-pack.json`，不要包入多一层 `soft-background/`。完整包限制见[组件样式包指南](component-style-packages.md#打-zip-与检查)，普通媒体单文件不超过 512 MiB。
 
-1. 打开 LIRA 画布，在「添加组件 → 背景 → ＋ 添加样式 → 选择 LIRA 样式包（ZIP）」选择文件。
+1. 打开 LIRA 画布，在「添加组件 → 背景 → ＋ 添加样式 → 选择文件」选择文件。
 2. 核对预览后添加样式，点击静态或动态背景卡片加入画布。多个背景变体属于背景样式包，使用背景分类入口。
 3. 选中背景图层，在右侧展开白平衡、Lift/Gamma/Gain、辉光、周边模糊、暗角、色阶或颗粒，检查效果。旧模式显示旧分区染色，播放参数只在视频背景出现。
 4. 点「保存并应用」，使用现有直播场景来源地址放入 OBS 浏览器源或哔哩哔哩直播姬网页来源。仍使用画布提供的完整地址和尺寸，不手写 `/background` 地址或把参数拼到 URL。

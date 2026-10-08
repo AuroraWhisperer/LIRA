@@ -1,6 +1,7 @@
 'use strict';
 
-const { cleanText, normalizeGuardLevel, readObjectValue } = require('../../shared/utils');
+const { cleanText, readObjectValue } = require('../../shared/utils');
+const { normalizeGuardLevel } = require('../../shared/bilibili-value-contract');
 const { readFirstObject } = require('../utils/user-meta-extractor');
 const { firstProtoScalar, decodeBilibiliGiftV2Proto } = require('../protocols/protobuf-decoder');
 const { isBilibiliDuplicateGuardToast, isBilibiliGiftLikeCommand } = require('../parsers/gift-command-utils');

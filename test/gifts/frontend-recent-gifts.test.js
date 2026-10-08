@@ -54,8 +54,8 @@ test('recent gift cards stay within six rows as the grid width changes', async (
     created_at: index,
   }));
 
-  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
-  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList(items);
+  const { giftRecent } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
+  giftRecent.renderGiftRecentList(items);
 
   assert.equal(cards.filter((card) => !card.hidden).length, 18);
 
@@ -155,9 +155,9 @@ test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', as
     document: { getElementById: () => list },
   };
 
-  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
-  await sandbox.window.AdminApp.gifts.recent.loadGiftArtworkCatalog();
-  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
+  const { giftRecent } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
+  await giftRecent.loadGiftArtworkCatalog();
+  giftRecent.renderGiftRecentList([
     {
       gift_id: '45786',
       gift_name: '七夕鹊匣',
@@ -174,7 +174,7 @@ test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', as
   assert.match(list.innerHTML, /\/overtime-gift-images\/45786\.webp/);
   assert.doesNotMatch(list.innerHTML, /\/overtime-gift-images\/35786\.webp/);
 
-  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
+  giftRecent.renderGiftRecentList([
     {
       gift_id: '99999',
       gift_name: '盲盒产物',
@@ -190,7 +190,7 @@ test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', as
   ]);
   assert.match(list.innerHTML, /\/overtime-gift-images\/35786\.webp/);
 
-  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
+  giftRecent.renderGiftRecentList([
     {
       gift_id: '99999',
       gift_name: '七夕鹊匣',
@@ -205,7 +205,7 @@ test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', as
   assert.match(list.innerHTML, /\/img\/gift-placeholder\.png/);
   assert.doesNotMatch(list.innerHTML, /\/overtime-gift-images\/35786\.webp/);
 
-  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
+  giftRecent.renderGiftRecentList([
     {
       gift_id: '35786',
       gift_name: '七夕鹊匣产物',
@@ -245,8 +245,10 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
     document: { getElementById: () => list },
   };
 
-  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
-  const recent = sandbox.window.AdminApp.gifts.recent;
+  const { giftRecent: recent } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'),
+    sandbox,
+  );
   recent.renderGiftRecentList([
     {
       gift_id: '35792',
@@ -348,9 +350,9 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
     document: { getElementById: () => list },
   };
 
-  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
-  await sandbox.window.AdminApp.gifts.recent.loadGiftArtworkCatalog();
-  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
+  const { giftRecent } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
+  await giftRecent.loadGiftArtworkCatalog();
+  giftRecent.renderGiftRecentList([
     {
       gift_id: '35792',
       gift_name: '宸星定情',
@@ -390,8 +392,10 @@ test('recent blind-box icon names stay escaped at the HTML attribute boundary', 
     },
     document: { getElementById: () => list },
   };
-  await loadModuleExports(path.join(__dirname, '../../public/js/admin/gifts/recent.js'), globals);
-  const recent = globals.window.AdminApp.gifts.recent;
+  const { giftRecent: recent } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
+    globals,
+  );
   const names = [
     {
       raw: '自定义" data-audit-probe="name',

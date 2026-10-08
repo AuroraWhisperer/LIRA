@@ -1,6 +1,5 @@
 import * as songUtils from '../shared/utils.js';
 import { stateService } from './state.js';
-import { publishSongs } from './legacy-admin-bridge.js';
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 // 编写人：Aurora
 // 歌曲库管理
@@ -16,6 +15,21 @@ import {
 export function createSongs({ state = stateService, utils = songUtils } = {}) {
   const { escapeHtml, escapeAttr, value, setValue, toast, api, debounce, dangerConfirm } = utils;
   let savedForm = null;
+
+  function readSongFilters() {
+    return {
+      query: value('songSearch'),
+      categories: readSelectedCategories(),
+      language: value('languageFilter'),
+      artist: value('artistFilter'),
+      tags: readSelectedTags(),
+      enabledOnly: value('enabledFilter') === 'true',
+    };
+  }
+  let formVersion = 0;
+  let songTableBound = false;
+  // 行内操作按最近一次渲染的歌库快照解析目标，与逐行绑定时的闭包一致。
+  let renderedSongs = [];
 
   function readSongForm() {
     return JSON.stringify([
@@ -53,7 +67,9 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
       event.preventDefault();
       updateSongPricePreview();
       if (!document.getElementById('songRequestPrice').reportValidity()) return;
-      await api('/api/songs/save', {
+      const submittedForm = readSongForm();
+      const submittedVersion = formVersion;
+      const result = await api('/api/songs/save', {
         id: value('songId') || undefined,
         name: value('songName'),
         categoryName: value('songCategory') || '默认',
@@ -66,7 +82,16 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
         sourcePlatform: value('songSourcePlatform'),
         note: value('songNote'),
       });
-      resetSongForm();
+      if (submittedVersion === formVersion) {
+        if (readSongForm() === submittedForm) {
+          resetSongForm();
+        } else {
+          const savedValues = JSON.parse(submittedForm);
+          savedValues[0] = String(result.data.id);
+          setValue('songId', savedValues[0]);
+          savedForm = JSON.stringify(savedValues);
+        }
+      }
       toast('歌曲已保存到本地', { type: 'success' });
       await state.reloadAll();
     });
@@ -217,6 +242,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
   }
 
   function resetSongForm() {
+    formVersion += 1;
     setValue('songId', '');
     setValue('songName', '');
     setValue('songArtist', '');
@@ -234,6 +260,8 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
   }
 
   function renderSongs(songs, songLanguages, songArtists, songTags) {
+    renderedSongs = songs;
+    bindSongTableActions();
     const filtered = ['songSearch', 'languageFilter', 'artistFilter'].some((id) => value(id))
       || value('enabledFilter') === 'true' || readSelectedCategories().length || readSelectedTags().length;
     if (!filtered) {
@@ -288,74 +316,91 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     `,
       )
       .join('');
+  }
 
-    document.querySelectorAll('[data-song-actions-toggle]').forEach((button) => {
-      button.addEventListener('click', () => toggleSongActions(button));
+  // 行内操作统一由表格接收点击，避免每次重画后逐行重新绑定。
+  function bindSongTableActions() {
+    const table = document.getElementById('songsTable');
+    if (!table || songTableBound) return;
+    songTableBound = true;
+    table.addEventListener('click', (event) => {
+      const trigger = event.target.closest?.('[data-song-actions-toggle]');
+      if (trigger) {
+        toggleSongActions(trigger);
+        return;
+      }
+      const editButton = event.target.closest?.('[data-edit-song]');
+      if (editButton) {
+        void loadSongForEdit(editButton);
+        return;
+      }
+      const addButton = event.target.closest?.('[data-add-song]');
+      if (addButton) {
+        void addSongToQueue(addButton);
+        return;
+      }
+      const deleteButton = event.target.closest?.('[data-delete-song]');
+      if (deleteButton) void deleteSongFromLibrary(deleteButton);
     });
+  }
 
-    document.querySelectorAll('[data-edit-song]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        closeSongActionsFor(button);
-        const song = songs.find((item) => String(item.id) === button.dataset.editSong);
-        if (!song) return;
-        if (String(song.id) === value('songId')) {
-          document.getElementById('songName')?.focus();
-          return;
-        }
-        if (!await confirmDiscard()) {
-          document.getElementById('songName')?.focus();
-          return;
-        }
-        setValue('songId', song.id);
-        setValue('songName', song.name);
-        setValue('songArtist', song.artist || '');
-        setValue('songCategory', song.category_name || '默认');
-        setValue('songTags', song.tags || '');
-        setValue('songIsEnabled', song.is_enabled ? 'true' : 'false');
-        setValue('songLanguage', song.language || '');
-        setValue('songRequestPrice', song.request_price ?? '');
-        setValue('songClip', song.song_clip ?? '');
-        setValue('songPricePreset', '');
-        updateSongPricePreview();
-        setValue('songSourcePlatform', song.source_platform || '');
-        setValue('songNote', song.note || '');
-        savedForm = readSongForm();
-        document.getElementById('songName')?.focus();
-      });
-    });
+  async function loadSongForEdit(button) {
+    closeSongActionsFor(button);
+    const song = renderedSongs.find((item) => String(item.id) === button.dataset.editSong);
+    if (!song) return;
+    if (String(song.id) === value('songId')) {
+      document.getElementById('songName')?.focus();
+      return;
+    }
+    if (!(await confirmDiscard())) {
+      document.getElementById('songName')?.focus();
+      return;
+    }
+    formVersion += 1;
+    setValue('songId', song.id);
+    setValue('songName', song.name);
+    setValue('songArtist', song.artist || '');
+    setValue('songCategory', song.category_name || '默认');
+    setValue('songTags', song.tags || '');
+    setValue('songIsEnabled', song.is_enabled ? 'true' : 'false');
+    setValue('songLanguage', song.language || '');
+    setValue('songRequestPrice', song.request_price ?? '');
+    setValue('songClip', song.song_clip ?? '');
+    setValue('songPricePreset', '');
+    updateSongPricePreview();
+    setValue('songSourcePlatform', song.source_platform || '');
+    setValue('songNote', song.note || '');
+    savedForm = readSongForm();
+    document.getElementById('songName')?.focus();
+  }
 
-    document.querySelectorAll('[data-add-song]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        closeSongActionsFor(button);
-        const song = songs.find((item) => String(item.id) === button.dataset.addSong);
-        if (!song) return;
-        await api('/api/queue/add', {
-          songName: song.name,
-          artist: song.artist,
-          categoryName: song.category_name,
-          requesterName: '主播',
-          source: 'admin',
-        });
-        toast('已从歌库入队');
-        await state.reloadState();
-      });
+  async function addSongToQueue(button) {
+    closeSongActionsFor(button);
+    const song = renderedSongs.find((item) => String(item.id) === button.dataset.addSong);
+    if (!song) return;
+    await api('/api/queue/add', {
+      songName: song.name,
+      artist: song.artist,
+      categoryName: song.category_name,
+      requesterName: '主播',
+      source: 'admin',
     });
+    toast('已从歌库入队');
+    await state.reloadState();
+  }
 
-    document.querySelectorAll('[data-delete-song]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        closeSongActionsFor(button);
-        const confirmed = await dangerConfirm({
-          title: '删除歌曲',
-          message: '确认从歌库中删除这首歌？',
-          deletes: ['歌曲及其歌库信息'],
-          confirmLabel: '确认删除',
-        });
-        if (!confirmed) return;
-        await api('/api/songs/delete', { id: button.dataset.deleteSong });
-        toast('歌曲已删除');
-        await state.reloadAll();
-      });
+  async function deleteSongFromLibrary(button) {
+    closeSongActionsFor(button);
+    const confirmed = await dangerConfirm({
+      title: '删除歌曲',
+      message: '确认从歌库中删除这首歌？',
+      deletes: ['歌曲及其歌库信息'],
+      confirmLabel: '确认删除',
     });
+    if (!confirmed) return;
+    await api('/api/songs/delete', { id: button.dataset.deleteSong });
+    toast('歌曲已删除');
+    await state.reloadAll();
   }
 
   function renderCategoryFilter(categories) {
@@ -454,6 +499,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
 
   return {
     initSongForm,
+    readSongFilters,
     resetSongForm,
     renderSongs,
     renderCategoryFilter,
@@ -464,4 +510,3 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
 }
 
 export const songs = createSongs();
-publishSongs(songs);

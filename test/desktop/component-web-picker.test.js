@@ -72,7 +72,7 @@ test('choosing a CSS file in a subdirectory preserves sibling resources and the 
     ['skin/images/frame.png', Buffer.from([1, 2, 3])], ['skin/fonts/clock.woff2', Buffer.from([4, 5, 6])],
     ['unrelated/private.json', '{"private":true}'],
   ]);
-  const selected = await pickerFor(path.join(root, 'skin', 'css', 'style.css'))('css');
+  const selected = await pickerFor(path.join(root, 'skin', 'css', 'style.css'))('auto');
   assert.equal(selected.entry, 'css/style.css');
   const dataDir = path.join(root, 'isolated-library');
   const imported = await createComponentWebLibrary(dataDir).add(selected.files,
@@ -83,6 +83,21 @@ test('choosing a CSS file in a subdirectory preserves sibling resources and the 
   assert.deepEqual(fs.readFileSync(path.join(directory, 'images', 'frame.png')), Buffer.from([1, 2, 3]));
   assert.deepEqual(fs.readFileSync(path.join(directory, 'fonts', 'clock.woff2')), Buffer.from([4, 5, 6]));
   assert.equal(fs.existsSync(path.join(directory, 'unrelated')), false);
+});
+
+test('automatic selection returns only the selected media or archive and delays opening until authorized', async t => {
+  const bytes = Buffer.from([0, 255, 10, 23]);
+  const root = fixture(t, [['图片.webp', bytes], ['样式.zip', bytes], ['clip.mp4', bytes], ['private.json', '{}']]);
+  for (const name of ['图片.webp', '样式.zip', 'clip.mp4']) {
+    const selected = await pickerFor(path.join(root, name))('auto');
+    assert.deepEqual(Object.keys(selected).sort(), ['name', 'open', 'size']);
+    assert.equal(selected.name, name);
+    assert.equal(selected.size, bytes.length);
+    const chunks = [];
+    for await (const chunk of selected.open()) chunks.push(chunk);
+    assert.deepEqual(Buffer.concat(chunks), bytes);
+  }
+  await assert.rejects(pickerFor(path.join(root, 'private.json'))('auto'), { statusCode: 400 });
 });
 
 test('canceling, empty selection and dialog failure release the native chooser', async () => {

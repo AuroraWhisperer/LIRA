@@ -37,7 +37,7 @@ import { initSongImportUpdate } from './song-import-update.js';
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
 import { initQueueForm } from './queue.js';
-import { createAdminStateRenderer } from './state-renderer.js';
+import { createAdminStateRenderer, renderConnectionStatus } from './state-renderer.js';
 import { setComponentPreviewPreparation, getComponentPreviews } from './component-preview-registry.js';
 import { waitForServerOverlayUrlInitialization } from './server-overlay-url.js';
 import { prepareComponentPreviewCanvas } from './component-preview-canvas-controller.js';
@@ -76,6 +76,7 @@ async function initializeApp() {
   logger.debug('正在初始化...');
 
   const modules = getLegacyAdminModules();
+  stateService.setSongFiltersReader(songPanel.readSongFilters);
   modules.desktop?.initDesktopShell?.();
   settings.initSettingsForm();
   initClientAppearance();
@@ -177,6 +178,9 @@ async function initializeApp() {
   eventBus.on(Events.SONG_UPDATED, ({ songs, languages, artists, tags }) => {
     songPanel.renderSongs(songs, languages, artists, tags);
   });
+  eventBus.on('ws:connected', () => renderConnectionStatus('connected'));
+  eventBus.on('ws:disconnected', () => renderConnectionStatus('disconnected'));
+  eventBus.on('app:shutdown', () => renderConnectionStatus('shutdown'));
 
   // 连接WebSocket和加载数据
   stateService.connectSocket();

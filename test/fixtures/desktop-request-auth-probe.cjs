@@ -13,6 +13,7 @@ const { configureMediaRequestHeaders } = require('../../src/electron/media-reque
 
 const directory = process.argv[2];
 app.setPath('userData', path.join(directory, 'profile'));
+app.on('window-all-closed', () => {});
 const token = 'synthetic-electron-management-secret';
 const requests = [];
 const windows = [];
@@ -209,11 +210,12 @@ app
     fs.writeFileSync(path.join(directory, 'result.json'), JSON.stringify({ ok: false, error: error.stack, requests }));
     process.exitCode = 1;
   })
-  .finally(() => {
+  .finally(async () => {
     for (const window of windows) if (!window.isDestroyed()) window.destroy();
-    for (const server of servers) {
+    await Promise.all(servers.map((server) => new Promise((resolve) => {
       server.closeAllConnections();
-      server.close();
-    }
-    app.exit(process.exitCode || 0);
+      server.close(resolve);
+    })));
+    if (process.exitCode) app.exit(process.exitCode);
+    else app.quit();
   });

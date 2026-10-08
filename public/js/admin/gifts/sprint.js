@@ -1,4 +1,3 @@
-import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { formatMoney } from '../../shared/utils.js';
 import { renderGiftSprintOverlay } from './sprint-overlay.js';
 // 编写人：Aurora
@@ -22,4 +21,3 @@ export const giftSprint = (() => {
     renderSprintStats,
   };
 })();
-publishGiftModule('sprint', giftSprint);

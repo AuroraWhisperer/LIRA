@@ -177,23 +177,37 @@ test('browser keeps toast variants free of close controls, aligns content and pr
   const themed = await page.evaluate(async () => {
     const { showStackedToast } = await import('/js/shared/toast.js');
     const handle = showStackedToast({ key: 'theme-switch', message: '配色已应用', actionLabel: '查看', onClick: () => {}, duration: 0 });
+    const probe = document.createElement('i');
+    document.body.append(probe);
+    const tokenColor = token => {
+      if (!getComputedStyle(probe).getPropertyValue(token).trim()) throw new Error(`Missing theme token: ${token}`);
+      probe.style.color = `var(${token})`;
+      return getComputedStyle(probe).color;
+    };
     const colors = ['terracotta', 'neutral', 'classic', 'clear-jade', 'black-silver'].map((theme) => {
       document.documentElement.dataset.clientTheme = theme;
       const style = getComputedStyle(handle.node);
       const actionStyle = getComputedStyle(handle.node.querySelector('.toast-action'));
-      return { background: style.backgroundImage, text: style.color, actionText: actionStyle.color, actionFill: actionStyle.backgroundColor };
+      return { theme, background: style.backgroundImage, text: style.color,
+        actionText: actionStyle.color, actionFill: actionStyle.backgroundColor,
+        expected: {
+          background: ['--color-toast-start', '--color-toast-mid', '--color-toast-end'].map(tokenColor),
+          text: tokenColor('--color-toast-text'), actionText: tokenColor('--color-toast-on-accent'),
+          actionFill: tokenColor('--color-toast-accent'),
+        } };
     });
     const connected = handle.node.isConnected;
+    probe.remove();
     handle.close(true);
     return { colors, connected };
   });
   assert.equal(themed.connected, true);
-  assert.equal(new Set(themed.colors.map((color) => color.background)).size, 5);
-  assert.equal(new Set(themed.colors.map((color) => color.text)).size, 5);
-  assert.match(themed.colors[2].background, /rgb\(224, 228, 245\).*rgb\(211, 216, 239\).*rgb\(200, 206, 232\)/);
-  assert.equal(themed.colors[3].actionText, 'rgb(255, 255, 255)');
-  assert.equal(themed.colors[4].actionText, 'rgb(32, 38, 43)');
-  assert.equal(themed.colors[4].actionFill, 'rgb(202, 214, 223)');
+  for (const { theme, background, text, actionText, actionFill, expected } of themed.colors) {
+    assert.ok(expected.background.every(color => background.includes(color)), `${theme}: background follows theme tokens`);
+    assert.equal(text, expected.text, `${theme}: toast text follows the theme`);
+    assert.equal(actionText, expected.actionText, `${theme}: action text follows the theme`);
+    assert.equal(actionFill, expected.actionFill, `${theme}: action fill follows the theme`);
+  }
   await page.evaluate(async () => {
     const { createToastStack } = await import('/js/shared/toast.js');
     const container = document.createElement('div');
@@ -208,7 +222,8 @@ test('browser keeps toast variants free of close controls, aligns content and pr
         return currentGiftNotice;
       },
     });
-    await AdminApp.gifts.recent.loadGiftArtworkCatalog();
+    const { giftRecent } = await import('/js/admin/gifts/recent.js');
+    await giftRecent.loadGiftArtworkCatalog();
     window.giftRecord = {
       id: 1,
       gift_id: '100',

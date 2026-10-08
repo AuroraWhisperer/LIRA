@@ -6,10 +6,9 @@ const {
   cleanText,
   now,
   timestampToIso,
-  normalizeSuperChatPrice,
-  normalizeGuardLevel,
   normalizePositiveInteger,
 } = require('../shared/utils');
+const { normalizeSuperChatPrice, normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 
 const SUPER_CHAT_PIN_THRESHOLD = 2;
 const SUPER_CHAT_DISPLAY_THRESHOLD = 2;

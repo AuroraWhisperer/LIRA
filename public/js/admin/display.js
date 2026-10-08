@@ -13,7 +13,6 @@ import { registerComponentSettings } from './component-settings-sync.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 import { bindSongBoardSettings, collectSongBoardSettings, songBoardConfigFromSettings, songBoardSettingsPayload } from './song-board-settings.js';
 import { updateBlindboxOverlayUrl } from './settings.js';
-import { publishDisplay } from './legacy-admin-bridge.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
 import { initCanvasOverlaySource } from './canvas-overlay-source.js';
 
@@ -130,4 +129,3 @@ export const display = (() => {
     collectDisplay,
   };
 })();
-publishDisplay(display);

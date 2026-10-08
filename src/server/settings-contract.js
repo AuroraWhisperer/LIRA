@@ -1,6 +1,7 @@
 'use strict';
 
-const { cleanText, normalizeRoomInput } = require('../shared/utils');
+const { cleanText } = require('../shared/utils');
+const { normalizeRoomInput } = require('../bilibili/room-input');
 const {
   INTERACTION_APPEARANCE_DEFAULTS,
   normalizeInteractionAppearanceValue,

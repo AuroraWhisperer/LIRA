@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 const fixture = createUiFixture();
 
@@ -45,7 +45,7 @@ test('cloud daily controls keep confirmed state, disclose failed close and ignor
           fortune: { enabled: false, revision: 0, reason: 'disabled' },
         },
       });
-  }, readAdminHtml());
+  }, readAdminFragmentHtml('pages/admin/toolbox/danmaku.html'));
   await page.waitForFunction(() => window.dailyRequests.length === 1);
   await page.evaluate(() => window.resolveDaily(0, true));
   await page.waitForFunction(() => !document.getElementById('danmakuCheckinToggle').disabled);
@@ -118,7 +118,7 @@ for (const [name, takeover] of [
         const { initDanmakuDailyBots } = await import('/js/admin/danmaku-daily-bots.js');
         initDanmakuDailyBots({ bridge, license, toast: (message) => window.dailyToasts.push(message) });
       },
-      { html: readAdminHtml(), takeover },
+      { html: readAdminFragmentHtml('pages/admin/toolbox/danmaku.html'), takeover },
     );
     await page.waitForFunction(() => !document.getElementById('danmakuCheckinToggle').disabled);
     assert.equal(await page.locator('#dailyBotTakeover').count(), 0);

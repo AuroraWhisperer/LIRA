@@ -194,8 +194,10 @@ test('ignores data events that arrive after WebSocket cleanup', () => {
   assert.equal(socket.writes.length, 0);
 });
 
-test('WebSocket hub starts heartbeat on upgrade and releases resources on stop', async () => {
+test('WebSocket hub starts heartbeat on upgrade and releases resources on stop', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const hub = createWebSocketHub({ heartbeatIntervalMs: 5 });
+  t.after(() => hub.stop());
   const socket = new FakeSocket();
   const context = {
     sessionToken: 'synthetic-token',
@@ -208,13 +210,13 @@ test('WebSocket hub starts heartbeat on upgrade and releases resources on stop',
     socket,
   );
 
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  t.mock.timers.tick(5);
   const heartbeatCount = socket.writes.filter((write) => Buffer.isBuffer(write) && (write[0] & 0x0f) === 0x9).length;
-  assert.ok(heartbeatCount > 0, 'heartbeat should begin after a successful upgrade');
+  assert.equal(heartbeatCount, 1, 'heartbeat should begin after a successful upgrade');
 
   hub.stop();
   assert.equal(socket.ended, true);
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  t.mock.timers.tick(20);
   const stoppedHeartbeatCount = socket.writes.filter(
     (write) => Buffer.isBuffer(write) && (write[0] & 0x0f) === 0x9,
   ).length;

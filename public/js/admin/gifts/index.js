@@ -5,14 +5,8 @@ import { giftDetection } from './detection.js';
 import { giftSprint } from './sprint.js';
 import { giftRecent } from './recent.js';
 import { giftBlindbox } from './blindbox.js';
-import {
-  initGiftHistoryDrawer,
-  openGiftHistoryDrawer,
-  closeGiftHistoryDrawer,
-  loadGiftHistory,
-  initGiftRecentToggle,
-} from './history.js';
-import { publishGiftPanel } from '../legacy-admin-bridge.js';
+// 礼物历史抽屉由 app.js 直接调用，这里保留显式依赖以免组合顺序依赖副作用导入。
+import './history.js';
 
 export function renderGiftPanel(gifts, sprint, live, diagnostics, settings = {}, changedKeys = null) {
   const changed = (key) => !changedKeys || changedKeys.includes(key);
@@ -42,18 +36,3 @@ export function renderGiftPanel(gifts, sprint, live, diagnostics, settings = {},
   if (changed('settings')) giftBlindbox.renderBlindBoxList();
   else if (changed('blindBoxMapping')) giftBlindbox.renderBlindBoxMappingStatus();
 }
-
-publishGiftPanel({
-  renderGiftPanel,
-  notifyNewGift: giftNotification.notifyNewGift,
-  renderGiftRecentList: giftRecent.renderGiftRecentList,
-  renderBlindBoxList: giftBlindbox.renderBlindBoxList,
-  loadBlindBoxStats: giftBlindbox.loadBlindBoxStats,
-  renderBlindBoxStats: giftBlindbox.renderBlindBoxStats,
-  initBlindBoxStatsToggle: giftBlindbox.initBlindBoxStatsToggle,
-  initGiftHistoryDrawer,
-  openGiftHistoryDrawer,
-  closeGiftHistoryDrawer,
-  loadGiftHistory,
-  initGiftRecentToggle,
-});

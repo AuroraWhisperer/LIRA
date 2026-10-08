@@ -39,6 +39,37 @@ test('high-value artwork skips catalog lookup below the unit-price threshold and
   assert.equal(giftRecent.getHighValueGiftArtwork({ unit_price: 1000 }).src, '/img/gift-placeholder.png');
 });
 
+test('name-based artwork lookup resolves through the catalog index without rescanning it per row', async () => {
+  let scans = 0;
+  class CountingMap extends Map {
+    values() { scans += 1; return super.values(); }
+    [Symbol.iterator]() { scans += 1; return super[Symbol.iterator](); }
+  }
+  const sandbox = {
+    Map: CountingMap,
+    window: {
+      fetch: async () => ({
+        ok: true,
+        json: async () => ({ data: { gifts: [
+          { id: '1', name: '礼物', imagePath: '/overtime-gift-images/one.webp' },
+        ] } }),
+      }),
+    },
+  };
+  const { getGiftToastArtwork, giftRecent } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
+    sandbox,
+  );
+  await giftRecent.loadGiftArtworkCatalog();
+  scans = 0;
+  for (let row = 0; row < 5; row += 1) {
+    assert.equal(getGiftToastArtwork({ gift_id: '1', gift_name: '礼物' }), '/overtime-gift-images/one.webp');
+  }
+  assert.equal(scans, 0);
+  assert.equal(getGiftToastArtwork({ gift_id: '1', gift_name: '不存在的礼物' }), '');
+  assert.equal(scans, 0);
+});
+
 test('recent gifts and source-box icons keep reused IDs and repriced identities separate', async () => {
   const makeGift = (name, priceRaw, image) => {
     const gift = {
@@ -65,11 +96,10 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
       }),
     },
   };
-  const { getGiftToastArtwork } = await loadModuleExports(
+  const { getGiftToastArtwork, giftRecent: recent } = await loadModuleExports(
     path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
     sandbox,
   );
-  const recent = sandbox.window.AdminApp.gifts.recent;
   await recent.loadGiftArtworkCatalog();
   const output = {
     is_blind_box: true,

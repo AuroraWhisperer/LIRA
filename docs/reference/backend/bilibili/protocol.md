@@ -238,7 +238,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 - 大航海等级:优先 `user.guard.level`,其次当前房间勋章内的 `guard_level` 或数组回退 `info[7]` / `medalInfo[10]`([user-meta-extractor.js:46-56](../../../../src/bilibili/utils/user-meta-extractor.js#L46-L56))。
 - **仅当勋章 `target_id`(数组 `[12]`)等于主播 uid 时才计入本房间身份**(`isTargetRoom`,[user-meta-extractor.js:101-112](../../../../src/bilibili/utils/user-meta-extractor.js#L101-L112))。
 - 提取器同时保留匹配的 `targetUid` 供门面校验；旧元数据返回对象中的该值为非枚举兼容属性，不改变既有消息字段形状。
-- `normalizeGuardLevel` 只接受 `1/2/3`([utils.js:73-76](../../../../src/shared/utils.js#L73-L76))。
+- `normalizeGuardLevel` 只接受 `1/2/3`([bilibili-value-contract.js](../../../../src/shared/bilibili-value-contract.js))。
 
 弹幕产出的 `onMessage` 载荷(含 `source:'danmaku'`、`messageTimestamp`、`connectionGeneration/connectionAttempt`、归一化 cmd 和可选 `emotes`)见 [message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js),消费方是 [danmaku.md](danmaku.md) §4 的实时弹幕流及 §5 的点歌/机器人管线。
 
@@ -250,7 +250,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `id`                   | `data.id \|\| message_id \|\| token`                                                                                          |
 | `message`              | `data.message \|\| message_trans`                                                                                             |
-| `price`                | `data.price \|\| rmb \|\| price_text`(经 `normalizeSuperChatPrice`,[utils.js:58-63](../../../../src/shared/utils.js#L58-L63)) |
+| `price`                | `data.price \|\| rmb \|\| price_text`(经 `normalizeSuperChatPrice`,[bilibili-value-contract.js](../../../../src/shared/bilibili-value-contract.js)) |
 | `uid`                  | `data.uid \|\| mid \|\| user_info.uid`                                                                                        |
 | `userName`             | `user_info.uname/name/user_name \|\| data.uname/nickname`,兜底 `'观众'`                                                       |
 | `avatarUrl`            | `user_info.face/face_url/faceUrl/avatar/avatar_url`,经 `normalizeBilibiliAvatarUrl` 校验                                      |

@@ -3,7 +3,6 @@ import { formsService } from './forms.js';
 import { stateService } from './state.js';
 import { applyAdminQueueFontPreview } from './queue.js';
 import { setOverlayStyle } from './theme-style-view.js';
-import { publishTheme } from './legacy-admin-bridge.js';
 // 编写人：Aurora
 // 点歌板主题配置
 ('use strict');
@@ -86,5 +85,3 @@ export const theme = (() => {
     renderPresetCards,
   };
 })();
-
-publishTheme(theme);

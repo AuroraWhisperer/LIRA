@@ -15,6 +15,7 @@ const CONTROLS = {
   transparent: ['scrollDirection', 'giftImage'],
   identity: ['scrollDirection', 'backgroundOpacity', 'giftImage'],
   sketch: ['scrollDirection', 'backgroundOpacity'],
+  prismatic: ['scrollDirection'],
   starlight: ['scrollDirection'],
   moonlit: ['scrollDirection', 'backgroundOpacity', 'giftImage'],
   outline: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],

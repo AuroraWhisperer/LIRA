@@ -7,9 +7,12 @@ const movie = '/img/overlays/backgrounds/moonlit-loop-hq-60.webm';
 export const NAUTICAL_GUARD_ART = Object.freeze(Object.fromEntries(
   ['captain', 'admiral', 'governor'].map(tier => [tier, `/img/overlays/guard-nautical/${tier}.webp`])));
 export const NAUTICAL_GUARD_AVATAR = '/img/overlays/guard-nautical/avatar.png';
+export const WOODLAND_GIFT_VIDEO = '/img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm';
 
 // These are trusted client renderers, never code supplied by an archive.
 export const COMPONENT_RESOURCE_PRESETS = Object.freeze({
+  'woodland-gift-frame': { type: 'gift-frame', config: {}, size: [1920, 1080],
+    resources: [WOODLAND_GIFT_VIDEO], sheets: [] },
   'nautical-guard-thanks': { type: 'guard-thanks', config: { textMode: 'follow' },
     size: [1920, 1080], resources: [...Object.values(NAUTICAL_GUARD_ART), NAUTICAL_GUARD_AVATAR],
     sheets: ['/css/overlays/guard-nautical.css'] },

@@ -1,6 +1,7 @@
 'use strict';
 
-const { cleanText, normalizeGuardLevel } = require('../../shared/utils');
+const { cleanText } = require('../../shared/utils');
+const { normalizeGuardLevel } = require('../../shared/bilibili-value-contract');
 const { normalizeBilibiliAvatarUrl } = require('../parsers/danmaku-parser');
 const { IdentityCache } = require('../danmaku/identity-cache');
 const {

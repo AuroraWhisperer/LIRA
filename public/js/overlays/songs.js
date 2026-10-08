@@ -3,6 +3,8 @@ import { createOverlaySocket } from './socket-client.js';
 import { isComponentPreview } from './component-preview-client.js';
 import { SONG_BOARD_THEME_FIELDS } from '../shared/song-board-theme-fields.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
+import { hexToRgba } from './overlay-utils-module.js';
+import { applyOverlayTheme } from './overlay-theme.js';
 
 ('use strict');
 
@@ -22,7 +24,6 @@ let songListElement = null;
 let lastOrderKey = null;
 let lastLayoutKey = null;
 let lastMotionKey = null;
-const overlayUtils = window.OverlayUtils;
 let componentSongs = [];
 let componentCategory = '';
 
@@ -347,85 +348,42 @@ function primarySongArtist(song) {
     .trim();
 }
 
+// 点歌板自己的主题默认值与覆盖规则：共享 applyOverlayTheme 只负责写变量。
+const SONG_BOARD_THEME_DEFAULTS = Object.freeze({
+  themeOpacity: '0.48',
+  themeRadius: '8',
+  backdropBlur: '14',
+  glowIntensity: '2',
+  gradientEnd: '#181823',
+  overlaySongColor: '',
+});
+const SONG_BOARD_KEY_BY_THEME_KEY = Object.freeze(
+  Object.fromEntries(Object.entries(SONG_BOARD_THEME_FIELDS).map(([boardKey, themeKey]) => [themeKey, boardKey])),
+);
+
 function applyTheme(settings) {
   const useOwnTheme = settings.songBoardSyncTheme === 'false';
-
-  function resolve(mainKey, songBoardKey, defaultValue) {
-    if (useOwnTheme) {
-      const override = settings[songBoardKey];
-      if (override !== undefined && override !== '') return override;
-    }
-    return settings[mainKey] !== undefined && settings[mainKey] !== '' ? settings[mainKey] : defaultValue;
-  }
-
   const root = document.documentElement;
   const panel = document.querySelector('.overlay-panel');
-  const lowPower = overlayLowPowerEnabled(settings);
-  panel.classList.toggle('low-power', lowPower);
 
-  root.style.setProperty('--overlay-primary', resolve('themePrimary', 'songBoardThemePrimary', '#ff6f91'));
-  root.style.setProperty('--overlay-accent', resolve('themeAccent', 'songBoardThemeAccent', '#21b6a8'));
-  root.style.setProperty('--overlay-text', resolve('themeText', 'songBoardThemeText', '#fff7fb'));
-  root.style.setProperty('--overlay-opacity', resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'));
-  root.style.setProperty('--overlay-radius', `${resolve('themeRadius', 'songBoardThemeRadius', '8')}px`);
-  const songBoardFontSize = Math.max(10, Math.min(80, Number(settings.songBoardFontSize) || 28));
-  root.style.setProperty('--overlay-font-scale', String(songBoardFontSize / 16));
-
-  const primaryHex = resolve('themePrimary', 'songBoardThemePrimary', '#ff6f91');
-  const primaryRgb = hexToRgb(primaryHex);
-  root.style.setProperty('--overlay-primary-r', String(primaryRgb.r));
-  root.style.setProperty('--overlay-primary-g', String(primaryRgb.g));
-  root.style.setProperty('--overlay-primary-b', String(primaryRgb.b));
-
-  const accentHex = resolve('themeAccent', 'songBoardThemeAccent', '#21b6a8');
-  const accentRgb = hexToRgb(accentHex);
-  root.style.setProperty('--overlay-accent-r', String(accentRgb.r));
-  root.style.setProperty('--overlay-accent-g', String(accentRgb.g));
-  root.style.setProperty('--overlay-accent-b', String(accentRgb.b));
-
-  const bgHex = resolve('themeBackground', 'songBoardThemeBackground', '#181823');
-  const bgRgb = hexToRgb(bgHex);
-  root.style.setProperty('--overlay-bg-r', String(bgRgb.r));
-  root.style.setProperty('--overlay-bg-g', String(bgRgb.g));
-  root.style.setProperty('--overlay-bg-b', String(bgRgb.b));
-
-  const blur = lowPower ? 0 : Number(resolve('backdropBlur', 'songBoardBackdropBlur', '14'));
-  root.style.setProperty('--overlay-blur', `${Number.isFinite(blur) ? Math.max(0, blur) : 0}px`);
-  panel.classList.toggle('has-backdrop-blur', blur > 0);
-
-  const rawGlowIntensity = Number(resolve('glowIntensity', 'songBoardGlowIntensity', '2'));
-  const glowIntensity = lowPower || !Number.isFinite(rawGlowIntensity) ? 0 : Math.max(0, rawGlowIntensity);
-  root.style.setProperty('--overlay-glow-size', `${glowIntensity}px`);
-  root.style.setProperty(
-    '--overlay-glow-color',
-    glowIntensity > 0
-      ? `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${Math.min(0.25, glowIntensity / 80)})`
-      : 'transparent',
-  );
-
-  const gradientEnabled = resolve('enableGradient', 'songBoardEnableGradient', 'false') === 'true';
-  panel.classList.toggle('gradient-bg', gradientEnabled);
-  if (gradientEnabled) {
-    const gradHex = resolve('gradientEnd', 'songBoardGradientEnd', '#181823') || bgHex;
-    const gradRgb = hexToRgb(gradHex);
-    root.style.setProperty('--overlay-gradient-r', String(gradRgb.r));
-    root.style.setProperty('--overlay-gradient-g', String(gradRgb.g));
-    root.style.setProperty('--overlay-gradient-b', String(gradRgb.b));
+  function resolve(themeKey, defaultValue) {
+    const boardKey = SONG_BOARD_KEY_BY_THEME_KEY[themeKey];
+    if (useOwnTheme && boardKey) {
+      const override = settings[boardKey];
+      if (override !== undefined && override !== '') return override;
+    }
+    return settings[themeKey] !== undefined && settings[themeKey] !== '' ? settings[themeKey] : defaultValue;
   }
 
-  root.style.setProperty(
-    '--overlay-font-family',
-    withMultilingualFallback(resolve('overlayFontFamily', 'songBoardFontFamily', 'Microsoft YaHei')),
-  );
-  root.style.setProperty('--overlay-font-weight', resolve('overlayFontWeight', 'songBoardFontWeight', '800'));
-
-  const songColor = resolve('overlaySongColor', 'songBoardSongColor', '');
-  root.style.setProperty('--overlay-song-color', songColor || resolve('themeText', 'songBoardThemeText', '#fff7fb'));
-  root.style.setProperty('--overlay-requester-color', settings.overlayRequesterColor || '');
+  applyOverlayTheme(root, panel, settings, {
+    resolve,
+    defaults: SONG_BOARD_THEME_DEFAULTS,
+    fontScale: () => String(Math.max(10, Math.min(80, Number(settings.songBoardFontSize) || 28)) / 16),
+  });
 
   const titleEl = document.getElementById('songBoardTitle');
   if (titleEl) {
-    const customTitle = String(resolve('overlayTitle', 'songBoardTitle', '')).trim();
+    const customTitle = String(resolve('overlayTitle', '')).trim();
     titleEl.textContent = customTitle || '可点歌单';
   }
 
@@ -438,11 +396,8 @@ function applyTheme(settings) {
     root.style.removeProperty('--overlay-title-font-size');
   }
 
-  panel.style.backgroundColor = hexToRgba(bgHex, resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'));
-}
-
-function hexToRgb(hex) {
-  return overlayUtils.hexToRgb(hex);
+  const bgHex = resolve('themeBackground', '#181823');
+  panel.style.backgroundColor = hexToRgba(bgHex, resolve('themeOpacity', SONG_BOARD_THEME_DEFAULTS.themeOpacity));
 }
 
 export function scrollSpeedToDuration(value) {
@@ -461,16 +416,4 @@ export function scrollSpeedToDuration(value) {
 function resolveSongScrollSpeed(settings) {
   const urlSpeed = new URLSearchParams(location.search).get('speed');
   return Number(urlSpeed || settings?.scrollSeconds || 45);
-}
-
-function overlayLowPowerEnabled(settings) {
-  return overlayUtils.overlayLowPowerEnabled(settings);
-}
-
-function hexToRgba(hex, opacity) {
-  return overlayUtils.hexToRgba(hex, opacity);
-}
-
-function withMultilingualFallback(fontFamily) {
-  return overlayUtils.withMultilingualFallback(fontFamily);
 }

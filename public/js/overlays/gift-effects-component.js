@@ -6,6 +6,8 @@ import { createGiftFrameQueue } from './gift-frame-queue.js';
 import { createGuardThanksQueue } from './gift-effects-guard.js';
 import { createMediaEventPlayer } from './component-media.js';
 import { createNauticalGuardPlayer } from './guard-nautical-player.js';
+import { resolveComponentResource } from './component-resources.js';
+import { WOODLAND_GIFT_VIDEO } from '../shared/component-resource-style.js';
 
 export function mountGiftEffectComponent() {
   if (!isComponentPreview()) return false;
@@ -13,7 +15,6 @@ export function mountGiftEffectComponent() {
   const type = frame ? 'gift-frame' : 'guard-thanks';
   const frameRoot = document.getElementById('giftFrame');
   const video = frameRoot.querySelector('video');
-  const videoSource = video.getAttribute('src');
   const guardRoot = document.getElementById('guardThanksRoot');
   video.removeAttribute('src'); video.load();
   let queue = null;
@@ -54,8 +55,8 @@ export function mountGiftEffectComponent() {
       const media = currentMediaPlayer();
       // Configuration owns the loaded media; a queue reset only stops playback.
       const player = media ? { play: payload => media.play(payload), dispose: () => media.stop() } : null;
-      if (frame && !player) video.setAttribute('src', videoSource);
-      queue = frame ? createGiftFrameQueue({ player: player || createGiftFramePlayer({ frameRoot }) })
+      queue = frame ? createGiftFrameQueue({ player: player || createGiftFramePlayer({ frameRoot,
+        source: resolveComponentResource(WOODLAND_GIFT_VIDEO) }) })
         : createGuardThanksQueue({ root: guardRoot,
           ...(player ? { player } : {}),
           resolveMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'full' });

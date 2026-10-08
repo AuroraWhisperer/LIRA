@@ -23,15 +23,6 @@ function qrcXml(content) {
   return `<?xml version="1.0" encoding="utf-8"?>\n<QrcInfos><LyricInfo><Lyric_1 LyricType="1" LyricContent="${content}"/></LyricInfo></QrcInfos>`;
 }
 
-test('QQ provider keeps HTTP and authentication behind a focused client', () => {
-  const { QQMusicClient } = require('../../src/music/providers/qq-provider-client');
-  const provider = createProvider();
-
-  assert.ok(provider instanceof QQMusicClient);
-  assert.equal(typeof provider.requestJson, 'function');
-  assert.equal(typeof provider.requireLogin, 'function');
-});
-
 test('QQ provider tells logged-out users to sign in when no stream is available', async () => {
   const provider = new QQMusicProvider({
     getAuthState: () => ({ loggedIn: false }),

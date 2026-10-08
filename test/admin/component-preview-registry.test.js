@@ -53,7 +53,6 @@ async function loadOwner(filename, overrides = {}) {
     './state.js': { stateService: { getAppState: () => ({ settings: {} }) } },
     './queue.js': { applyAdminQueueFontPreview() {} },
     './theme-style-view.js': { setOverlayStyle() {} },
-    './legacy-admin-bridge.js': { publishTheme() {} },
     './theme-preset-cards.js': { renderPresetCards() {} },
     './queue-theme-view.js': { bindQueueTheme: (root, controller) => {
       bindings.push({ root, controller });

@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -15,7 +15,7 @@ function response(payload) {
 const ROOT_DIR = path.join(__dirname, '../..');
 
 test('admin blind box summary shows one row per viewer and opens analysis', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/gifts/page.html');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
 
   assert.match(html, /id="blindBoxAnalysisOpenBtn"/);
@@ -46,7 +46,7 @@ test('blind box summary refreshes on gift events and coalesces in-flight updates
       },
     },
   };
-  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), {
+  const { giftBlindbox } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), {
     window,
     document: {
       readyState: 'complete',
@@ -110,7 +110,7 @@ test('blind box summary refreshes on gift events and coalesces in-flight updates
   assert.match(body.innerHTML, /Test viewer/);
   assert.match(body.innerHTML, /<td>2<\/td>/);
 
-  window.AdminApp.gifts.blindbox.initBlindBoxStatsToggle();
+  giftBlindbox.initBlindBoxStatsToggle();
   assert.equal(eventBus.listenerCount('gift:received'), 1);
   assert.equal(statsRequests, 3);
   eventBus.emit('gift:received', { reason: 'database:clear-gifts' });

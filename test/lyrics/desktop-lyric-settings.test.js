@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const { readCssBundle } = require('../helpers/css-bundle');
 
 const assert = require('node:assert/strict');
@@ -12,11 +12,7 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const ROOT_DIR = path.resolve(__dirname, '../..');
 
 function readDesktopLyricHtml() {
-  const html = readAdminHtml();
-  const start = html.indexOf('<div id="desktopLyricPage"');
-  const end = html.indexOf('<section id="giftAssistantPage"', start);
-  assert.ok(start >= 0 && end > start);
-  return html.slice(start, end);
+  return readAdminFragmentHtml('pages/admin/song/desktop-lyric.html');
 }
 
 test('desktop lyric settings and preview retain named headings', () => {

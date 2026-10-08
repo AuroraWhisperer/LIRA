@@ -311,15 +311,24 @@ test('rename recovery does not replay a failed library index commit', async t =>
   const store = createComponentStyleStore(f.dataDir);
   const originalRename = fs.renameSync;
   const indexPath = path.join(store.root, 'index.json');
+  let packageRenameAttempts = 0;
   let packageRenames = 0;
   let indexRenames = 0;
   fs.renameSync = (from, to) => {
-    if (path.dirname(from) === store.root && path.basename(from).startsWith('.pending-')) packageRenames++;
+    const installing = path.dirname(from) === store.root && path.basename(from).startsWith('.pending-');
+    if (installing) {
+      assert.equal(indexRenames, 0, 'Installation must not replay after an index commit failure');
+      if (++packageRenameAttempts === 1) {
+        throw Object.assign(new Error('Temporary Windows file lock'), { code: 'EPERM', syscall: 'rename', path: from, dest: to });
+      }
+    }
     if (to === indexPath) {
       indexRenames++;
       throw Object.assign(new Error('Index write failed'), { code: 'EPERM', syscall: 'rename', path: from, dest: to });
     }
-    return originalRename(from, to);
+    const result = originalRename(from, to);
+    if (installing) packageRenames++;
+    return result;
   };
   try {
     await assert.rejects(createComponentWebLibrary(f.dataDir).add(files([['index.html', '<h1>Clock</h1>']]), description, () => {}),
@@ -441,4 +450,28 @@ test('native import routes handle cancellation, unavailable chooser and authoriz
   const imported = await pickRoute(context, { ...body, description: { ...description, entry: '../not-selected.html' } });
   assert.equal(imported.status, 200, imported.error);
   assert.match(imported.data.styles[0].config.url, /\/index\.html$/);
+});
+
+test('automatic file selection streams bytes without exposing paths and rechecks authorization before opening', async t => {
+  const f = await fixture(t);
+  let opened = 0;
+  const selected = { name: '图片.webp', size: image.length, open() { opened++; return Readable.from([image]); } };
+  const context = { sessionToken: f.token, system: { dataDir: f.dataDir, pickComponentWebFile: async kind => {
+    assert.equal(kind, 'auto'); return selected;
+  } } };
+  const req = Readable.from([Buffer.from(JSON.stringify({ kind: 'auto', description }))]);
+  Object.assign(req, { method: 'POST', headers: { authorization: `Bearer ${f.token}` } });
+  const res = new PassThrough(); const headers = {}; const chunks = [];
+  res.setHeader = (key, value) => { headers[key] = value; };
+  res.writeHead = (status, values) => { assert.equal(status, 200); Object.assign(headers, values); };
+  res.on('data', chunk => chunks.push(chunk));
+  await handleStyles(context, req, res, new URL('http://127.0.0.1/api/component-styles/pick-web'));
+  assert.deepEqual(Buffer.concat(chunks), image);
+  assert.equal(headers['Content-Type'], 'application/octet-stream');
+  assert.equal(decodeURIComponent(headers['X-Lira-Filename']), '图片.webp');
+  assert.equal(opened, 1);
+  context.system.pickComponentWebFile = async () => { context.sessionToken = 'revoked'; return selected; };
+  assert.equal((await pickRoute(context, { kind: 'auto', description }, f.token)).status, 403);
+  assert.equal(opened, 1);
+  assertEmptyLibrary(f.dataDir);
 });

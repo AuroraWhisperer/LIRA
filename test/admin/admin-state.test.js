@@ -34,11 +34,6 @@ function createGlobals(fetch) {
         events.push(event);
       },
     },
-    document: {
-      getElementById() {
-        return { hidden: false, textContent: '', className: '' };
-      },
-    },
     CustomEvent: class CustomEvent {
       constructor(type, init) {
         this.type = type;
@@ -57,12 +52,11 @@ async function createSongReloadHarness() {
     requests.push({ url, ...request });
     return request.promise;
   });
-  const filters = { songSearch: 'older' };
+  const filters = { query: 'older' };
   globals.URLSearchParams = URLSearchParams;
-  globals.document.getElementById = (id) => ({ value: filters[id] || '' });
-  globals.document.querySelectorAll = () => [];
   const { StateService } = await loadModuleExports(STATE_PATH, globals);
   const service = new StateService();
+  service.setSongFiltersReader(() => filters);
   const updates = [];
   globals.window.AdminApp.eventBus.on('song:updated', ({ songs }) => updates.push(songs));
   let stateReloads = 0;
@@ -84,6 +78,64 @@ function resolveSongs(request, songs) {
   request.resolve({ json: async () => ({ ok: true, data: songs }) });
 }
 
+test('Admin loads explicit song filters without a document or a page filter reader', async () => {
+  const { service, requests } = await createSongReloadHarness();
+  service.setSongFiltersReader(() => {
+    throw new Error('explicit filters must not read page state');
+  });
+  const reload = service.reloadSongs({
+    reloadState: false,
+    filters: {
+      query: '歌曲 & 名称',
+      categories: ['流行', '古风'],
+      language: '中文',
+      artist: '歌手 / 合唱',
+      tags: ['弹唱', '夜晚'],
+      enabledOnly: true,
+    },
+  });
+  const params = new URL(requests[0].url, 'http://localhost').searchParams;
+  assert.equal(params.get('query'), '歌曲 & 名称');
+  assert.deepEqual(params.getAll('category'), ['流行', '古风']);
+  assert.equal(params.get('language'), '中文');
+  assert.equal(params.get('artist'), '歌手 / 合唱');
+  assert.deepEqual(params.getAll('tag'), ['弹唱', '夜晚']);
+  assert.equal(params.get('enabledOnly'), 'true');
+  resolveSongs(requests[0], [{ id: 1 }]);
+  await reload;
+  assert.equal(service.getSongs()[0].id, 1);
+});
+
+test('the song page supplies current search controls and selected categories and tags', async () => {
+  const values = {
+    songSearch: '新歌',
+    languageFilter: '中文',
+    artistFilter: '歌手',
+    enabledFilter: 'true',
+  };
+  const selected = {
+    '[data-category-filter]:checked': [{ value: '流行' }, { value: '古风' }],
+    '[data-tag-filter]:checked': [{ value: '弹唱' }],
+  };
+  const { songs } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/songs.js'), {
+    document: {
+      getElementById: (id) => ({ value: values[id] }),
+      querySelectorAll: (selector) => selected[selector],
+    },
+  });
+  const filters = songs.readSongFilters();
+  assert.equal(filters.query, '新歌');
+  assert.equal(filters.language, '中文');
+  assert.equal(filters.artist, '歌手');
+  assert.deepEqual(Array.from(filters.categories), ['流行', '古风']);
+  assert.deepEqual(Array.from(filters.tags), ['弹唱']);
+  assert.equal(filters.enabledOnly, true);
+  values.songSearch = '更新筛选';
+  values.enabledFilter = '';
+  assert.equal(songs.readSongFilters().query, '更新筛选');
+  assert.equal(songs.readSongFilters().enabledOnly, false);
+});
+
 test('admin initial song loading does not request application state again', async () => {
   const requests = [];
   const songs = [{ id: 1, name: '初始歌单' }];
@@ -94,8 +146,6 @@ test('admin initial song loading does not request application state again', asyn
     return { json: async () => ({ ok: true, data: pathname === '/api/state' ? { settings: {}, queue: [] } : songs }) };
   });
   globals.URLSearchParams = URLSearchParams;
-  globals.document.getElementById = () => ({ value: '' });
-  globals.document.querySelectorAll = () => [];
   const { StateService } = await loadModuleExports(STATE_PATH, globals);
   const service = new StateService();
 
@@ -171,7 +221,7 @@ for (const reloadState of [true, false]) {
       service.songs = initialSongs;
       const options = reloadState ? undefined : { reloadState: false };
       const olderReload = service.reloadSongs(options);
-      filters.songSearch = 'newer';
+      filters.query = 'newer';
       const newerReload = service.reloadSongs(options);
       assert.deepEqual(
         requests.map(({ url }) => url),
@@ -213,7 +263,7 @@ test('Admin ignores an older song response whose JSON finishes after a newer rel
     },
   });
   await parsing.promise;
-  filters.songSearch = 'newer';
+  filters.query = 'newer';
   const newerReload = service.reloadSongs({ reloadState: false });
   const newerSongs = [{ id: 2 }];
   resolveSongs(requests[1], newerSongs);
@@ -237,7 +287,7 @@ test('Admin does not emit an obsolete song update after waiting for application 
   resolveSongs(requests[0], [{ id: 1 }]);
   await stateStarted.promise;
 
-  filters.songSearch = 'newer';
+  filters.query = 'newer';
   const newerReload = service.reloadSongs({ reloadState: false });
   const newerSongs = [{ id: 2 }];
   resolveSongs(requests[1], newerSongs);
@@ -254,7 +304,7 @@ test('Admin reports the latest song request failure without accepting an older r
   const { service, filters, requests, updates } = harness;
   const initialSongs = service.getSongs();
   const olderReload = service.reloadSongs();
-  filters.songSearch = 'newer';
+  filters.query = 'newer';
   const newerReload = service.reloadSongs();
   requests[1].resolve({
     json: async () => ({ ok: false, error: '最新筛选失败' }),
@@ -376,15 +426,12 @@ test('Admin reconciles songs after reconnect with current filters and no duplica
   let query = '';
   const { service, sockets, timers } = await createSocketLifecycleHarness({
     URLSearchParams,
-    document: {
-      getElementById: (id) => ({ value: id === 'songSearch' ? query : '', hidden: false }),
-      querySelectorAll: () => [],
-    },
     fetch: async (url) => {
       requests.push(url);
       return { json: async () => ({ ok: true, data: url.startsWith('/api/songs') ? songs : {} }) };
     },
   });
+  service.setSongFiltersReader(() => ({ query }));
   const connectSnapshot = (socket) => socket.emit('message', {
     data: JSON.stringify({ type: 'snapshot', reason: 'connect', state: {} }),
   });

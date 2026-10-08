@@ -3,7 +3,6 @@
 'use strict';
 
 import { api, copyText, localOverlayOrigin, readJsonResponse, toast } from '../shared/utils.js';
-import { publishGiftEffects } from './legacy-admin-bridge.js';
 
 export const giftEffects = (() => {
   let initialized = false;
@@ -106,4 +105,3 @@ export const giftEffects = (() => {
 
   return { init };
 })();
-publishGiftEffects(giftEffects);

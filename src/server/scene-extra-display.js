@@ -3,7 +3,7 @@
 const { projectOverlayState, projectOverlayResponse } = require('./overlay-projection');
 const { scanTodayGifts, shanghaiToday } = require('../../public/js/shared/gift-feed-state.js');
 const { buildGiftCards } = require('../../public/js/shared/gift-card-model.js');
-const { getOpeningConfig } = require('./routes/opening-routes');
+const { getOpeningConfig } = require('./opening-service');
 
 function createSceneExtraDisplay({ getContext, getOwner, now = Date.now }) {
   // Slow gift/profile reads are shared across canvas instances and source polls.

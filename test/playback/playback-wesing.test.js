@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -16,7 +16,7 @@ function read(...parts) {
 }
 
 test('playback page offers a dedicated WeSing source and cache capture workspace', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/playback/page.html');
   const headerStyles = read('public', 'css', 'playback', 'header.css');
   const panelStyles = readCssBundle('public', 'css', 'playback', 'panels.css');
 

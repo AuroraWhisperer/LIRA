@@ -155,7 +155,7 @@ test('tour waits for the saved room and an actually connected live status', asyn
   let liveClass = '';
   const liveStatus = { classList: { contains: (name) => name === liveClass } };
   const config = await loadModuleExports(
-    path.join(__dirname, '../..', 'public/js/admin/interactive-tour-config.js'),
+    path.join(__dirname, '../helpers/interactive-tour-graph.js'),
     {
       window,
       document: { getElementById: (id) => id === 'roomId' ? roomInput : liveStatus },
@@ -165,7 +165,7 @@ test('tour waits for the saved room and an actually connected live status', asyn
   const roomStep = config.TOUR_CONFIG_STEPS.find((step) => step.id === 'room-id');
   const liveStep = config.TOUR_CONFIG_STEPS.find((step) => step.id === 'refresh-live');
   assert.equal(roomStep.checkCompleted(), false);
-  await window.AdminApp.state.reloadState();
+  await config.stateService.reloadState();
   assert.equal(roomStep.checkCompleted(), true);
   roomInput.value = '67890';
   assert.equal(roomStep.checkCompleted(), false);

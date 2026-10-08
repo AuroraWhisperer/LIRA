@@ -10,11 +10,6 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
   'public/js/desktop.js': 7,
   'public/js/playback/index.js': 3,
   'public/js/playback/operations/provider-operations.js': 1,
-  'public/js/playback/ui/components.js': 8,
-  'public/js/playback/ui/drawer.js': 2,
-  'public/js/playback/ui/fullscreen.js': 2,
-  'public/js/playback/ui/queue-popup.js': 2,
-  'public/js/playback/utils.js': 3,
   'public/js/shared/event-bus.js': 5,
   'public/js/shared/logger.js': 4,
   'public/js/shared/theme.js': 5,
@@ -121,12 +116,11 @@ test('storage adapters do not depend on server, desktop, or browser modules', ()
   }
 });
 
-test('reviewed overlay pages share one owned connection adapter', () => {
-  for (const name of ['queue', 'songs', 'overtime', 'blindbox']) {
-    const source = read(`public/js/overlays/${name}.js`);
-    assert.match(source, /from ['"]\.\/socket-client\.js['"]/);
-    assert.doesNotMatch(source, /new WebSocket\s*\(/);
-  }
+test('overlay pages connect only through the owned socket adapter', () => {
+  const adHocConnections = listJavaScriptFiles('public/js/overlays')
+    .filter((relativePath) => path.basename(relativePath) !== 'socket-client.js')
+    .filter((relativePath) => /new WebSocket\s*\(/.test(read(relativePath)));
+  assert.deepEqual(adHocConnections, [], 'overlay code must connect through overlays/socket-client.js');
   assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/js/shared/overlay-socket.js')), false);
 });
 
@@ -247,10 +241,33 @@ test('playback composition uses explicit factory dependencies', () => {
   assert.doesNotMatch(controller, /前向声明（解决循环依赖）/);
 });
 
-test('generic shared utilities exclude spreadsheet and ZIP codecs', () => {
+test('generic shared utilities exclude codecs and Bilibili rules', () => {
   const utilities = read('src/shared/utils.js');
 
   assert.doesNotMatch(utilities, /\b(?:createZip|readZipFiles|parseSharedStrings|parseWorksheetXml)\b/);
+  assert.doesNotMatch(utilities, /\b(?:normalizeSuperChatPrice|normalizeGuardLevel|normalizeRoomInput|publicBilibiliErrorMessage)\b/);
+});
+
+test('HTTP primitives do not aggregate page composition or domain media handlers', () => {
+  const utilities = read('src/server/http-utils.js');
+  assert.doesNotMatch(utilities, /\b(?:servePageOrAsset|serveOpeningMedia|serveOpeningCharacter|serveOvertimeGiftImage|addFrameProtectionHeaders)\b/);
+  assert.doesNotMatch(utilities, /require\(['"][^'"]*(?:bilibili\/|page-assets|opening-|gift-image|admin-page|component-preview-page)/);
+});
+
+test('opening consumers and settings operations stay independent of their HTTP routes', () => {
+  for (const file of ['scene-extra-display', 'scene-shared-appearance', 'overlay-http', 'opening-service']) {
+    assert.doesNotMatch(read(`src/server/${file}.js`), /require\(['"][^'"]*routes\/opening-routes/, file);
+  }
+  for (const file of ['opening-service', 'opening-media-store']) {
+    assert.doesNotMatch(read(`src/server/${file}.js`), /require\(['"][^'"]*(?:http-utils|routes\/)/, file);
+  }
+  assert.doesNotMatch(read('src/server/routes/opening-preview-routes.js'), /require\(['"]\.\/opening-routes['"]\)/);
+  assert.doesNotMatch(read('src/server/settings-service.js'), /require\(['"][^'"]*(?:http-utils|routes\/)/);
+  assert.doesNotMatch(read('src/server/routes/settings-routes.js'), /\b(?:prepareConfiguration|setMany|CLOCK_APPEARANCE_KEYS)\b/);
+});
+
+test('Admin state owns state ordering without reading or rendering controls', () => {
+  assert.doesNotMatch(read('public/js/admin/state.js'), /\bdocument\b|querySelector|getElementById/);
 });
 
 test('composition roots delegate mutable subsystem state to runtimes', () => {

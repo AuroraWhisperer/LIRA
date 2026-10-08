@@ -37,6 +37,26 @@ async function setup(t) {
   return { fixture, context, page, errors, media, request, dataDir };
 }
 
+// The library no longer renders its own hidden file input: an add-style entry opens the
+// source dialog, whose dialog hands the chosen file to onMedia or onArchive. That entry
+// is not inside the list container in every mount — the component picker moves it into
+// its category bar — so callers pass the host that owns the list being used.
+async function pickImportFile(page, host, file) {
+  await host.locator('.component-style-add, .preview-picker-import').first().click();
+  const source = page.getByRole('dialog', { name: '添加第三方样式', exact: true });
+  await source.waitFor();
+  await source.locator('input[type="file"]').first().setInputFiles(file);
+  return source;
+}
+
+// The suite header imports a ZIP through its own button, which drives the same
+// archive handler that the source dialog reaches for a selected .zip file.
+async function importArchive(page, host, file) {
+  const chooser = page.waitForEvent('filechooser');
+  await host.getByRole('button', { name: '导入套装', exact: true }).click();
+  await (await chooser).setFiles(file);
+}
+
 test('style ZIP classification and import apply to every registered component', async t => {
   const { fixture, page, errors } = await setup(t);
   await openCanvasDesktop(page, fixture);
@@ -77,19 +97,19 @@ test('style ZIP classification and import apply to every registered component', 
   await library.getByRole('button', { name: '添加到画布：套装背景', exact: true }).waitFor();
   assert.equal(await library.locator('.component-style-card').count(), 2);
   const archive = { name: 'style.zip', mimeType: 'application/zip', buffer: Buffer.from('synthetic upload') };
-  await library.locator('input[accept=".zip"]').setInputFiles(archive);
+  await importArchive(page, library, archive);
   await library.getByRole('status').filter({ hasText: '这是大航海感谢的样式包' }).waitFor();
   assert.deepEqual(await page.evaluate(() => window.cancelledStyleImports), ['variants']);
   await page.evaluate(() => { window.showStyleLibrary({ type: 'guard-thanks' }); window.inspectStylePack = window.examplePacks[2]; });
   await library.getByRole('button', { name: '添加到画布：紫色感谢', exact: true }).waitFor();
   assert.equal(await library.locator('.component-style-card').count(), 3);
   assert.equal(await library.getByRole('button', { name: '导入套装', exact: true }).count(), 0);
-  await library.locator('input[accept=".zip"]').setInputFiles(archive);
+  await pickImportFile(page, library, archive);
   await library.getByRole('status').filter({ hasText: '这是多个组件组合的套装' }).waitFor();
   assert.deepEqual(await page.evaluate(() => window.cancelledStyleImports), ['variants', 'suite']);
   await page.evaluate(() => { window.inspectStylePack = window.examplePacks[1]; });
-  await library.locator('input[accept=".zip"]').setInputFiles(archive);
   const confirmation = page.getByRole('dialog', { name: '确认添加样式', exact: true });
+  await pickImportFile(page, library, archive);
   await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
   await confirmation.getByRole('button', { name: '取消', exact: true }).click();
   const types = await page.evaluate(() => window.examplePacks.slice(3).map(pack => pack.id));
@@ -98,16 +118,11 @@ test('style ZIP classification and import apply to every registered component', 
       window.showStyleLibrary({ type });
       window.inspectStylePack = window.examplePacks.find(pack => pack.id === type);
     }, type);
-    const add = library.getByRole('button', { name: '＋ 添加样式', exact: true });
-    await add.waitFor();
+    await library.locator('.component-style-add').waitFor();
     const expectedCards = type === 'browser' ? 3 : ['clock', 'background'].includes(type) ? 3 : 2;
     assert.equal(await library.locator('.component-style-card').count(), expectedCards, type);
     assert.equal(await library.getByRole('button', { name: '导入套装', exact: true }).count(), 0, type);
-    await add.click();
-    const source = page.getByRole('dialog', { name: '添加第三方样式', exact: true });
-    const chooser = page.waitForEvent('filechooser');
-    await source.getByRole('button', { name: '选择 LIRA 样式包（ZIP）', exact: true }).click();
-    await (await chooser).setFiles(archive);
+    await pickImportFile(page, library, archive);
     await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
     await confirmation.getByRole('button', { name: '取消', exact: true }).click();
   }
@@ -194,7 +209,8 @@ test('every component combines built-in, standalone and suite styles in its own 
     const { SCENE_EXTRA_COMPONENTS } = await import('/js/shared/scene-extra-components.js');
     return Object.entries(COMPONENT_PREVIEW_DEFINITIONS).filter(([id]) => id !== 'browser')
       .map(([id, definition]) => ({ id, category: definition.category || id,
-        subcategory: definition.category ? SCENE_EXTRA_COMPONENTS[id].title : null }));
+        subcategory: definition.category ? SCENE_EXTRA_COMPONENTS[id].title : null,
+        hasBuiltins: !['background', 'gift-frame'].includes(id) }));
   });
   const style = type => ({ id: `suite-${type}`, type, name: `${type} 套装样式`, config: { mediaStyle: {
     kind: 'image', src: '/img/component-previews/clock-moonlit-fan.webp', width: 640, height: 400,
@@ -213,7 +229,7 @@ test('every component combines built-in, standalone and suite styles in its own 
   await page.route('https://example.test/clock', route => route.fulfill({ contentType: 'text/html', body: '<p>网页时钟</p>' }));
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
-  for (const { id, category, subcategory } of types) {
+  for (const { id, category, subcategory, hasBuiltins } of types) {
     await picker.locator(`[data-category="${category}"]`).click();
     if (subcategory) await picker.locator('.preview-picker-subcategories').getByRole('button', { name: subcategory, exact: true }).click();
     const custom = picker.locator(`[data-custom-style-id="suite-${id}"]`);
@@ -225,7 +241,10 @@ test('every component combines built-in, standalone and suite styles in its own 
       builtinCount: card.parentElement.querySelectorAll('[data-picker-style]').length,
       customIds: [...card.parentElement.querySelectorAll('[data-custom-style-id]')].map(node => node.dataset.customStyleId),
     }));
-    if (id !== 'background') assert.ok(contents.builtinCount > 0, `${id} combines built-ins with imported styles`);
+    // background and gift-frame ship no built-in cards: both are distributed as
+    // external packages, so a category without variants shows only imported styles.
+    if (hasBuiltins) assert.ok(contents.builtinCount > 0, `${id} combines built-ins with imported styles`);
+    else assert.equal(contents.builtinCount, 0, `${id} ships no built-in cards, so ${category} must import its own`);
     assert.deepEqual(contents.customIds, id === 'clock' ? ['suite-clock', 'standalone-clock', 'web-clock'] : [`suite-${id}`]);
   }
   await picker.locator('[data-category="clock"]').click();
@@ -253,10 +272,7 @@ test('danmaku picker groups all sources by motion and preserves the selected sty
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
   await picker.locator('[data-category="danmaku"]').click();
-  await picker.getByRole('button', { name: '添加样式', exact: true }).click();
-  await page.getByRole('dialog', { name: '添加第三方样式' }).waitFor();
-  await page.getByRole('dialog', { name: '添加第三方样式' }).getByRole('button', { name: '取消', exact: true }).click();
-  await picker.locator('.component-style-library input[type="file"]').first().setInputFiles(media);
+  await pickImportFile(page, picker, media);
   const editor = page.getByRole('dialog', { name: '添加弹幕装饰', exact: true });
   await editor.getByLabel('样式名称').fill('测试弹幕样式');
   await editor.getByRole('button', { name: '添加样式', exact: true }).click();
@@ -309,7 +325,7 @@ test('local styles import, replace in place, publish and survive library removal
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
   await picker.locator('[data-category="clock"]').click();
-  await picker.locator('.component-style-library input[type="file"]').first().setInputFiles(media);
+  await pickImportFile(page, picker, media);
   const editor = page.getByRole('dialog', { name: '添加时钟底图', exact: true });
   await editor.getByRole('button', { name: '添加样式', exact: true }).waitFor();
   await editor.getByLabel('样式名称').fill('我的时钟');
@@ -338,7 +354,7 @@ test('local styles import, replace in place, publish and survive library removal
   const getItem = () => desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items[0]);
   await page.getByRole('button', { name: '更换样式 / 添加素材', exact: true }).click();
   const library = page.getByRole('dialog', { name: '时钟底图样式', exact: true });
-  await library.locator('input[type="file"]').first().setInputFiles({ ...media, name: 'replacement.webp' });
+  await pickImportFile(page, library, { ...media, name: 'replacement.webp' });
   await editor.getByLabel('样式名称').fill('替换时钟');
   await editor.getByRole('button', { name: '添加样式', exact: true }).click();
   await editor.waitFor({ state: 'hidden' });
@@ -389,7 +405,7 @@ test('local styles import, replace in place, publish and survive library removal
   assert.equal(await live.locator('.component-media-art').count(), 0);
   await page.getByRole('button', { name: '更换样式 / 添加素材', exact: true }).click();
   const count = (await request('list')).flatMap(pack => pack.styles).length;
-  await library.locator('input[type="file"]').first().setInputFiles({ name: 'broken.png', mimeType: 'image/png', buffer: Buffer.from('broken') });
+  await pickImportFile(page, library, { name: 'broken.png', mimeType: 'image/png', buffer: Buffer.from('broken') });
   await editor.getByRole('status').filter({ hasText: '无法播放此素材' }).waitFor();
   assert.equal(await editor.getByRole('button', { name: '添加样式', exact: true }).isDisabled(), true);
   await editor.getByRole('button', { name: '取消', exact: true }).click();

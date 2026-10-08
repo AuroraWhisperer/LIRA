@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const test = require('node:test');
-const { servePageOrAsset } = require('../../src/server/http-utils');
+const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 
 test('public WebM supports repeated byte ranges, HEAD, suffixes and rejected out-of-bounds ranges', async (t) => {

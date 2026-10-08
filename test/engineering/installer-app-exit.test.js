@@ -14,6 +14,7 @@ const quote = (value) => value.replaceAll('$', () => '$$');
 test(
   'NSIS closes approved application windows before backing up data',
   {
+    concurrency: 3,
     skip:
       process.platform !== 'win32' || !compiler || !plugins
         ? 'Requires Windows, LIRA_TEST_MAKENSIS and LIRA_TEST_NSIS_PLUGINS'
@@ -22,6 +23,8 @@ test(
   async (t) => {
     const source = fs.readFileSync(path.join(__dirname, '../../build/installer-data.nsh'), 'utf8');
 
+    const scenarios = [];
+    // Each scenario owns a unique executable name and isolated install paths.
     for (const scenario of [
       'approved',
       'selected-directory',
@@ -31,7 +34,7 @@ test(
       'other-directory',
       'silent-exit',
     ]) {
-      await t.test(scenario, async () => {
+      scenarios.push(t.test(scenario, async () => {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-close-test-'));
         const installDir = path.join(root, '旧版 LIRA');
         const newInstallDir = path.join(root, '新版 LIRA');
@@ -180,15 +183,19 @@ test(
             await new Promise((resolve) => setTimeout(resolve, 25));
           assert.ok(fs.existsSync(ready), 'the isolated application windows must be ready');
 
-          const run = spawnSync(path.join(root, 'installer.exe'), ['/S'], {
-            windowsHide: true,
-            timeout: 30000,
+          const status = await new Promise((resolve, reject) => {
+            const installer = spawn(path.join(root, 'installer.exe'), ['/S'], {
+              windowsHide: true,
+              stdio: 'ignore',
+              timeout: 30000,
+            });
+            installer.once('error', reject);
+            installer.once('close', resolve);
           });
-          assert.equal(run.error, undefined);
           const succeeds = ['approved', 'selected-directory', 'retry', 'silent-exit'].includes(scenario);
           const report = path.join(root, 'LIRA-install-error.txt');
           assert.equal(
-            run.status,
+            status,
             succeeds ? 0 : 2,
             fs.existsSync(report) ? fs.readFileSync(report, 'utf16le') : scenario,
           );
@@ -225,7 +232,8 @@ test(
           assert.ok(path.basename(resolved).startsWith('lira-close-test-'));
           fs.rmSync(resolved, { recursive: true, force: true });
         }
-      });
+      }));
     }
+    await Promise.all(scenarios);
   },
 );

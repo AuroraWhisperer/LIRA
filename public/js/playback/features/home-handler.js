@@ -6,6 +6,7 @@ import { createPlaybackStateActions } from '../state/actions.js';
 
 import * as PlaybackUtils from '../utils.js';
 import { HomeService } from '../services/home-service.js';
+import { renderTrackRowMain } from '../ui/components.js';
 
 /**
  * 创建首页处理模块
@@ -17,7 +18,6 @@ export function createHomeHandler(deps) {
     playbackState,
     homeService,
     uiRenderer,
-    escapeHtml,
     toast,
     showError,
     savePlaybackState,
@@ -117,13 +117,7 @@ export function createHomeHandler(deps) {
       .map(
         (track, index) => `
       <div class="queue-row playback-home-row" data-playback-home-track-row-index="${index}">
-        <div class="playback-row-main">
-          ${PlaybackUtils.renderArtwork(track)}
-          <div>
-            <div class="song">${escapeHtml(track.title || '')}</div>
-            <div class="meta">${escapeHtml(PlaybackUtils.formatTrackMeta(track))}</div>
-          </div>
-        </div>
+        ${renderTrackRowMain(track)}
         <div class="queue-actions">
           <button type="button" data-playback-home-track-action="normal" data-playback-home-track-index="${index}" title="添加到播放队列末尾">入队</button>
           ${

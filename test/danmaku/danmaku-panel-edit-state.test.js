@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 
 const fixture = createUiFixture();
@@ -62,7 +62,7 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
     await import('/js/admin/danmaku-tool.js');
     window.AdminApp.danmakuTool.init();
     await window.AdminApp.danmakuTool.refresh();
-  }, readAdminHtml());
+  }, readAdminFragmentHtml('pages/admin/toolbox/danmaku.html'));
 
   assert.equal(await page.locator('#danmakuAccountState').textContent(), '测试账号');
   assert.equal(await page.locator('#danmakuRoomState').textContent(), '测试直播间');

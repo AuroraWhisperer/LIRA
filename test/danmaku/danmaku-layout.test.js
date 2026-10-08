@@ -55,7 +55,7 @@ test('invalid layout values never become a partial valid configuration', () => {
 });
 
 // Styles added after the first saved layouts may be absent from older settings.
-const OPTIONAL_REGIONS = ['sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight'];
+const OPTIONAL_REGIONS = ['sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight', 'prismatic'];
 
 test('older layouts gain each missing newer region at its default without moving saved regions', () => {
   for (const canvas of [undefined, { width: 1280, height: 720 }, { width: 1080, height: 1920 }]) {

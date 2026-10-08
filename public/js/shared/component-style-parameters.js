@@ -40,7 +40,7 @@ export const STYLE_PARAMETER_CAPABILITIES = Object.freeze({
   },
   danmaku: {
     bubble: 'panel', signal: 'panel', minimal: 'art', ranked: 'panel', transparent: 'text',
-    identity: 'panel', sketch: 'panel', starlight: 'art', moonlit: 'art', outline: 'panel', whiteframe: 'frame',
+    identity: 'panel', sketch: 'panel', prismatic: 'panel', starlight: 'art', moonlit: 'art', outline: 'panel', whiteframe: 'frame',
     cream: 'panel', glow: 'panel', starveil: 'panel', floating: 'panel', comet: 'art',
   },
 });

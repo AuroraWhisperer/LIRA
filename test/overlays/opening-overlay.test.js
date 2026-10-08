@@ -7,9 +7,10 @@ const path = require('node:path');
 const test = require('node:test');
 const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { addFrameProtectionHeaders, contentType } = require('../../src/server/http-utils');
+const { contentType } = require('../../src/server/http-utils');
+const { addFrameProtectionHeaders } = require('../../src/server/page-assets');
 const { prepareSettingsBootstrap } = require('../../src/server/settings-bootstrap');
-const openingRoutes = require('../../src/server/routes/opening-routes');
+const { getOpeningConfig } = require('../../src/server/opening-service');
 const settingsRoutes = require('../../src/server/routes/settings-routes');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const settingsStoreModule = require('../../src/storage/settings-store');
@@ -94,7 +95,8 @@ test('opening overlay keeps canvas, disabled, reduced-motion and safe text const
   assert.match(css, /\.opening-viewport\.opening-disabled/);
   assert.match(script, /textContent/);
   assert.match(css, /\.character-image\[hidden\]\s*\{\s*display:\s*none/);
-  assert.match(script, /audio:\s*'browser'/);
+  assert.match(script, /import \{ OPENING_DEFAULTS \} from '\.\.\/shared\/opening-settings\.js'/);
+  assert.match(read('public', 'js', 'shared', 'opening-settings.js'), /audio:\s*'browser'/);
   assert.match(script, /openingNameRow/);
   assert.match(script, /audio === 'browser'/);
 });
@@ -143,7 +145,7 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
   assert.equal(DEFAULT_SETTINGS.openingPixelCharacterFile, '');
   assert.equal(DEFAULT_SETTINGS.openingPixelCharacterName, '');
   assert.equal(
-    openingRoutes.getOpeningConfig({
+    getOpeningConfig({
       settings: {
         get() {
           return { openingFooter: 'SINGING LIVE' };
@@ -154,7 +156,7 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
     '欢迎来到直播间',
   );
   assert.equal(
-    openingRoutes.getOpeningConfig({
+    getOpeningConfig({
       settings: {
         get() {
           return { openingTrackMotion: 'barber' };
@@ -165,7 +167,7 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
     'barber',
   );
   assert.equal(
-    openingRoutes.getOpeningConfig({
+    getOpeningConfig({
       settings: {
         get() {
           return { openingTrackMotion: 'sparkle' };
@@ -176,7 +178,7 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
     'heart',
   );
   assert.equal(
-    openingRoutes.getOpeningConfig({
+    getOpeningConfig({
       settings: {
         get() {
           return {};
@@ -219,7 +221,7 @@ test('opening media defaults and missing uploads have no bundled fallback', asyn
         openingCharacterName: 'old image',
       },
     ]) {
-      const config = openingRoutes.getOpeningConfig({
+      const config = getOpeningConfig({
         system: { dataDir },
         settings: { get: () => values },
       });

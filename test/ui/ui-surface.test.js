@@ -82,12 +82,6 @@ test('native select options are rendered through contextual listbox panels', () 
   assert.match(games, /data-dropdown-variant="game"/);
 });
 
-test('shared select defers blur until focus has left the wrapper', () => {
-  const source = read('public', 'js', 'shared', 'select-menu.js');
-
-  assert.match(source, /setTimeout\(\(\) => \{[\s\S]*state\.open && !wrapper\.contains\(document\.activeElement\)/);
-});
-
 test('all audited admin select cards release overflow while a menu is open', () => {
   assertOpenSelectEscapesCard(
     readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css'),

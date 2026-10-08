@@ -3,6 +3,7 @@
 'use strict';
 
 import * as UIComponents from './components.js';
+import { escapeHtml } from '../../shared/utils.js';
 
 /**
  * 队列弹窗管理器
@@ -178,7 +179,6 @@ export class QueuePopup {
     if (!tracks || !tracks.length) return '';
 
     const currentIndex = state.playlistIndex;
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
     const rows = tracks
       .map((track, index) => {
@@ -206,8 +206,6 @@ export class QueuePopup {
    */
   renderQueueSection(title, queue, origin, state) {
     if (!queue || !queue.length) return '';
-
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
     const rows = queue
       .map((track, index) =>

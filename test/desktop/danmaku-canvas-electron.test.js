@@ -2,7 +2,55 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { _electron: electron, chromium } = require('playwright');
+const { chromium } = require('playwright');
+const { launchElectron } = require('../helpers/shared-electron');
+
+test('prismatic can be selected, saved, previewed and reopened through the desktop bridge', { timeout: 45000 }, async (t) => {
+  const root = path.resolve(__dirname, '../../tmp');
+  const directory = await fs.mkdtemp(path.join(root, 'prismatic-desktop-'));
+  let app;
+  let browser;
+  t.after(async () => {
+    await browser?.close(); await app?.close();
+    assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(root));
+    await fs.rm(directory, { recursive: true, force: true });
+  });
+  app = await launchElectron({ cwd: path.resolve(__dirname, '../..'),
+    args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  const desktop = await app.firstWindow();
+  await desktop.waitForURL('**/admin', { waitUntil: 'load', timeout: 15000 });
+  desktop.setDefaultTimeout(6000);
+  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  await desktop.locator('[data-danmaku-style="prismatic"]').click();
+  await desktop.getByRole('button', { name: '应用到直播画面', exact: true }).click();
+  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 柔彩气泡' }).waitFor();
+  assert.equal(await app.evaluate(() => global.canvasTest.saved().style), 'prismatic');
+  await desktop.reload();
+  await desktop.locator('[data-danmaku-style="prismatic"][aria-pressed="true"]').waitFor();
+  await desktop.locator('#danmakuPreviewOverlayBtn').click();
+  let url;
+  for (let attempt = 0; attempt < 100 && !url; attempt++) {
+    url = (await app.evaluate(() => global.canvasTest.externalUrls)).at(-1);
+    if (!url) await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  assert.equal((await fetch(url)).status, 200);
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  page.setDefaultTimeout(6000);
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(url);
+  const frame = page.locator('.component-preview-frame').contentFrame();
+  await frame.locator('body[data-style="prismatic"] .draw-danmaku-item').first().waitFor();
+  assert.equal(await page.locator('[data-preview-field="danmakuFontSize"]').inputValue(), '30');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 1);
+  assert.equal(await app.evaluate(() => global.canvasTest.saved().style), 'prismatic');
+  await page.reload();
+  await frame.locator('body[data-style="prismatic"] .draw-danmaku-item').first().waitFor();
+  assert.deepEqual(errors, []);
+});
 
 test('browser canvas keeps sandbox isolation and saves through the real desktop bridge', { timeout: 90000 }, async (t) => {
   const scratchRoot = path.resolve(__dirname, '../../tmp');
@@ -16,9 +64,10 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
     assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(scratchRoot));
     await fs.rm(directory, { recursive: true, force: true });
   });
-  app = await electron.launch({ cwd: path.resolve(__dirname, '../..'),
+  app = await launchElectron({ cwd: path.resolve(__dirname, '../..'),
     args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow();
+  await desktop.waitForURL('**/admin', { waitUntil: 'load', timeout: 15000 });
   desktop.setDefaultTimeout(5000);
   const errors = [];
   desktop.on('pageerror', (error) => errors.push(error.message));
@@ -211,7 +260,7 @@ test('effect controls retain each component style, save through desktop IPC, pub
   const root = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(root, { recursive: true });
   const directory = await fs.mkdtemp(path.join(root, 'style-parameters-'));
-  const app = await electron.launch({ cwd: path.resolve(__dirname, '../..'),
+  const app = await launchElectron({ cwd: path.resolve(__dirname, '../..'),
     args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const browser = await chromium.launch({ headless: true });
   t.after(async () => {
@@ -220,6 +269,7 @@ test('effect controls retain each component style, save through desktop IPC, pub
     await fs.rm(directory, { recursive: true, force: true });
   });
   const desktop = await app.firstWindow();
+  await desktop.waitForURL('**/admin', { waitUntil: 'load', timeout: 15000 });
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
   await desktop.locator('#danmakuPreviewOverlayBtn').click();
   let url;

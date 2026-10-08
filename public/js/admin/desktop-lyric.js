@@ -8,7 +8,6 @@ import * as sharedUtils from '../shared/utils.js';
 import { formsService } from './forms.js';
 import { stateService } from './state.js';
 import { desktopLyricPreview } from './desktop-lyric-preview.js';
-import { publishDesktopLyric } from './legacy-admin-bridge.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 
 export function createDesktopLyric({
@@ -263,4 +262,3 @@ export function createDesktopLyric({
   };
 }
 export const desktopLyric = createDesktopLyric();
-publishDesktopLyric(desktopLyric);

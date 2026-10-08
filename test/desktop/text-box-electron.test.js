@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { _electron: electron } = require('playwright');
+const { launchElectron } = require('../helpers/shared-electron');
 
 test('desktop text formatting survives rapid toggles, undo, publication and reopening', { timeout: 60000 }, async t => {
   const root = path.resolve(__dirname, '../..');
@@ -18,7 +18,7 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
     assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(scratchRoot));
     await fs.rm(directory, { recursive: true, force: true });
   });
-  app = await electron.launch({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow();
   desktop.setDefaultTimeout(5000);
   const errors = [];

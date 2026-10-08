@@ -2,6 +2,8 @@
 // 播放助手工具函数模块
 'use strict';
 
+import { escapeAttr, escapeHtml, formatCompactNumber } from '../shared/utils.js';
+
 export function getSongRequestKey(item) {
   if (item?.id === undefined || item.id === null) return '';
   // Clearing song data can restart numeric queue IDs; creation time distinguishes the new request.
@@ -184,7 +186,6 @@ export function formatPlaylistMeta(playlist) {
   const parts = [];
   if (playlist.trackCount) parts.push(`${playlist.trackCount} 首`);
   if (playlist.playCount) {
-    const formatCompactNumber = window.AdminApp?.utils?.formatCompactNumber || ((n) => n);
     parts.push(`${formatCompactNumber(playlist.playCount)} 次播放`);
   }
   if (playlist.description) parts.push(playlist.description);
@@ -199,8 +200,6 @@ export function formatPlaylistMeta(playlist) {
  * @returns {string} 封面 HTML 字符串
  */
 export function renderArtwork(item, options = {}) {
-  const escapeAttr = window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
-  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
   const coverUrl = String((item && item.coverUrl) || '').trim();
   const fallback = options.fallback || '音';
   return `

@@ -146,6 +146,49 @@ test('all eight protocol types keep live-session ordering and only appearance al
   assert.deepEqual(env.events(), events);
 });
 
+test('prismatic identity passes only official display fields without reusing an equipped medal guard', async (t) => {
+  const env = fixture(t);
+  env.controller.start();
+  await flush();
+  const event = { type: 'danmaku', liveSessionId: 'session-a', timestamp: TIMESTAMP,
+    name: '观众', message: '晚上好', avatarUrl: '', emotes: [],
+    guardLevel: 1, medalName: '其他房间', medalLevel: 60,
+    honorLevel: 45, roomGuardLevel: 0,
+    roomMedal: { name: '当前房间', level: 28, guardLevel: 0, isLight: true,
+      colorStart: '#3FB4F699', colorEnd: '#3FB4F699', colorBorder: '#5FC7F4', colorText: '#FFFFFF' } };
+  env.streams[0].send(state());
+  env.streams[0].send({ ...event, roomMedal: { ...event.roomMedal, ruid: 999, token: 'PRIVATE' } });
+  env.streams[0].send({ ...gift(), honorLevel: 81, roomGuardLevel: 3, roomMedal: event.roomMedal });
+  await flush();
+  assert.deepEqual(env.events(), [state(), event, { ...gift(), honorLevel: 81 }]);
+  assert.equal(JSON.stringify(env.updates).includes('PRIVATE'), false);
+  const unknownLighting = { ...event, roomMedal: { ...event.roomMedal } };
+  delete unknownLighting.roomMedal.isLight;
+  env.streams[0].send(unknownLighting);
+  await flush();
+  assert.deepEqual(env.events().at(-1), unknownLighting);
+});
+
+for (const patch of [
+  { honorLevel: 0 }, { honorLevel: Number.MAX_SAFE_INTEGER + 1 }, { roomGuardLevel: 4 },
+  { roomMedal: null },
+  { roomMedal: { name: '粉丝团', level: 1, guardLevel: 3, isLight: 1 } },
+  { roomMedal: { name: '粉丝团', level: 1, guardLevel: 3, isLight: true, colorStart: 'url(https://x.test)' } },
+]) {
+  test(`invalid optional identity is rejected: ${JSON.stringify(patch)}`, async (t) => {
+    const env = fixture(t);
+    env.controller.start();
+    await flush();
+    env.streams[0].send(state());
+    env.streams[0].send({ type: 'danmaku', liveSessionId: 'session-a', timestamp: TIMESTAMP,
+      name: '观众', message: '你好', avatarUrl: '', emotes: [], guardLevel: 0, medalName: '', medalLevel: 0,
+      ...patch });
+    await flush();
+    assert.deepEqual(env.events(), [state()]);
+    assert.equal(env.updates.at(-1).status, 'offline');
+  });
+}
+
 test('disconnect resets before reconnect, new connection requires a new state and epoch', async (t) => {
   const env = fixture(t);
   env.controller.start();

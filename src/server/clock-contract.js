@@ -133,6 +133,22 @@ function normalizeClockStyleOptions(value) {
   }));
 }
 
+function needsClockStyleOptionsUpdate(values) {
+  return !Object.hasOwn(values, 'clockStyleOptions')
+    && Object.values(CLOCK_APPEARANCE_KEYS).some(key => Object.hasOwn(values, key));
+}
+
+function mergeClockStyleOptions(current, values) {
+  const options = getClockConfig({ ...current, clockStyleOptions: current.clockStyleOptions || '{}' }).styleOptions;
+  const changed = getClockConfig({ ...current, ...values, clockStyleOptions: undefined });
+  const patch = Object.fromEntries(Object.entries(CLOCK_APPEARANCE_KEYS)
+    .filter(([, key]) => Object.hasOwn(values, key)).map(([field]) => [field, changed[field]]));
+  return {
+    ...values,
+    clockStyleOptions: JSON.stringify({ ...options, [changed.style]: { ...options[changed.style], ...patch } }),
+  };
+}
+
 module.exports = {
   CLOCK_SETTING_KEYS,
   CLOCK_STYLE_VALUES,
@@ -141,4 +157,6 @@ module.exports = {
   getClockConfig,
   normalizeClockSettingValue,
   normalizeClockStyleOptions,
+  needsClockStyleOptionsUpdate,
+  mergeClockStyleOptions,
 };

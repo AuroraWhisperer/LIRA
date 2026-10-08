@@ -7,13 +7,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
+const { DANMAKU_STYLE_OPTIONS } = require('../../src/shared/danmaku-style-options');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 const toolSource = () => fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
 
 test('admin danmaku input has no fixed character limit and reply bot toggles are labelled', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html');
   assert.doesNotMatch(html, /id="danmakuMessage"[^>]*maxlength=/);
   for (const name of ['Reply', 'Checkin', 'Fortune', 'CustomReply']) {
     assert.match(html, new RegExp(`id="danmaku${name}Toggle"[^>]*aria-labelledby="danmaku${name}Title"`));
@@ -23,7 +24,7 @@ test('admin danmaku input has no fixed character limit and reply bot toggles are
 });
 
 test('danmaku tool separates the fixed live overlay from the sender and reply groups', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html');
   const source = toolSource();
   const connectionSection =
     html.match(/<section\b[^>]*class="danmaku-feature-section danmaku-connection-section"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
@@ -36,9 +37,9 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     assert.equal(html.split(`id="${id}"`).length, 2, `${id} is one unique entry`);
   }
   const styleOptions = [...html.matchAll(/<button\b[^>]*\sdata-danmaku-style="([^"]+)"[^>]*>/g)].map(([, style]) => style);
-  assert.deepEqual(styleOptions.sort(), [
-    'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'starlight', 'outline', 'whiteframe', 'cream', 'glow', 'starveil', 'floating', 'comet',
-  ].sort());
+  // Moonlit is retained for imported/legacy scenes, outside the built-in picker.
+  const builtInStyles = Object.keys(DANMAKU_STYLE_OPTIONS).filter((style) => style !== 'moonlit');
+  assert.deepEqual(styleOptions.sort(), builtInStyles.sort());
   assert.match(html, /<button\b(?=[^>]*\sdata-danmaku-style="signal")(?=[^>]*\saria-pressed="true")[^>]*>/);
   for (const group of ['Fixed', 'Random', 'Floating']) {
     const tab = `danmaku${group}StyleTab`;

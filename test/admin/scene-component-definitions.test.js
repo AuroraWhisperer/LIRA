@@ -27,6 +27,7 @@ const scene = (type) => ({ schemaVersion: 1, id: randomUUID(), title: '类型契
 test('frontend capabilities, browser factories and backend adapters agree on production scene types', async () => {
   const shared = await load('shared/scene-components.js');
   const { COMPONENT_PREVIEW_DEFINITIONS: definitions } = await load('admin/component-preview-definitions.js');
+  const { hasResourceStyles } = await load('shared/component-resource-style.js');
   assert.deepEqual(plain(shared.SCENE_TYPES), SCENE_TYPES);
   assert.deepEqual(Object.keys(shared.SCENE_COMPONENTS), SCENE_TYPES);
   assert.deepEqual(Object.keys(definitions), SCENE_TYPES);
@@ -38,7 +39,7 @@ test('frontend capabilities, browser factories and backend adapters agree on pro
     assert.equal(typeof definition.createPreview, 'function');
     if (!shared.SCENE_COMPONENTS[type].external) {
       assert.equal(typeof definition.styleChange, 'function');
-      assert.ok(type === 'background' || definition.styleAttribute || definition.defaultStyle?.label || definition.variants?.length, `${type} must declare picker styles`);
+      assert.ok(hasResourceStyles(type) || definition.styleAttribute || definition.defaultStyle?.label || definition.variants?.length, `${type} must declare native or importable picker styles`);
     }
     assert.ok(['x', 'xy'].includes(shared.SCENE_COMPONENTS[type].resizeAxes));
   }

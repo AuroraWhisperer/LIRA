@@ -364,5 +364,6 @@ app.whenReady().then(async () => {
     result = { ok: false, error: error.stack };
   }
   fs.writeFileSync(path.join(directory, 'result.json'), JSON.stringify(result, null, 2));
-  app.exit(result.ok ? 0 : 1);
+  if (result.ok) app.quit();
+  else app.exit(1);
 });

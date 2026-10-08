@@ -16,6 +16,65 @@ async function createRenderer(options) {
 
 const EMOTE_CHAT = { name: '<b>观众</b>', message: '你好[星]', emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] };
 
+test('prismatic uses official honor and verified room medal while preserving safe plain text', async () => {
+  const render = await createRenderer({ style: 'prismatic' });
+  const item = { id: '1', name: '<b>名字</b>', message: '你好', honorLevel: 28, roomGuardLevel: 3,
+    roomMedal: { name: '葵绮士', level: 38, guardLevel: 3, isLight: true,
+      colorStart: '#4C7DFF99', colorEnd: '#4C7DFF99', colorBorder: '#58A1F8', colorText: '#FFFFFF' } };
+  const root = render(item);
+  const identity = findByClass(root, 'draw-danmaku-identity');
+  assert.deepEqual(identity.children.map((node) => node.className || node.tag), ['prismatic-honor', 'prismatic-medal', 'strong']);
+  assert.match(identity.children[0].src, /62fe89aef112353cfd97016b4b2cc653438642ac/);
+  assert.equal(identity.children[2].textContent, item.name);
+  assert.equal(findAllByClass(root, 'prismatic-guard').length, 1);
+  assert.equal(findByClass(root, 'prismatic-medal').style['--medal-start'], '#4C7DFF99');
+  const old = render({ ...item, honorLevel: 999, roomMedal: undefined, roomGuardLevel: undefined, guardLevel: 1, medalName: '其他房间' });
+  assert.equal(old.dataset.roomGuard, '0');
+  assert.equal(findByClass(old, 'prismatic-medal'), undefined);
+  assert.equal(findByClass(old, 'prismatic-honor'), undefined);
+  assert.equal(findByClass(old, 'prismatic-guard'), undefined);
+  const invalid = render({ ...item, roomMedal: { ...item.roomMedal, colorStart: 'url(javascript:alert(1))' } });
+  assert.equal(findByClass(invalid, 'prismatic-medal').style['--medal-start'], undefined);
+  const honor = findByClass(root, 'prismatic-honor');
+  honor.listeners.error();
+  assert.equal(findByClass(root, 'prismatic-honor'), undefined);
+});
+
+test('prismatic colors belong to individual events and remain stable after reconstruction', async () => {
+  const render = await createRenderer({ style: 'prismatic' });
+  const recipe = (root) => Object.entries(root.style).filter(([name]) => name.startsWith('--prismatic-'));
+  const recipes = new Set();
+  for (let id = 1; id <= 100; id += 1) {
+    const item = { id: String(id), uid: 'same-viewer', name: '同一人', message: '同一句话', roomGuardLevel: (id % 3) + 1 };
+    const root = render(item, id);
+    assert.equal(root.dataset.roomGuard, String(item.roomGuardLevel));
+    assert.deepEqual(recipe(root), recipe(render({ ...item }, 99 - id)));
+    recipes.add(JSON.stringify(recipe(root)));
+  }
+  assert.equal(recipes.size, 100);
+});
+
+test('prismatic preserves stickers, hides single gift quantity, and uses settled totals and classic SC', async () => {
+  const render = await createRenderer({ style: 'prismatic' });
+  for (const roomGuardLevel of [0, 1, 2, 3, undefined]) {
+    const item = { name: '观众', roomGuardLevel, message: '打call', emotes: [{ text: '打call', url: '/sticker.png', kind: 'sticker' }] };
+    assert.ok(render(item).className.includes('is-emote-only'));
+    for (const [kind, message] of [['inline', '打call'], ['inline', '打call打call'], ['inline', '你好打call'], [undefined, '打call']]) {
+      assert.ok(!render({ ...item, message, emotes: [{ ...item.emotes[0], kind }] }).className.includes('is-emote-only'), `${roomGuardLevel}: ${kind}: ${message}`);
+    }
+  }
+  for (const [giftCount, giftTotalPrice, expected] of [[1, 0.1, '¥0.1'], [3, 12.34, '¥12.34'], [1, undefined, '—']]) {
+    const root = render({ kind: 'gift', name: '送礼人', honorLevel: 45, giftName: '<b>礼物</b>', giftCount, giftTotalPrice });
+    assert.equal(findByClass(root, 'draw-danmaku-avatar'), undefined);
+    assert.equal(findByClass(root, 'draw-danmaku-gift-art'), undefined);
+    assert.equal(findByClass(root, 'draw-danmaku-gift-action').textContent, '赠送了');
+    assert.equal(findByClass(root, 'draw-danmaku-gift-amount').textContent, expected);
+    assert.equal(findAllByClass(root, 'draw-danmaku-gift-count').length, giftCount > 1 ? 1 : 0);
+    assert.equal(findAllByClass(root, 'prismatic-honor').length, 1);
+  }
+  assert.ok(findByClass(render({ kind: 'superchat', message: 'SC原文', name: '留言人', price: 30 }), 'sc-ranked'));
+});
+
 test('SC uses exact Bilibili tier colors with 2-yuan fallback and validated upstream overrides', async () => {
   const { getSuperChatColors } = await import(pathToFileURL(path.join(OVERLAYS, 'danmaku-superchat-renderer.js')).href);
   for (const [price, surface, accent, label] of [

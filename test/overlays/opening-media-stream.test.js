@@ -135,7 +135,7 @@ for (const kind of ['opening-music', 'opening-character']) {
       });
       const result = spawnSync(
         process.execPath,
-        ['-e', probe, require.resolve('../../src/server/http-utils'), kind, scenario, root],
+        ['-e', probe, require.resolve('../../src/server/opening-media-http'), kind, scenario, root],
         { encoding: 'utf8', timeout: 5000, windowsHide: true },
       );
       assert.equal(result.error, undefined);

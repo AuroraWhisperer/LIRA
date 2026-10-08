@@ -273,7 +273,7 @@ test('revoked refresh retains unsaved layout and parameters, and reopening resto
   assert.equal(fixture.service.list()[0].publishedVersion, 0);
   assert.equal(fixture.service.list()[0].document.items.length, 0);
   await desktop.evaluate(() => window.previewHandle.close());
-  await page.getByRole('status').filter({ hasText: '预览连接已结束' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '预览连接已结束' }).waitFor();
   blockEdits = false;
   await page.reload();
   await page.getByRole('status').filter({ hasText: '已找回上次编辑进度' }).waitFor();

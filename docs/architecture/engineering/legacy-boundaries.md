@@ -11,7 +11,12 @@ the named test and test case are the only numeric authority.
   compatibility boundary for new Admin ESM consumers. Admin feature modules
   now use explicit imports or injected capabilities; app composition retains
   bridge access for external desktop/playback lifecycle producers. Legacy
-  publication is confined to the bridge within `public/js/admin/`.
+  publication is confined to the bridge within `public/js/admin/`. Publication is
+  consumer-driven: a publisher exists only while a production or test consumer
+  reads that entry. Entries published without readers were removed rather than
+  kept as placeholders, and the bridge itself is exempt from the numeric budget,
+  so removing a publisher is the preferred direction when its last consumer goes
+  away.
 - **New-code rule:** Do not add a `window.AdminApp` dependency outside the bridge.
   Use named ESM imports and explicit narrow interfaces.
 - **Task-scoped migration:** A touched module may move calls behind the bridge or
@@ -59,7 +64,7 @@ transaction, retry and idempotency behavior.
 
 ## Shared Utility Aggregation
 
-- **Current shape:** `src/shared/utils.js` is a high-fan-in aggregation point.
+- **Current shape:** `src/shared/utils.js` remains a high-fan-in aggregation point for domain-neutral utilities. Bilibili SC prices and guard levels live in the pure `src/shared/bilibili-value-contract.js`; room parsing lives in `src/bilibili/room-input.js`, and public error wording lives in `src/bilibili/api-error.js`. Storage consumes the shared value contract without depending on platform runtimes.
 - **New-code rule:** Add domain-neutral helpers to a focused, single-topic shared
   module; domain or protocol behavior stays with its owner.
 - **Task-scoped migration:** Extract a coherent helper only when the current task
@@ -67,7 +72,7 @@ transaction, retry and idempotency behavior.
 - **Target architecture:** Small stable shared modules expose pure utilities with
   clear subjects and no runtime resource ownership.
 - **Enforcement:** N/A - prose boundary. Selected regression assertions in
-  `test/engineering/module-boundaries.test.js` prevent known spreadsheet and ZIP codecs from
+  `test/engineering/module-boundaries.test.js` prevent known spreadsheet/ZIP codecs and Bilibili rules from
   returning to the aggregation point; review covers other topics.
 
 ## Mutable Behavior In Composition Roots

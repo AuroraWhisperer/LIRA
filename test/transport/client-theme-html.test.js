@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
-const { servePageOrAsset } = require('../../src/server/http-utils');
+const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createRuntimeTransport } = require('../../src/server/runtime-transport');
 
 const publicDir = path.resolve(__dirname, '../../public');

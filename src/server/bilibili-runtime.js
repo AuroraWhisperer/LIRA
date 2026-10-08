@@ -6,6 +6,8 @@ const { createGameWinnerProfileResolver } = require('../bilibili/users/game-winn
 const { BilibiliUserProfileProvider } = require('../bilibili/users/profile-provider');
 const { UserInfoService } = require('../bilibili/users/user-info-service');
 const sharedUtils = require('../shared/utils');
+const { normalizeRoomInput } = require('../bilibili/room-input');
+const { publicBilibiliErrorMessage } = require('../bilibili/api-error');
 const { logBilibiliDiagnostic, summarizeConnectionAuth } = require('../bilibili/diagnostics');
 
 function createBilibiliRuntime(options) {
@@ -83,7 +85,7 @@ function createBilibiliRuntime(options) {
   });
 
   function getConfiguredRoomId() {
-    return sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId);
+    return normalizeRoomInput(settingsStore.getSettings().roomId);
   }
 
   function getGameApiClient() {
@@ -150,7 +152,7 @@ function createBilibiliRuntime(options) {
   function configure(force = false) {
     if (stopped) return;
     const settings = settingsStore.getSettings();
-    const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
+    const roomId = normalizeRoomInput(settings.roomId);
     const enabled = (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) === 'true' && roomId;
     options.onRealtimeStatus?.();
     setActiveDanmakuRoom(enabled ? roomId : '');
@@ -177,7 +179,7 @@ function createBilibiliRuntime(options) {
         enabled: true,
         roomId,
         mode: 'bilibili',
-        message: sharedUtils.publicBilibiliErrorMessage(error, true),
+        message: publicBilibiliErrorMessage(error, true),
       });
     });
   }
@@ -185,7 +187,7 @@ function createBilibiliRuntime(options) {
   async function reconnect() {
     if (stopped) throw new Error('Bilibili runtime is shutting down.');
     const settings = settingsStore.getSettings();
-    const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
+    const roomId = normalizeRoomInput(settings.roomId);
     const enabled = (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) === 'true' && roomId;
     logBilibiliDiagnostic('refresh-requested', {
       roomId,

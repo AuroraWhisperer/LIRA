@@ -22,6 +22,8 @@ const wsTransport = require('./server/ws');
 const { createDomainServices } = require('./server/domain-services');
 const { createSceneRuntime } = require('./server/scene-runtime');
 const sharedUtils = require('./shared/utils');
+const { normalizeRoomInput } = require('./bilibili/room-input');
+const { publicBilibiliErrorMessage } = require('./bilibili/api-error');
 const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
 const { createGiftSyncStore } = require('./storage/gift-sync-store');
 const { migrateCacheData } = require('./storage/data-directory-migration');
@@ -371,9 +373,9 @@ function createServerRuntime(runtimeOptions = {}) {
             bilibiliRuntime?.updateStatus({
               connected: false,
               enabled: true,
-              roomId: sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId),
+              roomId: normalizeRoomInput(settingsStore.getSettings().roomId),
               mode: 'bilibili',
-              message: sharedUtils.publicBilibiliErrorMessage(error, true),
+              message: publicBilibiliErrorMessage(error, true),
             });
           });
         }

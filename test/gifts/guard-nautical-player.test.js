@@ -32,13 +32,11 @@ test('client imports nautical style, applies it and renders tier, live identity,
     initComponentStyleLibraries();
   }, fs.readFileSync('public/pages/admin/toolbox/gift.html', 'utf8'));
   const library = desktop.locator('#guardThanksStyleLibrary');
-  await library.getByRole('button', { name: '＋ 添加样式', exact: true }).waitFor({ state: 'visible' });
+  await library.locator('.component-style-add').waitFor({ state: 'visible' });
   assert.equal(await library.getByRole('button', { name: '导入套装', exact: true }).count(), 0);
-  await library.getByRole('button', { name: '＋ 添加样式', exact: true }).click();
+  await library.locator('.component-style-add').click();
   const importDialog = desktop.getByRole('dialog', { name: '添加第三方样式' });
-  const fileChooser = desktop.waitForEvent('filechooser');
-  await importDialog.getByRole('button', { name: '选择 LIRA 样式包（ZIP）', exact: true }).click();
-  await (await fileChooser).setFiles(archive);
+  await importDialog.locator('input[type="file"]').first().setInputFiles(archive);
   const confirmation = desktop.getByRole('dialog', { name: '确认添加样式' });
   await confirmation.getByRole('button', { name: '添加样式', exact: true }).click();
   await confirmation.waitFor({ state: 'hidden' });

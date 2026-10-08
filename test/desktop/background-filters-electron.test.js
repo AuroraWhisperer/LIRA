@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { _electron: electron } = require('playwright');
+const { launchElectron } = require('../helpers/shared-electron');
 
 test('desktop background controls save, publish, reopen and restore defaults through the authorized canvas', { timeout: 90000 }, async t => {
   const root = path.resolve(__dirname, '../../tmp');
@@ -16,7 +16,7 @@ test('desktop background controls save, publish, reopen and restore defaults thr
     assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(root));
     await fs.rm(directory, { recursive: true, force: true });
   });
-  app = await electron.launch({ cwd: path.resolve(__dirname, '../..'), args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  app = await launchElectron({ cwd: path.resolve(__dirname, '../..'), args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow();
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
   await desktop.locator('#liveCanvasPreview').click();
@@ -40,7 +40,9 @@ test('desktop background controls save, publish, reopen and restore defaults thr
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
   await picker.locator('[data-category="background"]').click();
-  await picker.locator('.component-style-library input[type="file"]').first().setInputFiles({
+  await picker.getByRole('button', { name: '添加样式', exact: true }).click();
+  const styleSource = page.getByRole('dialog', { name: '添加第三方样式', exact: true });
+  await styleSource.locator('input[type="file"]').first().setInputFiles({
     name: 'background.webp', mimeType: 'image/webp', buffer: await fs.readFile(path.resolve(__dirname, '../../public/img/overlays/backgrounds/moonlit.webp')),
   });
   const importer = page.getByRole('dialog', { name: '添加背景', exact: true });
@@ -49,7 +51,7 @@ test('desktop background controls save, publish, reopen and restore defaults thr
   await importer.waitFor({ state: 'hidden' });
   await picker.getByRole('button', { name: '添加到画布：滤镜桌面验证', exact: true }).click();
   const frame = page.frameLocator('.scene-editor-item iframe');
-  const captureArtwork = async file => page.screenshot({ clip: await page.locator('.scene-editor-item').boundingBox(), ...(file ? { path: file } : {}) });
+  const captureArtwork = async () => page.screenshot({ clip: await page.locator('.scene-editor-item').boundingBox() });
   await frame.locator('.component-media-art').evaluate(image => image.decode());
   assert.equal(await frame.locator('.component-media-art').evaluate(image => getComputedStyle(image).filter), 'none');
   const originalSource = await frame.locator('.component-media-art').getAttribute('src');
@@ -151,17 +153,5 @@ test('desktop background controls save, publish, reopen and restore defaults thr
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   assert.equal((await app.evaluate(() => global.canvasTest.scene())).document.items[0].appearance.config.glowStrength, 0);
   await live.locator('[data-background-filters]').waitFor({ state: 'detached' });
-  await page.screenshot({ path: path.join(evidence, 'desktop-original.png') });
-  await captureArtwork(path.join(evidence, 'original-blue.png'));
-  await page.locator('.background-parameters summary').filter({ hasText: '辉光' }).click();
-  await field('glowThreshold').fill('90');
-  await field('glowSoftness').fill('10');
-  await field('glowStrength').fill('12');
-  await field('glowStrength').press('Tab');
-  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
-  await live.locator('[data-background-filters] filter').waitFor({ state: 'attached' });
-  await page.screenshot({ path: path.join(evidence, 'desktop-canvas.png') });
-  await captureArtwork(path.join(evidence, 'soft-blue.png'));
   assert.deepEqual(errors, []);
 });

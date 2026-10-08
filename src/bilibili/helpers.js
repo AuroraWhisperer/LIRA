@@ -2,7 +2,8 @@
 // Bilibili 杂项辅助函数 — 诊断记录、身份解析、时间戳工具。
 'use strict';
 
-const { cleanText, normalizeTimestampMs, normalizePositiveInteger, normalizeGuardLevel } = require('../shared/utils');
+const { cleanText, normalizeTimestampMs, normalizePositiveInteger } = require('../shared/utils');
+const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 
 // ── 数值转换 ──
 

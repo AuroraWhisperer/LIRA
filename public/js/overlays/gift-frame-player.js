@@ -3,8 +3,8 @@
 
 import { createFrameController } from './gift-effects-frame.js';
 
-export function createGiftFramePlayer({ frameRoot }) {
-  const woodland = frameRoot ? createFrameController({ frameRoot }) : null;
+export function createGiftFramePlayer({ frameRoot, source }) {
+  const woodland = frameRoot ? createFrameController({ frameRoot, source }) : null;
   let disposed = false;
 
   return {

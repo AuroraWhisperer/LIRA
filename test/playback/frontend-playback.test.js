@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml, readAdminHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -178,7 +178,7 @@ test('fullscreen resets lyric mode before rendering a different track', async ()
 });
 
 test('fullscreen lyric buttons follow available track data in romanization-first order', async () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/playback/fullscreen.html');
   const romaButtonPosition = html.indexOf('id="fsRomaToggleBtn"');
   const translationButtonPosition = html.indexOf('id="fsTranslationToggleBtn"');
 
@@ -352,9 +352,9 @@ test('only the latest playback search updates state and renders', async () => {
   assert.deepEqual(renderedIds, ['new-result']);
 });
 
-test('playback drawer and queue have unique title anchors in the actual page', () => {
+test('playback overlays mount unique titles and lyric controls in the actual page', () => {
   const tags = [...readAdminHtml().matchAll(/<[^/!][^>]*>/g)].map(([tag]) => tag);
-  for (const id of ['playbackDrawerTitle', 'queuePopupTitle']) {
+  for (const id of ['playbackDrawerTitle', 'queuePopupTitle', 'fsRomaToggleBtn', 'fsTranslationToggleBtn']) {
     assert.equal(tags.filter((tag) => new RegExp(`\\sid=["']${id}["']`).test(tag)).length, 1);
   }
 });

@@ -1,4 +1,3 @@
-import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { escapeHtml, formatMoney, showStackedToast } from '../../shared/utils.js';
 // 编写人：Aurora
 // 礼物通知模块 - 负责礼物到账的 toast 通知显示
@@ -142,4 +141,3 @@ export function createGiftNotification({ notify = showStackedToast } = {}) {
   };
 }
 export const giftNotification = createGiftNotification();
-publishGiftModule('notification', giftNotification);

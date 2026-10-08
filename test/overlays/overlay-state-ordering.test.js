@@ -111,6 +111,15 @@ function fixture(name) {
           /^\s*\{\s*applyTheme,\s*setIdentityRuleThemeVars\s*\}\s+from\s+['"]\.\/queue-theme\.js['"];\s*/gm,
           '',
         );
+  if (name === 'lyric-window') {
+    // 该页面通过公共连接模块建连，这里运行真实实现而不是复制重连逻辑。
+    vm.runInContext(
+      fs
+        .readFileSync(path.join(__dirname, '../..', 'public', 'js', 'overlays', 'socket-client.js'), 'utf8')
+        .replace(/^export\s+/gm, ''),
+      context,
+    );
+  }
   vm.runInContext(source, context);
   if (name === 'queue') vm.runInContext('render = () => observed.push(state);', context);
   if (name === 'games') vm.runInContext('renderGame = (value) => { session = value; observed.push(value); };', context);

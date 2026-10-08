@@ -5,6 +5,7 @@ const REGION_DEFAULTS = Object.freeze({
   bubble: [380, 560], signal: [560, 600], minimal: [294, 480],
   ranked: [640, 640], transparent: [520, 540], identity: [640, 560],
   sketch: [680, 720],
+  prismatic: [640, 720],
   starlight: [520, 640],
   moonlit: [640, 720],
   outline: null, whiteframe: null, cream: null, glow: null, starveil: null, floating: null, comet: null,
@@ -48,7 +49,7 @@ function normalizeLayout(value) {
     || !Number.isFinite(contentScale) || contentScale < 0.1 || contentScale > 8
     || !regions || typeof regions !== 'object' || Array.isArray(regions)
     || Object.keys(regions).some((style) => !Object.hasOwn(REGION_DEFAULTS, style))
-    || Object.keys(REGION_DEFAULTS).some((style) => !['sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight'].includes(style) && !Object.hasOwn(regions, style))) fail();
+    || Object.keys(REGION_DEFAULTS).some((style) => !['sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight', 'prismatic'].includes(style) && !Object.hasOwn(regions, style))) fail();
   const normalized = {};
   for (const style of Object.keys(REGION_DEFAULTS)) {
     const region = !Object.hasOwn(regions, style)

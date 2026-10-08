@@ -1,6 +1,7 @@
 'use strict';
 
 import { GIFT_PLACEHOLDER } from './gift-image-fallback.js';
+import { fitTextToWidth } from './fit-text-to-width.js';
 
 export const BANNER_WIDTH = 428;
 export const BANNER_HEIGHT = 72;
@@ -149,18 +150,7 @@ function updateBannerImage(image, source, retry = false) {
 }
 
 export function fitGiftBannerNames(root) {
-  for (const name of root.querySelectorAll('.gift-banner-name, .gift-banner-gift')) {
-    name.style.fontSize = '';
-    const availableWidth = name.getBoundingClientRect().width;
-    if (!availableWidth) continue;
-    const range = document.createRange();
-    range.selectNodeContents(name);
-    const textWidth = range.getBoundingClientRect().width;
-    if (textWidth > availableWidth) {
-      const fontSize = parseFloat(getComputedStyle(name).fontSize);
-      name.style.fontSize = `${Math.floor(((fontSize * availableWidth) / textWidth) * 10) / 10}px`;
-    }
-  }
+  fitTextToWidth(root.querySelectorAll('.gift-banner-name, .gift-banner-gift'));
 }
 
 function bannerImage(source, className, fallback) {

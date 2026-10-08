@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const saved = (enabled = false, messages = ['欢迎 {username}', '{username} 来啦']) => ({ ok: true, enabled, messages });
 const account = (name) => ({
@@ -121,7 +121,7 @@ async function fixture(initialProfile = account('one'), v2 = false) {
 }
 
 test('welcome exposes unique initially unavailable controls in its hidden editor', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html');
   const tags = [...html.matchAll(/<[^/!][^>]*>/g)].map(([tag]) => tag);
   const uniqueTag = (id) => {
     const matches = tags.filter((tag) => new RegExp(`\\sid\\s*=\\s*["']${id}["']`).test(tag));

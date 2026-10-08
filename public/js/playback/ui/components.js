@@ -3,6 +3,7 @@
 'use strict';
 
 import * as PlaybackUtils from '../utils.js';
+import { escapeAttr, escapeHtml, showConfirmationDialog } from '../../shared/utils.js';
 
 /**
  * 渲染当前播放封面
@@ -12,7 +13,6 @@ import * as PlaybackUtils from '../utils.js';
 export function renderCurrentCover(coverElement, track) {
   if (!coverElement) return;
 
-  const escapeAttr = window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
   const coverUrl = String((track && track.coverUrl) || '').trim();
 
   coverElement.classList.toggle('has-image', Boolean(coverUrl));
@@ -154,6 +154,35 @@ export function updateMediaSessionPosition(audio) {
   }
 }
 
+// 队列与歌单行共用的副信息：本地文件缺失时补充重新选择提示。
+function trackRowMeta(track) {
+  const isLocal = PlaybackUtils.isLocalTrack(track);
+  const needsFile = isLocal && !track.objectUrl;
+  const fileMissing = isLocal && track.fileMissing;
+  return `${PlaybackUtils.formatTrackMeta(track)}${fileMissing ? ' · 文件已移动，请重新选择' : needsFile ? ' · 需重新选择文件' : ''}`;
+}
+
+/**
+ * 行内公共部分：封面、歌名与副信息。操作按钮和行状态仍归各调用点。
+ * @param {Object} track - 轨道对象
+ * @param {Object} [options]
+ * @param {string} [options.meta] - 副信息，缺省使用曲目元信息
+ * @param {string} [options.songPrefix] - 歌名前缀（如当前播放标记）
+ * @returns {string} HTML 字符串
+ */
+export function renderTrackRowMain(track, { meta, songPrefix = '' } = {}) {
+  const detail = meta ?? PlaybackUtils.formatTrackMeta(track);
+  return `
+    <div class="playback-row-main">
+      ${PlaybackUtils.renderArtwork(track)}
+      <div>
+        <div class="song">${songPrefix}${escapeHtml(track.title || '')}</div>
+        <div class="meta">${escapeHtml(detail)}</div>
+      </div>
+    </div>
+  `;
+}
+
 /**
  * 渲染队列行
  * @param {Object} track - 轨道对象
@@ -165,26 +194,13 @@ export function updateMediaSessionPosition(audio) {
  * @returns {string} HTML 字符串
  */
 export function renderQueueRow(track, origin, index, readonly, currentTrack, currentOrigin) {
-  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
-  const escapeAttr = window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
-
-  const isLocal = PlaybackUtils.isLocalTrack(track);
-  const needsFile = isLocal && !track.objectUrl;
-  const fileMissing = isLocal && track.fileMissing;
-  const meta = `${PlaybackUtils.formatTrackMeta(track)}${fileMissing ? ' · 文件已移动，请重新选择' : needsFile ? ' · 需重新选择文件' : ''}`;
   const isActive =
     origin === currentOrigin && currentTrack &&
     PlaybackUtils.getQueueTrackKey(track) === PlaybackUtils.getQueueTrackKey(currentTrack);
 
   return `
     <div class="queue-row playback-queue-row${isActive ? ' active' : ''}">
-      <div class="playback-row-main">
-        ${PlaybackUtils.renderArtwork(track)}
-        <div>
-          <div class="song">${escapeHtml(track.title)}</div>
-          <div class="meta">${escapeHtml(meta)}</div>
-        </div>
-      </div>
+      ${renderTrackRowMain(track, { meta: trackRowMeta(track) })}
       ${
         readonly
           ? ''
@@ -207,24 +223,13 @@ export function renderQueueRow(track, origin, index, readonly, currentTrack, cur
  * @returns {string} HTML 字符串
  */
 export function renderPlaylistRow(track, index, isCurrent, isPast) {
-  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
-
-  const isLocal = PlaybackUtils.isLocalTrack(track);
-  const needsFile = isLocal && !track.objectUrl;
-  const fileMissing = isLocal && track.fileMissing;
-  const meta = `${PlaybackUtils.formatTrackMeta(track)}${fileMissing ? ' · 文件已移动，请重新选择' : needsFile ? ' · 需重新选择文件' : ''}`;
   const stateClass = isCurrent ? ' playlist-current' : isPast ? ' playlist-past' : '';
   const btnLabel = isCurrent ? '重播' : '播放';
+  const songPrefix = isCurrent ? '<span class="playlist-now-icon" aria-hidden="true">▶</span> ' : '';
 
   return `
     <div class="queue-row playback-queue-row${stateClass}">
-      <div class="playback-row-main">
-        ${PlaybackUtils.renderArtwork(track)}
-        <div>
-          <div class="song">${isCurrent ? '<span class="playlist-now-icon" aria-hidden="true">▶</span> ' : ''}${escapeHtml(track.title)}</div>
-          <div class="meta">${escapeHtml(meta)}</div>
-        </div>
-      </div>
+      ${renderTrackRowMain(track, { meta: trackRowMeta(track), songPrefix })}
       <div class="queue-actions">
         <button type="button" data-playback-playlist-jump="${index}">${btnLabel}</button>
       </div>
@@ -239,8 +244,6 @@ export function renderPlaylistRow(track, index, isCurrent, isPast) {
  * @returns {string} HTML 字符串
  */
 export function renderPendingRow(item, index) {
-  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
-
   const track = item.track || {};
   const reasons = Array.isArray(item.reasons) ? item.reasons.join('；') : '';
 
@@ -267,7 +270,6 @@ export function renderPendingRow(item, index) {
  * @returns {string} HTML 字符串
  */
 export function renderHomeTrackRow(track, index, context, action = '') {
-  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
   const dataPrefix = context === 'search' ? 'playback-search' : 'playback-home-track';
   const showRadioButton = action === 'radio';
   const canAddToPlaylist = PlaybackUtils.canAddTrackToPlaylist(track);
@@ -279,13 +281,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
     const menuId = `${dataPrefix}-menu-${index}`;
     return `
       <div class="queue-row playback-home-row" data-${dataPrefix}-row-index="${index}">
-        <div class="playback-row-main">
-          ${PlaybackUtils.renderArtwork(track)}
-          <div>
-            <div class="song">${escapeHtml(track.title || '')}</div>
-            <div class="meta">${escapeHtml(PlaybackUtils.formatTrackMeta(track))}</div>
-          </div>
-        </div>
+        ${renderTrackRowMain(track)}
         <div class="queue-actions">
           <div class="track-menu-wrapper">
             <button type="button" class="track-menu-btn" data-${dataPrefix}-menu-index="${index}" title="更多操作" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}">
@@ -309,13 +305,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
 
   return `
     <div class="queue-row playback-home-row" data-${dataPrefix}-row-index="${index}">
-      <div class="playback-row-main">
-        ${PlaybackUtils.renderArtwork(track)}
-        <div>
-          <div class="song">${escapeHtml(track.title || '')}</div>
-          <div class="meta">${escapeHtml(PlaybackUtils.formatTrackMeta(track))}</div>
-        </div>
-      </div>
+      ${renderTrackRowMain(track)}
       <div class="queue-actions">
         <button type="button" data-${dataPrefix}-action="normal" data-${dataPrefix}-index="${index}" title="添加到播放队列末尾">入队</button>
         ${
@@ -341,8 +331,6 @@ export function renderHomeTrackRow(track, index, context, action = '') {
  * @returns {string} HTML 字符串
  */
 export function renderPlaylistCard(playlist, index) {
-  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
-
   return `
     <div class="playback-drawer-playlist-card" data-playback-playlist-index="${index}">
       ${PlaybackUtils.renderArtwork(playlist, { fallback: '单' })}
@@ -373,8 +361,6 @@ export function showConfirmDialog(options = {}) {
     variant = 'normal',
     trackName = '',
   } = options;
-  const showConfirmationDialog = window.AdminApp?.utils?.showConfirmationDialog;
-  if (typeof showConfirmationDialog !== 'function') return Promise.resolve(false);
   return showConfirmationDialog({
     title,
     description: message,

@@ -82,13 +82,15 @@ Admin 首次成功连接不重复初始歌库加载；后续每次成功重连�
 
 ### 3.3 断线重连与退避
 
-队列、歌单、盲盒、加班机四个页面以 ESM 共用 [overlays/socket-client.js](../../../public/js/overlays/socket-client.js)。连接器只拥有 URL 构造、JSON 解析、连接代际、重连 timer 和幂等 `start/connect/dispose`；消息筛选、状态替换和恢复后 HTTP 补拉仍由页面负责。旧 socket 的回调和 dispose 后的重连不能影响新连接。该模块属于 Overlay 传输适配层，不放入仅容纳稳定纯工具的 shared 目录。
+队列、歌单、盲盒、加班机、弹幕、礼物特效与桌面歌词浏览器源以 ESM 共用 [overlays/socket-client.js](../../../public/js/overlays/socket-client.js)，`public/js/overlays` 下不再有自行 `new WebSocket(` 的页面（由 `test/engineering/module-boundaries.test.js` 的目录级用例约束）。连接器只拥有 URL 构造（含可选 `topic` 订阅参数）、JSON 解析、连接代际、重连 timer、可选 `closeOnError` 和幂等 `start/connect/dispose`；消息筛选、状态替换、断线显示和恢复后 HTTP 补拉仍由页面负责，退避参数按页面传入。旧 socket 的回调和 dispose 后的重连不能影响新连接。该模块属于 Overlay 传输适配层，不放入仅容纳稳定纯工具的 shared 目录。
 
 | 客户端                        | 策略                                                                                      | 出处                                                                    |
 | ----------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | 管理页 `StateService`         | close 后固定 **1600ms** 重连;`setShuttingDown(true)` 时改显示"程序已退出"并停止重连       | [state.js:81-92](../../../public/js/admin/state.js#L81-L92)             |
 | 叠加层(队列/歌单/盲盒/加班机) | 指数退避 `min(30000, 800 × 2^min(attempts,6))`,重连前先 `loadState()` 拿快照兜底          | [overlays/queue.js:86-93](../../../public/js/overlays/queue.js#L86-L93) |
-| 桌面歌词浏览器源              | `min(15000, 1000 × 2^min(attempts-1,4))`,连接恢复后继续接收状态与时间轴                   | [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js) |
+| 弹幕叠加层                    | 同上退避；URL 固定带 `topic=danmaku`，断线只更新连接状态文案，pagehide 释放连接           | [overlays/danmaku.js](../../../public/js/overlays/danmaku.js)           |
+| 礼物特效叠加层                | `min(30000, 1000 × 2^min(attempts,5))`；断线停用全屏特效，pagehide 释放连接与播放器       | [overlays/gift-effects.js](../../../public/js/overlays/gift-effects.js) |
+| 桌面歌词浏览器源              | `min(15000, 1000 × 2^min(attempts,4))`,不发凭据；出错关闭连接走 close 路径,断线加 `is-disconnected` 类 | [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js) |
 | shutdown                      | 服务关闭前广播 `shutdown`(见 [ws.md](../backend/ws.md) §3),管理页据此进入"程序已退出"状态 | [ws.md](../backend/ws.md) §3                                            |
 
 ### 3.4 客户端消费的消息类型(全集在 [ws.md](../backend/ws.md) §3)

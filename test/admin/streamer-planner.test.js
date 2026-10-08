@@ -4,19 +4,18 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 const { readAdminHtml } = require('../helpers/admin-html');
 const { readCssBundle } = require('../helpers/css-bundle');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const STORAGE_KEY = 'admin.streamerWorkbench.v3';
 const PREVIOUS_STORAGE_KEY = 'admin.streamerWorkbench.v2';
 const LEGACY_STORAGE_KEY = 'admin.streamerPlanner.v1';
 
-function loadTodo(stored = new Map(), storageOverrides = {}, plannerReminders) {
+async function loadTodo(stored = new Map(), storageOverrides = {}, plannerReminders) {
   let nextId = 0;
-  const sandbox = {
+  const globals = {
     console,
     crypto: { randomUUID: () => `item-${++nextId}` },
     document: { getElementById: () => null },
@@ -30,8 +29,8 @@ function loadTodo(stored = new Map(), storageOverrides = {}, plannerReminders) {
       },
     },
   };
-  vm.runInNewContext(readJsModuleBundle('public', 'js', 'admin', 'streamer-planner.js'), sandbox);
-  return { todo: sandbox.window.AdminApp.todo, stored };
+  const { todo } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/streamer-planner.js'), globals);
+  return { todo, stored };
 }
 
 test('workbench exposes calendar, memos and tasks without beginner cues', () => {
@@ -66,13 +65,13 @@ test('workbench keeps calendar columns and keyboard focus visible', () => {
   assert.match(styles, /:focus-visible/);
 });
 
-test('new workbenches contain no fictional entries', () => {
-  const { todo } = loadTodo();
+test('new workbenches contain no fictional entries', async () => {
+  const { todo } = await loadTodo();
   assert.equal(todo.getState().version, 3);
   for (const name of ['events', 'tasks', 'notes']) assert.equal(todo.getState()[name].length, 0);
 });
 
-test('v2 import preserves personal records and original data, removes exact built-ins', () => {
+test('v2 import preserves personal records and original data, removes exact built-ins', async () => {
   const old = JSON.stringify({
     version: 2,
     session: {
@@ -105,7 +104,7 @@ test('v2 import preserves personal records and original data, removes exact buil
     ],
   });
   const stored = new Map([[PREVIOUS_STORAGE_KEY, old]]);
-  const { todo } = loadTodo(stored);
+  const { todo } = await loadTodo(stored);
   assert.deepEqual(
     Array.from(todo.getTasks(), (task) => task.id),
     ['starter-show-info', 'personal'],
@@ -115,12 +114,12 @@ test('v2 import preserves personal records and original data, removes exact buil
   assert.equal(todo.getState().events[0].title, '周年直播');
   todo.removeEvent(todo.getState().events[0].id);
   assert.equal(stored.get(PREVIOUS_STORAGE_KEY), old);
-  const reloaded = loadTodo(stored).todo;
+  const reloaded = (await loadTodo(stored)).todo;
   assert.equal(reloaded.getState().events.length, 0);
   assert.equal(reloaded.getState().notes[0].body, '原有备忘');
 });
 
-test('v1 import retains custom task progress and leaves the old key untouched', () => {
+test('v1 import retains custom task progress and leaves the old key untouched', async () => {
   const old = JSON.stringify([
     {
       id: 'starter-preflight',
@@ -132,18 +131,18 @@ test('v1 import retains custom task progress and leaves the old key untouched', 
     { id: 'review', title: '整理高光', category: 'review', progress: 25 },
   ]);
   const stored = new Map([[LEGACY_STORAGE_KEY, old]]);
-  const { todo } = loadTodo(stored);
+  const { todo } = await loadTodo(stored);
   assert.equal(todo.getTasks().length, 2);
   assert.equal(todo.getTasks()[0].done, true);
   assert.equal(todo.getTasks()[1].stage, 'after');
   assert.equal(todo.getTasks()[1].done, false);
   todo.addNote({ body: '迁移后继续记录' });
   assert.equal(stored.get(LEGACY_STORAGE_KEY), old);
-  assert.equal(loadTodo(stored).todo.getTasks()[0].id, 'personal');
+  assert.equal((await loadTodo(stored)).todo.getTasks()[0].id, 'personal');
 });
 
-test('existing session and task APIs remain compatible', () => {
-  const { todo, stored } = loadTodo();
+test('existing session and task APIs remain compatible', async () => {
+  const { todo, stored } = await loadTodo();
   todo.updateSession({
     date: '2026-09-05',
     time: '21:30',
@@ -166,8 +165,8 @@ test('existing session and task APIs remain compatible', () => {
   assert.equal(todo.getTasks().length, 0);
 });
 
-test('events can be created, rescheduled, made all-day, reloaded and removed', () => {
-  const { todo, stored } = loadTodo();
+test('events can be created, rescheduled, made all-day, reloaded and removed', async () => {
+  const { todo, stored } = await loadTodo();
   assert.equal(todo.addEvent({ title: ' ', date: '2026-09-05' }), null);
   assert.equal(todo.addEvent({ title: '无效日期', date: '2026-02-30' }), null);
   const first = todo.addEvent({
@@ -191,7 +190,7 @@ test('events can be created, rescheduled, made all-day, reloaded and removed', (
     time: '',
     type: 'personal',
   });
-  const reloaded = loadTodo(stored).todo;
+  const reloaded = (await loadTodo(stored)).todo;
   assert.equal(reloaded.getState().events[0].time, '');
   assert.equal(reloaded.getState().events[0].date, '2026-10-01');
   assert.equal(reloaded.getState().events[0].detail, '嘉宾连麦');
@@ -200,8 +199,8 @@ test('events can be created, rescheduled, made all-day, reloaded and removed', (
   assert.equal(reloaded.getState().events.length, 1);
 });
 
-test('memos support editing and pins without changing identity or task links', () => {
-  const { todo, stored } = loadTodo();
+test('memos support editing and pins without changing identity or task links', async () => {
+  const { todo, stored } = await loadTodo();
   assert.equal(todo.addNote({ body: '  ' }), null);
   const note = todo.addNote({ body: '观众约好听新歌', type: 'promise' });
   const task = todo.promoteNote(note.id);
@@ -218,7 +217,7 @@ test('memos support editing and pins without changing identity or task links', (
   assert.equal(edited.promotedTaskId, task.id);
   assert.equal(edited.pinned, true);
   assert.equal(todo.updateNote(note.id, { body: ' ' }), null);
-  const reloaded = loadTodo(stored).todo;
+  const reloaded = (await loadTodo(stored)).todo;
   assert.equal(reloaded.getState().notes[0].body, '周末新歌专场');
   assert.equal(reloaded.getState().notes[0].pinned, true);
   todo.removeTask(task.id);
@@ -227,8 +226,8 @@ test('memos support editing and pins without changing identity or task links', (
   assert.equal(todo.getState().notes.length, 0);
 });
 
-test('returned collections cannot mutate saved records', () => {
-  const { todo } = loadTodo();
+test('returned collections cannot mutate saved records', async () => {
+  const { todo } = await loadTodo();
   todo.addEvent({ title: '直播', date: '2026-09-05' });
   todo.addNote({ body: '备忘' });
   todo.addTask({ title: '待办' });
@@ -241,18 +240,18 @@ test('returned collections cannot mutate saved records', () => {
   assert.equal(todo.getTasks().length, 1);
 });
 
-test('unreadable current storage is not overwritten or replaced from old data', () => {
+test('unreadable current storage is not overwritten or replaced from old data', async () => {
   for (const damaged of ['{broken', '{}', 'null']) {
     const stored = new Map([[STORAGE_KEY, damaged]]);
-    const { todo } = loadTodo(stored);
+    const { todo } = await loadTodo(stored);
     todo.addTask({ title: '不能覆盖原数据' });
     assert.equal(stored.get(STORAGE_KEY), damaged);
   }
 });
 
-test('failed writes keep the latest records in memory', () => {
+test('failed writes keep the latest records in memory', async () => {
   const stored = new Map();
-  const { todo } = loadTodo(stored, {
+  const { todo } = await loadTodo(stored, {
     setItem() {
       throw new Error('Quota exceeded');
     },
@@ -271,7 +270,7 @@ test('workbench remains initialized through the existing admin entry', () => {
 test('successfully saved events synchronize native reminders, reschedules and cancellations without duplicate calls', async () => {
   const calls = [];
   const bridge = { sync: async (value) => { calls.push(value); return { ok: true, supported: true }; } };
-  const { todo, stored } = loadTodo(new Map(), {}, bridge);
+  const { todo, stored } = await loadTodo(new Map(), {}, bridge);
   const event = todo.addEvent({ title: '学歌', date: '2026-10-02', time: '20:00', reminderTime: '20:00' });
   assert.equal(calls.length, 1);
   assert.equal(calls[0][0].remindAt, new Date('2026-10-02T20:00:00').getTime());
@@ -279,7 +278,7 @@ test('successfully saved events synchronize native reminders, reschedules and ca
   assert.equal(calls.length, 1);
   todo.updateEvent(event.id, { time: '21:00' });
   assert.equal(calls[1][0].remindAt, new Date('2026-10-02T21:00:00').getTime());
-  assert.equal(loadTodo(stored).todo.getState().events[0].reminderTime, '21:00');
+  assert.equal((await loadTodo(stored)).todo.getState().events[0].reminderTime, '21:00');
   todo.updateEvent(event.id, { reminderTime: '' });
   assert.equal(calls[2].length, 0);
   todo.updateEvent(event.id, { time: '', reminderTime: '09:00' });
@@ -289,15 +288,41 @@ test('successfully saved events synchronize native reminders, reschedules and ca
   await Promise.resolve();
 });
 
-test('unreadable or unwritable storage never replaces the native reminder snapshot', () => {
+test('unreadable or unwritable storage never replaces the native reminder snapshot', async () => {
   const calls = [];
   const bridge = { sync: async (value) => { calls.push(value); return { ok: true, supported: true }; } };
   for (const [stored, overrides] of [
     [new Map([[STORAGE_KEY, '{broken']]), {}],
     [new Map(), { setItem() { throw new Error('Quota exceeded'); } }],
   ]) {
-    const { todo } = loadTodo(stored, overrides, bridge);
+    const { todo } = await loadTodo(stored, overrides, bridge);
     todo.addEvent({ title: '学歌', date: '2026-10-02', time: '20:00', reminderTime: '20:00' });
   }
   assert.equal(calls.length, 0);
+});
+
+test('a successful retry persists the in-memory draft before synchronizing reminders', async () => {
+  const stored = new Map();
+  const calls = [];
+  let writable = false;
+  const bridge = { sync: async (reminders) => {
+    const persisted = JSON.parse(stored.get(STORAGE_KEY));
+    assert.equal(persisted.events[0].title, '未保存的日程');
+    calls.push(reminders);
+    return { ok: true, supported: true };
+  } };
+  const { todo } = await loadTodo(stored, {
+    setItem(key, value) {
+      if (!writable) throw new Error('Quota exceeded');
+      stored.set(key, value);
+    },
+  }, bridge);
+  todo.addEvent({ title: '未保存的日程', date: '2026-10-02', time: '20:00', reminderTime: '20:00' });
+  assert.equal(calls.length, 0);
+  assert.equal(todo.getState().events.length, 1);
+  writable = true;
+  todo.addTask({ title: '同时保存草稿' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0].title, '未保存的日程');
+  await Promise.resolve();
 });

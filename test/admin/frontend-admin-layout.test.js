@@ -268,8 +268,8 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
     },
   };
 
-  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'), sandbox);
-  sandbox.window.AdminApp.queue.initQueueForm();
+  const queue = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'), sandbox);
+  queue.initQueueForm();
   const wheel = superChatPanel.listeners.get('wheel');
   const dispatchWheel = (deltaY) => {
     let prevented = false;

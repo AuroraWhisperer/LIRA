@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { _electron: electron } = require('playwright');
+const { launchElectron } = require('../helpers/shared-electron');
 const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 const { installResourceStyles, mountResourceStylePage } = require('../helpers/resource-style-fixture');
 const { createComponentStyleLibrary } = require('../../src/server/component-style-library');
@@ -14,7 +14,7 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   let app;
   t.after(async () => { await app?.close(); removeScratchDirectory(directory); });
   const styles = await installResourceStyles(directory);
-  app = await electron.launch({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const page = await app.firstWindow(); page.setDefaultTimeout(8000);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   const switches = [];

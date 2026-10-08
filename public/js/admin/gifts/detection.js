@@ -1,4 +1,3 @@
-import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { formatTime } from '../../shared/utils.js';
 // 编写人：Aurora
 // 礼物检测模块 - 负责礼物检测状态管理和显示
@@ -66,4 +65,3 @@ export const giftDetection = (() => {
     renderGiftStatusLine,
   };
 })();
-publishGiftModule('detection', giftDetection);

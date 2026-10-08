@@ -3,6 +3,7 @@
 'use strict';
 
 import { createPlaybackStateActions } from '../state/actions.js';
+import { PlaybackConfig } from '../config.js';
 
 import * as PlaybackUtils from '../utils.js';
 import { QueueManager } from '../queue/manager.js';
@@ -108,7 +109,7 @@ export function createPlaybackControls(deps) {
         if (requestGeneration === playRequestGeneration) {
           audioRequestGeneration = requestGeneration;
         }
-        return;
+        return false;
       }
     }
 
@@ -126,13 +127,13 @@ export function createPlaybackControls(deps) {
       audioRequestGeneration = requestGeneration;
       showError(error);
       renderPlayback();
-      return;
+      return false;
     }
     if (requestGeneration !== playRequestGeneration) return;
     if (!streamUrl) {
       audioRequestGeneration = requestGeneration;
       renderPlayback();
-      return;
+      return false;
     }
     Object.assign(track, streamTrack);
 
@@ -179,6 +180,7 @@ export function createPlaybackControls(deps) {
     loadPlaybackLyrics(track);
     stateActions.commit();
     updatePlaybackMediaSession();
+    return true;
   }
 
   async function loadPlaybackLyrics(track) {
@@ -324,46 +326,60 @@ export function createPlaybackControls(deps) {
     }
   }
 
-  function playbackNext(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled) {
+  function playbackNext(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled, options = {}) {
     const audio = getPlaybackAudio();
     if (!audio) return;
+    const automatic = fromEnded || options.skipUnavailable === true;
 
-    if (fromEnded && playbackState.mode === 'repeat-one' && playbackState.current) {
-      playPlaybackTrack(playbackState.current, {
-        origin: playbackState.currentOrigin,
-      });
-      return;
-    }
+    let repeat = fromEnded && playbackState.mode === 'repeat-one' && playbackState.current
+      ? { track: playbackState.current, origin: playbackState.currentOrigin }
+      : null;
+    // 最多遍历当前队列和一轮歌单或一批电台补歌，避免全部不可播时无限推进。
+    const remainingCount = queueManager.getActiveQueue().length;
+    const playlistCount = playbackState.queueType === 'playlist' ? playbackState.normalQueueTracks.length : 0;
+    const refillCount = playbackState.queueType === 'radio' ? PlaybackConfig.RADIO_REFILL_BATCH_SIZE : 0;
+    const limit = automatic ? remainingCount + playlistCount + refillCount + (repeat ? 1 : 0) : 1;
+    const attempted = new Set();
+    let restarted = false;
 
-    const next = takeNextPlaybackTrack();
-    if (next) {
-      playPlaybackTrack(next.track, { origin: next.origin });
-      if (playbackState.queueType === 'radio') ensurePlaybackRadioQueueFilled();
-      return;
-    }
+    async function advance() {
+      for (let index = 0; index < limit; index += 1) {
+        let next = repeat || takeNextPlaybackTrack();
+        repeat = null;
+        if (!next && !restarted && playbackState.queueType === 'playlist' && playbackState.normalQueueTracks.length) {
+          const tracks = playbackState.mode === 'shuffle'
+            ? PlaybackUtils.shuffleTracks(playbackState.normalQueueTracks)
+            : playbackState.normalQueueTracks.map((track) => ({ ...track }));
+          next = { track: queueManager.restartPlaylist(tracks), origin: 'normal' };
+          restarted = true;
+          rebuildPlaybackShuffleOrder();
+          savePlaybackState();
+        }
+        if (!next) break;
+        const key = PlaybackUtils.getQueueTrackKey(next.track);
+        if (attempted.has(key)) continue;
+        attempted.add(key);
 
-    // 固定歌单按当前模式循环
-    if (playbackState.queueType === 'playlist' && playbackState.normalQueueTracks.length > 0) {
-      const tracks =
-        playbackState.mode === 'shuffle'
-          ? PlaybackUtils.shuffleTracks(playbackState.normalQueueTracks)
-          : playbackState.normalQueueTracks.map((track) => ({ ...track }));
-      const first = queueManager.restartPlaylist(tracks);
-      rebuildPlaybackShuffleOrder();
+        const playing = playPlaybackTrack(next.track, { origin: next.origin });
+        const requestGeneration = playRequestGeneration;
+        if (playbackState.queueType === 'radio') ensurePlaybackRadioQueueFilled();
+        if (!automatic) return;
+        const played = await playing;
+        if (requestGeneration !== playRequestGeneration || played !== false) return;
+      }
+
+      if (automatic) {
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+      }
+      renderPlayback();
       savePlaybackState();
-      playPlaybackTrack(first, { origin: 'normal' });
-      return;
+      syncPlaybackLyricWindow();
+      if (playbackState.queueType === 'radio') ensurePlaybackRadioQueueFilled();
     }
 
-    if (fromEnded) {
-      audio.pause();
-      audio.removeAttribute('src');
-      audio.load();
-    }
-    renderPlayback();
-    savePlaybackState();
-    syncPlaybackLyricWindow();
-    if (playbackState.queueType === 'radio') ensurePlaybackRadioQueueFilled();
+    void advance();
   }
 
   return {

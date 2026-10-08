@@ -238,6 +238,7 @@ test('A29: legacy date ranges use Shanghai business dates at both UTC midnight b
 
 test('fan schema upgrades existing request history without attributing it and reopens idempotently', (t) => {
   const f = fanFixture(t);
+  const currentVersion = f.db.songDb.prepare("SELECT version FROM schema_version WHERE key = 'song_db'").get().version;
   oldRequest(f);
   f.db.songDb.exec(`DROP TABLE fan_records;
     DROP TABLE fan_reminder_states;
@@ -260,5 +261,5 @@ test('fan schema upgrades existing request history without attributing it and re
   assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM fan_profiles').get().n, 0);
   f.restart();
   assert.deepEqual(f.db.songDb.prepare('SELECT * FROM requests WHERE id = 1').get(), restored);
-  assert.equal(f.db.songDb.prepare("SELECT version FROM schema_version WHERE key = 'song_db'").get().version, 10);
+  assert.equal(f.db.songDb.prepare("SELECT version FROM schema_version WHERE key = 'song_db'").get().version, currentVersion);
 });

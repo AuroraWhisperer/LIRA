@@ -13,7 +13,7 @@ async function run() {
   const { createComponentWebPicker } = require('../../src/electron/component-web-picker');
   const { createHttpServer } = require('../../src/server/http-server');
   const { createWebSocketHub } = require('../../src/server/ws');
-  const { servePageOrAsset } = require('../../src/server/http-utils');
+  const { servePageOrAsset } = require('../../src/server/page-assets');
   const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
   const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
   const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');

@@ -7,6 +7,7 @@ import { createGiftFrameQueue } from './gift-frame-queue.js';
 import { createGiftEffectPlayer } from './gift-effect-player.js';
 import { createGuardThanksQueue } from './gift-effects-guard.js';
 import { mountGiftEffectComponent } from './gift-effects-component.js';
+import { createOverlaySocket } from './socket-client.js';
 
 (function () {
   if (mountGiftEffectComponent()) return;
@@ -30,9 +31,7 @@ import { mountGiftEffectComponent } from './gift-effects-component.js';
     resolveMotion: resolveGuardMotion,
     onError: (error) => showStatus(`大航海感谢播放失败：${error.message || error}`),
   });
-  let reconnectAttempts = 0;
-  let reconnectTimer = null;
-  let socket = null;
+  let socketController = null;
   let disposed = false;
 
   if (DEBUG) document.body.classList.add('is-debug');
@@ -44,8 +43,8 @@ import { mountGiftEffectComponent } from './gift-effects-component.js';
       'pagehide',
       () => {
         disposed = true;
-        clearTimeout(reconnectTimer);
-        socket?.close();
+        socketController?.dispose();
+        socketController = null;
         frameQueue.dispose();
         effectPlayer.dispose();
         guardThanks.dispose();
@@ -62,37 +61,26 @@ import { mountGiftEffectComponent } from './gift-effects-component.js';
   }
 
   function connectSocket() {
-    if (disposed) return;
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const token = window.__API_TOKEN__;
-    const url = `${protocol}//${location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-    socket = new WebSocket(url);
-    socket.addEventListener('open', () => {
-      clearTimeout(reconnectTimer);
-      reconnectAttempts = 0;
+    if (disposed || socketController) return;
+    socketController = createOverlaySocket({
+      reconnectBaseDelayMs: 1000,
+      reconnectMaxDelayMs: 30000,
+      reconnectExponentMax: 5,
+      onMessage: (payload) => {
+        if (payload.type === 'snapshot') {
+          effectPlayer.setEnabled(payload.state?.settings?.giftEffectDanmakuEnabled === 'true');
+          return;
+        }
+        if (payload.type === 'gift:frame') frameQueue.enqueue(payload);
+        if (payload.type === 'gift:effect') effectPlayer.enqueue(payload);
+        if (payload.type === 'gift:guard-thanks') guardThanks.enqueue(payload);
+      },
+      onClose: () => {
+        if (disposed) return;
+        effectPlayer.setEnabled(false);
+      },
     });
-    socket.addEventListener('message', (event) => {
-      let payload;
-      try {
-        payload = JSON.parse(event.data);
-      } catch (_) {
-        return;
-      }
-      if (payload.type === 'snapshot') {
-        effectPlayer.setEnabled(payload.state?.settings?.giftEffectDanmakuEnabled === 'true');
-        return;
-      }
-      if (payload.type === 'gift:frame') frameQueue.enqueue(payload);
-      if (payload.type === 'gift:effect') effectPlayer.enqueue(payload);
-      if (payload.type === 'gift:guard-thanks') guardThanks.enqueue(payload);
-    });
-    socket.addEventListener('close', () => {
-      if (disposed) return;
-      effectPlayer.setEnabled(false);
-      const delay = Math.min(30000, 1000 * 2 ** Math.min(reconnectAttempts, 5));
-      reconnectAttempts += 1;
-      reconnectTimer = setTimeout(connectSocket, delay);
-    });
+    socketController.start();
   }
 
   function resolveGuardMotion() {

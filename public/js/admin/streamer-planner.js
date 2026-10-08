@@ -1,25 +1,19 @@
 // 编写人：Aurora
 // 本机工作台：日历、备忘与待办。
 'use strict';
-import { publishTodo } from './legacy-admin-bridge.js';
 
 import {
-  STORAGE_KEY,
-  PREVIOUS_STORAGE_KEY,
-  LEGACY_STORAGE_KEY,
   STAGES,
   NOTE_STAGE,
   createItemId,
   toDateValue,
   shiftMonth,
   normalizeEvent,
-  getEventReminderTimestamp,
   normalizeTask,
-  normalizeTasks,
   normalizeNote,
-  createDefaultState,
-  normalizeState,
 } from './streamer-planner-model.js';
+import { createPlannerStorage } from './streamer-planner-storage.js';
+import { createPlannerReminderSync } from './streamer-planner-reminders.js';
 import { dangerConfirm, showConfirmationDialog } from '../shared/confirmation-dialog.js';
 import { toast } from '../shared/toast.js';
 
@@ -32,97 +26,32 @@ import {
 } from './streamer-planner-view.js';
 
 export const todo = (() => {
-  let readFailed = false;
-
-  function readStoredJson(key) {
-    const stored = window.localStorage.getItem(key);
-    return stored === null || stored === undefined ? undefined : JSON.parse(stored);
-  }
-
-  function readState() {
-    try {
-      const current = readStoredJson(STORAGE_KEY);
-      if (current !== undefined) {
-        if (
-          current.version !== 3 ||
-          !Array.isArray(current.tasks) ||
-          !Array.isArray(current.notes) ||
-          !Array.isArray(current.events)
-        ) {
-          throw new Error('Invalid workbench data');
-        }
-        return normalizeState(current);
-      }
-      const previous = readStoredJson(PREVIOUS_STORAGE_KEY);
-      if (previous !== undefined) {
-        if (!Array.isArray(previous.tasks) || !Array.isArray(previous.notes)) {
-          throw new Error('Invalid previous workbench data');
-        }
-        return normalizeState(previous);
-      }
-      const legacy = readStoredJson(LEGACY_STORAGE_KEY);
-      if (legacy !== undefined && !Array.isArray(legacy)) {
-        throw new Error('Invalid legacy workbench data');
-      }
-      const state = createDefaultState();
-      if (legacy) state.tasks = normalizeTasks(legacy, 'migrated-task', true);
-      return state;
-    } catch {
-      // Do not replace unreadable records with an empty workbench.
-      readFailed = true;
-      return createDefaultState();
-    }
-  }
+  const storage = createPlannerStorage(() => window.localStorage);
 
   const moduleState = {
     initialized: false,
-    planner: readState(),
+    planner: storage.read(),
     selectedDate: toDateValue(),
     month: toDateValue().slice(0, 7),
     taskFilter: 'pending',
     editingNoteId: '',
     editingEventId: '',
-    saveFailed: false,
-    reminderStatus: window.plannerReminders ? 'loading' : 'unsupported',
-    reminderSignature: null,
-    reminderRevision: 0,
   };
+  const reminders = createPlannerReminderSync({
+    getBridge: () => window.plannerReminders,
+    onStatusChange: handleReminderStatus,
+  });
 
   const byId = (id) => document.getElementById(id);
 
   function storeState() {
-    if (readFailed) return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(moduleState.planner));
-      moduleState.saveFailed = false;
-      void syncReminders();
-    } catch {
-      moduleState.saveFailed = true;
-    }
+    if (storage.write(moduleState.planner)) void reminders.sync(moduleState.planner.events);
   }
 
-  async function syncReminders() {
-    if (readFailed || moduleState.saveFailed || !window.plannerReminders) return;
-    const reminders = moduleState.planner.events.filter((event) => event.reminderTime).map((event) => ({
-      id: event.id, title: event.title, detail: event.detail, remindAt: getEventReminderTimestamp(event),
-    }));
-    const signature = JSON.stringify(reminders);
-    if (signature === moduleState.reminderSignature) return;
-    moduleState.reminderSignature = signature;
-    const revision = ++moduleState.reminderRevision;
-    const previousStatus = moduleState.reminderStatus;
-    try {
-      const result = await window.plannerReminders.sync(reminders);
-      if (revision !== moduleState.reminderRevision) return;
-      moduleState.reminderStatus = result?.ok ? (result.supported ? 'ready' : 'unsupported') : 'error';
-    } catch {
-      if (revision !== moduleState.reminderRevision) return;
-      moduleState.reminderStatus = 'error';
-    }
-    if (moduleState.reminderStatus === 'error') moduleState.reminderSignature = null;
-    if (moduleState.reminderStatus === 'error' && previousStatus !== 'error') {
+  function handleReminderStatus(status, previousStatus) {
+    if (status === 'error' && previousStatus !== 'error') {
       toast('日程提醒没设好，请重新保存一次日程。', { key: 'planner-reminders', update: true, type: 'error' });
-    } else if (moduleState.reminderStatus === 'ready' && previousStatus === 'error') {
+    } else if (status === 'ready' && previousStatus === 'error') {
       toast('日程提醒已恢复。LIRA 运行时会按时提醒你。', { key: 'planner-reminders', update: true, type: 'success' });
     }
     updateReminderFields();
@@ -284,8 +213,7 @@ export const todo = (() => {
       month: moduleState.month,
       selectedDate: moduleState.selectedDate,
       taskFilter: moduleState.taskFilter,
-      saveFailed: moduleState.saveFailed,
-      readFailed,
+      ...storage.getStatus(),
     };
   }
 
@@ -342,7 +270,8 @@ export const todo = (() => {
     time.disabled = allDay;
     time.required = !allDay;
     byId('plannerEventTimeField').hidden = allDay;
-    reminder.disabled = readFailed || moduleState.reminderStatus !== 'ready';
+    const reminderStatus = reminders.getStatus();
+    reminder.disabled = storage.getStatus().readFailed || reminderStatus !== 'ready';
     byId('plannerEventReminderTimeField').hidden = !allDay || !reminder.checked;
     byId('plannerEventReminderTime').required = allDay && reminder.checked;
     const messages = {
@@ -350,7 +279,7 @@ export const todo = (() => {
       unsupported: '请在支持系统通知的 LIRA 桌面应用中设置提醒。',
       error: '提醒未能同步，请重新保存日程后重试。',
     };
-    byId('plannerEventReminderHint').textContent = messages[moduleState.reminderStatus] ||
+    byId('plannerEventReminderHint').textContent = messages[reminderStatus] ||
       (reminder.checked
         ? (allDay ? '按所选时间提醒。' : `在日程开始时${time.value ? `（${time.value}）` : ''}提醒。`) + ' LIRA 运行时生效，最小化后也可提醒。'
         : '到点通过系统通知提醒，LIRA 需保持运行。');
@@ -466,7 +395,7 @@ export const todo = (() => {
       detail: byId('plannerEventDetail').value,
     };
     const saved = moduleState.editingEventId ? updateEvent(moduleState.editingEventId, input) : addEvent(input);
-    if (saved && !moduleState.saveFailed) byId('plannerEventDialog').close();
+    if (saved && !storage.getStatus().saveFailed) byId('plannerEventDialog').close();
     else {
       if (saved) moduleState.editingEventId = saved.id;
       byId('plannerEventError').textContent = saved ? '日程未能保存到本机，请重试。' : '请填写日程名称和有效的日期、时间。';
@@ -520,7 +449,7 @@ export const todo = (() => {
     });
     storeState();
     render();
-    if (readFailed)
+    if (storage.getStatus().readFailed)
       root.querySelectorAll('button, input, select, textarea').forEach((control) => {
         control.disabled = true;
       });
@@ -544,4 +473,3 @@ export const todo = (() => {
     getState,
   };
 })();
-publishTodo(todo);

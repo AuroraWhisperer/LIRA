@@ -9,6 +9,7 @@ const test = require('node:test');
 
 const ROOT = path.resolve(__dirname, '../..');
 const RUNNER = path.join(ROOT, 'scripts/run-tests.js');
+const { buildNodeArguments, defaultConcurrency } = require(RUNNER);
 const temporaryRoot = path.join(ROOT, 'tmp/test-runner');
 const runtimeGroups = ['browser', 'desktop', 'installer', 'contracts', 'offline'];
 
@@ -46,6 +47,7 @@ function fixture(t) {
     fs.writeFileSync(target, source);
   };
   put('scripts/run-tests.js', fs.readFileSync(RUNNER, 'utf8'));
+  put('scripts/test-results-reporter.js', fs.readFileSync(path.join(ROOT, 'scripts/test-results-reporter.js'), 'utf8'));
   for (const group of runtimeGroups.filter((name) => name !== 'offline')) {
     for (const file of configuredGroups[group]) put(file);
   }
@@ -182,6 +184,81 @@ test('execution forwards Node options, keeps VM modules and process isolation, a
   const failure = run(root, '--domain=failing', '--test-reporter=tap');
   assert.equal(failure.status, 1, failure.stdout + failure.stderr);
   assert.match(failure.stdout, /synthetic failure/);
+  const latest = JSON.parse(fs.readFileSync(path.join(root, 'tmp/test-results/latest.json'), 'utf8'));
+  const report = JSON.parse(fs.readFileSync(path.join(root, 'tmp/test-results', latest.run, 'results.json'), 'utf8'));
+  assert.equal(report.complete, true);
+  assert.deepEqual(report.failedFiles, ['test/failing/failure.test.js']);
+  assert.match(report.failures[0].message, /synthetic failure/);
+  assert.ok(report.files[0].durationMs >= 0);
+});
+
+test('file concurrency defaults to the bounded release value and an explicit flag replaces it', () => {
+  const build = (nodeArgs) =>
+    buildNodeArguments({ nodeArgs, reporterArgs: [], reportPath: 'report.json', batch: ['test/sample/a.test.js'] })
+      .filter((arg) => arg.startsWith('--test-concurrency'));
+  assert.equal(defaultConcurrency, String(Math.min(8, os.availableParallelism())));
+  assert.deepEqual(build([]), [`--test-concurrency=${defaultConcurrency}`]);
+  assert.deepEqual(build(['--test-concurrency=3']), ['--test-concurrency=3']);
+  assert.deepEqual(build(['--test-name-pattern', '^selected$']), [`--test-concurrency=${defaultConcurrency}`]);
+});
+
+test('requiring the runner only exposes its functions and never runs the suite', (t) => {
+  const { root, put } = fixture(t);
+  put('test/sample/selected.test.js', `
+    const test = require('node:test');
+    test('runs', () => require('node:fs').writeFileSync('executed.txt', 'yes'));
+  `);
+  const marker = path.join(root, 'require-marker.txt');
+  const probe = spawnSync(process.execPath, [
+    '-e',
+    `const runner = require(${JSON.stringify(RUNNER)});`
+      + "require('node:fs').writeFileSync('require-marker.txt', JSON.stringify(Object.keys(runner).sort()));",
+  ], { cwd: root, env: { ...process.env }, encoding: 'utf8', windowsHide: true, timeout: 15000 });
+  assert.equal(probe.status, 0, probe.stderr);
+  assert.equal(probe.stdout, '', 'requiring the runner must not print run output');
+  assert.deepEqual(JSON.parse(fs.readFileSync(marker, 'utf8')), ['buildNodeArguments', 'defaultConcurrency']);
+  assert.equal(fs.existsSync(path.join(root, 'executed.txt')), false, 'requiring the runner must not execute tests');
+});
+
+test('failed-file selection is explicit, deduplicated, and rejects unavailable or incomplete evidence', (t) => {
+  const { root, put } = fixture(t);
+  assert.notEqual(run(root, '--failed', '--list').status, 0);
+  put('test/sample/passing.test.js', "require('node:test')('pass', () => {});");
+  put('test/sample/failing.test.js', "throw new Error('import failure');");
+  put('test/sample/crashing.test.js', 'process.exit(17);');
+  const initial = run(root, '--domain=sample');
+  assert.equal(initial.status, 1, initial.stdout + initial.stderr);
+  assert.match(initial.stdout, /Focused rerun: npm test -- --failed/);
+  assert.deepEqual(list(root, '--failed'), ['test/sample/crashing.test.js', 'test/sample/failing.test.js']);
+  put('test/sample/failing.test.js', "require('node:test')('fixed', () => {});");
+  put('test/sample/crashing.test.js', "require('node:test')('fixed', () => {});");
+  const fixed = run(root, '--failed', '--test-reporter=tap');
+  assert.equal(fixed.status, 0, fixed.stdout + fixed.stderr);
+  assert.match(fixed.stdout, /File scope: partial \(2\//);
+  assert.notEqual(run(root, '--failed', '--list').status, 0);
+  put('tmp/test-results/latest.json', JSON.stringify({ version: 1, complete: false, failedFiles: ['test/sample/failing.test.js'] }));
+  assert.notEqual(run(root, '--failed', '--list').status, 0);
+  put('tmp/test-results/latest.json', '{');
+  assert.notEqual(run(root, '--failed', '--list').status, 0);
+});
+
+test('an older run finishing cannot replace a newer interrupted attempt', (t) => {
+  const { root, put } = fixture(t);
+  put('test/sample/older.test.js', `
+    const fs = require('node:fs');
+    require('node:test')('older failure', () => {
+      fs.mkdirSync('tmp/test-results/run-newer');
+      fs.writeFileSync('tmp/test-results/run-newer/results.json', JSON.stringify({ version: 1, complete: false, failedFiles: [] }));
+      fs.writeFileSync('tmp/test-results/latest.json', JSON.stringify({ version: 1, run: 'run-newer' }));
+      throw new Error('older failure');
+    });
+  `);
+  assert.equal(run(root, '--domain=sample').status, 1);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'tmp/test-results/latest.json'), 'utf8')).run, 'run-newer');
+  const retry = run(root, '--failed', '--list');
+  assert.notEqual(retry.status, 0);
+  assert.equal(retry.stdout, '');
+  assert.match(retry.stderr, /No complete failed-file selection/);
 });
 
 test('native ownership tests finish before the remaining selection and cannot have failures masked', (t) => {
@@ -216,4 +293,5 @@ test('native ownership tests finish before the remaining selection and cannot ha
   assert.equal(failure.status, 1, failure.stdout + failure.stderr);
   assert.match(failure.stdout, /native batch failure/);
   assert.equal(fs.readFileSync(path.join(root, 'remaining-runs.txt'), 'utf8'), 'completed\ncompleted\n');
+  assert.deepEqual(list(root, '--failed'), [nativeFile]);
 });

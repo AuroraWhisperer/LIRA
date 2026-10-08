@@ -8,6 +8,8 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-08-danmaku-prismatic](2026-10-08-danmaku-prismatic.md) | Awaiting Verification | 主题、身份投影及隔离检查已完成；剩真实报文/实播验收及客户端契约版本锁核验。 |
+| [2026-10-08-module-responsibilities](2026-10-08-module-responsibilities.md) | Awaiting Verification | 六项实现及相关回归、语法、架构、文档检查通过；全量待并发弹幕样式的两项断言更新后补验。 |
 | [2026-10-07-client-test-suite-remediation](2026-10-07-client-test-suite-remediation.md) | Awaiting Verification | P0–P3 已落实（547→518 文件，offline 无新增失败）；剩 browser 组并发下 suite-clock 超时待查与 contracts 组未运行。 |
 | [2026-10-06-woodland-frame-avatar](2026-10-06-woodland-frame-avatar.md) | Awaiting Verification | 宽边、头像及铭牌已实现；54 项测试与隔离展示检查通过。仅契约门禁因服务器检出版本与锁定版本不一致待补验。 |
 | [2026-10-02-client-themes](2026-10-02-client-themes.md) | Awaiting Verification | 实现、自动化与隔离 Electron 验证完成；原生 100% 缩放及实播/真实密集内容人工验收未覆盖。 |

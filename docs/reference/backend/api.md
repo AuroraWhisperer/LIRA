@@ -20,7 +20,7 @@
 | `POST /api/component-styles/config` | `POST /api/component-preview/styles/config` | JSON `{id,patch}`（至多 64 KiB），修改已安装资源型样式的共享外观；禁止替换 `resourceStyle/mediaStyle/cssStyle`，合并后通过场景配置合同校验并原子保存；返回样式 `{id,type,name,config}`。第三方媒体/网页/CSS 不支持此操作，已移除样式返回 404；同 ID 的画布及发布实例跟随新值，场景 JSON 不批量改写 |
 | `POST /api/component-styles/add` | `POST /api/component-preview/styles/add` | 原始媒体 bytes；查询 `description` 为 URL 编码 JSON `{type,filename,name,width,height,media?}`。校验并安装一个样式，返回包 |
 | `POST /api/component-styles/web` | `POST /api/component-preview/styles/web` | 查询 `description` 为 URL 编码 JSON `{type,entry,name?,width?,height?}`；请求体第一行为 UTF-8 JSON 数组 `[{path,size}]` 加换行，随后按顺序拼接各文件 bytes。验证配套资源并原子安装，返回包 |
-| `POST /api/component-styles/pick-web` | `POST /api/component-preview/styles/pick-web` | JSON `{kind:"html"或"css",description:{type,name?,width?,height?}}`；主进程打开文件选择器并复制配套目录，renderer 不提供磁盘路径。取消返回 `data:null`；无桌面选择器返回 503 与 `code:"FILE_PICKER_UNAVAILABLE"`，供显式文件/文件夹选择回退 |
+| `POST /api/component-styles/pick-web` | `POST /api/component-preview/styles/pick-web` | JSON `{kind:"auto"或"html"或"css",description:{type,name?,width?,height?}}`；主进程打开文件选择器，HTML/CSS 复制配套目录并返回已安装样式。`auto` 选择图片/视频/ZIP 时返回 `application/octet-stream` 与 URL 编码的 `X-Lira-Filename` 文件名，客户端交给已有媒体编辑/ZIP 检查；大小沿用媒体 512 MiB、ZIP 1 GiB 上限。renderer 不提供或接收磁盘路径，读取前复核授权。取消返回 `data:null`；无桌面选择器返回 503 与 `code:"FILE_PICKER_UNAVAILABLE"`，供显式文件/文件夹选择回退 |
 | `POST /api/component-styles/inspect` | `POST /api/component-preview/styles/inspect` | 原始 ZIP bytes；校验并暂存，返回临时 `id`、清单、`isSuite` 和 `replaces:[{id,name,version}]`（同 packageId 将被替换的已安装版本）；兼容单组件样式包与跨组件套装，此时不修改已安装列表、不可用于场景 |
 | `POST /api/component-styles/install` | `POST /api/component-preview/styles/install` | JSON `{id}`，确认暂存包；原子登记套装并撤下同 packageId 其他版本，返回包及 `replaced` 数量；重复内容返回 `alreadyInstalled:true`，恢复已移除包或样式返回 `restored:true`；保留旧场景及资源 |
 | `POST /api/component-styles/remove` | `POST /api/component-preview/styles/remove` | JSON `{id}`，此处 id 为样式 ID；从库中移除，返回 `{id}`，保留场景引用文件 |
@@ -34,6 +34,8 @@
 API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身份缺失，403 为权限或 Origin 无效，404 为样式不存在，409 为同版本不同内容或画布接管冲突，410 为会话失效，413 为流体积超限，503 为会话暂不可用。JSON 操作体不超过 4 KiB。单素材上限 512 MiB；ZIP 上限 1 GiB，展开总量 2 GiB、256 条目、64 样式；清单及单份说明各 256 KiB。CRC、解压长度、路径、重复文件名、链接、加密和媒体签名均需校验。普通媒体只允许 PNG/JPEG/GIF/WebP/MP4/WebM；ZIP 另允许每份不超过 1 MiB 的 SVG/WOFF2 资源、根清单及 TXT/MD 说明。schemaVersion 1 保持兼容；2 允许受信预设资源型样式，必须声明该预设的完整资源映射且格式匹配；不执行包内脚本。
 
 `GET/HEAD /component-media/<包 UUID>/<SHA-256>.<扩展名>` 提供匿名本机媒体读取，保留原 Host 闸门；严格匹配路径，拒绝链接及非普通文件。支持单段 byte Range（206/416）、正确 MIME、nosniff、immutable 缓存和浏览器源所需 CORS。SVG 额外使用 `sandbox; default-src 'none'; style-src 'unsafe-inline'` CSP，禁止导航执行脚本或请求外部资源；WOFF2 使用 font/woff2。素材没有目录枚举接口。持久化见[存储合同](storage.md#本地组件样式库)，清单格式见[作者指南](../../guides/component-style-packages.md)。
+
+`GET/HEAD /img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm` 是既有林间花信图层的兼容入口，由 `gift-frame-resource.js` 解析已安装 `lira.woodland-gift-frame` 包中的受信 `woodland-gift-frame` 预设，返回 `307` 到其 `/component-media/` 视频，带 `no-store` 和 CORS。仅暂存或未导入时返回 404，其他方法 405；从可选库移除的包仍可供旧图层读取。它复用现有 Host 闸门和媒体权限边界，不增加导入接口或改变设置键。
 
 ### 画布共享参数
 
@@ -265,7 +267,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 ## 2. 设置域(settings)
 
-> 模块文件:[src/server/routes/settings-routes.js](../../../src/server/routes/settings-routes.js)
+> 模块文件:[src/server/routes/settings-routes.js](../../../src/server/routes/settings-routes.js)、[settings-service.js](../../../src/server/settings-service.js)、[clock-contract.js](../../../src/server/clock-contract.js)
 > 前缀:`/api/settings`
 
 | 端点 | 请求 | 响应(data) | 错误 |
@@ -294,12 +296,14 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 盲盒 normalizer 的边界补充：两个配置数组均最多100盒，每盒 outputs 为1–200项；归一化后 JSON UTF-8≤64 KiB。legacy 盒为 `{name,price,outputs}`，output 可名称字符串或 `{name,price?}`；名称 trim 后≤100个 UTF-16单元，禁止 NUL/换行。V2 盒为 `{customId?,giftId:null或ID,name,price,outputs:[{giftId,name,price?}]}`；customId 若提供须合法 UUID（转小写），giftId 为1–20位非零开头数字；名称 NFC、禁止所有 Cc。V2 盒名/customId/非空 giftId 不重复，每盒 output giftId 不重复。价格 Number 转换后须有限、>0且≤1,000,000元，四舍五入两位后仍>0；可选产物价 null/undefined 表示未知并省略。以上只定义可同步格式，不在客户端重建服务器收礼判定。
 
-提交顺序：完整 normalize → 必要时 `weSing.prepareConfiguration` → `settings.setMany` → 必要时 prepared `apply` → `bilibili.configure` → 广播 `settings` → 按实际 `changedKeys` 决定请求 settings 云同步。任一字段或 prepare 无效都在写库前失败，也不会先启动新采集器；`setMany` 事务失败回滚全部设置及缓存。prepare 的文件系统准备与数据库不是跨资源事务，提交后的 apply/后续消费者失败也不承诺撤回已提交设置。`configure` 由运行时判断是否真的替换 Bilibili 连接。无变化或仅本机键变化不标记云 scope dirty；广播仍沿用现有行为。测试入口：[settings-contract.test.js](../../../test/settings/settings-contract.test.js)、[settings-bootstrap.test.js](../../../test/settings/settings-bootstrap.test.js)。
+路由只读取请求和返回结果；`settings-service.applySettingsPatch` 通过显式注入的设置、采集、连接及通知能力拥有应用操作，`clock-contract` 拥有旧外观字段到当前时钟样式档案的合并规则。提交顺序：完整 normalize → 必要时 `weSing.prepareConfiguration` → `settings.setMany` → 必要时 prepared `apply` → `bilibili.configure` → 广播 `settings` → 按实际 `changedKeys` 决定请求 settings 云同步。任一字段或 prepare 无效都在写库前失败，也不会先启动新采集器；`setMany` 事务失败回滚全部设置及缓存。prepare 的文件系统准备与数据库不是跨资源事务，提交后的 apply/后续消费者失败也不承诺撤回已提交设置。`configure` 由运行时判断是否真的替换 Bilibili 连接。无变化或仅本机键变化不标记云 scope dirty；广播仍沿用现有行为。测试入口：[settings-contract.test.js](../../../test/settings/settings-contract.test.js)、[settings-bootstrap.test.js](../../../test/settings/settings-bootstrap.test.js)。
 
 ## 2.1 开播动画域(opening)
 
-> 模块文件:[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)
+> 模块文件:[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)、[opening-service.js](../../../src/server/opening-service.js)、[opening-media-store.js](../../../src/server/opening-media-store.js)、[opening-upload.js](../../../src/server/opening-upload.js)
 > 前缀:`/api/opening`
+
+配置读取、样式媒体槽和保存/清除选择由 `opening-service` 拥有；文件路径、存在检查和临时文件写入/改名由 `opening-media-store` 拥有。普通与画布预览路由各自负责 HTTP 和授权，共用上传解析器与应用能力，读取 body 后再次验证当前授权。场景读取直接依赖 service，不导入路由实现；预览也不调用另一张路由表。
 
 `GET /api/opening/config` 的 `style` 字段返回 `classic` 或 `pixel-cassette`，缺省及非法保存值回退 `classic`；
 opening 页面能力的只读投影包含该字段。管理端通过现有设置接口保存 `openingStyle`，非法枚举返回 400。
@@ -336,7 +340,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 
 画布修改自动保存并同步所有使用该内置样式的组件；布局保存/放弃不撤销已经保存的共享开播设置。导入资源样式仍保持图层独立外观，不经过这些写接口。
 
-### 2.2 normalizeRoomInput 实现细节([shared/utils.js](../../../src/shared/utils.js))
+### 2.2 normalizeRoomInput 实现细节([bilibili/room-input.js](../../../src/bilibili/room-input.js))
 
 `roomId` 值经此函数规范化后再写库，规则按优先级：
 

@@ -63,6 +63,15 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     giftImage: false,
     defaultTextColor: '#7f9f76',
   },
+  prismatic: {
+    scrollDirection: true,
+    label: '柔彩气泡',
+    minFontSize: 18,
+    maxFontSize: 48,
+    background: false,
+    giftImage: false,
+    defaultTextColor: '#292b32',
+  },
   starlight: {
     scrollDirection: true,
     label: '星语',

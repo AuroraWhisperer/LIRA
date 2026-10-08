@@ -4,6 +4,9 @@
 import { api, toast } from '../shared/utils.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
+import { requestComponentStyles } from './component-style-api.js';
+
+const MISSING_STYLE_MESSAGE = '请先从「更多样式 → ＋ 添加样式」导入林间花信样式包。';
 
 // 每个特效自成一组：设置键、控件 id 和预览输入都只属于自己。
 const EFFECTS = [
@@ -51,6 +54,10 @@ export function initGiftFrame() {
     document.getElementById(effect.ids.previewBtn).addEventListener('click', () => playPreview(effect));
   }
   window.addEventListener('app:settings-state', (event) => renderGiftFrame(event.detail || {}));
+  window.addEventListener('component-styles:changed', () => {
+    const status = document.getElementById('giftFrameSaveState');
+    if (status.textContent === MISSING_STYLE_MESSAGE) setStatus(status.id, '', '');
+  });
   initialized = true;
   renderGiftFrame(currentSettings);
 }
@@ -103,11 +110,22 @@ async function saveSettings(effect) {
   }
 }
 
-function playPreview(effect) {
+async function playPreview(effect) {
   const { previewUser, previewGift, previewNum, status } = effect.ids;
   const num = Number(document.getElementById(previewNum).value);
   if (!Number.isSafeInteger(num) || num <= 0) {
     setStatus(status, '预览数量必须是正整数。', 'error');
+    return;
+  }
+  try {
+    const packs = await requestComponentStyles('list');
+    if (!packs.some(pack => pack.packageId === 'lira.woodland-gift-frame'
+      && pack.styles.some(style => style.config.resourceStyle?.preset === 'woodland-gift-frame'))) {
+      setStatus(status, MISSING_STYLE_MESSAGE, 'error');
+      return;
+    }
+  } catch (error) {
+    setStatus(status, error.message || '样式库读取失败，请重试。', 'error');
     return;
   }
   const base = sceneExtraPreviewData('gift-frame');

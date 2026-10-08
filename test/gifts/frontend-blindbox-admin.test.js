@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml, readAdminHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -10,8 +10,16 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-test('blind box analysis is a separate accessible workspace module', () => {
+test('blind box analysis mounts once beside its entry in the composed admin page', () => {
   const html = readAdminHtml();
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => id);
+  for (const id of ['blindBoxAnalysisOpenBtn', 'blindBoxAnalysisWorkspace']) {
+    assert.equal(ids.filter((value) => value === id).length, 1, id);
+  }
+});
+
+test('blind box analysis is a separate accessible workspace module', () => {
+  const html = readAdminFragmentHtml('pages/admin/gifts/blindbox-analysis.html');
   const entry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
   const stylesEntry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
 
@@ -56,7 +64,7 @@ test('open blind box analysis debounces gift events into one quiet reload and st
   const timers = [];
   const requests = [];
   const window = {};
-  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox-analysis.js'), {
+  const { giftAnalysis } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox-analysis.js'), {
     window,
     HTMLElement: class {},
     AbortController,
@@ -75,12 +83,12 @@ test('open blind box analysis debounces gift events into one quiet reload and st
       return new Promise(() => {});
     },
   });
-  const { eventBus, gifts } = window.AdminApp;
+  const { eventBus } = window.AdminApp;
   const pendingTimers = () => timers.filter((timer) => !timer.cleared);
 
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
   assert.equal(pendingTimers().length, 0, 'a closed workspace ignores gift events');
-  gifts.analysis.open();
+  giftAnalysis.open();
   assert.equal(requests.length, 1);
   assert.match(requests[0].url, /^\/api\/gifts\/blind-box-analysis\?view=users&page=1/);
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
@@ -89,14 +97,14 @@ test('open blind box analysis debounces gift events into one quiet reload and st
   pendingTimers()[0].callback();
   assert.equal(requests.length, 2);
   assert.equal(requests[0].signal.aborted, true, 'the newer reload aborts the older request');
-  gifts.analysis.close();
+  giftAnalysis.close();
   assert.equal(requests[1].signal.aborted, true);
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
   assert.equal(pendingTimers().length, 0);
 });
 
 test('blindbox controls keep a stable IPv4 source URL that follows saved settings', async () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/gifts/page.html');
   for (const id of ['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxOverlayTop', 'blindboxLiveLink']) {
     assert.equal([...html.matchAll(/\bid="([^"]+)"/g)].filter(([, value]) => value === id).length, 1, id);
   }

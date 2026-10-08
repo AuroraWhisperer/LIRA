@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -121,7 +121,7 @@ test('overtime styles keep shared, console, rule editor, picker, and responsive 
 });
 
 test('overtime toolbox panel loads its isolated controller and renders untrusted labels safely', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/overtime.html');
   const entrySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
   const source = readOvertimeAdminSource();
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
@@ -151,7 +151,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
 });
 
 test('overtime screen controls wire background fields and a plain address copy action', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/overtime.html');
   const source = readOvertimeAdminSource();
 
   assert.match(html, /id="overtimeSaveBackgroundBtn"/);
@@ -170,7 +170,7 @@ test('overtime controller delegates rule editing through a narrow module boundar
 });
 
 test('overtime initial duration is minute-based, selectable, and readable', async () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/overtime.html');
   const source = readOvertimeAdminSource();
   const overtimeStyles = readCssBundle('public', 'css', 'admin', 'overtime.css');
 

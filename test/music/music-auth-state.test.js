@@ -3,11 +3,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { sanitizeAuthState } = require('../../src/music/auth-state');
+const { QQMusicProvider } = require('../../src/music/providers/qq-provider');
+const { NeteaseMusicProvider } = require('../../src/music/providers/netease-provider');
 
 test('music auth projection retains status fields and excludes credentials', () => {
-  for (const owner of ['netease-mappers', 'qq-provider-utils']) {
-    assert.equal(require(`../../src/music/providers/${owner}`).sanitizeAuthState, sanitizeAuthState);
-  }
   assert.deepEqual(sanitizeAuthState(null), {
     loggedIn: false,
     cookieCount: 0,
@@ -35,4 +34,28 @@ test('music auth projection retains status fields and excludes credentials', () 
   );
   assert.equal(sanitizeAuthState({ cookieCount: 'invalid' }).cookieCount, 0);
   assert.deepEqual(sanitizeAuthState({ keyCookieNames: 'invalid' }).keyCookieNames, []);
+});
+
+test('provider health results retain login status without exposing credentials on success or failure', async (t) => {
+  let available = true;
+  t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: available ? 200 : 503 }));
+  for (const [source, Provider] of [['qq', QQMusicProvider], ['netease', NeteaseMusicProvider]]) {
+    const provider = new Provider({
+      getAuthState(platform) {
+        assert.equal(platform, source);
+        return { loggedIn: true, cookie: 'synthetic-secret', accessToken: 'synthetic-token' };
+      },
+    });
+    for (const reachable of [true, false]) {
+      available = reachable;
+      const result = await provider.healthCheck();
+      assert.equal(result.source, source);
+      assert.equal(result.ok, reachable);
+      assert.equal(result.status, reachable ? 'logged-in' : 'api-error');
+      assert.equal(result.auth.loggedIn, true);
+      assert.equal('cookie' in result.auth, false);
+      assert.equal('accessToken' in result.auth, false);
+      assert.doesNotMatch(JSON.stringify(result), /synthetic-secret|synthetic-token/);
+    }
+  }
 });

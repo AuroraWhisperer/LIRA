@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -80,7 +80,7 @@ test('admin queue style cards preserve focus and selection indicators', () => {
 });
 
 test('queue style controls exist, default to inherited typography and persist only the selected style', async () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/song/queue-theme.html');
   const defaults = settingsStoreModule.DEFAULT_SETTINGS;
   const { OVERLAY_THEME_KEYS } = require('../../src/storage/theme-store');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
@@ -271,7 +271,7 @@ test('identity queue colors Super Chats by price tier', () => {
 });
 
 test('styles 2-6 hydrate the active style content font size setting', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/song/queue-theme.html');
   const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
   const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');

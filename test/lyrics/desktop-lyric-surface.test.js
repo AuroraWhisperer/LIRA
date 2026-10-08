@@ -149,6 +149,8 @@ async function loadLyricWindow({ protocol = 'http:' } = {}) {
     console: { ...console, warn: (...args) => warnings.push(args) },
     WebSocket: FakeWebSocket,
     URLSearchParams,
+    // The page registers its socket teardown on window, like the other overlays.
+    window: { addEventListener() {} },
     location: { protocol, host: '127.0.0.1:4100', search: '' },
     performance: { now: () => 0 },
     requestAnimationFrame: () => 0,

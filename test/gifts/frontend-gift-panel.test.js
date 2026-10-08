@@ -25,7 +25,7 @@ test('gift subviews skip unrelated state updates while corrections, catalogs and
   const get = f.document.getElementById;
   f.document.getElementById = (id) => nodes[id] || get(id);
   f.window.getComputedStyle = () => ({ gridTemplateColumns: '100px' });
-  const panel = f.window.AdminApp.gifts;
+  const panel = f.gifts;
   const notices = [];
   const notify = panel.notification.notifyNewGift;
   panel.notification.notifyNewGift = (items) => { notices.push(items.map((item) => item.num)); notify(items); };
@@ -77,7 +77,7 @@ test('gift subviews skip unrelated state updates while corrections, catalogs and
   assert.match(f.container.innerHTML, /未保存配置/);
   assert.equal(f.textarea.dataset.dirty, 'true');
   const beforeMapping = { ...writes };
-  f.window.AdminApp.state.getAppState().blindBoxMapping.customCount = 3;
+  f.stateService.getAppState().blindBoxMapping.customCount = 3;
   render({ state, changedKeys: ['blindBoxMapping'] });
   assert.match(f.status.textContent, /自定义 3 项/);
   assert.deepEqual(writes, beforeMapping);
@@ -106,8 +106,6 @@ test('gift panel renders through imported modules after the legacy registry is r
     },
     fetch: async () => ({ ok: true, text: async () => JSON.stringify({ ok: true, data: [] }) }),
   });
-  assert.equal(window.AdminApp.gifts.renderGiftPanel, renderGiftPanel);
-  assert.equal(typeof window.AdminApp.gifts.initGiftHistoryDrawer, 'function');
   window.AdminApp.gifts = {};
   renderGiftPanel(
     { recent: [] },
@@ -180,12 +178,14 @@ test('gift panel renders empty and populated recent gifts without legacy history
     },
     fetch: async () => ({ ok: true, text: async () => JSON.stringify({ ok: true, data: { gifts: [] } }) }),
   };
-  const moduleDir = path.join(__dirname, '../..', 'public', 'js', 'admin', 'gifts');
-  await loadModuleExports(path.join(moduleDir, 'index.js'), globals);
-  t.mock.method(gifts.notification, 'notifyNewGift');
+  const { renderGiftPanel, giftNotification } = await loadModuleExports(
+    path.join(__dirname, '../helpers/gift-admin-graph.js'),
+    globals,
+  );
+  t.mock.method(giftNotification, 'notifyNewGift');
 
   assert.equal(gifts.history, undefined);
-  gifts.renderGiftPanel({ recent: [] }, {}, {}, {});
+  renderGiftPanel({ recent: [] }, {}, {}, {});
 
   assert.match(list.innerHTML, /class="empty gift-recent-empty"/);
   assert.deepEqual([...list.classList.toggle.mock.calls.at(-1).arguments], ['is-empty', true]);
@@ -199,14 +199,14 @@ test('gift panel renders empty and populated recent gifts without legacy history
       created_at: '2026-09-05T12:00:00.000Z',
     },
   ];
-  gifts.renderGiftPanel({ recent: items }, {}, {}, {});
+  renderGiftPanel({ recent: items }, {}, {}, {});
 
   assert.match(list.innerHTML, /class="gift-card-content"/);
   assert.match(list.innerHTML, /Example gift x2/);
   assert.match(list.innerHTML, /Test viewer/);
   assert.doesNotMatch(list.innerHTML, /gift-recent-empty/);
   assert.deepEqual([...list.classList.toggle.mock.calls.at(-1).arguments], ['is-empty', false]);
-  assert.equal(gifts.notification.notifyNewGift.mock.callCount(), 2);
-  assert.equal(gifts.notification.notifyNewGift.mock.calls.at(-1).arguments[0], items);
+  assert.equal(giftNotification.notifyNewGift.mock.callCount(), 2);
+  assert.equal(giftNotification.notifyNewGift.mock.calls.at(-1).arguments[0], items);
   assert.equal(globals.console.error.mock.callCount(), 0);
 });

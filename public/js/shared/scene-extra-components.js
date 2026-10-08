@@ -117,7 +117,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
   },
   'gift-frame': {
     title: '全屏礼物感谢', size: [1920, 1080], path: '/gift-effects?giftComponent=frame',
-    variants: [{ ...variant('default', '全屏礼物感谢', '林间花信'), image: '/img/component-previews/gift-frame-default.webp?v=20261007-v4' }],
+    variants: [],
     fields: {},
   },
   'guard-thanks': {

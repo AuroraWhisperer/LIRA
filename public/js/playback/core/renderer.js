@@ -3,6 +3,7 @@
 'use strict';
 
 import * as PlaybackUtils from '../utils.js';
+import { renderTrackRowMain } from '../ui/components.js';
 
 const ONLINE_CONTROL_TITLES = {
   playbackPrev: '上一首',
@@ -89,13 +90,7 @@ export function createRenderer(deps) {
       .map(
         (track, index) => `
       <div class="queue-row playback-search-row">
-        <div class="playback-row-main">
-          ${PlaybackUtils.renderArtwork(track)}
-          <div>
-            <div class="song">${escapeHtml(track.title || '')}</div>
-            <div class="meta">${escapeHtml(PlaybackUtils.formatTrackMeta(track))}</div>
-          </div>
-        </div>
+        ${renderTrackRowMain(track)}
         <div class="queue-actions">
           <button type="button" data-playback-search-action="normal" data-playback-search-index="${index}" title="添加到播放队列末尾">入队</button>
           <button type="button" data-playback-search-action="requested" data-playback-search-index="${index}" title="插入到当前播放歌曲之后">插队</button>

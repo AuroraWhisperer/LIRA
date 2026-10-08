@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom, createClock } = require('../helpers/toast-dom');
 
@@ -105,7 +105,7 @@ test('invalid simulated quantity stays in the settings page without sending requ
 });
 
 test('the real gift page exposes only the woodland frame controls and the module previews through the canvas', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
   const moduleSource = fs.readFileSync(path.resolve('public/js/admin/gift-frame.js'), 'utf8');
   assert.match(html, /id="otherGiftFeature"[^>]+data-other-feature-panel[\s\S]*?id="giftFrameEnabled"/);
   assert.match(html, /<input\b(?=[^>]*\sid="giftFrameThresholdRmb")(?=[^>]*\stype="number")[^>]*>/);

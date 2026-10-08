@@ -28,24 +28,19 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
   const add = type ? previewElement('button', 'component-style-add', '＋ 添加样式') : null;
   if (add) { add.type = 'button'; add.addEventListener('click', () => openImport()); }
   function report(error) { status.hidden = false; status.textContent = error.message || error; }
-  function openImport(initialFile) {
-    editor = openComponentSourceImport({ type, request, initialFile, onMedia: () => input.click(),
-      onArchive: () => zip.click(),
+  function openImport() {
+    editor = openComponentSourceImport({ type, request,
+      onMedia: file => { editor = editComponentMediaFile(file, type, { request, onSaved: () => { void refresh(); }, onError: report }); },
+      onArchive: file => { updateTarget = null; void inspectArchive(file); },
       onSaved: () => { void refresh(); }, onUse });
   }
-  const input = previewElement('input'); input.type = 'file'; input.accept = '.png,.jpg,.jpeg,.gif,.webp,.mp4,.webm,.html,.htm,.css'; input.hidden = true;
-  root.append(input);
-  input.addEventListener('change', () => {
-    const file = input.files[0]; input.value = '';
-    if (!file) return;
-    if (file.size > 512 * 1024 * 1024) { report('单个素材不能超过 512 MiB。'); return; }
-    if (/\.(html?|css)$/i.test(file.name)) { openImport(file); return; }
-    editor = editComponentMediaFile(file, type, { request, onSaved: () => { void refresh(); }, onError: report });
-  });
   const zip = previewElement('input'); zip.type = 'file'; zip.accept = '.zip'; zip.hidden = true; root.append(zip);
   importButton.addEventListener('click', () => { updateTarget = null; zip.click(); });
-  zip.addEventListener('change', async () => {
+  zip.addEventListener('change', () => {
     const file = zip.files[0]; zip.value = ''; if (!file) return;
+    void inspectArchive(file);
+  });
+  async function inspectArchive(file) {
     const target = updateTarget; updateTarget = null;
     importButton.disabled = true; status.hidden = false; status.textContent = '正在读取素材包…';
     let pack;
@@ -99,7 +94,7 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
       editor = { dispose: () => { if (!installing) dialog.close(); } };
     } catch (error) { if (!closed) report(error); }
     finally { importButton.disabled = false; }
-  });
+  }
   function confirmRemovePack(pack) {
     const dialog = previewElement('dialog', 'component-style-dialog'); dialog.setAttribute('aria-label', '删除套装');
     const confirm = previewElement('button', 'danger', '删除整套'); const cancel = previewElement('button', 'secondary', '取消');
@@ -191,7 +186,7 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
         empty.append(previewElement('h4', '', '还没有套装'), previewElement('p', 'hint', '点击「导入套装」，选择作者提供的 ZIP 安装包。'));
         list.append(empty);
       }
-      status.textContent = type ? '支持 LIRA 样式包、HTML、CSS 和浏览器源；配套资源随文件保存。'
+      status.textContent = type ? '点击「＋ 添加样式」，选择文件或粘贴作者提供的内容。'
         : '套装整体导入、更新和删除；点击组件卡片可单独选用。单个样式请从对应组件「＋ 添加样式」添加。';
       status.hidden = inline;
     } catch (error) { if (!closed) report(error); }

@@ -25,7 +25,6 @@ test('hardware summary hides memory temperature and renders missing CPU temperat
   };
 
   const { metrics } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/metrics.js'), sandbox);
-  assert.equal(sandbox.window.AdminApp.metrics, metrics);
   sandbox.window.AdminApp = {};
   metrics.renderHardwareSummary(
     {

@@ -92,6 +92,8 @@ async function openExport(t) {
 
 test('history export settings update the current preview and remember the next export', async (t) => {
   const page = await openExport(t);
+  assert.equal(await page.locator('#giftHistoryExport').count(), 1);
+  assert.equal(await page.locator('#giftDisplaySettings, #giftExportRemember').count(), 0);
   assert.equal(await page.locator('#giftExportPreview .gift-banner').count(), 2);
   await page.locator('#giftExportMode').selectOption('separate');
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);

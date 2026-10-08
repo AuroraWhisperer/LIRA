@@ -2,10 +2,9 @@
 
 const {
   cleanText,
-  normalizeGuardLevel,
   normalizePositiveInteger,
-  normalizeSuperChatPrice,
 } = require('../shared/utils');
+const { normalizeGuardLevel, normalizeSuperChatPrice } = require('../shared/bilibili-value-contract');
 
 function createSuperChatStore(superChatDb) {
   return {

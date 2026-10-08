@@ -272,3 +272,94 @@ test('games admin retries an empty viewer list with backoff and fills both viewe
   assert.equal(viewerBodies.length, 0);
   assert.deepEqual(pickerTexts('gomokuViewer'), ['暂无当前在线观众']);
 });
+
+test('games admin marks stale data once after a failed refresh and clears it on recovery', async () => {
+  const nodes = new Map();
+  class PageNode extends FakeNode {
+    constructor(tag, id = '') {
+      super(tag);
+      Object.assign(this, { id, value: '', hidden: false, disabled: false, checked: false });
+      this.classList = { toggle() {}, add() {}, remove() {}, contains: () => false };
+    }
+    get options() {
+      return this.children;
+    }
+    get parentElement() {
+      return this.id.endsWith(':parent') ? null : node(`${this.id}:parent`);
+    }
+    closest() {
+      return null;
+    }
+    querySelector(selector) {
+      return node(`${this.id} ${selector}`);
+    }
+    querySelectorAll() {
+      return [];
+    }
+    getBoundingClientRect() {
+      return { top: 0, left: 0, width: 0, height: 0 };
+    }
+    focus() {}
+    after() {}
+    prepend(child) {
+      this.children.unshift(child);
+    }
+  }
+  function node(id) {
+    if (!nodes.has(id)) nodes.set(id, new PageNode('div', id));
+    return nodes.get(id);
+  }
+  let sessionReadsFail = true;
+  const fetch = async (url) => {
+    if (sessionReadsFail && (url === '/api/games/session' || url === '/api/games/host-state')) {
+      return { ok: false, status: 503, text: async () => JSON.stringify({ ok: false, error: '游戏状态读取失败' }) };
+    }
+    const body = url.startsWith('/api/interactions/')
+      ? { ok: true, data: { runtimeId: 'runtime', revision: 0, session: null } }
+      : { ok: true, data: null };
+    return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+  };
+  const location = { origin: 'http://127.0.0.1:3000', protocol: 'http:', host: '127.0.0.1:3000', search: '' };
+  const sandbox = {
+    document: {
+      hidden: false,
+      getElementById: node,
+      querySelector: (selector) => node(selector),
+      querySelectorAll: () => [],
+      createElement: (tag) => new PageNode(tag),
+      addEventListener() {},
+    },
+    window: { addEventListener() {}, removeEventListener() {}, open() {}, location },
+    location,
+    fetch,
+    MutationObserver: class {
+      observe() {}
+      disconnect() {}
+    },
+    setTimeout: () => 1,
+    clearTimeout() {},
+    setInterval: () => 1,
+    clearInterval() {},
+  };
+  const games = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), sandbox);
+  const settle = async () => {
+    for (let index = 0; index < 30; index += 1) await new Promise(setImmediate);
+  };
+  games.initGames();
+  await settle();
+
+  const status = node('gamesSessionStatus');
+  sandbox.window.AdminApp.eventBus.emit('ws:connected');
+  await settle();
+  assert.match(status.textContent, /数据可能已过期/, 'a failed auto refresh tells the user the data may be stale');
+  const staleText = status.textContent;
+  sandbox.window.AdminApp.eventBus.emit('ws:connected');
+  await settle();
+  assert.equal(status.textContent, staleText, 'a repeated failure must not stack another warning');
+
+  sessionReadsFail = false;
+  sandbox.window.AdminApp.eventBus.emit('ws:connected');
+  await settle();
+  assert.doesNotMatch(status.textContent, /数据可能已过期/, 'a successful refresh clears the warning');
+  assert.equal(status.textContent, '当前没有进行中的游戏');
+});

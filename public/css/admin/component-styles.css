@@ -67,12 +67,36 @@
 .component-style-fields label:has(input[type='checkbox']) { display: flex; align-items: center; gap: 8px; }
 .component-style-fields input[type='checkbox'] { width: 18px; min-height: 18px; margin: 0; }
 .component-style-pack-list { line-height: 1.8; }
-.component-source-import form { display: grid; gap: 16px; }
-.component-source-import label { display: grid; gap: 6px; }
-.component-source-import textarea { box-sizing: border-box; width: 100%; resize: vertical; font-family: monospace; }
-.component-source-import .component-style-fields { grid-template-columns: 2fr 1fr 1fr; }
-.component-source-modes { display: flex; flex-wrap: wrap; gap: 8px; }
-.component-source-modes [aria-pressed='true'] { border-color: var(--color-control-accent); color: var(--color-control-accent); }
+.component-source-import { width: min(520px, 94vw); padding: 28px; border: 1px solid var(--color-border-default); border-radius: 24px; box-shadow: none; scrollbar-width: none; }
+.component-source-import form { display: grid; gap: 20px; }
+.component-source-import p { margin: 0; }
+.component-source-import [hidden], .component-source-import [role='status']:empty { display: none; }
+.component-source-heading { display: grid; gap: 8px; }
+.component-source-heading h2 { font-size: 22px; line-height: 1.3; }
+.component-source-heading .hint { font-size: 13px; color: var(--color-text-secondary); }
+.component-source-file { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; border-radius: var(--radius-lg); font-size: 15px; font-weight: 600; }
+.component-source-file svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.component-source-options { display: grid; gap: 12px; }
+.component-source-options > details { margin: 0; padding: 0 14px; border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); }
+.component-source-import summary { display: flex; align-items: center; gap: 4px; min-height: 48px; margin: 0; border-radius: var(--radius-lg); font-size: 14px; font-weight: 500; list-style: none; cursor: pointer; }
+.component-source-import summary::-webkit-details-marker { display: none; }
+.component-source-import summary::after { content: ''; width: 6px; height: 6px; margin-left: auto; margin-right: 4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); color: var(--color-text-secondary); }
+.component-source-import details[open] > summary::after { transform: rotate(45deg); }
+.component-source-import summary:hover { background: var(--color-bg-hover); }
+.component-source-import summary:focus-visible { outline: 2px solid var(--color-control-focus); outline-offset: -2px; }
+.component-source-optional { color: var(--color-text-secondary); font-size: 12px; font-weight: 400; }
+.component-source-import details[open] { padding-bottom: 16px; }
+.component-source-import details[open] > summary { margin-bottom: 8px; }
+.component-source-import details > button { margin-top: 12px; border-radius: var(--radius-lg); }
+.component-source-import details > .hint { margin-top: 8px; }
+.component-source-import label { display: grid; gap: 8px; font-size: 13px; color: var(--color-text-secondary); }
+.component-source-import textarea { box-sizing: border-box; width: 100%; min-height: 136px; padding: 12px; border-radius: var(--radius-lg); resize: vertical; scrollbar-width: none; font: inherit; line-height: 1.6; }
+.component-source-import input, .component-source-import .lira-select-trigger { min-height: 40px; border-radius: var(--radius-lg); }
+.component-source-import .component-style-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.component-source-import .component-style-fields > label:first-child { grid-column: 1 / -1; }
+.component-source-import [role='status']:not(:empty) { padding: 12px 14px; border-radius: var(--radius-lg); background: var(--color-bg-secondary); color: var(--color-text-primary); overflow-wrap: anywhere; }
+.component-source-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.component-source-actions > button { width: auto; min-height: 36px; padding-inline: 18px; border-radius: var(--radius-lg); font-size: 14px; }
 .component-style-select .component-source-thumbnail { display: grid; place-items: center; height: 78px; font-size: 20px; color: var(--color-text-secondary); }
 .background-parameters, .background-parameter-fields { display: grid; gap: 14px; }
 .background-parameter-fields[hidden] { display: none; }

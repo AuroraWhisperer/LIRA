@@ -1,7 +1,6 @@
 'use strict';
 
 const { once } = require('node:events');
-const { createHttpServer } = require('../../src/server/http-server');
 
 // Encodes one client-to-server WebSocket frame. Clients must mask payloads;
 // the mask value is irrelevant to the server and only needs to be four bytes.
@@ -30,6 +29,7 @@ function maskedFrame(payload, { opcode = 0x1, fin = true, mask = [0x12, 0x34, 0x
 // Starts the real local HTTP transport on an ephemeral loopback port and
 // closes it, including kept-alive connections, when the test finishes.
 async function listenHttpServer(t, options = {}) {
+  const { createHttpServer } = require('../../src/server/http-server');
   const server = createHttpServer({
     host: '127.0.0.1',
     startPort: 0,

@@ -4,6 +4,7 @@
 
 import * as PlaybackUtils from '../utils.js';
 import * as UIComponents from './components.js';
+import { escapeHtml } from '../../shared/utils.js';
 
 /**
  * 抽屉管理器
@@ -113,7 +114,6 @@ export class Drawer {
   setLoading(message, hint = '') {
     if (!this.bodyEl) return;
 
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
     const hintHtml = hint ? `<small>${escapeHtml(hint)}</small>` : '';
     this.bodyEl.innerHTML = `<div class="playback-drawer-loading ui-body"><span>${escapeHtml(message)}</span>${hintHtml}</div>`;
     this.updateActions(false);
@@ -126,7 +126,6 @@ export class Drawer {
   setError(message) {
     if (!this.bodyEl) return;
 
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
     this.bodyEl.innerHTML = `<p class="playback-drawer-state playback-drawer-error ui-caption">${escapeHtml(message)}</p>`;
     this.updateActions(false);
   }

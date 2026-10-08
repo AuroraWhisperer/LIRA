@@ -4,7 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { _electron: electron, chromium } = require('playwright');
+const { chromium } = require('playwright');
+const { launchElectron } = require('../helpers/shared-electron');
 const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 const { installResourceStyles, mountResourceStylePage } = require('../helpers/resource-style-fixture');
 
@@ -15,7 +16,7 @@ test('desktop and canvas share local settings and imported resources across inst
   let browser;
   t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
   await installResourceStyles(directory);
-  app = await electron.launch({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
   const errors = []; desktop.on('pageerror', error => errors.push(error.message));
   await app.evaluate(() => Object.assign(global.canvasTest.openingSettings, { songBoardSyncTheme: 'false', songBoardTitle: '客户端已保存' }));

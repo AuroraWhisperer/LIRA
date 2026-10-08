@@ -2,12 +2,14 @@
 'use strict';
 
 import { giftAvatarSource } from '../shared/gift-banner.js';
+import { WOODLAND_GIFT_VIDEO } from '../shared/component-resource-style.js';
 
 const AVATAR_PLACEHOLDER = '/img/gift-avatar-placeholder.svg';
 export const FRAME_DURATION_MS = 8000;
 
-export function createFrameController({ frameRoot }) {
+export function createFrameController({ frameRoot, source = WOODLAND_GIFT_VIDEO }) {
   const video = frameRoot.querySelector('video');
+  video.setAttribute('src', source);
   const caption = frameRoot.querySelector('.gift-info');
   const avatar = frameRoot.querySelector('#giftInfoAvatar');
   const gift = frameRoot.querySelector('#giftInfoName');

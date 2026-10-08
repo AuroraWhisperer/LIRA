@@ -5,6 +5,10 @@ const fs = require('node:fs');
 const test = require('node:test');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 const { useSharedBrowser } = require('../helpers/shared-browser');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+const { createComponentStyleLibrary } = require('../../src/server/component-style-library');
+const { createWoodlandGiftZip } = require('../../scripts/package-woodland-gift-frame');
+const { Readable } = require('node:stream');
 
 const openBrowserSession = useSharedBrowser();
 
@@ -93,7 +97,11 @@ test('sprint opens from wishes, saves a canvas layer and follows live goals with
 });
 
 test('gift settings open separate canvas layers that save, preview and receive only their live effects', { timeout: 60000 }, async t => {
-  const fixture = await startCanvasOutputFixture();
+  const dataDir = createScratchDirectory('canvas-gift-styles-', t);
+  const library = createComponentStyleLibrary(dataDir);
+  const pack = await library.inspect(Readable.from(createWoodlandGiftZip()), () => {});
+  await library.install(pack.id);
+  const fixture = await startCanvasOutputFixture({ dataDir });
   const browser = openBrowserSession();
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   const desktop = await context.newPage();
@@ -226,7 +234,10 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await page.getByRole('spinbutton', { name: '高度', exact: true }).fill('540');
   await page.getByRole('spinbutton', { name: '高度', exact: true }).press('Tab');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor().catch(async error => {
+    error.message += `\nCanvas status: ${await page.locator('.preview-canvas-status').innerText()}`;
+    throw error;
+  });
   const saved = fixture.service.list()[0];
   assert.doesNotMatch(JSON.stringify(saved), /林间听风|新的观众|上舰观众|星河旅人|previewData/, 'simulated input is not saved into the scene');
   assert.deepEqual(saved.document.items.map(item => [item.type, item.width, item.height]),

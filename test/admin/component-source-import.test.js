@@ -54,6 +54,7 @@ async function openImport(page, type) {
 }
 
 async function saveStyle(dialog, name) {
+  await dialog.locator('.component-style-advanced').evaluate(node => { node.open = true; });
   await dialog.getByLabel('样式名称', { exact: true }).fill(name);
   await dialog.getByRole('button', { name: '添加样式', exact: true }).click();
   await dialog.waitFor({ state: 'hidden' });
@@ -76,6 +77,7 @@ async function openOutput(context, fixture) {
 }
 
 async function changeNumber(page, name, value) {
+  if (await page.locator('.component-style-advanced').count()) await page.locator('.component-style-advanced').evaluate(node => { node.open = true; });
   const input = page.getByRole('spinbutton', { name, exact: true });
   await input.fill(String(value));
   await input.press('Tab');
@@ -85,7 +87,9 @@ test('file CSS and bundled HTML import, replace in place and survive publication
   const { dataDir, fixture, context, desktop, page, errors, listStyles, readItems } = await setup(t);
   const { picker, dialog } = await openImport(page, 'clock');
   const chooser = page.waitForEvent('filechooser');
-  await dialog.getByRole('button', { name: '选择 CSS 文件', exact: true }).click();
+  assert.deepEqual(await dialog.getByRole('button').allTextContents(), ['选择文件', '取消']);
+  assert.equal(await dialog.getByLabel('显示宽度', { exact: true }).isVisible(), false);
+  await dialog.getByRole('button', { name: '选择文件', exact: true }).click();
   await (await chooser).setFiles({ name: 'clock.css', mimeType: 'text/css',
     buffer: Buffer.from('.clock-time { color: rgb(17, 68, 119) !important; }') });
   assert.equal(await dialog.locator('select').inputValue(), 'clock.css');
@@ -130,8 +134,8 @@ test('file CSS and bundled HTML import, replace in place and survive publication
   await library.locator('.component-style-add').click();
   await dialog.locator('input[webkitdirectory]').setInputFiles(sourceDir);
   assert.equal(await dialog.locator('select').inputValue(), 'widgets/index.html');
-  await changeNumber(dialog, '网页宽度', 640);
-  await changeNumber(dialog, '网页高度', 360);
+  await changeNumber(dialog, '显示宽度', 640);
+  await changeNumber(dialog, '显示高度', 360);
   await saveStyle(dialog, '合成 HTML 时钟');
   const imported = (await listStyles()).find(style => style.name === '合成 HTML 时钟');
   assert.equal(imported.type, 'browser');
@@ -207,8 +211,8 @@ test('pasted blivechat and selected BLC CSS style real scene danmaku after reloa
   fs.mkdirSync(path.join(resources, 'images'), { recursive: true });
   fs.copyFileSync(path.resolve(__dirname, '../../public/img/component-previews/clock-moonlit-fan.webp'), path.join(resources, 'images/frame.webp'));
   const pasted = await openImport(page, 'danmaku');
-  await pasted.dialog.getByRole('button', { name: '粘贴 CSS', exact: true }).click();
-  await pasted.dialog.getByLabel('CSS 代码', { exact: true }).fill('yt-live-chat-text-message-renderer { background-image: url("images/frame.webp"); } yt-live-chat-text-message-renderer #message { color: rgb(140, 26, 91) !important; }');
+  await pasted.dialog.getByText('粘贴网址或代码', { exact: true }).click();
+  await pasted.dialog.getByLabel('作者提供的网址或代码', { exact: true }).fill('yt-live-chat-text-message-renderer { background-image: url("images/frame.webp"); } yt-live-chat-text-message-renderer #message { color: rgb(140, 26, 91) !important; }');
   await pasted.dialog.locator('input[webkitdirectory]').setInputFiles(resources);
   await saveStyle(pasted.dialog, '合成 blivechat 弹幕');
   await pasted.picker.getByRole('button', { name: '添加到画布：合成 blivechat 弹幕', exact: true }).click();
@@ -264,10 +268,10 @@ test('browser source addresses imported as styles render, publish and receive no
     return route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<!doctype html><h1 id="source"></h1><script>document.querySelector("#source").textContent = new URL(location.href).searchParams.get("name");</script>' });
   });
   const { dialog } = await openImport(page, 'clock');
-  await dialog.getByRole('button', { name: '浏览器源地址', exact: true }).click();
-  await dialog.getByLabel('浏览器源地址', { exact: true }).fill(`${fixture.origin}/synthetic-import-source?name=新导入入口&token=synthetic-provider-token`);
-  await changeNumber(dialog, '网页宽度', 640);
-  await changeNumber(dialog, '网页高度', 360);
+  await dialog.getByText('粘贴网址或代码', { exact: true }).click();
+  await dialog.getByLabel('作者提供的网址或代码', { exact: true }).fill(`${fixture.origin}/synthetic-import-source?name=新导入入口&token=synthetic-provider-token`);
+  await changeNumber(dialog, '显示宽度', 640);
+  await changeNumber(dialog, '显示高度', 360);
   await saveStyle(dialog, '网页时钟');
   await page.frameLocator('.scene-editor-item iframe').getByText('新导入入口', { exact: true }).waitFor();
   await publish(page);
@@ -278,4 +282,48 @@ test('browser source addresses imported as styles render, publish and receive no
   assert.ok(requests.length >= 2);
   assert.ok(requests.every(headers => !headers.authorization && !headers.referer), 'Third-party sources receive no desktop authorization or referrer.');
   assert.deepEqual(errors, []);
+});
+
+test('simple import recovers from cancellation and invalid paste, then saves HTML with automatic name and size', { timeout: 30000 }, async t => {
+  const { page, listStyles, errors } = await setup(t);
+  const { dialog } = await openImport(page, 'clock');
+  await page.route('**/styles/pick-web?*', route => route.fulfill({ json: { ok: true, data: null } }));
+  await dialog.getByRole('button', { name: '选择文件', exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector('.component-source-import button').disabled);
+  assert.equal(await dialog.isVisible(), true);
+  assert.deepEqual(await listStyles(), []);
+  await dialog.getByText('粘贴网址或代码', { exact: true }).click();
+  const text = dialog.getByLabel('作者提供的网址或代码', { exact: true });
+  await text.fill('作者发来的说明');
+  await dialog.getByRole('button', { name: '添加样式', exact: true }).click();
+  await dialog.getByRole('status').filter({ hasText: '没有识别出' }).waitFor();
+  assert.deepEqual(await listStyles(), []);
+  await text.fill('<!doctype html><h1>粘贴的网页</h1>');
+  await dialog.getByRole('button', { name: '添加样式', exact: true }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  const styles = await listStyles();
+  assert.equal(styles.length, 1);
+  assert.equal(styles[0].name, '粘贴的样式');
+  assert.equal(styles[0].config.viewportWidth, 800);
+  assert.equal(styles[0].config.viewportHeight, 600);
+  assert.match(styles[0].config.url, /\/lira-pasted-style\.html$/);
+  assert.deepEqual(errors, []);
+});
+
+test('ambiguous folders ask which style to use instead of silently importing the first file', { timeout: 30000 }, async t => {
+  const { dataDir, page, listStyles } = await setup(t);
+  const directory = path.join(dataDir, 'variants'); fs.mkdirSync(directory);
+  for (const name of ['day', 'night']) fs.writeFileSync(path.join(directory, `${name}.html`), `<h1>${name}</h1>`);
+  const { dialog } = await openImport(page, 'clock');
+  await dialog.locator('input[webkitdirectory]').setInputFiles(directory);
+  const entry = dialog.getByRole('button', { name: '要使用的样式文件', exact: true });
+  assert.equal(await entry.isVisible(), true);
+  assert.equal(await dialog.locator('select').inputValue(), '');
+  await dialog.getByRole('button', { name: '添加样式', exact: true }).click();
+  assert.deepEqual(await listStyles(), []);
+  await entry.click();
+  await dialog.getByRole('option', { name: 'night.html', exact: true }).click();
+  await dialog.getByRole('button', { name: '添加样式', exact: true }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  assert.deepEqual((await listStyles()).map(style => style.name), ['night']);
 });

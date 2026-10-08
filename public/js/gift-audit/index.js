@@ -13,6 +13,9 @@ let bubbleGifts = [];
 let comparisonResults = [];
 let ws = null;
 let serverGiftCache = []; // 累积的服务器礼物
+let disposed = false;
+let reconnectTimer = null;
+let fallbackTimer = null;
 
 function mergeServerGifts(gifts) {
   for (const gift of gifts) {
@@ -24,6 +27,7 @@ function mergeServerGifts(gifts) {
 
 // ── WebSocket ──
 function connectWs() {
+  if (disposed) return;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = window.__API_TOKEN__;
   ws = new WebSocket(proto + '//' + location.host + '/ws' + (token ? '?token=' + encodeURIComponent(token) : ''));
@@ -48,9 +52,25 @@ function connectWs() {
   ws.onclose = () => {
     document.getElementById('connInfo').textContent = 'WebSocket 断开 · 重新连接中';
     document.getElementById('connInfo').style.color = 'var(--yellow)';
-    setTimeout(connectWs, 2000);
+    if (disposed) return;
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connectWs, 2000);
   };
   ws.onerror = () => ws.close();
+}
+
+// 页面隐藏即停止重连与兜底轮询；组件预览复用同一文档时不再持续请求。
+function disposeGiftAudit() {
+  disposed = true;
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  clearInterval(fallbackTimer);
+  fallbackTimer = null;
+  if (!ws) return;
+  ws.onclose = null;
+  ws.onerror = null;
+  ws.close();
+  ws = null;
 }
 
 async function fetchConnBar() {
@@ -207,7 +227,8 @@ document.getElementById('btnFetchServer').addEventListener('click', fetchServerG
 setTimeNow();
 connectWs();
 fetchConnBar();
-// 兜底轮询
-setInterval(() => {
-  if (!ws || ws.readyState !== WebSocket.OPEN) fetchConnBar();
+// 兜底轮询：连接未就绪时定期读取服务器快照。
+fallbackTimer = setInterval(() => {
+  if (!disposed && (!ws || ws.readyState !== WebSocket.OPEN)) fetchConnBar();
 }, 5000);
+window.addEventListener('pagehide', disposeGiftAudit, { once: true });

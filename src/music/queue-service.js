@@ -2,7 +2,8 @@
 // 点歌队列领域规则；持久化由 storage/queue-store.js 实现。
 'use strict';
 
-const { cleanText, now, timestampToIso, normalizeGuardLevel, normalizePositiveInteger } = require('../shared/utils');
+const { cleanText, now, timestampToIso, normalizePositiveInteger } = require('../shared/utils');
+const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 
 function addQueueItem(context, input) {
   const songName = cleanText(input.songName);

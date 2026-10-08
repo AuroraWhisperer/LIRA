@@ -7,7 +7,7 @@
 ## 1. 框架与命令
 
 - **框架**:Node 内置 `node:test` + `node:assert/strict`,**零第三方测试依赖**([package.json](../../../package.json));测试文件全部基于 `node:test`。
-- **全量运行**:`npm test` 通过 [run-tests.js](../../../scripts/run-tests.js) 递归收集 `test/` 各业务目录中的 `*.test.js`，排除 `helpers/` 和 `fixtures/`，再运行 `node --experimental-vm-modules --test --test-concurrency=6`。选中 Windows 原生进程归属测试时，先独立运行该文件，再并发执行其余文件，避免其他测试进程竞争原生查询的固定期限；各批分别输出统计，任一批失败都会使整体失败。helper 和探针仍由拥有者导入或显式启动；保留进程隔离，收集清单按文件名排序。
+- **全量运行**:`npm test` 通过 [run-tests.js](../../../scripts/run-tests.js) 递归收集 `test/` 各业务目录中的 `*.test.js`，排除 `helpers/` 和 `fixtures/`，再运行 `node --experimental-vm-modules --test --test-concurrency=<默认 8>`。默认并发取 8 与可用 CPU 数的较小值；显式转发的 `--test-concurrency` **替换**该默认值，运行器不会同时传入两个同名参数。实测同一台 32 逻辑 CPU 发布机：desktop 与 browser 两组 158 秒（并发 4 为 227 秒、并发 12 为 169 秒且桌面组开始因负载丢失用例），且并发 8 下桌面组 0 失败；因此默认停在 8，不再上调。选中 Windows 原生进程归属测试时，先独立运行该文件，再并发执行其余文件，避免其他测试进程竞争原生查询的固定期限；各批分别输出统计，任一批失败都会使整体失败。helper 和探针仍由拥有者导入或显式启动；保留进程隔离，收集清单按文件名排序。
 - **管理页回归**:`npm run test:admin` 固定运行 Admin 页面组合、外壳和 AI 测试并显式启用 ESM VM 模块;测试辅助加载器在未启用该 flag 时自动回退到静态 bundle,因此直接执行管理页测试也不会跳过 ESM 用例。
 - **文档门禁**:`npm run verify:docs` 检查治理文件、相对链接、AI 路由表和规格索引。
 - **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算、前端 ESM 边界与源码规模登记测试。
@@ -30,6 +30,8 @@
 | `npm run test:contracts` | 从锁定服务器检出读取 fixture 的消费者；包括完整密码兼容样例，UI/协议/HTTP 本地测试另留自主输入 |
 
 五组互不重叠且合计等于 `npm test`。用 `node scripts/run-tests.js <组名或all> --list` 查看实际文件；新增使用浏览器、桌面或服务器 fixture 的测试需在执行器中登记，普通 Node 测试自动进入离线组。日常运行所属组和直接消费者；完整验证仍用 `npm run verify`。管理页定向入口包含浏览器组件，须先安装 Chromium：`npx playwright install chromium`。
+
+林间花信外置包由 [woodland-style-package.test.js](../../../test/scenes/woodland-style-package.test.js) 覆盖真实 ZIP 检查/导入、原始素材哈希、重复导入及旧媒体 URL 的 Range/HEAD/移除兼容；[woodland-style-import-electron.test.js](../../../test/desktop/woodland-style-import-electron.test.js) 登记在 desktop 组，使用隔离 Electron 与真实文件导入链验证客户端设置、1920×1080 原生布局、画布保存和重载。打包过滤仍由 [packaging-scope.test.js](../../../test/engineering/packaging-scope.test.js) 检查，并以实际构建 ASAR 确认依赖映射和制作素材确实排除。
 
 ### 按业务职责定位和运行
 
@@ -93,7 +95,13 @@ npm test -- --file=test/gifts/frontend-blindbox-overlay.test.js --file=test/ui/f
 
 选择器不自动推断源码依赖。修改共享资源、权限、存储或跨域接线时，按实际消费者补充文件；只调整普通页面样式时，按根 AGENTS 的 Small 工作流进行针对性检查，不默认启动领域全组、浏览器全组或完整发布验证。已通过且相关输入未变的检查不重复执行。
 
-浏览器测试不因存放在 `admin/` 或 `scenes/` 而成为 offline；经 helper 间接启动 Chromium 的文件同样必须登记到 browser。同一文件的多个浏览器用例用 [shared-browser.js](../../../test/helpers/shared-browser.js) 共用一个 Chromium，每个用例使用独立 context；只在用例需要独立进程状态时自行启动浏览器。contracts 组只放必须读取锁定服务器 fixture 的用例，同文件中不依赖 fixture 的用例拆到离线文件，避免被服务器检出版本锁住。历史报告与归档计划中的原始执行记录保留当时路径，可点击的本仓库测试链接更新为现位置。
+浏览器测试不因存放在 `admin/` 或 `scenes/` 而成为 offline；经 helper 间接启动 Chromium 的文件同样必须登记到 browser。同一文件的多个浏览器用例用 [shared-browser.js](../../../test/helpers/shared-browser.js) 共用一个 Chromium，每个用例使用独立 context；只在用例需要独立进程状态时自行启动浏览器。桌面测试统一经 [shared-electron.js](../../../test/helpers/shared-electron.js) 的 `launchElectron` 启动 Playwright 的 Electron 宿主：它在传给被测应用的进程环境里删除 `ELECTRON_RUN_AS_NODE`，该变量会让 Electron 以纯 Node 启动、握手永不完成，表现为整组桌面用例只报 `Process failed to launch!`。该变量只影响这一个被测进程，直接以 Node 方式启动 Electron 的测试（如 build-integrity）仍自行管理环境。contracts 组只放必须读取锁定服务器 fixture 的用例，同文件中不依赖 fixture 的用例拆到离线文件，避免被服务器检出版本锁住。历史报告与归档计划中的原始执行记录保留当时路径，可点击的本仓库测试链接更新为现位置。
+
+并发运行的界面测试须区分页面导航、模块就绪和业务操作：Electron 窗口创建不代表 `/admin` 已加载；画布发布前须等待组件自动尺寸回传到草稿，否则迟到的尺寸会形成真实的未保存修改。等待明确状态，保留发布与草稿断言。
+
+两个原生认证探针（[账号竞态](../../../test/desktop/desktop-auth-race-electron.test.js)、[请求权限](../../../test/desktop/desktop-request-auth-electron.test.js)）使用仓库 `tmp/` 下的隔离目录；成功时正常退出 Electron，父测试等待子进程和管道关闭后再清理。异常清理同样先终止并等待进程，不能在进程仍持有目录时先删除文件。
+
+[网页组件导入回归](../../../test/scenes/component-web-import.test.js) 同时注入包目录暂态锁和索引提交失败，分别统计重命名尝试与成功安装；允许安装前的锁重试，仍严格禁止索引提交失败后重放安装，并验证失败后无已安装或暂存包。
 
 ### 固定服务器契约输入
 
@@ -192,7 +200,7 @@ npm run verify
 | [gift-projection-service.test.js](../../../test/gifts/gift-projection-service.test.js)                             | `bilibili/gift`(服务器结果投影与消费者重试)                                                     | 同上                                                                                              |
 | [gift-diagnostics-wiring.test.js](../../../test/gifts/gift-diagnostics-wiring.test.js)                             | `electron/preload`+`main`+`public/js/admin/gifts/notification`(源码装配断言)                    | 同上 + [desktop/main.md](../desktop/main.md)                                                      |
 | [gift-effect-config.test.js](../../../test/gifts/gift-effect-config.test.js)                                       | 礼物特效配置拉取、缓存、URL 信任边界与事件构造                                                  | 同上                                                                                              |
-| [gift-effects-overlay.test.js](../../../test/gifts/gift-effects-overlay.test.js)                                   | 礼物特效 API、管理工具与 透明直播叠加层                                                         | 同上 + [frontend/overlays.md](../frontend/overlays.md)                                            |
+| [gift-effects-overlay.test.js](../../../test/gifts/gift-effects-overlay.test.js)                                   | 礼物特效 API、管理工具、透明直播叠加层与其重连策略                                                         | 同上 + [frontend/overlays.md](../frontend/overlays.md)                                            |
 | [bilibili-superchat.test.js](../../../test/bilibili/bilibili-superchat.test.js)                               | `bilibili/danmaku/message-handlers`(SC 接收、解析与日志)                                                    | 同上                                                                                              |
 | [bilibili-gift-identity-hints.test.js](../../../test/bilibili/bilibili-gift-identity-hints.test.js)                   | `bilibili/users/gift-identity-hints`(发送者与舰队身份提示)                                      | 同上                                                                                              |
 | [gift-query-service.test.js](../../../test/gifts/gift-query-service.test.js)                                       | 礼物历史查询、搜索、排序、游标分页与来源边界                                                    | 同上 + [backend/storage.md](../backend/storage.md)                                                |
@@ -243,7 +251,7 @@ npm run verify
 | [server-lifecycle.test.js](../../../test/server/server-lifecycle.test.js)                                           | `server/lifecycle`(端口/生命周期)                                                               | 同上                                                                                              |
 | [server-modules.test.js](../../../test/server/server-modules.test.js)                                               | 服务兼容层与 API Context 模块边界                                                               | 同上                                                                                              |
 | [server-smoke.test.js](../../../test/server/server-smoke.test.js)                                                   | `src/server`(端到端冒烟)                                                                        | 同上 + [backend/api.md](../backend/api.md)                                                        |
-| [module-boundaries.test.js](../../../test/engineering/module-boundaries.test.js)                                         | 持久化、Admin、播放、组合根和 shared 工具的架构适应度函数                                       | [modularity-standard.md](../../architecture/engineering/modularity-standard.md)                                                  |
+| [module-boundaries.test.js](../../../test/engineering/module-boundaries.test.js)                                         | 持久化、Admin、播放、叠加层连接、组合根和 shared 工具的架构适应度函数                                       | [modularity-standard.md](../../architecture/engineering/modularity-standard.md)                                                  |
 | [websocket-transport.test.js](../../../test/transport/websocket-transport.test.js)                                     | `server/ws`(WS 传输)                                                                            | [backend/ws.md](../backend/ws.md)                                                                 |
 | **桌面层**                                                                                                   |                                                                                                 | 见各列                                                                                            |
 | [bilibili-login-window.test.js](../../../test/bilibili/bilibili-login-window.test.js)                                 | `electron/bilibili-login-window`(登录窗口)                                                      | [desktop/auth.md](../desktop/auth.md)                                                             |
@@ -341,6 +349,14 @@ npm run verify
 - **命名与布局**:测试按 §1 的业务职责放在 `test/<领域>/`，`test/helpers/` 存放共享辅助模块，`test/fixtures/` 存放隔离输入和由拥有者启动的探针。测试文件使用 `xxx.test.js` 命名，对应实际行为或明确的工程契约。
 - **新增测试**:服务端模块直接 require 真实实现(内存 DB / mock 注入);浏览器模块用 vm 求值,测试间不共享全局状态;新增文件后 `npm run check` 仍须通过(check 覆盖 `test/` 目录)。
 - **运行单个文件**:`node --experimental-vm-modules --test test/<领域>/xxx.test.js`(见 §1)。
+
+### 复用与职责范围
+
+- **先查再加**：新增测试前，按行为和所属模块搜索已有用例、helper 与 fixture；已有覆盖足够时直接运行验证。相同行为的新输入或边界优先扩展现有场景，必要时使用可独立定位失败的参数化用例；只有明确的覆盖缺口才新增独立用例。
+- **保持职责小**：每个用例验证一个明确行为或契约，可包含证明该行为所需的多个断言。不要把无关流程塞进同一用例；测试文件和 helper 也应围绕同一职责，不为复用而扩大依赖或建立万能测试框架。
+- **规则归属明确**：公共规则在拥有者层验证，调用方验证自己的接线、输入输出和集成契约，不重复冻结拥有者的内部结构、完整默认对象或普通视觉数值。不同层确有独立失败风险的覆盖应保留，不能仅因使用同一模块就合并。
+- **复用保持隔离**：优先复用适用的现有构造器、数据和辅助函数，每个场景只准备需要的输入；共享构造逻辑，不共享可变状态或依赖其他用例的执行结果。避免修改一个通用 fixture 就迫使无关场景同步改断言，也不为单次使用预先抽象。
+- **检查连带影响**：局部改动导致大量测试需要修改时，先区分真实契约变化、重复断言和过宽的 fixture 耦合，再在本次范围内修正。不能批量改期望值、删除独立回归覆盖或扩大成无关测试重构来消除失败。
 
 ### 断言的取舍
 

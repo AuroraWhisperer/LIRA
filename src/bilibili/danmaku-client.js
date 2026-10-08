@@ -3,7 +3,8 @@
 // 从 server.js 提取，保持原始实现。通过 handlers 回调与外部通信。
 'use strict';
 
-const { cleanText, publicBilibiliErrorMessage } = require('../shared/utils');
+const { cleanText } = require('../shared/utils');
+const { publicBilibiliErrorMessage } = require('./api-error');
 const { BilibiliApiClient } = require('./danmaku/api-client');
 const { getRealtimeState } = require('./danmaku/realtime-state');
 const { WebSocketConnection } = require('./danmaku/websocket-connection');

@@ -5,6 +5,7 @@ import { styleParametersFor } from '../shared/component-style-parameters.js';
 import { isSceneComponent, isComponentPreview } from './component-preview-client.js';
 import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
 import { initDanmakuComponentSource } from './danmaku-component-source.js';
+import { createOverlaySocket } from './socket-client.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, applyStyleOptions, parseStyleOptions } from '../shared/danmaku-style-options.js';
 
 ('use strict');
@@ -31,9 +32,7 @@ const previewOptions = previewMode
   : {};
 
 let items = [];
-let socket = null;
-let reconnectTimer = null;
-let reconnectAttempts = 0;
+let socketController = null;
 let feed = null;
 let feedNeedsRender = true;
 let localSocketConnected = false;
@@ -101,8 +100,11 @@ document.addEventListener('DOMContentLoaded', () => {
         configureEffects(config);
         applyItems([]);
         let remainingSamples = [];
-        // Show both thank-you compositions immediately when this theme opens.
-        const openingSamples = style === 'moonlit'
+        // Introduce each theme's distinctive message forms before the shuffled loop.
+        const openingSamples = style === 'prismatic'
+          ? [samples.find((item) => Number(item.roomGuardLevel) === 3),
+            samples.find((item) => item.id === 'preview-emote'), samples.find((item) => item.kind === 'gift')]
+          : style === 'moonlit'
           ? [samples.find((item) => item.kind === 'gift' && !item.giftGuardLevel),
             samples.find((item) => item.giftGuardLevel === 3)] : [];
         playNext = () => {
@@ -146,42 +148,37 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function connectSocket() {
-  clearTimeout(reconnectTimer);
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = window.__API_TOKEN__;
-  const query = token ? `?token=${encodeURIComponent(token)}&topic=danmaku` : '?topic=danmaku';
-  const url = `${protocol}//${location.host}/ws${query}`;
-  socket = new WebSocket(url);
-  socket.addEventListener('open', () => {
-    reconnectAttempts = 0;
-    localSocketConnected = true;
-    lastLiveStatus = null;
-    applyLiveStatus();
+  if (socketController) return;
+  socketController = createOverlaySocket({
+    topic: 'danmaku',
+    onOpen: () => {
+      localSocketConnected = true;
+      lastLiveStatus = null;
+      applyLiveStatus();
+    },
+    onClose: () => {
+      localSocketConnected = false;
+      applyLiveStatus();
+    },
+    onMessage: (payload) => {
+      if (payload.type === 'snapshot' && payload.state) {
+        const style = payload.state.settings ? payload.state.settings.danmakuOverlayStyle : '';
+        const duration = payload.state.settings ? payload.state.settings.danmakuFullscreenDurationSeconds : '';
+        applyConfiguration(style, duration);
+        if (Array.isArray(payload.state.danmakuFeed)) applyItems(payload.state.danmakuFeed);
+        applyLiveStatus(payload.state.liveStatus);
+        return;
+      }
+      if (payload.type === 'danmaku:message' && payload.item) appendItem(payload.item);
+    },
   });
-  socket.addEventListener('message', (event) => {
-    let payload;
-    try {
-      payload = JSON.parse(event.data);
-    } catch (_) {
-      return;
-    }
-    if (payload.type === 'snapshot' && payload.state) {
-      const style = payload.state.settings ? payload.state.settings.danmakuOverlayStyle : '';
-      const duration = payload.state.settings ? payload.state.settings.danmakuFullscreenDurationSeconds : '';
-      applyConfiguration(style, duration);
-      if (Array.isArray(payload.state.danmakuFeed)) applyItems(payload.state.danmakuFeed);
-      applyLiveStatus(payload.state.liveStatus);
-      return;
-    }
-    if (payload.type === 'danmaku:message' && payload.item) appendItem(payload.item);
-  });
-  socket.addEventListener('close', () => {
-    localSocketConnected = false;
-    applyLiveStatus();
-    const delay = Math.min(30000, 800 * 2 ** Math.min(reconnectAttempts, 6));
-    reconnectAttempts += 1;
-    reconnectTimer = setTimeout(connectSocket, delay);
-  });
+  window.addEventListener('pagehide', disposeSocket, { once: true });
+  socketController.start();
+}
+
+function disposeSocket() {
+  socketController?.dispose();
+  socketController = null;
 }
 
 function applyItems(nextItems) {
@@ -247,7 +244,7 @@ function createOverlayFeed(style, durationSeconds) {
         : '',
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'whiteframe', 'starveil', 'glow', 'starlight', 'sketch'].includes(style) && !isFloatingDanmakuStyle(style),
-    showGiftTotal: ['transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch'].includes(style),
+    showGiftTotal: ['transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic'].includes(style),
   };
   if (isFloatingDanmakuStyle(style)) {
     options.layout = 'floating';
@@ -380,7 +377,7 @@ function previewItems(style) {
       height: 96,
     },
   ];
-  return [
+  const samples = [
     {
       id: 'preview-1091',
       name: '金色航线',
@@ -465,4 +462,19 @@ function previewItems(style) {
       price,
     })),
   ];
+  if (style !== 'prismatic') return samples;
+  const palettes = {
+    1: [50, '#A773F199', '#D47AFF'], 2: [38, '#4C7DFF99', '#58A1F8'],
+    3: [28, '#3FB4F699', '#5FC7F4'], 0: [9, '#5762A799', '#5762A7'],
+  };
+  return samples.map((item, index) => {
+    const roomGuardLevel = item.guardLevel || 0;
+    const [level, color, border] = palettes[roomGuardLevel];
+    return {
+      ...item, avatarUrl: item.avatarUrl || '/img/overlays/danmaku-ranked/viewer.webp',
+      honorLevel: [70, 45, 32, 19, 28][index % 5], roomGuardLevel,
+      ...(item.medalLevel ? { roomMedal: { name: item.medalName || '粉丝团灯牌', level, guardLevel: roomGuardLevel, isLight: true,
+        colorStart: color, colorEnd: color, colorBorder: border, colorText: '#FFFFFF' } } : {}),
+    };
+  });
 }

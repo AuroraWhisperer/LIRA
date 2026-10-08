@@ -1,7 +1,8 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
-const { normalizeRoomInput, publicBilibiliErrorMessage } = require('../../shared/utils');
+const { normalizeRoomInput } = require('../../bilibili/room-input');
+const { publicBilibiliErrorMessage } = require('../../bilibili/api-error');
 
 const prefixes = ['/api/bilibili/'];
 

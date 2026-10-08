@@ -36,7 +36,7 @@ export function createStreamHandler(deps) {
       },
       () => {
         // 重试失败回调
-        return playbackNext(false);
+        return playbackNext(false, { skipUnavailable: true });
       },
       isCurrent,
     );

@@ -9,10 +9,11 @@ const { Readable } = require('node:stream');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
-const { getOpeningConfig, routes } = require('../../src/server/routes/opening-routes');
+const { getOpeningConfig } = require('../../src/server/opening-service');
+const { routes } = require('../../src/server/routes/opening-routes');
 const { normalizeSceneConfig } = require('../../src/server/scene-components');
 const { projectOverlayResponse } = require('../../src/server/overlay-projection');
-const { serveOpeningMedia } = require('../../src/server/http-utils');
+const { serveOpeningMedia } = require('../../src/server/opening-media-http');
 const { resolveOpeningAppearance, MOONLIT_OPENING_DEFAULTS } = require('../../public/js/shared/opening-appearance.js');
 
 test('built-in opening profiles and fixed canvas styles keep their own settings', () => {

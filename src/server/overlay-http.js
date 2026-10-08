@@ -3,7 +3,7 @@
 const { sendJson } = require('./http-utils');
 const { projectOverlayResponse } = require('./overlay-projection');
 const { getClockConfig } = require('./clock-contract');
-const { getOpeningConfig } = require('./routes/opening-routes');
+const { getOpeningConfig } = require('./opening-service');
 const { readGiftDisplaySettings } = require('../bilibili/gift/display-settings');
 const { routes: bilibiliRoutes } = require('./routes/bilibili-routes');
 const { routes: danmakuDisplayRoutes } = require('./routes/danmaku-display-routes');

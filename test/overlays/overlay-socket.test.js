@@ -82,6 +82,74 @@ test('overlay socket builds the tokenized URL and starts idempotently', async ()
   assert.equal(FakeWebSocket.instances[0].url, 'wss://overlay.test/ws?token=token%20value');
 });
 
+test('overlay socket preserves and encodes its subscription topic across reconnects', async () => {
+  const { buildOverlaySocketUrl, createOverlaySocket } = await loadSocketModule();
+  assert.equal(buildOverlaySocketUrl({ token: '', topic: 'danmaku' }), 'wss://overlay.test/ws?topic=danmaku');
+  assert.equal(
+    buildOverlaySocketUrl({ topic: 'gift & chat' }),
+    'wss://overlay.test/ws?token=token%20value&topic=gift%20%26%20chat',
+  );
+  const timers = createTimers();
+  const controller = createOverlaySocket({
+    topic: 'danmaku',
+    setTimeoutFn: timers.setTimeoutFn,
+    clearTimeoutFn: timers.clearTimeoutFn,
+  });
+  controller.start();
+  const first = FakeWebSocket.instances[0];
+  assert.equal(first.url, 'wss://overlay.test/ws?token=token%20value&topic=danmaku');
+  first.emit('close');
+  timers.runNext();
+  assert.equal(FakeWebSocket.instances[1].url, first.url);
+  controller.dispose();
+});
+
+test('closeOnError reconnects the current socket and ignores obsolete errors', async () => {
+  const { createOverlaySocket } = await loadSocketModule();
+  const timers = createTimers();
+  let errors = 0;
+  const controller = createOverlaySocket({
+    closeOnError: true,
+    reconnectBaseDelayMs: 1000,
+    setTimeoutFn: timers.setTimeoutFn,
+    clearTimeoutFn: timers.clearTimeoutFn,
+    onError: () => { errors += 1; },
+  });
+  controller.start();
+  const first = FakeWebSocket.instances[0];
+  first.emit('error');
+  assert.equal(first.closed, true);
+  assert.equal(errors, 1);
+  assert.equal(timers.timers.length, 1);
+  assert.equal(timers.timers[0].delay, 1000);
+  timers.runNext();
+  const second = FakeWebSocket.instances[1];
+  first.emit('error');
+  assert.equal(second.closed, false);
+  assert.equal(errors, 1);
+  second.emit('error');
+  assert.equal(second.closed, true);
+  assert.equal(errors, 2, 'errors from subsequent connections remain observable');
+  assert.equal(timers.timers[1].delay, 2000);
+  controller.dispose();
+  assert.equal(timers.timers[1].cancelled, true);
+});
+
+test('overlay socket leaves error handling to its caller unless closeOnError is enabled', async () => {
+  const { createOverlaySocket } = await loadSocketModule();
+  const timers = createTimers();
+  const controller = createOverlaySocket({
+    setTimeoutFn: timers.setTimeoutFn,
+    clearTimeoutFn: timers.clearTimeoutFn,
+  });
+  controller.start();
+  const socket = FakeWebSocket.instances[0];
+  socket.emit('error');
+  assert.equal(socket.closed, false);
+  assert.equal(timers.timers.length, 0);
+  controller.dispose();
+});
+
 test('overlay socket retries with bounded exponential backoff and notifies recovery', async () => {
   const { createOverlaySocket } = await loadSocketModule();
   const timers = createTimers();

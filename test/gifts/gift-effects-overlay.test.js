@@ -134,6 +134,7 @@ test('gift effects overlay uses official frame metadata without cropping or inve
   assert.doesNotMatch(playerJs, /height \* 9 \/ 16|activeHeight|horizontalPadding/);
   assert.match(overlayJs, /PREVIEW_MODE/);
   assert.match(overlayJs, /visibilitychange/);
+  assert.match(overlayJs, /onClose:[\s\S]*?effectPlayer\.setEnabled\(false\)/);
   assert.doesNotMatch(overlayJs, /innerHTML/);
   assert.doesNotMatch(css, /mix-blend-mode/);
 });
@@ -191,4 +192,115 @@ test('toolbox includes gift effect controls that copy the source URL and open it
   assert.equal(nodes.get('giftEffectOverlayUrl').textContent, 'http://127.0.0.1:3000/gift-effects');
   assert.deepEqual(copied, ['http://127.0.0.1:3000/gift-effects']);
   assert.deepEqual(opened, [['http://127.0.0.1:3000/gift-effects?preview=1', 'liraGiftEffectPreview']]);
+});
+
+test('gift effects overlay keeps its own reconnect policy and stops the connection on pagehide', async () => {
+  function createOverlayNode(id = '') {
+    const node = {
+      id,
+      hidden: false,
+      textContent: '',
+      dataset: {},
+      attributes: {},
+      style: { setProperty() {}, removeProperty() {} },
+      classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+      addEventListener() {},
+      removeEventListener() {},
+      append() {},
+      replaceChildren() {},
+      remove() {},
+      setAttribute(name, value) { node.attributes[name] = value; },
+      getAttribute(name) { return node.attributes[name] ?? null; },
+      removeAttribute(name) { delete node.attributes[name]; },
+      querySelector: (selector) => createOverlayNode(selector),
+      querySelectorAll: () => [],
+      load() {},
+      pause() {},
+      play: () => Promise.resolve(),
+    };
+    return node;
+  }
+
+  const sockets = [];
+  const timers = new Map();
+  const windowListeners = new Map();
+  const elements = new Map();
+  let sequence = 0;
+  class Socket {
+    constructor(url) {
+      this.url = url;
+      this.listeners = {};
+      this.closed = false;
+      sockets.push(this);
+    }
+
+    addEventListener(name, handler) {
+      this.listeners[name] = handler;
+    }
+
+    emit(name, value) {
+      this.listeners[name]?.(value);
+    }
+
+    close() {
+      this.closed = true;
+    }
+  }
+  const element = (id) => {
+    if (!elements.has(id)) elements.set(id, createOverlayNode(id));
+    return elements.get(id);
+  };
+  const windowRef = {
+    __API_TOKEN__: 'overlay token',
+    innerWidth: 1920,
+    innerHeight: 1080,
+    addEventListener(name, handler) { windowListeners.set(name, handler); },
+    removeEventListener(name) { windowListeners.delete(name); },
+    matchMedia: () => ({ matches: false }),
+  };
+  const setTimeoutFn = (callback, delay) => { const id = ++sequence; timers.set(id, { callback, delay }); return id; };
+  const clearTimeoutFn = (id) => timers.delete(id);
+  await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/gift-effects.js'), {
+    document: {
+      defaultView: windowRef,
+      body: element('body'),
+      documentElement: element('html'),
+      readyState: 'complete',
+      getElementById: element,
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      createElement: (tag) => element(tag),
+      createDocumentFragment: () => element('fragment'),
+      addEventListener() {},
+    },
+    window: windowRef,
+    location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
+    URL,
+    URLSearchParams,
+    WebSocket: Socket,
+    setTimeout: setTimeoutFn,
+    clearTimeout: clearTimeoutFn,
+    requestAnimationFrame: () => 1,
+    cancelAnimationFrame() {},
+  });
+
+  assert.equal(sockets.length, 1);
+  assert.equal(sockets[0].url, 'ws://127.0.0.1:3000/ws?token=overlay%20token');
+
+  const delays = [];
+  for (const expected of [1000, 2000, 4000, 8000, 16000, 30000, 30000]) {
+    sockets.at(-1).emit('close');
+    const [timer] = [...timers.values()];
+    delays.push(timer.delay);
+    assert.equal(timer.delay, expected);
+    timers.clear();
+    timer.callback();
+  }
+  assert.deepEqual(delays, [1000, 2000, 4000, 8000, 16000, 30000, 30000]);
+  assert.equal(sockets.length, 8, 'every reconnect opens exactly one socket');
+
+  windowListeners.get('pagehide')();
+  assert.equal(sockets.at(-1).closed, true, 'pagehide closes the live socket');
+  sockets.at(-1).emit('close');
+  assert.equal(timers.size, 0, 'pagehide stops further reconnect attempts');
 });

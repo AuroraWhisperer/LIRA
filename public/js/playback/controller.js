@@ -235,7 +235,6 @@ export function createPlaybackController(initialOptions = {}) {
     stateActions,
     homeService,
     uiRenderer,
-    escapeHtml,
     toast,
     showError,
     savePlaybackState,
@@ -422,8 +421,8 @@ export function createPlaybackController(initialOptions = {}) {
     return togglePlaybackRaw(takeNextPlaybackTrack, () => providerOperations.showPlaybackLoginPrompt());
   }
 
-  function playbackNext(fromEnded) {
-    return playbackNextRaw(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled);
+  function playbackNext(fromEnded, options) {
+    return playbackNextRaw(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled, options);
   }
 
   // ══════════════════════════════════════════════════════════════

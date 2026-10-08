@@ -4,6 +4,7 @@
 
 import * as PlaybackUtils from '../utils.js';
 import { notifyMediaPlayFailure } from '../../shared/media-playback-feedback.js';
+import { escapeAttr, escapeHtml } from '../../shared/utils.js';
 
 const TONEARM_SVG = `
   <svg viewBox="0 0 240 440" data-player-tonearm="curved" aria-hidden="true">
@@ -165,7 +166,6 @@ export class FullscreenPlayer {
   renderArtwork(track) {
     if (!this.artEl) return;
 
-    const escapeAttr = window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
     const coverUrl = track && track.coverUrl ? track.coverUrl : '';
 
     this.artEl.classList.toggle('has-image', Boolean(coverUrl));
@@ -286,8 +286,6 @@ export class FullscreenPlayer {
    */
   renderLyricLines(lines) {
     if (!this.lyricsContainer) return;
-
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
     const showTrans = this.lyricMode === 'trans';
     const showRoma = this.lyricMode === 'roma';

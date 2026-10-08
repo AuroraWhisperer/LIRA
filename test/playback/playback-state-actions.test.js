@@ -75,3 +75,45 @@ test('explicit next priority survives shuffle rebuilds and keeps same-song reque
   assert.equal(queue.takeNext().track.id, 'old-next');
   assert.equal(queue.takeNext(), null);
 });
+
+test('playlist cursor follows the consumed song after shuffle changes to sequence', async () => {
+  const { QueueManager } = await loadModuleExports(entry('queue/manager.js'));
+  const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
+  const state = createInitialState();
+  const queue = new QueueManager({ state });
+  queue.startCollection([{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }], 0, 'playlist');
+  state.mode = 'shuffle';
+  state.shuffleOrder = ['d', 'b', 'c'];
+  assert.equal(queue.takeNext().track.id, 'd');
+  assert.equal(state.playlistIndex, 3);
+  state.mode = 'sequence';
+  assert.equal(queue.takeNext().track.id, 'b');
+  assert.equal(state.playlistIndex, 1);
+  assert.equal(queue.takeNext().track.id, 'c');
+  assert.equal(state.playlistIndex, 2);
+});
+
+test('sequential duplicate tracks and separate same-song requests keep their own playlist positions', async () => {
+  const { QueueManager } = await loadModuleExports(entry('queue/manager.js'));
+  const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
+  const state = createInitialState();
+  const queue = new QueueManager({ state });
+  queue.startCollection([
+    { id: 'a' }, { id: 'a' },
+    { id: 'a', songRequestKey: 'request-1' }, { id: 'a', songRequestKey: 'request-2' },
+  ], 0, 'playlist');
+  for (const index of [1, 2, 3]) {
+    assert.ok(queue.takeNext());
+    assert.equal(state.playlistIndex, index);
+  }
+});
+
+test('a radio started without a collection key records the track platform', async () => {
+  const { QueueManager } = await loadModuleExports(entry('queue/manager.js'));
+  const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
+  const state = createInitialState();
+  state.selectedSource = 'netease';
+  const queue = new QueueManager({ state });
+  queue.startCollection([{ id: 'qq-song', source: 'qq' }], 0, 'radio');
+  assert.equal(state.queueSourceKey, 'qq:radio');
+});

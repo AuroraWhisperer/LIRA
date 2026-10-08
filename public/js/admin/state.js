@@ -2,10 +2,8 @@
 // 全局状态管理和数据加载
 'use strict';
 
-import { showError, value } from '../shared/utils.js';
-import { publishState } from './legacy-admin-bridge.js';
+import { showError } from '../shared/utils.js';
 import { eventBus, Events } from '../shared/event-bus.js';
-import { readSelectedCategories, readSelectedTags } from './song-category-filter.js';
 
 /**
  * 状态管理服务
@@ -18,6 +16,7 @@ export class StateService {
     this.categories = [];
     this.songReloadTimer = null;
     this.songReloadVersion = 0;
+    this.readSongFilters = () => ({});
     this.stateReloadVersion = 0;
     this.pendingStateReload = null;
     this.realtimeVersion = 0;
@@ -43,11 +42,9 @@ export class StateService {
     const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
     this.ws = new WebSocket(wsUrl);
     const connection = this.ws;
-    const status = document.getElementById('wsStatus');
 
     this.ws.addEventListener('open', () => {
       if (this.ws !== connection || this.shuttingDown) return;
-      status.hidden = true;
       if (this.hasConnected) this.scheduleSongReload();
       this.hasConnected = true;
       eventBus.emit('ws:connected');
@@ -131,15 +128,10 @@ export class StateService {
     this.ws.addEventListener('close', () => {
       if (this.ws !== connection) return;
       this.ws = null;
-      status.hidden = false;
       if (this.shuttingDown) {
-        status.textContent = '程序已退出';
-        status.className = 'pill warn';
         eventBus.emit('app:shutdown');
         return;
       }
-      status.textContent = '前端连接断开，重连中';
-      status.className = 'pill warn';
       eventBus.emit('ws:disconnected');
       this.reconnectTimer = setTimeout(() => {
         this.reconnectTimer = null;
@@ -223,21 +215,29 @@ export class StateService {
   }
 
   /**
+   * 由歌库页面提供当前筛选，供手动刷新、实时失效和重连共用。
+   */
+  setSongFiltersReader(readFilters) {
+    this.readSongFilters = readFilters;
+  }
+
+  /**
    * 重新加载歌曲列表
    */
   async reloadSongs(options = {}) {
     const requestVersion = ++this.songReloadVersion;
+    const filters = options.filters ?? this.readSongFilters();
     const params = new URLSearchParams();
-    if (value('songSearch')) params.set('query', value('songSearch'));
-    for (const category of readSelectedCategories()) {
+    if (filters.query) params.set('query', filters.query);
+    for (const category of filters.categories || []) {
       params.append('category', category);
     }
-    if (value('languageFilter')) params.set('language', value('languageFilter'));
-    if (value('artistFilter')) params.set('artist', value('artistFilter'));
-    for (const tag of readSelectedTags()) {
+    if (filters.language) params.set('language', filters.language);
+    if (filters.artist) params.set('artist', filters.artist);
+    for (const tag of filters.tags || []) {
       params.append('tag', tag);
     }
-    if (value('enabledFilter') === 'true') params.set('enabledOnly', 'true');
+    if (filters.enabledOnly === true) params.set('enabledOnly', 'true');
 
     const response = await fetch(`/api/songs?${params}`);
     const payload = await response.json();
@@ -376,5 +376,3 @@ function isSongsSnapshotReason(reason) {
 
 // 创建单例实例
 export const stateService = new StateService();
-
-publishState(stateService);

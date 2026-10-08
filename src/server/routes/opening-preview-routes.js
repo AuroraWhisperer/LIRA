@@ -1,9 +1,9 @@
 'use strict';
 
 const { readJsonBody, sendJson, validateOrigin } = require('../http-utils');
-const { normalizeSettingsPatch } = require('../settings-contract');
-const { openingStyleSettingsPatch } = require('../../../public/js/shared/opening-settings');
-const { routes: openingRoutes, getOpeningConfig } = require('./opening-routes');
+const { getOpeningConfig, resolveOpeningMediaSlot, saveOpeningMedia,
+  clearOpeningMedia, updateOpeningStyleSettings } = require('../opening-service');
+const { readOpeningUpload, OPENING_UPLOAD_ERRORS } = require('../opening-upload');
 
 async function handleCanvasOpening(context, req, res, url) {
   const authorize = () => {
@@ -21,18 +21,24 @@ async function handleCanvasOpening(context, req, res, url) {
     if (kind === 'config' && req.method === 'POST') {
       const patch = await readJsonBody(req, 4096);
       authorize();
-      let settings;
-      try { settings = openingStyleSettingsPatch(url.searchParams.get('style'), patch); }
-      catch (error) { return sendJson(res, 400, { ok: false, error: error.message }); }
-      const normalized = normalizeSettingsPatch(settings, context.settings.defaults);
-      if (normalized.error) return sendJson(res, 400, { ok: false, error: normalized.error });
-      context.settings.setMany(normalized.values);
-      context.broadcastSnapshot('settings');
+      const data = updateOpeningStyleSettings(context, url.searchParams.get('style'), patch);
+      return sendJson(res, 200, { ok: true, data });
+    }
+    if (kind === 'config' && req.method === 'GET') {
       return sendJson(res, 200, { ok: true, data: getOpeningConfig(context) });
     }
-    const route = openingRoutes[`${req.method} /api/opening/${kind}`];
-    if (!route) return sendJson(res, 405, { ok: false, error: '不支持的开播操作。' });
-    return await route(context, { req, query: url.searchParams, authorize }, res);
+    if (kind === 'config' || !['POST', 'DELETE'].includes(req.method)) {
+      return sendJson(res, 405, { ok: false, error: '不支持的开播操作。' });
+    }
+    const slot = resolveOpeningMediaSlot(kind, url.searchParams.get('style') ?? undefined);
+    if (!slot) return sendJson(res, 400, { ok: false, error: '不支持的开播动画样式。' });
+    if (req.method === 'DELETE') {
+      return sendJson(res, 200, { ok: true, data: clearOpeningMedia(context, slot) });
+    }
+    const upload = await readOpeningUpload(req, kind);
+    authorize();
+    if (!upload) return sendJson(res, 400, { ok: false, error: OPENING_UPLOAD_ERRORS[kind] });
+    return sendJson(res, 200, { ok: true, data: saveOpeningMedia(context, slot, upload) });
   } catch (error) {
     const status = [400, 403, 409, 410, 413, 503].includes(error.statusCode) ? error.statusCode : 500;
     return sendJson(res, status, { ok: false, error: status === 500 ? '开播设置暂时不可用，请重试。' : error.message });

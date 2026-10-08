@@ -6,6 +6,15 @@ import { receiveComponentSettings, projectComponentDrafts } from './component-se
 import { songs } from './songs.js';
 import { renderQueueState, renderSuperChatQueue, applyAdminQueueFontPreview } from './queue.js';
 
+export function renderConnectionStatus(connectionState) {
+  const status = document.getElementById('wsStatus');
+  if (!status) return;
+  status.hidden = connectionState === 'connected';
+  if (status.hidden) return;
+  status.textContent = connectionState === 'shutdown' ? '程序已退出' : '前端连接断开，重连中';
+  status.className = 'pill warn';
+}
+
 export function createAdminStateRenderer({
   renderQueue = renderQueueState,
   renderSuperChats = renderSuperChatQueue,

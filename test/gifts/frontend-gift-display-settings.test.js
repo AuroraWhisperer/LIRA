@@ -2,20 +2,17 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 const { readCssBundle } = require('../helpers/css-bundle');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const fixture = createUiFixture();
 const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
-const historyHtml = fs.readFileSync(path.resolve('public/pages/admin/gifts/history.html'), 'utf8');
 
-async function openSettings(t) {
+async function openSettings(t, { tabs = false } = {}) {
   const page = await fixture(t, 'gift-display');
   await page.setContent(html);
-  await page.evaluate(async () => {
+  await page.evaluate(async tabs => {
     document.getElementById('otherGiftFeature').hidden = false;
     window.savedDisplay = {
       palette: 'bilibili-four',
@@ -35,16 +32,23 @@ async function openSettings(t) {
       }
       return { ok: true, json: async () => ({ ok: true, data: window.savedDisplay }) };
     };
-    const { initGiftAssistant } = await import('/js/admin/gift-assistant.js');
-    initGiftAssistant();
-    document.getElementById('giftAssistantDisplayTab').click();
-  });
+    if (tabs) {
+      const { initGiftAssistant } = await import('/js/admin/gift-assistant.js');
+      initGiftAssistant();
+      document.getElementById('giftAssistantDisplayTab').click();
+    } else {
+      document.getElementById('giftFramePanel').hidden = true;
+      document.getElementById('giftDisplaySettings').hidden = false;
+      const { createGiftDisplaySettings } = await import('/js/admin/gifts/display-settings.js');
+      await createGiftDisplaySettings().open();
+    }
+  }, tabs);
   await page.waitForFunction(() => !document.getElementById('giftDisplayFields').disabled);
   return page;
 }
 
 test('style preview holds each palette color, animates between them and loops', async (t) => {
-  const page = await openSettings(t);
+  const page = await openSettings(t, { tabs: true });
   for (const file of ['public/css/shared/gift-banner.css', 'public/css/admin/gift-display.css']) {
     await page.addStyleTag({ content: readCssBundle(file) });
   }
@@ -211,7 +215,7 @@ test('gift range endpoints synchronize both ways and save exact cent boundaries'
 });
 
 test('defaults reset both range endpoints and cancelling discards the draft', async (t) => {
-  const page = await openSettings(t);
+  const page = await openSettings(t, { tabs: true });
   await page.locator('#giftTierEnd0').fill('25');
   await page.getByRole('button', { name: '恢复默认', exact: true }).click();
   assert.deepEqual(
@@ -230,8 +234,8 @@ test('defaults reset both range endpoints and cancelling discards the draft', as
   assert.equal(await page.locator('#giftTierEnd0').inputValue(), '100');
 });
 
-test('gift assistant keeps frame and display settings while export settings live in history', async (t) => {
-  const page = await openSettings(t);
+test('gift assistant keeps display drafts across tabs and leaves export settings outside this panel', async (t) => {
+  const page = await openSettings(t, { tabs: true });
   await page.locator('#giftFeedRows').fill('5');
   await page.getByRole('tab', { name: '全屏礼物感谢', exact: true }).click();
   assert.equal(await page.locator('#giftFramePanel').isVisible(), true);
@@ -242,12 +246,5 @@ test('gift assistant keeps frame and display settings while export settings live
   await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
   await page.waitForFunction(() => window.displaySaves.length === 1);
   assert.equal(await page.evaluate(() => window.savedDisplay.visibleRows), 5);
-  assert.doesNotMatch(historyHtml, /giftDisplaySettings|giftExportRemember/);
-  assert.doesNotMatch(html, /giftAssistantExportTab|giftExportSettings/);
-  for (const id of ['giftExportMode', 'giftExportBackground', 'giftExportChoose', 'giftExportDefault']) {
-    assert.ok(historyHtml.includes(`id="${id}"`));
-  }
-  assert.match(historyHtml, /giftHistoryExport/);
-  assert.match(historyHtml, /giftExportPreview/);
-  assert.match(historyHtml, /giftExportSave/);
+  assert.equal(await page.locator('#giftAssistantExportTab, #giftExportSettings').count(), 0);
 });

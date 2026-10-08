@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHttpServer } = require('../../src/server/http-server');
-const { servePageOrAsset } = require('../../src/server/http-utils');
+const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
 const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
 

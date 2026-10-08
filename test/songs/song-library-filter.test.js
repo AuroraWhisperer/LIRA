@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -59,7 +59,7 @@ test('category filter presents each slash-separated category on its own row', as
 });
 
 test('song library multi-select filters allow only one open menu', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/song/library.html');
 
   assert.match(html, /<details\b(?=[^>]*\bid="categoryFilter")(?=[^>]*\bname="songLibraryFilter")[^>]*>/);
   assert.match(html, /<details\b(?=[^>]*\bid="tagFilter")(?=[^>]*\bname="songLibraryFilter")[^>]*>/);
@@ -261,14 +261,14 @@ test('song library requires every selected complete tag and composes with catego
 });
 
 test('song library table displays the escaped language column and spans empty results across it', async () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/song/library.html');
   const header = html.match(/<thead>((?:(?!<\/thead>)[\s\S])*)<\/thead>\s*<tbody id="songsTable"><\/tbody>/)?.[1];
   assert.ok(header, 'song table markup should remain present');
   assert.match(header, /<th>语言<\/th>/);
   const columnCount = header.match(/<th\b/g).length;
 
   const elements = {
-    songsTable: { innerHTML: '' },
+    songsTable: { innerHTML: '', addEventListener() {} },
     songNoteColumnHeader: { hidden: false },
     languageFilter: { value: '', innerHTML: '' },
     artistFilter: { value: '', innerHTML: '' },
@@ -324,7 +324,7 @@ test('song library folds row actions into an accessible bordered menu', () => {
 
 test('song library hides the note column when every visible note is empty', async () => {
   const elements = {
-    songsTable: { innerHTML: '' },
+    songsTable: { innerHTML: '', addEventListener() {} },
     songNoteColumnHeader: { hidden: false },
     languageFilter: { value: '', innerHTML: '' },
     artistFilter: { value: '', innerHTML: '' },
@@ -375,8 +375,9 @@ test('song library hides the note column when every visible note is empty', asyn
 });
 
 test('song deletion closes custom confirmation before deleting and refreshing', async () => {
+  const tableHandlers = {};
   const elements = {
-    songsTable: { innerHTML: '' },
+    songsTable: { innerHTML: '', addEventListener(name, handler) { tableHandlers[name] = handler; } },
     songNoteColumnHeader: { hidden: false },
     languageFilter: { value: '', innerHTML: '' },
     artistFilter: { value: '', innerHTML: '' },
@@ -386,17 +387,13 @@ test('song deletion closes custom confirmation before deleting and refreshing', 
   };
   const deleteButton = {
     dataset: { deleteSong: '42' },
-    addEventListener(eventName, handler) {
-      if (eventName === 'click') this.click = handler;
-    },
+    // Row actions are delegated to the table, so the row button resolves itself.
+    closest: (selector) => (selector === '[data-delete-song]' ? deleteButton : null),
   };
   const calls = [];
   const document = {
     getElementById: (id) => elements[id],
-    querySelectorAll(selector) {
-      if (selector === '[data-delete-song]') return [deleteButton];
-      return [];
-    },
+    querySelectorAll: () => [],
   };
   const window = {
     AdminApp: {
@@ -427,7 +424,9 @@ test('song deletion closes custom confirmation before deleting and refreshing', 
     new Set(),
     new Set(),
   );
-  await deleteButton.click();
+  // Delegated row actions are fire-and-forget in the browser, so the test flushes their promise chain.
+  tableHandlers.click({ target: deleteButton });
+  await new Promise((resolve) => setImmediate(resolve));
 
   assert.deepEqual(
     calls.map((call) => call[0]),

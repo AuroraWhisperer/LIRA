@@ -25,13 +25,16 @@ function appearance(event) {
 function displayEvent(event) {
   const result = pick(event, 'type liveSessionId timestamp name');
   if (event.type === 'entry') return { ...result, ...pick(event, 'guardLevel') };
-  if (event.type === 'gift') return { ...result, ...pick(event, 'giftName giftCount giftTotalPrice giftImageUrl') };
+  if (event.type === 'gift') return { ...result, ...pick(event, 'giftName giftCount giftTotalPrice giftImageUrl avatarUrl giftGuardLevel honorLevel') };
   Object.assign(result, pick(event, 'message avatarUrl'));
   if (event.type === 'superchat') {
     Object.assign(result, pick(event, 'price'));
     if (event.colors && typeof event.colors === 'object') result.colors = pick(event.colors, 'backgroundColor accentColor priceColor');
   } else {
-    Object.assign(result, pick(event, 'guardLevel medalName medalLevel isStreamer'));
+    Object.assign(result, pick(event, 'guardLevel medalName medalLevel isStreamer honorLevel roomGuardLevel'));
+    if (event.roomMedal && typeof event.roomMedal === 'object' && !Array.isArray(event.roomMedal)) {
+      result.roomMedal = pick(event.roomMedal, 'name level guardLevel isLight colorStart colorEnd colorBorder colorText');
+    }
     result.emotes = Array.isArray(event.emotes) ? event.emotes.slice(0, 32)
       .filter((emote) => emote && typeof emote === 'object')
       .map((emote) => pick(emote, 'text url kind width height')) : [];

@@ -3,21 +3,11 @@
 import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { mountOpeningStylePicker } from './opening-style-picker.js';
-import { OPENING_STYLE_SETTING_KEYS, openingStyleSettingsPatch } from '../shared/opening-settings.js';
-
-const OPENING_DEFAULTS = Object.freeze({
-  enabled: false,
-  style: 'classic',
-  title: '唱一首，在一首，给你的歌',
-  subtitle: '开播准备中',
-  name: '',
-  footer: '欢迎来到直播间',
-  quality: 'normal',
-  trackMotion: 'heart',
-  showNotes: true,
-  showEq: true,
-  volume: 0.35,
-});
+import {
+  OPENING_DEFAULTS,
+  OPENING_STYLE_SETTING_KEYS,
+  openingStyleSettingsPatch,
+} from '../shared/opening-settings.js';
 
 const QUALITY_VALUES = new Set(['high', 'normal', 'low']);
 const TRACK_MOTION_VALUES = new Set(['heart', 'barber', 'progress']);

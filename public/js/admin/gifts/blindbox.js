@@ -4,7 +4,6 @@ import { giftAnalysis } from './blindbox-analysis.js';
 // 盲盒统计模块 - 负责盲盒映射配置和统计数据显示
 ('use strict');
 
-import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { stateService } from '../state.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
 import { escapeHtml, escapeAttr, formatMoney, readJsonResponse } from '../../shared/utils.js';
@@ -474,4 +473,3 @@ export const giftBlindbox = (() => {
   updateSaleRoom(stateService.getAppState()?.settings);
   return module;
 })();
-publishGiftModule('blindbox', giftBlindbox);

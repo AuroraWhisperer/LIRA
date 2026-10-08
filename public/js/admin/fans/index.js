@@ -2,6 +2,7 @@ import { createFanEditor } from './editor.js';
 import { createFanProfileActions } from './profile-actions.js';
 import { createFanTransferUi } from './transfer-ui.js';
 import { dangerConfirm, toast } from '../../shared/utils.js';
+import { fitTextToWidth } from '../../shared/fit-text-to-width.js';
 import { renderPeople, renderDetail, renderReminders } from './view.js';
 import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
 import { settingsForm, guardRosterForm } from './forms.js';
@@ -144,18 +145,7 @@ function createFanUi() {
   }
 
   function fitPeopleNames() {
-    for (const name of get('fanPeople').querySelectorAll('.fan-name')) {
-      name.style.fontSize = '';
-      const availableWidth = name.getBoundingClientRect().width;
-      if (!availableWidth) continue;
-      const range = document.createRange();
-      range.selectNodeContents(name);
-      const textWidth = range.getBoundingClientRect().width;
-      if (textWidth > availableWidth) {
-        const fontSize = parseFloat(getComputedStyle(name).fontSize);
-        name.style.fontSize = `${Math.floor(((fontSize * availableWidth) / textWidth) * 10) / 10}px`;
-      }
-    }
+    fitTextToWidth(get('fanPeople').querySelectorAll('.fan-name'));
   }
 
   function renderList() {

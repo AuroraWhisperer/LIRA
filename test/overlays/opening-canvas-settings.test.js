@@ -93,23 +93,42 @@ test('canvas opening rejects unrelated fields, bad uploads and unauthorized call
   assert.equal((await f.request('config')).status, 409);
 });
 
-test('revoking a canvas during avatar upload prevents storage and settings changes', async t => {
-  const { handleCanvasOpening } = require('../../src/server/routes/opening-preview-routes');
-  const dataDir = createScratchDirectory('opening-revoked-upload-', t);
-  const sessions = createComponentPreviewSessions();
-  const opened = sessions.open({ component: 'canvas', state });
-  const attachmentId = randomUUID();
-  sessions.browser({ action: 'attach', id: opened.id, attachmentId, previousAttachmentId: null }, opened.token);
-  const req = new PassThrough(); req.method = 'POST';
-  req.headers = { authorization: `Bearer ${opened.token}`, 'content-type': 'multipart/form-data; boundary=test' };
-  const res = { setHeader() {}, writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
-  const pending = handleCanvasOpening({ componentPreviews: sessions, system: { dataDir }, settings: {
-    set() { assert.fail('A revoked upload cannot change settings'); },
-  } }, req, res, new URL(`http://localhost/api/component-preview/opening/character?id=${opened.id}&attachmentId=${attachmentId}&style=pixel-cassette`));
-  req.write('--test\r\nContent-Disposition: form-data; name="file"; filename="avatar.png"\r\nContent-Type: image/png\r\n\r\n');
-  sessions.revoke(opened.id);
-  req.end(Buffer.concat([png, Buffer.from('\r\n--test--\r\n')]));
-  await pending;
-  assert.equal(res.status, 410);
-  assert.equal(fs.existsSync(path.join(dataDir, 'opening-character')), false);
+test('canvas opening keeps unsupported methods and media styles outside the write path', async t => {
+  const f = await fixture(t);
+  for (const [kind, method] of [['config', 'DELETE'], ['music', 'GET'], ['character', 'PUT']]) {
+    const response = await f.request(kind, { method });
+    assert.equal(response.status, 405);
+    assert.equal(response.error, '不支持的开播操作。');
+  }
+  assert.equal((await f.request('unknown')).status, 404);
+  for (const kind of ['music', 'character']) {
+    const response = await f.request(kind, { method: 'DELETE', style: 'unknown' });
+    assert.equal(response.status, 400);
+    assert.equal(response.error, '不支持的开播动画样式。');
+  }
+  assert.equal(f.values.openingAudioFile, '');
+  assert.equal(f.values.openingCharacterFile, '');
 });
+
+for (const [kind, name, bytes] of [['character', 'avatar.png', png], ['music', 'opening.mp3', Buffer.from('music')]]) {
+  test(`revoking a canvas during ${kind} upload prevents storage and settings changes`, async t => {
+    const { handleCanvasOpening } = require('../../src/server/routes/opening-preview-routes');
+    const dataDir = createScratchDirectory('opening-revoked-upload-', t);
+    const sessions = createComponentPreviewSessions();
+    const opened = sessions.open({ component: 'canvas', state });
+    const attachmentId = randomUUID();
+    sessions.browser({ action: 'attach', id: opened.id, attachmentId, previousAttachmentId: null }, opened.token);
+    const req = new PassThrough(); req.method = 'POST';
+    req.headers = { authorization: `Bearer ${opened.token}`, 'content-type': 'multipart/form-data; boundary=test' };
+    const res = { setHeader() {}, writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
+    const pending = handleCanvasOpening({ componentPreviews: sessions, system: { dataDir }, settings: {
+      set() { assert.fail('A revoked upload cannot change settings'); },
+    } }, req, res, new URL(`http://localhost/api/component-preview/opening/${kind}?id=${opened.id}&attachmentId=${attachmentId}&style=pixel-cassette`));
+    req.write(`--test\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
+    sessions.revoke(opened.id);
+    req.end(Buffer.concat([bytes, Buffer.from('\r\n--test--\r\n')]));
+    await pending;
+    assert.equal(res.status, 410);
+    assert.equal(fs.existsSync(path.join(dataDir, `opening-${kind}`)), false);
+  });
+}

@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const { readAdminHtml } = require('./admin-html');
+const { readAdminFragmentHtml } = require('./admin-html');
 const { loadModuleExports } = require('./frontend-modules');
 
 const flushAiTasks = () => new Promise((resolve) => setImmediate(resolve));
@@ -75,7 +75,8 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
       },
     };
   }
-  for (const [tag, tagName, id] of readAdminHtml().matchAll(/<(\w+)\b[^>]*\bid="(xiaomiAi[^"]+)"[^>]*>/g)) {
+  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku-ai.html');
+  for (const [tag, tagName, id] of html.matchAll(/<(\w+)\b[^>]*\bid="(xiaomiAi[^"]+)"[^>]*>/g)) {
     const element = createElement(tagName, id);
     element.type = tag.match(/\btype="([^"]+)"/)?.[1] || 'text';
     element.value = tag.match(/\bvalue="([^"]*)"/)?.[1] || '';

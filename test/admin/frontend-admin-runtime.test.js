@@ -126,7 +126,11 @@ test('admin page uses one ordered module entrypoint', () => {
   assert.ok(entrySource.includes("import './gifts/index.js';"));
   const giftEntry = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/gifts/index.js'), 'utf8');
   for (const name of ['notification', 'detection', 'sprint', 'recent', 'blindbox', 'history']) {
-    assert.ok(giftEntry.includes(`from './${name}.js'`), `${name} is an explicit dependency`);
+    assert.match(
+      giftEntry,
+      new RegExp(`(?:from '|^import ')\\./${name}\\.js';$`, 'm'),
+      `${name} is an explicit dependency`,
+    );
     assert.ok(
       !entrySource.includes(`import './gifts/${name}.js';`),
       'composition does not rely on side-effect ordering',

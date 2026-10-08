@@ -5,7 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-async function fixture() {
+async function fixture(source) {
   const listeners = new Map();
   const timers = new Map();
   const frames = new Map();
@@ -17,7 +17,7 @@ async function fixture() {
     currentTime: 2,
     play: () => new Promise((resolve, reject) => playRequests.push({ resolve, reject })),
     pause: () => { pauses += 1; },
-    load() {}, removeAttribute() {},
+    load() {}, removeAttribute() {}, setAttribute(name, value) { this[name] = value; },
     addEventListener: (type, fn) => listeners.set(type, fn),
     removeEventListener: (type) => listeners.delete(type),
     requestVideoFrameCallback: (fn) => { frames.set(++serial, fn); return serial; },
@@ -36,7 +36,7 @@ async function fixture() {
     setTimeout: (fn, delay) => { timers.set(++serial, { fn, delay }); return serial; },
     clearTimeout: (id) => timers.delete(id),
   });
-  const player = createFrameController({ frameRoot });
+  const player = createFrameController({ frameRoot, source });
   const emit = (name, time) => { if (time !== undefined) video.currentTime = time; listeners.get(name)?.(); };
   return { player, emit, video, avatar, gift, num, caption, classes, timers, frames, listeners, frameRoot, window, windowHandlers, playRequests, pauses: () => pauses };
 }
@@ -75,6 +75,18 @@ test('caption follows media time, stays fixed during hold, and fully clears on e
   await replay;
   f.player.dispose();
   assert.equal(f.windowHandlers.size, 0);
+});
+
+test('imported artwork keeps the native caption geometry and timing', async () => {
+  const source = '/component-media/11111111-1111-4111-8111-111111111111/' + 'a'.repeat(64) + '.webm';
+  const f = await fixture(source);
+  assert.equal(f.video.src, source);
+  const done = f.player.play({ ...payload, preview: true });
+  f.emit('playing', 1.1);
+  assert.equal(f.frameRoot.style['--frame-scale'], 0.5);
+  assert.equal(f.gift.parentElement.style.fontSize, '38px');
+  assert.equal(f.caption.style.transform, 'translateY(0px)');
+  f.emit('ended', 8); await done; f.player.dispose();
 });
 
 test('loading timeout, stalled media and decoder errors release the player for the next gift', async () => {

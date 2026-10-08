@@ -40,6 +40,10 @@ async function createStartupFixture() {
   const classes = new Set(['desktop-shell', 'admin-starting']);
   const calls = [];
   const errors = [];
+  const listeners = new Map();
+  const connectionStates = [];
+  const songFilters = { query: 'current page filter' };
+  let readSongFilters;
   let start;
   const modules = {
     desktop: { initDesktopShell: () => calls.push('desktop') },
@@ -57,7 +61,15 @@ async function createStartupFixture() {
     },
   });
   const dependencies = {
-    '../shared/event-bus.js': { eventBus: { on: noop }, Events: {} },
+    '../shared/event-bus.js': {
+      eventBus: {
+        on: (name, listener) => {
+          if (!listeners.has(name)) listeners.set(name, []);
+          listeners.get(name).push(listener);
+        },
+      },
+      Events: {},
+    },
     '../shared/logger.js': { logger: { debug: noop, error: noop } },
     '../shared/utils.js': { showError: (error) => errors.push(error) },
     '../shared/theme.js': {
@@ -85,7 +97,14 @@ async function createStartupFixture() {
     './song-import-update.js': { initSongImportUpdate: noop },
     './state.js': {
       stateService: {
-        connectSocket: noop,
+        setSongFiltersReader: (reader) => { readSongFilters = reader; },
+        connectSocket: () => {
+          assert.equal(readSongFilters(), songFilters);
+          for (const name of ['ws:connected', 'ws:disconnected', 'app:shutdown']) {
+            assert.equal(listeners.get(name)?.length, 1);
+            listeners.get(name)[0]();
+          }
+        },
         reloadAll: () => {
           dataRequested.resolve();
           return data.promise;
@@ -99,7 +118,7 @@ async function createStartupFixture() {
       },
     },
     './queue.js': { initQueueForm: noop },
-    './songs.js': { songs: { initSongForm: noop, renderSongs: noop } },
+    './songs.js': { songs: { initSongForm: noop, readSongFilters: () => songFilters, renderSongs: noop } },
     './metrics.js': { metrics: { initPerformanceMonitor: noop } },
     './streamer-planner.js': { todo: { init: noop } },
     './gift-effects.js': { giftEffects: { init: noop } },
@@ -117,7 +136,10 @@ async function createStartupFixture() {
     },
     './theme.js': { theme: { initThemeForm: () => calls.push('theme-form'), renderPresetCards: noop } },
     './display.js': { display: { initDisplayForm: () => calls.push('display-form'), initOverlayUrls: noop } },
-    './state-renderer.js': { createAdminStateRenderer: noop },
+    './state-renderer.js': {
+      createAdminStateRenderer: noop,
+      renderConnectionStatus: (state) => connectionStates.push(state),
+    },
     './component-preview-registry.js': { setComponentPreviewPreparation: noop, getComponentPreviews: () => [] },
     './server-overlay-url.js': { waitForServerOverlayUrlInitialization: async () => {} },
     './component-preview-canvas-controller.js': { prepareComponentPreviewCanvas: noop },
@@ -138,7 +160,7 @@ async function createStartupFixture() {
     );
   });
   await entry.evaluate();
-  return { start, theme, data, dataRequested, classes, calls, errors };
+  return { start, theme, data, dataRequested, classes, calls, errors, connectionStates };
 }
 
 test('desktop first paint applies body styling before admin modules load', () => {
@@ -174,6 +196,7 @@ test('desktop startup waits for theme and initial data while initializing window
   fixture.theme.resolve();
   await fixture.dataRequested.promise;
   assert.deepEqual(fixture.calls.slice(4).sort(), ['display-form', 'theme-form']);
+  assert.deepEqual(fixture.connectionStates, ['connected', 'disconnected', 'shutdown']);
   assert.equal(fixture.classes.has('admin-starting'), true);
   fixture.data.resolve();
   await starting;

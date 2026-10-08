@@ -124,6 +124,8 @@ test('publication ignores unloaded unused owners and follows late owner state up
   await page.goto(url);
   const status = page.locator('.preview-canvas-status');
   await status.filter({ hasText: '未保存' }).waitFor();
+  // The clock's initial content measurement is an edit, so finish it before publishing.
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[0].height !== 180);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await status.filter({ hasText: '本次已应用，新修改仍需保存' }).waitFor();
   assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), true);

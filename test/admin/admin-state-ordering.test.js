@@ -26,7 +26,6 @@ async function createFixture() {
   };
   const { StateService } = await loadModuleExports(path.resolve('public/js/admin/state.js'), {
     window,
-    document: { getElementById: () => ({}), querySelectorAll: () => [] },
     location: { protocol: 'http:', host: '127.0.0.1:3000' },
     WebSocket: Socket,
     CustomEvent: class {

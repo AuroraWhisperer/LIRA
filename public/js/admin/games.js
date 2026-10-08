@@ -15,6 +15,7 @@ let drawWordCategories = [];
 let activeDrawCategoryIds = null;
 let viewerRefreshPromise = null;
 let lastLiveConnectionKey = '';
+let panelDataStale = false;
 
 const VIEWER_REFRESH_RETRY_DELAYS_MS = [250, 500, 1000, 2000];
 
@@ -38,19 +39,19 @@ export function initGames() {
   document.querySelectorAll('[data-start-game]').forEach((button) =>
     button.addEventListener('click', () => {
       startGame(button.dataset.startGame).catch(async () => {
-        await refreshSession().catch(() => {});
+        await refreshSession().catch(reportPanelRefreshFailure);
       });
     }),
   );
   window.addEventListener('app:game-update', (event) => {
     sessionRequest += 1;
     renderSession(event.detail);
-    refreshHostState().catch(() => {});
+    refreshHostState().catch(reportPanelRefreshFailure);
   });
   window.addEventListener('app:game-patch', (event) => {
     const patch = event.detail;
     if (patch.sessionId !== activeGameSession?.sessionId) {
-      refreshSession().then(refreshHostState).catch(() => {});
+      refreshSession().then(refreshHostState).catch(reportPanelRefreshFailure);
       return;
     }
     if (patch.eventRevision <= activeGameSession.eventRevision) return;
@@ -62,10 +63,10 @@ export function initGames() {
       restartBlocked: patch.restartBlocked,
       state: { ...patch.state, canvas: activeGameSession.state.canvas },
     });
-    if (phaseChanged) refreshHostState().catch(() => {});
+    if (phaseChanged) refreshHostState().catch(reportPanelRefreshFailure);
   });
   eventBus.on('ws:connected', () => {
-    refreshSession().then(refreshHostState).catch(() => {});
+    refreshSession().then(refreshHostState).catch(reportPanelRefreshFailure);
   });
   eventBus.on(Events.STATE_LOADED, ({ state }) => {
     const liveStatus = state?.liveStatus || {};
@@ -73,7 +74,7 @@ export function initGames() {
     const connectionChanged = connectionKey !== lastLiveConnectionKey;
     lastLiveConnectionKey = connectionKey;
     if (connectionChanged && connectionKey) {
-      requestViewerRefresh({ notify: false }).catch(() => {});
+      requestViewerRefresh({ notify: false }).catch(reportPanelRefreshFailure);
     }
   });
   const wheelRefresh = initWheelAdmin();
@@ -117,6 +118,7 @@ async function refreshViewers(options = {}) {
     if (viewers.length > 0 || attempt === VIEWER_REFRESH_RETRY_DELAYS_MS.length) break;
   }
   for (const id of ['numberBombViewer', 'gomokuViewer']) renderViewerOptions(byId(id), viewers);
+  clearPanelRefreshFailure();
   if (notify) toast(`已找到 ${viewers.length} 位当前在线观众`);
 }
 
@@ -146,7 +148,10 @@ async function refreshSession() {
   const response = await fetch('/api/games/session');
   const payload = await readJsonResponse(response, '读取游戏状态失败');
   if (!payload.ok) throw new Error(payload.error || '读取游戏状态失败');
-  if (request === sessionRequest) renderSession(payload.data);
+  if (request === sessionRequest) {
+    renderSession(payload.data);
+    clearPanelRefreshFailure();
+  }
 }
 
 async function refreshHostState() {
@@ -154,6 +159,7 @@ async function refreshHostState() {
   const payload = await readJsonResponse(response, '读取你画我猜题词失败');
   if (!payload.ok) throw new Error(payload.error || '读取你画我猜题词失败');
   renderHostState(payload.data);
+  clearPanelRefreshFailure();
 }
 
 async function refreshDrawCategories() {
@@ -295,7 +301,6 @@ function setDrawDetails(expanded) {
 function renderSession(session) {
   activeGameSession = session || null;
   syncDrawClockTimer();
-  const status = byId('gamesSessionStatus');
   const stop = byId('gamesStopBtn');
   stop.disabled = !session;
   document.querySelectorAll('[data-start-game]').forEach((button) => {
@@ -312,13 +317,34 @@ function renderSession(session) {
   });
   syncDrawStartAvailability();
   renderDrawSession(session);
-  if (!session) {
-    status.textContent = '当前没有进行中的游戏';
-    return;
-  }
+  renderDataFreshnessHint();
+}
+
+function sessionStatusText(session) {
+  if (!session) return '当前没有进行中的游戏';
   const gameName = session.game === 'gomoku' ? '五子棋' : session.game === 'draw-guess' ? '你画我猜' : '数字炸弹';
   const opponent = session.mode === 'multi' ? '不限观众' : session.targetName || '指定观众';
-  status.textContent = `${gameName}进行中 · ${opponent}`;
+  return `${gameName}进行中 · ${opponent}`;
+}
+
+// 自动刷新失败时给出可恢复提示：同一次故障只改一次文案，成功后自行消失，不弹窗刷屏。
+function renderDataFreshnessHint() {
+  const status = byId('gamesSessionStatus');
+  if (!status) return;
+  const base = sessionStatusText(activeGameSession);
+  status.textContent = panelDataStale ? `${base} · 数据可能已过期，正在重试` : base;
+}
+
+function reportPanelRefreshFailure() {
+  if (panelDataStale) return;
+  panelDataStale = true;
+  renderDataFreshnessHint();
+}
+
+function clearPanelRefreshFailure() {
+  if (!panelDataStale) return;
+  panelDataStale = false;
+  renderDataFreshnessHint();
 }
 
 function renderDrawSession(session) {

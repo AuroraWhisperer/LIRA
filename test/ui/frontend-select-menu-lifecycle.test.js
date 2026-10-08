@@ -44,6 +44,10 @@ async function createFixture() {
     setAttribute(name, value) { this.attributes.set(name, value); }
     getAttribute(name) { return this.attributes.get(name) ?? null; }
     hasAttribute(name) { return this.attributes.has(name); }
+    removeAttribute(name) { this.attributes.delete(name); }
+    contains(node) { return this === node || this.children.some(child => child.contains(node)); }
+    focus() { document.activeElement = this; }
+    getBoundingClientRect() { return { top: 0, bottom: 20, height: 20 }; }
     closest() { return null; }
     addEventListener(type, callback) {
       if (!this.listeners.has(type)) this.listeners.set(type, new Set());
@@ -79,12 +83,41 @@ async function createFixture() {
   document.createElement = (tag) => new Element(tag);
   const form = new Element('form');
   document.body.append(form);
+  const timers = [];
   const { enhanceSelects } = await loadModuleExports(path.resolve('public/js/shared/select-menu.js'), {
-    document, HTMLSelectElement: Select, MutationObserver: Observer, Node: { ELEMENT_NODE: 1 }, setTimeout,
+    document, window: { innerHeight: 600 }, HTMLSelectElement: Select, MutationObserver: Observer,
+    Node: { ELEMENT_NODE: 1 }, setTimeout(callback) { timers.push(callback); },
   });
   const deliver = (removedNodes = [], addedNodes = []) => observers[0].callback([{ removedNodes, addedNodes }]);
-  return { document, form, Select, observers, enhanceSelects, deliver };
+  const flushTimers = () => { while (timers.length) timers.shift()(); };
+  return { document, form, Select, observers, enhanceSelects, deliver, flushTimers };
 }
+
+test('select blur waits for the next focused element and closes only outside its wrapper', async () => {
+  const f = await createFixture();
+  const select = new f.Select();
+  f.form.append(select);
+  f.enhanceSelects(select);
+  const [, trigger, menu] = select.parentNode.children;
+  const fire = (node, type) => node.listeners.get(type).forEach(callback => callback());
+  fire(trigger, 'click');
+  assert.equal(menu.hidden, false);
+  f.document.body.focus();
+  fire(menu, 'focusout');
+  assert.equal(menu.hidden, false, 'blur must wait for the next focus target');
+  trigger.focus();
+  f.flushTimers();
+  assert.equal(menu.hidden, false, 'focus inside the wrapper keeps the menu open');
+  assert.equal(trigger.getAttribute('aria-expanded'), 'true');
+  const outside = f.document.createElement('button');
+  f.document.body.append(outside);
+  outside.focus();
+  fire(menu, 'focusout');
+  f.flushTimers();
+  assert.equal(menu.hidden, true);
+  assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+  assert.equal(f.document.activeElement, outside, 'closing must not steal focus back');
+});
 
 test('removing repeated dynamic selects releases observers and does not accumulate external listeners', async () => {
   const f = await createFixture();

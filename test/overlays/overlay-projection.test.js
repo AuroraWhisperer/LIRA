@@ -409,11 +409,13 @@ test('dynamic queue styles, songboard theme fallback and lyric settings survive 
   }
   assert.equal(projected.overlayRuleColor6, '#abcdef');
   assert.equal(projected.unknown, undefined);
-  const songsSource = fs.readFileSync(path.join(__dirname, '../../public/js/overlays/songs.js'), 'utf8');
-  const themeKeys = [...songsSource.matchAll(/resolve\(\s*'([^']+)'\s*,\s*'([^']+)'/g)].flatMap((match) => [
-    match[1],
-    match[2],
-  ]);
+  // 点歌板读取的主键与板级覆盖键由共享映射拥有；这里按 owner 取键，不再扫描源码字面量。
+  const { SONG_BOARD_THEME_FIELDS } = require('../../public/js/shared/song-board-theme-fields.js');
+  const themeKeys = [
+    ...Object.values(SONG_BOARD_THEME_FIELDS),
+    ...Object.keys(SONG_BOARD_THEME_FIELDS),
+    'overlayRequesterColor',
+  ];
   const theme = Object.fromEntries(themeKeys.map((key) => [key, 'fixture']));
   assert.deepEqual(projectOverlayState('songlist', { settings: theme }).settings, theme);
   const lyricSource = fs.readFileSync(path.join(__dirname, '../../public/js/lyrics/desktop-lyric-defaults.js'), 'utf8');

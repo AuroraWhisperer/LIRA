@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
 const { createLicenseIpcFixture } = require('../helpers/license-ipc-fixture');
 
@@ -91,19 +92,43 @@ test('license IPC validates song background payloads at the process boundary', a
 
 // Response allowlists, URL and error sanitizing, and gift catalog IPC: test/license/license-ipc.test.js.
 
-test('song background panel is wired into the admin import page and preload bridge', () => {
+test('song background panel and preload preserve the background IPC contract', async () => {
   const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'import-export.html'), 'utf8');
-  const importScript = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'), 'utf8');
   const preload = fs.readFileSync(path.join(ROOT, 'src', 'electron', 'preload.js'), 'utf8');
 
   assert.match(html, /id="licenseSongBackground"/);
   assert.match(html, /id="licenseSongBgPreview"/);
   assert.match(html, /id="licenseSongBgFile"/);
-  assert.match(importScript, /uploadSongPageBackground/);
-  assert.match(importScript, /deleteSongPageBackground/);
-  assert.match(importScript, /previewUrl/);
-  assert.doesNotMatch(importScript, /api\.lirahub\.cn/);
-  assert.match(preload, /getSongPageBackground/);
-  assert.match(preload, /license:upload-song-page-background/);
-  assert.match(preload, /license:delete-song-page-background/);
+  const bridges = new Map();
+  const calls = [];
+  const response = { ok: true, background: null };
+  vm.runInNewContext(preload, {
+    require(name) {
+      assert.equal(name, 'electron');
+      return {
+        contextBridge: { exposeInMainWorld: (name, bridge) => bridges.set(name, bridge) },
+        ipcRenderer: {
+          async invoke(...args) {
+            calls.push(args);
+            return response;
+          },
+        },
+      };
+    },
+  });
+  const bridge = bridges.get('liraLicense');
+  const bytes = new Uint8Array([137, 80, 78, 71]);
+  assert.deepEqual(await bridge.getSongPageBackground(), response);
+  assert.deepEqual(await bridge.uploadSongPageBackground(bytes, 'cover.png'), response);
+  assert.deepEqual(await bridge.deleteSongPageBackground(), response);
+  assert.deepEqual(calls.map(([channel]) => channel), [
+    'license:get-song-page-background',
+    'license:upload-song-page-background',
+    'license:delete-song-page-background',
+  ]);
+  assert.equal(Object.prototype.toString.call(calls[1][1].bytes), '[object Uint8Array]');
+  assert.deepEqual(Array.from(calls[1][1].bytes), Array.from(bytes));
+  assert.equal(calls[1][1].fileName, 'cover.png');
+  // Renderer preview safety and initialization ordering: license-ui.test.js.
+  // The legacy import entry is exercised by cloud-song-sync-ui.test.js.
 });

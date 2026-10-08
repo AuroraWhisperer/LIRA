@@ -4,8 +4,6 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('./frontend-modules');
 
-const ROOT_DIR = path.join(__dirname, '..', '..');
-
 function response(payload) {
   return { ok: payload.ok !== false, text: async () => JSON.stringify(payload), json: async () => payload };
 }
@@ -102,20 +100,23 @@ async function createBlindboxFixture({
   };
 
   if (includePanel) window.fetch = fetch;
-  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', includePanel ? 'index.js' : 'blindbox.js'), {
-    document,
-    window,
-    fetch,
-    CustomEvent: class {
-      constructor(type, { detail }) {
-        this.type = type;
-        this.detail = detail;
-      }
+  const { giftBlindbox, giftNotification, renderGiftPanel, stateService } = await loadModuleExports(
+    path.join(__dirname, 'gift-admin-graph.js'),
+    {
+      document,
+      window,
+      fetch,
+      CustomEvent: class {
+        constructor(type, { detail }) {
+          this.type = type;
+          this.detail = detail;
+        }
+      },
     },
-  });
-  await window.AdminApp.state.reloadState();
+  );
+  await stateService.reloadState();
   await flushBlindboxTasks();
-  window.AdminApp.gifts.blindbox.renderBlindBoxList();
+  giftBlindbox.renderBlindBoxList();
 
   return {
     container,
@@ -154,7 +155,13 @@ async function createBlindboxFixture({
       request.resolve(response({ ok: true, data }));
       await flushBlindboxTasks();
     },
-    module: window.AdminApp.gifts.blindbox,
+    module: giftBlindbox,
+    stateService,
+    gifts: {
+      blindbox: giftBlindbox,
+      notification: giftNotification,
+      renderGiftPanel,
+    },
   };
 }
 

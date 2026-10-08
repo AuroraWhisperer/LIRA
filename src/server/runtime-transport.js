@@ -1,6 +1,6 @@
 'use strict';
 
-const httpUtils = require('./http-utils');
+const pageAssets = require('./page-assets');
 const { buildGiftFrameEvent } = require('../bilibili/gift/frame-config');
 const { buildGuardThanksEvents, buildNauticalGuardThanksEvent } = require('../bilibili/gift/guard-thanks-config');
 const { normalizeGiftEffectEvent } = require('../bilibili/gift/effect-event');
@@ -104,7 +104,7 @@ function createRuntimeTransport({
   }
 
   function servePageOrAsset(req, res, requestUrl) {
-    httpUtils.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession, getClientTheme);
+    pageAssets.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession, getClientTheme);
   }
 
   return {

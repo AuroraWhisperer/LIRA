@@ -6,6 +6,7 @@ const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const entry = (name) => path.join(__dirname, '../../public/js/admin', name);
+const componentSettingsGraph = path.join(__dirname, '../helpers/component-settings-graph.js');
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
 async function fixture() {
@@ -15,7 +16,7 @@ async function fixture() {
   const window = { dispatchEvent(event) {
     if (event.type === 'app:settings-state') sync.receiveComponentSettings(event.detail);
   } };
-  const adapter = await loadModuleExports(entry('component-settings-save.js'), {
+  const adapter = await loadModuleExports(componentSettingsGraph, {
     window,
     location: { protocol: 'http:', host: 'localhost' },
     document: { getElementById: () => ({ hidden: false }) },
@@ -37,7 +38,7 @@ async function fixture() {
     confirm: adapter.confirmComponentSettings,
   });
   sync.registerComponentSettings('example', controller, (settings) => settings, (config) => config);
-  window.AdminApp.state.connectSocket();
+  adapter.stateService.connectSocket();
   const receive = (settings) => socket.listeners.get('message')({
     data: JSON.stringify({ type: 'snapshot', state: { settings } }),
   });

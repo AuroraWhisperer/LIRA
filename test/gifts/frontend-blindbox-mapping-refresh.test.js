@@ -161,7 +161,7 @@ test('blind-box advanced editor replaces saved null with an empty state while pr
       gifts: { recent: { getBlindBoxIcon: () => null } },
     },
   };
-  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), {
+  const { giftBlindbox } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), {
     document: {
       readyState: 'loading',
       addEventListener() {},
@@ -170,7 +170,7 @@ test('blind-box advanced editor replaces saved null with an empty state while pr
     window,
     fetch: () => new Promise(() => {}),
   });
-  const { renderBlindBoxList } = window.AdminApp.gifts.blindbox;
+  const { renderBlindBoxList } = giftBlindbox;
 
   renderBlindBoxList();
   assert.equal(toggle.hidden, false);

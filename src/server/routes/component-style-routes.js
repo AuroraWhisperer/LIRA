@@ -1,5 +1,6 @@
 'use strict';
 
+const { pipeline } = require('node:stream/promises');
 const { readJsonBody, sendJson, validateOrigin } = require('../http-utils');
 const { resolveRequestPrincipal } = require('../access-policy');
 const { createComponentStyleLibrary } = require('../component-style-library');
@@ -34,6 +35,12 @@ async function handleStyles(context, req, res, url, canvas = false) {
       if (!context.system.pickComponentWebFile) return sendJson(res, 503, { ok: false, error: '请使用文件选择或素材文件夹导入。', code: 'FILE_PICKER_UNAVAILABLE' });
       const selected = await context.system.pickComponentWebFile(body?.kind);
       authorize();
+      if (selected?.open) {
+        res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': selected.size,
+          'X-Lira-Filename': encodeURIComponent(selected.name) });
+        await pipeline(selected.open(), res);
+        return;
+      }
       data = selected ? await createComponentWebLibrary(context.system.dataDir).add(selected.files, { ...body.description, entry: selected.entry }, authorize) : null;
     } else if (action === 'add') {
       const description = JSON.parse(url.searchParams.get('description') || '{}');
@@ -48,6 +55,7 @@ async function handleStyles(context, req, res, url, canvas = false) {
     if (action === 'config') context.broadcastSnapshot?.('component:styles');
     return sendJson(res, 200, { ok: true, data });
   } catch (error) {
+    if (res.headersSent || res.destroyed) return;
     const status = [400, 403, 404, 409, 410, 413, 503].includes(error.statusCode) ? error.statusCode : 400;
     return sendJson(res, status, { ok: false, error: error.statusCode ? error.message : '素材或套装无法读取，请检查文件格式与清单。' });
   }

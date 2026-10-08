@@ -1,6 +1,7 @@
 'use strict';
 
-const { cleanText, normalizePositiveInteger, normalizeGuardLevel, readObjectValue } = require('../../shared/utils');
+const { cleanText, normalizePositiveInteger, readObjectValue } = require('../../shared/utils');
+const { normalizeGuardLevel } = require('../../shared/bilibili-value-contract');
 const { normalizeBilibiliAvatarUrl } = require('../parsers/danmaku-parser');
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,3 @@
-import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { escapeHtml, escapeAttr, formatDateTime, formatMoney, readJsonResponse } from '../../shared/utils.js';
 // 盲盒分析工作区：独立管理筛选、视图、分页和请求生命周期。
 ('use strict');
@@ -440,4 +439,3 @@ export const giftAnalysis = (() => {
 
   return { open, close, refreshIfOpen };
 })();
-publishGiftModule('analysis', giftAnalysis);

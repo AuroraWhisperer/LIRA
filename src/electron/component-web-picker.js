@@ -4,6 +4,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { WEB_MIME, webFilePath } = require('../server/component-web-files');
 const { webFileReferences, localWebReference, webDocumentBase } = require('../server/component-web-references');
+const { MAX_MEDIA_BYTES } = require('../server/component-media-files');
+const { MAX_PACKAGE_BYTES } = require('../server/component-style-library');
+
+const SOURCE_EXTENSIONS = ['html', 'htm', 'css', 'zip', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'webm'];
 
 function isPersonalRoot(directory) {
   return directory === path.parse(directory).root || directory.toLowerCase() === process.env.USERPROFILE?.toLowerCase()
@@ -55,13 +59,23 @@ async function* componentWebDirectory(root, relative = '') {
 function createComponentWebPicker({ dialog, getWindow }) {
   let picking = false;
   return async function pickComponentWebFile(kind) {
-    if (!['html', 'css'].includes(kind) || picking) throw Object.assign(new Error('请完成当前文件选择。'), { statusCode: 400 });
+    if (!['auto', 'html', 'css'].includes(kind) || picking) throw Object.assign(new Error('请完成当前文件选择。'), { statusCode: 400 });
     picking = true;
     try {
-      const result = await dialog.showOpenDialog(getWindow(), { title: kind === 'html' ? '选择 HTML（同时导入所在素材文件夹）' : '选择 CSS（同时导入所在素材文件夹）',
-        properties: ['openFile'], filters: [{ name: kind === 'html' ? 'HTML 网页' : 'CSS 样式', extensions: kind === 'html' ? ['html', 'htm'] : ['css'] }] });
+      const result = await dialog.showOpenDialog(getWindow(), { title: '选择样式文件',
+        properties: ['openFile'], filters: [{ name: '样式文件', extensions: kind === 'auto' ? SOURCE_EXTENSIONS : kind === 'html' ? ['html', 'htm'] : ['css'] }] });
       if (result.canceled || !result.filePaths?.[0]) return null;
       const selected = result.filePaths[0];
+      const extension = path.extname(selected).slice(1).toLowerCase();
+      const stat = await fs.promises.lstat(selected);
+      if (!stat.isFile() || stat.isSymbolicLink() || !SOURCE_EXTENSIONS.includes(extension)) {
+        throw Object.assign(new Error('请选择样式文件、图片、视频或样式压缩包。'), { statusCode: 400 });
+      }
+      if (kind === 'auto' && !['html', 'htm', 'css'].includes(extension)) {
+        const limit = extension === 'zip' ? MAX_PACKAGE_BYTES : MAX_MEDIA_BYTES;
+        if (stat.size > limit) throw Object.assign(new Error(`文件不能超过 ${limit / 1024 / 1024} MiB。`), { statusCode: 413 });
+        return { name: path.basename(selected), size: stat.size, open: () => fs.createReadStream(selected) };
+      }
       const root = await packageRoot(selected);
       if ((await fs.promises.lstat(selected)).isSymbolicLink() || (await fs.promises.lstat(root)).isSymbolicLink()
         || isPersonalRoot(root)) {

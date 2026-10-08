@@ -3,10 +3,9 @@
 const {
   cleanText,
   normalizeTimestampMs,
-  normalizeGuardLevel,
-  normalizeSuperChatPrice,
   readObjectValue,
 } = require('../../shared/utils');
+const { normalizeGuardLevel, normalizeSuperChatPrice } = require('../../shared/bilibili-value-contract');
 const {
   readMedalName,
   readMedalLevel,

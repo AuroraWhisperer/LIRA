@@ -11,15 +11,9 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
     config: { generationConcurrency: 2, userCooldownSeconds: 5 },
     deepseek: {
       async createResponse(request) {
-        if (String(request.input).includes('审核器'))
+        if (request.purpose === 'input_review' || request.purpose === 'output_review')
           return {
             text: '{"allowed":true,"riskType":"","safeText":""}',
-            functionCalls: [],
-            usage: {},
-          };
-        if (String(request.instructions).includes('输出审核器'))
-          return {
-            text: '{"allowed":true,"riskType":"","safeText":"安全"}',
             functionCalls: [],
             usage: {},
           };
@@ -36,7 +30,7 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
     functionCalls: [],
     usage: {},
   });
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await waitUntil(() => service.getStatus().ready === 1 || deliveries.length > 0);
   assert.equal(deliveries.length, 0);
   pendingAnswers.get('第一题')({
     text: '第一答',

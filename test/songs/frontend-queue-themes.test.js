@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -31,7 +31,7 @@ function webpSize(file) {
 }
 
 test('illustrated queue styles 3-6 ship their artwork, stylesheets and admin options', () => {
-  const html = readAdminHtml();
+  const html = readAdminFragmentHtml('pages/admin/song/queue-theme.html');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
 

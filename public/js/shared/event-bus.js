@@ -109,9 +109,13 @@ export class EventBus {
    * @param {Function} handler - 事件处理函数
    */
   once(event, handler) {
+    let fired = false;
     const wrapper = (data) => {
-      handler(data);
+      // 嵌套 emit 仍可能持有外层的回调快照，必须在执行前标记并注销。
+      if (fired) return;
+      fired = true;
       this.off(event, wrapper);
+      handler(data);
     };
     this.on(event, wrapper);
   }

@@ -11,7 +11,7 @@
 | `start`               | `node src/server.js`                                                                                                                                              | 纯 Web 模式:仅启动 HTTP 服务,进程模型见 [backend/server-core.md](../backend/server-core.md)                  |
 | `desktop`             | `electron .`                                                                                                                                                      | 桌面模式:Electron 壳与 HTTP 服务同进程                                                                       |
 | `check`               | `node scripts/check-js.js`                                                                                                                                        | 全量 JS 语法覆盖，逐文件复用；支持 `--plan` / `--force`（见 [test.md](test.md) §3） |
-| `test` | `node scripts/run-tests.js` | 递归收集业务目录中的测试；默认文件并发 6，支持依赖组、目录和 `--file` 路径/通配符筛选(见 [test.md](test.md)) |
+| `test` | `node scripts/run-tests.js` | 递归收集业务目录中的测试；默认文件并发取 8 与可用 CPU 数的较小值，支持依赖组、目录和 `--file` 路径/通配符筛选，显式 `--test-concurrency` 替换该默认值(见 [test.md](test.md)) |
 | `test:admin` | 具体文件清单见 [package.json](../../../package.json) 的 `scripts.test:admin` | 固定管理页组合、外壳、AI、弹幕与加班机回归；显式启用 ESM VM 模块 |
 | `verify:docs`         | `node --test test/engineering/governance-docs.test.js`                                                                                                                        | 治理文件、路由表、规格索引和范围内 Markdown 链接检查                                                         |
 | `verify:architecture` | `node --experimental-vm-modules --test test/engineering/module-boundaries.test.js test/engineering/esm-module-boundaries.test.js test/engineering/modularity-size.test.js`                                                         | 模块边界、遗留债务预算和前端 ESM 边界检查                                                                    |
@@ -27,7 +27,7 @@
 
 - 出处:[package.json](../../../package.json) 的 `scripts` 字段。
 - `dist:win:local` 使用**原生 cmd 语法**(`set VAR=1 && …`,Windows-only),未引入任何跨平台环境变量注入工具；通过 Windows 上的 npm 执行。
-- `test` 的 `--test-concurrency=6` 控制测试文件并发数，保留进程隔离；`--experimental-vm-modules` 必需:多个测试在 vm 中求值前端 ESM 模块(见 [test.md](test.md) §1)。
+- `test` 的 `--test-concurrency` 控制测试文件并发数（默认 8 与可用 CPU 数的较小值），保留进程隔离；`--experimental-vm-modules` 必需:多个测试在 vm 中求值前端 ESM 模块(见 [test.md](test.md) §1)。
 
 ### 本地发布验证
 
@@ -101,7 +101,11 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 正式应用不包含开发依赖 Playwright/Playwright Core 或 Electron 默认示例程序。`afterPack` 删除构建输出里的默认示例文件并生成资源清单；不修改开发环境的 Electron 分发目录。离线回归覆盖见 `test/engineering/packaging-scope.test.js`。
 
-全屏礼物感谢与弹幕装饰的 18 个 PNG 后缀资源保留为源码素材,对应 WebP 进入安装包:其中 15 张 PNG 无损转换,3 张守护气泡图原本就是 WebP 编码,保留原始字节并使用正确后缀;已有第 3–6 套队列主题 WebP 不变。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
+弹幕装饰的 PNG 源图保留在源码中，安装包只使用对应 WebP；已有第 3–6 套队列主题 WebP 不变。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
+
+林间花信改为独立样式包：`node scripts/package-woodland-gift-frame.js` 生成 `output/林间花信-全屏礼物感谢样式-1.0.0.zip`，仅包含清单、使用说明、预览图和未经转码的原始 WebM。ZIP 写入器与航海旗帜共用 `scripts/component-style-zip.js`。`public/img/overlays/gift-frame/woodland-bloom/` 整个制作目录及 `gift-frame-default.webp` 不再进入安装包；可信播放器、布局 CSS 和共享头像仍保留。导入与旧图层兼容方式见[素材包指南](../../guides/component-style-packages.md#林间花信--全屏礼物感谢)。
+
+分发还排除 `AGENTS.md`、`.map` 调试映射及图片目录的 `README.md`、`generated.md`、`provenance.json`、`.webp.json` 制作元数据；运行依赖与许可证保留。验收须检查实际 `app.asar`，不能仅以源码目录大小推断安装包大小；已有 EXE 不会被这些规则自动改写。
 
 | 产物                                | 说明                                     |
 | ----------------------------------- | ---------------------------------------- |

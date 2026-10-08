@@ -2,7 +2,8 @@
 // 用户身份缓存 — 缓存和合并用户身份信息（勋章、舰长等）。
 'use strict';
 
-const { cleanText, normalizeGuardLevel, normalizePositiveInteger } = require('../../shared/utils');
+const { cleanText, normalizePositiveInteger } = require('../../shared/utils');
+const { normalizeGuardLevel } = require('../../shared/bilibili-value-contract');
 const { normalizeBilibiliAvatarUrl } = require('../parsers/danmaku-parser');
 
 const BILIBILI_IDENTITY_CACHE_MAX_AGE_MS = 10 * 60 * 1000;

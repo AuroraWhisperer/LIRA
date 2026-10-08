@@ -3,10 +3,9 @@
 const {
   now,
   cleanText,
-  normalizeSuperChatPrice,
-  normalizeGuardLevel,
   normalizePositiveInteger,
 } = require('../shared/utils');
+const { normalizeSuperChatPrice, normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 
 // ── 数据迁移 ──
 

@@ -2,7 +2,6 @@
 // 数据导入导出解析
 'use strict';
 
-import { publishImports } from './legacy-admin-bridge.js';
 import { stateService } from './state.js';
 import * as sharedUtils from '../shared/utils.js';
 import { parseTable, parseDelimited } from './song-import-parser.js';
@@ -103,7 +102,6 @@ export function createSongImports({ state = stateService, utils = sharedUtils } 
 }
 
 export const songImports = createSongImports();
-publishImports(songImports);
 if (typeof document !== 'undefined') {
   songImports.initCloudSongSync();
   songImports.initCloudSongBackground();

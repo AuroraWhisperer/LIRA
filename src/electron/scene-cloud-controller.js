@@ -268,6 +268,22 @@ function imageUrl(value) {
   return `${url.origin}${url.pathname}`;
 }
 
+function roomMedal(value) {
+  requireValid(value && typeof value === 'object' && !Array.isArray(value));
+  if (value.isLight !== undefined) requireValid(typeof value.isLight === 'boolean');
+  const result = {
+    name: text(value.name, 32), level: integer(value.level, 1),
+    guardLevel: integer(value.guardLevel, 0, 3),
+    ...(value.isLight === undefined ? {} : { isLight: value.isLight }),
+  };
+  for (const key of ['colorStart', 'colorEnd', 'colorBorder', 'colorText']) {
+    if (value[key] === undefined) continue;
+    requireValid(typeof value[key] === 'string' && [7, 9].includes(value[key].length) && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/iu.test(value[key]));
+    result[key] = value[key];
+  }
+  return result;
+}
+
 function appearance(value) {
   requireValid(Object.hasOwn(DANMAKU_STYLE_OPTIONS, value.style));
   return {
@@ -309,6 +325,7 @@ function displayEvent(value) {
       ...(value.giftImageUrl === undefined ? {} : { giftImageUrl: imageUrl(value.giftImageUrl) }),
       ...(value.avatarUrl === undefined ? {} : { avatarUrl: imageUrl(value.avatarUrl) }),
       ...(value.giftGuardLevel === undefined ? {} : { giftGuardLevel: integer(value.giftGuardLevel, 1, 3) }),
+      ...(value.honorLevel === undefined ? {} : { honorLevel: integer(value.honorLevel, 1) }),
     };
   }
   result.message = text(value.message, type === 'danmaku' ? 500 : 64 * 1024);
@@ -330,6 +347,9 @@ function displayEvent(value) {
   result.guardLevel = integer(value.guardLevel, 0, 3);
   result.medalName = text(value.medalName, 32, 0);
   result.medalLevel = integer(value.medalLevel, 0);
+  if (value.honorLevel !== undefined) result.honorLevel = integer(value.honorLevel, 1);
+  if (value.roomGuardLevel !== undefined) result.roomGuardLevel = integer(value.roomGuardLevel, 0, 3);
+  if (value.roomMedal !== undefined) result.roomMedal = roomMedal(value.roomMedal);
   if (value.isStreamer !== undefined) {
     requireValid(typeof value.isStreamer === 'boolean');
     result.isStreamer = value.isStreamer;
