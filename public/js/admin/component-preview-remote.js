@@ -235,9 +235,16 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       if (closed || component !== 'canvas') return Promise.reject(new Error('预览连接已结束，请从客户端重新打开。'));
       return requestTextBoxMedia(kind, options, { id, token, attachmentId });
     },
-    requestComponentStyles(action, options) {
+    async requestComponentStyles(action, options) {
       if (closed || component !== 'canvas') return Promise.reject(new Error('预览连接已结束，请从客户端重新打开。'));
-      return requestComponentStyles(action, options, { id, token, attachmentId });
+      if (['inventory', 'cleanup', 'backup'].includes(action)) await controller.flush();
+      const result = await requestComponentStyles(action, options, { id, token, attachmentId });
+      if (action === 'restore-backup') {
+        const next = operation.then(() => run('preset', { action: 'refresh' }));
+        operation = next.catch(() => null);
+        try { await next; } catch (error) { result.refreshError = error.message; }
+      }
+      return result;
     },
     get draftKey() { return draftKey; },
     get controller() { return controller; },

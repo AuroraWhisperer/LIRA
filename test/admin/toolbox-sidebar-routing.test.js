@@ -252,12 +252,8 @@ test('toolbox tabs rely on sidebar titles instead of repeating page headers', ()
   const styles = readCssBundle('public', 'css', 'admin', 'toolbox.css');
   const featureFiles = [
     'danmaku.html',
-    'gift.html',
     'games.html',
-    'overtime.html',
     'gift-effects.html',
-    'start-animation.html',
-    'clock.html',
     'planner.html',
     'performance.html',
     'desktop-update.html',

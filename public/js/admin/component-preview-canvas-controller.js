@@ -9,6 +9,10 @@ import { startGiftWishesCanvasData } from './gift-wishes-canvas-data.js';
 
 let cached;
 
+export async function refreshComponentPreviewPresets() {
+  if (cached) await (await cached.promise).preset({ action: 'refresh' });
+}
+
 export async function prepareComponentPreviewCanvas(components, request = requestScene) {
   const danmaku = components.find(({ id }) => id === 'danmaku')?.controller;
   const owners = components.map(({ controller }) => [controller, controller.getState().generation]);
@@ -216,7 +220,10 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       source: () => active.source(),
       publish: () => exclusive(() => active.publish()),
       preset: input => exclusive(async () => {
-        if (input?.action === 'select') {
+        if (input?.action === 'refresh') {
+          const records = await request('list'); assertCurrent();
+          for (const record of records) if (!presets.has(record.document.id)) retain(record);
+        } else if (input?.action === 'select') {
           const next = presets.get(input.id);
           if (!next) throw new Error('场景不存在，请重新打开画布。');
           active = next;

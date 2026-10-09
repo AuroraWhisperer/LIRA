@@ -21,9 +21,9 @@ function createDeepSeekClient(options = {}) {
       model: config.model,
       instructions: request.instructions,
       input: request.input,
-      tools: request.tools || [],
       max_output_tokens: Math.max(64, Number(request.maxOutputTokens) || 256),
     };
+    if (request.tools?.length) responsesBody.tools = request.tools;
     if (request.previousResponseId) responsesBody.previous_response_id = request.previousResponseId;
     if (!config.reasoningEnabled) {
       responsesBody.reasoning = { effort: 'none' };

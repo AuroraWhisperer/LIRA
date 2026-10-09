@@ -161,7 +161,8 @@ export function createToastStack({
       if (options.message || !options.title) {
         const message = documentRef.createElement('span');
         message.className = 'toast-message';
-        message.textContent = options.message || '';
+        const text = String(options.message || '');
+        message.textContent = detailed ? text : text.replace(/^([^。！？!?\r\n]+)。$/u, '$1');
         entry.content.append(message);
       }
     }

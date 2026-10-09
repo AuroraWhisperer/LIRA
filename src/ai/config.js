@@ -1,6 +1,7 @@
 'use strict';
 
 const { SYSTEM_PROMPT } = require('./prompt');
+const { normalizePersonaPacks, resolvePersona } = require('./personas');
 
 const AI_SECRET_KEYS = Object.freeze(['deepseekApiKey', 'qweatherApiKey', 'amapApiKey']);
 
@@ -31,16 +32,19 @@ const AI_CONFIG_DEFAULTS = Object.freeze({
   modelApiProtocol: 'auto',
   deepseekApiKey: '',
   model: '',
-  webSearchEnabled: true,
+  webSearchEnabled: false,
+  functionCallingEnabled: false,
   reasoningEnabled: false,
   reasoningEffort: 'auto',
   qweatherApiHost: '',
   qweatherApiKey: '',
   amapApiHost: '',
   amapApiKey: '',
-  weatherEnabled: true,
-  placesEnabled: true,
-  routesEnabled: true,
+  weatherEnabled: false,
+  placesEnabled: false,
+  routesEnabled: false,
+  personaId: 'general',
+  personaPacks: Object.freeze([]),
   replyMaxChars: 50,
   generationConcurrency: 3,
   queueLimit: 30,
@@ -57,6 +61,7 @@ const AI_CONFIG_DEFAULTS = Object.freeze({
 const BOOLEAN_KEYS = new Set([
   'enabled',
   'webSearchEnabled',
+  'functionCallingEnabled',
   'reasoningEnabled',
   'weatherEnabled',
   'placesEnabled',
@@ -94,6 +99,10 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
 
   for (const [key, rawValue] of Object.entries(input || {})) {
     if (!allowedKeys.has(key)) continue;
+    if (key === 'personaPacks') {
+      result.personaPacks = normalizePersonaPacks(rawValue);
+      continue;
+    }
     if (providerPresetActive && ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)) continue;
     if (BOOLEAN_KEYS.has(key)) {
       result[key] = rawValue === true || rawValue === 'true';
@@ -131,6 +140,8 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
     }
     result[key] = value;
   }
+  if (Object.hasOwn(input, 'systemPrompt') && !Object.hasOwn(input, 'personaId')) result.personaId = 'custom';
+  resolvePersona(result);
   return applyModelProviderPreset(result);
 }
 

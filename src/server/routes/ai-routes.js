@@ -25,6 +25,34 @@ function createProviderTestRoute(provider) {
 }
 
 const routes = {
+  async 'POST /api/ai/personas/create'(context, request, res) {
+    try {
+      sendJson(res, 200, { ok: true, data: context.ai.createPersona(await request.body()) });
+    } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      sendJson(res, 400, { ok: false, error: error.message || '角色包保存失败。' });
+    }
+  },
+  async 'POST /api/ai/personas/import'(context, request, res) {
+    try {
+      sendJson(res, 200, { ok: true, data: context.ai.importPersona(await request.body()) });
+    } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      sendJson(res, 400, { ok: false, error: error.message || '角色包导入失败。' });
+    }
+  },
+  async 'POST /api/ai/personas/delete'(context, request, res) {
+    try {
+      const input = await request.body();
+      sendJson(res, 200, { ok: true, data: context.ai.deletePersona(input?.id) });
+    } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      sendJson(res, 400, { ok: false, error: error.message || '角色包删除失败。' });
+    }
+  },
+  'GET /api/ai/personas/export'(context, request, res) {
+    sendJson(res, 200, { ok: true, data: context.ai.exportPersona() });
+  },
   'GET /api/ai/config'(context, request, res) {
     sendJson(res, 200, { ok: true, data: context.ai.getConfig() });
   },

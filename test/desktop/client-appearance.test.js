@@ -77,6 +77,34 @@ test('failed write or rename keeps committed state and file; later queued writes
   }
 });
 
+test('theme saves retry temporary rename locks but preserve state on persistent or unrelated errors', async (t) => {
+  for (const [code, failures, succeeds, attempts] of [
+    ['EPERM', 1, true, 2],
+    ['EBUSY', 2, true, 3],
+    ['EPERM', 5, false, 5],
+    ['EBUSY', 5, false, 5],
+    ['EIO', 1, false, 1],
+  ]) {
+    let calls = 0;
+    const fileSystem = { ...fs, promises: { ...fs.promises, rename: async (...args) => {
+      assert.equal(f.owner.getThemeId(), 'classic');
+      assert.equal(fs.readFileSync(f.file, 'utf8'), '{"themeId":"classic"}');
+      if (++calls <= failures) throw Object.assign(new Error('private-path-must-not-leak'), { code });
+      return fs.promises.rename(...args);
+    } } };
+    const f = fixture(t, '{"themeId":"classic"}', { fileSystem });
+    assert.deepEqual(await f.owner.setThemeId('neutral'), succeeds
+      ? { ok: true, themeId: 'neutral' }
+      : { ok: false, error: 'CLIENT_THEME_SAVE_FAILED' }, `${code}: ${failures} failures`);
+    assert.equal(calls, attempts);
+    const expected = succeeds ? 'neutral' : 'classic';
+    assert.equal(f.owner.getThemeId(), expected);
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.file)), { themeId: expected });
+    assert.deepEqual(fs.readdirSync(f.dataDir), ['client-appearance.json']);
+    assert.deepEqual(f.logs, succeeds ? [] : [['client-appearance', { event: 'WRITE_FAILED' }]]);
+  }
+});
+
 test('concurrent applications commit in order and snapshots change only after rename', async (t) => {
   let release;
   const gate = new Promise(resolve => { release = resolve; });
@@ -84,16 +112,17 @@ test('concurrent applications commit in order and snapshots change only after re
   const started = new Promise(resolve => { firstStarted = resolve; });
   const seen = [];
   const fileSystem = { ...fs, promises: { ...fs.promises, rename: async (...args) => {
-    seen.push(JSON.parse(fs.readFileSync(args[0])).themeId);
-    if (seen.length === 1) { firstStarted(); await gate; }
+    const nextThemeId = JSON.parse(fs.readFileSync(args[0])).themeId;
+    if (seen.length === 0) { firstStarted(); await gate; }
     await fs.promises.rename(...args);
+    seen.push(nextThemeId);
   } } };
   const f = fixture(t, undefined, { fileSystem });
   const first = f.owner.setThemeId('classic');
   const second = f.owner.setThemeId('terracotta');
   await started;
   assert.equal(f.owner.getThemeId(), 'terracotta');
-  assert.deepEqual(seen, ['classic']);
+  assert.deepEqual(seen, []);
   release();
   assert.deepEqual(await first, { ok: true, themeId: 'classic' });
   assert.deepEqual(await second, { ok: true, themeId: 'terracotta' });

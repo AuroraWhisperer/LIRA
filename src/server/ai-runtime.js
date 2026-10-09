@@ -9,7 +9,6 @@ const { createAiRequestLogger } = require('../ai/request-logger');
 const { createQWeatherTool } = require('../ai/tools/qweather-tool');
 const { createAmapTool } = require('../ai/tools/amap-tool');
 const { createWebSearchTool } = require('../ai/tools/web-search-tool');
-const { getCurrentTime } = require('../ai/tools/current-time-tool');
 const { createAiAssistantService } = require('../ai/ai-assistant-service');
 const { createDanmakuDeliveryVerifier } = require('../ai/danmaku-delivery-verifier');
 
@@ -35,7 +34,6 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
       }),
       amap: createAmapTool({ fetchImpl: runtimeOptions.fetchImpl, quotaStore }),
       webSearch: createWebSearchTool({ fetchImpl: runtimeOptions.fetchImpl }),
-      getCurrentTime,
     },
     sendReply: (input) => danmakuSender.send({ ...input, waitForRateLimit: true }),
     waitForDelivery: (delivery) => deliveryVerifier.waitForDelivery(delivery),

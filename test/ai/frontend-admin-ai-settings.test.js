@@ -8,7 +8,10 @@ const { createAiConfigStore } = require('../../src/ai/config-store');
 const { createAiSettingsFixture, flushAiTasks, aiResponse } = require('../helpers/ai-settings-fixture');
 
 test('AI initial load preserves edits and blocks saving before configuration arrives', async () => {
-  const f = await createAiSettingsFixture({ deferInitialConfig: true });
+  const f = await createAiSettingsFixture({
+    deferInitialConfig: true,
+    config: { functionCallingEnabled: true, weatherEnabled: true, placesEnabled: true },
+  });
   const edits = {
     xiaomiAiDeepSeekUrl: 'https://api.deepseek.com/responses',
     xiaomiAiDeepSeekKey: 'deepseek-secret',
@@ -43,6 +46,7 @@ test('AI initial load preserves edits and blocks saving before configuration arr
     deepseekApiKey: 'deepseek-secret',
     model: 'deepseek-v4-flash',
     webSearchEnabled: true,
+    functionCallingEnabled: true,
     reasoningEnabled: false,
     reasoningEffort: 'high',
     qweatherApiHost: edits.xiaomiAiQWeatherHost,
@@ -54,6 +58,10 @@ test('AI initial load preserves edits and blocks saving before configuration arr
     userCooldownSeconds: 0,
     roomLimitPerMinute: 20,
     systemPrompt: f.publicConfig.systemPrompt,
+    personaId: 'custom',
+    weatherEnabled: true,
+    placesEnabled: true,
+    routesEnabled: false,
   });
   for (const [id, value] of Object.entries(edits)) assert.equal(f.elements.get(id).value, value);
 });
@@ -65,6 +73,125 @@ test('AI enabled toggle saves immediately', async () => {
   await flushAiTasks();
   assert.equal(f.saves().length, 1);
   assert.equal(f.saves()[0].enabled, true);
+});
+
+test('role selection saves its identity without overwriting the custom prompt', async () => {
+  const f = await createAiSettingsFixture();
+  const select = f.elements.get('xiaomiAiPersona');
+  select.value = 'cat';
+  f.fire(select.id, 'change');
+  assert.match(f.elements.get('xiaomiAiSystemPrompt').value, /橘猫/);
+  f.fire('xiaomiAiForm', 'change', { target: select });
+  await flushAiTasks();
+  assert.equal(f.saves()[0].personaId, 'cat');
+  assert.equal(f.saves()[0].systemPrompt, undefined);
+});
+
+test('editing a displayed role detaches it into custom without modifying the package', async () => {
+  const f = await createAiSettingsFixture({ config: { personaId: 'cat' } });
+  const text = '你是一个温柔的直播间助手，用自然的语言回答问题，不要添加猫咪口头禅。';
+  f.input('xiaomiAiSystemPrompt', text);
+  await f.advance(700);
+  assert.equal(f.saves()[0].personaId, 'custom');
+  assert.equal(f.saves()[0].systemPrompt, text);
+  assert.equal(f.saves()[0].personaPacks, undefined);
+});
+
+test('optional tool controls expose credentials only when selected', async () => {
+  const f = await createAiSettingsFixture();
+  assert.equal(f.elements.get('xiaomiAiWeatherCredentials').hidden, true);
+  const toggle = f.elements.get('xiaomiAiWeatherEnabled');
+  toggle.checked = true;
+  f.fire('xiaomiAiForm', 'change', { target: toggle });
+  await flushAiTasks();
+  assert.equal(f.elements.get('xiaomiAiWeatherCredentials').hidden, false);
+  assert.equal(f.saves()[0].weatherEnabled, true);
+});
+
+test('turning off tools can save even when a hidden provider address draft is invalid', async () => {
+  const f = await createAiSettingsFixture({ config: { functionCallingEnabled: true, placesEnabled: true } });
+  const host = f.elements.get('xiaomiAiAmapHost');
+  f.elements.get('xiaomiAiForm').checkValidity = () => host.disabled || host.value !== 'invalid-url';
+  f.input(host.id, 'invalid-url');
+  await f.advance(700);
+  assert.equal(f.saves().length, 0);
+  const toggle = f.elements.get('xiaomiAiFunctionCalling');
+  toggle.checked = false;
+  f.fire('xiaomiAiForm', 'change', { target: toggle });
+  await flushAiTasks();
+  assert.equal(f.saves().length, 1);
+  assert.equal(f.saves()[0].functionCallingEnabled, false);
+  assert.equal(f.saves()[0].amapApiHost, undefined);
+  assert.equal(host.value, 'invalid-url');
+});
+
+test('invalid persona file leaves current role untouched and shows a recoverable error', async () => {
+  const f = await createAiSettingsFixture({ config: { personaId: 'cat' } });
+  f.elements.get('xiaomiAiPersonaFile').files = [{ size: 5, text: async () => '{bad}' }];
+  await f.fire('xiaomiAiPersonaFile', 'change');
+  assert.equal(f.elements.get('xiaomiAiPersona').value, 'cat');
+  assert.match(f.elements.get('xiaomiAiPersonaState').textContent, /有效的 JSON/);
+  assert.equal(f.calls.some(({ url }) => url.includes('/personas/import')), false);
+});
+
+test('saving a named role waits for the newest prompt save and exports only the role data', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  t.after(() => db.close());
+  const store = createAiConfigStore(db, { isAvailable: () => true });
+  let finishSave;
+  const f = await createAiSettingsFixture({
+    config: store.getPublicConfig(),
+    request: (url, options) => {
+      if (url === '/api/ai/config' && options.method === 'PUT') {
+        const saved = store.updateConfig(JSON.parse(options.body));
+        return new Promise((resolve) => { finishSave = () => resolve(aiResponse(saved)); });
+      }
+      if (url === '/api/ai/personas/create') return aiResponse(store.createPersona(JSON.parse(options.body)));
+      if (url === '/api/ai/personas/export') return aiResponse(store.exportPersona());
+      return undefined;
+    },
+  });
+  const prompt = '你是友善的直播间朋友，认真、简洁地回答问题，不使用固定的口头禅。';
+  f.input('xiaomiAiSystemPrompt', prompt);
+  f.input('xiaomiAiPersonaName', '安静的朋友');
+  f.fire('xiaomiAiPersonaCreate', 'click');
+  await flushAiTasks();
+  assert.equal(f.saves().length, 1);
+  assert.equal(f.calls.some(({ url }) => url === '/api/ai/personas/create'), false);
+  finishSave();
+  await flushAiTasks();
+  assert.equal(store.exportPersona().name, '安静的朋友');
+  assert.equal(store.exportPersona().prompt, prompt);
+  assert.equal(f.elements.get('xiaomiAiPersona').value, store.getConfig().personaId);
+  assert.equal(f.elements.get('xiaomiAiPersonaName').value, '');
+  f.fire('xiaomiAiPersonaExport', 'click');
+  await flushAiTasks();
+  assert.equal(f.downloads.length, 1);
+  const exported = await (await fetch(f.downloads[0].href)).json();
+  assert.deepEqual(exported, store.exportPersona());
+  await f.advance(1000);
+  assert.equal(f.elements.get('xiaomiAiSection').inert, false);
+});
+
+test('role operations wait for initial config and recover after server rejection', async () => {
+  const f = await createAiSettingsFixture({
+    deferInitialConfig: true,
+    request: (url) => url === '/api/ai/personas/create'
+      ? { ok: false, status: 400, json: async () => ({ ok: false, error: '角色包名称不能为空。' }) }
+      : undefined,
+  });
+  f.fire('xiaomiAiPersonaCreate', 'click');
+  await flushAiTasks();
+  assert.equal(f.calls.some(({ url }) => url === '/api/ai/personas/create'), false);
+  f.resolveInitialConfig();
+  await flushAiTasks();
+  assert.equal(f.elements.get('xiaomiAiPersonaState').textContent, '角色包名称不能为空。');
+  assert.equal(f.elements.get('xiaomiAiSection').inert, false);
+  assert.equal(f.elements.get('xiaomiAiPersona').value, 'custom');
+  f.fire('xiaomiAiPersonaCreate', 'click');
+  await flushAiTasks();
+  assert.equal(f.calls.filter(({ url }) => url === '/api/ai/personas/create').length, 2);
 });
 
 test('AI refresh updates untouched fields and preserves the current draft', async () => {
@@ -208,7 +335,7 @@ for (const scenario of [
   },
 ]) {
   test(`AI ${scenario.provider} connection test waits for the current settings to save`, async () => {
-    const f = await createAiSettingsFixture();
+    const f = await createAiSettingsFixture({ config: { functionCallingEnabled: true, weatherEnabled: true } });
     f.input(scenario.field, scenario.value);
     f.fire(scenario.button, 'click');
     await flushAiTasks();

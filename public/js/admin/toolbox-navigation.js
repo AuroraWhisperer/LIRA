@@ -1,12 +1,12 @@
 // 编写人：Aurora
-// “百宝箱”页面负责功能导航，并向组合入口通知选中的功能。
+// 功能工作区共用导航行为，每个页面独立保存选中项。
 'use strict';
 import { publishOther } from './legacy-admin-bridge.js';
 
-export const other = (() => {
-  const SIDEBAR_COLLAPSED_KEY = 'admin.toolboxSidebarCollapsed';
-  const COLLAPSED_FEATURE_GROUPS_KEY = 'admin.toolboxCollapsedFeatureGroups';
-  const SELECTED_FEATURE_KEY = 'admin.toolboxSelectedFeature';
+export function createFeatureNavigation({ pageId, storagePrefix }) {
+  const SIDEBAR_COLLAPSED_KEY = `${storagePrefix}SidebarCollapsed`;
+  const COLLAPSED_FEATURE_GROUPS_KEY = `${storagePrefix}CollapsedFeatureGroups`;
+  const SELECTED_FEATURE_KEY = `${storagePrefix}SelectedFeature`;
   const moduleState = {
     initialized: false,
     onFeatureSelected: null,
@@ -303,7 +303,7 @@ export const other = (() => {
   }
 
   function selectFeatureById(featureId) {
-    return selectFeature(document.getElementById('otherAssistantPage'), featureId);
+    return selectFeature(document.getElementById(pageId), featureId);
   }
 
   function handleFeatureKeydown(root, currentButton, event) {
@@ -331,7 +331,7 @@ export const other = (() => {
   }
 
   function initOtherPage(options = {}) {
-    const root = document.getElementById('otherAssistantPage');
+    const root = document.getElementById(pageId);
     if (!root || moduleState.initialized) return;
 
     moduleState.onFeatureSelected = options.onFeatureSelected;
@@ -408,5 +408,6 @@ export const other = (() => {
     selectFeatureById,
     setSidebarCollapsed,
   };
-})();
+}
+export const other = createFeatureNavigation({ pageId: 'otherAssistantPage', storagePrefix: 'admin.toolbox' });
 publishOther(other);

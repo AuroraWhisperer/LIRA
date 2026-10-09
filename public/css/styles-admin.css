@@ -50,6 +50,7 @@
 
 /* 百宝箱功能侧栏 */
 @import url('./admin/toolbox.css');
+@import url('./admin/live-components.css');
 @import url('./admin/scene-editor.css');
 
 /* 加班机控制台 */

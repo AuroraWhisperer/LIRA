@@ -122,7 +122,10 @@ async function createStartupFixture() {
     './metrics.js': { metrics: { initPerformanceMonitor: noop } },
     './streamer-planner.js': { todo: { init: noop } },
     './gift-effects.js': { giftEffects: { init: noop } },
-    './toolbox-navigation.js': { other: { initOtherPage: noop, selectFeatureById: noop } },
+    './toolbox-navigation.js': {
+      other: { initOtherPage: noop, selectFeatureById: noop },
+      createFeatureNavigation: () => ({ initOtherPage: noop }),
+    },
     './danmaku-tool.js': { danmakuTool: {} },
     './ai-assistant-settings.js': { aiAssistantSettings: {} },
     './desktop-lyric.js': { desktopLyric: { initDesktopLyricForm: noop } },

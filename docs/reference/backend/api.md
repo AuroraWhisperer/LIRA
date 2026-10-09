@@ -16,16 +16,25 @@
 
 | 管理端点 | 绑定画布端点 | 请求与结果 |
 | --- | --- | --- |
-| `GET /api/component-styles/list` | `GET /api/component-preview/styles/list` | 返回包数组；包含 `id/name/packageId?/version?/bytes/createdAt/styles/isSuite`，样式含 `id/type/name/config`；过滤已移除包及样式；套装分类基于完整历史成员，不受逐项移除或新版减少成员影响 |
+| `POST /api/component-styles/inventory` | `POST /api/component-preview/styles/inventory` | JSON `{}`；返回 `entries[{id,name,version,bytes,state}]`、`totalBytes/reclaimableBytes/pendingBytes/unregisteredBytes`、`integrity{backupCurrent,recovery}`。state 为 installed/referenced/reclaimable/reclaimed，不返回其他账号的场景信息或磁盘路径；引用不可读取时返回 503 |
+| `POST /api/component-styles/cleanup` | `POST /api/component-preview/styles/cleanup` | JSON `{ids}`，最多 1000 个不重复包 UUID、请求体至多 64 KiB；重新检查完整引用及当前权限后回收指定的已移除无引用目录，返回 `{freedBytes,failed}`。使用情况变化返回 409，完整性问题返回 503；重复清理已回收项成功且释放字节为 0 |
+| `GET /api/component-styles/list` | `GET /api/component-preview/styles/list` | 返回包数组；包含 `id/name/packageId?/version?/bytes/createdAt/styles/isSuite/importTarget`，样式含 `id/type/name/config`；过滤已移除包及样式；套装分类基于完整历史成员，不受逐项移除或新版减少成员影响 |
+| `POST /api/component-styles/backup` | `POST /api/component-preview/styles/backup` | JSON `{}`，返回 `application/zip` 下载；包含可见样式库、当前账号已保存/已发布布局所引用的保留素材、最新资源参数和文本框图片；不含凭据、业务数据或未保存草稿，外部浏览器源及本地加班机背景路径排除 |
+| `POST /api/component-styles/inspect-backup` | `POST /api/component-preview/styles/inspect-backup` | 原始备份 ZIP bytes，至多 2 GiB；预检后返回 `{id,packages,scenes,bytes,warnings}`，绑定当前账号状态并暂存，不创建场景 |
+| `POST /api/component-styles/restore-backup` | `POST /api/component-preview/styles/restore-backup` | JSON `{id}`；重验当前账号、权限、文件摘要和引用后恢复新身份的副本，返回 `{created,existing,packages,warnings}`；原场景、输出绑定和直播凭据不变。同一备份在同账号重复恢复复用副本且不覆盖后续修改；发布布局作为未发布预设导入。账号变化返回 409，暂存可用 cancel 清理 |
 | `POST /api/component-styles/config` | `POST /api/component-preview/styles/config` | JSON `{id,patch}`（至多 64 KiB），修改已安装资源型样式的共享外观；禁止替换 `resourceStyle/mediaStyle/cssStyle`，合并后通过场景配置合同校验并原子保存；返回样式 `{id,type,name,config}`。第三方媒体/网页/CSS 不支持此操作，已移除样式返回 404；同 ID 的画布及发布实例跟随新值，场景 JSON 不批量改写 |
 | `POST /api/component-styles/add` | `POST /api/component-preview/styles/add` | 原始媒体 bytes；查询 `description` 为 URL 编码 JSON `{type,filename,name,width,height,media?}`。校验并安装一个样式，返回包 |
 | `POST /api/component-styles/web` | `POST /api/component-preview/styles/web` | 查询 `description` 为 URL 编码 JSON `{type,entry,name?,width?,height?}`；请求体第一行为 UTF-8 JSON 数组 `[{path,size}]` 加换行，随后按顺序拼接各文件 bytes。验证配套资源并原子安装，返回包 |
 | `POST /api/component-styles/pick-web` | `POST /api/component-preview/styles/pick-web` | JSON `{kind:"auto"或"html"或"css",description:{type,name?,width?,height?}}`；主进程打开文件选择器，HTML/CSS 复制配套目录并返回已安装样式。`auto` 选择图片/视频/ZIP 时返回 `application/octet-stream` 与 URL 编码的 `X-Lira-Filename` 文件名，客户端交给已有媒体编辑/ZIP 检查；大小沿用媒体 512 MiB、ZIP 1 GiB 上限。renderer 不提供或接收磁盘路径，读取前复核授权。取消返回 `data:null`；无桌面选择器返回 503 与 `code:"FILE_PICKER_UNAVAILABLE"`，供显式文件/文件夹选择回退 |
-| `POST /api/component-styles/inspect` | `POST /api/component-preview/styles/inspect` | 原始 ZIP bytes；校验并暂存，返回临时 `id`、清单、`isSuite` 和 `replaces:[{id,name,version}]`（同 packageId 将被替换的已安装版本）；兼容单组件样式包与跨组件套装，此时不修改已安装列表、不可用于场景 |
-| `POST /api/component-styles/install` | `POST /api/component-preview/styles/install` | JSON `{id}`，确认暂存包；原子登记套装并撤下同 packageId 其他版本，返回包及 `replaced` 数量；重复内容返回 `alreadyInstalled:true`，恢复已移除包或样式返回 `restored:true`；保留旧场景及资源 |
+| `POST /api/component-styles/inspect` | `POST /api/component-preview/styles/inspect` | 原始 ZIP bytes；必填查询 `target` 为当前组件类型或 `suite`。服务端校验包与入口匹配后暂存，返回临时 `id`、清单、`isSuite` 和 `replaces:[{id,name,version}]`（同 packageId 将被替换的已安装版本）；此时不修改已安装列表、不可用于场景 |
+| `POST /api/component-styles/install` | `POST /api/component-preview/styles/install` | JSON `{id,target}`，必填 `target` 为当前组件类型或 `suite`；每次安装尝试前按待安装包及当前历史成员重新核对入口，再原子登记套装并撤下同 packageId 其他版本，返回包及 `replaced` 数量；重复内容返回 `alreadyInstalled:true`，恢复已移除包或样式返回 `restored:true`；保留旧场景及资源 |
 | `POST /api/component-styles/remove` | `POST /api/component-preview/styles/remove` | JSON `{id}`，此处 id 为样式 ID；从库中移除，返回 `{id}`，保留场景引用文件 |
 | `POST /api/component-styles/remove-pack` | `POST /api/component-preview/styles/remove-pack` | JSON `{id}`，此处 id 为安装包 UUID；整包从库中移除，返回 `{id}`；重复删除安全，保留场景引用文件，可用原 ZIP 恢复 |
 | `POST /api/component-styles/cancel` | `POST /api/component-preview/styles/cancel` | JSON `{id}`，删除本次暂存包；返回 `{id}`，重复取消安全 |
+
+ZIP 的 `target` 缺失或无效返回 400 并提示重新选择导入入口；类型不匹配同样返回 400，`code:STYLE_IMPORT_TARGET_MISMATCH`、`importTarget` 与 `importTargetName` 提供服务端确定的正确入口，`error` 指明分类路径。客户端可跳转并复用已选文件，但检查及安装仍必须传入新入口并再次校验。同类多个变体仍是该组件的样式包；历史套装减少成员后仍走套装入口。检查失败清理本次暂存，安装拒绝不修改索引或现有版本，暂存仍可取消。旧调用方需补传 `target`，不能省略入口绕过检查；正在处理的暂存取消返回 409。
+
+备份格式为 `lira-library-backup.json`（`format:lira-component-library-backup, version:1`）和 `packages/<UUID>/…`、`images/<UUID>.<扩展名>` 文件。最多 8192 个 ZIP 条目、解压总量 2 GiB、单文件 512 MiB、清单 16 MiB、包及场景文档分别最多 1000 项；文本框图片 5 MiB，网页代码文件 4 MiB。拒绝目录条目、链接、加密、路径穿越、大小写重复、CRC/SHA-256 不符、未支持配置和缺失配套引用。每个文件列出 `{name,bytes,sha256}`。导出流与恢复前均重验授权；恢复只新建显示文档并产生新的场景凭据，场景写入失败留下隐藏资源供重试或安全清理。
 
 网页导入最多 1024 文件、总量 512 MiB；HTML/CSS/JS/MJS/JSON 单文件最多 4 MiB，上传清单最多 256 KiB。入口为 HTML/HTM/CSS，配套资源允许常见图片、音视频和字体；拒绝路径穿越、链接和大小写重复路径，保留原相对目录。静态 HTML/CSS/JS 引用缺失时返回具体文件名；动态运行结果不由静态校验保证。HTML 样式 `type:browser`，额外 `category` 保留原组件分类；CSS 样式保存原生组件配置及 `cssStyle`。安装前再次校验权限；仅 pending 目录 rename 的瞬时 EPERM/EBUSY 可重试最多 4 次，每次重试前重验权限。
 
@@ -69,7 +78,7 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 | `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
 | `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?,baseItemIds?}`，edit 允许该组件已有草稿字段；clock/danmaku 另允许向旧草稿新增经类型校验的 styleParameters，禁止原型键。baseItemIds 仅允许 canvas 文档 edit，为编辑前已知的 UUID 列表 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准。可选 baseItemIds 经 exchange 原样转发，桌面应用文档时保留当前场景中不在此基线和提交文档中的新增图层；已知图层删除仍生效。旧请求保持原替换语义，基线不持久化 |
 | `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}`，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
-| `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}`、`{action:'create',title,duplicate:boolean}` 或 `{action:'delete',id}` | 仅操作桌面 state.presets 列出的预设；删除还须匹配当前草稿 ID，由桌面持有的 revision 提交。结果 `{id}` 为最终选中预设，经 display 返回；不发布、不授予通用管理权限 |
+| `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}`、`{action:'create',title,duplicate:boolean}`、`{action:'delete',id}` 或 `{action:'refresh'}` | 选择/删除仅操作桌面 state.presets 列出的预设；删除还须匹配当前草稿 ID，由桌面持有的 revision 提交。refresh 只读取并补入新增预设，不覆盖已有草稿。结果 `{id}` 为最终选中预设，经 display 返回；不发布、不授予通用管理权限 |
 | `close` | 当前会话 Bearer；`{id,attachmentId?}` | `{}`，显式关闭浏览器访问；客户端先处理已经接受的修改/保存，再撤销会话 |
 
 接管后，网页变更和关闭必须携带当前 attachmentId，轮询也校验附带的标识；旧页面请求返回 409。
@@ -712,15 +721,15 @@ handler 未包 try/catch:抛错走顶层 **500**。
 > 模块文件:[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)
 > 前缀:`/api/ai`
 
-`ALLOWED_KEYS`([ai-routes.js:7-15](../../../src/server/routes/ai-routes.js#L7-L15)):`enabled, trigger, modelProvider, deepseekResponsesUrl, modelApiProtocol, deepseekApiKey, model, webSearchEnabled, reasoningEnabled, reasoningEffort, qweatherApiHost, qweatherApiKey, amapApiHost, amapApiKey, weatherEnabled, placesEnabled, routesEnabled, replyMaxChars, generationConcurrency, queueLimit, sendIntervalMs, userCooldownSeconds, roomLimitPerMinute, requestTimeoutMs, maxToolCalls, cacheTtlSeconds, contextTtlSeconds, systemPrompt`;`modelProvider` 固定枚举为 `auto, deepseek, openai, anthropic, gemini, custom`，官方预设的地址与协议由服务端强制；密钥键 `SECRET_KEYS = {deepseekApiKey, qweatherApiKey, amapApiKey}` 与 settings 隔离存 `ai_configuration` 表(见 [storage.md](storage.md) §3.1)。
+`ALLOWED_KEYS`([ai-routes.js:7-15](../../../src/server/routes/ai-routes.js#L7-L15)):`enabled, trigger, modelProvider, deepseekResponsesUrl, modelApiProtocol, deepseekApiKey, model, webSearchEnabled, functionCallingEnabled, reasoningEnabled, reasoningEffort, qweatherApiHost, qweatherApiKey, amapApiHost, amapApiKey, weatherEnabled, placesEnabled, routesEnabled, replyMaxChars, generationConcurrency, queueLimit, sendIntervalMs, userCooldownSeconds, roomLimitPerMinute, requestTimeoutMs, maxToolCalls, cacheTtlSeconds, contextTtlSeconds, systemPrompt, personaId, personaPacks`;`modelProvider` 固定枚举为 `auto, deepseek, openai, anthropic, gemini, custom`，官方预设的地址与协议由服务端强制；密钥键 `SECRET_KEYS = {deepseekApiKey, qweatherApiKey, amapApiKey}` 与 settings 隔离存 `ai_configuration` 表(见 [storage.md](storage.md) §3.1)。
 
-**密钥字段安全契约**:GET 响应与 PUT 响应均**不回显密钥明文**;GET 返回 `has*ApiKey` 布尔标志(`hasDeepSeekApiKey, hasQWeatherApiKey, hasAmapApiKey`),密钥字段本身**不出现**在响应中;PUT 请求时传 `''` 跳过更新(保留现值)、传非空字符串更新、传 `null` 清空。前端渲染已保存密钥为 `'********'` 遮罩,提交时过滤该遮罩值(等同跳过)。
+**密钥字段安全契约**:GET 响应与 PUT 响应均**不回显密钥明文**;GET 返回 `has*ApiKey` 布尔标志(`hasDeepSeekApiKey, hasQWeatherApiKey, hasAmapApiKey`),密钥字段本身**不出现**在响应中;PUT 请求时传 `''` 跳过更新(保留现值)、传非空字符串更新、传 `null` 清空。前端密码框不回填已保存密钥，保持为空；提交时空值及旧版 `'********'` 遮罩均跳过。
 
 模型密钥不随目标隐式迁移：PUT 更换有效 origin（含供应商预设切换或恢复旧自定义地址）而复用已有 `deepseekApiKey` 时返回 400，整次配置不落库；须同时提供新值或 `null` 清空。`POST /api/ai/models` 更换有效 origin 时若未显式提供 `apiKey`，也返回 400 且不请求上游。同 origin 路径调整、显式密钥、自定义供应商能力与响应字段保持不变。
 
 | 端点                         | 请求                                                                                                     | 响应(data)                                                                                                                                 | 错误码                                      |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
-| `GET /api/ai/config`         | 无                                                                                                       | AI 配置(`getPublicConfig()`):密钥字段不出现；包含 `has*ApiKey` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}` | —                                           |
+| `GET /api/ai/config`         | 无                                                                                                       | AI 配置(`getPublicConfig()`):密钥及原始 `personaPacks` 不出现，角色通过 `personas` 列表返回；包含 `has*ApiKey` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}` | —                                           |
 | `PUT /api/ai/config`         | body:仅 `ALLOWED_KEYS` 子集生效(其余忽略);密钥键传 `''` 跳过、传 `null` 置空                             | 更新后的配置(同 GET,密钥不回显)                                                                                                            | 400(`AI 配置无效。`)                        |
 | `GET /api/ai/status`         | 无                                                                                                       | AI 运行状态                                                                                                                                | —                                           |
 | `POST /api/ai/models`        | `{apiKey?, apiUrl?, modelProvider?, modelApiProtocol?}`；Key ≤ 512、URL ≤ 2048、两个枚举字段各 ≤ 32 字符 | 当前模型服务的模型列表；官方供应商忽略 `apiUrl`/协议覆盖                                                                                   | 400(字段、枚举或上游响应无效)               |
@@ -728,6 +737,15 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `POST /api/ai/test/deepseek` | 无                                                                                                       | 该 Provider 连接测试                                                                                                                       | **502** `{ok:false, code(≤80 字符), error}` |
 | `POST /api/ai/test/qweather` | 无                                                                                                       | 同上(和风天气)                                                                                                                             | 502                                         |
 | `POST /api/ai/test/amap`     | 无                                                                                                       | 同上(高德地图)                                                                                                                             | 502                                         |
+
+角色包格式、数量和兼容规则见 [ai.md](ai.md) §7.3；以下端点均沿用 AI 管理权限，写操作失败不改动现有角色包：
+
+| 端点 | 请求 | 响应(data) | 错误 |
+| --- | --- | --- | --- |
+| `POST /api/ai/personas/create` | `{name,prompt}` | 创建并选中角色后的公开配置 | 400（名称、人设、数量无效） |
+| `POST /api/ai/personas/import` | 完整 LIRA 角色包 JSON | 导入并选中角色后的公开配置 | 400（格式、版本、重复 ID、数量无效） |
+| `POST /api/ai/personas/delete` | `{id}` | 删除后的公开配置；当前包被删除时切回通用助手 | 400（不存在或为内置角色） |
+| `GET /api/ai/personas/export` | 无 | 当前角色包 JSON；不含 API 配置、凭据或聊天记录 | — |
 
 行为文档:[ai.md](ai.md)。
 

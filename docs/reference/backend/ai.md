@@ -1,6 +1,6 @@
 # AI 互动助手集成
 
-> 涉及文件:[src/ai/config.js](../../../src/ai/config.js)、[src/ai/config-store.js](../../../src/ai/config-store.js)、[src/ai/model-endpoint.js](../../../src/ai/model-endpoint.js)、[src/ai/secret-codec.js](../../../src/ai/secret-codec.js)、[src/ai/deepseek-client.js](../../../src/ai/deepseek-client.js)、[src/ai/http-client.js](../../../src/ai/http-client.js)、[src/ai/prompt.js](../../../src/ai/prompt.js)、[src/ai/safety.js](../../../src/ai/safety.js)、[src/ai/ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)、[src/ai/ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js)、[src/ai/async-coordinator.js](../../../src/ai/async-coordinator.js)、[src/ai/danmaku-delivery-verifier.js](../../../src/ai/danmaku-delivery-verifier.js)、[src/ai/api-quota-store.js](../../../src/ai/api-quota-store.js)、[src/ai/request-logger.js](../../../src/ai/request-logger.js)、[src/ai/tools/qweather-tool.js](../../../src/ai/tools/qweather-tool.js)、[src/ai/tools/amap-tool.js](../../../src/ai/tools/amap-tool.js)、[src/ai/tools/web-search-tool.js](../../../src/ai/tools/web-search-tool.js)、[src/ai/tools/current-time-tool.js](../../../src/ai/tools/current-time-tool.js)
+> 涉及文件:[src/ai/config.js](../../../src/ai/config.js)、[src/ai/config-store.js](../../../src/ai/config-store.js)、[src/ai/model-endpoint.js](../../../src/ai/model-endpoint.js)、[src/ai/secret-codec.js](../../../src/ai/secret-codec.js)、[src/ai/deepseek-client.js](../../../src/ai/deepseek-client.js)、[src/ai/http-client.js](../../../src/ai/http-client.js)、[src/ai/prompt.js](../../../src/ai/prompt.js)、[src/ai/personas.js](../../../src/ai/personas.js)、[src/ai/safety.js](../../../src/ai/safety.js)、[src/ai/ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)、[src/ai/ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js)、[src/ai/async-coordinator.js](../../../src/ai/async-coordinator.js)、[src/ai/danmaku-delivery-verifier.js](../../../src/ai/danmaku-delivery-verifier.js)、[src/ai/api-quota-store.js](../../../src/ai/api-quota-store.js)、[src/ai/request-logger.js](../../../src/ai/request-logger.js)、[src/ai/tools/qweather-tool.js](../../../src/ai/tools/qweather-tool.js)、[src/ai/tools/amap-tool.js](../../../src/ai/tools/amap-tool.js)、[src/ai/tools/web-search-tool.js](../../../src/ai/tools/web-search-tool.js)、[src/ai/tools/current-time-tool.js](../../../src/ai/tools/current-time-tool.js)
 
 本文档描述"AI 弹幕姬"领域模块:`src/ai/` 下的全部实现。HTTP 端点仅在此以文字提及并链接 [api.md](api.md) §13;AI 相关表 DDL 与设置见 [storage.md](storage.md) §3.1;弹幕触发链见 [bilibili/danmaku.md](bilibili/danmaku.md);进程装配与关闭时序见 [server-core.md](server-core.md) §5–§6。
 
@@ -8,14 +8,14 @@
 
 ## 1. 概览与触发链
 
-AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认实例使用"小米"(直播间橘猫)人格回复弹幕。弹幕消息经 [server.js:611-631](../../../src/server.js#L611-L631) 的 `onMessage` 回调进入:`aiDanmakuDeliveryVerifier.observe(danmaku)`(投递验证,见 §9)→ 常规弹幕机器人链 → `aiAssistant.handleDanmaku({message, userName, uid})`。返回值被忽略(fire-and-forget),机器人异步排队生成并发送回复。
+AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默认使用通用助手；小猫是可切换的内置角色，角色包仅改变身份和语气。普通问答不依赖天气或地图服务。弹幕消息经 [server.js:611-631](../../../src/server.js#L611-L631) 的 `onMessage` 回调进入:`aiDanmakuDeliveryVerifier.observe(danmaku)`(投递验证,见 §9)→ 常规弹幕机器人链 → `aiAssistant.handleDanmaku({message, userName, uid})`。返回值被忽略(fire-and-forget),机器人异步排队生成并发送回复。
 
 | 事实       | 值                                                                                                                              | 出处                                                                                                                        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 角色人格   | `SYSTEM_PROMPT`:直播间橘猫"小米",含 `<identity>/<priority>/<tool_policy>/<safety>` 等段落                                       | [prompt.js:7-62](../../../src/ai/prompt.js#L7-L62)                                                                          |
+| 角色人格 | `personas.js` 提供 `general`（通用助手）、`cat`（橘猫小米）；`custom` 读取 `systemPrompt`，自建或导入包按 ID 选择；不把小猫风格写入全局任务规则 | [personas.js](../../../src/ai/personas.js)、[prompt.js](../../../src/ai/prompt.js) |
 | 模型后端   | 供应商可选自动识别、DeepSeek、OpenAI、Claude、Gemini 或自定义；Claude/Gemini 复用各自官方 OpenAI 兼容入口，不引入原生协议适配器 | [config.js](../../../src/ai/config.js)、[model-endpoint.js](../../../src/ai/model-endpoint.js)                              |
 | 触发关键词 | 配置键 `trigger`,默认空字符串,1–12 字符;配置后消息中出现即触发                                                                  | [config.js](../../../src/ai/config.js)、[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)                  |
-| 就绪条件   | `isAiReady`:enabled + deepseekResponsesUrl + deepseekApiKey + model 全部非空                                                    | [config.js:106-113](../../../src/ai/config.js#L106-L113)                                                                    |
+| 就绪条件 | `isAiReady`：enabled 为真，trigger、deepseekResponsesUrl、deepseekApiKey、model 全部非空 | [config.js](../../../src/ai/config.js) |
 | 回复发送   | `sendReply` = `danmakuSender.send({…, waitForRateLimit: true})`,等待发送频率而非抛错                                            | [server.js:260](../../../src/server.js#L260)                                                                                |
 | 关闭时序   | 服务关闭第一步 `aiAssistant.shutdown()` → 协调器 stop,丢弃排队任务                                                              | [ai-assistant-service.js:289-291](../../../src/ai/ai-assistant-service.js#L289-L291)、[server-core.md](server-core.md) §6.2 |
 
@@ -42,10 +42,10 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 [generateReply](../../../src/ai/ai-assistant-service.js#L92-L179) 按序执行:
 
 1. **本地拒绝短路**:`item.localRefusal` 直接返回,`category: 'safety'`,不消耗模型配额。
-2. **查询缓存**:先读取当前 uid 最近成功投递的上下文；以 `reply-v2`、配置快照、uid、观众名、问题、上下文和排序后的不可用工具集合组成 JSON 缓存键，store 仅保存其 SHA-256 摘要，不把配置秘密写入键列。命中返回 `category: 'cache'`；用户、上下文或配置改变不能复用旧答案。并发生成和缓存命中都不写上下文，聊天/工具/缓存回答仅在 FIFO 投递成功后提交最终文本；有回流确认器时须确认送达。全部投递失败保留旧上下文，后续问题读取当时最近已送达的轮次。投递重试固定本请求首次读取的上下文，以 `bypassCache` 强制绕过缓存，TTL 和表格式不变，旧键自然过期。见 [ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)。
+2. **查询缓存**:固定本次角色 ID 和人设内容，读取当前 uid 在该角色下最近成功投递的上下文；以 `reply-v3`、配置快照、角色作用域、uid、观众名、问题、上下文和排序后的不可用工具集合组成 JSON 缓存键，store 仅保存其 SHA-256 摘要，不把配置秘密写入键列。命中返回 `category: 'cache'`；用户、上下文或配置改变不能复用旧答案。并发生成和缓存命中都不写上下文，聊天/工具/缓存回答仅在 FIFO 投递成功后提交最终文本；有回流确认器时须确认送达。全部投递失败保留旧上下文，后续问题读取当时最近已送达的轮次。投递重试固定本请求首次选择的角色和读取的上下文，以 `bypassCache` 强制绕过缓存，TTL 和表格式不变，旧键自然过期。见 [ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)。
 3. **输入安全审核**:`runSafetyReview(buildInputReviewPrompt(question))` 未通过 → 直接返回拒答。
 4. **观众上下文**:使用步骤 2 固定的上轮 `{question, answer}`，以"短期上下文"前缀拼入本次问题([buildConversationInput](../../../src/ai/ai-assistant-helpers.js))。
-5. **主生成**:`deepseek.createResponse`(见 §4),`instructions` = 人格预设 + `<runtime_task_policy>` 长度合约([buildReplyInstructions](../../../src/ai/ai-assistant-service.js#L331-L342))。
+5. **主生成**：`deepseek.createResponse` 的 `instructions` 由当前角色、通用事实/安全/发送规则、实际可用工具与北京时间组成；时间直接进入指令，上轮上下文仍只用于理解问题。见 [buildReplyInstructions](../../../src/ai/ai-assistant-helpers.js)。不强制猫语、颜文字、固定推荐数量或非思考模式。
 6. **工具循环**:`response.functionCalls` 非空时执行工具(§5),结果以 `function_call_output` 回填并带 `previousResponseId` 续问;累计调用超过 `maxToolCalls`(默认 6)→ `TOOL_LIMIT`。
 7. **输出安全与质量审核**:`runSafetyReview(buildOutputReviewPrompt(question, rawText))` 未通过 → 用模型给出的 `safeText` 或 `SAFE_REFUSAL` 替换。
 8. **截断与落库**:按长度预算 `truncateReply`(超出截断加 `…`);写缓存、写 `ai_request_logs`；上下文仅在 FIFO 投递成功确认后提交最终答案（见步骤 2）(`category` 为 `tool`/`chat`,工具调用数 > 0 记 `tool`)。
@@ -83,10 +83,10 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 
 | 协议                 | 条件                                                                                                                                                                | 请求体要点                                                                                                                                                                                                           | 出处                                                                                                                           |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Responses API**    | 完整 `/responses` 原样使用；显式选择时第三方根地址补 `/v1/responses`，DeepSeek 官方根地址补 `/responses`；`auto` 下无法安全判定为基础地址的完整自定义路径仍原样使用 | `{model, instructions, input, tools, max_output_tokens(≥64), previous_response_id?}`；关闭推理附 `reasoning: {effort: 'none'}`，启用且强度非 `auto` 时附所选强度；DeepSeek 官方映射为 `low/high/max`                 | [model-endpoint.js](../../../src/ai/model-endpoint.js)、[deepseek-client.js:13-48](../../../src/ai/deepseek-client.js#L13-L48) |
+| **Responses API**    | 完整 `/responses` 原样使用；显式选择时第三方根地址补 `/v1/responses`，DeepSeek 官方根地址补 `/responses`；`auto` 下无法安全判定为基础地址的完整自定义路径仍原样使用 | `{model, instructions, input, tools?, max_output_tokens(≥64), previous_response_id?}`；关闭推理附 `reasoning: {effort: 'none'}`，启用且强度非 `auto` 时附所选强度；DeepSeek 官方映射为 `low/high/max`                 | [model-endpoint.js](../../../src/ai/model-endpoint.js)、[deepseek-client.js:13-48](../../../src/ai/deepseek-client.js#L13-L48) |
 | **Chat Completions** | 完整 `/chat/completions` 原样使用；显式选择或 `auto` 识别根地址、`/v1` 后补全；第三方根地址用 `/v1/chat/completions`，DeepSeek 官方根地址用 `/chat/completions`     | `{model, messages, max_tokens, stream: false}`；DeepSeek 官方发送 `thinking.enabled/disabled`，启用时把公共强度映射为 `reasoning_effort: low/high/max`；普通第三方 Chat 不发送这些专用字段；工具转 `tools`(function) | [model-endpoint.js](../../../src/ai/model-endpoint.js)、[deepseek-client.js:31-76](../../../src/ai/deepseek-client.js#L31-L76) |
 
-`modelApiProtocol` 默认 `auto`，用于保持旧配置的 URL 自动识别行为。完整 `/responses` 或 `/chat/completions` 路径优先于选择器，避免把已明确的端点改写成另一种协议。联网能力也分协议：Responses 的 `web_search` 由上游托管；Chat Completions 转为 LIRA 本地函数工具，要求模型支持 `tool_calls`。
+`modelApiProtocol` 默认 `auto`，用于保持旧配置的 URL 自动识别行为。完整 `/responses` 或 `/chat/completions` 路径优先于选择器，避免把已明确的端点改写成另一种协议。无工具时，两种协议都不发送 `tools` 字段。联网能力也分协议：Responses 的 `web_search` 由上游托管，只受联网开关控制；Chat Completions 转为 LIRA 本地函数工具，须同时开启联网和 `functionCallingEnabled`，并要求模型支持 `tool_calls`。接口协议可承载工具不代表具体模型支持。
 
 双协议的**回退行为**:Chat Completions 路径用内存 `chatHistory` Map(上限 100 条)以 `previousResponseId` 为键保存历史,续问时拼接 `messages` 并删除旧键([deepseek-client.js:130-134](../../../src/ai/deepseek-client.js#L130-L134)、[249-261](../../../src/ai/deepseek-client.js#L249-L261));Responses 路径用官方 `previous_response_id`。
 
@@ -106,7 +106,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 
 ## 5. 工具集
 
-`buildTools(config)`([prompt.js:141-152](../../../src/ai/prompt.js#L141-L152))按开关组装配:`webSearchEnabled` 时追加内建 `web_search` 工具,`weatherEnabled/placesEnabled/routesEnabled` 控制 `FUNCTION_TOOLS` 五个函数([prompt.js:64-139](../../../src/ai/prompt.js#L64-L139))。
+`buildTools(config)`（[prompt.js](../../../src/ai/prompt.js)）默认返回空数组。`functionCallingEnabled` 是 LIRA 函数工具的总开关；天气须再开启 `weatherEnabled` 并有和风 Host/Key，地点和路线须分别开启 `placesEnabled/routesEnabled` 并有高德 Host/Key。地理编码随地点或路线启用。联网规则见 §4.1；`FUNCTION_TOOLS` 包含以下四个天气/地图函数。
 
 | 工具名             | 提供者            | 上游接口/行为                                                                                                                                                                                    | 出处                                                                                                                      |
 | ------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
@@ -115,16 +115,18 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | `resolve_location` | 高德 amap         | `/v3/geocode/geo` 解析地址 → `{formattedAddress, province, city, district, adcode, location}`;多结果标记 `ambiguous`                                                                             | [amap-tool.js:27-35](../../../src/ai/tools/amap-tool.js#L27-L35)                                                          |
 | `get_route`        | 高德 amap         | 起终点经 `ensureCoordinate` 统一为坐标;`transit` → `/v3/direction/transit/integrated`,其余 `/v3/direction/<mode>`;结果取第一条 `paths[0]`/`transits[0]` 的距离与时长                             | [amap-tool.js:51-62](../../../src/ai/tools/amap-tool.js#L51-L62)、[104-113](../../../src/ai/tools/amap-tool.js#L104-L113) |
 | `web_search`       | Bing RSS          | `https://www.bing.com/search?format=rss&q=…`(查询 ≤ 200 字符),解析 `<item>` 前 5 条为 `{title, snippet, url}`;空结果 → `WEB_SEARCH_EMPTY`                                                        | [web-search-tool.js:5-41](../../../src/ai/tools/web-search-tool.js#L5-L41)                                                |
-| `get_current_time` | 本地              | `Intl.DateTimeFormat('zh-CN', {timeZone})` 格式化,默认 `Asia/Shanghai`;返回 `{timeZone, formatted, isoUtc}`;无效时区抛错                                                                         | [current-time-tool.js:3-16](../../../src/ai/tools/current-time-tool.js#L3-L16)                                            |
 
-**工具调用回路**:`executeTool` 按 `call.name` 分派([ai-assistant-service.js:193-201](../../../src/ai/ai-assistant-service.js#L193-L201));结果 `JSON.stringify` 为 `function_call_output` 回喂模型(§3.1 第 6 步)。**配额降级**:工具抛月度配额错误(§8)时,`executeToolWithQuotaFallback` 把该工具名加入 `excludedToolNames`(本次会话内后续请求不再下发该工具)并返回 `{unavailable: true, reason: 'monthly_api_quota_reached', instruction}` 让模型改用 `web_search` 或如实说明([ai-assistant-service.js:203-218](../../../src/ai/ai-assistant-service.js#L203-L218));生成前也按 `quotaStore.getExcludedToolNames()` 预先裁剪工具列表([116-117](../../../src/ai/ai-assistant-service.js#L116-L117))。
+
+**工具调用回路**：执行前同时核对请求配置快照与最新保存配置，未启用、缺凭据或被撤销的函数返回 `tool_unavailable`，不发起外部请求，并从后续轮次中排除。允许的调用按名称分派，结果以 `function_call_output` 回填。月度配额错误将工具加入 `excludedToolNames` 并返回 `monthly_api_quota_reached`；仅在搜索实际可用时建议改用 `web_search`，否则说明无法核实并提供一般建议。生成前也按 `quotaStore.getExcludedToolNames()` 裁剪工具。见 [ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)。
+
+当前时间直接由 [current-time-tool.js](../../../src/ai/tools/current-time-tool.js) 的本地格式化函数加入指令，不向模型注册时间函数。
 
 **测试接口**:`testProvider('qweather'|'amap'|'deepseek')` 分别调用各工具 `testConnection`(校验 Key/错误码映射),经 `/api/ai/test/*` 暴露。
 
 ## 6. 安全过滤(两道)
 
-1. **本地硬规则** `checkLocalInput`([safety.js:3-18](../../../src/ai/safety.js#L3-L18)):四类正则——`sexual`(色情)、`illegal`(违法)、`privacy`(隐私信息)、`prompt_injection`(提示词注入/越狱);命中返回固定 `SAFE_REFUSAL = '这个不适合直播间回答，换个轻松问题吧喵～'`。在入队前执行,不消耗模型配额。
-2. **LLM 审核** `runSafetyReview`([ai-assistant-service.js:181-191](../../../src/ai/ai-assistant-service.js#L181-L191)):输入审核与输出审核各发起一次独立 DeepSeek 调用,要求只输出 JSON。`parseSafetyReview`([safety.js:28-40](../../../src/ai/safety.js#L28-L40))解析失败时**拒绝放行**并以 `SAFE_REFUSAL` 兜底。输出审核同时承担质量校验:要求直接回应原问题、逐项满足硬约束、删除凑数推荐、保留确定事实不得编造([safety.js:24-26](../../../src/ai/safety.js#L24-L26))。
+1. **本地硬规则** `checkLocalInput`：保留色情、明确违法、隐私信息及提示词注入规则；固定拒绝文案为“这个不适合直播间回答，换个问题吧。”，不包含角色口癖。“怎样防止盗号？”不因包含“盗号”而直接拒绝，交给后续语义审核；明确请求盗号协助仍拦截。见 [safety.js](../../../src/ai/safety.js)。
+2. **LLM 审核** `runSafetyReview`：输入和输出分别调用当前模型服务，要求 JSON。`allowed` 必须为布尔值，`safeText` 若存在须为字符串；无法解析或字段无效时抛 `AI_REVIEW_INVALID`，不放行原答案，回复“这次回答的审核未完成，请稍后再试。”，不把服务故障误报成内容违规。输出审核继续要求回应问题、满足明确条件、删除凑数推荐、保留确定事实且不得编造。见 [safety.js](../../../src/ai/safety.js)。
 
 ## 7. 配置与密钥
 
@@ -139,7 +141,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | 供应商         | `modelProvider`                                                                                | `auto`                            | 枚举：`auto, deepseek, openai, anthropic, gemini, custom`；四个官方预设由服务端固定地址和推荐协议，忽略客户端 URL/协议覆盖                                                     |
 | 模型服务       | `deepseekResponsesUrl` / `deepseekApiKey` / `model`                                            | 全空                              | URL 须为无账号信息的 HTTP(S)，可为服务根地址、`/v1` 基础地址或完整模型端点；model 为空或 ≤ 80 字符                                                                             |
 | 协议与推理强度 | `modelApiProtocol` / `reasoningEffort`                                                         | `auto` / `auto`                   | 协议枚举:`auto, responses, chat_completions`；强度枚举:`auto, minimal, low, medium, high, xhigh, max`；DeepSeek 官方把 `minimal→low`、`medium/high/xhigh→high`，保留 `low/max` |
-| 行为开关       | `webSearchEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | true / false / true / true / true | 布尔；Responses 与 DeepSeek 官方 Chat 可控制推理，普通第三方 Chat 的推理由供应商或模型 ID 管理                                                                                 |
+| 行为开关 | `webSearchEnabled` / `functionCallingEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | 全为 `false` | 新配置默认普通问答；工具和联网按 §5 显式启用，关闭总开关保留各工具配置 |
 | 第三方凭证     | `qweatherApiHost` / `qweatherApiKey` / `amapApiHost` / `amapApiKey`                            | 全空                              | Host 缺协议自动补 `https://`                                                                                                                                                   |
 | 数值           | `replyMaxChars`                                                                                | 50                                | 偏好长度,10–50                                                                                                                                                                 |
 | 数值           | `generationConcurrency`                                                                        | 3                                 | 生成并发,1–5                                                                                                                                                                   |
@@ -150,7 +152,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | 数值           | `requestTimeoutMs`                                                                             | 12000                             | 上游超时,3000–60000                                                                                                                                                            |
 | 数值           | `maxToolCalls`                                                                                 | 6                                 | 单轮最多工具调用,1–8                                                                                                                                                           |
 | 数值           | `cacheTtlSeconds` / `contextTtlSeconds`                                                        | 60 / 1200                         | 查询缓存 / 观众上下文 TTL,0–3600 / 60–86400                                                                                                                                    |
-| 人格           | `systemPrompt`                                                                                 | `SYSTEM_PROMPT`                   | 20–8000 字符;旧版内建人格启动时自动迁移为当前版本([config-store.js:27-33](../../../src/ai/config-store.js#L27-L33))                                                            |
+| 角色 | `personaId` / `personaPacks` / `systemPrompt` | `general` / `[]` / 通用助手文本 | 当前角色、最多 20 个自建或导入包、自定义角色草稿（20–8000 字符）；完整格式与兼容规则见 §7.3 |
 
 `normalizeAiConfig`([config.js:59-92](../../../src/ai/config.js#L59-L92))负责白名单过滤、布尔/数值归一化与越界抛错(400)。
 
@@ -162,12 +164,35 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | 存储标记     | 密钥以 `is_secret=1` 存 `ai_configuration`,写入时 `secretCodec.encrypt`                                                                                                                                                                                                       | [config-store.js:49-78](../../../src/ai/config-store.js#L49-L78)                                                                                                        |
 | 加密实现     | `createElectronSecretCodec` 包装 Electron `safeStorage`(`isEncryptionAvailable()` 为真才可加密),值经 `encryptString` 后 Base64 落库;**刻意不提供明文回退**;非 Electron 独立模式 `isAvailable()` 为 false,写入密钥直接抛错"当前系统无法安全加密 API Key"                       | [secret-codec.js:3-31](../../../src/ai/secret-codec.js#L3-L31)                                                                                                          |
 | 读取降级     | 解密失败时该键置空并 `console.warn`(日志脱敏),不阻断其他配置读取                                                                                                                                                                                                              | [config-store.js:20-25](../../../src/ai/config-store.js#L20-L25)                                                                                                        |
-| 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段(不出现在返回对象中),替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey`、`secretEncryptionAvailable` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}`；`updateConfig` 返回相同公开视图 | [config-store.js](../../../src/ai/config-store.js)                                                                                                                      |
+| 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段及原始 `personaPacks`，改为返回含内置和已保存角色的 `personas` 列表,替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey`、`secretEncryptionAvailable` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}`；`updateConfig` 返回相同公开视图 | [config-store.js](../../../src/ai/config-store.js)                                                                                                                      |
 | 前端遮罩     | 管理页密钥输入框类型为 `password`;已保存密钥不回填到真实 `value`（输入框保持为空，避免把掩码误当成新密钥提交）;提交时空值跳过该字段(保留现值);提示文案:"已加密保存；清空或输入新值以更新"                                                                                     | [ai-assistant-settings.js:266-286](../../../public/js/admin/ai-assistant-settings.js#L266-L286)、[256-264](../../../public/js/admin/ai-assistant-settings.js#L256-L264) |
 
 管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §13);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。
 
 模型密钥的隐式复用受有效 origin（协议、主机、端口）约束。`config-store.updateConfig` 在事务提交前读取将要持久化的有效配置，跨 origin 时要求显式提供或清空 `deepseekApiKey`，否则回滚整次修改；从官方预设切回先前自定义地址也经过此校验。`ai-assistant-service.listModels` 在上游请求前执行同一检查，临时更换目标只能使用明确提供的 Key。同 origin 的路径或协议选择仍可调整；官方预设先确定真实目标，不用被忽略的地址判断。连接测试和正常生成继续读取受校验的配置。此约束不改变和风、高德各自的凭据模型。回归：`test/ai/ai-model-key-origin.test.js`。
+
+### 7.3 角色包与兼容读取
+
+[personas.js](../../../src/ai/personas.js) 拥有纯数据角色包；不加载代码或脚本。格式如下：
+
+```json
+{
+  "format": "lira-ai-persona",
+  "version": 1,
+  "id": "quiet-friend",
+  "name": "安静的朋友",
+  "description": "自然简洁地交流",
+  "prompt": "你是友善的直播间朋友，认真回答问题，先给出结论，不使用固定的口头禅。"
+}
+```
+
+只接受上述字段；format/version 必须匹配；ID 为小写字母开头的 1–64 个小写字母、数字或连字符；名称 1–40、说明 0–200（可省略）、人设 20–8000 个字符，文本 trim 后校验。库最多保存 20 个包，超过上限、格式错误或重复 ID 均不写入。名称可重复，ID 不可重复。导入保留包 ID；内置 general/cat 和 custom 导出后再导入会以 imported- 前缀作为独立副本。创建接口生成 role-UUID 标识。删除当前自建或导入包恢复 general；内置包不可删除。
+
+配置公开视图的 personas 包含 id/name/description/prompt/builtin，自建或导入条目另含 format/version。角色包导出严格白名单，不含 API 配置、凭据、运行限制或聊天记录。管理路由见 [api.md](api.md) §13，均沿用管理端授权。界面导入文件最多 64 KiB。
+
+已有配置但未保存 personaId 时，有 systemPrompt 就完整保留为 custom，否则保留 cat；不再模糊识别并覆盖旧人设。旧工具开关显式值保持，缺失时按旧版 true 默认读取（包括函数总开关），首次更新会保存这些迁移值。新配置仍全部默认关闭。仅更新 systemPrompt 的旧调用者自动选择 custom；切换角色不会覆盖自定义草稿。
+
+上下文以观众和角色 ID/人设内容的组合作为作用域；换角色或编辑人设不会读到另一角色的记忆。存储方式见 [storage.md](storage.md) §3.1。
 
 ## 8. 月度配额与审计日志
 
@@ -227,7 +252,7 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 | `ai_configuration`  | 配置 + 密钥(is_secret)        | [config-store.js:49-78](../../../src/ai/config-store.js#L49-L78)       |
 | `ai_request_logs`   | 请求审计                      | [config-store.js:80-93](../../../src/ai/config-store.js#L80-L93)       |
 | `ai_api_usage`      | 月度配额计数                  | [api-quota-store.js:23-43](../../../src/ai/api-quota-store.js#L23-L43) |
-| `ai_viewer_context` | 观众上下文(uid PK,expires_at) | [config-store.js:114-129](../../../src/ai/config-store.js#L114-L129)   |
+| `ai_viewer_context` | 观众/角色上下文(uid 列保存作用域摘要,expires_at) | [config-store.js:114-129](../../../src/ai/config-store.js#L114-L129)   |
 | `ai_query_cache`    | 查询缓存(cache_key = sha256)  | [config-store.js:131-148](../../../src/ai/config-store.js#L131-L148)   |
 | `ai_blacklist`      | 黑名单(uid PK,reason)         | [config-store.js:100-112](../../../src/ai/config-store.js#L100-L112)   |
 
@@ -238,7 +263,7 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 | 故障              | 行为                                                                                                                                                                                                                                                                                                                          |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 上游超时/不可用   | `fetchJson` 归一化为 `UPSTREAM_TIMEOUT` / `UPSTREAM_UNAVAILABLE`,回复文案见 §9.3;失败已入日志                                                                                                                                                                                                                                 |
-| 第三方配额触顶    | 工具调用失败 → 该工具当次会话停用 + 指令改用 web_search(§5);配额按月自动重置                                                                                                                                                                                                                                                  |
+| 第三方配额触顶    | 工具调用失败 → 该工具当次会话停用，按实际可用能力建议搜索或说明无法核实(§5);配额按月自动重置                                                                                                                                                                                                                                                  |
 | 模型空回复/截断   | `DEEPSEEK_OUTPUT_TRUNCATED` / `DEEPSEEK_INVALID_RESPONSE` 按失败文案回复                                                                                                                                                                                                                                                      |
 | 弹幕被吞(风控等)  | 送达验证 10 秒超时 → 重新生成后重发,最多 3 次;仍失败记 `delivery` 失败                                                                                                                                                                                                                                                        |
 | 密钥缺失/不可加密 | 独立模式写入密钥抛错(§7.2);未配置时 `handleDanmaku` 直接 `disabled_or_unconfigured`                                                                                                                                                                                                                                           |

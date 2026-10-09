@@ -62,7 +62,7 @@ const SHOTS = [
     license: { state: 'authorized' },
     catalog: { status: 'error', percent: 42, error: 'NETWORK_UNAVAILABLE' },
   },
-  { id: 'A8', file: 'client-main-first-open', title: '主界面四个主标签与直播状态' },
+  { id: 'A8', file: 'client-main-first-open', title: '主界面五个主标签与直播状态' },
   {
     id: 'A9',
     file: 'client-tour-bubble',

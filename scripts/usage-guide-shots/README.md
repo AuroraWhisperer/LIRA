@@ -78,7 +78,7 @@ for (const shot of webShots.SHOTS.filter((item) => item.local)) {
 
 | 镜头类型 | 路径 | 说明 |
 | --- | --- | --- |
-| `admin` | `createServerRuntime` + Chromium 注入 token 与桌面桥桩 | 点歌/播放/礼物/百宝箱管理页 |
+| `admin` | `createServerRuntime` + Chromium 注入 token 与桌面桥桩 | 点歌/播放/礼物/组件/百宝箱管理页 |
 | `overlay` | 同上服务，浏览器直开 | `/queue`、`/gift-wishes` 等 15 个免登录投屏页 |
 | `license` | Chromium 开 `/license` + 授权桥桩 | 登录/注册窗口各状态（注册、登录、准备中、失败态） |
 

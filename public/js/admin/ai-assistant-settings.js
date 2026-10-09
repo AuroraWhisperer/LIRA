@@ -1,6 +1,7 @@
 'use strict';
 import { showStackedToast } from '../shared/utils.js';
 import { publishAiAssistantSettings } from './legacy-admin-bridge.js';
+import { createPersonaControls } from './ai-assistant-personas.js';
 
 import {
   readApi,
@@ -8,6 +9,7 @@ import {
   renderConfig,
   renderConfigSummary,
   renderProviderSelection,
+  renderToolSettings,
   syncReasoningEffortAvailability,
   renderStatus,
   setState,
@@ -48,11 +50,13 @@ function init({ notify = showStackedToast } = {}) {
   let initialLoadPromise = null;
   let restoreManualEndpointAfterProviderSave = false;
   const editedFieldIds = new Set();
+  let personaControls;
 
   refreshConfig = async () => {
     try {
       const [config, status] = await Promise.all([readApi('/api/ai/config'), readApi('/api/ai/status')]);
       renderConfig(config, editedFieldIds);
+      personaControls.render(config, editedFieldIds);
       renderStatus(status);
       if (!configLoaded) {
         configLoaded = true;
@@ -100,6 +104,7 @@ function init({ notify = showStackedToast } = {}) {
           restoreManualEndpointAfterProviderSave = false;
         }
         renderConfigSummary(config);
+        personaControls.render(config);
         editedFieldIds.clear();
         setState(saveState, '已保存，后续新弹幕立即生效。', 'good');
         return true;
@@ -155,6 +160,18 @@ function init({ notify = showStackedToast } = {}) {
     return true;
   };
 
+  personaControls = createPersonaControls({
+    async flushPendingSave() {
+      await initialLoadPromise;
+      return configLoaded && flushPendingSave();
+    },
+    markEdited: (id) => editedFieldIds.add(id),
+    acceptConfig(config) {
+      renderConfig(config, editedFieldIds);
+      personaControls.render(config, editedFieldIds);
+    },
+  });
+
   providerInput?.addEventListener('change', () => {
     const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
     const official = ['deepseek', 'openai', 'anthropic', 'gemini'].includes(providerInput.value);
@@ -165,7 +182,8 @@ function init({ notify = showStackedToast } = {}) {
   });
 
   form.addEventListener('input', (event) => {
-    if (event.target.matches('input[type="checkbox"]')) return;
+    if (event.target.matches('input[type="checkbox"], input[type="file"]')) return;
+    if (event.target.id === 'xiaomiAiPersonaName') return;
     if (event.target.id) editedFieldIds.add(event.target.id);
     scheduleSave();
   });
@@ -174,6 +192,7 @@ function init({ notify = showStackedToast } = {}) {
     if (event.target.matches('input[type="checkbox"], input[type="number"], select')) {
       if (event.target.id) editedFieldIds.add(event.target.id);
       if (event.target === reasoningInput) syncReasoningEffortAvailability();
+      renderToolSettings();
       scheduleSave(true);
     }
   });

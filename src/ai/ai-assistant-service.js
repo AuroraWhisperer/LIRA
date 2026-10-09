@@ -11,6 +11,8 @@ const {
 const { isAiReady, applyModelProviderPreset, assertSavedModelKeyOrigin } = require('./config');
 const { createOrderedAsyncCoordinator } = require('./async-coordinator');
 const { getQuotaToolNames } = require('./api-quota-store');
+const { resolvePersona } = require('./personas');
+const { getCurrentTime } = require('./tools/current-time-tool');
 const assistantHelpers = require('./ai-assistant-helpers');
 const {
   MIN_CHUNK_INTERVAL_MS,
@@ -151,15 +153,18 @@ function createAiAssistantService(dependencies) {
     const usage = { inputTokens: 0, outputTokens: 0 };
     let toolCallCount = 0;
     try {
+      const persona = item.persona || (item.persona = resolvePersona(config));
+      item.personaScope = JSON.stringify([persona.id, persona.prompt]);
       if (!Object.prototype.hasOwnProperty.call(item, 'conversationContext')) {
-        item.conversationContext = store.getContext(item.uid);
+        item.conversationContext = store.getContext(item.uid, item.personaScope);
       }
       const context = item.conversationContext;
       const excludedToolNames = new Set(quotaStore?.getExcludedToolNames?.() || []);
       // The store persists only the key hash, not config secrets or context text.
       const cacheKey = JSON.stringify([
-        'reply-v2',
+        'reply-v3',
         config,
+        item.personaScope,
         item.uid,
         item.userName,
         item.question,
@@ -182,15 +187,16 @@ function createAiAssistantService(dependencies) {
       }
 
       const input = buildConversationInput(item.question, context);
+      const currentTime = getCurrentTime({}, { now: new Date(now()) }).formatted;
       const replyBudget = getReplyLengthBudget(item.userName, config.replyMaxChars);
       let response = await deepseek.createResponse({
         config,
         instructions: buildReplyInstructions(
-          config.systemPrompt,
+          persona.prompt,
           config.replyMaxChars,
-          excludedToolNames,
-          config.webSearchEnabled,
+          buildAvailableTools(config, excludedToolNames),
           item.userName,
+          currentTime,
         ),
         input,
         tools: buildAvailableTools(config, excludedToolNames),
@@ -219,11 +225,11 @@ function createAiAssistantService(dependencies) {
         response = await deepseek.createResponse({
           config,
           instructions: buildReplyInstructions(
-            config.systemPrompt,
+            persona.prompt,
             config.replyMaxChars,
-            excludedToolNames,
-            config.webSearchEnabled,
+            buildAvailableTools(config, excludedToolNames),
             item.userName,
+            currentTime,
           ),
           input: outputs,
           tools: buildAvailableTools(config, excludedToolNames),
@@ -316,23 +322,31 @@ function createAiAssistantService(dependencies) {
     if (call.name === 'resolve_location') return tools.amap.resolveLocation(config, call.arguments, options);
     if (call.name === 'get_route') return tools.amap.getRoute(config, call.arguments, options);
     if (call.name === 'web_search') return tools.webSearch.search(config, call.arguments, options);
-    if (call.name === 'get_current_time') return tools.getCurrentTime(call.arguments);
     throw codedError('UNKNOWN_TOOL', '模型请求了未开放的工具。');
   }
 
   async function executeToolWithQuotaFallback(call, config, excludedToolNames) {
+    const offered = (candidate) => candidate.functionCallingEnabled && buildAvailableTools(candidate, excludedToolNames)
+      .some((tool) => (tool.name || tool.type) === call.name);
+    if (!offered(config) || !offered(store.getConfig())) {
+      excludedToolNames.add(call.name);
+      return { unavailable: true, reason: 'tool_unavailable', instruction: '此工具本次不可用，请使用已提供的其他能力，或说明无法核实，不要编造结果。' };
+    }
     try {
       return await executeTool(call, config);
     } catch (error) {
       const quotaToolNames = getQuotaToolNames(error);
       if (!quotaToolNames.length) throw error;
       for (const name of quotaToolNames) excludedToolNames.add(name);
+      const searchAvailable = [config, store.getConfig()].every((candidate) =>
+        buildAvailableTools(candidate, excludedToolNames).some((tool) => tool.type === 'web_search'),
+      );
       return {
         unavailable: true,
         reason: 'monthly_api_quota_reached',
-        instruction: config.webSearchEnabled
+        instruction: searchAvailable
           ? '该第三方 API 已达到本月安全用量上限。不要再次调用这个函数，请改用 web_search 回答。'
-          : '该第三方 API 已达到本月安全用量上限，且 web_search 未启用。请简短说明路线服务没有返回结果，不要编造路线。',
+          : '该第三方 API 已达到本月安全用量上限，当前没有可用的联网搜索。请说明无法核实，并提供一般建议，不要编造实时数据。',
       };
     }
   }
@@ -381,6 +395,7 @@ function createAiAssistantService(dependencies) {
             item.uid,
             { question: item.question, answer: currentResult.text },
             store.getConfig().contextTtlSeconds,
+            item.personaScope,
           );
         }
         return;

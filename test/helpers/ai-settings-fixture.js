@@ -3,6 +3,7 @@
 const path = require('node:path');
 const { readAdminFragmentHtml } = require('./admin-html');
 const { loadModuleExports } = require('./frontend-modules');
+const { BUILT_IN_PERSONAS } = require('../../src/ai/personas');
 
 const flushAiTasks = () => new Promise((resolve) => setImmediate(resolve));
 const aiResponse = (data) => ({
@@ -19,6 +20,7 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     modelApiProtocol: 'responses',
     model: 'deepseek-v4-flash',
     webSearchEnabled: true,
+    functionCallingEnabled: false,
     reasoningEnabled: false,
     reasoningEffort: 'high',
     modelEndpoint: {
@@ -34,12 +36,18 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     userCooldownSeconds: 0,
     roomLimitPerMinute: 20,
     systemPrompt: '这是一个长度足够的测试人格预设。',
+    personaId: 'custom',
+    personas: BUILT_IN_PERSONAS.map((persona) => ({ ...persona, builtin: true })),
+    weatherEnabled: false,
+    placesEnabled: false,
+    routesEnabled: false,
     hasDeepSeekApiKey: true,
     hasQWeatherApiKey: false,
     hasAmapApiKey: false,
     ...config,
   };
   const elements = new Map();
+  const downloads = [];
   function createElement(tagName, id = '') {
     return {
       id,
@@ -51,6 +59,11 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
       textContent: '',
       className: '',
       disabled: false,
+      click() {
+        if (tagName === 'a') downloads.push({ href: this.href, name: this.download });
+      },
+      append() {},
+      remove() {},
       attributes: {},
       listeners: {},
       children: [],
@@ -99,7 +112,9 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     path.resolve(__dirname, '../../public/js/admin/ai-assistant-settings.js'),
     {
       window,
-      document: { getElementById: (id) => elements.get(id), createElement },
+      Blob,
+      URL,
+      document: { getElementById: (id) => elements.get(id), createElement, body: createElement('body') },
       fetch: async (url, options = {}) => {
         calls.push({ url, options });
         const override = request?.(url, options);
@@ -133,6 +148,7 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     calls,
     toasts,
     publicConfig,
+    downloads,
     api,
     resolveInitialConfig: () => resolveInitialConfig(aiResponse(publicConfig)),
     saves: () =>
@@ -145,6 +161,7 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     input(id, value) {
       const target = elements.get(id);
       target.value = value;
+      target.listeners.input?.({ target });
       elements.get('xiaomiAiForm').listeners.input({ target });
     },
     async advance(ms) {

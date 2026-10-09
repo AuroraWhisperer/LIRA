@@ -5,7 +5,7 @@ const path = require('node:path');
 const { readAdminFragment } = require('./admin-page');
 const { SCENE_EXTRA_COMPONENTS } = require('../../public/js/shared/scene-extra-components.js');
 
-const COMPONENT_PREVIEW_FRAGMENTS = Object.freeze({ danmaku: 'toolbox/danmaku', clock: 'toolbox/clock',
+const COMPONENT_PREVIEW_FRAGMENTS = Object.freeze({ danmaku: 'live-components/danmaku', clock: 'toolbox/clock',
   queue: 'song/queue-theme', overtime: 'toolbox/overtime',
   ...Object.fromEntries(Object.keys(SCENE_EXTRA_COMPONENTS).map((type) => [type, null])), 'text-box': null, browser: null });
 

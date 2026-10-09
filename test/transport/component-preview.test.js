@@ -469,6 +469,8 @@ test('browser preview never receives admin authority or bypasses Host/Origin pro
   assert.equal(preview.status, 200);
   const html = await preview.text();
   assert.match(html, /componentPreviewTemplates/);
+  assert.match(html, /class="danmaku-parameters"/);
+  assert.doesNotMatch(html, /id="danmakuSendForm"|id="xiaomiAiForm"/);
   assert.doesNotMatch(html, /__API_TOKEN__|lira-overlay-bootstrap|synthetic-desktop-component-preview-token/);
   assert.equal(preview.headers.get('x-frame-options'), 'DENY');
   const compact = await fetch(`${fixture.origin}/c`);

@@ -37,10 +37,10 @@ test('woodland 1.0.0 imports the original native artwork and preserves legacy me
   const legacy = `${server.origin}${WOODLAND_GIFT_VIDEO}`;
   assert.equal((await fetch(legacy)).status, 404, 'Source checkout artwork must not mask a missing import.');
   const archive = createWoodlandGiftZip();
-  const preview = await request('inspect', archive);
+  const preview = await request('inspect?target=gift-frame', archive);
   assert.equal(preview.isSuite, false);
   assert.equal((await fetch(legacy)).status, 404, 'Inspect alone must not make staged resources available.');
-  const installed = await request('install', { id: preview.id });
+  const installed = await request('install', { id: preview.id, target: 'gift-frame' });
   const style = installed.styles[0];
   assert.equal(style.type, 'gift-frame');
   assert.deepEqual(normalizeSceneConfig(style.type, style.config), style.config);
@@ -58,8 +58,8 @@ test('woodland 1.0.0 imports the original native artwork and preserves legacy me
   assert.equal(head.status, 200);
   assert.equal(Number(head.headers.get('content-length')), original.length);
   assert.equal((await fetch(legacy, { method: 'POST' })).status, 405);
-  const again = await request('inspect', archive);
-  assert.equal((await request('install', { id: again.id })).alreadyInstalled, true);
+  const again = await request('inspect?target=gift-frame', archive);
+  assert.equal((await request('install', { id: again.id, target: 'gift-frame' })).alreadyInstalled, true);
   await request('remove', { id: style.id });
   assert.equal((await fetch(legacy, { method: 'HEAD' })).status, 200, 'Existing legacy scenes retain the imported artwork.');
   assert.equal((await fetch(`${server.origin}${source}`, { method: 'HEAD' })).status, 200);

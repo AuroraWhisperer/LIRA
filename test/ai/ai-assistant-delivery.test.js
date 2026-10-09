@@ -231,7 +231,7 @@ for (const cached of [false, true]) {
   test(`AI commits same-viewer answers in delivered order (${cached ? 'cached B' : 'fast B'})`, async (t) => {
     const f = orderFixture(t, {
       getCache: cached
-        ? (key) => (JSON.parse(key)[4] === '第二问' ? { text: '第二答', category: 'chat' } : null)
+        ? (key) => (JSON.parse(key).includes('第二问') ? { text: '第二答', category: 'chat' } : null)
         : undefined,
     });
     f.ask('第一问');

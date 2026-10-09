@@ -11,9 +11,11 @@ const browserFixture = createUiFixture();
 async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html')) {
   const page = await browserFixture(t, 'danmaku');
   await page.evaluate(
-    async ({ html, state }) => {
+    async ({ html, state, overlayHtml }) => {
       const parsed = new DOMParser().parseFromString(html, 'text/html');
       document.body.append(parsed.getElementById('otherAssistantPage') || parsed.getElementById('otherDanmakuFeature'));
+      const overlay = new DOMParser().parseFromString(overlayHtml, 'text/html').getElementById('liveDanmakuFeature');
+      document.body.append(overlay);
       for (const id of [
         'bilibiliAuthStatus',
         'bilibiliAuthProfile',
@@ -63,7 +65,7 @@ async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pa
       });
       await window.AdminApp.danmakuTool.refresh();
     },
-    { html, state },
+    { html, state, overlayHtml: readAdminFragmentHtml('pages/admin/live-components/danmaku.html') },
   );
   return page;
 }

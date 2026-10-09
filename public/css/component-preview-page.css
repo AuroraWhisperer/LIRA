@@ -110,7 +110,6 @@
 .component-preview-page .component-preview-panel .clock-parameter-section > h3 { display: none; }
 .component-preview-page .scene-editor-target { margin: 16px 0; }
 .scene-editor-parameters.is-danmaku .danmaku-parameters { margin-top: 0; }
-.scene-editor-parameters.is-danmaku .danmaku-style-group-heading { flex-wrap: wrap; gap: 8px; }
 .scene-editor-parameters.is-danmaku .danmaku-parameter-grid { gap: 16px 12px; }
 .scene-editor-parameters.is-danmaku .danmaku-parameter-field:has(select, input[type='range']) { grid-column: 1 / -1; }
 .scene-editor-parameters.is-danmaku > [role='status']:empty { display: none; }

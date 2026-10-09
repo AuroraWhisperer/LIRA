@@ -9,12 +9,29 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const root = path.resolve(__dirname, '../..');
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
-async function setup(loaders, onError = assert.fail) {
+async function setup(loaders, onError = assert.fail, ownerPageId) {
   const { createToolboxLifecycle } = await loadModuleExports(path.join(root, 'public/js/admin/toolbox-lifecycle.js'), {
     queueMicrotask,
   });
-  return createToolboxLifecycle({ loaders, onError });
+  return createToolboxLifecycle({ loaders, onError, ownerPageId });
 }
+
+test('live component editors initialize only in their owning main page', async () => {
+  let inits = 0;
+  const lifecycle = await setup({ clock: async () => () => inits++ }, assert.fail, 'liveComponentsPage');
+  lifecycle.selectFeature('clock');
+  lifecycle.setPage('otherAssistantPage');
+  await settle();
+  assert.equal(inits, 0);
+  lifecycle.setPage('liveComponentsPage');
+  await settle();
+  assert.equal(inits, 1);
+  lifecycle.setPage('otherAssistantPage');
+  lifecycle.setPage('liveComponentsPage');
+  await settle();
+  assert.equal(inits, 1);
+  lifecycle.dispose();
+});
 
 test('hidden toolbox does no work and remembered selection initializes once on entry', async () => {
   let loads = 0;

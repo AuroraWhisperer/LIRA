@@ -2,7 +2,8 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { randomUUID } = require('node:crypto');
+const { createComponentStyleIndex } = require('./component-style-index');
+const { activeImports, beginStyleFileUse, endStyleFileUse, pruneStyleTemporaryFiles, renameStyleDirectory } = require('./component-style-files');
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 
 function isSuite(pack, packages) {
@@ -13,43 +14,33 @@ function isSuite(pack, packages) {
 function createComponentStyleStore(dataDir) {
   if (!dataDir) throw new Error('素材目录尚未准备完成。');
   const root = path.join(path.resolve(dataDir), 'component-library');
-  const indexPath = path.join(root, 'index.json');
-  function read() {
-    try { return JSON.parse(fs.readFileSync(indexPath, 'utf8')); }
-    catch (error) { if (error.code === 'ENOENT') return { version: 1, packages: [] }; throw error; }
-  }
-  function write(index) {
-    fs.mkdirSync(root, { recursive: true });
-    const temporary = path.join(root, `${randomUUID()}.tmp`);
-    try {
-      fs.writeFileSync(temporary, JSON.stringify(index), { flag: 'wx', mode: 0o600 });
-      for (let attempt = 0; ; attempt++) {
-        try { fs.renameSync(temporary, indexPath); break; }
-        catch (error) {
-          if (attempt >= 4 || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
-          // Keep this transaction synchronous and retry only the prepared atomic replacement.
-          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 * (attempt + 1));
-        }
-      }
-    }
-    finally { fs.rmSync(temporary, { force: true }); }
-  }
+  pruneStyleTemporaryFiles(root);
+  const indexFile = createComponentStyleIndex(root);
+  const read = () => indexFile.read();
+  const write = index => indexFile.write(index);
   function directory(id, pending = false) {
     if (!UUID.test(id)) throw Object.assign(new Error('素材标识无效。'), { statusCode: 400 });
     return path.join(root, pending ? `.pending-${id}` : id);
   }
   function removePending(id) { fs.rmSync(directory(id, true), { recursive: true, force: true }); }
   return {
-    root, directory, read,
+    root, directory, read, integrity: () => indexFile.integrity(),
+    beginPending(id) { beginStyleFileUse(directory(id, true)); },
+    endPending(id) { endStyleFileUse(directory(id, true)); },
+    cancelPending(id) {
+      if (activeImports.has(directory(id, true))) throw Object.assign(new Error('素材正在处理，请稍后再取消。'), { statusCode: 409 });
+      removePending(id); return { id };
+    },
     list() {
       const { packages } = read();
       return packages.filter(pack => !pack.removed).map(pack => ({ ...pack, isSuite: isSuite(pack, packages),
+        importTarget: isSuite(pack, packages) ? 'suite' : pack.styles[0].category || pack.styles[0].type,
         styles: pack.styles.filter(style => !style.removed) }));
     },
     describe(pack) {
       const { packages } = read();
       const suite = isSuite(pack, packages);
-      return { ...pack, isSuite: suite, replaces: suite && pack.packageId ? packages
+      return { ...pack, isSuite: suite, replaces: pack.packageId ? packages
         .filter(item => !item.removed && item.packageId === pack.packageId && item.version !== pack.version)
         .map(({ id, name, version }) => ({ id, name, version })) : [] };
     },
@@ -64,15 +55,21 @@ function createComponentStyleStore(dataDir) {
       const pack = this.pending(id);
       const index = read();
       const same = pack.packageId && index.packages.find(item => item.packageId === pack.packageId && item.version === pack.version);
-      const replaced = isSuite(pack, index.packages) && pack.packageId ? index.packages.filter(item =>
+      const replaced = pack.packageId ? index.packages.filter(item =>
         !item.removed && item.packageId === pack.packageId && item !== same) : [];
       if (same) {
-        if (same.digest !== pack.digest) throw Object.assign(new Error('同名同版本套装内容不同，请作者更新版本号后再导入。'), { statusCode: 409 });
+        if (same.digest !== pack.digest) throw Object.assign(new Error('同名同版本素材包内容不同，请作者更新版本号后再导入。'), { statusCode: 409 });
         const restored = !!same.removed || same.styles.some(style => style.removed);
         delete same.removed;
         for (const style of same.styles) delete style.removed;
         for (const item of replaced) item.removed = true;
-        write(index);
+        const restoreFiles = !fs.existsSync(directory(same.id));
+        if (restoreFiles) {
+          fs.writeFileSync(path.join(directory(id, true), 'package.json'), JSON.stringify(same), { mode: 0o600 });
+          renameStyleDirectory(directory(id, true), directory(same.id));
+        }
+        try { write(index); }
+        catch (error) { if (restoreFiles) renameStyleDirectory(directory(same.id), directory(id, true)); throw error; }
         removePending(id);
         return { ...same, alreadyInstalled: !restored && !replaced.length, restored, replaced: replaced.length };
       }
@@ -88,10 +85,32 @@ function createComponentStyleStore(dataDir) {
     removePack(id) {
       const index = read();
       const pack = index.packages.find(item => item.id === id);
-      if (!pack) throw Object.assign(new Error('套装不存在。'), { statusCode: 404 });
+      if (!pack) throw Object.assign(new Error('素材包不存在。'), { statusCode: 404 });
       pack.removed = true;
       write(index);
       return { id };
+    },
+    restorePackages(packs, commitScenes) {
+      const index = read();
+      const additions = packs.filter(pack => !index.packages.some(item => item.id === pack.id));
+      if (index.packages.length + additions.length > 1000) throw Object.assign(new Error('样式库已达到上限。'), { statusCode: 400 });
+      const moved = [];
+      try {
+        for (const pack of packs) if (!fs.existsSync(directory(pack.id))) {
+          renameStyleDirectory(directory(pack.id, true), directory(pack.id)); moved.push(pack.id);
+        }
+        index.packages.push(...additions.map(pack => ({ ...pack, removed: true })));
+        write(index);
+      } catch (error) {
+        for (const id of moved.reverse()) renameStyleDirectory(directory(id), directory(id, true));
+        throw error;
+      }
+      // If scene persistence fails, hidden packages remain retryable and reclaimable.
+      // A later retry reuses stable IDs without replacing any existing scenes/settings.
+      const result = commitScenes();
+      for (const pack of packs) if (!pack.removed) delete index.packages.find(item => item.id === pack.id).removed;
+      write(index);
+      return result;
     },
     updateConfig(styleId, update) {
       const index = read();

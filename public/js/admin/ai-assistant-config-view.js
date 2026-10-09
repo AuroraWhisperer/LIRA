@@ -9,6 +9,7 @@ const FIELD_MAP = Object.freeze({
   deepseekApiKey: ['xiaomiAiDeepSeekKey', 'secret', 'hasDeepSeekApiKey'],
   model: ['xiaomiAiModel', 'value'],
   webSearchEnabled: ['xiaomiAiWebSearch', 'checked'],
+  functionCallingEnabled: ['xiaomiAiFunctionCalling', 'checked'],
   reasoningEnabled: ['xiaomiAiReasoning', 'checked'],
   reasoningEffort: ['xiaomiAiReasoningEffort', 'value'],
   qweatherApiHost: ['xiaomiAiQWeatherHost', 'value'],
@@ -20,6 +21,10 @@ const FIELD_MAP = Object.freeze({
   userCooldownSeconds: ['xiaomiAiUserCooldown', 'number'],
   roomLimitPerMinute: ['xiaomiAiRoomLimit', 'number'],
   systemPrompt: ['xiaomiAiSystemPrompt', 'value'],
+  personaId: ['xiaomiAiPersona', 'value'],
+  weatherEnabled: ['xiaomiAiWeatherEnabled', 'checked'],
+  placesEnabled: ['xiaomiAiPlacesEnabled', 'checked'],
+  routesEnabled: ['xiaomiAiRoutesEnabled', 'checked'],
 });
 
 export async function readApi(url, options = {}) {
@@ -41,7 +46,8 @@ export function collectConfig() {
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
     if (!element) continue;
-    if (element.disabled && ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)) continue;
+    if (key === 'systemPrompt' && document.getElementById('xiaomiAiPersona')?.value !== 'custom') continue;
+    if (element.disabled && ['deepseekResponsesUrl', 'modelApiProtocol', 'qweatherApiHost', 'qweatherApiKey', 'amapApiHost', 'amapApiKey'].includes(key)) continue;
     if (kind === 'checked') {
       config[key] = element.checked;
     } else if (kind === 'number') {
@@ -75,6 +81,7 @@ export function renderConfig(config, preservedFieldIds = new Set()) {
 }
 
 export function renderConfigSummary(config) {
+  renderToolSettings();
   renderSecretHint('xiaomiAiDeepSeekKeyHint', config.hasDeepSeekApiKey);
   renderSecretHint('xiaomiAiQWeatherKeyHint', config.hasQWeatherApiKey);
   renderSecretHint('xiaomiAiAmapKeyHint', config.hasAmapApiKey);
@@ -83,6 +90,22 @@ export function renderConfigSummary(config) {
   document.getElementById('xiaomiAiModelState').textContent = config.model || '未配置';
   renderProviderSelection(config);
   renderModelCapabilities(config.modelEndpoint);
+}
+
+export function renderToolSettings() {
+  const functionsEnabled = Boolean(document.getElementById('xiaomiAiFunctionCalling')?.checked);
+  const localTools = document.getElementById('xiaomiAiLocalTools');
+  if (localTools) localTools.hidden = !functionsEnabled;
+  const weather = document.getElementById('xiaomiAiWeatherCredentials');
+  const map = document.getElementById('xiaomiAiMapCredentials');
+  if (weather) weather.hidden = !document.getElementById('xiaomiAiWeatherEnabled')?.checked;
+  if (map) map.hidden = !(document.getElementById('xiaomiAiPlacesEnabled')?.checked || document.getElementById('xiaomiAiRoutesEnabled')?.checked);
+  for (const [prefix, active] of [['QWeather', functionsEnabled && !weather?.hidden], ['Amap', functionsEnabled && !map?.hidden]]) {
+    for (const suffix of ['Host', 'Key']) {
+      const input = document.getElementById(`xiaomiAi${prefix}${suffix}`);
+      if (input) input.disabled = !active;
+    }
+  }
 }
 
 export function renderProviderSelection(value, options = {}) {
@@ -156,7 +179,7 @@ function renderModelCapabilities(endpoint = {}) {
     setText('xiaomiAiWebSearchHelp', '使用 AI 平台提供的搜索功能，需要所选平台支持。');
   } else if (webSearchMode === 'local_function') {
     setText('xiaomiAiWebSearchLabel', 'LIRA 联网搜索');
-    setText('xiaomiAiWebSearchHelp', '由 LIRA 帮助搜索，需要所选模型支持。');
+    setText('xiaomiAiWebSearchHelp', '需在「可选工具」开启「允许模型调用工具」，并使用支持工具调用的模型。');
   } else {
     setText('xiaomiAiWebSearchLabel', '联网搜索');
     setText('xiaomiAiWebSearchHelp', '保存地址和协议后显示实际联网方式。');

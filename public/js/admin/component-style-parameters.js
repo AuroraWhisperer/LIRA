@@ -3,6 +3,7 @@ import { STYLE_PARAMETER_GROUPS, STYLE_PARAMETER_CAPABILITIES, componentStyleKey
 import { previewElement } from './component-preview-surface.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { enhanceColorControls } from '../shared/color-control.js';
+import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 
 export function mountStyleParameters(host, controller, type, { messageHost } = {}) {
   host.querySelector('[data-style-parameters-panel]')?.remove();
@@ -14,13 +15,15 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
   }
   const root = previewElement('section', 'component-style-parameters');
   root.dataset.styleParametersPanel = type;
-  root.append(previewElement('h3', 'ui-section-title', '外观效果'));
-  const hint = previewElement('p', 'hint', type === 'browser'
+  const heading = previewElement('h3', 'ui-section-title', '外观效果');
+  const help = previewElement('lira-help');
+  help.setAttribute('label', '外观效果说明');
+  const hint = previewElement('span', '', type === 'browser'
     ? '可调整整个网页的投影、发光、边框和变换；内部调色、文字和消息显示由原网页控制。'
     : '仅调整当前样式。未开启的调整沿用原样式，强度设为 0 可关闭对应效果。');
   const status = previewElement('p', 'component-style-parameter-error');
   status.setAttribute('role', 'status'); status.hidden = true;
-  root.append(hint);
+  help.append(hint); heading.append(help); root.append(heading);
   const groups = new Map();
   let currentKey = '';
   function change(group, value) {
@@ -55,7 +58,7 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
       let slider;
       if (input.type === 'number') {
         input.required = true;
-        slider = previewElement('input'); slider.type = 'range';
+        slider = previewElement('input', 'parameter-range'); slider.type = 'range';
         slider.setAttribute('aria-label', `${group.label} · ${field.label}滑块`);
         for (const control of [slider, input]) {
           control.min = field.min; control.max = field.max; control.step = field.step;
@@ -96,6 +99,7 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
   });
   root.append(status, reset); host.append(root);
   enhanceColorControls(root);
+  initParameterRanges(root);
   const stop = controller.subscribe(({ draft, loaded }) => {
     const key = componentStyleKey(draft);
     const force = key !== currentKey;
@@ -119,11 +123,11 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
       const values = parameters[name] || styleParameterDefaults(name);
       for (const [key, { input, slider }] of view.controls) {
         syncComponentFieldValue(input, values[key], force);
-        if (slider) slider.value = values[key];
+        if (slider) { slider.value = values[key]; refreshParameterRange(slider); }
       }
     }
     if (entry) { entry.checked = parameters.showEntryMessages === true; entry.disabled = !loaded; }
     reset.disabled = !loaded || !Object.keys(parameters).length;
   });
-  return { dispose() { stop(); entryLabel?.remove(); root.remove(); } };
+  return { dispose() { stop(); disposeParameterRanges(root); entryLabel?.remove(); root.remove(); } };
 }

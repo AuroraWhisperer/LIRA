@@ -280,7 +280,7 @@ test('a temporary EPERM while installing web resources retries and commits exact
     assert.ok(authorizationChecks >= attempts);
     assert.equal(store.list().length, 1);
     assert.equal(fs.readFileSync(path.join(store.directory(imported.id), 'web', 'index.html'), 'utf8'), '<h1>Clock</h1>');
-    assert.deepEqual(fs.readdirSync(store.root).sort(), [imported.id, 'index.json'].sort());
+    assert.deepEqual(fs.readdirSync(store.root).sort(), [imported.id, 'index.backup.json', 'index.json'].sort());
   } finally { fs.renameSync = originalRename; }
 });
 

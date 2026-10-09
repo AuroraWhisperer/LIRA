@@ -49,15 +49,21 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 
 [component-style-store.js](../../../src/storage/component-style-store.js) 拥有设备本机 `dataDir/component-library/`，不写云设置或礼物数据库。`index.json` 为 `{version:1,packages:[]}`，写入同目录随机临时文件后 rename 替换；媒体保存为 `<包 UUID>/<SHA-256>.<扩展名>`，网页保存为 `<包 UUID>/web/<原相对路径>`。场景的独立外观配置持有互斥的 `mediaStyle`、`resourceStyle` 或 `cssStyle` 快照，新增可选字段不改变旧场景格式。HTML 导入保存为 browser 配置，库中可选 `category` 记录原组件分类；浏览器地址仍走既有加密保存与模板脱敏合同。
 
-上传及 ZIP 检查只写 `.pending-<UUID>/`；确认时将整个目录 rename 为最终 UUID，再原子更新索引；索引失败则移回暂存。操作失败或显式取消清理本次暂存，进程异常中断可能留下暂存目录，不作为已安装素材读取。当前不自动回收文件。
+索引合同仍为 v1，无需迁移。`component-style-index.js` 在主索引提交后保存同内容的 `index.backup.json`；副本失败只报告恢复能力降级，不回滚已提交的安装。旧库首次读取会补齐副本。主索引缺失、损坏或结构无效时，从有效副本恢复；损坏原件保留为 `index.damaged-<UUID>.json`，`index.recovery.json` 记录恢复提示。两份均不可用时返回 503，不重建空库；高于当前支持版本的索引拒绝读取，不用旧副本降级。每包 `package.json` 是导入快照，后续参数以索引及其恢复副本为准。
 
-相同作者 ID、版本、ZIP 摘要重复安装幂等，并能恢复该包或成员的 `removed` 状态，复用原安装 UUID 和资源；同 ID 同版本不同内容返回冲突，作者需提高版本。套装安装在一次索引提交中将同 packageId 的其他已安装版本设为 `removed`，包括旧客户端留下的并存版本；独立组件样式包仍可多版本并存。套装分类由未过滤的完整成员及同 packageId 历史记录推导，不新增持久化字段，旧成员被移除或新版减少组件类型都不会改变既有套装身份。
+上传及 ZIP 检查只写 `.pending-<UUID>/`；确认时将整个目录 rename 为最终 UUID，再原子更新索引；索引失败则移回暂存。操作失败或显式取消清理本次暂存。重新打开库时回收超过 24 小时、且未被本进程导入占用的暂存和索引临时文件；链接或被锁定文件保留。未登记的正式 UUID 目录保留供核对，不自动删除。
 
-服务层的 [component-style-install.js](../../../src/server/component-style-install.js) 统一素材、网页样式和套装的安装重试：仅待确认目录移到正式目录时的 `EPERM` / `EBUSY` 最多重试四次，每次重新授权；不重放失败的索引事务或回滚。存储层写好临时索引后，遇到这两类锁定错误只重试该临时文件到 `index.json` 的原子重命名，最多四次、累计等待 500 ms；等待保持同步以免其他写入插入当前事务，持续失败仍回滚。磁盘格式不变。
+相同作者 ID、版本、ZIP 摘要重复安装幂等，并能恢复该包或成员的 `removed` 状态，复用原安装 UUID 和资源；同 ID 同版本不同内容返回冲突，作者需提高版本。所有标准素材包（含单组件多变体包）安装时在一次索引提交中将同 packageId 的其他已安装版本设为 `removed`，包括旧客户端留下的并存版本。套装分类由未过滤的完整成员及同 packageId 历史记录推导，不新增持久化字段，旧成员被移除或新版减少组件类型都不会改变既有套装身份。
+
+服务层的 [component-style-install.js](../../../src/server/component-style-install.js) 统一素材、网页样式和套装的安装重试：仅新包待确认目录移到正式目录时的 `EPERM` / `EBUSY` 最多重试四次，每次重新授权；不重放失败的索引事务或回滚。存储层写好临时索引后，遇到这两类锁定错误只重试该临时文件到 `index.json` 的原子重命名，最多四次、累计等待 500 ms；等待保持同步以免其他写入插入当前事务，持续失败仍回滚。清理后的同版本原包恢复与备份批量恢复，目录移动和回滚也使用相同上限的同步重试，保留原身份及参数。磁盘格式不变。
 
 已有场景不自动升级。库最多登记 1000 包。整包删除设置包级 `removed`，逐样式删除保留既有成员级 `removed` 合同，列表同时过滤这两类标记。两种删除均保留索引和媒体文件，保证未打开的预设和已发布场景仍能使用，不立即释放磁盘空间。目录随应用数据备份和迁移，不随 EXE 更新覆盖；不支持只复制场景到其他电脑而不带素材目录。
 
 文件与导入限制见 [API 合同](api.md#组件样式库)，样式字段见 [overlay 合同](../frontend/overlays.md#本地媒体样式)。
+
+专用备份由 `component-library-transfer.js` 编排资源 ZIP，`scene-transfer.js` 只导出当前账号的显示文档并负责新的场景凭据，场景批量插入由 `scene-store.js` 的 savepoint 事务提交。不改变任何表或索引版本。归档参数来自最新索引，文件保留原相对路径并记录 SHA-256；恢复重映射包、样式、文本框图片及场景身份。恢复副本 ID 由归档摘要、来源 ID（场景另含当前账号的 scope 摘要）确定，重复恢复不会覆盖既有副本上的修改。素材包名加「备份」，作者 ID 使用 `backup.` 命名空间，避免与原安装包或当前参数冲突；版本号保持不变。先登记隐藏素材，再事务创建未发布场景，最后恢复库可见性；失败可用同一备份安全续作，隐藏无引用资源可清理。原直播绑定、原场景和凭据均不覆盖。外部浏览器源、电脑本地加班机背景路径、未保存草稿及业务数据不导出；导入的本地 HTML/CSS 及其配套资源随包迁移。
+
+`component-library-maintenance.js` 盘点实际磁盘体积。手动清理重新检查所有账号的保存/发布文档（经场景 owner 解密）、预览中保存/未保存配置及待处理编辑命令，并保留可见样式的依赖。缺失正在使用的资源、索引故障、恢复副本不可写、引用解密失败或目录链接都会阻止清理。仅整包已移除或全部成员已移除且无引用的目录可回收；先 rename 为 `.purged-<UUID>` 再删除，失败可再次检查，异常残留沿用 24 小时回收规则。保留索引中的历史身份、参数和分类，重新导入完全相同的 ZIP 可补回原 UUID 的文件。
 
 ## 1. 技术选型
 
@@ -135,10 +141,10 @@ requests 追加 stable_id（唯一 UUID）、owner_scope、identity_type；旧�
 | 表                  | 用途                                                         | 关键列/索引                                                                                                                                                                                                                                                           |
 | ------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `settings`          | 全部设置键值(key/value/updated_at),见 §7                     | key PK                                                                                                                                                                                                                                                                |
-| `ai_configuration`  | AI 配置与凭证(与 settings 隔离,**避免通用设置接口回传密钥**) | key PK、`is_secret` 标记                                                                                                                                                                                                                                              |
+| `ai_configuration` | AI 配置、凭据及角色包（与 settings 隔离） | key PK、`is_secret` 标记；`personaPacks` 为既有 value 列中的 JSON 数组，`personaId` 为当前角色，`systemPrompt` 保留自定义草稿；格式见 [ai.md](ai.md) §7.3 |
 | `ai_request_logs`   | AI 请求审计日志                                              | uid/user_name/category/status/latency_ms/input_tokens/output_tokens/tool_calls/error_code;idx created_at                                                                                                                                                              |
 | `ai_api_usage`      | 月度配额计数                                                 | PK(category, month_key)、request_count                                                                                                                                                                                                                                |
-| `ai_viewer_context` | 观众对话上下文                                               | uid PK、payload、expires_at                                                                                                                                                                                                                                           |
+| `ai_viewer_context` | 观众在所选角色下的对话上下文 | 沿用 uid PK、payload、expires_at；AI 服务使用 `persona:` 加 SHA-256(`[uid, JSON.stringify([personaId,prompt])]`) 作为 uid 键，隔离不同观众、角色及人设版本；无作用域的旧内部调用仍使用原 uid |
 | `ai_query_cache`    | 查询缓存                                                     | cache_key PK、expires_at                                                                                                                                                                                                                                              |
 | `ai_blacklist`      | AI 黑名单                                                    | uid PK、reason                                                                                                                                                                                                                                                        |
 | `song_categories`   | 歌曲分类                                                     | name UNIQUE、sort_order、is_enabled                                                                                                                                                                                                                                   |

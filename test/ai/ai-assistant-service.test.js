@@ -9,7 +9,7 @@ const {
   getReplyLengthBudget,
   failureReply,
 } = require('../../src/ai/ai-assistant-service');
-const { SYSTEM_PROMPT, ANSWER_QUALITY_POLICY, buildTools } = require('../../src/ai/prompt');
+const { ANSWER_QUALITY_POLICY, buildTools } = require('../../src/ai/prompt');
 const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 
 test('trigger extraction removes 小米 and preserves the question', () => {
@@ -26,21 +26,22 @@ test('failure replies identify search failures separately from route failures', 
   assert.match(failureReply({ code: 'AI_NOT_CONFIGURED' }), /AI 服务/);
 });
 
-test('system prompt describes exactly the tools the service offers', () => {
+test('tools require both an explicit switch and their provider credentials', () => {
   const offered = buildTools({
+    functionCallingEnabled: true,
     webSearchEnabled: true,
     weatherEnabled: true,
     placesEnabled: true,
     routesEnabled: true,
   }).map((tool) => tool.name || tool.type);
-  const tags = new Set(Array.from(SYSTEM_PROMPT.matchAll(/<(\w+)>/g), (match) => match[1]));
-  const mentioned = new Set((SYSTEM_PROMPT.match(/\b[a-z]+(?:_[a-z]+)+\b/g) || []).filter((name) => !tags.has(name)));
-  assert.deepEqual([...mentioned].sort(), [...offered].sort());
+  assert.deepEqual(offered, ['web_search']);
+  assert.deepEqual(buildTools({ functionCallingEnabled: true, weatherEnabled: true, qweatherApiHost: 'https://weather.test', qweatherApiKey: 'test-key' }).map((tool) => tool.name), ['get_weather']);
+  assert.deepEqual(buildTools({ functionCallingEnabled: true, amapApiHost: 'https://map.test', amapApiKey: 'test-key', routesEnabled: true }).map((tool) => tool.name), ['resolve_location', 'get_route']);
 });
 
 test('reply instructions put the persona first and carry the budget derived from the mention length', () => {
   const budget = getReplyLengthBudget('哈极光dd_', 50);
-  const instructions = buildReplyInstructions('固定人格', 50, new Set(), true, '哈极光dd_');
+  const instructions = buildReplyInstructions('固定人格', 50, [], '哈极光dd_');
 
   assert.deepEqual(budget, {
     oneMessage: 32,
@@ -48,19 +49,17 @@ test('reply instructions put the persona first and carry the budget derived from
     threeMessages: 96,
     preferred: 50,
   });
-  assert.ok(instructions.startsWith('固定人格'));
+  assert.ok(instructions.startsWith('<persona>\n固定人格'));
   assert.ok(instructions.includes(ANSWER_QUALITY_POLICY));
   for (const value of Object.values(budget)) assert.match(instructions, new RegExp(`\\b${value}\\b`));
 });
 
-test('reply instructions redirect to web search only when a tool was disabled by its quota', () => {
-  const normal = buildReplyInstructions('固定人格', 50, new Set(), true);
-  const quotaLimited = buildReplyInstructions('固定人格', 50, new Set(['get_weather']), true);
-  const withoutSearch = buildReplyInstructions('固定人格', 50, new Set(['get_weather']), false);
-  assert.doesNotMatch(normal, /web_search/);
-  assert.match(quotaLimited, /改用 web_search/);
-  assert.ok(quotaLimited.startsWith(normal));
-  assert.doesNotMatch(withoutSearch, /改用 web_search/);
+test('runtime instructions describe only the tools offered for this request', () => {
+  const withoutTools = buildReplyInstructions('固定人格', 50, []);
+  const withSearch = buildReplyInstructions('固定人格', 50, [{ type: 'web_search' }]);
+  assert.doesNotMatch(withoutTools, /web_search|get_weather/);
+  assert.match(withSearch, /web_search/);
+  assert.doesNotMatch(withSearch, /get_weather/);
 });
 
 test('local unsafe input is rejected without calling DeepSeek', async () => {

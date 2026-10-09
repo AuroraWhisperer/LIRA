@@ -1,5 +1,4 @@
 .component-style-parameters { margin-top: 20px; min-width: 0; }
-.component-style-parameters > .hint { margin: 6px 0 12px; line-height: 1.6; }
 .component-parameter-group { border-top: 1px solid var(--color-border-light); }
 .component-parameter-group > summary,
 .component-parameter-advanced > summary { padding: 10px 0; cursor: pointer; color: var(--color-text-primary); }

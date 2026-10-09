@@ -4,6 +4,7 @@
 
 ## 历史报告
 
+- [AI 互动助手：回答限制调查与角色包实施记录](2026-10-09-ai-assistant-personas-and-tools.md)
 - [当前代码与技术文档一致性审查](2026-10-07-code-document-alignment.md)
 - [LIRA 套装包与第三方素材导入：调研及设计报告](2026-10-06-component-packages-design.md)
 - [客户端第二轮优化审查提示词](2026-10-03-client-round-two-optimization-prompt.md)

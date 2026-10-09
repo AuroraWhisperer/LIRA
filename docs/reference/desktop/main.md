@@ -38,6 +38,7 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 `dataDir/client-appearance.json`，只持久化 `{ themeId }`。合法值是 `neutral`、`classic`、
 `terracotta`；未设置默认 `terracotta`（暖陶），坏 JSON、未知 ID 或读取失败本次回退默认并记录适度诊断，
 不覆盖原文件。显式应用按请求顺序写临时文件并原子替换；成功才更新内存快照，失败保留旧状态。
+替换遇到 `EPERM` / `EBUSY` 时按 50、100、150、200 毫秒间隔最多重试四次；持续占用或其他写入错误仍返回原有保存失败结果，不删除旧记录。
 关停先移除写入 IPC 并等待已接受的写入完成。
 
 它与账号、直播间、业务 settings、云同步和浏览器缓存分离，普通缓存清理不删除外观记录。

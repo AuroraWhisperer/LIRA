@@ -3,13 +3,105 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
+const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
+
+const MAP_CONFIG = { functionCallingEnabled: true, routesEnabled: true, placesEnabled: true, amapApiHost: 'https://map.test', amapApiKey: 'test-map-key' };
+
+for (const scenario of ['disabled', 'revoked', 'enabled-later', 'hosted-search']) {
+  test(`unavailable function calls cannot reach external services (${scenario})`, async (t) => {
+    const config = {
+      ...AI_CONFIG_DEFAULTS,
+      enabled: true, trigger: 'AI', model: 'test-model',
+      deepseekResponsesUrl: 'https://model.test/responses', deepseekApiKey: 'test-key',
+      functionCallingEnabled: scenario !== 'hosted-search',
+      weatherEnabled: scenario === 'revoked',
+      webSearchEnabled: scenario === 'hosted-search',
+      qweatherApiHost: 'https://weather.test', qweatherApiKey: 'test-key',
+    };
+    const requests = [];
+    const deliveries = [];
+    let externalCalls = 0;
+    const callName = scenario === 'hosted-search' ? 'web_search' : 'get_weather';
+    const service = createTestService({
+      store: { getConfig: () => ({ ...config }) },
+      deepseek: {
+        async createResponse(request) {
+          requests.push(request);
+          if (request.purpose === 'generation') {
+            if (scenario === 'revoked') config.functionCallingEnabled = false;
+            if (scenario === 'enabled-later') config.weatherEnabled = true;
+            return { id: 'tool', text: '', usage: {}, functionCalls: [{ callId: 'one', name: callName, arguments: {} }] };
+          }
+          return {
+            text: request.purpose === 'tool_followup' ? '暂时无法核实实时信息，可以先关注出行准备。' : '{"allowed":true}',
+            usage: {}, functionCalls: [],
+          };
+        },
+      },
+      tools: {
+        qweather: { getWeather: async () => { externalCalls += 1; } },
+        webSearch: { search: async () => { externalCalls += 1; } },
+      },
+      sendReply: async (reply) => deliveries.push(reply.message),
+    });
+    t.after(() => service.shutdown());
+    service.handleDanmaku({ uid: 'viewer', userName: '观众', message: 'AI 查询今天的天气' });
+    await waitUntil(() => deliveries.length === 1);
+    assert.equal(externalCalls, 0);
+    const followup = requests.find((request) => request.purpose === 'tool_followup');
+    assert.equal(JSON.parse(followup.input[0].output).reason, 'tool_unavailable');
+    assert.equal(followup.tools.some((tool) => (tool.name || tool.type) === callName), false);
+    assert.match(deliveries[0], /暂时无法核实/);
+  });
+}
+
+test('a role switch during delivery retry keeps the request persona and cannot poison the new role cache', async (t) => {
+  const config = {
+    ...AI_CONFIG_DEFAULTS,
+    enabled: true, trigger: 'AI', model: 'test-model', personaId: 'cat',
+    deepseekResponsesUrl: 'https://model.test/responses', deepseekApiKey: 'test-key',
+  };
+  const instructions = [];
+  const deliveries = [];
+  const scopes = [];
+  let confirmations = 0;
+  const service = createTestService({
+    store: { getConfig: () => ({ ...config }), setContext: (_uid, _payload, _ttl, scope) => scopes.push(scope) },
+    deepseek: {
+      async createResponse(request) {
+        if (request.purpose === 'generation') {
+          instructions.push(request.instructions);
+          return { text: '你好呀', functionCalls: [], usage: {} };
+        }
+        return { text: '{"allowed":true}', functionCalls: [], usage: {} };
+      },
+    },
+    waitForDelivery: async () => {
+      if (++confirmations === 1) { config.personaId = 'general'; return false; }
+      return true;
+    },
+    sendReply: async (reply) => deliveries.push(reply.message),
+  });
+  t.after(() => service.shutdown());
+  const question = { uid: 'viewer', userName: '观众', message: 'AI 你好' };
+  service.handleDanmaku(question);
+  await waitUntil(() => scopes.length === 1);
+  service.handleDanmaku(question);
+  await waitUntil(() => scopes.length === 2);
+  assert.equal(instructions.length, 3);
+  assert.match(instructions[0], /橘猫/);
+  assert.match(instructions[1], /橘猫/);
+  assert.doesNotMatch(instructions[2], /橘猫/);
+  assert.notEqual(scopes[0], scopes[1]);
+  assert.equal(deliveries.length, 3);
+});
 
 test('generation and tool follow-up requests have enough output room for route reasoning and tool JSON', async () => {
   const requests = [];
   const deliveries = [];
   let mainCalls = 0;
   const service = createTestService({
-    config: { trigger: 'AI' },
+    config: { ...MAP_CONFIG, trigger: 'AI' },
     deepseek: {
       async createResponse(request) {
         requests.push(request);
@@ -84,7 +176,7 @@ test('generation and tool follow-up requests have enough output room for route r
 test('reasoning-enabled generation gets extra room for thinking and route tool calls', async () => {
   const requests = [];
   const service = createTestService({
-    config: { trigger: 'AI', reasoningEnabled: true },
+    config: { ...MAP_CONFIG, trigger: 'AI', reasoningEnabled: true },
     deepseek: {
       async createResponse(request) {
         requests.push(request);
@@ -121,7 +213,7 @@ test('Suzhou route planning keeps a concise useful reply after the route tool ro
   const deliveries = [];
   let generationCalls = 0;
   const service = createTestService({
-    config: { trigger: '\u5c0f\u7c73', reasoningEnabled: true },
+    config: { ...MAP_CONFIG, trigger: '\u5c0f\u7c73', reasoningEnabled: true },
     deepseek: {
       async createResponse(request) {
         if (request.purpose === 'input_review') {
@@ -197,7 +289,7 @@ test('a monthly API quota result makes the next tool round rely on web search', 
   const deliveries = [];
   let mainCalls = 0;
   const service = createTestService({
-    config: { trigger: 'AI' },
+    config: { ...MAP_CONFIG, trigger: 'AI', webSearchEnabled: true, weatherEnabled: true, qweatherApiHost: 'https://weather.test', qweatherApiKey: 'test-weather-key' },
     deepseek: {
       async createResponse(request) {
         if (request.purpose === 'input_review' || request.purpose === 'output_review') {
@@ -339,7 +431,7 @@ test('official-chat web search calls are executed and returned to the model', as
   const deliveries = [];
   let generationCalls = 0;
   const service = createTestService({
-    config: { trigger: 'AI' },
+    config: { trigger: 'AI', functionCallingEnabled: true, webSearchEnabled: true },
     deepseek: {
       async createResponse(request) {
         if (request.purpose === 'input_review') {

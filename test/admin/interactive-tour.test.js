@@ -219,6 +219,23 @@ test('song import step opens the import tab and points at the file input', () =>
   assert.equal(importStep.waitForAction, false);
 });
 
+test('component tour visits the real component navigation before introducing the canvas', () => {
+  const index = tour.TOUR_STEPS.findIndex((step) => step.id === 'live-components');
+  const step = tour.TOUR_STEPS[index];
+  const { readAdminHtml } = require('../helpers/admin-html');
+  const html = readAdminHtml();
+
+  assert.equal(tour.TOUR_STEPS[index - 1].id, 'import-songs');
+  assert.equal(tour.TOUR_STEPS[index + 1].id, 'live-canvas');
+  assert.equal(step.targetPage, 'liveComponentsPage');
+  assert.match(html, /data-main-page="liveComponentsPage"/);
+  assert.equal(step.targetTab, '[data-other-feature="liveDanmakuFeature"]');
+  assert.match(html, /aria-controls="liveDanmakuFeature" data-other-feature="liveDanmakuFeature"/);
+  assert.equal(step.targetSelector, '.live-components-menu');
+  assert.match(html, /<nav[^>]+class="[^"]*\blive-components-menu\b/);
+  assert.equal(step.waitForAction, false);
+});
+
 test('music setup step targets the real playback source switcher', () => {
   const musicStep = tour.TOUR_STEPS.find((step) => step.id === 'music-platform');
   const playbackPage = fs.readFileSync(

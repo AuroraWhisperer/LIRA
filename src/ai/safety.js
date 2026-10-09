@@ -2,7 +2,7 @@
 
 const LOCAL_BLOCK_RULES = Object.freeze([
   { type: 'sexual', pattern: /(?:色情|成人视频|裸照|约炮|强奸)/i },
-  { type: 'illegal', pattern: /(?:制毒|炸弹教程|买卖枪|洗钱|盗号|开盒)/i },
+  { type: 'illegal', pattern: /(?:制毒|炸弹教程|买卖枪|洗钱|开盒|(?:帮我|教我|我要)盗号|盗号(?:工具|教程|服务))/i },
   {
     type: 'privacy',
     pattern: /(?:身份证号|银行卡号|家庭住址|手机号是|微信号是|QQ号是)/i,
@@ -14,7 +14,7 @@ const LOCAL_BLOCK_RULES = Object.freeze([
   },
 ]);
 
-const SAFE_REFUSAL = '这个不适合直播间回答，换个轻松问题吧喵～';
+const SAFE_REFUSAL = '这个不适合直播间回答，换个问题吧。';
 
 function checkLocalInput(text) {
   const value = String(text || '').trim();
@@ -38,17 +38,18 @@ function parseSafetyReview(text, fallbackText = SAFE_REFUSAL) {
     .replace(/^```(?:json)?\s*|\s*```$/g, '');
   try {
     const parsed = JSON.parse(source);
+    if (typeof parsed?.allowed !== 'boolean' || (parsed.safeText != null && typeof parsed.safeText !== 'string')) {
+      throw new Error('invalid review');
+    }
     return {
       allowed: parsed.allowed === true,
       riskType: String(parsed.riskType || '').slice(0, 40),
       safeText: String(parsed.safeText || (parsed.allowed ? '' : fallbackText)).trim(),
     };
   } catch {
-    return {
-      allowed: false,
-      riskType: 'review_invalid',
-      safeText: fallbackText,
-    };
+    const error = new Error('AI 审核返回格式异常，请稍后再试。');
+    error.code = 'AI_REVIEW_INVALID';
+    throw error;
   }
 }
 

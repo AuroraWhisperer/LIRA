@@ -158,7 +158,16 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     return cards;
   }
 
-  function show(component) {
+  function importAtTarget(target, file, pack) {
+    if (target === 'suite') showSuites(file, pack);
+    else {
+      const component = components.find(entry => entry.id === target);
+      if (component) show(component, file, pack);
+      else report('当前画布不支持这个组件，请更新客户端。');
+    }
+  }
+
+  function show(component, initialFile, updatePack) {
     styleLibrary?.dispose();
     textPreviews.disconnect();
     content.classList.add('has-style-grid');
@@ -181,6 +190,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     content.scrollTop = 0;
     styleLibrary = mountComponentStyleLibrary(styles, {
       type: component.id, request: requestStyles, inline: true,
+      onImportTarget: importAtTarget, initialFile, updatePack,
       renderList: componentStyleList(component),
       onUse(style) { add(components.find(entry => entry.id === style.type) || component, style.config,
         { name: style.name, size: [componentStyleMedia(style.config).width, componentStyleMedia(style.config).height] }); dialog.close(); },
@@ -208,13 +218,13 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       for (const { id, button } of tabs) button.setAttribute('aria-pressed', String(id === active));
       for (const entry of entries) entry.card.hidden = entry.group !== active;
     }
-    return ({ list, cards, add }) => {
+    return ({ list, cards, add, manage }) => {
       list.classList.add('preview-picker-styles');
       entries = [...builtins, ...cards.map(({ style, card }) => ({ group: group(style.config.style), card }))];
       list.replaceChildren(...entries.map(entry => entry.card));
       add.className = 'secondary preview-picker-import';
       add.replaceChildren(pickerIcon('M12 5v14M5 12h14'), previewElement('span', '', '添加样式'));
-      subcategories.append(add);
+      subcategories.append(add, manage);
       filter();
     };
   }
@@ -270,10 +280,11 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     return button;
   }
 
-  function showSuites() {
+  function showSuites(initialFile, updatePack) {
     styleLibrary?.dispose();
     content.classList.remove('has-style-grid');
     styleLibrary = mountComponentStyleLibrary(styles, { request: requestStyles, suitesOnly: true,
+      onImportTarget: importAtTarget, initialFile, updatePack,
       onUse(style) {
         const component = components.find(entry => entry.id === style.type);
         if (!component) throw new Error('当前画布不支持这个组件，请重新打开。');

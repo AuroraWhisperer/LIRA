@@ -65,7 +65,8 @@ const SHOTS = [
     clip: '#giftWishesPanel',
     setup: async (page) => {
       await page.getByRole('radio', { name: '文字版', exact: true }).check();
-      await page.locator('#giftWishTextTemplate').fill('许愿{礼物}（{已收}/{目标}），谢谢大家的支持！');
+      await page.locator('#giftWishTextEditor').press('Control+End');
+      await page.keyboard.insertText('，谢谢大家的支持！');
     },
   },
   {

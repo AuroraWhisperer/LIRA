@@ -149,8 +149,8 @@ test('clock overlay scales content bounds with a narrow frame gutter', async () 
   assert.equal(module.clockScaleForViewport(228, 388, 'timeline-vertical'), 1);
 });
 
-test('toolbox composes the named clock card with fixed URL and custom controls', () => {
-  const shell = read('public', 'pages', 'admin', 'toolbox', 'shell-start.html');
+test('live components compose the named clock card with fixed URL and custom controls', () => {
+  const shell = read('public', 'pages', 'admin', 'live-components', 'page.html');
   const panel = read('public', 'pages', 'admin', 'toolbox', 'clock.html');
   const styles = read('public', 'css', 'admin', 'toolbox', 'clock.css');
   const styleEntry = read('public', 'css', 'admin', 'toolbox.css');
@@ -160,7 +160,8 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   const composition = read('src', 'server', 'admin-page.js');
 
   assert.match(shell, /data-other-feature="otherClockFeature"/);
-  assert.match(composition, /pages\/admin\/toolbox\/clock\.html/);
+  assert.match(composition, /pages\/admin\/live-components\/page\.html/);
+  assert.match(shell, /admin-fragment: pages\/admin\/toolbox\/clock\.html/);
   assert.match(styleEntry, /toolbox\/clock\.css/);
   assert.match(app, /import\('\.\/clock-card\.js'\)/);
   assert.match(app, /module\.initClockCard/);

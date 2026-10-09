@@ -426,8 +426,8 @@ test('canvas suite imports appear in client component lists and refresh without 
   const page = await browser.newPage();
   desktop.setDefaultTimeout(10000); page.setDefaultTimeout(10000);
   const url = await openCanvasDesktop(desktop, fixture);
-  const fragments = ['clock', 'danmaku', 'start-animation', 'gift', 'gift-wishes'].map(name =>
-    fs.readFileSync(path.resolve(__dirname, `../../public/pages/admin/toolbox/${name}.html`), 'utf8')).join('\n');
+  const fragments = ['toolbox/clock', 'live-components/danmaku', 'toolbox/start-animation', 'toolbox/gift', 'toolbox/gift-wishes'].map(name =>
+    fs.readFileSync(path.resolve(__dirname, `../../public/pages/admin/${name}.html`), 'utf8')).join('\n');
   await desktop.evaluate(async html => {
     document.body.innerHTML = html;
     for (const panel of document.querySelectorAll('section[hidden]')) panel.hidden = false;

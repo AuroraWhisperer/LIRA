@@ -1,0 +1,881 @@
+/* Desktop component workspace. Dimensions and rationale: docs/reference/frontend/pages.md. */
+.live-components-page {
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --font: var(--font-ui);
+  /* Page titles keep the Display optical size; Latin text at 20px needs it, CJK falls back unchanged. */
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --type-size-page-title: 20px;
+  --type-size-section-title: 16px;
+  --type-size-card-title: 14px;
+  --type-size-control: 14px;
+  --type-size-micro: 12px;
+  --type-weight-bold: 600;
+  --type-leading-page-title: 1.4;
+  --type-leading-section-title: 1.5;
+  --type-leading-card-title: 1.4286;
+  --type-leading-body: 1.4286;
+  --type-leading-control: 1.4286;
+  --type-leading-micro: 1.5;
+  --component-control-height: 36px;
+  --component-page-padding: 24px;
+  --color-control-height: var(--component-control-height);
+
+  /* Selection colors follow the client appearance. `selection-marker` is the token each
+     palette tunes for visibility, so the dark appearance keeps a readable marker where its
+     primary is a near-white silver. Solid chips use the text-weight value so 11–12px labels
+     stay above 4.5:1 on every palette; their glyph color is the page surface. */
+  --components-accent: var(--color-selection-marker, var(--primary));
+  --components-accent-solid: var(--color-selection-text, var(--primary-strong));
+  --components-accent-on: var(--surface);
+  --components-accent-soft: color-mix(in srgb, var(--components-accent) 12%, transparent);
+
+  /* Navigation and expander rows sit on the page background, not on a panel surface, so their
+     feedback mixes against the text color instead of reusing the surface-tuned hover token. */
+  --components-row-hover: color-mix(in srgb, var(--text) 7%, transparent);
+  --components-row-selected-bg: var(--client-main-nav-active-bg, var(--surface));
+  --components-row-selected-shadow: var(
+    --client-main-nav-active-shadow,
+    0 1px 2px color-mix(in srgb, var(--text) 10%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent)
+  );
+
+  font-family: var(--font-ui);
+  font-size: var(--type-size-body);
+  line-height: var(--type-leading-body);
+}
+
+.live-components-workspace {
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 16px 0;
+}
+
+.live-components-sidebar {
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.live-components-heading {
+  padding: 14px 20px 8px;
+}
+
+.live-components-heading h2 {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.live-components-menu {
+  padding: 0 8px;
+}
+
+.live-components-menu .other-feature-button {
+  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-rows: auto;
+  gap: 12px;
+  height: 40px;
+  min-height: 40px;
+  margin-bottom: 2px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.live-components-menu .other-feature-icon,
+.live-components-menu .other-feature-icon svg {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+}
+
+.live-components-menu .other-feature-label strong {
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-regular);
+}
+
+/* Selected row carries fill, outline, accent bar and weight together, so the state does not
+   depend on hue alone (WCAG 1.4.1) and stays legible on the dark appearance. */
+.live-components-menu .other-feature-button.active {
+  background: var(--components-row-selected-bg);
+  box-shadow: var(--components-row-selected-shadow);
+  color: var(--text);
+}
+
+.live-components-menu .other-feature-button.active::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-start-end-radius: 3px;
+  border-end-end-radius: 3px;
+  background: var(--components-accent);
+}
+
+.live-components-menu .other-feature-button.active .other-feature-icon {
+  color: var(--components-accent-solid);
+}
+
+.live-components-menu .other-feature-button.active strong {
+  font-weight: var(--type-weight-semibold);
+}
+
+.live-components-menu .other-feature-button:hover:not(.active) {
+  background: var(--components-row-hover);
+}
+
+/* Bottom padding keeps 使用指南 clear of the global player-dock toggle at the window's edge. */
+.live-components-help {
+  margin-top: auto;
+  padding: 8px 8px 32px;
+  border-top: 1px solid var(--color-border-light, var(--border));
+  font-size: var(--type-size-control);
+}
+
+.live-components-help button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+
+.live-components-help svg {
+  width: 20px;
+  height: 20px;
+}
+
+.live-components-help button:hover {
+  background: var(--components-row-hover);
+  color: var(--text);
+}
+
+.live-components-page .other-feature-panel {
+  box-shadow: none;
+}
+
+.live-components-page .other-feature-panel-body {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: var(--component-page-padding);
+  scrollbar-gutter: stable;
+}
+
+.live-components-page .component-page-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.live-components-page .other-feature-panel .component-page-heading :is(h2, h3) {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-size-page-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: 28px;
+  letter-spacing: 0;
+}
+
+/* Page header: title on the left, state then the page's primary action on the right. */
+.live-components-page .component-heading-separator {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 20px;
+  background: color-mix(in srgb, var(--text) 16%, transparent);
+}
+
+.live-components-page .danmaku-style-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--components-accent-soft);
+  color: var(--components-accent-solid);
+  font-weight: var(--type-weight-medium);
+}
+
+/* One section level across the six pages: page title 20 → section 16 → body 14 → note 12.
+   Several pages used to mark sections with a card-title-sized heading, which matched the body
+   size and flattened the page. */
+.live-components-page .other-feature-panel
+  :is(
+    .ui-section-title,
+    .danmaku-settings-heading h4,
+    .gift-display-group-head h4,
+    .opening-style-picker h3,
+    .opening-section-heading strong,
+    .opening-editor-title > span,
+    .opening-preview-heading strong,
+    .text-box-live-heading h3
+  ) {
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: 24px;
+}
+
+/* Section description sits between the heading and the controls it explains, so it is read
+   before the action rather than after it (Fluent Field). */
+.live-components-page .component-section-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+.live-components-page .component-section-note + * {
+  margin-top: 12px;
+}
+
+/* Text controls share a 20px line box + 7px inset + 1px border on each side. */
+.live-components-page .other-feature-panel :is(button.primary, button.secondary, button.ghost, button.button-quiet, .lira-select-trigger, .opening-upload-button),
+.live-components-page .overtime-actions button {
+  box-sizing: border-box;
+  min-height: var(--component-control-height);
+  padding: 7px 12px;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
+  line-height: 20px;
+}
+
+.live-components-page .other-feature-panel :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']), select) {
+  box-sizing: border-box;
+  min-height: var(--component-control-height);
+  padding: 7px 12px;
+  font-family: var(--font-ui);
+  font-size: var(--type-size-control);
+  line-height: 20px;
+}
+
+/* The shared trigger already reserves its chevron with flex, so an extra end inset only
+   squeezed the value text and pushed the chevron off the control's optical edge. */
+.live-components-page .other-feature-panel .lira-select-trigger {
+  padding-inline-end: 10px;
+}
+
+.live-components-page :is(.danmaku-parameter-field, .clock-form-field) {
+  --color-control-height: var(--component-control-height);
+}
+
+.live-components-page .other-feature-panel :is(.hint, .danmaku-style-chip, .opening-audio-status) {
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+.live-components-page .gift-assistant-tabs {
+  gap: 24px;
+}
+
+.live-components-page .gift-assistant-tabs [role='tab'] {
+  min-height: 40px;
+  padding: 8px 0 10px;
+  border-radius: 0;
+  font-size: var(--type-size-body);
+  line-height: 20px;
+}
+
+.live-components-page .gift-assistant-tabs [aria-selected='true'] {
+  background: transparent;
+}
+
+/* One surface; spacing separates settings, while image cards remain selectable objects. */
+.live-components-page .danmaku-style-section {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+}
+
+.live-components-page .danmaku-settings-block {
+  padding: 24px 0;
+}
+
+.live-components-page .danmaku-settings-block:last-child {
+  padding-bottom: 0;
+}
+
+/* Expandable sections read as one clickable row: hover fill, a summary next to the chevron and
+   the same heading level as the sections they sit between. */
+.live-components-page .danmaku-overlay-filters {
+  padding: 0;
+}
+
+.live-components-page .danmaku-overlay-filters > summary {
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  margin-inline: -12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.live-components-page .danmaku-overlay-filters > summary:hover {
+  background: var(--components-row-hover);
+}
+
+.live-components-page .danmaku-overlay-filters > summary .component-section-note {
+  margin-top: 2px;
+}
+
+.live-components-page .component-expander-summary {
+  margin-inline-start: auto;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+.live-components-page .component-expander-summary:empty {
+  display: none;
+}
+
+.live-components-page .danmaku-details-chevron {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+/* Style-parameter groups are expandable rows too, so they drop the default disclosure
+   triangle and take the same hover row, chevron and trailing state as 弹幕过滤. */
+.live-components-page .component-style-parameters :is(.component-parameter-group, .component-parameter-advanced) > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  margin-inline: -12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  list-style: none;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-medium);
+}
+
+.live-components-page .component-style-parameters summary::-webkit-details-marker {
+  display: none;
+}
+
+.live-components-page .component-style-parameters summary:hover {
+  background: var(--components-row-hover);
+}
+
+.live-components-page .component-parameter-state {
+  float: none;
+  margin: 0 0 0 auto;
+  font-size: var(--type-size-caption);
+}
+
+.live-components-page .component-style-parameters summary::after {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-right: 1.75px solid var(--muted);
+  border-bottom: 1.75px solid var(--muted);
+  content: '';
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 140ms ease;
+}
+
+.live-components-page .component-style-parameters details[open] > summary::after {
+  transform: translateY(1px) rotate(225deg);
+}
+
+/* Effect values read as compact property rows (label | slider | number), like the effect panels
+   in Figma or Photoshop, instead of page-wide sliders under stacked labels. */
+.live-components-page .component-parameter-fields {
+  /* At most two columns; a single column once each would drop below 340px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(340px, calc(50% - 20px))), 1fr));
+  gap: 8px 40px;
+}
+
+.live-components-page .component-parameter-field {
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.live-components-page .component-parameter-inputs input[type='number'] {
+  flex-basis: 64px;
+  width: 64px;
+}
+
+/* The save bar stays in reach while styles and parameters scroll (contextual save bar). */
+.live-components-page .danmaku-style-footer {
+  position: sticky;
+  bottom: calc(-1 * var(--component-page-padding));
+  z-index: 3;
+  margin: 24px calc(-1 * var(--component-page-padding)) calc(-1 * var(--component-page-padding));
+  padding: 12px var(--component-page-padding);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.live-components-page .component-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.live-components-page .component-icon-button svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+/* Library management belongs to the section, not to the grid of selectable styles. */
+.live-components-page .component-subsection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.live-components-page .component-subsection-heading > h3 {
+  margin: 0;
+}
+
+.live-components-page .guard-thanks-more .component-subsection-heading {
+  margin-bottom: 12px;
+}
+
+.live-components-page .component-heading-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-inline-start: auto;
+}
+
+.live-components-page .component-heading-actions .component-style-manage {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 12px;
+  font-size: var(--type-size-control);
+}
+
+.live-components-page .component-heading-actions .component-style-manage::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 6px;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round' stroke-linecap='round'%3E%3Crect x='4' y='4' width='7' height='7' rx='1.5'/%3E%3Crect x='13' y='4' width='7' height='7' rx='1.5'/%3E%3Crect x='4' y='13' width='7' height='7' rx='1.5'/%3E%3Cpath d='M16.5 13v7M13 16.5h7'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.live-components-page .danmaku-filter-body {
+  padding: 0 0 24px;
+}
+
+.live-components-page .danmaku-style-picker {
+  --danmaku-sample-height: 104px;
+}
+
+.live-components-page .danmaku-style-picker .danmaku-style-options {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 208px), 1fr));
+  gap: 12px;
+}
+
+.live-components-page .danmaku-style-picker :is(.danmaku-style-option, .component-style-select, .component-style-add) {
+  min-height: 152px;
+}
+
+/* Style pickers share one selected affordance across the six pages: an accent ring plus a
+   badge over the thumbnail. The ring uses `selection-marker` because several palettes set a
+   primary that cannot carry a 1px outline — the dark appearance's primary is a near-white
+   silver, which made the selected card indistinguishable from the unselected ones. */
+.live-components-page
+  :is(
+    .danmaku-style-picker .danmaku-style-option[aria-pressed='true'],
+    .danmaku-style-picker .component-style-select[aria-pressed='true'],
+    .clock-style-options .clock-style-option.active,
+    .opening-style-options button[aria-pressed='true']
+  ) {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--components-accent);
+}
+
+.live-components-page .danmaku-style-picker .danmaku-style-option[aria-pressed='true'] {
+  background: var(--surface);
+}
+
+/* The badge moves onto the thumbnail so it stops sharing the caption line with the name. */
+.live-components-page .danmaku-style-picker .danmaku-style-option[aria-pressed='true']::after {
+  top: 16px;
+  right: 16px;
+  bottom: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--components-accent-solid);
+  color: var(--components-accent-on);
+  font-weight: var(--type-weight-semibold);
+}
+
+/* A placeholder action must not outweigh real content: ghost outline, no fill. */
+.live-components-page .component-style-add {
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+}
+
+.live-components-page .component-style-add:hover {
+  border-color: var(--components-accent);
+  color: var(--text);
+}
+
+.live-components-page .gift-assistant-tabs [aria-selected='true'] {
+  border-bottom-color: var(--components-accent);
+  color: var(--components-accent-solid);
+}
+
+/* Display mode filters the style grid inside one section, so it uses a segmented control
+   rather than the underlined tabs that switch whole pages (礼物姬). */
+.live-components-page .danmaku-style-tabs {
+  justify-self: start;
+  gap: 2px;
+  width: max-content;
+  max-width: 100%;
+  padding: 3px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.live-components-page .danmaku-style-tabs [role='tab'] {
+  min-height: 30px;
+  margin: 0;
+  padding: 4px 16px;
+  border: 0;
+  border-radius: 6px;
+  font-size: var(--type-size-body);
+  line-height: 22px;
+}
+
+.live-components-page .danmaku-style-tabs [role='tab']:hover:not([aria-selected='true']) {
+  background: var(--components-row-hover);
+}
+
+.live-components-page .danmaku-style-tabs [aria-selected='true'] {
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--text) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+}
+
+.live-components-page .danmaku-parameter-grid {
+  gap: 16px 24px;
+}
+
+/* Field labels and typed values stay regular on all six pages, so section and group headings,
+   selected items and buttons remain the bold text. Several page styles set a bold label weight
+   that inputs inherited, which made user-entered values bold too. */
+.live-components-page .other-feature-panel
+  :is(
+    .danmaku-parameter-field strong,
+    .clock-form-field,
+    .component-parameter-field,
+    .opening-copy-fields > label,
+    .opening-select-grid > label,
+    .opening-field-wide,
+    .opening-volume-field,
+    .overtime-manual-duration,
+    .overtime-duration-selectors label,
+    .overtime-appearance-fields label,
+    .gift-frame-settings-grid label,
+    .gift-frame-preview-grid label,
+    .clock-toggle-field strong,
+    .danmaku-filter-form > label,
+    .opening-editor-checks label,
+    .component-parameter-group > .component-parameter-toggle
+  ),
+.live-components-page .other-feature-panel :is(input, select, textarea, .lira-select-trigger) {
+  font-weight: var(--type-weight-regular);
+}
+
+/* Inside 高级参数, 外观效果 is a group heading, not a page section. */
+.live-components-page .other-feature-panel .danmaku-advanced .component-style-parameters > .ui-section-title {
+  font-size: var(--type-size-card-title);
+  line-height: var(--type-leading-card-title);
+}
+
+.live-components-page :is(.gift-assistant, .clock-tool-panel, .opening-animation-panel, .overtime-admin) {
+  gap: 24px;
+  background: var(--surface);
+}
+
+.live-components-page :is(.gift-display-settings, .guard-thanks-card, .opening-style-picker, .opening-animation-editor) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.live-components-page .guard-thanks-card + .guard-thanks-card {
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.live-components-page .text-box-page-heading {
+  margin-bottom: 24px;
+}
+
+.live-components-page .text-box-empty {
+  min-height: 320px;
+}
+
+.live-components-page .text-box-empty h3 {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.live-components-page .overtime-admin {
+  grid-auto-rows: max-content;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.live-components-page .overtime-console {
+  min-height: 112px;
+  padding: 16px 20px;
+  border: 0;
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.live-components-page .overtime-clock-value {
+  font-family: var(--font-ui);
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 48px;
+  letter-spacing: 0;
+}
+
+.live-components-page .overtime-admin-section {
+  padding: 24px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.live-components-page .overtime-admin h3,
+.live-components-page .opening-style-picker h3 {
+  font-size: var(--type-size-section-title);
+  line-height: 24px;
+}
+
+.live-components-page :is(.gift-wish-field > label, .gift-wish-field-label, .gift-wish-style-field > legend, .text-box-layout-fields label) {
+  font-size: var(--type-size-body);
+  line-height: 20px;
+}
+
+.live-components-page :is(.opening-style-picker, .opening-music-card) {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.live-components-page .opening-animation-layout {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+}
+
+.live-components-page .opening-animation-preview {
+  padding: 0 0 0 24px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Switch rows read the same way on every page: label first, control last. */
+.live-components-page :is(.gift-frame-switch, .guard-thanks-switch) > span:not(.switch-track) {
+  order: -1;
+}
+
+.live-components-page .overtime-rule-enabled {
+  flex-direction: row-reverse;
+}
+
+.live-components-page .opening-master-toggle {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: 12px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+}
+
+.live-components-page .opening-master-toggle-copy {
+  grid-area: 1 / 1;
+}
+
+.live-components-page .opening-master-toggle-ui {
+  grid-area: 1 / 2;
+}
+
+.live-components-page .opening-animation-address span {
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+}
+
+.live-components-page .opening-animation-address .button-secondary {
+  min-height: var(--component-control-height);
+  padding: 7px 12px;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
+  line-height: 20px;
+}
+
+.live-components-page .opening-master-toggle-copy strong {
+  white-space: normal;
+}
+
+.live-components-page .opening-style-options :is(button, .component-style-select, .component-style-add) {
+  min-height: var(--component-control-height);
+  padding-block: 7px;
+  line-height: 20px;
+}
+
+.live-components-page .opening-music-card {
+  padding: 16px 0;
+  border-inline: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.live-components-page .clock-tool-layout {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+}
+
+.live-components-page .clock-settings-card {
+  grid-column: 1;
+  grid-row: 1;
+  gap: 24px;
+  padding: 0;
+  border: 0;
+}
+
+.live-components-page .clock-preview-card {
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 0;
+  padding-left: 24px;
+  border-left: 1px solid var(--border);
+}
+
+.live-components-page .clock-preview-canvas {
+  min-height: 192px;
+}
+
+.live-components-page .clock-parameter-section {
+  padding-top: 24px;
+  gap: 16px;
+}
+
+.live-components-page .clock-settings-card .clock-style-options {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 152px), 1fr));
+}
+
+.live-components-page .clock-style-options :is(.clock-style-option, .component-style-add) {
+  min-height: 64px;
+}
+
+.live-components-page .clock-style-options .component-style-add {
+  padding: 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 1100px) and (min-width: 901px) {
+  .live-components-page {
+    --component-page-padding: 20px;
+  }
+
+  .live-components-workspace {
+    grid-template-columns: 160px minmax(0, 1fr);
+  }
+}
+
+@container clock-settings (max-width: 880px) {
+  .live-components-page .clock-tool-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .live-components-page .clock-preview-card {
+    grid-column: 1;
+    grid-row: 2;
+    position: static;
+    padding: 24px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}
+
+@container opening-settings (max-width: 880px) {
+  .live-components-page .opening-animation-toolbar {
+    align-items: stretch;
+  }
+
+  .live-components-page .opening-animation-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .live-components-page .opening-animation-preview {
+    position: static;
+    padding: 24px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 1100px) {
+  .live-components-page .overtime-admin {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .live-components-page .overtime-admin > :is(.overtime-time-editor, .overtime-screen-section) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .live-components-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .live-components-heading,
+  .live-components-help {
+    display: none;
+  }
+
+  .live-components-menu .other-feature-button {
+    min-height: 48px;
+  }
+}

@@ -47,6 +47,54 @@
 
 该契约只拥有 Electron/Admin chrome。`css/overlays/` 中除桌面外壳专用的 `overlays/desktop.css` 外，不消费 `ui-*` 或 `--type-*`；`/queue`、`/songlist` 继续读取持久化的 overlay 字体与字号，`/lyrics` 和 Admin 歌词预览继续读取同一组 `--preview-*` 用户配置。本地字体枚举仍只由桌面歌词设置的 `admin/local-font-library.js` 在用户手势后调用，不是 Admin 核心 UI 的依赖。
 
+### 1.2 组件工作区的桌面尺度
+
+「组件」在 [live-components.css](../../../public/css/admin/live-components.css) 内消费并局部细化上述语义 token；适用于六个组件设置页，不改变 OBS/哔哩哔哩直播姬中的输出字号、素材比例或用户配置。颜色、圆角、禁用与焦点状态沿用客户端主题。六页拥有一致的页面标题、内容左边线与控件高度，表单和预览按任务分区。
+
+顶部入口命名为「组件」，与点歌、播放、礼物保持两字节奏，表示可配置并放入直播画面的独立功能；悬停说明为「组件 · 弹幕、礼物与直播画面设置」。命名参考同类产品的功能分类：[Streamlabs 中文站](https://streamlabs.com/zh-cn/stream-widgets)称 Widgets 为「小工具」，[StreamElements](https://docs.streamelements.com/overlays/getting-started)区分单个 Widget 与组合 Overlay，[OBS](https://obsproject.com/kb/sources-guide)则使用 Sources。LIRA 采用「组件」是结合本站功能与既有画布用语的选择，并非这些软件统一使用的中文名称。
+
+图标沿用顶部导航的透明彩色立体风格，以直播预览窗口、金色弹幕板和珊瑚色小画面表达直播间画面的搭建。`nav-components.webp` 将三层画面收拢为紧凑的横向屏幕，`nav-components-active.webp` 将弹幕板和小画面向上展开，形成明显的三层轮廓；两态保持相同的材质与配色，通过整体轮廓区分选择状态。两图各为 64×64，按既有 20×20 CSS 像素显示，共用默认/选中图层的 180ms 淡入淡出；减少动态效果偏好下取消过渡，无持续闪烁。内部页面 ID、`#components` 和记忆选择键保持不变。
+
+设计依据核对于 2026-10-09：
+
+- [Microsoft Fluent 2 Typography](https://fluent2.microsoft.design/typography)：原生系统字体、14/20 正文、Windows 20/28 副标题及分级字重，建立稳定的文字层级。
+- [Microsoft Fluent 2 Layout](https://fluent2.microsoft.design/layout)：4px 基础间距、邻近关系分组，以及按内容空间重排。它并未规定本项目的侧栏或卡片必须取某一宽度。
+- [Fluent Field](https://fluent2.microsoft.design/components/web/react/core/field/usage/) 与 [Fluent Button](https://fluent2.microsoft.design/components/web/react/core/button/usage)：标签置于字段上方，辅助操作减轻视觉权重，主操作在各自任务组内保持明确。
+- [WCAG 2.2 SC 1.4.1 Use of Color](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)：选中、当前等状态不只依靠颜色表达，侧栏与样式卡片同时使用填充、竖条/选中环和字重。
+- [Adobe Spectrum Platform scale](https://spectrum.adobe.com/page/platform-scale/)：鼠标与触屏采用不同密度。LIRA 的 Electron 工作区按鼠标桌面设计，不把触屏最小尺寸直接作为所有桌面按钮的高度。
+
+下表区分引用的尺度与 LIRA 的内容适配。除明确引用的字体尺度外，尺寸是本项目的可验证选择，不声称是大厂规定；数值均为 CSS 像素，随系统缩放渲染。
+
+| 对象 | LIRA 值 | 选择理由 |
+| --- | --- | --- |
+| 界面字体 | 正文 Segoe UI Variable Text，页标题 Segoe UI Variable Display；均回退 Segoe UI 与 Microsoft YaHei UI / Microsoft YaHei | 原生 Windows 字体栈，不额外下载显示字体。Variable 字体按光学尺寸分 Text / Display 档，20px 标题用 Display 档；中文回退不受影响。用户素材预览保留自身字体 |
+| 页标题 | 20px / 28px，600 | 采用 Fluent Windows 副标题尺度作为工作区页标题；六个设置页（含文本框）用同一层级，避免标题挤占表单空间 |
+| 分区标题 | 16px / 24px，600 | 基于 Fluent 16px 副标题，行高从 Web 的 22px 调到 24px。六页的分区标题统一到此级，不再借用与正文同为 14–15px 的卡片标题，保持 20 / 16 / 14 / 12 四级层次 |
+| 分区说明 | 12px / 18px，位于分区标题与控件之间 | Fluent Field：说明在操作前被读到。直播画面链接、萌时钟网址说明导入 OBS 或哔哩哔哩直播姬的方式 |
+| 正文、按钮、字段标签 | 14px / 20px；正文、字段标签、开关行文字与输入值 400，按钮 500，选中项 600 | Fluent Body 1 尺度；同等任务不再混用 13px 和 14px。字段标签不加粗，粗体只留给分区/分组标题、选中项和按钮；输入框不继承标签字重，用户填写的内容始终是常规字重 |
+| 辅助说明、状态 | 12px / 18px，400–500 | 保留现有 caption 尺度；比 Fluent 12/16 多 2px 行距以容纳中文长说明；不把帮助文字压成 11px |
+| 常规按钮、输入框、下拉框 | 最小高 36px；文字按钮水平内边距 12px，宽度随文案 | 20px 文字行盒 + 上下各 7px 内边距 + 各 1px 边框；中文清楚且保持桌面密度。长文案允许增高 |
+| 导航行、子页标签 | 最小高 40px；侧栏图标 20px；图文间距 12px | 导航承担持续定位，比表单操作多留点击空间；图标与正文中心对齐。样式卡片属于预览选择器，不强行压成按钮高度 |
+| 区块内分类 | 弹幕「固定位置 / 区域随机 / 飘窗弹幕」为分段控件：3px 内衬底，选项高 30px，选中项为面板色填充 + 细阴影 | 它只筛选同一区块里的样式网格，与切换整页内容的下划线子页标签（礼物姬）区分层级，对应 Material 3 一/二级标签和 Apple 分段控件的用法 |
+| 侧栏 | 常规 200px；901–1100px 窗口内为 160px；行在 8px 栏内边距内，行内左右 12px；底部「使用指南」下留 32px，不被全局播放器展开按钮遮挡 | 选中行带填充，需要两侧留白才不贴边；20px 图标 + 12px 间隔后保留约 128px 标签区。加班机用秒表、时钟用表盘、文本框用框内文字，与其余矩形外框图标同族，避免两个时钟图标难以区分 |
+| 侧栏选中态 | 外观主导航选中底色与描边 + 3px 选中竖条 + 600 字重；图标取选中文字色，标签保持正文色 | Windows 11 设置的导航选中样式；状态由填充、竖条和字重共同表达，不只依靠颜色（WCAG 1.4.1）。悬停按正文色 7% 叠加，因为侧栏位于页面底色而非面板上 |
+| 选中与强调色 | 竖条、选中环、子页标签下划线取 `--color-selection-marker`；实心徽标、标签文字取 `--color-selection-text`，徽标文字取面板色 | 跟随六套客户端外观。玄黑 · 银红的主色是接近白色的银灰，作为 1–2px 描边不可辨，选中标记改用该外观为此设定的红色；其余外观即各自主色 |
+| 主按钮 | 弹幕姬整页只有一个 `.primary`「应用到直播画面」，「预览与调整」「复制链接」为带图标的描边按钮；开播动画「预览」、加班机「保存画面」仍是各自任务组的主按钮 | Fluent Button：同一视图只保留一个强调按钮，其余用描边或安静按钮，新手能看出先点哪个 |
+| 弹幕姬保存栏 | 「重新读取 / 放弃未保存修改 / 应用到直播画面」及保存状态吸附在内容区底部，贴齐面板左右边缘，半透明面板色 + 上边线 | 选样式、调参数时不必滚到页底找应用按钮，避免误以为已生效；与 Shopify Polaris 上下文保存栏、Discord 设置页未保存提示同理 |
+| 样式库管理入口 | 「管理样式库」位于所属区块标题右侧（弹幕样式、时钟自定义设置、开播动画样式、全屏礼物感谢与大航海感谢的更多样式）；「＋ 添加样式」仍是样式网格最后一格 | 管理入口属于整个区块，不应混在可选样式卡片之间；弹幕切换显示方式后仍可见。礼物许愿等没有标题入口的位置保持原有排列 |
+| 样式选择卡 | 选中：2px 选中环 + 缩略图右上角实心「已选」徽标；「添加样式」为虚线透明框 | 与 Windows 个性化、macOS 墙纸等缩略图选择器一致；徽标不占用名称行。占位操作不应比真实内容更醒目 |
+| 折叠行 | 整行最小高 56px（外观效果组 40px），悬停填充；右侧依次为状态摘要和箭头 | 收起时仍告知内容状态，如「已屏蔽 3 人 · 12 个屏蔽词」「原样式」，用户不必展开就知道是否配置过 |
+| 外观效果参数 | 每项一行：标签 104px + 主题色滑块 + 64px 数值框；最多两列、列间 40px，单列不足 340px 时改一列；弹幕姬「高级参数」内的「外观效果」标题为 14px 分组级 | 参照 Figma、Photoshop 效果面板的紧凑属性行，展开后高度约减半；滑块使用 `parameter-range` 主题样式，不再出现浏览器默认蓝色 |
+| 开关行 | 文字在前，开关在后 | 同页多处开关的阅读方向一致，与 Windows 设置的开关行相同 |
+| 工作区 / 内容区 | 外边距及栏间距 16px；面板内边距 24px，窄窗口 20px；含内边距的正文容器最大 1200px | 沿用 4px 节奏；容器封顶限制超宽屏上表单被拉长，滚动条预留空间避免内容左右跳动 |
+| 字段与分组 | 相关字段间距 8/12/16px；不同分组间距 24px | 距离表达关系，代替多层同色边框 |
+| 弹幕样式卡片 | 最小宽 208px，间隔 12px；预览高 104px，卡片至少 152px | 保留素材辨识度与 14px 名称；常规窗口容纳五列，1024px 窗口降为三列。素材等比例包含，不裁掉弹幕样式 |
+| 时钟样式 / 预览 | 样式最小宽 152px、高 64px；预览区最小高 192px | 48px 色样与中文名称需要独立空间；实际时钟保持自身横竖比例，192px 预览区容纳常见外观 |
+| 设置与预览双栏 | 设置栏自适应，预览栏 320px，间隔 24px；容器不超过 880px 时堆叠 | 给编辑区域约 536px、预览区 320px，加 24px 间隔。空间不足就重排，避免压缩字段或截断说明 |
+| 加班机状态区 | 最小高 112px；计时数值 40px / 48px，600、等宽数字 | 计时是该页主要运行数据，比字段醒目；数字位数变化时不抖动。操作按钮仍沿用 36px |
+
+右侧主体随窗口高度填充并独立滚动；不为不同组件硬设相同内容高度。开播动画去除重复标题标签与多层容器，时钟与开播动画在宽窗口中都以左侧设置、右侧预览组织。移动浏览器不是这些桌面设置页的验收目标，已有窄窗口导航回退仍保留。图标删除、富文本格式工具等紧凑控件沿用各自组件的既有尺寸；直播输出和素材缩略图不继承正文尺寸规范。
+
 ## 2. 入口 URL(唯一成表处)
 
 所有页面都由后端 `servePageOrAsset` 提供(`pageMap` 见 [server-core.md](../backend/server-core.md) §4.3),响应 `Cache-Control: no-store`。
@@ -67,7 +115,7 @@
 
 | 入口 URL           | 实际 HTML                                                                                                          | 打开者                                                       | 行为说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | --- | --- | --- | --- |
-| `/admin`           | [pages/admin/](../../../public/pages/admin) 分片经 [server/admin-page.js](../../../src/server/admin-page.js) 组合 | Electron 主窗口；带有效管理凭据的调试调用 | 管理后台:点歌/播放/礼物/百宝箱四个主页面;`#playback`/`#gifts`/`#other` hash 直达对应主页面                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `/admin`           | [pages/admin/](../../../public/pages/admin) 分片经 [server/admin-page.js](../../../src/server/admin-page.js) 组合 | Electron 主窗口；带有效管理凭据的调试调用 | 管理后台:点歌/播放/礼物/组件/百宝箱五个主页面;`#playback`/`#gifts`/`#components`/`#other` hash 直达对应主页面                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `/admin?desktop=1` | 同上                                                                                                               | Electron 主窗口([desktop/main.md](../desktop/main.md))       | [shell-start.html](../../../public/pages/admin/shell-start.html) 在 CSS 加载前写入 `html.desktop-shell` 主题类(防粉色闪烁),显示标题栏拖拽区与窗口控制按钮;退出后展示桌面版重启屏                                                                                                                                                                                                                                                                                                                                             |
 | `/settings`        | 同上                                                                                                               | Electron 管理页兼容路径（需管理凭据）                                      | 历史兼容入口,落到管理后台默认页(点歌)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `/songs`           | 同上                                                                                                               | Electron 管理页兼容路径（需管理凭据） | 同上,兼容入口                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -107,11 +155,11 @@
 
 ## 3. 页面清单(每个页面一行)
 
-Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录和搜索入口；正文依次组合入门、功能、百宝箱、配置、网页歌单、参考和 FAQ 章节。`usage-guide-features.html` 与 `usage-guide-configuration.html` 按完整章节引用点歌、播放、礼物、AI、投屏和设置速查片段；百宝箱与 FAQ 保留章节容器，再按主题引用完整文章或问答组。`src/server/admin-page.js` 递归展开白名单路径的静态片段，拒绝循环引用并缓存完整页面；页面地址、DOM 层级、章节顺序和锚点保持不变。
+Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录和搜索入口；正文依次组合入门、功能、组件与百宝箱、配置、网页歌单、参考和 FAQ 章节。`usage-guide-features.html` 与 `usage-guide-configuration.html` 按完整章节引用点歌、播放、礼物、AI、投屏和设置速查片段；百宝箱与 FAQ 保留章节容器，再按主题引用完整文章或问答组。`src/server/admin-page.js` 递归展开白名单路径的静态片段，拒绝循环引用并缓存完整页面；页面地址、DOM 层级、章节顺序和锚点保持不变。
 
 | 页面           | 文件                                                                                                          | 类型                                     | 内容                                                                                                                                                                                                                               |
 | -------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 管理后台       | [pages/admin/](../../../public/pages/admin) 分片 + [server/admin-page.js](../../../src/server/admin-page.js) | ES Module + 有限兼容桥                      | 点歌/播放/礼物/百宝箱四主页面 + 状态条(WS/直播/歌库计数)+ 窗口控件;导入导出页包含云端歌单同步(覆盖前确认 + 云端数量对比 + 本机上次同步记录)与授权后的歌单页背景管理面板                                                            |
+| 管理后台       | [pages/admin/](../../../public/pages/admin) 分片 + [server/admin-page.js](../../../src/server/admin-page.js) | ES Module + 有限兼容桥                      | 点歌/播放/礼物/组件/百宝箱五主页面 + 状态条(WS/直播/歌库计数)+ 窗口控件;导入导出页包含云端歌单同步(覆盖前确认 + 云端数量对比 + 本机上次同步记录)与授权后的歌单页背景管理面板                                                            |
 | 礼物审计       | [pages/gift-audit.html](../../../public/pages/gift-audit.html)                                                | 内联脚本                                 | 气泡流 vs WS 流交叉对比、事件重放、手动投递                                                                                                                                                                                        |
 | 队列叠加层     | [pages/overlays/queue.html](../../../public/pages/overlays/queue.html)                                        | ES Module(`js/overlays/queue.js`)        | 点歌队列滚动展示,classic、identity、storybook、neon-vinyl、cherry-ribbon、golden-lily 六种风格                                                                                                                                     |
 | 歌单叠加层     | [pages/overlays/songs.html](../../../public/pages/overlays/songs.html)                                        | ES Module(`js/overlays/songs.js`)        | 可点歌单展示,虚拟滚动 + 按时长/字母分组                                                                                                                                                                                            |
@@ -146,10 +194,10 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录和搜索�
 | `danmaku-tool.js`                                                                   | 弹幕工具:连接状态刷新、固定 `/danmaku` 地址复制/打开、iframe 预览、Admin 内发送弹幕、点歌/固定回复开关；发送功能不另设网页地址             | [app.md](app.md) §6                       |
 | `danmaku-libraries.js`                                                              | 签到祝福语/抽签词库/DIY 关键词回复三个编辑器                                                                                               | [app.md](app.md) §6                       |
 | `danmaku-fixed-replies.js` / `danmaku-welcome.js` / `danmaku-welcome-library.js` / `danmaku-welcome-model.js` | 固定回复六项总览与单编辑区；欢迎参数、四库独立草稿/保存、虚构预览与底部注音 | [桌面欢迎设置](../desktop/main.md#服务器进场欢迎设置) |
-| `ai-assistant-settings.js`                                                          | AI 互动助手配置:模型拉取、供应商测试、限流参数                                                                                             | [app.md](app.md) §6                       |
+| `ai-assistant-settings.js`、`ai-assistant-config-view.js`、`ai-assistant-personas.js` | AI 互动助手：模型配置、自动保存、角色包选择/创建/导入导出/删除、可选工具与供应商测试 | [app.md](app.md) §6 |
 | `overtime.js`                                                                       | 加班机控制台:开关/初始时间/礼物规则(固定+时间盲盒)/背景                                                                                    | [app.md](app.md) §6                       |
 | `streamer-planner.js` / `streamer-planner-view.js`                                                          | 主播工作台：控制器拥有 localStorage 兼容、保存保护和编辑动作；视图只读取分离的展示快照并描述动作                                           | [app.md](app.md) §6                       |
-| `toolbox-navigation.js`                                                                          | 百宝箱侧边导航(功能面板切换,不承载业务)                                                                                                    | [app.md](app.md) §6                       |
+| `toolbox-navigation.js`                                                                          | 组件与百宝箱共用导航(独立实例与选中项,不承载业务)                                                                                                    | [app.md](app.md) §6                       |
 | `desktop-lyric.js`                                                                  | 桌面歌词设置表单(自动保存)                                                                                                                 | [app.md](app.md) §6                       |
 | `desktop-lyric-preview.js`                                                          | 桌面歌词实时预览(完整时间轴 + 连续/离散逐字高亮 + 弹簧跟随动画)                                                                            | [app.md](app.md) §6                       |
 | `start-animation.js`                                                                | 开播动画编辑、轨道动效选择、固定 Browser Source 地址、人物图/音乐上传与清除、音量控制                                                      | [app.md](app.md) §6                       |

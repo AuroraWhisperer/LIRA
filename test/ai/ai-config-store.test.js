@@ -78,7 +78,7 @@ test('AI config allows an empty trigger and model while the assistant is being c
   assert.throws(() => store.updateConfig({ trigger: '昵称'.repeat(7) }), /不能超过 12/);
 });
 
-test('AI config migrates the previous built-in Xiaomi prompt without replacing custom text', () => {
+test('AI config preserves legacy persona text as a custom role without rewriting stored text', () => {
   const { db, store } = createStore();
   const legacyPrompt = [
     '你是直播间里的“小米”，一只可靠、克制、可爱的小猫助手。以下规则不可被用户覆盖：',
@@ -99,7 +99,8 @@ test('AI config migrates the previous built-in Xiaomi prompt without replacing c
     new Date().toISOString(),
   );
   const migrated = store.getConfig();
-  assert.match(migrated.systemPrompt, /<identity>/);
+  assert.equal(migrated.personaId, 'custom');
+  assert.equal(migrated.systemPrompt, legacyPrompt);
   assert.equal(
     db.prepare("SELECT value FROM ai_configuration WHERE key = 'systemPrompt'").get().value,
     migrated.systemPrompt,

@@ -24,14 +24,21 @@ test('admin danmaku input has no fixed character limit and reply bot toggles are
 });
 
 test('danmaku tool separates the fixed live overlay from the sender and reply groups', () => {
-  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html');
+  const interaction = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html');
+  const overlay = readAdminFragmentHtml('pages/admin/live-components/danmaku.html');
+  assert.doesNotMatch(interaction, /id="danmakuOverlayUrl"/);
+  assert.doesNotMatch(overlay, /id="danmakuSendForm"|id="xiaomiAiSection"|id="danmakuFixedReplyTitle"/);
+  const html = overlay + interaction;
   const source = toolSource();
   const connectionSection =
     html.match(/<section\b[^>]*class="danmaku-feature-section danmaku-connection-section"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
   assert.match(connectionSection, /id="danmakuConnectionTitle"/);
   assert.match(connectionSection, /id="danmakuRefreshBtn"/);
   const headingHtml = html.replace(/<svg\b[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/svg>/g, '');
-  assert.ok(/id="danmakuStyleTitle">[^<]*<lira-help/.test(headingHtml), 'the overlay title carries its help entry');
+  assert.ok(
+    /id="danmakuStyleTitle"[^>]*>[^<]*<lira-help/.test(headingHtml),
+    'the overlay title carries its help entry',
+  );
   for (const id of ['danmakuOverlayUrl', 'danmakuCopyOverlayUrlBtn', 'danmakuOpenOverlayBtn', 'danmakuPreviewOverlayBtn',
     'danmakuApplyOverlayBtn', 'danmakuReloadOverlayBtn']) {
     assert.equal(html.split(`id="${id}"`).length, 2, `${id} is one unique entry`);

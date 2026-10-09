@@ -125,6 +125,33 @@
       </div>
     </fieldset>
     <fieldset class="xiaomi-ai-reply-config">
+      <legend>角色包</legend>
+      <div class="xiaomi-ai-field-grid">
+        <label class="wide">当前角色
+          <select id="xiaomiAiPersona" data-dropdown-variant="toolbox"><option value="general">通用助手</option></select>
+          <small id="xiaomiAiPersonaDescription">自然、清楚地回答观众的问题。</small>
+        </label>
+        <label class="wide">性格和说话方式
+          <textarea id="xiaomiAiSystemPrompt" rows="5" minlength="20" maxlength="8000" aria-describedby="xiaomiAiPersonaDescription"></textarea>
+        </label>
+      </div>
+      <div class="xiaomi-ai-test-actions">
+        <button id="xiaomiAiPersonaImport" class="secondary" type="button">导入角色包</button>
+        <button id="xiaomiAiPersonaExport" class="secondary" type="button">导出当前角色</button>
+        <button id="xiaomiAiPersonaDelete" class="secondary" type="button" disabled>删除角色包</button>
+        <input id="xiaomiAiPersonaFile" type="file" accept=".json,application/json" hidden />
+      </div>
+      <div class="xiaomi-ai-field-grid">
+        <label class="wide">保存为新角色包
+          <span class="xiaomi-ai-model-picker">
+            <input id="xiaomiAiPersonaName" type="text" maxlength="40" placeholder="给角色起个名字" autocomplete="off" />
+            <button id="xiaomiAiPersonaCreate" class="secondary" type="button">保存为角色包</button>
+          </span>
+        </label>
+      </div>
+      <p id="xiaomiAiPersonaState" class="hint" role="status" aria-live="polite">角色包只改变人设，不会替你开启工具或更换模型。</p>
+    </fieldset>
+    <fieldset class="xiaomi-ai-reply-config">
       <legend>回复规则</legend>
       <div class="xiaomi-ai-field-grid">
         <label
@@ -145,7 +172,7 @@
       </div>
       <div class="xiaomi-ai-toggle-row">
         <label class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control">
-          <input id="xiaomiAiWebSearch" type="checkbox" role="switch" checked />
+          <input id="xiaomiAiWebSearch" type="checkbox" role="switch" />
           <span class="switch-track" aria-hidden="true"></span>
           <span class="xiaomi-ai-control-copy"
             ><span
@@ -187,7 +214,7 @@
     </fieldset>
     <details class="xiaomi-ai-collapsible">
       <summary>
-        <span><strong>扩展能力</strong></span>
+        <span><strong>可选工具</strong></span>
         <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path
             d="m5 8 5 5 5-5"
@@ -198,13 +225,19 @@
           />
         </svg>
       </summary>
-      <div class="xiaomi-ai-collapsible-body xiaomi-ai-integration-grid">
+      <div class="xiaomi-ai-collapsible-body">
+        <label class="switch-control"><input id="xiaomiAiFunctionCalling" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"></span><span>允许模型调用工具</span></label>
+        <p class="hint">仅在所选模型支持工具调用时开启。关闭后保留已保存的工具配置；AI 平台原生搜索由上方联网开关控制。</p>
+      </div>
+      <div id="xiaomiAiLocalTools" class="xiaomi-ai-collapsible-body xiaomi-ai-integration-grid" hidden>
         <section aria-labelledby="xiaomiAiWeatherTitle">
           <div class="xiaomi-ai-subheading">
             <h4 id="xiaomiAiWeatherTitle">和风天气</h4>
             <span>天气</span>
           </div>
-          <div class="xiaomi-ai-field-grid">
+          <label class="switch-control"><input id="xiaomiAiWeatherEnabled" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"></span><span>启用天气查询</span></label>
+          <p class="hint">按需启用。未配置时不影响普通聊天；启用后需要模型支持工具调用。</p>
+          <div id="xiaomiAiWeatherCredentials" class="xiaomi-ai-field-grid" hidden>
             <label class="wide"
               >专属 API Host（无需 https://）<input
                 id="xiaomiAiQWeatherHost"
@@ -224,6 +257,7 @@
                 placeholder="直接粘贴和风天气 API Key"
               /><small id="xiaomiAiQWeatherKeyHint">尚未保存</small></label
             >
+            <button id="xiaomiAiQWeatherTestBtn" class="secondary" type="button">测试和风天气</button>
           </div>
         </section>
         <section aria-labelledby="xiaomiAiAmapTitle">
@@ -231,7 +265,12 @@
             <h4 id="xiaomiAiAmapTitle">高德地图</h4>
             <span>地点 · 路线</span>
           </div>
-          <div class="xiaomi-ai-field-grid">
+          <div class="xiaomi-ai-toggle-row">
+            <label class="switch-control"><input id="xiaomiAiPlacesEnabled" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"></span><span>地点查询</span></label>
+            <label class="switch-control"><input id="xiaomiAiRoutesEnabled" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"></span><span>路线查询</span></label>
+          </div>
+          <p class="hint">需要地图数据时启用；有可用的联网搜索时也可以让模型搜索相关信息。</p>
+          <div id="xiaomiAiMapCredentials" class="xiaomi-ai-field-grid" hidden>
             <label class="wide"
               >Web 服务 API Host<input
                 id="xiaomiAiAmapHost"
@@ -249,6 +288,7 @@
                 placeholder="留空，填写高德 Web 服务 Key"
               /><small id="xiaomiAiAmapKeyHint">尚未保存</small></label
             >
+            <button id="xiaomiAiAmapTestBtn" class="secondary" type="button">测试高德地图</button>
           </div>
         </section>
       </div>
@@ -278,9 +318,6 @@
           >同一观众提问间隔（秒）<input id="xiaomiAiUserCooldown" type="number" min="0" max="3600" value="0"
         /></label>
         <label>每分钟提问上限<input id="xiaomiAiRoomLimit" type="number" min="1" max="120" value="20" /></label>
-        <label class="wide"
-          >AI 的性格和说话方式<textarea id="xiaomiAiSystemPrompt" rows="10" minlength="20" maxlength="8000"></textarea>
-        </label>
       </div>
     </details>
     <div class="xiaomi-ai-actions">
@@ -290,8 +327,6 @@
       <div class="xiaomi-ai-test-actions" aria-label="API 连接测试">
         <button id="xiaomiAiSaveBtn" class="primary" type="submit">保存设置</button>
         <button id="xiaomiAiTestBtn" class="secondary" type="button">测试 AI 连接</button>
-        <button id="xiaomiAiQWeatherTestBtn" class="secondary" type="button">测试和风天气</button>
-        <button id="xiaomiAiAmapTestBtn" class="secondary" type="button">测试高德地图</button>
       </div>
     </div>
   </form>

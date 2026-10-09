@@ -7,6 +7,7 @@
   hidden
 >
   <div class="other-feature-panel-body clock-tool-panel">
+    <header class="component-page-heading"><h2 class="ui-page-title">时钟</h2></header>
     <div class="clock-tool-layout">
       <section class="clock-preview-card" aria-labelledby="clockPreviewTitle">
         <div class="clock-card-heading">
@@ -20,7 +21,10 @@
 
       <aside class="clock-settings-card" aria-label="萌时钟地址与设置">
         <section class="clock-address-section" aria-labelledby="clockFixedTitle">
-          <h3 id="clockFixedTitle" class="ui-section-title">萌时钟网址</h3>
+          <div>
+            <h3 id="clockFixedTitle" class="ui-section-title">萌时钟网址</h3>
+            <p class="component-section-note">复制后在 OBS 或哔哩哔哩直播姬里新建「浏览器」源粘贴；换样式不用换网址。</p>
+          </div>
           <div class="clock-url-box">
             <code id="clockFixedUrl"></code>
             <button id="clockCopyFixed" class="secondary" type="button">复制网址</button>
@@ -28,7 +32,10 @@
         </section>
 
         <section class="clock-parameter-section" aria-labelledby="clockParametersTitle">
-          <h3 id="clockParametersTitle" class="ui-section-title">自定义设置</h3>
+          <div class="component-subsection-heading">
+            <h3 id="clockParametersTitle" class="ui-section-title">自定义设置</h3>
+            <div class="component-heading-actions" data-style-library-actions></div>
+          </div>
 
           <div class="clock-style-options" role="group" aria-label="萌时钟风格">
             <button class="clock-style-option active" type="button" data-clock-style-option="peach" aria-pressed="true">

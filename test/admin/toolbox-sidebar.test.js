@@ -54,11 +54,11 @@ test('toolbox sidebar groups features by live and local workflows', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'toolbox.css');
   const navigation = html.match(/<nav\b[^>]*class=["']other-feature-menu["'][^>]*>([\s\S]*?)<\/nav\s*>/)?.[1];
   const expectedGroups = [
-    ['live-interaction', '直播互动', ['otherDanmakuFeature', 'otherGiftFeature', 'otherGamesFeature']],
+    ['live-interaction', '直播互动', ['otherDanmakuFeature', 'otherDynamicLotteryFeature', 'otherGamesFeature']],
     [
       'live-scene',
       '直播画面',
-      ['otherOvertimeMachineFeature', 'otherGiftEffectsFeature', 'otherStartAnimationFeature', 'otherClockFeature'],
+      ['otherGiftEffectsFeature'],
     ],
     ['streamer-work', '主播工作', ['otherDailyTodoFeature']],
     ['software-help', '软件与帮助', ['otherPerformanceFeature', 'otherUsageGuideFeature', 'otherDesktopUpdateFeature']],

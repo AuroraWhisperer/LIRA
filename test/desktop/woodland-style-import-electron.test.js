@@ -34,6 +34,29 @@ test('woodland ZIP imports through desktop styles and retains native layout, set
   await page.locator('#giftFramePreviewBtn').click();
   await page.locator('#giftFrameSaveState').filter({ hasText: '导入林间花信' }).waitFor();
   assert.equal((await app.evaluate(() => global.canvasTest.externalUrls)).length, 0);
+  await page.evaluate(async () => {
+    const { mountComponentStyleLibrary } = await import('/js/admin/component-style-library.js');
+    const host = document.createElement('section'); host.id = 'importTargetCheck'; document.body.prepend(host);
+    window.importTargetCheck = mountComponentStyleLibrary(host, { type: 'background' });
+  });
+  const wrongLibrary = page.locator('#importTargetCheck');
+  await wrongLibrary.getByRole('button', { name: '＋ 添加样式', exact: true }).click();
+  await page.getByRole('dialog', { name: '添加第三方样式', exact: true }).locator('input[type="file"]').first().setInputFiles(archive);
+  await wrongLibrary.getByRole('status').filter({ hasText: '添加组件 → 全屏礼物感谢 → 添加样式' }).waitFor();
+  assert.equal(await page.getByRole('dialog', { name: '确认添加样式', exact: true }).count(), 0);
+  const { createComponentStyleStore } = require('../../src/storage/component-style-store');
+  const store = createComponentStyleStore(directory);
+  assert.deepEqual(store.list(), []);
+  assert.equal(fs.readdirSync(store.root).some(name => name.startsWith('.pending-')), false);
+  await wrongLibrary.getByRole('button', { name: '前往「全屏礼物感谢」导入', exact: true }).click();
+  const redirected = page.getByRole('dialog', { name: '确认添加样式', exact: true });
+  await redirected.getByText('林间花信', { exact: true }).first().waitFor();
+  await redirected.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByRole('dialog', { name: '全屏礼物感谢样式', exact: true }).getByRole('button', { name: '关闭', exact: true }).click();
+  await page.evaluate(() => {
+    window.importTargetCheck.dispose(); delete window.importTargetCheck;
+    document.getElementById('importTargetCheck').remove();
+  });
   async function importArchive() {
     await panel.getByRole('button', { name: '＋ 添加样式', exact: true }).click();
     await app.evaluate(({ dialog }, selected) => {
@@ -117,5 +140,37 @@ test('woodland ZIP imports through desktop styles and retains native layout, set
   await canvas.reload();
   await frame.locator('#giftFrame.is-playing').waitFor({ state: 'visible' });
   assert.equal(await canvas.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '540');
+  await panel.getByRole('button', { name: '管理样式库', exact: true }).click();
+  const manager = page.getByRole('dialog', { name: '管理样式库', exact: true });
+  await manager.getByText('全屏礼物感谢 · 版本 1.0.0 · 1 个样式', { exact: true }).waitFor();
+  await manager.getByRole('button', { name: '移除整包', exact: true }).click();
+  await manager.getByRole('button', { name: '确认', exact: true }).click();
+  await manager.getByRole('status').filter({ hasText: '已移除' }).waitFor();
+  assert.equal(await manager.getByRole('button', { name: '清理未使用文件', exact: true }).isDisabled(), true,
+    'The saved, published and currently edited canvas protects the removed package.');
+  const backupFile = path.join(directory, 'desktop-style-backup.zip');
+  await app.evaluate(({ session }, destination) => {
+    session.defaultSession.once('will-download', (_event, download) => {
+      download.setSavePath(destination);
+      download.once('done', (_done, state) => { global.canvasTest.backupDownload = state; });
+    });
+  }, backupFile);
+  await manager.getByRole('button', { name: '导出素材与场景备份', exact: true }).click();
+  await manager.getByRole('status').filter({ hasText: '备份已导出' }).waitFor();
+  for (let attempt = 0; attempt < 100 && await app.evaluate(() => global.canvasTest.backupDownload) !== 'completed'; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.equal(await app.evaluate(() => global.canvasTest.backupDownload), 'completed');
+  const chooser = page.waitForEvent('filechooser');
+  await manager.getByRole('button', { name: '恢复备份', exact: true }).click();
+  await (await chooser).setFiles(backupFile);
+  await manager.getByText(/备份包含 1 个素材包、2 份/).waitFor();
+  await manager.getByRole('button', { name: '确认', exact: true }).click();
+  await manager.getByRole('status').filter({ hasText: '已恢复 2 份布局' }).waitFor();
+  assert.equal((await page.evaluate(async () => {
+    const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
+    return (await prepareComponentPreviews()).find(entry => entry.id === 'canvas').controller.getState().presets;
+  })).length, 3);
+  await manager.getByRole('button', { name: '关闭', exact: true }).click();
   assert.deepEqual(errors, []);
 });

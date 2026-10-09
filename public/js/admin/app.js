@@ -3,7 +3,7 @@ import { songs as songPanel } from './songs.js';
 import { metrics } from './metrics.js';
 import { todo } from './streamer-planner.js';
 import { giftEffects } from './gift-effects.js';
-import { other } from './toolbox-navigation.js';
+import { other, createFeatureNavigation } from './toolbox-navigation.js';
 import { danmakuTool } from './danmaku-tool.js';
 import { aiAssistantSettings } from './ai-assistant-settings.js';
 import { desktopLyric } from './desktop-lyric.js';
@@ -44,17 +44,30 @@ import { prepareComponentPreviewCanvas } from './component-preview-canvas-contro
 
 const toolbox = createToolboxLifecycle({
   loaders: {
+    otherGamesFeature: () => import('./games.js').then((module) => module.initGames),
+  },
+  onError: Utils.showError,
+});
+const liveComponentsNavigation = createFeatureNavigation({
+  pageId: 'liveComponentsPage',
+  storagePrefix: 'admin.liveComponents',
+});
+const liveComponents = createToolboxLifecycle({
+  ownerPageId: 'liveComponentsPage',
+  loaders: {
     otherGiftFeature: () => import('./gift-assistant.js').then((module) => module.initGiftAssistant),
     otherStartAnimationFeature: () => import('./start-animation.js').then((module) => module.initStartAnimation),
     otherClockFeature: () => import('./clock-card.js').then((module) => module.initClockCard),
-    otherGamesFeature: () => import('./games.js').then((module) => module.initGames),
     otherTextBoxFeature: () => import('./text-box.js').then((module) => module.initTextBoxes),
     otherOvertimeMachineFeature: () =>
       import('./overtime.js').then((module) => () => module.initOvertime(stateService.getAppState())),
   },
   onError: Utils.showError,
 });
-window.addEventListener('beforeunload', () => toolbox.dispose(), {
+window.addEventListener('beforeunload', () => {
+  toolbox.dispose();
+  liveComponents.dispose();
+}, {
   once: true,
 });
 
@@ -159,6 +172,13 @@ async function initializeApp() {
         toolboxCollapsedFeatureGroups: JSON.stringify(groupIds),
       }),
   });
+  liveComponentsNavigation.initOtherPage({
+    onFeatureSelected: liveComponents.selectFeature,
+    onNavigate: (pageId) => {
+      setMainPage(pageId);
+      other.selectFeatureById('otherUsageGuideFeature');
+    },
+  });
   initGiftHistoryDrawer();
 
   eventBus.on(
@@ -244,9 +264,11 @@ function initMainPages() {
       ? 'playbackAssistantPage'
       : hash === '#gifts'
         ? 'giftAssistantPage'
-        : hash === '#other'
-          ? 'otherAssistantPage'
-          : 'songAssistantPage';
+        : hash === '#components'
+          ? 'liveComponentsPage'
+          : hash === '#other'
+            ? 'otherAssistantPage'
+            : 'songAssistantPage';
   setMainPage(initialPage);
 
   window.addEventListener(
@@ -259,11 +281,12 @@ function initMainPages() {
 }
 
 // 有效的主页面 ID 列表 — 新增页面时在此注册即可
-const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAssistantPage', 'otherAssistantPage'];
+const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAssistantPage', 'liveComponentsPage', 'otherAssistantPage'];
 // 主页面 → URL hash 映射（songAssistantPage 为默认页，无需 hash）
 const MAIN_PAGE_HASH_MAP = {
   playbackAssistantPage: '#playback',
   giftAssistantPage: '#gifts',
+  liveComponentsPage: '#components',
   otherAssistantPage: '#other',
 };
 // 主页面 → body dataset 标识
@@ -271,6 +294,7 @@ const MAIN_PAGE_BODY_MAP = {
   playbackAssistantPage: 'playback',
   giftAssistantPage: 'gifts',
   songAssistantPage: 'songs',
+  liveComponentsPage: 'components',
   otherAssistantPage: 'other',
 };
 
@@ -305,6 +329,7 @@ function setMainPage(pageId) {
 
   document.body.dataset.mainPage = MAIN_PAGE_BODY_MAP[nextPageId] || 'songs';
   toolbox.setPage(nextPageId);
+  liveComponents.setPage(nextPageId);
 
   const targetHash = MAIN_PAGE_HASH_MAP[nextPageId] || '';
   if (location.hash !== targetHash) {

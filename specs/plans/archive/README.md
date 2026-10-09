@@ -6,6 +6,12 @@
 
 ## 文件索引
 
+- [2026-10-09-ai-assistant-persona-tools](2026-10-09-ai-assistant-persona-tools.md)（通用问答、可选工具、角色包创建与交换；先查验再调研并二次改进，180 项 AI 与隔离 Electron、文档及架构验证通过）
+
+- [2026-10-09-component-library-management](2026-10-09-component-library-management.md)（索引恢复、资源清理与引用保护、包管理、错类跳转、素材/场景备份恢复；存储、画布及真实 Electron 验证通过，记录 3 项原有页面检查差异）
+
+- [2026-10-09-style-import-target](2026-10-09-style-import-target.md)（ZIP 检查与安装按入口拒绝错类包，并显示正确导入路径；接口、画布、真实 Electron、架构与文档验证通过）
+
 - [2026-10-08-concurrent-test-stability](2026-10-08-concurrent-test-stability.md)（界面就绪、认证探针退出与导入重试断言修复；排除 DSH 范围后并发 8 的 3960 项测试全部通过）
 
 - [2026-10-08-woodland-style-package](2026-10-08-woodland-style-package.md)（林间花信 1.0.0 外置 ZIP、原生客户端/画布布局和参数保留、打包素材清理；真实 Electron 导入与实际 ASAR 检查通过，未重建 NSIS 安装器）

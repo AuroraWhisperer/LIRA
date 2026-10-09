@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { setTimeout: delay } = require('node:timers/promises');
 const { CLIENT_THEME_BACKGROUNDS, isClientThemeId, normalizeClientThemeId } = require('../shared/client-theme');
 const { hasExactOrigin } = require('./local-media-access');
 
@@ -24,7 +25,14 @@ function createClientAppearance({ dataDir, fileSystem = fs, writeLog = () => {} 
       const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
       try {
         await fileSystem.promises.writeFile(temporaryPath, JSON.stringify({ themeId: nextThemeId }) + '\n', { flag: 'wx', flush: true });
-        await fileSystem.promises.rename(temporaryPath, filePath);
+        for (let attempt = 0; ; attempt++) {
+          try { await fileSystem.promises.rename(temporaryPath, filePath); break; }
+          catch (error) {
+            // Windows may briefly lock the destination while another process reads it.
+            if (attempt >= 4 || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
+            await delay(50 * (attempt + 1));
+          }
+        }
         themeId = nextThemeId;
         return { ok: true, themeId };
       } catch {

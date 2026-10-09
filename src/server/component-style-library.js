@@ -12,7 +12,8 @@ const { normalizeSceneConfig } = require('./scene-components');
 const { getClockConfig } = require('./clock-contract');
 const { DEFAULT_SETTINGS } = require('../storage/settings-store');
 const { createLayout } = require('../shared/danmaku-layout');
-const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
+const { createSceneExtraDefaults, SCENE_EXTRA_COMPONENTS } = require('../../public/js/shared/scene-extra-components.js');
+const { SCENE_TYPES } = require('../../public/js/shared/scene-components.js');
 const { createMediaStyle, MEDIA_STYLE_TYPES } = require('../../public/js/shared/component-media-style.js');
 const { getBackgroundAppearance } = require('../../public/js/shared/background-appearance.js');
 const { COMPONENT_RESOURCE_PRESETS } = require('../../public/js/shared/component-resource-style.js');
@@ -20,6 +21,22 @@ const { COMPONENT_RESOURCE_PRESETS } = require('../../public/js/shared/component
 const MAX_PACKAGE_BYTES = 1024 * 1024 * 1024;
 const fail = message => { throw Object.assign(new Error(message), { statusCode: 400 }); };
 const title = value => typeof value === 'string' && value.trim() && value.length <= 80 ? value.trim() : fail('请填写不超过 80 字的名称。');
+
+function validateImportTarget(target) {
+  if (target !== undefined && target !== 'suite' && !SCENE_TYPES.includes(target)) fail('导入入口无效，请从对应组件的「添加样式」或套装的「导入套装」重新选择文件。');
+}
+
+function checkImportTarget(pack, target) {
+  if (target === undefined) return;
+  const category = pack.styles[0].category || pack.styles[0].type;
+  if (pack.isSuite ? target === 'suite' : target === category) return;
+  const name = SCENE_EXTRA_COMPONENTS[category]?.title || ({ clock: '时钟', danmaku: '弹幕姬', queue: '点歌板' })[category];
+  throw Object.assign(new Error(pack.isSuite ? '这是套装，请从「添加组件 → 套装 → 导入套装」导入。'
+    : `这是${name}样式包，请从「添加组件 → ${name} → 添加样式」导入。`), {
+    statusCode: 400, code: 'STYLE_IMPORT_TARGET_MISMATCH', importTarget: pack.isSuite ? 'suite' : category,
+    importTargetName: pack.isSuite ? '套装' : name,
+  });
+}
 
 function baseConfig(type) {
   if (type === 'queue') return {};
@@ -89,26 +106,35 @@ function createComponentStyleLibrary(dataDir) {
     },
     remove: id => store.remove(id),
     'remove-pack': id => store.removePack(id),
-    cancel: id => { store.removePending(id); return { id }; },
-    install: (id, authorize = () => {}) => installComponentStyle(store, id, authorize),
+    cancel: id => store.cancelPending(id),
+    install(id, authorize = () => {}, target) {
+      validateImportTarget(target);
+      return installComponentStyle(store, id, () => {
+        authorize();
+        if (target !== undefined) checkImportTarget(store.describe(store.pending(id)), target);
+      });
+    },
     async add(stream, description, authorize) {
       const id = randomUUID();
+      store.beginPending(id);
       try {
         const media = await saveMedia(stream, store.directory(id, true), description.filename);
         const style = createStyle(id, description, media);
         authorize();
         store.stage({ id, name: style.name, createdAt: Date.now(), styles: [style], bytes: media.size });
         return await installComponentStyle(store, id, authorize);
-      } finally { store.removePending(id); }
+      } finally { store.endPending(id); store.removePending(id); }
     },
-    async inspect(stream, authorize) {
+    async inspect(stream, authorize, target) {
+      validateImportTarget(target);
       const id = randomUUID();
       const directory = store.directory(id, true);
-      await fs.promises.mkdir(directory, { recursive: true });
       const archive = path.join(directory, 'upload.zip');
       let complete = false;
       let zip;
+      store.beginPending(id);
       try {
+        await fs.promises.mkdir(directory, { recursive: true });
         const uploaded = await receiveMedia(stream, archive, MAX_PACKAGE_BYTES);
         zip = await yauzl.openPromise(archive, { lazyEntries: true, strictFileNames: true, validateEntrySizes: true });
         const files = new Map();
@@ -151,11 +177,13 @@ function createComponentStyleLibrary(dataDir) {
         authorize();
         const pack = { id, packageId: manifest.id, name: title(manifest.name), version: manifest.version,
           createdAt: Date.now(), digest: uploaded.digest, styles, bytes: total };
-        store.stage(pack);
         const preview = store.describe(pack);
+        checkImportTarget(preview, target);
+        store.stage(pack);
         complete = true;
         return preview;
       } finally {
+        store.endPending(id);
         zip?.close();
         await fs.promises.rm(archive, { force: true });
         if (!complete) store.removePending(id);

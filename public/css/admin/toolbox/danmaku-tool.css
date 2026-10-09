@@ -234,17 +234,6 @@
 .danmaku-style-group[hidden] {
   display: none;
 }
-.danmaku-style-group-heading {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-.danmaku-style-group-heading p {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  line-height: 1.5;
-}
 .danmaku-style-options {
   display: grid;
   gap: 8px;
@@ -359,13 +348,6 @@
   padding: 0 3px;
   color: var(--text);
   font-weight: 500;
-}
-.danmaku-preview-hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  font-weight: 400;
-  line-height: 1.2;
 }
 .danmaku-style-option:hover:not(:disabled) {
   background: var(--color-bg-tertiary);
@@ -485,12 +467,6 @@
 .danmaku-advanced > summary:focus-visible {
   outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
-}
-.danmaku-advanced-hint {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  font-weight: 400;
 }
 .danmaku-advanced[open] > summary .danmaku-details-chevron {
   transform: rotate(180deg);

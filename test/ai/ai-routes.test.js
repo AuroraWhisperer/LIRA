@@ -4,6 +4,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 const { ALLOWED_KEYS, routes } = require('../../src/server/routes/ai-routes');
+const { DatabaseSync } = require('node:sqlite');
+const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createAiConfigStore } = require('../../src/ai/config-store');
 
 function createResponseRecorder() {
   return {
@@ -20,6 +23,40 @@ function createResponseRecorder() {
 
 test('AI route allowed keys come from the config contract', () => {
   assert.deepEqual([...ALLOWED_KEYS].sort(), Object.keys(AI_CONFIG_DEFAULTS).sort());
+});
+
+test('persona routes persist validated roles and return safe errors without changing the library', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  t.after(() => db.close());
+  const store = createAiConfigStore(db, { encrypt: (value) => value, decrypt: (value) => value });
+  store.updateConfig({ deepseekApiKey: 'private-model-key' });
+  const context = { ai: store };
+  async function request(route, body) {
+    const res = createResponseRecorder();
+    await routes[route](context, { body: async () => body }, res);
+    assert.doesNotMatch(res.body, /private-model-key/);
+    return { status: res.statusCode, ...JSON.parse(res.body) };
+  }
+  const created = await request('POST /api/ai/personas/create', {
+    name: '温柔的朋友', prompt: '你是友善的直播间朋友，认真、简洁地回答问题，不使用固定的口头禅。',
+  });
+  assert.equal(created.status, 200);
+  const exported = await request('GET /api/ai/personas/export');
+  assert.equal(exported.data.name, '温柔的朋友');
+  const duplicate = await request('POST /api/ai/personas/import', exported.data);
+  assert.equal(duplicate.status, 400);
+  assert.match(duplicate.error, /已存在/);
+  const unsafe = await request('POST /api/ai/personas/import', { ...exported.data, apiKey: 'injected' });
+  assert.equal(unsafe.status, 400);
+  assert.equal(store.getConfig().personaPacks.length, 1);
+  assert.equal(store.getConfig().personaId, created.data.personaId);
+  const deleted = await request('POST /api/ai/personas/delete', { id: created.data.personaId });
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.data.personaId, 'general');
+  const imported = await request('POST /api/ai/personas/import', exported.data);
+  assert.equal(imported.status, 200);
+  assert.equal(imported.data.personaId, created.data.personaId);
 });
 
 test('AI config GET/PUT never expose plaintext secrets and preserve omitted keys', async () => {

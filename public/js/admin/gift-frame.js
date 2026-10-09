@@ -1,4 +1,4 @@
-// 百宝箱 → 礼物姬：各全屏礼物感谢特效独立的持久化设置与预览。
+// 组件 → 礼物姬：各全屏礼物感谢特效独立的持久化设置与预览。
 'use strict';
 
 import { api, toast } from '../shared/utils.js';

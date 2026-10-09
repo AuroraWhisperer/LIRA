@@ -255,6 +255,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       || (['select', 'delete'].includes(change.action) ? Object.keys(change).some(key => !['action', 'id'].includes(key))
         || !session.state.presets?.some(preset => preset.id === change.id)
         || (change.action === 'delete' && change.id !== session.state.draft.document?.id)
+        : change.action === 'refresh' ? Object.keys(change).length !== 1
         : change.action === 'create' ? Object.keys(change).some(key => !['action', 'title', 'duplicate'].includes(key))
           || typeof change.title !== 'string' || !change.title.trim() || change.title.length > 80
           || typeof change.duplicate !== 'boolean' : true))) fail(400, '场景预设参数无效。');
@@ -277,6 +278,16 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
   }
 
   return { open, exchange, browser, link, resolveLink, focus, authorizeCanvasMedia,
+    visitAssetReferences(visit) {
+      prune();
+      for (const session of sessions.values()) {
+        if (session.state.presets?.some(preset => preset.dirty && preset.id !== session.state.draft.document?.id)) {
+          fail(503, '其他场景还有未保存的草稿，请逐个保存或放弃修改后再清理。');
+        }
+        visit(session.state.draft); visit(session.state.saved);
+        for (const command of session.commands) if (command.change) visit(command.change);
+      }
+    },
     revoke: remove, clear: () => { for (const id of sessions.keys()) remove(id); } };
 }
 

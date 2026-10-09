@@ -272,6 +272,11 @@ body.player-dock-expanded .song-workspace {
   min-height: 420px;
 }
 
+.song-workspace .panel.song-management-panel {
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
 .song-management-panel:has(> #settingsPage.active),
 .song-management-panel:has(> #displayPage.active) {
   flex: 0 0 auto;
@@ -283,6 +288,8 @@ body.player-dock-expanded .song-workspace {
   gap: 4px;
   min-height: 52px;
   padding: 4px 8px;
+  border-bottom-color: var(--color-border-light);
+  border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
 }
 
 .song-management-panel > .tabs > .tab,
@@ -308,6 +315,7 @@ body.player-dock-expanded .song-workspace {
 }
 
 .song-management-panel > .tabs > .tab-with-help {
+  position: relative;
   gap: 6px;
 }
 
@@ -319,6 +327,18 @@ body.player-dock-expanded .song-workspace {
   border: 0;
   background: transparent;
   transition: color 150ms ease;
+}
+
+/* Extend the native tab hit area while keeping help independently clickable. */
+.song-management-panel > .tabs > .tab-with-help > .tab::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+}
+
+.song-management-panel > .tabs > .tab-with-help > lira-help {
+  z-index: 1;
 }
 
 .song-management-panel > .tabs > .tab:hover,

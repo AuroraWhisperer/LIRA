@@ -1,11 +1,14 @@
 'use strict';
 
 const { pipeline } = require('node:stream/promises');
+const { Readable } = require('node:stream');
 const { readJsonBody, sendJson, validateOrigin } = require('../http-utils');
 const { resolveRequestPrincipal } = require('../access-policy');
 const { createComponentStyleLibrary } = require('../component-style-library');
 const { createComponentWebLibrary } = require('../component-web-library');
 const { readWebUpload } = require('../component-web-files');
+const { createComponentLibraryMaintenance } = require('../component-library-maintenance');
+const { createComponentLibraryTransfer } = require('../component-library-transfer');
 
 async function handleStyles(context, req, res, url, canvas = false) {
   const authorize = () => {
@@ -26,7 +29,39 @@ async function handleStyles(context, req, res, url, canvas = false) {
     let data;
     if (action === 'list' && req.method === 'GET') data = library.list();
     else if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: '不支持的操作。' });
-    else if (action === 'web') {
+    else if (['backup', 'inspect-backup', 'restore-backup'].includes(action)) {
+      const transfer = createComponentLibraryTransfer({ dataDir: context.system.dataDir, scenes: context.scenes });
+      if (action === 'backup') {
+        await readJsonBody(req, 4096); authorize();
+        const source = transfer.backup(authorize);
+        const first = await source.next();
+        const stream = Readable.from((async function* () {
+          try { if (!first.done) yield first.value; yield* source; }
+          finally { await source.return(); }
+        })());
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', 'attachment; filename="LIRA-style-backup.zip"');
+        await pipeline(stream, res); return;
+      }
+      if (action === 'inspect-backup') data = await transfer.inspect(req, authorize);
+      else {
+        const body = await readJsonBody(req, 4096); authorize();
+        data = await transfer.restore(body?.id, authorize);
+      }
+    } else if (['inventory', 'cleanup'].includes(action)) {
+      const maintenance = createComponentLibraryMaintenance({ dataDir: context.system.dataDir,
+        visitReferences(visit) {
+          if (!context.scenes?.visitAssetReferences || !context.componentPreviews?.visitAssetReferences) {
+            throw Object.assign(new Error('场景引用尚未准备完成，请稍后重试。'), { statusCode: 503 });
+          }
+          context.scenes.visitAssetReferences(visit);
+          context.componentPreviews.visitAssetReferences(visit);
+          visit(context.settings?.get());
+        } });
+      const body = await readJsonBody(req, 64 * 1024);
+      authorize();
+      data = action === 'inventory' ? maintenance.inventory() : maintenance.cleanup(body?.ids, authorize);
+    } else if (action === 'web') {
       const description = JSON.parse(url.searchParams.get('description') || '{}');
       data = await createComponentWebLibrary(context.system.dataDir).add(readWebUpload(req), description, authorize);
     } else if (action === 'pick-web') {
@@ -45,23 +80,25 @@ async function handleStyles(context, req, res, url, canvas = false) {
     } else if (action === 'add') {
       const description = JSON.parse(url.searchParams.get('description') || '{}');
       data = await library.add(req, description, authorize);
-    } else if (action === 'inspect') data = await library.inspect(req, authorize);
+    } else if (action === 'inspect') data = await library.inspect(req, authorize, url.searchParams.get('target'));
     else {
       const body = await readJsonBody(req, action === 'config' ? 64 * 1024 : 4096);
       authorize();
       if (!['install', 'remove', 'remove-pack', 'cancel', 'config'].includes(action)) return sendJson(res, 404, { ok: false });
-      data = await library[action](action === 'config' ? body : body?.id, authorize);
+      data = await library[action](action === 'config' ? body : body?.id, authorize, action === 'install' ? body?.target ?? null : undefined);
     }
     if (action === 'config') context.broadcastSnapshot?.('component:styles');
     return sendJson(res, 200, { ok: true, data });
   } catch (error) {
     if (res.headersSent || res.destroyed) return;
     const status = [400, 403, 404, 409, 410, 413, 503].includes(error.statusCode) ? error.statusCode : 400;
-    return sendJson(res, status, { ok: false, error: error.statusCode ? error.message : '素材或套装无法读取，请检查文件格式与清单。' });
+    return sendJson(res, status, { ok: false, error: error.statusCode ? error.message : '素材或套装无法读取，请检查文件格式与清单。',
+      ...(error.statusCode && error.code ? { code: error.code } : {}),
+      ...(error.code === 'STYLE_IMPORT_TARGET_MISMATCH' ? { importTarget: error.importTarget, importTargetName: error.importTargetName } : {}) });
   }
 }
 
-const actions = ['list', 'add', 'web', 'pick-web', 'inspect', 'install', 'remove', 'remove-pack', 'cancel', 'config'];
+const actions = ['list', 'add', 'web', 'pick-web', 'inspect', 'install', 'remove', 'remove-pack', 'cancel', 'config', 'inventory', 'cleanup', 'backup', 'inspect-backup', 'restore-backup'];
 const routes = Object.fromEntries(actions.map(action => [`${action === 'list' ? 'GET' : 'POST'} /api/component-styles/${action}`,
   (context, request, res) => handleStyles(context, request.req, res, new URL(request.req.url, `http://${request.req.headers.host}`))]));
 const publicRoutes = Object.fromEntries(actions.map(action => [`${action === 'list' ? 'GET' : 'POST'} /api/component-preview/styles/${action}`,

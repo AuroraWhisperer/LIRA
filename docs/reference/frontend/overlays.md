@@ -538,7 +538,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
   翻牌由 [clock-flip.js](../../../public/js/overlays/clock-flip.js) 持有上下半牌与 WAAPI 动画，
   仅数值变化时旋转；首次展示、隐藏字段/页面和减少动态效果时直接校准。
   重入动画和切换样式取消旧动画，复用同一个时钟调度器。
-- Admin 百宝箱的「萌时钟」卡片只展示并复制固定地址；表单修改经受 token 保护的
+- Admin 组件页的「时钟」卡片只展示并复制固定地址；表单修改经受 token 保护的
   `POST /api/settings` 显式保存。小预览与公共窗口使用 `componentPreview=1` 及父页消息，
   不读取正式配置流；打开公共窗口时卸载小预览，关闭后恢复。样式切换使用 160ms 淡入，
   减少动态效果时停用，不重载页面或重启计时器。旧完整参数内嵌预览消息仍兼容。
@@ -639,7 +639,7 @@ owner 注册，未知类型立即报错，不反向导入工厂或 owner。`cloc
 
 后端 `src/shared/scene-component-types.js` 定义渲染类型，`server/scene-components.js`
 的 ports 复用领域配置校验、默认配置及显示投影；`server/component-preview-page.js` 保留
-显式 HTML 片段 allowlist。中继与默认配置草稿缓存保留四个共享类型和 `canvas` 控制类型，不把 canvas 作为可渲染组件。
+显式 HTML 片段 allowlist，弹幕预览复用 `pages/admin/live-components/danmaku.html` 的画面参数，不包含百宝箱的发送与机器人表单。中继与默认配置草稿缓存保留四个共享类型和 `canvas` 控制类型，不把 canvas 作为可渲染组件。
 `shared/scene-extra-components.js` 定义开播动画、展示板、歌词、三类小游戏、全屏礼物感谢、大航海感谢、礼物滚动、盲盒榜、许愿的独立参数与选择项；
 `admin/scene-extra-preview.js` 直接在画布中创建参数面板，其修改由场景 owner 保存。
 展示板的示例歌曲分类跟随各图层的分类筛选，正式来源仍筛选实际歌库，不写入示例歌曲。兼容 blivechat/blc 的导入弹幕 CSS 在编辑预览中持续补充示例，避免退场动画后永久空白；页面隐藏时暂停，销毁时停止，正式来源只消费直播事件。

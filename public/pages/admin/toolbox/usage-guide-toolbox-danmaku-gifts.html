@@ -1,20 +1,17 @@
 <article class="usage-guide-feature" id="ug-danmaku">
   <div class="usage-guide-feature-head"><strong>弹幕姬</strong></div>
   <p>
-    打开「百宝箱 → 直播互动 →
-    弹幕姬」。先看连接状态区的发送账号、目标直播间和是否可发送，必要时点右侧刷新。未登录或未设置直播间时，先回「点歌 →
-    设置」完成配置。
+    打开顶部「组件 → 弹幕姬」，配置直播画面链接、弹幕过滤和样式。未登录或未设置直播间时，先回「点歌 → 设置」完成配置。
   </p>
   <ol class="usage-guide-checks">
     <li>
-      选样式：固定位置共 6 种（聊天气泡、深色面板、蝴蝶结、经典样式、透明文字、头像横卡）；全屏随机共 3
-      种（简洁白卡、奶油气泡、流光气泡）。
+      选显示方式：「固定位置」适合集中展示聊天记录，「区域随机」让弹幕散落在指定区域，「飘窗弹幕」让弹幕横向飘过。再从对应的样式卡片中选择喜欢的外观。
     </li>
     <li>
       调节对应参数。例如「深色面板」可改字体、正文字号（18–48
-      px）、弹幕文字颜色、背景不透明度和礼物通知图片。全屏随机样式另有 2–30 秒停留时间。
+      px）、弹幕文字颜色、背景不透明度和礼物通知图片。区域随机样式另有 2–30 秒停留时间。
     </li>
-    <li>点击「预览效果」看示例。满意后点「应用到直播画面」，将「直播画面链接」添加到 OBS 或直播姬。</li>
+    <li>点击「预览与调整」看示例。满意后点「应用到直播画面」，将「直播画面链接」添加到 OBS 或哔哩哔哩直播姬的浏览器源。</li>
   </ol>
   <p>
     只预览不会改变直播画面；应用后不用重新复制链接。服务器弹幕姬不依赖桌面进程持续运行，但仍需要服务器与直播间连接正常。
@@ -23,13 +20,13 @@
     <img
       class="usage-guide-image"
       src="/img/usage-guide/E/danmaku-styles.webp"
-      alt="六种固定位置样式与三种全屏随机样式。"
-      width="1048"
-      height="500"
+      alt="弹幕显示方式标签、固定位置样式卡片及添加样式入口。"
+      width="1130"
+      height="426"
       loading="lazy"
       decoding="async"
     />
-    <figcaption>六种固定位置样式与三种全屏随机样式。</figcaption>
+    <figcaption>先选显示方式，再选样式；「添加样式」可导入用于画布的组件样式。</figcaption>
   </figure>
   <details class="usage-guide-foldout">
     <summary>查看参数调节与应用位置</summary>
@@ -49,13 +46,13 @@
       <img
         class="usage-guide-image"
         src="/img/usage-guide/E/danmaku-random-params.webp"
-        alt="全屏随机样式可设置停留时间。"
+        alt="区域随机样式可设置停留时间。"
         width="1440"
         height="902"
         loading="lazy"
         decoding="async"
       />
-      <figcaption>全屏随机样式可设置停留时间。</figcaption>
+      <figcaption>区域随机样式可设置停留时间。</figcaption>
     </figure>
   </details>
   <h4>屏蔽不想显示的内容</h4>
@@ -70,8 +67,8 @@
         class="usage-guide-image"
         src="/img/usage-guide/E/danmaku-blacklist.webp"
         alt="黑名单按 UID 管理，图中名单与屏蔽词为示例。"
-        width="1048"
-        height="331"
+        width="1130"
+        height="344"
         loading="lazy"
         decoding="async"
       />
@@ -79,7 +76,7 @@
     </figure>
   </details>
   <h4>发送弹幕与自动回复</h4>
-  <p>在发送区输入文字，按 Ctrl + Enter 发送，并查看发送结果；这里还可设置自动钓鱼 / 打劫。该区域没有独立网页地址。</p>
+  <p>打开「百宝箱 → 直播互动 → 弹幕互动」，先确认连接状态区的发送账号、目标直播间和发送权限。在发送区输入文字，按 Ctrl + Enter 发送，并查看发送结果；这里还可设置自动钓鱼 / 打劫。该区域没有独立网页地址。</p>
   <p>
     「固定回复」包括随机点歌回复、签到机器人、抽签机器人、自定义关键词回复、进场欢迎和 PK
     对手信息播报。按需要开启；自定义关键词需填写关键词与回复后保存，欢迎与 PK 的设置可展开查看。
@@ -135,10 +132,11 @@
       <strong>回复规则</strong
       >：填写自定义触发关键词，等待显示「已保存」，再设置回复长度、联网搜索和深度思考。是否支持这些功能，以所选平台和模型为准。
     </li>
-    <li><strong>扩展能力</strong>：按需接入和风天气、高德地图，让助手能回答天气、地点和路线问题。</li>
+    <li><strong>角色包</strong>：切换通用助手、小猫或自定义角色，可命名保存、导入和导出人设。</li>
+    <li><strong>可选工具</strong>：普通问答可保持关闭。模型支持工具调用时，再按需启用天气、地点或路线查询。</li>
     <li>
-      <strong>高级设置</strong>：调整同时处理的提问数、同一观众提问间隔、每分钟提问上限，以及 AI
-      的性格和说话方式。设置好后，点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。
+      <strong>高级设置</strong>：调整同时处理的提问数、同一观众提问间隔、每分钟提问上限。
+      设置好后，点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。
     </li>
   </ul>
   <details class="usage-guide-foldout">
@@ -148,8 +146,8 @@
         class="usage-guide-image"
         src="/img/usage-guide/E/ai-assistant-config.webp"
         alt="AI 助手配置示例；未填写密钥，也未验证真实回复。"
-        width="1092"
-        height="1107"
+        width="1100"
+        height="1660"
         loading="lazy"
         decoding="async"
       />
@@ -159,10 +157,10 @@
 </article>
 <article class="usage-guide-feature">
   <div class="usage-guide-feature-head"><strong>礼物姬</strong></div>
-  <p>打开「百宝箱 → 直播互动 → 礼物姬」。全屏礼物感谢和大航海感谢点击「预览」，作为两个独立组件编排；礼物许愿和其中的月底冲刺点击「打开画布」编排，也可复制各自的浏览器源地址。滚动礼物可直接复制浏览器源地址。</p>
+  <p>打开「组件 → 礼物姬」。全屏礼物感谢和大航海感谢点击「预览」，作为两个独立组件编排；礼物许愿和其中的月底冲刺点击「打开画布」编排，也可复制各自的浏览器源地址。滚动礼物可直接复制浏览器源地址。</p>
   <h4>全屏礼物感谢</h4>
   <p>
-    在全屏礼物感谢页签的「更多样式 → ＋ 添加样式 → 选择文件」导入「林间花信-全屏礼物感谢样式-1.0.0.zip」，无需解压。
+    在全屏礼物感谢页签的「更多样式 → ＋ 添加样式 → 选择文件」导入「全屏礼物感谢样式-林间花信-1.0.0.zip」，无需解压。
     导入保留原启用状态和触发金额，默认金额为 20 元；填 0 表示所有付费礼物，每次播放 8 秒。
     点击样式卡片添加到画布，默认 1920×1080，保留原花叶、头像与感谢文字布局；本页仍可「保存设置」和「预览」。
     已有林间花信图层导入后可继续播放。预览可调整位置和大小，保存并应用后复制直播源地址添加到直播软件。
@@ -173,8 +171,8 @@
       class="usage-guide-image"
       src="/img/usage-guide/E/gift-frame-settings.webp"
       alt="林间花信导入后的启用开关、金额门槛、模拟预览与更多样式。"
-      width="1378"
-      height="641"
+      width="1440"
+      height="902"
       loading="lazy"
       decoding="async"
     />
@@ -214,7 +212,7 @@
   <div class="usage-guide-feature-head"><strong>礼物许愿</strong></div>
   <ol class="usage-guide-checks">
     <li>
-      打开「百宝箱 → 礼物姬 →
+      打开「组件 → 礼物姬 →
       礼物许愿」，先选周期：「长效许愿」从每条创建时累计；「本日许愿」北京时间零点换日；「本场直播许愿」下次开播重新计数。
     </li>
     <li>点击「选个礼物」，从本直播间或全部缓存礼物里按名称 / ID 查找。注意区分盲盒本体与盲盒开出的礼物。</li>
@@ -288,8 +286,8 @@
         class="usage-guide-image"
         src="/img/usage-guide/D/gift-wishes-text.webp"
         alt="文字版模板与数量预览示例。"
-        width="1092"
-        height="1193"
+        width="1140"
+        height="1043"
         loading="lazy"
         decoding="async"
       />

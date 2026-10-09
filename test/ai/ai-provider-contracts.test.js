@@ -13,6 +13,34 @@ function jsonResponse(payload, status = 200) {
   });
 }
 
+for (const protocol of ['responses', 'chat_completions']) {
+  test(`plain ${protocol} requests omit tool fields for models without tool support`, async () => {
+    let body;
+    const client = createDeepSeekClient({
+      fetchImpl: async (_url, options) => {
+        body = JSON.parse(options.body);
+        return jsonResponse(protocol === 'responses'
+          ? { id: 'answer', output: [{ type: 'message', content: [{ type: 'output_text', text: '你好' }] }] }
+          : { id: 'answer', choices: [{ message: { content: '你好' } }] });
+      },
+    });
+    const result = await client.createResponse({
+      config: {
+        deepseekResponsesUrl: 'https://model.test/v1',
+        modelApiProtocol: protocol,
+        deepseekApiKey: 'test-key',
+        model: 'plain-chat',
+        requestTimeoutMs: 3000,
+      },
+      input: '你好',
+      tools: [],
+    });
+    assert.equal(result.text, '你好');
+    assert.equal(Object.hasOwn(body, 'tools'), false);
+    assert.equal(Object.hasOwn(body, 'tool_choice'), false);
+  });
+}
+
 test('DeepSeek reports a length-truncated empty Chat Completions response precisely', async () => {
   const client = createDeepSeekClient({
     fetchImpl: async () =>

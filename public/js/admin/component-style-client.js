@@ -50,7 +50,7 @@ export function initComponentStyleLibraries() {
   }
   const locations = [
     ['#otherClockFeature .clock-style-options', 'clock'],
-    ['#otherDanmakuFeature .danmaku-style-options-fixed', 'danmaku'],
+    ['#liveDanmakuFeature .danmaku-style-options-fixed', 'danmaku'],
     ['#giftWishDisplayStyle', 'gift-wishes'],
     ['#giftFramePanel', 'gift-frame'], ['#guardThanksStyleLibrary', 'guard-thanks'],
     ['#themeForm .style-picker', 'queue'], ['#desktopLyricForm', 'lyrics'],
@@ -63,7 +63,7 @@ export function initComponentStyleLibraries() {
     const wishes = type === 'gift-wishes';
     const hasResourceSettings = style => type !== 'gift-frame' && Boolean(style?.config.resourceStyle);
     (wishes ? host.querySelector('.gift-wish-styles') : host).append(list);
-    const feature = host.closest('#otherClockFeature, #otherDanmakuFeature, #themeForm') || host;
+    const feature = host.closest('#otherClockFeature, #liveDanmakuFeature, #themeForm') || host;
     const previewWish = style => host.dispatchEvent(new CustomEvent('gift-wish:style', { detail: style }));
     const settings = previewElement('div', 'resource-style-settings-host');
     settings.dataset.resourceStyleSettings = type;
@@ -100,6 +100,7 @@ export function initComponentStyleLibraries() {
       if (wishes && event.target.matches('input[type="radio"]')) select(null);
     }, { signal: requests.signal });
     libraries.push(mountComponentStyleLibrary(list, { type, request, inline: true,
+      manageHost: feature.querySelector('[data-style-library-actions]'),
       actionLabel: wishes ? '预览样式' : '添加到画布',
       onUse: style => {
         select(style);

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { ADMIN_FRAGMENT_PATHS, composeAdminHtml, isAdminPageRoute } = require('../../src/server/admin-page');
+const { ADMIN_FRAGMENT_PATHS, composeAdminHtml, isAdminPageRoute, readAdminFragment } = require('../../src/server/admin-page');
 const { servePageOrAsset } = require('../../src/server/page-assets');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -55,6 +55,24 @@ test('admin routes use one explicit ordered fragment composition', () => {
   assert.equal(ADMIN_FRAGMENT_PATHS[0], 'pages/admin/shell-start.html');
   assert.equal(ADMIN_FRAGMENT_PATHS.at(-1), 'pages/admin/document-end.html');
   assert.equal(fs.existsSync(path.join(PUBLIC_DIR, 'pages', 'admin.html')), false);
+});
+
+test('live components own six unique panels while danmaku interaction stays in the toolbox', () => {
+  const components = readAdminFragment(PUBLIC_DIR, 'pages/admin/live-components/page.html');
+  const toolbox = readAdminFragment(PUBLIC_DIR, 'pages/admin/toolbox/shell-start.html');
+  const html = composeAdminHtml(PUBLIC_DIR);
+  const ids = ['liveDanmakuFeature', 'otherGiftFeature', 'otherTextBoxFeature',
+    'otherOvertimeMachineFeature', 'otherStartAnimationFeature', 'otherClockFeature'];
+  for (const id of ids) {
+    assert.match(components, new RegExp(`data-other-feature="${id}"`));
+    assert.match(components, new RegExp(`id="${id}"`));
+    assert.equal(html.split(`id="${id}"`).length, 2, `${id} renders once`);
+    assert.doesNotMatch(toolbox, new RegExp(`data-other-feature="${id}"`));
+  }
+  assert.equal((components.match(/data-other-feature-panel\b/g) || []).length, 6);
+  assert.doesNotMatch(components, /id="danmakuSendForm"|id="xiaomiAiSection"/);
+  assert.match(toolbox, /data-other-feature="otherDanmakuFeature"/);
+  assert.match(toolbox, /<strong>弹幕互动<\/strong>/);
 });
 
 test('admin composition expands the complete danmaku AI subfragment in place', () => {

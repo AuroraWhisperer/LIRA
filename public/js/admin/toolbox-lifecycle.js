@@ -1,7 +1,7 @@
 'use strict';
 
 // Load optional editors only when their selected panel is visible.
-export function createToolboxLifecycle({ loaders, onError }) {
+export function createToolboxLifecycle({ loaders, onError, ownerPageId = 'otherAssistantPage' }) {
   const loaded = new Map();
   const initialized = new Set();
   let pageId = '';
@@ -11,11 +11,11 @@ export function createToolboxLifecycle({ loaders, onError }) {
 
   async function activate() {
     const selected = featureId;
-    if (disposed || pageId !== 'otherAssistantPage' || !loaders[selected] || initialized.has(selected)) return;
+    if (disposed || pageId !== ownerPageId || !loaders[selected] || initialized.has(selected)) return;
     try {
       if (!loaded.has(selected)) loaded.set(selected, loaders[selected]());
       const init = await loaded.get(selected);
-      if (disposed || pageId !== 'otherAssistantPage' || featureId !== selected || initialized.has(selected)) return;
+      if (disposed || pageId !== ownerPageId || featureId !== selected || initialized.has(selected)) return;
       initialized.add(selected);
       init();
     } catch (error) {

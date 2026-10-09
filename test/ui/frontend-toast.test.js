@@ -132,20 +132,36 @@ test('completing an action restores focus past notices without actions', async (
 test('short notices avoid repeated status headings and updates preserve explicit content', async () => {
   const { stack, documentRef } = await setup();
   for (const [type, label] of Object.entries({ info: '提示', success: '成功', warning: '注意', error: '错误' })) {
-    const handle = stack.show({ key: 'result', type, message: '设置已保存', update: true });
+    const handle = stack.show({ key: 'result', type, message: '设置已保存。', update: true });
     const content = handle.node.children[0];
     assert.equal(content.textContent, '设置已保存');
     assert.equal(content.classList.contains('toast-content-compact'), true);
     assert.equal(content.children[0].getAttribute('aria-hidden'), 'true');
     assert.equal(documentRef.body.children[1].textContent, `${label}：设置已保存`);
-    handle.update({ title: '接口检查通过', message: '音乐服务连接正常' });
+    handle.update({ title: '接口检查通过', message: '音乐服务连接正常。' });
     assert.equal(content.classList.contains('toast-content-compact'), false);
     assert.deepEqual(
       content.children.map((node) => node.textContent),
-      ['接口检查通过', '音乐服务连接正常'],
+      ['接口检查通过', '音乐服务连接正常。'],
     );
     handle.update({ message: '' });
     assert.equal(content.children.length, 1);
+  }
+});
+
+test('short notice formatting preserves sentence boundaries and other punctuation', async () => {
+  const { stack } = await setup();
+  for (const message of [
+    '设置已保存',
+    '日程提醒已恢复。LIRA 运行时会按时提醒你。',
+    '保存失败！请重试。',
+    '是否已登录？请检查账号。',
+    '保存失败\n请重试。',
+    '正在保存…',
+    '请求失败：HTTP 403.',
+  ]) {
+    const handle = stack.show({ key: 'result', message, update: true });
+    assert.equal(handle.node.children[0].textContent, message);
   }
 });
 
@@ -195,11 +211,13 @@ test('API errors remain automatic by default and callers can own contextual feed
     document: documentRef,
     window: windowRef,
     ...clock,
-    fetch: async () => ({ status: 500, text: async () => JSON.stringify({ ok: false, error: '网络故障' }) }),
+    fetch: async () => ({ status: 500, text: async () => JSON.stringify({ ok: false, error: '歌库里还没有可随机歌曲。' }) }),
   });
-  await assert.rejects(api('/api/settings', {}, { notifyError: false }), /网络故障/);
+  await assert.rejects(api('/api/queue/random', {}, { notifyError: false }), /歌库里还没有可随机歌曲。/);
   assert.equal(container.children.length, 0);
-  await assert.rejects(api('/api/settings', {}), /网络故障/);
+  await assert.rejects(api('/api/queue/random', {}), /歌库里还没有可随机歌曲。/);
   assert.equal(container.children.length, 1);
   assert.match(container.children[0].className, /toast-error/);
+  assert.equal(container.children[0].children[0].textContent, '歌库里还没有可随机歌曲');
+  assert.equal(documentRef.body.children[1].textContent, '错误：歌库里还没有可随机歌曲');
 });

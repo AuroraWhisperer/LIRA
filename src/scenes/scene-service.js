@@ -5,6 +5,7 @@ const { isDeepStrictEqual } = require('node:util');
 const { SCENE_TYPES, SceneError, normalizeSceneId, normalizeSceneDocument } = require('./scene-contract');
 const { createSceneOutputProjection } = require('./scene-output-projection');
 const { createSceneBrowserSourceCodec } = require('./scene-browser-source-codec');
+const { createSceneTransfer } = require('./scene-transfer');
 
 function hashToken(token) {
   return createHash('sha256').update(token).digest('hex');
@@ -194,6 +195,12 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
   return {
     validate(input) {
       return withOwner(() => normalizeSceneDocument(input?.document, { normalizeConfig }));
+    },
+
+    ...createSceneTransfer({ withOwner, store, browserSources, issueCapability, normalizeConfig, getDefaultConfig, getSharedAppearances }),
+
+    visitAssetReferences(visit) {
+      store.visitDocuments((document, scope) => visit(browserSources.decodeDocument(document, scope)));
     },
 
     list() {

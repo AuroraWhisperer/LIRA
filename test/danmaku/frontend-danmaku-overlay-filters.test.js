@@ -167,7 +167,7 @@ test('account changes discard pending saves/viewers and unsupported server reads
 });
 
 test('filters sit between the link and styles, with parameters below styles', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../../public/pages/admin/toolbox/danmaku.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../../public/pages/admin/live-components/danmaku.html'), 'utf8');
   assert.ok(html.indexOf('id="danmakuOverlayUrl"') < html.indexOf('class="danmaku-style-picker"'));
   assert.ok(html.indexOf('id="danmakuOverlayFilters"') > html.indexOf('id="danmakuOverlayUrl"'));
   assert.ok(html.indexOf('id="danmakuOverlayFilters"') < html.indexOf('data-danmaku-style="bubble"'));

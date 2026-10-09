@@ -5,12 +5,13 @@ import { MEDIA_STYLE_TITLES } from '../shared/component-media-style.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
 import { openComponentSourceImport } from './component-source-import.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
+import { openComponentLibraryManager } from './component-library-manager.js';
 
 const styleTitle = type => MEDIA_STYLE_TITLES[type] || SCENE_EXTRA_COMPONENTS[type]?.title
   || ({ overtime: '加班机', browser: '浏览器源', 'text-box': '文本框' })[type] || '组件';
 const isComponentSuite = pack => pack.isSuite;
 
-export function mountComponentStyleLibrary(host, { type, request = requestComponentStyles, onUse, actionLabel = '添加到画布', inline = false, suitesOnly = false, renderList } = {}) {
+export function mountComponentStyleLibrary(host, { type, request = requestComponentStyles, onUse, actionLabel = '添加到画布', inline = false, suitesOnly = false, renderList, onImportTarget, initialFile, updatePack, manageHost } = {}) {
   loadComponentStyleCss();
   const root = previewElement('section', 'component-style-library');
   root.classList.toggle('component-style-library-inline', inline);
@@ -24,10 +25,19 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
   status.hidden = inline;
   root.append(header, list, status); host.append(root);
   const requests = new AbortController();
-  let editor; let closed = false; let revision = 0; let updateTarget = null;
+  let editor; let manager; let closed = false; let revision = 0; let updateTarget = updatePack || null; let importing = false; let interacted = false;
   const add = type ? previewElement('button', 'component-style-add', '＋ 添加样式') : null;
   if (add) { add.type = 'button'; add.addEventListener('click', () => openImport()); }
-  function report(error) { status.hidden = false; status.textContent = error.message || error; }
+  const manage = previewElement('button', 'secondary component-style-manage', '管理样式库'); manage.type = 'button';
+  manage.addEventListener('click', () => { manager = openComponentLibraryManager({ request,
+    onUpdate(pack, file) { redirectImport(pack.importTarget, file, pack); }, onChanged: refresh }); });
+  if (!type) header.append(manage);
+  function redirectImport(target, file, pack) {
+    if (onImportTarget) onImportTarget(target, file, pack);
+    else editor = openComponentStyleLibrary({ type: target === 'suite' ? undefined : target,
+      suitesOnly: target === 'suite', request, initialFile: file, updatePack: pack });
+  }
+  function report(error) { interacted = true; status.hidden = false; status.textContent = error.message || error; }
   function openImport() {
     editor = openComponentSourceImport({ type, request,
       onMedia: file => { editor = editComponentMediaFile(file, type, { request, onSaved: () => { void refresh(); }, onError: report }); },
@@ -41,36 +51,32 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
     void inspectArchive(file);
   });
   async function inspectArchive(file) {
+    if (importing || closed) return;
+    interacted = importing = true; if (add) add.disabled = true;
     const target = updateTarget; updateTarget = null;
     importButton.disabled = true; status.hidden = false; status.textContent = '正在读取素材包…';
     let pack;
     try {
-      pack = await request('inspect', { file, signal: requests.signal });
-      if (closed) return;
+      pack = await request('inspect', { file, target: type || 'suite', signal: requests.signal });
+      if (closed) { await request('cancel', { id: pack.id }); return; }
       if (target && pack.packageId !== target.packageId) {
         await request('cancel', { id: pack.id });
-        throw new Error(`请选择「${target.name}」的更新包；其他套装请使用「导入套装」。`);
+        throw new Error(`请选择「${target.name}」的更新包；其他素材包请从对应分类导入。`);
       }
       const suite = isComponentSuite(pack);
-      const category = pack.styles[0].category || pack.styles[0].type;
-      if ((type && (suite || category !== type)) || (!type && !suite)) {
-        await request('cancel', { id: pack.id });
-        throw new Error(suite ? '这是多个组件组合的套装，请到「样式与套装 → 导入套装」导入。'
-          : `这是${styleTitle(category)}的样式包，请从该组件的「＋ 添加样式」导入。`);
-      }
       status.textContent = '';
       const dialog = previewElement('dialog', 'component-style-dialog'); dialog.setAttribute('aria-label', suite ? '确认导入套装' : '确认添加样式');
       dialog.append(previewElement('h2', '', pack.name), previewElement('p', '', `版本 ${pack.version} · ${pack.styles.length} 个样式 · ${(pack.bytes / 1024 / 1024).toFixed(1)} MiB`));
       const members = previewElement('ul', 'component-style-pack-list');
       for (const style of pack.styles) members.append(previewElement('li', '', `${styleTitle(style.type)}：${style.name}`));
-      const replacing = suite && pack.replaces?.length > 0;
+      const replacing = pack.replaces?.length > 0;
       if (replacing) dialog.append(previewElement('p', 'component-style-replacement',
         `将替换已安装版本 ${pack.replaces.map(item => item.version).join('、')} → ${pack.version}，样式库只保留本次导入的版本。`));
       const hint = previewElement('p', 'hint', suite
         ? replacing ? '已有场景保留原效果。请在画布选用新版组件，再保存并应用。'
           : '整套导入后可分别选用组件。选用并保存应用后才会改变直播。'
         : `添加到${styleTitle(type)}的更多样式中。选用并保存应用后才会改变直播。`);
-      const install = previewElement('button', 'primary', replacing ? '替换套装' : suite ? '导入套装' : '添加样式'); const cancel = previewElement('button', 'secondary', '取消');
+      const install = previewElement('button', 'primary', replacing ? suite ? '替换套装' : '替换样式包' : suite ? '导入套装' : '添加样式'); const cancel = previewElement('button', 'secondary', '取消');
       const message = previewElement('p', 'hint'); message.setAttribute('role', 'status');
       let installed = false; let installing = false;
       install.type = cancel.type = 'button'; cancel.addEventListener('click', () => dialog.close());
@@ -78,7 +84,7 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
       install.addEventListener('click', async () => {
         install.disabled = cancel.disabled = installing = true;
         try {
-          const result = await request('install', { id: pack.id, signal: requests.signal });
+          const result = await request('install', { id: pack.id, target: type || 'suite', signal: requests.signal });
           installed = true; dialog.close();
           await refresh(); report(result.alreadyInstalled ? '这个版本已经导入。' : result.replaced
             ? `已更新「${pack.name}」至 ${pack.version}，旧版已从样式库移除。已有场景保留原效果。`
@@ -92,8 +98,17 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
       }, { once: true });
       dialog.append(members, hint, install, cancel, message); document.body.append(dialog); dialog.showModal();
       editor = { dispose: () => { if (!installing) dialog.close(); } };
-    } catch (error) { if (!closed) report(error); }
-    finally { importButton.disabled = false; }
+    } catch (error) {
+      if (!closed) {
+        report(error);
+        if (error.code === 'STYLE_IMPORT_TARGET_MISMATCH' && error.importTarget) {
+          const go = previewElement('button', 'secondary', `前往「${error.importTargetName}」导入`); go.type = 'button';
+          go.addEventListener('click', () => { go.disabled = true; redirectImport(error.importTarget, file); });
+          status.append(document.createTextNode(' '), go);
+        }
+      }
+    }
+    finally { importing = false; importButton.disabled = false; if (add) add.disabled = false; }
   }
   function confirmRemovePack(pack) {
     const dialog = previewElement('dialog', 'component-style-dialog'); dialog.setAttribute('aria-label', '删除套装');
@@ -179,24 +194,28 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
         card.append(remove);
         }
       }
-      if (add) list.append(add);
-      renderList?.({ list, cards, add });
+      // A page heading slot keeps library management out of the selectable style grid.
+      if (add) { list.append(add); (manageHost || list).append(manage); }
+      renderList?.({ list, cards, add, manage });
       if (suitesOnly && !list.childElementCount) {
         const empty = previewElement('div', 'component-style-empty');
         empty.append(previewElement('h4', '', '还没有套装'), previewElement('p', 'hint', '点击「导入套装」，选择作者提供的 ZIP 安装包。'));
         list.append(empty);
       }
-      status.textContent = type ? '点击「＋ 添加样式」，选择文件或粘贴作者提供的内容。'
-        : '套装整体导入、更新和删除；点击组件卡片可单独选用。单个样式请从对应组件「＋ 添加样式」添加。';
-      status.hidden = inline;
+      if (!interacted) {
+        status.textContent = type ? '点击「＋ 添加样式」，选择文件或粘贴作者提供的内容。'
+          : '套装整体导入、更新和删除；点击组件卡片可单独选用。单个样式请从对应组件「＋ 添加样式」添加。';
+        status.hidden = inline;
+      }
     } catch (error) { if (!closed) report(error); }
   }
   if (!inline || renderList) window.addEventListener('focus', () => {
     if (root.closest('dialog')?.open) void refresh();
   }, { signal: requests.signal });
-  renderList?.({ list, cards: [], add });
+  renderList?.({ list, cards: [], add, manage });
   void refresh();
-  return { refresh, dispose() { closed = true; requests.abort(); editor?.dispose(); add?.remove(); root.remove(); } };
+  if (initialFile) void inspectArchive(initialFile);
+  return { refresh, importArchive: inspectArchive, dispose() { closed = true; requests.abort(); editor?.dispose(); manager?.dispose(); add?.remove(); manage.remove(); root.remove(); } };
 }
 
 export function openComponentStyleLibrary(options) {

@@ -14,7 +14,6 @@
 .text-box-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 340px; padding: 32px; text-align: center; }
 .text-box-empty svg { width: 48px; height: 48px; color: var(--primary-strong); }
 .text-box-empty h3 { font-size: 20px; margin: 20px 0 8px; }
-.text-box-empty p { max-width: 29em; color: var(--muted); font-size: 14px; line-height: 1.7; margin: 0; }
 .text-box-detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 0.9fr); align-content: start; align-items: start; column-gap: 24px; min-width: 0; }
 .text-box-detail-heading { grid-column: 1 / -1; }
 .text-box-detail > [data-text-box='editor'] { min-width: 0; }

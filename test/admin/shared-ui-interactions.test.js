@@ -80,6 +80,23 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   assert.equal(await page.getByRole('checkbox', { name: '弹性动画', exact: true }).count(), 1);
   assert.equal(await page.getByRole('spinbutton', { name: '整体缩放', exact: true }).count(), 1);
 
+  const overlayTab = page.getByRole('tab', { name: '浏览器源', exact: true });
+  const overlayTabArea = page.locator('.tab-with-help');
+  for (const [edge, x, y] of [['left', 0.03, 0.5], ['right', 0.97, 0.5], ['top', 0.5, 0.03], ['bottom', 0.5, 0.97]]) {
+    await page.getByRole('tab', { name: '展示板', exact: true }).click();
+    const bounds = await overlayTabArea.boundingBox();
+    await page.mouse.click(bounds.x + bounds.width * x, bounds.y + bounds.height * y);
+    assert.equal(await overlayTab.getAttribute('aria-selected'), 'true', `Clicking the ${edge} tab edge selects browser sources.`);
+    assert.equal(await page.getByRole('tabpanel', { name: '浏览器源', exact: true }).isVisible(), true);
+    assert.equal(await page.locator('.tabs .tab[aria-selected="true"]').count(), 1);
+  }
+  await page.getByRole('tab', { name: '展示板', exact: true }).click();
+  const overlayHelp = overlayTabArea.locator('lira-help');
+  await overlayHelp.click();
+  assert.equal(await overlayHelp.getByRole('tooltip').isVisible(), true);
+  assert.equal(await overlayTab.getAttribute('aria-selected'), 'false', 'Browser-source help does not switch tabs.');
+  await overlayHelp.press('Escape');
+
   // Contextual help opens from pointer, focus and keys, but never acts as its label's control.
   await page.getByRole('tab', { name: '展示板', exact: true }).click();
   const sync = page.locator('#songBoardSyncTheme');

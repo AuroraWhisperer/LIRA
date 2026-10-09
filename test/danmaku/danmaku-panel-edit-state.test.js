@@ -11,9 +11,11 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
   const page = await fixture(t, 'danmaku');
   await page.evaluate(async (html) => {
     const parsed = new DOMParser().parseFromString(html, 'text/html');
-    const panel = parsed.getElementById('otherDanmakuFeature');
-    panel.hidden = false;
-    document.body.append(panel);
+    for (const id of ['otherDanmakuFeature', 'liveDanmakuFeature']) {
+      const panel = parsed.getElementById(id);
+      panel.hidden = false;
+      document.body.append(panel);
+    }
     window.requests = [];
     window.opened = [];
     window.open = (url) => window.opened.push(url);
@@ -62,7 +64,8 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
     await import('/js/admin/danmaku-tool.js');
     window.AdminApp.danmakuTool.init();
     await window.AdminApp.danmakuTool.refresh();
-  }, readAdminFragmentHtml('pages/admin/toolbox/danmaku.html'));
+  }, readAdminFragmentHtml('pages/admin/toolbox/danmaku.html') +
+    readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
 
   assert.equal(await page.locator('#danmakuAccountState').textContent(), '测试账号');
   assert.equal(await page.locator('#danmakuRoomState').textContent(), '测试直播间');
@@ -123,7 +126,8 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
   await page.getByRole('tab', { name: '飘窗弹幕', exact: true }).press('ArrowRight');
   assert.equal(await visibleGroups.getAttribute('id'), 'danmakuFixedStyles');
   assert.equal(await page.locator('#danmakuFixedStyleTab').evaluate(tab => tab === document.activeElement), true);
-  const styleButtons = page.locator('#otherDanmakuFeature [data-danmaku-style]');
+  const styleButtons = page.locator('#liveDanmakuFeature [data-danmaku-style]');
+  assert.ok(await styleButtons.count() > 0);
   for (let index = 0; index < (await styleButtons.count()); index += 1) {
     const button = styleButtons.nth(index);
     const groupId = await button.evaluate(node => node.closest('[role="tabpanel"]').id);

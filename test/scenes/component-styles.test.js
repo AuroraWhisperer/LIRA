@@ -62,22 +62,59 @@ test('all media style types import, normalize and survive library deletion and r
   }
 });
 
+test('ZIP imports reject the wrong entry with directions and recheck the target before installation', async t => {
+  const f = await fixture(t);
+  const store = createComponentStyleStore(f.dataDir);
+  for (const [types, target, wrongTargets, guidance] of [
+    [['background', 'clock'], 'suite', ['background', 'clock'], /添加组件 → 套装 → 导入套装/],
+    [['background', 'background'], 'background', ['suite', 'clock'], /添加组件 → 背景 → 添加样式/],
+    [['clock'], 'clock', ['background', 'suite'], /添加组件 → 时钟 → 添加样式/],
+  ]) {
+    const manifest = { schemaVersion: 1, id: `test.entry-${target}`, name: '入口测试', version: '1.0.0',
+      styles: types.map(type => ({ type, name: type, file: 'frame.png', width: 640, height: 360 })) };
+    const bytes = zip([['lira-pack.json', JSON.stringify(manifest)], ['frame.png', png]]);
+    const before = store.read();
+    for (const wrong of [undefined, '', 'invalid', ...wrongTargets]) {
+      const rejected = await f.request(wrong === undefined ? 'inspect' : `inspect?target=${wrong}`, bytes);
+      assert.equal(rejected.status, 400, String(wrong));
+      if (wrongTargets.includes(wrong)) assert.match(rejected.error, guidance);
+      else assert.match(rejected.error, /导入入口/);
+      assert.deepEqual(store.read(), before);
+      assert.equal(fs.existsSync(store.root) && fs.readdirSync(store.root).some(name => name.startsWith('.pending-')), false);
+    }
+    const preview = await f.request(`inspect?target=${target}`, bytes);
+    assert.equal(preview.status, 200, preview.error);
+    assert.equal(preview.data.isSuite, target === 'suite');
+    for (const wrong of [undefined, '', 'invalid', ...wrongTargets]) {
+      const rejected = await f.request('install', { id: preview.data.id, target: wrong });
+      assert.equal(rejected.status, 400, String(wrong));
+      if (wrongTargets.includes(wrong)) assert.match(rejected.error, guidance);
+      else assert.match(rejected.error, /导入入口/);
+      assert.deepEqual(store.read(), before);
+      assert.ok(fs.existsSync(store.directory(preview.data.id, true)));
+    }
+    const installed = await f.request('install', { id: preview.data.id, target });
+    assert.equal(installed.status, 200, installed.error);
+    assert.equal(installed.data.styles.length, types.length);
+  }
+});
+
 test('standard ZIP previews without installation, commits atomically and recognizes duplicate versions', async t => {
   const f = await fixture(t);
   const manifest = { schemaVersion: 1, id: 'test.suite', name: '测试套装', version: '1.0.0',
     styles: [{ type: 'clock', name: '时钟', file: 'assets/frame.png', width: 600, height: 300 },
       { type: 'danmaku', name: '弹幕', file: 'assets/frame.png', width: 400, height: 600 }] };
   const bytes = zip([['lira-pack.json', JSON.stringify(manifest)], ['assets/frame.png', png], ['说明.txt', '安装说明']]);
-  const preview = await f.request('inspect', bytes);
+  const preview = await f.request('inspect?target=suite', bytes);
   assert.equal(preview.status, 200, preview.error);
   assert.equal(preview.data.styles.length, 2);
   assert.deepEqual((await f.request('list')).data, []);
-  const committed = await f.request('install', { id: preview.data.id });
+  const committed = await f.request('install', { id: preview.data.id, target: 'suite' });
   assert.equal(committed.status, 200, committed.error);
-  const second = await f.request('inspect', bytes);
-  assert.equal((await f.request('install', { id: second.data.id })).data.alreadyInstalled, true);
+  const second = await f.request('inspect?target=suite', bytes);
+  assert.equal((await f.request('install', { id: second.data.id, target: 'suite' })).data.alreadyInstalled, true);
   assert.equal((await f.request('list')).data.length, 1);
-  const cancelled = await f.request('inspect', bytes);
+  const cancelled = await f.request('inspect?target=suite', bytes);
   await f.request('cancel', { id: cancelled.data.id });
   assert.ok(!fs.existsSync(createComponentStyleStore(f.dataDir).directory(cancelled.data.id, true)));
 });
@@ -87,9 +124,9 @@ test('whole suites remove and restore without duplicating packages or invalidati
   const manifest = { schemaVersion: 1, id: 'test.lifecycle', name: '整套管理', version: '1.0.0',
     styles: ['clock', 'background'].map(type => ({ type, name: type, file: 'frame.png', width: 640, height: 360 })) };
   const bytes = zip([['lira-pack.json', JSON.stringify(manifest)], ['frame.png', png]]);
-  const { data: preview } = await f.request('inspect', bytes);
+  const { data: preview } = await f.request('inspect?target=suite', bytes);
   assert.equal(preview.isSuite, true);
-  const { data: installed } = await f.request('install', { id: preview.id });
+  const { data: installed } = await f.request('install', { id: preview.id, target: 'suite' });
   await f.request('remove', { id: installed.styles[0].id });
   assert.equal((await f.request('list')).data[0].isSuite, true, 'Legacy member removal must not change suite classification.');
   assert.equal((await f.request('remove-pack', { id: installed.id }, '')).status, 401);
@@ -98,8 +135,8 @@ test('whole suites remove and restore without duplicating packages or invalidati
     assert.deepEqual((await f.request('list')).data, []);
   }
   for (const style of installed.styles) assert.equal((await fetch(`${f.origin}${style.config.mediaStyle.src}`)).status, 200);
-  const restore = await f.request('inspect', bytes);
-  const result = await f.request('install', { id: restore.data.id });
+  const restore = await f.request('inspect?target=suite', bytes);
+  const result = await f.request('install', { id: restore.data.id, target: 'suite' });
   assert.equal(result.data.restored, true);
   assert.equal(result.data.id, installed.id);
   assert.deepEqual(result.data.styles, installed.styles);
@@ -113,9 +150,9 @@ test('suite updates replace old versions by package identity, including reduced 
   const f = await fixture(t);
   const manifest = { schemaVersion: 1, id: 'test.updates', name: '更新套装', version: '1.0.0',
     styles: ['clock', 'background'].map(type => ({ type, name: type, file: 'frame.png', width: 640, height: 360 })) };
-  const inspect = () => f.request('inspect', zip([['lira-pack.json', JSON.stringify(manifest)], ['frame.png', png]]));
+  const inspect = () => f.request('inspect?target=suite', zip([['lira-pack.json', JSON.stringify(manifest)], ['frame.png', png]]));
   const original = await inspect();
-  await f.request('install', { id: original.data.id });
+  await f.request('install', { id: original.data.id, target: 'suite' });
   const store = createComponentStyleStore(f.dataDir);
   // Simulate the previous client's concurrently installed versions.
   const index = store.read();
@@ -123,27 +160,34 @@ test('suite updates replace old versions by package identity, including reduced 
   fs.writeFileSync(path.join(store.root, 'index.json'), JSON.stringify(index));
   manifest.id = 'test.unrelated';
   const unrelated = await inspect();
-  await f.request('install', { id: unrelated.data.id });
+  await f.request('install', { id: unrelated.data.id, target: 'suite' });
   manifest.id = 'test.updates'; manifest.version = '2.0.0'; manifest.styles.pop();
+  const wrongEntry = await f.request('inspect?target=clock', zip([['lira-pack.json', JSON.stringify(manifest)], ['frame.png', png]]));
+  assert.equal(wrongEntry.status, 400);
+  assert.match(wrongEntry.error, /添加组件 → 套装 → 导入套装/);
   const update = await inspect();
   assert.equal(update.data.isSuite, true, 'An existing suite may reduce to one component type.');
   assert.deepEqual(update.data.replaces.map(pack => pack.version), ['1.0.0', '1.1.0']);
   assert.equal((await f.request('list')).data.length, 3, 'Inspect must not retire installed versions.');
-  const result = await f.request('install', { id: update.data.id });
+  const wrongInstall = await f.request('install', { id: update.data.id, target: 'clock' });
+  assert.equal(wrongInstall.status, 400);
+  assert.match(wrongInstall.error, /添加组件 → 套装 → 导入套装/);
+  assert.equal((await f.request('list')).data.length, 3);
+  const result = await f.request('install', { id: update.data.id, target: 'suite' });
   assert.equal(result.data.replaced, 2);
   assert.deepEqual(store.list().map(pack => pack.id), [unrelated.data.id, result.data.id]);
   assert.equal(store.list()[1].isSuite, true);
   assert.equal((await fetch(`${f.origin}${original.data.styles[0].config.mediaStyle.src}`)).status, 200);
   const duplicate = await inspect();
-  assert.equal((await f.request('install', { id: duplicate.data.id })).data.alreadyInstalled, true);
+  assert.equal((await f.request('install', { id: duplicate.data.id, target: 'suite' })).data.alreadyInstalled, true);
   manifest.styles[0].name = '同版本内容修改';
   const conflict = await inspect();
-  assert.equal((await f.request('install', { id: conflict.data.id })).status, 409);
+  assert.equal((await f.request('install', { id: conflict.data.id, target: 'suite' })).status, 409);
   assert.deepEqual(store.list().map(pack => pack.id), [unrelated.data.id, result.data.id]);
   await f.request('cancel', { id: conflict.data.id });
-  const restore = await f.request('inspect', zip([['lira-pack.json', JSON.stringify({ ...manifest, name: '更新套装',
+  const restore = await f.request('inspect?target=suite', zip([['lira-pack.json', JSON.stringify({ ...manifest, name: '更新套装',
     version: '1.0.0', styles: ['clock', 'background'].map(type => ({ type, name: type, file: 'frame.png', width: 640, height: 360 })) })], ['frame.png', png]]));
-  const restored = await f.request('install', { id: restore.data.id });
+  const restored = await f.request('install', { id: restore.data.id, target: 'suite' });
   assert.equal(restored.data.id, original.data.id);
   assert.equal(restored.data.replaced, 1);
   assert.equal(restored.data.restored, true);
@@ -257,9 +301,9 @@ test('background ZIP defaults survive instance overrides, removal and a newer pa
   }
   entries.set('ordinary.png', png);
   entries.set('lira-pack.json', Buffer.from(JSON.stringify(manifest)));
-  const preview = await f.request('inspect', zip([...entries]));
+  const preview = await f.request('inspect?target=background', zip([...entries]));
   assert.equal(preview.status, 200, preview.error);
-  const installed = await f.request('install', { id: preview.data.id });
+  const installed = await f.request('install', { id: preview.data.id, target: 'background' });
   assert.equal(installed.status, 200, installed.error);
   const instances = preview.data.styles.map(style => {
     assert.deepEqual(style.config.backgroundDefaults, getBackgroundAppearance(style.config));
@@ -270,9 +314,9 @@ test('background ZIP defaults survive instance overrides, removal and a newer pa
   manifest.version = '2.0.0';
   for (const style of manifest.styles) style.config.opacity = 0.95;
   entries.set('lira-pack.json', Buffer.from(JSON.stringify(manifest)));
-  const updated = await f.request('inspect', zip([...entries]));
+  const updated = await f.request('inspect?target=background', zip([...entries]));
   assert.equal(updated.status, 200, updated.error);
-  assert.equal((await f.request('install', { id: updated.data.id })).status, 200);
+  assert.equal((await f.request('install', { id: updated.data.id, target: 'background' })).status, 200);
   for (const [index, config] of instances.entries()) {
     assert.equal(config.opacity, 0.4);
     assert.equal(config.backgroundDefaults.opacity, 0.85);
@@ -294,9 +338,9 @@ test('documented background manifest imports image and video with its exact filt
   const manifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../docs/examples/background-style/lira-pack.json'), 'utf8'));
   const video = fs.readFileSync(path.resolve(__dirname, '../fixtures/gift-effect-alpha.webm'));
   const bytes = zip([['lira-pack.json', JSON.stringify(manifest)], ['assets/background.png', png], ['assets/background.webm', video]]);
-  const preview = await f.request('inspect', bytes);
+  const preview = await f.request('inspect?target=background', bytes);
   assert.equal(preview.status, 200, preview.error);
-  const installed = await f.request('install', { id: preview.data.id });
+  const installed = await f.request('install', { id: preview.data.id, target: 'background' });
   assert.equal(installed.status, 200, installed.error);
   assert.deepEqual(preview.data.styles.map(style => style.config.mediaStyle.kind), ['image', 'video']);
   for (const [index, style] of preview.data.styles.entries()) {
@@ -316,7 +360,7 @@ test('bad ZIP paths, scripts, missing resources and incompatible schemas leave n
     [['lira-pack.json', JSON.stringify({ schemaVersion: 1, id: 'test', name: '缺文件', version: '1.0.0',
       styles: [{ type: 'background', file: 'missing.png', name: '背景', width: 100, height: 100 }] })]],
   ]) {
-    const result = await f.request('inspect', zip(entries));
+    const result = await f.request('inspect?target=background', zip(entries));
     assert.equal(result.status, 400, result.error);
   }
   assert.deepEqual((await f.request('list')).data, []);
@@ -349,14 +393,14 @@ test('exported Moonlit ZIP installs eight native styles, validates resources and
   const { createMoonlitZip } = require('../../scripts/package-moonlit-suite');
   const { COMPONENT_RESOURCE_PRESETS, normalizeResourceStyle } = require('../../public/js/shared/component-resource-style.js');
   const f = await fixture(t);
-  const preview = await f.request('inspect', createMoonlitZip());
+  const preview = await f.request('inspect?target=suite', createMoonlitZip());
   assert.equal(preview.status, 200, preview.error);
   assert.equal(preview.data.styles.length, 8);
   const queue = preview.data.styles.find(style => style.type === 'queue');
   assert.equal(queue.config.overlayQueueStyle, 'identity');
   assert.equal(queue.config.identityQueueFontSize, COMPONENT_RESOURCE_PRESETS['moonlit-queue'].config.identityQueueFontSize);
   assert.throws(() => normalizeSceneConfig('queue', { ...queue.config, overlayQueueStyle: 'classic' }));
-  assert.equal((await f.request('install', { id: preview.data.id })).status, 200);
+  assert.equal((await f.request('install', { id: preview.data.id, target: 'suite' })).status, 200);
   for (const style of preview.data.styles) {
     assert.deepEqual(normalizeSceneConfig(style.type, style.config), style.config);
     const resource = style.config.resourceStyle;
@@ -374,8 +418,8 @@ test('exported Moonlit ZIP installs eight native styles, validates resources and
       if (src.endsWith('.woff2')) assert.equal(response.headers.get('content-type'), 'font/woff2');
     }
   }
-  const restored = await f.request('inspect', createMoonlitZip());
-  const result = await f.request('install', { id: restored.data.id });
+  const restored = await f.request('inspect?target=suite', createMoonlitZip());
+  const result = await f.request('install', { id: restored.data.id, target: 'suite' });
   assert.equal(result.data.restored, true);
   assert.equal((await f.request('list')).data[0].styles.length, 8);
 });
@@ -424,7 +468,7 @@ test('Moonlit scroll landscape stays optional for older packs and rejects unrela
       styles: [{ type: 'danmaku', name: '弹幕', preset: 'moonlit-danmaku', preview: 'preview.png', width: 640, height: 720,
         resources: Object.fromEntries(keys.map(key => [key, 'art.webp'])) }] };
     const entries = () => [['lira-pack.json', JSON.stringify(manifest)], ['preview.png', png], ['art.webp', artwork]];
-    const result = await f.request('inspect', zip(entries()));
+    const result = await f.request('inspect?target=danmaku', zip(entries()));
     assert.equal(result.status, 200, result.error);
     const config = result.data.styles[0].config;
     assert.equal(Boolean(config.resourceStyle.resources[landscape]), includeLandscape);
@@ -432,7 +476,7 @@ test('Moonlit scroll landscape stays optional for older packs and rejects unrela
     assert.throws(() => normalizeResourceStyle('danmaku', { ...config.resourceStyle,
       resources: { ...config.resourceStyle.resources, [landscape]: `/component-media/${randomUUID()}/${'a'.repeat(64)}.webp` } }, config));
     manifest.styles[0].resources['/untrusted.webp'] = 'art.webp';
-    assert.equal((await f.request('inspect', zip(entries()))).status, 400);
+    assert.equal((await f.request('inspect?target=danmaku', zip(entries()))).status, 400);
   }
 });
 
@@ -442,7 +486,7 @@ test('resource archives reject missing files and cannot execute arbitrary preset
     styles: [{ type: 'clock', name: '时钟', preset: 'moonlit-clock', preview: 'preview.png', width: 580, height: 380, resources: {} }] };
   for (const preset of ['moonlit-clock', 'custom-script', '__proto__']) {
     manifest.styles[0].preset = preset;
-    assert.equal((await f.request('inspect', zip([['lira-pack.json', JSON.stringify(manifest)], ['preview.png', png]]))).status, 400);
+    assert.equal((await f.request('inspect?target=clock', zip([['lira-pack.json', JSON.stringify(manifest)], ['preview.png', png]]))).status, 400);
   }
   const font = fs.readFileSync(path.resolve(__dirname, '../../public/fonts/clock-moon-serif-400.woff2'));
   assert.equal((await f.request(`add?description=${encodeURIComponent(JSON.stringify({ type: 'clock', filename: 'font.woff2' }))}`, font)).status, 400);
@@ -455,7 +499,7 @@ test('damaged ZIP content is rejected even when its media header still looks val
     styles: [{ type: 'background', name: '背景', file: 'frame.png', width: 640, height: 360 }] };
   const bytes = zip([['lira-pack.json', JSON.stringify(manifest)], ['frame.png', png]]);
   bytes[bytes.indexOf(png) + png.length - 1] ^= 1;
-  assert.equal((await f.request('inspect', bytes)).status, 400);
+  assert.equal((await f.request('inspect?target=background', bytes)).status, 400);
   assert.deepEqual((await f.request('list')).data, []);
   assert.deepEqual(fs.readdirSync(path.join(f.dataDir, 'component-library')), []);
 });

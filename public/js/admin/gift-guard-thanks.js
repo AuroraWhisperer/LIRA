@@ -1,4 +1,4 @@
-// 百宝箱 → 礼物姬 → 大航海感谢：各风格独立的设置与画布预览入口。
+// 组件 → 礼物姬 → 大航海感谢：各风格独立的设置与画布预览入口。
 'use strict';
 
 import { api, toast } from '../shared/utils.js';

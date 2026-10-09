@@ -43,7 +43,7 @@ export function initGiftAssistant() {
       select(tabs[next]);
     });
   });
-  const page = document.getElementById('otherAssistantPage');
+  const page = root.closest('.main-page');
   const visibility = new MutationObserver(() => {
     if (
       !root.hidden &&

@@ -28,6 +28,13 @@ function createSceneStore(db) {
       return db.prepare('SELECT * FROM component_scenes WHERE owner_scope = ? ORDER BY id').all(scope).map(decodeScene);
     },
 
+    visitDocuments(visit) {
+      for (const row of db.prepare('SELECT owner_scope, draft_json, published_json FROM component_scenes').iterate()) {
+        visit(JSON.parse(row.draft_json), row.owner_scope);
+        if (row.published_json !== null) visit(JSON.parse(row.published_json), row.owner_scope);
+      }
+    },
+
     get(scope, id) {
       return decodeScene(db.prepare('SELECT * FROM component_scenes WHERE owner_scope = ? AND id = ?').get(scope, id));
     },
@@ -38,6 +45,18 @@ function createSceneStore(db) {
           (id, owner_scope, draft_json, capability_version, capability_hash, capability_encrypted)
         VALUES (?, ?, ?, ?, ?, ?) RETURNING *
       `).get(document.id, scope, JSON.stringify(document), capability.version, capability.hash, capability.encrypted));
+    },
+
+    createBatch(entries) {
+      db.exec('SAVEPOINT restore_component_scenes');
+      try {
+        for (const entry of entries) this.create(entry);
+        db.exec('RELEASE restore_component_scenes');
+      } catch (error) {
+        db.exec('ROLLBACK TO restore_component_scenes');
+        db.exec('RELEASE restore_component_scenes');
+        throw error;
+      }
     },
 
     save({ scope, id, expectedRevision, document }) {

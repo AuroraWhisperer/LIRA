@@ -1,7 +1,8 @@
 'use strict';
 
 const SHOTS = [
-  { id: 'E1', file: 'toolbox-nav', title: '百宝箱导航：直播互动、直播画面与主播工作', main: 'otherAssistantPage' },
+  { id: 'E1', file: 'toolbox-nav', title: '百宝箱导航', main: 'otherAssistantPage', feature: 'otherDanmakuFeature' },
+  { id: 'E1c', file: 'live-components', title: '组件：六项画面组件', main: 'liveComponentsPage', feature: 'liveDanmakuFeature' },
   {
     id: 'E1b',
     file: 'toolbox-nav-help',
@@ -12,14 +13,14 @@ const SHOTS = [
   {
     id: 'E2',
     file: 'danmaku-connection',
-    title: '弹幕姬连接状态（未登录、未设置直播间）',
+    title: '弹幕互动连接状态（未登录、未设置直播间）',
     feature: 'otherDanmakuFeature',
   },
   {
     id: 'E3',
     file: 'danmaku-styles',
-    title: '六种固定样式与三种全屏随机样式',
-    feature: 'otherDanmakuFeature',
+    title: '弹幕显示方式、固定位置样式与添加样式入口',
+    feature: 'liveDanmakuFeature',
     clip: '.danmaku-style-picker',
   },
   {
@@ -33,22 +34,23 @@ const SHOTS = [
     id: 'E5',
     file: 'danmaku-blacklist',
     title: '用户黑名单与敏感词屏蔽（示例数据）',
-    feature: 'otherDanmakuFeature',
+    feature: 'liveDanmakuFeature',
+    click: '#danmakuOverlayFilters summary',
     clip: '#danmakuOverlayFilters',
   },
   {
     id: 'E6',
     file: 'danmaku-params',
     title: '深色面板字体、颜色与透明度',
-    feature: 'otherDanmakuFeature',
+    feature: 'liveDanmakuFeature',
     clip: '.danmaku-parameters',
   },
   {
     id: 'E6b',
     file: 'danmaku-random-params',
-    title: '全屏随机样式停留时间与应用按钮',
-    feature: 'otherDanmakuFeature',
-    click: '[data-danmaku-style="outline"]',
+    title: '区域随机样式停留时间与应用按钮',
+    feature: 'liveDanmakuFeature',
+    click: ['#danmakuRandomStyleTab', '[data-danmaku-style="outline"]'],
     scroll: '.danmaku-parameters',
     mustShow: ['#danmakuFullscreenDurationSeconds', '#danmakuApplyOverlayBtn'],
   },
@@ -56,7 +58,7 @@ const SHOTS = [
     id: 'E6c',
     file: 'danmaku-apply-style',
     title: '深色面板参数与应用到直播画面',
-    feature: 'otherDanmakuFeature',
+    feature: 'liveDanmakuFeature',
     scroll: '.danmaku-parameters',
     mustShow: ['#danmakuApplyOverlayBtn'],
   },
@@ -168,7 +170,7 @@ const SHOTS = [
     feature: 'otherGiftFeature',
     click: '#giftAssistantDisplayTab',
   },
-  { id: 'E17', file: 'toolbox-clock', title: '萌时钟六种风格与预览', feature: 'otherClockFeature' },
+  { id: 'E17', file: 'toolbox-clock', title: '时钟风格选择与预览', feature: 'otherClockFeature' },
   { id: 'E18', file: 'toolbox-opening', title: '开播动画文案、画质与素材', feature: 'otherStartAnimationFeature' },
   {
     id: 'E18b',

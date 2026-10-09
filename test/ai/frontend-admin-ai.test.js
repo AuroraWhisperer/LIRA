@@ -46,10 +46,13 @@ test('AI panel mounts its controls with safe defaults', () => {
     'xiaomiAiWebSearchCapability',
     'xiaomiAiReasoningCapability',
   ]) tagById(html, id);
-  for (const id of ['xiaomiAiEnabled', 'xiaomiAiWebSearch']) {
+  for (const id of ['xiaomiAiEnabled']) {
     const input = tagById(html, id);
     assert.match(input, /\stype=["']checkbox["']/);
     assert.match(input, /\schecked(?:\s|\/?>)/);
+  }
+  for (const id of ['xiaomiAiWebSearch', 'xiaomiAiWeatherEnabled', 'xiaomiAiPlacesEnabled', 'xiaomiAiRoutesEnabled']) {
+    assert.doesNotMatch(tagById(html, id), /\schecked(?:\s|\/?>)/);
   }
   const model = tagById(html, 'xiaomiAiModel');
   assert.match(model, /\saria-controls=["']xiaomiAiModelMenu["']/);

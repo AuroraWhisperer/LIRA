@@ -135,6 +135,10 @@ function createApiContext(options) {
     ai: {
       getConfig: () => ai.configStore.getPublicConfig(),
       updateConfig: (input) => ai.configStore.updateConfig(input),
+      importPersona: (input) => ai.configStore.importPersona(input),
+      createPersona: (input) => ai.configStore.createPersona(input),
+      deletePersona: (id) => ai.configStore.deletePersona(id),
+      exportPersona: () => ai.configStore.exportPersona(),
       getStatus: () => ai.service.getStatus(),
       listModels: (input) => ai.service.listModels(input),
       test: () => ai.service.testConfiguration(),

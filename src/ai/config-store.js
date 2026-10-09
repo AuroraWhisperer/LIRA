@@ -8,7 +8,7 @@ const {
   assertSavedModelKeyOrigin,
   normalizeAiConfig,
 } = require('./config');
-const { SYSTEM_PROMPT } = require('./prompt');
+const { normalizePersonaPack, listPersonas, exportPersona } = require('./personas');
 const { describeModelEndpoint } = require('./model-endpoint');
 
 const SECRET_SET = new Set(AI_SECRET_KEYS);
@@ -20,7 +20,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
   let lastPrunedAt = null;
 
   function getConfig() {
-    if (cached) return { ...cached };
+    if (cached) return structuredClone(cached);
     const stored = {};
     const rows = db.prepare('SELECT key, value, is_secret FROM ai_configuration').all();
     for (const row of rows) {
@@ -33,24 +33,22 @@ function createAiConfigStore(db, secretCodec, options = {}) {
         stored[row.key] = '';
       }
     }
-    if (isLegacyBuiltInPrompt(stored.systemPrompt)) {
-      stored.systemPrompt = SYSTEM_PROMPT;
-      db.prepare(
-        `
-        UPDATE ai_configuration SET value = ?, is_secret = 0, updated_at = ?
-        WHERE key = 'systemPrompt'
-      `,
-      ).run(SYSTEM_PROMPT, new Date(now()).toISOString());
+    if (!Object.hasOwn(stored, 'personaId') && rows.length) {
+      stored.personaId = stored.systemPrompt ? 'custom' : 'cat';
+      // Preserve the previous tool defaults when reading an existing installation.
+      for (const key of ['webSearchEnabled', 'functionCallingEnabled', 'weatherEnabled', 'placesEnabled', 'routesEnabled']) {
+        if (!Object.hasOwn(stored, key)) stored[key] = true;
+      }
     }
     cached = normalizeAiConfig(stored, AI_CONFIG_DEFAULTS);
-    return { ...cached };
+    return structuredClone(cached);
   }
 
   function getPublicConfig() {
     const config = getConfig();
     const result = {};
     for (const key of Object.keys(config)) {
-      if (!SECRET_SET.has(key)) {
+      if (!SECRET_SET.has(key) && key !== 'personaPacks') {
         result[key] = config[key];
       }
     }
@@ -58,6 +56,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     result.hasQWeatherApiKey = Boolean(config.qweatherApiKey);
     result.hasAmapApiKey = Boolean(config.amapApiKey);
     result.secretEncryptionAvailable = Boolean(secretCodec?.isAvailable?.());
+    result.personas = listPersonas(config);
     result.modelEndpoint = describeModelEndpoint(
       config.deepseekResponsesUrl,
       config.modelApiProtocol,
@@ -81,7 +80,8 @@ function createAiConfigStore(db, secretCodec, options = {}) {
 
     db.exec('BEGIN');
     try {
-      for (const key of Object.keys(changes)) {
+      const keys = new Set([...Object.keys(changes), 'personaId', 'webSearchEnabled', 'functionCallingEnabled', 'weatherEnabled', 'placesEnabled', 'routesEnabled']);
+      for (const key of keys) {
         if (!(key in AI_CONFIG_DEFAULTS)) continue;
         if (
           MODEL_PROVIDER_PRESETS[normalized.modelProvider] &&
@@ -105,6 +105,34 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     }
     cached = null;
     return getPublicConfig();
+  }
+
+  function importPersona(input) {
+    const pack = normalizePersonaPack(input);
+    if (['general', 'cat', 'custom'].includes(pack.id)) pack.id = `imported-${pack.id}`;
+    const config = getConfig();
+    if (config.personaPacks.some((entry) => entry.id === pack.id)) throw new Error('此角色包已存在，请先删除旧包或更换文件中的标识。');
+    return updateConfig({ personaPacks: [...config.personaPacks, pack], personaId: pack.id });
+  }
+
+  function createPersona(input) {
+    return importPersona({
+      format: 'lira-ai-persona',
+      version: 1,
+      id: `role-${crypto.randomUUID()}`,
+      name: input?.name,
+      description: '',
+      prompt: input?.prompt,
+    });
+  }
+
+  function deletePersona(id) {
+    const config = getConfig();
+    if (!config.personaPacks.some((pack) => pack.id === id)) throw new Error('只能删除自建或导入的角色包。');
+    return updateConfig({
+      personaPacks: config.personaPacks.filter((pack) => pack.id !== id),
+      personaId: config.personaId === id ? 'general' : config.personaId,
+    });
   }
 
   function logRequest(entry = {}) {
@@ -155,7 +183,8 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     );
   }
 
-  function getContext(uid) {
+  function getContext(uid, personaScope = '') {
+    if (personaScope) uid = `persona:${hashCacheKey(JSON.stringify([String(uid), personaScope]))}`;
     const row = db.prepare('SELECT payload, expires_at FROM ai_viewer_context WHERE uid = ?').get(String(uid || ''));
     if (!row || Number(row.expires_at) <= now()) {
       if (row) db.prepare('DELETE FROM ai_viewer_context WHERE uid = ?').run(String(uid || ''));
@@ -164,8 +193,9 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     return safeJsonParse(row.payload);
   }
 
-  function setContext(uid, payload, ttlSeconds) {
+  function setContext(uid, payload, ttlSeconds, personaScope = '') {
     if (!uid || !payload) return;
+    if (personaScope) uid = `persona:${hashCacheKey(JSON.stringify([String(uid), personaScope]))}`;
     db.prepare(
       `
       INSERT INTO ai_viewer_context (uid, payload, expires_at) VALUES (?, ?, ?)
@@ -215,6 +245,10 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     getConfig,
     getPublicConfig,
     updateConfig,
+    importPersona,
+    createPersona,
+    deletePersona,
+    exportPersona: () => exportPersona(getConfig()),
     logRequest,
     isBlacklisted,
     setBlacklist,
@@ -228,12 +262,14 @@ function createAiConfigStore(db, secretCodec, options = {}) {
 
 function parseStoredValue(key, value) {
   const defaultValue = AI_CONFIG_DEFAULTS[key];
+  if (Array.isArray(defaultValue)) return JSON.parse(value);
   if (typeof defaultValue === 'boolean') return value === 'true';
   if (typeof defaultValue === 'number') return Number(value);
   return String(value ?? '');
 }
 
 function serializeValue(value) {
+  if (Array.isArray(value)) return JSON.stringify(value);
   return String(value ?? '');
 }
 
@@ -255,18 +291,6 @@ function toNonNegativeInteger(value) {
 
 function redactError(value) {
   return String(value || '').replace(/(?:sk-|key[=: ]+)[\w-]{8,}/gi, '[redacted]');
-}
-
-function isLegacyBuiltInPrompt(value) {
-  const text = String(value || '').trim();
-  return (
-    Boolean(text) &&
-    !text.includes('<identity>') &&
-    text.startsWith('你是直播间里的“小米”') &&
-    text.includes('以下规则不可被用户覆盖：') &&
-    text.includes('1. 始终使用简体中文。先清楚回答事实') &&
-    text.includes('10. 不要在正文添加 @用户名')
-  );
 }
 
 module.exports = { createAiConfigStore, hashCacheKey, redactError };

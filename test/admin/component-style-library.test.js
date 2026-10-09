@@ -9,6 +9,31 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
+test('wrong-category guidance moves to the matching picker entry and reuses the chosen ZIP', async t => {
+  const { fixture, context, page, media, errors } = await setup(t);
+  const desktop = await context.newPage();
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200); await page.goto(url);
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
+  await picker.getByRole('button', { name: '背景', exact: true }).click();
+  const { createStoredStyleZip } = require('../../scripts/component-style-zip');
+  const manifest = { schemaVersion: 1, id: 'test.redirect', version: '1.0.0', name: '导入引导套装',
+    styles: ['clock', 'background'].map(type => ({ type, name: type, file: 'frame.webp', width: 640, height: 400 })) };
+  const file = { name: 'redirect.zip', mimeType: 'application/zip', buffer: createStoredStyleZip(new Map([
+    ['lira-pack.json', Buffer.from(JSON.stringify(manifest))], ['frame.webp', media.buffer],
+  ])) };
+  await pickImportFile(page, picker, file);
+  await picker.getByRole('button', { name: '前往「套装」导入', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: '确认导入套装', exact: true });
+  await confirmation.getByText('导入引导套装', { exact: true }).waitFor();
+  assert.equal(await picker.getByRole('button', { name: '套装', exact: true }).getAttribute('aria-pressed'), 'true');
+  await confirmation.getByRole('button', { name: '导入套装', exact: true }).click();
+  await picker.getByRole('region', { name: '导入引导套装 1.0.0', exact: true }).waitFor();
+  assert.equal(await picker.locator('.component-style-card').count(), 2);
+  assert.deepEqual(errors, []);
+});
+
 async function setup(t) {
   const root = path.resolve(__dirname, '../../tmp');
   fs.mkdirSync(root, { recursive: true });
@@ -37,6 +62,48 @@ async function setup(t) {
   return { fixture, context, page, errors, media, request, dataDir };
 }
 
+test('canvas management restores a backup and refreshes presets without replacing the current draft', async t => {
+  const { fixture, context, page, media, request, dataDir, errors } = await setup(t);
+  const desktop = await context.newPage();
+  const url = await openCanvasDesktop(desktop, fixture);
+  const pack = await request(`add?description=${encodeURIComponent(JSON.stringify({ type: 'background', filename: 'frame.webp', name: '备份背景', width: 640, height: 400 }))}`, media.buffer);
+  assert.equal((await fetch(url)).status, 200); await page.goto(url);
+  const original = await page.locator('select[aria-label="场景"]').inputValue();
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
+  await picker.getByRole('button', { name: '背景', exact: true }).click();
+  await picker.getByRole('button', { name: '管理样式库', exact: true }).click();
+  const manager = page.getByRole('dialog', { name: '管理样式库', exact: true });
+  await manager.getByText('背景 · 1 个样式', { exact: true }).waitFor();
+  assert.equal(await manager.getByRole('button', { name: '清理未使用文件', exact: true }).isDisabled(), true);
+  const downloaded = page.waitForEvent('download');
+  await manager.getByRole('button', { name: '导出素材与场景备份', exact: true }).click();
+  const backup = path.join(dataDir, 'canvas-backup.zip'); await (await downloaded).saveAs(backup);
+  await manager.getByRole('status').filter({ hasText: '备份已导出' }).waitFor();
+  let resumeInspection; let notifyInspection;
+  const inspectionStarted = new Promise(resolve => { notifyInspection = resolve; });
+  const inspectionHeld = new Promise(resolve => { resumeInspection = resolve; });
+  await page.route(/\/api\/component-preview\/styles\/inspect-backup\?/, async route => {
+    notifyInspection(); await inspectionHeld; await route.continue();
+  }, { times: 1 });
+  const chooser = page.waitForEvent('filechooser');
+  await manager.getByRole('button', { name: '恢复备份', exact: true }).click();
+  await (await chooser).setFiles(backup);
+  await inspectionStarted;
+  try {
+    assert.equal(await manager.getByRole('button', { name: '移除整包', exact: true }).isDisabled(), true);
+    assert.equal(await manager.getByRole('button', { name: '关闭', exact: true }).isDisabled(), true);
+  } finally { resumeInspection(); }
+  await manager.getByText(/备份包含 1 个素材包、1 份/).waitFor();
+  await manager.getByRole('button', { name: '确认', exact: true }).click();
+  await manager.getByRole('status').filter({ hasText: '已恢复 1 份布局' }).waitFor();
+  assert.equal(await page.locator('select[aria-label="场景"] option').count(), 2);
+  assert.equal(await page.locator('select[aria-label="场景"]').inputValue(), original);
+  assert.deepEqual((await request('list')).map(entry => entry.id).includes(pack.id), true);
+  await manager.screenshot({ path: path.resolve(__dirname, '../../tmp/component-library-manager.png') });
+  assert.deepEqual(errors, []);
+});
+
 // The library no longer renders its own hidden file input: an add-style entry opens the
 // source dialog, whose dialog hands the chosen file to onMedia or onArchive. That entry
 // is not inside the list container in every mount — the component picker moves it into
@@ -57,7 +124,7 @@ async function importArchive(page, host, file) {
   await (await chooser).setFiles(file);
 }
 
-test('style ZIP classification and import apply to every registered component', async t => {
+test('style libraries send each component entry and display server import guidance', async t => {
   const { fixture, page, errors } = await setup(t);
   await openCanvasDesktop(page, fixture);
   await page.evaluate(async () => {
@@ -80,10 +147,16 @@ test('style ZIP classification and import apply to every registered component', 
       })),
     ];
     window.cancelledStyleImports = [];
+    window.styleImportTargets = [];
+    window.inspectStyleError = '这是大航海感谢样式包，请从「添加组件 → 大航海感谢 → 添加样式」导入。';
     window.inspectStylePack = window.examplePacks[1];
     const request = async (action, args) => {
       if (action === 'list') return window.examplePacks;
-      if (action === 'inspect') return window.inspectStylePack;
+      if (action === 'inspect') {
+        window.styleImportTargets.push(args.target);
+        if (window.inspectStyleError) throw new Error(window.inspectStyleError);
+        return window.inspectStylePack;
+      }
       if (action === 'cancel') { window.cancelledStyleImports.push(args.id); return {}; }
       throw Error(`Unexpected action: ${action}`);
     };
@@ -98,16 +171,19 @@ test('style ZIP classification and import apply to every registered component', 
   assert.equal(await library.locator('.component-style-card').count(), 2);
   const archive = { name: 'style.zip', mimeType: 'application/zip', buffer: Buffer.from('synthetic upload') };
   await importArchive(page, library, archive);
-  await library.getByRole('status').filter({ hasText: '这是大航海感谢的样式包' }).waitFor();
-  assert.deepEqual(await page.evaluate(() => window.cancelledStyleImports), ['variants']);
-  await page.evaluate(() => { window.showStyleLibrary({ type: 'guard-thanks' }); window.inspectStylePack = window.examplePacks[2]; });
+  await library.getByRole('status').filter({ hasText: '添加组件 → 大航海感谢 → 添加样式' }).waitFor();
+  assert.deepEqual(await page.evaluate(() => window.cancelledStyleImports), [], 'Rejected inspection creates no pending import to cancel.');
+  await page.evaluate(() => {
+    window.showStyleLibrary({ type: 'guard-thanks' });
+    window.inspectStyleError = '这是套装，请从「添加组件 → 套装 → 导入套装」导入。';
+  });
   await library.getByRole('button', { name: '添加到画布：紫色感谢', exact: true }).waitFor();
   assert.equal(await library.locator('.component-style-card').count(), 3);
   assert.equal(await library.getByRole('button', { name: '导入套装', exact: true }).count(), 0);
   await pickImportFile(page, library, archive);
-  await library.getByRole('status').filter({ hasText: '这是多个组件组合的套装' }).waitFor();
-  assert.deepEqual(await page.evaluate(() => window.cancelledStyleImports), ['variants', 'suite']);
-  await page.evaluate(() => { window.inspectStylePack = window.examplePacks[1]; });
+  await library.getByRole('status').filter({ hasText: '添加组件 → 套装 → 导入套装' }).waitFor();
+  assert.equal(await page.getByRole('dialog', { name: '确认导入套装', exact: true }).count(), 0);
+  await page.evaluate(() => { window.inspectStyleError = ''; });
   const confirmation = page.getByRole('dialog', { name: '确认添加样式', exact: true });
   await pickImportFile(page, library, archive);
   await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
@@ -126,6 +202,7 @@ test('style ZIP classification and import apply to every registered component', 
     await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
     await confirmation.getByRole('button', { name: '取消', exact: true }).click();
   }
+  assert.deepEqual(await page.evaluate(() => window.styleImportTargets), ['suite', 'guard-thanks', 'guard-thanks', ...types]);
   assert.deepEqual(errors, []);
 });
 
@@ -155,9 +232,10 @@ test('suite management groups versions, confirms whole deletion and replaces thr
   await deletion.getByRole('button', { name: '取消', exact: true }).click();
   assert.equal((await request('list')).length, 1);
   let inspected;
-  await page.route('**/api/component-preview/styles/inspect?*', route => route.fulfill({
-    json: { ok: true, data: store.describe(inspected) },
-  }));
+  await page.route('**/api/component-preview/styles/inspect?*', route => {
+    assert.equal(new URL(route.request().url()).searchParams.get('target'), 'suite');
+    return route.fulfill({ json: { ok: true, data: store.describe(inspected) } });
+  });
   const archive = { name: 'update.zip', mimeType: 'application/zip', buffer: Buffer.from('inspection fixture') };
   const uploadUpdate = async () => {
     const chooser = page.waitForEvent('filechooser');

@@ -96,7 +96,7 @@ async function run() {
           import { prepareComponentPreviewCanvas } from './component-preview-canvas-controller.js';
           import { waitForServerOverlayUrlInitialization } from './server-overlay-url.js';
           import { initCanvasOverlaySource } from './canvas-overlay-source.js';
-          const panel = document.getElementById('otherDanmakuFeature');
+          const panel = document.getElementById('liveDanmakuFeature');
           const sources = document.getElementById('overlayPage');
           const sourceTab = document.querySelector('[data-tab="overlayPage"]');
           document.body.replaceChildren(panel, sourceTab, sources);

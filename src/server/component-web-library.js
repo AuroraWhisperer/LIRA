@@ -66,6 +66,7 @@ function createComponentWebLibrary(dataDir) {
       if (typeof name !== 'string' || !name.trim() || name.length > 80) fail('样式名称须为 1–80 字。');
       const id = randomUUID();
       const directory = path.join(store.directory(id, true), 'web');
+      store.beginPending(id);
       try {
         const { bytes } = await saveWebFiles(directory, files);
         const filename = path.join(directory, entry);
@@ -89,7 +90,7 @@ function createComponentWebLibrary(dataDir) {
         const style = { id: styleId, type: html ? 'browser' : description.type, category: description.type, name: name.trim(), config };
         store.stage({ id, name: style.name, createdAt: Date.now(), styles: [style], bytes });
         return await installComponentStyle(store, id, authorize);
-      } finally { store.removePending(id); }
+      } finally { store.endPending(id); store.removePending(id); }
     },
   };
 }

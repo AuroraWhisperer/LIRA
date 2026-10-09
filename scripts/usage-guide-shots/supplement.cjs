@@ -45,13 +45,14 @@ async function capture(electronApp, shot) {
   );
   const page = electronApp.windows().find((candidate) => !candidate.isClosed());
   page.setDefaultTimeout(4500);
+  const componentFeatures = ['liveDanmakuFeature', 'otherGiftFeature', 'otherTextBoxFeature', 'otherOvertimeMachineFeature', 'otherStartAnimationFeature', 'otherClockFeature'];
   if (kind === 'admin') {
     await page.locator('#queueList .queue-row').first().waitFor();
     await tools.applyCovers(page, [
       { selector: shot.keepPending ? '#toast' : '#pendingConfirmPopup, #toast', mode: 'hide' },
     ]);
     await page
-      .locator(`[data-main-page="${shot.main || (shot.feature ? 'otherAssistantPage' : 'songAssistantPage')}"]`)
+      .locator(`[data-main-page="${shot.main || (componentFeatures.includes(shot.feature) ? 'liveComponentsPage' : shot.feature ? 'otherAssistantPage' : 'songAssistantPage')}"]`)
       .click();
   }
   if (shot.feature) await page.locator(`[data-other-feature="${shot.feature}"]`).click();

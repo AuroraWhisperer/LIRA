@@ -27,12 +27,7 @@ export function mountOpeningStylePicker({ onBuiltin, beforeSelect }) {
     document.getElementById('openingAnimationForm').hidden = Boolean(selected);
     settings.hidden = !selected;
     document.getElementById('openingSourceAddress').hidden = Boolean(selected);
-    document.getElementById('openingSelectedStyle').textContent = selected?.name
-      || (builtin === 'pixel-cassette' ? '像素卡带' : '经典舞台');
     document.getElementById('openingPreviewBtn').textContent = selected ? '在画布中使用' : '预览';
-    document.getElementById('openingPreviewHint').textContent = selected
-      ? '同样式参数与画布共享；图层的位置和大小在画布中调整。'
-      : '在画布中调整当前样式的位置和大小。打开整套特效开关后显示动画。';
   }
   function select(style) {
     if (!ready || selected?.id === style?.id) return;
@@ -54,6 +49,7 @@ export function mountOpeningStylePicker({ onBuiltin, beforeSelect }) {
     render();
   });
   const library = mountComponentStyleLibrary(host, { type: 'opening', inline: true,
+    manageHost: host.closest('.opening-style-picker')?.querySelector('[data-style-library-actions]'),
     actionLabel: '选择样式', onUse: select,
     renderList(value) {
       cards = value.cards;

@@ -95,6 +95,12 @@ export function initDanmakuOverlayFilters() {
     get('ClearKeywords').disabled = disabled || !settings.blockedKeywords.length;
     get('BlacklistCount').textContent = `${settings.blockedUsers.length} 人`;
     get('KeywordCount').textContent = `${settings.blockedKeywords.length} 个词`;
+    // Collapsed state still has to say whether anything is filtered.
+    get('FiltersSummary').textContent = !loaded
+      ? ''
+      : `${settings.blockedUsers.length ? `已屏蔽 ${settings.blockedUsers.length} 人` : '未屏蔽用户'} · ${
+          settings.blockedKeywords.length ? `${settings.blockedKeywords.length} 个屏蔽词` : '未添加屏蔽词'
+        }`;
     get('BlacklistEmpty').hidden = !loaded || settings.blockedUsers.length > 0;
     get('KeywordsEmpty').hidden = !loaded || settings.blockedKeywords.length > 0;
     get('Blacklist').replaceChildren(

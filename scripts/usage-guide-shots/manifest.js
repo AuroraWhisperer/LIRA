@@ -117,7 +117,7 @@ const SHOTS = [
     id: 'E2',
     group: 'E',
     file: 'danmaku-connection',
-    title: '弹幕姬连接状态（已连接）',
+    title: '弹幕互动连接状态（已连接）',
     skip: '已连接状态需要真实 B 站直播账号',
   },
   {
