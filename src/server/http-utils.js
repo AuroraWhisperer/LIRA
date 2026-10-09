@@ -27,8 +27,9 @@ function readRawBody(req, maxBodyBytes = 0) {
       if (maxBytes > 0 && total > maxBytes) {
         settled = true;
         chunks.length = 0;
-        req.pause();
-        // Let the error response flush before reclaiming an unfinished upload.
+        // Discard pending upload bytes so closing the response does not reset it.
+        req.resume();
+        // Bound draining for clients that never finish the rejected upload.
         const closeTimer = setTimeout(() => req.destroy(), 1000);
         closeTimer.unref();
         req.once('close', () => clearTimeout(closeTimer));
@@ -60,8 +61,14 @@ function sendJson(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    ...(status === 413 ? { Connection: 'close' } : {}),
+    ...(status === 413 ? { Connection: 'close', 'Content-Length': Buffer.byteLength(body) } : {}),
   });
+  if (status === 413 && res.req && !res.req.complete) {
+    // Deliver a complete error body before closing a socket with pending input.
+    res.write(body);
+    res.req.once('end', () => res.end());
+    return;
+  }
   res.end(body);
 }
 

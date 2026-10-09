@@ -7,6 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const pkg = require('../../package.json');
 const lock = require('../../package-lock.json');
+const { createPackagedApp } = require('../helpers/packaged-app');
 
 test('the runtime window icon survives electron-builder buildResources exclusions', async () => {
   const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
@@ -108,12 +109,9 @@ test('packaging omits external woodland media and authoring files while retainin
 test('afterPack removes only the default example and tolerates prior cleanup', async (t) => {
   assert.equal(typeof pkg.build.afterPack, 'string');
   const afterPack = require(path.resolve(__dirname, '../..', pkg.build.afterPack));
-  const appOutDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lira-packaging-scope-'));
-  t.after(() => fs.rm(appOutDir, { recursive: true, force: true }));
-  const resourcesDir = path.join(appOutDir, 'resources');
-  await fs.mkdir(resourcesDir);
+  const { appOutDir, sourceDir, resourcesDir, archivePath, pack } = await createPackagedApp(t);
+  const originalArchive = await fs.readFile(archivePath);
   await fs.writeFile(path.join(resourcesDir, 'default_app.asar'), 'example');
-  await fs.writeFile(path.join(resourcesDir, 'app.asar'), 'application');
   await fs.writeFile(path.join(resourcesDir, 'app-update.yml'), 'updater');
   const context = {
     appOutDir,
@@ -134,7 +132,7 @@ test('afterPack removes only the default example and tolerates prior cleanup', a
     'app.asar',
     'client-integrity-manifest.json',
   ]);
-  assert.equal(await fs.readFile(path.join(resourcesDir, 'app.asar'), 'utf8'), 'application');
+  assert.deepEqual(await fs.readFile(archivePath), originalArchive);
   assert.equal(await fs.readFile(path.join(resourcesDir, 'app-update.yml'), 'utf8'), 'updater');
   await afterPack(context);
   assert.deepEqual((await fs.readdir(resourcesDir)).sort(), [
@@ -143,13 +141,71 @@ test('afterPack removes only the default example and tolerates prior cleanup', a
     'client-integrity-manifest.json',
   ]);
   const before = JSON.parse(await fs.readFile(path.join(resourcesDir, 'client-integrity-manifest.json'), 'utf8'));
-  await fs.writeFile(path.join(resourcesDir, 'app.asar'), 'final signed resources');
+  await fs.writeFile(path.join(sourceDir, 'signed-resource.txt'), 'final signed resources');
+  await pack();
   await require(path.resolve(__dirname, '../..', pkg.build.afterSign))(context);
   const after = JSON.parse(await fs.readFile(path.join(resourcesDir, 'client-integrity-manifest.json'), 'utf8'));
   assert.notEqual(before.files[0].sha256, after.files[0].sha256);
   assert.equal(after.appVersion, pkg.version);
   assert.equal(after.platform, 'win32');
   assert.equal(after.arch, 'x64');
+});
+
+test('packaged dependencies resolve hoisted, nested and installed optional packages without dev dependencies', async (t) => {
+  const { verifyPackagedDependencies } = require('../../scripts/verify-packaged-dependencies');
+  const { archivePath } = await createPackagedApp(t, {
+    '': { dependencies: { 'qrc-decoder': '1.0.2', updater: '1' }, devDependencies: { playwright: '1' } },
+    'node_modules/qrc-decoder': { dependencies: { pako: '2' }, optionalDependencies: { absent: '1' } },
+    'node_modules/pako': { version: '2' },
+    'node_modules/updater': { dependencies: { pako: '1' }, optionalDependencies: { helper: '1' } },
+    'node_modules/updater/node_modules/pako': { version: '1', dependencies: { nested: '1' } },
+    'node_modules/updater/node_modules/nested': { dependencies: { updater: '1' } },
+    'node_modules/helper': { dependencies: { pako: '2' } },
+  });
+  assert.doesNotThrow(() => verifyPackagedDependencies(archivePath));
+});
+
+test('packaged dependencies reject missing direct, transitive and installed optional child dependencies', async (t) => {
+  const { verifyPackagedDependencies } = require('../../scripts/verify-packaged-dependencies');
+  // pako exists in the development checkout; it must not satisfy a packaged dependency.
+  assert.ok(require.resolve('pako'));
+  for (const [name, packages, owner] of [
+    ['direct', { '': { dependencies: { pako: '2' } } }, 'package.json'],
+    ['transitive', {
+      '': { dependencies: { 'qrc-decoder': '1.0.2' } },
+      'node_modules/qrc-decoder': { dependencies: { pako: '2' } },
+    }, 'node_modules/qrc-decoder/package.json'],
+    ['optional child', {
+      '': { optionalDependencies: { 'qrc-decoder': '1.0.2' } },
+      'node_modules/qrc-decoder': { dependencies: { pako: '2' } },
+    }, 'node_modules/qrc-decoder/package.json'],
+  ]) {
+    await t.test(name, async (t) => {
+      const { archivePath } = await createPackagedApp(t, packages);
+      assert.throws(() => verifyPackagedDependencies(archivePath), (error) => {
+        assert.match(error.message, /Missing packaged production dependencies/);
+        assert.ok(error.message.includes(`${owner} -> pako`), error.message);
+        return true;
+      });
+    });
+  }
+});
+
+test('afterPack refuses an incomplete production dependency graph before generating its manifest', async (t) => {
+  const { appOutDir, resourcesDir } = await createPackagedApp(t, {
+    '': { dependencies: { 'qrc-decoder': '1.0.2' } },
+    'node_modules/qrc-decoder': { dependencies: { pako: '2' } },
+  });
+  await assert.rejects(require('../../scripts/after-pack')({
+    appOutDir,
+    arch: 'x64',
+    electronPlatformName: 'win32',
+    packager: {
+      appInfo: { version: pkg.version },
+      getResourcesDir: () => resourcesDir,
+    },
+  }), /qrc-decoder\/package.json -> pako/);
+  await assert.rejects(fs.access(path.join(resourcesDir, 'client-integrity-manifest.json')), { code: 'ENOENT' });
 });
 
 test('all Windows build commands disable direct publishing and share the final installer gate', async () => {

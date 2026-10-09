@@ -39,7 +39,7 @@ test('route error wrappers preserve request-body 413 without calling domain oper
   }
 });
 
-for (const mode of ['complete', 'drip', 'continue']) {
+for (const mode of ['complete', 'buffered', 'drip', 'continue']) {
   test(`oversized ${mode} upload receives 413 and releases its connection`, { timeout: 3000 }, async (t) => {
     const server = http.createServer(async (req, res) => {
       try {
@@ -67,10 +67,14 @@ for (const mode of ['complete', 'drip', 'continue']) {
     });
     const closed = new Promise((resolve, reject) => {
       socket.once('close', resolve);
-      socket.once('error', reject);
+      socket.once('error', (error) => {
+        // A client that keeps writing after rejection may be reset at the deadline.
+        if (mode !== 'continue' || error.code !== 'ECONNRESET') reject(error);
+      });
     });
-    const length = mode === 'complete' ? 9 : 100000;
-    socket.write(`POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: ${length}\r\n\r\n123456789`);
+    const payload = mode === 'buffered' ? 'x'.repeat(2 * 1024 * 1024) : '123456789';
+    const length = ['complete', 'buffered'].includes(mode) ? payload.length : 100000;
+    socket.write(`POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: ${length}\r\n\r\n${payload}`);
     if (mode === 'continue') {
       const timer = setInterval(() => socket.write('more data'), 10);
       t.after(() => clearInterval(timer));
@@ -79,6 +83,9 @@ for (const mode of ['complete', 'drip', 'continue']) {
     assert.match(response, /^HTTP\/1\.1 413 /);
     assert.match(response, /connection: close/i);
     assert.match(response, /Request body exceeds size limit\./);
+    const [headers, body] = response.split('\r\n\r\n');
+    assert.equal(Buffer.byteLength(body), Number(/content-length: (\d+)/i.exec(headers)?.[1]));
+    assert.deepEqual(JSON.parse(body), { ok: false, error: 'Request body exceeds size limit.' });
   });
 }
 

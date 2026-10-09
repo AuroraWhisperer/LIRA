@@ -6,6 +6,8 @@
 
 ## 文件索引
 
+- [2026-10-09-packaged-dependencies](2026-10-09-packaged-dependencies.md)（共享依赖目录漏包复现、打包与最终安装器生产依赖门禁；37 项回归、本地 NSIS 重建及真实打包 Electron 启动验证通过）
+
 - [2026-10-09-ai-assistant-persona-tools](2026-10-09-ai-assistant-persona-tools.md)（通用问答、可选工具、角色包创建与交换；先查验再调研并二次改进，180 项 AI 与隔离 Electron、文档及架构验证通过）
 
 - [2026-10-09-component-library-management](2026-10-09-component-library-management.md)（索引恢复、资源清理与引用保护、包管理、错类跳转、素材/场景备份恢复；存储、画布及真实 Electron 验证通过，记录 3 项原有页面检查差异）

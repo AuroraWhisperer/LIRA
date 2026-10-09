@@ -3,6 +3,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { generatePackagedManifest } = require('./client-integrity-manifest');
+const { verifyPackagedDependencies } = require('./verify-packaged-dependencies');
 
 module.exports = async function afterPack(context) {
   const publish = context.packager.info?.options?.publish;
@@ -12,5 +13,6 @@ module.exports = async function afterPack(context) {
     );
   const resourcesDir = context.packager.getResourcesDir(context.appOutDir);
   await fs.rm(path.join(resourcesDir, 'default_app.asar'), { force: true });
+  verifyPackagedDependencies(path.join(resourcesDir, 'app.asar'));
   await generatePackagedManifest(context);
 };

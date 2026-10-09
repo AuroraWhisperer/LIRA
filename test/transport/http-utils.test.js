@@ -60,7 +60,7 @@ function createMockRequest(data) {
   req.destroy = function () {
     this.emit('close');
   };
-  req.pause = function () {};
+  req.resume = function () {};
   setImmediate(() => {
     if (data) req.emit('data', Buffer.from(data));
     req.emit('end');

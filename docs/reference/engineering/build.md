@@ -33,6 +33,8 @@
 
 当前仓库已移除 Check 工作流，发布前在 Windows 和 Node.js 24 环境执行 [发布指南](../../../RELEASE_GUIDE.md) 与本地验证命令。
 
+构建检出（包括独立 worktree）必须拥有通过 `npm ci` 安装的独立 `node_modules`，可以共用 npm 下载缓存，但不要用 junction/symlink 共用另一检出的依赖目录。已复现 electron-builder 26.15.3 在共享目录时只收集 6 个包，遗漏 `pako`、`pend` 和更新器依赖；其 `cannot find path for dependency` 警告不会自行终止打包。出现此警告时必须修复构建依赖并重建，不能接受生成的 EXE，也不能把间接依赖逐个添加到应用顶层来掩盖收集错误。
+
 Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。24.15.0 及更早 24.x 的 TCP 连接存在可能无 JavaScript 错误输出的原生崩溃，修复见 [Node #62561](https://github.com/nodejs/node/pull/62561) 与 [24.16.0 发布记录](https://nodejs.org/en/blog/release/v24.16.0)。可在 `tmp/` 使用校验过官方 SHA-256 的便携运行时并仅为当前命令设置 PATH，不需要重装依赖或修改系统 Node；这不改变桌面使用的 Electron 版本。
 
 `npm run verify` 先实时校验 [契约锁](../../../server-contract.lock.json) 指定的服务器提交和夹具，再运行语法检查（逐文件复用）和完整 `npm test`，后者已包含文档与架构测试。依赖安装必须先结束，验证期间不要重装或修改依赖。服务器检出按显式路径、`LIRA_SERVER_ROOT`、已存在的平级 `lira-server-contract`、平级 `lira-server` 的顺序选择；准备方式与失败语义见 [测试参考](test.md#固定服务器契约输入)。不要为测试重置正在开发的服务器工作区。真实 HTTP 歌库往返由 `npm run verify:roundtrip` 单独执行，要求两边安装依赖。
@@ -80,7 +82,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 | `files`                                                  | `src/**/*` + `public/**/*` + `build/icon.png` + `package.json` + 静态 PNG 排除项 + 旧礼物资源排除项 | [package.json](../../../package.json) | 白名单打包；显式保留主窗口使用的 PNG 图标，其他 buildResources 不进入 asar；静态界面 PNG 由 WebP 兄弟文件替代；旧礼物资源不进入安装包 |
 | `asar`                                                   | `true`                                                        | [package.json](../../../package.json)        | 源码打成 asar 归档                                                                     |
 | `npmRebuild`                                             | `false`                                                       | [package.json](../../../package.json)        | 无原生模块,跳过重编译                                                                  |
-| `afterPack`                                              | `scripts/after-pack.js`                                        | [after-pack.js](../../../scripts/after-pack.js)      | 拒绝直接 builder 发布、移除 default_app.asar，并生成应用资源完整性清单；时序见 §7 |
+| `afterPack`                                              | `scripts/after-pack.js`                                        | [after-pack.js](../../../scripts/after-pack.js)      | 拒绝直接 builder 发布、移除 default_app.asar、校验归档生产依赖，再生成应用资源完整性清单；时序见 §7 |
 | `afterSign` | `scripts/after-sign.js` | [after-sign.js](../../../scripts/after-sign.js) | 签名可能改变 unpacked 文件，签名后重算资源清单；无签名构建不依赖此 hook |
 | `artifactBuildCompleted` | `scripts/verify-client-installer.js` | [verify-client-installer.js](../../../scripts/verify-client-installer.js) | 普通构建对 NSIS exe 验证最终嵌入资源；发布专用配置由发布入口调用同一校验，不运行安装器；失败阻断，时序见 §7 |
 | `win.icon`                                               | `build/icon.ico`                                              | [package.json](../../../package.json)        | 由 make:icon 生成                                                                      |
@@ -99,7 +101,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 ## 4. 产物(release/)
 
-正式应用不包含开发依赖 Playwright/Playwright Core 或 Electron 默认示例程序。`afterPack` 删除构建输出里的默认示例文件并生成资源清单；不修改开发环境的 Electron 分发目录。离线回归覆盖见 `test/engineering/packaging-scope.test.js`。
+正式应用不包含开发依赖 Playwright/Playwright Core 或 Electron 默认示例程序。`afterPack` 删除构建输出里的默认示例文件，校验生产依赖后生成资源清单；不修改开发环境的 Electron 分发目录。离线回归覆盖见 `test/engineering/packaging-scope.test.js`。
 
 弹幕装饰的 PNG 源图保留在源码中，安装包只使用对应 WebP；已有第 3–6 套队列主题 WebP 不变。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
 
@@ -142,7 +144,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 1. 拒绝有未提交/未跟踪修改的工作区，解析 `GH_TOKEN` 或 gh CLI 登录态，并只读核对本地标签和远端 peeled commit 与 HEAD 一致；保留代理探测和凭据脱敏。
 2. 生成图标后再次核验工作区与 HEAD。
 3. 只构建一次：`electron-builder --win nsis --x64 --publish never --config scripts/release-builder-config.js --config.electronDist=node_modules/electron/dist`。发布专用配置继承 package.json 的 build，仅将 `artifactBuildCompleted` 设为 null，由发布入口接管最终资源验证。普通 `dist:win` / `dist:win:local` 继续使用原钩子。构建失败直接停止，不根据旧附件判定成功。
-4. `afterPack` 保留删除 default_app.asar 的行为，再按构建上下文版本/平台/架构生成资源清单；发生签名时 `afterSign` 重算最终资源。无签名构建不依赖 afterSign。
+4. `afterPack` 删除 default_app.asar，先验证实际 app.asar 的生产依赖链，再按构建上下文版本/平台/架构生成资源清单；发生签名时 `afterSign` 重算最终资源。无签名构建不依赖 afterSign。
 5. 发布入口记录 exe、exe.blockmap、latest.yml 的 SHA-256，完整校验最终 NSIS exe 一次。随后复核全部文件摘要，确保产物未变；验证失败或产物改变不创建新标签、Release 或上传附件。
 6. 构建/验证后再次核验工作区、HEAD 和标签；只有一致才创建并推送标签，随后创建或复用 GitHub Release。标题使用当前版本，正文来自 UPDATE.md 的对应版本小节，经临时 notes 文件传入。
 7. 首次上传前及每轮上传后核对远端名称、字节数和已验证的 SHA-256；远端无摘要时下载至独立临时目录计算并清理。本地对比复用固定摘要，上传前后仍复核全部本地文件，变化立即中止。
@@ -150,7 +152,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 ```mermaid
 flowchart LR
-  A[打包应用] --> B[afterPack: 禁止 builder 发布 / 生成资源清单]
+  A[打包应用] --> B[afterPack: 禁止 builder 发布 / 校验生产依赖 / 生成资源清单]
   B --> C{是否签名}
   C -->|是| D[签名 / afterSign 重算清单]
   C -->|否| E[生成 NSIS 安装器]
@@ -165,6 +167,8 @@ flowchart LR
 资源摘要证明应用文件与随包清单一致；发布者签名验证是独立保证。`afterSign` hook 存在不代表正式证书配置或签名安装验收已完成，当前签名状态仍见 §12。
 
 **最终资源验证**：`scripts/verify-client-installer.js` 使用 Windows 自带的 libarchive `tar.exe` 从当前 NSIS exe 读取嵌入应用归档。先检查列表中将被提取的路径、类型及重复项，再只提取清单和应用资源到独立临时目录；不运行安装器，不读取现有安装/用户数据。要求清单与实际随包应用资源集合及字节完全一致，结束后清理临时目录。构建主机缺少兼容的 tar，或后续 NSIS 格式不再支持此提取方式时，构建/发布失败，不能跳过验证或退回只验证 win-unpacked。非 Windows 构建主机需要兼容的 `bsdtar`。
+
+**生产依赖验证**：`afterPack` 和最终安装器资源验证共用 [verify-packaged-dependencies.js](../../../scripts/verify-packaged-dependencies.js)。从归档内应用 `package.json` 的生产依赖出发，按 Node 的嵌套与提升路径递归检查包清单；缺失必需包立即抛错，并列出所属包和缺失依赖。未安装的可选依赖可省略，已安装可选依赖的必需子依赖仍必须完整；不检查开发依赖，也不允许开发机或父目录的模块补足归档。最终安装器在哈希校验后再次执行同一检查，因此“哈希正确但缺运行依赖”不能通过发布门禁。此静态检查不执行归档代码，不代替隔离 Electron 启动验收。
 
 **清单**：`resources/client-integrity-manifest.json`，4 MiB/10000 项上限；仅包含 app.asar 和实际存在的 app.asar.unpacked 普通文件；稳定排序，不含清单自身、运行环境和用户数据。构建生成器和运行时共用 `resource-integrity-files.js` 的格式/路径/摘要规则。运行期语义见 [desktop/update.md](../desktop/update.md)。
 

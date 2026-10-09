@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
+const { verifyPackagedDependencies } = require('./verify-packaged-dependencies');
 const {
   MANIFEST_NAME,
   MAX_FILES,
@@ -84,6 +85,7 @@ async function verifyInstaller(filename, metadata) {
       const reasonCode = await inspectFile(fs, resourcesDir, file);
       if (reasonCode) throw failure(reasonCode);
     }
+    verifyPackagedDependencies(path.join(resourcesDir, 'app.asar'));
     return { totalFiles: manifest.files.length };
   } finally {
     await fs.promises.rm(directory, { recursive: true, force: true });

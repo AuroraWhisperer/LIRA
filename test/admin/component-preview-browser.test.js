@@ -191,7 +191,7 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     if (component === 'clock') {
       await desktop.evaluate(() => { window.failSave = true; });
       await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-      await page.getByRole('status').filter({ hasText: '模拟保存失败' }).waitFor();
+      await page.locator('.preview-canvas-status').filter({ hasText: '模拟保存失败' }).waitFor();
       assert.equal(await desktop.evaluate(() => window.controller.getState().dirty), true);
       await desktop.evaluate(() => { window.failSave = false; });
     }

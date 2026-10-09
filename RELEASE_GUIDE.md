@@ -16,6 +16,8 @@ npm version X.Y.Z --no-git-tag-version
 
 先按[本地发布验证](docs/reference/engineering/build.md#本地发布验证)准备环境：优先复用已有的锁定服务器检出与本机 NSIS 缓存；需要指定服务器检出时设置 `LIRA_SERVER_ROOT`，不要切换正在开发的服务器工作区。
 
+每个构建检出使用独立 `node_modules`，按锁文件执行 `npm ci`；不要通过 junction/symlink 共用另一工作区的依赖。生产依赖收集警告必须解决后重建；打包后和最终安装器验收均会拒绝缺少必需依赖的归档，规则见上述构建参考。
+
 先完成版本、变更说明和已知问题的修复，再运行一次统一验证；它依次执行契约输入校验、语法检查和全量 `npm test`。不要为了摸底先跑一遍全量，也不要另跑 `verify:quick`、`check`、安装器测试组或 `npm test` 重复覆盖。保留实时输出；需要日志时同步保存到 `tmp/`，避免完全重定向后反复读取日志。
 
 ```powershell

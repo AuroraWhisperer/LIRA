@@ -172,7 +172,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 - 顶层异常返回脱敏 500；非法 JSON 返回 400，请求体超预算返回带 `Connection: close` 的 413。
 
 
-**请求体与预算**：常规 JSON 使用 [api-routes.js](../../../src/server/api-routes.js) 的惰性 `createBodyReader`，空 body 为 `{}`、非法 JSON 为 400；默认入站预算为 16 MiB，`/api/interactions/` 明确收紧为 **16 KiB**。原始文件上传由所属路由调用 `readRawBody` 并独立设定预算（开播动画上传见 §2.1），不能从 JSON 上限推断文件大小上限。超量读取标记 `REQUEST_BODY_TOO_LARGE`；[http-utils.js](../../../src/server/http-utils.js) 暂停读取并清缓存，413 携带 `Connection: close`，未结束上传有 1 秒强制回收上界。领域 handler 应透传该限额错误。
+**请求体与预算**：常规 JSON 使用 [api-routes.js](../../../src/server/api-routes.js) 的惰性 `createBodyReader`，空 body 为 `{}`、非法 JSON 为 400；默认入站预算为 16 MiB，`/api/interactions/` 明确收紧为 **16 KiB**。原始文件上传由所属路由调用 `readRawBody` 并独立设定预算（开播动画上传见 §2.1），不能从 JSON 上限推断文件大小上限。超量读取标记 `REQUEST_BODY_TOO_LARGE`；[http-utils.js](../../../src/server/http-utils.js) 清缓存并丢弃后续数据，避免未读数据在关闭连接时重置错误响应；413 携带 `Connection: close` 和准确的 `Content-Length`，先写出完整错误响应，再等待请求读完后结束响应；未结束上传有 1 秒强制回收上界。领域 handler 应透传该限额错误。
 
 | 响应类别 | Content-Type / 缓存 | 响应与错误边界 |
 | --- | --- | --- |
