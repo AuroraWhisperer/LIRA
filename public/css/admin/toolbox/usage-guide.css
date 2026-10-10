@@ -103,16 +103,20 @@
 }
 
 .usage-guide-main {
+  --type-size-body: 16px;
+  --type-size-caption: 13px;
   display: grid;
-  gap: 32px;
+  gap: 48px;
   align-content: start;
   min-width: 0;
+  font-size: 16px;
+  line-height: 28px;
 }
 
 /* 章节以留白和分隔线组织，避免多层卡片边框。 */
 .usage-guide-section {
   display: grid;
-  gap: 24px;
+  gap: 0;
   min-width: 0;
   padding: 0 6px 28px;
   border-bottom: 1px solid var(--usage-guide-rule);
@@ -131,9 +135,9 @@
   gap: 12px;
   margin: 0;
   color: var(--text);
-  font-size: var(--type-size-page-title);
-  font-weight: var(--type-weight-bold);
-  line-height: var(--type-leading-section-title);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 34px;
 }
 
 .usage-guide-section-index {
@@ -145,18 +149,58 @@
 }
 
 .usage-guide-section-intro {
-  margin: 0;
+  max-width: 40em;
+  margin: 12px 0 24px;
   color: var(--muted);
   font-size: var(--type-size-body);
-  line-height: 1.8;
+  line-height: 28px;
 }
 
 .usage-guide-subsection-title {
-  margin: 16px 0 0;
+  margin: 36px 0 16px;
   color: var(--text);
-  font-size: var(--type-size-section-title);
+  font-size: 20px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 30px;
+}
+
+.usage-guide-main [id] {
+  scroll-margin-top: var(--usage-guide-scroll-offset, 110px);
+}
+
+.usage-guide-main .usage-guide-task-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.usage-guide-main .usage-guide-task-title strong {
+  font: inherit;
+}
+
+.usage-guide-main p,
+.usage-guide-main ul,
+.usage-guide-main ol {
+  max-width: 40em;
+}
+
+.usage-guide-main .usage-guide-inline-title {
+  margin-top: 24px;
+  font-weight: 600;
+}
+
+.usage-guide-main .usage-guide-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.usage-guide-main .usage-guide-faq > .usage-guide-foldout,
+.usage-guide-main .usage-guide-faq > ul {
+  margin: 12px 15px;
+}
+
+.usage-guide-example-step + .usage-guide-example-step {
+  margin-top: 24px;
 }
 
 /* 快速上手四个条目 */
@@ -196,7 +240,7 @@
   margin: 0;
   color: var(--text);
   font-size: var(--type-size-body);
-  line-height: 1.8;
+  line-height: 28px;
 }
 
 .usage-guide-card p strong,
@@ -340,7 +384,7 @@
 
 .usage-guide-feature-copy {
   min-width: 0;
-  max-width: 68ch;
+  max-width: 40em;
 }
 
 .usage-guide-feature--illustrated .usage-guide-image {
@@ -372,7 +416,8 @@
 /* 常见问题（手风琴） */
 .usage-guide-faq-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 720px;
   gap: 10px;
   align-items: start;
 }
@@ -445,7 +490,6 @@
 }
 
 .usage-guide-faq .usage-guide-image {
-  width: auto;
   max-width: 100%;
 }
 

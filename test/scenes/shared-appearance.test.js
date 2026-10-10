@@ -46,6 +46,33 @@ test('shared projections prefer desktop settings without rewriting snapshots and
   assert.equal(ctx.values.desktopLyricKaraokeEnabled, 'false');
 });
 
+test('heart box display parameters share desktop values and canvas edits without changing layout', t => {
+  const ctx = context(t);
+  const config = createSceneExtraDefaults('blindbox');
+  const owner = createSceneSharedAppearance(ctx);
+  owner.patch('blindbox', config, { heartBoxOnly: true, blindboxCastleMultiplier: '2.5',
+    blindboxShowCastlesRemaining: true, blindboxCastlesRemaining: '0', blindboxShowOpenedSinceCastle: true,
+    compact: true, noScroll: false, winnersOnly: false, themeFontScale: '1.5', overlayFontWeight: '600',
+    overlayFontFamily: 'Arial', themeBackground: '#112233', themeOpacity: '0.8', themeText: '#ffffff',
+    themePrimary: '#aabbcc', themeAccent: '#ddeeff' });
+  const shared = createSceneSharedAppearance(ctx).read('blindbox', config);
+  assert.equal(shared.heartBoxOnly, true);
+  assert.equal(shared.blindboxCastleMultiplier, '2.5');
+  assert.equal(shared.blindboxCastlesRemaining, '0');
+  assert.equal(ctx.values.blindboxShowOpenedSinceCastle, 'true');
+  assert.equal(ctx.values.blindboxCompact, 'true');
+  assert.equal(ctx.values.blindboxAutoPages, 'false');
+  assert.equal(shared.compact, true);
+  assert.equal(shared.noScroll, false);
+  assert.equal(shared.hideLoss, false, 'legacy loss filter follows the single shared profitability switch');
+  for (const key of ['overlayFontFamily', 'overlayFontWeight', 'themeFontScale', 'themeBackground', 'themeOpacity',
+    'themeText', 'themePrimary', 'themeAccent']) assert.equal(shared[key], ctx.values[key]);
+  owner.patch('blindbox', config, { blindboxCastleMultiplier: '' });
+  assert.equal(ctx.values.blindboxCastleMultiplier, '');
+  assert.throws(() => owner.patch('blindbox', config, { blindboxCastleMultiplier: '-1' }));
+  assert.equal(config.heartBoxOnly, false);
+});
+
 test('style owners keep clock profiles, guard languages and imported resource parameters separate', t => {
   const ctx = context(t);
   const clock = getClockConfig(ctx.values);

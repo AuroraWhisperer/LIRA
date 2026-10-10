@@ -205,8 +205,14 @@ if (userDataMigrationState.error) {
     .whenReady()
     .then(startDesktopApp)
     .catch(function (error) {
-      dialog.showErrorBox('启动失败', error.message || String(error));
-      app.quit();
+      writeLog('startup-error', error);
+      try {
+        dialog.showErrorBox('启动失败', error.message || String(error));
+      } catch (reportError) {
+        writeLog('startup-error', reportError);
+      } finally {
+        void requestDesktopShutdown({ exitCode: 1 });
+      }
     });
 }
 
@@ -223,18 +229,19 @@ app.on('window-all-closed', function () {
 });
 
 app.on('before-quit', function (event) {
-  void resourceIntegrity.stop();
-  if (!lifecycleState.shutdownPromise && !lifecycleState.shutdown) return;
+  if (!lifecycleState.shutdownPromise && !lifecycleState.shutdown) {
+    void resourceIntegrity.stop();
+    return;
+  }
   event.preventDefault();
   requestDesktopShutdown();
 });
 
-function requestDesktopShutdown({ restart = false } = {}) {
+function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
   if (lifecycleState.shutdownPromise) return lifecycleState.shutdownPromise;
   // The first request owns the final action and the deadline, including reentry.
   const { promise, resolve } = Promise.withResolvers();
   lifecycleState.shutdownPromise = promise;
-  const integrityStopped = resourceIntegrity.stop();
   let finished = false;
   writeLog('lifecycle', { event: 'QUIT_BEGIN' });
   const forceQuitTimer = setTimeout(function () {
@@ -250,8 +257,12 @@ function requestDesktopShutdown({ restart = false } = {}) {
     if (finished) return;
     finished = true;
     clearTimeout(forceQuitTimer);
-    lifecycleState.requestAuth?.dispose();
     writeLog('lifecycle', { event });
+    try {
+      lifecycleState.requestAuth?.dispose();
+    } catch (error) {
+      logError(error);
+    }
     try {
       licenseManager?.dispose();
     } catch (error) {
@@ -264,13 +275,14 @@ function requestDesktopShutdown({ restart = false } = {}) {
     } catch (error) {
       logError(error);
     } finally {
-      app.exit(0);
+      app.exit(exitCode);
       resolve();
     }
   }
 
   void (async function () {
     try {
+      const integrityStopped = resourceIntegrity.stop();
       readinessController?.dispose();
       readinessController = null;
       licenseResumeController?.unregister();

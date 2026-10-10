@@ -26,14 +26,6 @@
   gap: 12px;
 }
 
-.clock-card-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.clock-card-heading h3,
 .clock-settings-card h3 {
   margin: 0;
   color: var(--text);
@@ -93,7 +85,6 @@
 .clock-settings-card #clockSaveState {
   margin: 0;
 }
-.clock-address-section,
 .clock-parameter-section {
   display: grid;
   gap: 12px;
@@ -102,39 +93,6 @@
   gap: 8px;
   padding-top: 12px;
   border-top: 1px solid var(--color-border-light);
-}
-
-.clock-url-box {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  padding: 6px 6px 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-}
-
-.clock-url-box code {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: var(--type-size-caption);
-  line-height: 1.5;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.clock-url-box button,
-.clock-card-heading button {
-  justify-self: start;
-  min-height: 31px;
-  padding: 6px 10px;
-  font-size: var(--type-size-control);
-  white-space: nowrap;
 }
 
 .clock-style-options {
@@ -494,9 +452,6 @@
   .clock-style-options,
   .clock-settings-card .clock-style-options {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .clock-url-box {
-    grid-template-columns: 1fr;
   }
   .clock-preview-canvas {
     min-height: 170px;

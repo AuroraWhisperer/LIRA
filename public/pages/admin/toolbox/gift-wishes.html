@@ -1,23 +1,5 @@
-<section id="giftWishesPanel" class="gift-wishes-panel" role="tabpanel" aria-labelledby="giftAssistantWishesTab" hidden>
-  <details id="giftSprintOverlayPanel" class="gift-sprint-overlay-panel">
-    <summary>月底冲刺</summary>
-    <div class="gift-sprint-source">
-      <label for="giftSprintOverlayUrl">浏览器源</label>
-      <input id="giftSprintOverlayUrl" readonly aria-label="月底冲刺浏览器源地址" />
-      <button id="giftSprintCopy" type="button" class="secondary">复制地址</button>
-      <button id="giftSprintPreview" type="button" class="secondary">打开画布</button>
-    </div>
-    <div class="gift-sprint-preview">
-      <span class="hint">实时进度</span>
-      <p id="giftSprintTextPreview" class="gift-sprint-text" hidden></p>
-      <p id="giftSprintOverlayStatus" class="hint" role="status">正在读取月底冲刺进度…</p>
-    </div>
-    <div class="gift-sprint-overlay-footer">
-      <p class="hint">沿用「礼物 → 月底冲刺」的目标与进度。每 100 元剩余金额折合 1 个水晶球，不足 1 个按 1 个计。</p>
-      <button id="giftSprintConfigure" type="button" class="secondary">设置冲刺目标</button>
-    </div>
-  </details>
-  <header class="gift-wishes-heading">
+<section id="giftWishesPanel" class="gift-wishes-panel">
+  <header class="gift-wishes-heading component-toolbar">
     <div class="gift-wish-periods gift-wish-field">
       <label for="giftWishPeriod">统计周期 <lira-help label="统计周期说明"><span id="giftWishPeriodHint">从创建时开始累计，不重置。</span></lira-help></label>
       <select id="giftWishPeriod" aria-label="许愿统计周期" aria-describedby="giftWishPeriodHint">
@@ -28,7 +10,7 @@
     </div>
     <div class="gift-wish-source-actions">
       <div class="gift-wish-source gift-wish-field">
-        <label for="giftWishUrl">浏览器源 <lira-help label="许愿浏览器源说明">统一展示长效、本日和本场直播许愿；切换统计周期只影响这里的编辑与管理。</lira-help></label>
+        <lira-help label="许愿浏览器源说明">统一展示长效、本日和本场直播许愿；切换统计周期只影响这里的编辑与管理。</lira-help>
         <input id="giftWishUrl" readonly aria-label="礼物许愿浏览器源地址" />
       </div>
       <button id="giftWishCopy" type="button" class="secondary">复制地址</button>
@@ -151,6 +133,7 @@
       <p id="giftWishEmpty" class="gift-wish-empty hint" hidden>暂无许愿</p>
     </div>
   </div>
+
   <dialog id="giftWishPicker" class="gift-wish-picker" aria-labelledby="giftWishPickerTitle">
     <header>
       <h3 id="giftWishPickerTitle">选个礼物</h3>

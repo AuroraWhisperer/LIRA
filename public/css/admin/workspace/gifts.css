@@ -80,56 +80,9 @@ body.player-dock-expanded .gift-workspace {
   grid-row: 3;
 }
 
-.gift-planning-row {
-  grid-column: 1 / -1;
-  grid-row: 4;
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  align-items: stretch;
-  gap: 14px;
-  min-width: 0;
-}
-
 .gift-blindbox-mapping-panel {
   grid-column: 1 / -1;
-  grid-row: 5;
-}
-
-.gift-planning-row > .panel {
-  container: gift-planning-card / inline-size;
-  border-color: var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-primary);
-  box-shadow: var(--shadow-sm);
-  overflow: visible;
-}
-
-.gift-planning-row > .panel > .panel-header {
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: var(--color-bg-tertiary);
-}
-
-.gift-planning-row .gift-section-title {
-  margin: 0;
-}
-
-.gift-workspace .gift-planning-row > .panel > .panel-body {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-}
-
-@container gift-workspace (max-width: 1059px) {
-  .gift-planning-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  grid-row: 4;
 }
 
 .gift-page .panel-body .gift-cards {

@@ -5,6 +5,8 @@ const { app, BrowserWindow, webContents, session } = require('electron');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const net = require('node:net');
+const { once } = require('node:events');
 const { createHttpServer } = require('../../src/server/http-server');
 const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createWebSocketHub } = require('../../src/server/ws');
@@ -88,6 +90,7 @@ async function run(mediaOnly = false) {
     return win;
   };
   const report = { electron: process.versions.electron, chrome: process.versions.chrome, scenarios: [] };
+  let idleConnectionClosed;
   try {
     for (const route of mediaOnly ? [] : ['/gift-effects', '/lyrics', '/danmaku']) {
       const win = makeWindow();
@@ -177,13 +180,20 @@ async function run(mediaOnly = false) {
       .filter((entry) => entry.getURL().startsWith(origin)).length;
     assert.equal(report.remainingWebContents, 0);
     report.gpuFeatureStatus = app.getGPUFeatureStatus();
+    // Chromium may preconnect without sending a request before its window closes.
+    const idleConnection = net.createConnection(server.address().port, '127.0.0.1');
+    idleConnectionClosed = once(idleConnection, 'close');
+    await once(idleConnection, 'connect');
     return report;
   } finally {
     auth.dispose();
     for (const win of windows) win.destroy();
     hub.stop();
     for (const socket of upgrades) socket.destroy();
-    await new Promise((resolve) => server.close(resolve));
+    const serverClosed = new Promise((resolve) => server.close(resolve));
+    server.closeAllConnections();
+    await serverClosed;
+    await idleConnectionClosed;
   }
 }
 

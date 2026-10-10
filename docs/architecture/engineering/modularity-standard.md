@@ -44,6 +44,9 @@ Required direction:
    `src/electron/`, or `public/`.
 4. `src/server.js`, `src/electron/main.js`, and frontend entrypoints may depend on
    internal modules. Internal modules do not import those entrypoints.
+   `src/electron/entry.js` only loads the Electron composition root and reports
+   synchronous startup failure before exiting; it owns no domain wiring and is
+   also forbidden as an import target of internal modules.
 5. Cross-domain calls use an explicit facade, consumer, or port. A domain does
    not read another domain's internal mutable state.
 

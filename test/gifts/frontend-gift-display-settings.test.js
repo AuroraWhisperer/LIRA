@@ -7,13 +7,16 @@ const { readCssBundle } = require('../helpers/css-bundle');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const fixture = createUiFixture();
-const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
+const html = readAdminFragmentHtml('pages/admin/live-components/page.html');
 
 async function openSettings(t, { tabs = false } = {}) {
   const page = await fixture(t, 'gift-display');
   await page.setContent(html);
   await page.evaluate(async tabs => {
-    document.getElementById('otherGiftFeature').hidden = false;
+    document.getElementById('liveComponentsPage').classList.add('active');
+    const { createFeatureNavigation } = await import('/js/admin/toolbox-navigation.js');
+    const navigation = createFeatureNavigation({ pageId: 'liveComponentsPage', storagePrefix: 'admin.liveComponents' });
+    navigation.initOtherPage();
     window.savedDisplay = {
       palette: 'bilibili-four',
       thresholds: [10000, 50000, 100000],
@@ -37,8 +40,7 @@ async function openSettings(t, { tabs = false } = {}) {
       initGiftAssistant();
       document.getElementById('giftAssistantDisplayTab').click();
     } else {
-      document.getElementById('giftFramePanel').hidden = true;
-      document.getElementById('giftDisplaySettings').hidden = false;
+      navigation.selectFeatureById('giftDisplayFeature');
       const { createGiftDisplaySettings } = await import('/js/admin/gifts/display-settings.js');
       await createGiftDisplaySettings().open();
     }
@@ -234,7 +236,7 @@ test('defaults reset both range endpoints and cancelling discards the draft', as
   assert.equal(await page.locator('#giftTierEnd0').inputValue(), '100');
 });
 
-test('gift assistant keeps display drafts across tabs and leaves export settings outside this panel', async (t) => {
+test('gift pages keep display drafts across navigation and leave export settings outside this panel', async (t) => {
   const page = await openSettings(t, { tabs: true });
   await page.locator('#giftFeedRows').fill('5');
   await page.getByRole('tab', { name: '全屏礼物感谢', exact: true }).click();
@@ -247,4 +249,29 @@ test('gift assistant keeps display drafts across tabs and leaves export settings
   await page.waitForFunction(() => window.displaySaves.length === 1);
   assert.equal(await page.evaluate(() => window.savedDisplay.visibleRows), 5);
   assert.equal(await page.locator('#giftAssistantExportTab, #giftExportSettings').count(), 0);
+});
+
+test('gift navigation exposes six pages and folding the group keeps the current page', async (t) => {
+  const page = await openSettings(t, { tabs: true });
+  const group = page.locator('#otherGiftFeatureTab');
+  const submenu = page.locator('#giftAssistantNavigation');
+  assert.equal(await group.getAttribute('aria-expanded'), 'true');
+  assert.deepEqual((await submenu.getByRole('tab').allTextContents()).map((label) => label.trim()), [
+    '全屏礼物感谢', '滚动礼物', '礼物许愿', '月底冲刺', '盲盒盈亏榜', '大航海感谢',
+  ]);
+  assert.equal(await page.locator('.other-feature-content').getByText('礼物姬', { exact: true }).count(), 0);
+  for (const label of ['全屏礼物感谢', '滚动礼物', '大航海感谢']) {
+    await submenu.getByRole('tab', { name: label, exact: true }).click();
+    assert.equal(await page.locator('[data-other-feature-panel]:not([hidden])').count(), 1);
+    const panel = page.locator('[data-other-feature-panel]:not([hidden])');
+    assert.equal(await panel.getAttribute('aria-labelledby'), await submenu.getByRole('tab', { name: label, exact: true }).getAttribute('id'));
+  }
+  await group.click();
+  assert.equal(await group.getAttribute('aria-expanded'), 'false');
+  assert.equal(await submenu.getByRole('tab').count(), 0);
+  assert.equal(await page.locator('#guardThanksFeature').isVisible(), true);
+  assert.equal(await page.getByRole('tab', { name: '文本框', exact: true }).isVisible(), true);
+  await group.press('Enter');
+  assert.equal(await group.getAttribute('aria-expanded'), 'true');
+  assert.equal(await submenu.getByRole('tab', { name: '大航海感谢', selected: true }).count(), 1);
 });

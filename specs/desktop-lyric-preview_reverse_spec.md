@@ -1,5 +1,9 @@
 # 桌面歌词预览链路逆向说明
 
+## Status
+
+Superseded — 本文记录完整时间轴接入前的单行预览，用于解释当时的问题。需求及验收由[完整桌面歌词时间轴规格](desktop-lyric-timeline_design.md)承接，当前实现见[歌词展示参考](../docs/reference/frontend/overlays.md#6-桌面歌词页lyrics)。下文“没有完整歌词列表”等描述仅属于历史基线。
+
 ## 分析范围
 
 本说明只覆盖“播放/全民 K 歌歌词数据 → 服务端实时状态 → 管理页桌面歌词预览”。证据来自：

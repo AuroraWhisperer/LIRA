@@ -38,7 +38,6 @@ test('display overlay URLs use explicit settings capabilities without the legacy
       'liveClockUrl',
       'webSongPageUrl',
       'blindboxOverlayUrl',
-      'blindboxLiveLink',
     ].map((id) => [id, { addEventListener() {} }]),
   );
   const copyButton = { addEventListener() {}, removeEventListener() {} };
@@ -60,7 +59,6 @@ test('display overlay URLs use explicit settings capabilities without the legacy
   assert.equal(nodes.get('songsUrl').textContent, 'http://127.0.0.1:3012/songlist');
   assert.equal(nodes.get('liveGiftWishUrl').textContent, 'http://127.0.0.1:3012/gift-wishes');
   assert.equal(nodes.get('blindboxOverlayUrl').textContent, 'http://127.0.0.1:3012/blindbox');
-  assert.equal(nodes.get('blindboxLiveLink').href, 'http://127.0.0.1:3012/blindbox');
   assert.equal(copyButton.disabled, true);
 });
 
@@ -69,7 +67,6 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
     const html = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/song/overlay-addresses.html'), 'utf8');
     const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)].map(([, id]) => [id, { addEventListener() {} }]));
     nodes.set('blindboxOverlayUrl', {});
-    nodes.set('blindboxLiveLink', {});
     const buttons = new Map();
     const listeners = new Set();
     const pagehide = [];

@@ -5,13 +5,12 @@ import { MEDIA_STYLE_TITLES } from '../shared/component-media-style.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
 import { openComponentSourceImport } from './component-source-import.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
-import { openComponentLibraryManager } from './component-library-manager.js';
 
 const styleTitle = type => MEDIA_STYLE_TITLES[type] || SCENE_EXTRA_COMPONENTS[type]?.title
   || ({ overtime: '加班机', browser: '浏览器源', 'text-box': '文本框' })[type] || '组件';
 const isComponentSuite = pack => pack.isSuite;
 
-export function mountComponentStyleLibrary(host, { type, request = requestComponentStyles, onUse, actionLabel = '添加到画布', inline = false, suitesOnly = false, renderList, onImportTarget, initialFile, updatePack, manageHost } = {}) {
+export function mountComponentStyleLibrary(host, { type, request = requestComponentStyles, onUse, actionLabel = '添加到画布', inline = false, suitesOnly = false, renderList, onImportTarget, initialFile, updatePack } = {}) {
   loadComponentStyleCss();
   const root = previewElement('section', 'component-style-library');
   root.classList.toggle('component-style-library-inline', inline);
@@ -25,13 +24,9 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
   status.hidden = inline;
   root.append(header, list, status); host.append(root);
   const requests = new AbortController();
-  let editor; let manager; let closed = false; let revision = 0; let updateTarget = updatePack || null; let importing = false; let interacted = false;
+  let editor; let closed = false; let revision = 0; let updateTarget = updatePack || null; let importing = false; let interacted = false;
   const add = type ? previewElement('button', 'component-style-add', '＋ 添加样式') : null;
   if (add) { add.type = 'button'; add.addEventListener('click', () => openImport()); }
-  const manage = previewElement('button', 'secondary component-style-manage', '管理样式库'); manage.type = 'button';
-  manage.addEventListener('click', () => { manager = openComponentLibraryManager({ request,
-    onUpdate(pack, file) { redirectImport(pack.importTarget, file, pack); }, onChanged: refresh }); });
-  if (!type) header.append(manage);
   function redirectImport(target, file, pack) {
     if (onImportTarget) onImportTarget(target, file, pack);
     else editor = openComponentStyleLibrary({ type: target === 'suite' ? undefined : target,
@@ -194,9 +189,8 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
         card.append(remove);
         }
       }
-      // A page heading slot keeps library management out of the selectable style grid.
-      if (add) { list.append(add); (manageHost || list).append(manage); }
-      renderList?.({ list, cards, add, manage });
+      if (add) list.append(add);
+      renderList?.({ list, cards, add });
       if (suitesOnly && !list.childElementCount) {
         const empty = previewElement('div', 'component-style-empty');
         empty.append(previewElement('h4', '', '还没有套装'), previewElement('p', 'hint', '点击「导入套装」，选择作者提供的 ZIP 安装包。'));
@@ -212,10 +206,10 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
   if (!inline || renderList) window.addEventListener('focus', () => {
     if (root.closest('dialog')?.open) void refresh();
   }, { signal: requests.signal });
-  renderList?.({ list, cards: [], add, manage });
+  renderList?.({ list, cards: [], add });
   void refresh();
   if (initialFile) void inspectArchive(initialFile);
-  return { refresh, importArchive: inspectArchive, dispose() { closed = true; requests.abort(); editor?.dispose(); manager?.dispose(); add?.remove(); manage.remove(); root.remove(); } };
+  return { refresh, importArchive: inspectArchive, dispose() { closed = true; requests.abort(); editor?.dispose(); add?.remove(); root.remove(); } };
 }
 
 export function openComponentStyleLibrary(options) {

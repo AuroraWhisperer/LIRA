@@ -20,7 +20,8 @@ test(
         : false,
   },
   async (t) => {
-    const source = fs.readFileSync(path.join(__dirname, '../../build/installer-data.nsh'), 'utf8');
+    const source = ['installer-process.nsh', 'installer-data.nsh']
+      .map(name => fs.readFileSync(path.join(__dirname, '../../build', name), 'utf8')).join('\n');
     const functions = source.replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}');
     const installer = fs.readFileSync(path.join(__dirname, '../../build/installer-uninstall.nsh'), 'utf8');
     const removal = installer.replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}');
@@ -39,7 +40,8 @@ test(
       'restore-failure',
       'report-failure',
       'locked-data',
-      'running-app',
+      'linked-partial-backup',
+      'installer-same-name',
       'upgrade-preserves-data-and-downloads',
     ]) {
       await t.test(scenario, async () => {
@@ -72,6 +74,11 @@ test(
           if (scenario === 'existing-local') putData(legacyAppData, 'stale AppData fixture');
           if (scenario === 'backup-conflict') putData(backup, 'previous recovery fixture');
           if (scenario === 'target-conflict') putData(destination, 'newer fixture');
+          if (scenario === 'linked-partial-backup') {
+            const outside = path.join(root, 'other-application');
+            putData(outside, 'unrelated data');
+            fs.symlinkSync(outside, backup + '.partial', 'junction');
+          }
           if (['copy-failure', 'report-failure'].includes(scenario))
             fs.writeFileSync(backup + '.partial', 'obstructs staging directory');
           if (scenario === 'report-failure') {
@@ -112,7 +119,7 @@ test(
             'Var installMode',
             '!define VERSION "fixture"',
             `!addplugindir /x86-unicode "${definePath(plugins)}"`,
-            `!define APP_EXECUTABLE_FILENAME "${scenario === 'running-app' ? 'fixture.exe' : path.basename(root) + '-absent.exe'}"`,
+            `!define APP_EXECUTABLE_FILENAME "${scenario === 'installer-same-name' ? 'fixture.exe' : path.basename(root) + '-absent.exe'}"`,
             `OutFile "${definePath(path.join(root, 'fixture.exe'))}"`,
             `!define FIXTURE_APPDATA "${definePath(appData)}"`,
             `!define FIXTURE_TEMP "${definePath(reportDir)}"`,
@@ -161,7 +168,7 @@ test(
           const failed =
             scenario.includes('failure') ||
             scenario.includes('conflict') ||
-            ['locked-data', 'running-app'].includes(scenario);
+            scenario === 'locked-data';
           const reportPath = path.join(reportDir, 'LIRA-install-error.txt');
           assert.equal(
             run.status,
@@ -186,7 +193,6 @@ test(
             const report = fs.readFileSync(path.join(reportDir, 'LIRA-install-error.txt'), 'utf16le');
             assert.ok(report.includes('fixture'));
             assert.ok(report.includes(destination));
-            if (scenario === 'running-app') assert.ok(report.includes('等待旧版 LIRA 退出'));
             if (scenario === 'locked-data') assert.ok(report.includes('Cookies'), report);
           }
           if (scenario === 'backup-conflict')
@@ -195,6 +201,8 @@ test(
             assert.equal(fs.readFileSync(path.join(destination, 'fixture.txt'), 'utf8'), 'newer fixture');
           if (scenario === 'existing-local')
             assert.equal(fs.readFileSync(path.join(legacyAppData, 'fixture.txt'), 'utf8'), 'stale AppData fixture');
+          if (scenario === 'linked-partial-backup')
+            assert.equal(fs.readFileSync(path.join(root, 'other-application', 'fixture.txt'), 'utf8'), 'unrelated data');
           if (scenario === 'appdata-return')
             assert.equal(fs.readFileSync(path.join(legacyAppData, 'fixture.txt'), 'utf8'), 'legacy fixture');
           if (scenario === 'upgrade-preserves-data-and-downloads') {

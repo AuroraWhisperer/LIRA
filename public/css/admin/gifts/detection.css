@@ -25,8 +25,8 @@
 
 /* ---- 月底冲刺 ---- */
 .gift-sprint-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
 }
 
@@ -50,13 +50,13 @@
 }
 
 .gift-stat {
-  display: grid;
-  flex: 1 1 calc(50% - 5px);
-  align-content: start;
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   min-width: min-content;
   max-width: 100%;
-  min-height: 84px;
+  min-height: 56px;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
@@ -64,6 +64,7 @@
 }
 
 .gift-stat span {
+  flex-shrink: 0;
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
@@ -71,7 +72,7 @@
 }
 
 .gift-stat .ui-metric {
-  font-size: var(--type-size-metric-md);
+  font-size: var(--type-size-metric-sm);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-display);
   font-variant-numeric: tabular-nums;
@@ -94,7 +95,7 @@
   margin-left: auto;
 }
 
-@container gift-planning-card (max-width: 379px) {
+@container gift-sprint-card (max-width: 379px) {
   .gift-sprint-form-row label {
     flex-basis: 100%;
   }

@@ -203,7 +203,7 @@ function createFanProfileController({
     if (!captured) throw new Error('请先登录主播账号。');
     if (!request || typeof request !== 'object') throw new Error('档案请求无效。');
     const { action, payload = {}, contextId } = request;
-    if (action !== 'open' && action !== 'auto-update-status' && contextId !== captured.id)
+    if (!['open', 'calendar', 'auto-update-status'].includes(action) && contextId !== captured.id)
       throw new Error('登录状态已变化，请重新打开粉丝档案。');
     const service = getService();
     if (!service) throw new Error('档案存储尚未就绪。');

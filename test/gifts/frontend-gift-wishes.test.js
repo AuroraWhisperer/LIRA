@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const fixture = createUiFixture();
-const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
+const html = readAdminFragmentHtml('pages/admin/live-components/page.html');
 
 async function open(t) {
   const page = await fixture(t, 'wishes');
@@ -27,7 +27,9 @@ async function open(t) {
   );
   await page.setContent(html);
   await page.evaluate(async () => {
-    document.getElementById('otherGiftFeature').hidden = false;
+    document.getElementById('liveComponentsPage').classList.add('active');
+    const { createFeatureNavigation } = await import('/js/admin/toolbox-navigation.js');
+    createFeatureNavigation({ pageId: 'liveComponentsPage', storagePrefix: 'admin.liveComponents' }).initOtherPage();
     window.wishSaves = [];
     window.wishDeleted = [];
     window.wishData = {

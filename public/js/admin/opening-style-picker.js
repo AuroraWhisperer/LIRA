@@ -49,7 +49,6 @@ export function mountOpeningStylePicker({ onBuiltin, beforeSelect }) {
     render();
   });
   const library = mountComponentStyleLibrary(host, { type: 'opening', inline: true,
-    manageHost: host.closest('.opening-style-picker')?.querySelector('[data-style-library-actions]'),
     actionLabel: '选择样式', onUse: select,
     renderList(value) {
       cards = value.cards;

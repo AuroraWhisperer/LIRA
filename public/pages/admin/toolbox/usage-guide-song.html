@@ -1,252 +1,158 @@
-<!-- ============ 点歌页详解 ============ -->
-<section class="usage-guide-section" id="ug-song">
-  <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">05</span>点歌页详解
-  </h3>
-  <div class="usage-guide-feature-list">
-    <article class="usage-guide-feature" id="ug-song-queues">
-      <div class="usage-guide-feature-head"><strong>SC 队列 + 点歌队列</strong></div>
-      <p>
-        「点歌」页上方左边是 SC 队列，右边是点歌队列。SC（醒目留言）是观众付费发的留言。观众发「点歌
-        歌名」就能点歌，歌名不完整也会尝试匹配歌库。
-      </p>
-      <ul>
-        <li><strong>置顶 / 取消置顶：</strong>调整点歌顺序。每首歌旁边还有「复制歌名」和「删除」。</li>
-        <li><strong>完成队首：</strong>把点歌队列的第一首标为完成。要切换正在放的音乐，用播放页的播放器。</li>
-        <li><strong>清空点歌队列：</strong>移除队首和全部等待点歌，歌库不受影响。</li>
-        <li><strong>重启恢复：</strong>关闭或更新 LIRA 后重新打开，未完成点歌会按原顺序恢复。开始新一场时可点「清空点歌队列」。</li>
-        <li>
-          <strong>队列满了：</strong>新的点歌进不来。先唱完或删掉几首，也可以到「点歌板」调大「最多排队歌曲数」。
-        </li>
-      </ul>
-      <p>
-        <strong>点歌队列记的是观众想听什么，播放队列决定播放器接下来放什么。</strong>要把点歌放进播放器，到「播放 → 播放队列
-        → 导入点歌」。每次最多处理 30 条新请求；重复导入会跳过已处理的请求，不同观众点同一首歌仍会分别加入。
-      </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/song-queue-item-actions.webp"
-          alt="点歌队列中一首歌右侧的三个按钮：置顶、复制歌名、删除"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-        />
-        <figcaption>每首点歌右边：①置顶或取消置顶，②复制歌名，③删除。</figcaption>
-      </figure>
-      <p>
-        弹出「收到点歌请求」时，先看歌名、匹配到的歌和点歌人，再选「下一首播放」或「跳过」。「下一首播放」会把歌曲排到当前歌曲之后，当前音乐继续播放；播放器空闲时，点播放按钮开始。
-      </p>
-      <details class="usage-guide-foldout">
-        <summary>查看点歌请求通知的样子</summary>
-        <figure class="usage-guide-figure">
-          <img
-            class="usage-guide-image"
-            src="/img/usage-guide/B/song-request-confirmation.webp"
-            alt="窗口上方弹出的收到点歌请求通知，显示歌名、匹配信息和点歌人，下方是下一首播放和跳过按钮"
-            width="1440"
-            height="902"
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption>「收到点歌请求」：①下一首播放，②跳过。</figcaption>
-        </figure>
-      </details>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head"><strong>歌库管理</strong></div>
-      <p>
+<h4 class="usage-guide-subsection-title">02.1 歌库管理</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>02.1.1 新增、编辑与查找</strong></h5></div>
+
+<p>
         打开「点歌 →
         歌库」。上方的表单用来加歌：填好「歌曲名字」和「原唱/首发歌手」，再按需要填分类、语言、标签、点歌价格、歌切等，最后点「保存歌曲」。
       </p>
-      <ul>
-        <li>
-          <strong>查找：</strong>搜索框能搜歌名、歌手、分类或标签。还能按分类、语言、歌手、标签筛选，或选「只看可点」。
+<ul>
+<li>
+<strong>查找：</strong>搜索框能搜歌名、歌手、分类或标签。还能按分类、语言、歌手、标签筛选，或选「只看可点」。
         </li>
-        <li>
-          <strong>修改与删除：</strong>点歌曲行最右边的 ··· 按钮，选「编辑」或「删除」。把「是否可点」设为「否」，歌就会停用：不公开，也不会被随机点歌抽到。
+<li>
+<strong>修改与删除：</strong>点歌曲行最右边的 ··· 按钮，选「编辑」或「删除」。把「是否可点」设为「否」，歌就会停用：不公开，也不会被随机点歌抽到。
         </li>
-        <li>
-          <strong>批量修改：</strong>到「导入导出」选「更新匹配歌曲（先预览）」，核对差异后再确认更新。
+<li>
+<strong>批量修改：</strong>到「导入导出」选「更新匹配歌曲（先预览）」，核对差异后再确认更新。
         </li>
-        <li>
-          <strong>同步：</strong
-          >联网后，歌库的修改（包括删除）会同步到同一账号的其他电脑和网页歌单。点歌队列和播放队列不同步。
+<li>
+<strong>同步：</strong>联网后，歌库的修改（包括删除）会同步到同一账号的其他电脑和网页歌单。点歌队列和播放队列不同步。
         </li>
-      </ul>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/song-library-edit.webp"
-          alt="歌库的加歌表单：歌曲名字、原唱/首发歌手、歌曲分类、是否可点、标签、语言、歌切和点歌价格，右下角是保存歌曲按钮"
-          width="1362"
-          height="362"
-          loading="lazy"
-          decoding="async"
-        />
-        <figcaption>「点歌 → 歌库」上方的加歌表单。</figcaption>
-      </figure>
-      <details class="usage-guide-foldout">
-        <summary>查看歌库列表和筛选</summary>
-        <figure class="usage-guide-figure">
-          <img
-            class="usage-guide-image"
-            src="/img/usage-guide/B/song-library-list.webp"
-            alt="歌库列表上方的搜索框和分类、语言、歌手、标签、只看可点筛选，下方是歌曲表格"
-            width="1440"
-            height="902"
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption>表单下方：搜索框、筛选和歌曲列表。</figcaption>
-        </figure>
-      </details>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>随机点歌</strong>
-      </div>
-      <p>
-        观众发「随机点歌」，会从歌库里随机抽一首。后面还可以加语言、分类、歌手或标签。多个条件用 +
-        或空格隔开，抽到的歌会同时满足所有条件：
-      </p>
-      <ul>
-        <li><strong>按语言</strong>：日语、韩语、英语、粤语、国语</li>
-        <li><strong>按分类</strong>：流行、R&B、说唱、摇滚、民谣、舞曲、影视原声</li>
-        <li><strong>按歌手</strong>：直接输入歌手名</li>
-        <li><strong>按标签</strong>：国风、小甜歌、影视OST、K-Pop 等</li>
-        <li><strong>组合示例</strong>：「随机点歌 日语+流行」「随机点歌 说唱 苦情」</li>
-      </ul>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>点歌页还有哪些功能</strong>
-      </div>
-      <p>点歌页下方的页签：</p>
-      <ul>
-        <li>
-          <strong>设置</strong
-          >：B 站账号登录和直播间号。弹幕监控开关在弹幕姬，礼物监控开关在礼物页。
-        </li>
-        <li>
-          <strong>点歌板</strong>：点歌规则、点歌板黑名单，以及直播画面上点歌板的颜色、字号、滚动模式等样式。
-        </li>
-        <li><strong>展示板</strong>：歌单展示板的滚动速率、歌曲排序方式和主题配色。</li>
-        <li>
-          <strong>浏览器源</strong>：打开场景编辑器、复制直播场景地址，也能直接复制单个组件的浏览器源地址，加到 OBS
-          或直播姬。不需要统一管理时，单个组件会使用已保存的样式。
-        </li>
-        <li><strong>导入导出</strong>：导入 XLSX、CSV、TSV 文件或粘贴表格，也能下载导入模板、导出歌库 Excel。</li>
-        <li><strong>桌面歌词设置</strong>：设置歌词浏览器源的字体、颜色、字号、描边和透明度，并实时预览。</li>
-      </ul>
-      <p>
-        「浏览器源」页只列常用地址，其他地址到对应功能里复制。在线弹幕姬链接要先通过 LIRA
-        授权、读到服务器配置才能用。要收到直播消息，还要登录 B 站账号。
-      </p>
-    </article>
-    <article class="usage-guide-feature" id="ug-song-rules">
-      <div class="usage-guide-feature-head"><strong>设置点歌规则</strong></div>
-      <p>
-        打开「点歌 → 点歌板」，上方就是点歌规则和黑名单。改完点底部的「保存点歌设置」。再往下是「点歌板样式」。B
-        站账号和直播间号仍在「设置」页。
-      </p>
-      <ul>
-        <li>
-          <strong>暂停接收点歌：</strong>选「接收点歌」或「暂停点歌」。暂停点歌只停接点歌，不会停止接收其他直播消息。
-        </li>
-        <li><strong>最多排队歌曲数：</strong>默认 50，可填 1–300。</li>
-        <li><strong>同一观众点歌间隔（秒）：</strong>默认 0，也就是不设间隔；可填 0–3600。</li>
-        <li><strong>只允许点歌库歌曲 / 允许重复点歌：</strong>按你的直播规则选。</li>
-        <li>
-          <strong>点歌板黑名单：</strong>点「添加词条」后直接输入，可以编辑和删除。词条太长时，在输入框里选中文字或移动光标查看。只有「点歌」后面的内容和词条完全一样才会拦截：比如词条
-          78 会拦截「点歌78」，不拦截「点歌78号公路」。要取消拦截，删掉全部词条再保存。
-        </li>
-      </ul>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/song-settings-rules.webp"
-          alt="点歌板中的点歌规则、点歌板黑名单和「保存点歌设置」按钮"
-          width="1396"
-          height="309"
-          loading="lazy"
-          decoding="async"
-        />
-        <figcaption>「点歌 → 点歌板」：改完点「保存点歌设置」。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-feature" id="ug-song-import">
-      <div class="usage-guide-feature-head"><strong>导入和导出歌库表格</strong></div>
-      <ol class="usage-guide-checks">
-        <li>
+</ul>
+<figure class="usage-guide-figure">
+<img alt="歌库的加歌表单：歌曲名字、原唱/首发歌手、歌曲分类、是否可点、标签、语言、歌切和点歌价格，右下角是保存歌曲按钮" class="usage-guide-image" decoding="async" height="362" loading="lazy" src="/img/usage-guide/B/song-library-edit.webp" style="--usage-guide-image-width: 1362px" width="1362"/>
+<figcaption>「点歌 → 歌库」上方的加歌表单。</figcaption>
+</figure>
+<details class="usage-guide-foldout">
+<summary>查看歌库列表和筛选</summary>
+<figure class="usage-guide-figure">
+<img alt="歌库列表上方的搜索框和分类、语言、歌手、标签、只看可点筛选，下方是歌曲表格" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-library-list.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>表单下方：搜索框、筛选和歌曲列表。</figcaption>
+</figure>
+</details>
+</article>
+<article class="usage-guide-feature" id="ug-song-import"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>02.1.2 表格导入与批量更新</strong></h5></div>
+
+<ol class="usage-guide-checks">
+<li>
           打开「点歌 →
           导入导出」，点「下载导入模板」。按模板的列名填表：歌曲名字、原唱/首发歌手、歌曲分类、歌曲标签、是否可点、语言、点歌价格、歌切、核对平台、核对备注。
         </li>
-        <li>
+<li>
           选择 XLSX、CSV 或 TSV 文件，或者从 Excel
           复制表格，粘贴到输入框。多个歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。
         </li>
-        <li>平时补歌，选「仅新增，跳过已有歌曲」，再点「导入歌库」。歌名和歌手都相同的已有歌曲会跳过，价格也不会更新。</li>
-        <li>
+<li>平时补歌，选「仅新增，跳过已有歌曲」，再点「导入歌库」。歌名和歌手都相同的已有歌曲会跳过，价格也不会更新。</li>
+<li>
           要批量修改，选「更新匹配歌曲（先预览）」，点「预览更新」。核对新增、更新和冲突，再点「确认更新歌库」。表格里没有的列不会改动。「用表格中的空白内容清除原有信息」没把握就别勾。
         </li>
-        <li>看结果提示里新增、更新、重复跳过和失败的数量。重复跳过说明歌库里已经有这首歌，不算失败。有失败时，先检查对应的行和表头。</li>
-        <li>想备份表格，点「导出歌库 Excel」。导出的表格一首歌一行，可以拿来检查，也能再导入。</li>
-      </ol>
-      <p>
+<li>看结果提示里新增、更新、重复跳过和失败的数量。重复跳过说明歌库里已经有这首歌，不算失败。有失败时，先检查对应的行和表头。</li>
+</ol>
+<p>
         歌名和歌手都相同，才会更新原来的歌；改了歌名或歌手，会当成新歌。点歌价格可以填免费、30元SC、舰长这类说明，它只是给观众看的文字，不会自动收款。
       </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/song-import-export.webp"
-          alt="导入导出页：下载导入模板、导出歌库 Excel、选择文件、粘贴表格的输入框、导入模式和导入歌库按钮"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-        />
-        <figcaption>下载模板，选文件或粘贴表格，再点「导入歌库」。</figcaption>
-      </figure>
-      <details class="usage-guide-foldout">
-        <summary>查看导入结果提示</summary>
-        <figure class="usage-guide-figure">
-          <img
-            class="usage-guide-image"
-            src="/img/usage-guide/B/song-import-result.webp"
-            alt="导入歌库按钮下方的结果提示，列出总行数、新增、重复跳过、失败和新增分类"
-            width="1440"
-            height="902"
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption>导入后，下方会显示新增、重复跳过和失败的数量。</figcaption>
-        </figure>
-      </details>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head"><strong>云端歌单同步</strong></div>
-      <p>
-        登录 LIRA 并联网后，歌库会自动同步到同一账号的其他电脑。给观众看的网页歌单和手动同步方法，见<a
-          href="#ug-web-sync"
-          data-usage-guide-link
-          >「网页歌单同步」</a
-        >。
+<figure class="usage-guide-figure">
+<img alt="导入导出页：下载导入模板、导出歌库 Excel、选择文件、粘贴表格的输入框、导入模式和导入歌库按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-import-export.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>下载模板，选文件或粘贴表格，再点「导入歌库」。</figcaption>
+</figure>
+<details class="usage-guide-foldout">
+<summary>查看导入结果提示</summary>
+<figure class="usage-guide-figure">
+<img alt="导入歌库按钮下方的结果提示，列出总行数、新增、重复跳过、失败和新增分类" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-import-result.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>导入后，下方会显示新增、重复跳过和失败的数量。</figcaption>
+</figure>
+</details>
+<p>歌库最多 5000 首，更新导入时原有歌曲和新增歌曲一起计算。超过上限时先<a data-usage-guide-link href="#ug-web-sync">导出备份</a>，再整理重复或不再使用的歌。表头和文件格式要与模板一致，只改扩展名无效。</p>
+<p>超过数量上限会提示「歌库超过 5000 首限制。」或「结果歌库超过 5000 首，无法完整同步；请先在歌库整理至 5000 首以内。」。整理后重新核对再同步。</p></article>
+<article class="usage-guide-feature" id="ug-web-sync"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>02.1.3 导出与账号同步</strong></h5></div>
+<p>登录 LIRA 并联网后，歌库会自动同步到同一账号的其他电脑。以下操作用于导出备份或手动覆盖同步。</p>
+<p>想备份表格，点「导出歌库 Excel」。导出的表格一首歌一行，可以拿来检查，也能再导入。</p>
+
+<p>
+        歌曲在客户端<strong class="usage-guide-keyword">「点歌 → 歌库」</strong>里加和改。歌库跟着 LIRA
+        账号同步。网页主播中心只能看歌，不能改歌。
       </p>
-      <p class="usage-guide-notice" data-tone="warning">
-        <strong>先核对再覆盖：</strong
-        >「同步到网页」会用这台电脑的歌库替换云端歌库。同一账号的其他电脑也会跟着更新，不会自动合并。
+<ol class="usage-guide-checks">
+<li>先确认这台电脑的歌库是全的。要手动同步，就打开「点歌 → 导入导出」。</li>
+<li>点<strong class="usage-guide-keyword">「同步到网页」</strong>，看完覆盖提醒再确认。</li>
+<li>等同步结果出来，再点「查看网页歌单」看看。失败了就按提示检查网络或歌曲信息，再试一次。</li>
+</ol>
+<p class="usage-guide-notice" data-tone="warning">
+<strong>整份替换，不会合并。</strong>同步会用这台电脑的歌库替换云端歌库，网页歌单和同一账号的其他电脑也会跟着变。歌库最多
+        5000 首。别在两台电脑上同时改歌库。
       </p>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head"><strong>歌单页背景</strong></div>
-      <p>
-        在「点歌 → 导入导出 → 歌单背景」上传网页歌单的背景图，每张不超过 5
-        MB。点「恢复默认背景」就换回默认的水彩背景。完整步骤见<a href="#ug-web-appearance" data-usage-guide-link
-          >「改网页歌单的名称与外观」</a
-        >。
+<p>「本机上次同步」只记你手动点「同步到网页」的时间。不能靠它判断这台电脑和云端是否完全一样。</p>
+</article></div>
+<h4 class="usage-guide-subsection-title">02.2 点歌管理</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-song-queues"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>02.2.1 SC 队列 + 点歌队列</strong></h5></div>
+
+<p>
+        「点歌」页上方左边是 SC 队列，右边是点歌队列。SC（醒目留言）是观众付费发的留言。观众发「点歌
+        歌名」就能点歌，歌名不完整也会尝试匹配歌库。
       </p>
-    </article>
-  </div>
-</section>
+<ul>
+<li><strong>置顶 / 取消置顶：</strong>调整点歌顺序。每首歌旁边还有「复制歌名」和「删除」。</li>
+<li><strong>完成队首：</strong>把点歌队列的第一首标为完成。要切换正在放的音乐，用播放页的播放器。</li>
+<li><strong>清空点歌队列：</strong>移除队首和全部等待点歌，歌库不受影响。</li>
+<li><strong>重启恢复：</strong>关闭或更新 LIRA 后重新打开，未完成点歌会按原顺序恢复。开始新一场时可点「清空点歌队列」。</li>
+<li>
+<strong>队列满了：</strong>新的点歌进不来。先唱完或删掉几首，也可以到「点歌板」调大「最多排队歌曲数」。
+        </li>
+</ul>
+<p>点歌队列记的是观众想听什么，播放队列决定接下来放什么。完整导入操作见<a data-usage-guide-link href="#ug-playback-queue">管理播放队列与导入点歌</a>。</p>
+<figure class="usage-guide-figure">
+<img alt="点歌队列中一首歌右侧的三个按钮：置顶、复制歌名、删除" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-queue-item-actions.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>每首点歌右边：①置顶或取消置顶，②复制歌名，③删除。</figcaption>
+</figure>
+<p>
+        弹出「收到点歌请求」时，先看歌名、匹配到的歌和点歌人，再选「下一首播放」或「跳过」。「下一首播放」会把歌曲排到当前歌曲之后，当前音乐继续播放；播放器空闲时，点播放按钮开始。
+      </p>
+<details class="usage-guide-foldout">
+<summary>查看点歌请求通知的样子</summary>
+<figure class="usage-guide-figure">
+<img alt="窗口上方弹出的收到点歌请求通知，显示歌名、匹配信息和点歌人，下方是下一首播放和跳过按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-request-confirmation.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>「收到点歌请求」：①下一首播放，②跳过。</figcaption>
+</figure>
+</details>
+</article>
+<article class="usage-guide-feature" id="ug-song-rules"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>02.2.2 设置点歌规则</strong></h5></div>
+
+<p>
+        打开「点歌 → 点歌板」，上方就是点歌规则和黑名单。改完点底部的「保存点歌设置」。再往下是「点歌板样式」。B
+        站账号和直播间号仍在「设置」页。
+      </p>
+<ul>
+<li>
+<strong>暂停接收点歌：</strong>选「接收点歌」或「暂停点歌」。暂停点歌只停接点歌，不会停止接收其他直播消息。
+        </li>
+<li><strong>最多排队歌曲数：</strong>默认 50，可填 1–300。</li>
+<li><strong>同一观众点歌间隔（秒）：</strong>默认 0，也就是不设间隔；可填 0–3600。</li>
+<li><strong>只允许点歌库歌曲 / 允许重复点歌：</strong>按你的直播规则选。</li>
+<li>
+<strong>点歌板黑名单：</strong>点「添加词条」后直接输入，可以编辑和删除。词条太长时，在输入框里选中文字或移动光标查看。只有「点歌」后面的内容和词条完全一样才会拦截：比如词条
+          78 会拦截「点歌78」，不拦截「点歌78号公路」。要取消拦截，删掉全部词条再保存。
+        </li>
+</ul>
+<figure class="usage-guide-figure">
+<img alt="点歌板中的点歌规则、点歌板黑名单和「保存点歌设置」按钮" class="usage-guide-image" decoding="async" height="309" loading="lazy" src="/img/usage-guide/B/song-settings-rules.webp" style="--usage-guide-image-width: 1396px" width="1396"/>
+<figcaption>「点歌 → 点歌板」：改完点「保存点歌设置」。</figcaption>
+</figure>
+<p>看到「点歌队列已达到上限。」时，先唱完或删掉已处理的点歌，再让观众重试。清空会删除全部等待歌曲，不必为了腾一个位置就清空。</p>
+<p>「队列里已经有这首歌。」按「允许重复点歌」处理；「当前已暂停接收点歌。」需改回「接收点歌」并保存。改好后让观众重发，暂停期间被拒的点歌不会自动补回。</p>
+<p>同一观众点歌间隔未到时，请求会被悄悄拦下。点歌规则跟着账号同步；暂停点歌不会停止接收礼物。</p></article>
+<article class="usage-guide-feature" id="ug-random-song"><div class="usage-guide-feature-head">
+<h5 class="usage-guide-task-title"><strong>02.2.3 随机点歌</strong></h5>
+</div>
+
+<p>
+        观众发「随机点歌」，会从歌库里随机抽一首。后面还可以加语言、分类、歌手或标签。多个条件用 +
+        或空格隔开，抽到的歌会同时满足所有条件：
+      </p>
+<ul>
+<li><strong>按语言</strong>：日语、韩语、英语、粤语、国语</li>
+<li><strong>按分类</strong>：流行、R&amp;B、说唱、摇滚、民谣、舞曲、影视原声</li>
+<li><strong>按歌手</strong>：直接输入歌手名</li>
+<li><strong>按标签</strong>：国风、小甜歌、影视OST、K-Pop 等</li>
+<li><strong>组合示例</strong>：「随机点歌 日语+流行」「随机点歌 说唱 苦情」</li>
+</ul>
+<p>随机点歌需要先登录 B 站账号，歌曲须可点。多个条件要同时满足，可先减少条件核对。到「百宝箱 → 弹幕互动」打开「随机点歌回复」后，没有符合条件的歌曲会自动 @ 提醒观众。</p></article></div>

@@ -129,6 +129,26 @@ test('toolbox feature arrow navigation loops through visible features only', () 
   assert.equal(runtime.buttons[3].hidden, true);
 });
 
+test('nested feature groups collapse only their children and reopen for explicit selection', () => {
+  const runtime = createToolboxRuntime();
+  const heading = runtime.headings[0];
+  const children = runtime.buttons.slice(0, 2);
+  heading.nextElementSibling = {
+    dataset: { otherFeatureSubmenu: '' },
+    querySelectorAll: () => children,
+    nextElementSibling: runtime.buttons[2],
+  };
+  runtime.other.initOtherPage();
+  runtime.other.selectFeature(runtime.root, children[1].dataset.otherFeature);
+  heading.dispatch('click');
+  assert.ok(children.every((button) => button.hidden && button.inert));
+  assert.equal(runtime.buttons[2].hidden, false, 'following sibling remains available');
+  assert.equal(runtime.panels[1].hidden, false, 'current page remains visible');
+  runtime.other.selectFeature(runtime.root, children[1].dataset.otherFeature);
+  assert.equal(heading.getAttribute('aria-expanded'), 'true');
+  assert.ok(children.every((button) => !button.hidden && !button.inert));
+});
+
 test('collapsing the selected group keeps a visible tab stop without replacing its content', () => {
   const runtime = createToolboxRuntime();
   runtime.other.initOtherPage();
@@ -201,6 +221,25 @@ test('toolbox sidebar toggle updates accessibility state and stores the preferen
   assert.equal(attributes.get('aria-expanded'), 'false');
   assert.equal(toggle.title, '展开功能导航');
   assert.equal(stored.get('admin.toolboxSidebarCollapsed'), 'true');
+});
+
+test('a sidebar transition applies each queued toggle and persists its actual state once', () => {
+  const runtime = createToolboxRuntime();
+  const updates = [];
+  const persisted = [];
+  runtime.other.initOtherPage({
+    transitionSidebar: (apply) => updates.push(apply),
+    persistSidebarCollapsed: (collapsed) => persisted.push(collapsed),
+  });
+  runtime.sidebarToggle.dispatch('click');
+  runtime.sidebarToggle.dispatch('click');
+  assert.equal(runtime.root.classList.contains('sidebar-collapsed'), false);
+  updates[0]();
+  assert.equal(runtime.sidebarToggle.getAttribute('aria-expanded'), 'false');
+  updates[1]();
+  assert.equal(runtime.sidebarToggle.getAttribute('aria-expanded'), 'true');
+  assert.deepEqual(persisted, [true, false]);
+  assert.equal(runtime.stored.get('admin.toolboxSidebarCollapsed'), 'false');
 });
 
 test('desktop shell reveals the desktop update toolbox feature', () => {

@@ -1,99 +1,70 @@
-<section
-  id="otherUsageGuideFeature"
-  class="other-feature-panel"
-  role="tabpanel"
-  aria-labelledby="otherUsageGuideFeatureTab"
-  data-other-feature-panel
-  hidden
->
-  <div class="other-feature-panel-body stack usage-guide-panel">
-    <section class="usage-guide-intro" aria-labelledby="usageGuideTitle">
-      <div class="usage-guide-heading">
-        <h2 id="usageGuideTitle" class="usage-guide-title">使用文档</h2>
-        <!-- admin-fragment: pages/admin/toolbox/usage-guide-search.html -->
-      </div>
-      <nav class="usage-guide-hero-actions" aria-label="文档快捷操作">
-        <a href="#ug-quick" data-usage-guide-link>快速上手</a>
-        <a href="#ug-faq" data-usage-guide-link>常见问题</a>
-        <button type="button" class="usage-guide-reopen" id="reopenInteractiveTourBtn">重新查看新手引导</button>
-      </nav>
-      <div id="usageGuideSearchResults" class="usage-guide-search-results" hidden>
-        <p class="usage-guide-search-status" role="status" aria-live="polite" aria-atomic="true"></p>
-        <ul class="usage-guide-search-list" aria-label="文档搜索结果"></ul>
-      </div>
-    </section>
-
-    <div class="usage-guide-layout">
-      <nav class="usage-guide-toc is-open is-at-top" aria-label="文档目录">
-        <button type="button" class="usage-guide-toc-toggle" aria-expanded="true" aria-controls="usageGuideTocLinks">
-          <span class="usage-guide-toc-label">本页目录</span>
-          <span class="usage-guide-toc-current">快速上手</span>
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path
-              d="m5 7 5 5 5-5"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
-        <div id="usageGuideTocLinks" class="usage-guide-toc-links">
-          <div class="usage-guide-toc-group">
-            <span class="usage-guide-toc-heading">上手与账号</span>
-            <a href="#ug-quick" data-usage-guide-link>快速上手</a>
-            <a href="#ug-accounts" data-usage-guide-link>账号与设备</a>
-            <a href="#ug-reinstall" data-usage-guide-link>更新、重装与卸载</a>
-            <a href="#ug-flow" data-usage-guide-link>日常使用流程</a>
-          </div>
-          <div class="usage-guide-toc-group">
-            <span class="usage-guide-toc-heading">日常直播</span>
-            <a href="#ug-song" data-usage-guide-link>点歌页</a>
-            <a href="#ug-playback" data-usage-guide-link>播放页</a>
-            <a href="#ug-gifts" data-usage-guide-link>礼物页</a>
-            <a href="#ug-toolbox" data-usage-guide-link>组件与百宝箱</a>
-          </div>
-          <div class="usage-guide-toc-group">
-            <span class="usage-guide-toc-heading">直播画面与配置</span>
-            <a href="#ug-deepseek" data-usage-guide-link>配置 AI 助手</a>
-            <a href="#ug-obs" data-usage-guide-link>直播姬 / OBS 与套装</a>
-            <a href="#ug-cheatsheet" data-usage-guide-link>常用设置速查</a>
-          </div>
-          <div class="usage-guide-toc-group">
-            <span class="usage-guide-toc-heading">网页功能</span>
-            <a href="#ug-web-songlist" data-usage-guide-link>网页歌单与主播中心</a>
-            <a href="#ug-public-tools" data-usage-guide-link>礼物图鉴与网页小游戏</a>
-          </div>
-          <div class="usage-guide-toc-group">
-            <span class="usage-guide-toc-heading">数据与帮助</span>
-            <a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a>
-            <a href="#ug-appearance" data-usage-guide-link>外观速查</a>
-            <a href="#ug-glossary" data-usage-guide-link>名词小词典</a>
-            <a href="#ug-faq" data-usage-guide-link>常见问题</a>
-          </div>
-        </div>
-      </nav>
-      <div class="usage-guide-main">
-        <!-- admin-fragment: pages/admin/toolbox/usage-guide-getting-started.html -->
-        <!-- admin-fragment: pages/admin/toolbox/usage-guide-features.html -->
-        <!-- admin-fragment: pages/admin/toolbox/usage-guide-toolbox.html -->
-        <!-- admin-fragment: pages/admin/toolbox/usage-guide-configuration.html -->
-        <!-- admin-fragment: pages/admin/toolbox/usage-guide-web.html -->
-        <!-- admin-fragment: pages/admin/toolbox/usage-guide-public-tools.html -->
-        <!-- admin-fragment: pages/admin/toolbox/usage-guide-reference.html -->
-        <!-- admin-fragment: pages/admin/toolbox/usage-guide-faq.html -->
-      </div>
-    </div>
-  </div>
-  <button type="button" class="usage-guide-back-to-top" aria-label="返回顶部" hidden>
-    <svg width="24" height="24" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path
-        d="M4 3h12M10 17V6m-5 5 5-5 5 5"
-        stroke="currentColor"
-        stroke-width="1.8"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
-  </button>
+<section aria-labelledby="otherUsageGuideFeatureTab" class="other-feature-panel" data-other-feature-panel hidden="" id="otherUsageGuideFeature" role="tabpanel">
+<div class="other-feature-panel-body stack usage-guide-panel">
+<section aria-labelledby="usageGuideTitle" class="usage-guide-intro">
+<div class="usage-guide-heading">
+<h2 class="usage-guide-title" id="usageGuideTitle">使用文档</h2>
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-search.html -->
+</div>
+<nav aria-label="文档快捷操作" class="usage-guide-hero-actions">
+<a data-usage-guide-link href="#ug-quick">快速上手</a>
+<a data-usage-guide-link href="#ug-faq">常见问题</a>
+<button class="usage-guide-reopen" id="reopenInteractiveTourBtn" type="button">重新查看新手引导</button>
+</nav>
+<div class="usage-guide-search-results" hidden="" id="usageGuideSearchResults">
+<p aria-atomic="true" aria-live="polite" class="usage-guide-search-status" role="status"></p>
+<ul aria-label="文档搜索结果" class="usage-guide-search-list"></ul>
+</div>
+</section>
+<div class="usage-guide-layout">
+<nav aria-label="文档目录" class="usage-guide-toc is-open is-at-top">
+<div class="usage-guide-toc-toolbar">
+<button aria-controls="usageGuideTocLinks" aria-expanded="true" class="usage-guide-toc-toggle" type="button">
+<span class="usage-guide-toc-label">本页目录</span>
+<svg aria-hidden="true" fill="none" height="18" viewBox="0 0 20 20" width="18">
+<path d="m5 7 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"></path>
+</svg>
+</button>
+<div class="usage-guide-toc-location">
+<span class="usage-guide-toc-current">01 安装、账号与连接</span>
+<span class="usage-guide-toc-detail">章节概览</span>
+</div>
+<div class="usage-guide-reading-status">
+<span class="usage-guide-reading-percent">本章 0%</span>
+<span class="usage-guide-reading-remaining">距下一章还剩 100%</span>
+</div>
+<div class="usage-guide-chapter-controls">
+<button aria-label="已是第一章" class="usage-guide-chapter-prev" disabled type="button">
+<svg aria-hidden="true" fill="none" height="18" viewBox="0 0 20 20" width="18"><path d="m12 5-5 5 5 5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"></path></svg>
+</button>
+<button class="usage-guide-chapter-next" type="button">
+<span><span class="usage-guide-chapter-label">下一章</span><span class="usage-guide-chapter-title">02 点歌与播放</span></span>
+<svg aria-hidden="true" fill="none" height="18" viewBox="0 0 20 20" width="18"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"></path></svg>
+</button>
+</div>
+</div>
+<div aria-label="本章阅读位置" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" class="usage-guide-reading-track" role="progressbar"><span class="usage-guide-reading-fill"></span></div>
+<div class="usage-guide-toc-links" id="usageGuideTocLinks">
+<div class="usage-guide-toc-group"><span class="usage-guide-toc-heading">上手与账号</span><a data-usage-guide-link href="#ug-setup">01 安装、账号与连接</a></div>
+<div class="usage-guide-toc-group"><span class="usage-guide-toc-heading">日常直播</span><a data-usage-guide-link href="#ug-song">02 点歌与播放</a><a data-usage-guide-link href="#ug-interactions">03 弹幕与互动</a><a data-usage-guide-link href="#ug-gifts">04 礼物记录与分析</a></div>
+<div class="usage-guide-toc-group"><span class="usage-guide-toc-heading">直播画面</span><a data-usage-guide-link href="#ug-scene-guide">05 场景与素材</a></div>
+<div class="usage-guide-toc-group"><span class="usage-guide-toc-heading">主播工作</span><a data-usage-guide-link href="#ug-work">06 粉丝档案与工作台</a></div>
+<div class="usage-guide-toc-group"><span class="usage-guide-toc-heading">数据与帮助</span><a data-usage-guide-link href="#ug-maintenance">07 软件维护与数据</a><a data-usage-guide-link href="#ug-faq">08 Q&amp;A：异常与报错</a></div>
+</div>
+</nav>
+<div class="usage-guide-main"><!-- admin-fragment: pages/admin/toolbox/usage-guide-getting-started.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-features.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-toolbox.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-gifts.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-obs.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-toolbox-work.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-reference.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-faq.html -->
+</div>
+</div>
+</div>
+<button aria-label="返回顶部" class="usage-guide-back-to-top" hidden="" type="button">
+<svg aria-hidden="true" fill="none" height="24" viewBox="0 0 20 20" width="24">
+<path d="M4 3h12M10 17V6m-5 5 5-5 5 5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</button>
 </section>

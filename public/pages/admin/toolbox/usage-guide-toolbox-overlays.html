@@ -1,164 +1,80 @@
-<article class="usage-guide-feature">
-  <div class="usage-guide-feature-head">
-    <strong>加班机</strong>
-  </div>
-  <p>打开「组件 → 加班机」，设置时间、礼物规则和直播画面。</p>
-  <ol class="usage-guide-checks">
-    <li>设好初始时长和礼物规则。</li>
-    <li>点<strong class="usage-guide-keyword">「启用加班机」</strong>。</li>
-    <li>点「开始」，倒计时就开始了。收到符合规则的礼物，剩余时间会按规则变化。</li>
-  </ol>
-  <p>
-    <strong>初始时长：</strong>可以按「时:分」手动输入，也可以分别选小时和分钟，再点「设置初始时间」。
+<h4 class="usage-guide-subsection-title" id="ug-overtime">05.5 加班机</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-overtime-controls"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.5.1 计时与控制</strong></h5></div>
+<p>打开「组件 → 加班机」，设置时间、礼物规则和直播画面。</p>
+<ol class="usage-guide-checks">
+<li>设好初始时长和礼物规则。</li>
+<li>点<strong class="usage-guide-keyword">「启用加班机」</strong>。</li>
+<li>点「开始」，倒计时就开始了。收到符合规则的礼物，剩余时间会按规则变化。</li>
+</ol>
+<p>
+<strong>初始时长：</strong>可以按「时:分」手动输入，也可以分别选小时和分钟，再点「设置初始时间」。
   </p>
-  <p><strong>礼物规则：</strong>看到「在售目录：未刷新」时，先点「刷新在售礼物」，再选礼物编辑规则。</p>
-  <ul>
-    <li>规则类型有「直接改时间」「随机抽结果」「文字展板」。</li>
-    <li>时间可以增加、减少、乘除倍数或清零。文字展板只显示文字，不改剩余时间。</li>
-    <li>「按连击组」每组算一次；「按具体数量」收到 ×N 就算 N 次。</li>
-    <li>设置初始时长或点「重置」，会回到初始时长并暂停倒计时。</li>
-    <li>「最近结算」保留最近 20 组已完成或忽略的礼物。「待结算」是还在等处理的礼物。</li>
-    <li>
-      「直播画面」里能复制投屏地址、打开预览。背景可以透明，也可以选内置样式。透明背景适合直接叠在直播姬或 OBS 的画面上。
-    </li>
-  </ul>
-  <p class="usage-guide-notice" data-tone="warning">
-    <strong>注意：</strong>「暂停」只停倒计时，收到礼物仍可能改时间。不想让礼物再改时间，就关掉加班机。
+<p>设置初始时长或点「重置」，会回到初始时长并暂停倒计时。</p>
+<p class="usage-guide-notice" data-tone="warning">
+<strong>注意：</strong>「暂停」只停倒计时，收到礼物仍可能改时间。不想让礼物再改时间，就关掉加班机。
   </p>
-  <figure class="usage-guide-figure usage-guide-figure--compact">
-    <img
-      class="usage-guide-image"
-      src="/img/usage-guide/E/toolbox-overtime-rule.webp"
-      alt="加班机的一条礼物规则，有规则类型、时间操作和结算方式"
-      width="1140"
-      height="404"
-      loading="lazy"
-      decoding="async"
-    />
-    <figcaption>一条礼物规则：类型、时间和结算方式。</figcaption>
-  </figure>
-  <details class="usage-guide-foldout">
-    <summary>查看初始时间、控制和结算区域</summary>
-    <div class="usage-guide-grid">
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/E/toolbox-overtime-controls.webp"
-          alt="加班机页，上方是倒计时和开关、开始、暂停、重置按钮，下面是初始时长和礼物时间规则"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-        />
-        <figcaption>初始时长和开始、暂停按钮。</figcaption>
-      </figure>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/E/toolbox-overtime-settlements.webp"
-          alt="加班机的直播画面设置和预览，下方是最近结算列表"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-        />
-        <figcaption>最近结算和直播画面。</figcaption>
-      </figure>
-    </div>
-  </details>
-</article>
-<article class="usage-guide-feature">
-  <div class="usage-guide-feature-head">
-    <strong>礼物特效</strong>
-  </div>
-  <p>收到指定礼物时，在直播画面上播一段全屏动画。</p>
-  <ol class="usage-guide-checks">
-    <li>不知道礼物 ID，点「查找礼物 ID」，到 gifts.lirahub.cn 查。</li>
-    <li>在「测试播放」里填礼物 ID，点「播放特效」看看效果。</li>
-    <li>
-      在「直播投屏」里点「复制地址」，加到直播姬的「浏览器」或 OBS 的「浏览器源」。这个地址固定不变。也可以点「预览」，直接在浏览器里看。
-    </li>
-  </ol>
-  <p>加好以后，收到对应礼物会自动播放。平时画面是透明的，不挡东西。</p>
-  <p>
-    打开弹幕触发后，观众发这四种写法都行：<code>礼物特效 32132</code>、<code>礼物特效32132</code>、<code
-      >🎁 32132</code
-    >、<code>🎁32132</code>。把 32132 换成你要的礼物 ID。
-  </p>
-  <figure class="usage-guide-figure">
-    <img
-      class="usage-guide-image"
-      src="/img/usage-guide/E/toolbox-gift-effects.webp"
-      alt="礼物特效页，有查找礼物 ID、测试播放、弹幕触发和直播投屏地址"
-      width="1440"
-      height="902"
-      loading="lazy"
-      decoding="async"
-    />
-    <figcaption>查礼物 ID、测试播放、复制投屏地址。</figcaption>
-  </figure>
-</article>
-<article class="usage-guide-feature">
-  <div class="usage-guide-feature-head"><strong>开播动画与萌时钟</strong></div>
-  <h4>开播动画</h4>
-  <p>
-    打开「组件 → 开播动画」，先在「动画样式」里选一种，再填主标题（最多 20 字）、副标题、主播名和底部文案。
-  </p>
-  <ul>
-    <li><strong>画质：</strong>「普通 · 推荐」「高 · 更多氛围粒子」「低 · 轻量模式」。</li>
-    <li><strong>轨道动效：</strong>有三种可选。漂浮音符和氛围律动可以单独开关。</li>
-    <li><strong>人物图和开场音乐：</strong>人物图不超过 16 MB。音乐音量默认 35%。</li>
-  </ul>
-  <p>
-    点「预览」，在画布里调整位置和大小，保存并应用后能和其他组件一起输出。「显示整套特效」开关同时管画布预览和直播画面。
-  </p>
-  <p>也可以点「复制地址」，把固定浏览器源地址加到直播软件，画面比例设成 16:9。</p>
-  <figure class="usage-guide-figure">
-    <img
-      class="usage-guide-image"
-      src="/img/usage-guide/E/toolbox-opening.webp"
-      alt="开播动画页，有开场文案、画质、轨道动效等设置"
-      width="1440"
-      height="902"
-      loading="lazy"
-      decoding="async"
-    />
-    <figcaption>开播动画：文案、画质和动效。</figcaption>
-  </figure>
-  <details class="usage-guide-foldout">
-    <summary>查看人物、音乐与地址</summary>
-    <figure class="usage-guide-figure">
-      <img
-        class="usage-guide-image"
-        src="/img/usage-guide/E/toolbox-opening-audio.webp"
-        alt="开播动画页下方，有人物图片、开场音乐、音乐音量和固定浏览器源地址"
-        width="1440"
-        height="902"
-        loading="lazy"
-        decoding="async"
-      />
-      <figcaption>人物图、音乐、音量和固定地址。整套特效关着时，预览会暂停。</figcaption>
-    </figure>
-  </details>
-  <h4>萌时钟</h4>
-  <p>
+<figure class="usage-guide-figure">
+<img alt="加班机页，上方是倒计时和开关、开始、暂停、重置按钮，下面是初始时长和礼物时间规则" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-overtime-controls.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>初始时长和开始、暂停按钮。</figcaption>
+</figure></article>
+<article class="usage-guide-feature" id="ug-overtime-rules"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.5.2 礼物规则与结算</strong></h5></div>
+<p><strong>礼物规则：</strong>看到「在售目录：未刷新」时，先点「刷新在售礼物」，再选礼物编辑规则。</p>
+<ul><li>规则类型有「直接改时间」「随机抽结果」「文字展板」。</li><li>时间可以增加、减少、乘除倍数或清零。文字展板只显示文字，不改剩余时间。</li><li>「按连击组」每组算一次；「按具体数量」收到 ×N 就算 N 次。</li><li>「最近结算」保留最近 20 组已完成或忽略的礼物。「待结算」是还在等处理的礼物。</li></ul>
+<p>启用加班机和相应礼物规则后才会处理礼物。减少、清零和文字展板不会增加时间。礼物连击结束后，查看「最近结算」；加班机不看「礼物统计」开关，关掉礼物统计也可能继续改时。</p>
+<figure class="usage-guide-figure">
+<img alt="加班机的一条礼物规则，有规则类型、时间操作和结算方式" class="usage-guide-image" decoding="async" height="404" loading="lazy" src="/img/usage-guide/E/toolbox-overtime-rule.webp" style="--usage-guide-image-width: 1140px" width="1140"/>
+<figcaption>一条礼物规则：类型、时间和结算方式。 截图用于定位；出现「在售目录：未刷新」或「待重新选择礼物」时，需先刷新并选好礼物，不代表规则已经就绪。</figcaption>
+</figure></article>
+<article class="usage-guide-feature" id="ug-overtime-style"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.5.3 样式与预览</strong></h5></div>
+<p>
+        在「组件 → 加班机 →
+        直播画面」复制。背景与适配方式在面板选择，尺寸按画面设置调整；透明背景适合叠在直播画面上。倒计时是否暂停、礼物是否改时，由加班机本身的状态与规则决定。
+       可以选内置样式，按画面设置调整背景和适配方式。</p>
+<figure class="usage-guide-figure">
+<img alt="加班机的启用、时间控制和直播画面设置" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-overtime-controls.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>加班机面板示例：先设置时间和规则，再检查倒计时。</figcaption>
+</figure>
+<figure class="usage-guide-figure">
+<img alt="加班机的直播画面设置和预览，下方是最近结算列表" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-overtime-settlements.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>最近结算和直播画面。</figcaption>
+</figure></article></div>
+<h4 class="usage-guide-subsection-title">05.6 文本、时钟与开场</h4>
+<div class="usage-guide-feature-list"><!-- admin-fragment: pages/admin/toolbox/usage-guide-text-box.html --><article class="usage-guide-feature" id="ug-clock"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.6.2 时钟</strong></h5></div>
+<p>打开「组件 → 时钟」。</p>
+<p>
     先选一种风格：桃桃便签、星夜软糖、汽水小鸭、横向刻度、竖向刻度、白字数显、星轨时钟或翻牌时钟。再按需要调显示日期、显示秒数、小时格式和角标文案（最多
     16 字）。
   </p>
-  <p>改完点「保存时钟设置」，下次打开还是这个样式。</p>
-  <p>
-    在「萌时钟网址」里点「复制网址」，加到浏览器源。它和开播动画是两个不同的地址。想调时钟大小，点「预览与调整」打开场景编辑器。
+<p>改完点「保存时钟设置」，下次打开还是这个样式。</p>
+<p>
+    点顶部「复制地址」，加到浏览器源；旁边的问号可查看完整链接。它和开播动画是两个不同的地址。想调时钟大小，点「预览与调整」打开场景编辑器。
   </p>
-  <figure class="usage-guide-figure">
-    <img
-      class="usage-guide-image"
-      src="/img/usage-guide/E/toolbox-clock.webp"
-      alt="萌时钟页，左边是实时预览，右边是萌时钟网址和风格选项"
-      width="1440"
-      height="902"
-      loading="lazy"
-      decoding="async"
-    />
-    <figcaption>萌时钟：选风格，看实时预览。</figcaption>
-  </figure>
-</article>
+<figure class="usage-guide-figure">
+<img alt="时钟页，顶部可复制地址和打开预览，下方左侧选择样式、右侧查看实时效果" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-clock.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>萌时钟：选风格，看实时预览。</figcaption>
+</figure>
+<p>独立浏览器源推荐 580 × 210；添加后核对实际显示。</p></article>
+<article class="usage-guide-feature" id="ug-opening"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.6.3 开播动画</strong></h5></div>
+<p>
+    打开「组件 → 开播动画」，先在顶部选择一种样式，再填主标题（最多 20 字）、副标题、主播名和底部文案。
+  </p>
+<ul>
+<li><strong>画质：</strong>「普通 · 推荐」「高 · 更多氛围粒子」「低 · 轻量模式」。</li>
+<li><strong>轨道动效：</strong>有三种可选。漂浮音符和氛围律动可以单独开关。</li>
+<li><strong>人物图和开场音乐：</strong>人物图不超过 16 MB。音乐音量默认 35%。</li>
+</ul>
+<p>
+    点右上角「预览」，在画布里调整位置和大小，保存并应用后能和其他组件一起输出。「显示开播特效」开关控制直播画面中的动画和音乐；关闭后，画布仍会静音播放预览。
+  </p>
+<p>也可以点顶部「复制地址」，把固定浏览器源地址加到直播软件，画面比例设成 16:9。按钮旁的问号可查看完整地址和用法。</p>
+<figure class="usage-guide-figure">
+<img alt="开播动画页，顶部集中样式、保存状态、开关、复制地址和预览，下方分组排列文案、效果、图片和音乐设置" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-opening.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>开播动画：顶部操作与分组设置。</figcaption>
+</figure>
+<details class="usage-guide-foldout">
+<summary>查看链接说明</summary>
+<figure class="usage-guide-figure">
+<img alt="开播动画页顶部复制地址旁的问号展开，显示浏览器源用法和完整链接" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-opening-audio.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>链接用法收在复制按钮旁的问号中。</figcaption>
+</figure>
+</details></article></div>

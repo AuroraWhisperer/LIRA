@@ -7,7 +7,7 @@ import { componentField, syncComponentFieldValue } from './component-preview-pan
 
 export function bindDanmakuParameters(root, controller, onError) {
   const node = (id) => componentField(root, id);
-  const controls = Object.fromEntries(['fontFamily', 'fontSize', 'textColor', 'backgroundOpacity', 'giftImage', 'scrollDirection', 'speedPixelsPerSecond', 'centerBias', 'dispersion']
+  const controls = Object.fromEntries(['fontFamily', 'fontSize', 'textColor', 'backgroundOpacity', 'giftImage', 'scrollDirection', 'edgeFade', 'speedPixelsPerSecond', 'centerBias', 'dispersion']
     .map((key) => [key, node(`danmaku${key[0].toUpperCase()}${key.slice(1)}`)]));
   const unregisterFont = registerLocalFontSelect(controls.fontFamily);
   const ranges = ['backgroundOpacity', 'centerBias', 'dispersion'];
@@ -39,6 +39,8 @@ export function bindDanmakuParameters(root, controller, onError) {
     controls.giftImage.value = options.giftImage;
     node('danmakuScrollDirectionField').hidden = !limits.scrollDirection;
     controls.scrollDirection.value = options.scrollDirection;
+    node('danmakuEdgeFadeField').hidden = !limits.scrollDirection;
+    controls.edgeFade.value = options.edgeFade || 'none';
     node('danmakuSpeedField').hidden = !limits.speed;
     syncComponentFieldValue(controls.speedPixelsPerSecond, options.speedPixelsPerSecond || 120, force);
     node('danmakuDistributionOptions').hidden = !isRandomDanmakuStyle(draft.style);

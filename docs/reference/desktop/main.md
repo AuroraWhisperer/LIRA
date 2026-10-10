@@ -83,9 +83,13 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 
 | 事实     | 值                                                                                                                    | 出处                                                                                         |
 | -------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| 入口     | `package.json` 的 `main` 指向 `src/electron/main.js`,Electron 启动即执行此文件                                        | [package.json](../../../package.json)                                                   |
+| 入口     | `package.json` 的 `main` 指向 `src/electron/entry.js`，由其加载组合根 `main.js`                                        | [package.json](../../../package.json)                                                   |
 | 运行形态 | `npm run desktop` → `electron .`;后端 HTTP 服务与 Electron main **同进程**(`require('../server')` 的运行时适配,见 §2) | [package.json](../../../package.json)、[server-core.md](../backend/server-core.md) §1 |
 | 应用名   | `app.setName('LIRA')`；持久化目录使用固定 appId 名称，不再依赖产品展示名派生                                               | [main.js](../../../src/electron/main.js)                                                     |
+
+[entry.js](../../../src/electron/entry.js) 只依赖 Electron 内置模块，捕获组合根及其依赖的同步加载异常（包括缺失生产依赖）。显示“LIRA 启动失败”和原始错误，提示使用完整安装包覆盖原目录；关闭提示后以 `app.exit(1)` 结束进程，错误提示自身失败也保证退出，避免没有窗口的残留进程阻塞下一次安装。正常启动与运行中的关闭流程仍由 `main.js` 拥有。[原生启动回归](../../../test/desktop/electron-startup.test.js) 使用隔离 Electron 模拟依赖加载失败和错误提示失败，验证确定退出及正常加载。
+
+`whenReady` 后的异步启动失败由 `main.js` 记录并提示，再进入 `requestDesktopShutdown({ exitCode: 1 })` 清理已创建资源；错误提示自身抛错也不能跳过关闭。相关证据见 [electron-startup-data.test.js](../../../test/desktop/electron-startup-data.test.js)。
 
 **单实例锁**:`app.requestSingleInstanceLock()` 拿不到锁立即 `app.quit()`([main.js](../../../src/electron/main.js));`second-instance` 事件时还原并聚焦主窗口([main.js](../../../src/electron/main.js));锁在退出流程末尾释放(§7)。
 
@@ -185,7 +189,7 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 ### 3.2 升级迁移
 
-旧卸载器可能递归删除安装目录；旧版运行时的 Cookies 也不能安全复制。NSIS 在选定目录后的首个隐藏安装 section 中检查 LIRA 进程，交互安装要求先关闭旧版再重试，静默安装有界等待；确认退出后，才将数据完整复制到 `<新安装目录>.lira-data-backup.partial`，复制返回码 0–7 后重命名为不受旧卸载器删除影响的同级备份。失败中止安装并保留源；已有恢复备份或不同目标数据产生冲突时停止，不覆盖。
+旧卸载器可能递归删除安装目录；旧版运行时的 Cookies 也不能安全复制。NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径的 LIRA 进程已退出，关闭确认及重试规则见[构建文档](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。随后才将数据完整复制到 `<新安装目录>.lira-data-backup.partial`，复制返回码 0–7 后重命名为不受旧卸载器删除影响的同级备份。失败中止安装并保留源；已有恢复备份或不同目标数据产生冲突时停止，不覆盖。
 
 程序替换完成后、启动新版前，安装器将备份恢复为 `<新安装目录>/data`。升级调用新版卸载器时保留 `data/`、`logs/`、`updates/`；普通卸载清理日志和更新文件，默认保留数据，只有勾选并确认后才删除用户数据，详见 [卸载策略](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。恢复失败保留备份并报告具体位置。Electron 发现未完成恢复的同级备份时拒绝启动后端，避免生成空库。
 
@@ -260,15 +264,15 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 
 ## 7. 关闭序列与播放状态冲刷
 
-主窗口 `close`（包括 `desktop:close-window` 和原生关闭）、`before-quit` 与 `desktop:restart` 共用 [main.js](../../../src/electron/main.js) 的 `requestDesktopShutdown({ restart = false } = {})`，关闭状态保存在 `lifecycleState.shutdownPromise`。窗口 `close` 先阻止默认销毁，保留 renderer 完成播放冲刷；最终由 `app.exit(0)` 结束窗口，重复关闭不重置期限：
+主窗口 `close`（包括 `desktop:close-window` 和原生关闭）、`before-quit`、`desktop:restart` 与异步启动失败共用 [main.js](../../../src/electron/main.js) 的 `requestDesktopShutdown({ restart = false, exitCode = 0 } = {})`，关闭状态保存在 `lifecycleState.shutdownPromise`。窗口 `close` 先阻止默认销毁，保留 renderer 完成播放冲刷；最终由 `app.exit(exitCode)` 结束窗口，正常退出为 0，启动失败为 1，重复关闭不重置期限：
 
 1. 每个受控 `before-quit` 都先 `event.preventDefault()`，再请求同一关闭任务。尚无后端且没有受控任务时保留 Electron 默认退出；重启入口在后端缺失时也能完成
 2. 首个请求保存共享 Promise 并启动唯一 **5s 总兜底定时器**，后续请求复用任务，不刷新期限，也不改变首次的退出/重启意图
-3. 开始请求时立即保存 `resourceIntegrity.stop()` 返回的 `integrityStopped`，dispose readiness 并置空，注销系统 resume；随后依次调用抽奖授权、礼物互动、礼物导出、粉丝档案、云端每日机器人 IPC 的 disposer，阻止新入口
+3. 在总期限和清理异常处理建立后，保存 `resourceIntegrity.stop()` 返回的 `integrityStopped`，dispose readiness 并置空，注销系统 resume；随后依次调用抽奖授权、礼物互动、礼物导出、粉丝档案、云端每日机器人 IPC 的 disposer，阻止新入口
 4. dispose 动态抽奖授权；保存当前 remoteGift、cloudSync、fanProfile、desktopAuth controller 集合并逐个 dispose，再置空 main 的前三个 controller 引用。取消/代次失效使晚结果不能继续提交；客户端退出不表示云端业务关闭，也不保证撤回已发出的上游请求
 5. `await Promise.all([integrityStopped, dynamicLotteryAuth.whenIdle(), ...controllersToDrain.map(c => c.whenIdle())])`。此时 runtime/SQLite 保持可用；等待完成且未被 5 秒终结抢先结束后，才进入后端关闭
 6. `lifecycleState.shutdown({exitProcess:false})` 委托 runtime.stop → [server-core.md](../backend/server-core.md) §6.2，其中 `preShutdownHook` 为 `requestPlaybackFlush`，正常路径等待 renderer 冲刷与后端资源/数据库关闭
-7. 完成、清理失败或超时均进入同一幂等 finish：清 timer、dispose 管理请求认证与 license manager、释放单实例锁，按首次请求决定是否 `app.relaunch()`，最后 `app.exit(0)`。失败记录 shutdown-error；超时记录 QUIT_TIMEOUT，其他终结记录 QUIT_DONE
+7. 完成、清理失败或超时均进入同一幂等 finish：清 timer、分别 dispose 管理请求认证与 license manager（单项失败记录后继续）、释放单实例锁，按首次请求决定是否 `app.relaunch()`，最后 `app.exit(exitCode)`。失败记录 shutdown-error；超时记录 QUIT_TIMEOUT，其他终结记录 QUIT_DONE
 
 | 资源与创建 owner | 取消入口 / 排空 | 数据依赖与晚完成保护 |
 | --- | --- | --- |

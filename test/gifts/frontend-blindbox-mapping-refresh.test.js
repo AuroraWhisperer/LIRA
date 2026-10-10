@@ -266,6 +266,7 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
       hidden: false,
       textContent: '',
       href: '',
+      append() {},
       getAttribute(name) {
         return this[name];
       },
@@ -286,12 +287,12 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
     'blindboxOverlayTop',
     'blindboxWinnersOnly',
     'blindboxHeartBoxOnly',
-    'blindboxCopyUrlBtn',
+    'blindboxPreviewBtn',
     'giftBlindBoxCustomConfigV2',
     'importBtn',
     'blindBoxAdvanced',
     'blindboxOverlayUrl',
-    'blindboxLiveLink',
+    'blindboxAppearanceFields',
   ])
     elements.set(id, makeElement());
   const editable = elements.get('giftBlindBoxCustomConfigV2');
@@ -304,7 +305,7 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
   const savedConfigs = [];
   let listRenders = 0;
   const settings = createBlindboxSettings({
-    documentRef: { getElementById: (id) => elements.get(id) || null },
+    documentRef: { getElementById: (id) => elements.get(id) || null, createElement: () => makeElement() },
     navigatorRef: { clipboard: { writeText: async () => {} } },
     promptRef() {},
     locationRef: {},

@@ -95,6 +95,51 @@ test('blind box statistics can filter one blind box type without changing the de
   assert.equal(heartStats.records[0].blind_box_name, '心动盲盒');
 });
 
+test('heart box progress resets after each romantic castle in event time order and survives replay', (t) => {
+  const f = fixture(t);
+  const open = (id, ms, extra = {}) => f.importGift(id, {
+    blindBoxId: '32251', unitPrice: 10, totalPrice: 10, blindBoxPrice: 15, blindProfit: -5,
+    createdAt: new Date(LOCAL_NOON + ms).toISOString(), ...extra,
+  });
+  const progress = () => getBlindBoxStats(f.context, { boxName: '心动盲盒' }).heartBoxProgress.openedSinceCastle;
+  assert.equal(progress(), 0);
+  open('before', 0, { num: 8 });
+  assert.equal(progress(), 8);
+  open('castle-1', 100, { giftId: '32132', giftName: '浪漫城堡' });
+  assert.equal(progress(), 0);
+  open('after', 200, { num: 4 });
+  open('late-before-castle', 50, { num: 10 });
+  assert.equal(progress(), 4, 'late import before the castle must not change its following count');
+  open('after', 200, { num: 4 });
+  assert.equal(progress(), 4, 'replaying an event does not double count');
+  open('castle-2', 300, { giftId: '32132', giftName: '浪漫城堡', num: 2 });
+  assert.equal(progress(), 0);
+  open('after-second', 400, { num: 3 });
+  assert.equal(progress(), 3);
+});
+
+test('heart box progress includes unknown profit but excludes other boxes, direct castles, dates and sources', (t) => {
+  const f = fixture(t);
+  const open = (id, extra = {}) => f.importGift(id, {
+    blindBoxId: '32251', unitPrice: 5, totalPrice: 10, blindBoxPrice: 15, blindProfit: -5, num: 2, ...extra,
+  });
+  open('today');
+  open('unknown', { num: 3, blindProfit: null, blindBoxPrice: null });
+  open('yesterday', { num: 50, createdAt: new Date(LOCAL_NOON - 86400000).toISOString() });
+  open('tomorrow', { num: 50, createdAt: new Date(LOCAL_NOON + 86400000).toISOString() });
+  open('other-box-castle', { giftId: '32132', blindBoxId: '32252', blindBoxName: '幸运盲盒' });
+  open('same-name-other-id', { giftId: '32132', blindBoxId: '32252' });
+  open('direct-castle', { giftId: '32132', isBlindBox: false, blindBoxId: null, blindBoxName: '', blindBoxPrice: null, blindProfit: null });
+  const foreign = open('foreign-castle', { giftId: '32132' });
+  const sourceId = createGiftSource(f.db.giftDb, 'f'.repeat(64));
+  f.db.giftDb.prepare('UPDATE gift_events SET source_id = ? WHERE id = ?').run(sourceId, foreign.id);
+  const stats = getBlindBoxStats(f.context, { boxName: '心动盲盒' });
+  assert.equal(stats.heartBoxProgress.openedSinceCastle, 5);
+  assert.equal(stats.records.some(row => row.id === foreign.id), false);
+  assert.equal(stats.records.some(row => row.profit === null), false);
+  assert.equal(getBlindBoxStats(f.context).heartBoxProgress, null);
+});
+
 test('blind box analysis shares filters across viewer, box, and record views', (t) => {
   const f = fixture(t);
   f.importGift('analysis-1', {

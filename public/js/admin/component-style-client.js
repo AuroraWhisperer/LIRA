@@ -1,5 +1,6 @@
 import { previewElement } from './component-preview-surface.js';
-import { mountComponentStyleLibrary } from './component-style-library.js';
+import { mountComponentStyleLibrary, openComponentStyleLibrary } from './component-style-library.js';
+import { openComponentLibraryManager } from './component-library-manager.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
 import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
 import { openComponentPreview } from './component-preview-dialog.js';
@@ -37,6 +38,14 @@ export function initComponentStyleLibraries() {
   const requests = new AbortController();
   const libraries = [];
   const settingsViews = [];
+  let manager; let updateEditor;
+  document.getElementById('componentLibraryManage')?.addEventListener('click', () => {
+    manager = openComponentLibraryManager({ request: requestComponentStyles,
+      onUpdate(pack, file) {
+        updateEditor = openComponentStyleLibrary({ type: pack.importTarget === 'suite' ? undefined : pack.importTarget,
+          suitesOnly: pack.importTarget === 'suite', initialFile: file, updatePack: pack });
+      } });
+  }, { signal: requests.signal });
   let pendingList;
   function request(action, options) {
     if (action !== 'list') return requestComponentStyles(action, options);
@@ -100,7 +109,6 @@ export function initComponentStyleLibraries() {
       if (wishes && event.target.matches('input[type="radio"]')) select(null);
     }, { signal: requests.signal });
     libraries.push(mountComponentStyleLibrary(list, { type, request, inline: true,
-      manageHost: feature.querySelector('[data-style-library-actions]'),
       actionLabel: wishes ? '预览样式' : '添加到画布',
       onUse: style => {
         select(style);
@@ -134,6 +142,7 @@ export function initComponentStyleLibraries() {
   window.addEventListener('component-styles:changed', () => { pendingList = null; refresh(); }, { signal: requests.signal });
   window.addEventListener('pagehide', () => {
     requests.abort();
+    manager?.dispose(); updateEditor?.dispose();
     for (const library of libraries) library.dispose();
     for (const view of settingsViews) view.dispose();
   }, { once: true });

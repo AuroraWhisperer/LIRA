@@ -1,11 +1,11 @@
 {
   "name": "lira",
-  "version": "5.2.1",
+  "version": "5.2.2",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
   "author": "Aurora",
-  "main": "src/electron/main.js",
+  "main": "src/electron/entry.js",
   "scripts": {
     "start": "node src/server.js",
     "desktop": "electron .",

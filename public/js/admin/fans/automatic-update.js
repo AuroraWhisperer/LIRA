@@ -16,7 +16,7 @@ export function initFanProfileAutoUpdate({ windowRef = window, notify = toast } 
       notify(
         update.status === 'error'
           ? `粉丝档案${label}失败：${update.error}`
-          : `粉丝档案${label}完成，已同步最新大航海身份`,
+          : `粉丝档案${label}完成，已同步最新大航海身份和陪伴天数`,
         { type: update.status === 'error' ? 'error' : 'success', duration: 5000 },
       );
     } catch (_) {

@@ -1,7 +1,7 @@
 /* 侧栏收起且窗口够宽时，目录与正文并排显示。 */
 @media (min-width: 1120px) {
   .other-page.sidebar-collapsed .usage-guide-panel {
-    grid-template-columns: 176px minmax(0, 1fr);
+    grid-template-columns: 224px minmax(0, 1fr);
     column-gap: 28px;
   }
 
@@ -28,20 +28,20 @@
     display: flex;
     flex-direction: column;
     container-type: normal;
-    gap: 2px;
+    gap: 4px;
     max-height: calc(100dvh - var(--player-dock-reserve, 96px) - 128px);
-    padding: 4px 6px 4px 4px;
+    padding: 12px;
     overflow-y: auto;
     scrollbar-width: thin;
-    border: 0;
-    border-radius: 0;
-    background: none;
+    border: 1px solid var(--usage-guide-nav-border);
+    border-radius: var(--radius-lg);
+    background: var(--usage-guide-nav-bg);
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc::before {
     content: '本页目录';
-    padding: 0 12px 10px;
-    color: var(--muted);
+    padding: 0 0 8px;
+    color: var(--usage-guide-nav-text);
     font-size: var(--type-size-caption);
     font-weight: 500;
   }
@@ -52,6 +52,26 @@
 
   .other-page.sidebar-collapsed .usage-guide-toc-toggle {
     display: none;
+  }
+
+  .other-page.sidebar-collapsed .usage-guide-toc-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 0 0 8px;
+  }
+
+  .other-page.sidebar-collapsed .usage-guide-reading-status {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: var(--type-size-micro);
+  }
+
+  .other-page.sidebar-collapsed .usage-guide-reading-track {
+    flex: 0 0 3px;
+    margin: 0 0 12px;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc-links {
@@ -71,36 +91,21 @@
   .other-page.sidebar-collapsed .usage-guide-toc a {
     flex: 0 0 auto;
     justify-content: flex-start;
-    min-height: 34px;
-    padding: 7px 10px;
-    border-left: 2px solid var(--usage-guide-rule);
+    padding: 10px;
+    border: 0;
     border-radius: 0 var(--radius-md) var(--radius-md) 0;
     text-align: left;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a:hover {
-    background: var(--color-bg-tertiary);
-    color: var(--text);
+    background: color-mix(in srgb, var(--usage-guide-nav-accent) 12%, var(--usage-guide-nav-bg));
+    color: var(--usage-guide-nav-text);
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a.active {
-    background: var(--usage-guide-accent-soft);
-    border-left-color: var(--usage-guide-accent);
-    color: var(--primary-strong);
+    background: var(--usage-guide-nav-accent);
+    color: var(--color-on-help-accent);
     box-shadow: none;
-  }
-
-  .other-page.sidebar-collapsed .usage-guide-toc a::before {
-    display: inline;
-    flex: 0 0 24px;
-    color: var(--muted);
-    font-size: var(--type-size-micro);
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .other-page.sidebar-collapsed .usage-guide-toc a.active::before {
-    color: var(--primary-strong);
   }
 
   .other-page.sidebar-collapsed .usage-guide-section {

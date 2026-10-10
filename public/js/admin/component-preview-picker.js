@@ -218,13 +218,13 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       for (const { id, button } of tabs) button.setAttribute('aria-pressed', String(id === active));
       for (const entry of entries) entry.card.hidden = entry.group !== active;
     }
-    return ({ list, cards, add, manage }) => {
+    return ({ list, cards, add }) => {
       list.classList.add('preview-picker-styles');
       entries = [...builtins, ...cards.map(({ style, card }) => ({ group: group(style.config.style), card }))];
       list.replaceChildren(...entries.map(entry => entry.card));
       add.className = 'secondary preview-picker-import';
       add.replaceChildren(pickerIcon('M12 5v14M5 12h14'), previewElement('span', '', '添加样式'));
-      subcategories.append(add, manage);
+      subcategories.append(add);
       filter();
     };
   }
@@ -358,6 +358,10 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     });
   }
   return {
+    updatePackage(pack, file) {
+      importAtTarget(pack.importTarget, file, pack);
+      dialog.showModal();
+    },
     open() {
       const selected = categories.querySelector('[aria-pressed="true"]');
       if (selected) selected.click();

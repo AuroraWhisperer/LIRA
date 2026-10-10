@@ -13,11 +13,6 @@ export function initGiftSprintOverlay() {
   document.getElementById('giftSprintPreview').addEventListener('click', () => {
     openComponentPreview({ id: 'gift-sprint' });
   });
-  document.getElementById('giftSprintConfigure').addEventListener('click', () => {
-    document.querySelector('[data-main-page="giftAssistantPage"]').click();
-    document.getElementById('giftSprintForm').scrollIntoView({ block: 'center' });
-    document.getElementById('giftSprintTargetRmb').focus({ preventScroll: true });
-  });
 }
 
 export function renderGiftSprintOverlay(sprint) {

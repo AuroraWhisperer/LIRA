@@ -1,132 +1,99 @@
-<!-- ============ 常用设置速查 ============ -->
-<section class="usage-guide-section" id="ug-cheatsheet">
-  <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">11</span>常用设置在哪里
-  </h3>
-  <p class="usage-guide-section-intro">
-    按要改的内容找到对应位置。改完看一眼按钮和提示，确认已经保存。更完整的画面分类见<a
-      href="#ug-appearance"
-      data-usage-guide-link
-      >外观速查</a
-    >。
-  </p>
-  <div class="usage-guide-grid">
-    <article class="usage-guide-card">
-      <strong>点歌规则</strong>
-      <p>
-        「点歌 → 设置」填直播间号。「点歌 →
-        点歌板」里改暂停点歌、排队上限、同一观众点歌间隔、允许重复、只允许歌库歌曲，改完点「保存点歌设置」。弹幕姬和礼物页各有监控开关，默认开着，切换后自动保存。这些设置会同步到同一账号的其他设备。暂停点歌不会停止接收礼物。
+<h4 class="usage-guide-subsection-title" id="ug-toolbox">功能位置索引</h4>
+<article class="usage-guide-feature" id="ug-cheatsheet"><div class="usage-guide-feature-head"><strong>常用设置位置</strong></div>
+<p>主界面顶部有「点歌」「播放」「礼物」「组件」「百宝箱」。按要操作的对象查找：</p>
+<ul><li><a data-usage-guide-link href="#ug-connection">账号与连接</a>：点歌 → 设置</li><li><a data-usage-guide-link href="#ug-song-rules">点歌规则</a>：点歌 → 点歌板</li><li><a data-usage-guide-link href="#ug-web-sync">歌库导入导出与同步</a>：点歌 → 导入导出</li><li><a data-usage-guide-link href="#ug-deepseek">AI 互动助手</a>：百宝箱 → 弹幕互动</li><li><a data-usage-guide-link href="#ug-gifts">礼物与盲盒</a>：礼物</li><li><a data-usage-guide-link href="#ug-work">粉丝档案与工作台</a>：百宝箱 → 日常管理</li></ul>
+<p>点歌页下方的页签：</p>
+<ul>
+<li>
+<strong>设置</strong>：B 站账号登录和直播间号。弹幕监控开关在弹幕姬，礼物监控开关在礼物页。
+        </li>
+<li>
+<strong>点歌板</strong>：点歌规则、点歌板黑名单，以及直播画面上点歌板的颜色、字号、滚动模式等样式。
+        </li>
+<li><strong>展示板</strong>：歌单展示板的滚动速率、歌曲排序方式和主题配色。</li>
+<li>
+<strong>浏览器源</strong>：打开场景编辑器、复制直播场景地址，也能直接复制单个组件的浏览器源地址，加到 OBS
+          或直播姬。不需要统一管理时，单个组件会使用已保存的样式。
+        </li>
+<li><strong>导入导出</strong>：导入 XLSX、CSV、TSV 文件或粘贴表格，也能下载导入模板、导出歌库 Excel。</li>
+<li><strong>桌面歌词设置</strong>：设置歌词浏览器源的字体、颜色、字号、描边和透明度，并实时预览。</li>
+</ul>
+<p>
+        「浏览器源」页只列常用地址，其他地址到对应功能里复制。在线弹幕姬链接要先通过 LIRA
+        授权、读到服务器配置才能用。要收到直播消息，还要登录 B 站账号。
+      </p></article>
+<article class="usage-guide-feature" id="ug-appearance"><div class="usage-guide-feature-head"><strong>外观设置位置</strong></div>
+<ul><li><a data-usage-guide-link href="#ug-client-appearance">客户端配色</a>：百宝箱 → 设置 → 客户端外观</li><li><a data-usage-guide-link href="#ug-song-board">点歌板</a>：点歌 → 点歌板</li><li><a data-usage-guide-link href="#ug-song-display">歌曲展示板</a>：点歌 → 展示板</li><li><a data-usage-guide-link href="#ug-lyric-overlay">直播歌词</a>：点歌 → 桌面歌词设置</li><li><a data-usage-guide-link href="#ug-danmaku">弹幕姬</a>：组件 → 弹幕姬</li><li><a data-usage-guide-link href="#ug-gift-components">礼物组件</a>：组件 → 礼物姬</li><li><a data-usage-guide-link href="#ug-clock">时钟</a>：组件 → 时钟</li><li><a data-usage-guide-link href="#ug-opening">开播动画</a>：组件 → 开播动画</li><li><a data-usage-guide-link href="#ug-web-appearance">网页歌单</a>：网页主播中心 → 网页歌单</li><li><a data-usage-guide-link href="#ug-vote-overlay">投票与评分画面</a>：百宝箱 → 小游戏</li></ul>
+<p>点歌板显示排队等着唱的歌，歌曲展示板展示歌库。两个都能放进直播画面，但内容不一样。</p>
+<figure class="usage-guide-figure">
+<img alt="点歌板直播画面，列出排队的歌曲和点歌的观众" class="usage-guide-image" decoding="async" height="900" loading="lazy" src="/img/usage-guide/F/public-overlay-queue.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>点歌板：显示排队的歌和点歌的观众。</figcaption>
+</figure>
+<figure class="usage-guide-figure usage-guide-figure--portrait">
+<img alt="竖向的歌曲展示板直播画面，列出歌库里的歌曲" class="usage-guide-image" decoding="async" height="650" loading="lazy" src="/img/usage-guide/F/public-overlay-songs.webp" style="--usage-guide-image-width: 440px" width="440"/>
+<figcaption>歌曲展示板：滚动显示歌库。</figcaption>
+</figure>
+<p>
+        其他效果图和设置图见<a data-usage-guide-link href="#ug-toolbox">组件与百宝箱</a>；复制地址和画面尺寸见<a data-usage-guide-link href="#ug-obs">直播姬 / OBS 投屏</a>。
+      </p></article>
+<h4 class="usage-guide-subsection-title" id="ug-glossary">名词小词典</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-card">
+<strong>点歌队列与播放队列</strong>
+<p>
+        点歌队列是观众点的歌。播放队列是播放器接下来要放的歌。「导入点歌」把点歌队列加进播放队列。详见<a data-usage-guide-link href="#ug-playback">播放页</a>。
       </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/song-settings-rules.webp"
-          width="1396"
-          height="309"
-          loading="lazy"
-          decoding="async"
-          alt="点歌板中的点歌规则、点歌板黑名单和保存点歌设置按钮"
-        />
-        <figcaption>「点歌 → 点歌板」：改完点「保存点歌设置」。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>主题美化</strong>
-      <p>
-        「点歌 →
-        点歌板」：先选点歌板风格，再调颜色、背景透明度、毛玻璃、发光和渐变。每种风格能调的参数不一样。可以先从「配色方案」挑一套，再微调。网页歌单的背景和外观在别处设置。
+</article>
+<article class="usage-guide-card">
+<strong>点歌板与展示板</strong>
+<p>点歌板给观众看排队的歌，歌曲展示板滚动展示歌库。两个都不能放歌。</p>
+</article>
+<article class="usage-guide-card">
+<strong>桌面歌词与逐字歌词</strong>
+<p>
+        桌面歌词是单独显示歌词的画面，也能用浏览器源加进 OBS 或直播姬。逐字歌词会跟着演唱一个字一个字高亮，要歌曲本身带这种歌词才行。
       </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/song-theme-styles.webp"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-          alt="点歌板样式：上方六种点歌板风格，下面是队列布局、配色方案和文字设置"
-        />
-        <figcaption>六种点歌板风格和配色方案。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>投屏文字</strong>
-      <p>
-        「点歌 →
-        点歌板」：设置歌名、标题和点歌人的字号，以及字体、字重。队列滚动模式可选「循环滚动（首尾相接）」或「往返滚动（到底后返回）」。滚动速率
-        1 最慢，100 最快。
+</article>
+<article class="usage-guide-card">
+<strong>弹幕姬</strong>
+<p>在「组件」中设置弹幕画面的样式和过滤，直播画面使用服务器地址。发送、回复和机器人功能位于「百宝箱 → 弹幕互动」。</p>
+</article>
+<article class="usage-guide-card">
+<strong>礼物姬</strong>
+<p>设置全屏礼物感谢、大航海感谢、滚动礼物和礼物许愿的地方。查礼物记录要去顶部的「礼物」页。</p>
+</article>
+<article class="usage-guide-card">
+<strong>加班机</strong>
+<p>用倒计时显示还要播多久。收到符合规则的礼物，可以加减时间或触发别的效果。先设好初始时间和礼物规则。</p>
+</article>
+<article class="usage-guide-card">
+<strong>盲盒与盈亏</strong>
+<p>盲盒会开出不同价值的礼物。盈亏 = 开出礼物的价值 − 开盒成本，正数是赚，负数是亏。它不等于主播实际到账的收入。</p>
+</article>
+<article class="usage-guide-card">
+<strong>大航海与 SC</strong>
+<p>大航海是 B 站的舰长、提督、总督这些付费身份。SC 是醒目留言（Super Chat），是付了钱的留言，和普通弹幕不一样。</p>
+</article>
+<article class="usage-guide-card">
+<strong>浏览器源与投屏地址</strong>
+<p>
+        OBS 的「浏览器源」或直播姬的「浏览器」能把一个网页放进直播画面。把 LIRA
+        给的地址粘进去就行，不用录整个软件窗口。
       </p>
-      <details class="usage-guide-foldout">
-        <summary>查看文字和滚动设置</summary>
-        <figure class="usage-guide-figure">
-          <img
-            class="usage-guide-image"
-            src="/img/usage-guide/B/song-theme-detail.webp"
-            width="1362"
-            height="1378"
-            loading="lazy"
-            decoding="async"
-            alt="点歌板样式的完整设置：队列滚动模式和速率、配色方案、字体和字号、序号显示、背景透明度和毛玻璃"
-          />
-          <figcaption>队列布局、文字设置、序号显示和面板外观。</figcaption>
-        </figure>
-      </details>
-    </article>
-    <article class="usage-guide-card">
-      <strong>礼物与盲盒</strong>
-      <p>
-        「礼物」页：礼物统计、礼物提示、冲刺目标、历史记录和盲盒盈亏榜。「盲盒设置」里补充自定义盲盒的成本和可能开出的礼物。月底冲刺的「重置本轮」不会清空礼物记录。
+</article>
+<article class="usage-guide-card">
+<strong>本机与服务器</strong>
+<p>
+        本机就是你正在用的这台电脑。服务器是联网后帮你保存数据、运行部分功能的那一端。带 127.0.0.1 的地址只能在运行 LIRA
+        的那台电脑上用。
       </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/D/gift-page-overview.webp"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-          alt="礼物页上方的礼物统计、礼物提示、自动答谢礼物、弹幕查询礼物统计开关，下方是最近礼物"
-        />
-        <figcaption>「礼物」页上方的开关和最近礼物。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>签到与回复</strong>
-      <p>
-        「百宝箱 → 弹幕互动」：签到机器人、抽签机器人、随机点歌回复、自定义关键词回复，还有进场欢迎等辅助功能。AI
-        的平台、密钥、模型和触发词在同一页的「AI 互动助手」里设置。
+</article>
+<article class="usage-guide-card">
+<strong>网页歌单与主播中心</strong>
+<p>网页歌单公开给观众挑歌。主播中心要用 LIRA 账号登录，用来看礼物、改网页歌单外观、复制服务器弹幕姬地址。</p>
+</article>
+<article class="usage-guide-card">
+<strong>注册激活码 短效登录码 密码重置码</strong>
+<p>
+        注册激活码：第一次注册账号用。短效登录码：换电脑或重装后登录客户端用。密码重置码：在网页上重置忘记的密码用。都找管理员要，不能混着用。
       </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/E/danmaku-reply-tools.webp"
-          width="1440"
-          height="913"
-          loading="lazy"
-          decoding="async"
-          alt="弹幕互动页的固定回复：随机点歌回复、签到机器人、抽签机器人、自定义关键词回复、进场欢迎和 PK 对手信息播报开关"
-        />
-        <figcaption>弹幕互动的「固定回复」区域。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>歌曲展示板</strong>
-      <p>
-        「点歌 → 展示板」：滚动速率
-        1–100、歌曲排序方式、字号和「同步点歌板主题」。这里改的是歌库展示画面，播放队列的顺序不受影响。
-      </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/song-board-settings.webp"
-          width="1394"
-          height="370"
-          loading="lazy"
-          decoding="async"
-          alt="展示板设置：歌单滚动速率、歌曲排序方式、字体大小、同步点歌板主题开关和保存展示板按钮"
-        />
-        <figcaption>「点歌 → 展示板」：改完点「保存展示板」。</figcaption>
-      </figure>
-    </article>
-  </div>
-</section>
+</article></div>

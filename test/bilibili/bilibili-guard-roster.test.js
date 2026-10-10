@@ -87,6 +87,13 @@ test('guard roster reads only valid fan medal levels belonging to the room owner
   );
 });
 
+test('guard roster keeps the platform companion count separate from membership duration', async () => {
+  const values = [113, 0, 1084, undefined, -1, '360', 1.5];
+  const rows = values.map((accompany, index) => member(index + 1, { accompany }));
+  const result = await fetchGuardRoster('42', fixture([{ info: { num: rows.length }, top3: [], list: rows }]));
+  assert.deepEqual(result.members.map((m) => m.accompanyDays), [113, 0, 1084, undefined, undefined, undefined, undefined]);
+});
+
 test('guard roster rejects partial pages, changing totals, and another room owner', async () => {
   for (const pages of [
     [

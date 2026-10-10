@@ -20,65 +20,32 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 16px 18px;
-  border: 1px solid var(--opening-admin-border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  flex-wrap: wrap;
+  gap: 12px 24px;
 }
-.opening-animation-title {
+.opening-visibility-control,
+.opening-toolbar-actions,
+.opening-source-actions,
+.opening-media-title {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   min-width: 0;
 }
-.opening-animation-title > span {
-  flex: 0 0 auto;
-  padding: 6px 9px;
-  border-radius: 8px;
-  color: var(--opening-admin-accent-strong);
-  background: var(--opening-admin-accent-soft);
-  font-size: var(--type-size-micro);
-  font-weight: var(--type-weight-bold);
-}
-.opening-animation-title > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-.opening-animation-title h2 {
-  margin: 0;
-  color: var(--opening-admin-text);
-  font-size: var(--type-size-section-title);
-  line-height: 1.3;
+.opening-toolbar-actions {
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-left: auto;
 }
 
 .opening-master-toggle {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 40px;
   align-items: center;
-  gap: 11px;
-  min-width: 300px;
-  padding: 10px 12px;
-  border: 1px solid var(--opening-admin-border);
-  border-radius: 8px;
+  gap: 12px;
+  padding: 8px 0;
   color: var(--opening-admin-text);
-  background: var(--color-bg-primary);
   cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    transform 120ms ease;
-}
-.opening-master-toggle:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-bg-tertiary);
-}
-.opening-master-toggle:active {
-  transform: translateY(1px);
-}
-.opening-master-toggle:has(input:checked) {
-  border-color: var(--border);
 }
 .opening-master-toggle input {
   position: absolute;
@@ -97,6 +64,7 @@
   transition: background 160ms ease;
 }
 .opening-master-toggle-ui {
+  grid-area: 1 / 2;
   width: 40px;
   height: 22px;
 }
@@ -137,29 +105,14 @@
   outline-offset: 3px;
 }
 .opening-master-toggle-copy {
-  display: grid;
-  gap: 2px;
+  grid-area: 1 / 1;
   min-width: 0;
-}
-.opening-master-toggle-copy strong {
   font-size: var(--type-size-control);
-  line-height: 1.35;
-  white-space: nowrap;
-}
-.opening-master-toggle-copy small {
-  color: var(--opening-admin-muted);
-  font-size: var(--type-size-micro);
-  line-height: 1.35;
+  font-weight: var(--type-weight-regular);
+  line-height: 20px;
 }
 
-.opening-animation-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.7fr);
-  gap: 16px;
-  align-items: start;
-}
-.opening-animation-editor,
-.opening-animation-preview {
+.opening-animation-editor {
   min-width: 0;
   border: 1px solid var(--opening-admin-border);
   border-radius: var(--radius-lg);
@@ -171,14 +124,12 @@
   padding: 18px;
 }
 .opening-style-picker {
-  display: grid;
-  gap: 12px;
-  padding: 18px;
-  border: 1px solid var(--opening-admin-border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  display: flex;
+  min-width: 0;
 }
-.opening-style-picker h3 { margin: 0; font-size: var(--type-size-card-title); }
+.opening-animation-panel:has(#openingAnimationForm[hidden]) #openingSaveFeedback {
+  display: none;
+}
 .opening-style-options { display: flex; flex-wrap: wrap; gap: 8px; }
 .opening-style-options > button,
 .opening-style-options .component-style-select,
@@ -202,36 +153,25 @@
 .opening-style-options .component-style-select span { white-space: normal; }
 #openingAnimationForm,
 #openingImportedSettings { display: grid; gap: 16px; min-width: 0; }
+#openingAnimationForm {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px 32px;
+}
+#openingAnimationForm:has(#openingCopyFields[hidden]) .opening-editor-section {
+  grid-column: 1 / -1;
+}
 #openingImportedSettings .component-preview-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 #openingImportedSettings .component-preview-fields > label { display: grid; gap: 6px; color: var(--muted); }
 #openingImportedSettings .component-preview-fields > label:has(input[type='checkbox']) { display: flex; align-items: center; justify-content: space-between; }
 .opening-animation-panel [hidden] { display: none !important; }
-@media (max-width: 1000px) {
-  .opening-animation-layout { grid-template-columns: minmax(0, 1fr); }
-}
-.opening-editor-heading,
-.opening-preview-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
-.opening-editor-heading > div {
+.opening-copy-section {
   display: grid;
-  gap: 5px;
+  gap: 12px;
+  min-width: 0;
 }
-.opening-editor-heading > div > span {
-  color: var(--opening-admin-muted);
-  font-size: var(--type-size-micro);
-  font-weight: var(--type-weight-bold);
-  letter-spacing: var(--type-tracking-eyebrow);
-}
-.opening-editor-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.opening-editor-title > span {
+.opening-copy-section h3 {
+  margin: 0;
   color: var(--opening-admin-text);
   font-size: var(--type-size-card-title);
   font-weight: var(--type-weight-bold);
@@ -305,8 +245,7 @@
 .opening-editor-section {
   display: grid;
   gap: 12px;
-  padding-top: 15px;
-  border-top: 1px solid var(--opening-admin-border);
+  min-width: 0;
 }
 .opening-section-heading {
   align-items: baseline;
@@ -363,16 +302,16 @@
 
 .opening-music-card {
   display: grid;
-  gap: 13px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--color-bg-tertiary);
+  gap: 12px;
+  min-width: 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
 }
 .opening-music-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
 }
 .opening-music-heading > div:first-child {
@@ -384,7 +323,7 @@
   color: var(--opening-admin-text);
   font-size: var(--type-size-card-title);
 }
-.opening-music-heading span {
+.opening-music-heading > div:first-child > span {
   overflow: hidden;
   color: var(--opening-admin-muted);
   font-size: var(--type-size-caption);
@@ -394,6 +333,7 @@
 .opening-music-actions {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
 }
@@ -464,79 +404,13 @@
   display: none;
 }
 
-.opening-animation-preview {
-  position: sticky;
-  top: 0;
-  display: grid;
-  gap: 14px;
-  padding: 18px;
-  align-content: start;
-}
-.opening-preview-heading > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  width: 100%;
-}
-.opening-preview-heading strong {
-  color: var(--opening-admin-text);
-  font-size: var(--type-size-card-title);
-}
-.opening-preview-heading span {
-  color: var(--opening-admin-muted);
-  font-family: var(--font-mono);
-  font-size: var(--type-size-micro);
-}
-.opening-animation-address {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  padding: 11px 12px;
-  border: 1px solid var(--opening-admin-border);
-  border-radius: 8px;
-  background: var(--color-bg-tertiary);
-}
-.opening-animation-address > div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-.opening-animation-address span {
-  color: var(--opening-admin-muted);
-  font-size: var(--type-size-micro);
-  font-weight: var(--type-weight-bold);
-}
-.opening-animation-address code {
+#openingUrl {
   display: block;
-  overflow: hidden;
+  margin-top: 8px;
   color: var(--text);
   font-family: var(--font-mono);
   font-size: var(--type-size-caption);
   line-height: 1.5;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.opening-animation-address .button-secondary {
-  min-height: 34px;
-  padding: 6px 12px;
-  border-color: var(--border);
-  border-radius: var(--radius-control);
-  color: var(--text);
-  background: var(--color-bg-primary);
-  font-size: var(--type-size-control);
-  font-weight: var(--type-weight-bold);
-  white-space: nowrap;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    transform 120ms ease;
-}
-.opening-animation-address .button-secondary:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-bg-tertiary);
-}
-.opening-animation-address .button-secondary:active {
-  transform: translateY(1px);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }

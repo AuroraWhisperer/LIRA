@@ -49,22 +49,30 @@ test('toolbox sidebar exposes an accessible collapse control and reduced-motion 
   );
 });
 
-test('toolbox sidebar groups features by live and local workflows', () => {
+test('toolbox sidebar groups remaining tools by entertainment, management and support', () => {
   const html = readAdminHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'toolbox.css');
   const navigation = html.match(/<nav\b[^>]*class=["']other-feature-menu["'][^>]*>([\s\S]*?)<\/nav\s*>/)?.[1];
   const expectedGroups = [
-    ['live-interaction', '直播互动', ['otherDanmakuFeature', 'otherDynamicLotteryFeature', 'otherGamesFeature']],
     [
-      'live-scene',
-      '直播画面',
-      ['otherGiftEffectsFeature'],
+      'live-interaction',
+      '互动娱乐',
+      ['otherDanmakuFeature', 'otherDynamicLotteryFeature', 'otherGamesFeature', 'otherGiftEffectsFeature'],
     ],
-    ['streamer-work', '主播工作', ['otherDailyTodoFeature']],
-    ['software-help', '软件与帮助', ['otherPerformanceFeature', 'otherUsageGuideFeature', 'otherDesktopUpdateFeature']],
+    ['streamer-work', '日常管理', ['otherFanProfilesFeature', 'otherDailyTodoFeature']],
+    [
+      'software-help',
+      '应用支持',
+      ['otherSettingsFeature', 'otherPerformanceFeature', 'otherUsageGuideFeature', 'otherDesktopUpdateFeature'],
+    ],
   ];
 
   assert.ok(navigation, 'toolbox navigation should remain present');
+  assert.deepEqual(
+    [...navigation.matchAll(/data-other-feature="([^"]+)"/g)].map(([, featureId]) => featureId),
+    expectedGroups.flatMap(([, , featureIds]) => featureIds),
+    'each remaining tool should appear exactly once in its intended group',
+  );
 
   const headingPositions = expectedGroups.map(([groupId]) =>
     navigation.indexOf(`data-other-feature-group="${groupId}"`),
@@ -112,10 +120,9 @@ test('toolbox group headings remain accessible collapsible buttons', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'toolbox.css');
   const navigation = html.match(/<nav\b[^>]*class=["']other-feature-menu["'][^>]*>([\s\S]*?)<\/nav\s*>/)?.[1];
   const groups = [
-    ['live-interaction', '直播互动'],
-    ['live-scene', '直播画面'],
-    ['streamer-work', '主播工作'],
-    ['software-help', '软件与帮助'],
+    ['live-interaction', '互动娱乐'],
+    ['streamer-work', '日常管理'],
+    ['software-help', '应用支持'],
   ];
 
   assert.ok(navigation, 'toolbox navigation should remain present');

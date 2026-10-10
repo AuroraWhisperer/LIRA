@@ -3,6 +3,7 @@
 const { createHash } = require('node:crypto');
 const { profilePatch, identityKey, timestamp, recordData } = require('./validation');
 const { DAY_MS, dateValue, dayStart } = require('./dates');
+const { normalizeGuardAccompany, accompanySettings } = require('./guard-accompany');
 
 function digest(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -32,11 +33,14 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       throw new Error('备份格式无效或归属不匹配。请切换到备份所属服务器和主播账号后恢复。');
     }
     const profileIds = new Set();
+    accompanySettings(input.settings);
     const identityKeys = new Set();
     for (const profile of input.profiles) {
       if (typeof profile.id !== 'string' || profileIds.has(profile.id)) throw new Error('备份中有重复或无效档案。');
       profileIds.add(profile.id);
       const patch = profilePatch(profile);
+      if (profile.guardAccompany != null && !normalizeGuardAccompany(profile.guardAccompany))
+        throw new Error('备份中的平台陪伴天数无效。');
       if (profile.guardRoster !== undefined && profile.guardRoster !== null) {
         const roster = profile.guardRoster;
         if (
@@ -129,6 +133,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     const existing = store.getScope(scope);
     store.saveScope(scope, {
       ...existing,
+      ...accompanySettings(value.settings),
       initialized: value.settings?.initialized === true || existing.initialized,
       autoUpdate: value.settings?.autoUpdate !== false,
       autoCreate: value.settings?.autoCreate !== false,
@@ -222,8 +227,8 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       throw new Error('恢复点预览已变化，请重新确认。');
     }
     const snapshotId = store.snapshot(scope, { ...backup(scope), reason: '恢复本机恢复点之前' }, now());
-    for (const profile of store.list(scope)) store.remove(scope, profile.id, false);
-    for (const key of store.exportScope(scope).suppressions) store.unsuppress(scope, key);
+    for (const profile of store.list(scope, { includeSuppressed: true })) store.remove(scope, profile.id, false);
+    // Restoring older data must not silently unblock an identity.
     for (const { records, reminders, ...profile } of value.profiles) {
       store.restoreProfile(scope, profile, identityKey(profile.identity), now());
       for (const record of records) store.records.insert(scope, profile.id, record);

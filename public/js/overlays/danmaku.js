@@ -440,9 +440,14 @@ function previewItems(style) {
       giftTotalPrice: giftCount / 10,
       giftImageUrl: '/img/gift-placeholder.png',
     })),
-    ...(style === 'moonlit' ? [3, 2, 1].map((giftGuardLevel) => ({
+    ...(['moonlit', 'prismatic'].includes(style) ? [3, 2, 1].map((giftGuardLevel) => ({
       id: `preview-guard-${giftGuardLevel}`, kind: 'gift', name: ['金色航线', '云端来信', '阿沐'][giftGuardLevel - 1],
       giftName: guardLabel(giftGuardLevel), giftCount: 1, giftGuardLevel,
+      ...(style === 'prismatic' ? {
+        guardAction: giftGuardLevel === 3 ? 'renew' : 'open',
+        guardAccompanyDays: giftGuardLevel === 3 ? 360 : 1,
+        giftTotalPrice: { 3: 138, 2: 1998, 1: 19998 }[giftGuardLevel],
+      } : {}),
       avatarUrl: '/img/overlays/danmaku-ranked/viewer.webp',
     })) : []),
     ...[

@@ -1,259 +1,44 @@
-<!-- ============ 投屏设置 ============ -->
-<section class="usage-guide-section" id="ug-obs">
-  <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">10</span>直播姬 / OBS 投屏与套装
-  </h3>
-  <p class="usage-guide-section-intro">
-    LIRA 面向 B 站直播，OBS 与哔哩哔哩直播姬（简称直播姬）均可使用。复制需要的画面地址，添加到直播姬的「浏览器」或 OBS 的「浏览器源」。网页歌单用于让观众查歌，使用另外的链接，见<a
-      href="#ug-web-songlist"
-      data-usage-guide-link
-      >网页歌单与分享</a
-    >。
-  </p>
-  <ol class="usage-guide-steps">
-    <li>
-      在「点歌 → 浏览器源」找到需要的地址。统一摆放多个组件时选择「直播场景」；单独使用时直接复制对应组件地址，无需编辑场景。
-    </li>
-    <li>在直播软件中添加浏览器源，粘贴地址，按功能面板的说明设置源的宽度和高度，再把画面摆到需要的位置。</li>
-    <li>
-      在 LIRA
-      中按需调整样式，并点击对应面板的保存或应用按钮。场景编辑器点「保存并应用」；使用已有样式无需再次调参。没有内容时，歌词、礼物特效等源可能是透明的。
-    </li>
-  </ol>
-  <div class="usage-guide-grid">
-    <article class="usage-guide-card">
-      <strong>直播场景，一个地址导入</strong>
-      <p>在「浏览器源 → 直播场景」点击「编辑场景」打开场景编辑器。顶部添加组件，下方选择图层，右侧展开调参；收起参数可放大画布。画布分辨率统一设置，保存后恢复已有布局。</p>
-      <p>点击右上角「保存并应用」，再从客户端「复制地址」或网页「复制场景地址」。将整个场景导入一个浏览器源，源宽高与画布一致。后续应用沿用原地址，关闭编辑网页后也能显示。</p>
-      <p>直播软件使用复制得到的 /scene 地址；浏览器地址栏中的 /component-preview 是编辑页面，不用于投屏。</p>
-    </article>
-    <article class="usage-guide-card">
-      <strong>独立组件，直接复制使用</strong>
-      <p>无需组合布局时，直接复制「点歌板」「萌时钟」「加班机」或「弹幕姬 · 本机组件」地址。它们读取已保存的默认样式，无需创建或发布场景。</p>
-      <p>组件库加入场景的图层默认使用独立外观，修改它只影响该场景。想更换单组件默认样式，可直接在客户端对应面板选择并保存。</p>
-    </article>
-  </div>
-  <!-- admin-fragment: pages/admin/toolbox/usage-guide-scene-editing.html -->
-  <h4>导入套装与第三方素材</h4>
-  <div class="usage-guide-grid">
-    <article class="usage-guide-card">
-      <strong>导入月渡花汀等 LIRA 套装 ZIP</strong>
-      <ol class="usage-guide-steps">
-        <li>在「点歌 → 浏览器源 → 直播场景」点「编辑场景」，进入「添加组件 → 套装」后点「导入套装」，直接选择作者提供的 ZIP，无需解压或手动放文件夹。</li>
-        <li>核对套装名称、版本和成员清单，再点「导入套装」。导入只增加可选样式，当前直播画面保持原样。</li>
-        <li>打开「直播场景 → 编辑场景」，在「添加组件 → 套装」找到已导入的套装，点击需要的成员；也可从对应组件分类选择。</li>
-        <li>每点一个成员添加一个组件。调整位置和大小后点「保存并应用」，直播软件中的场景才会更新。</li>
-      </ol>
-      <p>当前提供的月渡花汀 1.0.0 包含静态背景、动态背景、开播动画、时钟、弹幕姬、礼物许愿、点歌板和歌词共 8 款样式，背景可二选一，其他成员也可单独使用。其他套装的种类和数量以导入清单为准。</p>
-      <p>月渡花汀需先导入才会出现在样式库。若没有导入入口，或提示需要更新客户端，请安装支持该套装的更新版本。</p>
-      <p>ZIP 必须从对应入口导入：背景样式包在「背景 → 添加样式」，跨组件套装在「套装 → 导入套装」。选错入口会拒绝添加并提示正确路径，点击「前往…导入」可带着刚选的文件继续操作。</p>
-    </article>
-    <article class="usage-guide-card">
-      <strong>第三方 HTML、CSS、网页与图片视频</strong>
-      <p>在对应组件「＋ 添加样式」点击「选择文件」，程序自动识别样式包、网页、图片或视频，并带上网页的配套资源。收到网址或代码时，展开「粘贴网址或代码」直接粘贴。名称和尺寸通常不用改，配套文件夹可在「更多设置」中选择。普通素材 ZIP 请先解压到独立文件夹，保留作者的目录结构。</p>
-      <p>预览时拖动虚线框，给弹幕、时间或许愿内容留出位置，填好名称后点「添加样式」。点击新卡片加入画布，再「保存并应用」。支持 PNG、JPEG、GIF、WebP、MP4 和 WebM。</p>
-      <p>弹幕 CSS 自动识别常见 blivechat / BLC 样式；需要原工具后端或专用网页的样式，使用作者的配套 HTML 或展示地址。缺少配套文件时会提示具体路径。全屏礼物感谢图片/视频沿用 LIRA 的触发设置；成片已带固定文字时可关闭「显示感谢文字」。</p>
-    </article>
-    <article class="usage-guide-card">
-      <strong>更换样式，保留已经摆好的位置</strong>
-      <p>「添加组件」将内置、单独导入和套装中的样式放在各自组件分类中，点击顶部「添加样式」可导入更多样式。弹幕姬按固定弹幕、随机弹幕或飘窗弹幕选择，添加后右侧只调整当前样式参数；需要其他样式时再添加对应组件。</p>
-      <p>其他支持更换样式的组件，在画布选中原图层，点右侧「更换样式 / 添加素材」选择新样式。名称、位置、大小和层级会保留，最后点「保存并应用」。锁定的图层需先解锁。</p>
-      <p>旧场景使用了此前内置的月渡花汀时，先导入月渡花汀 ZIP。弹幕姬重新添加对应样式；其他组件可按上述步骤为原图层选择对应成员。若提示资源缺失，也可重新导入对应套装后重新选择。</p>
-      <p>导入的样式用于本机场景，不会修改服务器弹幕姬链接。直播软件与 LIRA 需在同一电脑上，直播期间保持 LIRA 开启。</p>
-    </article>
-    <article class="usage-guide-card">
-      <strong>删除、恢复与更新整套</strong>
-      <p>每套显示名称、版本和组件数量。点标题旁「删除套装」并确认，可整套移出样式库；内部卡片只负责选用。独立添加的样式仍可用右上角 × 删除。已有场景继续可用，不会立即清理磁盘文件；要从直播画面移除组件，请在画布删除图层，再「保存并应用」。</p>
-      <p>点「更新套装」选择作者提供的新版 ZIP，核对替换版本后确认；安装成功后样式库只显示新版本，失败则保留旧版。已有场景保留原效果，需要升级的图层请更换样式后保存应用。误删后重新导入原 ZIP 可恢复整套，重复导入不会产生副本。</p>
-      <p>「管理样式库」可查看类型、名称、版本和占用空间，单组件多变体包也能整包更新、移除。清理未使用文件前会再次检查场景引用；其他预设有未保存草稿时请先保存或放弃修改。</p>
-      <p>若提示相同版本内容冲突，请作者提高版本号后重新打包。换电脑前先保存修改，在「管理样式库」导出素材与场景备份，新电脑恢复后核对布局再应用。备份不包含未保存草稿、外部浏览器源及本地加班机背景路径；具体步骤见<a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a>。</p>
-    </article>
-  </div>
-  <div class="usage-guide-notice usage-guide-notice--warning">
-    <strong>先分清本机画面和服务器弹幕姬</strong>
-    <p>
+<section class="usage-guide-section" id="ug-scene-guide">
+<h3 class="usage-guide-section-title"><span aria-hidden="true" class="usage-guide-section-index">05</span>场景与素材</h3>
+<p class="usage-guide-section-intro">LIRA 面向 B 站直播，OBS 与哔哩哔哩直播姬均支持浏览器源。网页歌单给观众查歌，使用另外的链接，见<a data-usage-guide-link href="#ug-web-share">网页歌单与分享</a>。</p>
+<p>顶部「组件」集中管理弹幕姬、礼物姬、文本框、加班机、开播动画和时钟；左侧选组件，右侧配置、预览和复制链接。</p>
+<figure class="usage-guide-figure">
+<img alt="组件：左侧六项组件导航，右侧配置弹幕画面" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/live-components.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>组件：选择组件后直接配置，预览与链接都在对应面板中。</figcaption>
+</figure>
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-scene-editing.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-configuration.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-toolbox-danmaku-gifts.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-guard-thanks.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-toolbox-overlays.html -->
+<!-- admin-fragment: pages/admin/toolbox/usage-guide-public-tools.html -->
+<h4 class="usage-guide-subsection-title" id="ug-obs">05.8 接入 OBS / 直播姬</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.8.1 选择正确输出地址</strong></h5></div>
+<p>无需组合布局时，直接复制「点歌板」「萌时钟」「加班机」或「弹幕姬 · 本机组件」地址。它们读取已保存的默认样式，无需创建或发布场景。</p>
+<p>点击右上角「保存并应用」，再从客户端「复制地址」或网页「复制场景地址」。将整个场景导入一个浏览器源，源宽高与画布一致。后续应用沿用原地址，关闭编辑网页后也能显示。</p>
+<p>直播软件使用复制得到的 /scene 地址；浏览器地址栏中的 /c#…（兼容旧 /component-preview）是编辑入口，不用于投屏。</p>
+<div class="usage-guide-notice usage-guide-notice--warning">
+<strong>先分清本机画面和服务器弹幕姬</strong>
+<p>
       直播场景和各本机独立组件使用 127.0.0.1 地址，必须在运行 LIRA 的电脑上加载，并保持 LIRA
       开启。退出后不能重新加载或继续获取实时数据；已加载的画面是否保留最后内容取决于该功能。
     </p>
-    <p>
+<p>
       服务器弹幕姬不依赖桌面进程持续运行，但仍依赖服务器和直播间连接。复制它的链接需要 LIRA
       授权与服务器配置读取成功；接收直播消息还需要配置直播账号。这两项要分开检查。
     </p>
-  </div>
-  <figure class="usage-guide-figure">
-    <img
-      class="usage-guide-image"
-      src="/img/usage-guide/B/song-overlay-addresses.webp"
-      width="1440"
-      height="902"
-      loading="lazy"
-      decoding="async"
-      alt="点歌页浏览器源中常用的直播画面地址与复制按钮"
-    />
-    <figcaption>点歌 → 浏览器源：按用途复制；图中的演示地址不能直接用于直播。</figcaption>
-  </figure>
-  <div class="usage-guide-grid">
-    <article class="usage-guide-card">
-      <strong>点歌队列画面 · 本机</strong>
-      <p>
-        在「点歌 → 浏览器源」或「点歌板」复制。点歌板有六种风格，例如「点歌板风格
-        1（经典队列展示）」；字号、配色和滚动在点歌板页调整，宽高按所选风格说明设置。显示的是等待演唱的点歌队列。
-      </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/F/public-overlay-queue.webp"
-          width="1440"
-          height="900"
-          loading="lazy"
-          decoding="async"
-          alt="点歌板示例输出"
-        />
-        <figcaption>本机点歌板的示例输出；添加来源时请在所用直播软件中操作。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>歌曲展示板 · 本机</strong>
-      <p>
-        在「浏览器源」或「展示板」复制，循环展示歌库歌曲。到「点歌 →
-        展示板」设置滚动速率、排序、字号以及是否同步点歌板主题；源尺寸按该面板说明调整。它与点歌队列是两个画面。
-      </p>
-      <figure class="usage-guide-figure usage-guide-figure--portrait">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/F/public-overlay-songs.webp"
-          width="440"
-          height="650"
-          loading="lazy"
-          decoding="async"
-          alt="歌曲展示板滚动显示示例歌库"
-        />
-        <figcaption>歌曲展示板示例，开启了同步点歌板主题。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>歌词画面 · 本机</strong>
-      <p>
-        在「浏览器源」或桌面歌词设置页复制。浏览器源的宽高决定歌词画面的空间；字体、颜色、描边与逐字高亮在「点歌 →
-        桌面歌词设置」中调整。先播放有歌词的歌曲，再检查投屏效果。
-      </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/desktop-lyric-karaoke.webp"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-          alt="桌面歌词逐字效果设置入口"
-        />
-        <figcaption>逐字效果设置示意；显示内容取决于当前歌曲及歌词来源。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>盲盒盈亏榜 · 本机</strong>
-      <p>
-        在「礼物 → 盲盒盈亏榜」卡片复制。设置标题、排行人数、仅显示盈利和仅显示心动盲盒后使用对应链接；排行人数 -1
-        为全部，0 仅汇总，1–10 指定人数，默认 3。画面自动适配捕捉窗口。
-      </p>
-      <figure class="usage-guide-figure usage-guide-figure--compact">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/F/public-overlay-blindbox.webp"
-          width="420"
-          height="302"
-          loading="lazy"
-          decoding="async"
-          alt="盲盒盈亏榜示例排行"
-        />
-        <figcaption>示例礼物记录生成的榜单，不是真实收益。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>加班机画面 · 本机</strong>
-      <p>
-        在「组件 → 加班机 →
-        直播画面」复制。背景与适配方式在面板选择，尺寸按画面设置调整；透明背景适合叠在直播画面上。倒计时是否暂停、礼物是否改时，由加班机本身的状态与规则决定。
-      </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/E/toolbox-overtime-controls.webp"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-          alt="加班机的启用、时间控制和直播画面设置"
-        />
-        <figcaption>加班机面板示例：先设置时间和规则，再检查倒计时。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>礼物特效、全屏礼物感谢、滚动与许愿 · 本机</strong>
-      <p>
-        礼物特效在「百宝箱 →
-        礼物特效」复制；全屏礼物感谢先从「礼物姬 → 更多样式」导入林间花信 ZIP，再点击「预览」进入画布，保存并应用后复制来源地址。滚动、许愿在「礼物姬」对应页签复制。礼物特效与全屏礼物感谢适合铺满画面；滚动礼物建议宽
-        900，高度随行数；许愿建议宽 440，高度随内容调整，同一个地址统一展示长效、本日和本场直播许愿。
-        切换许愿统计周期只影响面板中的编辑与管理。滚动礼物修改后点「保存」，也可「恢复默认」或「取消修改」。
-      </p>
-      <figure class="usage-guide-figure usage-guide-figure--compact">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/F/gift-wishes-overlay.webp"
-          width="440"
-          height="340"
-          loading="lazy"
-          decoding="async"
-          alt="礼物许愿卡片和文字两种示例输出"
-        />
-        <figcaption>许愿示例进度，礼物图使用兜底图标。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>弹幕姬 · 服务器</strong>
-      <p>
-        在「组件 → 弹幕姬」或「点歌 →
-        浏览器源」复制。可选固定位置、区域随机或飘窗弹幕，按样式说明设置源尺寸。改完样式和参数要点「应用到直播画面」。能复制地址不代表已收到直播弹幕；还需看连接状态。
-      </p>
-      <figure class="usage-guide-figure usage-guide-figure--compact">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/F/public-overlay-danmaku.webp"
-          width="900"
-          height="700"
-          loading="lazy"
-          decoding="async"
-          alt="弹幕姬深色面板的文字、表情与礼物通知"
-        />
-        <figcaption>产品内置静态样式预览，不是实际直播消息。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-card">
-      <strong>游戏、开场与时钟 · 本机</strong>
-      <p>
-        三款小游戏共用「游戏网页」；转盘有独立地址；投票与评分共用一个独立「浏览器源」，推荐 800 ×
-        600。开播动画复制「固定浏览器源地址」，使用 16:9 画面，总开关同时控制预览与投屏。萌时钟复制「萌时钟网址」，推荐
-        580 × 210，修改后点击「保存」。常用地址也可从「点歌 → 浏览器源」复制。
-      </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/song-overlay-addresses-scene.webp"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-          alt="浏览器源中的小游戏、开播动画和萌时钟地址"
-        />
-        <figcaption>场景类常用地址；投票评分等补充地址在对应功能页复制。</figcaption>
-      </figure>
-    </article>
-  </div>
-  <p class="usage-guide-section-intro">
-    换电脑后，请在新电脑重新核对复制地址、端口、源尺寸和本机样式；不能只凭旧链接相同就认为设置也已迁移。地址复制失败时可按提示手动复制，画面仍异常见<a
-      href="#ug-faq"
-      data-usage-guide-link
-      >投屏与直播软件常见问题</a
-    >。
-  </p>
+</div>
+<figure class="usage-guide-figure">
+<img alt="点歌页浏览器源中常用的直播画面地址与复制按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-overlay-addresses.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>点歌 → 浏览器源：按用途复制；图中的演示地址不能直接用于直播。</figcaption>
+</figure>
+<figure class="usage-guide-figure">
+<img alt="浏览器源中的小游戏、开播动画和萌时钟地址" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-overlay-addresses-scene.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>场景类常用地址；投票评分等补充地址在对应功能页复制。</figcaption>
+</figure>
+<p>没有内容时，歌词、礼物特效等源可能透明。地址复制失败时按提示手动复制；换电脑后重新核对地址、端口、尺寸和本机样式。</p></article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.8.2 添加到 OBS</strong></h5></div>
+<p>在 OBS 的「来源」中添加「浏览器源」，粘贴从 LIRA 复制的地址。按组件面板说明设置宽高；整套场景与画布宽高一致，再调整来源的位置。回到 LIRA 保存或应用后，到 OBS 检查画面。</p></article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.8.3 添加到哔哩哔哩直播姬</strong></h5></div>
+<p>在哔哩哔哩直播姬中添加「浏览器」来源，粘贴从 LIRA 复制的地址。按组件面板说明设置宽高；整套场景与画布宽高一致，再摆放画面。回到 LIRA 保存或应用后，检查直播姬中的显示。</p></article></div>
 </section>

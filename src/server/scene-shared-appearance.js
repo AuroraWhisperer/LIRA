@@ -16,7 +16,8 @@ const { hasInstalledAppearance, sharedControllerAppearance, sceneAppearanceKey }
 const { SONG_BOARD_THEME_FIELDS } = require('../../public/js/shared/song-board-theme-fields.js');
 
 const LOCAL_TYPES = ['songlist', 'lyrics', 'interactions', 'blindbox'];
-const BLINDBOX_KEYS = { top: 'blindboxOverlayTop', winnersOnly: 'blindboxWinnersOnly', heartBoxOnly: 'blindboxHeartBoxOnly' };
+const BLINDBOX_KEYS = { top: 'blindboxOverlayTop', winnersOnly: 'blindboxWinnersOnly', hideLoss: 'blindboxWinnersOnly',
+  heartBoxOnly: 'blindboxHeartBoxOnly', compact: 'blindboxCompact', noScroll: 'blindboxAutoPages' };
 const invalid = () => Object.assign(new Error('只能调整此样式的公共显示参数。'), { statusCode: 400 });
 
 function settingsKeys(type) {

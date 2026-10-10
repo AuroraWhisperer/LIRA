@@ -2,23 +2,31 @@
 
 const { randomUUID } = require('node:crypto');
 const { text, timestamp, identity, identityKey, profilePatch, recordData, recentNameHistory } = require('./validation');
-const { DAY_MS, dayOf, zodiacFor } = require('./dates');
+const { DAY_MS, dayOf, addDays, zodiacFor } = require('./dates');
 const { summarizeMembership, membershipConflicts, cycleForNewRecord } = require('./membership');
 const { buildReminders } = require('./reminders');
 const { createFanBackupService } = require('./profile-transfer');
 const { createFanFactConsumer } = require('./profile-facts');
 const { createFanMergeService } = require('./profile-merge');
 const { createGuardRosterImporter, getGuardRoster } = require('./guard-roster-import');
+const { accompanySettings, getGuardAccompany } = require('./guard-accompany');
 
 function createFanProfileService({ store, now = () => new Date().toISOString() }) {
   function requireProfile(scope, id) {
     const profile = store.get(scope, text(id, '档案 ID', 100));
     if (!profile) throw new Error('档案不存在或不属于当前账号。');
+    requireAllowedIdentity(scope, profile.identity);
     return profile;
+  }
+
+  function requireAllowedIdentity(scope, person) {
+    if (person && store.suppressed(scope, identityKey(person)))
+      throw new Error('该粉丝已加入黑名单，请先在档案设置中解除屏蔽。');
   }
 
   function create(scope, input, automatic = false) {
     const patch = profilePatch(input);
+    requireAllowedIdentity(scope, patch.identity);
     if (!patch.alias && !automatic) throw new Error('请填写常用称呼。');
     const at = now();
     return store.save(
@@ -72,6 +80,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
       preferences,
       membership,
       guardRoster,
+      guardAccompany: getGuardAccompany(profile, Date.parse(now())),
       currentGuardLevel: guardRoster ? guardRoster.level : membership.level,
       musicSummary: preferences.length
         ? preferences
@@ -86,7 +95,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         count: countedSongs.length,
         categories,
       },
-      reminders: buildReminders(profile, records, store.states(scope, id), Date.parse(now())),
+      reminders: buildReminders(profile, records, store.states(scope, id), Date.parse(now()), store.getScope(scope)),
     };
   }
 
@@ -210,6 +219,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
   const merge = createFanMergeService({ store, now, detail, requireProfile });
 
   function list(scope, input) {
+    const settings = store.getScope(scope);
     const query = text(input.query, '搜索', 300).toLocaleLowerCase();
     const filters = Array.isArray(input.filters) ? input.filters : [];
     const at = now();
@@ -245,7 +255,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         const medalLevel = records
           .filter((r) => r.original.evidence === 'guard-roster')
           .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original.medalLevel;
-        const reminders = buildReminders(profile, records, statesByProfile.get(profile.id) || [], Date.parse(at));
+        const reminders = buildReminders(profile, records, statesByProfile.get(profile.id) || [], Date.parse(at), settings);
         return {
           ...profile,
           formerNames: recentNameHistory(profile.nameHistory, profile.platformName)
@@ -253,6 +263,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
             .map((item) => item.name),
           membership,
           guardRoster,
+          guardAccompany: getGuardAccompany(profile, Date.parse(at)),
           currentGuardLevel: guardRoster ? guardRoster.level : membership.level,
           medalLevel: Number.isSafeInteger(medalLevel) && medalLevel >= 0 ? medalLevel : null,
           lastInteraction: records.filter((r) => ['note', 'song', 'membership'].includes(r.kind))[0]?.occurredAt || '',
@@ -288,7 +299,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     return store.transaction(() => {
       switch (action) {
         case 'settings':
-          return store.getScope(scope);
+          return { ...store.getScope(scope), ...accompanySettings(store.getScope(scope)) };
         case 'configure': {
           if (
             typeof input.autoCreate !== 'boolean' ||
@@ -298,6 +309,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
             throw new Error('请选择自动更新方式。');
           const settings = {
             ...store.getScope(scope),
+            ...accompanySettings({ ...store.getScope(scope), ...input }),
             initialized: true,
             autoCreate: input.autoCreate,
             autoUpdate: input.autoUpdate,
@@ -309,14 +321,14 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         case 'list':
           return {
             profiles: list(scope, input),
-            settings: store.getScope(scope),
+            settings: { ...store.getScope(scope), ...accompanySettings(store.getScope(scope)) },
           };
         case 'detail':
           return detail(scope, input.id);
         case 'find': {
           const value = identity(input.identity);
           const found = value ? store.byIdentity(scope, identityKey(value)) : null;
-          return found ? detail(scope, found.id) : null;
+          return found && !store.suppressed(scope, identityKey(value)) ? detail(scope, found.id) : null;
         }
         case 'create':
           return detail(scope, create(scope, input).id);
@@ -325,8 +337,10 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           if (previous.revision !== input.revision)
             throw new Error('档案已更新，请重新打开后核对；未保存的输入仍保留。');
           const patch = profilePatch(input);
+          requireAllowedIdentity(scope, patch.identity);
           if (!patch.alias && !previous.alias && !previous.platformName) throw new Error('请填写常用称呼。');
           const profile = { ...previous, ...patch };
+          if (identityKey(profile.identity) !== identityKey(previous.identity)) delete profile.guardAccompany;
           if (patch.nameHistory) {
             profile.nameHistory = recentNameHistory(patch.nameHistory, profile.platformName).map(
               (item) => previous.nameHistory?.findLast((old) => old.name === item.name) || item,
@@ -341,20 +355,48 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           return merge.preview(scope, input);
         case 'merge':
           return merge.merge(scope, input);
+        case 'suppress': {
+          const profile = requireProfile(scope, input.id);
+          if (profile.revision !== input.revision) throw new Error('档案已更新，请重新打开后核对。');
+          const key = identityKey(profile.identity);
+          if (!key) throw new Error('请先绑定 B 站账号，再加入黑名单。');
+          store.suppress(scope, key);
+          return true;
+        }
         case 'suppression-list':
-          return store.exportScope(scope).suppressions.map((key) => ({ key, identity: JSON.parse(key) }));
+          return store.suppressions(scope).map((key) => {
+            const profile = store.byIdentity(scope, key);
+            return { key, identity: JSON.parse(key), name: profile?.platformName || profile?.alias || '' };
+          });
         case 'unsuppress':
-          if (input.confirm !== true) throw new Error('请确认允许该身份再次自动建档。');
+          if (input.confirm !== true) throw new Error('请确认解除该粉丝的屏蔽。');
           store.unsuppress(scope, identityKey(identity(input.identity)));
           return true;
         case 'resolve-membership':
           return resolveMembership(scope, input);
         case 'reminders':
-          return store
-            .list(scope)
-            .flatMap((p) =>
-              buildReminders(p, store.records.list(scope, p.id), store.states(scope, p.id), Date.parse(now())),
-            );
+        case 'calendar': {
+          const settings = store.getScope(scope);
+          const today = dayOf(now());
+          const profiles = store.list(scope).filter((profile) => !profile.archived);
+          const ids = profiles.map((profile) => profile.id);
+          const records = store.records.listForProfiles(scope, ids);
+          const states = store.statesForProfiles(scope, ids);
+          const reminders = profiles.flatMap((profile) => buildReminders(
+            profile, records.get(profile.id) || [], states.get(profile.id) || [], Date.parse(now()), settings,
+          ));
+          if (action === 'reminders') return reminders;
+          return reminders.filter((item) =>
+            item.group !== 'history' && item.date >= today && addDays(item.date, -3) <= today &&
+            !(item.status === 'snoozed' && item.until > today) &&
+            (item.metric !== 'accompany' || accompanySettings(settings).showAccompanyInCalendar),
+          ).map((item) => ({
+            id: `fan:${item.profileId}:${item.key}`, profileId: item.profileId, key: item.key,
+            title: `${item.name} · ${item.title}${item.predicted ? '（预计）' : ''}`,
+            date: item.date, time: '', type: 'personal',
+            detail: item.basis, readonly: true,
+          }));
+        }
         case 'reminder-state': {
           const profile = detail(scope, input.profileId);
           const item = profile.reminders.find((r) => r.key === input.key);

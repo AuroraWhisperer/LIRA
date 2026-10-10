@@ -1,9 +1,4 @@
 /* 礼物姬 · 大航海感谢：各风格独立的设置与画布入口。 */
-.guard-thanks-intro {
-  margin: 0 0 16px;
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-}
 .guard-thanks-card {
   container: guard-thanks / inline-size;
   min-width: 0;
@@ -22,71 +17,43 @@
   border-bottom: 1px solid var(--border);
 }
 .guard-thanks-heading h3 {
-  margin: 0 0 4px;
+  margin: 0;
   color: var(--text);
   font-size: var(--type-size-section-title);
-}
-.guard-thanks-heading p {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--type-size-caption);
 }
 .guard-thanks-switch {
   flex-shrink: 0;
   margin: 0;
 }
 .guard-thanks-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
-  gap: var(--spacing-lg);
   padding-top: 16px;
 }
-.guard-thanks-controls > section {
-  min-width: 0;
+.guard-thanks-preview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
 }
 .guard-thanks-controls h4 {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: var(--type-size-card-title);
   font-weight: var(--type-weight-semibold);
 }
-.guard-thanks-preview {
-  padding-left: var(--spacing-lg);
-  border-left: 1px solid var(--border);
-}
-.guard-thanks-settings-grid,
 .guard-thanks-preview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 220px) auto;
-  justify-content: start;
-  align-items: end;
-  gap: 12px;
-}
-.guard-thanks-preview-grid {
-  grid-template-columns: minmax(100px, 160px) 80px auto;
+  grid-template-columns: minmax(180px, 1fr) 128px auto;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
 }
 [data-guard-thanks-style='classic'] .guard-thanks-preview-grid {
-  grid-template-columns: minmax(100px, 1fr) minmax(0, 1.5fr) 80px auto;
+  flex: 1;
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1.5fr) 128px auto;
 }
-.guard-thanks-controls label {
-  display: grid;
-  min-width: 0;
-  gap: 6px;
-  color: var(--muted);
-  font-size: var(--type-size-control);
-  font-weight: 500;
-}
-.guard-thanks-controls input,
-.guard-thanks-controls select {
-  min-width: 0;
-  width: 100%;
+.guard-thanks-preview-grid .component-inline-field :is(input, .lira-select) {
+  flex: 1;
+  width: 0;
   font-variant-numeric: tabular-nums;
-}
-.guard-thanks-controls input,
-.guard-thanks-controls select,
-.guard-thanks-controls button {
-  min-height: 36px;
-  padding: 6px 10px;
-  font-size: var(--type-size-control);
 }
 .guard-thanks-status {
   margin: 12px 0 0;
@@ -103,19 +70,9 @@
 .guard-thanks-more h3 {
   margin: 0 0 12px;
 }
-@container guard-thanks (max-width: 860px) {
-  .guard-thanks-controls {
-    grid-template-columns: 1fr;
-  }
-  .guard-thanks-preview {
-    padding: 16px 0 0;
-    border-top: 1px solid var(--border);
-    border-left: 0;
-  }
-}
-@container guard-thanks (max-width: 480px) {
+@container guard-thanks (max-width: 700px) {
   .guard-thanks-heading {
-    align-items: flex-start;
+    flex-wrap: wrap;
   }
   .guard-thanks-preview-grid,
   [data-guard-thanks-style='classic'] .guard-thanks-preview-grid {

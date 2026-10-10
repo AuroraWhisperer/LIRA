@@ -11,11 +11,9 @@ const { createDom } = require('../helpers/toast-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-test('archive recovery FAQ is indexed by the existing guide search from its real heading and body', async () => {
+test('archive recovery instructions are indexed in the fan chapter by the existing guide search', async () => {
   const html = readAdminHtml();
-  const faq = (html.match(/<details class="usage-guide-faq">[\s\S]*?<\/details>/g) || []).find((block) =>
-    block.includes('收起后找不到了，如何恢复档案？'),
-  );
+  const faq = html.match(/<article\b(?=[^>]*\sid="ug-fan-archive")[^>]*>[\s\S]*?<\/article>/)?.[0];
   assert.ok(faq);
   assert.match(faq, /清空搜索和筛选/);
   assert.match(faq, /不适用于永久删除的档案/);
@@ -39,12 +37,13 @@ test('archive recovery FAQ is indexed by the existing guide search from its real
   };
   const target = {
     textContent: faq.replace(/<[^>]*>/g, ' '),
-    querySelector: () => ({ textContent: '收起后找不到了，如何恢复档案？' }),
+    matches: () => false,
+    querySelector: () => ({ textContent: '06.1.2 归档与找回' }),
   };
   const section = {
-    id: 'ug-faq',
+    id: 'ug-work',
     children: [],
-    querySelector: () => ({ textContent: '常见问题' }),
+    querySelector: () => ({ textContent: '粉丝档案与工作台' }),
     querySelectorAll: () => [target],
   };
   const nodes = new Map(
@@ -67,13 +66,13 @@ test('archive recovery FAQ is indexed by the existing guide search from its real
     input.value = query;
     input.fire('input', {});
     assert.match(nodes.get('.usage-guide-search-status').textContent, /找到 1 处/);
-    assert.match(nodes.get('.usage-guide-search-list').textContent, /收起后找不到了，如何恢复档案/);
+    assert.match(nodes.get('.usage-guide-search-list').textContent, /归档与找回/);
   }
 });
 
 test('usage guide presents overlays for both live companion and OBS users', () => {
   const html = readAdminHtml();
-  const guide = html.match(/<section\b(?=[^>]*\sid=["']ug-obs["'])[^>]*>[\s\S]*?<\/section>/)?.[0];
+  const guide = html.match(/<section\b(?=[^>]*\sid=["']ug-scene-guide["'])[^>]*>[\s\S]*?<\/section>/)?.[0];
   assert.ok(guide);
   for (const term of ['直播姬', 'OBS', '浏览器源']) assert.ok(guide.includes(term));
 });
@@ -106,7 +105,7 @@ test('usage guide names the AI assistant section without removing the DeepSeek a
   const html = readAdminHtml();
 
   assert.match(html, /<a\b(?=[^>]*\shref=["']#ug-deepseek["'])[^>]*>[^<]*AI[^<]*<\/a>/);
-  assert.match(html, /<section\b(?=[^>]*\sid=["']ug-deepseek["'])[^>]*>/);
+  assert.match(html, /<h4\b(?=[^>]*\sid=["']ug-deepseek["'])[^>]*>03\.3 AI 互动助手<\/h4>/);
 });
 
 function createUsageGuideFixture({
@@ -208,6 +207,7 @@ function createUsageGuideFixture({
   };
   const panel = {
     hidden: false,
+    closest: () => ({}),
     classList: createClassList(),
     style: {
       setProperty(name, value) {

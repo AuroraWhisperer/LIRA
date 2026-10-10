@@ -104,8 +104,8 @@ test('open blind box analysis debounces gift events into one quiet reload and st
 });
 
 test('blindbox controls keep a stable IPv4 source URL that follows saved settings', async () => {
-  const html = readAdminFragmentHtml('pages/admin/gifts/page.html');
-  for (const id of ['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxOverlayTop', 'blindboxLiveLink']) {
+  const html = readAdminFragmentHtml('pages/admin/live-components/blindbox.html');
+  for (const id of ['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxOverlayTop', 'blindboxOverlayUrl', 'blindboxPreviewBtn']) {
     assert.equal([...html.matchAll(/\bid="([^"]+)"/g)].filter(([, value]) => value === id).length, 1, id);
   }
   const input = html.match(/<input\b(?=[^>]*\bid="blindboxOverlayTop")[^>]*>/)?.[0];
@@ -119,7 +119,6 @@ test('blindbox controls keep a stable IPv4 source URL that follows saved setting
     blindboxWinnersOnly: { checked: true },
     blindboxHeartBoxOnly: { checked: true },
     blindboxOverlayUrl: {},
-    blindboxLiveLink: {},
   };
   const { localOverlayOrigin } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/utils.js'));
   const { createBlindboxSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-blindbox.js'));
@@ -132,7 +131,7 @@ test('blindbox controls keep a stable IPv4 source URL that follows saved setting
   for (const top of ['', '-1', '0', '4', '10']) {
     elements.blindboxOverlayTop.value = top;
     settings.updateOverlayUrl();
-    const url = new URL(elements.blindboxLiveLink.href);
+    const url = new URL(elements.blindboxOverlayUrl.textContent);
     assert.equal(url.origin, 'http://127.0.0.1:3012');
     assert.equal(url.pathname, '/blindbox');
     assert.deepEqual(Object.fromEntries(url.searchParams), {});

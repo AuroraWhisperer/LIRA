@@ -2,8 +2,9 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  align-items: stretch;
-  min-height: 112px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 0;
   padding: 16px 20px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -12,11 +13,11 @@
   box-shadow: var(--shadow-sm);
 }
 .overtime-clock-block {
-  display: grid;
-  align-content: center;
-  min-width: 270px;
-  gap: 7px;
-  padding-left: 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 12px;
 }
 .overtime-clock-status {
   display: inline-flex;
@@ -56,17 +57,20 @@
   letter-spacing: 0.015em;
 }
 .overtime-control-stack {
-  display: grid;
-  align-content: space-between;
-  justify-items: end;
-  gap: 18px;
-  padding: 2px 0;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 16px;
 }
 .overtime-consumer-status {
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 .overtime-actions {
+  flex-wrap: wrap;
   justify-content: flex-end;
 }
 .overtime-actions button {

@@ -3,13 +3,14 @@
 const { randomUUID } = require('node:crypto');
 const { identity, identityKey, timestamp, text, recordData, recentNameHistory } = require('./validation');
 const { membershipConflicts, cycleForNewRecord } = require('./membership');
+const { normalizeGuardAccompany, newerGuardAccompany } = require('./guard-accompany');
 
 function createFanFactConsumer({ store, now, create }) {
   function observe(scope, observation, newlyCreated = false, manual = false) {
     const settings = store.getScope(scope);
     if (!manual && (!settings.initialized || (!settings.autoUpdate && !newlyCreated))) return null;
     const person = identity(observation.identity);
-    if (!person) return null;
+    if (!person || store.suppressed(scope, identityKey(person))) return null;
     const profile = store.byIdentity(scope, identityKey(person));
     if (!profile || profile.archived) return profile;
     const at = timestamp(observation.observedAt);
@@ -90,9 +91,10 @@ function createFanFactConsumer({ store, now, create }) {
         if (!person) throw new Error('档案事件缺少可靠身份。');
         timestamp(event.observedAt);
         const key = identityKey(person);
+        if (store.suppressed(scope, key)) continue;
         let profile = store.byIdentity(scope, key);
         let newlyCreated = false;
-        if (!profile && event.kind === 'membership' && settings.autoCreate && !store.suppressed(scope, key)) {
+        if (!profile && event.kind === 'membership' && settings.autoCreate) {
           profile = create(scope, { identity: person }, true);
           newlyCreated = true;
         }
@@ -103,6 +105,15 @@ function createFanFactConsumer({ store, now, create }) {
           observe(scope, event.identitySnapshot, newlyCreated);
         }
         if (event.kind !== 'membership') continue;
+        if (event.guardAccompany !== undefined) {
+          const observation = normalizeGuardAccompany(event.guardAccompany);
+          if (!observation) throw new Error('平台陪伴天数无效。');
+          profile = store.get(scope, profile.id);
+          const accompany = newerGuardAccompany(profile.guardAccompany, observation);
+          if (JSON.stringify(accompany) !== JSON.stringify(profile.guardAccompany)) {
+            profile = store.save(scope, { ...profile, guardAccompany: accompany }, key, now());
+          }
+        }
         const records = store.records.list(scope, profile.id);
         const sourceKey = `remote:${event.id}`;
         if (records.some((record) => record.sourceKey === sourceKey)) continue;
@@ -158,7 +169,7 @@ function createFanFactConsumer({ store, now, create }) {
       type: request.identityType,
       value: request.requesterUid,
     });
-    if (!person) return;
+    if (!person || store.suppressed(scope, identityKey(person))) return;
     const profile = store.byIdentity(scope, identityKey(person));
     if (!profile || profile.archived) return;
     const data = {
@@ -197,6 +208,8 @@ function createFanFactConsumer({ store, now, create }) {
   function archiveQueueState(scope, stableId, status, changedAt) {
     const record = store.records.bySource(scope, `request:${stableId}`);
     if (!record) return;
+    const profile = store.get(scope, record.profileId);
+    if (!profile || store.suppressed(scope, identityKey(profile.identity))) return;
     const state = {
       done: '队列已处理',
       deleted: '已撤销／移除',

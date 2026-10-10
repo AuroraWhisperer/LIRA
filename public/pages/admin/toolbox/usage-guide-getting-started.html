@@ -1,456 +1,204 @@
-<!-- ============ 快速上手 ============ -->
-<section class="usage-guide-section" id="ug-quick">
-  <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">01</span>快速上手
-  </h3>
-  <p class="usage-guide-section-intro">
-    LIRA 帮你在 B 站直播时处理点歌、放歌和礼物，也能把这些内容做成直播画面，加到 OBS 或哔哩哔哩直播姬里。第一次用，先把下面四件事做好。点截图可以放大。
-  </p>
-  <article class="usage-guide-feature">
-    <div class="usage-guide-feature-head">
-      <strong>安装时：路径里别带中文</strong><span class="usage-guide-chip">首次安装</span>
-    </div>
-    <p>装到 <code>D:\Apps\LIRA</code>、<code>C:\Apps\LIRA</code> 这类文件夹就行，完整路径里不要有中文或表情。</p>
-    <p>像 <code>D:\直播工具\LIRA</code>、<code>C:\Users\小明\Apps\LIRA</code> 都带中文，最好换掉。</p>
-    <p>已经装好、用着没问题的，不用挪。以后更新也装回原来的位置。</p>
-  </article>
-  <div class="usage-guide-grid">
-    <article class="usage-guide-card">
-      <strong>登录 LIRA</strong>
-      <p>
-        第一次用，选<strong class="usage-guide-keyword">「注册新账号」</strong>，填用户名、密码和管理员给你的注册激活码。已经有账号，就选<strong
-          class="usage-guide-keyword"
-          >「登录已有账号」</strong
-        >。换了电脑或清空数据重装后，还要找管理员要一个新的短效登录码。
-      </p>
-    </article>
-    <article class="usage-guide-card">
-      <strong>连接直播间</strong>
-      <p>
-        打开<strong class="usage-guide-keyword">「点歌 → 设置」</strong>，扫码登录 B 站账号，填上你的直播间号，再点<strong
-          class="usage-guide-keyword"
-          >「保存设置」</strong
-        >。连上之后就能收到弹幕和礼物。
-      </p>
-    </article>
-    <article class="usage-guide-card">
-      <strong>添加歌曲</strong>
-      <p>
-        打开<strong class="usage-guide-keyword">「点歌 → 导入导出」</strong>，下载模板，把歌填进去再导入。也可以在「歌库」里一首首手动加。
-      </p>
-    </article>
-    <article class="usage-guide-card">
-      <strong>选择音乐平台</strong>
-      <p>打开「播放」，选你常用的平台。QQ 音乐和网易云音乐在 LIRA 里登录；全民 K 歌要在它自己的电脑版里登录。</p>
-    </article>
-  </div>
-</section>
+<section class="usage-guide-section" id="ug-setup">
+<h3 class="usage-guide-section-title"><span aria-hidden="true" class="usage-guide-section-index">01</span>安装、账号与连接</h3>
+<p class="usage-guide-section-intro">三个账号分别登录：LIRA 账号用于进入软件，B 站账号用于直播间消息，音乐平台账号用于播放歌曲。</p>
+<article class="usage-guide-feature" id="ug-quick"><div class="usage-guide-feature-head"><strong>首次使用清单</strong></div>
+<p>LIRA 帮你在 B 站直播时处理点歌、放歌和礼物，也能把内容加到 OBS 或哔哩哔哩直播姬。先完成账号和连接，再按需准备歌曲与直播画面。点截图可以放大。</p>
+<ol class="usage-guide-steps"><li><a data-usage-guide-link href="#ug-login">注册或登录 LIRA</a>，等首次准备完成。</li><li><a data-usage-guide-link href="#ug-connection">登录 B 站并连接直播间</a>，确认监控状态。</li><li><a data-usage-guide-link href="#ug-song-import">导入歌库</a>，也可手动添加歌曲。</li><li><a data-usage-guide-link href="#ug-playback">选择音乐平台</a>；暂时不用的功能可以跳过。</li></ol></article>
+<h4 class="usage-guide-subsection-title">01.1 首次安装</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head">
+<h5 class="usage-guide-task-title"><strong>01.1.1 安装时：路径里别带中文</strong></h5><span class="usage-guide-chip">首次安装</span>
+</div>
 
-<!-- ============ 账号与设备 ============ -->
-<section class="usage-guide-section" id="ug-accounts">
-  <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">02</span>账号与设备：先登录 LIRA，再连直播间
-  </h3>
-  <p class="usage-guide-section-intro">
-    一共有三个账号，要分别登录：LIRA 账号用来登录软件，B 站账号用来收弹幕和礼物，音乐平台账号用来放歌。
-  </p>
-  <div class="usage-guide-feature-list">
-    <article class="usage-guide-feature" id="ug-login">
-      <div class="usage-guide-feature-head">
-        <strong>第一步：注册或登录 LIRA</strong><span class="usage-guide-chip">首次必做</span>
-      </div>
-      <p>第一次打开 LIRA，会弹出下面这个登录窗口。</p>
-      <ol class="usage-guide-checks">
-        <li>选<strong class="usage-guide-keyword">「注册新账号」</strong>。</li>
-        <li>填上你想用的用户名和密码，再填管理员发给你的<strong class="usage-guide-keyword">「注册激活码」</strong>。</li>
-        <li>点<strong class="usage-guide-keyword">「注册并进入」</strong>。</li>
-      </ol>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/A/client-login-window.webp"
-          width="1280"
-          height="802"
-          loading="lazy"
-          decoding="async"
-          alt="LIRA 注册窗口，上方选择注册新账号，下方填写用户名、密码和注册激活码"
-        />
-        <figcaption>第一次用，选「注册新账号」。</figcaption>
-      </figure>
-      <p>
-        <strong>用户名：</strong>会变成你网页歌单网址的开头，所以只能用英文字母、数字和中划线（-），2–32
+<p>装到 <code>D:\Apps\LIRA</code>、<code>C:\Apps\LIRA</code> 这类文件夹就行，完整路径里不要有中文或表情。</p>
+<p>像 <code>D:\直播工具\LIRA</code>、<code>C:\Users\小明\Apps\LIRA</code> 都带中文，最好换掉。</p>
+<p>已经装好、用着没问题的，不用挪。以后更新也装回原来的位置。</p>
+</article></div>
+<h4 class="usage-guide-subsection-title" id="ug-accounts">01.2 LIRA 账号与设备</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-login"><div class="usage-guide-feature-head">
+<h5 class="usage-guide-task-title"><strong>01.2.1 注册与激活</strong></h5><span class="usage-guide-chip">首次必做</span>
+</div>
+
+<p>第一次打开 LIRA，会弹出下面这个登录窗口。</p>
+<ol class="usage-guide-checks">
+<li>选<strong class="usage-guide-keyword">「注册新账号」</strong>。</li>
+<li>填上你想用的用户名和密码，再填管理员发给你的<strong class="usage-guide-keyword">「注册激活码」</strong>。</li>
+<li>点<strong class="usage-guide-keyword">「注册并进入」</strong>。</li>
+</ol>
+<figure class="usage-guide-figure">
+<img alt="LIRA 注册窗口，上方选择注册新账号，下方填写用户名、密码和注册激活码" class="usage-guide-image" decoding="async" height="802" loading="lazy" src="/img/usage-guide/A/client-login-window.webp" style="--usage-guide-image-width: 1280px" width="1280"/>
+<figcaption>第一次用，选「注册新账号」。</figcaption>
+</figure>
+<p>
+<strong>用户名：</strong>会变成你网页歌单网址的开头，所以只能用英文字母、数字和中划线（-），2–32
         个字符。不能用中文，中划线不能放在开头或结尾。大写字母会自动变成小写。
       </p>
-      <p>
-        <strong>密码：</strong>8–64
+<p>
+<strong>密码：</strong>8–64
         个字符，大写字母、小写字母、中文、数字、符号里至少用三类。可以有空格，别用太常见的密码。
       </p>
-      <p>
+<p>
         「注册激活码」框里的 <code>XXXX-XXXX-XXXX-XXXX</code>
         只是格式示意，要换成管理员发给你的激活码。每个激活码只能用一次，用户名也不能和别人重复。
       </p>
-      <details class="usage-guide-foldout">
-        <summary>查看用户名、密码和注册码的说明</summary>
-        <div class="usage-guide-step-pair">
-          <figure class="usage-guide-figure usage-guide-figure--compact">
-            <img
-              class="usage-guide-image"
-              src="/img/usage-guide/A/client-login-username-help.webp"
-              width="880"
-              height="802"
-              loading="lazy"
-              decoding="async"
-              alt="用户名旁的帮助说明，列出用户名长度、字符和网页歌单地址规则"
-            />
-            <figcaption>用户名旁的说明。</figcaption>
-          </figure>
-          <figure class="usage-guide-figure usage-guide-figure--compact">
-            <img
-              class="usage-guide-image"
-              src="/img/usage-guide/A/client-login-password-help.webp"
-              width="880"
-              height="802"
-              loading="lazy"
-              decoding="async"
-              alt="密码旁的帮助说明，要求8至64个字符并包含至少三类字符"
-            />
-            <figcaption>密码旁的说明。</figcaption>
-          </figure>
-        </div>
-        <figure class="usage-guide-figure usage-guide-figure--compact">
-          <img
-            class="usage-guide-image"
-            src="/img/usage-guide/A/client-login-activation-code.webp"
-            width="538"
-            height="552"
-            loading="lazy"
-            decoding="async"
-            alt="注册激活码输入框，以及激活码只能用一次、用户名不能重复的提示"
-          />
-          <figcaption>注册激活码由管理员提供。</figcaption>
-        </figure>
-      </details>
-      <p>
-        <strong>已经有账号：</strong>换了电脑或清空数据重装后，选<strong class="usage-guide-keyword"
-          >「登录已有账号」</strong
-        >，填原来的用户名、密码和管理员新发的<strong class="usage-guide-keyword">「短效登录码」</strong>，再点<strong
-          class="usage-guide-keyword"
-          >「登录并进入」</strong
-        >。别重新注册。
+<details class="usage-guide-foldout">
+<summary>查看用户名、密码和注册码的说明</summary>
+<div class="usage-guide-step-pair">
+<figure class="usage-guide-figure usage-guide-figure--compact">
+<img alt="用户名旁的帮助说明，列出用户名长度、字符和网页歌单地址规则" class="usage-guide-image" decoding="async" height="802" loading="lazy" src="/img/usage-guide/A/client-login-username-help.webp" style="--usage-guide-image-width: 880px" width="880"/>
+<figcaption>用户名旁的说明。</figcaption>
+</figure>
+<figure class="usage-guide-figure usage-guide-figure--compact">
+<img alt="密码旁的帮助说明，要求8至64个字符并包含至少三类字符" class="usage-guide-image" decoding="async" height="802" loading="lazy" src="/img/usage-guide/A/client-login-password-help.webp" style="--usage-guide-image-width: 880px" width="880"/>
+<figcaption>密码旁的说明。</figcaption>
+</figure>
+</div>
+<figure class="usage-guide-figure usage-guide-figure--compact">
+<img alt="注册激活码输入框，以及激活码只能用一次、用户名不能重复的提示" class="usage-guide-image" decoding="async" height="552" loading="lazy" src="/img/usage-guide/A/client-login-activation-code.webp" style="--usage-guide-image-width: 538px" width="538"/>
+<figcaption>注册激活码由管理员提供。</figcaption>
+</figure>
+</details>
+<p>
+<strong>已经有账号：</strong>换了电脑或清空数据重装后，选<strong class="usage-guide-keyword">「登录已有账号」</strong>，填原来的用户名、密码和管理员新发的<strong class="usage-guide-keyword">「短效登录码」</strong>，再点<strong class="usage-guide-keyword">「登录并进入」</strong>。别重新注册。
       </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/A/client-login-existing-mode.webp"
-          width="1280"
-          height="802"
-          loading="lazy"
-          decoding="async"
-          alt="登录已有账号模式，第三个输入框变为短效登录码，底部按钮为登录并进入"
-        />
-        <figcaption>已有账号：第三个框填短效登录码。</figcaption>
-      </figure>
-      <p>注册激活码和短效登录码都只能用一次，记得在管理员说的有效期内用掉。</p>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>登录之后：等它准备好</strong>
-      </div>
-      <p>
-        登录后会显示<strong class="usage-guide-keyword">「正在为你准备直播工具」</strong
-        >。保持联网，等进度走完。这台电脑登录过一次，以后打开会自动登录。
+<figure class="usage-guide-figure">
+<img alt="登录已有账号模式，第三个输入框变为短效登录码，底部按钮为登录并进入" class="usage-guide-image" decoding="async" height="802" loading="lazy" src="/img/usage-guide/A/client-login-existing-mode.webp" style="--usage-guide-image-width: 1280px" width="1280"/>
+<figcaption>已有账号：第三个框填短效登录码。</figcaption>
+</figure>
+<p>注册激活码和短效登录码都只能用一次，记得在管理员说的有效期内用掉。</p>
+<p>密码的 UTF-8 编码不能超过 72 字节；中文和符号多时尤其要注意。别加换行或看不见的字符。</p>
+<p>看到用户名格式提示时，可按以上规则使用 <code>demo-singer</code> 这类名字。用户名不能含空格。</p></article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head">
+<h5 class="usage-guide-task-title"><strong>01.2.2 登录与设备授权</strong></h5>
+</div>
+
+<p>
+        登录后会显示<strong class="usage-guide-keyword">「正在为你准备直播工具」</strong>。保持联网，等进度走完。这台电脑登录过一次，以后打开会自动登录。
       </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/A/client-login-preparing.webp"
-          width="1280"
-          height="802"
-          loading="lazy"
-          decoding="async"
-          alt="首次使用的准备页面，显示正在为你准备直播工具和进度条"
-        />
-        <figcaption>第一次登录后的准备画面。</figcaption>
-      </figure>
-      <p>遇到这些提示，这样处理：</p>
-      <ul>
-        <li>
-          <strong>连不上：</strong>先检查网络，再点<strong class="usage-guide-keyword">「重试连接」</strong
-          >。提示账号停用的话，找管理员。
-        </li>
-        <li>
-          <strong>「准备未完成」：</strong>看一眼错误提示，检查网络后点<strong class="usage-guide-keyword"
-            >「重试」</strong
-          >。如果提示数据不兼容，把这条提示发给管理员，不用重新注册。
-        </li>
-        <li>
-          看到「本机授权已通过，可继续准备。」：点<strong class="usage-guide-keyword">「继续准备」</strong>。
-        </li>
-        <li>
-          看到「本机保留的旧设备授权已撤销，请获取新的短效登录码后重新登录。」：找管理员要新的短效登录码，用原账号重新登录。别自己去删登录文件。
-        </li>
-      </ul>
-      <details class="usage-guide-foldout">
-        <summary>查看连接失败和准备失败的画面</summary>
-        <div class="usage-guide-grid">
-          <figure class="usage-guide-figure">
-            <img
-              class="usage-guide-image"
-              src="/img/usage-guide/A/client-login-failed-retry.webp"
-              width="1280"
-              height="802"
-              loading="lazy"
-              decoding="async"
-              alt="连接失败后，登录窗口显示错误提示和重试连接按钮"
-            />
-            <figcaption>连不上时，点「重试连接」。</figcaption>
-          </figure>
-          <figure class="usage-guide-figure">
-            <img
-              class="usage-guide-image"
-              src="/img/usage-guide/A/client-preparation-failed.webp"
-              width="1280"
-              height="802"
-              loading="lazy"
-              decoding="async"
-              alt="准备未完成页面，显示错误提示、重试和返回登录按钮"
-            />
-            <figcaption>准备没完成时，点「重试」。</figcaption>
-          </figure>
-        </div>
-      </details>
-      <p class="usage-guide-notice" data-tone="warning">
-        <strong>关掉软件不等于退出账号：</strong>客户端里没有切换或退出 LIRA 账号的按钮。右上角「×」只是关掉软件；「点歌 →
+<figure class="usage-guide-figure">
+<img alt="首次使用的准备页面，显示正在为你准备直播工具和进度条" class="usage-guide-image" decoding="async" height="802" loading="lazy" src="/img/usage-guide/A/client-login-preparing.webp" style="--usage-guide-image-width: 1280px" width="1280"/>
+<figcaption>第一次登录后的准备画面。</figcaption>
+</figure>
+<p class="usage-guide-notice" data-tone="warning">
+<strong>关掉软件不等于退出账号：</strong>客户端里没有切换或退出 LIRA 账号的按钮。右上角「×」只是关掉软件；「点歌 →
         设置」里的「退出登录」退出的是 B 站账号；网页主播中心另有自己的「退出登录」。
       </p>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>第二步：登录 B 站账号，填上你的直播间号</strong><span class="usage-guide-chip">直播必做</span>
-      </div>
-      <ol class="usage-guide-checks">
-        <li>
-          打开<strong class="usage-guide-keyword">「点歌 → 设置」</strong>，点<strong class="usage-guide-keyword"
-            >「扫码登录 B 站账号」</strong
-          >，用手机上的哔哩哔哩 App 扫弹出来的二维码，再在手机上确认。
+</article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>01.2.3 账号与设备管理</strong></h5></div>
+<p>
+        打开「百宝箱 → 设置」，能看到当前登录的 LIRA 账号和这台电脑的设备名。这里也能打开 LIRA
+        官网（lirahub.cn）和账号登录网页（admin.lirahub.cn）。
+      </p>
+<p>忘记密码、添加或移除设备，找管理员。</p>
+<details class="usage-guide-foldout">
+<summary>查看设置页的账号信息</summary>
+<figure class="usage-guide-figure">
+<img alt="百宝箱设置页，显示登录账户、当前设备，以及 LIRA 官网和账号登录链接" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-settings.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>「设置」里的账号信息和网站链接。</figcaption>
+</figure>
+</details>
+<p>换电脑用原账号登录，具体顺序见<a data-usage-guide-link href="#ug-migration">换电脑与迁移</a>。账号资料与本机资料的保存范围见<a data-usage-guide-link href="#ug-data">数据保存与备份</a>。</p>
+<p>客户端没有切换或退出 LIRA 账号的按钮。要更换账号，先备份资料，再找管理员确认账号和设备如何处理。别直接删数据目录，也别复制别人的目录来换号；删本机文件不会清空服务器账本。</p></article></div>
+<h4 class="usage-guide-subsection-title" id="ug-connection">01.3 B 站登录与直播间</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head">
+<h5 class="usage-guide-task-title"><strong>01.3.1 扫码登录、连接与刷新</strong></h5><span class="usage-guide-chip">直播必做</span>
+</div>
+
+<ol class="usage-guide-checks">
+<li>
+          打开<strong class="usage-guide-keyword">「点歌 → 设置」</strong>，点<strong class="usage-guide-keyword">「扫码登录 B 站账号」</strong>，用手机上的哔哩哔哩 App 扫弹出来的二维码，再在手机上确认。
         </li>
-        <li>在「连接你的 B 站直播间」里填你的直播间号，也可以直接粘贴直播间链接。</li>
-        <li>
-          点<strong class="usage-guide-keyword">「保存设置」</strong>，等提示保存成功，再看一眼右上角的直播状态。连不上就点右上角的<strong
-            class="usage-guide-keyword"
-            >「刷新直播」</strong
-          >。
+<li>在「连接你的 B 站直播间」里填你的直播间号，也可以直接粘贴直播间链接。</li>
+<li>
+          点<strong class="usage-guide-keyword">「保存设置」</strong>，等提示保存成功，再看一眼右上角的直播状态。连不上就点右上角的<strong class="usage-guide-keyword">「刷新直播」</strong>。
         </li>
-      </ol>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/B/song-settings-room.webp"
-          width="1374"
-          height="129"
-          loading="lazy"
-          decoding="async"
-          alt="点歌设置页：B 站账号登录与扫码登录 B 站账号按钮、连接你的 B 站直播间输入框，以及保存设置按钮"
-        />
-        <figcaption>「点歌 → 设置」：扫码登录，填直播间号，再点「保存设置」。</figcaption>
-      </figure>
-      <details class="usage-guide-foldout">
-        <summary>查看「设置」在窗口中的位置</summary>
-        <figure class="usage-guide-figure">
-          <img
-            class="usage-guide-image"
-            src="/img/usage-guide/B/song-settings-account.webp"
-            width="1440"
-            height="902"
-            loading="lazy"
-            decoding="async"
-            alt="LIRA 主界面，点歌页下方选中设置页签，显示 B 站账号登录和连接直播间"
-          />
-          <figcaption>「设置」在点歌页下方的页签里。</figcaption>
-        </figure>
-      </details>
-      <p>看到「本机已登录」只是扫码成功了，还要点「保存设置」，并确认直播间连上了。</p>
-      <p>
+</ol>
+<figure class="usage-guide-figure">
+<img alt="点歌设置页：B 站账号登录与扫码登录 B 站账号按钮、连接你的 B 站直播间输入框，以及保存设置按钮" class="usage-guide-image" decoding="async" height="129" loading="lazy" src="/img/usage-guide/B/song-settings-room.webp" style="--usage-guide-image-width: 1374px" width="1374"/>
+<figcaption>「点歌 → 设置」：扫码登录，填直播间号，再点「保存设置」。</figcaption>
+</figure>
+<details class="usage-guide-foldout">
+<summary>查看「设置」在窗口中的位置</summary>
+<figure class="usage-guide-figure">
+<img alt="LIRA 主界面，点歌页下方选中设置页签，显示 B 站账号登录和连接直播间" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-settings-account.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>「设置」在点歌页下方的页签里。</figcaption>
+</figure>
+</details>
+<p>看到「本机已登录」只是扫码成功了，还要点「保存设置」，并确认直播间连上了。</p>
+</article></div>
+<h4 class="usage-guide-subsection-title" id="ug-monitor">01.4 监控与运行状态</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>01.4.1 弹幕和礼物监控</strong></h5></div>
+<p>
         弹幕和礼物默认一直在收。开关分别是弹幕姬的「监控弹幕」和礼物页的「监控礼物」，切换后自动保存。只想暂时不接点歌，就到「点歌 →
         点歌板」把「暂停接收点歌」改成「暂停点歌」，再点「保存点歌设置」。
       </p>
-      <p class="usage-guide-notice" data-tone="warning">
-        <strong>注意：</strong>关掉 LIRA
+<p class="usage-guide-notice" data-tone="warning">
+<strong>注意：</strong>关掉 LIRA
         后，弹幕和礼物还会继续收。要停下来，就分别关掉弹幕姬的「监控弹幕」和礼物页的「监控礼物」，或者退出 B
         站账号，再等同步完成。
+      </p></article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>01.4.2 关闭客户端后的运行范围</strong></h5></div>
+<p>
+        礼物记录存在服务器上。自动答谢、弹幕查询礼物统计、签到机器人、抽签机器人、PK
+        对手信息播报、进场欢迎都在服务器上运行。服务器弹幕姬也不需要客户端一直开着。
       </p>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>第三步：登录你常用的音乐平台</strong><span class="usage-guide-chip">可选</span>
-      </div>
-      <p>用哪个平台，就在哪里登录：</p>
-      <ul>
-        <li>
-          <strong>QQ 音乐、网易云音乐</strong>：在 LIRA 里登录。到播放页顶部切换到对应平台，点右上角的「登录QQ音乐」或「登录网易云音乐」，按提示操作。
-        </li>
-        <li>
-          <strong>全民 K 歌</strong>：在全民 K 歌自己的电脑版里登录，不用在 LIRA 里登。LIRA
-          只读取它正在播放的歌和逐字歌词。
-        </li>
-      </ul>
-    </article>
-  </div>
-</section>
+<p>
+        这些功能要服务器和直播间都连着才能用。只关掉客户端，服务器上的功能不会停。想停止接收直播消息，就分别关掉弹幕姬的「监控弹幕」和礼物页的「监控礼物」，再确认设置已经同步。
+      </p>
+<p>弹幕不能长期回查，断线期间的弹幕也不会补发。礼物有没有记全要看同步提示，重新打开客户端不代表已经补齐。</p>
+<p>本机加班机、礼物特效和本机画面需要 LIRA 开着。查看最新账本可用<a data-usage-guide-link href="#ug-web-gift-analysis">网页礼物流水</a>，或重新打开客户端联网同步；断网时本机显示已保存的记录。</p></article></div>
+<h4 class="usage-guide-subsection-title">01.5 网页登录与密码重置</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-streamer-center"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>01.5.1 登录网页主播中心</strong></h5></div>
+<p>
+        打开<strong class="usage-guide-keyword">「百宝箱 → 设置」</strong>，点「账号登录」。也可以直接打开
+        <a href="https://admin.lirahub.cn/" rel="noreferrer" target="_blank">网页账号登录入口</a>。用你的 LIRA
+        用户名和密码登录，就能进入主播中心。网页上的「退出登录」只退出网页。
+      </p>
+<figure class="usage-guide-figure">
+<img alt="网页主播中心，左侧是礼物流水、数据分析、网页歌单和直播弹幕姬四个分区，右侧是礼物流水的查询条件和记录列表" class="usage-guide-image" decoding="async" height="900" loading="lazy" src="/img/usage-guide/S/server-manage-overview.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>网页主播中心：在左边切换四个分区。</figcaption>
+</figure>
+<p>登录后可查看<a data-usage-guide-link href="#ug-web-gift-analysis">礼物记录与分析</a>、管理<a data-usage-guide-link href="#ug-web-songlist">网页歌单</a>，或复制<a data-usage-guide-link href="#ug-danmaku">直播弹幕姬地址</a>。B 站账号和直播间仍在客户端设置。</p></article>
+<article class="usage-guide-feature" id="ug-password-reset"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>01.5.2 忘记 LIRA 密码怎么办</strong></h5></div>
 
-<!-- ============ 已安装旧版本 ============ -->
-<section class="usage-guide-section" id="ug-reinstall">
-  <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">03</span>更新、重新安装与卸载
-  </h3>
-  <p class="usage-guide-section-intro">
-    更新或重装时，运行新的安装程序，保持默认选项一路点下去就行。截图里的版本号可能和你的不一样，不影响操作。
-  </p>
-  <div class="usage-guide-feature-list">
-    <div class="usage-guide-step-pair">
-      <article class="usage-guide-feature usage-guide-feature--illustrated">
-        <div class="usage-guide-feature-copy">
-          <div class="usage-guide-feature-head">
-            <strong>1. 直接点「下一步」</strong>
-          </div>
-          <p>安装程序提示已经装过 LIRA 时，保持「仅为我安装」选中，直接点「下一步」。</p>
-        </div>
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/install-existing-user.webp"
-          width="747"
-          height="532"
-          loading="lazy"
-          decoding="async"
-          alt="安装程序提示当前用户已经安装过LIRA，下一步按钮位于窗口底部"
-        />
-      </article>
-      <article class="usage-guide-feature usage-guide-feature--illustrated">
-        <div class="usage-guide-feature-copy">
-          <div class="usage-guide-feature-head">
-            <strong>2. 位置不用改，点「安装」</strong>
-          </div>
-          <p>安装位置保持原样，直接点「安装」，就会覆盖成新版本。</p>
-          <p><strong>小提示：</strong>「下一步」和「安装」在窗口底部同一个位置，依次点下去就行。</p>
-        </div>
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/install-existing-location.webp"
-          width="748"
-          height="535"
-          loading="lazy"
-          decoding="async"
-          alt="安装位置保持不变，安装按钮位于窗口底部"
-        />
-      </article>
-    </div>
-    <article class="usage-guide-feature" id="ug-uninstall">
-      <div class="usage-guide-feature-head"><strong>卸载 LIRA</strong></div>
-      <p>
-        先关掉 LIRA，再打开 Windows 的<strong class="usage-guide-keyword">「设置 → 应用」</strong>，找到 LIRA，点「卸载」。
+<ol class="usage-guide-checks">
+<li>找管理员要密码重置码。它只用来改密码，不能填进客户端的「短效登录码」框。</li>
+<li>打开网页账号登录入口，点<strong class="usage-guide-keyword">「使用重置码」</strong>。</li>
+<li>
+          「账号」填你的用户名，再填重置码、新密码和「确认密码」。点<strong class="usage-guide-keyword">「确认重置」</strong>，成功后用新密码登录。
+        </li>
+</ol>
+<figure class="usage-guide-figure">
+<img alt="网页重置密码页面，依次是账号、重置码、新密码、确认密码输入框和确认重置按钮" class="usage-guide-image" decoding="async" height="900" loading="lazy" src="/img/usage-guide/S/server-password-reset.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>重置密码：填好后点「确认重置」。</figcaption>
+</figure>
+<p>
+        重置码有效期很短，只能用一次，要在管理员说的时间内用掉。提示过期或已用过，就找管理员要新的。重置码别发给别人。新密码的要求和注册时一样，见<a data-usage-guide-link href="#ug-accounts">账号与设备</a>。
       </p>
-      <p>
-        也可以到你安装 LIRA 的文件夹（比如 <code>D:\Apps\LIRA</code>）里，双击 <code>Uninstall LIRA.exe</code>。
-      </p>
-      <figure class="usage-guide-figure usage-guide-figure--compact">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/uninstall-lira.webp"
-          width="279"
-          height="58"
-          loading="lazy"
-          decoding="async"
-          alt="安装文件夹中的卸载程序 Uninstall LIRA.exe"
-        />
-        <figcaption>安装文件夹里的卸载程序。</figcaption>
-      </figure>
-      <p>
-        只是想更新的话，不用卸载，按上面的步骤覆盖安装就行。卸载前想留着数据，先看<a
-          href="#ug-data"
-          data-usage-guide-link
-          >「数据保存与换电脑」</a
-        >，备份好再卸。
-      </p>
-    </article>
-  </div>
-</section>
-
-<!-- ============ 主流程 ============ -->
-<section class="usage-guide-section" id="ug-flow">
-  <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">04</span>日常开播：按这个顺序来
-  </h3>
-  <p class="usage-guide-section-intro">
+</article></div>
+<h4 class="usage-guide-subsection-title" id="ug-flow">开播检查与新手引导</h4>
+<p class="usage-guide-section-intro">
     主界面顶部有五个页面：「点歌」「播放」「礼物」「组件」「百宝箱」。右上角能看直播间连接状态，也有「刷新直播」和关闭按钮。
   </p>
-  <figure class="usage-guide-figure">
-    <img
-      class="usage-guide-image"
-      src="/img/usage-guide/A/client-main-first-open.webp"
-      width="1440"
-      height="902"
-      loading="lazy"
-      decoding="async"
-      alt="LIRA 主界面，上方为点歌、播放、礼物、组件、百宝箱导航，下方为歌库与点歌队列"
-    />
-    <figcaption>主界面：上面是 SC 和点歌队列，下面是点歌页的各个页签。</figcaption>
-  </figure>
-  <figure class="usage-guide-figure">
-    <img
-      class="usage-guide-image"
-      src="/img/usage-guide/A/client-topbar-status.webp"
-      width="1440"
-      height="58"
-      loading="lazy"
-      decoding="async"
-      alt="顶部五个页面、直播状态、刷新直播与窗口控制按钮"
-    />
-    <figcaption>顶部：五个页面、直播状态和「刷新直播」。</figcaption>
-  </figure>
-  <article class="usage-guide-feature">
-    <div class="usage-guide-feature-head">
-      <strong>第一次打开：跟着高亮区域操作</strong><span class="usage-guide-chip">新手引导</span>
-    </div>
-    <p>第一次进主界面，会自动弹出新手引导，带你登录 B 站账号、连直播间、导入歌单、认识组件和画布、选音乐平台。引导会实际打开「组件」，介绍左侧六个组件的入口。</p>
-    <p>照着气泡提示做完，再点「下一步」。跳过的步骤，用到之前要补上。走完引导不等于都设置好了。</p>
-    <p>
+<figure class="usage-guide-figure">
+<img alt="LIRA 主界面，上方为点歌、播放、礼物、组件、百宝箱导航，下方为歌库与点歌队列" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/A/client-main-first-open.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>主界面：上面是 SC 和点歌队列，下面是点歌页的各个页签。</figcaption>
+</figure>
+<figure class="usage-guide-figure">
+<img alt="顶部五个页面、直播状态、刷新直播与窗口控制按钮" class="usage-guide-image" decoding="async" height="58" loading="lazy" src="/img/usage-guide/A/client-topbar-status.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>顶部：五个页面、直播状态和「刷新直播」。</figcaption>
+</figure>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head">
+<strong>第一次打开：跟着高亮区域操作</strong><span class="usage-guide-chip">新手引导</span>
+</div>
+
+<p>第一次进主界面，会自动弹出新手引导，带你登录 B 站账号、连直播间、导入歌单、认识组件和画布、选音乐平台。引导会实际打开「组件」，介绍左侧六个组件的入口。</p>
+<p>照着气泡提示做完，再点「下一步」。跳过的步骤，用到之前要补上。走完引导不等于都设置好了。</p>
+<p>
       想再看一遍，点<strong class="usage-guide-keyword">「百宝箱 → 使用文档 → 重新查看新手引导」</strong>。
     </p>
-    <figure class="usage-guide-figure">
-      <img
-        class="usage-guide-image"
-        src="/img/usage-guide/A/client-tour-bubble.webp"
-        width="1440"
-        height="902"
-        loading="lazy"
-        decoding="async"
-        alt="新手引导高亮扫码登录 B 站账号区域，并显示操作说明和下一步按钮"
-      />
-      <figcaption>新手引导：照着高亮的地方操作。</figcaption>
-    </figure>
-  </article>
-  <ol class="usage-guide-steps">
-    <li>
-      <strong>打开并登录 LIRA。</strong> 登录过的电脑会自动登录。连不上就检查网络，点<strong
-        class="usage-guide-keyword"
-        >「重试连接」</strong
-      >。
-    </li>
-    <li>
-      <strong>确认直播间连上了。</strong> 到<strong class="usage-guide-keyword">「点歌 → 设置」</strong
-      >看看 B 站账号和直播间号对不对，改过就点<strong class="usage-guide-keyword">「保存设置」</strong
-      >。再确认弹幕姬的「监控弹幕」是开着的。
-    </li>
-    <li>
-      <strong>准备好歌库，开始接点歌。</strong> 观众发「点歌 歌名」，歌就会进点歌队列。你可以调顺序，也可以删掉。
-    </li>
-    <li>
-      <strong>放歌。</strong>
-      在「播放」页选平台、搜歌，加进播放队列。也可以打开播放队列点「导入点歌」，把观众点的歌加进来。底部播放器能暂停、切歌、拖进度。
-    </li>
-    <li>
-      <strong>按需打开其他工具。</strong>
-      「礼物」看送礼记录；「组件」配置弹幕姬、加班机等直播画面；「百宝箱」管理弹幕互动、小游戏等工具。想放到直播画面上，就复制对应功能的链接，加到直播姬或 OBS。
-    </li>
-  </ol>
-</section>
+<figure class="usage-guide-figure">
+<img alt="新手引导高亮扫码登录 B 站账号区域，并显示操作说明和下一步按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/A/client-tour-bubble.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>新手引导：照着高亮的地方操作。</figcaption>
+</figure>
+</article>
+<ol class="usage-guide-steps"><li><a data-usage-guide-link href="#ug-login">登录 LIRA</a>并等待准备完成。</li><li><a data-usage-guide-link href="#ug-connection">确认直播间连接</a>及<a data-usage-guide-link href="#ug-monitor">弹幕和礼物监控</a>。</li><li><a data-usage-guide-link href="#ug-song-rules">核对点歌规则</a>，准备开始接点歌。</li><li><a data-usage-guide-link href="#ug-playback-queue">整理播放队列并播放</a>，按需导入观众点歌。</li><li><a data-usage-guide-link href="#ug-scenes">检查场景与组件</a>，到 OBS 或直播姬确认画面。</li></ol></section>

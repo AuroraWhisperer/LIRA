@@ -1,307 +1,198 @@
-<!-- ============ 配置 AI 助手 ============ -->
-<section class="usage-guide-section" id="ug-deepseek">
-  <h3 class="usage-guide-section-title">
-    <span class="usage-guide-section-index" aria-hidden="true">09</span>配置 AI 助手
-  </h3>
-  <p class="usage-guide-section-intro">
-    先到 AI 平台拿到密钥（API Key），再回到 LIRA 选平台、粘贴密钥、选模型，最后测试连接。下面以 DeepSeek 为例。
-  </p>
-  <h4 class="usage-guide-subsection-title">1. 以 DeepSeek 为例完成配置</h4>
-  <p class="usage-guide-section-intro">
-    先在 DeepSeek 开放平台创建密钥，再回到 LIRA 设置。DeepSeek 网站改版后，按钮位置可能不同。
-  </p>
-  <div class="usage-guide-feature-list">
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>1. 登录 DeepSeek 开放平台</strong>
-      </div>
-      <p>
-        打开
-        <a href="https://platform.deepseek.com/" target="_blank" rel="noreferrer">DeepSeek 开放平台</a
-        >，按页面上的方式注册或登录。
-      </p>
-      <figure class="usage-guide-figure usage-guide-figure--compact">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/deepseek-login.webp"
-          width="1440"
-          height="687"
-          loading="lazy"
-          decoding="async"
-          alt="DeepSeek 开放平台登录页，左侧是微信扫码二维码，右侧是手机号验证码登录"
-        />
-        <figcaption>DeepSeek 登录页。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-feature usage-guide-feature--illustrated">
-      <div class="usage-guide-feature-copy">
-        <div class="usage-guide-feature-head">
-          <strong>2. 完成账号验证</strong>
-        </div>
-        <p>页面要求绑定邮箱或验证账号时，按提示操作，再继续。</p>
-      </div>
-      <figure class="usage-guide-figure usage-guide-figure--compact">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/deepseek-email-later.webp"
-          width="620"
-          height="514"
-          loading="lazy"
-          decoding="async"
-          alt="绑定邮箱提示弹窗，底部有稍后再说和立即绑定两个按钮"
-        />
-        <figcaption>绑定邮箱的提示窗口。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>3. 进入 API keys 页面</strong>
-      </div>
-      <p>
-        在左侧菜单点<strong class="usage-guide-keyword">「API keys」</strong>，再点<strong class="usage-guide-keyword"
-          >「创建 API key」</strong
-        >。
-      </p>
-      <figure class="usage-guide-figure usage-guide-figure--compact">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/deepseek-api-keys.webp"
-          width="1440"
-          height="695"
-          loading="lazy"
-          decoding="async"
-          alt="DeepSeek 开放平台的 API keys 页面，右侧有创建 API key 按钮"
-        />
-        <figcaption>左侧点「API keys」，再点「创建 API key」。</figcaption>
-      </figure>
-    </article>
-    <div class="usage-guide-step-pair">
-      <article class="usage-guide-feature usage-guide-feature--illustrated">
-        <div class="usage-guide-feature-copy">
-          <div class="usage-guide-feature-head">
-            <strong>4. 命名并创建</strong>
-          </div>
-          <p>给密钥起个好认的名字，比如 LIRA，再点<strong class="usage-guide-keyword">「创建」</strong>。</p>
-        </div>
-        <figure class="usage-guide-figure usage-guide-figure--compact">
-          <img
-            class="usage-guide-image"
-            src="/img/usage-guide/deepseek-create-key.webp"
-            width="587"
-            height="317"
-            loading="lazy"
-            decoding="async"
-            alt="创建 API key 弹窗，名称框里填了 LIRA，底部有取消和创建按钮"
-          />
-          <figcaption>给密钥起名，点「创建」。</figcaption>
-        </figure>
-      </article>
-      <article class="usage-guide-feature usage-guide-feature--illustrated">
-        <div class="usage-guide-feature-copy">
-          <div class="usage-guide-feature-head">
-            <strong>5. 复制并保存密钥</strong>
-          </div>
-          <p>创建后点<strong class="usage-guide-keyword">「复制」</strong>，把完整密钥存好。密钥别发给别人。</p>
-        </div>
-        <figure class="usage-guide-figure usage-guide-figure--compact">
-          <img
-            class="usage-guide-image"
-            src="/img/usage-guide/deepseek-copy-key.webp"
-            width="583"
-            height="433"
-            loading="lazy"
-            decoding="async"
-            alt="API key 创建成功弹窗，密钥已遮住，底部有复制按钮"
-          />
-          <figcaption>点「复制」，保存好密钥。</figcaption>
-        </figure>
-      </article>
-    </div>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>6. 选择「DeepSeek 官方」</strong>
-      </div>
-      <p>
-        回到<strong class="usage-guide-keyword">「百宝箱 → 弹幕互动 → AI 互动助手」</strong>，在<strong
-          class="usage-guide-keyword"
-          >「AI 平台」</strong
-        >里选「DeepSeek 官方」，地址会自动填好。
-      </p>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>7. 粘贴密钥（API Key）</strong>
-      </div>
-      <p>
-        把密钥粘贴到<strong class="usage-guide-keyword">「密钥（API Key）」</strong>输入框，等它显示<strong
-          class="usage-guide-success"
-          >「已保存」</strong
-        >，也可以点<strong class="usage-guide-keyword">「保存设置」</strong>。保存后，密钥不会完整显示。
-      </p>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>8. 获取并选择模型</strong>
-      </div>
-      <ol class="usage-guide-checks">
-        <li>
-          点<strong class="usage-guide-keyword">「获取模型」</strong>，选一个可用模型，再点<strong
-            class="usage-guide-keyword"
-            >「测试 AI 连接」</strong
-          >。
-        </li>
-        <li>
-          在「回复规则」的「触发关键词」里填一个你自己定的词，等它显示<strong class="usage-guide-success"
-            >「已保存」</strong
-          >。
-        </li>
-        <li>
-          测试通过后，打开<strong class="usage-guide-keyword">「启用 AI」</strong
-          >。发一条带关键词的弹幕，看看有没有回复。
-        </li>
-      </ol>
-      <p>
-        各个模型的说明见
-        <a href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noreferrer">DeepSeek 官方文档</a>。
-      </p>
-    </article>
-    <article class="usage-guide-feature">
-      <div class="usage-guide-feature-head">
-        <strong>9. 查看用量、余额不足时充值</strong>
-      </div>
-      <p>
-        打开
-        <a href="https://platform.deepseek.com/usage" target="_blank" rel="noreferrer">DeepSeek 用量与余额</a
-        >，能看用量和余额，不够了再充值。充值后回到 LIRA，点<strong class="usage-guide-keyword">「测试 AI 连接」</strong
-        >。
-      </p>
-      <p>
-        用之前先看一下
-        <a href="https://api-docs.deepseek.com/zh-cn/quick_start/pricing/" target="_blank" rel="noreferrer"
-          >DeepSeek 官方价格</a
-        >。实际费用和余额看 DeepSeek 平台上的显示。
-      </p>
-      <figure class="usage-guide-figure usage-guide-figure--compact">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/deepseek-usage.webp"
-          width="2488"
-          height="1195"
-          loading="lazy"
-          decoding="async"
-          alt="DeepSeek 开放平台用量页，显示充值余额、累计消费金额、API 请求次数和 Tokens 统计"
-        />
-        <figcaption>用量页：余额、消费和请求次数。</figcaption>
-      </figure>
-      <details class="usage-guide-foldout">
-        <summary>查看充值页面</summary>
-        <figure class="usage-guide-figure usage-guide-figure--compact">
-          <img
-            class="usage-guide-image"
-            src="/img/usage-guide/deepseek-recharge.webp"
-            width="1440"
-            height="686"
-            loading="lazy"
-            decoding="async"
-            alt="DeepSeek 开放平台充值页，可以选充值金额，支持支付宝和微信支付"
-          />
-          <figcaption>充值页：选金额和支付方式。</figcaption>
-        </figure>
-      </details>
-    </article>
-  </div>
-  <h4 class="usage-guide-subsection-title">2. 平台、角色包与回复设置</h4>
-  <p class="usage-guide-section-intro">
-    打开「百宝箱 → 弹幕互动 → AI
-    互动助手」。顶部的「配置状态」「等待队列」「运行模型」显示当前情况。改完设置，等它显示「已保存」，也可以点「保存设置」。
-  </p>
-  <div class="usage-guide-feature-list">
-    <article class="usage-guide-feature">
-      <strong>选择平台与模型</strong>
-      <p>
+<h4 class="usage-guide-subsection-title" id="ug-deepseek">03.3 AI 互动助手</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.3.1 接入模型与测试</strong></h5></div>
+<p>顶部的「配置状态」「等待队列」「运行模型」显示当前情况。改完等它显示「已保存」，也可以点「保存设置」。</p>
+
+<p>
         「AI 平台」有六个选项：自动识别（兼容旧设置）、DeepSeek 官方、OpenAI 官方、Claude 官方兼容、Gemini
         官方兼容、自定义 / 第三方兼容。选官方平台，地址会自动填好。用第三方服务，就按提供方的说明填「API
         请求地址」和密钥。拿不准「接口协议」时，保持「自动识别」。
       </p>
-      <p>
+<p>
         点「获取模型」能列出当前服务支持的模型，也可以直接填提供方给的模型
         ID。能不能用「联网」「深度思考」，要看平台和模型，面板上会提示。开启深度思考后，才能调「思考强度」。看到开关不代表已经连上，要用「测试
         AI 连接」确认。
       </p>
-      <figure class="usage-guide-figure">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/E/ai-assistant-provider-menu.webp"
-          width="1440"
-          height="902"
-          loading="lazy"
-          decoding="async"
-          alt="AI 互动助手页面，AI 平台下拉菜单展开，列出六个平台选项"
-        />
-        <figcaption>「AI 平台」的六个选项。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-feature">
-      <strong>选择或保存角色包</strong>
-      <p>
+<figure class="usage-guide-figure">
+<img alt="AI 互动助手页面，AI 平台下拉菜单展开，列出六个平台选项" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/ai-assistant-provider-menu.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>「AI 平台」的六个选项。</figcaption>
+</figure>
+<p>在「百宝箱 → 弹幕互动 → AI 互动助手」设置。粘贴密钥后等待「已保存」，获取并选择模型，再点「测试 AI 连接」。密钥保存后不会完整显示。</p>
+<details class="usage-guide-foldout"><summary>DeepSeek 接入示例：创建密钥、连接与用量</summary><p>网站改版后按钮位置可能变化。先创建密钥，再回到 LIRA 设置；费用和余额以平台显示为准。</p>
+<div class="usage-guide-example-step">
+<p class="usage-guide-inline-title">
+<strong>1. 登录 DeepSeek 开放平台</strong>
+</p>
+<p>
+        打开
+        <a href="https://platform.deepseek.com/" rel="noreferrer" target="_blank">DeepSeek 开放平台</a>，按页面上的方式注册或登录。
+      </p>
+<figure class="usage-guide-figure">
+<img alt="DeepSeek 开放平台登录页，左侧是微信扫码二维码，右侧是手机号验证码登录" class="usage-guide-image" decoding="async" height="687" loading="lazy" src="/img/usage-guide/deepseek-login.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>DeepSeek 登录页。</figcaption>
+</figure>
+</div>
+<div class="usage-guide-example-step">
+<div class="usage-guide-feature-copy">
+<p class="usage-guide-inline-title">
+<strong>2. 完成账号验证</strong>
+</p>
+<p>页面要求绑定邮箱或验证账号时，按提示操作，再继续。</p>
+</div>
+<figure class="usage-guide-figure usage-guide-figure--compact">
+<img alt="绑定邮箱提示弹窗，底部有稍后再说和立即绑定两个按钮" class="usage-guide-image" decoding="async" height="514" loading="lazy" src="/img/usage-guide/deepseek-email-later.webp" style="--usage-guide-image-width: 620px" width="620"/>
+<figcaption>绑定邮箱的提示窗口。</figcaption>
+</figure>
+</div>
+<div class="usage-guide-example-step">
+<p class="usage-guide-inline-title">
+<strong>3. 进入 API keys 页面</strong>
+</p>
+<p>
+        在左侧菜单点<strong class="usage-guide-keyword">「API keys」</strong>，再点<strong class="usage-guide-keyword">「创建 API key」</strong>。
+      </p>
+<figure class="usage-guide-figure">
+<img alt="DeepSeek 开放平台的 API keys 页面，右侧有创建 API key 按钮" class="usage-guide-image" decoding="async" height="695" loading="lazy" src="/img/usage-guide/deepseek-api-keys.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>左侧点「API keys」，再点「创建 API key」。</figcaption>
+</figure>
+</div>
+<div class="usage-guide-example-step">
+<div class="usage-guide-feature-copy">
+<p class="usage-guide-inline-title">
+<strong>4. 命名并创建</strong>
+</p>
+<p>给密钥起个好认的名字，比如 LIRA，再点<strong class="usage-guide-keyword">「创建」</strong>。</p>
+</div>
+<figure class="usage-guide-figure usage-guide-figure--compact">
+<img alt="创建 API key 弹窗，名称框里填了 LIRA，底部有取消和创建按钮" class="usage-guide-image" decoding="async" height="317" loading="lazy" src="/img/usage-guide/deepseek-create-key.webp" style="--usage-guide-image-width: 587px" width="587"/>
+<figcaption>给密钥起名，点「创建」。</figcaption>
+</figure>
+</div>
+<div class="usage-guide-example-step">
+<div class="usage-guide-feature-copy">
+<p class="usage-guide-inline-title">
+<strong>5. 复制并保存密钥</strong>
+</p>
+<p>创建后点<strong class="usage-guide-keyword">「复制」</strong>，把完整密钥存好。密钥别发给别人。</p>
+</div>
+<figure class="usage-guide-figure usage-guide-figure--compact">
+<img alt="API key 创建成功弹窗，密钥已遮住，底部有复制按钮" class="usage-guide-image" decoding="async" height="433" loading="lazy" src="/img/usage-guide/deepseek-copy-key.webp" style="--usage-guide-image-width: 583px" width="583"/>
+<figcaption>点「复制」，保存好密钥。</figcaption>
+</figure>
+</div>
+<div class="usage-guide-example-step">
+<p class="usage-guide-inline-title">
+<strong>6. 选择「DeepSeek 官方」</strong>
+</p>
+<p>
+        回到<strong class="usage-guide-keyword">「百宝箱 → 弹幕互动 → AI 互动助手」</strong>，在<strong class="usage-guide-keyword">「AI 平台」</strong>里选「DeepSeek 官方」，地址会自动填好。
+      </p>
+</div>
+<div class="usage-guide-example-step">
+<p class="usage-guide-inline-title">
+<strong>7. 粘贴密钥（API Key）</strong>
+</p>
+<p>
+        把密钥粘贴到<strong class="usage-guide-keyword">「密钥（API Key）」</strong>输入框，等它显示<strong class="usage-guide-success">「已保存」</strong>，也可以点<strong class="usage-guide-keyword">「保存设置」</strong>。保存后，密钥不会完整显示。
+      </p>
+</div>
+<div class="usage-guide-example-step">
+<p class="usage-guide-inline-title">
+<strong>8. 获取并选择模型</strong>
+</p>
+<ol class="usage-guide-checks">
+<li>
+          点<strong class="usage-guide-keyword">「获取模型」</strong>，选一个可用模型，再点<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。
+        </li>
+<li>
+          在「回复规则」的「触发关键词」里填一个你自己定的词，等它显示<strong class="usage-guide-success">「已保存」</strong>。
+        </li>
+<li>
+          测试通过后，打开<strong class="usage-guide-keyword">「启用 AI」</strong>。发一条带关键词的弹幕，看看有没有回复。
+        </li>
+</ol>
+<p>
+        各个模型的说明见
+        <a href="https://api-docs.deepseek.com/zh-cn/" rel="noreferrer" target="_blank">DeepSeek 官方文档</a>。
+      </p>
+</div>
+<div class="usage-guide-example-step">
+<p class="usage-guide-inline-title">
+<strong>9. 查看用量、余额不足时充值</strong>
+</p>
+<p>
+        打开
+        <a href="https://platform.deepseek.com/usage" rel="noreferrer" target="_blank">DeepSeek 用量与余额</a>，能看用量和余额，不够了再充值。充值后回到 LIRA，点<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。
+      </p>
+<p>
+        用之前先看一下
+        <a href="https://api-docs.deepseek.com/zh-cn/quick_start/pricing/" rel="noreferrer" target="_blank">DeepSeek 官方价格</a>。实际费用和余额看 DeepSeek 平台上的显示。
+      </p>
+<figure class="usage-guide-figure">
+<img alt="DeepSeek 开放平台用量页，显示充值余额、累计消费金额、API 请求次数和 Tokens 统计" class="usage-guide-image" decoding="async" height="1195" loading="lazy" src="/img/usage-guide/deepseek-usage.webp" style="--usage-guide-image-width: 2488px" width="2488"/>
+<figcaption>用量页：余额、消费和请求次数。</figcaption>
+</figure>
+<details class="usage-guide-foldout">
+<summary>查看充值页面</summary>
+<figure class="usage-guide-figure">
+<img alt="DeepSeek 开放平台充值页，可以选充值金额，支持支付宝和微信支付" class="usage-guide-image" decoding="async" height="686" loading="lazy" src="/img/usage-guide/deepseek-recharge.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>充值页：选金额和支付方式。</figcaption>
+</figure>
+</details>
+</div></details></article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.3.2 触发词与回复限制</strong></h5></div>
+
+<p>
+        在「触发关键词」里填一个词，最多 12 个字，比如“小助手”。保存后，观众发“小助手，晚上好”就能唤醒
+        AI。弹幕里要带上已保存的关键词才会触发；关键词留空就不回复。
+      </p>
+<p>「回复长度偏好」可填 10–50，默认 50。这只是长度偏好，内容多时，回复可能分成两条或三条弹幕。</p>
+<ul class="usage-guide-bullets">
+<li>「同时处理的提问数」：1–5，默认 3。排队的提问看「等待队列」。</li>
+<li>「同一观众提问间隔（秒）」：0–3600，默认 0。</li>
+<li>「每分钟提问上限」：1–120，默认 20。</li>
+<li>「发送间隔（毫秒）」不能改：不同回复之间随机隔 500–2000 毫秒，同一回复的分段之间随机隔 200–600 毫秒。</li>
+</ul>
+<figure class="usage-guide-figure">
+<img alt="AI 互动助手设置面板，包含模型服务、角色包、回复规则、可选工具和高级设置；工具调用处于关闭状态" class="usage-guide-image" decoding="async" height="1660" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1100px" width="1100"/>
+<figcaption>通用助手与可选工具设置示例，尚未配置真实模型服务。</figcaption>
+</figure>
+<p>触发关键词没有默认值，必须自定义并保存；未设置时不会触发。先测试连接，再打开「启用 AI」，发一条带关键词的弹幕检查回复。</p>
+<details class="usage-guide-foldout">
+<summary>查看 AI 配置入口</summary>
+<figure class="usage-guide-figure">
+<img alt="AI 助手配置示例；未填写密钥，也未验证真实回复。" class="usage-guide-image" decoding="async" height="1660" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1100px" width="1100"/>
+<figcaption>AI 助手配置示例；未填写密钥，也未验证真实回复。</figcaption>
+</figure>
+</details></article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.3.3 角色包</strong></h5></div>
+
+<p>
         新配置默认「通用助手」，也可以切换成「小猫」。在「性格和说话方式」里写 20–8000 字的人设，
         编辑后会转为自定义角色；给角色起个名字，再点「保存为角色包」，以后就能随时切换。
       </p>
-      <p>
+<p>
         「导出当前角色」可保存为 LIRA JSON 文件，再用「导入角色包」恢复或分享。文件最多 64 KB，
         最多保存 20 个自建或导入包。重复标识不会覆盖原包；内置角色不能删除。
         角色包只包含人设，不包含密钥、聊天记录，也不会替你开启工具。
       </p>
-      <p>原有自定义人设会保留。切换角色或修改人设后，助手不会带入另一角色的短期记忆。</p>
-    </article>
-    <article class="usage-guide-feature">
-      <strong>让观众唤醒 AI</strong>
-      <p>
-        在「触发关键词」里填一个词，最多 12 个字，比如“小助手”。保存后，观众发“小助手，晚上好”就能唤醒
-        AI。弹幕里要带上已保存的关键词才会触发；关键词留空就不回复。
-      </p>
-      <p>「回复长度偏好」可填 10–50，默认 50。这只是长度偏好，内容多时，回复可能分成两条或三条弹幕。</p>
-      <ul class="usage-guide-bullets">
-        <li>「同时处理的提问数」：1–5，默认 3。排队的提问看「等待队列」。</li>
-        <li>「同一观众提问间隔（秒）」：0–3600，默认 0。</li>
-        <li>「每分钟提问上限」：1–120，默认 20。</li>
-        <li>「发送间隔（毫秒）」不能改：不同回复之间随机隔 500–2000 毫秒，同一回复的分段之间随机隔 200–600 毫秒。</li>
-      </ul>
-      <figure class="usage-guide-figure usage-guide-figure--compact">
-        <img
-          class="usage-guide-image"
-          src="/img/usage-guide/E/ai-assistant-config.webp"
-          width="1100"
-          height="1660"
-          loading="lazy"
-          decoding="async"
-          alt="AI 互动助手设置面板，包含模型服务、角色包、回复规则、可选工具和高级设置；工具调用处于关闭状态"
-        />
-        <figcaption>通用助手与可选工具设置示例，尚未配置真实模型服务。</figcaption>
-      </figure>
-    </article>
-    <article class="usage-guide-feature">
-      <strong>普通问答与可选工具</strong>
-      <p>
+<p>原有自定义人设会保留。切换角色或修改人设后，助手不会带入另一角色的短期记忆。</p>
+</article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.3.4 联网与工具</strong></h5></div>
+
+<p>
         只做普通问答，可以关闭联网和工具调用，不需要天气或地图账号。新配置默认关闭这些能力，已有设置会保留。
         需要天气、地点或路线时，展开「可选工具」，先开启「允许模型调用工具」，再启用对应查询。
       </p>
-      <p>
+<p>
         和风天气填专属 API Host 和密钥；高德地图填 Web 服务 API Host 和 Web 服务 Key。
         这些密钥与模型密钥分开，填好后可分别测试。关闭工具会保留已保存配置；没有完整凭据的工具不会被调用。
       </p>
-      <p>
+<p>
         平台原生搜索由「联网搜索」控制；显示「LIRA 联网搜索」时，还需要开启工具调用。
         是否支持搜索或工具，以实际模型为准。不能核实时，助手会被要求说明不确定，不编造实时结果。
       </p>
-      <p>
+<p>
         先让「测试 AI 连接」通过，再打开「启用
-        AI」，用真实弹幕试一下。测试成功却不回复，就检查直播账号、触发关键词和提问频率，见<a
-          href="#ug-faq"
-          data-usage-guide-link
-          >常见问题</a
-        >。
+        AI」，用真实弹幕试一下。测试成功却不回复，就检查直播账号、触发关键词和提问频率，见<a data-usage-guide-link href="#ug-faq">常见问题</a>。
       </p>
-    </article>
-  </div>
-</section>
+</article></div>

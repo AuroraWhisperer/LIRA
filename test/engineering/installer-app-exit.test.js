@@ -21,7 +21,8 @@ test(
         : false,
   },
   async (t) => {
-    const source = fs.readFileSync(path.join(__dirname, '../../build/installer-data.nsh'), 'utf8');
+    const source = ['installer-uninstall.nsh', 'installer-process.nsh', 'installer-data.nsh']
+      .map(name => fs.readFileSync(path.join(__dirname, '../../build', name), 'utf8')).join('\n');
 
     const scenarios = [];
     // Each scenario owns a unique executable name and isolated install paths.
@@ -31,14 +32,19 @@ test(
       'cancelled',
       'refused',
       'retry',
+      'no-running-app',
       'other-directory',
+      'other-directory-prefix',
+      'windowless',
       'silent-exit',
+      'silent-timeout',
+      'failed-process-check',
     ]) {
       scenarios.push(t.test(scenario, async () => {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-close-test-'));
         const installDir = path.join(root, '旧版 LIRA');
         const newInstallDir = path.join(root, '新版 LIRA');
-        const otherDir = path.join(root, 'other-application');
+        const otherDir = scenario === 'other-directory-prefix' ? newInstallDir + '-other' : path.join(root, 'other-application');
         const dataDir = path.join(installDir, 'data');
         const dataFile = path.join(dataDir, 'fixture.txt');
         const backup = newInstallDir + '.lira-data-backup';
@@ -47,10 +53,14 @@ test(
         const prompts = path.join(root, 'prompts.txt');
         const preserved = path.join(root, 'preserved.txt');
         const appName = path.basename(root) + '.exe';
-        const appDirectory =
-          scenario === 'other-directory' ? otherDir : scenario === 'selected-directory' ? newInstallDir : installDir;
+        const unrelated = scenario.startsWith('other-directory');
+        const noApp = scenario === 'no-running-app';
+        const windowless = scenario === 'windowless';
+        const checkFails = scenario === 'failed-process-check';
+        const appDirectory = unrelated ? otherDir : scenario === 'selected-directory' ? newInstallDir : installDir;
         const appFile = path.join(appDirectory, appName);
-        const silent = scenario === 'silent-exit';
+        const silent = scenario.startsWith('silent-');
+        const exitsSilently = scenario === 'silent-exit';
         let holder;
 
         const compile = (name, lines) => {
@@ -78,7 +88,9 @@ test(
 
           // Only dialog responses are simulated; close requests, process checks,
           // delayed final writes and backup all execute through native Windows APIs.
-          const functions = source
+          const functions = (checkFails
+            ? source.replace("System::Call 'kernel32::CreateToolhelp32Snapshot(i 2, i 0) p.r0 ?e'", 'StrCpy $0 -1\nPush 5')
+            : source)
             .replaceAll('$APPDATA', '${FIXTURE_APPDATA}')
             .replaceAll('$TEMP', '${FIXTURE_TEMP}')
             .replace(
@@ -138,20 +150,22 @@ test(
             'RequestExecutionLevel user',
             `OutFile "${quote(appFile)}"`,
             'Function .onInit',
-            'System::Call \'user32::CreateWindowExW(i 0, w "STATIC", w "fixture one", i 0, i 0, i 0, i 0, i 0, p 0, p 0, p 0, p 0) p.r0\'',
-            'System::Call \'user32::CreateWindowExW(i 0, w "STATIC", w "fixture two", i 0, i 0, i 0, i 0, i 0, p 0, p 0, p 0, p 0) p.r1\'',
-            'StrCmp $0 0 fixtureFailed',
-            'StrCmp $1 0 fixtureFailed',
+            ...(windowless ? ['StrCpy $0 0', 'StrCpy $1 0'] : [
+              'System::Call \'user32::CreateWindowExW(i 0, w "STATIC", w "fixture one", i 0, i 0, i 0, i 0, i 0, p 0, p 0, p 0, p 0) p.r0\'',
+              'System::Call \'user32::CreateWindowExW(i 0, w "STATIC", w "fixture two", i 0, i 0, i 0, i 0, i 0, p 0, p 0, p 0, p 0) p.r1\'',
+              'StrCmp $0 0 fixtureFailed',
+              'StrCmp $1 0 fixtureFailed',
+            ]),
             'System::Alloc 32',
             'Pop $2',
             'StrCpy $5 0',
-            silent ? "System::Call 'user32::SetTimer(p r0, p 1, i 1500, p 0)'" : '',
+            exitsSilently ? "System::Call 'user32::SetTimer(p r0, p 1, i 1500, p 0)'" : '',
             record(ready, 'ready'),
             'fixtureMessages:',
             "System::Call 'user32::GetMessageW(p r2, p 0, i 0, i 0) i.r3'",
             'IntCmp $3 0 fixtureFailed fixtureFailed',
             "System::Call '*$2(p.r4, i.r3)'",
-            silent ? 'IntCmp $3 0x0113 fixtureExit' : '',
+            exitsSilently ? 'IntCmp $3 0x0113 fixtureExit' : '',
             'IntCmp $3 0x0010 0 fixtureMessages fixtureMessages',
             // NSIS also owns an internal window; count only our two fixture windows.
             'StrCmp $4 $0 fixtureClose',
@@ -159,7 +173,7 @@ test(
             'fixtureClose:',
             record(requests, 'close'),
             'IntOp $5 $5 + 1',
-            scenario === 'refused' || scenario === 'other-directory'
+            scenario === 'refused' || unrelated
               ? 'Goto fixtureMessages'
               : `IntCmp $5 ${scenario === 'retry' ? 4 : 2} fixtureExit fixtureMessages fixtureExit`,
             'fixtureExit:',
@@ -177,11 +191,13 @@ test(
             'Section',
             'SectionEnd',
           ]);
-          holder = spawn(appFile, ['/S'], { windowsHide: true, stdio: 'ignore' });
-          const deadline = Date.now() + 10000;
-          while (!fs.existsSync(ready) && Date.now() < deadline && holder.exitCode === null)
-            await new Promise((resolve) => setTimeout(resolve, 25));
-          assert.ok(fs.existsSync(ready), 'the isolated application windows must be ready');
+          if (!noApp) {
+            holder = spawn(appFile, ['/S'], { windowsHide: true, stdio: 'ignore' });
+            const deadline = Date.now() + 10000;
+            while (!fs.existsSync(ready) && Date.now() < deadline && holder.exitCode === null)
+              await new Promise((resolve) => setTimeout(resolve, 25));
+            assert.ok(fs.existsSync(ready), 'the isolated application process must be ready');
+          }
 
           const status = await new Promise((resolve, reject) => {
             const installer = spawn(path.join(root, 'installer.exe'), ['/S'], {
@@ -192,7 +208,7 @@ test(
             installer.once('error', reject);
             installer.once('close', resolve);
           });
-          const succeeds = ['approved', 'selected-directory', 'retry', 'silent-exit'].includes(scenario);
+          const succeeds = noApp || unrelated || ['approved', 'selected-directory', 'retry', 'silent-exit'].includes(scenario);
           const report = path.join(root, 'LIRA-install-error.txt');
           assert.equal(
             status,
@@ -201,7 +217,8 @@ test(
           );
           assert.equal(fs.existsSync(preserved), succeeds);
           if (succeeds) {
-            assert.equal(fs.readFileSync(preserved, 'utf8'), 'saved before exit');
+            assert.equal(fs.readFileSync(preserved, 'utf8'), noApp || unrelated ? 'before close' : 'saved before exit');
+            if (unrelated) assert.equal(holder.exitCode, null, 'another installation must keep running');
           } else {
             assert.equal(fs.existsSync(backup), false);
             assert.equal(fs.readFileSync(dataFile, 'utf8'), 'before close');
@@ -209,13 +226,13 @@ test(
           const responses = fs.existsSync(prompts) ? fs.readFileSync(prompts, 'utf8').trim().split('\r\n') : [];
           assert.deepEqual(
             responses,
-            silent
+            silent || unrelated || noApp || checkFails
               ? []
               : ['approved', 'selected-directory', 'cancelled'].includes(scenario)
                 ? ['confirm']
                 : ['confirm', 'retry'],
           );
-          if (['cancelled', 'other-directory', 'silent-exit'].includes(scenario)) {
+          if (scenario === 'cancelled' || unrelated || noApp || silent || windowless || checkFails) {
             assert.equal(fs.existsSync(requests), false, 'no close request should be sent');
           } else {
             const received = fs.readFileSync(requests, 'utf8').trim().split('\r\n');

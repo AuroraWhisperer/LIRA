@@ -31,7 +31,11 @@ are simple and deterministic.
 ## Locations And Lifecycle
 
 - Active plans live in `specs/plans/`.
-- Completed or superseded plans live in `specs/plans/archive/`.
+- Retain completed or superseded plans in `specs/plans/archive/` only when they
+  still supply decision context, useful incident/acceptance evidence, or a source
+  explicitly referenced by a specification, ADR, report, or production guide.
+  Routine implementation steps and repeated release checklists can be removed
+  once their content is in Git and their results or remaining work have owners.
 - Maintain current status and remaining work in the [plan index](specs/plans/README.md).
   `Deferred`, `Paused`, `Blocked`, and missing verification are not completion.
 - Do not create plans under `docs/` or `docs/superpowers/plans/`. Architecture,
@@ -39,6 +43,10 @@ are simple and deterministic.
 - When retiring an old plan, name its replacement or completion evidence. Preserve
   historical test results and unresolved acceptance conditions; do not check off
   tests that were not actually run.
+- A concise closeout in the archive index may replace a finished plan; cite the
+  verified scope, result, limitations and Git revision for the original record.
+  Remove stale incoming links and never delete uncommitted work as historical
+  redundancy. Age alone is not a retirement criterion.
 - Plans are living documents. Record material discoveries, scope changes,
   deviations, and verification results while the work proceeds.
 - Mark a plan complete only after its Done When conditions and final verification

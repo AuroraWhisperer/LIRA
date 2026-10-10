@@ -13,7 +13,7 @@
 - 四个 owner：danmaku-overlay-settings、clock-card、theme、overtime-preview。
 - 公共 owner：component-config-controller、component-preview-dialog、component-preview-client。
 - app.js 管理懒加载；toolbox-lifecycle 管理页面激活，不能因打开工作区误触发业务动作。
-- P1 实施记录在 2026-09-30-component-preview.md；隔离固定 Server 提交已验证，保留用户原检出。
+- P1 的 `2026-09-30-component-preview.md` 已从维护目录清理，原文通过[归档索引的 Git 查询方式](README.md#2026-10-09-补齐的历史验收)读取；当时隔离固定 Server 提交已验证，保留用户原检出。
 - 现有未提交的其他功能改动保持原样。
 
 ## Milestones And Verification

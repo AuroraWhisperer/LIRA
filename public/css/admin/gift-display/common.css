@@ -1,6 +1,4 @@
-.gift-history-filters label,
-.gift-display-group > label,
-.gift-feed-source > label {
+.gift-history-filters label {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -23,6 +21,5 @@
 
 .gift-feed-source .gift-directory-actions {
   flex-wrap: nowrap;
-  align-items: stretch;
-  margin-top: 6px;
+  align-items: center;
 }

@@ -3,13 +3,22 @@
   animation: none;
 }
 
-/* Rows leaving the fixed region fade out instead of being cut by a hard edge. */
+/* Fixed feeds keep their original exit fade unless another edge mode is selected. */
 .draw-danmaku-feed[data-smooth-layout='true'] {
-  mask: linear-gradient(transparent, #000 32px);
+  mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px));
 }
 
 body[data-scroll-direction='down'] .draw-danmaku-feed[data-smooth-layout='true'] {
-  mask: linear-gradient(#000 calc(100% - 32px), transparent);
+  mask: linear-gradient(#000 calc(100% - var(--danmaku-edge-fade-size, 32px)), transparent);
+}
+
+body[data-edge-fade='both'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px),
+    #000 calc(100% - var(--danmaku-edge-fade-size, 32px)), transparent);
+}
+
+body[data-edge-fade='none'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  mask: none;
 }
 
 @keyframes signalMessageIn {

@@ -1,34 +1,56 @@
-<h4 id="ug-welcome-settings">设置进场欢迎和欢迎词</h4>
+<h4 class="usage-guide-subsection-title">03.1 发送与关键词回复</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-send-danmaku"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.1.1 手动发送</strong></h5></div>
+<p>打开「百宝箱 → 互动娱乐 → 弹幕互动」，先确认连接状态区的发送账号、目标直播间和发送权限。在发送区输入文字，按 Ctrl + Enter 发送，并查看发送结果。该区域没有独立网页地址。</p>
+<figure class="usage-guide-figure">
+<img alt="弹幕输入、发送和自动钓鱼入口；截图未实际发送消息。" class="usage-guide-image" decoding="async" height="323" loading="lazy" src="/img/usage-guide/E/danmaku-send.webp" style="--usage-guide-image-width: 1092px" width="1092"/>
+<figcaption>弹幕输入、发送和自动钓鱼入口；截图未实际发送消息。</figcaption>
+</figure></article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.1.2 自动钓鱼与打劫</strong></h5></div>
+<ol class="usage-guide-checks">
+<li>点之前先确认目标直播间。这是一次批量发送：钓鱼 ×10、打劫 ×5，每 5 秒一条，共 15 条，开始时会提示。</li>
+<li>可以看发送进度和结果。发完会提示「自动发送完成：钓鱼 ×10、打劫 ×5」，不会一直循环。</li>
+<li>发送失败：先检查发送账号和连接状态。别连续点，会重复加任务。</li>
+</ol></article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.1.3 关键词回复</strong></h5></div>
+<p>在「百宝箱 → 弹幕互动 → 固定回复」填写自定义关键词与回复，添加后保存。点歌回复见<a data-usage-guide-link href="#ug-random-song">随机点歌</a>；礼物查询与答谢见<a data-usage-guide-link href="#ug-gift-interactions">礼物答谢与查询弹幕</a>。</p>
+<figure class="usage-guide-figure">
+<img alt="自定义关键词、回复内容、添加与保存入口；请按自己的规则填写。" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/danmaku-custom-reply.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>自定义关键词、回复内容、添加与保存入口；请按自己的规则填写。</figcaption>
+</figure></article></div>
+<h4 class="usage-guide-subsection-title">03.2 欢迎与机器人</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-welcome-settings"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.2.1 设置进场欢迎和欢迎词</strong></h5></div>
 <p>在「固定回复 → 进场欢迎」旁点「设置」。「参数」里设什么时候欢迎、欢迎谁，「词库」里改欢迎的话。先看上方的连接状态，确认能发送弹幕。</p>
 <ol class="usage-guide-checks">
-  <li>设「首次欢迎」：进场后等几秒再欢迎，可填 0–300 秒；最低荣耀等级可填 0–999 级。等级填 0 就不限制。</li>
-  <li>想过一会儿再打声招呼，就开启「二次问候」。延迟可填 1–600 秒，要比首次欢迎晚。两次都从进场时算起，第一次欢迎发成功了，才会再问候。</li>
-  <li>想给高荣耀等级的观众用另一套欢迎词，就开启「重点关注」，再设等级门槛，默认 31 级。这里看的是进场消息里的荣耀等级，和粉丝档案里的特别关注分开设置。</li>
-  <li>打开「词库」，按需要改「欢迎词库」「问候词库」「专属欢迎词库」「专属问候词库」。改参数点「保存参数」，改欢迎词点「保存欢迎词库」，两边各自保存，再看成功提示。</li>
+<li>设「首次欢迎」：进场后等几秒再欢迎，可填 0–300 秒；最低荣耀等级可填 0–999 级。等级填 0 就不限制。</li>
+<li>想过一会儿再打声招呼，就开启「二次问候」。延迟可填 1–600 秒，要比首次欢迎晚。两次都从进场时算起，第一次欢迎发成功了，才会再问候。</li>
+<li>想给高荣耀等级的观众用另一套欢迎词，就开启「重点关注」，再设等级门槛，默认 31 级。这里看的是进场消息里的荣耀等级，和粉丝档案里的特别关注分开设置。</li>
+<li>打开「词库」，按需要改「欢迎词库」「问候词库」「专属欢迎词库」「专属问候词库」。改参数点「保存参数」，改欢迎词点「保存欢迎词库」，两边各自保存，再看成功提示。</li>
 </ol>
 <p>欢迎词里写 <code>{username}</code>，发送时就会换成观众的称呼。不写也行，会自动加在句首。识别到本房间的大航海身份时，还会在称呼前加上舰长、提督或总督。欢迎词太长时，可能会换成短一点的说法。</p>
-<details class="usage-guide-foldout">
-  <summary>没发欢迎，或者发的和预览不一样</summary>
-  <ul>
-    <li>预览能看草稿，也能看已保存的设置，不会真的发弹幕。预览用词库里的第一条，实际发送时随机选。</li>
-    <li>切完开关，要等服务器返回成功提示。有参数没保存时，按钮可能显示「开启并保存参数」。关掉进场欢迎，也会一起关掉二次问候和重点关注；下次打开欢迎时，这两项要按需要重新开。</li>
-    <li>同一观众反复进场，不会每次都欢迎，默认间隔 30 分钟。荣耀门槛不是 0 时，如果进场消息里没有荣耀等级，就不会欢迎。</li>
-    <li>服务器收到进场消息后才能欢迎，不一定每位进来的观众都能收到。监控连着、账号能发弹幕时，没开播也可能欢迎。想停下来，就关掉进场欢迎。</li>
-  </ul>
-</details>
-<h4 id="ug-viewer-chosen-name">让观众自己改称呼</h4>
+<ul>
+<li>预览能看草稿，也能看已保存的设置，不会真的发弹幕。预览用词库里的第一条，实际发送时随机选。</li>
+<li>切完开关，要等服务器返回成功提示。有参数没保存时，按钮可能显示「开启并保存参数」。关掉进场欢迎，也会一起关掉二次问候和重点关注；下次打开欢迎时，这两项要按需要重新开。</li>
+<li>同一观众反复进场，不会每次都欢迎，默认间隔 30 分钟。荣耀门槛不是 0 时，如果进场消息里没有荣耀等级，就不会欢迎。</li>
+<li>服务器收到进场消息后才能欢迎，不一定每位进来的观众都能收到。监控连着、账号能发弹幕时，没开播也可能欢迎。想停下来，就关掉进场欢迎。</li>
+</ul>
+<figure class="usage-guide-figure">
+<img alt="弹幕互动页的固定回复：随机点歌回复、签到机器人、抽签机器人、自定义关键词回复、进场欢迎和 PK 对手信息播报开关" class="usage-guide-image" decoding="async" height="913" loading="lazy" src="/img/usage-guide/E/danmaku-reply-tools.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>弹幕互动的「固定回复」区域。</figcaption>
+</figure></article>
+<article class="usage-guide-feature" id="ug-viewer-chosen-name"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.2.2 让观众自己改称呼</strong></h5></div>
 <p>观众发一条「叫我小桃」，服务器就会记住这位观众在你直播间的称呼，并尝试回复「好的小桃」。称呼可填 1–10 个字符，汉字、字母和一个完整表情各算一个。想换称呼，再发一次「叫我新称呼」。</p>
 <p>以后轮到欢迎或二次问候这位观众时，就会用这个称呼。称呼按 B 站 UID 保存，不会改 B 站昵称、弹幕上的原昵称或本机粉丝档案，也不会改其他主播直播间里的称呼。先开弹幕监控，确认发送账号能用；没开进场欢迎也能记称呼，想发欢迎时再开。</p>
-<h4 id="ug-daily-bots">签到与抽签</h4>
+<p>昵称生僻字自动注音在「进场欢迎 → 设置 → 参数」中开启，切换结果通过提示通知显示。</p></article>
+<article class="usage-guide-feature" id="ug-daily-bots"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.2.3 签到与抽签</strong></h5></div>
 <p>在「固定回复」里分别打开「签到机器人」「抽签机器人」。观众单独发「签到」或「抽签」就能用，前后多打空格没关系。别把指令夹在其他话里。</p>
 <ul>
-  <li><strong>签到：</strong>按北京时间算，每位观众每天只记一次。次数是累计的，漏签几天也不会清零。</li>
-  <li><strong>抽签：</strong>同一天抽多少次都是同一个结果。到了北京时间第二天，再抽才会重新算结果。</li>
-  <li><strong>连续发送：</strong>同一观众发同一种指令，有 30 秒回复间隔。回复没发出去，已经记下的签到和抽签结果也不会作废。</li>
-  <li><strong>换号与换房间：</strong>换 B 站账号、换直播间或退出 B 站登录后，机器人会关掉，要重新检查并开启。同一个账号正常刷新登录状态，不会关掉机器人。</li>
+<li><strong>签到：</strong>按北京时间算，每位观众每天只记一次。次数是累计的，漏签几天也不会清零。</li>
+<li><strong>抽签：</strong>同一天抽多少次都是同一个结果。到了北京时间第二天，再抽才会重新算结果。</li>
+<li><strong>连续发送：</strong>同一观众发同一种指令，有 30 秒回复间隔。回复没发出去，已经记下的签到和抽签结果也不会作废。</li>
+<li><strong>换号与换房间：</strong>换 B 站账号、换直播间或退出 B 站登录后，机器人会关掉，要重新检查并开启。同一个账号正常刷新登录状态，不会关掉机器人。</li>
 </ul>
-<p>记录存在服务器上。关掉或重启客户端，当天的结果还在，机器人也不会因此停下来。</p>
-<h4 id="ug-pk-report">PK 对手信息与开播问候</h4>
+<p>记录存在服务器上。关掉或重启客户端，当天的结果还在，机器人也不会因此停下来。</p></article>
+<article class="usage-guide-feature" id="ug-pk-report"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>03.2.4 PK 对手信息与开播问候</strong></h5></div>
 <p>打开「PK 对手信息播报」，等成功提示。新的 PK 开始后，服务器会查对手信息，用弹幕播报大航海和在线榜等情况。PK 中途才打开，不会补播这一场。</p>
 <p>播报里的金额按「1 元 = 10 贡献值」估算。榜单可能没拿全，别把它当成对手的全部流水。「遇见次数」只算 LIRA 记下来的双方 PK，安装前的历史不会补算。</p>
-<p>服务器确认你的直播间开播、账号也能发弹幕时，还会发一句类似「欢迎『分区』分区的『昵称』主播回家」的话。这是给主播的开播问候，和观众进场欢迎分开，不用观众发指令。</p>
+<p>服务器确认你的直播间开播、账号也能发弹幕时，还会发一句类似「欢迎『分区』分区的『昵称』主播回家」的话。这是给主播的开播问候，和观众进场欢迎分开，不用观众发指令。</p></article></div>

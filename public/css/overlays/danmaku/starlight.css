@@ -11,11 +11,8 @@ body[data-style='starlight'] .draw-danmaku-gift-art {
   display: none;
 }
 body[data-style='starlight'] .draw-danmaku-feed {
+  --danmaku-edge-fade-size: 24px;
   gap: 28px;
-  mask: linear-gradient(transparent, #000 24px);
-}
-body[data-style='starlight'][data-scroll-direction='down'] .draw-danmaku-feed {
-  mask: linear-gradient(#000 calc(100% - 24px), transparent);
 }
 body[data-style='starlight'] .draw-danmaku-feed .draw-danmaku-item {
   display: block;

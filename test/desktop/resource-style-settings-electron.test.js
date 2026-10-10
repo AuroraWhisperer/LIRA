@@ -54,6 +54,7 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   assert.equal(await page.locator('#otherClockFeature .clock-style-options > [aria-pressed="true"]').count(), 0);
   assert.equal(await page.locator('#clockShowSeconds').isVisible(), false);
   assert.equal(await page.locator('#clockOpenPreview').isVisible(), false);
+  assert.equal(await page.locator('#clockCopyFixed').isVisible(), false);
   const seconds = clock.locator('[data-preview-field="clockShowSeconds"]');
   await seconds.uncheck();
   await clock.getByRole('button', { name: '保存设置', exact: true }).click();
@@ -63,6 +64,8 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   await page.locator('#otherClockFeature > div [data-clock-style-option="peach"]').first().click();
   assert.equal(await clock.isVisible(), false);
   assert.equal(await page.locator('#clockShowSeconds').isVisible(), true);
+  assert.equal(await page.locator('#clockOpenPreview').isVisible(), true);
+  assert.equal(await page.locator('#clockCopyFixed').isVisible(), true);
   assert.equal(await page.locator('#otherClockFeature .clock-style-options > [data-clock-style-option="peach"]').first().getAttribute('aria-pressed'), 'true');
   await open('配套时钟');
   assert.equal(await seconds.isChecked(), false);

@@ -6,52 +6,6 @@
   display: none !important;
 }
 
-.gift-assistant-tabs {
-  display: flex;
-  gap: var(--spacing-xs);
-  min-width: 0;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--border);
-}
-
-.gift-assistant-tabs [role='tab'] {
-  flex: 0 0 auto;
-  min-height: 36px;
-  padding: 6px 12px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: var(--radius-control) var(--radius-control) 0 0;
-  background: transparent;
-  color: var(--muted);
-  box-shadow: none;
-  font-size: var(--type-size-control);
-  font-weight: var(--type-weight-medium);
-  line-height: var(--type-leading-control);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.gift-assistant-tabs [role='tab']:hover:not([aria-selected='true']) {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-.gift-assistant-tabs [aria-selected='true'] {
-  border-bottom-color: var(--color-selection-marker);
-  background: var(--color-selection-fill, var(--color-primary-light));
-  color: var(--color-selection-text);
-  font-weight: var(--type-weight-semibold);
-}
-
-.gift-assistant-tabs [aria-selected='true']:hover {
-  color: var(--primary-strong);
-}
-
-.gift-assistant-tabs [role='tab']:focus-visible {
-  outline: 2px solid var(--color-control-focus);
-  outline-offset: -2px;
-}
-
 .gift-display-settings {
   min-width: 0;
   padding: var(--spacing-lg);
@@ -68,6 +22,7 @@
 }
 
 .gift-display-columns {
+  margin-top: 24px;
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   gap: var(--spacing-xl);
@@ -92,8 +47,24 @@
   margin: var(--spacing-sm) 0 0;
 }
 
-.gift-display-group > label {
-  margin: var(--spacing-md) 0;
+.gift-feed-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+.gift-feed-fields > label {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.gift-feed-fields input {
+  width: 100%;
+  min-width: 0;
+}
+.gift-feed-source {
+  flex: 1 1 300px;
+  min-width: 0;
 }
 
 .gift-tier-inputs > div {
@@ -134,8 +105,7 @@
   background: linear-gradient(90deg, var(--gift-start), var(--gift-end)), #fff;
 }
 
-.gift-display-preview,
-.gift-feed-source {
+.gift-display-preview {
   margin-top: var(--spacing-lg);
   padding-top: var(--spacing-md);
   border-top: 1px solid var(--border);
@@ -216,10 +186,11 @@
   white-space: nowrap;
 }
 
-.gift-display-actions {
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--border);
+#giftDisplayError {
+  margin: 12px 0 0;
+}
+#giftDisplayError:empty {
+  display: none;
 }
 
 @media (max-width: 1100px) {

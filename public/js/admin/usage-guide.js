@@ -4,6 +4,8 @@
 
 import { initUsageGuideLightbox } from './usage-guide-lightbox.js';
 import { initUsageGuideSearch } from './usage-guide-search.js';
+import { initUsageGuideProgress } from './usage-guide-progress.js';
+import { createUsageGuideSidebarTransition } from './usage-guide-layout.js';
 
 let initialized = false;
 let navigationCorrectionTimer = null;
@@ -29,6 +31,7 @@ export function initUsageGuide() {
   let compactToc = true;
   let tocAtTop = null;
   let tocTimer = null;
+  const updateReadingPosition = initUsageGuideProgress(panel, sections, navigateToTarget, reduceMotionQuery);
 
   function updateTocAvailableHeight() {
     const scrollerBottom =
@@ -91,7 +94,7 @@ export function initUsageGuide() {
     if (!toc.contains(event.target)) setTocOpen(false);
   });
 
-  function updateTocLayout() {
+  function updateTocLayout(updateReading = true) {
     if (panel.hidden) return;
     const tocStyle = window.getComputedStyle(toc);
     const nextCompactToc = tocStyle.flexDirection !== 'column';
@@ -108,7 +111,7 @@ export function initUsageGuide() {
         : toc.getBoundingClientRect().height + parseFloat(tocStyle.top) + scrollerPadding + 12;
     panel.style.setProperty('--usage-guide-scroll-offset', `${sectionOffset}px`);
     if (toc.classList.contains('is-open')) updateTocAvailableHeight();
-    updateActiveOnScroll();
+    if (updateReading) updateActiveOnScroll();
   }
 
   function setActiveLink(id) {
@@ -118,8 +121,11 @@ export function initUsageGuide() {
       if (toc.contains(link)) {
         if (active) {
           link.setAttribute('aria-current', 'location');
-          tocCurrent.textContent = link.textContent.trim();
-          tocCurrent.title = tocCurrent.textContent;
+          const title = link.textContent.trim();
+          if (tocCurrent.textContent !== title) {
+            tocCurrent.textContent = title;
+            tocCurrent.title = title;
+          }
         } else {
           link.removeAttribute('aria-current');
         }
@@ -151,6 +157,7 @@ export function initUsageGuide() {
       doc.scrollHeight > window.innerHeight + 4 && window.innerHeight + window.scrollY >= doc.scrollHeight - 4;
     if (scrollerAtBottom || windowAtBottom) current = sections[sections.length - 1];
     setActiveLink(current.id);
+    updateReadingPosition(current, marker, scrollerAtBottom || windowAtBottom);
   }
 
   let scrollTicking = false;
@@ -216,9 +223,10 @@ export function initUsageGuide() {
   window.addEventListener('scroll', onScroll, { passive: true });
   setActiveLink(sections[0].id);
   updateTocLayout();
-  const tocObserver = new ResizeObserver(updateTocLayout);
+  const tocObserver = new ResizeObserver(() => updateTocLayout());
   tocObserver.observe(toc);
   tocObserver.observe(tocMenu);
+  sections.forEach((section) => tocObserver.observe(section));
 
   // 绑定重新打开交互式引导按钮
   const reopenTourBtn = document.getElementById('reopenInteractiveTourBtn');
@@ -231,4 +239,18 @@ export function initUsageGuide() {
   }
 
   initialized = true;
+  const transitionSidebar = createUsageGuideSidebarTransition({
+    panel,
+    scroller,
+    sections,
+    updateLayout: updateTocLayout,
+    getOffset: () => sectionOffset,
+    reduceMotion: reduceMotionQuery,
+  });
+  return (apply) => {
+    window.clearTimeout(navigationCorrectionTimer);
+    navigationCorrectionTimer = null;
+    panel.classList.remove('usage-guide-render-all');
+    return transitionSidebar(apply);
+  };
 }

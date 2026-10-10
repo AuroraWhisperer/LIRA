@@ -131,6 +131,36 @@
   background: var(--components-row-hover);
 }
 
+.live-components-menu .live-component-group {
+  grid-template-columns: 20px minmax(0, 1fr) 14px;
+}
+
+.live-component-submenu {
+  margin: 0 0 8px 32px;
+}
+
+.live-components-menu .live-component-submenu .other-feature-button {
+  grid-template-columns: minmax(0, 1fr);
+  height: 34px;
+  min-height: 34px;
+  padding: 6px 12px;
+}
+
+.live-component-group[aria-expanded='false'] + .live-component-submenu {
+  display: none;
+}
+
+.live-component-group[aria-expanded='false'] .other-feature-group-arrow {
+  transform: rotate(-90deg);
+}
+
+/* A collapsed group keeps the current location visible without selecting two rows. */
+.live-components-menu .live-component-group[aria-expanded='false']:has(+ .live-component-submenu [aria-selected='true']) {
+  background: var(--components-row-selected-bg);
+  box-shadow: var(--components-row-selected-shadow);
+  color: var(--components-accent-solid);
+}
+
 /* Bottom padding keeps 使用指南 clear of the global player-dock toggle at the window's edge. */
 .live-components-help {
   margin-top: auto;
@@ -176,13 +206,13 @@
   scrollbar-gutter: stable;
 }
 
-.live-components-page .component-page-heading {
+.live-components-page .component-toolbar {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px 24px;
+  gap: 12px 16px;
   min-height: 36px;
   margin: 0;
   padding: 0 0 16px;
@@ -192,23 +222,70 @@
   background: transparent;
 }
 
-.live-components-page .other-feature-panel .component-page-heading :is(h2, h3) {
+.live-components-page .component-toolbar > h3 {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--type-size-page-title);
-  font-weight: var(--type-weight-semibold);
-  line-height: 28px;
-  letter-spacing: 0;
 }
-
-/* Page header: title on the left, state then the page's primary action on the right. */
-.live-components-page .component-heading-separator {
-  flex: 0 0 auto;
-  width: 1px;
-  height: 20px;
-  background: color-mix(in srgb, var(--text) 16%, transparent);
+.live-components-page .component-toolbar-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  min-width: 0;
 }
-
+.live-components-page .other-feature-panel label.component-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-regular);
+}
+.live-components-page .component-inline-field > span {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.live-components-page .component-inline-field :is(input, select, .lira-select) {
+  width: 112px;
+  min-width: 0;
+}
+.live-components-page .component-toolbar-group > .component-inline-field {
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+}
+.live-components-page .component-toolbar-group button {
+  flex-shrink: 0;
+}
+.live-components-page .danmaku-monitoring-control {
+  padding-right: 16px;
+  border-right: 1px solid var(--border);
+}
+.live-components-page .danmaku-style-tools .danmaku-overlay-link {
+  display: flex;
+  flex: 1 1 340px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.live-components-page .danmaku-style-tools .danmaku-overlay-link input {
+  flex: 1;
+  width: 0;
+  min-width: 100px;
+}
+.live-components-page .danmaku-style-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+.live-components-page .danmaku-style-heading h4 {
+  margin: 0;
+  font-size: var(--type-size-section-title);
+  line-height: 24px;
+}
+.live-components-page .danmaku-style-heading .danmaku-style-chip {
+  margin-left: auto;
+}
 .live-components-page .danmaku-style-chip {
   display: inline-flex;
   align-items: center;
@@ -220,18 +297,15 @@
   font-weight: var(--type-weight-medium);
 }
 
-/* One section level across the six pages: page title 20 → section 16 → body 14 → note 12.
-   Several pages used to mark sections with a card-title-sized heading, which matched the body
-   size and flattened the page. */
+/* The selected sidebar tab names the page; content starts with actions or task sections. */
 .live-components-page .other-feature-panel
   :is(
     .ui-section-title,
     .danmaku-settings-heading h4,
     .gift-display-group-head h4,
-    .opening-style-picker h3,
     .opening-section-heading strong,
-    .opening-editor-title > span,
-    .opening-preview-heading strong,
+    .opening-copy-section h3,
+    .opening-music-heading strong,
     .text-box-live-heading h3
   ) {
   font-size: var(--type-size-section-title);
@@ -239,8 +313,7 @@
   line-height: 24px;
 }
 
-/* Section description sits between the heading and the controls it explains, so it is read
-   before the action rather than after it (Fluent Field). */
+/* Required field guidance stays visible; optional explanations use contextual help. */
 .live-components-page .component-section-note {
   margin: 4px 0 0;
   color: var(--muted);
@@ -285,22 +358,6 @@
 .live-components-page .other-feature-panel :is(.hint, .danmaku-style-chip, .opening-audio-status) {
   font-size: var(--type-size-caption);
   line-height: 18px;
-}
-
-.live-components-page .gift-assistant-tabs {
-  gap: 24px;
-}
-
-.live-components-page .gift-assistant-tabs [role='tab'] {
-  min-height: 40px;
-  padding: 8px 0 10px;
-  border-radius: 0;
-  font-size: var(--type-size-body);
-  line-height: 20px;
-}
-
-.live-components-page .gift-assistant-tabs [aria-selected='true'] {
-  background: transparent;
 }
 
 /* One surface; spacing separates settings, while image cards remain selectable objects. */
@@ -448,7 +505,6 @@
   height: 16px;
 }
 
-/* Library management belongs to the section, not to the grid of selectable styles. */
 .live-components-page .component-subsection-heading {
   display: flex;
   align-items: center;
@@ -471,23 +527,6 @@
   justify-content: flex-end;
   gap: 12px;
   margin-inline-start: auto;
-}
-
-.live-components-page .component-heading-actions .component-style-manage {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 4px 12px;
-  font-size: var(--type-size-control);
-}
-
-.live-components-page .component-heading-actions .component-style-manage::before {
-  content: '';
-  width: 16px;
-  height: 16px;
-  margin-inline-end: 6px;
-  background: currentColor;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round' stroke-linecap='round'%3E%3Crect x='4' y='4' width='7' height='7' rx='1.5'/%3E%3Crect x='13' y='4' width='7' height='7' rx='1.5'/%3E%3Crect x='4' y='13' width='7' height='7' rx='1.5'/%3E%3Cpath d='M16.5 13v7M13 16.5h7'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .live-components-page .danmaku-filter-body {
@@ -609,7 +648,6 @@
     .overtime-manual-duration,
     .overtime-duration-selectors label,
     .overtime-appearance-fields label,
-    .gift-frame-settings-grid label,
     .gift-frame-preview-grid label,
     .clock-toggle-field strong,
     .danmaku-filter-form > label,
@@ -662,8 +700,8 @@
 }
 
 .live-components-page .overtime-console {
-  min-height: 112px;
-  padding: 16px 20px;
+  min-height: 0;
+  padding: 12px 16px;
   border: 0;
   background: var(--surface-2);
   box-shadow: none;
@@ -671,9 +709,9 @@
 
 .live-components-page .overtime-clock-value {
   font-family: var(--font-ui);
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 600;
-  line-height: 48px;
+  line-height: 40px;
   letter-spacing: 0;
 }
 
@@ -684,8 +722,7 @@
   border-radius: 0;
 }
 
-.live-components-page .overtime-admin h3,
-.live-components-page .opening-style-picker h3 {
+.live-components-page .overtime-admin h3 {
   font-size: var(--type-size-section-title);
   line-height: 24px;
 }
@@ -695,22 +732,12 @@
   line-height: 20px;
 }
 
-.live-components-page :is(.opening-style-picker, .opening-music-card) {
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border);
+.live-components-page .opening-animation-toolbar {
+  justify-content: flex-start;
 }
-
-.live-components-page .opening-animation-layout {
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 24px;
-}
-
-.live-components-page .opening-animation-preview {
-  padding: 0 0 0 24px;
-  border: 0;
-  border-left: 1px solid var(--border);
-  border-radius: 0;
-  background: transparent;
+.live-components-page .opening-visibility-control {
+  padding-right: 16px;
+  border-right: 1px solid var(--border);
 }
 
 /* Switch rows read the same way on every page: label first, control last. */
@@ -722,51 +749,10 @@
   flex-direction: row-reverse;
 }
 
-.live-components-page .opening-master-toggle {
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr) 40px;
-  gap: 12px;
-  padding: 8px 0;
-  border: 0;
-  background: transparent;
-}
-
-.live-components-page .opening-master-toggle-copy {
-  grid-area: 1 / 1;
-}
-
-.live-components-page .opening-master-toggle-ui {
-  grid-area: 1 / 2;
-}
-
-.live-components-page .opening-animation-address span {
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-medium);
-}
-
-.live-components-page .opening-animation-address .button-secondary {
-  min-height: var(--component-control-height);
-  padding: 7px 12px;
-  font-size: var(--type-size-control);
-  font-weight: var(--type-weight-medium);
-  line-height: 20px;
-}
-
-.live-components-page .opening-master-toggle-copy strong {
-  white-space: normal;
-}
-
 .live-components-page .opening-style-options :is(button, .component-style-select, .component-style-add) {
   min-height: var(--component-control-height);
   padding-block: 7px;
   line-height: 20px;
-}
-
-.live-components-page .opening-music-card {
-  padding: 16px 0;
-  border-inline: 0;
-  border-radius: 0;
-  background: transparent;
 }
 
 .live-components-page .clock-tool-layout {
@@ -796,7 +782,8 @@
 }
 
 .live-components-page .clock-parameter-section {
-  padding-top: 24px;
+  padding-top: 0;
+  border-top: 0;
   gap: 16px;
 }
 
@@ -831,23 +818,6 @@
   .live-components-page .clock-preview-card {
     grid-column: 1;
     grid-row: 2;
-    position: static;
-    padding: 24px 0 0;
-    border-left: 0;
-    border-top: 1px solid var(--border);
-  }
-}
-
-@container opening-settings (max-width: 880px) {
-  .live-components-page .opening-animation-toolbar {
-    align-items: stretch;
-  }
-
-  .live-components-page .opening-animation-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .live-components-page .opening-animation-preview {
     position: static;
     padding: 24px 0 0;
     border-left: 0;

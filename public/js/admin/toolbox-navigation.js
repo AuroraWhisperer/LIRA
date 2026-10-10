@@ -191,6 +191,9 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
   function getGroupButtons(heading) {
     const buttons = [];
     let sibling = heading?.nextElementSibling;
+    if (sibling?.dataset?.otherFeatureSubmenu !== undefined) {
+      return Array.from(sibling.querySelectorAll('[data-other-feature]'));
+    }
     while (sibling && !sibling.dataset?.otherFeatureGroup) {
       if (sibling.dataset?.otherFeature) buttons.push(sibling);
       sibling = sibling.nextElementSibling;
@@ -357,9 +360,13 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
     if (mobileLayout?.addEventListener) mobileLayout.addEventListener('change', syncMobileGroupAvailability);
     else mobileLayout?.addListener?.(syncMobileGroupAvailability);
     sidebarToggle?.addEventListener('click', () => {
-      const collapsed = !root.classList.contains('sidebar-collapsed');
-      setSidebarCollapsed(root, collapsed);
-      persistSidebarCollapsed(collapsed);
+      const apply = () => {
+        const collapsed = !root.classList.contains('sidebar-collapsed');
+        setSidebarCollapsed(root, collapsed);
+        persistSidebarCollapsed(collapsed);
+      };
+      if (options.transitionSidebar) options.transitionSidebar(apply);
+      else apply();
     });
     navigationLinks.forEach((link) =>
       link.addEventListener('click', () => {

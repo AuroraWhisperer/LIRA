@@ -43,6 +43,32 @@ function fixture(t) {
   return { db, store, context, dirtyScopes, post };
 }
 
+test('heart box display settings persist optional multiplier, zero remaining and independent visibility', async t => {
+  const f = fixture(t);
+  assert.equal(f.store.getSettings().blindboxCastleMultiplier, '');
+  assert.equal(f.store.getSettings().blindboxShowOpenedSinceCastle, 'false');
+  assert.equal(f.store.getSettings().blindboxCompact, 'false');
+  assert.equal(f.store.getSettings().blindboxAutoPages, 'true');
+  assert.equal((await f.post({ blindboxCastleMultiplier: '1.25', blindboxCastlesRemaining: 0,
+    blindboxShowCastlesRemaining: true, blindboxShowOpenedSinceCastle: true,
+    blindboxCompact: true, blindboxAutoPages: false })).status, 200);
+  const saved = createSettingsStore(f.db).getSettings();
+  assert.equal(saved.blindboxCastleMultiplier, '1.25');
+  assert.equal(saved.blindboxCastlesRemaining, '0');
+  assert.equal(saved.blindboxShowCastlesRemaining, 'true');
+  assert.equal(saved.blindboxCompact, 'true');
+  assert.equal(saved.blindboxAutoPages, 'false');
+  for (const key of ['blindboxCompact', 'blindboxAutoPages']) assert.equal((await f.post({ [key]: 'yes' })).status, 400);
+  for (const value of [-1, 0, 1001, 'NaN', true, '0.001']) {
+    assert.equal((await f.post({ blindboxCastleMultiplier: value })).status, 400);
+  }
+  for (const value of [-1, 1.5, 100000, '', false]) {
+    assert.equal((await f.post({ blindboxCastlesRemaining: value })).status, 400);
+  }
+  assert.equal((await f.post({ blindboxCastleMultiplier: '', blindboxShowCastlesRemaining: false })).status, 200);
+  assert.equal(f.store.getSettings().blindboxCastleMultiplier, '');
+});
+
 test('invalid setting batches do not commit earlier valid fields', async (t) => {
   const f = fixture(t);
   const result = await f.post({

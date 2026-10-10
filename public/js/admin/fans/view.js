@@ -41,7 +41,7 @@ export function renderPeople(profiles, selected, filtered, archived = false) {
       return `<button type="button" class="fan-person ${selected === p.id ? 'is-selected' : ''}" data-fan-id="${attr(p.id)}" aria-pressed="${selected === p.id}">
     <span class="fan-person-line"><span class="fan-person-name"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(name + (platformName ? `（${platformName}）` : ''))}">${html(name)}${platformName ? `<wbr><span class="fan-person-platform-name">（${html(platformName)}）</span>` : ''}</strong>${p.favorite ? '<span class="fan-favorite-star" role="img" aria-label="特别关注" title="特别关注">★</span>' : ''}</span>${guardIcon(p.currentGuardLevel)}</span>
     ${p.summary || p.tags?.length ? `<span class="fan-person-summary">${html(p.summary || p.tags.slice(0, 2).join('、'))}</span>` : ''}
-    ${p.nextReminder ? `<span class="fan-person-date">${html(p.nextReminder.title)} · ${html(dateLabel(p.nextReminder.date))}</span>` : ''}
+    ${p.nextReminder ? `<span class="fan-person-date">${html(p.nextReminder.title)}${p.nextReminder.predicted ? '（预计）' : ''} · ${html(dateLabel(p.nextReminder.date))}</span>` : ''}
   </button>`;
     })
     .join('');
@@ -135,14 +135,16 @@ function membershipRecord(record, profile) {
   const conflicts = data.conflicts?.map((id) => profile.records.find((r) => r.id === id)).filter(Boolean) || [];
   return `<article class="fan-record"><div class="fan-record-top"><strong>${html(membershipDescription(data))}</strong>${button('edit-record', '编辑', `data-record-id="${attr(record.id)}"`)}</div>
     <p class="fan-muted">${record.original.source === 'platform' ? '自动同步' : '手动填写'}${{ adopted: '', pending: ' · 待确认', rejected: ' · 未采用', superseded: ' · 已更新' }[data.decision] || ''}</p>
-    ${data.reason ? `<p>${html(data.reason)}</p>` : ''}${data.decision === 'pending' ? `<div class="fan-conflict"><p>这次记录与之前不同，请核对后选择。确认前暂停大航海提醒，生日提醒照常。</p><dl class="fan-facts"><div><dt>这次记录</dt><dd>${html(membershipDescription(data))}</dd></div><div><dt>之前记录</dt><dd>${conflicts.map((r) => `<p>${html(membershipDescription(r.data))}${r.data.reason ? `<br>${html(r.data.reason)}` : ''}</p>`).join('') || '暂无可对照的记录'}</dd></div></dl><div class="fan-actions">${button('resolve-adopt', '采用这次记录', `data-record-id="${attr(record.id)}"`)}${button('resolve-keep', '保留之前记录', `data-record-id="${attr(record.id)}"`)}</div></div>` : ''}</article>`;
+    ${data.reason ? `<p>${html(data.reason)}</p>` : ''}${data.decision === 'pending' ? `<div class="fan-conflict"><p>这次记录与之前不同，请核对后选择。确认前暂停相关的在舰时长和到期提醒，生日与平台陪伴提醒照常。</p><dl class="fan-facts"><div><dt>这次记录</dt><dd>${html(membershipDescription(data))}</dd></div><div><dt>之前记录</dt><dd>${conflicts.map((r) => `<p>${html(membershipDescription(r.data))}${r.data.reason ? `<br>${html(r.data.reason)}` : ''}</p>`).join('') || '暂无可对照的记录'}</dd></div></dl><div class="fan-actions">${button('resolve-adopt', '采用这次记录', `data-record-id="${attr(record.id)}"`)}${button('resolve-keep', '保留之前记录', `data-record-id="${attr(record.id)}"`)}</div></div>` : ''}</article>`;
 }
 
 function membership(profile) {
   const summary = profile.membership;
+  const accompany = profile.guardAccompany;
   const records = profile.records.filter((r) => r.kind === 'membership');
   return `<section class="fan-section"><div class="fan-section-title"><h4>${html(memberLabel(summary, profile.guardRoster))}</h4>${button('new-membership', '编辑大航海')}</div>
-    <dl class="fan-facts"><div><dt>${summary.status === 'pending' ? '上次确认到期' : '到期日期'}</dt><dd>${summary.expiry ? html(summary.expiry.date) : '待补到期时间'}</dd></div>
+    <dl class="fan-facts"><div><dt>B 站陪伴天数</dt><dd>${accompany ? `${accompany.days} 天 · 截至 ${html(dateLabel(accompany.observedAt))}${accompany.stale ? ' · 待更新' : ''}${accompany.inactive ? ' · 已暂停预计提醒' : ''}` : '暂未提取'}</dd></div>
+    <div><dt>${summary.status === 'pending' ? '上次确认到期' : '到期日期'}</dt><dd>${summary.expiry ? html(summary.expiry.date) : '待补到期时间'}</dd></div>
     <div><dt>累计在舰${summary.status === 'pending' ? '（待核实）' : ''}</dt><dd>${summary.totalDays ?? '未知'}${summary.totalDays !== null ? ` 天 · 截至 ${html(summary.totalAsOf)}` : ''}</dd></div>
     <div><dt>连续在舰${summary.status === 'pending' ? '（待核实）' : ''}</dt><dd>${summary.continuousDays ?? '未知'}${summary.continuousDays !== null ? ` 天 · 截至 ${html(summary.continuousAsOf)}` : ''}</dd></div>
     <div><dt>首次上舰</dt><dd>${html(summary.firstDate || '待确认')}</dd></div></dl>
@@ -165,7 +167,7 @@ export function renderDetail(profile, tab = 'overview') {
   return `<header class="fan-person-header"><div class="fan-header-info"><div class="fan-detail-name"><h3 class="fan-name" data-guard-level="${attr(profile.currentGuardLevel || '')}">${html(profile.platformName || profile.alias || '未命名档案')}</h3>${guardIcon(profile.currentGuardLevel)}</div>
     <p class="fan-detail-meta fan-muted">${profile.identity ? `<span>${profile.identity.type === 'uid' ? 'UID' : 'B 站账号'} ${html(profile.identity.value)}</span>` : '<span>未关联 B 站账号</span>'}${profile.alias && profile.platformName && profile.alias !== profile.platformName ? `<span>常用称呼：${html(profile.alias)}</span>` : ''}${profile.platformObservedAt ? `<span>更新于 ${html(dateLabel(profile.platformObservedAt))}</span>` : ''}</p>
     ${profile.summary ? `<p class="fan-prose">${html(profile.summary)}</p>` : ''}</div>
-    <div class="fan-header-actions">${button('back-list', '返回列表', 'class="fan-back-list"')}${button('new-note', '记一笔', 'class="primary"')}${button('favorite', profile.favorite ? '已关注' : '特别关注', `aria-pressed="${profile.favorite}"`)}${button('edit-profile', '编辑资料')}${profile.archived ? button('archive', '恢复到主列表') : ''}<details class="fan-more"><summary>更多</summary><div>${button('expand', '展开详情')}${profile.archived ? '' : `${button('archive', '归档档案')}<p class="fan-muted fan-archive-hint">保留资料与记录，归档期间不显示提醒。</p>`}${button('delete', '永久删除')}</div></details></div></header>
+    <div class="fan-header-actions">${button('back-list', '返回列表', 'class="fan-back-list"')}${button('new-note', '记一笔', 'class="primary"')}${button('favorite', profile.favorite ? '已关注' : '特别关注', `aria-pressed="${profile.favorite}"`)}${button('edit-profile', '编辑资料')}${profile.archived ? button('archive', '恢复到主列表') : ''}<details class="fan-more"><summary>更多</summary><div>${button('expand', '展开详情')}${profile.archived ? '' : `${button('archive', '归档档案')}<p class="fan-muted fan-archive-hint">保留资料与记录，归档期间不显示提醒。</p>`}${profile.identity ? button('suppress', '加入黑名单') : ''}${button('delete', '永久删除')}</div></details></div></header>
     <nav class="fan-detail-tabs" role="tablist" aria-label="档案详情">${[
       ['overview', '资料'],
       ['interactions', '手记'],

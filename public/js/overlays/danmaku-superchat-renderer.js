@@ -49,10 +49,14 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
     minimumFractionDigits: ['starlight', 'sketch'].includes(style) ? 2 : 0, maximumFractionDigits: 2,
   });
   const amount = node('span', 'sc-money');
-  amount.append(node('span', 'sc-currency', '¥'), node('span', 'sc-value', price));
+  amount.append(node('span', 'sc-currency', style === 'prismatic' ? 'CN¥' : '¥'), node('span', 'sc-value', price));
   root.setAttribute('aria-label', `醒目留言，¥${price}`);
 
-  if (['starlight', 'sketch'].includes(style)) {
+  if (style === 'prismatic') {
+    const header = node('div', 'sc-prismatic-head');
+    header.append(node('span', 'sc-name', name), amount);
+    card.append(header, copy);
+  } else if (['starlight', 'sketch'].includes(style)) {
     card.append(node('span', 'sc-name', name), copy, amount);
   } else if (style === 'moonlit') {
     const header = node('div', 'moonlit-scroll-head');

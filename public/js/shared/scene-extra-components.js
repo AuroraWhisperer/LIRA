@@ -142,12 +142,16 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   blindbox: {
-    title: '盲盒盈亏榜', size: [480, 640], path: '/blindbox',
+    title: '盲盒盈亏榜', size: [720, 640], path: '/blindbox',
     variants: [variant('default', '盲盒盈亏榜', '今日盲盒盈亏')],
     fields: {
       blindboxOverlayTitle: text('标题', '今日盲盒盈亏'), top: number('榜单人数（-1 全部，0 仅汇总）', 3, -1, 10),
-      compact: check('紧凑布局', false), winnersOnly: check('只显示榜单', false), hideLoss: check('隐藏亏损观众', false),
+      compact: check('紧凑布局', false), winnersOnly: check('仅显示盈利', false), hideLoss: check('隐藏亏损观众', false),
       heartBoxOnly: check('只看心动盲盒', false),
+      blindboxCastleMultiplier: { ...number('今天几倍堡（留空隐藏）', '', 0.01, 1000, 0.01), optional: true },
+      blindboxShowCastlesRemaining: check('显示剩余城堡', false),
+      blindboxCastlesRemaining: number('还有几个堡（手动填写）', '0', 0, 99999),
+      blindboxShowOpenedSinceCastle: check('显示上个堡后的开盒数', false),
       noScroll: check('自动翻页'), themeBackground: color('背景颜色', '#181823'),
       themeOpacity: number('背景不透明度', '0.48', 0, 1, 0.01), themeText: color('文字颜色', '#fff7fb'),
       themePrimary: color('主色', '#ff6f91'), themeAccent: color('强调色', '#21b6a8'),

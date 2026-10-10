@@ -298,8 +298,9 @@ test('REST projections retain display fields, strip nested ledger/config metadat
       'blindbox',
       '/api/gifts/blind-box-stats',
       {
-        summary: { boxCount: 2, totalCost: 5, totalProfit: 3, secret },
+        summary: { boxCount: 2, totalCost: 5, totalValue: 8, totalProfit: 3, secret },
         perUser: [{ userName: '人', boxCount: 1, totalProfit: 3, uid: secret }],
+        heartBoxProgress: { openedSinceCastle: 12, sourceId: secret },
       },
     ],
     [
@@ -381,6 +382,10 @@ test('REST projections retain display fields, strip nested ledger/config metadat
     const projected = projectOverlayResponse(owner, pathname, data);
     assert.notEqual(projected, null, `${owner} ${pathname}`);
     assert.doesNotMatch(JSON.stringify(projected), /PRIVATE_SENTINEL/);
+    if (owner === 'blindbox') {
+      assert.deepEqual(projected.summary, { boxCount: 2, totalCost: 5, totalValue: 8, totalProfit: 3 });
+      assert.deepEqual(projected.heartBoxProgress, { openedSinceCastle: 12 });
+    }
     for (const scope of scopes.filter((scope) => scope !== owner))
       assert.equal(projectOverlayResponse(scope, pathname, data), null, `${scope} ${pathname}`);
   }

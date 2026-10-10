@@ -1,218 +1,145 @@
-<h4 class="usage-guide-subsection-title">投屏与直播软件</h4>
-<div class="usage-guide-faq-grid">
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>弹幕姬链接是灰的，或者复制不了</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>等 LIRA 授权有效、读到服务器配置后，链接才能复制。先检查 LIRA 和服务器连上没有，等地址出来再复制。</li>
-      <li>有地址但复制不了，会提示「复制失败，请手动复制地址」。这时手动选中地址复制。别用示例截图里的地址。</li>
-      <li>没登录 B 站会影响收直播消息，但链接读不出来不一定是这个原因。还是灰的，记下页面提示发给管理员。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>直播姬 / OBS 投屏画面不显示或尺寸不对</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>到对应功能面板重新复制链接，在直播姬或 OBS 里添加为浏览器源。别用网页歌单链接代替。</li>
-      <li>链接里有 127.0.0.1 的，LIRA 要在同一台电脑上运行，并且保持开着。</li>
-      <li>按功能说明设好源的宽高。没有点歌、正在播放的歌词、许愿或礼物时，画面透明可能是正常的。</li>
-      <li>更新或重启 LIRA 后，刷新一次浏览器源。还不显示，核对功能有没有开、地址对不对，见<a href="#ug-obs" data-usage-guide-link>投屏设置</a>。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>弹幕姬画面不更新，或者改了样式直播画面没变化</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>在「组件 → 弹幕姬」改完样式，要点「应用到直播画面」，等结果提示出来。只改预览不算应用。</li>
-      <li>服务器弹幕姬还要服务器和直播间连接正常。先看连接状态、目标直播间和屏蔽设置，再发一条测试弹幕试试。</li>
-      <li>保存或应用成功、地址也对，画面还是旧样式：刷新一次浏览器源。</li>
-      <li>场景编辑器里的修改要点「保存并应用」。只改组件默认样式，不会自动重新发布整个场景。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>换电脑后，原来的画面链接还能用吗</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>链接里的 127.0.0.1 指的是这台电脑。换电脑后，要在新电脑上运行 LIRA，再核对复制出来的地址、端口和画面设置。地址不一定会变。</li>
-      <li>到新电脑的各功能页核对源宽高、样式和歌词来源。只复制直播软件里的场景，不等于全都搬过来了。</li>
-      <li>服务器弹幕姬用的是在线地址，另外核对账号授权和服务器连接。两类画面各自需要什么，见<a href="#ug-obs" data-usage-guide-link>投屏设置</a>。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>弹幕发不出去</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>到「百宝箱 → 弹幕互动」看发送账号、目标直播间和发送结果。只显示「本机已登录」不代表能正常发送。</li>
-      <li>登录过期：到「点歌 → 设置」重新扫码登录并保存，等账号同步成功。连接异常就点「刷新直播」再试。</li>
-      <li>还发不出去，把发送结果和目标直播间发给管理员。先别反复批量发送。</li>
-    </ol>
-  </details>
-</div>
-<h4 class="usage-guide-subsection-title">云端功能、AI 与维护</h4>
-<div class="usage-guide-faq-grid">
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>自动答谢、弹幕查询等开关点了没反应</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>先到「点歌 → 设置」检查 B 站登录和云端连接。提示「请先登录 B 站，再同步到服务器。」或「连接云端账号后可设置」时，都这样处理。</li>
-      <li>提示「B 站登录已失效，请重新登录并同步。」：重新扫码登录并保存，等账号自动同步成功，再打开要用的功能。不用另外手动同步 B 站账号。</li>
-      <li>等出现「已同步到服务器」。状态一直没确认，就按面板提示刷新核对；还失败，把提示发给管理员。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>已经关了功能，为什么提示服务器可能仍在运行</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>恢复网络和云端连接后，刷新状态，再关一次，等出现「已同步到服务器」。</li>
-      <li>「关闭还没同步，服务器可能仍在运行。」的意思是服务器还没确认关闭。开关看着是关的，或者退出了客户端，都不代表已经关了。</li>
-      <li>一直确认不了，找管理员核查服务器状态。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>签到机器人没有回复</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>先到「百宝箱 → 弹幕互动 → 固定回复」，看「签到机器人」开了没有、云端状态有没有确认。</li>
-      <li>确认「监控弹幕」已开启、直播账号和直播间连接正常，再让观众发「签到」试试。祝福语由服务器提供，客户端不需要填写词库。</li>
-      <li>还没回复，刷新云端状态，留着提示。别靠反复开关来判断服务器有没有生效。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>AI 互动助手不回复</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>到「百宝箱 → 弹幕互动 → AI 互动助手」检查「启用 AI」、平台、密钥和模型，再点「测试 AI 连接」。</li>
-      <li>保存自定义触发关键词，再发一条带这个关键词的弹幕试试。关键词留空不会触发。</li>
-      <li>看看「等待队列」、同一观众提问间隔和每分钟提问上限。发得太频繁，就稍等再试。</li>
-      <li>测试失败：按结果检查服务地址、模型或平台余额。测试通过还不回复：检查直播账号和发送状态。配置步骤见<a href="#ug-deepseek" data-usage-guide-link>配置 AI 助手</a>。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>报错后，日志在哪里找、怎么交给管理员</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>到「百宝箱 → 桌面更新」找到「日志目录」，点旁边的「打开目录」。别和「数据目录」搞混。</li>
-      <li>记下出问题的时间、当前版本、操作步骤和界面上的完整提示，按管理员说的方式发那段时间的日志。</li>
-      <li>只发排查需要的文件，别发整个数据目录、密码或 API 密钥。进不了软件的话，先把屏幕上的错误和版本号发给管理员。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>想彻底清空数据或换一个 LIRA 账号</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>客户端里没有切换或退出 LIRA 账号的按钮。「点歌 → 设置」里的「退出登录」只退出 B 站账号。</li>
-      <li>先按<a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a>备份你要留的资料，再找管理员确认账号和设备怎么处理。</li>
-      <li>别直接删数据目录，也别复制别人的目录来换号。这台电脑上的数据和服务器上的账本是分开的，删这台电脑上的文件，不会清空服务器上的数据。</li>
-    </ol>
-  </details>
-</div>
+<h4 class="usage-guide-subsection-title" id="ug-faq-broadcast">08.5 场景、组件与素材异常</h4>
+<div class="usage-guide-faq-grid"><details class="usage-guide-faq">
+<summary>
+<strong>08.5.1 直播姬 / OBS 投屏画面不显示或尺寸不对</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>到对应功能面板重新复制链接，在直播姬或 OBS 里添加为浏览器源。别用网页歌单链接代替。</li>
+<li>链接里有 127.0.0.1 的，LIRA 要在同一台电脑上运行，并且保持开着。</li>
+<li>按功能说明设好源的宽高。没有点歌、正在播放的歌词、许愿或礼物时，画面透明可能是正常的。</li>
+<li>更新或重启 LIRA 后，刷新一次浏览器源。还不显示，核对功能有没有开、地址对不对，见<a data-usage-guide-link href="#ug-obs">投屏设置</a>。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.5.2 弹幕姬画面不更新，或者改了样式直播画面没变化</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>在「组件 → 弹幕姬」改完样式，要点「应用到直播画面」，等结果提示出来。只改预览不算应用。</li>
+<li>服务器弹幕姬还要服务器和直播间连接正常。先看连接状态、目标直播间和屏蔽设置，再发一条测试弹幕试试。</li>
+<li>保存或应用成功、地址也对，画面还是旧样式：刷新一次浏览器源。</li>
+<li>场景编辑器里的修改要点「保存并应用」。只改组件默认样式，不会自动重新发布整个场景。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.5.3 加班机规则已配置，收礼后仍未增加时间</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks"><li>按<a data-usage-guide-link href="#ug-overtime-rules">礼物规则与结算</a>核对礼物、规则类型和启用状态；减少、清零或文字展板本来就不会加时间。</li><li>连击还没结束时先等待，结束后检查「待结算」和「最近结算」，确认是否被忽略。目录未刷新或提示重新选择礼物时，刷新在售礼物并重新选择。</li><li>仍无结算时，记录礼物 ID、收到时间、规则和结算提示，按<a data-usage-guide-link href="#ug-feedback">问题反馈</a>提供信息。</li></ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.5.4 歌单背景图传不上去</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks"><li>先按<a data-usage-guide-link href="#ug-web-appearance">网页歌单背景</a>确认格式与 5 MB 大小限制。</li>
+<li>提示网络或授权失效：先恢复连接或处理授权。还失败，记下具体提示。别反复改图片扩展名。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.5.5 有地址但提示复制失败</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks"><li>有地址但复制不了，会提示「复制失败，请手动复制地址」。这时手动选中地址复制。别用示例截图里的地址。</li><li>在直播软件的地址框核对粘贴结果。仍无法使用时，保留复制失败的提示和当前功能名称反馈。</li></ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.5.6 导入网页样式时提示缺少配套文件</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks"><li>看提示列出的具体路径。普通素材 ZIP 先解压到独立文件夹，保留作者原有目录结构；不要只取出 HTML 文件。</li><li>在「更多设置」重新选择包含配套资源的文件夹。依赖原工具后端或专用网页的样式，使用作者提供的配套 HTML 或展示地址。</li><li>确认文件齐全后重新预览；仍缺资源时，把缺失路径和素材版本发给作者或管理员，不反复导入同一份不完整文件。正常导入入口见<a data-usage-guide-link href="#ug-materials">素材与样式库</a>。</li></ol>
+</details></div>
+<h4 class="usage-guide-subsection-title">08.6 同步与数据异常</h4>
+<div class="usage-guide-faq-grid"><details class="usage-guide-faq">
+<summary>
+<strong>08.6.1 清空后还看到“云端记录已清空，本机记录尚未更新。”</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>不用再清空一次。这条提示说明云端已经删完，这台电脑还在等更新，不是清空失败。</li>
+<li>恢复连接后重新加载礼物记录，等这台电脑和云端一致。</li>
+<li>还看到旧记录，把提示发给管理员。注意：清空云端账本会影响同一账号的设备。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.6.2 歌单表格导入失败</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>用「点歌 → 导入导出」里的模板，保留「歌曲名字」等表头。只改文件后缀没用。</li>
+<li>读不出来：用 Excel 重新另存为 .xlsx，或者把表格内容复制粘贴到导入框。CSV、TSV 也能导入。导入完看一下新增、更新、跳过、失败的结果，再核对歌库。</li>
+<li>还是失败，把结果提示和几行去掉个人信息的示例发给管理员。别反复导入整个文件。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.6.3 歌数未超限制，仍提示同步数据太大</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>如果提示的是数据太大，就算歌数没超，也要缩短过长的备注、点歌价格或歌切内容。</li>
+</ol>
+<p>歌曲数量限制与整理方法见<a data-usage-guide-link href="#ug-song-import">表格导入与批量更新</a>。</p></details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.6.4 同步到一半断网，不知道成功没有</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>网络恢复后，先看网页上的歌曲数量和实际歌单，再核对这台电脑上的完整歌库。</li>
+<li>看到「同步失败」或超时，不能当成功，也不能断定服务器一定没收到。只有同步成功，「本机上次同步」的时间和数量才会更新。</li>
+<li>要重试，先确认这台电脑上的歌库是对的：「同步到网页」会覆盖云端歌库，不会自动合并。见<a data-usage-guide-link href="#ug-data">数据保存与换电脑</a>。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.6.5 两台电脑的歌库不一样，换机后也少了设置</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>别同时在两台电脑上改歌库。登录同一账号联网后歌库会同步，但最后同步成功的会替换之前的版本，不会自动合并。</li>
+<li>两边先都停下别改，各自核对、导出要留的版本，再定下完整歌库。别马上用歌少的那台电脑覆盖同步。</li>
+<li>点歌队列、播放队列、音乐平台登录、歌词缓存位置，以及这台电脑上的画面样式，都不会跟着歌库过去。按<a data-usage-guide-link href="#ug-data">数据保存与换电脑</a>重新核对。</li>
+</ol>
+</details></div>
+<h4 class="usage-guide-subsection-title" id="ug-feedback">08.7 其他报错与问题反馈</h4>
+<div class="usage-guide-faq-grid"><details class="usage-guide-faq">
+<summary>
+<strong>08.7.1 报错后，日志在哪里找、怎么交给管理员</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>目录入口见<a data-usage-guide-link href="#ug-directories">数据目录与日志入口</a>，反馈时选择日志目录。</li>
+<li>记下出问题的时间、当前版本、操作步骤和界面上的完整提示，按管理员说的方式发那段时间的日志。</li>
+<li>只发排查需要的文件，别发整个数据目录、密码或 API 密钥。进不了软件的话，先把屏幕上的错误和版本号发给管理员。</li>
+</ol>
+</details></div>

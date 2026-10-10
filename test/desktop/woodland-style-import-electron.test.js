@@ -20,8 +20,9 @@ test('woodland ZIP imports through desktop styles and retains native layout, set
   const page = await app.firstWindow(); page.setDefaultTimeout(10000);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
-  await page.evaluate(async markup => {
-    const source = new DOMParser().parseFromString(markup, 'text/html');
+  await page.evaluate(async ({ gift, components }) => {
+    const source = new DOMParser().parseFromString(gift, 'text/html');
+    document.body.prepend(new DOMParser().parseFromString(components, 'text/html').querySelector('.live-components-help'));
     const feature = source.getElementById('otherGiftFeature');
     feature.hidden = false; feature.style.display = 'block'; document.body.append(feature);
     await import('/js/admin/contextual-help.js');
@@ -29,7 +30,8 @@ test('woodland ZIP imports through desktop styles and retains native layout, set
     initGiftFrame(); renderGiftFrame({ giftFrameEnabled: 'false', giftFrameThresholdRmb: '20' });
     const { initComponentStyleLibraries } = await import('/js/admin/component-style-client.js');
     initComponentStyleLibraries();
-  }, fs.readFileSync(path.join(root, 'public/pages/admin/toolbox/gift.html'), 'utf8'));
+  }, { gift: fs.readFileSync(path.join(root, 'public/pages/admin/toolbox/gift.html'), 'utf8'),
+    components: fs.readFileSync(path.join(root, 'public/pages/admin/live-components/page.html'), 'utf8') });
   const panel = page.locator('#giftFramePanel');
   await page.locator('#giftFramePreviewBtn').click();
   await page.locator('#giftFrameSaveState').filter({ hasText: '导入林间花信' }).waitFor();
@@ -140,8 +142,9 @@ test('woodland ZIP imports through desktop styles and retains native layout, set
   await canvas.reload();
   await frame.locator('#giftFrame.is-playing').waitFor({ state: 'visible' });
   assert.equal(await canvas.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '540');
-  await panel.getByRole('button', { name: '管理样式库', exact: true }).click();
-  const manager = page.getByRole('dialog', { name: '管理样式库', exact: true });
+  assert.equal(await panel.getByRole('button', { name: /素材管理|管理样式库/ }).count(), 0);
+  await page.getByRole('button', { name: '素材管理', exact: true }).click();
+  const manager = page.getByRole('dialog', { name: '素材管理', exact: true });
   await manager.getByText('全屏礼物感谢 · 版本 1.0.0 · 1 个样式', { exact: true }).waitFor();
   await manager.getByRole('button', { name: '移除整包', exact: true }).click();
   await manager.getByRole('button', { name: '确认', exact: true }).click();

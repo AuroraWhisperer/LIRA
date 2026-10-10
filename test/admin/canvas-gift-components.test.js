@@ -12,7 +12,7 @@ const { Readable } = require('node:stream');
 
 const openBrowserSession = useSharedBrowser();
 
-test('sprint opens from wishes, saves a canvas layer and follows live goals without child requests', { timeout: 40000 }, async t => {
+test('sprint opens from its component tab, saves a canvas layer and follows live goals without child requests', { timeout: 40000 }, async t => {
   const fixture = await startCanvasOutputFixture({ extraContext: {}, notifications: true });
   fixture.runtime.giftSprint = { targetRmb: 1000, remainingCrystalBalls: 7 };
   const browser = openBrowserSession();
@@ -35,12 +35,11 @@ test('sprint opens from wishes, saves a canvas layer and follows live goals with
   await openCanvasDesktop(desktop, fixture);
   await desktop.evaluate(async html => {
     document.body.innerHTML = html;
-    document.getElementById('giftWishesPanel').hidden = false;
+    document.getElementById('giftSprintFeature').hidden = false;
     const { initGiftSprintOverlay } = await import('/js/admin/gifts/sprint-overlay.js');
     initGiftSprintOverlay();
     window.externalPreviewUrl = '';
-  }, fs.readFileSync('public/pages/admin/toolbox/gift-wishes.html', 'utf8'));
-  await desktop.locator('#giftSprintOverlayPanel > summary').click();
+  }, fs.readFileSync('public/pages/admin/live-components/gift-sprint.html', 'utf8'));
   await desktop.evaluate(async () => {
     const { renderGiftSprintOverlay } = await import('/js/admin/gifts/sprint-overlay.js');
     renderGiftSprintOverlay({ targetRmb: 1000, remainingCrystalBalls: 7 });
@@ -131,7 +130,7 @@ test('gift settings open separate canvas layers that save, preview and receive o
   });
   await openCanvasDesktop(desktop, fixture);
   await desktop.evaluate(async html => {
-    document.body.append(new DOMParser().parseFromString(html, 'text/html').body.firstElementChild);
+    document.body.append(...new DOMParser().parseFromString(html, 'text/html').body.children);
     for (const node of document.querySelectorAll('[hidden]')) node.hidden = false;
     const { initGiftFrame } = await import('/js/admin/gift-frame.js');
     const { initGuardThanks } = await import('/js/admin/gift-guard-thanks.js');

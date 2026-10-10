@@ -36,8 +36,17 @@ const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTex
 const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline']);
 
 function normalizeSettingValue(key, rawValue) {
-  if (['blindboxWinnersOnly', 'blindboxHeartBoxOnly'].includes(key)) {
+  if (['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxCompact', 'blindboxAutoPages', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'].includes(key)) {
     return [true, false, 'true', 'false'].includes(rawValue) ? String(rawValue) : null;
+  }
+  if (key === 'blindboxCastleMultiplier' || key === 'blindboxCastlesRemaining') {
+    if (!['string', 'number'].includes(typeof rawValue)) return null;
+    const raw = String(rawValue).trim();
+    if (key === 'blindboxCastleMultiplier' && raw === '') return '';
+    const value = Number(raw);
+    if (raw === '' || !Number.isFinite(value)) return null;
+    if (key === 'blindboxCastlesRemaining') return Number.isInteger(value) && value >= 0 && value <= 99999 ? String(value) : null;
+    return value >= 0.01 && value <= 1000 && Math.abs(value * 100 - Math.round(value * 100)) < 0.000001 ? String(value) : null;
   }
   if (key === 'blindboxOverlayTop') {
     const value = Number(rawValue);

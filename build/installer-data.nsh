@@ -1,4 +1,3 @@
-Var liraPreviousInstallDir
 Var liraDataSource
 Var liraDataBackup
 Var liraDataStage
@@ -10,71 +9,10 @@ Function liraWaitForAppExit
   StrCpy $liraDataStage "等待旧版 LIRA 退出"
   StrCpy $R4 "未执行"
   StrCpy $liraDataSource "$liraPreviousInstallDir\data"
-  StrCpy $R3 0
-  liraFindRunningApp:
-    nsProcess::_FindProcess /NOUNLOAD "${APP_EXECUTABLE_FILENAME}"
-    Pop $R0
-    nsProcess::_Unload
-    StrCmp $R0 603 liraAppExited
-    StrCpy $R5 "旧版 LIRA 还在运行。请关闭它的所有窗口，等待几秒后重试；找不到窗口时，可重启电脑后直接运行安装包。"
-    StrCmp $R0 0 liraAppStillRunning
-    StrCpy $R5 "无法确认旧版 LIRA 是否退出，进程检查返回码：$R0。"
-    Call liraInstallDataFailure
-  liraAppStillRunning:
-    ; Silent updates already ask Electron to quit and must let it finish cleanup.
-    IfSilent liraWaitForExitPoll
-    StrCmp $R3 0 0 liraWaitForExitPoll
-    MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "LIRA 正在运行。安装程序将自动关闭 LIRA，然后继续更新。$\r$\n$\r$\n播放和直播互动将暂时中断。点击“确定”继续，或点击“取消”稍后更新。" /SD IDCANCEL IDOK liraCloseRunningApp
-  liraCancelInstall:
-    SetErrorLevel 2
-    Quit
-  liraCloseRunningApp:
-    Call liraRequestAppExit
-    StrCpy $R3 0
-  liraWaitForExitPoll:
-    IntOp $R3 $R3 + 1
-    IntCmp $R3 40 liraAppExitTimeout
-    Sleep 250
-    Goto liraFindRunningApp
-  liraAppExitTimeout:
-    IfSilent liraAppExitFailed
-    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "安装程序未能自动关闭 LIRA。请关闭它的所有窗口后点击“重试”，或点击“取消”稍后更新。$\r$\n$\r$\n数据尚未移动。" /SD IDCANCEL IDRETRY liraCloseRunningApp
-    Goto liraCancelInstall
-  liraAppExitFailed:
-    Call liraInstallDataFailure
-  liraAppExited:
-FunctionEnd
-
-Function liraRequestAppExit
-  ; Request normal closure of every owned window, including auxiliary windows.
-  ; Never force termination: preservation still waits for all processes to exit.
-  System::Store "s"
-  GetFullPathName $5 "$liraPreviousInstallDir\${APP_EXECUTABLE_FILENAME}"
-  GetFullPathName $6 "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
-  System::Get '(p.r1, p) iss'
-  Pop $0
-  System::Call 'user32::EnumWindows(k r0, p 0) i.s'
-  liraNextAppWindow:
-    Pop $2
-    StrCpy $3 $2 8
-    StrCmp $3 "callback" 0 liraAppWindowsDone
-    System::Call 'user32::GetWindowThreadProcessId(p r1, *i .r2)'
-    System::Call 'kernel32::OpenProcess(i 0x1000, i 0, i r2) p.r2'
-    StrCmp $2 0 liraContinueAppWindows
-    System::Call 'kernel32::QueryFullProcessImageNameW(p r2, i 0, w.r3, *i ${NSIS_MAX_STRLEN}) i.r4'
-    System::Call 'kernel32::CloseHandle(p r2)'
-    StrCmp $4 0 liraContinueAppWindows
-    StrCmp $3 $5 liraCloseAppWindow
-    StrCmp $3 $6 0 liraContinueAppWindows
-  liraCloseAppWindow:
-    System::Call 'user32::PostMessageW(p r1, i 0x0010, p 0, p 0)'
-  liraContinueAppWindows:
-    Push 1
-    System::Call $0
-    Goto liraNextAppWindow
-  liraAppWindowsDone:
-    System::Free $0
-    System::Store "l"
+  Call liraEnsureAppExited
+  StrCmp $R0 0 liraAppExitReady
+  Call liraInstallDataFailure
+  liraAppExitReady:
 FunctionEnd
 
 Function liraPreserveInstallData
@@ -127,7 +65,11 @@ Function liraPreserveInstallData
     StrCpy $liraDataStage "保留旧版数据"
     StrCpy $liraCopySource "$liraDataSource"
     StrCpy $liraCopyTarget "$liraDataBackup.partial"
-    RMDir /r "$liraCopyTarget"
+    IfFileExists "$liraCopyTarget\*.*" 0 liraPrepareCopyReady
+    Push "$liraCopyTarget"
+    Call liraRemoveTree
+    IfErrors liraPrepareFailed
+  liraPrepareCopyReady:
     Call liraCopyData
     StrCmp $R4 "error" liraPrepareCopyFailed
     IntCmp $R4 8 liraPrepareCopyFailed liraPublishBackup liraPrepareCopyFailed
@@ -139,7 +81,9 @@ Function liraPreserveInstallData
     Call liraCloseDataBanner
     Return
   liraPrepareCopyFailed:
-    RMDir /r "$liraCopyTarget"
+    IfFileExists "$liraCopyTarget\*.*" 0 liraPrepareFailed
+    Push "$liraCopyTarget"
+    Call liraRemoveTree
   liraPrepareFailed:
     Call liraInstallDataFailure
   liraRecoverBackup:
@@ -168,7 +112,8 @@ Function liraRestoreInstallData
     IntCmp $R4 8 liraRestoreFailed liraRestoreCopied liraRestoreFailed
   liraRestoreCopied:
     ClearErrors
-    RMDir /r "$liraDataBackup"
+    Push "$liraDataBackup"
+    Call liraRemoveTree
     IfErrors liraRestoreFailed
   liraRestoreFinished:
     StrCpy $liraDataBackup ""

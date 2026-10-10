@@ -1,7 +1,7 @@
 import { decorateSketchMessage } from './danmaku-sketch.js';
 import { createSuperChatCard } from './danmaku-superchat-renderer.js';
 import { decorateMoonlitMessage } from './danmaku-moonlit.js';
-import { createPrismaticIdentity, decoratePrismaticMessage } from './danmaku-prismatic.js';
+import { createPrismaticGuardCard, createPrismaticIdentity, decoratePrismaticMessage } from './danmaku-prismatic.js';
 
 export const DEFAULT_DANMAKU_CLASSES = Object.freeze({
   item: 'draw-danmaku-item',
@@ -57,7 +57,10 @@ export function createDanmakuMessageRenderer({
 
   function createBubble(item = {}, index = 0) {
     if (item.kind === 'superchat') {
-      return createSuperChatCard(document, item, style === 'prismatic' ? 'ranked' : style, resolveAvatarUrl, classNames);
+      return createSuperChatCard(document, item, style, resolveAvatarUrl, classNames);
+    }
+    if (style === 'prismatic' && item.kind === 'gift' && [1, 2, 3].includes(item.giftGuardLevel)) {
+      return createPrismaticGuardCard(document, item, classNames, createAvatar);
     }
     const message = String(item.message || '').trim();
     const metrics = measureDanmakuText(message);

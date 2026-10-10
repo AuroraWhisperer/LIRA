@@ -7,6 +7,7 @@ export function previewElement(tag, className, text) {
 
 export function previewToolbarIcon(name) {
   const paths = {
+    close: 'M6 6l12 12M18 6 6 18',
     more: 'M5 12h.01M12 12h.01M19 12h.01',
     canvas: 'M4 4h16v12H4ZM8 20h8m-4-4v4',
     panel: 'M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm10 0v16',

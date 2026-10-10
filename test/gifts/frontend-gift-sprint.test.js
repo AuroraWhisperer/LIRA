@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const fixture = createUiFixture();
-const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
+const html = readAdminFragmentHtml('pages/admin/live-components/page.html');
 
 async function open(t) {
   const page = await fixture(t, 'gift-assistant');
@@ -15,7 +15,9 @@ async function open(t) {
   }));
   await page.setContent(html);
   await page.evaluate(async () => {
-    document.getElementById('otherGiftFeature').hidden = false;
+    document.getElementById('liveComponentsPage').classList.add('active');
+    const { createFeatureNavigation } = await import('/js/admin/toolbox-navigation.js');
+    createFeatureNavigation({ pageId: 'liveComponentsPage', storagePrefix: 'admin.liveComponents' }).initOtherPage();
     window.fetch = async () => ({ ok: true, json: async () => ({ ok: true, data: {
       viewRevision: 'synthetic', partial: false, session: { state: 'live' }, guards: [], items: [],
     } }) });
@@ -27,20 +29,19 @@ async function open(t) {
   return page;
 }
 
-test('sprint lives under wishes, opens its canvas and returns to the existing goal form', async (t) => {
+test('sprint and blindbox have sibling component tabs, with sprint goal and canvas controls together', async (t) => {
   const page = await open(t);
   await page.evaluate(async () => {
     const { renderGiftSprintOverlay } = await import('/js/admin/gifts/sprint-overlay.js');
     window.renderSprintPreview = renderGiftSprintOverlay;
-    document.body.insertAdjacentHTML('beforeend', '<button data-main-page="giftAssistantPage">礼物</button><form id="giftSprintForm"><input id="giftSprintTargetRmb"></form>');
-    document.querySelector('[data-main-page="giftAssistantPage"]').onclick = () => { window.visitedGiftPage = true; };
     renderGiftSprintOverlay({ targetRmb: 1000, remainingCrystalBalls: 7, enabled: true });
   });
-  assert.equal(await page.getByRole('tab', { name: '月底冲刺', exact: true }).count(), 0);
   assert.equal(await page.locator('#giftSprintPreview').isVisible(), false);
-  await page.locator('#giftWishesPanel #giftSprintOverlayPanel > summary').click();
+  await page.getByRole('tab', { name: '月底冲刺', exact: true }).click();
   assert.equal(await page.locator('#giftSprintTextPreview').textContent(), '还差 7 个水晶球');
-  assert.equal(await page.locator('#giftWishesPanel').isVisible(), true);
+  assert.equal(await page.locator('#giftWishesPanel').isVisible(), false);
+  assert.equal(await page.locator('#giftSprintForm').isVisible(), true);
+  assert.equal(await page.locator('#giftSprintTargetRmb').count(), 1);
   await page.locator('#giftSprintCopy').click();
   assert.equal(await page.evaluate(() => window.messages.filter(message => message === '月底冲刺地址已复制').length), 1);
   await page.locator('#giftSprintPreview').click();
@@ -51,9 +52,9 @@ test('sprint lives under wishes, opens its canvas and returns to the existing go
   await page.evaluate(() => window.renderSprintPreview({ targetRmb: 0, remainingCrystalBalls: 0 }));
   assert.equal(await page.locator('#giftSprintTextPreview').isVisible(), false);
   assert.match(await page.locator('#giftSprintOverlayStatus').textContent(), /请先设置冲刺目标/);
-  await page.locator('#giftSprintConfigure').click();
-  assert.equal(await page.evaluate(() => window.visitedGiftPage), true);
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'giftSprintTargetRmb');
+  await page.getByRole('tab', { name: '盲盒盈亏榜', exact: true }).click();
+  assert.equal(await page.locator('#giftSprintFeature').isVisible(), false);
+  assert.equal(await page.locator('#blindboxPreviewBtn').isVisible(), true);
 });
 
 for (const preview of [false, true]) {

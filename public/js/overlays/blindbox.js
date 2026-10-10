@@ -9,8 +9,6 @@ import { startOverlayPages } from './auto-pages.js';
 import { isComponentPreview } from './component-preview-client.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
 
-const RANK_ICONS = ['👑', '🥈', '🥉'];
-
 let state = null;
 let stateRevision = 0;
 let statsRevision = 0;
@@ -156,8 +154,19 @@ function receiveAppearance() {
   }
   if (param('winners', 'w') === null && !urlParams.has('show')) WINNERS_ONLY = settings.blindboxWinnersOnly === 'true';
   if (param('heartBox', 'hb') === null) HEART_BOX_ONLY = settings.blindboxHeartBoxOnly === 'true';
+  if (param('compact', 'c') === null) COMPACT = settings.blindboxCompact === 'true';
+  if (param('noScroll', 'ns') === null) {
+    const autoPages = settings.blindboxAutoPages !== 'false';
+    if (autoPages !== NO_SCROLL) {
+      NO_SCROLL = autoPages;
+      stopPages?.();
+      stopPages = NO_SCROLL ? startOverlayPages(document.querySelector('.blindbox-panel')) : null;
+    }
+  }
   HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
   const panel = document.querySelector('.blindbox-panel');
+  panel?.classList.toggle('compact', COMPACT);
+  panel?.classList.toggle('no-scroll', NO_SCROLL);
   panel?.classList.toggle('winners-only', WINNERS_ONLY);
   panel?.classList.toggle('summary-only', SUMMARY_ONLY);
 }
@@ -167,6 +176,7 @@ function render(stats) {
 
   // 应用主题
   applyTheme(settings);
+  renderHeartBoxProgress(settings, stats);
 
   // 自定义标题（URL 参数优先，其次 settings）
   if (!CUSTOM_TITLE) {
@@ -196,36 +206,24 @@ function render(stats) {
   const summaryValues = summary || {
     boxCount: 0,
     totalCost: 0,
+    totalValue: 0,
     totalProfit: 0,
   };
   if (SUMMARY_ONLY || summaryValues.boxCount > 0) {
     const profitClass = summaryValues.totalProfit >= 0 ? 'profit-up' : 'profit-down';
     const profitSign = summaryValues.totalProfit >= 0 ? '+' : '-';
     summaryEl.innerHTML = `
-      <div class="blindbox-stat-card">
-        <span class="stat-icon">📦</span>
-        <span class="stat-value">${summaryValues.boxCount}</span>
-        <span class="stat-label">盒子数</span>
+      <div class="blindbox-summary-meta">
+        <span class="summary-boxes"><span class="stat-value">${summaryValues.boxCount}</span> 盒</span>
+        <span class="summary-cost">花费 <span class="stat-value">¥${formatMoney(summaryValues.totalCost)}</span></span>
+        <span class="summary-value">开出价值 <span class="stat-value">¥${formatMoney(summaryValues.totalValue)}</span></span>
       </div>
-      <div class="blindbox-stat-card">
-        <span class="stat-icon">💰</span>
-        <span class="stat-value">¥${formatMoney(summaryValues.totalCost)}</span>
-        <span class="stat-label">总成本</span>
-      </div>
-      <div class="blindbox-stat-card ${profitClass}">
-        <span class="stat-icon">${summaryValues.totalProfit >= 0 ? '📈' : '📉'}</span>
+      <div class="blindbox-total ${profitClass}" role="group" aria-label="总盈亏">
         <span class="stat-value">${profitSign}¥${formatMoney(Math.abs(summaryValues.totalProfit))}</span>
-        <span class="stat-label">总盈亏</span>
       </div>
     `;
   } else {
-    summaryEl.innerHTML = `
-      <div class="blindbox-stat-card" style="grid-column:1/-1">
-        <span class="stat-icon">🎁</span>
-        <span class="stat-value">—</span>
-        <span class="stat-label">今天还没有盲盒礼物</span>
-      </div>
-    `;
+    summaryEl.innerHTML = '';
   }
 
   // ── 排行榜 ──
@@ -236,10 +234,12 @@ function render(stats) {
   }
 
   if (users.length === 0) {
+    const emptyText = summaryValues.boxCount > 0
+      ? (HIDE_LOSS ? '暂无盈利观众' : '暂无上榜观众')
+      : '等待开盒';
     leaderboard.innerHTML = `
       <div class="blindbox-empty">
-        <span class="empty-icon">🎰</span>
-        <span class="empty-text">${HIDE_LOSS ? '今天还没有盈利的观众' : '暂无数据'}</span>
+        <span class="empty-text">${emptyText}</span>
       </div>
     `;
   } else {
@@ -247,48 +247,50 @@ function render(stats) {
       .map((user, index) => {
         const rank = index + 1;
         const rankClass = rank <= 3 ? `rank-${rank}` : '';
-        const rankLabel = RANK_ICONS[index] || rank;
-
         const profitSign = user.totalProfit >= 0 ? '+' : '-';
         const profitIsUp = user.totalProfit >= 0;
         const isLoss = user.totalProfit < 0;
 
-        // 头衔
-        let titleHtml = '';
-        if (rank === 1 && user.totalProfit > 0) {
-          titleHtml = '<span class="user-title lucky-king">欧皇</span>';
-        } else if (user.totalProfit > 20) {
-          titleHtml = '<span class="user-title lucky">好运</span>';
-        }
-
         return `
         <div class="leaderboard-row ${rankClass}${isLoss ? ' is-loss' : ''}">
-          <div class="rank-badge">${rankLabel}</div>
+          <div class="rank-badge">${rank}</div>
           <div class="user-info">
             <span class="user-name">${escapeHtml(user.userName)}</span>
-            ${titleHtml}
+            <div class="user-result">
+              <span class="box-count">${user.boxCount} 盒</span>
+              <span class="profit-value ${profitIsUp ? 'is-up' : 'is-down'}">${profitSign}¥${formatMoney(Math.abs(user.totalProfit))}</span>
+            </div>
           </div>
-          <span class="box-count">${user.boxCount}个</span>
-          <span class="profit-value ${profitIsUp ? 'is-up' : 'is-down'}">${profitSign}¥${formatMoney(Math.abs(user.totalProfit))}</span>
         </div>
       `;
       })
       .join('');
 
-    // 预览表头
-    const headerHtml = COMPACT
-      ? ''
-      : `
-      <div class="leaderboard-header">
-        <span>排行</span>
-        <span></span>
-        <span>数量</span>
-        <span>盈亏</span>
-      </div>
-    `;
-
-    leaderboard.innerHTML = headerHtml + rows;
+    leaderboard.innerHTML = rows;
   }
+}
+
+function renderHeartBoxProgress(settings, stats) {
+  const progress = document.getElementById('blindboxHeartProgress');
+  const parts = [];
+  const enabled = key => settings[key] === true || settings[key] === 'true';
+  if (HEART_BOX_ONLY) {
+    const multiplier = Number(settings.blindboxCastleMultiplier);
+    if (Number.isFinite(multiplier) && multiplier > 0) {
+      parts.push(`<span class="heart-multiplier">今天 <strong>${multiplier}</strong> 倍堡</span>`);
+    }
+    const remaining = Number(settings.blindboxCastlesRemaining);
+    if (enabled('blindboxShowCastlesRemaining') && Number.isSafeInteger(remaining) && remaining >= 0) {
+      parts.push(`<span>还有 <strong>${remaining}</strong> 个堡</span>`);
+    }
+    const opened = stats?.heartBoxProgress?.openedSinceCastle;
+    if (enabled('blindboxShowOpenedSinceCastle') && Number.isSafeInteger(opened) && opened >= 0) {
+      parts.push(`<span>已开 <strong>${opened}</strong> 个盲盒</span>`);
+    }
+  }
+  const html = parts.join('');
+  if (progress.innerHTML !== html) progress.innerHTML = html;
+  progress.hidden = !parts.length;
 }
 
 function applyTheme(settings) {

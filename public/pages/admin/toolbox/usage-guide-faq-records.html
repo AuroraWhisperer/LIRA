@@ -1,118 +1,67 @@
-<h4 class="usage-guide-subsection-title">礼物与账本</h4>
-<div class="usage-guide-faq-grid">
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>礼物列表不更新，或只显示部分历史</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>先检查直播间号、B 站登录，以及礼物页的「监控礼物」和「礼物统计」。恢复网络后等同步完成，再点页面上的「重新加载」或「重试」。</li>
-      <li>看懂状态提示：「正在更新礼物记录…」是还在同步；「当前仅能查看部分历史记录。」是历史还不完整；「当前离线，显示已保存的记录」显示的不是最新账本。</li>
-      <li>和网页对不上：用同样的日期和筛选条件对比，把状态提示和时间范围发给管理员。别为了数字对上就清空记录。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>清空后还看到“云端记录已清空，本机记录尚未更新。”</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>不用再清空一次。这条提示说明云端已经删完，这台电脑还在等更新，不是清空失败。</li>
-      <li>恢复连接后重新加载礼物记录，等这台电脑和云端一致。</li>
-      <li>还看到旧记录，把提示发给管理员。注意：清空云端账本会影响同一账号的设备。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>关掉 LIRA 后，还会继续记录礼物吗</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>会。礼物由服务器记录，账号、直播间连接和统计设置都满足时，关掉客户端也会继续记。关掉客户端不等于关掉服务器上的功能。</li>
-      <li>要看最新账本：到网页主播中心的「礼物流水」，或者重新打开客户端联网同步。断网时，这台电脑显示的是之前保存的记录。</li>
-      <li>这台电脑上的加班机、礼物特效和投屏画面要 LIRA 开着才工作，不会因为服务器在记账就继续输出。见<a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a>。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>加班机没有增加时间，礼物统计关了也会生效吗</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>先确认「启用加班机」开着，收到的礼物有对应的规则，规则也开着。减少、清零和文字展板规则不会加时间。</li>
-      <li>礼物连击还没结束时，等处理完再看「最近结算」。加班机不看礼物统计开关，所以关掉礼物统计也可能继续改时间。</li>
-      <li>「暂停」只停倒计时，礼物还会改时间。要停掉加班机，看它自己的「启用加班机」。</li>
-    </ol>
-  </details>
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>点“自动钓鱼 / 打劫”后为什么连续发弹幕</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <ol class="usage-guide-checks">
-      <li>点之前先确认目标直播间。这是一次批量发送：钓鱼 ×10、打劫 ×5，每 5 秒一条，共 15 条，开始时会提示。</li>
-      <li>可以看发送进度和结果。发完会提示「自动发送完成：钓鱼 ×10、打劫 ×5」，不会一直循环。</li>
-      <li>发送失败：先检查发送账号和连接状态。别连续点，会重复加任务。</li>
-    </ol>
-  </details>
-</div>
-<h4 class="usage-guide-subsection-title">粉丝档案</h4>
-<div class="usage-guide-faq-grid">
-  <details class="usage-guide-faq">
-    <summary>
-      <strong>收起后找不到了，如何恢复档案？</strong>
-      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path
-          d="m5 8 5 5 5-5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </summary>
-    <p>
-      打开「档案」，切到「已归档」，选中这个档案，点「恢复到主列表」。恢复后在「当前档案」里就能找到。列表里没有结果的话，先清空搜索和筛选。旧版界面里的“收起档案”就是归档。这个方法只能恢复归档档案，不适用于永久删除的档案。
-    </p>
-  </details>
-</div>
+<h4 class="usage-guide-subsection-title">08.4 回复、礼物与活动异常</h4>
+<div class="usage-guide-faq-grid"><details class="usage-guide-faq">
+<summary>
+<strong>08.4.1 礼物列表不更新，或只显示部分历史</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>先检查直播间号、B 站登录，以及礼物页的「监控礼物」和「礼物统计」。恢复网络后等同步完成，再点页面上的「重新加载」或「重试」。</li>
+<li>看懂状态提示：「正在更新礼物记录…」是还在同步；「当前仅能查看部分历史记录。」是历史还不完整；「当前离线，显示已保存的记录」显示的不是最新账本。</li>
+<li>和网页对不上：用同样的日期和筛选条件对比，把状态提示和时间范围发给管理员。别为了数字对上就清空记录。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.4.2 自动答谢、弹幕查询等开关点了没反应</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>先到「点歌 → 设置」检查 B 站登录和云端连接。提示「请先登录 B 站，再同步到服务器。」或「连接云端账号后可设置」时，都这样处理。</li>
+<li>提示「B 站登录已失效，请重新登录并同步。」：重新扫码登录并保存，等账号自动同步成功，再打开要用的功能。不用另外手动同步 B 站账号。</li>
+<li>等出现「已同步到服务器」。状态一直没确认，就按面板提示刷新核对；还失败，把提示发给管理员。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.4.3 已经关了功能，为什么提示服务器可能仍在运行</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>恢复网络和云端连接后，刷新状态，再关一次，等出现「已同步到服务器」。</li>
+<li>「关闭还没同步，服务器可能仍在运行。」的意思是服务器还没确认关闭。开关看着是关的，或者退出了客户端，都不代表已经关了。</li>
+<li>一直确认不了，找管理员核查服务器状态。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.4.4 签到机器人没有回复</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>先到「百宝箱 → 弹幕互动 → 固定回复」，看「签到机器人」开了没有、云端状态有没有确认。</li>
+<li>确认「监控弹幕」已开启、直播账号和直播间连接正常，再让观众发「签到」试试。祝福语由服务器提供，客户端不需要填写词库。</li>
+<li>还没回复，刷新云端状态，留着提示。别靠反复开关来判断服务器有没有生效。</li>
+</ol>
+</details>
+<details class="usage-guide-faq">
+<summary>
+<strong>08.4.5 AI 互动助手不回复</strong>
+<svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
+<path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</summary>
+<ol class="usage-guide-checks">
+<li>到「百宝箱 → 弹幕互动 → AI 互动助手」检查「启用 AI」、平台、密钥和模型，再点「测试 AI 连接」。</li>
+<li>保存自定义触发关键词，再发一条带这个关键词的弹幕试试。关键词留空不会触发。</li>
+<li>看看「等待队列」、同一观众提问间隔和每分钟提问上限。发得太频繁，就稍等再试。</li>
+<li>测试失败：按结果检查服务地址、模型或平台余额。测试通过还不回复：检查直播账号和发送状态。配置步骤见<a data-usage-guide-link href="#ug-deepseek">配置 AI 助手</a>。</li>
+</ol>
+</details></div>

@@ -57,11 +57,11 @@ test('admin routes use one explicit ordered fragment composition', () => {
   assert.equal(fs.existsSync(path.join(PUBLIC_DIR, 'pages', 'admin.html')), false);
 });
 
-test('live components own six unique panels while danmaku interaction stays in the toolbox', () => {
+test('live components own unique panels while danmaku interaction stays in the toolbox', () => {
   const components = readAdminFragment(PUBLIC_DIR, 'pages/admin/live-components/page.html');
   const toolbox = readAdminFragment(PUBLIC_DIR, 'pages/admin/toolbox/shell-start.html');
   const html = composeAdminHtml(PUBLIC_DIR);
-  const ids = ['liveDanmakuFeature', 'otherGiftFeature', 'otherTextBoxFeature',
+  const ids = ['liveDanmakuFeature', 'otherGiftFeature', 'giftDisplayFeature', 'giftWishesFeature', 'giftSprintFeature', 'giftBlindboxFeature', 'guardThanksFeature', 'otherTextBoxFeature',
     'otherOvertimeMachineFeature', 'otherStartAnimationFeature', 'otherClockFeature'];
   for (const id of ids) {
     assert.match(components, new RegExp(`data-other-feature="${id}"`));
@@ -69,7 +69,12 @@ test('live components own six unique panels while danmaku interaction stays in t
     assert.equal(html.split(`id="${id}"`).length, 2, `${id} renders once`);
     assert.doesNotMatch(toolbox, new RegExp(`data-other-feature="${id}"`));
   }
-  assert.equal((components.match(/data-other-feature-panel\b/g) || []).length, 6);
+  assert.equal((components.match(/data-other-feature-panel\b/g) || []).length, ids.length);
+  for (const id of ['giftSprintForm', 'giftSprintOverlayPanel', 'blindboxOverlayTitle', 'blindboxPreviewBtn']) {
+    assert.equal(html.split(`id="${id}"`).length, 2, `${id} renders once`);
+    assert.match(components, new RegExp(`id="${id}"`));
+    assert.doesNotMatch(readAdminFragment(PUBLIC_DIR, 'pages/admin/gifts/page.html'), new RegExp(`id="${id}"`));
+  }
   assert.doesNotMatch(components, /id="danmakuSendForm"|id="xiaomiAiSection"/);
   assert.match(toolbox, /data-other-feature="otherDanmakuFeature"/);
   assert.match(toolbox, /<strong>弹幕互动<\/strong>/);
@@ -136,7 +141,10 @@ test('admin composition matches guide chapters to its directory without duplicat
   assert.ok(directory, 'the guide must expose its chapter directory');
   const linkIds = [...directory.matchAll(/<a\b(?=[^>]*\sdata-usage-guide-link(?:\s|>))[^>]*>/g)]
     .map(([tag]) => tag.match(/\shref=["']#([^"']+)["']/)?.[1]);
-  assert.ok(chapterIds.length > 0);
+  assert.deepEqual(chapterIds, [
+    'ug-setup', 'ug-song', 'ug-interactions', 'ug-gifts',
+    'ug-scene-guide', 'ug-work', 'ug-maintenance', 'ug-faq',
+  ]);
   assert.ok(chapterIds.every(Boolean));
   assert.equal(new Set(chapterIds).size, chapterIds.length);
   assert.deepEqual(linkIds, chapterIds);

@@ -88,3 +88,33 @@ export function createPrismaticIdentity(document, item, name, classNames, resolv
   identity.append(nickname);
   return identity;
 }
+
+export function createPrismaticGuardCard(document, item, classNames, createAvatar) {
+  const root = document.createElement('article');
+  root.className = `${classNames.item} ${classNames.bubble} is-gift is-guard-thanks`;
+  root.dataset.guard = String(item.giftGuardLevel);
+  const card = document.createElement('div');
+  card.className = 'prismatic-guard-card';
+  const name = String(item.name || '观众').trim() || '观众';
+  const avatar = createAvatar(item, name, root);
+  if (avatar) card.append(avatar);
+  const nickname = document.createElement('strong');
+  nickname.className = 'prismatic-guard-name';
+  nickname.textContent = name;
+  const copy = document.createElement('p');
+  copy.className = 'prismatic-guard-copy';
+  const action = { open: '开通', renew: '续费' }[item.guardAction] || '感谢支持';
+  copy.textContent = `${action}${{ 1: '总督', 2: '提督', 3: '舰长' }[item.giftGuardLevel]}`;
+  if (Number.isSafeInteger(item.guardAccompanyDays) && item.guardAccompanyDays >= 0) {
+    copy.textContent += `，已陪伴主播 ${item.guardAccompanyDays} 天`;
+  }
+  card.append(nickname, copy);
+  if (Number.isFinite(item.giftTotalPrice) && item.giftTotalPrice >= 0) {
+    const amount = document.createElement('span');
+    amount.className = 'prismatic-guard-amount';
+    amount.textContent = item.giftTotalPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+    card.append(amount);
+  }
+  root.append(card);
+  return root;
+}

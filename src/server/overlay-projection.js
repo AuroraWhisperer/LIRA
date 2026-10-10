@@ -30,7 +30,8 @@ const SETTING_KEYS = {
     songBoardFontWeight songBoardGlowIntensity songBoardGradientEnd songBoardSongColor songBoardSongFontSize
     songBoardSortMode songBoardSyncTheme songBoardThemeAccent songBoardThemeBackground songBoardThemeOpacity
     songBoardThemePrimary songBoardThemeRadius songBoardThemeText songBoardTitle songBoardTitleFontSize`,
-  blindbox: `backdropBlur blindboxOverlayTitle blindboxOverlayTop blindboxWinnersOnly blindboxHeartBoxOnly enableGradient glowIntensity gradientEnd
+  blindbox: `backdropBlur blindboxOverlayTitle blindboxOverlayTop blindboxWinnersOnly blindboxHeartBoxOnly blindboxCompact blindboxAutoPages
+    blindboxCastleMultiplier blindboxCastlesRemaining blindboxShowCastlesRemaining blindboxShowOpenedSinceCastle enableGradient glowIntensity gradientEnd
     overlayFontFamily overlayFontWeight overlayLowPowerMode overlayRequesterColor overlaySongColor
     themeAccent themeBackground themeFontScale themeOpacity themePrimary themeRadius themeText`,
   lyrics: `desktopLyricAlignAnchor desktopLyricAlignPosition desktopLyricBackgroundEnabled
@@ -162,8 +163,9 @@ const RESPONSE_SCHEMAS = {
   songlist: { '/api/songs': [fields('id name artist category_name language name_initial')] },
   blindbox: {
     '/api/gifts/blind-box-stats': {
-      summary: fields('boxCount totalCost totalProfit'),
+      summary: fields('boxCount totalCost totalValue totalProfit'),
       perUser: [fields('userName boxCount totalProfit')],
+      heartBoxProgress: fields('openedSinceCastle'),
     },
   },
   'gift-feed': {

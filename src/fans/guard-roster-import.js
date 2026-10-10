@@ -2,6 +2,7 @@
 
 const { identity, identityKey, timestamp, recordData } = require('./validation');
 const { dayOf } = require('./dates');
+const { normalizeGuardAccompany, newerGuardAccompany } = require('./guard-accompany');
 
 function getGuardRoster(profile, records) {
   if (profile.guardRoster) return profile.guardRoster;
@@ -32,13 +33,18 @@ function createGuardRosterImporter({ store, create, observe }) {
       throw new Error('大航海名单格式无效。');
     const observedAt = timestamp(snapshot.observedAt);
     return store.transaction(() => {
-      function saveRoster(profile, records, level) {
+      function saveRoster(profile, records, level, accompanyDays) {
         const previous = getGuardRoster(profile, records);
         if (previous && previous.observedAt > observedAt) return;
+        const accompany = normalizeGuardAccompany({
+          days: accompanyDays, roomId: snapshot.roomId, observedAt, source: 'guard-roster',
+        });
+        if (accompanyDays !== undefined && !accompany) throw new Error('平台陪伴天数无效。');
         store.save(
           scope,
           {
             ...profile,
+            ...(accompany ? { guardAccompany: newerGuardAccompany(profile.guardAccompany, accompany) } : {}),
             guardRoster: {
               roomId: snapshot.roomId,
               ownerUid: snapshot.ownerUid,
@@ -102,7 +108,7 @@ function createGuardRosterImporter({ store, create, observe }) {
           true,
         );
         const records = store.records.list(scope, profile.id);
-        saveRoster(store.get(scope, profile.id), records, member.level);
+        saveRoster(store.get(scope, profile.id), records, member.level, member.accompanyDays);
         const previous = records.find(
           (record) =>
             record.original.evidence === 'guard-roster' &&

@@ -45,3 +45,23 @@ test('failed profile migration stops before Chromium ready and backend initializ
   assert.equal(h.count('runtime:start'), 0);
   assert.equal(h.count('app:exit'), 1);
 });
+
+for (const stage of ['runtimeStart', 'licenseBootstrap']) {
+  test(`failed ${stage} exits through cleanup even when the startup error dialog fails`, async () => {
+    const pending = Promise.withResolvers();
+    const h = createShutdownHarness({
+      [stage]: pending,
+      expectedExitCode: 1,
+      startupReportError: new Error('error dialog unavailable'),
+    });
+    await h.start();
+    pending.reject(new Error('startup stage failed'));
+    h.backendStop.resolve();
+    await h.settle();
+    assert.match(h.startupErrors[0], /startup stage failed/);
+    assert.equal(h.count('runtime:stop'), 1);
+    assert.equal(h.count('app:exit'), 1);
+    assert.equal(h.clock.pending, 0);
+    assert.equal(h.state.window.main, null);
+  });
+}

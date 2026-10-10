@@ -19,6 +19,20 @@ test('fan scope uses authenticated origin and stable streamer identity only', (t
   assert.equal(fanScopeFor(f.licenseManager), null);
 });
 
+test('read-only fan calendar uses the authenticated scope without accepting a caller scope', (t) => {
+  const f = fixture(t);
+  assert.equal(f.invoke({ action: 'calendar', payload: { scope: SCOPE_B } }).ok, true);
+  assert.equal(f.calls.execute.at(-1).scope, SCOPE_A);
+  assert.equal(f.calls.execute.at(-1).action, 'calendar');
+  f.state.authorized = false;
+  assert.match(f.invoke({ action: 'calendar' }).error, /先登录/);
+  f.state.authorized = true;
+  f.state.streamerId = 'streamer-b';
+  f.state.epoch++;
+  assert.equal(f.invoke({ action: 'calendar' }).ok, true);
+  assert.equal(f.calls.execute.at(-1).scope, SCOPE_B);
+});
+
 test('fan IPC admits only the actual main frame at the exact desktop origin and allowed admin paths', (t) => {
   const f = fixture(t);
   for (const pathname of ['/', '/admin', '/settings', '/songs']) {

@@ -80,6 +80,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         if (type === 'background' && Object.hasOwn(BACKGROUND_FIELDS, key)) continue;
         // Keep the legacy config key, but don't offer a color the song board doesn't render.
         if (type === 'songlist' && key === 'songBoardThemePrimary') continue;
+        if (type === 'blindbox' && key === 'hideLoss') continue;
         const previewOnly = Object.hasOwn(previewFields, key);
         const label = previewElement(field.allowEmpty ? 'div' : 'label', '', field.label);
         let inherit;
@@ -97,14 +98,14 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
           input.min = String(field.min / (cents ? 100 : 1));
           input.max = String(field.max / (cents ? 100 : 1));
           input.step = String(field.step / (cents ? 100 : 1));
-          input.required = true;
+          input.required = !field.optional;
         }
         if (field.maxLength) input.maxLength = field.maxLength;
         input.addEventListener('blur', () => render(target.getState()));
         input.addEventListener(['select', 'checkbox', 'number'].includes(field.type) ? 'change' : 'input', () => {
           if (!input.checkValidity()) return;
           let value = field.type === 'checkbox' ? input.checked : input.value;
-          if (field.type === 'number') value = cents ? Math.round(Number(value) * 100) : Number(value);
+          if (field.type === 'number' && !(field.optional && value === '')) value = cents ? Math.round(Number(value) * 100) : Number(value);
           if (previewOnly) {
             previewValues[key] = key === 'userName' ? value.trim() || field.default : value;
             for (const listener of previewListeners) listener();
@@ -112,6 +113,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             const draft = target.getState().draft;
             const preset = COMPONENT_RESOURCE_PRESETS[draft.resourceStyle?.preset];
             target.edit({ [key]: typeof field.default === 'string' ? String(value) : value,
+              ...(type === 'blindbox' && key === 'winnersOnly' ? { hideLoss: value } : {}),
               ...(['style', 'displayStyle'].includes(key) && draft.mediaStyle ? { mediaStyle: null } : {}),
               ...(['style', 'displayStyle'].includes(key) && preset && !preset.styles?.includes(value) ? { resourceStyle: null } : {}) });
           }
@@ -133,7 +135,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
       if (type === 'lyrics') host.append(previewElement('p', 'hint',
         '画布展示静态示例歌词；“暂停时隐藏”仅作用于直播输出。'));
       if (definition.category === '直播小游戏') host.append(previewElement('p', 'hint', '在客户端“直播小游戏”中开始和管理游戏，这里调整展示画面。'));
-      if (type === 'gift-sprint') host.append(previewElement('p', 'hint', '这里显示示例进度。直播画面跟随“礼物 → 月底冲刺”的目标与进度，未设目标时隐藏。'));
+      if (type === 'gift-sprint') host.append(previewElement('p', 'hint', '这里显示示例进度。直播画面跟随“组件 → 礼物姬 → 月底冲刺”的目标与进度，未设目标时隐藏。'));
       if (type === 'gift-wishes') host.append(previewElement('p', 'hint', previewHint || '预览按显示条数展示已缓存的 B 站礼物，进度为示例，礼物不足时重复展示。高度随条数和间距自动调整；直播最多显示设定条数，礼物与目标数量在“礼物许愿”中设置。'));
       if (['gift-frame', 'guard-thanks'].includes(type)) host.append(previewElement('p', 'hint',
         '画布循环展示示例；直播仅在触发时播放。请在“礼物姬”中启用对应效果。'));
@@ -147,6 +149,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             || type === 'interactions' && key === 'interactionRatingRules' && draft.kind !== 'rating'
             || type === 'interactions' && ['interactionBarColor', 'interactionTrackColor'].includes(key) && draft.kind !== 'poll'
             || type === 'gift-wishes' && ['textPendingColor', 'textReceivedColor'].includes(key) && !['text', 'original'].includes(draft.displayStyle)
+            || type === 'blindbox' && key.startsWith('blindbox') && key !== 'blindboxOverlayTitle' && (!draft.heartBoxOnly
+              || key === 'blindboxCastlesRemaining' && ![true, 'true'].includes(draft.blindboxShowCastlesRemaining))
             || type === 'guard-thanks' && (nautical ? ['style', 'textMode', 'months'].includes(key)
               : ['showAvatar', 'showUserName', 'nameFontSize'].includes(key));
           const value = Object.hasOwn(previewFields, key) ? previewValues[key]
@@ -158,7 +162,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
               option.disabled = option.hidden;
             }
           }
-          if (input.type === 'checkbox') input.checked = value === true || value === 'true';
+          if (input.type === 'checkbox') input.checked = value === true || value === 'true'
+            || type === 'blindbox' && key === 'winnersOnly' && [true, 'true'].includes(draft.hideLoss);
           else syncComponentFieldValue(input, cents ? Number(value) / 100 : inherit && !value ? draft.songBoardThemeText : value);
           if (inherit) { inherit.checked = !value; inherit.disabled = !loaded; }
           input.disabled = !loaded || Boolean(inherit && !value);

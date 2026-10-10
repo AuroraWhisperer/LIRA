@@ -191,7 +191,7 @@ prepare 冻结本机来源摘要及 SHA256 digest；canonical UTF-8 数据预算
 
 ## 5. 粉丝档案 action 与 DTO
 
-Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller.js)、[profile-service.js](../../../src/fans/profile-service.js)、[profile-transfer.js](../../../src/fans/profile-transfer.js)。scope 由已认证的 `[normalized server origin,streamerId]` 决定，roomId 只是名单来源。open/auto-update-status 可不带 contextId，其余必须匹配当前上下文。相同 scope 续期保留 contextId，但切换授权 epoch 会取消旧请求；换账号或失去授权后 ID 失效。异步工作同时核对 ID/epoch，名单还核对 roomId。dispose 清 timer/请求/订阅，whenIdle 等同步、名单及自动任务，先于 DB 关闭。
+Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller.js)、[profile-service.js](../../../src/fans/profile-service.js)、[profile-transfer.js](../../../src/fans/profile-transfer.js)。scope 由已认证的 `[normalized server origin,streamerId]` 决定，roomId 只是名单来源。open/calendar/auto-update-status 可不带 contextId，其余必须匹配当前上下文。相同 scope 续期保留 contextId，但切换授权 epoch 会取消旧请求；换账号或失去授权后 ID 失效。异步工作同时核对 ID/epoch，名单还核对 roomId。dispose 清 timer/请求/订阅，whenIdle 等同步、名单及自动任务，先于 DB 关闭。
 
 成功外层见 §2.5，syncStatus 为 offline/pending/syncing/ready/unsupported；下表只列 data。失败 `{ok:false,error,existingId?}`：保留中文错误，否则“档案操作失败，输入尚未保存，请重试。”；身份冲突可附 existingId，非法来源为 IPC_SOURCE_INVALID。它不是统一枚举错误码接口。领域 payload 必须对象、非数组，JSON.stringify.length≤16×1024×1024（UTF-16 单元）。
 
@@ -201,7 +201,7 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 | `auto-update-status` | {} | 一次性通知或 null；通知含 reason=scheduled/startup、status=success/error、成功计数或 error |
 | `sync-guard-roster` | `{expectedRoomId?}`，提供时须匹配当前 roomId | `{roomId,ownerUid,total,created,updated,skipped}`；并发同步拒绝 |
 | `settings` | {} | 当前 scope 设置 |
-| `configure` | `{autoCreate:boolean,autoUpdate:boolean,autoSyncGuardRoster?:boolean}` | 更新后的 scope 设置 |
+| `configure` | `{autoCreate:boolean,autoUpdate:boolean,autoSyncGuardRoster?:boolean,accompanyMilestones?:number[],showAccompanyInCalendar?:boolean}` | 更新后的 scope 设置；陪伴节点校验及默认值见粉丝档案规格 |
 | `detail` | `{id}`，非空所属档案 ID，文本≤100 | ProfileDetail |
 | `find` | `{identity}` | ProfileDetail 或 null |
 | `create` | ProfilePatch，alias 必填 | ProfileDetail |
@@ -210,9 +210,11 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 | `resolve-membership` | `{profileId,id,choice:'adopt'或'keep'}`，id 指 pending 会员依据 | ProfileDetail |
 | `preview-merge` | `{id,revision,targetId,targetRevision?,patch?}`；源未绑定身份，目标已绑定 | `{source,target,recordCount}` |
 | `merge` | 同预览，必须给当前 targetRevision、`prefer:'source'或'target'` | `{profile,snapshotId}`；先创建恢复点 |
-| `suppression-list` | {} | `[{key,identity:[platform,type,value]}]` |
-| `unsuppress` | `{identity,confirm:true}` | true |
+| `suppress` | `{id,revision}`，要求档案绑定可靠身份 | true；将该身份加入当前 scope 黑名单，保留资料 |
+| `suppression-list` | {} | `[{key,identity:[platform,type,value],name}]`，黑名单管理用最小标识 |
+| `unsuppress` | `{identity,confirm:true}` | true；解除屏蔽，允许既有资料显示和后续记录 |
 | `reminders` | {} | 当前 scope 提醒数组 |
+| `calendar` | {}，只读，可不带 contextId | 当前 scope 日期提醒数组 `{id,profileId,key,title,date,time:'',type:'personal',detail,readonly:true}`；目标日前 3 天至当天显示于目标日，排除已处理/忽略/暂缓、归档与黑名单；陪伴类开关不影响其他日期 |
 | `reminder-state` | `{profileId,key,status:'handled'或'ignored'或'snoozed'}` | true；snoozed 延至次日 |
 | `delete` | `{id,confirm:true,suppress:boolean}` | true |
 | `delete-all` | `{confirm:true}` | `{deletedCount}` |
@@ -221,8 +223,8 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 | `restore` | `{backup,digest,currentDigest,conflicts:'keep'或'replace'}` | `{snapshotId,added,updated}`，先保存恢复点并保留当前 cursor |
 | `snapshots` | {} | 本机恢复点列表 |
 | `preview-snapshot` | `{snapshotId}` | 与 preview-restore 同型 |
-| `restore-snapshot` | `{snapshotId,confirm:true,digest,currentDigest}` | `{snapshotId}`，先备份当前 scope，再完整恢复，cursor=0/epoch=null |
-| `export-list` | `{fields?}`，仅 alias/platformName/uid/summary/birthday/mbti/notes；缺省前三项 | CSV 字符串（BOM、公式转义、非归档） |
+| `restore-snapshot` | `{snapshotId,confirm:true,digest,currentDigest}` | `{snapshotId}`，先备份当前 scope，再完整恢复，保留当前黑名单，cursor=0/epoch=null |
+| `export-list` | `{fields?}`，仅 alias/platformName/uid/summary/birthday/mbti/notes；缺省前三项 | CSV 字符串（BOM、公式转义、排除归档与黑名单） |
 | `preview-legacy` | `{profileId,from,to}`，日期范围；档案必须有 typed UID | `{count,unownedCount,from,to,digest,records}` |
 | `import-legacy` | 同上加 `{confirmOwnership:true,digest}` | ProfileDetail；按预览摘要认领，sourceKey 去重 |
 
@@ -230,7 +232,7 @@ ProfilePatch 校验 owner 为 [validation.js](../../../src/fans/validation.js)�
 
 identity 可 null，否则 `{platform:'bilibili',type:'uid'或'open_id',value}`；value≤128、无空白/控制符，UID 为1–25位非零开头数字，不把 open_id 转 UID。birthday 可 null，否则 monthDay、calendar=solar/lunar、year(null或1900至当前年)、leapMonth、leapDay=feb28/mar01、thisYearDate、advance；日期校验由 validation/dates 拥有。
 
-ProfileDetail 包含保存后的档案（id/revision/时间/identity/资料）及 formerNames、zodiacHint、records、songs、preferences、membership、guardRoster、currentGuardLevel、musicSummary、musicStats（90天 count/categories）、reminders。列表还附 medalLevel、lastInteraction、nextReminder；列表不是详情记录的替代。
+ProfileDetail 包含保存后的档案（id/revision/时间/identity/资料）及 formerNames、zodiacHint、records、songs、preferences、membership、guardRoster、guardAccompany、currentGuardLevel、musicSummary、musicStats（90天 count/categories）、reminders。guardAccompany 为 null 或平台观察加派生 stale/inactive；列表也携带该字段，定义见[粉丝档案规格](../../../specs/fan-profiles.md#平台陪伴天数与日历纪念日2026-10-09)。列表还附 medalLevel、lastInteraction、nextReminder；列表不是详情记录的替代。
 
 记录 kind 支持 membership/song/preference/anniversary/note/topic/caution/followup。occurredAt 为可解析带时区 ISO 时间，省略用当前时间；修改检查 revision，保留 original 和修订历史。membership 的 type 为 interval/baseline/observation/first：interval 指定 date 起止或 instant 起止，end 必须晚于 start；interval/observation level=1/2/3；observation 需 observedAt、status=inactive 或默认 observed；baseline 需 asOf、totalDays/continuousDays 至少一个，数值为0–100000安全整数且累计≥连续；first 需 date。冲突观察进入 pending，resolve-membership 才采用/保留，不能把观察日推算成连续会员天数。其他 kind 字段与限制见 `recordData`：songName/label 等必填；note 类 body≤10000，纪念日 advanceDays≤30。
 

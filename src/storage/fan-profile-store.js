@@ -34,10 +34,12 @@ function createFanProfileStore(db) {
     return decodeProfile(db.prepare('SELECT * FROM fan_profiles WHERE scope = ? AND id = ?').get(scope, id));
   }
 
-  function list(scope) {
+  function list(scope, { includeSuppressed = false } = {}) {
     return db
-      .prepare('SELECT * FROM fan_profiles WHERE scope = ? ORDER BY updated_at DESC, id')
-      .all(scope)
+      .prepare(`SELECT * FROM fan_profiles WHERE scope = ? AND (? = 1 OR NOT EXISTS (
+        SELECT 1 FROM fan_suppressions WHERE scope = fan_profiles.scope AND identity_key = fan_profiles.identity_key
+      )) ORDER BY updated_at DESC, id`)
+      .all(scope, Number(includeSuppressed))
       .map(decodeProfile);
   }
 
@@ -142,18 +144,19 @@ function createFanProfileStore(db) {
     return Number(result.changes) || 0;
   }
 
+  function suppressions(scope) {
+    return db.prepare('SELECT identity_key FROM fan_suppressions WHERE scope = ?').all(scope).map((row) => row.identity_key);
+  }
+
   function exportScope(scope) {
     return {
-      profiles: list(scope).map((profile) => ({
+      profiles: list(scope, { includeSuppressed: true }).map((profile) => ({
         ...profile,
         records: records.list(scope, profile.id),
         reminders: states(scope, profile.id),
       })),
       settings: getScope(scope),
-      suppressions: db
-        .prepare('SELECT identity_key FROM fan_suppressions WHERE scope = ?')
-        .all(scope)
-        .map((row) => row.identity_key),
+      suppressions: suppressions(scope),
     };
   }
 
@@ -251,6 +254,7 @@ function createFanProfileStore(db) {
     moveRecords,
     snapshots,
     getSnapshot,
+    suppressions,
     suppressed: (scope, key) =>
       Boolean(db.prepare('SELECT 1 FROM fan_suppressions WHERE scope = ? AND identity_key = ?').get(scope, key)),
     suppress: (scope, key) => db.prepare('INSERT OR IGNORE INTO fan_suppressions VALUES (?, ?)').run(scope, key),

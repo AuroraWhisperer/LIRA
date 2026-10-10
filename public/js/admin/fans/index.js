@@ -8,6 +8,11 @@ import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
 import { settingsForm, guardRosterForm } from './forms.js';
 
 let initialized = false;
+const CALENDAR_CHANGES = new Set([
+  'configure', 'create', 'save', 'save-record', 'resolve-membership', 'reminder-state',
+  'suppress', 'unsuppress', 'delete', 'delete-all', 'restore', 'restore-snapshot',
+  'merge', 'import-legacy', 'sync-guard-roster',
+]);
 
 function createFanUi() {
   const root = document.getElementById('fanProfilesWorkspace');
@@ -102,6 +107,7 @@ function createFanUi() {
       }[result.syncStatus] || '';
     const syncNode = get('fanSyncState');
     if (syncNode.textContent !== syncLabel) syncNode.textContent = syncLabel;
+    if (CALENDAR_CHANGES.has(action)) window.dispatchEvent(new Event('fan-profiles-changed'));
     return result.data;
   }
 
@@ -365,9 +371,9 @@ function createFanUi() {
     if (name === 'delete-all') {
       const confirmed = await dangerConfirm({
         title: '清除全部档案',
-        message: '当前账号的主列表与已归档档案都会永久删除。建议先保存完整备份；清除后，后续同步仍可重新自动建档。',
+        message: '当前账号的全部档案（包括已归档和被屏蔽的档案）都会永久删除。建议先保存完整备份；清除后，未屏蔽的粉丝仍可在后续同步时重新建档。',
         deletes: ['全部粉丝档案', '档案内的手记与互动记录', '档案提醒状态'],
-        keeps: ['原始礼物账本', '排除名单与档案设置', '现有恢复点'],
+        keeps: ['原始礼物账本', '黑名单与档案设置', '现有恢复点'],
         confirmLabel: '确认清除全部档案',
       });
       if (!confirmed) return;
@@ -437,6 +443,16 @@ function createFanUi() {
         else if (state.profile?.id === saved.id) clearSelection(true);
       }
       toast(saved.archived ? '已归档，资料仍保留。可在‘已归档’中恢复。' : '已恢复到主列表，可在‘当前档案’中查看。');
+      await load();
+      return;
+    } else if (name === 'suppress') {
+      const profile = state.profile;
+      const selection = state.selection;
+      await request('suppress', { id: profile.id, revision: profile.revision });
+      state.profiles = state.profiles.filter((item) => item.id !== profile.id);
+      if (selection === state.selection || state.selectionId === profile.id) clearSelection();
+      else if (state.profile?.id === profile.id) clearSelection(true);
+      toast('已加入黑名单，相关档案与提醒已隐藏。可在设置中解除屏蔽。');
       await load();
       return;
     } else if (name === 'favorite') {

@@ -29,7 +29,7 @@ export function createFanProfileActions({ request, openForm, onProfile, onDelete
         title: '永久删除档案',
         saveLabel: '确认永久删除',
         hint: '档案、手记与提醒状态会删除，原始礼物账本不受影响。此操作不能撤销。',
-        fields: `<p class="fan-field-wide">即将删除 ${html(profile.alias || profile.platformName)}。建议先保存完整备份。</p><label class="fan-check"><input name="suppress" type="checkbox" checked />不再为这位粉丝自动建档</label><label class="fan-check"><input name="confirm" type="checkbox" required />我确认永久删除</label>`,
+        fields: `<p class="fan-field-wide">即将删除 ${html(profile.alias || profile.platformName)}。建议先保存完整备份。</p><label class="fan-check"><input name="suppress" type="checkbox" checked />将绑定的 B 站账号加入黑名单，不再记录该粉丝</label><label class="fan-check"><input name="confirm" type="checkbox" required />我确认永久删除</label>`,
         read: (value) => ({
           id,
           confirm: value.elements.confirm.checked,

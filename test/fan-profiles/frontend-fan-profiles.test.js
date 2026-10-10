@@ -151,6 +151,12 @@ async function archiveUi(t) {
     calls: [],
     handlers: new Map(),
     contextId: 'test-context',
+    events: [],
+  };
+  windowRef.dispatchEvent = (event) => {
+    ui.events.push(event.type);
+    for (const listener of windowListeners.get(event.type) || []) listener(event);
+    return true;
   };
   ui.respond = ({ action, payload }) => ({
     ok: true,
@@ -169,6 +175,7 @@ async function archiveUi(t) {
     },
   };
   const mod = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/index.js'), {
+    Event,
     document: documentRef,
     window: windowRef,
     setTimeout: clock.setTimeout,
@@ -259,6 +266,22 @@ test('switching scope clears pending search and filters once while same-scope na
   await ui.click({ fanAction: 'clear-filter' });
   assert.match(ui.people(), /归档观众B/);
   assert.equal(ui.listCalls().at(-1).payload.archived, true);
+});
+
+test('blacklisting clears the selected fan and invalidates calendar only after a successful save', async (t) => {
+  const ui = await archiveUi(t);
+  await ui.click({ fanId: ui.a.id });
+  ui.handlers.set('suppress', () => ({ ok: false, error: '保存失败' }));
+  await ui.click({ fanAction: 'suppress' });
+  assert.match(ui.detail(), /当前观众A/);
+  assert.equal(ui.events.includes('fan-profiles-changed'), false);
+  ui.handlers.delete('suppress');
+  await ui.click({ fanAction: 'suppress' });
+  assert.doesNotMatch(ui.people(), /当前观众A/);
+  assert.doesNotMatch(ui.detail(), /当前观众A|保留私人资料/);
+  assert.equal(ui.events.filter((name) => name === 'fan-profiles-changed').length, 1);
+  assert.match(ui.notices(), /黑名单/);
+  assert.equal(ui.f.run('suppression-list').length, 1);
 });
 
 test('scope loading hides old entries, ignores stale results, and failure retries in the target scope', async (t) => {

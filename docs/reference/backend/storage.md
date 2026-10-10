@@ -47,6 +47,10 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 
 2026-10-08 的共享参数变更不批量重写已有场景。读取时以客户端已保存字段覆盖旧副本，布局保持独立。新增 `clockStyleOptions`（JSON 字符串，默认 `{}`）按受支持的内置时钟样式保存白名单外观字段；首次读取从原客户端标量设置补齐，旧标量写入只更新选中样式。新增 `blindboxOverlayTop`（-1–10，默认 3）、`blindboxWinnersOnly`（默认 true）、`blindboxHeartBoxOnly`（默认 false）和 `blindboxOverlayTitle`（默认空字符串，页面回退“今日盲盒盈亏”），使新复制的盲盒地址跟随保存设置。均使用现有 settings 存储，无新表或 schema 迁移。
 
+心动盲盒的展示参数同样由客户端与画布共享：`blindboxCastleMultiplier` 默认空字符串（隐藏倍数），非空为 0.01–1000、最多两位小数；`blindboxCastlesRemaining` 默认 `'0'`，范围为 0–99999 整数，由用户手动填写，不随出堡扣减。`blindboxShowCastlesRemaining` 与 `blindboxShowOpenedSinceCastle` 默认 `'false'`，分别控制剩余堡数及自动开盒进度；开关接受布尔值或布尔字符串，保存为字符串。关闭心动盲盒筛选时隐藏专属展示，但保留这些已保存值。
+
+盲盒紧凑布局 `blindboxCompact` 默认 `'false'`，自动翻页 `blindboxAutoPages` 默认 `'true'`，使用相同布尔归一化规则，分别映射画布的 `compact` / `noScroll`。画布只显示一个「仅显示盈利」开关；旧 `hideLoss` 字段保留为 `blindboxWinnersOnly` 的兼容别名。字体、字重、字号比例及背景/文字/主色/强调色继续使用现有通用主题键，不增加另一份主题配置。
+
 [component-style-store.js](../../../src/storage/component-style-store.js) 拥有设备本机 `dataDir/component-library/`，不写云设置或礼物数据库。`index.json` 为 `{version:1,packages:[]}`，写入同目录随机临时文件后 rename 替换；媒体保存为 `<包 UUID>/<SHA-256>.<扩展名>`，网页保存为 `<包 UUID>/web/<原相对路径>`。场景的独立外观配置持有互斥的 `mediaStyle`、`resourceStyle` 或 `cssStyle` 快照，新增可选字段不改变旧场景格式。HTML 导入保存为 browser 配置，库中可选 `category` 记录原组件分类；浏览器地址仍走既有加密保存与模板脱敏合同。
 
 索引合同仍为 v1，无需迁移。`component-style-index.js` 在主索引提交后保存同内容的 `index.backup.json`；副本失败只报告恢复能力降级，不回滚已提交的安装。旧库首次读取会补齐副本。主索引缺失、损坏或结构无效时，从有效副本恢复；损坏原件保留为 `index.damaged-<UUID>.json`，`index.recovery.json` 记录恢复提示。两份均不可用时返回 503，不重建空库；高于当前支持版本的索引拒绝读取，不用旧副本降级。每包 `package.json` 是导入快照，后续参数以索引及其恢复副本为准。
@@ -119,6 +123,8 @@ data/
 
 ### 粉丝档案（songDb v6 新增六表）
 
+2026-10-09：档案 JSON 增加可选 `guardAccompany: {days,roomId,observedAt,source}` 平台观察，scope JSON 增加 `accompanyMilestones` 和 `showAccompanyInCalendar`。复用现有事务/乐观 revision，旧数据无须 schema 迁移；新观察、重复会员事实补全及游标原子提交。备份 v1 保留并校验这些字段；预计日历事项只作内存投影，处理状态继续存入 `fan_reminder_states`。规则和默认值由 [粉丝档案规格](../../../specs/fan-profiles.md#平台陪伴天数与日历纪念日2026-10-09) 维护。
+
 `fan-profile-migration.js` 在现有 songDb 的迁移事务内新增以下六表；`fan-profile-store.js` / `fan-record-store.js` 持有 SQL，`src/fans/` 持有领域规则。
 
 | 表 | 责任与约束 |
@@ -127,8 +133,10 @@ data/
 | `fan_records` | 档案外键级联；UUID、scope + source_key 唯一；原始事实、当前数据与修订分别保存 |
 | `fan_reminder_states` | scope + profile + item_key 唯一；已处理、忽略、稍后与事项来源 |
 | `fan_scopes` | 自动设置、epoch/cursor；事实与游标同事务提交；可选 `autoSyncGuardRoster` 默认 false，`lastGuardRosterAutoUpdate: {date, roomId}` 与自动名单导入同事务保存，按归属/房间/北京时间日期去重 |
-| `fan_suppressions` | 停止自动建档的最小 typed identity 标记 |
+| `fan_suppressions` | 当前 scope 黑名单的最小 typed identity 标记；屏蔽档案展示和写入，旧删除排除标记兼容 |
 | `fan_restore_snapshots` | scope 内恢复/合并之前的完整快照；恢复点操作校验归属 |
+
+`fan-profile-store.list(scope)` 默认排除黑名单，不额外读取每份档案的抑制状态；完整备份与恢复点替换显式传入 `{includeSuppressed:true}`。`get` / `byIdentity` 供内部身份匹配及备份使用，应用服务对详情、手动写入与自动写入执行黑名单规则。备份 v1 保留黑名单及被屏蔽的原资料，恢复时合并当前黑名单，仅 `unsuppress` 明确解除；不新增 schema。
 
 requests 追加 stable_id（唯一 UUID）、owner_scope、identity_type；旧流水为空不猜归属。成功点歌事务同步写独立档案歌曲快照，队列状态与对应档案状态同事务更新；done 只表示队列已处理。确认旧流水归属后才认领 UUID。六表不参与普通 retention 或 clear-all；档案专用删除/恢复操作才修改。备份 lira-fan-profiles v1 含原始依据、修订、提醒和抑制，恢复先校验预览摘要并保存快照；见 [需求](../../../specs/fan-profiles.md)。
 

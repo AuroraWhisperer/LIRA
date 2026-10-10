@@ -31,6 +31,20 @@ test('wrong-category guidance moves to the matching picker entry and reuses the 
   await confirmation.getByRole('button', { name: '导入套装', exact: true }).click();
   await picker.getByRole('region', { name: '导入引导套装 1.0.0', exact: true }).waitFor();
   assert.equal(await picker.locator('.component-style-card').count(), 2);
+  await picker.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByRole('button', { name: '素材管理', exact: true }).click();
+  const manager = page.getByRole('dialog', { name: '素材管理', exact: true });
+  const chooser = page.waitForEvent('filechooser');
+  await manager.getByRole('button', { name: '更新素材包', exact: true }).click();
+  manifest.version = '2.0.0';
+  await (await chooser).setFiles({ ...file, buffer: createStoredStyleZip(new Map([
+    ['lira-pack.json', Buffer.from(JSON.stringify(manifest))], ['frame.webp', media.buffer],
+  ])) });
+  await confirmation.getByText('将替换已安装版本 1.0.0 → 2.0.0，样式库只保留本次导入的版本。', { exact: true }).waitFor();
+  assert.equal(await picker.getByRole('button', { name: '套装', exact: true }).getAttribute('aria-pressed'), 'true');
+  await confirmation.getByRole('button', { name: '替换套装', exact: true }).click();
+  await picker.getByRole('region', { name: '导入引导套装 2.0.0', exact: true }).waitFor();
+  assert.equal(await picker.locator('.component-style-card').count(), 2);
   assert.deepEqual(errors, []);
 });
 
@@ -72,8 +86,10 @@ test('canvas management restores a backup and refreshes presets without replacin
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
   await picker.getByRole('button', { name: '背景', exact: true }).click();
-  await picker.getByRole('button', { name: '管理样式库', exact: true }).click();
-  const manager = page.getByRole('dialog', { name: '管理样式库', exact: true });
+  assert.equal(await picker.getByRole('button', { name: /素材管理|管理样式库/ }).count(), 0);
+  await picker.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByRole('button', { name: '素材管理', exact: true }).click();
+  const manager = page.getByRole('dialog', { name: '素材管理', exact: true });
   await manager.getByText('背景 · 1 个样式', { exact: true }).waitFor();
   assert.equal(await manager.getByRole('button', { name: '清理未使用文件', exact: true }).isDisabled(), true);
   const downloaded = page.waitForEvent('download');

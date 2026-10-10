@@ -2,8 +2,9 @@
 
 const { DAY_MS, dayOf, dayStart, addDays, daysBetween, anniversaryDate } = require('./dates');
 const { summarizeMembership } = require('./membership');
+const { accompanySettings, getGuardAccompany } = require('./guard-accompany');
 
-function buildReminders(profile, records, states, now = Date.now()) {
+function buildReminders(profile, records, states, now = Date.now(), settings = {}) {
   if (profile.archived) return [];
   const today = dayOf(now);
   const earliest = addDays(today, -7);
@@ -12,6 +13,8 @@ function buildReminders(profile, records, states, now = Date.now()) {
   const statesByKey = new Map(states.map((state) => [state.key, state]));
   const result = [];
   const membership = summarizeMembership(records, now);
+  const accompany = getGuardAccompany(profile, now);
+  const metricDays = (metric) => metric === 'accompany' ? accompany?.days : membership[`${metric}Days`];
 
   function add(key, date, title, basis, advance = 0, extra = {}) {
     if (!date || date < earliest || date > latest) return;
@@ -32,7 +35,7 @@ function buildReminders(profile, records, states, now = Date.now()) {
       handledAt: state?.handledAt,
       until: state?.until,
       revisedBelowThreshold: Boolean(
-        extra.metric && (membership[`${extra.metric}Days`] ?? -1) < extra.threshold && isResolved,
+        extra.metric && (metricDays(extra.metric) ?? -1) < extra.threshold && isResolved,
       ),
       group: isResolved
         ? 'history'
@@ -115,7 +118,20 @@ function buildReminders(profile, records, states, now = Date.now()) {
         membership.expiry.source === 'platform' ? '平台确认' : '手动确认',
         7,
       );
-    if (membership.hasHistory && profile.milestoneReminders !== false) addMilestones();
+    if ((membership.totalDays !== null || membership.continuousDays !== null) && profile.milestoneReminders !== false)
+      addMilestones();
+  }
+
+  if (accompany && !accompany.stale && !accompany.inactive && profile.milestoneReminders !== false) {
+    const observedDate = dayOf(accompany.observedAt);
+    for (const threshold of accompanySettings(settings).accompanyMilestones) {
+      // A snapshot establishes only that day's count, never an unknown past achievement date.
+      if (threshold < accompany.days) continue;
+      const date = addDays(observedDate, threshold - accompany.days);
+      add(`accompany:${accompany.roomId}:${threshold}`, date, `陪伴满 ${threshold} 天`,
+        `B 站陪伴天数 · ${observedDate} 同步${threshold > accompany.days ? ' · 按持续陪伴估算' : ''}`, 3,
+        { predicted: threshold > accompany.days, threshold, metric: 'accompany' });
+    }
   }
 
   function addMilestones() {
@@ -166,8 +182,8 @@ function buildReminders(profile, records, states, now = Date.now()) {
 
   for (const state of states) {
     if (!['handled', 'ignored'].includes(state.status) || result.some((r) => r.key === state.key)) continue;
-    const match = /^(total|continuous):.*?(\d+)$/.exec(state.key);
-    const revised = match && (membership[`${match[1]}Days`] ?? -1) < Number(match[2]);
+    const match = /^(total|continuous|accompany):.*?(\d+)$/.exec(state.key);
+    const revised = match && (metricDays(match[1]) ?? -1) < Number(match[2]);
     result.push({
       ...state,
       profileId: profile.id,

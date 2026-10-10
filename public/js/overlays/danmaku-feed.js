@@ -279,6 +279,22 @@ export function createDanmakuFeed(root, options = {}) {
     const node = entry.node;
     node.style.setProperty('width', '');
     node.style.setProperty('zoom', '');
+    if (options.style === 'prismatic' && (entry.item.kind === 'superchat' ||
+      (entry.item.kind === 'gift' && [1, 2, 3].includes(entry.item.giftGuardLevel)))) {
+      // Full-width cards reflow at a smaller type size instead of narrowing the panel.
+      node.style.setProperty('font-size', '');
+      if (availableHeight > 0 && node.offsetHeight > availableHeight) {
+        let low = 0;
+        let high = Number.parseFloat(globalThis.getComputedStyle?.(node)?.fontSize) || 0;
+        for (let attempt = 0; attempt < 8 && high > 0; attempt += 1) {
+          const size = (low + high) / 2;
+          node.style.setProperty('font-size', `${size}px`);
+          if (node.offsetHeight <= availableHeight - 1) low = size;
+          else high = size;
+        }
+        node.style.setProperty('font-size', `${low}px`);
+      }
+    }
     const zoom = Number.parseFloat(globalThis.getComputedStyle?.(node)?.zoom) || 1;
     const width = Number(node.offsetWidth) || 0;
     const height = Number(node.offsetHeight) || 0;

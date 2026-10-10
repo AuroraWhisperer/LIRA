@@ -138,7 +138,7 @@ export function profileForm(profile = {}) {
       area('nextTopic', '下次想聊什么', profile.nextTopic, 2) +
       area('notes', '个人备注', profile.notes, 4) +
       '<h3 class="fan-profile-section-title fan-field-wide">大航海提醒</h3>' +
-      check('milestoneReminders', '在舰里程碑提醒', profile.milestoneReminders !== false) +
+      check('milestoneReminders', '在舰与陪伴里程碑提醒', profile.milestoneReminders !== false) +
       check('expiryReminders', '到期提醒（已确认日期）', profile.expiryReminders) +
       '</section></div>',
     bind(form) {
@@ -388,10 +388,10 @@ export function guardRosterForm(roomId, roomProfile = null) {
     title: '同步大航海名单',
     saveLabel: '同步名单',
     busyLabel: '正在读取名单…',
-    hint: '已有备注会保留，已收起的档案和排除名单会跳过。',
+    hint: '已有备注会保留，已归档和黑名单中的粉丝会跳过。',
     fields: `<div class="fan-field-wide"><dl class="fan-facts"><div><dt>同步房间</dt><dd class="bilibili-room-row"><span class="bilibili-auth-profile">${avatar}<span class="bilibili-auth-identity"><strong class="bilibili-auth-name" title="${attr(roomName)}">${html(roomName)}</strong></span></span></dd></div></dl>
-      <p>为当前大航海成员建立档案，并更新昵称、头像和等级。</p>
-      <p class="fan-muted">到期日期和在舰天数可之后手动补充。</p></div>`,
+      <p>为当前大航海成员建立档案，并更新昵称、头像、等级和 B 站陪伴天数。</p>
+      <p class="fan-muted">陪伴天数取自 B 站陪伴榜；到期日期和历史在舰记录可之后手动补充。</p></div>`,
     read: () => ({ expectedRoomId: roomId }),
   };
 }
@@ -403,12 +403,18 @@ export function settingsForm(settings) {
     fields:
       check('autoUpdate', '自动更新已有档案的昵称、点歌和上舰记录', settings.autoUpdate !== false) +
       check('autoCreate', '有新粉丝上舰时自动建档', settings.autoCreate !== false) +
-      check('autoSyncGuardRoster', '每天自动更新大航海身份', settings.autoSyncGuardRoster === true) +
-      '<p class="fan-field-wide fan-muted">北京时间每天 12:10 核对名单，已下舰的粉丝会移除身份标记。错过后，当天首次打开软件时补更新。</p>',
+      check('autoSyncGuardRoster', '每天自动更新大航海身份和陪伴天数', settings.autoSyncGuardRoster === true) +
+      '<p class="fan-field-wide fan-muted">北京时间每天 12:10 核对名单，已下舰的粉丝会移除身份标记。错过后，当天首次打开软件时补更新。</p>' +
+      field('accompanyMilestones', '陪伴纪念日（天，以逗号分隔）', (settings.accompanyMilestones || []).join(', ')) +
+      check('showAccompanyInCalendar', '在工作台日历显示陪伴纪念日', settings.showAccompanyInCalendar !== false) +
+      '<p class="fan-field-wide fan-muted">日历自动提示 <lira-help label="日历自动提示说明">设置生日、纪念日、跟进或复查日期，以及有依据的在舰日期后，目标日前 3 天起会在工作台日历的目标日期显示提示，当天仍显示。例如 10 月 12 日的纪念日，从 10 月 9 日起显示在 12 日。修改或清除日期会自动更新；在档案「提醒」中处理后隐藏。陪伴纪念日默认 100、365、500、1000 天，由 B 站陪伴天数和同步日期计算，提前 3 天可处理；未来日期标为预计，超过 7 天未同步或确认下舰后暂停预计提醒。</lira-help></p>',
     read: (form) => ({
       autoUpdate: form.elements.autoUpdate.checked,
       autoCreate: form.elements.autoCreate.checked,
       autoSyncGuardRoster: form.elements.autoSyncGuardRoster.checked,
+      accompanyMilestones: form.elements.accompanyMilestones.value.trim()
+        ? form.elements.accompanyMilestones.value.trim().split(/[,，\s]+/).map(Number) : [],
+      showAccompanyInCalendar: form.elements.showAccompanyInCalendar.checked,
     }),
   };
 }

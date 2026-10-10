@@ -99,4 +99,13 @@ test('planner renders frozen display data, ordered events and safe text while re
   assert.equal(action.type, 'eventEdit');
   assert.equal(action.value, 'early');
   assert.equal(readTodoAction({ closest: () => null }), null);
+  renderTodo({ ...view, planner: { ...view.planner, events: [{
+    id: 'fan:synthetic:500', date: view.selectedDate, time: '', type: 'personal',
+    title: '测试观众 · 陪伴满 500 天（预计）', detail: 'B 站陪伴天数', readonly: true,
+  }] } });
+  const row = element('plannerAgendaList').children[0];
+  assert.equal(row.children.length, 2, 'automatic reminders do not expose manual event editing');
+  assert.equal(row.children[1].tag, 'div');
+  assert.equal(row.children[1].dataset.eventEdit, undefined);
+  assert.match(row.children[1].children[0].textContent, /500 天/);
 });

@@ -181,7 +181,7 @@ test('all local styles replay every example through the live feed without connec
   for (const style of styles) {
     const start = f.appends.length;
     const fullscreen = ['outline', 'whiteframe', 'cream', 'glow', 'starveil'].includes(style);
-    const sampleCount = fullscreen ? 12 : style === 'moonlit' ? 22 : 19;
+    const sampleCount = fullscreen ? 12 : ['moonlit', 'prismatic'].includes(style) ? 22 : 19;
     f.node(style).events.click();
     f.flushFrames();
     f.advanceMessages(sampleCount - 1);
@@ -204,7 +204,7 @@ test('all local styles replay every example through the live feed without connec
     assert.ok(members.every((item) => item.isStreamer !== true));
     assert.ok(items.some((item) => !item.kind && !item.medalName && !item.isStreamer));
     assert.ok(items.some((item) => item.kind === 'gift' && item.giftCount === 10));
-    assert.equal(items.filter((item) => item.kind === 'gift').length, style === 'moonlit' ? 6 : 3);
+    assert.equal(items.filter((item) => item.kind === 'gift').length, ['moonlit', 'prismatic'].includes(style) ? 6 : 3);
     if (style === 'moonlit') {
       assert.ok(items[0].kind === 'gift' && !items[0].giftGuardLevel, 'ordinary gift thanks appears immediately');
       assert.equal(items[1].giftGuardLevel, 3, 'guard thanks follows the ordinary gift');
@@ -234,12 +234,14 @@ test('all local styles replay every example through the live feed without connec
 
 test('prismatic preview preserves its opening sequence and room identities for a complete round', async () => {
   const f = await fixture('?preview=1&style=prismatic');
-  f.advanceMessages(18);
+  f.advanceMessages(21);
   const samples = f.appends;
   const ids = samples.map((item) => item.id.replace(/-\d+$/u, ''));
-  assert.equal(samples.length, 19);
+  assert.equal(samples.length, 22);
   assert.deepEqual(ids.slice(0, 3), ['preview-4714', 'preview-emote', 'preview-gift-10']);
-  assert.equal(new Set(ids).size, 19, 'each sample appears once before the next round');
+  assert.equal(new Set(ids).size, 22, 'each sample appears once before the next round');
+  assert.deepEqual(Array.from(samples.filter((item) => item.giftGuardLevel), (item) => item.giftGuardLevel).sort(), [1, 2, 3]);
+  assert.equal(samples.find((item) => item.giftGuardLevel === 3).guardAccompanyDays, 360);
   const longSuperChat = samples.find((item) => item.id.startsWith('preview-superchat-2000-'));
   assert.ok(longSuperChat?.message.includes('\n'), 'the last multiline SC stays in the round');
 
@@ -366,6 +368,27 @@ test('scaled appearance edits keep logical font sizes and reset only the selecte
   assert.equal(fontSize.value, '80');
   assert.equal(f.history.state.danmakuStyleOptions.signal.fontSize, 40);
   assert.match(f.node('previewSaveState').textContent, /请输入 36～96 之间的整数/);
+});
+
+test('preview edge fading edits and resets each fixed style without leaking to random layouts', async () => {
+  const f = await fixture('?preview=1&style=prismatic');
+  const select = f.node('previewEdgeFade');
+  assert.equal(select.value, 'both');
+  assert.equal(f.node('previewEdgeFadeField').hidden, false);
+  select.value = 'none';
+  select.events.change();
+  assert.equal(f.history.state.danmakuStyleOptions.prismatic.edgeFade, 'none');
+  assert.equal(f.document.body.dataset.edgeFade, 'none');
+  f.node('signal').events.click();
+  assert.equal(select.value, 'single');
+  f.node('prismatic').events.click();
+  assert.equal(select.value, 'none');
+  f.node('previewAppearanceReset').events.click();
+  assert.equal(select.value, 'both');
+  assert.equal(f.document.body.dataset.edgeFade, 'both');
+  f.node('outline').events.click();
+  assert.equal(f.node('previewEdgeFadeField').hidden, true);
+  assert.equal(f.document.body.dataset.edgeFade, 'none');
 });
 
 test('random position controls reach the preview feed, reject invalid edits and reset per style', async () => {

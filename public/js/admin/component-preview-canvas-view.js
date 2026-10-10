@@ -6,6 +6,7 @@ import { mountSceneEditorInspector } from './scene-editor-inspector.js';
 import { mountPreviewCanvasSettings } from './component-preview-canvas-settings.js';
 import { enhanceSelects } from '../shared/select-menu.js';
 import { mountComponentPreviewPicker } from './component-preview-picker.js';
+import { openComponentLibraryManager } from './component-library-manager.js';
 import { mountPreviewCanvasOutput } from './component-preview-canvas-output.js';
 import { mountPreviewLayerDrag } from './component-preview-layer-drag.js';
 import { mountPreviewPresets } from './component-preview-presets.js';
@@ -31,6 +32,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   let closed = false;
   let output;
   let presets;
+  let libraryManager;
   let outputBusy = false;
   let inspectorOpen = Boolean(selectedId);
   const subscriptions = [];
@@ -150,6 +152,10 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     requestStyles: canvasConnection?.requestComponentStyles,
     getTextBoxes: () => model.getSnapshot().items.filter(item => item.type === 'text-box') });
   button(library, '添加组件', () => picker.open(), 'secondary component-preview-add');
+  button(library, '素材管理', () => {
+    libraryManager = openComponentLibraryManager({ request: canvasConnection?.requestComponentStyles,
+      onUpdate: picker.updatePackage });
+  });
   function edit(mutator) {
     if (canvasController && !canvasController.getState().loaded) return;
     stage?.cancelGesture();
@@ -424,7 +430,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     window.removeEventListener('resize', closeLayerMenu);
     layoutObserver.disconnect();
     for (const stop of subscriptions) stop();
-    inspector?.dispose(); stage.dispose(); picker.dispose(); output?.dispose(); presets?.dispose();
+    inspector?.dispose(); stage.dispose(); picker.dispose(); libraryManager?.dispose(); output?.dispose(); presets?.dispose();
     host.replaceChildren();
   } };
 }

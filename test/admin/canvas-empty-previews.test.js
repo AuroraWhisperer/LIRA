@@ -154,6 +154,37 @@ async function openSurface(page, fixture, { type = 'opening', config = {}, url }
   return page.locator('iframe').elementHandle().then(handle => handle.contentFrame());
 }
 
+test('one blindbox profitability toggle can turn off the legacy loss filter', { timeout: 15000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.evaluate(async () => {
+    const { createSceneExtraPreview } = await import('/js/admin/scene-extra-preview.js');
+    const { createSceneExtraDefaults } = await import('/js/shared/scene-extra-components.js');
+    const { createComponentConfigController } = await import('/js/admin/component-config-controller.js');
+    window.controller = createComponentConfigController({
+      initial: { ...createSceneExtraDefaults('blindbox'), winnersOnly: false, hideLoss: true },
+      persist: async draft => draft,
+    });
+    createSceneExtraPreview('blindbox', { controller: window.controller }).createPanel(document.body);
+  });
+  assert.equal(await page.locator('[data-component-parameter="hideLoss"]').count(), 0);
+  const toggle = page.locator('[data-component-parameter="winnersOnly"]');
+  assert.equal(await toggle.isChecked(), true);
+  for (const checked of [false, true]) {
+    await toggle.setChecked(checked);
+    assert.deepEqual(await page.evaluate(() => {
+      const { winnersOnly, hideLoss } = window.controller.getState().draft;
+      return { winnersOnly, hideLoss };
+    }), { winnersOnly: checked, hideLoss: checked });
+  }
+});
+
 test('imported opening repeats only in preview, stays silent while disabled, and stops cleanly', { timeout: 30000 }, async t => {
   const { createMediaStyle } = require('../../public/js/shared/component-media-style.js');
   const fixture = await startCanvasOutputFixture();

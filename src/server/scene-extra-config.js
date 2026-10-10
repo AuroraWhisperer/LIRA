@@ -15,6 +15,10 @@ function normalizeSceneExtraConfig(type, config) {
     const field = fields[key];
     let value = raw;
     if (field.type === 'number') {
+      if (field.optional && typeof raw === 'string' && raw.trim() === '') {
+        result[key] = '';
+        continue;
+      }
       if (!['string', 'number'].includes(typeof raw) || String(raw).trim() === '') throw invalid();
       value = Number(raw);
       if (!Number.isFinite(value) || value < field.min || value > field.max

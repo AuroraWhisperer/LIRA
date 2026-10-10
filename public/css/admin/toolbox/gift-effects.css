@@ -256,59 +256,31 @@
   margin: 0;
 }
 .gift-frame-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: var(--spacing-lg);
   padding: 16px 0;
 }
-.gift-frame-controls > section {
-  min-width: 0;
-}
-.gift-frame-section-heading {
+.gift-frame-preview {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 12px 24px;
 }
 .gift-frame-section-heading h4 {
   margin: 0;
   font-size: var(--type-size-card-title);
   font-weight: var(--type-weight-semibold);
 }
-.gift-frame-preview {
-  padding-left: var(--spacing-lg);
-  border-left: 1px solid var(--border);
-}
-.gift-frame-settings-grid,
 .gift-frame-preview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px;
-}
-.gift-frame-preview-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr)) 72px auto;
-}
-.gift-frame-settings-grid label,
-.gift-frame-preview-grid label {
-  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(160px, 1fr)) 128px auto;
+  align-items: center;
+  gap: 16px;
   min-width: 0;
-  gap: 6px;
-  color: var(--muted);
-  font-size: var(--type-size-control);
-  font-weight: 500;
 }
-.gift-frame-controls input {
-  min-width: 0;
-  width: 100%;
+.gift-frame-preview-grid .component-inline-field input {
+  flex: 1;
+  width: 0;
   font-variant-numeric: tabular-nums;
-}
-.gift-frame-controls input,
-.gift-frame-controls button {
-  min-height: 36px;
-  padding: 6px 10px;
-  font-size: var(--type-size-control);
 }
 .gift-frame-status {
   margin: 0 0 16px;
@@ -322,22 +294,8 @@
 .gift-frame-status[data-state='success'] {
   color: var(--color-success-dark);
 }
-@container gift-frame-settings (max-width: 860px) {
-  .gift-frame-controls {
-    grid-template-columns: 1fr;
-  }
-  .gift-frame-settings-grid {
-    grid-template-columns: minmax(0, 280px) auto;
-    justify-content: start;
-  }
-  .gift-frame-preview {
-    padding: 16px 0 0;
-    border-top: 1px solid var(--border);
-    border-left: 0;
-  }
-}
 
-@container gift-frame-settings (max-width: 480px) {
+@container gift-frame-settings (max-width: 700px) {
   .gift-frame-settings-heading {
     flex-wrap: wrap;
   }

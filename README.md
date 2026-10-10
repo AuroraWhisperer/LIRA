@@ -16,12 +16,12 @@ Download the latest installer from [Releases](https://github.com/AuroraWhisperer
 
 LIRA remains local-first, but the desktop client must complete online authorization before the main UI opens. Release builds use the production authorization service automatically (the current default is `https://api.lirahub.cn`); custom deployments use the address supplied by the administrator.
 
-1. **Activate the first device.** On the “Log in to LIRA” page, enter the account name, password, and the one-time activation key supplied by the administrator, then choose “Activate and enter LIRA”. The server creates an independent device identity; the password and activation key are not stored locally.
-2. **Later launches verify automatically.** A bound device does not require the account name, password, or first activation key again, but it still performs an online authorization check at startup. If the service is temporarily unreachable, use “Retry connection”. A revoked device/license or disabled account requires administrator assistance.
-3. **Pair another computer.** Ask the server administrator for a one-time device authorization code and enter it with the same account name and password on the new computer. Each computer gets an independent device identity. After authorization, cloud sync can restore supported shared songs and settings; local files, device identity, and music-platform sessions are not copied by pairing. Never copy the old computer's `data`, `userData`, private key, or token.
+1. **Register on first use.** Choose “Register a new account” (注册新账号), enter the username, password, and administrator-issued registration activation code, then choose “Register and enter” (注册并进入). Existing users choose “Log in to an existing account” (登录已有账号). The server creates an independent device identity; the password and activation code are not stored locally.
+2. **Later launches verify automatically.** A bound device does not require the account name, password, or registration activation code again, but it still performs an online authorization check at startup. If the service is temporarily unreachable, use “Retry connection”. A revoked device/license or disabled account requires administrator assistance.
+3. **Log in on another computer.** Ask the administrator for a one-time short-lived login code (短效登录码). On the new computer, choose “Log in to an existing account”, enter the original username, password, and login code, then choose “Log in and enter” (登录并进入). Each computer gets an independent device identity. After authorization, cloud sync can restore supported shared songs and settings; local files, device identity, and music-platform sessions do not migrate automatically. Never copy the old computer's `data`, `userData`, private key, or token.
 4. **Cloud playlist sync is automatic.** Local library changes mark the song scope dirty and upload a full snapshot after authorization. When no local upload is pending, the client pulls newer cloud revisions. “Song requests → Import/Export” also supports a manual full sync. The service accepts up to 5,000 songs; snapshots do not merge concurrent edits. The same page manages a PNG/JPG/JPEG/WebP/GIF background up to 5 MB; uploading replaces the image and deleting restores the default.
 
-In the current client, the LIRA server handles account/device authorization, optional cloud data, and authoritative Bilibili gift detection. The desktop receives normalized gift events over the authenticated HTTPS device channel and projects them into its existing local history, statistics, overtime, and overlay flows. Bilibili login, local danmaku interactions, the queue, playback, and the local library remain in the local runtime; the server danmaku overlay receives and displays Bilibili chat independently. The public playlist URL usually looks like `https://account.lirahub.cn/`; use the URL shown by “Open web playlist” for the remote HTTPS song page. Both OBS and Bilibili Livehime can load LIRA overlays. Local overlays such as the song queue, lyrics, and overtime timer use `127.0.0.1` URLs and require LIRA and the streaming software to run on the same computer. The server danmaku overlay uses the complete HTTPS `/overlay/<token>` URL copied from LIRA or the streamer console; it depends on the server’s Bilibili connection and continues to work when the desktop client is closed. The public playlist, local overlays, and server danmaku overlay have separate URLs.
+In the current client, the LIRA server handles account/device authorization, optional cloud data, and authoritative Bilibili gift detection. The desktop receives normalized gift events over the authenticated HTTPS device channel and projects them into its existing local history, statistics, overtime, and overlay flows. Bilibili login, local danmaku interactions, the queue, playback, and the local library remain in the local runtime; the server danmaku overlay receives and displays Bilibili chat independently. The public playlist URL usually looks like `https://account.lirahub.cn/`; use the URL shown by “View web playlist” (查看网页歌单) for the remote HTTPS song page. Both OBS and Bilibili Livehime can load LIRA overlays. Local overlays such as the song queue, lyrics, and overtime timer use `127.0.0.1` URLs and require LIRA and the streaming software to run on the same computer. The server danmaku overlay uses the complete HTTPS `/overlay/<token>` URL copied from LIRA or the streamer console; it depends on the server’s Bilibili connection and continues to work when the desktop client is closed. The public playlist, local overlays, and server danmaku overlay have separate URLs.
 
 ## Key Features
 
@@ -41,13 +41,14 @@ In the current client, the LIRA server handles account/device authorization, opt
 **Danmaku Interaction**
 
 - Danmaku bot: posts in the live room with a logged-in account, auto-mentions recent requesters
-- Check-in / fortune slip bot: `签到` auto-replies with streak days, `抽签` draws a daily fortune
+- Check-in / fortune slip bot: `签到` auto-replies with cumulative check-in days, `抽签` draws a daily fortune
 - DIY keyword replies: custom keyword triggers with fixed responses
 
 **AI Danmaku Assistant**
 
-- Auto-generates replies via DeepSeek when "小米" is mentioned; personality and system prompt are customizable
-- Supports web search, weather, route queries, auto-retry on failed delivery
+- Generates replies when danmaku contains a saved custom trigger keyword; the keyword is empty by default, so no replies are triggered
+- Supports DeepSeek, OpenAI, Claude / Gemini compatibility endpoints, and custom compatible services, with selectable, saved, and imported persona packs
+- Ordinary chat needs no tool accounts. Search, weather, places, and routes are off by default; enable them according to model support and configured credentials. See the [AI configuration guide](docs/guides/third-party-api-support.md)
 
 **Song Queue Display**
 
@@ -83,14 +84,14 @@ In the current client, the LIRA server handles account/device authorization, opt
 **Device Authorization and Cloud Playlist**
 
 - First-device LIRA account authorization with online checks on later launches
-- Server-administrator-issued one-time pairing codes for additional computers
-- Explicit full-snapshot publishing from the local library to the public playlist page
+- Administrator-issued one-time short-lived login codes for additional computers
+- Automatic full-snapshot cloud sync after library changes, with newer cloud revisions restored when no local upload is pending; manual sync is also available
 - Custom public playlist-page background (PNG/JPG/JPEG/WebP/GIF, up to 5 MB)
 
 **Overtime Timer**
 
 - Gift-driven countdown: viewers extend the countdown with gifts, real-time overlay in OBS or Bilibili Livehime
-- Gift rule editor: direct time adjustment / random result draw / time mystery box
+- Gift rule editor: direct time adjustment / random result draw / text display board
 - The gift picker prefers the server-wide catalog with a local cache, while the existing room catalog and local gift search remain available as fallbacks
 
 **Streamer Planner**

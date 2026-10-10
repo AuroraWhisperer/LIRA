@@ -8,16 +8,16 @@ const { createFakeDocument } = require('../helpers/fake-dom');
 
 // Expected per-style controls. Font family, size and text color apply to every style.
 const CONTROLS = {
-  bubble: ['scrollDirection', 'backgroundOpacity', 'giftImage'],
-  signal: ['scrollDirection', 'backgroundOpacity', 'giftImage'],
-  minimal: ['scrollDirection'],
-  ranked: ['scrollDirection', 'backgroundOpacity', 'giftImage'],
-  transparent: ['scrollDirection', 'giftImage'],
-  identity: ['scrollDirection', 'backgroundOpacity', 'giftImage'],
-  sketch: ['scrollDirection', 'backgroundOpacity'],
-  prismatic: ['scrollDirection'],
-  starlight: ['scrollDirection'],
-  moonlit: ['scrollDirection', 'backgroundOpacity', 'giftImage'],
+  bubble: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
+  signal: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
+  minimal: ['scrollDirection', 'edgeFade'],
+  ranked: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
+  transparent: ['scrollDirection', 'edgeFade', 'giftImage'],
+  identity: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
+  sketch: ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
+  prismatic: ['scrollDirection', 'edgeFade'],
+  starlight: ['scrollDirection', 'edgeFade'],
+  moonlit: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
   outline: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
   whiteframe: ['centerBias', 'dispersion'],
   cream: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
@@ -27,6 +27,7 @@ const CONTROLS = {
   glow: ['centerBias', 'dispersion', 'backgroundOpacity'],
 };
 const CONTROL_VALUES = {
+  edgeFade: { valid: ['both', 'single', 'none'], invalid: ['top', 'BOTH', '', null, true, 1], optional: true },
   scrollDirection: { valid: ['up', 'down'], invalid: ['left', 'DOWN', '', null, true, 1], fallback: 'up' },
   backgroundOpacity: { valid: [0, 100], invalid: [-1, 101, 50.5, '50', null] },
   giftImage: { valid: ['theme', 'gift'], invalid: ['https://evil.test/x.webp', '', null] },
@@ -82,6 +83,28 @@ test('scroll direction applies to fixed styles and resets to upward for other la
     browser.applyStyleOptions(document, 'signal', { signal: { scrollDirection: 'down' } });
     browser.applyStyleOptions(document, style, { signal: { scrollDirection: 'down' } });
     assert.equal(document.body.dataset.scrollDirection, 'up');
+  }
+});
+
+test('edge fading keeps theme defaults, applies overrides and clears on other layouts', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
+  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
+  for (const [style, controls] of Object.entries(CONTROLS)) {
+    if (controls.includes('edgeFade')) {
+      const fallback = style === 'prismatic' ? 'both' : 'single';
+      assert.equal(contract.styleOptionsFor(style).edgeFade, fallback);
+      for (const edgeFade of CONTROL_VALUES.edgeFade.valid) {
+        browser.applyStyleOptions(document, style, { [style]: { edgeFade } });
+        assert.equal(document.body.dataset.edgeFade, edgeFade);
+      }
+      browser.applyStyleOptions(document, style, { [style]: {} });
+      assert.equal(document.body.dataset.edgeFade, fallback);
+    } else {
+      browser.applyStyleOptions(document, 'prismatic', {});
+      browser.applyStyleOptions(document, style, {});
+      assert.equal(document.body.dataset.edgeFade, 'none');
+    }
   }
 });
 

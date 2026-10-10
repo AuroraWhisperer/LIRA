@@ -94,14 +94,16 @@ const SHOTS = [
     id: 'D9',
     file: 'gift-blindbox-leaderboard-settings',
     title: '盲盒盈亏榜标题、人数与筛选',
-    main: 'giftAssistantPage',
+    main: 'liveComponentsPage',
+    click: ['#giftAssistantBlindboxTab'],
     scroll: '#blindboxOverlayTitle',
   },
   {
     id: 'D10',
     file: 'gift-sprint',
     title: '月底冲刺目标、进度与重置本轮',
-    main: 'giftAssistantPage',
+    main: 'liveComponentsPage',
+    click: ['#giftAssistantSprintTab'],
     scroll: '#giftSprintTargetRmb',
   },
 ];

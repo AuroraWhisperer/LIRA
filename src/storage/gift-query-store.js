@@ -319,22 +319,22 @@ function createGiftQueryStore(giftDb) {
     return giftDb.prepare(sql).all(...params);
   }
 
-  function listBlindBoxRows({ sourceScope, from, to, boxName }) {
+  function listBlindBoxRows({ sourceScope, from, to, boxName, includeUnknownProfit = false }) {
     const scope = normalizeSourceScope(sourceScope);
     const params = [from, to, ...scope.params];
     let sql = `
-      SELECT id, gift_name, user_name, uid, blind_box_name, blind_box_price,
+      SELECT id, gift_id, gift_name, user_name, uid, blind_box_id, blind_box_name, blind_box_price,
              total_price, blind_profit, num, created_at
       FROM gift_events
       WHERE status = 'active'
         AND detection_status = 'final'
         AND gift_stats_eligible = 1
         AND is_blind_box = 1
-        AND blind_profit IS NOT NULL
         AND created_at >= ?
         AND created_at < ?
         AND ${scope.sql}
     `;
+    if (!includeUnknownProfit) sql += ' AND blind_profit IS NOT NULL';
     if (boxName) {
       sql += ' AND blind_box_name = ?';
       params.push(boxName);

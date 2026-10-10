@@ -5,58 +5,48 @@ import { initGiftSprintOverlay } from './gifts/sprint-overlay.js';
 let initialized = false;
 
 export function initGiftAssistant() {
-  const root = document.getElementById('otherGiftFeature');
-  if (initialized || !root) return;
+  const page = document.getElementById('liveComponentsPage');
+  if (initialized || !page) return;
   initialized = true;
   const display = createGiftDisplaySettings();
   const wishes = createGiftWishes();
   initGiftSprintOverlay();
-  const tabs = [...root.querySelectorAll('[data-gift-tab]')];
+  const displayPanel = document.getElementById('giftDisplayFeature');
+  const wishesPanel = document.getElementById('giftWishesFeature');
+  const displayError = document.getElementById('giftDisplayError');
+  let displayVisible = false;
+  let wishesVisible = false;
 
-  function select(tab) {
-    if (tab.dataset.giftTab === 'wishes') wishes.open();
-    else wishes.close();
-    for (const button of tabs) {
-      const active = button === tab;
-      button.setAttribute('aria-selected', String(active));
-      button.tabIndex = active ? 0 : -1;
-      document.getElementById(button.getAttribute('aria-controls')).hidden = !active;
+  function syncVisibility() {
+    const pageVisible = page.classList.contains('active');
+    const nextWishesVisible = pageVisible && !wishesPanel.hidden;
+    if (nextWishesVisible !== wishesVisible) {
+      if (nextWishesVisible) wishes.open();
+      else wishes.close();
+      wishesVisible = nextWishesVisible;
     }
-    if (tab.dataset.giftTab === 'display') {
+    const nextDisplayVisible = pageVisible && !displayPanel.hidden;
+    if (nextDisplayVisible && !displayVisible) {
       display.open().catch((error) => {
-        document.getElementById('giftDisplayError').textContent = `${error.message}。点击「滚动礼物」重试。`;
+        displayError.textContent = `${error.message}。点击「滚动礼物」重试。`;
       });
     }
+    displayVisible = nextDisplayVisible;
   }
 
-  tabs.forEach((tab, index) => {
-    tab.addEventListener('click', () => select(tab));
-    tab.addEventListener('keydown', (event) => {
-      let next;
-      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
-      else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
-      else if (event.key === 'Home') next = 0;
-      else if (event.key === 'End') next = tabs.length - 1;
-      else return;
-      event.preventDefault();
-      tabs[next].focus();
-      select(tabs[next]);
-    });
+  document.getElementById('giftAssistantDisplayTab').addEventListener('click', () => {
+    if (displayVisible && displayError.textContent) {
+      displayVisible = false;
+      syncVisibility();
+    }
   });
-  const page = root.closest('.main-page');
-  const visibility = new MutationObserver(() => {
-    if (
-      !root.hidden &&
-      (!page || page.classList.contains('active')) &&
-      root.querySelector('[data-gift-tab="wishes"]')?.getAttribute('aria-selected') === 'true'
-    )
-      wishes.open();
-    else wishes.close();
-  });
-  visibility.observe(root, { attributes: true, attributeFilter: ['hidden'] });
-  if (page) visibility.observe(page, { attributes: true, attributeFilter: ['class'] });
+  const visibility = new MutationObserver(syncVisibility);
+  visibility.observe(displayPanel, { attributes: true, attributeFilter: ['hidden'] });
+  visibility.observe(wishesPanel, { attributes: true, attributeFilter: ['hidden'] });
+  visibility.observe(page, { attributes: true, attributeFilter: ['class'] });
   window.addEventListener('pagehide', () => {
     visibility.disconnect();
     wishes.close();
   });
+  syncVisibility();
 }

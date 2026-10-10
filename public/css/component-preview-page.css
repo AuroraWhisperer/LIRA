@@ -34,7 +34,7 @@
 .component-preview-page .component-preview-body.is-inspector-collapsed { grid-template-columns: minmax(0, 1fr); }
 .component-preview-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; min-width: 0; margin: 0; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--surface); }
 .component-preview-navigation h2 { margin: 0; font-size: var(--type-size-caption); color: var(--muted); font-weight: var(--type-weight-medium); white-space: nowrap; }
-.component-preview-list { flex-shrink: 0; }
+.component-preview-list { display: flex; flex-shrink: 0; gap: 8px; }
 .component-preview-add { font-weight: var(--type-weight-semibold); }
 .preview-canvas-source { position: absolute; z-index: 10; top: calc(100% + 8px); right: 0; width: clamp(260px, 35vw, 400px); font-size: var(--type-size-caption); box-shadow: var(--shadow-floating); }
 .preview-canvas-layers { display: flex; gap: 8px; min-width: 0; min-height: 40px; overflow: auto hidden; scrollbar-width: none; }

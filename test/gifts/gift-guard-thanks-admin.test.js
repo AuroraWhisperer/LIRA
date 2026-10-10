@@ -100,10 +100,10 @@ test('invalid preview months are reported independently without opening or savin
 });
 
 test('the real gift page exposes every style control and the module previews through the canvas', () => {
-  const html = readAdminFragmentHtml('pages/admin/toolbox/gift.html');
+  const html = readAdminFragmentHtml('pages/admin/live-components/page.html');
   const shell = readAdminFragmentHtml('pages/admin/shell-start.html');
   const moduleSource = fs.readFileSync(path.resolve('public/js/admin/gift-guard-thanks.js'), 'utf8');
-  assert.match(html, /<button\b(?=[^>]*\sid="giftAssistantGuardTab")(?=[^>]*\saria-controls="guardThanksPanel")(?=[^>]*\sdata-gift-tab="guard")[^>]*>/);
+  assert.match(html, /<button\b(?=[^>]*\sid="giftAssistantGuardTab")(?=[^>]*\saria-controls="guardThanksFeature")(?=[^>]*\sdata-gift-tab="guard")[^>]*>/);
   for (const prefix of ['guardThanksAurora', 'guardThanksClassic']) {
     for (const suffix of ['Enabled', 'TextMode', 'PreviewTier', 'PreviewMonths', 'PlayBtn', 'SaveBtn', 'SaveState']) {
       assert.ok(html.includes(`id="${prefix}${suffix}"`), prefix + suffix);

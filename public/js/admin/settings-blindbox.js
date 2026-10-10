@@ -1,6 +1,15 @@
 'use strict';
 
 import { showFieldError } from '../shared/field-feedback.js';
+import { openComponentPreview } from './component-preview-dialog.js';
+import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
+
+const OVERLAY_FIELDS = ['blindboxOverlayTitle', 'blindboxOverlayTop', 'blindboxWinnersOnly', 'blindboxHeartBoxOnly',
+  'blindboxCastleMultiplier', 'blindboxCastlesRemaining', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'];
+const APPEARANCE_FIELDS = { compact: 'blindboxCompact', noScroll: 'blindboxAutoPages',
+  overlayFontFamily: 'overlayFontFamily', overlayFontWeight: 'overlayFontWeight', themeFontScale: 'themeFontScale',
+  themeBackground: 'themeBackground', themeOpacity: 'themeOpacity', themeText: 'themeText',
+  themePrimary: 'themePrimary', themeAccent: 'themeAccent' };
 
 function parseBlindboxConfig(textarea) {
   const raw = (textarea.value || '').trim();
@@ -50,6 +59,35 @@ export function createBlindboxSettings({
   localOverlayOrigin,
 }) {
   const invalid = (id, message) => showFieldError(documentRef.getElementById(id), message, documentRef);
+  const overlayFields = OVERLAY_FIELDS.map(key => [key, key]);
+
+  function mountAppearanceFields() {
+    const host = documentRef.getElementById('blindboxAppearanceFields');
+    for (const [key, setting] of Object.entries(APPEARANCE_FIELDS)) {
+      const field = SCENE_EXTRA_COMPONENTS.blindbox.fields[key];
+      const label = documentRef.createElement('label');
+      const name = documentRef.createElement('span');
+      name.textContent = field.label;
+      const input = documentRef.createElement(field.type === 'select' ? 'select' : 'input');
+      input.id = `blindboxAppearance-${key}`;
+      if (field.type === 'select') {
+        for (const [value, text] of Object.entries(field.options)) {
+          const option = documentRef.createElement('option');
+          option.value = value; option.textContent = text; input.append(option);
+        }
+      } else input.type = field.type;
+      if (field.type === 'number') {
+        input.min = field.min; input.max = field.max; input.step = field.step; input.required = true;
+      }
+      if (field.maxLength) input.maxLength = field.maxLength;
+      if (field.type === 'checkbox') {
+        label.className = 'blindbox-appearance-toggle';
+        label.append(input, name);
+      } else label.append(name, input);
+      host.append(label);
+      overlayFields.push([input.id, setting]);
+    }
+  }
 
   function buildOverlayUrl() {
     return `${localOverlayOrigin(locationRef)}/blindbox`;
@@ -57,17 +95,23 @@ export function createBlindboxSettings({
 
   function updateOverlayUrl() {
     const url = buildOverlayUrl();
-    const code = documentRef.getElementById('blindboxOverlayUrl');
-    const liveLink = documentRef.getElementById('blindboxLiveLink');
-    if (code) code.textContent = url;
-    if (liveLink) liveLink.href = url;
+    const address = documentRef.getElementById('blindboxOverlayUrl');
+    if (address) address.textContent = url;
   }
 
   function renderBlindboxList() {
     getGifts()?.renderBlindBoxList?.();
   }
 
+  function updateHeartBoxSettings() {
+    const settings = documentRef.getElementById('blindboxHeartBoxSettings');
+    if (settings) settings.hidden = !documentRef.getElementById('blindboxHeartBoxOnly').checked;
+    const remaining = documentRef.getElementById('blindboxCastlesRemaining');
+    if (remaining) remaining.disabled = !documentRef.getElementById('blindboxShowCastlesRemaining').checked;
+  }
+
   function init() {
+    mountAppearanceFields();
     documentRef.getElementById('blindBoxAddBtn').addEventListener('click', async () => {
       const giftId = (value('blindBoxGiftId') || '').trim();
       const name = (value('blindBoxName') || '').trim();
@@ -152,17 +196,19 @@ export function createBlindboxSettings({
       await getState()?.reloadState?.();
     });
 
-    for (const id of ['blindboxOverlayTitle', 'blindboxOverlayTop', 'blindboxWinnersOnly', 'blindboxHeartBoxOnly']) {
+    for (const [id, setting] of overlayFields) {
       const element = documentRef.getElementById(id);
       if (!element) continue;
       element.addEventListener('input', updateOverlayUrl);
       element.addEventListener('change', () => {
         updateOverlayUrl();
-        saveSettings({ [id]: element.type === 'checkbox' ? String(element.checked) : element.value.trim() }).catch(() => {});
+        updateHeartBoxSettings();
+        if (!element.checkValidity()) { element.reportValidity(); return; }
+        saveSettings({ [setting]: element.type === 'checkbox' ? String(element.checked) : element.value.trim() }).catch(() => {});
       });
     }
 
-    documentRef.getElementById('blindboxCopyUrlBtn').addEventListener('click', async () => {
+    documentRef.getElementById('blindboxOverlayUrl').addEventListener('click', async () => {
       const url = buildOverlayUrl();
       try {
         await navigatorRef.clipboard.writeText(url);
@@ -173,14 +219,19 @@ export function createBlindboxSettings({
       }
     });
 
+    documentRef.getElementById('blindboxPreviewBtn').addEventListener('click', () => {
+      openComponentPreview({ id: 'blindbox' });
+    });
+
     updateOverlayUrl();
     const receiveAppearance = settings => {
-      for (const id of ['blindboxOverlayTitle', 'blindboxOverlayTop', 'blindboxWinnersOnly', 'blindboxHeartBoxOnly']) {
+      for (const [id, setting] of overlayFields) {
         const input = documentRef.getElementById(id);
-        if (!input || settings?.[id] === undefined || documentRef.activeElement === input) continue;
-        if (input.type === 'checkbox') input.checked = settings[id] === 'true';
-        else input.value = settings[id];
+        if (!input || settings?.[setting] === undefined || documentRef.activeElement === input) continue;
+        if (input.type === 'checkbox') input.checked = settings[setting] === 'true';
+        else input.value = settings[setting];
       }
+      updateHeartBoxSettings();
     };
     receiveAppearance(getState()?.getAppState?.()?.settings);
     documentRef.defaultView?.addEventListener('app:settings-state', event => receiveAppearance(event.detail));

@@ -6,7 +6,7 @@ const SHOTS = [
   {
     id: 'E1b',
     file: 'toolbox-nav-help',
-    title: '百宝箱导航：软件与帮助',
+    title: '百宝箱导航：应用支持',
     feature: 'otherUsageGuideFeature',
     mustShow: ['[data-other-feature="otherSettingsFeature"]', '[data-other-feature="otherDesktopUpdateFeature"]'],
   },
@@ -175,9 +175,10 @@ const SHOTS = [
   {
     id: 'E18b',
     file: 'toolbox-opening-audio',
-    title: '开播动画人物、音乐、音量与地址',
+    title: '开播动画链接与浏览器源用法',
     feature: 'otherStartAnimationFeature',
-    scroll: '#openingCharacterHeading',
+    hover: '#openingSourceAddress lira-help',
+    wait: '#openingSourceAddress .lira-help-tooltip:popover-open',
     mustShow: ['#openingAudioVolume', '#openingCopyUrl'],
   },
   { id: 'E19', file: 'toolbox-fan-profiles', title: '粉丝档案入口与筛选', feature: 'otherFanProfilesFeature' },

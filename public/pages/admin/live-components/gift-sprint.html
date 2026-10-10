@@ -1,0 +1,56 @@
+<section id="giftSprintFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="giftAssistantSprintTab" data-other-feature-panel hidden>
+  <div class="other-feature-panel-body stack">
+    <section class="gift-sprint-panel">
+      <div class="panel-header">
+        <h2 class="gift-section-title ui-section-title">月底冲刺</h2>
+      </div>
+      <div class="panel-body stack">
+        <div class="gift-sprint-grid">
+          <section class="gift-stat">
+            <span>目标</span>
+            <strong id="giftSprintTarget" class="ui-metric">¥0.00</strong>
+          </section>
+          <section class="gift-stat">
+            <span>已收</span>
+            <strong id="giftSprintReceived" class="ui-metric">¥0.00</strong>
+          </section>
+          <section class="gift-stat">
+            <span>还差</span>
+            <strong id="giftSprintRemaining" class="ui-metric">¥0.00</strong>
+          </section>
+          <section class="gift-stat highlight">
+            <span>≈ 水晶球</span>
+            <strong id="giftSprintCrystalBalls" class="ui-metric">0 个</strong>
+          </section>
+        </div>
+        <form id="giftSprintForm" class="gift-sprint-form-row">
+          <label>
+            冲刺目标(元)
+            <input id="giftSprintTargetRmb" type="number" min="0" step="0.01" placeholder="例如：10000" />
+          </label>
+          <div class="gift-form-actions">
+            <button class="primary" type="submit">保存</button>
+            <button id="giftSprintResetBtn" type="button">重置本轮</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="giftSprintOverlayPanel" class="gift-sprint-overlay-panel">
+      <div class="gift-sprint-source">
+        <label for="giftSprintOverlayUrl">浏览器源</label>
+        <input id="giftSprintOverlayUrl" readonly aria-label="月底冲刺浏览器源地址" />
+        <button id="giftSprintCopy" type="button" class="secondary">复制地址</button>
+        <button id="giftSprintPreview" type="button" class="secondary">打开画布</button>
+      </div>
+      <div class="gift-sprint-preview">
+        <span class="hint">实时进度</span>
+        <p id="giftSprintTextPreview" class="gift-sprint-text" hidden></p>
+        <p id="giftSprintOverlayStatus" class="hint" role="status">正在读取月底冲刺进度…</p>
+      </div>
+      <div class="gift-sprint-overlay-footer">
+        <p class="hint">每 100 元剩余金额折合 1 个水晶球，不足 1 个按 1 个计。</p>
+      </div>
+    </section>
+  </div>
+</section>

@@ -2,93 +2,42 @@
   id="otherGiftFeature"
   class="other-feature-panel"
   role="tabpanel"
-  aria-labelledby="otherGiftFeatureTab"
+  aria-labelledby="giftAssistantFrameTab"
   data-other-feature-panel
   hidden
 >
   <div class="other-feature-panel-body stack gift-assistant">
-    <header class="component-page-heading"><h2 class="ui-page-title">礼物姬</h2></header>
-    <div class="gift-assistant-tabs" role="tablist" aria-label="礼物姬功能">
-      <button
-        id="giftAssistantFrameTab"
-        type="button"
-        role="tab"
-        aria-selected="true"
-        aria-controls="giftFramePanel"
-        data-gift-tab="frame"
-      >
-        全屏礼物感谢
-      </button>
-      <button
-        id="giftAssistantDisplayTab"
-        type="button"
-        role="tab"
-        aria-selected="false"
-        aria-controls="giftDisplaySettings"
-        tabindex="-1"
-        data-gift-tab="display"
-      >
-        滚动礼物
-      </button>
-      <button
-        id="giftAssistantWishesTab"
-        type="button"
-        role="tab"
-        aria-selected="false"
-        aria-controls="giftWishesPanel"
-        tabindex="-1"
-        data-gift-tab="wishes"
-      >
-        礼物许愿
-      </button>
-      <button
-        id="giftAssistantGuardTab"
-        type="button"
-        role="tab"
-        aria-selected="false"
-        aria-controls="guardThanksPanel"
-        tabindex="-1"
-        data-gift-tab="guard"
-      >
-        大航海感谢
-      </button>
-    </div>
     <div
       id="giftFramePanel"
       class="gift-frame-effects"
       data-gift-feature="frame"
-      role="tabpanel"
-      aria-labelledby="giftAssistantFrameTab"
     >
       <section class="gift-frame-settings-card" data-gift-frame-effect="woodland-bloom" aria-labelledby="giftFrameSettingsTitle">
-        <header class="gift-frame-settings-heading">
+        <header class="gift-frame-settings-heading component-toolbar">
           <h3 id="giftFrameSettingsTitle" class="ui-section-title">
             林间花信
             <lira-help>导入林间花信样式包后，每次播放 8 秒，显示观众头像、礼物和数量。连续触发依次播放，最多等待 50 条；队满时忽略新触发，已排队项不会过期。</lira-help>
           </h3>
-          <label class="gift-frame-switch switch-control">
-            <input id="giftFrameEnabled" type="checkbox" />
-            <span class="switch-track"></span>
-            <span>启用</span>
-          </label>
+          <div class="component-toolbar-group">
+            <label class="gift-frame-switch switch-control">
+              <input id="giftFrameEnabled" type="checkbox" />
+              <span class="switch-track"></span>
+              <span>启用</span>
+            </label>
+            <label class="component-inline-field">
+              <span>触发金额（元） <lira-help>按最终礼物金额判断；0 元表示所有付费礼物。</lira-help></span>
+              <input id="giftFrameThresholdRmb" type="number" min="0" step="0.01" inputmode="decimal" value="20" />
+            </label>
+            <button id="giftFrameSaveBtn" class="primary" type="button">保存设置</button>
+          </div>
         </header>
         <div class="gift-frame-controls">
-          <section aria-labelledby="giftFrameConfigTitle">
-            <header class="gift-frame-section-heading"><h4 id="giftFrameConfigTitle">触发设置</h4></header>
-            <div class="gift-frame-settings-grid">
-              <label>
-                <span>触发金额（元） <lira-help>按最终礼物金额判断；0 元表示所有付费礼物。</lira-help></span>
-                <input id="giftFrameThresholdRmb" type="number" min="0" step="0.01" inputmode="decimal" value="20" />
-              </label>
-              <button id="giftFrameSaveBtn" class="primary" type="button">保存设置</button>
-            </div>
-          </section>
           <section class="gift-frame-preview" aria-labelledby="giftFramePreviewTitle">
             <header class="gift-frame-section-heading"><h4 id="giftFramePreviewTitle">模拟预览</h4></header>
             <div class="gift-frame-preview-grid">
-              <label><span>观众</span><input id="giftFramePreviewUser" type="text" value="观众A" maxlength="80" /></label>
-              <label><span>礼物</span><input id="giftFramePreviewGift" type="text" value="林间花信" maxlength="80" /></label>
-              <label><span>数量</span><input id="giftFramePreviewNum" type="number" min="1" step="1" value="2" /></label>
+              <label class="component-inline-field"><span>观众</span><input id="giftFramePreviewUser" type="text" value="观众A" maxlength="80" /></label>
+              <label class="component-inline-field"><span>礼物</span><input id="giftFramePreviewGift" type="text" value="林间花信" maxlength="80" /></label>
+              <label class="component-inline-field"><span>数量</span><input id="giftFramePreviewNum" type="number" min="1" step="1" value="2" /></label>
               <button id="giftFramePreviewBtn" class="secondary" type="button">预览</button>
             </div>
           </section>
@@ -97,23 +46,44 @@
       </section>
       <div class="component-subsection-heading">
         <h3 class="ui-section-title">更多样式</h3>
-        <div class="component-heading-actions" data-style-library-actions></div>
       </div>
     </div>
+  </div>
+</section>
+<section id="giftDisplayFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="giftAssistantDisplayTab" data-other-feature-panel hidden>
+  <div class="other-feature-panel-body stack gift-assistant">
     <section
       id="giftDisplaySettings"
       class="gift-display-settings"
       data-gift-feature="display"
-      role="tabpanel"
-      aria-labelledby="giftAssistantDisplayTab"
-      hidden
     >
       <form id="giftDisplayForm">
         <fieldset id="giftDisplayFields" disabled>
+          <div class="component-toolbar">
+            <div class="gift-feed-source">
+              <div class="gift-directory-actions">
+                <lira-help label="滚动礼物链接说明">点击地址即可复制，再粘贴到 OBS 或哔哩哔哩直播姬的浏览器源。</lira-help>
+                <button
+                  id="giftFeedUrl"
+                  type="button"
+                  class="secondary"
+                  aria-label="复制滚动礼物浏览器源地址"
+                  title="点击复制地址"
+                ></button>
+                <button id="giftFeedPreviewBtn" type="button" class="secondary">预览</button>
+              </div>
+            </div>
+            <div class="gift-display-actions">
+              <button class="primary" type="submit">保存滚动与样式设置</button
+              ><button id="giftDisplayDefaults" class="secondary" type="button">恢复默认</button
+              ><button id="giftDisplayCancel" class="secondary" type="button" hidden>取消修改</button>
+            </div>
+          </div>
+          <p id="giftDisplayError" role="alert"></p>
           <div class="gift-display-columns">
             <div class="gift-display-group">
               <div class="gift-display-group-head">
-                <h4>价格分色</h4>
+                <h4>价格分色（元） <lira-help label="价格分色说明">包含起始金额、不含结束金额；相邻区间自动衔接。</lira-help></h4>
               </div>
               <div class="gift-tier-inputs">
                 <div>
@@ -189,7 +159,6 @@
                   <input type="text" value="不限" readonly aria-label="橙金结束金额（元）" />
                 </div>
               </div>
-              <p class="hint">金额单位为元。包含起始金额、不含结束金额；相邻区间自动衔接。</p>
               <div class="gift-display-preview">
                 <div id="giftStylePreview" class="gift-banner-stage" role="img" aria-label="礼物词条四色样式预览"></div>
               </div>
@@ -198,92 +167,74 @@
               <div class="gift-display-group-head">
                 <h4>本日礼物循环</h4>
               </div>
-              <label>显示行数<input id="giftFeedRows" type="number" min="1" max="10" required /></label>
-              <label
-                >滚动速率（1–50）<input id="giftFeedSpeed" type="number" min="1" max="50" step="1" required
-              /></label>
-              <label>
-                <span>
-                  <span id="giftFeedMinAmountLabel">最小礼物金额（元）</span>
-                  <lira-help label="最小礼物金额说明" tooltip-id="giftFeedMinAmountHint">
-                    按同一人当天同款礼物的累计金额筛选，只显示大于输入金额的礼物。例如输入 1 元，累计 1 元不显示。0 表示不限制，最多支持 1 位小数。
-                  </lira-help>
-                </span>
-                <input
-                  id="giftFeedMinAmount"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  required
-                  aria-labelledby="giftFeedMinAmountLabel"
-                  aria-describedby="giftFeedMinAmountHint"
-                />
-              </label>
-              <div class="gift-feed-source">
-                <label for="giftFeedUrl">浏览器源</label>
-                <div class="gift-directory-actions">
-                  <button
-                    id="giftFeedUrl"
-                    type="button"
-                    class="secondary"
-                    aria-label="复制滚动礼物浏览器源地址"
-                    title="点击复制地址"
-                  ></button>
-                  <button id="giftFeedPreviewBtn" type="button" class="secondary">预览</button>
-                </div>
+              <div class="gift-feed-fields">
+                <label>显示行数<input id="giftFeedRows" type="number" min="1" max="10" required /></label>
+                <label
+                  >滚动速率（1–50）<input id="giftFeedSpeed" type="number" min="1" max="50" step="1" required
+                /></label>
+                <label>
+                  <span>
+                    <span id="giftFeedMinAmountLabel">最小礼物金额（元）</span>
+                    <lira-help label="最小礼物金额说明" tooltip-id="giftFeedMinAmountHint">
+                      按同一人当天同款礼物的累计金额筛选，只显示大于输入金额的礼物。例如输入 1 元，累计 1 元不显示。0 表示不限制，最多支持 1 位小数。
+                    </lira-help>
+                  </span>
+                  <input
+                    id="giftFeedMinAmount"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    required
+                    aria-labelledby="giftFeedMinAmountLabel"
+                    aria-describedby="giftFeedMinAmountHint"
+                  />
+                </label>
               </div>
             </div>
-          </div>
-          <p id="giftDisplayError" role="alert"></p>
-          <div class="gift-display-actions">
-            <button class="primary" type="submit">保存滚动与样式设置</button
-            ><button id="giftDisplayDefaults" class="secondary" type="button">恢复默认</button
-            ><button id="giftDisplayCancel" class="secondary" type="button" hidden>取消修改</button>
           </div>
         </fieldset>
       </form>
     </section>
+  </div>
+</section>
+<section id="giftWishesFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="giftAssistantWishesTab" data-other-feature-panel hidden>
+  <div class="other-feature-panel-body stack gift-assistant">
     <!-- admin-fragment: pages/admin/toolbox/gift-wishes.html -->
+  </div>
+</section>
+<section id="guardThanksFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="giftAssistantGuardTab" data-other-feature-panel hidden>
+  <div class="other-feature-panel-body stack gift-assistant">
     <section
       id="guardThanksPanel"
       class="guard-thanks-panel"
       data-gift-feature="guard"
-      role="tabpanel"
-      aria-labelledby="giftAssistantGuardTab"
-      hidden
     >
-      <p class="guard-thanks-intro">开通或续费大航海时播放，多款启用时依次播放。
-        <lira-help>舰长、提督、总督各有专属配色与动效。预览使用示例数据，直播仅在上舰时触发；在画布中添加大航海感谢组件并保存后显示。</lira-help>
-      </p>
       <section class="guard-thanks-card" data-guard-thanks-style="aurora" aria-labelledby="guardThanksAuroraTitle">
-        <header class="guard-thanks-heading">
-          <div><h3 id="guardThanksAuroraTitle" class="ui-section-title">辉光</h3><p>显示等级和月数，不显示头像与昵称。</p></div>
-          <label class="guard-thanks-switch switch-control">
-            <input id="guardThanksAuroraEnabled" type="checkbox" aria-label="启用辉光" />
-            <span class="switch-track"></span><span>启用</span>
-          </label>
+        <header class="guard-thanks-heading component-toolbar">
+          <h3 id="guardThanksAuroraTitle" class="ui-section-title">辉光 <lira-help label="辉光样式说明">显示等级和月数，不显示头像与昵称。舰长、提督、总督各有专属配色与动效。</lira-help></h3>
+          <div class="component-toolbar-group">
+            <label class="guard-thanks-switch switch-control">
+              <input id="guardThanksAuroraEnabled" type="checkbox" aria-label="启用辉光" />
+              <span class="switch-track"></span><span>启用 <lira-help label="大航海感谢触发说明">开通或续费大航海时触发，多款启用时依次播放。在画布中添加大航海感谢组件并保存后显示；预览使用示例数据。</lira-help></span>
+            </label>
+            <label class="component-inline-field"><span>动画文字</span>
+              <select id="guardThanksAuroraTextMode" data-dropdown-variant="settings">
+                <option value="bilingual">中英双语</option><option value="zh">中文</option><option value="en">英文</option>
+              </select>
+            </label>
+            <button id="guardThanksAuroraSaveBtn" class="primary" type="button">保存设置</button>
+          </div>
         </header>
         <div class="guard-thanks-controls">
-          <section aria-labelledby="guardThanksAuroraSettingsTitle">
-            <h4 id="guardThanksAuroraSettingsTitle">动画设置</h4>
-            <div class="guard-thanks-settings-grid">
-              <label><span>动画文字</span>
-                <select id="guardThanksAuroraTextMode" data-dropdown-variant="settings">
-                  <option value="bilingual">中英双语</option><option value="zh">中文</option><option value="en">英文</option>
-                </select>
-              </label>
-              <button id="guardThanksAuroraSaveBtn" class="primary" type="button">保存设置</button>
-            </div>
-          </section>
           <section class="guard-thanks-preview" aria-labelledby="guardThanksAuroraPreviewTitle">
             <h4 id="guardThanksAuroraPreviewTitle">模拟预览</h4>
             <div class="guard-thanks-preview-grid">
-              <label><span>等级</span>
+              <label class="component-inline-field"><span>等级</span>
                 <select id="guardThanksAuroraPreviewTier" data-dropdown-variant="settings">
                   <option value="captain">舰长</option><option value="admiral">提督</option><option value="governor">总督</option>
                 </select>
               </label>
-              <label><span>月数</span><input id="guardThanksAuroraPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
+              <label class="component-inline-field"><span>月数</span><input id="guardThanksAuroraPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
               <button id="guardThanksAuroraPlayBtn" class="secondary" type="button">预览</button>
             </div>
           </section>
@@ -291,35 +242,32 @@
         <p id="guardThanksAuroraSaveState" class="hint guard-thanks-status" role="status" aria-live="polite"></p>
       </section>
       <section class="guard-thanks-card" data-guard-thanks-style="classic" aria-labelledby="guardThanksClassicTitle">
-        <header class="guard-thanks-heading">
-          <div><h3 id="guardThanksClassicTitle" class="ui-section-title">经典 · 徽章</h3><p>显示头像、昵称和月数。</p></div>
-          <label class="guard-thanks-switch switch-control">
-            <input id="guardThanksClassicEnabled" type="checkbox" aria-label="启用经典 · 徽章" />
-            <span class="switch-track"></span><span>启用</span>
-          </label>
+        <header class="guard-thanks-heading component-toolbar">
+          <h3 id="guardThanksClassicTitle" class="ui-section-title">经典 · 徽章 <lira-help label="经典徽章样式说明">显示头像、昵称和月数。</lira-help></h3>
+          <div class="component-toolbar-group">
+            <label class="guard-thanks-switch switch-control">
+              <input id="guardThanksClassicEnabled" type="checkbox" aria-label="启用经典 · 徽章" />
+              <span class="switch-track"></span><span>启用</span>
+            </label>
+            <label class="component-inline-field"><span>动画文字</span>
+              <select id="guardThanksClassicTextMode" data-dropdown-variant="settings">
+                <option value="bilingual">中英双语</option><option value="zh">中文</option><option value="en">英文</option>
+              </select>
+            </label>
+            <button id="guardThanksClassicSaveBtn" class="primary" type="button">保存设置</button>
+          </div>
         </header>
         <div class="guard-thanks-controls">
-          <section aria-labelledby="guardThanksClassicSettingsTitle">
-            <h4 id="guardThanksClassicSettingsTitle">动画设置</h4>
-            <div class="guard-thanks-settings-grid">
-              <label><span>动画文字</span>
-                <select id="guardThanksClassicTextMode" data-dropdown-variant="settings">
-                  <option value="bilingual">中英双语</option><option value="zh">中文</option><option value="en">英文</option>
-                </select>
-              </label>
-              <button id="guardThanksClassicSaveBtn" class="primary" type="button">保存设置</button>
-            </div>
-          </section>
           <section class="guard-thanks-preview" aria-labelledby="guardThanksClassicPreviewTitle">
             <h4 id="guardThanksClassicPreviewTitle">模拟预览</h4>
             <div class="guard-thanks-preview-grid">
-              <label><span>等级</span>
+              <label class="component-inline-field"><span>等级</span>
                 <select id="guardThanksClassicPreviewTier" data-dropdown-variant="settings">
                   <option value="captain">舰长</option><option value="admiral">提督</option><option value="governor">总督</option>
                 </select>
               </label>
-              <label><span>观众</span><input id="guardThanksClassicPreviewUser" type="text" value="观众A" maxlength="100" /></label>
-              <label><span>月数</span><input id="guardThanksClassicPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
+              <label class="component-inline-field"><span>观众</span><input id="guardThanksClassicPreviewUser" type="text" value="观众A" maxlength="100" /></label>
+              <label class="component-inline-field"><span>月数</span><input id="guardThanksClassicPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
               <button id="guardThanksClassicPlayBtn" class="secondary" type="button">预览</button>
             </div>
           </section>
@@ -329,7 +277,6 @@
       <section id="guardThanksStyleLibrary" class="guard-thanks-more" aria-labelledby="guardThanksMoreTitle">
         <div class="component-subsection-heading">
           <h3 id="guardThanksMoreTitle" class="ui-section-title">更多样式 <lira-help label="更多样式说明">航海旗帜可独立启用；图片、视频样式沿用上方的启用设置。</lira-help></h3>
-          <div class="component-heading-actions" data-style-library-actions></div>
         </div>
       </section>
     </section>

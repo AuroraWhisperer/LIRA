@@ -9,12 +9,12 @@
         </button>
         <button
           id="otherGiftFeatureTab"
-          class="other-feature-button"
+          class="other-feature-button live-component-group"
           type="button"
-          role="tab"
-          aria-selected="false"
-          aria-controls="otherGiftFeature"
-          data-other-feature="otherGiftFeature"
+          aria-expanded="true"
+          aria-controls="giftAssistantNavigation"
+          aria-label="收起礼物姬"
+          data-other-feature-group="gifts"
         >
           <span class="other-feature-icon" aria-hidden="true"
             ><svg viewBox="0 0 24 24" fill="none">
@@ -34,7 +34,28 @@
           <span class="other-feature-label">
             <strong>礼物姬</strong>
           </span>
+          <svg class="other-feature-group-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
+        <div id="giftAssistantNavigation" class="live-component-submenu" data-other-feature-submenu role="presentation">
+          <button id="giftAssistantFrameTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="otherGiftFeature" data-other-feature="otherGiftFeature" data-gift-tab="frame" tabindex="-1">
+            <span class="other-feature-label"><strong>全屏礼物感谢</strong></span>
+          </button>
+          <button id="giftAssistantDisplayTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="giftDisplayFeature" data-other-feature="giftDisplayFeature" data-gift-tab="display" tabindex="-1">
+            <span class="other-feature-label"><strong>滚动礼物</strong></span>
+          </button>
+          <button id="giftAssistantWishesTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="giftWishesFeature" data-other-feature="giftWishesFeature" data-gift-tab="wishes" tabindex="-1">
+            <span class="other-feature-label"><strong>礼物许愿</strong></span>
+          </button>
+          <button id="giftAssistantSprintTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="giftSprintFeature" data-other-feature="giftSprintFeature" data-gift-tab="sprint" tabindex="-1">
+            <span class="other-feature-label"><strong>月底冲刺</strong></span>
+          </button>
+          <button id="giftAssistantBlindboxTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="giftBlindboxFeature" data-other-feature="giftBlindboxFeature" data-gift-tab="blindbox" tabindex="-1">
+            <span class="other-feature-label"><strong>盲盒盈亏榜</strong></span>
+          </button>
+          <button id="giftAssistantGuardTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="guardThanksFeature" data-other-feature="guardThanksFeature" data-gift-tab="guard" tabindex="-1">
+            <span class="other-feature-label"><strong>大航海感谢</strong></span>
+          </button>
+        </div>
         <button
           id="otherTextBoxFeatureTab"
           class="other-feature-button"
@@ -134,6 +155,10 @@
         </button>
       </nav>
       <div class="live-components-help">
+        <button id="componentLibraryManage" class="secondary" type="button" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7h7l2 2h9v10H3V7Zm0 0V5h7l2 2h7v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          素材管理
+        </button>
         <button class="secondary" type="button" data-main-page-link="otherAssistantPage">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .6-1.5 1.1-1.5 2.5M12 17h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           使用指南
@@ -143,6 +168,8 @@
     <div class="other-feature-content">
       <!-- admin-fragment: pages/admin/live-components/danmaku.html -->
       <!-- admin-fragment: pages/admin/toolbox/gift.html -->
+      <!-- admin-fragment: pages/admin/live-components/gift-sprint.html -->
+      <!-- admin-fragment: pages/admin/live-components/blindbox.html -->
       <!-- admin-fragment: pages/admin/toolbox/text-box.html -->
       <!-- admin-fragment: pages/admin/toolbox/overtime.html -->
       <!-- admin-fragment: pages/admin/toolbox/start-animation.html -->

@@ -50,6 +50,8 @@ test('archived detail exposes one restore action outside more while current deta
   const profile = f.detail(f.create().id);
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const current = view.renderDetail(profile);
+  assert.equal(actionTags(current, 'suppress').length, 1);
+  assert.equal(actionTags(view.renderDetail({ ...profile, identity: null }), 'suppress').length, 0);
   assert.equal(actionTags(current, 'archive').length, 1);
   const archived = view.renderDetail({ ...profile, archived: true });
   assert.equal(actionTags(archived, 'archive').length, 1);
@@ -118,6 +120,9 @@ test('people names escape aliases and omit missing or duplicate platform names',
 test('daily update settings default off and return the selected value with the timing explanation', async () => {
   const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'));
   const description = forms.settingsForm({});
+  assert.match(description.fields, /<lira-help label="日历自动提示说明">/);
+  assert.match(description.fields, /目标日前 3 天/);
+  assert.match(description.fields, /修改或清除日期会自动更新/);
   assert.match(description.fields, /12:10/);
   assert.doesNotMatch(description.fields, /name="autoSyncGuardRoster"[^>]*checked/);
   assert.match(forms.settingsForm({ autoSyncGuardRoster: true }).fields, /name="autoSyncGuardRoster"[^>]*checked/);
@@ -126,10 +131,29 @@ test('daily update settings default off and return the selected value with the t
       autoUpdate: { checked: true },
       autoCreate: { checked: false },
       autoSyncGuardRoster: { checked: true },
+      accompanyMilestones: { value: '100, 365，500 1000' },
+      showAccompanyInCalendar: { checked: true },
     },
   });
   assert.equal(values.autoSyncGuardRoster, true);
   assert.equal(values.autoCreate, false);
+  assert.deepEqual(Array.from(values.accompanyMilestones), [100, 365, 500, 1000]);
+  assert.equal(values.showAccompanyInCalendar, true);
+});
+
+test('fan detail renders platform companion days independently of unknown local duration', async (t) => {
+  const f = fanFixture(t);
+  f.service.importGuardRoster(SCOPE, {
+    roomId: '1234', ownerUid: '99', observedAt: NOW, skipped: 0,
+    members: [{ uid: IDENTITY.value, name: '测试粉丝', level: 3, accompanyDays: 499 }],
+  });
+  const profile = f.run('find', { identity: IDENTITY });
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const rendered = view.renderDetail(profile, 'membership');
+  assert.match(rendered, /B 站陪伴天数/);
+  assert.match(rendered, /499 天/);
+  assert.match(rendered, /累计在舰<\/dt><dd>未知/);
+  assert.doesNotMatch(view.renderDetail({ ...profile, guardAccompany: null }, 'membership'), /499 天/);
 });
 
 test('global fan update polling shows scheduled and startup toasts, errors, and stops after pagehide', async () => {

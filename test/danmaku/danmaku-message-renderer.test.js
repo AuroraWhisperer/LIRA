@@ -54,7 +54,7 @@ test('prismatic colors belong to individual events and remain stable after recon
   assert.equal(recipes.size, 100);
 });
 
-test('prismatic preserves stickers, hides single gift quantity, and uses settled totals and classic SC', async () => {
+test('prismatic preserves stickers, hides single gift quantity, and uses settled totals', async () => {
   const render = await createRenderer({ style: 'prismatic' });
   for (const roomGuardLevel of [0, 1, 2, 3, undefined]) {
     const item = { name: '观众', roomGuardLevel, message: '打call', emotes: [{ text: '打call', url: '/sticker.png', kind: 'sticker' }] };
@@ -72,7 +72,44 @@ test('prismatic preserves stickers, hides single gift quantity, and uses settled
     assert.equal(findAllByClass(root, 'draw-danmaku-gift-count').length, giftCount > 1 ? 1 : 0);
     assert.equal(findAllByClass(root, 'prismatic-honor').length, 1);
   }
-  assert.ok(findByClass(render({ kind: 'superchat', message: 'SC原文', name: '留言人', price: 30 }), 'sc-ranked'));
+});
+
+test('prismatic guard thanks uses purchased ranks and actual companion days with honest missing-data fallbacks', async () => {
+  const render = await createRenderer({ style: 'prismatic' });
+  for (const [giftGuardLevel, role] of [[3, '舰长'], [2, '提督'], [1, '总督']]) {
+    for (const [guardAction, action] of [['open', '开通'], ['renew', '续费'], [undefined, '感谢支持']]) {
+      const item = { kind: 'gift', giftGuardLevel, guardAction, name: '<b>送礼人</b>', guardAccompanyDays: 360 };
+      const root = render(item);
+      assert.equal(root.dataset.guard, String(giftGuardLevel));
+      assert.equal(findAllByClass(root, 'draw-danmaku-avatar').length, 1);
+      assert.equal(findByClass(root, 'prismatic-guard-name').textContent, item.name);
+      assert.equal(findByClass(root, 'prismatic-guard-copy').textContent, `${action}${role}，已陪伴主播 360 天`);
+      assert.equal(findByClass(root, 'draw-danmaku-gift-copy'), undefined);
+      for (const guardAccompanyDays of [undefined, -1, '360', NaN]) {
+        assert.equal(findByClass(render({ ...item, guardAccompanyDays }), 'prismatic-guard-copy').textContent, `${action}${role}`);
+      }
+    }
+  }
+  assert.equal(findByClass(render({ kind: 'gift', guardLevel: 3, giftName: '小花花' }), 'prismatic-guard-card'), undefined);
+  const guardGift = { kind: 'gift', giftGuardLevel: 3, giftCount: 3 };
+  for (const [giftTotalPrice, expected] of [[138, '138'], [19998.5, '19,998.5'], [0, '0']]) {
+    assert.equal(findByClass(render({ ...guardGift, giftTotalPrice }), 'prismatic-guard-amount').textContent, expected);
+  }
+  for (const giftTotalPrice of [undefined, -1, '138', NaN, Infinity]) {
+    assert.equal(findByClass(render({ ...guardGift, giftTotalPrice }), 'prismatic-guard-amount'), undefined);
+  }
+});
+
+test('prismatic SC retains exact original, sender and amount in its two-row card', async () => {
+  const render = await createRenderer({ style: 'prismatic' });
+  const message = '  <b>原文</b>\n第二行  ';
+  const root = render({ kind: 'superchat', message, name: '留言人', price: 50.5 });
+  assert.ok(findByClass(root, 'sc-prismatic'));
+  assert.equal(findByClass(root, 'sc-name').textContent, '留言人');
+  assert.equal(findByClass(root, 'sc-copy').textContent, message);
+  assert.equal(findByClass(root, 'sc-currency').textContent, 'CN¥');
+  assert.equal(findByClass(root, 'sc-value').textContent, '50.5');
+  assert.equal(findByClass(root, 'sc-avatar'), undefined);
 });
 
 test('SC uses exact Bilibili tier colors with 2-yuan fallback and validated upstream overrides', async () => {

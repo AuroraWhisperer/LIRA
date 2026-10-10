@@ -94,15 +94,15 @@ export function createFanTransferUi({ request, openForm, getProfile, onProfile, 
   async function suppressions() {
     const items = await request('suppression-list');
     if (!items.length) {
-      toast('没有停止自动建档的粉丝。');
+      toast('黑名单为空。');
       return;
     }
     openForm(
       {
-        title: '恢复自动建档',
-        saveLabel: '移出排除名单',
-        hint: '移出后，下次同步到这位粉丝的上舰记录时，可重新建立档案。',
-        fields: `<label class="fan-field fan-field-wide">粉丝账号<select name="identity">${items.map((p, index) => `<option value="${index}">${p.identity[1] === 'uid' ? 'UID' : 'B 站账号'} ${html(p.identity[2])}</option>`).join('')}</select></label><label class="fan-check"><input name="confirm" type="checkbox" required />允许再次自动建档</label>`,
+        title: '粉丝黑名单',
+        saveLabel: '解除屏蔽',
+        hint: '解除后，保留的档案会恢复显示，并允许后续记录和提醒。已永久删除的资料不会找回。',
+        fields: `<label class="fan-field fan-field-wide">粉丝账号<select name="identity">${items.map((p, index) => `<option value="${index}">${p.name ? `${html(p.name)} · ` : ''}${p.identity[1] === 'uid' ? 'UID' : 'B 站账号'} ${html(p.identity[2])}</option>`).join('')}</select></label><label class="fan-check"><input name="confirm" type="checkbox" required />确认解除屏蔽</label>`,
         read: (value) => {
           const [platform, type, id] = items[Number(value.elements.identity.value)].identity;
           return {
@@ -113,6 +113,8 @@ export function createFanTransferUi({ request, openForm, getProfile, onProfile, 
       },
       async (payload) => {
         await request('unsuppress', payload);
+        await onReset();
+        toast('已解除屏蔽。');
       },
     );
   }

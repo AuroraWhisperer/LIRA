@@ -13,6 +13,7 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     fontFamily: byId('previewFontFamily'), fontSize: byId('previewFontSize'),
     textColor: byId('previewTextColor'), backgroundOpacity: byId('previewBackgroundOpacity'),
     giftImage: byId('previewGiftImage'), scrollDirection: byId('previewScrollDirection'),
+    edgeFade: byId('previewEdgeFade'),
     speedPixelsPerSecond: byId('previewSpeedPixelsPerSecond'),
     centerBias: byId('previewCenterBias'), dispersion: byId('previewDispersion'),
   };
@@ -66,6 +67,7 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     byId('previewBackgroundField').hidden = !limits.background;
     byId('previewGiftField').hidden = !limits.giftImage;
     byId('previewDirectionField').hidden = !limits.scrollDirection;
+    byId('previewEdgeFadeField').hidden = !limits.scrollDirection;
     byId('previewSpeedField').hidden = !limits.speed;
     byId('previewDurationField').hidden = !isRandomDanmakuStyle(draft.style);
     byId('previewCenterBiasField').hidden = !isRandomDanmakuStyle(draft.style);

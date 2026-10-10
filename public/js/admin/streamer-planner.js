@@ -14,6 +14,7 @@ import {
 } from './streamer-planner-model.js';
 import { createPlannerStorage } from './streamer-planner-storage.js';
 import { createPlannerReminderSync } from './streamer-planner-reminders.js';
+import { createFanCalendar } from './fans/calendar.js';
 import { dangerConfirm, showConfirmationDialog } from '../shared/confirmation-dialog.js';
 import { toast } from '../shared/toast.js';
 
@@ -43,6 +44,7 @@ export const todo = (() => {
   });
 
   const byId = (id) => document.getElementById(id);
+  let fanCalendar;
 
   function storeState() {
     if (storage.write(moduleState.planner)) void reminders.sync(moduleState.planner.events);
@@ -208,8 +210,9 @@ export const todo = (() => {
   }
 
   function viewSnapshot() {
+    const planner = getState();
     return {
-      planner: getState(),
+      planner: { ...planner, events: [...planner.events, ...(fanCalendar?.getEvents() || [])] },
       month: moduleState.month,
       selectedDate: moduleState.selectedDate,
       taskFilter: moduleState.taskFilter,
@@ -454,6 +457,20 @@ export const todo = (() => {
         control.disabled = true;
       });
     moduleState.initialized = true;
+    const panel = byId('otherDailyTodoFeature');
+    fanCalendar = createFanCalendar({
+      isVisible: () => !panel.hidden,
+      onChange: () => {
+        renderTodoCalendar(viewSnapshot());
+        renderTodoAgenda(viewSnapshot());
+      },
+    });
+    const observer = new MutationObserver(() => {
+      if (!panel.hidden) void fanCalendar.refresh();
+    });
+    observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+    window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
+    void fanCalendar.refresh();
   }
 
   return {

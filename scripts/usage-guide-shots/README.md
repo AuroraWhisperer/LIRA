@@ -1,6 +1,6 @@
 # 使用文档截图管线（usage-guide-shots）
 
-按 `specs/plans/2026-09-22-usage-guide-supplement.md` 第六章的清单，在隔离环境中生成截图。本文档当前内嵌的图片与状态说明见方案附录 D、E。
+在隔离环境中为客户端正式使用手册生成截图。当前采用的图片由 `public/pages/admin/toolbox/usage-guide*.html` 的引用确定，文件位于 `public/img/usage-guide/`；`docs/images/usage-guide/` 是历史候选图库。剩余操作证据见[手册验收清单](../../specs/plans/2026-09-22-usage-guide-supplement.md)。
 
 ## 用法
 
@@ -89,7 +89,7 @@ for (const shot of webShots.SHOTS.filter((item) => item.local)) {
 
 客户端镜头优先在 `supplement.cjs` 的 `SHOTS` 中追加，按附近条目的 `feature` / `tab` / `clip` / `setup` 写法操作真实界面。
 
-早期浏览器工具在 `manifest.js` 的 `SHOTS` 里加一项：`id`（对齐方案 6.3 编号）、`file`（kebab-case 文件名）、
+早期浏览器工具在 `manifest.js` 的 `SHOTS` 里加一项：`id`（沿用现有分组编号）、`file`（kebab-case 文件名）、
 `type`、`viewport`、`waitFor`（数据就绪选择器）、`setup`（切页/开弹窗）、
 `annotations`（标注元素 + 序号）、`covers`（脱敏遮盖）。然后 `capture.cjs --only=<id>` 验证。
 
@@ -97,4 +97,4 @@ for (const shot of webShots.SHOTS.filter((item) => item.local)) {
 
 - Electron 截图环境使用随机空闲端口，不操作用户正在运行的实例。旧工具需传 `--port=0` 避免与常用端口冲突。
 - 示例数据全部合成（示例主播 / 房间号 123456 / 观众A·B·C·D），不读取本机真实 `data/`。
-- 最新截图状态以方案附录 D 为准；旧 `manifest.js` 的 `skip` 仅表示早期工具的覆盖范围。
+- 替换图片时同步核对正式手册的入口、文案和示例状态；历史候选图和旧 `manifest.js` 的 `skip` 不代表当前手册的覆盖范围。实际操作或真实服务是否已验收，以手册验收清单中的证据为准。

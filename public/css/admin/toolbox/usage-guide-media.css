@@ -1,9 +1,9 @@
 .usage-guide-image {
   display: block;
-  width: auto;
+  width: var(--usage-guide-image-width, auto);
   max-width: min(100%, 960px);
   height: auto;
-  max-height: 320px;
+  max-height: none;
   margin-top: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -90,8 +90,9 @@
 .usage-guide-figure figcaption {
   margin-top: 8px;
   color: var(--muted);
-  font-size: var(--type-size-caption);
-  line-height: 1.65;
+  max-width: 49em;
+  font-size: 13px;
+  line-height: 21px;
   overflow-wrap: anywhere;
 }
 

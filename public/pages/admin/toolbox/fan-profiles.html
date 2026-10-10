@@ -86,7 +86,7 @@
         <div class="fan-setting-row">
           <div>
             <h4>同步大航海名单</h4>
-            <p class="fan-muted">为当前大航海成员建档，更新昵称、头像和等级。</p>
+            <p class="fan-muted">为当前大航海成员建档，更新昵称、头像、等级和陪伴天数。</p>
           </div>
           <button type="button" data-fan-action="guard-roster">同步名单</button>
         </div>
@@ -140,16 +140,16 @@
         <h3 id="fanSettingsProfilesTitle">档案管理</h3>
         <div class="fan-setting-row">
           <div>
-            <h4>不再自动建档的粉丝</h4>
-            <p class="fan-muted">管理删除档案时停止自动建档的粉丝，可在这里恢复自动建档。</p>
+            <h4>粉丝黑名单 <lira-help label="粉丝黑名单说明">按绑定的 B 站账号屏蔽，昵称变化仍生效。该粉丝的档案、手记、点歌及上舰记录、提醒、日历提示和表格导出都会隐藏，也停止自动建档和记录更新。资料保留在本机与完整备份中，解除屏蔽后按原状态回到当前或已归档列表。仅作用于当前账号的粉丝档案，不影响原始礼物账本和点歌队列。</lira-help></h4>
+            <p class="fan-muted">在档案「更多」中加入黑名单；在这里解除屏蔽。</p>
           </div>
-          <button type="button" data-fan-action="suppressions">管理排除名单</button>
+          <button type="button" data-fan-action="suppressions">管理黑名单</button>
         </div>
         <div class="fan-setting-row">
           <div>
             <h4>清除全部档案</h4>
             <p class="fan-muted">
-              永久删除当前账号的全部档案、手记与提醒状态。原始礼物账本、排除名单和档案设置会保留，后续同步仍可重新建档。
+              永久删除当前账号的全部档案、手记与提醒状态。原始礼物账本、黑名单和档案设置会保留，未屏蔽的粉丝后续同步仍可重新建档。
             </p>
           </div>
           <button type="button" class="danger" data-fan-action="delete-all">清除全部档案</button>

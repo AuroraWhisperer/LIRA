@@ -297,6 +297,16 @@ test('license disposal failure is logged without preventing restart termination'
   assert.equal(h.logs.filter((log) => log.scope === 'shutdown-error').length, 1);
 });
 
+test('request-auth disposal failure cannot defeat the forced shutdown deadline', async () => {
+  const h = createShutdownHarness();
+  await h.start();
+  h.state.lifecycle.requestAuth = { dispose() { throw new Error('request auth disposal failed'); } };
+  h.quit();
+  assert.doesNotThrow(() => h.clock.advance(5000));
+  assertFinalized(h, false);
+  assert.equal(h.logs.filter((log) => log.scope === 'shutdown-error').length, 1);
+});
+
 test('quit before runtime initialization preserves Electron default exit', () => {
   const h = createShutdownHarness();
   assert.equal(h.quit().defaultPrevented, false);

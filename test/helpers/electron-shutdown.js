@@ -98,7 +98,7 @@ function createShutdownHarness(options = {}) {
     releaseSingleInstanceLock: () => calls.push('app:release-lock'),
     relaunch: () => calls.push('app:relaunch'),
     exit(code) {
-      assert.equal(code, options.recoveryDataDir || options.migrationError ? 1 : 0);
+      assert.equal(code, options.expectedExitCode ?? (options.recoveryDataDir || options.migrationError ? 1 : 0));
       state.window.main?.destroy();
       calls.push('app:exit');
     },
@@ -207,7 +207,10 @@ function createShutdownHarness(options = {}) {
       app,
       BrowserWindow: FakeWindow,
       dialog: {
-        showErrorBox: (_title, message) => startupErrors.push(message),
+        showErrorBox: (_title, message) => {
+          startupErrors.push(message);
+          if (options.startupReportError) throw options.startupReportError;
+        },
       },
       ipcMain: {
         removeHandler: (channel) => handlers.delete(channel),

@@ -52,10 +52,16 @@ const liveComponentsNavigation = createFeatureNavigation({
   pageId: 'liveComponentsPage',
   storagePrefix: 'admin.liveComponents',
 });
+const loadGiftAssistant = () => import('./gift-assistant.js').then((module) => module.initGiftAssistant);
 const liveComponents = createToolboxLifecycle({
   ownerPageId: 'liveComponentsPage',
   loaders: {
-    otherGiftFeature: () => import('./gift-assistant.js').then((module) => module.initGiftAssistant),
+    otherGiftFeature: loadGiftAssistant,
+    giftDisplayFeature: loadGiftAssistant,
+    giftWishesFeature: loadGiftAssistant,
+    giftSprintFeature: loadGiftAssistant,
+    giftBlindboxFeature: loadGiftAssistant,
+    guardThanksFeature: loadGiftAssistant,
     otherStartAnimationFeature: () => import('./start-animation.js').then((module) => module.initStartAnimation),
     otherClockFeature: () => import('./clock-card.js').then((module) => module.initClockCard),
     otherTextBoxFeature: () => import('./text-box.js').then((module) => module.initTextBoxes),
@@ -150,7 +156,7 @@ async function initializeApp() {
   window.addEventListener('beforeunload', () => dynamicLottery.dispose(), {
     once: true,
   });
-  initUsageGuide();
+  const transitionGuideSidebar = initUsageGuide();
 
   // 初始化交互式引导（替代旧的对话框引导）
   const interactiveTour = initInteractiveTour({ toast: Utils.toast });
@@ -158,6 +164,7 @@ async function initializeApp() {
 
   // 初始化「百宝箱」页面的通用功能导航
   other.initOtherPage({
+    transitionSidebar: transitionGuideSidebar,
     onFeatureSelected: toolbox.selectFeature,
     onNavigate: setMainPage,
     danmakuTool,

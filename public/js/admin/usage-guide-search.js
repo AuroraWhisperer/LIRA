@@ -9,17 +9,19 @@ function buildSearchIndex(panel) {
       /^\d+\s*/,
       '',
     );
-    const targets = [section, ...section.querySelectorAll('article, details, .usage-guide-steps > li')];
+    const targets = [
+      section,
+      ...section.querySelectorAll(':scope > p, :scope > h4, article, details, .usage-guide-steps > li'),
+    ];
     return targets.map((target) => {
-      const heading = target === section ? null : target.querySelector('.usage-guide-feature-head strong, strong');
-      const title = heading ? normalizeText(heading.textContent) : sectionTitle;
-      const body =
+      const heading =
         target === section
-          ? Array.from(section.children)
-              .filter((child) => child.matches('p, h4'))
-              .map((child) => child.textContent)
-              .join(' ')
-          : target.textContent;
+          ? null
+          : target.matches('h4')
+            ? target
+            : target.querySelector('.usage-guide-feature-head strong, strong');
+      const title = heading ? normalizeText(heading.textContent) : sectionTitle;
+      const body = target === section ? '' : target.textContent;
       let text = normalizeText(body);
       if (text.startsWith(title)) text = text.slice(title.length).trim();
       return { target, sectionId: section.id, sectionTitle, title, text };
@@ -134,9 +136,12 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
         button.append(snippet);
       }
       button.addEventListener('click', () => {
-        if (entry.target.matches('details')) entry.target.open = true;
         const highlights = highlightTarget(entry.target, terms);
-        navigateToTarget(entry.target, entry.sectionId, true, () => {
+        const destination = highlights[0] || entry.target;
+        for (let details = destination.closest('details'); details; details = details.parentElement.closest('details')) {
+          details.open = true;
+        }
+        navigateToTarget(destination, entry.sectionId, true, () => {
           highlights.forEach((mark) => mark.classList.add('is-locating'));
         });
       });

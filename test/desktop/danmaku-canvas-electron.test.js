@@ -21,12 +21,17 @@ test('prismatic can be selected, saved, previewed and reopened through the deskt
   await desktop.waitForURL('**/admin', { waitUntil: 'load', timeout: 15000 });
   desktop.setDefaultTimeout(6000);
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  assert.equal(await desktop.locator('#danmakuEdgeFade').inputValue(), 'single');
   await desktop.locator('[data-danmaku-style="prismatic"]').click();
+  assert.equal(await desktop.locator('#danmakuEdgeFade').inputValue(), 'both');
+  await desktop.locator('#danmakuEdgeFade').selectOption('none');
   await desktop.getByRole('button', { name: '应用到直播画面', exact: true }).click();
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 柔彩气泡' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.saved().style), 'prismatic');
+  assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.prismatic.edgeFade), 'none');
   await desktop.reload();
   await desktop.locator('[data-danmaku-style="prismatic"][aria-pressed="true"]').waitFor();
+  assert.equal(await desktop.locator('#danmakuEdgeFade').inputValue(), 'none');
   await desktop.locator('#danmakuPreviewOverlayBtn').click();
   let url;
   for (let attempt = 0; attempt < 100 && !url; attempt++) {
@@ -43,12 +48,26 @@ test('prismatic can be selected, saved, previewed and reopened through the deskt
   const frame = page.locator('.component-preview-frame').contentFrame();
   await frame.locator('body[data-style="prismatic"] .draw-danmaku-item').first().waitFor();
   assert.equal(await page.locator('[data-preview-field="danmakuFontSize"]').inputValue(), '30');
+  const edgeFade = page.locator('[data-preview-field="danmakuEdgeFade"]');
+  assert.equal(await edgeFade.inputValue(), 'none');
+  assert.equal(await frame.locator('.draw-danmaku-feed').evaluate(node => getComputedStyle(node).maskImage), 'none');
+  await edgeFade.selectOption('single');
+  await frame.locator('body[data-edge-fade="single"]').waitFor();
+  await page.locator('[data-preview-field="danmakuResetParameters"]').click();
+  await frame.locator('body[data-edge-fade="both"]').waitFor();
+  assert.equal(await edgeFade.inputValue(), 'both');
+  assert.equal((await frame.locator('.draw-danmaku-feed').evaluate(node => getComputedStyle(node).maskImage))
+    .match(/rgba\(0, 0, 0, 0\)/g).length, 2);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 1);
   assert.equal(await app.evaluate(() => global.canvasTest.saved().style), 'prismatic');
   await page.reload();
   await frame.locator('body[data-style="prismatic"] .draw-danmaku-item').first().waitFor();
+  assert.equal(await edgeFade.inputValue(), 'both');
+  await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
+  await frame.locator('.draw-danmaku-item').nth(1).waitFor();
+  await page.screenshot({ path: path.join(root, 'danmaku-edge-fade-canvas.png') });
   assert.deepEqual(errors, []);
 });
 

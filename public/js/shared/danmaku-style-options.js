@@ -65,6 +65,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   prismatic: {
     scrollDirection: true,
+    defaultEdgeFade: 'both',
     label: '柔彩气泡',
     minFontSize: 18,
     maxFontSize: 48,
@@ -198,6 +199,8 @@ function normalizeStyleOptions(value) {
       else if (key === 'giftImage' && limits.giftImage && ['theme', 'gift'].includes(item)) normalized[key] = item;
       else if (key === 'scrollDirection' && limits.scrollDirection && ['up', 'down'].includes(item))
         normalized[key] = item;
+      else if (key === 'edgeFade' && limits.scrollDirection && ['both', 'single', 'none'].includes(item))
+        normalized[key] = item;
       else if (key === 'speedPixelsPerSecond' && limits.speed && Number.isInteger(item) && item >= 20 && item <= 600)
         normalized[key] = item;
       else if (['centerBias', 'dispersion'].includes(key) && limits.layout === 'fullscreen-random'
@@ -217,6 +220,8 @@ function styleOptionsFor(style, options = {}) {
     backgroundOpacity: 100,
     giftImage: 'theme',
     scrollDirection: 'up',
+    ...(DANMAKU_STYLE_OPTIONS[style]?.scrollDirection
+      ? { edgeFade: DANMAKU_STYLE_OPTIONS[style].defaultEdgeFade || 'single' } : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.layout === 'fullscreen-random' ? { centerBias: 1, dispersion: 1 } : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.speed ? { speedPixelsPerSecond: 120 } : {}),
   };
@@ -240,6 +245,7 @@ export function isFloatingDanmakuStyle(style) {
 export function applyStyleOptions(document, style, allOptions) {
   const options = styleOptionsFor(style, allOptions);
   document.body.dataset.scrollDirection = options.scrollDirection;
+  document.body.dataset.edgeFade = options.edgeFade || 'none';
   const root = document.documentElement.style;
   root.setProperty('--danmaku-text-color', options.textColor);
   document.body.dataset.customTextColor = String(options.textColor !== DANMAKU_STYLE_OPTIONS[style]?.defaultTextColor);

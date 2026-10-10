@@ -1,3 +1,62 @@
+/* 侧栏切换只过渡可见快照，正文一次排版，避免长文逐帧重排。 */
+.other-workspace.usage-guide-switching,
+.other-workspace.usage-guide-switching .usage-guide-main,
+.usage-guide-switching .usage-guide-toc-links,
+.usage-guide-switching .other-feature-sidebar * {
+  transition: none;
+}
+
+.usage-guide-switching .other-feature-sidebar {
+  view-transition-name: usage-guide-sidebar;
+}
+
+.usage-guide-switching #otherUsageGuideFeature {
+  view-transition-name: usage-guide-panel;
+}
+
+.other-workspace::view-transition-group(*),
+.other-workspace::view-transition-old(*),
+.other-workspace::view-transition-new(*) {
+  animation-duration: var(--other-sidebar-duration);
+  animation-timing-function: var(--other-sidebar-easing);
+}
+
+.other-workspace::view-transition-old(usage-guide-panel),
+.other-workspace::view-transition-new(usage-guide-panel),
+.other-workspace::view-transition-old(usage-guide-sidebar),
+.other-workspace::view-transition-new(usage-guide-sidebar) {
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+}
+
+.other-workspace::view-transition-image-pair(usage-guide-panel),
+.other-workspace::view-transition-image-pair(usage-guide-sidebar) {
+  overflow: clip;
+  border-radius: var(--radius-lg);
+}
+
+.other-workspace::view-transition-old(usage-guide-panel),
+.other-workspace::view-transition-old(usage-guide-sidebar) {
+  animation-name: usage-guide-layout-out;
+  mix-blend-mode: normal;
+}
+
+.other-workspace::view-transition-new(usage-guide-panel),
+.other-workspace::view-transition-new(usage-guide-sidebar) {
+  animation-name: usage-guide-layout-in;
+  mix-blend-mode: normal;
+}
+
+@keyframes usage-guide-layout-out {
+  40%, to { opacity: 0; }
+}
+
+@keyframes usage-guide-layout-in {
+  from, 25% { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* 顶部展开目录并为链接留出正文空间；滚动后收成一行，悬停时浮出。 */
 .usage-guide-toc + .usage-guide-main {
   margin-top: 0;
@@ -9,54 +68,170 @@
 }
 
 .usage-guide-toc {
+  --usage-guide-nav-bg: var(--color-help-surface, var(--surface-2));
+  --usage-guide-nav-text: var(--color-help-text, var(--text));
+  --usage-guide-nav-accent: var(--color-help-accent, var(--primary-strong));
+  --usage-guide-nav-border: var(--usage-guide-nav-accent);
   position: sticky;
   top: 8px;
   z-index: 6;
   display: grid;
   min-width: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--usage-guide-nav-border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
-  counter-reset: usage-guide-toc;
+  background: var(--usage-guide-nav-bg);
+  color: var(--usage-guide-nav-text);
   container-type: inline-size;
+}
+
+.usage-guide-toc-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(160px, 220px);
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding: 12px 16px;
 }
 
 .usage-guide-toc-toggle {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   width: 100%;
   min-width: 0;
-  min-height: 46px;
-  padding: 10px 16px;
-  border: 0;
-  border-radius: inherit;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--usage-guide-nav-accent);
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--muted);
+  color: inherit;
   box-shadow: none;
   text-align: left;
 }
 
 .usage-guide-toc-toggle:hover {
-  background: var(--color-bg-tertiary);
+  background: color-mix(in srgb, var(--usage-guide-nav-accent) 12%, var(--usage-guide-nav-bg));
   box-shadow: none;
 }
 
 .usage-guide-toc-label {
-  padding-right: 14px;
-  border-right: 1px solid var(--border);
   font-size: var(--type-size-caption);
   font-weight: 500;
 }
 
-.usage-guide-toc-current {
+.usage-guide-toc-location {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
   overflow: hidden;
-  color: var(--text);
-  font-size: var(--type-size-control);
-  font-weight: 600;
+}
+
+.usage-guide-toc-current,
+.usage-guide-toc-detail,
+.usage-guide-chapter-title {
+  display: block;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.usage-guide-toc-current {
+  font-size: var(--type-size-body);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.usage-guide-toc-detail,
+.usage-guide-reading-status,
+.usage-guide-chapter-label {
+  font-size: var(--type-size-caption);
+  line-height: 1.5;
+}
+
+.usage-guide-reading-status {
+  display: grid;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.usage-guide-reading-percent {
+  font-weight: 600;
+}
+
+.usage-guide-chapter-controls {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.usage-guide-chapter-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--usage-guide-nav-accent);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  text-align: left;
+}
+
+.usage-guide-chapter-controls button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--usage-guide-nav-accent) 12%, var(--usage-guide-nav-bg));
+}
+
+.usage-guide-chapter-controls button:disabled {
+  background: transparent;
+  color: inherit;
+  border-color: var(--usage-guide-nav-border);
+  opacity: 0.5;
+}
+
+.usage-guide-chapter-controls svg {
+  flex: 0 0 auto;
+}
+
+.usage-guide-chapter-next {
+  flex: 1;
+}
+
+.usage-guide-chapter-next > span {
+  min-width: 0;
+}
+
+.usage-guide-chapter-label {
+  display: block;
+  font-weight: 400;
+}
+
+.usage-guide-chapter-title {
+  font-size: var(--type-size-control);
+  font-weight: 600;
+}
+
+.usage-guide-reading-track {
+  height: 3px;
+  margin: 0 12px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--usage-guide-nav-accent) 16%, var(--usage-guide-nav-bg));
+  border-radius: var(--radius-sm);
+}
+
+.usage-guide-reading-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--usage-guide-nav-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 140ms linear;
 }
 
 .usage-guide-toc-toggle svg {
@@ -73,10 +248,10 @@
   right: 0;
   left: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1.8fr);
-  gap: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 16px;
   max-height: min(400px, var(--usage-guide-toc-max-height, 50dvh));
-  padding: 18px;
+  padding: 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -105,24 +280,11 @@
 }
 
 .usage-guide-toc-group {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
-  align-content: start;
-  min-width: 0;
-}
-
-.usage-guide-toc-group:last-child {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: contents;
 }
 
 .usage-guide-toc-heading {
-  grid-column: 1 / -1;
-  margin: 0 8px 8px;
-  color: var(--text);
-  font-size: var(--type-size-caption);
-  font-weight: 600;
-  line-height: 1.5;
+  display: none;
 }
 
 .usage-guide-toc a {
@@ -130,12 +292,13 @@
   align-items: center;
   justify-content: flex-start;
   min-width: 0;
-  min-height: 34px;
-  padding: 7px 8px;
+  min-height: 44px;
+  padding: 10px 12px;
   border-radius: var(--radius-md);
   color: var(--text);
   font-size: var(--type-size-control);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   line-height: 1.4;
   overflow-wrap: anywhere;
   text-align: left;
@@ -151,21 +314,16 @@
 }
 
 .usage-guide-toc a.active {
-  background: var(--usage-guide-accent-soft);
-  color: var(--primary-strong);
+  background: var(--usage-guide-nav-bg);
+  color: var(--usage-guide-nav-text);
   font-weight: 600;
 }
 
 .usage-guide-toc a:focus-visible,
-.usage-guide-toc-toggle:focus-visible {
-  outline: 2px solid var(--color-control-focus);
+.usage-guide-toc-toggle:focus-visible,
+.usage-guide-chapter-controls button:focus-visible {
+  outline: 2px solid var(--usage-guide-nav-accent);
   outline-offset: 1px;
-}
-
-.usage-guide-toc a::before {
-  content: counter(usage-guide-toc, decimal-leading-zero);
-  counter-increment: usage-guide-toc;
-  display: none;
 }
 
 .usage-guide-back-to-top {
@@ -199,20 +357,63 @@
   }
 }
 
-@container (max-width: 760px) {
-  .usage-guide-toc-links {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
+@container (max-width: 840px) {
+  .usage-guide-toc-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
   }
 
-  .usage-guide-toc-group:last-child {
+  .usage-guide-reading-status {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    display: flex;
+    gap: 12px;
+  }
+
+  .usage-guide-chapter-controls {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    max-width: 220px;
+  }
+
+  .usage-guide-toc-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 420px) {
+  .usage-guide-toc-toolbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .usage-guide-reading-status {
     grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+
+  .usage-guide-chapter-controls {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    max-width: none;
+  }
+
+  .usage-guide-toc-links {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .other-workspace::view-transition-group(*),
+  .other-workspace::view-transition-old(*),
+  .other-workspace::view-transition-new(*) {
+    animation-duration: 0s;
+  }
+
   .usage-guide-toc + .usage-guide-main,
   .usage-guide-toc-links,
+  .usage-guide-reading-fill,
   .usage-guide-toc-toggle svg {
     transition: none;
   }

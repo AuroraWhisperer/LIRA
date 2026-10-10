@@ -33,3 +33,18 @@
 ## 交付证据与剩余验收
 
 实现与定向检查结果见[规格实施记录](../danmaku-prismatic.md#2026-10-08-实施与验证记录)。两端同组浏览器样例已对照，长昵称连续排版、礼物满宽居中已按追加要求调整。未完成真实上游报文及 OBS/直播姬实播验收；客户端契约版本锁与本地 Server HEAD 不同。此计划保留 Awaiting Verification，不把这些缺口标为完成。未提交或部署。
+
+## 2026-10-09 大航海感谢与 SC 扩展（实现与定向验证完成）
+
+用户追加两张卡片参考，并提供陪伴榜 DOM。已对照官方 `topListNew` 返回确认 `accompany` 为榜单天数；不使用购买数量、有效期差或本地手动补录替代。
+
+1. 将粉丝档案已有大航海名单读取抽为两仓一致的无状态模块，保留完整分页、房主核验和取消；增加可选 `accompanyDays`。Server 共用既有会员事实的购买识别，并解析上舰通知动作；感谢卡优先用当次通知中明确的陪伴天数，缺失时按绑定主播及观众 UID 查询官方名单。复用结算后的单次通知，不改变账本、事实稳定 ID、私密档案或租户边界。验证名单、fan-facts、overlay-gift、场景白名单。
+2. `danmaku-prismatic.js` 拥有三档居中头像／白底名字／渐变感谢卡；按用户追加要求使用珠光香槟金、冰蓝紫晶、玫瑰金和静态高光，并在右下角裁切露出白色粗体结算金额的上半部分。SC 复用 `createSuperChatCard` 的金额、原文与安全 DOM，加入薄荷至粉色渐变、上方名字和右上 CN¥ 金额。两仓同步资源和合成预览。验证三档、未知动作、缺失天数、长名、换行与头像失败；原有主题保留。
+3. 可选公开字段仅包含动作与天数，更新 OpenAPI、fixture、客户端校验及 owning 文档／使用指南。定向 Node 测试、既有浏览器运行路径、两仓文档门禁及 `git diff --check`；临时证据位于 Live 的 `tmp/prismatic-cards/` 和 Server 的 `tmp/browser-tests/prismatic-cards/`。不提交或部署。失败时只修复本次改动；保留已有工作区修改。
+
+Done When：参考结构实现，两仓显示一致，新增字段缺失能兼容，相关测试通过，真实 OBS／直播姬未覆盖项明确记录。原计划未完成的真实上游身份验收不在本次冒充完成。
+
+- 客户端 `node --experimental-vm-modules --test`：renderer、local-preview、guard-roster、fan-profiles-guard-roster、scene-cloud-controller 五个文件共 97 项通过。
+- Server Node 24.15.0：fan-facts、overlay-gift、room-monitor-overlay 共 50 项通过；bilibili-guard-membership、overlay-message-renderer、overlay-preview 共 21 项通过。系统 Node 24.21.0 不在 Server 支持范围内，改用仓库已有受支持运行时，没有关闭门禁。
+- 既有 `overlay-superchat.spec.js` 与新增 `overlay-prismatic.spec.js` 分别通过；隔离数据库、进程和合成事件，未控制正在使用的桌面实例。新用例修正了窄画布夹具的其他区域尺寸和失败头像缓存复用，产品逻辑未因此变更。截图覆盖三档、高光、金额上半部、SC、长昵称／长原文与失败头像。
+- 真实陪伴榜接口已验证；没有真实新购／续费 WS 样本或 OBS／直播姬实播验收。本次不更新契约版本锁、提交或部署。

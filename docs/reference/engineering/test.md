@@ -99,6 +99,8 @@ npm test -- --file=test/gifts/frontend-blindbox-overlay.test.js --file=test/ui/f
 
 并发运行的界面测试须区分页面导航、模块就绪和业务操作：Electron 窗口创建不代表 `/admin` 已加载；画布发布前须等待组件自动尺寸回传到草稿，否则迟到的尺寸会形成真实的未保存修改。等待明确状态，保留发布与草稿断言。
 
+[指南布局回归](../../../test/admin/usage-guide-layout-browser.test.js) 通过真实目录导航等待正文定位完成，再确认目标段落位于阅读标记处并检查侧栏切换；不要在同一帧开关延迟渲染后假定滚动已经稳定。[资源生命周期探针](../../../test/fixtures/resource-lifecycle-probe.cjs) 在窗口、媒体和 WebSocket 释放断言完成后保留一个未发送请求的 HTTP 连接，验证测试服务器关闭时主动释放自己的连接；仅调用 `server.close()` 会等待这类预连接，导致探针迟迟不能写出结果。该清理不替代前面的应用资源释放断言。
+
 两个原生认证探针（[账号竞态](../../../test/desktop/desktop-auth-race-electron.test.js)、[请求权限](../../../test/desktop/desktop-request-auth-electron.test.js)）使用仓库 `tmp/` 下的隔离目录；成功时正常退出 Electron，父测试等待子进程和管道关闭后再清理。异常清理同样先终止并等待进程，不能在进程仍持有目录时先删除文件。
 
 [网页组件导入回归](../../../test/scenes/component-web-import.test.js) 同时注入包目录暂态锁和索引提交失败，分别统计重命名尝试与成功安装；允许安装前的锁重试，仍严格禁止索引提交失败后重放安装，并验证失败后无已安装或暂存包。
@@ -137,7 +139,7 @@ node scripts/verify-song-roundtrip.cjs D:\Work\Live D:\Work\lira-server
 
 ### Windows 安装器集成测试
 
-[安装目录测试](../../../test/engineering/installer-directory.test.js)验证默认目录、沿用旧路径、用户指定路径优先和无 D 盘的情况；[数据保护测试](../../../test/engineering/installer-migration.test.js)验证升级、换目录、旧数据迁回、备份恢复、冲突、复制/报告失败、文件占用、运行中进程，以及升级清理时保留数据和下载文件；[自动关闭测试](../../../test/engineering/installer-app-exit.test.js)使用隐藏的原生窗口验证确认关闭、取消、拒绝关闭、超时重试、其他安装目录隔离和静默退出，确认退出时的最后一次写入完整进入备份。
+[安装目录测试](../../../test/engineering/installer-directory.test.js)验证默认目录、沿用旧路径、用户指定路径优先和无 D 盘的情况；[数据保护测试](../../../test/engineering/installer-migration.test.js)验证升级、换目录、旧数据迁回、备份恢复、冲突、复制/报告失败、文件占用、备份目录链接，以及升级清理时保留数据和下载文件；[自动关闭测试](../../../test/engineering/installer-app-exit.test.js)使用原生窗口及无窗口进程验证确认关闭、取消、拒绝关闭、超时重试、进程查询失败、静默退出与超时、无实例，以及其他目录同名程序和路径前缀相似程序的隔离，确认退出时的最后一次写入完整进入备份。
 
 上述安装目录、数据保护、自动关闭，以及[卸载保留与清理测试](../../../test/engineering/installer-uninstall.test.js)需要 Windows 和 NSIS。[installer-tools.js](../../../test/helpers/installer-tools.js) 优先使用 `LIRA_TEST_MAKENSIS`（编译器）和 `LIRA_TEST_NSIS_PLUGINS`（包含 `StdUtils.dll`、`nsProcess.dll` 的 Unicode 插件目录）；未指定的路径从已有 electron-builder 缓存查找。缓存根目录采用 `ELECTRON_BUILDER_CACHE`，缺省为 `%LOCALAPPDATA%/electron-builder/Cache`，支持 `nsis-3.0.4.1`、`nsis-resources-3.4.1` 的平铺和嵌套解压目录。
 
@@ -285,6 +287,7 @@ npm run verify
 | [frontend-admin-shell.test.js](../../../test/admin/frontend-admin-shell.test.js)                                   | Admin 外壳、导航与共享顶层表面                                                                  | [frontend/app.md](../frontend/app.md)                                                             |
 | [frontend-admin-toolbox.test.js](../../../test/admin/frontend-admin-toolbox.test.js)                               | 硬件、引导、导览、工具箱、更新与浏览器源导航                                                    | 同上                                                                                              |
 | [frontend-usage-guide.test.js](../../../test/admin/frontend-usage-guide.test.js)                                   | 帮助目录、搜索与章节行为                                                                        | 同上 + [frontend/pages.md](../frontend/pages.md)                                                  |
+| [frontend-usage-guide-search-browser.test.js](../../../test/admin/frontend-usage-guide-search-browser.test.js) | 正文搜索的小标题排名、具体文字定位、折叠内容展开与高亮清理；复用实际使用文档片段 | [frontend/pages.md](../frontend/pages.md) |
 | [frontend-admin-layout.test.js](../../../test/admin/frontend-admin-layout.test.js)                                 | 播放器、工作区与队列布局                                                                        | 同上                                                                                              |
 | [frontend-admin-runtime.test.js](../../../test/admin/frontend-admin-runtime.test.js)                               | Admin 模块入口、表单编辑保护与主题兼容                                                           | 同上                                                                                              |
 | [frontend-parameter-range.test.js](../../../test/ui/frontend-parameter-range.test.js) | 通用滑块零点、正负值映射、键盘焦点和控件接入 | [frontend/app.md](../frontend/app.md) |

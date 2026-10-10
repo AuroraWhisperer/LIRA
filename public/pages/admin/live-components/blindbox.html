@@ -1,0 +1,70 @@
+<section id="giftBlindboxFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="giftAssistantBlindboxTab" data-other-feature-panel hidden>
+  <div class="other-feature-panel-body stack">
+    <section class="gift-blindbox-broadcast-panel">
+      <div class="panel-header">
+        <div class="blindbox-broadcast-heading">
+          <h2 class="gift-section-title ui-section-title">盲盒盈亏榜</h2>
+          <span class="blindbox-broadcast-caption">观众画面</span>
+        </div>
+      </div>
+      <div class="panel-body blindbox-builder">
+        <div class="blindbox-builder-row">
+          <label>
+            <span class="blindbox-builder-label">投屏标题 <lira-help>留空时显示默认标题。</lira-help></span>
+            <input id="blindboxOverlayTitle" type="text" placeholder="默认：今日盲盒盈亏" />
+          </label>
+          <label>
+            <span class="blindbox-builder-label"
+              >排行人数 <lira-help>-1 显示全部，0 仅显示汇总，1-10 显示对应人数。</lira-help></span
+            >
+            <input id="blindboxOverlayTop" type="number" min="-1" max="10" value="3" placeholder="3" />
+          </label>
+        </div>
+
+        <div class="blindbox-builder-switches">
+          <label class="blindbox-switch">
+            <input id="blindboxWinnersOnly" type="checkbox" checked />
+            <span>仅显示盈利</span>
+          </label>
+          <label class="blindbox-switch">
+            <input id="blindboxHeartBoxOnly" type="checkbox" />
+            <span>仅显示心动盲盒</span>
+          </label>
+        </div>
+
+        <div id="blindboxHeartBoxSettings" class="blindbox-heart-settings" hidden>
+          <div class="blindbox-heart-fields">
+            <label class="blindbox-heart-multiplier">
+              <span>今天</span>
+              <input id="blindboxCastleMultiplier" type="number" min="0.01" max="1000" step="0.01" placeholder="倍数" aria-label="今天几倍堡，留空不显示" />
+              <span>倍堡</span>
+            </label>
+            <div class="blindbox-heart-remaining">
+              <label><input id="blindboxShowCastlesRemaining" type="checkbox" /><span>还有</span></label>
+              <input id="blindboxCastlesRemaining" type="number" min="0" max="99999" step="1" value="0" aria-label="剩余城堡数，手动填写" disabled />
+              <span>个堡</span>
+            </div>
+            <label class="blindbox-heart-count"><input id="blindboxShowOpenedSinceCastle" type="checkbox" /><span>显示已开盒数</span></label>
+          </div>
+          <p class="hint">仅统计今天；每开出一个浪漫城堡后重新计盒。倍数留空则隐藏，剩余堡数手动填写。</p>
+        </div>
+
+        <details class="blindbox-appearance">
+          <summary>外观设置</summary>
+          <div id="blindboxAppearanceFields" class="blindbox-appearance-fields"></div>
+          <p class="hint">配色和字体沿用共享主题；投屏文字最小 30px，窄画面自动换行。</p>
+        </details>
+
+        <div class="blindbox-url-bar">
+          <div class="blindbox-url-copy">
+            <span class="blindbox-url-label">浏览器源地址</span>
+            <button id="blindboxOverlayUrl" class="blindbox-url-address" type="button" aria-label="复制盲盒盈亏榜浏览器源地址" title="点击复制地址"></button>
+          </div>
+          <div class="blindbox-url-actions">
+            <button id="blindboxPreviewBtn" class="secondary" type="button">预览</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>

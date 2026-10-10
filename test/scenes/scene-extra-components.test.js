@@ -131,11 +131,12 @@ test('new canvas components reject invalid, secret and business configuration an
       assert.throws(() => normalizeSceneConfig(type, { ...defaults, [key]: 'private' }), { code: 'INVALID_SCENE_CONFIG' });
     }
     for (const [key, field] of Object.entries(definition.fields)) {
-      const values = field.type === 'number' ? [NaN, Infinity, field.max + 1, '', {}]
+      const values = field.type === 'number' ? [NaN, Infinity, field.max + 1, ...(field.optional ? [] : ['']), {}]
         : field.type === 'checkbox' ? ['yes', 1, null]
           : field.type === 'color' ? ['red', '#fff', 'url(private)']
             : field.type === 'select' ? ['unknown', '__proto__'] : ['x'.repeat(field.maxLength + 1), {}];
       for (const value of values) assert.throws(() => normalizeSceneConfig(type, { ...defaults, [key]: value }), `${type}.${key}`);
+      if (field.type === 'number' && field.optional) assert.equal(normalizeSceneConfig(type, { ...defaults, [key]: '' })[key], '');
     }
     const doc = documentFor(type); doc.items[0].appearance = { mode: 'shared' };
     assert.throws(() => normalizeSceneDocument(doc, { normalizeConfig: normalizeSceneConfig }));

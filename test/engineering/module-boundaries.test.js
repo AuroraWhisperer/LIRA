@@ -96,7 +96,7 @@ test('domain services use stores instead of SQLite statements', () => {
 });
 
 test('internal backend modules do not import composition entrypoints', () => {
-  const entrypoints = new Set(['src/server.js', 'src/electron/main.js']);
+  const entrypoints = new Set(['src/server.js', 'src/electron/entry.js', 'src/electron/main.js']);
   for (const file of listJavaScriptFiles('src')) {
     if (entrypoints.has(file)) continue;
     for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {

@@ -2,6 +2,20 @@ ManifestDPIAware true
 
 !include "installer-uninstall.nsh"
 
+!macro customCheckAppRunning
+  !ifdef BUILD_UNINSTALLER
+    StrCpy $liraPreviousInstallDir "$INSTDIR"
+    Call un.liraEnsureAppExited
+    StrCmp $R0 0 liraBuilderAppExited
+    SetErrorLevel 2
+    MessageBox MB_OK|MB_ICONSTOP "卸载已停止，数据仍保留。$\r$\n$\r$\n$R5" /SD IDOK
+    Quit
+    liraBuilderAppExited:
+  !else
+    Call liraWaitForAppExit
+  !endif
+!macroend
+
 !macro customInit
   Call liraSelectDefaultDirectory
   ; Only inspect this app's key in electron-builder's selected install context.
@@ -26,6 +40,7 @@ ManifestDPIAware true
 !macroend
 
 !macro customHeader
+  !include "installer-process.nsh"
   !ifndef BUILD_UNINSTALLER
     !include "installer-data.nsh"
     Function liraSelectDefaultDirectory

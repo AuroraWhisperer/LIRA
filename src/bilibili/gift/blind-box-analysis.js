@@ -12,12 +12,16 @@ const BLIND_BOX_ANALYSIS_SORTS = {
 };
 
 function getBlindBoxStats(context, { boxName = '' } = {}) {
-  const { todayStart, rows } = loadBlindBoxRows(context, { boxName });
+  const heartBoxOnly = cleanText(boxName) === '心动盲盒';
+  const { todayStart, rows: openings } = loadBlindBoxRows(context, { boxName, includeUnknownProfit: heartBoxOnly });
+  const heartBoxProgress = heartBoxOnly ? summarizeHeartBoxProgress(openings) : null;
+  const rows = heartBoxOnly ? openings.filter(row => row.blind_profit !== null) : openings;
   if (rows.length === 0) {
     return {
       today: todayStart,
       summary: { boxCount: 0, totalCost: 0, totalValue: 0, totalProfit: 0 },
       perUser: [],
+      heartBoxProgress,
     };
   }
 
@@ -92,7 +96,19 @@ function getBlindBoxStats(context, { boxName = '' } = {}) {
     },
     perUser,
     records,
+    heartBoxProgress,
   };
+}
+
+function summarizeHeartBoxProgress(rows) {
+  let openedSinceCastle = 0;
+  const heartBoxes = rows.filter(row => String(row.blind_box_id || '32251') === '32251')
+    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || a.id - b.id);
+  for (const row of heartBoxes) {
+    if (String(row.gift_id) === '32132') openedSinceCastle = 0;
+    else openedSinceCastle += normalizePositiveInteger(row.num) || 1;
+  }
+  return { openedSinceCastle };
 }
 
 function getBlindBoxAnalysis(context, options = {}) {
@@ -145,7 +161,7 @@ function getBlindBoxAnalysis(context, options = {}) {
   };
 }
 
-function loadBlindBoxRows(context, { boxName = '', startDate = '', endDate = '' } = {}) {
+function loadBlindBoxRows(context, { boxName = '', startDate = '', endDate = '', includeUnknownProfit = false } = {}) {
   normalizeHistoryFilters({ startDate, endDate });
   const nowDate = new Date();
   const todayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).toISOString();
@@ -166,6 +182,7 @@ function loadBlindBoxRows(context, { boxName = '', startDate = '', endDate = '' 
       from,
       to: end.toISOString(),
       boxName: cleanText(boxName),
+      includeUnknownProfit,
     }),
   };
 }

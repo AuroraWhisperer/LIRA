@@ -34,11 +34,8 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     html.match(/<section\b[^>]*class="danmaku-feature-section danmaku-connection-section"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
   assert.match(connectionSection, /id="danmakuConnectionTitle"/);
   assert.match(connectionSection, /id="danmakuRefreshBtn"/);
-  const headingHtml = html.replace(/<svg\b[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/svg>/g, '');
-  assert.ok(
-    /id="danmakuStyleTitle"[^>]*>[^<]*<lira-help/.test(headingHtml),
-    'the overlay title carries its help entry',
-  );
+  assert.match(overlay, /aria-labelledby="liveDanmakuFeatureTab"/, 'the sidebar tab names the overlay panel');
+  assert.match(overlay, /<lira-help label="弹幕预览说明">预览不影响直播，应用后生效。<\/lira-help>/);
   for (const id of ['danmakuOverlayUrl', 'danmakuCopyOverlayUrlBtn', 'danmakuOpenOverlayBtn', 'danmakuPreviewOverlayBtn',
     'danmakuApplyOverlayBtn', 'danmakuReloadOverlayBtn']) {
     assert.equal(html.split(`id="${id}"`).length, 2, `${id} is one unique entry`);
@@ -63,7 +60,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   const composeSectionStart = html.indexOf('class="danmaku-feature-section danmaku-compose-section"');
   assert.ok(styleSectionStart >= 0 && html.indexOf('</section>', styleSectionStart) < composeSectionStart);
   const aiSection = html.indexOf('id="xiaomiAiSection"');
-  assert.ok(html.indexOf('id="danmakuStyleTitle"') < aiSection);
+  assert.ok(styleSectionStart < aiSection);
   assert.ok(html.indexOf('id="danmakuSendForm"') < aiSection, 'the AI assistant follows the sender');
   assert.ok(aiSection < html.indexOf('id="danmakuFixedReplyTitle"'));
   assert.ok(aiSection < html.indexOf('id="danmakuCustomRepliesPanel"'), 'the AI assistant precedes fixed replies');

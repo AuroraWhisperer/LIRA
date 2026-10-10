@@ -85,13 +85,16 @@ export function renderTodoAgenda(view) {
           row.setAttribute('role', 'listitem');
           const time = createElement('time', 'planner-agenda-time', event.time || '全天');
           time.dateTime = event.time ? `${event.date}T${event.time}` : event.date;
-          const open = createElement('button', 'planner-event-open');
-          open.type = 'button';
-          open.dataset.eventEdit = event.id;
-          open.title = '编辑日程';
+          const open = createElement(event.readonly ? 'div' : 'button', 'planner-event-open');
+          if (!event.readonly) {
+            open.type = 'button';
+            open.dataset.eventEdit = event.id;
+            open.title = '编辑日程';
+          }
           open.append(createElement('strong', '', event.title));
           open.append(createElement('span', '', event.detail || EVENT_LABELS[event.type]));
-          row.append(time, open, iconButton('pencil', '编辑日程', 'eventEdit', event.id));
+          row.append(time, open);
+          if (!event.readonly) row.append(iconButton('pencil', '编辑日程', 'eventEdit', event.id));
           return row;
         })
       : [createElement('p', 'planner-empty-state', '这一天暂无安排')]),

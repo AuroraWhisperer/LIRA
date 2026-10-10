@@ -317,6 +317,10 @@ function displayEvent(value) {
   result.name = text(value.name, 80);
   if (type === 'entry') return { ...result, guardLevel: integer(value.guardLevel, 0, 3) };
   if (type === 'gift') {
+    if (value.guardAction !== undefined) requireValid(['open', 'renew'].includes(value.guardAction));
+    if (value.guardAction !== undefined || value.guardAccompanyDays !== undefined) {
+      requireValid([1, 2, 3].includes(value.giftGuardLevel));
+    }
     return {
       ...result,
       giftName: text(value.giftName, 100),
@@ -325,6 +329,8 @@ function displayEvent(value) {
       ...(value.giftImageUrl === undefined ? {} : { giftImageUrl: imageUrl(value.giftImageUrl) }),
       ...(value.avatarUrl === undefined ? {} : { avatarUrl: imageUrl(value.avatarUrl) }),
       ...(value.giftGuardLevel === undefined ? {} : { giftGuardLevel: integer(value.giftGuardLevel, 1, 3) }),
+      ...(value.guardAction === undefined ? {} : { guardAction: value.guardAction }),
+      ...(value.guardAccompanyDays === undefined ? {} : { guardAccompanyDays: integer(value.guardAccompanyDays, 0) }),
       ...(value.honorLevel === undefined ? {} : { honorLevel: integer(value.honorLevel, 1) }),
     };
   }

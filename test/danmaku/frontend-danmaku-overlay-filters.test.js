@@ -166,11 +166,10 @@ test('account changes discard pending saves/viewers and unsupported server reads
   assert.equal(f.get('ReadViewers').disabled, true);
 });
 
-test('filters sit between the link and styles, with parameters below styles', () => {
+test('toolbar precedes styles, with secondary filters and parameters below the style picker', () => {
   const html = fs.readFileSync(path.join(__dirname, '../../public/pages/admin/live-components/danmaku.html'), 'utf8');
   assert.ok(html.indexOf('id="danmakuOverlayUrl"') < html.indexOf('class="danmaku-style-picker"'));
-  assert.ok(html.indexOf('id="danmakuOverlayFilters"') > html.indexOf('id="danmakuOverlayUrl"'));
-  assert.ok(html.indexOf('id="danmakuOverlayFilters"') < html.indexOf('data-danmaku-style="bubble"'));
-  assert.ok(html.indexOf('id="danmakuParametersTitle"') > html.indexOf('data-danmaku-style="glow"'));
+  assert.ok(html.indexOf('id="danmakuOverlayFilters"') > html.indexOf('data-danmaku-style="comet"'));
+  assert.ok(html.indexOf('id="danmakuParametersTitle"') > html.indexOf('id="danmakuOverlayFilters"'));
   assert.ok(html.indexOf('id="danmakuApplyOverlayBtn"') > html.indexOf('id="danmakuGiftImage"'));
 });
