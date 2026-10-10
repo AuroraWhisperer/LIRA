@@ -5,7 +5,10 @@
       <nav class="text-box-library" data-text-box="library" aria-label="文本框列表" hidden>
         <div class="text-box-list" data-text-box="list"></div>
       </nav>
-      <div class="text-box-heading-actions"><button class="secondary" type="button" data-text-box="discard" disabled>放弃修改</button><button class="primary" type="button" data-text-box="save" disabled>保存并应用</button></div>
+      <div class="text-box-heading-actions">
+        <div class="text-box-page-status"><p data-text-box="status" role="status" aria-live="polite">正在读取文本框…</p><button class="secondary" type="button" data-text-box="retry" hidden>重新读取</button></div>
+        <button class="secondary" type="button" data-text-box="discard" disabled>放弃修改</button><button class="primary" type="button" data-text-box="save" disabled>保存并应用</button>
+      </div>
     </header>
     <div class="text-box-workspace">
       <div class="text-box-empty" data-text-box="empty">
@@ -26,6 +29,5 @@
         </section>
       </section>
     </div>
-    <div class="text-box-page-status"><p data-text-box="status" role="status" aria-live="polite">正在读取文本框…</p><button class="secondary" type="button" data-text-box="retry" hidden>重新读取</button></div>
   </div>
 </section>

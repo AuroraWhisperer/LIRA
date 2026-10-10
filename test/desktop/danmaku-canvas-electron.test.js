@@ -21,17 +21,17 @@ test('prismatic can be selected, saved, previewed and reopened through the deskt
   await desktop.waitForURL('**/admin', { waitUntil: 'load', timeout: 15000 });
   desktop.setDefaultTimeout(6000);
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
-  assert.equal(await desktop.locator('#danmakuEdgeFade').inputValue(), 'single');
+  assert.equal(await desktop.locator('#danmakuEdgeFade').inputValue(), 'top');
   await desktop.locator('[data-danmaku-style="prismatic"]').click();
   assert.equal(await desktop.locator('#danmakuEdgeFade').inputValue(), 'both');
-  await desktop.locator('#danmakuEdgeFade').selectOption('none');
+  await desktop.locator('#danmakuEdgeFade').selectOption('bottom');
   await desktop.getByRole('button', { name: '应用到直播画面', exact: true }).click();
-  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 柔彩气泡' }).waitFor();
+  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 流霞' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.saved().style), 'prismatic');
-  assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.prismatic.edgeFade), 'none');
+  assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.prismatic.edgeFade), 'bottom');
   await desktop.reload();
   await desktop.locator('[data-danmaku-style="prismatic"][aria-pressed="true"]').waitFor();
-  assert.equal(await desktop.locator('#danmakuEdgeFade').inputValue(), 'none');
+  assert.equal(await desktop.locator('#danmakuEdgeFade').inputValue(), 'bottom');
   await desktop.locator('#danmakuPreviewOverlayBtn').click();
   let url;
   for (let attempt = 0; attempt < 100 && !url; attempt++) {
@@ -49,10 +49,20 @@ test('prismatic can be selected, saved, previewed and reopened through the deskt
   await frame.locator('body[data-style="prismatic"] .draw-danmaku-item').first().waitFor();
   assert.equal(await page.locator('[data-preview-field="danmakuFontSize"]').inputValue(), '30');
   const edgeFade = page.locator('[data-preview-field="danmakuEdgeFade"]');
-  assert.equal(await edgeFade.inputValue(), 'none');
+  assert.equal(await edgeFade.inputValue(), 'bottom');
+  await edgeFade.selectOption('none');
+  await frame.locator('body[data-edge-fade="none"]').waitFor();
   assert.equal(await frame.locator('.draw-danmaku-feed').evaluate(node => getComputedStyle(node).maskImage), 'none');
-  await edgeFade.selectOption('single');
-  await frame.locator('body[data-edge-fade="single"]').waitFor();
+  for (const edge of ['top', 'bottom']) {
+    await edgeFade.selectOption(edge);
+    for (const direction of ['up', 'down']) {
+      await page.locator('[data-preview-field="danmakuScrollDirection"]').selectOption(direction);
+      await frame.locator('body[data-edge-fade="' + edge + '"][data-scroll-direction="' + direction + '"]').waitFor();
+      const mask = await frame.locator('.draw-danmaku-feed').evaluate(node => getComputedStyle(node).maskImage);
+      assert.equal(mask.match(/rgba\(0, 0, 0, 0\)/g).length, 1);
+      assert.equal(mask.startsWith('linear-gradient(rgba(0, 0, 0, 0)'), edge === 'top');
+    }
+  }
   await page.locator('[data-preview-field="danmakuResetParameters"]').click();
   await frame.locator('body[data-edge-fade="both"]').waitFor();
   assert.equal(await edgeFade.inputValue(), 'both');

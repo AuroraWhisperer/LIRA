@@ -42,7 +42,7 @@ function displayEvent(event) {
   return result;
 }
 
-function createCloudDisplayBuffer({ getOwner }) {
+function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
   let owner = null;
   let epoch = randomUUID();
   let connectionEpoch = null;
@@ -124,6 +124,7 @@ function createCloudDisplayBuffer({ getOwner }) {
   }
   function getSnapshot(request = {}) {
     syncOwner();
+    onRead();
     const requestedCursor = Number(request.cursor);
     const validCursor = (typeof request.cursor === 'number' || typeof request.cursor === 'string' && /^(0|[1-9]\d*)$/.test(request.cursor))
       && Number.isSafeInteger(requestedCursor) && requestedCursor >= 0 && requestedCursor <= cursor;
@@ -132,7 +133,15 @@ function createCloudDisplayBuffer({ getOwner }) {
     return { epoch, status, state: clone(state), nextCursor: cursor, reset: resetRequired, gap,
       events: resetRequired ? [] : events.filter((entry) => entry.cursor > requestedCursor).map((entry) => clone(entry.event)) };
   }
-  return { receive, getSnapshot, getSettings() { syncOwner(); return clone(settings); } };
+  function receiveSettings(update) {
+    const current = syncOwner();
+    if (!current || update?.ownerScope !== current.scope || update.authorizationEpoch !== current.epoch) return false;
+    const next = appearance(update.settings);
+    if (!next) return false;
+    settings = next;
+    return true;
+  }
+  return { receive, receiveSettings, getSnapshot, getSettings() { syncOwner(); onRead(); return clone(settings); } };
 }
 
 module.exports = { createCloudDisplayBuffer };

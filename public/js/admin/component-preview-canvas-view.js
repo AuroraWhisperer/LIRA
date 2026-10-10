@@ -157,7 +157,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       onUpdate: picker.updatePackage });
   });
   function edit(mutator) {
-    if (canvasController && !canvasController.getState().loaded) return;
+    if (canvasController && (!canvasController.getState().loaded || canvasController.getState().presets?.length === 0)) return;
     stage?.cancelGesture();
     layerDrag.cancel();
     model.edit(mutator);
@@ -358,11 +358,13 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     discard.disabled = discardStates.some((state) => state.saving) || outputBusy
       || (!discardStates.some((state) => state.dirty || state.error) && !recoveryState?.pending);
     const connected = !canvasController || canvasController.getState().loaded;
+    const hasScene = canvasController?.getState().presets?.length !== 0;
     discard.disabled ||= !connected;
     if (restore) restore.disabled = !connected || saving || outputBusy;
-    library.inert = canvasControls.inert = layers.inert = stageHost.inert = inspectorHost.inert = !connected || outputBusy || Boolean(recoveryState?.pending);
-    canvasButton.disabled = !connected || outputBusy || Boolean(recoveryState?.pending);
-    output?.render(connected && !recoveryState?.pending && !outputBusy, saving);
+    library.inert = canvasControls.inert = layers.inert = stageHost.inert = inspectorHost.inert = !connected || !hasScene || outputBusy || Boolean(recoveryState?.pending);
+    canvasButton.disabled = !connected || !hasScene || outputBusy || Boolean(recoveryState?.pending);
+    stage?.setEmptyMessage(hasScene ? '添加组件，开始编排直播画面。' : '暂无场景，请从顶部“场景操作”新建场景。');
+    output?.render(connected && hasScene && !recoveryState?.pending && !outputBusy, saving);
     presets?.render(outputBusy || Boolean(recoveryState?.pending));
   }
   if (recovery) subscriptions.push(recovery.subscribe(renderStatus));
@@ -405,6 +407,10 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   }));
   function focus(selection) {
     if (!selection.selectedId) return;
+    if (canvasController?.getState().presets?.length === 0) {
+      report('请先从“场景操作”新建场景，再添加组件。');
+      return;
+    }
     selectedSize = selection.selectedSize;
     const component = components.find(({ id }) => id === selection.selectedId);
     const existing = selection.selectedItemId

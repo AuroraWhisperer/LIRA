@@ -1,98 +1,79 @@
 ---
-status: proposed
-date: 2026-09-21
+status: accepted
+date: 2026-10-10
 scope: LIRA desktop and LIRA Server
 ---
 
-# ADR-0020: Distribute shared danmaku source as checked-in snapshots
+# ADR-0020: Distribute the shared danmaku renderer as a pinned source snapshot
 
-## Context and requirements
+## Context and acceptance
 
-Audit F07 requires one owner for common danmaku rendering and style rules while
-preserving independent deployments and existing feed behavior. Server ADR-0049
-requires the server to run without the desktop repository or Electron. Neither
-repository may acquire a frontend build step or a new runtime package dependency.
-This proposal is pending maintainer acceptance; it does not supersede ADR-0049.
+The user authorized delivery optimizations and reusable modules on 2026-10-10,
+resuming the common-renderer part of the proposal deferred on 2026-09-21.
+Both applications need the same message DOM, while their feed timing and system
+message decoration intentionally differ. Server ADR-0049 requires independent
+server deployment. Neither application needs a new runtime dependency or build.
 
-## Proposed decision
+The accepted scope is the message renderer only. Style defaults/validation,
+style-specific decorators, feeds, and the proposed protobuf reader remain with
+their existing owners; their wider source-distribution proposals are not treated
+as implemented by this decision.
 
-LIRA Server owns three small ESM sources under `shared/danmaku/`: pure style
-validation/defaults, DOM renderer, and the browser style application/parser.
-The renderer has explicit policy inputs for system-message class decoration and
-entrance delay. Existing desktop behavior stays at no system class and
-`min(index, 8) * 24ms`; server behavior stays at system decoration and zero delay.
-Timers, feed queues, expiry, reduced motion, removal callbacks and trimming remain
-in each repository's existing feed implementation.
+## Decision
 
-An explicit Node maintenance script copies the ESM sources and emits the CJS
-style contract from the same restricted named-export source. Generated artifacts
-are checked in. Existing consumer file paths stay as thin adapters/re-exports;
-the browser loads only files within its own deployed application. Server static
-allowlists must include any new local module paths.
+LIRA Server owns `public/overlay/danmaku-renderer-core.js`. The desktop checks in
+an identical LF-normalized copy at
+`public/js/overlays/danmaku-renderer-core.js`. Existing
+`danmaku-message-renderer.js` entry points remain small adapters, preserving
+exports and supplying explicit system-message and entrance-delay policies.
+The desktop retains no system class and `min(index, 8) * 24ms`; the server retains
+the system class and zero delay. Each core imports only local style decorators.
+Feed queues, expiry, trimming, observers and animation scheduling remain local.
 
-The desktop snapshot has a manifest containing schema version, source repository,
-source file mapping and SHA-256 hashes after LF normalization. Content hashes
-identify the accepted source precisely without requiring a simultaneous release
-or a new commit during local development. This manifest is independent of
-`server-contract.lock.json`, which continues to pin protocol fixtures only.
+The desktop's `src/shared/danmaku-source-manifest.json` records schema version,
+source repository, source and target paths, and SHA-256 after LF normalization.
+It is independent of `server-contract.lock.json`, which continues to pin wire
+fixtures. The source and snapshot are reviewed and released independently;
+latest server HEAD need not equal every previously released desktop snapshot.
 
-Maintenance commands:
+Developer commands in the desktop repository:
 
-- Server `node scripts/sync-danmaku-source.cjs --check`: regenerate in memory and
-  fail on stale/missing local artifacts; never silently rewrite in check mode.
-- Server `node scripts/sync-danmaku-source.cjs --write`: explicitly refresh its
-  checked-in local artifacts from canonical sources.
-- Desktop `node scripts/sync-danmaku-source.cjs --server-root <path> --write`:
-  explicitly import the selected server sources, regenerate its snapshot and
-  refresh the content manifest. No network fetch and no runtime sibling lookup.
-- Desktop `node scripts/sync-danmaku-source.cjs --check`: verify its checked-in
-  snapshot and local generated artifacts without requiring a server checkout.
-- Desktop `node scripts/sync-danmaku-source.cjs --server-root <path> --check`:
-  additionally compare the selected server's canonical source hashes. Fail on
-  drift, missing source or wrong manifest; do not compare arbitrary server HEAD
-  against the unrelated protocol fixture lock.
+- `node scripts/sync-danmaku-source.cjs --check`: verify the shipped snapshot
+  against its manifest without needing a server checkout; never write.
+- `node scripts/sync-danmaku-source.cjs --server-root <path> --check`: also compare
+  the explicitly selected server checkout. Drift fails without changing files.
+- `node scripts/sync-danmaku-source.cjs --server-root <path> --write`: explicitly
+  import that source and update its manifest. Review before running this command.
 
-Each repository runs its local check in normal CI. Cross-repository comparison is
-required when importing shared-source changes; it may use an explicitly selected
-checkout and does not demand that independently released snapshots always match
-latest HEAD. Synchronization is a developer maintenance action, not a frontend
-build or deployment requirement.
+Server maintainers edit the canonical module directly; there is no generated
+server artifact. The existing asset snapshot includes the core automatically.
+The desktop's engineering test checks its local pin. Importing a change also
+requires cross-repository comparison and both renderer suites; each deployment
+loads only its own files. No runtime sibling lookup, fetch, symlink, frontend
+bundler or published package is introduced.
 
 ```mermaid
 flowchart LR
-  Source[Server canonical danmaku sources] --> Generator[Explicit maintenance script]
-  Generator --> Server[Checked-in server modules and policy adapter]
-  Generator --> Snapshot[Desktop source snapshot and hash manifest]
-  Snapshot --> Desktop[Checked-in desktop modules and policy adapter]
-  Server --> ServerFeed[Existing server feed]
-  Desktop --> DesktopFeed[Existing desktop feed]
+  Source[Server renderer core] --> ServerAdapter[Server policy adapter]
+  Source --> Import[Explicit source import]
+  Import --> Snapshot[Desktop snapshot and hash manifest]
+  Snapshot --> DesktopAdapter[Desktop policy adapter]
 ```
 
-## Alternatives and tradeoffs
+## Tradeoffs and alternatives
 
-Manual copies plus parity tests detect some drift but retain multiple editable
-owners. Runtime cross-repository imports violate deployment independence. A new
-published npm package or frontend bundler adds release/build machinery beyond
-this small shared surface. Checked-in snapshots add generated files and an
-explicit import step, but give reviewable diffs and offline independent builds.
-A content pin records exact inputs, not a guarantee that they are newest.
+Two separately editable renderers require repeated bug fixes and can drift.
+A runtime shared dependency would undermine offline desktop rendering and
+independent deployments. A published package or bundler adds release machinery
+for one small module. A pinned snapshot keeps independent releases and one
+source owner, at the cost of an explicit review/import step. It does not claim
+that unrelated theme files or all style rules have one source.
 
-## Delivery and verification
+## Verification
 
-1. Establish canonical sources and deterministic emit/check scripts, with tests
-   proving check mode detects corruption and never writes.
-2. Adapt both existing module entry points. Preserve exported APIs, trusted URL
-   callbacks, text-node rendering, gift artwork fallback, measurement and all
-   two-sided renderer policy differences.
-3. Run both existing Node/browser style parity suites, renderer behavior suites,
-   feed lifecycle tests and server static delivery tests. Compare source hashes
-   across these worktrees; test each local check without the sibling checkout.
-4. Review diffs, syntax, architecture and packaging inclusion. No fixture-lock
-   revision change, commit, publication or deployment is part of this task.
-
-## Acceptance
-
-Deferred by the user on 2026-09-21; do not implement until resumed and accepted.
-Pending review of ownership, checked-in source distribution and content-pin
-policy. Once accepted, implement F07 against this design and record evidence in
-`specs/plans/2026-09-21-client-server-reuse-modularity.md`.
+`test/engineering/danmaku-source.test.js` checks pin integrity, CRLF normalization,
+explicit imports, selected-server drift and read-only failure. Existing renderer,
+feed and browser checks cover text-safe DOM, trusted image callbacks, gift/SC
+rendering and theme behavior. Both adapters have explicit policy regressions.
+Current delivery evidence is recorded in the
+[optimization plan](../../../specs/plans/archive/2026-10-10-danmaku-delivery-efficiency.md).

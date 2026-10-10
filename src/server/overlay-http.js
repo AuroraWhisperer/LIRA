@@ -23,7 +23,8 @@ async function handleOverlayApi(context, principal, request, res) {
       case '/api/component/size':
         return readComponentSize(context, principal.scope, res);
       case '/api/danmaku/display':
-        return danmakuDisplayRoutes['GET /api/danmaku/display'](context, request, res);
+      case '/api/danmaku/events':
+        return danmakuDisplayRoutes[`GET ${pathName}`](context, request, res);
       case '/api/interactions/session':
         return reply(context.interactions.getState());
       case '/api/state':

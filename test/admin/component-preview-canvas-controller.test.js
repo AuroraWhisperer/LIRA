@@ -10,7 +10,7 @@ const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 
 const admin = path.join(__dirname, '../../public/js/admin');
 const modules = Promise.all(['component-preview-canvas-controller.js', 'component-config-controller.js'].map((file) =>
-  loadModuleExports(path.join(admin, file), { TextEncoder, queueMicrotask })));
+  loadModuleExports(path.join(admin, file), { TextEncoder, queueMicrotask, crypto: { randomUUID } })));
 const copy = (value) => JSON.parse(JSON.stringify(value));
 
 async function fixture(records = [], read) {
@@ -23,8 +23,9 @@ async function fixture(records = [], read) {
   const request = async (action, body, id) => {
     calls.push({ action, body: copy(body || {}) });
     if (action === 'list') return copy(records);
-    if (action === 'canvas') return copy(binding ||= { outputId: records[0].document.id,
-      activeSceneId: records[0].document.id, publishedVersion: records[0].publishedVersion || 0 });
+    if (action === 'canvas') return copy(binding || (records.length ? binding = { outputId: records[0].document.id,
+      activeSceneId: records[0].document.id, publishedVersion: records[0].publishedVersion || 0 }
+      : { outputId: null, activeSceneId: null, publishedVersion: 0 }));
     if (action === 'document') return copy(records.find(({ document }) => document.id === id));
     if (action === 'source') return { id, token: 'a'.repeat(64) };
     if (action === 'create') {
@@ -36,8 +37,15 @@ async function fixture(records = [], read) {
     const current = records.find(({ document }) => document.id === body.id);
     assert.equal(body.expectedRevision, current.revision);
     if (action === 'delete') {
+      if (body.expectedPublishedVersion !== binding.publishedVersion) {
+        throw Object.assign(new Error('场景已更新，请重新加载后重试。'), { status: 409 });
+      }
       records.splice(records.indexOf(current), 1);
-      return { id: body.id };
+      if (binding.activeSceneId === body.id) {
+        binding.activeSceneId = binding.publishedVersion ? records[0]?.document.id || null : null;
+        if (binding.publishedVersion) binding.publishedVersion += 1;
+      }
+      return { id: body.id, canvas: copy(binding) };
     }
     if (action === 'canvas-publish') {
       assert.equal(body.expectedPublishedVersion, binding.publishedVersion);
@@ -99,11 +107,29 @@ test('preset deletion retains other drafts and keeps the selected draft on failu
   assert.equal(canvas.controller.getState().presets.length, 2);
 });
 
+test('deletion refreshes a changed output marker and requires confirmation again without losing drafts', async () => {
+  const f = await fixture();
+  const canvas = await f.prepare();
+  const original = canvas.controller.getState().draft.document;
+  await canvas.publish();
+  await canvas.preset({ action: 'create', title: '待删除场景' });
+  const selected = canvas.controller.getState().draft.document;
+  canvas.controller.edit({ document: { ...selected, title: '保留直到重新确认' } });
+  await f.request('canvas-publish', { id: selected.id, expectedRevision: 1, expectedPublishedVersion: 1 });
+  await assert.rejects(canvas.preset({ action: 'delete', id: selected.id }), /当前输出已变化/);
+  assert.equal(canvas.controller.getState().activeSceneId, selected.id);
+  assert.equal(canvas.controller.getState().draft.document.title, '保留直到重新确认');
+  assert.equal(f.records.length, 2);
+  await canvas.preset({ action: 'delete', id: selected.id });
+  assert.equal(canvas.controller.getState().draft.document.id, original.id);
+  assert.equal(f.records.length, 1);
+});
+
 test('common canvas uses the prior danmaku size once and shares initialization across preview openings', async () => {
   const f = await fixture();
   const [first, second] = await Promise.all([f.prepare(), f.prepare()]);
   assert.equal(first, second);
-  assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'create', 'canvas']);
+  assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'canvas', 'create', 'canvas']);
   assert.deepEqual(copy(first.controller.getState().draft.document.canvas), { width: 2560, height: 1440 });
   const document = copy(first.controller.getState().draft.document);
   document.canvas = { width: 1280, height: 720 };
@@ -112,6 +138,39 @@ test('common canvas uses the prior danmaku size once and shares initialization a
   assert.equal(f.records[0].document.canvas.width, 1280);
   const reopened = await (await fixture(copy(f.records))).prepare();
   assert.equal(reopened.controller.getState().draft.document.canvas.width, 1280);
+});
+
+test('deleting the current output retains the replacement draft and the last deletion stays empty on reopen', async () => {
+  const f = await fixture();
+  const canvas = await f.prepare();
+  const original = canvas.controller.getState().draft.document;
+  canvas.controller.edit({ document: { ...original, title: '保留的未保存修改' } });
+  await canvas.preset({ action: 'create', title: '当前输出' });
+  await canvas.publish();
+  const live = canvas.controller.getState().draft.document.id;
+  await canvas.preset({ action: 'delete', id: live });
+  assert.equal(canvas.controller.getState().draft.document.title, '保留的未保存修改');
+  assert.equal(canvas.controller.getState().dirty, true);
+  assert.equal(canvas.controller.getState().activeSceneId, original.id);
+  assert.equal(f.records[0].document.title, '直播场景');
+  assert.deepEqual(copy(await canvas.preset({ action: 'delete', id: original.id })), { id: null });
+  const state = canvas.controller.getState();
+  assert.equal(state.loaded, true);
+  assert.equal(state.dirty, false);
+  assert.deepEqual(copy(state.presets), []);
+  assert.deepEqual(copy(state.draft.document.items), []);
+  assert.equal(state.activeSceneId, null);
+  await assert.rejects(canvas.publish(), /先新建场景/);
+  assert.throws(() => canvas.controller.edit({ document: original }), /先新建场景/);
+  const creates = f.calls.filter(call => call.action === 'create').length;
+  f.components[0].controller.reset();
+  const reopened = await f.prepare();
+  assert.equal(reopened.controller.getState().presets.length, 0);
+  assert.equal(f.calls.filter(call => call.action === 'create').length, creates);
+  await reopened.preset({ action: 'create', title: '重新开始' });
+  await reopened.publish();
+  assert.equal(reopened.controller.getState().presets.length, 1);
+  assert.equal((await reopened.source()).id, original.id);
 });
 
 test('existing scene geometry is retained and saves stay bound to its scene identity', async () => {
@@ -163,10 +222,10 @@ test('first canvas waits for danmaku dimensions once and rejects an owner change
     } else {
       const [first, second] = await preparing;
       assert.equal(first, second);
-      assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'create', 'canvas']);
+      assert.deepEqual(f.calls.map(({ action }) => action), ['list', 'canvas', 'create', 'canvas']);
       assert.equal(first.controller.getState().draft.document.canvas.width, 3840);
     }
-    assert.deepEqual(whileLoading, ['list']);
+    assert.deepEqual(whileLoading, ['list', 'canvas']);
   }
 });
 
@@ -213,7 +272,7 @@ test('canvas applies saved drafts and reuses one bound output capability across 
 });
 
 const entry = file => path.resolve(__dirname, '../../public/js', file);
-const load = (file, globals = {}) => loadModuleExports(entry(file), { TextEncoder, queueMicrotask, structuredClone, ...globals });
+const load = (file, globals = {}) => loadModuleExports(entry(file), { TextEncoder, queueMicrotask, structuredClone, crypto: { randomUUID }, ...globals });
 const plain = value => JSON.parse(JSON.stringify(value));
 const clockConfig = getClockConfig(DEFAULT_SETTINGS);
 function item(type = 'clock', mode = 'independent', config = clockConfig) {

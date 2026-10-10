@@ -8,8 +8,13 @@
   mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px));
 }
 
-body[data-scroll-direction='down'] .draw-danmaku-feed[data-smooth-layout='true'] {
+body[data-scroll-direction='down'] .draw-danmaku-feed[data-smooth-layout='true'],
+body[data-edge-fade='bottom'] .draw-danmaku-feed[data-smooth-layout='true'] {
   mask: linear-gradient(#000 calc(100% - var(--danmaku-edge-fade-size, 32px)), transparent);
+}
+
+body[data-edge-fade='top'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px));
 }
 
 body[data-edge-fade='both'] .draw-danmaku-feed[data-smooth-layout='true'] {

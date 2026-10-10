@@ -36,10 +36,12 @@ function getComponentPreviewOwner(licenseManager) {
   }
 }
 
-function createSceneCloudController({ licenseManager, publish, fetchImpl = fetch, timers = globalThis }) {
+function createSceneCloudController({ licenseManager, publish, subscribeDemand, fetchImpl = fetch, timers = globalThis }) {
   let started = false;
   let disposed = false;
   let unsubscribe = null;
+  let unsubscribeDemand = null;
+  let demanded = false;
   let current = null;
   let retryTimer = null;
   let retryDelay = 1000;
@@ -91,12 +93,13 @@ function createSceneCloudController({ licenseManager, publish, fetchImpl = fetch
 
   function refresh() {
     if (!started) return;
-    const next = context();
+    const next = demanded ? context() : null;
     if (current && matches(current, next)) return;
+    const previous = current;
     cancel();
     retryDelay = 1000;
     if (next) connect(next);
-    else offline();
+    else offline(previous);
   }
 
   function connect(owner) {
@@ -200,7 +203,10 @@ function createSceneCloudController({ licenseManager, publish, fetchImpl = fetch
     if (started || disposed) return;
     started = true;
     unsubscribe = licenseManager.onStateChanged(refresh);
-    refresh();
+    unsubscribeDemand = subscribeDemand((active) => {
+      demanded = active;
+      refresh();
+    });
   }
 
   function stop() {
@@ -208,6 +214,9 @@ function createSceneCloudController({ licenseManager, publish, fetchImpl = fetch
     started = false;
     unsubscribe?.();
     unsubscribe = null;
+    unsubscribeDemand?.();
+    unsubscribeDemand = null;
+    demanded = false;
     const previous = current;
     cancel();
     offline(previous);

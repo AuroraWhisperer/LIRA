@@ -19,7 +19,7 @@ async function run() {
   const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
   const { DatabaseSync } = require('node:sqlite');
   const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
-  const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
+  const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
   const { createSceneStore } = require('../../src/storage/scene-store');
   const { createSceneService } = require('../../src/scenes/scene-service');
   const { readSceneSharedAppearances } = require('../../src/server/scene-shared-appearance');
@@ -54,6 +54,7 @@ async function run() {
   migrateScenes(db);
   migrateComponentOutputSizes(db);
   migrateCanvasPresets(db);
+  migrateSceneDeletion(db);
   const scenes = createSceneService({ store: createSceneStore(db), getOwner: () => ({ scope: 'canvas-test', epoch: 1 }),
     getSharedAppearances: items => readSceneSharedAppearances({ settings: { get: () => openingSettings },
       system: { dataDir: directory, getState }, readDanmakuDisplay: () => ({ config: saved }) }, items),

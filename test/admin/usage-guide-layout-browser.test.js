@@ -62,6 +62,71 @@ async function paragraphPosition(page) {
   });
 }
 
+test('both directory layouts expose subsections and the sticky sidebar scrolls without a visible scrollbar', async (t) => {
+  const page = await setup(t, 'reduce');
+  const directory = await page.evaluate(() => {
+    initUsageGuide();
+    return Array.from(document.querySelectorAll('.usage-guide-toc-group'), (group) => {
+      const chapter = group.querySelector('a');
+      const section = document.getElementById(chapter.hash.slice(1));
+      return {
+        headings: Array.from(section.querySelectorAll(':scope > h4'), (heading) => heading.textContent.trim()),
+        links: Array.from(group.querySelectorAll('.usage-guide-toc-children a'), (link) => ({
+          text: link.textContent,
+          target: document.getElementById(link.hash.slice(1))?.textContent.trim(),
+        })),
+      };
+    });
+  });
+  assert.equal(directory.length, 8);
+  for (const chapter of directory) {
+    assert.deepEqual(chapter.links.map((link) => link.text), chapter.headings);
+    assert.deepEqual(chapter.links.map((link) => link.target), chapter.headings);
+  }
+  const subsection = page.locator('.usage-guide-toc-children a').filter({ hasText: '2.2 点歌管理' });
+  await subsection.click();
+  await page.waitForFunction(() => !document.querySelector('#otherUsageGuideFeature').classList.contains('usage-guide-render-all'));
+  assert.equal(await page.locator('.usage-guide-toc-current').textContent(), '2 点歌与播放');
+  assert.equal(await page.locator('.usage-guide-toc-group > a.active').getAttribute('href'), '#ug-song');
+  const targetOffset = await page.evaluate(() => {
+    const panel = document.querySelector('#otherUsageGuideFeature');
+    const target = document.getElementById('ug-song-subsection-2');
+    return target.getBoundingClientRect().top - panel.querySelector('.usage-guide-panel').getBoundingClientRect().top
+      - parseFloat(panel.style.getPropertyValue('--usage-guide-scroll-offset'));
+  });
+  assert.ok(Math.abs(targetOffset) < 2, `the subsection should land below the toolbar: ${targetOffset}`);
+
+  await page.evaluate(() => window.toggleGuideSidebar());
+  const sidebar = await page.locator('.usage-guide-toc').evaluate((node) => ({
+    overflow: getComputedStyle(node).overflowY,
+    position: getComputedStyle(node).position,
+    scrollbar: getComputedStyle(node).scrollbarWidth,
+    top: node.getBoundingClientRect().top,
+    height: node.clientHeight,
+    scrollHeight: node.scrollHeight,
+  }));
+  assert.equal(sidebar.overflow, 'auto');
+  assert.equal(sidebar.position, 'sticky');
+  assert.equal(sidebar.scrollbar, 'none');
+  assert.ok(sidebar.scrollHeight > sidebar.height, 'all subsections remain accessible in the bounded directory');
+  const readingScroll = await page.locator('.usage-guide-panel').evaluate((node) => node.scrollTop);
+  await page.locator('.usage-guide-toc').hover();
+  await page.mouse.wheel(0, 480);
+  await page.waitForFunction(() => document.querySelector('.usage-guide-toc').scrollTop > 0);
+  assert.equal(await page.locator('.usage-guide-panel').evaluate((node) => node.scrollTop), readingScroll);
+  const lastLink = page.locator('.usage-guide-toc-children a').last();
+  await lastLink.scrollIntoViewIfNeeded();
+  const lastLinkIsInView = await lastLink.evaluate((node) => {
+    const link = node.getBoundingClientRect();
+    const toc = node.closest('.usage-guide-toc').getBoundingClientRect();
+    return link.top >= toc.top && link.bottom <= toc.bottom;
+  });
+  assert.ok(lastLinkIsInView, 'the final subsection can be brought into view');
+  await page.locator('.usage-guide-panel').evaluate((node) => { node.scrollTop += 400; });
+  const directoryTop = await page.locator('.usage-guide-toc').evaluate((node) => node.getBoundingClientRect().top);
+  assert.ok(Math.abs(directoryTop - sidebar.top) < 1, 'the directory stays fixed while the article scrolls');
+});
+
 for (const mode of ['no-preference', 'reduce']) {
   test(`sidebar layout keeps the reading paragraph and top directory state (${mode})`, async (t) => {
     const page = await setup(t, mode);

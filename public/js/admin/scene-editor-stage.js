@@ -204,6 +204,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   const observer = new ResizeObserver(fit);
   observer.observe(viewport);
   return { fit, syncSelection, cancelGesture, setZoom(value) { zoom = value; fit(); },
+    setEmptyMessage(message) { empty.textContent = message; },
     setSnap(value) { snap = value; }, isDragging: () => !!gesture,
     dispose() {
       closed = true;

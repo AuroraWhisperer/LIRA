@@ -175,7 +175,7 @@ test('edits and local preview do not write until explicit apply; late save prese
   f.click('identity');
   f.writes[0].resolve(saved('outline', 12));
   await first;
-  assert.match(f.elements.styleChip.textContent, /待应用.*头像横卡/);
+  assert.match(f.elements.styleChip.textContent, /待应用.*画中人/);
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
   const next = f.click('danmakuApplyOverlayBtn');
   f.writes[1].resolve(saved('identity', 12));
@@ -196,7 +196,7 @@ test('failed apply and invalid durations retain the editable draft', async () =>
   await pending;
   assert.match(f.elements.styleSaveState.textContent, /应用失败.*草稿已保留/);
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
-  assert.match(f.elements.styleChip.textContent, /简洁白卡/);
+  assert.match(f.elements.styleChip.textContent, /一纸素笺/);
 });
 
 test('appearance drafts belong to each style and apply together without leaking to the old server', async () => {
@@ -296,8 +296,8 @@ test('older servers keep style editing available and explain unsupported appeara
 });
 
 for (const [style, label] of [
-  ['cream', '奶油气泡'],
-  ['glow', '流光气泡'],
+  ['cream', '杏花白'],
+  ['glow', '流光溢彩'],
 ]) {
   test(`${style} is a random-style draft with duration, read-only preview and explicit apply`, async () => {
     const f = await fixture();
@@ -335,7 +335,7 @@ test('a late read cannot replace a draft and an old account save cannot affect t
   f.click('transparent');
   f.reads[1].resolve(saved('bubble'));
   await reload;
-  assert.match(f.elements.styleChip.textContent, /待应用.*透明文字/);
+  assert.match(f.elements.styleChip.textContent, /待应用.*留白/);
   const pending = f.click('danmakuApplyOverlayBtn');
   f.account('');
   assert.equal(f.elements.overlayUrl.value, '');

@@ -90,7 +90,6 @@
 .usage-guide-figure figcaption {
   margin-top: 8px;
   color: var(--muted);
-  max-width: 49em;
   font-size: 13px;
   line-height: 21px;
   overflow-wrap: anywhere;

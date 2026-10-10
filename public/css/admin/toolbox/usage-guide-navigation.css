@@ -249,8 +249,8 @@
   left: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px 16px;
-  max-height: min(400px, var(--usage-guide-toc-max-height, 50dvh));
+  gap: 24px 16px;
+  max-height: var(--usage-guide-toc-max-height, 60dvh);
   padding: 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -280,11 +280,10 @@
 }
 
 .usage-guide-toc-group {
-  display: contents;
-}
-
-.usage-guide-toc-heading {
-  display: none;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
 }
 
 .usage-guide-toc a {
@@ -317,6 +316,22 @@
   background: var(--usage-guide-nav-bg);
   color: var(--usage-guide-nav-text);
   font-weight: 600;
+}
+
+.usage-guide-toc-group > a {
+  font-weight: 600;
+}
+
+.usage-guide-toc-children {
+  display: grid;
+  gap: 2px;
+}
+
+.usage-guide-toc-children a {
+  min-height: 28px;
+  padding: 4px 12px 4px 24px;
+  font-size: var(--type-size-caption);
+  font-weight: 400;
 }
 
 .usage-guide-toc a:focus-visible,

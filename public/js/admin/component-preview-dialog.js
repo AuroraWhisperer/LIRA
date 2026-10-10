@@ -180,7 +180,7 @@ export function openComponentPreview(selected = null) {
       if (closed) return;
       const previews = selected && !sceneOnly(selected) ? [selected, ...available.filter(({ id }) => id !== selected.id)] : available;
       if (!previews.length) throw new Error('组件尚未就绪，请重新打开场景编辑器。');
-      for (const options of previews) {
+      await Promise.all(previews.map(async (options) => {
         const connection = { options, generation: options.controller.getState().generation,
           ack: 0, display: null, timer: 0, retryDelay: 1000, opened: false };
         connections.push(connection);
@@ -199,7 +199,7 @@ export function openComponentPreview(selected = null) {
         connection.opened = true;
         options.onOpen?.();
         void exchange(connection);
-      }
+      }));
       ready = true;
       if (!closed) await focus();
     } catch (error) {

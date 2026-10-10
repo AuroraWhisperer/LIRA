@@ -140,10 +140,17 @@
 }
 
 .live-components-menu .live-component-submenu .other-feature-button {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 8px;
   height: 34px;
   min-height: 34px;
   padding: 6px 12px;
+}
+
+.live-component-submenu .other-feature-icon,
+.live-component-submenu .other-feature-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .live-component-group[aria-expanded='false'] + .live-component-submenu {
@@ -734,10 +741,6 @@
 
 .live-components-page .opening-animation-toolbar {
   justify-content: flex-start;
-}
-.live-components-page .opening-visibility-control {
-  padding-right: 16px;
-  border-right: 1px solid var(--border);
 }
 
 /* Switch rows read the same way on every page: label first, control last. */

@@ -260,7 +260,7 @@ test('layer drag commits only inside the strip on release, cancels outside or on
   assert.deepEqual(await stageOrder(), before);
 });
 
-test('scene presets save and retain drafts independently while one live source changes only after applying', { timeout: 30000 }, async t => {
+test('scene presets retain drafts and delete through current output to a persistent empty canvas', { timeout: 30000 }, async t => {
   const { page, desktop, fixture } = await editor(t);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByText('已保存并应用到直播源', { exact: true }).waitFor();
@@ -283,7 +283,7 @@ test('scene presets save and retain drafts independently while one live source c
   assert.equal(live().version, 1);
   await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).fill('1600');
   await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).press('Tab');
-  await selectPreset('直播场景');
+  await selectPreset('直播场景 · 当前输出');
   await page.locator('.preview-canvas-layers').getByRole('button', { name: '弹幕姬 1', exact: true }).waitFor();
   await selectPreset('游戏场景 · 未保存');
   await page.getByRole('button', { name: '画布设置', exact: true }).click();
@@ -321,21 +321,42 @@ test('scene presets save and retain drafts independently while one live source c
   assert.equal(fixture.service.list().length, 2);
   assert.equal(live().version, 2);
   assert.equal(fixture.service.getSource(first.outputId).token, source.token);
-  await presetAction(page, '删除场景');
-  await page.getByRole('dialog').getByRole('button', { name: '删除场景', exact: true }).click();
-  await page.getByText('此场景正在直播使用，请先对其他场景“保存并应用”后再删除。', { exact: true }).waitFor();
-  assert.equal(fixture.service.list().length, 2);
-  assert.equal(live().document.title, '游戏场景');
   await selectPreset('直播场景');
   await page.getByRole('button', { name: '画布设置', exact: true }).click();
   await page.getByRole('textbox', { name: '场景名称', exact: true }).fill('未保存原场景');
   await page.getByRole('textbox', { name: '场景名称', exact: true }).press('Tab');
-  await page.reload();
-  await page.getByText('已恢复草稿，尚未应用到直播。', { exact: true }).waitFor();
+  await selectPreset('游戏场景 · 当前输出');
   await presetAction(page, '删除场景');
+  const deletingOutput = page.getByRole('dialog');
+  await deletingOutput.getByText(/这是当前输出场景/).waitFor();
+  await deletingOutput.getByRole('button', { name: '删除场景', exact: true }).click();
+  await page.getByRole('button', { name: '场景', exact: true }).filter({ hasText: '未保存原场景 · 当前输出 · 未保存' }).waitFor();
+  assert.equal(fixture.service.list().length, 1);
+  assert.equal(live().document.title, '直播场景');
+  assert.equal(live().version, 3);
+  assert.equal(await page.locator('.preview-canvas-live-preset').textContent(), '当前输出：直播场景');
+  await presetAction(page, '删除场景');
+  await page.getByRole('dialog').getByText(/透明空画面/).waitFor();
   await page.getByRole('dialog').getByRole('button', { name: '删除场景', exact: true }).click();
-  await page.getByText('此场景承载固定直播源，不能删除；可以清空组件后重新使用。', { exact: true }).waitFor();
-  assert.equal(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.title), '未保存原场景');
+  await page.getByText('暂无场景，请从顶部“场景操作”新建场景。', { exact: true }).waitFor();
+  assert.equal(fixture.service.list().length, 0);
+  assert.equal(live().document.items.length, 0);
+  assert.equal(live().version, 4);
+  assert.equal(fixture.service.getSource(first.outputId).token, source.token);
+  assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isDisabled(), true);
+  await page.reload();
+  await page.getByText('暂无场景，请从顶部“场景操作”新建场景。', { exact: true }).waitFor();
+  const reopened = await openCanvasDesktop(desktop, fixture);
+  await page.goto('about:blank');
+  await page.goto(reopened);
+  await page.getByText('暂无场景，请从顶部“场景操作”新建场景。', { exact: true }).waitFor();
+  assert.equal(fixture.service.list().length, 0);
+  await presetAction(page, '新建场景');
+  await page.getByRole('button', { name: '场景', exact: true }).filter({ hasText: '场景 1' }).waitFor();
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.getByText('已保存并应用到直播源', { exact: true }).waitFor();
+  assert.equal(live().document.title, '场景 1');
+  assert.equal(fixture.service.getSource(first.outputId).token, source.token);
 });
 
 test('canvas Delete and Ctrl+Z restore deletion, resize and move as separate edits', { timeout: 30000 }, async (t) => {

@@ -28,50 +28,32 @@
     display: flex;
     flex-direction: column;
     container-type: normal;
-    gap: 4px;
+    gap: 12px;
     max-height: calc(100dvh - var(--player-dock-reserve, 96px) - 128px);
-    padding: 12px;
+    padding: 4px;
     overflow-y: auto;
-    scrollbar-width: thin;
-    border: 1px solid var(--usage-guide-nav-border);
-    border-radius: var(--radius-lg);
-    background: var(--usage-guide-nav-bg);
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .other-page.sidebar-collapsed .usage-guide-toc::-webkit-scrollbar {
+    display: none;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc::before {
     content: '本页目录';
-    padding: 0 0 8px;
-    color: var(--usage-guide-nav-text);
+    padding: 0 10px 8px;
+    color: var(--muted);
     font-size: var(--type-size-caption);
     font-weight: 500;
   }
 
-  .other-page.sidebar-collapsed .usage-guide-toc-group {
-    display: contents;
-  }
-
-  .other-page.sidebar-collapsed .usage-guide-toc-toggle {
-    display: none;
-  }
-
-  .other-page.sidebar-collapsed .usage-guide-toc-toolbar {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 0 0 8px;
-  }
-
-  .other-page.sidebar-collapsed .usage-guide-reading-status {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: var(--type-size-micro);
-  }
-
+  .other-page.sidebar-collapsed .usage-guide-toc-toolbar,
   .other-page.sidebar-collapsed .usage-guide-reading-track {
-    flex: 0 0 3px;
-    margin: 0 0 12px;
+    display: none;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc-links {
@@ -84,28 +66,31 @@
     transition: none;
   }
 
-  .other-page.sidebar-collapsed .usage-guide-toc-heading {
-    display: none;
-  }
-
   .other-page.sidebar-collapsed .usage-guide-toc a {
     flex: 0 0 auto;
     justify-content: flex-start;
-    padding: 10px;
-    border: 0;
+    min-height: 36px;
+    padding: 7px 10px;
+    border-left: 1px solid var(--usage-guide-rule);
     border-radius: 0 var(--radius-md) var(--radius-md) 0;
     text-align: left;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a:hover {
-    background: color-mix(in srgb, var(--usage-guide-nav-accent) 12%, var(--usage-guide-nav-bg));
-    color: var(--usage-guide-nav-text);
+    background: var(--color-bg-tertiary);
+    color: var(--text);
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a.active {
-    background: var(--usage-guide-nav-accent);
-    color: var(--color-on-help-accent);
+    background: var(--usage-guide-nav-bg);
+    border-left-color: var(--usage-guide-nav-accent);
+    color: var(--usage-guide-nav-text);
     box-shadow: none;
+  }
+
+  .other-page.sidebar-collapsed .usage-guide-toc-children a {
+    min-height: 28px;
+    padding: 4px 10px 4px 24px;
   }
 
   .other-page.sidebar-collapsed .usage-guide-section {

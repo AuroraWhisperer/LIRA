@@ -1,7 +1,7 @@
 'use strict';
 
 const { DatabaseSync } = require('node:sqlite');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
@@ -12,7 +12,7 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
   migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db);
+  migrateCanvasPresets(db); migrateSceneDeletion(db);
   const owner = { scope: 'synthetic-canvas-owner', epoch: 1 };
   const runtime = { settings: { ...DEFAULT_SETTINGS }, queue: { current: null,
     waiting: [{ id: 1, song_name: '合成实时歌曲', requester: '合成观众' }] }, superChats: [],
@@ -51,6 +51,7 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
         return Object.keys(patch);
       } },
     sceneEvents: notifications ? sceneRuntime.events : undefined,
+    danmakuEvents: notifications ? sceneRuntime.danmakuEvents : undefined,
     readDanmakuDisplay: sceneRuntime.readDanmakuDisplay,
     parentHtml: '<!doctype html><html><body></body></html>' });
   return { ...server, service, runtime, owner, updateCloud, receiveGift: sceneRuntime.receiveGift, notify: sceneRuntime.notify,

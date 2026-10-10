@@ -1,7 +1,8 @@
 <section id="giftWishesPanel" class="gift-wishes-panel">
   <header class="gift-wishes-heading component-toolbar">
     <div class="gift-wish-periods gift-wish-field">
-      <label for="giftWishPeriod">统计周期 <lira-help label="统计周期说明"><span id="giftWishPeriodHint">从创建时开始累计，不重置。</span></lira-help></label>
+      <label for="giftWishPeriod">统计周期</label>
+      <span id="giftWishPeriodHint" hidden>从创建时开始累计，不重置。</span>
       <select id="giftWishPeriod" aria-label="许愿统计周期" aria-describedby="giftWishPeriodHint">
         <option value="long">长效许愿</option>
         <option value="day">本日许愿</option>
@@ -10,7 +11,6 @@
     </div>
     <div class="gift-wish-source-actions">
       <div class="gift-wish-source gift-wish-field">
-        <lira-help label="许愿浏览器源说明">统一展示长效、本日和本场直播许愿；切换统计周期只影响这里的编辑与管理。</lira-help>
         <input id="giftWishUrl" readonly aria-label="礼物许愿浏览器源地址" />
       </div>
       <button id="giftWishCopy" type="button" class="secondary">复制地址</button>

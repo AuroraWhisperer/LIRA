@@ -8,7 +8,7 @@ const { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } = require('../../publ
 const { normalizeSceneConfig } = require('../../src/server/scene-components');
 const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
 const { createSceneStore } = require('../../src/storage/scene-store');
-const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneExtraDisplay } = require('../../src/server/scene-extra-display');
 
@@ -146,7 +146,7 @@ test('new canvas components reject invalid, secret and business configuration an
 
 test('asynchronous output rejects account changes and source revocation before releasing any display data', async (t) => {
   const db = new DatabaseSync(':memory:');
-  t.after(() => db.close()); migrateScenes(db); migrateComponentOutputSizes(db);
+  t.after(() => db.close()); migrateScenes(db); migrateComponentOutputSizes(db); migrateCanvasPresets(db); migrateSceneDeletion(db);
   const owner = { scope: 'synthetic-owner', epoch: 1 };
   let release;
   const service = createSceneService({ store: createSceneStore(db), getOwner: () => owner,

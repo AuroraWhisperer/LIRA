@@ -63,10 +63,25 @@ test('desktop opening styles share one picker and retain their own settings and 
   const pixel = page.getByRole('button', { name: '像素卡带', exact: true });
   const moon = page.getByRole('button', { name: '选择样式：月渡花汀 · 开播动画', exact: true });
   await moon.waitFor();
+  const source = page.locator('#openingCopyUrl');
+  const sourceUrl = await source.textContent();
+  assert.match(sourceUrl, /^http:\/\/127\.0\.0\.1:\d+\/opening$/);
+  const styleBounds = await classic.boundingBox();
+  const sourceBounds = await source.boundingBox();
+  const previewBounds = await page.locator('#openingPreviewBtn').boundingBox();
+  assert.ok(sourceBounds.y >= styleBounds.y + styleBounds.height, 'the address starts on the second row');
+  assert.equal(sourceBounds.y, previewBounds.y, 'address and preview share the second row');
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true,
+      value: { async writeText(value) { window.copiedOpeningUrl = value; } } });
+  });
+  await source.click();
+  assert.equal(await page.evaluate(() => window.copiedOpeningUrl), sourceUrl);
+  assert.equal(await page.locator('lira-help[label="直播画面链接说明"]').count(), 0);
   await page.locator('#openingTitle').fill('经典新文案');
   await pixel.click();
   assert.equal(await page.locator('#openingCopyFields').isVisible(), false);
-  assert.equal(await page.locator('#openingQuality').inputValue(), 'normal');
+  assert.equal(await page.locator('#openingQuality').inputValue(), 'high');
   await page.locator('#openingQuality').selectOption('low');
   await classic.click();
   assert.equal(await page.locator('#openingTitle').inputValue(), '经典新文案');
@@ -225,8 +240,8 @@ test('desktop and canvas share pixel controls, animated avatar and music without
   assert.equal(await panel.getByText('卡带大头贴.png', { exact: true }).isVisible(), true);
   await panel.getByRole('button', { name: '清除大头贴', exact: true }).click();
   await panel.getByText('未上传大头贴', { exact: true }).waitFor();
-  await desktop.locator('#openingNotesLabel').click();
-  await page.waitForFunction(() => !document.querySelector('[data-opening-parameter="showNotes"]').checked);
+  assert.equal(await desktop.locator('#openingShowNotes, #openingShowEq').count(), 0);
+  assert.equal(await panel.locator('[data-opening-parameter="showNotes"], [data-opening-parameter="showEq"]').count(), 0);
   await page.locator('[data-component-parameter="style"]').selectOption('classic');
   await panel.getByRole('heading', { name: '经典舞台设置', exact: true }).waitFor();
   assert.equal(await panel.locator('[data-opening-parameter="title"]').inputValue(), '经典保留文案');

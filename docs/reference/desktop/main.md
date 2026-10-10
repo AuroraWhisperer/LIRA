@@ -32,6 +32,8 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 
 礼物 SSE 的原始 JSON 只在 `license/remote-license-client.js` 通过 `normalizeProcessedGiftEvent` 执行严格 wire 字段校验；回调传递的是含整数分派生字段的 canonical event。`remote-gift-controller.js` 使用 `canonicalizeProcessedGiftEvent` 处理该内部对象，不能再次用 wire 字段白名单拒绝这些派生字段；合法且连续的 final 仍走即时 importer，再按游标对账。
 
+`scene-cloud-controller.js` 的云弹幕连接由 `scene-runtime` 的共享展示需求驱动：读取弹幕投影或默认外观续期，最后一次读取后 15 秒自动停止；重新读取后在授权有效时恢复。多个本机来源仍共用一条连接，停止时清理读取、超时和退避并清空旧实时事件。`license-overlay-ipc.js` 把已校验的设置读取/保存结果连同请求前捕获的 owner scope/epoch 回填场景外观缓存；缓冲拒绝旧账号结果，不需要常开云 SSE 才能保存样式。原 IPC 返回值和渲染进程权限不变。
+
 ## 本机客户端外观
 
 [client-appearance.js](../../../src/electron/client-appearance.js) 在创建 runtime 和主窗口前读取

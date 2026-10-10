@@ -36,7 +36,27 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
     }, markup);
   }
   await openTextBoxes();
+  await desktop.waitForFunction(() => !document.querySelector('[data-text-box="add"]').disabled);
+  const status = desktop.locator('[data-text-box="status"]');
+  assert.equal(await status.textContent(), '');
+  assert.equal(await desktop.locator('[data-text-box="discard"]').isDisabled(), true);
+  await desktop.evaluate(async () => {
+    const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
+    window.textBoxCanvas = (await prepareComponentPreviews()).find(component => component.id === 'canvas');
+    const { document } = textBoxCanvas.controller.getState().draft;
+    document.title = '其他场景修改';
+    textBoxCanvas.controller.edit({ document });
+  });
+  assert.equal(await status.textContent(), '场景其他内容有未保存修改');
+  assert.equal(await desktop.locator('[data-text-box="empty"]').isVisible(), true);
+  const statusBounds = await status.boundingBox();
+  const saveBounds = await desktop.locator('[data-text-box="save"]').boundingBox();
+  assert.ok(statusBounds.y >= saveBounds.y && statusBounds.y < saveBounds.y + saveBounds.height,
+    'save status stays beside the toolbar actions');
+  await desktop.locator('[data-text-box="discard"]').click({ force: true });
+  assert.equal(await status.textContent(), '');
   await desktop.locator('[data-text-box="add"]').click({ force: true });
+  assert.equal(await status.textContent(), '文本框有未保存修改');
   await desktop.evaluate(async () => {
     const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
     window.textBoxCanvas = (await prepareComponentPreviews()).find(component => component.id === 'canvas');
@@ -86,11 +106,27 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   const saved = await app.evaluate(() => global.canvasTest.scene());
   assert.equal(saved.document.items[0].appearance.config.nodes[0].underline, true);
   assert.ok(saved.publishedVersion > 0);
+  await desktop.locator('[data-text-box="remove"]').click({ force: true });
+  assert.equal(await status.textContent(), '文本框有未保存修改');
+  assert.equal(await desktop.locator('[data-text-box="empty"]').isVisible(), true);
+  await desktop.locator('[data-text-box="discard"]').click({ force: true });
+  assert.equal(await status.textContent(), '已保存');
   assert.equal((await desktop.reload()).status(), 200);
   await openTextBoxes();
   await desktop.frameLocator('.component-preview-frame').locator('#textBox > span').first().waitFor();
   assert.equal(await editor.locator('[data-text-box-node]').count(), 2);
   assert.equal(await desktop.frameLocator('.component-preview-frame').locator('#textBox > span').first()
     .evaluate(node => getComputedStyle(node).textDecorationLine), 'underline');
+  await desktop.evaluate(async () => {
+    const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
+    const canvas = (await prepareComponentPreviews()).find(component => component.id === 'canvas');
+    await canvas.preset({ action: 'delete', id: canvas.controller.getState().draft.document.id });
+  });
+  assert.equal(await desktop.locator('[data-text-box="empty"]').isVisible(), true);
+  await desktop.locator('[data-text-box="add"]').click({ force: true });
+  await desktop.waitForFunction(() => document.querySelectorAll('[data-text-box="list"] button').length === 1);
+  await desktop.locator('[data-text-box="save"]').click({ force: true });
+  await desktop.waitForFunction(() => document.querySelector('[data-text-box="status"]').textContent === '已保存');
+  assert.equal((await app.evaluate(() => global.canvasTest.scene())).document.items.length, 1);
   assert.deepEqual(errors, []);
 });

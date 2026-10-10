@@ -40,6 +40,7 @@ function fixture(t, options = {}) {
   const requests = [];
   const streams = [];
   const listeners = new Set();
+  const demandListeners = new Set();
   const tasks = new Map();
   let timerId = 0;
   let settingsReads = 0;
@@ -64,6 +65,11 @@ function fixture(t, options = {}) {
   };
   const controller = createSceneCloudController({
     licenseManager,
+    subscribeDemand(listener) {
+      demandListeners.add(listener);
+      listener(options.demanded !== false);
+      return () => demandListeners.delete(listener);
+    },
     publish: (update) => { updates.push(update); options.onPublish?.(update); },
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
@@ -79,7 +85,8 @@ function fixture(t, options = {}) {
   });
   t.after(() => controller.stop());
   return {
-    controller, updates, requests, streams, identity, listeners, tasks,
+    controller, updates, requests, streams, identity, listeners, tasks, demandListeners,
+    demand(active) { for (const listener of demandListeners) listener(active); },
     get settingsReads() { return settingsReads; },
     events: () => updates.filter((update) => update.event).map((update) => update.event),
     change(patch) { Object.assign(identity, patch); for (const listener of listeners) listener(); },
@@ -91,6 +98,70 @@ function fixture(t, options = {}) {
     },
   };
 }
+
+test('idle desktops make no upstream requests and active readers share one cancellable connection', async (t) => {
+  const buffer = createCloudDisplayBuffer({ getOwner: () => ({
+    scope: '["https://api.example.test","7"]', epoch: env.identity.epoch,
+  }) });
+  const env = fixture(t, { demanded: false, onPublish: update => buffer.receive(update) });
+  env.controller.start();
+  env.change({ epoch: 2 });
+  await flush();
+  assert.equal(env.settingsReads, 0);
+  assert.equal(env.requests.length, 0);
+  assert.equal(env.tasks.size, 0);
+  env.demand(true);
+  env.demand(true);
+  await flush();
+  assert.equal(env.requests.length, 1);
+  env.streams[0].send(state());
+  env.streams[0].send(gift());
+  await flush();
+  const connected = buffer.getSnapshot();
+  assert.equal(connected.nextCursor, 1);
+  env.demand(false);
+  await env.controller.whenIdle();
+  assert.equal(env.requests[0].init.signal.aborted, true);
+  assert.equal(env.streams[0].cancelled, 1);
+  assert.equal(env.updates.at(-1).status, 'offline');
+  const idle = buffer.getSnapshot({ epoch: connected.epoch, cursor: 0 });
+  assert.equal(idle.status, 'offline');
+  assert.equal(idle.state, null);
+  assert.deepEqual(idle.events, []);
+  assert.equal(buffer.getSettings().style, 'signal', 'Idle cleanup retains appearance settings.');
+  assert.equal(env.tasks.size, 0, 'No retries remain when the display is unused.');
+  env.demand(true);
+  await flush();
+  assert.equal(env.requests.length, 2);
+  env.controller.stop();
+  await env.controller.whenIdle();
+  assert.equal(env.listeners.size, 0);
+  assert.equal(env.demandListeners.size, 0);
+  assert.equal(env.tasks.size, 0);
+});
+
+test('demand ending during settings lookup discards the late result and cancels retry backoff', async (t) => {
+  let resolveSettings;
+  const env = fixture(t, { getSettings: () => new Promise(resolve => { resolveSettings = resolve; }) });
+  env.controller.start();
+  env.demand(false);
+  resolveSettings({ overlayUrl: OVERLAY_URL });
+  await env.controller.whenIdle();
+  assert.equal(env.requests.length, 0);
+  assert.equal(env.tasks.size, 0);
+  env.demand(true);
+  resolveSettings({ overlayUrl: OVERLAY_URL });
+  await flush();
+  env.streams[0].fail();
+  await flush();
+  assert.ok([...env.tasks.values()].some(task => task.delay === 1000));
+  env.demand(false);
+  assert.equal(env.tasks.size, 0);
+  env.change({ authorized: false });
+  env.demand(true);
+  await flush();
+  assert.equal(env.requests.length, 1, 'Demand cannot bypass authorization.');
+});
 
 test('one public connection preserves split UTF-8/CRLF events and strips non-display fields', async (t) => {
   const env = fixture(t);

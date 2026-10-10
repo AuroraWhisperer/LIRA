@@ -27,9 +27,10 @@
           </label>
           <lira-help label="开播特效说明">同时控制直播中的动画和音乐；关闭后仍可在画布中静音预览。</lira-help>
         </div>
+      </div>
+      <div class="opening-preview-actions">
         <div id="openingSourceAddress" class="opening-source-actions">
-          <button id="openingCopyUrl" class="secondary" type="button">复制地址</button>
-          <lira-help label="直播画面链接说明"><span>将此地址粘贴到 OBS 或哔哩哔哩直播姬的浏览器源；切换内置样式无需更换地址。<code id="openingUrl"></code></span></lira-help>
+          <button id="openingCopyUrl" class="secondary opening-url-button" type="button" aria-label="复制开播动画浏览器源地址" title="点击复制地址"><span id="openingUrl"></span></button>
         </div>
         <button id="openingPreviewBtn" class="primary" type="button" disabled>预览</button>
       </div>
@@ -70,8 +71,8 @@
           <div class="opening-select-grid">
             <label
               >画质<select id="openingQuality" name="quality">
-                <option value="normal" selected>普通 · 推荐</option>
-                <option value="high">高 · 更多氛围粒子</option>
+                <option value="high" selected>高 · 默认</option>
+                <option value="normal">普通</option>
                 <option value="low">低 · 轻量模式</option>
               </select></label
             >
@@ -82,18 +83,6 @@
                 <option value="progress">流光进度</option>
               </select></label
             >
-          </div>
-          <div class="opening-editor-checks">
-            <label>
-              <span id="openingNotesLabel" class="opening-switch-label">漂浮音符</span>
-              <input id="openingShowNotes" type="checkbox" checked />
-              <span class="opening-switch-ui" aria-hidden="true"></span>
-            </label>
-            <label>
-              <span id="openingEqLabel" class="opening-switch-label">氛围律动</span>
-              <input id="openingShowEq" type="checkbox" checked />
-              <span class="opening-switch-ui" aria-hidden="true"></span>
-            </label>
           </div>
         </section>
 

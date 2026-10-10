@@ -127,7 +127,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '设置直播画面中的组件',
     kicker: '第 6 步 · 认识组件',
     content:
-      '这里集中放着<strong class="lira-tour-keyword">弹幕姬、礼物姬、文本框、加班机、开播动画和时钟</strong>。从左侧选择组件，在右侧设置内容、样式和预览。礼物姬下的四个功能各有独立页面，点击组名可收起或展开。需要组合多个组件时，可以通过下一步介绍的<strong class="lira-tour-keyword">直播画布</strong>统一编排。',
+      '这里集中放着<strong class="lira-tour-keyword">弹幕姬、礼物姬、文本框、加班机、开播动画和时钟</strong>。从左侧选择组件，在右侧设置内容、样式和预览。礼物姬下的六个功能各有独立图标和页面，点击组名可收起或展开。需要组合多个组件时，可以通过下一步介绍的<strong class="lira-tour-keyword">直播画布</strong>统一编排。',
     note: '发送弹幕、机器人回复和 AI 设置在「百宝箱 → 弹幕互动」；礼物数据仍在顶部「礼物」页。现在可以先认识入口，继续下一步。',
     targetPage: 'liveComponentsPage',
     targetTab: '[data-other-feature="liveDanmakuFeature"]',
@@ -140,12 +140,11 @@ export const TOUR_CONFIG_STEPS = [
     title: '用画布编排直播画面',
     kicker: '第 7 步 · 认识画布',
     content:
-      '点击高亮的<strong class="lira-tour-keyword">「编辑场景」</strong>打开画布，把点歌板、弹幕、时钟等组件放到同一个直播画面中。通过<strong class="lira-tour-keyword">「添加组件」</strong>选择内容，拖动调整位置和大小，并设置样式。完成后点<strong class="lira-tour-keyword">「保存并应用」</strong>，复制直播场景地址，添加到 OBS 或哔哩哔哩直播姬的浏览器源，就能一起显示。',
+      '点击左侧高亮的<strong class="lira-tour-keyword">「打开画布」</strong>，把点歌板、弹幕、时钟等组件放到同一个直播画面中。通过<strong class="lira-tour-keyword">「添加组件」</strong>选择内容，拖动调整位置和大小，并设置样式。完成后点<strong class="lira-tour-keyword">「保存并应用」</strong>，复制直播场景地址，添加到 OBS 或哔哩哔哩直播姬的浏览器源，就能一起显示。',
     note: '浏览器源宽高与画布分辨率保持一致；以后调整场景可沿用同一地址。现在只需认识入口，也可以直接点「下一步」。',
-    targetPage: 'songAssistantPage',
-    targetTab: '[data-tab="overlayPage"]',
-    targetSelector: '#liveCanvasPreview',
-    position: 'bottom',
+    targetPage: 'liveComponentsPage',
+    targetSelector: '#liveComponentsCanvas',
+    position: 'right',
     waitForAction: false,
   },
   {

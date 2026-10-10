@@ -2,7 +2,7 @@
 
 **Status:** Deferred.
 
-**复核日期：** 2026-09-28。18 项已有完成记录；F07 及依赖它的 S04 按用户决定延期，不能记为已实施。
+**复核日期：** 2026-10-10。18 项已有完成记录；F07 的公共消息渲染核心已完成，交付见[优化记录](archive/2026-10-10-danmaku-delivery-efficiency.md)。公共样式规则及 S04 protobuf 读取器仍延期，不能记为全部完成。
 
 当前依据：[所属规格或参考](../../docs/architecture/adr/0020-shared-danmaku-source.md)。状态索引见 [计划入口](README.md)。
 
@@ -39,7 +39,7 @@ consumers, normative contracts and tests, and refine that row's implementation.
 | F04 | Public group lookup/cancel API owns timers and budgets; interaction/group tests. | Complete |
 | F05 | Incrementally migrate Admin global module collaboration to explicit imports; preserve compatibility bridge and initialization behavior. | Complete |
 | F06 | One underlying room-profile cache/request owner shared by Admin and public projections; credential/context invalidation and concurrent request-count tests. | Complete |
-| F07 | Document authoritative shared source and explicit source-sync contract before implementation; independently deployable copies with cross-repo checks; retain feed policies. | Deferred by user |
+| F07 | Document authoritative shared source and explicit source-sync contract before implementation; independently deployable copies with cross-repo checks; retain feed policies. | Renderer completed on 2026-10-10; style rules deferred |
 | F08 | Share overlay theme/colour/font/power helpers and countdown formatting; preserve classic-script bridge and page-specific behavior. | Complete |
 | F09 | Share pure Electron Cookie conversions, retaining platform login/storage policy. | Complete |
 | F10 | One lottery synchronous transaction helper; retain original error and rollback diagnostics, store-owned transactions. | Complete |
@@ -381,9 +381,10 @@ gift HTTP, management authorization and architecture checks: 29/29 passed.
 
 ## Current delivery status
 
-18 of 20 audit items implemented and individually verified. F07 is deferred by
-explicit user choice; S04 remains deferred on the same source-distribution
-decision. These two are not counted as implemented. No other item is pending.
+18 of 20 audit items implemented and individually verified. F07's renderer scope
+was completed with user authorization on 2026-10-10; its current evidence belongs
+to the archived delivery-efficiency plan. Shared style-rule distribution and S04's
+protobuf reader remain deferred. F07 and S04 are not counted as fully implemented.
 Unrelated working-tree edits were preserved; no commits, branches or deployment.
 
 Final verification: client verify:quick passed (documentation 5/5, all JavaScript

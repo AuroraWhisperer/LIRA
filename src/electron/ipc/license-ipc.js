@@ -95,7 +95,7 @@ function registerLicenseIpc(options = {}) {
   safeHandle('license:get-profile', () =>
     licenseManager.getProfile().then((snapshot) => ({ ok: true, ...sanitizeStateSnapshot(snapshot) })),
   );
-  registerLicenseOverlayIpc({ safeHandle, licenseManager });
+  registerLicenseOverlayIpc({ safeHandle, licenseManager, onOverlaySettings: options.onOverlaySettings });
   registerLicenseSongsIpc({ safeHandle, licenseManager });
 
   const disposeLicenseState = licenseManager.onStateChanged((snapshot) => {

@@ -29,7 +29,9 @@ export async function prepareComponentPreviewCanvas(components, request = reques
   entry.promise = (async () => {
     const scenes = await request('list');
     assertCurrent();
-    if (!scenes.length && danmaku?.getState().loading) {
+    const binding = await request('canvas');
+    assertCurrent();
+    if (!scenes.length && !binding.outputId && danmaku?.getState().loading) {
       await new Promise((resolve) => {
         const stop = danmaku.subscribe((state) => {
           if (!state.loading) queueMicrotask(() => { stop(); resolve(); });
@@ -37,17 +39,22 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       });
       assertCurrent();
     }
-    const dto = scenes[0] || await request('create', { title: '直播场景',
-      canvas: danmaku?.getState().draft.layout?.canvas || { width: 1920, height: 1080 } });
-    assertCurrent();
-    const binding = await request('canvas');
-    assertCurrent();
+    const initialCanvas = danmaku?.getState().draft.layout?.canvas || { width: 1920, height: 1080 };
+    if (!scenes.length && !binding.outputId) {
+      scenes.push(await request('create', { title: '直播场景', canvas: initialCanvas }));
+      assertCurrent();
+      Object.assign(binding, await request('canvas'));
+      assertCurrent();
+    }
+    const empty = createComponentConfigController({ initial: { document: {
+      schemaVersion: 1, id: crypto.randomUUID(), title: '暂无场景', canvas: initialCanvas, items: [],
+    } } });
     const presets = new Map();
     const listeners = new Set();
     let active;
     let busy = false;
     function notify() {
-      if (active) for (const listener of listeners) listener(controller.getState());
+      for (const listener of listeners) listener(controller.getState());
     }
     function createPreset(dto) {
       const id = dto.document.id;
@@ -101,8 +108,22 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       return { id: 'canvas', title: '直播场景', controller,
         async delete() {
           assertCurrent();
-          await request('delete', { id, expectedRevision: revision });
+          let result;
+          try { result = await request('delete', { id, expectedRevision: revision, expectedPublishedVersion: binding.publishedVersion }); }
+          catch (error) {
+            if (error.status === 409) {
+              const latest = await request('canvas');
+              assertCurrent();
+              if (latest.publishedVersion !== binding.publishedVersion) {
+                Object.assign(binding, latest);
+                notify();
+                throw new Error('当前输出已变化，请重新确认后删除。');
+              }
+            }
+            throw error;
+          }
           assertCurrent();
+          Object.assign(binding, result.canvas);
         },
         async getComponentSize(type, signal) {
           assertCurrent();
@@ -183,11 +204,11 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       preset.unsubscribe = preset.controller.subscribe(notify);
       return preset;
     }
-    for (const record of scenes.length ? scenes : [dto]) retain(record);
-    active = presets.get(binding.activeSceneId) || presets.get(dto.document.id);
+    for (const record of scenes) retain(record);
+    active = presets.get(binding.activeSceneId) || presets.values().next().value;
     const controller = {
       getState() {
-        return { ...active.controller.getState(),
+        return { ...(active?.controller || empty).getState(),
           presets: [...presets].map(([id, preset]) => {
             const state = preset.controller.getState();
             return { id, title: state.draft.document.title, dirty: state.dirty };
@@ -196,11 +217,14 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       },
       subscribe(listener) { listeners.add(listener); listener(controller.getState()); return () => listeners.delete(listener); },
       ...Object.fromEntries(['edit', 'save', 'prepareSave', 'discard', 'reload', 'receive', 'reset'].map(method =>
-        [method, (...args) => active.controller[method](...args)])),
+        [method, (...args) => {
+          if (!active) throw new Error('请先新建场景。');
+          return active.controller[method](...args);
+        }])),
     };
     async function exclusive(action) {
       assertCurrent();
-      if (busy || active.controller.getState().saving) throw new Error('场景正在保存，请稍后重试。');
+      if (busy || active?.controller.getState().saving) throw new Error('场景正在保存，请稍后重试。');
       busy = true;
       try { return await action(); } finally { busy = false; }
     }
@@ -216,19 +240,26 @@ export async function prepareComponentPreviewCanvas(components, request = reques
         const stopWishes = startGiftWishesCanvasData(controller, receive);
         return () => { stopOpening(); stopGames(); stopWishes(); };
       },
-      getComponentSize: (...args) => active.getComponentSize(...args),
-      source: () => active.source(),
-      publish: () => exclusive(() => active.publish()),
+      getComponentSize: (...args) => active?.getComponentSize(...args),
+      source: () => {
+        if (!active) throw new Error('请先新建场景并保存应用。');
+        return active.source();
+      },
+      publish: () => exclusive(() => {
+        if (!active) throw new Error('请先新建场景。');
+        return active.publish();
+      }),
       preset: input => exclusive(async () => {
         if (input?.action === 'refresh') {
           const records = await request('list'); assertCurrent();
           for (const record of records) if (!presets.has(record.document.id)) retain(record);
+          active ||= presets.values().next().value;
         } else if (input?.action === 'select') {
           const next = presets.get(input.id);
           if (!next) throw new Error('场景不存在，请重新打开画布。');
           active = next;
         } else if (input?.action === 'create') {
-          const original = active.controller.getState().draft.document;
+          const original = controller.getState().draft.document;
           const created = await request('create', { title: input.title, canvas: original.canvas });
           assertCurrent();
           const next = retain(created);
@@ -243,7 +274,8 @@ export async function prepareComponentPreviewCanvas(components, request = reques
           }
           active = next;
         } else if (input?.action === 'delete') {
-          const id = active.controller.getState().draft.document.id;
+          const id = active?.controller.getState().draft.document.id;
+          if (!id) throw new Error('暂无可删除的场景。');
           if (input.id !== id) throw new Error('当前场景已变化，请重新选择后删除。');
           await active.delete();
           active.unsubscribe();
@@ -251,7 +283,7 @@ export async function prepareComponentPreviewCanvas(components, request = reques
           active = presets.get(binding.activeSceneId) || presets.values().next().value;
         } else throw new Error('不支持的场景操作。');
         notify();
-        return { id: active.controller.getState().draft.document.id };
+        return { id: active?.controller.getState().draft.document.id || null };
       }),
     };
   })().catch((error) => {

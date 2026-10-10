@@ -3,6 +3,7 @@
 const { DANMAKU_STYLE_OPTIONS, normalizeStyleOptions } = require('../../shared/danmaku-style-options');
 const { normalizeStyleParameters } = require('../../shared/component-style-parameters');
 const { normalizeLayout } = require('../../shared/danmaku-layout');
+const { getSceneOwner } = require('../scene-cloud-controller');
 
 const {
   overlayFilterParameters,
@@ -16,10 +17,14 @@ const {
 const { sanitizePublicUrl } = require('./license-public-values');
 const OVERLAY_STYLES = new Set(Object.keys(DANMAKU_STYLE_OPTIONS));
 
-function registerLicenseOverlayIpc({ safeHandle, licenseManager }) {
-  safeHandle('license:get-overlay-settings', async () =>
-    sanitizeOverlaySettings(await licenseManager.getOverlaySettings()),
-  );
+function registerLicenseOverlayIpc({ safeHandle, licenseManager, onOverlaySettings }) {
+  async function readSettings(operation) {
+    const owner = getSceneOwner(licenseManager);
+    const settings = sanitizeOverlaySettings(await operation());
+    if (owner) onOverlaySettings?.({ ownerScope: owner.scope, authorizationEpoch: owner.epoch, settings });
+    return settings;
+  }
+  safeHandle('license:get-overlay-settings', () => readSettings(() => licenseManager.getOverlaySettings()));
   safeHandle(
     'license:get-overlay-filters',
     async () => sanitizeOverlayFilters(await licenseManager.getOverlayFilters()),
@@ -59,7 +64,7 @@ function registerLicenseOverlayIpc({ safeHandle, licenseManager }) {
   );
   safeHandle('license:update-overlay-settings', async (settings) => {
     const parameters = overlayParameters(settings);
-    return sanitizeOverlaySettings(await licenseManager.updateOverlaySettings(parameters));
+    return readSettings(() => licenseManager.updateOverlaySettings(parameters));
   });
 }
 

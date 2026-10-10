@@ -186,11 +186,11 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   });
   assert.equal(previewResponse.status, 200);
   assert.ok((await previewResponse.json()).data.links.some(({ component }) => component === 'canvas'));
-  context.scenes.list = () => { throw new Error('Synthetic scene read failure'); };
+  context.scenes.getCanvas = () => { throw new Error('Synthetic scene read failure'); };
   await admin.webContents.executeJavaScript("window.dispatchEvent(new Event('focus'))");
   await waitFor(() => admin.webContents.executeJavaScript("document.getElementById('liveCanvasSourceStatus').textContent.includes('场景暂时不可用')"));
   assert.equal(await admin.webContents.executeJavaScript("document.getElementById('copyLiveCanvasUrl').disabled"), true);
-  context.scenes.list = () => [];
+  context.scenes.getCanvas = () => ({ outputId: canvasId, activeSceneId: null, publishedVersion: 0 });
   await admin.webContents.executeJavaScript("window.changeCanvasOwner({state:'unauthorized'})");
   await waitFor(() => admin.webContents.executeJavaScript("document.getElementById('liveCanvasUrl').textContent.includes('请先编辑场景')"));
   assert.equal(await admin.webContents.executeJavaScript("document.getElementById('copyLiveCanvasUrl').disabled"), true);

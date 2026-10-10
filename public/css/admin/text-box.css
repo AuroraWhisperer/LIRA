@@ -2,7 +2,7 @@
 
 .text-box-page { width: 100%; max-width: 1200px; margin-inline: auto; }
 .text-box-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
-.text-box-heading-actions { display: flex; margin-left: auto; flex-shrink: 0; flex-wrap: wrap; gap: 8px; }
+.text-box-heading-actions { display: flex; align-items: center; margin-left: auto; flex-wrap: wrap; gap: 8px; }
 .text-box-workspace { display: grid; gap: 24px; min-width: 0; }
 .text-box-library { display: flex; flex: 1 1 180px; align-items: center; gap: 16px; min-width: 0; padding-inline: 16px; border-inline: 1px solid var(--border); }
 .text-box-live-heading h3 { margin: 0; font-size: 15px; font-weight: 650; }
@@ -84,7 +84,7 @@
 .text-box-live .component-preview-toolbar { grid-column: 1; grid-row: 3; justify-content: flex-start; margin: 0; padding: 0; font-size: 12px; }
 .text-box-live .component-preview-data-label, .text-box-live .component-preview-output, .text-box-live .component-preview-dimensions { display: none; }
 .text-box-live-actions { grid-column: 2; grid-row: 3; display: flex; justify-content: flex-end; }
-.text-box-page-status { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 12px; }
+.text-box-page-status { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .text-box-page-status p { margin: 0; font-size: 13px; color: var(--muted); }
 .text-box-error, .text-box-page-status .text-box-error { color: var(--danger); font-size: 13px; line-height: 1.6; }
 .text-box-gift-picker { width: min(740px, calc(100vw - 48px)); max-height: min(740px, calc(100vh - 64px)); padding: 22px; border: 0; border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow-dialog); }

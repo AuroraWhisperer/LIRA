@@ -21,7 +21,7 @@ LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同�
 - 主播身份由受认证服务边界确定，稳定 `streamerId` 隔离租户；`roomId` 是外部属性。main 持有设备凭据，renderer 不能选择任意租户或取得凭据。授权、账号切换与 Cookie 契约见 [认证参考](../reference/desktop/auth.md)。
 - settings、songs、Bilibili 各有明确的同步与恢复 owner。组合根负责接线，控制器负责并发和取消，存储层负责原子提交。各自持久化保证见 [main 的同步生命周期](../reference/desktop/main.md#22-云端同步生命周期) 和 [存储](../reference/backend/storage.md)。
 - main 通过实时推送与 HTTP 恢复，将服务器礼物账本写入按来源隔离的本地 SQLite 投影；符合接收条件的连续 final 与同步进度原子提交，提交后才交给本地消费者和 HTTP/WS。恢复及实时业务资格由 [礼物参考](../reference/backend/bilibili/gift.md) 维护，决策见 [ADR-0021](adr/0021-atomic-live-gift-progress.md)。
-- 跨仓契约通过固定提交和 fixture 摘要核对，不在运行时跨仓 import。共享源码提案 [ADR-0020](adr/0020-shared-danmaku-source.md) 仍为 Proposed。
+- 跨仓契约通过固定提交和 fixture 摘要核对，不在运行时跨仓 import。[ADR-0020](adr/0020-shared-danmaku-source.md) 规定公共弹幕渲染核心由服务器维护、客户端固定源码快照；样式规则和 feed 生命周期仍各自拥有。
 
 ## 架构图表
 
@@ -65,7 +65,7 @@ LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同�
 | [0017-incremental-modularity-size-gate](adr/0017-incremental-modularity-size-gate.md) | Accepted；行数硬门禁与登记政策由 [ADR-0023](adr/0023-purpose-aware-file-size-review.md) 替代 |
 | [0018-unified-logging-and-diagnostics](adr/0018-unified-logging-and-diagnostics.md) | Accepted；分阶段实施，未完成范围见 ADR 状态说明 |
 | [0019-stable-gift-source-owner](adr/0019-stable-gift-source-owner.md) | Accepted；替代 [ADR-0011](adr/0011-source-partitioned-gift-ledger-projection.md) 的旧来源身份 |
-| [0020-shared-danmaku-source](adr/0020-shared-danmaku-source.md) | Proposed；共享源码分发方案，不代表已部署能力 |
+| [0020-shared-danmaku-source](adr/0020-shared-danmaku-source.md) | Accepted；公共消息渲染核心及独立发布的固定源码快照 |
 | [0021-atomic-live-gift-progress](adr/0021-atomic-live-gift-progress.md) | Accepted；连续 SSE 礼物和游标原子提交，HTTP 保留恢复与周期核对 |
 | [0022-local-component-scenes](adr/0022-local-component-scenes.md) | Accepted；本地场景 owner、完整外观版本及独立只读来源；本地范围已实现并验证 |
 | [0023-purpose-aware-file-size-review](adr/0023-purpose-aware-file-size-review.md) | Accepted；按文件类型、职责与用途评审，行数仅作提示 |

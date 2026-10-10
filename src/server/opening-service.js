@@ -6,7 +6,7 @@ const {
   DEFAULT_OPENING_TRACK_MOTION, normalizeOpeningTrackMotion, cleanOpeningText,
 } = require('./opening-contract');
 const { normalizeSettingsPatch } = require('./settings-contract');
-const { openingStyleSettingsPatch } = require('../../public/js/shared/opening-settings');
+const { OPENING_DEFAULTS, openingStyleSettingsPatch } = require('../../public/js/shared/opening-settings');
 const { normalizeStoredFileName, normalizeStoredCharacterFileName,
   musicFileExists, characterFileExists, saveOpeningMediaFile } = require('./opening-media-store');
 
@@ -82,10 +82,10 @@ function getOpeningConfig({ settings: settingsStore, system }) {
     subtitle: cleanOpeningText(settings.openingSubtitle, MAX_TEXT_LENGTHS.subtitle) || '开播准备中',
     name: cleanOpeningText(settings.openingName, MAX_TEXT_LENGTHS.name),
     footer: footer && footer !== 'SINGING LIVE' ? footer : '欢迎来到直播间',
-    quality: QUALITY_VALUES.has(settings.openingQuality) ? settings.openingQuality : 'normal',
+    quality: QUALITY_VALUES.has(settings.openingQuality) ? settings.openingQuality : OPENING_DEFAULTS.quality,
     trackMotion: normalizeOpeningTrackMotion(settings.openingTrackMotion) || DEFAULT_OPENING_TRACK_MOTION,
-    showNotes: parseBoolean(settings.openingShowNotes, true),
-    showEq: parseBoolean(settings.openingShowEq, true),
+    showNotes: true,
+    showEq: true,
     audio: 'browser',
     volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0.35,
     audioUrl: hasUploadedAudio ? `/opening-media/${encodeURIComponent(audioFile)}` : DEFAULT_AUDIO_URL,
@@ -106,9 +106,7 @@ function getOpeningConfig({ settings: settingsStore, system }) {
   const pixelAudioExists = Boolean(pixelAudioFile && musicFileExists(system.dataDir, pixelAudioFile));
   const pixelVolume = Number(settings.openingPixelAudioVolume ?? 0.35);
   const pixel = { ...classic, style: 'pixel-cassette',
-    quality: QUALITY_VALUES.has(settings.openingPixelQuality) ? settings.openingPixelQuality : 'normal',
-    showNotes: parseBoolean(settings.openingPixelShowNotes, true),
-    showEq: parseBoolean(settings.openingPixelShowEq, true),
+    quality: QUALITY_VALUES.has(settings.openingPixelQuality) ? settings.openingPixelQuality : OPENING_DEFAULTS.quality,
     volume: Number.isFinite(pixelVolume) ? Math.max(0, Math.min(1, pixelVolume)) : 0.35,
     audioUrl: pixelAudioExists ? `/opening-media/${encodeURIComponent(pixelAudioFile)}` : '',
     audioName: pixelAudioExists ? cleanOpeningText(settings.openingPixelAudioName, 160) || pixelAudioFile : '',

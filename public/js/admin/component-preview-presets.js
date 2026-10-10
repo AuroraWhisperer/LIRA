@@ -62,6 +62,7 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
     node.addEventListener('click', () => { closeMenu(); more.focus({ preventScroll: true }); action(); });
     buttons.push(node);
     menu.append(node);
+    return node;
   }
   async function run(action, change) {
     if (busy || !beforeChange()) return;
@@ -70,11 +71,15 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
     try {
       await controller.flush();
       if (change?.action === 'delete') {
-        const { document } = controller.getState().draft;
+        const state = controller.getState();
+        const { document } = state.draft;
         if (document.id !== change.id) throw new Error('当前场景已变化，请重新选择后删除。');
+        const effect = state.activeSceneId === document.id
+          ? '这是当前输出场景。删除后，直播源将切换到剩余场景的已保存版本；没有剩余场景时变为透明空画面。其他场景的未保存修改不会应用。'
+          : state.presets.length > 1 ? '删除后自动选择剩余场景，当前直播输出不变。' : '删除后画布将显示“暂无场景”。';
         const confirmed = await showConfirmationDialog({
           title: `删除场景“${document.title}”？`,
-          description: '将删除此场景及其未保存修改，无法撤销。正在直播使用的场景和固定直播源会受到保护。',
+          description: `将删除此场景及其未保存修改，无法撤销。${effect}`,
           variant: 'destructive', confirmLabel: '删除场景',
         });
         if (!confirmed || disposed) return;
@@ -108,7 +113,7 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
     void run('preset', { action: 'create', title, duplicate });
   }
   select.addEventListener('change', () => { void run('preset', { action: 'select', id: select.value }); });
-  button('新建场景', () => create(false));
+  const createButton = button('新建场景', () => create(false));
   button('复制场景', () => create(true));
   button('保存场景', () => { void run('save'); });
   button('删除场景', () => { void run('preset', { action: 'delete', id: controller.getState().draft.document.id }); }, 'secondary danger');
@@ -116,23 +121,30 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
   host.prepend(bar);
   function render(disabled = false) {
     const state = controller.getState();
-    const next = JSON.stringify(state.presets);
+    const next = JSON.stringify([state.presets, state.activeSceneId]);
     if (signature !== next) {
       signature = next;
       select.replaceChildren(...state.presets.map(preset => {
-        const option = previewElement('option', '', `${preset.title}${preset.dirty ? ' · 未保存' : ''}`);
+        const option = previewElement('option', '', `${preset.title}${preset.id === state.activeSceneId ? ' · 当前输出' : ''}${preset.dirty ? ' · 未保存' : ''}`);
         option.value = preset.id;
         return option;
       }));
+      if (!state.presets.length) {
+        const option = previewElement('option', '', '暂无场景');
+        option.value = '';
+        select.append(option);
+      }
     }
     select.value = state.draft.document.id;
     const active = state.presets.find(preset => preset.id === state.activeSceneId);
     const liveTitle = state.activeSceneTitle || active?.title;
-    live.textContent = !active ? '未应用' : active.id === state.draft.document.id ? '已应用' : `直播：${liveTitle}`;
-    live.title = active ? `当前直播：${liveTitle}` : '尚未应用到直播';
-    select.disabled = disabled || busy || state.saving || !state.loaded;
-    for (const node of buttons) node.disabled = select.disabled;
-    if (select.disabled) closeMenu();
+    live.textContent = !state.presets.length ? '无场景输出' : !active ? '尚未应用' : `当前输出：${liveTitle}`;
+    live.title = active ? '最后一次保存并应用的场景。未保存修改尚未应用；此标记不代表 OBS 或直播姬正在显示。' : '当前没有已应用的场景';
+    const blocked = disabled || busy || state.saving || !state.loaded;
+    select.disabled = blocked || !state.presets.length;
+    if (!state.presets.length) select.value = '';
+    for (const node of buttons) node.disabled = blocked || !state.presets.length && node !== more && node !== createButton;
+    if (blocked) closeMenu();
     enhanceSelects();
   }
   render();

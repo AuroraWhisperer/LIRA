@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { createDanmakuPreviewItems } = require('../../public/js/overlays/danmaku-preview-samples.js');
 
 const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'starlight', 'moonlit', 'outline', 'whiteframe', 'cream', 'glow', 'starveil'];
 const randomStyles = ['outline', 'whiteframe', 'cream', 'glow', 'starveil'];
@@ -181,7 +182,8 @@ test('all local styles replay every example through the live feed without connec
   for (const style of styles) {
     const start = f.appends.length;
     const fullscreen = ['outline', 'whiteframe', 'cream', 'glow', 'starveil'].includes(style);
-    const sampleCount = fullscreen ? 12 : ['moonlit', 'prismatic'].includes(style) ? 22 : 19;
+    const expectedSamples = createDanmakuPreviewItems(style).filter(item => !fullscreen || item.kind !== 'superchat');
+    const sampleCount = expectedSamples.length;
     f.node(style).events.click();
     f.flushFrames();
     f.advanceMessages(sampleCount - 1);
@@ -204,7 +206,7 @@ test('all local styles replay every example through the live feed without connec
     assert.ok(members.every((item) => item.isStreamer !== true));
     assert.ok(items.some((item) => !item.kind && !item.medalName && !item.isStreamer));
     assert.ok(items.some((item) => item.kind === 'gift' && item.giftCount === 10));
-    assert.equal(items.filter((item) => item.kind === 'gift').length, ['moonlit', 'prismatic'].includes(style) ? 6 : 3);
+    assert.deepEqual(Array.from(items, item => item.id.replace(/-\d+$/u, '')).sort(), expectedSamples.map(item => item.id).sort());
     if (style === 'moonlit') {
       assert.ok(items[0].kind === 'gift' && !items[0].giftGuardLevel, 'ordinary gift thanks appears immediately');
       assert.equal(items[1].giftGuardLevel, 3, 'guard thanks follows the ordinary gift');
@@ -217,9 +219,9 @@ test('all local styles replay every example through the live feed without connec
     assert.equal(f.options.at(-1).resolveEmoteUrl(members[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
     const superChats = items.filter((item) => item.kind === 'superchat');
     if (!fullscreen) {
-      assert.deepEqual(Array.from(superChats, (item) => item.price).sort((a, b) => a - b), [2, 30, 50, 100, 500, 1000, 2000]);
+      assert.deepEqual([...new Set(Array.from(superChats, item => item.price))].sort((a, b) => a - b), [2, 30, 50, 100, 500, 1000, 2000]);
       assert.ok(superChats.every((item) => item.message));
-      assert.ok(superChats.find((item) => item.price === 2000).message.includes('\n'));
+      assert.ok(superChats.some((item) => item.message.includes('\n')));
       assert.equal(f.options.at(-1).style, style);
     }
     if (fullscreen) {
@@ -234,16 +236,17 @@ test('all local styles replay every example through the live feed without connec
 
 test('prismatic preview preserves its opening sequence and room identities for a complete round', async () => {
   const f = await fixture('?preview=1&style=prismatic');
-  f.advanceMessages(21);
+  const sampleCount = createDanmakuPreviewItems('prismatic').length;
+  f.advanceMessages(sampleCount - 1);
   const samples = f.appends;
   const ids = samples.map((item) => item.id.replace(/-\d+$/u, ''));
-  assert.equal(samples.length, 22);
+  assert.equal(samples.length, sampleCount);
   assert.deepEqual(ids.slice(0, 3), ['preview-4714', 'preview-emote', 'preview-gift-10']);
-  assert.equal(new Set(ids).size, 22, 'each sample appears once before the next round');
+  assert.equal(new Set(ids).size, sampleCount, 'each sample appears once before the next round');
   assert.deepEqual(Array.from(samples.filter((item) => item.giftGuardLevel), (item) => item.giftGuardLevel).sort(), [1, 2, 3]);
   assert.equal(samples.find((item) => item.giftGuardLevel === 3).guardAccompanyDays, 360);
   const longSuperChat = samples.find((item) => item.id.startsWith('preview-superchat-2000-'));
-  assert.ok(longSuperChat?.message.includes('\n'), 'the last multiline SC stays in the round');
+  assert.equal(Array.from(longSuperChat.message).length, 40, 'the longest SC stays in the round');
 
   for (const [id, guard] of [['preview-1091', 1], ['preview-1822', 2], ['preview-4714', 3], ['preview-565', 0]]) {
     const sample = samples.find((item) => item.id.startsWith(`${id}-`));
@@ -266,19 +269,20 @@ test('preview mixes every sample at varied intervals, reshuffles each round and 
   assert.equal(f.appends.length, 1);
   f.advanceMessages(1);
   assert.equal(f.appends.length, 2);
-  f.advanceMessages(36);
-  const firstRound = f.appends.slice(0, 19).map((item) => item.id.replace(/-\d+$/u, ''));
-  const secondRound = f.appends.slice(19).map((item) => item.id.replace(/-\d+$/u, ''));
-  assert.equal(new Set(firstRound).size, 19, 'all examples appear before any repeats');
+  const sampleCount = createDanmakuPreviewItems().length;
+  f.advanceMessages(sampleCount * 2 - 2);
+  const firstRound = f.appends.slice(0, sampleCount).map((item) => item.id.replace(/-\d+$/u, ''));
+  const secondRound = f.appends.slice(sampleCount).map((item) => item.id.replace(/-\d+$/u, ''));
+  assert.equal(new Set(firstRound).size, sampleCount, 'all examples appear before any repeats');
   assert.deepEqual([...firstRound].sort(), [...secondRound].sort());
   assert.notDeepEqual(firstRound, secondRound, 'later rounds must not repeat the same order');
-  const kinds = f.appends.slice(0, 19).map((item) => item.kind || 'chat');
+  const kinds = f.appends.slice(0, sampleCount).map((item) => item.kind || 'chat');
   assert.deepEqual(new Set(kinds), new Set(['chat', 'gift', 'superchat']));
   assert.ok(kinds.some((kind, index) => kind === 'superchat' && kinds[index + 1] === 'chat'));
   const delays = f.appendTimes.slice(1).map((time, index) => time - f.appendTimes[index]);
   assert.ok(delays.every((delay) => delay >= 800 && delay <= 2200));
   assert.ok(new Set(delays).size > 1, 'arrivals must vary rather than use a fixed interval');
-  assert.equal(new Set(f.appends.map((item) => item.id)).size, 38);
+  assert.equal(new Set(f.appends.map((item) => item.id)).size, sampleCount * 2);
   assert.ok(f.appends.every((item) => Number.isFinite(item.timestamp) && item.timestamp > 0));
   for (const control of ['previewRefresh', 'cream', 'glow', 'signal']) {
     f.node(control).events.click();
@@ -379,8 +383,21 @@ test('preview edge fading edits and resets each fixed style without leaking to r
   select.events.change();
   assert.equal(f.history.state.danmakuStyleOptions.prismatic.edgeFade, 'none');
   assert.equal(f.document.body.dataset.edgeFade, 'none');
+  for (const edge of ['top', 'bottom']) {
+    select.value = edge;
+    select.events.change();
+    for (const direction of ['up', 'down']) {
+      f.node('previewScrollDirection').value = direction;
+      f.node('previewScrollDirection').events.change();
+      assert.equal(select.value, edge);
+      assert.equal(f.history.state.danmakuStyleOptions.prismatic.edgeFade, edge);
+      assert.equal(f.document.body.dataset.edgeFade, edge);
+    }
+  }
+  select.value = 'none';
+  select.events.change();
   f.node('signal').events.click();
-  assert.equal(select.value, 'single');
+  assert.equal(select.value, 'top');
   f.node('prismatic').events.click();
   assert.equal(select.value, 'none');
   f.node('previewAppearanceReset').events.click();

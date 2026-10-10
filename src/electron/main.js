@@ -521,6 +521,7 @@ async function startDesktopApp() {
   registerLicenseIpc({
     ipcMain,
     licenseManager,
+    onOverlaySettings: (update) => lifecycleState.runtime.receiveSceneCloudSettings(update),
     giftCatalog: {
       getState: () => lifecycleState.runtime.getGiftCatalogInitializationState(),
       initialize: () =>
@@ -576,6 +577,7 @@ async function startDesktopApp() {
   });
   sceneCloudController = createSceneCloudController({
     licenseManager,
+    subscribeDemand: (listener) => lifecycleState.runtime.subscribeSceneCloudDemand(listener),
     publish: (update) => lifecycleState.runtime.receiveSceneCloud(update),
   });
   sceneCloudController.start();

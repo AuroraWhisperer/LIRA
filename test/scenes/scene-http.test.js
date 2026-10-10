@@ -7,7 +7,7 @@ const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { createCipheriv, createDecipheriv, randomBytes, randomUUID } = require('node:crypto');
 const { createSceneStore } = require('../../src/storage/scene-store');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { createSceneOutputEvents } = require('../../src/server/scene-output-events');
@@ -43,7 +43,7 @@ async function fixture(t) {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
   migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db);
+  migrateCanvasPresets(db); migrateSceneDeletion(db);
   const state = { owner: { scope: 'https://server.test/streamer-a', epoch: 1 }, licensed: true, phase: 'ready' };
   const display = {
     settings: { clockLabel: 'HTTP clock', aiApiKey: PRIVATE },
@@ -356,14 +356,17 @@ test('preset delete HTTP confirms revision and preserves the bound live source',
   service.getCanvas();
   const extra = service.create({ title: 'Extra', canvas: first.document.canvas });
   const remove = body => request('/api/scenes/delete', { token: ADMIN, method: 'POST', body });
-  assert.equal((await remove({ id: first.document.id, expectedRevision: 1 })).body.code, 'SCENE_OUTPUT_PROTECTED');
   assert.equal((await remove({ id: extra.document.id, expectedRevision: 2 })).status, 409);
   const deleted = await remove({ id: extra.document.id, expectedRevision: 1 });
   assert.equal(deleted.status, 200);
   assertNoStore(deleted);
-  assert.deepEqual(deleted.body.data, { id: extra.document.id });
+  assert.equal(deleted.body.data.id, extra.document.id);
+  assert.deepEqual(deleted.body.data.canvas, service.getCanvas());
   assert.equal(service.getCanvas().outputId, first.document.id);
   assert.equal((await remove({ id: extra.document.id, expectedRevision: 1 })).status, 404);
+  assert.equal((await remove({ id: first.document.id, expectedRevision: 1 })).status, 200);
+  assert.deepEqual(service.list(), []);
+  assert.equal(service.getCanvas().outputId, first.document.id);
 });
 
 test('scene capability never becomes a common HTTP principal or authorizes an admin URL fallback', async (t) => {

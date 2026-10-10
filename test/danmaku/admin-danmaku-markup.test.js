@@ -35,7 +35,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(connectionSection, /id="danmakuConnectionTitle"/);
   assert.match(connectionSection, /id="danmakuRefreshBtn"/);
   assert.match(overlay, /aria-labelledby="liveDanmakuFeatureTab"/, 'the sidebar tab names the overlay panel');
-  assert.match(overlay, /<lira-help label="弹幕预览说明">预览不影响直播，应用后生效。<\/lira-help>/);
+  assert.doesNotMatch(overlay, /<lira-help label="弹幕(?:链接|预览)说明"/);
   for (const id of ['danmakuOverlayUrl', 'danmakuCopyOverlayUrlBtn', 'danmakuOpenOverlayBtn', 'danmakuPreviewOverlayBtn',
     'danmakuApplyOverlayBtn', 'danmakuReloadOverlayBtn']) {
     assert.equal(html.split(`id="${id}"`).length, 2, `${id} is one unique entry`);

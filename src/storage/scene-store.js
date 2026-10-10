@@ -4,6 +4,7 @@ function decodeScene(row) {
   return row ? {
     document: JSON.parse(row.draft_json),
     revision: row.revision,
+    isPreset: row.is_preset !== 0,
     publishedVersion: row.published_version,
     publishedDocument: row.published_json === null ? null : JSON.parse(row.published_json),
     capability: {
@@ -20,17 +21,22 @@ function createSceneStore(db) {
       db.prepare(`INSERT INTO component_canvas (owner_scope, output_scene_id, active_scene_id)
         SELECT owner_scope, id, id FROM component_scenes WHERE owner_scope = ? AND id = ?
         ON CONFLICT (owner_scope) DO NOTHING`).run(scope, id);
+      return this.getCanvas(scope);
+    },
+
+    getCanvas(scope) {
       const row = db.prepare('SELECT * FROM component_canvas WHERE owner_scope = ?').get(scope);
       return row ? { outputId: row.output_scene_id, activeSceneId: row.active_scene_id } : null;
     },
 
-    list(scope) {
-      return db.prepare('SELECT * FROM component_scenes WHERE owner_scope = ? ORDER BY id').all(scope).map(decodeScene);
+    list(scope, { includeOutput = false } = {}) {
+      return db.prepare('SELECT * FROM component_scenes WHERE owner_scope = ? AND (is_preset = 1 OR ?) ORDER BY id')
+        .all(scope, Number(includeOutput)).map(decodeScene);
     },
 
     visitDocuments(visit) {
-      for (const row of db.prepare('SELECT owner_scope, draft_json, published_json FROM component_scenes').iterate()) {
-        visit(JSON.parse(row.draft_json), row.owner_scope);
+      for (const row of db.prepare('SELECT owner_scope, draft_json, published_json, is_preset FROM component_scenes').iterate()) {
+        if (row.is_preset) visit(JSON.parse(row.draft_json), row.owner_scope);
         if (row.published_json !== null) visit(JSON.parse(row.published_json), row.owner_scope);
       }
     },
@@ -62,17 +68,45 @@ function createSceneStore(db) {
     save({ scope, id, expectedRevision, document }) {
       return decodeScene(db.prepare(`
         UPDATE component_scenes SET draft_json = ?, revision = revision + 1
-        WHERE owner_scope = ? AND id = ? AND revision = ? RETURNING *
+        WHERE owner_scope = ? AND id = ? AND revision = ? AND is_preset = 1 RETURNING *
       `).get(JSON.stringify(document), scope, id, expectedRevision));
     },
 
-    delete({ scope, id, expectedRevision }) {
-      const row = db.prepare(`DELETE FROM component_scenes
-        WHERE owner_scope = ? AND id = ? AND revision = ?
-          AND NOT EXISTS (SELECT 1 FROM component_canvas
-            WHERE owner_scope = ? AND (output_scene_id = ? OR active_scene_id = ?))
-        RETURNING id`).get(scope, id, expectedRevision, scope, id, id);
-      return row ? { id: row.id } : null;
+    delete({ scope, id, expectedRevision, expectedCanvas, replacement }) {
+      db.exec('SAVEPOINT delete_component_scene');
+      try {
+        const current = this.get(scope, id);
+        const binding = this.getCanvas(scope);
+        const output = binding && this.get(scope, binding.outputId);
+        if (!current?.isPreset || current.revision !== expectedRevision
+          || binding && (!expectedCanvas || binding.outputId !== expectedCanvas.outputId
+            || binding.activeSceneId !== expectedCanvas.activeSceneId || output.publishedVersion !== expectedCanvas.publishedVersion)
+          || replacement?.id && !db.prepare('SELECT 1 FROM component_scenes WHERE owner_scope = ? AND id = ? AND revision = ? AND is_preset = 1')
+            .get(scope, replacement.id, replacement.revision)) {
+          db.exec('RELEASE delete_component_scene');
+          return null;
+        }
+        if (binding?.activeSceneId === id) {
+          if (output.publishedVersion && !replacement) {
+            db.exec('RELEASE delete_component_scene');
+            return null;
+          }
+          if (replacement && !this.publish({ scope, id: output.document.id, expectedRevision: output.revision,
+            document: replacement.document, componentSizes: replacement.componentSizes })) throw new Error('Output changed');
+          db.prepare('UPDATE component_canvas SET active_scene_id = ? WHERE owner_scope = ?').run(replacement?.id || null, scope);
+        }
+        if (binding?.outputId === id) {
+          const document = { ...current.document, items: [] };
+          db.prepare('UPDATE component_scenes SET is_preset = 0, draft_json = ?, revision = revision + 1 WHERE owner_scope = ? AND id = ?')
+            .run(JSON.stringify(document), scope, id);
+        } else db.prepare('DELETE FROM component_scenes WHERE owner_scope = ? AND id = ?').run(scope, id);
+        db.exec('RELEASE delete_component_scene');
+        return { id };
+      } catch (error) {
+        db.exec('ROLLBACK TO delete_component_scene');
+        db.exec('RELEASE delete_component_scene');
+        throw error;
+      }
     },
 
     getComponentSize(scope, type) {
@@ -86,7 +120,7 @@ function createSceneStore(db) {
         if (preset && !db.prepare(`SELECT 1 FROM component_scenes AS source
           JOIN component_scenes AS output ON output.owner_scope = source.owner_scope
           JOIN component_canvas AS canvas ON canvas.owner_scope = source.owner_scope AND canvas.output_scene_id = output.id
-          WHERE source.owner_scope = ? AND source.id = ? AND source.revision = ?
+          WHERE source.owner_scope = ? AND source.id = ? AND source.revision = ? AND source.is_preset = 1
             AND output.id = ? AND output.published_version = ?`)
           .get(scope, preset.id, preset.revision, id, preset.expectedPublishedVersion)) {
           db.exec('RELEASE publish_component_scene');

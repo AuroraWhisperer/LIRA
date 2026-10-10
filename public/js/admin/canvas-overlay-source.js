@@ -18,9 +18,7 @@ export function initCanvasOverlaySource() {
     address.textContent = '正在读取场景地址…';
     status.textContent = '';
     try {
-      const scenes = await requestScene('list');
-      if (requested !== generation) return;
-      const canvas = scenes.length ? await requestScene('canvas') : null;
+      const canvas = await requestScene('canvas');
       if (requested !== generation) return;
       if (!canvas?.publishedVersion) {
         address.textContent = '请先编辑场景，保存并应用后显示地址';
@@ -42,7 +40,9 @@ export function initCanvasOverlaySource() {
   const tab = document.querySelector('[data-tab="overlayPage"]');
   tab.addEventListener('click', refresh);
   window.addEventListener('focus', refresh);
-  document.getElementById('liveCanvasPreview').addEventListener('click', () => openComponentPreview());
+  document.querySelectorAll('#liveCanvasPreview, #liveComponentsCanvas').forEach((button) => {
+    button.addEventListener('click', () => openComponentPreview());
+  });
   copy.addEventListener('click', async () => {
     if (copy.disabled || !sourceUrl) return;
     copy.disabled = true;

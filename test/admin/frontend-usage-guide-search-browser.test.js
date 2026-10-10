@@ -29,14 +29,14 @@ test('suite search lists its own subheading and navigates to that heading', asyn
   const page = await setup(t);
   await page.locator('#usageGuideSearchInput').fill('素材与样式库');
   const firstResult = page.locator('.usage-guide-search-result').first();
-  assert.equal(await firstResult.locator('strong').textContent(), '05.7 素材与样式库');
+  assert.equal(await firstResult.locator('strong').textContent(), '5.7 素材与样式库');
   await firstResult.click();
   assert.deepEqual(await page.evaluate(() => ({
     heading: window.guideSearchTarget.closest('h4')?.textContent,
     text: window.guideSearchTarget.textContent,
     section: window.guideSearchSection,
   })), {
-    heading: '05.7 素材与样式库',
+    heading: '5.7 素材与样式库',
     text: '素材与样式库',
     section: 'ug-scene-guide',
   });

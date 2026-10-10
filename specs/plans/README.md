@@ -19,7 +19,7 @@
 | [2026-09-17-audit-remediation](2026-09-17-audit-remediation.md) | Paused | 保留用户暂停产品修复及规则/兼容裁决的决定；本次仅整理文档，不恢复任何暂停项。 |
 | [2026-09-18-cloud-daily-bots](2026-09-18-cloud-daily-bots.md) | Awaiting Verification | 实现与自动化已有记录；E 阶段真实关桌面、服务器重启、跨日及需要时的旧库停写/导入证据待补。 |
 | [2026-09-18-fan-profiles](2026-09-18-fan-profiles.md) | Needs Review | 首发功能和隔离桌面验收已有记录；需复核两仓收尾门禁及部署材料。原文所列并行门禁失败是当时结果，本次未证明其仍存在，也未把规格升级为 Implemented。 |
-| [2026-09-21-client-server-reuse-modularity](2026-09-21-client-server-reuse-modularity.md) | Deferred | 18 项已有完成记录；F07 及依赖它的 S04 按用户决定延期，不能记为已实施。 |
+| [2026-09-21-client-server-reuse-modularity](2026-09-21-client-server-reuse-modularity.md) | Deferred | 18 项已有完成记录；F07 消息渲染核心已在 10 月 10 日优化中完成，公共样式规则与 S04 仍延期。 |
 | [2026-09-22-usage-guide-supplement](2026-09-22-usage-guide-supplement.md) | Needs Review | 10 月 9 日指南纠错及 92 项相关测试已核对；剩成功操作/真实环境证据与服务器指南覆盖复核，旧写作步骤和图库编排已移出维护正文。 |
 | [2026-09-25-audit-followup](2026-09-25-audit-followup.md) | Awaiting Evidence | 代码及隔离检查已有记录；生产认证 SSE 持续交付、完整恢复与独立备份材料仍缺证据。 |
 | [2026-09-25-resource-runtime-secret-audit](2026-09-25-resource-runtime-secret-audit.md) | Blocked | 资源与生产运行时审计已有记录；仅剩历史会话失效/撤销的持有人确认，不探测会话或复制秘密。 |

@@ -78,7 +78,7 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 | `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
 | `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?,baseItemIds?}`，edit 允许该组件已有草稿字段；clock/danmaku 另允许向旧草稿新增经类型校验的 styleParameters，禁止原型键。baseItemIds 仅允许 canvas 文档 edit，为编辑前已知的 UUID 列表 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准。可选 baseItemIds 经 exchange 原样转发，桌面应用文档时保留当前场景中不在此基线和提交文档中的新增图层；已知图层删除仍生效。旧请求保持原替换语义，基线不持久化 |
 | `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}`，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
-| `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}`、`{action:'create',title,duplicate:boolean}`、`{action:'delete',id}` 或 `{action:'refresh'}` | 选择/删除仅操作桌面 state.presets 列出的预设；删除还须匹配当前草稿 ID，由桌面持有的 revision 提交。refresh 只读取并补入新增预设，不覆盖已有草稿。结果 `{id}` 为最终选中预设，经 display 返回；不发布、不授予通用管理权限 |
+| `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}`、`{action:'create',title,duplicate:boolean}`、`{action:'delete',id}` 或 `{action:'refresh'}` | 选择/删除仅操作桌面 state.presets 列出的预设；删除还须匹配当前草稿 ID，由桌面持有的 revision 提交。refresh 只读取并补入新增预设，不覆盖已有草稿。结果 `{id}` 为最终选中预设（删空为 null），经 display 返回；删除当前输出会切换到剩余已保存预设或透明空画面，其余操作不发布，不授予通用管理权限 |
 | `close` | 当前会话 Bearer；`{id,attachmentId?}` | `{}`，显式关闭浏览器访问；客户端先处理已经接受的修改/保存，再撤销会话 |
 
 接管后，网页变更和关闭必须携带当前 attachmentId，轮询也校验附带的标识；旧页面请求返回 409。
@@ -112,12 +112,12 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 | 端点 | 输入 | 输出与行为 |
 | --- | --- | --- |
 | `GET /api/scenes/list` | 无 | 管理 DTO 数组，仅当前账号 |
-| `GET /api/scenes/canvas` | 无；当前账号至少有一个场景 | `{outputId,activeSceneId,publishedVersion,activeSceneTitle}`，首次绑定原有首个场景，此后输出 ID 固定 |
+| `GET /api/scenes/canvas` | 无 | `{outputId,activeSceneId,publishedVersion,activeSceneTitle}`，首次绑定原有首个场景，此后输出 ID 固定；首次创建前 outputId/activeSceneId 为 null、版本为 0；删空后保留 outputId，activeSceneId 为 null、标题为空 |
 | `GET /api/scenes/document?id=UUID` | 场景 ID | 管理 DTO |
 | `POST /api/scenes/validate` | `{document}` | 规范化后的展示文档；模板导入先验证所有独立外观，不写入或创建场景 |
 | `POST /api/scenes/create` | `{title,canvas:{width,height}}` | 空场景管理 DTO，凭据仅加密保存 |
 | `POST /api/scenes/save` | `{id,expectedRevision,document}` | 更新草稿并递增 revision，不改变已发布版；旧 revision 返回 409 |
-| `POST /api/scenes/delete` | `{id,expectedRevision}` | 删除当前账号的指定预设，返回 `{id}`；版本冲突、固定输出预设或正在使用的预设返回 409，不存在或跨账号返回 404。保留画布绑定、直播输出和其他预设 |
+| `POST /api/scenes/delete` | `{id,expectedRevision,expectedPublishedVersion?}` | 删除当前账号指定预设，返回 `{id,canvas}`，canvas 同画布绑定 DTO。编辑器携带输出版本，防止确认期间输出变化后误删。当前输出被删除时原子切换到剩余 ID 排序首项的已保存版本；删空则发布透明空画面，固定来源 ID/凭据保留。未应用过的画布不因删除而发布。版本或绑定冲突返回 409，不存在、已删除或跨账号返回 404；其他草稿不变 |
 | `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 原子发布布局、样式选择及场景自有字段，递增 publishedVersion；旧 shared 模式传外观快照确认，缓存尚未同步或已变化返回 503；失败保留旧版布局，共享参数继续跟随各 owner 已保存值 |
 | `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源；事务检查预设 revision 和来源 publishedVersion，提交发布快照、当前预设和共享尺寸；任一冲突返回 409、失败保留旧输出 |
 | `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds}`，itemIds 为已发布实例 ID，仅显式复制来源使用 |
@@ -200,7 +200,7 @@ QQ 流的上游响应字节预算、主动读取超时、背压及取消见 [音
 | gift-wishes | `GET /api/gifts/wishes` | 仅心愿展示字段、整数计数、进度及直播窗口；无来源 ID、送礼人或管理写权限 |
 | interactions | `GET /api/interactions/session` | 只读投票/评分公开结果；禁止写入与 host-state |
 | games | `GET /api/games/session`、`/api/games/winner-profile`、`/api/bilibili/avatar`；`POST /api/games/session`、`/api/games/session/move`、`/api/games/session/draw` | session 仅 stop/restart；move 的 value 仅 number/string，禁止夹带主持动作对象；draw 仅 append/undo/clear。不能新开配置、读取 host-state/词库/观众或揭晓答案 |
-| danmaku | `GET /api/bilibili/avatar`、`GET /api/danmaku/display`、`GET /api/component/size` | 保留现有头像/表情 CDN 校验；display 仅返回当前账号的已规范化弹幕外观及展示缓冲投影；size 只读本 scope 尺寸 |
+| danmaku | `GET /api/bilibili/avatar`、`GET /api/danmaku/display`、`GET /api/danmaku/events`、`GET /api/component/size` | 保留现有头像/表情 CDN 校验；display 返回当前账号的规范化外观及展示投影；events 仅发送变更通知；size 只读本 scope 尺寸 |
 | wheel | `GET /api/wheel`、`POST /api/wheel/spin` | 只读展示配置与抽取，不允许编辑配置 |
 | opening | `GET /api/opening/config` | 仅文案、展示参数、当前媒体 URL |
 | clock | `GET /api/clock/config`、`GET /api/component/size` | 仅时钟显示参数及本 scope 尺寸 |
@@ -208,6 +208,8 @@ QQ 流的上游响应字节预算、主动读取超时、背压及取消见 [音
 HTML sandbox 使展示请求的 Origin 为 `null`。该值本身没有权限：预检仅对上表已知方法/路径开放 Authorization/Content-Type，实际请求再校验有效 scope；管理凭据对此来源一律拒绝。仅上述路径的实际错误响应允许页面读取，以便旧凭据收到 401 后刷新，不返回额外状态。没有 `Access-Control-Allow-Credentials`。
 
 `GET /api/danmaku/display?epoch=…&cursor=…` 由 [danmaku-display-routes.js](../../../src/server/routes/danmaku-display-routes.js) 处理，供本机独立地址 `/danmaku?source=component` 使用。响应 `{ok:true,data:{config,data}}`，其中 `config` 为已保存的 `{style,fullscreenDurationSeconds,styleOptions,layout,styleParameters?}`，可选 styleParameters 按 danmaku 类型校验，配置尚未取得时为 `null`；内层 `data` 是已有云展示缓冲的 `{epoch,status,state,nextCursor,reset,gap,events}`。读口由 `scene-runtime` 复用当前账号的同一缓冲，不创建场景或第二条上游连接。首次/无效 cursor/切账号按已有缓冲契约 reset，不重放旧直播消息。每次读取 `no-store`，未就绪端口为 503；匿名为 401，其他 overlay scope、管理凭据配 opaque Origin 或写方法均被拒绝。固定页仍只注入 danmaku 展示凭据，不能读取管理配置。
+
+`GET /api/danmaku/events` 使用同一 danmaku scope 或管理身份，必须通过 Authorization 请求头提供凭据，单独 query token 返回 401；其他 scope 为 403。它复用 [display-notifications.js](../../../src/server/display-notifications.js)，只发送 `ready/change/revoked` 和每秒心跳；每个本地运行时最多四条独立弹幕流，超限 429。通知合并窗口 40ms，每次发送/心跳检查 owner scope/epoch 与实际授权、关闭状态；换账号或撤销后关闭，shutdown 释放全部流。客户端复用场景的串行读取、五秒校验及 750ms 回退，不暴露额外数据或写权限。
 
 ---
 
@@ -317,7 +319,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 `GET /api/opening/config` 的 `style` 字段返回 `classic` 或 `pixel-cassette`，缺省及非法保存值回退 `classic`；
 opening 页面能力的只读投影包含该字段。管理端通过现有设置接口保存 `openingStyle`，非法枚举返回 400。
 
-内置样式各自拥有参数：原 `opening*` 参数仍属于经典舞台；像素卡带使用 `openingPixelQuality`、`openingPixelShowNotes`、`openingPixelShowEq`、`openingPixelAudioVolume` 以及独立音乐文件/名称。配置顶层表示当前内置样式，`styles.classic` 与 `styles['pixel-cassette']` 提供各自清洗后的配置，固定样式的画布图层与 URL 覆盖读取对应项。页面能力中的 styles 只投影显示字段和当前媒体 URL，不含文件路径或原始文件名；总开关仍是共同的 `openingEnabled`。
+内置样式各自拥有参数：原 `opening*` 参数仍属于经典舞台；像素卡带使用 `openingPixelQuality`、`openingPixelShowNotes`、`openingPixelShowEq`、`openingPixelAudioVolume` 以及独立音乐文件/名称。两款内置样式的画质默认及非法值回退均为 `high`，已有有效档位保持不变。`showNotes` / `showEq` 在返回配置中固定为 `true`，旧布尔设置键仍兼容接收和保存，但不再控制内置样式显示。配置顶层表示当前内置样式，`styles.classic` 与 `styles['pixel-cassette']` 提供各自清洗后的配置，固定样式的画布图层与 URL 覆盖读取对应项。页面能力中的 styles 只投影显示字段和当前媒体 URL，不含文件路径或原始文件名；总开关仍是共同的 `openingEnabled`。
 
 资源开播样式的 `config` 可携带 `title/subtitle/name/footer/quality/trackMotion/showNotes/showEq`（按原生渲染器显示实际支持的字段）。旧稀疏场景不强制补齐这些字段。`moonlit-opening` 导入时合并自己的默认文案与装饰配置，包内显式 config 优先；旧资源样式缺字段时同样回退月渡花汀默认值，不读取经典文案或音乐。
 

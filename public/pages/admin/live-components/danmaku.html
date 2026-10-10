@@ -11,7 +11,6 @@
           </label>
         </div>
         <div class="danmaku-overlay-link">
-          <lira-help label="弹幕链接说明">复制后在 OBS 或哔哩哔哩直播姬里新建「浏览器」源粘贴；切换样式无需更换链接。</lira-help>
           <input id="danmakuOverlayUrl" type="text" aria-label="弹幕直播画面链接" readonly />
           <div class="danmaku-overlay-actions">
             <button id="danmakuCopyOverlayUrlBtn" class="secondary component-icon-button" type="button" disabled>
@@ -27,7 +26,6 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
             预览与调整
           </button>
-          <lira-help label="弹幕预览说明">预览不影响直播，应用后生效。</lira-help>
         </div>
       </div>
       <section class="danmaku-settings-block" aria-labelledby="danmakuAppearanceTitle">
@@ -39,21 +37,21 @@
               <button id="danmakuRandomStyleTab" type="button" role="tab" aria-selected="false" aria-controls="danmakuRandomStyles" tabindex="-1">区域随机</button>
               <button id="danmakuFloatingStyleTab" type="button" role="tab" aria-selected="false" aria-controls="danmakuFloatingStyles" tabindex="-1">飘窗弹幕</button>
             </div>
-            <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 深色面板</span>
+            <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 青墨笺</span>
           </div>
           <section id="danmakuFixedStyles" class="danmaku-style-group danmaku-style-group-fixed" role="tabpanel" aria-labelledby="danmakuFixedStyleTab">
             <div class="danmaku-style-options danmaku-style-options-fixed" role="group" aria-label="选择固定位置弹幕样式">
               <button class="danmaku-style-option" type="button" data-danmaku-style="bubble" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/bubble.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">聊天气泡</span>
+                <span class="danmaku-style-name">琉璃</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="signal" aria-pressed="true">
                 <img src="/img/overlays/danmaku-previews/signal.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">深色面板</span>
+                <span class="danmaku-style-name">青墨笺</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="minimal" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/minimal.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">蝴蝶结</span>
+                <span class="danmaku-style-name">蝶恋花</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="ranked" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/ranked.png" class="danmaku-style-sample" alt="" />
@@ -61,7 +59,7 @@
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="transparent" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/transparent.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">透明文字</span>
+                <span class="danmaku-style-name">留白</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="sketch" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/sketch.png" class="danmaku-style-sample" alt="" />
@@ -69,7 +67,7 @@
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="prismatic" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/prismatic.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">柔彩气泡</span>
+                <span class="danmaku-style-name">流霞</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="starlight" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/starlight.png" class="danmaku-style-sample" alt="" />
@@ -77,7 +75,7 @@
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="identity" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/identity.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">头像横卡</span>
+                <span class="danmaku-style-name">画中人</span>
               </button>
             </div>
           </section>
@@ -89,23 +87,23 @@
             >
               <button class="danmaku-style-option" type="button" data-danmaku-style="outline" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/outline.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">简洁白卡</span>
+                <span class="danmaku-style-name">一纸素笺</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="whiteframe" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/whiteframe.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">白线框</span>
+                <span class="danmaku-style-name">白描</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="cream" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/cream.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">奶油气泡</span>
+                <span class="danmaku-style-name">杏花白</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="glow" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/glow.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">流光气泡</span>
+                <span class="danmaku-style-name">流光溢彩</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="starveil" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/starveil.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">星幕浮语</span>
+                <span class="danmaku-style-name">点点流萤</span>
               </button>
             </div>
           </section>
@@ -113,11 +111,11 @@
             <div class="danmaku-style-options" role="group" aria-label="选择飘窗弹幕样式">
               <button class="danmaku-style-option" type="button" data-danmaku-style="floating" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/floating.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">飘窗弹幕</span>
+                <span class="danmaku-style-name">浮光掠影</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="comet" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/comet.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">鹤映鎏金</span>
+                <span class="danmaku-style-name">鹤舞花枝间</span>
               </button>
             </div>
           </section>
@@ -220,7 +218,7 @@
         </details>
         <section class="danmaku-parameters" aria-labelledby="danmakuParametersTitle">
           <div class="danmaku-filter-heading">
-            <h5 id="danmakuParametersTitle">参数调节 · 深色面板</h5>
+            <h5 id="danmakuParametersTitle">参数调节 · 青墨笺</h5>
             <button id="danmakuResetParameters" class="secondary" type="button" disabled>恢复默认</button>
           </div>
           <p id="danmakuParametersHint" class="hint" hidden></p>
@@ -285,10 +283,11 @@
               </select>
             </label>
             <label id="danmakuEdgeFadeField" class="danmaku-parameter-field" for="danmakuEdgeFade">
-              <span><strong>边缘处理<lira-help label="边缘处理说明">两端渐隐作用于上下边缘；单端渐隐只作用于弹幕移出的一端，随滚动方向切换。</lira-help></strong></span>
+              <span><strong>边缘处理<lira-help label="边缘处理说明">可选择上下两端、仅上边或仅下边渐隐；选定的边缘不随滚动方向改变。</lira-help></strong></span>
               <select id="danmakuEdgeFade" disabled>
                 <option value="both">两端渐隐</option>
-                <option value="single">单端渐隐</option>
+                <option value="top">上边渐隐</option>
+                <option value="bottom">下边渐隐</option>
                 <option value="none">直接切断</option>
               </select>
             </label>

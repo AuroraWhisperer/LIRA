@@ -9,6 +9,39 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
+test('preview opens independent component connections together before linking the window', { timeout: 15000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = openBrowserSession();
+  const desktop = await browser.newPage();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  await openCanvasDesktop(desktop, fixture);
+  await desktop.evaluate(() => window.previewHandle.close());
+  desktop.setDefaultTimeout(3000);
+  const expected = Object.keys(fixture.configs).length + 1;
+  const opening = new Set();
+  let release;
+  const allStarted = new Promise(resolve => { release = resolve; });
+  await desktop.route('**/api/component-preview', async route => {
+    const command = route.request().postDataJSON();
+    if (command.action === 'open') {
+      opening.add(command.component);
+      if (opening.size === expected) release();
+      await allStarted;
+    } else if (command.action === 'link') {
+      assert.equal(opening.size, expected);
+      assert.equal(command.links.length, expected);
+    }
+    await route.fallback();
+  });
+  t.after(() => release());
+  await desktop.evaluate(() => window.reopen());
+  await desktop.waitForFunction(() => window.externalPreviewUrl);
+  const url = await desktop.evaluate(() => window.externalPreviewUrl);
+  assert.equal(opening.size, expected);
+  assert.equal(new URL(url).pathname, '/c');
+  await desktop.evaluate(() => window.previewHandle.close());
+});
+
 test('text box instance links select the requested item and keep separate reusable entries', { timeout: 25000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   const browser = openBrowserSession();

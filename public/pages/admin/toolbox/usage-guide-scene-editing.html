@@ -1,6 +1,6 @@
-<h4 class="usage-guide-subsection-title" id="ug-scenes">05.1 画布与场景</h4>
-<div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.1.1 添加组件与选用样式</strong></h5></div>
-<p>在「浏览器源 → 直播场景」点击「编辑场景」打开场景编辑器。顶部添加组件，下方选择图层，右侧展开调参；收起参数可放大画布。画布分辨率统一设置，保存后恢复已有布局。</p>
+<h4 class="usage-guide-subsection-title" id="ug-scenes">5.1 画布与场景</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>5.1.1 添加组件与选用样式</strong></h5></div>
+<p>在「组件」左侧点击「打开画布」，或在「浏览器源 → 直播场景」点击「编辑场景」打开场景编辑器。顶部添加组件，下方选择图层，右侧展开调参；收起参数可放大画布。画布分辨率统一设置，保存后恢复已有布局。</p>
 
 <p>「添加组件」将内置、单独导入和套装中的样式放在各自组件分类中，点击顶部「添加样式」可导入更多样式。弹幕姬按固定弹幕、随机弹幕或飘窗弹幕选择，添加后右侧只调整当前样式参数；需要其他样式时再添加对应组件。</p>
 <p>其他支持更换样式的组件，在画布选中原图层，点右侧「更换样式 / 添加素材」选择新样式。名称、位置、大小和层级会保留，最后点「保存并应用」。锁定的图层需先解锁。</p>
@@ -8,7 +8,7 @@
 <p>导入的样式用于本机场景，不会修改服务器弹幕姬链接。直播软件与 LIRA 需在同一电脑上，直播期间保持 LIRA 开启。</p>
 <p>组件库加入场景的图层各自保存样式选择、位置和尺寸。客户端与画布共用的外观参数按同一样式共享，保存后也会更新其他使用该样式的组件；布局修改仍需「保存并应用」。想更换单组件默认样式，可在客户端对应面板选择并保存。</p>
 <p>在「添加组件 → 套装」找到已导入的套装，点击需要的成员；也可从对应组件分类选择。每点一个成员添加一个组件，摆好后点「保存并应用」。</p></article>
-<article class="usage-guide-feature" id="ug-scene-layers"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.1.2 摆位置、改大小和调整图层</strong></h5></div>
+<article class="usage-guide-feature" id="ug-scene-layers"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>5.1.2 摆位置、改大小和调整图层</strong></h5></div>
 
 <ul>
 <li>拖组件内部改位置，拖边框改大小。想填准确的数值，到右侧参数区改。画布宽高和直播软件里这个浏览器源的宽高要一样。</li>
@@ -18,18 +18,18 @@
 </ul>
 <p>改好后点「保存并应用」，再到 OBS 或直播姬看一眼效果。只想存下来备用，就点「保存场景」。</p>
 </article>
-<article class="usage-guide-feature" id="ug-scene-presets"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.1.3 把不同布局存成场景</strong></h5></div>
+<article class="usage-guide-feature" id="ug-scene-presets"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>5.1.3 把不同布局存成场景</strong></h5></div>
 
 <p>打开「点歌 → 浏览器源 → 直播场景 → 编辑场景」。点场景旁的「⋯」打开「场景操作」，选择「新建场景」从空白画布开始，也可以选择「复制场景」照着已有的布局改。保存、删除场景也在这个菜单里。想改名字，点顶部的画布图标，到「场景名称」里填。</p>
 <ul>
 <li><strong>保存场景：</strong>把这套布局存下来，直播继续使用当前布局。与客户端共用的参数在保存后会同步到同样式组件。</li>
-<li><strong>删除场景：</strong>先选中多余的场景，再点「删除场景」并确认。未保存修改也会删除；正在直播使用的场景要先换用其他场景，承载固定直播源的初始场景需保留。</li>
+<li><strong>删除场景：</strong>选中场景，点「删除场景」并确认，未保存修改也会删除，随后自动选择剩余场景。删除「当前输出」时，会切换到剩余场景的已保存版本；最后一个删完后输出透明空画面。原直播源地址保留，其他场景的未保存修改不会自动应用。删空后可从「场景操作 → 新建场景」重新开始。</li>
 <li><strong>保存并应用：</strong>直播画面换成这一套。地址还是原来的，OBS 或直播姬里不用重新粘贴。</li>
-<li><strong>切换场景：</strong>这次编辑中没保存的内容会暂时留着，可以切到别的场景再回来改，离开前记得保存。直播正在用哪套，看「当前直播」，别只看自己正在编辑哪套。</li>
+<li><strong>切换场景：</strong>这次编辑中没保存的内容会暂时留着，可以切到别的场景再回来改，离开前记得保存。「当前输出」标记最后一次保存并应用的场景，与正在编辑的场景可以不同；它不代表 OBS 或直播姬正在显示该来源。「未保存」表示还有修改尚未应用。</li>
 </ul>
 <p>看到「恢复上次草稿」时，可以先恢复，看看组件和位置对不对，再点「保存并应用」。应用失败会保留原布局；此前已保存的共享参数仍会生效。</p>
 </article>
-<article class="usage-guide-feature" id="ug-external-browser-source"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>05.1.4 把其他工具的网页源加进来</strong></h5></div>
+<article class="usage-guide-feature" id="ug-external-browser-source"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>5.1.4 把其他工具的网页源加进来</strong></h5></div>
 
 <ol class="usage-guide-checks">
 <li>在画布里点「添加组件」，再点分类列表最下面的「更多」。</li>

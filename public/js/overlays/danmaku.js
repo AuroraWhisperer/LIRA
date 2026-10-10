@@ -1,5 +1,6 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
+import { createDanmakuPreviewItems, DANMAKU_PREVIEW_ENTRY } from './danmaku-preview-samples.js';
 import { createComponentStyleEffects } from './component-style-effects.js';
 import { styleParametersFor } from '../shared/component-style-parameters.js';
 import { isSceneComponent, isComponentPreview } from './component-preview-client.js';
@@ -92,9 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderData: sceneDisplay.update,
       renderSamples(style, options, duration, layout, config = { style }) {
         effectConfig = config;
-        const samples = previewItems(style).filter((item) =>
+        const samples = createDanmakuPreviewItems(style).filter((item) =>
           (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
-        if (styleParametersFor(config).showEntryMessages) samples.push({ id: 'preview-entry', kind: 'entry', name: '新来的观众', message: '进入了直播间' });
+        if (styleParametersFor(config).showEntryMessages) samples.push({ ...DANMAKU_PREVIEW_ENTRY });
         clearTimeout(previewTimer);
         applyConfiguration(style, duration, options, true);
         configureEffects(config);
@@ -365,121 +366,4 @@ export function describeDanmakuConnection(liveStatus, localConnected) {
     text: message || (connected ? '弹幕接收中' : '弹幕连接中'),
     connected,
   };
-}
-
-function previewItems(style) {
-  const emotes = [
-    {
-      text: '[打call]',
-      url: '/img/overlays/danmaku-previews/dacall.png',
-      kind: 'inline',
-      width: 96,
-      height: 96,
-    },
-  ];
-  const samples = [
-    {
-      id: 'preview-1091',
-      name: '金色航线',
-      message: '总督来啦，今晚也一起守到最后！[打call]',
-      emotes,
-      guardLevel: 1,
-      medalName: '粉丝团灯牌',
-      medalLevel: 28,
-    },
-    {
-      id: 'preview-1822',
-      name: '云端来信',
-      message: '提督报到，这一段太好听了[打call]',
-      emotes,
-      guardLevel: 2,
-      medalName: '粉丝团灯牌',
-      medalLevel: 23,
-    },
-    {
-      id: 'preview-4714',
-      name: '阿沐',
-      message: '舰长来了，前奏一响就爱上了[打call]',
-      emotes,
-      guardLevel: 3,
-      medalName: '粉丝团灯牌',
-      medalLevel: 18,
-    },
-    {
-      id: 'preview-565',
-      name: '晚风信号',
-      message: '普通观众也来打 call！[打call]',
-      emotes,
-      medalName: '粉丝团灯牌',
-      medalLevel: 9,
-    },
-    {
-      id: 'preview-emote',
-      name: '主播示例',
-      isStreamer: true,
-      message: '[打call]',
-      emotes: [{ ...emotes[0], kind: 'sticker' }],
-    },
-    ...[
-      ['柠檬汽水', '晚上好～'],
-      ['路过听一首', '刚进来，这首歌叫什么名字呀？'],
-      ['橘子海', '哈哈哈哈哈哈'],
-      ['山间晚风', '戴上耳机听这一段真的好舒服。今天也辛苦啦，大家早点休息！'],
-    ].map(([name, message], index) => ({ id: `preview-chat-${index}`, name, message })),
-    ...[
-      ['星河来客', 10],
-      ['云端来信', 1],
-      ['金色航线', 66],
-    ].map(([name, giftCount]) => ({
-      id: `preview-gift-${giftCount}`,
-      kind: 'gift',
-      name,
-      message: `送出 小花花 × ${giftCount}`,
-      giftName: '小花花',
-      giftCount,
-      giftTotalPrice: giftCount / 10,
-      giftImageUrl: '/img/gift-placeholder.png',
-    })),
-    ...(['moonlit', 'prismatic'].includes(style) ? [3, 2, 1].map((giftGuardLevel) => ({
-      id: `preview-guard-${giftGuardLevel}`, kind: 'gift', name: ['金色航线', '云端来信', '阿沐'][giftGuardLevel - 1],
-      giftName: guardLabel(giftGuardLevel), giftCount: 1, giftGuardLevel,
-      ...(style === 'prismatic' ? {
-        guardAction: giftGuardLevel === 3 ? 'renew' : 'open',
-        guardAccompanyDays: giftGuardLevel === 3 ? 360 : 1,
-        giftTotalPrice: { 3: 138, 2: 1998, 1: 19998 }[giftGuardLevel],
-      } : {}),
-      avatarUrl: '/img/overlays/danmaku-ranked/viewer.webp',
-    })) : []),
-    ...[
-      [2, '橘子汽水', '这首好听！'],
-      [30, '晚风来信', '今天的歌单太喜欢了，这首可以再唱一次吗？'],
-      [50, '星河来客', '刚下班就赶上喜欢的歌，今天的快乐有了～'],
-      [100, '云端来信', '陪伴是最长情的告白，今晚也一起听歌。'],
-      [500, '阿沐', '恭喜解锁新歌！\n以后也要一起唱下去呀。'],
-      [1000, '金色航线', '谢谢每一次认真准备的直播，希望你一直做自己喜欢的事。'],
-      [2000, '山间晚风', '今天的歌单太喜欢了，这首可以再唱一次吗？\n从第一场直播听到现在，每次下班打开直播间，都会觉得一天的疲惫慢慢散去。希望你也照顾好自己，按时吃饭、早点休息。我们下次直播见！'],
-    ].map(([price, name, message]) => ({
-      id: `preview-superchat-${price}`,
-      kind: 'superchat',
-      name,
-      avatarUrl: '/img/overlays/danmaku-ranked/viewer.webp',
-      message,
-      price,
-    })),
-  ];
-  if (style !== 'prismatic') return samples;
-  const palettes = {
-    1: [50, '#A773F199', '#D47AFF'], 2: [38, '#4C7DFF99', '#58A1F8'],
-    3: [28, '#3FB4F699', '#5FC7F4'], 0: [9, '#5762A799', '#5762A7'],
-  };
-  return samples.map((item, index) => {
-    const roomGuardLevel = item.guardLevel || 0;
-    const [level, color, border] = palettes[roomGuardLevel];
-    return {
-      ...item, avatarUrl: item.avatarUrl || '/img/overlays/danmaku-ranked/viewer.webp',
-      honorLevel: [70, 45, 32, 19, 28][index % 5], roomGuardLevel,
-      ...(item.medalLevel ? { roomMedal: { name: item.medalName || '粉丝团灯牌', level, guardLevel: roomGuardLevel, isLight: true,
-        colorStart: color, colorEnd: color, colorBorder: border, colorText: '#FFFFFF' } } : {}),
-    };
-  });
 }

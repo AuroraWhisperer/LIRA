@@ -116,8 +116,6 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
     'openingFooter',
     'openingQuality',
     'openingTrackMotion',
-    'openingShowNotes',
-    'openingShowEq',
     'openingCharacterFile',
     'openingCharacterName',
     'openingResetCharacter',
@@ -129,6 +127,8 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /<select\b[^>]*\sid="openingTrackMotion"[^>]*>[\s\S]*?<option\b(?=[^>]*\svalue="heart")(?=[^>]*\sselected(?:\s|>))[^>]*>/);
+  assert.doesNotMatch(html, /id="openingShow(?:Notes|Eq)"/);
+  assert.match(html, /<option value="high" selected>/);
   assert.match(html, /<option\b[^>]*\svalue="barber"/);
   assert.match(html, /<option\b[^>]*\svalue="progress"/);
   assert.match(html, /id="openingTitle"[^>]+maxlength="20"/);

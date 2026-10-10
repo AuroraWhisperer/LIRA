@@ -8,6 +8,15 @@ const { allNodes, createFakeDocument, findAllByClass, findByClass } = require('.
 
 const OVERLAYS = path.join(__dirname, '../../public/js/overlays');
 
+test('desktop adapter retains staggered entrance and undecorated system messages', async () => {
+  const render = await createRenderer();
+  const item = { kind: 'system', name: 'LIRA', message: '已连接' };
+  const message = render(item, 6);
+  assert.doesNotMatch(message.className, /(?:^| )is-system(?: |$)/);
+  assert.equal(message.style['--danmaku-delay'], '144ms');
+  assert.equal(render(item, 30).style['--danmaku-delay'], '192ms');
+});
+
 async function createRenderer(options) {
   const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import(
     pathToFileURL(path.join(OVERLAYS, 'danmaku-message-renderer.js')).href);

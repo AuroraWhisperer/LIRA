@@ -14,7 +14,34 @@ const { routes } = require('../../src/server/routes/opening-routes');
 const { normalizeSceneConfig } = require('../../src/server/scene-components');
 const { projectOverlayResponse } = require('../../src/server/overlay-projection');
 const { serveOpeningMedia } = require('../../src/server/opening-media-http');
-const { resolveOpeningAppearance, MOONLIT_OPENING_DEFAULTS } = require('../../public/js/shared/opening-appearance.js');
+const { openingAppearanceFields, resolveOpeningAppearance, MOONLIT_OPENING_DEFAULTS } = require('../../public/js/shared/opening-appearance.js');
+const { OPENING_DEFAULTS } = require('../../public/js/shared/opening-settings.js');
+const { loadModuleExports } = require('../helpers/frontend-modules');
+
+test('built-in openings default to high quality and keep decorations enabled despite legacy switches', async () => {
+  const { parseConfig, mergeConfig } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/overlays/opening.js'), { URLSearchParams },
+  );
+  assert.equal(DEFAULT_SETTINGS.openingQuality, 'high');
+  assert.equal(DEFAULT_SETTINGS.openingPixelQuality, 'high');
+  assert.equal(OPENING_DEFAULTS.quality, 'high');
+  assert.equal(parseConfig('').quality, 'high');
+  const config = getOpeningConfig({ settings: { get: () => ({
+    openingShowNotes: 'false', openingShowEq: 'false',
+    openingPixelShowNotes: 'false', openingPixelShowEq: 'false',
+  }) } });
+  for (const style of ['classic', 'pixel-cassette']) {
+    assert.equal(config.styles[style].quality, 'high');
+    assert.equal(config.styles[style].showNotes, true);
+    assert.equal(config.styles[style].showEq, true);
+    assert.equal(Object.hasOwn(openingAppearanceFields(style), 'showNotes'), false);
+    assert.equal(Object.hasOwn(openingAppearanceFields(style), 'showEq'), false);
+    const query = `?style=${style}&showNotes=false&showEq=false`;
+    const rendered = mergeConfig({ style, showNotes: false, showEq: false }, parseConfig(query), new URLSearchParams(query));
+    assert.equal(rendered.showNotes, true);
+    assert.equal(rendered.showEq, true);
+  }
+});
 
 test('built-in opening profiles and fixed canvas styles keep their own settings', () => {
   const settings = { ...DEFAULT_SETTINGS, openingStyle: 'pixel-cassette', openingQuality: 'high',
@@ -25,7 +52,7 @@ test('built-in opening profiles and fixed canvas styles keep their own settings'
   const projected = projectOverlayResponse('opening', '/api/opening/config', data);
   assert.equal(Object.hasOwn(projected.styles.classic, 'audioName'), false);
   assert.equal(resolveOpeningAppearance(projected, { style: 'classic' }).quality, 'high');
-  assert.equal(resolveOpeningAppearance(projected, { style: 'classic' }).showNotes, false);
+  assert.equal(resolveOpeningAppearance(projected, { style: 'classic' }).showNotes, true);
   assert.equal(resolveOpeningAppearance(projected, { style: 'pixel-cassette' }).showNotes, true);
   assert.equal(resolveOpeningAppearance({ ...projected, enabled: false }, { style: 'classic' }).enabled, false);
   for (const patch of [{ openingPixelQuality: 'bad' }, { openingPixelAudioVolume: 2 }, { openingPixelShowEq: {} }]) {

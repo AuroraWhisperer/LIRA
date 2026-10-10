@@ -94,6 +94,13 @@ shared dimensions together. Browser URLs are re-encrypted for the output identit
 The browser relay exposes desktop-mediated preset operations without granting
 general scene-management authority. This adds no separate runtime or business owner.
 
+The user's 2026-10-10 deletion requirement separates the editable preset from that
+stable output identity. Deleting the current output preset confirms the impact and
+atomically replaces its output with a remaining saved preset or a transparent empty
+document. The store retains the fixed output record and credentials while hiding its
+deleted preset; the editor can remain empty without recreating a preset on reopen.
+The existing scene service and storage transaction remain the owners.
+
 - Rejected cross-component rollback: independent cloud/local writes cannot provide a common transaction.
 - Rejected composing owned components through their credential-bearing source URLs: broadens capabilities and gives no complete-version preparation boundary. User-supplied external browser sources follow the narrower exception above.
 - A notification-only SSE stream removes the mandatory polling wait while keeping the existing WS security contract and cloud cursor/gap semantics. It adds connection lifecycle and revalidation responsibilities; polling remains the compatibility fallback and health check. External provider frames keep their own direct data connections.

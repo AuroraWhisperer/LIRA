@@ -33,8 +33,8 @@ function readStartAnimationConfig(root = document) {
       ? value('openingQuality', OPENING_DEFAULTS.quality)
       : OPENING_DEFAULTS.quality,
     trackMotion: TRACK_MOTION_VALUES.has(trackMotion) ? trackMotion : OPENING_DEFAULTS.trackMotion,
-    showNotes: Boolean(root.getElementById('openingShowNotes')?.checked),
-    showEq: Boolean(root.getElementById('openingShowEq')?.checked),
+    showNotes: true,
+    showEq: true,
     volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume / 100)) : OPENING_DEFAULTS.volume,
   };
 }
@@ -73,8 +73,6 @@ function setFormConfig(root, config) {
     'openingTrackMotion',
     TRACK_MOTION_VALUES.has(config.trackMotion) ? config.trackMotion : OPENING_DEFAULTS.trackMotion,
   );
-  setChecked('openingShowNotes', config.showNotes);
-  setChecked('openingShowEq', config.showEq);
   setValue('openingAudioVolume', volumePercent(config.volume));
 }
 
@@ -161,10 +159,6 @@ function initStartAnimation() {
     if (trackField) trackField.hidden = pixelStyle;
     const characterSection = root.getElementById('openingCharacterSection');
     if (characterSection) characterSection.hidden = false;
-    const notesLabel = root.getElementById('openingNotesLabel');
-    if (notesLabel) notesLabel.textContent = '漂浮音符';
-    const eqLabel = root.getElementById('openingEqLabel');
-    if (eqLabel) eqLabel.textContent = '氛围律动';
     if (characterName) characterName.textContent = characterNames[config.style]
       || (pixelStyle ? '未上传大头贴' : '未上传人物图');
     const characterHeading = root.getElementById('openingCharacterHeading');

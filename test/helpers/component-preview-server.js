@@ -5,14 +5,14 @@ const { createHttpServer } = require('../../src/server/http-server');
 const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createWebSocketHub } = require('../../src/server/ws');
 
-async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, getState, readDanmakuDisplay, dataDir, overtime, settings } = {}) {
+async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, danmakuEvents, getState, readDanmakuDisplay, dataDir, overtime, settings } = {}) {
   const token = 'synthetic-desktop-component-preview-token';
   const publicDir = path.resolve(__dirname, '../../public');
   const hub = getState ? createWebSocketHub({ closeTimeoutMs: 20 }) : null;
   const server = createHttpServer({ host: '127.0.0.1', startPort: 0, dataDir,
     getPhase: () => 'ready', getStartedPort: () => server.address()?.port,
     getPreviewOwner: getOwner, isLicenseAuthorized: () => true,
-    inflightTracker: { run: (work) => work() }, createApiContext: () => ({ sessionToken: token, scenes, sceneEvents, readDanmakuDisplay, overtime,
+    inflightTracker: { run: (work) => work() }, createApiContext: () => ({ sessionToken: token, scenes, sceneEvents, danmakuEvents, readDanmakuDisplay, overtime,
       system: { getState, dataDir }, settings: settings || { get: () => getState?.().settings },
       bilibili: { configure() {} }, broadcastSnapshot() { hub?.broadcastSnapshot({ getState }, 'settings'); } }),
     getSettings: () => getState?.().settings || {},

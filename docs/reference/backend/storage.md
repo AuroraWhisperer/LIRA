@@ -33,9 +33,12 @@ v10 追加 `component_canvas`：`owner_scope` 为主键，`output_scene_id` 固�
 来源的发布快照、活动预设及共享尺寸；两个场景的草稿都不被覆盖。跨预设浏览器 URL
 按固定输出场景 ID 重新加密绑定，任何失败整体回滚。选择中的预设和未保存草稿属于编辑会话。
 
-显式删除多余预设使用 `scene-store.delete` 的单条 DELETE/RETURNING，条件包含 owner、revision
-和当前画布绑定排除；固定输出及活动预设不可删除。删除不改变直播快照、来源凭据、组件尺寸
-或素材文件，也不新增 schema。领域层提供可读的拒绝原因，存储层再次检查绑定避免并发误删。
+v11 为 `component_scenes` 追加 `is_preset`（0/1，默认 1），将 `component_canvas.active_scene_id` 改为可空。
+旧文档、发布快照、绑定和凭据保持不变，迁移可重复执行。删除固定输出的预设时将其标为 0 并清空草稿图层；
+该行只保留固定来源与发布职责，不再列入预设、允许编辑或占用草稿素材引用。备份仍包含其发布快照。
+`scene-store.delete` 用保存点检查 owner、预设 revision、当前绑定及输出版本；删除当前输出时同时核对替代预设 revision，
+提交替代已保存布局、活动 ID 和共享尺寸，无剩余预设则发布透明空文档并将活动 ID 置空。任一失败整体回滚。
+普通预设行实际删除，其他场景草稿、来源凭据和素材文件不变。保留的固定绑定也用于区分首次使用和主动删空。
 
 capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保存 safeStorage 加密的 schema、归属、scene ID、凭据版本和 token 包。无明文回退；解密后复核全部绑定与摘要。历史、选择、实时事件与业务状态不入场景表；场景随本地数据库保留，没有自动删除策略。接口见 [HTTP API](api.md#本地场景)，边界见 [ADR-0022](../../architecture/adr/0022-local-component-scenes.md)。
 
@@ -235,7 +238,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 | 库          | key             | 版本  | 步骤内容                                                                                                                                                                                                                                                                                                                      |
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| songDb      | `song_db`       | v1-v10 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设 |
+| songDb      | `song_db`       | v1-v11 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设；v11 区分预设与保留输出行，活动预设可空 |
 | superChatDb | `super_chat_db` | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | giftDb      | `gift_db`       | v1-v16 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |

@@ -38,7 +38,7 @@ test('archive recovery instructions are indexed in the fan chapter by the existi
   const target = {
     textContent: faq.replace(/<[^>]*>/g, ' '),
     matches: () => false,
-    querySelector: () => ({ textContent: '06.1.2 归档与找回' }),
+    querySelector: () => ({ textContent: '6.1.2 归档与找回' }),
   };
   const section = {
     id: 'ug-work',
@@ -105,7 +105,7 @@ test('usage guide names the AI assistant section without removing the DeepSeek a
   const html = readAdminHtml();
 
   assert.match(html, /<a\b(?=[^>]*\shref=["']#ug-deepseek["'])[^>]*>[^<]*AI[^<]*<\/a>/);
-  assert.match(html, /<h4\b(?=[^>]*\sid=["']ug-deepseek["'])[^>]*>03\.3 AI 互动助手<\/h4>/);
+  assert.match(html, /<h4\b(?=[^>]*\sid=["']ug-deepseek["'])[^>]*>3\.3 AI 互动助手<\/h4>/);
 });
 
 function createUsageGuideFixture({

@@ -2,7 +2,7 @@
 const DANMAKU_STYLE_OPTIONS = Object.freeze({
   bubble: {
     scrollDirection: true,
-    label: '聊天气泡',
+    label: '琉璃',
     minFontSize: 18,
     maxFontSize: 48,
     background: true,
@@ -11,7 +11,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   signal: {
     scrollDirection: true,
-    label: '深色面板',
+    label: '青墨笺',
     minFontSize: 18,
     maxFontSize: 48,
     background: true,
@@ -20,7 +20,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   minimal: {
     scrollDirection: true,
-    label: '蝴蝶结',
+    label: '蝶恋花',
     minFontSize: 18,
     maxFontSize: 40,
     background: false,
@@ -38,7 +38,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   transparent: {
     scrollDirection: true,
-    label: '透明文字',
+    label: '留白',
     minFontSize: 18,
     maxFontSize: 56,
     background: false,
@@ -47,7 +47,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   identity: {
     scrollDirection: true,
-    label: '头像横卡',
+    label: '画中人',
     minFontSize: 18,
     maxFontSize: 42,
     background: true,
@@ -66,7 +66,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   prismatic: {
     scrollDirection: true,
     defaultEdgeFade: 'both',
-    label: '柔彩气泡',
+    label: '流霞',
     minFontSize: 18,
     maxFontSize: 48,
     background: false,
@@ -93,7 +93,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   outline: {
     layout: 'fullscreen-random',
-    label: '简洁白卡',
+    label: '一纸素笺',
     minFontSize: 18,
     maxFontSize: 40,
     background: true,
@@ -102,7 +102,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   whiteframe: {
     layout: 'fullscreen-random',
-    label: '白线框',
+    label: '白描',
     minFontSize: 18,
     maxFontSize: 40,
     background: false,
@@ -111,7 +111,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   cream: {
     layout: 'fullscreen-random',
-    label: '奶油气泡',
+    label: '杏花白',
     minFontSize: 18,
     maxFontSize: 40,
     background: true,
@@ -120,7 +120,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   floating: {
     layout: 'floating',
-    label: '飘窗弹幕',
+    label: '浮光掠影',
     minFontSize: 18,
     maxFontSize: 40,
     background: true,
@@ -130,7 +130,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   comet: {
     layout: 'floating',
-    label: '鹤映鎏金',
+    label: '鹤舞花枝间',
     minFontSize: 18,
     maxFontSize: 40,
     background: true,
@@ -140,7 +140,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   starveil: {
     layout: 'fullscreen-random',
-    label: '星幕浮语',
+    label: '点点流萤',
     minFontSize: 18,
     maxFontSize: 40,
     background: true,
@@ -149,7 +149,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   glow: {
     layout: 'fullscreen-random',
-    label: '流光气泡',
+    label: '流光溢彩',
     minFontSize: 18,
     maxFontSize: 40,
     background: true,
@@ -199,7 +199,7 @@ function normalizeStyleOptions(value) {
       else if (key === 'giftImage' && limits.giftImage && ['theme', 'gift'].includes(item)) normalized[key] = item;
       else if (key === 'scrollDirection' && limits.scrollDirection && ['up', 'down'].includes(item))
         normalized[key] = item;
-      else if (key === 'edgeFade' && limits.scrollDirection && ['both', 'single', 'none'].includes(item))
+      else if (key === 'edgeFade' && limits.scrollDirection && ['both', 'top', 'bottom', 'single', 'none'].includes(item))
         normalized[key] = item;
       else if (key === 'speedPixelsPerSecond' && limits.speed && Number.isInteger(item) && item >= 20 && item <= 600)
         normalized[key] = item;
@@ -225,11 +225,16 @@ function styleOptionsFor(style, options = {}) {
     ...(DANMAKU_STYLE_OPTIONS[style]?.layout === 'fullscreen-random' ? { centerBias: 1, dispersion: 1 } : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.speed ? { speedPixelsPerSecond: 120 } : {}),
   };
+  let resolved = defaults;
   try {
-    return { ...defaults, ...normalizeStyleOptions({ [style]: options[style] || {} })[style] };
+    resolved = { ...defaults, ...normalizeStyleOptions({ [style]: options[style] || {} })[style] };
   } catch {
-    return defaults;
+    resolved = defaults;
   }
+  if (resolved.edgeFade === 'single') {
+    resolved.edgeFade = resolved.scrollDirection === 'down' ? 'bottom' : 'top';
+  }
+  return resolved;
 }
 
 export { DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, normalizeStyleOptions, styleOptionsFor };

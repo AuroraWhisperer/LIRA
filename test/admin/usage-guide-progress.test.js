@@ -25,7 +25,7 @@ async function createFixture({ reducedMotion = false } = {}) {
     getBoundingClientRect() { return { top: this.top }; },
     getClientRects() { return this.visible ? [{}] : []; },
   });
-  const headings = [heading('01.1 安装', 100), heading('折叠内容', 200, false), heading('01.2 连接', 600)];
+  const headings = [heading('1.1 安装', 100), heading('折叠内容', 200, false), heading('1.2 连接', 600)];
   const sections = [0, 1000, 2000].map((top, index) => ({
     id: `chapter-${index}`, top, bottom: top + 900,
     getBoundingClientRect() { return { top: this.top, bottom: this.bottom }; },
@@ -56,7 +56,7 @@ test('reading progress follows the chapter marker, ignores folded headings and r
   assert.equal(detail.textContent, '章节概览');
   update(sections[0], 500, false);
   assert.equal(progress.attributes['aria-valuenow'], '50');
-  assert.equal(detail.textContent, '01.1 安装');
+  assert.equal(detail.textContent, '1.1 安装');
   assert.equal(nodes.get('.usage-guide-reading-remaining').textContent, '距下一章还剩 50%');
 
   sections[1].top = 1250;
@@ -66,7 +66,7 @@ test('reading progress follows the chapter marker, ignores folded headings and r
   update(sections[0], 500, false);
   assert.equal(detail.textContent, '折叠内容');
   update(sections[0], 700, false);
-  assert.equal(detail.textContent, '01.2 连接');
+  assert.equal(detail.textContent, '1.2 连接');
 });
 
 test('previous and next controls reuse chapter navigation and the last chapter completes at scroll end', async () => {
@@ -106,5 +106,5 @@ test('title motion only runs on heading changes and honors the current reduced-m
   update(sections[0], 700, false);
   assert.equal(location.animations.length, 1);
   assert.equal(location.animations[0].cancelled, true);
-  assert.equal(nodes.get('.usage-guide-toc-detail').textContent, '01.2 连接');
+  assert.equal(nodes.get('.usage-guide-toc-detail').textContent, '1.2 连接');
 });

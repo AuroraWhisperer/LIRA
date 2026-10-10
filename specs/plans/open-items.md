@@ -44,8 +44,8 @@
 
 ### B4. F07 弹幕共享源与 S04 protobuf 读取器
 
-- 待做：恢复任务后确认 owner、源码分发与 content pin 决策，再实施共享源及依赖它的读取器。
-- 前提：用户明确延期，不自动恢复，也不合并生命周期或渲染策略不同的实现。
+- 待做：公共样式规则与 protobuf 读取器仍延期；公共消息渲染核心已在 2026-10-10 完成，交付见[优化记录](archive/2026-10-10-danmaku-delivery-efficiency.md)。
+- 前提：不把渲染核心快照扩展为未授权的其他源码分发，也不合并生命周期或策略不同的实现。
 - 来源：[复用计划](2026-09-21-client-server-reuse-modularity.md)、[ADR-0020](../../docs/architecture/adr/0020-shared-danmaku-source.md)。
 
 ### B5. 动态抽奖旧 M2–M4 增强范围

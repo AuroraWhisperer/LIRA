@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const { useSharedBrowser } = require('../helpers/shared-browser');
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
+const { createOverlayToken } = require('../../src/server/access-policy');
 
 const openBrowserSession = useSharedBrowser();
 
@@ -46,6 +47,39 @@ async function openSubscribed(f) {
   await (await activeRead).finished();
   await f.page.frameLocator('iframe[title="queue"]').getByText('合成实时歌曲').waitFor();
 }
+
+test('standalone danmaku shares notification delivery, preserves its URL and falls back after stream failure', { timeout: 20000 }, async t => {
+  const f = await fixture(t);
+  const reads = [];
+  f.page.on('request', request => {
+    if (new URL(request.url()).pathname === '/api/danmaku/display') reads.push(request);
+  });
+  const token = createOverlayToken(f.token, 'danmaku');
+  const url = `${f.origin}/danmaku?source=component`;
+  assert.equal((await fetch(url)).status, 200);
+  const subscription = f.page.waitForResponse(response => new URL(response.url()).pathname === '/api/danmaku/events');
+  await f.page.goto(url);
+  assert.equal((await subscription).status(), 200);
+  await f.page.getByText('合成开播确认').waitFor();
+  await f.page.waitForTimeout(250);
+  const baseline = reads.length;
+  await f.page.waitForTimeout(1600);
+  assert.equal(reads.length, baseline, 'The standalone feed no longer polls every 750ms while idle.');
+  f.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '合成观众', message: '独立源实时消息', emotes: [] });
+  await f.page.getByText('独立源实时消息').waitFor();
+  assert.equal(await f.page.getByText('独立源实时消息').count(), 1);
+  assert.equal(reads.length, baseline + 1);
+  assert.equal(reads.at(-1).headers().authorization, `Bearer ${token}`);
+  await f.page.route('**/api/danmaku/events?*', route => route.fulfill({ status: 503, body: '' }));
+  await f.page.reload();
+  await f.page.getByText('合成开播确认').waitFor();
+  f.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '合成观众', message: '降级轮询消息', emotes: [] });
+  await f.page.getByText('降级轮询消息').waitFor();
+  await f.page.goto('about:blank');
+  const stopped = reads.length;
+  await f.page.waitForTimeout(900);
+  assert.equal(reads.length, stopped, 'Closing the page releases all feed requests.');
+});
 
 test('scene notifications update live queue and cloud data without idle polling or frame reloads', { timeout: 20000 }, async t => {
   const f = await fixture(t, ['queue', 'danmaku']);

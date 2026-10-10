@@ -45,4 +45,22 @@ function migrateCanvasPresets(db) {
   `);
 }
 
-module.exports = { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets };
+function migrateSceneDeletion(db) {
+  if (!db.prepare('PRAGMA table_info(component_scenes)').all().some(column => column.name === 'is_preset')) {
+    db.exec('ALTER TABLE component_scenes ADD COLUMN is_preset INTEGER NOT NULL DEFAULT 1 CHECK (is_preset IN (0, 1))');
+  }
+  if (db.prepare('PRAGMA table_info(component_canvas)').all().find(column => column.name === 'active_scene_id')?.notnull) {
+    db.exec(`
+      CREATE TABLE component_canvas_next (
+        owner_scope TEXT PRIMARY KEY,
+        output_scene_id TEXT NOT NULL REFERENCES component_scenes(id),
+        active_scene_id TEXT REFERENCES component_scenes(id)
+      );
+      INSERT INTO component_canvas_next SELECT * FROM component_canvas;
+      DROP TABLE component_canvas;
+      ALTER TABLE component_canvas_next RENAME TO component_canvas;
+    `);
+  }
+}
+
+module.exports = { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion };

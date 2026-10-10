@@ -7,6 +7,7 @@ const test = require('node:test');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 const { useSharedBrowser } = require('../helpers/shared-browser');
 const { sceneExtraPreviewData } = require('../../public/js/admin/scene-extra-preview-data.js');
+const { createDanmakuPreviewItems } = require('../../public/js/overlays/danmaku-preview-samples.js');
 
 const openBrowserSession = useSharedBrowser();
 
@@ -265,12 +266,13 @@ test('imported danmaku renews samples after CSS exit animations without leaking 
     const config = { cssStyle: { id: '12345678-1234-4234-8234-123456789abc', src, engine, width: 480, height: 640 } };
     const frame = await openSurface(page, fixture, { type: 'danmaku', config, url: '/imported-danmaku?componentPreview=1' });
     const selector = engine === 'blc' ? '.danmaku-item' : '#items > *';
-    await frame.waitForFunction(selector => document.querySelectorAll(selector).length === 3 &&
-      [...document.querySelectorAll(selector)].every(node => getComputedStyle(node).opacity === '0'), selector);
-    await frame.waitForFunction(selector => document.querySelectorAll(selector).length > 3 &&
-      [...document.querySelectorAll(selector)].some(node => Number(getComputedStyle(node).opacity) > 0), selector);
+    const sampleCount = createDanmakuPreviewItems().length;
+    await frame.waitForFunction(({ selector, sampleCount }) => document.querySelectorAll(selector).length === sampleCount &&
+      [...document.querySelectorAll(selector)].every(node => getComputedStyle(node).opacity === '0'), { selector, sampleCount });
+    await frame.waitForFunction(({ selector, sampleCount }) => document.querySelectorAll(selector).length > sampleCount &&
+      [...document.querySelectorAll(selector)].some(node => Number(getComputedStyle(node).opacity) > 0), { selector, sampleCount });
     await page.evaluate(() => document.querySelector('iframe').contentWindow.postMessage({ type: 'component-preview:dispose' }, '*'));
-    await frame.locator('#app').filter({ hasText: '小星星' }).waitFor({ state: 'hidden' });
+    await frame.locator(selector).waitFor({ state: 'hidden' });
     await page.clock.fastForward(5000);
     assert.equal(await frame.locator(selector).count(), 0);
     const live = await openSurface(page, fixture, { type: 'danmaku', config, url: '/imported-danmaku?componentPreview=1&sceneComponent=1' });

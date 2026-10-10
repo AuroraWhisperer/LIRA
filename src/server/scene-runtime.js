@@ -3,16 +3,19 @@
 const { createSceneStore } = require('../storage/scene-store');
 const { createSceneService } = require('../scenes/scene-service');
 const { createCloudDisplayBuffer } = require('../scenes/cloud-display-buffer');
+const { createDisplayDemand } = require('../scenes/display-demand');
 const { createElectronSecretCodec } = require('../ai/secret-codec');
 const { createSceneComponentPorts } = require('./scene-components');
 const { createSceneExtraDisplay } = require('./scene-extra-display');
 const { createSceneGiftEvents } = require('./scene-gift-events');
 const { createSceneOutputEvents } = require('./scene-output-events');
+const { createDisplayNotifications } = require('./display-notifications');
 const { readSceneSharedAppearances } = require('./scene-shared-appearance');
 
 function createSceneRuntime({ songDb, runtimeOptions, getState, getContext }) {
   const getOwner = runtimeOptions.getSceneOwner || (() => null);
-  const cloud = createCloudDisplayBuffer({ getOwner });
+  const demand = createDisplayDemand();
+  const cloud = createCloudDisplayBuffer({ getOwner, onRead: demand.touch });
   const gifts = createSceneGiftEvents({ getOwner });
   const getExtraDisplay = getContext ? createSceneExtraDisplay({ getContext, getOwner }) : () => null;
   function notify({ invalidateTypes, ...change } = {}) {
@@ -31,11 +34,27 @@ function createSceneRuntime({ songDb, runtimeOptions, getState, getContext }) {
     ...createSceneComponentPorts({ getState, cloud,
       getExtraDisplay: (type) => ['gift-frame', 'guard-thanks'].includes(type) ? gifts.getSnapshot(type) : getExtraDisplay(type) }) });
   const events = createSceneOutputEvents({ getAccess: (input) => service.getOutputAccess(input) });
-  return { service, events, notify,
-    dispose: () => events.dispose(),
+  const danmakuEvents = createDisplayNotifications({ getAccess() {
+    const owner = getOwner();
+    if (!owner) throw Object.assign(new Error('Display owner unavailable'), { statusCode: 423 });
+    return { binding: JSON.stringify([owner.scope, owner.epoch]), version: 0, types: ['danmaku'] };
+  } });
+  return { service, events, danmakuEvents, notify, subscribeCloudDemand: demand.subscribe,
+    dispose() { events.dispose(); danmakuEvents.dispose(); demand.dispose(); },
     receiveCloud(update) {
       const accepted = cloud.receive(update);
-      if (accepted) events.notify({ types: ['danmaku'] });
+      if (accepted) {
+        events.notify({ types: ['danmaku'] });
+        danmakuEvents.notify({ types: ['danmaku'] });
+      }
+      return accepted;
+    },
+    receiveCloudSettings(update) {
+      const accepted = cloud.receiveSettings(update);
+      if (accepted) {
+        events.notify({ types: ['danmaku'] });
+        danmakuEvents.notify({ types: ['danmaku'] });
+      }
       return accepted;
     },
     receiveGift(payload) {

@@ -67,6 +67,8 @@ export function initTextBoxes() {
   function render() {
     const state = canvas.controller.getState();
     const items = state.draft.document.items.filter(item => item.type === 'text-box');
+    const textBoxesChanged = state.dirty && JSON.stringify(items)
+      !== JSON.stringify(state.saved.document.items.filter(item => item.type === 'text-box'));
     get('library').hidden = !items.length;
     if (!items.some(item => item.id === selected)) { select(items[0]?.id); }
     const signature = JSON.stringify(items.map(item => [item.id, item.name, item.visible, item.locked]));
@@ -90,10 +92,17 @@ export function initTextBoxes() {
     get('discard').disabled = !state.dirty || busy;
     get('copy').disabled = !item || busy;
     if (!status.classList.contains('text-box-error')) status.textContent = state.error
-      || (busy ? '正在保存并应用…' : state.dirty ? '有未保存修改' : items.length ? '已保存' : '');
+      || (busy ? '正在保存并应用…' : textBoxesChanged ? '文本框有未保存修改'
+        : state.dirty ? '场景其他内容有未保存修改' : items.length ? '已保存' : '');
   }
-  get('add').addEventListener('click', () => {
+  get('add').addEventListener('click', async () => {
     if (!canvas || busy) return;
+    if (!canvas.controller.getState().presets.length) {
+      busy = true;
+      try { await canvas.preset({ action: 'create', title: '场景 1', duplicate: false }); }
+      catch (error) { fail(error); return; }
+      finally { busy = false; render(); }
+    }
     const id = crypto.randomUUID();
     edit(document => {
       const width = Math.min(TEXT_BOX_SIZE[0], document.canvas.width);

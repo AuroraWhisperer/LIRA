@@ -4,7 +4,7 @@ import { eventBus } from '../shared/event-bus.js';
 export async function requestScene(action, body, id) {
   if (body !== undefined) {
     const { data } = await api(`/api/scenes/${action}`, body, { notifyError: false });
-    if (action === 'publish' || action === 'canvas-publish') eventBus.emit('scene:published');
+    if (action === 'publish' || action === 'canvas-publish' || action === 'delete') eventBus.emit('scene:published');
     return data;
   }
   const query = id ? `?id=${encodeURIComponent(id)}` : '';

@@ -1,8 +1,8 @@
-# 柔彩气泡实施计划
+# 流霞实施计划
 
 **Status:** Awaiting Verification
 **Budget:** 2026-10-08 10:29:53–10:59:53 UTC；10:49:53 起收敛验证。
-**Goal:** 实现 [柔彩气泡规格](../danmaku-prismatic.md) 的固定列表样式与最小身份展示投影。
+**Goal:** 实现 [流霞规格](../danmaku-prismatic.md) 的固定列表样式与最小身份展示投影。
 
 ## Ownership 与实施边界
 

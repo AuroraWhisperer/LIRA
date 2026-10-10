@@ -304,8 +304,13 @@ function mergeConfig(
   if (!params.has('quality'))
     merged.quality = Object.hasOwn(QUALITY_LIMITS, source.quality) ? source.quality : DEFAULTS.quality;
   merged.trackMotion = normalizeTrackMotion(params.has('trackMotion') ? query.trackMotion : source.trackMotion);
-  if (!params.has('showNotes')) merged.showNotes = source.showNotes !== false;
-  if (!params.has('showEq')) merged.showEq = source.showEq !== false;
+  if (style === 'moonlit-fan') {
+    if (!params.has('showNotes')) merged.showNotes = source.showNotes !== false;
+    if (!params.has('showEq')) merged.showEq = source.showEq !== false;
+  } else {
+    merged.showNotes = true;
+    merged.showEq = true;
+  }
   if (!params.has('audio')) merged.audio = source.audio === 'none' ? 'none' : DEFAULTS.audio;
   if (!params.has('volume')) merged.volume = parseVolume(source.volume);
   merged.audioUrl = safeAudioUrl(source.audioUrl || DEFAULTS.audioUrl);

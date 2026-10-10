@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { createCipheriv, createDecipheriv, randomBytes, randomUUID, createHash } = require('node:crypto');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { MAX_SCENE_BYTES, normalizeSceneDocument } = require('../../src/scenes/scene-contract');
@@ -40,7 +40,7 @@ function fixture(t, persistent = false) {
   });
   migrateScenes(db);
   migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db);
+  migrateCanvasPresets(db); migrateSceneDeletion(db);
   const store = createSceneStore(db);
   const state = {
     owner: { scope: 'https://server.test/streamer-a', epoch: 1 },
@@ -81,7 +81,7 @@ function fixture(t, persistent = false) {
       db = new DatabaseSync(filename);
       migrateScenes(db);
       migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db);
+  migrateCanvasPresets(db); migrateSceneDeletion(db);
       return createSceneService({ ...ports, store: createSceneStore(db) });
     },
   };
@@ -95,7 +95,7 @@ function saveItems(service, created, items) {
   return service.save({ id: created.document.id, expectedRevision: created.revision, document: { ...created.document, items } });
 }
 
-test('deleting surplus presets preserves live output and rejects protected, stale or foreign scenes', t => {
+test('deleting surplus presets preserves live output and rejects stale or foreign scenes', t => {
   const f = fixture(t, true);
   const { service, state } = f;
   const first = create(service);
@@ -105,8 +105,6 @@ test('deleting surplus presets preserves live output and rejects protected, stal
   const source = service.getSource(binding.outputId);
   const output = service.getOutput({ ...source, version: 0 });
   const remove = dto => service.delete({ id: dto.document.id, expectedRevision: dto.revision });
-  assert.throws(() => remove(first), { code: 'SCENE_OUTPUT_PROTECTED' });
-  assert.throws(() => remove(live), { code: 'SCENE_ACTIVE_PROTECTED' });
   const extra = create(service);
   const updated = service.save({ id: extra.document.id, expectedRevision: extra.revision,
     document: { ...extra.document, title: 'Updated' } });
@@ -115,7 +113,7 @@ test('deleting surplus presets preserves live output and rejects protected, stal
   state.owner = { scope: 'another-owner', epoch: 1 };
   assert.throws(() => remove(updated), { code: 'SCENE_NOT_FOUND' });
   state.owner = owner;
-  assert.deepEqual(remove(updated), { id: extra.document.id });
+  assert.equal(remove(updated).id, extra.document.id);
   assert.throws(() => service.get(extra.document.id), { code: 'SCENE_NOT_FOUND' });
   assert.throws(() => remove(updated), { code: 'SCENE_NOT_FOUND' });
   assert.equal(service.list().length, 2);
@@ -125,6 +123,60 @@ test('deleting surplus presets preserves live output and rejects protected, stal
   assert.equal(after.version, output.version);
   assert.equal(service.getCanvas().activeSceneId, live.document.id);
   assert.equal(f.restart().list().some(dto => dto.document.id === extra.document.id), false);
+});
+
+test('deleting the fixed and active presets switches saved output then persists an empty canvas without changing its capability', t => {
+  const f = fixture(t, true);
+  const { service } = f;
+  assert.equal(service.getCanvas().outputId, null);
+  const first = saveItems(service, create(service), [item()]);
+  const binding = service.getCanvas();
+  service.publishCanvas({ id: first.document.id, expectedRevision: first.revision, expectedPublishedVersion: 0 });
+  const source = service.getSource(binding.outputId);
+  const second = saveItems(service, create(service), [item('clock', { width: 640 })]);
+  assert.throws(() => service.delete({ id: first.document.id, expectedRevision: first.revision, expectedPublishedVersion: 0 }),
+    { code: 'SCENE_CONFLICT' }, 'A stale editor must reconfirm deletion after output changes.');
+  const deleted = service.delete({ id: first.document.id, expectedRevision: first.revision });
+  assert.equal(deleted.canvas.activeSceneId, second.document.id);
+  assert.equal(deleted.canvas.publishedVersion, 2);
+  assert.deepEqual(service.list().map(dto => dto.document.id), [second.document.id]);
+  assert.throws(() => service.get(first.document.id), { code: 'SCENE_NOT_FOUND' });
+  assert.throws(() => service.save({ id: first.document.id, expectedRevision: first.revision, document: first.document }), { code: 'SCENE_NOT_FOUND' });
+  assert.throws(() => service.publish({ id: first.document.id, expectedRevision: first.revision }), { code: 'SCENE_NOT_FOUND' });
+  assert.deepEqual(service.getOutput({ ...source, version: 0 }).document.items, second.document.items.map(entry => ({
+    ...entry, appearance: { mode: 'independent', config: { color: 'white' } },
+  })));
+  assert.equal(service.getComponentSize('clock').width, 640);
+  assert.deepEqual(service.captureBackup().documents.map(entry => entry.kind).sort(), ['published', 'saved']);
+  const last = service.delete({ id: second.document.id, expectedRevision: second.revision });
+  assert.equal(last.canvas.activeSceneId, null);
+  assert.equal(last.canvas.publishedVersion, 3);
+  assert.deepEqual(service.list(), []);
+  assert.deepEqual(service.getOutput({ ...source, version: 0 }).document.items, []);
+  const reopened = f.restart();
+  assert.deepEqual(reopened.list(), []);
+  assert.equal(reopened.getCanvas().outputId, source.id);
+  assert.equal(reopened.getSource(source.id).token, source.token);
+  const next = create(reopened);
+  reopened.publishCanvas({ id: next.document.id, expectedRevision: 1, expectedPublishedVersion: 3 });
+  assert.equal(reopened.getCanvas().activeSceneId, next.document.id);
+  assert.equal(reopened.getSource(source.id).token, source.token);
+});
+
+test('deletion failure rolls back replacement output, binding and dimensions together', t => {
+  const { service, db, store, state } = fixture(t);
+  const first = saveItems(service, create(service), [item()]);
+  service.getCanvas();
+  service.publishCanvas({ id: first.document.id, expectedRevision: first.revision, expectedPublishedVersion: 0 });
+  saveItems(service, create(service), [item('clock', { width: 640 })]);
+  const before = store.list(state.owner.scope);
+  const binding = service.getCanvas();
+  db.exec(`CREATE TRIGGER fail_deletion BEFORE UPDATE OF is_preset ON component_scenes
+    BEGIN SELECT RAISE(ABORT, 'synthetic deletion failure'); END;`);
+  assert.throws(() => service.delete({ id: first.document.id, expectedRevision: first.revision }), { code: 'SCENE_OPERATION_FAILED' });
+  assert.deepEqual(store.list(state.owner.scope), before);
+  assert.deepEqual(service.getCanvas(), binding);
+  assert.equal(service.getComponentSize('clock').width, 320);
 });
 
 test('canvas presets retain independent drafts and switch one persistent live source only on apply', t => {

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { createDatabases, closeDatabases, getSchemaVersions } = require('../../src/storage/database');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
@@ -41,7 +41,7 @@ function fixture(t) {
   const db = open();
   migrateScenes(db);
   migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db);
+  migrateCanvasPresets(db); migrateSceneDeletion(db);
   return { db, open, close, store: createSceneStore(db) };
 }
 
@@ -60,7 +60,7 @@ test('songDb scene migrations preserve v7 rows and are idempotent after restart'
   `);
   const before = db.prepare('SELECT * FROM requests').all();
   const result = runAllMigrations(databases);
-  assert.deepEqual(result.find((entry) => entry.key === 'song_db'), { key: 'song_db', from: 7, to: 10, applied: 3 });
+  assert.deepEqual(result.find((entry) => entry.key === 'song_db'), { key: 'song_db', from: 7, to: 11, applied: 4 });
   const store = createSceneStore(db);
   const created = store.create({ scope: 'server/account', document: document(), capability: capability() });
   migrateScenes(db);
@@ -68,9 +68,26 @@ test('songDb scene migrations preserve v7 rows and are idempotent after restart'
   assert.deepEqual(db.prepare('SELECT * FROM requests').all(), before);
   closeDatabases(databases);
   databases = createDatabases({ dataDir: directory });
-  assert.equal(getSchemaVersions(databases).songDb, 10);
+  assert.equal(getSchemaVersions(databases).songDb, 11);
   assert.deepEqual(databases.songDb.prepare('SELECT * FROM requests').all(), before);
   assert.deepEqual(createSceneStore(databases.songDb).get('server/account', created.document.id), created);
+});
+
+test('v11 upgrades a populated v10 canvas without changing documents or credentials and can run repeatedly', t => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  migrateScenes(db); migrateComponentOutputSizes(db); migrateCanvasPresets(db);
+  const store = createSceneStore(db);
+  const created = store.create({ scope: 'owner', document: document(), capability: capability() });
+  const binding = store.bindCanvas('owner', created.document.id);
+  store.publish({ scope: 'owner', id: created.document.id, expectedRevision: 1, document: created.document });
+  const before = store.get('owner', created.document.id);
+  migrateSceneDeletion(db);
+  migrateSceneDeletion(db);
+  assert.deepEqual(store.list('owner'), [before]);
+  assert.deepEqual(store.getCanvas('owner'), binding);
+  db.prepare('UPDATE component_canvas SET active_scene_id = NULL WHERE owner_scope = ?').run('owner');
+  assert.equal(store.getCanvas('owner').activeSceneId, null);
 });
 
 test('v10 binds the previously first scene without rewriting drafts or credentials and remains stable after new presets', t => {
@@ -78,11 +95,11 @@ test('v10 binds the previously first scene without rewriting drafts or credentia
   const first = { ...document('Existing'), id: '22222222-2222-4222-8222-222222222222' };
   store.create({ scope: 'owner', document: first, capability: capability() });
   const before = store.get('owner', first.id);
-  migrateCanvasPresets(db);
+  migrateCanvasPresets(db); migrateSceneDeletion(db);
   assert.deepEqual(store.bindCanvas('owner', first.id), { outputId: first.id, activeSceneId: first.id });
   const next = { ...document('New'), id: '11111111-1111-4111-8111-111111111111' };
   store.create({ scope: 'owner', document: next, capability: capability() });
-  migrateCanvasPresets(db);
+  migrateCanvasPresets(db); migrateSceneDeletion(db);
   assert.equal(store.bindCanvas('owner', next.id).outputId, first.id);
   assert.deepEqual(store.get('owner', first.id), before);
   assert.equal(store.bindCanvas('another-owner', first.id), null);
@@ -97,9 +114,9 @@ test('v9 upgrades an existing v8 database and atomically publishes default dimen
   const original = store.create({ scope: 'owner', document: document(), capability: capability() });
   db.exec("DROP TABLE component_output_sizes; UPDATE schema_version SET version = 8 WHERE key = 'song_db'");
   assert.deepEqual(runAllMigrations(databases).find((entry) => entry.key === 'song_db'),
-    { key: 'song_db', from: 8, to: 10, applied: 2 });
+    { key: 'song_db', from: 8, to: 11, applied: 3 });
   migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db);
+  migrateCanvasPresets(db); migrateSceneDeletion(db);
   assert.deepEqual(store.get('owner', original.document.id), original);
   const input = { scope: 'owner', id: original.document.id, expectedRevision: 1, document: original.document,
     componentSizes: { clock: { width: 800, height: 400 } } };
@@ -189,16 +206,20 @@ test('preset deletion checks the latest revision and canvas binding inside SQLit
   const first = store.create({ scope: 'owner', document: document(), capability: capability() });
   const extra = store.create({ scope: 'owner', document: document('Extra'), capability: capability() });
   store.bindCanvas('owner', first.document.id);
-  const input = { scope: 'owner', id: extra.document.id, expectedRevision: 1 };
-  assert.equal(store.delete({ ...input, id: first.document.id }), null);
+  const input = { scope: 'owner', id: extra.document.id, expectedRevision: 1,
+    expectedCanvas: { outputId: first.document.id, activeSceneId: first.document.id, publishedVersion: 0 } };
+  assert.equal(store.delete({ ...input, id: first.document.id, expectedCanvas: undefined }), null);
   db.prepare('UPDATE component_canvas SET active_scene_id = ? WHERE owner_scope = ?').run(input.id, input.scope);
   assert.equal(store.delete(input), null);
   db.prepare('UPDATE component_canvas SET active_scene_id = ? WHERE owner_scope = ?').run(first.document.id, input.scope);
   store.save({ ...input, document: extra.document });
   assert.equal(store.delete(input), null);
+  store.publish({ scope: 'owner', id: first.document.id, expectedRevision: 1, document: first.document });
+  assert.equal(store.delete({ ...input, expectedRevision: 2 }), null, 'A concurrent output publication invalidates the deletion snapshot.');
+  input.expectedCanvas.publishedVersion = 1;
   assert.deepEqual(store.delete({ ...input, expectedRevision: 2 }), { id: input.id });
   assert.equal(store.get(input.scope, input.id), null);
-  assert.deepEqual(store.get('owner', first.document.id), first);
+  assert.deepEqual(store.get('owner', first.document.id).document, first.document);
 });
 
 test('failed SQLite publication and capability rotation leave the complete prior row intact', (t) => {

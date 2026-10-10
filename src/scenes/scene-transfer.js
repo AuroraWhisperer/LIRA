@@ -9,10 +9,10 @@ function createSceneTransfer({ withOwner, store, browserSources, issueCapability
     captureBackup() {
       return withOwner((owner, assertCurrent) => {
         const documents = [];
-        for (const record of store.list(owner.scope)) {
+        for (const record of store.list(owner.scope, { includeOutput: true })) {
           const decoded = browserSources.decode(record, owner.scope);
           for (const [kind, source] of [['saved', decoded.document], ['published', decoded.publishedDocument]]) {
-            if (!source) continue;
+            if (!source || kind === 'saved' && record.isPreset === false) continue;
             const items = source.items.map(item => item.appearance.mode === 'shared'
               ? { ...item, appearance: { mode: 'independent', config: getDefaultConfig(item.type) } } : item);
             const shared = getSharedAppearances?.(items) || {};

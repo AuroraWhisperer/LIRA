@@ -142,14 +142,13 @@
 
 .usage-guide-section-index {
   color: var(--usage-guide-accent);
-  font-size: var(--type-size-micro);
+  font-size: inherit;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
 }
 
 .usage-guide-section-intro {
-  max-width: 40em;
   margin: 12px 0 24px;
   color: var(--muted);
   font-size: var(--type-size-body);
@@ -177,12 +176,6 @@
 
 .usage-guide-main .usage-guide-task-title strong {
   font: inherit;
-}
-
-.usage-guide-main p,
-.usage-guide-main ul,
-.usage-guide-main ol {
-  max-width: 40em;
 }
 
 .usage-guide-main .usage-guide-inline-title {
@@ -384,7 +377,6 @@
 
 .usage-guide-feature-copy {
   min-width: 0;
-  max-width: 40em;
 }
 
 .usage-guide-feature--illustrated .usage-guide-image {
@@ -417,7 +409,6 @@
 .usage-guide-faq-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  max-width: 720px;
   gap: 10px;
   align-items: start;
 }

@@ -20,6 +20,22 @@ export function initUsageGuide() {
   const tocMenu = panel.querySelector('.usage-guide-toc-links');
   const tocCurrent = panel.querySelector('.usage-guide-toc-current');
   const backToTopButton = panel.querySelector('.usage-guide-back-to-top');
+  // Build the second level from the chapter headings so the directory stays in sync.
+  for (const chapterLink of panel.querySelectorAll('.usage-guide-toc-group > a')) {
+    const section = document.getElementById(chapterLink.hash.slice(1));
+    const children = document.createElement('div');
+    children.className = 'usage-guide-toc-children';
+    section.querySelectorAll(':scope > h4').forEach((heading, index) => {
+      if (!heading.id) heading.id = `${section.id}-subsection-${index + 1}`;
+      const link = document.createElement('a');
+      link.href = `#${heading.id}`;
+      link.textContent = heading.textContent.trim();
+      link.dataset.usageGuideLink = '';
+      link.dataset.usageGuideSection = section.id;
+      children.append(link);
+    });
+    chapterLink.after(children);
+  }
   const links = Array.from(panel.querySelectorAll('[data-usage-guide-link]'));
   if (!scroller || !toc || !tocToggle || !tocMenu || !tocCurrent || !links.length) return;
 
@@ -201,7 +217,7 @@ export function initUsageGuide() {
     link.addEventListener('click', (event) => {
       event.preventDefault();
       const target = document.getElementById(link.hash.slice(1));
-      if (target) navigateToTarget(target, target.id);
+      if (target) navigateToTarget(target, link.getAttribute('data-usage-guide-section') || target.id);
     });
   });
 

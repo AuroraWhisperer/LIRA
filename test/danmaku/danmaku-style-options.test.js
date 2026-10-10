@@ -27,7 +27,7 @@ const CONTROLS = {
   glow: ['centerBias', 'dispersion', 'backgroundOpacity'],
 };
 const CONTROL_VALUES = {
-  edgeFade: { valid: ['both', 'single', 'none'], invalid: ['top', 'BOTH', '', null, true, 1], optional: true },
+  edgeFade: { valid: ['both', 'top', 'bottom', 'single', 'none'], invalid: ['left', 'BOTH', '', null, true, 1], optional: true },
   scrollDirection: { valid: ['up', 'down'], invalid: ['left', 'DOWN', '', null, true, 1], fallback: 'up' },
   backgroundOpacity: { valid: [0, 100], invalid: [-1, 101, 50.5, '50', null] },
   giftImage: { valid: ['theme', 'gift'], invalid: ['https://evil.test/x.webp', '', null] },
@@ -92,11 +92,18 @@ test('edge fading keeps theme defaults, applies overrides and clears on other la
   const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
   for (const [style, controls] of Object.entries(CONTROLS)) {
     if (controls.includes('edgeFade')) {
-      const fallback = style === 'prismatic' ? 'both' : 'single';
+      const fallback = style === 'prismatic' ? 'both' : 'top';
       assert.equal(contract.styleOptionsFor(style).edgeFade, fallback);
-      for (const edgeFade of CONTROL_VALUES.edgeFade.valid) {
-        browser.applyStyleOptions(document, style, { [style]: { edgeFade } });
-        assert.equal(document.body.dataset.edgeFade, edgeFade);
+      for (const scrollDirection of ['up', 'down']) {
+        for (const edgeFade of CONTROL_VALUES.edgeFade.valid) {
+          const options = { [style]: { scrollDirection, edgeFade } };
+          const expected = edgeFade === 'single' ? (scrollDirection === 'down' ? 'bottom' : 'top') : edgeFade;
+          assert.equal(contract.styleOptionsFor(style, options).edgeFade, expected);
+          browser.applyStyleOptions(document, style, options);
+          assert.equal(document.body.dataset.edgeFade, expected);
+        }
+        browser.applyStyleOptions(document, style, { [style]: { scrollDirection } });
+        assert.equal(document.body.dataset.edgeFade, style === 'prismatic' ? 'both' : scrollDirection === 'down' ? 'bottom' : 'top');
       }
       browser.applyStyleOptions(document, style, { [style]: {} });
       assert.equal(document.body.dataset.edgeFade, fallback);

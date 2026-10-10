@@ -6,14 +6,14 @@ const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
-const { migrateScenes, migrateComponentOutputSizes } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 
 function fixture(t, getContext) {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
-  migrateComponentOutputSizes(db);
+  migrateComponentOutputSizes(db); migrateCanvasPresets(db); migrateSceneDeletion(db);
   const state = { owner: { scope: 'synthetic-owner', epoch: 1 } };
   const runtime = createSceneRuntime({ songDb: db, getContext,
     getState: () => ({ settings: DEFAULT_SETTINGS }),
@@ -47,6 +47,71 @@ function response() {
   res.destroy = () => { res.destroyed = true; res.emit('close'); };
   return res;
 }
+
+test('cloud demand follows display reads, leaves other scenes idle and expires after the last read', t => {
+  t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'] });
+  const { runtime } = fixture(t);
+  const changes = [];
+  runtime.subscribeCloudDemand(active => changes.push(active));
+  const clock = publish(runtime, 'clock');
+  runtime.service.getOutput(clock);
+  assert.deepEqual(changes, [false]);
+  runtime.readDanmakuDisplay({});
+  runtime.readDanmakuDisplay({});
+  t.mock.timers.tick(10000);
+  runtime.readDanmakuDisplay({});
+  t.mock.timers.tick(14999);
+  assert.deepEqual(changes, [false, true]);
+  t.mock.timers.tick(1);
+  assert.deepEqual(changes, [false, true, false]);
+  runtime.readDanmakuDisplay({});
+  runtime.dispose();
+  assert.deepEqual(changes, [false, true, false, true, false]);
+});
+
+test('saved overlay settings remain available without a live connection and reject old owners', t => {
+  const { runtime, state } = fixture(t);
+  const changes = [];
+  runtime.subscribeCloudDemand(active => changes.push(active));
+  const update = { ownerScope: state.owner.scope, authorizationEpoch: state.owner.epoch,
+    settings: { style: 'bubble', fullscreenDurationSeconds: 8, token: 'not-a-display-field' } };
+  assert.equal(runtime.receiveCloudSettings(update), true);
+  assert.deepEqual(changes, [false], 'A settings read or save does not itself open a live stream.');
+  const display = runtime.readDanmakuDisplay({});
+  assert.equal(display.config.style, 'bubble');
+  assert.equal(display.data.status, 'offline');
+  assert.equal(JSON.stringify(display).includes('not-a-display-field'), false);
+  const created = runtime.service.create({ title: '无直播来源时保存', canvas: { width: 1920, height: 1080 } });
+  const saved = runtime.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items: [{ id: randomUUID(), type: 'danmaku', name: '弹幕',
+      x: 0, y: 0, width: 320, height: 180, visible: true, locked: false, appearance: { mode: 'shared' } }] } });
+  assert.equal(runtime.service.publish({ id: saved.document.id, expectedRevision: saved.revision }).publishedVersion, 1);
+  assert.equal(runtime.receiveCloudSettings({ ...update, settings: { style: 'invalid' } }), false);
+  state.owner = { scope: 'other-owner', epoch: 2 };
+  assert.equal(runtime.receiveCloudSettings(update), false);
+  assert.equal(runtime.readDanmakuDisplay({}).config, null);
+});
+
+test('standalone notifications isolate account changes and release streams on shutdown', t => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const { runtime, state } = fixture(t);
+  const res = response();
+  runtime.danmakuEvents.open(res, { id: 'danmaku' }, () => 200);
+  const update = { ownerScope: state.owner.scope, authorizationEpoch: 1, connectionEpoch: 'first', status: 'connecting' };
+  runtime.receiveCloud(update);
+  t.mock.timers.tick(40);
+  assert.deepEqual(res.writes, ['data: ready\n\n', 'data: change\n\n']);
+  state.owner = { scope: 'other-owner', epoch: 2 };
+  t.mock.timers.tick(1000);
+  assert.equal(res.writes.at(-1), 'data: revoked\n\n');
+  assert.equal(res.writableEnded, true);
+  const next = response();
+  runtime.danmakuEvents.open(next, { id: 'danmaku' }, () => 200);
+  runtime.dispose();
+  assert.equal(next.destroyed, true);
+  assert.equal(next.listenerCount('close'), 0);
+  assert.equal(next.listenerCount('error'), 0);
+});
 
 test('scene runtime notifies accepted cloud and gift changes only, preserving their return values', t => {
   const { runtime, state } = fixture(t);

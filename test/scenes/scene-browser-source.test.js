@@ -9,7 +9,7 @@ const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
 const { normalizeSceneConfig, createSceneComponentPorts } = require('../../src/server/scene-components');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneStore } = require('../../src/storage/scene-store');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 
 const sourceUrl = 'https://overlay.example.test/widget?token=private-provider-capability#session=private-fragment';
 const sourceConfig = () => ({ ...BROWSER_SOURCE_DEFAULTS, url: sourceUrl });
@@ -21,7 +21,7 @@ function fixture(t) {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   migrateScenes(db); migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db);
+  migrateCanvasPresets(db); migrateSceneDeletion(db);
   const owner = { scope: 'synthetic-browser-source-owner', epoch: 1 };
   const state = { available: true, failEncrypt: false, failDecrypt: false };
   const key = randomBytes(32);
@@ -84,6 +84,25 @@ test('applying a browser preset rebinds encrypted URLs to the persistent output 
   assert.equal(service.get(second.document.id).document.items[0].appearance.config.url, sourceUrl);
   assert.deepEqual(service.get(created.document.id).document, created.document);
   assert.doesNotMatch(JSON.stringify(store.list(owner.scope)), /private-provider-capability|private-fragment/);
+});
+
+test('deleting the current output rebinds replacement browser URLs and encryption failure preserves both presets', t => {
+  const { service, store, owner, created, state } = fixture(t);
+  const binding = service.getCanvas();
+  const source = service.getSource(binding.outputId);
+  service.publishCanvas({ id: created.document.id, expectedRevision: 1, expectedPublishedVersion: 0 });
+  const next = service.create({ title: '替代场景', canvas: created.document.canvas });
+  const saved = service.save({ id: next.document.id, expectedRevision: 1,
+    document: { ...next.document, items: [sourceItem()] } });
+  state.failEncrypt = true;
+  assert.throws(() => service.delete({ id: created.document.id, expectedRevision: 1 }), { code: 'SCENE_BROWSER_SOURCE_UNAVAILABLE' });
+  assert.equal(service.list().length, 2);
+  assert.equal(service.getCanvas().publishedVersion, 1);
+  state.failEncrypt = false;
+  service.delete({ id: created.document.id, expectedRevision: 1 });
+  assert.equal(service.getOutput({ ...source, version: 0 }).document.items[0].appearance.config.url, sourceUrl);
+  assert.deepEqual(service.get(next.document.id).document, saved.document);
+  assert.doesNotMatch(JSON.stringify(store.list(owner.scope, { includeOutput: true })), /private-provider-capability|private-fragment/);
 });
 
 test('browser scenes are independent and source viewport is distinct from item geometry', t => {

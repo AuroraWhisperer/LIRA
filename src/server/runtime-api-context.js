@@ -15,6 +15,7 @@ function createRuntimeApiContextFactory(options = {}) {
       scenes: options.getScenes?.(),
       sceneEvents: options.getSceneEvents?.(),
       readDanmakuDisplay: options.getDanmakuDisplay?.(),
+      danmakuEvents: options.getDanmakuEvents?.(),
       maxBodyBytes: options.maxBodyBytes,
       sessionToken: options.getSessionToken(),
       broadcastSnapshot: options.broadcastSnapshot,

@@ -43,7 +43,7 @@ const OVERLAY_ROUTES = {
     'POST /api/games/session/move',
     'POST /api/games/session/draw',
   ],
-  danmaku: ['GET /api/bilibili/avatar', 'GET /api/danmaku/display'],
+  danmaku: ['GET /api/bilibili/avatar', 'GET /api/danmaku/display', 'GET /api/danmaku/events'],
   wheel: ['GET /api/wheel', 'POST /api/wheel/spin'],
   opening: ['GET /api/opening/config'],
   clock: ['GET /api/clock/config'],

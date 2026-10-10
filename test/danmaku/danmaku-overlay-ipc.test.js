@@ -5,6 +5,36 @@ const { createRemoteLicenseClient } = require('../../src/electron/license/remote
 const { createHarness } = require('../helpers/license-manager-harness');
 const { createLicenseOperations } = require('../../src/electron/license/license-operations');
 
+test('overlay IPC forwards sanitized settings with the captured owner for idle scene defaults', async () => {
+  const { registerLicenseOverlayIpc } = require('../../src/electron/ipc/license-overlay-ipc');
+  const handlers = new Map();
+  const updates = [];
+  let epoch = 1;
+  let resolve;
+  const settings = { style: 'bubble', fullscreenDurationSeconds: 6,
+    overlayUrl: 'https://test.example/overlay/abcdefghijklmnop', cookie: 'private' };
+  registerLicenseOverlayIpc({
+    safeHandle: (name, handler) => handlers.set(name, handler),
+    licenseManager: {
+      isAuthorized: () => true, getCloudSyncIdentity: () => ({ streamerId: 7 }),
+      getRemoteBaseUrl: () => 'https://api.example.test', getAuthorizationEpoch: () => epoch,
+      getOverlaySettings: () => new Promise(done => { resolve = done; }),
+      updateOverlaySettings: async () => settings,
+    },
+    onOverlaySettings: update => updates.push(update),
+  });
+  const pending = handlers.get('license:get-overlay-settings')();
+  epoch = 2;
+  resolve(settings);
+  await pending;
+  assert.equal(updates[0].authorizationEpoch, 1, 'The runtime can reject a response from the old owner.');
+  assert.equal(updates[0].ownerScope, '["https://api.example.test","7"]');
+  assert.equal(JSON.stringify(updates).includes('private'), false);
+  await handlers.get('license:update-overlay-settings')(settings);
+  assert.equal(updates[1].authorizationEpoch, 2);
+  assert.equal(updates[1].settings.style, 'bubble');
+});
+
 test('license manager exposes authenticated overlay operations without leaking bearer data', async () => {
   const { manager, remote } = createHarness({ identity: { deviceId: 'd', streamerId: 1, publicKeyPem: 'public' } });
   const calls = [];

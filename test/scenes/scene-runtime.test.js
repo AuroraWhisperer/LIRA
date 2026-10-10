@@ -88,6 +88,16 @@ function component(type) {
     visible: true, locked: false, appearance: { mode: 'shared' } };
 }
 
+async function expectStreamEvent(reader, event) {
+  const decoder = new TextDecoder();
+  let text = '';
+  while (!text.includes(`data: ${event}\n\n`)) {
+    const chunk = await reader.read();
+    assert.equal(chunk.done, false);
+    text += decoder.decode(chunk.value, { stream: true });
+  }
+}
+
 async function createScene(request, items) {
   const created = await request('/api/scenes/create', { body: { title: '本地场景', canvas: { width: 1920, height: 1080 } } });
   return request('/api/scenes/save', { body: { id: created.document.id, expectedRevision: created.revision,
@@ -276,6 +286,37 @@ test('standalone danmaku reads the shared cloud projection without a scene and k
   assert.equal(update('connected', { type: 'danmaku', liveSessionId: 'live-standalone', message: 'stale' }), false);
 });
 
+test('standalone notification route enforces its scope and header credential and revokes on account changes', { timeout: 10000 }, async t => {
+  const { runtime, request, state, baseUrl } = await fixture(t);
+  const token = createOverlayToken(runtime.getApiToken(), 'danmaku');
+  await request('/api/danmaku/events', { token: '', status: 401 });
+  await request('/api/danmaku/events', { token: createOverlayToken(runtime.getApiToken(), 'clock'), status: 403 });
+  await request('/api/danmaku/events', { body: {}, token, status: 403 });
+  const queryOnly = await fetch(`${baseUrl}/api/danmaku/events?token=${token}`);
+  assert.equal(queryOnly.status, 401);
+  await queryOnly.json();
+  const abort = new AbortController();
+  const response = await fetch(`${baseUrl}/api/danmaku/events`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]),
+  });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /^text\/event-stream/);
+  const reader = response.body.getReader();
+  try {
+    await expectStreamEvent(reader, 'ready');
+    runtime.receiveSceneCloud({ ownerScope: state.owner.scope, authorizationEpoch: state.owner.epoch,
+      connectionEpoch: 'standalone-events', status: 'connecting' });
+    await expectStreamEvent(reader, 'change');
+    state.owner = { scope: 'different-owner', epoch: 2 };
+    await expectStreamEvent(reader, 'revoked');
+    assert.equal((await reader.read()).done, true);
+  } finally {
+    abort.abort();
+    await reader.cancel().catch(() => {});
+  }
+});
+
 test('runtime scene streams notify game updates, drawing operations and round patches without ordinary WebSocket clients', { timeout: 10000 }, async t => {
   const { request, baseUrl } = await fixture(t);
   const saved = await createScene(request, [{ ...component('games'), appearance: { mode: 'independent',
@@ -290,15 +331,7 @@ test('runtime scene streams notify game updates, drawing operations and round pa
   });
   assert.equal(events.status, 200);
   const reader = events.body.getReader();
-  const decoder = new TextDecoder();
-  async function expectEvent(event) {
-    let text = '';
-    while (!text.includes(`data: ${event}\n\n`)) {
-      const chunk = await reader.read();
-      assert.equal(chunk.done, false);
-      text += decoder.decode(chunk.value, { stream: true });
-    }
-  }
+  const expectEvent = event => expectStreamEvent(reader, event);
   const session = async () => (await request(`/api/scene/output?id=${id}`, { token: source.token })).data.games.session;
   try {
     await expectEvent('ready');
