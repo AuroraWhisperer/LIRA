@@ -146,3 +146,29 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
     client.stop();
   }
 });
+
+test('SC retraction broadcasts only a changed queue and stops during shutdown', () => {
+  let shuttingDown = false;
+  let changed = 1;
+  const calls = [];
+  const broadcasts = [];
+  const client = createBilibiliClient('123', {
+    isShuttingDown: () => shuttingDown,
+    domainServices: { superChats: { retract(ids) { calls.push(ids); return changed; } } },
+    broadcastSnapshot: (reason) => broadcasts.push(reason),
+    updateLiveStatus() {},
+    bilibiliDiagnostics: {},
+    bilibiliAuthCache: { cookieHeader: '', uid: 0 },
+  });
+  try {
+    client.handlers.onSuperChatDelete(['sc-1']);
+    changed = 0;
+    client.handlers.onSuperChatDelete(['sc-1']);
+    shuttingDown = true;
+    client.handlers.onSuperChatDelete(['sc-2']);
+    assert.deepEqual(calls, [['sc-1'], ['sc-1']]);
+    assert.deepEqual(broadcasts, ['bilibili:superchat']);
+  } finally {
+    client.stop();
+  }
+});

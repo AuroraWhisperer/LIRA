@@ -68,7 +68,7 @@ async function fixture(initialProfile = account('one'), v2 = false) {
     }
   };
   const bridge = {
-    getProfile: async () => initialProfile,
+    getState: async () => initialProfile,
     onStateChanged: (fn) => {
       listener = fn;
       return () => {};

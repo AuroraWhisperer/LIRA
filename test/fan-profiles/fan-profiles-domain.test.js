@@ -329,6 +329,39 @@ test('A13: reopening lists only recent missed reminders and keeps handling durab
   assert.equal(reminders.find((r) => r.key === 'birthday:2026').group, 'missed');
 });
 
+test('reminder page and profile summaries show only the next seven Beijing days across year boundaries', (t) => {
+  const f = fanFixture(t);
+  f.setNow('2026-12-24T15:59:59.000Z');
+  const profiles = ['12-24', '12-31', '01-01', '06-15', '12-23'].map((monthDay) =>
+    f.create({ identity: null, birthday: { monthDay } }),
+  );
+  const [today, week, eighthDay, distant, missed] = profiles;
+  const reminders = f.run('reminders');
+  assert.equal(reminders.length, 3);
+  assert.deepEqual(new Map(reminders.map((item) => [item.profileId, item.group])), new Map([
+    [today.id, 'today'], [week.id, 'week'], [missed.id, 'missed'],
+  ]));
+  const summaries = () => new Map(f.run('list').profiles.map((profile) => [profile.id, profile.nextReminder]));
+  let next = summaries();
+  assert.equal(next.get(today.id).date, '2026-12-24');
+  assert.equal(next.get(week.id).date, '2026-12-31');
+  for (const profile of [eighthDay, distant, missed]) assert.equal(next.get(profile.id), null);
+
+  f.setNow('2026-12-24T16:00:00.000Z');
+  const upcoming = f.run('reminders').find((item) => item.profileId === eighthDay.id);
+  assert.equal(upcoming.date, '2027-01-01');
+  assert.equal(upcoming.group, 'week');
+  next = summaries();
+  assert.equal(next.get(eighthDay.id).date, '2027-01-01');
+  assert.equal(next.get(today.id), null);
+  assert.equal(next.get(distant.id), null);
+
+  f.run('reminder-state', { profileId: week.id, key: 'birthday:2026', status: 'handled' });
+  f.run('save', { id: week.id, revision: week.revision, birthday: { monthDay: '06-15' } });
+  assert.equal(f.run('reminders').find((item) => item.profileId === week.id).group, 'history');
+  assert.equal(summaries().get(week.id), null);
+});
+
 test('A22: editing interaction date preserves its identity, original content and revision history', (t) => {
   const f = fanFixture(t);
   const p = f.create();

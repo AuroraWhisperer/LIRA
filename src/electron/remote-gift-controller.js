@@ -1,5 +1,6 @@
 'use strict';
 
+const { createCancellableDelay } = require('../shared/cancellable-delay');
 const { canonicalizeProcessedGiftEvent } = require('../shared/processed-gift-contract');
 const { createRemoteGiftSourceKey } = require('./remote-gift-cursor-store');
 
@@ -67,7 +68,7 @@ function createRemoteGiftController(options = {}) {
   let generationController = null;
   let streamController = null;
   let streamTask = null;
-  let reconnectTimer = null;
+  const reconnect = createCancellableDelay(timers);
   let reconnectDelayMs = RECONNECT_MIN_MS;
   let retryNotBefore = 0;
   let retrySourceKey = null;
@@ -518,7 +519,7 @@ function createRemoteGiftController(options = {}) {
   function requestReconcile(generation) {
     clearReconcileTimer();
     dirty = true;
-    if (reconnectTimer) return Promise.resolve(false);
+    if (reconnect.isPending()) return Promise.resolve(false);
     if (reconcileTask && reconcileGeneration === generation) return reconcileTask;
     const task = enqueue(async () => {
       try {
@@ -587,29 +588,16 @@ function createRemoteGiftController(options = {}) {
     retryNotBefore = Date.parse(now()) + delay;
     retrySourceKey = currentSource?.sourceKey;
     reconnectDelayMs = Math.min(RECONNECT_MAX_MS, reconnectDelayMs * 2);
-    const timer = timers.setTimeout(
-      () => {
-        if (reconnectTimer !== timer) return;
-        reconnectTimer = null;
-        if (delay > 2 ** 31 - 1) {
-          scheduleReconnect(generation, initialize, delay - (2 ** 31 - 1));
-          return;
-        }
-        retryNotBefore = 0;
-        if (!ensureFenceCurrent(captureFence()) || !isGenerationActive(generation)) return;
-        if (initialize) enqueue(() => initializeGeneration(generation));
-        else startEventStream(generation);
-      },
-      Math.min(delay, 2 ** 31 - 1),
-    );
-    reconnectTimer = timer;
-    reconnectTimer.unref?.();
+    reconnect.schedule(() => {
+      retryNotBefore = 0;
+      if (!ensureFenceCurrent(captureFence()) || !isGenerationActive(generation)) return;
+      if (initialize) enqueue(() => initializeGeneration(generation));
+      else startEventStream(generation);
+    }, delay);
   }
 
   function clearReconnectTimer() {
-    if (!reconnectTimer) return;
-    timers.clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+    reconnect.cancel();
   }
 
   function abortRemoteWork() {

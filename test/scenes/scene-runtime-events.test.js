@@ -10,13 +10,12 @@ const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrat
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 
-function fixture(t, getContext) {
+function fixture(t, getContext, getState = () => ({ settings: DEFAULT_SETTINGS })) {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
   migrateComponentOutputSizes(db); migrateCanvasPresets(db); migrateSceneDeletion(db);
   const state = { owner: { scope: 'synthetic-owner', epoch: 1 } };
-  const runtime = createSceneRuntime({ songDb: db, getContext,
-    getState: () => ({ settings: DEFAULT_SETTINGS }),
+  const runtime = createSceneRuntime({ songDb: db, getContext, getState,
     runtimeOptions: { getSceneOwner: () => state.owner,
       sceneSecretCodec: { isAvailable: () => true,
         encrypt: value => Buffer.from(value).toString('base64'),
@@ -25,13 +24,13 @@ function fixture(t, getContext) {
   return { runtime, state };
 }
 
-function publish(runtime, type) {
+function publish(runtime, types) {
   const { service } = runtime;
   const created = service.create({ title: '场景通知', canvas: { width: 1920, height: 1080 } });
-  const item = { id: randomUUID(), type, name: type, x: 0, y: 0, width: 320, height: 180, visible: true, locked: false,
-    appearance: type === 'clock' ? { mode: 'shared' } : { mode: 'independent', config: createSceneExtraDefaults(type) } };
+  const items = [].concat(types).map(type => ({ id: randomUUID(), type, name: type, x: 0, y: 0, width: 320, height: 180, visible: true, locked: false,
+    appearance: type === 'clock' ? { mode: 'shared' } : { mode: 'independent', config: createSceneExtraDefaults(type) } }));
   const saved = service.save({ id: created.document.id, expectedRevision: created.revision,
-    document: { ...created.document, items: [item] } });
+    document: { ...created.document, items } });
   const published = service.publish({ id: saved.document.id, expectedRevision: saved.revision });
   return { ...service.getSource(created.document.id), version: published.publishedVersion };
 }
@@ -47,6 +46,32 @@ function response() {
   res.destroy = () => { res.destroyed = true; res.emit('close'); };
   return res;
 }
+
+test('scene output shares one fresh local snapshot only across components that use it', async t => {
+  let reads = 0;
+  let lineText = '当前歌词';
+  const getState = () => {
+    reads++;
+    return { settings: DEFAULT_SETTINGS, lyricState: { lineText, private: 'secret' }, lyricTimeline: { lines: [] },
+      giftSprint: { targetRmb: 1000, remainingCrystalBalls: 7, private: 'secret' } };
+  };
+  const { runtime } = fixture(t, () => ({ settings: { get: () => DEFAULT_SETTINGS }, system: { getState } }), getState);
+  for (const types of [['lyrics'], ['gift-sprint'], ['lyrics', 'gift-sprint', 'gift-frame'], ['gift-frame']]) {
+    const source = publish(runtime, types);
+    reads = 0;
+    const output = await runtime.service.getOutput(source);
+    assert.equal(reads, types.some(type => ['lyrics', 'gift-sprint'].includes(type)) ? 1 : 0);
+    assert.doesNotMatch(JSON.stringify(output.data), /secret|private/);
+    if (types.includes('gift-sprint')) assert.deepEqual(output.data['gift-sprint'], { targetRmb: 1000, remainingCrystalBalls: 7 });
+    if (types.includes('lyrics')) {
+      assert.equal(output.data.lyrics.lyricState.lineText, lineText);
+      lineText += '更新';
+      const next = await runtime.service.getOutput(source);
+      assert.equal(reads, 2, 'A later output must read the latest state, not a persistent cache.');
+      assert.equal(next.data.lyrics.lyricState.lineText, lineText);
+    }
+  }
+});
 
 test('cloud demand follows display reads, leaves other scenes idle and expires after the last read', t => {
   t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'] });

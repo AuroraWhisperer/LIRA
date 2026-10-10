@@ -1,3 +1,5 @@
+import { readApiResponse } from '../shared/json-response.js';
+
 export async function requestComponentStyles(action, { file, description, id, ids, kind, patch, target, signal } = {}, access) {
   const url = new URL(`${access ? '/api/component-preview/styles' : '/api/component-styles'}/${action}`, location.origin);
   const headers = {};
@@ -14,9 +16,14 @@ export async function requestComponentStyles(action, { file, description, id, id
     return { file: new File([await response.blob()], decodeURIComponent(response.headers.get('X-Lira-Filename'))) };
   }
   if (action === 'backup' && response.ok && response.headers.get('Content-Type') === 'application/zip') return response.blob();
-  const payload = await response.json();
-  if (!response.ok || !payload.ok) throw Object.assign(new Error(payload.error || '样式操作失败，请重试。'), {
-    code: payload.code, importTarget: payload.importTarget, importTargetName: payload.importTargetName });
+  let payload;
+  try {
+    payload = await readApiResponse(response, '样式操作失败，请重试。');
+  } catch (error) {
+    error.importTarget = error.payload?.importTarget;
+    error.importTargetName = error.payload?.importTargetName;
+    throw error;
+  }
   if (['add', 'web', 'pick-web', 'install', 'remove', 'remove-pack', 'config', 'restore-backup'].includes(action) && payload.data) window.dispatchEvent(new Event('component-styles:changed'));
   return payload.data;
 }

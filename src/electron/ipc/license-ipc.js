@@ -96,7 +96,7 @@ function registerLicenseIpc(options = {}) {
     licenseManager.getProfile().then((snapshot) => ({ ok: true, ...sanitizeStateSnapshot(snapshot) })),
   );
   registerLicenseOverlayIpc({ safeHandle, licenseManager, onOverlaySettings: options.onOverlaySettings });
-  registerLicenseSongsIpc({ safeHandle, licenseManager });
+  registerLicenseSongsIpc({ safeHandle, licenseManager, getCloudSyncController: options.getCloudSyncController });
 
   const disposeLicenseState = licenseManager.onStateChanged((snapshot) => {
     const window = getMainWindow();

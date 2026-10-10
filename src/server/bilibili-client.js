@@ -142,6 +142,14 @@ function createBilibiliClient(roomId, context) {
           );
         }
       },
+      onSuperChatDelete: (platformIds) => {
+        if (isShuttingDown()) return;
+        try {
+          if (domainServices.superChats.retract(platformIds) > 0) broadcastSnapshot('bilibili:superchat');
+        } catch {
+          console.warn('[Bilibili] superchat retraction failed');
+        }
+      },
       onStatus: updateLiveStatus,
     },
     {

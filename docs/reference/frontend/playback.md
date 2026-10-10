@@ -102,7 +102,7 @@ playbackControls → audio.load()/play()
 | home-service   | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后 toast"已自动更新")                                                                                               |
 | wesing-service | 全民 K 歌适配层:`/api/music/wesing/*`(active/refresh/configure/offset)+ WS `wesing-state` 实时状态 + `LyricWordRenderer` 逐字现场(详见 [backend/music/wesing.md](../backend/music/wesing.md));源切换用 `activationQueue` 串行化,避免后端状态错乱 |
 
-首页请求在开始时固定平台、action、歌单 ID 和缓存键。HomeService 的代际决定页面是否接受结果，ContentLoader 的每键请求代际决定缓存是否接受写入：切换分类、最近历史、音源或返回历史后，旧成功和旧失败均不能覆盖新页面。后台刷新使用局部结果，不把页面状态当临时工作区；重复缓存读取可复用在途刷新，同键较新的实际请求优先，完成后清理请求记录。可缓存 action 只由 ContentLoader 的 `CACHEABLE_ACTIONS` 定义，HomeService 复用该集合。
+首页请求在开始时固定平台、action、歌单 ID 和缓存键。HomeService 的代际决定页面是否接受结果，ContentLoader 的每键请求代际决定缓存是否接受写入：切换分类、最近历史、音源或返回历史后，旧成功和旧失败均不能覆盖新页面。后台刷新使用局部结果，不把页面状态当临时工作区；重复缓存读取可复用在途刷新，同键较新的实际请求优先，完成后清理请求记录。可缓存 action 只由 ContentLoader 的 `CACHEABLE_ACTIONS` 定义，HomeService 复用该集合。可修改的歌单详情不再使用服务端第二份内容缓存，后台更新和强制刷新直接读取 Provider 当前结果，空歌单也更新播放器缓存。
 
 `CacheManager` 内存层最多 64 项，按序列化字符串 UTF-16 长度估算的合计预算为 8 MiB（不是 V8 实际堆大小保证）。读取提升最近使用顺序，写入/回填时回收超过默认 24 小时的内存条目，按最近使用顺序淘汰至预算内。超大单项跳过缓存而不截断歌单数据；localStorage 保留既有 24 小时有效期和浏览器配额。登录/退出还会使对应平台未完成内容请求失去缓存写入权，防止旧账号响应重新填回缓存。
 
@@ -118,7 +118,7 @@ playbackControls → audio.load()/play()
 
 ## 6. 状态持久化(play_queue_state)
 
-`state-persistence.js` 在任何 await 之前读取管理页 HTML 的启动代次，并为本次 factory 分配页内 senderGeneration；每次捕获快照递增 sequence。定时 HTTP 和卸载 IPC/beacon 携带相同 `snapshotVersion`，卸载直接发出快照，不等待网络握手。失败请求只可保留当前发送端最新序号的 pending，不能在较新保存后重新排入旧快照。旧发送端不会自动提代夺回写入权；独立调用须显式提供 `deps.snapshotWriter`，缺少启动信息时明确提示重新加载。服务端去重/拒绝及重启语义见 [API 合同](../backend/api.md) §5 和 [存储合同](../backend/storage.md) §3.4。
+`state-persistence.js` 在任何 await 之前读取管理页 HTML 的启动代次，并为本次 factory 分配页内 senderGeneration；每次保存通知只标记待保存并递增 sequence，完整曲目与队列快照在防抖发送或显式 flush 时捕获最新值。1500ms 防抖时机保持不变，不承诺持续事件期间的最长保存间隔。定时 HTTP 和卸载 IPC/beacon 携带相同 `snapshotVersion`，卸载直接发出快照，不等待网络握手。失败请求只可保留当前发送端最新序号的 pending，不能在较新保存后重新排入旧快照。旧发送端不会自动提代夺回写入权；独立调用须显式提供 `deps.snapshotWriter`，缺少启动信息时明确提示重新加载。服务端去重/拒绝及重启语义见 [API 合同](../backend/api.md) §5 和 [存储合同](../backend/storage.md) §3.4。
 
 | 通道                                  | 触发点                                                                       | 说明                                                                                                                                                                                                                                 |
 | ------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -139,6 +139,8 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 - 桌面检测:统一约定 `window.musicAPI` 是否存在及其方法是否为 function;播放页在浏览器直开时本地文件与歌词窗口功能自动降级隐藏([comms.md](comms.md) §4)。
 
 ## 8. UI 与事件
+
+搜索结果由搜索完成、清空和切换音源入口更新，不随普通播放状态刷新重复构造。队列弹窗关闭时暂缓列表渲染，打开时读取最新状态；可见时只在实际展示字段变化后重建列表，包含数组或曲目原地修改。
 
 - `ui/index.js` `UIRenderer` 渲染整页;`ui/playback-bar.js` 底部控制栏(进度/播放暂停/上下首/音量/模式/队列弹出/歌词);`ui/fullscreen.js` 全屏播放器(点击面板切换,ESC 退出,空格播放暂停,封面背景按 `pickBackgroundTheme` 30 套轮换,[forms.js:74-92](../../../public/js/admin/forms.js#L74-L92));`ui/drawer.js` 首页抽屉(歌单内页与返回栈);`ui/queue-popup.js` 队列弹出窗(收起播放器时联动关闭)。
 - **音质菜单**:`ui/playback-bar.js` 对 QQ 显示标准(128kbps)/HQ(最高 320kbps)/SQ(FLAC)/臻品(Q0 本地解密)/全景声(O8 本地解密),对网易云显示五档;`features/playback-controls.js:changePlaybackQuality` 保存默认档位、强制刷新当前流并在 `loadedmetadata` 后恢复切换前进度。服务端若降级,按钮显示实际档位并 toast 提示。Q0/O8 不承诺 QQ 客户端专属杜比或空间 DSP 效果,边界见 [qq-provider.md](../backend/music/qq-provider.md) §7.2。

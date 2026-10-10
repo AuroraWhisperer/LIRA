@@ -123,7 +123,7 @@ export function initDanmakuDailyBots({
   windowRef.addEventListener('online', refresh);
   const unsubscribe = license?.onStateChanged?.(account);
   const initial = generation;
-  Promise.resolve(license?.getProfile?.())
+  Promise.resolve(license?.getState?.())
     .then((snapshot) => {
       if (initial === generation) account(snapshot);
     })

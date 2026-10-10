@@ -451,7 +451,7 @@ export function initDanmakuWelcome({
   refresh.addEventListener('click', reload);
   const unsubscribe = bridge?.onStateChanged?.(account);
   const initialGeneration = generation;
-  Promise.resolve(bridge?.getProfile?.())
+  Promise.resolve(bridge?.getState?.())
     .then((snapshot) => {
       if (generation === initialGeneration) account(snapshot);
     })

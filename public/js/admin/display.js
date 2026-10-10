@@ -102,7 +102,7 @@ export const display = (() => {
       profileChanged = true;
       render(snapshot);
     });
-    Promise.resolve(bridge?.getProfile?.())
+    Promise.resolve(bridge?.getState?.())
       .then((snapshot) => {
         if (!profileChanged) render(snapshot);
       })

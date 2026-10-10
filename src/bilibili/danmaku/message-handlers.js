@@ -6,6 +6,7 @@ const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
 const { SUPER_CHAT_PIN_THRESHOLD } = require('../superchat-service');
 const { extractBilibiliGiftIdentity } = require('../users/gift-identity-hints');
+const { extractBilibiliSuperChatDeleteIds } = require('../parsers/superchat-parser');
 const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
 const { logBilibiliDiagnostic, logSongRequest } = require('../diagnostics');
@@ -21,6 +22,7 @@ class MessageHandlers {
     this.connectionAttempt = Number(options.connectionAttempt) || 0;
     this.roomOwnerUid = cleanText(options.roomOwnerUid);
     this.roomRunContext = null;
+    this.resetLikeState();
     this.isCommandText = typeof options.isCommandText === 'function' ? options.isCommandText : isBilibiliCommandText;
   }
 
@@ -30,11 +32,13 @@ class MessageHandlers {
 
   updateConnectionGeneration(connectionGeneration) {
     this.connectionGeneration = Number(connectionGeneration) || 0;
+    this.resetLikeState();
   }
 
   updateConnectionAttempt(connectionAttempt) {
     this.connectionAttempt = Number(connectionAttempt) || 0;
     this.danmakuCount = 0;
+    this.resetLikeState();
   }
 
   updateRoomOwnerUid(roomOwnerUid) {
@@ -47,6 +51,15 @@ class MessageHandlers {
 
   destroy() {
     this.roomRunContext = null;
+    this.resetLikeState();
+  }
+
+  resetLikeState() {
+    this.likeState = { count: null, updatedAt: null };
+  }
+
+  getLikeState() {
+    return { ...this.likeState };
   }
 
   async handlePackets(buffer, ingress) {
@@ -54,10 +67,22 @@ class MessageHandlers {
     this.diagnostics.lastPacketAt = now();
     for (const message of packetParser.parseBilibiliPackets(buffer)) {
       bilibiliHelpers.recordBilibiliCommandDiagnostic(this.diagnostics, message && message.cmd);
+      const command = cleanText(message?.cmd).split(':')[0];
 
       if (message.cmd && String(message.cmd).startsWith('DANMU_MSG')) {
         this.handleDanmaku(message, ingress && { ...ingress, packetSeq: packetSeq++ });
-      } else if (message.cmd && String(message.cmd).startsWith('SUPER_CHAT_MESSAGE')) {
+      } else if (command === 'LIKE_INFO_V3_UPDATE') {
+        const count = message.data?.click_count;
+        // The platform sends an absolute room total, not a per-message increment.
+        if (Number.isSafeInteger(count) && count >= 0) {
+          this.likeState = { count, updatedAt: now() };
+        }
+      } else if (command === 'LIVE' || command === 'PREPARING') {
+        this.resetLikeState();
+      } else if (command === 'SUPER_CHAT_MESSAGE_DELETE') {
+        const ids = extractBilibiliSuperChatDeleteIds(message);
+        if (ids.length) this.handlers.onSuperChatDelete?.(ids);
+      } else if (['SUPER_CHAT_MESSAGE', 'SUPER_CHAT_MESSAGE_JPN'].includes(command)) {
         this.handleSuperChat(message);
       } else if (packetParser.isBilibiliGiftLikeCommand(message.cmd)) {
         this.handleIdentityMessage(message);

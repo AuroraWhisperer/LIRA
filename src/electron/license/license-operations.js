@@ -17,9 +17,13 @@ function createLicenseOperations(options = {}) {
   const remote = options.remote;
   const withAuthorizedToken = options.withAuthorizedToken;
   const withAuthorizedSecret = options.withAuthorizedSecret;
+  let pendingProfile = null;
 
-  async function getProfile() {
-    return withAuthorizedToken(
+  function getProfile() {
+    const generation = options.getAuthorizationGeneration();
+    if (pendingProfile?.generation === generation) return pendingProfile.promise;
+    const pending = { generation };
+    pending.promise = withAuthorizedToken(
       (token) => remote.profile(token),
       0,
       true,
@@ -27,15 +31,21 @@ function createLicenseOperations(options = {}) {
         options.setProfile(result);
         return options.getSnapshot();
       },
-    );
+    ).finally(() => {
+      if (pendingProfile === pending) pendingProfile = null;
+    });
+    pendingProfile = pending;
+    return pending.promise;
   }
 
   async function getCloudState(requestOptions = {}) {
-    return withAuthorizedToken((token) => remote.getCloudState(token, requestOptions));
+    return withAuthorizedToken(
+      (token) => remote.getCloudState(token, requestOptions), 0, true, undefined, requestOptions.signal,
+    );
   }
 
-  async function getOverlaySettings() {
-    return overlayOperation((token) => remote.getOverlaySettings(token));
+  async function getOverlaySettings(requestOptions = {}) {
+    return overlayOperation((token) => remote.getOverlaySettings(token, requestOptions), requestOptions.signal);
   }
 
   async function updateOverlaySettings(settings) {
@@ -102,23 +112,29 @@ function createLicenseOperations(options = {}) {
     return overlayOperation((token) => remote.updateWelcomeSettings(settings, token));
   }
 
-  function overlayOperation(operation) {
+  function overlayOperation(operation, signal) {
     const owner = options.getOverlayOwner();
     const assertOwner = () => {
       if (options.isDisposed() || owner !== options.getOverlayOwner()) {
         throw new RemoteLicenseError('LICENSE_NOT_AUTHORIZED', '授权账号已变化，请重新读取配置。');
       }
     };
-    return withAuthorizedToken(async (token) => {
-      assertOwner();
-      const result = await operation(token);
-      assertOwner();
-      return result;
-    });
+    return withAuthorizedToken(
+      async (token) => {
+        assertOwner();
+        const result = await operation(token);
+        assertOwner();
+        return result;
+      },
+      0,
+      true,
+      undefined,
+      signal,
+    );
   }
 
   async function watchCloudStateChangesInternal(options = {}) {
-    return withAuthorizedToken((token) => remote.watchCloudStateChanges(token, options), 0, false);
+    return withAuthorizedToken((token) => remote.watchCloudStateChanges(token, options), 0, false, undefined, options.signal);
   }
 
   async function getGiftEventsInternal(input = {}) {
@@ -148,6 +164,8 @@ function createLicenseOperations(options = {}) {
       },
       0,
       false,
+      undefined,
+      input.signal,
     );
   }
 
@@ -169,6 +187,8 @@ function createLicenseOperations(options = {}) {
       },
       0,
       false,
+      undefined,
+      input.signal,
     );
   }
 
@@ -204,22 +224,26 @@ function createLicenseOperations(options = {}) {
       },
       0,
       false,
+      undefined,
+      input.signal,
     );
   }
 
   async function watchGiftEventsInternal(options = {}) {
-    return withAuthorizedToken((token) => remote.watchGiftEvents(token, options), 0, false);
+    return withAuthorizedToken((token) => remote.watchGiftEvents(token, options), 0, false, undefined, options.signal);
   }
 
   async function updateCloudSettings(settings, requestOptions = {}) {
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
       throw new RemoteLicenseError('INVALID_SYNC_SETTINGS', '云端同步设置格式无效。');
     }
-    return withAuthorizedToken((token) => remote.updateCloudSettings(settings, token, requestOptions));
+    return withAuthorizedToken(
+      (token) => remote.updateCloudSettings(settings, token, requestOptions), 0, true, undefined, requestOptions.signal,
+    );
   }
 
   async function getBilibiliCredentialsInternal(requestOptions = {}) {
-    return withAuthorizedSecret((token) => remote.getBilibiliCredentials(token, requestOptions));
+    return withAuthorizedSecret((token) => remote.getBilibiliCredentials(token, requestOptions), requestOptions.signal);
   }
 
   async function setBilibiliCredentialsInternal(cookie, requestOptions = {}) {
@@ -227,21 +251,55 @@ function createLicenseOperations(options = {}) {
     if (!value || value.length > 12_000 || /[\r\n\0]/u.test(value)) {
       throw new RemoteLicenseError('BILIBILI_CREDENTIALS_INVALID', '直播账号登录凭据无效。');
     }
-    return withAuthorizedToken((token) => remote.setBilibiliCredentials(value, token, requestOptions));
+    return withAuthorizedToken(
+      (token) => remote.setBilibiliCredentials(value, token, requestOptions), 0, true, undefined, requestOptions.signal,
+    );
   }
 
   async function clearBilibiliCredentialsInternal(requestOptions = {}) {
-    return withAuthorizedToken((token) => remote.clearBilibiliCredentials(token, requestOptions));
+    return withAuthorizedToken(
+      (token) => remote.clearBilibiliCredentials(token, requestOptions), 0, true, undefined, requestOptions.signal,
+    );
   }
 
   async function syncSongs(songs, requestOptions = {}) {
     if (!Array.isArray(songs) || songs.length > 5000)
       throw new RemoteLicenseError('SONG_LIST_INVALID', '歌库数量超出同步上限。');
-    return withAuthorizedToken((token) => remote.syncSongs(songs.map(mapSongForSync), token, requestOptions));
+    const snapshot = songs.map(mapSongForSync);
+    return withAuthorizedToken(
+      (token) => remote.syncSongs(snapshot, token, requestOptions),
+      0,
+      true,
+      (result) => {
+        if (result?.ok !== true || result.count !== snapshot.length) {
+          throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效的歌库同步确认。', { retryable: true });
+        }
+        return result;
+      },
+      requestOptions.signal,
+    );
   }
 
   async function getCloudSongs(requestOptions = {}) {
-    return withAuthorizedToken((token) => remote.getCloudSongs(token, requestOptions));
+    return withAuthorizedToken(
+      (token) => remote.getCloudSongs(token, requestOptions), 0, true, undefined, requestOptions.signal,
+    );
+  }
+
+  function getCloudSongCount() {
+    return withAuthorizedToken(async (token) => {
+      const state = await remote.getCloudState(token);
+      const count = state?.songs?.count;
+      if (count !== undefined) {
+        if (!Number.isSafeInteger(count) || count < 0) throw new RemoteLicenseError('INVALID_RESPONSE');
+        return { count };
+      }
+      // Older servers expose only the complete song snapshot. Use the same
+      // authorized operation so a changed account cannot take over this read.
+      const result = await remote.getCloudSongs(token);
+      if (!Array.isArray(result?.songs)) throw new RemoteLicenseError('INVALID_RESPONSE');
+      return { count: result.songs.length };
+    });
   }
 
   async function getGiftCatalog(input = {}) {
@@ -283,16 +341,23 @@ function createLicenseOperations(options = {}) {
 
   return {
     getGiftCardProfilesInternal: (input = {}) =>
-      withAuthorizedToken((token) => remote.getGiftCardProfiles(input.cursor, token, { signal: input.signal })),
+      withAuthorizedToken(
+        (token) => remote.getGiftCardProfiles(input.cursor, token, { signal: input.signal }), 0, true, undefined, input.signal,
+      ),
     getFanFactsInternal: (input = {}) =>
-      withAuthorizedToken((token) =>
-        remote.getFanFacts(input.after || 0, input.epoch, token, { signal: input.signal }),
+      withAuthorizedToken(
+        (token) => remote.getFanFacts(input.after || 0, input.epoch, token, { signal: input.signal }),
+        0,
+        true,
+        undefined,
+        input.signal,
       ),
     clearBilibiliCredentialsInternal,
     clearGiftHistoryInternal,
     deleteSongPageBackground,
     getBilibiliCredentialsInternal,
     getCloudSongs,
+    getCloudSongCount,
     getCloudState,
     getGiftCatalog,
     getGiftEventsInternal,

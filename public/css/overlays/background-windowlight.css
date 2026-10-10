@@ -1,0 +1,79 @@
+#windowlightBackground {
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: none;
+  --windowlight-daylight: 0.6;
+  --windowlight-prism: 0.45;
+  --windowlight-lamp: 0;
+  --windowlight-rain: 0;
+}
+
+#windowlightBackground[data-scene='sunset'] {
+  --windowlight-daylight: 0.75;
+  --windowlight-prism: 0.6;
+  --windowlight-lamp: 0.12;
+}
+
+#windowlightBackground[data-scene='rainy'] {
+  --windowlight-daylight: 0;
+  --windowlight-prism: 0;
+  --windowlight-lamp: 0.06;
+  --windowlight-rain: 1;
+}
+
+#windowlightBackground[data-scene='night'] {
+  --windowlight-daylight: 0;
+  --windowlight-prism: 0;
+  --windowlight-lamp: 0.6;
+}
+
+.windowlight-plate,
+.windowlight-light,
+.windowlight-effect,
+.windowlight-illumination,
+.windowlight-rain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: var(--background-fit, cover);
+}
+
+.windowlight-plate {
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 1.8s ease-in-out;
+}
+
+.windowlight-plate.is-active {
+  z-index: 1;
+  opacity: 1;
+}
+
+.windowlight-plate.is-previous {
+  opacity: 1;
+  transition: none;
+}
+
+.windowlight-effect,
+.windowlight-illumination {
+  z-index: 2;
+  mix-blend-mode: screen;
+}
+
+.windowlight-effect { transition: opacity 1.8s ease-in-out; }
+#windowlightBackground[data-illumination='ready'] .windowlight-effect { display: none; }
+.windowlight-dappled-light { opacity: var(--windowlight-daylight); }
+.windowlight-prismatic-light { opacity: var(--windowlight-prism); }
+.windowlight-lamp-light { opacity: var(--windowlight-lamp); }
+
+.windowlight-rain {
+  z-index: 3;
+  opacity: var(--windowlight-rain);
+  mask-position: center;
+  mask-size: var(--windowlight-mask-size, cover);
+  mask-repeat: no-repeat;
+  transition: opacity 1.8s ease-in-out;
+}
+
+#windowlightBackground[data-reduced-motion='true'] * { transition: none; }

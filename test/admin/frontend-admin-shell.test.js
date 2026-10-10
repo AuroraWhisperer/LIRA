@@ -43,7 +43,7 @@ test('point-song subviews rely on tabs instead of repeated page headings', () =>
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.doesNotMatch(html, /class="song-subview-header"/);
-  assert.doesNotMatch(html, /<h2 class="ui-page-title">(?:歌库|设置|点歌板|展示板|浏览器源|导入导出|桌面歌词)<\/h2>/);
+  assert.doesNotMatch(html, /<h2 class="ui-page-title">(?:歌库|设置|点歌板|展示板|浏览器源|歌单导入导出|桌面歌词)<\/h2>/);
 });
 
 test('SuperChat clear control lives in the SC queue header', () => {

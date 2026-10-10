@@ -26,11 +26,13 @@ function buildImportPlan(currentSongs, input, currentCategories) {
     !Array.isArray(input.rows) ||
     input.rows.length === 0 ||
     input.rows.length > 5000 ||
-    (input.allowEmptyClear !== undefined && typeof input.allowEmptyClear !== 'boolean')
+    (input.allowEmptyClear !== undefined && typeof input.allowEmptyClear !== 'boolean') ||
+    (input.replaceAll !== undefined && typeof input.replaceAll !== 'boolean')
   ) {
-    throw importError('SONG_IMPORT_INPUT_INVALID', '请提供 1 至 5000 行歌曲，空值选项必须是布尔值。', 400);
+    throw importError('SONG_IMPORT_INPUT_INVALID', '请提供 1 至 5000 行歌曲，导入选项必须是布尔值。', 400);
   }
   const allowEmptyClear = input.allowEmptyClear === true;
+  const replaceAll = input.replaceAll === true;
   const songsByIdentity = new Map(currentSongs.map((song) => [JSON.stringify([song.name, song.artist || '']), song]));
   const rowsByIdentity = new Map();
   const rows = input.rows.map((raw, index) => {
@@ -81,7 +83,9 @@ function buildImportPlan(currentSongs, input, currentCategories) {
         song.isEnabled = ['是', '可点', '启用', 'true', 'yes', 'y', '1'].includes(enabled);
       }
       const key = JSON.stringify([song.name, song.artist]);
-      const signature = JSON.stringify(present.map((field) => [field, blank.has(field) ? '' : song[field]]));
+      const signature = JSON.stringify(
+        replaceAll ? song : present.map((field) => [field, blank.has(field) ? '' : song[field]]),
+      );
       if (!rowsByIdentity.has(key)) rowsByIdentity.set(key, []);
       rowsByIdentity.get(key).push({
         entry,
@@ -114,7 +118,7 @@ function buildImportPlan(currentSongs, input, currentCategories) {
     for (const duplicate of group.slice(1)) {
       duplicate.entry.reason = `与数据第 ${entry.row} 行相同，仅处理一次`;
     }
-    const after = existing
+    const after = existing && !replaceAll
       ? Object.fromEntries(
           Object.entries(STORED_FIELDS).map(([field, column]) => [
             field,
@@ -122,7 +126,7 @@ function buildImportPlan(currentSongs, input, currentCategories) {
           ]),
         )
       : { ...song };
-    if (existing) {
+    if (existing && !replaceAll) {
       for (const field of present) {
         if (field === 'name' || field === 'artist') continue;
         if (blank.has(field) && (!allowEmptyClear || field === 'isEnabled')) continue;
@@ -137,12 +141,25 @@ function buildImportPlan(currentSongs, input, currentCategories) {
     if (entry.status !== 'unchanged') changes.push({ id: existing?.id, song: after });
   }
   const insertedCount = rows.filter((row) => row.status === 'inserted').length;
-  if (currentSongs.length + insertedCount > 5000) {
+  if (!replaceAll && currentSongs.length + insertedCount > 5000) {
     for (const row of rows) {
       if (row.status !== 'inserted' && row.status !== 'updated') continue;
       row.status = 'invalid';
       row.reason = '结果歌库超过 5000 首，无法完整同步；请先在歌库整理至 5000 首以内。';
     }
+  }
+  const deletions = replaceAll
+    ? currentSongs.filter((song) => !rowsByIdentity.has(JSON.stringify([song.name, song.artist || ''])))
+    : [];
+  for (const song of deletions) {
+    rows.push({
+      row: null,
+      name: song.name,
+      artist: song.artist || '',
+      status: 'deleted',
+      differences: [],
+      reason: '新表格中没有此歌曲，将从歌库删除；已有点歌记录保留。',
+    });
   }
   const counts = {
     inserted: 0,
@@ -150,6 +167,7 @@ function buildImportPlan(currentSongs, input, currentCategories) {
     unchanged: 0,
     conflict: 0,
     invalid: 0,
+    ...(replaceAll ? { deleted: 0 } : {}),
   };
   for (const row of rows) counts[row.status] += 1;
   const previewToken = createHash('sha256')
@@ -159,6 +177,7 @@ function buildImportPlan(currentSongs, input, currentCategories) {
         currentCategories,
         rows: input.rows,
         allowEmptyClear,
+        replaceAll,
       }),
     )
     .digest('hex');
@@ -166,13 +185,14 @@ function buildImportPlan(currentSongs, input, currentCategories) {
     previewToken,
     counts,
     rows,
-    canApply: !counts.conflict && !counts.invalid && changes.length > 0,
+    canApply: !counts.conflict && !counts.invalid && (changes.length > 0 || deletions.length > 0),
     changes,
+    deletions: deletions.map((song) => song.id),
   };
 }
 
 function previewSongImport(store, input) {
-  const { changes, ...preview } = buildImportPlan(store.listRows(), input, store.listCategories());
+  const { changes, deletions, ...preview } = buildImportPlan(store.listRows(), input, store.listCategories());
   return preview;
 }
 

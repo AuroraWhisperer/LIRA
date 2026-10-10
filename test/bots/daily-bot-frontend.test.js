@@ -20,7 +20,7 @@ test('cloud daily controls keep confirmed state, disclose failed close and ignor
     });
     window.dailyAccount = account;
     const license = {
-      getProfile: async () => account('one'),
+      getState: async () => account('one'),
       onStateChanged(fn) {
         window.dailyState = fn;
         return () => {};
@@ -110,7 +110,7 @@ for (const [name, takeover] of [
           },
         };
         const license = {
-          getProfile: async () => ({
+          getState: async () => ({
             state: 'authorized',
             streamer: { accountName: 'one', songPageUrl: 'https://one.test' },
           }),

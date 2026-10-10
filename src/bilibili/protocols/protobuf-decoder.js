@@ -4,6 +4,13 @@
 // Protocol Buffer decoding utilities
 // ---------------------------------------------------------------------------
 
+const GIFT_V2_STRING_FIELDS = {
+  2: true,
+  3: true,
+  9: { 3: true },
+  10: { 2: true, 8: true, 9: true, 12: true },
+};
+
 function firstProtoScalar(values) {
   if (!Array.isArray(values)) return '';
   const value = values.find((item) => item !== null && item !== undefined && typeof item !== 'object');
@@ -28,7 +35,7 @@ function readBilibiliProtoVarint(buffer, offset) {
   return null;
 }
 
-function decodeBilibiliProtoFields(buffer, depth = 0) {
+function decodeBilibiliProtoFields(buffer, depth = 0, stringFields = {}) {
   let offset = 0;
   const fields = {};
 
@@ -65,7 +72,11 @@ function decodeBilibiliProtoFields(buffer, depth = 0) {
 
       const chunk = buffer.subarray(offset, offset + length);
       offset += length;
-      const nested = depth < 5 ? decodeBilibiliProtoFields(chunk, depth + 1) : null;
+      // Names and IDs may also be syntactically valid protobuf; known strings stay strings.
+      const nested =
+        depth < 5 && stringFields[field] !== true
+          ? decodeBilibiliProtoFields(chunk, depth + 1, stringFields[field] || {})
+          : null;
       value = nested && Object.keys(nested).length > 0 ? nested : chunk.toString('utf8');
     }
 
@@ -81,7 +92,7 @@ function decodeBilibiliGiftV2Proto(value) {
   try {
     const buffer = Buffer.from(cleanText(value), 'base64');
     if (buffer.length === 0) return null;
-    return decodeBilibiliProtoFields(buffer, 0);
+    return decodeBilibiliProtoFields(buffer, 0, GIFT_V2_STRING_FIELDS);
   } catch (_) {
     return null;
   }

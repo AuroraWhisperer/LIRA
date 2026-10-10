@@ -19,7 +19,7 @@ test('gift subviews skip unrelated state updates while corrections, catalogs and
   }
   const nodes = Object.fromEntries([
     'enableGiftNotification', 'giftSprintTarget', 'giftSprintReceived', 'giftSprintRemaining',
-    'giftSprintCrystalBalls', 'giftStatusLine', 'giftSprintStatus', 'giftDetectToggle',
+    'giftSprintCrystalBalls', 'giftSprintStatus', 'giftDetectToggle',
   ].map((id) => [id, {}]));
   nodes.giftRecentList = recent;
   const get = f.document.getElementById;
@@ -57,7 +57,6 @@ test('gift subviews skip unrelated state updates while corrections, catalogs and
     render({ state, changedKeys: ['liveStatus'] });
   }
   assert.deepEqual(writes, { recent: 0, blindbox: 0 });
-  assert.match(nodes.giftStatusLine.textContent, /19/);
 
   state.gifts.recent[0].num = 2;
   state.gifts.recent[0].total_price = 2000;

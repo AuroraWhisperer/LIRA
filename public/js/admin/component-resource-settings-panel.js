@@ -63,7 +63,9 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
     finally { use.disabled = false; }
   });
   let preview;
-  const timer = setInterval(() => { if (!root.hidden && !document.hidden) void controller.reload(); }, 1000);
+  const timer = setInterval(() => {
+    if (!document.hidden && root.checkVisibility({ checkVisibilityCSS: true })) void controller.reload();
+  }, 1000);
   function closePreview() {
     preview?.dispose(); preview = null;
     surface.hidden = true; previewButton.textContent = '预览'; previewButton.setAttribute('aria-expanded', 'false');

@@ -21,7 +21,6 @@ import { initLicenseAccountDevice as initLicenseAccountDeviceImpl } from './sett
 import { createSettingsOperations } from './settings-operations.js';
 import { createBilibiliRoomProfile } from './settings-room-profile.js';
 import { eventBus, Events } from '../shared/event-bus.js';
-import { songImports } from './song-import.js';
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
 import { renderState } from './queue.js';
@@ -41,7 +40,6 @@ const getState = () => stateService;
 const getQueue = () => ({ renderState });
 const getForms = () => formsService;
 const getGifts = () => giftBlindbox;
-const getImports = () => songImports;
 const saveSettings = (updates) => api('/api/settings', updates);
 
 const operations = createSettingsOperations({
@@ -71,7 +69,6 @@ const blindboxSettings = createBlindboxSettings({
   saveSettings,
   getGifts,
   getState,
-  getImports,
   localOverlayOrigin,
 });
 const settingsForm = createSettingsForm({

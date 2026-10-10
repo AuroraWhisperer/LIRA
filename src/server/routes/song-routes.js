@@ -37,6 +37,7 @@ async function readUpdateInput(request) {
   return {
     rows,
     allowEmptyClear: body.allowEmptyClear,
+    replaceAll: body.replaceAll,
     previewToken: body.previewToken,
   };
 }

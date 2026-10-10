@@ -50,6 +50,11 @@ const mutations = {
     const preview = previewSongImport(f.songs, input);
     return applySongImport(f.songs, { ...input, previewToken: preview.previewToken });
   },
+  'import-replace': (f) => {
+    const input = { replaceAll: true, rows: [{ name: 'Replacement', requestPrice: '30元SC' }] };
+    const preview = previewSongImport(f.songs, input);
+    return applySongImport(f.songs, { ...input, previewToken: preview.previewToken });
+  },
   clear: (f) => clearSongLibraryData(f.db),
   'clear-all': (f) => {
     f.db.exec('BEGIN');

@@ -12,7 +12,7 @@ export function openComponentPreview(selected = null) {
   let closed = false;
   let ready = false;
   let focusGeneration = 0;
-  const entryLinks = new Map();
+  let linking = Promise.resolve();
   const connections = [];
   const previewData = {};
   if (selected?.previewData) previewData[selected.id] = selected.previewData;
@@ -65,20 +65,18 @@ export function openComponentPreview(selected = null) {
         await syncCanvas();
         if (closed || requested !== focusGeneration) return;
       }
-      const sizeKey = JSON.stringify(selectedSize);
-      const selectionKey = JSON.stringify([selectedId, selectedItemId, canvas?.options.controller.getState().draft.document.id]);
-      let entry = entryLinks.get(selectionKey);
-      if (!entry || entry.sizeKey !== sizeKey) {
-        entry = { sizeKey, promise: post({ action: 'link', links: connections.map(({ session }) => session),
-          selectedId, selectedSize, ...(selectedItemId === undefined ? {} : { selectedItemId }) }).then(({ data }) => data.key).catch((error) => {
-          if (entryLinks.get(selectionKey) === entry) entryLinks.delete(selectionKey);
-          throw error;
-        }) };
-        entryLinks.set(selectionKey, entry);
-      }
-      const url = new URL('/c', localOverlayOrigin());
-      url.hash = await entry.promise;
+      // One canvas link remembers the latest selection. Serialize updates so a slow
+      // earlier click cannot overwrite a newer choice on the shared link.
+      linking = linking.catch(() => {}).then(async () => {
+        if (closed || requested !== focusGeneration) return null;
+        const { data } = await post({ action: 'link', links: connections.map(({ session }) => session),
+          selectedId, selectedSize, ...(selectedItemId === undefined ? {} : { selectedItemId }) });
+        return data.key;
+      });
+      const key = await linking;
       if (closed || requested !== focusGeneration) return;
+      const url = new URL('/c', localOverlayOrigin());
+      url.hash = key;
       const { data } = await post({ action: 'focus', key: url.hash.slice(1) });
       if (!closed && requested === focusGeneration && !data.focused) window.open(url.href, '_blank', 'noopener,noreferrer');
     } catch (error) {

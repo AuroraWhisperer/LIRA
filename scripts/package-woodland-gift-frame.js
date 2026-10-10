@@ -34,7 +34,7 @@ function createWoodlandGiftEntries() {
 function createWoodlandGiftZip() { return createStoredStyleZip(createWoodlandGiftEntries()); }
 
 if (require.main === module) {
-  const destination = path.resolve(root, process.argv[2] || 'output/林间花信-全屏礼物感谢样式-1.0.0.zip');
+  const destination = path.resolve(root, process.argv[2] || 'tmp/output/林间花信-全屏礼物感谢样式-1.0.0.zip');
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   const archive = createWoodlandGiftZip(); fs.writeFileSync(destination, archive);
   console.log(JSON.stringify({ path: destination, bytes: archive.length, sha256: createHash('sha256').update(archive).digest('hex') }));

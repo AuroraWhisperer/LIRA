@@ -4,7 +4,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const http = require('node:http');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { createWebSocketHub } = require('../src/server/ws');
@@ -13,7 +12,9 @@ const { getGiftHistory, getGiftSelection, getGiftViewRevision } = require('../sr
 const { DEFAULT_GIFT_DISPLAY, validateGiftDisplaySettings } = require('../src/bilibili/gift/display-settings');
 const { createGiftExportController } = require('../src/electron/gift-export-controller');
 const { registerGiftExportIpc } = require('../src/electron/ipc/gift-export-ipc');
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-ui-check-'));
+const scratch = path.resolve(__dirname, '../tmp');
+fs.mkdirSync(scratch, { recursive: true });
+const root = fs.mkdtempSync(path.join(scratch, 'lira-gift-ui-check-'));
 app.setPath('userData', path.join(root, 'user-data'));
 app.on('window-all-closed', () => {});
 const publicDir = path.resolve(__dirname, '../public');

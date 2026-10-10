@@ -52,6 +52,7 @@ function writeMusicJsonCache(directory, key, data, maxBytes = MUSIC_API_CACHE_MA
 function pruneMusicCacheDirectory(directory, maxBytes) {
   const files = listCacheFiles(directory);
   let totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+  if (totalBytes <= maxBytes) return;
   for (const file of files.sort((a, b) => a.mtimeMs - b.mtimeMs)) {
     if (totalBytes <= maxBytes) break;
     try {

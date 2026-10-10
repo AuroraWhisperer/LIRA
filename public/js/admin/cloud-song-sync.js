@@ -29,14 +29,8 @@ function songSyncErrorMessage(error) {
   if (code === 'RESPONSE_TOO_LARGE') return '云端歌库超过读取大小限制，请先缩减歌库或联系管理员处理。';
   if (code === 'NETWORK_UNAVAILABLE') return '暂时连不上云端，请检查网络后重试。';
   if (code === 'REQUEST_TIMEOUT') return '连接云端超时了，请再试一次。';
+  if (code === 'CLOUD_SONGS_CHANGED') return '账号或授权状态已变化，请重新确认同步。';
   return '请稍后重试。';
-}
-
-function extractCloudSongCount(payload) {
-  if (Array.isArray(payload)) return payload.length;
-  if (Array.isArray(payload?.songs)) return payload.songs.length;
-  if (Array.isArray(payload?.items)) return payload.items.length;
-  return null;
 }
 
 function renderCloudSongCount(cloudCountEl, cloudSongCount) {
@@ -57,7 +51,7 @@ function renderLastCloudSync(lastSyncEl) {
     : '本机尚未同步过歌单。';
 }
 
-export async function initCloudSongSync({ getSongs, toast, showConfirmationDialog }) {
+export async function initCloudSongSync({ toast, showConfirmationDialog }) {
   if (typeof document === 'undefined') return;
   const section = document.getElementById('licenseSongSync');
   const syncButton = document.getElementById('licenseSyncSongsBtn');
@@ -74,7 +68,9 @@ export async function initCloudSongSync({ getSongs, toast, showConfirmationDialo
 
   async function refreshCloudSongCount() {
     try {
-      cloudSongCount = extractCloudSongCount(await window.liraLicense.getCloudSongs());
+      const response = await window.liraLicense.getCloudSongCount();
+      if (!response?.ok || !Number.isSafeInteger(response.count) || response.count < 0) throw createSongSyncError(response);
+      cloudSongCount = response.count;
     } catch (_) {
       cloudSongCount = null;
     }
@@ -86,7 +82,7 @@ export async function initCloudSongSync({ getSongs, toast, showConfirmationDialo
   syncButton.disabled = true;
   try {
     try {
-      const profile = await window.liraLicense.getProfile();
+      const profile = await window.liraLicense.getState();
       const streamer = profile?.streamer;
       status.textContent = streamer?.accountName ? streamer.accountName : '已授权，但暂时无法读取主播资料。';
       if (streamer?.songPageUrl && /^https:\/\//i.test(streamer.songPageUrl)) {
@@ -106,13 +102,18 @@ export async function initCloudSongSync({ getSongs, toast, showConfirmationDialo
     if (syncButton.disabled || syncConfirmationPending) return;
     syncConfirmationPending = true;
     syncButton.disabled = true;
-    const currentSongCount = Number(getSongs()?.length) || 0;
-    const description =
-      cloudSongCount === null
-        ? `当前本地歌库共 ${currentSongCount} 首，确认后网页歌单会被整体替换为本地歌库，其他设备或网页端的修改将丢失。`
-        : `云端现有 ${cloudSongCount} 首，将被本地 ${currentSongCount} 首整体覆盖；如果其他设备或网页端刚改过歌单，改动将丢失。`;
+    let currentSongCount;
+    let generation;
     let confirmed = false;
     try {
+      const local = await window.liraLicense.getLocalSongCount();
+      if (!local?.ok) throw createSongSyncError(local);
+      currentSongCount = local.count;
+      generation = local.generation;
+      const description =
+        cloudSongCount === null
+          ? `当前完整本地歌库共 ${currentSongCount} 首，确认后网页歌单会被整体替换为完整本地歌库，其他设备或网页端的修改将丢失。`
+          : `云端现有 ${cloudSongCount} 首，将被完整本地歌库 ${currentSongCount} 首整体覆盖；如果其他设备或网页端刚改过歌单，改动将丢失。`;
       confirmed = await showConfirmationDialog({
         variant: 'caution',
         title: '同步会覆盖云端歌单',
@@ -121,7 +122,7 @@ export async function initCloudSongSync({ getSongs, toast, showConfirmationDialo
         initialFocus: 'cancel',
       });
     } catch (error) {
-      result.textContent = '同步确认没能打开，请再试一次。';
+      result.textContent = '暂时无法确认完整歌库，请再试一次。';
       toast(result.textContent, { type: 'error' });
     }
     if (!confirmed) {
@@ -131,14 +132,11 @@ export async function initCloudSongSync({ getSongs, toast, showConfirmationDialo
     }
     result.textContent = '正在同步当前歌库…';
     try {
-      // Take the upload snapshot only after confirmation. The local song
-      // list may be refreshed while the dialog is open; uploading the
-      // earlier array could silently overwrite those newer local edits.
-      const songs = [...(getSongs() || [])];
-      const response = await window.liraLicense.syncSongs(songs);
+      const response = await window.liraLicense.syncCurrentSongs(generation);
       if (!response?.ok) throw createSongSyncError(response);
       const reportedCount = Number(response.count);
-      const syncedCount = Number.isSafeInteger(reportedCount) && reportedCount >= 0 ? reportedCount : songs.length;
+      if (!Number.isSafeInteger(reportedCount) || reportedCount < 0) throw createSongSyncError({ error: 'INVALID_RESPONSE' });
+      const syncedCount = reportedCount;
       result.textContent = `已同步 ${syncedCount} 首歌曲。`;
       try {
         localStorage.setItem(LAST_SYNC_KEY, JSON.stringify({ time: Date.now(), count: syncedCount }));

@@ -31,15 +31,16 @@ function createSceneExtraDisplay({ getContext, getOwner, now = Date.now }) {
     cache.set(type, entry);
     return entry.promise;
   }
-  function getExtraDisplay(type) {
+  function getExtraDisplay(type, getState) {
     const context = getContext();
+    getState ??= () => context.system.getState();
     const response = (path, value) => projectOverlayResponse(type, path, value);
     switch (type) {
-      case 'gift-sprint': return projectOverlayState(type, context.system.getState()).giftSprint ?? null;
+      case 'gift-sprint': return projectOverlayState(type, getState()).giftSprint ?? null;
       case 'opening': return response('/api/opening/config', getOpeningConfig(context));
       case 'songlist': return { songs: response('/api/songs', context.songs.list({ enabledOnly: true })) };
       case 'lyrics': {
-        const { lyricState, lyricTimeline } = projectOverlayState(type, context.system.getState());
+        const { lyricState, lyricTimeline } = projectOverlayState(type, getState());
         return { lyricState, lyricTimeline };
       }
       case 'games': return { session: response('/api/games/session', context.games.getSession()) };

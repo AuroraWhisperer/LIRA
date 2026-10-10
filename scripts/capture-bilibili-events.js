@@ -10,6 +10,13 @@ const { cleanText } = require('../src/shared/utils');
 const { resolveDataPaths } = require('../src/shared/data-paths');
 
 const DEFAULT_DURATION_SECONDS = 300;
+const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+const MAX_PENDING_BYTES = 1024 * 1024;
+const MAX_EVENTS = 10000;
+// Bound command keys as well, so every successful capture can fit its final summary.
+const SUMMARY_RESERVED_BYTES = 64 * 1024;
+const MAX_COMMAND_COUNTS = 128;
+const MAX_COMMAND_KEY_BYTES = 256;
 
 function parseArguments(argv, cwd = process.cwd()) {
   if (argv.includes('--help') || argv.includes('-h')) return { help: true };
@@ -64,6 +71,7 @@ function buildCaptureRecord(message, receivedAt) {
     receivedAt,
     cmd: cleanText(message && message.cmd),
     data: message && message.data && typeof message.data === 'object' ? message.data : {},
+    message,
   };
 }
 
@@ -92,6 +100,9 @@ async function captureEvents(options) {
     eventCount: 0,
     commandCounts: {},
     parseErrorCount: 0,
+    decodeDiscardCounts: {},
+    writeRejectedCount: 0,
+    recordBytes: 0,
   };
   let timer = null;
   let connectTimer = null;
@@ -100,6 +111,9 @@ async function captureEvents(options) {
   let failure = null;
   let requestStop;
   let pendingWrites = Promise.resolve();
+  let pendingBytes = 0;
+  let outputBytes = 0;
+  let commandCountKeys = 0;
   const writeWait = new AbortController();
   const stopped = new Promise((resolve) => {
     requestStop = resolve;
@@ -130,16 +144,41 @@ async function captureEvents(options) {
     });
   });
 
-  function writeRecord(record) {
+  function writeRecord(record, final = false) {
+    const line = `${JSON.stringify(record)}\n`;
+    const bytes = Buffer.byteLength(line);
+    if (!final && outputBytes + bytes > MAX_OUTPUT_BYTES - SUMMARY_RESERVED_BYTES) {
+      stop('output-limit');
+      return false;
+    }
+    if (pendingBytes + writer.writableLength + bytes > MAX_PENDING_BYTES) {
+      stop('pending-output-limit');
+      return false;
+    }
+    pendingBytes += bytes;
+    outputBytes += bytes;
     pendingWrites = pendingWrites
       .then(async () => {
+        pendingBytes -= bytes;
         if (failure) return;
-        if (!writer.write(`${JSON.stringify(record)}\n`)) {
+        if (!writer.write(line)) {
           await once(writer, 'drain', { signal: writeWait.signal });
         }
       })
       .catch(onWriterError);
-    return pendingWrites;
+    return true;
+  }
+
+  function countCommand(command) {
+    const canTrack = Object.hasOwn(summary.commandCounts, command) || (
+      commandCountKeys < MAX_COMMAND_COUNTS && Buffer.byteLength(JSON.stringify(command)) <= MAX_COMMAND_KEY_BYTES
+    );
+    const cmd = canTrack ? command : '(other)';
+    if (!Object.hasOwn(summary.commandCounts, cmd)) {
+      commandCountKeys += 1;
+      Object.defineProperty(summary.commandCounts, cmd, { value: 0, writable: true, enumerable: true });
+    }
+    summary.commandCounts[cmd] += 1;
   }
 
   function onSignal() {
@@ -149,12 +188,24 @@ async function captureEvents(options) {
   connection.on('message', (buffer) => {
     if (stopping) return;
     try {
-      for (const message of packetParser.parseBilibiliPackets(buffer)) {
+      const messages = packetParser.parseBilibiliPackets(buffer, {
+        onDiscard(reason) {
+          summary.decodeDiscardCounts[reason] = (summary.decodeDiscardCounts[reason] || 0) + 1;
+        },
+      });
+      for (const message of messages) {
         if (!shouldCaptureMessage(message, options.giftOnly)) continue;
         const cmd = cleanText(message && message.cmd) || '(none)';
-        writeRecord(buildCaptureRecord(message, new Date().toISOString()));
+        if (!writeRecord(buildCaptureRecord(message, new Date().toISOString()))) {
+          summary.writeRejectedCount += 1;
+          break;
+        }
         summary.eventCount += 1;
-        summary.commandCounts[cmd] = (summary.commandCounts[cmd] || 0) + 1;
+        countCommand(cmd);
+        if (summary.eventCount >= MAX_EVENTS) {
+          stop('event-limit');
+          break;
+        }
       }
     } catch (error) {
       summary.parseErrorCount += 1;
@@ -193,14 +244,17 @@ async function captureEvents(options) {
     await Promise.race([Promise.all([connecting, opened]), stopped]);
     clearTimeout(connectTimer);
     if (!stopping) {
-      await writeRecord({
+      writeRecord({
         type: 'meta',
+        formatVersion: 2,
         startedAt: new Date().toISOString(),
         roomId: String(roomInfo.roomId),
         giftOnly: options.giftOnly,
         authenticated: Boolean(apiClient.cookieHeader && apiClient.uid),
         uid: apiClient.uid || 0,
+        limits: { maxOutputBytes: MAX_OUTPUT_BYTES, maxPendingBytes: MAX_PENDING_BYTES, maxEvents: MAX_EVENTS },
       });
+      await pendingWrites;
     }
     if (!stopping) {
       timer = setTimeout(() => stop('duration-elapsed'), options.durationMs);
@@ -223,7 +277,11 @@ async function captureEvents(options) {
       onWriterError(error);
     }
     await pendingWrites;
-    if (!failure) await writeRecord(summary);
+    if (!failure) {
+      summary.recordBytes = outputBytes;
+      writeRecord(summary, true);
+      await pendingWrites;
+    }
     try {
       if (failure) writer.destroy();
       else writer.end();
@@ -272,6 +330,7 @@ function printUsage() {
     'Logged-in desktop capture: electron scripts/bilibili-capture-electron ... --bilibili-user-data <Electron userData path>',
   );
   console.log('Set BILIBILI_COOKIE when the room requires a logged-in danmaku connection.');
+  console.log('Capture stops at 10,000 events, 16 MiB output, or 1 MiB pending output; the summary records the reason.');
 }
 
 async function main() {

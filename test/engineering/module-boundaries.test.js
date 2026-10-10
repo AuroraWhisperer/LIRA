@@ -18,13 +18,13 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
 const DOMAIN_SQL_LIMITS = {
   'src/ai/api-quota-store.js': 3,
   'src/ai/config-store.js': 18,
-  'src/overtime/overtime-store.js': 21,
+  // Includes pre-existing multiline calls that the original pattern missed.
+  'src/overtime/overtime-store.js': 23,
 };
 const EMPTY_CATCH_LIMITS = {
   'src/ai/deepseek-client.js': 1,
   'src/ai/http-client.js': 1,
   'src/bilibili/danmaku/websocket-connection.js': 3,
-  'src/bilibili/parsers/packet-decoder.js': 1,
   'src/electron/bilibili-login-window.js': 1,
   'src/electron/local-media-access.js': 1,
   'src/electron/terminal-log.js': 2,
@@ -52,7 +52,7 @@ const EMPTY_CATCH_LIMITS = {
   'public/js/playback/operations/state-persistence.js': 4,
   'public/js/playback/ui/components.js': 2,
 };
-const DOMAIN_SQL_PATTERN = /\b(?:db|songDb|superChatDb|giftDb|musicDb|checkinDb)\.(?:prepare|exec)\s*\(/g;
+const DOMAIN_SQL_PATTERN = /\b(?:db|songDb|superChatDb|giftDb|musicDb|checkinDb)\s*\.\s*(?:prepare|exec)\s*\(/g;
 const EMPTY_CATCH_PATTERN = /\bcatch(?:\s*\([^)]*\))?\s*\{(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\}/g;
 
 function read(relativePath) {
@@ -186,6 +186,13 @@ test('Admin legacy global usage is frozen and can only decrease', () => {
     assert.ok(count > 0, `${relativePath} has no legacy Admin global usage; remove its baseline`);
     assert.ok(count <= limit, `${relativePath} increases legacy Admin global usage`);
   }
+});
+
+test('domain SQL detection includes statements split across lines', () => {
+  for (const source of ['db.prepare(sql)', 'songDb\n  .prepare(sql)', 'giftDb . exec (sql)', 'musicDb\n.\nexec\n(sql)']) {
+    assert.equal(source.match(DOMAIN_SQL_PATTERN)?.length, 1, source);
+  }
+  assert.equal('store.prepare(sql)'.match(DOMAIN_SQL_PATTERN), null);
 });
 
 test('receiver-aware domain SQL usage is frozen and can only decrease', () => {

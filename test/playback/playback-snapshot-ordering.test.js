@@ -134,6 +134,12 @@ async function sender(store, options = {}) {
     calls,
     persistence,
     state,
+    async flushScheduledSave() {
+      const scheduled = [...timers.values()];
+      timers.clear();
+      for (const run of scheduled) run();
+      await new Promise((resolve) => setImmediate(resolve));
+    },
     rebuild() {
       return module.createStatePersistence({
         playbackState: state,
@@ -145,6 +151,49 @@ async function sender(store, options = {}) {
       await Promise.all(beaconSaves);
     },
   };
+}
+
+test('progress notifications defer track serialization until the debounced save captures the latest state', async (t) => {
+  const { store } = fixture(t);
+  const app = await sender(store);
+  let reads = 0;
+  app.state.normalQueue = [{ id: 'queued', source: 'qq', get title() { reads++; return 'Queued track'; } }];
+  for (let position = 1; position <= 40; position++) {
+    app.audio.currentTime = position;
+    app.persistence.savePlaybackState();
+  }
+  assert.equal(reads, 0, 'progress notifications must not repeatedly materialize the same tracks');
+  assert.equal(app.calls.http.length, 0);
+
+  app.audio.currentTime = 42;
+  app.state.normalQueue.push({ id: 'latest', source: 'qq', title: 'Latest track' });
+  await app.flushScheduledSave();
+  assert.equal(reads, 1);
+  assert.equal(app.calls.http.length, 1);
+  const saved = store.getQueueState().payload;
+  assert.equal(saved.currentTime, 42);
+  assert.deepEqual(saved.normalQueue.map((track) => track.id), ['queued', 'latest']);
+  assert.equal(saved.snapshotVersion.sequence, 40);
+});
+
+for (const flush of ['flushPlaybackStateOnUnload', 'flushPlaybackStateForShutdown']) {
+  test(`${flush} captures dirty state immediately even without a current track`, async (t) => {
+    const { store } = fixture(t);
+    const app = await sender(store);
+    app.state.current = null;
+    app.state.normalQueue = [{ id: 'queued', source: 'qq', title: 'Before closing' }];
+    app.persistence.savePlaybackState();
+    app.state.normalQueue[0].title = 'Latest before closing';
+    app.audio.currentTime = 42;
+    await app.persistence[flush]();
+    await app.settle();
+    const saved = store.getQueueState().payload;
+    assert.equal(saved.normalQueue[0].title, 'Latest before closing');
+    assert.equal(saved.currentTime, 42);
+    assert.equal(saved.snapshotVersion.sequence, 1);
+    await app.flushScheduledSave();
+    assert.equal(app.calls.http.length, 0, 'the cancelled debounce must not send a second snapshot');
+  });
 }
 
 test('a delayed old session cannot take ownership from a newer page', async (t) => {

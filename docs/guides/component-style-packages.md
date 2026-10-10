@@ -175,7 +175,7 @@ Compress-Archive -Path .\lira-pack.json, .\assets, .\使用说明.txt -Destinati
 
 月渡花汀的时钟、弹幕、许愿和开播使用分层原画及客户端动画。用 `schemaVersion:2`、`preset` 和 `resources` 声明这种样式，客户端继续渲染真实时间、弹幕、礼物进度与程序动画。ZIP 不携带或执行 JS/CSS。根目录清单仍是可变长度的 `styles` 数组：可以缺少某类组件，也可以有多个同类样式；不要为不存在的内容建空文件夹。
 
-运行 `node scripts/package-moonlit-suite.js`，生成 `output/月渡花汀-1.0.7.zip`。清单来自 [套装导出脚本](../../scripts/package-moonlit-suite.js)，包含 8 个样式、去重的运行素材、预览图、字体许可证和使用说明。点歌板包含原生 1145×1374 的暖色满月、群山与湖光倒影无损材质，花仅作岸边点缀；旧套装继续使用已导入的边框。原始素材保留在仓库，`build.files` 排除安装包中的专用素材。
+运行 `node scripts/package-moonlit-suite.js`，生成 `tmp/output/月渡花汀-1.0.7.zip`。清单来自 [套装导出脚本](../../scripts/package-moonlit-suite.js)，包含 8 个样式、去重的运行素材、预览图、字体许可证和使用说明。点歌板包含原生 1145×1374 的暖色满月、群山与湖光倒影无损材质，花仅作岸边点缀；旧套装继续使用已导入的边框。原始素材保留在仓库，`build.files` 排除安装包中的专用素材。
 
 下面是一份礼物许愿的单组件样式包清单，应从礼物许愿的「＋ 添加样式」导入。它虽然包含多个素材文件，仍不是套装。将预览图、许愿底图和起始装饰分别放到示例指定路径。`resources` 必须完整声明对应预设列出的资源，键是客户端逻辑路径，值是 ZIP 内的相对路径：
 

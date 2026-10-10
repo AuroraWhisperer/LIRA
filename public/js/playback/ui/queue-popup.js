@@ -4,6 +4,27 @@
 
 import * as UIComponents from './components.js';
 import { escapeHtml } from '../../shared/utils.js';
+import { getQueueTrackKey } from '../utils.js';
+
+// Copy the row templates' primitive inputs: queue arrays and tracks can mutate in place.
+function appendTrackValues(values, track) {
+  values.push(track.id, track.songRequestKey, track.title, track.coverUrl,
+    Array.isArray(track.artists) ? track.artists.join(' / ') : '', track.album, track.durationMs,
+    track.vip, track.playable, track.source === 'local', Boolean(track.objectUrl), track.fileMissing);
+}
+
+function readQueueViewValues(state, tracks) {
+  const values = [state.queueType, state.queueTitle, state.playlistIndex, state.currentOrigin,
+    Boolean(state.current), state.current ? getQueueTrackKey(state.current) : '', tracks.length];
+  for (const track of tracks) appendTrackValues(values, track);
+  const pending = state.pendingRequests || [];
+  values.push(pending.length);
+  for (const item of pending) {
+    values.push(item.songName, item.score, Array.isArray(item.reasons) ? item.reasons.join('；') : '');
+    appendTrackValues(values, item.track || {});
+  }
+  return values;
+}
 
 /**
  * 队列弹窗管理器
@@ -15,6 +36,7 @@ export class QueuePopup {
     this.backdrop = null;
     this.queueBtn = null;
     this.listContainer = null;
+    this.renderedValues = null;
   }
 
   /**
@@ -65,7 +87,14 @@ export class QueuePopup {
    * @param {Object} state - 播放状态对象
    */
   render(state) {
-    if (!this.listContainer) return;
+    // Both opening paths render the latest state before scrolling to the current track.
+    if (!this.listContainer || !this.isOpen) return;
+    const tracks = state.queueType === 'playlist' && state.normalQueueTracks.length
+      ? state.normalQueueTracks : this.getActiveQueue(state);
+    const values = readQueueViewValues(state, tracks);
+    if (this.renderedValues?.length === values.length
+      && values.every((value, index) => value === this.renderedValues[index])) return;
+    this.renderedValues = values;
 
     // 更新队列大小
     const queueSize = document.getElementById('queuePopupSize');

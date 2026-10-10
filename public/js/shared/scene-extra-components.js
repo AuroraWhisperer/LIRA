@@ -14,7 +14,10 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
   background: {
     title: '背景', size: [1920, 1080], path: '/background', variantKey: 'style',
     variants: [],
-    fields: { style: select('背景样式', 'none', { none: '无背景', moonlit: '月渡花汀 · 静态', 'moonlit-animated': '月渡花汀 · 动态' }), ...BACKGROUND_FIELDS },
+    fields: { style: select('背景样式', 'none', { none: '无背景', moonlit: '月渡花汀 · 静态', 'moonlit-animated': '月渡花汀 · 动态', windowlight: '窗映四时' }),
+      sceneMode: select('场景切换', 'manual', { manual: '手动选择', auto: '定时轮播' }),
+      windowScene: select('场景', 'sunny', { sunny: '晴天', sunset: '黄昏', rainy: '雨天', night: '夜晚' }),
+      sceneIntervalSeconds: number('轮播间隔（秒）', 300, 10, 3600), ...BACKGROUND_FIELDS },
   },
   opening: {
     title: '开播动画', size: [1920, 1080], path: '/opening', variantKey: 'style',

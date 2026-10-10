@@ -9,6 +9,7 @@ const {
   addSuperChatItem,
   getSuperChatSnapshot,
   handleSuperChatAction,
+  retractSuperChatItems,
 } = require('../../src/bilibili/superchat-service');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createSuperChatStore } = require('../../src/storage/superchat-store');
@@ -34,6 +35,24 @@ test('SuperChat service persists through its narrow store boundary', () => {
     handleSuperChatAction(context, 'delete', item.id);
     assert.deepEqual(getSuperChatSnapshot(context), []);
     assert.equal(addSuperChatItem(context, { platformId: 'sc-1', price: 30 }), null);
+
+    const second = addSuperChatItem(context, { platformId: 'sc-2', price: 50, message: '保留财务历史' });
+    const remaining = addSuperChatItem(context, { platformId: 'sc-3', price: 30 });
+    assert.equal(retractSuperChatItems(context, ['sc-2', 'sc-2', 'missing']), 1);
+    assert.deepEqual(getSuperChatSnapshot(context).map((row) => row.id), [remaining.id]);
+    assert.equal(retractSuperChatItems(context, ['sc-2']), 0);
+    assert.equal(retractSuperChatItems(context, []), 0);
+    const stored = context.store.findByPlatformId('sc-2');
+    assert.equal(stored.id, second.id);
+    assert.equal(stored.status, 'deleted');
+    assert.equal(stored.price, 50);
+    assert.equal(stored.message, '保留财务历史');
+    for (const action of ['assist', 'unassist']) {
+      const snapshot = handleSuperChatAction(context, action, second.id);
+      assert.deepEqual(snapshot.map((row) => row.id), [remaining.id]);
+      assert.equal(context.store.findByPlatformId('sc-2').status, 'deleted');
+    }
+    assert.equal(addSuperChatItem(context, { platformId: 'sc-2', price: 50 }), null);
   } finally {
     closeDatabases(db);
     fs.rmSync(dataDir, { recursive: true, force: true });

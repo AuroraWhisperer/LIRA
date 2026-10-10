@@ -88,7 +88,7 @@ export function initDanmakuPkReport({
   windowRef.addEventListener('online', reload);
   const unsubscribe = bridge?.onStateChanged?.(account);
   const initial = generation;
-  Promise.resolve(bridge?.getProfile?.())
+  Promise.resolve(bridge?.getState?.())
     .then((snapshot) => {
       if (generation === initial) account(snapshot);
     })

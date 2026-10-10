@@ -16,4 +16,15 @@ function isDnsHostname(value) {
   return hostname.split('.').every((label) => DNS_LABEL_PATTERN.test(label));
 }
 
-module.exports = { isDnsHostname };
+function normalizeRemoteRootOrigin(value) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    if (parsed.protocol !== 'https:' || !isDnsHostname(parsed.hostname) || parsed.username || parsed.password
+      || parsed.pathname !== '/' || parsed.search || parsed.hash) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { isDnsHostname, normalizeRemoteRootOrigin };

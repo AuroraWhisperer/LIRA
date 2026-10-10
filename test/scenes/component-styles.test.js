@@ -424,6 +424,50 @@ test('exported Moonlit ZIP installs eight native styles, validates resources and
   assert.equal((await f.request('list')).data[0].styles.length, 8);
 });
 
+test('windowlight ZIP imports four background scenes sharing immutable layered artwork', async t => {
+  const { createWindowlightEntries, createWindowlightZip } = require('../../scripts/package-windowlight-background');
+  const { WINDOWLIGHT_ART, normalizeResourceStyle } = require('../../public/js/shared/component-resource-style.js');
+  const entries = createWindowlightEntries();
+  const manifest = JSON.parse(entries.get('lira-pack.json'));
+  assert.equal(manifest.id, 'lira.windowlight-background');
+  assert.equal(manifest.version, '1.3.0');
+  assert.equal(entries.size, 10, 'Four variants share eight assets without copying their artwork.');
+  const f = await fixture(t);
+  const preview = await f.request('inspect?target=background', createWindowlightZip());
+  assert.equal(preview.status, 200, preview.error);
+  assert.equal(preview.data.isSuite, false);
+  assert.deepEqual((await f.request('list')).data, [], 'Inspect does not install styles.');
+  assert.deepEqual(preview.data.styles.map(style => style.name), ['窗映四时 · 晴天', '窗映四时 · 黄昏', '窗映四时 · 雨天', '窗映四时 · 夜晚']);
+  assert.deepEqual(preview.data.styles.map(style => style.config.windowScene), ['sunny', 'sunset', 'rainy', 'night']);
+  assert.equal((await f.request('install', { id: preview.data.id, target: 'background' })).status, 200);
+  const sources = preview.data.styles[0].config.resourceStyle.resources;
+  for (const style of preview.data.styles) {
+    assert.deepEqual(normalizeSceneConfig('background', style.config), style.config);
+    assert.equal(style.config.style, 'windowlight');
+    assert.equal(style.config.sceneMode, 'manual');
+    assert.equal(style.config.sceneIntervalSeconds, 300);
+    const resource = style.config.resourceStyle;
+    assert.equal(resource.preset, 'windowlight-background');
+    assert.deepEqual([resource.width, resource.height], [1920, 1080]);
+    assert.deepEqual(Object.keys(resource.resources), Object.values(WINDOWLIGHT_ART));
+    assert.deepEqual(resource.resources, sources);
+    assert.equal(resource.preview, sources[WINDOWLIGHT_ART[style.config.windowScene]]);
+    assert.throws(() => normalizeResourceStyle('background', resource, { ...style.config, style: 'moonlit' }));
+    const incomplete = { ...sources }; delete incomplete[WINDOWLIGHT_ART['window-mask']];
+    assert.throws(() => normalizeResourceStyle('background', { ...resource, resources: incomplete }, style.config));
+    assert.equal((await f.request('remove', { id: style.id })).status, 200);
+  }
+  for (const [original, source] of Object.entries(sources)) {
+    const response = await fetch(`${f.origin}${source}`);
+    assert.equal(response.status, 200, source);
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), entries.get(`assets/${path.posix.basename(original)}`));
+  }
+  const restored = await f.request('inspect?target=background', createWindowlightZip());
+  const result = await f.request('install', { id: restored.data.id, target: 'background' });
+  assert.equal(result.data.restored, true);
+  assert.equal(createComponentStyleStore(f.dataDir).list()[0].styles.length, 4);
+});
+
 test('nautical ZIP installs one guard style with three original animated tiers and immutable local resources', async t => {
   const { normalizeResourceStyle, NAUTICAL_GUARD_ART } = require('../../public/js/shared/component-resource-style.js');
   const { createNauticalGuardEntries, createNauticalGuardZip } = require('../../scripts/package-guard-nautical');

@@ -18,6 +18,36 @@ const openBrowserSession = useSharedBrowser();
 const textBoxItem = (config, x = 0) => ({ id: randomUUID(), type: 'text-box', name: '文本框', x, y: 0, width: 640, height: 180,
   visible: true, locked: false, appearance: { mode: 'independent', config } });
 
+test('scene output becomes ready when hidden child animation frames are paused', { timeout: 15000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(() => {
+    if (window.parent !== window) window.requestAnimationFrame = () => 1;
+  });
+  const created = fixture.service.create({ title: 'Hidden frames', canvas: { width: 1280, height: 720 } });
+  const items = ['clock', 'queue'].map((type, index) => ({
+    id: randomUUID(), type, name: type, x: index * 600, y: 0, width: 580, height: 400,
+    visible: true, locked: false, appearance: { mode: 'independent', config: fixture.configs[type] },
+  }));
+  const saved = fixture.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items } });
+  fixture.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
+  const { id, token } = fixture.service.getSource(saved.document.id);
+  const url = `${fixture.origin}/scene?id=${id}#token=${token}`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.locator('.scene-version:not(.is-staging)').waitFor({ timeout: 5000 });
+  assert.equal(await page.locator('.scene-version iframe').count(), 2);
+  assert.equal(await page.locator('#sceneStatus').isHidden(), true);
+  const queue = page.frames().find(frame => new URL(frame.url()).pathname === '/queue');
+  await queue.getByText('合成实时歌曲').first().waitFor();
+  assert.deepEqual(errors, []);
+});
+
 test('published layers are clipped at all four canvas edges in a letterboxed source', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   const browser = openBrowserSession();

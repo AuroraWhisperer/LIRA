@@ -1,5 +1,6 @@
 'use strict';
 
+const { createCancellableDelay } = require('../shared/cancellable-delay');
 const { createCloudSongSyncController } = require('./cloud-song-sync-controller');
 const { createGiftInteractionController, assertGiftInteractionResult } = require('./gift-interaction-controller');
 
@@ -41,7 +42,7 @@ function createCloudSyncController(options = {}) {
   let operation = Promise.resolve();
   let pendingSync = null;
   let streamAbortController = null;
-  let streamReconnectTimer = null;
+  const streamReconnect = createCancellableDelay(timers);
   let streamRetryMs = STREAM_RETRY_MIN_MS;
   let streamRetryNotBefore = 0;
   let streamConnections = 0;
@@ -180,9 +181,7 @@ function createCloudSyncController(options = {}) {
   }
 
   function clearStreamReconnectTimer() {
-    if (!streamReconnectTimer) return;
-    timers.clearTimeout(streamReconnectTimer);
-    streamReconnectTimer = null;
+    streamReconnect.cancel();
   }
 
   function schedule() {
@@ -223,27 +222,16 @@ function createCloudSyncController(options = {}) {
     const delay = Math.max(streamRetryMs, retryAfterMs);
     streamRetryNotBefore = now() + delay;
     streamRetryMs = Math.min(STREAM_RETRY_MAX_MS, streamRetryMs * 2);
-    const timer = timers.setTimeout(
-      () => {
-        if (streamReconnectTimer !== timer) return;
-        streamReconnectTimer = null;
-        if (delay > 2 ** 31 - 1) {
-          scheduleStreamReconnect(delay - (2 ** 31 - 1));
-          return;
-        }
-        streamRetryNotBefore = 0;
-        startEventStream();
-      },
-      Math.min(delay, 2 ** 31 - 1),
-    );
-    streamReconnectTimer = timer;
-    streamReconnectTimer.unref?.();
+    streamReconnect.schedule(() => {
+      streamRetryNotBefore = 0;
+      startEventStream();
+    }, delay);
   }
 
   function startEventStream() {
     if (
       streamAbortController ||
-      streamReconnectTimer ||
+      streamReconnect.isPending() ||
       !active ||
       !isAuthorized() ||
       typeof licenseManager.watchCloudStateChangesInternal !== 'function'
@@ -346,7 +334,7 @@ function createCloudSyncController(options = {}) {
       && (scope !== 'settings' || !getPendingSettings(work.accountKey))
       && (scope !== 'songs' || !songSync.hasPending(work.accountKey)))
       dirty.delete(scope);
-    return true;
+    return result;
   }
 
   async function flushDirty(work) {
@@ -533,6 +521,50 @@ function createCloudSyncController(options = {}) {
     return operation;
   }
 
+  function prepareSongWork() {
+    if (!isAuthorized()) throw Object.assign(new Error(), { code: 'LICENSE_NOT_AUTHORIZED' });
+    if (!prepareAccount()) throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });
+    if (!active) requestController = new AbortController();
+    active = true;
+    startEventStream();
+    return { generation: lifecycleGeneration, accountKey, signal: requestController.signal };
+  }
+
+  function getLocalSongCount() {
+    if (!isAuthorized()) throw Object.assign(new Error(), { code: 'LICENSE_NOT_AUTHORIZED' });
+    if (!prepareAccount()) throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });
+    return { count: runtime.getCloudSongsSnapshot().length, generation: lifecycleGeneration };
+  }
+
+  async function syncSongs(songs, expectedGeneration) {
+    const work = prepareSongWork();
+    if (expectedGeneration !== undefined && expectedGeneration !== work.generation) {
+      throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });
+    }
+    const currentLibrary = songs === undefined;
+    // Protect the local library from an already-running cloud pull immediately.
+    if (currentLibrary) markScopeDirty('songs');
+    return enqueue(async () => {
+      try {
+        if (!isCurrent(work)) throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });
+        if (retryNotBefore > now()) throw retryError;
+        // Earlier queued work may have flushed this scope. Read a fresh snapshot
+        // here, after confirmation and after that work has finished.
+        if (currentLibrary) markScopeDirty('songs');
+        const result = currentLibrary
+          ? await flushScope('songs', work)
+          : await licenseManager.syncSongs(songs, { signal: work.signal });
+        if (!isCurrent(work)) throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });
+        return result;
+      } catch (error) {
+        if (isCurrent(work)) rememberRetry(error);
+        throw error;
+      } finally {
+        if (isCurrent(work)) schedule();
+      }
+    });
+  }
+
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -552,6 +584,9 @@ function createCloudSyncController(options = {}) {
     start,
     stop,
     syncNow,
+    getLocalSongCount,
+    syncCurrentSongs: (generation) => syncSongs(undefined, generation),
+    syncSongs,
     whenIdle,
   };
 }

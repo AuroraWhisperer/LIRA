@@ -2,7 +2,6 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const { EventEmitter } = require('node:events');
@@ -40,12 +39,28 @@ test('capture arguments accept room, duration, output, and gift filter', () => {
 });
 
 test('capture records retain decoded command data without transport credentials', () => {
-  assert.deepEqual(buildCaptureRecord({ cmd: 'GUARD_BUY', data: { uid: 42 } }, '2026-08-03T12:00:00.000Z'), {
+  const message = { cmd: 'GUARD_BUY', data: { uid: 42 } };
+  assert.deepEqual(buildCaptureRecord(message, '2026-08-03T12:00:00.000Z'), {
     type: 'event',
     receivedAt: '2026-08-03T12:00:00.000Z',
     cmd: 'GUARD_BUY',
     data: { uid: 42 },
+    message,
   });
+});
+
+test('capture keeps the complete upstream message including danmaku info and envelope-name collisions', () => {
+  const message = {
+    cmd: 'DANMU_MSG',
+    info: [[], 'synthetic message', [42, 'Hi']],
+    pk_id: 'fixture-pk',
+    type: 'upstream-type',
+    receivedAt: 'upstream-time',
+  };
+  const record = buildCaptureRecord(message, 'capture-time');
+  assert.equal(record.type, 'event');
+  assert.equal(record.receivedAt, 'capture-time');
+  assert.deepEqual(JSON.parse(JSON.stringify(record)).message, message);
 });
 
 test('gift-only mode retains guard messages and excludes danmaku', () => {
@@ -64,7 +79,9 @@ test('desktop login data requires the Electron capture entry point', async () =>
 });
 
 function captureFixture(t, options = {}) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-capture-test-'));
+  const scratch = path.resolve(__dirname, '../../tmp');
+  fs.mkdirSync(scratch, { recursive: true });
+  const directory = fs.mkdtempSync(path.join(scratch, 'lira-capture-test-'));
   const outputPath = path.join(directory, 'events.ndjson');
   const signals = new EventEmitter();
   signals.env = {};
@@ -112,7 +129,7 @@ function captureFixture(t, options = {}) {
           ...fs,
           createWriteStream(file, flags) {
             assert.equal(flags.flags, 'wx');
-            if (!options.fault && !options.backpressure) {
+            if (!options.fault && !options.backpressure && !options.memoryOutput) {
               writer = fs.createWriteStream(file, flags);
             } else {
               writer = new Writable({
@@ -162,7 +179,15 @@ function captureFixture(t, options = {}) {
             return connection;
           },
         };
-      if (name.endsWith('/packet-parser')) return { parseBilibiliPackets: (messages) => messages };
+      if (name.endsWith('/packet-parser')) {
+        const parser = localRequire(name);
+        return {
+          ...parser,
+          parseBilibiliPackets: (input, parseOptions) => Array.isArray(input)
+            ? input
+            : parser.parseBilibiliPackets(input, parseOptions),
+        };
+      }
       if (name.endsWith('/utils')) return { cleanText: (value) => String(value || '').trim() };
       return localRequire(name);
     },
@@ -335,5 +360,81 @@ test('capture writes the existing NDJSON format and cleans up after duration', a
     ['meta', 'event', 'summary'],
   );
   assert.equal(records[2].commandCounts.GUARD_BUY, 1);
+  assert.equal(records[0].formatVersion, 2);
+  assert.equal(records[0].limits.maxPendingBytes, 1024 * 1024);
+  assert.equal(records[2].recordBytes, Buffer.byteLength(records.slice(0, -1).map((record) => `${JSON.stringify(record)}\n`).join('')));
+  f.assertClean();
+});
+
+test('capture stops a slow-output backlog before 1 MiB and drains accepted records with its summary', async (t) => {
+  const f = captureFixture(t, { backpressure: true });
+  const result = captureOutcome(f.run());
+  await f.until(() => f.records.length === 1);
+  const message = { cmd: 'DANMU_MSG', info: ['x'.repeat(400 * 1024)] };
+  f.connection.emit('message', [message, message, message]);
+  assert.equal(f.records.length, 1);
+  f.release();
+  const { summary } = await result;
+  assert.equal(summary?.reason, 'pending-output-limit');
+  assert.equal(summary.eventCount, 2);
+  assert.equal(summary.writeRejectedCount, 1);
+  assert.deepEqual(f.records.map((record) => record.type), ['meta', 'event', 'event', 'summary']);
+  f.assertClean();
+});
+
+test('capture reserves summary space and keeps the full output below 16 MiB', async (t) => {
+  const f = captureFixture(t, { memoryOutput: true });
+  const capture = f.run();
+  await f.until(() => [...f.timers].some((timer) => timer.milliseconds === 1000));
+  const message = { cmd: 'SEND_GIFT', data: { text: 'x'.repeat(128 * 1024) } };
+  for (let index = 0; index < 70 && !f.connection.closeCount; index += 1) {
+    f.connection.emit('message', [message]);
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  const { summary } = await captureOutcome(capture);
+  assert.equal(summary?.reason, 'output-limit');
+  assert.equal(summary.writeRejectedCount, 1);
+  assert.equal(summary.eventCount, f.records.filter((record) => record.type === 'event').length);
+  assert.ok(summary.eventCount > 50);
+  const bytes = f.records.reduce((total, record) => total + Buffer.byteLength(`${JSON.stringify(record)}\n`), 0);
+  assert.ok(bytes <= 16 * 1024 * 1024);
+  assert.equal(f.records.at(-1).type, 'summary');
+  f.assertClean();
+});
+
+test('capture stops at 10,000 events and bounds command-count cardinality', async (t) => {
+  const f = captureFixture(t, { memoryOutput: true });
+  const capture = f.run();
+  await f.until(() => [...f.timers].some((timer) => timer.milliseconds === 1000));
+  for (let batch = 0; batch < 21 && !f.connection.closeCount; batch += 1) {
+    f.connection.emit('message', Array.from({ length: 500 }, (_, index) => ({ cmd: `CMD_${batch * 500 + index}` })));
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  const { summary } = await captureOutcome(capture);
+  assert.equal(summary?.reason, 'event-limit');
+  assert.equal(summary.eventCount, 10000);
+  assert.equal(Object.keys(summary.commandCounts).length, 129);
+  assert.equal(summary.commandCounts['(other)'], 10000 - 128);
+  assert.equal(f.records.filter((record) => record.type === 'summary').length, 1);
+  f.assertClean();
+});
+
+test('capture distinguishes decoder discards from thrown errors and non-event packets', async (t) => {
+  const f = captureFixture(t, { memoryOutput: true });
+  const result = captureOutcome(f.run());
+  await f.until(() => [...f.timers].some((timer) => timer.milliseconds === 1000));
+  const heartbeat = Buffer.alloc(16);
+  heartbeat.writeUInt32BE(16, 0);
+  heartbeat.writeUInt16BE(16, 4);
+  heartbeat.writeUInt32BE(3, 8);
+  f.connection.emit('message', heartbeat);
+  f.connection.emit('message', Buffer.alloc(16));
+  f.connection.emit('message', null);
+  f.signals.emit('SIGINT');
+  const { summary } = await result;
+  assert.equal(summary?.parseErrorCount, 1);
+  assert.equal(summary.decodeDiscardCounts['invalid-packet-length'], 1);
+  assert.equal(Object.keys(summary.decodeDiscardCounts).length, 1);
+  assert.equal(summary.eventCount, 0);
   f.assertClean();
 });

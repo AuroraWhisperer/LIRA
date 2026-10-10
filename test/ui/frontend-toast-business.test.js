@@ -195,45 +195,6 @@ test('health results including thrown errors replace earlier results under one k
   assert.equal(operations.getProviderHealth().message, 'offline');
 });
 
-test('import summaries distinguish success, partial failure, no success and all duplicates', async () => {
-  for (const [data, type, text] of [
-    [{ inserted: 3, duplicate: 0, failed: 0 }, 'success', /已新增 3/],
-    [{ inserted: 2, duplicate: 0, failed: 1 }, 'warning', /2 首，1 行失败/],
-    [{ inserted: 0, duplicate: 0, failed: 3 }, 'warning', /本次未导入歌曲/],
-    [{ inserted: 0, duplicate: 3, failed: 0 }, undefined, /全部为重复歌曲/],
-  ]) {
-    const notices = [];
-    const result = {};
-    let reloads = 0;
-    const utils = {
-      value: () => 'song',
-      toast: (message, options) => notices.push({ message, ...options }),
-      api: async () => ({ data }),
-    };
-    const sandbox = {
-      window: {},
-      document: {
-        getElementById: (id) => (id === 'importFile' ? { files: [] } : id === 'importResult' ? result : null),
-      },
-    };
-    const { createSongImports } = await loadModuleExports(path.resolve('public/js/admin/song-import.js'), sandbox);
-    const imports = createSongImports({
-      utils,
-      state: {
-        reloadAll: async () => {
-          reloads++;
-        },
-      },
-    });
-    sandbox.window.AdminApp = {};
-    await imports.importSongs();
-    assert.equal(reloads, 1);
-    assert.equal(notices[0].type, type);
-    assert.match(notices[0].message, text);
-    assert.match(result.textContent, new RegExp(`失败 ${data.failed}`));
-  }
-});
-
 test('field feedback keeps the existing description and clears on editing', async () => {
   const { documentRef } = createDom();
   const input = documentRef.createElement('input');

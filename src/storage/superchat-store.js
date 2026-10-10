@@ -49,7 +49,15 @@ function createSuperChatStore(superChatDb) {
     },
 
     setStatus(id, status, updatedAt) {
-      superChatDb.prepare('UPDATE super_chats SET status = ?, updated_at = ? WHERE id = ?').run(status, updatedAt, id);
+      superChatDb.prepare("UPDATE super_chats SET status = ?, updated_at = ? WHERE id = ? AND status <> 'deleted'")
+        .run(status, updatedAt, id);
+    },
+
+    markDeletedByPlatformIds(platformIds, updatedAt) {
+      return Number(superChatDb.prepare(`
+        UPDATE super_chats SET status = 'deleted', updated_at = ?
+        WHERE platform_id IN (SELECT value FROM json_each(?)) AND status <> 'deleted'
+      `).run(updatedAt, JSON.stringify(platformIds)).changes);
     },
 
     listActive() {

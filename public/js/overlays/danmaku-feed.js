@@ -27,7 +27,7 @@ const LAYOUT_MOVE_CURVE = Object.freeze([0.3, 0.1, 0.2, 1]);
  *
  * @param {HTMLElement} root
  * @param {{maxItems?: number, offscreenViewports?: number, autoScroll?: boolean, layout?: string, showAvatar?: boolean, showGiftTotal?: boolean, itemLifetimeMs?: number, expireItems?: boolean, now?: Function, scheduleTimeout?: Function, cancelTimeout?: Function, resolveAvatarUrl?: Function, resolveEmoteUrl?: Function, getGuardLabel?: Function, classNames?: object}} options
- * @returns {{render: Function, append: Function, destroy: Function}}
+ * @returns {{render: Function, append: Function, remove: Function, destroy: Function}}
  */
 export function createDanmakuFeed(root, options = {}) {
   if (options.layout === 'floating') return createFloatingDanmakuFeed(root, options);
@@ -172,6 +172,13 @@ export function createDanmakuFeed(root, options = {}) {
     } else if (!fitViewport) pruneOldMessages();
     if (fullscreen || fitViewport) scheduleLayout();
     scrollToLatest();
+  }
+
+  function remove(ids) {
+    const removed = new Set(ids);
+    const matches = renderedEntries.filter((entry) => removed.has(entry.item.id));
+    for (const entry of matches) removeEntry(entry);
+    if (matches.length && (fullscreen || fitViewport)) scheduleLayout();
   }
 
   function updateViewportHeight() {
@@ -464,6 +471,7 @@ export function createDanmakuFeed(root, options = {}) {
   return {
     render,
     append,
+    remove,
     setRandomPlacement(value) {
       randomPlacement = { centerBias: value.centerBias, dispersion: value.dispersion };
     },

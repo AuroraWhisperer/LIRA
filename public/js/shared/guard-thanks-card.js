@@ -78,7 +78,6 @@ export function resolveGuardRenderer(style) {
 export function safeGuardAvatarUrl(value) {
   try {
     const url = new URL(String(value || ''));
-    const trusted = url.hostname === 'hdslb.com' || url.hostname.endsWith('.hdslb.com');
     return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : '';
   } catch {
     return '';

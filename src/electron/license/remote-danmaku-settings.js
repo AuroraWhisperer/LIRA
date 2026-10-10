@@ -2,6 +2,9 @@
 
 function createRemoteDanmakuSettings(request) {
   return {
+    getOverlaySettings: (token, requestOptions) => request('GET', '/api/device/overlay-settings', undefined, token, requestOptions),
+    updateOverlaySettings: (settings, token) => request('PUT', '/api/device/overlay-settings', settings, token),
+
     getOverlayFilters: (token) => request('GET', '/api/device/overlay-filters', undefined, token),
     updateOverlayFilters: (settings, token) => request('PUT', '/api/device/overlay-filters', settings, token),
     getOverlayViewers: (token) => request('GET', '/api/device/overlay-viewers', undefined, token),

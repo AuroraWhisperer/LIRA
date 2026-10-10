@@ -28,7 +28,7 @@
 
 | 函数                                                                                              | 用途                                                                                                                       |
 | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `api(url, body)`                                                                                  | POST JSON 便捷封装:自动 `Content-Type: application/json` + Bearer 头;解析信封后 `!payload.ok` 抛错;出错先 `showError` 再抛 |
+| `api(url, body, {notifyError=true, signal}={})`                                                     | POST JSON 便捷封装:自动 `Content-Type: application/json` + Bearer 头;HTTP 失败或 `!payload.ok` 抛错;按 notifyError 决定是否提示后再抛 |
 | `readJsonResponse(response, fallbackMessage)`                                                     | 统一响应解析:空响应→`{}`;非 JSON→带 HTTP 状态码与内容预览的报错;正常→`JSON.parse`                                          |
 | `showError(error)` / `toast(message)` / `showStackedToast(options)`                               | 错误与提示:全局 `#toast` 容器,支持 key 去重、点击回调、礼物通知最多 6 条上限                                               |
 | `escapeHtml` / `escapeAttr`                                                                       | 渲染前转义(所有模板插值必须经此)                                                                                           |
@@ -39,6 +39,8 @@
 | `withMultilingualFallback(fontFamily)`                                                            | 字体栈追加多语言回退                                                                                                       |
 
 ### 2.2 响应信封约定
+
+[json-response.js](../../../public/js/shared/json-response.js) 拥有无 UI 依赖的 JSON 解析与信封验证。`assertApiResponse(response,payload,message)` 统一检查 HTTP/业务失败，错误保留 status、code 和 payload；`readApiResponse` 读取 JSON 后应用同一规则。原 `utils.readJsonResponse` 继续转出带正文预览的解析器，保持空成功响应返回 `{}` 的兼容语义。场景、组件样式、开播设置、礼物许愿和弹幕工具共用验证；各调用方仍拥有提示、取消/超时、认证、上传格式、领域错误字段及成功事件，二进制下载先在领域模块处理。
 
 - 普通 JSON `/api/*` 接口成功返回 `{ok:true, data:…}`,失败返回 `{ok:false, error:…}`,统一由 `sendJson` 包装(见 [server-core.md](../backend/server-core.md) §4.3)。
 - 前端错误呈现:普通失败 `toast(错误信息)`;表单提交失败走 `showError`;直播刷新失败走 `forms.reconnectErrorMessage()` 把网络类错误翻译成可操作文案([forms.js:316-325](../../../public/js/admin/forms.js#L316-L325))。

@@ -77,7 +77,7 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
       rejectProfile = reject;
     });
     const bridge = {
-      getProfile: () => profile,
+      getState: () => profile,
       getOverlaySettings: async () => ({ ok: false }),
       onStateChanged(listener) {
         listeners.add(listener);

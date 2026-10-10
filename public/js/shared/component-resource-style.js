@@ -8,9 +8,15 @@ export const NAUTICAL_GUARD_ART = Object.freeze(Object.fromEntries(
   ['captain', 'admiral', 'governor'].map(tier => [tier, `/img/overlays/guard-nautical/${tier}.webp`])));
 export const NAUTICAL_GUARD_AVATAR = '/img/overlays/guard-nautical/avatar.png';
 export const WOODLAND_GIFT_VIDEO = '/img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm';
+export const WINDOWLIGHT_ART = Object.freeze(Object.fromEntries(
+  ['sunny', 'sunset', 'rainy', 'night', 'dappled-light', 'prismatic-light', 'window-mask', 'lamp-light']
+    .map(name => [name, `/img/overlays/backgrounds/windowlight/${name}.webp`])));
 
 // These are trusted client renderers, never code supplied by an archive.
 export const COMPONENT_RESOURCE_PRESETS = Object.freeze({
+  'windowlight-background': { type: 'background', config: { style: 'windowlight', sceneMode: 'manual',
+    windowScene: 'sunny', sceneIntervalSeconds: 300 }, styles: ['windowlight'], size: [1920, 1080],
+    resources: Object.values(WINDOWLIGHT_ART), sheets: [] },
   'woodland-gift-frame': { type: 'gift-frame', config: {}, size: [1920, 1080],
     resources: [WOODLAND_GIFT_VIDEO], sheets: [] },
   'nautical-guard-thanks': { type: 'guard-thanks', config: { textMode: 'follow' },
@@ -88,5 +94,5 @@ export function componentStyleMedia(config) {
 }
 
 export function isExternalComponentStyle(value) {
-  return ['moonlit', 'moonlit-animated', 'moonlit-fan'].includes(value);
+  return ['moonlit', 'moonlit-animated', 'moonlit-fan', 'windowlight'].includes(value);
 }

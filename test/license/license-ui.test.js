@@ -153,9 +153,18 @@ for (const [label, previewUrl, rendered] of [
     const { initCloudSongBackground } = await loadModuleExports(
       path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'),
       {
-        URL,
+        URL: class extends URL {
+          static createObjectURL() { return 'blob:background-preview'; }
+          static revokeObjectURL() {}
+        },
+        AbortController,
+        fetch: async () => new Response(new Blob(['image'], { type: 'image/png' })),
         document: { getElementById: (id) => elements.get(id) || null },
-        window: { liraLicense: { getSongPageBackground: () => initial } },
+        window: {
+          location: { href: 'http://127.0.0.1:3001/admin' },
+          addEventListener() {},
+          liraLicense: { getSongPageBackground: () => initial },
+        },
       },
     );
     const controls = ['licenseSongBgFile', 'licenseSongBgPickBtn', 'licenseSongBgDeleteBtn'].map((id) =>
@@ -173,7 +182,7 @@ for (const [label, previewUrl, rendered] of [
       [false, false, false],
     );
     const preview = elements.get('licenseSongBgPreview');
-    assert.equal(preview.src, rendered ? previewUrl : undefined);
+    assert.equal(preview.src, rendered ? 'blob:background-preview' : undefined);
     assert.equal(preview.hidden, !rendered);
     assert.equal(elements.get('licenseSongBgResult').textContent === '', rendered);
   });

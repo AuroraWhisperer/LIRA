@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "5.2.3",
+  "version": "5.2.4",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -74,6 +74,7 @@
       "!public/img/admin/nav-icons/*.png",
       "!public/img/overlays/opening/**/*",
       "!public/img/overlays/backgrounds/moonlit*",
+      "!public/img/overlays/backgrounds/windowlight/**/*",
       "!public/img/overlays/opening-moon-fan/**/*",
       "!public/img/overlays/clock-moonlit-fan/**/*",
       "!public/img/overlays/danmaku-moonlit/**/*",

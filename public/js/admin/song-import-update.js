@@ -22,6 +22,7 @@ const STATUS_LABELS = {
   unchanged: '未改变',
   conflict: '冲突',
   invalid: '无效',
+  deleted: '删除',
 };
 const ERROR_MESSAGES = {
   SONG_IMPORT_PREVIEW_STALE: '歌库或导入内容已变化，请重新预览。',
@@ -31,13 +32,10 @@ const ERROR_MESSAGES = {
 };
 
 export function initSongImportUpdate({ imports, reloadSongs, request = api, documentRef = document }) {
-  const mode = documentRef.getElementById('songImportMode');
-  if (!mode) return;
+  const previewButton = documentRef.getElementById('songImportPreviewBtn');
+  if (!previewButton) return;
   const textInput = documentRef.getElementById('importText');
   const fileInput = documentRef.getElementById('importFile');
-  const clearInput = documentRef.getElementById('songImportAllowEmptyClear');
-  const options = documentRef.getElementById('songImportUpdateOptions');
-  const previewButton = documentRef.getElementById('songImportPreviewBtn');
   const applyButton = documentRef.getElementById('songImportApplyBtn');
   const panel = documentRef.getElementById('songImportPreview');
   const summary = documentRef.getElementById('songImportPreviewSummary');
@@ -52,9 +50,6 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
   let page = 0;
 
   function refreshButtons() {
-    const updating = mode.value === 'update';
-    options.hidden = !updating;
-    documentRef.getElementById('importBtn').hidden = updating;
     previewButton.disabled = busy;
     applyButton.disabled = busy || !preview?.data.canApply;
   }
@@ -88,7 +83,7 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
         )
         .join('\n');
       for (const value of [
-        row.row,
+        row.row ?? '—',
         `${row.name || '（无歌名）'} / ${row.artist || '（无歌手）'}`,
         STATUS_LABELS[row.status],
         changes,
@@ -108,14 +103,13 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
 
   async function readInput() {
     const file = fileInput.files[0];
-    const allowEmptyClear = clearInput.checked;
     if (file && /\.xlsx$/i.test(file.name)) {
-      return { base64: await imports.readFileAsBase64(file), allowEmptyClear };
+      return { base64: await imports.readFileAsBase64(file), replaceAll: true };
     }
     const text = file ? await imports.readTextFile(file) : textInput.value;
     return {
       rows: parseTable(text, { preserveMissing: true }),
-      allowEmptyClear,
+      replaceAll: true,
     };
   }
 
@@ -143,7 +137,7 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
       panel.hidden = false;
       renderPage();
       result.textContent = response.data.canApply
-        ? '请检查差异，确认后应用；不会删除未列出的歌曲。'
+        ? `确认后将以新表格替换整个歌库，删除 ${response.data.counts.deleted} 首未列出的旧歌曲；已有点歌记录保留。`
         : '没有可应用的变更，或存在冲突/无效行；请修正后重新预览。';
     } catch (error) {
       if (current === generation) showFailure(error);
@@ -160,7 +154,7 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
     preview = null;
     busy = true;
     refreshButtons();
-    result.textContent = '正在应用预览…';
+    result.textContent = '正在替换歌库…';
     try {
       const response = await request('/api/songs/import-apply', {
         ...submitted.payload,
@@ -170,7 +164,7 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
         panel.hidden = true;
         table.replaceChildren();
         const counts = response.data;
-        result.textContent = `本地已新增 ${counts.inserted}、更新 ${counts.updated}、未改变 ${counts.unchanged} 首；网页更新以云端同步结果为准。`;
+        result.textContent = `本地歌库已替换：新增 ${counts.inserted}、更新 ${counts.updated}、删除 ${counts.deleted}、未改变 ${counts.unchanged} 首；网页更新以云端同步结果为准。`;
       }
       try {
         await reloadSongs();
@@ -189,10 +183,8 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
     }
   });
 
-  mode.addEventListener('change', invalidate);
   textInput.addEventListener('input', invalidate);
   fileInput.addEventListener('change', invalidate);
-  clearInput.addEventListener('change', invalidate);
   previous.addEventListener('click', () => {
     if (preview && page > 0) {
       page -= 1;

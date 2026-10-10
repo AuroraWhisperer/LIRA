@@ -228,6 +228,9 @@ async function createPlaybackApp(initialState, options = {}) {
     clearTimeout(id) {
       timers.delete(id);
     },
+    requestAnimationFrame() {
+      return 0;
+    },
     Blob: class {
       constructor(parts, options) {
         this.parts = parts;
@@ -402,6 +405,10 @@ class FakeElement {
 
   getAttribute(name) {
     return this.attributes.get(name) ?? null;
+  }
+
+  contains() {
+    return false;
   }
 
   async emit(eventName, event = {}) {

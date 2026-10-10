@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         configureEffects(config);
       },
       showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true,
-      clear: () => applyItems([]), append: appendItem, status: setConnectionState, getStyle: () => currentOverlayStyle,
+      clear: () => applyItems([]), append: appendItem, remove: removeSuperChats, status: setConnectionState, getStyle: () => currentOverlayStyle,
       dispose() {
         window.removeEventListener('resize', syncRankedOverlayScale);
         if (renderFrame !== null) cancelAnimationFrame(renderFrame);
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let previewTimer = null;
     let previewSequence = 0;
     let playNext;
-    const sceneDisplay = createSceneDanmakuDisplay({ clear: () => applyItems([]), append: appendItem,
+    const sceneDisplay = createSceneDanmakuDisplay({ clear: () => applyItems([]), append: appendItem, remove: removeSuperChats,
       status: setConnectionState, getStyle: () => currentOverlayStyle, showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true });
     initDanmakuPreview({
       initialStyle: params.get('style'),
@@ -207,6 +207,17 @@ function appendItem(item) {
   items = [...items, item].slice(-MAX_ITEMS);
   pendingItems = [...pendingItems, item].slice(-MAX_ITEMS);
   if (renderFrame === null) renderFrame = requestAnimationFrame(flushPendingItems);
+}
+
+function removeSuperChats(messageIds) {
+  const deleted = new Set(messageIds);
+  const matches = (item) => item.kind === 'superchat' && deleted.has(item.messageId);
+  const removedIds = items.filter(matches).map((item) => item.id);
+  if (!removedIds.length) return;
+  items = items.filter((item) => !matches(item));
+  pendingItems = pendingItems.filter((item) => !matches(item));
+  feed.remove(removedIds);
+  renderMessageCount();
 }
 
 function flushPendingItems() {

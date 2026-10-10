@@ -3,13 +3,14 @@
 // Real Electron, shipped markup/styles/preload, synthetic configuration only.
 const { app, BrowserWindow, ipcMain } = require('electron');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
 const assert = require('node:assert/strict');
 const { composeAdminHtml } = require('../src/server/admin-page');
 const { registerLicenseIpc } = require('../src/electron/ipc/license-ipc');
-const output = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-overlay-filter-check-'));
+const scratch = path.resolve(__dirname, '../tmp');
+fs.mkdirSync(scratch, { recursive: true });
+const output = fs.mkdtempSync(path.join(scratch, 'lira-overlay-filter-check-'));
 app.setPath('userData', path.join(output, 'electron'));
 const publicDir = path.resolve(__dirname, '../public');
 const complete = composeAdminHtml(publicDir).replace(/\r\n/g, '\n');

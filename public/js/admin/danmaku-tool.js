@@ -1,5 +1,6 @@
 'use strict';
 import { toast as defaultToast } from '../shared/utils.js';
+import { readApiResponse } from '../shared/json-response.js';
 import { publishDanmakuTool } from './legacy-admin-bridge.js';
 
 import { createCustomReplyEditor } from './danmaku-libraries.js';
@@ -28,8 +29,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ [key]: value }),
     });
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) throw new Error(payload.error || '保存设置失败');
+    const payload = await readApiResponse(response, '保存设置失败');
     return payload.data;
   };
   const customReplyEditor = createCustomReplyEditor({
@@ -57,16 +57,12 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
     elements.refreshButton.disabled = true;
     try {
       const response = await fetch('/api/bilibili/danmaku/state');
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '获取发送状态失败');
+      const payload = await readApiResponse(response, '获取发送状态失败');
       let state = payload.data || {};
       if (reconnectIfDisconnected && !state.connected) {
         await reconnectBilibili?.();
         const refreshedResponse = await fetch('/api/bilibili/danmaku/state');
-        const refreshedPayload = await refreshedResponse.json();
-        if (!refreshedResponse.ok || !refreshedPayload.ok) {
-          throw new Error(refreshedPayload.error || '获取刷新后的发送状态失败');
-        }
+        const refreshedPayload = await readApiResponse(refreshedResponse, '获取刷新后的发送状态失败');
         state = refreshedPayload.data || {};
       }
       renderState(elements, state, {
@@ -115,8 +111,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),
       });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '发送弹幕失败');
+      const payload = await readApiResponse(response, '发送弹幕失败');
       elements.message.value = '';
       updateCounter();
       const count = Number(payload.data?.count) || 1;
@@ -141,8 +136,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
     elements.autoButton.disabled = true;
     try {
       const response = await fetch('/api/bilibili/danmaku/state');
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '获取发送状态失败');
+      const payload = await readApiResponse(response, '获取发送状态失败');
       const state = payload.data || {};
       if (!state.loggedIn) {
         toast('未登录账号，请先登录后再使用自动发送');

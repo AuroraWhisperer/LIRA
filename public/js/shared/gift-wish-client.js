@@ -1,3 +1,5 @@
+import { readApiResponse } from './json-response.js';
+
 export async function requestGiftWish(path, body, signal) {
   // Browser sources may use a Chromium version without AbortSignal.any/timeout.
   const controller = new AbortController();
@@ -16,11 +18,7 @@ export async function requestGiftWish(path, body, signal) {
           }),
       signal: controller.signal,
     });
-    const result = await response.json();
-    if (!response.ok || !result.ok)
-      throw Object.assign(new Error(result.error || '许愿暂未更新，请重试。'), {
-        code: result.code,
-      });
+    const result = await readApiResponse(response, '许愿暂未更新，请重试。');
     return result.data;
   } finally {
     clearTimeout(timeout);

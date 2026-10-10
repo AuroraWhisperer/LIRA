@@ -1,8 +1,9 @@
 'use strict';
 
-const { hasExactOrigin } = require('../local-media-access');
+const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
 
 function registerGiftExportIpc({ ipcMain, controller, getMainWindow, getDesktopBaseUrl }) {
+  const register = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
   let owner = null;
   const cancel = () => controller.cancel();
   const navigation = (_event, _url, inPlace, mainFrame) => {
@@ -22,18 +23,8 @@ function registerGiftExportIpc({ ipcMain, controller, getMainWindow, getDesktopB
     'open-folder': 'openFolder',
   };
   for (const [channel, method] of Object.entries(methods)) {
-    ipcMain.handle(`gift-export:${channel}`, async (event, input) => {
+    register(`gift-export:${channel}`, async (_event, input) => {
       const win = getMainWindow();
-      if (
-        !win ||
-        win.isDestroyed() ||
-        event.sender !== win.webContents ||
-        event.senderFrame !== win.webContents.mainFrame ||
-        !hasExactOrigin(event.senderFrame.url, getDesktopBaseUrl()) ||
-        !['/', '/admin', '/settings', '/songs'].includes(new URL(event.senderFrame.url).pathname)
-      ) {
-        return { ok: false, error: 'IPC_SOURCE_INVALID' };
-      }
       try {
         if (owner !== win.webContents) {
           unbind();

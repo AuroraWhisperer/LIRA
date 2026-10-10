@@ -55,7 +55,6 @@ export function createBlindboxSettings({
   saveSettings,
   getGifts,
   getState,
-  getImports,
   localOverlayOrigin,
 }) {
   const invalid = (id, message) => showFieldError(documentRef.getElementById(id), message, documentRef);
@@ -240,9 +239,6 @@ export function createBlindboxSettings({
     customConfig.addEventListener('input', () => {
       customConfig.dataset.dirty = 'true';
       renderBlindboxList();
-    });
-    documentRef.getElementById('importBtn').addEventListener('click', () => {
-      getImports()?.importSongs?.();
     });
   }
 

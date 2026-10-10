@@ -223,6 +223,27 @@ test('current restart errors still reject without blocking a later reconnect', a
   assert.equal(fixture.clients[0].stopCount, 1);
 });
 
+test('like state follows the configured room and is unavailable after disconnect', async (t) => {
+  t.mock.method(console, 'info', () => {});
+  const fixture = createReplacementFixture();
+  t.after(() => fixture.runtime.stop());
+  const unknown = { roomId: '123', count: null, updatedAt: null, connected: false };
+  assert.deepEqual(fixture.runtime.getLikeState(), unknown);
+  await fixture.runtime.reconnect();
+  const state = { roomId: '100123', count: 42, updatedAt: '2026-10-10T01:00:00.000Z', connected: true };
+  fixture.clients[0].getLikeState = () => state;
+  assert.deepEqual(fixture.runtime.getLikeState(), state);
+
+  fixture.settings.roomId = '456';
+  assert.deepEqual(fixture.runtime.getLikeState(), { ...unknown, roomId: '456' });
+  await fixture.runtime.reconnect();
+  const nextState = { ...state, roomId: '456', count: 0 };
+  fixture.clients[1].getLikeState = () => nextState;
+  assert.deepEqual(fixture.runtime.getLikeState(), nextState);
+  fixture.runtime.disconnect();
+  assert.deepEqual(fixture.runtime.getLikeState(), { ...unknown, roomId: '456' });
+});
+
 function createReplacementFixture(options = {}) {
   const settings = { roomId: '123', enableBilibili: 'true' };
   const clients = [];

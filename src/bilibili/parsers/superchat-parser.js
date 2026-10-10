@@ -27,7 +27,7 @@ function extractBilibiliSuperChatMessage(packet, roomOwnerUid = '') {
     normalizeTimestampMs(readObjectValue(data, ['start_time', 'startTime', 'ts', 'time', 'timestamp'])) || Date.now();
 
   return {
-    id: cleanText(readObjectValue(data, ['id', 'message_id', 'messageId', 'token'])),
+    id: cleanText(readObjectValue(data, ['id_str', 'id', 'message_id', 'messageId', 'token'])),
     message: cleanText(readObjectValue(data, ['message', 'message_trans', 'messageTrans'])),
     price: normalizeSuperChatPrice(readObjectValue(data, ['price', 'rmb', 'price_text', 'priceText'])),
     uid: cleanText(readObjectValue(data, ['uid', 'mid']) || readObjectValue(userInfo, ['uid', 'mid'])),
@@ -52,6 +52,17 @@ function extractBilibiliSuperChatMessage(packet, roomOwnerUid = '') {
   };
 }
 
+function extractBilibiliSuperChatDeleteIds(packet) {
+  const ids = packet?.data?.ids;
+  if (!Array.isArray(ids)) return [];
+  return [...new Set(ids.flatMap((value) => {
+    if (typeof value !== 'string' && !(Number.isSafeInteger(value) && value > 0)) return [];
+    const id = String(value).trim();
+    return id && id.length <= 128 ? [id] : [];
+  }))];
+}
+
 module.exports = {
   extractBilibiliSuperChatMessage,
+  extractBilibiliSuperChatDeleteIds,
 };

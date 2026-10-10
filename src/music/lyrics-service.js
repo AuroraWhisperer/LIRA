@@ -72,8 +72,8 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
   const limit = Math.max(1, Math.min(5000, Number(input.limit) || 100));
   const offset = Math.max(0, Number(input.offset) || 0);
   const provider = registry.get(platform);
-  // radio / daily 的重点就是每次给新歌，缓存会让它们永远返回同一批，所以不缓存。
-  const cacheable = ['personalized', 'playlist-tracks'].includes(action);
+  // 歌单详情由播放器缓存并后台刷新，服务端不再缓存，避免写入后的刷新读到旧内容。
+  const cacheable = action === 'personalized';
   const page = Math.max(1, Math.min(50, Number(input.page) || 1));
   const bypassCache = input.refresh === true || page > 1;
   const cacheKey =
@@ -105,16 +105,12 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
   if (action === 'playlist-tracks') {
     const playlistId = cleanText(input.playlistId);
     if (!playlistId) throw new Error('缺少歌单 ID。');
-    const result = {
+    return {
       source: platform,
       action,
       playlistId,
       tracks: await provider.getPlaylistTracks(playlistId, { limit }),
     };
-    if (cacheKey && result.tracks && result.tracks.length > 0) {
-      writeMusicJsonCache(apiCacheDir, cacheKey, result, MUSIC_API_CACHE_MAX_BYTES);
-    }
-    return result;
   }
   if (action === 'daily')
     return {

@@ -84,6 +84,13 @@ function createSongStore(songDb) {
     return songDb.prepare('SELECT * FROM songs WHERE id = ?').get(Number(id));
   }
 
+  function deleteSongWithinTransaction(id) {
+    const songId = Number(id);
+    songDb.prepare('UPDATE queue SET song_id = NULL WHERE song_id = ?').run(songId);
+    songDb.prepare('UPDATE requests SET song_id = NULL WHERE song_id = ?').run(songId);
+    songDb.prepare('DELETE FROM songs WHERE id = ?').run(songId);
+  }
+
   function listCategoryRows() {
     return songDb
       .prepare(
@@ -272,12 +279,7 @@ function createSongStore(songDb) {
 
     deleteSong(id) {
       return withTransaction(
-        () => {
-          const songId = Number(id);
-          songDb.prepare('UPDATE queue SET song_id = NULL WHERE song_id = ?').run(songId);
-          songDb.prepare('UPDATE requests SET song_id = NULL WHERE song_id = ?').run(songId);
-          songDb.prepare('DELETE FROM songs WHERE id = ?').run(songId);
-        },
+        () => deleteSongWithinTransaction(id),
         { syncPending: true },
       );
     },
@@ -370,6 +372,8 @@ function createSongStore(songDb) {
       return withTransaction(
         () => {
           const plan = buildPlan(store.listRows(), store.listCategories());
+          const total = plan.rows.length - (plan.counts.deleted || 0);
+          for (const id of plan.deletions) deleteSongWithinTransaction(id);
           const knownCategories = new Set(listCategoryRows().map((row) => row.name));
           let createdCategories = 0;
           for (const { id, song } of plan.changes) {
@@ -411,8 +415,8 @@ function createSongStore(songDb) {
             created_category_count, created_at) VALUES (?, ?, ?, 0, ?, ?)
         `,
             )
-            .run(plan.rows.length, plan.counts.inserted, plan.counts.unchanged, createdCategories, now());
-          return { total: plan.rows.length, ...plan.counts, createdCategories };
+            .run(total, plan.counts.inserted, plan.counts.unchanged, createdCategories, now());
+          return { total, ...plan.counts, createdCategories };
         },
         { syncPending: true },
       );

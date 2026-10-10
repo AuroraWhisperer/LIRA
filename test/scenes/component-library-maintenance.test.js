@@ -7,6 +7,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { createComponentStyleStore } = require('../../src/storage/component-style-store');
+const { installComponentStyle } = require('../../src/server/component-style-install');
 const { createComponentLibraryMaintenance } = require('../../src/server/component-library-maintenance');
 const { PENDING_TTL_MS } = require('../../src/storage/component-style-files');
 const { createComponentPreviewSessions } = require('../../src/server/component-preview-sessions');
@@ -24,16 +25,16 @@ function fixture(t) {
         config: { url: `/component-web/${id}/scene.html` } })) };
     store.stage(pack);
     fs.writeFileSync(path.join(store.directory(id, true), 'asset.webp'), 'synthetic media');
-    return store.install(id);
+    return installComponentStyle(store, id, () => {});
   }
   return { dataDir, store, references, maintenance, install };
 }
 
-test('single-category versions replace as a whole, retaining old URLs and restoring reclaimed identical packages', t => {
+test('single-category versions replace as a whole, retaining old URLs and restoring reclaimed identical packages', async t => {
   const f = fixture(t);
-  const first = f.install();
+  const first = await f.install();
   f.store.updateConfig(first.styles[0].id, config => ({ ...config, label: '已保存参数' }));
-  const second = f.install('2.0.0');
+  const second = await f.install('2.0.0');
   assert.equal(second.replaced, 1);
   assert.deepEqual(f.store.list().map(pack => pack.id), [second.id]);
   assert.ok(fs.existsSync(f.store.directory(first.id)));
@@ -51,7 +52,7 @@ test('single-category versions replace as a whole, retaining old URLs and restor
     }
     return rename(source, target);
   });
-  const restored = f.install();
+  const restored = await f.install();
   assert.equal(attempts, 2);
   assert.equal(restored.id, first.id); assert.equal(restored.restored, true);
   assert.deepEqual(restored.styles.map(style => style.id), first.styles.map(style => style.id));
@@ -59,8 +60,8 @@ test('single-category versions replace as a whole, retaining old URLs and restor
   assert.ok(fs.existsSync(path.join(f.store.directory(first.id), 'asset.webp')));
 });
 
-test('cleanup rechecks references and authorization and never trusts stale inventory', t => {
-  const f = fixture(t); const pack = f.install();
+test('cleanup rechecks references and authorization and never trusts stale inventory', async t => {
+  const f = fixture(t); const pack = await f.install();
   f.store.removePack(pack.id);
   assert.ok(f.maintenance.inventory().reclaimableBytes > 0);
   f.references.push({ resourceStyle: { id: pack.styles[0].id } });
@@ -94,8 +95,8 @@ test('reopening reclaims expired pending files while protecting in-flight and re
   } finally { f.store.endPending(ids[1]); }
 });
 
-test('an interrupted cleanup keeps a retryable quarantine and never follows external directories', t => {
-  const f = fixture(t); const pack = f.install(); f.store.removePack(pack.id);
+test('an interrupted cleanup keeps a retryable quarantine and never follows external directories', async t => {
+  const f = fixture(t); const pack = await f.install(); f.store.removePack(pack.id);
   const rm = fs.rmSync;
   const locked = t.mock.method(fs, 'rmSync', (target, options) => {
     if (target === path.join(f.store.root, `.purged-${pack.id}`)) throw Object.assign(new Error('locked'), { code: 'EPERM' });
@@ -109,7 +110,7 @@ test('an interrupted cleanup keeps a retryable quarantine and never follows exte
 });
 
 test('all account drafts and publications are decoded for retention; active preview commands also protect assets', async t => {
-  const f = fixture(t); const pack = f.install(); f.store.removePack(pack.id);
+  const f = fixture(t); const pack = await f.install(); f.store.removePack(pack.id);
   const canvas = await startCanvasOutputFixture({ dataDir: f.dataDir }); t.after(() => canvas.close());
   const scene = canvas.service.create({ title: '其他账号', canvas: { width: 1920, height: 1080 } });
   const document = { ...scene.document, items: [{ id: randomUUID(), type: 'browser', name: '网页素材',

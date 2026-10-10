@@ -208,6 +208,28 @@ test('cloud appearance update changes only the default cache, not state epoch or
   assert.doesNotMatch(JSON.stringify(fixture.buffer.getSettings()), /PRIVATE/);
 });
 
+test('SC deletion is an ordered session-scoped cursor event with a defensive ID list', () => {
+  const fixture = bufferFixture();
+  const initial = fixture.connect();
+  const messageId = 'a'.repeat(64);
+  const sc = { type: 'superchat', liveSessionId: 'session-a', timestamp, name: '留言人', message: '合成留言',
+    avatarUrl: '', price: 30, messageId };
+  const deletion = { type: 'superchat-delete', liveSessionId: 'session-a', timestamp, messageIds: [messageId] };
+  assert.equal(fixture.update('connected', sc), true);
+  assert.equal(fixture.update('connected', { ...deletion, liveSessionId: 'other' }), false);
+  for (const messageIds of [[], ['123'], [messageId.toUpperCase()], [messageId, messageId], Array(129).fill(messageId)]) {
+    assert.equal(fixture.update('connected', { ...deletion, messageIds }), false);
+  }
+  assert.equal(fixture.update('connected', { ...deletion, privateId: 'PRIVATE', name: 'PRIVATE' }), true);
+  const after = fixture.buffer.getSnapshot({ epoch: initial.epoch, cursor: 0 });
+  assert.equal(after.reset, false);
+  assert.equal(after.nextCursor, 2);
+  assert.deepEqual(after.events, [sc, deletion]);
+  deletion.messageIds.length = 0;
+  after.events[1].messageIds.push('changed');
+  assert.deepEqual(fixture.buffer.getSnapshot({ epoch: initial.epoch, cursor: 1 }).events[0].messageIds, [messageId]);
+});
+
 function componentFixture() {
   let state = {
     settings: { ...DEFAULT_SETTINGS, deviceToken: 'PRIVATE', roomId: 'PRIVATE', clockStyle: 'flip' },
@@ -279,10 +301,12 @@ test('component ports deduplicate live data reads and omit absent or unknown pro
     assert.deepEqual(ports.getDisplayData(types, request), {}, 'self-contained layers need no runtime snapshot');
   }
   assert.equal(stateReads, 0);
+  assert.deepEqual(ports.getDisplayData(['danmaku'], request), { danmaku: { events: [] } });
+  assert.equal(stateReads, 0, 'Cloud-only displays do not need local business state.');
   assert.deepEqual(ports.getDisplayData(['danmaku', 'danmaku', 'overtime', 'browser', 'clock', 'text-box', 'constructor', 'unknown'], request),
     { danmaku: { events: [] } });
   assert.equal(stateReads, 1);
-  assert.deepEqual(requests, [request]);
+  assert.deepEqual(requests, [request, request]);
   for (const type of ['canvas', 'unknown', 'constructor', '__proto__', ['clock'], { toString: () => 'clock' }]) {
     assert.throws(() => ports.getDefaultConfig(type), { code: 'INVALID_SCENE_CONFIG' });
     assert.throws(() => normalizeSceneConfig(type, {}), { code: 'INVALID_SCENE_CONFIG' });

@@ -1,7 +1,6 @@
 // 礼物 Overlay：边框与官方全屏特效各由独立播放器负责。
 'use strict';
 
-import { createFrameController } from './gift-effects-frame.js';
 import { createGiftFramePlayer } from './gift-frame-player.js';
 import { createGiftFrameQueue } from './gift-frame-queue.js';
 import { createGiftEffectPlayer } from './gift-effect-player.js';

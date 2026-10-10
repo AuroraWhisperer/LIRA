@@ -1,6 +1,6 @@
 # 音乐领域服务:注册表、缓存、曲库、队列与歌词状态
 
-> 涉及文件:[provider-registry.js](../../../../src/music/provider-registry.js)、[provider-health.js](../../../../src/music/provider-health.js)、[stream-resolver.js](../../../../src/music/stream-resolver.js)、[track-contract.js](../../../../src/music/track-contract.js)、[music-cache.js](../../../../src/music/music-cache.js)、[lyrics-service.js](../../../../src/music/lyrics-service.js)、[song-service.js](../../../../src/music/song-service.js)、[song-store.js](../../../../src/storage/song-store.js)、[queue-service.js](../../../../src/music/queue-service.js)、[song-matcher.js](../../../../src/music/song-matcher.js)、[random-song-filter.js](../../../../src/music/random-song-filter.js)、[tag-aliases.js](../../../../src/music/tag-aliases.js)、[requester-target-store.js](../../../../src/music/requester-target-store.js)、[song-import-schema.js](../../../../src/music/song-import-schema.js)、[song-file-codec.js](../../../../src/music/song-file-codec.js)、[lyric-state.js](../../../../src/music/lyric-state.js)、[lyric-timeline.js](../../../../src/music/lyric-timeline.js)
+> 涉及文件:[provider-registry.js](../../../../src/music/provider-registry.js)、[provider-health.js](../../../../src/music/provider-health.js)、[stream-resolver.js](../../../../src/music/stream-resolver.js)、[track-contract.js](../../../../src/music/track-contract.js)、[music-cache.js](../../../../src/music/music-cache.js)、[lyrics-service.js](../../../../src/music/lyrics-service.js)、[song-service.js](../../../../src/music/song-service.js)、[song-store.js](../../../../src/storage/song-store.js)、[queue-service.js](../../../../src/music/queue-service.js)、[song-matcher.js](../../../../src/music/song-matcher.js)、[random-song-filter.js](../../../../src/music/random-song-filter.js)、[tag-aliases.js](../../../../src/music/tag-aliases.js)、[requester-target-store.js](../../../../src/storage/requester-target-store.js)、[song-import-schema.js](../../../../src/music/song-import-schema.js)、[song-file-codec.js](../../../../src/music/song-file-codec.js)、[lyric-state.js](../../../../src/music/lyric-state.js)、[lyric-timeline.js](../../../../src/music/lyric-timeline.js)
 
 本文档是 `src/music/` 下**非 Provider、非 WeSing** 模块的唯一事实源:模块职责、导出签名、关键算法与常量只在此成表。上游 Provider 逆向工程见 [qq-provider.md](qq-provider.md) / [netease-provider.md](netease-provider.md);全民 K 歌采集见 [wesing.md](wesing.md);HTTP 端点见 [api.md](../api.md)(music-routes / song-routes / queue-routes 节);WebSocket 快照字段与消息见 [ws.md](../ws.md);DB 表结构见 [storage.md](../storage.md);领域装配点见 [server-core.md](../server-core.md) §5。
 
@@ -109,7 +109,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `musicCacheKey(scope, payload)`        | `sha1(<scope>:<JSON.stringify(payload)>)` 十六进制([music-cache.js:12-16](../../../../src/music/music-cache.js#L12-L16))                                          |
 | `readMusicJsonCache(dir, key, ttlMs)`  | 读 `<key>.json`;`mtimeMs` 超 TTL 视为未命中;文件为 `{savedAt, data}` 信封,返回 `data`([music-cache.js:18-27](../../../../src/music/music-cache.js#L18-L27))       |
-| `writeMusicJsonCache(dir, key, data)`  | 写信封 + 按目录容量上限裁剪(按 mtime 从旧到新删,**缓存失败绝不影响播放**,全 try/catch 吞掉)([music-cache.js:29-38](../../../../src/music/music-cache.js#L29-L38)) |
+| `writeMusicJsonCache(dir, key, data)`  | 写信封后扫描目录统计精确容量；仅超额时按 mtime 排序并从旧到新删除(**缓存失败绝不影响播放**,全 try/catch 吞掉)([music-cache.js:29-38](../../../../src/music/music-cache.js#L29-L38)) |
 | `clearMusicCache(apiDir, lyricDir)`    | 删两目录重建,返回 `{clearedBytes, clearedFiles, after}`([music-cache.js:66-77](../../../../src/music/music-cache.js#L66-L77))                                     |
 | `getMusicCacheStats(apiDir, lyricDir)` | `{api, lyrics, totalBytes, totalFiles}`([music-cache.js:79-86](../../../../src/music/music-cache.js#L79-L86))                                                     |
 
@@ -136,7 +136,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | action                | 行为                                                          | 缓存                                                                                           |
 | --------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `personalized`        | 推荐歌单,`limit` 转发时截 30,带 `page`                        | **缓存**(key 含 platform/action/limit/playlistId,**page 不入 key**,故 `page > 1` 必须绕过缓存) |
-| `playlist-tracks`     | 歌单详情,`playlistId` 必填                                    | **缓存**(且结果非空才写)                                                                       |
+| `playlist-tracks`     | 歌单详情,`playlistId` 必填                                    | **不缓存**，直接读取 Provider；由播放器内容缓存及后台刷新负责                                                                       |
 | `daily`               | 每日推荐                                                      | **不缓存**——注释:radio/daily 的重点是每次给新歌,缓存会让它们永远返回同一批                     |
 | `radio`               | 电台                                                          | 不缓存                                                                                         |
 | `liked`               | 我喜欢                                                        | 不缓存                                                                                         |
@@ -145,7 +145,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | `recent`              | 最近播放                                                      | 不缓存                                                                                         |
 | 其他                  | 抛"未知音乐首页动作。"                                        | —                                                                                              |
 
-缓存规则:仅 `personalized` / `playlist-tracks` 可缓存;`refresh === true` 或 `page > 1` **绕过缓存**;命中时返回 `{...cached, cached: true}`。`limit` clamp 1-5000 默认 100,`offset` ≥ 0,`page` clamp 1-50。
+缓存规则:仅 `personalized` 可缓存;`refresh === true` 或 `page > 1` **绕过缓存**;命中时返回 `{...cached, cached: true}`。`limit` clamp 1-5000 默认 100,`offset` ≥ 0,`page` clamp 1-50。
 
 ### 6.3 歌词(`getMusicTrackLyricsWithCache`,[lyrics-service.js:119-129](../../../../src/music/lyrics-service.js#L119-L129))
 
@@ -195,9 +195,9 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 云端快照与表格导入是不同契约：上传边界 [mapSongForSync](../../../../src/electron/license/license-response-utils.js) 将本地 `name`/`is_enabled` 等字段映射为唯一的网络 `title`/`enabled` 等 camelCase 字段；下载由 `replaceCloudSongs` 将 canonical 字段映射回本地模型。网络不发送重复别名，本地 SQLite 列名、CRUD 输入及 §11 的表格导入别名继续使用各自契约。跨端字段与配套升级要求见 [歌曲同步规格](../../../../specs/cloud-authoritative-streamer-sync_design.md)。
 
-显式更新由 [song-import-update.js](../../../../src/music/song-import-update.js) 的 `previewSongImport(store,input)` / `applySongImport(store,input)` 拥有。按清洗后的歌名加歌手精确匹配，包含停用歌曲；只新增和更新，不删除无关记录。缺列保留、空默认保留；显式 `allowEmptyClear` 仅清空存在列的文本，分类空变默认，启用空保留。非空启用值必须明确，价格新值超过 1000 UTF-16 code unit 无效。
+表格预览和应用由 [song-import-update.js](../../../../src/music/song-import-update.js) 的 `previewSongImport(store,input)` / `applySongImport(store,input)` 拥有。按清洗后的歌名加歌手精确匹配，包含停用歌曲。管理页固定传 `replaceAll: true`，完整覆盖匹配歌曲的所有导入字段并删除表格中未列出的旧歌曲；文本空白/缺列清空、分类默认为「默认」、是否可点默认为是。不传替换选项的旧调用仅新增和更新，不删除无关记录。兼容更新的缺列保留、空默认保留；显式 `allowEmptyClear` 仅清空存在列的文本，分类空变默认，启用空保留。非空启用值必须明确，价格新值超过 1000 UTF-16 code unit 无效。
 
-预览给五类计数及逐行字段差异；同身份同指定内容重复折叠，不同内容的全组冲突，任何冲突或无效禁止整批提交。预览 token 绑定完整歌曲（含更新时间）、全部分类与输入/空值选项；提交委托 `store.applyImportUpdate(buildPlan)` 在事务内重算并检查，避免预览后歌曲/分类变化时覆盖编辑。通过后一次事务写入，失败全部回滚，保持原 song id。详细 API 和错误见 [API 歌库域](../api.md)。
+预览给新增/更新/未改变/冲突/无效计数，替换时额外给删除计数和删除明细（row 为 null）；同身份同指定内容重复折叠，不同内容的全组冲突，任何冲突或无效禁止整批提交。预览 token 绑定完整歌曲（含更新时间）、全部分类与输入/空值/替换选项；提交委托 `store.applyImportUpdate(buildPlan)` 在事务内重算并检查，避免预览后歌曲/分类变化时覆盖编辑。通过后一次事务写入，失败全部回滚，匹配歌曲保持原 song id；删除仅解除队列和历史的歌曲关联，保留其文本快照。替换以最终表格计容量，允许将超限旧库缩减至 5000 首以内；空表仍拒绝。详细 API 和错误见 [API 歌库域](../api.md)。
 
 ### 7.4 随机选歌(pickRandomSong,[song-service.js](../../../../src/music/song-service.js))
 
@@ -321,17 +321,17 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 | 函数                         | 行为                                                                                                                                                                                                                                                                    |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析(`readZipFiles`):定位 `xl/worksheets/sheet\d+.xml`、读 `sharedStrings.xml`、`parseWorksheetXml`;表头检测 = 任一行单元格命中别名;默认新增模式无表头按导出列序解析、丢弃空歌名行；`preserveMissing:true` 更新模式保留无歌名的非空行交由预览报无效，保留缺列语义且无表头要求完整十列。 |
+| `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析(`readZipFiles`):定位 `xl/worksheets/sheet\d+.xml`、读 `sharedStrings.xml`、`parseWorksheetXml`;表头检测 = 任一行单元格命中别名;默认新增模式无表头按导出列序解析、丢弃空歌名行；`preserveMissing:true` 预览导入保留无歌名的非空行交由预览报无效，保留缺列语义且无表头要求完整十列。 |
 | `buildSongsCsv(rows)`        | 表头 + `csvCell` 转义逐行                                                                                                                                                                                                                                               |
 | `buildSongsWorkbook(rows)`   | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels)                                                                                                                                                                                                   |
 | `templateSongs()`            | 五行示例数据，每首一个价格文本：晴天免费、小幸运30元SC、红豆舰长、后来提督、遇见总督；歌切留空，首行仍为十列表头 |
 | `songToExportRow(song)`      | 行映射(分类缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，`source_platform` → 核对平台保存值；阶段 4 显式替代空值规则) |
 
-`parseSongsFromXlsx(buffer,{preserveMissing:true})` 用于更新模式：保留无歌名的非空数据行供预览报无效，表头缺列不补为默认字段，无表头必须完整十列；默认新增解析行为不变。
+`parseSongsFromXlsx(buffer,{preserveMissing:true})` 用于替换及兼容更新预览：保留无歌名的非空数据行供预览报无效，表头缺列不补为默认字段，无表头必须完整十列；默认新增解析行为不变。
 
-## 12. 请求者定位(requester-target-store.js)
+## 12. 请求者定位(storage/requester-target-store.js)
 
-`createRequesterTargetStore(songDb).getLatestRandomRequester()`([requester-target-store.js:5-25](../../../../src/music/requester-target-store.js#L5-L25)):查 `requests` 表最近一条 `source='random' 或 'random:%'` 且 uid 或 name 非空的行,返回 `{uid, name, source, createdAt}`;供弹幕机器人把随机点歌结果回复给触发者(见 [bilibili/danmaku.md](../bilibili/danmaku.md))。
+`createRequesterTargetStore(songDb).getLatestRandomRequester()`([requester-target-store.js:5-25](../../../../src/storage/requester-target-store.js#L5-L25)):查 `requests` 表最近一条 `source='random' 或 'random:%'` 且 uid 或 name 非空的行,返回 `{uid, name, source, createdAt}`;供弹幕机器人把随机点歌结果回复给触发者(见 [bilibili/danmaku.md](../bilibili/danmaku.md))。
 
 ## 13. 歌词状态与时间轴(lyric-state.js / lyric-timeline.js)
 

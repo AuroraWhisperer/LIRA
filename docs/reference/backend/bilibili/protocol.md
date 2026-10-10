@@ -15,7 +15,7 @@ BilibiliDanmakuClient (顶层编排, 见 danmaku.md)
 ├─ WebSocketConnection       二进制帧封装 + 心跳 (30s, 见 §4)
 ├─ parseBilibiliPackets      帧解码 + Brotli/zlib 解压 (见 §4.4)
 ├─ Protobuf 解码器           自实现 LEB128 解码 (见 §5)
-└─ MessageHandlers           分发: 弹幕/SC/礼物 (见 §6)
+└─ MessageHandlers           分发: 弹幕/SC/礼物身份/点赞总数 (见 §6)
 ```
 
 ## 2. HTTP API(BilibiliApiClient)
@@ -78,7 +78,9 @@ Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [de
 2. `extractBilibiliWbiKey(url)`:取 URL pathname 最后一段,按 `.` 分割取第一部分([wbi-signer.js:81-85](../../../../src/bilibili/wbi-signer.js#L81-L85))。例:`…/wbi/7cd084941338484aae1ad9425b84077c.png` → `7cd084941338484aae1ad9425b84077c`。
 3. `rawKey = imgKey + subKey`(两个 32 字符 hex 拼接)。
 4. `mixinKey = WBI_MIXIN_KEY_ENC_TAB.map(i => rawKey[i]).join('').slice(0, 32)`([wbi-signer.js:70-73](../../../../src/bilibili/wbi-signer.js#L70-L73))。
-5. 缓存 10 分钟:`expiresAt = nowMs + 10*60*1000`([wbi-signer.js:74-77](../../../../src/bilibili/wbi-signer.js#L74-L77));缓存未过期直接复用([wbi-signer.js:45-48](../../../../src/bilibili/wbi-signer.js#L45-L48))。
+5. 成功获取后缓存 10 分钟；有效缓存直接复用，冷启动或过期时的并发调用共用同一个在途 Promise。请求失败后释放在途引用，后续调用可以重新获取。缓存只保存 `mixinKey` 与到期时间，见 [wbi-signer.js](../../../../src/bilibili/wbi-signer.js)。
+
+`BilibiliApiClient.resolveDanmuInfo` 首次 HTTP 成功响应的 `code` 严格为数值 `-352` 时，失效本次使用的密钥代次并重新签名读取一次；第二次仍失败就按原错误路径返回，不循环刷新。代次以缓存对象身份判断，因此迟到的旧请求失败不会清除新缓存，即使两代密钥字符串相同。此重试只属于 `getDanmuInfo` 读取，不用于 `msg/send` 写请求，见 [api-client.js](../../../../src/bilibili/danmaku/api-client.js)。
 
 ### 3.2 置换表(64 个下标)
 
@@ -153,28 +155,13 @@ sequence:     发送固定 1
 
 ### 4.5 帧解析与解压
 
-`parseBilibiliPackets(buffer)`([packet-decoder.js:46-86](../../../../src/bilibili/parsers/packet-decoder.js#L46-L86)):
+`parseBilibiliPackets(buffer, { onDiscard } = {})` 见 [packet-decoder.js](../../../../src/bilibili/parsers/packet-decoder.js)。每个 WebSocket message 独立解析，不跨消息保存半包；同一 buffer 内按头部长度逐个消费 Bilibili packet，只对 operation `5` 提取事件。协议版本 `3` 用 Brotli、`2` 用 zlib 解压后递归读取，其他版本按 UTF-8 JSON 对象拆分；普通心跳等非事件包不算丢弃。
 
-```
-while (offset + 16 <= buffer.length):
-  读头 → packetLength / headerLength / protoVer / operation
-  仅 operation == 5 继续
+输入 buffer 与累计解压预算各为 8 MiB，最多输出 10,000 条消息，压缩嵌套深度最多 8 层。解析器自身校验 `packetLength >= 16`、`headerLength >= 16`、头不超过包长且包不越界；长度非法停止当前 buffer，超限或解压失败停止本次解码，已解析出的有效消息保留。
 
-  按 protoVer 解码 body:
-    protoVer 3 → zlib.brotliDecompressSync(body)
-                → 递归 parseBilibiliPackets (解压后是嵌套帧)
-    protoVer 2 → zlib.inflateSync(body) (raw deflate)
-                → 递归 parseBilibiliPackets
-    protoVer 0/1 → body.toString('utf8').trim()
-                  → splitJsonObjects 分割多个 JSON 对象
-                  → JSON.parse 每个对象 (解析失败跳过)
+可选 `onDiscard(reason)` 报告固定原因：`frame-size-limit`、`invalid-packet-length`、`incomplete-header`、`compression-depth-limit`、`decompressed-size-limit`、`decompression-error`、`invalid-json`、`message-limit`。默认返回消息数组的接口不变。原因计数表示观察到的拒绝，不是丢失消息总数，也不能证明上游完整率；捕获脚本将它与抛出的解析异常分开统计。
 
-  offset += packetLength > 0 ? packetLength : buffer.length
-```
-
-**部分帧/边界处理**:浏览器 `WebSocket` 保证每次 `message` 事件是一个完整帧,故无跨帧缓冲;单帧内可能含多个包,靠 `offset + 16 <= len` 循环逐个消费。`packetLength` 异常(过小/越过帧尾)由 `containsOperation` 的边界校验兜底([websocket-connection.js:172-181](../../../../src/bilibili/danmaku/websocket-connection.js#L172-L181))。解压失败仅告警并跳过该包([packet-decoder.js:60-64](../../../../src/bilibili/parsers/packet-decoder.js#L60-L64)、[packet-decoder.js:66-70](../../../../src/bilibili/parsers/packet-decoder.js#L66-L70))。
-
-`splitJsonObjects(text)`([packet-decoder.js:9-44](../../../../src/bilibili/parsers/packet-decoder.js#L9-L44)):逐字符扫描,跟踪 `{}` 嵌套深度与字符串/转义状态,深度回到 0 时切分一个 JSON 块。
+`splitJsonObjects` 跟踪 `{}` 嵌套与字符串/转义状态，逐个切出 JSON 块；坏 JSON 被跳过并记录诊断，未闭合片段或不完整包头也可区分。
 
 ## 5. 自实现 Protobuf 解码器
 
@@ -189,28 +176,31 @@ while (offset + 16 <= buffer.length):
 
 ### 5.2 字段解码
 
-`decodeBilibiliProtoFields(buffer, depth = 0)`([protobuf-decoder.js:36-82](../../../../src/bilibili/protocols/protobuf-decoder.js#L36-L82)):
+`decodeBilibiliProtoFields(buffer, depth = 0, stringFields = {})` 见 [protobuf-decoder.js](../../../../src/bilibili/protocols/protobuf-decoder.js)：
 
 - key 为 varint:`field = floor(key / 8)`,`wireType = key % 8`;**禁止 field 0**,只接受 wireType `0/1/2/5`,非法直接返回 `null`([protobuf-decoder.js:45-48](../../../../src/bilibili/protocols/protobuf-decoder.js#L45-L48))。
 - wireType 0(varint):超过 `Number.MAX_SAFE_INTEGER` 转十进制字符串,否则 Number([protobuf-decoder.js:51-55](../../../../src/bilibili/protocols/protobuf-decoder.js#L51-L55))。
 - wireType 1(64-bit):保留 8 字节 Buffer([protobuf-decoder.js:56-59](../../../../src/bilibili/protocols/protobuf-decoder.js#L56-L59))。
 - wireType 5(32-bit):保留 4 字节 Buffer([protobuf-decoder.js:60-63](../../../../src/bilibili/protocols/protobuf-decoder.js#L60-L63))。
-- wireType 2(length-delimited):读长度截取 chunk;**depth < 5 时递归解码**;递归后无字段或已达深度上限 → `chunk.toString('utf8')`([protobuf-decoder.js:64-75](../../../../src/bilibili/protocols/protobuf-decoder.js#L64-L75))。
+- wireType 2(length-delimited):已知字符串字段直接按 UTF-8 读取；其余字段在 `depth < 5` 时尝试递归，递归无字段或已达上限则回退字符串。`SEND_GIFT_V2` 的字符串路径为根 `2/3`、`9.3`、`10.2/10.8/10.9/10.12`，与服务器使用的显式规则一致，避免昵称 `Hi` 或 UUID 字节碰巧能解析成嵌套消息时丢失原值。
 - 值追加到 `fields[field]` 数组(支持 repeated,[protobuf-decoder.js:77-78](../../../../src/bilibili/protocols/protobuf-decoder.js#L77-L78))。
 - 入口:`decodeBilibiliGiftV2Proto(value)` 先 `cleanText` 后 Base64 解码([protobuf-decoder.js:84-93](../../../../src/bilibili/protocols/protobuf-decoder.js#L84-L93))。
 
 ### 5.3 SEND_GIFT_V2 身份字段
 
-[gift-identity-hints.js](../../../../src/bilibili/users/gift-identity-hints.js) 使用通用 Protobuf 解码器，仅从根字段 `1` 读取 UID、`2` 读取昵称。它不解释 giftInfo 的金额、数量或连击字段，也不要求这些字段存在。解码失败时继续尝试包中的 JSON 发送者字段；缺少 UID 则忽略。
+[gift-identity-hints.js](../../../../src/bilibili/users/gift-identity-hints.js) 从根字段 `1` 读取 UID、`2` 读取昵称、`3` 读取头像 URL，直接复用包中已有资料。它不解释 giftInfo 的金额、数量或连击字段，也不要求这些字段存在。解码失败时继续尝试包中的 JSON 发送者字段；缺少 UID 则忽略。头像校验与资料合并仍由用户信息服务持有。
 
 ## 6. 消息解析与分发(协议 → 领域事件)
 
-`MessageHandlers.handlePackets` 对每个解析出的 JSON 对象按 `cmd` 分发([message-handlers.js:58-73](../../../../src/bilibili/danmaku/message-handlers.js#L58-L73)),并逐条记录诊断(见 [danmaku.md](danmaku.md) §8):
+`MessageHandlers.handlePackets` 对每个解析出的 JSON 对象按 `cmd` 分发，SC 命令先去掉冒号后缀再精确匹配；逐条记录原命令诊断。实现见 [message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js)，诊断见 [danmaku.md](danmaku.md) §8：
 
 | 条件                               | 路由                   | 事件                                                             |
 | ---------------------------------- | ---------------------- | ---------------------------------------------------------------- |
 | `cmd` 以 `DANMU_MSG` 开头          | 弹幕                   | `onMessage(source:'danmaku')`                                    |
-| `cmd` 以 `SUPER_CHAT_MESSAGE` 开头 | SC                     | `onSuperChat` + 命令文本二次分发 `onMessage(source:'superchat')` |
+| 去掉冒号后缀为 `LIKE_INFO_V3_UPDATE` | 直播间累计点赞 | 更新内存快照，见 §6.5 |
+| 去掉冒号后缀为 `LIVE` / `PREPARING` | 开下播边界 | 清空点赞快照，等待新的总数推送 |
+| SC 命令为 `SUPER_CHAT_MESSAGE` / `SUPER_CHAT_MESSAGE_JPN` | 新增 SC | `onSuperChat` + 命令文本二次分发 `onMessage(source:'superchat')` |
+| SC 命令为 `SUPER_CHAT_MESSAGE_DELETE` | SC 下线 | 独立 `onSuperChatDelete(platformIds)`，不进入新增或命令消费 |
 | `isBilibiliGiftLikeCommand(cmd)` | 发送者身份（见 §6.4） | `handleIdentityMessage` → 用户信息服务 |
 | 其他                               | —                      | 仅记诊断,跳过                                                    |
 
@@ -248,7 +238,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 | 输出字段               | 提取(多字段回退)                                                                                                              |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `id`                   | `data.id \|\| message_id \|\| token`                                                                                          |
+| `id`                   | 依次读取 `data.id_str / id / message_id / messageId / token` 的首个非 null/undefined 值；优先字符串 ID，避免大数字 ID 已被舍入 |
 | `message`              | `data.message \|\| message_trans`                                                                                             |
 | `price`                | `data.price \|\| rmb \|\| price_text`(经 `normalizeSuperChatPrice`,[bilibili-value-contract.js](../../../../src/shared/bilibili-value-contract.js)) |
 | `uid`                  | `data.uid \|\| mid \|\| user_info.uid`                                                                                        |
@@ -259,6 +249,8 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 | `messageTimestamp`     | `data.start_time \|\| startTime \|\| ts \|\| time \|\| timestamp`,兜底 `Date.now()`                                           |
 
 `isPinned = price >= SUPER_CHAT_PIN_THRESHOLD`(`= 2` RMB,[superchat-service.js:14](../../../../src/bilibili/superchat-service.js#L14)),由分发层计算([message-handlers.js:173](../../../../src/bilibili/danmaku/message-handlers.js#L173))。SC 命令文本会二次触发 `onMessage(source:'superchat')`([message-handlers.js:151-175](../../../../src/bilibili/danmaku/message-handlers.js#L151-L175));入库门槛与状态机见 [gift.md](gift.md) §7。
+
+`extractBilibiliSuperChatDeleteIds` 只读取删除包的 `data.ids` 数组，接受非空且长度不超过 128 字符的字符串或正安全整数，转字符串后去重；非法项忽略。删除不触发 `onSuperChat` 或 `onMessage`，按平台 ID 的逻辑删除及金额保留规则见 [gift.md](gift.md) §7。
 
 ### 6.3 礼物类命令路由
 
@@ -273,6 +265,12 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 仅 USER_TOAST_MSG 的等级或舰队名称可形成已验证的本房间大航海提示。GUARD_BUY 和 USER_TOAST_MSG_V2 的 source=2 附带消息会被忽略；普通送礼包不能据其中的 guard_level 提升房间身份。后续身份合并、头像校验和连接代次隔离仍由用户信息服务负责。
 
 该路径没有礼物数量/金额计算、付费判定、平台 ID 生成、盲盒匹配、礼物日志或 onGift 记账回调。服务器结果经独立投影器导入，见 [gift.md](gift.md) §2/§6.1。
+
+### 6.5 直播间累计点赞
+
+`LIKE_INFO_V3_UPDATE.data.click_count` 是平台推送的房间累计总数快照。仅接受非负安全整数，直接覆盖上次值；重复值不相加，0 和下降值均有效。`LIKE_INFO_V3_CLICK` 是个人互动提示，不参与总数计算，也不据此统计点赞人数。非法值不改变已有快照。
+
+`MessageHandlers` 只保留 `{count,updatedAt}`，`updatedAt` 是本机收到有效更新时的 ISO 时间。初始化、连接代次/连接尝试切换、销毁以及 `LIVE`/`PREPARING` 时清空为两个 `null`。本地读取合同见 [danmaku.md](danmaku.md#42-直播间点赞状态)。这是最近一次上游快照；不保证 B 站何时推送或按哪一时点归零，不按收到的提示自行累加本场总数。
 
 ## 7. 参数归属
 

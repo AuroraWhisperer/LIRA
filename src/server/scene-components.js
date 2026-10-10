@@ -68,8 +68,8 @@ const COMPONENT_PORTS = Object.freeze({
       return { ...QUEUE_DEFAULTS, ...normalized.values };
     },
     getDefault: (state) => projectOverlayState('queue', state).settings,
-    getDisplay(state) {
-      const projected = projectOverlayState('queue', state);
+    getDisplay(getState) {
+      const projected = projectOverlayState('queue', getState());
       return { queue: projected.queue, superChats: projected.superChats };
     },
   }),
@@ -80,8 +80,8 @@ const COMPONENT_PORTS = Object.freeze({
       try { return validateBackground(config); } catch { throw invalidConfig(); }
     },
     getDefault: (state) => state.overtime?.background,
-    getDisplay(state) {
-      const projected = projectOverlayState('overtime', state).overtime;
+    getDisplay(getState) {
+      const projected = projectOverlayState('overtime', getState()).overtime;
       if (!projected) return undefined;
       const { background, ...display } = projected;
       return display;
@@ -100,12 +100,12 @@ const COMPONENT_PORTS = Object.freeze({
       } catch { throw invalidConfig(); }
     },
     getDefault: (state, cloud) => cloud.getSettings(),
-    getDisplay: (state, cloud, request) => cloud.getSnapshot(request),
+    getDisplay: (_getState, cloud, request) => cloud.getSnapshot(request),
   }),
   ...Object.fromEntries(Object.keys(SCENE_EXTRA_COMPONENTS).map((type) => [type, Object.freeze({
     normalizeConfig: (config) => normalizeSceneExtraConfig(type, config),
     getDefault: () => createSceneExtraDefaults(type),
-    getDisplay: (_state, _cloud, _request, getExtraDisplay) => getExtraDisplay?.(type) ?? null,
+    getDisplay: (getState, _cloud, _request, getExtraDisplay) => getExtraDisplay?.(type, getState) ?? null,
   })])),
   'text-box': Object.freeze({ normalizeConfig: normalizeTextBoxConfig, getDefault: createTextBoxDefaults }),
   browser: Object.freeze({ normalizeConfig: normalizeBrowserSourceConfig, getDefault: () => null }),
@@ -160,12 +160,12 @@ function createSceneComponentPorts({ getState, cloud, getExtraDisplay }) {
   }
   function getDisplayData(types, request) {
     let state;
+    const readState = () => state ??= getState();
     const data = {};
     const pending = [];
     for (const [type, port] of Object.entries(COMPONENT_PORTS)) {
       if (!types.includes(type) || !port.getDisplay) continue;
-      state ??= getState();
-      const display = port.getDisplay(state, cloud, request, getExtraDisplay);
+      const display = port.getDisplay(readState, cloud, request, getExtraDisplay);
       if (display?.then) pending.push(display.then((value) => { data[type] = value; }));
       else if (display !== undefined) data[type] = display;
     }

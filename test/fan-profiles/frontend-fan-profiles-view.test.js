@@ -45,6 +45,40 @@ test('archive empty states distinguish scope from search and never offer creatio
   assert.equal(new Set(states).size, states.length, 'each empty state has its own message');
 });
 
+test('reminder view keeps recent groups and history without displaying distant predictions', async () => {
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const items = ['today', 'week', 'missed', 'history', 'later'].map((group) => ({
+    profileId: 'fan-reminder-view', name: '测试粉丝', date: '2026-10-10',
+    key: group, title: `reminder-${group}`, group, status: group === 'history' ? 'handled' : 'pending',
+  }));
+  const rendered = view.renderReminders(items);
+  for (const group of ['today', 'week', 'missed', 'history']) assert.ok(rendered.includes(`reminder-${group}`));
+  assert.doesNotMatch(rendered, /reminder-later|之后/);
+  const empty = view.renderReminders(items.filter((item) => item.group === 'later'));
+  assert.match(empty, /暂时没有待办提醒/);
+  assert.match(empty, /提前 7 天/);
+});
+
+test('reminders share one profile entry per day while each item keeps its own actions and escaped content', async () => {
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const person = { profileId: 'fan-id', name: '<小海>', date: '2026-10-10', group: 'today', status: 'pending' };
+  const rendered = view.renderReminders([
+    { ...person, key: 'birthday:2026', title: '生日', basis: '<公历生日>' },
+    { ...person, key: 'accompany:1234:500', title: '陪伴满 500 天', predicted: true },
+    { ...person, key: 'past', title: '往年生日', group: 'history', status: 'handled', date: '2025-10-10' },
+  ]);
+  const links = actionTags(rendered, 'open-reminder');
+  assert.equal(links.length, 2, 'same person and day share a single profile entry');
+  assert.ok(links.every((tag) => tag.includes('data-profile-id="fan-id"')));
+  assert.match(links[0], /aria-label="打开 &lt;小海&gt; 的档案"/);
+  assert.match(rendered, /&lt;公历生日&gt;/);
+  assert.doesNotMatch(rendered, /<小海>|<公历生日>/);
+  for (const state of ['handled', 'snoozed', 'ignored']) {
+    assert.deepEqual(actionTags(rendered, `reminder-${state}`).map((tag) =>
+      tag.match(/data-reminder-key="([^"]+)"/)[1]), ['birthday:2026', 'accompany:1234:500']);
+  }
+});
+
 test('archived detail exposes one restore action outside more while current detail explains archive', async (t) => {
   const f = fanFixture(t);
   const profile = f.detail(f.create().id);

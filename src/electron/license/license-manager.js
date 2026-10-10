@@ -273,19 +273,38 @@ function createLicenseManager(options = {}) {
     return bootstrap();
   }
 
-  async function ensureAuthorized() {
+  async function ensureAuthorized({ signal } = {}) {
+    signal?.throwIfAborted();
     const context = captureAuthorizationContext();
     assertAuthorizationContext(context);
-    if (renewalPromise) await renewalPromise;
+    if (renewalPromise) await waitForRenewal(renewalPromise, signal);
+    signal?.throwIfAborted();
     assertAuthorizationContext(context);
     if (![LicenseState.AUTHORIZED, LicenseState.NEEDS_CONNECTION].includes(state) || !accessToken)
       throw new Error('LICENSE_NOT_AUTHORIZED');
     if (tokenExpiresAt && tokenExpiresAt <= Date.now()) {
-      const renewed = await renew();
+      const renewed = await waitForRenewal(renew(), signal);
+      signal?.throwIfAborted();
       assertAuthorizationContext(context);
       if (!renewed || state !== LicenseState.AUTHORIZED || !accessToken) throw new Error('LICENSE_NOT_AUTHORIZED');
     }
     return accessToken;
+  }
+
+  async function waitForRenewal(promise, signal) {
+    if (!signal) return promise;
+    let abort;
+    const cancelled = new Promise((_resolve, reject) => {
+      abort = () => reject(signal.reason);
+      if (signal.aborted) abort();
+      else signal.addEventListener('abort', abort, { once: true });
+    });
+    try {
+      // Renewal is shared; cancelling this waiter must not cancel other callers.
+      return await Promise.race([promise, cancelled]);
+    } finally {
+      signal.removeEventListener('abort', abort);
+    }
   }
 
   function getAccessToken() {
@@ -314,33 +333,41 @@ function createLicenseManager(options = {}) {
       throw new RemoteLicenseError('LICENSE_NOT_AUTHORIZED', 'LICENSE_NOT_AUTHORIZED');
   }
 
-  async function withAuthorizedToken(operation, attempt = 0, sanitize = true, acceptResult = (result) => result) {
+  async function withAuthorizedToken(operation, attempt = 0, sanitize = true, acceptResult = (result) => result, signal) {
     // Token renewal stays inside one lifecycle; activation, blocking and
     // disposal invalidate its requests even when the same owner returns later.
     const context = captureAuthorizationContext();
     return execute(attempt);
 
     async function execute(currentAttempt) {
+      signal?.throwIfAborted();
       assertAuthorizationContext(context);
-      const token = await ensureAuthorized();
+      const token = await ensureAuthorized({ signal });
+      signal?.throwIfAborted();
       assertAuthorizationContext(context);
       try {
         // Remote JSON is untrusted input. Keep credentials in main even when
         // the server echoes them, and commit state before yielding again.
         const result = await operation(token);
+        signal?.throwIfAborted();
         assertAuthorizationContext(context);
         return acceptResult(sanitize ? sanitizeRemoteResponse(result) : result);
       } catch (error) {
+        signal?.throwIfAborted();
         if (!isAuthorizationContextActive(context)) throw error;
         const code = getErrorCode(error);
         if (currentAttempt < 1 && REAUTHENTICATE_CODES.has(code) && state === LicenseState.AUTHORIZED) {
           if (token !== accessToken && accessToken) {
             return execute(currentAttempt + 1);
           }
-          const renewed = await renew({
-            preserveValidSession: false,
-            throwOnFailure: true,
-          });
+          const renewed = await waitForRenewal(
+            renew({
+              preserveValidSession: false,
+              throwOnFailure: true,
+            }),
+            signal,
+          );
+          signal?.throwIfAborted();
           if (!isAuthorizationContextActive(context)) throw error;
           if (renewed && state === LicenseState.AUTHORIZED && accessToken) {
             return execute(currentAttempt + 1);
@@ -623,8 +650,9 @@ function createLicenseManager(options = {}) {
 
   const operations = createLicenseOperations({
     remote,
+    getAuthorizationGeneration: () => lifecycleGeneration,
     withAuthorizedToken,
-    withAuthorizedSecret: (operation) => withAuthorizedToken(operation, 0, false),
+    withAuthorizedSecret: (operation, signal) => withAuthorizedToken(operation, 0, false, undefined, signal),
     isDisposed: () => disposed,
     getOverlayOwner: () => JSON.stringify([identity?.streamerId, identity?.deviceId]),
     setProfile: (value) => {

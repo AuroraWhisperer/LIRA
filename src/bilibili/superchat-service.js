@@ -57,10 +57,16 @@ function getSuperChatSnapshot(context) {
   return context.store.listActive();
 }
 
+function retractSuperChatItems(context, platformIds) {
+  if (!Array.isArray(platformIds) || !platformIds.length) return 0;
+  return context.store.markDeletedByPlatformIds(platformIds, now());
+}
+
 module.exports = {
   SUPER_CHAT_PIN_THRESHOLD,
   SUPER_CHAT_DISPLAY_THRESHOLD,
   addSuperChatItem,
   handleSuperChatAction,
   getSuperChatSnapshot,
+  retractSuperChatItems,
 };

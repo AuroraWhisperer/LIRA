@@ -7,6 +7,10 @@ const { publicBilibiliErrorMessage } = require('../../bilibili/api-error');
 const prefixes = ['/api/bilibili/'];
 
 const routes = {
+  async 'GET /api/bilibili/likes/state'(context, _request, res) {
+    sendJson(res, 200, { ok: true, data: context.bilibili.getLikeState() });
+  },
+
   async 'GET /api/bilibili/room/profile'(context, _request, res) {
     try {
       sendJson(res, 200, {

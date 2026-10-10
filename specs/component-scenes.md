@@ -8,6 +8,8 @@ The 2026-09-30 browser editor reuses these scene documents for a common canvas. 
 
 The browser's Save and Apply waits for queued edits to be acknowledged, saves component owners and the bound scene, then publishes through the scene owner. Discard restores the scene and shared defaults involved in this editing session, including removed shared layers; unrelated component drafts remain untouched. Save failures, outstanding drafts and publication conflicts retain the previous live version. A canvas-only temporary capability grants bound publication and explicit source retrieval, plus desktop-mediated preset selection/creation/copying, never arbitrary scene management or rotation. Copy Live Source produces one persistent `127.0.0.1:<actual-port>/scene?id=…#token=…` address for the combined output; subsequent publication reuses it. The source capability is returned only on copy and never added to documents or templates.
 
+The 2026-10-10 canvas requirement gives all component and instance preview entries one short capability per current canvas editing session, including preset switches. Reopening updates the latest requested selection and focuses the attached editor; rapid requests are serialized so an older request cannot overwrite a newer choice. Deleted instances or selection from a different preset resolve to the current canvas without adding a replacement layer. Recovery keys remain preset-specific and are not part of link identity. Editing capability expiration and the separate persistent read-only output capability remain unchanged.
+
 The desktop Browser Sources directory exposes that same bound source and a unified-preview launcher. Copying never publishes implicitly and clears its displayed credential when the account/source changes. Standalone component sources remain usable without creating or publishing a scene: `/clock`, `/queue`, `/overtime` and `/danmaku?source=component`. The latter reads the existing scoped cloud display buffer and saved default appearance through the danmaku-only display API; the legacy `/danmaku` path and online source remain compatible. Output pages use live data, a transparent canvas and no editor session; closing the editor does not interrupt output. Setup and dimensions are specified in [the component guide](../docs/guides/component-sources.md).
 
 The 2026-10-01 requirement makes saved component dimensions authoritative for local
@@ -153,7 +155,11 @@ Standalone `/danmaku?source=component` uses the same notification/read client as
 
 Cloud `overlay-state` must precede events. Preserve liveSessionId, live start/end and reconnect reset semantics. Gift and SC events enter display only, never local settlement/reply pipelines. The local cursor refers only to the bounded events main received; it is not a Server replay cursor. A gap is reported, never filled by synthetic or local Bilibili feed data.
 
+SC deletion is opted into with `superchatDelete=1`. A same-session deletion removes only matching SC cards and cached/pending copies, without replaying other cards; another session's deletion is ignored after initialization. An optional session-scoped opaque `messageId` preserves compatibility with older servers. Stored SC history remains intact; removal is not a refund signal.
+
 Shared cloud appearance updates may refresh the editor default cache, but cannot mutate a frozen published version. The component renderer's scene mode disables sample generation and consumes real parent-projected events. Child readiness/config acknowledgement uses exact parent source; opaque-parent acceptance is restricted to explicit scene mode.
+
+Component preparation acknowledges completed configuration, CSS and media loading without waiting for animation frames, which a streaming application's hidden browser source may suspend. Failed preparation identifies the unready layers and is retried by subsequent output reads. Initial failure never claims a previous version exists; replacement failure retains the active layout and its live data until a complete replacement is ready.
 
 ## Local Editing Efficiency
 

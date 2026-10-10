@@ -20,6 +20,7 @@ const documentOf = (items = [item()]) => ({ schemaVersion: 1, id: randomUUID(), 
 
 async function rendererFixture() {
   const messages = new Map();
+  const statuses = [];
   const listeners = new Map();
   const timers = new Map();
   let serial = 0;
@@ -43,7 +44,7 @@ async function rendererFixture() {
   const { createSceneRenderer } = await load('overlays/scene-renderer.js', { window, URL,
     setTimeout(fn) { timers.set(++serial, fn); return serial; }, clearTimeout(id) { timers.delete(id); } });
   const host = node('host');
-  const renderer = createSceneRenderer(host);
+  const renderer = createSceneRenderer(host, { onStatus: (message, version) => statuses.push({ message, version }) });
   function complete(frame) {
     for (const type of ['ready', 'prepared']) signal(frame, type);
   }
@@ -53,12 +54,34 @@ async function rendererFixture() {
   function fail(frame) {
     listeners.get('message')({ origin: 'null', source: frame.contentWindow, data: { type: 'component-preview:status', message: 'Synthetic renderer failure' } });
   }
-  return { renderer, host, complete, signal, fail, messages, timers };
+  return { renderer, host, complete, signal, fail, messages, timers, statuses };
 }
 const connected = events => ({ status: 'connected', epoch: 'one', nextCursor: 2, reset: false, gap: false,
   state: { liveStatus: 1, liveSessionId: 'live', confirmationMessage: 'Live' }, events });
 const sceneData = events => ({ danmaku: connected(events) });
 const outputDoc = () => documentOf([item('danmaku', 'independent', { style: 'signal' })]);
+
+test('initial timeout names unready layers without claiming an old version and can recover', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const document = documentOf([item(), item('queue', 'independent', {})]);
+  document.items[1].name = '点歌板';
+  f.renderer.update({ version: 1, document, data: {} });
+  const [clock, queue] = f.host.children[0].children;
+  f.complete(clock);
+  f.signal(queue, 'ready');
+  [...f.timers.values()][0]();
+  assert.equal(f.host.children.length, 0);
+  assert.equal(f.statuses.at(-1).version, 0);
+  assert.match(f.statuses.at(-1).message, /点歌板.*超时/);
+  assert.match(f.statuses.at(-1).message, /重试/);
+  assert.doesNotMatch(f.statuses.at(-1).message, /上一版本|clock/);
+  f.complete(queue);
+  assert.equal(f.renderer.getVersion(), 0);
+  f.renderer.update({ version: 1, document, data: {} });
+  f.host.children[0].children.forEach(f.complete);
+  assert.equal(f.renderer.getVersion(), 1);
+  assert.equal(f.statuses.at(-1).message, '');
+});
 
 test('saved shared appearances update active frames without replaying events or changing layout', async t => {
   const f = await rendererFixture(); t.after(() => f.renderer.dispose());

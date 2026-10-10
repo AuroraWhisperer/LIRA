@@ -3,16 +3,15 @@
 const { normalizeGiftEffectEvent } = require('../../bilibili/gift/effect-event');
 
 const { normalizeProcessedGiftEvent } = require('../../shared/processed-gift-contract');
-const { isDnsHostname } = require('../../shared/remote-url-policy');
+const { normalizeRemoteRootOrigin } = require('../../shared/remote-url-policy');
 const { readBoundedSse, parseEventBlock } = require('../../shared/bounded-sse-reader');
 const { sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
 const { createRemoteDanmakuSettings } = require('./remote-danmaku-settings');
+const { createRemoteSongs } = require('./remote-songs');
+const { createRemoteCloudSync } = require('./remote-cloud-sync');
 const { createRemoteGiftReads } = require('./remote-gift-reads');
 
 const DEFAULT_BASE_URL = 'https://api.lirahub.cn';
-// Includes canonical song fields, legacy aliases and the complete sync metadata.
-// The server checks this same UTF-8 budget before committing a song mutation.
-const MAX_SONG_SNAPSHOT_BYTES = 8 * 1024 * 1024;
 const MAX_GIFT_CATALOG_BYTES = 32 * 1024 * 1024;
 
 class RemoteLicenseError extends Error {
@@ -35,16 +34,7 @@ function createRemoteLicenseClient(options = {}) {
   const timeoutMs = Number(options.timeoutMs) || 10000;
   const now = options.now || Date.now;
   const baseUrl = resolveConfiguredBaseUrl(options.baseUrl);
-  const parsedBase = new URL(baseUrl);
-  if (
-    parsedBase.protocol !== 'https:' ||
-    !isDnsHostname(parsedBase.hostname) ||
-    parsedBase.username ||
-    parsedBase.password ||
-    parsedBase.pathname !== '/' ||
-    parsedBase.search ||
-    parsedBase.hash
-  ) {
+  if (!normalizeRemoteRootOrigin(baseUrl)) {
     throw new Error(
       'License API base URL must be an HTTPS root origin with a DNS hostname and without credentials, query, or fragment.',
     );
@@ -184,51 +174,77 @@ function createRemoteLicenseClient(options = {}) {
   }
 
   async function readEventStream(pathname, token, options, onOpen, onBlock) {
-    let response;
+    const controller = new AbortController();
+    const abortFromCaller = () => controller.abort(options.signal.reason);
+    if (options.signal?.aborted) abortFromCaller();
+    else options.signal?.addEventListener('abort', abortFromCaller, { once: true });
+    let timer;
+    let timedOut = false;
+    function deadline(delay) {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, delay);
+      timer.unref?.();
+    }
+    deadline(15_000);
     try {
-      response = await fetchImpl(`${baseUrl}${pathname}`, {
-        method: 'GET',
-        headers: {
-          Accept: 'text/event-stream',
-          Authorization: `Bearer ${token}`,
-          ...(pathname === '/api/device/gift-events/stream'
-            ? { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1', 'X-Lira-Gift-Effects': '1' }
-            : {}),
-        },
-        signal: options.signal,
-        redirect: 'error',
-      });
-    } catch (error) {
-      if (error?.name === 'AbortError') throw error;
-      throw new RemoteLicenseError('NETWORK_UNAVAILABLE', '无法连接授权服务器，请检查网络后重试。', {
-        retryable: true,
-      });
-    }
-
-    if (!response.ok) throw await readStreamError(response, now());
-    const contentType = String(response.headers?.get?.('content-type') || '');
-    if (!/^text\/event-stream(?:\s*;|$)/iu.test(contentType) || !response.body?.getReader) {
+      controller.signal.throwIfAborted();
+      let response;
       try {
-        await response.body?.cancel?.();
+        response = await fetchImpl(`${baseUrl}${pathname}`, {
+          method: 'GET',
+          headers: {
+            Accept: 'text/event-stream',
+            Authorization: `Bearer ${token}`,
+            ...(pathname === '/api/device/gift-events/stream'
+              ? { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1', 'X-Lira-Gift-Effects': '1' }
+              : {}),
+          },
+          signal: controller.signal,
+          redirect: 'error',
+        });
       } catch (error) {
-        // Preserve the protocol error when an invalid response already failed.
-        void error;
+        if (error?.name === 'AbortError') throw error;
+        throw new RemoteLicenseError('NETWORK_UNAVAILABLE', '无法连接授权服务器，请检查网络后重试。', { retryable: true });
       }
-      throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
-        status: response.status,
-        retryable: true,
-      });
-    }
-
-    return readBoundedSse(response, {
-      onOpen,
-      onBlock,
-      createLimitError: () =>
-        new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。', {
+      if (!response.ok) throw await readStreamError(response, now());
+      const contentType = String(response.headers?.get?.('content-type') || '');
+      if (!/^text\/event-stream(?:\s*;|$)/iu.test(contentType) || !response.body?.getReader) {
+        try {
+          await response.body?.cancel?.();
+        } catch (error) {
+          void error;
+        }
+        throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
+          status: response.status,
+          retryable: true,
+        });
+      }
+      return await readBoundedSse(response, {
+        signal: controller.signal,
+        onOpen(response) {
+          deadline(60_000);
+          onOpen(response);
+        },
+        onBlock(block) {
+          deadline(60_000);
+          onBlock(block);
+        },
+        createLimitError: () => new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。', {
           status: response.status,
           retryable: true,
         }),
-    });
+      });
+    } catch (error) {
+      if (options.signal?.aborted) throw options.signal.reason;
+      if (timedOut) throw new RemoteLicenseError('REQUEST_TIMEOUT', '连接授权服务器超时，请重试。', { retryable: true });
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener('abort', abortFromCaller);
+    }
   }
 
   function watchCloudStateChanges(token, options = {}) {
@@ -272,11 +288,8 @@ function createRemoteLicenseClient(options = {}) {
     verify: (body) => request('POST', '/api/device/verify', body),
     heartbeat: (token) => request('POST', '/api/device/heartbeat', {}, token),
     profile: (token) => request('GET', '/api/device/profile', undefined, token),
-    getOverlaySettings: (token) => request('GET', '/api/device/overlay-settings', undefined, token),
     ...createRemoteDanmakuSettings(request),
-    updateOverlaySettings: (settings, token) => request('PUT', '/api/device/overlay-settings', settings, token),
-    getCloudState: (token, requestOptions) =>
-      request('GET', '/api/device/cloud-state', undefined, token, requestOptions),
+    ...createRemoteCloudSync(request),
     watchCloudStateChanges,
     getFanFacts: (after, epoch, token, requestOptions = {}) => {
       const query = new URLSearchParams({ after: String(after), limit: '200' });
@@ -286,26 +299,8 @@ function createRemoteLicenseClient(options = {}) {
     ...createRemoteGiftReads(request),
     clearGiftHistory,
     watchGiftEvents,
-    updateCloudSettings: (settings, token, requestOptions) =>
-      request('PUT', '/api/device/cloud-settings', settings, token, requestOptions),
-    syncSongs: (songs, token, requestOptions) =>
-      request('PUT', '/api/device/songs/sync', { songs }, token, requestOptions),
-    getCloudSongs: (token, requestOptions = {}) =>
-      request('GET', '/api/device/songs', undefined, token, {
-        maxResponseBytes: MAX_SONG_SNAPSHOT_BYTES,
-        signal: requestOptions.signal,
-      }),
-    getBilibiliCredentials: (token, requestOptions) =>
-      request('GET', '/api/device/bilibili-credentials', undefined, token, requestOptions),
-    setBilibiliCredentials: (cookie, token, requestOptions) =>
-      request('PUT', '/api/device/bilibili-credentials', { cookie }, token, requestOptions),
-    clearBilibiliCredentials: (token, requestOptions) =>
-      request('DELETE', '/api/device/bilibili-credentials', undefined, token, requestOptions),
+    ...createRemoteSongs(request, requestRaw),
     getGiftCatalog: (etag, token) => requestGiftCatalog(etag, token),
-    getSongPageBackground: (token) => request('GET', '/api/device/song-page/background', undefined, token),
-    uploadSongPageBackground: (bytes, contentType, token) =>
-      requestRaw('PUT', '/api/device/song-page/background', bytes, contentType, token),
-    deleteSongPageBackground: (token) => request('DELETE', '/api/device/song-page/background', undefined, token),
   };
 }
 

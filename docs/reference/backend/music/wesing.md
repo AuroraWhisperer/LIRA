@@ -258,7 +258,7 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 ## 11. 诊断工具
 
-[scripts/inspect-wesing-playback.js](../../../../scripts/inspect-wesing-playback.js)(配套 `inspect-wesing-playback.cmd`)输出 `logs/wesing-playback-diagnostic-<时间戳>.jsonl`:
+[scripts/inspect-wesing-playback.js](../../../../scripts/inspect-wesing-playback.js)(配套 `inspect-wesing-playback.cmd`)输出 `tmp/wesing-playback-diagnostic-<时间戳>.jsonl`:
 
 - CLI:`--cache <WeSingCache>`(缺省读运行中服务的 `/api/music/wesing/status` 拿当前配置,[inspect-wesing-playback.js:96-126](../../../../scripts/inspect-wesing-playback.js#L96-L126))、`--output <文件>`、`--duration <秒>`(≤3600)、`-h`
 - 记录类型:实时日志探针(`wesing-log-file` / `wesing-log-line` / `wesing-log-error`,UTF-16LE 增量轮询,行截 8000 字符)、监视样本、按键标记(1-6:点击 K 歌/暂停/继续/退出/重进/此刻歌词状态不正确,[inspect-wesing-playback.js:11-18](../../../../scripts/inspect-wesing-playback.js#L11-L18))

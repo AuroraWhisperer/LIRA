@@ -146,6 +146,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             : !draft.resourceStyle || !Object.hasOwn(openingFields, key))
             || type === 'games' && key === 'showDanmaku' && draft.game !== 'draw-guess'
             || type === 'background' && key === 'style' && Boolean(draft.mediaStyle)
+            || type === 'background' && ['sceneMode', 'windowScene', 'sceneIntervalSeconds'].includes(key)
+              && (draft.style !== 'windowlight' || Boolean(draft.mediaStyle) || key === 'sceneIntervalSeconds' && draft.sceneMode !== 'auto')
             || type === 'interactions' && key === 'interactionRatingRules' && draft.kind !== 'rating'
             || type === 'interactions' && ['interactionBarColor', 'interactionTrackColor'].includes(key) && draft.kind !== 'poll'
             || type === 'gift-wishes' && ['textPendingColor', 'textReceivedColor'].includes(key) && !['text', 'original'].includes(draft.displayStyle)

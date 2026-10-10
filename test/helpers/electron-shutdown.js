@@ -307,6 +307,7 @@ function createShutdownHarness(options = {}) {
         assert.equal(manager, licenseManager);
         calls.push('scene:create');
         publishSceneCloud = publish;
+        if (options.sceneController) return options.sceneController;
         return {
           ...controller('scene', { promise: options.sceneIdle?.promise }),
           start: () => calls.push('scene:start'),

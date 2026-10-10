@@ -8,6 +8,29 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('fixed feed removes selected SC nodes without rebuilding retained messages', async () => {
+  const root = new FakeNode('div');
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
+    document: createFakeDocument(),
+  });
+  const feed = module.createDanmakuFeed(root, { autoScroll: false });
+  feed.render([
+    { id: 'chat', message: '聊天' },
+    { id: 'sc', kind: 'superchat', message: '撤下', price: 30 },
+    { id: 'kept-sc', kind: 'superchat', message: '保留', price: 50 },
+  ]);
+  const [chat, deleted, kept] = root.children;
+  feed.remove(['sc', 'unknown']);
+  assert.deepEqual(root.children, [chat, kept]);
+  assert.equal(deleted.parent, null);
+  feed.remove(['sc']);
+  assert.deepEqual(root.children, [chat, kept]);
+  feed.append({ id: 'next', message: '后续消息' });
+  assert.equal(root.children[0], chat);
+  assert.equal(root.children[1], kept);
+  feed.destroy();
+});
+
 test('ranked danmaku fits the shared horizontal inset without shrinking for height', async () => {
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), {
     document: { addEventListener() {} },

@@ -2,8 +2,107 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const path = require('node:path');
 const test = require('node:test');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
+const { loadModuleExports } = require('../helpers/frontend-modules');
+
+test('queue rendering follows in-place metadata, match corrections and playlist cursor changes', async () => {
+  const elements = new Map();
+  const document = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, {
+        innerHTML: '', textContent: '', contains: () => false,
+        classList: { add() {}, remove() {} },
+      });
+      return elements.get(id);
+    },
+  };
+  const { QueuePopup } = await loadModuleExports(path.resolve(__dirname, '../../public/js/playback/ui/queue-popup.js'), { document });
+  const popup = new QueuePopup();
+  popup.init();
+  popup.open();
+  const local = { ...track('local-track', '本地歌曲'), source: 'local', fileMissing: true };
+  const state = {
+    current: local, currentOrigin: 'normal', queueType: 'queue', queueTitle: '播放队列', playlistIndex: -1,
+    normalQueue: [local], normalQueueTracks: [], radioQueue: [], pendingRequests: [],
+  };
+  const list = document.getElementById('playbackQueueList');
+  popup.render(state);
+  assert.match(list.innerHTML, /文件已移动，请重新选择/);
+  assert.match(list.innerHTML, /playback-queue-row active/);
+
+  local.objectUrl = 'local-media://synthetic-track';
+  local.fileMissing = false;
+  local.artists.push('新增歌手');
+  local.durationMs = 62000;
+  popup.render(state);
+  assert.doesNotMatch(list.innerHTML, /需重新选择文件|文件已移动/);
+  assert.match(list.innerHTML, /新增歌手[\s\S]*01:02/);
+
+  const pending = { songName: '观众请求', score: 60, reasons: ['待核对'], track: track('match', '候选歌曲') };
+  state.pendingRequests.push(pending);
+  popup.render(state);
+  assert.match(list.innerHTML, /60 分 · 待核对/);
+  pending.track.title = '修正后的候选';
+  pending.score = 90;
+  pending.reasons.splice(0, 1, '歌手匹配');
+  popup.render(state);
+  assert.match(list.innerHTML, /修正后的候选[\s\S]*90 分 · 歌手匹配/);
+  state.pendingRequests.splice(0, 1);
+  state.current = { ...local, songRequestKey: 'another-request' };
+  popup.render(state);
+  assert.doesNotMatch(list.innerHTML, /playback-queue-row active|观众请求/);
+
+  state.queueType = 'playlist';
+  state.queueTitle = '本地歌单';
+  state.normalQueueTracks.push(local, track('second', '第二首'));
+  state.playlistIndex = 0;
+  popup.render(state);
+  assert.match(list.innerHTML, /playlist-current[\s\S]*本地歌曲/);
+  state.playlistIndex = 1;
+  popup.render(state);
+  assert.match(list.innerHTML, /playlist-past[\s\S]*本地歌曲[\s\S]*playlist-current[\s\S]*第二首/);
+  state.normalQueueTracks.splice(1, 1, track('replacement', '同位置替换曲目'));
+  popup.render(state);
+  assert.match(list.innerHTML, /playlist-current[\s\S]*同位置替换曲目/);
+  assert.doesNotMatch(list.innerHTML, /第二首/);
+});
+
+test('unchanged queue and search lists survive pause and unrelated provider updates, and reopen with new tracks', async () => {
+  const app = await createPlaybackApp({
+    current: track('playing', '正在播放'), normalQueue: [track('next', '原下一首')],
+    mode: 'sequence', volume: 0.75, selectedSource: 'qq',
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackQueueBtn', 'click');
+  app.element('playbackSearchKeyword').value = '新点的歌';
+  await app.emit('playbackSearchBtn', 'click');
+  const writes = { queue: 0, search: 0 };
+  for (const [key, id] of [['queue', 'playbackQueueList'], ['search', 'playbackSearchResults']]) {
+    const node = app.element(id);
+    let html = node.innerHTML;
+    Object.defineProperty(node, 'innerHTML', {
+      get: () => html,
+      set(value) { writes[key]++; html = value; },
+    });
+  }
+
+  await app.emit('music-player', 'pause');
+  await app.emitWindow('app:wesing-state', { detail: { currentMs: 1000, playing: true } });
+  assert.deepEqual(writes, { queue: 0, search: 0 });
+  await app.emit('queuePopupClose', 'click');
+  await app.emit('playbackSearchResults', 'click', {
+    target: closestTarget({ playbackSearchAction: 'normal', playbackSearchIndex: '0' }, 'playback-search-action'),
+  });
+  assert.deepEqual(writes, { queue: 0, search: 0 }, 'closed queues defer rendering without rebuilding search results');
+  await app.emit('playbackQueueBtn', 'click');
+  assert.equal(writes.queue, 1);
+  assert.match(app.element('playbackQueueList').innerHTML, /原下一首[\s\S]*新点的歌/);
+  await app.emit('playbackSearchClearBtn', 'click');
+  assert.equal(app.element('playbackSearchResults').innerHTML, '');
+});
 
 for (const [queueType, mode] of [['queue', 'sequence'], ['queue', 'shuffle'], ['playlist', 'sequence'], ['playlist', 'shuffle'], ['radio', 'shuffle']]) {
   test(`confirming a request queues the next song without interrupting audio (${queueType}/${mode})`, async () => {
@@ -166,6 +265,7 @@ test('playlist playback keeps one queue and loops with directly played search tr
 
   await app.init();
   await flushAsyncWork();
+  await app.emit('playbackQueueBtn', 'click');
 
   assert.equal(app.element('queuePopupTitle').textContent, '歌单队列');
   assert.equal(app.element('queuePopupSize').textContent, '3 首');
@@ -267,6 +367,7 @@ test('playing a wanted track from radio switches to a looping history queue', as
     ['radio-current', 'history-old'],
   );
   assert.deepEqual(persisted.radioQueue, []);
+  await app.emit('playbackQueueBtn', 'click');
   assert.equal(app.element('queuePopupTitle').textContent, '历史播放');
 
   await app.emit('music-player', 'ended');

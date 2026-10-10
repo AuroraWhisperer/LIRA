@@ -60,7 +60,7 @@ Platform terminology follows the [documentation entry](../docs/README.md): the l
 
 | `specs/gift-identity-overtime.md` | Design specification | Implemented | `src/shared/gift-identity.js`<br>`src/storage/gift-identity-migration.js`<br>`src/overtime/overtime-store.js`<br>`test/gifts/gift-identity-catalog.test.js`<br>`test/overtime/overtime-service.test.js` | 2026-09-13 |
 
-| `specs/song-request-metadata.md` | Design specification | Implemented | `public/js/admin/songs.js`<br>`src/music/song-import-update.js`<br>`test/songs/song-request-form.test.js`<br>`test/songs/song-import-update.test.js`<br>`test/songs/song-import-update-ui.test.js`<br>`test/songs/song-file-codec.test.js` | 2026-09-13 |
+| `specs/song-request-metadata.md` | Design specification | Implemented | `public/js/admin/songs.js`<br>`src/music/song-import-update.js`<br>`test/songs/song-request-form.test.js`<br>`test/songs/song-import-update.test.js`<br>`test/songs/song-import-update-ui.test.js`<br>`test/songs/song-file-codec.test.js` | 2026-10-10 |
 
 | `specs/gift-effect-danmaku.md` | Design specification | Implemented | `src/bilibili/gift/effect-event.js`<br>`public/js/overlays/gift-effect-player.js`<br>`test/gifts/gift-effect-danmaku.test.js` | 2026-09-14 |
 

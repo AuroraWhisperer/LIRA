@@ -24,25 +24,11 @@
         placeholder="歌曲名字	原唱/首发歌手	歌曲分类	歌曲标签	是否可点	语言	点歌价格	歌切	核对平台	核对备注"
       ></textarea>
     </label>
-    <label>
-      导入模式
-      <select id="songImportMode" data-dropdown-variant="settings">
-        <option value="add">仅新增，跳过已有歌曲</option>
-        <option value="update">更新匹配歌曲（先预览）</option>
-      </select>
-    </label>
-    <button id="importBtn" class="primary" type="button">导入歌库</button>
-    <div id="songImportUpdateOptions" class="stack" hidden>
-      <label class="checkbox-label">
-        <input id="songImportAllowEmptyClear" type="checkbox" />
-        用表格中的空白内容清除原有信息
-      </label>
-      <p class="hint">
-        歌名和歌手都相同，才会更新原歌曲；歌手留空时，只匹配同样未填歌手的歌曲。改了歌名或歌手会作为新歌添加。未提供的列不修改；「是否可点」留空时保留原设置。分类清空后归为「默认」。
-      </p>
-      <button id="songImportPreviewBtn" type="button">预览更新</button>
-    </div>
-    <section id="songImportPreview" class="stack" aria-label="歌库更新预览" hidden>
+    <p class="hint song-import-note">
+      导入会用整份表格替换歌库，未列出的旧歌曲会删除。请上传完整歌单；先预览变化，确认后才保存。
+    </p>
+    <button id="songImportPreviewBtn" class="primary" type="button">预览导入</button>
+    <section id="songImportPreview" class="stack" aria-label="歌库替换预览" hidden>
       <p id="songImportPreviewSummary" class="hint" role="status"></p>
       <div class="table-wrap">
         <table>
@@ -63,14 +49,15 @@
         <span id="songImportPage" class="hint"></span>
         <button id="songImportNextPage" type="button">下一页</button>
       </div>
-      <button id="songImportApplyBtn" class="primary" type="button" disabled>确认更新歌库</button>
+      <button id="songImportApplyBtn" class="primary" type="button" disabled>确认替换歌库</button>
     </section>
-    <p class="hint song-import-note">
-      默认仅新增，相同歌名和歌手的已有歌曲会跳过，不会更新价格。批量修改请先切换到更新模式并核对预览。
-    </p>
     <details class="song-import-help">
       <summary>表格填写说明</summary>
       <dl>
+        <div>
+          <dt>替换规则</dt>
+          <dd>歌名和歌手都相同则更新，否则新增；旧歌库中未列出的歌曲会删除，已有点歌记录保留。空白或缺失的文本字段清空，分类默认为「默认」，是否可点默认为「是」。表格有错误或没有歌曲时，不会替换歌库。</dd>
+        </div>
         <div>
           <dt>文件与表头</dt>
           <dd>支持 XLSX、CSV、TSV，也可直接粘贴表格。兼容常用表头；无表头时，请保留模板完整十列。</dd>
@@ -115,7 +102,7 @@
         </dl>
         <p id="licenseLastCloudSync" class="hint"></p>
         <div class="song-cloud-notice">
-          <p>同步会用这台电脑的歌库替换云端歌库，网页歌单和同一账号的其他电脑也会跟着更新。</p>
+          <p>同步会用这台电脑的完整歌库替换云端歌库，不受当前搜索和筛选影响，网页歌单和同一账号的其他电脑也会跟着更新。</p>
           <p class="hint">请先确认这台电脑的歌曲齐全，并避免同时在多台电脑修改歌库。</p>
         </div>
         <div class="actions song-cloud-actions">
@@ -152,8 +139,8 @@
             </div>
           </div>
           <div class="song-background-guide">
-            <p>选择图片后立即上传，替换当前背景。</p>
-            <p class="hint">支持 PNG、JPG、WebP、GIF，最大 5 MB。</p>
+            <p>选择图片后自动压缩上传，并在本机保留副本。</p>
+            <p class="hint">支持 PNG、JPG、WebP、GIF，原图最大 5 MB；动图取首帧，优先保留清晰度，压缩后不超过 1 MB。</p>
           </div>
         </div>
         <p id="licenseSongBgMeta" class="hint song-cloud-result"></p>

@@ -186,6 +186,54 @@ test('one blindbox profitability toggle can turn off the legacy loss filter', { 
   }
 });
 
+test('windowlight controls keep the starting scene available and show timing only for automatic backgrounds', { timeout: 15000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.evaluate(async () => {
+    const { createSceneExtraPreview } = await import('/js/admin/scene-extra-preview.js');
+    const { createSceneExtraDefaults } = await import('/js/shared/scene-extra-components.js');
+    const { createComponentConfigController } = await import('/js/admin/component-config-controller.js');
+    window.controller = createComponentConfigController({ initial: createSceneExtraDefaults('background'), persist: async draft => draft });
+    createSceneExtraPreview('background', { controller: window.controller }).createPanel(document.body);
+  });
+  const mode = page.locator('[data-component-parameter="sceneMode"]');
+  const scene = page.locator('[data-component-parameter="windowScene"]');
+  const interval = page.locator('[data-component-parameter="sceneIntervalSeconds"]');
+  for (const control of [mode, scene, interval]) {
+    assert.equal(await control.count(), 1);
+    assert.equal(await control.isVisible(), false);
+  }
+  assert.equal(await page.locator('option[value="windowlight"]').evaluate(option => option.hidden), true);
+  await page.evaluate(() => window.controller.edit({ style: 'windowlight' }));
+  assert.equal(await mode.isVisible(), true);
+  assert.equal(await scene.isVisible(), true);
+  assert.equal(await interval.isVisible(), false);
+  await scene.selectOption('rainy');
+  await mode.selectOption('auto');
+  assert.equal(await scene.isVisible(), true);
+  assert.equal(await scene.inputValue(), 'rainy');
+  assert.equal(await interval.isVisible(), true);
+  await interval.fill('37');
+  await interval.press('Tab');
+  assert.deepEqual(await page.evaluate(() => {
+    const { sceneMode, windowScene, sceneIntervalSeconds } = window.controller.getState().draft;
+    return { sceneMode, windowScene, sceneIntervalSeconds };
+  }), { sceneMode: 'auto', windowScene: 'rainy', sceneIntervalSeconds: 37 });
+  await mode.selectOption('manual');
+  assert.equal(await interval.isVisible(), false);
+  assert.equal(await scene.inputValue(), 'rainy');
+  for (const config of [{ style: 'moonlit' }, { style: 'windowlight', mediaStyle: { kind: 'image' } }]) {
+    await page.evaluate(config => window.controller.edit(config), config);
+    for (const control of [mode, scene, interval]) assert.equal(await control.isVisible(), false);
+  }
+});
+
 test('imported opening repeats only in preview, stays silent while disabled, and stops cleanly', { timeout: 30000 }, async t => {
   const { createMediaStyle } = require('../../public/js/shared/component-media-style.js');
   const fixture = await startCanvasOutputFixture();

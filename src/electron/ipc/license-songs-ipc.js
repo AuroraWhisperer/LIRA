@@ -27,7 +27,22 @@ const SONG_PUBLIC_FIELDS = [
   'updatedAt',
 ];
 
-function registerLicenseSongsIpc({ safeHandle, licenseManager }) {
+function registerLicenseSongsIpc({ safeHandle, licenseManager, getCloudSyncController = () => null }) {
+  function controller() {
+    const value = getCloudSyncController();
+    if (!value) throw Object.assign(new Error(), { code: 'CLOUD_SYNC_NOT_READY' });
+    return value;
+  }
+  safeHandle('license:get-local-song-count', () => {
+    const { count, generation } = controller().getLocalSongCount();
+    return { ok: true, count, generation };
+  });
+  safeHandle('license:sync-current-songs', (generation) => {
+    if (!Number.isSafeInteger(generation) || generation < 0) {
+      throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });
+    }
+    return controller().syncCurrentSongs(generation).then(sanitizeSyncResponse);
+  });
   safeHandle('license:sync-songs', (songs) => {
     if (!Array.isArray(songs) || songs.length > 5000)
       return {
@@ -41,7 +56,7 @@ function registerLicenseSongsIpc({ safeHandle, licenseManager }) {
         state: safeState(licenseManager.getState()),
         error: 'SONG_LIST_TOO_LARGE',
       };
-    return licenseManager.syncSongs(songs).then((result) => sanitizeSyncResponse(result));
+    return controller().syncSongs(songs).then(sanitizeSyncResponse);
   });
   safeHandle('license:get-song-page-background', () =>
     licenseManager.getSongPageBackground().then((result) => sanitizeBackgroundResponse(result)),
@@ -49,6 +64,10 @@ function registerLicenseSongsIpc({ safeHandle, licenseManager }) {
   safeHandle('license:get-cloud-songs', () =>
     licenseManager.getCloudSongs().then((result) => sanitizeCloudSongsResponse(result)),
   );
+  safeHandle('license:get-cloud-song-count', async () => {
+    const { count } = await licenseManager.getCloudSongCount();
+    return { ok: true, count };
+  });
   safeHandle('license:upload-song-page-background', (payload) => {
     const bytes = payload?.bytes;
     if (!(bytes instanceof Uint8Array) || !bytes.length) {

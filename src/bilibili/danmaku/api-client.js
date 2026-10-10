@@ -140,22 +140,29 @@ class BilibiliApiClient {
   }
 
   async resolveDanmuInfo(roomId) {
-    const query = await wbiSigner.signBilibiliWbiParams({ id: roomId, type: 0 }, this.requestHeaders());
-    const { payload, response } = await this.fetchJson(
-      'getDanmuInfo',
-      `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?${query}`,
-    );
-    if (payload.code !== 0 || !payload.data) {
-      throw new Error(
-        formatBilibiliApiError(
-          'getDanmuInfo',
-          response,
-          payload,
-          '这是获取弹幕服务器信息失败，不是点歌逻辑失败。常见原因是直播平台风控、WBI 签名变化、缺少登录 Cookie 或网络/IP 被风控。',
-        ),
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const key = await wbiSigner.getBilibiliWbiKey(this.requestHeaders());
+      const query = wbiSigner.buildBilibiliWbiQuery({ id: roomId, type: 0 }, key.mixinKey, Date.now());
+      const { payload, response } = await this.fetchJson(
+        'getDanmuInfo',
+        `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?${query}`,
       );
+      if (attempt === 0 && payload.code === -352) {
+        wbiSigner.invalidateBilibiliWbiKey(key);
+        continue;
+      }
+      if (payload.code !== 0 || !payload.data) {
+        throw new Error(
+          formatBilibiliApiError(
+            'getDanmuInfo',
+            response,
+            payload,
+            '这是获取弹幕服务器信息失败，不是点歌逻辑失败。常见原因是直播平台风控、WBI 签名变化、缺少登录 Cookie 或网络/IP 被风控。',
+          ),
+        );
+      }
+      return payload.data;
     }
-    return payload.data;
   }
 
   async fetchOnlineRank(roomId, ruid, page, pageSize) {

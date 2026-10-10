@@ -5,6 +5,33 @@ const test = require('node:test');
 const { mapSongForSync } = require('../../src/electron/license/license-manager');
 const { createHarness } = require('../helpers/license-manager-harness');
 
+test('profile reads share only the current in-flight request and retry after failure', async (t) => {
+  const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  let calls = 0;
+  let finish;
+  remote.profile = () => {
+    calls += 1;
+    return new Promise((resolve, reject) => { finish = { resolve, reject }; });
+  };
+  const concurrent = Promise.all(Array.from({ length: 6 }, () => manager.getProfile()));
+  await new Promise(setImmediate);
+  assert.equal(calls, 1);
+  finish.resolve({ streamer: { accountName: 'mlbb' } });
+  assert.equal((await concurrent).length, 6);
+  const failed = assert.rejects(manager.getProfile(), { code: 'NETWORK_UNAVAILABLE' });
+  await new Promise(setImmediate);
+  assert.equal(calls, 2);
+  finish.reject(Object.assign(new Error(), { code: 'NETWORK_UNAVAILABLE' }));
+  await failed;
+  const refreshed = manager.getProfile();
+  await new Promise(setImmediate);
+  assert.equal(calls, 3);
+  finish.resolve({ streamer: { accountName: 'mlbb', displayName: 'Refreshed' } });
+  assert.equal((await refreshed).streamer.displayName, 'Refreshed');
+});
+
 test('song sync maps local snake_case song fields to the remote contract', () => {
   assert.deepEqual(
     mapSongForSync({
@@ -35,6 +62,40 @@ test('song sync maps local snake_case song fields to the remote contract', () =>
   assert.equal(mapSongForSync({ title: 'Guard', request_price: '舰长' }).requestPrice, '舰长');
   assert.equal(mapSongForSync({ title: 'Legacy', requestPrice: 12.5 }).requestPrice, 12.5);
   assert.equal(mapSongForSync({ title: 'Empty' }).requestPrice, null);
+});
+
+test('song counts use cloud summaries and read full songs only for an older server', async (t) => {
+  const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  let reads = 0;
+  let songs = { initialized: true, revision: 2, count: 3 };
+  remote.getCloudState = async () => ({ songs });
+  remote.getCloudSongs = async () => { reads += 1; return { songs: [{}, {}] }; };
+  assert.deepEqual(await manager.getCloudSongCount(), { count: 3 });
+  songs.count = 0;
+  assert.deepEqual(await manager.getCloudSongCount(), { count: 0 });
+  assert.equal(reads, 0);
+  delete songs.count;
+  assert.deepEqual(await manager.getCloudSongCount(), { count: 2 });
+  assert.equal(reads, 1);
+  for (const invalid of [-1, 0.5, '3', null]) {
+    songs.count = invalid;
+    await assert.rejects(manager.getCloudSongCount(), { code: 'INVALID_RESPONSE' });
+  }
+  assert.equal(reads, 1);
+});
+
+test('song uploads require a success acknowledgement for the complete submitted snapshot', async (t) => {
+  const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  for (const response of [{}, { ok: true }, { ok: true, count: 0 }, { ok: true, count: '1' }, { ok: false, count: 1 }]) {
+    remote.syncSongs = async () => response;
+    await assert.rejects(manager.syncSongs([{ title: 'One' }]), { code: 'INVALID_RESPONSE' });
+  }
+  remote.syncSongs = async () => ({ ok: true, count: 1 });
+  assert.deepEqual(await manager.syncSongs([{ title: 'One' }]), { ok: true, count: 1 });
 });
 
 test('song background operations use the authorized device token and preserve binary bytes', async () => {

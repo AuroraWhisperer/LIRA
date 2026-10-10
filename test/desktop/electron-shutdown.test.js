@@ -4,10 +4,79 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createShutdownHarness } = require('../helpers/electron-shutdown');
 const { acknowledgePlaybackFlush } = require('../../src/electron/playback-flush');
+const { createHarness: createLicenseHarness } = require('../helpers/license-manager-harness');
+const { createSceneCloudController } = require('../../src/electron/scene-cloud-controller');
 
 test('every main process dependency is modelled for shutdown review', () => {
   const h = createShutdownHarness();
   assert.deepEqual(h.unmodelledDependencies, [], 'add each new main.js dependency to helpers/electron-shutdown.js');
+});
+
+test('quit drains a scene waiting for scheduled renewal and reaches the actual playback flush', async (t) => {
+  const scheduled = new Set();
+  const license = createLicenseHarness({
+    identity: { deviceId: 'd', licenseId: 'l', streamerId: 7 },
+    timers: {
+      setTimeout(callback, delay) {
+        const timer = { callback, delay, unref() {} };
+        scheduled.add(timer);
+        return timer;
+      },
+      clearTimeout: (timer) => scheduled.delete(timer),
+    },
+  });
+  const renewal = Promise.withResolvers();
+  let scene;
+  t.after(() => {
+    acknowledgePlaybackFlush();
+    scene?.dispose();
+    license.manager.dispose();
+    renewal.resolve({});
+  });
+  await license.manager.bootstrap();
+  let renewalCompleted = false;
+  license.remote.verify = () => renewal.promise.finally(() => { renewalCompleted = true; });
+  const renewalTimer = [...scheduled].find(({ delay }) => delay > 150_000);
+  assert.ok(renewalTimer, 'bootstrap schedules early renewal');
+  scheduled.delete(renewalTimer);
+  renewalTimer.callback();
+  let settingsCalls = 0;
+  let sceneSignal;
+  license.remote.getOverlaySettings = async () => { settingsCalls++; };
+  const getSettings = license.manager.getOverlaySettings;
+  license.manager.getOverlaySettings = (options) => {
+    sceneSignal = options.signal;
+    return getSettings(options);
+  };
+  scene = createSceneCloudController({
+    licenseManager: license.manager,
+    publish() {},
+    subscribeDemand(listener) { listener(true); return () => {}; },
+    fetchImpl: () => assert.fail('a cancelled scene must not open its event stream'),
+  });
+  const h = createShutdownHarness({ sceneController: scene, realPlaybackFlush: true });
+  await h.start();
+  assert.ok(sceneSignal);
+  assert.equal(settingsCalls, 0, 'scene settings are still waiting for authorization');
+
+  h.quit();
+  h.remoteIdle.resolve();
+  h.cloudIdle.resolve();
+  h.backendStop.resolve();
+  await h.settle();
+
+  assert.equal(sceneSignal.aborted, true);
+  assert.equal(renewalCompleted, false);
+  assert.equal(h.count('runtime:stop'), 1);
+  assert.equal(h.count('ipc:app:prepare-shutdown'), 1);
+  assert.equal(h.count('license:dispose'), 0);
+  assert.equal(h.count('app:exit'), 0);
+  assert.equal(acknowledgePlaybackFlush(), true);
+  await h.state.lifecycle.shutdownPromise;
+  assertFinalized(h, false);
+  assert.equal(settingsCalls, 0);
+  assert.equal(h.logs.find((log) => log.scope === 'playback-flush').value.status, 'ack');
+  assert.equal(h.logs.some((log) => log.value?.event === 'QUIT_TIMEOUT'), false);
 });
 
 for (const entry of ['ipc', 'native']) {

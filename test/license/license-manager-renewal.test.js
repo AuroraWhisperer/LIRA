@@ -1,10 +1,106 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { getEventListeners } = require('node:events');
 const test = require('node:test');
 const { LicenseState, parseExpiresIn, resolveTokenExpiresAt } = require('../../src/electron/license/license-manager');
 const { RemoteLicenseError } = require('../../src/electron/license/remote-license-client');
 const { createHarness } = require('../helpers/license-manager-harness');
+
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+test('an already cancelled protected call does not renew or send a request', async (t) => {
+  const { manager, calls } = createHarness({
+    identity: { deviceId: 'd', publicKeyPem: 'public' },
+    verifyExpiresIn: (count) => (count === 1 ? '0s' : '10m'),
+  });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  const controller = new AbortController();
+  controller.abort();
+
+  await assert.rejects(manager.getCloudSongs({ signal: controller.signal }), { name: 'AbortError' });
+
+  assert.equal(calls.verifies, 1);
+  assert.equal(calls.cloudSongsTokens, undefined);
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+});
+
+for (const phase of ['expired token', 'protected rejection']) {
+  test(`cancelling a caller during ${phase} renewal leaves other callers active`, async (t) => {
+    const { manager, remote, calls } = createHarness({
+      identity: { deviceId: 'd', publicKeyPem: 'public' },
+      verifyExpiresIn: (count) => (phase === 'expired token' && count === 1 ? '0s' : '10m'),
+    });
+    const renewal = Promise.withResolvers();
+    const refreshed = { accessToken: 'token-2', sessionId: 'session-1', expiresIn: '10m' };
+    t.after(() => {
+      manager.dispose();
+      renewal.resolve(refreshed);
+    });
+    await manager.bootstrap();
+    remote.verify = () => {
+      calls.verifies += 1;
+      return renewal.promise;
+    };
+    if (phase === 'protected rejection') {
+      remote.syncSongs = async (_songs, token) => {
+        calls.syncTokens.push(token);
+        throw new RemoteLicenseError('DEVICE_SESSION_INVALID', 'invalid', { status: 401 });
+      };
+    }
+    const controller = new AbortController();
+    let cancellation;
+    const cancelled = manager.syncSongs([], { signal: controller.signal }).catch((error) => {
+      cancellation = error;
+    });
+    await settle();
+    assert.equal(calls.verifies, 2);
+    const surviving = manager.getCloudSongs();
+
+    controller.abort();
+    await settle();
+    assert.equal(cancellation?.name, 'AbortError', 'the cancelled caller settles before shared renewal');
+    assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+    assert.equal(calls.cloudSongsTokens, undefined);
+    renewal.resolve(refreshed);
+    await Promise.all([cancelled, surviving]);
+
+    assert.deepEqual(calls.syncTokens, phase === 'expired token' ? [] : ['token']);
+    assert.deepEqual(calls.cloudSongsTokens, ['token-2']);
+    assert.equal(manager.getState(), LicenseState.AUTHORIZED);
+    assert.equal(calls.verifies, 2);
+  });
+}
+
+for (const outcome of ['success', 'failure']) {
+  test(`authorization wait removes its abort listener after renewal ${outcome}`, async (t) => {
+    const { manager, remote } = createHarness({
+      identity: { deviceId: 'd', publicKeyPem: 'public' },
+      verifyExpiresIn: () => '0s',
+    });
+    const renewal = Promise.withResolvers();
+    t.after(() => {
+      manager.dispose();
+      renewal.resolve({});
+    });
+    await manager.bootstrap();
+    remote.verify = () => renewal.promise;
+    const controller = new AbortController();
+    const operation = manager.getCloudSongs({ signal: controller.signal });
+    const checked = outcome === 'failure' ? assert.rejects(operation, /LICENSE_NOT_AUTHORIZED/u) : operation;
+    await settle();
+    assert.equal(getEventListeners(controller.signal, 'abort').length, 1);
+
+    if (outcome === 'success') {
+      renewal.resolve({ accessToken: 'token-2', sessionId: 'session-1', expiresIn: '10m' });
+    } else {
+      renewal.reject(new RemoteLicenseError('NETWORK_UNAVAILABLE', 'offline', { retryable: true }));
+    }
+    await checked;
+    assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+  });
+}
 
 test('concurrent protected calls share one token renewal', async () => {
   const { manager, calls } = createHarness({

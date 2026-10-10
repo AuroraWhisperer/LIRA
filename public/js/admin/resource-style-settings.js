@@ -32,7 +32,9 @@ export function createResourceStyleSettings(style, { request = requestComponentS
         save.disabled = !state.dirty || state.saving;
         status.textContent = state.error || (state.saving ? '正在保存…' : state.dirty ? '有未保存的修改' : '已保存，与画布中的同样式组件同步。');
       });
-      const timer = setInterval(() => { if (!document.hidden) void controller.reload(); }, 1000);
+      const timer = setInterval(() => {
+        if (!document.hidden && host.checkVisibility({ checkVisibilityCSS: true })) void controller.reload();
+      }, 1000);
       return { dispose() { clearInterval(timer); stop(); panel?.dispose(); host.replaceChildren(); } };
     },
     async savedStyle() {

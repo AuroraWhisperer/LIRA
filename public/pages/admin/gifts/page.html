@@ -17,11 +17,11 @@
           <h2 class="gift-section-title ui-section-title"><label for="giftDetectToggle">礼物统计</label></h2>
           <div class="gift-control-detail">
             <span id="giftSprintStatus" class="pill warn">未开启</span>
-            <lira-help label="查看礼物统计诊断"><span id="giftStatusLine">等待直播消息…</span></lira-help>
+            <lira-help label="礼物统计说明" tooltip-id="giftStatisticsHelp">控制这台电脑是否统计礼物。关闭后暂停统计，不影响加班机和云端接收礼物；如需停止接收新礼物，请关闭「监控礼物」。</lira-help>
           </div>
         </div>
         <label class="switch-control">
-          <input id="giftDetectToggle" type="checkbox" aria-label="礼物统计" checked />
+          <input id="giftDetectToggle" type="checkbox" aria-label="礼物统计" aria-describedby="giftStatisticsHelp" checked />
           <span class="switch-track" aria-hidden="true"></span>
         </label>
       </section>

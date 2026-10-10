@@ -114,8 +114,8 @@ export const TOUR_CONFIG_STEPS = [
     title: '把歌单导入 LIRA',
     kicker: '第 5 步 · 导入歌单',
     content:
-      '现在已打开<strong class="lira-tour-keyword">「导入导出」</strong>。把你准备好的歌单选进来：可以选择 Excel（.xlsx）、CSV 或 TSV 文件，也可以把表格内容粘贴到下方，然后点击<strong class="lira-tour-keyword">「导入歌库」</strong>。',
-    note: '暂时没有歌单也没关系，可以先点「下一步」，以后再从「点歌 → 导入导出」回来添加。',
+      '现在已打开<strong class="lira-tour-keyword">「歌单导入导出」</strong>。把你准备好的歌单选进来：可以选择 Excel（.xlsx）、CSV 或 TSV 文件，也可以把表格内容粘贴到下方，请使用完整歌单，点击<strong class="lira-tour-keyword">「预览导入」</strong>，核对新增、更新和删除后，再点<strong class="lira-tour-keyword">「确认替换歌库」</strong>。未列出的旧歌曲会删除。',
+    note: '暂时没有歌单也没关系，可以先点「下一步」，以后再从「点歌 → 歌单导入导出」回来添加。',
     targetPage: 'songAssistantPage',
     targetTab: '[data-tab="importPage"]',
     targetSelector: '#importFile',

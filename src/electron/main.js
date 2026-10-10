@@ -521,6 +521,7 @@ async function startDesktopApp() {
   registerLicenseIpc({
     ipcMain,
     licenseManager,
+    getCloudSyncController: () => cloudSyncController,
     onOverlaySettings: (update) => lifecycleState.runtime.receiveSceneCloudSettings(update),
     giftCatalog: {
       getState: () => lifecycleState.runtime.getGiftCatalogInitializationState(),

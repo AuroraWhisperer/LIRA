@@ -7,6 +7,26 @@ const { createLicenseIpcFixture } = require('../helpers/license-ipc-fixture');
 const PUBLIC_STREAMER = { accountName: 'mlbb', displayName: 'mlbb', subdomain: '' };
 const PUBLIC_DEVICE = { id: 'd', name: '', status: '', licenseId: '' };
 
+test('current-library IPC passes only a confirmation generation and sanitizes the result', async () => {
+  const calls = [];
+  const ipc = createLicenseIpcFixture({
+    licenseManager: { getCloudSongCount: async () => ({ count: 2, private: 'hidden' }) },
+    cloudSyncController: {
+      getLocalSongCount: () => ({ count: 3, generation: 4, internal: 'private' }),
+      syncCurrentSongs: async (generation) => {
+        calls.push(generation);
+        return { ok: true, count: 3, revision: 12, accessToken: 'private' };
+      },
+    },
+  });
+  assert.deepEqual(await ipc.invoke('license:get-local-song-count'), { ok: true, count: 3, generation: 4 });
+  assert.deepEqual(await ipc.invoke('license:get-cloud-song-count'), { ok: true, count: 2 });
+  assert.deepEqual(await ipc.invoke('license:sync-current-songs', 4), { ok: true, count: 3 });
+  assert.equal((await ipc.invoke('license:sync-current-songs', [])).error, 'CLOUD_SONGS_CHANGED');
+  assert.equal((await ipc.handlers.get('license:sync-current-songs')(ipc.eventFrom('https://evil.test'), 4)).error, 'IPC_SOURCE_INVALID');
+  assert.deepEqual(calls, [4]);
+});
+
 test('license IPC allowlists remote responses before crossing into the renderer', async () => {
   let stateListener = null;
   const ipc = createLicenseIpcFixture({

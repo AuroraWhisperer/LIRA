@@ -349,8 +349,15 @@ function createBilibiliRuntime(options) {
     };
   }
 
+  function getLikeState() {
+    const roomId = getConfiguredRoomId();
+    if (client && client.roomId === roomId) return client.getLikeState();
+    return { roomId, count: null, updatedAt: null, connected: false };
+  }
+
   return {
     getRealtimeState,
+    getLikeState,
     subscribeRealtime(listener) {
       realtimeListeners.add(listener);
       return () => realtimeListeners.delete(listener);

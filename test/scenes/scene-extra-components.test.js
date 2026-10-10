@@ -28,6 +28,32 @@ test('backgrounds default to empty and preserve explicit legacy presets through 
   assert.notEqual(imported.document.items[0].id, input.items[0].id);
 });
 
+test('windowlight backgrounds preserve manual scenes and timed rotation through scene normalization', () => {
+  const defaults = normalizeSceneConfig('background', { style: 'windowlight' });
+  assert.equal(defaults.sceneMode, 'manual');
+  assert.equal(defaults.windowScene, 'sunny');
+  assert.equal(defaults.sceneIntervalSeconds, 300);
+  for (const sceneMode of ['manual', 'auto']) {
+    for (const windowScene of ['sunny', 'sunset', 'rainy', 'night']) {
+      const config = normalizeSceneConfig('background', { style: 'windowlight', sceneMode, windowScene, sceneIntervalSeconds: 37 });
+      const scene = normalizeSceneDocument(documentFor('background', config), { normalizeConfig: normalizeSceneConfig });
+      assert.deepEqual(scene.items[0].appearance.config, config);
+      assert.equal(config.sceneMode, sceneMode);
+      assert.equal(config.windowScene, windowScene);
+      assert.equal(config.sceneIntervalSeconds, 37);
+    }
+  }
+  for (const seconds of [10, 3600]) {
+    assert.equal(normalizeSceneConfig('background', { style: 'windowlight', sceneIntervalSeconds: seconds }).sceneIntervalSeconds, seconds);
+  }
+  for (const seconds of [9, 10.5, 3601]) {
+    assert.throws(() => normalizeSceneConfig('background', { style: 'windowlight', sceneIntervalSeconds: seconds }), { code: 'INVALID_SCENE_CONFIG' });
+  }
+  for (const snapshot of [{ sceneMode: 'auto' }, { windowScene: 'rainy' }, { sceneIntervalSeconds: 60 }]) {
+    assert.throws(() => normalizeSceneConfig('background', { style: 'windowlight', backgroundDefaults: snapshot }), { code: 'INVALID_SCENE_CONFIG' });
+  }
+});
+
 test('background parameters preserve legacy fit and validate default snapshots independently', () => {
   const { getBackgroundAppearance } = require('../../public/js/shared/background-appearance.js');
   const { createMediaStyle } = require('../../public/js/shared/component-media-style.js');

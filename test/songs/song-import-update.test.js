@@ -30,6 +30,105 @@ function textParser() {
   return loadSongImportParser().parseTable;
 }
 
+test('replacement uses the complete table, clears old fields and preserves matched IDs and request history', (t) => {
+  const { db, store, save, preview, apply } = fixture(t);
+  db.exec('PRAGMA foreign_keys = ON');
+  const kept = save({ name: '同歌', artist: '甲', requestPrice: '舰长', tags: '旧标签', isEnabled: false });
+  const removed = save({ name: '同歌', artist: '乙' });
+  for (const song of [kept, removed]) {
+    db.prepare('INSERT INTO queue (song_id, song_name, artist, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+      .run(song.id, song.name, song.artist, 'fixture', 'fixture');
+    db.prepare('INSERT INTO requests (song_id, song_name, artist, created_at) VALUES (?, ?, ?, ?)')
+      .run(song.id, song.name, song.artist, 'fixture');
+  }
+  const input = { replaceAll: true, rows: [{ name: '同歌', artist: '甲', requestPrice: '' }, { name: '新歌' }] };
+  const plan = preview(input);
+  assert.equal(plan.counts.deleted, 1);
+  assert.equal(plan.counts.updated, 1);
+  assert.equal(plan.counts.inserted, 1);
+  assert.equal(plan.rows.at(-1).status, 'deleted');
+  assert.equal(plan.rows.at(-1).artist, '乙');
+  assert.equal(plan.deletions, undefined);
+  assert.equal(store.countSongs(), 2);
+  const result = apply(input, plan);
+  assert.equal(result.total, 2);
+  assert.equal(result.deleted, 1);
+  const songs = store.listRows();
+  assert.equal(songs.length, 2);
+  const retained = songs.find((song) => song.id === kept.id);
+  assert.equal(retained.request_price, '');
+  assert.equal(retained.tags, '');
+  assert.equal(retained.is_enabled, 1);
+  for (const table of ['queue', 'requests']) {
+    const records = db.prepare(`SELECT * FROM ${table} ORDER BY id`).all();
+    assert.equal(records.length, 2);
+    assert.equal(records[0].song_id, kept.id);
+    assert.equal(records[1].song_id, null);
+    assert.equal(records[1].artist, '乙');
+  }
+});
+
+test('replacement can apply only deletions and binds replacement intent to the preview token', (t) => {
+  const { store, save, preview, apply } = fixture(t);
+  save({ name: '保留' });
+  save({ name: '删除' });
+  const input = { replaceAll: true, rows: [{ name: '保留' }] };
+  const plan = preview(input);
+  assert.equal(plan.canApply, true);
+  assert.equal(plan.counts.updated, 0);
+  assert.equal(plan.counts.deleted, 1);
+  assert.throws(() => apply({ ...input, replaceAll: false }, plan), { code: 'SONG_IMPORT_PREVIEW_STALE' });
+  save({ name: '刚添加' });
+  assert.throws(() => apply(input, plan), { code: 'SONG_IMPORT_PREVIEW_STALE' });
+  apply(input, preview(input));
+  assert.deepEqual(store.listRows().map((song) => song.name), ['保留']);
+  assert.equal(preview(input).canApply, false);
+});
+
+test('empty, invalid and conflicting replacement tables leave the old library intact', (t) => {
+  const { store, save, preview, apply } = fixture(t);
+  save({ name: '原歌' });
+  const before = store.listRows();
+  assert.throws(() => preview({ replaceAll: true, rows: [] }), { code: 'SONG_IMPORT_INPUT_INVALID' });
+  assert.throws(() => preview({ replaceAll: 'true', rows: [{ name: '新歌' }] }), { code: 'SONG_IMPORT_INPUT_INVALID' });
+  for (const rows of [[{ name: '' }], [{ name: '重复', tags: '甲' }, { name: '重复', tags: '乙' }]]) {
+    const input = { replaceAll: true, rows };
+    const plan = preview(input);
+    assert.equal(plan.canApply, false);
+    assert.throws(() => apply(input, plan), { code: 'SONG_IMPORT_PREVIEW_INVALID' });
+    assert.deepEqual(store.listRows(), before);
+  }
+});
+
+test('replacement rolls back deleted songs, references and prior updates when a later insert fails', (t) => {
+  const { db, store, save, preview, apply } = fixture(t);
+  const original = save({ name: '删除项' });
+  save({ name: '更新项', requestPrice: '舰长' });
+  db.prepare('INSERT INTO queue (song_id, song_name, created_at, updated_at) VALUES (?, ?, ?, ?)')
+    .run(original.id, original.name, 'fixture', 'fixture');
+  const tables = ['songs', 'song_categories', 'queue', 'requests', 'import_batches', 'settings'];
+  const snapshot = () => tables.map((table) => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all());
+  const before = snapshot();
+  const input = { replaceAll: true, rows: [{ name: '更新项', requestPrice: '提督', categoryName: '新分类' }, { name: '失败' }] };
+  const plan = preview(input);
+  db.exec("CREATE TRIGGER reject_replacement BEFORE INSERT ON songs WHEN NEW.name = '失败' BEGIN SELECT RAISE(ABORT, 'fixture failure'); END");
+  assert.throws(() => apply(input, plan), /fixture failure/);
+  assert.deepEqual(snapshot(), before);
+});
+
+test('replacement collapses equivalent rows after applying full-row defaults', (t) => {
+  const { store, save, preview, apply } = fixture(t);
+  save({ name: '旧歌' });
+  const input = { replaceAll: true, rows: [{ name: '新歌' }, { name: '新歌', tags: '', isEnabled: '是' }] };
+  const plan = preview(input);
+  assert.equal(plan.counts.inserted, 1);
+  assert.equal(plan.counts.unchanged, 1);
+  assert.equal(plan.counts.conflict, 0);
+  const result = apply(input, plan);
+  assert.equal(result.total, 2);
+  assert.equal(store.countSongs(), 1);
+});
+
 test('update preview preserves omitted and blank fields and matches exact artist including disabled songs', (t) => {
   const { store, save, preview, apply } = fixture(t);
   const original = save({
@@ -246,6 +345,11 @@ test('new songs cannot exceed the final 5000-song library boundary while existin
   assert.throws(() => apply(overLimitUpdate, overLimitPlan), {
     code: 'SONG_IMPORT_PREVIEW_INVALID',
   });
+  const replacement = { ...overLimitUpdate, replaceAll: true };
+  const replacementPlan = preview(replacement);
+  assert.equal(replacementPlan.counts.deleted, 5000);
+  apply(replacement, replacementPlan);
+  assert.equal(store.countSongs(), 1);
 });
 
 test('write failure rolls back updates, inserted categories, rows and import batch', (t) => {
@@ -310,50 +414,60 @@ test('platform export preserves stored values with CSV formula protection and XL
   assert.equal(csv.sourcePlatform, `'${song.source_platform}`);
 });
 
-test('preview/apply routes use server plans, reject stale requests and publish only once on success', async (t) => {
-  const { preview, store } = fixture(t);
-  const signals = [];
-  const context = {
-    songs: {
-      previewImport: preview,
-      applyImport: (input) => applySongImport(store, input),
-    },
-    broadcastSnapshot: (reason) => signals.push(reason),
-    cloudSync: { request: (scope) => signals.push(scope) },
-  };
-  async function call(path, body) {
-    const response = {
-      writeHead(status) {
-        this.status = status;
+for (const format of ['rows', 'xlsx']) {
+  test(`${format} replacement routes reject stale requests and publish only once on success`, async (t) => {
+    const { preview, store, save } = fixture(t);
+    save({ name: '旧歌' });
+    const signals = [];
+    const context = {
+      songs: {
+        previewImport: preview,
+        applyImport: (input) => applySongImport(store, input),
       },
-      end(value) {
-        this.body = JSON.parse(value);
-      },
+      broadcastSnapshot: (reason) => signals.push(reason),
+      cloudSync: { request: (scope) => signals.push(scope) },
     };
-    await routes[`POST /api/songs/${path}`](context, { body: async () => body }, response);
-    return response;
-  }
-  const input = { rows: [{ name: '更新导入', requestPrice: '舰长' }] };
-  for (const invalid of [null, [], 'text', { base64: 1 }, { base64: '', rows: [] }]) {
-    const response = await call('import-preview', invalid);
-    assert.equal(response.status, 400);
-    assert.equal(response.body.error, 'SONG_IMPORT_INPUT_INVALID');
-  }
-  const plan = await call('import-preview', input);
-  assert.equal(plan.status, 200);
-  assert.equal(signals.length, 0);
-  const stale = await call('import-apply', {
-    ...input,
-    previewToken: 'untrusted',
+    async function call(path, body) {
+      const response = {
+        writeHead(status) {
+          this.status = status;
+        },
+        end(value) {
+          this.body = JSON.parse(value);
+        },
+      };
+      await routes[`POST /api/songs/${path}`](context, { body: async () => body }, response);
+      return response;
+    }
+    const input = {
+      replaceAll: true,
+      ...(format === 'xlsx'
+        ? { base64: buildSongsWorkbook([{ name: '更新导入', request_price: '舰长' }]).toString('base64') }
+        : { rows: [{ name: '更新导入', requestPrice: '舰长' }] }),
+    };
+    for (const invalid of [null, [], 'text', { base64: 1 }, { base64: '', rows: [] }]) {
+      const response = await call('import-preview', invalid);
+      assert.equal(response.status, 400);
+      assert.equal(response.body.error, 'SONG_IMPORT_INPUT_INVALID');
+    }
+    const plan = await call('import-preview', input);
+    assert.equal(plan.status, 200);
+    assert.equal(plan.body.data.counts.deleted, 1);
+    assert.equal(signals.length, 0);
+    const stale = await call('import-apply', {
+      ...input,
+      previewToken: 'untrusted',
+    });
+    assert.equal(stale.status, 409);
+    assert.equal(stale.body.error, 'SONG_IMPORT_PREVIEW_STALE');
+    assert.equal(signals.length, 0);
+    const applied = await call('import-apply', {
+      ...input,
+      previewToken: plan.body.data.previewToken,
+    });
+    assert.equal(applied.status, 200);
+    assert.deepEqual(signals, ['songs:import', 'songs']);
+    assert.equal(store.countSongs(), 1);
+    assert.equal(store.listRows()[0].name, '更新导入');
   });
-  assert.equal(stale.status, 409);
-  assert.equal(stale.body.error, 'SONG_IMPORT_PREVIEW_STALE');
-  assert.equal(signals.length, 0);
-  const applied = await call('import-apply', {
-    ...input,
-    previewToken: plan.body.data.previewToken,
-  });
-  assert.equal(applied.status, 200);
-  assert.deepEqual(signals, ['songs:import', 'songs']);
-  assert.equal(store.countSongs(), 1);
-});
+}

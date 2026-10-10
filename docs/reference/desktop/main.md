@@ -32,7 +32,9 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 
 礼物 SSE 的原始 JSON 只在 `license/remote-license-client.js` 通过 `normalizeProcessedGiftEvent` 执行严格 wire 字段校验；回调传递的是含整数分派生字段的 canonical event。`remote-gift-controller.js` 使用 `canonicalizeProcessedGiftEvent` 处理该内部对象，不能再次用 wire 字段白名单拒绝这些派生字段；合法且连续的 final 仍走即时 importer，再按游标对账。
 
-`scene-cloud-controller.js` 的云弹幕连接由 `scene-runtime` 的共享展示需求驱动：读取弹幕投影或默认外观续期，最后一次读取后 15 秒自动停止；重新读取后在授权有效时恢复。多个本机来源仍共用一条连接，停止时清理读取、超时和退避并清空旧实时事件。`license-overlay-ipc.js` 把已校验的设置读取/保存结果连同请求前捕获的 owner scope/epoch 回填场景外观缓存；缓冲拒绝旧账号结果，不需要常开云 SSE 才能保存样式。原 IPC 返回值和渲染进程权限不变。
+`scene-cloud-controller.js` 的云弹幕连接由 `scene-runtime` 的共享展示需求驱动：读取弹幕投影或默认外观续期，最后一次读取后 15 秒自动停止；重新读取后在授权有效时恢复。多个本机来源仍共用一条连接，停止时清理读取、超时和退避并清空旧实时事件。设置读取的取消信号贯通授权等待和远端 GET；退出时可及时结束当前调用，继续既有的 runtime 停止和播放状态 flush 顺序。`license-overlay-ipc.js` 把已校验的设置读取/保存结果连同请求前捕获的 owner scope/epoch 回填场景外观缓存；缓冲拒绝旧账号结果，不需要常开云 SSE 才能保存样式。原 IPC 返回值和渲染进程权限不变。
+
+云弹幕订阅携带 `superchatDelete=1`，保留 SC 可选的本场匿名 `messageId`，旧服务器无 ID 的消息继续显示。`scene-cloud-controller.js` 校验 `superchat-delete` 的 1–128 个唯一小写 64 位 hex ID；初始化前或格式错误的事件仍关闭连接，初始化后其他场次的撤回直接忽略。同场撤回作为增量事件进入 `cloud-display-buffer.js`，消费者按序应用并移除对应 SC，后续快照与样式重建不会复活它们；不进入本地结算或点歌流程。
 
 ## 本机客户端外观
 
@@ -130,12 +132,15 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 
 ### 2.1 设备授权生命周期
 
+远程 transport 由 `license/remote-license-client.js` 统一拥有认证头、期限、响应预算和错误转换；`remote-danmaku-settings.js`、`remote-songs.js`、`remote-cloud-sync.js`、`remote-gift-reads.js` 只组装各领域的固定方法/路径与专有读取预算。HTTPS 根 origin 校验复用 `shared/remote-url-policy.js`，不合并歌曲、礼物和粉丝的持久 owner key 格式。
+
 `license-manager.js` 是设备身份状态、内存 access token、续期和 heartbeat 的唯一所有者。持久化文件只保存公开设备资料;私钥由 Electron `safeStorage` 加密,access token 不写磁盘也不进入 preload/renderer 返回值。
 
 `remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录独立限制为 32 MiB，按解码后的响应流累计字节；超过时取消读取并返回 `RESPONSE_TOO_LARGE`，不替换上一份完整内存/磁盘目录或 ETag。首次没有可用目录时保持初始化失败，仍沿用现有重试入口。固定来源、总期限、结构校验和完整目录 schema 不变，不截断礼物或分页。该容量约为 2026-09-25 官方目录实测 1,689,296 字节的 19.9 倍；超过支持容量时需显式调整合同。验收见 [容量边界与旧缓存保留](../../../test/gifts/remote-catalog-cache.test.js)。
 
 - 状态为 `CHECKING / NEEDS_ACTIVATION / NEEDS_CONNECTION / AUTHORIZING / AUTHORIZED / BLOCKED`;只有 `AUTHORIZED` 打开本地业务 gate
 - token 续期使用全局单飞 Promise,其他受保护请求和 heartbeat 必须等待该 Promise,避免旧 `token_jti` 与新 token 并发
+- `getProfile()` 只合并同一授权生命周期内正在进行的读取，完成或失败后清除；切账号、重新授权和退出不会复用旧请求。仅展示初始账号/URL 的 UI 使用已有安全 `getState()` 快照与状态订阅，完整设备信息和明确刷新仍读取远端。
 - 默认 `10m` token 在到期前 90 秒续期;heartbeat 每 150 秒执行一次
 - 续期失败(token 仍有效时)按 `license/retry-policy.js` 做有界指数退避:基础 5s 倍增、封顶 60s、jitter 系数 `[0.5, 1.5)`,延迟同时受 token 剩余有效期钳制;连续 10 次失败(`nextDelay()` 返回 `null`)停止重试并进入 `NEEDS_CONNECTION`,续期成功或状态切换时序列重置
 - HTTP 408/429/5xx、DNS 和 timeout 在 token 已失效时进入 `NEEDS_CONNECTION`,但不删除设备身份;仍有效 token 的单次网络失败保持 `AUTHORIZED`
@@ -146,7 +151,9 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 
 账号边界使用 `licenseManager.getCloudSyncIdentity()` 返回的已保存 `accountName` 和 `streamerId`，与认证服务器 origin 一起构成同步 owner；该方法仅供 main process 内部使用，不新增 IPC。控制器在首轮同步及身份变化时，先通过 runtime 的 `prepareCloudRoomAccount` 同步完成[房间归属事务](../backend/storage.md#8-云端-scope-的本地落盘)，再允许 HTTP/SSE。无有效身份或事务失败时不发请求；房间变化后配置本地 runtime 并广播 `cloud:settings`，不发 dirty 回声。同一 owner 的重启或临时授权中断保留房间，其他/未知 owner 的旧房间不能进入新账号的首次播种或 dirty 上传。没有已建立账号边界时的 settings mutation 不取得待上传归属。
 
-每轮同步在入队时捕获生命周期代际和取消信号；停止时递增代际并取消在途 HTTP/SSE，请求返回及每次本地写入前再次检查代际。旧轮次不能因新的 `start()` 恢复为有效，也不能在 `dispose()` 后发起下一 scope 或修改本地状态。云端与礼物控制器保持独立，只在远端客户端内部共用 SSE 读取和 reader 清理机制。
+每轮同步在入队时捕获生命周期代际和取消信号；停止时递增代际并取消在途 HTTP/SSE，请求返回及每次本地写入前再次检查代际。旧轮次不能因新的 `start()` 恢复为有效，也不能在 `dispose()` 后发起下一 scope 或修改本地状态。云端与礼物控制器保持独立，共用远端 SSE 读取/reader 清理和 [cancellable-delay.js](../../../src/shared/cancellable-delay.js) 的可取消长延迟调度；各自维护业务恢复与退避状态。
+
+Device SSE 使用 15 秒连接期限和 60 秒完整事件块空闲期限；注释心跳也续期（服务器心跳为 25 秒）。调用方取消信号同时传给 fetch 和有界 reader，同一缓冲块内取消后不再交付后续事件。超时返回可重试的 REQUEST_TIMEOUT，由各控制器恢复；停止/账号变更仍取消并释放 reader。重连等待遵守 Retry-After，超出 Node 计时上限时分段等待，不重新增加业务退避或重算原期限；替换/停止后旧 timer 回调无效。
 
 `cloud-sync-controller.js` 是 Electron 进程内的同步协调者，不持久化云端 revision。授权成功后立即同步并建立一条 main-process DeviceBearer SSE；事件只含 scope revision，收到更新 revision 后通过既有 GET 对账。SSE 正常结束或失败后按 1–60 秒有界退避重连，重连成功立即同步。系统 resume 在设备会话恢复后调用 `syncNow()`。可 `unref()` 的 10 分钟单次 timer 只作为代理假在线或漏通知的自动兜底，每轮结束（包括读取失败）都会重新调度。授权离开 `AUTHORIZED` 时 abort SSE 并停止 timer；退出时 `dispose()` 同时移除本地 mutation 与授权状态 listener。
 
@@ -155,6 +162,10 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 歌曲库的新增、编辑、删除和清空由 Electron 客户端本地管理页完成；每次成功 mutation 都在本地事务中保存账号所属的待传快照，并立即触发 songs scope 的完整快照上传。[cloud-song-sync-controller.js](../../../src/electron/cloud-song-sync-controller.js) 负责歌曲恢复、上传和拉取；父控制器保留授权、调度、revision 与 dirty 代次。账号准备阶段同步恢复该账号的待传快照，内容相同时保留原歌曲 ID；每轮及拉取落盘前重新检查待传状态。成功且生命周期仍有效的上传只确认其发送的 `mutationId`，较新的修改与其他账号的快照继续保留，停止或退出不删除待传数据。详见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。Streamer `/manage` 只展示最新同步歌单，不提供歌曲新增、编辑、启用切换、保存或删除控件。服务端既有歌曲 CRUD API 继续保留以兼容既有调用方，初次播种、云端 revision 和完整快照契约不变。
 
 settings 也保留账号所属的持久待传快照：启动或切回账号先恢复，再上传；存在待传记录时拒绝云端拉取覆盖。上传确认同时检查生命周期、修改代次和 `mutationId`，包括携带普通设置的礼物互动提交；迟到响应不能清除更新的修改。原子写入与私有记录格式见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。
+
+手动歌库同步先由主进程返回完整数量与确认代次，确认后进入同一串行队列，在执行时读取完整本地/待传快照。界面筛选不参与上传；确认期间的修改会进入最新快照，账号或授权生命周期变化则要求重新确认。请求入队即标记 songs dirty，阻止已在途云端拉取覆盖；成功、失败与较新修改的确认沿用自动路径。兼容 `syncSongs(songs)` 仍上传显式 payload，但也进入这条队列，不确认其他本地 pending。
+
+`license-operations.syncSongs` 在授权生命周期复核后验证服务器上传确认：`ok` 必须为 true，`count` 必须与提交快照长度一致。缺失、非法或不匹配的确认返回 `INVALID_RESPONSE`，不确认 pending、不清除 dirty，也不把本地数量作为服务器成功数量。
 
 [gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有自动感谢、数据查询两个开关的提交状态、订阅和公开结果。它使用 `cloud-sync-controller.js` 注入的同一账号代次与串行队列；设置上传、持久待传确认、revision/dirty 更新和重试仍由同步控制器完成，不维护第二套同步状态。
 

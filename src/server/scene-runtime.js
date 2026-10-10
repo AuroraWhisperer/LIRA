@@ -32,7 +32,8 @@ function createSceneRuntime({ songDb, runtimeOptions, getState, getContext }) {
     onOutputChanged: notify,
     secretCodec: runtimeOptions.sceneSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
     ...createSceneComponentPorts({ getState, cloud,
-      getExtraDisplay: (type) => ['gift-frame', 'guard-thanks'].includes(type) ? gifts.getSnapshot(type) : getExtraDisplay(type) }) });
+      getExtraDisplay: (type, readState) => ['gift-frame', 'guard-thanks'].includes(type)
+        ? gifts.getSnapshot(type) : getExtraDisplay(type, readState) }) });
   const events = createSceneOutputEvents({ getAccess: (input) => service.getOutputAccess(input) });
   const danmakuEvents = createDisplayNotifications({ getAccess() {
     const owner = getOwner();

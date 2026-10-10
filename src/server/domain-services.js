@@ -18,7 +18,7 @@ const { createGiftQueryStore } = require('../storage/gift-query-store');
 const { createGiftMaintenanceStore } = require('../storage/gift-maintenance-store');
 const { createGiftProjectionStore } = require('../storage/gift-projection-store');
 const { createGiftStatisticsStore } = require('../storage/gift-statistics-store');
-const { createRequesterTargetStore } = require('../music/requester-target-store');
+const { createRequesterTargetStore } = require('../storage/requester-target-store');
 const songService = require('../music/song-service');
 const { createSongMetadataReader } = require('../music/song-metadata');
 const { previewSongImport, applySongImport } = require('../music/song-import-update');
@@ -191,6 +191,7 @@ function createDomainServices(options) {
     const superChats = {
       getSnapshot: () => superChatService.getSuperChatSnapshot(superChatContext),
       add: (input) => superChatService.addSuperChatItem(superChatContext, input),
+      retract: (platformIds) => superChatService.retractSuperChatItems(superChatContext, platformIds),
       handleAction: (action, id) => superChatService.handleSuperChatAction(superChatContext, action, id),
     };
 

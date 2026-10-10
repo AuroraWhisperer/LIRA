@@ -91,11 +91,15 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     active = next;
     onStatus('', active.version);
   }
-  function fail(message) {
+  function fail(message, entry) {
+    if (!staging) return;
+    const pending = entry ? [entry] : staging.entries.filter(candidate => !candidate.prepared);
+    const names = pending.map(candidate => candidate.item.name).join('、');
+    const reason = typeof message === 'string' && message ? message : '加载超时。';
     release(staging);
     staging = null;
-    onStatus(typeof message === 'string' ? `新版准备失败：${message}${active ? ' 继续显示上一版本。' : ''}`
-      : '新版准备失败，继续显示上一版本。', active?.version || 0);
+    onStatus(`${active ? '新版准备失败' : '场景加载失败'}：${names}：${reason} ${active
+      ? '继续显示上一版本，正在自动重试。' : '正在自动重试，请保持 LIRA 客户端运行。'}`, active?.version || 0);
   }
   function receive(event) {
     if (disposed || !staging || event.origin !== 'null') return;
@@ -110,7 +114,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     } else if (event.data?.type === 'component-preview:prepared' && entry.ready) {
       entry.prepared = true;
       commit();
-    } else if (event.data?.type === 'component-preview:status') fail(event.data.message);
+    } else if (event.data?.type === 'component-preview:status') fail(event.data.message, entry);
   }
   function prepare(document, version, projection) {
     if (disposed || version === active?.version || version === staging?.version) return;
@@ -120,12 +124,12 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     for (const item of items) {
       if (typeof item.type !== 'string' || !Object.hasOwn(SCENE_COMPONENTS, item.type)
         || item.appearance.mode !== 'independent') {
-        onStatus('场景版本无效，继续显示上一版本。', active?.version || 0);
+        onStatus(`场景版本无效，请在画布重新保存并应用。${active ? ' 继续显示上一版本。' : ''}`, active?.version || 0);
         return;
       }
       if (SCENE_COMPONENTS[item.type].external) {
         try { normalizeBrowserSourceConfig(item.appearance.config); }
-        catch { onStatus('浏览器源配置无效，继续显示上一版本。', active?.version || 0); return; }
+        catch { onStatus(`浏览器源配置无效，请在画布检查来源地址。${active ? ' 继续显示上一版本。' : ''}`, active?.version || 0); return; }
       }
     }
     if (updateLayout(document, items, version, projection)) { appearance(active); return; }

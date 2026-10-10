@@ -1,0 +1,11 @@
+{
+  "source": "output/windowlight-source/windowlight-master-v6.png",
+  "sourceSha256": "57c00b10640f8176b0ebbea4a948e181e6376f8450d71515510c33a34e2ae5f4",
+  "requestId": "5aaba398-8c8c-431d-aa9f-110815e86bc1",
+  "provenance": "provenance.json",
+  "outputSize": [
+    1920,
+    1080
+  ],
+  "description": "sunset.webp: aligned v6 scene or fixed light receiver."
+}

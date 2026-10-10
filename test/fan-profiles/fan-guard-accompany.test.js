@@ -88,6 +88,25 @@ test('calendar dates appear three Beijing days ahead, follow edits and never cre
   assert.equal(f.run('calendar').length, 0);
 });
 
+test('companion milestones enter profile reminders seven days ahead and the calendar three days ahead', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  f.service.importGuardRoster(SCOPE, roster(92));
+  assert.deepEqual(f.run('reminders'), []);
+  assert.equal(f.run('list').profiles[0].nextReminder, null);
+
+  f.setNow('2026-09-19T04:00:00.000Z');
+  const reminders = f.run('reminders');
+  assert.deepEqual(reminders.map((item) => item.key), ['accompany:1234:100']);
+  assert.equal(reminders[0].date, '2026-09-26');
+  assert.equal(f.run('list').profiles[0].nextReminder.key, reminders[0].key);
+  assert.deepEqual(f.run('calendar'), []);
+
+  f.setNow('2026-09-23T04:00:00.000Z');
+  assert.equal(f.run('calendar')[0].profileId, p.id);
+  assert.equal(f.run('calendar')[0].date, '2026-09-26');
+});
+
 test('same purchase can fill late companion days once, preserving record edits and ignoring older observations', (t) => {
   const f = fanFixture(t);
   const event = fact(99);
@@ -134,6 +153,34 @@ test('stale, inactive, archived and disabled profiles retain observed counts wit
     f.run('save', { id: profile.id, revision: current.revision, ...patch });
     assert.equal(f.run('calendar').length, 0);
   }
+});
+
+test('automatic roster sync pauses pending milestones on departure and recalculates them on return', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  f.run('configure', { autoCreate: true, autoUpdate: true, accompanyMilestones: [100, 101] });
+  f.service.importGuardRoster(SCOPE, roster(100), '2026-09-18');
+  const pending = f.run('reminders').find((item) => item.threshold === 101);
+  f.run('reminder-state', { profileId: p.id, key: 'accompany:1234:100', status: 'handled' });
+  assert.equal(f.run('calendar')[0].date, '2026-09-19');
+
+  f.setNow('2026-09-19T04:00:00.000Z');
+  f.service.importGuardRoster(SCOPE, roster(undefined, '2026-09-19T04:00:00.000Z', false), '2026-09-19');
+  assert.deepEqual(f.run('calendar'), []);
+  assert.equal(f.run('list').profiles[0].nextReminder, null);
+  assert.deepEqual(f.run('reminders').map((item) => [item.key, item.group]), [
+    ['accompany:1234:100', 'history'],
+  ]);
+  assert.equal(f.detail(p.id).guardAccompany.days, 100);
+
+  f.setNow('2026-09-21T04:00:00.000Z');
+  f.service.importGuardRoster(SCOPE, roster(100, '2026-09-21T04:00:00.000Z'), '2026-09-21');
+  const resumed = f.run('reminders').find((item) => item.key === pending.key);
+  assert.equal(resumed.date, '2026-09-22');
+  assert.equal(resumed.status, 'pending');
+  assert.equal(f.run('list').profiles[0].nextReminder.key, pending.key);
+  assert.deepEqual(f.run('calendar').map((item) => item.date), ['2026-09-22']);
+  assert.equal(f.run('reminders').find((item) => item.key === 'accompany:1234:100').group, 'history');
 });
 
 test('settings and scope govern calendar projections, with Beijing dates and no projection stored in backups', (t) => {

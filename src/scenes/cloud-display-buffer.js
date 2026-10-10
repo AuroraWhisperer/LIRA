@@ -23,12 +23,13 @@ function appearance(event) {
 }
 
 function displayEvent(event) {
+  if (event.type === 'superchat-delete') return { ...pick(event, 'type liveSessionId timestamp'), messageIds: [...event.messageIds] };
   const result = pick(event, 'type liveSessionId timestamp name');
   if (event.type === 'entry') return { ...result, ...pick(event, 'guardLevel') };
   if (event.type === 'gift') return { ...result, ...pick(event, 'giftName giftCount giftTotalPrice giftImageUrl avatarUrl giftGuardLevel honorLevel') };
   Object.assign(result, pick(event, 'message avatarUrl'));
   if (event.type === 'superchat') {
-    Object.assign(result, pick(event, 'price'));
+    Object.assign(result, pick(event, 'price messageId'));
     if (event.colors && typeof event.colors === 'object') result.colors = pick(event.colors, 'backgroundColor accentColor priceColor');
   } else {
     Object.assign(result, pick(event, 'guardLevel medalName medalLevel isStreamer honorLevel roomGuardLevel'));
@@ -114,8 +115,12 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
       if (!state.liveSessionId || state.liveSessionId !== event.liveSessionId) return false;
       reset();
       state = { type: 'overlay-state', liveStatus: 0, liveSessionId: null, confirmationMessage: null, state: 'running' };
-    } else if (['danmaku', 'gift', 'superchat', 'entry'].includes(event.type)) {
+    } else if (['danmaku', 'gift', 'superchat', 'superchat-delete', 'entry'].includes(event.type)) {
       if (!state?.liveSessionId || event.liveSessionId !== state.liveSessionId) return false;
+      if (event.type === 'superchat-delete' && (!Array.isArray(event.messageIds) || !event.messageIds.length
+        || event.messageIds.length > 128 || new Set(event.messageIds).size !== event.messageIds.length
+        || !event.messageIds.every(isSuperChatMessageId))) return false;
+      if (event.type === 'superchat' && event.messageId !== undefined && !isSuperChatMessageId(event.messageId)) return false;
       events.push({ cursor: ++cursor, event: displayEvent(event) });
       if (events.length > 200) events.shift();
     } else if (event.type !== 'overlay-settings') return false;
@@ -142,6 +147,10 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
     return true;
   }
   return { receive, receiveSettings, getSnapshot, getSettings() { syncOwner(); onRead(); return clone(settings); } };
+}
+
+function isSuperChatMessageId(value) {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 }
 
 module.exports = { createCloudDisplayBuffer };

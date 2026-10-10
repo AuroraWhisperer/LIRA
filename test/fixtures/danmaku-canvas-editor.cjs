@@ -35,13 +35,16 @@ async function run() {
   app.setPath('crashDumps', path.join(directory, 'crashes'));
   await app.whenReady();
   const licenseTasks = new Set();
-  const { manager } = createHarness({
+  const { manager, remote } = createHarness({
     identity: { deviceId: 'd', licenseId: 'l', streamerId: 1, publicKeyPem: 'public' },
     timers: {
       setTimeout(callback, delay) { const task = { callback, delay }; licenseTasks.add(task); return task; },
       clearTimeout(task) { licenseTasks.delete(task); },
     },
   });
+  const streamer = { accountName: 'canvas-test', songPageUrl: 'https://canvas.example.test/' };
+  const verify = remote.verify;
+  remote.verify = async (...args) => ({ ...await verify(...args), streamer });
   await manager.bootstrap();
   const token = 'synthetic-canvas-parent-secret';
   const root = path.resolve(__dirname, '../..');
@@ -137,7 +140,7 @@ async function run() {
     hasExactOrigin: (url, expected) => new URL(url).origin === expected,
     licenseManager: {
       ...manager,
-      getProfile: async () => ({ state: 'authorized', streamer: { accountName: 'canvas-test', songPageUrl: 'https://canvas.example.test/' } }),
+      getProfile: async () => ({ state: 'authorized', streamer }),
       getOverlaySettings: async () => saved,
       updateOverlaySettings: async (value) => {
         global.canvasTest.attempts += 1;

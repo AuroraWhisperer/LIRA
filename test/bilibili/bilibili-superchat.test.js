@@ -25,6 +25,7 @@ function superChat(id, uid, message, price, startTime, extra = {}) {
 
 function createHandler(t, startedAtMs) {
   const superChats = [];
+  const deletions = [];
   const commands = [];
   const hints = [];
   const logs = [];
@@ -33,6 +34,7 @@ function createHandler(t, startedAtMs) {
   const handler = new MessageHandlers(
     {
       onSuperChat: (item) => superChats.push(item),
+      onSuperChatDelete: (ids) => deletions.push(ids),
       onMessage: (item) => commands.push(item),
     },
     {
@@ -47,8 +49,28 @@ function createHandler(t, startedAtMs) {
     { startedAtMs, connectionGeneration: 4, connectionAttempt: 2, roomOwnerUid: '456' },
   );
   handler.updateRoomRunContext({ roomId: '100', ownerUid: '456' });
-  return { handler, superChats, commands, hints, logs };
+  return { handler, superChats, deletions, commands, hints, logs };
 }
+
+test('SC deletion is distinct from creation and never becomes a command or identity hint', async (t) => {
+  const f = createHandler(t, 0);
+  await f.handler.handlePackets(Buffer.concat([
+    packet({ cmd: 'SUPER_CHAT_MESSAGE_DELETE:1', data: { ids: [123, '123', 'sc-2', '', null, {}, -1] } }),
+    packet({ cmd: 'SUPER_CHAT_MESSAGE_DELETE', data: { ids: null } }),
+    packet({ cmd: 'SUPER_CHAT_MESSAGE_UNKNOWN', data: { price: 30, message: '点歌 测试' } }),
+  ]));
+  assert.deepEqual(f.deletions, [['123', 'sc-2']]);
+  assert.deepEqual(f.superChats, []);
+  assert.deepEqual(f.commands, []);
+  assert.deepEqual(f.hints, []);
+});
+
+test('SC accepts known creation variants and preserves the exact upstream string ID', async (t) => {
+  const f = createHandler(t, 0);
+  await f.handler.handlePackets(packet({ ...superChat(1, 123, '支持', 30, 1800000000,
+    { id_str: '9007199254740993' }), cmd: 'SUPER_CHAT_MESSAGE_JPN:1' }));
+  assert.equal(f.superChats[0].id, '9007199254740993');
+});
 
 test('every SuperChat packet reaches the SC consumer; only fresh, unique commands are queued and pinned by price', async (t) => {
   const nowSeconds = Math.floor(Date.now() / 1000);

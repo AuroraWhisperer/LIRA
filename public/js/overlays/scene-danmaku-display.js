@@ -1,6 +1,6 @@
 import { isFloatingDanmakuStyle, isRandomDanmakuStyle } from '../shared/danmaku-style-options.js';
 
-export function createSceneDanmakuDisplay({ clear, append, status, getStyle, showEntryMessages = () => false }) {
+export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, status, getStyle, showEntryMessages = () => false }) {
   let epoch = null;
   let session = null;
   let sequence = 0;
@@ -18,7 +18,12 @@ export function createSceneDanmakuDisplay({ clear, append, status, getStyle, sho
     status(snapshot.gap ? '消息有缺口 · 已从当前直播继续' : session ? '直播中 · 弹幕接收中' : '等待直播数据', Boolean(session));
     if (!session) return;
     for (const event of snapshot.events || []) {
-      if (event.liveSessionId !== session || !['danmaku', 'gift', 'superchat', 'entry'].includes(event.type)) continue;
+      if (event.liveSessionId !== session) continue;
+      if (event.type === 'superchat-delete') {
+        remove(event.messageIds);
+        continue;
+      }
+      if (!['danmaku', 'gift', 'superchat', 'entry'].includes(event.type)) continue;
       if (event.type === 'entry' && !showEntryMessages()) continue;
       if (event.type === 'superchat' && (isRandomDanmakuStyle(getStyle()) || isFloatingDanmakuStyle(getStyle()))) continue;
       append({ ...event, id: `scene-event-${++sequence}`, kind: event.type, timestamp: Date.now(),

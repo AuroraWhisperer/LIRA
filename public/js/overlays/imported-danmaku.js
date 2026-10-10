@@ -67,11 +67,18 @@ function append(item) {
       row.append(header, message);
     } else { content.append(chip, message); row.append(photo, content); }
   }
+  if (item.kind === 'superchat' && item.messageId) row.dataset.superchatMessageId = item.messageId;
   items.append(row);
   while (items.children.length > 100) items.firstElementChild.remove();
   items.parentElement.scrollTop = items.parentElement.scrollHeight;
 }
-const display = createSceneDanmakuDisplay({ clear: () => items?.replaceChildren(), append, status() {}, getStyle: () => 'transparent', showEntryMessages: () => styleParametersFor(currentConfig).showEntryMessages === true });
+function removeSuperChats(messageIds) {
+  const deleted = new Set(messageIds);
+  for (const row of Array.from(items?.children || [])) {
+    if (deleted.has(row.dataset.superchatMessageId)) row.remove();
+  }
+}
+const display = createSceneDanmakuDisplay({ clear: () => items?.replaceChildren(), append, remove: removeSuperChats, status() {}, getStyle: () => 'transparent', showEntryMessages: () => styleParametersFor(currentConfig).showEntryMessages === true });
 function samples() {
   return styleParametersFor(currentConfig).showEntryMessages
     ? [...previewMessages, { ...DANMAKU_PREVIEW_ENTRY }] : previewMessages;

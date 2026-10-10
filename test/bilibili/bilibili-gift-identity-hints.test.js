@@ -49,6 +49,20 @@ test('V2 identity uses only sender protobuf fields and never requires gift total
   );
 });
 
+test('V2 identity preserves a protobuf-shaped nickname and its upstream avatar', () => {
+  const avatarUrl = 'https://i0.hdslb.com/bfs/face/viewer.jpg';
+  const pb = Buffer.concat([
+    Buffer.from([8, 42, 18, 2]),
+    Buffer.from('Hi'),
+    Buffer.from([26, Buffer.byteLength(avatarUrl)]),
+    Buffer.from(avatarUrl),
+  ]).toString('base64');
+  assert.deepEqual(extractBilibiliGiftIdentity({ cmd: 'SEND_GIFT_V2', data: { pb } }), {
+    hint: { uid: '42', name: 'Hi', avatarUrl },
+    roomIdentityVerified: false,
+  });
+});
+
 test('guard identity preserves the verified role without interpreting a paid order', () => {
   for (const [name, level] of [
     ['舰长', 3],

@@ -105,7 +105,9 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 弹幕装饰的 PNG 源图保留在源码中，安装包只使用对应 WebP；已有第 3–6 套队列主题 WebP 不变。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
 
-林间花信改为独立样式包：`node scripts/package-woodland-gift-frame.js` 生成 `output/林间花信-全屏礼物感谢样式-1.0.0.zip`，仅包含清单、使用说明、预览图和未经转码的原始 WebM。ZIP 写入器与航海旗帜共用 `scripts/component-style-zip.js`。`public/img/overlays/gift-frame/woodland-bloom/` 整个制作目录及 `gift-frame-default.webp` 不再进入安装包；可信播放器、布局 CSS 和共享头像仍保留。导入与旧图层兼容方式见[素材包指南](../../guides/component-style-packages.md#林间花信--全屏礼物感谢)。
+林间花信改为独立样式包：`node scripts/package-woodland-gift-frame.js` 生成 `tmp/output/林间花信-全屏礼物感谢样式-1.0.0.zip`，仅包含清单、使用说明、预览图和未经转码的原始 WebM。ZIP 写入器与航海旗帜共用 `scripts/component-style-zip.js`。`public/img/overlays/gift-frame/woodland-bloom/` 整个制作目录及 `gift-frame-default.webp` 不再进入安装包；可信播放器、布局 CSS 和共享头像仍保留。导入与旧图层兼容方式见[素材包指南](../../guides/component-style-packages.md#林间花信--全屏礼物感谢)。
+
+窗映四时通过 `node scripts/package-windowlight-background.js` 生成 `tmp/output/窗映四时-背景样式-1.3.0.zip`，沿用 `scripts/component-style-zip.js` 写入清单、使用说明和八张 WebP；四张场景卡片共用这些资源，预览直接引用对应场景底图。各卡片默认手动显示对应场景，持续光影或玻璃水滴动效由客户端可信播放器提供。`public/img/overlays/backgrounds/windowlight/` 排除在应用安装包之外，可信背景播放器与 CSS 保留。包格式和使用步骤见[背景样式指南](../../guides/background-style-packages.md#窗映四时分层背景)。
 
 分发还排除 `AGENTS.md`、`.map` 调试映射及图片目录的 `README.md`、`generated.md`、`provenance.json`、`.webp.json` 制作元数据；运行依赖与许可证保留。验收须检查实际 `app.asar`，不能仅以源码目录大小推断安装包大小；已有 EXE 不会被这些规则自动改写。
 

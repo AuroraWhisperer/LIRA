@@ -39,6 +39,7 @@ function createRuntimeApiContextFactory(options = {}) {
         danmakuSender: options.getDanmakuSender(),
         fetchAvatarImage: bilibiliRuntime.fetchAvatarImage,
         getRoomProfile: bilibiliRuntime.getRoomProfile,
+        getLikeState: bilibiliRuntime.getLikeState,
         requestRandomSong: bilibiliRuntime.requestRandomSong,
       },
       ai: { configStore: aiRuntime.configStore, service: aiRuntime.service },

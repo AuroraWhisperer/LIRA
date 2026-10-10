@@ -614,22 +614,162 @@
 .fan-expanded .fan-detail {
   border-left: 0;
 }
-.fan-reminder-group {
-  margin: var(--spacing-md) 0;
+#fanRosterResult {
+  margin: 0 0 var(--spacing-md);
+  font-size: var(--type-size-caption);
 }
-.fan-reminder-group h3 {
-  font-size: 16px;
+#fanRemindersPage {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-xs) var(--spacing-md) 0;
+}
+.fan-reminder-group {
+  margin: 0;
+}
+.fan-reminder-group + .fan-reminder-group {
+  margin-top: var(--spacing-lg);
+}
+.fan-reminder-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  padding: 0 12px;
+}
+.fan-reminder-heading h3 {
+  margin: 0;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
+}
+.fan-reminder-count,
+.fan-reminder-identity time {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+.fan-reminder-list {
+  border-block: 1px solid var(--color-border-light);
+}
+.fan-reminder-person {
+  display: grid;
+  grid-template-columns: minmax(140px, 20%) minmax(0, 1fr);
+  gap: var(--spacing-lg);
+  padding: 12px;
+}
+.fan-reminder-person + .fan-reminder-person,
+.fan-reminder-row + .fan-reminder-row {
+  border-top: 1px solid var(--color-border-light);
+}
+.fan-reminder-group[data-reminder-group='today'] .fan-reminder-list {
+  background: var(--color-primary-light);
+}
+.fan-reminder-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+  min-width: 0;
+}
+.fan-profiles .fan-reminder-name {
+  min-height: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-body);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-default);
+  text-underline-offset: 3px;
+}
+.fan-profiles .fan-reminder-name:hover {
+  color: var(--color-control-accent);
+  text-decoration-color: currentColor;
 }
 .fan-reminder-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  min-width: 0;
 }
-.fan-reminder-row p {
+.fan-reminder-row + .fan-reminder-row {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.fan-reminder-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fan-reminder-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  font-size: var(--type-size-body);
+  line-height: var(--type-leading-body);
+}
+.fan-reminder-title strong {
+  font-weight: var(--type-weight-semibold);
+}
+.fan-reminder-prediction {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+}
+.fan-reminder-copy p {
   margin: var(--spacing-xs) 0 0;
+  font-size: var(--type-size-caption);
+}
+.fan-reminder-actions {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  gap: var(--spacing-xs);
+}
+.fan-profiles .fan-reminder-actions button {
+  border-color: transparent;
+  background: transparent;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  white-space: nowrap;
+}
+.fan-profiles .fan-reminder-actions .fan-reminder-done {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--color-control-accent);
+}
+.fan-profiles .fan-reminder-actions button:hover {
+  border-color: var(--color-control-accent);
+  background: var(--color-primary-light);
+}
+@container (max-width: 840px) {
+  .fan-reminder-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+}
+@container (max-width: 480px) {
+  .fan-reminder-person {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-sm);
+  }
+  .fan-reminder-identity {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--spacing-sm);
+  }
+  .fan-reminder-actions {
+    flex-wrap: wrap;
+  }
 }
 .fan-conflict,
 .fan-error {

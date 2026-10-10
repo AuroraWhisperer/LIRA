@@ -6,13 +6,14 @@
 
 ## 1. 客户端回调契约
 
-`BilibiliDanmakuClient` 通过 handlers 与外部通信([danmaku-client.js:16-67](../../../../src/bilibili/danmaku-client.js#L16-L67)),四个回调由 [server.js:609-712](../../../../src/server.js#L609-L712) 的 `createBilibiliClient` 装配:
+`BilibiliDanmakuClient` 通过 handlers 与外部通信，回调由 [bilibili-client.js](../../../../src/server/bilibili-client.js) 的 `createBilibiliClient` 装配：
 
 | 回调                     | 触发                                                                                  | server.js 消费                                                                                                                                                                                                                                                                                                                              |
 | ------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `onMessage(danmaku)`     | 每条实时弹幕、SC 命令文本、历史轮询命令                                               | `source:'danmaku'` 的实时消息先发布到有界弹幕流；随后交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
 | `UserInfoService` 更新   | 业务明确需要资料时调用 `ensure(uid, { fields })`；头像补全不由 `onMessage` 返回值触发 | 画猜在缺头像时显式调用窄 resolver，再由 `games.updateDanmakuAvatar` 回填；service 负责去重、合并和更新通知                                                                                                                                                                                                                                  |
-| `onSuperChat(superChat)` | 每条 SC 到达                                                                          | `superChats.add` 入库,成功则广播 `bilibili:superchat`([server.js:671-690](../../../../src/server.js#L671-L690),入库见 [gift.md](gift.md) §7)                                                                                                                                                                                                |
+| `onSuperChat(superChat)` | 新增 SC 到达 | `superChats.add` 入库，成功则广播 `bilibili:superchat`；入库见 [gift.md](gift.md) §7 |
+| `onSuperChatDelete(platformIds)` | SC 平台下线 | `superChats.retract` 按平台 ID 标为 deleted；实际更新了记录才广播 `bilibili:superchat`，不触发新增或点歌命令 |
 | `onStatus(liveStatus)`   | 连接状态变化                                                                          | `updateLiveStatus` 写入快照 `liveStatus` 字段([server.js:701](../../../../src/server.js#L701)、[server.js:714-720](../../../../src/server.js#L714-L720))                                                                                                                                                                                    |
 
 客户端构造时还注入 `diagnostics`（§8）与 `isCommandText`；礼物检测回调、动态命令前缀和原始礼物调试缓冲已删除。
@@ -75,11 +76,13 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 
 ## 4. 消息管道(MessageHandlers)
 
-`handlePackets(buffer)`([message-handlers.js:58-73](../../../../src/bilibili/danmaku/message-handlers.js#L58-L73)):更新 `lastPacketAt` → 逐条 `parseBilibiliPackets` → 按 cmd 分发(DANMU_MSG / SUPER_CHAT_MESSAGE / gift-like,见 [protocol.md](protocol.md) §6)。管线内每路都过**可捕获窗口 → 去重 → 身份解析**三步:
+`handlePackets(buffer)` 更新 `lastPacketAt` → 逐条 `parseBilibiliPackets` → 按命令分发弹幕、SC 新增/下线、礼物身份或点赞状态；精确命令与冒号后缀规则见 [protocol.md](protocol.md) §6。命令消费使用可捕获窗口和去重，具体路径如下：
 
 **弹幕**(`handleDanmaku`,[message-handlers.js:75-114](../../../../src/bilibili/danmaku/message-handlers.js#L75-L114)):仅命令文本参与窗口校验与去重;`onMessage` 载荷含 `source:'danmaku'`、归一化 cmd 和发送者 `avatarUrl`。头像优先取该条 `DANMU_MSG` 的用户扩展资料，缺失时按 uid 复用在线榜/历史身份缓存；`DANMU_MSG` 前缀统一为 `DANMU_MSG`([message-handlers.js:242-247](../../../../src/bilibili/danmaku/message-handlers.js#L242-L247))。
 
 **SC**(`handleSuperChat`,[message-handlers.js:115-176](../../../../src/bilibili/danmaku/message-handlers.js#L115-L176)):每条 SC 都先 `onSuperChat`(入库,见 [gift.md](gift.md) §7);若文本是命令,再过窗口 + 去重后二次 `onMessage(source:'superchat', isPinned: price>=2)`,命令拒绝仅发生在 `onMessage` 一路,不影响 SC 入账。
+
+**SC 下线**：`SUPER_CHAT_MESSAGE_DELETE` 直接调用独立 `onSuperChatDelete`，不做新增 SC 或命令文本二次分发。重复下线和未找到平台 ID 不产生新记录；存储与快照规则见 [gift.md](gift.md) §7。
 
 **礼物类消息身份**：`handleIdentityMessage` 仅提取发送者 UID、姓名、头像及舰队提示，交给用户信息服务；它不生成礼物记录或触发 `onGift`。服务器结果独立进入礼物投影器，见 [protocol.md](protocol.md) §6.4 和 [gift.md](gift.md) §2。
 
@@ -88,6 +91,12 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 `createDanmakuFeedBuffer().push()` 接收 `source:'danmaku'` 的实时消息，投影为公开字段 `{id,uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp,emotes}`；`pushGift()` 接收已结算的 `detection_status:'final'` 礼物行，额外投影 `kind:'gift'`、`giftName`、`giftCount`，并提供 `送出 礼物名 × 数量` 的兼容文本。可用的非负有限 `total_price` 原值通过 `giftTotalPrice` 展示，单位为人民币元，已经是本组总额，不再次乘数量；缺失或非法金额省略。礼物数量必须为正安全整数，头像和身份未知时使用空值。两类消息共用连续编号和最近 50 条的上限，不暴露原始载荷、其他账本字段或单价。切换直播间时清空旧房间数据；`getSnapshot()` 返回防御性副本。
 
 每条新消息由 `runtime-transport.js` 广播 `danmaku:message`，完整有界列表同时进入全量快照的 `danmakuFeed` 字段。礼物由现有 final 回调在快照发布前加入缓冲区，再向 `topic=danmaku` 发布同一消息；沿用礼物投影层的单次 final 交付，不依赖礼物特效框开关或金额门槛。头像和表情地址都只保留可信的 B 站 CDN HTTPS 地址，浏览器端统一通过现有 `/api/bilibili/avatar` 本地图片代理加载。
+
+### 4.2 直播间点赞状态
+
+`MessageHandlers` 拥有当前点赞总数快照，字段及清理规则见 [protocol.md](protocol.md#65-直播间累计点赞)。`BilibiliDanmakuClient.getLikeState()` 返回 `{roomId,count,updatedAt,connected}`：`roomId` 优先为解析后的长房号；`connected` 仅表示当前 WebSocket 已打开且平台鉴权通过，历史弹幕轮询不算已连接。未连接或已停止时隐藏数值和时间；连接正常但尚未收到有效推送时，二者也为 `null`，未知不等于 0。
+
+本机 `bilibili-runtime.getLikeState()` 只读取当前配置房间的客户端；换房或没有客户端时返回配置房号、两个 `null` 和 `connected:false`。两层 API context 透传至管理接口 `GET /api/bilibili/likes/state`（响应见 [api.md](../api.md#14-bilibili-域bilibili)），读取不发上游请求。监听沿用现有弹幕监听开关与长连接，状态仅存于客户端内存；没有新增数据库、远程 LIRA Server 接口、广播或展示组件。
 
 ## 5. 命令解析与点歌桥接
 
@@ -164,7 +173,7 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 ### 6.4 回复目标(mention-policy + requester-target-store)
 
 - `normalizeMentionTarget(input)`([mention-policy.js:5-10](../../../../src/bilibili/danmaku/mention-policy.js#L5-L10)):uid 须为 1-20 位数字,名字截断 80 字符;`buildMentionedMessage` 拼 `@名字 ` 前缀([mention-policy.js:12-22](../../../../src/bilibili/danmaku/mention-policy.js#L12-L22))。
-- 提及目标来源 `requesterTargets.getLatestRandomRequester()`([requester-target-store.js:7-24](../../../../src/music/requester-target-store.js#L7-L24)):取 `requests` 表中最新一条 `random`/`random:%` 来源、有 uid 或名字的记录(requests 行由 queue-service 写入,见 [services.md](../music/services.md));`sendDanmaku` 中的 `reply_mid` 校验复用它([api-client.js:111-113](../../../../src/bilibili/danmaku/api-client.js#L111-L113))。
+- 提及目标来源 `requesterTargets.getLatestRandomRequester()`([requester-target-store.js:7-24](../../../../src/storage/requester-target-store.js#L7-L24)):取 `requests` 表中最新一条 `random`/`random:%` 来源、有 uid 或名字的记录(requests 行由 queue-service 写入,见 [services.md](../music/services.md));`sendDanmaku` 中的 `reply_mid` 校验复用它([api-client.js:111-113](../../../../src/bilibili/danmaku/api-client.js#L111-L113))。
 
 ## 7. danmakuSender 发送服务
 

@@ -4,6 +4,12 @@
 
 ## 历史报告
 
+- [客户端与服务器通讯整改及整体复审](2026-10-10-communication-remediation-review.md)
+- [客户端结构整改与第二轮复审](2026-10-10-client-structure-remediation-review.md)
+- [Bilibili 已获取但未用上的字段（用途与实际案例）](2026-10-10-bilibili-information-opportunities.md)
+- [Bilibili 信息获取、事件捕捉与脚本复用审查](2026-10-10-bilibili-ingestion-reuse-audit.md)
+- [客户端结构、模块化与运行效率审查](2026-10-10-client-structure-review.md)
+- [客户端与服务器通讯：合并、精炼与复用审查](2026-10-10-client-server-communication-review.md)
 - [AI 互动助手：回答限制调查与角色包实施记录](2026-10-09-ai-assistant-personas-and-tools.md)
 - [当前代码与技术文档一致性审查](2026-10-07-code-document-alignment.md)
 - [LIRA 套装包与第三方素材导入：调研及设计报告](2026-10-06-component-packages-design.md)

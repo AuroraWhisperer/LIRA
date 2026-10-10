@@ -1,11 +1,15 @@
 'use strict';
 
+import { createSongBackgroundImages, prepareSongBackground } from './song-background-image.js';
+
 const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const SONG_BACKGROUND_ERROR_MESSAGES = {
   BACKGROUND_IMAGE_REQUIRED: '请选择图片文件。',
   PAYLOAD_TOO_LARGE: '图片超过 5MB，请压缩后再上传。',
   BACKGROUND_FORMAT_UNSUPPORTED: '仅支持 PNG / JPG / WebP / GIF 图片。',
   BACKGROUND_URL_INVALID: '服务器返回的背景地址无效。',
+  BACKGROUND_PROCESSING_FAILED: '图片处理失败，请换一张图片重试。',
+  BACKGROUND_IMAGE_TOO_DETAILED: '保持清晰度后图片仍超过 1 MB，请换一张细节较少的背景。',
   LICENSE_NOT_AUTHORIZED: '授权已失效，请重新授权。',
   DEVICE_REVOKED: '当前设备授权已被管理员撤销。',
   LICENSE_REVOKED: '当前授权已被撤销。',
@@ -39,7 +43,7 @@ function resolveSongBackgroundUrl(previewUrl) {
   }
 }
 
-function renderSongBackground(response, elements) {
+function renderSongBackground(response, elements, previewUrl) {
   const background = response?.background || null;
   const { preview, empty, meta, deleteButton } = elements;
   if (!background) {
@@ -57,8 +61,9 @@ function renderSongBackground(response, elements) {
       code: 'BACKGROUND_URL_INVALID',
     });
   }
-  preview.src = url;
-  preview.hidden = false;
+  if (previewUrl) preview.src = previewUrl;
+  else preview.removeAttribute('src');
+  preview.hidden = !previewUrl;
   empty.hidden = true;
   deleteButton.hidden = false;
   const bytes = Number(background.bytes);
@@ -81,11 +86,45 @@ export async function initCloudSongBackground() {
   if (!section || !preview || !empty || !meta || !fileInput || !pickButton || !deleteButton || !result) return;
 
   const elements = { preview, empty, meta, deleteButton };
+  const images = createSongBackgroundImages();
+  const previewRequest = new AbortController();
+  let disposed = false;
+  let objectUrl = '';
+  function releasePreview() {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = '';
+  }
+  function showBackground(response, blob) {
+    if (disposed) return;
+    releasePreview();
+    if (blob) objectUrl = URL.createObjectURL(blob);
+    renderSongBackground(response, elements, objectUrl);
+  }
+  window.addEventListener('pagehide', () => {
+    disposed = true;
+    previewRequest.abort();
+    releasePreview();
+  }, { once: true });
+  preview.addEventListener('error', () => {
+    result.textContent = '背景已保存，但预览加载失败，请重新打开此页面重试。';
+  });
   section.hidden = false;
 
   async function refreshSongBackground() {
     const response = assertSongBackgroundResponse(await window.liraLicense.getSongPageBackground());
-    renderSongBackground(response, elements);
+    if (!response?.background) {
+      showBackground(response);
+      await images.clear();
+      return response;
+    }
+    const url = resolveSongBackgroundUrl(response.background.previewUrl);
+    if (!url) throw new Error('BACKGROUND_URL_INVALID');
+    try {
+      showBackground(response, await images.read(url, previewRequest.signal));
+    } catch (_) {
+      showBackground(response);
+      result.textContent = '背景已保存，但预览加载失败，请重新打开此页面重试。';
+    }
     return response;
   }
 
@@ -108,17 +147,24 @@ export async function initCloudSongBackground() {
       return;
     }
     setBusy(true);
-    result.textContent = '正在上传…';
+    result.textContent = '正在压缩图片…';
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
+      const blob = await prepareSongBackground(file);
+      await images.stage(blob);
+      result.textContent = '正在上传…';
+      const bytes = new Uint8Array(await blob.arrayBuffer());
       const response = assertSongBackgroundResponse(
-        await window.liraLicense.uploadSongPageBackground(bytes, file.name),
+        await window.liraLicense.uploadSongPageBackground(bytes, 'song-background.webp'),
       );
-      renderSongBackground(response, elements);
-      result.textContent = '背景已更新。';
+      const url = resolveSongBackgroundUrl(response?.background?.previewUrl);
+      if (!url) throw new Error('BACKGROUND_URL_INVALID');
+      const saved = await images.publish(url, blob);
+      showBackground(response, blob);
+      result.textContent = saved ? '背景已更新，已保存本地副本。' : '背景已更新；本地缓存未能保存，下次打开时将重新加载。';
     } catch (error) {
       result.textContent = `上传失败：${getSongBackgroundErrorMessage(error)}`;
     } finally {
+      await images.discardDraft();
       setBusy(false);
     }
   });
@@ -129,7 +175,8 @@ export async function initCloudSongBackground() {
     result.textContent = '正在恢复默认背景…';
     try {
       const response = assertSongBackgroundResponse(await window.liraLicense.deleteSongPageBackground());
-      renderSongBackground(response, elements);
+      await images.clear();
+      showBackground(response);
       result.textContent = '已恢复默认水彩背景。';
     } catch (error) {
       result.textContent = `恢复失败：${getSongBackgroundErrorMessage(error)}`;

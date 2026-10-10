@@ -65,7 +65,7 @@ function createMoonlitZip() {
 }
 
 if (require.main === module) {
-  const destination = path.resolve(root, process.argv[2] || 'output/月渡花汀-1.0.7.zip');
+  const destination = path.resolve(root, process.argv[2] || 'tmp/output/月渡花汀-1.0.7.zip');
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   const archive = createMoonlitZip(); fs.writeFileSync(destination, archive);
   console.log(JSON.stringify({ path: destination, bytes: archive.length, sha256: createHash('sha256').update(archive).digest('hex') }, null, 2));

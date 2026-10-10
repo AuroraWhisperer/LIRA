@@ -223,7 +223,6 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     const query = text(input.query, '搜索', 300).toLocaleLowerCase();
     const filters = Array.isArray(input.filters) ? input.filters : [];
     const at = now();
-    const today = dayOf(at);
     const candidates = store
       .list(scope)
       .filter((p) => (input.archived ? p.archived : !p.archived))
@@ -268,7 +267,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           medalLevel: Number.isSafeInteger(medalLevel) && medalLevel >= 0 ? medalLevel : null,
           lastInteraction: records.filter((r) => ['note', 'song', 'membership'].includes(r.kind))[0]?.occurredAt || '',
           nextReminder:
-            reminders.find((r) => r.date >= today && r.group !== 'history' && r.status === 'pending') || null,
+            reminders.find((r) => ['today', 'week'].includes(r.group) && r.status === 'pending') || null,
         };
       })
       .filter((profile) => {
@@ -385,7 +384,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           const reminders = profiles.flatMap((profile) => buildReminders(
             profile, records.get(profile.id) || [], states.get(profile.id) || [], Date.parse(now()), settings,
           ));
-          if (action === 'reminders') return reminders;
+          if (action === 'reminders') return reminders.filter((item) => item.group !== 'later');
           return reminders.filter((item) =>
             item.group !== 'history' && item.date >= today && addDays(item.date, -3) <= today &&
             !(item.status === 'snoozed' && item.until > today) &&

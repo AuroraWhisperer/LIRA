@@ -142,7 +142,7 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   };
   await admin.webContents.executeJavaScript(`(async () => {
     window.liraLicense = {
-      getProfile: async () => ({ state: 'authorized', streamer: { songPageUrl: 'https://synthetic.test/songs/one' } }),
+      getState: async () => ({ state: 'authorized', streamer: { songPageUrl: 'https://synthetic.test/songs/one' } }),
       getOverlaySettings: async () => ({ ok: true, overlayUrl: 'https://synthetic.test/overlay/abcdefghijklmnop' }),
       onStateChanged: callback => { window.changeCanvasOwner = callback; return () => {}; },
     };

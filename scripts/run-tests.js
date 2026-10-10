@@ -48,6 +48,7 @@ const groups = {
     'gifts/frontend-guard-thanks',
     'gifts/guard-nautical-player',
     'overlays/component-source',
+    'overlays/background-windowlight',
     'overlays/component-style-effects',
     'scenes/scene-live-updates',
     'scenes/scene-renderer',

@@ -8,11 +8,13 @@
 
 单个数据库在 PRAGMA 初始化完成前由 `openSqliteDatabase` 持有；失败时关闭尚未登记的句柄并保留原错误。`createDatabases` 继续清理此前已登记的数据库，成功返回后才把整组句柄交给服务器生命周期。抽奖库在原五库完成初始化后单独打开及迁移；其失败会关闭新连接并返回 `lotteryDb: null`，由抽奖 runtime 禁用本功能，不改变点歌、礼物和播放的既有启动语义。关闭失败沿用 `closeDatabases` 的逐库警告并继续清理；这不撤销已经提交的初始化或迁移数据。
 
+`requester-target-store.js` 持有随机点歌请求者查询，由 `server/domain-services.js` 注入 `songDb`。查询和返回结构沿用既有合同，见 [音乐服务 §12](music/services.md#12-请求者定位storagerequester-target-storejs)；本次归位不改变表、排序或迁移版本。
+
 ### 歌库显式更新事务
 
-`songStore.applyImportUpdate(buildPlan)` 在单个事务中读取完整歌曲及分类，将稳定行对象传给音乐域计划器重新校验预览，然后只执行该计划的 INSERT/UPDATE。保留原歌曲 id、队列和历史引用，不删除无关歌曲或分类；插入新分类、歌曲变更及 import_batches 记录一起提交或回滚。事务内不发生网络调用，成功后的同步由路由触发。
+`songStore.applyImportUpdate(buildPlan)` 在单个事务中读取完整歌曲及分类，将稳定行对象传给音乐域计划器重新校验预览，然后执行该计划的 INSERT/UPDATE，整份替换计划还会 DELETE 未列出的歌曲。匹配歌曲保留 id 和引用；删除歌曲先解除 queue/requests 的 song_id 关联，保留点歌记录文本。保留独立分类目录；插入新分类、歌曲增删改、引用变更、import_batches 及云同步 pending 快照一起提交或回滚。事务内不发生网络调用，成功后的同步由路由触发。
 
-本次无 schema 迁移：既有 import_batches 记录总数、新增数、未改变数（存 duplicate_count）及新分类数，实时响应单独返回 updated 数量；不将更新错误记录为新增。预览 token 含全部歌曲与分类内容及时间戳，不依赖内存全局租户状态。要求见 [点歌资料规范](../../../specs/song-request-metadata.md)。
+本次无 schema 迁移：既有 import_batches 记录总数、新增数、未改变数（存 duplicate_count）及新分类数，实时响应单独返回 updated 数量，替换时另返回 deleted 数量（批次总数只统计输入行）；不将更新错误记录为新增。预览 token 含全部歌曲与分类内容、时间戳和导入选项（包括 replaceAll），不依赖内存全局租户状态。要求见 [点歌资料规范](../../../specs/song-request-metadata.md)。
 
 ### 本地场景持久化
 

@@ -187,7 +187,6 @@ export function renderReminders(items) {
     today: '今天',
     missed: '最近 7 天已错过',
     week: '未来 7 天',
-    later: '之后',
     history: '处理历史',
   };
   const groups = Object.keys(names)
@@ -202,16 +201,16 @@ export function renderReminders(items) {
         if (!people.has(key)) people.set(key, []);
         people.get(key).push(record);
       }
-      return `<section class="fan-reminder-group"><h3>${names[group]}</h3>${[...people.values()]
+      return `<section class="fan-reminder-group" data-reminder-group="${group}"><header class="fan-reminder-heading"><h3>${names[group]}</h3><span class="fan-reminder-count">${records.length} 项</span></header><div class="fan-reminder-list">${[...people.values()]
         .map((day) => {
           const first = day[0];
-          return `<article class="fan-reminder-person"><header class="fan-section-title"><h4>${html(first.name)} · ${html(dateLabel(first.date))}</h4>${button('open-reminder', '打开档案', `data-profile-id="${attr(first.profileId)}"`)}</header>${day.map((r) => `<div class="fan-reminder-row"><div><strong>${html(r.title)}</strong><p class="fan-muted">${html(r.basis || '')}${r.predicted ? ' · 预计' : ''}${r.revisedBelowThreshold ? ' · 修订后未达标，处理历史保留' : ''}${r.status === 'snoozed' ? ` · 延至 ${html(r.until)}` : ''}${r.status === 'handled' ? ' · 已处理' : r.status === 'ignored' ? ' · 已忽略' : ''}</p></div><div class="fan-actions">${group === 'history' ? '' : ['handled', 'snoozed', 'ignored'].map((state) => button(`reminder-${state}`, { handled: '已处理', snoozed: '稍后提醒', ignored: '忽略本次' }[state], `data-profile-id="${attr(r.profileId)}" data-reminder-key="${attr(r.key)}"`)).join('')}</div></div>`).join('')}</article>`;
+          return `<article class="fan-reminder-person"><header class="fan-reminder-identity">${button('open-reminder', html(first.name), `class="fan-reminder-name" data-profile-id="${attr(first.profileId)}" title="打开档案" aria-label="打开 ${attr(first.name)} 的档案"`)}<time datetime="${attr(first.date || '')}">${html(dateLabel(first.date))}</time></header><div class="fan-reminder-items">${day.map((r) => `<div class="fan-reminder-row"><div class="fan-reminder-copy"><div class="fan-reminder-title"><strong>${html(r.title)}</strong>${r.predicted ? '<span class="fan-reminder-prediction">预计</span>' : ''}</div><p class="fan-muted">${html(r.basis || '')}${r.revisedBelowThreshold ? ' · 修订后未达标，处理历史保留' : ''}${r.status === 'snoozed' ? ` · 延至 ${html(r.until)}` : ''}${r.status === 'handled' ? ' · 已处理' : r.status === 'ignored' ? ' · 已忽略' : ''}</p></div>${group === 'history' ? '' : `<div class="fan-actions fan-reminder-actions">${['handled', 'snoozed', 'ignored'].map((state) => button(`reminder-${state}`, { handled: '已处理', snoozed: '稍后提醒', ignored: '忽略本次' }[state], `${state === 'handled' ? 'class="fan-reminder-done" ' : ''}data-profile-id="${attr(r.profileId)}" data-reminder-key="${attr(r.key)}"`)).join('')}</div>`}</div>`).join('')}</div></article>`;
         })
-        .join('')}</section>`;
+        .join('')}</div></section>`;
     })
     .join('');
   return (
     groups ||
-    '<div class="fan-empty"><h3>暂时没有待办提醒</h3><p>填入生日、纪念日或确认大航海资料后，重要日子会汇总在这里。</p></div>'
+    '<div class="fan-empty"><h3>暂时没有待办提醒</h3><p>生日、纪念日与大航海的重要日子会提前 7 天显示在这里。</p></div>'
   );
 }

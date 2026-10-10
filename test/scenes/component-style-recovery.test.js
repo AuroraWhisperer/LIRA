@@ -6,18 +6,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { createComponentStyleStore } = require('../../src/storage/component-style-store');
+const { installComponentStyle } = require('../../src/server/component-style-install');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 
-function fixture(t) {
+async function fixture(t) {
   const dataDir = createScratchDirectory('style-recovery-', t);
   const store = createComponentStyleStore(dataDir);
   const pack = { id: randomUUID(), name: '恢复测试', styles: [{ id: randomUUID(), type: 'clock', config: { label: '初始' } }] };
-  store.stage(pack); store.install(pack.id);
+  store.stage(pack); await installComponentStyle(store, pack.id, () => {});
   return { dataDir, store, pack, index: path.join(store.root, 'index.json'), backup: path.join(store.root, 'index.backup.json') };
 }
 
-for (const failure of ['corrupt', 'missing', 'invalid-shape']) test(`library restores the latest committed parameters from its recovery copy (${failure})`, t => {
-  const f = fixture(t);
+for (const failure of ['corrupt', 'missing', 'invalid-shape']) test(`library restores the latest committed parameters from its recovery copy (${failure})`, async t => {
+  const f = await fixture(t);
   f.store.updateConfig(f.pack.styles[0].id, () => ({ label: '已经保存' }));
   const committed = fs.readFileSync(f.index, 'utf8');
   assert.equal(fs.readFileSync(f.backup, 'utf8'), committed);
@@ -33,8 +34,8 @@ for (const failure of ['corrupt', 'missing', 'invalid-shape']) test(`library res
   assert.equal(JSON.parse(fs.readFileSync(path.join(f.store.directory(f.pack.id), 'package.json'))).styles[0].config.label, '初始');
 });
 
-test('unrecoverable or newer indexes never become an empty library or get overwritten', t => {
-  const f = fixture(t);
+test('unrecoverable or newer indexes never become an empty library or get overwritten', async t => {
+  const f = await fixture(t);
   fs.writeFileSync(f.index, '{broken'); fs.writeFileSync(f.backup, '{also broken');
   assert.throws(() => f.store.list(), { code: 'STYLE_LIBRARY_INDEX_UNAVAILABLE', statusCode: 503 });
   assert.equal(fs.readFileSync(f.index, 'utf8'), '{broken');
@@ -44,8 +45,8 @@ test('unrecoverable or newer indexes never become an empty library or get overwr
   assert.equal(fs.readFileSync(f.index, 'utf8'), newer);
 });
 
-test('missing indexes with installed directories stop safely while a fresh pending import is allowed', t => {
-  const f = fixture(t);
+test('missing indexes with installed directories stop safely while a fresh pending import is allowed', async t => {
+  const f = await fixture(t);
   fs.unlinkSync(f.index); fs.unlinkSync(f.backup);
   assert.throws(() => f.store.read(), { code: 'STYLE_LIBRARY_INDEX_UNAVAILABLE' });
   assert.ok(fs.existsSync(f.store.directory(f.pack.id)));
@@ -54,8 +55,8 @@ test('missing indexes with installed directories stop safely while a fresh pendi
   assert.deepEqual(fresh.list(), []);
 });
 
-test('backup failure after the main commit preserves the successful write and reports degraded recovery', t => {
-  const f = fixture(t);
+test('backup failure after the main commit preserves the successful write and reports degraded recovery', async t => {
+  const f = await fixture(t);
   const rename = fs.renameSync;
   t.mock.method(fs, 'renameSync', (source, target) => {
     if (target === f.backup) throw Object.assign(new Error('Backup unavailable'), { code: 'EACCES' });
@@ -67,8 +68,8 @@ test('backup failure after the main commit preserves the successful write and re
   assert.ok(fs.existsSync(f.store.directory(f.pack.id)));
 });
 
-test('a failed primary index commit keeps both the old index and its recovery copy', t => {
-  const f = fixture(t);
+test('a failed primary index commit keeps both the old index and its recovery copy', async t => {
+  const f = await fixture(t);
   const before = fs.readFileSync(f.index, 'utf8');
   const rename = fs.renameSync;
   t.mock.method(fs, 'renameSync', (source, target) => {

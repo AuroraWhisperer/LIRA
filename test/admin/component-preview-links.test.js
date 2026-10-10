@@ -42,7 +42,7 @@ test('preview opens independent component connections together before linking th
   await desktop.evaluate(() => window.previewHandle.close());
 });
 
-test('text box instance links select the requested item and keep separate reusable entries', { timeout: 25000 }, async t => {
+test('text box instance previews reuse one canvas address and select the requested item', { timeout: 25000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
@@ -81,7 +81,7 @@ test('text box instance links select the requested item and keep separate reusab
     assert.equal(await selected.textContent(), items[index].name);
     assert.equal(await page.locator('.preview-canvas-layer-select').count(), 2);
   }
-  assert.notEqual(urls.get(0), urls.get(1));
+  assert.equal(urls.get(0), urls.get(1));
   await page.reload();
   const selected = page.locator('.preview-canvas-layer-select[aria-pressed="true"]');
   await selected.waitFor();
@@ -154,6 +154,38 @@ for (const delay of ['receipt', 'submission']) test(`instance focus preserves ne
   }, second.id);
 });
 
+test('a delayed preview selection cannot overwrite the latest selection on the shared canvas link', { timeout: 15000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = openBrowserSession();
+  const desktop = await browser.newPage();
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  t.after(async () => { release(); await browser.close(); await fixture.close(); });
+  const url = await openCanvasDesktop(desktop, fixture, 'clock');
+  let observed;
+  const started = new Promise(resolve => { observed = resolve; });
+  await desktop.route('**/api/component-preview', async route => {
+    const command = route.request().postDataJSON();
+    if (command.action === 'link' && command.selectedId === 'queue') {
+      observed();
+      await held;
+    }
+    await route.fallback();
+  });
+  await desktop.evaluate(() => {
+    window.externalPreviewUrl = '';
+    window.slowFocus = window.previewHandle.focus({ id: 'queue', controller: window.controllers.queue });
+  });
+  await started;
+  await desktop.evaluate(() => {
+    window.latestFocus = window.previewHandle.focus({ id: 'clock', controller: window.controllers.clock });
+  });
+  release();
+  await desktop.evaluate(async () => { await Promise.all([window.slowFocus, window.latestFocus]); });
+  assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), url);
+  assert.equal((await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.selectedId, 'clock');
+});
+
 test('reopening and style changes reuse one short link and connected canvas, and old pages refresh into the same drafts', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   const browser = openBrowserSession();
@@ -191,7 +223,7 @@ test('reopening and style changes reuse one short link and connected canvas, and
   assert.equal(await desktop.evaluate(() => window.previewHandle === window.originalHandle), true);
   assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), '');
   assert.equal(commands.filter(({ action }) => action === 'open').length, 5);
-  assert.equal(commands.filter(({ action }) => action === 'link').length, 1);
+  assert.equal(commands.filter(({ action }) => action === 'link').length, 2, 'Rapid clicks update the shared selection once.');
   assert.equal(commands.filter(({ action }) => action === 'revoke').length, 0);
   await second.goto(url);
   await second.locator('[data-preview-field="clockCustomLabel"]').waitFor();
@@ -213,7 +245,7 @@ test('reopening and style changes reuse one short link and connected canvas, and
   assert.equal(await label.inputValue(), '刷新后继续编辑');
   assert.equal(await page.evaluate(() => window.originalCanvas === document.querySelector('.scene-editor-canvas')), true);
   assert.equal(await page.locator('.preview-canvas-layer-select').count(), 1);
-  // Each component entry keeps its selection while sharing the same relay.
+  // Every component entry updates the selection on the same canvas link.
   const switchedFocus = desktop.waitForResponse(async response => new URL(response.url()).pathname === '/api/component-preview'
     && response.request().postDataJSON().action === 'focus' && (await response.json()).data.focused);
   await desktop.evaluate(() => window.reopen('danmaku'));
@@ -223,7 +255,7 @@ test('reopening and style changes reuse one short link and connected canvas, and
   assert.equal(commands.filter(({ action }) => action === 'link').at(-1).selectedId, 'danmaku');
   assert.equal(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.id), sceneId);
   assert.equal(await page.locator('.preview-canvas-layer-select').count(), 2);
-  assert.equal((await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.selectedId, 'clock');
+  assert.equal((await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1))).data.selectedId, 'danmaku');
   assert.equal(commands.filter(({ action }) => action === 'open').length, 5);
   await page.close();
   await second.close();

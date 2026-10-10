@@ -29,6 +29,8 @@ const fixture = {
 };
 function setup(t, remote) {
   let identity = { streamerId: 1, accountName: 'synthetic' },
+    authorizationEpoch = 1,
+    authorizationGeneration = 1,
     listener;
   const source = {
     checkins: structuredClone(fixture.snapshot.checkins),
@@ -39,7 +41,8 @@ function setup(t, remote) {
     isAuthorized: () => Boolean(identity),
     getCloudSyncIdentity: () => identity,
     getRemoteBaseUrl: () => 'https://lira.test',
-    getAuthorizationEpoch: () => identity?.streamerId,
+    getAuthorizationEpoch: () => authorizationEpoch,
+    getAuthorizationGeneration: () => authorizationGeneration,
     onStateChanged(fn) {
       listener = fn;
       return () => {};
@@ -65,16 +68,32 @@ function setup(t, remote) {
   return {
     controller,
     source,
+    renewSession() {
+      authorizationEpoch++;
+    },
+    reauthorize() {
+      authorizationEpoch++;
+      authorizationGeneration++;
+      listener();
+    },
+    revoke() {
+      identity = null;
+      authorizationEpoch++;
+      authorizationGeneration++;
+      listener();
+    },
     switchAccount() {
       identity = { streamerId: 2, accountName: 'second' };
+      authorizationEpoch++;
+      authorizationGeneration++;
       listener();
     },
   };
 }
-test('main forwards direct enabling without a legacy decision and accepts automatic readiness', async (t) => {
+test('main preserves an open editor through token renewal and forwards direct enabling without a legacy decision', async (t) => {
   const calls = [],
     initial = structuredClone(fixture.defaultResponse);
-  const { controller } = setup(t, async (operation, input) => {
+  const { controller, renewSession } = setup(t, async (operation, input) => {
     calls.push({ operation, input });
     if (operation === 'read') return initial;
     assert.equal(operation, 'update');
@@ -85,12 +104,14 @@ test('main forwards direct enabling without a legacy decision and accepts automa
     };
   });
   const opened = await controller.invoke({ action: 'open' });
+  renewSession();
   const result = await controller.invoke({
     action: 'update',
     contextId: opened.contextId,
     payload: { kind: 'checkin', enabled: true, expectedRevision: 0 },
   });
   assert.equal(result.data.checkin.enabled, true);
+  assert.equal(result.contextId, opened.contextId);
   assert.equal(result.data.takeover.legacyStoppedAt, null);
   assert.deepEqual(
     calls.map((item) => item.operation),
@@ -114,6 +135,17 @@ test('main rejects stale contexts and unconfirmed migration and discards late ac
   await assert.rejects(pending, /ACCOUNT_CHANGED/);
   await assert.rejects(controller.invoke({ action: 'decide', contextId: 'old' }), /ACCOUNT_CHANGED/);
 });
+
+for (const change of ['reauthorize', 'revoke']) {
+  test(`${change} invalidates an in-flight daily-bot operation`, async (t) => {
+    const response = Promise.withResolvers();
+    const env = setup(t, () => response.promise);
+    const pending = env.controller.invoke({ action: 'open' });
+    env[change]();
+    response.resolve(fixture.defaultResponse);
+    await assert.rejects(pending, { code: 'DAILY_BOT_ACCOUNT_CHANGED' });
+  });
+}
 test('migration stages only confirmed local snapshot, detects resumed old writers, and never adds a second base', async (t) => {
   const calls = [];
   let state = structuredClone(fixture.defaultResponse),
@@ -191,13 +223,13 @@ test('restricted IPC refuses other windows/frames/origins and never returns arbi
   assert.equal(removed, 'daily-bots:invoke');
 });
 
-test('a lost commit reply retries the original receipt without uploading or adding the base twice', async (t) => {
+test('a lost commit reply retries the original receipt after token renewal without uploading or adding the base twice', async (t) => {
   const calls = [];
   let state = structuredClone(fixture.defaultResponse),
     startReceipt,
     committed = false,
     commits = 0;
-  const { controller } = setup(t, async (operation, input) => {
+  const { controller, renewSession } = setup(t, async (operation, input) => {
     calls.push({ operation, input });
     if (operation === 'read') return state;
     if (operation === 'start') {
@@ -224,6 +256,7 @@ test('a lost commit reply retries the original receipt without uploading or addi
     libraryChoice: { checkin: 'legacy', fortune: 'legacy' },
   });
   await assert.rejects(invoke('apply', { draftId: draft.draftId }), /lost response/);
+  renewSession();
   const result = await invoke('apply', { draftId: draft.draftId });
   assert.equal(result.imported, true);
   assert.equal(result.data.takeover.revision, 2);

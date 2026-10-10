@@ -21,7 +21,7 @@ function extractBilibiliGiftIdentity(packet) {
         hint: {
           uid,
           name: cleanText(firstProtoScalar(root?.[2])) || '观众',
-          avatarUrl: '',
+          avatarUrl: cleanText(firstProtoScalar(root?.[3])),
         },
         roomIdentityVerified: false,
       };

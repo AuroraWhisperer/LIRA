@@ -12,7 +12,7 @@ const {
 } = require('../../src/music/random-song-filter');
 const songService = require('../../src/music/song-service');
 const { handleDanmakuMessage, parseDanmakuCommand } = require('../../src/bilibili/bilibili-message-handler');
-const { createRequesterTargetStore } = require('../../src/music/requester-target-store');
+const { createRequesterTargetStore } = require('../../src/storage/requester-target-store');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createSongStore } = require('../../src/storage/song-store');
 

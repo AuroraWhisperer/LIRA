@@ -70,7 +70,7 @@ function createFixture(overrides = {}) {
     }),
     syncSongs: async (songs) => {
       calls.push(['push-songs', songs]);
-      return { initialized: true, revision: 6 };
+      return { ok: true, count: songs.length, initialized: true, revision: 6 };
     },
     getBilibiliCredentialsInternal: async () => ({
       initialized: true,

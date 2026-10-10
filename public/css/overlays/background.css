@@ -8,6 +8,7 @@ body {
 
 #backgroundImage,
 #backgroundAnimation,
+#windowlightBackground,
 body > .component-media-art {
   position: absolute;
   inset: calc(0px - var(--background-bleed, 0px));

@@ -130,6 +130,7 @@ function createApiContext(options) {
       auth: bilibili.auth,
       fetchAvatarImage: bilibili.fetchAvatarImage,
       getRoomProfile: bilibili.getRoomProfile,
+      getLikeState: bilibili.getLikeState,
       getDanmakuSenderState: () => bilibili.danmakuSender.getState(),
       sendDanmaku: (input) => bilibili.danmakuSender.send(input),
     },

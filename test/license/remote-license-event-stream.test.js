@@ -4,6 +4,56 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
 
+test('caller cancellation stops delivery inside an already buffered SSE chunk', async () => {
+  const controller = new AbortController();
+  const received = [];
+  const client = createRemoteLicenseClient({ fetchImpl: async () => new Response(
+    [1, 2].map((revision) => `event: cloud-state-changed\ndata: {"scopes":{"songs":${revision}}}\n\n`).join(''),
+    { headers: { 'content-type': 'text/event-stream' } },
+  ) });
+  await assert.rejects(client.watchCloudStateChanges('synthetic', {
+    signal: controller.signal,
+    onChange(event) { received.push(event.scopes.songs); controller.abort(); },
+  }), { name: 'AbortError' });
+  assert.deepEqual(received, [1]);
+});
+
+test('Device SSE aborts an opening connection after 15 seconds', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let signal;
+  const client = createRemoteLicenseClient({ fetchImpl: (_url, init) => {
+    signal = init.signal;
+    return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+  } });
+  const rejected = assert.rejects(client.watchGiftEvents('synthetic'), { code: 'REQUEST_TIMEOUT', retryable: true });
+  t.mock.timers.tick(15_000);
+  await rejected;
+  assert.equal(signal.aborted, true);
+});
+
+test('Device SSE comments renew the 60-second idle deadline and a silent body is cancelled', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let body;
+  let cancelled = 0;
+  let finished = false;
+  const client = createRemoteLicenseClient({ fetchImpl: async () => new Response(new ReadableStream({
+    start(controller) { body = controller; },
+    cancel() { cancelled += 1; },
+  }), { headers: { 'content-type': 'text/event-stream' } }) });
+  const stream = client.watchCloudStateChanges('synthetic');
+  const rejected = assert.rejects(stream, { code: 'REQUEST_TIMEOUT' }).then(() => { finished = true; });
+  await new Promise(setImmediate);
+  t.mock.timers.tick(59_000);
+  body.enqueue(new TextEncoder().encode(': heartbeat\n\n'));
+  await new Promise(setImmediate);
+  t.mock.timers.tick(59_000);
+  await new Promise(setImmediate);
+  assert.equal(finished, false);
+  t.mock.timers.tick(1_000);
+  await rejected;
+  assert.equal(cancelled, 1);
+});
+
 test('cloud state event stream uses DeviceBearer and parses revision-only SSE frames', async () => {
   const requests = [];
   const encoder = new TextEncoder();

@@ -18,6 +18,7 @@ export function createStatePersistence(deps) {
   const playbackStateSaveDebounceMs = PlaybackConfig.STATE_SAVE_DEBOUNCE_MS;
   let playbackStateSaveTimer = null;
   let playbackStateSavePending = null;
+  let playbackStateSaveDirty = false;
   let snapshotSequence = 0;
   let completedSaveSequence = 0;
   let failedSaves = 0;
@@ -63,9 +64,9 @@ export function createStatePersistence(deps) {
   }
 
   /**
-   * 保存播放状态（防抖版本）
+   * 在实际发送前捕获最新状态，避免每次进度通知都复制完整队列。
    */
-  function savePlaybackState() {
+  function capturePlaybackState() {
     const audio = getPlaybackAudio();
     const payload = {
       current: serializeTrack(playbackState.current),
@@ -100,18 +101,18 @@ export function createStatePersistence(deps) {
         .slice(0, PlaybackConfig.DISPLAY_HISTORY_MAX_SIZE)
         .map(serializeTrack)
         .filter(Boolean),
+      snapshotVersion: { ...snapshotWriter, sequence: snapshotSequence },
     };
-    schedulePlaybackStateSave(payload);
+    return payload;
   }
 
   /**
    * 调度状态保存（防抖）
    */
-  function schedulePlaybackStateSave(payload) {
-    playbackStateSavePending = {
-      ...payload,
-      snapshotVersion: { ...snapshotWriter, sequence: ++snapshotSequence },
-    };
+  function savePlaybackState() {
+    playbackStateSaveDirty = true;
+    playbackStateSavePending = null;
+    snapshotSequence += 1;
     if (playbackStateSaveTimer) clearTimeout(playbackStateSaveTimer);
     playbackStateSaveTimer = setTimeout(() => {
       void flushPlaybackStateSave();
@@ -166,7 +167,8 @@ export function createStatePersistence(deps) {
       clearTimeout(playbackStateSaveTimer);
       playbackStateSaveTimer = null;
     }
-    const payload = playbackStateSavePending;
+    const payload = playbackStateSaveDirty ? capturePlaybackState() : playbackStateSavePending;
+    playbackStateSaveDirty = false;
     playbackStateSavePending = null;
     return payload;
   }
@@ -175,7 +177,7 @@ export function createStatePersistence(deps) {
    * 在页面卸载时通过 IPC 和 HTTP 兜底通道提交同一份快照。
    */
   function flushPlaybackStateOnUnload() {
-    if (!playbackStateSavePending && playbackState.current) {
+    if (!playbackStateSaveDirty && !playbackStateSavePending && playbackState.current) {
       savePlaybackState();
     }
     const payload = takePendingPayload();
@@ -209,7 +211,7 @@ export function createStatePersistence(deps) {
 
   /** Electron 关闭服务前等待最后一份状态写入 SQLite。 */
   async function flushPlaybackStateForShutdown() {
-    if (!playbackStateSavePending && playbackState.current) {
+    if (!playbackStateSaveDirty && !playbackStateSavePending && playbackState.current) {
       savePlaybackState();
     }
     const payload = takePendingPayload();

@@ -189,6 +189,16 @@ class BilibiliDanmakuClient {
     return this.apiClient.sendDanmaku(this.resolvedRoomId || this.roomId, message, reply);
   }
 
+  getLikeState() {
+    const connected = !this.stopped && this.wsConnection.ws?.readyState === 1 &&
+      this.wsConnection.connectionTrace?.authStatus === 'accepted';
+    return {
+      roomId: String(this.resolvedRoomId || this.roomId),
+      ...(connected ? this.messageHandlers.getLikeState() : { count: null, updatedAt: null }),
+      connected,
+    };
+  }
+
   getViewerCandidates() {
     return this.userInfoService.listOnline().map((snapshot) => {
       const medal = snapshot.fansMedal && snapshot.fansMedal.known ? snapshot.fansMedal.value : null;

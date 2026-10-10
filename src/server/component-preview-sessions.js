@@ -76,7 +76,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     }
     const entries = links.map(({ id, token }) => {
       const session = authenticate(id, token);
-      return { component: session.component, id, token, draftKey: session.draftKey };
+      return { component: session.component, id, token };
     });
     if (selectedId !== null && (!SCENE_TYPES.includes(selectedId)
       || !entries.some(({ component }) => component === (SHARED_SCENE_TYPES.includes(selectedId) ? selectedId : 'canvas')))) fail(400, '预览组件无效。');
@@ -87,7 +87,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     const anchor = get(entries.find(({ component }) => component === 'canvas')?.id || entries[0].id);
     anchor.links ||= new Map();
     const sceneId = anchor.component === 'canvas' ? anchor.state.saved.document?.id : null;
-    const selectionKey = JSON.stringify([selectedId, selectedItemId, sceneId]);
+    const selectionKey = anchor.component === 'canvas' ? 'canvas' : JSON.stringify([selectedId, selectedItemId, sceneId]);
     const previous = anchor.links.get(selectionKey);
     const key = previous && JSON.stringify(previous.entries) === JSON.stringify(entries)
       ? previous.key : crypto.randomBytes(16).toString('base64url');
@@ -107,10 +107,12 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     for (const { id, token } of linked.entries) authenticate(id, token);
     const canvas = linked.entries.find(({ component }) => component === 'canvas');
     const sameScene = !linked.sceneId || get(canvas.id).state.saved.document?.id === linked.sceneId;
-    if (sameScene) checkSelectedItem(linked.entries, linked.selectedId, linked.selectedItemId);
+    const selectedItemExists = linked.selectedItemId === undefined || canvas && get(canvas.id).state.draft.document?.items
+      ?.some(item => item.id === linked.selectedItemId && item.type === linked.selectedId);
+    const retainSelection = sameScene && selectedItemExists;
     return copy({ links: linked.entries.map(entry => ({ ...entry, draftKey: get(entry.id).draftKey })),
-      selectedId: sameScene ? linked.selectedId : null, selectedSize: sameScene ? linked.selectedSize : null,
-      ...(!sameScene || linked.selectedItemId === undefined ? {} : { selectedItemId: linked.selectedItemId }) });
+      selectedId: retainSelection ? linked.selectedId : null, selectedSize: retainSelection ? linked.selectedSize : null,
+      ...(!retainSelection || linked.selectedItemId === undefined ? {} : { selectedItemId: linked.selectedItemId }) });
   }
 
   function focus({ key }) {

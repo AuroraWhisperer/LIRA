@@ -141,22 +141,24 @@ test('short editor links resolve only their verified sessions and cannot grant m
   assert.equal((await fixture.post({ action: 'resolve' }, key)).status, 410);
 });
 
-test('compact links retain each entry selection and size while reusing the same component sessions', () => {
+test('all component selections reuse one canvas key and retain the latest selection and size', () => {
   const sessions = createComponentPreviewSessions();
   const links = ['clock', 'queue', 'canvas'].map(component => sessions.open({ component, state: state() }));
   const canvas = sessions.link({ links });
   const clock = sessions.link({ links, selectedId: 'clock', selectedSize: { width: 580, height: 210 } });
   const queue = sessions.link({ links, selectedId: 'queue' });
-  assert.notEqual(canvas.key, clock.key);
-  assert.notEqual(queue.key, clock.key);
+  assert.equal(canvas.key, clock.key);
+  assert.equal(queue.key, clock.key);
+  assert.equal(sessions.resolveLink(canvas.key).selectedId, 'queue');
   assert.equal(sessions.link({ links }).key, canvas.key);
+  assert.equal(sessions.resolveLink(canvas.key).selectedId, null);
   assert.equal(sessions.link({ links, selectedId: 'clock', selectedSize: { width: 800, height: 300 } }).key, clock.key);
   assert.deepEqual(sessions.resolveLink(clock.key), { links: links.map((entry, index) => ({
     ...entry, component: ['clock', 'queue', 'canvas'][index] })), selectedId: 'clock', selectedSize: { width: 800, height: 300 } });
-  assert.equal(sessions.resolveLink(canvas.key).selectedId, null);
-  assert.equal(sessions.resolveLink(queue.key).selectedId, 'queue');
+  assert.equal(sessions.resolveLink(canvas.key).selectedId, 'clock');
   for (const selectedId of ['gift-frame', 'guard-thanks']) {
     const entry = sessions.link({ links, selectedId });
+    assert.equal(entry.key, canvas.key);
     assert.equal(sessions.resolveLink(entry.key).selectedId, selectedId);
     assert.throws(() => sessions.link({ links: [links[0]], selectedId }), { statusCode: 400 });
   }
@@ -166,7 +168,7 @@ test('compact links retain each entry selection and size while reusing the same 
     { selectedId: 'clock', selectedSize: { width: 580, height: 9000 } }]) {
     assert.throws(() => sessions.link({ links, ...selection }), { statusCode: 400 });
   }
-  assert.equal(sessions.resolveLink(clock.key).selectedSize.width, 800);
+  assert.equal(sessions.resolveLink(clock.key).selectedId, 'guard-thanks', 'Invalid selections do not replace the last valid selection.');
 });
 
 test('short links expire when any bound component is closed, replaced or revoked', () => {
@@ -185,7 +187,7 @@ test('short links expire when any bound component is closed, replaced or revoked
   }
 });
 
-test('instance links retain distinct same-type selections and require the current canvas item and type', () => {
+test('instance selection reuses the canvas key and reopening after deletion clears stale selection', () => {
   const sessions = createComponentPreviewSessions();
   const items = [{ id: randomUUID(), type: 'text-box' }, { id: randomUUID(), type: 'text-box' },
     { id: randomUUID(), type: 'clock' }];
@@ -195,20 +197,36 @@ test('instance links retain distinct same-type selections and require the curren
   const select = (selectedItemId, selectedId = 'text-box') => sessions.link({ links, selectedId, selectedItemId });
   const first = select(items[0].id);
   const second = select(items[1].id);
-  assert.notEqual(first.key, second.key);
+  assert.equal(first.key, second.key);
   assert.equal(select(items[0].id).key, first.key);
-  assert.equal(select(items[1].id).key, second.key);
   assert.equal(sessions.resolveLink(first.key).selectedItemId, items[0].id);
+  assert.equal(select(items[1].id).key, second.key);
   assert.equal(sessions.resolveLink(second.key).selectedItemId, items[1].id);
   const generic = sessions.link({ links, selectedId: 'text-box' });
-  assert.notEqual(generic.key, first.key);
+  assert.equal(generic.key, first.key);
   assert.equal(Object.hasOwn(sessions.resolveLink(generic.key), 'selectedItemId'), false);
   for (const id of [null, '', randomUUID(), items[2].id]) assert.throws(() => select(id), { statusCode: 400 });
   assert.throws(() => select(items[0].id, 'clock'), { statusCode: 400 });
   assert.throws(() => sessions.link({ links: [clock], selectedId: 'clock', selectedItemId: items[2].id }), { statusCode: 400 });
+  select(items[1].id);
   sessions.exchange({ id: canvas.id, ack: 0, state: state({ document: { items: items.slice(0, 1) } }) });
-  assert.throws(() => sessions.resolveLink(second.key), { statusCode: 400 });
+  assert.equal(sessions.resolveLink(second.key).selectedId, null);
+  assert.equal(Object.hasOwn(sessions.resolveLink(second.key), 'selectedItemId'), false);
+  assert.equal(select(items[0].id).key, first.key);
   assert.equal(sessions.resolveLink(first.key).selectedItemId, items[0].id);
+});
+
+test('switching presets keeps the canvas key and clears selection from the previous preset', () => {
+  const sessions = createComponentPreviewSessions();
+  const first = { id: randomUUID(), items: [{ id: randomUUID(), type: 'text-box' }] };
+  const second = { id: randomUUID(), items: [] };
+  const canvas = sessions.open({ component: 'canvas', state: state({ document: first }) });
+  const { key } = sessions.link({ links: [canvas], selectedId: 'text-box', selectedItemId: first.items[0].id });
+  sessions.exchange({ id: canvas.id, ack: 0, state: state({ document: second }) });
+  assert.equal(sessions.resolveLink(key).selectedId, null);
+  assert.equal(Object.hasOwn(sessions.resolveLink(key), 'selectedItemId'), false);
+  assert.equal(sessions.link({ links: [canvas] }).key, key);
+  assert.notEqual(sessions.resolveLink(key).links[0].draftKey, canvas.draftKey, 'Draft recovery remains isolated by preset.');
 });
 test('A03: UTF-8 scene pairs fit open/edit/exchange while documents and envelopes remain bounded', async t => {
   const fixture = await startComponentPreviewServer();

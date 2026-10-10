@@ -24,7 +24,7 @@ function defaultCachePath(environment = process.env) {
 
 function defaultOutputPath(projectRoot = PROJECT_ROOT, date = new Date()) {
   const timestamp = date.toISOString().replace(/[:.]/g, '-');
-  return path.join(projectRoot, 'logs', `wesing-playback-diagnostic-${timestamp}.jsonl`);
+  return path.join(projectRoot, 'tmp', `wesing-playback-diagnostic-${timestamp}.jsonl`);
 }
 
 /**

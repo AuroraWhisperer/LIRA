@@ -29,7 +29,7 @@ function createNauticalGuardZip() {
 }
 
 if (require.main === module) {
-  const destination = path.resolve(root, process.argv[2] || 'output/航海旗帜-大航海感谢样式-1.0.1.zip');
+  const destination = path.resolve(root, process.argv[2] || 'tmp/output/航海旗帜-大航海感谢样式-1.0.1.zip');
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   const archive = createNauticalGuardZip(); fs.writeFileSync(destination, archive);
   console.log(JSON.stringify({ path: destination, bytes: archive.length }));

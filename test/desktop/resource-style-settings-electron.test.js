@@ -120,3 +120,54 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   assert.equal(await reopened.getByLabel('昵称字号', { exact: true }).inputValue(), '60');
   assert.deepEqual(errors, []);
 });
+
+test('resource settings pause polling under hidden pages and resume without losing drafts', { timeout: 30000 }, async t => {
+  const directory = createScratchDirectory('resource-visibility-electron-');
+  let app;
+  t.after(async () => { await app?.close(); removeScratchDirectory(directory); });
+  const styles = await installResourceStyles(directory);
+  app = await launchElectron({ cwd: path.resolve(__dirname, '../..'),
+    args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  const page = await app.firstWindow();
+  await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  for (const embedded of [false, true]) {
+    await page.evaluate(async ({ style, embedded }) => {
+      const { mountResourceStyleSettings } = await import('/js/admin/component-resource-settings-panel.js');
+      const { createResourceStyleSettings } = await import('/js/admin/resource-style-settings.js');
+      const ancestor = document.createElement('section'); ancestor.className = 'main-page active';
+      const subpage = document.createElement('section');
+      const host = document.createElement('div'); host.id = 'resource-polling-test';
+      subpage.append(host); ancestor.append(subpage); document.body.append(ancestor);
+      const state = window.resourcePollingTest = { ancestor, subpage, reads: 0 };
+      const request = async action => {
+        if (action !== 'list') throw new Error(`Unexpected action: ${action}`);
+        state.reads++;
+        return [{ styles: [style] }];
+      };
+      state.panel = embedded ? createResourceStyleSettings(style, { request }).mount(host)
+        : mountResourceStyleSettings(host, { style, request });
+    }, { style: styles.find(style => style.type === 'lyrics'), embedded });
+    const fontSize = page.locator('#resource-polling-test').getByLabel('字号', { exact: true });
+    await fontSize.fill('54'); await fontSize.dispatchEvent('change');
+    await page.clock.fastForward(1000);
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 1);
+    await page.evaluate(() => window.resourcePollingTest.ancestor.classList.remove('active'));
+    await page.clock.fastForward(2000);
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 1, 'Inactive main pages must stop polling.');
+    await page.evaluate(() => {
+      window.resourcePollingTest.ancestor.classList.add('active');
+      window.resourcePollingTest.subpage.hidden = true;
+    });
+    await page.clock.fastForward(2000);
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 1, 'Hidden subpages must stop polling.');
+    await page.evaluate(() => { window.resourcePollingTest.subpage.hidden = false; });
+    await page.clock.fastForward(1000);
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 2);
+    assert.equal(await fontSize.inputValue(), '54', 'Resuming polling must preserve unsaved edits.');
+    await page.evaluate(() => { window.resourcePollingTest.panel.dispose(); window.resourcePollingTest.ancestor.remove(); });
+    await page.clock.fastForward(2000);
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 2, 'Disposed panels must stop polling.');
+  }
+});

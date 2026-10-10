@@ -167,9 +167,12 @@ live 事件严格为 `{eventId,cursor,phase,gift}`；eventId 为1–64字符，�
 | 入库阈值 | `SUPER_CHAT_DISPLAY_THRESHOLD = 2` RMB,`price < 2` 直接拒绝                                   | [superchat-service.js](../../../../src/bilibili/superchat-service.js) 的 `addSuperChatItem` |
 | 去重     | `platform_id` 已存在:返回既有行;既有行 `status='deleted'` 则返回 null(不入账)                 | [superchat-service.js](../../../../src/bilibili/superchat-service.js)                                                                               |
 | 状态机   | `active`(插入默认)→ `assist`→`assisted`;`unassist`→`active`;`delete`→`deleted`                | [superchat-service.js](../../../../src/bilibili/superchat-service.js)                                                                               |
+| 平台下线 | `retractSuperChatItems` 按 `platform_id` 批量标记 `deleted`，只修改状态和更新时间；重复或未知 ID 不新增记录 | [superchat-service.js](../../../../src/bilibili/superchat-service.js)、[superchat-store.js](../../../../src/storage/superchat-store.js) |
 | 快照     | `WHERE status IN ('active','assisted') ORDER BY price DESC, datetime(created_at) ASC, id ASC` | [superchat-store.js](../../../../src/storage/superchat-store.js) 的 `listActive`                                                                               |
 
 表结构与列见 [storage.md](../storage.md) §3.2(`super-chat-data.db`);快照 `superChats` 字段见 [ws.md](../ws.md) §2;入账触发 `bilibili:superchat` 广播(见 [danmaku.md](danmaku.md) §1)。
+
+平台下线保留已存金额、正文及历史行，不解释为退款或删除财务记录；已 deleted 的同平台 ID 新增消息及迟到的 assist/unassist 操作均不会复活留言。回调仅在实际变更记录时发布快照，使活动列表移除对应留言；消息识别与 ID 优先级归 [protocol.md](protocol.md) §6.2。
 
 ## 8. 参数归属
 

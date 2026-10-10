@@ -12,12 +12,13 @@ for (const stream of [process.stdout, process.stderr]) {
 }
 const http = require('node:http');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { createGiftExportController } = require('../src/electron/gift-export-controller');
 const { createGiftExportRuntime } = require('../src/server/gift-export-runtime');
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-export-check-'));
+const scratch = path.resolve(__dirname, '../tmp');
+fs.mkdirSync(scratch, { recursive: true });
+const root = fs.mkdtempSync(path.join(scratch, 'lira-gift-export-check-'));
 app.setPath('userData', path.join(root, 'user-data'));
 app.on('window-all-closed', () => {});
 app.commandLine.appendSwitch('force-device-scale-factor', process.env.GIFT_TEST_DPI || '1');

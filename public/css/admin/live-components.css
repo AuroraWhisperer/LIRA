@@ -75,6 +75,30 @@
   padding: 0 8px;
 }
 
+@media (min-width: 901px) {
+  .live-components-sidebar {
+    overflow: hidden;
+  }
+
+  .live-components-heading,
+  .live-components-help {
+    flex-shrink: 0;
+  }
+
+  .live-components-menu {
+    flex: 1;
+    min-height: 0;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .live-components-menu::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .live-components-menu .other-feature-button {
   grid-template-columns: 20px minmax(0, 1fr);
   grid-template-rows: auto;

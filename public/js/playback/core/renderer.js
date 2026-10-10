@@ -37,8 +37,7 @@ export function createRenderer(deps) {
         : '当前歌曲无法添加到歌单';
     }
 
-    // 渲染搜索结果和待确认弹窗
-    renderPlaybackSearchResults();
+    // 搜索结果由搜索、清空和切换音源的入口更新。
     renderPendingConfirmPopup();
 
     // 同步进度条显示

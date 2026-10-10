@@ -7,7 +7,7 @@ const DESKTOP_BASE_URL = 'http://127.0.0.1:3210';
 // Registers the real license IPC handlers against a stub ipcMain and window.
 // `licenseManager` overrides are merged onto authorized defaults; tests may
 // replace methods on the returned `licenseManager` between invocations.
-function createLicenseIpcFixture({ licenseManager = {}, giftCatalog, framePath = '/admin?desktop=1' } = {}) {
+function createLicenseIpcFixture({ licenseManager = {}, giftCatalog, cloudSyncController, framePath = '/admin?desktop=1' } = {}) {
   const handlers = new Map();
   const sent = [];
   const webContents = { send: (...args) => sent.push(args) };
@@ -27,6 +27,7 @@ function createLicenseIpcFixture({ licenseManager = {}, giftCatalog, framePath =
       handle: (channel, handler) => handlers.set(channel, handler),
     },
     licenseManager: manager,
+    getCloudSyncController: () => cloudSyncController || { syncSongs: (songs) => manager.syncSongs(songs) },
     giftCatalog,
     getMainWindow: () => mainWindow,
     getDesktopBaseUrl: () => DESKTOP_BASE_URL,

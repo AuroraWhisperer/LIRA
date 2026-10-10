@@ -3,9 +3,9 @@ import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
 import { watchComponentOutputSize } from './component-output-size.js';
 import { createDisplaySource } from './display-source.js';
 
-export function initDanmakuComponentSource({ configure, clear, append, status, getStyle, showEntryMessages, dispose }) {
+export function initDanmakuComponentSource({ configure, clear, append, remove, status, getStyle, showEntryMessages, dispose }) {
   const host = document.getElementById('danmakuCanvasHost');
-  const display = createSceneDanmakuDisplay({ clear, append, status, getStyle, showEntryMessages });
+  const display = createSceneDanmakuDisplay({ clear, append, remove, status, getStyle, showEntryMessages });
   let configuration = null;
   let configKey = '';
   let outputSize = null;

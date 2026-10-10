@@ -12,7 +12,7 @@
 | [update-ipc.js](../../../src/electron/ipc/update-ipc.js)：其余 desktop | 必须 | 必须 | 上述路径加 `/license` |
 | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) | 必须 | 必须 | `/`、`/admin`、`/settings` |
 | [planner-reminder-ipc.js](../../../src/electron/ipc/planner-reminder-ipc.js) | 必须 | 必须 | 仅 `/admin` |
-| [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js)、[gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
+| [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js)、[gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js)：复用 main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [dynamic-lottery-auth-ipc.js](../../../src/electron/ipc/dynamic-lottery-auth-ipc.js)、[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) | 必须 | 必须 | 不另检查路径，包含同 origin 的 `/license` |
 | [license-ipc.js](../../../src/electron/ipc/license-ipc.js)：overlay-filters GET/PUT、overlay-viewers GET | 必须 | 必须 | 不另检查路径 |
 | 同上：其余 license | 必须 | **不要求** mainFrame 对象 | 不另检查路径；同 origin 子 frame 也通过该来源检查 |
@@ -97,7 +97,7 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:retry` | `retry()` | `{ok,...LicenseSnapshot}`，ok 表示 authorized | license.js |
 | `license:get-gift-catalog-state` | `getGiftCatalogState()` | `{ok:true,...CatalogSnapshot}` | license.js、[catalog-update-toast.js](../../../public/js/admin/gifts/catalog-update-toast.js) |
 | `license:retry-gift-catalog` | `retryGiftCatalog()` | `{ok,...CatalogSnapshot}`，ok 表示 ready；未授权 LICENSE_REQUIRED | 同上 |
-| `license:get-profile` | `getProfile()` | `{ok:true,...LicenseSnapshot}` | settings-auth、[server-overlay-url.js](../../../public/js/admin/server-overlay-url.js) |
+| `license:get-profile` | `getProfile()` | `{ok:true,...LicenseSnapshot}`；同授权生命周期的在途读取合并，完成后再次调用仍远程刷新 | settings-license（完整设备资料） |
 | `license:get-overlay-settings` | `getOverlaySettings()` | OverlaySettings | [danmaku-overlay-settings.js](../../../public/js/admin/danmaku-overlay-settings.js)、server-overlay-url |
 | `license:update-overlay-settings` | `updateOverlaySettings({style,fullscreenDurationSeconds,styleOptions?,layout?,styleParameters?})` | OverlaySettings；INVALID_OVERLAY_STYLE / INVALID_OVERLAY_DURATION / INVALID_OVERLAY_LAYOUT / INVALID_STYLE_PARAMETERS | danmaku-overlay-settings |
 | `license:get-overlay-filters` | `getOverlayFilters()` | `{ok:true,blockedUsers:[{uid,name}],blockedKeywords:[]}` | [danmaku-overlay-filters.js](../../../public/js/admin/danmaku-overlay-filters.js) |
@@ -109,8 +109,11 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:update-welcome-settings-v2` | `updateWelcomeSettingsV2(patch)` | 完整 V2 配置，不降级重放；可带 fieldErrors | 同上 |
 | `license:get-pk-report-settings` | `getPkReportSettings()` | `{ok:true,enabled:boolean}` | [danmaku-pk-report.js](../../../public/js/admin/danmaku-pk-report.js) |
 | `license:update-pk-report-settings` | `updatePkReportSettings({enabled})`，严格 boolean、唯一字段 | 同上；INVALID_PK_REPORT_SETTINGS / INVALID_RESPONSE | 同上 |
-| `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000，JSON.stringify.length ≤4×1024×1024（UTF-16 单元，不是字节） | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / SONG_LIST_TOO_LARGE | [cloud-song-sync.js](../../../public/js/admin/cloud-song-sync.js) |
+| `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000，JSON.stringify.length ≤4×1024×1024（UTF-16 单元，不是字节）；与自动同步串行，保留传入快照语义 | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / SONG_LIST_TOO_LARGE | 兼容入口 |
+| `license:get-local-song-count` | `getLocalSongCount()` | `{ok:true,count,generation}`；主进程完整歌库数量及确认代次 | [cloud-song-sync.js](../../../public/js/admin/cloud-song-sync.js) |
+| `license:sync-current-songs` | `syncCurrentSongs(generation)`；非负安全整数 | `{ok,count,index?,songPageUrl?}`；确认代次过期报 CLOUD_SONGS_CHANGED，未就绪报 CLOUD_SYNC_NOT_READY；失败走公共错误脱敏 | 同上 |
 | `license:get-cloud-songs` | `getCloudSongs()` | `{songs:[SongPublic]}`，没有统一 ok 外层 | 同上 |
+| `license:get-cloud-song-count` | `getCloudSongCount()` | `{ok:true,count}`；优先读取 cloud-state.songs.count，旧服务器缺字段时才回退完整歌库；非法数量报 INVALID_RESPONSE | cloud-song-sync |
 | `license:get-song-page-background` | `getSongPageBackground()` | BackgroundResponse | [song-background.js](../../../public/js/admin/song-background.js) |
 | `license:upload-song-page-background` | `uploadSongPageBackground(bytes,fileName)` → `{bytes,fileName}`，非空 Uint8Array ≤5 MiB，fileName 为提示 | BackgroundResponse；BACKGROUND_IMAGE_REQUIRED / PAYLOAD_TOO_LARGE | 同上 |
 | `license:delete-song-page-background` | `deleteSongPageBackground()` | BackgroundResponse，background 可 null | 同上 |
@@ -185,7 +188,7 @@ DailyBotSettings 为 `{executionOwner:'server',observedAt,takeover,checkin,fortu
 
 prepare 冻结本机来源摘要及 SHA256 digest；canonical UTF-8 数据预算 16 MiB。apply 每批≤250条，使用同一 import ID 的 start/status/upload/preflight/commit，丢失提交响应不改 ID；提交前后检查来源，变化时返回 DAILY_BOT_SOURCE_CHANGED 或 DAILY_BOT_COMMITTED_SOURCE_CHANGED。preflight 最多100条 issues，字段/原因白名单由 controller 的 safePreflight 维护。
 
-上下文由 main 的 `[server origin,streamerId,authorizationEpoch]` 生成 UUID；账号/授权代次变化就清空上下文和草稿，每次远端 await 前后检查。并发请求返回 DAILY_BOT_BUSY；dispose 清空状态并解除订阅（无 whenIdle）。公开错误允许 DAILY_BOT_*、LICENSE_NOT_AUTHORIZED；非该前缀的404映射 DAILY_BOT_UNSUPPORTED，其他为 DAILY_BOT_UNAVAILABLE。常见还有 DAILY_BOT_ACCOUNT_CHANGED、DAILY_BOT_INVALID_REQUEST、DAILY_BOT_DRAFT_REQUIRED、DAILY_BOT_TAKEOVER_CONFLICT、DAILY_BOT_IMPORT_TOO_LARGE。
+上下文由 main 的 `[server origin,streamerId,authorizationGeneration]` 生成 UUID；正常 token 续期保留上下文、草稿及待重试回执，重新登录、换账号或授权失效后清空，每次远端 await 前后检查。并发请求返回 DAILY_BOT_BUSY；dispose 清空状态并解除订阅（无 whenIdle）。公开错误允许 DAILY_BOT_*、LICENSE_NOT_AUTHORIZED；非该前缀的404映射 DAILY_BOT_UNSUPPORTED，其他为 DAILY_BOT_UNAVAILABLE。常见还有 DAILY_BOT_ACCOUNT_CHANGED、DAILY_BOT_INVALID_REQUEST、DAILY_BOT_DRAFT_REQUIRED、DAILY_BOT_TAKEOVER_CONFLICT、DAILY_BOT_IMPORT_TOO_LARGE。
 
 当前 UI 只调用 open/update；其他 action 是旧数据接管兼容，不是首次开启的前置步骤。云端备份整库恢复不经过这些 action，失败不能回退本地执行。
 

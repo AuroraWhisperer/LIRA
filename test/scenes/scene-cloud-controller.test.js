@@ -8,6 +8,7 @@ const { readBoundedSse } = require('../../src/shared/bounded-sse-reader');
 
 const OVERLAY_URL = 'https://stream.example.test/overlay/abcdefghijklmnop';
 const TIMESTAMP = '2026-09-30T08:00:00.000Z';
+const SUPERCHAT_ID = 'a'.repeat(64);
 const state = (liveSessionId = 'session-a') => ({
   type: 'overlay-state', style: 'signal', state: 'running', liveStatus: liveSessionId ? 1 : 0,
   liveSessionId, confirmationMessage: liveSessionId ? '开始直播' : null,
@@ -56,9 +57,9 @@ function fixture(t, options = {}) {
       return identity.epoch;
     },
     getRemoteBaseUrl: () => identity.origin,
-    getOverlaySettings: () => {
+    getOverlaySettings: (requestOptions) => {
       settingsReads++;
-      return options.getSettings?.() ?? Promise.resolve({ overlayUrl: OVERLAY_URL });
+      return options.getSettings?.(requestOptions) ?? Promise.resolve({ overlayUrl: OVERLAY_URL });
     },
     onStateChanged: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
     getAccessToken: () => assert.fail('must not read device credentials'),
@@ -171,7 +172,7 @@ test('one public connection preserves split UTF-8/CRLF events and strips non-dis
   assert.equal(env.listeners.size, 1);
   assert.equal(env.requests.length, 1);
   const { url, init } = env.requests[0];
-  assert.equal(url, 'https://stream.example.test/api/public/overlay/events?token=abcdefghijklmnop');
+  assert.equal(url, 'https://stream.example.test/api/public/overlay/events?token=abcdefghijklmnop&superchatDelete=1');
   assert.equal(init.redirect, 'error');
   assert.equal(init.credentials, 'omit');
   assert.equal(init.referrerPolicy, 'no-referrer');
@@ -215,6 +216,25 @@ test('all eight protocol types keep live-session ordering and only appearance al
   for (const event of events) source.send({ ...event, overlayUrl: OVERLAY_URL, accessToken: 'PRIVATE' });
   await flush();
   assert.deepEqual(env.events(), events);
+});
+
+test('SC deletion keeps anonymous IDs, ignores another session and strips private fields', async (t) => {
+  const env = fixture(t);
+  env.controller.start();
+  await flush();
+  const sc = { type: 'superchat', liveSessionId: 'session-a', timestamp: TIMESTAMP, name: '留言人',
+    message: '合成留言', price: 30, avatarUrl: '', messageId: SUPERCHAT_ID };
+  const deletion = { type: 'superchat-delete', liveSessionId: 'session-a', timestamp: TIMESTAMP, messageIds: [SUPERCHAT_ID] };
+  env.streams[0].send(state());
+  env.streams[0].send({ ...sc, uid: 'PRIVATE' });
+  env.streams[0].send({ ...deletion, liveSessionId: 'old-session' });
+  env.streams[0].send({ ...deletion, sourceIds: ['PRIVATE'], name: 'PRIVATE' });
+  env.streams[0].send(deletion);
+  env.streams[0].send(gift());
+  await flush();
+  assert.deepEqual(env.events(), [state(), sc, deletion, deletion, gift()]);
+  assert.equal(env.updates.at(-1).status, 'connected');
+  assert.equal(env.streams[0].cancelled, 0);
 });
 
 test('prismatic identity passes only official display fields without reusing an equipped medal guard', async (t) => {
@@ -302,6 +322,12 @@ for (const [name, events] of [
   ['invalid companion days', [state(), { ...gift(), giftGuardLevel: 3, guardAccompanyDays: -1 }]],
   ['fractional companion days', [state(), { ...gift(), giftGuardLevel: 3, guardAccompanyDays: 1.5 }]],
   ['guard metadata on ordinary gift', [state(), { ...gift(), guardAccompanyDays: 360 }]],
+  ['raw SC ID', [state(), { type: 'superchat', liveSessionId: 'session-a', timestamp: TIMESTAMP,
+    name: '留言人', message: '合成', price: 30, avatarUrl: '', messageId: '123' }]],
+  ['empty SC deletion batch', [state(), { type: 'superchat-delete', liveSessionId: 'session-a', timestamp: TIMESTAMP, messageIds: [] }]],
+  ['duplicate SC deletion IDs', [state(), { type: 'superchat-delete', liveSessionId: 'session-a', timestamp: TIMESTAMP, messageIds: [SUPERCHAT_ID, SUPERCHAT_ID] }]],
+  ['oversized SC deletion batch', [state(), { type: 'superchat-delete', liveSessionId: 'session-a', timestamp: TIMESTAMP, messageIds: Array(129).fill(SUPERCHAT_ID) }]],
+  ['uppercase SC deletion ID', [state(), { type: 'superchat-delete', liveSessionId: 'session-a', timestamp: TIMESTAMP, messageIds: [SUPERCHAT_ID.toUpperCase()] }]],
 ]) {
   test(`rejects ${name} and resets with safe status`, async (t) => {
     const env = fixture(t);
@@ -569,6 +595,36 @@ test('synchronous dispose fences callbacks and whenIdle drains late HTTP work be
   env.controller.dispose();
   assert.equal(env.listeners.size, 0);
   assert.equal(env.updates.length, count);
+});
+
+test('dispose cancels the settings HTTP request through license operations and drains before shutdown', async (t) => {
+  const { createLicenseOperations } = require('../../src/electron/license/license-operations');
+  const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
+  const response = Promise.withResolvers();
+  let requestSignal;
+  const remote = createRemoteLicenseClient({
+    baseUrl: 'https://api.example.test',
+    fetchImpl: (_url, { signal }) => {
+      requestSignal = signal;
+      signal.addEventListener('abort', () => response.reject(new DOMException('cancelled', 'AbortError')), { once: true });
+      return response.promise;
+    },
+  });
+  t.after(() => response.resolve(new Response(JSON.stringify({ overlayUrl: OVERLAY_URL }))));
+  const operations = createLicenseOperations({
+    remote,
+    withAuthorizedToken: (operation) => operation('synthetic-token'),
+    getOverlayOwner: () => 'synthetic-owner',
+    isDisposed: () => false,
+  });
+  const env = fixture(t, { getSettings: (requestOptions) => operations.getOverlaySettings(requestOptions) });
+  env.controller.start();
+  assert.ok(requestSignal);
+  env.controller.dispose();
+  assert.equal(requestSignal.aborted, true);
+  await env.controller.whenIdle();
+  assert.equal(env.requests.length, 0);
+  assert.equal(env.tasks.size, 0);
 });
 
 test('dispose waits for reader cancellation and lock release', async (t) => {

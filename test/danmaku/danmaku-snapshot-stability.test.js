@@ -46,7 +46,7 @@ class Node {
   setAttribute() {}
 }
 
-async function fixture() {
+async function fixture({ scene = false } = {}) {
   const elements = new Map();
   const element = (id) => {
     if (!elements.has(id)) elements.set(id, new Node('section'));
@@ -70,8 +70,13 @@ async function fixture() {
       this.listeners[name]?.(value);
     }
   }
-  const window = { innerWidth: 1280, __API_TOKEN__: 'synthetic-token',
-    addEventListener() {}, removeEventListener() {}, dispatchEvent() {}, Event: class {} };
+  const listeners = new Map();
+  const location = { search: scene ? '?preview=1&componentPreview=1&sceneComponent=1' : '',
+    pathname: '/danmaku', href: 'http://127.0.0.1:3000/danmaku', protocol: 'http:', host: '127.0.0.1:3000' };
+  const window = { innerWidth: 1280, __API_TOKEN__: 'synthetic-token', parent: { postMessage() {} },
+    addEventListener: (name, callback) => listeners.set(name, callback), removeEventListener: name => listeners.delete(name),
+    dispatchEvent() {}, Event: class {} };
+  const sendScene = (data) => listeners.get('message')({ source: window.parent, origin: 'http://127.0.0.1:3000', data });
   await loadModuleExports(path.resolve(__dirname, '../../public/js/overlays/danmaku.js'), {
     document: {
       defaultView: window,
@@ -86,7 +91,7 @@ async function fixture() {
       querySelectorAll: () => [],
     },
     window,
-    location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
+    location,
     URL,
     URLSearchParams,
     WebSocket: Socket,
@@ -107,14 +112,17 @@ async function fixture() {
       return id;
     },
     clearTimeout: (id) => timers.delete(id),
+    ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
   });
   ready();
-  sockets[0].emit('open');
+  if (scene) await sendScene({ type: 'component-preview:init', config: { style: 'signal', fullscreenDurationSeconds: 6 } });
+  else sockets[0].emit('open');
   return {
     root: element('danmakuFeed'),
     timers,
     frames,
     sockets,
+    sceneSnapshot(data) { return sendScene({ type: 'component-preview:data', data }); },
     snapshot(items, style = 'signal', duration = 6) {
       sockets.at(-1).emit('message', {
         data: JSON.stringify({
@@ -184,6 +192,29 @@ test('unchanged snapshots preserve actual nodes and expiration timers in all nin
       assert.equal(f.root.children.length, 0, 'expired items must stay expired');
     }
   }
+});
+
+test('cloud SC deletion removes rendered and queued cards without rebuilding adjacent messages', async () => {
+  const f = await fixture({ scene: true });
+  const firstId = 'a'.repeat(64);
+  const queuedId = 'b'.repeat(64);
+  const snapshot = { status: 'connected', epoch: 'one', state: { liveStatus: 1, liveSessionId: 'live', confirmationMessage: '开播' } };
+  const sc = (messageId) => ({ type: 'superchat', liveSessionId: 'live', name: '留言人', message: '合成留言', price: 30, messageId });
+  await f.sceneSnapshot({ ...snapshot, events: [
+    { type: 'danmaku', liveSessionId: 'live', message: '保留聊天' }, sc(firstId),
+  ] });
+  f.flush();
+  const retained = f.root.children.slice(0, 2);
+  const replacements = f.root.replacements;
+  assert.equal(f.root.children.length, 3);
+  await f.sceneSnapshot({ ...snapshot, events: [sc(queuedId)] });
+  await f.sceneSnapshot({ ...snapshot, events: [
+    { type: 'superchat-delete', liveSessionId: 'live', messageIds: [firstId, queuedId] },
+    { type: 'superchat-delete', liveSessionId: 'live', messageIds: [firstId] },
+  ] });
+  f.flush();
+  assert.deepEqual(f.root.children, retained);
+  assert.equal(f.root.replacements, replacements);
 });
 
 test('matching snapshot preserves queued incremental append and does not duplicate it', async () => {

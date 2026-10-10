@@ -32,7 +32,7 @@ test('current invalid session performs one shared reverify and retries once', as
       throw new RemoteLicenseError('DEVICE_SESSION_INVALID', 'invalid', {
         status: 401,
       });
-    return { ok: true };
+    return { ok: true, count: _songs.length };
   };
 
   await manager.syncSongs([]);
@@ -57,7 +57,7 @@ test('missing device session performs one reverify and retries once', async () =
       throw new RemoteLicenseError('DEVICE_SESSION_NOT_FOUND', 'missing', {
         status: 401,
       });
-    return { ok: true };
+    return { ok: true, count: _songs.length };
   };
 
   await manager.syncSongs([]);

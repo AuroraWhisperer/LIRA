@@ -141,7 +141,7 @@ function createSceneCloudController({ licenseManager, publish, subscribeDemand, 
     let liveSessionId = null;
     deadline(captured, 15000);
     try {
-      const settings = await licenseManager.getOverlaySettings();
+      const settings = await licenseManager.getOverlaySettings({ signal: captured.controller.signal });
       if (!active(captured)) return;
       const url = streamUrl(settings?.overlayUrl);
       const response = await fetchImpl(url, {
@@ -184,6 +184,7 @@ function createSceneCloudController({ licenseManager, publish, subscribeDemand, 
               requireValid(liveSessionId === null);
               liveSessionId = event.liveSessionId;
             } else if (event.type !== 'overlay-settings') {
+              if (event.type === 'superchat-delete' && event.liveSessionId !== liveSessionId) return;
               requireValid(liveSessionId !== null && liveSessionId === event.liveSessionId);
               if (event.type === 'live-ended') liveSessionId = null;
             }
@@ -243,7 +244,7 @@ function streamUrl(value) {
   const url = new URL(value);
   requireValid(url.protocol === 'https:' && isDnsHostname(url.hostname) && !url.username && !url.password &&
     !url.search && !url.hash && /^\/overlay\/[A-Za-z0-9_-]{16}$/.test(url.pathname));
-  return `${url.origin}/api/public/overlay/events?token=${url.pathname.slice('/overlay/'.length)}`;
+  return `${url.origin}/api/public/overlay/events?token=${url.pathname.slice('/overlay/'.length)}&superchatDelete=1`;
 }
 
 function text(value, maximum, minimum = 1) {
@@ -265,6 +266,11 @@ function timestamp(value) {
   text(value, 64);
   requireValid(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(value) &&
     Number.isFinite(Date.parse(value)));
+  return value;
+}
+
+function superChatMessageId(value) {
+  requireValid(typeof value === 'string' && /^[a-f0-9]{64}$/.test(value));
   return value;
 }
 
@@ -319,10 +325,15 @@ function displayEvent(value) {
     return { type, ...appearance(value), state: value.state, liveStatus: value.liveStatus, liveSessionId, confirmationMessage };
   }
   if (type === 'overlay-settings') return { type, ...appearance(value), timestamp: timestamp(value.timestamp) };
-  requireValid(['live-started', 'live-ended', 'danmaku', 'gift', 'superchat', 'entry'].includes(type));
+  requireValid(['live-started', 'live-ended', 'danmaku', 'gift', 'superchat', 'superchat-delete', 'entry'].includes(type));
   const result = { type, liveSessionId: text(value.liveSessionId, 128), timestamp: timestamp(value.timestamp) };
   if (type === 'live-ended') return result;
   if (type === 'live-started') return { ...result, message: text(value.message, 200) };
+  if (type === 'superchat-delete') {
+    requireValid(Array.isArray(value.messageIds) && value.messageIds.length > 0 && value.messageIds.length <= 128);
+    requireValid(new Set(value.messageIds).size === value.messageIds.length);
+    return { ...result, messageIds: value.messageIds.map(superChatMessageId) };
+  }
   result.name = text(value.name, 80);
   if (type === 'entry') return { ...result, guardLevel: integer(value.guardLevel, 0, 3) };
   if (type === 'gift') {
@@ -348,6 +359,7 @@ function displayEvent(value) {
   if (type === 'superchat') {
     requireValid(/\S/u.test(result.message));
     result.price = amount(value.price, true);
+    if (value.messageId !== undefined) result.messageId = superChatMessageId(value.messageId);
     if (value.colors !== undefined) {
       requireValid(value.colors && typeof value.colors === 'object' && !Array.isArray(value.colors));
       result.colors = {};

@@ -58,7 +58,7 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 
 `POST /api/component-preview` 由 [component-preview-routes.js](../../../src/server/routes/component-preview-routes.js) 处理，响应 `{ok:true,data}`。这是客户端与默认浏览器之间的临时配置会话；组件保存与绑定场景的发布、来源读取，由创建会话的客户端控制器调用已有领域 owner 处理。
 
-场景编辑器为四个已注册组件及直播场景分别创建会话。客户端经 `link` 将这些会话绑定成短入口：`/c#<22字符base64url能力>`，完整地址在四位端口下为 46 字符，组件及尺寸不再放入 query。浏览器经 `resolve` 读取各组件的独立能力、初始选中组件和已保存尺寸。短入口映射只留在会话内存中，锚定 canvas 会话（缺少 canvas 时为第一个组件），任一成员关闭、替换、撤销或账号/generation 变化后失效；不持久化，也不授予管理或正式直播源权限。相同控制器及 generation 的重复打开复用原会话；每个初始组件（含无初始选择）各保留一个稳定入口，切换入口不会撤销其他入口，尺寸更新沿用该入口能力。可选 selectedItemId 将入口定位到具体场景实例，同类型不同实例保留不同稳定入口；link 与 resolve 均核对当前 canvas 草稿中的实例 ID 和类型。省略时保持原响应结构与按类型选择行为。
+场景编辑器为四个已注册组件及直播场景分别创建会话。客户端经 `link` 将这些会话绑定成短入口：`/c#<22字符base64url能力>`，完整地址在四位端口下为 46 字符，组件及尺寸不再放入 query。浏览器经 `resolve` 读取各组件的独立能力、最近选中组件和已保存尺寸。短入口映射只留在会话内存中，锚定 canvas 会话（缺少 canvas 时为第一个组件），任一成员关闭、替换、撤销或账号/generation 变化后失效；不持久化，也不授予管理或正式直播源权限。相同控制器及 generation 的重复打开复用原会话；同一 canvas 会话及成员凭据复用一个入口，组件、实例、尺寸及场景切换只更新其选择元数据。恢复草稿的 draftKey 不参与入口身份比较，resolve 始终返回当前场景的恢复标识。可选 selectedItemId 定位到具体场景实例，link 验证当前草稿中的 ID 与类型；resolve 遇到已删除实例或其他场景的旧选择时返回空选择，仍可打开当前画布。省略时保持原响应结构与按类型选择行为。缺少 canvas 的旧组件入口保留原先按选择分配能力的兼容行为。
 
 兼容旧 `/component-preview` 页面和 43 字符短入口的解析。旧 query `component` 与 fragment 的 `id`/`token` 表示初始组件，`components` 携带其他组件的 `{component,id,token,draftKey}` 数组，`canvas` 携带独立场景会话；旧 fragment `size` 及 query `size=<宽>x<高>` 仍可读取。场景编辑仅传递 `{document}` 草稿，客户端适配器固定场景 ID，浏览器不能替换绑定 ID、创建或轮换场景凭据。缺少场景会话的旧链接仍可保存组件参数，但公共布局须从客户端重新打开后保存。短入口在同标签 sessionStorage 中仅缓存组件名及恢复用 draftKey，缓存键使用入口能力的 SHA-256；不缓存明文入口能力或组件 token。已断开页面刷新时仍可只读查看该标签的本地恢复草稿。
 
@@ -69,8 +69,8 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 | action | 身份与请求 | data |
 | --- | --- | --- |
 | `open` | 管理身份；`{component,state,display?}`，component 为 danmaku/clock/queue/overtime/canvas | `{id,token,draftKey}`，256 位随机预览能力；draftKey 仅定位账号/场景的本地恢复草稿，不授予权限；同类型旧会话失效 |
-| `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型、绑定 canvas 会话时的独立场景类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；一个锚定会话按已注册场景类型分别保留短入口；重复申请同一组会话与选择复用 key 并更新尺寸 |
-| `resolve` | 短入口 Bearer；`{action:'resolve'}` | `{links:[{component,id,token,draftKey}],selectedId,selectedSize}`，只返回绑定的有效会话与入口元数据；不续活闲置租约；未知或失效入口为 410 |
+| `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?,selectedItemId?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型、绑定 canvas 会话时的独立场景类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；同一 canvas 及成员凭据复用一个 key，更新最近组件/实例选择和尺寸；无 canvas 时保留按选择分配的兼容入口 |
+| `resolve` | 短入口 Bearer；`{action:'resolve'}` | `{links:[{component,id,token,draftKey}],selectedId,selectedSize,selectedItemId?}`，只返回绑定的有效会话与当前有效选择；不续活闲置租约；未知或失效入口为 410 |
 | `focus` | 管理身份；`{key}`，再次验证短入口及其全部成员 | `{focused}`；锚定会话当前 attachment 经 read 确认定位才为 true；无页面、两秒超时、被更新请求取代或会话结束时为 false。定位请求不排入配置命令，不修改持久化状态 |
 | `exchange` | 管理身份；`{id,state,display?,ack}` | `{commands:[{sequence,action,change?,baseItemIds?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
 | `revoke` | 管理身份；`{id}` | `{closed}` |
@@ -490,14 +490,14 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 导入价格额外接受「点歌条件 / 点歌说明」；同一行价格别名的不同非空文本计为该行失败，相同值或一个非空值接受。默认 `import` / `import-xlsx` 仍以 HTTP 200 返回统计和 `failures: [{row, reason}]`，row 为解析后的数据行序号（从 1 起）；合法行继续导入，已有同歌名同歌手歌曲跳过且不更新。模板五首各使用一个价格文本，导出十列保持；核对平台按阶段 4 升级为导出保存值，CSV 仍保护公式前缀。要求与验收见 [点歌资料规范](../../../specs/song-request-metadata.md)。
 
-显式更新使用独立本地鉴权 API，沿用现有 token、Origin 与授权边界；不改变云端 wire contract：
+整份替换与兼容更新使用本地鉴权 API，沿用现有 token、Origin 与授权边界；不改变云端 wire contract：
 
 | 端点 | 请求 | 成功响应 `data` | 错误 |
 | --- | --- | --- | --- |
-| `POST /api/songs/import-preview` | `{rows?,base64?,allowEmptyClear?:boolean}`，XLSX 用 base64，否则提供保留实际列的原始行对象，1–5000 行 | `{previewToken,counts:{inserted,updated,unchanged,conflict,invalid},rows:[{row,name,artist,status,differences:[{field,before,after}],reason?}],canApply}` | 400 `SONG_IMPORT_INPUT_INVALID`，500 `SONG_IMPORT_FAILED` |
-| `POST /api/songs/import-apply` | 同一原始输入和空值选项，加 `previewToken`；客户端不传执行计划 | `{total,inserted,updated,unchanged,conflict,invalid,createdCategories}` | 409 `SONG_IMPORT_PREVIEW_STALE`，422 `SONG_IMPORT_PREVIEW_INVALID`，400 输入无效，500 事务失败 |
+| `POST /api/songs/import-preview` | `{rows?,base64?,replaceAll?:boolean,allowEmptyClear?:boolean}`，XLSX 用 base64，否则提供保留实际列的原始行对象，1–5000 行 | `{previewToken,counts:{inserted,updated,unchanged,conflict,invalid,deleted?},rows:[{row,name,artist,status,differences:[{field,before,after}],reason?}],canApply}` | 400 `SONG_IMPORT_INPUT_INVALID`，500 `SONG_IMPORT_FAILED` |
+| `POST /api/songs/import-apply` | 同一原始输入和导入选项，加 `previewToken`；客户端不传执行计划 | `{total,inserted,updated,unchanged,conflict,invalid,deleted?,createdCategories}` | 409 `SONG_IMPORT_PREVIEW_STALE`，422 `SONG_IMPORT_PREVIEW_INVALID`，400 输入无效，500 事务失败 |
 
-错误体 `{ok:false,error,message}`；请求体必须是对象（`null`、数组、同时传 rows/base64 均为 400）。预览纯读取；应用在本地事务内重读全部歌曲及全部分类，重算变更并核对绑定输入和快照的 SHA-256 token。任一冲突/无效行或零变更不能应用；过期无写入。最终完整歌库超过 5000 首时新增和更新行均报无效，包括历史超限库的纯更新，提示先整理歌库且不自动删除。成功一次 `songs:import` 广播与一次 `cloudSync.request('songs')`，由既有 dirty/retry 控制器上传完整歌曲快照；失败不触发。token 是乐观并发检查，不替代 API 授权。
+错误体 `{ok:false,error,message}`；请求体必须是对象（`null`、数组、同时传 rows/base64 均为 400）。预览纯读取；应用在本地事务内重读全部歌曲及全部分类，重算变更并核对绑定输入和快照的 SHA-256 token。任一冲突/无效行或零变更不能应用；过期无写入。未启用替换时，最终完整歌库超过 5000 首会拒绝新增/更新，包括历史超限库的纯更新。管理页固定传 `replaceAll: true`：以表格为完整歌库，删除未匹配的旧歌曲，完整覆盖匹配歌曲字段（空白/缺列用默认值），输入仍限 1–5000 行；历史超限库允许替换为限额内歌库。替换预览额外返回 `deleted` 计数及 `status: deleted, row: null` 的删除明细；`total` 只统计输入行。相同规范化歌曲的重复行折叠，不同内容冲突。没有 `replaceAll` 时兼容原更新/空值规则。token 同时绑定替换选项，不能拿更新预览执行删除。成功一次 `songs:import` 广播与一次 `cloudSync.request('songs')`，由既有 dirty/retry 控制器上传完整歌曲快照；失败不触发。token 是乐观并发检查，不替代 API 授权。
 
 | 端点                           | 请求                                                                                                                                       | 响应(data)                                                             | 错误码                                                                                                                      |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -763,6 +763,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `GET /api/bilibili/avatar?url={https图片地址}` | 仅接受 `https://*.hdslb.com/*`，沿用 session token                                                        | Node 后端代取头像或弹幕表情并以内联图片返回，浏览器缓存 1 小时；保留既有 `avatar` 路径名以兼容旧消费者                                    | 400、502                                                                                                                                                                         |
 | `GET /api/bilibili/auth/state`                 | 无                                                                                                        | 登录状态 `{loggedIn, uid, message}`;非 Electron 环境返回 `{loggedIn:false, uid:0, message:'Bilibili 登录仅在 Electron 桌面环境中可用。'}` | 500                                                                                                                                                                              |
 | `GET /api/bilibili/room/profile`               | 无；只查询当前已保存的直播间，沿用管理身份认证 | 房主资料 `{roomId, uid, name, avatarUrl}`，`roomId` 为解析后的房间号；未设置房间时字段为空，头像仍通过既有代理加载 | 502（房间解析失败；可选用户资料不可用时保留房间号和已知房主昵称） |
+| `GET /api/bilibili/likes/state` | 无；沿用本机管理身份，匿名及 overlay 凭据不可读 | `{roomId,count,updatedAt,connected}`：最近收到的房间累计点赞数及本机 ISO 接收时间；未收到有效推送或未连接时数值和时间为 `null`。只读内存，不调用上游 | 通用认证/授权错误 |
 | `POST /api/bilibili/reconnect`                 | 无                                                                                                        | 手动重连结果;失败时同步更新 `liveStatus`                                                                                                  | **500** `{ok:false, error, detail, data:{liveStatus}}`                                                                                                                           |
 | `GET /api/bilibili/danmaku/state`              | 无                                                                                                        | 弹幕发送器状态 + 设置 `checkinBlessings/fortunePool/customReplyRules`                                                                     | 500                                                                                                                                                                              |
 | `POST /api/bilibili/danmaku/send`              | `{message`(**必填**,去空格后非空,否则 400 `弹幕内容不能为空。`), `mentionRequester?`(`true` 时@点歌观众)} | 发送结果                                                                                                                                  | 400、**502**(`{ok:false, error, detail}`,error 为 `publicDanmakuSendErrorMessage` 的人话文案:频率限制/未登录/房间号不对/风控 code=-352/拦截 code=-412/参数 code=-400/网络异常等) |

@@ -59,6 +59,25 @@ function assertCurrentAccount(manager, accountName = 'beta') {
   assert.equal(manager.getAccessToken(), `token-${accountName}`);
 }
 
+test('new-account profile reads never join an old in-flight profile', async (t) => {
+  const harness = createAccountHarness(t);
+  await harness.manager.bootstrap();
+  const delayed = deferred();
+  const calls = [];
+  harness.remote.profile = async (token) => {
+    calls.push(token);
+    return token === 'token-alpha' ? delayed.promise : { streamer: { accountName: 'beta' } };
+  };
+  const rejected = assert.rejects(harness.manager.getProfile(), { code: 'LICENSE_NOT_AUTHORIZED' });
+  await new Promise(setImmediate);
+  await activateAccount(harness);
+  assert.equal((await harness.manager.getProfile()).streamer.accountName, 'beta');
+  delayed.resolve({ streamer: { accountName: 'alpha' } });
+  await rejected;
+  assert.deepEqual(calls, ['token-alpha', 'token-beta']);
+  assertCurrentAccount(harness.manager);
+});
+
 test('late invalid-token writes never retry under the next account', async (t) => {
   const harness = createAccountHarness(t);
   const { manager, remote } = harness;
@@ -208,7 +227,7 @@ test('a delayed invalid-token write can retry after renewal of the same owner', 
   });
   remote.syncSongs = (_songs, token) => {
     tokens.push(token);
-    if (token !== 'token-alpha') return { ok: true };
+    if (token !== 'token-alpha') return { ok: true, count: _songs.length };
     entered.resolve();
     return delayed.promise;
   };
@@ -220,7 +239,7 @@ test('a delayed invalid-token write can retry after renewal of the same owner', 
   await entered.promise;
   await manager.getCloudSongs();
   delayed.reject(new RemoteLicenseError('DEVICE_TOKEN_INVALID'));
-  assert.deepEqual(await pending, { ok: true });
+  assert.deepEqual(await pending, { ok: true, count: 0 });
 
   assert.deepEqual(tokens, ['token-alpha', 'token-alpha-renewed']);
   assert.equal(calls.verifies, 2);
@@ -244,7 +263,7 @@ for (const outcome of ['success', 'revoked', 'unavailable']) {
     remote.syncSongs = async (_songs, token) => {
       tokens.push(token);
       if (token === 'token-alpha') throw new RemoteLicenseError('DEVICE_TOKEN_INVALID');
-      return { ok: true };
+      return { ok: true, count: _songs.length };
     };
     const pendingWrite = manager.syncSongs([]);
     const writeRejected = assert.rejects(pendingWrite);
@@ -323,7 +342,7 @@ test('old renewal cleanup cannot detach the next account shared renewal', async 
   remote.syncSongs = async (_songs, token) => {
     calls.syncTokens.push(token);
     if (token !== 'token-beta-renewed') throw new RemoteLicenseError('DEVICE_TOKEN_INVALID');
-    return { ok: true };
+    return { ok: true, count: _songs.length };
   };
   const oldWriteRejected = assert.rejects(manager.syncSongs([]), {
     code: 'DEVICE_TOKEN_INVALID',

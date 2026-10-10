@@ -4,6 +4,7 @@
 
 import { dangerConfirm, logoutConfirm, showConfirmationDialog } from './confirmation-dialog.js';
 import { toast, showStackedToast } from './toast.js';
+import { assertApiResponse, readJsonResponse } from './json-response.js';
 
 export { dangerConfirm, logoutConfirm, showConfirmationDialog };
 
@@ -11,6 +12,7 @@ const multilingualFontFallback =
   '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
 export { toast, showStackedToast };
+export { readJsonResponse };
 
 export function escapeHtml(value) {
   return String(value || '')
@@ -135,33 +137,10 @@ export async function api(url, body, { notifyError = true, signal } = {}) {
       body: JSON.stringify(body || {}),
       signal,
     });
-    const payload = await readJsonResponse(response, '请求失败');
-    if (!payload.ok) {
-      const error = new Error(payload.error || '请求失败');
-      error.status = response.status;
-      error.payload = payload;
-      throw error;
-    }
-    return payload;
+    return assertApiResponse(response, await readJsonResponse(response, '请求失败'), '请求失败');
   } catch (error) {
     if (notifyError) showError(error);
     throw error;
-  }
-}
-
-export async function readJsonResponse(response, fallbackMessage) {
-  const text = await response.text();
-  if (!text) {
-    if (!response.ok) throw new Error(`${fallbackMessage}（HTTP ${response.status}）`);
-    return {};
-  }
-  try {
-    return JSON.parse(text);
-  } catch (_) {
-    const preview = text.replace(/\s+/g, ' ').slice(0, 80);
-    throw new Error(
-      `${fallbackMessage}：服务返回了非 JSON 内容（HTTP ${response.status}${preview ? `，${preview}` : ''}）`,
-    );
   }
 }
 

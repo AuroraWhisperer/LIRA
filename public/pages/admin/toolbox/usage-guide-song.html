@@ -13,7 +13,7 @@
 <strong>修改与删除：</strong>点歌曲行最右边的 ··· 按钮，选「编辑」或「删除」。把「是否可点」设为「否」，歌就会停用：不公开，也不会被随机点歌抽到。
         </li>
 <li>
-<strong>批量修改：</strong>到「导入导出」选「更新匹配歌曲（先预览）」，核对差异后再确认更新。
+<strong>批量修改：</strong>在「歌单导入导出」导出完整歌库 Excel，修改后重新上传，预览并确认替换。新表格里没列出的旧歌曲会删除。
         </li>
 <li>
 <strong>同步：</strong>联网后，歌库的修改（包括删除）会同步到同一账号的其他电脑和网页歌单。点歌队列和播放队列不同步。
@@ -36,30 +36,30 @@
 <ol class="usage-guide-checks">
 <li>
           打开「点歌 →
-          导入导出」，点「下载导入模板」。按模板的列名填表：歌曲名字、原唱/首发歌手、歌曲分类、歌曲标签、是否可点、语言、点歌价格、歌切、核对平台、核对备注。
+          歌单导入导出」，点「下载导入模板」。按模板的列名填表：歌曲名字、原唱/首发歌手、歌曲分类、歌曲标签、是否可点、语言、点歌价格、歌切、核对平台、核对备注。
         </li>
 <li>
           选择 XLSX、CSV 或 TSV 文件，或者从 Excel
           复制表格，粘贴到输入框。多个歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。
         </li>
-<li>平时补歌，选「仅新增，跳过已有歌曲」，再点「导入歌库」。歌名和歌手都相同的已有歌曲会跳过，价格也不会更新。</li>
+<li>修改现有歌单时，先「导出歌库 Excel」，在完整表格中修改、增删歌曲，再上传。不要只上传本次改动的几首歌。</li>
 <li>
-          要批量修改，选「更新匹配歌曲（先预览）」，点「预览更新」。核对新增、更新和冲突，再点「确认更新歌库」。表格里没有的列不会改动。「用表格中的空白内容清除原有信息」没把握就别勾。
+          点「预览导入」，核对新增、更新、删除和每行差异，再点「确认替换歌库」。新表格就是完整歌库，未列出的旧歌曲会删除，已有点歌记录保留。空白或缺失文本清空，分类默认为「默认」，是否可点默认为「是」。
         </li>
-<li>看结果提示里新增、更新、重复跳过和失败的数量。重复跳过说明歌库里已经有这首歌，不算失败。有失败时，先检查对应的行和表头。</li>
+<li>有冲突、无效行或空表时，原歌库不会改变。请按提示修正后重新预览。成功后查看新增、更新、删除和未改变的数量。</li>
 </ol>
 <p>
         歌名和歌手都相同，才会更新原来的歌；改了歌名或歌手，会当成新歌。点歌价格可以填免费、30元SC、舰长这类说明，它只是给观众看的文字，不会自动收款。
       </p>
 <figure class="usage-guide-figure">
-<img alt="导入导出页：下载导入模板、导出歌库 Excel、选择文件、粘贴表格的输入框、导入模式和导入歌库按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-import-export.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>下载模板，选文件或粘贴表格，再点「导入歌库」。</figcaption>
+<img alt="歌单导入导出页：下载导入模板、导出歌库 Excel、选择文件、粘贴表格的输入框及预览导入按钮" class="usage-guide-image" decoding="async" height="505" loading="lazy" src="/img/usage-guide/B/song-import-export.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>使用完整表格，先预览变化，再确认替换歌库。</figcaption>
 </figure>
 <details class="usage-guide-foldout">
 <summary>查看导入结果提示</summary>
 <figure class="usage-guide-figure">
-<img alt="导入歌库按钮下方的结果提示，列出总行数、新增、重复跳过、失败和新增分类" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-import-result.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>导入后，下方会显示新增、重复跳过和失败的数量。</figcaption>
+<img alt="确认替换后显示本地歌库的新增、更新、删除和未改变数量" class="usage-guide-image" decoding="async" height="562" loading="lazy" src="/img/usage-guide/B/song-import-result.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>替换后，下方显示新增、更新、删除和未改变数量；网页以云同步结果为准。</figcaption>
 </figure>
 </details>
 <p>歌库最多 5000 首，更新导入时原有歌曲和新增歌曲一起计算。超过上限时先<a data-usage-guide-link href="#ug-web-sync">导出备份</a>，再整理重复或不再使用的歌。表头和文件格式要与模板一致，只改扩展名无效。</p>
@@ -73,7 +73,7 @@
         账号同步。网页主播中心只能看歌，不能改歌。
       </p>
 <ol class="usage-guide-checks">
-<li>先确认这台电脑的歌库是全的。要手动同步，就打开「点歌 → 导入导出」。</li>
+<li>先确认这台电脑的歌库是全的。要手动同步，就打开「点歌 → 歌单导入导出」。同步使用完整歌库，不受当前搜索和筛选影响。</li>
 <li>点<strong class="usage-guide-keyword">「同步到网页」</strong>，看完覆盖提醒再确认。</li>
 <li>等同步结果出来，再点「查看网页歌单」看看。失败了就按提示检查网络或歌曲信息，再试一次。</li>
 </ol>
@@ -86,6 +86,7 @@
 <h4 class="usage-guide-subsection-title">2.2 点歌管理</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-song-queues"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>2.2.1 SC 队列 + 点歌队列</strong></h5></div>
 
+<p>收到 B 站的 SC 下线通知后，对应留言会自动从 SC 队列隐藏，已保存的记录仍保留；下线不代表退款。</p>
 <p>
         「点歌」页上方左边是 SC 队列，右边是点歌队列。SC（醒目留言）是观众付费发的留言。观众发「点歌
         歌名」就能点歌，歌名不完整也会尝试匹配歌库。

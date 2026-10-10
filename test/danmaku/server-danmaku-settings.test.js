@@ -373,7 +373,7 @@ test('both address observers read the server capability and discard late account
   const a = { state: 'authorized', streamer: { accountName: 'a', songPageUrl: 'https://a.example.test/' } };
   const b = { state: 'authorized', streamer: { accountName: 'b', songPageUrl: 'https://b.example.test/' } };
   const bridge = {
-    getProfile: async () => a,
+    getState: async () => a,
     onStateChanged: (callback) => {
       onState = callback;
       return () => {};

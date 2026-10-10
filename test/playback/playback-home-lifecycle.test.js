@@ -4,8 +4,53 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports, response } = require('../helpers/frontend-modules');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+const { createLyricsService } = require('../../src/music/lyrics-service');
+const { musicCacheKey, writeMusicJsonCache } = require('../../src/music/music-cache');
 
 const ROOT_DIR = path.join(__dirname, '../..');
+
+test('playlist refresh bypasses old backend entries and caches an empty result after removal', async (t) => {
+  const apiCacheDir = createScratchDirectory('playlist-refresh-', t);
+  const service = createLyricsService({ apiCacheDir });
+  const track = { source: 'qq', sourceTrackId: 'song', title: 'Synthetic song' };
+  let tracks = [track];
+  const provider = {
+    async getPlaylistTracks() { return tracks.map((item) => ({ ...item })); },
+    async removeTracksFromPlaylist() { tracks = []; return { ok: true }; },
+  };
+  const registry = { get: () => provider };
+  const request = { platform: 'qq', action: 'playlist-tracks', limit: 5000, playlistId: 'synthetic' };
+  writeMusicJsonCache(apiCacheDir, musicCacheKey('home', request), {
+    source: 'qq', action: request.action, playlistId: request.playlistId, tracks,
+  });
+  const cache = new Map();
+  const { ContentLoader } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/content/loader.js'), {
+    fetch: async (_url, options) => response({
+      ok: true, data: await service.getMusicHomeContent(registry, JSON.parse(options.body)),
+    }),
+  });
+  const loader = new ContentLoader({
+    state: { selectedSource: 'qq' },
+    cacheManager: { get: (key) => cache.get(key), set: (key, value) => cache.set(key, value) },
+    readJsonResponse: async (result) => result.payload,
+  });
+  assert.equal((await loader.loadHomeContent(request.action, { playlistId: request.playlistId })).items.length, 1);
+  await service.writeMusicPlaylistTracks(registry, {
+    platform: 'qq', playlist: { id: request.playlistId }, tracks: [track],
+  }, 'remove');
+
+  const refreshed = await loader.loadHomeContent(request.action, {
+    playlistId: request.playlistId, forceRefresh: true,
+  });
+  assert.equal(refreshed.items.length, 0);
+  const nextRead = await loader.loadHomeContent(request.action, { playlistId: request.playlistId });
+  assert.equal(nextRead.fromCache, true);
+  assert.equal(nextRead.items.length, 0);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(cache.get('qq:playlist-tracks:synthetic').items.length, 0);
+  assert.equal((await service.getMusicHomeContent(registry, request)).tracks.length, 0);
+});
 
 test('cached readers share refresh work without invalidating its cache write', async () => {
   for (const forceRefresh of [false, true]) {

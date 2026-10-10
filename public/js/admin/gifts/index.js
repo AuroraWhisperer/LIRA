@@ -21,9 +21,6 @@ export function renderGiftPanel(gifts, sprint, live, diagnostics, settings = {},
     notificationToggle.checked = settings.enableGiftNotification !== 'false';
   }
 
-  // 诊断统计
-  if (changed('bilibiliDiagnostics')) giftDetection.renderGiftStatusLine(diagnostics);
-
   // 月底冲刺统计
   if (changed('giftSprint')) giftSprint.renderSprintStats(sprint);
 

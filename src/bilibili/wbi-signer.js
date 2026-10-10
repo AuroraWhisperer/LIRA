@@ -13,13 +13,34 @@ const WBI_MIXIN_KEY_ENC_TAB = [
 ];
 
 let wbiKeyCache = null;
+let wbiKeyRequest = null;
+
+async function getBilibiliWbiKey(headers) {
+  if (wbiKeyCache && wbiKeyCache.expiresAt > Date.now()) return wbiKeyCache;
+  if (!wbiKeyRequest) {
+    wbiKeyRequest = fetchBilibiliWbiKey(headers)
+      .then((key) => {
+        wbiKeyCache = key;
+        return key;
+      })
+      .finally(() => {
+        wbiKeyRequest = null;
+      });
+  }
+  return wbiKeyRequest;
+}
+
+function invalidateBilibiliWbiKey(key) {
+  // A late failure must not evict a newer generation with the same key value.
+  if (wbiKeyCache === key) wbiKeyCache = null;
+}
 
 async function getBilibiliWbiMixinKey(headers) {
-  const nowMs = Date.now();
-  if (wbiKeyCache && wbiKeyCache.expiresAt > nowMs) {
-    return wbiKeyCache.mixinKey;
-  }
+  const key = await getBilibiliWbiKey(headers);
+  return key.mixinKey;
+}
 
+async function fetchBilibiliWbiKey(headers) {
   const response = await fetch('https://api.bilibili.com/x/web-interface/nav', {
     headers,
     signal: AbortSignal.timeout(15000),
@@ -53,11 +74,10 @@ async function getBilibiliWbiMixinKey(headers) {
   }
 
   const mixinKey = createBilibiliWbiMixinKey(imageInfo.img_url, imageInfo.sub_url);
-  wbiKeyCache = {
+  return {
     mixinKey,
-    expiresAt: nowMs + 10 * 60 * 1000,
+    expiresAt: Date.now() + 10 * 60 * 1000,
   };
-  return mixinKey;
 }
 
 function extractBilibiliWbiKey(url) {
@@ -116,7 +136,9 @@ module.exports = {
   WBI_MIXIN_KEY_ENC_TAB,
   buildBilibiliWbiQuery,
   createBilibiliWbiMixinKey,
+  getBilibiliWbiKey,
   getBilibiliWbiMixinKey,
+  invalidateBilibiliWbiKey,
   extractBilibiliWbiKey,
   signBilibiliWbiParams,
 };

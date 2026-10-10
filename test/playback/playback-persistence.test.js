@@ -116,6 +116,7 @@ for (const mode of ['repeat-one', 'single']) {
       assert.equal(app.element('playbackModeLabel').textContent, '单曲');
       assert.equal(app.element('playbackTrackTitle').textContent, current.title);
       assert.equal(app.element('playbackCurrentTime').textContent, '00:42');
+      await app.emit('playbackQueueBtn', 'click');
       assert.match(app.element('playbackQueueList').innerHTML, /下一首/);
       await app.emitWindow('pagehide');
       const persisted = app.ipcSavedState();
@@ -162,6 +163,7 @@ test('the single-track repeat mode selected in the UI survives a server snapshot
   await flushAsyncWork();
   assert.equal(restored.element('playbackModeLabel').textContent, '单曲');
   assert.equal(restored.element('playbackTrackTitle').textContent, current.title);
+  await restored.emit('playbackQueueBtn', 'click');
   assert.match(restored.element('playbackQueueList').innerHTML, /界面选择的下一首/);
 });
 
@@ -272,6 +274,7 @@ test('cold start restores the server queue and playback progress without local s
 
   await app.init();
   await flushAsyncWork();
+  await app.emit('playbackQueueBtn', 'click');
 
   assert.equal(app.element('queuePopupTitle').textContent, '恢复的歌单');
   assert.equal(app.element('queuePopupSize').textContent, '2 首');

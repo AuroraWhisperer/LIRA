@@ -67,7 +67,7 @@ export function observeServerOverlayUrl(listener) {
       void refresh(snapshot);
     });
     const requestedGeneration = generation;
-    initialization = Promise.resolve(bridge?.getProfile?.())
+    initialization = Promise.resolve(bridge?.getState?.())
       .then((snapshot) => {
         if (generation === requestedGeneration) return refresh(snapshot);
       })

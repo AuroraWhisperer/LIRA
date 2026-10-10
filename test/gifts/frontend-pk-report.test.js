@@ -45,7 +45,7 @@ async function fixture(profile = account('one')) {
     documentRef: { getElementById: (id) => get(id.replace('danmakuPkReport', '')) },
     windowRef: get('window'),
     bridge: {
-      getProfile: async () => profile,
+      getState: async () => profile,
       onStateChanged: (fn) => {
         listener = fn;
         return () => {

@@ -204,6 +204,7 @@ npm run verify
 | [gift-effect-config.test.js](../../../test/gifts/gift-effect-config.test.js)                                       | 礼物特效配置拉取、缓存、URL 信任边界与事件构造                                                  | 同上                                                                                              |
 | [gift-effects-overlay.test.js](../../../test/gifts/gift-effects-overlay.test.js)                                   | 礼物特效 API、管理工具、透明直播叠加层与其重连策略                                                         | 同上 + [frontend/overlays.md](../frontend/overlays.md)                                            |
 | [bilibili-superchat.test.js](../../../test/bilibili/bilibili-superchat.test.js)                               | `bilibili/danmaku/message-handlers`(SC 接收、解析与日志)                                                    | 同上                                                                                              |
+| [bilibili-likes.test.js](../../../test/bilibili/bilibili-likes.test.js) + [bilibili-likes-api.test.js](../../../test/server/bilibili-likes-api.test.js) | 客户端点赞总数覆盖、连接/开下播清理、两层 API context 与本机管理读取授权；房间替换由 `bilibili-runtime.test.js` 覆盖 | [backend/bilibili/danmaku.md](../backend/bilibili/danmaku.md) + [backend/api.md](../backend/api.md) |
 | [bilibili-gift-identity-hints.test.js](../../../test/bilibili/bilibili-gift-identity-hints.test.js)                   | `bilibili/users/gift-identity-hints`(发送者与舰队身份提示)                                      | 同上                                                                                              |
 | [gift-query-service.test.js](../../../test/gifts/gift-query-service.test.js)                                       | 礼物历史查询、搜索、排序、游标分页与来源边界                                                    | 同上 + [backend/storage.md](../backend/storage.md)                                                |
 | [gift-statistics-service.test.js](../../../test/gifts/gift-statistics-service.test.js)                             | 礼物金额、指标、月份分桶与聚合失败                                                              | 同上 + [backend/storage.md](../backend/storage.md)                                                |
@@ -336,16 +337,20 @@ npm run verify
 
 - 命令:`npm run diagnose:wesing` → `node scripts/inspect-wesing-playback.js`([package.json:14](../../../package.json#L14));Windows 便捷包装 [scripts/inspect-wesing-playback.cmd](../../../scripts/inspect-wesing-playback.cmd)(chcp 65001、运行后 pause)。
 - 用途:现场诊断全民 K 歌播放状态识别问题。同时抓两条数据流 — PowerShell 窗口采样(`createPowerShellWeSingMonitor`:标题/进度/audioActive 等,250ms 轮询)与 WeSingCache 日志 tail(UTF-16LE,轮询最新 .log 的新增字节),并解析 `StartKSong` 行提取 mid/歌名。日志选择、UTF-16 残字节、偏移和停止刷新由 [wesing-log-probe.js](../../../scripts/wesing-log-probe.js) 管理；[wesing-diagnostic-terminal.js](../../../scripts/wesing-diagnostic-terminal.js) 管理键盘 setup/cleanup，CLI 保持统一结束顺序。
-- 交互:启动后在全民 K 歌执行动作并按键打标 — `1` 点击 K 歌/开始录制、`2` 暂停、`3` 继续、`4` 退出录制、`5` 重新进入同一首歌、`6` 歌词状态不正确;`q`/Ctrl+C 结束。JSONL 落盘 `logs/wesing-playback-diagnostic-{时间戳}.jsonl`(含 diagnostic-start/monitor-sample/wesing-log-line/user-marker/diagnostic-stop 事件)。
+- 交互:启动后在全民 K 歌执行动作并按键打标 — `1` 点击 K 歌/开始录制、`2` 暂停、`3` 继续、`4` 退出录制、`5` 重新进入同一首歌、`6` 歌词状态不正确;`q`/Ctrl+C 结束。JSONL 落盘 `tmp/wesing-playback-diagnostic-{时间戳}.jsonl`(含 diagnostic-start/monitor-sample/wesing-log-line/user-marker/diagnostic-stop 事件)。
 - 参数:`--cache <WeSingCache 目录>`(缺省时经 `/api/music/wesing/status` 从运行中的服务读取,[inspect-wesing-playback.js:96-126](../../../scripts/inspect-wesing-playback.js#L96-L126))、`--output <文件>`、`--duration <秒>`(1-3600)、`--help`。
 - 配套测试:[wesing-playback-diagnostic.test.js](../../../test/wesing/wesing-playback-diagnostic.test.js)、[wesing-diagnostic-resources.test.js](../../../test/wesing/wesing-diagnostic-resources.test.js);数据流细节见 [backend/music/wesing.md](../backend/music/wesing.md)。
 
-## 5. 其他辅助脚本:独立弹幕捕获
+## 5. 其他辅助脚本
 
-- [scripts/capture-bilibili-events.js](../../../scripts/capture-bilibili-events.js):独立捕获工具 — 用生产代码(`BilibiliApiClient` + `WebSocketConnection` + `packet-parser`)直连房间弹幕,解析后的原始消息以 NDJSON 写入 `tmp/bilibili-events-{时间戳}.ndjson`(`meta`/`event`/`summary` 三种行,[capture-bilibili-events.js:155-167](../../../scripts/capture-bilibili-events.js#L155-L167))。
+- [scripts/capture-bilibili-events.js](../../../scripts/capture-bilibili-events.js)：独立捕获工具，复用 `BilibiliApiClient`、`WebSocketConnection` 与 `packet-parser`，默认写入 `tmp/bilibili-events-{时间戳}.ndjson`。`meta.formatVersion=2`；每条 `event` 保留兼容字段 `receivedAt/cmd/data`，新增完整 `message`，包含普通弹幕顶层 `info` 及其他顶层字段，不能只用 `data` 回放。
 - 参数:`--room <房间号>`(必填)、`--duration <秒>`(默认 300)、`--output <路径>`、`--gift-only`(仅礼物类命令)、`--bilibili-user-data <Electron userData>`;另支持环境变量 `BILIBILI_COOKIE`/`BILIBILI_UID`。
-- 登录态捕获:`--bilibili-user-data` 需以 Electron 运行 — 入口 [scripts/bilibili-capture-electron/index.js](../../../scripts/bilibili-capture-electron/index.js)(目录内私有 package.json),复用桌面端保存的 Bilibili 登录注入 Cookie([capture-bilibili-events.js:177-198](../../../scripts/capture-bilibili-events.js#L177-L198))。
-- 配套测试:[capture-bilibili-events.test.js](../../../test/bilibili/capture-bilibili-events.test.js)(参数解析与消息过滤,离线)。
+- 预算：最多 10,000 条事件、16 MiB 输出、1 MiB 待写数据（含流内部缓冲）；输出为 summary 预留 64 KiB，触限即停止并排空已接纳写入。输出文件用 `wx` 创建，不覆盖已有文件。断线即结束本次捕获，不自动持续重连。
+- `summary` 分开记录 `parseErrorCount`（抛出的异常）、`decodeDiscardCounts`（帧解码拒绝原因）及 `writeRejectedCount`（写入预算拒绝），并记录结束原因、事件数与命令计数；命令计数有界，额外命令归 `(other)`。`recordBytes` 是 summary 之前已接纳记录的字节数。写入或关闭失败直接报错，不能据不完整输出宣称成功；诊断原因与覆盖边界见 [协议 §4.5](../backend/bilibili/protocol.md#45-帧解析与解压)。
+- 登录态捕获：`--bilibili-user-data` 需以 Electron 运行，入口 [scripts/bilibili-capture-electron/index.js](../../../scripts/bilibili-capture-electron/index.js) 复用桌面登录状态。采样文件保留上游 UID、昵称、正文等原始信息，**不做匿名化**；它不是可直接公开的脱敏样本。
+- 配套离线测试：[capture-bilibili-events.test.js](../../../test/bilibili/capture-bilibili-events.test.js) 覆盖完整消息、过滤、输出预算及停止/写入清理；[packet-decoder.test.js](../../../test/bilibili/packet-decoder.test.js) 覆盖解码边界与丢弃原因。样本或零错误计数均不代表断线窗口已补齐。
+
+独立 Electron 检查脚本 [verify-gift-export.cjs](../../../scripts/verify-gift-export.cjs)、[verify-gift-history.cjs](../../../scripts/verify-gift-history.cjs) 和 [verify-overlay-filters.cjs](../../../scripts/verify-overlay-filters.cjs) 的截图、导出文件与 Electron 配置保存在仓库 `tmp/` 下各自唯一的检查目录，便于复核与清理。
 
 ## 6. 测试约定
 

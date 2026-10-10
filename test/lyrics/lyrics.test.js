@@ -9,6 +9,37 @@ const { parseLyricResult, parseWordLyric } = require('../../src/music/lyric-pars
 const { createLyricsService } = require('../../src/music/lyrics-service');
 const { musicCacheKey, writeMusicJsonCache } = require('../../src/music/music-cache');
 const { resolveMusicStream } = require('../../src/music/stream-resolver');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+
+test('music cache skips eviction sorting below its exact byte limit and evicts oldest files above it', (t) => {
+  const directory = createScratchDirectory('music-cache-budget-', t);
+  const data = { lines: ['Synthetic lyric'] };
+  const oldPath = path.join(directory, 'old.json');
+  const recentPath = path.join(directory, 'recent.json');
+  const newestPath = path.join(directory, 'newest.json');
+  writeMusicJsonCache(directory, 'old', data);
+  fs.utimesSync(oldPath, new Date(1000), new Date(1000));
+
+  const originalSort = Array.prototype.sort;
+  const sort = t.mock.fn(originalSort);
+  Array.prototype.sort = sort;
+  try {
+    writeMusicJsonCache(directory, 'recent', data);
+    assert.equal(sort.mock.callCount(), 0, 'Files that fit the budget need no eviction ordering.');
+    assert.equal(fs.existsSync(oldPath), true);
+    fs.utimesSync(recentPath, new Date(2000), new Date(2000));
+    const oneFileBytes = fs.statSync(recentPath).size;
+
+    writeMusicJsonCache(directory, 'newest', data, oneFileBytes);
+    assert.equal(sort.mock.callCount(), 1);
+    assert.equal(fs.existsSync(oldPath), false);
+    assert.equal(fs.existsSync(recentPath), false);
+    assert.equal(fs.statSync(newestPath).size, oneFileBytes);
+    assert.equal(fs.readdirSync(directory).length, 1);
+  } finally {
+    Array.prototype.sort = originalSort;
+  }
+});
 
 test('parseWordLyric supports QQ QRC suffix timing', () => {
   const lines = parseWordLyric('[1000,1900]jia (1000,900)yi(1900,1000)\n[4000,1000]bing(4000,1000)');

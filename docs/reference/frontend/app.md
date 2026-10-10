@@ -1,6 +1,6 @@
 # Admin 应用与公共框架
 
-LIRA 配套资源样式在时钟、弹幕、许愿、大航海感谢、点歌板和桌面歌词功能页选中后，由 `component-resource-settings-panel.js` 展示原生参数、保存及模拟预览；开播页使用自己的样式选择器，共用 `resource-style-settings.js` 的参数控制器。保存回写本机样式库，同一样式 ID 的所有画布实例及已发布输出跟随；可见客户端面板每秒读取一次，保留未保存字段。切换选择和库刷新保留草稿，保存失败显示错误，删除样式释放其参数视图和预览。时钟、弹幕和点歌板选中配套样式时隐藏原内置参数及操作，重新选择内置样式后恢复；许愿参数复用当前许愿的预览和画布入口。媒体、CSS 和网页仍走原有导入与使用流程。
+LIRA 配套资源样式在时钟、弹幕、许愿、大航海感谢、点歌板和桌面歌词功能页选中后，由 `component-resource-settings-panel.js` 展示原生参数、保存及模拟预览；开播页使用自己的样式选择器，共用 `resource-style-settings.js` 的参数控制器。保存回写本机样式库，同一样式 ID 的所有画布实例及已发布输出跟随；可见客户端面板每秒读取一次，保留未保存字段；页面隐藏或任一祖先因主页面切换/子页面收起而不可见时暂停，恢复可见后在下一轮读取，销毁时清理定时器。切换选择和库刷新保留草稿，保存失败显示错误，删除样式释放其参数视图和预览。时钟、弹幕和点歌板选中配套样式时隐藏原内置参数及操作，重新选择内置样式后恢复；许愿参数复用当前许愿的预览和画布入口。媒体、CSS 和网页仍走原有导入与使用流程。
 
 `scene-item-controller.js` 合并场景配置和共享 owner，`canvas-shared-appearance.js` 按组件及样式缓存公共草稿，合并轮询并串行保存本地补丁。时钟/点歌板/弹幕/加班机继续复用桌面控制器和原保存入口；其余已有客户端显示字段通过受限画布入口自动保存。初次以客户端已保存值为准，双向刷新保留正在编辑字段，失败可重试或放弃；迟到读取不能覆盖较新写入。位置、尺寸、图层、锁定、名称及预览输入仍归场景。保存共享参数会更新已发布画面；布局需“保存并应用”。
 
@@ -38,6 +38,8 @@ LIRA 配套资源样式在时钟、弹幕、许愿、大航海感谢、点歌板
 
 粉丝档案由 `fans/index.js` 持有选中项、请求上下文和页面生命周期；`editor.js` 拥有表单弹窗、提交锁定与分步确认，`profile-actions.js` 组合档案和记录的编辑/删除操作，`forms.js` 定义字段读取，`view.js` 只做转义后的展示，`transfer-ui.js` 拥有备份/导出、恢复点、认领与合并的多步预览。保存失败保留输入；请求/选择代次拒绝迟到显示。档案在百宝箱中查看和编辑，点歌队列不提供快捷档案入口；私人资料不并入 StateService 或 legacy globals。
 
+档案列表与提醒页的近期日期筛选由 `src/fans/profile-service.js` 拥有，消费 `reminders.js` 的日期分组；前端不再显示「之后」分组。七天提醒窗口、三天日历窗口及下舰后的暂停规则见[粉丝档案规格](../../../specs/fan-profiles.md)。
+
 `state-renderer.js` 消费 StateService 的 `changedKeys`，分别调度设置、队列、SC、直播状态、礼物和歌库元数据视图。`queue.js` 以具名 ESM 导出队列操作和渲染，只在 `legacy-admin-bridge.js` 发布既有兼容入口；它不再回填设置或渲染礼物、直播与分类。礼物专属快照不会重建队列或覆盖表单。
 
 礼物面板继续将 `changedKeys` 分发至检测状态、诊断、冲刺统计和最近礼物；仅诊断或直播状态变化不重建两个礼物列表。目录事件独立刷新图片和盲盒，配置输入与展开操作直接刷新盲盒列表，`blindBoxMapping` 独立更新映射状态文字。礼物通知仍执行原有去重检查。
@@ -72,7 +74,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 │     ├── SC 队列面板 + 点歌队列面板(切歌/清空,带滚轮冒泡控制)
 │     └── 歌曲管理面板(song-management-panel):内部六个 Tab
 │           songsPage(歌库) / settingsPage(设置) / themePage(点歌板)
-│           displayPage(展示板) / overlayPage(浏览器源) / importPage(导入导出)
+│           displayPage(展示板) / overlayPage(浏览器源) / importPage(歌单导入导出)
 │           / desktopLyricPage(桌面歌词设置)
 ├── #playbackAssistantPage 播放助手(#playback)
 ├── #giftAssistantPage     礼物面板(#gifts):礼物检测/提示/最近/今日盲盒盈亏/盲盒映射
@@ -89,7 +91,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 | 点歌板       | 经典/身份/奶油画框三种样式切换、预设卡片、规则与置顶文案、主题色/字号/滚动/字体                                 |
 | 展示板       | 歌单板独立主题(可同步主主题)、滚动秒数、字号、预设卡片                                                          |
 | 浏览器源     | 按点歌与音乐、直播互动、场景与氛围分类汇总全部 11 个固定 OBS / 直播姬浏览器源地址；参数化地址仍由对应功能页生成 |
-| 导入导出     | 文本/文件导入、导入结果统计                                                                                     |
+| 歌单导入导出 | 文本/文件导入、导入结果统计                                                                                     |
 | 桌面歌词设置 | `desktopLyric*` 全套 + 实时预览(弹簧跟随)                                                                       |
 
 主页面切换由 [app.js](../../../public/js/admin/app.js) 的 `setMainPage` 负责:维护 `VALID_MAIN_PAGES`/`MAIN_PAGE_HASH_MAP`/`MAIN_PAGE_BODY_MAP` 三张表,切换 `body.dataset.mainPage` 并同步 `location.hash`(`#playback`/`#gifts`/`#other` 直达,[app.js:120-167](../../../public/js/admin/app.js#L120-L167))。
@@ -180,6 +182,12 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 ## 4. 点歌主页面模块
 
+歌单背景由 [song-background.js](../../../public/js/admin/song-background.js) 编排既有授权 IPC，[song-background-image.js](../../../public/js/admin/song-background-image.js) 处理静态 WebP 与本地副本。原图上限仍为 5 MiB，GIF/动图取首帧；长边上限先取 2560px，必要时为 1920px，小图不放大。WebP quality 依次为 0.82、0.76，以 500 KiB 为目标、1 MiB 为硬上限；无法在该画质/尺寸范围内满足上限时拒绝本次上传，不继续降分辨率。
+
+压缩候选先写入当前桌面 origin 的 Chromium Cache Storage `lira-song-background-v1`，上传成功后以服务端返回的完整公开版本 URL 保存已确认副本，并直接通过 Blob URL 预览，不回源下载自己刚上传的图片。上传失败只丢弃候选，保留原背景；恢复默认清空本地缓存。最多保留一个已确认版本和一个候选，页面离开时释放 Blob URL。缓存写入失败不改变云端上传成功结果，界面说明本地副本未保存。
+
+页面初始化仍通过授权 IPC 查询当前版本元数据，缓存命中不请求图片；未命中才以不带凭据的低优先级 fetch 下载一次（15 秒超时、兼容旧图 5 MiB），失败提示重新打开，不自动重试。缓存属于可重建副本，可随桌面 origin 变化或浏览器清理而失效；不承诺离线原图备份。旧背景不会自动压缩，重新上传才应用新尺寸/体积策略。此功能不新增轮询、运行依赖或直播事件连接。
+
 ### 4.1 queue.js(队列与 SC)
 
 - 渲染:点歌队列 = `current + waiting` 拼表,置顶📌、序号、来源标签(`admin/danmaku/superchat/random:<scope>`/history)、SC 列表(价格降序、已处理状态);长歌名分级字号(`data-length="long|very-long"`);管理员队列字体预览(`--admin-queue-font-family`,[queue.js:236-243](../../../public/js/admin/queue.js#L236-L243))。
@@ -215,16 +223,14 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 - 预设卡片点击套用(`classicPresets`/`songBoardPresets`);`quickBeautifyBtn` 一键美化;点歌板样式切换(`overlayQueueStyle`:classic / identity / storybook / neon-vinyl / cherry-ribbon / golden-lily,遗留 festival 归一为 identity,需要重启时提示)。风格 1、2 的选择卡片使用中性底色,风格 3–6 保留素材主题色。管理页复用一组风格 2–6 控件,但通过 `queue-style-settings.js` 只填充并提交当前风格拥有的内容字号与纵向滚动设置;风格 3–6 的字体、字重、自定义正文颜色也分别持久化,切换或显式保存不会覆盖其他风格。风格 2 专属的置顶与规则设置不向插画风格显示或提交。
 - `display.initOverlayUrls()` 生成 `/queue`、`/songlist`、`/lyrics` 的 浏览器源地址文本(以 `127.0.0.1` 规范化)。
 
-### 4.5 song-import.js(批量导入)
+### 4.5 歌单导入
 
-- 输入源:粘贴文本 或 文件(.tsv/.csv/.xlsx)。文本先解析表格(引号转义、表头别名映射 `歌名/歌手/分类/标签/可点/语言/核对平台/备注/点歌价格/歌切`,无表头按列位),`readTextFile` 做 UTF-8→GB18030 编码回退;xlsx 读 base64 提交 `/api/songs/import-xlsx`;结果渲染 `总行数/成功/重复/失败/新增分类`。
-- 表头识别:命中任一别名(如 `歌曲名字`/`歌名`/`name`)才按表头解析,否则整表按固定列序([song-import.js:52-85](../../../public/js/admin/song-import.js#L52-L85));`可点` 列支持 `是/可点/true/1` 与 `否/停用/false/0` 语义。
-- 价格别名与后端一致，新增「点歌条件 / 点歌说明」；保留原价格别名交给领域入口检查同一行的非空冲突，失败行显示解析后数据行序号和原因。相同值或只有一列非空可接受。默认重复歌曲明确显示“重复跳过（未更新已有歌曲）”，提示通过单曲编辑改价。
-- 成功后 `reloadAll()` 使歌库、分类、计数立即生效。
+[song-import.js](../../../public/js/admin/song-import.js) 提供文件读取、编码回退及云歌单面板初始化；[song-import-parser.js](../../../public/js/admin/song-import-parser.js) 解析 CSV/TSV/粘贴文本。管理页由 [song-import-update.js](../../../public/js/admin/song-import-update.js) 统一拥有预览和确认替换，不再提供模式或空值选项。
 
-阶段 4 [song-import-update.js](../../../public/js/admin/song-import-update.js) 由 app 初始化，拥有单一更新预览。模式默认“仅新增”，选择“更新匹配歌曲”后先预览；文本通过 `parseTable(text,{preserveMissing:true})` 保留实际列和无效行，XLSX 原样交本地接口解析。明确的空单元格清空选项默认关闭。
-
-预览显示新增/更新/未改变/冲突/无效数量和逐行差异，每页最多 25 行，可查看全部页；差异用 textContent 展示。只有可应用预览才启用确认按钮。切换模式、文件、粘贴内容或空值选项使预览及在途旧响应失效；提交持有生成预览时的输入，禁止并行/重复提交。过期或失败后必须重新预览；成功反馈只说明本地更新，云端同步另行确认。核对平台导出保存值，默认新增仍跳过已有歌曲。
+- 上传完整 XLSX、CSV、TSV 或粘贴完整表格，点击「预览导入」。文本使用 `parseTable(text,{preserveMissing:true})` 保留实际列和无效行；XLSX 原样提交 base64。两种输入均向 preview/apply 传 `replaceAll: true`。
+- 新表格作为完整歌库：同歌名同歌手更新，未匹配歌曲新增，未列出的旧歌曲删除。空白或缺失文本清空，分类为默认、是否可点为是。匹配和校验在领域层执行；空表、冲突或无效行阻止整批应用。
+- 预览显示新增/更新/删除/未改变/冲突/无效数量及明细，每页 25 行；删除项数据行显示「—」，说明已有点歌记录保留。所有差异用 textContent 展示，确认按钮明确为「确认替换歌库」。
+- 文件或粘贴内容变化会废弃预览及异步旧响应；确认仅提交已预览输入和 token，禁止重复提交。过期或失败需重新预览。成功刷新歌库、分类和计数，显示本地替换结果，网页以云同步结果为准。
 
 ### 4.6 metrics.js(性能检测)
 

@@ -21,7 +21,7 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
     window.open = (url) => window.opened.push(url);
     window.AdminApp = { utils: { toast: (message) => window.messages.push(message) } };
     window.liraLicense = {
-      getProfile: async () => ({
+      getState: async () => ({
         state: 'authorized',
         streamer: {
           accountName: 'synthetic',

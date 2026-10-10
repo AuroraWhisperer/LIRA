@@ -3,7 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { isDnsHostname } = require('../shared/remote-url-policy');
+const { normalizeRemoteRootOrigin } = require('../shared/remote-url-policy');
 
 const CURSOR_FILE_NAME = 'remote-gift-cursor.json';
 const MAX_CURSOR_FILE_BYTES = 4096;
@@ -81,24 +81,9 @@ function createRemoteGiftSourceKey(baseUrl, streamer = {}) {
 }
 
 function canonicalizeGiftSourceOrigin(baseUrl) {
-  let parsed;
-  try {
-    parsed = new URL(String(baseUrl || '').trim());
-  } catch {
-    throw new Error('INVALID_GIFT_SOURCE_ORIGIN');
-  }
-  if (
-    parsed.protocol !== 'https:' ||
-    !isDnsHostname(parsed.hostname) ||
-    parsed.username ||
-    parsed.password ||
-    parsed.pathname !== '/' ||
-    parsed.search ||
-    parsed.hash
-  ) {
-    throw new Error('INVALID_GIFT_SOURCE_ORIGIN');
-  }
-  return parsed.origin;
+  const origin = normalizeRemoteRootOrigin(baseUrl);
+  if (!origin) throw new Error('INVALID_GIFT_SOURCE_ORIGIN');
+  return origin;
 }
 
 function normalizeSourceKey(value) {

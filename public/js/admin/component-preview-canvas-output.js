@@ -12,7 +12,7 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
   source.hidden = true;
   source.setAttribute('aria-label', '直播源地址');
   const copy = previewElement('button', 'secondary preview-canvas-icon-button');
-  copy.title = '复制整个场景的直播源地址';
+  copy.title = '复制整个场景的直播源地址，应用修改后继续使用此地址';
   copy.setAttribute('aria-label', '复制场景地址');
   copy.append(previewToolbarIcon('link'));
   const copyComponent = previewElement('button', 'secondary', '组件地址');
@@ -46,7 +46,7 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
         source.value = url;
         source.hidden = false;
         await copyText(url);
-        report(item ? '单组件地址已复制，使用保存的像素尺寸' : '直播源地址已复制');
+        report(item ? '单组件地址已复制，使用保存的像素尺寸' : '直播源地址已复制；之后保存并应用即可更新，无需重复导入');
       } else report(() => controllers.some(({ controller }) => controller.getState().dirty)
         ? '本次已应用，新修改仍需保存' : '已保存并应用到直播源');
     } catch (error) {

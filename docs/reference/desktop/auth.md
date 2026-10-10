@@ -253,4 +253,8 @@ IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用�
 
 画布预览通过仅供主进程读取的 `getAuthorizationGeneration()` 绑定上述登录生命周期，正常 token 续期不会撤销正在编辑的连接。`getComponentPreviewOwner` 仍校验当前授权、服务器 origin 与 streamerId；重新登录、激活/换账号、阻断清理及 dispose 后旧连接失效。该读取方法不进入 preload/IPC，也不改变其他消费者的 authorization epoch 契约。预览中继及页面接管规则见 [预览 API](../backend/api.md#浏览器组件预览)。
 
+每日机器人页面上下文同样绑定 `getAuthorizationGeneration()`，正常 token 续期保留草稿和待重试回执；同账号重新登录、换账号、撤销仍使旧上下文失效。其 action 和错误合同见 [preload.md](preload.md#4-每日机器人-action)。
+
+携带 `AbortSignal` 的内部业务读取在授权等待、请求执行和重认证等待期间均可取消当前调用；取消不会终止其他调用者共用的续期，也不转为会话撤销。完成、失败和取消都会移除等待监听。
+
 内部凭据读取和 SSE 的完成/失败同样经过该约束；流的取消与事件消费仍由云同步、礼物控制器现有的 `AbortSignal` 和主体检查负责。旧续期、心跳的完成或 `finally` 不得替换新生命周期的共享任务引用或维护计时器。回归场景见 [license-manager-identity.test.js](../../../test/license/license-manager-identity.test.js)，使用合成身份、可控 Promise 与隔离的 manager，不访问真实服务。

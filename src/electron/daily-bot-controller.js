@@ -27,7 +27,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
         ? JSON.stringify([
             licenseManager.getRemoteBaseUrl(),
             identity.streamerId,
-            licenseManager.getAuthorizationEpoch(),
+            licenseManager.getAuthorizationGeneration(),
           ])
         : null;
     if (current?.owner !== owner) {
