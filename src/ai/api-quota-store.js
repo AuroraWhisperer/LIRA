@@ -47,8 +47,7 @@ function createAiApiQuotaStore(db, options = {}) {
     return { allowed: Boolean(row), category, monthKey, requestCount, limit };
   }
 
-  // 退款：请求失败（超时/5xx/中断/业务错误）时把预扣的配额退回，
-  // 避免“成功前就扣”导致失败请求也永久烧掉配额。
+  // 仅用于撤销未提交的预留；已经发起的请求不走退款路径。
   function release(category, monthKey = getBeijingMonthKey(now())) {
     const timestamp = now();
     releaseStatement.run(timestamp, category, monthKey);
@@ -116,14 +115,9 @@ function reserveApiQuota(quotaStore, category) {
 
 async function withApiQuota(quotaStore, category, operation) {
   const reservation = reserveApiQuota(quotaStore, category);
-  try {
-    const result = await operation(reservation);
-    reservation.commit();
-    return result;
-  } catch (error) {
-    reservation.release();
-    throw error;
-  }
+  // 安全用量限制请求尝试；失败或丢失响应不能恢复已使用的额度。
+  reservation.commit();
+  return operation(reservation);
 }
 
 function getQuotaToolNames(error) {

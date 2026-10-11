@@ -202,7 +202,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 ### 8.1 第三方 API 月度配额(api-quota-store)
 
-按**北京时间月份**计数的安全用量上限(防第三方账单失控),计数落 `ai_api_usage` 表 `PK(category, month_key)`:
+按**北京时间月份**计数的本机请求次数上限，用于限制第三方调用；它是保守的安全预算，不是供应商账单统计。计数落 `ai_api_usage` 表 `PK(category, month_key)`:
 
 | category      | 月度上限 | 覆盖工具                        | 触顶错误码                  |
 | ------------- | -------- | ------------------------------- | --------------------------- |
@@ -212,7 +212,9 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 [api-quota-store.js:3-19](../../../src/ai/api-quota-store.js#L3-L19)
 
-计数与判定原子化:`INSERT … ON CONFLICT(category, month_key) DO UPDATE … WHERE request_count < limit RETURNING request_count`,返回空行即触顶拒绝([api-quota-store.js:23-43](../../../src/ai/api-quota-store.js#L23-L43))。月份键 `getBeijingMonthKey` = UTC+8 后截取 `YYYY-MM`([82-84](../../../src/ai/api-quota-store.js#L82-L84));工具在每次上游调用前经 `requireApiQuota` 消费配额([68-76](../../../src/ai/api-quota-store.js#L68-L76))。DeepSeek 本身不计入配额(由账户余额管理)。
+计数与判定原子化:`INSERT … ON CONFLICT(category, month_key) DO UPDATE … WHERE request_count < limit RETURNING request_count`，返回空行即触顶拒绝。月份键 `getBeijingMonthKey` = UTC+8 后截取 `YYYY-MM`。天气和地图工具在本地配置检查及 `throwIfAborted` 通过后，经 [api-quota-store.js](../../../src/ai/api-quota-store.js) 的 `withApiQuota` 消费并提交一次额度，再立即发起请求。成功、超时、网络错误、上游拒绝、发起后取消和结果解析/归一化失败均保留计数；连接测试也计入，每个上游子请求分别计数。发送前已取消、缺少配置或额度耗尽的调用不发请求、不消费额度。
+
+该规则参考 [express-rate-limit 默认计入失败请求](https://express-rate-limit.mintlify.app/reference/configuration#skipfailedrequests) 的预算方式，于 2026-10-11 按用户授权实施；它不推断供应商是否收费。例如[和风天气](https://dev.qweather.com/help/)声明非 2xx 不统计请求，实际用量与费用仍以供应商为准。保留既有月度计数，历史已退回的失败请求不补记；`requireApiQuota` 和显式预留/撤销辅助保留兼容，天气/地图工具不会因请求失败调用撤销。模型调用本身不计入这三类配额。回归见 [ai-api-quota-store.test.js](../../../test/ai/ai-api-quota-store.test.js) 和 [ai-tools.test.js](../../../test/ai/ai-tools.test.js)。
 
 ### 8.2 请求诊断摘要(request-logger)
 
@@ -242,7 +244,7 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 
 - 匹配规则:同账号 uid、`observedAt >= sentAfter` 的弹幕,按内容逐条消费(去重已匹配项);带 `@用户名 ` 前缀时剥前缀后比对,兼容弹幕平台对 @ 的处理([danmaku-delivery-verifier.js:44-67](../../../src/ai/danmaku-delivery-verifier.js#L44-L67))。
 - 超时:`DELIVERY_CONFIRM_TIMEOUT_MS = 10000`;事件缓冲 TTL 60 秒防泄漏([danmaku-delivery-verifier.js:5-6](../../../src/ai/danmaku-delivery-verifier.js#L5-L6))。
-- **重试**:未确认送达时最多重试 3 次(`MAX_DELIVERY_ATTEMPTS = 3`,[16](../../../src/ai/ai-assistant-service.js#L16)),每次**重新生成**回复(`bypassCache: true`,避免原内容再次被吞),3 次仍失败 → 抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志([ai-assistant-service.js:248-253](../../../src/ai/ai-assistant-service.js#L248-L253))。
+- **重试**:未确认送达时最多尝试 3 次，含首次发送，即最多重试 2 次（[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js) 的 `MAX_DELIVERY_ATTEMPTS` / `deliverReply`）。重试前**重新生成**回复（`bypassCache: true`，避免原内容再次被吞）；三次均未确认送达则抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志。发送本身抛错时直接进入协调器失败处理，不属于此未确认送达的重试循环。
 - **关闭**:`waitForDelivery` 接受 shutdown signal;`dispose()` 幂等清除全部 pending timer 并以 `false` 释放 waiter。shutdown 取消不触发重新生成/重试或普通 delivery 失败审计。
 
 ### 9.3 失败回复文案

@@ -42,7 +42,7 @@
 
 [json-response.js](../../../public/js/shared/json-response.js) 拥有无 UI 依赖的 JSON 解析与信封验证。`assertApiResponse(response,payload,message)` 统一检查 HTTP/业务失败，错误保留 status、code 和 payload；`readApiResponse` 读取 JSON 后应用同一规则。原 `utils.readJsonResponse` 继续转出带正文预览的解析器，保持空成功响应返回 `{}` 的兼容语义。场景、组件样式、开播设置、礼物许愿和弹幕工具共用验证；各调用方仍拥有提示、取消/超时、认证、上传格式、领域错误字段及成功事件，二进制下载先在领域模块处理。
 
-- 普通 JSON `/api/*` 接口成功返回 `{ok:true, data:…}`,失败返回 `{ok:false, error:…}`,统一由 `sendJson` 包装(见 [server-core.md](../backend/server-core.md) §4.3)。
+- 普通 JSON `/api/*` 接口通常成功返回 `{ok:true, data:…}`、失败返回 `{ok:false, error:…}`，具体形状由领域 handler 构造，例外以 [API 注册表](../backend/api.md) 为准。`sendJson` 只序列化传入 payload 并设置响应头，不自动添加 `ok` 或 `data`。
 - 前端错误呈现:普通失败 `toast(错误信息)`;表单提交失败走 `showError`;直播刷新失败走 `forms.reconnectErrorMessage()` 把网络类错误翻译成可操作文案([forms.js:316-325](../../../public/js/admin/forms.js#L316-L325))。
 - 404/501 探测:`ProviderManager` 把 `auth-state` 类可选接口的 404/501 标记为"不可用",避免重复请求([provider/manager.js:86-100](../../../public/js/playback/provider/manager.js#L86-L100))。
 
@@ -53,9 +53,9 @@ Admin 的 HTTP 与 WS 全量快照统一经过 `StateService.applySnapshot`。HT
 - 全量状态:`GET /api/state`(快照 17 字段,见 [ws.md](../backend/ws.md) §2),管理页 `StateService.reloadState()`、叠加层 `loadState()` 首屏都用它兜底(WS 未连上时保证可渲染)。
 - 歌库:`GET /api/songs?query=&category=&language=&artist=&tag=&enabledOnly=`([state.js:128-155](../../../public/js/admin/state.js#L128-L155))。
 - **乐观 UI**:管理页所有变更操作(POST 后)立即调用 `reloadState()/reloadAll()` 重取,不等待 WS 广播;快照到达后对歌库相关变更做 **240ms 防抖**重载(`scheduleSongReload`,合并短时间内多次快照,[state.js:160-165](../../../public/js/admin/state.js#L160-L165));播放页则是本地状态先行 + `savePlaybackState()` 落盘(见 [playback.md](playback.md) §6)。
-- **错误呈现分工**:表单/操作类错误 → `showError`(toast);`reconnectBilibili` 等直接 fetch 的调用自己解析 `{ok}` 信封并处理 404/网络类错误;静默上报类(歌词状态、队列状态落盘)失败只丢弃不打扰用户。
+- **错误呈现分工**:表单/操作类错误 → `showError`(toast);`reconnectBilibili` 等直接 fetch 的调用自己解析 `{ok}` 信封并处理 404/网络类错误。歌词状态上报失败保持静默；播放队列保存失败保留最新待存快照，连续两次失败提示暂勿关闭 LIRA，之后保存成功再提示恢复，详见 [播放持久化](playback.md#6-状态持久化play_queue_state)。
 
-**礼物数据边界:** 服务端权威礼物由 Electron main 的 `remote-gift-controller` 通过独立 DeviceBearer SSE 与 final cursor pull 接收；main 完成校验、恢复和幂等投影后，renderer 只消费本地 `/api/state`、历史接口与 WebSocket `gift:frame`/snapshot。renderer 不接触远端礼物流、Device token、UID 或原始 B 站报文；SSE 仅在线加速，final cursor pull 才是恢复真相源。
+**礼物数据边界:** 服务端权威礼物由 Electron main 的 `remote-gift-controller` 通过独立 DeviceBearer SSE 与 final cursor pull 接收；main 完成校验、恢复和幂等投影后，renderer 只消费本地 `/api/state`、历史接口与 WebSocket `gift:frame`/snapshot。renderer 不直接订阅远端礼物流、不持有 Device token；可见身份字段按本地接口的授权投影提供。符合条件的连续 SSE final 已能与游标原子提交，HTTP pull 仍负责 bootstrap、断线/缺口恢复和周期核对，具体资格及失败处理见 [main.md §2.3](../desktop/main.md#23-服务端权威礼物接收生命周期) 与 [ADR-0021](../../architecture/adr/0021-atomic-live-gift-progress.md)。
 
 ## 3. WebSocket 客户端
 
@@ -92,7 +92,7 @@ Admin 首次成功连接不重复初始歌库加载；后续每次成功重连�
 | 叠加层(队列/歌单/盲盒/加班机) | 指数退避 `min(30000, 800 × 2^min(attempts,6))`,重连前先 `loadState()` 拿快照兜底          | [overlays/queue.js:86-93](../../../public/js/overlays/queue.js#L86-L93) |
 | 弹幕叠加层                    | 同上退避；URL 固定带 `topic=danmaku`，断线只更新连接状态文案，pagehide 释放连接           | [overlays/danmaku.js](../../../public/js/overlays/danmaku.js)           |
 | 礼物特效叠加层                | `min(30000, 1000 × 2^min(attempts,5))`；断线停用全屏特效，pagehide 释放连接与播放器       | [overlays/gift-effects.js](../../../public/js/overlays/gift-effects.js) |
-| 桌面歌词浏览器源              | `min(15000, 1000 × 2^min(attempts,4))`,不发凭据；出错关闭连接走 close 路径,断线加 `is-disconnected` 类 | [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js) |
+| 桌面歌词浏览器源              | `min(15000, 1000 × 2^min(attempts,4))`；连接器不显式加 token，本页 HTML 的 overlay bootstrap 会为本机 `/ws` 补入 lyrics scope 凭据；出错关闭连接走 close 路径,断线加 `is-disconnected` 类 | [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js) |
 | shutdown                      | 服务关闭前广播 `shutdown`(见 [ws.md](../backend/ws.md) §3),管理页据此进入"程序已退出"状态 | [ws.md](../backend/ws.md) §3                                            |
 
 ### 3.4 客户端消费的消息类型(全集在 [ws.md](../backend/ws.md) §3)

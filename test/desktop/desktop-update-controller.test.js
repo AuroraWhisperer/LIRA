@@ -103,7 +103,7 @@ test('update errors are logged and disable download and install with the running
   const logs = [];
   const error = new Error('signature mismatch');
   const mainWindow = createWindow();
-  const updateRuntime = { value: { status: 'downloaded', canDownload: true, canInstall: true, extra: 'kept' } };
+  const updateRuntime = { value: { status: 'downloaded', canDownload: true, canInstall: true, progress: { percent: 100 }, extra: 'kept' } };
   const controller = createDesktopUpdateController({
     app: { getVersion: () => '9.9.9' },
     updateRuntime,
@@ -125,6 +125,7 @@ test('update errors are logged and disable download and install with the running
     message: 'friendly message',
     canDownload: false,
     canInstall: false,
+    progress: null,
     extra: 'kept',
     version: '9.9.9',
   });

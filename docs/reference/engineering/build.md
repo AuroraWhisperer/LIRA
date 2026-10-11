@@ -65,7 +65,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 **engines:`node >=24`**([package.json](../../../package.json))。运行时依赖 5 个,开发依赖 3 个;版本与依赖归类以 [package.json](../../../package.json) 为准。
 
-**npm overrides**([package.json](../../../package.json)):js-yaml 强制 `^4.3.1` 以解决 GHSA-5p4m-2wfm-xmqj(CVE-2026-59870,!!omap 二次方 CPU 消耗)。该漏洞影响 electron-updater 与 electron-builder 的传递依赖 js-yaml 4.0.0-4.3.0;override 后生产依赖审计为 0 高危漏洞。
+**npm overrides**([package.json](../../../package.json)):js-yaml 强制 `^4.3.2`，当前 [package-lock.json](../../../package-lock.json) 解析为 `4.3.2`。该覆盖约束作用于 electron-updater 与 electron-builder 的传递依赖；版本锁本身不代替依赖安全审计。
 
 ## 3. electron-builder 配置(唯一成表处)
 
@@ -204,7 +204,7 @@ flowchart LR
 
 ## 11. 自动更新
 
-运行时依赖 `electron-updater` ^6.8.4(见 §2);更新清单即 §7 上传的 `latest.yml`。检查时机、更新状态机(`idle → checking → update-available → downloading → downloaded`)、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
+运行时依赖 `electron-updater` ^6.8.4(见 §2);更新清单即 §7 上传的 `latest.yml`。检查时机、更新状态机、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
 
 ## 12. Windows 代码签名
 

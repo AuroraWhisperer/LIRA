@@ -139,14 +139,6 @@
   background: var(--color-danger-light);
 }
 
-.bb-chip-source {
-  align-self: center;
-  color: var(--blind-box-source-color);
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-semibold);
-  white-space: nowrap;
-}
-
 #blindBoxAdvanced {
   margin-top: 12px;
 }

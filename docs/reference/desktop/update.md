@@ -74,7 +74,7 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 
 状态载荷沿用 §2 的对象，`version` 是当前应用版本，`progress` 随状态取值：
 
-- `progress = {percent, transferred, total, speed}`(downloading,速度字节/秒)
+- `progress = {percent, transferred, total, speed}`(downloading,速度字节/秒；手动开始或重试下载时先清为 null，等待新进度事件)
 - `progress = {percent: 100}`(downloaded)
 - `progress = null`(其余状态)
 
@@ -94,6 +94,8 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 | 其他                                                                                                                               | `error`         | 暂时无法检查更新,详细原因已写入日志。                      |
 
 消费点:autoUpdater `error` 事件与 `checkForUpdates`/`downloadUpdate` 的 catch 均走该映射([update-manager.js:98-105](../../../src/electron/update-manager.js#L98-L105)、[115-148](../../../src/electron/update-manager.js#L115-L148))；桌面控制器的 `setUpdateError` 同样调用并下推状态。
+
+更新器先发出 error 事件、随后拒绝操作 Promise 时，两条路径保持相同的 status/message；失败和安装状态清空旧下载进度。聚焦回归见 [update-manager.test.js](../../../test/desktop/update-manager.test.js) 与 [desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)。
 
 ## 6. 完整性验证与代码签名
 

@@ -1,6 +1,6 @@
 'use strict';
 
-const { fetchJson, joinApiUrl, createPublicError } = require('../http-client');
+const { fetchJson, joinApiUrl, createPublicError, throwIfAborted } = require('../http-client');
 const { withApiQuota } = require('../api-quota-store');
 
 function createAmapTool(options = {}) {
@@ -17,6 +17,7 @@ function createAmapTool(options = {}) {
       if (value !== '' && value !== null && value !== undefined) url.searchParams.set(key, String(value));
     }
     const category = pathName === '/v3/place/text' ? 'amap_search' : 'amap_lbs';
+    throwIfAborted(options.signal);
     return withApiQuota(quotaStore, category, async () => {
       const payload = await fetchJson(url, {
         timeoutMs: config.requestTimeoutMs,

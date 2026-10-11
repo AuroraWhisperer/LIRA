@@ -103,7 +103,7 @@ test('blind-box mapping shows room gifts by default and expands the remaining ma
   ]);
   assert.match(fixture.container.innerHTML, /官方盲盒/);
   assert.match(fixture.container.innerHTML, /官方产物<small>#101<\/small><small>¥3\.00<\/small>/);
-  assert.match(fixture.container.innerHTML, /<span class="bb-chip-source">官方<\/span>/);
+  assert.doesNotMatch(fixture.container.innerHTML, /class="bb-chip-source"/);
   assert.match(fixture.container.innerHTML, /主播自定义盒/);
   assert.equal((fixture.container.innerHTML.match(/class="chip-delete"/g) || []).length, 2);
   assert.deepEqual(
@@ -135,7 +135,7 @@ test('blind-box mapping reports official readiness without legacy migration prom
     migrationPendingCount: 5,
   };
   const fixture = await createBlindboxFixture({ mappingState });
-  assert.equal(fixture.status.textContent, '等待服务器应用官方映射');
+  assert.equal(fixture.status.textContent, '等待服务器应用盲盒映射');
   Object.assign(mappingState, {
     mode: 'v2',
     applied: true,
@@ -146,7 +146,7 @@ test('blind-box mapping reports official readiness without legacy migration prom
   assert.equal(fixture.status.hidden, true);
   Object.assign(mappingState, { customCount: 2, takenOverCount: 1 });
   fixture.module.renderBlindBoxList();
-  assert.equal(fixture.status.textContent, '自定义 2 项 · 官方已接管 1 项');
+  assert.equal(fixture.status.textContent, '自定义 2 项 · 服务器已接管 1 项');
   assert.equal(fixture.status.hidden, false);
 });
 

@@ -5,6 +5,75 @@ const { EventEmitter } = require('node:events');
 const test = require('node:test');
 const path = require('node:path');
 
+function loadUpdateManager(t) {
+  const Module = require('node:module');
+  const originalLoad = Module._load;
+  const modulePath = require.resolve('../../src/electron/update-manager');
+  const cachedModule = require.cache[modulePath];
+  const updater = Object.assign(new EventEmitter(), { app: {}, quitAndInstall() {} });
+  const app = {
+    getVersion: () => '5.2.7',
+    getPath: () => path.resolve('tmp/updater-test/LIRA.exe'),
+    isPackaged: true,
+    releaseSingleInstanceLock() {},
+  };
+  t.mock.method(Module, '_load', function (request, parent, isMain) {
+    if (request === 'electron') return { app };
+    if (request === 'electron-updater') return { autoUpdater: updater };
+    return originalLoad.call(this, request, parent, isMain);
+  });
+  delete require.cache[modulePath];
+  t.after(() => {
+    delete require.cache[modulePath];
+    if (cachedModule) require.cache[modulePath] = cachedModule;
+  });
+  const manager = require(modulePath);
+  const states = [];
+  manager.configureAutoUpdater({ onStateChange: (state) => states.push(state) });
+  return { manager, updater, states };
+}
+
+for (const operation of ['checkForUpdates', 'downloadUpdate']) {
+  test(`${operation} preserves the missing-release classification when the updater emits and rejects`, async (t) => {
+    const { manager, updater, states } = loadUpdateManager(t);
+    updater[operation] = async () => {
+      const error = new Error('404 https://github.com/example/releases/latest.yml');
+      updater.emit('error', error);
+      throw error;
+    };
+    const state = await manager[operation]();
+    assert.equal(state.status, 'not-available');
+    assert.equal(states.at(-1).status, 'not-available');
+    assert.equal(state.canDownload, false);
+    assert.equal(state.canInstall, false);
+  });
+}
+
+test('download failure and retry discard the previous progress before accepting new progress', async (t) => {
+  const { manager, updater, states } = loadUpdateManager(t);
+  updater.emit('download-progress', { percent: 80, transferred: 8, total: 10 });
+  updater.emit('error', new Error('network timeout'));
+  assert.equal(manager.getUpdateState().status, 'error');
+  assert.equal(manager.getUpdateState().progress, null);
+
+  updater.emit('update-downloaded', { version: '5.2.8' });
+  updater.downloadUpdate = async () => { throw new Error('network timeout'); };
+  const state = await manager.downloadUpdate();
+  assert.equal(states.at(-2).status, 'downloading');
+  assert.equal(states.at(-2).progress, null);
+  assert.equal(state.status, 'error');
+  assert.equal(state.progress, null);
+});
+
+test('installation clears downloaded progress while preserving the update version', (t) => {
+  const { manager, updater } = loadUpdateManager(t);
+  updater.emit('update-downloaded', { version: '5.2.8' });
+  const state = manager.installUpdate();
+  assert.equal(state.status, 'installing');
+  assert.equal(state.progress, null);
+  assert.equal(state.updateVersion, '5.2.8');
+});
+
 test(
   'Windows updater keeps its HTTP executor while caching on the installation drive',
   {

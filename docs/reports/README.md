@@ -4,6 +4,7 @@
 
 ## 历史报告
 
+- [客户端实现与文档差异核对](2026-10-11-client-document-alignment.md)
 - [客户端与服务器通讯整改及整体复审](2026-10-10-communication-remediation-review.md)
 - [客户端结构整改与第二轮复审](2026-10-10-client-structure-remediation-review.md)
 - [Bilibili 已获取但未用上的字段（用途与实际案例）](2026-10-10-bilibili-information-opportunities.md)

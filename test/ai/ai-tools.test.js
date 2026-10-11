@@ -37,7 +37,7 @@ test('QWeather does not send a request after its monthly quota is exhausted', as
   assert.equal(fetchCalls, 0);
 });
 
-test('QWeather refunds quota when a successful response has no locations', async () => {
+test('QWeather keeps quota when a successful response has no locations', async () => {
   let releases = 0;
   const tool = createQWeatherTool({
     fetchImpl: async () => jsonResponse({ code: '200', location: [] }),
@@ -53,10 +53,10 @@ test('QWeather refunds quota when a successful response has no locations', async
     tool.resolveLocation({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }, '未知地点'),
     (error) => error.code === 'WEATHER_LOCATION_NOT_FOUND',
   );
-  assert.equal(releases, 1);
+  assert.equal(releases, 0);
 });
 
-test('AMap refunds quota when route normalization finds no route', async () => {
+test('AMap keeps quota when route normalization finds no route', async () => {
   let releases = 0;
   const tool = createAmapTool({
     fetchImpl: async (url) => {
@@ -84,10 +84,10 @@ test('AMap refunds quota when route normalization finds no route', async () => {
     ),
     (error) => error.code === 'AMAP_ROUTE_NOT_FOUND',
   );
-  assert.equal(releases, 1);
+  assert.equal(releases, 0);
 });
 
-test('provider connection checks refund quota for invalid successful payloads', async () => {
+test('provider connection checks keep quota for invalid successful payloads', async () => {
   let qweatherReleases = 0;
   const qweather = createQWeatherTool({
     fetchImpl: async () => jsonResponse({ code: '200', location: [{}] }),
@@ -105,7 +105,7 @@ test('provider connection checks refund quota for invalid successful payloads', 
     }),
     (error) => error.code === 'QWEATHER_INVALID_RESPONSE',
   );
-  assert.equal(qweatherReleases, 1);
+  assert.equal(qweatherReleases, 0);
 
   let amapReleases = 0;
   const amap = createAmapTool({
@@ -124,7 +124,78 @@ test('provider connection checks refund quota for invalid successful payloads', 
     }),
     (error) => error.code === 'AMAP_INVALID_RESPONSE',
   );
-  assert.equal(amapReleases, 1);
+  assert.equal(amapReleases, 0);
+});
+
+for (const provider of [
+  {
+    name: 'QWeather',
+    createTool: createQWeatherTool,
+    query: (tool, signal) => tool.resolveLocation(
+      { qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }, '苏州', { signal },
+    ),
+  },
+  {
+    name: 'AMap',
+    createTool: createAmapTool,
+    query: (tool, signal) => tool.resolveLocation(
+      { amapApiHost: 'https://amap.test', amapApiKey: 'key' }, { address: '苏州' }, { signal },
+    ),
+  },
+]) {
+  test(`${provider.name} does not consume quota or dispatch a request when already cancelled`, async () => {
+    let consumed = 0;
+    let fetchCalls = 0;
+    const controller = new AbortController();
+    const reason = Object.assign(new Error('Stopped before dispatch'), { code: 'AI_SHUTDOWN' });
+    controller.abort(reason);
+    const tool = provider.createTool({
+      fetchImpl: async (url, { signal }) => {
+        fetchCalls += 1;
+        signal.throwIfAborted();
+        return jsonResponse({});
+      },
+      quotaStore: {
+        consume() {
+          consumed += 1;
+          return { allowed: true };
+        },
+      },
+    });
+
+    await assert.rejects(provider.query(tool, controller.signal), (error) => error === reason);
+    assert.equal(consumed, 0);
+    assert.equal(fetchCalls, 0);
+  });
+}
+
+test('QWeather keeps quota when cancellation arrives after request dispatch', async () => {
+  let consumed = 0;
+  let releases = 0;
+  const controller = new AbortController();
+  const reason = Object.assign(new Error('Stopped after dispatch'), { code: 'AI_SHUTDOWN' });
+  const tool = createQWeatherTool({
+    fetchImpl: async (url, { signal }) => {
+      controller.abort(reason);
+      signal.throwIfAborted();
+    },
+    quotaStore: {
+      consume() {
+        consumed += 1;
+        return { allowed: true };
+      },
+      release() { releases += 1; },
+    },
+  });
+
+  await assert.rejects(
+    tool.resolveLocation(
+      { qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }, '苏州', { signal: controller.signal },
+    ),
+    (error) => error === reason,
+  );
+  assert.equal(consumed, 1);
+  assert.equal(releases, 0);
 });
 
 test('AMap separates search and LBS quota categories before sending requests', async () => {

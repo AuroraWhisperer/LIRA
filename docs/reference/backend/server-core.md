@@ -92,7 +92,7 @@ Token。不向 license、scene 或任何 overlay 注入主题，不新增写入 
 5. `pathname === '/ws'` → 直接 400(提示用 WebSocket 客户端;升级请求走 `server.on('upgrade')`)；升级入口捕获 URL 解析异常，畸形 Host/请求 URL 返回 400 并关闭该连接，不使服务退出。
 6. `pathname.startsWith('/api/')` → 经 [inflight-tracker.js](../../../src/server/inflight-tracker.js) 接纳并跟踪，再调用 [api-routes.js](../../../src/server/api-routes.js) 的 `handleApi`；传入当前领域 context、预览会话和场景输出的许可/生命周期状态 getter。
 7. 场景文本图片、组件素材/导入网页、开播媒体/人物图及礼物图片缓存由各自 handler 读取 dataDir 下的资源；它们不经过 publicDir 静态文件解析。组件导入网页的 CSP 与资源合同见 [组件样式库](api.md#组件样式库)。
-8. 其余 → 传输适配器的 `servePageOrAsset`，再交给 `httpUtils.servePageOrAsset(PUBLIC_DIR, …)`。
+8. 其余 → 传输适配器的 `servePageOrAsset`，再交给 [page-assets.js](../../../src/server/page-assets.js) 的 `servePageOrAsset(publicDir, …)`。
 
 phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:port 校验，不匹配返回 400，再把通过许可门的 `/ws` 交给 `webSocketHub.handleUpgrade`，继续独立校验 Origin/token；无 Origin 的非浏览器客户端同样必须匹配运行时 Host。starting/quiescing 阶段返回 503。`inflight-tracker` 只统计 quiesce 前已接纳的 API handler，quiesce 后的 health/503 不进入 drain 集合。
 

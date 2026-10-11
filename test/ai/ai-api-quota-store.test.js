@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
-const { createAiApiQuotaStore, API_QUOTAS } = require('../../src/ai/api-quota-store');
+const { createAiApiQuotaStore, API_QUOTAS, withApiQuota } = require('../../src/ai/api-quota-store');
 
 test('AI API quotas stop exactly at their configured monthly limits', () => {
   const db = new DatabaseSync(':memory:');
@@ -36,6 +36,51 @@ test('AI API quotas reset at the start of a Beijing calendar month', () => {
   now = Date.parse('2026-08-31T16:00:00.000Z');
   assert.equal(quota.getUsage('qweather').requestCount, 0);
   assert.equal(quota.consume('qweather').monthKey, '2026-09');
+});
+
+test('failed requests consume the remaining monthly quota and block the next attempt', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(SONG_SCHEMA);
+  const quota = createAiApiQuotaStore(db, {
+    now: () => Date.parse('2026-08-06T04:00:00.000Z'),
+  });
+  db.prepare('INSERT INTO ai_api_usage (category, month_key, request_count, updated_at) VALUES (?, ?, ?, 0)')
+    .run('qweather', '2026-08', API_QUOTAS.qweather - 1);
+
+  let attempts = 0;
+  const sendRequest = async () => {
+    attempts += 1;
+    throw new Error('response lost after dispatch');
+  };
+  await assert.rejects(withApiQuota(quota, 'qweather', sendRequest), /response lost/);
+  assert.equal(quota.getUsage('qweather').requestCount, API_QUOTAS.qweather);
+  await assert.rejects(
+    withApiQuota(quota, 'qweather', sendRequest),
+    (error) => error.code === 'QWEATHER_MONTHLY_LIMIT',
+  );
+  assert.equal(attempts, 1);
+});
+
+test('a late failure after month rollover keeps both months of request counts intact', async (t) => {
+  let now = Date.parse('2026-08-31T15:59:59.000Z');
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(SONG_SCHEMA);
+  const quota = createAiApiQuotaStore(db, { now: () => now });
+  let rejectRequest;
+  const request = withApiQuota(quota, 'qweather', () => new Promise((resolve, reject) => {
+    rejectRequest = reject;
+  }));
+  const rejection = assert.rejects(request, /late timeout/);
+
+  now = Date.parse('2026-08-31T16:00:00.000Z');
+  quota.consume('qweather');
+  rejectRequest(new Error('late timeout'));
+  await rejection;
+
+  const rows = db.prepare('SELECT month_key, request_count FROM ai_api_usage ORDER BY month_key').all();
+  assert.deepEqual(rows.map((row) => [row.month_key, row.request_count]), [['2026-08', 1], ['2026-09', 1]]);
 });
 
 test('quota availability maps exhausted categories to their local tools', () => {

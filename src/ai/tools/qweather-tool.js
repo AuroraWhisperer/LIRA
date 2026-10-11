@@ -1,6 +1,6 @@
 'use strict';
 
-const { fetchJson, joinApiUrl, createPublicError } = require('../http-client');
+const { fetchJson, joinApiUrl, createPublicError, throwIfAborted } = require('../http-client');
 const { withApiQuota } = require('../api-quota-store');
 
 function createQWeatherTool(options = {}) {
@@ -87,8 +87,8 @@ function createQWeatherTool(options = {}) {
     );
   }
 
-  // 预扣配额 → 请求 → 校验业务 code；任何失败都退款，避免失败请求永久扣配额。
   async function requestWithQuota(url, config, transform = (payload) => payload, options = {}) {
+    throwIfAborted(options.signal);
     return withApiQuota(quotaStore, 'qweather', async () => {
       const payload = await fetchJson(url, {
         timeoutMs: config.requestTimeoutMs,

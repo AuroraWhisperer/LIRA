@@ -107,11 +107,7 @@ export const giftBlindbox = (() => {
             </div>
             <div class="bb-chip-outputs">${outputs}</div>
           </div>
-          ${
-            item.official
-              ? '<span class="bb-chip-source">官方</span>'
-              : `<button class="chip-delete" data-blind-index="${item.index}" title="删除">✕</button>`
-          }
+          ${item.official ? '' : `<button class="chip-delete" data-blind-index="${item.index}" title="删除">✕</button>`}
         </div>
       `;
       })
@@ -134,12 +130,12 @@ export const giftBlindbox = (() => {
       status.textContent = '正在读取服务器映射状态';
       return;
     }
-    const parts = mapping.applied ? [] : ['等待服务器应用官方映射'];
+    const parts = mapping.applied ? [] : ['等待服务器应用盲盒映射'];
     if (Number(mapping.customCount) > 0) {
       parts.push(`自定义 ${Number(mapping.customCount)} 项`);
     }
     if (Number(mapping.takenOverCount) > 0) {
-      parts.push(`官方已接管 ${Number(mapping.takenOverCount)} 项`);
+      parts.push(`服务器已接管 ${Number(mapping.takenOverCount)} 项`);
     }
     status.textContent = parts.join(' · ');
     status.hidden = parts.length === 0;

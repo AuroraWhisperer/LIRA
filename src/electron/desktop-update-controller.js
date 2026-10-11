@@ -74,6 +74,7 @@ function createDesktopUpdateController({
       message: friendly.message,
       canDownload: false,
       canInstall: false,
+      progress: null,
     });
   }
 

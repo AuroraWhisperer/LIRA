@@ -3,19 +3,21 @@
     <div class="playback-head-inner">
       <div class="playback-navigation" data-workspace="music" role="group" aria-label="播放功能">
         <div class="playback-music-switch">
-          <button id="playbackMusicToggle" class="playback-workspace-button" type="button" data-tab="playbackMusicWorkspace" aria-expanded="true" aria-controls="playbackMusicWorkspace playbackSourceTabs" inert>音乐播放</button>
+          <button id="playbackMusicToggle" class="playback-workspace-button" type="button" data-tab="playbackMusicWorkspace" aria-expanded="true" aria-controls="playbackMusicWorkspace playbackSourceTabs" inert><span class="playback-music-label">音乐播放</span></button>
           <div id="playbackSourceTabs" class="source-tabs" role="tablist" aria-label="音乐播放平台">
             <button id="playbackSourceQqTab" class="source-tab active" type="button" data-source="qq" role="tab" aria-selected="true" aria-controls="playbackSourcePanel" tabindex="0">
               <img class="source-tab-icon" src="/img/playback/qqmusic-icon.webp" alt="" draggable="false" />
-              QQ音乐
+              <span class="source-tab-label">QQ音乐</span>
+              <span class="source-tab-separator" aria-hidden="true">·</span>
             </button>
             <button id="playbackSourceNeteaseTab" class="source-tab" type="button" data-source="netease" role="tab" aria-selected="false" aria-controls="playbackSourcePanel" tabindex="-1">
               <img class="source-tab-icon" src="/img/playback/netease-music-icon.ico" alt="" draggable="false" />
-              网易云音乐
+              <span class="source-tab-label">网易云音乐</span>
+              <span class="source-tab-separator" aria-hidden="true">·</span>
             </button>
             <button id="playbackSourceWeSingTab" class="source-tab" type="button" data-source="wesing" role="tab" aria-selected="false" aria-controls="playbackSourcePanel" tabindex="-1">
               <img class="source-tab-icon" src="/img/playback/wesing-icon.png" alt="" draggable="false" />
-              全民 K歌
+              <span class="source-tab-label">全民 K歌</span>
             </button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 # 客户端文档未完成事项
 
-初始基线：2026-09-26；2026-09-28 从报告目录迁为当前未结项导航，最近整理于 2026-10-09。范围为客户端与相关跨端验收，具体实施及验收状态见 [计划索引](README.md)。没有重新执行真实账号、生产或正式签名验收。
+初始基线：2026-09-26；2026-09-28 从报告目录迁为当前未结项导航，最近整理于 2026-10-11（D2 与规模评审政策同步；B10 按用户决定保留测试期兼容，持续镜像暂缓）。范围为客户端与相关跨端验收，具体实施及验收状态见 [计划索引](README.md)。没有重新执行真实账号、生产或正式签名验收。
 
 本文件只保留尚未闭环的工作，不记录完成项、历史核验流水或已排除的问题。后续建设、延期提案和验收材料分开列出；缺少验收记录不等于现有功能失效。条目编号沿用原审计，删除后不补号。
 
@@ -72,6 +72,12 @@
 - 前提：2026-10-08 只讨论了这四项；后续界面已发生变化，恢复任务前先核对现状与需求，不直接执行旧建议。
 - 来源：[体验裁决记录](archive/2026-10-08-client-ux-decisions.md#本轮仅讨论的四项)。该记录也保留已完成范围，不能把整个计划当作未实施。
 
+### B10. 播放状态的本地备份策略
+
+- 已裁决：2026-10-11 用户确认客户端仍在测试，先保留现有备份与恢复兼容。当前 HTTP/IPC 保存到 SQLite，localStorage 保留旧数据恢复和 v1 迁移。
+- 暂缓：是否另行接入持续 localStorage 镜像；不自动新增持久化写入方，也不删除旧副本或恢复入口。
+- 证据：[本轮审查 U1](../../docs/reports/2026-10-11-client-document-alignment.md#u1-播放状态是否需要持续本地备份)、[当前持久化参考](../../docs/reference/frontend/playback.md#6-状态持久化play_queue_state)。
+
 ## C. 尚缺验收或操作材料
 
 ### C1. 投票/评分的真实直播间 C0 与端到端验收
@@ -110,11 +116,11 @@
 - 边界：维持事务、生命周期和兼容合同，不进行无需求的大重构。
 - 来源：[Legacy Boundary Registry](../../docs/architecture/engineering/legacy-boundaries.md)、[架构测试](../../test/engineering/module-boundaries.test.js)。
 
-### D2. 文件登记与长函数的后续复审
+### D2. 文件职责与长函数的后续复审
 
-- 待做：按[唯一登记](../../docs/architecture/engineering/modularity-baseline.json)逐条遵守退出条件及复审日期；最早期限为 **2026-12-13**，粉丝档案相关期限为 **2026-12-18**，实质修改时提前复审。
-- 长函数需重新测量，不能照搬历史跨度或以文件行数合规代替职责复核。
-- 来源：[函数债务](../../docs/architecture/engineering/modularity-debt.md)、[规模门禁](../../test/engineering/modularity-size.test.js)。
+- 待做：触及相关文件时按类型、职责内聚性和实际维护问题复核，说明保留或拆分理由；长函数需重新测量，不能照搬历史跨度或以行数代替职责判断。
+- 边界：[旧基线](../../docs/architecture/engineering/modularity-baseline.json)仅作历史快照，检查器不再读取；不执行其中的精确额度或到期登记政策。行数报告只提供审查信号，不自动要求拆分。
+- 来源：[ADR-0023](../../docs/architecture/adr/0023-purpose-aware-file-size-review.md)、[规模评审政策](../../docs/architecture/engineering/modularity-standard.md#file-size-review)、[函数债务](../../docs/architecture/engineering/modularity-debt.md)。
 
 ### D3. B 站 API 参考资料的三处错误码缺口
 

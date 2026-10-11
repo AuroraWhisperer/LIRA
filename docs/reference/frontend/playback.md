@@ -123,10 +123,14 @@ playbackControls → audio.load()/play()
 | 通道                                  | 触发点                                                                       | 说明                                                                                                                                                                                                                                 |
 | ------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | HTTP `POST /api/playback/queue-state` | 常规保存(1500ms 防抖)、卸载 `sendBeacon`(带 token)、关机前 `keepalive` fetch | 服务端写 `musicDb.play_queue_state`(client_id PK,见 [storage.md](../backend/storage.md) §3.4)                                                                                                                                        |
-| IPC `musicAPI.savePlaybackState`      | 卸载/关机刷新(桌面优先,IPC 失败回退 HTTP)                                    | 通道见 [desktop/preload.md](../desktop/preload.md);Electron 关机钩子 `onPrepareShutdown → flushPlaybackStateForShutdown → confirmShutdownFlush`([initializer.js:117-129](../../../public/js/playback/core/initializer.js#L117-L129)) |
-| localStorage `playbackState:v2`       | `StorageManager._doSave` 防抖 1500ms                                         | 仅作本地镜像与 v1(`songAssistantPlaybackState:v1`)迁移源                                                                                                                                                                             |
+| IPC `musicAPI.savePlaybackState`      | 卸载时与 HTTP 同发；关机刷新优先 IPC、失败回退 HTTP                                    | 通道见 [desktop/preload.md](../desktop/preload.md);Electron 关机钩子 `onPrepareShutdown → flushPlaybackStateForShutdown → confirmShutdownFlush`([initializer.js:117-129](../../../public/js/playback/core/initializer.js#L117-L129)) |
+| localStorage `playbackState:v2`       | 读取旧数据；v1 迁移时写入 v2，当前未接入常规保存                                         | 兼容 v1(`songAssistantPlaybackState:v1`)与旧 v2 数据，不能作为持续更新的本地备份承诺                                                                                                                                                    |
 
-**恢复顺序**:`restoreState()` 优先 `GET /api/playback/queue-state?clientId=default` → localStorage v2 → v1 迁移([state/storage.js:97-120](../../../public/js/playback/state/storage.js#L97-L120))。`currentTime` 恢复为 `restoredTime`(不保存播放位置,见 [state/storage.js:81](../../../public/js/playback/state/storage.js#L81))。恢复的本地曲目经 `restoreLocalFileUrls()` 用 `musicAPI.resolveLocalMediaUrls(paths)` 批量解析成 `local-media://` URL,失败标记 `fileMissing`。
+当前 [controller.js](../../../public/js/playback/controller.js) 只调用 `StorageManager.restoreState()`，常规保存交给 `createStatePersistence`；`StorageManager.saveState()` 尚无业务调用方。2026-10-11 用户确认测试阶段先保留现有备份/恢复兼容：不删除旧副本，不在本轮接入持续 localStorage 镜像；后续取舍仍见[持久化策略台账](../../../specs/plans/open-items.md#b10-播放状态的本地备份策略)。
+
+**恢复顺序**:`restoreState()` 优先 `GET /api/playback/queue-state?clientId=default` → localStorage v2 → v1 迁移（[state/storage.js](../../../public/js/playback/state/storage.js)）。HTTP/IPC 快照保存音频的 `currentTime`，恢复时归一到 `restoredTime`；只有 `StorageManager._doSave` 的 localStorage 写入把 `restoredTime` 置为 0，不能据此认为服务端快照不保存播放位置。恢复的本地曲目经 `restoreLocalFileUrls()` 用 `musicAPI.resolveLocalMediaUrls(paths)` 批量解析成 `local-media://` URL,失败标记 `fileMissing`。
+
+常规 HTTP 保存失败保留当前发送端的最新待存快照；连续两次失败显示一次「播放队列和进度还没保存成功，先别关闭 LIRA。」，随后成功显示「播放队列和进度已保存。」并重置失败计数。旧序号的晚到结果不能覆盖新保存结果或重复提示。卸载时 IPC 与 beacon/keepalive 同时提交同一版本；正常桌面关闭先等待 IPC，失败才回退 keepalive HTTP。
 
 QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最后一项必须跨重启送回 Provider,否则 HAR 中 `songtype: 1` 的付费歌曲会被错误降为类型 `0`。`qualityPreferences` 按 Provider 保存:QQ 为 `standard/high/lossless/premium/immersive`,网易云为 `standard/higher/exhigh/lossless/hires`;后两项通过本地 QMC2 Range 代理，不能承诺 QQ 客户端的 Dolby/空间 DSP 效果。
 
@@ -135,8 +139,8 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 ## 7. 本地文件与桌面集成
 
 - 选择文件:`LocalFileManager.selectLocalFiles()` 走 `musicAPI.selectLocalFiles`(桌面文件对话框,取消返回空);最近历史 `musicAPI.getRecentLocalFiles`。
-- 播放:`local-media://media/<base64url-encoded-path>` 协议由 Electron main 注册与鉴权(`local-media-allowlist.json` 允许清单,见 [desktop/main.md](../desktop/main.md));恢复的 objectUrl 仅会话内有效,重启后需重新解析。
-- 桌面检测:统一约定 `window.musicAPI` 是否存在及其方法是否为 function;播放页在浏览器直开时本地文件与歌词窗口功能自动降级隐藏([comms.md](comms.md) §4)。
+- 播放:`local-media://media/<base64url-encoded-path>` 协议由 Electron main 注册与鉴权(`local-media-access.json` 允许清单,见 [desktop/main.md](../desktop/main.md));恢复的 objectUrl 仅会话内有效,重启后需重新解析。
+- 桌面检测:统一约定 `window.musicAPI` 是否存在及其方法是否为 function；本地文件选择与路径恢复需要桌面桥。独立歌词页是浏览器来源 `/lyrics`，其入口和权限见 [歌词展示参考](overlays.md#6-桌面歌词页lyrics)。
 
 ## 8. UI 与事件
 
@@ -151,7 +155,7 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 
 ### 8.1 大播放器外观
 
-「播放」页顶部使用单行分组切换条：左侧「音乐播放」选中时展开 QQ 音乐、网易云音乐、全民 K 歌三个平台，右侧为「播放器外观」；进入外观后左侧收回分类名称。`core/event-handlers.js` 管理分组显隐与焦点，平台标签保留方向键和 Home/End 导航，Tab 可到达外观按钮。平台滑块由 `header.css` 跟随既有 `.source-tab.active` 状态，支持减少动态效果；选中平台复用播放状态中的 `selectedSource` 保存与恢复，首次默认 `qq`，切换外观不修改平台。外观片段为 `public/pages/admin/playback/appearance.html`，`ui/appearance.js` 由 `FullscreenPlayer.init` 初始化一次，负责设置规范化、本机保存、控件和示例预览；`css/playback/appearance.css` 负责设置页、字体声明与样式变体。设置区仍由 `FormsService.initTabs` 管理「样式 / 配色 / 歌曲 / 歌词」标签及键盘导航；样式为三种实际视觉的缩略图单选。歌曲信息保留在右侧，与歌词正文同一条起始线，跳转按钮独占左侧留白。极大字号下歌曲信息区域最多占右栏 45%，可独立滚动，保留歌词空间；`ui/lyric-layout.js` 为实际播放器和预览共用定位：正常行在上方 1/3 附近，过高行定位首字，跳过巨大行高产生的前置空白，并换算预览缩放。预览复用全屏播放器的内容 DOM/CSS，按实际播放器尺寸等比缩小，跟随尺寸和背景主题变化；可切换长句与译文样本，移除交互与普通 ID，并为 SVG 资源重命名，不建立第二个音频或歌词运行时。「打开大播放器」复用 FormsService 的 dock 展开与全屏焦点管理。排版修改及字体加载完成后，等待现有 300ms 字号过渡结束，再通过 `onTypographyChange` 调用原有歌词跟随定位；保留手动浏览保护，退出页面清理计时器、字体注册、尺寸及背景监听。主题背景使用不透明底色与独立模糊装饰层，避免 100% 不透明度下边缘透底；自定义背景禁用装饰层，颜色 alpha 和整体不透明度仍分别生效。
+「播放」页顶部使用单行分组切换条：左侧「音乐播放」选中时展开 QQ 音乐、网易云音乐、全民 K 歌三个平台，右侧为「播放器外观」；进入外观后左侧显示「音乐播放」，同一组平台文字缩至标题下方，以「·」分隔；返回音乐播放时文字平滑展开为三个选项，切换条高度保持不变。展开/收起和平台滑块使用 560ms 缓入缓出过渡，减少动态效果时取消位移与缩放过渡并保留短暂淡入淡出。`core/event-handlers.js` 管理分组显隐与焦点，平台标签保留方向键和 Home/End 导航，Tab 可到达外观按钮。平台滑块由 `header.css` 跟随既有 `.source-tab.active` 状态，支持减少动态效果；选中平台复用播放状态中的 `selectedSource` 保存与恢复，首次默认 `qq`，切换外观不修改平台。外观片段为 `public/pages/admin/playback/appearance.html`，`ui/appearance.js` 由 `FullscreenPlayer.init` 初始化一次，负责设置规范化、本机保存、控件和示例预览；`css/playback/appearance.css` 负责设置页、字体声明与样式变体。设置区仍由 `FormsService.initTabs` 管理「样式 / 配色 / 歌曲 / 歌词」标签及键盘导航；样式为三种实际视觉的缩略图单选。歌曲信息保留在右侧，与歌词正文同一条起始线，跳转按钮独占左侧留白。极大字号下歌曲信息区域最多占右栏 45%，可独立滚动，保留歌词空间；`ui/lyric-layout.js` 为实际播放器和预览共用定位：正常行在上方 1/3 附近，过高行定位首字，跳过巨大行高产生的前置空白，并换算预览缩放。预览复用全屏播放器的内容 DOM/CSS，按实际播放器尺寸等比缩小，跟随尺寸和背景主题变化；可切换长句与译文样本，移除交互与普通 ID，并为 SVG 资源重命名，不建立第二个音频或歌词运行时。「打开大播放器」复用 FormsService 的 dock 展开与全屏焦点管理。排版修改及字体加载完成后，等待现有 300ms 字号过渡结束，再通过 `onTypographyChange` 调用原有歌词跟随定位；保留手动浏览保护，退出页面清理计时器、字体注册、尺寸及背景监听。主题背景使用不透明底色与独立模糊装饰层，避免 100% 不透明度下边缘透底；自定义背景禁用装饰层，颜色 alpha 和整体不透明度仍分别生效。
 
 外观只作用于大播放器；底部播放栏和直播/桌面歌词组件保持各自设置。字段保存在当前管理页 origin 的 localStorage `playbackAppearance:v1`，不进入队列快照、数据库或云端同步。每次有效修改即时应用并保存；保存失败保留本次画面效果并显示未保存提示。缺失、损坏或不可读的数据使用默认值，不在读取时覆盖存储。「恢复本组默认」仅重置当前分类的字段并保留其他分类；「恢复全部默认」写入本模块默认值，移除自定义字体、字号与文字颜色变量，让客户端配色重新接管。
 

@@ -157,6 +157,9 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
 
 function setUpdateState(nextState, onStateChange) {
   updateState = { ...updateState, ...nextState, version: app.getVersion() };
+  if (updateState.status !== 'downloading' && updateState.status !== 'downloaded') {
+    updateState.progress = null;
+  }
   const notify = onStateChange || _onStateChange;
   if (notify) notify(updateState);
   return updateState;
@@ -176,8 +179,7 @@ async function checkForUpdates() {
     await getAutoUpdater().checkForUpdates();
   } catch (error) {
     setUpdateState({
-      status: 'error',
-      message: friendlyUpdateError(error).message,
+      ...friendlyUpdateError(error),
       canDownload: false,
       canInstall: false,
     });
@@ -195,13 +197,13 @@ async function downloadUpdate() {
     message: '正在准备下载 GitHub 最新安装包...',
     canDownload: false,
     canInstall: false,
+    progress: null,
   });
   try {
     await getAutoUpdater().downloadUpdate();
   } catch (error) {
     setUpdateState({
-      status: 'error',
-      message: friendlyUpdateError(error).message,
+      ...friendlyUpdateError(error),
       canDownload: false,
       canInstall: false,
     });

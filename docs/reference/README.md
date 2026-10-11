@@ -35,7 +35,7 @@
 | 文档                             | 内容                                                                  |
 | -------------------------------- | --------------------------------------------------------------------- |
 | [main.md](desktop/main.md)       | 主进程:窗口、单实例、userData、`local-media://`、请求头伪装、关闭握手 |
-| [windows.md](desktop/windows.md) | 辅助窗口:歌词窗、音乐登录窗、B站登录窗                                |
+| [windows.md](desktop/windows.md) | 辅助窗口:音乐登录窗、B站登录窗                                |
 | [auth.md](desktop/auth.md)       | 登录与会话:分区模型、登录 URL、Cookie 加密快照与注入契约              |
 | [preload.md](desktop/preload.md) | IPC 注册表、contextBridge 桥与调用方地图            |
 | [update.md](desktop/update.md)   | 自动更新运行时状态机与状态载荷                                            |

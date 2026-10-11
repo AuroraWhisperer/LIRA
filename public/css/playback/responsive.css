@@ -314,6 +314,10 @@
     height: 16px;
   }
 
+  .playback-navigation[data-workspace='appearance'] .source-tab-label {
+    transform: translateX(-10px);
+  }
+
   .playback-navigation .playback-workspace-button {
     padding-inline: 8px;
   }

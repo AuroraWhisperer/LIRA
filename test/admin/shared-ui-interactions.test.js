@@ -235,10 +235,14 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   assert.equal(await page.getByRole('tabpanel', { name: '网易云音乐', exact: true }).count(), 1);
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackAppearanceToggle');
+  const musicNavigationHeight = await page.locator('.playback-navigation').evaluate(node => node.offsetHeight);
   await page.keyboard.press('Enter');
   assert.equal(await page.locator('#playerAppearance').isVisible(), true);
   assert.equal(await page.locator('#playbackMusicWorkspace').isVisible(), false);
   assert.equal(await page.locator('#playbackSourceTabs').evaluate(node => node.inert), true);
+  assert.equal(await page.locator('#playbackSourceTabs').isVisible(), true, 'Collapsed platform names remain visible as a summary.');
+  assert.deepEqual(await page.locator('.source-tab-label').allTextContents(), ['QQ音乐', '网易云音乐', '全民 K歌']);
+  assert.equal(await page.locator('.playback-navigation').evaluate(node => node.offsetHeight), musicNavigationHeight);
   await page.keyboard.press('Shift+Tab');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackMusicToggle');
   await page.keyboard.press('Enter');
