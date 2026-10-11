@@ -2,11 +2,14 @@ import { renderTextBox } from '../shared/text-box-renderer.js';
 import { normalizeTextBoxConfig } from '../shared/text-box-config.js';
 import { previewElement } from './component-preview-surface.js';
 import { mountTextBoxFormatControls } from './text-box-format-controls.js';
+import { colorWithAlpha } from '../shared/color-value.js';
+import { colorPickerContains } from '../shared/color-picker.js';
 
 function hexColor(value) {
-  if (/^#[\da-f]{6}$/i.test(value)) return value;
-  const channels = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  return channels ? `#${channels.slice(1).map(value => Number(value).toString(16).padStart(2, '0')).join('')}` : null;
+  if (/^#[\da-f]{6}(?:[\da-f]{2})?$/i.test(value)) return value;
+  const channels = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
+  return channels ? colorWithAlpha(`#${channels.slice(1, 4).map(value => Number(value).toString(16).padStart(2, '0')).join('')}`,
+    channels[4] === undefined ? 1 : Number(channels[4])) : null;
 }
 
 export function readTextBoxNodes(editor, config, range) {
@@ -194,7 +197,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
     if (applyingCommand) return;
     const activeRange = currentRange();
     if (activeRange) savedRange = activeRange.cloneRange();
-    const toolbarFocused = toolbar.contains(document.activeElement);
+    const toolbarFocused = toolbar.contains(document.activeElement) || colorPickerContains(toolbar, document.activeElement);
     const range = activeRange || (toolbarFocused ? savedRange : null);
     toolbar.hidden = disabled || !hasTextSelection(range) || !(document.activeElement === editor || toolbarFocused);
     if (!toolbar.hidden) {

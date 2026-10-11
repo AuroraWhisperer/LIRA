@@ -302,7 +302,7 @@ test('every component combines built-in, standalone and suite styles in its own 
     const { COMPONENT_PREVIEW_DEFINITIONS } = await import('/js/admin/component-preview-definitions.js');
     const { SCENE_EXTRA_COMPONENTS } = await import('/js/shared/scene-extra-components.js');
     return Object.entries(COMPONENT_PREVIEW_DEFINITIONS).filter(([id]) => id !== 'browser')
-      .map(([id, definition]) => ({ id, category: definition.category || id,
+      .map(([id, definition]) => ({ id, category: id === 'interactions' ? 'interactions-poll' : definition.category || id,
         subcategory: definition.category ? SCENE_EXTRA_COMPONENTS[id].title : null,
         hasBuiltins: !['background', 'gift-frame'].includes(id) }));
   });
@@ -537,9 +537,13 @@ test('background controls keep author defaults, instance isolation and published
   await field('blur').fill('8');
   await field('fit').selectOption('cover');
   await page.locator('.background-parameters summary').filter({ hasText: '基础调色' }).click();
-  for (const [key, value] of Object.entries({ brightness: '120', saturation: '70', contrast: '90', overlayOpacity: '25' })) {
+  for (const [key, value] of Object.entries({ brightness: '120', saturation: '70', contrast: '90' })) {
     await field(key).fill(value);
   }
+  await field('overlayColor').click();
+  const colorPicker = page.getByRole('dialog', { name: '颜色与不透明度' });
+  await colorPicker.getByLabel('不透明度（%）', { exact: true }).fill('25');
+  await colorPicker.getByRole('button', { name: '完成' }).click();
   await field('overlayColor').fill('#123456');
   await page.waitForFunction(() => document.querySelector('[data-component-parameter="opacity"]').value === '55');
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.at(-1).appearance.config.overlayColor === '#123456');

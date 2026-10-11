@@ -67,7 +67,7 @@ const DEFAULT_SETTINGS = {
   customReplyRules: '[]',
   queueLimit: '50',
   userCooldownSeconds: '0',
-  scrollSeconds: '45',
+  scrollSeconds: '20',
   queueScrollMode: 'bounce',
   queueScrollSpeed: '80',
   identityQueueScrollSpeed: '80',

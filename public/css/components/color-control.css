@@ -1,4 +1,4 @@
-/* Native picker, with a shared full-width swatch and value presentation. */
+/* Shared color and alpha control; the original input remains the event target. */
 .lira-color-control {
   position: relative;
   display: block;
@@ -30,6 +30,8 @@
 .lira-color-control > input::-webkit-color-swatch {
   border: 1px solid var(--border);
   border-radius: 4px;
+  background: linear-gradient(var(--color-control-value), var(--color-control-value)),
+    repeating-conic-gradient(var(--color-bg-primary) 0 25%, var(--border) 0 50%) 0 / 8px 8px !important;
 }
 .lira-color-control > input::-moz-color-swatch {
   width: calc(var(--color-control-height, 36px) - 12px);
@@ -48,13 +50,18 @@
   inset-block: 0;
   inset-inline-start: calc(var(--color-control-height, 36px) + 10px);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  align-items: start;
   color: inherit;
   font-size: inherit;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
+  line-height: 1;
 }
+.lira-color-alpha-value { font-size: 12px; color: var(--muted); }
 .lira-color-control:has(> input:disabled) {
   opacity: 0.55;
 }
@@ -64,3 +71,52 @@
 .lira-color-control:has(> input[hidden]) {
   display: none;
 }
+.lira-color-opacity-source { display: none !important; }
+
+.lira-color-picker {
+  position: fixed;
+  inset: auto;
+  box-sizing: border-box;
+  width: min(320px, calc(100vw - 16px));
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 6px);
+  background: var(--color-bg-primary);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  color-scheme: normal;
+}
+.lira-color-plane {
+  position: relative;
+  height: 150px;
+  margin-bottom: 12px;
+  border-radius: 3px;
+  background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent), var(--picker-hue);
+  touch-action: none;
+  cursor: crosshair;
+}
+.lira-color-plane > span {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px #0008;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.lira-color-picker label { display: grid; gap: 5px; margin: 0; color: inherit; font-size: 12px; }
+.lira-color-picker :is(.lira-color-hue-label, .lira-color-opacity-label) { grid-template-columns: 60px 1fr; align-items: center; margin-bottom: 12px; }
+.lira-color-picker input[type='range'] { appearance: none; width: 100%; min-width: 0; height: 12px; margin: 0; padding: 0; border: 0; border-radius: 3px; }
+.lira-color-hue { background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+.lira-color-opacity { background: linear-gradient(to right, transparent, var(--picker-color)), repeating-conic-gradient(var(--color-bg-primary) 0 25%, var(--border) 0 50%) 0 / 8px 8px; }
+.lira-color-picker input[type='range']::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border: 2px solid var(--text); border-radius: 50%; background: var(--color-bg-primary); cursor: pointer; }
+.lira-color-channels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.lira-color-picker input:not([type='range']) { box-sizing: border-box; width: 100%; min-width: 0; height: 32px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 3px; background: var(--color-bg-primary); color: inherit; font: inherit; font-variant-numeric: tabular-nums; }
+.lira-color-picker .lira-color-hex-label { grid-template-columns: 60px 1fr; align-items: center; }
+.lira-color-picker-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.lira-color-picker-footer button { min-height: 28px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 3px; background: var(--color-bg-primary); color: var(--text); font: inherit; cursor: pointer; }
+.lira-color-picker :is(input, button):focus-visible { outline: 2px solid var(--color-control-focus, var(--primary)); outline-offset: 2px; }

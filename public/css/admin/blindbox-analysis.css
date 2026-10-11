@@ -101,7 +101,6 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-close:focus-visible,
 .blind-analysis-toolbar button:focus-visible,
-.blind-analysis-select:focus-visible,
 .blind-analysis-pagination button:focus-visible {
   outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
@@ -207,135 +206,23 @@ body.blind-analysis-open .playback-player-panel {
   line-height: var(--type-leading-caption);
 }
 
-.blind-analysis-select {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 38px;
-  padding: 0 11px 0 13px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--surface);
+.blind-analysis-filter .lira-select {
   color: var(--text);
   font-size: var(--type-size-control);
-  font-weight: var(--type-weight-bold);
+  font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-control);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    background-color 140ms ease,
-    box-shadow 140ms ease;
 }
 
-.blind-analysis-select:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-bg-tertiary);
+.blind-analysis-filter .lira-select-trigger {
+  min-height: 38px;
 }
 
-.blind-analysis-select[aria-expanded='true'] {
-  border-color: var(--color-control-accent);
-}
-
-.blind-analysis-select:focus-visible {
-  outline: 2px solid var(--color-control-focus);
-  outline-offset: -2px;
-}
-
-.blind-analysis-select > span {
-  overflow: hidden;
-  flex: 1 1 auto;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.blind-analysis-select svg {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  color: var(--muted);
-  transition: transform 160ms ease;
-}
-
-.blind-analysis-select[aria-expanded='true'] svg {
-  transform: rotate(180deg);
-}
-
-.blind-analysis-select-menu {
-  position: absolute;
-  top: calc(100% + 7px);
-  left: 0;
-  z-index: 10;
+/* Viewer names can be long: let the shared menu grow past the trigger. */
+.blind-analysis-filter .lira-select-menu {
+  right: auto;
   width: max(100%, 240px);
   max-width: min(360px, calc(100vw - 32px));
   max-height: min(320px, calc(100vh - 250px));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 5px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: var(--shadow-floating);
-  scrollbar-color: var(--scrollbar-thumb, #b7c2c9) transparent;
-  scrollbar-width: thin;
-}
-
-.blind-analysis-select-menu[hidden] {
-  display: none;
-}
-
-.blind-analysis-select-menu::-webkit-scrollbar {
-  width: 8px;
-}
-
-.blind-analysis-select-menu::-webkit-scrollbar-thumb {
-  border: 2px solid var(--surface);
-  border-radius: 8px;
-  background: var(--scrollbar-thumb, #b7c2c9);
-}
-
-.blind-analysis-option {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 36px;
-  padding: 7px 9px;
-  border-radius: 6px;
-  color: var(--text);
-  cursor: pointer;
-  font-size: var(--type-size-control);
-  font-weight: var(--type-weight-medium);
-  line-height: var(--type-leading-control);
-  overflow-wrap: anywhere;
-}
-
-.blind-analysis-option::before {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  content: '';
-}
-
-.blind-analysis-option:hover,
-.blind-analysis-option.focused {
-  background: var(--color-bg-tertiary);
-}
-
-.blind-analysis-option:focus-visible {
-  outline: 2px solid var(--color-control-focus);
-  outline-offset: -2px;
-}
-
-.blind-analysis-option[aria-selected='true'] {
-  background: var(--color-primary-light);
-  color: var(--primary-strong);
-  font-weight: var(--type-weight-bold);
-}
-
-.blind-analysis-option[aria-selected='true']::before {
-  background: no-repeat center / 16px 16px
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 10 3 3 7-7' stroke='%232f62d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 .blind-analysis-clear {
@@ -572,7 +459,7 @@ body.blind-analysis-open .playback-player-panel {
     min-width: 0;
   }
 
-  .blind-analysis-select-menu {
+  .blind-analysis-filter .lira-select-menu {
     width: 100%;
   }
 

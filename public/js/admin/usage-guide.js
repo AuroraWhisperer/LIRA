@@ -57,7 +57,7 @@ export function initUsageGuide() {
     const available = Math.min(scrollerBottom, window.innerHeight) - toc.getBoundingClientRect().bottom - 12;
     toc.style.setProperty('--usage-guide-toc-max-height', `${Math.max(0, available)}px`);
     if (tocAtTop) {
-      panel.style.setProperty('--usage-guide-toc-space', `${tocMenu.getBoundingClientRect().height + 6}px`);
+      panel.style.setProperty('--usage-guide-toc-space', `${tocMenu.getBoundingClientRect().height}px`);
     }
   }
 

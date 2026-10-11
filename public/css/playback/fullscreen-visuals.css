@@ -2,24 +2,29 @@
 .player-fs-bg {
   position: absolute;
   inset: 0;
-  background-size: cover;
-  background-position: center;
-  filter: blur(80px);
-  transform: scale(1.15);
+  overflow: hidden;
   opacity: 1;
-  transition: background-image 600ms ease;
-  background-image:
-    radial-gradient(at 18% 14%, var(--client-player-bg-1, var(--fsbg-1)) 0px, transparent 55%),
-    radial-gradient(at 82% 12%, var(--client-player-bg-2, var(--fsbg-2)) 0px, transparent 55%),
-    radial-gradient(at 24% 82%, var(--client-player-bg-3, var(--fsbg-3)) 0px, transparent 55%),
-    radial-gradient(at 78% 86%, var(--client-player-bg-4, var(--fsbg-4)) 0px, transparent 55%),
-    linear-gradient(160deg, var(--client-player-bg-base, var(--fsbg-base)) 0%, var(--client-player-bg-5, var(--fsbg-5)) 100%);
+  background: var(--client-player-bg-base, var(--fsbg-base));
   --fsbg-1: #fbcfe8;
   --fsbg-2: #fde68a;
   --fsbg-3: #bfdbfe;
   --fsbg-4: #f9a8d4;
   --fsbg-5: #fce7f3;
   --fsbg-base: #fdf2f8;
+}
+
+.player-fs-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  filter: blur(80px);
+  transform: scale(1.15);
+  background-image:
+    radial-gradient(at 18% 14%, var(--client-player-bg-1, var(--fsbg-1)) 0px, transparent 55%),
+    radial-gradient(at 82% 12%, var(--client-player-bg-2, var(--fsbg-2)) 0px, transparent 55%),
+    radial-gradient(at 24% 82%, var(--client-player-bg-3, var(--fsbg-3)) 0px, transparent 55%),
+    radial-gradient(at 78% 86%, var(--client-player-bg-4, var(--fsbg-4)) 0px, transparent 55%),
+    linear-gradient(160deg, var(--client-player-bg-base, var(--fsbg-base)) 0%, var(--client-player-bg-5, var(--fsbg-5)) 100%);
 }
 
 .player-fs-bg.theme-1 {
@@ -383,7 +388,7 @@
   border-radius: 11%;
   background: #fff url('/img/playback/player-turntable-chassis.webp') center / cover no-repeat;
   box-shadow:
-    0 34px 55px rgba(67, 75, 105, 0.22),
+    0 24px 44px rgba(67, 75, 105, 0.14),
     0 8px 18px rgba(67, 75, 105, 0.1),
     inset 0 1px 1px rgba(255, 255, 255, 0.98);
   filter: none;

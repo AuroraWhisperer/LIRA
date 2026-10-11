@@ -1,7 +1,7 @@
-/* Shared option panel. Light pages share one accent; only the dark onboarding variant differs. */
-.lira-select {
+/* Shared option panels. Single-select marks the chosen row with a side bar; multi-select
+   (`.lira-multiselect`) uses checkboxes. Colors derive from the active client theme. */
+:where(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
   --select-accent: var(--color-selection-text, var(--color-primary-text, var(--color-control-accent)));
-  --select-accent-soft: var(--color-control-accent-light);
   --select-surface: var(--color-floating-surface, #fff);
   --select-control-surface: var(--color-control-surface, var(--select-surface));
   --select-border: var(--color-border-default, #d9e0e8);
@@ -9,15 +9,36 @@
   --select-control-border-hover: var(--color-control-border-hover, var(--color-border-strong));
   --select-text: var(--text);
   --select-muted: var(--muted);
-  --select-option-hover: var(--color-bg-hover, var(--color-bg-tertiary));
+  --select-option-text: var(--color-text-secondary, var(--select-muted));
+  --select-option-hover: color-mix(in srgb, var(--select-text) 6%, transparent);
+  --select-selected-fill: color-mix(in srgb, var(--color-primary) 11%, var(--select-surface));
+  --select-selected-edge: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  --select-marker: var(--color-selection-marker, var(--color-primary));
+  --select-marker-glow: none;
+  --select-check-fill: var(--color-primary-fill, var(--color-primary));
+  --select-check-ink: var(--color-on-primary, #fff);
+  --select-ring: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  --select-chevron-well: color-mix(in srgb, var(--select-text) 6%, transparent);
+  --select-highlight: rgba(255, 255, 255, 0.7);
+  --select-menu-shadow:
+    0 1px 2px color-mix(in srgb, var(--select-text) 6%, transparent),
+    0 14px 34px -8px color-mix(in srgb, var(--select-text) 22%, transparent);
+}
+
+.lira-select,
+.lira-multiselect {
   position: relative;
   width: 100%;
   min-width: 0;
 }
 
+.lira-multiselect {
+  color: var(--select-text);
+  font-weight: var(--type-weight-regular);
+}
+
 .lira-select[data-select-variant='onboarding'] {
   --select-accent: #f5b72f;
-  --select-accent-soft: rgba(245, 183, 47, 0.14);
   --select-option-hover: rgba(255, 255, 255, 0.09);
   --select-surface: #242a3a;
   --select-control-surface: var(--select-surface);
@@ -26,6 +47,14 @@
   --select-control-border-hover: var(--select-accent);
   --select-text: #f4f6fb;
   --select-muted: #b8bfce;
+  --select-option-text: #dfe3ec;
+  --select-selected-fill: rgba(245, 183, 47, 0.14);
+  --select-selected-edge: rgba(245, 183, 47, 0.3);
+  --select-marker: var(--select-accent);
+  --select-ring: rgba(245, 183, 47, 0.22);
+  --select-chevron-well: rgba(255, 255, 255, 0.08);
+  --select-highlight: rgba(255, 255, 255, 0.05);
+  --select-menu-shadow: 0 18px 40px -6px rgba(0, 0, 0, 0.6);
 }
 
 .lira-select-native {
@@ -51,26 +80,37 @@
   gap: 10px;
   width: 100%;
   min-height: 36px;
-  padding: 7px 10px;
+  padding: 6px 6px 6px 12px;
   border: 1px solid var(--select-control-border);
   border-radius: var(--radius-control, 7px);
   background: var(--select-control-surface);
+  box-shadow: var(--shadow-sm, none), inset 0 1px 0 var(--select-highlight);
   color: var(--select-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  list-style: none;
   transition:
     border-color 140ms ease,
     background-color 140ms ease,
     box-shadow 140ms ease;
 }
 
+.lira-select-trigger::-webkit-details-marker {
+  display: none;
+}
+
+:is(.lira-select, .lira-multiselect) .lira-select-trigger {
+  font-weight: var(--type-weight-medium);
+}
+
 .lira-select-trigger:hover:not(:disabled) {
   border-color: var(--select-control-border-hover);
 }
 
-.lira-select.is-open .lira-select-trigger {
+:is(.lira-select.is-open, .lira-multiselect[open]) .lira-select-trigger {
   border-color: var(--select-accent);
+  box-shadow: 0 0 0 3px var(--select-ring), inset 0 1px 0 var(--select-highlight);
 }
 
 .lira-select-trigger:focus-visible {
@@ -85,6 +125,7 @@
 }
 
 .lira-select-value {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -95,14 +136,17 @@
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--select-chevron-well);
   color: var(--select-muted);
   transform: rotate(0deg);
   transform-origin: center;
   transition:
     transform 140ms ease,
-    color 140ms ease;
+    color 140ms ease,
+    background 140ms ease;
 }
 
 .lira-select-chevron::before {
@@ -114,11 +158,24 @@
   transform: translateY(-2px) rotate(45deg);
 }
 
-.lira-select.is-open .lira-select-chevron {
+:is(.lira-select.is-open, .lira-multiselect[open]) .lira-select-chevron {
+  background: var(--select-selected-fill);
   color: var(--select-accent);
   transform: rotate(180deg);
 }
 
+.lira-multiselect-hint {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--select-chevron-well);
+  color: var(--select-muted);
+  font-size: var(--type-size-micro);
+  line-height: var(--type-leading-micro);
+  white-space: nowrap;
+}
+
+.lira-multiselect-menu,
 .lira-select-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -128,11 +185,11 @@
   max-height: min(320px, 45vh);
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 5px;
+  padding: 6px;
   border: 1px solid var(--select-border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--select-surface);
-  box-shadow: var(--shadow-floating, 0 12px 28px rgba(24, 24, 22, 0.14));
+  box-shadow: var(--select-menu-shadow), inset 0 1px 0 var(--select-highlight);
   color: var(--select-text);
   scrollbar-color: color-mix(in srgb, var(--select-accent) 35%, var(--select-border)) transparent;
   animation: lira-select-menu-in 140ms ease-out;
@@ -147,17 +204,38 @@
   display: none;
 }
 
-.lira-select-option {
+.lira-select-menu:not([hidden]),
+.lira-multiselect-options {
+  display: grid;
+  gap: 2px;
+}
+
+.lira-multiselect-menu {
+  overflow: visible;
+  max-height: none;
+}
+
+.lira-multiselect-options {
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lira-select-option,
+.lira-multiselect-option {
+  position: relative;
   display: flex;
   align-items: center;
+  gap: 10px;
   width: 100%;
-  min-height: 34px;
-  padding: 7px 9px;
+  min-height: 36px;
+  padding: 7px 10px 7px 16px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 8px;
   background: transparent;
-  color: inherit;
+  color: var(--select-option-text);
   font: inherit;
+  font-weight: var(--type-weight-regular);
   text-align: left;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -167,28 +245,80 @@
     color 100ms ease;
 }
 
-.lira-select-option:hover:not(:disabled, [aria-disabled='true']),
-.lira-select-option.is-keyboard-focused:not(:disabled, [aria-disabled='true']) {
-  background: var(--select-option-hover);
+/* Outrank the shell-wide `label, button` weight so only the chosen row is bold. */
+:is(.lira-select-menu, .lira-multiselect-menu, .lira-select-panel) :is(.lira-select-option, .lira-multiselect-option) {
+  font-weight: var(--type-weight-regular);
 }
 
-.lira-select-option.is-selected {
-  background: var(--select-accent-soft);
+.lira-multiselect-option {
+  padding-left: 10px;
+}
+
+.lira-select-option:hover:not(:disabled, [aria-disabled='true']),
+.lira-select-option.is-keyboard-focused:not(:disabled, [aria-disabled='true']),
+.lira-select-option:focus-visible,
+.lira-multiselect-option:hover {
+  background: var(--select-option-hover);
+  color: var(--select-text);
+}
+
+.lira-select-option.is-selected,
+.lira-select-option:is([aria-selected='true'], [aria-checked='true']),
+.lira-select-option.is-selected:hover,
+.lira-select-option:is([aria-selected='true'], [aria-checked='true']):hover,
+.lira-multiselect-option:has(input:checked),
+.lira-multiselect-option:has(input:checked):hover {
+  background: var(--select-selected-fill);
+  box-shadow: inset 0 0 0 1px var(--select-selected-edge);
   color: var(--select-accent);
   font-weight: var(--type-weight-semibold);
 }
 
-.lira-select-option.is-selected::after {
-  width: 1em;
-  margin-left: auto;
-  color: var(--select-accent);
-  content: '\2713';
-  font-size: 13px;
-  font-weight: 700;
-  text-align: right;
+.lira-select-option:is(.is-selected, [aria-selected='true'], [aria-checked='true'])::after {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 3px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--select-marker);
+  box-shadow: var(--select-marker-glow);
+  content: '';
+  transform: translateY(-50%);
 }
 
-.lira-select-option:focus-visible {
+.lira-multiselect-option input {
+  display: grid;
+  flex: 0 0 16px;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--select-control-border);
+  border-radius: 5px;
+  background: var(--select-control-surface);
+  appearance: none;
+  cursor: pointer;
+}
+
+.lira-multiselect-option input:checked {
+  border-color: transparent;
+  background: var(--select-check-fill);
+}
+
+.lira-multiselect-option input:checked::after {
+  width: 4px;
+  height: 8px;
+  border-right: 2px solid var(--select-check-ink);
+  border-bottom: 2px solid var(--select-check-ink);
+  content: '';
+  transform: translateY(-1px) rotate(45deg);
+}
+
+.lira-select-option:focus-visible,
+.lira-multiselect-option:has(input:focus-visible) {
   outline: 2px solid color-mix(in srgb, var(--select-accent) 42%, transparent);
   outline-offset: -2px;
 }
@@ -200,22 +330,41 @@
   opacity: 0.55;
 }
 
-:where(html.desktop-shell, html[data-client-theme]) .lira-select:not([data-select-variant='onboarding']) :is(.lira-select-trigger, .lira-select-option):is(:disabled, [aria-disabled='true']) {
+:where(html.desktop-shell, html[data-client-theme]) .lira-select:not([data-select-variant='onboarding']) .lira-select-trigger:disabled {
   background: var(--color-disabled-bg);
   color: var(--color-disabled-text);
   opacity: 1;
+}
+
+:where(html.desktop-shell, html[data-client-theme]) .lira-select:not([data-select-variant='onboarding']) .lira-select-option:is(:disabled, [aria-disabled='true']) {
+  background: transparent;
+  color: var(--color-disabled-text);
+  opacity: 0.8;
 }
 
 :where(html.desktop-shell, html[data-client-theme]) .lira-select:has(select[aria-invalid='true']) .lira-select-trigger {
   border-color: var(--color-danger);
 }
 
-:where(html.desktop-shell, html[data-client-theme]) .lira-select:not([data-select-variant='onboarding']) :is(.lira-select-trigger, .lira-select-option):focus-visible {
+:where(html.desktop-shell, html[data-client-theme]) :is(.lira-select:not([data-select-variant='onboarding']), .lira-multiselect) :is(.lira-select-trigger, .lira-select-option):focus-visible,
+:where(html.desktop-shell, html[data-client-theme]) .lira-multiselect-option:has(input:focus-visible) {
   outline-color: var(--color-control-focus);
 }
 
 .lira-select-group {
+  display: grid;
+  gap: 2px;
   padding: 4px 0 0;
+}
+
+.lira-select-group[data-label]::before {
+  padding: 2px 10px 4px;
+  color: var(--select-muted);
+  content: attr(data-label) / '';
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: var(--type-tracking-eyebrow);
+  line-height: var(--type-leading-micro);
 }
 
 .lira-select-group + .lira-select-group {
@@ -228,6 +377,34 @@
   padding: 9px;
   color: var(--select-muted);
   font-size: 13px;
+}
+
+.lira-select-searchable .lira-select-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  margin-bottom: 6px;
+  background: var(--select-surface);
+  color: var(--select-text);
+  font-family: var(--font-ui);
+}
+
+.lira-select-searchable [hidden] {
+  display: none;
+}
+
+.lira-multiselect-clear {
+  width: 100%;
+  min-height: 32px;
+  margin-top: 6px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--select-muted);
+}
+
+.lira-multiselect-clear:disabled {
+  display: none;
 }
 
 @keyframes lira-select-menu-in {
@@ -244,10 +421,12 @@
 @media (prefers-reduced-motion: reduce) {
   .lira-select-trigger,
   .lira-select-chevron,
-  .lira-select-option {
+  .lira-select-option,
+  .lira-multiselect-option {
     transition: none;
   }
-  .lira-select-menu {
+  .lira-select-menu,
+  .lira-multiselect-menu {
     animation: none;
   }
 }

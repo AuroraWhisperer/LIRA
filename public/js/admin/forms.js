@@ -89,6 +89,11 @@ export class FormsService {
     const fsCloseBtn = document.getElementById('playerFsClose');
     const playerDockToggle = document.getElementById('playerDockToggle');
 
+    document.getElementById('playerAppearanceOpenBtn')?.addEventListener('click', () => {
+      this.setPlayerDockCollapsed(false);
+      this.openFullscreenPlayer();
+    });
+
     // 点击播放器面板（排除按钮和输入框）切换全屏
     playerPanel?.addEventListener('click', (e) => {
       if (e.target.closest('button, input, a, .playback-seek-wrap')) return;
@@ -313,7 +318,7 @@ export class FormsService {
 
   normalizeSongScrollSpeedForDisplay(input) {
     const valueNumber = Number(input);
-    if (!Number.isFinite(valueNumber)) return '45';
+    if (!Number.isFinite(valueNumber)) return '20';
     return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
   }
 

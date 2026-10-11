@@ -1,3 +1,5 @@
+import { parseHexColor } from '../shared/color-value.js';
+
 function textAlignToFlex(textAlign) {
   if (textAlign === 'center') return 'center';
   if (textAlign === 'right') return 'flex-end';
@@ -6,11 +8,10 @@ function textAlignToFlex(textAlign) {
 }
 
 function hexWithAlpha(color, alpha) {
-  const match = /^#([0-9a-f]{6})$/i.exec(String(color || ''));
+  const match = parseHexColor(color);
   if (!match) return String(color || 'transparent');
-  const value = Number.parseInt(match[1], 16);
-  const clampedAlpha = Math.max(0, Math.min(1, alpha));
-  return `rgba(${value >> 16}, ${(value >> 8) & 255}, ${value & 255}, ${clampedAlpha})`;
+  const clampedAlpha = Math.max(0, Math.min(1, alpha)) * match.alpha;
+  return `rgba(${match.r}, ${match.g}, ${match.b}, ${clampedAlpha})`;
 }
 
 export function applyDesktopLyricStyles(card, values) {

@@ -1,5 +1,5 @@
 import { toast } from '../../shared/utils.js';
-import { profileRefreshMessage } from './view.js';
+import { rosterUpdateNotices } from './view.js';
 
 export function initFanProfileAutoUpdate({ windowRef = window, notify = toast } = {}) {
   if (!windowRef.fanProfiles) return;
@@ -14,12 +14,13 @@ export function initFanProfileAutoUpdate({ windowRef = window, notify = toast } 
       if (disposed || !result.ok || !result.data) return;
       const update = result.data;
       const label = update.reason === 'startup' ? '启动补更新' : '12:10 定时更新';
-      notify(
-        update.status === 'error'
-          ? `粉丝档案${label}失败：${update.error}`
-          : `粉丝档案${label}完成，已同步大航海名单和陪伴天数。${profileRefreshMessage(update.profileRefresh)}`,
-        { type: update.status === 'error' ? 'error' : update.profileRefresh?.failed ? 'warning' : 'success', duration: 5000 },
-      );
+      if (update.status === 'error') {
+        notify(`粉丝档案${label}失败：${update.error}`, { type: 'error', duration: 5000 });
+      } else {
+        for (const { message, ...options } of rosterUpdateNotices(update, `粉丝档案${label}完成。`)) {
+          notify(message, options);
+        }
+      }
     } catch (_) {
       // Login/navigation may temporarily make the desktop bridge unavailable.
       return;

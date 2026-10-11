@@ -4,8 +4,10 @@ import { readAppearanceValue, editStyleOption, resetStyleOptions, isValidFullscr
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 import { componentField, syncComponentFieldValue } from './component-preview-panel.js';
+import { enhanceColorControls } from '../shared/color-control.js';
 
 export function bindDanmakuParameters(root, controller, onError) {
+  enhanceColorControls(root);
   const node = (id) => componentField(root, id);
   const controls = Object.fromEntries(['fontFamily', 'fontSize', 'textColor', 'backgroundOpacity', 'giftImage', 'scrollDirection', 'edgeFade', 'speedPixelsPerSecond', 'centerBias', 'dispersion']
     .map((key) => [key, node(`danmaku${key[0].toUpperCase()}${key.slice(1)}`)]));

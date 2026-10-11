@@ -1,4 +1,5 @@
 import { hexToRgb, overlayLowPowerEnabled, withMultilingualFallback } from './overlay-utils-module.js';
+import { parseHexColor } from '../shared/color-value.js';
 
 // 各页面自己的默认值：调用方只覆盖需要不同的键。
 const THEME_DEFAULTS = Object.freeze({
@@ -32,11 +33,13 @@ export function applyOverlayTheme(root, panel, settings, options = {}) {
   root.style.setProperty('--overlay-primary', resolve('themePrimary', '#ff6f91'));
   root.style.setProperty('--overlay-accent', resolve('themeAccent', '#21b6a8'));
   root.style.setProperty('--overlay-text', resolve('themeText', '#fff7fb'));
-  root.style.setProperty('--overlay-opacity', resolve('themeOpacity', defaults.themeOpacity));
+  const backgroundOpacity = resolve('themeOpacity', defaults.themeOpacity);
+  root.style.setProperty('--overlay-opacity', String(Number(backgroundOpacity) * (parseHexColor(resolve('themeBackground', '#181823'))?.alpha ?? 1)));
   root.style.setProperty('--overlay-radius', `${resolve('themeRadius', defaults.themeRadius)}px`);
   root.style.setProperty('--overlay-font-scale', fontScale());
 
   const primaryRgb = hexToRgb(resolve('themePrimary', '#ff6f91'));
+  root.style.setProperty('--overlay-primary-alpha', String(parseHexColor(resolve('themePrimary', '#ff6f91'))?.alpha ?? 1));
   root.style.setProperty('--overlay-primary-r', String(primaryRgb.r));
   root.style.setProperty('--overlay-primary-g', String(primaryRgb.g));
   root.style.setProperty('--overlay-primary-b', String(primaryRgb.b));
@@ -62,7 +65,7 @@ export function applyOverlayTheme(root, panel, settings, options = {}) {
   root.style.setProperty(
     '--overlay-glow-color',
     glowIntensity > 0
-      ? `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${Math.min(0.25, glowIntensity / 80)})`
+      ? `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${Math.min(0.25, glowIntensity / 80) * (parseHexColor(resolve('themeAccent', '#21b6a8'))?.alpha ?? 1)})`
       : 'transparent',
   );
 
@@ -70,6 +73,7 @@ export function applyOverlayTheme(root, panel, settings, options = {}) {
   panel.classList.toggle('gradient-bg', gradientEnabled);
   if (gradientEnabled) {
     const gradRgb = hexToRgb(resolve('gradientEnd', defaults.gradientEnd) || bgHex);
+    root.style.setProperty('--overlay-gradient-opacity', String(Number(backgroundOpacity) * (parseHexColor(resolve('gradientEnd', defaults.gradientEnd) || bgHex)?.alpha ?? 1)));
     root.style.setProperty('--overlay-gradient-r', String(gradRgb.r));
     root.style.setProperty('--overlay-gradient-g', String(gradRgb.g));
     root.style.setProperty('--overlay-gradient-b', String(gradRgb.b));

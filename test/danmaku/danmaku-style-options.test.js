@@ -244,6 +244,11 @@ test('all styles validate text colors and restore their theme defaults', async (
   const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   for (const [style, limits] of Object.entries(contract.DANMAKU_STYLE_OPTIONS)) {
     assert.equal(contract.styleOptionsFor(style).textColor, limits.defaultTextColor);
+    for (const textColor of ['#AaBbCc80', '#AaBbCc00']) {
+      for (const normalize of [contract.normalizeStyleOptions, browser.normalizeStyleOptions]) {
+        assert.deepEqual(normalize({ [style]: { textColor } }), { [style]: { textColor: textColor.toLowerCase() } });
+      }
+    }
     assert.deepEqual(contract.normalizeStyleOptions({ [style]: { textColor: '#AaBbCc' } }), {
       [style]: { textColor: '#aabbcc' },
     });
@@ -266,7 +271,7 @@ test('all styles validate text colors and restore their theme defaults', async (
     for (const textColor of [
       'red',
       '#abc',
-      '#aabbccdd',
+      '#aabbccd',
       'transparent',
       'url(x)',
       '#aabbcc\n',

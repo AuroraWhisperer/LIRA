@@ -73,10 +73,13 @@ for (const version of ['1', undefined]) {
 test('new and already migrated settings remain stable on repeated startup', (t) => {
   const state = fixture(t, {});
   const first = prepareSettingsBootstrap(state.db).settingsStore.getSettings();
+  assert.equal(first.scrollSeconds, '20');
   state.reopen();
   assert.deepEqual(prepareSettingsBootstrap(state.db).settingsStore.getSettings(), first);
   state.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('12', 'queueSongFontSize');
+  state.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('45', 'scrollSeconds');
   state.reopen();
   prepareSettingsBootstrap(state.db);
   assert.equal(state.value('queueSongFontSize'), '12');
+  assert.equal(state.value('scrollSeconds'), '45');
 });

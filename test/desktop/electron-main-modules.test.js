@@ -158,6 +158,7 @@ test('desktop local font permission requires the exact app origin and explicit a
   assert.match(prompts[0].options.message, /读取本机字体列表/);
   assert.match(prompts[0].options.detail, /点歌板风格 3–6/);
   assert.match(prompts[0].options.detail, /桌面歌词/);
+  assert.match(prompts[0].options.detail, /大播放器/);
   assert.match(prompts[0].options.detail, /不会读取字体文件/);
 
   response = 1;

@@ -18,6 +18,25 @@ function documentFor(type, config = createSceneExtraDefaults(type)) {
       visible: true, locked: false, appearance: { mode: 'independent', config } }] };
 }
 
+test('standalone color alpha survives scene normalization while paired opacity retains its own field', () => {
+  for (const [type, definition] of Object.entries(SCENE_EXTRA_COMPONENTS)) {
+    for (const [key, field] of Object.entries(definition.fields)) {
+      if (field.type !== 'color') continue;
+      if (field.opacity) {
+        const config = normalizeSceneConfig(type, { ...createSceneExtraDefaults(type), [key]: '#123456', [field.opacity]: 0 });
+        assert.equal(config[key], '#123456');
+        assert.equal(Number(config[field.opacity]), 0);
+        continue;
+      }
+      for (const color of ['#12345600', '#12345680', '#123456']) {
+        const config = { ...createSceneExtraDefaults(type), [key]: color };
+        const saved = normalizeSceneDocument(documentFor(type, config), { normalizeConfig: normalizeSceneConfig });
+        assert.equal(saved.items[0].appearance.config[key], color);
+      }
+    }
+  }
+});
+
 test('backgrounds default to empty and preserve explicit legacy presets through template import', () => {
   const { importSceneTemplate } = require('../../public/js/admin/scene-template.js');
   const input = documentFor('background', { style: 'moonlit' });

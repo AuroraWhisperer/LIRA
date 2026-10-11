@@ -3,11 +3,12 @@ import { createFanProfileActions } from './profile-actions.js';
 import { createFanTransferUi } from './transfer-ui.js';
 import { dangerConfirm, toast } from '../../shared/utils.js';
 import { fitTextToWidth } from '../../shared/fit-text-to-width.js';
-import { renderPeople, renderDetail, renderReminders, profileRefreshMessage } from './view.js';
+import { renderPeople, renderDetail, renderReminders, rosterUpdateNotices } from './view.js';
 import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
 import { settingsForm, guardRosterForm } from './forms.js';
 
 let initialized = false;
+const REMINDER_SUMMARY_HIDDEN_KEY = 'liraFanReminderSummaryHidden';
 const CALENDAR_CHANGES = new Set([
   'configure', 'create', 'save', 'save-record', 'resolve-membership', 'reminder-state',
   'suppress', 'unsuppress', 'delete', 'delete-all', 'restore', 'restore-snapshot',
@@ -42,6 +43,12 @@ function createFanUi() {
   };
   let searchTimer;
   let pollTimer;
+  let reminderSummaryHidden = false;
+  try {
+    reminderSummaryHidden = window.localStorage?.getItem(REMINDER_SUMMARY_HIDDEN_KEY) === 'true';
+  } catch {
+    reminderSummaryHidden = false;
+  }
   const renderedMarkup = new WeakMap();
   const formEditor = createFanEditor({ editor, form, onError: (error) => showError(error, true) });
   const openForm = formEditor.open;
@@ -91,7 +98,9 @@ function createFanUi() {
       state.profile = null;
       state.selection++;
       state.tab = 'overview';
-      get('fanRosterResult').hidden = true;
+      get('fanRosterHelp').hideTooltip?.();
+      get('fanRosterHelp').hidden = true;
+      get('fanRosterResult').textContent = '';
       updateMarkup(detailNode, '<p class="fan-empty">登录状态已变化，请重新选择档案。</p>');
     }
     state.contextId = result.contextId;
@@ -217,11 +226,11 @@ function createFanUi() {
     const items = await request('reminders');
     const actionable = items.filter((item) => item.actionable);
     const summary = get('fanReminderSummary');
-    summary.hidden = !actionable.length;
+    summary.hidden = reminderSummaryHidden || !actionable.length;
     updateMarkup(
       summary,
       actionable.length
-        ? `<span>今天与近期有 ${actionable.length} 项重要日子待处理</span><button type="button" data-fan-page="reminders">查看提醒</button>`
+        ? `<span>今天与近期有 ${actionable.length} 项重要日子待处理</span><div class="fan-actions"><button type="button" data-fan-page="reminders">查看提醒</button><button type="button" data-fan-action="hide-reminder-summary" title="仅隐藏本页横幅，不影响提醒和日历">不再显示</button></div>`
         : '',
     );
     updateMarkup(get('fanRemindersPage'), renderReminders(items));
@@ -293,6 +302,16 @@ function createFanUi() {
   }
 
   async function action(name, element) {
+    if (name === 'hide-reminder-summary') {
+      reminderSummaryHidden = true;
+      get('fanReminderSummary').hidden = true;
+      try {
+        window.localStorage?.setItem(REMINDER_SUMMARY_HIDDEN_KEY, 'true');
+      } catch {
+        console.warn('[FanProfiles] 无法保存提醒横幅偏好；本次隐藏仍生效。');
+      }
+      return;
+    }
     if (name === 'cancel-edit') {
       if (get('fanSaveButton').disabled) return;
       editor.close();
@@ -323,14 +342,12 @@ function createFanUi() {
       if (!state.roomId) throw new Error('请先在连接设置中填写直播间号。');
       openForm(guardRosterForm(state.roomId, getBilibiliRoomProfileSnapshot(state.roomId)), async (payload) => {
         const result = await request('sync-guard-roster', payload);
-        const message = (result.total
-          ? `房间 ${result.roomId}：新增 ${result.created} 份档案，更新 ${result.updated} 份，跳过 ${result.skipped} 位。`
-          : `房间 ${result.roomId} 当前没有大航海成员。`) + profileRefreshMessage(result.profileRefresh);
-        get('fanRosterResult').textContent = message;
-        get('fanRosterResult').hidden = false;
+        const notices = rosterUpdateNotices(result);
+        get('fanRosterResult').textContent = notices.map((notice) => notice.message).join(' ');
+        get('fanRosterHelp').hidden = false;
         await load();
         if (state.profile) await select(state.profile.id, false);
-        return { message };
+        return { notices };
       });
       return;
     }

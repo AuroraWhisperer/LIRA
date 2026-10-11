@@ -12,18 +12,23 @@ import { createInteractionClient } from '../shared/interaction-client.js';
 import { renderPollRows, interactionStatus } from '../shared/interaction-view.js';
 import { initInteractionAppearance } from './interaction-appearance.js';
 
-export function initInteractions({ onCollecting = () => {} } = {}) {
+let initialized = false;
+
+export function initInteractions() {
   const root = document.getElementById('interactionsAdmin');
-  if (!root) return;
+  if (initialized || !root) return;
+  initialized = true;
   const get = (id) => document.getElementById(id);
+  const page = get('liveComponentsPage');
+  const panels = [get('livePollFeature'), get('liveRatingFeature')];
   let session = null;
   let host = null;
   let busy = false;
   let polling = null;
+  let pollingRevision = 0;
   let disposed = false;
   let selectedKind = 'poll';
   let appearanceOpen = false;
-  const tabs = [...root.querySelectorAll('[data-interaction-kind]')];
   const client = createInteractionClient({
     onState(state) {
       session = state.session;
@@ -41,7 +46,7 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
     },
   });
   const url = `${localOverlayOrigin()}/interactions`;
-  get('interactionsUrl').textContent = url;
+  get('interactionsSourceUrl').textContent = url;
   get('interactionsUrl').addEventListener('click', () =>
     copyText(url).then(() => toast('互动网页地址已复制')).catch(showError),
   );
@@ -103,45 +108,16 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
   addOption('2');
   const appearance = initInteractionAppearance();
   function renderWorkspace() {
-    if (session) selectedKind = session.kind;
-    for (const tab of tabs) {
-      const active = tab.dataset.interactionKind === selectedKind;
-      tab.setAttribute('aria-selected', String(active));
-      tab.tabIndex = active ? 0 : -1;
-      tab.disabled = busy || Boolean(session && !active);
-      if (active) get('interactionWorkspace').setAttribute('aria-labelledby', tab.id);
-    }
+    const ownSession = session?.kind === selectedKind;
     get('interactionActivityView').hidden = appearanceOpen;
     get('interactionAppearanceView').hidden = !appearanceOpen;
     get('interactionAppearanceToggle').setAttribute('aria-expanded', String(appearanceOpen));
-    get('pollForm').hidden = Boolean(session) || selectedKind !== 'poll';
-    get('ratingForm').hidden = Boolean(session) || selectedKind !== 'rating';
-    get('interactionActivityTitle').textContent = session ? '本场互动' : '本场设置';
+    get('pollForm').hidden = ownSession || selectedKind !== 'poll';
+    get('ratingForm').hidden = ownSession || selectedKind !== 'rating';
+    get('interactionActivityTitle').textContent = ownSession ? '本场结果' : '本场设置';
     get('interactionRatingRulesField').hidden = selectedKind !== 'rating';
     appearance.setKind(selectedKind);
   }
-  tabs.forEach((tab) =>
-    tab.addEventListener('click', () => {
-      selectedKind = tab.dataset.interactionKind;
-      renderWorkspace();
-    }),
-  );
-  root.querySelector('.interaction-tabs').addEventListener('keydown', (event) => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    const available = tabs.filter((tab) => !tab.disabled);
-    if (!available.length) return;
-    event.preventDefault();
-    const current = available.indexOf(document.activeElement);
-    const direction = event.key === 'ArrowLeft' ? -1 : 1;
-    const index =
-      event.key === 'Home'
-        ? 0
-        : event.key === 'End'
-          ? available.length - 1
-          : (current + direction + available.length) % available.length;
-    available[index].focus();
-    available[index].click();
-  });
   get('interactionAppearanceToggle').addEventListener('click', () => {
     appearanceOpen = !appearanceOpen;
     renderWorkspace();
@@ -199,16 +175,17 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
 
   function render() {
     renderWorkspace();
-    const collecting = session?.phase === 'collecting';
-    onCollecting(collecting);
+    const ownSession = session?.kind === selectedKind;
     for (const kind of ['poll', 'rating']) {
       get(`${kind}Fields`).disabled = Boolean(session) || busy;
       get(`${kind}Start`).disabled = Boolean(session) || busy || !host?.ready || Boolean(host?.blockedReason);
     }
-    get('interactionHostStatus').textContent = session
+    get('interactionHostStatus').textContent = session && !ownSession
+      ? `请先到「${session.kind === 'poll' ? '弹幕投票' : '观众评分'}」${session.phase === 'finished' ? '关闭结果' : '结束或取消本场'}，再开始${selectedKind === 'poll' ? '投票' : '评分'}。`
+      : session
       ? `${interactionStatus(session)} · 已收到 ${host?.session?.sessionId === session.sessionId ? host.participants : session.participants || 0} 人${session.receptionInterrupted ? ' · 接收曾中断，可能漏收' : ''}`
       : host?.blockedReason || '准备开始';
-    get('interactionResults').hidden = !session;
+    get('interactionResults').hidden = !ownSession;
     get('interactionSessionTitle').textContent = session?.title || '';
     get('interactionSessionTitle').hidden = !session?.title;
     get('interactionRatingPending').hidden = session?.kind !== 'rating' || session.phase === 'finished';
@@ -226,9 +203,10 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
         session.average === null ? '暂无有效评分' : `平均分 ${session.average.toFixed(2)} / 10`;
   }
   function visible() {
-    return !document.hidden && !root.closest('[hidden]');
+    return !document.hidden && page.classList.contains('active') && !root.closest('[hidden]');
   }
   function syncPolling() {
+    const revision = ++pollingRevision;
     clearTimeout(polling);
     polling = null;
     if (disposed || !visible()) return;
@@ -236,25 +214,37 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
       .load(true)
       .catch(showError)
       .finally(() => {
-        if (!disposed && visible()) polling = setTimeout(syncPolling, 1000);
+        if (!disposed && revision === pollingRevision && visible()) polling = setTimeout(syncPolling, 1000);
       });
   }
-  const observer = new MutationObserver(syncPolling);
-  for (let node = root; node; node = node.parentElement)
-    observer.observe(node, { attributes: true, attributeFilter: ['hidden'] });
+  function syncPanel() {
+    const panel = panels.find((item) => !item.hidden);
+    if (panel) {
+      selectedKind = panel.dataset.interactionKind;
+      // Keep one editor and subscription while each component retains its form draft.
+      if (root.parentElement !== panel) {
+        panel.append(root);
+        appearanceOpen = false;
+      }
+      render();
+    }
+    syncPolling();
+  }
+  const observer = new MutationObserver(syncPanel);
+  for (const panel of panels) observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+  observer.observe(page, { attributes: true, attributeFilter: ['class'] });
   document.addEventListener('visibilitychange', syncPolling);
   const update = (event) => client.receive(event.detail);
   window.addEventListener('app:interaction-update', update);
   const offConnected = eventBus.on('ws:connected', () => {
     client.reset();
-    client.load(true).catch(showError);
+    syncPolling();
   });
   const offGame = () => {
     if (visible()) client.load(true).catch(showError);
   };
   window.addEventListener('app:game-update', offGame);
-  client.load(true).catch(showError);
-  syncPolling();
+  syncPanel();
   window.addEventListener(
     'app:shutdown',
     () => {

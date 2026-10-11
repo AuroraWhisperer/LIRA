@@ -71,6 +71,8 @@ final    → service.finalizeGift(event)  // 收到服务器 final 后立即结�
 
 `remote-catalog-cache.js` 在本地 `data/cache/overtime-gift-catalog-v2.json` 保存 ETag、同步版本、更新时间和 schema 3 原始身份包及兼容的规范化付费礼物数组。首次授权成功后，`gift-catalog-initializer.js` 保持登录页可见，扫描完整目录并从已校验的 Bilibili `sourceUrl` 下载图片；只有缺少可用源地址的条目才下载服务器 `/gift-media/images/<basename>`，B 站失败不会自动转为服务器批量下载。文件按完整礼物身份、源 URL 和已校验服务器图片 URL 的 hash 分离，`data/cache/overtime-gift-images/index.json`（schemaVersion 2，`images` 为 variantId 到安全 basename 的映射）原子保存最近成功图片，换图失败继续使用旧图。完成状态写入 `data/cache/overtime-gift-assets-state-v2.json`。目录不可用且没有旧快照时提供重试；单图失败不永久阻塞。已有完成状态的每次授权启动立即进入 Admin，并以 `If-None-Match` 检查一次；持续运行每 12 小时再检查，关闭时清理定时器。304 也检查本地缺图并补齐。Admin 只接收本地 `/overtime-gift-images/<basename>`，支持离线复用。
 
+schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资料；必需字段与已知字段仍校验，附加字段仅保留在原始磁盘缓存并参与完整业务摘要，不进入 renderer 快照、图片下载或记账。顶层、礼物身份、价格、实际媒体源、特效和盲盒关系仍使用原有严格校验。目录校验失败时保留上一份有效目录；重启会重新检查，但不能自行修复协议不兼容。
+
 `GET /api/overtime/gifts` 与 `POST /api/overtime/gifts/refresh` 不受远程目录是否配置影响，始终读取/刷新房间面板、`giftConfig` 和已配置的在售盲盒展开，不请求个人背包。`GET /api/overtime/gifts/catalog` 返回本地全局快照；`POST /api/overtime/gifts/local/search` 纯本地匹配名称/ID，旧 `/server/search` 只是同一实现的兼容别名。目录变化或缺图修复后，Live 完成图片扫描再通过本地 `/ws` 广播 `gift-catalog:update`，携带本地图片路径及 `assetsUpdatedAt`；Admin 按完整身份更新图片，不把全局成员列表应用成房间主目录。后续实际下载由既有 IPC 进度驱动单条 toast，显示开始、进度、完成或部分失败；无下载时不提示。目录更新不覆盖盲盒映射 `giftBlindBoxConfig`、计时规则或历史账本。所有本地搜索都不读取 Markdown、静态图库或在查询时联网。ICP备案后的公网页面仍使用 lira-server 原有分组 API 与 `/gifts` 路由，不依赖本地目录服务。
 
 ## 2. 状态模型与权威计时

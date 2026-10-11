@@ -389,94 +389,6 @@
 #danmakuWelcomeDependencyHint:not(:empty) {
   margin-top: 8px;
 }
-.danmaku-welcome-preview {
-  margin-top: 16px;
-  padding: 8px 0 0;
-  border: 0;
-  border-top: 1px solid var(--fixed-divider);
-  border-radius: 0;
-  background: transparent;
-  overflow: visible;
-}
-.danmaku-welcome-preview > summary {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  cursor: pointer;
-  min-height: 40px;
-  padding: 6px 0;
-  border: 0;
-  background: transparent;
-  list-style: none;
-}
-.danmaku-welcome-preview > summary::-webkit-details-marker {
-  display: none;
-}
-.danmaku-welcome-preview p {
-  margin: 8px 0;
-  overflow-wrap: anywhere;
-}
-.danmaku-welcome-preview-controls {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: center;
-  gap: 16px;
-  margin: 12px 0 16px;
-}
-.danmaku-welcome-preview-controls > * {
-  min-height: 36px;
-}
-.danmaku-fixed-reply-section .danmaku-welcome-preview-controls label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: auto;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 400;
-}
-.danmaku-welcome-preview-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-}
-.danmaku-welcome-preview-title svg {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.danmaku-welcome-preview[open] .danmaku-welcome-preview-title svg {
-  transform: rotate(180deg);
-}
-.danmaku-welcome-preview-controls .lira-select {
-  width: 132px;
-}
-.danmaku-welcome-preview-example {
-  display: inline-flex;
-  align-items: center;
-}
-#danmakuWelcomePreview :is(#danmakuWelcomePreviewFirst, #danmakuWelcomePreviewSecond) {
-  margin: 8px 0;
-  padding: 12px 16px;
-  border-left: 3px solid var(--accent);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  font-size: 14px;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
-#danmakuWelcomePreview :is(#danmakuWelcomePreviewFirst, #danmakuWelcomePreviewSecond):empty {
-  display: none;
-}
-#danmakuWelcomePreview > p:last-child {
-  margin-bottom: 16px;
-}
 .danmaku-fixed-reply-section :is(button, .lira-select-trigger) {
   font-weight: 500;
   font-size: 13px;
@@ -500,9 +412,6 @@
   min-height: 34px;
   padding: 5px 10px;
   font-size: 14px;
-}
-.danmaku-fixed-reply-section .lira-select-option.is-selected::after {
-  content: none;
 }
 .danmaku-fixed-reply-section select {
   min-height: 32px;
@@ -753,9 +662,6 @@
   }
 }
 @container fixed-replies (width < 900px) {
-  .danmaku-welcome-preview-controls {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .danmaku-welcome-rules {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -773,18 +679,10 @@
     flex-wrap: wrap;
     gap: 8px;
   }
-  .danmaku-welcome-preview > summary {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
-  }
   .danmaku-fixed-reply-section .danmaku-blessing-actions > .hint,
   #danmakuWelcomeParameterStatus,
   #danmakuWelcomeCustomStatus {
     flex-basis: 100%;
-  }
-  .danmaku-welcome-preview-controls {
-    grid-template-columns: minmax(0, 1fr);
   }
   #danmakuDailyLibraryPanel .danmaku-fortune-fields {
     grid-template-columns: minmax(0, 1fr);

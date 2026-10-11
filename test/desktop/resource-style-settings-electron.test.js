@@ -103,12 +103,14 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   await page.locator('#themeForm [data-overlay-style="classic"]').click();
   assert.equal(await queue.isVisible(), false);
   assert.equal(await page.locator('#queueTitleArea').isVisible(), true);
-  const lyrics = await open('配套歌词');
-  await lyrics.getByLabel('字号', { exact: true }).fill('54');
-  await lyrics.getByLabel('字号', { exact: true }).dispatchEvent('change');
-  await lyrics.getByRole('button', { name: '保存设置', exact: true }).click();
-  await lyrics.getByRole('status').filter({ hasText: '已保存并同步到画布' }).waitFor();
-  assert.equal(saved('lyrics').desktopLyricFontSize, '54');
+  await open('配套点歌板');
+  const queueSize = queue.locator('[data-preview-field="identityQueueFontSizeNumber"]');
+  await queueSize.fill('54'); await queueSize.dispatchEvent('change');
+  await queue.getByRole('button', { name: '保存设置', exact: true }).click();
+  await queue.getByRole('status').filter({ hasText: '已保存并同步到画布' }).waitFor();
+  assert.equal(saved('queue').identityQueueFontSize, '54');
+  assert.equal(await page.locator('#desktopLyricForm [data-local-styles]').count(), 0,
+    'Imported lyrics styles are managed in the canvas, outside desktop lyric settings.');
   for (const style of styles) assert.deepEqual(saved(style.type).resourceStyle, style.config.resourceStyle);
   assert.deepEqual(await page.evaluate(() => {
     const ids = [...document.querySelectorAll('[id]')].map(node => node.id);

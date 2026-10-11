@@ -46,10 +46,8 @@ test('select controls preserve focus, accessible roles and keyboard handling', (
   ].join('\n');
 
   assert.match(baseStyles, /select:focus-visible\s*\{[^}]*var\(--color-control-focus\)/);
-  assert.match(blindboxHtml, /aria-haspopup="listbox"/);
-  assert.match(blindboxHtml, /role="listbox"/);
-  assert.match(blindboxJs, /event\.key === 'Escape'/);
-  assert.match(blindboxJs, /event\.key === ' '/);
+  assert.match(blindboxHtml, /<select id="blindBoxAnalysisViewer"/);
+  assert.match(blindboxJs, /event\.key === 'Escape' && state\.open && !event\.defaultPrevented/);
   assert.match(qualityHtml, /role="menu"/);
   assert.match(qualityJs, /focusQualityOption/);
   assert.match(qualityUi, /role="menuitemradio"/);
@@ -79,6 +77,10 @@ test('native select options are rendered through contextual listbox panels', () 
   assert.match(adminCss, /components\/select-menu\.css/);
   assert.match(settings, /data-dropdown-variant="settings"/);
   assert.match(filters, /data-dropdown-variant="filter"/);
+  assert.match(filters, /<details id="categoryFilter" class="lira-multiselect"/);
+  assert.match(filters, /<details id="tagFilter" class="lira-multiselect"/);
+  assert.match(styles, /\.lira-multiselect-option input:checked::after/, 'multi-select rows show a checkbox tick');
+  assert.doesNotMatch(styles, /\\2713/, 'single-select rows are marked without a check mark');
   assert.match(games, /data-dropdown-variant="game"/);
 });
 

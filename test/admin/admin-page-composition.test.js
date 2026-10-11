@@ -62,7 +62,7 @@ test('live components own unique panels while danmaku interaction stays in the t
   const toolbox = readAdminFragment(PUBLIC_DIR, 'pages/admin/toolbox/shell-start.html');
   const html = composeAdminHtml(PUBLIC_DIR);
   const ids = ['liveDanmakuFeature', 'otherGiftFeature', 'giftDisplayFeature', 'giftWishesFeature', 'giftSprintFeature', 'giftBlindboxFeature', 'guardThanksFeature', 'otherTextBoxFeature',
-    'otherOvertimeMachineFeature', 'otherStartAnimationFeature', 'otherClockFeature'];
+    'otherOvertimeMachineFeature', 'otherStartAnimationFeature', 'otherClockFeature', 'livePollFeature', 'liveRatingFeature'];
   for (const id of ids) {
     assert.match(components, new RegExp(`data-other-feature="${id}"`));
     assert.match(components, new RegExp(`id="${id}"`));
@@ -78,6 +78,12 @@ test('live components own unique panels while danmaku interaction stays in the t
   assert.doesNotMatch(components, /id="danmakuSendForm"|id="xiaomiAiSection"/);
   assert.match(toolbox, /data-other-feature="otherDanmakuFeature"/);
   assert.match(toolbox, /<strong>弹幕互动<\/strong>/);
+  const games = readAdminFragment(PUBLIC_DIR, 'pages/admin/toolbox/games.html');
+  for (const id of ['interactionsAdmin', 'pollForm', 'ratingForm', 'interactionAppearanceForm']) {
+    assert.equal(html.split(`id="${id}"`).length, 2, `${id} renders once`);
+    assert.match(components, new RegExp(`id="${id}"`));
+    assert.doesNotMatch(games, new RegExp(`id="${id}"`));
+  }
 });
 
 test('admin composition expands the complete danmaku AI subfragment in place', () => {

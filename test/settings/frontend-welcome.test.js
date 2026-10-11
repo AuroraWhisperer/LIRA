@@ -142,6 +142,7 @@ test('welcome exposes unique initially unavailable controls in its hidden editor
   assert.match(panel, /\shidden(?:\s|>|=)/);
   uniqueTag('danmakuWelcomeList');
   uniqueTag('danmakuWelcomePinyinToggle');
+  assert.doesNotMatch(html, /danmakuWelcomePreview/);
   for (const suffix of ['CustomList', 'CustomAddBtn', 'CustomSaveBtn']) uniqueTag(`danmakuWelcome${suffix}`);
 });
 
@@ -436,7 +437,7 @@ test('empty first-delay and stage levels submit zero; unsupported and malformed 
   assert.match(malformed.get('OverviewStatus').textContent, /尚未确认/);
 });
 
-test('sample preview identifies draft/confirmed values, unknown honor and the five-second gap', async () => {
+test('dependency hint explains the effective greeting honor threshold', async () => {
   const f = await fixture(account('one'), true);
   f.reads[0].resolve(
     savedV2({
@@ -449,16 +450,7 @@ test('sample preview identifies draft/confirmed values, unknown honor and the fi
     }),
   );
   await flush();
-  assert.match(f.get('PreviewSecond').textContent, /10 秒/);
   assert.match(f.get('DependencyHint').textContent, /至少 20 级/);
-  f.get('PreviewLevel').value = 'unknown';
-  f.change('PreviewLevel');
-  assert.match(f.get('PreviewFirst').textContent, /等级未知/);
-  f.parameter('welcomeDelaySeconds', '30');
-  assert.match(f.get('PreviewSummary').textContent, /草稿有错误/);
-  f.get('PreviewSource').value = 'confirmed';
-  f.change('PreviewSource');
-  assert.match(f.get('PreviewSummary').textContent, /已确认设置/);
   assert.equal(f.writes.length, 0);
 });
 

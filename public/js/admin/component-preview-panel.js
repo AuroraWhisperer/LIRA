@@ -1,3 +1,5 @@
+import { enhanceColorControls } from '../shared/color-control.js';
+
 export function componentField(root, id) {
   if (root.getElementById) return root.getElementById(id);
   if (root.id === id || root.dataset?.previewField === id) return root;
@@ -7,7 +9,8 @@ export function componentField(root, id) {
 export function isComponentFieldEditing(control) {
   if (!control) return false;
   const active = (control.ownerDocument || document).activeElement;
-  return control === active || Boolean(control.closest?.('.range-row, .lira-select')?.contains(active));
+  return control === active || control.dataset?.colorEditing === 'true'
+    || Boolean(control.closest?.('.range-row, .lira-select')?.contains(active));
 }
 
 export function syncComponentFieldValue(control, value, force = false) {
@@ -17,7 +20,7 @@ export function syncComponentFieldValue(control, value, force = false) {
 }
 
 export function cloneComponentPanel(source, prefix) {
-  const panel = source.cloneNode(true);
+  const panel = document.importNode(source, true);
   panel.querySelectorAll('[data-resource-style-settings], [data-local-styles]').forEach(node => node.remove());
   const names = new Map();
   for (const node of [panel, ...panel.querySelectorAll('[id]')]) {
@@ -34,5 +37,6 @@ export function cloneComponentPanel(source, prefix) {
     }
     if (node.name) node.name = `${prefix}-${node.name}`;
   }
+  enhanceColorControls(panel);
   return panel;
 }

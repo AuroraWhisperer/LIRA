@@ -26,7 +26,7 @@ export function createBlindBoxDatePicker({ onChange, onOpen }) {
   }
 
   function open() {
-    onOpen();
+    onOpen?.();
     const today = dateKey(new Date());
     startDate = selection?.startDate || today;
     endDate = selection?.endDate || today;

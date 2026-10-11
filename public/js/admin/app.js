@@ -53,6 +53,7 @@ const liveComponentsNavigation = createFeatureNavigation({
   storagePrefix: 'admin.liveComponents',
 });
 const loadGiftAssistant = () => import('./gift-assistant.js').then((module) => module.initGiftAssistant);
+const loadInteractions = () => import('./interactions.js').then((module) => module.initInteractions);
 const liveComponents = createToolboxLifecycle({
   ownerPageId: 'liveComponentsPage',
   loaders: {
@@ -64,6 +65,8 @@ const liveComponents = createToolboxLifecycle({
     guardThanksFeature: loadGiftAssistant,
     otherStartAnimationFeature: () => import('./start-animation.js').then((module) => module.initStartAnimation),
     otherClockFeature: () => import('./clock-card.js').then((module) => module.initClockCard),
+    livePollFeature: loadInteractions,
+    liveRatingFeature: loadInteractions,
     otherTextBoxFeature: () => import('./text-box.js').then((module) => module.initTextBoxes),
     otherOvertimeMachineFeature: () =>
       import('./overtime.js').then((module) => () => module.initOvertime(stateService.getAppState())),
@@ -184,6 +187,7 @@ async function initializeApp() {
     onNavigate: (pageId) => {
       setMainPage(pageId);
       other.selectFeatureById('otherUsageGuideFeature');
+      document.querySelector('#otherUsageGuideFeature a[href="#ug-scene-guide"]')?.click();
     },
   });
   initGiftHistoryDrawer();

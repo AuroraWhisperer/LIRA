@@ -71,7 +71,7 @@ export function applyTheme(settings, style) {
   root.style.setProperty('--scroll-seconds', `${queueScrollSeconds(settings)}s`);
 
   panel.style.backgroundColor =
-    style === 'classic' ? hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity || 0.76) : '';
+    style === 'classic' ? hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity ?? 0.76) : '';
 }
 
 export function setIdentityRuleThemeVars(root, settings) {

@@ -12,7 +12,7 @@ const ROOT_DIR = path.join(__dirname, '../..');
 test('games admin exposes source actions and controls for shared games and the independent wheel', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'games.html'), 'utf8');
   const buttons = [...html.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag);
-  for (const id of ['gamesOverlayUrl', 'wheelOverlayUrl', 'interactionsUrl']) {
+  for (const id of ['gamesOverlayUrl', 'wheelOverlayUrl']) {
     const matches = buttons.filter((tag) => new RegExp('\\sid="' + id + '"').test(tag));
     assert.equal(matches.length, 1, id + ' must be a unique source action');
     assert.match(matches[0], /\stype="button"/);

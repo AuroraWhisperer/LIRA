@@ -104,6 +104,7 @@ const SHOTS = [
     title: '点歌匹配后的下一首播放与跳过通知（示例请求）',
     keepPending: true,
     wait: '#pendingConfirmPopup.visible',
+    clip: '#pendingConfirmPopup',
     annotations: ['#pendingConfirmAcceptBtn', '#pendingConfirmRejectBtn'],
   },
   {
@@ -178,6 +179,7 @@ const SHOTS = [
     title: '播放队列、导入点歌与清空',
     main: 'playbackAssistantPage',
     click: ['#playerDockToggle', '#playbackQueueBtn'],
+    clip: '#queuePopup',
     annotations: ['#playbackImportSongQueue', '#playbackClearQueue'],
   },
   {
@@ -195,6 +197,7 @@ const SHOTS = [
     musicAuth: true,
     click: '[data-playback-home-action="recent"]',
     wait: '#playbackDrawer.open',
+    clip: '#playbackDrawer',
     mustShow: ['#playbackDrawerTitle', '#playbackDrawerClose', '#playbackDrawerPlayAll'],
   },
   {

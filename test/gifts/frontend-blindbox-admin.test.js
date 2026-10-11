@@ -30,9 +30,9 @@ test('blind box analysis is a separate accessible workspace module', () => {
   assert.match(html, /id="blindBoxAnalysisClose"[^>]*aria-label="关闭盲盒分析"/);
   assert.match(html, /id="blindBoxAnalysisViewer"/);
   assert.match(html, /id="blindBoxAnalysisBox"/);
-  assert.match(html, /id="blindBoxAnalysisViewer"[^>]*aria-haspopup="listbox"/);
-  assert.match(html, /id="blindBoxAnalysisViewerMenu"[^>]*role="listbox"/);
-  assert.match(html, /id="blindBoxAnalysisBoxMenu"[^>]*role="listbox"/);
+  assert.match(html, /<select id="blindBoxAnalysisViewer" data-dropdown-variant="filter">/);
+  assert.match(html, /<select id="blindBoxAnalysisBox" data-dropdown-variant="filter">/);
+  assert.doesNotMatch(html, /role="listbox"/, 'filters use the shared select menu instead of a private listbox');
   assert.match(html, /data-blind-analysis-view="users"/);
   assert.match(html, /data-blind-analysis-view="boxes"/);
   assert.match(html, /data-blind-analysis-view="records"/);

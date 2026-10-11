@@ -73,7 +73,7 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   assert.equal(await page.getByRole('tab', { name: '设置', exact: true }).getAttribute('aria-selected'), 'true');
   await page.getByRole('tab', { name: '设置', exact: true }).press('End');
   assert.equal(await page.getByRole('tabpanel', { name: '桌面歌词设置', exact: true }).isVisible(), true);
-  assert.equal(await page.locator('.tabs .tab[tabindex="0"]').count(), 1);
+  assert.equal(await page.locator('#songAssistantPage .tabs .tab[tabindex="0"]').count(), 1);
   await page.locator('#desktopLyricPage details').evaluateAll(nodes => nodes.forEach(node => { node.open = true; }));
   const unnamed = (await page.locator('#desktopLyricPage').ariaSnapshot()).split('\n').filter(line => /^\s*- (checkbox|spinbutton|slider|combobox)(:|\s*\[|\s*$)/.test(line));
   assert.deepEqual(unnamed, []);
@@ -88,7 +88,7 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
     await page.mouse.click(bounds.x + bounds.width * x, bounds.y + bounds.height * y);
     assert.equal(await overlayTab.getAttribute('aria-selected'), 'true', `Clicking the ${edge} tab edge selects browser sources.`);
     assert.equal(await page.getByRole('tabpanel', { name: '浏览器源', exact: true }).isVisible(), true);
-    assert.equal(await page.locator('.tabs .tab[aria-selected="true"]').count(), 1);
+    assert.equal(await page.locator('#songAssistantPage .tabs .tab[aria-selected="true"]').count(), 1);
   }
   await page.getByRole('tab', { name: '展示板', exact: true }).click();
   const overlayHelp = overlayTabArea.locator('lira-help');

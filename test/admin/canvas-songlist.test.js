@@ -40,6 +40,12 @@ test('song board parameters reach the canvas renderer and persist into the live 
       } else await field.selectOption(value);
     }
     else if (kind === 'checkbox') await field.setChecked(value === 'true');
+    else if (key === 'songBoardThemeOpacity') {
+      await page.locator('[data-component-parameter="songBoardThemeBackground"]').click();
+      const picker = page.getByRole('dialog', { name: '颜色与不透明度' });
+      await picker.getByLabel('不透明度（%）', { exact: true }).fill(String(Number(value) * 100));
+      await picker.getByRole('button', { name: '完成' }).click();
+    }
     else if (kind === 'color') {
       const inherit = field.locator('..').locator('input[type="checkbox"]');
       if (await inherit.count()) await inherit.uncheck();

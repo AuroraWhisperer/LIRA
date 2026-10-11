@@ -109,6 +109,7 @@ const BROWSER_GLOBALS = new Set(
     'URL',
     'URLSearchParams',
     'DOMParser',
+    'Option',
     'Image',
     'Audio',
     'Worker',

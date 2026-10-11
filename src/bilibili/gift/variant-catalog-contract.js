@@ -16,13 +16,19 @@ const METADATA_INTEGERS = [
   'privilegeRequired',
 ];
 
-function record(value, required, optional = []) {
+function recordWithRequiredFields(value, required) {
   return (
     value !== null &&
     typeof value === 'object' &&
     !Array.isArray(value) &&
-    required.every((key) => Object.hasOwn(value, key)) &&
-    Object.keys(value).every((key) => required.includes(key) || optional.includes(key))
+    required.every((key) => Object.hasOwn(value, key))
+  );
+}
+
+function record(value, required) {
+  return (
+    recordWithRequiredFields(value, required) &&
+    Object.keys(value).every((key) => required.includes(key))
   );
 }
 
@@ -90,11 +96,12 @@ function validEffect(effect) {
 
 function validMetadata(item) {
   const metadata = item.metadata;
+  // New descriptive fields remain opaque and covered by the catalog digest.
+  // Only the validated variant fields become display or media-download inputs.
   if (
-    !record(
+    !recordWithRequiredFields(
       metadata,
       ['id', 'name', 'price', 'coinType', 'bagGift', 'desc', 'webpUrl', 'mp4Url', 'layoutUrl'],
-      [...METADATA_INTEGERS, 'rule', 'rights', 'countMap'],
     ) ||
     metadata.id !== Number(item.giftId) ||
     metadata.name !== item.name ||
@@ -119,7 +126,7 @@ function validMetadata(item) {
         metadata.countMap.length > 0 &&
         metadata.countMap.every(
           (entry) =>
-            record(entry, ['num'], ['text', 'desc', 'effectId']) &&
+            recordWithRequiredFields(entry, ['num']) &&
             Number.isSafeInteger(entry.num) &&
             entry.num > 0 &&
             ['text', 'desc'].every(

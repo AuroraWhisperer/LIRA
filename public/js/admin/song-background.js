@@ -66,11 +66,12 @@ function renderSongBackground(response, elements, previewUrl) {
   preview.hidden = !previewUrl;
   empty.hidden = true;
   deleteButton.hidden = false;
-  const bytes = Number(background.bytes);
-  const size = Number.isFinite(bytes) ? `${(bytes / 1024).toFixed(0)} KB` : '';
   const updatedAt = background.updatedAt ? new Date(background.updatedAt) : null;
-  const updated = updatedAt && !Number.isNaN(updatedAt.getTime()) ? `更新于 ${updatedAt.toLocaleString('zh-CN')}` : '';
-  meta.textContent = [updated, size].filter(Boolean).join(' · ');
+  meta.textContent = updatedAt && !Number.isNaN(updatedAt.getTime())
+    ? `更新于 ${updatedAt.toLocaleString('zh-CN', {
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+    })}`
+    : '';
 }
 
 export async function initCloudSongBackground() {
@@ -90,6 +91,14 @@ export async function initCloudSongBackground() {
   const previewRequest = new AbortController();
   let disposed = false;
   let objectUrl = '';
+  let resultTimer = null;
+  function setResult(message, transient = false) {
+    if (resultTimer !== null) clearTimeout(resultTimer);
+    resultTimer = null;
+    if (disposed) return;
+    result.textContent = message;
+    if (transient) resultTimer = setTimeout(() => setResult(''), 4000);
+  }
   function releasePreview() {
     if (objectUrl) URL.revokeObjectURL(objectUrl);
     objectUrl = '';
@@ -102,11 +111,12 @@ export async function initCloudSongBackground() {
   }
   window.addEventListener('pagehide', () => {
     disposed = true;
+    if (resultTimer !== null) clearTimeout(resultTimer);
     previewRequest.abort();
     releasePreview();
   }, { once: true });
   preview.addEventListener('error', () => {
-    result.textContent = '背景已保存，但预览加载失败，请重新打开此页面重试。';
+    setResult('背景已保存，但预览加载失败，请重新打开此页面重试。');
   });
   section.hidden = false;
 
@@ -123,7 +133,7 @@ export async function initCloudSongBackground() {
       showBackground(response, await images.read(url, previewRequest.signal));
     } catch (_) {
       showBackground(response);
-      result.textContent = '背景已保存，但预览加载失败，请重新打开此页面重试。';
+      setResult('背景已保存，但预览加载失败，请重新打开此页面重试。');
     }
     return response;
   }
@@ -143,15 +153,15 @@ export async function initCloudSongBackground() {
     event.target.value = '';
     if (!file) return;
     if (file.size > SONG_BACKGROUND_MAX_BYTES) {
-      result.textContent = '图片超过 5MB，请压缩后再上传。';
+      setResult('图片超过 5MB，请压缩后再上传。');
       return;
     }
     setBusy(true);
-    result.textContent = '正在压缩图片…';
+    setResult('正在压缩图片…');
     try {
       const blob = await prepareSongBackground(file);
       await images.stage(blob);
-      result.textContent = '正在上传…';
+      setResult('正在上传…');
       const bytes = new Uint8Array(await blob.arrayBuffer());
       const response = assertSongBackgroundResponse(
         await window.liraLicense.uploadSongPageBackground(bytes, 'song-background.webp'),
@@ -160,9 +170,9 @@ export async function initCloudSongBackground() {
       if (!url) throw new Error('BACKGROUND_URL_INVALID');
       const saved = await images.publish(url, blob);
       showBackground(response, blob);
-      result.textContent = saved ? '背景已更新，已保存本地副本。' : '背景已更新；本地缓存未能保存，下次打开时将重新加载。';
+      setResult(saved ? '背景已更新' : '背景已更新；本地缓存未能保存，下次打开时将重新加载。', saved);
     } catch (error) {
-      result.textContent = `上传失败：${getSongBackgroundErrorMessage(error)}`;
+      setResult(`上传失败：${getSongBackgroundErrorMessage(error)}`);
     } finally {
       await images.discardDraft();
       setBusy(false);
@@ -172,14 +182,14 @@ export async function initCloudSongBackground() {
   deleteButton.addEventListener('click', async () => {
     if (deleteButton.disabled) return;
     setBusy(true);
-    result.textContent = '正在恢复默认背景…';
+    setResult('正在恢复默认背景…');
     try {
       const response = assertSongBackgroundResponse(await window.liraLicense.deleteSongPageBackground());
       await images.clear();
       showBackground(response);
-      result.textContent = '已恢复默认水彩背景。';
+      setResult('已恢复默认水彩背景。', true);
     } catch (error) {
-      result.textContent = `恢复失败：${getSongBackgroundErrorMessage(error)}`;
+      setResult(`恢复失败：${getSongBackgroundErrorMessage(error)}`);
     } finally {
       setBusy(false);
     }
@@ -188,7 +198,7 @@ export async function initCloudSongBackground() {
   try {
     await refreshSongBackground();
   } catch (error) {
-    result.textContent = `读取背景失败：${getSongBackgroundErrorMessage(error)}`;
+    setResult(`读取背景失败：${getSongBackgroundErrorMessage(error)}`);
   } finally {
     setBusy(false);
   }

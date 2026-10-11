@@ -92,34 +92,13 @@
   transform: translateY(0) scale(1);
 }
 
+/* Row states (hover, selected bar and fill) come from the shared select option. */
 .playback-quality-option {
-  width: 100%;
   display: grid;
-  grid-template-columns: 48px 1fr 18px;
-  align-items: center;
+  grid-template-columns: 48px 1fr;
   gap: 7px;
   min-height: 40px;
-  padding: 6px 9px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.playback-quality-option:hover {
-  background: var(--color-bg-hover, var(--color-bg-tertiary));
-}
-
-.playback-quality-option:focus-visible {
-  outline: 2px solid var(--color-control-focus);
-  outline-offset: -2px;
-}
-
-.playback-quality-option.selected {
-  background: var(--color-primary-light);
-  color: var(--color-selection-text, var(--primary-strong));
+  padding: 6px 10px 6px 16px;
 }
 
 .playback-quality-option span {
@@ -130,14 +109,4 @@
 .playback-quality-option small {
   color: var(--muted);
   font-size: var(--type-size-caption);
-}
-
-.playback-quality-option svg {
-  width: 15px;
-  height: 15px;
-  opacity: 0;
-}
-
-.playback-quality-option.selected svg {
-  opacity: 1;
 }

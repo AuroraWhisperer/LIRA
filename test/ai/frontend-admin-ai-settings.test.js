@@ -75,7 +75,7 @@ test('AI enabled toggle saves immediately', async () => {
 });
 
 test('role selection saves its identity without overwriting the custom prompt', async () => {
-  const f = await createAiSettingsFixture();
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'deepseek' } });
   const select = f.elements.get('xiaomiAiPersona');
   select.value = 'cat';
   f.fire('xiaomiAiPersonaManage', 'click');
@@ -84,6 +84,96 @@ test('role selection saves its identity without overwriting the custom prompt', 
   await flushAiTasks();
   assert.equal(f.saves()[0].personaId, 'cat');
   assert.equal(f.saves()[0].systemPrompt, undefined);
+});
+
+test('persona choices follow the platform while general, saved roles and creation remain available', async () => {
+  for (const provider of ['deepseek', 'openai', 'anthropic', 'gemini', 'custom', 'auto']) {
+    const f = await createAiSettingsFixture({ config: { modelProvider: provider, personaId: 'general' } });
+    const ids = f.elements.get('xiaomiAiPersona').children.map((option) => option.value);
+    assert.equal(ids.includes('cat'), provider === 'deepseek', provider);
+    assert.ok(ids.includes('general'));
+    assert.ok(ids.includes('custom'));
+    assert.ok(ids.includes('__new__'));
+  }
+  const f = await createAiSettingsFixture({ config: {
+    modelProvider: 'auto', personaId: 'general', modelEndpoint: { provider: 'deepseek' },
+  } });
+  assert.ok(f.elements.get('xiaomiAiPersona').children.some((option) => option.value === 'cat'));
+});
+
+test('cat persona shows its name and DeepSeek scope separately from the editable identity description', async () => {
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'deepseek', personaId: 'cat' } });
+  assert.equal(f.elements.get('xiaomiAiPersona').children.find((option) => option.value === 'cat').textContent, '小猫人格');
+  assert.equal(f.elements.get('xiaomiAiPersonaSummary').textContent, '说明：针对 DeepSeek；骄傲又黏人的橘猫，自然陪聊');
+  f.fire('xiaomiAiPersonaManage', 'click');
+  assert.equal(f.elements.get('xiaomiAiPersonaName').value, '小猫人格');
+  assert.equal(f.elements.get('xiaomiAiPersonaProviderNote').textContent, '针对 DeepSeek，其他模型尚未测试。');
+  assert.equal(f.elements.get('xiaomiAiPersonaDescription').value, '骄傲又黏人的橘猫，自然陪聊');
+});
+
+test('changing platform saves a general selection without deleting cat edits or saved roles', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(SONG_SCHEMA);
+  const store = createAiConfigStore(db, { isAvailable: () => true });
+  const prompt = '你是一只安静的橘猫，认真听观众说话，用简洁自然的语气陪聊。';
+  store.updateConfig({ modelProvider: 'deepseek', personaId: 'cat' });
+  store.updatePersona({ id: 'cat', description: '安静的橘猫', prompt });
+  const saved = store.createPersona({ name: '我的人格', prompt });
+  store.updateConfig({ personaId: 'cat' });
+  const f = await createAiSettingsFixture({
+    config: store.getPublicConfig(),
+    request: (url, options) => url === '/api/ai/config' && options.method === 'PUT'
+      ? aiResponse(store.updateConfig(JSON.parse(options.body))) : undefined,
+  });
+  const provider = f.elements.get('xiaomiAiModelProvider');
+  const select = f.elements.get('xiaomiAiPersona');
+  provider.value = 'openai';
+  f.fire(provider.id, 'change');
+  assert.equal(select.value, 'general');
+  assert.equal(select.children.some((option) => option.value === 'cat'), false);
+  assert.match(f.elements.get('xiaomiAiPersonaAvailability').textContent, /已切换为通用人格/);
+  f.fire('xiaomiAiForm', 'change', { target: provider });
+  await flushAiTasks();
+  assert.equal(f.saves().length, 1);
+  assert.equal(store.getConfig().personaId, 'general');
+  assert.equal(store.getConfig().builtinPersonaOverrides[0].prompt, prompt);
+  assert.ok(select.children.some((option) => option.value === saved.personaId));
+
+  select.value = saved.personaId;
+  f.fire('xiaomiAiForm', 'change', { target: select });
+  await flushAiTasks();
+  provider.value = 'deepseek';
+  f.fire(provider.id, 'change');
+  f.fire('xiaomiAiForm', 'change', { target: provider });
+  await flushAiTasks();
+  assert.equal(select.value, saved.personaId);
+  assert.ok(select.children.some((option) => option.value === 'cat'));
+  select.value = 'cat';
+  f.fire('xiaomiAiForm', 'change', { target: select });
+  await flushAiTasks();
+  f.fire('xiaomiAiPersonaManage', 'click');
+  assert.equal(f.elements.get('xiaomiAiPersonaPrompt').value, prompt);
+});
+
+test('opening an unmatched saved cat persona retains its selection and explains the scope', async () => {
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', personaId: 'cat' } });
+  assert.equal(f.elements.get('xiaomiAiPersona').value, 'cat');
+  assert.match(f.elements.get('xiaomiAiPersonaAvailability').textContent, /已保留原有选择/);
+  assert.equal(f.saves().length, 0);
+});
+
+test('create persona choice opens a draft and cancel leaves the saved selection untouched', async () => {
+  const f = await createAiSettingsFixture({ config: { personaId: 'general', hasCustomPersona: false } });
+  f.input('xiaomiAiPersona', '__new__');
+  f.fire('xiaomiAiForm', 'change', { target: f.elements.get('xiaomiAiPersona') });
+  assert.equal(f.elements.get('xiaomiAiPersonaDialog').open, true);
+  assert.equal(f.elements.get('xiaomiAiPersonaName').value, '');
+  assert.equal(f.elements.get('xiaomiAiPersona').value, 'general');
+  f.fire('xiaomiAiPersonaCancel', 'click');
+  await f.advance(700);
+  assert.equal(f.saves().length, 0);
+  assert.equal(f.elements.get('xiaomiAiPersona').value, 'general');
 });
 
 test('editing a role remains a draft until saved and cancel does not change the selection', async () => {
@@ -106,6 +196,8 @@ test('saved legacy custom role remains selectable after choosing a built-in', as
   f.elements.get('xiaomiAiPersona').value = 'custom';
   f.fire('xiaomiAiPersonaManage', 'click');
   assert.equal(f.elements.get('xiaomiAiPersonaPrompt').value, f.publicConfig.systemPrompt);
+  assert.equal(f.elements.get('xiaomiAiPersonaDelete').hidden, true);
+  assert.equal(f.elements.get('xiaomiAiPersonaDelete').disabled, true);
 });
 
 test('optional tool controls expose credentials only when selected', async () => {

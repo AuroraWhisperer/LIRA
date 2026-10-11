@@ -15,7 +15,7 @@
 | `id/src/kind` | 样式 UUID、受限本机素材 URL、image 或 video；导入服务生成，清单不能覆盖 |
 | `width/height` | 原图或设计画布像素，整数 1–7680 |
 | `content` | `{x,y,width,height}` 百分比内容区，必须在 0–100 内，宽高至少 5 |
-| `textColor/fontSize` | 六位十六进制颜色；12–200 像素 |
+| `textColor/fontSize` | 六/八位十六进制颜色（可含 Alpha）；12–200 像素 |
 | `showText/textTemplate` | 事件素材是否叠字；文案最多 160 字，支持 `{name}/{gift}/{count}/{tier}/{months}` |
 | `durationMs/textDelayMs/volume` | 事件最长播放 250–120000 ms、叠字延迟 0–60000 ms、视频音量 0–1；默认静音 |
 
@@ -226,7 +226,7 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 歌单板专用:可变行高记录的**环形 DOM 窗口**虚拟滚动([song-virtual-scroller.js:28-58](../../../public/js/overlays/song-virtual-scroller.js#L28-L58))。
 
 - **工作原理**:以 anchor 记录(当前视口首行 key/index/offset)为起点,向两侧按 `beforeViewports=1 / afterViewports=1.5` 个视口高度增量构建 DOM 节点(`probeOverflow` 先探测内容是否超出一屏,不超出则整表渲染),`wrapIndex` 取模实现环形复用;滚动时 `tick` 按 `pixelsPerSecond * elapsed / 1000` 推进 `scrollTop`,超出前缓冲区的顶部节点被回收并追加到尾部(`recycleTopRecords`),始终保持窗口内只有可见 + 缓冲节点。
-- **联动**:`setRecords`/`relayout` 以 anchor 保持视口稳定(歌单刷新/字体加载完成/视口 resize 时不跳位);`songs.js` 将 `scrollSeconds`（沿用设置键名）或 URL `speed` 的 1–100 档位通过 `scrollSpeedToPixelsPerSecond` 线性映射为 1–300 CSS 像素/秒，再调用 `setPixelsPerSecond`；高度仅影响可见内容和缓冲区，不参与速度计算。组件预览和实际展示共用此逻辑；页面隐藏时 `pause()` 停止 rAF([songs.js:102-108](../../../public/js/overlays/songs.js#L102-L108))。
+- **联动**:`setRecords`/`relayout` 以 anchor 保持视口稳定(歌单刷新/字体加载完成/视口 resize 时不跳位);`songs.js` 将 `scrollSeconds`（沿用设置键名）或 URL `speed` 的 1–100 档位通过 `scrollSpeedToPixelsPerSecond` 线性映射为 1–250 CSS 像素/秒，默认档位为 20（约 48.79 CSS 像素/秒），再调用 `setPixelsPerSecond`；高度仅影响可见内容和缓冲区，不参与速度计算。组件预览和实际展示共用此逻辑；页面隐藏时 `pause()` 停止 rAF([songs.js:102-108](../../../public/js/overlays/songs.js#L102-L108))。
 - **速度精度**:保留浏览器写入 `scrollTop` 后的像素舍入余量，下一帧与回收顶部节点时继续累计；低速不会因高刷新率停住，各刷新率下保持相同的每秒位移。
 - 浏览器无 `requestAnimationFrame`/`ResizeObserver` 时自动降级(整表渲染 + window resize 监听)。
 
@@ -555,7 +555,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
   隐藏恢复或重复设置消息不重置相位。两项 URL 参数独立覆盖保存值，旧配置和旧独立场景缺省补足 light/30；
   显式非法值拒绝保存，读取非法存量值或 URL 值时回退默认值。其他样式不使用这两项外观参数。
 - 翻牌颜色为 `flipFrameColor` / `flipFaceColor` / `flipTextColor`，对应外框、牌面、数字，
-  仅接受 `#RRGGBB`；默认 `#e4e4e4` / `#ffffff` / `#303030`。参数覆盖保存配置时独立合并，
+  接受 `#RRGGBB` / `#RRGGBBAA`；默认 `#e4e4e4` / `#ffffff` / `#303030`。参数覆盖保存配置时独立合并，
   非法颜色回退默认值。设置面板提供经典白、石墨黑、香芋紫预设及三个自定义颜色选择器。
 - `date=0|1`、`seconds=0|1`、`format=12|24` 控制日期、秒数和小时制；非法值
   回退默认显示日期/秒数与 24 小时制。`label` 合并空白并截到 16 个 Unicode
@@ -631,6 +631,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 新建图层独立选择样式；右侧公共显示参数与客户端及同样式实例共享，首次采用客户端已保存值。普通媒体/CSS、外部网页与没有客户端对应项的配置保持原 owner。公共分辨率预设/自定义尺寸独立于组件，
 图层默认以预定大小居中，窗口改变只影响查看比例。编辑页采用浅色控件与灰色工作区，画布自动适配且不滚动；
 画布设置、预览底色、保存、放弃和复制集中在顶部紧凑工具栏，已有图层在画布下方横向排列。
+画布设置中的场景名称输入框 `maxlength=10`；复制场景时保留原名称前至多 7 个 UTF-16 单元（不拆开代理对）并追加「 副本」，沿用输入框的长度口径。已有场景文档的读取与存储格式保持兼容。
 直接入口默认收起参数，画布设置与图层按钮可展开右侧面板；折叠保留选择、参数和草稿，隐藏字段校验失败时重新展开。
 在画布中选择或拖动不会自动展开面板，避免拖动中触发缩放。参数与图层列表按需独立滚动。
 所有组件都可部分移出画布，X/Y 可为负数；每个组件在画布内至少保留 24×24 逻辑像素，拖动、多选、缩放与保存遵循同一边界。越界内容由编辑器画布及正式组合展示页裁切，不改变组件内部排版；自动高度或共享尺寸更新不会把仍满足最小可见范围的组件推回画布。几何契约见[场景规格](../../../specs/component-scenes.md#scene-document)。

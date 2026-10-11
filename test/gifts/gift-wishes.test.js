@@ -317,7 +317,7 @@ test('display choices persist across restart and edits preserve counts and omitt
   const textTemplate = '今天想要{礼物}：{已收}/{目标}';
   const id = f.add('long', 'flower-v1', {
     displayStyle: 'text', textTemplate, textImagePosition: 'after', textImageFormat: 'static',
-    textPendingColor: '#664499', textReceivedColor: '#22AA66',
+    textPendingColor: '#664499', textReceivedColor: '#22AA6680',
   });
   f.event('received', '2026-09-20T04:01:00Z', 4);
   f.time('2026-09-20T04:02:00Z');
@@ -328,7 +328,7 @@ test('display choices persist across restart and edits preserve counts and omitt
   assert.equal(first.textImagePosition, 'after');
   assert.equal(first.textImageFormat, 'static');
   assert.equal(first.textPendingColor, '#664499');
-  assert.equal(first.textReceivedColor, '#22aa66');
+  assert.equal(first.textReceivedColor, '#22aa6680');
   service.save({ id, viewRevision: `source-${f.source}`, target: 20, label: '仅备注' });
   const updated = (await service.getSnapshot()).items[0];
   assert.equal(updated.displayStyle, 'text');
@@ -336,7 +336,7 @@ test('display choices persist across restart and edits preserve counts and omitt
   assert.equal(updated.textImagePosition, 'after');
   assert.equal(updated.textImageFormat, 'static');
   assert.equal(updated.textPendingColor, '#664499');
-  assert.equal(updated.textReceivedColor, '#22aa66');
+  assert.equal(updated.textReceivedColor, '#22aa6680');
   assert.equal(updated.createdAt, first.createdAt);
   assert.equal(updated.count, 4);
   service.save({ id, viewRevision: `source-${f.source}`, target: 20, label: '', displayStyle: 'card' });
@@ -383,7 +383,7 @@ test('display validation rejects unsupported styles and invalid text without cha
     { textImageFormat: 'png' },
     { textImageFormat: false },
     ...['textPendingColor', 'textReceivedColor'].flatMap((key) =>
-      [null, true, 123, [], ['#112233'], '#fff', '#12345g', '#12345678', 'red', 'var(--color)', '#112233; color: red'].map((value) => ({ [key]: value }))),
+      [null, true, 123, [], ['#112233'], '#fff', '#12345g', '#1234567', 'red', 'var(--color)', '#112233; color: red'].map((value) => ({ [key]: value }))),
   ]) {
     assert.throws(() => f.add('long', 'flower-v1', values), { code: 'INVALID_GIFT_WISH' });
     assert.throws(() => f.service.save({ id, viewRevision: `source-${f.source}`, target: 10, label: '', ...values }), {

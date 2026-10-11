@@ -87,19 +87,20 @@
       </label>
       <div class="category-filter-field">
         <span>分类</span>
-        <details id="categoryFilter" class="category-filter" name="songLibraryFilter">
-          <summary>
-            <span id="categoryFilterSummary">全部分类</span>
-            <span class="category-filter-hint">可多选</span>
+        <details id="categoryFilter" class="lira-multiselect" name="songLibraryFilter">
+          <summary class="lira-select-trigger">
+            <span id="categoryFilterSummary" class="lira-select-value">全部分类</span>
+            <span class="lira-multiselect-hint">可多选</span>
+            <span class="lira-select-chevron" aria-hidden="true"></span>
           </summary>
-          <div class="category-filter-menu">
+          <div class="lira-multiselect-menu">
             <div
               id="categoryFilterOptions"
-              class="category-filter-options"
+              class="lira-multiselect-options"
               role="group"
               aria-label="分类（可多选）"
             ></div>
-            <button id="clearCategoryFilter" class="category-filter-clear" type="button">清除选择</button>
+            <button id="clearCategoryFilter" class="lira-multiselect-clear" type="button">清除选择</button>
           </div>
         </details>
       </div>
@@ -115,14 +116,15 @@
       </label>
       <div class="category-filter-field">
         <span>标签</span>
-        <details id="tagFilter" class="category-filter" name="songLibraryFilter">
-          <summary>
-            <span id="tagFilterSummary" class="category-filter-summary">全部标签</span>
-            <span class="category-filter-hint">可多选</span>
+        <details id="tagFilter" class="lira-multiselect" name="songLibraryFilter">
+          <summary class="lira-select-trigger">
+            <span id="tagFilterSummary" class="lira-select-value">全部标签</span>
+            <span class="lira-multiselect-hint">可多选</span>
+            <span class="lira-select-chevron" aria-hidden="true"></span>
           </summary>
-          <div class="category-filter-menu">
-            <div id="tagFilterOptions" class="category-filter-options" role="group" aria-label="标签（可多选）"></div>
-            <button id="clearTagFilter" class="category-filter-clear" type="button">清除选择</button>
+          <div class="lira-multiselect-menu">
+            <div id="tagFilterOptions" class="lira-multiselect-options" role="group" aria-label="标签（可多选）"></div>
+            <button id="clearTagFilter" class="lira-multiselect-clear" type="button">清除选择</button>
           </div>
         </details>
       </div>

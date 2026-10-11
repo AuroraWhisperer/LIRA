@@ -134,7 +134,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
     if (input.textImageFormat !== undefined && !TEXT_IMAGE_FORMATS.has(input.textImageFormat))
       throw invalid('请选择有效的礼物图片格式。');
     for (const key of ['textPendingColor', 'textReceivedColor']) {
-      if (input[key] !== undefined && (typeof input[key] !== 'string' || !/^(?:#[\da-f]{6})?$/i.test(input[key])))
+      if (input[key] !== undefined && (typeof input[key] !== 'string' || !/^(?:#[\da-f]{6}(?:[\da-f]{2})?)?$/i.test(input[key])))
         throw invalid('文字颜色无效，请用取色器重新选择。');
     }
     const textPendingColor = input.textPendingColor?.toLowerCase();

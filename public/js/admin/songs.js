@@ -409,11 +409,11 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     const names = splitCategoryNames(categories);
     options.innerHTML =
       names.length === 0
-        ? '<span class="category-filter-empty">暂无分类</span>'
+        ? '<span class="lira-select-empty">暂无分类</span>'
         : names
             .map(
               (name) => `
-        <label class="category-filter-option">
+        <label class="lira-multiselect-option">
           <input type="checkbox" value="${escapeAttr(name)}" data-category-filter${selected.has(name) ? ' checked' : ''}>
           <span>${escapeHtml(name)}</span>
         </label>
@@ -477,11 +477,11 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     const sorted = Array.from(songTags).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
     options.innerHTML =
       sorted.length === 0
-        ? '<span class="category-filter-empty">暂无标签</span>'
+        ? '<span class="lira-select-empty">暂无标签</span>'
         : sorted
             .map(
               (tag) => `
-        <label class="category-filter-option">
+        <label class="lira-multiselect-option">
           <input type="checkbox" value="${escapeAttr(tag)}" data-tag-filter${selected.has(tag) ? ' checked' : ''}>
           <span>${escapeHtml(tag)}</span>
         </label>

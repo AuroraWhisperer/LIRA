@@ -138,7 +138,7 @@ test('fullscreen manual browsing holds position until follow resumes', async () 
     scrollTop: 600,
     clientHeight: 300,
     classList: { toggle() {} },
-    querySelector: () => ({ offsetTop: 300, clientHeight: 60 }),
+    querySelector: () => ({ offsetTop: 300, clientHeight: 60, querySelector: () => null }),
   };
   player.followBtn = { hidden: true };
   player.setManualBrowsing(true);
@@ -149,6 +149,27 @@ test('fullscreen manual browsing holds position until follow resumes', async () 
   player.scrollToActiveLyric();
   assert.equal(player.lyricsContainer.scrollTop, 230);
   assert.equal(player.followBtn.hidden, true);
+  player.lyricsContainer.querySelector = () => ({ offsetTop: 300, clientHeight: 1200, querySelector: () => null });
+  player.scrollToActiveLyric();
+  assert.equal(player.lyricsContainer.scrollTop, 300, 'large wrapped lyrics keep their beginning visible');
+});
+
+test('oversized lyric positioning skips leading blank space and accounts for preview zoom', async () => {
+  const { scrollActiveLyricIntoView } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'lyric-layout.js'),
+  );
+  for (const scale of [1, 0.5]) {
+    const container = {
+      scrollTop: 300, clientHeight: 300,
+      querySelector: () => ({ offsetTop: 300, clientHeight: 1200, querySelector: () => ({ firstChild: {} }) }),
+      getBoundingClientRect: () => ({ top: 100, height: 300 * scale }),
+      ownerDocument: { createRange: () => ({
+        setStart() {}, setEnd() {}, getBoundingClientRect: () => ({ top: 100 + 700 * scale }),
+      }) },
+    };
+    scrollActiveLyricIntoView(container);
+    assert.equal(container.scrollTop, 1000);
+  }
 });
 
 test('fullscreen resets lyric mode before rendering a different track', async () => {

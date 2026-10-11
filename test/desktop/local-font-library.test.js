@@ -46,7 +46,7 @@ function createSelect(value, builtIns) {
   return select;
 }
 
-test('shared local font library queries once and populates both registered selectors', async () => {
+test('shared local font library queries once for queue, desktop lyric and large player selectors', async () => {
   let queryCount = 0;
   const createElement = (tagName) => createNode(tagName);
   const illustratedSelect = createSelect('default', [
@@ -57,6 +57,7 @@ test('shared local font library queries once and populates both registered selec
     },
   ]);
   const lyricSelect = createSelect('Microsoft YaHei', [{ value: 'Microsoft YaHei', label: '微软雅黑（默认）' }]);
+  const playerSelect = createSelect('maiyuan', [{ value: 'maiyuan', label: '荆南麦圆' }]);
   const sandbox = {
     console,
     document: { createElement },
@@ -81,6 +82,7 @@ test('shared local font library queries once and populates both registered selec
 
   library.registerLocalFontSelect(illustratedSelect);
   library.registerLocalFontSelect(lyricSelect);
+  library.registerLocalFontSelect(playerSelect);
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(queryCount, 1);
@@ -98,6 +100,9 @@ test('shared local font library queries once and populates both registered selec
   }
   assert.equal(illustratedSelect.value, 'default');
   assert.equal(lyricSelect.value, 'Microsoft YaHei');
+  assert.equal(playerSelect.value, 'maiyuan');
+  assert.deepEqual(playerSelect.querySelector('optgroup[data-local-fonts="true"]').children.map((option) => option.textContent),
+    ['Arial', 'Cascadia Code', 'Microsoft YaHei']);
 });
 
 test('shared local font library preserves a saved option missing from the current machine', async () => {

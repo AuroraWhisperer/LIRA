@@ -55,6 +55,7 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
       const input = previewElement('input'); input.type = field.type || 'number';
       input.setAttribute('aria-label', `${group.label} · ${title}`);
       input.dataset.effectField = `${name}.${key}`;
+      if (key === 'color') input.dataset.colorOpacity = `${name}.opacity`;
       let slider;
       if (input.type === 'number') {
         input.required = true;

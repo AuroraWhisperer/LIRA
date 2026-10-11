@@ -5,6 +5,8 @@
 import * as PlaybackUtils from '../utils.js';
 import { notifyMediaPlayFailure } from '../../shared/media-playback-feedback.js';
 import { escapeAttr, escapeHtml } from '../../shared/utils.js';
+import { initPlayerAppearance } from './appearance.js';
+import { scrollActiveLyricIntoView } from './lyric-layout.js';
 
 const TONEARM_SVG = `
   <svg viewBox="0 0 240 440" data-player-tonearm="curved" aria-hidden="true">
@@ -108,6 +110,7 @@ export class FullscreenPlayer {
 
     this.romaToggleBtn?.addEventListener('click', () => this._toggleLyricMode('roma'));
     this.translationToggleBtn?.addEventListener('click', () => this._toggleLyricMode('trans'));
+    initPlayerAppearance(this.fsEl, { onTypographyChange: () => this.scrollToActiveLyric() });
   }
 
   /**
@@ -336,22 +339,7 @@ export class FullscreenPlayer {
       return;
     }
 
-    const activeLine = this.lyricsContainer.querySelector('.player-fs-lyric-line.active');
-    if (!activeLine) {
-      return;
-    }
-
-    // 获取歌词容器（这是实际可滚动的元素）
-    const scrollContainer = this.lyricsContainer;
-    const lineTop = activeLine.offsetTop;
-    const lineHeight = activeLine.clientHeight;
-    const containerHeight = scrollContainer.clientHeight;
-
-    // 将当前歌词定位在屏幕上方 1/3 位置（中间偏上）
-    const targetScroll = lineTop - containerHeight / 3 + lineHeight / 2;
-
-    // 直接设置 scrollTop
-    scrollContainer.scrollTop = Math.max(0, targetScroll);
+    scrollActiveLyricIntoView(this.lyricsContainer);
   }
 
   setManualBrowsing(manual) {

@@ -27,6 +27,9 @@ test('ESM overlay utilities use the same functions as the classic-script surface
   assert.equal(utils.hexToRgba('#abc', 2), 'rgba(170, 187, 204, 1)');
   assert.equal(utils.hexToRgba('#abc', -1), 'rgba(170, 187, 204, 0)');
   assert.equal(utils.hexToRgba('#abc', 'invalid'), 'rgba(170, 187, 204, 0.76)');
+  assert.deepEqual({ ...utils.hexToRgb('#12345680') }, { r: 18, g: 52, b: 86 });
+  assert.equal(utils.hexToRgba('#12345600', 0.76), 'rgba(18, 52, 86, 0)');
+  assert.equal(utils.hexToRgba('#12345680', 0.5), `rgba(18, 52, 86, ${128 / 255 * 0.5})`);
   assert.equal(utils.overlayLowPowerEnabled({}), true);
   location.search = '?quality=pretty';
   assert.equal(utils.overlayLowPowerEnabled({ overlayLowPowerMode: 'true' }), false);

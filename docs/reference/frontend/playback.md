@@ -143,13 +143,43 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 搜索结果由搜索完成、清空和切换音源入口更新，不随普通播放状态刷新重复构造。队列弹窗关闭时暂缓列表渲染，打开时读取最新状态；可见时只在实际展示字段变化后重建列表，包含数组或曲目原地修改。
 
 - `ui/index.js` `UIRenderer` 渲染整页;`ui/playback-bar.js` 底部控制栏(进度/播放暂停/上下首/音量/模式/队列弹出/歌词);`ui/fullscreen.js` 全屏播放器(点击面板切换,ESC 退出,空格播放暂停,封面背景按 `pickBackgroundTheme` 30 套轮换,[forms.js:74-92](../../../public/js/admin/forms.js#L74-L92));`ui/drawer.js` 首页抽屉(歌单内页与返回栈);`ui/queue-popup.js` 队列弹出窗(收起播放器时联动关闭)。
-- **音质菜单**:`ui/playback-bar.js` 对 QQ 显示标准(128kbps)/HQ(最高 320kbps)/SQ(FLAC)/臻品(Q0 本地解密)/全景声(O8 本地解密),对网易云显示五档;`features/playback-controls.js:changePlaybackQuality` 保存默认档位、强制刷新当前流并在 `loadedmetadata` 后恢复切换前进度。服务端若降级,按钮显示实际档位并 toast 提示。Q0/O8 不承诺 QQ 客户端专属杜比或空间 DSP 效果,边界见 [qq-provider.md](../backend/music/qq-provider.md) §7.2。
+- **音质菜单**:`ui/playback-bar.js` 对 QQ 显示标准(128kbps)/HQ(最高 320kbps)/SQ(FLAC)/臻品(Q0 本地解密)/全景声(O8 本地解密),对网易云显示五档;选项沿用共享单选样式(`.lira-select-panel` + `.lira-select-option`),当前档位以选中竖条与底色表示,不显示对勾;`features/playback-controls.js:changePlaybackQuality` 保存默认档位、强制刷新当前流并在 `loadedmetadata` 后恢复切换前进度。服务端若降级,按钮显示实际档位并 toast 提示。Q0/O8 不承诺 QQ 客户端专属杜比或空间 DSP 效果,边界见 [qq-provider.md](../backend/music/qq-provider.md) §7.2。
 - **工作区集成**:播放器 dock 默认收起(`player-dock-collapsed`,避免遮挡点歌工作区),由 `forms.js` 的 `setPlayerDockCollapsed` 统一管理,收起时联动关闭全屏播放器/队列弹窗/音量面板([forms.js:133-169](../../../public/js/admin/forms.js#L133-L169))。
 - `core/event-handlers.js` 绑定播放页 DOM 事件(搜索框、队列操作、抽屉、全屏按钮、媒体会话按键),控制器显式注入其所需回调;`core/renderer.js` 输出渲染函数(进度/全屏/待确认弹窗/搜索结果/首页结果/匹配结果)供控制器组合。
 - 播放器状态变化统一走 `onStateChange → renderPlayback() + savePlaybackState()`;MediaSession(系统媒体控制)由 `updatePlaybackMediaSession(togglePlayback, playbackPrevious, playbackNext)` 更新([controller.js](../../../public/js/playback/controller.js) 的 `updatePlaybackMediaSession`)。
 - 音频事件链([initializer.js:67-113](../../../public/js/playback/core/initializer.js#L67-L113)):`loadedmetadata` 回写 `durationMs` → `timeupdate` 推进进度条并落盘 → `play/pause` 同步 MediaSession 与歌词窗口 → `seeking/seeked` 强刷歌词与状态 → `ended` 触发 `playbackNext(true)` → `error` 走流刷新重试;`pagehide` 时 `flushPlaybackStateOnUnload`(sendBeacon/IPC 双通道,见 §6)。
 
-### 8.1 歌词动画性能边界
+### 8.1 大播放器外观
+
+「播放」页内分为「音乐播放」和「播放器外观」，由既有 `FormsService.initTabs` 管理切换与键盘导航。外观片段为 `public/pages/admin/playback/appearance.html`，`ui/appearance.js` 由 `FullscreenPlayer.init` 初始化一次，负责设置规范化、本机保存、控件和示例预览；`css/playback/appearance.css` 负责设置页、字体声明与样式变体。设置区使用同一标签机制分为「样式 / 配色 / 歌曲 / 歌词」；样式为三种实际视觉的缩略图单选。歌曲信息保留在右侧，与歌词正文同一条起始线，跳转按钮独占左侧留白。极大字号下歌曲信息区域最多占右栏 45%，可独立滚动，保留歌词空间；`ui/lyric-layout.js` 为实际播放器和预览共用定位：正常行在上方 1/3 附近，过高行定位首字，跳过巨大行高产生的前置空白，并换算预览缩放。预览复用全屏播放器的内容 DOM/CSS，按实际播放器尺寸等比缩小，跟随尺寸和背景主题变化；可切换长句与译文样本，移除交互与普通 ID，并为 SVG 资源重命名，不建立第二个音频或歌词运行时。「打开大播放器」复用 FormsService 的 dock 展开与全屏焦点管理。排版修改及字体加载完成后，等待现有 300ms 字号过渡结束，再通过 `onTypographyChange` 调用原有歌词跟随定位；保留手动浏览保护，退出页面清理计时器、字体注册、尺寸及背景监听。主题背景使用不透明底色与独立模糊装饰层，避免 100% 不透明度下边缘透底；自定义背景禁用装饰层，颜色 alpha 和整体不透明度仍分别生效。
+
+外观只作用于大播放器；底部播放栏和直播/桌面歌词组件保持各自设置。字段保存在当前管理页 origin 的 localStorage `playbackAppearance:v1`，不进入队列快照、数据库或云端同步。每次有效修改即时应用并保存；保存失败保留本次画面效果并显示未保存提示。缺失、损坏或不可读的数据使用默认值，不在读取时覆盖存储。「恢复本组默认」仅重置当前分类的字段并保留其他分类；「恢复全部默认」写入本模块默认值，移除自定义字体、字号与文字颜色变量，让客户端配色重新接管。
+
+| 字段 | 默认值与范围 |
+| --- | --- |
+| `style` | `turntable`（当前唱片机）、`vinyl`（黑胶）、`cover`（专辑封面） |
+| `artworkSize` / `rotation` | `100`，60–110%；`true`，播放时旋转；封面样式不旋转，保留旋转偏好供切回唱片时使用 |
+| `backgroundMode` | `auto`（沿用原主题背景）、`solid`、`gradient` |
+| `backgroundColor` / `gradientColor` / `backgroundOpacity` | `#fff1f4` / `#c9dced` / `100`（0–100）；颜色在自定义背景模式下生效 |
+| `fontFamily` / `lyricFontFamily` | 歌曲字体默认 `system`；歌词默认 `inherit` 跟随歌曲字体，也可独立选择。均支持 `system`、`sans`、`serif`、`kai`，内置 `maiyuan`（荆南麦圆）、`kuaile`（站酷快乐体）、`smiley`（得意黑），以及共享字体库产生的单个双引号转义字体族名 |
+| `textAlign` | `left`，另支持 `center` |
+| `titleSize` / `artistSize` / `lyricSize` | `42`（8–200px）/ `20`（8–120px）/ `32`（8–160px）；默认值沿用各窗口宽度的字号适配，自定义字号优先；副行随自定义歌词基准字号的 0.5625 倍缩放 |
+| `lyricLineHeight` | `1.4`，0.8–4 倍，步长 0.1；默认保留正文 1.4、副行 1.5，自定义值同时作用于正文及副行 |
+| `lyricLineGap` / `lyricLetterSpacing` | `28`（0–200px，步长 1），作为每句上下 padding 各一半；`0`（−2–24px，步长 0.5），作用于正文与副行 |
+| `lyricFontWeight` | `700`，另支持字符串 `400`、`500`、`600`；仅控制主歌词，副行仍为 500 |
+| `activeLyricScale` | `112.5`（100–300%，步长 0.5）；默认沿用已有响应式强调比例，自定义值相对于当前窗口实际正文大小，100% 为等大 |
+| `textColors` | `theme` 跟随客户端配色；`custom` 使用下面四个颜色 |
+| `titleColor` / `artistColor` / `lyricColor` / `activeLyricColor` | `#302a27` / `#665b53` / `#796d63` / `#302a27`；分别控制歌名、歌手、普通歌词、当前歌词 |
+
+规范化仅接受已知字段、枚举、布尔值与六位或八位（含 alpha）十六进制颜色；有限数字按字段步长取整并限制范围，其他类型回退默认。旧偏好缺失的新字段补默认值。字体仅允许内置别名或单个双引号包裹的字体族，转义只接受引号和反斜线，拒绝控制字符、任意 CSS 声明和字体栈。示例内容用于看外观，不代表正在播放的歌曲；实际播放器仍由原渲染链更新歌曲、歌词和播放动画。
+
+三款内置字体存于 `public/fonts/player/`，随客户端离线交付，选择后按需加载，缺字使用系统回退。来源、完整字符覆盖和 OFL 许可见[字体说明](../../../public/fonts/player/README.md)。两个字体下拉通过共享 `select-menu.js` 的可选搜索与字体预览增强，可按名称筛选，隐藏无匹配的分组；下方显示当前字体样本，控件文案保持客户端字体。歌曲与歌词的字体下拉通过 `shared/local-font-library.js` 与其他设置共用同一次 `queryLocalFonts()` 查询；旧 `admin/local-font-library.js` 是兼容转导出。已保存但本机缺失的字体保留选项并使用系统回退；拒绝字体读取仍可使用内置与常用系统字体。原生授权边界见[主窗口的本机字体权限](../desktop/main.md#4-主窗口)。
+
+排版参数参考 [Better Lyrics](https://github.com/better-lyrics/better-lyrics/blob/master/STYLING.md) 的字体、行高、字重与副行配置，以及 [AMLL](https://amll.dev/en/reference/react/interfacelyricplayerprops.html) 的歌词强调与对齐；本页采用独立选项组合风格，不引入外部播放器运行时。
+
+黑胶选项复用 Grason Chan 的 [Spicetify Turntable](https://github.com/spicetify/spicetify-themes/tree/c432012478e1f2e2ffccca8e943e188af40d6190/Turntable)：使用其 `user.css` 的 `--shine`、`#fad-art::before/after`、封面内阴影和 24 秒转速，将原始封面/唱片/外圈 1 : 1.5 : 1.65 的比例换算为现有播放器容器的百分比。仅适配 LIRA DOM、尺寸和播放状态，不导入 Spotify 页面、脚本、登录或播放逻辑，也不宣称整个播放器页面与上游一致。原始 MIT 声明随 [turntable.LICENSE.txt](../../../public/css/playback/turntable.LICENSE.txt) 分发。默认唱片机与简约封面属于原有视觉及本地样式。
+
+### 8.2 歌词动画性能边界
 
 - WAAPI 只代表动画调度方式，不保证 reveal 属性由 GPU 合成；运行时以 `LyricPerformanceProfile` 记录长帧，必要时按 WAAPI → 30fps 手动 reveal → 静态高亮降级。
 - 正常播放期间不在 30fps tick 写 `animation.currentTime`;tick 只读取 `LyricClock` 并检测 drift。仅 pause/resume、seek、切歌/时间线变化、明显回跳或超阈值 drift 允许重锚。

@@ -97,13 +97,33 @@ function deferred() {
   return { promise, resolve };
 }
 
-async function archiveUi(t) {
+test('fan editor closes and emits grouped result notices without an extra saved toast', async (t) => {
+  const ui = await editorUi(t);
+  ui.controller.open({ title: '同步档案', fields: '', read: () => ({}) }, async () => ({ notices: [
+    { message: '已更新 30 份档案', type: 'success' },
+    { message: '测试观众：档案已归档', type: 'info' },
+    { message: '1 份资料查询失败', type: 'warning' },
+  ] }));
+  await ui.submit();
+  assert.equal(ui.editor.open, false);
+  assert.match(ui.container.textContent, /已更新 30 份档案/);
+  assert.match(ui.container.textContent, /测试观众：档案已归档/);
+  assert.match(ui.container.textContent, /1 份资料查询失败/);
+  assert.doesNotMatch(ui.container.textContent, /已保存到本机/);
+  assert.equal(ui.container.children.filter(node => node.classList.contains('toast')).length, 3);
+});
+
+async function archiveUi(t, storage = new Map()) {
   const f = fanFixture(t);
   const a = f.create({ alias: '当前观众A', birthday: { monthDay: '09-18' }, notes: '保留私人资料' });
   const note = f.record(a.id, 'note', { body: '保留这份手记' });
   const b = f.create({ alias: '归档观众B', identity: { ...IDENTITY, value: '900000002' } });
   f.run('save', { id: b.id, revision: b.revision, archived: true });
   const { documentRef, windowRef, windowListeners, container } = createDom();
+  windowRef.localStorage = {
+    getItem: (key) => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, value),
+  };
   const clock = createClock();
   const nodes = new Map([['toast', container]]);
   const markup = fs.readFileSync(path.join(ROOT, 'public/pages/admin/toolbox/fan-profiles.html'), 'utf8');
@@ -224,6 +244,32 @@ async function archiveUi(t) {
   ui.calls.length = 0;
   return ui;
 }
+
+test('hiding the local reminder banner persists without changing reminders or notifying the calendar', async (t) => {
+  const storage = new Map();
+  const ui = await archiveUi(t, storage);
+  const summary = ui.nodes.get('fanReminderSummary');
+  assert.equal(summary.hidden, false);
+  assert.match(summary.innerHTML, /查看提醒/);
+  assert.match(summary.innerHTML, /不再显示/);
+  const reminders = ui.f.run('reminders');
+  const reminderMarkup = ui.nodes.get('fanRemindersPage').innerHTML;
+  const events = ui.events.slice();
+  await ui.click({ fanAction: 'hide-reminder-summary' });
+  assert.equal(summary.hidden, true);
+  assert.equal(ui.calls.length, 0, 'dismissal never writes to the reminder service');
+  assert.deepEqual(ui.events, events, 'dismissal does not invalidate calendar projections');
+  assert.deepEqual(ui.f.run('reminders'), reminders);
+  assert.equal(ui.nodes.get('fanRemindersPage').innerHTML, reminderMarkup);
+  await ui.click({ fanPage: 'reminders' });
+  assert.equal(ui.nodes.get('fanRemindersPage').hidden, false);
+  await ui.poll();
+  await ui.flush();
+  assert.equal(summary.hidden, true, 'polling must not restore the banner');
+  const reopened = await archiveUi(t, storage);
+  assert.equal(reopened.nodes.get('fanReminderSummary').hidden, true);
+  assert.match(reopened.nodes.get('fanRemindersPage').innerHTML, /生日/);
+});
 
 test('switching scope clears pending search and filters once while same-scope navigation preserves them', async (t) => {
   const ui = await archiveUi(t);

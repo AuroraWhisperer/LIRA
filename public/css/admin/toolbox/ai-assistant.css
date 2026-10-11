@@ -179,43 +179,10 @@
   padding: 8px 11px;
   white-space: nowrap;
 }
+/* Panel and option looks come from the shared select menu. */
 .xiaomi-ai-model-menu {
-  position: absolute;
-  z-index: 12;
-  top: calc(100% + 5px);
-  right: 0;
-  left: 0;
-  display: grid;
   max-height: min(220px, 50vh);
-  overflow-y: auto;
-  overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding: 5px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: var(--shadow-floating);
-}
-.xiaomi-ai-model-menu[hidden] {
-  display: none;
-}
-.xiaomi-ai-model-menu .xiaomi-ai-model-option {
-  min-width: 0;
-  padding: 9px 10px;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.xiaomi-ai-model-menu .xiaomi-ai-model-option:hover,
-.xiaomi-ai-model-menu .xiaomi-ai-model-option:focus-visible {
-  background: var(--color-bg-tertiary);
-}
-.xiaomi-ai-model-menu .xiaomi-ai-model-option[aria-selected='true'] {
-  background: var(--color-control-accent-light);
-  color: var(--primary-strong);
 }
 .xiaomi-ai-field-grid small {
   display: block;
@@ -542,6 +509,9 @@
 .xiaomi-ai-persona-editor {
   display: grid;
   gap: var(--spacing-md);
+}
+.xiaomi-ai-persona-editor .xiaomi-ai-field-grid {
+  align-items: start;
 }
 .xiaomi-ai-persona-header,
 .xiaomi-ai-persona-footer,

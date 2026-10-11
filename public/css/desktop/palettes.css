@@ -520,3 +520,49 @@ html[data-client-theme='rose-lustre'],
   --shadow-dialog: 0 24px 60px #6f3b542e;
   --page-bg: radial-gradient(ellipse at 4% 12%, #f2c9cb 0%, #f2c9cb00 52%), radial-gradient(ellipse at 95% 6%, #e5efec 0%, #e5efec00 45%), linear-gradient(128deg, #f7e2d8 0%, #faf1f4 48%, #e4c5d5 100%);
 }
+
+/* Shared option colors; variants and later page tokens retain their overrides. */
+:where(html[data-client-theme='neutral']) :is(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
+  --select-selected-fill: color-mix(in srgb, var(--color-primary) 9%, var(--select-surface));
+}
+
+:where(html[data-client-theme='classic']) :is(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
+  --select-selected-fill: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--color-primary) 11%, var(--select-surface)) 0%,
+    color-mix(in srgb, var(--color-accent) 12%, var(--select-surface)) 100%
+  );
+  --select-selected-edge: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  --select-check-fill: linear-gradient(135deg, #e0b25a 0%, #b98a2f 100%);
+  --select-check-ink: #fffaf0;
+}
+
+:where(html[data-client-theme='clear-jade']) :is(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
+  --select-selected-fill: linear-gradient(105deg, #dff7ee 0%, #e9f8ea 70%, #f2fbe4 100%);
+  --select-selected-edge: #b7e4d2;
+  --select-marker: linear-gradient(180deg, #32d3a3 0%, #8fe39a 100%);
+}
+
+:where(html[data-client-theme='black-silver']) :is(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
+  --select-option-text: #b8bec3;
+  --select-option-hover: rgba(255, 255, 255, 0.055);
+  --select-selected-fill: linear-gradient(
+    90deg,
+    rgba(255, 102, 105, 0.18) 0%,
+    rgba(202, 214, 223, 0.08) 62%,
+    rgba(202, 214, 223, 0.05) 100%
+  );
+  --select-selected-edge: rgba(255, 255, 255, 0.1);
+  --select-marker-glow: 0 0 10px rgba(255, 102, 105, 0.6);
+  --select-ring: rgba(202, 214, 223, 0.18);
+  --select-chevron-well: rgba(255, 255, 255, 0.06);
+  --select-highlight: rgba(255, 255, 255, 0.05);
+  --select-menu-shadow: 0 18px 40px -6px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+:where(html[data-client-theme='rose-lustre']) :is(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
+  --select-selected-fill: var(--color-selection-fill);
+  --select-selected-edge: #f1c6d4;
+  --select-marker: linear-gradient(180deg, #ef8197 0%, #e79bbc 100%);
+  --select-menu-shadow: 0 1px 2px #6f3b5410, 0 16px 36px -8px #6f3b5433;
+}

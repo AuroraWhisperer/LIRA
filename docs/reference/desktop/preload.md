@@ -210,7 +210,7 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 | --- | --- | --- |
 | `open` / `list` | `{query?,archived?,filters?}`；query≤300，filters 可 favorite/incomplete/active/past/unknown | `{profiles,settings}` |
 | `auto-update-status` | {} | 一次性通知或 null；通知含 reason=scheduled/startup、status=success/error、成功计数或 error |
-| `sync-guard-roster` | `{expectedRoomId?}`，提供时须匹配当前 roomId | `{roomId,ownerUid,total,created,updated,skipped,profileRefresh:{updated,failed,skipped}}`；并发同步拒绝 |
+| `sync-guard-roster` | `{expectedRoomId?}`，提供时须匹配当前 roomId | `{roomId,ownerUid,total,created,updated,skipped,skippedDetails,profileRefresh:{updated,failed,skipped}}`；并发同步拒绝 |
 | `settings` | {} | 当前 scope 设置 |
 | `configure` | `{autoCreate:boolean,autoUpdate:boolean,autoSyncGuardRoster?:boolean,accompanyMilestones?:number[],showAccompanyInCalendar?:boolean}` | 更新后的 scope 设置；陪伴节点校验及默认值见粉丝档案规格 |
 | `detail` | `{id}`，非空所属档案 ID，文本≤100 | ProfileDetail |
@@ -241,7 +241,11 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 
 `sync-guard-roster` 及 `auto-update-status` 成功通知中的 `profileRefresh` 仅统计名单外 UID 资料：`updated` 为提交了新观察的档案数，`failed` 为接口失败及因此停止后尚未查询的数量，`skipped` 为归档/屏蔽/删除/换绑、无可用完整昵称或已有更新观察而未应用的结果数。三个计数与原有名单 `created/updated/skipped` 独立。补查失败保留旧值，不阻止完整名单及已成功资料入库；`status: success` 可包含非零 `profileRefresh.failed`，前端以部分成功提示。无可靠 UID、已归档和黑名单档案不进入补查目标，名单内资料不重复请求。
 
+名单跳过明细 `skippedDetails` 同时随手动结果及自动成功通知返回：上游身份不可用时为 `{rank,reason:'hidden-identity'|'invalid-uid'}`，`rank` 为名单位置字符串，隐藏身份不附带上游 UID/昵称；本机跳过时为 `{uid,name,reason:'archived'|'suppressed'}`，`name` 优先档案称呼，其次名单昵称、本机平台昵称。Owner 为 [bilibili-guard-roster.js](../../../src/shared/bilibili-guard-roster.js) 与 [guard-roster-import.js](../../../src/fans/guard-roster-import.js)。前端以纯文本显示成员及原因；旧快照未提供明细时保留计数并提示重新同步，不猜测原因。该数组只解释名单 `skipped`，不改变 `profileRefresh` 契约。
+
 ProfilePatch 校验 owner 为 [validation.js](../../../src/fans/validation.js)：alias≤100、summary≤300、notes≤20000、nextTopic≤2000、zodiac≤30、mbtiNote≤500；长度按 JavaScript String.length（UTF-16 code unit）在 trim **前**检查，null 文本转空。tags≤30项、每项≤50，先检查再过滤空值/去重；formerNames≤3项、每项≤200。favorite/archived/milestoneReminders/expiryReminders 严格 boolean；MBTI 为空或规范16型，mbtiConfirmedAt 为日期。
+
+`save` 切换 `archived` 保留 `guardRoster` 和会员记录，`detail`/`list` 的 `currentGuardLevel` 不因归档而清空。名单导入跳过归档档案时既不更新也不清除其身份；恢复后继续展示已有确认身份，再由后续名单同步更新。
 
 identity 可 null，否则 `{platform:'bilibili',type:'uid'或'open_id',value}`；value≤128、无空白/控制符，UID 为1–25位非零开头数字，不把 open_id 转 UID。birthday 可 null，否则 monthDay、calendar=solar/lunar、year(null或1900至当前年)、leapMonth、leapDay=feb28/mar01、thisYearDate、advance；日期校验由 validation/dates 拥有。
 

@@ -26,7 +26,7 @@ export function normalizeMediaStyle(type, input) {
   if (!area || Object.keys(area).length !== 4 || !['x', 'y', 'width', 'height'].every(key =>
     typeof area[key] === 'number' && Number.isFinite(area[key]) && area[key] >= 0 && area[key] <= 100)
     || area.width < 5 || area.height < 5 || area.x + area.width > 100.001 || area.y + area.height > 100.001) return fail();
-  if (!/^#[a-f0-9]{6}$/i.test(value.textColor) || typeof value.showText !== 'boolean'
+  if (!/^#[a-f0-9]{6}(?:[\da-f]{2})?$/i.test(value.textColor) || typeof value.showText !== 'boolean'
     || typeof value.textTemplate !== 'string' || value.textTemplate.length > 160) return fail();
   for (const [key, min, max] of [['fontSize', 12, 200], ['textDelayMs', 0, 60000], ['durationMs', 250, 120000], ['volume', 0, 1]]) {
     if (typeof value[key] !== 'number' || !Number.isFinite(value[key]) || value[key] < min || value[key] > max) return fail();

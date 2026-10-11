@@ -505,7 +505,7 @@ test('flip colors are validated, persisted and exposed only through the clock pr
   const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   const config = { ...MOON_DEFAULTS, style: 'flip', showDate: true, showSeconds: true, hourFormat: '24', label: '',
-    flipFrameColor: '#cb69e3', flipFaceColor: '#ffffff', flipTextColor: '#bc59d6' };
+    flipFrameColor: '#cb69e380', flipFaceColor: '#ffffff', flipTextColor: '#bc59d6' };
   assertClockRoundTrip(config);
   assert.equal(normalizeClockSettingValue('clockFlipTextColor', ' #ABCDEF '), '#abcdef');
   for (const bad of ['red', '#fff', '#abcdzz', 'url(https://example.test)', '', null]) {
@@ -516,7 +516,7 @@ test('flip colors are validated, persisted and exposed only through the clock pr
   params.delete('flipFaceColor');
   params.set('flipTextColor', 'bad');
   const merged = overlay.mergeClockConfig({ ...config, flipFaceColor: '#123456' }, overlay.readClockConfig(params), params);
-  assert.equal(merged.flipFrameColor, '#cb69e3');
+  assert.equal(merged.flipFrameColor, '#cb69e380');
   assert.equal(merged.flipFaceColor, '#123456');
   assert.equal(merged.flipTextColor, FLIP_COLORS.flipTextColor);
   assert.equal(getClockConfig({ clockStyle: 'orbit' }).style, 'orbit');

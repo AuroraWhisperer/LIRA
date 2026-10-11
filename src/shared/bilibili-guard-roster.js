@@ -12,6 +12,7 @@ async function readGuardRoster(read, roomId, ownerUid, signal) {
   const seen = new Set();
   let total;
   let skipped = 0;
+  const skippedDetails = [];
   for (let page = 1; page <= 1000; page++) {
     const data = await read('/xlive/app-room/v2/guardTab/topListNew', {
       roomid: roomId,
@@ -43,6 +44,7 @@ async function readGuardRoster(read, roomId, ownerUid, signal) {
       seen.add(key);
       if (!uid || hidden) {
         skipped++;
+        skippedDetails.push({ rank: positiveId(item.rank), reason: hidden ? 'hidden-identity' : 'invalid-uid' });
         continue;
       }
       const level = user?.guard?.level ?? (positiveId(user?.medal?.ruid) === ownerUid ? user.medal.guard_level : null);
@@ -65,6 +67,7 @@ async function readGuardRoster(read, roomId, ownerUid, signal) {
         observedAt: new Date().toISOString(),
         members: [...members.values()],
         skipped,
+        skippedDetails,
       };
     }
     if (seen.size > total || seen.size === before) throw new Error('大航海名单未完整读取，请重新同步。');

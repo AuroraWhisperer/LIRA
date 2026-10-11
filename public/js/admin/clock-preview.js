@@ -1,6 +1,7 @@
 import { mountStyleParameters } from './component-style-parameters.js';
 import { CLOCK_STYLE_LABELS, FLIP_PALETTES, clockAppearanceChange } from '../shared/clock-settings.js';
 import { cloneComponentPanel, componentField } from './component-preview-panel.js';
+import { enhanceColorControls } from '../shared/color-control.js';
 
 const CLOCK_STYLE_VALUES = new Set(Object.keys(CLOCK_STYLE_LABELS));
 
@@ -40,6 +41,7 @@ export function clockStyleChange(draft, style) {
 }
 
 export function bindClockParameters(root, controller) {
+  enhanceColorControls(root);
   const node = (id) => componentField(root, id);
   const fields = { showDate: 'clockShowDate', showSeconds: 'clockShowSeconds', hourFormat: 'clockHourFormat',
     label: 'clockCustomLabel', flipFrameColor: 'clockFlipFrameColor', flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor',

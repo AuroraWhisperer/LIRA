@@ -321,7 +321,7 @@ test('guide directory stays expanded at the top and collapses only after scrolli
   await loadUsageGuide(fixture);
   assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'true');
   assert.equal(fixture.tocMenu.inert, false);
-  assert.equal(fixture.panel.style['--usage-guide-toc-space'], '206px');
+  assert.equal(fixture.panel.style['--usage-guide-toc-space'], '200px');
 
   fixture.toc.pointerleave({ pointerType: 'mouse' });
   fixture.document.pointerdown({ target: {} });

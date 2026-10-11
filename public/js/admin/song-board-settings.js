@@ -11,10 +11,10 @@ const THEME_DEFAULTS = {
   songBoardGradientEnd: '#181823', songBoardFontFamily: 'Microsoft YaHei', songBoardFontWeight: '800',
   songBoardSongColor: '', songBoardTitle: '', songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
 };
-const DEFAULTS = { scrollSeconds: '45', songBoardSyncTheme: 'true', songBoardSortMode: 'initial',
+const DEFAULTS = { scrollSeconds: '20', songBoardSyncTheme: 'true', songBoardSortMode: 'initial',
   songBoardFontSize: '28', ...THEME_DEFAULTS };
 const RANGE_PAIRS = [
-  ['scrollSecondsRange', 'scrollSeconds', 1, 100, 45],
+  ['scrollSecondsRange', 'scrollSeconds', 1, 100, 20],
   ['songBoardFontSize', 'songBoardFontSizeNumber', 10, 80, 28],
   ['songBoardThemeOpacity', 'songBoardThemeOpacityNumber', 0, 1, 0.35],
   ['songBoardBackdropBlur', 'songBoardBackdropBlurNumber', 0, 30, 0],

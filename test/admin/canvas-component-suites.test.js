@@ -8,6 +8,7 @@ const { createMoonlitZip } = require('../../scripts/package-moonlit-suite');
 const { installMoonlitSuite } = require('../helpers/moonlit-suite-fixture');
 const { createComponentStyleLibrary } = require('../../src/server/component-style-library');
 const { useSharedBrowser } = require('../helpers/shared-browser');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const openBrowserSession = useSharedBrowser();
 
@@ -426,8 +427,8 @@ test('canvas suite imports appear in client component lists and refresh without 
   const page = await browser.newPage();
   desktop.setDefaultTimeout(10000); page.setDefaultTimeout(10000);
   const url = await openCanvasDesktop(desktop, fixture);
-  const fragments = ['toolbox/clock', 'live-components/danmaku', 'toolbox/start-animation', 'toolbox/gift', 'toolbox/gift-wishes'].map(name =>
-    fs.readFileSync(path.resolve(__dirname, `../../public/pages/admin/${name}.html`), 'utf8')).join('\n');
+  const fragments = ['toolbox/clock', 'live-components/danmaku', 'toolbox/start-animation', 'toolbox/gift', 'toolbox/gift-wishes', 'song/desktop-lyric'].map(name =>
+    readAdminFragmentHtml(`pages/admin/${name}.html`)).join('\n');
   await desktop.evaluate(async html => {
     document.body.innerHTML = html;
     for (const panel of document.querySelectorAll('section[hidden]')) panel.hidden = false;
@@ -436,6 +437,9 @@ test('canvas suite imports appear in client component lists and refresh without 
     const { initStartAnimation } = await import('/js/admin/start-animation.js');
     initStartAnimation(); initStartAnimation();
   }, fragments);
+  assert.equal(await desktop.locator('#desktopLyricForm .component-style-add').count(), 0);
+  assert.deepEqual(await desktop.locator('.desktop-lyric-workspace > *').evaluateAll(children => children.map(child => child.id)),
+    ['desktopLyricForm', 'desktopLyricLivePreview']);
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();

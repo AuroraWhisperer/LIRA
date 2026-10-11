@@ -233,6 +233,7 @@ test('common Admin copy uses standard weights with explicit presentation excepti
     if (/^(?:800|900)$/.test(value) && allowed(rule.selector, HEAVY_ALLOWLIST)) continue;
     if (/^var\(--preview-weight\)$/.test(value) && /\.desktop-lyric-preview-row-/.test(rule.selector)) continue;
     if (/^var\(--admin-queue-font-weight,\s*700\)$/.test(value) && /\.queue-row \.song/.test(rule.selector)) continue;
+    if (/^var\(--player-lyric-weight,\s*700\)$/.test(value) && rule.selector === '.lyric-text') continue;
     violations.push(`${value}\t${rule.selector}`);
   }
   assert.deepEqual(violations, []);

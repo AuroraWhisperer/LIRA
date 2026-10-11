@@ -13,7 +13,7 @@
             .map((char) => char + char)
             .join('')
         : normalized;
-    const number = Number.parseInt(value, 16);
+    const number = Number.parseInt(value.slice(0, 6), 16);
     return {
       r: (number >> 16) & 255,
       g: (number >> 8) & 255,
@@ -25,7 +25,8 @@
     const { r, g, b } = hexToRgb(hex);
     const alpha = Number(opacity);
     const safeAlpha = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 0.76;
-    return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + safeAlpha + ')';
+    const colorAlpha = /^#[\da-f]{8}$/i.test(hex) ? Number.parseInt(hex.slice(7), 16) / 255 : 1;
+    return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + safeAlpha * colorAlpha + ')';
   }
 
   function escapeHtml(value) {

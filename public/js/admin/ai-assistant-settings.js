@@ -178,16 +178,19 @@ function init({ notify = showStackedToast } = {}) {
     renderProviderSelection(providerInput.value, {
       keepEndpointLocked: restoreManualEndpointAfterProviderSave,
     });
+    if (personaControls.changeProvider()) editedFieldIds.add('xiaomiAiPersona');
   });
 
   form.addEventListener('input', (event) => {
     if (event.target.matches('input[type="checkbox"], input[type="file"]')) return;
+    if (event.target.id === 'xiaomiAiPersona') return;
     if (event.target.id) editedFieldIds.add(event.target.id);
     scheduleSave();
   });
 
   form.addEventListener('change', (event) => {
     if (event.target.matches('input[type="checkbox"], input[type="number"], select')) {
+      if (event.target.id === 'xiaomiAiPersona' && !personaControls.changeSelection()) return;
       if (event.target.id) editedFieldIds.add(event.target.id);
       if (event.target === reasoningInput) syncReasoningEffortAvailability();
       renderToolSettings();
@@ -280,7 +283,7 @@ function init({ notify = showStackedToast } = {}) {
       const menuItems = models.map((model) => {
         const item = document.createElement('button');
         item.type = 'button';
-        item.className = 'xiaomi-ai-model-option';
+        item.className = 'xiaomi-ai-model-option lira-select-option';
         item.setAttribute('role', 'option');
         item.tabIndex = -1;
         item.setAttribute('aria-selected', String(model === modelInput.value));

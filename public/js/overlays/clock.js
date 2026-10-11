@@ -49,7 +49,7 @@ function readFlipColors(source) {
   return Object.fromEntries(
     Object.entries(FLIP_COLORS).map(([key, fallback]) => {
       const value = String(source[key] || '').trim();
-      return [key, /^#[\da-f]{6}$/i.test(value) ? value.toLowerCase() : fallback];
+      return [key, /^#[\da-f]{6}(?:[\da-f]{2})?$/i.test(value) ? value.toLowerCase() : fallback];
     }),
   );
 }

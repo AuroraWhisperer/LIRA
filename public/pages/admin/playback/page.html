@@ -1,4 +1,9 @@
 <section id="playbackAssistantPage" class="main-page playback-page">
+  <div class="tabs playback-workspace-tabs" role="tablist" aria-label="播放功能">
+    <button class="tab active" type="button" data-tab="playbackMusicWorkspace">音乐播放</button>
+    <button class="tab" type="button" data-tab="playerAppearance">播放器外观</button>
+  </div>
+  <div id="playbackMusicWorkspace" class="playback-music-workspace active">
   <header class="playback-page-header">
     <div class="playback-head-inner">
       <div class="source-tabs" role="tablist" aria-label="选择播放器">
@@ -243,6 +248,8 @@
     </div>
   </details>
   </div>
+  </div>
+  <!-- admin-fragment: pages/admin/playback/appearance.html -->
 </section>
 
 <section class="playback-player-panel" aria-label="全局播放器">
@@ -406,7 +413,7 @@
         <div id="playbackQualityWrap" class="playback-quality-wrap">
           <div
             id="playbackQualityPanel"
-            class="playback-quality-panel"
+            class="playback-quality-panel lira-select-panel"
             role="menu"
             aria-label="选择播放音质"
             aria-hidden="true"

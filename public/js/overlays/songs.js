@@ -401,11 +401,11 @@ function applyTheme(settings) {
 }
 
 export function scrollSpeedToPixelsPerSecond(value) {
-  const speed = Math.max(1, Math.min(100, Math.round(Number(value) || 45)));
-  return 1 + ((speed - 1) / 99) * 299;
+  const speed = Math.max(1, Math.min(100, Math.round(Number(value) || 20)));
+  return 1 + ((speed - 1) / 99) * 249;
 }
 
 function resolveSongScrollSpeed(settings) {
   const urlSpeed = new URLSearchParams(location.search).get('speed');
-  return Number(urlSpeed || settings?.scrollSeconds || 45);
+  return Number(urlSpeed || settings?.scrollSeconds || 20);
 }

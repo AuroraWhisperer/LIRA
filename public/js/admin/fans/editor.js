@@ -30,7 +30,11 @@ export function createFanEditor({ editor, form, onError }) {
       const result = await current.save(current.read(form));
       if (!result?.keepOpen) {
         editor.close();
-        toast(result?.message || '已保存到本机');
+        if (result?.notices) {
+          for (const { message, ...options } of result.notices) toast(message, options);
+        } else {
+          toast(result?.message || '已保存到本机');
+        }
       }
     } catch (error) {
       onError(error);

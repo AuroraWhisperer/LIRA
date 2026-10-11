@@ -45,12 +45,26 @@ const CATEGORY_ICONS = {
   songlist: 'M5 5h9M5 9h7M5 13h5m7-5v10m0-10 4-1v3l-4 1m0 7a3 2 0 1 1-6 0 3 2 0 0 1 6 0Z',
   lyrics: 'M4 6h16M4 12h16M7 18h10',
   '直播小游戏': 'M8 7h8a5 5 0 0 1 5 4l1 5a3 3 0 0 1-5 3l-3-3h-4l-3 3a3 3 0 0 1-5-3l1-5a5 5 0 0 1 5-4Zm-1 3v5m-2-2h4m7-2h.01m2 3h.01',
-  'gift-feed': 'M3 8h18v4H3Zm2 4v9h14v-9M12 8v13m0-13H8a3 3 0 1 1 3-3l1 3Zm0 0h4a3 3 0 1 0-3-3l-1 3Z',
-  'gift-frame': 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M7 7h10v10H7Z',
+  'interactions-poll': 'M4 20h16M6 16v-5m6 5V4m6 12V8',
+  'interactions-rating': 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z',
+  gifts: 'M3 8h18v4H3Zm2 4v9h14v-9M12 8v13m0-13H8a3 3 0 1 1 3-3l1 3Zm0 0h4a3 3 0 1 0-3-3l-1 3Z',
+  'gift-feed': 'M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4',
+  'gift-frame': 'm12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3ZM19 3v4M17 5h4',
   'guard-thanks': 'M12 3v16m-4-9h8m-4-7a2 2 0 1 1 0 4 2 2 0 0 1 0-4ZM4 13v3c0 6 16 6 16 0v-3m-18 2 2-2 2 2m12 0 2-2 2 2',
-  blindbox: 'm12 3 9 5v9l-9 5-9-5V8Zm0 10 9-5m-9 5L3 8m9 5v9m-5-17 10 6',
+  blindbox: 'M3 20h18M5 20v-8h4v8m1 0V4h4v16m1 0V9h4v11',
   'gift-wishes': 'm12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z',
+  'gift-sprint': 'M5 21V4c5-3 9 3 14 0v10c-5 3-9-3-14 0',
+  music: 'M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3Zm12-2a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3Z',
 };
+
+const PICKER_NAVIGATION = [
+  'danmaku', 'interactions-poll', 'interactions-rating',
+  { id: 'gifts', title: '礼物姬', categories: ['gift-frame', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox', 'guard-thanks'] },
+  'text-box', 'overtime', 'opening', 'clock',
+  { id: 'music', title: '点歌', categories: ['queue', 'songlist', 'lyrics'] },
+  '直播小游戏', 'background',
+];
+const CATEGORY_TITLES = { clock: '时钟', 'gift-feed': '滚动礼物' };
 
 function pickerIcon(path) {
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -92,6 +106,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
   document.body.append(dialog);
   const choices = new Map();
   const groups = new Map();
+  const navigationGroups = new Map();
   const textPreviews = new ResizeObserver(entries => {
     const samples = new Set(entries.map(({ target }) => target.closest('.preview-picker-text-preview')));
     for (const sample of samples) {
@@ -106,9 +121,14 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     }
   });
   dialog.addEventListener('close', () => { textPreviews.disconnect(); styleLibrary?.dispose(); });
-  for (const component of components) {
+  const pickerComponents = components.flatMap(component => component.id === 'interactions'
+    ? COMPONENT_PREVIEW_DEFINITIONS.interactions.variants.map(variant => ({ ...component,
+      title: variant.label, pickerCategory: `interactions-${variant.value}`, pickerVariant: variant.value,
+    })) : [component]);
+  const categoryOf = component => component.pickerCategory || COMPONENT_PREVIEW_DEFINITIONS[component.id].category || component.id;
+  for (const component of pickerComponents) {
     if (component.id === 'browser') continue;
-    const category = COMPONENT_PREVIEW_DEFINITIONS[component.id].category || component.id;
+    const category = categoryOf(component);
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category).push(component);
   }
@@ -161,7 +181,9 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
   function importAtTarget(target, file, pack) {
     if (target === 'suite') showSuites(file, pack);
     else {
-      const component = components.find(entry => entry.id === target);
+      const component = pickerComponents.find(entry => entry.id === target
+        && choices.get(categoryOf(entry))?.getAttribute('aria-pressed') === 'true')
+        || pickerComponents.find(entry => entry.id === target);
       if (component) show(component, file, pack);
       else report('当前画布不支持这个组件，请更新客户端。');
     }
@@ -171,8 +193,13 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     styleLibrary?.dispose();
     textPreviews.disconnect();
     content.classList.add('has-style-grid');
-    const category = COMPONENT_PREVIEW_DEFINITIONS[component.id].category || component.id;
+    const category = categoryOf(component);
     for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === category));
+    const navigationGroup = navigationGroups.get(category);
+    if (navigationGroup) {
+      navigationGroup.toggle.setAttribute('aria-expanded', 'true');
+      navigationGroup.submenu.hidden = false;
+    }
     styles.hidden = false;
     browserForm.hidden = true;
     subcategories.replaceChildren();
@@ -192,8 +219,13 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       type: component.id, request: requestStyles, inline: true,
       onImportTarget: importAtTarget, initialFile, updatePack,
       renderList: componentStyleList(component),
-      onUse(style) { add(components.find(entry => entry.id === style.type) || component, style.config,
-        { name: style.name, size: [componentStyleMedia(style.config).width, componentStyleMedia(style.config).height] }); dialog.close(); },
+      onUse(style) {
+        const config = style.type === component.id && component.pickerVariant
+          ? { ...style.config, ...COMPONENT_PREVIEW_DEFINITIONS[component.id].styleChange(style.config, component.pickerVariant) }
+          : style.config;
+        add(components.find(entry => entry.id === style.type) || component, config,
+          { name: style.name, size: [componentStyleMedia(config).width, componentStyleMedia(config).height] }); dialog.close();
+      },
     });
   }
 
@@ -232,7 +264,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
   function styleOptions(component) {
     const definition = COMPONENT_PREVIEW_DEFINITIONS[component.id];
     const attribute = definition.styleAttribute;
-    return definition.variants?.map(variant => ({ variant }))
+    return definition.variants?.filter(variant => !component.pickerVariant || variant.value === component.pickerVariant).map(variant => ({ variant }))
       || (attribute ? [...source.querySelectorAll(`[${attribute}]`)] : [null]).map(original => ({ original }));
   }
 
@@ -305,18 +337,47 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
   suites.append(pickerIcon('M3 3h7v7H3Zm11 0h7v7h-7ZM3 14h7v7H3Zm11 0h7v7h-7Z'), previewElement('span', '', '套装'));
   suites.addEventListener('click', () => showSuites());
   choices.set('suites', suites);
-  categories.append(suites);
-
   for (const [category, members] of groups) {
     const component = members[0];
     const button = previewElement('button');
-    button.append(pickerIcon(CATEGORY_ICONS[category]), previewElement('span', '', COMPONENT_PREVIEW_DEFINITIONS[component.id].category || component.title));
+    button.append(pickerIcon(CATEGORY_ICONS[category]), previewElement('span', '', CATEGORY_TITLES[category]
+      || (component.pickerCategory ? component.title : COMPONENT_PREVIEW_DEFINITIONS[component.id].category || component.title)));
     button.type = 'button';
     button.dataset.category = category;
     button.addEventListener('click', () => show(component));
     choices.set(category, button);
-    categories.append(button);
   }
+  for (const entry of PICKER_NAVIGATION) {
+    if (typeof entry === 'string') {
+      if (choices.has(entry)) categories.append(choices.get(entry));
+      continue;
+    }
+    const members = entry.categories.filter(category => choices.has(category));
+    if (!members.length) continue;
+    const toggle = previewElement('button', 'preview-picker-group');
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', 'true');
+    const submenu = previewElement('div', 'preview-picker-submenu');
+    submenu.id = `componentPickerGroup-${entry.id}`;
+    toggle.setAttribute('aria-controls', submenu.id);
+    const arrow = pickerIcon('m6 9 6 6 6-6');
+    arrow.classList.add('preview-picker-group-arrow');
+    toggle.append(pickerIcon(CATEGORY_ICONS[entry.id]), previewElement('span', '', entry.title), arrow);
+    toggle.addEventListener('click', () => {
+      submenu.hidden = !submenu.hidden;
+      toggle.setAttribute('aria-expanded', String(!submenu.hidden));
+    });
+    for (const category of members) {
+      submenu.append(choices.get(category));
+      navigationGroups.set(category, { toggle, submenu });
+    }
+    categories.append(toggle, submenu);
+  }
+  for (const [category] of groups) {
+    const button = choices.get(category);
+    if (!button.parentElement) categories.append(button);
+  }
+  categories.append(suites);
   const browser = components.find(({ id }) => id === 'browser');
   if (browser) {
     const more = previewElement('button', 'preview-picker-more');
@@ -365,7 +426,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     open() {
       const selected = categories.querySelector('[aria-pressed="true"]');
       if (selected) selected.click();
-      else show(groups.values().next().value[0]);
+      else categories.querySelector('[data-category]').click();
       dialog.showModal();
     },
     dispose() { styleLibrary?.dispose(); textPreviews.disconnect(); dialog.close(); dialog.remove(); },

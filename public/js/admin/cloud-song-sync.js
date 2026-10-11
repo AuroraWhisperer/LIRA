@@ -48,7 +48,7 @@ function renderLastCloudSync(lastSyncEl) {
   }
   lastSyncEl.textContent = record?.time
     ? `本机上次同步：${new Date(record.time).toLocaleString()}，共 ${Number(record.count) || 0} 首。`
-    : '本机尚未同步过歌单。';
+    : '本机尚未同步。';
 }
 
 export async function initCloudSongSync({ toast, showConfirmationDialog }) {

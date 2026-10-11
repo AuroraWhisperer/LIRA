@@ -43,7 +43,7 @@ test('color controls retain native values, form submission, labels, events and f
   const page = await pageFor(t, '<form><label for="color">文字颜色</label><input id="color" type="color" name="textColor" value="#eaf2ff"></form>');
   const input = page.locator('#color');
   assert.equal(await page.evaluate(() => document.getElementById('color') === window.originalColor), true);
-  assert.equal(await page.locator('.lira-color-value').textContent(), '#EAF2FF');
+  assert.equal(await page.locator('.lira-color-hex-value').textContent(), '#EAF2FF');
   assert.equal(await page.getByLabel('文字颜色', { exact: true }).count(), 1);
   await page.evaluate(() => { window.enhanceColors(); window.enhanceColors(); });
   assert.equal(await page.locator('.lira-color-control').count(), 1);
@@ -53,7 +53,7 @@ test('color controls retain native values, form submission, labels, events and f
   });
   assert.deepEqual(hits, [true, true, true]);
   await input.fill('#abcdef');
-  assert.equal(await page.locator('.lira-color-value').textContent(), '#ABCDEF');
+  assert.equal(await page.locator('.lira-color-hex-value').textContent(), '#ABCDEF');
   assert.deepEqual(await page.evaluate(() => window.colorEvents), [
     { type: 'input', value: '#abcdef' }, { type: 'change', value: '#abcdef' },
   ]);
@@ -68,10 +68,10 @@ test('color controls retain native values, form submission, labels, events and f
 test('programmatic updates, reset, dynamic controls and cloned panels stay synchronized without duplicate events', async t => {
   const page = await pageFor(t, '<form><label>颜色<input type="color" value="#112233"></label></form>');
   await page.evaluate(() => { window.originalColor.value = '#aabbcc'; });
-  assert.equal(await page.locator('.lira-color-value').textContent(), '#AABBCC');
+  assert.equal(await page.locator('.lira-color-hex-value').textContent(), '#AABBCC');
   assert.deepEqual(await page.evaluate(() => window.colorEvents), []);
   await page.evaluate(() => document.querySelector('form').reset());
-  await page.waitForFunction(() => document.querySelector('.lira-color-value').textContent === '#112233');
+  await page.waitForFunction(() => document.querySelector('.lira-color-hex-value').textContent === '#112233');
   await page.evaluate(() => {
     const copy = document.querySelector('form').cloneNode(true);
     copy.id = 'copy';
@@ -87,15 +87,15 @@ test('programmatic updates, reset, dynamic controls and cloned panels stay synch
     document.getElementById('dynamic').setAttribute('value', '#fedcba');
     document.querySelector('#copy input').value = '#13579b';
   });
-  await page.waitForFunction(() => document.querySelector('#dynamic + .lira-color-value').textContent === '#FEDCBA');
-  assert.equal(await page.locator('#copy .lira-color-value').textContent(), '#13579B');
+  await page.waitForFunction(() => document.querySelector('#dynamic + .lira-color-value .lira-color-hex-value').textContent === '#FEDCBA');
+  assert.equal(await page.locator('#copy .lira-color-hex-value').textContent(), '#13579B');
   assert.equal(await page.locator('.lira-color-control .lira-color-control').count(), 0);
   assert.equal(await page.locator('.lira-color-value').count(), 3);
   await page.locator('#copy input').fill('#654321');
   assert.deepEqual(await page.evaluate(() => window.colorEvents), [
     { type: 'input', value: '#654321' }, { type: 'change', value: '#654321' },
   ]);
-  assert.equal(await page.locator('form:not(#copy) .lira-color-value').textContent(), '#112233');
+  assert.equal(await page.locator('form:not(#copy) .lira-color-hex-value').textContent(), '#112233');
 });
 
 test('compact rows align with neighboring inputs and narrow color groups keep their values inside the controls', async t => {
@@ -116,4 +116,80 @@ test('compact rows align with neighboring inputs and narrow color groups keep th
     const value = control.querySelector('.lira-color-value').getBoundingClientRect();
     return value.right <= input.right - 5 && value.top >= input.top && value.bottom <= input.bottom;
   })), true);
+});
+
+test('RGBA editing preserves alpha through RGB changes, form submission, cloning and reset', async t => {
+  const page = await pageFor(t, '<form><label for="color">文字颜色</label><input id="color" type="color" name="textColor" value="#55555580"></form>');
+  const input = page.locator('#color');
+  assert.equal(await input.evaluate(input => input.value), '#55555580');
+  assert.equal(await page.locator('.lira-color-alpha-value').textContent(), '50%');
+  await input.click();
+  const picker = page.getByRole('dialog', { name: '颜色与不透明度' });
+  await picker.getByLabel('不透明度（%）', { exact: true }).fill('35');
+  await picker.getByLabel('红色 R', { exact: true }).fill('170');
+  assert.equal(await input.evaluate(input => input.value), '#aa555559');
+  assert.equal(await page.evaluate(() => new FormData(document.querySelector('form')).get('textColor')), '#aa555559');
+  await picker.getByRole('button', { name: '完成' }).click();
+  await page.evaluate(() => { const copy = document.querySelector('form').cloneNode(true); copy.id = 'copy'; copy.querySelector('input').id = 'copyColor'; document.body.append(copy); });
+  await page.waitForFunction(() => document.querySelector('#copy .lira-color-alpha-value')?.textContent === '35%');
+  assert.equal(await page.locator('#copy input').evaluate(input => input.value), '#aa555559');
+  await input.click();
+  await picker.getByLabel('不透明度（%）', { exact: true }).fill('0');
+  assert.equal(await input.evaluate(input => input.value), '#aa555500');
+  await picker.getByLabel('不透明度（%）', { exact: true }).fill('100');
+  assert.equal(await input.evaluate(input => input.value), '#aa5555');
+  await page.evaluate(() => document.querySelector('form').reset());
+  await page.waitForFunction(() => document.getElementById('color').value === '#55555580');
+  assert.equal(await picker.isVisible(), false);
+});
+
+test('existing opacity is edited through its original field without adding a second alpha or crossing cloned panels', async t => {
+  const page = await pageFor(t, '<form><label>背景<input id="background" type="color" value="#123456" data-color-opacity="opacity"></label><label>背景不透明度<input id="opacity" type="number" value="0.35" min="0" max="1" step="0.01"></label></form>');
+  assert.equal(await page.locator('.lira-color-alpha-value').textContent(), '35%');
+  assert.equal(await page.locator('#opacity').isVisible(), false);
+  await page.evaluate(() => { document.getElementById('opacity').value = '0.48'; });
+  assert.equal(await page.locator('.lira-color-alpha-value').textContent(), '48%');
+  await page.locator('#background').click();
+  const picker = page.getByRole('dialog', { name: '颜色与不透明度' });
+  await picker.getByLabel('不透明度（%）', { exact: true }).fill('0');
+  assert.equal(await page.locator('#opacity').inputValue(), '0');
+  assert.equal(await page.locator('#background').inputValue(), '#123456');
+  assert.deepEqual(await page.evaluate(() => window.colorEvents), [{ type: 'input', value: '0' }]);
+  await picker.getByRole('button', { name: '完成' }).click();
+  await page.evaluate(async () => {
+    const { cloneComponentPanel } = await import('/js/admin/component-preview-panel.js');
+    const source = new DOMParser().parseFromString(document.querySelector('form').outerHTML, 'text/html');
+    const copy = cloneComponentPanel(source.querySelector('form'), 'preview'); document.body.append(copy);
+  });
+  await page.locator('#preview-background').click();
+  await picker.getByLabel('不透明度（%）', { exact: true }).fill('75');
+  assert.equal(await page.locator('#preview-opacity').inputValue(), '0.75');
+  assert.equal(await page.locator('#opacity').inputValue(), '0');
+  await picker.press('Escape');
+  await page.evaluate(() => document.querySelector('form').reset());
+  await page.waitForFunction(() => document.querySelector('form .lira-color-alpha-value').textContent === '35%');
+});
+
+test('generated component parameters restore defaults and update the owning draft immediately', async t => {
+  const page = await pageFor(t, '');
+  await page.evaluate(async () => {
+    const { createSceneExtraPreview } = await import('/js/admin/scene-extra-preview.js');
+    const { createSceneExtraDefaults } = await import('/js/shared/scene-extra-components.js');
+    window.draft = { ...createSceneExtraDefaults('songlist'), songBoardSyncTheme: 'false', songBoardThemeOpacity: '0.35', songBoardThemeText: '#11223380' };
+    const listeners = new Set();
+    const controller = {
+      getState: () => ({ draft: window.draft, loaded: true }),
+      subscribe(listener) { listeners.add(listener); listener(this.getState()); return () => listeners.delete(listener); },
+      edit(patch) { Object.assign(window.draft, patch); listeners.forEach(listener => listener(this.getState())); },
+    };
+    createSceneExtraPreview('songlist', { controller }).createPanel(document.getElementById('host'));
+  });
+  assert.equal(await page.locator('[data-component-parameter="songBoardThemeText"]').evaluate(input => input.value), '#11223380');
+  const background = page.locator('[data-component-parameter="songBoardThemeBackground"]');
+  assert.equal(await background.evaluate(input => input.parentElement.querySelector('.lira-color-alpha-value').textContent), '35%');
+  await background.click();
+  const alpha = page.getByRole('dialog').getByLabel('不透明度（%）', { exact: true });
+  await alpha.fill('0');
+  assert.equal(await page.evaluate(() => window.draft.songBoardThemeOpacity), '0');
+  assert.equal(await background.evaluate(input => input.value), '#181823');
 });

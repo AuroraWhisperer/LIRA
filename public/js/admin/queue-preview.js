@@ -10,8 +10,8 @@ export function createQueuePreview({ controller, source = document, panelPrefix 
       ...(draft.resourceStyle ? { resourceStyle: draft.resourceStyle } : {}) }),
     createPanel: (host, targetController = controller) => {
       const panel = cloneComponentPanel(source.querySelector('#themeForm'), panelPrefix);
-      componentField(panel, 'queueThemeActions').remove();
-      componentField(panel, 'queueThemeSaveState').remove();
+      componentField(panel, 'classicThemeArea').append(componentField(panel, 'classicThemeActions'));
+      panel.querySelector('.queue-theme-footer').remove();
       host.append(panel);
       return bindQueueTheme(panel, targetController);
     },

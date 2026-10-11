@@ -75,38 +75,3 @@ export function confirmedSettings(result) {
     throw new Error('服务器设置回包无效，请刷新核对。');
   return result;
 }
-
-// Fixed fictional sample; parity is checked against the server's rendering cases.
-export function previewMessage(template, pinyin, stage) {
-  const name = '小曌',
-    annotated = pinyin ? '小曌(zhào)' : name;
-  const format = (value) =>
-    template.includes('{username}') ? template.replaceAll('{username}', value) : `${value}，${template}`;
-  if (format(annotated).length <= 40) return format(annotated);
-  if (format(name).length <= 40) return format(name);
-  return stage === 'welcome' ? `欢迎 ${name}～` : `${name}，你好呀～`;
-}
-
-export function welcomePreview(settings, level) {
-  const passes = (threshold) => threshold === 0 || (level !== null && level >= threshold);
-  const reason = (threshold) => (level === null && threshold > 0 ? '荣耀等级未知' : '未达到荣耀门槛');
-  if (!settings.enabled) return ['首次欢迎：欢迎已关闭', '二次问候：欢迎已关闭'];
-  if (!passes(settings.welcomeMinHonorLevel))
-    return [`首次欢迎：${reason(settings.welcomeMinHonorLevel)}`, '二次问候：需要首次欢迎发送成功'];
-  const attention = settings.attentionEnabled && level !== null && level >= settings.attentionMinHonorLevel;
-  const first = attention ? 'attentionWelcomeMessages' : 'messages';
-  const second = attention ? 'attentionGreetingMessages' : 'greetingMessages';
-  const welcome = previewMessage(settings[first][0], settings.rareNamePinyinEnabled, 'welcome');
-  const greeting = previewMessage(settings[second][0], settings.rareNamePinyinEnabled, 'greeting');
-  const prefix = attention ? '高荣耀' : '普通';
-  return [
-    `${prefix}欢迎 · 最早进场后 ${settings.welcomeDelaySeconds} 秒：${welcome}`,
-    !settings.greetingEnabled
-      ? '二次问候：未开启'
-      : !passes(settings.greetingMinHonorLevel)
-        ? `二次问候：${reason(settings.greetingMinHonorLevel)}`
-        : greeting === welcome
-          ? '二次问候：与首次文案相同，跳过'
-          : `${prefix}问候 · 最早进场后 ${Math.max(settings.greetingDelaySeconds, settings.welcomeDelaySeconds + 5)} 秒：${greeting}`,
-  ];
-}

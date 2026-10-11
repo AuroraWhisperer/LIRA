@@ -1,4 +1,4 @@
-import { escapeHtml, escapeAttr, formatDateTime, formatMoney, readJsonResponse } from '../../shared/utils.js';
+import { escapeHtml, formatDateTime, formatMoney, readJsonResponse } from '../../shared/utils.js';
 // 盲盒分析工作区：独立管理筛选、视图、分页和请求生命周期。
 ('use strict');
 
@@ -35,7 +35,6 @@ export const giftAnalysis = (() => {
 
     get('blindBoxAnalysisClose')?.addEventListener('click', close);
     datePicker = createBlindBoxDatePicker({
-      onOpen: closeSelects,
       onChange(dateRange) {
         state.dateRange = dateRange;
         state.page = 1;
@@ -67,13 +66,8 @@ export const giftAnalysis = (() => {
       load();
     });
     document.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape' || !state.open) return;
-      const openButton = document.querySelector('.blind-analysis-select[aria-expanded="true"]');
-      if (closeSelects()) openButton?.focus();
-      else close();
-    });
-    document.addEventListener('click', (event) => {
-      if (state.open && !event.target.closest('.blind-analysis-filter')) closeSelects();
+      // An open shared select menu consumes Escape before the workspace closes.
+      if (event.key === 'Escape' && state.open && !event.defaultPrevented) close();
     });
     eventBus.on(Events.GIFT_RECEIVED, refreshIfOpen);
   }
@@ -104,7 +98,6 @@ export const giftAnalysis = (() => {
     state.controller?.abort();
     clearTimeout(state.refreshTimer);
     datePicker.close();
-    closeSelects();
     workspace.hidden = true;
     document.body.classList.remove('blind-analysis-open');
     state.returnFocus?.focus?.();
@@ -182,116 +175,21 @@ export const giftAnalysis = (() => {
   }
 
   function initSelect(id, stateKey) {
-    const button = get(id);
-    const menu = get(`${id}Menu`);
-    if (!button || !menu) return;
-    button.addEventListener('click', () => {
-      const willOpen = menu.hidden;
-      closeSelects();
-      if (willOpen) openSelect(button, menu);
-    });
-    button.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !menu.hidden) {
-        event.preventDefault();
-        closeSelects();
-        button.focus();
-        return;
-      }
-      if (['Enter', ' '].includes(event.key)) {
-        event.preventDefault();
-        const willOpen = menu.hidden;
-        closeSelects();
-        if (willOpen) openSelect(button, menu);
-        return;
-      }
-      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-      event.preventDefault();
-      if (menu.hidden) openSelect(button, menu);
-      moveOptionFocus(menu, event.key);
-    });
-    menu.addEventListener('click', (event) => {
-      const option = event.target.closest('[role="option"]');
-      if (option) selectOption(id, stateKey, option.dataset.value || '');
-    });
-    menu.addEventListener('keydown', (event) => {
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-        event.preventDefault();
-        moveOptionFocus(menu, event.key);
-      } else if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        const option = menu.querySelector('.focused') || menu.querySelector('[aria-selected="true"]');
-        if (option) selectOption(id, stateKey, option.dataset.value || '');
-      } else if (event.key === 'Tab') {
-        closeSelects();
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        closeSelects();
-        button.focus();
-      }
+    get(id)?.addEventListener('change', (event) => {
+      state[stateKey] = event.target.value;
+      state.page = 1;
+      load();
     });
   }
 
   function renderSelect(id, options, selectedValue) {
-    const button = get(id);
-    const menu = get(`${id}Menu`);
-    if (!button || !menu) return;
+    const select = get(id);
+    if (!select) return;
     const selected = options.find((option) => option.value === selectedValue) || options[0];
-    button.querySelector('span').textContent = selected.label;
-    menu.innerHTML = options
-      .map(
-        (option) =>
-          `<div class="blind-analysis-option" role="option" tabindex="-1" data-value="${escapeAttr(option.value)}" aria-selected="${option.value === selected.value}">${escapeHtml(option.label)}</div>`,
-      )
-      .join('');
-  }
-
-  function openSelect(button, menu) {
-    menu.hidden = false;
-    button.setAttribute('aria-expanded', 'true');
-    const selected = menu.querySelector('[aria-selected="true"]') || menu.firstElementChild;
-    focusOption(menu, selected);
-  }
-
-  function closeSelects() {
-    let closed = false;
-    document.querySelectorAll('.blind-analysis-select[aria-expanded="true"]').forEach((button) => {
-      button.setAttribute('aria-expanded', 'false');
-      const menu = get(button.getAttribute('aria-controls'));
-      if (menu) menu.hidden = true;
-      closed = true;
-    });
-    return closed;
-  }
-
-  function moveOptionFocus(menu, key) {
-    const options = [...menu.querySelectorAll('[role="option"]')];
-    if (!options.length) return;
-    const focusedIndex = options.findIndex((option) => option.classList.contains('focused'));
-    const nextIndex =
-      key === 'Home'
-        ? 0
-        : key === 'End'
-          ? options.length - 1
-          : key === 'ArrowUp'
-            ? Math.max(0, focusedIndex - 1)
-            : Math.min(options.length - 1, focusedIndex + 1);
-    focusOption(menu, options[nextIndex]);
-  }
-
-  function focusOption(menu, option) {
-    if (!option) return;
-    menu.querySelector('.focused')?.classList.remove('focused');
-    option.classList.add('focused');
-    option.focus({ preventScroll: true });
-    option.scrollIntoView({ block: 'nearest' });
-  }
-
-  function selectOption(id, stateKey, value) {
-    state[stateKey] = value;
-    state.page = 1;
-    closeSelects();
-    get(id)?.focus();
-    load();
+    select.replaceChildren(
+      ...options.map((option) => new Option(option.label, option.value, false, option.value === selected.value)),
+    );
+    select.value = selected.value;
   }
 
   function renderSummary(summary) {

@@ -236,10 +236,9 @@ export class PlaybackBar {
     this.qualityPanel.innerHTML = options
       .map(
         (option) => `
-      <button class="playback-quality-option${option.id === preferredQuality ? ' selected' : ''}" type="button" role="menuitemradio" aria-checked="${option.id === preferredQuality}" data-playback-quality="${option.id}">
+      <button class="playback-quality-option lira-select-option" type="button" role="menuitemradio" aria-checked="${option.id === preferredQuality}" data-playback-quality="${option.id}">
         <span>${option.label}</span>
         <small>${option.detail}</small>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>
       </button>
     `,
       )

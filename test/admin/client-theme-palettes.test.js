@@ -12,7 +12,7 @@ const declarations = (body) => Object.fromEntries([...body.matchAll(/(--[\w-]+):
 const defaultBlock = blocks.find(([, selector, body]) => selector.includes('html[data-client-theme],') && /--color-primary:/.test(body));
 const aliasBlock = blocks.find(([, , body]) => /--primary:/.test(body));
 const paletteBlocks = Object.fromEntries(blocks.flatMap((block) => {
-  const id = block[1].match(/html\[data-client-theme='([^']+)'\]/)?.[1];
+  const id = block[1].match(/(?:^|[,\n])\s*html\[data-client-theme='([^']+)'\](?:\s*,|\s*$)/)?.[1];
   return id ? [[id, block]] : [];
 }));
 paletteBlocks[DEFAULT_CLIENT_THEME_ID] = defaultBlock;

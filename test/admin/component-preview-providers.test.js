@@ -142,6 +142,7 @@ function createNode() {
 async function createFixture(initial = { revision: 1, status: 'paused', effectiveRemainingMs: 30000 }) {
   const document = createNode();
   document.createElement = createNode;
+  document.importNode = (node, deep) => node.cloneNode(deep);
   const { createOvertimePreview } = await loadModuleExports(path.join(adminPath, 'overtime-preview-factory.js'), {
     document, URL, location: new URL('http://127.0.0.1:3000/component-preview'),
   });

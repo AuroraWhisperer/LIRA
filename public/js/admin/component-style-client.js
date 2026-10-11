@@ -62,7 +62,7 @@ export function initComponentStyleLibraries() {
     ['#liveDanmakuFeature .danmaku-style-options-fixed', 'danmaku'],
     ['#giftWishDisplayStyle', 'gift-wishes'],
     ['#giftFramePanel', 'gift-frame'], ['#guardThanksStyleLibrary', 'guard-thanks'],
-    ['#themeForm .style-picker', 'queue'], ['#desktopLyricForm', 'lyrics'],
+    ['#themeForm .style-picker', 'queue'],
   ];
   for (const [selector, type] of locations) {
     const host = document.querySelector(selector);

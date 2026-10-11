@@ -22,7 +22,7 @@ function fontSize(value) {
 }
 
 function color(value) {
-  if (typeof value !== 'string' || !/^#[a-f\d]{6}$/i.test(value)) throw invalid();
+  if (typeof value !== 'string' || !/^#[a-f\d]{6}(?:[\da-f]{2})?$/i.test(value)) throw invalid();
   return value.toLowerCase();
 }
 

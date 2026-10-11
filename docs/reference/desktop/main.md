@@ -84,15 +84,13 @@ V2 的 `userWelcomeMessages` 通过同一 IPC/API 按精确 B 站 UID 保存个�
 固定回复保留六项总览，标题、问号与开关就近排列。随机点歌回复和 PK 播报的说明
 直接使用共享问号组件，不另设展开面板；PK 状态与刷新入口保留在总览。
 `danmaku-fixed-replies.js` 协调欢迎、自定义关键词、签到与抽签的单个活动编辑器，
-切换时只隐藏、不卸载编辑区。欢迎参数、词库与虚构预览位于同一编辑器，预览默认收起；
+切换时只隐藏、不卸载编辑区。欢迎参数与词库位于同一编辑器；
 `danmaku-welcome-custom.js` 拥有词库视图中的用户规则列表和分页。每项欢迎规则将标题/开关、
 参数和对应词库入口就近分组。宽容器中每条规则占一整行，名称/开关、延时、荣耀门槛与
 词库入口各组用竖线分隔，三条规则的词库入口对齐；容器小于 760px 时标题上移，
-小于 480px 时控件换行。注音与保存操作位于规则下方的同一响应式操作区，两组以竖线分隔；
-样例预览独立位于其后，同行功能组用竖线分隔，窄窗口改用横线。
-固定回复的自定义下拉选中项通过高亮表示，不显示对勾，
-展开箭头统一使用 SVG。公开发送范围和规则通过共享问号组件说明；
-样例预览仅展示通用/高荣耀词库。
+小于 480px 时控件换行。注音与保存操作位于规则下方的同一响应式操作区，两组以竖线分隔，窄窗口改用横线。
+固定回复的自定义下拉沿用共享单选样式，选中项以竖条与高亮表示，不显示对勾，
+展开箭头统一使用 SVG。公开发送范围和规则通过共享问号组件说明。
 IPC 通道定义见 [preload.md](preload.md)。
 
 验收：开关不覆盖词库、保存不改变开关、增删改、读取或保存期间继续编辑、关闭失败、
@@ -248,7 +246,7 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 `ready-to-show` 后:显示窗口、下发当前更新状态,并触发首轮自动更新检查(仅打包版且 `enableAutoUpdate==='true'`,延迟 1s,见 [update.md](update.md) §1)。
 
-本机字体权限:`desktop-permissions.js` 只处理 Chromium `localFonts` 请求,并用 `hasExactOrigin(requestingUrl, baseUrl)` 拒绝非 LIRA origin 与所有其他权限。可信页面请求时显示 Electron 原生对话框,明确说明只读取字体名称、不读取字体文件/路径/内容;用户选择“允许”才向 Chromium 放行。管理页的桌面歌词与点歌板风格 3–6 字体选择器通过 `local-font-library.js` 共用一次 `window.queryLocalFonts()` 查询,去重、排序后分别保留各自的内置选项和当前值;若 Chromium 首次调用要求瞬时用户激活,管理页在用户首次正常点击/按键时自动重试,不新增 IPC 或文件访问桥。
+本机字体权限:`desktop-permissions.js` 只处理 Chromium `localFonts` 请求,并用 `hasExactOrigin(requestingUrl, baseUrl)` 拒绝非 LIRA origin 与所有其他权限。可信页面请求时显示 Electron 原生对话框,明确说明只读取字体名称、不读取字体文件/路径/内容;用户选择“允许”才向 Chromium 放行。管理页的桌面歌词、点歌板风格 3–6 与大播放器字体选择器通过 `shared/local-font-library.js` 共用一次 `window.queryLocalFonts()` 查询,去重、排序后分别保留各自的内置选项和当前值;若 Chromium 首次调用要求瞬时用户激活,管理页在用户首次正常点击/按键时自动重试,不新增 IPC 或文件访问桥。
 
 ## 5. local-media:// 协议(唯一成文处)
 

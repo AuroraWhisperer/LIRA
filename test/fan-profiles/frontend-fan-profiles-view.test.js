@@ -26,6 +26,13 @@ test('archive scope controls live on the profiles page, not in settings or the n
   }
 });
 
+test('latest roster result uses contextual help immediately before the sync status without a separate row', () => {
+  const markup = fs.readFileSync(path.join(ROOT, 'public/pages/admin/toolbox/fan-profiles.html'), 'utf8');
+  assert.match(markup, /<lira-help id="fanRosterHelp" label="查看最近同步结果" hidden><span id="fanRosterResult"><\/span><\/lira-help>\s*<span id="fanSyncState" role="status">/);
+  assert.equal((markup.match(/id="fanRosterResult"/g) || []).length, 1);
+  assert.doesNotMatch(markup, /<p[^>]*id="fanRosterResult"/);
+});
+
 test('archive empty states distinguish scope from search and never offer creation', async () => {
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const states = [
@@ -79,15 +86,22 @@ test('reminders share one profile entry per day while each item keeps its own ac
   }
 });
 
-test('archived detail exposes one restore action outside more while current detail explains archive', async (t) => {
+test('archived detail exposes one restore action outside more while current detail offers archive', async (t) => {
   const f = fanFixture(t);
-  const profile = f.detail(f.create().id);
+  const id = f.create().id;
+  f.service.importGuardRoster(SCOPE, {
+    roomId: '1234', ownerUid: '99', observedAt: NOW, skipped: 0,
+    members: [{ uid: IDENTITY.value, name: '测试舰长', level: 3 }],
+  });
+  const profile = f.detail(id);
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const current = view.renderDetail(profile);
   assert.equal(actionTags(current, 'suppress').length, 1);
   assert.equal(actionTags(view.renderDetail({ ...profile, identity: null }), 'suppress').length, 0);
   assert.equal(actionTags(current, 'archive').length, 1);
   const archived = view.renderDetail({ ...profile, archived: true });
+  for (const rendered of [current, archived]) assert.match(rendered, /alt="舰长"/);
+  assert.match(view.renderPeople([{ ...profile, archived: true }], null, false, true), /alt="舰长"/);
   assert.equal(actionTags(archived, 'archive').length, 1);
   const archiveLabel = (rendered) => rendered.match(/data-fan-action="archive"[^>]*>([^<]+)/)?.[1];
   assert.ok(archiveLabel(archived));
@@ -190,11 +204,53 @@ test('fan detail renders platform companion days independently of unknown local 
   assert.doesNotMatch(view.renderDetail({ ...profile, guardAccompany: null }, 'membership'), /499 天/);
 });
 
+test('roster skip messages identify members and explain unavailable identities without inventing legacy reasons', async () => {
+  const { rosterSkippedMessage } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  assert.equal(rosterSkippedMessage({ skipped: 0, skippedDetails: [] }), '');
+  assert.equal(rosterSkippedMessage({ skipped: 4, skippedDetails: [
+    { uid: '123', name: '小海', reason: 'archived' },
+    { uid: '456', name: '', reason: 'suppressed' },
+    { rank: '3', reason: 'hidden-identity' },
+    { rank: '4', reason: 'invalid-uid' },
+  ] }), ' 跳过明细：小海（UID 123）：档案已归档，本次未更新，保留原身份资料；UID 456：已加入黑名单，禁止自动建档或更新；名单第 3 位：B 站隐藏了身份，无法识别；名单第 4 位：B 站未提供有效 UID，无法匹配档案。');
+  assert.match(rosterSkippedMessage({ skipped: 1 }), /1 位未提供跳过明细，请重新同步查看/);
+});
+
+test('roster notices separate success, skips and lookup failures and omit empty categories', async () => {
+  const { rosterUpdateNotices } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const result = { roomId: '1234', total: 30, created: 0, updated: 30, skipped: 0,
+    profileRefresh: { updated: 2, skipped: 0, failed: 0 } };
+  const clean = rosterUpdateNotices(result);
+  assert.equal(clean.length, 1);
+  assert.equal(clean[0].type, 'success');
+  assert.match(clean[0].message, /更新 30 份/);
+  assert.match(clean[0].message, /名单外资料：更新 2 份/);
+  assert.doesNotMatch(clean[0].message, /跳过|未查询|未应用/);
+  for (const skipped of [0, 1]) {
+    for (const failed of [0, 1]) {
+      const notices = rosterUpdateNotices({ ...result, skipped,
+        skippedDetails: skipped ? [{ uid: '123', name: '小海', reason: 'archived' }] : [],
+        profileRefresh: { updated: 2, skipped: 0, failed },
+      });
+      assert.deepEqual(Array.from(notices, n => n.type), ['success', ...(skipped ? ['info'] : []), ...(failed ? ['warning'] : [])]);
+      assert.doesNotMatch(notices[0].message, /归档|未查询/);
+      if (skipped) assert.match(notices[1].message, /小海（UID 123）：档案已归档/);
+      if (failed) assert.match(notices.at(-1).message, /1 份暂未查询成功，保留旧资料/);
+    }
+  }
+  const offRoster = rosterUpdateNotices({ ...result, profileRefresh: { updated: 0, skipped: 2, failed: 0 } });
+  assert.equal(offRoster.length, 2);
+  assert.match(offRoster[1].message, /名单外资料有 2 份未应用更新，保留原资料/);
+  const empty = rosterUpdateNotices({ ...result, total: 0, updated: 0 });
+  assert.match(empty[0].message, /当前没有大航海成员/);
+  assert.match(empty[0].message, /名单外资料：更新 2 份/);
+});
+
 test('global fan update polling shows scheduled and startup toasts, errors, and stops after pagehide', async () => {
   const { initFanProfileAutoUpdate } = await loadModuleExports(
     path.join(ROOT, 'public/js/admin/fans/automatic-update.js'),
   );
-  let result = { ok: true, data: { reason: 'scheduled', status: 'success', created: 1, updated: 2, skipped: 0 } };
+  let result = { ok: true, data: { reason: 'scheduled', status: 'success', roomId: '1234', total: 3, created: 1, updated: 2, skipped: 0 } };
   const notices = [];
   const listeners = new Map();
   let cleared = false;
@@ -218,19 +274,24 @@ test('global fan update polling shows scheduled and startup toasts, errors, and 
   result = { ok: true, data: null };
   await ui.poll();
   assert.equal(notices.length, 1);
-  result = { ok: true, data: { reason: 'startup', status: 'success', created: 0, updated: 3, skipped: 1,
+  result = { ok: true, data: { reason: 'startup', status: 'success', roomId: '1234', total: 4, created: 0, updated: 3, skipped: 1,
+    skippedDetails: [{ rank: '2', reason: 'hidden-identity' }],
     profileRefresh: { updated: 2, failed: 1, skipped: 0 } } };
   await ui.poll();
   assert.doesNotMatch(notices[1].message, /12:10/, 'startup catch-up is not reported as the scheduled run');
   assert.notEqual(notices[1].options?.type, 'error');
-  assert.equal(notices[1].options?.type, 'warning');
+  assert.equal(notices.length, 4);
+  assert.equal(notices[1].options?.type, 'success');
   assert.match(notices[1].message, /名单外资料：更新 2 份/);
-  assert.match(notices[1].message, /1 份暂未查询成功，保留旧资料/);
+  assert.equal(notices[2].options?.type, 'info');
+  assert.match(notices[2].message, /名单第 2 位：B 站隐藏了身份，无法识别/);
+  assert.equal(notices[3].options?.type, 'warning');
+  assert.match(notices[3].message, /1 份暂未查询成功，保留旧资料/);
   result = { ok: true, data: { reason: 'startup', status: 'error', error: '请检查网络' } };
   await ui.poll();
-  assert.match(notices[2].message, /请检查网络/);
-  assert.notEqual(notices[2].message, notices[1].message);
-  assert.equal(notices[2].options.type, 'error');
+  assert.match(notices[4].message, /请检查网络/);
+  assert.notEqual(notices[4].message, notices[1].message);
+  assert.equal(notices[4].options.type, 'error');
   let complete;
   windowRef.fanProfiles.invoke = () =>
     new Promise((resolve) => {
@@ -240,7 +301,7 @@ test('global fan update polling shows scheduled and startup toasts, errors, and 
   listeners.get('pagehide')();
   complete(result);
   await pending;
-  assert.equal(notices.length, 3);
+  assert.equal(notices.length, 5);
   assert.equal(cleared, true);
   assert.equal(listeners.size, 0);
 });

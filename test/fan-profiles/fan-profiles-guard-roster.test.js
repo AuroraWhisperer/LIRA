@@ -154,7 +154,7 @@ test('manual roster import creates basic profiles even with automatic updates di
   const f = fanFixture(t);
   f.run('configure', { autoCreate: false, autoUpdate: false });
   const result = f.service.importGuardRoster(SCOPE, roster());
-  assert.deepEqual(result, { roomId: '1234', ownerUid: '99', total: 1, created: 1, updated: 0, skipped: 0 });
+  assert.deepEqual(result, { roomId: '1234', ownerUid: '99', total: 1, created: 1, updated: 0, skipped: 0, skippedDetails: [] });
   const p = f.run('find', { identity: IDENTITY });
   assert.equal(p.platformName, '海边听歌');
   assert.equal(p.alias, '');
@@ -214,10 +214,30 @@ test('manual import skips archived and suppressed profiles, and never merges ano
     ),
   );
   assert.equal(result.skipped, 2);
+  assert.deepEqual(result.skippedDetails, [
+    { uid: IDENTITY.value, name: '小海', reason: 'archived' },
+    { uid: '900000002', name: '虚构粉丝2', reason: 'suppressed' },
+  ]);
   assert.equal(result.created, 2);
   assert.equal(f.detail(archived.id).records.length, 0);
   assert.equal(f.detail(openId.id).records.length, 0);
   assert.equal(f.run('list', {}, otherScope).profiles.length, 1);
+});
+
+test('roster import carries upstream skip details without mutating the snapshot and accepts legacy counts', (t) => {
+  const f = fanFixture(t);
+  f.create({ archived: true });
+  const snapshot = { ...roster(), skipped: 1, skippedDetails: [{ rank: '2', reason: 'hidden-identity' }] };
+  const result = f.service.importGuardRoster(SCOPE, snapshot);
+  assert.equal(result.skipped, 2);
+  assert.deepEqual(result.skippedDetails, [
+    { rank: '2', reason: 'hidden-identity' },
+    { uid: IDENTITY.value, name: '小海', reason: 'archived' },
+  ]);
+  assert.equal(snapshot.skippedDetails.length, 1);
+  const legacy = f.service.importGuardRoster(SCOPE, { ...roster([]), skipped: 1 });
+  assert.equal(legacy.skipped, 1);
+  assert.deepEqual(legacy.skippedDetails, []);
 });
 
 test('manual roster import is atomic and does not infer absence as an expired membership', (t) => {
@@ -284,6 +304,32 @@ test('current roster roles survive absence, rejoining, restart and backup withou
   f.run('restore', { backup, ...preview, conflicts: 'replace' });
   assert.equal(f.detail(complete.id).currentGuardLevel, null);
   assert.equal(f.run('list', { filters: ['active'] }).profiles[0].currentGuardLevel, 1);
+});
+
+test('archive, skipped roster sync and restore preserve each confirmed guard role in list and detail', (t) => {
+  const f = fanFixture(t);
+  for (const level of [1, 2, 3]) {
+    const person = { ...IDENTITY, value: `90000000${level}` };
+    const snapshot = roster([{ uid: person.value, name: `测试成员${level}`, level }]);
+    f.service.importGuardRoster(SCOPE, snapshot);
+    const profile = f.run('find', { identity: person });
+    const before = f.detail(profile.id);
+    const archived = f.run('save', { id: profile.id, revision: profile.revision, archived: true });
+    assert.equal(archived.currentGuardLevel, level);
+    const result = f.service.importGuardRoster(SCOPE, snapshot);
+    assert.equal(result.skipped, 1);
+    assert.equal(result.skippedDetails[0].reason, 'archived');
+    // Even absence from a complete roster must not rewrite archived identity evidence.
+    f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt: '2026-09-18T05:00:00.000Z' });
+    assert.equal(f.run('list', { archived: true }).profiles.find(p => p.id === profile.id).currentGuardLevel, level);
+    const preserved = f.detail(profile.id);
+    assert.equal(preserved.currentGuardLevel, level);
+    assert.deepEqual(preserved.guardRoster, before.guardRoster);
+    assert.deepEqual(preserved.records, before.records);
+    const restored = f.run('save', { id: profile.id, revision: preserved.revision, archived: false });
+    assert.equal(restored.currentGuardLevel, level);
+    assert.equal(f.run('list', {}).profiles.find(p => p.id === profile.id).currentGuardLevel, level);
+  }
 });
 
 test('unidentified roster members, other rooms and stale imports do not clear newer current roles', (t) => {

@@ -54,7 +54,7 @@
       var(--overlay-gradient-r, 42),
       var(--overlay-gradient-g, 26),
       var(--overlay-gradient-b, 46),
-      var(--overlay-opacity, 0.82)
+      var(--overlay-gradient-opacity, var(--overlay-opacity, 0.82))
     )
   );
 }
@@ -95,7 +95,7 @@
   padding: 12px 13px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.04));
   box-shadow: 0 0 calc(6px + var(--overlay-glow-size, 0px))
-    rgba(var(--overlay-primary-r, 255), var(--overlay-primary-g, 111), var(--overlay-primary-b, 149), 0.18);
+    rgba(var(--overlay-primary-r, 255), var(--overlay-primary-g, 111), var(--overlay-primary-b, 149), calc(0.18 * var(--overlay-primary-alpha, 1)));
 }
 
 .overlay-panel.has-backdrop-blur .overlay-current {

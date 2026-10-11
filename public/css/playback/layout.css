@@ -8,19 +8,28 @@
 }
 
 .playback-page.active {
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    'head'
-    'discovery'
-    'search'
-    'match';
-  grid-template-rows: repeat(4, max-content);
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   height: calc(100vh - 58px - var(--player-dock-reserve, 96px));
   padding: 14px 16px 0;
   overflow: auto;
+}
+
+.playback-music-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'head' 'discovery' 'search' 'match';
+  gap: 12px;
+}
+
+.playback-workspace-tabs {
+  flex-shrink: 0;
+}
+
+.playback-workspace-tabs > .tab {
+  flex: 0 0 auto;
+  padding: 0 20px;
 }
 
 body.player-dock-expanded .playback-page.active {

@@ -310,7 +310,7 @@ function applyTheme(settings) {
   const root = document.documentElement;
   applyOverlayTheme(root, panel, settings);
 
-  panel.style.backgroundColor = hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity || 0.76);
+  panel.style.backgroundColor = hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity ?? 0.76);
 }
 
 // ── 工具函数 ──

@@ -22,6 +22,10 @@ test('text boxes preserve structured text, formatting and atomic images without 
   const result = normalizeSceneConfig('text-box', input);
   assert.equal(result.nodes[0].text, '你好\n(｡･ω･｡)ﾉ♡');
   assert.equal(result.nodes[0].color, '#aabbcc');
+  for (const color of ['#aabbcc80', '#aabbcc00']) {
+    const translucent = { ...input, color, nodes: [{ type: 'text', text: '透明文字', color }] };
+    assert.deepEqual(normalizeTextBoxConfig(normalizeSceneConfig('text-box', translucent)), translucent);
+  }
   assert.equal(result.nodes[0].stroke, true);
   assert.equal(result.nodes[0].shadow, false);
   assert.deepEqual(normalizeTextBoxConfig(createTextBoxDefaults()), createTextBoxDefaults());

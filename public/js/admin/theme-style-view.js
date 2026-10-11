@@ -30,6 +30,8 @@ export function setOverlayStyle(style, root = document, resourcePreset) {
     button.classList.toggle('active', button.dataset.overlayStyle === nextStyle);
   });
   const classicArea = componentField(root, 'classicThemeArea');
+  const classicActions = componentField(root, 'classicThemeActions');
+  if (classicActions) classicActions.hidden = nextStyle !== 'classic';
   const identityArea = componentField(root, 'identityThemeArea');
   if (nextStyle !== 'classic') {
     if (classicArea) classicArea.hidden = true;

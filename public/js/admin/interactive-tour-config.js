@@ -127,7 +127,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '设置直播画面中的组件',
     kicker: '第 6 步 · 认识组件',
     content:
-      '这里集中放着<strong class="lira-tour-keyword">弹幕姬、礼物姬、文本框、加班机、开播动画和时钟</strong>。从左侧选择组件，在右侧设置内容、样式和预览。礼物姬下的六个功能各有独立图标和页面，点击组名可收起或展开。需要组合多个组件时，可以通过下一步介绍的<strong class="lira-tour-keyword">直播画布</strong>统一编排。',
+      '这里集中放着<strong class="lira-tour-keyword">弹幕姬、礼物姬、文本框、加班机、开播动画、时钟、弹幕投票和观众评分</strong>。从左侧选择组件，在右侧设置内容、样式和预览。礼物姬下的六个功能各有独立图标和页面，点击组名可收起或展开。需要组合多个组件时，可以通过下一步介绍的<strong class="lira-tour-keyword">直播画布</strong>统一编排。',
     note: '发送弹幕、机器人回复和 AI 设置在「百宝箱 → 弹幕互动」；礼物数据仍在顶部「礼物」页。现在可以先认识入口，继续下一步。',
     targetPage: 'liveComponentsPage',
     targetTab: '[data-other-feature="liveDanmakuFeature"]',
@@ -155,7 +155,7 @@ export const TOUR_CONFIG_STEPS = [
       '现在已打开<strong class="lira-tour-keyword">「播放」</strong>页。先在左上方选择你平时使用的平台：QQ音乐、网易云音乐或全民 K 歌。使用 QQ音乐或网易云音乐时，点击右上方的<strong class="lira-tour-keyword">「登录」</strong>；使用全民 K 歌时，请先在全民 K 歌客户端登录。',
     note: '这一步只告诉你登录入口，不要求现在登录；选好后可以继续。',
     targetPage: 'playbackAssistantPage',
-    targetTab: null,
+    targetTab: '[data-tab="playbackMusicWorkspace"]',
     targetSelector: '.source-tabs',
     position: 'bottom',
     waitForAction: false, // 只是告知，不强制等待

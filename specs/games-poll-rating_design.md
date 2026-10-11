@@ -3,12 +3,12 @@
 - 状态：**In Progress**：功能已实现并通过隔离验证；真实直播间 C0 与端到端验收待补。
 - 执行调整：用户于 2026-09-20 明确要求先执行修改、测试失败后修正，因此第 11 节的 C0 前置顺序改为实现后复核。实现与验证记录见 [实施计划](plans/games-poll-rating.md)。
 - 日期：2026-09-20。
-- 范围：LIRA 桌面端小游戏控制、客户端接收 B 站直播间弹幕、拟新增的 `/interactions` 本地展示页。
+- 范围：LIRA 桌面端投票与评分控制、客户端接收 B 站直播间弹幕、`/interactions` 本地展示页。2026-10-11 按用户要求将两个主持入口从小游戏移到「组件」。
 - 依据：本次需求、现有小游戏实现，以及 Streamlabs、Slido 官方产品资料。
 
 ## 1. 建议方案
 
-在小游戏中新增 **「类别 3：投票与评分」**，包含「弹幕投票」「观众评分」两张卡片，共用独立地址 **`http://127.0.0.1:3000/interactions`**。类别 1 继续使用 `/games`，类别 2 继续使用 `/wheel`。三个地址对应三个类别，OBS / 直播姬可以分别配置位置和尺寸。
+在「组件」中分别提供 **「弹幕投票」「观众评分」** 两个入口，共用独立地址 **`http://127.0.0.1:3000/interactions`**（端口以实际运行值为准）及外观设置；内部仍使用类别 3 的单会话约束。类别 1 继续使用 `/games`，类别 2 继续使用 `/wheel`。三个地址对应三个类别，OBS / 直播姬可以分别配置位置和尺寸。
 
 分类名称本身不强制决定 URL，但本方案建议独立地址：投票和评分属于同一类观众意见收集，布局与棋盘、画布不同，且展示页只需要读取统计结果。两者共用 `/interactions`，不再分别新增 `/vote`、`/rating`。这是新增地址，不是重命名现有 `/games`；新页面已随类别 3 实现。
 
@@ -28,7 +28,7 @@
 本报告采用两项明确的设计解释：
 
 1. **“每个人只能打一次”理解为每个 UID 在最终平均分中只占一份权重**，允许停止前修改评分，因为需求同时指定“最后一次打分”。例如 A 发 `3 → 8 → 10`，最终只算 A 的 `10`。本次按用户要求执行本报告，采用末次有效评分规则。
-2. **配置、开始、结算在桌面端「小游戏」界面完成，`/interactions` 负责同步显示。** 这是对“小游戏界面控制结算、127 网页控制显示”的现有产品模式解释。新展示页只读；在 overlay 网页交互窗口内直接结算不属于首版控制方式。
+2. **配置、开始、结算在桌面端「组件 → 弹幕投票 / 观众评分」完成，`/interactions` 负责同步显示。** 主持操作与只读展示分开；在 overlay 网页交互窗口内直接结算不属于控制方式。
 
 ## 2. 成熟产品调研与取舍
 
@@ -230,7 +230,7 @@
 flowchart LR
   B["B 站当前直播间实时弹幕"] --> C["现有 Bilibili 客户端\n解析身份、房间与事件信息"]
   C --> I["本场弹幕处理器\n开始后挂接，结束时解除"]
-  A["桌面端小游戏\n配置 / 开始 / 结算 / 清空"] --> S["类别 3 独立会话服务"]
+  A["桌面端投票 / 评分组件\n配置 / 开始 / 结算 / 清空"] --> S["类别 3 独立会话服务"]
   I --> S
   S --> P["poll / rating 规则模块\nUID 去重与统计"]
   P --> S
@@ -253,7 +253,7 @@ flowchart LR
 | `src/bilibili/danmaku/websocket-connection.js`、`message-handlers.js`、相关 parser | 捕获不可变的消息来源与顺序；在命令过滤前提供本场实时文本入口，不改变原命令行为 |
 | `src/server/routes/interaction-routes.js`（拟新增）、`src/server/api-routes.js` | 注册 `/api/interactions` 前缀和路由；不复用 `/api/games/session` 来创建新类型 |
 | `src/server/access-policy.js`、`src/server/overlay-http.js`、`src/server/overlay-projection.js` | 注册 interactions 页面/scope、只读 GET、HTTP/WS 字段白名单；独立于 games 的可操作权限 |
-| `public/pages/admin/toolbox/games.html`、`public/js/admin/games.js`、`games-interactions.js`（拟新增） | 类别 3 链接、表单和主持操作；按现有 wheel 的入口方式初始化专用模块 |
+| `public/pages/admin/live-components/interactions.html`、`public/js/admin/interactions.js` | 两个组件入口共用链接、表单、外观与主持操作，按需初始化一次；`games.js` 独立订阅互动状态以维护互斥按钮 |
 | `public/js/admin/state.js` | 转发 `interaction:update` 为类别 3 UI 事件，避免前端漏收新事件 |
 | `public/pages/overlays/interactions.html`、`public/js/overlays/interactions.js`、`public/css/overlays/interactions.css`（拟新增） | 独立展示页，复用 socket-client 与列表翻页 helper，不改旧 games 视图 |
 | `public/css/admin/toolbox/` | 新卡片和表单样式，复用既有变量及样式入口 |

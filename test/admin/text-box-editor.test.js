@@ -141,11 +141,28 @@ test('keyboard marks toggle repeatedly and toolbar formatting stays limited to t
 test('nested styles preserve underline from ancestors and only a terminal placeholder BR is ignored', async (t) => {
   const page = await mount(t);
   const result = await page.evaluate(() => {
-    window.composer.editor.innerHTML = '<span style="text-decoration:underline"><span style="color:rgb(255,0,0)">嵌套</span></span><div><br></div><div><br></div>';
+    window.composer.editor.innerHTML = '<span style="text-decoration:underline"><span style="color:rgba(255,0,0,0.35)">嵌套</span></span><div><br></div><div><br></div>';
     return window.readTextBoxNodes(window.composer.editor, window.config);
   });
   assert.equal(result.map(node => node.text).join(''), '嵌套\n\n');
   assert.equal(result[0].underline, true);
+  assert.equal(result[0].color, '#ff000059');
+});
+
+test('the floating color picker retains the text selection while editing alpha', async t => {
+  const page = await mount(t, [{ type: 'text', text: '透明文字' }]);
+  await page.locator('.text-box-editor').focus();
+  await page.keyboard.press('Control+a');
+  await page.getByRole('button', { name: '文字颜色', exact: true }).click();
+  await page.getByLabel('自定义文字颜色', { exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '颜色与不透明度' });
+  await picker.getByLabel('不透明度（%）', { exact: true }).fill('35');
+  assert.equal((await read(page))[0].color, '#ffffff59');
+  await picker.getByLabel('红色 R', { exact: true }).fill('170');
+  assert.equal((await read(page))[0].color, '#aaffff59');
+  await picker.press('Escape');
+  assert.equal(await picker.isVisible(), false);
+  assert.equal((await read(page))[0].text, '透明文字');
 });
 
 test('mixed underline selection becomes uniformly underlined and toggles off without changing media', async (t) => {

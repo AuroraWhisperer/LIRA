@@ -109,7 +109,7 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
   }
   function create(duplicate) {
     const state = controller.getState();
-    const title = duplicate ? `${state.draft.document.title.slice(0, 75)} 副本` : `场景 ${state.presets.length + 1}`;
+    const title = duplicate ? `${state.draft.document.title.slice(0, 7).replace(/[\uD800-\uDBFF]$/, '')} 副本` : `场景 ${state.presets.length + 1}`;
     void run('preset', { action: 'create', title, duplicate });
   }
   select.addEventListener('change', () => { void run('preset', { action: 'select', id: select.value }); });

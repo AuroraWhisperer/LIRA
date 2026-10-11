@@ -7,7 +7,8 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
   const nameLabel = previewElement('label', 'preview-canvas-preset', '场景名称');
   const name = previewElement('input');
   name.setAttribute('aria-label', '场景名称');
-  name.maxLength = 80;
+  name.maxLength = 10;
+  name.placeholder = '最多 10 个字符';
   name.required = true;
   name.value = model.getDocument().title;
   name.addEventListener('change', () => {

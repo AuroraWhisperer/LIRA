@@ -59,14 +59,40 @@ test('canvas library saves variant layouts and shared parameters and renders rea
   await page.goto(url);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
+  const navigation = picker.getByRole('navigation', { name: '组件分类', exact: true });
+  assert.deepEqual(await navigation.locator('[data-category]').evaluateAll(buttons => buttons.map(button => button.dataset.category)), [
+    'danmaku', 'interactions-poll', 'interactions-rating', 'gift-frame', 'gift-feed', 'gift-wishes', 'gift-sprint',
+    'blindbox', 'guard-thanks', 'text-box', 'overtime', 'opening', 'clock', 'queue', 'songlist', 'lyrics',
+    '直播小游戏', 'background', 'suites', 'browser',
+  ]);
+  const gifts = navigation.getByRole('button', { name: '礼物姬', exact: true });
+  const giftItems = navigation.locator('#componentPickerGroup-gifts');
+  assert.deepEqual(await giftItems.locator('button').allTextContents(),
+    ['全屏礼物感谢', '滚动礼物', '礼物许愿', '月底冲刺', '盲盒盈亏榜', '大航海感谢']);
+  await gifts.click();
+  assert.equal(await giftItems.isHidden(), true);
+  assert.equal(await gifts.getAttribute('aria-expanded'), 'false');
+  await gifts.click();
+  await giftItems.getByRole('button', { name: '月底冲刺', exact: true }).click();
+  await gifts.click();
+  await picker.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  assert.equal(await gifts.getAttribute('aria-expanded'), 'true', 'Reopening reveals the selected category.');
+  assert.equal(await giftItems.getByRole('button', { name: '月底冲刺', exact: true }).getAttribute('aria-pressed'), 'true');
+  assert.equal(await picker.locator('.preview-picker-subcategories button[aria-pressed]').count(), 0,
+    'Sprint is an independent category instead of a wish subcategory.');
+  await picker.locator('[data-picker-component="gift-sprint"]').click();
+  assert.equal(await page.locator('.scene-editor-item[data-component="gift-sprint"]').count(), 1);
+  await page.getByRole('button', { name: '移除组件', exact: true }).click();
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
   // Scene-only variants come from their catalog; editor-owned styles must be unique and stable when revisited.
   const pickerCases = [
     ['danmaku', null], ['clock', null], ['queue', null], ['overtime', null, ['default']],
     ['songlist', null, extraVariants('songlist')], ['lyrics', null, extraVariants('lyrics')],
     ['直播小游戏', '直播间互动', extraVariants('games')], ['直播小游戏', '转盘', extraVariants('wheel')],
-    ['直播小游戏', '投票与评分', extraVariants('interactions')],
+    ['interactions-poll', null, ['poll']], ['interactions-rating', null, ['rating']],
     ['gift-feed', null, extraVariants('gift-feed')], ['blindbox', null, extraVariants('blindbox')],
-    ['gift-wishes', null, extraVariants('gift-wishes')], ['gift-wishes', '月底冲刺', extraVariants('gift-sprint')],
+    ['gift-wishes', null, extraVariants('gift-wishes')], ['gift-sprint', null, extraVariants('gift-sprint')],
     ['queue', null],
   ];
   const thumbnailSources = new Set();
@@ -107,8 +133,8 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     ['games', '直播间互动', 'gomoku', 'opacity', '0.7'],
     ['games', '直播间互动', 'draw-guess', 'opacity', '0.6'],
     ['wheel', '转盘', 'default', 'labelFontSize', '24'],
-    ['interactions', '投票与评分', 'poll', 'interactionOverlayTitle', '实时投票'],
-    ['interactions', '投票与评分', 'rating', 'interactionOverlayTitle', '实时评分'],
+    ['interactions', null, 'poll', 'interactionOverlayTitle', '实时投票'],
+    ['interactions', null, 'rating', 'interactionOverlayTitle', '实时评分'],
     ['gift-feed', null, 'default', 'scrollSpeed', '40'],
     ['blindbox', null, 'default', 'top', '5'],
     ['gift-wishes', null, 'card', 'gap', '20'],
@@ -122,7 +148,8 @@ test('canvas library saves variant layouts and shared parameters and renders rea
   for (const [type, subcategory, variant, key, value] of cases) {
     if (type === 'games') activeGame = data.games.sessions[variant];
     await page.getByRole('button', { name: '添加组件', exact: true }).click();
-    await page.locator(`[data-category="${subcategory ? '直播小游戏' : type}"]`).click();
+    const category = type === 'interactions' ? `interactions-${variant}` : subcategory ? '直播小游戏' : type;
+    await page.locator(`[data-category="${category}"]`).click();
     if (subcategory) await page.locator('.preview-picker-subcategories').getByRole('button', { name: subcategory, exact: true }).click();
     await page.locator(`[data-picker-style="${variant}"]`).click();
     await page.waitForFunction(() => document.querySelector('.scene-editor-item.is-selected .component-preview-load-state')?.hidden);
@@ -161,6 +188,10 @@ test('canvas library saves variant layouts and shared parameters and renders rea
   assert.equal(saved.document.items.length, cases.length);
   saved.document.items.forEach((item, index) => {
     assert.equal(item.type, cases[index][0]);
+    if (item.type === 'interactions') {
+      assert.equal(item.appearance.config.kind, cases[index][2]);
+      assert.match(item.name, cases[index][2] === 'poll' ? /^弹幕投票 / : /^观众评分 /);
+    }
     const shared = createSceneSharedAppearance({ settings: { get: () => fixture.runtime.settings }, system: {} })
       .read(item.type, item.appearance.config);
     const expected = item.type === 'interactions' ? '实时评分' : cases[index][4];
@@ -176,7 +207,7 @@ test('canvas library saves variant layouts and shared parameters and renders rea
   assert.deepEqual(sizes, saved.document.items.map(item => [`${item.width}px`, `${item.height}px`]));
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   await page.locator('[data-category="直播小游戏"]').click();
-  assert.equal(await page.locator('.preview-picker-subcategories button[aria-pressed]').count(), 3);
+  assert.deepEqual(await page.locator('.preview-picker-subcategories button[aria-pressed]').allTextContents(), ['直播间互动', '转盘']);
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   const source = fixture.service.getSource(saved.document.id);
   const output = await context.newPage();

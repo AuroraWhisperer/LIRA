@@ -44,5 +44,8 @@
 /* 响应式样式 */
 @import url('./playback/responsive.css');
 
+/* 大播放器外观设置与样式变体 */
+@import url('./playback/appearance.css');
+
 /* 确认对话框 */
 @import url('./playback/dialogs.css');

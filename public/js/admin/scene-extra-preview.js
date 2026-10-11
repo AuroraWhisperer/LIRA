@@ -9,6 +9,7 @@ import { mountBackgroundParameters } from './background-parameter-view.js';
 import { openingAppearanceFields } from '../shared/opening-appearance.js';
 import { mountOpeningCanvasSettings } from './opening-canvas-settings.js';
 import { SONG_BOARD_THEME_FIELDS } from '../shared/song-board-theme-fields.js';
+import { enhanceColorControls } from '../shared/color-control.js';
 
 export function createSceneExtraPreview(type, { controller, startPreviewData, openingSettings, embedded = false, previewHint } = {}) {
   const definition = SCENE_EXTRA_COMPONENTS[type];
@@ -92,6 +93,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
           }
         } else if (field.type === 'textarea') input.rows = 3;
         else input.type = field.type;
+        if (field.opacity) input.dataset.colorOpacity = field.opacity;
         if (previewOnly) input.dataset.previewParameter = key;
         else input.dataset.componentParameter = key;
         if (field.type === 'number') {
@@ -102,7 +104,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         }
         if (field.maxLength) input.maxLength = field.maxLength;
         input.addEventListener('blur', () => render(target.getState()));
-        input.addEventListener(['select', 'checkbox', 'number'].includes(field.type) ? 'change' : 'input', () => {
+        const editsOpacity = Object.values(definition.fields).some(field => field.opacity === key);
+        input.addEventListener(!editsOpacity && ['select', 'checkbox', 'number'].includes(field.type) ? 'change' : 'input', () => {
           if (!input.checkValidity()) return;
           let value = field.type === 'checkbox' ? input.checked : input.value;
           if (field.type === 'number' && !(field.optional && value === '')) value = cents ? Math.round(Number(value) * 100) : Number(value);
@@ -128,6 +131,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         label.append(input); grid.append(label); fields.set(key, { input, cents, inherit, label });
       }
       host.append(grid);
+      enhanceColorControls(grid);
       const backgroundPanel = type === 'background' ? mountBackgroundParameters(host, target) : null;
       const openingPanel = type === 'opening' && openingSettings && !initialConfig.resourceStyle && !initialConfig.mediaStyle
         ? mountOpeningCanvasSettings(host, { target, request: openingSettings, startPreviewData }) : null;

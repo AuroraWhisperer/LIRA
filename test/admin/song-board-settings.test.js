@@ -67,6 +67,8 @@ async function choose(page, name, option) {
 
 test('song board protects paired fields and enhanced selects through old snapshots and serial autosaves', async (t) => {
   const page = await fixture(t);
+  assert.equal(await page.locator('#scrollSeconds').inputValue(), '20');
+  assert.equal(await page.locator('#scrollSecondsRange').inputValue(), '20');
   await page.locator('#songBoardFontSizeNumber').fill('40');
   await page.waitForFunction(() => window.writes.length === 1);
   await page.locator('#songBoardFontSizeNumber').fill('52');

@@ -1,6 +1,7 @@
 import { BACKGROUND_FIELDS, BACKGROUND_GROUPS, getBackgroundAppearance, isVideoBackground } from '../shared/background-appearance.js';
 import { previewElement } from './component-preview-surface.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
+import { enhanceColorControls } from '../shared/color-control.js';
 
 export function mountBackgroundParameters(host, controller) {
   const root = previewElement('div', 'background-parameters');
@@ -30,6 +31,7 @@ export function mountBackgroundParameters(host, controller) {
         const option = previewElement('option', '', title); option.value = value; input.append(option);
       }
     } else input.type = field.type;
+    if (field.opacity) input.dataset.colorOpacity = field.opacity;
     const row = previewElement('div', 'background-parameter-control');
     let slider;
     if (field.type === 'number') {
@@ -66,6 +68,7 @@ export function mountBackgroundParameters(host, controller) {
   const reset = previewElement('button', 'secondary', '恢复样式默认'); reset.type = 'button';
   reset.addEventListener('click', () => controller.edit(getBackgroundAppearance(controller.getState().draft.backgroundDefaults)));
   root.append(reset); host.append(root);
+  enhanceColorControls(root);
   const stop = controller.subscribe(({ draft, loaded }) => {
     const appearance = getBackgroundAppearance(draft);
     for (const [black, white] of [['inputBlack', 'inputWhite'], ['outputBlack', 'outputWhite']]) {

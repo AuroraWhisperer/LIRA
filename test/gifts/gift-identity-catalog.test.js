@@ -104,6 +104,85 @@ test('schema 3 preserves same-ID gifts and relations through refresh, disk, and 
   assert.deepEqual(restarted.getSnapshot().variantBlindBoxes, fixture.response.blindBoxes);
 });
 
+test('metadata extensions update an old catalog and survive restart without entering display or download inputs', async (t) => {
+  const scratchDir = path.join(__dirname, '../../tmp');
+  fs.mkdirSync(scratchDir, { recursive: true });
+  const dataDir = fs.mkdtempSync(path.join(scratchDir, 'gift-metadata-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  let response = structuredClone(fixture.response);
+  const options = { dataDir, imageBaseUrl: 'https://api.example.test', logger: {}, fetchRemote: async () => response };
+  const cache = createRemoteGiftCatalogCache(options);
+  t.after(() => cache.stop());
+  const original = await cache.refresh();
+  const item = response.variants[0];
+  Object.assign(item.metadata, {
+    diyCountMap: 1,
+    animationFrameNum: 13,
+    giftAttrs: [0],
+    basicImageUrl: 'https://s1.hdslb.com/bfs/live/basic.png',
+    giftBanner: { title: '活动说明' },
+    officialRules: [{
+      sourceUrl: 'https://live.bilibili.com/blackboard/example.html',
+      text: '规则说明',
+      matchMethod: 'giftBannerLink',
+      title: '规则',
+    }],
+    countMap: [{ num: 1, effectId: 0, webSvga: 'https://i0.hdslb.com/bfs/live/send.svga' }],
+  });
+  function updateVersion(value) {
+    const business = {
+      variants: value.variants.map(({ firstSeenAt, lastSeenAt, firstSeenRunId, lastSeenRunId, ...gift }) => gift),
+      blindBoxes: value.blindBoxes,
+    };
+    value.version = `sha256:${crypto.createHash('sha256').update(JSON.stringify(business)).digest('hex')}`;
+  }
+  updateVersion(response);
+  const snapshot = await cache.refresh({ force: true });
+  assert.notEqual(snapshot.version, original.version);
+  assert.deepEqual(snapshot.gifts, original.gifts);
+  assert.equal(Object.hasOwn(snapshot, 'rawCatalog'), false);
+  assert.equal(snapshot.gifts.some((gift) => Object.hasOwn(gift, 'metadata')), false);
+  const saved = fs.readFileSync(cache.cachePath, 'utf8');
+  assert.deepEqual(JSON.parse(saved).variants[0].metadata, item.metadata);
+  const reopened = createRemoteGiftCatalogCache(options);
+  t.after(() => reopened.stop());
+  assert.equal(reopened.getSnapshot().version, snapshot.version);
+  assert.deepEqual(reopened.getSnapshot().gifts, original.gifts);
+
+  const validResponse = structuredClone(response);
+  for (const corrupt of [
+    (value) => {
+      value.variants[0].metadata.giftBanner.title = '未重算摘要的修改';
+    },
+    (value) => {
+      value.variants[0].metadata.price += 1;
+      updateVersion(value);
+    },
+    (value) => {
+      value.variants[0].metadata.type = -1;
+      updateVersion(value);
+    },
+    (value) => {
+      value.variants[0].metadata.countMap[0].num = 0;
+      updateVersion(value);
+    },
+    (value) => {
+      value.variants[0].sourceUrl = value.variants[0].metadata.webpUrl = 'https://invalid.example/gift.webp';
+      updateVersion(value);
+    },
+    (value) => {
+      value.variants[0].unknown = true;
+      updateVersion(value);
+    },
+  ]) {
+    response = structuredClone(validResponse);
+    corrupt(response);
+    await assert.rejects(cache.refresh({ force: true }), /CATALOG_INVALID/);
+    assert.equal(fs.readFileSync(cache.cachePath, 'utf8'), saved);
+    assert.equal(cache.getSnapshot().version, snapshot.version);
+  }
+});
+
 test('room merge and rule artwork never substitute another name or price sharing the ID', () => {
   const snapshot = normalizeRemoteCatalog(fixture.response, {
     imageBaseUrl: 'https://api.example.test',

@@ -122,6 +122,8 @@ data/
 
 认证文件格式与生命周期见 [desktop/auth.md](../desktop/auth.md);`logs/` 目录(ai.log / terminal.log / desktop.log)位于 data 目录的**父目录**。
 
+大播放器外观属于默认会话的 localStorage 界面偏好，不写入 SQLite 设置或播放快照；键、字段和恢复行为见[播放器外观](../frontend/playback.md#81-大播放器外观)。
+
 路径由 [data-paths.js](../../../src/shared/data-paths.js) 统一计算；`dataDir` 与数据库/授权/上传路径未改变。桌面持有原数据根的单实例锁后，[data-directory-migration.js](../../../src/storage/data-directory-migration.js) 在 ready 前迁移已知浏览器文件与缓存。独立服务及礼物初始化脚本在使用缓存前执行相同缓存迁移。迁移采用落盘日志与同卷重命名，中断可续作，目标冲突、缺失条目、符号链接及活动服务阻止迁移；未知文件保留原处。日志原子替换遇到 `EPERM` / `EBUSY` 时，仅对同一准备文件最多重试四次，累计等待最多 500ms，不重放数据移动；持续失败保留原日志并中止启动。`browser` 包含登录和界面资料，不能整目录当缓存清理。具体取舍见 [ADR-0016](../../architecture/adr/0016-separated-client-data-lifecycles.md)。
 
 ## 3. 六库 × 表清单(唯一成表处)
@@ -408,7 +410,7 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 | 检查点 / 条件 | 转换与兼容 |
 | --- | --- |
 | queueScrollSpeedRangeVersion != '3' | 旧队列速率归一到1–100，完成写3 |
-| songScrollSpeedRangeVersion != '2' | 旧 scrollSeconds 范围20–200映射1–100；新库无旧值时直接写2，保留当前默认45 |
+| songScrollSpeedRangeVersion != '2' | 旧 scrollSeconds 范围20–200映射1–100；新库无旧值时直接写2，保留当前默认20；已有当前范围的设置保持原值 |
 | queueFontSizeRangeVersion != '2' | 仅旧范围内 queueSongFontSize/queueTitleFontSize 翻倍到新范围，完成写2 |
 | queueStyleSettingsVersion != '1' | 旧共享字号/字体/颜色/滚动值复制至 identity 与各插画风格独立键，完成写1 |
 | desktopLyricKaraokeMode 缺失 | legacy desktopLyricKaraokeEnabled='false' 时初始化 off，否则默认模式 |

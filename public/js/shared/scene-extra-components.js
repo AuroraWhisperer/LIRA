@@ -5,7 +5,7 @@ import { OPENING_APPEARANCE_FIELDS } from './opening-appearance.js';
 const text = (label, value = '', maxLength = 80) => ({ label, type: 'text', default: value, maxLength });
 const number = (label, value, min, max, step = 1) => ({ label, type: 'number', default: value, min, max, step });
 const check = (label, value = true) => ({ label, type: 'checkbox', default: value });
-const color = (label, value) => ({ label, type: 'color', default: value });
+const color = (label, value, opacity) => ({ label, type: 'color', default: value, ...(opacity ? { opacity } : {}) });
 const select = (label, value, options) => ({ label, type: 'select', default: value, options });
 const variant = (value, label, sample = label) => ({ value, label, sample });
 const fontWeight = select('字重', '800', { 400: '常规', 500: '中等', 600: '半粗', 700: '加粗', 800: '特粗', 900: '超粗' });
@@ -33,16 +33,16 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     fields: {
       songBoardTitle: text('标题', '可点歌单'), category: text('歌曲分类（留空显示全部）'),
       songBoardSortMode: select('歌曲排序', 'initial', { initial: '首字母', category: '歌曲分类', artist: '歌手', language: '语种', length: '歌名长度' }),
-      scrollSeconds: number('滚动速度（1–100，数值越大越快）', '45', 1, 100),
+      scrollSeconds: number('滚动速度（1–100，数值越大越快）', '20', 1, 100),
       songBoardFontFamily: text('字体', 'Microsoft YaHei'), songBoardFontWeight: fontWeight,
       songBoardSongFontSize: number('歌曲字号', '28', 10, 100), songBoardTitleFontSize: number('标题字号', '24', 10, 100),
       songBoardSongColor: { ...color('歌曲颜色', ''), allowEmpty: true }, songBoardThemeText: color('文字颜色', '#fff7fb'),
       songBoardThemePrimary: color('主色', '#ff6f91'), songBoardThemeAccent: color('强调色', '#21b6a8'),
-      songBoardThemeBackground: color('背景颜色', '#181823'), songBoardThemeOpacity: number('背景不透明度', '0.35', 0, 1, 0.01),
+      songBoardThemeBackground: color('背景颜色', '#181823', 'songBoardThemeOpacity'), songBoardThemeOpacity: number('背景不透明度', '0.35', 0, 1, 0.01),
       songBoardThemeRadius: number('圆角', '8', 0, 60),
       songBoardSyncTheme: check('跟随队列主题', 'true'), songBoardFontSize: number('整体字号', '28', 10, 80),
       songBoardBackdropBlur: number('背景模糊', '0', 0, 30), songBoardGlowIntensity: number('发光强度', '0', 0, 20),
-      songBoardEnableGradient: check('渐变背景', 'false'), songBoardGradientEnd: color('渐变结束颜色', '#181823'),
+      songBoardEnableGradient: check('渐变背景', 'false'), songBoardGradientEnd: color('渐变结束颜色', '#181823', 'songBoardThemeOpacity'),
     },
   },
   lyrics: {
@@ -51,7 +51,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     fields: {
       style: select('展示样式', 'default', { default: '桌面歌词', moonlit: '月渡花汀' }),
       desktopLyricFontFamily: text('字体', 'Microsoft YaHei'), desktopLyricFontWeight: fontWeight,
-      desktopLyricFontSize: number('字号', '56', 24, 72), desktopLyricTextColor: color('文字颜色', '#000000'),
+      desktopLyricFontSize: number('字号', '56', 24, 72), desktopLyricTextColor: color('文字颜色', '#000000', 'desktopLyricOpacity'),
       desktopLyricTextAlign: select('文字对齐', 'left', { left: '左对齐', center: '居中', right: '右对齐', justify: '两端对齐' }),
       desktopLyricLineHeight: number('行高', '1.4', 1, 2, 0.1), desktopLyricVisibleLines: number('显示行数（0 为自动）', '0', 0, 99),
       desktopLyricOpacity: number('文字不透明度', '0.95', 0, 1, 0.05),
@@ -64,7 +64,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       desktopLyricNoLyricText: text('无歌词提示', '纯音乐，请欣赏'),
       desktopLyricFallbackFontFamily: text('备用字体', 'Microsoft JhengHei'),
       desktopLyricLetterSpacing: number('字间距', '0', -0.1, 0.3, 0.01),
-      desktopLyricShadowColor: color('阴影颜色', '#000000'), desktopLyricShadowIntensity: number('阴影强度', '0.35', 0, 1, 0.01),
+      desktopLyricShadowColor: color('阴影颜色', '#000000', 'desktopLyricShadowIntensity'), desktopLyricShadowIntensity: number('阴影强度', '0.35', 0, 1, 0.01),
       desktopLyricShadowBlur: number('阴影模糊', '8', 0, 30),
       desktopLyricShadowOffsetX: number('阴影水平偏移', '0', -20, 20), desktopLyricShadowOffsetY: number('阴影垂直偏移', '3', -20, 20),
       desktopLyricTraditionalMode: check('繁体歌词', 'false'), desktopLyricInterludeOffsetEm: number('间奏位置偏移', '0', -10, 10, 0.1),
@@ -104,13 +104,13 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       labelFontSize: number('选项字号', 22, 12, 32), opacity: number('整体不透明度', 1, 0, 1, 0.05) },
   },
   interactions: {
-    title: '投票与评分', category: '直播小游戏', size: [800, 600], path: '/interactions', variantKey: 'kind',
-    variants: [variant('poll', '弹幕投票', 'A / B / C'), variant('rating', '弹幕评分', '1—10')],
+    title: '投票与评分', size: [800, 600], path: '/interactions', variantKey: 'kind',
+    variants: [variant('poll', '弹幕投票', 'A / B / C'), variant('rating', '观众评分', '1—10')],
     fields: {
-      kind: select('互动类型', 'poll', { poll: '弹幕投票', rating: '弹幕评分' }),
+      kind: select('互动类型', 'poll', { poll: '弹幕投票', rating: '观众评分' }),
       interactionOverlayTitle: text('标题', '', 60), interactionOverlayHint: text('参与提示', '', 80),
       interactionRatingRules: { ...text('评分规则', '弹幕发送整数 1–10\n重复评分取最后一次', 300), type: 'textarea' },
-      interactionTextColor: color('文字颜色', '#172b3a'), interactionBackgroundColor: color('背景颜色', '#ffffff'),
+      interactionTextColor: color('文字颜色', '#172b3a'), interactionBackgroundColor: color('背景颜色', '#ffffff', 'interactionBackgroundOpacity'),
       interactionBackgroundOpacity: number('背景不透明度（%）', '100', 0, 100),
       interactionOverallOpacity: number('整体不透明度（%）', '100', 0, 100),
       interactionBarColor: color('进度条颜色', '#bee9e2'), interactionTrackColor: color('进度条底色', '#f0f3f6'),
@@ -155,7 +155,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       blindboxShowCastlesRemaining: check('显示剩余城堡', false),
       blindboxCastlesRemaining: number('还有几个堡（手动填写）', '0', 0, 99999),
       blindboxShowOpenedSinceCastle: check('显示上个堡后的开盒数', false),
-      noScroll: check('自动翻页'), themeBackground: color('背景颜色', '#181823'),
+      noScroll: check('自动翻页'), themeBackground: color('背景颜色', '#181823', 'themeOpacity'),
       themeOpacity: number('背景不透明度', '0.48', 0, 1, 0.01), themeText: color('文字颜色', '#fff7fb'),
       themePrimary: color('主色', '#ff6f91'), themeAccent: color('强调色', '#21b6a8'),
       overlayFontFamily: text('字体', 'Microsoft YaHei'), overlayFontWeight: fontWeight,
@@ -174,7 +174,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   'gift-sprint': {
-    title: '月底冲刺', category: 'gift-wishes', size: [600, 80], path: '/gift-sprint',
+    title: '月底冲刺', size: [600, 80], path: '/gift-sprint',
     variants: [variant('default', '月底冲刺', '还差 100 个水晶球')],
     fields: {},
   },

@@ -84,13 +84,18 @@
   container-type: inline-size;
 }
 
+.usage-guide-toc.is-open {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
 .usage-guide-toc-toolbar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto minmax(160px, 220px);
   align-items: center;
   gap: 16px;
   min-width: 0;
-  padding: 12px 16px;
+  padding: 6px 16px;
 }
 
 .usage-guide-toc-toggle {
@@ -110,7 +115,8 @@
   text-align: left;
 }
 
-.usage-guide-toc-toggle:hover {
+.usage-guide-toc-toggle:hover,
+.usage-guide-toc.is-open .usage-guide-toc-toggle {
   background: color-mix(in srgb, var(--usage-guide-nav-accent) 12%, var(--usage-guide-nav-bg));
   box-shadow: none;
 }
@@ -174,7 +180,7 @@
   gap: 8px;
   min-width: 0;
   min-height: 44px;
-  padding: 6px 10px;
+  padding: 4px 10px;
   border: 1px solid var(--usage-guide-nav-accent);
   border-radius: var(--radius-md);
   background: transparent;
@@ -244,20 +250,21 @@
 
 .usage-guide-toc-links {
   position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  left: 0;
+  top: 100%;
+  right: -1px;
+  left: -1px;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px 16px;
-  max-height: var(--usage-guide-toc-max-height, 60dvh);
-  padding: 16px;
+  gap: 16px;
+  max-height: min(var(--usage-guide-toc-max-height, 32dvh), 32dvh);
+  padding: 12px 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--usage-guide-nav-border);
+  border-top-color: var(--border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow-floating);
   visibility: hidden;
   opacity: 0;
   transform: translateY(-6px);
@@ -274,7 +281,7 @@
   visibility: visible;
   opacity: 1;
   transform: translateY(0);
-  clip-path: inset(-24px);
+  clip-path: inset(0);
   pointer-events: auto;
   transition-delay: 0s;
 }
@@ -400,7 +407,7 @@
   .usage-guide-toc-toolbar {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 8px;
-    padding: 10px;
+    padding: 6px 10px;
   }
 
   .usage-guide-reading-status {

@@ -2,6 +2,11 @@
 
 import { readApi, setState } from './ai-assistant-config-view.js';
 
+const BUILTIN_PRESENTATION = {
+  general: { name: '通用人格' },
+  cat: { name: '小猫人格', provider: 'deepseek', providerNote: '针对 DeepSeek' },
+};
+
 export function createPersonaControls({ flushPendingSave, acceptConfig }) {
   const byId = (suffix) => document.getElementById(`xiaomiAi${suffix}`);
   const select = byId('Persona');
@@ -15,21 +20,57 @@ export function createPersonaControls({ flushPendingSave, acceptConfig }) {
   const fileInput = byId('PersonaFile');
   const manageButton = byId('PersonaManage');
   let personas = [];
+  let detectedProvider = '';
+  let selectedId = '';
+  let selectionNotice = '';
   let editorId = null;
   let busy = false;
   manageButton.disabled = true;
+
+  function currentProvider() {
+    const provider = byId('ModelProvider').value;
+    return provider === 'auto' ? detectedProvider : provider;
+  }
+
+  function renderSelection() {
+    const persona = personas.find((entry) => entry.id === select.value);
+    const description = [persona?.providerNote, persona?.description].filter(Boolean).join('；');
+    byId('PersonaSummary').textContent = description ? `说明：${description}` : '';
+    byId('PersonaSummary').hidden = !description;
+    const unmatched = persona?.provider && persona.provider !== currentProvider();
+    const note = selectionNotice || (unmatched ? '已保留原有选择；此预设针对 DeepSeek，当前平台尚未测试。' : '');
+    byId('PersonaAvailability').textContent = note;
+    byId('PersonaAvailability').hidden = !note;
+  }
+
+  function renderOptions(selected) {
+    const entries = personas.filter((persona) => !persona.provider || persona.provider === currentProvider() || persona.id === selected);
+    entries.push({ id: '__new__', name: '自建人格…' });
+    select.replaceChildren(...entries.map((persona) => {
+      const option = document.createElement('option');
+      option.value = persona.id;
+      option.textContent = persona.name;
+      return option;
+    }));
+    select.value = selected;
+    selectedId = selected;
+    renderSelection();
+  }
 
   function loadEditor(id) {
     editorId = id;
     const persona = personas.find((entry) => entry.id === id);
     name.value = persona?.name || (id === 'custom' ? '原有自定义角色' : '');
     description.value = persona?.description || '';
+    byId('PersonaProviderNote').textContent = persona?.providerNote ? `${persona.providerNote}，其他模型尚未测试。` : '';
+    byId('PersonaProviderNote').hidden = !persona?.providerNote;
     prompt.value = persona?.prompt || (id === 'custom' ? legacyPrompt.value : '');
     name.disabled = Boolean(persona?.builtin) || id === 'custom';
     description.disabled = id === 'custom';
     byId('PersonaReset').hidden = !persona?.builtin;
-    byId('PersonaDelete').hidden = !persona || persona.builtin;
-    byId('PersonaDelete').disabled = !persona || persona.builtin;
+    const canDelete = Boolean(persona && !persona.builtin && id !== 'custom');
+    byId('PersonaDelete').hidden = !canDelete;
+    byId('PersonaDelete').disabled = !canDelete;
     byId('PersonaExport').disabled = !id;
     byId('PersonaCreate').hidden = !id;
     byId('PersonaDialogTitle').textContent = id ? `编辑预设 · ${name.value}` : '新建预设';
@@ -133,20 +174,40 @@ export function createPersonaControls({ flushPendingSave, acceptConfig }) {
   }
 
   return {
+    changeSelection() {
+      selectionNotice = '';
+      if (select.value === '__new__') {
+        renderOptions(selectedId);
+        loadEditor(null);
+        dialog.showModal();
+        name.focus();
+        return false;
+      }
+      renderOptions(select.value);
+      return true;
+    },
+    changeProvider() {
+      if (!personas.length) return false;
+      detectedProvider = '';
+      selectionNotice = '';
+      const persona = personas.find((entry) => entry.id === select.value);
+      const changed = Boolean(persona?.provider && byId('ModelProvider').value !== 'auto' && persona.provider !== currentProvider());
+      if (changed) selectionNotice = '已切换为通用人格；小猫人格及其编辑内容仍保留在 DeepSeek 下。';
+      renderOptions(changed ? 'general' : select.value);
+      return changed;
+    },
     render(config, preservedFieldIds = new Set()) {
-      personas = config.personas || [];
+      personas = (config.personas || []).map((persona) => ({
+        ...persona,
+        ...(persona.builtin ? BUILTIN_PRESENTATION[persona.id] : {}),
+      }));
+      detectedProvider = config.modelProvider === 'auto' ? config.modelEndpoint?.provider || '' : '';
       manageButton.disabled = false;
       if (!preservedFieldIds.has(legacyPrompt.id)) legacyPrompt.value = config.systemPrompt || '';
       const selected = preservedFieldIds.has(select.id) ? select.value : config.personaId || 'custom';
-      const entries = [...personas];
-      if (config.hasCustomPersona || selected === 'custom') entries.push({ id: 'custom', name: '原有自定义角色', description: '保留的自定义角色指南' });
-      select.replaceChildren(...entries.map((persona) => {
-        const option = document.createElement('option');
-        option.value = persona.id;
-        option.textContent = persona.description ? `${persona.name}（${persona.description}）` : persona.name;
-        return option;
-      }));
-      select.value = selected;
+      if (selected !== selectedId) selectionNotice = '';
+      if (config.hasCustomPersona || selected === 'custom') personas.push({ id: 'custom', name: '原有自定义角色', description: '保留的自定义角色指南' });
+      renderOptions(selected);
     },
   };
 }

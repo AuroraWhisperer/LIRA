@@ -6,7 +6,6 @@ import {
   parameterValues,
   validMessages,
   confirmedSettings,
-  welcomePreview,
 } from './danmaku-welcome-model.js';
 import { createWelcomeLibrary } from './danmaku-welcome-library.js';
 import { createWelcomeCustom } from './danmaku-welcome-custom.js';
@@ -73,67 +72,6 @@ export function initDanmakuWelcome({
       element('Panel').dispatchEvent(new windowRef.CustomEvent('welcome:show-editor', { bubbles: true }));
       element(Object.keys(errors)[0]).focus();
     }
-  }
-  function updatePreview() {
-    if (!isV2()) {
-      element('PreviewSummary').textContent = '新增设置尚不可用';
-      element('PreviewFirst').textContent = '';
-      element('PreviewSecond').textContent = '';
-      return;
-    }
-    const draft = element('PreviewSource').value !== 'confirmed';
-    const parsed = parameterValues(parameters.values, settings);
-    const config = draft
-      ? {
-          ...settings,
-          ...parsed.values,
-          ...Object.fromEntries(Object.keys(LIBRARIES).map((key) => [key, libraries[key].items])),
-        }
-      : settings;
-    const invalid =
-      draft && Object.keys(parsed.errors).length
-        ? Object.values(parsed.errors)[0]
-        : Object.keys(LIBRARIES).some((key) => !validMessages(config[key]))
-          ? '词库需为 1～30 条，每条不超过 80 字'
-          : '';
-    if (invalid) {
-      element('PreviewSummary').textContent = '草稿有错误';
-      element('PreviewFirst').textContent = invalid;
-      element('PreviewSecond').textContent = '';
-      return;
-    }
-    const levelSelect = element('PreviewLevel');
-    const levels = [
-      ...new Set([
-        0,
-        31,
-        config.welcomeMinHonorLevel - 1,
-        config.welcomeMinHonorLevel,
-        config.greetingMinHonorLevel,
-        config.attentionMinHonorLevel - 1,
-        config.attentionMinHonorLevel,
-      ]),
-    ]
-      .filter((level) => level >= 0)
-      .sort((a, b) => a - b);
-    const signature = levels.join(',');
-    if (levelSelect.dataset.levels !== signature) {
-      const current = levelSelect.value || '31';
-      levelSelect.replaceChildren();
-      for (const value of ['unknown', ...levels.map(String)]) {
-        const option = documentRef.createElement('option');
-        option.value = value;
-        option.textContent = value === 'unknown' ? '等级未知' : `${value} 级`;
-        levelSelect.appendChild(option);
-      }
-      levelSelect.value = current === 'unknown' || levels.includes(Number(current)) ? current : '31';
-      levelSelect.dataset.levels = signature;
-    }
-    const result = welcomePreview(config, levelSelect.value === 'unknown' ? null : Number(levelSelect.value));
-    element('PreviewFirst').textContent = result[0];
-    element('PreviewSecond').textContent = result[1];
-    element('PreviewSummary').textContent =
-      `${draft ? '编辑草稿' : '已确认设置'} · ${config.enabled ? (config.greetingEnabled ? '最多两次' : '仅首次欢迎') : '欢迎已关闭'} · 不发送`;
   }
   function controls() {
     const loaded = Boolean(settings),
@@ -210,7 +148,6 @@ export function initDanmakuWelcome({
       : isV2()
         ? `${settings.welcomeDelaySeconds} 秒后欢迎 · ${settings.welcomeMinHonorLevel ? `至少 ${settings.welcomeMinHonorLevel} 级` : '等级不限'}`
         : '服务器暂不支持新增设置';
-    updatePreview();
   }
   function libraryChanged(key) {
     if (key) {
@@ -483,8 +420,6 @@ export function initDanmakuWelcome({
       editor.select(button.dataset.welcomeLibrary);
       showView('libraries');
     });
-  element('PreviewSource').addEventListener('change', updatePreview);
-  element('PreviewLevel').addEventListener('change', updatePreview);
   refresh.addEventListener('click', reload);
   const unsubscribe = bridge?.onStateChanged?.(account);
   const initialGeneration = generation;

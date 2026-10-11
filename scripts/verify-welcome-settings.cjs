@@ -180,7 +180,7 @@ async function run() {
     true,
   );
   assert.deepEqual(expanded.overflow, []);
-  assert.equal(await evaluate('document.getElementById("danmakuWelcomePreview").open'), false);
+  assert.equal(await evaluate('document.getElementById("danmakuWelcomePreview") === null'), true);
   await capture('welcome');
   await evaluate('document.documentElement.style.colorScheme="dark"');
   await capture('dark-tokens');

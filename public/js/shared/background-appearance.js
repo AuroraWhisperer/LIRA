@@ -1,6 +1,6 @@
 const number = (label, value, min, max, step, group = 'basic', unit = '%') =>
   ({ label, type: 'number', default: value, min, max, step, group, unit, displayScale: unit === '%' ? 100 : 1 });
-const color = (label, value, group) => ({ label, type: 'color', default: value, group });
+const color = (label, value, group, opacity) => ({ label, type: 'color', default: value, group, opacity });
 
 export const BACKGROUND_GROUPS = Object.freeze({
   basic: '基础', color: '基础调色', whiteBalance: '白平衡', grading: '调色 · Lift / Gamma / Gain', legacyGrading: '旧版分区染色', glow: '辉光',
@@ -14,7 +14,7 @@ export const BACKGROUND_FIELDS = Object.freeze({
   brightness: number('亮度', 1, 0, 2, 0.01, 'color'),
   saturation: number('饱和度', 1, 0, 2, 0.01, 'color'),
   contrast: number('对比度', 1, 0, 2, 0.01, 'color'),
-  overlayColor: color('遮罩颜色', '#ffffff', 'color'),
+  overlayColor: color('遮罩颜色', '#ffffff', 'color', 'overlayOpacity'),
   overlayOpacity: number('遮罩强度', 0, 0, 1, 0.01, 'color'),
   colorProcessing: { label: '调色方式', type: 'select', default: 'standard', group: 'whiteBalance', options: { standard: '标准调色', legacy: '旧版调色（兼容）' } },
   temperature: number('色温（负冷正暖）', 0, -100, 100, 1, 'whiteBalance', ''),
@@ -29,11 +29,11 @@ export const BACKGROUND_FIELDS = Object.freeze({
   gainRed: number('Gain · 红', 1, 0, 3, 0.01, 'grading', ''),
   gainGreen: number('Gain · 绿', 1, 0, 3, 0.01, 'grading', ''),
   gainBlue: number('Gain · 蓝', 1, 0, 3, 0.01, 'grading', ''),
-  shadowColor: color('暗部颜色', '#ffffff', 'legacyGrading'),
+  shadowColor: color('暗部颜色', '#ffffff', 'legacyGrading', 'shadowStrength'),
   shadowStrength: number('暗部强度', 0, 0, 1, 0.01, 'legacyGrading'),
-  midtoneColor: color('中间调颜色', '#ffffff', 'legacyGrading'),
+  midtoneColor: color('中间调颜色', '#ffffff', 'legacyGrading', 'midtoneStrength'),
   midtoneStrength: number('中间调强度', 0, 0, 1, 0.01, 'legacyGrading'),
-  highlightColor: color('亮部颜色', '#ffffff', 'legacyGrading'),
+  highlightColor: color('亮部颜色', '#ffffff', 'legacyGrading', 'highlightStrength'),
   highlightStrength: number('亮部强度', 0, 0, 1, 0.01, 'legacyGrading'),
   glowMode: { label: '辉光形状', type: 'select', default: 'normal', group: 'glow', options: { normal: '柔光', streak: '横向光条', star: '十字星芒' } },
   glowStrength: number('辉光强度', 0, 0, 2, 0.01, 'glow'),
@@ -45,7 +45,7 @@ export const BACKGROUND_FIELDS = Object.freeze({
   irisSoftness: number('模糊过渡', 0.3, 0, 1, 0.01, 'iris'),
   irisCenterX: number('中心 X', 0.5, 0, 1, 0.01, 'iris'),
   irisCenterY: number('中心 Y', 0.5, 0, 1, 0.01, 'iris'),
-  vignetteColor: color('暗角颜色', '#000000', 'vignette'),
+  vignetteColor: color('暗角颜色', '#000000', 'vignette', 'vignetteOpacity'),
   vignetteOpacity: number('暗角强度', 0, 0, 1, 0.01, 'vignette'),
   vignetteRange: number('中心区域', 0.55, 0, 1, 0.01, 'vignette'),
   vignetteSoftness: number('暗角过渡', 0.45, 0, 1, 0.01, 'vignette'),

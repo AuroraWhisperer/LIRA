@@ -4,11 +4,40 @@ import { bilibiliAvatarSource } from '../settings-auth.js';
 export const html = escapeHtml;
 export const attr = escapeAttr;
 export const levels = { 1: '总督', 2: '提督', 3: '舰长' };
-export function profileRefreshMessage(refresh) {
-  if (!refresh || !(refresh.updated + refresh.failed + refresh.skipped)) return '';
-  return ` 名单外资料：更新 ${refresh.updated} 份` +
-    (refresh.skipped ? `，跳过 ${refresh.skipped} 份` : '') +
-    (refresh.failed ? `，${refresh.failed} 份暂未查询成功，保留旧资料，可稍后手动同步` : '') + '。';
+export function rosterSkippedMessage(result) {
+  if (!result.skipped) return '';
+  const reasons = {
+    'hidden-identity': 'B 站隐藏了身份，无法识别',
+    'invalid-uid': 'B 站未提供有效 UID，无法匹配档案',
+    archived: '档案已归档，本次未更新，保留原身份资料',
+    suppressed: '已加入黑名单，禁止自动建档或更新',
+  };
+  const details = (result.skippedDetails || []).map((item) => {
+    const person = item.uid
+      ? item.name ? `${item.name}（UID ${item.uid}）` : `UID ${item.uid}`
+      : item.rank ? `名单第 ${item.rank} 位` : '身份未知的成员';
+    return `${person}：${reasons[item.reason] || '未提供跳过原因'}`;
+  });
+  const missing = result.skipped - details.length;
+  if (missing > 0) details.push(`${missing} 位未提供跳过明细，请重新同步查看`);
+  return ` 跳过明细：${details.join('；')}。`;
+}
+
+export function rosterUpdateNotices(result, prefix = '') {
+  const refresh = result.profileRefresh;
+  const summary = (result.total
+    ? `房间 ${result.roomId}：新增 ${result.created} 份档案，更新 ${result.updated} 份。`
+    : `房间 ${result.roomId} 当前没有大航海成员。`) +
+    (refresh?.updated ? ` 名单外资料：更新 ${refresh.updated} 份。` : '');
+  const notices = [{ message: prefix + summary, type: 'success', duration: 5000 }];
+  const skipped = rosterSkippedMessage(result).trim() +
+    (refresh?.skipped ? ` 名单外资料有 ${refresh.skipped} 份未应用更新，保留原资料。` : '');
+  if (skipped) notices.push({ message: skipped.trim(), type: 'info', duration: 8000 });
+  if (refresh?.failed) notices.push({
+    message: `名单外资料有 ${refresh.failed} 份暂未查询成功，保留旧资料，可稍后手动同步。`,
+    type: 'warning', duration: 8000,
+  });
+  return notices;
 }
 
 export function dateLabel(value) {
@@ -176,7 +205,7 @@ export function renderDetail(profile, tab = 'overview', apiToken = '') {
   return `<header class="fan-person-header"><div class="fan-header-info"><div class="fan-detail-identity">${avatarSource ? `<span class="fan-detail-avatar"><img src="${attr(avatarSource)}" alt="" decoding="async" draggable="false"></span>` : ''}<div class="fan-detail-identity-text"><div class="fan-detail-name"><h3 class="fan-name" data-guard-level="${attr(profile.currentGuardLevel || '')}">${html(profile.platformName || profile.alias || '未命名档案')}</h3>${guardIcon(profile.currentGuardLevel)}</div>
     <p class="fan-detail-meta fan-muted">${profile.identity ? `<span>${profile.identity.type === 'uid' ? 'UID' : 'B 站账号'} ${html(profile.identity.value)}</span>` : '<span>未关联 B 站账号</span>'}${profile.alias && profile.platformName && profile.alias !== profile.platformName ? `<span>常用称呼：${html(profile.alias)}</span>` : ''}${profile.platformObservedAt ? `<span>更新于 ${html(dateLabel(profile.platformObservedAt))}</span>` : ''}</p>
     </div></div>${profile.summary ? `<p class="fan-prose">${html(profile.summary)}</p>` : ''}</div>
-    <div class="fan-header-actions">${button('back-list', '返回列表', 'class="fan-back-list"')}${button('new-note', '记一笔', 'class="primary"')}${button('favorite', profile.favorite ? '已关注' : '特别关注', `aria-pressed="${profile.favorite}"`)}${button('edit-profile', '编辑资料')}${profile.archived ? button('archive', '恢复到主列表') : ''}<details class="fan-more"><summary>更多</summary><div>${button('expand', '展开详情')}${profile.archived ? '' : `${button('archive', '归档档案')}<p class="fan-muted fan-archive-hint">保留资料与记录，归档期间不显示提醒。</p>`}${profile.identity ? button('suppress', '加入黑名单') : ''}${button('delete', '永久删除')}</div></details></div></header>
+    <div class="fan-header-actions">${button('back-list', '返回列表', 'class="fan-back-list"')}${button('new-note', '记一笔', 'class="primary"')}${button('favorite', profile.favorite ? '已关注' : '特别关注', `aria-pressed="${profile.favorite}"`)}${button('edit-profile', '编辑资料')}${profile.archived ? button('archive', '恢复到主列表') : ''}<details class="fan-more"><summary>更多</summary><div>${button('expand', '展开详情')}${profile.archived ? '' : button('archive', '归档档案')}${profile.identity ? button('suppress', '加入黑名单') : ''}${button('delete', '永久删除')}</div></details></div></header>
     <nav class="fan-detail-tabs" role="tablist" aria-label="档案详情">${[
       ['overview', '资料'],
       ['interactions', '手记'],

@@ -39,14 +39,16 @@
         >
           设置
         </button>
-        <span class="fan-sync fan-muted" id="fanSyncState" role="status"></span>
+        <span class="fan-sync fan-muted">
+          <lira-help id="fanRosterHelp" label="查看最近同步结果" hidden><span id="fanRosterResult"></span></lira-help>
+          <span id="fanSyncState" role="status"></span>
+        </span>
       </div>
       <div class="fan-actions">
         <button type="button" id="fanNewProfileButton" class="primary" data-fan-action="new">新建档案</button>
       </div>
     </header>
     <p id="fanPageError" class="fan-error" role="alert" hidden></p>
-    <p id="fanRosterResult" class="fan-muted" role="status" hidden></p>
     <div id="fanProfilesPage" role="tabpanel" aria-labelledby="fanProfilesTab">
       <div id="fanReminderSummary" class="fan-reminder-summary" hidden></div>
       <div class="fan-searchbar">

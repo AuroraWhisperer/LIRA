@@ -388,7 +388,7 @@ test('song display board bounds rendered rows and preserves the scroll anchor', 
   assert.equal(shortScroller.isScrollable, false);
 });
 
-test('song board scroll speed maps linearly from 1–100 to 1–300 pixels per second', async () => {
+test('song board scroll speed maps linearly from 1–100 to 1–250 pixels per second', async () => {
   const adminHtml = readAdminFragmentHtml('pages/admin/song/song-board.html');
   assert.match(
     adminHtml,
@@ -402,8 +402,9 @@ test('song board scroll speed maps linearly from 1–100 to 1–300 pixels per s
     WebSocket: function WebSocket() {},
   });
   assert.equal(songModule.scrollSpeedToPixelsPerSecond(1), 1);
-  assert.equal(songModule.scrollSpeedToPixelsPerSecond(100), 300);
-  assert.equal(songModule.scrollSpeedToPixelsPerSecond(200), 300);
+  assert.equal(songModule.scrollSpeedToPixelsPerSecond(100), 250);
+  assert.equal(songModule.scrollSpeedToPixelsPerSecond(200), 250);
+  assert.equal(songModule.scrollSpeedToPixelsPerSecond(), songModule.scrollSpeedToPixelsPerSecond(20));
 
   const rates = Array.from({ length: 100 }, (_, index) => index + 1).map(
     (speed) => songModule.scrollSpeedToPixelsPerSecond(speed),

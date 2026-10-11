@@ -42,7 +42,7 @@ export function normalizeInteractionAppearanceValue(key, value) {
     const [min, max] = NUMBER_RANGES[key];
     return number >= min && number <= max ? String(number) : null;
   }
-  return typeof value === 'string' && /^#[\da-f]{6}$/i.test(value) ? value.toLowerCase() : null;
+  return typeof value === 'string' && /^#[\da-f]{6}(?:[\da-f]{2})?$/i.test(value) ? value.toLowerCase() : null;
 }
 
 export function readInteractionAppearance(settings = {}) {

@@ -88,7 +88,7 @@
       <section id="licenseSongSync" class="song-cloud-panel" aria-labelledby="songCloudSyncTitle" hidden>
         <header class="song-cloud-heading">
           <h3 id="songCloudSyncTitle" class="ui-card-title">网页歌单同步</h3>
-          <p class="hint">将本地歌库同步到观众可访问的歌单页面。</p>
+          <p class="hint">将本机歌库同步到网页，供观众查看。</p>
         </header>
         <dl class="song-cloud-facts">
           <div>
@@ -102,8 +102,8 @@
         </dl>
         <p id="licenseLastCloudSync" class="hint"></p>
         <div class="song-cloud-notice">
-          <p>同步会用这台电脑的完整歌库替换云端歌库，不受当前搜索和筛选影响，网页歌单和同一账号的其他电脑也会跟着更新。</p>
-          <p class="hint">请先确认这台电脑的歌曲齐全，并避免同时在多台电脑修改歌库。</p>
+          <p>同步将用本机完整歌库替换云端歌库，不受搜索或筛选影响。网页歌单及同账号其他电脑也会更新。</p>
+          <p class="hint">请确认本机歌曲齐全，避免多台电脑同时修改歌库。</p>
         </div>
         <div class="actions song-cloud-actions">
           <button id="licenseSyncSongsBtn" class="song-data-action primary" type="button">同步到网页</button>
@@ -115,8 +115,7 @@
       </section>
       <section id="licenseSongBackground" class="song-cloud-panel" aria-labelledby="songCloudBackgroundTitle" hidden>
         <header class="song-cloud-heading">
-          <h3 id="songCloudBackgroundTitle" class="ui-card-title">歌单背景</h3>
-          <p class="hint">设置观众打开网页歌单时看到的背景。</p>
+          <h3 id="songCloudBackgroundTitle" class="ui-card-title">网页歌单背景</h3>
         </header>
         <div class="song-background-content">
           <div class="song-bg-preview-wrap">
@@ -139,15 +138,14 @@
             </div>
           </div>
           <div class="song-background-guide">
-            <p>选择图片后自动压缩上传，并在本机保留副本。</p>
-            <p class="hint">支持 PNG、JPG、WebP、GIF，原图最大 5 MB；动图取首帧，优先保留清晰度，压缩后不超过 1 MB。</p>
+            <p class="hint">支持 PNG、JPG、WebP、GIF，最大 5 MB；动图仅保留首帧。</p>
           </div>
         </div>
         <p id="licenseSongBgMeta" class="hint song-cloud-result"></p>
         <div class="actions song-cloud-actions">
           <input id="licenseSongBgFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
           <button id="licenseSongBgPickBtn" class="song-data-action" type="button">上传背景</button>
-          <button id="licenseSongBgDeleteBtn" class="song-data-action" type="button" hidden>恢复默认背景</button>
+          <button id="licenseSongBgDeleteBtn" class="song-data-action" type="button" hidden>恢复默认</button>
         </div>
         <p id="licenseSongBgResult" class="hint song-cloud-result" role="status" aria-live="polite"></p>
       </section>

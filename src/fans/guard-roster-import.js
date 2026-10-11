@@ -63,6 +63,7 @@ function createGuardRosterImporter({ store, create, observe }) {
         created: 0,
         updated: 0,
         skipped: snapshot.skipped,
+        skippedDetails: [...(snapshot.skippedDetails || [])],
       };
       const seen = new Set();
       for (const member of snapshot.members) {
@@ -87,6 +88,11 @@ function createGuardRosterImporter({ store, create, observe }) {
         let profile = store.byIdentity(scope, key);
         if (profile?.archived || store.suppressed(scope, key)) {
           result.skipped++;
+          result.skippedDetails.push({
+            uid: member.uid,
+            name: profile?.alias || member.name || profile?.platformName || '',
+            reason: profile?.archived ? 'archived' : 'suppressed',
+          });
           continue;
         }
         if (!profile) {

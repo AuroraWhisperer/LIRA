@@ -2,7 +2,7 @@
 
 import { eventBus, Events } from '../shared/event-bus.js';
 import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
-import { initInteractions } from './interactions.js';
+import { createInteractionClient } from '../shared/interaction-client.js';
 import { initWheelAdmin } from './games-wheel.js';
 
 let initialized = false;
@@ -78,15 +78,32 @@ export function initGames() {
     }
   });
   const wheelRefresh = initWheelAdmin();
-  initInteractions({
-    onCollecting(collecting) {
-      interactionCollecting = collecting;
+  const interactions = createInteractionClient({
+    onState(state) {
+      interactionCollecting = state.session?.phase === 'collecting';
       renderSession(activeGameSession);
       document.querySelectorAll('[data-start-game]').forEach((button) => {
-        button.title = collecting ? '请先结束类别 3 的投票或评分' : '';
+        button.title = interactionCollecting ? '请先到「组件」结束投票或评分' : '';
       });
     },
+    async fetchState() {
+      const response = await fetch('/api/interactions/session', { cache: 'no-store' });
+      const payload = await readJsonResponse(response, '读取互动状态失败');
+      if (!payload.ok) throw new Error(payload.error || '读取互动状态失败');
+      return payload.data;
+    },
   });
+  const receiveInteraction = (event) => interactions.receive(event.detail);
+  window.addEventListener('app:interaction-update', receiveInteraction);
+  const offInteractions = eventBus.on('ws:connected', () => {
+    interactions.reset();
+    interactions.load().catch(showError);
+  });
+  window.addEventListener('app:shutdown', () => {
+    interactions.dispose();
+    offInteractions?.();
+    window.removeEventListener('app:interaction-update', receiveInteraction);
+  }, { once: true });
   syncViewerMode();
   window.addEventListener('app:shutdown', stopDrawClockTimer, { once: true });
   Promise.all([
@@ -95,6 +112,7 @@ export function initGames() {
     refreshHostState(),
     refreshDrawCategories(),
     wheelRefresh,
+    interactions.load(),
   ]).catch(showError);
 }
 

@@ -27,7 +27,7 @@ test('song scrolling keeps pixels per second independent of height and refresh r
     for (const height of [450, 722]) {
       viewport.style.height = `${height}px`;
       for (const fps of [60, 120, 144, 240]) {
-        for (const speed of [1, 10, 15, 100]) {
+        for (const speed of [1, 10, 15, 20, 100]) {
           const scroller = new SongVirtualScroller({ viewport, content,
             createNode(record) {
               const node = document.createElement('div');
@@ -37,7 +37,7 @@ test('song scrolling keeps pixels per second independent of height and refresh r
             }, requestFrame: () => 1, cancelFrame() {} });
           scroller.setRecords(Array.from({ length: 100 }, (_, index) => ({ key: String(index) })), { key: '50', offset: 5 });
           scroller.setPixelsPerSecond(scrollSpeedToPixelsPerSecond(speed));
-          const expected = 1 + ((speed - 1) / 99) * 299;
+          const expected = 1 + ((speed - 1) / 99) * 249;
           const position = () => {
             const anchor = scroller.captureAnchor();
             return anchor.index * 53.5 + anchor.offset;

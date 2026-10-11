@@ -12,6 +12,8 @@ async function createFixture() {
       this.nodeType = 1;
       this.children = [];
       this.dataset = {};
+      this.style = {};
+      if (tag === 'input') this.value = '';
       this.attributes = new Map();
       this.listeners = new Map();
       this.classList = { add() {}, remove() {}, toggle() {} };
@@ -36,8 +38,15 @@ async function createFixture() {
     }
     replaceChildren() { for (const node of [...this.children]) node.remove(); }
     querySelectorAll(selector) {
+      const matches = (child) => {
+        if (selector === 'select') return child.tagName === 'SELECT';
+        if (selector.startsWith('[role="option"]')) return child.getAttribute('role') === 'option'
+          && (!selector.includes(':not') || child.getAttribute('aria-disabled') !== 'true');
+        if (selector === '[role="group"]') return child.getAttribute('role') === 'group';
+        return false;
+      };
       return this.children.flatMap((child) => [
-        ...(selector === 'select' && child.tagName === 'SELECT' ? [child] : []),
+        ...(matches(child) ? [child] : []),
         ...child.querySelectorAll(selector),
       ]);
     }
@@ -54,12 +63,14 @@ async function createFixture() {
       this.listeners.get(type).add(callback);
     }
     removeEventListener(type, callback) { this.listeners.get(type)?.delete(callback); }
+    dispatchEvent(event) { this.listeners.get(event.type)?.forEach((callback) => callback(event)); }
   }
   class Select extends Element {
     constructor() {
       super('select');
       this.options = [];
       this.labels = [];
+      this._selectedIndex = -1;
     }
     get form() {
       for (let node = this.parentNode; node; node = node.parentNode) {
@@ -67,10 +78,10 @@ async function createFixture() {
       }
       return null;
     }
-    get value() { return ''; }
-    set value(value) {}
-    get selectedIndex() { return -1; }
-    set selectedIndex(value) {}
+    get value() { return this.options[this._selectedIndex]?.value || ''; }
+    set value(value) { this._selectedIndex = this.options.findIndex((option) => option.value === value); }
+    get selectedIndex() { return this._selectedIndex; }
+    set selectedIndex(value) { this._selectedIndex = value; }
   }
   const observers = [];
   class Observer {
@@ -87,6 +98,7 @@ async function createFixture() {
   const { enhanceSelects } = await loadModuleExports(path.resolve('public/js/shared/select-menu.js'), {
     document, window: { innerHeight: 600 }, HTMLSelectElement: Select, MutationObserver: Observer,
     Node: { ELEMENT_NODE: 1 }, setTimeout(callback) { timers.push(callback); },
+    Event: class { constructor(type) { this.type = type; } },
   });
   const deliver = (removedNodes = [], addedNodes = []) => observers[0].callback([{ removedNodes, addedNodes }]);
   const flushTimers = () => { while (timers.length) timers.shift()(); };
@@ -117,6 +129,56 @@ test('select blur waits for the next focused element and closes only outside its
   assert.equal(menu.hidden, true);
   assert.equal(trigger.getAttribute('aria-expanded'), 'false');
   assert.equal(f.document.activeElement, outside, 'closing must not steal focus back');
+});
+
+test('searchable font selects filter groups without changing selection and support text editing and keyboard choice', async () => {
+  const f = await createFixture();
+  const select = new f.Select();
+  select.setAttribute('data-select-search', '');
+  select.setAttribute('data-select-font-preview', '');
+  const group = f.document.createElement('optgroup');
+  group.label = '内置字体';
+  for (const [value, name] of [['maiyuan', '荆南麦圆'], ['smiley', '得意黑']]) {
+    const option = f.document.createElement('option');
+    option.value = value;
+    option.textContent = name;
+    option.dataset.fontFamily = `"${name}"`;
+    group.append(option);
+    select.options.push(option);
+  }
+  select.append(group);
+  select.selectedIndex = 0;
+  f.form.append(select);
+  f.enhanceSelects(select);
+  const [, trigger, menu] = select.parentNode.children;
+  const [search, list, empty] = menu.children;
+  const fire = (node, type, extra = {}) => node.dispatchEvent({ type, target: node, preventDefault() {}, ...extra });
+  fire(trigger, 'click');
+  assert.equal(f.document.activeElement, search);
+  assert.equal(list.getAttribute('role'), 'listbox');
+  assert.equal(menu.getAttribute('role'), null, 'search input stays outside the listbox');
+  search.value = '得意';
+  fire(search, 'input');
+  const options = list.querySelectorAll('[role="option"]');
+  assert.equal(options[0].hidden, true);
+  assert.equal(options[1].hidden, false);
+  assert.equal(options[1].style.fontFamily, '"得意黑"');
+  assert.equal(select.value, 'maiyuan', 'filtering preserves the saved selection');
+  fire(menu, 'keydown', { target: search, key: ' ' });
+  fire(menu, 'keydown', { target: search, key: 'Home' });
+  assert.equal(f.document.activeElement, search, 'space and caret keys stay in the input');
+  search.value = 'missing';
+  fire(search, 'input');
+  assert.equal(empty.hidden, false);
+  assert.equal(list.children[0].hidden, true);
+  search.value = '得意';
+  fire(search, 'input');
+  fire(menu, 'keydown', { target: search, key: 'ArrowDown' });
+  assert.equal(f.document.activeElement, options[1]);
+  fire(menu, 'keydown', { target: options[1], key: 'Enter' });
+  assert.equal(select.value, 'smiley');
+  assert.equal(menu.hidden, true);
+  assert.equal(f.document.activeElement, trigger);
 });
 
 test('removing repeated dynamic selects releases observers and does not accumulate external listeners', async () => {

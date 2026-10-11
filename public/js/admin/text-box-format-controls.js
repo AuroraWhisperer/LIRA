@@ -1,4 +1,6 @@
 import { previewElement } from './component-preview-surface.js';
+import { enhanceColorControls } from '../shared/color-control.js';
+import { colorPickerContains } from '../shared/color-picker.js';
 
 const RECENT_COLORS_KEY = 'admin.textBoxRecentColors';
 const COMMON_COLORS = [
@@ -11,7 +13,7 @@ function readRecentColors() {
   try {
     const colors = JSON.parse(localStorage.getItem(RECENT_COLORS_KEY) || '[]');
     return Array.isArray(colors)
-      ? [...new Set(colors.filter(color => typeof color === 'string' && /^#[\da-f]{6}$/i.test(color)).map(color => color.toLowerCase()))].slice(0, 6)
+      ? [...new Set(colors.filter(color => typeof color === 'string' && /^#[\da-f]{6}(?:[\da-f]{2})?$/i.test(color)).map(color => color.toLowerCase()))].slice(0, 6)
       : [];
   } catch { return []; }
 }
@@ -109,6 +111,7 @@ export function mountTextBoxFormatControls(toolbar, { listen, format, clearForma
   listen(color, 'input', () => format('color', color.value));
   listen(color, 'change', () => { rememberColor(color.value); renderRecentColors(); position(); });
   custom.append(color);
+  enhanceColorControls(custom);
   palette.append(common, recent, custom);
 
   function renderRecentColors() {
@@ -135,9 +138,9 @@ export function mountTextBoxFormatControls(toolbar, { listen, format, clearForma
   }
   button(options, '清除格式', 'text-box-format-action text-box-clear-format', () => { clearFormat(); close(); });
 
-  listen(document, 'pointerdown', event => { if (!toolbar.contains(event.target)) close(); });
+  listen(document, 'pointerdown', event => { if (!toolbar.contains(event.target) && !colorPickerContains(toolbar, event.target)) close(); });
   listen(document, 'keydown', event => {
-    if (event.key !== 'Escape' || !openPanel) return;
+    if (event.key !== 'Escape' || !openPanel || colorPickerContains(toolbar, event.target)) return;
     event.preventDefault();
     event.stopPropagation();
     const trigger = panels.get(openPanel);

@@ -36,7 +36,7 @@ async function fixture() {
       });
     return nodes.get(key);
   };
-  const document = { activeElement: null, getElementById: (id) => node({
+  const document = { activeElement: null, querySelectorAll: () => [], getElementById: (id) => node({
     danmakuFullscreenDurationSeconds: 'fullscreenDuration', danmakuFullscreenDurationField: 'fullscreenDurationField',
   }[id] || id) };
   const elements = Object.fromEntries(

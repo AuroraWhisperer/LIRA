@@ -12,9 +12,9 @@
 }
 
 .playback-search-panel .panel-header {
-  min-height: 56px;
+  min-height: 48px;
   flex-shrink: 0;
-  padding: 14px 18px;
+  padding: 8px 18px;
   border-bottom: 1px solid var(--color-border-light);
 }
 

@@ -29,6 +29,7 @@ function getOptionNodes(select) {
       group.className = 'lira-select-group';
       group.setAttribute('role', 'group');
       group.setAttribute('aria-label', child.label || '选项');
+      if (child.label) group.dataset.label = child.label;
       const groupOptions = [];
       for (const option of child.children) {
         if (option.tagName === 'OPTION') groupOptions.push(option);
@@ -54,7 +55,7 @@ function syncSelectedState(state) {
   trigger.disabled = select.disabled;
   trigger.setAttribute('aria-disabled', String(select.disabled));
   trigger.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选择');
-  menu.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选项');
+  state.optionsRoot.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选项');
 
   menu.querySelectorAll('[role="option"]').forEach((optionNode) => {
     const isSelected =
@@ -65,7 +66,18 @@ function syncSelectedState(state) {
 }
 
 function getEnabledOptions(menu) {
-  return [...menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
+  return [...menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')].filter((option) => !option.hidden);
+}
+
+function filterOptions(state) {
+  if (!state.search) return;
+  const query = state.search.value.trim().toLocaleLowerCase();
+  const options = [...state.optionsRoot.querySelectorAll('[role="option"]')];
+  for (const option of options) option.hidden = !option.textContent.toLocaleLowerCase().includes(query);
+  for (const group of state.optionsRoot.querySelectorAll('[role="group"]')) {
+    group.hidden = [...group.children].every((option) => option.hidden);
+  }
+  state.empty.hidden = options.some((option) => !option.hidden);
 }
 
 function focusOption(state, index) {
@@ -96,6 +108,10 @@ function openMenu(state, initialOffset = 0) {
   state.wrapper.classList.add('is-open');
   state.trigger.setAttribute('aria-expanded', 'true');
   state.menu.hidden = false;
+  if (state.search) {
+    state.search.value = '';
+    filterOptions(state);
+  }
 
   const triggerRect = state.trigger.getBoundingClientRect();
   const menuRect = state.menu.getBoundingClientRect();
@@ -107,7 +123,8 @@ function openMenu(state, initialOffset = 0) {
     0,
     options.findIndex((option) => option.getAttribute('aria-selected') === 'true'),
   );
-  focusOption(state, selectedIndex + initialOffset);
+  if (state.search) state.search.focus();
+  else focusOption(state, selectedIndex + initialOffset);
 }
 
 function closeOpenMenus(except) {
@@ -128,12 +145,12 @@ function selectOption(state, optionNode) {
 }
 
 function buildOptions(state) {
-  state.menu.replaceChildren();
+  state.optionsRoot.replaceChildren();
   let optionIndex = 0;
   for (const { option, group, disabled } of getOptionNodes(state.select)) {
     if (group && !group.parentNode) {
       group.dataset.variant = state.variant;
-      state.menu.append(group);
+      state.optionsRoot.append(group);
     }
     const optionNode = document.createElement('button');
     optionNode.type = 'button';
@@ -142,20 +159,24 @@ function buildOptions(state) {
     optionNode.dataset.value = option.value;
     optionNode.dataset.index = String(optionIndex);
     optionNode.textContent = option.textContent.trim();
+    if (state.select.hasAttribute('data-select-font-preview')) {
+      optionNode.style.fontFamily = option.dataset.fontFamily || (option.value.startsWith('"') ? option.value : '');
+    }
     optionNode.setAttribute('aria-disabled', String(disabled));
     optionNode.disabled = disabled;
-    (group || state.menu).append(optionNode);
+    (group || state.optionsRoot).append(optionNode);
     optionNode.addEventListener('click', () => selectOption(state, optionNode));
     optionIndex += 1;
   }
-  if (!optionIndex) {
+  if (!optionIndex && !state.search) {
     const empty = document.createElement('div');
     empty.className = 'lira-select-empty';
     empty.textContent = '暂无可选项';
-    state.menu.append(empty);
+    state.optionsRoot.append(empty);
   }
+  filterOptions(state);
   syncSelectedState(state);
-  if (state.open) {
+  if (state.open && document.activeElement !== state.search) {
     const options = getEnabledOptions(state.menu);
     const selectedIndex = Math.max(
       0,
@@ -198,7 +219,7 @@ function observeSelect(state) {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['disabled', 'label', 'selected', 'value'],
+    attributeFilter: ['disabled', 'label', 'selected', 'value', 'data-font-family'],
   });
   state.observing = true;
 }
@@ -242,17 +263,37 @@ function enhanceSelect(select) {
 
   const menu = document.createElement('div');
   menu.className = 'lira-select-menu';
-  menu.id = menuId;
   menu.hidden = true;
-  menu.setAttribute('role', 'listbox');
   menu.setAttribute('tabindex', '-1');
-  menu.setAttribute('aria-label', select.getAttribute('aria-label') || '选项');
+  let optionsRoot = menu;
+  let search = null;
+  let empty = null;
+  if (select.hasAttribute('data-select-search')) {
+    menu.classList.add('lira-select-searchable');
+    search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'lira-select-search';
+    search.placeholder = '搜索名称';
+    search.setAttribute('aria-label', `${labelText || '选项'}：搜索`);
+    search.setAttribute('aria-controls', menuId);
+    optionsRoot = document.createElement('div');
+    empty = document.createElement('div');
+    empty.className = 'lira-select-empty';
+    empty.textContent = '没有匹配的选项';
+    empty.setAttribute('role', 'status');
+    menu.append(search, optionsRoot, empty);
+  }
+  optionsRoot.id = menuId;
+  optionsRoot.setAttribute('role', 'listbox');
   const state = {
     select,
     wrapper,
     trigger,
     valueNode,
     menu,
+    optionsRoot,
+    search,
+    empty,
     variant,
     labelText,
     open: false,
@@ -266,6 +307,7 @@ function enhanceSelect(select) {
   wrapper.append(trigger, menu);
   buildOptions(state);
   patchNativeValue(state);
+  search?.addEventListener('input', () => filterOptions(state));
 
   trigger.addEventListener('click', () => (state.open ? closeMenu(state) : openMenu(state)));
   trigger.addEventListener('keydown', (event) => {
@@ -282,6 +324,7 @@ function enhanceSelect(select) {
   });
   menu.addEventListener('keydown', (event) => {
     const options = getEnabledOptions(menu);
+    if (event.target === search && !['ArrowDown', 'ArrowUp', 'Escape', 'Tab'].includes(event.key)) return;
     const current = options.indexOf(document.activeElement);
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
       event.preventDefault();

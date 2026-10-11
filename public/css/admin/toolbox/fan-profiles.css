@@ -90,6 +90,9 @@
   font-weight: 600;
 }
 .fan-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-left: auto;
 }
 .fan-reminder-summary {
@@ -619,16 +622,16 @@
 .fan-more button {
   display: block;
   border: 0;
+  border-radius: 0;
   width: 100%;
   text-align: left;
   background: transparent;
 }
+.fan-more button + button {
+  border-top: 1px solid var(--border);
+}
 .fan-more button:hover {
   background: var(--color-bg-tertiary);
-}
-.fan-archive-hint {
-  margin: 0;
-  padding: 0 10px 8px;
 }
 .fan-back-list {
   display: none;
@@ -641,10 +644,6 @@
 }
 .fan-expanded .fan-detail {
   border-left: 0;
-}
-#fanRosterResult {
-  margin: 0 0 var(--spacing-md);
-  font-size: var(--type-size-caption);
 }
 #fanRemindersPage {
   flex: 1;

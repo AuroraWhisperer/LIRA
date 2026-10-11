@@ -36,6 +36,7 @@ async function createPlaybackApp(initialState, options = {}) {
 
   const document = {
     getElementById(id) {
+      if (id === 'playerAppearance') return null;
       if (!elements.has(id)) {
         elements.set(id, id === 'music-player' ? new FakeAudioElement() : new FakeElement());
       }

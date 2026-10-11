@@ -72,7 +72,7 @@ function normalizeClockSettingValue(key, rawValue) {
   }
   if (Object.hasOwn(CLOCK_COLOR_DEFAULTS, key)) {
     const value = String(rawValue ?? '').trim();
-    return /^#[\da-f]{6}$/i.test(value) ? value.toLowerCase() : null;
+    return /^#[\da-f]{6}(?:[\da-f]{2})?$/i.test(value) ? value.toLowerCase() : null;
   }
   if (key === 'clockStyle') {
     const value = String(rawValue ?? '').trim();

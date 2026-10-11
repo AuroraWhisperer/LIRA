@@ -110,9 +110,10 @@ const SHOTS = [
   {
     id: 'E10b',
     file: 'toolbox-voting',
-    title: '投票与评分设置',
-    feature: 'otherGamesFeature',
-    clip: '#interactionsAdmin',
+    title: '弹幕投票组件设置',
+    main: 'liveComponentsPage',
+    feature: 'livePollFeature',
+    clip: '.live-components-workspace',
   },
   {
     id: 'E11',
@@ -187,9 +188,9 @@ const SHOTS = [
     id: 'E10c',
     file: 'toolbox-rating',
     title: '观众评分范围与平均分显示设置',
-    feature: 'otherGamesFeature',
-    click: '#interactionRatingTab',
-    clip: '#interactionsAdmin',
+    main: 'liveComponentsPage',
+    feature: 'liveRatingFeature',
+    clip: '.live-components-workspace',
   },
   {
     id: 'E13b',
@@ -216,6 +217,7 @@ const SHOTS = [
     title: '新建粉丝档案：基本信息上半部',
     feature: 'otherFanProfilesFeature',
     click: '#fanNewProfileButton',
+    clip: '#fanEditor',
     mustShow: ['#fanSaveButton'],
   },
   {
@@ -241,9 +243,10 @@ const SHOTS = [
   {
     id: 'E19e',
     file: 'fan-profiles-personal',
-    title: '新建粉丝档案：生日与偏好',
+    title: '新建粉丝档案：生日与性格',
     feature: 'otherFanProfilesFeature',
     click: ['#fanNewProfileButton', '#fanProfilePersonalTab'],
+    clip: '#fanEditor',
     size: [1440, 1100],
   },
   {
@@ -252,6 +255,7 @@ const SHOTS = [
     title: '新建粉丝档案：记录与提醒',
     feature: 'otherFanProfilesFeature',
     click: ['#fanNewProfileButton', '#fanProfileNotesTab'],
+    clip: '#fanEditor',
     size: [1440, 1100],
   },
   {

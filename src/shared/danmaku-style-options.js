@@ -190,7 +190,7 @@ function normalizeStyleOptions(value) {
             !/[\u0000-\u001f\u007f]|^"\s*"$/u.test(item)))
       )
         normalized[key] = item;
-      else if (key === 'textColor' && typeof item === 'string' && /^#[0-9a-f]{6}$/i.test(item) && item.length === 7)
+      else if (key === 'textColor' && typeof item === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item) && [7, 9].includes(item.length))
         normalized[key] = item.toLowerCase();
       else if (key === 'fontSize' && Number.isInteger(item) && item >= limits.minFontSize && item <= limits.maxFontSize)
         normalized[key] = item;

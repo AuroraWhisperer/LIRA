@@ -74,7 +74,10 @@ test('desktop background controls save, publish, reopen and restore defaults thr
   await field('gainGreen').fill('0.9');
   await field('glowStrength').fill('65');
   await field('glowMode').selectOption('star');
-  await field('vignetteOpacity').fill('30');
+  await field('vignetteColor').click();
+  const colorPicker = page.getByRole('dialog', { name: '颜色与不透明度' });
+  await colorPicker.getByLabel('不透明度（%）', { exact: true }).fill('30');
+  await colorPicker.getByRole('button', { name: '完成' }).click();
   await field('inputBlack').fill('20');
   await field('inputWhite').fill('10');
   assert.equal(await field('inputWhite').evaluate(input => input.checkValidity()), false);
