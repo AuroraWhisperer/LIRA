@@ -165,8 +165,8 @@
     justify-content: flex-end;
   }
 
-  .source-tabs {
-    flex-wrap: wrap;
+  .playback-navigation {
+    flex-basis: auto;
   }
 
   .playback-home-grid {
@@ -305,10 +305,17 @@
 
 @media (max-width: 600px) {
   .source-tab {
-    min-width: 0;
-    flex: 1 1 120px;
-    justify-content: center;
-    padding-inline: 10px;
+    gap: 4px;
+    padding-inline: 4px;
+  }
+
+  .source-tab-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .playback-navigation .playback-workspace-button {
+    padding-inline: 8px;
   }
 
   .wesing-live-stage,

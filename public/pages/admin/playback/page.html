@@ -1,24 +1,25 @@
 <section id="playbackAssistantPage" class="main-page playback-page">
-  <div class="tabs playback-workspace-tabs" role="tablist" aria-label="播放功能">
-    <button class="tab active" type="button" data-tab="playbackMusicWorkspace">音乐播放</button>
-    <button class="tab" type="button" data-tab="playerAppearance">播放器外观</button>
-  </div>
-  <div id="playbackMusicWorkspace" class="playback-music-workspace active">
   <header class="playback-page-header">
     <div class="playback-head-inner">
-      <div class="source-tabs" role="tablist" aria-label="选择播放器">
-        <button id="playbackSourceQqTab" class="source-tab active" type="button" data-source="qq" role="tab" aria-selected="true" aria-controls="playbackSourcePanel" tabindex="0">
-          <img class="source-tab-icon" src="/img/playback/qqmusic-icon.webp" alt="" draggable="false" />
-          QQ音乐
-        </button>
-        <button id="playbackSourceNeteaseTab" class="source-tab" type="button" data-source="netease" role="tab" aria-selected="false" aria-controls="playbackSourcePanel" tabindex="-1">
-          <img class="source-tab-icon" src="/img/playback/netease-music-icon.ico" alt="" draggable="false" />
-          网易云音乐
-        </button>
-        <button id="playbackSourceWeSingTab" class="source-tab" type="button" data-source="wesing" role="tab" aria-selected="false" aria-controls="playbackSourcePanel" tabindex="-1">
-          <img class="source-tab-icon" src="/img/playback/wesing-icon.png" alt="" draggable="false" />
-          全民 K歌
-        </button>
+      <div class="playback-navigation" data-workspace="music" role="group" aria-label="播放功能">
+        <div class="playback-music-switch">
+          <button id="playbackMusicToggle" class="playback-workspace-button" type="button" data-tab="playbackMusicWorkspace" aria-expanded="true" aria-controls="playbackMusicWorkspace playbackSourceTabs" inert>音乐播放</button>
+          <div id="playbackSourceTabs" class="source-tabs" role="tablist" aria-label="音乐播放平台">
+            <button id="playbackSourceQqTab" class="source-tab active" type="button" data-source="qq" role="tab" aria-selected="true" aria-controls="playbackSourcePanel" tabindex="0">
+              <img class="source-tab-icon" src="/img/playback/qqmusic-icon.webp" alt="" draggable="false" />
+              QQ音乐
+            </button>
+            <button id="playbackSourceNeteaseTab" class="source-tab" type="button" data-source="netease" role="tab" aria-selected="false" aria-controls="playbackSourcePanel" tabindex="-1">
+              <img class="source-tab-icon" src="/img/playback/netease-music-icon.ico" alt="" draggable="false" />
+              网易云音乐
+            </button>
+            <button id="playbackSourceWeSingTab" class="source-tab" type="button" data-source="wesing" role="tab" aria-selected="false" aria-controls="playbackSourcePanel" tabindex="-1">
+              <img class="source-tab-icon" src="/img/playback/wesing-icon.png" alt="" draggable="false" />
+              全民 K歌
+            </button>
+          </div>
+        </div>
+        <button id="playbackAppearanceToggle" class="playback-workspace-button" type="button" aria-pressed="false" aria-controls="playerAppearance">播放器外观</button>
       </div>
       <div class="playback-account-compact">
         <div class="playback-account-status">
@@ -35,6 +36,7 @@
     </div>
   </header>
 
+  <div id="playbackMusicWorkspace" class="playback-music-workspace active">
   <div id="playbackSourcePanel" class="playback-source-panel" role="tabpanel" aria-labelledby="playbackSourceQqTab">
   <div class="playback-grid" data-online-source-view>
     <section class="panel playback-discovery-panel">

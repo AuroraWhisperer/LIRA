@@ -21,6 +21,8 @@ test('recent cards and mappings share exact themes for each box and fall back fo
     ['幸运盲盒', '35206', 'lucky'],
     ['修仙盲盒', '35891', 'xiuxian'],
     ['中秋盲盒', '35429', 'mid-autumn'],
+    ['波仔盲盒', '36062', 'bozai'],
+    ['波仔盲盒', null, 'bozai'],
     ['小熊虫盲盒', null, 'bear'],
     ['七夕鹊匣', '45786', 'qixi'],
     ['羁绊宝盒', null, 'bond'],
@@ -30,6 +32,9 @@ test('recent cards and mappings share exact themes for each box and fall back fo
     ['小熊虫自定义盒', null, 'default'],
     ['七夕盲盒', '35429', 'default'],
     ['心动盲盒', '99999', 'default'],
+    ['波仔盲盒', '99999', 'default'],
+    ['波仔盲盒纪念版', '36062', 'default'],
+    ['新上架盲盒', '36062', 'default'],
   ];
 
   for (const [name, id, theme] of cases) {

@@ -136,6 +136,17 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     }
     if (component === 'overtime') await page.locator('[data-preview-field="overtimeBackgroundFit"]').selectOption(expected, { force: true });
     await desktop.waitForFunction(({ key, expected }) => JSON.stringify(window.controller.getState().draft[key]) === JSON.stringify(expected), { key, expected });
+    if (component === 'queue') {
+      // Changing style also edits the automatic height; publish only its settled layout.
+      const frame = await page.locator('.component-preview-frame').elementHandle().then(handle => handle.contentFrame());
+      await frame.waitForFunction(() => {
+        const panel = document.querySelector('.queue-storybook');
+        const bounds = panel?.getBoundingClientRect();
+        return bounds && Math.abs(innerHeight - bounds.height - 2 * bounds.top) < 1;
+      });
+      const height = await frame.evaluate(() => innerHeight);
+      await desktop.waitForFunction(height => window.canvasController.getState().draft.document.items[0].height === height, height);
+    }
     assert.equal(await desktop.evaluate(() => window.writes.length), 0);
     if (component === 'overtime') {
       await page.getByRole('button', { name: '锁定', exact: true }).click();

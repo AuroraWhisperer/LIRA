@@ -245,10 +245,6 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
       else if (field.type === 'radio') field.checked = field.value === settings[key];
       else field.value = String(settings[key]);
     }
-    for (const sample of panel.querySelectorAll('[data-appearance-font-sample]')) {
-      const choice = settings[sample.dataset.appearanceFontSample];
-      sample.style.fontFamily = fontStack(choice === 'inherit' ? settings.fontFamily : choice) || 'var(--font)';
-    }
     panel.querySelector('[data-appearance-background-colors]').hidden = settings.backgroundMode === 'auto';
     panel.querySelector('[data-appearance-gradient]').hidden = settings.backgroundMode !== 'gradient';
     panel.dataset.appearanceBackground = settings.backgroundMode;

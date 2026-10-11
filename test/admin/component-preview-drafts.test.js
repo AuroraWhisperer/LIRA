@@ -83,6 +83,27 @@ test('a draft already retained by the desktop does not require recovery when its
   recovery.dispose();
 });
 
+test('a recovery conflict clears only after the desktop catches up with every cached edit', async () => {
+  const f = await fixture();
+  const first = f.controller({ label: 'saved', size: 12 });
+  const previous = f.recover(first);
+  first.edit({ label: 'cached', size: 20 });
+  previous.dispose();
+  const current = f.controller({ label: 'saved', size: 12 });
+  current.edit({ label: 'older draft', size: 16 });
+  const recovery = f.recover({ ...current, edit() { assert.fail('Catching up must not overwrite the desktop.'); } });
+  assert.equal(recovery.getState().pending, true);
+  current.edit({ label: 'cached' });
+  assert.equal(recovery.getState().pending, true, 'A remaining size conflict still needs an explicit choice.');
+  assert.equal(f.readPreviewDraft(key, f.storage).components.clock.draft.size, 20);
+  current.edit({ size: 20 });
+  assert.equal(recovery.getState().pending, false);
+  assert.equal(current.getState().dirty, true);
+  assert.equal(current.getState().saved.size, 12);
+  assert.equal(f.saves(), 0);
+  recovery.dispose();
+});
+
 test('using current settings, discard and successful save do not revive old work', async () => {
   for (const action of ['useCurrent', 'discard', 'save']) {
     const f = await fixture();

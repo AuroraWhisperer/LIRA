@@ -4,6 +4,7 @@ const BLIND_BOX_THEMES = [
   { name: '修仙盲盒', id: '35891', key: 'xiuxian', className: 'blind-box-xiuxian' },
   { name: '中秋盲盒', key: 'mid-autumn' },
   { name: '国庆盲盒', id: '35923', key: 'national-day' },
+  { name: '波仔盲盒', id: '36062', key: 'bozai' },
   { name: '小熊虫盲盒', key: 'bear' },
   { name: '七夕鹊匣', key: 'qixi' },
   { name: '羁绊宝盒', key: 'bond' },

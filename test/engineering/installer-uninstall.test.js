@@ -5,13 +5,46 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { NsisScriptGenerator } = require('app-builder-lib/out/targets/nsis/nsisScriptGenerator');
 
 const { resolveInstallerTools } = require('../helpers/installer-tools');
 const { compiler, plugins } = resolveInstallerTools();
 const quote = (value) => value.replaceAll('$', () => '$$');
 const installerPath = path.join(__dirname, '../../build/installer.nsh');
+
+function runUninstaller(executable, installDir, updated, ready) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(executable, ['/S', ...(updated ? ['--updated'] : []), `_?=${installDir}`], {
+      cwd: path.dirname(executable),
+      // NSIS requires the final _?= path unquoted, including embedded spaces.
+      windowsVerbatimArguments: true,
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    let phase = 'startup';
+    let failure;
+    const expire = () => {
+      failure = new Error(`Uninstaller ${phase} timed out`);
+      child.kill();
+    };
+    // Native startup has its own budget; removal retains the original 10s deadline.
+    let deadline = setTimeout(expire, 30000);
+    const started = setInterval(() => {
+      if (!fs.existsSync(ready)) return;
+      clearInterval(started);
+      clearTimeout(deadline);
+      phase = 'removal';
+      deadline = setTimeout(expire, 10000);
+    }, 20);
+    child.once('error', error => { failure = error; });
+    child.once('close', status => {
+      clearInterval(started);
+      clearTimeout(deadline);
+      if (failure) reject(failure); else resolve(status);
+    });
+  });
+}
 
 test('uninstall data removal requires an unchecked option and a default-no confirmation', () => {
   const installer = fs.readFileSync(installerPath, 'utf8');
@@ -53,7 +86,7 @@ test(
       ['drive-install-root', false, true, false],
       ['linked-install-root', false, true, false],
     ]) {
-      await t.test(name, () => {
+      await t.test(name, async () => {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-uninstall-test-'));
         const installDir = path.join(root, '安装目录 LIRA');
         const appData = path.join(root, 'roaming');
@@ -96,6 +129,7 @@ test(
           const script = path.join(root, 'fixture.nsi');
           const executable = path.join(root, 'fixture.exe');
           const uninstaller = path.join(root, 'fixture-uninstaller.exe');
+          const ready = path.join(root, 'uninstaller-ready');
           fs.writeFileSync(
             script,
             [
@@ -125,6 +159,8 @@ test(
               'Quit',
               'FunctionEnd',
               'Function un.onInit',
+              `FileOpen $9 "${quote(ready)}" w`,
+              'FileClose $9',
               '!insertmacro customUnInit',
               `StrCpy $INSTDIR "${quote(selectedDir)}"`,
               'StrCpy $installMode "current"',
@@ -158,16 +194,10 @@ test(
           });
           assert.equal(writeUninstaller.error, undefined);
           assert.equal(writeUninstaller.status, 0);
-          const run = spawnSync(uninstaller, ['/S', ...(updated ? ['--updated'] : []), `_?=${installDir}`], {
-            cwd: root,
-            // NSIS requires the final _?= path unquoted, including embedded spaces.
-            windowsVerbatimArguments: true,
-            windowsHide: true,
-            timeout: 10000,
-          });
-          assert.equal(run.error, undefined);
+          const status = await runUninstaller(uninstaller, installDir, updated, ready);
+          assert.ok(fs.existsSync(ready), 'the uninstaller must enter its isolated removal fixture');
           const failed = invalidRoot || name === 'locked-logs';
-          assert.equal(run.status, failed ? 2 : 0, name);
+          assert.equal(status, failed ? 2 : 0, name);
           const retainsData = !approved || silent || updated;
           for (const directory of [directories[0], legacyData, legacyBrowser]) {
             assert.equal(fs.existsSync(directory), retainsData, directory);

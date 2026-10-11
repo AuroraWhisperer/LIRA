@@ -27,25 +27,11 @@
   padding: 12px 8px 28px;
 }
 
-.player-appearance-heading,
 .player-appearance-preview-caption {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-}
-
-.player-appearance-heading {
-  margin-bottom: 24px;
-}
-
-.player-appearance-heading h2,
-.player-appearance-heading p {
-  margin: 0;
-}
-
-.player-appearance-heading p {
-  margin-top: 8px;
 }
 
 .player-appearance-layout {
@@ -122,27 +108,35 @@
   zoom: 0.45;
 }
 
-.player-appearance-controls .player-appearance-font-sample {
-  margin: 0;
-  padding-block: 12px;
-  border-bottom: 1px solid var(--border);
-  font-size: 20px;
-  line-height: 1.5;
-  color: var(--text);
-  overflow-wrap: anywhere;
+.player-appearance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.player-appearance-group-reset {
-  color: var(--muted);
+.player-appearance-controls .lira-select-searchable {
+  max-height: min(240px, 40dvh);
+  overflow: hidden;
 }
 
-.player-appearance-controls legend {
-  padding: 0 0 16px;
-  color: var(--text);
+.player-appearance-controls .lira-select-searchable:not([hidden]) {
+  display: flex;
+  flex-direction: column;
 }
 
-.player-appearance-controls .hint {
-  margin: 0;
+.player-appearance-controls .lira-select-search {
+  flex: 0 0 auto;
+}
+
+.player-appearance-controls .lira-select-searchable > [role='listbox'] {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.player-appearance-controls .lira-select-searchable .lira-select-option {
+  min-height: 30px;
+  padding-block: 4px;
 }
 
 .player-appearance-advanced > summary {

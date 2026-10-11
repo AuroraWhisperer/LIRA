@@ -19,17 +19,8 @@
 .playback-music-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'head' 'discovery' 'search' 'match';
+  grid-template-areas: 'discovery' 'search' 'match';
   gap: 12px;
-}
-
-.playback-workspace-tabs {
-  flex-shrink: 0;
-}
-
-.playback-workspace-tabs > .tab {
-  flex: 0 0 auto;
-  padding: 0 20px;
 }
 
 body.player-dock-expanded .playback-page.active {

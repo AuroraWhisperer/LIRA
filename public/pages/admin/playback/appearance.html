@@ -1,11 +1,4 @@
 <section id="playerAppearance" class="player-appearance" hidden>
-  <header class="player-appearance-heading">
-    <div>
-      <h2 class="ui-section-title">播放器外观</h2>
-      <p class="hint">调整大播放器的样式、背景与文字，修改后即时生效。</p>
-    </div>
-    <button type="button" class="secondary" data-appearance-reset>恢复全部默认</button>
-  </header>
   <div class="player-appearance-layout">
     <div class="player-appearance-controls">
       <div class="tabs player-appearance-tabs" role="tablist" aria-label="播放器外观分类">
@@ -14,8 +7,7 @@
         <button type="button" class="tab" data-tab="playerAppearanceSong">歌曲</button>
         <button type="button" class="tab" data-tab="playerAppearanceLyrics">歌词</button>
       </div>
-      <fieldset id="playerAppearanceStyle" data-appearance-group>
-        <legend class="ui-card-title">唱片、封面与布局</legend>
+      <fieldset id="playerAppearanceStyle" data-appearance-group aria-label="样式">
         <div class="player-appearance-styles">
           <label class="player-appearance-style">
             <input type="radio" name="playerAppearanceStyle" value="turntable" data-appearance-key="style" checked />
@@ -46,8 +38,7 @@
           </select>
         </label>
       </fieldset>
-      <fieldset id="playerAppearanceColors" data-appearance-group hidden>
-        <legend class="ui-card-title">背景与文字配色</legend>
+      <fieldset id="playerAppearanceColors" data-appearance-group aria-label="配色" hidden>
         <label>背景模式
           <select data-appearance-key="backgroundMode">
             <option value="auto">跟随当前配色</option>
@@ -77,15 +68,14 @@
           <label>当前歌词<input type="color" value="#302a27" data-appearance-key="activeLyricColor" /></label>
         </div>
       </fieldset>
-      <fieldset id="playerAppearanceSong" data-appearance-group hidden>
-        <legend class="ui-card-title">右侧歌曲信息</legend>
+      <fieldset id="playerAppearanceSong" data-appearance-group aria-label="歌曲" hidden>
         <label>歌曲字体
           <select data-appearance-key="fontFamily" data-select-search data-select-font-preview>
             <option value="system">跟随客户端</option>
-            <optgroup label="内置字体 · 离线可用">
-              <option value="maiyuan" data-font-family="&quot;Lira Maiyuan&quot;">荆南麦圆 · 软萌圆润</option>
-              <option value="kuaile" data-font-family="&quot;Lira Kuaile&quot;">站酷快乐体 · 俏皮手写</option>
-              <option value="smiley" data-font-family="&quot;Lira Smiley&quot;">得意黑 · 活泼醒目</option>
+            <optgroup label="内置字体">
+              <option value="maiyuan" data-font-family="&quot;Lira Maiyuan&quot;">荆南麦圆</option>
+              <option value="kuaile" data-font-family="&quot;Lira Kuaile&quot;">站酷快乐体</option>
+              <option value="smiley" data-font-family="&quot;Lira Smiley&quot;">得意黑</option>
             </optgroup>
             <optgroup label="系统常用字体">
             <option value="sans" data-font-family="&quot;Microsoft YaHei&quot;">黑体</option>
@@ -94,7 +84,6 @@
             </optgroup>
           </select>
         </label>
-        <p class="player-appearance-font-sample" data-appearance-font-sample="fontFamily">此刻，听见喜欢 · LIRA 123</p>
         <div class="player-appearance-range">
           <label for="playerTitleSize">歌名字号</label>
           <input id="playerTitleSize" class="parameter-range" type="range" min="8" max="200" value="42" data-appearance-key="titleSize" />
@@ -106,16 +95,15 @@
           <label class="player-appearance-number"><input type="number" min="8" max="120" value="20" required aria-label="歌手字号像素" data-appearance-key="artistSize" /><span>px</span></label>
         </div>
       </fieldset>
-      <fieldset id="playerAppearanceLyrics" data-appearance-group hidden>
-        <legend class="ui-card-title">右侧歌词排版</legend>
+      <fieldset id="playerAppearanceLyrics" data-appearance-group aria-label="歌词" hidden>
         <label>歌词字体
-          <select data-appearance-key="lyricFontFamily" data-select-search data-select-font-preview aria-describedby="playerFontHint">
+          <select data-appearance-key="lyricFontFamily" data-select-search data-select-font-preview>
             <option value="inherit">跟随歌曲字体</option>
             <option value="system">跟随客户端</option>
-            <optgroup label="内置字体 · 离线可用">
-              <option value="maiyuan" data-font-family="&quot;Lira Maiyuan&quot;">荆南麦圆 · 软萌圆润</option>
-              <option value="kuaile" data-font-family="&quot;Lira Kuaile&quot;">站酷快乐体 · 俏皮手写</option>
-              <option value="smiley" data-font-family="&quot;Lira Smiley&quot;">得意黑 · 活泼醒目</option>
+            <optgroup label="内置字体">
+              <option value="maiyuan" data-font-family="&quot;Lira Maiyuan&quot;">荆南麦圆</option>
+              <option value="kuaile" data-font-family="&quot;Lira Kuaile&quot;">站酷快乐体</option>
+              <option value="smiley" data-font-family="&quot;Lira Smiley&quot;">得意黑</option>
             </optgroup>
             <optgroup label="系统常用字体">
               <option value="sans" data-font-family="&quot;Microsoft YaHei&quot;">黑体</option>
@@ -124,8 +112,6 @@
             </optgroup>
           </select>
         </label>
-        <p class="player-appearance-font-sample" data-appearance-font-sample="lyricFontFamily">把今天唱成一首歌 · LIRA 123</p>
-        <p id="playerFontHint" class="hint">允许读取后，本机字体会出现在两个字体列表中。内置字体无需安装，缺少的字符使用系统字体。</p>
         <div class="player-appearance-range">
           <label for="playerLyricSize">歌词字号</label>
           <input id="playerLyricSize" class="parameter-range" type="range" min="8" max="160" value="32" data-appearance-key="lyricSize" />
@@ -162,11 +148,13 @@
               <input id="playerActiveLyricScale" class="parameter-range" type="range" min="100" max="300" step="0.5" value="112.5" data-appearance-key="activeLyricScale" />
               <label class="player-appearance-number"><input type="number" min="100" max="300" step="0.5" value="112.5" required aria-label="当前歌词放大百分比" data-appearance-key="activeLyricScale" /><span>%</span></label>
             </div>
-            <p class="hint">行高调整长句换行后的距离；每句间距调整两句歌词之间的留白。放大设为 100% 时，当前歌词与其他歌词等大。</p>
           </div>
         </details>
       </fieldset>
-      <button type="button" class="secondary player-appearance-group-reset" data-appearance-group-reset>恢复本组默认</button>
+      <div class="player-appearance-actions">
+        <button type="button" class="secondary" data-appearance-group-reset>恢复本组默认</button>
+        <button type="button" class="secondary" data-appearance-reset>恢复全部默认</button>
+      </div>
     </div>
     <div class="player-appearance-preview-column">
       <div class="player-appearance-preview-toolbar">

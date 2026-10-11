@@ -29,6 +29,7 @@ LIRA 配套资源样式在时钟、弹幕、许愿、大航海感谢和点歌板
 
 场景操作和编辑命令完成后，桌面立即回传确认和结果；网页在待确认操作期间以 40ms 间隔读取，
 完成后恢复 250ms 空闲轮询。同一连接只允许一次状态读取在途，保留命令序号重试和草稿恢复规则。
+重新打开画布时，若初始旧快照触发恢复冲突，后续客户端草稿追上全部缓存改动后自动解除该冲突并恢复编辑；仍有差异时继续要求明确选择，不自动覆盖客户端草稿或保存。
 
 > 涉及文件:[pages/admin/](../../../public/pages/admin)、[server/admin-page.js](../../../src/server/admin-page.js)、[admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js)、[js/admin/index.js](../../../public/js/admin/index.js)、[js/admin/app.js](../../../public/js/admin/app.js)、[js/admin/legacy-admin-bridge.js](../../../public/js/admin/legacy-admin-bridge.js)、[js/admin/state.js](../../../public/js/admin/state.js)、[js/admin/forms.js](../../../public/js/admin/forms.js)、[js/shared/](../../../public/js/shared)、[js/desktop.js](../../../public/js/desktop.js)、[js/admin/gifts/](../../../public/js/admin/gifts)、[js/admin/overtime.js](../../../public/js/admin/overtime.js)、[pages/gift-audit.html](../../../public/pages/gift-audit.html)
 
@@ -143,6 +144,8 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 桌面配色由 `css/desktop/palettes.css` 拥有，`css/desktop/theme.css` 引入色板并保留公共几何样式。色板同时绑定短别名（`--primary`、`--surface`、`--border` 等）与长名令牌（`--color-control-accent`、`--color-border-default`、`--color-bg-secondary` 等）；布局与控件读取令牌，具体主题 ID 选择器只出现在色板中。礼物、盲盒、粉丝身份色和全屏背景通过 `--client-*` 变量接受主题适配；公共层将可选覆盖重置为 `initial`，组件使用原有业务色或背景预设作为回退。依赖卡片自身强调色的混色在组件作用域计算，避免在根节点提前解析；所有预览同时重绑变量，防止继承父级主题的覆盖。圆角沿用控件 `--radius-control`、面板 `--radius-lg`、对话框 `--radius-xl`；礼物盈亏仍使用 `--color-profit` / `--color-loss`。`css/license.css` 保持独立登录配色。直播画面（`css/overlays/**`、`css/shared/**`、`css/lyrics/**`）不属于客户端界面，保持各主题原有配色；客户端内的直播画面预览区域（弹幕样式缩略图、开播动画预览、时钟样式、队列与歌单主题预览、用户可选颜色的默认值）同样保留原样。页面布局按 `--player-dock-reserve`（播放器高度加折叠把手 `--player-dock-toggle-clearance`）预留底部空间，折叠把手不遮挡内容。
 
 通知的背景、文字与动作样式由 `admin/toasts/system.css` 拥有，业务样式保留图标与专属信息排版。背景使用 `--color-toast-start/mid/end` 渐变，边框和状态图标使用对应语义的 `--toast-accent`，文字与动作读取 toast 主题令牌。无标题短提示使用 20px 状态图标与正文同排，不额外生成“成功／注意”标题；有标题的通知将标题和说明分行，动作位于正文下方。无标题纯文本单句在渲染时省略末尾的中文句号（包括接口错误提示），状态区播报与显示一致；多句、多行说明及有标题或 HTML 的通知保留原标点，原始消息不变。字号与字重由共享排版令牌计算。
+
+最近礼物与盲盒映射共用 `gifts/blindbox-theme.js` 的盒型匹配和 `css/admin/gifts/blindbox-themes.css` 的专属配色；波仔盲盒（`36062`）采用草绿色，完整名称必须匹配，记录提供盒 ID 时还须与该 ID 一致。
 
 礼物通知通过 `recent.js` 的 `getGiftToastArtwork` 复用本地目录图片索引，优先按 `gift_variant_id` 匹配；旧记录仅在 ID 与名称唯一匹配时使用图片。盲盒通知使用实际产物图片，大航海使用客户端内置徽章。通知只读取本地 WebP，统一在 40×40px 区域内等比完整显示并异步解码；同一通知数量更新时复用相同图片节点。目录未就绪、无匹配图片或加载失败时显示 `gift-toast-fallback.svg`，不发起额外图片下载或全库预加载。
 

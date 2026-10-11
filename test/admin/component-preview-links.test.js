@@ -308,6 +308,7 @@ test('short-link startup retries transient errors and old long links remain edit
   await page.goto('about:blank');
   await page.goto(legacy.href);
   assert.equal(await page.locator('[data-preview-field="clockCustomLabel"]').inputValue(), '短地址重连成功');
+  await page.waitForFunction(() => !document.querySelector('.preview-canvas-inspector')?.inert);
   await page.locator('[data-preview-field="clockCustomLabel"]').fill('旧地址继续编辑');
   await desktop.waitForFunction(() => window.controllers.clock.getState().draft.label === '旧地址继续编辑');
   await page.goto('about:blank');

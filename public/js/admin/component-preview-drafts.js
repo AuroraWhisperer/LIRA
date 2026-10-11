@@ -143,7 +143,11 @@ export function createPreviewDraftRecovery({ key, connections, storage }) {
     applying = true;
     for (const connection of connections) {
       const current = connection.controller.getState();
-      if (!current.loaded || current.loading || initialized.has(connection.component)) continue;
+      if (!current.loaded || current.loading) continue;
+      // A delayed desktop snapshot may catch up after the initial conflict check.
+      if (pending.has(connection.component) && Object.entries(changesFor(connection)).every(([field, value]) =>
+        same(retainedConfig(connection.component, current.draft)[field], value))) pending.delete(connection.component);
+      if (initialized.has(connection.component)) continue;
       initialized.set(connection.component, current.generation);
       const previous = cached?.components[connection.component];
       const saved = retainedConfig(connection.component, current.saved);

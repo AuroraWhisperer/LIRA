@@ -199,6 +199,31 @@ export function createEventHandlers(deps) {
 
   function setupSourceTabs() {
     const tabs = [...document.querySelectorAll('.source-tab')];
+    const navigation = document.querySelector('.playback-navigation');
+    if (navigation) {
+      const musicToggle = document.getElementById('playbackMusicToggle');
+      const appearanceToggle = document.getElementById('playbackAppearanceToggle');
+      const sourceTabs = document.getElementById('playbackSourceTabs');
+      const musicWorkspace = document.getElementById('playbackMusicWorkspace');
+      const appearance = document.getElementById('playerAppearance');
+      const account = document.querySelector('.playback-account-compact');
+      const selectWorkspace = (music, focusSource = false) => {
+        navigation.dataset.workspace = music ? 'music' : 'appearance';
+        musicToggle.setAttribute('aria-expanded', String(music));
+        appearanceToggle.setAttribute('aria-pressed', String(!music));
+        musicToggle.inert = music;
+        sourceTabs.inert = !music;
+        musicWorkspace.hidden = !music;
+        musicWorkspace.classList.toggle('active', music);
+        appearance.hidden = music;
+        appearance.classList.toggle('active', !music);
+        account.hidden = !music;
+        if (focusSource) tabs.find((tab) => tab.dataset.source === playbackState.selectedSource)?.focus();
+      };
+      musicToggle.addEventListener('click', () => selectWorkspace(true, true));
+      appearanceToggle.addEventListener('click', () => selectWorkspace(false));
+      selectWorkspace(true);
+    }
     tabs.forEach((button, index) => {
       button.addEventListener('click', () => {
         const newSource = button.dataset.source;
