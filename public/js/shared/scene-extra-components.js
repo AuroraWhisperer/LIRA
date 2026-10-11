@@ -33,7 +33,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     fields: {
       songBoardTitle: text('标题', '可点歌单'), category: text('歌曲分类（留空显示全部）'),
       songBoardSortMode: select('歌曲排序', 'initial', { initial: '首字母', category: '歌曲分类', artist: '歌手', language: '语种', length: '歌名长度' }),
-      scrollSeconds: number('滚动速度（数值越大越快）', '45', 1, 100),
+      scrollSeconds: number('滚动速度（1–100，数值越大越快）', '45', 1, 100),
       songBoardFontFamily: text('字体', 'Microsoft YaHei'), songBoardFontWeight: fontWeight,
       songBoardSongFontSize: number('歌曲字号', '28', 10, 100), songBoardTitleFontSize: number('标题字号', '24', 10, 100),
       songBoardSongColor: { ...color('歌曲颜色', ''), allowEmpty: true }, songBoardThemeText: color('文字颜色', '#fff7fb'),

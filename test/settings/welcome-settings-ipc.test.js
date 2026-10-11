@@ -206,6 +206,49 @@ test('V2 IPC projects all typed fields, rejects bad patches, invalid success and
   assert.throws(() => sanitizeWelcomeV2({ ...v2Settings, greetingEnabled: true }), { code: 'INVALID_RESPONSE' });
 });
 
+test('V2 user welcome IPC preserves capability absence and validates exact UID patches', async () => {
+  let reply = { ...v2Settings };
+  const writes = [];
+  const { handlers, event } = registerWelcomeIpc({
+    getWelcomeSettingsV2: async () => reply,
+    updateWelcomeSettingsV2: async (patch) => {
+      writes.push(patch);
+      return { ...reply, ...patch };
+    },
+  });
+  const read = handlers.get('license:get-welcome-settings-v2');
+  const write = handlers.get('license:update-welcome-settings-v2');
+  assert.equal(Object.hasOwn(await read(event), 'userWelcomeMessages'), false);
+  reply = { ...v2Settings, userWelcomeMessages: [] };
+  assert.deepEqual((await read(event)).userWelcomeMessages, []);
+  const custom = [{ uid: '18446744073709551615', message: ' 欢迎 {username} 回家 ' }];
+  assert.deepEqual((await write(event, { userWelcomeMessages: custom })).userWelcomeMessages, [
+    { uid: '18446744073709551615', message: '欢迎 {username} 回家' },
+  ]);
+  assert.deepEqual(writes[0], { userWelcomeMessages: [
+    { uid: '18446744073709551615', message: '欢迎 {username} 回家' },
+  ] });
+  for (const invalid of [
+    null,
+    {},
+    Array.from({ length: 101 }, (_, index) => ({ uid: String(index + 1), message: 'Hi' })),
+    [{ uid: '42', message: 'one' }, { uid: '42', message: 'two' }],
+    ...[42, '0', '042', '-1', '1.5', '1'.repeat(21), ' 42'].map((uid) => [{ uid, message: 'Hi' }]),
+    ...[undefined, '', ' ', 'x'.repeat(81), 'x\ny'].map((message) => [{ uid: '42', message }]),
+    [{ uid: '42', message: 'Hi', token: 'private' }],
+  ]) {
+    const rejected = await write(event, { userWelcomeMessages: invalid });
+    assert.equal(rejected.error, 'INVALID_WELCOME_MESSAGES');
+    assert.deepEqual(rejected.fieldErrors, [{ field: 'userWelcomeMessages', reason: 'INVALID_MESSAGES' }]);
+    assert.throws(() => sanitizeWelcomeV2({ ...v2Settings, userWelcomeMessages: invalid }), { code: 'INVALID_RESPONSE' });
+  }
+  assert.equal(writes.length, 1);
+  await write(event, { userWelcomeMessages: [] });
+  assert.deepEqual(writes[1], { userWelcomeMessages: [] });
+  await write(event, { enabled: true });
+  assert.deepEqual(writes[2], { enabled: true });
+});
+
 test('V2 reads fall back only on an explicit 404, never on malformed success/auth/network or any write', async () => {
   let error = new RemoteLicenseError('HTTP_404', '', { status: 404 });
   let legacyReads = 0;

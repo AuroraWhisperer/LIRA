@@ -20,7 +20,7 @@ function getGuardRoster(profile, records) {
 }
 
 function createGuardRosterImporter({ store, create, observe }) {
-  return function importGuardRoster(scope, snapshot, automaticDate) {
+  return function importGuardRoster(scope, snapshot, automaticDate, refresh) {
     if (
       !snapshot ||
       !/^[1-9]\d{0,19}$/.test(snapshot.roomId) ||
@@ -155,6 +155,21 @@ function createGuardRosterImporter({ store, create, observe }) {
           const previous = getGuardRoster(profile, records);
           if (previous && previous.roomId !== snapshot.roomId) continue;
           saveRoster(profile, records, null);
+        }
+      }
+      if (refresh) {
+        result.profileRefresh = { updated: 0, failed: refresh.failed, skipped: 0 };
+        for (const observation of refresh.observations) {
+          const profile = store.get(scope, observation.id);
+          const key = identityKey(observation.identity);
+          // The UID may have been rebound, deleted or archived while the lookup was pending.
+          if (!profile || profile.archived || identityKey(profile.identity) !== key || store.suppressed(scope, key)) {
+            result.profileRefresh.skipped++;
+            continue;
+          }
+          const updated = observe(scope, observation, false, true);
+          if (updated.platformObservedAt !== profile.platformObservedAt) result.profileRefresh.updated++;
+          else result.profileRefresh.skipped++;
         }
       }
       if (automaticDate) {

@@ -12,7 +12,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 | 事实       | 值                                                                                                                              | 出处                                                                                                                        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 角色人格 | `personas.js` 提供 `general`（通用助手）、`cat`（橘猫小米）；`custom` 读取 `systemPrompt`，自建或导入包按 ID 选择；不把小猫风格写入全局任务规则 | [personas.js](../../../src/ai/personas.js)、[prompt.js](../../../src/ai/prompt.js) |
+| 角色人格 | `personas.js` 提供 `general`（无额外人格的通用）、`cat`（沿用结构化角色指南的橘猫）；`custom` 读取 `systemPrompt`，自建或导入包按 ID 选择；`{{name}}` 在生成时替换为 `trigger`，编辑/导出保留模板；小猫风格不写入公共底层规则 | [personas.js](../../../src/ai/personas.js)、[prompt.js](../../../src/ai/prompt.js) |
 | 模型后端   | 供应商可选自动识别、DeepSeek、OpenAI、Claude、Gemini 或自定义；Claude/Gemini 复用各自官方 OpenAI 兼容入口，不引入原生协议适配器 | [config.js](../../../src/ai/config.js)、[model-endpoint.js](../../../src/ai/model-endpoint.js)                              |
 | 触发关键词 | 配置键 `trigger`,默认空字符串,1–12 字符;配置后消息中出现即触发                                                                  | [config.js](../../../src/ai/config.js)、[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)                  |
 | 就绪条件 | `isAiReady`：enabled 为真，trigger、deepseekResponsesUrl、deepseekApiKey、model 全部非空 | [config.js](../../../src/ai/config.js) |
@@ -50,7 +50,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 7. **输出安全与质量审核**:`runSafetyReview(buildOutputReviewPrompt(question, rawText))` 未通过 → 用模型给出的 `safeText` 或 `SAFE_REFUSAL` 替换。
 8. **截断与落库**:按长度预算 `truncateReply`(超出截断加 `…`);写缓存、写 `ai_request_logs`；上下文仅在 FIFO 投递成功确认后提交最终答案（见步骤 2）(`category` 为 `tool`/`chat`,工具调用数 > 0 记 `tool`)。
 
-长度预算([getReplyLengthBudget](../../../src/ai/ai-assistant-service.js#L344-L354)):单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度,允许 1–3 条;偏好长度 `replyMaxChars`(默认 50,10–50 区间)仅是偏好不是目标。运行时预算会覆盖人格预设中的"50 字符"旧表述。
+长度预算由 [getReplyLengthBudget](../../../src/ai/ai-assistant-helpers.js) 统一计算：单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度，允许 1–3 条。界面不提供长度偏好，旧 `replyMaxChars` 键仅兼容读写，不影响生成预算。所有内置、自建、导入角色都追加公共底层提示，身份内容不能覆盖字数、安全审核、权限或工具规则；发送时仍截断到预算，输入/输出审核继续独立执行。
 
 输出 token 上限按是否开启思考模式切换:`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`,审核请求固定 `REVIEW_OUTPUT_TOKENS = 384`([ai-assistant-service.js:22-24](../../../src/ai/ai-assistant-service.js#L22-L24)、[371-373](../../../src/ai/ai-assistant-service.js#L371-L373))。
 
@@ -143,7 +143,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 | 协议与推理强度 | `modelApiProtocol` / `reasoningEffort`                                                         | `auto` / `auto`                   | 协议枚举:`auto, responses, chat_completions`；强度枚举:`auto, minimal, low, medium, high, xhigh, max`；DeepSeek 官方把 `minimal→low`、`medium/high/xhigh→high`，保留 `low/max` |
 | 行为开关 | `webSearchEnabled` / `functionCallingEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | 全为 `false` | 新配置默认普通问答；工具和联网按 §5 显式启用，关闭总开关保留各工具配置 |
 | 第三方凭证     | `qweatherApiHost` / `qweatherApiKey` / `amapApiHost` / `amapApiKey`                            | 全空                              | Host 缺协议自动补 `https://`                                                                                                                                                   |
-| 数值           | `replyMaxChars`                                                                                | 50                                | 偏好长度,10–50                                                                                                                                                                 |
+| 兼容数值       | `replyMaxChars` | 50 | 保留 10–50 校验供旧调用方读写，界面不展示，运行时不采用此偏好 |
 | 数值           | `generationConcurrency`                                                                        | 3                                 | 生成并发,1–5                                                                                                                                                                   |
 | 数值           | `queueLimit`                                                                                   | 30                                | 排队上限,1–100                                                                                                                                                                 |
 | 数值           | `sendIntervalMs`                                                                               | 3000                              | **仅作默认值存在,运行时未使用**(实际节奏见 §9 随机间隔)                                                                                                                        |
@@ -190,9 +190,13 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 配置公开视图的 personas 包含 id/name/description/prompt/builtin，自建或导入条目另含 format/version。角色包导出严格白名单，不含 API 配置、凭据、运行限制或聊天记录。管理路由见 [api.md](api.md) §13，均沿用管理端授权。界面导入文件最多 64 KiB。
 
+`builtinPersonaOverrides` 默认为空数组，与其他 AI 配置一同持久化；仅接受 general/cat 的完整角色包条目，ID 不重复且内置名称固定。公开配置不单独暴露该数组，而在 personas 中合并修改（修改过的内置条目也可能含 format/version）。更新接口原位保存包的名称、简介和角色指南；内置只改简介与指南、不能增删改名，恢复默认删除对应覆盖条目。编辑面板草稿显式保存，取消不写入；主页面只选择带风格简介的预设。新建/导入会选中新角色，更新/恢复不改变当前选择。
+
 已有配置但未保存 personaId 时，有 systemPrompt 就完整保留为 custom，否则保留 cat；不再模糊识别并覆盖旧人设。旧工具开关显式值保持，缺失时按旧版 true 默认读取（包括函数总开关），首次更新会保存这些迁移值。新配置仍全部默认关闭。仅更新 systemPrompt 的旧调用者自动选择 custom；切换角色不会覆盖自定义草稿。
 
-上下文以观众和角色 ID/人设内容的组合作为作用域；换角色或编辑人设不会读到另一角色的记忆。存储方式见 [storage.md](storage.md) §3.1。
+公开视图的 `hasCustomPersona` 在当前选中 custom 或 systemPrompt 不同于通用默认模板时为 true，确保切走之后仍可重新选回原有自定义角色；新配置只列出两个内置预设。
+
+上下文以观众和角色 ID/解析名字后的人设内容的组合作为作用域；换角色、编辑人设或改变模板中的名字不会读到另一身份的记忆。触发关键词兼作机器人名字，默认空；启用、关键词、模型及凭据就绪后才处理弹幕。存储方式见 [storage.md](storage.md) §3.1。
 
 ## 8. 月度配额与审计日志
 

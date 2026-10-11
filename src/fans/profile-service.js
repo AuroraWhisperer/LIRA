@@ -425,6 +425,13 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
 
   return {
     execute,
+    profileRefreshTargets(scope, members) {
+      const rosterUids = new Set(members.map((member) => member.uid));
+      return store.list(scope)
+        .filter((profile) => !profile.archived && profile.identity?.platform === 'bilibili' &&
+          profile.identity.type === 'uid' && !rosterUids.has(profile.identity.value))
+        .map((profile) => ({ id: profile.id, identity: profile.identity }));
+    },
     importGuardRoster: createGuardRosterImporter({
       store,
       create,

@@ -324,6 +324,7 @@ function createShutdownHarness(options = {}) {
       }),
     },
     '../bilibili/guard-roster': { fetchGuardRoster() {} },
+    '../bilibili/danmaku/api-client': { BilibiliApiClient: class {} },
     './ipc/fan-profile-ipc': {
       registerFanProfileIpc: () => () => calls.push('fan:remove-ipc'),
     },

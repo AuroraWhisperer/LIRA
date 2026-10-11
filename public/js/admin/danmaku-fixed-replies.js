@@ -1,4 +1,4 @@
-const TITLES = { random: '随机点歌回复', diy: '自定义关键词回复', welcome: '进场欢迎', pk: 'PK 对手信息播报' };
+const TITLES = { checkin: '签到祝福词库', fortune: '抽签词库', diy: '自定义关键词回复', welcome: '进场欢迎' };
 
 export function initFixedReplyEditor({ documentRef = globalThis.document, windowRef = globalThis.window } = {}) {
   const root = documentRef.querySelector?.('.danmaku-fixed-reply-section');
@@ -14,8 +14,9 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
     heading.hidden = !key;
     title.textContent = TITLES[key] || '';
     tabs.hidden = key !== 'welcome';
+    documentRef.getElementById('danmakuWelcomeRefreshBtn').hidden = key !== 'welcome';
     for (const panel of panels) {
-      panel.hidden = panel.dataset.fixedEditor !== key;
+      panel.hidden = !key || !panel.dataset.fixedEditor.split(' ').includes(key);
       if (panel.tagName === 'DETAILS') panel.open = !panel.hidden;
     }
     for (const button of buttons) {
@@ -23,6 +24,7 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
       button.setAttribute('aria-expanded', String(selected));
       button.closest('[data-fixed-item]').classList.toggle('is-editing', selected);
     }
+    root.dispatchEvent(new windowRef.CustomEvent('fixed-reply:select', { detail: key }));
   }
   buttons.forEach((button) =>
     button.addEventListener('click', () => {
@@ -93,10 +95,6 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
   observer.observe(list, { childList: true });
   observers.push(observer);
   render();
-  const pk = documentRef.getElementById('danmakuPkReportStatus');
-  mirror(pk, () => {
-    documentRef.getElementById('danmakuPkReportDetail').textContent = pk.textContent;
-  });
   windowRef.addEventListener('pagehide', () => observers.forEach((observer) => observer.disconnect()), { once: true });
   select('');
 }

@@ -47,10 +47,10 @@ test('reply instructions put the persona first and carry the budget derived from
     oneMessage: 32,
     twoMessages: 64,
     threeMessages: 96,
-    preferred: 50,
   });
   assert.ok(instructions.startsWith('<persona>\n固定人格'));
   assert.ok(instructions.includes(ANSWER_QUALITY_POLICY));
+  assert.equal(instructions, buildReplyInstructions('固定人格', 10, [], '哈极光dd_'));
   for (const value of Object.values(budget)) assert.match(instructions, new RegExp(`\\b${value}\\b`));
 });
 

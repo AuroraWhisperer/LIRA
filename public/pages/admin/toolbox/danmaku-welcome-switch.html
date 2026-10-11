@@ -1,6 +1,8 @@
 <div class="danmaku-fixed-item" data-fixed-item="welcome">
   <div class="danmaku-fixed-copy">
-    <strong id="danmakuWelcomeTitle">进场欢迎</strong
+    <div class="danmaku-fixed-item-heading">
+      <strong id="danmakuWelcomeTitle">进场欢迎</strong><lira-help label="进场欢迎说明">观众进场后发送欢迎词，可设置延时、荣耀门槛、二次问候和按用户定制的文案。</lira-help>
+    </div
     ><span id="danmakuWelcomeSummary" class="danmaku-fixed-summary">尚未确认服务器设置</span
     ><span id="danmakuWelcomeOverviewStatus" class="danmaku-fixed-note" role="status"></span>
   </div>
@@ -15,13 +17,7 @@
     设置<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
   </button>
   <label class="switch-control">
-    <input
-      id="danmakuWelcomeToggle"
-      type="checkbox"
-      disabled
-      aria-labelledby="danmakuWelcomeTitle"
-      aria-describedby="danmakuWelcomeEnableHint"
-    />
+    <input id="danmakuWelcomeToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomeTitle" aria-describedby="danmakuWelcomeEnableHint" />
     <span class="switch-track"></span>
   </label>
 </div>

@@ -37,6 +37,7 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     roomLimitPerMinute: 20,
     systemPrompt: '这是一个长度足够的测试人格预设。',
     personaId: 'custom',
+    hasCustomPersona: true,
     personas: BUILT_IN_PERSONAS.map((persona) => ({ ...persona, builtin: true })),
     weatherEnabled: false,
     placesEnabled: false,
@@ -59,6 +60,9 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
       textContent: '',
       className: '',
       disabled: false,
+      focus() {},
+      showModal() { this.open = true; },
+      close() { this.open = false; },
       click() {
         if (tagName === 'a') downloads.push({ href: this.href, name: this.download });
       },
@@ -162,7 +166,9 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
       const target = elements.get(id);
       target.value = value;
       target.listeners.input?.({ target });
-      elements.get('xiaomiAiForm').listeners.input({ target });
+      if (!['xiaomiAiPersonaName', 'xiaomiAiPersonaDescription', 'xiaomiAiPersonaPrompt'].includes(id)) {
+        elements.get('xiaomiAiForm').listeners.input({ target });
+      }
     },
     async advance(ms) {
       clock += ms;

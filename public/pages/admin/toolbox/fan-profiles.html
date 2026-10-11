@@ -49,13 +49,13 @@
     <p id="fanRosterResult" class="fan-muted" role="status" hidden></p>
     <div id="fanProfilesPage" role="tabpanel" aria-labelledby="fanProfilesTab">
       <div id="fanReminderSummary" class="fan-reminder-summary" hidden></div>
-      <div id="fanArchivedNotice" class="fan-archived-notice" hidden>
-        <span class="fan-muted">归档档案的资料与记录仍保留，归档期间不显示提醒。选中档案后可恢复到主列表。</span>
-      </div>
       <div class="fan-searchbar">
         <div class="fan-scope" role="group" aria-label="档案范围">
           <button type="button" data-fan-action="back-profiles" aria-pressed="true">当前档案</button>
-          <button type="button" data-fan-action="archived" aria-pressed="false">已归档</button>
+          <span class="fan-scope-help">
+            <button type="button" data-fan-action="archived" aria-pressed="false">已归档</button>
+            <lira-help label="已归档说明">归档档案的资料与记录仍保留，归档期间不显示提醒。选中档案后可恢复到主列表。</lira-help>
+          </span>
         </div>
         <label class="fan-search"
           ><span class="sr-only">搜索昵称、备注名或 UID</span
@@ -86,7 +86,7 @@
         <div class="fan-setting-row">
           <div>
             <h4>同步大航海名单</h4>
-            <p class="fan-muted">为当前大航海成员建档，更新昵称、头像、等级和陪伴天数。</p>
+            <p class="fan-muted">更新大航海名单和陪伴天数，并同步未归档 UID 档案的昵称、头像。</p>
           </div>
           <button type="button" data-fan-action="guard-roster">同步名单</button>
         </div>

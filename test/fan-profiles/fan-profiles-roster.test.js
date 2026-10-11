@@ -4,6 +4,103 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { fixture, deferred, SCOPE_A } = require('../helpers/fan-profile-controller-fixture');
 
+const refreshTarget = { id: 'former-guard', identity: { platform: 'bilibili', type: 'uid', value: '123' } };
+
+test('manual and daily roster sync both refresh UID targets within the same operation', async (t) => {
+  for (const automatic of [false, true]) {
+    const at = Date.parse('2026-09-20T14:00:00+08:00');
+    const f = fixture(t, {
+      now: () => at,
+      state: { windowOpen: true },
+      autoSyncGuardRoster: automatic,
+      targets: (scope, members) => {
+        assert.equal(scope, SCOPE_A);
+        assert.deepEqual(members, []);
+        return [refreshTarget];
+      },
+    });
+    const contextId = f.invoke({ action: 'open' }).contextId;
+    const result = await f.invoke({ action: automatic ? 'auto-update-status' : 'sync-guard-roster', contextId });
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.data.profileRefresh, { updated: 1, failed: 0, skipped: 0 });
+    assert.equal(f.calls.profiles[0].uid, '123');
+    assert.equal(f.calls.profiles[0].signal, f.calls.roster[0].signal);
+    assert.deepEqual(f.calls.imports[0].refresh.observations, [{
+      ...refreshTarget, name: '新昵称', avatar: 'https://i0.hdslb.com/bfs/garb/new.webp',
+      nameComplete: true, observedAt: new Date(at).toISOString(),
+    }]);
+  }
+});
+
+test('profile lookup failure retains successful observations, stops further lookups and reports unfinished targets', async (t) => {
+  const f = fixture(t, {
+    now: () => Date.parse('2026-09-20T14:00:00+08:00'),
+    state: { windowOpen: true }, autoSyncGuardRoster: true,
+    targets: () => ['123', '456', '789'].map((uid) => ({ ...refreshTarget, identity: { ...refreshTarget.identity, value: uid } })),
+    profile: (uid) => {
+      if (uid !== '123') throw new Error('rate limited, synthetic secret');
+      return { name: '新昵称', avatarUrl: 'https://i0.hdslb.com/bfs/face/new.jpg' };
+    },
+  });
+  const result = await f.invoke({ action: 'auto-update-status' });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data.profileRefresh, { updated: 1, failed: 2, skipped: 0 });
+  assert.deepEqual(f.calls.profiles.map((item) => item.uid), ['123', '456']);
+  assert.equal(f.calls.imports.length, 1);
+  assert.doesNotMatch(JSON.stringify(result), /synthetic secret/);
+  assert.equal(f.settings.get(SCOPE_A).lastGuardRosterAutoUpdate.date, '2026-09-20');
+  assert.equal((await f.invoke({ action: 'auto-update-status' })).data, null);
+  assert.equal(f.calls.profiles.length, 2);
+});
+
+test('shutdown aborts the pause between UID lookups before requesting the next profile', async (t) => {
+  const f = fixture(t, {
+    targets: () => [refreshTarget, { ...refreshTarget, identity: { ...refreshTarget.identity, value: '456' } }],
+    profile: () => {
+      setImmediate(() => f.controller.dispose());
+      return { name: '未提交昵称', avatarUrl: '' };
+    },
+  });
+  const contextId = f.invoke({ action: 'open' }).contextId;
+  const result = await f.invoke({ action: 'sync-guard-roster', contextId });
+  await f.controller.whenIdle();
+  assert.equal(result.ok, false);
+  assert.equal(f.calls.profiles.length, 1);
+  assert.equal(f.calls.imports.length, 0);
+});
+
+test('profile lookups remain mutually exclusive, drain on shutdown and discard canceled or stale runs', async (t) => {
+  for (const change of ['dispose', 'account', 'epoch', 'room', 'disable']) {
+    const pending = deferred();
+    const started = deferred();
+    const f = fixture(t, {
+      now: () => Date.parse('2026-09-20T14:00:00+08:00'),
+      state: { windowOpen: true }, autoSyncGuardRoster: true,
+      targets: () => [refreshTarget],
+      profile: () => { started.resolve(); return pending.promise; },
+    });
+    const contextId = f.invoke({ action: 'open' }).contextId;
+    const operation = f.invoke({ action: 'auto-update-status' });
+    await started.promise;
+    assert.match(f.invoke({ action: 'sync-guard-roster', contextId }).error, /正在同步/);
+    if (change === 'dispose') f.controller.dispose();
+    if (change === 'account') { f.state.streamerId = 'streamer-b'; f.emit(); }
+    if (change === 'epoch') { f.state.epoch++; f.emit(); }
+    if (change === 'room') f.state.roomId = '77';
+    if (change === 'disable') f.invoke({ action: 'configure', contextId, payload: { autoSyncGuardRoster: false } });
+    if (['dispose', 'account', 'epoch'].includes(change)) assert.equal(f.calls.profiles[0].signal.aborted, true);
+    let idle = false;
+    const drained = f.controller.whenIdle().then(() => { idle = true; });
+    await new Promise(setImmediate);
+    assert.equal(idle, false);
+    pending.resolve({ name: '不应写入', avatarUrl: '' });
+    await operation;
+    await drained;
+    assert.equal(f.calls.imports.length, 0);
+    assert.equal(f.settings.get(SCOPE_A)?.lastGuardRosterAutoUpdate, undefined);
+  }
+});
+
 test('daily roster waits until 12:10 Shanghai time and delivers one scheduled notification', async (t) => {
   let now = Date.parse('2026-09-20T12:09:55+08:00');
   const f = fixture(t, { now: () => now, state: { windowOpen: true }, autoSyncGuardRoster: true });

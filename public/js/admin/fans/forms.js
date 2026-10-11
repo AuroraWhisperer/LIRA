@@ -387,10 +387,11 @@ export function guardRosterForm(roomId, roomProfile = null) {
   return {
     title: '同步大航海名单',
     saveLabel: '同步名单',
-    busyLabel: '正在读取名单…',
-    hint: '已有备注会保留，已归档和黑名单中的粉丝会跳过。',
+    busyLabel: '正在同步资料…',
+    hint: '已有备注会保留，已归档、黑名单和神秘人成员会跳过。',
     fields: `<div class="fan-field-wide"><dl class="fan-facts"><div><dt>同步房间</dt><dd class="bilibili-room-row"><span class="bilibili-auth-profile">${avatar}<span class="bilibili-auth-identity"><strong class="bilibili-auth-name" title="${attr(roomName)}">${html(roomName)}</strong></span></span></dd></div></dl>
       <p>为当前大航海成员建立档案，并更新昵称、头像、等级和 B 站陪伴天数。</p>
+      <p>未归档且已绑定 UID 的名单外档案，也会逐个查询昵称和头像；查询失败保留旧资料。</p>
       <p class="fan-muted">陪伴天数取自 B 站陪伴榜；到期日期和历史在舰记录可之后手动补充。</p></div>`,
     read: () => ({ expectedRoomId: roomId }),
   };
@@ -403,8 +404,8 @@ export function settingsForm(settings) {
     fields:
       check('autoUpdate', '自动更新已有档案的昵称、点歌和上舰记录', settings.autoUpdate !== false) +
       check('autoCreate', '有新粉丝上舰时自动建档', settings.autoCreate !== false) +
-      check('autoSyncGuardRoster', '每天自动更新大航海身份和陪伴天数', settings.autoSyncGuardRoster === true) +
-      '<p class="fan-field-wide fan-muted">北京时间每天 12:10 核对名单，已下舰的粉丝会移除身份标记。错过后，当天首次打开软件时补更新。</p>' +
+      check('autoSyncGuardRoster', '每天自动更新名单、昵称、头像和陪伴天数', settings.autoSyncGuardRoster === true) +
+      '<p class="fan-field-wide fan-muted">北京时间每天 12:10 核对名单，并按 UID 更新名单外未归档档案的昵称和头像。可确认下舰时移除身份标记；神秘人成员跳过。错过后，当天首次打开软件时补更新。</p>' +
       field('accompanyMilestones', '陪伴纪念日（天，以逗号分隔）', (settings.accompanyMilestones || []).join(', ')) +
       check('showAccompanyInCalendar', '在工作台日历显示陪伴纪念日', settings.showAccompanyInCalendar !== false) +
       '<p class="fan-field-wide fan-muted">日历自动提示 <lira-help label="日历自动提示说明">设置生日、纪念日、跟进或复查日期，以及有依据的在舰日期后，目标日前 3 天起会在工作台日历的目标日期显示提示，当天仍显示。例如 10 月 12 日的纪念日，从 10 月 9 日起显示在 12 日。修改或清除日期会自动更新；在档案「提醒」中处理后隐藏。陪伴纪念日默认 100、365、500、1000 天，由 B 站陪伴天数和同步日期计算，提前 3 天可处理；未来日期标为预计，超过 7 天未同步或确认下舰后暂停预计提醒。</lira-help></p>',

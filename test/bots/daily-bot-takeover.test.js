@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createDailyBotController } = require('../../src/electron/daily-bot-controller');
 const { registerDailyBotIpc } = require('../../src/electron/ipc/daily-bot-ipc');
+const { digest } = require('../../src/shared/daily-bot-contract');
 
 // Synthetic local data in the shared daily-bot shape. Byte agreement with the
 // pinned server fixture stays in daily-bot-controller.test.js (contracts group).
@@ -90,6 +91,48 @@ function setup(t, remote) {
     },
   };
 }
+test('library IPC caches conditional reads, checks replies and isolates authorization contexts', async (t) => {
+  const calls = [];
+  let library = ['合成祝福。'];
+  const env = setup(t, async (operation, input) => {
+    calls.push({ operation, input: structuredClone(input) });
+    if (operation === 'read') return fixture.defaultResponse;
+    if (operation === 'updateLibrary') library = input.body.library;
+    const version = digest(library);
+    const unchanged = operation === 'updateLibrary' || input.version === version;
+    return { kind: 'checkin', version, unchanged, ...(!unchanged ? { library } : {}), token: 'private' };
+  });
+  let opened = await env.controller.invoke({ action: 'open' });
+  const read = () => env.controller.invoke({ action: 'library-read', contextId: opened.contextId, payload: { kind: 'checkin' } });
+  const first = await read();
+  assert.deepEqual(first.library, { kind: 'checkin', version: digest(library), library });
+  assert.deepEqual((await read()).library, first.library);
+  assert.equal(calls.at(-1).input.version, first.library.version);
+  await env.controller.invoke({ action: 'library-save', contextId: opened.contextId,
+    payload: { kind: 'checkin', expectedVersion: first.library.version, library: ['更新祝福。'] } });
+  assert.deepEqual((await read()).library.library, ['更新祝福。']);
+  assert.equal(calls.at(-1).input.version, digest(['更新祝福。']));
+  for (const payload of [{ kind: '../settings' }, { kind: 'checkin', streamerId: 2 }])
+    await assert.rejects(env.controller.invoke({ action: 'library-read', contextId: opened.contextId, payload }), /INVALID_REQUEST/);
+  env.switchAccount();
+  opened = await env.controller.invoke({ action: 'open' });
+  await read();
+  assert.equal(Object.hasOwn(calls.at(-1).input, 'version'), false);
+});
+
+test('library requests reject incorrect digests and discard late account responses', async (t) => {
+  let resolveRead;
+  const env = setup(t, async (operation) => operation === 'read' ? fixture.defaultResponse
+    : new Promise((resolve) => { resolveRead = resolve; }));
+  const opened = await env.controller.invoke({ action: 'open' });
+  let pending = env.controller.invoke({ action: 'library-read', contextId: opened.contextId, payload: { kind: 'checkin' } });
+  resolveRead({ kind: 'checkin', version: 'a'.repeat(64), unchanged: false, library: ['词库。'] });
+  await assert.rejects(pending, /INVALID_RESPONSE/);
+  pending = env.controller.invoke({ action: 'library-read', contextId: opened.contextId, payload: { kind: 'checkin' } });
+  env.switchAccount();
+  resolveRead({ kind: 'checkin', version: digest(['词库。']), unchanged: false, library: ['词库。'] });
+  await assert.rejects(pending, /ACCOUNT_CHANGED/);
+});
 test('main preserves an open editor through token renewal and forwards direct enabling without a legacy decision', async (t) => {
   const calls = [],
     initial = structuredClone(fixture.defaultResponse);

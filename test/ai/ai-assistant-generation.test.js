@@ -7,6 +7,43 @@ const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 
 const MAP_CONFIG = { functionCallingEnabled: true, routesEnabled: true, placesEnabled: true, amapApiHost: 'https://map.test', amapApiKey: 'test-map-key' };
 
+test('configured name and enabled state gate generation, and renaming changes the persona cache scope', async (t) => {
+  const config = {
+    ...AI_CONFIG_DEFAULTS, enabled: true, trigger: '', personaId: 'cat', model: 'test-model',
+    deepseekResponsesUrl: 'https://model.test/responses', deepseekApiKey: 'test-key',
+  };
+  const instructions = [];
+  const scopes = [];
+  const service = createTestService({
+    store: { getConfig: () => ({ ...config }), setContext: (_uid, _context, _ttl, scope) => scopes.push(scope) },
+    deepseek: {
+      async createResponse(request) {
+        if (request.purpose === 'generation') instructions.push(request.instructions);
+        return { text: request.purpose === 'generation' ? '你好呀' : '{"allowed":true}', functionCalls: [], usage: {} };
+      },
+    },
+  });
+  t.after(() => service.shutdown());
+  const ask = (message) => service.handleDanmaku({ uid: 'viewer', userName: '观众', message });
+  assert.equal(ask('小米 你好').reason, 'disabled_or_unconfigured');
+  config.trigger = '栗子';
+  config.enabled = false;
+  assert.equal(ask('栗子 你好').reason, 'disabled_or_unconfigured');
+  assert.equal(instructions.length, 0);
+  config.enabled = true;
+  ask('栗子 你好');
+  await waitUntil(() => scopes.length === 1);
+  config.trigger = '豆包';
+  assert.equal(ask('栗子 你好').reason, 'not_triggered');
+  ask('豆包 你好');
+  await waitUntil(() => scopes.length === 2);
+  assert.equal(instructions.length, 2);
+  assert.match(instructions[0], /“栗子”/);
+  assert.match(instructions[1], /“豆包”/);
+  assert.doesNotMatch(instructions[1], /栗子|小米|\{\{name\}\}/);
+  assert.notEqual(scopes[0], scopes[1]);
+});
+
 for (const scenario of ['disabled', 'revoked', 'enabled-later', 'hosted-search']) {
   test(`unavailable function calls cannot reach external services (${scenario})`, async (t) => {
     const config = {

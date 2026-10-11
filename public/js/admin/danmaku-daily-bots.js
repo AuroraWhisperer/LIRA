@@ -1,3 +1,5 @@
+import { createDailyLibraryEditor } from './danmaku-daily-library.js';
+
 const REASONS = {
   pending: '',
   importing: '暂时不可用',
@@ -38,7 +40,9 @@ export function initDanmakuDailyBots({
     busy = false,
     stale = true,
     disposed = false;
+  const libraries = createDailyLibraryEditor({ documentRef, windowRef, request: invoke });
   function render() {
+    libraries?.availability({ enabled: Boolean(owner && contextId && bridge && !stale), busy });
     for (const kind of ['checkin', 'fortune']) {
       toggles[kind].checked = saved?.[kind].enabled === true;
       toggles[kind].disabled = !owner || !bridge || busy || stale || !saved || saved.takeover.state === 'importing';
@@ -61,6 +65,7 @@ export function initDanmakuDailyBots({
       const response = await bridge.invoke({ action, ...(action === 'open' ? {} : { contextId }), payload });
       if (disposed || generation !== requested) return;
       if (response?.ok !== true) throw Object.assign(new Error(response?.error), { code: response?.error });
+      if (contextId && contextId !== response.contextId) libraries?.reset();
       contextId = response.contextId;
       if (response.data) {
         saved = response.data;
@@ -74,6 +79,15 @@ export function initDanmakuDailyBots({
       return response;
     } catch (error) {
       if (disposed || generation !== requested) return;
+      if (action.startsWith('library-')) {
+        if (error.code === 'DAILY_BOT_ACCOUNT_CHANGED' || error.code === 'LICENSE_NOT_AUTHORIZED') {
+          contextId = null;
+          stale = true;
+          libraries?.reset();
+          overall.textContent = '账号授权已变化，请刷新云端状态后重新打开词库。';
+        }
+        return { ok: false, error: error.code };
+      }
       stale = true;
       const message =
         action === 'update' && payload.enabled === false
@@ -99,7 +113,7 @@ export function initDanmakuDailyBots({
   function account(snapshot) {
     const streamer = snapshot?.streamer;
     const next =
-      snapshot?.state === 'authorized' && streamer?.accountName && streamer?.songPageUrl
+      snapshot?.state === 'authorized' && streamer?.accountName
         ? JSON.stringify([streamer.accountName, streamer.songPageUrl])
         : '';
     if (next === owner || disposed) return;
@@ -107,6 +121,7 @@ export function initDanmakuDailyBots({
     generation++;
     contextId = null;
     saved = null;
+    libraries?.reset();
     busy = false;
     stale = true;
     render();

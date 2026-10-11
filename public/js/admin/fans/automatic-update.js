@@ -1,4 +1,5 @@
 import { toast } from '../../shared/utils.js';
+import { profileRefreshMessage } from './view.js';
 
 export function initFanProfileAutoUpdate({ windowRef = window, notify = toast } = {}) {
   if (!windowRef.fanProfiles) return;
@@ -16,8 +17,8 @@ export function initFanProfileAutoUpdate({ windowRef = window, notify = toast } 
       notify(
         update.status === 'error'
           ? `粉丝档案${label}失败：${update.error}`
-          : `粉丝档案${label}完成，已同步最新大航海身份和陪伴天数`,
-        { type: update.status === 'error' ? 'error' : 'success', duration: 5000 },
+          : `粉丝档案${label}完成，已同步大航海名单和陪伴天数。${profileRefreshMessage(update.profileRefresh)}`,
+        { type: update.status === 'error' ? 'error' : update.profileRefresh?.failed ? 'warning' : 'success', duration: 5000 },
       );
     } catch (_) {
       // Login/navigation may temporarily make the desktop bridge unavailable.

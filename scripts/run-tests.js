@@ -38,6 +38,7 @@ const groups = {
     'danmaku/frontend-admin-danmaku',
     'danmaku/danmaku-feed-motion',
     'games/frontend-wheel-draft',
+    'gifts/blindbox-scaling-browser',
     'gifts/frontend-gift-banner',
     'gifts/frontend-gift-display-settings',
     'gifts/frontend-gift-export-settings',
@@ -67,6 +68,7 @@ const groups = {
     'admin/text-box-editor',
   ],
   desktop: [
+    'desktop/daily-bot-editor-electron',
     'desktop/background-filters-electron',
     'desktop/danmaku-canvas-electron',
     'desktop/gift-wishes-electron',

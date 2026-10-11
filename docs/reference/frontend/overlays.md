@@ -225,9 +225,9 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 
 歌单板专用:可变行高记录的**环形 DOM 窗口**虚拟滚动([song-virtual-scroller.js:28-58](../../../public/js/overlays/song-virtual-scroller.js#L28-L58))。
 
-- **工作原理**:以 anchor 记录(当前视口首行 key/index/offset)为起点,向两侧按 `beforeViewports=1 / afterViewports=1.5` 个视口高度增量构建 DOM 节点(`probeOverflow` 先探测内容是否超出一屏,不超出则整表渲染),`wrapIndex` 取模实现环形复用;滚动时 `tick` 按 `pixelsPerSecond(viewportHeight / secondsPerViewport)` 推进 `scrollTop`,超出前缓冲区的顶部节点被回收并追加到尾部(`recycleTopRecords`),始终保持窗口内只有可见 + 缓冲节点。
-- **联动**:`setRecords`/`relayout` 以 anchor 保持视口稳定(歌单刷新/字体加载完成/视口 resize 时不跳位);`secondsPerViewport` 由歌单滚动速度设置换算;页面隐藏时 `pause()` 停止 rAF([songs.js:102-108](../../../public/js/overlays/songs.js#L102-L108))。
-- **速度精度**:保留浏览器写入 `scrollTop` 后的像素舍入余量，下一帧与回收顶部节点时继续累计；低速不会因高刷新率停住，各刷新率下保持相同的每秒位移。滚动速度 1–100 数值越大越快。
+- **工作原理**:以 anchor 记录(当前视口首行 key/index/offset)为起点,向两侧按 `beforeViewports=1 / afterViewports=1.5` 个视口高度增量构建 DOM 节点(`probeOverflow` 先探测内容是否超出一屏,不超出则整表渲染),`wrapIndex` 取模实现环形复用;滚动时 `tick` 按 `pixelsPerSecond * elapsed / 1000` 推进 `scrollTop`,超出前缓冲区的顶部节点被回收并追加到尾部(`recycleTopRecords`),始终保持窗口内只有可见 + 缓冲节点。
+- **联动**:`setRecords`/`relayout` 以 anchor 保持视口稳定(歌单刷新/字体加载完成/视口 resize 时不跳位);`songs.js` 将 `scrollSeconds`（沿用设置键名）或 URL `speed` 的 1–100 档位通过 `scrollSpeedToPixelsPerSecond` 线性映射为 1–300 CSS 像素/秒，再调用 `setPixelsPerSecond`；高度仅影响可见内容和缓冲区，不参与速度计算。组件预览和实际展示共用此逻辑；页面隐藏时 `pause()` 停止 rAF([songs.js:102-108](../../../public/js/overlays/songs.js#L102-L108))。
+- **速度精度**:保留浏览器写入 `scrollTop` 后的像素舍入余量，下一帧与回收顶部节点时继续累计；低速不会因高刷新率停住，各刷新率下保持相同的每秒位移。
 - 浏览器无 `requestAnimationFrame`/`ResizeObserver` 时自动降级(整表渲染 + window resize 监听)。
 
 ### 1.4 礼物四方边框(`/gift-effects`)
@@ -413,6 +413,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 - 紧凑布局默认关闭，自动翻页默认开启，由共享设置 `blindboxCompact` / `blindboxAutoPages` 控制，旧 URL 的显式参数优先。盲盒默认隐藏滚动条；`noScroll=1` / `ns=1` 保持隐藏，显式 `0` 恢复细滚动条和手动浏览。隐藏模式超高内容复用 `auto-pages.js` 每 8 秒翻页，保留 32px 阅读重叠并在尾页停留后回到顶部。该模块也服务画猜积分、正确答案、窄布局和游戏结果卡；不使用连续动画，低功耗或减少动效时仍可阅读全部已选内容。滚轮、指针、触摸或键盘操作暂停 16 秒，焦点留在区域内时持续暂停；页面隐藏不翻页，卸载时清理。
 - 呈现:独立浏览器源默认宽 720px；画布中新建组件默认 720×640px，尺寸定义由 `shared/scene-extra-components.js` 提供。顶栏第一行并列标题与总盈亏(涨绿跌红)，第二行显示开盒数、花费和开出价值；“开出价值”直接使用统计的 `summary.totalValue`。字号比例为 1 时，标题与昵称 32px、盈亏金额 38px，统计、名次、盒数及空提示 30px；字号跟随 `themeFontScale`，全部文字下限为 30px，紧凑布局只收紧间距。容器宽度不超过 539px 时，标题、总盈亏与统计分行排列。榜单每位观众分两行显示昵称及开盒数量/盈亏，较长金额按空间换行；容器达到 600px 时榜单改为单行。前三名显示带数字和绶带的金、银、铜奖牌，第四名起使用普通数字；奖牌由 CSS 绘制，尺寸跟随字号比例。榜首浅金色强调，金额右对齐，不显示额外头衔、重复表头或空白页脚。没有开盒记录时省略汇总，只显示“等待开盒”；已有开盒但盈利筛选结果为空时显示“暂无盈利观众”。仅汇总模式隐藏标题和榜单，保留顶栏统计及零值。`compact/winners-only/summary-only/no-scroll` 类切换形态；主题从快照 settings 经 `applyTheme` 应用(与队列层同套令牌)。
 - 心动盲盒:勾选后，顶栏下的细分隔栏可显示「今天 N 倍堡」「还有 N 个堡」「已开 X 个盲盒」，文案基准 30px、数字基准 36px，字号缩小时仍不低于 30px，空间不足自动换行。倍数留空隐藏，剩余数与开盒数各有独立开关，剩余数为手动值（0 也显示）；关闭心动筛选后整栏隐藏。自动进度沿用[后端统计规则](../backend/bilibili/gift.md#4-盲盒服务器结果与客户端展示)，只计算今日心动盲盒开出浪漫城堡后的数量。设置更新即刻应用，无需重建相同榜单；画布使用示例开盒数 12，正式浏览器源使用实际统计。字段默认值和范围见[存储设置](../backend/storage.md)。
+- 画布缩放：组件预览与场景输出使用 720px 设计宽度，按组件实际宽度整体等比缩放文字、奖牌和间距；上述字号及下限均为缩放前的设计尺寸。可用高度换算回设计坐标，继续用于原有翻页；仅调整高度不改变字号。独立 `/blindbox` 浏览器源保留原有自适应重排。
 - 数据刷新:WS reason `bilibili:gift`/`gift:sprint:reset`/`connect` 重取统计,`refresh/r` 参数支持定时轮询(≥10s)兜底,适用于 WS 不稳的投屏环境。
 
 ## 6. 桌面歌词页(/lyrics)

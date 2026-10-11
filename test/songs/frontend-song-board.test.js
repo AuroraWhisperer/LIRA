@@ -332,12 +332,11 @@ test('song display board bounds rendered rows and preserves the scroll anchor', 
     }
   }
 
-  const { SongVirtualScroller, bufferPixels, pixelsPerSecond, wrapIndex } = await loadModuleExports(
+  const { SongVirtualScroller, bufferPixels, wrapIndex } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'song-virtual-scroller.js'),
   );
   assert.equal(wrapIndex(-1, 5), 4);
   assert.equal(wrapIndex(5, 5), 0);
-  assert.equal(pixelsPerSecond(300, 12), 25);
   assert.deepEqual(Array.from(bufferPixels(100, 1, 1.5)), [100, 150]);
 
   const content = new FakeContent();
@@ -389,7 +388,7 @@ test('song display board bounds rendered rows and preserves the scroll anchor', 
   assert.equal(shortScroller.isScrollable, false);
 });
 
-test('song board scroll speed stays constant as content grows', async () => {
+test('song board scroll speed maps linearly from 1–100 to 1–300 pixels per second', async () => {
   const adminHtml = readAdminFragmentHtml('pages/admin/song/song-board.html');
   assert.match(
     adminHtml,
@@ -402,22 +401,13 @@ test('song board scroll speed stays constant as content grows', async () => {
     URLSearchParams,
     WebSocket: function WebSocket() {},
   });
-  const { pixelsPerSecond } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'song-virtual-scroller.js'),
-  );
-
-  assert.equal(songModule.scrollSpeedToDuration(1), '20.557851');
-  assert.equal(songModule.scrollSpeedToDuration(100), '2.000000');
-  assert.equal(songModule.scrollSpeedToDuration(200), '2.000000');
+  assert.equal(songModule.scrollSpeedToPixelsPerSecond(1), 1);
+  assert.equal(songModule.scrollSpeedToPixelsPerSecond(100), 300);
+  assert.equal(songModule.scrollSpeedToPixelsPerSecond(200), 300);
 
   const rates = Array.from({ length: 100 }, (_, index) => index + 1).map(
-    (speed) => 1 / Number(songModule.scrollSpeedToDuration(speed)),
+    (speed) => songModule.scrollSpeedToPixelsPerSecond(speed),
   );
   const rateSteps = rates.slice(1).map((rate, index) => rate - rates[index]);
   assert.ok(rateSteps.every((step) => Math.abs(step - rateSteps[0]) < 0.000001));
-
-  const secondsPerViewport = Number(songModule.scrollSpeedToDuration(80));
-  const rate = pixelsPerSecond(300, secondsPerViewport);
-  assert.equal(rate, 300 / secondsPerViewport);
-  assert.ok(Math.abs((rate * 2) / 2 - (rate * 20) / 20) < 0.000001);
 });

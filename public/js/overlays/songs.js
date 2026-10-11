@@ -192,7 +192,7 @@ function render() {
   }
 
   if (motionKey !== lastMotionKey) {
-    scroller.setSecondsPerViewport(Number(scrollSpeedToDuration(Number(motionKey))));
+    scroller.setPixelsPerSecond(scrollSpeedToPixelsPerSecond(Number(motionKey)));
   }
 
   if (orderChanged) {
@@ -400,17 +400,9 @@ function applyTheme(settings) {
   panel.style.backgroundColor = hexToRgba(bgHex, resolve('themeOpacity', SONG_BOARD_THEME_DEFAULTS.themeOpacity));
 }
 
-export function scrollSpeedToDuration(value) {
-  const speed = Math.max(1, Math.min(100, Math.round(Number(value) || 20)));
-  const minSeconds = 2;
-  const maxSeconds = 1000;
-  const oldMinRate = 1 / maxSeconds;
-  const maxRate = 1 / minSeconds;
-  const oldRange = 200 - 1;
-  const minRate = oldMinRate + ((20 - 1) / oldRange) * (maxRate - oldMinRate);
-  const ratio = (speed - 1) / (100 - 1);
-  const rate = minRate + ratio * (maxRate - minRate);
-  return (1 / rate).toFixed(6);
+export function scrollSpeedToPixelsPerSecond(value) {
+  const speed = Math.max(1, Math.min(100, Math.round(Number(value) || 45)));
+  return 1 + ((speed - 1) / 99) * 299;
 }
 
 function resolveSongScrollSpeed(settings) {

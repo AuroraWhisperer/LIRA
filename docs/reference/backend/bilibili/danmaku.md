@@ -143,7 +143,7 @@ text.startsWith('点歌') || text.startsWith('随机')
 
 ### 6.1 云端签到
 
-Server 的 `monitor-manager → daily-bot-service → daily-bot-store` 在认证后的主播作用域中处理签到。北京时间判日，每个 UID 每天至多累计一次；重复签到读取已保存的当日结果，提交业务记录后再发送回复。客户端只控制云端开关并展示状态。
+Server 的 `monitor-manager → daily-bot-service → daily-bot-store` 在认证后的主播作用域中处理签到。北京时间判日，每个 UID 每天至多累计一次；重复签到读取已保存的当日结果，提交业务记录后再发送回复。客户端控制云端开关、展示状态，并通过受限 IPC 按需编辑云端词库；保存后在直播间发送「签到」查看实际回复，客户端不提供回复预览。
 
 ### 6.2 云端抽签与默认词库
 
@@ -169,6 +169,8 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 组合根在一次房间 runtime 启动或协调重连时只调用一次 `beginRoomRun()`，把同一个不可变 context 传给三个 poller；单 poller 重启仅使用自己的 local generation。`setRoom()` 递增 room generation 并清除旧 room identity/audience index，A→B→A 的旧 context 仍失效；同房协调重连轮换 runToken 并在下一次在线榜成功前保持空 online snapshot。结束整组 producer 时调用 `endRoomRun()`，共享 service 只在 runtime dispose 时销毁。
 
 头像流程是显式的：消息先 ingest 自带可信头像；画猜、今日礼物卡片等业务在确实需要且缺失时调用 `ensure()`，provider 以 `profile:${uid}` 合并在途请求并对失败或未返回完整资料做 30 秒负缓存，已返回的有效字段继续可用。用户资料请求八秒超时，B 站非零业务返回码按失败处理。`onMessage()` 返回值没有头像触发语义，renderer 仍只通过现有 `/api/bilibili/avatar` 代理获取图片。
+
+粉丝档案的手动/每日名单同步另由 Electron controller 调用 `BilibiliApiClient.fetchUserProfile(uid, {signal})`，对名单外未归档 UID 档案读取新资料，不使用上述缺失资料缓存。该方法保留 8 秒截止时间，并与可选调用方取消信号组合；已取消时不发请求。归属核验、查询节流和写回事务见[粉丝档案规格](../../../../specs/fan-profiles.md)。
 
 ### 6.4 回复目标(mention-policy + requester-target-store)
 

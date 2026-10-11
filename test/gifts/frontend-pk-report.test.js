@@ -143,3 +143,15 @@ test('unauthorized profiles cannot read settings', async () => {
   assert.equal(f.get('Toggle').disabled, true);
   assert.match(f.get('Status').textContent, /连接已授权账号/);
 });
+
+for (const songPageUrl of ['', undefined]) {
+  test(`authorized PK settings load with ${songPageUrl === '' ? 'empty' : 'missing'} song page URL`, async () => {
+    const f = await fixture({ state: 'authorized', streamer: { accountName: 'one', songPageUrl } });
+    assert.equal(f.reads.length, 1);
+    f.reads[0].resolve(saved(true));
+    await flush();
+    assert.equal(f.get('Toggle').disabled, false);
+    assert.equal(f.get('Toggle').checked, true);
+    assert.equal(f.get('RefreshBtn').disabled, false);
+  });
+}

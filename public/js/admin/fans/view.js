@@ -1,8 +1,16 @@
 import { escapeHtml, escapeAttr } from '../../shared/utils.js';
+import { bilibiliAvatarSource } from '../settings-auth.js';
 
 export const html = escapeHtml;
 export const attr = escapeAttr;
 export const levels = { 1: '总督', 2: '提督', 3: '舰长' };
+export function profileRefreshMessage(refresh) {
+  if (!refresh || !(refresh.updated + refresh.failed + refresh.skipped)) return '';
+  return ` 名单外资料：更新 ${refresh.updated} 份` +
+    (refresh.skipped ? `，跳过 ${refresh.skipped} 份` : '') +
+    (refresh.failed ? `，${refresh.failed} 份暂未查询成功，保留旧资料，可稍后手动同步` : '') + '。';
+}
+
 export function dateLabel(value) {
   return value
     ? new Date(value.length === 10 ? `${value}T00:00:00+08:00` : value).toLocaleDateString('zh-CN', {
@@ -161,12 +169,13 @@ function membership(profile) {
     ${records.length ? '' : '<p class="fan-muted">不知道起止日期，也可以只填写已在舰的天数。</p>'}`;
 }
 
-export function renderDetail(profile, tab = 'overview') {
+export function renderDetail(profile, tab = 'overview', apiToken = '') {
   const sections = { overview, interactions: journal, music, membership };
   const content = sections[tab](profile);
-  return `<header class="fan-person-header"><div class="fan-header-info"><div class="fan-detail-name"><h3 class="fan-name" data-guard-level="${attr(profile.currentGuardLevel || '')}">${html(profile.platformName || profile.alias || '未命名档案')}</h3>${guardIcon(profile.currentGuardLevel)}</div>
+  const avatarSource = bilibiliAvatarSource(profile.avatar, apiToken);
+  return `<header class="fan-person-header"><div class="fan-header-info"><div class="fan-detail-identity">${avatarSource ? `<span class="fan-detail-avatar"><img src="${attr(avatarSource)}" alt="" decoding="async" draggable="false"></span>` : ''}<div class="fan-detail-identity-text"><div class="fan-detail-name"><h3 class="fan-name" data-guard-level="${attr(profile.currentGuardLevel || '')}">${html(profile.platformName || profile.alias || '未命名档案')}</h3>${guardIcon(profile.currentGuardLevel)}</div>
     <p class="fan-detail-meta fan-muted">${profile.identity ? `<span>${profile.identity.type === 'uid' ? 'UID' : 'B 站账号'} ${html(profile.identity.value)}</span>` : '<span>未关联 B 站账号</span>'}${profile.alias && profile.platformName && profile.alias !== profile.platformName ? `<span>常用称呼：${html(profile.alias)}</span>` : ''}${profile.platformObservedAt ? `<span>更新于 ${html(dateLabel(profile.platformObservedAt))}</span>` : ''}</p>
-    ${profile.summary ? `<p class="fan-prose">${html(profile.summary)}</p>` : ''}</div>
+    </div></div>${profile.summary ? `<p class="fan-prose">${html(profile.summary)}</p>` : ''}</div>
     <div class="fan-header-actions">${button('back-list', '返回列表', 'class="fan-back-list"')}${button('new-note', '记一笔', 'class="primary"')}${button('favorite', profile.favorite ? '已关注' : '特别关注', `aria-pressed="${profile.favorite}"`)}${button('edit-profile', '编辑资料')}${profile.archived ? button('archive', '恢复到主列表') : ''}<details class="fan-more"><summary>更多</summary><div>${button('expand', '展开详情')}${profile.archived ? '' : `${button('archive', '归档档案')}<p class="fan-muted fan-archive-hint">保留资料与记录，归档期间不显示提醒。</p>`}${profile.identity ? button('suppress', '加入黑名单') : ''}${button('delete', '永久删除')}</div></details></div></header>
     <nav class="fan-detail-tabs" role="tablist" aria-label="档案详情">${[
       ['overview', '资料'],

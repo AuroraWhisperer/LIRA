@@ -81,13 +81,14 @@ class BilibiliApiClient {
     return cleanText(payload && payload.data && (payload.data.uname || payload.data.name));
   }
 
-  async fetchUserProfile(uid) {
+  async fetchUserProfile(uid, { signal } = {}) {
+    signal?.throwIfAborted();
     const userId = String(uid || '').trim();
     if (!/^\d{1,20}$/.test(userId)) return { avatarUrl: '', name: '' };
     const { payload } = await this.fetchJson(
       'user_card',
       `https://api.bilibili.com/x/web-interface/card?mid=${encodeURIComponent(userId)}`,
-      { signal: AbortSignal.timeout(8000) },
+      { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(8000)]) : AbortSignal.timeout(8000) },
     );
     const card = payload && payload.data && payload.data.card;
     if (payload?.code !== 0 || !card) throw new Error('B站用户资料读取失败。');

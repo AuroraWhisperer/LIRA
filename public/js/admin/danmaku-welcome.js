@@ -9,6 +9,7 @@ import {
   welcomePreview,
 } from './danmaku-welcome-model.js';
 import { createWelcomeLibrary } from './danmaku-welcome-library.js';
+import { createWelcomeCustom } from './danmaku-welcome-custom.js';
 
 export function initDanmakuWelcome({
   documentRef = globalThis.document,
@@ -27,6 +28,7 @@ export function initDanmakuWelcome({
     Object.keys(LIBRARIES).map((key) => [key, { items: [], dirty: false, revision: 0, addition: '', page: 0 }]),
   );
   const parameters = { values: {}, dirty: false, revision: 0 };
+  const custom = { items: [], dirty: false, revision: 0, page: 0 };
   let owner = '',
     generation = 0,
     settings = null,
@@ -37,9 +39,10 @@ export function initDanmakuWelcome({
     notice = '',
     errors = {};
   const editor = createWelcomeLibrary({ documentRef, element, libraries, changed: libraryChanged });
+  const customEditor = createWelcomeCustom({ documentRef, element, state: custom, changed: customChanged });
   const isV2 = () => settings?.schemaVersion === 2;
   const hasDrafts = () =>
-    parameters.dirty || Object.values(libraries).some((domain) => domain.dirty || domain.addition);
+    parameters.dirty || custom.dirty || Object.values(libraries).some((domain) => domain.dirty || domain.addition);
   const parameterInputs = () => {
     for (const key of Object.keys(PARAMETER_FIELDS)) element(key).value = parameters.values[key] ?? '';
   };
@@ -135,6 +138,7 @@ export function initDanmakuWelcome({
   function controls() {
     const loaded = Boolean(settings),
       busy = loading || saving;
+    customEditor.controls({ supported: isV2() && Array.isArray(settings.userWelcomeMessages), loaded, busy });
     for (const [key, suffix] of Object.entries(SWITCHES)) {
       const field = element(suffix);
       field.checked = Boolean(settings?.[key]);
@@ -180,15 +184,15 @@ export function initDanmakuWelcome({
       ? '开启并保存参数：启用开关时会一起提交当前参数，使用已保存词库。'
       : dirtyNames.length
         ? '词库尚未保存，启用时使用已保存词库。'
-        : !settings?.enabled
-          ? '先开启进场欢迎，再按需开启二次问候或重点关注。'
+        : custom.dirty
+          ? '用户欢迎词尚未保存，启用时使用已保存设置。'
           : '';
     element('OverviewStatus').textContent = /未确认|正在/.test(notice)
       ? notice
       : parameters.dirty
         ? '参数未保存 · 开启并保存参数'
-        : dirtyNames.length
-          ? '词库有未保存修改'
+        : dirtyNames.length || custom.dirty
+          ? '欢迎词有未保存修改'
           : '';
     const parsed = parameterValues(parameters.values, settings || {});
     const p = parsed.values;
@@ -197,9 +201,9 @@ export function initDanmakuWelcome({
       : !settings.greetingEnabled && p.greetingDelaySeconds <= p.welcomeDelaySeconds
         ? '重新开启问候前，需要把问候时间调到首次欢迎之后。'
         : p.greetingMinHonorLevel < p.welcomeMinHonorLevel
-          ? `问候仍需首次欢迎发送成功，实际至少 ${p.welcomeMinHonorLevel} 级；专属文案也需满足阶段条件。`
+          ? `问候仍需首次欢迎发送成功，实际至少 ${p.welcomeMinHonorLevel} 级；高荣耀文案也需满足阶段条件。`
           : settings.attentionEnabled && p.attentionMinHonorLevel < p.welcomeMinHonorLevel
-            ? '专属文案仍需满足对应阶段条件。'
+            ? '高荣耀文案仍需满足对应阶段条件。'
             : '';
     element('Summary').textContent = !loaded
       ? '尚未确认服务器设置'
@@ -214,6 +218,12 @@ export function initDanmakuWelcome({
       libraries[key].revision += 1;
       displayNotice('有尚未保存的词库更改');
     }
+    controls();
+  }
+  function customChanged() {
+    custom.dirty = true;
+    custom.revision += 1;
+    displayNotice('有尚未保存的用户欢迎词');
     controls();
   }
   function parametersChanged() {
@@ -241,6 +251,12 @@ export function initDanmakuWelcome({
         domain.dirty = false;
         if (editor.current() === key) render = true;
       }
+    }
+    if (!custom.dirty || submitted.userWelcomeMessages === custom.revision) {
+      custom.items = (next.userWelcomeMessages || []).map((item) => ({ ...item }));
+      custom.dirty = false;
+      customEditor.setError('');
+      customEditor.render();
     }
     if (!isV2()) {
       editor.select('messages');
@@ -278,7 +294,10 @@ export function initDanmakuWelcome({
     const switchKey = Object.keys(SWITCHES).find((key) => key in patch);
     const switchTitle = switchKey ? element(SWITCHES[switchKey].replace('Toggle', 'Title')).textContent : '';
     const submitted = Object.fromEntries(
-      domains.map((key) => [key, key === 'parameters' ? parameters.revision : libraries[key].revision]),
+      domains.map((key) => [
+        key,
+        key === 'parameters' ? parameters.revision : key === 'userWelcomeMessages' ? custom.revision : libraries[key].revision,
+      ]),
     );
     saving = true;
     if (!switchKey) displayNotice('正在保存到服务器…');
@@ -296,7 +315,15 @@ export function initDanmakuWelcome({
                 : `请检查${PARAMETER_FIELDS[field].label}`;
         }
         showErrors(fieldErrors, true);
+        if (response.fieldErrors.some(({ field }) => field === 'userWelcomeMessages')) {
+          customEditor.setError('请检查 UID：需为 1～20 位正整数且不能重复；欢迎词需为 1～80 字，不能换行。');
+          showView('libraries');
+          element('Panel').dispatchEvent(new windowRef.CustomEvent('welcome:show-editor', { bubbles: true }));
+          element('CustomError').focus();
+        }
       }
+      if (domains.includes('userWelcomeMessages') && response?.ok && !Array.isArray(response.userWelcomeMessages))
+        throw new Error('服务器尚未确认用户欢迎词');
       accept(isV2() ? response : { ...response, schemaVersion: 1 }, submitted);
       if (switchKey) {
         displayNotice('');
@@ -309,7 +336,9 @@ export function initDanmakuWelcome({
           ? '本次已保存，仍有未保存的更改'
           : libraryKey
             ? `已保存 ${settings[libraryKey].length} 条${LIBRARIES[libraryKey]}`
-            : '参数已保存',
+            : domains.includes('userWelcomeMessages')
+              ? `已保存 ${settings.userWelcomeMessages.length} 位用户的欢迎词`
+              : '参数已保存',
       );
       toast(status.textContent);
     } catch (error) {
@@ -389,6 +418,9 @@ export function initDanmakuWelcome({
     parameters.values = {};
     parameters.dirty = false;
     parameters.revision += 1;
+    Object.assign(custom, { items: [], dirty: false, revision: custom.revision + 1, page: 0 });
+    customEditor.setError('');
+    customEditor.render();
     for (const domain of Object.values(libraries))
       Object.assign(domain, { items: [], dirty: false, revision: domain.revision + 1, addition: '', page: 0 });
     parameterInputs();
@@ -438,6 +470,11 @@ export function initDanmakuWelcome({
     }
     void write({ [key]: messages }, [key]);
   });
+  element('CustomSaveBtn').addEventListener('click', () => {
+    if (!Array.isArray(settings?.userWelcomeMessages)) return;
+    const userWelcomeMessages = custom.items.map(({ uid, message }) => ({ uid: uid.trim(), message: message.trim() }));
+    void write({ userWelcomeMessages }, ['userWelcomeMessages']);
+  });
   for (const button of documentRef.querySelectorAll('[data-welcome-view]'))
     button.addEventListener('click', () => showView(button.dataset.welcomeView));
   for (const button of documentRef.querySelectorAll('[data-welcome-library]'))
@@ -469,6 +506,7 @@ export function initDanmakuWelcome({
   );
   parameterInputs();
   editor.render();
+  customEditor.render();
   controls();
   showView('parameters');
   displayNotice(bridge?.getWelcomeSettings ? '正在读取账号信息…' : '请在已连接服务器的桌面客户端中设置');

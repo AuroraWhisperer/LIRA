@@ -41,6 +41,7 @@ export function createWelcomeLibrary({ documentRef, element, libraries, changed 
     });
     input.value = domain.addition;
     selector.value = key;
+    element('Pagination').hidden = pages <= 1;
     element('PageLabel').textContent = `第 ${domain.page + 1} / ${pages} 页`;
     element('PrevPage').disabled = domain.page === 0;
     element('NextPage').disabled = domain.page >= pages - 1;

@@ -10,6 +10,8 @@ const {
   exact,
   sanitizeSettings,
   sanitizeTakeover,
+  validateLibrary,
+  sanitizeLibrary,
 } = require('../shared/daily-bot-contract');
 
 function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel, now = Date.now }) {
@@ -31,7 +33,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
           ])
         : null;
     if (current?.owner !== owner) {
-      current = owner ? { owner, id: randomUUID() } : null;
+      current = owner ? { owner, id: randomUUID(), libraries: {} } : null;
       draft = null;
     }
     return current;
@@ -203,6 +205,31 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
               }),
             ),
           };
+          break;
+        }
+        case 'library-read': {
+          exact(input, ['kind']);
+          if (!['checkin', 'fortune'].includes(input.kind)) invalid();
+          const cached = captured.libraries[input.kind];
+          const response = await call(captured, 'readLibrary', {
+            kind: input.kind, ...(cached ? { version: cached.version } : {}),
+          });
+          const library = sanitizeLibrary(response, input.kind, cached);
+          captured.libraries[input.kind] = library;
+          result = { library };
+          break;
+        }
+        case 'library-save': {
+          exact(input, ['kind', 'expectedVersion', 'library']);
+          validateLibrary(input.kind, input.library);
+          if (typeof input.expectedVersion !== 'string' || !/^[a-f0-9]{64}$/.test(input.expectedVersion)) invalid();
+          const submitted = structuredClone(input.library);
+          const response = await call(captured, 'updateLibrary', {
+            kind: input.kind, body: { expectedVersion: input.expectedVersion, library: submitted },
+          });
+          const library = sanitizeLibrary(response, input.kind, { library: submitted, version: digest(submitted) });
+          captured.libraries[input.kind] = library;
+          result = { library };
           break;
         }
         case 'decide': {

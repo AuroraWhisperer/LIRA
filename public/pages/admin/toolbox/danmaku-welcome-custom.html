@@ -1,0 +1,26 @@
+<section id="danmakuWelcomeCustom" class="danmaku-welcome-custom" aria-labelledby="danmakuWelcomeCustomTitle">
+  <div class="danmaku-welcome-custom-heading">
+    <strong id="danmakuWelcomeCustomTitle">按用户定制</strong>
+    <lira-help label="按用户定制说明">
+      按 B站 UID 识别观众，昵称改变也不受影响。用户的首次欢迎优先使用这里的文案，仍遵守欢迎开关、荣耀门槛和延时；二次问候沿用原设置。
+      最多添加 100 位用户，同一 UID 只保留一条。UID 可在 B站个人空间网址中找到；每条欢迎词最多 80 字，支持 {username}。
+    </lira-help>
+    <span id="danmakuWelcomeCustomCount" class="hint"></span>
+  </div>
+  <p id="danmakuWelcomeCustomCapability" class="hint" role="status" hidden>更新服务器后可按用户定制欢迎词。</p>
+  <p id="danmakuWelcomeCustomEmpty" class="hint">添加一位观众，为他准备专门的进场欢迎词。</p>
+  <div id="danmakuWelcomeCustomList" class="danmaku-welcome-custom-list"></div>
+  <p id="danmakuWelcomeCustomError" class="danmaku-field-error" role="alert" tabindex="-1" hidden></p>
+  <div id="danmakuWelcomeCustomPagination" class="danmaku-library-pagination" hidden>
+    <button id="danmakuWelcomeCustomPrevPage" class="ghost" type="button" disabled>上一页</button>
+    <span id="danmakuWelcomeCustomPageLabel" class="hint"></span>
+    <button id="danmakuWelcomeCustomNextPage" class="ghost" type="button" disabled>下一页</button>
+  </div>
+  <div class="danmaku-welcome-custom-add">
+    <button id="danmakuWelcomeCustomAddBtn" class="secondary" type="button" disabled>添加用户</button>
+  </div>
+  <div class="danmaku-welcome-custom-actions">
+    <span id="danmakuWelcomeCustomStatus" class="hint" role="status"></span>
+    <button id="danmakuWelcomeCustomSaveBtn" class="primary" type="button" disabled>保存用户欢迎词</button>
+  </div>
+</section>

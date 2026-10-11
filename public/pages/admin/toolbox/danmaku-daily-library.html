@@ -1,0 +1,24 @@
+<section id="danmakuDailyLibraryPanel" data-fixed-editor="checkin fortune" hidden aria-label="签到与抽签词库">
+  <div class="danmaku-blessings-body">
+    <div class="danmaku-welcome-library-heading">
+      <label class="daily-library-search">搜索词库<input id="dailyLibrarySearch" type="search" placeholder="查找文案" /></label>
+      <span id="dailyLibraryCount" class="hint">尚未读取</span>
+      <button id="dailyLibraryRefresh" class="danmaku-text-action" type="button" disabled>刷新词库</button>
+    </div>
+    <div id="dailyLibraryList" class="danmaku-blessing-list"></div>
+    <div class="daily-library-list-actions">
+      <button id="dailyLibraryAdd" class="secondary" type="button" disabled>添加祝福语</button>
+      <div id="dailyLibraryPagination" class="danmaku-library-pagination" hidden>
+        <button id="dailyLibraryPrevious" class="ghost" type="button">上一页</button>
+        <span id="dailyLibraryPage" class="hint"></span>
+        <button id="dailyLibraryNext" class="ghost" type="button">下一页</button>
+      </div>
+    </div>
+    <div class="danmaku-blessing-actions">
+      <span id="dailyLibraryStatus" class="hint" role="status">展开时读取词库</span>
+      <lira-help label="词库保存说明">保存后用于新的签到或抽签结果，当天已生成的结果保持不变。草稿仅保留在当前页面，请及时保存。</lira-help>
+      <button id="dailyLibraryReload" class="secondary" type="button" hidden>放弃草稿并载入云端</button>
+      <button id="dailyLibrarySave" class="primary" type="button" disabled>保存签到词库</button>
+    </div>
+  </div>
+</section>

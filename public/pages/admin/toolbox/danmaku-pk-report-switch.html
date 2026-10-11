@@ -1,22 +1,12 @@
 <div class="danmaku-fixed-item" data-fixed-item="pk">
   <div class="danmaku-fixed-copy">
-    <strong id="danmakuPkReportTitle">PK 对手信息播报</strong
+    <div class="danmaku-fixed-item-heading">
+      <strong id="danmakuPkReportTitle">PK 对手信息播报</strong><lira-help label="PK 对手信息播报说明">PK 开始时，在本直播间播报对手的大航海和在线榜概况，关闭客户端也会继续播报。榜单可能不全；金额按当前贡献值估算（1 元＝10 贡献值），三个档位不重复统计。</lira-help>
+    </div
     ><span id="danmakuPkReportStatus" class="danmaku-fixed-summary hint" role="status" aria-live="polite"
       >正在读取账号信息…</span
     >
   </div>
-  <button
-    class="danmaku-fixed-open"
-    type="button"
-    data-fixed-open="pk"
-    aria-label="PK 对手信息播报详情"
-    aria-controls="danmakuPkReportPanel"
-    aria-expanded="false"
-  >
-    详情<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-  </button>
-  <label class="switch-control">
-    <input id="danmakuPkReportToggle" type="checkbox" aria-labelledby="danmakuPkReportTitle" disabled />
-    <span class="switch-track"></span>
-  </label>
+  <button id="danmakuPkReportRefreshBtn" class="danmaku-fixed-open" type="button" aria-label="刷新 PK 播报状态" disabled>刷新</button>
+  <label class="switch-control"><input id="danmakuPkReportToggle" type="checkbox" aria-labelledby="danmakuPkReportTitle" disabled /><span class="switch-track"></span></label>
 </div>

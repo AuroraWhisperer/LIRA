@@ -23,6 +23,7 @@ const { createCloudSyncController } = require('./cloud-sync-controller');
 const { createFanProfileController, fanScopeFor } = require('./fan-profile-controller');
 const { registerFanProfileIpc } = require('./ipc/fan-profile-ipc');
 const { fetchGuardRoster } = require('../bilibili/guard-roster');
+const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
 const { createDailyBotController } = require('./daily-bot-controller');
 const { createPlannerReminderController } = require('./planner-reminder-controller');
 const { registerPlannerReminderIpc } = require('./ipc/planner-reminder-ipc');
@@ -587,6 +588,11 @@ async function startDesktopApp() {
     getService: () => lifecycleState.runtime.getFanProfiles(),
     getRoomId: () => lifecycleState.runtime.getSetting('roomId'),
     fetchGuardRoster,
+    fetchUserProfile: async (uid, { signal }) => {
+      signal.throwIfAborted();
+      const cookieHeader = await getBilibiliCookieHeader();
+      return new BilibiliApiClient('', { cookieHeader }).fetchUserProfile(uid, { signal });
+    },
     isWindowOpen: () => Boolean(windowState.main && !windowState.main.isDestroyed()),
   });
   disposeFanProfileIpc = registerFanProfileIpc({

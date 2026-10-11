@@ -1,6 +1,7 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
+const { setTimeout: pause } = require('node:timers/promises');
 const { dayOf } = require('../fans/dates');
 
 function fanScopeFor(licenseManager) {
@@ -16,6 +17,7 @@ function createFanProfileController({
   getService,
   getRoomId = () => '',
   fetchGuardRoster,
+  fetchUserProfile,
   timers = globalThis,
   now = Date.now,
   isWindowOpen = () => false,
@@ -128,15 +130,39 @@ function createFanProfileController({
     if (!/^[1-9]\d{0,19}$/.test(roomId)) throw new Error('请先在连接设置中填写直播间号。');
     const controller = new AbortController();
     rosterAbortController = controller;
+    function canImport() {
+      if (!same(captured) || controller.signal.aborted)
+        throw new Error('登录状态已变化，本次名单没有导入，请重新打开档案。');
+      if (String(getRoomId() || '') !== roomId) throw new Error('直播间已变化，本次名单没有导入，请重新同步。');
+      return !automaticDate || service.execute(captured.scope, 'settings').autoSyncGuardRoster === true;
+    }
     try {
       const snapshot = await fetchGuardRoster(roomId, {
         signal: controller.signal,
       });
-      if (!same(captured) || controller.signal.aborted)
-        throw new Error('登录状态已变化，本次名单没有导入，请重新打开档案。');
-      if (String(getRoomId() || '') !== roomId) throw new Error('直播间已变化，本次名单没有导入，请重新同步。');
-      if (automaticDate && service.execute(captured.scope, 'settings').autoSyncGuardRoster !== true) return null;
-      return response(captured, service.importGuardRoster(captured.scope, snapshot, automaticDate));
+      if (!canImport()) return null;
+      const targets = service.profileRefreshTargets(captured.scope, snapshot.members);
+      const refresh = { observations: [], failed: 0 };
+      for (const [index, target] of targets.entries()) {
+        if (!canImport()) return null;
+        if (index > 0) await pause(1000, undefined, { signal: controller.signal });
+        if (!canImport()) return null;
+        // Timestamp before I/O so a newer realtime observation wins on commit.
+        const observedAt = new Date(now()).toISOString();
+        try {
+          const profile = await fetchUserProfile(target.identity.value, { signal: controller.signal });
+          if (!profile.name) throw new Error('B站用户资料读取失败。');
+          refresh.observations.push({
+            ...target, name: profile.name, avatar: profile.avatarUrl, nameComplete: true, observedAt,
+          });
+        } catch (_) {
+          // Stop this pass on an upstream failure instead of repeatedly hitting a rate limit.
+          refresh.failed = targets.length - index;
+          break;
+        }
+      }
+      if (!canImport()) return null;
+      return response(captured, service.importGuardRoster(captured.scope, snapshot, automaticDate, refresh));
     } catch (error) {
       if (/[\u4e00-\u9fff]/.test(error.message || '')) throw error;
       throw new Error('大航海名单读取失败，本次没有导入，请检查网络后重试。');

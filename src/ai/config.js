@@ -1,7 +1,7 @@
 'use strict';
 
 const { SYSTEM_PROMPT } = require('./prompt');
-const { normalizePersonaPacks, resolvePersona } = require('./personas');
+const { normalizePersonaPacks, normalizeBuiltinPersonaOverrides, resolvePersona } = require('./personas');
 
 const AI_SECRET_KEYS = Object.freeze(['deepseekApiKey', 'qweatherApiKey', 'amapApiKey']);
 
@@ -45,6 +45,7 @@ const AI_CONFIG_DEFAULTS = Object.freeze({
   routesEnabled: false,
   personaId: 'general',
   personaPacks: Object.freeze([]),
+  builtinPersonaOverrides: Object.freeze([]),
   replyMaxChars: 50,
   generationConcurrency: 3,
   queueLimit: 30,
@@ -101,6 +102,10 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
     if (!allowedKeys.has(key)) continue;
     if (key === 'personaPacks') {
       result.personaPacks = normalizePersonaPacks(rawValue);
+      continue;
+    }
+    if (key === 'builtinPersonaOverrides') {
+      result.builtinPersonaOverrides = normalizeBuiltinPersonaOverrides(rawValue);
       continue;
     }
     if (providerPresetActive && ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)) continue;

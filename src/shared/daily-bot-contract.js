@@ -80,4 +80,26 @@ function sanitizeSettings(value) {
   }
   return result;
 }
-module.exports = { canonical, digest, invalid, exact, sanitizeTakeover, sanitizeSettings };
+function validateLibrary(kind, library) {
+  if (!['checkin', 'fortune'].includes(kind) || !Array.isArray(library) || !library.length || library.length > 1000)
+    invalid();
+  const text = (value) => typeof value === 'string' && value.length > 0 && value.length <= 1024;
+  for (const item of library) {
+    if (kind === 'checkin') {
+      if (!text(item)) invalid();
+    } else {
+      exact(item, ['level', 'name', 'text', 'advice']);
+      if (!Object.values(item).every(text)) invalid();
+    }
+  }
+}
+function sanitizeLibrary(value, kind, cached) {
+  if (value?.kind !== kind || !/^[a-f0-9]{64}$/.test(value?.version) || typeof value.unchanged !== 'boolean')
+    invalid('DAILY_BOT_INVALID_RESPONSE');
+  const library = value.unchanged ? cached?.library : value.library;
+  try { validateLibrary(kind, library); } catch { invalid('DAILY_BOT_INVALID_RESPONSE'); }
+  if (digest(library) !== value.version || (value.unchanged && cached?.version !== value.version))
+    invalid('DAILY_BOT_INVALID_RESPONSE');
+  return { kind, version: value.version, library: structuredClone(library) };
+}
+module.exports = { canonical, digest, invalid, exact, sanitizeTakeover, sanitizeSettings, validateLibrary, sanitizeLibrary };

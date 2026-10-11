@@ -122,6 +122,12 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 
 共享 DTO 与约束：
 
+个人欢迎词扩展沿用 V2 welcome IPC：`userWelcomeMessages` 为 0–100 条 `{uid,message}`，
+UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 沿用欢迎词库的单条校验。
+空数组清空，省略保留；该字段只在服务器响应实际包含时投影，旧 V2 缺失不会补成空列表。
+非法输入返回 `INVALID_WELCOME_MESSAGES` 与安全的 `userWelcomeMessages / INVALID_MESSAGES`，
+不回显条目内容。新服务端持久化按账号隔离，首次欢迎优先匹配 UID，其他阶段和限制不变。
+
 - **LicenseSnapshot**：`{state,error,streamer?,device?}`；state 为 checking/needs_activation/needs_connection/authorizing/authorized/blocked，error 为受限代码或 null。streamer 只含 accountName(32)、displayName(80)、subdomain(63)、songPageUrl?/manageUrl?；device 只含 id(128)、name(100)、status(32)、licenseId(128)，括号为字符串截断上限。activate 将三字段转字符串后要求非空，上限分别 64/256/256；不接受 renderer 选择服务地址。
 - **CatalogSnapshot**：`{status,background,phase,completed,total,available,failed,percent,currentGiftId,currentGiftName,completedAt,error,warning}`。status=required/running/updating/ready/error；phase=idle/catalog/images/complete/error；计数非负且 completed≤total、available/failed≤completed、percent≤100；礼物 ID/名称上限 32/100；background 严格 boolean；completedAt 为 ISO 时间或 null。首次 running 与后台 updating 区分；后台 images 计数只表示本次下载，单图失败保留旧图。返回登录表单不撤销授权，renderer 离开准备流程后忽略迟到进度；进入 Admin 仍由 main 判定。
 - **OverlaySettings**：`{ok:true,style,fullscreenDurationSeconds,styleOptions?,layout?,styleParameters?,overlayUrl}`。style 使用 [danmaku-style-options.js](../../../src/shared/danmaku-style-options.js) 的 `DANMAKU_STYLE_OPTIONS` 登记值，可选 styleOptions 也由该模块归一化；时长整数 2–30。可选 layout 由 [danmaku-layout.js](../../../src/shared/danmaku-layout.js) 校验，styleParameters 由 [component-style-parameters.js](../../../src/shared/component-style-parameters.js) 按 danmaku 类型校验；省略的可选字段不由 IPC 补写。overlayUrl 为无凭据/query/fragment 的 HTTPS `/overlay/<16位base64url>`；消费者另验证与可信资料 origin 相同。它是只读 overlay capability，不能代替 Device token。
@@ -179,6 +185,8 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `open` | {} | `{data:DailyBotSettings}` |
 | `summary` | {} | `{summary}`，本地旧记录数量、词库状态、sourceLabel |
 | `update` | `{kind:'checkin'或'fortune',enabled:boolean,expectedRevision}` | `{data:DailyBotSettings}` |
+| `library-read` | `{kind:'checkin'或'fortune'}` | `{library:{kind,version,library}}`；main 持有当前授权 context 的缓存，远端按内容版本条件读取 |
+| `library-save` | `{kind,expectedVersion,library}` | 同上；提交单份完整词库并校验响应摘要，不改变开关 |
 | `decide` | `{decision:'no-legacy'或'fresh-start',expectedRevision,legacyStoppedConfirmed:true}` | `{data:DailyBotSettings}`；no-legacy 遇现存数据/自定义词库失败 |
 | `prepare` | `{legacyStoppedConfirmed:true,ownershipConfirmed:true,libraryChoice:{checkin,fortune},blessings?,fortunes?}`；choice 各为 legacy/builtin/corrected，corrected 提供相应词库 | `{draftId,summary,blessings,fortunes,cutoffAt,digest,resumed}` |
 | `apply` | `{draftId}` | 成功 `{data,imported:true}`；preflight 未通过 `{data,preflight:{valid:false,issues}}` |
@@ -190,7 +198,7 @@ prepare 冻结本机来源摘要及 SHA256 digest；canonical UTF-8 数据预算
 
 上下文由 main 的 `[server origin,streamerId,authorizationGeneration]` 生成 UUID；正常 token 续期保留上下文、草稿及待重试回执，重新登录、换账号或授权失效后清空，每次远端 await 前后检查。并发请求返回 DAILY_BOT_BUSY；dispose 清空状态并解除订阅（无 whenIdle）。公开错误允许 DAILY_BOT_*、LICENSE_NOT_AUTHORIZED；非该前缀的404映射 DAILY_BOT_UNSUPPORTED，其他为 DAILY_BOT_UNAVAILABLE。常见还有 DAILY_BOT_ACCOUNT_CHANGED、DAILY_BOT_INVALID_REQUEST、DAILY_BOT_DRAFT_REQUIRED、DAILY_BOT_TAKEOVER_CONFLICT、DAILY_BOT_IMPORT_TOO_LARGE。
 
-当前 UI 只调用 open/update；其他 action 是旧数据接管兼容，不是首次开启的前置步骤。云端备份整库恢复不经过这些 action，失败不能回退本地执行。
+当前 UI 调用 open/update/library-read/library-save；其他 action 是旧数据接管兼容，不是首次开启的前置步骤。词库 version 为 canonical JSON SHA-256；主进程验证种类、条数、字段形状、每字段 1–1024 UTF-16 单位和响应内容摘要，业务回复预算由服务器校验。条件读取命中与保存成功只传版本确认；main 还原完整 renderer DTO，不暴露远端令牌。缓存仅在本次主进程和当前授权 context 中保留。DAILY_BOT_LIBRARY_CONFLICT 保留草稿，DAILY_BOT_LIBRARY_INVALID 提示修改内容，404 仅提示更新服务器，原开关仍可用。云端备份整库恢复不经过旧接管 action，失败不能回退本地执行。
 
 ## 5. 粉丝档案 action 与 DTO
 
@@ -202,7 +210,7 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 | --- | --- | --- |
 | `open` / `list` | `{query?,archived?,filters?}`；query≤300，filters 可 favorite/incomplete/active/past/unknown | `{profiles,settings}` |
 | `auto-update-status` | {} | 一次性通知或 null；通知含 reason=scheduled/startup、status=success/error、成功计数或 error |
-| `sync-guard-roster` | `{expectedRoomId?}`，提供时须匹配当前 roomId | `{roomId,ownerUid,total,created,updated,skipped}`；并发同步拒绝 |
+| `sync-guard-roster` | `{expectedRoomId?}`，提供时须匹配当前 roomId | `{roomId,ownerUid,total,created,updated,skipped,profileRefresh:{updated,failed,skipped}}`；并发同步拒绝 |
 | `settings` | {} | 当前 scope 设置 |
 | `configure` | `{autoCreate:boolean,autoUpdate:boolean,autoSyncGuardRoster?:boolean,accompanyMilestones?:number[],showAccompanyInCalendar?:boolean}` | 更新后的 scope 设置；陪伴节点校验及默认值见粉丝档案规格 |
 | `detail` | `{id}`，非空所属档案 ID，文本≤100 | ProfileDetail |
@@ -230,6 +238,8 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 | `export-list` | `{fields?}`，仅 alias/platformName/uid/summary/birthday/mbti/notes；缺省前三项 | CSV 字符串（BOM、公式转义、排除归档与黑名单） |
 | `preview-legacy` | `{profileId,from,to}`，日期范围；档案必须有 typed UID | `{count,unownedCount,from,to,digest,records}` |
 | `import-legacy` | 同上加 `{confirmOwnership:true,digest}` | ProfileDetail；按预览摘要认领，sourceKey 去重 |
+
+`sync-guard-roster` 及 `auto-update-status` 成功通知中的 `profileRefresh` 仅统计名单外 UID 资料：`updated` 为提交了新观察的档案数，`failed` 为接口失败及因此停止后尚未查询的数量，`skipped` 为归档/屏蔽/删除/换绑、无可用完整昵称或已有更新观察而未应用的结果数。三个计数与原有名单 `created/updated/skipped` 独立。补查失败保留旧值，不阻止完整名单及已成功资料入库；`status: success` 可包含非零 `profileRefresh.failed`，前端以部分成功提示。无可靠 UID、已归档和黑名单档案不进入补查目标，名单内资料不重复请求。
 
 ProfilePatch 校验 owner 为 [validation.js](../../../src/fans/validation.js)：alias≤100、summary≤300、notes≤20000、nextTopic≤2000、zodiac≤30、mbtiNote≤500；长度按 JavaScript String.length（UTF-16 code unit）在 trim **前**检查，null 文本转空。tags≤30项、每项≤50，先检查再过滤空值/去重；formerNames≤3项、每项≤200。favorite/archived/milestoneReminders/expiryReminders 严格 boolean；MBTI 为空或规范16型，mbtiConfirmedAt 为日期。
 

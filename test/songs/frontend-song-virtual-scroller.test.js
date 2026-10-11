@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 
 // Real layout is required: fractional scroll offsets are rounded by the browser.
-test('song scrolling preserves fractional movement at low speeds and high refresh rates', async t => {
+test('song scrolling keeps pixels per second independent of height and refresh rate', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><html><body></body></html>' });
   const browser = await chromium.launch({ headless: true });
   t.after(async () => { await browser.close(); await fixture.close(); });
@@ -16,7 +16,7 @@ test('song scrolling preserves fractional movement at low speeds and high refres
   await page.goto(url);
   const measurements = await page.evaluate(async () => {
     const { SongVirtualScroller } = await import('/js/overlays/song-virtual-scroller.js');
-    const { scrollSpeedToDuration } = await import('/js/overlays/songs.js');
+    const { scrollSpeedToPixelsPerSecond } = await import('/js/overlays/songs.js');
     const viewport = document.createElement('div');
     viewport.style.cssText = 'width:400px;overflow:hidden;overflow-anchor:none';
     const content = document.createElement('div');
@@ -36,8 +36,8 @@ test('song scrolling preserves fractional movement at low speeds and high refres
               return node;
             }, requestFrame: () => 1, cancelFrame() {} });
           scroller.setRecords(Array.from({ length: 100 }, (_, index) => ({ key: String(index) })), { key: '50', offset: 5 });
-          const seconds = Number(scrollSpeedToDuration(speed));
-          scroller.setSecondsPerViewport(seconds);
+          scroller.setPixelsPerSecond(scrollSpeedToPixelsPerSecond(speed));
+          const expected = 1 + ((speed - 1) / 99) * 299;
           const position = () => {
             const anchor = scroller.captureAnchor();
             return anchor.index * 53.5 + anchor.offset;
@@ -45,15 +45,19 @@ test('song scrolling preserves fractional movement at low speeds and high refres
           const start = position();
           scroller.start();
           for (let frame = 0; frame <= fps; frame++) scroller.tick(frame * 1000 / fps);
-          results.push({ height, fps, speed, actual: position() - start, expected: height / seconds });
+          results.push({ height, fps, speed, actual: position() - start, expected });
           scroller.pause();
           const paused = position();
           scroller.tick(60000);
           results.push({ height, fps, speed, phase: 'paused', actual: position() - paused, expected: 0 });
+          viewport.style.height = `${height + 200}px`;
+          scroller.relayout();
+          const resizedStart = position();
           scroller.start();
           for (let frame = 0; frame <= fps; frame++) scroller.tick(60000 + frame * 1000 / fps);
-          results.push({ height, fps, speed, phase: 'resumed', actual: position() - start, expected: 2 * height / seconds });
+          results.push({ height, fps, speed, phase: 'resized-and-resumed', actual: position() - resizedStart, expected });
           scroller.destroy();
+          viewport.style.height = `${height}px`;
         }
       }
     }
@@ -62,5 +66,6 @@ test('song scrolling preserves fractional movement at low speeds and high refres
   });
   for (const result of measurements) {
     assert.ok(Math.abs(result.actual - result.expected) <= 1, JSON.stringify(result));
+    if (result.phase !== 'paused') assert.ok(result.actual > 0, JSON.stringify(result));
   }
 });

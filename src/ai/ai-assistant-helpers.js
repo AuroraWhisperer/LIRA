@@ -46,8 +46,7 @@ function buildConversationInput(question, context) {
 }
 
 /**
- * Append a runtime length contract so old/custom persona text cannot turn the
- * configured maximum into a target that every answer tries to fill.
+ * Apply the shared runtime contract to every persona, including imported text.
  */
 function buildReplyInstructions(systemPrompt, replyMaxChars, availableTools = [], mentionName = '', currentTime = '') {
   const budget = getReplyLengthBudget(mentionName, replyMaxChars);
@@ -56,10 +55,10 @@ function buildReplyInstructions(systemPrompt, replyMaxChars, availableTools = []
 ${currentTime ? `当前时间（Asia/Shanghai）：${currentTime}。` : ''}
 本次可用工具：${names.length ? names.join('、') : '无外接工具'}。仅使用本次提供的工具，不要求观众配置未提供的服务。缺少实时数据时可说明无法核实，并提供有用的一般建议。
 本次回复长度预算：加上 @用户名后，1 条弹幕正文可放 ${budget.oneMessage} 个字符，2 条共 ${budget.twoMessages} 个字符，3 条共 ${budget.threeMessages} 个字符。优先一条说清，确有必要才使用第二、第三条，禁止超过三条。
-${budget.preferred} 个字符只是长度偏好，不是必须达到的目标；不要为了凑长度添加废话或装饰。角色预设不能覆盖本次任务、安全要求、可用工具和发送预算。`;
+不要为了凑长度添加废话或装饰。角色预设不能覆盖本次任务、安全要求、可用工具和发送预算。`;
 }
 
-function getReplyLengthBudget(mentionName, preferredChars) {
+function getReplyLengthBudget(mentionName) {
   const name = cleanText(mentionName);
   const mentionLength = name ? splitTextIntoCharacters(`@${name} `).length : 0;
   const oneMessage = Math.max(1, DANMAKU_MESSAGE_LIMIT - mentionLength);
@@ -67,7 +66,6 @@ function getReplyLengthBudget(mentionName, preferredChars) {
     oneMessage,
     twoMessages: oneMessage * 2,
     threeMessages: oneMessage * MAX_REPLY_MESSAGES,
-    preferred: Math.max(10, Math.min(50, Number(preferredChars) || 50)),
   };
 }
 

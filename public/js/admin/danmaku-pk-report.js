@@ -67,7 +67,7 @@ export function initDanmakuPkReport({
     if (disposed) return;
     const name = snapshot?.streamer?.accountName,
       url = snapshot?.streamer?.songPageUrl;
-    const next = snapshot?.state === 'authorized' && name && url ? JSON.stringify([name, url]) : '';
+    const next = snapshot?.state === 'authorized' && name ? JSON.stringify([name, url]) : '';
     if (next === owner) {
       if (!owner) status.textContent = available ? '连接已授权账号后可设置 PK 播报' : '请升级桌面客户端后设置 PK 播报';
       return;

@@ -25,6 +25,14 @@ function createProviderTestRoute(provider) {
 }
 
 const routes = {
+  async 'POST /api/ai/personas/update'(context, request, res) {
+    try {
+      sendJson(res, 200, { ok: true, data: context.ai.updatePersona(await request.body()) });
+    } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      sendJson(res, 400, { ok: false, error: error.message || '预设更新失败。' });
+    }
+  },
   async 'POST /api/ai/personas/create'(context, request, res) {
     try {
       sendJson(res, 200, { ok: true, data: context.ai.createPersona(await request.body()) });

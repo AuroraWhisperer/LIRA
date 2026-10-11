@@ -746,7 +746,8 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 | 端点 | 请求 | 响应(data) | 错误 |
 | --- | --- | --- | --- |
-| `POST /api/ai/personas/create` | `{name,prompt}` | 创建并选中角色后的公开配置 | 400（名称、人设、数量无效） |
+| `POST /api/ai/personas/create` | `{name,description?,prompt}` | 创建并选中角色后的公开配置 | 400（名称、说明、人设、数量无效） |
+| `POST /api/ai/personas/update` | `{id,name,description?,prompt}`；恢复内置为 `{id,reset:true}` | 更新后的公开配置，保留角色 ID 与当前选择；内置名称固定 | 400（不存在、内容无效、非内置恢复） |
 | `POST /api/ai/personas/import` | 完整 LIRA 角色包 JSON | 导入并选中角色后的公开配置 | 400（格式、版本、重复 ID、数量无效） |
 | `POST /api/ai/personas/delete` | `{id}` | 删除后的公开配置；当前包被删除时切回通用助手 | 400（不存在或为内置角色） |
 | `GET /api/ai/personas/export` | 无 | 当前角色包 JSON；不含 API 配置、凭据或聊天记录 | — |

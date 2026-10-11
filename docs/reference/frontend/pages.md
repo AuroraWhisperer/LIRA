@@ -204,8 +204,8 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `song-import.js` / `song-import-parser.js` / `cloud-song-sync.js` / `song-background.js` / `song-background-image.js` | 导入入口保留文件读取与兼容连接；纯 TSV/CSV 解析由导入和歌单更新共用；云同步拥有覆盖确认、数量与本机同步记录，背景 UI 调用图片模块完成静态压缩和本地版本缓存 | [app.md](app.md) §4                       |
 | `metrics.js`                                                                        | 系统性能检测(`/api/system/metrics` 5 秒采样)                                                                                               | [app.md](app.md) §4                       |
 | `danmaku-tool.js`                                                                   | 弹幕工具:连接状态刷新、固定 `/danmaku` 地址复制/打开、iframe 预览、Admin 内发送弹幕、点歌/固定回复开关；发送功能不另设网页地址             | [app.md](app.md) §6                       |
-| `danmaku-libraries.js`                                                              | 签到祝福语/抽签词库/DIY 关键词回复三个编辑器                                                                                               | [app.md](app.md) §6                       |
-| `danmaku-fixed-replies.js` / `danmaku-welcome.js` / `danmaku-welcome-library.js` / `danmaku-welcome-model.js` | 固定回复六项总览与单编辑区；欢迎参数、四库独立草稿/保存、虚构预览与底部注音 | [桌面欢迎设置](../desktop/main.md#服务器进场欢迎设置) |
+| `danmaku-libraries.js`                                                              | DIY 关键词回复编辑器；云端签到/抽签共用 danmaku-daily-library.js                                                                                               | [app.md](app.md) §6                       |
+| `danmaku-fixed-replies.js` / `danmaku-welcome.js` / `danmaku-welcome-library.js` / `danmaku-welcome-custom.js` / `danmaku-welcome-model.js` | 固定回复六项总览；欢迎、自定义关键词、签到与抽签共用单活动编辑区；欢迎参数、四库及按 UID 定制文案独立草稿/保存，含虚构预览与注音开关，规则说明复用问号组件 | [桌面欢迎设置](../desktop/main.md#服务器进场欢迎设置) |
 | `ai-assistant-settings.js`、`ai-assistant-config-view.js`、`ai-assistant-personas.js` | AI 互动助手：模型配置、自动保存、角色包选择/创建/导入导出/删除、可选工具与供应商测试 | [app.md](app.md) §6 |
 | `overtime.js`                                                                       | 加班机控制台:开关/初始时间/礼物规则(固定+时间盲盒)/背景                                                                                    | [app.md](app.md) §6                       |
 | `streamer-planner.js` / `streamer-planner-view.js`                                                          | 主播工作台：控制器拥有 localStorage 兼容、保存保护和编辑动作；视图只读取分离的展示快照并描述动作                                           | [app.md](app.md) §6                       |
@@ -329,7 +329,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 
 客户端“最近礼物 → 查看全部”使用逐行礼物流水表：标题与操作按钮、时间/礼物/数量/金额/用户/备注六列表格、底部翻页。不显示名称搜索、日期范围控件或独立同步信息栏，固定以 `range=all` 读取全部历史并保留复合 keyset 翻页。数量位置只显示已读取的数量；未完成同步的空列表显示等待提示，确认同步完成后才显示“暂无礼物记录”。已有记录时更新提示位于标题下，加载失败保留当前列表；无记录时提示位于表格内，不重复展示底层错误。统计摘要、排行和趋势由服务器网页界面承载，不放进客户端流水抽屉。抽屉移除仅清理显示的操作；“清空全部记录”明确提示不可撤销，并先通过 Electron main 的 DeviceBearer 清空当前认证主播的服务器礼物 ledger/outbox，只有服务器成功后才清当前本地 source。清空结果与后续列表更新分别显示；无法确认远端结果时不承诺记录未删除。抽屉打开期间对来源未就绪、同步未完成、离线和读取失败自动重读，15 秒后降低重读频率并提供手动重试；手动重试只读取，不重复删除。关闭抽屉取消读取和定时器，失效响应不能覆盖新状态。抽屉只调用当前 source 的本地 `/api/gifts/history`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。新增模块使用具名 ESM import/export，不扩大 `window.AdminApp` 兼容层；详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
 
-弹幕工具页面现有签到/抽签位置保留两个云端开关和最后确认时间；一次性旧数据面板完成接管后隐藏，两项不再有日常词库编辑按钮。入口仍为现有 admin 弹幕工具，未增加页面 URL。
+弹幕工具页面现有签到/抽签位置保留两个云端开关与状态，各有“词库”按钮；共用 `danmaku-daily-library.html` 展开面板提供增删改、搜索和分页，正式词库仍由服务器拥有。列表下方依次为添加/分页、保存与状态；只有多页时显示分页。保存生效范围与草稿寿命通过保存按钮旁的问号说明。客户端不提供回复预览，实际效果在直播间发送「签到」或「抽签」查看。只在展开/刷新时条件读取，显式保存当前词库，不显示旧数据接管流程。入口仍为现有 admin 弹幕工具，未增加页面 URL。
 
 
 ## 投票与评分页面

@@ -7,12 +7,6 @@ export function wrapIndex(index, length) {
   return ((index % length) + length) % length;
 }
 
-export function pixelsPerSecond(viewportHeight, secondsPerViewport) {
-  const height = Math.max(1, Number(viewportHeight) || 1);
-  const seconds = Math.max(0.01, Number(secondsPerViewport) || 0.01);
-  return height / seconds;
-}
-
 export function bufferPixels(viewportHeight, beforeViewports, afterViewports) {
   const height = Math.max(1, Number(viewportHeight) || 1);
   return [height * Math.max(0, Number(beforeViewports) || 0), height * Math.max(0, Number(afterViewports) || 0)];
@@ -46,7 +40,7 @@ export class SongVirtualScroller {
     this.requestFrame = requestFrame;
     this.cancelFrame = cancelFrame;
     this.records = [];
-    this.secondsPerViewport = 45;
+    this.pixelsPerSecond = 45;
     this.isScrollable = false;
     this.running = false;
     this.frameId = null;
@@ -63,8 +57,8 @@ export class SongVirtualScroller {
     if (wasRunning) this.start();
   }
 
-  setSecondsPerViewport(seconds) {
-    this.secondsPerViewport = Math.max(0.01, Number(seconds) || 0.01);
+  setPixelsPerSecond(speed) {
+    this.pixelsPerSecond = Math.max(1, Number(speed) || 45);
   }
 
   captureAnchor() {
@@ -116,7 +110,7 @@ export class SongVirtualScroller {
 
     if (this.lastFrameTime !== null) {
       const elapsed = Math.min(MAX_FRAME_GAP_MS, Math.max(0, timestamp - this.lastFrameTime));
-      const distance = (pixelsPerSecond(this.viewport.clientHeight, this.secondsPerViewport) * elapsed) / 1000;
+      const distance = (this.pixelsPerSecond * elapsed) / 1000;
       this.advanceBy(distance);
     }
     this.lastFrameTime = timestamp;

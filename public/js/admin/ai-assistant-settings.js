@@ -165,7 +165,6 @@ function init({ notify = showStackedToast } = {}) {
       await initialLoadPromise;
       return configLoaded && flushPendingSave();
     },
-    markEdited: (id) => editedFieldIds.add(id),
     acceptConfig(config) {
       renderConfig(config, editedFieldIds);
       personaControls.render(config, editedFieldIds);
@@ -183,7 +182,6 @@ function init({ notify = showStackedToast } = {}) {
 
   form.addEventListener('input', (event) => {
     if (event.target.matches('input[type="checkbox"], input[type="file"]')) return;
-    if (event.target.id === 'xiaomiAiPersonaName') return;
     if (event.target.id) editedFieldIds.add(event.target.id);
     scheduleSave();
   });

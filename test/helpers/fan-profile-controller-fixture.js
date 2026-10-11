@@ -55,7 +55,7 @@ function fixture(t, options = {}) {
     roomId: '42',
     ...options.state,
   };
-  const calls = { execute: [], consume: [], fetch: [], roster: [], imports: [], unsubscribe: 0 };
+  const calls = { execute: [], consume: [], fetch: [], roster: [], profiles: [], imports: [], unsubscribe: 0 };
   const settings = options.settings || new Map();
   const listeners = new Set();
   const timers = new FakeTimers();
@@ -93,14 +93,20 @@ function fixture(t, options = {}) {
     },
   };
   const service = {
-    importGuardRoster(scope, snapshot, automaticDate) {
-      calls.imports.push({ scope, snapshot });
+    profileRefreshTargets(scope, members) {
+      return options.targets ? options.targets(scope, members) : [];
+    },
+    importGuardRoster(scope, snapshot, automaticDate, refresh) {
+      calls.imports.push({ scope, snapshot, refresh });
       if (automaticDate)
         settings.set(scope, {
           ...getSettings(scope),
           lastGuardRosterAutoUpdate: { date: automaticDate, roomId: state.roomId },
         });
-      return { created: 1, updated: 0, skipped: 0, total: 1 };
+      return {
+        created: 1, updated: 0, skipped: 0, total: 1,
+        ...(refresh ? { profileRefresh: { updated: refresh.observations.length, failed: refresh.failed, skipped: 0 } } : {}),
+      };
     },
     execute(scope, action, payload) {
       calls.execute.push({ scope, action, payload });
@@ -130,6 +136,10 @@ function fixture(t, options = {}) {
     fetchGuardRoster: async (roomId, input) => {
       calls.roster.push({ roomId, ...input });
       return options.roster ? options.roster(input) : { roomId: '1234', members: [] };
+    },
+    fetchUserProfile: async (uid, input) => {
+      calls.profiles.push({ uid, ...input });
+      return options.profile ? options.profile(uid, input) : { name: '新昵称', avatarUrl: 'https://i0.hdslb.com/bfs/garb/new.webp' };
     },
   });
   const handlers = new Map();

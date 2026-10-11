@@ -97,61 +97,54 @@
               <path d="M7 10a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v12l-4-4H9a2 2 0 0 1-2-2v-6Z" />
               <path d="M17 8V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12l4-4h1" />
             </svg>
-            固定回复
+            固定回复<lira-help label="固定回复使用说明">开关即时生效；修改参数或词库后，需点击对应的保存按钮。</lira-help>
           </h3>
         </div>
-        <span class="hint">开关即时生效 · 配置单独保存</span>
       </div>
       <div class="danmaku-fixed-overview">
         <div class="danmaku-fixed-item" data-fixed-item="random">
           <div class="danmaku-fixed-copy">
-            <strong id="danmakuReplyTitle">随机点歌回复</strong
+            <div class="danmaku-fixed-item-heading">
+              <strong id="danmakuReplyTitle">随机点歌回复</strong><lira-help label="随机点歌回复说明">点歌未匹配时，会自动回复点歌人。回复自动生成，不用设置词库。</lira-help>
+            </div
             ><span class="danmaku-fixed-summary">无匹配歌曲时自动回复</span
             ><span class="danmaku-fixed-note" data-fixed-note="random"></span>
           </div>
-          <button
-            class="danmaku-fixed-open"
-            type="button"
-            data-fixed-open="random"
-            aria-label="随机点歌回复说明"
-            aria-controls="danmakuRandomReplyPanel"
-            aria-expanded="false"
-          >
-            说明<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-          </button>
-          <label class="switch-control"
-            ><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span
-              class="switch-track"
-            ></span
-          ></label>
+          <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span class="switch-track"></span></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="checkin">
           <div class="danmaku-fixed-copy">
-            <strong id="danmakuCheckinTitle">签到机器人</strong
-            ><span class="danmaku-fixed-summary">云端运行 · 收到“签到”后回复累计天数</span
+            <div class="danmaku-fixed-item-heading">
+              <strong id="danmakuCheckinTitle">签到机器人</strong><lira-help label="签到机器人说明">观众单独发送“签到”，每天记录一次，回复累计天数和祝福语。开启后在云端运行，关闭客户端也不影响。</lira-help>
+            </div
+            ><span class="danmaku-fixed-summary">收到“签到”后回复累计天数</span
             ><span id="dailyBotcheckinStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
           </div>
-          <label class="switch-control"
-            ><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" disabled /><span
-              class="switch-track"
-            ></span
-          ></label>
+          <button class="danmaku-fixed-open" type="button" data-fixed-open="checkin" disabled
+            aria-label="编辑签到词库" aria-controls="danmakuDailyLibraryPanel" aria-expanded="false">
+            词库<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+          </button>
+          <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" disabled /><span class="switch-track"></span></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="fortune">
           <div class="danmaku-fixed-copy">
-            <strong id="danmakuFortuneTitle">抽签机器人</strong
-            ><span class="danmaku-fixed-summary">云端运行 · 收到“抽签”后回复每日一签</span
+            <div class="danmaku-fixed-item-heading">
+              <strong id="danmakuFortuneTitle">抽签机器人</strong><lira-help label="抽签机器人说明">观众单独发送“抽签”，同一天获得同一个结果，次日可重新抽取。开启后在云端运行，关闭客户端也不影响。</lira-help>
+            </div
+            ><span class="danmaku-fixed-summary">收到“抽签”后回复每日一签</span
             ><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
           </div>
-          <label class="switch-control"
-            ><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span
-              class="switch-track"
-            ></span
-          ></label>
+          <button class="danmaku-fixed-open" type="button" data-fixed-open="fortune" disabled
+            aria-label="编辑抽签词库" aria-controls="danmakuDailyLibraryPanel" aria-expanded="false">
+            词库<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+          </button>
+          <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span class="switch-track"></span></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="diy">
           <div class="danmaku-fixed-copy">
-            <strong id="danmakuCustomReplyTitle">自定义关键词回复</strong
+            <div class="danmaku-fixed-item-heading">
+              <strong id="danmakuCustomReplyTitle">自定义关键词回复</strong><lira-help label="自定义关键词回复说明">收到自定义关键词后回复固定文案。添加、修改或删除规则后，请保存自定义回复。</lira-help>
+            </div
             ><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span
             ><span class="danmaku-fixed-note" data-fixed-note="diy"></span>
           </div>
@@ -165,39 +158,24 @@
           >
             编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
           </button>
-          <label class="switch-control"
-            ><input id="danmakuCustomReplyToggle" type="checkbox" aria-labelledby="danmakuCustomReplyTitle" /><span
-              class="switch-track"
-            ></span
-          ></label>
+          <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox" aria-labelledby="danmakuCustomReplyTitle" /><span class="switch-track"></span></label>
         </div>
         <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
         <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-switch.html -->
+      </div>
+      <div class="daily-bot-cloud-status">
+        <p id="dailyBotStatus" class="hint" role="status">连接云端账号后可设置</p>
+        <button id="dailyBotRefresh" type="button" class="danmaku-text-action" aria-label="刷新签到与抽签云端状态" disabled>刷新云端状态</button>
       </div>
       <div id="danmakuFixedEditorHeading" class="danmaku-fixed-editor-heading" hidden>
         <h4 id="danmakuFixedEditorTitle"></h4>
         <div id="danmakuWelcomeTabs" class="danmaku-welcome-tabs" role="group" aria-label="欢迎设置视图" hidden>
           <button type="button" data-welcome-view="parameters" aria-pressed="true">参数</button>
           <button type="button" data-welcome-view="libraries" aria-pressed="false">词库</button>
-          <button id="danmakuWelcomeRefreshBtn" class="danmaku-text-action" type="button" disabled>刷新</button>
         </div>
+        <button id="danmakuWelcomeRefreshBtn" class="danmaku-text-action" type="button" disabled hidden>刷新</button>
         <button id="danmakuFixedEditorClose" class="danmaku-text-action" type="button">收起</button>
       </div>
-      <section id="danmakuRandomReplyPanel" data-fixed-editor="random" hidden>
-        <p class="hint danmaku-fixed-help">
-          点歌未匹配时，会自动回复点歌人。<strong>回复自动生成，不用设置词库。</strong>
-        </p>
-      </section>
-      <section id="danmakuPkReportPanel" data-fixed-editor="pk" hidden>
-        <div class="danmaku-fixed-notes">
-          <p class="hint danmaku-fixed-help">
-            PK 开始时，自动在本直播间播报对手的<strong>大航海和在线榜概况</strong>。关闭客户端也会继续播报。
-          </p>
-          <p class="hint">榜单可能不全；金额按当前贡献值估算（1 元＝10 贡献值），三个档位不重复统计。</p>
-        </div>
-        <p id="danmakuPkReportDetail" class="hint" role="status"></p>
-        <button id="danmakuPkReportRefreshBtn" type="button" class="secondary" disabled>刷新状态</button>
-      </section>
       <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section" data-fixed-editor="diy" hidden>
         <summary>
           <div>
@@ -236,10 +214,7 @@
         </div>
       </details>
       <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-library.html -->
-      <div class="daily-bot-cloud-status">
-        <p id="dailyBotStatus" class="hint" role="status">连接云端账号后可设置</p>
-        <button id="dailyBotRefresh" type="button" class="danmaku-text-action" disabled>刷新云端状态</button>
-      </div>
+      <!-- admin-fragment: pages/admin/toolbox/danmaku-daily-library.html -->
     </section>
   </div>
 </section>

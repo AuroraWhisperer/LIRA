@@ -8,7 +8,7 @@ const {
   assertSavedModelKeyOrigin,
   normalizeAiConfig,
 } = require('./config');
-const { normalizePersonaPack, listPersonas, exportPersona } = require('./personas');
+const { GENERAL_PROMPT, normalizePersonaPack, listPersonas, exportPersona } = require('./personas');
 const { describeModelEndpoint } = require('./model-endpoint');
 
 const SECRET_SET = new Set(AI_SECRET_KEYS);
@@ -48,7 +48,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     const config = getConfig();
     const result = {};
     for (const key of Object.keys(config)) {
-      if (!SECRET_SET.has(key) && key !== 'personaPacks') {
+      if (!SECRET_SET.has(key) && !['personaPacks', 'builtinPersonaOverrides'].includes(key)) {
         result[key] = config[key];
       }
     }
@@ -57,6 +57,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     result.hasAmapApiKey = Boolean(config.amapApiKey);
     result.secretEncryptionAvailable = Boolean(secretCodec?.isAvailable?.());
     result.personas = listPersonas(config);
+    result.hasCustomPersona = config.personaId === 'custom' || config.systemPrompt !== GENERAL_PROMPT;
     result.modelEndpoint = describeModelEndpoint(
       config.deepseekResponsesUrl,
       config.modelApiProtocol,
@@ -121,7 +122,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
       version: 1,
       id: `role-${crypto.randomUUID()}`,
       name: input?.name,
-      description: '',
+      description: input?.description || '',
       prompt: input?.prompt,
     });
   }
@@ -133,6 +134,27 @@ function createAiConfigStore(db, secretCodec, options = {}) {
       personaPacks: config.personaPacks.filter((pack) => pack.id !== id),
       personaId: config.personaId === id ? 'general' : config.personaId,
     });
+  }
+
+  function updatePersona(input) {
+    const config = getConfig();
+    const persona = listPersonas(config).find((entry) => entry.id === input?.id);
+    if (!persona) throw new Error('找不到所选预设，请重新选择。');
+    const key = persona.builtin ? 'builtinPersonaOverrides' : 'personaPacks';
+    const remaining = config[key].filter((entry) => entry.id !== persona.id);
+    if (input.reset === true) {
+      if (!persona.builtin) throw new Error('只有内置预设可以恢复默认。');
+      return updateConfig({ [key]: remaining });
+    }
+    const pack = normalizePersonaPack({
+      format: 'lira-ai-persona', version: 1, id: persona.id,
+      name: persona.builtin ? persona.name : input.name,
+      description: input.description, prompt: input.prompt,
+    });
+    const entries = config[key].some((entry) => entry.id === persona.id)
+      ? config[key].map((entry) => entry.id === persona.id ? pack : entry)
+      : [...remaining, pack];
+    return updateConfig({ [key]: entries });
   }
 
   function logRequest(entry = {}) {
@@ -247,6 +269,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     updateConfig,
     importPersona,
     createPersona,
+    updatePersona,
     deletePersona,
     exportPersona: () => exportPersona(getConfig()),
     logRequest,

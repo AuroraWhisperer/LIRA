@@ -109,6 +109,11 @@ async function fixture(initialProfile = account('one'), v2 = false) {
       field.value = value;
       field.events.input();
     },
+    customEdit: (index, key, value) => {
+      const field = get('CustomList').children[index].children[key === 'uid' ? 0 : 1].children[1];
+      field.value = value;
+      field.events.input();
+    },
     parameter: (key, value) => {
       get(key).value = value;
       get(key).events.input();
@@ -137,6 +142,7 @@ test('welcome exposes unique initially unavailable controls in its hidden editor
   assert.match(panel, /\shidden(?:\s|>|=)/);
   uniqueTag('danmakuWelcomeList');
   uniqueTag('danmakuWelcomePinyinToggle');
+  for (const suffix of ['CustomList', 'CustomAddBtn', 'CustomSaveBtn']) uniqueTag(`danmakuWelcome${suffix}`);
 });
 
 test('loads server settings and saves switch independently from message drafts', async () => {
@@ -256,6 +262,7 @@ const savedV2 = (patch = {}) => ({
   greetingMessages: ['{username}，你好呀～'],
   attentionWelcomeMessages: ['专属 {username}'],
   attentionGreetingMessages: ['{username}，来点歌吧'],
+  userWelcomeMessages: [],
   ...patch,
 });
 
@@ -453,4 +460,116 @@ test('sample preview identifies draft/confirmed values, unknown honor and the fi
   f.change('PreviewSource');
   assert.match(f.get('PreviewSummary').textContent, /已确认设置/);
   assert.equal(f.writes.length, 0);
+});
+
+test('user welcome rules save independently and preserve changes made during a write', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2());
+  await flush();
+  assert.equal(f.get('CustomAddBtn').disabled, false);
+  assert.equal(f.get('CustomEmpty').hidden, false);
+  f.edit(0, '普通欢迎草稿');
+  f.click('CustomAddBtn');
+  f.customEdit(0, 'uid', '123456');
+  f.customEdit(0, 'message', ' 老朋友 {username} 来啦 ');
+  f.click('CustomSaveBtn');
+  assert.deepEqual(f.writes[0].patch, {
+    userWelcomeMessages: [{ uid: '123456', message: '老朋友 {username} 来啦' }],
+  });
+  f.customEdit(0, 'message', '<img src=x onerror=bad> {username}');
+  f.writes[0].resolve(savedV2(f.writes[0].patch));
+  await flush();
+  assert.equal(f.get('CustomList').children[0].children[1].children[1].value, '<img src=x onerror=bad> {username}');
+  assert.equal(f.get('CustomSaveBtn').disabled, false);
+  assert.equal(f.get('List').children[0].children[1].value, '普通欢迎草稿');
+  f.click('CustomSaveBtn');
+  f.writes[1].resolve(savedV2(f.writes[1].patch));
+  await flush();
+  assert.equal(f.get('CustomSaveBtn').disabled, true);
+  assert.equal(f.get('SaveBtn').disabled, false);
+  f.get('CustomList').children[0].children[2].events.click();
+  f.click('CustomSaveBtn');
+  assert.deepEqual(f.writes[2].patch, { userWelcomeMessages: [] });
+  f.writes[2].resolve(savedV2());
+  await flush();
+  assert.equal(f.get('CustomList').children.length, 0);
+  assert.equal(f.get('CustomSaveBtn').disabled, true);
+});
+
+test('user welcome refresh preserves drafts and an account change discards old writes', async () => {
+  const f = await fixture(account('one'), true);
+  const rule = { uid: '123', message: '欢迎老朋友 {username}' };
+  f.reads[0].resolve(savedV2({ userWelcomeMessages: [rule] }));
+  await flush();
+  f.click('RefreshBtn');
+  f.customEdit(0, 'message', '刷新时的用户欢迎草稿');
+  f.reads[1].resolve(savedV2({ userWelcomeMessages: [{ ...rule, message: '来自服务器' }] }));
+  await flush();
+  assert.equal(f.get('CustomList').children[0].children[1].children[1].value, '刷新时的用户欢迎草稿');
+  f.click('CustomSaveBtn');
+  f.account('two');
+  assert.equal(f.get('CustomList').children.length, 0);
+  f.writes[0].resolve(savedV2(f.writes[0].patch));
+  await flush();
+  assert.equal(f.get('CustomList').children.length, 0);
+  f.reads[2].resolve(savedV2());
+  await flush();
+  assert.equal(f.get('CustomSaveBtn').disabled, true);
+  assert.equal(f.get('CustomStatus').textContent, '');
+});
+
+test('old V2 servers disable only the user welcome editor', async () => {
+  const f = await fixture(account('old'), true);
+  f.reads[0].resolve(savedV2({ userWelcomeMessages: undefined }));
+  await flush();
+  assert.equal(f.get('CustomCapability').hidden, false);
+  assert.equal(f.get('CustomAddBtn').disabled, true);
+  assert.equal(f.get('CustomSaveBtn').disabled, true);
+  assert.equal(f.get('Toggle').disabled, false);
+  assert.equal(f.get('LibraryKind').disabled, false);
+  f.click('CustomAddBtn');
+  f.click('CustomSaveBtn');
+  assert.equal(f.get('CustomList').children.length, 0);
+  assert.equal(f.writes.length, 0);
+  f.edit(0, '常规词库可继续保存');
+  f.click('SaveBtn');
+  assert.deepEqual(f.writes[0].patch, { messages: ['常规词库可继续保存', '{username} 来啦'] });
+});
+
+test('server validation keeps user welcome drafts and shows errors in their editor', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2());
+  await flush();
+  f.click('CustomAddBtn');
+  f.customEdit(0, 'uid', 'invalid');
+  f.click('CustomSaveBtn');
+  f.writes[0].resolve({
+    ok: false,
+    error: 'INVALID_WELCOME_MESSAGES',
+    fieldErrors: [{ field: 'userWelcomeMessages', reason: 'INVALID_MESSAGES' }],
+  });
+  await flush();
+  assert.equal(f.get('CustomList').children[0].children[0].children[1].value, 'invalid');
+  assert.equal(f.get('CustomSaveBtn').disabled, false);
+  assert.equal(f.get('CustomError').hidden, false);
+  assert.match(f.get('CustomError').textContent, /UID.*不能重复/);
+  assert.equal(f.get('Libraries').hidden, false);
+  assert.equal(f.toastOptions.at(-1).type, 'error');
+  f.customEdit(0, 'uid', '123');
+  assert.equal(f.get('CustomError').hidden, true);
+});
+
+test('a user welcome write without echoed rules does not clear its draft', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2());
+  await flush();
+  f.click('CustomAddBtn');
+  f.customEdit(0, 'uid', '123');
+  f.customEdit(0, 'message', '欢迎老朋友');
+  f.click('CustomSaveBtn');
+  f.writes[0].resolve(savedV2({ userWelcomeMessages: undefined }));
+  await flush();
+  assert.equal(f.get('CustomList').children[0].children[1].children[1].value, '欢迎老朋友');
+  assert.equal(f.get('CustomSaveBtn').disabled, false);
+  assert.match(f.toasts.at(-1), /保存未确认/);
 });

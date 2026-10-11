@@ -12,6 +12,8 @@ function createRemoteDanmakuSettings(request) {
       const routes = {
         read: ['GET', '/api/device/daily-bot-settings'],
         update: ['PUT', `/api/device/daily-bot-settings/${input.kind}`],
+        readLibrary: ['GET', `/api/device/daily-bot-libraries/${input.kind}${input.version ? `?version=${input.version}` : ''}`],
+        updateLibrary: ['PUT', `/api/device/daily-bot-libraries/${input.kind}`],
         decide: ['PUT', '/api/device/daily-bot-takeover'],
         start: ['POST', '/api/device/daily-bot-imports'],
         status: ['GET', `/api/device/daily-bot-imports/${input.id}`],
@@ -23,7 +25,9 @@ function createRemoteDanmakuSettings(request) {
       const route = routes[operation];
       if (
         !route ||
-        (operation === 'update' && !['checkin', 'fortune'].includes(input.kind)) ||
+        (['update', 'readLibrary', 'updateLibrary'].includes(operation) && !['checkin', 'fortune'].includes(input.kind)) ||
+        (operation === 'readLibrary' && input.version !== undefined &&
+          (typeof input.version !== 'string' || !/^[a-f0-9]{64}$/.test(input.version))) ||
         (['status', 'upload', 'preflight', 'commit', 'cancel'].includes(operation) &&
           !/^[A-Za-z0-9-]{16,80}$/.test(input.id)) ||
         (operation === 'upload' && (!Number.isInteger(input.sequence) || input.sequence < 0 || input.sequence >= 200))

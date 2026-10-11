@@ -8,8 +8,8 @@ export const PARAMETER_FIELDS = {
 export const LIBRARIES = {
   messages: '欢迎词库',
   greetingMessages: '问候词库',
-  attentionWelcomeMessages: '专属欢迎词库',
-  attentionGreetingMessages: '专属问候词库',
+  attentionWelcomeMessages: '高荣耀欢迎词库',
+  attentionGreetingMessages: '高荣耀问候词库',
 };
 export const SWITCHES = {
   enabled: 'Toggle',
@@ -67,7 +67,10 @@ export function confirmedSettings(result) {
     Object.keys(LIBRARIES).some((key) => !validMessages(result[key])) ||
     Object.keys(PARAMETER_FIELDS).some((key) => !Number.isInteger(result[key])) ||
     Object.keys(parameterValues(result, result).errors).length ||
-    (!result.enabled && (result.greetingEnabled || result.attentionEnabled))
+    (!result.enabled && (result.greetingEnabled || result.attentionEnabled)) ||
+    (result.userWelcomeMessages !== undefined &&
+      (!Array.isArray(result.userWelcomeMessages) ||
+        result.userWelcomeMessages.some((item) => typeof item?.uid !== 'string' || typeof item?.message !== 'string')))
   )
     throw new Error('服务器设置回包无效，请刷新核对。');
   return result;
@@ -95,7 +98,7 @@ export function welcomePreview(settings, level) {
   const second = attention ? 'attentionGreetingMessages' : 'greetingMessages';
   const welcome = previewMessage(settings[first][0], settings.rareNamePinyinEnabled, 'welcome');
   const greeting = previewMessage(settings[second][0], settings.rareNamePinyinEnabled, 'greeting');
-  const prefix = attention ? '专属' : '普通';
+  const prefix = attention ? '高荣耀' : '普通';
   return [
     `${prefix}欢迎 · 最早进场后 ${settings.welcomeDelaySeconds} 秒：${welcome}`,
     !settings.greetingEnabled

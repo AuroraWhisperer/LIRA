@@ -458,4 +458,4 @@ gift v12 的 `idx_gift_events_source_recent` 按 `(source_id, datetime(created_a
 
 ## 签到云端数据与旧库兼容
 
-签到累计、每日记录和抽签结果保存在云端租户 `streamer.db`，随整库备份恢复后继续使用。客户端直接控制开关，不显示旧数据处理流程，也不自动读取或上传本机旧库；关闭或重启不清空云端历史。`checkin-data.db` 原位保留，daily-bot-legacy-reader 仅作为旧 API/IPC 的一次性只读兼容适配器，显式调用仍要求停写及归属确认。本地签到写入 store 与签到/抽签执行服务已删除，生产 domain-services 继续占用精确命令并返回 cloud-owned。普通旧库维护接口语义保持原状。
+签到累计、每日记录和抽签结果保存在云端租户 `streamer.db`，随整库备份恢复后继续使用。客户端直接控制开关，并按需编辑服务器正式词库；已确认词库仅缓存于 Electron main 当前授权 context，编辑草稿仅保留于页面，不新增本地持久词库。不显示旧数据处理流程，也不自动读取或上传本机旧库；关闭或重启不清空云端历史。`checkin-data.db` 原位保留，daily-bot-legacy-reader 仅作为旧 API/IPC 的一次性只读兼容适配器，显式调用仍要求停写及归属确认。本地签到写入 store 与签到/抽签执行服务已删除，生产 domain-services 继续占用精确命令并返回 cloud-owned。普通旧库维护接口语义保持原状。

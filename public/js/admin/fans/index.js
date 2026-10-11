@@ -3,7 +3,7 @@ import { createFanProfileActions } from './profile-actions.js';
 import { createFanTransferUi } from './transfer-ui.js';
 import { dangerConfirm, toast } from '../../shared/utils.js';
 import { fitTextToWidth } from '../../shared/fit-text-to-width.js';
-import { renderPeople, renderDetail, renderReminders } from './view.js';
+import { renderPeople, renderDetail, renderReminders, profileRefreshMessage } from './view.js';
 import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
 import { settingsForm, guardRosterForm } from './forms.js';
 
@@ -146,9 +146,13 @@ function createFanUi() {
   }
 
   function renderSelected() {
-    if (state.profile) updateMarkup(detailNode, renderDetail(state.profile, state.tab));
+    if (state.profile) updateMarkup(detailNode, renderDetail(state.profile, state.tab, window.__API_TOKEN__));
     renderList();
   }
+
+  detailNode.addEventListener('error', (event) => {
+    if (event.target.matches('.fan-detail-avatar img')) event.target.parentElement.hidden = true;
+  }, true);
 
   function fitPeopleNames() {
     fitTextToWidth(get('fanPeople').querySelectorAll('.fan-name'));
@@ -249,7 +253,6 @@ function createFanUi() {
     get('fanRemindersPage').hidden = state.page !== 'reminders';
     get('fanSettingsPage').hidden = state.page !== 'settings';
     get('fanNewProfileButton').hidden = state.page !== 'profiles' || state.archived;
-    get('fanArchivedNotice').hidden = !state.archived;
     for (const node of root.querySelectorAll('.fan-scope [data-fan-action]'))
       node.setAttribute('aria-pressed', String((node.dataset.fanAction === 'archived') === state.archived));
     for (const node of root.querySelectorAll('[data-fan-page][role="tab"]'))
@@ -320,9 +323,9 @@ function createFanUi() {
       if (!state.roomId) throw new Error('请先在连接设置中填写直播间号。');
       openForm(guardRosterForm(state.roomId, getBilibiliRoomProfileSnapshot(state.roomId)), async (payload) => {
         const result = await request('sync-guard-roster', payload);
-        const message = result.total
+        const message = (result.total
           ? `房间 ${result.roomId}：新增 ${result.created} 份档案，更新 ${result.updated} 份，跳过 ${result.skipped} 位。`
-          : `房间 ${result.roomId} 当前没有大航海成员。`;
+          : `房间 ${result.roomId} 当前没有大航海成员。`) + profileRefreshMessage(result.profileRefresh);
         get('fanRosterResult').textContent = message;
         get('fanRosterResult').hidden = false;
         await load();

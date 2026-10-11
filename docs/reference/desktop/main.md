@@ -70,14 +70,30 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 白名单验证参数、四份词库与完整回包，错误只投影字段/原因。仅 GET 明确 HTTP 404
 才回落 V1，并显示新增能力不可用；网络、鉴权、畸形成功及写入均不自动回落。
 
-参数和四库各有草稿代次，写入串行、输入可继续编辑；开启有数值草稿时原子提交
+V2 的 `userWelcomeMessages` 通过同一 IPC/API 按精确 B 站 UID 保存个人欢迎词，
+主进程验证 UID 字符串、唯一性和文案并仅投影已知字段。新服务器返回数组；
+旧 V2 缺少该字段时保留缺失，只禁用个人欢迎编辑器。独立保存只提交该列表，
+空数组清空，参数/四库等其他写入省略它。首次欢迎在原门槛内优先个人文案，
+未匹配沿用重点关注/通用词库；二次问候、延迟与发送限制保持，服务器仍为发送 owner。
+
+参数、四库和用户欢迎词各有草稿代次，写入串行、输入可继续编辑；开启有数值草稿时原子提交
 并明示“开启并保存参数”，词库仍使用已确认值。纯关闭只带开关，失败保持未确认；
 欢迎关闭联动子功能由服务器执行。独立昵称注音也经同一账号配置保存。读取可保留
 草稿，切账号清空所有草稿/未添加输入并忽略旧响应。延时不证明观众仍在房间。
 
-六项总览与单个活动编辑器由 `danmaku-fixed-replies.js` 协调，只隐藏、不卸载
-既有本地机器人/PK 节点。欢迎参数/四库与折叠虚构预览在同一编辑器内，默认收起；
-注音在底部独立显示公开发送范围。IPC 通道定义见 [preload.md](preload.md)。
+固定回复保留六项总览，标题、问号与开关就近排列。随机点歌回复和 PK 播报的说明
+直接使用共享问号组件，不另设展开面板；PK 状态与刷新入口保留在总览。
+`danmaku-fixed-replies.js` 协调欢迎、自定义关键词、签到与抽签的单个活动编辑器，
+切换时只隐藏、不卸载编辑区。欢迎参数、词库与虚构预览位于同一编辑器，预览默认收起；
+`danmaku-welcome-custom.js` 拥有词库视图中的用户规则列表和分页。每项欢迎规则将标题/开关、
+参数和对应词库入口就近分组。宽容器中每条规则占一整行，名称/开关、延时、荣耀门槛与
+词库入口各组用竖线分隔，三条规则的词库入口对齐；容器小于 760px 时标题上移，
+小于 480px 时控件换行。注音与保存操作位于规则下方的同一响应式操作区，两组以竖线分隔；
+样例预览独立位于其后，同行功能组用竖线分隔，窄窗口改用横线。
+固定回复的自定义下拉选中项通过高亮表示，不显示对勾，
+展开箭头统一使用 SVG。公开发送范围和规则通过共享问号组件说明；
+样例预览仅展示通用/高荣耀词库。
+IPC 通道定义见 [preload.md](preload.md)。
 
 验收：开关不覆盖词库、保存不改变开关、增删改、读取或保存期间继续编辑、关闭失败、
 账号切换、IPC 拒绝非法输入与外部窗口。测试为 `welcome-settings-ipc.test.js`（V1 与 V2）和
@@ -298,7 +314,7 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 | [fan-profile-controller.js](../../../src/electron/fan-profile-controller.js) | IPC disposer 仅 removeHandler；main 执行 dispose + whenIdle（allSettled 的同步/大航海/自动更新工作） | songDb 私人档案；停止 timer、abort 请求、移除授权订阅，scope/epoch 拒绝旧结果 |
 | [desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)，main 初始化 | `dispose()` abort 登录；`whenIdle()` 等账号操作队列和交互登录完成 | 分区 Cookie/本地加密快照，disposed 与账号代次保护；不依赖业务 SQLite |
 | [gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) 创建时注入导出 controller | disposer 自行 unbind、controller.dispose/cancel、removeHandler；**没有单独 whenIdle** | prepare 读取礼物投影，save 写用户选定图片目录；任务/准备代次与 viewRevision 检查阻止失效任务继续，不重复调用 controller.dispose |
-| [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) 创建时注入每日机器人 controller | disposer 自行 removeHandler + controller.dispose；**没有单独 whenIdle** | 旧签到库只读接管入口；清 context/draft 并移除授权订阅，await 后复核 context，不再读失效账号数据；远端请求可能已经执行 |
+| [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) 创建时注入每日机器人 controller | disposer 自行 removeHandler + controller.dispose；**没有单独 whenIdle** | 云端开关、词库条件读取/保存及旧签到库只读接管入口；清 context/draft/内存词库缓存并移除授权订阅，await 后复核 context，不再读失效账号数据；远端请求可能已经执行 |
 
 ```mermaid
 sequenceDiagram

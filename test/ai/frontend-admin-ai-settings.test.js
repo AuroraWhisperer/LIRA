@@ -53,7 +53,6 @@ test('AI initial load preserves edits and blocks saving before configuration arr
     qweatherApiKey: 'qweather-secret',
     amapApiHost: edits.xiaomiAiAmapHost,
     amapApiKey: 'amap-secret',
-    replyMaxChars: 50,
     generationConcurrency: 3,
     userCooldownSeconds: 0,
     roomLimitPerMinute: 20,
@@ -79,22 +78,34 @@ test('role selection saves its identity without overwriting the custom prompt', 
   const f = await createAiSettingsFixture();
   const select = f.elements.get('xiaomiAiPersona');
   select.value = 'cat';
-  f.fire(select.id, 'change');
-  assert.match(f.elements.get('xiaomiAiSystemPrompt').value, /橘猫/);
+  f.fire('xiaomiAiPersonaManage', 'click');
+  assert.match(f.elements.get('xiaomiAiPersonaPrompt').value, /橘猫/);
   f.fire('xiaomiAiForm', 'change', { target: select });
   await flushAiTasks();
   assert.equal(f.saves()[0].personaId, 'cat');
   assert.equal(f.saves()[0].systemPrompt, undefined);
 });
 
-test('editing a displayed role detaches it into custom without modifying the package', async () => {
+test('editing a role remains a draft until saved and cancel does not change the selection', async () => {
   const f = await createAiSettingsFixture({ config: { personaId: 'cat' } });
   const text = '你是一个温柔的直播间助手，用自然的语言回答问题，不要添加猫咪口头禅。';
-  f.input('xiaomiAiSystemPrompt', text);
+  f.fire('xiaomiAiPersonaManage', 'click');
+  f.input('xiaomiAiPersonaPrompt', text);
   await f.advance(700);
-  assert.equal(f.saves()[0].personaId, 'custom');
-  assert.equal(f.saves()[0].systemPrompt, text);
-  assert.equal(f.saves()[0].personaPacks, undefined);
+  assert.equal(f.saves().length, 0);
+  assert.equal(f.elements.get('xiaomiAiPersona').value, 'cat');
+  assert.equal(f.elements.get('xiaomiAiPersonaDelete').hidden, true);
+  f.fire('xiaomiAiPersonaCancel', 'click');
+  f.fire('xiaomiAiPersonaManage', 'click');
+  assert.notEqual(f.elements.get('xiaomiAiPersonaPrompt').value, text);
+});
+
+test('saved legacy custom role remains selectable after choosing a built-in', async () => {
+  const f = await createAiSettingsFixture({ config: { personaId: 'cat', hasCustomPersona: true } });
+  assert.equal(f.elements.get('xiaomiAiPersona').children.some((option) => option.value === 'custom'), true);
+  f.elements.get('xiaomiAiPersona').value = 'custom';
+  f.fire('xiaomiAiPersonaManage', 'click');
+  assert.equal(f.elements.get('xiaomiAiPersonaPrompt').value, f.publicConfig.systemPrompt);
 });
 
 test('optional tool controls expose credentials only when selected', async () => {
@@ -134,7 +145,7 @@ test('invalid persona file leaves current role untouched and shows a recoverable
   assert.equal(f.calls.some(({ url }) => url.includes('/personas/import')), false);
 });
 
-test('saving a named role waits for the newest prompt save and exports only the role data', async (t) => {
+test('saving a named role waits for pending settings without overwriting the editor draft and exports role data', async (t) => {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
   t.after(() => db.close());
@@ -153,9 +164,13 @@ test('saving a named role waits for the newest prompt save and exports only the 
     },
   });
   const prompt = '你是友善的直播间朋友，认真、简洁地回答问题，不使用固定的口头禅。';
-  f.input('xiaomiAiSystemPrompt', prompt);
+  f.input('xiaomiAiTrigger', '小米');
+  f.fire('xiaomiAiPersonaManage', 'click');
+  f.fire('xiaomiAiPersonaNew', 'click');
+  f.input('xiaomiAiPersonaPrompt', prompt);
   f.input('xiaomiAiPersonaName', '安静的朋友');
-  f.fire('xiaomiAiPersonaCreate', 'click');
+  f.input('xiaomiAiPersonaDescription', '温柔陪聊');
+  f.fire('xiaomiAiPersonaEditor', 'submit', { preventDefault() {} });
   await flushAiTasks();
   assert.equal(f.saves().length, 1);
   assert.equal(f.calls.some(({ url }) => url === '/api/ai/personas/create'), false);
@@ -164,14 +179,16 @@ test('saving a named role waits for the newest prompt save and exports only the 
   assert.equal(store.exportPersona().name, '安静的朋友');
   assert.equal(store.exportPersona().prompt, prompt);
   assert.equal(f.elements.get('xiaomiAiPersona').value, store.getConfig().personaId);
-  assert.equal(f.elements.get('xiaomiAiPersonaName').value, '');
+  assert.equal(f.elements.get('xiaomiAiPersonaName').value, '安静的朋友');
+  assert.equal(store.exportPersona().description, '温柔陪聊');
+  assert.equal(f.calls.filter(({ url }) => url === '/api/ai/personas/create').length, 1);
   f.fire('xiaomiAiPersonaExport', 'click');
   await flushAiTasks();
   assert.equal(f.downloads.length, 1);
   const exported = await (await fetch(f.downloads[0].href)).json();
   assert.deepEqual(exported, store.exportPersona());
   await f.advance(1000);
-  assert.equal(f.elements.get('xiaomiAiSection').inert, false);
+  assert.equal(f.elements.get('xiaomiAiPersonaDialog').inert, false);
 });
 
 test('role operations wait for initial config and recover after server rejection', async () => {
@@ -181,15 +198,15 @@ test('role operations wait for initial config and recover after server rejection
       ? { ok: false, status: 400, json: async () => ({ ok: false, error: '角色包名称不能为空。' }) }
       : undefined,
   });
-  f.fire('xiaomiAiPersonaCreate', 'click');
+  f.fire('xiaomiAiPersonaEditor', 'submit', { preventDefault() {} });
   await flushAiTasks();
   assert.equal(f.calls.some(({ url }) => url === '/api/ai/personas/create'), false);
   f.resolveInitialConfig();
   await flushAiTasks();
   assert.equal(f.elements.get('xiaomiAiPersonaState').textContent, '角色包名称不能为空。');
-  assert.equal(f.elements.get('xiaomiAiSection').inert, false);
+  assert.equal(f.elements.get('xiaomiAiPersonaDialog').inert, false);
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'custom');
-  f.fire('xiaomiAiPersonaCreate', 'click');
+  f.fire('xiaomiAiPersonaEditor', 'submit', { preventDefault() {} });
   await flushAiTasks();
   assert.equal(f.calls.filter(({ url }) => url === '/api/ai/personas/create').length, 2);
 });

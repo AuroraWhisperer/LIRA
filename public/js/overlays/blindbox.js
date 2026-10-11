@@ -8,6 +8,7 @@ import { createOverlaySocket } from './socket-client.js';
 import { startOverlayPages } from './auto-pages.js';
 import { isComponentPreview } from './component-preview-client.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
+import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 
 let state = null;
 let stateRevision = 0;
@@ -38,6 +39,16 @@ let NO_SCROLL = param('noScroll', 'ns') !== '0';
 document.addEventListener('DOMContentLoaded', () => {
   const panel = document.querySelector('.blindbox-panel');
   if (isComponentPreview()) {
+    const resize = () => {
+      const width = SCENE_EXTRA_COMPONENTS.blindbox.size[0];
+      const scale = window.innerWidth / width;
+      panel.style.width = `${width}px`;
+      panel.style.height = `${window.innerHeight / scale}px`;
+      panel.style.transformOrigin = 'top left';
+      panel.style.transform = `scale(${scale})`;
+    };
+    resize();
+    window.addEventListener('resize', resize);
     mountSceneExtraClient('blindbox', {
       onConfig(config) {
         state = { settings: config };
@@ -50,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         render(lastStats || { summary: {}, perUser: [] });
       },
       onData(data) { lastStats = data || { summary: {}, perUser: [] }; render(lastStats); },
-      onDispose() { stopPages?.(); },
+      onDispose() { stopPages?.(); window.removeEventListener('resize', resize); },
     });
     return;
   }

@@ -16,7 +16,6 @@ const FIELD_MAP = Object.freeze({
   qweatherApiKey: ['xiaomiAiQWeatherKey', 'secret', 'hasQWeatherApiKey'],
   amapApiHost: ['xiaomiAiAmapHost', 'value'],
   amapApiKey: ['xiaomiAiAmapKey', 'secret', 'hasAmapApiKey'],
-  replyMaxChars: ['xiaomiAiReplyMaxChars', 'number'],
   generationConcurrency: ['xiaomiAiConcurrency', 'number'],
   userCooldownSeconds: ['xiaomiAiUserCooldown', 'number'],
   roomLimitPerMinute: ['xiaomiAiRoomLimit', 'number'],

@@ -10,6 +10,67 @@ function roster(
   return { roomId: '1234', ownerUid: '99', observedAt: NOW, members, skipped: 0 };
 }
 
+test('UID refresh targets exclude roster members, archives, blacklists, unbound and open-id profiles across scopes', (t) => {
+  const f = fanFixture(t);
+  const former = f.create();
+  const member = f.create({ identity: { ...IDENTITY, value: '900000002' } });
+  f.create({ identity: { ...IDENTITY, value: '900000003' }, archived: true });
+  const blocked = f.create({ identity: { ...IDENTITY, value: '900000004' } });
+  f.run('suppress', { id: blocked.id, revision: blocked.revision });
+  f.create({ identity: null });
+  f.create({ identity: { ...IDENTITY, type: 'open_id', value: '900000005' } });
+  f.create({}, JSON.stringify(['https://lira.example', 'other-streamer']));
+  assert.deepEqual(f.service.profileRefreshTargets(SCOPE, [{ uid: member.identity.value }]), [{
+    id: former.id, identity: IDENTITY,
+  }]);
+});
+
+test('off-roster UID refresh updates identity and name history while preserving private fields and guard history', (t) => {
+  const f = fanFixture(t);
+  const original = f.create({ notes: '保留备注', summary: '常听民谣' });
+  f.service.importGuardRoster(SCOPE, roster());
+  const before = f.detail(original.id);
+  f.run('configure', { autoUpdate: false, autoCreate: false });
+  const observedAt = '2026-09-19T04:10:00.000Z';
+  const avatar = 'https://i0.hdslb.com/bfs/garb/collection.webp';
+  const result = f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt }, '2026-09-19', {
+    observations: [{ id: original.id, identity: IDENTITY, name: '改名后的粉丝', avatar, observedAt, nameComplete: true }],
+    failed: 0,
+  });
+  assert.deepEqual(result.profileRefresh, { updated: 1, failed: 0, skipped: 0 });
+  f.restart();
+  const after = f.detail(original.id);
+  assert.equal(after.platformName, '改名后的粉丝');
+  assert.equal(after.avatar, avatar);
+  assert.equal(after.nameHistory[0].name, before.platformName);
+  assert.equal(after.notes, before.notes);
+  assert.equal(after.summary, before.summary);
+  assert.equal(after.alias, before.alias);
+  assert.deepEqual(after.records, before.records);
+  assert.equal(after.currentGuardLevel, null);
+});
+
+test('UID refresh rechecks identity and archive state and never revives deleted profiles or overwrites newer observations', (t) => {
+  const f = fanFixture(t);
+  const observedAt = '2026-09-19T04:10:00.000Z';
+  for (const change of ['archive', 'suppress', 'delete', 'rebind', 'newer']) {
+    const uid = String(900000010 + ['archive', 'suppress', 'delete', 'rebind', 'newer'].indexOf(change));
+    const profile = f.create({ identity: { ...IDENTITY, value: uid } });
+    const observation = { id: profile.id, identity: profile.identity, name: '迟到的昵称', observedAt, nameComplete: true };
+    if (change === 'archive') f.run('save', { id: profile.id, revision: profile.revision, archived: true });
+    if (change === 'suppress') f.run('suppress', { id: profile.id, revision: profile.revision });
+    if (change === 'delete') {
+      f.run('delete', { id: profile.id, confirm: true, suppress: false });
+      f.create({ identity: profile.identity });
+    }
+    if (change === 'rebind') f.run('save', { id: profile.id, revision: profile.revision, identity: { ...IDENTITY, value: '800000001' } });
+    if (change === 'newer') f.service.observeIdentity(SCOPE, { ...observation, name: '更新的昵称', observedAt: '2026-09-19T04:11:00.000Z' });
+    const result = f.service.importGuardRoster(SCOPE, { ...roster([]), skipped: 1 }, undefined, { observations: [observation], failed: 0 });
+    assert.deepEqual(result.profileRefresh, { updated: 0, failed: 0, skipped: 1 });
+    assert.ok(f.store.list(SCOPE, { includeSuppressed: true }).every((item) => item.platformName !== observation.name));
+  }
+});
+
 test('daily roster setting is opt-in, validates input and survives restart and backup restore', (t) => {
   const f = fanFixture(t);
   assert.equal(f.run('settings').autoSyncGuardRoster, false);
@@ -69,16 +130,20 @@ test('daily roster refresh changes guard ranks and removes current identity for 
   const p = f.create({ notes: '私人备注' });
   f.service.importGuardRoster(SCOPE, roster(), '2026-09-18');
   assert.equal(f.detail(p.id).currentGuardLevel, 3);
+  assert.equal(f.detail(p.id).avatar, 'https://i0.hdslb.com/bfs/face/fixture.jpg');
+  const avatar = 'https://i0.hdslb.com/bfs/garb/collection.png';
   f.service.importGuardRoster(
     SCOPE,
-    { ...roster([{ uid: IDENTITY.value, name: '海边听歌', level: 2 }]), observedAt: '2026-09-19T04:10:00.000Z' },
+    { ...roster([{ uid: IDENTITY.value, name: '海边听歌', avatar, level: 2 }]), observedAt: '2026-09-19T04:10:00.000Z' },
     '2026-09-19',
   );
   assert.equal(f.detail(p.id).currentGuardLevel, 2);
+  assert.equal(f.detail(p.id).avatar, avatar);
   const records = f.detail(p.id).records;
   f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt: '2026-09-20T04:10:00.000Z' }, '2026-09-20');
   f.restart();
   assert.equal(f.detail(p.id).currentGuardLevel, null);
+  assert.equal(f.detail(p.id).avatar, avatar);
   assert.equal(f.detail(p.id).notes, '私人备注');
   assert.deepEqual(f.detail(p.id).records, records);
   assert.equal(f.run('list', { filters: ['active'] }).profiles.length, 0);
@@ -93,7 +158,7 @@ test('manual roster import creates basic profiles even with automatic updates di
   const p = f.run('find', { identity: IDENTITY });
   assert.equal(p.platformName, '海边听歌');
   assert.equal(p.alias, '');
-  assert.ok(p.avatar);
+  assert.equal(p.avatar, 'https://i0.hdslb.com/bfs/face/fixture.jpg');
   assert.equal(p.membership.observedLevel, 3);
   assert.equal(p.currentGuardLevel, 3);
   assert.equal(f.run('list', { filters: ['active'] }).profiles.length, 1);

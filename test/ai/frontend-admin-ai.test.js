@@ -20,7 +20,6 @@ function tagById(html, id) {
 test('AI form number constraints match the server contract', () => {
   const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku-ai.html');
   const fieldIds = {
-    replyMaxChars: 'xiaomiAiReplyMaxChars',
     generationConcurrency: 'xiaomiAiConcurrency',
     userCooldownSeconds: 'xiaomiAiUserCooldown',
     roomLimitPerMinute: 'xiaomiAiRoomLimit',
@@ -66,7 +65,8 @@ test('AI panel mounts its controls with safe defaults', () => {
   const reasoning = tagById(html, 'xiaomiAiReasoning');
   assert.match(reasoning, /\stype=["']checkbox["']/);
   assert.doesNotMatch(reasoning, /\schecked(?:\s|=|\/?>)/);
-  assert.match(tagById(html, 'xiaomiAiReplyMaxChars'), /\svalue=["']50["']/);
+  assert.doesNotMatch(html, /xiaomiAiReplyMaxChars|回复长度偏好/);
+  assert.match(tagById(html, 'xiaomiAiPersonaDialog'), /^<dialog\b/);
   const interval = (html.match(/<input\b[^>]*>/g) || []).find((tag) => /\svalue="不同回复随机/.test(tag));
   assert.ok(interval);
   assert.match(interval, /\sreadonly(?:\s|\/?>)/);

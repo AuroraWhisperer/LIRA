@@ -18,6 +18,19 @@ test('profile requests normalize protocol-relative collection avatars to HTTPS',
   });
 });
 
+test('profile requests accept caller cancellation and do not start already canceled work', async (t) => {
+  const fetch = t.mock.method(global, 'fetch', (url, { signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  }));
+  const controller = new AbortController();
+  const client = new BilibiliApiClient('');
+  const pending = client.fetchUserProfile('123', { signal: controller.signal });
+  controller.abort();
+  await assert.rejects(pending, { name: 'AbortError' });
+  await assert.rejects(client.fetchUserProfile('123', { signal: controller.signal }), { name: 'AbortError' });
+  assert.equal(fetch.mock.callCount(), 1);
+});
+
 test('profile requests preserve finite deadlines, cancellation and upstream business failures', async (t) => {
   t.mock.method(console, 'log', () => {});
   const deadlines = [];

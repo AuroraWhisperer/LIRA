@@ -34,6 +34,7 @@
     <div><span>运行模型</span><strong id="xiaomiAiModelState">未配置</strong></div>
   </div>
   <form id="xiaomiAiForm" class="xiaomi-ai-form">
+    <div class="xiaomi-ai-main-grid">
     <fieldset class="xiaomi-ai-primary-config">
       <legend>模型服务</legend>
       <div class="xiaomi-ai-field-grid">
@@ -123,48 +124,34 @@
           <small id="xiaomiAiModelFetchState">可直接填写模型 ID，或从当前服务获取可用模型。</small>
         </label>
       </div>
+      <div class="xiaomi-ai-connection-actions">
+        <button id="xiaomiAiTestBtn" class="secondary" type="button">测试 AI 连接</button>
+      </div>
     </fieldset>
-    <fieldset class="xiaomi-ai-reply-config">
-      <legend>角色包</legend>
+    <div class="xiaomi-ai-interaction-column">
+    <fieldset class="xiaomi-ai-identity-config">
+      <legend>互动身份</legend>
       <div class="xiaomi-ai-field-grid">
-        <label class="wide">当前角色
-          <select id="xiaomiAiPersona" data-dropdown-variant="toolbox"><option value="general">通用助手</option></select>
-          <small id="xiaomiAiPersonaDescription">自然、清楚地回答观众的问题。</small>
-        </label>
-        <label class="wide">性格和说话方式
-          <textarea id="xiaomiAiSystemPrompt" rows="5" minlength="20" maxlength="8000" aria-describedby="xiaomiAiPersonaDescription"></textarea>
-        </label>
-      </div>
-      <div class="xiaomi-ai-test-actions">
-        <button id="xiaomiAiPersonaImport" class="secondary" type="button">导入角色包</button>
-        <button id="xiaomiAiPersonaExport" class="secondary" type="button">导出当前角色</button>
-        <button id="xiaomiAiPersonaDelete" class="secondary" type="button" disabled>删除角色包</button>
-        <input id="xiaomiAiPersonaFile" type="file" accept=".json,application/json" hidden />
-      </div>
-      <div class="xiaomi-ai-field-grid">
-        <label class="wide">保存为新角色包
-          <span class="xiaomi-ai-model-picker">
-            <input id="xiaomiAiPersonaName" type="text" maxlength="40" placeholder="给角色起个名字" autocomplete="off" />
-            <button id="xiaomiAiPersonaCreate" class="secondary" type="button">保存为角色包</button>
-          </span>
-        </label>
-      </div>
-      <p id="xiaomiAiPersonaState" class="hint" role="status" aria-live="polite">角色包只改变人设，不会替你开启工具或更换模型。</p>
-    </fieldset>
-    <fieldset class="xiaomi-ai-reply-config">
-      <legend>回复规则</legend>
-      <div class="xiaomi-ai-field-grid">
-        <label
+        <label class="wide"
           ><span
             >触发关键词
-            <lira-help>由主播自定义，填写后自动保存。弹幕包含该关键词时唤醒助手；未填写时不触发回复。</lira-help></span
-          ><input id="xiaomiAiTrigger" type="text" maxlength="12" placeholder="请自定义触发关键词"
-        /></label>
-        <label
-          ><span>回复长度偏好 <lira-help>优先一条；内容较多时两条，必要时三条。</lira-help></span
-          ><input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"
-        /></label>
+            <lira-help>也用作机器人名字。填写并在客户端启用 AI 后，弹幕包含该名字时触发回复；留空时不触发。</lira-help></span
+          ><input id="xiaomiAiTrigger" type="text" maxlength="12" placeholder="给机器人起个名字，例如：小米"
+          /><small>留空时不响应弹幕。</small></label>
+        <div class="xiaomi-ai-persona-field">
+          <div class="xiaomi-ai-persona-label">
+            <label for="xiaomiAiPersona">角色预设</label>
+            <button id="xiaomiAiPersonaManage" class="secondary" type="button" aria-haspopup="dialog" aria-controls="xiaomiAiPersonaDialog">管理预设</button>
+          </div>
+          <select id="xiaomiAiPersona" data-dropdown-variant="toolbox"><option value="general">通用（无额外人格，按模型原本风格回答）</option></select>
+        </div>
+        <label hidden>原有自定义角色
+          <textarea id="xiaomiAiSystemPrompt" hidden></textarea>
+        </label>
       </div>
+    </fieldset>
+    <fieldset class="xiaomi-ai-capabilities-config">
+      <legend>联网与思考</legend>
       <div class="xiaomi-ai-capability-rail" aria-label="当前模型服务能力">
         <div><span>协议</span><strong id="xiaomiAiProtocolCapability">等待配置</strong></div>
         <div><span>联网</span><strong id="xiaomiAiWebSearchCapability">等待配置</strong></div>
@@ -212,6 +199,8 @@
         </p>
       </div>
     </fieldset>
+    </div>
+    </div>
     <details class="xiaomi-ai-collapsible">
       <summary>
         <span><strong>可选工具</strong></span>
@@ -324,10 +313,38 @@
       <span id="xiaomiAiSaveState" class="hint" role="status" aria-live="polite"
         >修改后自动保存，也可以点击「保存设置」。密钥保存后不会完整显示。</span
       >
-      <div class="xiaomi-ai-test-actions" aria-label="API 连接测试">
+      <div class="xiaomi-ai-test-actions">
         <button id="xiaomiAiSaveBtn" class="primary" type="submit">保存设置</button>
-        <button id="xiaomiAiTestBtn" class="secondary" type="button">测试 AI 连接</button>
       </div>
     </div>
   </form>
+  <dialog id="xiaomiAiPersonaDialog" class="xiaomi-ai-persona-dialog" aria-labelledby="xiaomiAiPersonaDialogTitle">
+    <form id="xiaomiAiPersonaEditor" class="xiaomi-ai-persona-editor">
+      <header class="xiaomi-ai-persona-header">
+        <h3 id="xiaomiAiPersonaDialogTitle">管理预设</h3>
+        <button id="xiaomiAiPersonaNew" class="secondary" type="button">新建预设</button>
+      </header>
+      <div class="xiaomi-ai-field-grid">
+        <label>预设名称<input id="xiaomiAiPersonaName" type="text" maxlength="40" required autocomplete="off" /></label>
+        <label>风格简介<input id="xiaomiAiPersonaDescription" type="text" maxlength="200" placeholder="在下拉选项的括号内显示" /></label>
+        <label class="wide">角色指南
+          <textarea id="xiaomiAiPersonaPrompt" rows="14" minlength="20" maxlength="8000" required aria-describedby="xiaomiAiPersonaHelp"></textarea>
+        </label>
+      </div>
+      <p id="xiaomiAiPersonaHelp" class="hint">用 {{name}} 代替机器人名字，回复时自动使用「触发关键词」。这里只编辑身份、性格和说话方式。</p>
+      <p id="xiaomiAiPersonaState" class="hint" role="status" aria-live="polite"></p>
+      <div class="xiaomi-ai-persona-library-actions">
+        <button id="xiaomiAiPersonaImport" class="secondary" type="button">导入角色包</button>
+        <button id="xiaomiAiPersonaExport" class="secondary" type="button">导出已保存预设</button>
+        <button id="xiaomiAiPersonaCreate" class="secondary" type="button">另存为新预设</button>
+        <button id="xiaomiAiPersonaReset" class="secondary" type="button">恢复默认</button>
+        <button id="xiaomiAiPersonaDelete" class="secondary" type="button" disabled>删除预设</button>
+        <input id="xiaomiAiPersonaFile" type="file" accept=".json,application/json" hidden />
+      </div>
+      <footer class="xiaomi-ai-persona-footer">
+        <button id="xiaomiAiPersonaCancel" class="secondary" type="button">取消</button>
+        <button id="xiaomiAiPersonaSave" class="primary" type="submit">保存预设</button>
+      </footer>
+    </form>
+  </dialog>
 </section>

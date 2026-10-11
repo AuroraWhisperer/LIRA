@@ -91,7 +91,7 @@ function fixture(name) {
       captureAnchor: () => null,
       pause() {},
       start() {},
-      setSecondsPerViewport() {},
+      setPixelsPerSecond() {},
       setRecords: (next) => records.push(next),
     },
     desktopLyricRenderer: {

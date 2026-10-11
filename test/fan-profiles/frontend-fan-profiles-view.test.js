@@ -218,10 +218,14 @@ test('global fan update polling shows scheduled and startup toasts, errors, and 
   result = { ok: true, data: null };
   await ui.poll();
   assert.equal(notices.length, 1);
-  result = { ok: true, data: { reason: 'startup', status: 'success', created: 0, updated: 3, skipped: 1 } };
+  result = { ok: true, data: { reason: 'startup', status: 'success', created: 0, updated: 3, skipped: 1,
+    profileRefresh: { updated: 2, failed: 1, skipped: 0 } } };
   await ui.poll();
   assert.doesNotMatch(notices[1].message, /12:10/, 'startup catch-up is not reported as the scheduled run');
   assert.notEqual(notices[1].options?.type, 'error');
+  assert.equal(notices[1].options?.type, 'warning');
+  assert.match(notices[1].message, /名单外资料：更新 2 份/);
+  assert.match(notices[1].message, /1 份暂未查询成功，保留旧资料/);
   result = { ok: true, data: { reason: 'startup', status: 'error', error: '请检查网络' } };
   await ui.poll();
   assert.match(notices[2].message, /请检查网络/);
@@ -293,6 +297,34 @@ test('list and detail show each synced guard icon without requiring membership d
     const membership = view.renderDetail(profile, 'membership');
     assert.match(membership, new RegExp(label));
     assert.match(membership, /待补到期时间/);
+  }
+});
+
+test('detail uses the existing avatar proxy for synced faces and collections without changing the list', async (t) => {
+  const f = fanFixture(t);
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'), { URL, URLSearchParams });
+  const p = f.create();
+  const token = 'synthetic&avatar';
+  const avatars = [
+    'https://i0.hdslb.com/bfs/face/viewer.jpg',
+    'https://i0.hdslb.com/bfs/garb/collection.png',
+  ];
+  for (const [index, avatar] of avatars.entries()) {
+    f.consume([{ avatar, observedAt: `2026-09-${18 + index}T04:00:00.000Z` }]);
+    const profile = f.detail(p.id);
+    const detail = view.renderDetail(profile, 'overview', token);
+    const images = [...detail.matchAll(/<img\b[^>]*\ssrc="([^"]+)"[^>]*>/g)];
+    assert.equal(images.length, 1);
+    const source = new URL(images[0][1].replaceAll('&amp;', '&'), 'http://localhost');
+    assert.equal(source.pathname, '/api/bilibili/avatar');
+    assert.equal(source.searchParams.get('url'), avatar);
+    assert.equal(source.searchParams.get('token'), token);
+    assert.ok(detail.indexOf('fan-detail-avatar') < detail.indexOf('fan-detail-name'));
+    assert.match(detail, /UID 900000001/);
+    assert.doesNotMatch(view.renderPeople([profile], p.id, false), /fan-detail-avatar|\/api\/bilibili\/avatar/);
+  }
+  for (const avatar of ['', 'javascript:alert(1)', 'https://hdslb.com.attacker.test/avatar.webp']) {
+    assert.doesNotMatch(view.renderDetail({ ...f.detail(p.id), avatar }), /fan-detail-avatar|<img\b/);
   }
 });
 

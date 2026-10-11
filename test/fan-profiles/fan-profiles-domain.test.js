@@ -65,9 +65,11 @@ test('a new baseline does not invent dates for smaller historical milestones', (
 test('A01-A03: complete newer names preserve private fields and reject stale or truncated observations', (t) => {
   const f = fanFixture(t);
   const p = f.create({ notes: '只在本地保存', tags: ['吉他'], birthday: { monthDay: '09-19' } });
-  f.consume([{ name: '旧昵称', observedAt: '2026-09-17T04:00:00Z' }]);
-  f.consume([{ name: '新昵称' }]);
-  f.consume([{ name: '迟到旧昵称', observedAt: '2026-09-16T04:00:00Z' }]);
+  const oldAvatar = 'https://i0.hdslb.com/bfs/face/old.jpg';
+  const avatar = 'https://i0.hdslb.com/bfs/garb/current.png';
+  f.consume([{ name: '旧昵称', avatar: oldAvatar, observedAt: '2026-09-17T04:00:00Z' }]);
+  f.consume([{ name: '新昵称', avatar }]);
+  f.consume([{ name: '迟到旧昵称', avatar: oldAvatar, observedAt: '2026-09-16T04:00:00Z' }]);
   for (const name of ['观众', '用户', '新…', '新***', '新...']) {
     f.service.observeIdentity(SCOPE, {
       identity: IDENTITY,
@@ -78,6 +80,7 @@ test('A01-A03: complete newer names preserve private fields and reject stale or 
   }
   const actual = f.detail(p.id);
   assert.equal(actual.platformName, '新昵称');
+  assert.equal(actual.avatar, avatar);
   assert.equal(actual.alias, '小海');
   assert.equal(actual.notes, '只在本地保存');
   assert.deepEqual(actual.tags, ['吉他']);

@@ -5,6 +5,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { saveMedia } = require('../../src/server/component-media-files');
 const { createComponentStyleStore } = require('../../src/storage/component-style-store');
+const { installComponentStyle } = require('../../src/server/component-style-install');
 const { normalizeSceneConfig } = require('../../src/server/scene-components');
 const { getClockConfig } = require('../../src/server/clock-contract');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
@@ -29,7 +30,7 @@ async function installResourceStyles(dataDir) {
       : preset.type === 'danmaku' ? { fullscreenDurationSeconds: 6, styleOptions: {}, layout: createLayout() } : {};
     styles.push({ id: resourceStyle.id, type: preset.type, name, config: normalizeSceneConfig(preset.type, { ...base, ...preset.config, resourceStyle }) });
   }
-  store.stage({ id, name: '配套样式测试', styles }); store.install(id);
+  store.stage({ id, name: '配套样式测试', styles }); await installComponentStyle(store, id, () => {});
   return styles;
 }
 

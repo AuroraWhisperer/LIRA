@@ -42,6 +42,13 @@ test('persona routes persist validated roles and return safe errors without chan
     name: '温柔的朋友', prompt: '你是友善的直播间朋友，认真、简洁地回答问题，不使用固定的口头禅。',
   });
   assert.equal(created.status, 200);
+  const updated = await request('POST /api/ai/personas/update', {
+    id: created.data.personaId, name: '温柔的朋友', description: '自然陪聊',
+    prompt: '你是友善的直播间朋友，认真、简洁地回答问题，不使用固定的口头禅。',
+  });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.data.personaId, created.data.personaId);
+  assert.equal((await request('POST /api/ai/personas/update', { id: 'missing', reset: true })).status, 400);
   const exported = await request('GET /api/ai/personas/export');
   assert.equal(exported.data.name, '温柔的朋友');
   const duplicate = await request('POST /api/ai/personas/import', exported.data);
