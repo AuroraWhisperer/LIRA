@@ -3,8 +3,14 @@
 function createRemoteGiftReads(request) {
   const read = (path, token, signal, headers) =>
     request('GET', path, undefined, token, { maxResponseBytes: 512 * 1024, signal, ...(headers ? { headers } : {}) });
-  const headers = { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1' };
+  const headers = { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1', 'X-Lira-Gift-Retention': '1' };
   return {
+    getGiftSummaries(input, token) {
+      const query = new URLSearchParams();
+      if (input.pageToken) query.set('pageToken', input.pageToken);
+      else query.set('afterRevision', String(input.afterRevision ?? 0));
+      return read(`/api/device/gift-summaries?${query}`, token, input.signal, headers);
+    },
     getGiftEvents(after, limit, token, options = {}) {
       const query = new URLSearchParams();
       if (after !== null && after !== undefined) query.set('after', String(after));

@@ -68,11 +68,12 @@ function createFixture(t) {
     },
   };
   const stateChanges = new EventEmitter();
-  const license = { streamerId: 'streamer-a', epoch: 1, state: 'authorized' };
+  const license = { streamerId: 'streamer-a', epoch: 1, generation: 1, state: 'authorized' };
   const licenseManager = {
     getState: () => license.state,
     getCloudSyncIdentity: () => ({ streamerId: license.streamerId }),
     getAuthorizationEpoch: () => license.epoch,
+    getAuthorizationGeneration: () => license.generation,
     onStateChanged(listener) {
       stateChanges.on('state', listener);
       return () => stateChanges.off('state', listener);

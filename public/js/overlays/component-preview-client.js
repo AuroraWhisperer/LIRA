@@ -55,9 +55,9 @@ export function createComponentPreviewClient({ onConfig, onData, onDispose }) {
         effects?.update(effectType, message.config);
         // Hidden browser-source frames may never paint until the parent reveals them.
         // Readiness means configuration and resources are applied, not that an animation ran.
-        send('prepared');
+        send('prepared', { configuration: message.configuration });
       } catch {
-        if (current === configuration) send('status', { message: message.config?.cssStyle ? 'CSS 无法加载或内容无效，请检查配套资源后重新导入。' : message.config?.resourceStyle
+        if (current === configuration) send('status', { configuration: message.configuration, message: message.config?.cssStyle ? 'CSS 无法加载或内容无效，请检查配套资源后重新导入。' : message.config?.resourceStyle
           ? '样式素材加载失败，请重新导入素材包并更换此组件的样式。' : '组件外观准备失败。' });
       }
     } else if (message?.type === 'component-preview:room-guard') {

@@ -87,7 +87,14 @@ const routes = {
   },
 
   async 'POST /api/songs/save'(context, request, res) {
-    const result = context.songs.save(await request.body());
+    let result;
+    try {
+      result = context.songs.save(await request.body());
+    } catch (error) {
+      if (error.code !== 'SONG_IMPORT_LIMIT_EXCEEDED') throw error;
+      sendImportError(res, error);
+      return;
+    }
     context.broadcastSnapshot('songs:save');
     context.cloudSync.request('songs');
     sendJson(res, 200, { ok: true, data: result });

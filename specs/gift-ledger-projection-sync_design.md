@@ -2,6 +2,9 @@
 
 - Decision status: Accepted. Delivery status is maintained in [the specification index](README.md); remaining dataset verification is tracked in [the plan](plans/2026-09-01-gift-ledger-projection-sync.md).
 - Date: 2026-09-01
+- Retention supersession (2026-10-12): the permanent-detail assumption below is
+  replaced by [gift retention](gift-retention.md) / ADR-0024. The new behavior is
+  in progress; source and authorization fences remain unchanged.
 
 ## Goal
 

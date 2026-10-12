@@ -10,6 +10,9 @@ import { initDanmakuOverlayFilters } from './danmaku-overlay-filters.js';
 import { initDanmakuWelcome } from './danmaku-welcome.js';
 import { initDanmakuPkReport } from './danmaku-pk-report.js';
 import { initFixedReplyEditor } from './danmaku-fixed-replies.js';
+import { initDanmakuCloudReplies } from './danmaku-cloud-replies.js';
+import { initDanmakuQueryReplies } from './danmaku-query-replies.js';
+import { initGiftInteractionControls } from './gifts/interaction-controls.js';
 
 let initialized = false;
 let refreshState = null;
@@ -40,8 +43,16 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
   if (!customReplyEditor) return;
   initDanmakuOverlaySettings(elements, toast);
   initDanmakuOverlayFilters();
-  initDanmakuWelcome({ toast });
-  initDanmakuPkReport({ toast });
+  const welcome = initDanmakuWelcome({ toast });
+  const pk = initDanmakuPkReport({ toast });
+  const cloudReplies = initDanmakuCloudReplies({ toast });
+  initDanmakuQueryReplies();
+  initGiftInteractionControls({ surface: 'danmaku', notify: toast });
+  document.getElementById('dailyBotRefresh')?.addEventListener('click', () => {
+    void welcome?.refresh();
+    void pk?.refresh();
+    void cloudReplies?.refresh();
+  });
   initFixedReplyEditor();
   initialized = true;
 
@@ -87,8 +98,8 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
   elements.refreshButton.addEventListener('click', refreshState);
   bindSettingToggle(elements.replyToggle, {
     key: 'enableRandomTagReply',
-    onText: '随机点歌自动回复已开启',
-    offText: '随机点歌自动回复已关闭',
+    onText: '点歌自动回复已开启',
+    offText: '点歌自动回复已关闭',
     saveSetting,
     toast,
   });
@@ -101,7 +112,8 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
   });
   elements.form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const text = elements.message.value.trim();
+    const draft = elements.message.value;
+    const text = draft.trim();
     if (!text) return;
     elements.sendButton.disabled = true;
     setResult('正在发送...');
@@ -112,7 +124,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
         body: JSON.stringify({ message: text }),
       });
       const payload = await readApiResponse(response, '发送弹幕失败');
-      elements.message.value = '';
+      if (elements.message.value === draft) elements.message.value = '';
       updateCounter();
       const count = Number(payload.data?.count) || 1;
       setResult(count > 1 ? `已拆成 ${count} 条弹幕发送。` : `已发送：${payload.data?.message || text}`, 'good');

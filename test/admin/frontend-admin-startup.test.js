@@ -33,7 +33,7 @@ test('legacy danmaku initialization preserves reconnect defaults and explicit in
   assert.deepEqual(calls, ['legacy', 'legacy', 'explicit']);
 });
 
-async function createStartupFixture() {
+async function createStartupFixture({ confirm = async () => false } = {}) {
   const theme = Promise.withResolvers();
   const data = Promise.withResolvers();
   const dataRequested = Promise.withResolvers();
@@ -42,6 +42,7 @@ async function createStartupFixture() {
   const errors = [];
   const listeners = new Map();
   const connectionStates = [];
+  const toolboxOptions = [];
   const songFilters = { query: 'current page filter' };
   let readSongFilters;
   let start;
@@ -49,7 +50,7 @@ async function createStartupFixture() {
     desktop: { initDesktopShell: () => calls.push('desktop') },
   };
   const context = vm.createContext({
-    window: { addEventListener: noop },
+    window: { addEventListener: noop, location: { reload: () => calls.push('reload') } },
     document: {
       readyState: 'interactive',
       documentElement: { classList: { remove: (name) => classes.delete(name) } },
@@ -71,7 +72,7 @@ async function createStartupFixture() {
       Events: {},
     },
     '../shared/logger.js': { logger: { debug: noop, error: noop } },
-    '../shared/utils.js': { showError: (error) => errors.push(error) },
+    '../shared/utils.js': { showError: (error) => errors.push(error), showConfirmationDialog: confirm },
     '../shared/theme.js': {
       theme: {},
       loadThemeConfig: () => {
@@ -87,7 +88,10 @@ async function createStartupFixture() {
       publishNavigation: noop,
     },
     './usage-guide.js': { initUsageGuide: noop },
-    './toolbox-lifecycle.js': { createToolboxLifecycle: () => ({ dispose: noop }) },
+    './toolbox-lifecycle.js': { createToolboxLifecycle: (options) => {
+      toolboxOptions.push(options);
+      return { dispose: noop };
+    } },
     './dynamic-lottery.js': { initDynamicLottery: () => ({ dispose: noop }) },
     './interactive-tour.js': { initInteractiveTour: () => ({ claimAutoOpen: () => false }) },
     './gift-frame.js': { initGiftFrame: noop },
@@ -163,8 +167,33 @@ async function createStartupFixture() {
     );
   });
   await entry.evaluate();
-  return { start, theme, data, dataRequested, classes, calls, errors, connectionStates };
+  return { start, theme, data, dataRequested, classes, calls, errors, connectionStates, toolboxOptions };
 }
+
+test('toolbox initialization recovery reloads only after confirmation and keeps the failure visible', async () => {
+  const dialogs = [];
+  const fixture = await createStartupFixture({ confirm(options) {
+    const response = Promise.withResolvers();
+    dialogs.push({ options, ...response });
+    return response.promise;
+  } });
+  const error = new Error('clock editor failed');
+  const first = fixture.toolboxOptions[0].onInitError(error);
+  const overlapping = fixture.toolboxOptions[1].onInitError(error);
+  assert.equal(dialogs.length, 1);
+  assert.match(dialogs[0].options.message, /clock editor failed/);
+  assert.match(dialogs[0].options.message, /未保存.*丢失/);
+  assert.equal(dialogs[0].options.confirmLabel, '重新加载管理页');
+  assert.deepEqual(fixture.calls, []);
+  dialogs[0].resolve(false);
+  await Promise.all([first, overlapping]);
+  assert.deepEqual(fixture.calls, []);
+  const retry = fixture.toolboxOptions[0].onInitError(error);
+  assert.equal(dialogs.length, 2);
+  dialogs[1].resolve(true);
+  await retry;
+  assert.deepEqual(fixture.calls, ['reload']);
+});
 
 test('desktop first paint applies body styling before admin modules load', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/shell-start.html'), 'utf8');

@@ -9,6 +9,9 @@ const { normalizeGuardLevel, normalizeSuperChatPrice } = require('../shared/bili
 function createSuperChatStore(superChatDb) {
   return {
     findByPlatformId(platformId) {
+      if (superChatDb.prepare('SELECT 1 FROM super_chat_receipts WHERE platform_id = ?').get(platformId)) {
+        return { platform_id: platformId, status: 'deleted' };
+      }
       return normalizeSuperChatRow(
         superChatDb
           .prepare(
@@ -49,15 +52,30 @@ function createSuperChatStore(superChatDb) {
     },
 
     setStatus(id, status, updatedAt) {
+      if (status === 'deleted') {
+        superChatDb.prepare('DELETE FROM super_chats WHERE id = ?').run(id);
+        return;
+      }
       superChatDb.prepare("UPDATE super_chats SET status = ?, updated_at = ? WHERE id = ? AND status <> 'deleted'")
         .run(status, updatedAt, id);
     },
 
-    markDeletedByPlatformIds(platformIds, updatedAt) {
-      return Number(superChatDb.prepare(`
-        UPDATE super_chats SET status = 'deleted', updated_at = ?
-        WHERE platform_id IN (SELECT value FROM json_each(?)) AND status <> 'deleted'
-      `).run(updatedAt, JSON.stringify(platformIds)).changes);
+    markDeletedByPlatformIds(platformIds) {
+      const ids = JSON.stringify(platformIds);
+      superChatDb.exec('SAVEPOINT retract_super_chats');
+      try {
+        // Retractions can arrive before the original SC packet.
+        superChatDb.prepare(`INSERT OR IGNORE INTO super_chat_receipts (platform_id)
+          SELECT value FROM json_each(?) WHERE type = 'text' AND value <> ''`).run(ids);
+        const result = superChatDb.prepare(`DELETE FROM super_chats
+          WHERE platform_id IN (SELECT value FROM json_each(?))`).run(ids);
+        superChatDb.exec('RELEASE retract_super_chats');
+        return Number(result.changes);
+      } catch (error) {
+        superChatDb.exec('ROLLBACK TO retract_super_chats');
+        superChatDb.exec('RELEASE retract_super_chats');
+        throw error;
+      }
     },
 
     listActive() {

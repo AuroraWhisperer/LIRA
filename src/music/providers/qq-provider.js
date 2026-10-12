@@ -220,6 +220,11 @@ class QQMusicProvider extends QQMusicStreamProvider {
     await this.requireLogin('QQ 音乐”我喜欢”需要先登录。');
     const limit = clampInteger(options.limit, 1, 5000, 200);
     const offset = clampInteger(options.offset, 0, 200000, 0);
+    const liked = await this.getLikedPlaylist();
+    return this.getPlaylistTracks(liked.id, { limit, offset });
+  }
+
+  async getLikedPlaylist() {
     const playlists = await this.getCreatedPlaylists({
       limit: 50,
       includeLiked: true,
@@ -228,7 +233,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
     if (!liked) {
       throw new Error('没有从 QQ 音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录 QQ 音乐。');
     }
-    return this.getPlaylistTracks(liked.id, { limit, offset });
+    return liked;
   }
 
   async getCreatedPlaylists(options = {}) {
@@ -324,8 +329,8 @@ class QQMusicProvider extends QQMusicStreamProvider {
 
   async writePlaylistTracks(method, playlist, tracks) {
     await this.requireLogin('修改 QQ 音乐歌单需要先登录。');
-    const target = normalizeQQPlaylistWriteTarget(playlist);
     const songInfo = normalizeQQPlaylistSongInfo(tracks);
+    const target = normalizeQQPlaylistWriteTarget(playlist?.id === 'liked' ? await this.getLikedPlaylist() : playlist);
     return this.requestPlaylistWrite(method, target, songInfo);
   }
 

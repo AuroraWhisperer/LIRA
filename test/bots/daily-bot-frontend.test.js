@@ -182,7 +182,7 @@ test('cloud daily controls keep confirmed state, disclose failed close and ignor
   assert.match(failure.message, /关闭尚未同步/);
   assert.equal(failure.options.type, 'error');
   assert.equal(await page.locator('#dailyBotcheckinStatus').textContent(), '云端状态待刷新');
-  assert.equal(await page.locator('#dailyBotStatus').textContent(), '开启后在云端运行，关闭客户端也不影响。');
+  assert.equal(await page.locator('#dailyBotStatus').textContent(), '关键词回复与点歌回复需客户端在线，其余功能在云端运行。');
   await page.locator('#dailyBotRefresh').click();
   await page.evaluate(() => window.dailyState(window.dailyAccount('two')));
   await page.waitForFunction(() => window.dailyRequests.length === 4);
@@ -261,7 +261,7 @@ for (const [name, takeover, songPageUrl] of [
     assert.deepEqual(requests[1].payload, { kind: 'checkin', enabled: true, expectedRevision: 0 });
     assert.deepEqual(await page.evaluate(() => window.dailyToasts), ['签到机器人已开启']);
     assert.equal(await page.locator('#dailyBotcheckinStatus').textContent(), '');
-    assert.equal(await page.locator('#dailyBotStatus').textContent(), '开启后在云端运行，关闭客户端也不影响。');
+    assert.equal(await page.locator('#dailyBotStatus').textContent(), '关键词回复与点歌回复需客户端在线，其余功能在云端运行。');
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
     assert.equal(await page.locator('#dailyBotcheckinStatus').textContent(), '云端状态待刷新');
     assert.equal(await page.locator('#danmakuCheckinToggle').isDisabled(), true);

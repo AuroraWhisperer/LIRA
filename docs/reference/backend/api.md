@@ -1,5 +1,14 @@
 # HTTP API 端点注册表
 
+## 礼物明细期限
+
+GET /api/gifts/history 的成功结果增加可空 retention：已激活保留快照时包含
+detailStart（ISO 时间或 null）及 summaryRevision；尚无快照时为 null。逐笔结果受
+detailStart 下界约束，统计接口继续组合历史日汇总和未覆盖明细，统计完整性与
+逐笔可用性分别表达。日期/名称筛选、排序、身份和权限来源不变。导出只处理可用
+逐笔行，不将历史汇总当作原记录。实现见 [礼物 owner](bilibili/gift.md) 与
+[保留期规格](../../../specs/gift-retention.md)。
+
 粉丝私人档案不进入本地 HTTP/WS API 或公开状态，使用 [受限 IPC](../desktop/preload.md)。主进程通过 DeviceBearer 调用远端 `LIRA Server: GET /api/device/fan-facts?after=&epoch=&limit=200` 获取可靠 typed identity 与会员观察；scope 来自已认证账号，离线保留本机编辑，旧服务 404 显示同步不可用。契约见 companion Server `docs/protocol/fan-facts.md`、Device OpenAPI 和 fixture；本地实现需求见 [fan-profiles](../../../specs/fan-profiles.md)。
 
 礼物身份扩展（2026-09-13）：本地 `/api/overtime/gifts`、`/api/overtime/gifts/catalog`、搜索响应中的完整礼物增加 `variantId` 与 `giftIdentity: {variantId, priceRaw, coinType, bagGift}`。全局快照以 `variantBlindBoxes` 提供完整官方关系，`blindBoxes` 保留当前投影的兼容关系；同 ID 资料不合并。`/api/overtime/rules` 保存可空 giftIdentity；规则快照增加 `bindingStatus`（bound/needs-selection），身份摘要与 giftId/giftName 必须一致。同一身份不能重复，旧无身份规则保留但不匹配普通平台事件，重新选择可保留原设置。见[礼物身份规格](../../../specs/gift-identity-overtime.md)。
@@ -292,6 +301,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | --- | --- |
 | `danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`onlyFromLibrary`、`allowDuplicate`、`giftEffectDanmakuEnabled` | 仅 boolean、数字 0/1、精确字符串 `'true'/'false'/'0'/'1'`；存为 `'true'/'false'`，不接受任意 truthy 值 |
 | `queueLimit` / `userCooldownSeconds` | number 或十进制数字字符串（可首尾空白）；整数分别 1–300 / 0–3600，存规范十进制字符串；不接受指数/小数/符号形式的字符串 |
+| `songCooldownMode` / `songCooldownValue` | 模式严格为 `off/hours/days`；数值接受 1–999 的整数或十进制整数字符串，存规范字符串；非法批次不写入。云端同步新增可选字段，旧快照省略时保留本地值 |
 | `roomId` | §2.2 的 `normalizeRoomInput`；空值可清空，非空但不能解析的输入失败，不默认为有效空房间 |
 | `customReplyRules` | §2.3 的数组/JSON 解析与清洗，结果保存为 JSON 文本；非法 JSON 按该 owner 的既有规则回退空数组 |
 | `songRequestBlacklist` | 仅接受字符串；每行一项，将 CRLF/CR 转 LF、按 `cleanText` 合并行内空白并去首尾空白，去掉空行和重复项；存为换行分隔文本。空字符串清空名单；仅保存在本机 |
@@ -508,13 +518,15 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | `GET /api/songs/template.xlsx` | 无                                                                                                                                         | XLSX 导入模板(文件名 `song-import-template.xlsx`)                      | —                                                                                                                           |
 | `GET /api/songs/export.csv`    | 无                                                                                                                                         | 全量曲库 CSV(文件名 `songs-export.csv`)                                | —                                                                                                                           |
 | `GET /api/songs/export.xlsx`   | 无                                                                                                                                         | 全量曲库 XLSX(文件名 `songs-export.xlsx`)                              | —                                                                                                                           |
-| `POST /api/songs/save`         | `{id?`(有则更新,无则新建), `name                                                                                                           | songName`(必填), `artist?`, `categoryName                              | category?`(默认 `'默认'`,不存在自动建), `isEnabled?`, `note?`, `tags?`, `language?`, `sourcePlatform?`};自动生成拼音/首字母 | 保存结果;广播 `songs:save` | 500(`歌曲名不能为空。`/`歌曲不存在。`) |
+| `POST /api/songs/save` | `{id?}`（有则更新，无则新建）、`name`/`songName`（必填）、`artist?`、`categoryName`/`category?`（默认“默认”，不存在自动建）、`isEnabled?`、`note?`、`tags?`、`language?`、`sourcePlatform?`；自动生成拼音/首字母 | 保存结果；广播 `songs:save` | 422 `SONG_IMPORT_LIMIT_EXCEEDED`；500（歌曲名为空/歌曲不存在） |
 | `POST /api/songs/delete`       | `{id}`                                                                                                                                     | `{id}`;广播 `songs:delete`                                             | 500                                                                                                                         |
 | `POST /api/songs/toggle`       | `{id}`                                                                                                                                     | `{id}`;广播 `songs:toggle`                                             | **404**(`Song not found.`)、500                                                                                             |
 | `POST /api/songs/import`       | `{rows[]}`(歌曲对象数组,结构与 save 一致)                                                                                                  | 导入统计 `{total, inserted, duplicate, failed, …}`;广播 `songs:import` | 422 `SONG_IMPORT_LIMIT_EXCEEDED` / 500 |
 | `POST /api/songs/import-xlsx`  | `{base64}`(XLSX 文件 Base64)                                                                                                               | 同 import(先 `parseSongsFromXlsx`);广播 `songs:import-xlsx`            | 422 `SONG_IMPORT_LIMIT_EXCEEDED` / 500 |
 
 行为文档:[music/services.md](music/services.md)(歌库服务)。
+
+手动保存仅在新增歌曲时检查完整歌库 5000 首上限（含停用歌曲），超限返回 HTTP 422、`error: SONG_IMPORT_LIMIT_EXCEEDED`，并用 `message` 提供整理提示，不写入、广播或同步。按 ID 编辑、同名同歌手更新和删除仍可用于整理历史超量歌库；不会截断或自动删歌。
 
 ## 8. 播放队列域(queue)
 
@@ -525,9 +537,11 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 | 端点                     | 请求                                                                                                                                                                                                                                                                                                                                 | 响应(data)                                          | 错误码                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `POST /api/queue/add`    | `{songName`(必填), `artist?`, `categoryName?`, `requesterName?`(默认 `'主播'`), `requesterUid?`(默认 `'admin'`), `requesterGuardLevel?`, `requesterMedalName?`, `requesterMedalLevel?`, `source?`(默认 `'admin'`), `message?`(默认 `''`), `isPinned?`};命中曲库时自动补全 artist/category 并关联 `song_id`,同时写点歌流水 `requests` | 新队列项;广播 `queue:add`                           | 500(`歌曲名不能为空。`/`点歌队列已达到上限。`/`队列里已经有这首歌。`/`歌库里没有这首歌。`) |
+| `POST /api/queue/add`    | `{songName`(必填), `artist?`, `categoryName?`, `requesterName?`(默认 `'主播'`), `requesterUid?`(默认 `'admin'`), `requesterGuardLevel?`, `requesterMedalName?`, `requesterMedalLevel?`, `source?`(默认 `'admin'`), `message?`(默认 `''`), `isPinned?`};命中曲库时自动补全 artist/category 并关联 `song_id`,同时写点歌流水 `requests` | 新队列项;广播 `queue:add`                           | 400(歌曲冷却，返回剩余时间或恢复日期，不广播);500(`歌曲名不能为空。`/`点歌队列已达到上限。`/`队列里已经有这首歌。`/`歌库里没有这首歌。`) |
 | `POST /api/queue/action` | `{action, id?}`:`next`/`clear` 不需要 id;`pin`/`unpin`/`delete`/`done`/`skip` 需要 `id`(取第一首当前歌时置 `done`)                                                                                                                                                                                                                   | 队列快照 `{current, waiting}`;广播 `queue:<action>` | 500(`缺少队列 ID。`/`未知队列操作。`)                                                      |
-| `POST /api/queue/random` | 无；忽略客户端提供的身份或指令，以服务端当前已登录 Bilibili 账号 UID 和用户信息门面中的昵称、可用房间身份调用现有“随机点歌”处理器；昵称不可用时显示 `UID <uid>` | 新队列项；来源为 `random`，广播既有 `queue:add`；不发送直播弹幕 | 401（缺少会话 token）；400（未登录直播账号、暂停点歌、用户冷却、无可随机歌曲、重复歌曲、队列上限）；其他异常沿用顶层 500 脱敏处理 |
+| `POST /api/queue/random` | 无；忽略客户端提供的身份或指令，以服务端当前已登录 Bilibili 账号 UID 和用户信息门面中的昵称、可用房间身份调用现有“随机点歌”处理器；昵称不可用时显示 `UID <uid>` | 新队列项；来源为 `random`，广播既有 `queue:add`；不发送直播弹幕 | 401（缺少会话 token）；400（未登录直播账号、在途账号或房间变化、暂停点歌、用户冷却、无可随机歌曲、重复歌曲、队列上限）；其他异常沿用顶层 500 脱敏处理 |
+
+随机点歌在昵称等异步读取完成后、同步入队前复核 Bilibili 登录身份与配置房间。账号切换、退出后重登或房间切换（包括切走再切回）使旧请求返回 400、`{ok:false,error:'直播账号或房间已变更，已取消本次随机点歌，请重试。'}`，不入队也不消耗点歌冷却。正常 token 续期、同账号打开登录窗口／替换 Cookie、同房间重连不取消；已经成功入队的歌曲保持不变。身份变化由桌面认证 owner 的私有读取能力提供，见 [登录与会话](../desktop/auth.md#71-登录退出与替换竞争)。
 
 校验与动作语义见 [queue-service.js](../../../src/music/queue-service.js) 的 `addQueueItem` / `handleQueueAction`(队列上限取自设置 `queueLimit`,`allowDuplicate`/`onlyFromLibrary` 开关生效)。
 
@@ -573,6 +587,8 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `POST /api/gifts/clear-recent`      | `{confirm: true}`(必须)                                                                                                       | 清空最近礼物;广播 `gift:clear-recent`               | 400(`缺少清空确认。`)               |
 
 `GET /api/gifts/blind-box-stats?boxName=心动盲盒` 的 `heartBoxProgress` 为 `{openedSinceCastle: 非负整数}`；其他盒型或不筛选时为 `null`。它表示今天最近一次开出浪漫城堡之后的心动盲盒数，未出堡则为今日累计；无记录为 0。身份、未知盈亏和时间顺序规则见[盲盒统计](bilibili/gift.md#4-盲盒服务器结果与客户端展示)。公开 overlay 投影仅保留此数值，不附带原始开盒记录或身份信息。
+
+`GET /api/gifts/blind-box-analysis` 在筛选区间包含本地归档时附带 `hasArchivedDetails: true`。用户与盒型统计仍包含同资格归档合计，`records` 仅返回可用逐笔记录；界面据此说明历史统计保留、部分明细已过期。
 
 行为文档:[bilibili/gift.md](bilibili/gift.md)(礼物事件、检测账本、冲刺)。礼物分区投影、同步完整性与查询合同见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md) 和 [ADR-0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection.md)。
 

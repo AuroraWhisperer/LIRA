@@ -33,6 +33,12 @@ async function createPlaybackApp(initialState, options = {}) {
   const homeTracks = options.homeTracks;
   const homeActionButton = options.homeAction ? new FakeElement() : null;
   if (homeActionButton) homeActionButton.dataset.playbackHomeAction = options.homeAction;
+  const sourceTabs = (options.sourceTabs || []).map((source) => {
+    const tab = new FakeElement();
+    tab.dataset.source = source;
+    elements.set(`source-tab-${source}`, tab);
+    return tab;
+  });
 
   const document = {
     getElementById(id) {
@@ -46,6 +52,7 @@ async function createPlaybackApp(initialState, options = {}) {
       return toastDom.documentRef.createElement(tag);
     },
     querySelectorAll(selector) {
+      if (selector === '.source-tab') return sourceTabs;
       if (selector === '[data-playback-home-action]' && homeActionButton) {
         return [homeActionButton];
       }

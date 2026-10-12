@@ -10,12 +10,14 @@ export const LIBRARIES = {
   greetingMessages: '问候词库',
   attentionWelcomeMessages: '高荣耀欢迎词库',
   attentionGreetingMessages: '高荣耀问候词库',
+  returningMessages: '重逢客套话词库',
 };
 export const SWITCHES = {
   enabled: 'Toggle',
   greetingEnabled: 'GreetingToggle',
   attentionEnabled: 'AttentionToggle',
   rareNamePinyinEnabled: 'PinyinToggle',
+  returningEnabled: 'ReturningToggle',
 };
 export const SUGGESTED = {
   welcomeDelaySeconds: 5,
@@ -63,11 +65,13 @@ export function confirmedSettings(result) {
   if (result.schemaVersion === 1) return result;
   if (
     result.schemaVersion !== 2 ||
-    Object.keys(SWITCHES).some((key) => typeof result[key] !== 'boolean') ||
-    Object.keys(LIBRARIES).some((key) => !validMessages(result[key])) ||
+    Object.keys(SWITCHES).some((key) => key !== 'returningEnabled' && typeof result[key] !== 'boolean') ||
+    Object.keys(LIBRARIES).some((key) => key !== 'returningMessages' && !validMessages(result[key])) ||
+    ((result.returningEnabled !== undefined || result.returningMessages !== undefined) &&
+      (typeof result.returningEnabled !== 'boolean' || !validMessages(result.returningMessages))) ||
     Object.keys(PARAMETER_FIELDS).some((key) => !Number.isInteger(result[key])) ||
     Object.keys(parameterValues(result, result).errors).length ||
-    (!result.enabled && (result.greetingEnabled || result.attentionEnabled)) ||
+    (!result.enabled && (result.greetingEnabled || result.attentionEnabled || result.returningEnabled)) ||
     (result.userWelcomeMessages !== undefined &&
       (!Array.isArray(result.userWelcomeMessages) ||
         result.userWelcomeMessages.some((item) => typeof item?.uid !== 'string' || typeof item?.message !== 'string')))

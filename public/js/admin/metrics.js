@@ -273,7 +273,7 @@ export const metrics = (() => {
     const valueNode = document.getElementById(id);
     const barNode = document.getElementById(`${id}Bar`);
     const detailNode = document.getElementById(`${id}Detail`);
-    const val = Number(percent);
+    const val = percent === null || percent === undefined || String(percent).trim() === '' ? NaN : Number(percent);
     const available = Number.isFinite(val);
 
     valueNode.textContent = available ? `${val.toFixed(1)}%` : '不可用';

@@ -15,6 +15,32 @@ const { readQueueOverlayBundle: readJsModuleBundle } = require('../helpers/queue
 const ROOT_DIR = path.join(__dirname, '../..');
 const settingsStoreModule = require('../../src/storage/settings-store');
 
+test('queue reconnect renders new requests and visible identity changes once', () => {
+  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  let renders = 0;
+  const sandbox = { window: {}, location: { search: '' }, URLSearchParams,
+    document: { addEventListener() {} }, recordRender: () => renders++ };
+  vm.runInNewContext(source, sandbox);
+  vm.runInNewContext('render = recordRender;', sandbox);
+  const item = { id: 1, song_name: '相同歌曲', requester_name: '相同观众', requester_guard_level: 0,
+    requester_medal_level: 0, requester_medal_name: '' };
+  const apply = (current, style = 'identity') => sandbox.applyState({ queue: { current, waiting: [] }, settings: { overlayQueueStyle: style } });
+  apply(item); apply(structuredClone(item));
+  assert.equal(renders, 1, 'identical snapshots preserve playback');
+  apply({ ...item, id: 2, requester_guard_level: 3, requester_medal_level: 21, requester_medal_name: '粉丝牌' });
+  assert.equal(renders, 2, 'a missed remove/add redraws the same names with their latest identity');
+  for (const field of ['requester_guard_level', 'requester_medal_level', 'requester_medal_name']) {
+    apply(item);
+    const before = renders;
+    apply({ ...item, [field]: field === 'requester_medal_name' ? '新牌' : 3 });
+    assert.equal(renders, before + 1, field);
+  }
+  apply(item, 'classic');
+  const before = renders;
+  apply({ ...item, requester_medal_level: 30 }, 'classic');
+  assert.equal(renders, before, 'classic ignores identity fields it does not display');
+});
+
 test('queue opacity percentages survive form refresh and preset sync without changing the saved scale', async () => {
   const fields = new Map(
     ['themeOpacity', 'themeOpacityNumber'].map((id) => [

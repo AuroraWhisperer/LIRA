@@ -1,6 +1,9 @@
 'use strict';
 
 const { canonicalGiftId, canonicalGiftText } = require('../shared/processed-gift-contract');
+const { retentionLedgerFilter, statisticsFilter, mergeSummaryStatistics, activeSnapshot } = require('./gift-retention-queries');
+const { readLocalBlindArchives } = require('./gift-local-retention');
+const { transaction } = require('./gift-retention-store');
 
 const registeredGiftSqlFunctions = new WeakSet();
 const historyCountCaches = new WeakMap();
@@ -58,9 +61,16 @@ function createGiftQueryStore(giftDb) {
   }
   ensureGiftSqlFunctions(giftDb);
 
+  function ledgerFilter(options) {
+    return retentionLedgerFilter(giftDb, options, buildLedgerFilter(options));
+  }
+
   function resetSprint({ sourceScope, updatedAt }) {
     const scope = normalizeSourceScope(sourceScope);
-    return giftDb
+    return transaction(giftDb, () => {
+      const carry = sourceScope?.kind === 'source' ? giftDb.prepare('SELECT event_count FROM gift_sprint_carry WHERE source_id=?').get(sourceScope.sourceId) : null;
+      if (carry) giftDb.prepare('DELETE FROM gift_sprint_carry WHERE source_id=?').run(sourceScope.sourceId);
+      return Number(carry?.event_count || 0) + giftDb
       .prepare(
         `
         UPDATE gift_events SET counted_in_sprint = 0, updated_at = ?
@@ -69,6 +79,7 @@ function createGiftQueryStore(giftDb) {
       `,
       )
       .run(updatedAt, ...scope.params).changes;
+    });
   }
 
   function listRecent({ sourceScope, limit }) {
@@ -117,7 +128,7 @@ function createGiftQueryStore(giftDb) {
       sortField: sort.field,
       sortDirection: sort.direction,
     };
-    const filter = buildLedgerFilter(filterOptions);
+    const filter = ledgerFilter(filterOptions);
     if (cursor && sort.field === 'created_at') {
       const sameTime = giftDb
         .prepare(
@@ -130,7 +141,7 @@ function createGiftQueryStore(giftDb) {
         )
         .all(...filter.params, cursor.sortValue, cursor.id, limit);
       if (sameTime.length === limit) return sameTime;
-      const nextFilter = buildLedgerFilter({ ...filterOptions, timeCursor: cursor });
+      const nextFilter = ledgerFilter({ ...filterOptions, timeCursor: cursor });
       const remaining = giftDb
         .prepare(
           `
@@ -169,7 +180,7 @@ function createGiftQueryStore(giftDb) {
     sortDirection = 'desc',
   }) {
     const sort = normalizeHistorySort(sortField, sortDirection);
-    const filter = buildLedgerFilter({
+    const filter = ledgerFilter({
       sourceId,
       query,
       rangeStart,
@@ -205,7 +216,7 @@ function createGiftQueryStore(giftDb) {
       const stamp = `${changes}:${dataVersion}:${schemaVersion}`;
       const previous = historyCountCaches.get(giftDb);
       const counts = previous?.stamp === stamp ? new Map(previous.counts) : new Map();
-      const filter = buildLedgerFilter({ ...options, cursor: null });
+      const filter = ledgerFilter({ ...options, cursor: null });
       const key = JSON.stringify([filter.sql, filter.params]);
       const total = counts.has(key) ? counts.get(key) : countHistory(options);
       counts.delete(key);
@@ -220,13 +231,10 @@ function createGiftQueryStore(giftDb) {
   }
 
   function readStatistics({ sourceId, query, rangeStart, asOf, range }) {
-    const filter = buildLedgerFilter({
-      sourceId,
-      query,
-      rangeStart,
-      asOf,
-    });
     return withReadTransaction(giftDb, () => {
+      const options = { sourceId, query, rangeStart, asOf, range };
+      const filter = buildLedgerFilter(options);
+      const plan = statisticsFilter(giftDb, options, filter);
       const summaryRow = giftDb
         .prepare(
           `
@@ -249,9 +257,7 @@ function createGiftQueryStore(giftDb) {
           GROUP BY canonicalGiftId(g.gift_id), canonicalGiftText(g.gift_name)
         `,
         )
-        .all(...filter.params)
-        .sort(compareTopGifts)
-        .slice(0, MAX_TOP_GIFTS);
+        .all(...filter.params);
       const bucketExpression =
         range === 'all'
           ? "strftime('%Y-%m', g.created_at, '+8 hours')"
@@ -269,18 +275,21 @@ function createGiftQueryStore(giftDb) {
         `,
         )
         .all(...filter.params)
-        .slice(-MAX_TIME_SERIES_POINTS)
         .map(({ bucketKey, ...row }) => ({
           bucketStart: shanghaiBucketStart(bucketKey),
           ...row,
         }));
-      return { summaryRow, topRows, bucketRows };
+      const result = mergeSummaryStatistics(giftDb, options, plan, { summaryRow, topRows, bucketRows });
+      result.topRows.sort(compareTopGifts);
+      result.topRows = result.topRows.slice(0, MAX_TOP_GIFTS);
+      result.bucketRows = result.bucketRows.slice(-MAX_TIME_SERIES_POINTS);
+      return result;
     });
   }
 
   function readSprint(sourceScope) {
     const scope = normalizeSourceScope(sourceScope);
-    return (
+    const result = (
       giftDb
         .prepare(
           `
@@ -295,6 +304,10 @@ function createGiftQueryStore(giftDb) {
         )
         .get(...scope.params) || {}
     );
+    const carry = sourceScope?.kind === 'source' ? giftDb.prepare('SELECT * FROM gift_sprint_carry WHERE source_id=?').get(sourceScope.sourceId) : null;
+    result.receivedRmb += (carry?.value_cents || 0) / 100;
+    result.countedGiftCount += carry?.event_count || 0;
+    return result;
   }
 
   function search({ sourceScope, from, to, limit }) {
@@ -340,10 +353,16 @@ function createGiftQueryStore(giftDb) {
       params.push(boxName);
     }
     sql += ' ORDER BY datetime(created_at) DESC, id DESC';
-    return giftDb.prepare(sql).all(...params);
+    return [...giftDb.prepare(sql).all(...params), ...readLocalBlindArchives(giftDb, {
+      sourceScope, from, to, boxName, includeUnknownProfit,
+    })];
   }
 
   return {
+    getRetention: (sourceId) => {
+      const snapshot = activeSnapshot(giftDb, sourceId);
+      return snapshot ? { detailStart: snapshot.detail_start, summaryRevision: snapshot.revision } : null;
+    },
     listBlindBoxRows,
     readHistorySnapshot: (options) => withReadTransaction(giftDb, () => listHistoryRows(options)),
     readHistoryPage,

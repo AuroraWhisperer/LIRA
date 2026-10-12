@@ -1,6 +1,6 @@
 'use strict';
 
-const { DAY_MS, dayOf, dayStart, addDays, daysBetween } = require('./dates');
+const { DAY_MS, dayOf, dayStart, dayIndex } = require('./dates');
 
 function unionIntervals(intervals) {
   const result = [];
@@ -13,24 +13,32 @@ function unionIntervals(intervals) {
 }
 
 function coveredDays(intervals, at, after = '') {
-  const days = intervals
-    .filter((item) => item.start <= at)
-    .map((item) => ({
-      start: Math.max(dayStart(dayOf(item.start)), after ? dayStart(addDays(after, 1)) : -Infinity),
-      end: dayStart(addDays(dayOf(Math.min(item.end - 1, at)), 1)),
-    }))
-    .filter((item) => item.end > item.start);
-  return unionIntervals(days).reduce((total, item) => total + Math.round((item.end - item.start) / DAY_MS), 0);
+  return countCoveredDays(prepareIntervals(intervals), at, after ? dayIndex(dayStart(after)) : -Infinity);
 }
 
-function summarizeMembership(records, atValue = Date.now()) {
-  const at =
-    typeof atValue === 'number'
-      ? atValue
-      : /^\d{4}-\d{2}-\d{2}$/.test(atValue)
-        ? dayStart(atValue) + DAY_MS - 1
-        : Date.parse(atValue);
-  const today = dayOf(at);
+function prepareIntervals(intervals) {
+  return unionIntervals(intervals).map((item) => ({
+    ...item,
+    startDay: dayIndex(item.start),
+    endDay: dayIndex(item.end - 1) + 1,
+  }));
+}
+
+function countCoveredDays(intervals, at, after = -Infinity) {
+  const endDay = dayIndex(at) + 1;
+  let previousEnd = -Infinity;
+  let total = 0;
+  for (const item of intervals) {
+    if (item.start > at) break;
+    const start = Math.max(item.startDay, after + 1, previousEnd);
+    const end = Math.min(item.endDay, endDay);
+    total += Math.max(0, end - start);
+    previousEnd = Math.max(previousEnd, end);
+  }
+  return total;
+}
+
+function prepareMembership(records) {
   const all = records.filter((r) => r.kind === 'membership' && !r.data.excluded);
   const pending = all.filter((r) => r.data.decision === 'pending');
   const adopted = all.filter((r) => r.data.decision === 'adopted');
@@ -40,83 +48,103 @@ function summarizeMembership(records, atValue = Date.now()) {
       start: Date.parse(r.data.startAt),
       end: Date.parse(r.data.endAt),
       record: r,
+      expiry: {
+        at: new Date(r.data.endAt).toISOString(),
+        date: dayOf(Date.parse(r.data.endAt) - 1),
+        source: r.original.source,
+        precision: r.data.precision,
+        recordId: r.id,
+      },
     }));
-  const merged = unionIntervals(intervals);
-  const active = intervals.filter((r) => r.start <= at && at < r.end);
-  const latest = intervals.filter((r) => r.start <= at).sort((a, b) => b.end - a.end)[0];
-  const observations = adopted
-    .filter((r) => r.data.type === 'observation' && Date.parse(r.data.observedAt) <= at)
+  const merged = prepareIntervals(intervals);
+  const orderedIntervals = intervals.slice().sort((a, b) => b.end - a.end);
+  const observationsByTime = adopted
+    .filter((r) => r.data.type === 'observation')
     .sort((a, b) => b.data.observedAt.localeCompare(a.data.observedAt));
-  const unknownRenewal = observations[0] && (!latest || Date.parse(observations[0].data.observedAt) >= latest.end);
-  const bases = adopted
-    .filter((r) => r.data.type === 'baseline' && r.data.asOf <= today)
-    .sort((a, b) => b.data.asOf.localeCompare(a.data.asOf) || b.occurredAt.localeCompare(a.occurredAt));
-  const totalBase = bases.find((r) => r.data.totalDays !== null);
-  const continuousBase = bases.find((r) => r.data.continuousDays !== null);
-  const segment = merged.find((r) => r.start <= at && at < r.end);
-  const recordedDays = coveredDays(merged, at);
-  const totalDays = totalBase
-    ? totalBase.data.totalDays + coveredDays(merged, at, totalBase.data.asOf)
-    : intervals.length
-      ? recordedDays
-      : null;
-  let continuousDays = segment ? daysBetween(dayOf(segment.start), today) + 1 : null;
-  let continuousAsOf = segment ? today : null;
-  let cycleId = active.sort((a, b) => a.start - b.start)[0]?.record.data.cycleId || null;
-  if (continuousBase) {
-    const base = continuousBase.data;
-    const extension = merged.find(
-      (r) => r.start <= dayStart(addDays(base.asOf, 1)) && r.end > dayStart(addDays(base.asOf, 1)),
-    );
-    if (today === base.asOf || (extension && extension.end > at && extension.start <= at)) {
-      continuousDays = base.continuousDays + coveredDays([extension].filter(Boolean), at, base.asOf);
-      continuousAsOf = today;
-      cycleId = base.cycleId;
-    } else if (!segment) {
-      continuousDays = base.continuousDays;
-      continuousAsOf = base.asOf;
-      cycleId = base.cycleId;
-    }
-  }
+  const baselines = adopted
+    .filter((r) => r.data.type === 'baseline')
+    .sort((a, b) => b.data.asOf.localeCompare(a.data.asOf) || b.occurredAt.localeCompare(a.occurredAt))
+    .map((record) => ({ record, day: dayIndex(dayStart(record.data.asOf)) }));
   const first = adopted
     .filter((r) => r.data.type === 'first')
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))[0];
-  const status = pending.length
-    ? 'pending'
-    : active.length
-      ? 'active'
-      : unknownRenewal
-        ? 'unknown'
-        : latest
-          ? 'expired'
-          : 'unknown';
-  const expiry = segment ? intervals.find((item) => item.end === segment.end) : latest;
-  return {
-    status,
-    level: status === 'active' ? Math.min(...active.map((r) => r.record.data.level)) : null,
-    observedLevel: observations[0]?.data.level || null,
-    observedAt: observations[0]?.data.observedAt || null,
-    firstDate: first?.data.date || '',
-    totalDays,
-    recordedDays,
-    continuousDays,
-    continuousAsOf,
-    totalAsOf: totalBase && !coveredDays(merged, at, totalBase.data.asOf) ? totalBase.data.asOf : today,
-    totalBasis: totalBase ? '含手动补录' : '已记录',
-    cycleId,
-    expiry: expiry
-      ? {
-          at: new Date(expiry.end).toISOString(),
-          date: dayOf(expiry.end - 1),
-          source: expiry.record.original.source,
-          precision: expiry.record.data.precision,
-          recordId: expiry.record.id,
-        }
-      : null,
-    pending: pending.map((r) => r.id),
-    hasHistory: all.length > 0,
-    datePrecision: intervals.some((r) => r.record.data.precision === 'date'),
+  const pendingIds = pending.map((r) => r.id);
+  const datePrecision = intervals.some((r) => r.record.data.precision === 'date');
+
+  return function summarizeAt(atValue = Date.now()) {
+    const at = typeof atValue === 'number' ? atValue
+      : /^\d{4}-\d{2}-\d{2}$/.test(atValue) ? dayStart(atValue) + DAY_MS - 1 : Date.parse(atValue);
+    const today = dayOf(at);
+    const currentDay = dayIndex(at);
+    const active = intervals.filter((r) => r.start <= at && at < r.end);
+    const latest = orderedIntervals.find((r) => r.start <= at);
+    const observations = observationsByTime.filter((r) => Date.parse(r.data.observedAt) <= at);
+    const unknownRenewal = observations[0] && (!latest || Date.parse(observations[0].data.observedAt) >= latest.end);
+    const bases = baselines.filter((r) => r.day <= currentDay);
+    const totalBaseline = bases.find((r) => r.record.data.totalDays !== null);
+    const continuousBaseline = bases.find((r) => r.record.data.continuousDays !== null);
+    const totalBase = totalBaseline?.record;
+    const continuousBase = continuousBaseline?.record;
+    const segment = merged.find((r) => r.start <= at && at < r.end);
+    const recordedDays = countCoveredDays(merged, at);
+    const addedDays = totalBase ? countCoveredDays(merged, at, totalBaseline.day) : 0;
+    const totalDays = totalBase
+      ? totalBase.data.totalDays + addedDays
+      : intervals.length
+        ? recordedDays
+        : null;
+    let continuousDays = segment ? currentDay - segment.startDay + 1 : null;
+    let continuousAsOf = segment ? today : null;
+    let cycleId = active.sort((a, b) => a.start - b.start)[0]?.record.data.cycleId || null;
+    if (continuousBase) {
+      const base = continuousBase.data;
+      const extensionStart = dayStart(base.asOf) + DAY_MS;
+      const extension = merged.find(
+        (r) => r.start <= extensionStart && r.end > extensionStart,
+      );
+      if (today === base.asOf || (extension && extension.end > at && extension.start <= at)) {
+        continuousDays = base.continuousDays + countCoveredDays(extension ? [extension] : [], at, continuousBaseline.day);
+        continuousAsOf = today;
+        cycleId = base.cycleId;
+      } else if (!segment) {
+        continuousDays = base.continuousDays;
+        continuousAsOf = base.asOf;
+        cycleId = base.cycleId;
+      }
+    }
+    const status = pending.length
+      ? 'pending'
+      : active.length
+        ? 'active'
+        : unknownRenewal
+          ? 'unknown'
+          : latest
+            ? 'expired'
+            : 'unknown';
+    const expiry = segment ? intervals.find((item) => item.end === segment.end) : latest;
+    return {
+      status,
+      level: status === 'active' ? Math.min(...active.map((r) => r.record.data.level)) : null,
+      observedLevel: observations[0]?.data.level || null,
+      observedAt: observations[0]?.data.observedAt || null,
+      firstDate: first?.data.date || '',
+      totalDays,
+      recordedDays,
+      continuousDays,
+      continuousAsOf,
+      totalAsOf: totalBase && !addedDays ? totalBase.data.asOf : today,
+      totalBasis: totalBase ? '含手动补录' : '已记录',
+      cycleId,
+      expiry: expiry ? { ...expiry.expiry } : null,
+      pending: [...pendingIds],
+      hasHistory: all.length > 0,
+      datePrecision,
+    };
   };
+}
+
+function summarizeMembership(records, atValue = Date.now()) {
+  return prepareMembership(records)(atValue);
 }
 
 function membershipConflicts(candidate, records, excludeId) {
@@ -174,6 +202,7 @@ function cycleForNewRecord(profile, records, candidate) {
 
 module.exports = {
   summarizeMembership,
+  prepareMembership,
   membershipConflicts,
   cycleForNewRecord,
   coveredDays,

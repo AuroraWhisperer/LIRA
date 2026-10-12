@@ -163,6 +163,8 @@ test('queue refusal codes preserve useful distinctions without echoing request t
   for (const [reason, code] of [
     ['不是点歌指令。', 'not-a-song-command'],
     ['用户冷却中，还需 10 秒。', 'user-cooldown'],
+    ['《晴天》冷却中，还需 2小时。', 'song-cooldown'],
+    ['符合条件的歌曲都在冷却，请稍后再试。', 'song-cooldown'],
     ['歌库里没有同时满足全部条件「私密条件」的可随机歌曲。', 'no-random-candidate'],
     ['歌曲名不能为空。', 'empty-song-name'],
     ['点歌队列已达到上限。', 'queue-full'],

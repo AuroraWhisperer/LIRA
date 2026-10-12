@@ -39,6 +39,7 @@ const ERRORS = {
   LOTTERY_RULES_INVALID: '请填写链接和 1–100 的整数中奖人数。',
   LOTTERY_LEGACY_TASK: '这是旧版规则的活动，仅供查看。请新建活动使用当前流程。',
   LOTTERY_TASK_NOT_FOUND: '活动不存在或不属于当前 LIRA 账号。',
+  LOTTERY_TASK_CLEARED: '这场抽奖已经结束并清理，请新建抽奖。',
 };
 const SOURCE_NAMES = { comment: '评论', like: '点赞', repost: '转发' };
 const WINNERS_PER_PAGE = 5;

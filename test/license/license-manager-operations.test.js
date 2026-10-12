@@ -98,6 +98,19 @@ test('song uploads require a success acknowledgement for the complete submitted 
   assert.deepEqual(await manager.syncSongs([{ title: 'One' }]), { ok: true, count: 1 });
 });
 
+test('song sync distinguishes an oversized historical library without submitting a partial snapshot', async (t) => {
+  const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  let calls = 0;
+  remote.syncSongs = async (songs) => { calls += 1; return { ok: true, count: songs.length }; };
+  await assert.rejects(manager.syncSongs(null), { code: 'SONG_LIST_INVALID' });
+  await assert.rejects(manager.syncSongs(Array(5001).fill({ title: '歌' })), { code: 'TOO_MANY_SONGS' });
+  assert.equal(calls, 0);
+  assert.deepEqual(await manager.syncSongs(Array(5000).fill({ title: '歌' })), { ok: true, count: 5000 });
+  assert.equal(calls, 1);
+});
+
 test('song background operations use the authorized device token and preserve binary bytes', async () => {
   const { manager, backgroundCalls } = createHarness({
     identity: { deviceId: 'd', publicKeyPem: 'public' },

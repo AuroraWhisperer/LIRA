@@ -4,6 +4,8 @@ function createGiftProjectionStore(giftDb) {
   if (!giftDb || typeof giftDb.prepare !== 'function')
     throw new Error('giftDb is required to create GiftProjectionStore.');
   return {
+    hasReceipt: (sourceId, platformId) => Boolean(giftDb.prepare(
+      'SELECT 1 FROM gift_retention_receipts WHERE source_id=? AND platform_id=?').get(sourceId, platformId)),
     hasSource: (id) => Boolean(giftDb.prepare('SELECT 1 FROM gift_sources WHERE id = ?').get(id)),
     read: (id) => readGift(giftDb, id),
     findEvent(sourceId, platformId, command) {
@@ -13,7 +15,9 @@ function createGiftProjectionStore(giftDb) {
         WHERE source_id = ? AND platform_id = ? AND cmd = ? ORDER BY id ASC LIMIT 1`,
         )
         .get(sourceId, platformId, command);
-      return row ? { ...row } : null;
+      // Download visibility belongs to the snapshot store. Keep the existing
+      // projection import contract so an identical staged final remains a replay.
+      return row ? { ...row, status: row.status === 'retention-staged' ? 'active' : row.status } : null;
     },
     insertProgress: (gift, eligibility) => insertProgressGift(giftDb, gift, eligibility),
     updateProgress: (id, sourceId, gift, detectedAtMs) => updateProcessedGift(giftDb, id, sourceId, gift, detectedAtMs),

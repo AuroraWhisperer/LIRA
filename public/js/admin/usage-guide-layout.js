@@ -22,7 +22,8 @@ export function getUsageGuideScrollTop(scroller, position, offset) {
   const rect = position.target.getBoundingClientRect();
   const marker = Math.max(0, scroller.getBoundingClientRect().top) + offset + 1;
   const delta = rect.top + rect.height * position.fraction - marker;
-  return (internalScroll ? scroller.scrollTop : window.scrollY) + delta;
+  // Scroll positions round to CSS pixels; keep the target on the reached side of the marker.
+  return Math.ceil((internalScroll ? scroller.scrollTop : window.scrollY) + delta);
 }
 
 export function restoreUsageGuidePosition(scroller, position, offset) {

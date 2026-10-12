@@ -53,14 +53,19 @@ test('songDb scene migrations preserve v7 rows and are idempotent after restart'
     fs.rmSync(directory, { recursive: true, force: true });
   });
   const db = databases.songDb;
+  const currentVersion = getSchemaVersions(databases).songDb;
   db.exec(`
     DROP TABLE component_scenes;
     UPDATE schema_version SET version = 7 WHERE key = 'song_db';
-    INSERT INTO requests (song_name, created_at) VALUES ('keep this request', '2026-09-30');
+    INSERT INTO queue (song_name, status, created_at, updated_at)
+      VALUES ('keep this request', 'waiting', '2026-09-30', '2026-09-30');
+    INSERT INTO requests (song_name, queue_id, created_at)
+      VALUES ('keep this request', last_insert_rowid(), '2026-09-30');
   `);
   const before = db.prepare('SELECT * FROM requests').all();
   const result = runAllMigrations(databases);
-  assert.deepEqual(result.find((entry) => entry.key === 'song_db'), { key: 'song_db', from: 7, to: 11, applied: 4 });
+  assert.deepEqual(result.find((entry) => entry.key === 'song_db'),
+    { key: 'song_db', from: 7, to: currentVersion, applied: currentVersion - 7 });
   const store = createSceneStore(db);
   const created = store.create({ scope: 'server/account', document: document(), capability: capability() });
   migrateScenes(db);
@@ -68,7 +73,7 @@ test('songDb scene migrations preserve v7 rows and are idempotent after restart'
   assert.deepEqual(db.prepare('SELECT * FROM requests').all(), before);
   closeDatabases(databases);
   databases = createDatabases({ dataDir: directory });
-  assert.equal(getSchemaVersions(databases).songDb, 11);
+  assert.equal(getSchemaVersions(databases).songDb, currentVersion);
   assert.deepEqual(databases.songDb.prepare('SELECT * FROM requests').all(), before);
   assert.deepEqual(createSceneStore(databases.songDb).get('server/account', created.document.id), created);
 });
@@ -112,9 +117,10 @@ test('v9 upgrades an existing v8 database and atomically publishes default dimen
   const db = databases.songDb;
   const store = createSceneStore(db);
   const original = store.create({ scope: 'owner', document: document(), capability: capability() });
+  const currentVersion = getSchemaVersions(databases).songDb;
   db.exec("DROP TABLE component_output_sizes; UPDATE schema_version SET version = 8 WHERE key = 'song_db'");
   assert.deepEqual(runAllMigrations(databases).find((entry) => entry.key === 'song_db'),
-    { key: 'song_db', from: 8, to: 11, applied: 3 });
+    { key: 'song_db', from: 8, to: currentVersion, applied: currentVersion - 8 });
   migrateComponentOutputSizes(db);
   migrateCanvasPresets(db); migrateSceneDeletion(db);
   assert.deepEqual(store.get('owner', original.document.id), original);

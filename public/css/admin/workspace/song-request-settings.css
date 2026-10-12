@@ -82,16 +82,46 @@
 
 .song-request-rules {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--spacing-md);
 }
 
-.song-request-rules > label {
+.song-request-rules > label,
+.song-cooldown-setting {
   grid-column: span 2;
 }
 
-.song-request-rules > label:nth-last-child(-n + 2) {
-  grid-column: span 3;
+.song-cooldown-setting {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  align-content: start;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+}
+
+.song-cooldown-controls {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.song-cooldown-controls > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+#songCooldownAmount {
+  flex: 0 0 76px;
+}
+
+#songCooldownAmount[hidden] {
+  display: none;
+}
+
+.song-cooldown-setting .hint {
+  margin: 0;
+  font-weight: var(--type-weight-regular);
 }
 
 .song-blacklist-empty {
@@ -193,7 +223,7 @@
   }
 
   .song-request-rules > label,
-  .song-request-rules > label:nth-last-child(-n + 2) {
+  .song-cooldown-setting {
     grid-column: auto;
   }
 

@@ -1,11 +1,13 @@
 'use strict';
 
 import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
+import { eventBus } from '../shared/event-bus.js';
 
 let wheelState = null;
 let wheelLimits = null;
 let savedEntries = '';
 let pending = false;
+let wheelRequest = 0;
 
 export function initWheelAdmin() {
   byId('wheelCardTrigger').addEventListener('click', toggleWheelDetails);
@@ -15,18 +17,23 @@ export function initWheelAdmin() {
   byId('wheelSaveBtn').addEventListener('click', () => saveWheel().catch(showError));
   byId('wheelSpinBtn').addEventListener('click', () => spinWheel().catch(showError));
   window.addEventListener('app:wheel-update', (event) => renderWheelState(event.detail));
+  const offReconnect = eventBus.on('ws:connected', () => refreshWheel().catch(showError));
+  window.addEventListener('app:shutdown', () => { wheelRequest += 1; offReconnect(); }, { once: true });
   byId('wheelOverlayUrl').textContent = wheelOverlayUrl();
   return refreshWheel();
 }
 
 async function refreshWheel() {
-  const response = await fetch('/api/wheel');
+  const request = ++wheelRequest;
+  const response = await fetch('/api/wheel', { cache: 'no-store' });
   const payload = await readJsonResponse(response, '读取转盘设置失败');
+  if (request !== wheelRequest) return;
   if (!payload.ok) throw new Error(payload.error || '读取转盘设置失败');
-  renderWheelState(payload.data, { syncEntries: true });
+  renderWheelState(payload.data);
 }
 
 export function renderWheelState(state, options = {}) {
+  wheelRequest += 1;
   const syncEntries = options.syncEntries || !hasWheelDraft();
   wheelState = state || {
     entries: [],

@@ -4,6 +4,7 @@ import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from '../share
 import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
 import { componentCssRendererUrl } from '../shared/component-css-style.js';
 const MAX_PENDING_EVENTS = 200;
+const MAX_APPEARANCE_ATTEMPTS = 3;
 
 export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 12000 } = {}) {
   let active = null;
@@ -14,6 +15,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
   let dataSequence = 1;
   let latestAppearances = {};
   let appearanceVersion = 0;
+  let configuration = 0;
   const giftDisplay = createSceneGiftDisplay();
   const send = (entry, type, values = {}) => {
     if (!entry.external) entry.frame.contentWindow?.postMessage({ type: `component-preview:${type}`, ...values }, '*');
@@ -49,13 +51,14 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     active.root.style.width = `${document.canvas.width}px`;
     active.root.style.height = `${document.canvas.height}px`;
     Object.assign(active, { document, version, projection });
-    onStatus('', version);
+    if (!active.entries.some(entry => entry.configError)) onStatus('', version);
     return true;
   }
   function release(version) {
     if (!version) return;
     clearTimeout(version.timer);
     for (const entry of version.entries) {
+      clearTimeout(entry.configTimer);
       send(entry, 'dispose');
       if (entry.external) disposeBrowserSourceFrame(entry.frame);
       if (entry.onLoad) entry.frame.removeEventListener('load', entry.onLoad);
@@ -75,10 +78,30 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       if (entry.external) continue;
       const config = { ...entry.item.appearance.config, ...latestAppearances[entry.item.id] };
       const serialized = JSON.stringify(config);
-      if (serialized === entry.configKey) continue;
-      entry.configKey = serialized;
-      if (entry.ready) send(entry, 'config', { config, editable: false });
+      if (!entry.ready || serialized === entry.pendingKey
+        || serialized === entry.configKey && !entry.pendingKey && !entry.configError) continue;
+      if (serialized !== entry.desiredKey) entry.configAttempts = 0;
+      if (entry.configAttempts >= MAX_APPEARANCE_ATTEMPTS) continue;
+      configure(entry, config);
     }
+  }
+  function configure(entry, config, type = 'config') {
+    clearTimeout(entry.configTimer);
+    entry.desiredKey = entry.pendingKey = JSON.stringify(config);
+    entry.configuration = ++configuration;
+    entry.configAttempts = (entry.configAttempts || 0) + 1;
+    if (staging?.entries.includes(entry)) entry.prepared = false;
+    if (active?.entries.includes(entry)) {
+      entry.configTimer = setTimeout(() => configurationFailed(entry, '加载超时。'), timeoutMs);
+    }
+    send(entry, type, { config, editable: false, configuration: entry.configuration });
+  }
+  function configurationFailed(entry, message) {
+    clearTimeout(entry.configTimer);
+    entry.pendingKey = null;
+    entry.configError = message || '组件外观准备失败。';
+    const retry = entry.configAttempts < MAX_APPEARANCE_ATTEMPTS ? '正在自动重试。' : '请检查素材后刷新来源重试。';
+    onStatus(`已保存外观，但 ${entry.item.name} 应用失败：${entry.configError} ${retry}`, active.version);
   }
   function commit() {
     if (!staging || staging.entries.some((entry) => !entry.prepared)) return;
@@ -103,19 +126,30 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       ? '继续显示上一版本，正在自动重试。' : '正在自动重试，请保持 LIRA 客户端运行。'}`, active?.version || 0);
   }
   function receive(event) {
-    if (disposed || !staging || event.origin !== 'null') return;
-    const entry = staging.entries.find((candidate) => candidate.frame.contentWindow === event.source);
+    if (disposed || event.origin !== 'null') return;
+    const entry = [...(staging?.entries || []), ...(active?.entries || [])]
+      .find((candidate) => candidate.frame.contentWindow === event.source);
     if (!entry || entry.external) return;
     if (event.data?.type === 'component-preview:ready') {
+      if (!staging?.entries.includes(entry)) return;
       entry.ready = true;
       const config = { ...entry.item.appearance.config,
         ...(staging.version === appearanceVersion ? latestAppearances[entry.item.id] : {}) };
-      entry.configKey = JSON.stringify(config);
-      send(entry, 'init', { config, editable: false });
+      configure(entry, config, 'init');
+    } else if (!entry.pendingKey || event.data?.configuration !== entry.configuration) {
+      return;
     } else if (event.data?.type === 'component-preview:prepared' && entry.ready) {
+      clearTimeout(entry.configTimer);
+      entry.configKey = entry.pendingKey;
+      entry.pendingKey = null;
+      entry.configError = '';
       entry.prepared = true;
-      commit();
-    } else if (event.data?.type === 'component-preview:status') fail(event.data.message, entry);
+      if (staging?.entries.includes(entry)) commit();
+      else if (!active.entries.some(candidate => candidate.configError)) onStatus('', active.version);
+    } else if (event.data?.type === 'component-preview:status') {
+      if (staging?.entries.includes(entry)) fail(event.data.message, entry);
+      else configurationFailed(entry, event.data.message);
+    }
   }
   function prepare(document, version, projection) {
     if (disposed || version === active?.version || version === staging?.version) return;

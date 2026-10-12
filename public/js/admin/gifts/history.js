@@ -247,6 +247,7 @@ export async function loadGiftHistory({ background = false } = {}) {
     if (giftLedgerState.viewRevision && data.viewRevision !== giftLedgerState.viewRevision) historyTools?.clear();
     giftLedgerState.viewRevision = data.viewRevision || null;
     giftLedgerState.partial = data.partial !== false;
+    giftLedgerState.retention = data.retention || null;
     giftLedgerState.items = Array.isArray(data.items) ? data.items : [];
     giftLedgerState.nextCursor = data.nextCursor || null;
     giftLedgerState.hasMore = data.hasMore === true;

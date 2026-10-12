@@ -4,6 +4,7 @@ import { escapeHtml } from '../shared/utils.js';
 import { formsService } from './forms.js';
 import { receiveComponentSettings, projectComponentDrafts } from './component-settings-sync.js';
 import { songs } from './songs.js';
+import { renderSongCooldownControls } from './song-cooldown-settings.js';
 import { renderQueueState, renderSuperChatQueue, applyAdminQueueFontPreview } from './queue.js';
 
 export function renderConnectionStatus(connectionState) {
@@ -52,6 +53,7 @@ export function createAdminStateRenderer({
 function fillSettings(settings) {
   receiveComponentSettings(settings);
   formsService.fillForm(projectComponentDrafts(settings));
+  renderSongCooldownControls();
   for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled']) {
     const toggle = document.getElementById(key);
     if (toggle && !toggle.disabled) toggle.checked = (settings[key] ?? settings.enableBilibili) !== 'false';

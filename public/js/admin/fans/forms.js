@@ -313,9 +313,7 @@ export function recordForm(kind, record) {
       field('songName', '歌名', data.songName, 'text', 'required maxlength="300"') +
       field('artist', '歌手', data.artist) +
       field('category', '歌曲分类', data.category) +
-      area('note', '说明', data.note) +
-      check('excludeFromStats', '不计入听歌偏好（例如替别人点歌）', data.excludeFromStats) +
-      (record ? check('excluded', '不是这位粉丝点的，从点歌记录中移除', data.excluded) : '');
+      area('note', '说明', data.note);
   else if (kind === 'preference')
     fields =
       choice(
@@ -349,13 +347,13 @@ export function recordForm(kind, record) {
   if (record && !['song', 'membership'].includes(kind))
     fields += check('archived', '收起这条记录（仍可找回）', data.archived);
   return {
-    title: record ? `编辑${titles[kind]}` : kind === 'note' ? '记一笔' : `添加${titles[kind]}`,
+    title: record ? `编辑${titles[kind]}` : kind === 'note' ? '记一笔' : kind === 'song' ? '补记一次点歌' : `添加${titles[kind]}`,
     fields,
     hint: kind === 'preference' ? '只记录本人提过的喜好，不会增加点歌次数。' : '',
     read(form) {
       const values = Object.fromEntries(new FormData(form));
       const result = { ...values };
-      for (const key of ['pinned', 'archived', 'completed', 'annual', 'excludeFromStats', 'excluded'])
+      for (const key of ['pinned', 'archived', 'completed', 'annual'])
         result[key] = !!values[key];
       for (const key of ['level', 'advanceDays', 'totalDays', 'continuousDays']) {
         if (key in values) result[key] = values[key] === '' ? null : Number(values[key]);

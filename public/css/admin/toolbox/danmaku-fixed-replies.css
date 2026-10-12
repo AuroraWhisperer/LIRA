@@ -213,12 +213,44 @@
 .danmaku-fixed-reply-section details[data-fixed-editor] {
   overflow: visible;
 }
+.danmaku-song-reply-examples {
+  margin: 16px 0;
+}
+.danmaku-song-reply-examples > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(0, 3fr);
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--fixed-divider);
+}
+.danmaku-song-reply-examples dt {
+  font-weight: 600;
+}
+.danmaku-song-reply-examples dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .danmaku-fixed-reply-section details[data-fixed-editor] > summary {
   display: none;
+}
+.danmaku-fixed-reply-section .danmaku-reply-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.danmaku-scheduled-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  align-items: end;
+  gap: 12px;
 }
 .danmaku-fixed-reply-section .danmaku-blessings-body {
   padding: 0;
   border: 0;
+}
+#danmakuScheduledPanel .danmaku-blessings-body {
+  margin-top: 16px;
 }
 .danmaku-fixed-reply-section .danmaku-blessing-actions,
 .danmaku-welcome-parameter-actions,
@@ -259,6 +291,19 @@
 .danmaku-fixed-reply-section .danmaku-custom-reply-fields {
   gap: 12px;
 }
+.danmaku-query-item {
+  grid-column: 1 / -1;
+}
+.danmaku-custom-reply-row.danmaku-query-reply-row {
+  grid-template-columns: minmax(0, 1fr);
+  padding-inline: 12px;
+}
+.danmaku-query-reply-note {
+  grid-column: 1 / -1;
+}
+#danmakuQueryRepliesPanel .daily-library-search {
+  margin-block: 12px;
+}
 .danmaku-fixed-reply-section :is(.danmaku-blessing-list, .danmaku-fortune-list, .danmaku-custom-reply-list) {
   max-height: none;
   overflow: visible;
@@ -267,15 +312,15 @@
 }
 .danmaku-welcome-rules {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 .danmaku-welcome-rule {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 12px;
-  padding: 16px;
+  gap: 8px;
+  padding: 12px 16px;
   border: 1px solid var(--fixed-divider);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -287,7 +332,7 @@
 }
 .danmaku-welcome-rule-heading {
   gap: 8px;
-  min-height: 32px;
+  min-height: 28px;
   justify-content: space-between;
   flex-wrap: wrap;
 }
@@ -300,30 +345,25 @@
   font-size: 12px;
 }
 .danmaku-welcome-rule-controls {
-  display: flex;
+  display: grid;
   flex: 1;
-  flex-direction: column;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: space-between;
+  gap: 8px 24px;
 }
 .danmaku-welcome-rule-library {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   margin-top: auto;
-  padding-top: 12px;
 }
 .danmaku-welcome-rule-library > button {
   width: 100%;
   white-space: nowrap;
 }
-.danmaku-welcome-rule-attention .danmaku-welcome-field::after {
-  content: '达到后换用高荣耀词库';
-  grid-column: 1 / -1;
-  color: var(--muted);
-  font-size: 12px;
-}
 .danmaku-welcome-field {
   display: grid;
-  grid-template-columns: 64px 72px auto;
+  grid-template-columns: max-content 64px max-content;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -335,7 +375,7 @@
   font-weight: 400;
 }
 .danmaku-fixed-reply-section .danmaku-welcome-field input {
-  width: 72px;
+  width: 64px;
   height: 32px;
   min-width: 0;
   padding: 5px 8px;
@@ -349,6 +389,17 @@
 .danmaku-welcome-field input::-webkit-outer-spin-button {
   appearance: none;
   margin: 0;
+}
+.danmaku-welcome-rule-attention .danmaku-welcome-field,
+.danmaku-welcome-returning-summary,
+#danmakuWelcomeReturningCapability {
+  grid-column: 1 / -1;
+}
+.danmaku-welcome-returning-summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 32px;
 }
 .danmaku-welcome-field:has(input:disabled),
 .danmaku-welcome-rule:has(.switch-control input:not(:checked)) .danmaku-welcome-field {
@@ -557,7 +608,7 @@
   flex-wrap: wrap;
   gap: 12px 24px;
 }
-#danmakuDailyLibraryPanel .danmaku-blessing-row {
+:is(#danmakuDailyLibraryPanel, #danmakuScheduledPanel) .danmaku-blessing-row {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   padding: 8px 12px;
@@ -661,7 +712,7 @@
     grid-column: 1 / -1;
   }
 }
-@container fixed-replies (width < 900px) {
+@container fixed-replies (width < 760px) {
   .danmaku-welcome-rules {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -675,6 +726,9 @@
   }
 }
 @container fixed-replies (width < 480px) {
+  .danmaku-welcome-rule-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .danmaku-fixed-editor-heading {
     flex-wrap: wrap;
     gap: 8px;

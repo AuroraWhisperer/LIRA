@@ -79,6 +79,7 @@ test('server API context keeps route domains explicit and publishes lyric state'
     theme: { get: noop },
   };
   const published = [];
+  const aiConfigChanges = [];
   const clearRemote = () => {};
   const context = createApiContext({
     maxBodyBytes: 1024,
@@ -104,8 +105,9 @@ test('server API context keeps route domains explicit and publishes lyric state'
       danmakuSender: { getState: noop, send: noop },
     },
     ai: {
-      configStore: { getPublicConfig: noop, updateConfig: noop },
+      configStore: { getConfig: () => ({ enabled: false, trigger: '' }), getPublicConfig: noop, updateConfig: noop },
       service: {
+        updateConfig: input => { aiConfigChanges.push(input); return input; },
         getStatus: noop,
         listModels: noop,
         testConfiguration: noop,
@@ -143,6 +145,8 @@ test('server API context keeps route domains explicit and publishes lyric state'
   assert.equal(context.giftSync.clearRemote, clearRemote);
   assert.equal('debug' in context, false);
   assert.equal(context.playback, domainServices.playback);
+  assert.deepEqual(context.ai.updateConfig({ enabled: false }), { enabled: false });
+  assert.deepEqual(aiConfigChanges, [{ enabled: false }]);
   context.playbackLyrics.publish({ trackTitle: '测试' });
   assert.deepEqual(published, [{ trackTitle: '测试' }]);
   assert.deepEqual(context.system.getHealth().schemaVersions, { song: 3 });

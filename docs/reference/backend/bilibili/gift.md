@@ -1,5 +1,18 @@
 # 礼物服务器投影与醒目留言服务
 
+## 明细保留与历史汇总
+
+约 90 天逐笔明细及长期统计由 [保留期规格](../../../../specs/gift-retention.md) 约束。
+服务器原 B 站读取、识别、连击及估值不变；客户端保留原消费者和统计口径。
+[gift-retention-queries.js](../../../../src/storage/gift-retention-queries.js) 将已结束日汇总与
+未覆盖明细组成互斥集合，先合并完整分组再排名，不用汇总行数代替笔数。
+历史接口只返回实际可用明细，并附明细边界；过期日期仍可查询金额、笔数及盲盒汇总。
+
+本机冲刺和盲盒统计只结转原有统计资格：回收前保存冲刺金额和按日、用户、盒型
+归档，重置冲刺同时清结转；未完成加班结算或统计消费保留原行。历史导入不创建
+实时副作用；离线前已接收的 progress 由既有 final 导入路径收尾，保持原资格。
+盲盒逐笔列表不把汇总伪装成一条开盒记录。存储表和事务见 [storage.md](../storage.md)。
+
 2026-09-13：main process 在远程 pull/history/SSE 协商 `X-Lira-Gift-Identity: 1`，验证成对可空 `giftVariantId`、`blindBoxVariantId`；旧 DTO 规范化为 null。首次导入写入事件身份列，后续不能把非空身份改成另一身份。旧历史只核对既有展示投影后幂等跳过，不补填身份或重放消费者。加班消费者仅匹配规则的完整身份；目录刷新不修改已结算记录。详见[礼物身份规格](../../../../specs/gift-identity-overtime.md)。
 
 > 涉及文件:[gift/projection-service.js](../../../../src/bilibili/gift/projection-service.js)、[gift/consumer-registry.js](../../../../src/bilibili/gift/consumer-registry.js)、[gift/statistics-consumer.js](../../../../src/bilibili/gift/statistics-consumer.js)、[gift/normalizer.js](../../../../src/bilibili/gift/normalizer.js)、[gift/query-service.js](../../../../src/bilibili/gift/query-service.js)、[gift/blind-box-config.js](../../../../src/bilibili/gift/blind-box-config.js)、[gift/blind-box-analysis.js](../../../../src/bilibili/gift/blind-box-analysis.js)、[gift/index.js](../../../../src/bilibili/gift/index.js)、[superchat-service.js](../../../../src/bilibili/superchat-service.js)、[domain-services.js](../../../../src/server/domain-services.js) 的 gifts/superChats 段
@@ -136,7 +149,7 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 
 ## 6.1 服务器权威礼物与客户端投影
 
-原始 B 站包的解析、平台身份去重、连击累计、盲盒价值覆盖和 10 秒静默收尾由 `D:/Work/lira-server` 的每主播 `RoomMonitor`/`gift-detector` 独占。该服务器把 final 行与 delivery cursor 在同一个 SQLite 事务中提交,再通过按 `streamerId` 分桶的内存 broker 加速在线设备投递;旧历史行保留但不会生成新的 delivery cursor。
+原始 B 站包的解析、平台身份去重、连击累计、盲盒价值覆盖和 5 秒静默收尾由 `D:/Work/lira-server` 的每主播 `RoomMonitor`/`gift-detector` 独占。该服务器把 final 行与 delivery cursor 在同一个 SQLite 事务中提交,再通过按 `streamerId` 分桶的内存 broker 加速在线设备投递;旧历史行保留但不会生成新的 delivery cursor。
 
 Electron 只在 main process 使用授权 DeviceBearer 请求远端礼物接口。wire 校验和内部 canonical 对象由 [processed-gift-contract.js](../../../../src/shared/processed-gift-contract.js) 分层维护：`validateGiftDisplayWire` 先拒绝未知/缺失字段，再由 `canonicalizeGiftDisplay` 处理文本、时间、金额和内部派生值。
 
@@ -165,14 +178,14 @@ live 事件严格为 `{eventId,cursor,phase,gift}`；eventId 为1–64字符，�
 | -------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 置顶阈值 | `SUPER_CHAT_PIN_THRESHOLD = 2` RMB(协议层 `isPinned`,见 [protocol.md](protocol.md) §6.2)      | [superchat-service.js](../../../../src/bilibili/superchat-service.js)                                                                                      |
 | 入库阈值 | `SUPER_CHAT_DISPLAY_THRESHOLD = 2` RMB,`price < 2` 直接拒绝                                   | [superchat-service.js](../../../../src/bilibili/superchat-service.js) 的 `addSuperChatItem` |
-| 去重     | `platform_id` 已存在:返回既有行;既有行 `status='deleted'` 则返回 null(不入账)                 | [superchat-service.js](../../../../src/bilibili/superchat-service.js)                                                                               |
-| 状态机   | `active`(插入默认)→ `assist`→`assisted`;`unassist`→`active`;`delete`→`deleted`                | [superchat-service.js](../../../../src/bilibili/superchat-service.js)                                                                               |
-| 平台下线 | `retractSuperChatItems` 按 `platform_id` 批量标记 `deleted`，只修改状态和更新时间；重复或未知 ID 不新增记录 | [superchat-service.js](../../../../src/bilibili/superchat-service.js)、[superchat-store.js](../../../../src/storage/superchat-store.js) |
+| 去重     | `platform_id` 属于当前显示项时返回既有行；已在 `super_chat_receipts` 时返回 null，不恢复内容 | [superchat-service.js](../../../../src/bilibili/superchat-service.js) |
+| 状态机   | `active`(插入默认)→ `assist`→`assisted`;`unassist`→`active`;`delete` 物理删除内容，仅保留平台 ID | [superchat-service.js](../../../../src/bilibili/superchat-service.js) |
+| 平台下线 | `retractSuperChatItems` 按 `platform_id` 批量删除内容并保留最小 ID；尚未收到原消息的撤回 ID 也防止迟到包入库 | [superchat-service.js](../../../../src/bilibili/superchat-service.js)、[superchat-store.js](../../../../src/storage/superchat-store.js) |
 | 快照     | `WHERE status IN ('active','assisted') ORDER BY price DESC, datetime(created_at) ASC, id ASC` | [superchat-store.js](../../../../src/storage/superchat-store.js) 的 `listActive`                                                                               |
 
 表结构与列见 [storage.md](../storage.md) §3.2(`super-chat-data.db`);快照 `superChats` 字段见 [ws.md](../ws.md) §2;入账触发 `bilibili:superchat` 广播(见 [danmaku.md](danmaku.md) §1)。
 
-平台下线保留已存金额、正文及历史行，不解释为退款或删除财务记录；已 deleted 的同平台 ID 新增消息及迟到的 assist/unassist 操作均不会复活留言。回调仅在实际变更记录时发布快照，使活动列表移除对应留言；消息识别与 ID 优先级归 [protocol.md](protocol.md) §6.2。
+手动删除、平台下线和清空均不保留金额、正文、昵称或用户资料；只留下平台消息 ID 用于防重。没有平台 ID 的已删留言不留记录。`active/assisted` 仍可正常显示和标记处理；移除后的同平台 ID 新增消息及迟到的 assist/unassist 均不会复活留言。平台下线回调仅在实际删除显示项时发布快照；消息识别与 ID 优先级归 [protocol.md](protocol.md) §6.2。
 
 ## 8. 参数归属
 

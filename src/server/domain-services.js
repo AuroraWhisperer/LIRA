@@ -50,7 +50,6 @@ function createDomainServices(options) {
   const queueStore = createQueueStore(db.songDb, {
     getFanScope: options.getFanScope,
     archiveAccepted: fans.archiveAccepted,
-    archiveQueueState: fans.archiveQueueState,
   });
   const superChatStore = createSuperChatStore(db.superChatDb);
   const customReplies = createCustomReplyService({
@@ -87,7 +86,8 @@ function createDomainServices(options) {
     count: () => songService.countSongs(songStore),
     delete: (id) => songService.deleteSong(songStore, id),
     toggle: (id) => songService.toggleSong(songStore, id),
-    pickRandom: (scopeText) => songService.pickRandomSong(songStore, scopeText),
+    pickRandom: (scopeText) => songService.pickRandomSong(songStore, scopeText,
+      (candidates) => queueService.filterSongsByCooldown(queueContext, candidates)),
     describeRandomScope: (scopeText) => songService.describeRandomSongScope(songStore, scopeText),
   };
 
@@ -218,6 +218,9 @@ function createDomainServices(options) {
           danmaku,
         );
         if (result.command) return result;
+        if (customReplies.isCloudOwnedCommand(danmaku.message)) {
+          return { accepted: false, reason: 'cloud-owned', command: { type: 'custom-exact-reply' } };
+        }
         const customReply = customReplies.handleDanmaku(danmaku);
         if (!customReply.command) return result;
         return {

@@ -14,7 +14,7 @@
 | [planner-reminder-ipc.js](../../../src/electron/ipc/planner-reminder-ipc.js) | 必须 | 必须 | 仅 `/admin` |
 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js)、[gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js)：复用 main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [dynamic-lottery-auth-ipc.js](../../../src/electron/ipc/dynamic-lottery-auth-ipc.js)、[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) | 必须 | 必须 | 不另检查路径，包含同 origin 的 `/license` |
-| [license-ipc.js](../../../src/electron/ipc/license-ipc.js)：overlay-filters GET/PUT、overlay-viewers GET | 必须 | 必须 | 不另检查路径 |
+| [license-ipc.js](../../../src/electron/ipc/license-ipc.js)：overlay-filters GET/PUT、overlay-viewers GET、fixed-reply-settings GET/PUT | 必须 | 必须 | 不另检查路径 |
 | 同上：其余 license | 必须 | **不要求** mainFrame 对象 | 不另检查路径；同 origin 子 frame 也通过该来源检查 |
 
 非法来源返回 `{ok:false,error:'IPC_SOURCE_INVALID'}`；license registrar 另带脱敏 `state`。此检查不是远端授权，具体操作仍受 LicenseManager 的授权及代次约束。当前主窗口匹配同时限定实际 Chromium session；renderer 不能指定分区。不要将未实施的路径/frame 限制写成已有保护。
@@ -97,7 +97,7 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:retry` | `retry()` | `{ok,...LicenseSnapshot}`，ok 表示 authorized | license.js |
 | `license:get-gift-catalog-state` | `getGiftCatalogState()` | `{ok:true,...CatalogSnapshot}` | license.js、[catalog-update-toast.js](../../../public/js/admin/gifts/catalog-update-toast.js) |
 | `license:retry-gift-catalog` | `retryGiftCatalog()` | `{ok,...CatalogSnapshot}`，ok 表示 ready；未授权 LICENSE_REQUIRED | 同上 |
-| `license:get-profile` | `getProfile()` | `{ok:true,...LicenseSnapshot}`；同授权生命周期的在途读取合并，完成后再次调用仍远程刷新 | settings-license（完整设备资料） |
+| `license:get-profile` | `getProfile()` | `{ok:true,...LicenseSnapshot}`；同授权生命周期的在途读取合并，完成后再次调用仍远程刷新 | settings-license（完整设备资料）、server-overlay-url（补全启动恢复时缺失的网页地址） |
 | `license:get-overlay-settings` | `getOverlaySettings()` | OverlaySettings | [danmaku-overlay-settings.js](../../../public/js/admin/danmaku-overlay-settings.js)、server-overlay-url |
 | `license:update-overlay-settings` | `updateOverlaySettings({style,fullscreenDurationSeconds,styleOptions?,layout?,styleParameters?})` | OverlaySettings；INVALID_OVERLAY_STYLE / INVALID_OVERLAY_DURATION / INVALID_OVERLAY_LAYOUT / INVALID_STYLE_PARAMETERS | danmaku-overlay-settings |
 | `license:get-overlay-filters` | `getOverlayFilters()` | `{ok:true,blockedUsers:[{uid,name}],blockedKeywords:[]}` | [danmaku-overlay-filters.js](../../../public/js/admin/danmaku-overlay-filters.js) |
@@ -109,6 +109,8 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:update-welcome-settings-v2` | `updateWelcomeSettingsV2(patch)` | 完整 V2 配置，不降级重放；可带 fieldErrors | 同上 |
 | `license:get-pk-report-settings` | `getPkReportSettings()` | `{ok:true,enabled:boolean}` | [danmaku-pk-report.js](../../../public/js/admin/danmaku-pk-report.js) |
 | `license:update-pk-report-settings` | `updatePkReportSettings({enabled})`，严格 boolean、唯一字段 | 同上；INVALID_PK_REPORT_SETTINGS / INVALID_RESPONSE | 同上 |
+| `license:get-fixed-reply-settings` | `getFixedReplySettings()` | `{ok:true,customExactReplyEnabled,customExactReplies,scheduledDanmakuEnabled,scheduledDanmaku}`；FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 弹幕互动固定回复 |
+| `license:update-fixed-reply-settings` | `updateFixedReplySettings(patch)`，仅上述四个配置字段、至少一个；约束见 [固定回复契约](main.md#服务器固定回复设置) | 同上；INVALID_FIXED_REPLY_SETTINGS / FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 同上 |
 | `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000，JSON.stringify.length ≤4×1024×1024（UTF-16 单元，不是字节）；与自动同步串行，保留传入快照语义 | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / SONG_LIST_TOO_LARGE | 兼容入口 |
 | `license:get-local-song-count` | `getLocalSongCount()` | `{ok:true,count,generation}`；主进程完整歌库数量及确认代次 | [cloud-song-sync.js](../../../public/js/admin/cloud-song-sync.js) |
 | `license:sync-current-songs` | `syncCurrentSongs(generation)`；非负安全整数 | `{ok,count,index?,songPageUrl?}`；确认代次过期报 CLOUD_SONGS_CHANGED，未就绪报 CLOUD_SYNC_NOT_READY；失败走公共错误脱敏 | 同上 |
@@ -121,6 +123,13 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:set-gift-interaction` | `setGiftInteraction(key,enabled)` → `{key,enabled}`，拒绝额外字段 | GiftInteractionSnapshot；INVALID_GIFT_INTERACTION / GIFT_INTERACTION_PENDING / CLOUD_SYNC_FAILED | 同上 |
 
 共享 DTO 与约束：
+
+固定回复处理器由 [license-fixed-reply-ipc.js](../../../src/electron/ipc/license-fixed-reply-ipc.js)
+注册，成功仅投影四个配置字段及 `ok`；云端 revision 只用于主进程即时更新内存去重投影，
+不进入 renderer。未知回包字段（含每条规则与定时配置内部字段）均不透传。
+账号代次变化后不提交投影、不接受迟到结果，沿用 `LICENSE_NOT_AUTHORIZED`。
+
+久别重逢扩展沿用 V2 welcome IPC：`returningEnabled` 为 boolean，`returningMessages` 为独立客套话词库，沿用 1–30 条/每条 80 字校验。新服务器必须成对返回；旧 V2 同时缺失时不补默认值，只禁用新控件，半缺失回包拒绝。主欢迎关闭时不能启用重逢；独立保存和失败草稿规则保持。时间计算与进场记录由服务器拥有，客户端不接收观众记录。
 
 个人欢迎词扩展沿用 V2 welcome IPC：`userWelcomeMessages` 为 0–100 条 `{uid,message}`，
 UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 沿用欢迎词库的单条校验。
@@ -174,7 +183,7 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 
 授权/目录事件发送到当前存活主窗口，并非“所有窗口”；license-ipc 发送时不另外检查页面路径或 origin。礼物互动发送另外检查精确 origin；资源检查发送还检查管理页。sender 检查与远端代次检查不能替代 renderer 自身任务 ID/草稿版本判断。
 
-播放保存链路：StorageManager → savePlaybackState → music-ipc → desktopRuntime.persistPlaybackSnapshot → playback-store 的 play_queue_state。退出时 main 发 prepare-shutdown，renderer 保存后 confirmShutdownFlush；main 等 ack 或 2 秒超时后继续清理，见 [关闭时序](main.md#7-关闭序列与播放状态冲刷)。礼物 SSE/pull 没有 renderer IPC：main 将事件导入本地投影，再经 HTTP/WS snapshot、历史和 gift:frame 消费。
+播放保存链路：StorageManager → savePlaybackState → music-ipc → desktopRuntime.persistPlaybackSnapshot → playback-store 的 play_queue_state。退出时 main 发 prepare-shutdown，renderer 保存后 confirmShutdownFlush；main 等 ack 或 2 秒超时后继续清理，见 [关闭时序](main.md#7-关闭序列与播放状态冲刷)。礼物日汇总与近期明细同步同样只在 main 内执行，不新增 renderer IPC，不暴露 Device 令牌、UID 或服务端内部房间。查询仍走既有本地 HTTP；明细期限字段见 [API](../backend/api.md)。礼物 SSE/pull 没有 renderer IPC：main 将事件导入本地投影，再经 HTTP/WS snapshot、历史和 gift:frame 消费。
 
 ## 4. 每日机器人 action
 
@@ -213,6 +222,7 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 | `sync-guard-roster` | `{expectedRoomId?}`，提供时须匹配当前 roomId | `{roomId,ownerUid,total,created,updated,skipped,skippedDetails,profileRefresh:{updated,failed,skipped}}`；并发同步拒绝 |
 | `settings` | {} | 当前 scope 设置 |
 | `configure` | `{autoCreate:boolean,autoUpdate:boolean,autoSyncGuardRoster?:boolean,accompanyMilestones?:number[],showAccompanyInCalendar?:boolean}` | 更新后的 scope 设置；陪伴节点校验及默认值见粉丝档案规格 |
+| `guard-expiry` | 与 `list` 相同的筛选条件；必须带当前 `contextId` | `{state,observedAt,badges:[{profileId,level,days}]}`；state 为 ready/loginRequired/ownerMismatch/roomNotConfigured/sourceChanged/unavailable/unsupported；非 ready 时 observedAt=null、badges=[]。主进程读取认证设备的服务端名单，核对 roomId 并按当前档案投影；不返回凭据或整份 B 站名单，不写入本机档案。 |
 | `detail` | `{id}`，非空所属档案 ID，文本≤100 | ProfileDetail |
 | `find` | `{identity}` | ProfileDetail 或 null |
 | `create` | ProfilePatch，alias 必填 | ProfileDetail |
@@ -250,6 +260,8 @@ ProfilePatch 校验 owner 为 [validation.js](../../../src/fans/validation.js)�
 identity 可 null，否则 `{platform:'bilibili',type:'uid'或'open_id',value}`；value≤128、无空白/控制符，UID 为1–25位非零开头数字，不把 open_id 转 UID。birthday 可 null，否则 monthDay、calendar=solar/lunar、year(null或1900至当前年)、leapMonth、leapDay=feb28/mar01、thisYearDate、advance；日期校验由 validation/dates 拥有。
 
 ProfileDetail 包含保存后的档案（id/revision/时间/identity/资料）及 formerNames、zodiacHint、records、songs、preferences、membership、guardRoster、guardAccompany、currentGuardLevel、musicSummary、musicStats（90天 count/categories）、reminders。guardAccompany 为 null 或平台观察加派生 stale/inactive；列表也携带该字段，定义见[粉丝档案规格](../../../specs/fan-profiles.md#平台陪伴天数与日历纪念日2026-10-09)。列表还附 medalLevel、lastInteraction、nextReminder；列表不是详情记录的替代。
+
+到期标记独立于 ProfileDetail/备份/日历，由 `src/fans/guard-expiry.js` 投影；规则见[到期提示规格](../../../specs/fan-profiles.md#b-站到期提示2026-10-12)。controller 合并同上下文/房间的并发读取，旧授权代次、换房及 dispose 拒绝迟到返回；whenIdle 包含这些读取任务。
 
 记录 kind 支持 membership/song/preference/anniversary/note/topic/caution/followup。occurredAt 为可解析带时区 ISO 时间，省略用当前时间；修改检查 revision，保留 original 和修订历史。membership 的 type 为 interval/baseline/observation/first：interval 指定 date 起止或 instant 起止，end 必须晚于 start；interval/observation level=1/2/3；observation 需 observedAt、status=inactive 或默认 observed；baseline 需 asOf、totalDays/continuousDays 至少一个，数值为0–100000安全整数且累计≥连续；first 需 date。冲突观察进入 pending，resolve-membership 才采用/保留，不能把观察日推算成连续会员天数。其他 kind 字段与限制见 `recordData`：songName/label 等必填；note 类 body≤10000，纪念日 advanceDays≤30。
 

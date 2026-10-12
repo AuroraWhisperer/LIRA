@@ -16,7 +16,7 @@ const { createServerCompatibility } = require('./server/compatibility-runtime');
 const { createRuntimeApiContextFactory } = require('./server/runtime-api-context');
 const { resolveServerRuntimeConfig, validateServerHost } = require('./server/runtime-config');
 const { createRuntimeTransport } = require('./server/runtime-transport');
-const { runStartupRetention } = require('./server/startup-retention');
+const { startRetentionMaintenance } = require('./server/startup-retention');
 const lifecycle = require('./server/lifecycle');
 const wsTransport = require('./server/ws');
 const { createDomainServices } = require('./server/domain-services');
@@ -26,6 +26,9 @@ const { normalizeRoomInput } = require('./bilibili/room-input');
 const { publicBilibiliErrorMessage } = require('./bilibili/api-error');
 const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
 const { createGiftSyncStore } = require('./storage/gift-sync-store');
+const { createGiftRetentionStore } = require('./storage/gift-retention-store');
+const { pruneLocalGiftBatch } = require('./storage/gift-local-retention');
+const { cleanupGiftRetentionBatch } = require('./storage/gift-retention-cleanup');
 const { migrateCacheData } = require('./storage/data-directory-migration');
 const { DEFAULT_SETTINGS } = require('./storage/settings-defaults');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
@@ -43,6 +46,8 @@ const PORT_CLEANUP_TIMEOUT_MS = 7500;
 const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 const { normalizeCloudSettingsSnapshot, serializeCloudSettings } = require('./server/settings-contract');
+const { buildDesktopMenuCommands } = require('./server/danmaku-menu');
+const { isAiReady } = require('./ai/config');
 
 function createServerRuntime(runtimeOptions = {}) {
   const {
@@ -66,6 +71,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let domainServices = null;
   let sceneRuntime = null;
   let giftSyncStore = null;
+  let giftRetentionStore = null;
   let musicRuntime = null;
   let bilibiliRuntime = null;
   let liveStatus = null;
@@ -77,6 +83,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let wheelSessionService = null;
   let interactionSessionService = null;
   let dynamicLottery = null;
+  let stopRetentionMaintenance = null;
   let applicationInitialized = false;
   let publishOvertimeUpdate = () => {};
   let isShuttingDown = false;
@@ -88,6 +95,8 @@ function createServerRuntime(runtimeOptions = {}) {
   let exitIssued = false;
   let sessionToken = '';
   let blindBoxMappingState = null;
+  let menuCommandsSignature = '';
+  let menuRefreshQueued = false;
   const cloudSyncListeners = new Set();
   const inflightTracker = createInflightTracker();
   const licenseGate = runtimeOptions.licenseGate || {
@@ -153,6 +162,7 @@ function createServerRuntime(runtimeOptions = {}) {
           webSocketHub.broadcast(payload);
           if (['game:update', 'game:draw', 'game:patch'].includes(payload.type)) sceneRuntime?.notify({ types: ['games'] });
           if (payload.type === 'interaction:update') sceneRuntime?.notify({ types: ['interactions'] });
+          if (['game:update', 'game:patch', 'interaction:update'].includes(payload.type)) scheduleMenuSync();
         },
         getSourceState: () => bilibiliRuntime.getRealtimeState(),
         subscribe: (listener) => bilibiliRuntime.subscribeRealtime(listener),
@@ -188,6 +198,12 @@ function createServerRuntime(runtimeOptions = {}) {
       });
       sceneRuntime = createSceneRuntime({ songDb: db.songDb, runtimeOptions, getState, getContext: () => createApiContext() });
       giftSyncStore = createGiftSyncStore({
+        giftDb: db.giftDb,
+        importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
+        importLiveEvent: (event, sourceId, importOptions) =>
+          domainServices.gifts.importProcessedEvent(event, sourceId, importOptions),
+      });
+      giftRetentionStore = createGiftRetentionStore({
         giftDb: db.giftDb,
         importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
         importLiveEvent: (event, sourceId, importOptions) =>
@@ -238,10 +254,11 @@ function createServerRuntime(runtimeOptions = {}) {
       bilibiliRuntime.setAuthProvider(options.bilibiliAuth);
       domainServices.songs.ensureCategory('默认');
       domainServices.queue.ensureUnified();
-      runStartupRetention(settingsStore, domainServices.data);
+      stopRetentionMaintenance = startRetentionMaintenance(settingsStore, domainServices.data);
       domainServices.overtimeGiftCatalog.start?.();
       reportPhase('startup-repair', Date.now() - phaseStartedAt);
       applicationInitialized = true;
+      menuCommandsSignature = JSON.stringify(getDesktopMenuCommands());
     } catch (error) {
       await disposeApplication({ optimize: false });
       throw error;
@@ -435,6 +452,8 @@ function createServerRuntime(runtimeOptions = {}) {
     isShuttingDown = true;
     phase = 'quiescing';
     inflightTracker.quiesce();
+    stopRetentionMaintenance?.();
+    stopRetentionMaintenance = null;
     console.log('Shutting down local song request service...');
 
     shutdownPromise = (async () => {
@@ -484,6 +503,7 @@ function createServerRuntime(runtimeOptions = {}) {
 
   async function disposeApplication(options = {}) {
     const steps = [
+      ['retention', () => stopRetentionMaintenance?.()],
       ['Bilibili', () => bilibiliRuntime?.stop()],
       ['scene events', () => sceneRuntime?.dispose()],
       [
@@ -513,6 +533,7 @@ function createServerRuntime(runtimeOptions = {}) {
       }
     }
     dynamicLottery = null;
+    stopRetentionMaintenance = null;
     db = null;
     settingsStore = null;
     webSocketHub = null;
@@ -520,6 +541,7 @@ function createServerRuntime(runtimeOptions = {}) {
     domainServices = null;
     sceneRuntime = null;
     giftSyncStore = null;
+    giftRetentionStore = null;
     musicRuntime = null;
     bilibiliRuntime = null;
     liveStatus = null;
@@ -615,12 +637,36 @@ function createServerRuntime(runtimeOptions = {}) {
 
   function getCloudSettingsSnapshot() {
     if (!settingsStore) throw new Error('Settings store not ready.');
-    return serializeCloudSettings(settingsStore.getSettings());
+    return { ...serializeCloudSettings(settingsStore.getSettings()), menuCommands: getDesktopMenuCommands() };
   }
 
   function getPendingCloudSettings(accountKey) {
     const pending = settingsStore.getPendingCloudSettings(accountKey);
-    return pending ? { ...pending, values: serializeCloudSettings(pending.values) } : null;
+    return pending ? {
+      ...pending,
+      values: { ...serializeCloudSettings(pending.values), menuCommands: getDesktopMenuCommands() },
+    } : null;
+  }
+
+  function getDesktopMenuCommands() {
+    const aiConfig = aiRuntime?.configStore.getConfig() || {};
+    return buildDesktopMenuCommands({
+      settings: settingsStore.getSettings(),
+      ai: { ready: isAiReady(aiConfig), trigger: aiConfig.trigger },
+      game: gameSessionService?.getSession(),
+      interaction: interactionSessionService?.getState().session,
+    });
+  }
+
+  function scheduleMenuSync() {
+    if (menuRefreshQueued || !applicationInitialized || isShuttingDown) return;
+    menuRefreshQueued = true;
+    queueMicrotask(() => {
+      menuRefreshQueued = false;
+      if (!applicationInitialized || isShuttingDown) return;
+      const signature = JSON.stringify(getDesktopMenuCommands());
+      if (signature !== menuCommandsSignature) requestCloudSync('settings');
+    });
   }
 
   function prepareCloudRoomAccount(accountKey) {
@@ -643,6 +689,10 @@ function createServerRuntime(runtimeOptions = {}) {
     bilibiliRuntime.configure();
     broadcastSnapshot('cloud:settings');
     return getCloudSettingsSnapshot();
+  }
+
+  function applyCloudFixedReplySettingsSnapshot(input, revision) {
+    domainServices?.customReplies.setCloudExactReplySettings(input, revision);
   }
 
   function setBlindBoxMappingState(input) {
@@ -674,6 +724,7 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   function requestCloudSync(scope) {
+    if (scope === 'settings' && settingsStore) menuCommandsSignature = JSON.stringify(getDesktopMenuCommands());
     for (const listener of cloudSyncListeners) {
       try {
         listener(scope);
@@ -721,6 +772,16 @@ function createServerRuntime(runtimeOptions = {}) {
     resumeAuthorizedWork,
     pauseAuthorizedWork,
     resolveGiftSource,
+    getGiftRetentionProgress: (sourceId) => giftRetentionStore.progress(sourceId),
+    restartGiftRetention: (input) => giftRetentionStore.restart(input),
+    commitGiftSummaryPage: (input) => giftRetentionStore.summaryPage(input),
+    commitRetainedGiftHistoryPage: (input) => giftRetentionStore.historyPage(input),
+    activateGiftRetention: (input) => giftRetentionStore.activate(input),
+    pruneLocalGiftRetention: (sourceId) => {
+      const result = pruneLocalGiftBatch(db.giftDb, sourceId);
+      if (!result.deleted) cleanupGiftRetentionBatch(db.giftDb, sourceId);
+      return result;
+    },
     getGiftSyncState,
     commitGiftHistoryPage,
     restartGiftHistoryBootstrap,
@@ -734,6 +795,7 @@ function createServerRuntime(runtimeOptions = {}) {
     acknowledgePendingCloudSettings: (key, mutationId) => settingsStore.acknowledgePendingCloudSettings(key, mutationId),
     prepareCloudRoomAccount,
     applyCloudSettingsSnapshot,
+    applyCloudFixedReplySettingsSnapshot,
     setBlindBoxMappingState,
     getCloudSongsSnapshot,
     getPendingCloudSongs: (key) => domainServices.songs.getPendingCloudSongs(key),

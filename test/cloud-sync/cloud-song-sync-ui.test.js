@@ -215,6 +215,7 @@ test('legacy import entry keeps the parser and cloud initialization APIs wired t
 });
 
 for (const [code, expected] of [
+  ['TOO_MANY_SONGS', /先导出备份并整理至 5000 首以内/],
   ['PAYLOAD_TOO_LARGE', /减少歌曲或缩短备注/],
   ['RESPONSE_TOO_LARGE', /缩减歌库或联系管理员/],
 ]) {

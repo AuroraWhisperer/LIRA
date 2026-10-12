@@ -4,6 +4,122 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 const { createAnsweringDeepseek, createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
+const { createDanmakuSenderService } = require('../../src/bilibili/danmaku/sender-service');
+
+test('disabling AI clears waiting and ready replies, aborts generation, and reopening accepts only new work', async (t) => {
+  const pending = Promise.withResolvers();
+  const sent = [];
+  const generated = [];
+  let oldSignal;
+  const service = createTestService({
+    config: { generationConcurrency: 2 },
+    deepseek: { async createResponse(request) {
+      if (request.purpose !== 'generation') return { text: '{"allowed":true}', functionCalls: [], usage: {} };
+      generated.push(request.input);
+      if (generated.length === 1 || generated.length === 3) {
+        oldSignal ||= request.signal;
+        await pending.promise; // A provider may settle after ignoring cancellation.
+      }
+      return { text: request.input, functionCalls: [], usage: {} };
+    } },
+    sendReply: async value => sent.push(value.mentionTarget.uid),
+  });
+  t.after(async () => { pending.resolve(); await service.shutdown(); });
+  for (const uid of ['old-generating', 'old-ready', 'old-generating-two', 'old-waiting']) {
+    service.handleDanmaku({ uid, userName: uid, message: '小米 测试问题' });
+  }
+  await waitUntil(() => service.getStatus().ready === 1 && service.getStatus().waiting === 1);
+  service.updateConfig({ enabled: false });
+  assert.equal(oldSignal.aborted, true);
+  assert.equal(oldSignal.reason.code, 'AI_DISABLED');
+  assert.equal(service.getStatus().queued, 0);
+  assert.equal(service.handleDanmaku({ uid: 'off', message: '小米 问题' }).accepted, false);
+  service.updateConfig({ enabled: true });
+  assert.equal(service.handleDanmaku({ uid: 'new', userName: '新观众', message: '小米 新问题' }).accepted, true);
+  await waitUntil(() => sent.length === 1);
+  pending.resolve();
+  await service.shutdown();
+  assert.deepEqual(sent, ['new']);
+  assert.equal(generated.length, 4, 'the old waiting task is never generated');
+});
+
+test('disabling during delivery confirmation cancels retries without recording a failure', async (t) => {
+  const sent = [];
+  const audit = [];
+  let confirmation;
+  let generations = 0;
+  const service = createTestService({
+    store: { logRequest: entry => audit.push(entry) },
+    deepseek: createAnsweringDeepseek(() => `answer-${++generations}`),
+    sendReply: async value => { sent.push(value.message); return { messages: [value.message] }; },
+    waitForDelivery: async ({ signal }) => {
+      if (confirmation) return true;
+      confirmation = signal;
+      return new Promise(resolve => signal.addEventListener('abort', () => resolve(false), { once: true }));
+    },
+  });
+  t.after(() => service.shutdown());
+  service.handleDanmaku({ uid: 'old', userName: '旧观众', message: '小米 测试' });
+  await waitUntil(() => confirmation);
+  service.updateConfig({ enabled: false });
+  service.updateConfig({ enabled: true });
+  assert.equal(confirmation.aborted, true);
+  service.handleDanmaku({ uid: 'new', userName: '新观众', message: '小米 新问题' });
+  await waitUntil(() => sent.length === 2 && !service.getStatus().delivering);
+  assert.equal(generations, 2);
+  assert.equal(audit.some(entry => entry.status === 'failed'), false);
+});
+
+test('disabling between actual sender chunks keeps the sent part and cancels the rest across reopening', async (t) => {
+  const betweenChunks = Promise.withResolvers();
+  const sent = [];
+  let waiting = false;
+  const sender = createDanmakuSenderService({
+    getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'synthetic' }),
+    getRoom: async () => ({ roomId: '100' }),
+    createClient: () => ({ resolveRoomInfo: async () => ({ roomId: '100' }),
+      sendDanmaku: async (_room, message) => { sent.push(message); return { message }; } }),
+    delay: async () => { waiting = true; await betweenChunks.promise; },
+    log() {},
+  });
+  const service = createTestService({
+    deepseek: createAnsweringDeepseek(() => '回答'.repeat(40)),
+    sendReply: sender.send,
+  });
+  t.after(async () => { betweenChunks.resolve(); await service.shutdown(); });
+  service.handleDanmaku({ uid: 'old', userName: '观众', message: '小米 测试' });
+  await waitUntil(() => waiting);
+  service.updateConfig({ enabled: false });
+  service.updateConfig({ enabled: true });
+  betweenChunks.resolve();
+  await sender.send({ message: '手动弹幕', rateLimitIntervalMs: 0 });
+  assert.equal(sent.length, 2);
+  assert.equal(sent[1], '手动弹幕', 'cancellation does not stop unrelated sender operations');
+});
+
+test('unrelated config updates and failed disabling do not cancel an accepted reply', async (t) => {
+  const pending = Promise.withResolvers();
+  const sent = [];
+  let signal;
+  const service = createTestService({
+    store: { updateConfig(changes) { if (changes.enabled === false) throw new Error('Synthetic save failure'); return changes; } },
+    deepseek: { async createResponse(request) {
+      signal = request.signal;
+      if (request.purpose === 'generation') await pending.promise;
+      return { text: request.purpose === 'generation' ? '正常回答' : '{"allowed":true}', functionCalls: [], usage: {} };
+    } },
+    sendReply: async value => sent.push(value),
+  });
+  t.after(async () => { pending.resolve(); await service.shutdown(); });
+  service.handleDanmaku({ uid: 'one', userName: '观众', message: '小米 测试' });
+  await waitUntil(() => signal);
+  service.updateConfig({ model: 'another-model' });
+  assert.equal(signal.aborted, false);
+  assert.throws(() => service.updateConfig({ enabled: false }), /Synthetic save failure/);
+  assert.equal(signal.aborted, false);
+  pending.resolve();
+  await waitUntil(() => sent.length === 1);
+});
 
 test('provider connection tests dispatch with the saved private configuration', async () => {
   const received = [];
@@ -31,6 +147,7 @@ test('provider connection tests dispatch with the saved private configuration', 
     },
   });
 
+  service.updateConfig({ enabled: false });
   assert.deepEqual(await service.testProvider('deepseek'), {
     provider: 'deepseek',
   });

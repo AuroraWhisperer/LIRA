@@ -78,7 +78,7 @@ function createPreV1SongDatabase(filePath) {
   }
 }
 
-function createPreV1GiftDatabase(filePath) {
+function createLegacyGiftDatabase(filePath, version = 0) {
   const db = new DatabaseSync(filePath);
   try {
     db.exec(`
@@ -106,6 +106,24 @@ function createPreV1GiftDatabase(filePath) {
         '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:01.000Z'
       );
     `);
+    if (version > 0) {
+      db.exec(`
+        ALTER TABLE gift_events ADD COLUMN cmd TEXT NOT NULL DEFAULT '';
+        ALTER TABLE gift_events ADD COLUMN is_blind_box INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE gift_events ADD COLUMN blind_box_name TEXT NOT NULL DEFAULT '';
+        ALTER TABLE gift_events ADD COLUMN blind_box_price REAL;
+        ALTER TABLE gift_events ADD COLUMN blind_profit REAL;
+        ALTER TABLE gift_events ADD COLUMN counted_in_sprint INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE gift_events ADD COLUMN raw_json TEXT NOT NULL DEFAULT '';
+        CREATE INDEX idx_gift_events_platform_id ON gift_events(platform_id);
+        CREATE TABLE schema_version (key TEXT PRIMARY KEY, version INTEGER NOT NULL DEFAULT 0);
+      `);
+      if (version === 3) {
+        db.exec(`CREATE UNIQUE INDEX idx_gift_events_platform_uid ON gift_events(platform_id, uid)
+          WHERE platform_id != '' AND uid != ''`);
+      }
+      db.prepare('INSERT INTO schema_version (key, version) VALUES (?, ?)').run('gift_db', version);
+    }
   } finally {
     db.close();
   }
@@ -121,7 +139,7 @@ function getIndexColumns(db, indexName) {
 test('createDatabases upgrades genuine pre-v1 song and gift databases idempotently', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-pre-v1-'));
   createPreV1SongDatabase(path.join(dataDir, DB_FILE_NAMES.songDb));
-  createPreV1GiftDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
+  createLegacyGiftDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
 
   let databases;
   try {
@@ -129,9 +147,9 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       databases = createDatabases({ dataDir });
 
       assert.deepEqual(getSchemaVersions(databases), {
-        songDb: 11,
-        superChatDb: 1,
-        giftDb: 16,
+        songDb: 14,
+        superChatDb: 2,
+        giftDb: 17,
         musicDb: 1,
         checkinDb: 1,
         lotteryDb: 2,
@@ -248,80 +266,84 @@ test('createDatabases closes every opened handle when initialization fails', () 
 
 test('gift database v3 upgrades before creating indexes that depend on v4 columns', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-upgrade-'));
-  let db = createDatabases({ dataDir });
+  createLegacyGiftDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb), 3);
+  let db;
 
   try {
-    closeDatabases(db);
     const giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
-    giftDb.exec(`
-      DROP INDEX IF EXISTS idx_gift_events_detection_pending;
-      DROP INDEX IF EXISTS idx_gift_events_gift_stats_delivery;
-      DROP INDEX IF EXISTS idx_gift_events_source_time;
-      DROP INDEX IF EXISTS idx_gift_events_source_recent;
-      DROP INDEX IF EXISTS idx_gift_events_source_time_asc;
-      ALTER TABLE gift_events DROP COLUMN overtime_epoch;
-      ALTER TABLE gift_events DROP COLUMN gift_stats_delivered;
-      ALTER TABLE gift_events DROP COLUMN gift_stats_eligible;
-      ALTER TABLE gift_events DROP COLUMN finalized_at_ms;
-      ALTER TABLE gift_events DROP COLUMN last_platform_at_ms;
-      ALTER TABLE gift_events DROP COLUMN first_detected_at_ms;
-      ALTER TABLE gift_events DROP COLUMN detection_status;
-      UPDATE schema_version SET version = 3 WHERE key = 'gift_db';
-    `);
-    giftDb.close();
+    try {
+      const columns = giftDb.prepare('PRAGMA table_info(gift_events)').all().map((column) => column.name);
+      assert.equal(columns.includes('detection_status'), false);
+      assert.equal(columns.includes('remote_final_cursor'), false);
+      assert.equal(giftDb.prepare("SELECT 1 FROM sqlite_master WHERE name = 'gift_retention_state'").get(), undefined);
+    } finally {
+      giftDb.close();
+    }
 
-    db = createDatabases({ dataDir });
-    const indexes = new Set(
-      db.giftDb
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
-        .all()
-        .map((row) => row.name),
-    );
-    assert.equal(indexes.has('idx_gift_events_detection_pending'), true);
-    assert.equal(indexes.has('idx_gift_events_gift_stats_delivery'), true);
+    for (let startup = 0; startup < 2; startup += 1) {
+      db = createDatabases({ dataDir });
+      const indexes = new Set(
+        db.giftDb
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
+          .all()
+          .map((row) => row.name),
+      );
+      assert.equal(indexes.has('idx_gift_events_detection_pending'), true);
+      assert.equal(indexes.has('idx_gift_events_gift_stats_delivery'), true);
+      assert.equal(db.giftDb.prepare('PRAGMA integrity_check').get().integrity_check, 'ok');
+      closeDatabases(db);
+      db = null;
+    }
   } finally {
-    closeDatabases(db);
+    if (db) closeDatabases(db);
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
 
 test('gift database v3 identity migration remains intact after later migrations', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-'));
-  let db = createDatabases({ dataDir });
+  createLegacyGiftDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb), 2);
+  let db;
 
   try {
-    db.giftDb.exec('DROP INDEX idx_gift_events_platform_uid');
-    db.giftDb.prepare("UPDATE schema_version SET version = 2 WHERE key = 'gift_db'").run();
-    const insert = db.giftDb.prepare(`
-      INSERT INTO gift_events (
-        platform_id, cmd, gift_id, gift_name, uid, user_name,
-        num, unit_price, total_price, counted_in_sprint,
-        status, created_at, updated_at
-      ) VALUES (?, 'SEND_GIFT', '1', 'Rose', ?, ?, ?, ?, ?, 1, 'active', ?, ?)
-    `);
-    const createdAt = new Date().toISOString();
-    insert.run('duplicate-platform', '42', 'Alice', 1, 1, 1, createdAt, createdAt);
-    insert.run('duplicate-platform', '42', 'Alice Renamed', 5, 1, 5, createdAt, createdAt);
-    insert.run('duplicate-platform', '43', 'Bob', 1, 1, 1, createdAt, createdAt);
-    closeDatabases(db);
+    const createdAt = '2026-01-02T00:00:00.000Z';
+    const giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
+    try {
+      const insert = giftDb.prepare(`
+        INSERT INTO gift_events (
+          platform_id, cmd, gift_id, gift_name, uid, user_name,
+          num, unit_price, total_price, counted_in_sprint,
+          status, created_at, updated_at
+        ) VALUES (?, 'SEND_GIFT', '1', 'Rose', ?, ?, ?, ?, ?, 1, 'active', ?, ?)
+      `);
+      insert.run('duplicate-platform', '42', 'Alice', 1, 1, 1, createdAt, createdAt);
+      insert.run('duplicate-platform', '42', 'Alice Renamed', 5, 1, 5, createdAt, createdAt);
+      insert.run('duplicate-platform', '43', 'Bob', 1, 1, 1, createdAt, createdAt);
+    } finally {
+      giftDb.close();
+    }
 
-    db = createDatabases({ dataDir });
-    const rows = db.giftDb
-      .prepare(
-        `
-      SELECT * FROM gift_events WHERE platform_id = ? ORDER BY uid
-    `,
-      )
-      .all('duplicate-platform');
-    assert.equal(rows.length, 2);
-    assert.equal(rows[0].uid, '42');
-    assert.equal(rows[0].user_name, 'Alice Renamed');
-    assert.equal(rows[0].num, 5);
-    assert.equal(rows[0].total_price, 5);
-    assert.equal(rows[1].uid, '43');
-    assert.throws(() => insertDuplicateGift(db.giftDb, createdAt), /UNIQUE constraint failed/);
+    for (let startup = 0; startup < 2; startup += 1) {
+      db = createDatabases({ dataDir });
+      const rows = db.giftDb
+        .prepare(
+          `
+        SELECT * FROM gift_events WHERE platform_id = ? ORDER BY uid
+      `,
+        )
+        .all('duplicate-platform');
+      assert.equal(rows.length, 2);
+      assert.equal(rows[0].uid, '42');
+      assert.equal(rows[0].user_name, 'Alice Renamed');
+      assert.equal(rows[0].num, 5);
+      assert.equal(rows[0].total_price, 5);
+      assert.equal(rows[1].uid, '43');
+      assert.throws(() => insertDuplicateGift(db.giftDb, createdAt), /UNIQUE constraint failed/);
+      closeDatabases(db);
+      db = null;
+    }
   } finally {
-    closeDatabases(db);
+    if (db) closeDatabases(db);
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
@@ -456,20 +478,6 @@ test('legacy song-database SuperChats move once, deduplicate and drop the old ta
           updated_at: LEGACY_SC_TIME,
         },
         {
-          platform_id: 'sc-1',
-          uid: '2',
-          user_name: 'Viewer',
-          price: 30,
-          message: 'hello',
-          requester_guard_level: 2,
-          requester_medal_name: 'Medal',
-          requester_medal_level: 7,
-          status: 'deleted',
-          source: 'manual',
-          created_at: LEGACY_SC_TIME,
-          updated_at: '2026-01-02T03:05:00.000Z',
-        },
-        {
           platform_id: '',
           uid: '3',
           user_name: '观众',
@@ -484,6 +492,10 @@ test('legacy song-database SuperChats move once, deduplicate and drop the old ta
           updated_at: LEGACY_SC_TIME,
         },
       ]);
+      assert.deepEqual(
+        databases.superChatDb.prepare('SELECT * FROM super_chat_receipts').all().map((row) => ({ ...row })),
+        [{ platform_id: 'sc-1' }],
+      );
       closeDatabases(databases);
       databases = null;
     }
@@ -505,6 +517,7 @@ test('a failed legacy SuperChat copy rolls back and keeps the old table for the 
     closeDatabases(databases);
     databases = null;
     createLegacySuperChatTable(dataDir, [
+      { platformId: 'sc-removed', uid: '3', status: 'deleted', message: 'receipt must also roll back', createdAt: LEGACY_SC_TIME },
       { platformId: 'sc-before', uid: '1', message: 'copied before failure', createdAt: LEGACY_SC_TIME },
       { platformId: 'sc-fail', uid: '2', message: 'fails', createdAt: LEGACY_SC_TIME },
     ]);
@@ -514,19 +527,24 @@ test('a failed legacy SuperChat copy rolls back and keeps the old table for the 
     const superChatDb = new DatabaseSync(path.join(dataDir, DB_FILE_NAMES.superChatDb));
     try {
       assert.equal(superChatDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get().count, 0);
+      assert.equal(superChatDb.prepare('SELECT COUNT(*) AS count FROM super_chat_receipts').get().count, 0);
       superChatDb.exec('DROP TRIGGER fail_legacy_copy');
     } finally {
       superChatDb.close();
     }
     const songDb = new DatabaseSync(path.join(dataDir, DB_FILE_NAMES.songDb));
     try {
-      assert.equal(songDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get().count, 2);
+      assert.equal(songDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get().count, 3);
     } finally {
       songDb.close();
     }
 
     databases = createDatabases({ dataDir });
     assert.equal(hasLegacySuperChatTable(databases), false);
+    assert.deepEqual(
+      databases.superChatDb.prepare('SELECT * FROM super_chat_receipts').all().map((row) => ({ ...row })),
+      [{ platform_id: 'sc-removed' }],
+    );
     assert.deepEqual(
       readSuperChats(databases).map((row) => row.platform_id),
       ['sc-before', 'sc-fail'],

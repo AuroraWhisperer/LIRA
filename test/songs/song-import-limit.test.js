@@ -123,6 +123,30 @@ test('explicit replacement may bring a historical oversized library within the l
   assert.equal(store.countSongs(), 5000);
 });
 
+test('manual additions enforce the complete-library limit while edits and cleanup remain available', (t) => {
+  const { store, snapshot } = fixture(t, 4999);
+  const song = store.saveSong(songs(1, '手工新增')[0]);
+  assert.equal(store.countSongs(), 5000);
+  const full = snapshot();
+  assert.throws(() => store.saveSong({ ...songs(1, '溢出')[0], categoryName: '禁止创建' }), limitError);
+  assert.deepEqual(snapshot(), full);
+  assert.equal(store.saveSong({ ...songs(1, '手工新增')[0], note: '更新' }).id, song.id);
+  assert.equal(store.saveSong({ ...songs(1, '重命名')[0], id: song.id }).name, '重命名0');
+  store.deleteSong(song.id);
+  store.saveSong(songs(1, '整理后新增')[0]);
+  assert.equal(store.countSongs(), 5000);
+});
+
+test('historical oversized libraries can still edit, export and delete existing songs', (t) => {
+  const { store } = fixture(t, 5001);
+  const song = store.listRows()[0];
+  assert.equal(store.saveSong({ ...songs(1)[0], id: song.id, note: '整理' }).note, '整理');
+  assert.equal(store.listRows().length, 5001);
+  assert.throws(() => store.saveSong(songs(1, '新增')[0]), limitError);
+  store.deleteSong(song.id);
+  assert.equal(store.countSongs(), 5000);
+});
+
 for (const format of ['import', 'import-xlsx']) {
   test(`legacy ${format} route returns 422 without broadcasting or syncing a rejected import`, async (t) => {
     const { store, snapshot } = fixture(t, 4999);
@@ -160,3 +184,22 @@ for (const format of ['import', 'import-xlsx']) {
     assert.equal(store.countSongs(), 5000);
   });
 }
+
+test('manual save route reports the capacity error without broadcasts or cloud writes', async (t) => {
+  const { store } = fixture(t, 5000);
+  const signals = [];
+  const response = {
+    writeHead(status) { this.status = status; },
+    end(body) { this.body = JSON.parse(body); },
+  };
+  await routes['POST /api/songs/save']({
+    songs: { save: (song) => songService.saveSong(store, song) },
+    broadcastSnapshot: (reason) => signals.push(reason),
+    cloudSync: { request: (scope) => signals.push(scope) },
+  }, { body: async () => songs(1, '新增')[0] }, response);
+  assert.equal(response.status, 422);
+  assert.equal(response.body.error, limitError.code);
+  assert.match(response.body.message, /整理至 5000 首以内/);
+  assert.deepEqual(signals, []);
+  assert.equal(store.countSongs(), 5000);
+});

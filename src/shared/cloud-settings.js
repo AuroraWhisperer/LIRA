@@ -10,6 +10,8 @@ const CLOUD_SETTING_KEYS = Object.freeze([
   'allowDuplicate',
 ]);
 const CLOUD_SYNC_KEYS = Object.freeze([
+  'songCooldownMode',
+  'songCooldownValue',
   'danmakuMonitoringEnabled',
   'giftMonitoringEnabled',
   'giftEffectDanmakuEnabled',
@@ -19,7 +21,7 @@ const CLOUD_SYNC_KEYS = Object.freeze([
 ]);
 
 function hasCloudSettingChanges(keys) {
-  return keys.some((key) => CLOUD_SYNC_KEYS.includes(key));
+  return keys.some((key) => CLOUD_SYNC_KEYS.includes(key) || ['enableCustomReplyBot', 'customReplyRules'].includes(key));
 }
 
 module.exports = { CLOUD_SETTING_KEYS, CLOUD_SYNC_KEYS, hasCloudSettingChanges };

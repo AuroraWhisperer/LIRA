@@ -1,6 +1,7 @@
 'use strict';
 
 const DEFAULT_TARGET_FPS = 30;
+const FRAME_TIME_TOLERANCE_MS = 0.5;
 
 export class LyricFrameScheduler {
   constructor(options = {}) {
@@ -39,7 +40,8 @@ export class LyricFrameScheduler {
     }
     const interval = 1000 / this.targetFps;
     const elapsed = this.lastUpdateAt > 0 ? now - this.lastUpdateAt : interval;
-    if (elapsed >= interval) {
+    // Rounded rAF timestamps can report 33.3ms for a complete 30fps interval.
+    if (elapsed + FRAME_TIME_TOLERANCE_MS >= interval) {
       this.lastUpdateAt = now;
       this.callback(now, elapsed);
     }

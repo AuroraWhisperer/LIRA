@@ -74,7 +74,7 @@ function getBlindBoxStats(context, { boxName = '' } = {}) {
     }))
     .sort((a, b) => b.totalProfit - a.totalProfit);
 
-  const records = rows.slice(0, 500).map((row) => ({
+  const records = rows.filter((row) => !row.archived).slice(0, 500).map((row) => ({
     id: row.id,
     user_name: (row.user_name || '观众').trim(),
     uid: (row.uid || '').trim(),
@@ -157,6 +157,7 @@ function getBlindBoxAnalysis(context, options = {}) {
     sort,
     direction,
     items: allItems.slice(start, start + limit),
+    ...(filteredRows.some((row) => row.archived) ? { hasArchivedDetails: true } : {}),
     pagination: { page, limit, total, totalPages },
   };
 }
@@ -209,7 +210,7 @@ function summarizeBlindBoxRows(rows) {
 
 function buildBlindBoxAnalysisItems(rows, view) {
   if (view === 'records') {
-    return rows.map((row) => ({
+    return rows.filter((row) => !row.archived).map((row) => ({
       id: Number(row.id),
       giftName: cleanText(row.gift_name) || '未知礼物',
       userName: cleanText(row.user_name) || '观众',

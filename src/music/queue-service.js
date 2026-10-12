@@ -4,6 +4,7 @@
 
 const { cleanText, now, timestampToIso, normalizePositiveInteger } = require('../shared/utils');
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
+const { songCooldownKey, songCooldownUntil, assertSongAvailable } = require('./song-cooldown');
 
 function addQueueItem(context, input) {
   const songName = cleanText(input.songName);
@@ -17,18 +18,26 @@ function addQueueItem(context, input) {
     throw new Error('点歌队列已达到上限。');
   }
 
-  if (settings.allowDuplicate !== 'true' && store.findActiveBySongName(songName)) {
-    throw new Error('队列里已经有这首歌。');
-  }
-
   const matchedSong = context.findSong ? context.findSong(songName, input.artist) : null;
   if (settings.onlyFromLibrary === 'true' && !matchedSong) {
     throw new Error('歌库里没有这首歌。');
   }
 
   const createdAt = timestampToIso(input.messageTimestamp || input.createdAt) || now();
+  const acceptedAt = Date.now();
+  const canonicalName = matchedSong ? matchedSong.name : songName;
+  const canonicalArtist = matchedSong ? matchedSong.artist : input.artist;
+  const cooldownKey = songCooldownKey(canonicalName, canonicalArtist);
+  if (settings.songCooldownMode && settings.songCooldownMode !== 'off') {
+    assertSongAvailable(settings, store.getSongCooldown(cooldownKey), canonicalName, acceptedAt);
+  }
+  if (settings.allowDuplicate !== 'true' && store.findActiveBySongName(songName)) {
+    throw new Error('队列里已经有这首歌。');
+  }
   const isPinned = input.isPinned === true || input.isPinned === 1 || input.isPinned === 'true' ? 1 : 0;
   return store.insertRequest({
+    cooldownKey,
+    acceptedAt,
     songId: matchedSong ? matchedSong.id : null,
     songName: matchedSong ? matchedSong.name : songName,
     artist: cleanText(input.artist) || (matchedSong ? matchedSong.artist : ''),
@@ -51,7 +60,17 @@ function addQueueItem(context, input) {
     isPinned,
     pinnedAt: isPinned ? createdAt : '',
     createdAt,
+  }, {
+    checkCooldown: (lastAcceptedAt) => assertSongAvailable(settings, lastAcceptedAt, canonicalName, acceptedAt),
   });
+}
+
+function filterSongsByCooldown(context, songs) {
+  const settings = context.settings();
+  if (!settings.songCooldownMode || settings.songCooldownMode === 'off') return songs;
+  const previous = new Map(context.store.listSongCooldowns().map((row) => [row.song_key, row.accepted_at_ms]));
+  const at = Date.now();
+  return songs.filter((song) => songCooldownUntil(settings, previous.get(songCooldownKey(song.name, song.artist))) <= at);
 }
 
 function handleQueueAction(context, action, rawId) {
@@ -91,6 +110,7 @@ function ensureUnifiedQueue(context) {
 
 module.exports = {
   addQueueItem,
+  filterSongsByCooldown,
   handleQueueAction,
   getQueueSnapshot,
   ensureUnifiedQueue,

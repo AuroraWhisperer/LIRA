@@ -82,6 +82,41 @@ test('WeSing cache configuration creates a missing user cache directory', async 
   assert.equal(fs.statSync(cachePath).isDirectory(), true);
 });
 
+test('WeSing serializes directory saves and recovers after an invalid path', async (t) => {
+  const scratch = path.resolve(__dirname, '../../tmp/audit-remediation-2026-10-12/playback');
+  fs.mkdirSync(scratch, { recursive: true });
+  const root = fs.mkdtempSync(path.join(scratch, 'wesing-order-'));
+  const firstPath = path.join(root, 'A', 'WeSingCache');
+  const lastPath = path.join(root, 'B', 'WeSingCache');
+  const pending = Promise.withResolvers();
+  const mkdir = fs.promises.mkdir.bind(fs.promises);
+  t.mock.method(fs.promises, 'mkdir', async (directory, options) => {
+    if (directory === firstPath) await pending.promise;
+    return mkdir(directory, options);
+  });
+  const saved = [];
+  const capture = createWeSingCapture({ platform: 'win32', saveCachePath: (value) => saved.push(value) });
+  t.after(() => {
+    capture.stop();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const first = capture.setCachePath(firstPath);
+  const last = capture.setCachePath(lastPath);
+  await new Promise(setImmediate);
+  assert.deepEqual(saved, []);
+  pending.resolve();
+  await Promise.all([first, last]);
+  assert.deepEqual(saved, [firstPath, lastPath]);
+  assert.equal(capture.getStatus().cachePath, lastPath);
+  assert.equal(fs.statSync(lastPath).isDirectory(), true);
+  await assert.rejects(capture.setCachePath('relative-path'), /绝对路径/);
+  assert.equal(capture.getStatus().cachePath, lastPath);
+  assert.equal(saved.at(-1), lastPath);
+  await capture.setCachePath(firstPath);
+  assert.equal(capture.getStatus().cachePath, firstPath);
+  assert.equal(saved.at(-1), firstPath);
+});
+
 test('WeSing activation creates a missing initial cache directory before detection starts', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-initial-cache-'));
   const cachePath = path.join(root, 'Tencent', 'WeSing', 'WeSingCache');

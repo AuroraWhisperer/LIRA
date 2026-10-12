@@ -7,6 +7,8 @@ const path = require('node:path');
 const test = require('node:test');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { applyRetentionPolicies } = require('../../src/storage/retention');
+const { DatabaseSync } = require('node:sqlite');
+const { SONG_SCHEMA } = require('../../src/storage/schema');
 
 const NOW = Date.parse('2026-09-30T00:00:00.000Z');
 const DAY = 24 * 60 * 60 * 1000;
@@ -109,4 +111,41 @@ test('retention clears expired raw gift text, requests and SuperChats only after
     superChatsDeleted: 0,
   });
   assert.deepEqual(snapshot(databases).requests, ['boundary-request', 'recent-request']);
+});
+
+test('obsolete import batches and cooldowns beyond every supported setting are reclaimed without changing live data', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: NOW });
+  const songDb = new DatabaseSync(':memory:');
+  t.after(() => songDb.close());
+  songDb.exec(SONG_SCHEMA);
+  songDb.exec(`CREATE TABLE song_cooldowns (
+    owner_scope TEXT NOT NULL, song_key TEXT NOT NULL, accepted_at_ms INTEGER NOT NULL,
+    PRIMARY KEY (owner_scope, song_key)
+  )`);
+  const cutoff = NOW - 999 * DAY;
+  const insertCooldown = songDb.prepare('INSERT INTO song_cooldowns VALUES (?, ?, ?)');
+  for (const scope of ['account-a', 'account-b']) {
+    for (const [key, at] of [['expired', cutoff - 1], ['boundary', cutoff], ['current', NOW], ['future', NOW + DAY]]) {
+      insertCooldown.run(scope, key, at);
+    }
+  }
+  songDb.exec(`INSERT INTO import_batches
+    (total_count, inserted_count, duplicate_count, failed_count, created_category_count, created_at)
+    VALUES (2, 1, 1, 0, 0, '2026-09-30T00:00:00Z')`);
+  songDb.prepare('INSERT INTO songs (name, created_at, updated_at) VALUES (?, ?, ?)').run('保留歌曲', daysAgo(1), daysAgo(1));
+  const beforeSongs = songDb.prepare('SELECT * FROM songs').all();
+  const beforeCooldowns = songDb.prepare('SELECT * FROM song_cooldowns ORDER BY owner_scope, song_key').all();
+  const preview = applyRetentionPolicies({ songDb }, { dryRun: true });
+  assert.equal(preview.importBatchesDeleted, 1);
+  assert.equal(preview.songCooldownsDeleted, 2);
+  assert.deepEqual(songDb.prepare('SELECT * FROM song_cooldowns ORDER BY owner_scope, song_key').all(), beforeCooldowns);
+  assert.equal(songDb.prepare('SELECT COUNT(*) AS n FROM import_batches').get().n, 1);
+  const actual = applyRetentionPolicies({ songDb });
+  assert.equal(actual.importBatchesDeleted, preview.importBatchesDeleted);
+  assert.equal(actual.songCooldownsDeleted, preview.songCooldownsDeleted);
+  assert.equal(songDb.prepare('SELECT COUNT(*) AS n FROM import_batches').get().n, 0);
+  assert.deepEqual(songDb.prepare('SELECT * FROM song_cooldowns ORDER BY owner_scope, song_key').all(),
+    beforeCooldowns.filter((row) => row.song_key !== 'expired'));
+  assert.deepEqual(songDb.prepare('SELECT * FROM songs').all(), beforeSongs);
+  assert.equal(applyRetentionPolicies({ songDb }).songCooldownsDeleted, 0);
 });

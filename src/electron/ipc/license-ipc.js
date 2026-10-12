@@ -2,6 +2,7 @@
 
 const { registerLicenseOverlayIpc } = require('./license-overlay-ipc');
 const { registerLicenseSongsIpc } = require('./license-songs-ipc');
+const { registerLicenseFixedReplyIpc } = require('./license-fixed-reply-ipc');
 const { safeState, safeErrorCode, safeErrorIndex, safeString, sanitizePublicUrl } = require('./license-public-values');
 const { sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
 
@@ -96,6 +97,7 @@ function registerLicenseIpc(options = {}) {
     licenseManager.getProfile().then((snapshot) => ({ ok: true, ...sanitizeStateSnapshot(snapshot) })),
   );
   registerLicenseOverlayIpc({ safeHandle, licenseManager, onOverlaySettings: options.onOverlaySettings });
+  registerLicenseFixedReplyIpc({ safeHandle, licenseManager, onFixedReplySettings: options.onFixedReplySettings });
   registerLicenseSongsIpc({ safeHandle, licenseManager, getCloudSyncController: options.getCloudSyncController });
 
   const disposeLicenseState = licenseManager.onStateChanged((snapshot) => {

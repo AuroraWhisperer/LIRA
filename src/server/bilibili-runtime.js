@@ -125,18 +125,33 @@ function createBilibiliRuntime(options) {
   }
 
   async function requestRandomSong() {
+    const requestAuthProvider = authProvider;
+    const identityRevision = requestAuthProvider?.getIdentityRevision?.();
+    const roomId = getConfiguredRoomId();
+    const requestRoomRevision = settingsStore.getRoomRevision?.();
+    const readIdentity = () => requestAuthProvider?.getRequestIdentity?.() ?? requestAuthProvider?.getAuthState();
+    const isCurrent = () => !stopped && requestAuthProvider === authProvider &&
+      identityRevision === requestAuthProvider?.getIdentityRevision?.() &&
+      requestRoomRevision === settingsStore.getRoomRevision?.() && roomId === getConfiguredRoomId();
+    const cancelled = { accepted: false, reason: '直播账号或房间已变更，已取消本次随机点歌，请重试。' };
     const fanScope = options.getFanScope?.() || null;
-    const account = await authProvider?.getAuthState();
+    const account = await readIdentity();
+    if (!isCurrent()) return cancelled;
     const uid = Number(account?.uid) || 0;
     if (!account?.loggedIn || !uid) {
       return { accepted: false, reason: '请先登录直播账号后再随机点歌。' };
     }
     await refreshAuthCache();
+    if (!isCurrent()) return cancelled;
     const profile = await userInfoService.ensure(uid, { fields: ['name'] });
+    if (!isCurrent()) return cancelled;
+    const currentAccount = await readIdentity();
+    if (!isCurrent() || !currentAccount?.loggedIn || Number(currentAccount.uid) !== uid) return cancelled;
     const identity = userInfoService.peek(uid, {
       fields: ['guard', 'fansMedal'],
-      roomId: getConfiguredRoomId(),
+      roomId,
     });
+    // The message handler inserts synchronously; a later switch must not undo an accepted song.
     return domainServices.messages.handleDanmaku({
       message: '随机点歌',
       userName: profile?.name || `UID ${uid}`,

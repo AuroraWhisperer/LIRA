@@ -4,24 +4,23 @@ const { randomUUID } = require('node:crypto');
 
 const { cleanText, normalizePositiveInteger } = require('../shared/utils');
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
+const { rememberRandomRequest } = require('./queue-history-store');
 
 function createQueueStore(
   songDb,
-  { getFanScope = () => null, archiveAccepted = () => {}, archiveQueueState = () => {} } = {},
+  { getFanScope = () => null, archiveAccepted = () => {} } = {},
 ) {
   function updateStatus(where, values, status, updatedAt) {
     songDb.exec('SAVEPOINT queue_status');
     try {
-      const requests = songDb
-        .prepare(`SELECT requests.* FROM requests JOIN queue ON queue.id = requests.queue_id WHERE ${where}`)
-        .all(...values);
-      const result = songDb
-        .prepare(`UPDATE queue SET status = ?, updated_at = ? WHERE ${where}`)
-        .run(status, updatedAt, ...values);
-      for (const request of requests) {
-        if (request.owner_scope === getFanScope() && request.stable_id) {
-          archiveQueueState(request.owner_scope, request.stable_id, status, updatedAt);
-        }
+      let result;
+      if (['done', 'deleted', 'skipped'].includes(status)) {
+        songDb.prepare(`DELETE FROM requests WHERE queue_id IN (SELECT queue.id FROM queue WHERE ${where})`)
+          .run(...values);
+        result = songDb.prepare(`DELETE FROM queue WHERE ${where}`).run(...values);
+      } else {
+        result = songDb.prepare(`UPDATE queue SET status = ?, updated_at = ? WHERE ${where}`)
+          .run(status, updatedAt, ...values);
       }
       songDb.exec('RELEASE queue_status');
       return result.changes;
@@ -32,6 +31,15 @@ function createQueueStore(
     }
   }
   return {
+    getSongCooldown(songKey) {
+      return songDb.prepare('SELECT accepted_at_ms FROM song_cooldowns WHERE owner_scope = ? AND song_key = ?')
+        .get(getFanScope() || '', songKey)?.accepted_at_ms;
+    },
+    listSongCooldowns() {
+      return songDb.prepare('SELECT song_key, accepted_at_ms FROM song_cooldowns WHERE owner_scope = ?')
+        .all(getFanScope() || '');
+    },
+
     countActive() {
       return songDb
         .prepare(
@@ -57,12 +65,21 @@ function createQueueStore(
       );
     },
 
-    insertRequest(input) {
+    insertRequest(input, { checkCooldown } = {}) {
       const currentScope = getFanScope();
       const ownerScope = input.fanScope === undefined || input.fanScope === currentScope ? currentScope : null;
       const stableId = randomUUID();
-      songDb.exec('BEGIN');
+      songDb.exec('BEGIN IMMEDIATE');
       try {
+        const cooldownScope = currentScope || '';
+        if (input.cooldownKey) {
+          const previous = songDb.prepare('SELECT accepted_at_ms FROM song_cooldowns WHERE owner_scope = ? AND song_key = ?')
+            .get(cooldownScope, input.cooldownKey);
+          checkCooldown?.(previous?.accepted_at_ms);
+          songDb.prepare(`INSERT INTO song_cooldowns (owner_scope, song_key, accepted_at_ms) VALUES (?, ?, ?)
+            ON CONFLICT (owner_scope, song_key) DO UPDATE SET accepted_at_ms = excluded.accepted_at_ms`)
+            .run(cooldownScope, input.cooldownKey, input.acceptedAt);
+        }
         const result = songDb
           .prepare(
             `
@@ -124,7 +141,9 @@ function createQueueStore(
             input.identityType || null,
           );
 
-        archiveAccepted(ownerScope, { ...input, stableId, queueId, requestId: Number(request.lastInsertRowid) });
+        const requestId = Number(request.lastInsertRowid);
+        archiveAccepted(ownerScope, { ...input, stableId, queueId, requestId });
+        rememberRandomRequest(songDb, requestId, input);
 
         const item = normalizeQueueRow(songDb.prepare('SELECT * FROM queue WHERE id = ?').get(queueId));
         songDb.exec('COMMIT');

@@ -65,35 +65,38 @@ function guardIcon(level) {
 function button(action, label, extra = '') {
   return `<button type="button" data-fan-action="${action}" ${extra}>${label}</button>`;
 }
-export function renderPeople(profiles, selected, filtered, archived = false) {
+export function renderPeople(profiles, selected, filtered, archived = false, expiry = { badges: [] }) {
   if (!profiles.length && archived)
     return `<div class="fan-empty"><h3>${filtered ? '没有找到符合条件的归档档案。' : '暂无已归档档案。'}</h3>
     ${filtered ? button('clear-filter', '清除筛选') : '<p class="fan-muted">归档后的档案会保留在这里，可随时恢复到主列表。</p>'}</div>`;
   if (!profiles.length)
     return `<div class="fan-empty"><h3>${filtered ? '没有符合条件的档案' : '暂无粉丝档案'}</h3>
     ${button(filtered ? 'clear-filter' : 'new', filtered ? '清除筛选' : '新建档案')}</div>`;
+  const badges = new Map(expiry.badges.map((badge) => [badge.profileId, badge]));
   return profiles
     .map((p) => {
       const name = p.alias || p.platformName || '未命名档案';
       const platformName = p.alias && p.platformName && p.alias !== p.platformName ? p.platformName : '';
+      const badge = !p.archived && badges.get(p.id)?.level === p.currentGuardLevel ? badges.get(p.id) : null;
+      const expiryTitle = badge ? `${levels[badge.level]}到期：${badge.days === 0 ? '今日到期' : `剩余${badge.days}天`}。来源：B站，更新于${new Date(expiry.observedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}（北京时间）。` : '';
       return `<button type="button" class="fan-person ${selected === p.id ? 'is-selected' : ''}" data-fan-id="${attr(p.id)}" aria-pressed="${selected === p.id}">
-    <span class="fan-person-line"><span class="fan-person-name"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(name + (platformName ? `（${platformName}）` : ''))}">${html(name)}${platformName ? `<wbr><span class="fan-person-platform-name">（${html(platformName)}）</span>` : ''}</strong>${p.favorite ? '<span class="fan-favorite-star" role="img" aria-label="特别关注" title="特别关注">★</span>' : ''}</span>${guardIcon(p.currentGuardLevel)}</span>
+    <span class="fan-person-copy"><span class="fan-person-line"><span class="fan-person-name"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(name + (platformName ? `（${platformName}）` : ''))}">${html(name)}${platformName ? `<wbr><span class="fan-person-platform-name">（${html(platformName)}）</span>` : ''}</strong>${p.favorite ? '<span class="fan-favorite-star" role="img" aria-label="特别关注" title="特别关注">★</span>' : ''}</span></span>
     ${p.summary || p.tags?.length ? `<span class="fan-person-summary">${html(p.summary || p.tags.slice(0, 2).join('、'))}</span>` : ''}
     ${p.nextReminder ? `<span class="fan-person-date">${html(p.nextReminder.title)}${p.nextReminder.predicted ? '（预计）' : ''} · ${html(dateLabel(p.nextReminder.date))}</span>` : ''}
+    </span>${p.currentGuardLevel ? `<span class="fan-person-badges">${badge ? `<span class="fan-expiry-badge" title="${attr(expiryTitle)}" aria-label="${attr(expiryTitle)}">剩${html(String(badge.days))}天</span>` : ''}${guardIcon(p.currentGuardLevel)}</span>` : ''}
   </button>`;
     })
     .join('');
 }
 
-function songRecord(record) {
+function songSummary(record) {
   const data = record.data;
   const title = `《${data.songName}》${data.artist ? ` · ${data.artist}` : ''}`;
-  return `<article class="fan-record"><div class="fan-record-top"><div class="fan-record-copy"><p class="fan-record-body">${html(title)}</p><span class="fan-muted fan-record-meta">${html(dateLabel(record.occurredAt))}${data.excluded ? ' · 已移出点歌记录' : data.excludeFromStats ? ' · 不计入偏好统计' : ''}</span></div>${button('edit-record', '编辑', `data-record-id="${attr(record.id)}"`)}</div>
+  return `<article class="fan-record fan-song-group"><div class="fan-record-top"><div class="fan-record-copy"><span class="fan-song-title">${html(title)} <span class="fan-song-count" title="累计点歌次数">（${html(String(data.count))} 次）</span></span><span class="fan-muted fan-record-meta fan-song-dates">${data.recentDates.map((date) => `<span>${html(dateLabel(date))}</span>`).join('<span class="fan-song-date-separator" aria-hidden="true">·</span>')}</span></div></div>
     ${data.note ? `<p class="fan-muted">${html(data.note)}</p>` : ''}</article>`;
 }
 
 function recordRow(record) {
-  if (record.kind === 'song') return songRecord(record);
   const data = record.data;
   const title =
     record.kind === 'preference'
@@ -149,11 +152,11 @@ function music(profile) {
   const categories = Object.entries(profile.musicStats.categories).sort((a, b) => b[1] - a[1]);
   return `<section class="fan-section"><div class="fan-section-title"><h4>喜欢 / 不喜欢</h4>${button('new-preference', '记录喜欢 / 不喜欢')}</div>
     ${profile.preferences.length ? profile.preferences.map((r) => `<article class="fan-record"><div class="fan-record-top"><strong>${r.data.sentiment === 'like' ? '喜欢' : '不喜欢'} ${html(r.data.label)}</strong>${button('edit-record', '编辑', `data-record-id="${attr(r.id)}"`)}</div><p class="fan-muted">${html(r.data.reason || '手动确认')}</p></article>`).join('') : '<p class="fan-muted">记下聊天时提到的喜欢或不喜欢的歌曲、歌手和风格。</p>'}</section>
-    <section class="fan-section"><h4>最近点歌</h4><p class="fan-muted">近 90 天点歌 ${profile.musicStats.count} 次。</p>
+    <section class="fan-section"><h4>最近点歌</h4><p class="fan-muted">近 ${profile.musicStats.days} 天点歌 ${profile.musicStats.count} 次。</p>
     <dl class="fan-facts">${categories.map(([name, count]) => `<div><dt>${html(name)}</dt><dd>${count} 次</dd></div>`).join('')}</dl></section>
-    <section class="fan-section"><div class="fan-section-title"><h4>点过的歌</h4><div class="fan-actions">${button('new-song', '补记一次点歌')}${button('legacy', '导入以前的点歌')}</div></div>${profile.songs.map(songRecord).join('') || '<p class="fan-muted">还没有点歌记录，点歌后会自动记在这里。</p>'}</section>
+    <section class="fan-section"><div class="fan-section-title"><h4>点过的歌</h4><div class="fan-actions">${button('new-song', '补记一次点歌')}</div></div>${profile.songs.map(songSummary).join('') || '<p class="fan-muted">还没有点歌记录，点歌后会自动记在这里。</p>'}</section>
     ${recordHistory(
-      profile.records.filter((r) => ['song', 'preference'].includes(r.kind) && (r.data.excluded || r.data.archived)),
+      profile.records.filter((r) => r.kind === 'preference' && r.data.archived),
       '已收起的音乐记录',
     )}`;
 }

@@ -13,7 +13,7 @@
 | `onMessage(danmaku)`     | 每条实时弹幕、SC 命令文本、历史轮询命令                                               | `source:'danmaku'` 的实时消息先发布到有界弹幕流；随后交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
 | `UserInfoService` 更新   | 业务明确需要资料时调用 `ensure(uid, { fields })`；头像补全不由 `onMessage` 返回值触发 | 画猜在缺头像时显式调用窄 resolver，再由 `games.updateDanmakuAvatar` 回填；service 负责去重、合并和更新通知                                                                                                                                                                                                                                  |
 | `onSuperChat(superChat)` | 新增 SC 到达 | `superChats.add` 入库，成功则广播 `bilibili:superchat`；入库见 [gift.md](gift.md) §7 |
-| `onSuperChatDelete(platformIds)` | SC 平台下线 | `superChats.retract` 按平台 ID 标为 deleted；实际更新了记录才广播 `bilibili:superchat`，不触发新增或点歌命令 |
+| `onSuperChatDelete(platformIds)` | SC 平台下线 | `superChats.retract` 按平台 ID 删除内容并保留最小防重 ID；实际删除显示项才广播 `bilibili:superchat`，不触发新增或点歌命令 |
 | `onStatus(liveStatus)`   | 连接状态变化                                                                          | `updateLiveStatus` 写入快照 `liveStatus` 字段([server.js:701](../../../../src/server.js#L701)、[server.js:714-720](../../../../src/server.js#L714-L720))                                                                                                                                                                                    |
 
 客户端构造时还注入 `diagnostics`（§8）与 `isCommandText`；礼物检测回调、动态命令前缀和原始礼物调试缓冲已删除。
@@ -61,7 +61,7 @@
 | 组件                                    | 间隔/容量                                                                                     | 行为                                                                                                                                                | 出处                                                                                                                                                                                                                                                                                                  |
 | --------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | HistoryPoller                           | **2.5s**(首轮立即)                                                                            | 拉 `gethistory`(`data.admin` + `data.room` 按 timeline 排序),只处理命令文本且通过可捕获窗口的消息;产出 `source:'history'`                           | [history-poller.js:26-31](../../../../src/bilibili/danmaku/history-poller.js#L26-L31)、[history-poller.js:42-74](../../../../src/bilibili/danmaku/history-poller.js#L42-L74)                                                                                                                          |
-| OnlineRankPoller                        | **60s**,pageSize **50**,最多 **3 页**                                                         | 逐页拉高能榜写入 IdentityCache;停止条件:items 空 / `items.length < pageSize` / `page*pageSize >= onlineNum`;每轮结束 `identityCache.cleanup()`      | [online-rank-poller.js:9-11](../../../../src/bilibili/danmaku/online-rank-poller.js#L9-L11)、[online-rank-poller.js:42-63](../../../../src/bilibili/danmaku/online-rank-poller.js#L42-L63)                                                                                                            |
+| OnlineRankPoller | **60s**,pageSize **50**,最多 **3 页** | 逐页通过 `UserInfoService.ingestHint` 提交身份线索；停止条件:items 空 / `items.length < pageSize` / `page*pageSize >= onlineNum`；完成后用 `replaceOnlineSnapshot` 更新在线 UID 集合，合并及缓存维护由 UserInfoService 拥有 | [online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js) |
 | FansMedalPoller | 完整刷新目标 **5min**，pageSize **30** | 同房间/generation/runToken 的 start 幂等；每批最多 30 页或 10 秒，暂停 1 秒续下一页。失败重试 5/10/20/30min，增加最多 10% 抖动但总等待不超过 30min；完成全量后恢复五分钟节奏。最多 10000 页为异常上限，触及上限报错。写入 UserInfoService，不更新过期证据有效期；切房/停止丢弃旧结果。完整轮次记录页数、条数、耗时。 | [fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js) |
 | LiveStatusMonitor                       | **10min**,`timer.unref()`                                                                     | **仅未开播时**启动;检测到 `live_status` 0→1 触发 `reconnectAfterLiveStarted`;`checkInFlight/reconnectInFlight` 防重入                               | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)、[live-status-monitor.js:27-37](../../../../src/bilibili/danmaku/live-status-monitor.js#L27-L37)、[live-status-monitor.js:49-93](../../../../src/bilibili/danmaku/live-status-monitor.js#L49-L93)              |
 | UserInfoService + IdentityCache adapter | service 内存 TTL **10min**; cache 只保存 service 已合并的最终状态和 audience index            | `DANMU_MSG`/SC/历史消息/礼物/榜单统一提交 `IdentityHint`; service 按字段质量/验证/authority/freshness 合并、投影和订阅；cache 不再决定覆盖策略      | [user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)                                                                                                                                                  |
@@ -135,9 +135,10 @@ text.startsWith('点歌') || text.startsWith('随机')
 2. `settings.paused === 'true'` → 拒绝
    普通 request 随后对 `songRequestBlacklist` 每行应用 `cleanText`，与解析后的 `songName` 区分大小写完整比较；命中返回 `点歌内容命中黑名单。`，不进入冷却、歌库自动补全或入队。`78` 拦截 `点歌78` / `点歌 78`，不拦截 `点歌78号公路`。空名单不拦截；随机指令、手动入队及已有队列不受影响。
 3. 用户冷却:`userCooldownSeconds`(默认见 [storage.md](../storage.md) §7),内存 `cooldownByUser` Map + `cooldownStore.touch` 持久化(DB 失败不阻断本次点歌,[bilibili-message-handler.js:90-99](../../../../src/bilibili/bilibili-message-handler.js#L90-L99))
-4. random:`context.pickRandomSong(scopeText)`(歌库随机,scope 匹配标签/分类,见 [services.md](../music/services.md));无歌时若 `enableRandomTagReply==='true'` 生成 autoReply([bilibili-message-handler.js:42-57](../../../../src/bilibili/bilibili-message-handler.js#L42-L57)、[bilibili-message-handler.js:156-173](../../../../src/bilibili/bilibili-message-handler.js#L156-L173))
-5. request:`resolveSongRequest(songName)` 唯一名匹配后 `addQueueItem`([bilibili-message-handler.js:72-88](../../../../src/bilibili/bilibili-message-handler.js#L72-L88))
-6. 队列项携带 `requesterName/requesterUid/requesterGuardLevel/requesterMedalName/requesterMedalLevel/isPinned/messageTimestamp`(消费方 queue-service 见 [services.md](../music/services.md))
+4. `enableRandomTagReply` 保留原设置键，对应 UI“点歌回复”；单曲和随机的 `SONG_COOLDOWN` 转为未接受结果及自动 @ 回复（开关关闭则无回复），不推进观众冷却。内容由系统生成，无需词库；发送仍由客户端执行。
+5. random:`context.pickRandomSong(scopeText)`(歌库随机,scope 匹配标签/分类,见 [services.md](../music/services.md));无歌时若 `enableRandomTagReply==='true'` 生成 autoReply([bilibili-message-handler.js:42-57](../../../../src/bilibili/bilibili-message-handler.js#L42-L57)、[bilibili-message-handler.js:156-173](../../../../src/bilibili/bilibili-message-handler.js#L156-L173))
+6. request:`resolveSongRequest(songName)` 唯一名匹配后 `addQueueItem`([bilibili-message-handler.js:72-88](../../../../src/bilibili/bilibili-message-handler.js#L72-L88))
+7. 队列项携带 `requesterName/requesterUid/requesterGuardLevel/requesterMedalName/requesterMedalLevel/isPinned/messageTimestamp`(消费方 queue-service 见 [services.md](../music/services.md))
 
 ## 6. 弹幕机器人职责
 
@@ -161,6 +162,12 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 | 字段上限 | 关键词 `30` 字符、回复 `120` 字符(`truncateText`)                                         | [custom-reply-service.js:8-9](../../../../src/bilibili/custom-reply-service.js#L8-L9)     |
 
 `customReplyRules` 设置为规则数组;`isCommandText(message)` 暴露给入口识别([custom-reply-service.js:39-42](../../../../src/bilibili/custom-reply-service.js#L39-L42)),使自定义关键词也能参与去重窗口。
+
+### 6.4 云端菜单的桌面命令投影
+
+[danmaku-menu.js](../../../../src/server/danmaku-menu.js) 从当前桌面状态生成可选的 `menuCommands: string[]` 云设置展示字段。弹幕监听关闭时为空；点歌未暂停时列出点歌与随机点歌；有启用的关键词规则时显示关键词回复提示；AI 仅在实际配置就绪时显示触发词；投票、评分和小游戏只在当前会话接受弹幕时列出，并标明「进行中」。菜单不列出没有弹幕命令的切歌、加班或自动播报功能。云端将这组提示统一标为「需客户端在线」，它不授予执行权限，也不证明客户端仍在线。
+
+[server.js](../../../../src/server.js) 组合根在完整设置快照和待传设置出口合入当前投影，不把菜单、AI 密钥、关键词回复正文或游戏内部状态持久化为同步设置。关键词设置和 AI 可用性/触发词变更沿用现有 settings 同步通知；游戏/互动广播在同轮变更合并后比较菜单，仅有实际变化时请求上传，无新增心跳。服务端返回的菜单字段不回写本地配置。
 
 ## 10. 用户信息门面与房间运行边界
 
@@ -218,7 +225,7 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 | `command-ingress` / `command-received` | 上游点歌进入及通过前置过滤；各自的 `nameMasked` 可比较原始昵称与身份缓存合并后的昵称 |
 | `command-filtered` / `command-result` / `queue-broadcast` | 时间或去重过滤、处理结果、入队后的广播调用完成；queue-broadcast 不是 浏览器源渲染确认 |
 
-拒绝原因代码：`requests-paused` 暂停接收、`user-cooldown` 用户冷却、
+拒绝原因代码：`requests-paused` 暂停接收、`user-cooldown` 用户冷却、`song-cooldown` 单首歌曲／随机候选全部冷却、
 `song-request-blacklisted` 点歌内容完整命中本机黑名单、
 `no-random-candidate` 无符合条件的随机歌曲、`empty-song-name` 缺少歌名、
 `queue-full` 队列满、`song-already-queued` 已入队、`song-not-in-library` 不在歌库、

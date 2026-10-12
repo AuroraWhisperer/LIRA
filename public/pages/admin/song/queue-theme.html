@@ -35,6 +35,18 @@
             同一观众点歌间隔（秒）
             <input id="userCooldownSeconds" type="number" min="0" max="3600" />
           </label>
+          <div class="song-cooldown-setting">
+            <span id="songCooldownLabel">单首歌曲冷却 <lira-help label="单首歌曲冷却说明">歌曲成功加入点歌板后，所有观众再次点同一首歌都会被拦截。唱完、删除或清空队列不解除冷却，重启后仍有效。自然日按北京时间计算，1 自然日表示次日 00:00 恢复；时长可填 1–999。</lira-help></span>
+            <div class="song-cooldown-controls">
+              <select id="songCooldownMode" data-dropdown-variant="settings" aria-label="单首歌曲冷却模式" aria-describedby="songCooldownHint">
+                <option value="off">不限制</option>
+                <option value="hours">按小时</option>
+                <option value="days">按自然日</option>
+              </select>
+              <span id="songCooldownAmount" hidden><input id="songCooldownValue" type="number" min="1" max="999" step="1" value="1" required disabled aria-label="冷却小时数" /></span>
+            </div>
+            <p id="songCooldownHint" class="hint">不限制同一首歌再次点入的时间。</p>
+          </div>
         </div>
       </section>
       <section class="song-request-section song-request-blacklist" aria-labelledby="songRequestBlacklistTitle">

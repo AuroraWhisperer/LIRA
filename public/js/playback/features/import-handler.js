@@ -14,6 +14,7 @@ export function createImportHandler(deps) {
   const { playbackState, importService, showError, toast } = deps;
   const stateActions = deps.stateActions || createPlaybackStateActions(playbackState);
   let importing = false;
+  let importGeneration = 0;
 
   /**
    * 从点歌队列导入歌曲
@@ -25,6 +26,8 @@ export function createImportHandler(deps) {
   async function importSongQueueToPlayback(callbacks) {
     if (importing) return;
     importing = true;
+    const generation = importGeneration;
+    const isCurrent = () => generation === importGeneration;
     const button = document.getElementById('playbackImportSongQueue');
     if (button) button.disabled = true;
 
@@ -35,8 +38,10 @@ export function createImportHandler(deps) {
         maxItems: 30,
         platforms: platforms,
         importedRequestKeys: playbackState.importedSongRequestKeys,
+        isCurrent,
       });
 
+      if (!isCurrent()) return;
       if (result.tracks.length > 0) {
         callbacks.insertPlaybackTracksNext(result.tracks);
       }
@@ -46,7 +51,7 @@ export function createImportHandler(deps) {
 
       toast(`已导入 ${result.imported} 首，待确认 ${result.pending} 首，跳过 ${result.skipped} 首`);
     } catch (error) {
-      showError(error);
+      if (isCurrent()) showError(error);
     } finally {
       importing = false;
       if (button) button.disabled = false;
@@ -55,5 +60,6 @@ export function createImportHandler(deps) {
 
   return {
     importSongQueueToPlayback,
+    invalidateImports: () => { importGeneration += 1; },
   };
 }

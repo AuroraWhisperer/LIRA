@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
 const test = require('node:test');
 const { commentRecord, openLotteryDatabase } = require('../helpers/dynamic-lottery-fixture');
 const { createDynamicLotteryStore } = require('../../src/storage/dynamic-lottery-store');
@@ -120,6 +121,43 @@ test('a create request is idempotent per streamer, conflicts on changed input an
   await f.settle();
   assert.equal(f.service.getState().error, 'LOTTERY_OPERATION_PAUSED');
   assert.equal(f.store.listTasks('42').length, 1, 'the paused create stored no task');
+});
+
+test('cleared create requests cannot start another draw and conflicting input still fails within the owning streamer', async (t) => {
+  const f = createFixture(t);
+  const requestId = 'retired-request-0001';
+  const inputSignature = createHash('sha256').update(JSON.stringify({
+    url: URL, winnerCount: RULES.winnerCount, requiredActions: [], requireFollow: false,
+  })).digest('hex');
+  const previous = seedTask(f.store, 'retired', '42', { requestId, rules: { inputSignature } });
+  f.db.prepare("UPDATE lottery_tasks SET status = 'completed' WHERE id = ?").run(previous.id);
+  seedTask(f.store, 'next', '42');
+  assert.equal(f.store.getTask(previous.id), null);
+  const input = { ...RULES, url: URL, requestId };
+  assert.throws(() => f.service.createTask(input), { code: 'LOTTERY_TASK_CLEARED' });
+  assert.throws(() => f.service.createTask({ ...input, winnerCount: 2 }), { code: 'LOTTERY_DRAW_CONFLICT' });
+  assert.equal(f.requests.length, 0);
+  assert.deepEqual(f.resumed, []);
+  f.setIdentity({ streamerId: '43', authorizationEpoch: 1 });
+  assert.deepEqual(f.service.createTask(input).job, { kind: 'collect', taskId: null });
+  assert.ok(await f.nextRequest(), 'another streamer may use the same request ID');
+});
+
+test('failed new task inspection preserves the previous completed result', async (t) => {
+  const f = createFixture(t);
+  const previous = seedTask(f.store, 'completed', '42');
+  const evidence = f.store.getEvidence(previous.activeScanId)[0];
+  const round = f.drawStore.freeze({ task: previous, members: [evidence], order: [evidence.uid], digest: 'fixture', nowMs: 3_000 });
+  f.drawStore.setStatus(previous, 'drawing', '', 3_100);
+  f.drawStore.recordCheck({ task: previous, roundId: round.id, index: 0, uid: evidence.uid,
+    verification: { state: 'eligible', reason: 'fixture' }, nowMs: 3_200 });
+  const before = f.drawStore.getResult(previous.id);
+  f.service.createTask({ ...RULES, url: URL, requestId: 'failing-request-0001' });
+  (await f.nextRequest()).reject(new Error('fixture inspection failure'));
+  await f.settle();
+  assert.deepEqual(f.service.getState().result, before);
+  assert.equal(f.service.getState().task.id, previous.id);
+  assert.equal(f.store.findCreateReceipt('42', previous.requestId), null);
 });
 
 test('task actions validate the action and revision before any upstream request', async (t) => {

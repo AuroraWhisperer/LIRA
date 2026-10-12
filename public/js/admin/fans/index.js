@@ -40,7 +40,9 @@ function createFanUi() {
     selection: 0,
     selectionId: null,
     expanded: false,
+    expiry: { badges: [] },
   };
+  let disposed = false;
   let searchTimer;
   let pollTimer;
   let reminderSummaryHidden = false;
@@ -103,9 +105,16 @@ function createFanUi() {
       get('fanRosterResult').textContent = '';
       updateMarkup(detailNode, '<p class="fan-empty">登录状态已变化，请重新选择档案。</p>');
     }
+    if (state.contextId !== result.contextId || state.roomId !== (result.roomId || '')) state.expiry = { badges: [] };
     state.contextId = result.contextId;
     state.roomId = result.roomId || '';
     state.syncStatus = result.syncStatus;
+    renderSyncState();
+    if (CALENDAR_CHANGES.has(action)) window.dispatchEvent(new Event('fan-profiles-changed'));
+    return result.data;
+  }
+
+  function renderSyncState() {
     const syncLabel =
       {
         ready: '已同步',
@@ -113,11 +122,35 @@ function createFanUi() {
         pending: '资料仍在同步',
         offline: '离线 · 可维护本机档案',
         unsupported: '服务器尚未支持档案同步 · 可手动维护',
-      }[result.syncStatus] || '';
+      }[state.syncStatus] || '';
+    const expiryLabel = {
+      loginRequired: '到期提示：请在连接设置登录主播账号',
+      ownerMismatch: '到期提示：同步账号不是当前房主',
+      roomNotConfigured: '到期提示：请先设置直播间',
+      sourceChanged: '到期提示：账号或房间已变化，请重新加载',
+      unavailable: '到期提示暂不可用，可重新加载重试',
+      unsupported: '到期提示需要更新服务器',
+    }[state.expiry.state];
+    const label = [syncLabel, expiryLabel].filter(Boolean).join(' · ');
     const syncNode = get('fanSyncState');
-    if (syncNode.textContent !== syncLabel) syncNode.textContent = syncLabel;
-    if (CALENDAR_CHANGES.has(action)) window.dispatchEvent(new Event('fan-profiles-changed'));
-    return result.data;
+    if (syncNode.textContent !== label) syncNode.textContent = label;
+  }
+
+  async function refreshExpiry(sequence, payload) {
+    const contextId = state.contextId;
+    const roomId = state.roomId;
+    let expiry;
+    try {
+      const result = await window.fanProfiles.invoke({ action: 'guard-expiry', contextId, payload });
+      if (!result.ok || result.contextId !== contextId || result.roomId !== roomId) throw new Error();
+      expiry = result.data;
+    } catch {
+      expiry = { state: 'unavailable', badges: [] };
+    }
+    if (disposed || sequence !== state.sequence || contextId !== state.contextId || roomId !== state.roomId) return;
+    state.expiry = expiry;
+    renderSyncState();
+    renderList();
   }
 
   function showError(error, inEditor = false) {
@@ -180,6 +213,7 @@ function createFanUi() {
               state.profile?.id,
               Boolean(get('fanSearch').value || state.filters.length),
               state.archived,
+              state.expiry,
             ),
     );
     get('fanSplit').classList.toggle('fan-has-selection', Boolean(state.profile));
@@ -192,6 +226,13 @@ function createFanUi() {
 
   async function load(open = false, background = false) {
     const sequence = ++state.sequence;
+    const observed = Date.parse(state.expiry.observedAt);
+    const beijingDay = (time) => Math.floor((time + 8 * 3600000) / 86400000);
+    if (!background || !Number.isFinite(observed) || Date.now() - observed >= 300000 || beijingDay(Date.now()) !== beijingDay(observed)) {
+      state.expiry = { badges: [] };
+      renderSyncState();
+      renderList();
+    }
     const keepList = state.listStatus === 'ready' && state.contextId;
     get('fanPageError').hidden = true;
     if (!keepList) {
@@ -199,12 +240,9 @@ function createFanUi() {
       renderList();
     }
     let data;
+    const payload = { query: get('fanSearch').value, filters: state.filters, archived: state.archived };
     try {
-      data = await request(open || !state.contextId ? 'open' : 'list', {
-        query: get('fanSearch').value,
-        filters: state.filters,
-        archived: state.archived,
-      });
+      data = await request(open || !state.contextId ? 'open' : 'list', payload);
     } catch (error) {
       if (sequence !== state.sequence) return false;
       if (!background || !keepList) {
@@ -218,6 +256,7 @@ function createFanUi() {
     state.settings = data.settings;
     state.listStatus = 'ready';
     renderList();
+    void refreshExpiry(sequence, payload);
     await loadReminders();
     return sequence === state.sequence;
   }
@@ -324,9 +363,7 @@ function createFanUi() {
       return;
     }
     if (name === 'back-list') {
-      state.profile = null;
-      state.expanded = false;
-      renderList();
+      clearSelection();
       return;
     }
     if (name === 'archived' || name === 'back-profiles') {
@@ -476,11 +513,14 @@ function createFanUi() {
       await load();
       return;
     } else if (name === 'favorite') {
-      state.profile = await request('save', {
-        id: state.profile.id,
-        revision: state.profile.revision,
-        favorite: !state.profile.favorite,
+      const profile = state.profile;
+      const selection = state.selection;
+      const saved = await request('save', {
+        id: profile.id,
+        revision: profile.revision,
+        favorite: !profile.favorite,
       });
+      if (selection === state.selection && state.profile?.id === profile.id) state.profile = saved;
     } else if (name === 'delete') {
       profileActions.deleteProfile(state.profile);
       return;
@@ -496,7 +536,7 @@ function createFanUi() {
     if (!element) return;
     void (async () => {
       if (element.dataset.fanAction) await action(element.dataset.fanAction, element);
-      else if (element.dataset.fanId) await select(element.dataset.fanId);
+      else if (element.dataset.fanId) await select(element.dataset.fanId, false);
       else if (element.dataset.fanTab) {
         state.tab = element.dataset.fanTab;
         renderSelected();
@@ -565,6 +605,8 @@ function createFanUi() {
   window.addEventListener(
     'pagehide',
     () => {
+      disposed = true;
+      state.sequence++;
       formEditor.dispose();
       observer.disconnect();
       namesObserver.disconnect();

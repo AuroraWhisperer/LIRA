@@ -9,11 +9,11 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const root = path.resolve(__dirname, '../..');
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
-async function setup(loaders, onError = assert.fail, ownerPageId) {
+async function setup(loaders, onError = assert.fail, ownerPageId, onInitError) {
   const { createToolboxLifecycle } = await loadModuleExports(path.join(root, 'public/js/admin/toolbox-lifecycle.js'), {
     queueMicrotask,
   });
-  return createToolboxLifecycle({ loaders, onError, ownerPageId });
+  return createToolboxLifecycle({ loaders, onError, ownerPageId, onInitError });
 }
 
 test('live component editors initialize only in their owning main page', async () => {
@@ -134,6 +134,66 @@ test('shutdown prevents pending initialization and failed imports can retry on n
   lifecycle.setPage('otherAssistantPage');
   await settle();
   assert.equal(inits, 0);
+});
+
+test('partial initialization requires page recovery without rerunning the failed initializer or its aliases', async () => {
+  const failure = new Error('editor initialization failed');
+  const recoveries = [];
+  const button = new EventTarget();
+  let bindings = 0;
+  let clicks = 0;
+  let healthyInits = 0;
+  const initialize = () => {
+    bindings++;
+    button.addEventListener('click', () => clicks++);
+    throw failure;
+  };
+  const lifecycle = await setup({
+    poll: async () => initialize,
+    rating: async () => initialize,
+    clock: async () => () => healthyInits++,
+  }, assert.fail, undefined, (error) => recoveries.push(error));
+  lifecycle.selectFeature('poll');
+  lifecycle.setPage('otherAssistantPage');
+  await settle();
+  assert.deepEqual(recoveries, [failure]);
+  lifecycle.setPage('songAssistantPage');
+  lifecycle.setPage('otherAssistantPage');
+  await settle();
+  lifecycle.selectFeature('rating');
+  await settle();
+  assert.equal(bindings, 1, 'a retry must not add duplicate bindings to partial state');
+  button.dispatchEvent(new Event('click'));
+  assert.equal(clicks, 1);
+  assert.deepEqual(recoveries, [failure, failure, failure]);
+  lifecycle.selectFeature('clock');
+  await settle();
+  assert.equal(healthyInits, 1);
+  lifecycle.dispose();
+  lifecycle.selectFeature('poll');
+  await settle();
+  assert.equal(recoveries.length, 3);
+});
+
+test('an import failure can retry in place and initialize successfully once', async () => {
+  const errors = [];
+  let loads = 0;
+  let inits = 0;
+  const lifecycle = await setup({ clock: async () => {
+    if (++loads === 1) throw new Error('download failed');
+    return () => inits++;
+  } }, (error) => errors.push(error.message), undefined, assert.fail);
+  lifecycle.selectFeature('clock');
+  lifecycle.setPage('otherAssistantPage');
+  await settle();
+  assert.deepEqual(errors, ['download failed']);
+  lifecycle.selectFeature('clock');
+  await settle();
+  lifecycle.selectFeature('clock');
+  await settle();
+  assert.equal(loads, 2);
+  assert.equal(inits, 1);
+  lifecycle.dispose();
 });
 
 test('optional editors have no eager entry imports or initialization calls', () => {

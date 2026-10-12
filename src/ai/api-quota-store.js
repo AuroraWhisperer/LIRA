@@ -1,5 +1,7 @@
 'use strict';
 
+const { createAiApiUsageStore } = require('../storage/ai-api-usage-store');
+
 const API_QUOTAS = Object.freeze({
   qweather: 40000,
   amap_search: 4000,
@@ -20,47 +22,43 @@ const CATEGORY_ERROR_CODES = Object.freeze({
 
 function createAiApiQuotaStore(db, options = {}) {
   const now = options.now || Date.now;
-  const consumeStatement = db.prepare(`
-    INSERT INTO ai_api_usage (category, month_key, request_count, updated_at)
-    VALUES (?, ?, 1, ?)
-    ON CONFLICT(category, month_key) DO UPDATE SET
-      request_count = request_count + 1,
-      updated_at = excluded.updated_at
-    WHERE request_count < ?
-    RETURNING request_count
-  `);
-  const readStatement = db.prepare(`
-    SELECT request_count FROM ai_api_usage WHERE category = ? AND month_key = ?
-  `);
-  const releaseStatement = db.prepare(`
-    UPDATE ai_api_usage
-    SET request_count = request_count - 1, updated_at = ?
-    WHERE category = ? AND month_key = ? AND request_count > 0
-  `);
+  const usageStore = createAiApiUsageStore(db);
+  let lastPrunedMonth = '';
+
+  function pruneOldMonths(monthKey) {
+    if (monthKey === lastPrunedMonth) return;
+    const [year, month] = monthKey.split('-').map(Number);
+    const previousMonth = new Date(Date.UTC(year, month - 2, 1)).toISOString().slice(0, 7);
+    // 保留上月供跨月预留退款；保留未来月份，避免系统时钟回退重置用量。
+    usageStore.pruneBefore(previousMonth);
+    lastPrunedMonth = monthKey;
+  }
+
+  pruneOldMonths(getBeijingMonthKey(now()));
 
   function consume(category) {
     const limit = requireLimit(category);
     const timestamp = now();
     const monthKey = getBeijingMonthKey(timestamp);
-    const row = consumeStatement.get(category, monthKey, timestamp, limit);
-    const requestCount = row ? Number(row.request_count) : limit;
-    return { allowed: Boolean(row), category, monthKey, requestCount, limit };
+    pruneOldMonths(monthKey);
+    const count = usageStore.consume(category, monthKey, timestamp, limit);
+    return { allowed: count !== null, category, monthKey, requestCount: count ?? limit, limit };
   }
 
   // 仅用于撤销未提交的预留；已经发起的请求不走退款路径。
   function release(category, monthKey = getBeijingMonthKey(now())) {
     const timestamp = now();
-    releaseStatement.run(timestamp, category, monthKey);
+    usageStore.release(category, monthKey, timestamp);
   }
 
   function getUsage(category) {
     const limit = requireLimit(category);
     const monthKey = getBeijingMonthKey(now());
-    const row = readStatement.get(category, monthKey);
+    pruneOldMonths(monthKey);
     return {
       category,
       monthKey,
-      requestCount: Number(row?.request_count) || 0,
+      requestCount: usageStore.read(category, monthKey),
       limit,
     };
   }

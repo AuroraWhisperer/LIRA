@@ -4,6 +4,39 @@ const assert = require('node:assert/strict');
 const { performance } = require('node:perf_hooks');
 const test = require('node:test');
 const { fanFixture, SCOPE, NOW } = require('../helpers/fan-profile-fixture');
+const { recordData } = require('../../src/fans/validation');
+
+test('500 confirmed memberships project milestones for list, reminders and calendar', (t) => {
+  const f = fanFixture(t);
+  f.setNow('2026-09-28T04:00:00.000Z');
+  f.store.transaction(() => {
+    for (let index = 0; index < 500; index += 1) {
+      const profile = f.store.save(SCOPE, {
+        alias: `观众-${index}`, tags: [], archived: false, milestoneReminders: true, cycleId: `cycle-${index}`,
+      }, null, NOW);
+      const data = recordData('membership', {
+        type: 'interval', precision: 'date', level: 3, start: '2026-09-01', end: '2027-10-01',
+      });
+      data.cycleId = profile.cycleId;
+      f.store.records.insert(SCOPE, profile.id, { kind: 'membership', data, occurredAt: NOW });
+    }
+  });
+  const measurements = {};
+  for (const action of ['list', 'reminders', 'calendar']) {
+    const started = performance.now();
+    const result = f.run(action);
+    measurements[action] = Math.round(performance.now() - started);
+    if (action === 'list') {
+      assert.equal(result.profiles.length, 500);
+      assert.ok(result.profiles.every((p) => p.nextReminder.date === '2026-09-30'));
+    } else {
+      assert.equal(result.length, 1000);
+      assert.ok(result.every((item) => item.date === '2026-09-30'));
+      if (action === 'reminders') assert.ok(result.every((item) => item.threshold === 30));
+    }
+  }
+  t.diagnostic(JSON.stringify({ profiles: 500, confirmedIntervals: 500, elapsedMs: measurements }));
+});
 
 test('1000 fan facts preserve full history across replay, a failed page and restart', (t) => {
   const f = fanFixture(t);

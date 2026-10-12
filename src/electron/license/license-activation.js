@@ -19,7 +19,8 @@ async function requestDeviceActivation(options = {}) {
   if (countFingerprintValues(fingerprint) < 2)
     throw new RemoteLicenseError('FINGERPRINT_UNAVAILABLE', '无法读取足够的设备标识，暂时无法完成绑定。');
 
-  const build = options.buildInfoProvider();
+  const build = await options.buildInfoProvider();
+  if (!options.isActive()) return null;
   const deviceName = String(options.deviceName || os.hostname())
     .trim()
     .slice(0, 100);

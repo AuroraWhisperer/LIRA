@@ -3,6 +3,7 @@
 const LONG_FRAME_MS = 45;
 const DEGRADE_AFTER = 4;
 const RECOVER_AFTER = 30;
+const STATIC_RECOVER_AFTER = 150;
 
 export function createLyricPerformanceProfile(options = {}) {
   const onChange = options.onChange || (() => {});
@@ -18,6 +19,8 @@ export function createLyricPerformanceProfile(options = {}) {
   let visible = true;
 
   function publish(next) {
+    longFrames = 0;
+    healthyFrames = 0;
     Object.assign(profile, next);
     onChange({ ...profile });
   }
@@ -25,21 +28,23 @@ export function createLyricPerformanceProfile(options = {}) {
   return {
     profile,
     recordFrame(duration) {
-      if (!visible) return { ...profile };
-      if (Number(duration) > LONG_FRAME_MS) {
+      const frameMs = Number(duration);
+      // Immediate state redraws have no measured frame interval.
+      if (!visible || !(frameMs > 0)) return { ...profile };
+      if (frameMs > LONG_FRAME_MS) {
         longFrames += 1;
         healthyFrames = 0;
         if (longFrames >= DEGRADE_AFTER && profile.wordAnimation === 'waapi') {
-          longFrames = 0;
           publish({ wordAnimation: 'manual', effects: 'low' });
         } else if (longFrames >= DEGRADE_AFTER && profile.wordAnimation === 'manual') {
-          longFrames = 0;
           publish({ wordAnimation: 'static', effects: 'low' });
         }
       } else {
         longFrames = 0;
         healthyFrames += 1;
-        if (healthyFrames >= RECOVER_AFTER && profile.wordAnimation === 'manual' && !reducedMotion) {
+        if (healthyFrames >= STATIC_RECOVER_AFTER && profile.wordAnimation === 'static' && !reducedMotion) {
+          publish({ wordAnimation: 'manual', effects: 'low' });
+        } else if (healthyFrames >= RECOVER_AFTER && profile.wordAnimation === 'manual' && !reducedMotion) {
           publish({ wordAnimation: 'waapi', effects: 'full' });
         }
       }

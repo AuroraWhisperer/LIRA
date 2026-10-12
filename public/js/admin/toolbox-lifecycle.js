@@ -1,9 +1,10 @@
 'use strict';
 
 // Load optional editors only when their selected panel is visible.
-export function createToolboxLifecycle({ loaders, onError, ownerPageId = 'otherAssistantPage' }) {
+export function createToolboxLifecycle({ loaders, onError, onInitError = onError, ownerPageId = 'otherAssistantPage' }) {
   const loaded = new Map();
   const initialized = new Set();
+  const failedInitializers = new Map();
   let pageId = '';
   let featureId = '';
   let scheduled = false;
@@ -12,15 +13,27 @@ export function createToolboxLifecycle({ loaders, onError, ownerPageId = 'otherA
   async function activate() {
     const selected = featureId;
     if (disposed || pageId !== ownerPageId || !loaders[selected] || initialized.has(selected)) return;
+    let init;
     try {
       if (!loaded.has(selected)) loaded.set(selected, loaders[selected]());
-      const init = await loaded.get(selected);
-      if (disposed || pageId !== ownerPageId || featureId !== selected || initialized.has(selected)) return;
-      initialized.add(selected);
-      init();
+      init = await loaded.get(selected);
     } catch (error) {
       loaded.delete(selected);
       if (!disposed) onError(error);
+      return;
+    }
+    if (disposed || pageId !== ownerPageId || featureId !== selected || initialized.has(selected)) return;
+    // Aliases can share one initializer. Its partial bindings require a fresh page.
+    if (failedInitializers.has(init)) {
+      onInitError(failedInitializers.get(init));
+      return;
+    }
+    try {
+      init();
+      initialized.add(selected);
+    } catch (error) {
+      failedInitializers.set(init, error);
+      onInitError(error);
     }
   }
 
@@ -46,6 +59,7 @@ export function createToolboxLifecycle({ loaders, onError, ownerPageId = 'otherA
     dispose() {
       disposed = true;
       loaded.clear();
+      failedInitializers.clear();
     },
   };
 }

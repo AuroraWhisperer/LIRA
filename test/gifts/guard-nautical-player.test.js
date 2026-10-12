@@ -5,9 +5,30 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 const { createNauticalGuardZip } = require('../../scripts/package-guard-nautical');
 const { buildGuardThanksEvents, buildNauticalGuardThanksEvent } = require('../../src/bilibili/gift/guard-thanks-config');
+
+test('nautical preparation retries a temporary failure and reuses successful artwork for display edits', async t => {
+  let fail = true; let reads = 0;
+  const stage = { style: {}, querySelector: () => null, remove() {} };
+  const { createNauticalGuardPlayer } = await loadModuleExports(path.resolve(__dirname, '../../public/js/overlays/guard-nautical-player.js'), {
+    document: { createElement: () => stage }, AbortController,
+    ResizeObserver: class { observe() {} disconnect() {} },
+    fetch: async () => { reads++; return { ok: !fail, blob: async () => ({}) }; },
+  });
+  const player = createNauticalGuardPlayer({ root: { clientWidth: 1920, clientHeight: 1080, append() {} } });
+  t.after(() => player.dispose());
+  await assert.rejects(player.ready(), /素材加载失败/);
+  assert.equal(reads, 3);
+  fail = false;
+  await player.ready();
+  assert.equal(reads, 6);
+  player.configure({ nameFontSize: 60 });
+  await player.ready();
+  assert.equal(reads, 6);
+});
 
 test('client imports nautical style, applies it and renders tier, live identity, deduplication and reset', { timeout: 90000 }, async t => {
   const root = path.resolve(__dirname, '../../tmp');
@@ -78,10 +99,31 @@ test('client imports nautical style, applies it and renders tier, live identity,
   const frame = await child.contentFrame();
   await frame.evaluate(() => {
     window.played = []; window.revoked = [];
+    window.artReads = 0; window.appearance = null;
+    const fetchResource = window.fetch.bind(window);
+    window.fetch = (url, options) => {
+      if (String(url).endsWith('.webp')) {
+        window.artReads++;
+        return Promise.resolve({ ok: false });
+      }
+      return fetchResource(url, options);
+    };
+    window.addEventListener('message', event => {
+      if (event.data?.type === 'component-preview:config') window.appearance = event.data.config;
+    });
     const create = URL.createObjectURL.bind(URL); const revoke = URL.revokeObjectURL.bind(URL);
     URL.createObjectURL = blob => { const url = create(blob); window.played.push({ url, size: blob.size }); return url; };
     URL.revokeObjectURL = url => { window.revoked.push(url); revoke(url); };
   });
+  const changed = await desktop.evaluate(async id => {
+    const response = await fetch('/api/component-styles/config', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, patch: { nameFontSize: 60 } }) });
+    return { status: response.status, ...(await response.json()) };
+  }, saved.document.items[0].appearance.config.resourceStyle.id);
+  assert.equal(changed.status, 200, changed.error);
+  fixture.notify({ types: ['guard-thanks'] });
+  await frame.waitForFunction(() => window.appearance?.nameFontSize === 60);
+  assert.equal(await frame.evaluate(() => window.artReads), 0, 'display-only updates reuse prepared artwork during a temporary resource outage');
   fixture.runtime.settings.guardThanksAuroraEnabled = fixture.runtime.settings.guardThanksClassicEnabled = 'true';
   const sizes = Object.fromEntries(['captain', 'admiral', 'governor'].map((tier) =>
     [tier, fs.statSync(`public/img/overlays/guard-nautical/${tier}.webp`).size]));
@@ -98,6 +140,7 @@ test('client imports nautical style, applies it and renders tier, live identity,
     fixture.notify({ types: ['guard-thanks'] });
     await stage.locator(`.ng-stage[data-tier="${tier}"]:not([hidden])`).waitFor();
     assert.equal(await stage.locator('.ng-name').textContent(), events[0].userName);
+    assert.equal(await stage.locator('.ng-name').evaluate(node => node.style.fontSize), '60px');
     assert.equal(await stage.locator('.ng-name img').count(), 0);
     assert.equal(await stage.locator('.ng-avatar').getAttribute('src'), events[0].avatarUrl);
     const plays = await frame.evaluate(() => window.played);

@@ -7,6 +7,7 @@ const { createFixture } = require('../helpers/gift-query-fixture');
 const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
 const { getGiftHistory } = require('../../src/bilibili/gift/query-service');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
+const schema = require('../../src/storage/schema');
 
 function observe(db) {
   const queries = [];
@@ -26,24 +27,40 @@ function observe(db) {
 }
 
 test('query indexes upgrade without changing rows and migrate idempotently', (t) => {
-  const f = createFixture();
+  const versions = { song_db: 6, gift_db: 11 };
+  const runMigrations = schema.runMigrations;
+  const limitedMigrations = t.mock.method(schema, 'runMigrations', (db, key, steps) =>
+    runMigrations(db, key, steps.slice(0, versions[key] ?? steps.length)),
+  );
+  let f;
+  try {
+    // Build the old schema forwards; rewinding a current version leaves future tables and columns behind.
+    f = createFixture();
+  } finally {
+    limitedMigrations.mock.restore();
+  }
   t.after(() => f.close());
   const source = f.resolveSource('a'.repeat(64));
   f.insertGift(source.id, 'old');
   const songDb = f.databases.songDb;
-  songDb.exec("INSERT INTO requests (song_name, created_at) VALUES ('old', '2026-09-01')");
+  const queueId = songDb.prepare(`INSERT INTO queue (song_name, status, created_at, updated_at)
+    VALUES ('old', 'waiting', '2026-09-01', '2026-09-01')`)
+    .run().lastInsertRowid;
+  songDb.prepare("INSERT INTO requests (queue_id, song_name, created_at) VALUES (?, 'old', '2026-09-01')")
+    .run(queueId);
   const gifts = f.giftDb.prepare('SELECT * FROM gift_events').all();
   const requests = songDb.prepare('SELECT * FROM requests').all();
-  songDb.exec('DROP INDEX IF EXISTS idx_requests_queue_id');
-  f.giftDb.exec(
-    'DROP INDEX IF EXISTS idx_gift_events_source_recent; DROP INDEX IF EXISTS idx_gift_events_source_time_asc',
-  );
-  songDb.prepare('UPDATE schema_version SET version = 6 WHERE key = ?').run('song_db');
-  f.giftDb.prepare('UPDATE schema_version SET version = 11 WHERE key = ?').run('gift_db');
+  assert.equal(songDb.prepare("SELECT 1 FROM sqlite_master WHERE name = 'idx_requests_queue_id'").get(), undefined);
+  assert.equal(f.giftDb.prepare("SELECT 1 FROM sqlite_master WHERE name = 'idx_gift_events_source_recent'").get(), undefined);
+  assert.equal(f.giftDb.prepare("SELECT 1 FROM sqlite_master WHERE name = 'gift_retention_state'").get(), undefined);
+  assert.equal(Object.hasOwn(gifts[0], 'remote_final_cursor'), false);
+  assert.equal(Object.hasOwn(requests[0], 'fan_recorded'), false);
   runAllMigrations(f.databases);
   runAllMigrations(f.databases);
-  assert.deepEqual(f.giftDb.prepare('SELECT * FROM gift_events').all(), gifts);
-  assert.deepEqual(songDb.prepare('SELECT * FROM requests').all(), requests);
+  assert.deepEqual(f.giftDb.prepare(`SELECT ${Object.keys(gifts[0]).join(', ')} FROM gift_events`).all(), gifts);
+  assert.deepEqual(songDb.prepare(`SELECT ${Object.keys(requests[0]).join(', ')} FROM requests`).all(), requests);
+  assert.equal(f.giftDb.prepare('SELECT remote_final_cursor FROM gift_events').get().remote_final_cursor, null);
+  assert.equal(songDb.prepare('SELECT fan_recorded FROM requests').get().fan_recorded, 0);
   assert.match(
     songDb
       .prepare('EXPLAIN QUERY PLAN SELECT * FROM requests WHERE queue_id = ?')
@@ -113,7 +130,8 @@ for (const sortDirection of ['asc', 'desc']) {
     };
     queries.length = 0;
     assert.equal(store.listHistory(options).length, 2);
-    assert.equal(queries.length, 1, 'full equal-time segment must not query the next range');
+    assert.equal(queries.filter(({ sql }) => /FROM gift_events g/u.test(sql)).length, 1,
+      'full equal-time segment must not query the next range (retention metadata is a separate lookup)');
     assert.deepEqual(
       store.listHistory({
         ...options,

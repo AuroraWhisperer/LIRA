@@ -4,11 +4,18 @@ function reloadAfterPartialClearAll(response, { alertRef, locationRef }) {
   if (response?.partial !== true) return false;
   const committed = response.data?.committed || [];
   const failed = response.data?.failed || [];
+  const phase = response.data?.phase || response.phase;
+  const phaseText = phase === 'runtime-reset' ? '数据库已提交，但运行状态重载失败。'
+    : phase === 'resume' ? '数据库已提交，但写入恢复失败。'
+      : '数据库清空未能完整完成，请手动检查数据状态。';
   alertRef(
     `数据库清空部分失败：\n\n` +
-      `✓ 已提交：${committed.join(', ')}\n` +
-      `✗ 失败：${failed.join(', ')}\n\n` +
-      `数据库处于不一致状态，页面将重新加载。`,
+      (committed.length ? `✓ 已提交：${committed.join(', ')}\n` : '') +
+      (failed.length ? `✗ 失败：${failed.join(', ')}\n` : '') +
+      (response.error ? `原因：${response.error}\n` : '') +
+      `\n${phaseText}\n` +
+      `礼物导入与加班写入仍暂停，刷新页面不会恢复。请从「桌面更新」打开日志目录并检查数据；确认后可再次完整清空，成功后恢复写入。\n` +
+      `页面将重新加载。`,
   );
   locationRef.reload();
   return true;

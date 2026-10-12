@@ -43,6 +43,8 @@ In the current client, the LIRA server handles account/device authorization, opt
 - Danmaku bot: posts in the live room with a logged-in account, auto-mentions recent requesters
 - Check-in / fortune slip bot: `签到` auto-replies with cumulative check-in days, `抽签` draws a daily fortune
 - DIY keyword replies: custom keyword triggers with fixed responses
+- Exact replies: full-message triggers, with a built-in `菜单` command listing available interactions
+- Scheduled danmaku: fixed or random intervals with sequential or random cloud message libraries, sent only while live
 
 **AI Danmaku Assistant**
 

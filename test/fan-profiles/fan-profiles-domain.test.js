@@ -365,6 +365,19 @@ test('reminder page and profile summaries show only the next seven Beijing days 
   assert.equal(summaries().get(week.id), null);
 });
 
+test('expired snoozes return to the profile summary while future snoozes and handled reminders stay hidden', (t) => {
+  const f = fanFixture(t);
+  const p = f.create({ birthday: { monthDay: '09-19', advance: true } });
+  const summary = () => f.run('list').profiles.find((profile) => profile.id === p.id).nextReminder;
+  f.run('reminder-state', { profileId: p.id, key: 'birthday:2026', status: 'snoozed' });
+  assert.equal(summary(), null);
+  f.setNow('2026-09-19T04:00:00.000Z');
+  assert.equal(summary().key, 'birthday:2026');
+  assert.equal(summary().actionable, true);
+  f.run('reminder-state', { profileId: p.id, key: 'birthday:2026', status: 'handled' });
+  assert.equal(summary(), null);
+});
+
 test('A22: editing interaction date preserves its identity, original content and revision history', (t) => {
   const f = fanFixture(t);
   const p = f.create();

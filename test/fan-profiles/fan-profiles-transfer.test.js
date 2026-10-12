@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createQueueStore } = require('../../src/storage/queue-store');
+const { pruneFanRestoreSnapshots } = require('../../src/storage/fan-snapshot-retention');
 const { addQueueItem } = require('../../src/music/queue-service');
 const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('../helpers/fan-profile-fixture');
 
@@ -26,27 +27,18 @@ function oldRequest(f, input = {}, scope = null) {
   );
 }
 
-test('A29: complete restore preserves identity, original evidence, revision and handled reminder state', (t) => {
+test('A29: complete restore preserves song summaries, other record evidence and handled reminder state', (t) => {
   const f = fanFixture(t);
   const p = f.create({ notes: '私密备份备注', birthday: { monthDay: '09-18' } });
   const note = f.record(p.id, 'note', { body: '原始内容' });
   f.record(p.id, 'note', { body: '修订后内容' }, { id: note.id, revision: note.revision });
   f.record(p.id, 'membership', interval('2026-09-01', '2026-12-31'));
-  f.service.archiveAccepted(SCOPE, {
-    stableId: 'permanent-request-id',
-    requestId: 1,
-    queueId: 1,
-    requesterUid: IDENTITY.value,
-    identityType: 'uid',
-    requesterName: '海边听歌',
-    songName: '备份曲目',
-    artist: '备份歌手',
-    categoryName: '粤语',
-    createdAt: NOW,
-    source: 'danmaku',
-  });
+  f.record(p.id, 'song', { songName: '备份曲目', artist: '备份歌手', category: '粤语', note: '喜欢现场版' });
+  f.record(p.id, 'song', { songName: '备份曲目', artist: '备份歌手', category: '粤语' }, { occurredAt: '2026-09-17T04:00:00Z' });
   f.run('reminder-state', { profileId: p.id, key: 'birthday:2026', status: 'handled' });
   const backup = f.run('backup');
+  assert.equal(backup.version, 2);
+  const song = backup.profiles[0].records.find((record) => record.kind === 'song');
   f.run('delete', { id: p.id, confirm: true, suppress: false });
   f.consume([{ cursor: 5, name: '未建档的身份快照' }], { nextCursor: 5 });
   const plan = f.run('preview-restore', { backup });
@@ -71,10 +63,109 @@ test('A29: complete restore preserves identity, original evidence, revision and 
   assert.equal(restored.records.find((r) => r.id === note.id).data.body, '修订后内容');
   assert.equal(restored.records.find((r) => r.id === note.id).original.body, '原始内容');
   assert.equal(restored.records.find((r) => r.id === note.id).revisions.length, 1);
-  assert.equal(restored.songs[0].sourceKey, 'request:permanent-request-id');
+  assert.deepEqual(restored.songs[0].data, song.data);
+  assert.equal(restored.songs[0].data.count, 2);
+  assert.deepEqual(restored.songs[0].data.recentDates, ['2026-09-18', '2026-09-17']);
+  assert.equal(restored.songs[0].data.note, '喜欢现场版');
+  assert.deepEqual(restored.songs[0].original, {});
+  assert.deepEqual(restored.songs[0].revisions, []);
   assert.equal(restored.membership.totalDays, 18);
   assert.equal(restored.reminders.find((r) => r.key === 'birthday:2026').status, 'handled');
   assert.equal(restored.reminders.find((r) => r.key === 'birthday:2026').actionable, false);
+});
+
+test('version 1 backups combine individual songs while preserving exclusion rules and other record revisions', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const note = f.record(p.id, 'note', { body: '原来的手记' });
+  const corrected = f.record(p.id, 'note', { body: '修订手记' }, { id: note.id, revision: note.revision });
+  const queued = oldRequest(f, { songName: '雨爱', artist: '测试歌手', categoryName: '流行' }, SCOPE);
+  const activeRequest = f.db.songDb.prepare('SELECT * FROM requests WHERE queue_id = ?').get(queued.id);
+  assert.equal(activeRequest.fan_recorded, 0);
+  const backup = f.run('backup');
+  backup.version = 1;
+  const requests = [
+    { at: '2026-09-18T04:00:00Z', data: { note: '喜欢现场版' } },
+    { at: '2026-09-17T17:00:00Z' },
+    { at: '2026-09-17T04:00:00Z', data: { excludeFromStats: true } },
+    { at: '2026-09-16T04:00:00Z' },
+    { at: '2026-08-01T04:00:00Z' },
+    { at: '2026-09-18T01:00:00Z', data: { excluded: true } },
+    { at: '2026-09-18T02:00:00Z', source: 'random:danmaku' },
+  ];
+  backup.profiles[0].records.push(...requests.map((request, index) => {
+    const data = { songName: '雨爱', artist: '测试歌手', category: '流行', ...request.data };
+    return {
+      id: `legacy-song-${index}`, profileId: p.id, kind: 'song',
+      sourceKey: `request:${index === 0 ? activeRequest.stable_id : `legacy-${index}`}`,
+      occurredAt: request.at, data, original: { ...data, source: request.source || 'danmaku' },
+      revisions: [{ changedAt: NOW, before: { data: { songName: '旧曲名' } }, after: { data } }], revision: 2,
+    };
+  }));
+  const plan = f.run('preview-restore', { backup });
+  f.run('restore', { backup, ...plan, conflicts: 'replace' });
+  const profile = f.detail(p.id);
+  assert.equal(profile.songs.length, 1);
+  assert.equal(profile.songs[0].data.count, 5);
+  assert.deepEqual(profile.songs[0].data.recentDates, ['2026-09-18', '2026-09-17', '2026-09-16']);
+  assert.deepEqual(profile.songs[0].data.dailyCounts, [
+    { date: '2026-09-16', category: '流行', count: 1 },
+    { date: '2026-09-18', category: '流行', count: 2 },
+  ]);
+  assert.equal(profile.songs[0].data.note, '喜欢现场版');
+  assert.deepEqual(profile.songs[0].original, {});
+  assert.deepEqual(profile.songs[0].revisions, []);
+  assert.deepEqual(profile.records.find((record) => record.id === note.id), corrected);
+  assert.equal(profile.musicStats.days, 30);
+  assert.equal(profile.musicStats.count, 3);
+  const restoredRequest = f.db.songDb.prepare('SELECT fan_recorded FROM requests WHERE id = ?').get(activeRequest.id);
+  assert.equal(restoredRequest.fan_recorded, 1, 'restoring legacy evidence claims its same-account active request');
+  assert.equal(f.db.songDb.prepare('SELECT status FROM queue WHERE id = ?').get(queued.id).status, 'waiting');
+  f.service.archiveAccepted(SCOPE, {
+    stableId: activeRequest.stable_id, requestId: activeRequest.id, queueId: queued.id,
+    songName: activeRequest.song_name, artist: activeRequest.artist, categoryName: activeRequest.category_name,
+    requesterUid: activeRequest.requester_uid, identityType: activeRequest.identity_type,
+    requesterName: activeRequest.requester_name, createdAt: activeRequest.created_at, source: activeRequest.source,
+  });
+  assert.deepEqual(f.detail(p.id).songs, profile.songs, 'replayed acceptance cannot count the restored song twice');
+  const upgraded = f.run('backup');
+  assert.equal(upgraded.version, 2);
+  assert.equal(upgraded.profiles[0].records.filter((record) => record.kind === 'song').length, 1);
+  f.run('restore', { backup: upgraded, ...f.run('preview-restore', { backup: upgraded }), conflicts: 'replace' });
+  assert.equal(f.detail(p.id).songs[0].data.count, 5, 'replacing from a summary backup must not double the current total');
+});
+
+test('restore rejects malformed song totals and dates before changing profiles or snapshots', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  f.record(p.id, 'song', { songName: '校验曲目', category: '流行' });
+  f.record(p.id, 'song', { songName: '校验曲目', category: '流行' }, { occurredAt: '2026-09-17T04:00:00Z' });
+  const backup = f.run('backup');
+  f.store.snapshot(SCOPE, backup, NOW);
+  const before = f.store.exportScope(SCOPE);
+  const snapshots = f.run('snapshots');
+  const invalid = [
+    ['negative total', (data) => { data.count = -1; }],
+    ['fractional total', (data) => { data.count = 1.5; }],
+    ['text total', (data) => { data.count = '2'; }],
+    ['missing recent dates', (data) => { data.recentDates = []; }],
+    ['duplicate recent dates', (data) => { data.recentDates = ['2026-09-18', '2026-09-18']; }],
+    ['ascending recent dates', (data) => { data.recentDates.reverse(); }],
+    ['invalid calendar date', (data) => { data.recentDates = ['2026-02-30']; }],
+    ['too many recent dates', (data) => { data.recentDates.push('2026-09-16', '2026-09-15'); }],
+    ['daily count exceeds total', (data) => { data.dailyCounts[0].count = 3; }],
+    ['invalid daily count', (data) => { data.dailyCounts[0].count = 0; }],
+    ['invalid statistics date', (data) => { data.dailyCounts[0].date = '2026-02-30'; }],
+    ['duplicate daily category', (data) => { data.dailyCounts.push({ ...data.dailyCounts[0] }); }],
+    ['daily date newer than last request', (data) => { data.dailyCounts[1].date = '2026-09-19'; }],
+  ];
+  for (const [label, change] of invalid) {
+    const damaged = structuredClone(backup);
+    change(damaged.profiles[0].records.find((record) => record.kind === 'song').data);
+    assert.throws(() => f.run('preview-restore', { backup: damaged }), /点歌|日期|汇总/, label);
+  }
+  assert.deepEqual(f.store.exportScope(SCOPE), before);
+  assert.deepEqual(f.run('snapshots'), snapshots);
 });
 
 test('A29: restore requires matching origin/account, complete format and unchanged conflict preview', (t) => {
@@ -115,15 +206,57 @@ test('A29: restore failures leave both current profiles and pre-restore snapshot
   const b = f.create({ identity: { ...IDENTITY, value: '900000002' }, alias: '阿遥' });
   f.record(a.id, 'note', { body: '甲原来的内容' });
   f.record(b.id, 'note', { body: '乙原来的内容' });
+  f.record(a.id, 'song', { songName: '事务里保留的歌', category: '流行' });
+  f.record(a.id, 'song', { songName: '事务里保留的歌', category: '流行' });
   const backup = f.run('backup');
+  f.store.snapshot(SCOPE, backup, NOW);
+  f.store.snapshot(SCOPE, backup, NOW);
   const before = f.store.exportScope(SCOPE);
-  const snapshotCount = f.db.songDb.prepare('SELECT COUNT(*) AS n FROM fan_restore_snapshots').get().n;
+  const snapshots = f.run('snapshots');
   const plan = f.run('preview-restore', { backup });
-  f.db.songDb.exec(`CREATE TRIGGER fail_fan_restore BEFORE INSERT ON fan_records
+  f.db.songDb.exec(`CREATE TRIGGER fail_fan_restore BEFORE INSERT ON fan_records WHEN NEW.kind = 'note'
     BEGIN SELECT RAISE(ABORT, 'forced fan restore failure'); END;`);
   assert.throws(() => f.run('restore', { backup, ...plan, conflicts: 'replace' }), /forced fan restore failure/);
   assert.deepEqual(f.store.exportScope(SCOPE), before);
-  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM fan_restore_snapshots').get().n, snapshotCount);
+  assert.deepEqual(f.run('snapshots'), snapshots, 'failed restoration must recover any snapshot pruned by its insert');
+});
+
+test('automatic recovery snapshots keep the newest two per account and insert atomically with pruning', (t) => {
+  const f = fanFixture(t);
+  const otherScope = JSON.stringify(['https://lira.example', 'streamer-b']);
+  const backup = f.run('backup');
+  const otherId = f.store.snapshot(otherScope, { ...backup, scope: otherScope }, NOW);
+  const first = f.store.snapshot(SCOPE, backup, NOW);
+  const second = f.store.snapshot(SCOPE, backup, NOW);
+  f.db.songDb.exec(`CREATE TRIGGER fail_fan_snapshot_prune BEFORE DELETE ON fan_restore_snapshots
+    BEGIN SELECT RAISE(ABORT, 'forced snapshot prune failure'); END;`);
+  assert.throws(() => f.store.snapshot(SCOPE, backup, NOW), /forced snapshot prune failure/);
+  assert.deepEqual(f.run('snapshots').map((entry) => entry.id), [second, first]);
+  f.db.songDb.exec('DROP TRIGGER fail_fan_snapshot_prune');
+  const third = f.store.snapshot(SCOPE, backup, NOW);
+  assert.deepEqual(f.run('snapshots').map((entry) => entry.id), [third, second]);
+  assert.throws(() => f.store.getSnapshot(SCOPE, first), /恢复点不存在/);
+  assert.deepEqual(f.store.getSnapshot(SCOPE, third), backup);
+  assert.deepEqual(f.run('snapshots', {}, otherScope).map((entry) => entry.id), [otherId]);
+  f.restart();
+  assert.deepEqual(f.run('snapshots').map((entry) => entry.id), [third, second]);
+});
+
+test('snapshot retention upgrades existing accounts deterministically and is repeatable', (t) => {
+  const f = fanFixture(t);
+  const scopes = [SCOPE, JSON.stringify(['https://other.example', 'streamer-a'])];
+  const insert = f.db.songDb.prepare('INSERT INTO fan_restore_snapshots VALUES (?, ?, ?, ?)');
+  for (const scope of scopes) {
+    insert.run(`${scope}-latest`, scope, '2026-09-20T04:00:00.000Z', '{}');
+    insert.run(`${scope}-tie-earlier`, scope, NOW, '{}');
+    insert.run(`${scope}-tie-later`, scope, NOW, '{}');
+    insert.run(`${scope}-oldest`, scope, '2026-09-17T04:00:00.000Z', '{}');
+  }
+  assert.equal(pruneFanRestoreSnapshots(f.db.songDb), 4);
+  for (const scope of scopes) {
+    assert.deepEqual(f.run('snapshots', {}, scope).map((entry) => entry.id), [`${scope}-latest`, `${scope}-tie-later`]);
+  }
+  assert.equal(pruneFanRestoreSnapshots(f.db.songDb), 0);
 });
 
 test('A19: archived profiles can restore, and deletion suppression survives backup and membership replay', (t) => {
@@ -201,13 +334,18 @@ test('A29: legacy request import previews scope/range, requires confirmation and
   assert.throws(() => f.run('import-legacy', { ...input, digest: plan.digest }), /确认旧点歌记录归属/);
   f.run('import-legacy', { ...input, digest: plan.digest, confirmOwnership: true });
   const first = f.detail(p.id).songs[0];
-  assert.ok(first.original.stableId);
-  assert.equal(first.original.source, 'confirmed-local-history');
-  assert.equal(f.db.songDb.prepare('SELECT owner_scope FROM requests WHERE id = 1').get().owner_scope, SCOPE);
+  assert.equal(first.data.count, 1);
+  assert.deepEqual(first.data.recentDates, ['2026-09-18']);
+  assert.deepEqual(first.original, {});
+  const request = f.db.songDb.prepare('SELECT owner_scope, stable_id, fan_recorded FROM requests WHERE id = 1').get();
+  assert.equal(request.owner_scope, SCOPE);
+  assert.ok(request.stable_id);
+  assert.equal(request.fan_recorded, 1);
   plan = f.run('preview-legacy', input);
   f.run('import-legacy', { ...input, digest: plan.digest, confirmOwnership: true });
   assert.equal(f.detail(p.id).songs.length, 1);
   assert.equal(f.detail(p.id).songs[0].sourceKey, first.sourceKey);
+  assert.equal(f.detail(p.id).songs[0].data.count, 1);
 });
 
 test('A16/A29: ordinary list export excludes sensitive fields by default and quotes selected CSV cells', (t) => {

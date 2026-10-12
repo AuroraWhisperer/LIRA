@@ -7,6 +7,7 @@ const { ALLOWED_KEYS, routes } = require('../../src/server/routes/ai-routes');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createAiConfigStore } = require('../../src/ai/config-store');
+const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 
 function createResponseRecorder() {
   return {
@@ -23,6 +24,34 @@ function createResponseRecorder() {
 
 test('AI route allowed keys come from the config contract', () => {
   assert.deepEqual([...ALLOWED_KEYS].sort(), Object.keys(AI_CONFIG_DEFAULTS).sort());
+});
+
+test('saving disabled through the config route aborts accepted work after committing the setting', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  const store = createAiConfigStore(db, { encrypt: value => value, decrypt: value => value });
+  store.updateConfig({
+    enabled: true,
+    trigger: '小米',
+    deepseekResponsesUrl: 'https://example.test/responses',
+    deepseekApiKey: 'synthetic-key',
+    model: 'test-model',
+  });
+  let signal;
+  const service = createTestService({ store, deepseek: { createResponse(request) {
+    signal = request.signal;
+    return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+  } }, sendReply() { assert.fail('disabled work must never send'); } });
+  t.after(async () => { await service.shutdown(); db.close(); });
+  assert.equal(service.handleDanmaku({ uid: 'one', userName: '观众', message: '小米 问题' }).accepted, true);
+  await waitUntil(() => signal);
+  const res = createResponseRecorder();
+  await routes['PUT /api/ai/config']({ ai: service }, { body: async () => ({ enabled: false }) }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(store.getConfig().enabled, false);
+  assert.equal(JSON.parse(res.body).data.enabled, false);
+  assert.equal(signal.aborted, true);
+  assert.equal(service.getStatus().queued, 0);
 });
 
 test('persona routes persist validated roles and return safe errors without changing the library', async (t) => {

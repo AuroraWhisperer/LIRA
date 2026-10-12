@@ -46,6 +46,8 @@ function init({ notify = showStackedToast } = {}) {
   let dirty = false;
   let configLoaded = false;
   let savingPromise = null;
+  let enabledSavePromise = null;
+  let enabledEditVersion = 0;
   let editVersion = 0;
   let initialLoadPromise = null;
   let restoreManualEndpointAfterProviderSave = false;
@@ -86,6 +88,8 @@ function init({ notify = showStackedToast } = {}) {
     saving = true;
     dirty = false;
     const submittedConfig = collectConfig();
+    // The switch owns its saves, so a late form save cannot turn AI back on.
+    delete submittedConfig.enabled;
     const submittedEditVersion = editVersion;
     setState(saveState, '正在保存…');
     savingPromise = (async () => {
@@ -105,7 +109,7 @@ function init({ notify = showStackedToast } = {}) {
         }
         renderConfigSummary(config);
         personaControls.render(config);
-        editedFieldIds.clear();
+        for (const id of editedFieldIds) if (id !== enabledInput.id) editedFieldIds.delete(id);
         setState(saveState, '已保存，后续新弹幕立即生效。', 'good');
         return true;
       } catch (error) {
@@ -144,6 +148,7 @@ function init({ notify = showStackedToast } = {}) {
 
   const flushPendingSave = async () => {
     clearTimeout(autosaveTimer);
+    while (enabledSavePromise) if (!(await enabledSavePromise)) return false;
     while (savingPromise || saving || dirty || pendingSave) {
       if (savingPromise) {
         if (!(await savingPromise)) return false;
@@ -198,13 +203,35 @@ function init({ notify = showStackedToast } = {}) {
     }
   });
 
-  enabledInput.addEventListener('change', () => {
+  const saveEnabled = () => {
+    const enabled = enabledInput.checked;
+    const version = ++enabledEditVersion;
     editedFieldIds.add(enabledInput.id);
-    scheduleSave(true);
-  });
+    const operation = (enabledSavePromise || Promise.resolve()).then(async () => {
+      try {
+        await initialLoadPromise;
+        if (!configLoaded) throw new Error('配置尚未加载，暂时无法保存；请等待或刷新页面重试。');
+        if (version === enabledEditVersion) setState(saveState, '正在保存…');
+        await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify({ enabled }) });
+        if (version === enabledEditVersion) {
+          editedFieldIds.delete(enabledInput.id);
+          if (!enabled) renderStatus({ queued: 0 });
+          setState(saveState, enabled ? '已开启，只处理新的触发弹幕。' : '已关闭，未完成的回复已取消；已发出的弹幕无法撤回。', 'good');
+        }
+        return true;
+      } catch (error) {
+        if (version === enabledEditVersion) setState(saveState, error.message || '保存 AI 开关失败', 'warn');
+        return false;
+      }
+    });
+    enabledSavePromise = operation;
+    void operation.then(() => { if (enabledSavePromise === operation) enabledSavePromise = null; });
+  };
+  enabledInput.addEventListener('change', saveEnabled);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
+    if (editedFieldIds.has(enabledInput.id) && !enabledSavePromise) saveEnabled();
     if (!form.reportValidity()) return;
     scheduleSave(true);
   });

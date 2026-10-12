@@ -43,6 +43,59 @@ function fixture(t) {
   return { db, store, context, dirtyScopes, post };
 }
 
+test('song cooldown settings validate atomically, synchronize and survive reopening', async (t) => {
+  const f = fixture(t);
+  assert.equal(f.store.getSettings().songCooldownMode, 'off');
+  assert.equal(f.store.getSettings().songCooldownValue, '1');
+  for (const body of [{ songCooldownMode: 'week' }, ...[0, 1000, 1.5, true, null, [], '', '1e2'].map(
+    (value) => ({ songCooldownValue: value }))]) {
+    assert.equal((await f.post({ paused: true, ...body })).status, 400);
+    assert.equal(f.store.getSettings().paused, 'false');
+  }
+  assert.deepEqual(f.dirtyScopes, []);
+  assert.equal((await f.post({ songCooldownMode: 'days', songCooldownValue: ' 02 ' })).status, 200);
+  assert.deepEqual(f.dirtyScopes, ['settings']);
+  const reopened = createSettingsStore(f.db).getSettings();
+  assert.equal(reopened.songCooldownMode, 'days');
+  assert.equal(reopened.songCooldownValue, '2');
+  const { serializeCloudSettings, normalizeCloudSettingsSnapshot } = require('../../src/server/settings-contract');
+  const cloud = serializeCloudSettings(reopened);
+  assert.equal(cloud.songCooldownValue, 2);
+  assert.equal(normalizeCloudSettingsSnapshot(cloud).songCooldownMode, 'days');
+  delete cloud.songCooldownMode;
+  delete cloud.songCooldownValue;
+  f.store.setSettings(normalizeCloudSettingsSnapshot(cloud));
+  assert.equal(f.store.getSettings().songCooldownValue, '2', 'old servers must not erase locally saved cooldown');
+});
+
+test('room revision follows committed changes without persisting or counting unrelated writes', async (t) => {
+  const { db, store, post } = fixture(t);
+  assert.equal(store.getRoomRevision(), 0);
+  store.setSettings({ roomId: '100', paused: 'true' });
+  assert.equal(store.getRoomRevision(), 1);
+  store.setSetting('roomId', '100');
+  store.setSettings({ paused: 'false' });
+  await post({ roomId: 'https://live.bilibili.com/100' });
+  assert.equal(store.getRoomRevision(), 1);
+  store.setSettings({ roomId: '200' }, { syncPending: false });
+  store.setSetting('roomId', '100');
+  assert.equal(store.getRoomRevision(), 3);
+
+  db.exec("CREATE TEMP TRIGGER reject_room_update BEFORE UPDATE ON settings WHEN NEW.key = 'roomId' BEGIN SELECT RAISE(ABORT, 'synthetic write failure'); END");
+  assert.throws(() => store.setSettings({ roomId: '200' }), /synthetic write failure/);
+  assert.throws(() => store.prepareCloudRoomAccount('first'), /synthetic write failure/);
+  assert.equal(store.getSettings().roomId, '100');
+  assert.equal(store.getRoomRevision(), 3);
+  db.exec('DROP TRIGGER reject_room_update');
+  store.prepareCloudRoomAccount('first');
+  assert.equal(store.getRoomRevision(), 4);
+  store.prepareCloudRoomAccount('second');
+  store.prepareCloudRoomAccount('second');
+  assert.equal(store.getRoomRevision(), 4, 'ownership changes with an already empty room do not change the room');
+  assert.equal(createSettingsStore(db).getRoomRevision(), 0, 'the revision only belongs to this process instance');
+  assert.equal(Object.hasOwn(store.getSettings(), 'roomRevision'), false);
+});
+
 test('heart box display settings persist optional multiplier, zero remaining and independent visibility', async t => {
   const f = fixture(t);
   assert.equal(f.store.getSettings().blindboxCastleMultiplier, '');

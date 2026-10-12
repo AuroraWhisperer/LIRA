@@ -232,6 +232,27 @@ test('lyric scheduler gates animation frames to its target rate and stops when h
   assert.equal(scheduler.running, false);
 });
 
+test('30fps lyric scheduling accepts rounded timestamps without promoting fast or slow frames', async () => {
+  const { LyricFrameScheduler } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-frame-scheduler.js'),
+    { requestAnimationFrame: () => 1, cancelAnimationFrame() {} },
+  );
+  const ticks = [];
+  const scheduler = new LyricFrameScheduler();
+  scheduler.start((now, elapsed) => ticks.push([now, elapsed]));
+  for (let index = 0; index < 120; index += 1) {
+    scheduler.onFrame(Math.round((1000 + index * 1000 / 60) * 10) / 10);
+  }
+  assert.equal(ticks.length, 60, 'rounded 60Hz timestamps still deliver 30fps callbacks');
+  assert.ok(ticks.every(([, elapsed]) => elapsed > 33 && elapsed < 34));
+  const lastAt = ticks.at(-1)[0];
+  scheduler.onFrame(lastAt + 16.7);
+  assert.equal(ticks.length, 60, 'the comparison tolerance does not admit the next fast frame');
+  scheduler.onFrame(lastAt + 60);
+  assert.deepEqual(ticks.at(-1), [lastAt + 60, 60], 'a real long frame remains a real long sample');
+  scheduler.stop();
+});
+
 test('shared lyric renderer freezes its clock when playback pauses', async () => {
   let currentTime = 1000;
   let nextFrameId = 0;

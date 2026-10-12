@@ -3,6 +3,7 @@
 const { transaction } = require('./dynamic-lottery-transaction');
 
 const { createRequestBudgetStore } = require('./dynamic-lottery-budget-store');
+const { pruneCompletedTasks } = require('./dynamic-lottery-retention');
 
 function storeError(code, message) {
   const error = new Error(message);
@@ -121,6 +122,13 @@ function createDynamicLotteryStore(lotteryDb) {
     return toTask(lotteryDb.prepare('SELECT * FROM lottery_tasks WHERE id = ?').get(requiredText(taskId, 'task ID')));
   }
 
+  function findCreateReceipt(streamerId, requestId) {
+    const row = lotteryDb.prepare(`SELECT request_hash FROM lottery_events
+      WHERE streamer_id = ? AND request_id = ? AND event_type = 'create-retired'`)
+      .get(requiredText(streamerId, 'streamer ID'), requiredText(requestId, 'request ID'));
+    return row ? { inputSignature: row.request_hash } : null;
+  }
+
   function createTask(input) {
     const id = requiredText(input?.id, 'task ID');
     const streamerId = requiredText(input?.streamerId, 'streamer ID', 128);
@@ -128,30 +136,32 @@ function createDynamicLotteryStore(lotteryDb) {
     const dynamicId = requiredText(input?.dynamicId, 'dynamic ID', 64);
     const requestId = requiredText(input?.requestId, 'request ID');
     const nowMs = normalizeMs(input?.nowMs, 'task creation time');
-    lotteryDb
-      .prepare(
-        `
-        INSERT INTO lottery_tasks (
-          id, streamer_id, owner_uid, dynamic_id, target_json, rules_json,
-          status, revision, request_id, previous_task_id,
-          created_at_ms, updated_at_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
-      `,
-      )
-      .run(
-        id,
-        streamerId,
-        ownerUid,
-        dynamicId,
-        json(input.target, 'task target'),
-        json(input.rules, 'task rules'),
-        input.status || 'draft',
-        requestId,
-        input.previousTaskId || null,
-        nowMs,
-        nowMs,
-      );
-    return getTask(id);
+    return transaction(lotteryDb, () => {
+      if (findCreateReceipt(streamerId, requestId)) throw storeError('LOTTERY_TASK_CLEARED', 'The completed task was cleared.');
+      lotteryDb
+        .prepare(
+          `INSERT INTO lottery_tasks (
+            id, streamer_id, owner_uid, dynamic_id, target_json, rules_json,
+            status, revision, request_id, previous_task_id,
+            created_at_ms, updated_at_ms
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          streamerId,
+          ownerUid,
+          dynamicId,
+          json(input.target, 'task target'),
+          json(input.rules, 'task rules'),
+          input.status || 'draft',
+          requestId,
+          input.previousTaskId || null,
+          nowMs,
+          nowMs,
+        );
+      pruneCompletedTasks(lotteryDb, { streamerId, keepId: id });
+      return getTask(id);
+    });
   }
 
   function getScan(scanId) {
@@ -367,6 +377,8 @@ function createDynamicLotteryStore(lotteryDb) {
   return {
     createTask,
     getTask,
+    findCreateReceipt,
+    pruneCompletedHistory: () => transaction(lotteryDb, () => pruneCompletedTasks(lotteryDb, { keepLatest: true })),
     beginScan,
     getScan,
     getActiveScan,

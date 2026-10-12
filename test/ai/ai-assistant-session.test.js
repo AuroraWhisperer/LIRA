@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { createBilibiliRuntime } = require('../../src/server/bilibili-runtime');
 const { createBilibiliClient } = require('../../src/server/bilibili-client');
 const { BilibiliApiClient } = require('../../src/bilibili/danmaku/api-client');
+const { createDanmakuDeliveryVerifier } = require('../../src/ai/danmaku-delivery-verifier');
 const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 
 for (const change of ['room', 'disconnect', 'account', 'same-account-login']) {
@@ -57,6 +58,29 @@ test('AI ingress preserves normal same-session delivery and conversation context
     { roomId: '100', message: '正常回复。' },
   ]);
   assert.equal(fixture.contexts.length, 1);
+});
+
+test('AI reply echoes confirm delivery without triggering another reply or blocking the sending user', async (t) => {
+  const fixture = await createSessionFixture(t, {
+    async createResponse(request) {
+      return {
+        text: request.purpose === 'generation' ? '我是小米。' : '{"allowed":true,"safeText":""}',
+        functionCalls: [], usage: {},
+      };
+    },
+  }, true);
+  fixture.account.echo = true;
+  fixture.ask();
+  await fixture.waitForIdle();
+  assert.equal(fixture.sent.length, 1);
+  assert.equal(fixture.generations.length, 1);
+  assert.equal(fixture.contexts.length, 1, 'the own echo still confirms delivery');
+  fixture.ask('小米 现在几点', '9');
+  await fixture.waitForIdle();
+  assert.equal(fixture.sent.length, 2, 'the sending account can still ask a distinct question');
+  fixture.ask('我是小米。', '43');
+  await fixture.waitForIdle();
+  assert.equal(fixture.sent.length, 3, 'another viewer is not filtered by reply text alone');
 });
 
 test('first AI request after a different account logs in uses the current identity without reconnect', async (t) => {
@@ -162,11 +186,14 @@ async function createSessionFixture(t, deepseek, waitForDelivery) {
   const generations = [];
   const identityReads = [];
   const clients = [];
+  const verifier = createDanmakuDeliveryVerifier();
+  t.after(() => verifier.dispose());
   t.mock.method(BilibiliApiClient.prototype, 'resolveRoomInfo', async function () {
     return { roomId: this.roomId };
   });
   t.mock.method(BilibiliApiClient.prototype, 'sendDanmaku', async (roomId, message) => {
     sent.push({ roomId, message });
+    if (account.echo) clients.at(-1).handlers.onMessage({ uid: String(account.uid), userName: '机器人', message });
     return { message };
   });
   const domainServices = {
@@ -185,7 +212,7 @@ async function createSessionFixture(t, deepseek, waitForDelivery) {
         ...context,
         domainServices,
         aiAssistant: service,
-        aiDanmakuDeliveryVerifier: { observe() {} },
+        aiDanmakuDeliveryVerifier: verifier,
       });
       client.restart = async () => {};
       clients.push(client);
@@ -219,7 +246,7 @@ async function createSessionFixture(t, deepseek, waitForDelivery) {
       },
     },
     sendReply: (input) => runtime.getDanmakuSender().send({ ...input, waitForRateLimit: true }),
-    waitForDelivery,
+    waitForDelivery: waitForDelivery === true ? verifier.waitForDelivery : waitForDelivery,
     random: () => 0,
   });
   t.after(async () => {
@@ -236,7 +263,7 @@ async function createSessionFixture(t, deepseek, waitForDelivery) {
     contexts,
     generations,
     identityReads,
-    ask: (message = '小米 你好') => clients.at(-1).handlers.onMessage({ uid: '42', userName: '观众', message }),
+    ask: (message = '小米 你好', uid = '42') => clients.at(-1).handlers.onMessage({ uid, userName: '观众', message }),
     waitForIdle: () =>
       waitUntil(() => {
         const status = service.getStatus();

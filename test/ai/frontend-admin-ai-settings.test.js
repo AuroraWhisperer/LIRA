@@ -38,7 +38,6 @@ test('AI initial load preserves edits and blocks saving before configuration arr
   await flushAiTasks();
   assert.equal(f.saves().length, 1);
   assert.deepEqual(f.saves()[0], {
-    enabled: false,
     trigger: '小米',
     modelProvider: 'custom',
     modelApiProtocol: 'responses',
@@ -72,6 +71,45 @@ test('AI enabled toggle saves immediately', async () => {
   await flushAiTasks();
   assert.equal(f.saves().length, 1);
   assert.equal(f.saves()[0].enabled, true);
+});
+
+test('AI off saves independently of invalid form drafts', async () => {
+  const f = await createAiSettingsFixture({ config: { enabled: true } });
+  f.elements.get('xiaomiAiForm').checkValidity = () => false;
+  f.input('xiaomiAiModel', 'unfinished draft');
+  f.elements.get('xiaomiAiEnabled').checked = false;
+  f.fire('xiaomiAiEnabled', 'change');
+  await flushAiTasks();
+  assert.deepEqual(f.saves(), [{ enabled: false }]);
+  assert.match(f.elements.get('xiaomiAiSaveState').textContent, /已关闭.*未完成.*取消/);
+  assert.equal(f.elements.get('xiaomiAiModel').value, 'unfinished draft');
+});
+
+test('AI off then on preserves both saves while older form saves cannot restore the switch', async () => {
+  const formSave = Promise.withResolvers();
+  const offSave = Promise.withResolvers();
+  const f = await createAiSettingsFixture({ config: { enabled: true }, request: (_url, options) => {
+    if (options.method !== 'PUT') return;
+    const value = JSON.parse(options.body);
+    if (value.enabled === false) return offSave.promise;
+    if (value.model) return formSave.promise;
+  } });
+  f.input('xiaomiAiModel', 'new-model');
+  await f.advance(700);
+  f.elements.get('xiaomiAiEnabled').checked = false;
+  f.fire('xiaomiAiEnabled', 'change');
+  f.elements.get('xiaomiAiEnabled').checked = true;
+  f.fire('xiaomiAiEnabled', 'change');
+  await flushAiTasks();
+  assert.equal(f.saves().length, 2);
+  assert.equal(Object.hasOwn(f.saves()[0], 'enabled'), false);
+  assert.deepEqual(f.saves()[1], { enabled: false });
+  offSave.resolve(aiResponse({ ...f.publicConfig, enabled: false }));
+  await flushAiTasks();
+  assert.deepEqual(f.saves()[2], { enabled: true });
+  formSave.resolve(aiResponse(f.publicConfig));
+  await flushAiTasks();
+  assert.equal(f.elements.get('xiaomiAiEnabled').checked, true);
 });
 
 test('role selection saves its identity without overwriting the custom prompt', async () => {

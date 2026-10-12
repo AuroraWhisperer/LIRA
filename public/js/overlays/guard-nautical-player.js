@@ -22,11 +22,25 @@ export function createNauticalGuardPlayer({ root, config = {} }) {
       const response = await fetch(resolveComponentResource(source), { signal: loading.signal });
       if (!response.ok) throw new Error('航海旗帜素材加载失败');
       return [tier, await response.blob()];
-    })).then(entries => { if (!disposed) blobs = Object.fromEntries(entries); });
+    })).then(entries => { if (!disposed) blobs = Object.fromEntries(entries); }).catch(error => {
+      prepared = undefined;
+      throw error;
+    });
     return prepared;
+  }
+  function configure(value) {
+    config = value;
+    const name = stage.querySelector('.ng-name');
+    const avatar = stage.querySelector('.ng-avatar');
+    if (name) {
+      name.style.fontSize = `${config.nameFontSize ?? 45}px`;
+      name.style.display = config.showUserName === false ? 'none' : '';
+    }
+    if (avatar) avatar.style.display = config.showAvatar === false ? 'none' : '';
   }
   return {
     ready,
+    configure,
     durationMs: 5000,
     play(payload) {
       if (disposed || !Object.hasOwn(NAUTICAL_GUARD_ART, payload.tier)) return Promise.resolve();
@@ -56,9 +70,10 @@ export function createNauticalGuardPlayer({ root, config = {} }) {
           avatar.src = sceneAvatarSource(payload.avatarUrl) || fallback;
           const name = document.createElement('div');
           name.className = 'ng-name'; name.textContent = payload.userName;
-          name.style.fontSize = `${config.nameFontSize ?? 45}px`;
           stage.dataset.tier = payload.tier;
-          stage.replaceChildren(art, ...(config.showAvatar === false ? [] : [avatar]), ...(config.showUserName === false ? [] : [name])); stage.hidden = false;
+          stage.replaceChildren(art, avatar, name);
+          configure(config);
+          stage.hidden = false;
           timer = setTimeout(complete, 5000);
         }).catch(complete);
       });

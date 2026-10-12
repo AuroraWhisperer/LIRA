@@ -66,6 +66,19 @@ function canonicalizeProcessedGiftEvent(input) {
 }
 
 function normalizeProcessedGiftPage(input) {
+  if (isPlainObject(input) && Object.hasOwn(input, 'giftRetentionVersion')) {
+    const { giftRetentionVersion, prunedThroughCursor, ...legacy } = input;
+    if (!hasExactKeys(input, [...EVENT_PAGE_KEYS, 'giftRetentionVersion', 'prunedThroughCursor']) ||
+      giftRetentionVersion !== 1 || !Number.isSafeInteger(prunedThroughCursor) || prunedThroughCursor < 0 ||
+      prunedThroughCursor > input.latestCursor ||
+      (input.earliestCursor === input.latestCursor + 1 && prunedThroughCursor !== input.latestCursor)) throw invalidPage();
+    // An entirely pruned outbox keeps its allocated high watermark.
+    const emptyPruned = legacy.earliestCursor === legacy.latestCursor + 1;
+    if (emptyPruned && (input.events?.length !== 0 || input.hasMore || input.nextCursor !== input.latestCursor)) throw invalidPage();
+    if (emptyPruned) legacy.earliestCursor = legacy.latestCursor;
+    const page = normalizeProcessedGiftPage(legacy);
+    return Object.freeze({ ...page, earliestCursor: input.earliestCursor, giftRetentionVersion, prunedThroughCursor });
+  }
   const isLegacyPage = isPlainObject(input) && hasExactKeys(input, LEGACY_PAGE_KEYS);
   const isVersionedPage = isPlainObject(input) && hasExactKeys(input, EVENT_PAGE_KEYS);
   if ((!isLegacyPage && !isVersionedPage) || input.ok !== true) {
@@ -129,6 +142,18 @@ function canonicalizeProcessedGiftHistoryRecord(input) {
 }
 
 function normalizeProcessedGiftHistoryPage(input) {
+  if (isPlainObject(input) && Object.hasOwn(input, 'giftRetentionVersion')) {
+    const { giftRetentionVersion, summaryRevision, detailStart, ...legacy } = input;
+    if (giftRetentionVersion !== 1 || !Number.isSafeInteger(summaryRevision) || summaryRevision < 0 ||
+      (detailStart !== null && (typeof detailStart !== 'string' || !Number.isFinite(Date.parse(detailStart)))) ||
+      !Array.isArray(input.events) || input.events.some((record) => !isPlainObject(record))) throw invalidHistoryPage();
+    const cursors = input.events.map((record) => record.finalCursor);
+    if (cursors.some((cursor) => !Number.isSafeInteger(cursor) || cursor < 0 || cursor > input.recoveryCursor)) throw invalidHistoryPage();
+    legacy.events = input.events.map(({ finalCursor, ...record }) => record);
+    const page = normalizeProcessedGiftHistoryPage(legacy);
+    return Object.freeze({ ...page, giftRetentionVersion, summaryRevision, detailStart,
+      events: Object.freeze(page.events.map((event, index) => Object.freeze({ ...event, finalCursor: cursors[index] }))) });
+  }
   if (
     !isPlainObject(input) ||
     !hasExactKeys(input, HISTORY_PAGE_KEYS) ||

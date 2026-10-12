@@ -199,7 +199,7 @@ function createRemoteLicenseClient(options = {}) {
             Accept: 'text/event-stream',
             Authorization: `Bearer ${token}`,
             ...(pathname === '/api/device/gift-events/stream'
-              ? { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1', 'X-Lira-Gift-Effects': '1' }
+              ? { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1', 'X-Lira-Gift-Effects': '1', 'X-Lira-Gift-Retention': '1' }
               : {}),
           },
           signal: controller.signal,

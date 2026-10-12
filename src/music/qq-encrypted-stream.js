@@ -122,6 +122,19 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
       sendError(res, 502, 'QQ 加密媒体响应过大。');
       return;
     }
+    let bodyOffset = 0;
+    if (upstream.status === 206) {
+      const contentRange = /^bytes (\d+)-(\d+)\/(\d+|\*)$/i.exec(upstream.headers.get('content-range') || '');
+      const start = Number(contentRange?.[1]);
+      const end = Number(contentRange?.[2]);
+      const total = contentRange?.[3] === '*' ? null : Number(contentRange?.[3]);
+      if (!contentRange || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || end < start ||
+          (total !== null && (!Number.isSafeInteger(total) || total <= end))) {
+        sendError(res, 502, 'QQ 加密媒体响应范围无效。');
+        return;
+      }
+      bodyOffset = start;
+    }
     await ready;
     if (controller.signal.aborted) return;
     cipher = new QMC2(String(record.ekey || ''));
@@ -144,7 +157,7 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
           return;
         }
         try {
-          cipher.decrypt(buffer, (range ? range.start : 0) + receivedBytes);
+          cipher.decrypt(buffer, bodyOffset + receivedBytes);
           receivedBytes += buffer.length;
           callback(null, buffer);
         } catch (error) {

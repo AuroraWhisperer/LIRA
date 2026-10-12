@@ -11,6 +11,7 @@ export function createQueueOperations(deps) {
     getPlaybackAudio,
     syncPlaybackLyricWindow,
     invalidatePlaybackRequests,
+    invalidateImports,
   } = deps;
   const stateActions =
     deps.stateActions ||
@@ -27,6 +28,7 @@ export function createQueueOperations(deps) {
   }
   function startPlaybackCollection(tracks, index, type, title = '', sourceKey = '') {
     if (!Array.isArray(tracks) || !tracks.some(Boolean)) return;
+    invalidateImports?.();
     resetAudio();
     stateActions.clearCurrent();
     stateActions.clearPending();
@@ -35,6 +37,7 @@ export function createQueueOperations(deps) {
   }
   function clearPlaybackQueue() {
     invalidatePlaybackRequests();
+    invalidateImports?.();
     resetAudio();
     stateActions.clearCurrent();
     stateActions.clearPending();

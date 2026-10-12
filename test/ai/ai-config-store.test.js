@@ -258,20 +258,28 @@ for (const hours of [12, 24, 7 * 24]) {
   });
 }
 
-test('AI first write after restart removes old expiry while preserving live context and business rows', (t) => {
+test('AI initialization removes expired cache and context while preserving live values and business rows', (t) => {
   const f = retentionFixture(t);
   f.store.setCache('expired-query', { text: 'old' }, 60);
   f.store.setContext('expired-viewer', { answer: 'old' }, 60);
+  f.store.setCache('live-query', { text: 'retained' }, 86400);
   f.store.setContext('live-viewer', { answer: 'retained' }, 86400);
   f.store.setBlacklist('blocked-viewer', true);
   f.store.logRequest({ uid: 'logged-viewer', status: 'generated' });
+  f.db.prepare('INSERT INTO ai_configuration (key, value, updated_at) VALUES (?, ?, ?)')
+    .run('model', 'synthetic-model', new Date(0).toISOString());
+  f.db.prepare('INSERT INTO ai_api_usage (category, month_key, request_count, updated_at) VALUES (?, ?, ?, ?)')
+    .run('chat', '1970-01', 1, 0);
+  const businessTables = ['ai_configuration', 'ai_blacklist', 'ai_request_logs', 'ai_api_usage'];
+  const businessRows = () => businessTables.map((table) => f.db.prepare(`SELECT * FROM ${table}`).all());
+  const before = businessRows();
   f.advanceTo(12 * 60 * 60 * 1000);
-  f.createStore().setContext('new-viewer', { answer: 'new' }, 1200);
-  assert.equal(f.count('ai_query_cache'), 0);
-  assert.equal(f.count('ai_viewer_context'), 2);
-  assert.deepEqual(f.store.getContext('live-viewer'), { answer: 'retained' });
-  assert.equal(f.store.isBlacklisted('blocked-viewer'), true);
-  assert.equal(f.count('ai_request_logs'), 1);
+  const reopened = f.createStore();
+  assert.equal(f.count('ai_query_cache'), 1);
+  assert.equal(f.count('ai_viewer_context'), 1);
+  assert.deepEqual(reopened.getCache('live-query'), { text: 'retained' });
+  assert.deepEqual(reopened.getContext('live-viewer'), { answer: 'retained' });
+  assert.deepEqual(businessRows(), before);
 });
 
 test('AI cache cleanup recovers after the system clock moves backwards', (t) => {

@@ -76,6 +76,25 @@ test('danmaku character counter counts Chinese and emoji as code points', async 
   assert.equal(await page.locator('#danmakuCounter').textContent(), '3 字');
 });
 
+test('sending a danmaku clears only the submitted draft and preserves edits made while sending', async (t) => {
+  const page = await createDanmakuPage(t);
+  await page.evaluate(() => {
+    const read = window.fetch;
+    window.fetch = (url) => url === '/api/bilibili/danmaku/send'
+      ? new Promise(resolve => { window.finishSend = () => resolve({ ok: true, json: async () => ({ ok: true, data: {} }) }); })
+      : read(url);
+  });
+  for (const edit of [false, true]) {
+    await page.locator('#danmakuMessage').fill('第一条');
+    await page.locator('#danmakuSendBtn').click();
+    if (edit) await page.locator('#danmakuMessage').fill('下一条🙂');
+    await page.evaluate(() => window.finishSend());
+    await page.waitForFunction(() => !document.getElementById('danmakuSendBtn').disabled);
+    assert.equal(await page.locator('#danmakuMessage').inputValue(), edit ? '下一条🙂' : '');
+    assert.equal(await page.locator('#danmakuCounter').textContent(), edit ? '4 字' : '0 字');
+  }
+});
+
 for (const scenario of [
   {
     name: 'display names',

@@ -13,6 +13,21 @@ function actionTags(markup, action) {
   return markup.match(new RegExp(`<[^>]+\\sdata-fan-action=["']${action}["'][^>]*>`, 'g')) || [];
 }
 
+test('expiry badge and guard icon share the row side while preserving wrapping names and safe tooltips', async () => {
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const profile = { id: 'expiry-fan', alias: '<很长的称呼>', currentGuardLevel: 3, summary: '摘要' };
+  const expiry = { observedAt: '2026-10-12T04:00:00Z', badges: [{ profileId: profile.id, level: 3, days: 0 }] };
+  const markup = view.renderPeople([profile], null, false, false, expiry);
+  assert.match(markup, /fan-person-copy/);
+  assert.match(markup, /&lt;很长的称呼&gt;/);
+  assert.match(markup, /fan-person-badges[\s\S]*fan-expiry-badge[\s\S]*剩0天[\s\S]*data-guard-icon="3"/);
+  assert.match(markup, /舰长到期：今日到期。来源：B站/);
+  assert.doesNotMatch(view.renderPeople([profile], null, false), /fan-expiry-badge/);
+  assert.match(view.renderPeople([profile], null, false), /data-guard-icon="3"/);
+  for (const changed of [{ ...profile, archived: true }, { ...profile, currentGuardLevel: 2 }])
+    assert.doesNotMatch(view.renderPeople([changed], null, false, false, expiry), /fan-expiry-badge/);
+});
+
 test('archive scope controls live on the profiles page, not in settings or the notice', () => {
   const markup = fs.readFileSync(path.join(ROOT, 'public/pages/admin/toolbox/fan-profiles.html'), 'utf8');
   const group = markup.match(/<[^>]+\saria-label=["']档案范围["'][^>]*>/)?.[0];
@@ -415,6 +430,85 @@ test('missing members and ordinary profiles have plain names and no identity pla
   }
 });
 
+test('music renders song summaries with lifetime counts, the latest three dates and the 30-day statistic', async (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const profile = {
+    ...f.detail(p.id),
+    musicStats: { days: 30, count: 5, categories: { 未分类: 5 } },
+    songs: [
+      { id: 'summary-rain', data: { songName: '雨爱', artist: '测试歌手', count: 18, recentDates: ['2026-10-12', '2026-10-11', '2026-10-09'] } },
+      { id: 'summary-other', data: { songName: '另一首歌', count: 1, recentDates: ['2026-10-11'] } },
+    ],
+  };
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const rendered = view.renderDetail(profile, 'music');
+  const groups = [...rendered.matchAll(/<article class="fan-record fan-song-group">([\s\S]*?)<\/article>/g)];
+  assert.equal(groups.length, 2);
+  const summary = groups[0][1];
+  assert.match(summary, /《雨爱》 · 测试歌手/);
+  assert.match(summary, /（18 次）/);
+  assert.deepEqual([...summary.matchAll(/<span>(\d{4}\/\d+\/\d+)<\/span>/g)].map((match) => match[1]),
+    ['2026/10/12', '2026/10/11', '2026/10/9']);
+  assert.equal((summary.match(/fan-song-date-separator/g) || []).length, 2);
+  assert.equal((rendered.match(/《雨爱》/g) || []).length, 1);
+  assert.match(rendered, /近 30 天点歌 5 次/);
+  assert.match(groups[1][1], /（1 次）/);
+  assert.equal(actionTags(rendered, 'new-song').length, 1);
+  assert.equal(actionTags(rendered, 'legacy').length, 0);
+  assert.equal(actionTags(rendered, 'edit-record').length, 0);
+  assert.doesNotMatch(rendered, /查看记录|收起记录|导入以前的点歌|fan-song-requests|<details\b[^>]*fan-song-group/);
+});
+
+test('song summaries escape titles and notes while active and archived preferences remain editable', async (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const preference = f.record(p.id, 'preference', { sentiment: 'like', label: '民谣' });
+  const archived = f.record(p.id, 'preference', { sentiment: 'dislike', label: '太吵的歌', archived: true });
+  const profile = {
+    ...f.detail(p.id),
+    songs: [
+      { id: 'song-a', data: { songName: 'Song <A>', artist: 'Artist', count: 2, recentDates: ['2026-09-18'], note: '<说明>' } },
+      { id: 'song-b', data: { songName: 'Song <A>', artist: '另一个歌手', count: 1, recentDates: ['2026-09-17'] } },
+    ],
+  };
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const rendered = view.renderDetail(profile, 'music');
+  assert.equal((rendered.match(/class="fan-record fan-song-group"/g) || []).length, 2);
+  assert.match(rendered, /（2 次）/);
+  assert.match(rendered, /另一个歌手/);
+  assert.match(rendered, /&lt;说明&gt;/);
+  assert.doesNotMatch(rendered, /<A>|<a>|<说明>/);
+  for (const record of [preference, archived]) {
+    assert.equal(actionTags(rendered, 'edit-record').filter((tag) => tag.includes(record.id)).length, 1);
+  }
+  assert.equal(actionTags(rendered, 'edit-record').length, 2);
+  assert.match(rendered, /<details class="fan-history">[\s\S]*不喜欢 太吵的歌/);
+  assert.doesNotMatch(rendered, /不计入偏好统计|已移出点歌记录/);
+});
+
+test('manual song entry collects one request without per-request preference or removal controls', async () => {
+  const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'), {
+    FormData: class {
+      constructor(form) {
+        return Object.entries(form);
+      }
+    },
+  });
+  const description = forms.recordForm('song');
+  assert.equal(description.title, '补记一次点歌');
+  for (const field of ['songName', 'artist', 'category', 'note', 'occurredAt']) {
+    assert.match(description.fields, new RegExp(`name="${field}"`));
+  }
+  assert.doesNotMatch(description.fields, /excludeFromStats|excluded|不计入听歌偏好|点歌记录中移除/);
+  const payload = description.read({ songName: '雨爱', artist: '测试歌手', category: '流行', note: '补记', occurredAt: '2026-10-12T12:00' });
+  assert.equal(payload.kind, 'song');
+  assert.equal(payload.occurredAt, '2026-10-12T04:00:00.000Z');
+  assert.equal(payload.data.songName, '雨爱');
+  assert.equal(Object.hasOwn(payload.data, 'excludeFromStats'), false);
+  assert.equal(Object.hasOwn(payload.data, 'excluded'), false);
+});
+
 test('detail tabs show each record in one place and keep archived records editable', async (t) => {
   const f = fanFixture(t);
   const p = f.create({ alias: '星星同学' });
@@ -425,10 +519,12 @@ test('detail tabs show each record in one place and keep archived records editab
   const topic = f.record(p.id, 'topic', { body: '周末旅行' });
   const followup = f.record(p.id, 'followup', { body: '已经唱过的约定', completed: true });
   const song = f.record(p.id, 'song', { songName: '星晴', artist: '周杰伦' });
-  const hiddenSong = f.record(p.id, 'song', { songName: '替别人点的歌', excluded: true });
   const preference = f.record(p.id, 'preference', { sentiment: 'dislike', label: '太吵的歌', archived: true });
   const member = f.record(p.id, 'membership', interval('2026-09-01', '2026-09-30'));
-  const profile = f.detail(p.id);
+  const profile = {
+    ...f.detail(p.id),
+    songs: [{ ...song, data: { songName: '星晴', artist: '周杰伦', count: 1, recentDates: ['2026-09-18'] } }],
+  };
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const pages = Object.fromEntries(
     ['overview', 'interactions', 'music', 'membership'].map((tab) => [tab, view.renderDetail(profile, tab)]),
@@ -439,8 +535,6 @@ test('detail tabs show each record in one place and keep archived records editab
     [archivedNote, 'interactions'],
     [topic, 'overview'],
     [followup, 'overview'],
-    [song, 'music'],
-    [hiddenSong, 'music'],
     [preference, 'music'],
     [member, 'membership'],
   ]) {
@@ -455,14 +549,15 @@ test('detail tabs show each record in one place and keep archived records editab
   assert.ok(pages.interactions.indexOf(pinned.id) < pages.interactions.indexOf(note.id));
   for (const [record, rendered] of [
     [archivedNote, pages.interactions],
-    [hiddenSong, pages.music],
     [preference, pages.music],
   ]) {
     const collapsed = (rendered.match(/<details\b[^>]*>[\s\S]*?<\/details>/g) || []).join('');
     assert.ok(collapsed.includes(`data-record-id="${record.id}"`), `${record.kind} is collapsed`);
   }
   assert.match(pages.music, /不喜欢 太吵的歌/);
-  for (const rendered of Object.values(pages)) {
+  for (const [tab, rendered] of Object.entries(pages)) {
+    assert.equal(rendered.includes('《星晴》'), tab === 'music');
+    assert.equal(rendered.includes(`data-record-id="${song.id}"`), false, 'song summaries have no per-request edit action');
     assert.equal((rendered.match(/星星同学/g) || []).length, 1);
     assert.equal((rendered.match(/data-fan-action="edit-profile"/g) || []).length, 1);
     assert.doesNotMatch(rendered, /<pre|fan-original|原始记录|JSON|人工修订|fanTimelineFilter/);

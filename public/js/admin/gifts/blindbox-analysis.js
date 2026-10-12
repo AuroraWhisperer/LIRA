@@ -149,9 +149,9 @@ export const giftAnalysis = (() => {
     renderFilters(data.filters || {});
     renderSummary(data.summary || {});
     renderViewControls();
-    renderTable(data.items || []);
+    renderTable(data.items || [], data.hasArchivedDetails === true);
     renderPagination(data.pagination || {});
-    renderContext();
+    renderContext(data.hasArchivedDetails === true);
     const results = document.querySelector('.blind-analysis-results');
     results?.setAttribute('aria-busy', 'false');
   }
@@ -211,14 +211,14 @@ export const giftAnalysis = (() => {
     setText('blindBoxAnalysisViewTitle', VIEW_META[state.view].title);
   }
 
-  function renderTable(items) {
+  function renderTable(items, hasArchivedDetails) {
     const head = get('blindBoxAnalysisHead');
     const body = get('blindBoxAnalysisBody');
     if (!head || !body) return;
     const columns = getColumns(state.view);
     head.innerHTML = `<tr>${columns.map((column) => `<th>${column.label}</th>`).join('')}</tr>`;
     if (items.length === 0) {
-      body.innerHTML = `<tr><td colspan="${columns.length}" class="blind-analysis-empty">当前选择下还没有盲盒数据</td></tr>`;
+      body.innerHTML = `<tr><td colspan="${columns.length}" class="blind-analysis-empty">${hasArchivedDetails && state.view === 'records' ? '该范围的逐笔开盒记录已过保留期，汇总仍可查' : '当前选择下还没有盲盒数据'}</td></tr>`;
       return;
     }
     body.innerHTML = items
@@ -282,11 +282,11 @@ export const giftAnalysis = (() => {
     if (get('blindBoxAnalysisNext')) get('blindBoxAnalysisNext').disabled = page >= totalPages;
   }
 
-  function renderContext() {
+  function renderContext(hasArchivedDetails) {
     const parts = [state.viewerLabel || '全部观众', state.box || '全部盲盒'];
     setText('blindBoxAnalysisSubtitle', parts.join(' · '));
     setText('blindBoxAnalysisTitle', state.dateRange ? '盲盒分析' : '今日盲盒分析');
-    setText('blindBoxAnalysisUpdated', `刚刚更新`);
+    setText('blindBoxAnalysisUpdated', hasArchivedDetails ? '含历史汇总，过期逐笔记录不可用' : '刚刚更新');
   }
 
   function renderLoading() {

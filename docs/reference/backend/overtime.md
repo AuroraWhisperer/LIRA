@@ -51,7 +51,7 @@
 
 - 服务器事件始终落库；礼物统计和加班消费者关闭时也不丢弃事件。客户端不会通过定时器把 `progress` 改为 `final`，只消费服务器确认的最终结果。
 - 消费者注册表逐个 `try/catch` 分发,单个消费者抛错不影响其他消费者;final 分发有失败名单时按指数退避重发([consumer-registry.js](../../../src/bilibili/gift/consumer-registry.js)、[projection-service.js](../../../src/bilibili/gift/projection-service.js))。
-- **查询只读**:礼物统计/历史查询一律只读 `detection_status='final' AND gift_stats_eligible=1` 的行([query-service.js:25-152](../../../src/bilibili/gift/query-service.js#L25-L152)),不触发任何生命周期变更;progress 与仅供加班机的事件不会出现在礼物统计功能中。
+- **查询只读**：当前账本的历史和总计按 active source 读取 `final`、`active` 且身份、数量、金额和时间有效的付费礼物，不按 `gift_stats_eligible` 过滤；关闭统计期间的礼物仍可出现在历史账本。近期展示与盲盒统计继续要求 `gift_stats_eligible=1`。所有查询均不改变生命周期，progress 不进入最终账本。查询 owner 见 [gift-query-store.js](../../../src/storage/gift-query-store.js)，完整合同见 [礼物投影规格](../../../specs/gift-ledger-projection-sync_design.md)。
 - 服务关闭时 `overtime.dispose()` 取消归零/重试定时器；礼物投影器 `dispose()` 取消消费者重试，不写入或收尾 progress（见 [storage.md](storage.md#63-并发写入静默quiesce)）。
 
 `OvertimeConsumer.handle` 只区分 `phase`([overtime-consumer.js:12-16](../../../src/overtime/overtime-consumer.js#L12-L16)):
@@ -128,8 +128,10 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 
 - 一个 `gift_events.id` 就是一次连击最终封账后的礼物组,也是唯一结算键:`overtime_settlements.gift_event_id UNIQUE`([schema.js:344-347](../../../src/storage/schema.js#L344-L347))。`quantityMode='group'` 时整组执行一次规则；`quantityMode='item'` 时按封账数量 `num` 执行对应次数。
 - 结算行状态:`pending → applied | ignored`(CHECK 约束);`applied/ignored` 是终态,重复包、迟到包、数量继续增长都不再修改(`isComplete`,[overtime-store.js:335-337](../../../src/overtime/overtime-store.js#L335-L337))。
-- **服务器收尾**：平台结束标记和 10 秒静默窗口由服务器判定。客户端收到服务器 `final` 后，加班机立即结算，不增加第二个静默窗口。
+- **服务器收尾**：平台结束标记和 5 秒静默窗口由服务器判定。客户端收到服务器 `final` 后，加班机立即结算，不增加第二个静默窗口。
 - **资格冻结**:`gift_events.overtime_epoch` 在组内第一个平台包到达时写入当时的 `enable_epoch`(未启用为 0),后续连击不得改变;加班机只在 `enabled=1 且 overtime_epoch === enable_epoch` 时处理事件(`isEligible`,[overtime-store.js:328-333](../../../src/overtime/overtime-store.js#L328-L333))——关闭期间开始的组即使重新启用后封账也不补投、不回放。
+
+同一启用轮次内，已经收到但尚未结算的礼物继续保留资格；切换账号、直播间或 active source 不会自动结束本轮，也不取消旧来源的待结算工作。收到 final 或补偿恢复后，符合本轮资格的礼物仍结算到本地同一个计时器。`disable` 才结束本轮并忽略 pending；再次 `enable` 递增 epoch，旧轮礼物不再补算。启停不清零已累计时间，恢复初始时间仍由独立的 `reset` 操作完成。此约定仅针对本轮已接收的礼物，不改变历史同步的消费者资格或终态幂等规则。
 
 ### 3.2 observeGift / settleFinal 返回语义
 
@@ -152,7 +154,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 | final 结算          | `settleFinal` 同一事务内:复验 enabled/epoch → 幂等确保 pending → 确认 `detection_status='final'` → 查 `enabled=1` 规则(无规则 → ignored)→ `resolve` 计算时间变化 → `saveState` + pending 行置 `applied`(写全量快照字段)    | [overtime-store.js:105-163](../../../src/overtime/overtime-store.js#L105-L163)                                                 |
 | 时间变化            | 按规则的 `quantityMode` 得到执行次数:连击组模式为 1,具体数量模式为 `num`;固定操作顺序重复,随机模式每次独立抽取。最终 `appliedDeltaSeconds = trunc((afterMs-beforeMs)/1000)`,经 `clampMs` **双向钳制**:负数归零、超上限截断 | [overtime-service.js:202-278](../../../src/overtime/overtime-service.js#L202-L278)                                             |
 | 状态联动            | `afterMs === 0` → `finished`;`requested>0` 且当前 `finished` → 自动恢复 `running`                                                                                                                                          | [210-211](../../../src/overtime/overtime-service.js#L210-L211)                                                                 |
-| 审计快照            | `rule_snapshot_json`:`{mode, quantityMode, fixedEffect\|null, outcomes[], displayText, ruleUpdatedAt}`;盲盒结果 `outcomes_json` version 1(§4.3);`rule_mode` = `fixed/random/display/ignored`                               | [215-221](../../../src/overtime/overtime-service.js#L215-L221)、[247-266](../../../src/overtime/overtime-service.js#L247-L266) |
+| 审计快照            | `rule_snapshot_json`:`{mode, quantityMode, fixedEffect\|null, outcomes[], displayText, ruleUpdatedAt}`;盲盒结果 `outcomes_json` 单次为 version 2、多次为 version 3(§4.3);`rule_mode` = `fixed/random/display/ignored`                               | [215-221](../../../src/overtime/overtime-service.js#L215-L221)、[247-266](../../../src/overtime/overtime-service.js#L247-L266) |
 | 广播                | `kind === 'applied'` 才 `onUpdate({reason:'gift', state, adjustment})`;`ignored` 不递增 revision、不广播、不动效                                                                                                           | [overtime-service.js:178-188](../../../src/overtime/overtime-service.js#L178-L188)                                             |
 
 `adjustment` 载荷由 `resolveGiftSettlement` 构造,经 `overtime:update` 的 `adjustment` 字段下发(见 [ws.md](ws.md) §3.2);`quantity` 是封账数量,`applicationCount` 是实际规则执行次数。示例(固定规则 `+300s` 的 `x100` 连击,选择按具体数量):

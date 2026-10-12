@@ -118,7 +118,7 @@ GET https://music.163.com/api/search/get/web?s=<关键词>&type=1&limit=<1-30 �
 ```
 
 - `s` 必填(空抛"缺少搜索关键词");`limit`/`offset` 由 `clampInteger` 限制
-- 响应 `data.result.songs[]` → `mapNeteaseSong`(见 §8.1);封面回退到 `artists[0].img1v1Url`——搜索接口不返回专辑封面,此回退零额外网络请求([netease-provider.js](../../../../src/music/providers/netease-provider.js))
+- 响应 `data.result.songs[]` → `mapTracksWithArtwork` → `mapNeteaseSong`(见 §8.1)；缺少专辑封面的歌曲按去重 ID 每批最多 100 首请求 `/api/song/detail` 补全，失败保留原列表并沿用歌手图片回退（[netease-provider.js](../../../../src/music/providers/netease-provider.js)）。
 - 健康检查复用:`s=晴天, type=1, limit=1`([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
 ### 7.2 播放 URL 解析([netease-provider.js](../../../../src/music/providers/netease-provider.js))

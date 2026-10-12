@@ -77,6 +77,12 @@ export function mountGiftEffectComponent() {
   }
   mountSceneExtraClient(type, {
     onConfig(value) {
+      if (mediaPlayer && !frame && config.resourceStyle?.preset === 'nautical-guard-thanks'
+        && JSON.stringify(config.resourceStyle) === JSON.stringify(value.resourceStyle)) {
+        config = value;
+        mediaPlayer.configure(value);
+        return mediaPlayer.ready();
+      }
       dispose(); config = value;
       if (sample) preview();
       return currentMediaPlayer()?.ready();

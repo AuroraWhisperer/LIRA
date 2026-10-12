@@ -40,7 +40,7 @@ async function fixture(profile = account('one')) {
   );
   await module.link(() => {});
   await module.evaluate();
-  module.namespace.initDanmakuPkReport({
+  const controller = module.namespace.initDanmakuPkReport({
     toast: (message, options) => toasts.push({ message, options }),
     documentRef: { getElementById: (id) => get(id.replace('danmakuPkReport', '')) },
     windowRef: get('window'),
@@ -63,6 +63,7 @@ async function fixture(profile = account('one')) {
     reads,
     writes,
     toasts,
+    refresh: controller.refresh,
     account: (name) => listener(account(name)),
     toggle: (value) => {
       get('Toggle').checked = value;
@@ -75,6 +76,7 @@ async function fixture(profile = account('one')) {
 test('PK report toggle starts disabled in the real admin page', () => {
   const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html');
   assert.match(html, /id="danmakuPkReportToggle"[^>]*disabled/);
+  assert.doesNotMatch(html, /id="danmakuPkReportRefreshBtn"/);
 });
 
 test('pending and failed writes preserve confirmed state, failed disable warns explicitly', async () => {
@@ -110,8 +112,9 @@ test('old server is unavailable and explicit refresh can recover', async () => {
   await flush();
   assert.equal(f.get('Toggle').disabled, true);
   assert.match(f.get('Status').textContent, /暂不可用/);
-  f.get('RefreshBtn').events.click();
+  const refreshing = f.refresh();
   f.reads[1].resolve(saved(false));
+  await refreshing;
   await flush();
   assert.equal(f.get('Toggle').disabled, false);
 });
@@ -152,6 +155,5 @@ for (const songPageUrl of ['', undefined]) {
     await flush();
     assert.equal(f.get('Toggle').disabled, false);
     assert.equal(f.get('Toggle').checked, true);
-    assert.equal(f.get('RefreshBtn').disabled, false);
   });
 }

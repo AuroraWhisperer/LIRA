@@ -16,7 +16,6 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
   'public/js/shared/utils.js': 4,
 };
 const DOMAIN_SQL_LIMITS = {
-  'src/ai/api-quota-store.js': 3,
   'src/ai/config-store.js': 18,
   // Includes pre-existing multiline calls that the original pattern missed.
   'src/overtime/overtime-store.js': 23,

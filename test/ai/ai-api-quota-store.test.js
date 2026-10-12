@@ -107,3 +107,24 @@ test('quota availability maps exhausted categories to their local tools', () => 
     ],
   );
 });
+
+test('quota cleanup keeps current, previous and future months across year rollover and clock rollback', (t) => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(SONG_SCHEMA);
+  const insert = db.prepare('INSERT INTO ai_api_usage VALUES (?, ?, ?, 0)');
+  for (const month of ['2025-11', '2025-12', '2026-01', '2026-02']) {
+    insert.run('qweather', month, API_QUOTAS.qweather);
+  }
+  let now = Date.parse('2025-12-31T16:00:00Z');
+  const quota = createAiApiQuotaStore(db, { now: () => now });
+  const months = () => db.prepare('SELECT month_key FROM ai_api_usage ORDER BY month_key').all().map((row) => row.month_key);
+  assert.deepEqual(months(), ['2025-12', '2026-01', '2026-02']);
+  assert.equal(quota.consume('qweather').allowed, false, 'cleanup must not reset the current budget');
+  now = Date.parse('2025-12-31T15:59:59Z');
+  assert.equal(quota.consume('qweather').allowed, false, 'a recent clock rollback still sees its budget');
+  assert.deepEqual(months(), ['2025-12', '2026-01', '2026-02']);
+  now = Date.parse('2026-01-31T16:00:00Z');
+  assert.equal(quota.consume('qweather').allowed, false);
+  assert.deepEqual(months(), ['2026-01', '2026-02']);
+});

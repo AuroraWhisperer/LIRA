@@ -194,6 +194,7 @@ describe('clearAllData Matrix', () => {
     assert.deepStrictEqual(result.rollbackFailed, []);
 
     assert.strictEqual(superChatDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get().count, 1);
+    assert.strictEqual(superChatDb.prepare('SELECT COUNT(*) AS count FROM super_chat_receipts').get().count, 0);
     assert.strictEqual(giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 1);
     assert.strictEqual(musicDb.prepare('SELECT COUNT(*) AS count FROM play_queue_state').get().count, 1);
     assert.strictEqual(checkinDb.prepare('SELECT COUNT(*) AS count FROM checkin_users').get().count, 1);

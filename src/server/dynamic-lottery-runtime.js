@@ -32,6 +32,7 @@ function createDynamicLotteryRuntime({ db, auth, fetchImpl = globalThis.fetch })
   try {
     store.recoverInterrupted(clock.nowMs());
     drawStore.recoverInterrupted(clock.nowMs());
+    store.pruneCompletedHistory();
   } catch {
     // Isolate the optional database; do not expose SQLite paths or user data.
     return unavailableRuntime('LOTTERY_STORAGE_UNAVAILABLE');

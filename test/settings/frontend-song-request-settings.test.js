@@ -11,6 +11,8 @@ test('connection and song request forms save independently and preserve pending 
     paused: 'true',
     queueLimit: '30',
     userCooldownSeconds: '60',
+    songCooldownMode: 'hours',
+    songCooldownValue: '6',
     onlyFromLibrary: 'false',
     allowDuplicate: 'false',
     songRequestBlacklist: '78\n不要唱',

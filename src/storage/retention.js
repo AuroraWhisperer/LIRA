@@ -1,10 +1,13 @@
 // 编写人：Aurora
-// 数据保留期清理。此前只有「全部清空」，没有按时间清理的手段，
-// gift_events.raw_json 和 requests 会随开播场次无节制增长。
+// 数据保留期清理与已失去用途的运行记录回收。
 'use strict';
 
 const { now } = require('../shared/utils');
 const { createGiftMaintenanceStore } = require('./gift-maintenance-store');
+const { createFanRecordStore } = require('./fan-record-store');
+
+// 设置契约允许的最长歌曲冷却；不能按当前设置清理，以免延长冷却后失效。
+const MAX_SONG_COOLDOWN_DAYS = 999;
 
 // 默认保留期（天）。0 表示不清理。
 const DEFAULT_POLICY = {
@@ -43,6 +46,8 @@ function applyRetentionPolicies(databases, options = {}) {
     superChatsDeleted: 0,
     aiRequestLogsDeleted: 0,
     cooldownsDeleted: 0,
+    songCooldownsDeleted: 0,
+    importBatchesDeleted: 0,
   };
 
   const giftRawDays = normalizeDays(policy.giftRawJsonDays);
@@ -91,8 +96,14 @@ function applyRetentionPolicies(databases, options = {}) {
 
   const requestDays = normalizeDays(policy.requestDays);
   if (requestDays > 0 && databases.songDb) {
-    result.requestsDeleted = deleteOlderThan(databases.songDb, 'requests', isoDaysAgo(requestDays), dryRun);
+    const where = `created_at < ? AND NOT EXISTS (
+      SELECT 1 FROM queue WHERE queue.id = requests.queue_id AND queue.status IN ('current', 'waiting')
+    )`;
+    const threshold = isoDaysAgo(requestDays);
+    result.requestsDeleted = databases.songDb.prepare(`SELECT COUNT(*) AS count FROM requests WHERE ${where}`).get(threshold).count;
+    if (!dryRun) databases.songDb.prepare(`DELETE FROM requests WHERE ${where}`).run(threshold);
   }
+  if (!dryRun && databases.songDb) createFanRecordStore(databases.songDb).pruneSongCounts(now());
 
   const superChatDays = normalizeDays(policy.superChatDays);
   if (superChatDays > 0 && databases.superChatDb) {
@@ -119,6 +130,19 @@ function applyRetentionPolicies(databases, options = {}) {
     result.cooldownsDeleted = Number(countRow && countRow.count) || 0;
     if (!dryRun && result.cooldownsDeleted > 0) {
       databases.songDb.prepare('DELETE FROM user_cooldowns WHERE last_request_at < ?').run(threshold);
+    }
+  }
+
+  if (databases.songDb) {
+    const db = databases.songDb;
+    result.importBatchesDeleted = db.prepare('SELECT COUNT(*) AS count FROM import_batches').get().count;
+    if (!dryRun && result.importBatchesDeleted > 0) db.prepare('DELETE FROM import_batches').run();
+    if (db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'song_cooldowns'").get()) {
+      const threshold = Date.now() - MAX_SONG_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+      result.songCooldownsDeleted = db.prepare('SELECT COUNT(*) AS count FROM song_cooldowns WHERE accepted_at_ms < ?').get(threshold).count;
+      if (!dryRun && result.songCooldownsDeleted > 0) {
+        db.prepare('DELETE FROM song_cooldowns WHERE accepted_at_ms < ?').run(threshold);
+      }
     }
   }
 

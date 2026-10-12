@@ -59,6 +59,67 @@ function assertCurrentAccount(manager, accountName = 'beta') {
   assert.equal(manager.getAccessToken(), `token-${accountName}`);
 }
 
+test('authentication waits for build info and stops if disposed while hashing', async (t) => {
+  const entered = deferred();
+  const build = deferred();
+  const { manager, calls } = createHarness({
+    identity: { deviceId: 'device-a' },
+    buildInfoProvider: () => {
+      entered.resolve();
+      return build.promise;
+    },
+  });
+  t.after(() => manager.dispose());
+  const pending = manager.bootstrap();
+  await entered.promise;
+  assert.equal(calls.challenges, 0);
+  manager.dispose();
+  build.resolve({ appVersion: '3.7.11', buildId: 'fixture', integrityStatus: 'verified' });
+  await pending;
+  assert.equal(calls.challenges, 0);
+  assert.equal(calls.verifies, 0);
+});
+
+test('authentication signs the resolved asynchronous build info', async (t) => {
+  const build = { appVersion: '3.7.11', buildId: 'fixture-async-digest', integrityStatus: 'verified' };
+  const { manager, remote } = createHarness({ identity: { deviceId: 'device-a' }, buildInfoProvider: async () => build });
+  t.after(() => manager.dispose());
+  const verify = remote.verify;
+  remote.verify = async (request) => {
+    for (const key of Object.keys(build)) assert.equal(request[key], build[key]);
+    return verify(request);
+  };
+  await manager.bootstrap();
+  assert.equal(manager.isAuthorized(), true);
+});
+
+test('renewal cannot send a challenge after disposal during build hashing', async (t) => {
+  const entered = deferred();
+  const delayed = deferred();
+  const build = { appVersion: '3.7.11', buildId: 'fixture', integrityStatus: 'verified' };
+  let readingRenewal = false;
+  const { manager, calls } = createHarness({
+    identity: { deviceId: 'device-a' },
+    verifyExpiresIn: () => '0s',
+    buildInfoProvider: () => {
+      if (!readingRenewal) return build;
+      entered.resolve();
+      return delayed.promise;
+    },
+  });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  readingRenewal = true;
+  const pending = assert.rejects(manager.ensureAuthorized(), /LICENSE_NOT_AUTHORIZED/);
+  await entered.promise;
+  manager.dispose();
+  delayed.resolve(build);
+  await pending;
+  assert.equal(calls.challenges, 1);
+  assert.equal(calls.verifies, 1);
+  assert.equal(manager.getAccessToken(), '');
+});
+
 test('new-account profile reads never join an old in-flight profile', async (t) => {
   const harness = createAccountHarness(t);
   await harness.manager.bootstrap();

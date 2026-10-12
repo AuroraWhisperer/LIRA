@@ -1,4 +1,4 @@
-<h4 class="usage-guide-subsection-title">3.1 发送与关键词回复</h4>
+<h4 class="usage-guide-subsection-title">3.1 发送与固定回复</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-send-danmaku"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.1 手动发送</strong></h5></div>
 <p>打开「百宝箱 → 互动娱乐 → 弹幕互动」，先确认连接状态区的发送账号、目标直播间和发送权限。在发送区输入文字，按 Ctrl + Enter 发送，并查看发送结果。该区域没有独立网页地址。</p>
 <figure class="usage-guide-figure">
@@ -12,30 +12,49 @@
 <li>发送失败：先检查发送账号和连接状态。别连续点，会重复加任务。</li>
 </ol></article>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.3 关键词回复</strong></h5></div>
-<p>在「百宝箱 → 弹幕互动 → 固定回复」点击「自定义关键词回复」旁的「编辑」，填写关键词与回复，添加后点击编辑区右下角的「保存自定义回复」。功能说明可点击标题旁的问号查看。点歌回复见<a data-usage-guide-link href="#ug-random-song">随机点歌</a>；礼物查询与答谢见<a data-usage-guide-link href="#ug-gift-interactions">礼物答谢与查询弹幕</a>。</p>
+<p>在「百宝箱 → 弹幕互动 → 固定回复」点击「自定义关键词回复」旁的「编辑」，填写关键词与回复，添加后点击编辑区右下角的「保存自定义回复」。弹幕包含关键词就会触发，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。这里设置固定文案，不解析正则或变量。此功能需保持客户端在线，功能说明可点击标题旁的问号查看。「点歌回复」由系统生成随机无匹配或歌曲冷却提示，无需词库；点击该项“说明”查看示例。关闭回复不解除冷却。点歌规则见<a data-usage-guide-link href="#ug-random-song">随机点歌</a>；礼物查询与答谢见<a data-usage-guide-link href="#ug-gift-interactions">礼物答谢与查询弹幕</a>。</p>
 <figure class="usage-guide-figure">
-<img alt="自定义关键词、回复内容、添加与保存入口；请按自己的规则填写。" class="usage-guide-image" decoding="async" height="752" loading="lazy" src="/img/usage-guide/E/danmaku-custom-reply.webp" style="--usage-guide-image-width: 1092px" width="1092"/>
-<figcaption>自定义关键词、回复内容、添加与保存入口；请按自己的规则填写。</figcaption>
-</figure></article></div>
+<img alt="自定义关键词回复编辑区，包含你好和直播时间两条示例、添加与保存入口" class="usage-guide-image" decoding="async" height="337" loading="lazy" src="/img/usage-guide/E/danmaku-custom-reply.webp" style="--usage-guide-image-width: 1058px" width="1058"/>
+<figcaption>在「固定回复 → 自定义关键词回复」点「编辑」后填写并保存；图中为示例文案。</figcaption>
+</figure></article>
+<article class="usage-guide-feature" id="ug-exact-replies"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.4 自定义回复与菜单</strong></h5></div>
+<p>点击「自定义回复 → 编辑」，填写完整触发词与回复，添加后保存。例如设为「月卡」时，观众单独发送「月卡」才回复；「怎么开月卡」不会触发，前后空格不影响，英文字母区分大小写。这里设置固定文案，不解析正则或变量。最多 30 条规则，触发词最多 30 字、回复最多 120 字。内置指令优先于自定义规则，不要用点歌、签到等已有指令作为触发词。</p>
+<p>开启自定义回复后，单独发送「菜单」即可查看互动指令，不需要另建菜单规则。「菜单」是保留词，不能覆盖；菜单按已开启的能力生成，点歌、AI、投票和游戏等桌面功能会标注需客户端在线。精确自定义回复由服务器执行，命中后不会再重复触发关键词或 AI 回复。保存失败会保留草稿，切换账号会清空草稿。</p>
+<figure class="usage-guide-figure"><img alt="自定义回复编辑示例：完整触发词和固定回复" class="usage-guide-image" decoding="async" loading="lazy" src="/img/usage-guide/E/danmaku-exact-reply.png" width="1330" height="277"/><figcaption>隔离桌面中的示例规则，未向直播间发送消息。</figcaption></figure>
+</article>
+<article class="usage-guide-feature" id="ug-scheduled-danmaku"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.5 定时／随机弹幕</strong></h5></div>
+<p>点击「定时／随机弹幕 → 设置」，选择固定秒数或随机秒数。固定模式每隔设定秒数发送；随机模式每轮在最短到最长之间重新选间隔。间隔范围为 10–86400 秒，可选顺序轮播或随机一条。</p>
+<p>初始词库内置 15 句 B 站文案，沿用签到词库的逐条编辑布局：支持搜索、修改、添加、删除和翻页，每页 6 条，最多 100 条，每条最多 120 字。翻页不会丢失修改，搜索不会保存。词库与发送参数一起点击「保存设置」，再打开总览开关。已有词库会保留，主动清空并保存后也不会自动补回。</p>
+<p>内置文案参考 B 站官方<a href="https://live.bilibili.com/blackboard/era/u4EPvXpDYUMv7hYJ.html" target="_blank" rel="noopener">开播白皮书</a>及站内主播的<a href="https://www.bilibili.com/opus/1110111207656783877" target="_blank" rel="noopener">点歌说明</a>、<a href="https://www.bilibili.com/opus/1198150821682872345" target="_blank" rel="noopener">舰长月卡公告</a>等整理改写，涵盖关注、互动、预约、点歌、大航海与弹幕礼仪。点歌月卡、舰礼等请按本房间实际规则修改。</p>
+<p>仅直播中发送，开启后先等待一个间隔。停播、断线、关闭或改变设置会取消旧任务，恢复时重新计时，不补发错过的消息。词库为空时不发送；长词条会分段。设置和发送都在服务器上，关闭客户端不影响已经开启的定时弹幕。</p>
+<figure class="usage-guide-figure"><img alt="定时弹幕词库：15 句内置文案、逐条编辑、搜索与分页" class="usage-guide-image" decoding="async" loading="lazy" src="/img/usage-guide/E/danmaku-scheduled.png" width="1331" height="657"/><figcaption>内置词库可逐条修改，保存词库与参数不会自动开启发送。</figcaption></figure>
+</article></div>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-query-replies"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.6 查询回复</strong></h5></div>
+<p>在「固定回复 → 查询回复」打开开关，再点「清单」查看、搜索可用指令。这里按真实账本动态统计，不填写固定文案，也无需保存；开关与「礼物 → 弹幕查询」同步。观众查询自己的记录，主播查询本房间记录，退出客户端后仍由服务器回复。</p>
+<p>可用「今天／今日」「昨天／昨日」「本周／这周」「本月／这个月」「上月／上个月」「今年」「去年」「累计／历史」加「礼物」「盲盒」或完整礼物名称，例如「本月盲盒」「上月礼物」；「全部盲盒」也表示累计盲盒。时间后可以加“的”。清单可按完整别名搜索，例如「今日礼物」。累计包含 LIRA 已记录并保留的历史汇总，不受约 90 天逐笔明细保留期限制，也不会补齐 LIRA 开始记录前的送礼。</p>
+<p>指定月份可发送「3月礼物」「12月盲盒」，月份支持 1—12 月，也可写作「03月礼物」；只写月份表示发送时北京时间的当年。指定年份发送「2026年礼物」，指定年月发送「2026年3月盲盒」；年份可替换为其他四位年份。所有范围按北京时间自然月／年计算，清单里的年月只是可替换的示例。</p>
+<figure class="usage-guide-figure"><img alt="独立的查询回复指令清单，搜索年份查看礼物和盲盒查询写法" class="usage-guide-image" decoding="async" loading="lazy" src="/img/usage-guide/E/danmaku-query-replies.png" width="1331" height="569"/><figcaption>指令清单展示动态回复说明；数据由实际账本生成。</figcaption></figure>
+</article></div>
 <h4 class="usage-guide-subsection-title">3.2 欢迎与机器人</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-welcome-settings"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.2.1 设置进场欢迎和欢迎词</strong></h5></div>
 <p>在「固定回复 → 进场欢迎」旁点「设置」。「参数」里设什么时候欢迎、欢迎谁，「词库」里改欢迎的话。先看上方的连接状态，确认能发送弹幕。</p>
 <ol class="usage-guide-checks">
 <li>设「首次欢迎」：进场后等几秒再欢迎，可填 0–300 秒；最低荣耀等级可填 0–999 级。等级填 0 就不限制。</li>
 <li>想过一会儿再打声招呼，就开启「二次问候」。延迟可填 1–600 秒，要比首次欢迎晚。两次都从进场时算起，第一次欢迎发成功了，才会再问候。</li>
+<li>想欢迎好久没来的观众，可开启「久别重逢」。距离上次记录的进场超过 24 小时，首次欢迎会带上完整天数和随机客套话，例如「欢迎 小明，3天没来啦，最近过得怎么样呀？」。首次记录不提示天数；只依据服务器监控收到的进场，未收到的来访无法补记。点「重逢客套话词库」只编辑后半句，昵称和天数自动加上。个人欢迎词优先；内容太长时会先省略客套话，仍保留完整昵称。旧服务器需更新后才可设置。</li>
 <li>想给高荣耀等级的观众用另一套欢迎词，就开启「重点关注」，再设等级门槛，默认 31 级。这里看的是进场消息里的荣耀等级，和粉丝档案里的特别关注分开设置。</li>
 <li>打开「词库」，按需要改「欢迎词库」「问候词库」「高荣耀欢迎词库」「高荣耀问候词库」。改参数点「保存参数」，改欢迎词点对应的保存按钮，各自保存后查看成功提示。参数旁的问号可以查看规则说明。</li>
 <li>想为某位观众定制入场欢迎词，在「词库 → 按用户定制」添加用户，填写 B 站 UID 和欢迎文案，再保存用户欢迎词。最多 100 位用户，同一 UID 只能有一条。请填写 UID，不是昵称；改名后仍按同一 UID 匹配。删除后也要保存。</li>
 </ol>
 <figure class="usage-guide-figure">
-<img alt="进场欢迎参数页：首次欢迎、二次问候、重点关注、昵称注音和保存参数按钮。" class="usage-guide-image" decoding="async" height="463" loading="lazy" src="/img/usage-guide/E/welcome-parameters.webp" style="--usage-guide-image-width: 1058px" width="1058"/>
+<img alt="进场欢迎参数页：首次欢迎、二次问候、重点关注和久别重逢两列排列，卡片内双输入同行。" class="usage-guide-image" decoding="async" height="487" loading="lazy" src="/img/usage-guide/E/welcome-parameters.webp" style="--usage-guide-image-width: 961px" width="961"/>
 <figcaption>在「参数」里设置欢迎时机和等级门槛；图中数值为演示配置，请按需要保存。</figcaption>
 </figure>
 
 <p>欢迎词里写 <code>{username}</code>，发送时就会换成观众的称呼。不写也行，会自动加在句首。识别到本房间的大航海身份时，还会在称呼前加上舰长、提督或总督。欢迎词太长时，可能会换成短一点的说法。</p>
-<p>用户定制文案优先用于这位观众的首次欢迎，仍需满足首次欢迎的荣耀门槛、延迟和发送限制；二次问候沿用原词库。没有匹配 UID 时，使用高荣耀或普通欢迎词库。每条文案最多 80 字；保存失败会保留草稿，刷新时也会保留未保存的修改，切换账号会清空草稿。旧服务器不支持时需先更新服务器，原欢迎设置仍可使用。</p>
+<p>用户定制文案优先用于这位观众的首次欢迎，仍需满足首次欢迎的荣耀门槛、延迟和发送限制；二次问候沿用原词库。没有匹配 UID 时，先判断久别重逢，再使用高荣耀或普通欢迎词库。每条文案最多 80 字；保存失败会保留草稿，刷新时也会保留未保存的修改，切换账号会清空草稿。旧服务器不支持时需先更新服务器，原欢迎设置仍可使用。</p>
 <ul>
-<li>切完开关，要等服务器返回成功提示。有参数没保存时，按钮可能显示「开启并保存参数」。关掉进场欢迎，也会一起关掉二次问候和重点关注；下次打开欢迎时，这两项要按需要重新开。</li>
+<li>切完开关，要等服务器返回成功提示。有参数没保存时，按钮可能显示「开启并保存参数」。关掉进场欢迎，也会一起关掉二次问候、重点关注和久别重逢；下次打开欢迎时，这三项要按需要重新开。</li>
 <li>同一观众反复进场，不会每次都欢迎，默认间隔 30 分钟。荣耀门槛不是 0 时，如果进场消息里没有荣耀等级，就不会欢迎。</li>
 <li>服务器收到进场消息后才能欢迎，不一定每位进来的观众都能收到。监控连着、账号能发弹幕时，没开播也可能欢迎。想停下来，就关掉进场欢迎。</li>
 </ul>
@@ -68,6 +87,6 @@
 </ul>
 <p>记录存在服务器上。关掉或重启客户端，当天的结果还在，机器人也不会因此停下来。</p></article>
 <article class="usage-guide-feature" id="ug-pk-report"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.2.4 PK 对手信息与开播问候</strong></h5></div>
-<p>打开「PK 对手信息播报」，等成功提示。说明可点击标题旁的问号查看，状态不确定时点击同一行的「刷新」。新的 PK 开始后，服务器会查对手信息，用弹幕播报大航海和在线榜等情况。PK 中途才打开，不会补播这一场。</p>
+<p>打开「PK 对手信息播报」，等成功提示。说明可点击标题旁的问号查看，状态不确定时点击固定回复底部的「刷新云端状态」。通常无需手动刷新；刷新只核对开关，不会触发或补发播报。新的 PK 开始后，服务器会查对手信息，用弹幕播报大航海和在线榜等情况。PK 中途才打开，不会补播这一场。</p>
 <p>播报里的金额按「1 元 = 10 贡献值」估算。榜单可能没拿全，别把它当成对手的全部流水。「遇见次数」只算 LIRA 记下来的双方 PK，安装前的历史不会补算。</p>
 <p>服务器确认你的直播间开播、账号也能发弹幕时，还会发一句类似「欢迎『分区』分区的『昵称』主播回家」的话。这是给主播的开播问候，和观众进场欢迎分开，不用观众发指令。</p></article></div>

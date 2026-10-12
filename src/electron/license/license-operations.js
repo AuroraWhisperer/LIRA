@@ -1,7 +1,10 @@
 'use strict';
 
+const { normalizeGiftSummaryPage } = require('../../shared/gift-summary-contract');
+
 const { RemoteLicenseError } = require('./remote-license-client');
 const { sanitizeWelcomeV2 } = require('../../shared/welcome-settings-contract');
+const { fixedReplyParameters, sanitizeFixedReplySettings } = require('../../shared/fixed-reply-contract');
 const {
   normalizeProcessedGiftHistoryPage,
   normalizeProcessedGiftPage,
@@ -104,6 +107,29 @@ function createLicenseOperations(options = {}) {
     return overlayOperation((token) => remote.getPkReportSettings(token));
   }
 
+  async function getFixedReplySettings() {
+    return overlayOperation(async (token) => {
+      const state = await remote.getCloudState(token);
+      return fixedReplyState(state?.settings);
+    });
+  }
+
+  async function updateFixedReplySettings(settings) {
+    const patch = fixedReplyParameters(settings);
+    return overlayOperation(async (token) => {
+      const state = await remote.updateCloudSettings(patch, token);
+      return fixedReplyState(state);
+    });
+  }
+
+  function fixedReplyState(state) {
+    const settings = sanitizeFixedReplySettings({ ...state?.values, ok: true });
+    if (!Number.isSafeInteger(state.revision) || state.revision < 0) {
+      throw new RemoteLicenseError('INVALID_RESPONSE', '固定回复设置未确认，请刷新后重试。');
+    }
+    return { ...settings, revision: state.revision };
+  }
+
   async function updatePkReportSettings(settings) {
     return overlayOperation((token) => remote.updatePkReportSettings(settings, token));
   }
@@ -192,6 +218,18 @@ function createLicenseOperations(options = {}) {
     );
   }
 
+  async function getGiftSummariesInternal(input = {}) {
+    if ((input.pageToken != null && (typeof input.pageToken !== 'string' || !input.pageToken || input.pageToken.length > 4096)) ||
+      (input.afterRevision != null && (!Number.isSafeInteger(input.afterRevision) || input.afterRevision < 0))) {
+      throw new RemoteLicenseError('INVALID_GIFT_SUMMARY_QUERY', '礼物汇总查询无效。');
+    }
+    return withAuthorizedToken(async (token) => {
+      const result = await remote.getGiftSummaries(input, token);
+      try { return normalizeGiftSummaryPage(result); }
+      catch { throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效汇总。', { retryable: true }); }
+    }, 0, false, undefined, input.signal);
+  }
+
   async function clearGiftHistoryInternal(input = {}) {
     return withAuthorizedToken(
       async (token) => {
@@ -275,8 +313,9 @@ function createLicenseOperations(options = {}) {
   }
 
   async function syncSongs(songs, requestOptions = {}) {
-    if (!Array.isArray(songs) || songs.length > 5000)
-      throw new RemoteLicenseError('SONG_LIST_INVALID', '歌库数量超出同步上限。');
+    if (!Array.isArray(songs)) throw new RemoteLicenseError('SONG_LIST_INVALID', '歌库格式无效。');
+    if (songs.length > 5000)
+      throw new RemoteLicenseError('TOO_MANY_SONGS', '歌库超过 5000 首，请先整理后重新同步。');
     const snapshot = songs.map(mapSongForSync);
     return withAuthorizedToken(
       (token) => remote.syncSongs(snapshot, token, requestOptions),
@@ -352,6 +391,8 @@ function createLicenseOperations(options = {}) {
   }
 
   return {
+    getGuardExpiryWarningsInternal: (requestOptions = {}) =>
+      guardExpiryRequest((token) => remote.getGuardExpiryWarnings(token, requestOptions), requestOptions),
     getGuardExpiryAccountInternal: (requestOptions = {}) =>
       guardExpiryRequest((token) => remote.getGuardExpiryAccount(token, requestOptions), requestOptions),
     updateGuardExpiryAccountInternal: (input, requestOptions = {}) =>
@@ -380,6 +421,7 @@ function createLicenseOperations(options = {}) {
     getGiftCatalog,
     getGiftEventsInternal,
     getGiftHistoryInternal,
+    getGiftSummariesInternal,
     getProfile,
     getOverlaySettings,
     updateOverlaySettings,
@@ -391,6 +433,8 @@ function createLicenseOperations(options = {}) {
     getWelcomeSettingsV2,
     updateWelcomeSettingsV2,
     getPkReportSettings,
+    getFixedReplySettings,
+    updateFixedReplySettings,
     updatePkReportSettings,
     updateWelcomeSettings,
     getSongPageBackground,

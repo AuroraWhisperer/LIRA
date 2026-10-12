@@ -140,6 +140,8 @@ contextBridge.exposeInMainWorld('liraLicense', {
   getWelcomeSettingsV2: () => ipcRenderer.invoke('license:get-welcome-settings-v2'),
   updateWelcomeSettingsV2: (settings) => ipcRenderer.invoke('license:update-welcome-settings-v2', settings),
   getPkReportSettings: () => ipcRenderer.invoke('license:get-pk-report-settings'),
+  getFixedReplySettings: () => ipcRenderer.invoke('license:get-fixed-reply-settings'),
+  updateFixedReplySettings: (settings) => ipcRenderer.invoke('license:update-fixed-reply-settings', settings),
   updatePkReportSettings: (settings) => ipcRenderer.invoke('license:update-pk-report-settings', settings),
   updateWelcomeSettings: (settings) => ipcRenderer.invoke('license:update-welcome-settings', settings),
   updateOverlaySettings: (settings) => ipcRenderer.invoke('license:update-overlay-settings', settings),

@@ -425,6 +425,71 @@ test('both address observers read the server capability and discard late account
   hide();
 });
 
+test('restored authorization loads the profile before resolving the overlay address', async () => {
+  const snapshot = { state: 'authorized', streamer: { accountName: 'restored', songPageUrl: '' } };
+  const calls = [];
+  const context = vm.createContext({
+    URL,
+    window: {
+      liraLicense: {
+        getState: async () => snapshot,
+        getProfile: async () => {
+          calls.push('profile');
+          return { ok: true, ...snapshot, streamer: {
+            ...snapshot.streamer, songPageUrl: 'https://broadcaster.example.test:9443/',
+          } };
+        },
+        getOverlaySettings: async () => { calls.push('settings'); return saved(); },
+      },
+      addEventListener() {},
+    },
+  });
+  const module = new vm.SourceTextModule(source('server-overlay-url.js'), { context });
+  await module.link(() => {});
+  await module.evaluate();
+  const addresses = [];
+  module.namespace.observeServerOverlayUrl((value) => addresses.push(value));
+  module.namespace.observeServerOverlayUrl(() => {});
+  await module.namespace.waitForServerOverlayUrlInitialization();
+  assert.deepEqual(calls, ['profile', 'settings']);
+  assert.deepEqual(addresses, ['', url]);
+});
+
+test('a profile response from the previous account cannot load its overlay after an account switch', async () => {
+  const a = { state: 'authorized', streamer: { accountName: 'a' } };
+  const b = { state: 'authorized', streamer: { accountName: 'b', songPageUrl: 'https://b.example.test/' } };
+  const bUrl = 'https://b.example.test/overlay/anotherKey_12345';
+  let onState;
+  let resolveProfile;
+  let reads = 0;
+  const context = vm.createContext({
+    URL,
+    window: {
+      liraLicense: {
+        getState: async () => a,
+        onStateChanged: (listener) => { onState = listener; },
+        getProfile: () => new Promise((resolve) => { resolveProfile = resolve; }),
+        getOverlaySettings: async () => { reads += 1; return saved('signal', 6, bUrl); },
+      },
+      addEventListener() {},
+    },
+  });
+  const module = new vm.SourceTextModule(source('server-overlay-url.js'), { context });
+  await module.link(() => {});
+  await module.evaluate();
+  const addresses = [];
+  module.namespace.observeServerOverlayUrl((value) => addresses.push(value));
+  await flush();
+  assert.equal(reads, 0);
+  onState(b);
+  await flush();
+  assert.equal(addresses.at(-1), bUrl);
+  resolveProfile({ ok: true, ...a, streamer: { ...a.streamer, songPageUrl: 'https://a.example.test/' } });
+  await module.namespace.waitForServerOverlayUrlInitialization();
+  assert.equal(reads, 1);
+  assert.deepEqual(addresses, ['', bUrl]);
+});
+
 test('URL resolver refuses bare, wrong-origin and malformed server addresses', async () => {
   const module = new vm.SourceTextModule(source('server-overlay-url.js'), { context: vm.createContext({ URL }) });
   await module.link(() => {});

@@ -10,6 +10,7 @@ const { createFanFactConsumer } = require('./profile-facts');
 const { createFanMergeService } = require('./profile-merge');
 const { createGuardRosterImporter, getGuardRoster } = require('./guard-roster-import');
 const { accompanySettings, getGuardAccompany } = require('./guard-accompany');
+const { SONG_STATS_DAYS, recentSongCounts } = require('./song-summary');
 
 function createFanProfileService({ store, now = () => new Date().toISOString() }) {
   function requireProfile(scope, id) {
@@ -57,17 +58,19 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
 
   function detail(scope, id) {
     const profile = requireProfile(scope, id);
+    store.records.pruneSongCounts(now(), scope, id);
     const records = store.records.list(scope, id);
     const membership = summarizeMembership(records, now());
     const guardRoster = getGuardRoster(profile, records);
-    const songs = records.filter((record) => record.kind === 'song' && !record.data.excluded);
+    const songs = records.filter((record) => record.kind === 'song' && record.data.count > 0);
     const preferences = records.filter((record) => record.kind === 'preference' && !record.data.archived);
-    const recentSongs = songs.filter((record) => Date.parse(record.occurredAt) >= Date.parse(now()) - 90 * DAY_MS);
-    const countedSongs = recentSongs.filter((record) => !record.data.excludeFromStats);
     const categories = Object.create(null);
-    for (const song of countedSongs) {
-      const key = song.data.category || '未分类';
-      categories[key] = (categories[key] || 0) + 1;
+    let songCount = 0;
+    for (const song of songs) {
+      for (const item of recentSongCounts(song.data.dailyCounts, now())) {
+        categories[item.category] = (categories[item.category] || 0) + item.count;
+        songCount += item.count;
+      }
     }
     return {
       ...profile,
@@ -91,8 +94,8 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           ? `最近点歌《${songs[0].data.songName}》`
           : '',
       musicStats: {
-        days: 90,
-        count: countedSongs.length,
+        days: SONG_STATS_DAYS,
+        count: songCount,
         categories,
       },
       reminders: buildReminders(profile, records, store.states(scope, id), Date.parse(now()), store.getScope(scope)),
@@ -106,8 +109,8 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     if (input.id && !previous) throw new Error('记录不存在。');
     if (previous && previous.revision !== input.revision) throw new Error('记录已更新，请重新打开后核对。');
     const kind = previous?.kind || input.kind;
+    if (kind === 'song' && previous) throw new Error('点歌已合并为汇总，不再保存或编辑逐次记录。');
     const data = recordData(kind, input.data || {});
-    if (kind === 'song') data.state = previous?.data.state || '已点歌';
     const occurredAt = timestamp(input.occurredAt || now());
     let record = {
       id: previous?.id,
@@ -175,7 +178,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     }
     const saved = record.id
       ? store.records.update(scope, profile.id, record, now())
-      : store.records.insert(scope, profile.id, record);
+      : store.records.insert(scope, profile.id, record, now());
     return { record: saved, profile: detail(scope, profile.id) };
   }
 
@@ -267,7 +270,8 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           medalLevel: Number.isSafeInteger(medalLevel) && medalLevel >= 0 ? medalLevel : null,
           lastInteraction: records.filter((r) => ['note', 'song', 'membership'].includes(r.kind))[0]?.occurredAt || '',
           nextReminder:
-            reminders.find((r) => ['today', 'week'].includes(r.group) && r.status === 'pending') || null,
+            reminders.find((r) => ['today', 'week'].includes(r.group) &&
+              (r.status === 'pending' || (r.status === 'snoozed' && r.until <= dayOf(at)))) || null,
         };
       })
       .filter((profile) => {
@@ -440,7 +444,6 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     consumeFacts: facts.consume,
     observeIdentity: facts.observe,
     archiveAccepted: facts.archiveAccepted,
-    archiveQueueState: facts.archiveQueueState,
   };
 }
 

@@ -21,13 +21,13 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 ## 2. 弹幕准入链(handleDanmaku)
 
-`handleDanmaku`([ai-assistant-service.js:56-72](../../../src/ai/ai-assistant-service.js#L56-L72))按序检查,任一失败即返回 `{accepted: false, reason}`:
+`handleDanmaku`([ai-assistant-service.js](../../../src/ai/ai-assistant-service.js))在就绪检查后归一化 UID（无 UID 时使用 `name:<userName>`），然后先排除近期自身回复，再执行触发词及其他准入检查。任一失败即返回 `{accepted: false, reason}`:
 
 | 检查         | 语义                                                                                                                         | 出处                                                                                                                                           |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | 就绪检查     | `isAiReady` 不成立 → `disabled_or_unconfigured`                                                                              | [ai-assistant-service.js:57-58](../../../src/ai/ai-assistant-service.js#L57-L58)                                                               |
+| 自身回复回声 | 发送前按实际发送账号 UID 记录每个拆分片段，60 秒内同 UID 的完全相同文本（含平台可能添加的 @ 前缀）返回 `self_reply`；同账号的其他提问和其他观众的同文仍可准入 | [ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)、[sender-service.js](../../../src/bilibili/danmaku/sender-service.js) |
 | 触发词匹配   | `extractTriggeredQuestion` 在消息中定位 `trigger`,两侧文本拼回作为问题;空问题回退为"和大家打个招呼";未命中 → `not_triggered` | [ai-assistant-service.js:60-61](../../../src/ai/ai-assistant-service.js#L60-L61)、[308-316](../../../src/ai/ai-assistant-service.js#L308-L316) |
-| UID 归一化   | 无 uid 时用 `name:<userName>` 作为身份键                                                                                     | [ai-assistant-service.js:62](../../../src/ai/ai-assistant-service.js#L62)                                                                      |
 | 黑名单       | `store.isBlacklisted(uid)` 命中 → `blacklisted`(表 `ai_blacklist`)                                                           | [ai-assistant-service.js:63](../../../src/ai/ai-assistant-service.js#L63)、[config-store.js:95-98](../../../src/ai/config-store.js#L95-L98)    |
 | 本地安全规则 | `checkLocalInput` 命中硬规则 → 以 `localRefusal` 直接入队(不再调用模型),见 §6                                                | [ai-assistant-service.js:64-70](../../../src/ai/ai-assistant-service.js#L64-L70)                                                               |
 | 用户冷却     | `userCooldownSeconds`(默认 0)内同一 uid 重复触发 → `user_rate_limited`                                                       | [ai-assistant-service.js:80-90](../../../src/ai/ai-assistant-service.js#L80-L90)                                                               |
@@ -36,6 +36,10 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 | 入队         | 通过 → `{accepted: true, reason: 'queued'}`(协调器已停止时为 `'stopped'`)                                                    | [ai-assistant-service.js:74-78](../../../src/ai/ai-assistant-service.js#L74-L78)                                                               |
 
 ## 3. 回复生成管线与协调器
+
+总开关关闭由 `PUT /api/ai/config` 经 [api-context.js](../../../src/server/api-context.js) 调用 `service.updateConfig()`，先完成配置验证和持久化，再同步取消当前任务轮次：清空等待/已生成未投递队列、中止模型/工具/送达确认，并停止剩余分段和重试。每个任务保留所属轮次的 signal，关开后迟到结果也不能复活；重开只接收新触发。已提交上游的弹幕发送无法撤回，后续发送前沿用 sender 的逐段检查。旧协调器 drain 结束即从跟踪集合删除，应用 shutdown 仍等待未完成的 drain；关闭 AI 不永久停止服务，也不取消连接测试、模型列表或手动弹幕。普通配置修改与保存失败不取消现有任务。
+
+管理页总开关单独按操作顺序保存，其他字段草稿无效也能关闭；普通表单保存不携带 enabled，避免旧配置回执重新开启。相关回归见 [ai-assistant-lifecycle.test.js](../../../test/ai/ai-assistant-lifecycle.test.js)、[ai-routes.test.js](../../../test/ai/ai-routes.test.js) 和 [frontend-admin-ai-settings.test.js](../../../test/ai/frontend-admin-ai-settings.test.js)。
 
 ### 3.1 生成管线(generateReply)
 
@@ -68,7 +72,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 ## 4. 模型客户端(双协议路由)
 
-[deepseek-client.js](../../../src/ai/deepseek-client.js) 的 `createDeepSeekClient` 是唯一模型出口；端点与能力判定由 [model-endpoint.js](../../../src/ai/model-endpoint.js) 统一负责。所有请求经 [http-client.js](../../../src/ai/http-client.js) 的 `fetchJson`(外部 shutdown signal 与请求 timeout signal 合并、响应体 ≤ 2 MiB、错误码归一化)。联网搜索复用[共享响应体读取器](../../../src/shared/response-body.js)，RSS 也限制为 2 MiB；流式读取在保留 chunk 前累计字节数，超限取消上游且不把大正文放入诊断。读取器按倍数扩容单个缓冲区，容量不超过预算，避免微小分块保留大量对象；非流式测试替身在完整正文后作同样检查。外部取消保留稳定 `AI_SHUTDOWN` 原因，不被误报为普通上游超时。
+[deepseek-client.js](../../../src/ai/deepseek-client.js) 的 `createDeepSeekClient` 是唯一模型出口；端点与能力判定由 [model-endpoint.js](../../../src/ai/model-endpoint.js) 统一负责。所有请求经 [http-client.js](../../../src/ai/http-client.js) 的 `fetchJson`(任务取消 signal 与请求 timeout signal 合并、响应体 ≤ 2 MiB、错误码归一化)。联网搜索复用[共享响应体读取器](../../../src/shared/response-body.js)，RSS 也限制为 2 MiB；流式读取在保留 chunk 前累计字节数，超限取消上游且不把大正文放入诊断。读取器按倍数扩容单个缓冲区，容量不超过预算，避免微小分块保留大量对象；非流式测试替身在完整正文后作同样检查。关闭总开关保留 `AI_DISABLED`、应用关闭保留 `AI_SHUTDOWN` 取消原因，不误报普通上游超时。
 
 ### 4.1 协议选择
 
@@ -102,7 +106,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 ### 4.3 模型调用诊断
 
-`sendModelRequest` 在成功时只提交一条 `request_succeeded` 元数据，包含 provider/model/purpose/protocol、HTTP 状态、耗时、token 数、finish reason 和工具调用数；不提交 URL、请求体、原始响应或标准化正文。失败在同一拥有上下文的 catch 边界提交一条 `request_failed`，保留相同关联元数据和安全错误核心；`AI_SHUTDOWN` 取消不记普通故障。持久化前由 request-logger 汇总成功事件并再次做密钥替换与最终字节准入(§8)。
+`sendModelRequest` 在成功时只提交一条 `request_succeeded` 元数据，包含 provider/model/purpose/protocol、HTTP 状态、耗时、token 数、finish reason 和工具调用数；不提交 URL、请求体、原始响应或标准化正文。失败在同一拥有上下文的 catch 边界提交一条 `request_failed`，保留相同关联元数据和安全错误核心；`AI_SHUTDOWN` / `AI_DISABLED` 取消不记普通故障。持久化前由 request-logger 汇总成功事件并再次做密钥替换与最终字节准入(§8)。
 
 ## 5. 工具集
 
@@ -214,6 +218,8 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 计数与判定原子化:`INSERT … ON CONFLICT(category, month_key) DO UPDATE … WHERE request_count < limit RETURNING request_count`，返回空行即触顶拒绝。月份键 `getBeijingMonthKey` = UTC+8 后截取 `YYYY-MM`。天气和地图工具在本地配置检查及 `throwIfAborted` 通过后，经 [api-quota-store.js](../../../src/ai/api-quota-store.js) 的 `withApiQuota` 消费并提交一次额度，再立即发起请求。成功、超时、网络错误、上游拒绝、发起后取消和结果解析/归一化失败均保留计数；连接测试也计入，每个上游子请求分别计数。发送前已取消、缺少配置或额度耗尽的调用不发请求、不消费额度。
 
+配额 store 在初始化及跨月读取/消费时回收上上月及更早的计数，仅保留北京当月和上月（供跨月未提交预留撤销）；系统时钟回退时不删未来月份，避免重新放开已经用完的预算。该清理属于配额自身的生命周期，与请求审计的保留天数无关。SQL 读写与原子额度占用由 [ai-api-usage-store.js](../../../src/storage/ai-api-usage-store.js) 拥有；AI 域保留月份、类别上限与工具错误规则。
+
 该规则参考 [express-rate-limit 默认计入失败请求](https://express-rate-limit.mintlify.app/reference/configuration#skipfailedrequests) 的预算方式，于 2026-10-11 按用户授权实施；它不推断供应商是否收费。例如[和风天气](https://dev.qweather.com/help/)声明非 2xx 不统计请求，实际用量与费用仍以供应商为准。保留既有月度计数，历史已退回的失败请求不补记；`requireApiQuota` 和显式预留/撤销辅助保留兼容，天气/地图工具不会因请求失败调用撤销。模型调用本身不计入这三类配额。回归见 [ai-api-quota-store.test.js](../../../test/ai/ai-api-quota-store.test.js) 和 [ai-tools.test.js](../../../test/ai/ai-tools.test.js)。
 
 ### 8.2 请求诊断摘要(request-logger)
@@ -245,7 +251,7 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 - 匹配规则:同账号 uid、`observedAt >= sentAfter` 的弹幕,按内容逐条消费(去重已匹配项);带 `@用户名 ` 前缀时剥前缀后比对,兼容弹幕平台对 @ 的处理([danmaku-delivery-verifier.js:44-67](../../../src/ai/danmaku-delivery-verifier.js#L44-L67))。
 - 超时:`DELIVERY_CONFIRM_TIMEOUT_MS = 10000`;事件缓冲 TTL 60 秒防泄漏([danmaku-delivery-verifier.js:5-6](../../../src/ai/danmaku-delivery-verifier.js#L5-L6))。
 - **重试**:未确认送达时最多尝试 3 次，含首次发送，即最多重试 2 次（[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js) 的 `MAX_DELIVERY_ATTEMPTS` / `deliverReply`）。重试前**重新生成**回复（`bypassCache: true`，避免原内容再次被吞）；三次均未确认送达则抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志。发送本身抛错时直接进入协调器失败处理，不属于此未确认送达的重试循环。
-- **关闭**:`waitForDelivery` 接受 shutdown signal;`dispose()` 幂等清除全部 pending timer 并以 `false` 释放 waiter。shutdown 取消不触发重新生成/重试或普通 delivery 失败审计。
+- **关闭**:`waitForDelivery` 接受本轮任务与 shutdown 合并的 signal；总开关关闭立即以 `false` 释放该轮 waiter，不销毁共用验证器。`dispose()` 幂等清除全部 pending timer 并以 `false` 释放 waiter。两类取消均不触发重新生成/重试或普通 delivery 失败审计。
 
 ### 9.3 失败回复文案
 
@@ -257,12 +263,12 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 | ------------------- | ----------------------------- | ---------------------------------------------------------------------- |
 | `ai_configuration`  | 配置 + 密钥(is_secret)        | [config-store.js:49-78](../../../src/ai/config-store.js#L49-L78)       |
 | `ai_request_logs`   | 请求审计                      | [config-store.js:80-93](../../../src/ai/config-store.js#L80-L93)       |
-| `ai_api_usage`      | 月度配额计数                  | [api-quota-store.js:23-43](../../../src/ai/api-quota-store.js#L23-L43) |
+| `ai_api_usage`      | 月度配额计数                  | [ai-api-usage-store.js](../../../src/storage/ai-api-usage-store.js)、[api-quota-store.js](../../../src/ai/api-quota-store.js) |
 | `ai_viewer_context` | 观众/角色上下文(uid 列保存作用域摘要,expires_at) | [config-store.js:114-129](../../../src/ai/config-store.js#L114-L129)   |
 | `ai_query_cache`    | 查询缓存(cache_key = sha256)  | [config-store.js:131-148](../../../src/ai/config-store.js#L131-L148)   |
 | `ai_blacklist`      | 黑名单(uid PK,reason)         | [config-store.js:100-112](../../../src/ai/config-store.js#L100-L112)   |
 
-过期的上下文/缓存行在读取时**惰性删除**(`getContext`/`getCache` 命中过期即删)。每次写入后按最短 60 秒间隔调用 `pruneExpired`，首次写入和检测到时钟回退会立即清理；因此持续唯一查询不会让过期行随进程寿命无限增长，同时不引入独立定时器或删除未过期值([config-store.js](../../../src/ai/config-store.js))。
+上下文和查询缓存由 [config-store.js](../../../src/ai/config-store.js) 在 store 初始化时调用 `pruneExpired`，删除 `expires_at <= now()` 的行，即使本次启动不再使用旧键也会清理。读取仍惰性删除命中过期的行；后续写入按距上次清理至少 60 秒触发批量清理，检测到时钟回退则立即检查。沿用原 `expires_at` 和 TTL 规则，不删除未过期值，不新增独立定时器；配置、黑名单与月度配额不在缓存清理范围内。
 
 故障行为(全部按实现):
 

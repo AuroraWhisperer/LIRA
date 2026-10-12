@@ -244,16 +244,26 @@ async function runProbe() {
   });
 
   await check('normal encrypted login restoration and logout remain usable', async (controller) => {
+    assert.equal((await controller.getBilibiliRequestIdentity()).loggedIn, false);
+    const initialIdentityRevision = controller.getBilibiliIdentityRevision();
     const login = await openLogin(controller);
+    assert.equal((await controller.getBilibiliRequestIdentity()).loggedIn, false, 'identity reads do not wait for the login window to close');
     await auth.replaceBilibiliCookieHeader(dataDir, header(303));
     await waitFor(() => login.window.isDestroyed());
     assert.equal((await login.completion).state.loggedIn, true);
+    assert.equal(controller.getBilibiliIdentityRevision(), initialIdentityRevision + 1);
     assert.equal(fs.existsSync(path.join(dataDir, 'bilibili-auth', 'cookies.txt')), false);
     await session.fromPartition(auth.BILIBILI_LOGIN_CONFIG.partition).clearStorageData({ storages: ['cookies'] });
     await controller.restoreBilibiliCookieSnapshot();
     assert.equal(await controller.getBilibiliUid(), 303);
+    await controller.replaceBilibiliCookieHeader(header(303));
+    assert.equal(controller.getBilibiliIdentityRevision(), initialIdentityRevision + 1, 'same-account restore/import preserve random requests');
+    await controller.replaceBilibiliCookieHeader(header(404));
+    await controller.replaceBilibiliCookieHeader(header(303));
+    assert.equal(controller.getBilibiliIdentityRevision(), initialIdentityRevision + 3);
     await controller.logoutBilibiliAccount();
     assert.equal((await controller.getBilibiliAuthState()).loggedIn, false);
+    assert.equal(controller.getBilibiliIdentityRevision(), initialIdentityRevision + 4);
   });
   return { ok: results.every((result) => result.ok), results };
 }

@@ -17,6 +17,7 @@ function createTestService(overrides = {}) {
   const cache = new Map();
   const store = {
     getConfig: () => ({ ...config }),
+    updateConfig: (changes) => Object.assign(config, changes),
     isBlacklisted: () => false,
     getCache: (key) => cache.get(key) || null,
     setCache: (key, value) => cache.set(key, value),

@@ -41,6 +41,11 @@ export function createWelcomeLibrary({ documentRef, element, libraries, changed 
     });
     input.value = domain.addition;
     selector.value = key;
+    const returning = key === 'returningMessages';
+    input.placeholder = returning ? '例如：最近过得怎么样呀？' : '例如：欢迎 {username} 来到直播间～';
+    input.setAttribute('aria-label', returning ? '新增重逢客套话' : '新增欢迎语');
+    element('ReturningLibraryHint').hidden = !returning;
+    element('TemplateHelp').hidden = returning;
     element('Pagination').hidden = pages <= 1;
     element('PageLabel').textContent = `第 ${domain.page + 1} / ${pages} 页`;
     element('PrevPage').disabled = domain.page === 0;

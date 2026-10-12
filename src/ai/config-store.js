@@ -263,6 +263,8 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     }
   }
 
+  pruneExpired();
+
   return {
     getConfig,
     getPublicConfig,

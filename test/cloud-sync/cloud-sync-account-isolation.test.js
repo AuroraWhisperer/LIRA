@@ -67,6 +67,7 @@ function createFixture(t, initialAccount = 'first') {
     licenseManager,
     runtime: {
       prepareCloudRoomAccount: () => false,
+      getCloudSettingsSnapshot: () => ({ giftBlindBoxConfig: [] }),
       applyCloudSettingsSnapshot() {},
       replaceCloudSongsSnapshot() {},
     },

@@ -40,6 +40,7 @@ export function initDanmakuWelcome({
   const editor = createWelcomeLibrary({ documentRef, element, libraries, changed: libraryChanged });
   const customEditor = createWelcomeCustom({ documentRef, element, state: custom, changed: customChanged });
   const isV2 = () => settings?.schemaVersion === 2;
+  const supportsReturning = () => isV2() && typeof settings.returningEnabled === 'boolean';
   const hasDrafts = () =>
     parameters.dirty || custom.dirty || Object.values(libraries).some((domain) => domain.dirty || domain.addition);
   const parameterInputs = () => {
@@ -84,15 +85,20 @@ export function initDanmakuWelcome({
         !loaded ||
         busy ||
         (key !== 'enabled' && !isV2()) ||
-        (['greetingEnabled', 'attentionEnabled'].includes(key) && !settings?.enabled);
+        (key === 'returningEnabled' && !supportsReturning()) ||
+        (['greetingEnabled', 'attentionEnabled', 'returningEnabled'].includes(key) && !settings?.enabled);
       field.title = key !== 'rareNamePinyinEnabled' && parameters.dirty && !settings?.[key] ? '开启并保存参数' : '';
     }
-    input.disabled = !loaded;
+    const libraryAvailable = loaded && (editor.current() !== 'returningMessages' || supportsReturning());
+    input.disabled = !libraryAvailable;
     const library = libraries[editor.current()];
-    element('AddBtn').disabled = !loaded || library.items.length >= 30;
-    element('SaveBtn').disabled = !loaded || !library.dirty || busy;
+    element('AddBtn').disabled = !libraryAvailable || library.items.length >= 30;
+    element('SaveBtn').disabled = !libraryAvailable || !library.dirty || busy;
     element('SaveBtn').textContent = `保存${LIBRARIES[editor.current()]}`;
     element('LibraryKind').disabled = !isV2();
+    element('ReturningLibraryOption').disabled = !supportsReturning();
+    element('ReturningLibraryBtn').disabled = !supportsReturning();
+    element('ReturningCapability').hidden = !loaded || supportsReturning();
     element('Count').textContent = loaded ? `${library.items.length} 条` : '未读取';
     element('LibraryStatus').textContent = library.addition
       ? '输入尚未添加，不会随词库保存'
@@ -261,6 +267,9 @@ export function initDanmakuWelcome({
       }
       if (domains.includes('userWelcomeMessages') && response?.ok && !Array.isArray(response.userWelcomeMessages))
         throw new Error('服务器尚未确认用户欢迎词');
+      if (('returningEnabled' in patch || domains.includes('returningMessages')) && response?.ok &&
+        (typeof response.returningEnabled !== 'boolean' || !validMessages(response.returningMessages)))
+        throw new Error('服务器尚未确认久别重逢设置');
       accept(isV2() ? response : { ...response, schemaVersion: 1 }, submitted);
       if (switchKey) {
         displayNotice('');
@@ -294,6 +303,7 @@ export function initDanmakuWelcome({
     }
   }
   function setSwitch(key) {
+    if (key === 'returningEnabled' && !supportsReturning()) return;
     const target = element(SWITCHES[key]).checked;
     if (key === 'rareNamePinyinEnabled') {
       void write({ [key]: target });
@@ -322,6 +332,7 @@ export function initDanmakuWelcome({
     void write({ [key]: target });
   }
   function addMessage() {
+    if (editor.current() === 'returningMessages' && !supportsReturning()) return;
     const domain = libraries[editor.current()];
     if (!settings || domain.items.length >= 30) return;
     const text = input.value.trim();
@@ -399,6 +410,7 @@ export function initDanmakuWelcome({
     }
   });
   element('SaveBtn').addEventListener('click', () => {
+    if (editor.current() === 'returningMessages' && !supportsReturning()) return;
     const key = editor.current(),
       messages = libraries[key].items.map((text) => text.trim());
     if (!validMessages(messages)) {
@@ -417,6 +429,7 @@ export function initDanmakuWelcome({
   for (const button of documentRef.querySelectorAll('[data-welcome-library]'))
     button.addEventListener('click', () => {
       if (!isV2() && button.dataset.welcomeLibrary !== 'messages') return;
+      if (button.dataset.welcomeLibrary === 'returningMessages' && !supportsReturning()) return;
       editor.select(button.dataset.welcomeLibrary);
       showView('libraries');
     });
@@ -445,4 +458,5 @@ export function initDanmakuWelcome({
   controls();
   showView('parameters');
   displayNotice(bridge?.getWelcomeSettings ? '正在读取账号信息…' : '请在已连接服务器的桌面客户端中设置');
+  return { refresh: reload };
 }

@@ -136,4 +136,8 @@ test('account requests preserve authorization and cancellation and identify olde
   }
   remote.getGuardExpiryAccount = async () => { throw Object.assign(new Error(), { status: 404 }); };
   await assert.rejects(operations.getGuardExpiryAccountInternal({ signal }), { code: 'GUARD_EXPIRY_UNSUPPORTED' });
+  await operations.getGuardExpiryWarningsInternal({ signal });
+  assert.deepEqual(calls.at(-1), ['GET', '/api/device/guard-expiry', undefined, 'device-token', { signal, maxResponseBytes: 8 * 1024 * 1024 }]);
+  remote.getGuardExpiryWarnings = async () => { throw Object.assign(new Error(), { status: 405 }); };
+  await assert.rejects(operations.getGuardExpiryWarningsInternal({ signal }), { code: 'GUARD_EXPIRY_UNSUPPORTED' });
 });

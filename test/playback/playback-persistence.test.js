@@ -5,6 +5,31 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
+for (const autoAccept of [true, false]) {
+  test(`clearing during an ${autoAccept ? 'accepted' : 'pending'} import prevents stale queue writes`, async () => {
+    const match = Promise.withResolvers();
+    const app = await createPlaybackApp({ selectedSource: 'qq' }, {
+      songQueue: { waiting: [{ id: 1, created_at: '2026-10-12T00:00:00Z', song_name: '歌曲' }] },
+      matchTrack: () => match.promise,
+    });
+    await app.init();
+    await flushAsyncWork();
+    const importing = app.emit('playbackImportSongQueue', 'click');
+    await flushAsyncWork();
+    await app.emit('playbackClearQueue', 'click');
+    match.resolve({ autoAccept, score: autoAccept ? 100 : 50, track: track('matched', '歌曲') });
+    await importing;
+    const saved = app.savedState();
+    assert.equal(saved.normalQueue.length, 0);
+    assert.equal(saved.pendingRequests.length, 0);
+    assert.equal(saved.importedSongRequestKeys.length, 0);
+    assert.equal(app.element('playbackImportSongQueue').disabled, false);
+    await app.emit('playbackImportSongQueue', 'click');
+    assert.equal(app.savedState()[autoAccept ? 'normalQueue' : 'pendingRequests'].length, 1);
+    assert.equal(app.savedState().importedSongRequestKeys.length, 1);
+  });
+}
+
 test('pending-only imports and handled request IDs survive restart and confirmation', async () => {
   const item = { id: 8, created_at: '2026-10-08T09:00:00Z', song_name: '需要确认', requester_name: '观众甲' };
   let matches = 0;

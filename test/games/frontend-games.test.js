@@ -363,3 +363,52 @@ test('games admin marks stale data once after a failed refresh and clears it on 
   assert.doesNotMatch(status.textContent, /数据可能已过期/, 'a successful refresh clears the warning');
   assert.equal(status.textContent, '当前没有进行中的游戏');
 });
+
+test('host words follow the current round and ignore late reads after a round change or stop', async () => {
+  const nodes = new Map();
+  const listeners = new Map();
+  function node(id) {
+    if (!nodes.has(id)) {
+      const value = new FakeNode('div');
+      Object.assign(value, { id, value: '', classList: { toggle() {}, add() {}, remove() {}, contains: () => false },
+        closest: () => null, querySelector: selector => node(`${id} ${selector}`), querySelectorAll: () => [] });
+      Object.defineProperty(value, 'options', { get: () => value.children });
+      nodes.set(id, value);
+    }
+    return nodes.get(id);
+  }
+  const reads = [];
+  const response = data => ({ ok: true, status: 200, text: async () => JSON.stringify({ ok: true, data }) });
+  const games = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/games.js'), {
+    document: { hidden: false, getElementById: node, querySelector: node, querySelectorAll: () => [],
+      createElement: tag => new FakeNode(tag), addEventListener() {} },
+    window: { addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener() {} },
+    location: { protocol: 'http:', host: '127.0.0.1', origin: 'http://127.0.0.1' },
+    performance: { now: () => 0 }, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
+    fetch: async url => {
+      if (url === '/api/games/host-state') return new Promise(resolve => reads.push(data => resolve(response(data))));
+      return response(url === '/api/games/viewers' ? [{ uid: '1', name: 'Viewer' }]
+        : url.startsWith('/api/interactions/') ? { runtimeId: 'one', revision: 1, session: null } : null);
+    },
+  });
+  const flush = () => new Promise(setImmediate);
+  const session = (round, sessionId = 'game-one') => ({ game: 'draw-guess', sessionId, state: { round, totalRounds: 3,
+    phase: 'drawing', roundDurationMs: 30000, remainingMs: 30000, correct: [], category: '词库', wordLength: 2 } });
+  const word = (round, text) => ({ game: 'draw-guess', round, word: text });
+  games.initGames(); await flush();
+  listeners.get('app:game-update')({ detail: session(1) });
+  listeners.get('app:game-update')({ detail: session(2) });
+  reads.pop()(word(2, '第二题')); await flush();
+  reads.shift()(word(1, '第一题')); await flush();
+  assert.equal(node('drawHostWord').textContent, '第二题');
+  listeners.get('app:game-update')({ detail: session(2) });
+  listeners.get('app:game-update')({ detail: null });
+  reads.shift()(word(2, '迟到题词')); await flush();
+  assert.equal(node('drawHostWord').textContent, '开始游戏后显示题词');
+  listeners.get('app:game-update')({ detail: session(1, 'game-two') });
+  reads.shift()(word(2, '错误局次')); await flush();
+  assert.equal(node('drawHostWord').textContent, '正在读取题词…');
+  listeners.get('app:game-update')({ detail: session(1, 'game-two') });
+  reads.shift()(word(1, '新比赛')); await flush();
+  assert.equal(node('drawHostWord').textContent, '新比赛');
+});

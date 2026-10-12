@@ -58,6 +58,7 @@ async function fixture(initialProfile = account('one'), v2 = false) {
     Title: '进场欢迎',
     GreetingTitle: '二次问候',
     AttentionTitle: '重点关注',
+    ReturningTitle: '久别重逢',
     PinyinTitle: '昵称生僻字自动注音',
   }))
     get(suffix).textContent = title;
@@ -264,7 +265,53 @@ const savedV2 = (patch = {}) => ({
   attentionWelcomeMessages: ['专属 {username}'],
   attentionGreetingMessages: ['{username}，来点歌吧'],
   userWelcomeMessages: [],
+  returningEnabled: false,
+  returningMessages: ['最近好吗？'],
   ...patch,
+});
+
+test('returning welcome toggles and saves its own library, retaining unconfirmed drafts', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2({ enabled: true }));
+  await flush();
+  assert.equal(f.get('ReturningToggle').disabled, false);
+  f.get('ReturningToggle').checked = true;
+  f.change('ReturningToggle');
+  assert.deepEqual(f.writes[0].patch, { returningEnabled: true });
+  f.writes[0].resolve(savedV2({ enabled: true, returningEnabled: true }));
+  await flush();
+  assert.equal(f.toasts.at(-1), '久别重逢已开启');
+  f.get('LibraryKind').value = 'returningMessages';
+  f.change('LibraryKind');
+  assert.equal(f.get('ReturningLibraryHint').hidden, false);
+  f.edit(0, '欢迎回来听歌～');
+  f.click('SaveBtn');
+  assert.deepEqual(f.writes[1].patch, { returningMessages: ['欢迎回来听歌～'] });
+  f.writes[1].resolve(savedV2({ enabled: true, returningEnabled: undefined, returningMessages: undefined }));
+  await flush();
+  assert.equal(f.get('List').children[0].children[1].value, '欢迎回来听歌～');
+  assert.equal(f.get('SaveBtn').disabled, false);
+  f.click('SaveBtn');
+  f.writes[2].resolve(savedV2({ enabled: true, returningEnabled: true, returningMessages: ['欢迎回来听歌～'] }));
+  await flush();
+  assert.equal(f.get('SaveBtn').disabled, true);
+});
+
+test('older servers disable only returning controls and never receive unsupported fields', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2({ enabled: true, returningEnabled: undefined, returningMessages: undefined }));
+  await flush();
+  assert.equal(f.get('ReturningToggle').disabled, true);
+  assert.equal(f.get('ReturningLibraryBtn').disabled, true);
+  assert.equal(f.get('ReturningCapability').hidden, false);
+  assert.equal(f.get('GreetingToggle').disabled, false);
+  f.parameter('welcomeDelaySeconds', '5');
+  f.click('ParameterSaveBtn');
+  assert.equal(Object.hasOwn(f.writes[0].patch, 'returningEnabled'), false);
+  assert.equal(Object.hasOwn(f.writes[0].patch, 'returningMessages'), false);
+  f.writes[0].resolve(savedV2({ enabled: true, welcomeDelaySeconds: 5, returningEnabled: undefined, returningMessages: undefined }));
+  await flush();
+  assert.equal(f.get('ParameterSaveBtn').disabled, true);
 });
 
 test('pinyin saves independently of invalid parameter drafts and reports changes only through toast', async () => {

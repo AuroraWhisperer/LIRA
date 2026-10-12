@@ -31,6 +31,15 @@ function migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb) {
   superChatDb.exec('BEGIN');
   try {
     for (const row of rows) {
+      const platformId = cleanText(row.platform_id);
+      if (cleanText(row.status) === 'deleted') {
+        if (platformId) {
+          superChatDb.prepare('INSERT OR IGNORE INTO super_chat_receipts (platform_id) VALUES (?)').run(platformId);
+          superChatDb.prepare('DELETE FROM super_chats WHERE platform_id = ?').run(platformId);
+        }
+        continue;
+      }
+      if (platformId && superChatDb.prepare('SELECT 1 FROM super_chat_receipts WHERE platform_id = ?').get(platformId)) continue;
       const fingerprint = legacySuperChatFingerprint(row);
       const existing = superChatDb
         .prepare(

@@ -1,10 +1,12 @@
 # 前端页面与入口清单
 
-粉丝档案位于百宝箱 → 日常管理，沿用 `/admin`；`toolbox/fan-profiles-nav.html` 与 `toolbox/fan-profiles.html` 由既有 Admin composer 组合。页内“档案/提醒”与“概览/互动/音乐/大航海”由 `js/admin/fans/` 拥有；点歌姓名入口把同一个详情节点移入快捷 dialog，返回时还原，不新增公开页面或 浏览器源。私有数据通过主窗口 IPC 获取，页面本身不持有 token 或 scope 决策。
+粉丝档案位于百宝箱 → 日常管理，沿用 `/admin`；`toolbox/fan-profiles-nav.html` 与 `toolbox/fan-profiles.html` 由既有 Admin composer 组合。页内“档案/提醒/设置”与“资料/手记/音乐/大航海”由 `js/admin/fans/` 拥有；在当前档案或已归档列表中直接切换人物时，保留当前详情页签。点歌姓名入口把同一个详情节点移入快捷 dialog，返回时还原，不新增公开页面或 浏览器源。私有数据通过主窗口 IPC 获取，页面本身不持有 token 或 scope 决策。
 
 档案手动同步与自动更新通知共用 `fans/view.js` 的 `rosterUpdateNotices`：成功统计、跳过说明、名单外资料查询失败分别为 success/info/warning toast；无跳过或失败时不生成对应通知，单次最多三条，成功统计不显示“跳过 0 位”。`fans/editor.js` 在关闭同步表单后消费 `notices`，普通保存仍沿用单条 `message`。最近一次手动结果保留在同步状态左侧的 `lira-help#fanRosterHelp`，内容节点 `fanRosterResult` 随组件初始化保留，不单独占行；尚无结果或账号上下文变化时隐藏并清空。自动整次失败只显示一条 error toast。IPC 结果字段不变。
 
 档案页提醒横幅的“不再显示”只写本机 localStorage 界面偏好 `liraFanReminderSummaryHidden=true`，后续打开仍隐藏横幅；不按账号保存，不调用提醒状态接口，不改变档案提醒、日历投影或其他页面。存储不可用时仍在当前页面生效。提醒页及“查看提醒”的跳转行为保留。
+
+返回档案列表与切换档案/归档范围一样，会推进当前选择代次；返回前发出的详情 IPC 迟到时不能重新打开详情，之后主动选择仍正常读取。
 
 > 涉及文件:[pages/admin/](../../../public/pages/admin)、[server/admin-page.js](../../../src/server/admin-page.js)、[admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js)、[gift-audit.html](../../../public/pages/gift-audit.html)、[overlays/](../../../public/pages/overlays)、[js/admin/](../../../public/js/admin)、[js/playback/](../../../public/js/playback)、[js/overlays/](../../../public/js/overlays)、[js/shared/](../../../public/js/shared)、[css/](../../../public/css)、[img/](../../../public/img)
 
@@ -14,7 +16,7 @@
 
 ### 客户端外观
 
-百宝箱 → 设置 → 客户端外观提供中性蓝、经典暖金、暖陶三套浅色配色。选择候选只更新选项，点击“应用配色”后，经桌面桥成功保存才原位更新 `html[data-client-theme]`，不重新挂载播放器、保存业务设置或刷新页面。入口与反馈由 [client-appearance.js](../../../public/js/admin/client-appearance.js) 拥有。
+百宝箱 → 设置 → 客户端外观提供中性蓝、经典暖金、暖陶、清白 · 翠光、玄黑 · 银红、玫瑰映光六套配色，包含浅色与深色方案。选择候选只更新选项，点击“应用配色”后，经桌面桥成功保存才原位更新 `html[data-client-theme]`，不重新挂载播放器、保存业务设置或刷新页面。入口与反馈由 [client-appearance.js](../../../public/js/admin/client-appearance.js) 拥有。
 
 [desktop/palettes.css](../../../public/css/desktop/palettes.css) 只提供作用域内颜色及兼容别名；布局、字体与控件几何共用。默认 `terracotta`（暖陶），选项小样使用 `data-client-theme-preview` 在自身作用域解析别名。独立工具仅加载色板，不加载拖拽等桌面壳规则；新打开的预览与已授权礼物审计读取当前已提交主题，旧页面不自动同步或刷新。初始化白名单见 [服务核心](../backend/server-core.md)，本机保存及首帧底色见 [桌面主进程](../desktop/main.md)。
 
@@ -156,7 +158,7 @@
 
 | 入口 URL | 实际 HTML | 打开者 | 行为说明 |
 | --- | --- | --- | --- |
-| `/gift-wishes?period=long` | [overlays/gift-wishes.html](../../../public/pages/overlays/gift-wishes.html) | 浏览器源、管理页预览 | `period=long/day/session` 分别展示长效/本日/本场，默认 long；`preview=1` 显示预览底色与状态提示。正式源透明底，建议宽度 440；每 3 秒读取服务端整数进度，来源变更即时清空旧展示。 |
+| `/gift-wishes` | [overlays/gift-wishes.html](../../../public/pages/overlays/gift-wishes.html) | 浏览器源、管理页预览 | `period=long/day/session` 分别筛选长效/本日/本场，未指定有效周期时展示全部周期；`preview=1` 显示预览底色与状态提示。正式源透明底，建议宽度 440；每 3 秒读取服务端整数进度，来源变更即时清空旧展示。 |
 
 排查页面(无 URL 映射,只能按文件路径访问):
 
@@ -225,8 +227,8 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `song-import.js` / `song-import-parser.js` / `cloud-song-sync.js` / `song-background.js` / `song-background-image.js` | 导入入口保留文件读取与兼容连接；纯 TSV/CSV 解析由导入和歌单更新共用；云同步拥有覆盖确认、数量与本机同步记录，背景 UI 调用图片模块完成静态压缩和本地版本缓存 | [app.md](app.md) §4                       |
 | `metrics.js`                                                                        | 系统性能检测(`/api/system/metrics` 5 秒采样)                                                                                               | [app.md](app.md) §4                       |
 | `danmaku-tool.js`                                                                   | 弹幕工具:连接状态刷新、固定 `/danmaku` 地址复制/打开、iframe 预览、Admin 内发送弹幕、点歌/固定回复开关；发送功能不另设网页地址             | [app.md](app.md) §6                       |
-| `danmaku-libraries.js`                                                              | DIY 关键词回复编辑器；云端签到/抽签共用 danmaku-daily-library.js                                                                                               | [app.md](app.md) §6                       |
-| `danmaku-fixed-replies.js` / `danmaku-welcome.js` / `danmaku-welcome-library.js` / `danmaku-welcome-custom.js` / `danmaku-welcome-model.js` | 固定回复六项总览；欢迎、自定义关键词、签到与抽签共用单活动编辑区；欢迎参数、四库及按 UID 定制文案独立草稿/保存，含注音开关，规则说明复用问号组件 | [桌面欢迎设置](../desktop/main.md#服务器进场欢迎设置) |
+| `danmaku-libraries.js` / `danmaku-cloud-replies.js` / `danmaku-scheduled-library.js` | 两类自定义回复共用列表草稿编辑；云端精确回复与定时弹幕通过受限桌面桥保存；定时词库复用签到列表样式，支持搜索和分页；云端签到/抽签共用 danmaku-daily-library.js | [app.md](app.md) §6 |
+| `danmaku-fixed-replies.js` / `danmaku-query-replies.js` / `danmaku-welcome.js` / `danmaku-welcome-library.js` / `danmaku-welcome-custom.js` / `danmaku-welcome-model.js` | 固定回复九项总览；欢迎、两类自定义回复、定时弹幕、查询、签到与抽签共用单活动编辑区；欢迎四卡两列、双输入同行；参数、五库及按 UID 定制文案独立草稿/保存，含久别重逢与注音开关，规则说明复用问号组件 | [桌面欢迎设置](../desktop/main.md#服务器进场欢迎设置) |
 | `ai-assistant-settings.js`、`ai-assistant-config-view.js`、`ai-assistant-personas.js` | AI 互动助手：模型配置、自动保存、角色包选择/创建/导入导出/删除、可选工具与供应商测试 | [app.md](app.md) §6 |
 | `overtime.js`                                                                       | 加班机控制台:开关/初始时间/礼物规则(固定+时间盲盒)/背景                                                                                    | [app.md](app.md) §6                       |
 | `streamer-planner.js` / `streamer-planner-view.js`                                                          | 主播工作台：控制器拥有 localStorage 兼容、保存保护和编辑动作；视图只读取分离的展示快照并描述动作                                           | [app.md](app.md) §6                       |
@@ -353,7 +355,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 
 `gifts/history.js` 统一持有请求代次、分页、取消和重试；`gifts/history-view.js` 负责状态及行展示，沿用安全转义。
 
-客户端“最近礼物 → 查看全部”使用逐行礼物流水表：标题与操作按钮、时间/礼物/数量/金额/用户/备注六列表格、底部翻页。不显示名称搜索、日期范围控件或独立同步信息栏，固定以 `range=all` 读取全部历史并保留复合 keyset 翻页。数量位置只显示已读取的数量；未完成同步的空列表显示等待提示，确认同步完成后才显示“暂无礼物记录”。已有记录时更新提示位于标题下，加载失败保留当前列表；无记录时提示位于表格内，不重复展示底层错误。统计摘要、排行和趋势由服务器网页界面承载，不放进客户端流水抽屉。抽屉移除仅清理显示的操作；“清空全部记录”明确提示不可撤销，并先通过 Electron main 的 DeviceBearer 清空当前认证主播的服务器礼物 ledger/outbox，只有服务器成功后才清当前本地 source。清空结果与后续列表更新分别显示；无法确认远端结果时不承诺记录未删除。抽屉打开期间对来源未就绪、同步未完成、离线和读取失败自动重读，15 秒后降低重读频率并提供手动重试；手动重试只读取，不重复删除。关闭抽屉取消读取和定时器，失效响应不能覆盖新状态。抽屉只调用当前 source 的本地 `/api/gifts/history`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。新增模块使用具名 ESM import/export，不扩大 `window.AdminApp` 兼容层；详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
+客户端“最近礼物 → 查看全部”使用逐行礼物流水表：标题与操作按钮、时间/礼物/数量/金额/用户/备注六列表格、底部翻页。提供用户名称、礼物名称、开始/结束日期与单条金额严格大于门槛的筛选，以及今天/重置操作；默认读取全部历史，保留复合 keyset 翻页。支持跨页勾选、本页全选、选择全部筛选结果及导出所选，切换筛选会清除旧选择。不增加独立同步信息栏，数量位置只显示已读取的数量；未完成同步的空列表显示等待提示，确认同步完成后才显示“暂无礼物记录”。已有记录时更新提示位于标题下，加载失败保留当前列表；无记录时提示位于表格内，不重复展示底层错误。统计摘要、排行和趋势由服务器网页界面承载，不放进客户端流水抽屉。抽屉移除仅清理显示的操作；“清空全部记录”明确提示不可撤销，并先通过 Electron main 的 DeviceBearer 清空当前认证主播的服务器礼物 ledger/outbox，只有服务器成功后才清当前本地 source。清空结果与后续列表更新分别显示；无法确认远端结果时不承诺记录未删除。抽屉打开期间对来源未就绪、同步未完成、离线和读取失败自动重读，15 秒后降低重读频率并提供手动重试；手动重试只读取，不重复删除。关闭抽屉取消读取和定时器，失效响应不能覆盖新状态。抽屉只调用当前 source 的本地 `/api/gifts/history`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。新增模块使用具名 ESM import/export，不扩大 `window.AdminApp` 兼容层；详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
 
 弹幕工具页面现有签到/抽签位置保留两个云端开关与状态，各有“词库”按钮；共用 `danmaku-daily-library.html` 展开面板提供增删改、搜索和分页，正式词库仍由服务器拥有。列表下方依次为添加/分页、保存与状态；只有多页时显示分页。保存生效范围与草稿寿命通过保存按钮旁的问号说明。客户端不提供回复预览，实际效果在直播间发送「签到」或「抽签」查看。只在展开/刷新时条件读取，显式保存当前词库，不显示旧数据接管流程。入口仍为现有 admin 弹幕工具，未增加页面 URL。
 

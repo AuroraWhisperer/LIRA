@@ -18,18 +18,22 @@ const CLEAR_ALL_MATRIX = {
     'playlist_tracks',
     'fan_profiles',
     'fan_records',
+    'fan_roster_templates',
     'fan_reminder_states',
     'fan_scopes',
     'fan_suppressions',
     'fan_restore_snapshots',
+    'super_chat_receipts',
   ],
   delete: [
     'songs',
     'song_categories',
     'queue',
     'requests',
+    'random_request_history',
     'import_batches',
     'user_cooldowns',
+    'song_cooldowns',
     'ai_request_logs',
     'ai_api_usage',
     'ai_viewer_context',
@@ -72,6 +76,7 @@ function clearSongDataInTransaction(songDb, counts) {
   counts.requests = countRows(songDb, 'requests');
   counts.importBatches = countRows(songDb, 'import_batches');
   counts.userCooldowns = countRows(songDb, 'user_cooldowns');
+  counts.songCooldowns = countRows(songDb, 'song_cooldowns');
   counts.aiRequestLogs = countRows(songDb, 'ai_request_logs');
   counts.aiApiUsage = countRows(songDb, 'ai_api_usage');
   counts.aiViewerContext = countRows(songDb, 'ai_viewer_context');
@@ -79,11 +84,13 @@ function clearSongDataInTransaction(songDb, counts) {
   counts.aiBlacklist = countRows(songDb, 'ai_blacklist');
 
   songDb.prepare('DELETE FROM requests').run();
+  songDb.prepare('DELETE FROM random_request_history').run();
   songDb.prepare('DELETE FROM queue').run();
   songDb.prepare('DELETE FROM songs').run();
   songDb.prepare('DELETE FROM song_categories').run();
   songDb.prepare('DELETE FROM import_batches').run();
   songDb.prepare('DELETE FROM user_cooldowns').run();
+  songDb.prepare('DELETE FROM song_cooldowns').run();
   songDb.prepare('DELETE FROM ai_request_logs').run();
   songDb.prepare('DELETE FROM ai_api_usage').run();
   songDb.prepare('DELETE FROM ai_viewer_context').run();

@@ -396,7 +396,8 @@ function createLicenseManager(options = {}) {
     if (!isAttemptActive()) return null;
     if (countFingerprintValues(fingerprint) < 2)
       throw new RemoteLicenseError('FINGERPRINT_UNAVAILABLE', '无法读取足够的设备标识，暂时无法完成绑定。');
-    const build = buildInfoProvider();
+    const build = await buildInfoProvider();
+    if (!isAttemptActive()) return null;
     const challenge = await remote.challenge({
       deviceId: currentIdentity.deviceId,
     });

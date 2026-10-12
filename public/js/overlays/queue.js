@@ -161,11 +161,15 @@ function computeStateKey(nextState) {
   var current = queue.current;
   var waiting = queue.waiting || [];
   var superChats = nextState.superChats || [];
+  var identity = settings.overlayQueueStyle !== 'classic';
+  function itemKey(item) {
+    if (!item) return null;
+    return [item.id, item.song_name, item.requester_name || '', Boolean(item.is_pinned),
+      ...(identity ? [item.requester_guard_level, item.requester_medal_level, item.requester_medal_name] : [])];
+  }
   return JSON.stringify([
-    current ? current.song_name + '|' + (current.requester_name || '') + '|' + (current.is_pinned ? '1' : '0') : '',
-    waiting.map(function (item) {
-      return item.song_name + '|' + (item.requester_name || '') + '|' + (item.is_pinned ? '1' : '0');
-    }),
+    itemKey(current),
+    waiting.map(itemKey),
     superChats.map(function (item) {
       return (item.price || 0) + '|' + (item.message || '');
     }),

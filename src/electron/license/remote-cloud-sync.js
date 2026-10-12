@@ -2,6 +2,8 @@
 
 function createRemoteCloudSync(request) {
   return {
+    getGuardExpiryWarnings: (token, requestOptions) =>
+      request('GET', '/api/device/guard-expiry', undefined, token, { ...requestOptions, maxResponseBytes: 8 * 1024 * 1024 }),
     getGuardExpiryAccount: (token, requestOptions) =>
       request('GET', '/api/device/guard-expiry/account', undefined, token, requestOptions),
     updateGuardExpiryAccount: (input, token, requestOptions) =>

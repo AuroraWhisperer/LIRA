@@ -184,6 +184,8 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>
 
 **桌面专属音效边界**:同一份 HAR 还出现 `music.vkey.GetEVkey/CgiGetEVkey` 返回的 `Q0...mflac` 与 `O8...mgg`。Provider 现在对 QQ 登录用户提供实验性的 `premium`/`immersive` 档位：服务端短期保存 EVkey 的 `ekey`,通过本地 Range 代理使用 QMC2 解密后返回普通 FLAC/Ogg,不把密钥暴露给 renderer。Q0 的 `Atmos` 只作为媒体元数据标记,不等于空间渲染；O8、杜比、臻品母带 4.0 和臻品全景声 3.0 仍依赖 QQ 客户端 DSP/空间音频能力,Electron 无法保证效果,解析失败时应回退到浏览器可解码的标准/HQ/SQ。
 
+[加密流代理](../../../../src/music/qq-encrypted-stream.js)按实际响应正文确定解密位置：上游返回完整 200 时从字节 0 开始，206 使用有效 `Content-Range` 的起点，再加已接收字节数；206 缺少可用范围时返回 502，不以请求 Range 猜测正文位置。已有中止、超时、背压与流释放规则保持不变。
+
 ### 7.3 歌词获取(双路径,[qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))
 
 **路径 A(优先):PlayLyricInfo 新版接口**,前提是解析出数值 `sourceSongId > 0`:
@@ -298,6 +300,8 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 ### 7.12 歌单写入([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 `addTracksToPlaylist` → `AddSonglist`,`removeTracksFromPlaylist` → `DelSonglist`;两者汇入 `writePlaylistTracks(method, playlist, tracks)`:
+
+UI 的 `playlist: { id: 'liked' }` 由 Provider 复用 `getLikedPlaylist()`，读取当前账号真实的 `dirId/tid/title` 后再执行正常目标校验；普通歌单继续使用调用方传入的完整目标。未登录、未找到喜欢歌单或缺少数值歌曲 ID 时保留明确错误，不猜造上游标识。
 
 ```
 POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>

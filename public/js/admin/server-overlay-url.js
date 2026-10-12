@@ -50,6 +50,15 @@ async function refresh(snapshot) {
   }
   if (!owner) return;
   try {
+    // Restored authorization can contain only the persisted account identity.
+    if (!snapshot.streamer?.songPageUrl) {
+      snapshot = await window.liraLicense.getProfile();
+      if (generation !== requestedGeneration) return;
+      if (snapshot?.ok !== true || snapshot.state !== 'authorized') {
+        publish('');
+        return;
+      }
+    }
     const settings = await window.liraLicense.getOverlaySettings();
     if (generation === requestedGeneration) publish(serverOverlayUrl(snapshot, settings));
   } catch {

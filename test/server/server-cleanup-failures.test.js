@@ -43,7 +43,7 @@ function loadServer(overrides = {}, globals = {}) {
   return module.exports;
 }
 
-for (const failurePhase of ['metadata', 'initialization']) {
+for (const failurePhase of ['metadata', 'initialization', 'startup-repair']) {
   test(`startup ${failurePhase} failure with cleanup failure preserves the error and permits retry`, async () => {
     const storage = require('../../src/storage/database');
     const lifecycle = require('../../src/server/lifecycle');
@@ -54,9 +54,20 @@ for (const failurePhase of ['metadata', 'initialization']) {
     let listener;
     let acquired;
     let disposeCount = 0;
+    const retentionHandles = [];
     const warnings = [];
     const { createServerRuntime } = loadServer(
       {
+        './server/startup-retention': {
+          startRetentionMaintenance() {
+            const handle = { stopped: false };
+            retentionHandles.push(handle);
+            return () => {
+              assert.ok(Object.values(acquired).every((db) => db.isOpen), 'retention stops before storage closes');
+              handle.stopped = true;
+            };
+          },
+        },
         './server/lifecycle': {
           ...lifecycle,
           async listenExactly(server, options) {
@@ -95,7 +106,7 @@ for (const failurePhase of ['metadata', 'initialization']) {
       dataDir,
       licenseGate: { isAuthorized: () => false },
       onPhase(name) {
-        if (fail && failurePhase === 'initialization' && name === 'database-init') {
+        if (fail && name === (failurePhase === 'initialization' ? 'database-init' : failurePhase)) {
           throw initiatingError;
         }
       },
@@ -104,6 +115,8 @@ for (const failurePhase of ['metadata', 'initialization']) {
       await assert.rejects(runtime.start({ startPort: 0 }), (error) => error === initiatingError);
       assert.equal(listener.listening, false);
       assert.ok(Object.values(acquired).every((db) => !db.isOpen));
+      assert.equal(retentionHandles.length, failurePhase === 'initialization' ? 0 : 1);
+      assert.ok(retentionHandles.every((handle) => handle.stopped));
       assert.equal(runtime.getApiToken(), '');
       for (const file of ['.session-token', '.server-runtime.json']) {
         assert.equal(fs.existsSync(path.join(dataDir, file)), false);
@@ -118,6 +131,8 @@ for (const failurePhase of ['metadata', 'initialization']) {
       assert.deepEqual(await denied.json(), { ok: false, error: 'LICENSE_REQUIRED' });
       await runtime.stop();
       assert.equal(disposeCount, 2);
+      assert.equal(retentionHandles.length, failurePhase === 'initialization' ? 1 : 2);
+      assert.ok(retentionHandles.every((handle) => handle.stopped));
       assert.ok(Object.values(acquired).every((db) => !db.isOpen));
     } finally {
       fail = false;
@@ -132,9 +147,14 @@ for (const late of [false, true]) {
   test(`exit request ${late ? 'after' : 'during'} shutdown is honored without repeating cleanup`, async () => {
     const dataDir = fs.mkdtempSync(path.join(root, 'exit-'));
     const exits = [];
+    let retentionStops = 0;
     const fakeProcess = Object.create(process);
     fakeProcess.exit = (code) => exits.push(code);
-    const { createServerRuntime } = loadServer({}, { process: fakeProcess });
+    const { createServerRuntime } = loadServer({
+      './server/startup-retention': {
+        startRetentionMaintenance: () => () => { retentionStops++; },
+      },
+    }, { process: fakeProcess });
     const runtime = createServerRuntime({ dataDir, licenseGate: { isAuthorized: () => false } });
     let release;
     let entered;
@@ -154,6 +174,7 @@ for (const late of [false, true]) {
       const app = await runtime.start({ startPort: 0 });
       const stopping = runtime.stop();
       await enteredHook;
+      assert.equal(retentionStops, 1, 'periodic cleanup stops before waiting for renderer shutdown');
       assert.equal(app.server.listening, true);
       if (late) {
         release();
@@ -168,6 +189,7 @@ for (const late of [false, true]) {
       assert.equal(runtime.stop({ exitProcess: true }), stopping);
       assert.deepEqual(exits, [0]);
       assert.equal(hooks, 1);
+      assert.equal(retentionStops, 1);
       assert.equal(app.server.listening, false);
     } finally {
       release();

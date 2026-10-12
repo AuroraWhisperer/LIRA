@@ -15,6 +15,7 @@
 | lyrics-service.js                          | 搜索 / 首页 / 歌词 / 匹配 / 歌单写入的门面               | §6   |
 | song-service.js + song-field-utils.js      | 曲库业务规则、字段归一化与解析纯函数；SQL 由 song-store.js 持有 | §7   |
 | queue-service.js                           | 点歌队列统一语义                                         | §8   |
+| song-cooldown.js                           | 歌曲冷却身份、到期计算与用户可读拦截原因                   | §8   |
 | song-matcher.js                            | 曲目匹配打分(自动接受阈值)                               | §9   |
 | random-song-filter.js + tag-aliases.js     | 随机点歌纯筛选规则与标签别名                             | §10  |
 | song-import-schema.js + song-file-codec.js | 导入导出列契约与 CSV/XLSX 编解码                         | §11  |
@@ -150,7 +151,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 ### 6.3 歌词(`getMusicTrackLyricsWithCache`,[lyrics-service.js:119-129](../../../../src/music/lyrics-service.js#L119-L129))
 
 - 入参先过 `normalizeMusicTrackForProvider`(强制完整契约)
-- 缓存 key:`musicCacheKey('lyrics-v3', { source, sourceTrackId })` — **版本前缀 v3 参与 hash**,解析器升级即自然失效
+- 缓存 key:`musicCacheKey('lyrics-v5', { source, sourceTrackId })` — **版本前缀 v5 参与 hash**,解析器升级即自然失效
 - TTL 30 天(§5);命中返回 `{...cached, cached: true}`
 - 未命中 → `provider.getLyrics(normalizedTrack)` → 写缓存
 
@@ -231,10 +232,13 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 1. `songName` 必填
 2. **队列上限**:`queueLimit` 设置(defaults 兜底),统计 `status IN ('current','waiting')` 的活跃数,满则抛"点歌队列已达到上限。"
-3. **重复检查**:`allowDuplicate !== 'true'` 时,活跃队列内同名(仅 song_name)即抛"队列里已经有这首歌。"
-4. **曲库校验**:`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛"歌库里没有这首歌。"
+3. **曲库校验**:`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛"歌库里没有这首歌。"
+4. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与当前账号 scope 检查最近成功入队时间；小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
+5. **重复检查**:`allowDuplicate !== 'true'` 时,活跃队列内同名(仅 song_name)即抛"队列里已经有这首歌。"
 
-入队(与 `requests` 流水**同事务**):`song_id`/`song_name`/`artist`/`category_name` 在命中曲库时用曲库规范值;`requester_name` 缺省"观众";`source` 缺省 `admin`;`status = 'waiting'`;`is_pinned` 时 `pinned_at = createdAt`。返回 `normalizeQueueRow`(布尔化 `is_pinned`、归一 guard/medal)。
+冷却使用实际入队时刻，不能使用上游消息时间。存储事务内再次检查，并将最近成功入队时间与队列、流水原子写入；失败或冷却拦截不更新时间。关闭规则期间也记录成功时间，改规则据此重新计算。完成、跳过、删除、清空队列及重启保留记录；升级前流水不回填冷却。账号 scope 来自组合根，客户端输入不能选择冷却归属。
+
+入队(与 `requests` 流水及 `song_cooldowns` **同事务**):`song_id`/`song_name`/`artist`/`category_name` 在命中曲库时用曲库规范值;`requester_name` 缺省"观众";`source` 缺省 `admin`;`status = 'waiting'`;`is_pinned` 时 `pinned_at = createdAt`。返回 `normalizeQueueRow`(布尔化 `is_pinned`、归一 guard/medal)。
 
 ### 8.3 handleQueueAction(context, action, rawId)([queue-service.js](../../../../src/music/queue-service.js))
 
@@ -281,9 +285,11 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | `翻唱\|cover`                           | -20  |
 | `加速\|慢速\|speed up\|sped up\|slowed` | -20  |
 
-`rankTrackCandidates` 按分数降序、同分按标题字典序;`normalizeSongKey` 剥括号内容与全部标点空白([song-matcher.js:105-110](../../../../src/music/song-matcher.js#L105-L110))。`normalizeCandidate` 兼容 `artists[]` 与 `artist` 按 `/` 切分。
+`rankTrackCandidates` 按分数降序、同分按标题字典序;`normalizeSongKey` 剥括号内容与全部标点空白([song-matcher.js](../../../../src/music/song-matcher.js))。`normalizeCandidate` 兼容 `artists[]` 与 `artist` 按 `/` 切分，并保留同一候选的 Provider 标识、封面及权益字段；评分不会丢失 QQ 的 `sourceSongId/sourceMediaId/sourceSongType` 等播放与歌单元数据。
 
 ## 10. 随机点歌筛选(random-song-filter.js + tag-aliases.js)
+
+随机抽取在已有条件匹配后通过 `queueService.filterSongsByCooldown` 排除冷却项，再应用既有最近随机歌曲避让。条件无匹配仍返回空；有匹配但全部冷却抛 `SONG_COOLDOWN`，点歌桥生成专门回复。最终入队仍校验冷却。
 
 ### 10.1 词法
 

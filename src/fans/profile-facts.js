@@ -172,56 +172,32 @@ function createFanFactConsumer({ store, now, create }) {
     if (!person || store.suppressed(scope, identityKey(person))) return;
     const profile = store.byIdentity(scope, identityKey(person));
     if (!profile || profile.archived) return;
-    const data = {
-      songName: request.songName,
-      artist: request.artist,
-      category: request.categoryName,
-      excludeFromStats: false,
-      excluded: false,
-      note: '',
-      state: '已加入队列',
-    };
-    store.records.insert(scope, profile.id, {
-      kind: 'song',
-      data,
-      occurredAt: request.createdAt,
-      sourceKey: `request:${request.stableId}`,
-      original: {
-        ...data,
-        source: request.source,
-        stableId: request.stableId,
-        requestId: request.requestId,
-        queueId: request.queueId,
-        identity: person,
+    return store.transaction(() => {
+      // Only a still-present accepted request can contribute, once. Clearing its
+      // queue also removes this bounded receipt; stale callbacks then do nothing.
+      if (!store.markSongRequest(scope, request.stableId)) return;
+      const data = {
+        songName: request.songName,
+        artist: request.artist,
+        category: request.categoryName,
+        excludeFromStats: false,
+        excluded: false,
+        note: '',
+      };
+      store.records.insert(scope, profile.id, {
+        kind: 'song',
+        data,
         occurredAt: request.createdAt,
-        requesterName: request.requesterName,
-      },
-    });
-    observe(scope, {
-      identity: person,
-      observedAt: request.createdAt,
-      name: request.requesterName,
-      nameComplete: true,
+      }, now());
+      observe(scope, {
+        identity: person,
+        observedAt: request.createdAt,
+        name: request.requesterName,
+        nameComplete: true,
+      });
     });
   }
-
-  function archiveQueueState(scope, stableId, status, changedAt) {
-    const record = store.records.bySource(scope, `request:${stableId}`);
-    if (!record) return;
-    const profile = store.get(scope, record.profileId);
-    if (!profile || store.suppressed(scope, identityKey(profile.identity))) return;
-    const state = {
-      done: '队列已处理',
-      deleted: '已撤销／移除',
-      skipped: '已跳过',
-      waiting: '已加入队列',
-      current: '已加入队列',
-    }[status];
-    if (!state || state === record.data.state) return;
-    store.records.update(scope, record.profileId, { ...record, data: { ...record.data, state } }, changedAt, 'queue');
-  }
-
-  return { consume, observe, archiveAccepted, archiveQueueState };
+  return { consume, observe, archiveAccepted };
 }
 
 module.exports = { createFanFactConsumer };

@@ -35,6 +35,7 @@ const groups = {
     'admin/frontend-usage-guide-search-browser',
     'admin/usage-guide-layout-browser',
     'bots/daily-bot-frontend',
+    'bots/fixed-reply-frontend',
     'danmaku/frontend-admin-danmaku',
     'danmaku/danmaku-feed-motion',
     'games/frontend-wheel-draft',
@@ -53,6 +54,7 @@ const groups = {
     'overlays/component-style-effects',
     'scenes/scene-live-updates',
     'scenes/scene-renderer',
+    'playback/playback-drawer-browser',
     'ui/frontend-toast-browser',
     'ui/frontend-color-control',
     'admin/ui-edit-state',
@@ -69,6 +71,7 @@ const groups = {
   ],
   desktop: [
     'desktop/daily-bot-editor-electron',
+    'desktop/fixed-reply-editor-electron',
     'desktop/background-filters-electron',
     'desktop/danmaku-canvas-electron',
     'desktop/gift-wishes-electron',

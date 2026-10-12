@@ -102,6 +102,32 @@ test('Admin clear-all alerts and reloads for a structured partial failure', asyn
   assert.equal(alerts.length, 1);
   assert.match(alerts[0], /songDb/);
   assert.match(alerts[0], /superChatDb/);
+  assert.match(alerts[0], /仍暂停.*刷新页面不会恢复/);
+  assert.match(alerts[0], /桌面更新.*日志目录.*再次完整清空/);
   assert.equal(reloadCount, 1);
   assert.deepEqual(toasts, []);
 });
+
+for (const [phase, message] of [['runtime-reset', '运行状态重载失败'], ['resume', '写入恢复失败']]) {
+  test(`Admin clear-all describes ${phase} without an empty failed-database row`, async () => {
+    const { createSettingsOperations } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-operations.js'));
+    const alerts = [];
+    let reloads = 0;
+    const operations = createSettingsOperations({
+      documentRef: {}, windowRef: {}, locationRef: { reload() { reloads++; } }, localStorageRef: null,
+      alertRef: value => alerts.push(value), dangerConfirm: async () => true,
+      api: async () => {
+        const error = new Error(message);
+        error.payload = { partial: true, error: message, data: { phase, committed: ['songDb', 'giftDb'], failed: [] } };
+        throw error;
+      },
+      toast() { assert.fail('partial failure must use a blocking explanation'); },
+    });
+    await operations.clearAll();
+    assert.equal(reloads, 1);
+    assert.match(alerts[0], new RegExp(message));
+    assert.match(alerts[0], /数据库已提交/);
+    assert.doesNotMatch(alerts[0], /✗ 失败/);
+    assert.match(alerts[0], /仍暂停.*刷新页面不会恢复/);
+  });
+}

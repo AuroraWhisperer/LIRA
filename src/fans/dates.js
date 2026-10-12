@@ -3,6 +3,10 @@
 const DAY_MS = 86_400_000;
 const OFFSET_MS = 8 * 3_600_000;
 
+function dayIndex(time) {
+  return Math.floor((time + OFFSET_MS) / DAY_MS);
+}
+
 function dayOf(value = Date.now()) {
   const time = typeof value === 'number' ? value : Date.parse(value);
   if (!Number.isFinite(time)) throw new Error('日期无效。');
@@ -68,6 +72,7 @@ function zodiacFor(birthday) {
 
 module.exports = {
   DAY_MS,
+  dayIndex,
   dayOf,
   dateValue,
   dayStart,

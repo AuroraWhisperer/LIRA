@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { prepareSettingsBootstrap } = require('../../src/server/settings-bootstrap');
+const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 
 function fixture(t, values) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-settings-migration-'));
@@ -74,6 +75,8 @@ test('new and already migrated settings remain stable on repeated startup', (t) 
   const state = fixture(t, {});
   const first = prepareSettingsBootstrap(state.db).settingsStore.getSettings();
   assert.equal(first.scrollSeconds, '20');
+  assert.equal(first.queueSongFontSize, DEFAULT_SETTINGS.queueSongFontSize);
+  assert.equal(first.queueTitleFontSize, DEFAULT_SETTINGS.queueTitleFontSize);
   state.reopen();
   assert.deepEqual(prepareSettingsBootstrap(state.db).settingsStore.getSettings(), first);
   state.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('12', 'queueSongFontSize');
@@ -82,4 +85,23 @@ test('new and already migrated settings remain stable on repeated startup', (t) 
   prepareSettingsBootstrap(state.db);
   assert.equal(state.value('queueSongFontSize'), '12');
   assert.equal(state.value('scrollSeconds'), '45');
+});
+
+test('startup preserves saved song-board sizes, including the former default', (t) => {
+  const state = fixture(t, { songBoardFontSize: '16' });
+  prepareSettingsBootstrap(state.db);
+  assert.equal(state.value('songBoardFontSize'), '16');
+  for (const value of ['17', '16']) {
+    state.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(value, 'songBoardFontSize');
+    state.reopen();
+    prepareSettingsBootstrap(state.db);
+    assert.equal(state.value('songBoardFontSize'), value);
+  }
+});
+
+test('an absent legacy queue font receives the current default without scaling', (t) => {
+  const state = fixture(t, { queueTitleFontSize: '8' });
+  prepareSettingsBootstrap(state.db);
+  assert.equal(state.value('queueSongFontSize'), DEFAULT_SETTINGS.queueSongFontSize);
+  assert.equal(state.value('queueTitleFontSize'), '16');
 });

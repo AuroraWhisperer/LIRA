@@ -192,22 +192,6 @@ function migrateSongScrollSpeedSetting(db, savedVersion) {
   ).run(updatedAt);
 }
 
-function migrateSongBoardFontSizeSetting(db) {
-  const row = db
-    .prepare(
-      `
-    SELECT value FROM settings WHERE key = 'songBoardFontSize'
-  `,
-    )
-    .get();
-  if (!row || String(row.value) !== '16') return;
-  db.prepare(
-    `
-    UPDATE settings SET value = ?, updated_at = ? WHERE key = 'songBoardFontSize'
-  `,
-  ).run(DEFAULT_SETTINGS.songBoardFontSize, now());
-}
-
 function migrateBlindBoxConfig(db) {
   const row = db
     .prepare(
@@ -349,6 +333,5 @@ module.exports = {
   migrateQueueFontSizeSettings,
   getQueueStyleSettingsVersion,
   migrateQueueStyleSettings,
-  migrateSongBoardFontSizeSetting,
   migrateBlindBoxConfig,
 };

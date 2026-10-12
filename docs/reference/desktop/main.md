@@ -1,5 +1,45 @@
 # 桌面壳主进程:窗口、协议与生命周期
 
+## 礼物保留快照同步
+
+[remote-gift-retention.js](../../../src/electron/remote-gift-retention.js) 由既有
+remote-gift-controller 调用，沿用 main 持有的 DeviceBearer、来源和授权代次。
+探测 giftRetentionVersion=1 后，首次或游标失效时下载完整汇总及匹配近期明细；
+正常运行每 10 分钟检查变化日，限流保存页位置，失效令牌重新取快照。
+激活后由原 catch-up/SSE 处理后续 final，每次协调另做一批本地回收。
+授权切换、清库与停机沿用原 fence 和 AbortController，不新增进程或 renderer 通道。
+远端 epoch 变化仍先走原投影重建入口，清除旧来源副本及结转；同 epoch 的过期
+游标恢复则保留旧完整副本，直到新快照原子激活。
+存储事务与本地消费者保护见 [storage.md](../backend/storage.md)。
+
+## 服务器固定回复设置
+
+自定义回复和定时/随机弹幕由服务器配置、匹配和发送。桌面通过
+`getFixedReplySettings()` 读取既有 `GET /api/device/cloud-state` 的 `settings.values`，
+`updateFixedReplySettings(patch)` 仅将本次修改提交给 `PUT /api/device/cloud-settings`；
+字段省略即保留云端原值。两者沿用 `overlayOperation` 和通用授权生命周期保护，
+主进程及 IPC 回包后再次检查账号代次，不把凭据或服务端其他设置交给 renderer。
+通道、来源检查和返回值见 [preload.md](preload.md)。
+
+[fixed-reply-contract.js](../../../src/shared/fixed-reply-contract.js) 校验四个可选 patch 字段，
+每次至少一个：`customExactReplyEnabled` 与 `scheduledDanmakuEnabled` 均为 boolean、默认关闭；
+`customExactReplies` 为最多 30 条 `{trigger,reply}`，去掉首尾空白后分别为 1–30 和 1–120
+Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDanmaku` 保存完整配置：
+`mode` 为 `fixed`/`random`、`intervalSeconds` 默认 300、`minSeconds` 默认 300、
+`maxSeconds` 默认 600，秒数均为 10–86400 的整数且最小值不大于最大值；
+`selection` 为 `sequential`/`random`、默认顺序，`messages` 为最多 100 条、每条 1–120 字，
+未保存定时配置时由服务器提供 15 条可编辑的 B 站文案；已有配置（包括显式空词库）保留。
+参数拒绝未知字段及控制字符。旧服务器缺少新字段明确返回不支持，不回落成本地发送。
+
+桌面只在 `custom-reply-service` 内存中保存已确认的精确触发词、开关与云端 revision，
+不会持久化这份投影，也不会加入默认云同步上传键。云同步读取/写入回包和固定回复 IPC
+成功后立即更新投影，旧 revision 不能覆盖新结果；授权停止、切换账号会清空。
+已有签到、抽签和点歌命令优先；其余消息完整 trim 后命中“菜单”或精确触发词时返回
+`cloud-owned`，阻止本地关键词回复和 AI 再次回复。网络不可用时不会排队重放设置写入。
+回归见 [fixed-reply-settings-ipc.test.js](../../../test/bots/fixed-reply-settings-ipc.test.js)、
+[custom-reply-service.test.js](../../../test/bots/custom-reply-service.test.js) 与
+[cloud-fixed-reply-projection.test.js](../../../test/cloud-sync/cloud-fixed-reply-projection.test.js)。
+
 ## PK 对手信息播报
 
 `liraLicense.getPkReportSettings()` / `updatePkReportSettings({ enabled })`
@@ -67,28 +107,27 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 上述 V1 桥保留。新页面使用 `getWelcomeSettingsV2()` / `updateWelcomeSettingsV2(patch)`，
 读写固定 `/api/device/welcome-settings/v2`。完整字段和依赖由服务器 Device OpenAPI
 维护；主进程以 [welcome-settings-contract.js](../../../src/shared/welcome-settings-contract.js)
-白名单验证参数、四份词库与完整回包，错误只投影字段/原因。仅 GET 明确 HTTP 404
+白名单验证参数、五份词库与完整回包，错误只投影字段/原因。仅 GET 明确 HTTP 404
 才回落 V1，并显示新增能力不可用；网络、鉴权、畸形成功及写入均不自动回落。
 
 V2 的 `userWelcomeMessages` 通过同一 IPC/API 按精确 B 站 UID 保存个人欢迎词，
 主进程验证 UID 字符串、唯一性和文案并仅投影已知字段。新服务器返回数组；
 旧 V2 缺少该字段时保留缺失，只禁用个人欢迎编辑器。独立保存只提交该列表，
-空数组清空，参数/四库等其他写入省略它。首次欢迎在原门槛内优先个人文案，
-未匹配沿用重点关注/通用词库；二次问候、延迟与发送限制保持，服务器仍为发送 owner。
+空数组清空，参数/通用词库等其他写入省略它。久别重逢的 `returningEnabled` 与 `returningMessages` 增量字段由共享欢迎契约校验；旧 V2 缺少能力时只禁用新项，独立保存客套话，服务器回包缺少新能力时不得确认成功。首次欢迎在原门槛内优先个人文案，
+未匹配时优先符合条件的久别重逢，再沿用重点关注/通用词库；二次问候、延迟与发送限制保持，服务器仍为发送 owner。
 
-参数、四库和用户欢迎词各有草稿代次，写入串行、输入可继续编辑；开启有数值草稿时原子提交
+参数、五库和用户欢迎词各有草稿代次，写入串行、输入可继续编辑；开启有数值草稿时原子提交
 并明示“开启并保存参数”，词库仍使用已确认值。纯关闭只带开关，失败保持未确认；
 欢迎关闭联动子功能由服务器执行。独立昵称注音也经同一账号配置保存。读取可保留
 草稿，切账号清空所有草稿/未添加输入并忽略旧响应。延时不证明观众仍在房间。
 
-固定回复保留六项总览，标题、问号与开关就近排列。随机点歌回复和 PK 播报的说明
-直接使用共享问号组件，不另设展开面板；PK 状态与刷新入口保留在总览。
-`danmaku-fixed-replies.js` 协调欢迎、自定义关键词、签到与抽签的单个活动编辑器，
+固定回复前四行按两列排列：签到/抽签、欢迎/点歌回复、自定义回复/关键词回复、PK/定时随机弹幕；查询回复独立放在最后一行。「清单」只展示动态统计的指令与说明，开关和礼物页共用 `giftStatsQueryEnabled` 与原有受限 IPC。标题、问号与开关就近排列。点歌回复保留共享问号，并复用“说明”按钮展开系统生成的无匹配／冷却回复示例，无需词库；PK 播报说明使用共享问号。PK 状态保留在总览，手动重读并入底部统一“刷新云端状态”（同时读取签到/抽签、欢迎、PK、查询和新增回复设置）。
+`danmaku-fixed-replies.js` 协调点歌回复说明、欢迎、两类自定义回复、定时弹幕、签到与抽签的单个活动编辑器，
 切换时只隐藏、不卸载编辑区。欢迎参数与词库位于同一编辑器；
 `danmaku-welcome-custom.js` 拥有词库视图中的用户规则列表和分页。每项欢迎规则将标题/开关、
-参数和对应词库入口就近分组。宽容器中每条规则占一整行，名称/开关、延时、荣耀门槛与
-词库入口各组用竖线分隔，三条规则的词库入口对齐；容器小于 760px 时标题上移，
-小于 480px 时控件换行。注音与保存操作位于规则下方的同一响应式操作区，两组以竖线分隔，窄窗口改用横线。
+参数和对应词库入口就近分组。首次欢迎、二次问候、重点关注、久别重逢四卡按两列两行排列，
+延时与荣耀输入同行且保留间距，同排卡片的词库按钮底部对齐；容器小于 760px 时卡片改为单列，
+小于 480px 时双输入改为纵排。注音与保存操作位于规则下方。
 固定回复的自定义下拉沿用共享单选样式，选中项以竖条与高亮表示，不显示对勾，
 展开箭头统一使用 SVG。公开发送范围和规则通过共享问号组件说明。
 IPC 通道定义见 [preload.md](preload.md)。
@@ -149,6 +188,8 @@ IPC 通道定义见 [preload.md](preload.md)。
 远程 transport 由 `license/remote-license-client.js` 统一拥有认证头、期限、响应预算和错误转换；`remote-danmaku-settings.js`、`remote-songs.js`、`remote-cloud-sync.js`、`remote-gift-reads.js` 只组装各领域的固定方法/路径与专有读取预算。HTTPS 根 origin 校验复用 `shared/remote-url-policy.js`，不合并歌曲、礼物和粉丝的持久 owner key 格式。
 
 `license-manager.js` 是设备身份状态、内存 access token、续期和 heartbeat 的唯一所有者。持久化文件只保存公开设备资料;私钥由 Electron `safeStorage` 加密,access token 不写磁盘也不进入 preload/renderer 返回值。
+
+`license/build-integrity.js` 在启动认证、激活及续期需要构建信息时，使用 Electron `original-fs` 异步读取原始 `app.asar`，复用一个 64 KiB 缓冲区逐块计算 SHA256，并在成功或失败后关闭文件。这样避免整包同步读取和计算占用主线程，也避免每块重新分配缓冲区。结果不缓存，`buildId` 与 `integrityStatus` 格式及失败语义不变。认证和激活等待摘要后重新核对既有生命周期；已失效操作不再发起授权请求或暂存激活密钥。
 
 `remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录独立限制为 32 MiB，按解码后的响应流累计字节；超过时取消读取并返回 `RESPONSE_TOO_LARGE`，不替换上一份完整内存/磁盘目录或 ETag。首次没有可用目录时保持初始化失败，仍沿用现有重试入口。固定来源、总期限、结构校验和完整目录 schema 不变，不截断礼物或分页。该容量约为 2026-09-25 官方目录实测 1,689,296 字节的 19.9 倍；超过支持容量时需显式调整合同。验收见 [容量边界与旧缓存保留](../../../test/gifts/remote-catalog-cache.test.js)。
 
@@ -228,7 +269,7 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 `gift-export-ipc.js` 只接受主窗口、主 frame、精确本地 origin 的管理页调用；preload 提供 prepare/configure/save/cancel/openFolder 和进度订阅，不接收任意输出路径或页面 URL。`gift-export-controller.js` 从 runtime 取得冻结记录、配置及目录，默认保存到系统图片目录 `LIRA/礼物导出/日期/时间-随机标识`，替换根目录只能通过原生文件夹对话框。预览不创建目录；任务目录独占创建，PNG 用 wx 防覆盖。
 
-隐藏沙箱窗口固定加载 `/gift-export`，无 Node/preload，拒绝导航及新窗口，顺序 capturePage。每行 800×192、间隔 16px，每图最多 39 条（800×8096），支持透明/白色及合图/逐条。捕获后核验实际 PNG 尺寸并统一 2× 输出。取消、来源失效、导航和应用关闭释放窗口；失败保留成功文件并报告真实数量。截图验证脚本 `scripts/verify-gift-export.cjs`、`scripts/verify-gift-history.cjs` 使用隔离合成数据。
+隐藏沙箱窗口固定加载 `/gift-export`，无 Node/preload，拒绝导航及新窗口，顺序 capturePage。横幅基础为 428×72、间隔 8px；2× PNG 每行基础为 856×144、间隔 16px，每图最多 39 条（基础 856×6224），数量文字可向右扩宽，同页取最宽横幅。支持透明/白色及合图/逐条。捕获后核验实际 PNG 尺寸并统一 2× 输出。取消、来源失效、导航和应用关闭释放窗口；失败保留成功文件并报告真实数量。截图验证脚本 `scripts/verify-gift-export.cjs`、`scripts/verify-gift-history.cjs` 使用隔离合成数据。
 
 `createMainWindow(baseUrl, authorized)` 创建唯一主窗口；后续 `/license` 与 `/admin?desktop=1` 切换只由 main process 的授权和礼物初始化状态监听器负责：
 

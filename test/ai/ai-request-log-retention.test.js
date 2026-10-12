@@ -7,7 +7,7 @@ const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 const { applyRetentionPolicies, readRetentionPolicy } = require('../../src/storage/retention');
 const { createAiConfigStore } = require('../../src/ai/config-store');
-const { runStartupRetention } = require('../../src/server/startup-retention');
+const { startRetentionMaintenance } = require('../../src/server/startup-retention');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 8, 26, 12);
@@ -103,12 +103,13 @@ test('startup retention reports AI-only deletions through the configured policy'
   f.logAt(NOW - 8 * DAY_MS, 'expired');
   const log = t.mock.method(console, 'log', () => {});
   const settings = { autoRetentionOnStartup: 'true', aiRequestLogRetentionDays: '7' };
-  runStartupRetention(
+  const stopMaintenance = startRetentionMaintenance(
     { getSettings: () => settings },
     {
       runRetention: () => f.run({ policy: readRetentionPolicy(settings) }),
     },
   );
+  t.after(stopMaintenance);
   assert.deepEqual(f.remaining(), []);
   assert.equal(log.mock.callCount(), 1);
   assert.match(log.mock.calls[0].arguments[0], /aiRequests=1/);

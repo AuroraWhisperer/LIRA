@@ -1,4 +1,4 @@
-const TITLES = { checkin: '签到祝福词库', fortune: '抽签词库', diy: '自定义关键词回复', welcome: '进场欢迎' };
+const TITLES = { checkin: '签到祝福词库', fortune: '抽签词库', random: '点歌回复说明', exact: '自定义回复', diy: '自定义关键词回复', welcome: '进场欢迎', scheduled: '定时／随机弹幕', query: '查询回复指令清单' };
 
 export function initFixedReplyEditor({ documentRef = globalThis.document, windowRef = globalThis.window } = {}) {
   const root = documentRef.querySelector?.('.danmaku-fixed-reply-section');
@@ -57,44 +57,57 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
   mirror(status, () => {
     note.textContent = /未保存|更改|失败|保存中|正在保存/.test(status.textContent) ? status.textContent : '';
   });
-  const list = documentRef.getElementById('danmakuCustomReplyList');
-  const pager = documentRef.createElement('div');
-  pager.className = 'danmaku-library-pagination';
-  const previous = documentRef.createElement('button'),
-    next = documentRef.createElement('button');
-  const label = documentRef.createElement('span');
-  label.className = 'hint';
-  previous.type = next.type = 'button';
-  previous.className = next.className = 'ghost';
-  previous.textContent = '上一页';
-  next.textContent = '下一页';
-  pager.append(previous, label, next);
-  list.after(pager);
-  let page = 0;
-  const render = () => {
-    const rows = [...list.children],
-      pages = Math.max(1, Math.ceil(rows.length / 6));
-    page = Math.min(page, pages - 1);
-    rows.forEach((row, index) => {
-      row.hidden = Math.floor(index / 6) !== page;
+  for (const listId of ['danmakuCustomReplyList', 'danmakuExactReplyList', 'danmakuQueryReplyList']) {
+    const list = documentRef.getElementById(listId);
+    if (!list) continue;
+    const pager = documentRef.createElement('div');
+    pager.className = 'danmaku-library-pagination';
+    const previous = documentRef.createElement('button'),
+      next = documentRef.createElement('button');
+    const label = documentRef.createElement('span');
+    label.className = 'hint';
+    previous.type = next.type = 'button';
+    previous.className = next.className = 'ghost';
+    previous.textContent = '上一页';
+    next.textContent = '下一页';
+    pager.append(previous, label, next);
+    list.after(pager);
+    let page = 0;
+    const search = listId === 'danmakuQueryReplyList' ? documentRef.getElementById('danmakuQueryReplySearch') : null;
+    const empty = listId === 'danmakuQueryReplyList' ? documentRef.getElementById('danmakuQuerySearchEmpty') : null;
+    const render = () => {
+      const query = search?.value.trim().toLocaleLowerCase() || '';
+      const allRows = [...list.children];
+      const rows = allRows.filter((row) => {
+        const text = [row.textContent, ...[...row.querySelectorAll('input')].map((input) => input.value)].join(' ');
+        return text.toLocaleLowerCase().includes(query);
+      }),
+        pages = Math.max(1, Math.ceil(rows.length / 6));
+      page = Math.min(page, pages - 1);
+      allRows.forEach((row) => { row.hidden = true; });
+      rows.forEach((row, index) => {
+        row.hidden = Math.floor(index / 6) !== page;
+      });
+      pager.hidden = pages <= 1;
+      previous.disabled = page === 0;
+      next.disabled = page === pages - 1;
+      label.textContent = `第 ${page + 1} / ${pages} 页`;
+      if (empty) empty.hidden = rows.length > 0;
+    };
+    search?.addEventListener('input', () => { page = 0; render(); });
+    previous.addEventListener('click', () => {
+      page -= 1;
+      render();
     });
-    pager.hidden = pages <= 1;
-    previous.disabled = page === 0;
-    next.disabled = page === pages - 1;
-    label.textContent = `第 ${page + 1} / ${pages} 页`;
-  };
-  previous.addEventListener('click', () => {
-    page -= 1;
+    next.addEventListener('click', () => {
+      page += 1;
+      render();
+    });
+    const observer = new windowRef.MutationObserver(render);
+    observer.observe(list, { childList: true });
+    observers.push(observer);
     render();
-  });
-  next.addEventListener('click', () => {
-    page += 1;
-    render();
-  });
-  const observer = new windowRef.MutationObserver(render);
-  observer.observe(list, { childList: true });
-  observers.push(observer);
-  render();
+  }
   windowRef.addEventListener('pagehide', () => observers.forEach((observer) => observer.disconnect()), { once: true });
   select('');
 }

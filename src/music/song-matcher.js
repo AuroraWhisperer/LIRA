@@ -77,6 +77,7 @@ function normalizeCandidate(candidate) {
     : cleanText(input.artist).split('/').map(cleanText).filter(Boolean);
 
   return {
+    ...input,
     id: cleanText(input.id || input.sourceTrackId),
     source: cleanText(input.source || 'local'),
     title,

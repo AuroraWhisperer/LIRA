@@ -104,6 +104,7 @@ function getGiftHistory(context, options = {}) {
 
   return {
     viewRevision,
+    retention: queryStore.getRetention?.(activeSource.sourceId) || null,
     ...filters,
     asOf,
     range,

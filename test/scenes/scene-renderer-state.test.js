@@ -48,11 +48,13 @@ async function rendererFixture() {
   function complete(frame) {
     for (const type of ['ready', 'prepared']) signal(frame, type);
   }
-  function signal(frame, type) {
-    listeners.get('message')({ origin: 'null', source: frame.contentWindow, data: { type: `component-preview:${type}` } });
+  function signal(frame, type, values = {}) {
+    const configuration = messages.get(frame).filter(message => ['component-preview:init', 'component-preview:config'].includes(message.type)).at(-1)?.configuration;
+    listeners.get('message')({ origin: 'null', source: frame.contentWindow, data: { type: `component-preview:${type}`, configuration, ...values } });
   }
   function fail(frame) {
-    listeners.get('message')({ origin: 'null', source: frame.contentWindow, data: { type: 'component-preview:status', message: 'Synthetic renderer failure' } });
+    if (!messages.get(frame).some(message => message.type === 'component-preview:init')) signal(frame, 'ready');
+    signal(frame, 'status', { message: 'Synthetic renderer failure' });
   }
   return { renderer, host, complete, signal, fail, messages, timers, statuses };
 }
@@ -60,6 +62,29 @@ const connected = events => ({ status: 'connected', epoch: 'one', nextCursor: 2,
   state: { liveStatus: 1, liveSessionId: 'live', confirmationMessage: 'Live' }, events });
 const sceneData = events => ({ danmaku: connected(events) });
 const outputDoc = () => documentOf([item('danmaku', 'independent', { style: 'signal' })]);
+
+test('resource preparation retries the same style after a transient read failure', async () => {
+  const { COMPONENT_RESOURCE_PRESETS } = require('../../public/js/shared/component-resource-style.js');
+  const preset = COMPONENT_RESOURCE_PRESETS['nautical-guard-thanks'];
+  const prefix = `/component-media/${randomUUID()}/${'a'.repeat(64)}`;
+  const config = { resourceStyle: { id: randomUUID(), preset: 'nautical-guard-thanks',
+    preview: `${prefix}.webp`, width: 1920, height: 1080,
+    resources: Object.fromEntries(preset.resources.map(key => [key, `${prefix}${key.slice(key.lastIndexOf('.'))}`])) } };
+  let reads = 0; let fail = true; let installed = 0;
+  const { createComponentResources } = await load('overlays/component-resources.js', {
+    document: { createElement: () => ({ dataset: {}, remove() {} }), head: { append() { installed++; } } },
+    Image: class { decode() { return Promise.resolve(); } },
+    fetch: async () => { reads++; return { ok: !fail, text: async () => '' }; },
+  });
+  const resources = createComponentResources();
+  await assert.rejects(resources.update(config), /组件样式加载失败/);
+  fail = false;
+  await resources.update(config);
+  await resources.update(config);
+  assert.equal(reads, 2);
+  assert.equal(installed, 1);
+  resources.dispose();
+});
 
 test('room icon state reaches a prepared frame and updates without replacing the frame', async t => {
   const f = await rendererFixture(); t.after(() => f.renderer.dispose());
@@ -113,6 +138,58 @@ test('saved shared appearances update active frames without replaying events or 
   assert.equal(configs.length, 1);
   assert.equal(configs[0].config.fullscreenDurationSeconds, 12);
   assert.deepEqual(f.messages.get(frame).flatMap(message => message.data?.events || []), [{ message: 'once' }]);
+});
+
+test('active appearance failures report saved-versus-applied state and retry the same configuration', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const document = documentOf([item('guard-thanks', 'independent', { nameFontSize: 45 })]);
+  const id = document.items[0].id;
+  const update = size => f.renderer.update({ version: 1, document: null, appearances: { [id]: { nameFontSize: size } }, data: {} });
+  f.renderer.update({ version: 1, document, data: {} });
+  const frame = f.host.children[0].children[0];
+  f.complete(frame);
+  update(60);
+  const configs = () => f.messages.get(frame).filter(message => message.type === 'component-preview:config');
+  const first = configs().at(-1);
+  f.fail(frame);
+  assert.match(f.statuses.at(-1).message, /已保存外观.*应用失败.*自动重试/);
+  update(60);
+  assert.equal(configs().length, 2);
+  f.signal(frame, 'prepared', { configuration: first.configuration });
+  assert.match(f.statuses.at(-1).message, /应用失败/, 'an earlier receipt cannot clear the failure');
+  f.signal(frame, 'prepared');
+  assert.equal(f.statuses.at(-1).message, '');
+  update(60);
+  assert.equal(configs().length, 2, 'the acknowledged configuration is deduplicated');
+  assert.equal(f.host.children[0].children[0], frame);
+  assert.equal(f.timers.size, 0);
+  update(61);
+  update(60);
+  assert.equal(configs().at(-1).config.nameFontSize, 60, 'returning to the prior value supersedes an in-flight change');
+  f.signal(frame, 'prepared');
+  f.renderer.dispose();
+  assert.equal(f.timers.size, 0);
+});
+
+test('active appearance timeouts have bounded retries and disposal ignores old acknowledgements', async () => {
+  const f = await rendererFixture();
+  const document = documentOf(); const id = document.items[0].id;
+  f.renderer.update({ version: 1, document, data: {} });
+  const frame = f.host.children[0].children[0]; f.complete(frame);
+  const response = { version: 1, appearances: { [id]: { label: 'new' } }, data: {} };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    f.renderer.update(response);
+    [...f.timers.values()][0]();
+  }
+  f.renderer.update(response);
+  assert.equal(f.messages.get(frame).filter(message => message.type === 'component-preview:config').length, 3);
+  assert.match(f.statuses.at(-1).message, /刷新来源重试/);
+  assert.equal(f.timers.size, 0);
+  f.renderer.update({ ...response, appearances: { [id]: { label: 'another' } } });
+  assert.equal(f.timers.size, 1);
+  f.renderer.dispose();
+  assert.equal(f.timers.size, 0);
+  assert.equal(f.host.children.length, 0);
 });
 
 test('external browser frames use their viewport, commit on load and never exchange the component protocol', async t => {

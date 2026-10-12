@@ -23,7 +23,7 @@
       </div>
     </header>
     <div id="lotteryHistoryPanel" class="dynamic-lottery-history" data-lottery-history-panel hidden>
-      <label for="lotteryHistory">本地记录 · 最近 50 场</label>
+      <label for="lotteryHistory">当前与未结束的抽奖 · 最近 50 场</label>
       <select id="lotteryHistory" data-lottery-history disabled aria-label="选择抽奖记录"></select>
       <p class="hint" data-lottery-history-empty>暂无抽奖记录</p>
     </div>
@@ -169,6 +169,7 @@
           <li>所选名单全部获取完成后才能开奖；名单不完整时暂停，不降低条件。</li>
           <li>随机排序后依次核验，不符合条件自动递补；无法确认时停在当前候选人，继续时保留顺序。</li>
           <li>候选人用尽时显示缺额，不重复抽取同一人。</li>
+          <li>新建活动成功后，已结束场次的名单和结果自动清理；未结束的活动继续保留。</li>
           <li>
             支持本人的原创文字/图文动态、BV 视频及 b23.tv
             短链。视频仅支持评论与关注，暂不支持可靠核验视频点赞和分享名单。

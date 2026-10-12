@@ -69,6 +69,7 @@ LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同�
 | [0021-atomic-live-gift-progress](adr/0021-atomic-live-gift-progress.md) | Accepted；连续 SSE 礼物和游标原子提交，HTTP 保留恢复与周期核对 |
 | [0022-local-component-scenes](adr/0022-local-component-scenes.md) | Accepted；本地场景 owner、完整外观版本及独立只读来源；本地范围已实现并验证 |
 | [0023-purpose-aware-file-size-review](adr/0023-purpose-aware-file-size-review.md) | Accepted；按文件类型、职责与用途评审，行数仅作提示 |
+| [0024-gift-retention](adr/0024-gift-retention.md) | Accepted；约 90 天明细、长期日汇总及去重凭证；实施中 |
 
 
 ## 事实地图

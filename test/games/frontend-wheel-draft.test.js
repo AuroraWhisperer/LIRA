@@ -76,3 +76,39 @@ test('wheel drafts compare against the latest saved options after a background u
   await page.locator('.wheel-label-input').first().fill('原选项');
   assert.equal(await page.locator('#wheelSpinBtn').isDisabled(), true);
 });
+
+test('wheel reconnect recovers a missed finish, preserves drafts and ignores older reads', async (t) => {
+  const page = await fixture(t, 'wheel');
+  await page.setContent(readAdminFragmentHtml('pages/admin/toolbox/games.html'));
+  await page.evaluate(async () => {
+    document.getElementById('otherGamesFeature').hidden = false;
+    window.wheelData = { entries: [{ label: '唱歌', weight: 1 }, { label: '跳舞', weight: 1 }],
+      limits: { minEntries: 2, maxEntries: 10, minWeight: 1, maxWeight: 100, maxLabelLength: 20 }, spin: {} };
+    window.fetch = async () => ({ json: async () => ({ ok: true, data: window.wheelData }) });
+    const { initWheelAdmin } = await import('/js/admin/games-wheel.js');
+    await initWheelAdmin();
+    const { eventBus } = await import('/js/shared/event-bus.js');
+    window.reconnectWheel = () => eventBus.emit('ws:connected');
+    window.wheelReads = [];
+    window.fetch = () => new Promise(resolve => window.wheelReads.push(data => resolve({ json: async () => ({ ok: true, data }) })));
+  });
+  await page.locator('#wheelCardTrigger').click();
+  assert.equal(await page.locator('#wheelSpinBtn').isDisabled(), true);
+  await page.evaluate(() => { window.reconnectWheel(); window.wheelReads.shift()({ ...window.wheelData, spin: null }); });
+  await page.waitForFunction(() => !document.getElementById('wheelSpinBtn').disabled);
+  await page.locator('.wheel-label-input').first().fill('本地草稿');
+  await page.evaluate(() => {
+    window.reconnectWheel(); window.reconnectWheel();
+    window.wheelReads.pop()({ ...window.wheelData, spin: null, lastResult: { label: '最新结果' } });
+  });
+  await page.waitForFunction(() => document.getElementById('wheelCardResult').textContent.includes('最新结果'));
+  await page.evaluate(() => window.wheelReads.shift()(window.wheelData));
+  assert.equal(await page.locator('.wheel-label-input').first().inputValue(), '本地草稿');
+  assert.equal(await page.locator('.wheel-label-input').first().isEnabled(), true);
+  await page.evaluate(() => {
+    window.reconnectWheel();
+    window.dispatchEvent(new CustomEvent('app:wheel-update', { detail: { ...window.wheelData, spin: null, lastResult: { label: '广播结果' } } }));
+    window.wheelReads.shift()(window.wheelData);
+  });
+  assert.match(await page.locator('#wheelCardResult').textContent(), /广播结果/);
+});

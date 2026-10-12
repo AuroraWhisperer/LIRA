@@ -2,6 +2,7 @@
 
 const { randomUUID } = require('node:crypto');
 const { createFanRecordStore } = require('./fan-record-store');
+const { pruneFanRestoreSnapshots } = require('./fan-snapshot-retention');
 
 function decodeProfile(row) {
   return row
@@ -131,17 +132,23 @@ function createFanProfileStore(db) {
   }
 
   function remove(scope, id, suppress) {
-    const row = db.prepare('SELECT identity_key FROM fan_profiles WHERE scope = ? AND id = ?').get(scope, id);
-    if (!row) throw new Error('档案不存在。');
-    if (suppress && row.identity_key) {
-      db.prepare('INSERT OR IGNORE INTO fan_suppressions VALUES (?, ?)').run(scope, row.identity_key);
-    }
-    db.prepare('DELETE FROM fan_profiles WHERE scope = ? AND id = ?').run(scope, id);
+    return transaction(() => {
+      const row = db.prepare('SELECT identity_key FROM fan_profiles WHERE scope = ? AND id = ?').get(scope, id);
+      if (!row) throw new Error('档案不存在。');
+      if (suppress && row.identity_key) {
+        db.prepare('INSERT OR IGNORE INTO fan_suppressions VALUES (?, ?)').run(scope, row.identity_key);
+      }
+      db.prepare('DELETE FROM fan_profiles WHERE scope = ? AND id = ?').run(scope, id);
+      records.pruneRosterTemplates(scope);
+    });
   }
 
   function removeAll(scope) {
-    const result = db.prepare('DELETE FROM fan_profiles WHERE scope = ?').run(scope);
-    return Number(result.changes) || 0;
+    return transaction(() => {
+      const result = db.prepare('DELETE FROM fan_profiles WHERE scope = ?').run(scope);
+      records.pruneRosterTemplates(scope);
+      return Number(result.changes) || 0;
+    });
   }
 
   function suppressions(scope) {
@@ -161,9 +168,12 @@ function createFanProfileStore(db) {
   }
 
   function snapshot(scope, data, now) {
-    const id = randomUUID();
-    db.prepare('INSERT INTO fan_restore_snapshots VALUES (?, ?, ?, ?)').run(id, scope, now, JSON.stringify(data));
-    return id;
+    return transaction(() => {
+      const id = randomUUID();
+      db.prepare('INSERT INTO fan_restore_snapshots VALUES (?, ?, ?, ?)').run(id, scope, now, JSON.stringify(data));
+      pruneFanRestoreSnapshots(db, scope);
+      return id;
+    });
   }
 
   function restoreProfile(scope, profile, key, now) {
@@ -173,8 +183,11 @@ function createFanProfileStore(db) {
     return get(scope, profile.id);
   }
 
-  function moveRecords(scope, from, to) {
+  function moveRecords(scope, from, to, at) {
     if (!get(scope, from) || !get(scope, to)) throw new Error('待合并档案不存在。');
+    const songs = records.list(scope, from).filter((record) => record.kind === 'song');
+    db.prepare("DELETE FROM fan_records WHERE scope = ? AND profile_id = ? AND kind = 'song'").run(scope, from);
+    for (const song of songs) records.insert(scope, to, song, at);
     db.prepare('UPDATE fan_records SET profile_id = ? WHERE scope = ? AND profile_id = ?').run(to, scope, from);
   }
 
@@ -239,6 +252,10 @@ function createFanProfileStore(db) {
     byIdentity,
     save,
     records,
+    markSongRequest(scope, stableId) {
+      return db.prepare(`UPDATE requests SET fan_recorded = 1
+        WHERE owner_scope = ? AND stable_id = ? AND fan_recorded = 0`).run(scope, stableId).changes > 0;
+    },
     getScope,
     saveScope,
     states,

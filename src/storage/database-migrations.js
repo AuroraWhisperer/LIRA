@@ -10,8 +10,12 @@ const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
+const { migrateGiftRetention } = require('./gift-retention-migration');
 const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors } = require('./gift-wish-migration');
 const { migrateFanProfiles } = require('./fan-profile-migration');
+const { migrateFanSongRetention } = require('./fan-song-migration');
+const { migrateFanRosterObservations } = require('./fan-roster-observation-migration');
+const { migrateSuperChatReceipts } = require('./superchat-receipt-migration');
 const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('./scene-migration');
 
 // ── 迁移注册表 ──
@@ -92,6 +96,19 @@ function runAllMigrations(databases, options = {}) {
       migrateComponentOutputSizes,
       migrateCanvasPresets,
       migrateSceneDeletion,
+      // v12：歌曲冷却独立于队列状态，按账号保存最近成功入队时间。
+      (db) => {
+        db.exec(`CREATE TABLE IF NOT EXISTS song_cooldowns (
+          owner_scope TEXT NOT NULL,
+          song_key TEXT NOT NULL,
+          accepted_at_ms INTEGER NOT NULL,
+          PRIMARY KEY (owner_scope, song_key)
+        )`);
+      },
+      // v13：档案点歌汇总、两份恢复点与无历史队列。
+      migrateFanSongRetention,
+      // v14：共享未编辑的自动大航海名单依据，保留每次观察的身份和日期。
+      migrateFanRosterObservations,
     ]),
   );
 
@@ -101,6 +118,8 @@ function runAllMigrations(databases, options = {}) {
       () => {
         /* 基线：建表已在 SUPER_CHAT_SCHEMA 完成 */
       },
+      // v2：移除 SC 历史正文，只保留阻止旧消息重现的平台标识。
+      migrateSuperChatReceipts,
     ]),
   );
 
@@ -319,6 +338,8 @@ function runAllMigrations(databases, options = {}) {
       migrateGiftWishTextImages,
       // v16: per-wish text colors; empty values use the shared renderer defaults.
       migrateGiftWishTextColors,
+      // v17: source-scoped summary snapshots and local retention contributions.
+      migrateGiftRetention,
     ]),
   );
 

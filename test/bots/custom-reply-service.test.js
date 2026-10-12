@@ -13,6 +13,7 @@ const {
   normalizeCustomReplyRule,
 } = require('../../src/bilibili/custom-reply-service');
 const { createDomainServices } = require('../../src/server/domain-services');
+const { createBilibiliClient } = require('../../src/server/bilibili-client');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { DEFAULT_SETTINGS, createSettingsStore } = require('../../src/storage/settings-store');
 
@@ -91,6 +92,22 @@ test('custom reply service creates targeted automatic replies', () => {
   assert.equal(isBilibiliCommandText('菜单看看', service.isCommandText), true);
 });
 
+test('cloud exact commands use trimmed equality and ignore stale projections until account reset', () => {
+  const service = createCustomReplyService();
+  service.setCloudExactReplySettings({ customExactReplyEnabled: true, customExactReplies: [{ trigger: '月卡', reply: '说明' }] }, 5);
+  for (const message of ['菜单', ' 菜单 ', '月卡']) assert.equal(service.isCloudOwnedCommand(message), true);
+  assert.equal(service.isCloudOwnedCommand('看看菜单'), false);
+  assert.equal(service.isCommandText('月卡'), true);
+  service.setCloudExactReplySettings({ customExactReplyEnabled: false, customExactReplies: [] }, 4);
+  assert.equal(service.isCloudOwnedCommand('菜单'), true);
+  service.setCloudExactReplySettings(null);
+  assert.equal(service.isCloudOwnedCommand('菜单'), false);
+  service.setCloudExactReplySettings({ customExactReplyEnabled: true, customExactReplies: [] }, 1);
+  assert.equal(service.isCloudOwnedCommand('菜单'), true);
+  service.setCloudExactReplySettings({}, 2);
+  assert.equal(service.isCloudOwnedCommand('菜单'), false);
+});
+
 test('domain services attach a custom reply after built-in commands decline', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-custom-reply-'));
   const databases = createDatabases({ dataDir });
@@ -151,6 +168,33 @@ test('domain services attach a custom reply after built-in commands decline', ()
       }
     }
     assert.equal(databases.checkinDb.prepare('SELECT count(*) AS n FROM checkin_users').get().n, 0);
+    services.customReplies.setCloudExactReplySettings({
+      customExactReplyEnabled: true,
+      customExactReplies: [{ trigger: '随机点歌', reply: '不会覆盖系统指令' }],
+    }, 1);
+    const exact = services.messages.handleDanmaku({ message: ' 菜单 ', uid: '456', userName: 'Bob' });
+    assert.equal(exact.reason, 'cloud-owned');
+    assert.equal(exact.customReplyReply, undefined);
+    assert.equal(services.messages.handleDanmaku({ message: '随机点歌', uid: '456' }).command.type, 'random');
+    assert.equal(services.messages.handleDanmaku({ message: '看看菜单', uid: '456' }).customReply.accepted, true);
+    const deliveries = [];
+    const client = createBilibiliClient('123', {
+      isShuttingDown: () => false,
+      aiDanmakuDeliveryVerifier: { observe() {} },
+      domainServices: services,
+      aiAssistant: { handleDanmaku: () => deliveries.push('ai') },
+      danmakuSender: { send: async () => deliveries.push('keyword') },
+      broadcastSnapshot() {}, updateLiveStatus() {},
+      bilibiliDiagnostics: {}, bilibiliAuthCache: { cookieHeader: '', uid: 0 },
+    });
+    try {
+      client.handlers.onMessage({ message: '菜单', uid: '456', userName: 'Bob' });
+      assert.deepEqual(deliveries, [], 'a server-owned exact command must not also trigger local AI or keyword replies');
+      client.handlers.onMessage({ message: '看看菜单', uid: '456', userName: 'Bob' });
+      assert.deepEqual(deliveries, ['ai', 'keyword']);
+    } finally {
+      client.stop();
+    }
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });

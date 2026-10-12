@@ -16,6 +16,32 @@ function createProvider() {
   });
 }
 
+test('QQ liked removal resolves the UI alias through the current account playlist', async () => {
+  const provider = createProvider();
+  const liked = { id: '987654', tid: '987654', dirId: '201', title: '我喜欢' };
+  let reads = 0;
+  const writes = [];
+  provider.getCreatedPlaylists = async (options) => {
+    assert.equal(options.includeLiked, true);
+    reads++;
+    return [liked];
+  };
+  provider.requestPlaylistWrite = async (...args) => { writes.push(args); return { ok: true }; };
+  const payload = { platform: 'qq', playlist: { id: 'liked' }, tracks: [{ sourceSongId: 123 }] };
+  await writeMusicPlaylistTracks({ get: () => provider }, payload, 'remove');
+  assert.deepEqual(writes[0], ['DelSonglist', { dirId: 201, tid: 987654, dirName: '我喜欢' }, [{ songId: 123, songType: 0 }]]);
+  await provider.removeTracksFromPlaylist({ id: '42', tid: '42', dirId: '2', title: '自建' }, payload.tracks);
+  assert.equal(reads, 1, 'ordinary playlist targets do not read the liked list');
+  assert.equal(writes[1][1].tid, 42);
+  await assert.rejects(provider.removeTracksFromPlaylist({ id: 'liked' }, [{ sourceTrackId: 'mid-only' }]), /songId/);
+  assert.equal(reads, 1);
+  const loggedOut = new QQMusicProvider({ getAuthState: () => ({ loggedIn: false }), getCookieHeader: () => '' });
+  await assert.rejects(loggedOut.removeTracksFromPlaylist({ id: 'liked' }, payload.tracks), /登录/);
+  provider.getCreatedPlaylists = async () => [];
+  await assert.rejects(provider.removeTracksFromPlaylist({ id: 'liked' }, payload.tracks), /没有.*我喜欢/);
+  assert.equal(writes.length, 2);
+});
+
 test('QQ provider signs AddSonglist requests and preserves QQ numeric ids', async () => {
   const originalFetch = global.fetch;
   let captured;

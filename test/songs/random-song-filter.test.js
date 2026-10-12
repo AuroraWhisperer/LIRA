@@ -15,6 +15,8 @@ const { handleDanmakuMessage, parseDanmakuCommand } = require('../../src/bilibil
 const { createRequesterTargetStore } = require('../../src/storage/requester-target-store');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createSongStore } = require('../../src/storage/song-store');
+const { createQueueStore } = require('../../src/storage/queue-store');
+const { addQueueItem } = require('../../src/music/queue-service');
 
 const SONGS = [
   {
@@ -351,15 +353,14 @@ test('failed random filters do not replace the latest mention target', () => {
   const databases = createDatabases({ dataDir });
 
   try {
-    databases.songDb
-      .prepare(
-        `
-      INSERT INTO requests (
-        song_name, requester_uid, requester_name, source, created_at
-      ) VALUES (?, ?, ?, ?, ?)
-    `,
-      )
-      .run('Matched Song', '456', 'Alice', 'random:pop', '2026-08-05T10:00:00.000Z');
+    addQueueItem({
+      store: createQueueStore(databases.songDb),
+      settings: () => ({}),
+      defaults: () => ({}),
+    }, {
+      songName: 'Matched Song', requesterUid: '456', requesterName: 'Alice',
+      source: 'random:pop', createdAt: '2026-08-05T10:00:00.000Z',
+    });
     const requesterTargets = createRequesterTargetStore(databases.songDb);
     const before = requesterTargets.getLatestRandomRequester();
     const result = handleDanmakuMessage(

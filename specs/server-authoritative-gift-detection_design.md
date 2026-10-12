@@ -34,7 +34,7 @@ rather than claiming complete history.
   command, the server shall normalize it with the same rules as the current
   desktop parser and pass it to that tenant's detector.
 - While a combo is still progressing, when the server receives cumulative
-  packets, it shall keep one ledger row and finalize it once after 10 seconds of
+  packets, it shall keep one ledger row and finalize it once after 5 seconds of
   platform silence, unless the platform supplies an explicit final packet.
 - While a Device session is authorized, when it subscribes to gift events, the
   server shall scope the stream from the verified Device identity and shall not
@@ -114,7 +114,7 @@ flowchart LR
   authenticated/configured Streamer runtime before detection.
 - `gift-detector.js` owns business identity, compatibility duplicate matching,
   cumulative maxima, evidence-gated blind-box resolution, frozen source/cost
-  basis, and the 10-second quiet window. Official relations and private custom
+  basis, and the 5-second quiet window. Official relations and private custom
   mappings are composed per tenant; relation metadata never creates event
   evidence.
 - `streamer-storage.js` owns the tenant ledger migration and the final-delivery
@@ -264,7 +264,7 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
 1. Parser fixtures that pass in the desktop implementation produce equivalent
    normalized server gifts for all supported command families.
 2. Repeated/cumulative packets create one tenant row, one first progress event,
-   and one final outbox cursor; explicit platform finals and the 10-second quiet
+   and one final outbox cursor; explicit platform finals and the 5-second quiet
    window finalize only once.
 3. Device A cannot read or subscribe to Device B's Streamer events, and neither
    route succeeds without Device authentication.

@@ -157,19 +157,19 @@ test('prefer target preserves existing manual fields but fills its empty fields 
   assert.equal(result.profile.merges[0].snapshotId, result.snapshotId);
 });
 
-test('merge moves stable record identities with original evidence and full revision history', (t) => {
+test('merge moves other record identities with original evidence and full revision history', (t) => {
   const f = fanFixture(t);
   const { source, target } = pair(f);
   const original = f.record(
     source.id,
-    'song',
-    { songName: '原始曲名', artist: '原始歌手' },
+    'topic',
+    { body: '原始话题' },
     { occurredAt: '2026-09-17T04:00:00Z' },
   );
   const corrected = f.record(
     source.id,
-    'song',
-    { songName: '修订曲名', artist: '修订歌手' },
+    'topic',
+    { body: '修订话题' },
     { id: original.id, revision: original.revision, occurredAt: NOW },
   );
   const note = f.record(source.id, 'note', { body: '草稿里的经历' });
@@ -192,8 +192,52 @@ test('merge moves stable record identities with original evidence and full revis
     true,
   );
   f.restart();
-  assert.equal(f.detail(target.id).songs[0].id, original.id);
-  assert.equal(f.detail(target.id).songs[0].original.songName, '原始曲名');
+  const reopened = f.detail(target.id).records.find((record) => record.id === original.id);
+  assert.equal(reopened.original.body, '原始话题');
+  assert.deepEqual(reopened.revisions, corrected.revisions);
+});
+
+test('restored version 2 song summaries combine during a draft merge and recover without losing totals', (t) => {
+  const f = fanFixture(t);
+  const { source, target } = pair(f);
+  for (const occurredAt of ['2026-08-01T04:00:00Z', '2026-09-01T04:00:00Z', '2026-09-17T04:00:00Z']) {
+    f.record(source.id, 'song', { songName: '合并曲目', artist: '测试歌手', category: '粤语', note: '现场版' }, { occurredAt });
+  }
+  f.record(target.id, 'song', { songName: '合并曲目', artist: '测试歌手', category: '国语' }, { occurredAt: '2026-09-16T04:00:00Z' });
+  for (let count = 0; count < 2; count++) {
+    f.record(target.id, 'song', { songName: '合并曲目', artist: '测试歌手', category: '流行', note: '吉他伴奏' });
+  }
+  const backup = f.run('backup');
+  assert.equal(backup.version, 2);
+  assert.deepEqual(backup.profiles.map((profile) => profile.records[0].data.count), [3, 3]);
+  f.run('delete-all', { confirm: true });
+  const restorePlan = f.run('preview-restore', { backup });
+  f.run('restore', { backup, ...restorePlan, conflicts: 'replace' });
+  const result = f.run('merge', mergeInput(f.detail(source.id), f.detail(target.id)));
+  assert.equal(result.profile.songs.length, 1);
+  const song = result.profile.songs[0];
+  assert.equal(song.profileId, target.id);
+  assert.equal(song.data.count, 6);
+  assert.deepEqual(song.data.recentDates, ['2026-09-18', '2026-09-17', '2026-09-16']);
+  assert.deepEqual(song.data.dailyCounts, [
+    { date: '2026-09-01', category: '粤语', count: 1 },
+    { date: '2026-09-16', category: '国语', count: 1 },
+    { date: '2026-09-17', category: '粤语', count: 1 },
+    { date: '2026-09-18', category: '流行', count: 2 },
+  ]);
+  assert.equal(result.profile.musicStats.days, 30);
+  assert.equal(result.profile.musicStats.count, 5);
+  assert.deepEqual({ ...result.profile.musicStats.categories }, { 粤语: 2, 国语: 1, 流行: 2 });
+  assert.match(song.data.note, /现场版/);
+  assert.match(song.data.note, /吉他伴奏/);
+  assert.deepEqual(song.original, {});
+  assert.deepEqual(song.revisions, []);
+  f.restart();
+  assert.deepEqual(f.detail(target.id).songs[0].data, song.data);
+  const recovery = f.run('preview-snapshot', { snapshotId: result.snapshotId });
+  f.run('restore-snapshot', { snapshotId: result.snapshotId, ...recovery, confirm: true });
+  assert.equal(f.detail(source.id).songs[0].data.count, 3);
+  assert.equal(f.detail(target.id).songs[0].data.count, 3);
 });
 
 test('merge preserves handled birthdays, stable anniversary records and continuous milestone state', (t) => {
@@ -282,13 +326,14 @@ test('previewing and restoring the merge snapshot restores both original profile
   assert.equal(f.detail(source.id).reminders.find((r) => r.key === 'birthday:2026').status, 'handled');
   assert.equal(f.detail(target.id).notes, '原目标');
   const redoPlan = f.run('preview-snapshot', { snapshotId: restored.snapshotId });
-  f.run('restore-snapshot', {
+  const redone = f.run('restore-snapshot', {
     snapshotId: restored.snapshotId,
     digest: redoPlan.digest,
     currentDigest: redoPlan.currentDigest,
     confirm: true,
   });
   assert.deepEqual(sortedExport(f), afterMerge);
+  assert.deepEqual(f.run('snapshots').map((entry) => entry.id), [redone.snapshotId, restored.snapshotId]);
 });
 
 test('snapshot access and restoration cannot cross streamer or server scope', (t) => {

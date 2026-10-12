@@ -3,6 +3,7 @@
 const { randomUUID } = require('node:crypto');
 const { setTimeout: pause } = require('node:timers/promises');
 const { dayOf } = require('../fans/dates');
+const { projectGuardExpiry } = require('../fans/guard-expiry');
 
 function fanScopeFor(licenseManager) {
   if (!licenseManager?.isAuthorized()) return null;
@@ -34,12 +35,15 @@ function createFanProfileController({
   const startedAt = now();
   let automaticTimer = null;
   let automaticOperation = null;
+  let expiryJob = null;
+  const expiryOperations = new Set();
 
   function context() {
     const scope = fanScopeFor(licenseManager);
     if (!scope || disposed) {
       abortController?.abort();
       rosterAbortController?.abort();
+      expiryJob?.controller.abort();
       current = null;
       syncStatus = 'offline';
       return null;
@@ -48,6 +52,7 @@ function createFanProfileController({
     if (!current || current.scope !== scope || current.epoch !== epoch) {
       abortController?.abort();
       rosterAbortController?.abort();
+      expiryJob?.controller.abort();
       // Renewal preserves the page context while replacing the authorization
       // generation used to fence in-flight work.
       const id = current?.scope === scope ? current.id : randomUUID();
@@ -123,6 +128,34 @@ function createFanProfileController({
       roomId: String(getRoomId() || ''),
       accountName: licenseManager.getCloudSyncIdentity()?.accountName || '',
     };
+  }
+
+  async function readGuardExpiry(captured, service, payload) {
+    const roomId = String(getRoomId() || '');
+    if (!expiryJob || expiryJob.captured !== captured || expiryJob.roomId !== roomId) {
+      expiryJob?.controller.abort();
+      const controller = new AbortController();
+      const job = { captured, roomId, controller };
+      job.promise = Promise.resolve().then(() =>
+        licenseManager.getGuardExpiryWarningsInternal({ signal: controller.signal }),
+      ).finally(() => {
+        expiryOperations.delete(job.promise);
+        if (expiryJob === job) expiryJob = null;
+      });
+      expiryJob = job;
+      expiryOperations.add(job.promise);
+    }
+    let snapshot;
+    try { snapshot = await expiryJob.promise; }
+    catch (error) {
+      if (!same(captured)) throw new Error('登录状态已变化，请重新打开粉丝档案。');
+      return response(captured, { state: error.code === 'GUARD_EXPIRY_UNSUPPORTED' ? 'unsupported' : 'unavailable', observedAt: null, badges: [] });
+    }
+    if (!same(captured)) throw new Error('登录状态已变化，请重新打开粉丝档案。');
+    if (String(getRoomId() || '') !== roomId)
+      return response(captured, { state: 'sourceChanged', observedAt: null, badges: [] });
+    const { profiles } = service.execute(captured.scope, 'list', payload);
+    return response(captured, projectGuardExpiry(snapshot, profiles, roomId, now()));
   }
 
   async function syncGuardRoster(captured, service, automaticDate) {
@@ -233,6 +266,7 @@ function createFanProfileController({
       throw new Error('登录状态已变化，请重新打开粉丝档案。');
     const service = getService();
     if (!service) throw new Error('档案存储尚未就绪。');
+    if (action === 'guard-expiry') return readGuardExpiry(captured, service, payload);
     if (action === 'auto-update-status') {
       if (!automaticTimer) scheduleAutomaticUpdate();
       return runAutomaticUpdate().then(() => {
@@ -266,7 +300,7 @@ function createFanProfileController({
       scheduleAutomaticUpdate();
       return Promise.all([run(), runAutomaticUpdate().catch(() => null)]);
     },
-    whenIdle: () => Promise.allSettled([operation, rosterOperation, automaticOperation]),
+    whenIdle: () => Promise.allSettled([operation, rosterOperation, automaticOperation, ...expiryOperations]),
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -274,6 +308,7 @@ function createFanProfileController({
       timers.clearTimeout(automaticTimer);
       abortController?.abort();
       rosterAbortController?.abort();
+      expiryJob?.controller.abort();
       unsubscribe?.();
       current = null;
     },

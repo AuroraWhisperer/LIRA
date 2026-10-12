@@ -1,5 +1,6 @@
 'use strict';
 
+const { setTimeout: sleep } = require('node:timers/promises');
 const { cleanText } = require('../shared/utils');
 const {
   SAFE_REFUSAL,
@@ -39,6 +40,7 @@ const {
 const MAX_DELIVERY_ATTEMPTS = 3;
 const DELIVERY_CONFIRM_TIMEOUT_MS = 10000;
 const REVIEW_OUTPUT_TOKENS = 384;
+const REPLY_ECHO_TTL_MS = 60000;
 function createAiAssistantService(dependencies) {
   const {
     store,
@@ -48,14 +50,17 @@ function createAiAssistantService(dependencies) {
     waitForDelivery,
     quotaStore,
     now = Date.now,
-    delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    delay = (ms, options) => sleep(ms, undefined, options),
     random = Math.random,
     log = console,
   } = dependencies;
   const lastRequestAtByUser = new Map();
   const roomRequestTimes = [];
+  const replyEchoes = [];
   const shutdownController = new AbortController();
   const directOperations = new Set();
+  const replyDrains = new Set();
+  let replyController = new AbortController();
   let lastUserMapPruneAt = 0;
   let lastDeliveryAt = 0;
   let lastError = '';
@@ -63,34 +68,57 @@ function createAiAssistantService(dependencies) {
   let shuttingDown = false;
   let shutdownPromise = null;
 
-  const coordinator = createOrderedAsyncCoordinator({
-    generate: generateReply,
-    deliver: deliverReply,
-    getConcurrency: () => store.getConfig().generationConcurrency,
-    onError(error, item) {
-      if (isShutdownError(error) || error?.code === 'DANMAKU_SESSION_CHANGED') return;
-      lastError = publicError(error);
-      store.logRequest({
-        uid: item.uid,
-        userName: item.userName,
-        category: 'delivery',
-        status: 'failed',
-        errorCode: String(error?.code || 'DELIVERY_FAILED'),
-      });
-      log.warn?.(
-        `[AI] reply delivery failed uid=${JSON.stringify(item.uid)} code=${JSON.stringify(error?.code || 'DELIVERY_FAILED')}`,
-      );
-    },
-  });
+  let coordinator = createCoordinator();
+
+  function createCoordinator() {
+    return createOrderedAsyncCoordinator({
+      generate: generateReply,
+      deliver: deliverReply,
+      getConcurrency: () => store.getConfig().generationConcurrency,
+      onError(error, item) {
+        if (item.signal.aborted || isShutdownError(error) || error?.code === 'DANMAKU_SESSION_CHANGED') return;
+        lastError = publicError(error);
+        store.logRequest({
+          uid: item.uid,
+          userName: item.userName,
+          category: 'delivery',
+          status: 'failed',
+          errorCode: String(error?.code || 'DELIVERY_FAILED'),
+        });
+        log.warn?.(
+          `[AI] reply delivery failed uid=${JSON.stringify(item.uid)} code=${JSON.stringify(error?.code || 'DELIVERY_FAILED')}`,
+        );
+      },
+    });
+  }
+
+  function updateConfig(changes) {
+    throwIfShuttingDown();
+    const wasEnabled = store.getConfig().enabled;
+    const config = store.updateConfig(changes);
+    if (wasEnabled && config.enabled === false) {
+      replyController.abort(codedError('AI_DISABLED', 'AI 助手已关闭。'));
+      const drain = coordinator.stop();
+      replyDrains.add(drain);
+      drain.then(() => replyDrains.delete(drain));
+      replyController = new AbortController();
+      coordinator = createCoordinator();
+    }
+    return config;
+  }
 
   function handleDanmaku(danmaku = {}) {
     if (shuttingDown) return { accepted: false, reason: 'stopped' };
     const config = store.getConfig();
     if (!isAiReady(config)) return { accepted: false, reason: 'disabled_or_unconfigured' };
     const message = cleanText(danmaku.message);
+    const uid = cleanText(danmaku.uid) || `name:${cleanText(danmaku.userName)}`;
+    pruneReplyEchoes();
+    if (replyEchoes.some((reply) => reply.uid === uid && reply.messages.includes(message))) {
+      return { accepted: false, reason: 'self_reply' };
+    }
     const question = extractTriggeredQuestion(message, config.trigger);
     if (question === null) return { accepted: false, reason: 'not_triggered' };
-    const uid = cleanText(danmaku.uid) || `name:${cleanText(danmaku.userName)}`;
     if (store.isBlacklisted(uid)) return { accepted: false, reason: 'blacklisted' };
     const localSafety = checkLocalInput(question);
     const rateReason = consumeRateLimit(uid, config);
@@ -105,7 +133,22 @@ function createAiAssistantService(dependencies) {
     return enqueueReply({ ...normalizeDanmaku(danmaku, uid), question }, danmaku.captureReplySession);
   }
 
+  function pruneReplyEchoes() {
+    const cutoff = now() - REPLY_ECHO_TTL_MS;
+    while (replyEchoes.length && replyEchoes[0].sentAt <= cutoff) replyEchoes.shift();
+  }
+
+  function rememberReply({ accountUid, message, mentionName }) {
+    pruneReplyEchoes();
+    replyEchoes.push({
+      uid: cleanText(accountUid),
+      messages: [cleanText(message), cleanText(`@${mentionName} ${message}`)],
+      sentAt: now(),
+    });
+  }
+
   function enqueueReply(item, captureReplySession) {
+    item.signal = AbortSignal.any([shutdownController.signal, replyController.signal]);
     item.replySession = captureReplySession?.();
     const accepted = coordinator.enqueue(item);
     if (accepted) handledCount += 1;
@@ -138,7 +181,7 @@ function createAiAssistantService(dependencies) {
 
   async function generateReply(item, options = {}) {
     item.assertSessionCurrent = await item.replySession;
-    throwIfShuttingDown();
+    throwIfReplyCancelled(item);
     item.assertSessionCurrent?.();
     const startedAt = now();
     const config = store.getConfig();
@@ -175,8 +218,8 @@ function createAiAssistantService(dependencies) {
       if (cached?.text) {
         return { ...cached, category: 'cache' };
       }
-      const inputReview = await runSafetyReview(config, buildInputReviewPrompt(item.question), usage, 'input_review');
-      throwIfShuttingDown();
+      const inputReview = await runSafetyReview(config, buildInputReviewPrompt(item.question), usage, 'input_review', item.signal);
+      throwIfReplyCancelled(item);
       if (!inputReview.allowed) {
         return {
           text: inputReview.safeText || SAFE_REFUSAL,
@@ -202,9 +245,9 @@ function createAiAssistantService(dependencies) {
         tools: buildAvailableTools(config, excludedToolNames),
         maxOutputTokens: getModelOutputTokens(config),
         purpose: 'generation',
-        signal: shutdownController.signal,
+        signal: item.signal,
       });
-      throwIfShuttingDown();
+      throwIfReplyCancelled(item);
       addUsage(usage, response.usage);
 
       while (response.functionCalls.length) {
@@ -213,8 +256,8 @@ function createAiAssistantService(dependencies) {
         }
         const outputs = [];
         for (const call of response.functionCalls) {
-          const result = await executeToolWithQuotaFallback(call, config, excludedToolNames);
-          throwIfShuttingDown();
+          const result = await executeToolWithQuotaFallback(call, config, excludedToolNames, item.signal);
+          throwIfReplyCancelled(item);
           outputs.push({
             type: 'function_call_output',
             call_id: call.callId,
@@ -236,9 +279,9 @@ function createAiAssistantService(dependencies) {
           previousResponseId: response.id,
           maxOutputTokens: getModelOutputTokens(config),
           purpose: 'tool_followup',
-          signal: shutdownController.signal,
+          signal: item.signal,
         });
-        throwIfShuttingDown();
+        throwIfReplyCancelled(item);
         addUsage(usage, response.usage);
       }
 
@@ -248,8 +291,9 @@ function createAiAssistantService(dependencies) {
         buildOutputReviewPrompt(item.question, rawText),
         usage,
         'output_review',
+        item.signal,
       );
-      throwIfShuttingDown();
+      throwIfReplyCancelled(item);
       const approvedText = outputReview.allowed
         ? outputReview.safeText || rawText
         : outputReview.safeText || SAFE_REFUSAL;
@@ -260,9 +304,9 @@ function createAiAssistantService(dependencies) {
         usage,
         toolCalls: toolCallCount,
       };
-      throwIfShuttingDown();
+      throwIfReplyCancelled(item);
       store.setCache(cacheKey, result, config.cacheTtlSeconds);
-      throwIfShuttingDown();
+      throwIfReplyCancelled(item);
       store.logRequest({
         uid: item.uid,
         userName: item.userName,
@@ -275,6 +319,7 @@ function createAiAssistantService(dependencies) {
       });
       return result;
     } catch (error) {
+      throwIfReplyCancelled(item);
       if (isShutdownError(error)) throw error;
       lastError = publicError(error);
       store.logRequest({
@@ -297,7 +342,7 @@ function createAiAssistantService(dependencies) {
     }
   }
 
-  async function runSafetyReview(config, prompt, usage, purpose) {
+  async function runSafetyReview(config, prompt, usage, purpose, signal) {
     const instructions =
       purpose === 'output_review'
         ? '执行直播输出安全与质量校验，只输出指定 JSON。'
@@ -309,14 +354,14 @@ function createAiAssistantService(dependencies) {
       tools: [],
       maxOutputTokens: REVIEW_OUTPUT_TOKENS,
       purpose,
-      signal: shutdownController.signal,
+      signal,
     });
     addUsage(usage, response.usage);
     return parseSafetyReview(response.text);
   }
 
-  async function executeTool(call, config) {
-    const options = { signal: shutdownController.signal };
+  async function executeTool(call, config, signal) {
+    const options = { signal };
     if (call.name === 'get_weather') return tools.qweather.getWeather(config, call.arguments, options);
     if (call.name === 'search_places') return tools.amap.searchPlaces(config, call.arguments, options);
     if (call.name === 'resolve_location') return tools.amap.resolveLocation(config, call.arguments, options);
@@ -325,7 +370,7 @@ function createAiAssistantService(dependencies) {
     throw codedError('UNKNOWN_TOOL', '模型请求了未开放的工具。');
   }
 
-  async function executeToolWithQuotaFallback(call, config, excludedToolNames) {
+  async function executeToolWithQuotaFallback(call, config, excludedToolNames, signal) {
     const offered = (candidate) => candidate.functionCallingEnabled && buildAvailableTools(candidate, excludedToolNames)
       .some((tool) => (tool.name || tool.type) === call.name);
     if (!offered(config) || !offered(store.getConfig())) {
@@ -333,7 +378,7 @@ function createAiAssistantService(dependencies) {
       return { unavailable: true, reason: 'tool_unavailable', instruction: '此工具本次不可用，请使用已提供的其他能力，或说明无法核实，不要编造结果。' };
     }
     try {
-      return await executeTool(call, config);
+      return await executeTool(call, config, signal);
     } catch (error) {
       const quotaToolNames = getQuotaToolNames(error);
       if (!quotaToolNames.length) throw error;
@@ -353,7 +398,7 @@ function createAiAssistantService(dependencies) {
 
   async function deliverReply(item, result) {
     const assertSessionCurrent = (auth) => {
-      throwIfShuttingDown();
+      throwIfReplyCancelled(item);
       item.assertSessionCurrent?.(auth);
     };
     let currentResult = result;
@@ -362,7 +407,7 @@ function createAiAssistantService(dependencies) {
       const chunkIntervalMs = randomIntervalMs(random, MIN_CHUNK_INTERVAL_MS, MAX_CHUNK_INTERVAL_MS);
       const waitMs = lastDeliveryAt ? Math.max(0, randomReplyIntervalMs(random) - (now() - lastDeliveryAt)) : 0;
       if (waitMs) {
-        await delay(waitMs);
+        await delay(waitMs, { signal: item.signal });
         assertSessionCurrent();
       }
       const mentionTarget = {
@@ -377,6 +422,7 @@ function createAiAssistantService(dependencies) {
         intervalMs: chunkIntervalMs,
         rateLimitIntervalMs: 0,
         assertSessionCurrent,
+        onBeforeSend: rememberReply,
       });
       assertSessionCurrent();
       lastDeliveryAt = now();
@@ -386,7 +432,7 @@ function createAiAssistantService(dependencies) {
           ...delivery,
           mentionName: mentionTarget.name,
           timeoutMs: DELIVERY_CONFIRM_TIMEOUT_MS,
-          signal: shutdownController.signal,
+          signal: item.signal,
         }));
       assertSessionCurrent();
       if (delivered) {
@@ -482,17 +528,23 @@ function createAiAssistantService(dependencies) {
     throw createShutdownError();
   }
 
+  function throwIfReplyCancelled(item) {
+    throwIfShuttingDown();
+    item.signal.throwIfAborted();
+  }
+
   function shutdown() {
     if (shutdownPromise) return shutdownPromise;
     shuttingDown = true;
     shutdownController.abort(createShutdownError());
     const coordinatorDrain = coordinator.stop();
-    shutdownPromise = Promise.allSettled([coordinatorDrain, ...directOperations]).then(() => {});
+    shutdownPromise = Promise.allSettled([coordinatorDrain, ...replyDrains, ...directOperations]).then(() => {});
     return shutdownPromise;
   }
 
   return {
     handleDanmaku,
+    updateConfig,
     testConfiguration,
     testProvider,
     listModels,

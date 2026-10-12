@@ -222,16 +222,21 @@ test('queue random click stays disabled while pending and recovers after success
   assert.equal(calls[1].url, '/api/state');
   assert.match(dom.container.textContent, /测试歌/);
 
-  clock.tick(4000);
-  pending = Promise.withResolvers();
-  const failedClick = button.fire('click');
-  pending.resolve({
-    ok: false,
-    status: 400,
-    text: async () => JSON.stringify({ ok: false, error: '当前已暂停接收点歌。' }),
-  });
-  await failedClick;
-  assert.equal(button.disabled, false);
-  assert.equal(calls.length, 3);
-  assert.match(dom.container.textContent, /暂停接收点歌/);
+  for (const [index, error] of [
+    '当前已暂停接收点歌。',
+    '直播账号或房间已变更，已取消本次随机点歌，请重试。',
+  ].entries()) {
+    clock.tick(4000);
+    pending = Promise.withResolvers();
+    const failedClick = button.fire('click');
+    pending.resolve({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ ok: false, error }),
+    });
+    await failedClick;
+    assert.equal(button.disabled, false);
+    assert.equal(calls.length, 3 + index);
+    assert.ok(dom.container.textContent.includes(error.replace(/。$/u, '')));
+  }
 });

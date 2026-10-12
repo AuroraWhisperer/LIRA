@@ -115,6 +115,7 @@ function createDanmakuSenderService(dependencies) {
     rateLimitIntervalMs = minIntervalMs,
     waitForRateLimit = false,
     assertSessionCurrent,
+    onBeforeSend,
   }) {
     assertSessionCurrent?.();
     const nowMs = now();
@@ -142,6 +143,7 @@ function createDanmakuSenderService(dependencies) {
       // Account changes can happen while resolving the room or waiting between chunks.
       if (assertSessionCurrent) assertSessionCurrent(await getAuth());
       const replyTarget = mentionEveryChunk || index === 0 ? target : emptyTarget();
+      onBeforeSend?.({ accountUid: String(auth.uid), message: messages[index], mentionName: replyTarget.name });
       results.push(await client.sendDanmaku(roomInfo.roomId, messages[index], replyTarget));
       assertSessionCurrent?.(auth);
     }

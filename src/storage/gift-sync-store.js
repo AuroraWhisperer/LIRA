@@ -130,6 +130,8 @@ function createGiftSyncStore(options = {}) {
           projectionGeneration: page.projectionGeneration,
           registerAfterCommit,
         });
+        giftDb.prepare("UPDATE gift_events SET remote_final_cursor=? WHERE source_id=? AND platform_id=? AND cmd='LIRA_SERVER_GIFT'")
+          .run(event.cursor, page.sourceId, `lira-server:${event.eventId}`);
       }
       const timestamp = normalizeTimestamp(now());
       const validatedAt = page.validatedAt || null;

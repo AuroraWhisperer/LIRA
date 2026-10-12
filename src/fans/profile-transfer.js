@@ -4,6 +4,7 @@ const { createHash } = require('node:crypto');
 const { profilePatch, identityKey, timestamp, recordData } = require('./validation');
 const { DAY_MS, dateValue, dayStart } = require('./dates');
 const { normalizeGuardAccompany, accompanySettings } = require('./guard-accompany');
+const { validateSongSummary } = require('./song-summary');
 
 function digest(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -11,9 +12,10 @@ function digest(value) {
 
 function createFanBackupService({ store, now, detail, requireProfile }) {
   function backup(scope) {
+    store.records.pruneSongCounts(now(), scope);
     return {
       format: 'lira-fan-profiles',
-      version: 1,
+      version: 2,
       scope,
       exportedAt: now(),
       ...store.exportScope(scope),
@@ -24,7 +26,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     if (
       !input ||
       input.format !== 'lira-fan-profiles' ||
-      input.version !== 1 ||
+      ![1, 2].includes(input.version) ||
       input.scope !== scope ||
       !Array.isArray(input.profiles) ||
       input.profiles.length > 10000 ||
@@ -33,6 +35,8 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       throw new Error('备份格式无效或归属不匹配。请切换到备份所属服务器和主播账号后恢复。');
     }
     const profileIds = new Set();
+    const recordIds = new Set();
+    const sourceKeys = new Set();
     accompanySettings(input.settings);
     const identityKeys = new Set();
     for (const profile of input.profiles) {
@@ -61,10 +65,19 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       if (key) identityKeys.add(key);
       if (!Array.isArray(profile.records) || !Array.isArray(profile.reminders)) throw new Error('备份缺少完整记录。');
       for (const record of profile.records) {
-        recordData(record.kind, record.data);
+        const summary = record.kind === 'song' && input.version === 2;
+        recordData(record.kind, summary ? { ...record.data, note: '' } : record.data);
+        if (summary && typeof record.data.note !== 'string') throw new Error('备份中的点歌说明无效。');
+        if (record.kind === 'song' && input.version === 2) validateSongSummary(record.data);
+        if (record.kind === 'song' && input.version === 1 && Object.hasOwn(record.data, 'count'))
+          throw new Error('点歌汇总需要第 2 版备份格式。');
         timestamp(record.occurredAt);
         if (!record.original || !Array.isArray(record.revisions) || typeof record.id !== 'string')
           throw new Error('备份缺少原始依据或修订。');
+        if (recordIds.has(record.id) || (record.sourceKey && sourceKeys.has(record.sourceKey)))
+          throw new Error('备份中有重复记录。');
+        recordIds.add(record.id);
+        if (record.sourceKey) sourceKeys.add(record.sourceKey);
       }
       for (const state of profile.reminders) {
         if (typeof state.key !== 'string' || !['pending', 'handled', 'ignored', 'snoozed'].includes(state.status))
@@ -121,7 +134,9 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       const { records, reminders, ...data } = profile;
       const restored = store.restoreProfile(scope, data, identityKey(data.identity), now());
       for (const record of records) {
-        store.records.insert(scope, restored.id, record);
+        store.records.insert(scope, restored.id, record, now());
+        if (record.kind === 'song' && record.sourceKey?.startsWith('request:'))
+          store.markSongRequest(scope, record.sourceKey.slice('request:'.length));
       }
       for (const state of reminders) {
         store.saveState(scope, restored.id, state.key, state);
@@ -176,6 +191,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       throw new Error('请先确认旧点歌记录归属和范围。');
     for (const row of plan.records) {
       const stableId = store.claimRequest(row.id, scope);
+      if (/^random(?::|$)/.test(row.source) || !store.markSongRequest(scope, stableId)) continue;
       const data = {
         songName: row.songName,
         artist: row.artist,
@@ -195,7 +211,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
           stableId,
           ownershipConfirmedAt: now(),
         },
-      });
+      }, now());
     }
     return detail(scope, input.profileId);
   }
@@ -231,7 +247,11 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     // Restoring older data must not silently unblock an identity.
     for (const { records, reminders, ...profile } of value.profiles) {
       store.restoreProfile(scope, profile, identityKey(profile.identity), now());
-      for (const record of records) store.records.insert(scope, profile.id, record);
+      for (const record of records) {
+        store.records.insert(scope, profile.id, record, now());
+        if (record.kind === 'song' && record.sourceKey?.startsWith('request:'))
+          store.markSongRequest(scope, record.sourceKey.slice('request:'.length));
+      }
       for (const state of reminders) store.saveState(scope, profile.id, state.key, state);
     }
     for (const key of value.suppressions) store.suppress(scope, key);

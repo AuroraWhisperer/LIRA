@@ -60,6 +60,7 @@ function songRequestReason(reason) {
   if (/暂停接收点歌/.test(text)) return 'requests-paused';
   if (/点歌内容命中黑名单/.test(text)) return 'song-request-blacklisted';
   if (/用户冷却中/.test(text)) return 'user-cooldown';
+  if (/冷却中|歌曲都在冷却/.test(text)) return 'song-cooldown';
   if (/没有.*可随机歌曲/.test(text)) return 'no-random-candidate';
   if (/歌曲名不能为空/.test(text)) return 'empty-song-name';
   if (/队列已达到上限/.test(text)) return 'queue-full';

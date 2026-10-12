@@ -5,15 +5,19 @@ import { showFieldError } from '../shared/field-feedback.js';
 const DELETE_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-export function createCustomReplyEditor({ document, saveSetting, toast }) {
+export function createCustomReplyEditor({ document, saveSetting, toast, kind = 'keyword' }) {
+  const exact = kind === 'exact';
+  const name = exact ? '自定义回复' : '自定义关键词回复';
+  const fieldName = exact ? '触发词' : '关键词';
+  const id = (suffix) => `danmaku${exact ? 'Exact' : 'Custom'}${suffix}`;
   const elements = {
-    list: document.getElementById('danmakuCustomReplyList'),
-    count: document.getElementById('danmakuCustomReplyCount'),
-    keywordInput: document.getElementById('danmakuCustomKeywordInput'),
-    replyInput: document.getElementById('danmakuCustomReplyInput'),
-    addButton: document.getElementById('danmakuCustomReplyAddBtn'),
-    saveButton: document.getElementById('danmakuCustomReplySaveBtn'),
-    status: document.getElementById('danmakuCustomReplyStatus'),
+    list: document.getElementById(id('ReplyList')),
+    count: document.getElementById(id('ReplyCount')),
+    keywordInput: document.getElementById(id('KeywordInput')),
+    replyInput: document.getElementById(id('ReplyInput')),
+    addButton: document.getElementById(id('ReplyAddBtn')),
+    saveButton: document.getElementById(id('ReplySaveBtn')),
+    status: document.getElementById(id('ReplyStatus')),
   };
   if (Object.values(elements).some((element) => !element)) return null;
 
@@ -21,6 +25,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
   let dirty = false;
   let editRevision = 0;
   let saving = false;
+  let generation = 0;
 
   const setStatus = (text, kind = '') => {
     elements.status.textContent = text;
@@ -37,7 +42,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     label.textContent = labelText;
     const input = document.createElement('input');
     input.type = 'text';
-    input.maxLength = maxLength;
+    if (!exact) input.maxLength = maxLength;
     input.value = rule[field];
     input.setAttribute('aria-label', `第 ${index + 1} 条自定义回复的${labelText}`);
     input.addEventListener('input', () => {
@@ -61,7 +66,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
       const fields = document.createElement('div');
       fields.className = 'danmaku-custom-reply-fields';
       fields.append(
-        createField(rule, index, 'keyword', '关键词', 30),
+        createField(rule, index, 'keyword', fieldName, 30),
         createField(rule, index, 'reply', '回复内容', 120),
       );
       const deleteButton = createDeleteButton(document, `删除第 ${index + 1} 条自定义回复`, () => {
@@ -77,7 +82,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     const keyword = elements.keywordInput.value.trim();
     const reply = elements.replyInput.value.trim();
     if (!keyword || !reply) {
-      showFieldError(keyword ? elements.replyInput : elements.keywordInput, '请填写关键词和回复内容', document);
+      showFieldError(keyword ? elements.replyInput : elements.keywordInput, `请填写${fieldName}和回复内容`, document);
       return;
     }
     items.push({ keyword, reply, enabled: true });
@@ -98,13 +103,17 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
   });
   elements.saveButton.addEventListener('click', async () => {
     if (saving) return;
-    const cleaned = items.map(normalizeCustomReply).filter((item) => item.keyword && item.reply);
+    const cleaned = exact
+      ? items.map((item) => ({ keyword: item.keyword.trim(), reply: item.reply.trim() }))
+      : items.map(normalizeCustomReply).filter((item) => item.keyword && item.reply);
     const submittedRevision = editRevision;
+    const requested = generation;
     saving = true;
     elements.saveButton.disabled = true;
     setStatus('正在保存');
     try {
-      await saveSetting('customReplyRules', JSON.stringify(cleaned));
+      await saveSetting(exact ? 'customExactReplies' : 'customReplyRules', JSON.stringify(cleaned));
+      if (generation !== requested) return;
       if (editRevision === submittedRevision) {
         items = cleaned;
         dirty = false;
@@ -113,21 +122,34 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
       } else {
         setStatus('本次已保存，仍有未保存的更改', 'warn');
       }
-      toast('自定义关键词回复已保存');
+      toast(`${name}已保存`);
     } catch (error) {
+      if (generation !== requested) return;
       setStatus('保存失败', 'warn');
-      toast(error.message || '保存自定义关键词回复失败');
+      toast(error.message || `保存${name}失败`);
     } finally {
-      saving = false;
-      elements.saveButton.disabled = !dirty;
+      if (generation === requested) {
+        saving = false;
+        elements.saveButton.disabled = !dirty;
+      }
     }
   });
 
   return {
+    reset() {
+      generation += 1;
+      items = [];
+      dirty = saving = false;
+      editRevision = 0;
+      elements.keywordInput.value = elements.replyInput.value = '';
+      elements.saveButton.disabled = true;
+      render();
+      setStatus('连接云端账号后可编辑');
+    },
     load(rawValue) {
       if (dirty || saving) return;
       items = parseJsonArray(rawValue)
-        .map(normalizeCustomReply)
+        .map(exact ? (item) => ({ keyword: item.keyword, reply: item.reply }) : normalizeCustomReply)
         .filter((item) => item.keyword && item.reply);
       render();
       elements.saveButton.disabled = true;

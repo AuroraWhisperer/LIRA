@@ -8,6 +8,8 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-12-fan-song-retention](2026-10-12-fan-song-retention.md) | Awaiting Verification | 汇总、30 天统计、队列回收及两份恢复点已实现，相关 299 项与指南 16 项通过；隔离桌面工具超时，临时实例清理被策略拦截，桌面验收尚未完成。 |
+| [2026-10-12-gift-retention](2026-10-12-gift-retention.md) | Awaiting Verification | 存储实现及两端聚焦回归已完成，B 站读取保持原样；待发布阶段固定提交契约锁与验收，删除默认关闭，未上线。 |
 | [2026-10-12-guard-expiry-sync](2026-10-12-guard-expiry-sync.md) | Awaiting Verification | 客户端与服务器实现及合成验证完成；真实主播账号上游验收尚未执行。 |
 | [2026-10-08-danmaku-prismatic](2026-10-08-danmaku-prismatic.md) | Awaiting Verification | 主题、身份投影及隔离检查已完成；剩真实报文/实播验收及客户端契约版本锁核验。 |
 | [2026-10-02-client-themes](2026-10-02-client-themes.md) | Awaiting Verification | 实现、自动化与隔离 Electron 验证完成；原生 100% 缩放及实播/真实密集内容人工验收未覆盖。 |

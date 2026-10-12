@@ -16,6 +16,7 @@ async function run() {
   const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
   const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
   const { registerDailyBotIpc } = require('../../src/electron/ipc/daily-bot-ipc');
+  const { registerGiftInteractionIpc } = require('../../src/electron/ipc/gift-interaction-ipc');
   const { createDailyBotController } = require('../../src/electron/daily-bot-controller');
   const { digest } = require('../../src/shared/daily-bot-contract');
   const { CHECKIN_BLESSINGS, FORTUNES } = require('../../src/shared/bot-defaults');
@@ -37,7 +38,23 @@ async function run() {
     fortune: { enabled: false, revision: 0, reason: 'disabled' },
   };
   const libraries = { checkin: structuredClone(CHECKIN_BLESSINGS), fortune: structuredClone(FORTUNES) };
-  global.dailyLibraryTest = { requests: [], libraries, failNext: false };
+  const fixedReplies = {
+    ok: true, customExactReplyEnabled: false, customExactReplies: [], scheduledDanmakuEnabled: false,
+    scheduledDanmaku: { mode: 'fixed', intervalSeconds: 300, minSeconds: 300, maxSeconds: 600, selection: 'sequential', messages: [] },
+  };
+  global.dailyLibraryTest = { requests: [], libraries, failNext: false, fixedReplies };
+  const welcomeSettings = {
+    schemaVersion: 2, enabled: true, welcomeDelaySeconds: 0, welcomeMinHonorLevel: 0,
+    greetingEnabled: false, greetingDelaySeconds: 10, greetingMinHonorLevel: 0,
+    attentionEnabled: false, attentionMinHonorLevel: 31, rareNamePinyinEnabled: false,
+    returningEnabled: false, returningMessages: ['最近过得怎么样呀？', '很高兴又见到你～'],
+    messages: ['欢迎 {username} 来到直播间～'], greetingMessages: ['{username}，你好呀～'],
+    attentionWelcomeMessages: ['欢迎 {username}～'], attentionGreetingMessages: ['{username}，来听歌吧～'],
+    userWelcomeMessages: [],
+  };
+  global.dailyLibraryTest.welcomeSettings = welcomeSettings;
+  const giftState = { ok: true, status: 'confirmed', values: { giftAutoThanksEnabled: true, giftStatsQueryEnabled: false } };
+  global.dailyLibraryTest.giftState = giftState;
   const manager = {
     getState: () => snapshot.state,
     getSnapshot: () => snapshot,
@@ -46,6 +63,28 @@ async function run() {
     getRemoteBaseUrl: () => 'https://synthetic-libraries.test',
     getAuthorizationGeneration: () => 1,
     onStateChanged(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    async getWelcomeSettingsV2() { return structuredClone(welcomeSettings); },
+    async updateWelcomeSettingsV2(patch) {
+      global.dailyLibraryTest.requests.push({ operation: 'welcome-update', input: structuredClone(patch) });
+      if (global.dailyLibraryTest.failNext) {
+        global.dailyLibraryTest.failNext = false;
+        throw Object.assign(new Error('UNAVAILABLE'), { code: 'UNAVAILABLE' });
+      }
+      Object.assign(welcomeSettings, structuredClone(patch));
+      if (!welcomeSettings.enabled)
+        Object.assign(welcomeSettings, { greetingEnabled: false, attentionEnabled: false, returningEnabled: false });
+      return structuredClone(welcomeSettings);
+    },
+    async getFixedReplySettings() { return structuredClone(fixedReplies); },
+    async updateFixedReplySettings(patch) {
+      global.dailyLibraryTest.requests.push({ operation: 'fixed-reply-update', input: structuredClone(patch) });
+      if (global.dailyLibraryTest.failNext) {
+        global.dailyLibraryTest.failNext = false;
+        throw Object.assign(new Error('UNAVAILABLE'), { code: 'UNAVAILABLE' });
+      }
+      Object.assign(fixedReplies, structuredClone(patch));
+      return structuredClone(fixedReplies);
+    },
     async dailyBotRequestInternal(operation, input) {
       global.dailyLibraryTest.requests.push({ operation, input: structuredClone(input) });
       if (global.dailyLibraryTest.failNext) {
@@ -74,10 +113,16 @@ async function run() {
         res.setHeader('Content-Type', 'application/javascript');
         res.end(`import { initDanmakuDailyBots } from './danmaku-daily-bots.js';
           import { initFixedReplyEditor } from './danmaku-fixed-replies.js';
+          import { initDanmakuCloudReplies } from './danmaku-cloud-replies.js';
+          import { initDanmakuWelcome } from './danmaku-welcome.js';
+          import { initDanmakuQueryReplies } from './danmaku-query-replies.js';
+          import { initGiftInteractionControls } from './gifts/interaction-controls.js';
+          import './contextual-help.js';
           const panel = document.querySelector('.danmaku-fixed-reply-section');
           document.body.replaceChildren(panel);
           document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
-          initDanmakuDailyBots(); initFixedReplyEditor();`);
+          initDanmakuDailyBots(); initDanmakuCloudReplies(); initDanmakuQueryReplies(); initDanmakuWelcome();
+          initGiftInteractionControls({ surface: 'danmaku' }); initFixedReplyEditor();`);
         return;
       }
       if (url.pathname === '/js/playback.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(''); return; }
@@ -97,7 +142,18 @@ async function run() {
     getDesktopBaseUrl: () => origin, hasExactOrigin: (url, expected) => new URL(url).origin === expected });
   const dispose = registerDailyBotIpc({ ipcMain, getMainWindow: () => window, getDesktopBaseUrl: () => origin,
     controller: createDailyBotController({ licenseManager: manager }) });
-  app.once('before-quit', () => { dispose(); auth.dispose(); server.closeAllConnections(); server.close(); });
+  const disposeGift = registerGiftInteractionIpc({ ipcMain, getMainWindow: () => window, getDesktopBaseUrl: () => origin,
+    controller: {
+      refreshGiftInteractionState: async () => structuredClone(giftState),
+      getGiftInteractionState: () => structuredClone(giftState),
+      onGiftInteractionStateChanged: () => () => {},
+      async setGiftInteraction({ key, enabled }) {
+        global.dailyLibraryTest.requests.push({ operation: 'gift-interaction', key, enabled });
+        giftState.values[key] = enabled;
+        return structuredClone(giftState);
+      },
+    } });
+  app.once('before-quit', () => { dispose(); disposeGift(); auth.dispose(); server.closeAllConnections(); server.close(); });
   app.on('window-all-closed', () => app.quit());
   await window.loadURL(`${origin}/admin`);
 }

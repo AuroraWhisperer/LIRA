@@ -25,7 +25,7 @@ Platform terminology follows the [documentation entry](../docs/README.md): the l
 | `specs/component-scenes.md` | Design specification | Implemented | `src/scenes/scene-service.js`<br>`src/storage/scene-store.js`<br>`src/electron/scene-cloud-controller.js`<br>`public/js/overlays/scene-renderer.js`<br>`test/scenes/scene-runtime.test.js`<br>`test/admin/component-preview-canvas-controller.test.js` | 2026-10-07 |
 | `specs/client-resource-integrity-design.md` | Design specification | In Progress | `src/electron/resource-integrity-manager.js`<br>`src/electron/resource-integrity-files.js`<br>`test/engineering/client-installer-integrity.test.js`<br>`test/desktop/resource-integrity-electron.test.js` | 2026-09-26 |
 | `specs/desktop-auth-boundaries.md` | Design specification | Implemented | `src/electron/desktop-auth-controller.js`<br>`src/electron/ipc/main-window-ipc.js`<br>`test/desktop/desktop-auth-race-electron.test.js`<br>`test/bilibili/bilibili-cookie-storage.test.js` | 2026-09-25 |
-| `specs/games-poll-rating_design.md` | Design specification | In Progress | `src/games/interaction-session-service.js`<br>`src/server/bilibili-client.js`<br>`src/server/overlay-projection.js`<br>`public/pages/admin/toolbox/games.html` | 2026-09-20 |
+| `specs/games-poll-rating_design.md` | Design specification | In Progress | `src/games/interaction-session-service.js`<br>`public/js/shared/interaction-rules.js`<br>`public/pages/admin/live-components/interactions.html`<br>`test/games/interactions.test.js`<br>`test/games/interactions-overlay.test.js` | 2026-10-12 |
 | `specs/cloud-daily-bots.md` | Design specification | In Progress | `src/electron/daily-bot-controller.js`<br>`src/storage/daily-bot-legacy-reader.js`<br>`public/js/admin/danmaku-daily-bots.js`<br>`public/js/admin/danmaku-daily-library.js`<br>`test/bots/daily-bot-controller.test.js`<br>`test/bots/daily-bot-takeover.test.js`<br>`test/desktop/daily-bot-editor-electron.test.js` | 2026-10-10 |
 | `specs/client-server-logging-design.md` | Design specification | In Progress | `src/electron/desktop-logger.js`<br>`src/electron/terminal-log.js`<br>`src/ai/request-logger.js`<br>`test/desktop/terminal-log.test.js`<br>`test/shared/log-redaction.test.js` | 2026-09-14 |
 | `specs/bilibili-dynamic-lottery_design.md` | Design specification | Draft | `src/electron/bilibili-auth.js`<br>`src/electron/main.js`<br>`src/bilibili/wbi-signer.js`<br>`src/server/routes/bilibili-routes.js` | 2026-09-14 |
@@ -69,6 +69,8 @@ Platform terminology follows the [documentation entry](../docs/README.md): the l
 | `specs/gift-interaction-controls.md` | Design specification | Implemented | `src/electron/cloud-sync-controller.js`<br>`src/electron/ipc/gift-interaction-ipc.js`<br>`public/js/admin/gifts/interaction-controls.js`<br>`test/gifts/gift-interaction-controls.test.js` | 2026-09-15 |
 
 | `specs/fan-profiles.md` | Design specification | In Progress | `src/fans/profile-service.js`<br>`src/storage/fan-profile-store.js`<br>`src/electron/fan-profile-controller.js`<br>`public/js/admin/fans/index.js`<br>`test/fan-profiles/fan-profiles-domain.test.js`<br>`test/fan-profiles/fan-profiles-ipc.test.js` | 2026-09-18 |
+
+| `specs/gift-retention.md` | Design specification | Implemented | `src/storage/gift-retention-store.js`<br>`src/storage/gift-retention-cleanup.js`<br>`test/gifts/gift-retention.test.js` | 2026-10-12 |
 
 <!-- SPEC_INDEX_END -->
 

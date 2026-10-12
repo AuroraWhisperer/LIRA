@@ -5,11 +5,20 @@ const fs = process.versions.electron ? require('original-fs') : require('node:fs
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-function getBuildInfo(options = {}) {
+async function getBuildInfo(options = {}) {
   const appVersion = String(options.appVersion || '').trim() || '0.0.0';
   const isPackaged = options.isPackaged === true;
   const appPath = options.appPath || '';
-  if (!isPackaged || !appPath || !fs.existsSync(appPath)) {
+  let exists = false;
+  if (isPackaged && appPath) {
+    try {
+      await fs.promises.access(appPath);
+      exists = true;
+    } catch (_) {
+      exists = false;
+    }
+  }
+  if (!exists) {
     return {
       appVersion,
       buildId: `LIRA/${appVersion}/dev`,
@@ -17,12 +26,23 @@ function getBuildInfo(options = {}) {
     };
   }
   try {
-    const digest = crypto.createHash('sha256').update(fs.readFileSync(appPath)).digest('hex');
-    return {
-      appVersion,
-      buildId: `LIRA/${appVersion}/${digest}`,
-      integrityStatus: 'verified',
-    };
+    const archive = await fs.promises.open(appPath, 'r');
+    try {
+      const hash = crypto.createHash('sha256');
+      const buffer = Buffer.allocUnsafe(64 * 1024);
+      for (;;) {
+        const { bytesRead } = await archive.read(buffer, 0, buffer.length, null);
+        if (bytesRead === 0) break;
+        hash.update(buffer.subarray(0, bytesRead));
+      }
+      return {
+        appVersion,
+        buildId: `LIRA/${appVersion}/${hash.digest('hex')}`,
+        integrityStatus: 'verified',
+      };
+    } finally {
+      await archive.close();
+    }
   } catch (_) {
     return {
       appVersion,

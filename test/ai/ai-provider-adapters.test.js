@@ -42,11 +42,13 @@ test('DeepSeek client sends Responses request with hosted search and no reasonin
   assert.equal(result.text, '连接正常');
 });
 
-test('DeepSeek preserves the AI shutdown cancellation reason', async () => {
+for (const code of ['AI_SHUTDOWN', 'AI_DISABLED']) test(`DeepSeek preserves ${code} without failure logging`, async () => {
   const controller = new AbortController();
   const shutdownError = new Error('AI service is shutting down.');
-  shutdownError.code = 'AI_SHUTDOWN';
+  shutdownError.code = code;
+  const logs = [];
   const client = createDeepSeekClient({
+    logEvent: event => logs.push(event),
     fetchImpl: async (_url, options) =>
       new Promise((resolve, reject) => {
         options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
@@ -66,6 +68,7 @@ test('DeepSeek preserves the AI shutdown cancellation reason', async () => {
   controller.abort(shutdownError);
 
   await assert.rejects(request, (error) => error === shutdownError);
+  assert.deepEqual(logs, []);
 });
 
 test('DeepSeek client parses function calls from Responses output', async () => {

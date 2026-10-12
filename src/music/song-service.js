@@ -199,9 +199,13 @@ function replaceCloudSongs(store, rows) {
   };
 }
 
-function pickRandomSong(store, scopeText) {
-  const rows = listRandomSongCandidates(store, scopeText);
-  if (rows.length === 0) return null;
+function pickRandomSong(store, scopeText, filterCandidates = (songs) => songs) {
+  const matches = listRandomSongCandidates(store, scopeText);
+  if (matches.length === 0) return null;
+  const rows = filterCandidates(matches);
+  if (rows.length === 0) {
+    throw Object.assign(new Error('符合条件的歌曲都在冷却，请稍后再试。'), { code: 'SONG_COOLDOWN' });
+  }
 
   const recentNames = new Set(store.listRecentRandomSongNames());
   const candidates = rows.filter((row) => !recentNames.has(row.name));

@@ -9,6 +9,7 @@ let initialized = false;
 let interactionCollecting = false;
 let activeGameSession = null;
 let sessionRequest = 0;
+let hostStateRequest = 0;
 let drawClock = null;
 let drawClockTimer = null;
 let drawWordCategories = [];
@@ -108,8 +109,7 @@ export function initGames() {
   window.addEventListener('app:shutdown', stopDrawClockTimer, { once: true });
   Promise.all([
     requestViewerRefresh({ notify: false }),
-    refreshSession(),
-    refreshHostState(),
+    refreshSession().then(refreshHostState),
     refreshDrawCategories(),
     wheelRefresh,
     interactions.load(),
@@ -173,9 +173,15 @@ async function refreshSession() {
 }
 
 async function refreshHostState() {
+  const request = ++hostStateRequest;
+  const sessionId = activeGameSession?.sessionId;
+  const round = activeGameSession?.state?.round;
+  if (activeGameSession?.game !== 'draw-guess') return;
   const response = await fetch('/api/games/host-state', { cache: 'no-store' });
   const payload = await readJsonResponse(response, '读取你画我猜题词失败');
+  if (request !== hostStateRequest || sessionId !== activeGameSession?.sessionId || round !== activeGameSession?.state?.round) return;
   if (!payload.ok) throw new Error(payload.error || '读取你画我猜题词失败');
+  if (payload.data?.game !== 'draw-guess' || payload.data.round !== round) return;
   renderHostState(payload.data);
   clearPanelRefreshFailure();
 }
@@ -317,6 +323,10 @@ function setDrawDetails(expanded) {
 }
 
 function renderSession(session) {
+  if (session?.sessionId !== activeGameSession?.sessionId || session?.state?.round !== activeGameSession?.state?.round) {
+    hostStateRequest += 1;
+    byId('drawHostWord').textContent = session?.game === 'draw-guess' ? '正在读取题词…' : '开始游戏后显示题词';
+  }
   activeGameSession = session || null;
   syncDrawClockTimer();
   const stop = byId('gamesStopBtn');

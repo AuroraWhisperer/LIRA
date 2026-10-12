@@ -47,6 +47,7 @@ function createWeSingCapture(options = {}) {
   let lastProgressChangeAt = 0;
   let hasStartedCurrentTrack = false;
   let loadingTrackTitle = '';
+  let cachePathQueue = Promise.resolve();
 
   const state = {
     active: false,
@@ -120,10 +121,14 @@ function createWeSingCapture(options = {}) {
     };
   }
 
-  async function setCachePath(input) {
-    const prepared = await prepareConfiguration({ cachePath: input });
-    if (typeof options.saveCachePath === 'function') await options.saveCachePath(prepared.cachePath);
-    return prepared.cachePath === cachePath ? refresh() : prepared.apply();
+  function setCachePath(input) {
+    const update = cachePathQueue.then(async () => {
+      const prepared = await prepareConfiguration({ cachePath: input });
+      if (typeof options.saveCachePath === 'function') await options.saveCachePath(prepared.cachePath);
+      return prepared.cachePath === cachePath ? refresh() : prepared.apply();
+    });
+    cachePathQueue = update.catch(() => {});
+    return update;
   }
 
   async function setLyricOffsetMs(input) {

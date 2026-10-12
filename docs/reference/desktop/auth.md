@@ -108,6 +108,8 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 
 内部 `getBilibiliSessionRevision()` 只读暴露既有 Bilibili 账号操作 generation，由主进程注入后端认证 provider 的 `getSessionRevision`。代次在账号操作开始时推进，使此前准入的 AI 任务失效；操作开始后的新任务捕获新代次与当前 UID。该能力不暴露给 renderer 或 IPC，不增加凭据存储或独立认证状态。验证见 [desktop-auth-diagnostics.test.js](../../../test/desktop/desktop-auth-diagnostics.test.js) 和 [AI 会话回归](../../../test/ai/ai-assistant-session.test.js)。
 
+随机点歌通过私有 `getRequestIdentity` / `getIdentityRevision` 注入能力复核真实登录身份：`desktop-auth-controller` 在恢复、导入、退出完成及当前登录窗口的状态读取中记录 UID／登录状态变化，同账号 Cookie 替换和仅打开登录窗口不推进身份代次。`getBilibiliRequestIdentity()` 等当前非交互写入完成后读取状态，读期间账号操作或身份变化则重新读取，避免把 Cookie 替换的临时空分区当作退出；原 `getBilibiliAuthState()`、AI 操作代次和 IPC 返回值保持不变。窗口内状态读取不等待写队列，旧窗口取消后的读取不再更新身份。随机点歌在异步读取后、入队前检查该代次及独立的房间变化代次，见 [随机点歌 API](../backend/api.md#8-播放队列域queue)。
+
 ## 8. 会话恢复时序
 
 `startDesktopApp` 中,快照恢复**先于服务器启动**(保证 provider 首次 API 调用就带 Cookie,见 [main.md](main.md) §2):
@@ -164,6 +166,9 @@ desktopRuntime.start({
     getAuthState: () => bilibiliAuth.getBilibiliAuthState(dataDir),
     getCookieHeader: () => bilibiliAuth.getBilibiliCookieHeader(),
     getUid: () => bilibiliAuth.getBilibiliUid(),
+    getSessionRevision: () => desktopAuth.getBilibiliSessionRevision(),
+    getRequestIdentity: () => desktopAuth.getBilibiliRequestIdentity(),
+    getIdentityRevision: () => desktopAuth.getBilibiliIdentityRevision(),
   },
 });
 ```
@@ -223,7 +228,7 @@ HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真�
 
 ## 14. 动态抽奖专用账号
 
-[dynamic-lottery-auth.js](../../../src/electron/dynamic-lottery-auth.js) 是抽奖认证所有者；[dynamic-lottery-auth-store.js](../../../src/electron/dynamic-lottery-auth-store.js) 只管理其 Chromium Cookie 与加密快照。入口在桌面“百宝箱 → 动态抽奖”，由主进程现有授权管理器提供可信 `streamerId` 与 authorization epoch，不接受 renderer 指定账号作用域。
+[dynamic-lottery-auth.js](../../../src/electron/dynamic-lottery-auth.js) 是抽奖认证所有者；[dynamic-lottery-auth-store.js](../../../src/electron/dynamic-lottery-auth-store.js) 只管理其 Chromium Cookie 与加密快照。入口在桌面“百宝箱 → 动态抽奖”，由主进程现有授权管理器提供可信 `streamerId` 与 `getAuthorizationGeneration()` 登录生命周期，不接受 renderer 指定账号作用域。内部 `authorizationEpoch` 字段沿用名称，但保存该生命周期代次：正常 token 续期保留采集及网页会话，重新登录、激活/换账号、阻断清理和退出仍使旧操作失效。
 
 | 项目 | 合同 |
 | --- | --- |

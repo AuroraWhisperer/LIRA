@@ -9,6 +9,18 @@ const { createGiftHistoryFixture } = require('../helpers/gift-history-fixture');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('expired detail windows keep the historical-summary notice and do not claim there were no gifts', async () => {
+  const elements = Object.fromEntries(['giftHistoryBody','giftHistoryState','giftHistoryTotal'].map((id) => [id,{}]));
+  const { renderGiftHistoryView } = await loadModuleExports(
+    path.join(ROOT_DIR,'public/js/admin/gifts/history-view.js'),
+    { document: { getElementById: (id) => elements[id] || null, querySelectorAll: () => [] } });
+  renderGiftHistoryView({ ledger: { items: [], total: 0, page: 1, totalPages: 1, cursorHistory: [],
+    retention: { detailStart: '2026-07-13T16:00:00.000Z', summaryRevision: 1 } } });
+  assert.match(elements.giftHistoryState.textContent,/2026-07-14.*历史汇总仍保留/u);
+  assert.match(elements.giftHistoryBody.innerHTML,/当前范围没有可用明细/u);
+  assert.doesNotMatch(elements.giftHistoryBody.innerHTML,/收到礼物后/u);
+});
+
 test('unchanged background history refreshes preserve row nodes during selection', async () => {
   let renders = 0;
   const body = {

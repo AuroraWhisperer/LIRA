@@ -28,18 +28,25 @@ const routes = {
 
   async 'POST /api/queue/add'(context, request, res) {
     const body = await request.body();
-    const item = context.queue.add({
-      songName: body.songName,
-      artist: body.artist,
-      categoryName: body.categoryName,
-      requesterName: body.requesterName || '主播',
-      requesterUid: body.requesterUid || 'admin',
-      requesterGuardLevel: body.requesterGuardLevel,
-      requesterMedalName: body.requesterMedalName,
-      requesterMedalLevel: body.requesterMedalLevel,
-      source: body.source || 'admin',
-      message: body.message || '',
-    });
+    let item;
+    try {
+      item = context.queue.add({
+        songName: body.songName,
+        artist: body.artist,
+        categoryName: body.categoryName,
+        requesterName: body.requesterName || '主播',
+        requesterUid: body.requesterUid || 'admin',
+        requesterGuardLevel: body.requesterGuardLevel,
+        requesterMedalName: body.requesterMedalName,
+        requesterMedalLevel: body.requesterMedalLevel,
+        source: body.source || 'admin',
+        message: body.message || '',
+      });
+    } catch (error) {
+      if (error.code !== 'SONG_COOLDOWN') throw error;
+      sendJson(res, 400, { ok: false, error: error.message });
+      return;
+    }
     context.broadcastSnapshot('queue:add');
     sendJson(res, 200, { ok: true, data: item });
   },

@@ -104,9 +104,28 @@ test('cookie read completing after identity change cannot return an old context'
   const pending = f.auth.getContext();
   await settle();
   f.license.epoch += 1;
+  f.license.generation += 1;
   f.stateChanges.emit('state');
   pendingRead.resolve(authCookies());
   await assert.rejects(pending, { code: 'LOTTERY_SESSION_CHANGED' });
+});
+
+test('normal token renewal preserves a collecting session and an in-flight cookie read', async (t) => {
+  const f = createFixture(t);
+  await f.signIn();
+  const before = await f.auth.getContext();
+  const read = Promise.withResolvers();
+  const cookies = f.lotteryCookies();
+  const originalGet = cookies.get;
+  cookies.get = () => read.promise;
+  const pending = f.auth.getContext();
+  await settle();
+  f.license.epoch += 1;
+  f.stateChanges.emit('state');
+  cookies.get = originalGet;
+  read.resolve(authCookies());
+  assert.deepEqual(await pending, before);
+  assert.deepEqual(await f.auth.getContext(), before);
 });
 
 test('a queued logout cannot clear the next LIRA identity after authorization changes', async (t) => {

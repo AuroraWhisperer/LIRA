@@ -244,9 +244,12 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       paused: true,
       queueLimit: 75,
       userCooldownSeconds: 12,
+      songCooldownMode: 'off',
+      songCooldownValue: 1,
       onlyFromLibrary: true,
       allowDuplicate: false,
       giftBlindBoxConfig: localBlindBoxConfig,
+      menuCommands: [],
     });
 
     runtime.applyCloudSettingsSnapshot({

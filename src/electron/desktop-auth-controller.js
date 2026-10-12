@@ -10,6 +10,8 @@ const { logBilibiliDiagnostic, summarizeAuthState } = require('../bilibili/diagn
 function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getDataDir, writeLog }) {
   let providerRegistry = null;
   let disposed = false;
+  let bilibiliIdentity = null;
+  let bilibiliIdentityRevision = 0;
   const accounts = new Map();
   const cancelledLogin = () => ({ cancelled: true, snapshot: null, state: { loggedIn: false } });
 
@@ -128,10 +130,32 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     return accounts.get('bilibili')?.generation || 0;
   }
 
+  function observeBilibiliIdentity(state) {
+    const identity = state?.loggedIn ? Number(state.uid) || 0 : 0;
+    if (bilibiliIdentity !== null && bilibiliIdentity !== identity) bilibiliIdentityRevision += 1;
+    bilibiliIdentity = identity;
+    return state;
+  }
+
+  async function getBilibiliRequestIdentity() {
+    while (true) {
+      const generation = getBilibiliSessionRevision();
+      const revision = bilibiliIdentityRevision;
+      // A same-account Cookie import temporarily clears the partition before replacing it.
+      await accounts.get('bilibili')?.tail;
+      const state = await getBilibiliAuthState();
+      if (generation !== getBilibiliSessionRevision() || revision !== bilibiliIdentityRevision) continue;
+      observeBilibiliIdentity(state);
+      return { loggedIn: state.loggedIn, uid: state.uid };
+    }
+  }
+
   async function restoreBilibiliCookieSnapshot() {
-    const snapshot = await runAccountOperation('bilibili', () =>
-      bilibiliAuth.restoreBilibiliCookieSnapshot(getDataDir()),
-    );
+    const snapshot = await runAccountOperation('bilibili', async () => {
+      const restored = await bilibiliAuth.restoreBilibiliCookieSnapshot(getDataDir());
+      observeBilibiliIdentity(await getBilibiliAuthState());
+      return restored;
+    });
     logBilibiliDiagnostic('credentials-restore', { restored: Boolean(snapshot) });
     return snapshot;
   }
@@ -139,8 +163,8 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   async function replaceBilibiliCookieHeader(cookieHeader) {
     logBilibiliDiagnostic('credentials-import-start');
     try {
-      const state = await runAccountOperation('bilibili', () =>
-        bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader),
+      const state = await runAccountOperation('bilibili', async () =>
+        observeBilibiliIdentity(await bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader)),
       );
       logBilibiliDiagnostic('credentials-import-complete', summarizeAuthState(state));
       return state;
@@ -155,16 +179,26 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     try {
       return await runAccountOperation(
         'bilibili',
-        (signal) =>
-          openBilibiliLoginWindow({
+        async (signal) => {
+          const result = await openBilibiliLoginWindow({
             BrowserWindow,
             shell,
-            auth: bilibiliAuth,
+            auth: {
+              ...bilibiliAuth,
+              async getBilibiliAuthState() {
+                const state = await getBilibiliAuthState();
+                if (!signal.aborted) observeBilibiliIdentity(state);
+                return state;
+              },
+            },
             mainWindow: getMainWindow(),
             dataDir: getDataDir(),
             writeLog,
             signal,
-          }),
+          });
+          if (!signal.aborted) observeBilibiliIdentity(result.state);
+          return result;
+        },
         true,
       );
     } finally {
@@ -175,7 +209,9 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   async function logoutBilibiliAccount() {
     logBilibiliDiagnostic('logout-start');
     try {
-      const state = await runAccountOperation('bilibili', () => bilibiliAuth.logoutBilibiliAccount(getDataDir()));
+      const state = await runAccountOperation('bilibili', async () =>
+        observeBilibiliIdentity(await bilibiliAuth.logoutBilibiliAccount(getDataDir())),
+      );
       logBilibiliDiagnostic('logout-complete', summarizeAuthState(state));
       return state;
     } catch (error) {
@@ -199,6 +235,8 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     getBilibiliCookieHeader,
     getBilibiliUid,
     getBilibiliSessionRevision,
+    getBilibiliRequestIdentity,
+    getBilibiliIdentityRevision: () => bilibiliIdentityRevision,
     restoreBilibiliCookieSnapshot,
     replaceBilibiliCookieHeader,
     loginBilibiliAccount,

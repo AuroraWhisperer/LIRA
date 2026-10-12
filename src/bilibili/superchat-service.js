@@ -59,7 +59,7 @@ function getSuperChatSnapshot(context) {
 
 function retractSuperChatItems(context, platformIds) {
   if (!Array.isArray(platformIds) || !platformIds.length) return 0;
-  return context.store.markDeletedByPlatformIds(platformIds, now());
+  return context.store.markDeletedByPlatformIds(platformIds);
 }
 
 module.exports = {

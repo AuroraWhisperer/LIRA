@@ -38,6 +38,12 @@ function createDesktopRuntime(serverModule, options = {}) {
       typeof serverModule.getGiftSyncState === 'function'
         ? (sourceId) => serverModule.getGiftSyncState(sourceId)
         : null,
+    getGiftRetentionProgress: (sourceId) => serverModule.getGiftRetentionProgress(sourceId),
+    restartGiftRetention: (input) => serverModule.restartGiftRetention(input),
+    commitGiftSummaryPage: (input) => serverModule.commitGiftSummaryPage(input),
+    commitRetainedGiftHistoryPage: (input) => serverModule.commitRetainedGiftHistoryPage(input),
+    activateGiftRetention: (input) => serverModule.activateGiftRetention(input),
+    pruneLocalGiftRetention: (sourceId) => serverModule.pruneLocalGiftRetention(sourceId),
     commitGiftHistoryPage:
       typeof serverModule.commitGiftHistoryPage === 'function'
         ? (page) => serverModule.commitGiftHistoryPage(page)
@@ -78,6 +84,10 @@ function createDesktopRuntime(serverModule, options = {}) {
     applyCloudSettingsSnapshot:
       typeof serverModule.applyCloudSettingsSnapshot === 'function'
         ? (settings) => serverModule.applyCloudSettingsSnapshot(settings)
+        : null,
+    applyCloudFixedReplySettingsSnapshot:
+      typeof serverModule.applyCloudFixedReplySettingsSnapshot === 'function'
+        ? (settings, revision) => serverModule.applyCloudFixedReplySettingsSnapshot(settings, revision)
         : null,
     setBlindBoxMappingState:
       typeof serverModule.setBlindBoxMappingState === 'function'

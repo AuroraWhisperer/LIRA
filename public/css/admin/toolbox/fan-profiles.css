@@ -228,8 +228,9 @@
 }
 .fan-person {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   text-align: left;
   gap: var(--spacing-xs);
   width: 100%;
@@ -241,6 +242,30 @@
   min-width: 0;
   font-weight: var(--type-weight-regular);
   transition: background-color 140ms ease-out;
+}
+.fan-person-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  min-width: 0;
+}
+.fan-person-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fan-expiry-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 3px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
 }
 .fan-person:hover {
   background: var(--color-bg-tertiary);
@@ -552,6 +577,23 @@
   display: block;
   font-size: var(--type-size-caption);
   line-height: var(--type-leading-caption);
+}
+.fan-song-title {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+}
+.fan-song-count {
+  color: var(--color-control-accent);
+  font-weight: var(--type-weight-medium);
+  white-space: nowrap;
+}
+.fan-song-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs) var(--spacing-sm);
+}
+.fan-song-dates > span {
+  white-space: nowrap;
 }
 .fan-followups {
   margin-top: 12px;

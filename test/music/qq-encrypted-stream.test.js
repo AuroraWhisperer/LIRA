@@ -8,7 +8,7 @@ const { EventEmitter } = require('node:events');
 const { Writable } = require('node:stream');
 const { parseRange, validateMediaUrl, serveQQEncryptedStream } = require('../../src/music/qq-encrypted-stream');
 
-function streamFixture(t, write = (_chunk, _encoding, callback) => callback()) {
+function streamFixture(t, write = (_chunk, _encoding, callback) => callback(), decrypt = () => {}) {
   const ciphers = [];
   const module = { exports: {} };
   const filename = require.resolve('../../src/music/qq-encrypted-stream');
@@ -25,6 +25,7 @@ function streamFixture(t, write = (_chunk, _encoding, callback) => callback()) {
               }
               decrypt(buffer, offset) {
                 this.offsets.push(offset);
+                decrypt(buffer, offset);
               }
               free() {
                 this.freed += 1;
@@ -53,6 +54,49 @@ function streamFixture(t, write = (_chunk, _encoding, callback) => callback()) {
     run: (fetchImpl) => module.exports.serveQQEncryptedStream(record, req, res, { fetchImpl }),
   };
 }
+
+for (const [status, responseStart] of [[200, 0], [206, 100], [206, 90]]) {
+  test(`QQ decrypts the actual ${status} body from byte ${responseStart}, independently of the requested range`, async (t) => {
+    const plaintext = Buffer.from(Array.from({ length: 200 }, (_, index) => (index * 17) % 256));
+    const transform = (buffer, offset) => {
+      for (let index = 0; index < buffer.length; index++) buffer[index] ^= (offset + index) % 251;
+    };
+    const ciphertext = Buffer.from(plaintext);
+    transform(ciphertext, 0);
+    const output = [];
+    const f = streamFixture(t, (chunk, _encoding, callback) => { output.push(Buffer.from(chunk)); callback(); }, transform);
+    f.req.headers.range = 'bytes=100-103';
+    const end = status === 200 ? ciphertext.length : responseStart + 4;
+    await f.run(async (_url, options) => {
+      assert.equal(options.headers.Range, 'bytes=100-103');
+      return new Response(new ReadableStream({
+        start(controller) {
+          controller.enqueue(ciphertext.subarray(responseStart, responseStart + 2));
+          controller.enqueue(ciphertext.subarray(responseStart + 2, end));
+          controller.close();
+        },
+      }), { status, headers: status === 206 ? { 'content-range': `bytes ${responseStart}-${end - 1}/200` } : {} });
+    });
+    assert.deepEqual(Buffer.concat(output), plaintext.subarray(responseStart, end));
+    assert.deepEqual(f.ciphers[0].offsets, [responseStart, responseStart + 2]);
+    assert.equal(f.res.status, status);
+    assert.equal(f.ciphers[0].freed, 1);
+  });
+}
+
+test('QQ partial responses with no usable body position fail before decrypting and release their body', async (t) => {
+  for (const contentRange of ['', 'bytes 100-', 'bytes 103-100/200', 'bytes 100-103/100']) {
+    const f = streamFixture(t);
+    let cancelled = 0;
+    await f.run(async () => new Response(new ReadableStream({ cancel() { cancelled++; } }), {
+      status: 206, headers: { 'content-range': contentRange },
+    }));
+    assert.equal(f.res.status, 502);
+    assert.equal(f.ciphers.length, 0);
+    assert.equal(cancelled, 1);
+    assert.equal(f.req.listenerCount('aborted'), 0);
+  }
+});
 
 test('invalid upstream QQ media URL returns 502 without fetching or exposing the URL', async () => {
   for (const url of ['invalid-url', 'https://untrusted.example/audio?token=synthetic-secret']) {

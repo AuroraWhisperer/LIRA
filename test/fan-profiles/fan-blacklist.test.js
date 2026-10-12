@@ -13,7 +13,7 @@ test('blacklist hides existing fan content and stops every automatic writer with
     stableId: 'blacklist-song', requestId: 1, queueId: 1, source: 'manual',
     songName: '虚构曲目', artist: '虚构歌手', categoryName: '其他', createdAt: NOW,
   };
-  f.service.archiveAccepted(SCOPE, song);
+  f.record(p.id, 'song', { songName: song.songName, artist: song.artist, category: song.categoryName });
   const before = f.store.get(SCOPE, p.id);
   const records = f.store.records.list(SCOPE, p.id);
   assert.equal(f.run('calendar').length, 1);
@@ -42,7 +42,6 @@ test('blacklist hides existing fan content and stops every automatic writer with
   });
   assert.equal(result.skipped, 1);
   f.service.archiveAccepted(SCOPE, { ...song, stableId: 'blocked-song' });
-  f.service.archiveQueueState(SCOPE, song.stableId, 'done', NOW);
   assert.deepEqual(f.store.get(SCOPE, p.id), before);
   assert.deepEqual(f.store.records.list(SCOPE, p.id), records);
   assert.equal(f.run('backup').profiles.find((item) => item.id === p.id).records.length, records.length);

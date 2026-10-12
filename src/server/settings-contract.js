@@ -68,12 +68,13 @@ function normalizeSettingValue(key, rawValue) {
     if (rawValue === false || rawValue === 0 || rawValue === 'false' || rawValue === '0') return 'false';
     return null;
   }
-  if (key === 'queueLimit' || key === 'userCooldownSeconds') {
+  if (key === 'songCooldownMode') return ['off', 'hours', 'days'].includes(rawValue) ? rawValue : null;
+  if (key === 'queueLimit' || key === 'userCooldownSeconds' || key === 'songCooldownValue') {
     if (typeof rawValue !== 'number' && typeof rawValue !== 'string') return null;
     if (typeof rawValue === 'string' && !/^\s*[0-9]+\s*$/u.test(rawValue)) return null;
     const number = Number(rawValue);
-    const min = key === 'queueLimit' ? 1 : 0;
-    const max = key === 'queueLimit' ? 300 : 3600;
+    const min = key === 'userCooldownSeconds' ? 0 : 1;
+    const max = key === 'queueLimit' ? 300 : key === 'songCooldownValue' ? 999 : 3600;
     return Number.isInteger(number) && number >= min && number <= max ? String(number) : null;
   }
   if (FRAME_SETTING_KEYS.has(key)) return normalizeFrameSettingValue(key, rawValue);
@@ -162,7 +163,7 @@ function normalizeCloudSettingsSnapshot(input) {
     if (value === null) throw new Error(`云端同步设置 ${key} 的值无效。`);
     values[key] = value;
   }
-  for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled']) {
+  for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled', 'songCooldownMode', 'songCooldownValue']) {
     if (!Object.hasOwn(input, key)) continue;
     const value = normalizeSettingValue(key, input[key]);
     if (value === null) throw new Error(`云端同步设置 ${key} 的值无效。`);
@@ -191,6 +192,8 @@ function serializeCloudSettings(settings) {
     paused: settings.paused === 'true',
     queueLimit: Number(settings.queueLimit),
     userCooldownSeconds: Number(settings.userCooldownSeconds),
+    songCooldownMode: settings.songCooldownMode || 'off',
+    songCooldownValue: Number(settings.songCooldownValue || 1),
     onlyFromLibrary: settings.onlyFromLibrary === 'true',
     allowDuplicate: settings.allowDuplicate === 'true',
     giftBlindBoxConfig: normalizeGiftBlindBoxConfig(JSON.parse(settings.giftBlindBoxConfig)),

@@ -4,7 +4,7 @@
 
 本文档是后端服务进程的**唯一事实源**:端口、环境变量、启动/关闭时序、请求管线、身份与凭据机制均只在此成表。HTTP 端点全量注册表见 [api.md](api.md),WebSocket 传输与快照契约见 [ws.md](ws.md),数据库细节见 [storage.md](storage.md)。
 
-**组合根边界:** `server.js` 只保留运行时生命周期、领域装配与启动/关闭次序。`runtime-config.js` 解析路径和限制，`runtime-transport.js` 装配 WebSocket/静态传输，`authorized-work.js` 控制授权后才启动的消费者，`http-server.js` 创建监听器并分发请求，`runtime-api-context.js` 组装每次请求的 API 依赖；启动保留策略和自动打开后台分别由 `startup-retention.js`、`admin-launcher.js` 单独拥有。叶模块不导入 `server.js`，依赖只从组合根向下传递。
+**组合根边界:** `server.js` 只保留运行时生命周期、领域装配与启动/关闭次序。`runtime-config.js` 解析路径和限制，`runtime-transport.js` 装配 WebSocket/静态传输，`authorized-work.js` 控制授权后才启动的消费者，`http-server.js` 创建监听器并分发请求，`runtime-api-context.js` 组装每次请求的 API 依赖；启动及每小时保留期维护和自动打开后台分别由 `startup-retention.js`、`admin-launcher.js` 单独拥有。叶模块不导入 `server.js`，依赖只从组合根向下传递。
 
 `http-server.js` 的异常日志在源头只记录解析后的 pathname（不含 query），并经共享凭据脱敏处理 error/stack 后输出。因此独立 Node 入口也不依赖 Electron 的 terminal wrapper 来保护这条错误日志。
 
@@ -151,7 +151,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 | `data`                                                   | 清库/保留策略入口(database + retention)                   | [storage.md](storage.md)                   |
 | `playback / theme / cooldowns`                           | playback-store / theme-store / cooldown-store             | [storage.md](storage.md)                   |
 
-**启动时数据修复链**仅在精确端口绑定成功后执行:`createDatabases`/schema migration → `settingsBootstrap` 设置迁移 → runtime 装配 → 旧 `giftEffectResolver` 按显式兼容 API 惰性加载 → `ensureCategory('默认')` → `queue.ensureUnified()` → `runStartupRetention()`(仅在 `autoRetentionOnStartup==='true'` 时,失败不阻断启动)。未完成点歌沿用数据库中的 ID、置顶和排队顺序，历史 `current` 态归位为 `waiting`；重启不清空队列，完成与清空由显式队列操作决定。客户端原始礼物检测与修复实现已删除，旧本地礼物不再重新解析或合并。`/gift-effects` 的实时路径不再预热或消费旧媒体映射。
+**启动时数据修复链**仅在精确端口绑定成功后执行:`createDatabases`/schema migration → `settingsBootstrap` 设置迁移 → runtime 装配 → 旧 `giftEffectResolver` 按显式兼容 API 惰性加载 → `ensureCategory('默认')` → `queue.ensureUnified()` → `startRetentionMaintenance()`。保留期维护立即检查一次，之后每小时检查；每次读取最新设置，仅在 `autoRetentionOnStartup==='true'` 时执行，失败只记录警告，不阻断启动或后续维护。未完成点歌沿用数据库中的 ID、置顶和排队顺序，历史 `current` 态归位为 `waiting`；重启不清空队列，完成与清空由显式队列操作决定。客户端原始礼物检测与修复实现已删除，旧本地礼物不再重新解析或合并。`/gift-effects` 的实时路径不再预热或消费旧媒体映射。
 
 **运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()` 拥有;AI 配置、配额、DeepSeek 客户端、工具、投递校验与请求日志由 `buildAiRuntime()` 拥有;Bilibili 登录缓存、客户端替换串行化、liveStatus、诊断缓冲和弹幕发送器由 `createBilibiliRuntime()` 拥有。`server.js` 作为 composition root 只创建这些 runtime、连接广播/领域回调并控制启动与逆序关闭。当前 Bilibili runtime 仍创建并维持 `BilibiliDanmakuClient`，本地 `onGift → gifts.add()` 记账入口已移除；弹幕、点歌/机器人、SC、用户信息和小游戏仍继续处理。服务器权威礼物由 `D:/Work/lira-server` 的每主播 `RoomMonitor` 检测，Electron main 通过 DeviceBearer final cursor/SSE 拉取后调用本地 `importProcessedGiftEvent`;本仓库的 renderer 不直接访问远程接口或凭据。本地客户端启停跟随 `danmakuMonitoringEnabled`（兼容旧数据 `enableBilibili`），`giftMonitoringEnabled` 单独控制云端礼物入口。两项默认开启；存储与云同步将旧总开关维护为两项逻辑或，旧的明确停用会保留。服务端仅切换通道时原地更新 `RoomMonitor`，两项都关闭才停止共享连接；已接受礼物仍完成结算。远程礼物协议、baseline/catch-up 与隐私白名单见 `specs/server-authoritative-gift-detection_design.md`。
 
@@ -170,7 +170,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 启动失败时按已创建资源逆序停止 runtime、关闭数据库、关闭 listener，再删除本实例拥有的 token/runtime 文件并重抛。`startPromise` 单飞(重复调用返回同一 Promise);`isShuttingDown` 期间拒绝新启动。
 
-`disposeApplication` 按既有资源顺序逐步清理，每一步单独捕获并记录失败，后续步骤仍继续，包括数据库关闭。启动失败清理中的领域异常不会覆盖最初的启动错误，也不会阻止 listener 关闭与 `startPromise` 复位；清理完成后允许重新启动。失败的资源关闭为 best-effort，不宣称一个抛错的资源自身已成功释放。
+`disposeApplication` 首先撤销保留期维护 timer，再按既有资源顺序逐步清理，每一步单独捕获并记录失败，后续步骤仍继续，包括数据库关闭。启动失败清理中的领域异常不会覆盖最初的启动错误，也不会阻止 listener 关闭与 `startPromise` 复位；清理完成后允许重新启动。失败的资源关闭为 best-effort，不宣称一个抛错的资源自身已成功释放。
 
 `createDomainServices` 在完整返回前负责部分装配回滚，依次释放已取得的 gift runtime、hybrid catalog、本地 catalog 和 overtime；单步清理失败记录警告后继续，保留原始装配错误。overtime 自身恢复中断时取消已创建的归零/重试计时器。hybrid 的终止 `dispose()` 移除本实例的 initializer 监听器并停止自己创建的 remote cache，保留外部借用对象；正常可恢复的 `start()` / `stop()` 契约不变。数据库、settings store 和 resolver 的关闭责任仍在外层；清理不重置已持久化的倒计时或礼物状态。
 
@@ -178,7 +178,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 顺序:
 
-1. 同步切换 phase 为 `quiescing` 并让 `inflight-tracker` 停止接纳新 API；listener 继续占用端口，作为数据库独占边界。
+1. 同步切换 phase 为 `quiescing`，撤销保留期维护 timer，并让 `inflight-tracker` 停止接纳新 API；listener 继续占用端口，作为数据库独占边界。
 2. 等待正在进行的启动结束，停止 Bilibili 与 WebSocket 新入口。WS hub 发送 shutdown、Close(1001) 和 FIN，并保留关闭中升级连接的回收责任：正常关闭释放 timer，1 秒后仍存活则 destroy；重复 stop 不重置期限，见 [WS 关闭契约](ws.md)。
 3. `preShutdownHook()` 通过 Electron IPC 刷新 renderer 播放状态，此时数据库仍开放。
 4. drain quiesce 前已接纳的 HTTP handlers，释放 `gameSessionService` 与 `wheelSessionService`，再执行 `aiRuntime.shutdown()`：取消网络/工具调用并等待 active generation、delivery、direct provider 操作和日志写入。

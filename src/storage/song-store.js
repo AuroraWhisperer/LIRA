@@ -181,6 +181,7 @@ function createSongStore(songDb) {
               return readSongById(existing.id);
             }
 
+            assertSongImportLimit(store.countSongs() + 1);
             return insertSongWithinTransaction({ ...song, categoryName }, updatedAt, category.id);
           },
           { syncPending: true },
@@ -313,7 +314,7 @@ function createSongStore(songDb) {
       return withTransaction(() => ensureCategoryWithinTransaction(name || '默认'));
     },
 
-    importRows(rows, options = {}) {
+    importRows(rows) {
       return withTransaction(
         () => {
           let inserted = 0;
@@ -343,24 +344,6 @@ function createSongStore(songDb) {
             insertSongWithinTransaction({ ...row, categoryName });
             inserted += 1;
           }
-
-          songDb
-            .prepare(
-              `
-          INSERT INTO import_batches (
-            total_count, inserted_count, duplicate_count, failed_count,
-            created_category_count, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?)
-        `,
-            )
-            .run(
-              options.totalCount ?? rows.length,
-              inserted,
-              duplicate,
-              options.failedCount ?? 0,
-              createdCategories,
-              now(),
-            );
 
           return { inserted, duplicate, createdCategories };
         },
@@ -408,14 +391,6 @@ function createSongStore(songDb) {
                 );
             }
           }
-          songDb
-            .prepare(
-              `
-          INSERT INTO import_batches (total_count, inserted_count, duplicate_count, failed_count,
-            created_category_count, created_at) VALUES (?, ?, ?, 0, ?, ?)
-        `,
-            )
-            .run(total, plan.counts.inserted, plan.counts.unchanged, createdCategories, now());
           return { total, ...plan.counts, createdCategories };
         },
         { syncPending: true },
@@ -453,9 +428,8 @@ function createSongStore(songDb) {
       return songDb
         .prepare(
           `
-        SELECT song_name FROM requests
-        WHERE source = 'random' OR source LIKE 'random:%'
-        ORDER BY datetime(created_at) DESC
+        SELECT song_name FROM random_request_history
+        ORDER BY datetime(created_at) DESC, request_id DESC
         LIMIT 10
       `,
         )

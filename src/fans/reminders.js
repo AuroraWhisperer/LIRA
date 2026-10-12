@@ -1,7 +1,7 @@
 'use strict';
 
 const { DAY_MS, dayOf, dayStart, addDays, daysBetween, anniversaryDate } = require('./dates');
-const { summarizeMembership } = require('./membership');
+const { prepareMembership } = require('./membership');
 const { accompanySettings, getGuardAccompany } = require('./guard-accompany');
 
 function buildReminders(profile, records, states, now = Date.now(), settings = {}) {
@@ -12,7 +12,8 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
   const year = Number(today.slice(0, 4));
   const statesByKey = new Map(states.map((state) => [state.key, state]));
   const result = [];
-  const membership = summarizeMembership(records, now);
+  const summarize = prepareMembership(records);
+  const membership = summarize(now);
   const accompany = getGuardAccompany(profile, now);
   const metricDays = (metric) => metric === 'accompany' ? accompany?.days : membership[`${metric}Days`];
 
@@ -149,11 +150,13 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
           .map((r) => r.data.asOf),
       );
     }
-    const previous = summarizeMembership(records, addDays(earliest, -1));
+    const previous = summarize(addDays(earliest, -1));
     const seen = new Set();
     let last = previous;
-    for (let date = earliest; date <= latest; date = addDays(date, 1)) {
-      const current = summarizeMembership(records, date === today ? now : dayStart(date) + DAY_MS - 1);
+    const lastDay = dayStart(latest);
+    for (let time = dayStart(earliest); time <= lastDay; time += DAY_MS) {
+      const date = dayOf(time);
+      const current = summarize(date === today ? now : time + DAY_MS - 1);
       for (const type of ['total', 'continuous']) {
         const value = current[`${type}Days`];
         const prior = last[`${type}Days`];

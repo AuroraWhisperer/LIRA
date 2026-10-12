@@ -147,7 +147,7 @@ function createDeepSeekClient(options = {}) {
       );
       return result;
     } catch (error) {
-      if (error?.code === 'AI_SHUTDOWN') throw error;
+      if (error?.code === 'AI_SHUTDOWN' || error?.code === 'AI_DISABLED') throw error;
       await safeLog(
         {
           type: 'request_failed',

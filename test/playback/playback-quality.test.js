@@ -4,6 +4,80 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
+for (const pauseThenResume of [false, true]) {
+  test(`quality loading respects a later pause${pauseThenResume ? ' and resume' : ''}`, async () => {
+    const pending = Promise.withResolvers();
+    const app = await createPlaybackApp({ current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+      resolveStream: (count) => count === 1 ? { url: 'https://example.test/original.mp3' } : pending.promise,
+    });
+    await app.init();
+    await flushAsyncWork();
+    await app.emit('playbackPlayPause', 'click');
+    const audio = app.element('music-player');
+    audio.currentTime = 47;
+    const changing = app.emit('playbackQualityPanel', 'click', {
+      stopPropagation() {},
+      target: closestTarget({ playbackQuality: 'high' }, 'data-playback-quality'),
+    });
+    await flushAsyncWork();
+    await app.emit('playbackPlayPause', 'click');
+    if (pauseThenResume) await app.emit('playbackPlayPause', 'click');
+    pending.resolve({ url: 'https://example.test/high.mp3', quality: 'high' });
+    await changing;
+    await app.emit('music-player', 'loadedmetadata');
+    assert.equal(audio.src, 'https://example.test/high.mp3');
+    assert.equal(audio.currentTime, 47);
+    assert.equal(audio.paused, !pauseThenResume);
+    assert.equal(app.audioPlayCalls(), pauseThenResume ? 3 : 1);
+    assert.equal(app.savedState().qualityPreferences.qq, 'high');
+  });
+}
+
+for (const operation of ['play', 'quality']) {
+  for (const source of ['wesing', 'netease']) {
+    test(`switching to ${source} while ${operation} resolves respects source playback ownership`, async () => {
+      const pending = Promise.withResolvers();
+      const app = await createPlaybackApp({ current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+        sourceTabs: ['qq', 'netease', 'wesing'],
+        resolveStream: (count) => operation === 'quality' && count === 1
+          ? { url: 'https://example.test/original.mp3' } : pending.promise,
+      });
+      await app.init();
+      await flushAsyncWork();
+      if (operation === 'quality') await app.emit('playbackPlayPause', 'click');
+      const loading = operation === 'play' ? app.emit('playbackPlayPause', 'click')
+        : app.emit('playbackQualityPanel', 'click', {
+          stopPropagation() {},
+          target: closestTarget({ playbackQuality: 'high' }, 'data-playback-quality'),
+        });
+      await flushAsyncWork();
+      const playCalls = app.audioPlayCalls();
+      await app.emit(`source-tab-${source}`, 'click');
+      pending.resolve({ url: 'https://example.test/resolved.mp3', quality: 'high' });
+      await loading;
+      await flushAsyncWork();
+      assert.equal(app.savedState().selectedSource, source);
+      assert.equal(app.element('music-player').paused, source === 'wesing');
+      assert.equal(app.audioPlayCalls(), playCalls + (source === 'wesing' ? 0 : 1));
+      if (source === 'wesing') {
+        const suspendedRequests = app.resolveStreamRequestCount();
+        await app.emit('music-player', 'error');
+        await flushAsyncWork();
+        assert.equal(app.resolveStreamRequestCount(), suspendedRequests, 'WeSing owns playback until the source is left');
+        await app.emit('source-tab-qq', 'click');
+        await app.emit('playbackPlayPause', 'click');
+        assert.equal(app.element('music-player').paused, false, 'leaving WeSing permits explicit online playback');
+        const requests = app.resolveStreamRequestCount();
+        await app.emit('music-player', 'error');
+        await flushAsyncWork();
+        assert.ok(app.resolveStreamRequestCount() > requests, 'retained online audio can recover after leaving WeSing');
+        assert.equal(app.element('music-player').paused, false);
+      }
+      assert.deepEqual(app.errors(), []);
+    });
+  }
+}
+
 test('quality selection refreshes the current stream and persists the provider preference', async () => {
   const current = {
     ...track('quality-song', '音质测试'),

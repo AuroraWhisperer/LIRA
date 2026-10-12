@@ -17,40 +17,40 @@ local -> bili
 local -> music
 local -> projection
 local -> storage
-transport: {label: "HTTP / WebSocket\n环回监听 · 管理与展示权限分离"; link: ../backend/server-core.md}
-bili: {label: "本地 Bilibili 输入\n弹幕 / 点歌 / SC / 用户信息 / 互动"; link: ../backend/bilibili/danmaku.md}
-music: {label: "音乐与本地业务\nProvider / 曲库 / 队列 / 歌词 / 加班机"; link: ../backend/music/services.md}
-projection: {label: "服务器礼物的本地投影\n恢复 / 事务 / 幂等消费者"; link: ../backend/bilibili/gift.md}
-storage: {label: "客户端 SQLite 与目录\n迁移 / 保留 / 设置分组"; link: ../backend/storage.md}
+transport: {label: "HTTP / WebSocket\n环回监听 · 管理与展示权限分离"; link: ../../reference/backend/server-core.md}
+bili: {label: "本地 Bilibili 输入\n弹幕 / 点歌 / SC / 用户信息 / 互动"; link: ../../reference/backend/bilibili/danmaku.md}
+music: {label: "音乐与本地业务\nProvider / 曲库 / 队列 / 歌词 / 加班机"; link: ../../reference/backend/music/services.md}
+projection: {label: "服务器礼物的本地投影\n恢复 / 事务 / 幂等消费者"; link: ../../reference/backend/bilibili/gift.md}
+storage: {label: "客户端 SQLite 与目录\n迁移 / 保留 / 设置分组"; link: ../../reference/backend/storage.md}
 
 desktop: {label: "Electron main"; style.fill: "#eaf2f8"}
 desktop -> bridge
 desktop -> auth
 desktop -> lifecycle
-bridge: {label: "受限 IPC → main → Device API\nSSE / pull → 本地 SQLite 投影 → HTTP / WS"; link: ../desktop/preload.md}
-auth: {label: "设备身份与 Cookie 分区\n凭据保护 / 主窗口请求认证"; link: ../desktop/auth.md}
-lifecycle: {label: "窗口 / 本地媒体 / 更新 / 退出"; link: ../desktop/main.md}
+bridge: {label: "受限 IPC → main → Device API\nSSE / pull → 本地 SQLite 投影 → HTTP / WS"; link: ../../reference/desktop/preload.md}
+auth: {label: "设备身份与 Cookie 分区\n凭据保护 / 主窗口请求认证"; link: ../../reference/desktop/auth.md}
+lifecycle: {label: "窗口 / 本地媒体 / 更新 / 退出"; link: ../../reference/desktop/main.md}
 
 remote: {label: "LIRA Server\n独立服务器边界"; style.fill: "#e8f8f5"}
 remote -> gift
 remote -> bots
 remote -> sync
-gift: {label: "权威礼物检测与账本\nDevice API / SSE / history"; link: ../backend/bilibili/gift.md}
-bots: {label: "云端机器人\n签到 / 抽签等服务器业务"; link: ../desktop/main.md}
-sync: {label: "认证主播范围内的同步与持久化\n客户端协议 pin 与 fixture 验证"; link: ../engineering/test.md}
+gift: {label: "权威礼物检测与账本\nDevice API / SSE / history"; link: ../../reference/backend/bilibili/gift.md}
+bots: {label: "云端机器人\n签到 / 抽签等服务器业务"; link: ../../reference/desktop/main.md}
+sync: {label: "认证主播范围内的同步与持久化\n客户端协议 pin 与 fixture 验证"; link: ../../reference/engineering/test.md}
 
 frontend: {label: "Vanilla JS / 原生 CSS\n无前端构建步骤"; style.fill: "#fef9e7"}
 frontend -> admin
 frontend -> player
 frontend -> overlays
-admin: {label: "Admin ESM\n常驻入口 / 按需工具 / 状态渲染 owner"; link: ../frontend/app.md}
-player: {label: "播放助手\n状态机 / 音源 / 队列持久化"; link: ../frontend/playback.md}
-overlays: {label: "本地展示页与网页源\n具体用途以页面入口表为准"; link: ../frontend/pages.md}
+admin: {label: "Admin ESM\n常驻入口 / 按需工具 / 状态渲染 owner"; link: ../../reference/frontend/app.md}
+player: {label: "播放助手\n状态机 / 音源 / 队列持久化"; link: ../../reference/frontend/playback.md}
+overlays: {label: "本地展示页与网页源\n具体用途以页面入口表为准"; link: ../../reference/frontend/pages.md}
 
 engineering: {label: "工程与运行"; style.fill: "#f2f3f4"}
 engineering -> modes
 engineering -> registries
 engineering -> decisions
-modes: {label: "桌面 / Node 调试 / 网页源\n调试入口仍需相应凭据"; link: ../engineering/build.md}
-registries: {label: "依赖与构建脚本\n唯一清单见构建文档"; link: ../engineering/build.md}
+modes: {label: "桌面 / Node 调试 / 网页源\n调试入口仍需相应凭据"; link: ../../reference/engineering/build.md}
+registries: {label: "依赖与构建脚本\n唯一清单见构建文档"; link: ../../reference/engineering/build.md}
 decisions: {label: "架构决策与规格\nAccepted / Superseded / Proposed"; link: ../README.md}

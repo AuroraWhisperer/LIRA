@@ -98,6 +98,33 @@ function seedSettlement(db, giftEventId, status = 'pending') {
 const countSettlements = (db, status) =>
   db.prepare('SELECT COUNT(*) AS count FROM overtime_settlements WHERE status = ?').get(status).count;
 
+test('retention handles 40000 expired gifts and rolls back every batch on failure', (t) => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(schema.GIFT_TABLE_SCHEMA);
+  db.exec(`WITH RECURSIVE rows(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM rows WHERE id < 40000)
+    INSERT INTO gift_events (id, platform_id, gift_id, gift_name, uid, user_name, created_at, updated_at)
+    SELECT id, 'expired-' || id, 'gift', 'gift', '1', 'viewer', '2020-01-01', '2020-01-01' FROM rows`);
+  const kept = seedGift(db);
+  seedSettlement(db, 1, 'pending');
+  seedSettlement(db, 40000, 'pending');
+  seedSettlement(db, 2, 'applied');
+  const maintenance = createGiftMaintenanceStore(db);
+  assert.equal(maintenance.countGiftsByPredicate('id < ?', [Number(kept)]), 40000);
+  db.exec(`CREATE TRIGGER fail_late_delete BEFORE DELETE ON gift_events WHEN OLD.id = 40000
+    BEGIN SELECT RAISE(ABORT, 'late delete failure'); END`);
+  assert.throws(() => maintenance.deleteGiftsByPredicate('id < ?', [Number(kept)], 'retention:expired', 'now'),
+    /late delete failure/);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 40001);
+  assert.equal(countSettlements(db, 'pending'), 2);
+  db.exec('DROP TRIGGER fail_late_delete');
+  assert.deepEqual(maintenance.deleteGiftsByPredicate('id < ?', [Number(kept)], 'retention:expired', 'now'),
+    { deletedGifts: 40000, ignoredSettlements: 2 });
+  assert.equal(countSettlements(db, 'applied'), 1);
+  assert.equal(countSettlements(db, 'ignored'), 2);
+  assert.equal(db.prepare('SELECT id FROM gift_events').get().id, Number(kept));
+});
+
 for (const scenario of [
   {
     name: 'clearRecentGifts predicate',

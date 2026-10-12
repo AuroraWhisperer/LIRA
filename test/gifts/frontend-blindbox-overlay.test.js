@@ -98,6 +98,20 @@ test('blindbox saved appearance updates existing sources while explicit legacy U
   }
 });
 
+test('blindbox summary-only changes repaint a stable ranking and leave identical views untouched', () => {
+  const { sandbox, elements } = createOverlay();
+  const stats = { summary: { boxCount: 1, totalCost: 1, totalValue: 2, totalProfit: 1 },
+    perUser: [{ userName: 'Viewer', boxCount: 1, totalProfit: 1 }] };
+  for (const top of [0, 3, 0]) {
+    vm.runInNewContext(`state = { settings: { blindboxOverlayTop: '${top}', blindboxAutoPages: 'false' } }; receiveAppearance();`, sandbox);
+    sandbox.render(stats);
+    assert.equal(elements.blindboxLeaderboard.innerHTML.includes('Viewer'), top !== 0);
+  }
+  elements.blindboxLeaderboard.innerHTML = 'unchanged';
+  sandbox.render(stats);
+  assert.equal(elements.blindboxLeaderboard.innerHTML, 'unchanged');
+});
+
 test('blindbox filtering requests the selected box and hides losses only in winner mode', async () => {
   const perUser = [
     { userName: 'Winner', boxCount: 1, totalProfit: 8 },

@@ -48,6 +48,7 @@ function createCloudSyncController(options = {}) {
   let streamConnections = 0;
   let retryNotBefore = 0;
   let retryError = null;
+  let lastMenuUploadSignature = null;
   const giftInteraction = createGiftInteractionController({
     prepareWork() {
       if (!isAuthorized() || !prepareAccount() || !active) return null;
@@ -79,7 +80,7 @@ function createCloudSyncController(options = {}) {
       const pending = getPendingSettings(work.accountKey);
       // Omit the untouched flag: the server preserves its current value.
       const result = await licenseManager.updateCloudSettings(
-        { ...(pending?.values || runtime.getCloudSettingsSnapshot()), [intent.key]: intent.enabled },
+        { ...settingsUploadValues(pending), [intent.key]: intent.enabled },
         { signal: work.signal },
       );
       if (!isCurrent(work)) return null;
@@ -288,7 +289,18 @@ function createCloudSyncController(options = {}) {
     return runtime.getPendingCloudSettings?.(key) || null;
   }
 
+  function settingsUploadValues(pending) {
+    const current = runtime.getCloudSettingsSnapshot();
+    if (Array.isArray(current.menuCommands)) lastMenuUploadSignature = JSON.stringify(current.menuCommands);
+    if (!pending) return current;
+    return {
+      ...pending.values,
+      ...(current.menuCommands === undefined ? {} : { menuCommands: current.menuCommands }),
+    };
+  }
+
   async function acceptSettingsUpload(result, pending, generation, work) {
+    runtime.applyCloudFixedReplySettingsSnapshot?.(result?.values, result?.revision);
     const unchanged = generation === dirtyGenerations.settings
       && getPendingSettings(work.accountKey)?.mutationId === pending?.mutationId;
     const applied = unchanged && Boolean(result?.values);
@@ -308,7 +320,7 @@ function createCloudSyncController(options = {}) {
     let pendingSettings;
     if (scope === 'settings') {
       pendingSettings = getPendingSettings(work.accountKey);
-      result = await licenseManager.updateCloudSettings(pendingSettings?.values || runtime.getCloudSettingsSnapshot(), requestOptions);
+      result = await licenseManager.updateCloudSettings(settingsUploadValues(pendingSettings), requestOptions);
     } else if (scope === 'songs') {
       result = await songSync.upload(work);
     } else {
@@ -379,6 +391,7 @@ function createCloudSyncController(options = {}) {
 
   async function reconcileSettings(state, work) {
     if (!isCurrent(work)) return;
+    runtime.applyCloudFixedReplySettingsSnapshot?.(state?.values, state?.revision);
     if (state?.initialized) giftInteraction.confirmState(state.values);
     if (!state?.initialized) {
       await seedScope('settings', work);
@@ -391,7 +404,11 @@ function createCloudSyncController(options = {}) {
     if (!isCurrent(work)) return;
     runtime.setBlindBoxMappingState?.(state.blindBoxMapping || null);
     revisions.settings = Number(state.revision) || 0;
-    if (isMissingBlindBoxConfig) await seedScope('settings', work);
+    const menuCommands = runtime.getCloudSettingsSnapshot().menuCommands;
+    const menuSignature = Array.isArray(menuCommands) ? JSON.stringify(menuCommands) : null;
+    const menuChanged = menuSignature !== null && menuSignature !== JSON.stringify(values.menuCommands)
+      && menuSignature !== lastMenuUploadSignature;
+    if (isMissingBlindBoxConfig || menuChanged) await seedScope('settings', work);
   }
 
   async function reconcileBilibili(state, work) {
@@ -497,11 +514,13 @@ function createCloudSyncController(options = {}) {
     active = false;
     lifecycleGeneration += 1;
     pendingSync = null;
+    lastMenuUploadSignature = null;
     requestController?.abort();
     requestController = null;
     clearTimer();
     stopEventStream();
     runtime.setBlindBoxMappingState?.(null);
+    runtime.applyCloudFixedReplySettingsSnapshot?.(null);
     giftInteraction.stop();
   }
 

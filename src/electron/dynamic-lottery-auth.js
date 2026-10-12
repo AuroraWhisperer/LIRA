@@ -28,7 +28,8 @@ function createDynamicLotteryAuth({
     if (disposed) fail('LOTTERY_SESSION_DISPOSED');
     if (licenseManager.getState() !== 'authorized') fail('LOTTERY_IDENTITY_UNAVAILABLE');
     const streamerId = String(licenseManager.getCloudSyncIdentity()?.streamerId || '');
-    const authorizationEpoch = licenseManager.getAuthorizationEpoch();
+    // Token renewal keeps the login lifecycle; a real identity/session change does not.
+    const authorizationEpoch = licenseManager.getAuthorizationGeneration();
     if (
       !streamerId ||
       streamerId.length > 128 ||

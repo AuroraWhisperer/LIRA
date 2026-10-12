@@ -11,6 +11,7 @@ function createHarness({
   verifyExpiresAt = () => undefined,
   timers,
   randomSource,
+  buildInfoProvider = () => ({ appVersion: '3.7.11', buildId: 'dev', integrityStatus: 'unverified' }),
 } = {}) {
   const state = { value: identity };
   // Mutable so a test can start or stop failing challenges after bootstrap.
@@ -180,11 +181,7 @@ function createHarness({
     remoteClient: remote,
     timers,
     randomSource,
-    buildInfoProvider: () => ({
-      appVersion: '3.7.11',
-      buildId: 'dev',
-      integrityStatus: 'unverified',
-    }),
+    buildInfoProvider,
   });
   return { manager, state, backgroundCalls, calls, remote, control };
 }

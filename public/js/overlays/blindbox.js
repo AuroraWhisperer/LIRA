@@ -208,7 +208,7 @@ function render(stats) {
   if (TOP_N > 0) {
     users = users.slice(0, TOP_N);
   }
-  const contentKey = JSON.stringify([summary, users]);
+  const contentKey = JSON.stringify([SUMMARY_ONLY, summary, users]);
   if (contentKey === lastContentKey) return;
   lastContentKey = contentKey;
 

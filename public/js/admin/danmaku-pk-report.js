@@ -6,8 +6,7 @@ export function initDanmakuPkReport({
 } = {}) {
   const toggle = documentRef.getElementById('danmakuPkReportToggle');
   const status = documentRef.getElementById('danmakuPkReportStatus');
-  const refresh = documentRef.getElementById('danmakuPkReportRefreshBtn');
-  if (!toggle || !status || !refresh) return;
+  if (!toggle || !status) return;
   const available = Boolean(bridge?.getPkReportSettings && bridge?.updatePkReportSettings);
   let owner = '',
     generation = 0,
@@ -18,7 +17,6 @@ export function initDanmakuPkReport({
   function controls() {
     toggle.checked = enabled;
     toggle.disabled = !loaded || pending || !available;
-    refresh.disabled = !owner || pending || !available;
   }
   function confirmed(result) {
     if (result?.ok !== true || typeof result.enabled !== 'boolean') {
@@ -60,9 +58,7 @@ export function initDanmakuPkReport({
       }
     }
   }
-  const reload = () => {
-    void sync();
-  };
+  const reload = () => sync();
   function account(snapshot) {
     if (disposed) return;
     const name = snapshot?.streamer?.accountName,
@@ -84,7 +80,6 @@ export function initDanmakuPkReport({
   toggle.addEventListener('change', () => {
     void sync(toggle.checked);
   });
-  refresh.addEventListener('click', reload);
   windowRef.addEventListener('online', reload);
   const unsubscribe = bridge?.onStateChanged?.(account);
   const initial = generation;
@@ -106,4 +101,5 @@ export function initDanmakuPkReport({
     { once: true },
   );
   controls();
+  return { refresh: reload };
 }

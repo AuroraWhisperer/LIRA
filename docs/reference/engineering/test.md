@@ -225,6 +225,7 @@ npm run verify
 | [qq-provider.test.js](../../../test/music/qq-provider.test.js)                                                     | `music/providers/qq-provider`(歌单、电台与最近播放)                                             | [backend/music/qq.md](../backend/music/qq-provider.md)                                            |
 | [qq-provider-streams.test.js](../../../test/music/qq-provider-streams.test.js)                                     | `music/providers/qq-provider-streams`(播放权益、音质与歌词)                                     | 同上                                                                                              |
 | [music-stream-route.test.js](../../../test/music/music-stream-route.test.js)                                       | `server/routes/music-routes`(播放地址令牌与错误映射)                                            | 同上                                                                                              |
+| [song-cooldown.test.js](../../../test/songs/song-cooldown.test.js) | 单首歌曲冷却、北京时间跨日、原子写入、账号隔离、随机过滤与回复 | 同上(music-services) |
 | [queue-service.test.js](../../../test/songs/queue-service.test.js)                                                 | `music/queue-service`(点歌队列)                                                                 | 同上(music-services)                                                                              |
 | [random-song-filter.test.js](../../../test/songs/random-song-filter.test.js)                                       | `music/random-song-filter`(随机筛选)                                                            | 同上                                                                                              |
 | [song-file-codec.test.js](../../../test/songs/song-file-codec.test.js)                                             | `music/song-file-codec`(文件编码)                                                               | 同上                                                                                              |
@@ -354,6 +355,8 @@ npm run verify
 - 配套离线测试：[capture-bilibili-events.test.js](../../../test/bilibili/capture-bilibili-events.test.js) 覆盖完整消息、过滤、输出预算及停止/写入清理；[packet-decoder.test.js](../../../test/bilibili/packet-decoder.test.js) 覆盖解码边界与丢弃原因。样本或零错误计数均不代表断线窗口已补齐。
 
 独立 Electron 检查脚本 [verify-gift-export.cjs](../../../scripts/verify-gift-export.cjs)、[verify-gift-history.cjs](../../../scripts/verify-gift-history.cjs) 和 [verify-overlay-filters.cjs](../../../scripts/verify-overlay-filters.cjs) 的截图、导出文件与 Electron 配置保存在仓库 `tmp/` 下各自唯一的检查目录，便于复核与清理。
+
+`verify-gift-history.cjs` 以 Electron 独立入口运行，使用随机本地端口、独立 userData、检查目录内的合成 SQLite 数据以及真实导出 preload/IPC，不启动或连接用户的 LIRA 实例。浏览器源复用现有页面服务和 API 分发，按正常的 scoped token、sandbox、CORS 与 WebSocket 鉴权加载。设置检查挂载现行 `toolbox/gift.html` 的滚动礼物面板，验证 `scrollSpeed` 保存与 72px 单行画面；不再从历史抽屉寻找旧设置页或 `intervalSeconds` 控件。它是可选桌面验收，不在发布脚本的自动门禁内；设置表单的浏览器回归由 `test/gifts/frontend-gift-display-settings.test.js` 覆盖。
 
 ## 6. 测试约定
 

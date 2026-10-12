@@ -7,10 +7,10 @@ const NUMBER_RANGES = {
   greetingMinHonorLevel: [0, 999],
   attentionMinHonorLevel: [1, 999],
 };
-const BOOLEAN_FIELDS = ['enabled', 'greetingEnabled', 'attentionEnabled', 'rareNamePinyinEnabled'];
-const LIBRARY_FIELDS = ['messages', 'greetingMessages', 'attentionWelcomeMessages', 'attentionGreetingMessages'];
-const REQUIRED_FIELDS = [...BOOLEAN_FIELDS, ...Object.keys(NUMBER_RANGES), ...LIBRARY_FIELDS];
-const WELCOME_FIELDS = [...REQUIRED_FIELDS, 'userWelcomeMessages'];
+const BOOLEAN_FIELDS = ['enabled', 'greetingEnabled', 'attentionEnabled', 'rareNamePinyinEnabled', 'returningEnabled'];
+const LIBRARY_FIELDS = ['messages', 'greetingMessages', 'attentionWelcomeMessages', 'attentionGreetingMessages', 'returningMessages'];
+const WELCOME_FIELDS = [...BOOLEAN_FIELDS, ...Object.keys(NUMBER_RANGES), ...LIBRARY_FIELDS, 'userWelcomeMessages'];
+const REQUIRED_FIELDS = WELCOME_FIELDS.filter((key) => !['userWelcomeMessages', 'returningEnabled', 'returningMessages'].includes(key));
 const ERROR_REASONS = [
   'BOOLEAN_REQUIRED',
   'OUT_OF_RANGE',
@@ -97,7 +97,8 @@ function sanitizeWelcomeV2(value) {
       WELCOME_FIELDS.filter((key) => Object.hasOwn(value, key)).map((key) => [key, value[key]]),
     ));
     if (
-      (!settings.enabled && (settings.greetingEnabled || settings.attentionEnabled)) ||
+      (Object.hasOwn(settings, 'returningEnabled') !== Object.hasOwn(settings, 'returningMessages')) ||
+      (!settings.enabled && (settings.greetingEnabled || settings.attentionEnabled || settings.returningEnabled)) ||
       (settings.greetingEnabled && settings.greetingDelaySeconds <= settings.welcomeDelaySeconds)
     )
       throw new Error();

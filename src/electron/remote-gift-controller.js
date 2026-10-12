@@ -3,6 +3,7 @@
 const { createCancellableDelay } = require('../shared/cancellable-delay');
 const { canonicalizeProcessedGiftEvent } = require('../shared/processed-gift-contract');
 const { createRemoteGiftSourceKey } = require('./remote-gift-cursor-store');
+const { syncRetainedGifts } = require('./remote-gift-retention');
 
 const RECONNECT_MIN_MS = 1000;
 const RECONNECT_MAX_MS = 60_000;
@@ -60,6 +61,8 @@ function createRemoteGiftController(options = {}) {
   let dirty = false;
   let epochValidated = false;
   let legacyMode = false;
+  let retentionMode = false;
+  let retentionRefreshedAt = 0;
   let initializing = false;
   let streamEpochMismatch = false;
   let operation = Promise.resolve();
@@ -115,6 +118,8 @@ function createRemoteGiftController(options = {}) {
     dirty = true;
     epochValidated = false;
     legacyMode = false;
+    retentionMode = false;
+    retentionRefreshedAt = 0;
     streamEpochMismatch = false;
     setSyncState(GiftSyncState.SOURCE_SWITCHING);
   }
@@ -164,7 +169,15 @@ function createRemoteGiftController(options = {}) {
 
       expectedSyncEpoch = discovery.syncEpoch;
       latestCursor = discovery.latestCursor;
-      if (requiresProjectionReplacement(currentState, discovery)) {
+      retentionMode = discovery.giftRetentionVersion === 1;
+      if (retentionMode) {
+        if (currentState.bootstrapComplete && !requiresProjectionReplacement(currentState, discovery)) {
+          if (!(await catchUpCurrent())) return false;
+        }
+        const full = !runtime.getGiftRetentionProgress(currentSource.id).active ||
+          requiresProjectionReplacement(currentState, discovery);
+        if (!(await synchronizeRetention(full))) return false;
+      } else if (requiresProjectionReplacement(currentState, discovery)) {
         currentState = runtime.resetGiftProjectionForRebuild(currentSource.id);
       }
       if (!currentState.bootstrapComplete) {
@@ -188,7 +201,7 @@ function createRemoteGiftController(options = {}) {
     if (!isGenerationActive(generation) || !currentSource) return false;
     if (!ensureFenceCurrent(captureFence())) return false;
     abortEventStream();
-    currentState = runtime.resetGiftProjectionForRebuild(currentSource.id);
+    if (!retentionMode) currentState = runtime.resetGiftProjectionForRebuild(currentSource.id);
     dirty = true;
     epochValidated = false;
     streamEpochMismatch = false;
@@ -202,7 +215,8 @@ function createRemoteGiftController(options = {}) {
     }
     expectedSyncEpoch = discovery.syncEpoch;
     latestCursor = discovery.latestCursor;
-    const bootstrapped = await bootstrapHistory(discovery);
+    retentionMode = discovery.giftRetentionVersion === 1;
+    const bootstrapped = retentionMode ? await synchronizeRetention(true) : await bootstrapHistory(discovery);
     if (!bootstrapped) return false;
     startEventStream(generation);
     if (streamEpochMismatch) {
@@ -291,6 +305,30 @@ function createRemoteGiftController(options = {}) {
       if (!page.hasMore) return true;
     }
     return false;
+  }
+
+  async function synchronizeRetention(full) {
+    abortEventStream();
+    // A clear/restore invalidates the old ledger, including its local derived
+    // state. Keep the established epoch replacement path; ordinary retention
+    // and expired cursors within the same epoch preserve the previous view.
+    if (currentState.syncEpoch && currentState.syncEpoch !== expectedSyncEpoch) {
+      currentState = runtime.resetGiftProjectionForRebuild(currentSource.id);
+      full = true;
+    }
+    setSyncState(GiftSyncState.BOOTSTRAPPING);
+    const fence = captureFence();
+    const result = await syncRetainedGifts({
+      runtime, licenseManager, sourceId: currentSource.id,
+      projectionGeneration: currentState.projectionGeneration,
+      syncEpoch: expectedSyncEpoch, full, signal: generationController.signal,
+      isCurrent: () => ensureFenceCurrent(fence),
+    });
+    if (!result || !ensureFenceCurrent(fence)) return false;
+    currentState = runtime.getGiftSyncState(currentSource.id);
+    retentionRefreshedAt = Date.parse(now());
+    publishContext();
+    return true;
   }
 
   async function catchUpCurrent() {
@@ -504,6 +542,12 @@ function createRemoteGiftController(options = {}) {
     if (streamEpochMismatch) return rebuildAfterStreamMismatch();
     if (!currentState?.bootstrapComplete) return false;
     const caughtUp = await catchUpCurrent();
+    if (caughtUp && retentionMode && Date.parse(now()) - retentionRefreshedAt >= 10 * 60_000) {
+      if (!(await synchronizeRetention(false))) return false;
+      startEventStream(controllerGeneration);
+      if (!(await catchUpCurrent())) return false;
+    }
+    if (caughtUp && retentionMode) runtime.pruneLocalGiftRetention(currentSource.id);
     updateLiveState();
     return caughtUp;
   }

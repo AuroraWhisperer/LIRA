@@ -91,6 +91,7 @@ function fixture(t, options = {}) {
       calls.fetch.push({ scope: fanScopeFor(licenseManager), ...input });
       return options.fetch ? options.fetch(input, state) : page();
     },
+    getGuardExpiryWarningsInternal: options.expiry || (async () => ({ state: 'loginRequired' })),
   };
   const service = {
     profileRefreshTargets(scope, members) {

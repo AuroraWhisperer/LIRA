@@ -64,17 +64,17 @@ playbackControls → audio.load()/play()
 | `togglePlayback` | 无当前曲目时取下一首，否则在有效音源上切换播放/暂停 |
 | `playbackPrevious` | 当前进度超过 5 秒先回到开头，否则读取播放历史 |
 | `playbackNext` | 自然结束时执行单曲循环并有界跳过不可播曲目；手动下一首与失败跳过推进队列，保留列表回绕及电台补量 |
-| `changePlaybackQuality` | 保存音质选择并重新解析当前流，只有请求仍有效时恢复切换前进度 |
+| `changePlaybackQuality` | 保存音质选择并重新解析当前流，只有请求仍有效时恢复切换前进度；是否继续播放以 URL 返回时的暂停状态为准 |
 
-切歌、音质切换、清空队列与平台退出共用播放控制器拥有的请求代际。队列通过内部 `invalidatePlaybackRequests` 回调使全部在途操作失效；Provider 在成功退出后传入平台，仅取消该平台发起的播放请求，包括当前曲目尚属于另一平台的情况。另一个平台的在途请求可继续，保留音频也可继续错误恢复。流解析使用曲目副本，只有当前请求才能合并流元数据、替换音频或恢复进度，迟到成功与失败不能覆盖新状态或在退出后恢复播放。
+切歌、音质切换、清空队列与平台退出共用播放控制器拥有的请求代际。队列通过内部 `invalidatePlaybackRequests` 回调使全部在途操作失效；切入全民 K 歌也使旧请求失效并暂停本页音频，QQ/网易云标签互切保持原播放行为。Provider 在成功退出后传入平台，仅取消该平台发起的播放请求，包括当前曲目尚属于另一平台的情况。另一个平台的在途请求可继续，保留音频也可继续错误恢复。流解析使用曲目副本，只有当前请求才能合并流元数据、替换音频或恢复进度，迟到成功与失败不能覆盖新状态或在退出后恢复播放。
 
-错误重试通过 `createPlaybackRequestGuard` 捕获当前音频的有效代际，经 `stream-handler` 注入 `StreamService`。重试使用曲目副本和原始来源；入口、URL 解析结果与失败分支均校验播放权，过时任务不能重播、跳过新曲或提示旧错误。新曲仍在解析时，旧音频新触发的错误也不再拥有播放权；切换失败后，为保留的原音频建立新的有效代际，允许其后续错误恢复，旧任务仍失效。手动切歌无可用 URL 时保留当前曲目、来源与音频，并沿用地址解析服务的不可播放提示。
+错误重试通过 `createPlaybackRequestGuard` 捕获当前音频的有效代际，经 `stream-handler` 注入 `StreamService`。重试使用曲目副本和原始来源；入口、URL 解析结果与失败分支均校验播放权，过时任务不能重播、跳过新曲或提示旧错误。全民 K 歌被选中时，保留音频也不能触发在线重试；退出该信源后，显式恢复的音频仍可正常重试。新曲仍在解析时，旧音频新触发的错误也不再拥有播放权；切换失败后，为保留的原音频建立新的有效代际，允许其后续错误恢复，旧任务仍失效。手动切歌无可用 URL 时保留当前曲目、来源与音频，并沿用地址解析服务的不可播放提示。
 
 自然结束后的连播及音频错误恢复后的自动跳歌，在 URL 解析失败或为空时继续取下一首；单曲循环的当前曲目不可播时也可推进。一次自动推进最多检查当时的剩余队列和一轮完整歌单，电台允许再检查一批补歌；同一曲目键只尝试一次，全部不可播时停止音频。每次异步播放尝试完成后复核请求代际，用户切歌、清空队列、切音质或退出平台后，旧推进任务不能继续取歌。
 
 播放与持久化共同读取 `PlaybackConfig` 中的历史上限，不再分别硬编码限制。
 
-**播放历史**:前端不直接写 `play_history` 表——每次状态落盘时把 `history/displayHistory`(各 50/200 条上限)放进 queue-state 载荷,服务端 `playback-store.recordPlay` 按 `(client_id, track_key)` 幂等累加 `play_count`(见 [storage.md](../backend/storage.md) §3.4)。
+**播放历史**:播放器将 `history/displayHistory`（各 50/200 条上限）随 queue-state 快照保存；快照写入不会调用 `recordPlay` 或累加 `play_count`。独立的 `play_history` 表仅由显式 `POST /api/playback/history` 经 `playback-store.recordPlay` 写入，当前播放器没有调用该写接口（见 [storage.md](../backend/storage.md) §3.4）。
 
 ## 3. 歌词链路
 
@@ -82,7 +82,7 @@ playbackControls → audio.load()/play()
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 获取             | `LyricService.loadLyrics(track)` → `POST /api/music/lyrics`(按 source 走 QQ/网易云解析,本地与已缓存跳过)                                                                                                                                                                                                                                                           |
 | 行定位           | `findLyricLine` 对 `lines[]` 做二分查找([lyric-service.js:62-88](../../../public/js/playback/services/lyric-service.js#L62-L88))                                                                                                                                                                                                                                   |
-| 逐字进度         | `shared/lyric-clock.js` 按 `performance.now()` 计算本地位置;`LyricWordRenderer` 使用 `LyricFrameScheduler` 的 rAF+33.3ms 门控;当前行 `LyricWordAnimator` 优先 WAAPI reveal,按性能档位回退到 30fps 手动 reveal/静态高亮                                                                                                                                             |
+| 逐字进度         | `shared/lyric-clock.js` 按 `performance.now()` 计算本地位置;`LyricWordRenderer` 使用 `LyricFrameScheduler` 的 rAF+33.3ms 门控;当前行 `LyricWordAnimator` 优先 WAAPI reveal，卡顿时逐级回退到手动 reveal/静态高亮，持续流畅后逐级恢复；计数与减少动态效果约定由 [overlay 性能策略](overlays.md#7-数据消费一览)维护 |
 | **上报**         | `publishBrowserState`:`POST /api/playback/lyric-state`(100ms 取整 + 180ms 节流 + latest-wins 队列);每条状态兼容携带 `generation`/`sequence`,切歌/seek/时间线变化切 generation;`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端收到后转 WS 广播 `lyric-state`/`lyric-timeline`(见 [ws.md](../backend/ws.md) §3) |
 | 桌面歌词浏览器源 | `syncWindow` 仅通过 HTTP 发布状态与完整时间轴;`/lyrics` 经 WebSocket 消费 `lyric-state`/`lyric-timeline`并复用管理页实时预览渲染                                                                                                                                                                                                                                   |
 
@@ -104,6 +104,8 @@ playbackControls → audio.load()/play()
 
 首页请求在开始时固定平台、action、歌单 ID 和缓存键。HomeService 的代际决定页面是否接受结果，ContentLoader 的每键请求代际决定缓存是否接受写入：切换分类、最近历史、音源或返回历史后，旧成功和旧失败均不能覆盖新页面。后台刷新使用局部结果，不把页面状态当临时工作区；重复缓存读取可复用在途刷新，同键较新的实际请求优先，完成后清理请求记录。可缓存 action 只由 ContentLoader 的 `CACHEABLE_ACTIONS` 定义，HomeService 复用该集合。可修改的歌单详情不再使用服务端第二份内容缓存，后台更新和强制刷新直接读取 Provider 当前结果，空歌单也更新播放器缓存。
 
+内容抽屉在初始及关闭状态设置 `inert`，打开时恢复键盘操作；关闭时若焦点仍在抽屉内或因遮罩点击回到页面主体，则返回仍有效的原触发控件。
+
 `CacheManager` 内存层最多 64 项，按序列化字符串 UTF-16 长度估算的合计预算为 8 MiB（不是 V8 实际堆大小保证）。读取提升最近使用顺序，写入/回填时回收超过默认 24 小时的内存条目，按最近使用顺序淘汰至预算内。超大单项跳过缓存而不截断歌单数据；localStorage 保留既有 24 小时有效期和浏览器配额。登录/退出还会使对应平台未完成内容请求失去缓存写入权，防止旧账号响应重新填回缓存。
 
 ## 5. 队列、电台与歌单
@@ -113,7 +115,7 @@ playbackControls → audio.load()/play()
 - **三种队列形态**:`normalQueue`(点歌队列/歌单播放)、`radioQueue`(电台)、`normalQueueTracks`(歌单全量,`playlistIndex` 游标);`queueType` ∈ queue/playlist/radio。待确认请求由 `pendingRequests` 保存，旧 `requestedQueue` 仅兼容读取。`insertTracksNext` 在 playlist 模式从 `playlistIndex+1` 处插入，保留当前曲目、音频和游标；`removeTrack` 同步从全量列表剔除；`clearQueue` 复位全部队列与 shuffle 游标。待确认通知的「下一首播放」使用同一插入操作，空闲时等用户按播放开始。
 - **播放模式**:UI 经 `getNextMode()` 在 sequence/shuffle/repeat-one 间轮换；服务端快照和本地 v2/v1 恢复均接受 repeat-one，旧值 single 归一化为 repeat-one，保留旧值 loop 的兼容接纳。shuffle 用 `shuffleOrder` 曲目键数组 + `shuffleCursor` 游标(`rebuildShuffleOrder` Fisher–Yates,游标越界回退顺序取队首)。普通曲目沿用 ID，导入请求使用 `request:<songRequestKey>`，区分同曲的不同请求。歌单游标按实际取出曲目对齐；相邻曲目键相同时保留顺序位置，避免切回顺序播放后仍高亮随机播放时的位置。明确插入下一首时，活动队列条目标记 `playNext`，快照保留该标记；重新打乱队列后仍先消费这批条目，取出时移除标记，歌单全量副本不保留临时优先级。
 - **电台补量**:`features/radio-mode.js` 在电台队列不足 3 首时按 10 首一批 `POST /api/music/home`(action=radio),过滤最近 30 首历史与队列内重复(请求归 radio-mode，去重入队归 QueueManager.refillRadioQueue)。平台由当前电台的 `queueSourceKey` 固定；旧快照缺少来源时优先从当前曲目或电台曲目推断，浏览平台标签不改变补歌平台。每次建立电台的队列数组身份拥有独立请求锁和失败通知状态；旧响应在入队前校验身份，同平台重开也会使旧请求失效，新电台补量不等待旧请求。
-- **收藏/歌单**:`playlist-operations.js` 走 `/api/music/playlists/tracks/add|remove`、`/api/music/home`(歌单列表)与 `POST /api/playback/favorites` 系列;收藏/歌单数据经 `CacheManager` 24h 缓存跨启动保留。
+- **收藏/歌单**:`playlist-operations.js` 通过 `/api/music/playlists/tracks/add|remove` 修改音乐 Provider 歌单，通过 `/api/music/home` 读取歌单；不调用本地 `/api/playback/favorites`。收藏/歌单展示数据经 `CacheManager` 24h 缓存跨启动保留。
 - **缓存统计**:`cache-operations.js` 展示 `GET /api/music/cache` 并支持 `/api/music/cache/clear`。
 
 ## 6. 状态持久化(play_queue_state)
@@ -135,6 +137,8 @@ playbackControls → audio.load()/play()
 QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最后一项必须跨重启送回 Provider,否则 HAR 中 `songtype: 1` 的付费歌曲会被错误降为类型 `0`。`qualityPreferences` 按 Provider 保存:QQ 为 `standard/high/lossless/premium/immersive`,网易云为 `standard/higher/exhigh/lossless/hires`;后两项通过本地 QMC2 Range 代理，不能承诺 QQ 客户端的 Dolby/空间 DSP 效果。
 
 点歌导入记录 `importedSongRequestKeys`，轨道与待确认条目保留 `songRequestKey`、点歌人。请求键由现有点歌项 `id` 和 `created_at` 组成，避免清理数据后数字 ID 复用误判。记录随现有快照和 localStorage v1/v2 恢复，不新增数据库表或更改接口；旧快照缺省为空，不按歌名推测旧曲目的请求归属。成功读取点歌队列后，只保留仍活跃请求的记录；已经播放、忽略或从播放队列清除的请求在点歌队列仍活跃期间不会再次导入。匹配失败不写处理记录，可重试。仅产生待确认项的导入也保存快照。
+
+`import-handler` 持有导入代次，清空播放队列或开始新歌单/电台集合时使在途导入失效；`import-service` 在读取快照后、每项匹配后及写入待确认前复核，handler 在最终插队、提交处理键和通知前复核。被取消的未完成导入不重新填回队列，之后可重新发起导入。
 
 ## 7. 本地文件与桌面集成
 

@@ -182,7 +182,8 @@ async function archiveUi(t, storage = new Map()) {
     ok: true,
     contextId: ui.contextId,
     syncStatus: 'offline',
-    data: f.run(action === 'open' ? 'list' : action, payload),
+    roomId: '42',
+    data: action === 'guard-expiry' ? { state: 'ready', observedAt: new Date().toISOString(), badges: [] } : f.run(action === 'open' ? 'list' : action, payload),
   });
   windowRef.fanProfiles = {
     invoke: async (input) => {
@@ -269,6 +270,42 @@ test('hiding the local reminder banner persists without changing reminders or no
   const reopened = await archiveUi(t, storage);
   assert.equal(reopened.nodes.get('fanReminderSummary').hidden, true);
   assert.match(reopened.nodes.get('fanRemindersPage').innerHTML, /生日/);
+});
+
+test('expiry loads after local profiles, clears renewed warnings, and ignores late reads after context changes', async (t) => {
+  const ui = await archiveUi(t);
+  const pending = deferred();
+  ui.handlers.set('guard-expiry', () => pending.promise);
+  ui.handlers.set('open', (input) => {
+    const response = ui.respond(input);
+    response.data.profiles = response.data.profiles.map((item) => item.id === ui.a.id ? { ...item, currentGuardLevel: 3 } : item);
+    return response;
+  });
+  await ui.click({ fanAction: 'refresh' });
+  assert.match(ui.people(), /当前观众A/);
+  assert.doesNotMatch(ui.people(), /fan-expiry-badge/);
+  const response = { ok: true, contextId: ui.contextId, roomId: '42', data: {
+    state: 'ready', observedAt: new Date().toISOString(), badges: [{ profileId: ui.a.id, level: 3, days: 0 }],
+  } };
+  pending.resolve(response);
+  await ui.flush();
+  assert.match(ui.people(), /剩0天/);
+  ui.handlers.delete('guard-expiry');
+  await ui.click({ fanAction: 'refresh' });
+  assert.doesNotMatch(ui.people(), /fan-expiry-badge/);
+  assert.match(ui.people(), /data-guard-icon="3"/);
+  const old = deferred();
+  ui.handlers.set('guard-expiry', () => old.promise);
+  await ui.click({ fanAction: 'refresh' });
+  ui.contextId = 'other-context';
+  ui.handlers.delete('guard-expiry');
+  await ui.click({ fanAction: 'refresh' });
+  old.resolve(response);
+  await ui.flush();
+  assert.doesNotMatch(ui.people(), /fan-expiry-badge/);
+  ui.handlers.set('guard-expiry', () => ({ ...response, contextId: ui.contextId, data: { state: 'loginRequired', badges: [] } }));
+  await ui.click({ fanAction: 'refresh' });
+  assert.match(ui.nodes.get('fanSyncState').textContent, /请在连接设置登录主播账号/);
 });
 
 test('switching scope clears pending search and filters once while same-scope navigation preserves them', async (t) => {
@@ -442,6 +479,89 @@ test('successful archive followed by refresh failure stays saved and does not re
   assert.match(ui.notices(), /已归档/);
   assert.match(ui.nodes.get('fanPageError').textContent, /列表刷新失败/);
 });
+
+for (const archived of [false, true]) {
+  test(`switching profiles preserves the selected detail tab in ${archived ? 'archived' : 'current'} scope`, async (t) => {
+    const ui = await archiveUi(t);
+    const first = archived ? ui.b : ui.a;
+    const second = ui.f.create({ alias: '另一位观众', identity: { ...IDENTITY, value: '900000003' } });
+    if (archived) ui.f.run('save', { id: second.id, revision: second.revision, archived: true });
+    await ui.click({ fanAction: archived ? 'archived' : 'refresh' });
+    await ui.click({ fanId: first.id });
+    assert.match(ui.detail(), /aria-selected="true" data-fan-tab="overview"/);
+    for (const tab of ['interactions', 'music', 'membership', 'overview']) {
+      await ui.click({ fanTab: tab });
+      for (const profile of [second, first]) {
+        ui.calls.length = 0;
+        await ui.click({ fanId: profile.id });
+        assert.match(ui.detail(), new RegExp(`aria-selected="true" data-fan-tab="${tab}"`));
+        assert.ok(ui.detail().includes(profile.alias));
+        assert.equal(ui.calls.filter((call) => call.action === 'detail').length, 1);
+      }
+    }
+  });
+}
+
+test('returning to the list invalidates an in-flight detail and still allows opening it later', async (t) => {
+  const ui = await archiveUi(t);
+  const pending = deferred();
+  ui.handlers.set('detail', async (input) => { await pending.promise; return ui.respond(input); });
+  await ui.click({ fanId: ui.a.id });
+  await ui.click({ fanAction: 'back-list' });
+  pending.resolve();
+  await ui.flush();
+  assert.match(ui.detail(), /选择一份档案查看详情/);
+  assert.doesNotMatch(ui.people(), /fan-profile-back/);
+  ui.handlers.delete('detail');
+  await ui.click({ fanId: ui.a.id });
+  assert.match(ui.detail(), /保留私人资料/);
+});
+
+for (const navigation of ['another profile', 'pending profile', 'back to list', 'same profile again']) {
+  test(`a late special-follow response preserves ${navigation}`, async (t) => {
+    const ui = await archiveUi(t);
+    const c = ui.f.create({ alias: '当前观众C', identity: { ...IDENTITY, value: '900000003' } });
+    await ui.click({ fanId: ui.a.id });
+    const saved = deferred();
+    ui.handlers.set('save', async (input) => {
+      const result = ui.respond(input);
+      await saved.promise;
+      return result;
+    });
+    await ui.click({ fanAction: 'favorite' });
+    const selected = deferred();
+    if (navigation === 'pending profile') {
+      ui.handlers.set('detail', async (input) => {
+        const result = ui.respond(input);
+        await selected.promise;
+        return result;
+      });
+    }
+    if (navigation === 'back to list') {
+      await ui.click({ fanAction: 'back-list' });
+    } else {
+      await ui.click({ fanId: c.id });
+      if (navigation === 'same profile again') {
+        const current = ui.f.detail(ui.a.id);
+        ui.f.run('save', { id: current.id, revision: current.revision, notes: '重新选择时读取的新资料' });
+        await ui.click({ fanId: ui.a.id });
+      }
+    }
+    const detail = ui.detail();
+    saved.resolve();
+    await ui.flush();
+    assert.equal(ui.detail(), detail, 'the old save must not replace the current detail or reopen the list');
+    assert.equal(ui.f.detail(ui.a.id).favorite, true, 'the original profile is still saved');
+    assert.equal(ui.f.detail(c.id).favorite, false, 'the newly selected profile is not modified');
+    assert.equal(ui.calls.filter((call) => call.action === 'save').length, 1);
+    assert.match(ui.people(), /fan-favorite-star/);
+    if (navigation === 'pending profile') {
+      selected.resolve();
+      await ui.flush();
+      assert.match(ui.detail(), /当前观众C/);
+    }
+  });
+}
 
 test('pending details and archive saves cannot replace a newer scope or selection', async (t) => {
   const ui = await archiveUi(t);

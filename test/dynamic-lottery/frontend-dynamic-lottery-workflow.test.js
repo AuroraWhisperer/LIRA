@@ -245,6 +245,27 @@ test('setup submits the original rule fields and history remains accessible', as
   assert.match(f.get('task-status').textContent, /确认链接/);
 });
 
+test('new task polling follows the new current task after a completed result is removed', async (t) => {
+  const f = await fixture(state(task('completed'), result()));
+  t.after(() => f.controller.dispose());
+  await f.click('new');
+  f.setState(state(null, null, { kind: 'collect', taskId: null }));
+  f.get('form').dispatch('submit');
+  await settle();
+  const next = { ...task('collecting'), id: 'task-2' };
+  f.setState(state(next, null, { kind: 'collect', taskId: next.id }));
+  [...f.timers.values()].at(-1)();
+  await settle();
+  assert.equal(f.calls.at(-1).url, '/api/bilibili/dynamic-lottery/state');
+  assert.equal(f.get('history').children[0].value, next.id);
+  assert.equal(f.get('result-panel').hidden, true);
+  f.setState(state({ ...next, status: 'ready' }));
+  [...f.timers.values()].at(-1)();
+  await settle();
+  assert.match(f.calls.at(-1).url, /taskId=task-2$/);
+  assert.equal(f.get('draw').disabled, false);
+});
+
 test('logged-out users can prepare settings and new drafts but cannot fetch participants', async (t) => {
   const f = await fixture(state(task('completed'), result()));
   t.after(() => f.controller.dispose());

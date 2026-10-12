@@ -31,6 +31,7 @@ export function createEventHandlers(deps) {
     playbackNext,
     togglePlayback,
     changePlaybackQuality,
+    suspendPlaybackForExternalSource,
     addCurrentTrackToPlaylist,
     loginSelectedMusicProvider,
     logoutSelectedMusicProvider,
@@ -233,7 +234,7 @@ export function createEventHandlers(deps) {
         stateActions.selectSource(newSource);
         if (newSource === 'wesing') {
           // The WeSing client is the playback clock while this source is selected.
-          getPlaybackAudio()?.pause();
+          suspendPlaybackForExternalSource();
           window.closeFullscreenPlayer?.();
         }
         searchService.clearResults();

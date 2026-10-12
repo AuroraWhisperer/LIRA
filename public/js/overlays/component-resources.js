@@ -48,7 +48,10 @@ export function createComponentResources() {
         const node = document.createElement('style'); node.dataset.componentResources = resource.id;
         node.textContent = sheets.join('\n');
         stylesheet?.remove(); stylesheet = node; document.head.append(node);
-      })();
+      })().catch(error => {
+        if (current === generation) { key = ''; pending = undefined; }
+        throw error;
+      });
       return pending;
     },
     dispose() { generation++; activeResources = {}; stylesheet?.remove(); },

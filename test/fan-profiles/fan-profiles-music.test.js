@@ -5,6 +5,9 @@ const test = require('node:test');
 const { addQueueItem, handleQueueAction, getQueueSnapshot } = require('../../src/music/queue-service');
 const { createQueueStore } = require('../../src/storage/queue-store');
 const { clearSongDataInTransaction } = require('../../src/storage/database-clear-operations');
+const { createDomainServices } = require('../../src/server/domain-services');
+const { createSettingsStore } = require('../../src/storage/settings-store');
+const { migrateFanSongRetention } = require('../../src/storage/fan-song-migration');
 const { fanFixture, SCOPE, IDENTITY, NOW } = require('../helpers/fan-profile-fixture');
 
 function music(f, options = {}) {
@@ -12,7 +15,6 @@ function music(f, options = {}) {
   const store = createQueueStore(f.db.songDb, {
     getFanScope: () => options.scope ?? SCOPE,
     archiveAccepted: options.archiveAccepted || f.service.archiveAccepted,
-    archiveQueueState: options.archiveQueueState || f.service.archiveQueueState,
   });
   const context = { store, settings: () => settings, defaults: () => settings, findSong: options.findSong };
   return {
@@ -49,6 +51,33 @@ function acceptedSnapshot(f, requestId) {
   };
 }
 
+test('ordinary danmaku requests archive library and non-library songs through the same accepted queue path', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
+  const f = fanFixture(t);
+  const profile = f.create();
+  const settingsStore = createSettingsStore(f.db.songDb);
+  for (const [key, value] of Object.entries({ onlyFromLibrary: 'false', allowDuplicate: 'true', userCooldownSeconds: '0' })) {
+    settingsStore.setSetting(key, value);
+  }
+  const services = createDomainServices({ db: f.db, settingsStore, getFanScope: () => SCOPE });
+  services.songs.save({ name: '库内歌曲', artist: '测试歌手', categoryName: '国语' });
+  for (const songName of ['库内歌曲', '歌库外歌曲', '歌库外歌曲']) {
+    const result = services.messages.handleDanmaku({
+      message: `点歌 ${songName}`, userName: '海边听歌', uid: IDENTITY.value,
+      identityType: 'uid', fanScope: SCOPE, messageTimestamp: NOW,
+    });
+    assert.equal(result.accepted, true);
+  }
+  const requests = f.db.songDb.prepare('SELECT song_id, song_name FROM requests ORDER BY id').all();
+  assert.ok(requests[0].song_id);
+  assert.equal(requests[1].song_id, null);
+  assert.equal(requests[2].song_id, null);
+  assert.equal(f.detail(profile.id).musicStats.count, 3);
+  assert.equal(f.detail(profile.id).songs.find((record) => record.data.songName === '歌库外歌曲').data.count, 2);
+  f.restart();
+  assert.equal(f.detail(profile.id).songs.length, 2, 'accepted requests are durably grouped without reopening the profile page');
+});
+
 test('song category statistics count arbitrary valid names as ordinary keys', (t) => {
   const f = fanFixture(t);
   const p = f.create();
@@ -69,7 +98,7 @@ test('song category statistics count arbitrary valid names as ordinary keys', (t
   );
 });
 
-test('A04: duplicate callbacks archive once, while the next real request gets a new stable source', (t) => {
+test('A04: duplicate callbacks count once, while the next real request increments the same song', (t) => {
   const f = fanFixture(t);
   const p = f.create();
   const queue = music(f);
@@ -78,14 +107,16 @@ test('A04: duplicate callbacks archive once, while the next real request gets a 
   f.service.archiveAccepted(SCOPE, snapshot);
   f.service.archiveAccepted(SCOPE, snapshot);
   assert.equal(f.detail(p.id).songs.length, 1);
+  assert.equal(f.detail(p.id).songs[0].data.count, 1);
+  assert.equal(f.db.songDb.prepare('SELECT fan_recorded FROM requests WHERE id = ?').get(first.id).fan_recorded, 1);
+  f.setNow('2026-09-19T04:00:00Z');
   queue.add({ createdAt: '2026-09-19T04:00:00Z' });
   const songs = f.detail(p.id).songs;
-  assert.equal(songs.length, 2);
-  assert.equal(new Set(songs.map((r) => r.sourceKey)).size, 2);
-  assert.equal(
-    songs.every((r) => r.data.songName === '虚构曲目 A'),
-    true,
-  );
+  assert.equal(songs.length, 1);
+  assert.equal(songs[0].data.count, 2);
+  assert.deepEqual(songs[0].data.recentDates, ['2026-09-19', '2026-09-18']);
+  assert.deepEqual(songs[0].original, {});
+  assert.deepEqual(songs[0].revisions, []);
 });
 
 test('A05: invalid, rejected duplicate and full-queue requests do not create fan song records', (t) => {
@@ -99,6 +130,7 @@ test('A05: invalid, rejected duplicate and full-queue requests do not create fan
   queue.settings.queueLimit = '1';
   assert.throws(() => queue.add({ songName: '虚构曲目 B' }), /达到上限/);
   assert.equal(f.detail(p.id).songs.length, 1);
+  assert.equal(f.detail(p.id).songs[0].data.count, 1);
   assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM requests').get().n, 1);
 });
 
@@ -116,9 +148,15 @@ test('A17/A26: a fan archive failure rolls back request and queue before success
   music(f).add();
   f.restart();
   assert.equal(f.detail(p.id).songs.length, 1, 'successful requests already contain a durable archive on restart');
+  const before = f.detail(p.id);
+  f.db.songDb.exec(`CREATE TRIGGER fail_fan_song_update BEFORE UPDATE ON fan_records
+    WHEN NEW.kind = 'song' BEGIN SELECT RAISE(ABORT, 'forced aggregate update failure'); END;`);
+  assert.throws(() => music(f).add({ requesterName: '不应写入的新昵称' }), /forced aggregate update failure/);
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM requests').get().n, 1);
+  assert.deepEqual(f.detail(p.id), before, 'failed increments preserve the count and observed profile fields');
 });
 
-test('A06/A26/A27: restart and normal source clearing retain snapshots when request numbers are reused', (t) => {
+test('A06/A26/A27: restart and full source clearing retain counts without reviving old callbacks after ID reuse', (t) => {
   const f = fanFixture(t);
   const p = f.create();
   const first = music(f).add();
@@ -129,13 +167,17 @@ test('A06/A26/A27: restart and normal source clearing retain snapshots when requ
   f.db.songDb.exec('COMMIT');
   assert.equal(f.detail(p.id).songs.length, 1);
   assert.equal(f.detail(p.id).songs[0].data.artist, '虚构歌手');
+  f.service.archiveAccepted(SCOPE, snapshot);
+  assert.equal(f.detail(p.id).songs[0].data.count, 1, 'a removed receipt cannot contribute again');
+  f.setNow('2026-09-19T04:00:00Z');
   const second = music(f).add({ createdAt: '2026-09-19T04:00:00Z' });
   assert.equal(second.id, first.id, 'the SQL autoincrement number really was reused');
-  assert.equal(f.detail(p.id).songs.length, 2);
+  assert.equal(f.detail(p.id).songs[0].data.count, 2);
   f.service.archiveAccepted(SCOPE, snapshot);
-  assert.equal(f.detail(p.id).songs.length, 2, 'old replay still matches the original stable UUID');
+  assert.equal(f.detail(p.id).songs[0].data.count, 2, 'an old stable UUID cannot claim the reused request number');
   f.restart();
-  assert.equal(f.detail(p.id).songs.length, 2);
+  assert.equal(f.detail(p.id).songs.length, 1);
+  assert.equal(f.detail(p.id).songs[0].data.count, 2);
 });
 
 test('A07: manual preferences never increment request statistics or get overwritten by accepted requests', (t) => {
@@ -176,33 +218,34 @@ for (const source of ['random', 'random:粤语+流行']) {
   });
 }
 
-test('A23: manual song correction keeps one request, original evidence and an independent revision', (t) => {
+test('A23: a manual supplement increments the summary, preserves its note and cannot edit individual requests', (t) => {
   const f = fanFixture(t);
   const p = f.create();
   const queue = music(f);
   const accepted = queue.add();
   const initial = f.detail(p.id).songs[0];
-  f.record(
+  const supplemented = f.record(
     p.id,
     'song',
-    { songName: '修正歌名', artist: '修正歌手', category: '粤语' },
-    { id: initial.id, revision: initial.revision, occurredAt: '2026-09-17T04:00:00Z' },
+    { songName: '虚构曲目 A', artist: '虚构歌手', category: '粤语', note: '之前补记的说明' },
+    { occurredAt: '2026-09-17T04:00:00Z' },
   );
-  let actual = f.detail(p.id);
+  const actual = f.detail(p.id);
   assert.equal(actual.songs.length, 1);
-  assert.equal(actual.records.find((r) => r.id === initial.id).data.songName, '修正歌名');
-  assert.equal(actual.songs[0].sourceKey, initial.sourceKey);
-  assert.equal(actual.songs[0].original.songName, '虚构曲目 A');
-  assert.equal(actual.songs[0].revisions.length, 1);
-  assert.equal(actual.musicStats.count, 1);
+  assert.equal(supplemented.id, initial.id);
+  assert.equal(supplemented.data.count, 2);
+  assert.equal(supplemented.data.note, '之前补记的说明');
+  assert.deepEqual(supplemented.data.recentDates, ['2026-09-18', '2026-09-17']);
+  assert.deepEqual(supplemented.original, {});
+  assert.deepEqual(supplemented.revisions, []);
+  assert.equal(actual.musicStats.count, 2);
+  assert.throws(() => f.record(p.id, 'song', { songName: '修正歌名' },
+    { id: supplemented.id, revision: supplemented.revision }), /不再保存或编辑逐次记录/);
   f.service.archiveAccepted(SCOPE, acceptedSnapshot(f, accepted.id));
-  actual = f.detail(p.id);
-  assert.equal(actual.songs.length, 1);
-  assert.equal(actual.songs[0].data.songName, '修正歌名');
-  const corrected = actual.songs[0];
-  f.record(p.id, 'song', { ...corrected.data, excluded: true }, { id: corrected.id, revision: corrected.revision });
-  f.service.archiveAccepted(SCOPE, acceptedSnapshot(f, accepted.id));
-  assert.equal(f.detail(p.id).songs.length, 0, 'replay cannot resurrect a manually excluded association');
+  assert.deepEqual(f.detail(p.id).songs, actual.songs, 'the original queue callback cannot repeat a supplemented count');
+  const other = f.record(p.id, 'song', { songName: '虚构曲目 A', artist: '另一位歌手', category: '国语' });
+  assert.notEqual(other.id, supplemented.id);
+  assert.equal(f.detail(p.id).songs.length, 2, 'the same title by a different artist remains distinct');
 });
 
 test('A14/A15: accepted requests bind their captured scope and explicit identity namespace', (t) => {
@@ -234,97 +277,61 @@ test('A16: queue snapshots contain no profile private fields and queue completio
   assert.equal(snapshot.includes('INFP'), false);
   handleQueueAction(queue.context, 'done', item.id);
   const song = f.detail(p.id).songs[0];
-  assert.equal(song.data.state, '队列已处理');
-  assert.notEqual(song.data.state, '已唱');
+  assert.equal(Object.hasOwn(song.data, 'state'), false);
+  assert.equal(song.data.count, 1);
   assert.equal(f.detail(p.id).songs.length, 1);
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM queue').get().n, 0);
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM requests').get().n, 0);
 });
 
-test('queue completion preserves stable song evidence and manual corrections with distinct queue revisions', (t) => {
+test('queue completion preserves the aggregate and manual note without saving queue state or revisions', (t) => {
   const f = fanFixture(t);
   const p = f.create();
   const queue = music(f);
-  queue.add();
-  const initial = f.detail(p.id).songs[0];
-  assert.equal(initial.data.state, '已加入队列');
-  const corrected = f.record(
+  f.record(
     p.id,
     'song',
-    { songName: '人工修正歌名', artist: '人工修正歌手', category: '国语', note: '保留的人工说明', state: '已唱' },
-    { id: initial.id, revision: initial.revision, occurredAt: '2026-09-17T04:00:00Z' },
+    { songName: '虚构曲目 A', artist: '虚构歌手', category: '国语', note: '保留的人工说明' },
+    { occurredAt: '2026-09-17T04:00:00Z' },
   );
-  assert.equal(corrected.data.state, '已加入队列', 'manual corrections cannot replace the queue state');
-  assert.equal(corrected.revisions[0].source, 'manual');
+  const item = queue.add();
+  const callback = acceptedSnapshot(f, item.id);
+  const initial = f.detail(p.id).songs[0];
+  assert.equal(initial.data.count, 2);
   const changedAt = '2026-09-18T05:00:00.000Z';
   assert.equal(queue.context.store.completeNext(changedAt), true);
   const processed = f.detail(p.id).songs[0];
-  assert.equal(processed.id, initial.id);
-  assert.equal(processed.sourceKey, initial.sourceKey);
-  assert.deepEqual(processed.original, initial.original);
-  assert.equal(processed.occurredAt, corrected.occurredAt);
-  assert.deepEqual(processed.data, { ...corrected.data, state: '队列已处理' });
-  assert.deepEqual(processed.revisions.slice(0, 1), corrected.revisions);
-  assert.deepEqual(processed.revisions[1], {
-    changedAt,
-    source: 'queue',
-    before: { data: corrected.data, occurredAt: corrected.occurredAt },
-    after: { data: processed.data, occurredAt: processed.occurredAt },
-  });
-  assert.equal(processed.revision, corrected.revision + 1);
+  assert.deepEqual(processed, initial);
+  assert.equal(processed.data.note, '保留的人工说明');
+  assert.deepEqual(processed.original, {});
+  assert.deepEqual(processed.revisions, []);
   assert.equal(queue.context.store.completeNext(changedAt), false);
-  const editedAfterProcessing = f.record(
-    p.id,
-    'song',
-    { songName: '处理后再次修正', artist: '歌手' },
-    { id: processed.id, revision: processed.revision },
-  );
-  assert.equal(editedAfterProcessing.data.state, '队列已处理');
-  assert.deepEqual(editedAfterProcessing.original, initial.original);
-  assert.deepEqual(editedAfterProcessing.revisions.slice(0, 2), processed.revisions);
-  assert.equal(editedAfterProcessing.revisions[2].source, 'manual');
+  f.service.archiveAccepted(SCOPE, callback);
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM requests').get().n, 0);
   f.restart();
-  assert.equal(f.detail(p.id).songs[0].id, initial.id);
-  assert.equal(f.detail(p.id).songs[0].data.state, '队列已处理');
+  assert.deepEqual(f.detail(p.id).songs[0], initial);
 });
 
-test('setStatus tracks queue-only outcomes idempotently without resurrecting a manually excluded song', (t) => {
+test('terminal queue statuses and repeated callbacks cannot recount or recreate a removed request', (t) => {
   const f = fanFixture(t);
   const p = f.create();
   const queue = music(f);
-  const item = queue.add();
-  const initial = f.detail(p.id).songs[0];
-  for (const [status, state] of [
-    ['skipped', '已跳过'],
-    ['waiting', '已加入队列'],
-    ['done', '队列已处理'],
-    ['deleted', '已撤销／移除'],
-  ]) {
+  for (const [index, status] of ['skipped', 'done', 'deleted'].entries()) {
+    const item = queue.add();
+    const callback = acceptedSnapshot(f, item.id);
+    const initial = f.detail(p.id).songs[0];
     queue.context.store.setStatus(item.id, status, NOW);
-    const record = f.detail(p.id).songs[0];
-    assert.equal(record.data.state, state);
-    assert.equal(record.id, initial.id);
-    assert.deepEqual(record.original, initial.original);
-    assert.equal(record.revisions.at(-1).source, 'queue');
     queue.context.store.setStatus(item.id, status, NOW);
-    assert.deepEqual(f.detail(p.id).songs[0], record, 'repeating a queue state adds no duplicate revision');
+    queue.context.store.setStatus(item.id, 'waiting', NOW);
+    f.service.archiveAccepted(SCOPE, callback);
+    assert.deepEqual(f.detail(p.id).songs[0], initial);
+    assert.equal(initial.data.count, index + 1);
+    assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM queue').get().n, 0);
+    assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM requests').get().n, 0);
   }
-  const removed = f.detail(p.id).songs[0];
-  const excluded = f.record(
-    p.id,
-    'song',
-    { ...removed.data, excluded: true },
-    { id: removed.id, revision: removed.revision },
-  );
-  queue.context.store.setStatus(item.id, 'done', NOW);
-  const detail = f.detail(p.id);
-  assert.equal(detail.songs.length, 0);
-  const record = detail.records.find((value) => value.id === excluded.id);
-  assert.equal(record.data.excluded, true);
-  assert.equal(record.data.state, '队列已处理');
-  assert.deepEqual(record.original, initial.original);
-  assert.deepEqual(record.revisions.slice(0, -1), excluded.revisions);
 });
 
-test('clearActive archives removals for every active request while retaining completed records and statistics', (t) => {
+test('clearActive removes every active request while retaining all song totals and statistics', (t) => {
   const f = fanFixture(t);
   const p = f.create();
   const queue = music(f);
@@ -338,54 +345,44 @@ test('clearActive archives removals for every active request while retaining com
   assert.equal(after.songs.length, 3);
   assert.equal(after.musicStats.count, before.musicStats.count);
   assert.equal(queue.context.store.countActive(), 0);
-  for (const record of after.songs) {
-    const prior = before.songs.find((value) => value.id === record.id);
-    assert.equal(record.sourceKey, prior.sourceKey);
-    assert.deepEqual(record.original, prior.original);
-    if (record.data.songName === '已处理的曲目') assert.deepEqual(record, prior);
-    else {
-      assert.equal(record.data.state, '已撤销／移除');
-      assert.equal(record.revisions.at(-1).source, 'queue');
-    }
-  }
+  assert.deepEqual(after.songs, before.songs);
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM requests').get().n, 0);
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM queue').get().n, 0);
   assert.equal(queue.context.store.clearActive(NOW), 0);
   assert.deepEqual(f.detail(p.id).songs, after.songs);
 });
 
 for (const action of ['completeNext', 'setStatus', 'clearActive']) {
-  test(`${action} rolls back queue rows and all private revisions when a state callback fails`, (t) => {
+  test(`${action} rolls back queue and request removal without altering fan counts when deletion fails`, (t) => {
     const f = fanFixture(t);
     const p = f.create();
-    let calls = 0;
-    let shouldFail = true;
-    const queue = music(f, {
-      archiveQueueState: (...args) => {
-        calls++;
-        f.service.archiveQueueState(...args);
-        if (shouldFail && calls === (action === 'clearActive' ? 2 : 1)) throw new Error('forced state archive failure');
-      },
-    });
+    const queue = music(f);
     const first = queue.add();
-    queue.add({ songName: '第二首事务内曲目' });
+    const second = queue.add({ songName: '第二首事务内曲目' });
+    const failedId = action === 'clearActive' ? second.id : first.id;
+    f.db.songDb.exec(`CREATE TRIGGER fail_queue_removal BEFORE DELETE ON queue
+      WHEN OLD.id = ${failedId} BEGIN SELECT RAISE(ABORT, 'forced queue removal failure'); END;`);
     const rows = () => f.db.songDb.prepare('SELECT * FROM queue ORDER BY id').all();
     const beforeQueue = rows();
+    const beforeRequests = f.db.songDb.prepare('SELECT * FROM requests ORDER BY id').all();
     const beforeSongs = f.detail(p.id).songs;
     const apply = () =>
       action === 'setStatus'
         ? queue.context.store.setStatus(first.id, 'done', '2026-09-18T05:00:00Z')
         : queue.context.store[action]('2026-09-18T05:00:00Z');
-    assert.throws(apply, /forced state archive failure/);
-    assert.equal(calls, action === 'clearActive' ? 2 : 1);
+    assert.throws(apply, /forced queue removal failure/);
     assert.deepEqual(rows(), beforeQueue);
+    assert.deepEqual(f.db.songDb.prepare('SELECT * FROM requests ORDER BY id').all(), beforeRequests);
     assert.deepEqual(f.detail(p.id).songs, beforeSongs);
     assert.doesNotThrow(() => f.db.songDb.exec('BEGIN; ROLLBACK;'), 'failed status savepoint is released');
-    shouldFail = false;
+    f.db.songDb.exec('DROP TRIGGER fail_queue_removal');
     apply();
-    assert.ok(f.detail(p.id).songs.some((record) => record.data.state !== '已加入队列'));
+    assert.equal(rows().length, action === 'clearActive' ? 0 : 1);
+    assert.deepEqual(f.detail(p.id).songs, beforeSongs);
   });
 }
 
-test('queue state changes update only requests owned by the current streamer scope', (t) => {
+test('clearing shared queue rows leaves each streamer aggregate intact and ignores captured scope mismatches', (t) => {
   const f = fanFixture(t);
   const a = f.create();
   const bScope = JSON.stringify(['https://lira.example', 'streamer-b']);
@@ -393,20 +390,115 @@ test('queue state changes update only requests owned by the current streamer sco
   const b = f.create({}, bScope);
   music(f).add({ songName: '甲账号点歌' });
   const beforeA = f.detail(a.id).songs;
-  const calls = [];
-  const queueB = music(f, {
-    scope: bScope,
-    archiveQueueState: (...args) => {
-      calls.push(args);
-      f.service.archiveQueueState(...args);
-    },
-  });
+  const queueB = music(f, { scope: bScope });
   queueB.add({ songName: '乙账号点歌' });
   queueB.add({ songName: '归属不匹配的延迟请求', fanScope: SCOPE });
-  const bSong = f.detail(b.id, bScope).songs[0];
+  const beforeB = f.detail(b.id, bScope).songs;
   assert.equal(queueB.context.store.clearActive(NOW), 3);
   assert.deepEqual(f.detail(a.id).songs, beforeA);
-  assert.equal(f.detail(b.id, bScope).songs.length, 1);
-  assert.equal(f.detail(b.id, bScope).songs[0].data.state, '已撤销／移除');
-  assert.deepEqual(calls, [[bScope, bSong.original.stableId, 'deleted', NOW]]);
+  assert.equal(beforeB.length, 1);
+  assert.deepEqual(f.detail(b.id, bScope).songs, beforeB);
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM requests').get().n, 0);
+});
+
+test('song statistics cover today and the previous 29 Shanghai dates with an exact midnight boundary', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  f.setNow('2026-10-12T16:00:00.000Z');
+  const queue = music(f);
+  for (const createdAt of [
+    '2026-09-13T15:59:59.999Z', // Shanghai September 13: outside the 30-day window.
+    '2026-09-13T16:00:00.000Z', // Shanghai September 14: the first included date.
+    '2026-10-12T15:59:59.999Z',
+    '2026-10-12T16:00:00.000Z',
+  ]) queue.add({ createdAt });
+  const detail = f.detail(p.id);
+  assert.equal(detail.musicStats.days, 30);
+  assert.equal(detail.musicStats.count, 3);
+  assert.equal(detail.songs[0].data.count, 4);
+  assert.deepEqual(detail.songs[0].data.recentDates, ['2026-10-13', '2026-10-12', '2026-09-14']);
+  assert.deepEqual(detail.songs[0].data.dailyCounts, [
+    { date: '2026-09-14', category: '粤语', count: 1 },
+    { date: '2026-10-12', category: '粤语', count: 1 },
+    { date: '2026-10-13', category: '粤语', count: 1 },
+  ]);
+});
+
+test('expired daily counts are removed while lifetime count, recent dates and manual notes survive', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  for (const day of ['16', '17', '18']) {
+    f.record(p.id, 'song', { songName: '往日曲目', artist: '歌手', category: '国语', note: '手工备注' },
+      { occurredAt: `2026-09-${day}T04:00:00Z` });
+  }
+  assert.equal(f.detail(p.id).musicStats.count, 3);
+  f.setNow('2026-10-18T04:00:00Z');
+  const detail = f.detail(p.id);
+  assert.equal(detail.musicStats.count, 0);
+  assert.equal(detail.songs[0].data.count, 3);
+  assert.deepEqual(detail.songs[0].data.recentDates, ['2026-09-18', '2026-09-17', '2026-09-16']);
+  assert.equal(detail.songs[0].data.note, '手工备注');
+  assert.deepEqual(detail.songs[0].data.dailyCounts, []);
+  const persisted = f.db.songDb.prepare("SELECT data FROM fan_records WHERE kind = 'song'").get();
+  assert.deepEqual(JSON.parse(persisted.data).dailyCounts, [], 'expiry compacts persisted state rather than only hiding rows');
+  f.restart();
+  assert.deepEqual(f.detail(p.id).songs, detail.songs);
+});
+
+test('legacy song compaction keeps exclusion decisions and notes while discarding per-request evidence', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
+  const insert = f.db.songDb.prepare(`INSERT INTO fan_records
+    (id, scope, profile_id, kind, source_key, occurred_at, data, original, revisions, revision)
+    VALUES (?, ?, ?, 'song', ?, ?, ?, ?, ?, 2)`);
+  for (const [index, fields] of [
+    { category: '粤语' },
+    { category: '国语', excludeFromStats: true, note: '保留旧备注' },
+    { category: '流行', excluded: true },
+    { category: '摇滚', source: 'random:摇滚' },
+  ].entries()) {
+    const data = { songName: '旧曲目', artist: '旧歌手', note: '', ...fields };
+    insert.run(`legacy-song-${index}`, SCOPE, p.id, `request:legacy-${index}`, NOW,
+      JSON.stringify(data), JSON.stringify({ source: fields.source || 'danmaku', message: '旧逐次弹幕证据' }),
+      JSON.stringify([{ before: { data }, after: { data }, changedAt: NOW, source: 'manual' }]));
+  }
+  migrateFanSongRetention(f.db.songDb);
+  const detail = f.detail(p.id);
+  assert.equal(detail.songs.length, 1);
+  assert.equal(detail.songs[0].data.count, 2, 'excluded and random entries never contribute to the lifetime total');
+  assert.equal(detail.musicStats.count, 1, 'the legacy statistics exclusion still applies');
+  assert.deepEqual({ ...detail.musicStats.categories }, { 粤语: 1 });
+  assert.equal(detail.songs[0].data.note, '保留旧备注');
+  assert.deepEqual(detail.songs[0].original, {});
+  assert.deepEqual(detail.songs[0].revisions, []);
+  assert.equal(JSON.stringify(detail.songs).includes('旧逐次弹幕证据'), false);
+  migrateFanSongRetention(f.db.songDb);
+  assert.deepEqual(f.detail(p.id).songs, detail.songs, 'repeated migration preserves the same summary');
+});
+
+test('repeated songs keep one fixed-shape aggregate instead of a growing request or revision history', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const queue = music(f);
+  const size = () => f.db.songDb.prepare(`SELECT COUNT(*) AS rows,
+    SUM(LENGTH(data) + LENGTH(original) + LENGTH(revisions)) AS bytes FROM fan_records WHERE kind = 'song'`).get();
+  let baseline;
+  for (let i = 0; i < 1000; i++) {
+    queue.add();
+    queue.context.store.clearActive(NOW);
+    if (i === 99) baseline = size();
+  }
+  const finalSize = size();
+  assert.equal(finalSize.rows, 1);
+  assert.ok(finalSize.bytes - baseline.bytes <= 12, 'only the counter digits need more storage');
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM requests').get().n, 0);
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM queue').get().n, 0);
+  const song = f.detail(p.id).songs[0];
+  assert.equal(song.data.count, 1000);
+  assert.deepEqual(song.data.recentDates, ['2026-09-18']);
+  assert.deepEqual(song.data.dailyCounts, [{ date: '2026-09-18', category: '粤语', count: 1000 }]);
+  assert.deepEqual(song.original, {});
+  assert.deepEqual(song.revisions, []);
+  assert.equal(Object.hasOwn(song.data, 'state'), false);
 });

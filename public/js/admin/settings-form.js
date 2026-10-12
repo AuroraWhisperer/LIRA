@@ -1,6 +1,7 @@
 'use strict';
 
 import { eventBus, Events } from '../shared/event-bus.js';
+import { renderSongCooldownControls } from './song-cooldown-settings.js';
 
 export function createSettingsForm({
   documentRef,
@@ -82,6 +83,7 @@ export function createSettingsForm({
     const markRequestSettingDirty = ({ target }) => {
       target.dataset.preserveDirty = 'true';
       target.dataset.dirty = 'true';
+      if (target.id === 'songCooldownMode') renderSongCooldownControls(documentRef);
     };
     songRequestForm.addEventListener('input', markRequestSettingDirty);
     songRequestForm.addEventListener('change', markRequestSettingDirty);
@@ -91,6 +93,8 @@ export function createSettingsForm({
         paused: value('paused'),
         queueLimit: value('queueLimit'),
         userCooldownSeconds: value('userCooldownSeconds'),
+        songCooldownMode: value('songCooldownMode'),
+        songCooldownValue: value('songCooldownValue'),
         onlyFromLibrary: value('onlyFromLibrary'),
         allowDuplicate: value('allowDuplicate'),
         songRequestBlacklist: value('songRequestBlacklist'),

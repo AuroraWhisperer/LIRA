@@ -26,30 +26,35 @@ function createGiftMaintenanceStore(giftDb) {
       return { deletedGifts: 0, ignoredSettlements: 0 };
     }
 
-    const placeholders = giftEventIds.map(() => '?').join(',');
-
     giftDb.exec('BEGIN IMMEDIATE');
     try {
-      // 停止待结算记录的重试，保留 applied/ignored 记录用于审计。
-      const pendingCount = giftDb
-        .prepare(
-          `
+      let pendingCount = 0;
+      let deletedCount = 0;
+      // Bound each statement's parameters while keeping all batches atomic.
+      for (let offset = 0; offset < giftEventIds.length; offset += 1000) {
+        const ids = giftEventIds.slice(offset, offset + 1000);
+        const placeholders = ids.map(() => '?').join(',');
+        // 停止待结算记录的重试，保留 applied/ignored 记录用于审计。
+        pendingCount += giftDb
+          .prepare(
+            `
         UPDATE overtime_settlements
         SET status = 'ignored', rule_mode = 'ignored', settle_after_ms = 0,
             last_error = ?, updated_at = ?
         WHERE gift_event_id IN (${placeholders})
           AND status = 'pending'
       `,
-        )
-        .run(reason, updatedAt, ...giftEventIds).changes;
+          )
+          .run(reason, updatedAt, ...ids).changes;
 
-      const deletedCount = giftDb
-        .prepare(
-          `
+        deletedCount += giftDb
+          .prepare(
+            `
         DELETE FROM gift_events WHERE id IN (${placeholders})
       `,
-        )
-        .run(...giftEventIds).changes;
+          )
+          .run(...ids).changes;
+      }
 
       giftDb.exec('COMMIT');
       return { deletedGifts: deletedCount, ignoredSettlements: pendingCount };

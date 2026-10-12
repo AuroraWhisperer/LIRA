@@ -191,6 +191,11 @@ function createDynamicLotteryService({
       if (existing.rules.inputSignature !== signature) throw lotteryError('LOTTERY_DRAW_CONFLICT');
       return getState({ taskId: existing.id });
     }
+    const receipt = store.findCreateReceipt(scope.streamerId, input.requestId);
+    if (receipt) {
+      if (receipt.inputSignature !== signature) throw lotteryError('LOTTERY_DRAW_CONFLICT');
+      throw lotteryError('LOTTERY_TASK_CLEARED');
+    }
     if (active?.requestId === input.requestId && sameIdentity(active.identity, scope)) {
       if (active.signature !== signature) throw lotteryError('LOTTERY_DRAW_CONFLICT');
       return getState();

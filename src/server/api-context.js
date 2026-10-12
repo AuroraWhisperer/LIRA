@@ -4,6 +4,7 @@ const { clearMusicCache, getMusicCacheStats } = require('../music/music-cache');
 const { createUnavailableGiftSaleCatalogService } = require('../bilibili/gift/sale-catalog');
 const lifecycle = require('./lifecycle');
 const systemMetrics = require('./system-metrics');
+const { isAiReady } = require('../ai/config');
 
 function createApiContext(options) {
   const {
@@ -136,7 +137,15 @@ function createApiContext(options) {
     },
     ai: {
       getConfig: () => ai.configStore.getPublicConfig(),
-      updateConfig: (input) => ai.configStore.updateConfig(input),
+      updateConfig(input) {
+        const before = ai.configStore.getConfig();
+        const result = ai.service.updateConfig(input);
+        const after = ai.configStore.getConfig();
+        const previousCommand = isAiReady(before) ? before.trigger : null;
+        const nextCommand = isAiReady(after) ? after.trigger : null;
+        if (previousCommand !== nextCommand) requestCloudSync?.('settings');
+        return result;
+      },
       importPersona: (input) => ai.configStore.importPersona(input),
       createPersona: (input) => ai.configStore.createPersona(input),
       updatePersona: (input) => ai.configStore.updatePersona(input),

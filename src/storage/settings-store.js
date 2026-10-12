@@ -35,6 +35,8 @@ function bootstrapSettingsStore(db) {
     const styleVersion = read.get('queueStyleSettingsVersion')?.value;
     const songSpeedVersion = read.get('songScrollSpeedRangeVersion')?.value;
     const songSpeed = read.get('scrollSeconds');
+    // Migrate only persisted legacy fonts, before inserting current defaults.
+    settingsMigrations.migrateQueueFontSizeSettings(db, fontSizeVersion);
     const settingsStore = createSettingsStore(db);
     settingsMigrations.migrateQueueScrollSpeedSetting(db, queueSpeedVersion);
     if (!songSpeed && !songSpeedVersion) {
@@ -43,9 +45,7 @@ function bootstrapSettingsStore(db) {
     } else {
       settingsMigrations.migrateSongScrollSpeedSetting(db, songSpeedVersion);
     }
-    settingsMigrations.migrateQueueFontSizeSettings(db, fontSizeVersion);
     settingsMigrations.migrateQueueStyleSettings(db, styleVersion);
-    settingsMigrations.migrateSongBoardFontSizeSetting(db);
     settingsMigrations.clearLegacyIdentityRuleDefaults(db);
     settingsMigrations.migrateBlindBoxConfig(db);
     settingsStore.setSetting('openingEnabled', 'false');
@@ -84,6 +84,7 @@ function createSettingsStore(db) {
   }
 
   let cache = null;
+  let roomRevision = 0;
   const cloudSync = createCloudSettingsSyncStore(db);
   const writeSetting = db.prepare(`
     INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
@@ -124,6 +125,7 @@ function createSettingsStore(db) {
       throw error;
     }
     cache = null;
+    if (changes.some(([key]) => key === 'roomId')) roomRevision += 1;
     return changes.map(([key]) => key);
   }
 
@@ -133,12 +135,14 @@ function createSettingsStore(db) {
     },
 
     getSettings,
+    getRoomRevision: () => roomRevision,
     getPendingCloudSettings: cloudSync.readPending,
     acknowledgePendingCloudSettings: cloudSync.acknowledge,
 
     prepareCloudRoomAccount(accountKey) {
       const owner = db.prepare('SELECT value FROM settings WHERE key = ?').get(CLOUD_ROOM_ACCOUNT_KEY)?.value;
       if (owner === accountKey) return false;
+      const previousRoomId = getSettings().roomId;
       // Ownership and detachment must survive a crash as one change.
       db.exec('BEGIN IMMEDIATE');
       try {
@@ -150,6 +154,7 @@ function createSettingsStore(db) {
         throw error;
       }
       cache = null;
+      if (previousRoomId) roomRevision += 1;
       return true;
     },
 

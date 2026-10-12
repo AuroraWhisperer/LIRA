@@ -97,6 +97,8 @@ const {
   getBilibiliCookieHeader,
   getBilibiliUid,
   getBilibiliSessionRevision,
+  getBilibiliRequestIdentity,
+  getBilibiliIdentityRevision,
   restoreBilibiliCookieSnapshot,
   replaceBilibiliCookieHeader,
   loginBilibiliAccount,
@@ -445,6 +447,8 @@ async function startDesktopApp() {
       getCookieHeader: getBilibiliCookieHeader,
       getUid: getBilibiliUid,
       getSessionRevision: getBilibiliSessionRevision,
+      getRequestIdentity: getBilibiliRequestIdentity,
+      getIdentityRevision: getBilibiliIdentityRevision,
     },
     giftSync: {
       cardProfiles: (request) => {
@@ -541,6 +545,7 @@ async function startDesktopApp() {
     licenseManager,
     getCloudSyncController: () => cloudSyncController,
     onOverlaySettings: (update) => lifecycleState.runtime.receiveSceneCloudSettings(update),
+    onFixedReplySettings: (settings, revision) => lifecycleState.runtime.applyCloudFixedReplySettingsSnapshot(settings, revision),
     giftCatalog: {
       getState: () => lifecycleState.runtime.getGiftCatalogInitializationState(),
       initialize: () =>

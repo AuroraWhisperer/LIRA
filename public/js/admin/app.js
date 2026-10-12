@@ -42,11 +42,27 @@ import { setComponentPreviewPreparation, getComponentPreviews } from './componen
 import { waitForServerOverlayUrlInitialization } from './server-overlay-url.js';
 import { prepareComponentPreviewCanvas } from './component-preview-canvas-controller.js';
 
+let toolboxRecovery = null;
+function recoverToolboxInitialization(error) {
+  if (toolboxRecovery) return toolboxRecovery;
+  toolboxRecovery = Utils.showConfirmationDialog({
+    variant: 'caution',
+    title: '功能加载未完成',
+    message: `${error.message || String(error)}\n\n请重新加载管理页后重试。尚未保存的编辑会丢失。`,
+    confirmLabel: '重新加载管理页',
+    cancelLabel: '暂不重载',
+  }).then((confirmed) => {
+    if (confirmed) window.location.reload();
+  }).finally(() => { toolboxRecovery = null; });
+  return toolboxRecovery;
+}
+
 const toolbox = createToolboxLifecycle({
   loaders: {
     otherGamesFeature: () => import('./games.js').then((module) => module.initGames),
   },
   onError: Utils.showError,
+  onInitError: recoverToolboxInitialization,
 });
 const liveComponentsNavigation = createFeatureNavigation({
   pageId: 'liveComponentsPage',
@@ -72,6 +88,7 @@ const liveComponents = createToolboxLifecycle({
       import('./overtime.js').then((module) => () => module.initOvertime(stateService.getAppState())),
   },
   onError: Utils.showError,
+  onInitError: recoverToolboxInitialization,
 });
 window.addEventListener('beforeunload', () => {
   toolbox.dispose();

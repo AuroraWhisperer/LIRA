@@ -104,6 +104,7 @@ test('guide chapters own their migrated content and every internal link has one 
     'ug-danmaku': 'ug-scene-guide',
     'ug-obs': 'ug-scene-guide',
     'ug-fan-archive': 'ug-work',
+    'ug-fan-music': 'ug-work',
     'ug-fan-backup': 'ug-maintenance',
     'ug-glossary': 'ug-maintenance',
     'ug-feedback': 'ug-faq',

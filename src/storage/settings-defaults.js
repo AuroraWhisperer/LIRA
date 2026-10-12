@@ -57,6 +57,8 @@ const DEFAULT_SETTINGS = {
   allowCompactRequest: 'true',
   onlyFromLibrary: 'false',
   allowDuplicate: 'true',
+  songCooldownMode: 'off',
+  songCooldownValue: '1',
   songRequestBlacklist: '',
   enableRandomTagReply: 'true',
   enableCheckinBot: 'true',

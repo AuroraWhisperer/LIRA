@@ -18,14 +18,16 @@ export class ImportService {
   /**
    * 从点歌队列导入歌曲
    * @param {Object} options - 选项
-   * @returns {Promise<Object>} 导入结果 {imported, pending, skipped, tracks}
+   * @returns {Promise<Object|null>} 导入结果 {imported, pending, skipped, tracks}，过时导入返回 null
    */
   async importFromSongQueue(options = {}) {
     const maxItems = options.maxItems || 30;
     const platforms = options.platforms || [];
+    const isCurrent = options.isCurrent || (() => true);
 
     // 获取点歌队列
     const queueData = await this.fetchSongQueue();
+    if (!isCurrent()) return null;
     if (!queueData || !queueData.items || queueData.items.length === 0) {
       this.toast('点歌队列为空');
       return {
@@ -61,7 +63,9 @@ export class ImportService {
 
     for (const item of items) {
       try {
-        const result = await this.processQueueItem(item, platforms);
+        if (!isCurrent()) return null;
+        const result = await this.processQueueItem(item, platforms, isCurrent);
+        if (!isCurrent()) return null;
 
         if (result.type === 'imported') {
           importedTracks.push(result.track);
@@ -114,16 +118,17 @@ export class ImportService {
    * @private
    * @param {Object} item - 点歌项
    * @param {Array} platforms - 平台列表
+   * @param {Function} isCurrent - 当前导入是否仍有效
    * @returns {Promise<Object>} {type: 'imported'|'pending'|'skipped', track?: Object}
    */
-  async processQueueItem(item, platforms) {
+  async processQueueItem(item, platforms, isCurrent = () => true) {
     if (!this.matchService) {
       throw new Error('MatchService not initialized');
     }
 
     const matched = await this.matchService.matchQueueItem(item, platforms);
 
-    if (!matched) {
+    if (!isCurrent() || !matched) {
       return { type: 'skipped' };
     }
 

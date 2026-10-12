@@ -114,7 +114,14 @@ test('notification subscriptions retain failed-publication consumers then advanc
   await openSubscribed(f);
   const old = f.page.frames().find(frame => new URL(frame.url()).pathname === '/queue');
   await f.page.route('**/clock?*', route => route.fulfill({ contentType: 'text/html',
-    body: '<script>parent.postMessage({ type: "component-preview:status" }, "*");</script>' }));
+    body: `<script>
+      addEventListener('message', ({ data }) => {
+        if (data.type === 'component-preview:init') parent.postMessage({
+          type: 'component-preview:status', configuration: data.configuration,
+        }, '*');
+      });
+      parent.postMessage({ type: 'component-preview:ready' }, '*');
+    </script>` }));
   const next = f.service.save({ id: f.source.id, expectedRevision: f.saved.revision,
     document: { ...f.saved.document, items: [f.item('clock')] } });
   f.service.publish({ id: f.source.id, expectedRevision: next.revision });

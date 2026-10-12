@@ -30,6 +30,19 @@ function textParser() {
   return loadSongImportParser().parseTable;
 }
 
+test('legacy and previewed imports return their counts without accumulating unused batch rows', (t) => {
+  const { db, store, preview, apply } = fixture(t);
+  assert.deepEqual(store.importRows([{ name: '重复导入', artist: '', categoryName: '默认' }]), {
+    inserted: 1, duplicate: 0, createdCategories: 1,
+  });
+  assert.equal(store.importRows([{ name: '重复导入', artist: '' }]).duplicate, 1);
+  const input = { rows: [{ name: '重复导入', artist: '', tags: '新标签' }, { name: '新增歌曲' }] };
+  const result = apply(input, preview(input));
+  assert.equal(result.inserted, 1);
+  assert.equal(result.updated, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM import_batches').get().n, 0);
+});
+
 test('replacement uses the complete table, clears old fields and preserves matched IDs and request history', (t) => {
   const { db, store, save, preview, apply } = fixture(t);
   db.exec('PRAGMA foreign_keys = ON');

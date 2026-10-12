@@ -6,7 +6,7 @@
     <div class="danmaku-welcome-rules">
       <div class="danmaku-welcome-rule">
         <div class="danmaku-welcome-rule-heading">
-          <strong>首次欢迎<lira-help label="首次欢迎规则">0 秒表示进场后立即处理，0 级表示等级不限。先开启进场欢迎，再按需开启二次问候或重点关注。</lira-help></strong>
+          <strong>首次欢迎<lira-help label="首次欢迎规则">0 秒表示进场后立即处理，0 级表示等级不限。先开启进场欢迎，再按需开启二次问候、重点关注或久别重逢。</lira-help></strong>
         </div>
         <div class="danmaku-welcome-rule-controls">
           <label class="danmaku-welcome-field"
@@ -86,7 +86,7 @@
       </div>
       <div class="danmaku-welcome-rule danmaku-welcome-rule-attention">
         <div class="danmaku-welcome-rule-heading">
-          <strong><span id="danmakuWelcomeAttentionTitle">重点关注</span><lira-help label="重点关注规则">达到此荣耀等级后，换用高荣耀欢迎词库和问候词库，仍需满足对应阶段的条件。</lira-help></strong>
+          <strong><span id="danmakuWelcomeAttentionTitle">重点关注</span><lira-help label="重点关注规则">达到此荣耀等级后，换用高荣耀欢迎词库和问候词库，仍需满足对应阶段的条件。首次欢迎优先使用个人文案，其次是符合条件的久别重逢文案。</lira-help></strong>
           <label class="switch-control"
             ><input
               id="danmakuWelcomeAttentionToggle"
@@ -114,6 +114,22 @@
             <button class="secondary" type="button" data-welcome-library="attentionWelcomeMessages">
               高荣耀词库
             </button>
+          </div>
+        </div>
+      </div>
+      <div class="danmaku-welcome-rule">
+        <div class="danmaku-welcome-rule-heading">
+          <strong><span id="danmakuWelcomeReturningTitle">久别重逢</span><lira-help label="久别重逢规则">距离上次记录的进场超过 24 小时，在首次欢迎中加上没来的天数和随机客套话。天数按完整 24 小时计算，首次记录不提示天数。个人欢迎词优先；仍遵守首次欢迎的荣耀门槛、延时和发送限制。只依据服务器监控收到的进场记录。</lira-help></strong>
+          <label class="switch-control">
+            <input id="danmakuWelcomeReturningToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomeReturningTitle" aria-describedby="danmakuWelcomeEnableHint" />
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div class="danmaku-welcome-rule-controls">
+          <p class="danmaku-welcome-returning-summary">超过 1 天没来，在欢迎后捎上一句问候。</p>
+          <p id="danmakuWelcomeReturningCapability" class="hint" role="status" hidden>更新服务器后可设置久别重逢。</p>
+          <div class="danmaku-welcome-rule-library">
+            <button id="danmakuWelcomeReturningLibraryBtn" class="secondary" type="button" data-welcome-library="returningMessages" disabled>重逢客套话词库</button>
           </div>
         </div>
       </div>
@@ -150,15 +166,17 @@
   </div>
   <div id="danmakuWelcomeLibraries" hidden>
     <div class="danmaku-welcome-library-heading">
-      <span class="danmaku-welcome-library-label"><label for="danmakuWelcomeLibraryKind">通用词库</label><lira-help label="词库文案说明">{username} 代表观众昵称，没填也会自动补上。舰长、提督、总督头衔会放在昵称前。内容太长时，会保留完整昵称，改用短句。</lira-help></span>
+      <span class="danmaku-welcome-library-label"><label for="danmakuWelcomeLibraryKind">通用词库</label><lira-help id="danmakuWelcomeTemplateHelp" label="词库文案说明">{username} 代表观众昵称，没填也会自动补上。舰长、提督、总督头衔会放在昵称前。内容太长时，会保留完整昵称，改用短句。</lira-help></span>
       <select id="danmakuWelcomeLibraryKind">
         <option value="messages">欢迎词库</option>
         <option value="greetingMessages">问候词库</option>
         <option value="attentionWelcomeMessages">高荣耀欢迎词库</option>
         <option value="attentionGreetingMessages">高荣耀问候词库</option>
+        <option id="danmakuWelcomeReturningLibraryOption" value="returningMessages" disabled>重逢客套话词库</option>
       </select>
       <span id="danmakuWelcomeCount" class="hint">未读取</span>
     </div>
+    <p id="danmakuWelcomeReturningLibraryHint" class="hint" hidden>只填写后半句客套话，昵称和天数会自动加上。例如：欢迎 小明，3天没来啦，最近过得怎么样呀？内容太长时会先省略客套话。</p>
     <div id="danmakuWelcomeLibraryDrafts" class="hint" role="status"></div>
     <div id="danmakuWelcomeList" class="danmaku-blessing-list" aria-live="polite"></div>
     <div id="danmakuWelcomePagination" class="danmaku-library-pagination" hidden>

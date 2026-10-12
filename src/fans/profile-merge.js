@@ -30,7 +30,7 @@ function createFanMergeService({ store, now, detail, requireProfile }) {
       scope,
       {
         format: 'lira-fan-profiles',
-        version: 1,
+        version: 2,
         scope,
         exportedAt: at,
         reason: '合并未绑定草稿之前',
@@ -49,7 +49,7 @@ function createFanMergeService({ store, now, detail, requireProfile }) {
     }
     mergedProfile.merges = [...(mergedProfile.merges || []), { sourceId: plan.source.id, mergedAt: at, snapshotId }];
     store.save(scope, mergedProfile, identityKey(mergedProfile.identity), at);
-    store.moveRecords(scope, plan.source.id, plan.target.id);
+    store.moveRecords(scope, plan.source.id, plan.target.id, at);
     const targetStates = new Map(store.states(scope, plan.target.id).map((item) => [item.key, item]));
     for (const state of store.states(scope, plan.source.id)) {
       const prior = targetStates.get(state.key);

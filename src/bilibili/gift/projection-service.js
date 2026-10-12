@@ -41,6 +41,7 @@ function createGiftProjectionService({ store, settings }, options = {}) {
     const capturedSourceId = requireRemoteSource(store, sourceId);
     const event = canonicalizeProcessedGiftEvent(input);
     const platformId = `lira-server:${event.eventId}`;
+    if (store.hasReceipt?.(capturedSourceId, platformId)) return null;
     let row = store.findEvent(capturedSourceId, platformId, REMOTE_GIFT_COMMAND);
     if (
       row &&

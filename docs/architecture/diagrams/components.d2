@@ -7,22 +7,22 @@ direction: down
 
 renderer: {
   label: "Electron renderer\nAdmin · 播放助手"
-  link: ../frontend/pages.md
+  link: ../../reference/frontend/pages.md
   style.fill: "#fef9e7"
 }
-bridge: {label: "Renderer preload · contextBridge\n受限 IPC 交给 main 校验来源"; link: ../desktop/preload.md}
+bridge: {label: "Renderer preload · contextBridge\n受限 IPC 交给 main 校验来源"; link: ../../reference/desktop/preload.md}
 desktop: {
   label: "Electron main · 同进程内嵌本地模块化单体"
   style.fill: "#eaf2f8"
-  main: {label: "主进程远端控制器\n设备会话 · SSE / pull / history 恢复"; link: ../desktop/main.md}
+  main: {label: "主进程远端控制器\n设备会话 · SSE / pull / history 恢复"; link: ../../reference/desktop/main.md}
   backend: {
     label: "本地 Node HTTP 运行时 · 环回监听"
     style.fill: "#f8f9f9"
-    transport: {label: "本地 HTTP / WebSocket\n管理凭据与展示 scope 分离"; link: ../backend/server-core.md}
-    bili: {label: "本地 Bilibili 输入\n弹幕 · 点歌 · SC · 用户信息 · 互动"; link: ../backend/bilibili/danmaku.md}
-    local: {label: "本地领域服务\n音乐 / 队列 / 互动 / 加班机"; link: ../backend/music/services.md}
-    projection: {label: "本地礼物投影与幂等消费\n无本地原始礼物检测器"; link: ../backend/bilibili/gift.md}
-    store: {label: "客户端 SQLite\n本地业务数据 · 按来源隔离的礼物投影"; shape: cylinder; link: ../backend/storage.md}
+    transport: {label: "本地 HTTP / WebSocket\n管理凭据与展示 scope 分离"; link: ../../reference/backend/server-core.md}
+    bili: {label: "本地 Bilibili 输入\n弹幕 · 点歌 · SC · 用户信息 · 互动"; link: ../../reference/backend/bilibili/danmaku.md}
+    local: {label: "本地领域服务\n音乐 / 队列 / 互动 / 加班机"; link: ../../reference/backend/music/services.md}
+    projection: {label: "本地礼物投影与幂等消费\n无本地原始礼物检测器"; link: ../../reference/backend/bilibili/gift.md}
+    store: {label: "客户端 SQLite\n本地业务数据 · 按来源隔离的礼物投影"; shape: cylinder; link: ../../reference/backend/storage.md}
   }
 }
 server: {
@@ -32,7 +32,7 @@ server: {
   domains: {label: "权威礼物检测与账本\n云端签到 / 抽签及其他机器人"}
   store: {label: "服务器持久化\n主播私有状态 / 全局共享目录"; shape: cylinder}
 }
-obs: {label: "直播展示页\n用途与入口见页面清单"; link: ../frontend/pages.md; style.fill: "#fef9e7"}
+obs: {label: "直播展示页\n用途与入口见页面清单"; link: ../../reference/frontend/pages.md; style.fill: "#fef9e7"}
 bilibili: {label: "Bilibili\n直播 HTTP / WebSocket"; style.fill: "#f4ecf7"}
 
 renderer -> bridge: "受限桥方法"

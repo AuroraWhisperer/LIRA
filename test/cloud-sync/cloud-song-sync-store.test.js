@@ -5,8 +5,8 @@ const test = require('node:test');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
-const { openSqliteDatabase } = require('../../src/storage/database');
+const { openSqliteDatabase, createDatabases, closeDatabases } = require('../../src/storage/database');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
 const { createSettingsStore } = require('../../src/storage/settings-store');
@@ -19,10 +19,11 @@ const { previewSongImport, applySongImport } = require('../../src/music/song-imp
 const ACCOUNT_A = JSON.stringify(['https://api.example.test', 'first', 1]);
 const ACCOUNT_B = JSON.stringify(['https://api.example.test', 'second', 2]);
 
-function fixture(t, filename = ':memory:') {
-  const db = new DatabaseSync(filename);
-  db.exec(SONG_SCHEMA);
-  t.after(() => db.close());
+function fixture(t) {
+  const directory = createScratchDirectory('cloud-song-sync-');
+  const databases = createDatabases({ dataDir: directory });
+  const db = databases.songDb;
+  t.after(() => { closeDatabases(databases); removeScratchDirectory(directory); });
   const settings = createSettingsStore(db);
   const songs = createSongStore(db);
   const pending = createCloudSongSyncStore(db);

@@ -71,7 +71,7 @@ export function initDanmakuDailyBots({
         saved = response.data;
         stale = false;
       }
-      overall.textContent = '开启后在云端运行，关闭客户端也不影响。';
+      overall.textContent = '关键词回复与点歌回复需客户端在线，其余功能在云端运行。';
       if (action === 'update') {
         const name = payload.kind === 'checkin' ? '签到机器人' : '抽签机器人';
         toast(`${name}已${saved[payload.kind].enabled ? '开启' : '关闭'}`);

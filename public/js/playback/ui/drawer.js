@@ -20,6 +20,7 @@ export class Drawer {
     this.backBtn = null;
     this.refreshBtn = null;
     this.history = [];
+    this.returnFocus = null;
   }
 
   /**
@@ -34,6 +35,7 @@ export class Drawer {
     this.actionsEl = document.getElementById('playbackDrawerActions');
     this.backBtn = document.getElementById('playbackDrawerBack');
     this.refreshBtn = document.getElementById('playbackDrawerRefresh');
+    if (this.drawer) this.drawer.inert = true;
   }
 
   /**
@@ -43,6 +45,10 @@ export class Drawer {
    * @param {boolean} loading - 是否显示加载状态
    */
   open(title, subtitle, loading = false, loadingHint = '') {
+    if (this.drawer?.inert) {
+      this.returnFocus = document.activeElement;
+      this.drawer.inert = false;
+    }
     this.drawer?.classList.add('open');
     this.backdrop?.classList.add('open');
 
@@ -62,9 +68,16 @@ export class Drawer {
    * 关闭抽屉
    */
   close() {
+    const restoreFocus = this.drawer?.contains(document.activeElement) || document.activeElement === document.body;
+    if (this.drawer) this.drawer.inert = true;
     this.drawer?.classList.remove('open');
     this.backdrop?.classList.remove('open');
     this.history = [];
+    if (restoreFocus && this.returnFocus?.isConnected && !this.returnFocus.disabled &&
+        !this.returnFocus.closest('[inert], [hidden]')) {
+      this.returnFocus.focus({ preventScroll: true });
+    }
+    this.returnFocus = null;
 
     // 取消卡片高亮
     document.querySelectorAll('[data-playback-home-action]').forEach((btn) => {

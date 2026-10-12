@@ -249,6 +249,27 @@ test('V2 user welcome IPC preserves capability absence and validates exact UID p
   assert.deepEqual(writes[2], { enabled: true });
 });
 
+test('returning welcome IPC preserves old capability absence and validates the new pair', async () => {
+  const writes = [];
+  let reply = { ...v2Settings, enabled: true, returningEnabled: false, returningMessages: ['最近好吗？'] };
+  const { handlers, event } = registerWelcomeIpc({
+    getWelcomeSettingsV2: async () => reply,
+    updateWelcomeSettingsV2: async (patch) => { writes.push(patch); return { ...reply, ...patch }; },
+  });
+  const read = handlers.get('license:get-welcome-settings-v2');
+  const write = handlers.get('license:update-welcome-settings-v2');
+  assert.equal((await read(event)).returningEnabled, false);
+  assert.equal((await write(event, { returningEnabled: true })).returningEnabled, true);
+  assert.deepEqual((await write(event, { returningMessages: [' 欢迎回来～ '] })).returningMessages, ['欢迎回来～']);
+  for (const patch of [{ returningEnabled: 1 }, { returningMessages: [] }, { returningMessages: ['x\ny'] }])
+    assert.match((await write(event, patch)).error, /^INVALID_WELCOME_/);
+  assert.equal(writes.length, 2);
+  reply = { ...v2Settings, returningEnabled: false };
+  assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+  reply = { ...v2Settings };
+  assert.equal(Object.hasOwn(await read(event), 'returningEnabled'), false);
+});
+
 test('V2 reads fall back only on an explicit 404, never on malformed success/auth/network or any write', async () => {
   let error = new RemoteLicenseError('HTTP_404', '', { status: 404 });
   let legacyReads = 0;

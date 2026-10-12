@@ -13,7 +13,7 @@ const { createGiftStatisticsStore } = require('../../src/storage/gift-statistics
 const AS_OF = '2026-09-02T00:00:00.000Z';
 
 function createFixture(options = {}) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-query-'));
+  const dataDir = fs.mkdtempSync(path.join(options.scratchDir || os.tmpdir(), 'lira-gift-query-'));
   const databases = createDatabases({ dataDir });
   const giftDb = databases.giftDb;
   const store = createGiftSyncStore({

@@ -58,13 +58,17 @@ export function renderHistoryWaitingView(view) {
 
 export function renderGiftHistoryView(view) {
   const items = view.ledger.items;
+  const detailStart = view.ledger.retention?.detailStart;
+  const retentionText = detailStart
+    ? `${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date(detailStart))}之前的逐笔明细已过保留期，历史汇总仍保留。`
+    : '';
   setText('giftHistoryTotal', `共 ${view.ledger.total} 条`);
   const total = get('giftHistoryTotal');
   if (total) total.hidden = false;
-  setText('giftHistoryState', items.length === 0 ? '暂无礼物记录' : '已加载');
+  setText('giftHistoryState', retentionText || (items.length === 0 ? '暂无礼物记录' : '已加载'));
   setHistoryBody(
     items.length === 0
-      ? '<tr><td colspan="7" class="empty"><strong>暂无礼物记录</strong><span>收到礼物后，记录会显示在这里。</span></td></tr>'
+      ? `<tr><td colspan="7" class="empty"><strong>${detailStart ? '当前范围没有可用明细' : '暂无礼物记录'}</strong><span>${escapeHtml(retentionText || '收到礼物后，记录会显示在这里。')}</span></td></tr>`
       : items.map(renderGiftHistoryRow).join(''),
   );
   renderGiftHistorySortView(view);

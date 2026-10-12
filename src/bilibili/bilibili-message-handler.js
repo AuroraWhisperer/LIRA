@@ -61,57 +61,69 @@ function handleDanmakuMessage(
   }
 
   let queueItem;
-  if (command.type === 'random') {
-    // 通过 context.pickRandomSong 调用，不直接持有 DB 句柄
-    const song = context.pickRandomSong(command.scopeText);
-    if (!song) {
-      const reason = command.scopeText
-        ? `歌库里没有同时满足全部条件「${command.scopeText}」的可随机歌曲。`
-        : '歌库里还没有可随机歌曲。';
-      const autoReply =
-        settings.enableRandomTagReply === 'true'
-          ? buildRandomScopeAutoReply(
-              command.scopeText,
-              {
-                ...(context.describeRandomSongScope ? context.describeRandomSongScope(command.scopeText) : {}),
-              },
-              { uid, name: userName },
-            )
-          : null;
-      return { accepted: false, reason, command, autoReply };
+  try {
+    if (command.type === 'random') {
+      // 通过 context.pickRandomSong 调用，不直接持有 DB 句柄
+      const song = context.pickRandomSong(command.scopeText);
+      if (!song) {
+        const reason = command.scopeText
+          ? `歌库里没有同时满足全部条件「${command.scopeText}」的可随机歌曲。`
+          : '歌库里还没有可随机歌曲。';
+        const autoReply =
+          settings.enableRandomTagReply === 'true'
+            ? buildRandomScopeAutoReply(
+                command.scopeText,
+                {
+                  ...(context.describeRandomSongScope ? context.describeRandomSongScope(command.scopeText) : {}),
+                },
+                { uid, name: userName },
+              )
+            : null;
+        return { accepted: false, reason, command, autoReply };
+      }
+      queueItem = context.addQueueItem({
+        songName: song.name,
+        artist: song.artist,
+        categoryName: song.category_name,
+        requesterName: userName,
+        requesterUid: uid,
+        requesterIdentityType: identityType,
+        fanScope,
+        requesterGuardLevel,
+        requesterMedalName,
+        requesterMedalLevel,
+        source: randomSourceValue(command.scopeText),
+        message: text,
+        messageTimestamp,
+        isPinned,
+      });
+    } else {
+      const matchedSong = context.resolveSongRequest ? context.resolveSongRequest(command.songName) : null;
+      queueItem = context.addQueueItem({
+        songName: matchedSong ? matchedSong.name : command.songName,
+        artist: matchedSong?.artist,
+        requesterName: userName,
+        requesterUid: uid,
+        requesterIdentityType: identityType,
+        fanScope,
+        requesterGuardLevel,
+        requesterMedalName,
+        requesterMedalLevel,
+        source: source || 'danmaku',
+        message: text,
+        messageTimestamp,
+        isPinned,
+      });
     }
-    queueItem = context.addQueueItem({
-      songName: song.name,
-      artist: song.artist,
-      categoryName: song.category_name,
-      requesterName: userName,
-      requesterUid: uid,
-      requesterIdentityType: identityType,
-      fanScope,
-      requesterGuardLevel,
-      requesterMedalName,
-      requesterMedalLevel,
-      source: randomSourceValue(command.scopeText),
-      message: text,
-      messageTimestamp,
-      isPinned,
-    });
-  } else {
-    const matchedSong = context.resolveSongRequest ? context.resolveSongRequest(command.songName) : null;
-    queueItem = context.addQueueItem({
-      songName: matchedSong ? matchedSong.name : command.songName,
-      requesterName: userName,
-      requesterUid: uid,
-      requesterIdentityType: identityType,
-      fanScope,
-      requesterGuardLevel,
-      requesterMedalName,
-      requesterMedalLevel,
-      source: source || 'danmaku',
-      message: text,
-      messageTimestamp,
-      isPinned,
-    });
+  } catch (error) {
+    if (error.code !== 'SONG_COOLDOWN') throw error;
+    return {
+      accepted: false,
+      reason: error.message,
+      command,
+      autoReply: settings.enableRandomTagReply === 'true'
+        ? buildSongRequestAutoReply(error.message, { uid, name: userName }) : null,
+    };
   }
 
   const acceptedAt = Date.now();
@@ -186,13 +198,18 @@ function logDanmakuCommand(danmaku, result) {
 function buildRandomScopeAutoReply(scopeText, details = {}, target = {}) {
   const terms =
     Array.isArray(details.terms) && details.terms.length > 0 ? details.terms : parseRandomSongTerms(scopeText);
-  if (terms.length === 0 || !cleanText(target.name)) return null;
+  if (terms.length === 0) return buildSongRequestAutoReply('歌库里暂时没有可随机歌曲，请稍后再试。', target);
 
   const scope = cleanText(scopeText);
   const message =
     terms.length === 1
       ? `歌库里暂时没有「${terms[0]}」这一类歌曲，请换个条件试试。`
       : `你输入的组合条件「${scope}」暂时没有匹配歌曲，请调整组合条件后再试。`;
+  return buildSongRequestAutoReply(message, target);
+}
+
+function buildSongRequestAutoReply(message, target) {
+  if (!cleanText(target.name)) return null;
   return {
     message,
     target: {

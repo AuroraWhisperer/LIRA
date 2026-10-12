@@ -9,10 +9,9 @@ function createRequesterTargetStore(songDb) {
         .prepare(
           `
         SELECT requester_uid, requester_name, source, created_at
-        FROM requests
-        WHERE (source = 'random' OR source LIKE 'random:%')
-          AND (TRIM(requester_uid) <> '' OR TRIM(requester_name) <> '')
-        ORDER BY datetime(created_at) DESC, id DESC
+        FROM random_request_history
+        WHERE TRIM(requester_uid) <> '' OR TRIM(requester_name) <> ''
+        ORDER BY datetime(created_at) DESC, request_id DESC
         LIMIT 1
       `,
         )

@@ -40,7 +40,7 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   await guard.getByRole('button', { name: '预览', exact: true }).click();
   const frame = guard.frameLocator('iframe');
   await frame.locator('.ng-name').waitFor();
-  assert.equal(await frame.locator('.ng-avatar').count(), 0);
+  assert.equal(await frame.locator('.ng-avatar').isVisible(), false);
   assert.equal(await frame.locator('.ng-name').evaluate(node => getComputedStyle(node).fontSize), '60px');
   await guard.getByRole('button', { name: '收起预览', exact: true }).click();
   await guard.getByRole('button', { name: '保存设置', exact: true }).click();

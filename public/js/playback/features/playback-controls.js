@@ -49,7 +49,14 @@ export function createPlaybackControls(deps) {
   }
 
   function isCurrentPlaybackRequest(requestGeneration, track) {
-    return requestGeneration === playRequestGeneration && playbackState.current?.id === track.id;
+    return requestGeneration === playRequestGeneration && playbackState.current?.id === track.id &&
+      playbackState.selectedSource !== 'wesing';
+  }
+
+  function suspendPlaybackForExternalSource() {
+    audioRequestGeneration = invalidatePlaybackRequests();
+    playRequestSource = playbackState.current?.source || null;
+    getPlaybackAudio()?.pause();
   }
 
   function createPlaybackRequestGuard(track) {
@@ -210,7 +217,6 @@ export function createPlaybackControls(deps) {
     }
 
     const resumeAt = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
-    const shouldResume = !audio.paused;
     const requestGeneration = invalidatePlaybackRequests();
     playRequestSource = track.source;
     try {
@@ -224,6 +230,7 @@ export function createPlaybackControls(deps) {
       if (!streamUrl) return;
       Object.assign(track, streamTrack);
 
+      const shouldResume = !audio.paused;
       audio.src = streamUrl;
       audio.load();
       audio.addEventListener(
@@ -391,6 +398,7 @@ export function createPlaybackControls(deps) {
     loadPlaybackLyrics,
     ensureLocalTrackPlayable,
     invalidatePlaybackRequests,
+    suspendPlaybackForExternalSource,
     createPlaybackRequestGuard,
   };
 }

@@ -17,12 +17,15 @@ export function initGiftInteractionControls({
   windowRef = globalThis.window,
   bridge = windowRef?.liraLicense,
   notify = toast,
+  surface = 'gifts',
 } = {}) {
-  const panel = documentRef?.getElementById('giftInteractionControls');
+  const queryView = surface === 'danmaku';
+  const keys = queryView ? ['giftStatsQueryEnabled'] : KEYS;
+  const panel = documentRef?.getElementById(queryView ? 'danmakuQueryControls' : 'giftInteractionControls');
   if (!panel || !bridge?.getGiftInteractionState || !bridge?.setGiftInteraction) return () => {};
-  const inputs = KEYS.map((key) => documentRef.getElementById(key));
-  const status = documentRef.getElementById('giftInteractionStatus');
-  const retry = documentRef.getElementById('giftInteractionRefresh');
+  const inputs = keys.map((key) => documentRef.getElementById(queryView ? 'danmakuQueryToggle' : key));
+  const status = documentRef.getElementById(queryView ? 'danmakuQueryStatus' : 'giftInteractionStatus');
+  const retry = documentRef.getElementById(queryView ? 'dailyBotRefresh' : 'giftInteractionRefresh');
   let state = { values: {}, status: 'unconfirmed' };
   let saving = false;
   let disposed = false;
@@ -32,8 +35,8 @@ export function initGiftInteractionControls({
   function render(snapshot) {
     if (disposed) return;
     state = snapshot;
-    for (let index = 0; index < KEYS.length; index += 1) {
-      inputs[index].checked = state.values?.[KEYS[index]] === true;
+    for (let index = 0; index < keys.length; index += 1) {
+      inputs[index].checked = state.values?.[keys[index]] === true;
       inputs[index].disabled = saving || state.status === 'pending';
     }
     status.textContent =
@@ -43,9 +46,11 @@ export function initGiftInteractionControls({
           ? '已同步到服务器'
           : ERRORS[state.error] || '状态未确认，请刷新核对。';
     status.hidden = state.status === 'confirmed' && !saving;
-    retry.hidden = state.status === 'confirmed';
-    retry.disabled = saving || state.status === 'pending';
-    retry.title = status.textContent;
+    if (!queryView) {
+      retry.hidden = state.status === 'confirmed';
+      retry.disabled = saving || state.status === 'pending';
+      retry.title = status.textContent;
+    }
   }
 
   async function refresh() {
@@ -69,7 +74,7 @@ export function initGiftInteractionControls({
     const version = eventVersion;
     let result;
     try {
-      result = await bridge.setGiftInteraction(KEYS[index], enabled);
+      result = await bridge.setGiftInteraction(keys[index], enabled);
     } catch {
       result = { ...state, ok: false, status: 'unconfirmed' };
     }
@@ -81,13 +86,13 @@ export function initGiftInteractionControls({
       state.status !== 'pending' &&
       (state.status !== result.status ||
         (state.error || null) !== (result.error || null) ||
-        KEYS.some((key) => (state.values?.[key] === true) !== (result.values?.[key] === true)))
+        keys.some((key) => (state.values?.[key] === true) !== (result.values?.[key] === true)))
     ) {
       render(state);
       return;
     }
     render(result);
-    if (result.ok && result.status === 'confirmed' && result.values?.[KEYS[index]] === enabled) {
+    if (result.ok && result.status === 'confirmed' && result.values?.[keys[index]] === enabled) {
       notify(enabled ? '已开启，服务器会持续运行。' : '已关闭并同步到服务器。');
     } else {
       const message =
@@ -95,7 +100,7 @@ export function initGiftInteractionControls({
           ? '关闭还没同步，服务器可能仍在运行。'
           : ERRORS[result.error] || '设置尚未确认，请刷新核对后重试。';
       status.textContent = message;
-      retry.title = message;
+      if (!queryView) retry.title = message;
       notify(message);
     }
   }

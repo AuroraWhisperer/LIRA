@@ -96,6 +96,34 @@ for (const existing of ['missing', 'corrupt', 'valid']) {
   });
 }
 
+test('activation awaits build info before staging keys or contacting the server', async (t) => {
+  const { options, readStored, original } = createFixture(t, 'valid');
+  const build = { appVersion: '4.2.3', buildId: 'fixture-async-digest', integrityStatus: 'verified' };
+  options.buildInfoProvider = async () => build;
+  const activate = options.remote.activate;
+  options.remote.activate = async (request) => {
+    for (const key of Object.keys(build)) assert.equal(request[key], build[key]);
+    return activate(request);
+  };
+  const activation = await requestDeviceActivation(options);
+  assert.deepEqual(readStored(), original);
+  activation.complete();
+});
+
+test('activation stopped during hashing neither stages keys nor contacts the server', async (t) => {
+  const { options, keyStore, readStored, original } = createFixture(t, 'missing');
+  let active = true;
+  options.isActive = () => active;
+  options.buildInfoProvider = async () => {
+    active = false;
+    return { appVersion: '4.2.3', buildId: 'fixture', integrityStatus: 'verified' };
+  };
+  options.remote.activate = () => assert.fail('cancelled activation must not reach the server');
+  assert.equal(await requestDeviceActivation(options), null);
+  assert.deepEqual(readStored(), original);
+  assert.equal(fs.existsSync(path.join(path.dirname(keyStore.keyPath), 'device-key.pending.bin')), false);
+});
+
 for (const operation of ['write', 'rename']) {
   test(`failed key file ${operation} preserves the previous bytes and removes the temporary file`, async (t) => {
     const { options, keyStore, readStored, original } = createFixture(t, 'corrupt');

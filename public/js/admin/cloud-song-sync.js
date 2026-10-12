@@ -24,7 +24,7 @@ function songSyncErrorMessage(error) {
       : `第 ${index + 1} 首歌曲的字段格式无效，请检查点歌价格、启用状态或排序后重试。`;
   }
   if (code === 'SONG_LIST_INVALID' || code === 'SONGS_ARRAY_REQUIRED') return '歌库格式无效，请重试。';
-  if (code === 'TOO_MANY_SONGS') return '歌库超过 5000 首限制。';
+  if (code === 'TOO_MANY_SONGS') return '歌库超过 5000 首，请先导出备份并整理至 5000 首以内，再重新同步。';
   if (code === 'PAYLOAD_TOO_LARGE') return '歌库数据超过同步大小限制，请减少歌曲或缩短备注、点歌价格和歌切后重新同步。';
   if (code === 'RESPONSE_TOO_LARGE') return '云端歌库超过读取大小限制，请先缩减歌库或联系管理员处理。';
   if (code === 'NETWORK_UNAVAILABLE') return '暂时连不上云端，请检查网络后重试。';
