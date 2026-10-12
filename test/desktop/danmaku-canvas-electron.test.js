@@ -25,7 +25,7 @@ test('harbor gift threshold is edited, saved and restored through the authorized
   await desktop.locator('#danmakuMinGiftAmount').fill('9.99');
   await desktop.locator('#danmakuMinGiftAmount').press('Tab');
   await desktop.getByRole('button', { name: '应用到直播画面', exact: true }).click();
-  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 航海气泡' }).waitFor();
+  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 对白' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.harbor.minGiftAmount), 9.99);
   await desktop.reload();
   await desktop.locator('[data-danmaku-style="harbor"][aria-pressed="true"]').waitFor();

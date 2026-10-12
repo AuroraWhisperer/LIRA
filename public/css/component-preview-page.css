@@ -16,7 +16,7 @@
 .preview-canvas-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .preview-canvas-presets { display: flex; flex: 0 1 auto; align-items: center; gap: 8px; min-width: 0; padding-right: 16px; border-right: 1px solid var(--color-border-strong, var(--border)); }
 .preview-canvas-presets label { display: flex; flex-shrink: 0; align-items: center; gap: 8px; min-width: 0; color: var(--muted); font-size: var(--type-size-caption); white-space: nowrap; }
-.preview-canvas-presets .lira-select { width: 160px; }
+.preview-canvas-presets .lira-select { --select-marker-display: none; width: 160px; }
 .preview-canvas-presets .lira-select-menu { right: auto; width: max-content; min-width: 100%; max-height: calc(6 * 36px + 5 * 2px + 12px); overflow-x: hidden; overflow-y: auto; }
 .preview-canvas-live-preset { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--type-size-caption); }
 .preview-canvas-toolbar button { min-height: 32px; padding: 4px 8px; white-space: nowrap; font-size: var(--type-size-control); line-height: 1.5; }
@@ -75,7 +75,7 @@
 .preview-canvas-controls label { display: flex; align-items: center; gap: 8px; font-size: var(--type-size-caption); color: var(--muted); white-space: nowrap; }
 .preview-canvas-controls .lira-select { width: 80px; }
 .preview-canvas-controls select { width: auto; }
-.preview-canvas-controls .lira-select[data-select-variant='canvas-background'] { width: 108px; }
+.preview-canvas-controls .lira-select[data-select-variant='canvas-background'] { --select-marker-display: none; width: 108px; }
 .lira-select[data-select-variant='canvas-background'] :is(.lira-select-value, .lira-select-option) { display: flex; align-items: center; gap: 8px; }
 .lira-select[data-select-variant='canvas-background'] :is(.lira-select-value, .lira-select-option)::before { content: ''; flex: 0 0 16px; width: 16px; height: 16px; box-sizing: border-box; border: 1px solid var(--select-border); border-radius: 3px; background: #e1e6ec conic-gradient(#f4f6f9 25%, transparent 0 50%, #f4f6f9 0 75%, transparent 0) 0 0 / 8px 8px; }
 .lira-select[data-select-variant='canvas-background'] :is(.lira-select-option[data-value='dark'], select:has(option[value='dark']:checked) ~ .lira-select-trigger .lira-select-value)::before { background: #20252d; }

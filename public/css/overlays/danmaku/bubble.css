@@ -90,17 +90,17 @@ body[data-style='bubble'] .draw-danmaku-body p {
 body[data-style='bubble'] .draw-danmaku-item[data-identity='captain'] {
   --bubble-accent: var(--guard-captain);
   --bubble-accent-rgb: 47 155 255;
-  --guard-avatar-frame: url('/img/overlays/danmaku-guard/bubble-captain-frame.webp');
+  --guard-avatar-frame: var(--bilibili-guard-captain-frame, url('/img/overlays/danmaku-guard/bubble-captain-frame.webp'));
 }
 body[data-style='bubble'] .draw-danmaku-item[data-identity='admiral'] {
   --bubble-accent: var(--guard-admiral);
   --bubble-accent-rgb: 164 92 255;
-  --guard-avatar-frame: url('/img/overlays/danmaku-guard/bubble-admiral-frame.webp');
+  --guard-avatar-frame: var(--bilibili-guard-prefect-frame, url('/img/overlays/danmaku-guard/bubble-admiral-frame.webp'));
 }
 body[data-style='bubble'] .draw-danmaku-item[data-identity='governor'] {
   --bubble-accent: var(--guard-governor);
   --bubble-accent-rgb: 240 68 90;
-  --guard-avatar-frame: url('/img/overlays/danmaku-guard/bubble-governor-frame.webp');
+  --guard-avatar-frame: var(--bilibili-guard-governor-frame, url('/img/overlays/danmaku-guard/bubble-governor-frame.webp'));
 }
 body[data-style='bubble']
   .draw-danmaku-item:is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor']) {

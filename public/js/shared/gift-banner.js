@@ -2,7 +2,7 @@
 
 import { GIFT_PLACEHOLDER } from './gift-image-fallback.js';
 import { fitTextToWidth } from './fit-text-to-width.js';
-import { bindGuardImage, getGuardIcon } from './bilibili-guard-icons.js';
+import { bindGuardImage, getGuardAvatarFrame, getGuardIcon } from './bilibili-guard-icons.js';
 
 export const BANNER_WIDTH = 428;
 export const BANNER_HEIGHT = 72;
@@ -14,7 +14,6 @@ export const GIFT_PALETTE = [
   ['#F6606DF2', '#F88573E6'],
   ['#F3A20AF2', '#F8C914E6'],
 ];
-const FRAMES = { 1: 'governor', 2: 'admiral', 3: 'captain' };
 const AVATAR_PLACEHOLDER = '/img/gift-avatar-placeholder.svg';
 
 export function giftTier(gift, thresholds, cardTotalCents) {
@@ -73,11 +72,8 @@ export function createGiftBanner(item, config, catalog = [], resolveAvatarUrl = 
   background.className = 'gift-banner-background';
   root.append(background);
   root.append(bannerImage(resolveAvatarUrl(gift.avatarUrl) || AVATAR_PLACEHOLDER, 'gift-banner-avatar', AVATAR_PLACEHOLDER));
-  if (FRAMES[gift.guardLevel]) {
-    root.append(
-      bannerImage(`/img/overlays/danmaku-guard/bubble-${FRAMES[gift.guardLevel]}-frame.webp`, 'gift-banner-frame', ''),
-    );
-  }
+  const frameSource = getGuardAvatarFrame(gift.guardLevel);
+  if (frameSource) root.append(bannerImage(frameSource, 'gift-banner-frame', ''));
   const text = document.createElement('div');
   text.className = 'gift-banner-text';
   const name = document.createElement('div');
@@ -127,8 +123,8 @@ export function updateGiftBanner(root, item, config, catalog = [], retryAvatar =
   updateBannerImage(root.querySelector('.gift-banner-avatar'), resolveAvatarUrl(gift.avatarUrl) || AVATAR_PLACEHOLDER, retryAvatar);
   updateBannerImage(root.querySelector('.gift-banner-artwork'), item.artworkPath || resolveGiftArtwork(gift, catalog));
   const frame = root.querySelector('.gift-banner-frame');
-  if (FRAMES[gift.guardLevel]) {
-    const source = `/img/overlays/danmaku-guard/bubble-${FRAMES[gift.guardLevel]}-frame.webp`;
+  const source = getGuardAvatarFrame(gift.guardLevel);
+  if (source) {
     if (frame) updateBannerImage(frame, source);
     else root.insertBefore(bannerImage(source, 'gift-banner-frame', ''), root.querySelector('.gift-banner-text'));
   } else frame?.remove();

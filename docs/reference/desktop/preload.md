@@ -1,6 +1,6 @@
 # preload 桥与 IPC 全量注册表
 
-[preload.js](../../../src/electron/preload.js) 暴露 `plannerReminders`、`dailyBots`、`fanProfiles`、`giftExport`、`songAssistantDesktop`、`musicAPI`、`bilibiliAuth`、`dynamicLotteryAuth`、`liraLicense` 九个命名空间。本文是通道、方向、载荷与 action 的唯一成表处；窗口生命周期见 [main.md](main.md)，更新状态见 [update.md](update.md)，登录与会话见 [auth.md](auth.md)。invoke、事件和复用通道中的 action 分别核对，不混算。
+[preload.js](../../../src/electron/preload.js) 暴露 `plannerReminders`、`dailyBots`、`fanProfiles`、`giftExport`、`songAssistantDesktop`、`musicAPI`、`bilibiliAuth`、`dynamicLotteryAuth`、`guardExpiryAuth`、`liraLicense` 十个命名空间。本文是通道、方向、载荷与 action 的唯一成表处；窗口生命周期见 [main.md](main.md)，更新状态见 [update.md](update.md)，登录与会话见 [auth.md](auth.md)。invoke、事件和复用通道中的 action 分别核对，不混算。
 
 ## 1. 安全模型
 
@@ -267,3 +267,16 @@ Owner：[gift-export-controller.js](../../../src/electron/gift-export-controller
 - 主窗口非原地导航或 destroyed 调用 cancel；dispose 也取消并销毁隐藏渲染窗口。取消不匹配的旧 id 不影响新任务；preparationGeneration 防止旧 prepare 覆盖新任务。renderer 按 id 过滤迟到 progress，关闭预览解除订阅。openFolder 只允许已保存至少一张的任务，不能传任意路径。
 
 验收入口：[legacy-ipc-source.test.js](../../../test/desktop/legacy-ipc-source.test.js)、[fan-profiles-ipc.test.js](../../../test/fan-profiles/fan-profiles-ipc.test.js)、[daily-bot-controller.test.js](../../../test/bots/daily-bot-controller.test.js)、[daily-bot-takeover.test.js](../../../test/bots/daily-bot-takeover.test.js)、[gift-export-controller.test.js](../../../test/gifts/gift-export-controller.test.js)。这些是聚焦证据入口，不代表本文执行过所有 Electron 实机流程。
+
+## 大航海到期同步桥
+
+`window.guardExpiryAuth` 只供受信主窗口的主 frame 使用，沿用 exact origin 和管理路径验证。由 `src/electron/ipc/guard-expiry-ipc.js` 注册，退出时幂等移除。
+
+| 方法 | IPC | 参数 |
+| --- | --- | --- |
+| getState | guard-expiry:get-state | 无 |
+| setSource | guard-expiry:set-source | shared 或 separate |
+| login | guard-expiry:login | 无；打开隔离的房主登录窗 |
+| logout | guard-expiry:logout | 无；只清除独立云端登录 |
+
+成功为 `{ok:true,account:{source,loggedIn,uid,displayName,revision}}`；取消为 `{ok:true,cancelled:true}`；失败为 `{ok:false,error}`，仅返回白名单错误码，不返回原始异常或 Cookie。UID 未登录时为 null。`GUARD_EXPIRY_OWNER_MISMATCH`、`GUARD_EXPIRY_ROOM_REQUIRED`、`GUARD_EXPIRY_SOURCE_CHANGED` 指向对应用户操作；`GUARD_EXPIRY_UNSUPPORTED` 为旧服务器 404/405 的本地映射。

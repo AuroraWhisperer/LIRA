@@ -6,7 +6,7 @@
           <legend>
             🔐 B 站账号登录
             <lira-help
-              >使用手机哔哩哔哩 App 扫码登录后，填写自己的 B 站直播间号并保存。弹幕和礼物默认持续监控，关闭 LIRA 后服务端仍会接收。可在弹幕姬和礼物页面分别关闭监控；退出 B 站账号会停止两项监控。修改或退出后请等待同步完成。</lira-help
+              >用于接收弹幕、礼物和机器人发言，可登录机器人账号。用哔哩哔哩 App 扫码后，填写直播间号并保存。服务端默认持续监控，关闭 LIRA 也会接收；可在弹幕姬和礼物页分别关闭。退出此账号会停止两项监控，请等待同步完成。</lira-help
             >
           </legend>
           <div class="bilibili-auth-row">
@@ -57,6 +57,30 @@
               placeholder="例如：123456，或粘贴 B 站直播间链接"
             />
           </div>
+        </fieldset>
+        <fieldset id="guardExpirySettings" class="theme-section guard-expiry-settings">
+          <legend>
+            大航海到期同步（可选）
+            <lira-help>仅用于同步大航海到期日期，在服务端主播中心总览查看。上方已登录房主账号时直接复用；使用机器人账号时，可单独登录房主。独立登录与上方账号隔离，不用于弹幕、礼物或机器人，退出也不影响上方账号。账号来源选择后立即保存；切回复用会移除独立登录。</lira-help>
+          </legend>
+          <div class="bilibili-auth-row">
+            <label for="guardExpirySource">账号来源</label>
+            <select id="guardExpirySource" disabled>
+              <option value="shared">使用上方登录账号</option>
+              <option value="separate">单独登录主播账号（可选）</option>
+            </select>
+            <span id="guardExpiryAccountStatus" class="pill" style="padding: 2px 7px">正在读取…</span>
+            <span id="guardExpiryAccountProfile" class="bilibili-auth-profile" hidden>
+              <span class="bilibili-auth-identity">
+                <strong id="guardExpiryAccountName" class="bilibili-auth-name"></strong>
+                <span id="guardExpiryAccountUid" class="bilibili-auth-uid ui-caption"></span>
+              </span>
+            </span>
+            <button id="guardExpiryLoginBtn" class="primary" type="button" style="padding: 3px 10px; min-height: 30px" hidden>登录主播账号</button>
+            <button id="guardExpiryLogoutBtn" class="danger" type="button" style="padding: 3px 10px; min-height: 30px" hidden>退出主播账号</button>
+            <button id="guardExpiryRetryBtn" type="button" hidden>重试</button>
+          </div>
+          <p id="guardExpiryAccountMessage" class="ui-caption muted" role="status" aria-live="polite"></p>
         </fieldset>
       </div>
 

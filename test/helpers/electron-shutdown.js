@@ -249,6 +249,15 @@ function createShutdownHarness(options = {}) {
         whenIdle: () => options.lotteryIdle?.promise,
       }),
     },
+    './guard-expiry-auth': {
+      createGuardExpiryAuth: () => ({
+        dispose: () => calls.push('guard-expiry:dispose'),
+        whenIdle: () => { calls.push('guard-expiry:idle'); return Promise.resolve(); },
+      }),
+    },
+    './ipc/guard-expiry-ipc': {
+      registerGuardExpiryIpc: () => () => calls.push('guard-expiry:remove-ipc'),
+    },
     './ipc/dynamic-lottery-auth-ipc': {
       registerDynamicLotteryAuthIpc: () => () => calls.push('lottery:remove-ipc'),
     },

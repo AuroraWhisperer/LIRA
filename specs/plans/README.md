@@ -8,6 +8,7 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-12-guard-expiry-sync](2026-10-12-guard-expiry-sync.md) | Awaiting Verification | 客户端与服务器实现及合成验证完成；真实主播账号上游验收尚未执行。 |
 | [2026-10-08-danmaku-prismatic](2026-10-08-danmaku-prismatic.md) | Awaiting Verification | 主题、身份投影及隔离检查已完成；剩真实报文/实播验收及客户端契约版本锁核验。 |
 | [2026-10-02-client-themes](2026-10-02-client-themes.md) | Awaiting Verification | 实现、自动化与隔离 Electron 验证完成；原生 100% 缩放及实播/真实密集内容人工验收未覆盖。 |
 | [2026-08-18-desktop-lyric-rendering](2026-08-18-desktop-lyric-rendering.md) | Awaiting Verification | 实现与自动化已有记录；剩余硬件加速开/关下 Paint、主线程和帧率对比，没有真实 Electron 性能录制证据。 |

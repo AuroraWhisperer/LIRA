@@ -258,3 +258,9 @@ IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用�
 携带 `AbortSignal` 的内部业务读取在授权等待、请求执行和重认证等待期间均可取消当前调用；取消不会终止其他调用者共用的续期，也不转为会话撤销。完成、失败和取消都会移除等待监听。
 
 内部凭据读取和 SSE 的完成/失败同样经过该约束；流的取消与事件消费仍由云同步、礼物控制器现有的 `AbortSignal` 和主体检查负责。旧续期、心跳的完成或 `finally` 不得替换新生命周期的共享任务引用或维护计时器。回归场景见 [license-manager-identity.test.js](../../../test/license/license-manager-identity.test.js)，使用合成身份、可控 Promise 与隔离的 manager，不访问真实服务。
+
+## 15. 可选的大航海到期账号
+
+`guard-expiry-auth.js` 选择 `shared` 时让服务器内部复用原 B 站直播凭据；`separate` 时每次新建不带 persist 的 `guard-expiry-<uuid>` 分区，使用 passport 登录页和现有受限登录窗。只读取能发送给 api.live.bilibili.com 的 Cookie，在 main 上传至当前授权租户的专用接口；服务器验证房主后独立加密存储。临时 session 结束即清理，无本地 Cookie 快照或主账号恢复。切回 shared 清除云端独立凭据，独立退出不退出原直播账号。
+
+操作绑定发起时 streamerId 与授权 generation；授权变更、来源切换、退出和应用关闭取消未完成登录。状态仅返回安全元数据，主窗口 IPC 不接受凭据。服务器未支持时显示明确提示。要求和验收见[到期同步规格](../../../specs/guard-expiry-sync.md)。

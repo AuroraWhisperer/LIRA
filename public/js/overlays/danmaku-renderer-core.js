@@ -77,12 +77,16 @@ export function createDanmakuRenderer({
     if (style === "harbor" && item.kind === "gift" && [1, 2, 3].includes(item.giftGuardLevel)) {
       return createHarborGuardCard(document, item, classNames, createAvatar);
     }
-    const message = String(item.message || "").trim();
+    const name = String(item.name || "观众").trim() || "观众";
+    const floatingGift = item.kind === "gift" && ["floating", "comet"].includes(style);
+    const message = floatingGift
+      ? `${name}投喂了${item.giftName || "礼物"}×${item.giftCount}`
+      : String(item.message || "").trim();
     const metrics = measureDanmakuText(message);
     const bubble = document.createElement("article");
     bubble.className = `${classNames.item} ${classNames.bubble}`;
     if (decorateSystemMessages && item.kind === "system") bubble.className += " is-system";
-    if (item.kind === "gift") bubble.className += " is-gift";
+    if (item.kind === "gift" && !floatingGift) bubble.className += " is-gift";
     bubble.dataset.tone = String(index % 4);
     if (style === "starveil") {
       // Stable per-message randomness survives re-rendering and ignores viewer rank.
@@ -102,7 +106,6 @@ export function createDanmakuRenderer({
     bubble.style.setProperty("--danmaku-delay", `${entranceDelay(index)}ms`);
     if (isEmoteOnlyMessage(message, item.emotes, ["prismatic", "snowfox", "mist"].includes(style))) bubble.className += " is-emote-only";
 
-    const name = String(item.name || "观众").trim() || "观众";
     const avatar = style === "prismatic" && item.kind === "gift" ? null : createAvatar(item, name, bubble);
 
     const body = document.createElement("div");
@@ -110,7 +113,8 @@ export function createDanmakuRenderer({
     const identity = createIdentity(item, name);
 
     const messageElement = document.createElement("p");
-    if (item.kind === "gift") appendGiftContent(messageElement, item);
+    if (floatingGift) messageElement.textContent = message;
+    else if (item.kind === "gift") appendGiftContent(messageElement, item);
     else appendMessageContent(messageElement, message, item.emotes);
     body.append(identity, messageElement);
     if (avatar) bubble.append(avatar);

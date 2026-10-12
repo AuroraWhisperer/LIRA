@@ -79,10 +79,3 @@ body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-emote {
   vertical-align: middle;
 }
 body:is([data-style='floating'], [data-style='comet']) .is-emote-only .draw-danmaku-emote { height: 76px; }
-body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-gift-art { display: none; }
-body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-gift {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-}

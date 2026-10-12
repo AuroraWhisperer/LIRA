@@ -1,4 +1,4 @@
-/* Shared option panels. Single-select marks the chosen row with a side bar; multi-select
+/* Shared option panels. Single-select marks the chosen row with an optional side bar; multi-select
    (`.lira-multiselect`) uses checkboxes. Colors derive from the active client theme. */
 :where(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
   --select-accent: var(--color-selection-text, var(--color-primary-text, var(--color-control-accent)));
@@ -276,6 +276,7 @@
 
 .lira-select-option:is(.is-selected, [aria-selected='true'], [aria-checked='true'])::after {
   position: absolute;
+  display: var(--select-marker-display, block);
   top: 50%;
   left: 6px;
   width: 3px;

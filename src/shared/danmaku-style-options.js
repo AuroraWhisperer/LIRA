@@ -65,7 +65,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   harbor: {
     scrollDirection: true,
-    label: '航海气泡',
+    label: '对白',
     minFontSize: 18,
     maxFontSize: 48,
     background: true,

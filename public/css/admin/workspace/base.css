@@ -210,6 +210,23 @@
   min-width: 0;
 }
 
+.guard-expiry-settings {
+  grid-column: 1 / -1;
+}
+
+.guard-expiry-settings :is(select, .lira-select) {
+  width: auto;
+  max-width: 100%;
+}
+
+.guard-expiry-settings [hidden] {
+  display: none;
+}
+
+.guard-expiry-settings p:empty {
+  display: none;
+}
+
 .bilibili-room-row .bilibili-auth-name {
   max-width: 100%;
 }

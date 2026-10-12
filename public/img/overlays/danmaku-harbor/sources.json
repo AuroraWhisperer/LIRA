@@ -1,11 +1,19 @@
 {
-  "description": "航海气泡图案来源；头像框直接保留 B 站原始 PNG，固定采用参考房间 52030 使用的千舰款。",
-  "retrievedAt": "2026-10-11",
+  "description": "对白图案来源；所有等级头像框共用房间人数规则，普通款复用蓝／紫／红素材，千舰款保留 B 站原始 PNG。",
   "frames": {
-    "source": "https://api.live.bilibili.com/xlive/open-interface/v1/query_resource?module=guard_resource",
-    "captain": "https://i0.hdslb.com/bfs/live/647ef90995effa59fc15ec159086db4dead867a3.png",
-    "admiral": "https://i0.hdslb.com/bfs/live/c3eedafafbee89dca24e3028f6f20904a43eb086.png",
-    "governor": "https://i0.hdslb.com/bfs/live/e9552feb78ad1f41a748b80f2bc617b7c53f40f8.png"
+    "ordinary": {
+      "source": "../danmaku-guard/",
+      "captain": "../danmaku-guard/bubble-captain-frame.webp",
+      "admiral": "../danmaku-guard/bubble-admiral-frame.webp",
+      "governor": "../danmaku-guard/bubble-governor-frame.webp"
+    },
+    "thousand": {
+      "source": "https://api.live.bilibili.com/xlive/open-interface/v1/query_resource?module=guard_resource",
+      "retrievedAt": "2026-10-11",
+      "captain": "https://i0.hdslb.com/bfs/live/647ef90995effa59fc15ec159086db4dead867a3.png",
+      "admiral": "https://i0.hdslb.com/bfs/live/c3eedafafbee89dca24e3028f6f20904a43eb086.png",
+      "governor": "https://i0.hdslb.com/bfs/live/e9552feb78ad1f41a748b80f2bc617b7c53f40f8.png"
+    }
   },
   "emblems": {
     "source": "https://api.live.bilibili.com/xlive/open-interface/v1/query_resource?module=medal_icon",

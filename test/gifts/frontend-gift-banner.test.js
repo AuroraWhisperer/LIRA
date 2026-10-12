@@ -28,6 +28,7 @@ test('gift banners use the sender avatar proxy and distinguish captain from unkn
         },
         { thresholds: [3000, 10000, 100000] },
       );
+      document.body.append(banner);
       const avatar = new URL(banner.querySelector('.gift-banner-avatar').src);
       return {
         path: avatar.pathname,
@@ -52,6 +53,17 @@ test('gift banners use the sender avatar proxy and distinguish captain from unkn
       null,
     ],
   );
+  for (const [roomId, count, thousand] of [['52030', 1001, true], ['52030', 1000, false], ['52030', 10001, true], ['42', null, false]]) {
+    const frames = await page.evaluate(async ({ roomId, count }) => {
+      const { applyRoomGuardState } = await import('/js/shared/bilibili-guard-icons.js');
+      const before = [...document.querySelectorAll('.gift-banner-frame')];
+      applyRoomGuardState({ roomId, count });
+      return before.map(node => ({ connected: node.isConnected, source: node.getAttribute('src') }));
+    }, { roomId, count });
+    assert.deepEqual(frames, ['captain', 'admiral', 'governor'].map(tier => ({ connected: true,
+      source: thousand ? `/img/overlays/danmaku-harbor/${tier}-frame.png` : `/img/overlays/danmaku-guard/bubble-${tier}-frame.webp`,
+    })));
+  }
 });
 
 test('gift banner updates retain images, patch rank and refit only changed text', async (t) => {

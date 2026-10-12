@@ -51,6 +51,8 @@ const { registerUpdateIpc } = require('./ipc/update-ipc');
 const { createDesktopResourceIntegrity } = require('./desktop-resource-integrity');
 const { registerMusicIpc } = require('./ipc/music-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
+const { createGuardExpiryAuth } = require('./guard-expiry-auth');
+const { registerGuardExpiryIpc } = require('./ipc/guard-expiry-ipc');
 const { registerLicenseIpc } = require('./ipc/license-ipc');
 const { registerGiftInteractionIpc } = require('./ipc/gift-interaction-ipc');
 const { registerGiftExportIpc } = require('./ipc/gift-export-ipc');
@@ -134,6 +136,8 @@ var clientAppearance = null;
 var disposeClientAppearanceIpc = null;
 var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
+var guardExpiryAuth = null;
+var disposeGuardExpiryIpc = null;
 var disposeGiftInteractionIpc = null;
 var disposeGiftExportIpc = null;
 var fanProfileController = null;
@@ -288,6 +292,8 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
       readinessController = null;
       licenseResumeController?.unregister();
       disposeLotteryAuthIpc?.();
+      disposeGuardExpiryIpc?.();
+      guardExpiryAuth?.dispose();
       disposeGiftInteractionIpc?.();
       disposeGiftExportIpc?.();
       disposeFanProfileIpc?.();
@@ -308,6 +314,7 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
         integrityStopped,
         clientAppearance?.whenIdle(),
         dynamicLotteryAuth?.whenIdle(),
+        guardExpiryAuth?.whenIdle(),
         ...controllersToDrain.map((controller) => controller.whenIdle()),
       ]);
       if (finished) return;
@@ -512,6 +519,16 @@ async function startDesktopApp() {
     shell,
     getMainWindow: () => windowState.main,
     writeLog,
+  });
+  guardExpiryAuth = createGuardExpiryAuth({
+    session, licenseManager, BrowserWindow, shell,
+    getMainWindow: () => windowState.main,
+    loginConfig: require('./bilibili-auth').BILIBILI_LOGIN_CONFIG,
+  });
+  disposeGuardExpiryIpc = registerGuardExpiryIpc({
+    ipcMain, auth: guardExpiryAuth,
+    getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   disposeLotteryAuthIpc = registerDynamicLotteryAuthIpc({
     ipcMain,

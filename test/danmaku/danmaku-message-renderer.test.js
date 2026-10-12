@@ -23,6 +23,28 @@ async function createRenderer(options) {
   return createDanmakuMessageRenderer({ document: createFakeDocument(), classNames: DEFAULT_DANMAKU_CLASSES, ...options });
 }
 
+test('floating gifts reuse chat layout and render a complete feeding sentence as safe text', async () => {
+  for (const style of ['floating', 'comet']) {
+    const render = await createRenderer({ style, fullscreen: true, showAvatar: false });
+    for (const gift of [
+      { name: '<b>送礼人</b>', giftName: '<img>小花花', giftCount: 10 },
+      { name: 'LateNightFM_2026', giftName: '提督', giftCount: 1, giftGuardLevel: 2 },
+    ]) {
+      const message = `${gift.name}投喂了${gift.giftName}×${gift.giftCount}`;
+      const root = render({ ...gift, kind: 'gift', message: '旧的礼物通知' });
+      const chat = render({ name: gift.name, message });
+      assert.equal(root.className, chat.className, 'gift cards use the ordinary floating nameplate and body');
+      assert.equal(root.style['--danmaku-width'], chat.style['--danmaku-width']);
+      const body = findByClass(root, 'draw-danmaku-body');
+      assert.equal(body.children.length, 2);
+      assert.equal(body.children[0].children[0].textContent, gift.name);
+      assert.equal(body.children[1].textContent, message);
+      assert.equal(body.children[1].children.length, 0, 'names and gifts are literal text');
+      assert.equal(findByClass(root, 'draw-danmaku-gift'), undefined);
+    }
+  }
+});
+
 test('mist uses current-room membership, one avatar and safe inline or sticker content', async () => {
   const render = await createRenderer({ style: 'mist', fullscreen: true, showAvatar: true });
   const item = { name: '<b>观众</b>', message: '好听[星]', guardLevel: 1,

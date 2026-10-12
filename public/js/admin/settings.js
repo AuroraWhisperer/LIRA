@@ -20,6 +20,7 @@ import { createSongRequestBlacklist } from './song-request-blacklist.js';
 import { initLicenseAccountDevice as initLicenseAccountDeviceImpl } from './settings-license.js';
 import { createSettingsOperations } from './settings-operations.js';
 import { createBilibiliRoomProfile } from './settings-room-profile.js';
+import { initGuardExpirySettings } from './settings-guard-expiry.js';
 import { eventBus, Events } from '../shared/event-bus.js';
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
@@ -89,7 +90,10 @@ const settingsForm = createSettingsForm({
   desktopRef: windowRef.songAssistantDesktop,
 });
 
+let guardExpirySettings = null;
+
 export function initBilibiliAuth() {
+  guardExpirySettings ||= initGuardExpirySettings({ documentRef, windowRef });
   const roomProfile = createBilibiliRoomProfile({
     documentRef,
     fetchRef,
@@ -104,6 +108,7 @@ export function initBilibiliAuth() {
   });
   documentRef.addEventListener('app:bilibili-auth-changed', () => {
     void roomProfile.refresh(getState()?.getAppState?.()?.settings?.roomId, true);
+    void guardExpirySettings.refresh();
   });
   return initBilibiliAuthImpl({
     documentRef,

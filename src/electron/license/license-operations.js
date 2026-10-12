@@ -246,6 +246,18 @@ function createLicenseOperations(options = {}) {
     return withAuthorizedSecret((token) => remote.getBilibiliCredentials(token, requestOptions), requestOptions.signal);
   }
 
+  function guardExpiryRequest(operation, requestOptions = {}) {
+    return withAuthorizedToken(async (token) => {
+      try { return await operation(token); }
+      catch (error) {
+        if (error.status === 404 || error.status === 405) {
+          throw new RemoteLicenseError('GUARD_EXPIRY_UNSUPPORTED', '请更新服务器后使用大航海到期同步。');
+        }
+        throw error;
+      }
+    }, 0, true, undefined, requestOptions.signal);
+  }
+
   async function setBilibiliCredentialsInternal(cookie, requestOptions = {}) {
     const value = String(cookie || '').trim();
     if (!value || value.length > 12_000 || /[\r\n\0]/u.test(value)) {
@@ -340,6 +352,12 @@ function createLicenseOperations(options = {}) {
   }
 
   return {
+    getGuardExpiryAccountInternal: (requestOptions = {}) =>
+      guardExpiryRequest((token) => remote.getGuardExpiryAccount(token, requestOptions), requestOptions),
+    updateGuardExpiryAccountInternal: (input, requestOptions = {}) =>
+      guardExpiryRequest((token) => remote.updateGuardExpiryAccount(input, token, requestOptions), requestOptions),
+    clearGuardExpiryAccountInternal: (requestOptions = {}) =>
+      guardExpiryRequest((token) => remote.clearGuardExpiryAccount(token, requestOptions), requestOptions),
     getGiftCardProfilesInternal: (input = {}) =>
       withAuthorizedToken(
         (token) => remote.getGiftCardProfiles(input.cursor, token, { signal: input.signal }), 0, true, undefined, input.signal,

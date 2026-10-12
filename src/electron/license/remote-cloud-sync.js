@@ -2,6 +2,12 @@
 
 function createRemoteCloudSync(request) {
   return {
+    getGuardExpiryAccount: (token, requestOptions) =>
+      request('GET', '/api/device/guard-expiry/account', undefined, token, requestOptions),
+    updateGuardExpiryAccount: (input, token, requestOptions) =>
+      request('PUT', '/api/device/guard-expiry/account', input, token, requestOptions),
+    clearGuardExpiryAccount: (token, requestOptions) =>
+      request('DELETE', '/api/device/guard-expiry/account', undefined, token, requestOptions),
     getCloudState: (token, requestOptions) =>
       request('GET', '/api/device/cloud-state', undefined, token, requestOptions),
     updateCloudSettings: (settings, token, requestOptions) =>

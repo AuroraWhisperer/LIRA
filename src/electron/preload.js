@@ -110,6 +110,13 @@ contextBridge.exposeInMainWorld('dynamicLotteryAuth', {
   logout: () => ipcRenderer.invoke('dynamic-lottery-auth:logout'),
 });
 
+contextBridge.exposeInMainWorld('guardExpiryAuth', {
+  getState: () => ipcRenderer.invoke('guard-expiry:get-state'),
+  setSource: (source) => ipcRenderer.invoke('guard-expiry:set-source', source),
+  login: () => ipcRenderer.invoke('guard-expiry:login'),
+  logout: () => ipcRenderer.invoke('guard-expiry:logout'),
+});
+
 contextBridge.exposeInMainWorld('liraLicense', {
   getGiftInteractionState: () => ipcRenderer.invoke('license:get-gift-interaction-state'),
   setGiftInteraction: (key, enabled) => ipcRenderer.invoke('license:set-gift-interaction', { key, enabled }),
