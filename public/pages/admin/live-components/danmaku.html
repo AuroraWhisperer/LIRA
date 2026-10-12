@@ -65,6 +65,10 @@
                 <img src="/img/overlays/danmaku-previews/sketch.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">绿萌简笔画</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="harbor" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/harbor.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">航海气泡</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="prismatic" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/prismatic.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">流霞</span>
@@ -73,9 +77,13 @@
                 <img src="/img/overlays/danmaku-previews/starlight.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">星语</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="snowfox" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/snowfox.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">雪狐物语</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="identity" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/identity.png" class="danmaku-style-sample" alt="" />
-                <span class="danmaku-style-name">画中人</span>
+                <span class="danmaku-style-name">灵动弹幕</span>
               </button>
             </div>
           </section>
@@ -88,6 +96,10 @@
               <button class="danmaku-style-option" type="button" data-danmaku-style="outline" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/outline.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">一纸素笺</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="mist" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/mist.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">青雾</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="whiteframe" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/whiteframe.png" class="danmaku-style-sample" alt="" />
@@ -159,6 +171,14 @@
               <span><strong id="danmakuTextColorLabel">正文颜色</strong></span>
               <input id="danmakuTextColor" type="color" value="#eaf2ff" disabled />
             </label>
+            <label id="danmakuBubbleColorModeField" class="danmaku-parameter-field" for="danmakuBubbleColorMode" hidden>
+              <span><strong>弹幕配色<lira-help label="弹幕配色说明">默认按当前直播间身份配色。自定义会同时改变普通弹幕的姓名条、边框、头像圈、正文和浅色底，SC、礼物与上舰保留原配色。</lira-help></strong></span>
+              <select id="danmakuBubbleColorMode" disabled><option value="default">默认配色</option><option value="custom">自定义配色</option></select>
+            </label>
+            <label id="danmakuBubbleColorField" class="danmaku-parameter-field" for="danmakuBubbleColor" hidden>
+              <span><strong>自定义配色</strong></span>
+              <input id="danmakuBubbleColor" type="color" value="#78a9d6" disabled />
+            </label>
             <label id="danmakuBackgroundOpacityField" class="danmaku-parameter-field" for="danmakuBackgroundOpacity">
               <span
                 ><strong>背景不透明度</strong>
@@ -175,9 +195,13 @@
                 disabled
               />
             </label>
-            <label id="danmakuSpeedField" class="danmaku-parameter-field" for="danmakuSpeedPixelsPerSecond" hidden>
-              <span><strong>移动速率<lira-help label="移动速率说明">20～600 像素/秒，默认 120；数值越大移动越快。</lira-help></strong></span>
-              <input id="danmakuSpeedPixelsPerSecond" type="number" min="20" max="600" step="1" value="120" disabled />
+            <label id="danmakuSpeedField" class="danmaku-parameter-field" for="danmakuFloatingSpeed" hidden>
+              <span><strong>飘动速度<lira-help label="飘动速度说明">1～100，默认 50 为原速；1 为原速的三分之一，100 为原速的三倍。旧速度保留到手动调节。</lira-help></strong><output id="danmakuFloatingSpeedValue" for="danmakuFloatingSpeed">50 · 1×</output></span>
+              <input id="danmakuFloatingSpeed" class="parameter-range" type="range" min="1" max="100" step="1" value="50" disabled />
+            </label>
+            <label id="danmakuFloatingDispersionField" class="danmaku-parameter-field" for="danmakuFloatingDispersion" hidden>
+              <span><strong>分散程度<lira-help label="分散程度说明">1～100，默认 50。数值越大，新弹幕越倾向于远离画面中的其他弹幕；100 在整个高度内尽可能远离，包括最上、最下方。拥挤时以可用空间为准，已显示弹幕不换位置。</lira-help></strong><output id="danmakuFloatingDispersionValue" for="danmakuFloatingDispersion">50</output></span>
+              <input id="danmakuFloatingDispersion" class="parameter-range" type="range" min="1" max="100" step="1" value="50" disabled />
             </label>
             <label id="danmakuScrollDirectionField" class="danmaku-parameter-field" for="danmakuScrollDirection">
               <span><strong>滚动方向</strong></span>
@@ -219,6 +243,10 @@
               <section class="danmaku-advanced-section" aria-labelledby="danmakuMessageOptionsTitle">
                 <h6 id="danmakuMessageOptionsTitle">消息显示</h6>
                 <div id="danmakuMessageOptions" class="danmaku-parameter-grid danmaku-message-options">
+                  <label id="danmakuMinGiftAmountField" class="danmaku-parameter-field" for="danmakuMinGiftAmount" hidden>
+                    <span><strong>礼物感谢最低金额<lira-help label="礼物感谢最低金额说明">单位为人民币元，0 表示不过滤。按每条礼物消息的总金额判断，等于门槛也会显示；包含上舰，SC 不受影响。</lira-help></strong></span>
+                    <input id="danmakuMinGiftAmount" type="number" min="0" max="100000" step="0.01" value="0" disabled />
+                  </label>
                   <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">
                     <span><strong>礼物通知图片<lira-help label="礼物通知图片说明">原图不可用时显示样式插画。</lira-help></strong></span>
                     <select id="danmakuGiftImage" disabled>

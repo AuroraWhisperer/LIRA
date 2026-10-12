@@ -2,6 +2,7 @@ import { createMediaDecoration } from './component-media.js';
 import { createComponentResources } from './component-resources.js';
 import { createComponentStyleEffects } from './component-style-effects.js';
 import { createComponentCss } from './component-css.js';
+import { applyRoomGuardState } from '../shared/bilibili-guard-icons.js';
 
 export function isComponentPreview() {
   return new URLSearchParams(location.search).get('componentPreview') === '1' && window.parent !== window;
@@ -59,6 +60,8 @@ export function createComponentPreviewClient({ onConfig, onData, onDispose }) {
         if (current === configuration) send('status', { message: message.config?.cssStyle ? 'CSS 无法加载或内容无效，请检查配套资源后重新导入。' : message.config?.resourceStyle
           ? '样式素材加载失败，请重新导入素材包并更换此组件的样式。' : '组件外观准备失败。' });
       }
+    } else if (message?.type === 'component-preview:room-guard') {
+      applyRoomGuardState(message.roomGuard);
     } else if (message?.type === 'component-preview:data') {
       onData?.(message.data, message.source);
     } else if (message?.type === 'component-preview:dispose') {

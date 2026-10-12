@@ -2,7 +2,7 @@ import { normalizeStyleParameters } from './component-style-parameters.js';
 
 export const CLOCK_STYLE_LABELS = Object.freeze({
   peach: '今天也要闪闪发光', starlight: '今晚与星星一起值班', soda: '今天也要元气满满',
-  'timeline-horizontal': '', 'timeline-vertical': '', digital: '', orbit: '', flip: '', 'moonlit-fan': '',
+  'timeline-horizontal': '', 'timeline-vertical': '', digital: '', minimal: '', orbit: '', flip: '', 'moonlit-fan': '',
 });
 export const FLIP_PALETTES = Object.freeze({
   light: ['#e4e4e4', '#ffffff', '#303030'], dark: ['#757575', '#353535', '#ffffff'],

@@ -57,17 +57,19 @@ export const DANMAKU_PREVIEW_ENTRY = Object.freeze({
 
 // Amounts are synthetic RMB totals for layout coverage, not a current price list.
 const GIFTS = [
-  { id: '10', giftName: '小花花', giftCount: 10, giftTotalPrice: 1 },
-  { id: 'cheer', giftName: '牛哇牛哇', giftCount: 1, giftTotalPrice: 0.1 },
-  { id: 'call', giftName: '打call', giftCount: 66, giftTotalPrice: 13.2 },
-  { id: 'crystal', giftName: '水晶球', giftCount: 1, giftTotalPrice: 100 },
-  { id: 'spaceship', giftName: '小电视飞船', giftCount: 1, giftTotalPrice: 1245 },
+  { id: '10', giftName: '小花花', giftCount: 10, giftTotalPrice: 1, giftImageUrl: '/img/overlays/danmaku-previews/gifts/flower.webp' },
+  { id: 'cheer', giftName: '牛哇牛哇', giftCount: 1, giftTotalPrice: 0.1, giftImageUrl: '/img/overlays/danmaku-previews/gifts/cheer.webp' },
+  { id: 'call', giftName: '打call', giftCount: 66, giftTotalPrice: 13.2, giftImageUrl: '/img/overlays/danmaku-previews/gifts/call.webp' },
+  { id: 'crystal', giftName: '星愿水晶球', giftCount: 1, giftTotalPrice: 100, giftImageUrl: '/img/overlays/danmaku-previews/gifts/crystal.webp' },
+  { id: 'spaceship', giftName: '小电视飞船', giftCount: 1, giftTotalPrice: 1245, giftImageUrl: '/img/overlays/danmaku-previews/gifts/spaceship.webp' },
 ];
 const GUARDS = [
-  { giftGuardLevel: 3, name: VIEWER_NAMES.anime[5], giftName: '舰长', giftTotalPrice: 138, guardAction: 'renew', guardAccompanyDays: 360 },
-  { giftGuardLevel: 2, name: VIEWER_NAMES.everyday[5], giftName: '提督', giftTotalPrice: 1998, guardAction: 'open', guardAccompanyDays: 1 },
-  { giftGuardLevel: 1, name: VIEWER_NAMES.anime[4], giftName: '总督', giftTotalPrice: 19998, guardAction: 'open', guardAccompanyDays: 1 },
+  { giftGuardLevel: 3, name: VIEWER_NAMES.anime[5], giftName: '舰长', giftTotalPrice: 138, guardAction: 'renew', guardAccompanyDays: 360, giftImageUrl: '/img/admin/gifts/bilibili-guard-captain.webp' },
+  { giftGuardLevel: 2, name: VIEWER_NAMES.everyday[5], giftName: '提督', giftTotalPrice: 1998, guardAction: 'open', guardAccompanyDays: 1, giftImageUrl: '/img/admin/gifts/bilibili-guard-prefect.webp' },
+  { giftGuardLevel: 1, name: VIEWER_NAMES.anime[4], giftName: '总督', giftTotalPrice: 19998, guardAction: 'open', guardAccompanyDays: 1, giftImageUrl: '/img/admin/gifts/bilibili-guard-governor.webp' },
 ];
+
+export const DANMAKU_PREVIEW_GIFT_IMAGES = Object.freeze([...GIFTS, ...GUARDS].map((gift) => gift.giftImageUrl));
 
 export function createDanmakuPreviewItems(style = 'signal') {
   const samples = [
@@ -87,7 +89,7 @@ export function createDanmakuPreviewItems(style = 'signal') {
     { id: 'preview-emote', name: '小眠Mio', isStreamer: true, message: EMOTE.text, emotes: [{ ...EMOTE, kind: 'sticker' }] },
     ...GIFTS.map(({ id, ...gift }, index) => ({
       ...gift, id: `preview-gift-${id}`, kind: 'gift', name: VIEWER_NAMES.everyday[index],
-      message: `送出 ${gift.giftName} × ${gift.giftCount}`, giftImageUrl: '/img/gift-placeholder.png',
+      message: `送出 ${gift.giftName} × ${gift.giftCount}`,
     })),
     ...GUARDS.map((gift) => ({
       ...gift, id: `preview-guard-${gift.giftGuardLevel}`, kind: 'gift', giftCount: 1, avatarUrl: AVATAR,
@@ -98,7 +100,14 @@ export function createDanmakuPreviewItems(style = 'signal') {
       name: VIEWER_NAMES[tone][index % VIEWER_NAMES[tone].length], avatarUrl: AVATAR, message, price: SC_PRICES[index],
     }))),
   ];
-  if (style !== 'prismatic') return samples;
+  if (style === 'mist') return samples.map((item) => ({
+    ...item, avatarUrl: item.avatarUrl || AVATAR, roomGuardLevel: item.guardLevel || 0,
+  }));
+  if (style === 'harbor') return samples.map((item, index) => ({
+    ...item, avatarUrl: item.avatarUrl || AVATAR, roomGuardLevel: item.guardLevel || 0,
+    ...(index < 3 ? { onlineRank: index + 1 } : {}),
+  }));
+  if (!['prismatic', 'snowfox'].includes(style)) return samples;
   const palettes = {
     1: [50, '#A773F199', '#D47AFF'], 2: [38, '#4C7DFF99', '#58A1F8'],
     3: [28, '#3FB4F699', '#5FC7F4'], 0: [9, '#5762A799', '#5762A7'],

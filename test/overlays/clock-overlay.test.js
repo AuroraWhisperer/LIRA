@@ -61,6 +61,7 @@ test('clock styles keep fixed base, named theme, and animation ownership', () =>
     "@import url('./clock/soda.css');",
     "@import url('./clock/timeline.css');",
     "@import url('./clock/digital.css');",
+    "@import url('./clock/minimal.css');",
     "@import url('./clock/orbit.css');",
     "@import url('./clock/flip.css');",
     "@import url('./clock/moonlit-fan.css');",
@@ -69,7 +70,7 @@ test('clock styles keep fixed base, named theme, and animation ownership', () =>
   assert.deepEqual(entry.match(/@import url\('[^']+'\);/g), expectedImports);
 
   const owners = Object.fromEntries(
-    ['base', 'peach', 'starlight', 'soda', 'timeline', 'digital', 'orbit', 'flip', 'moonlit-fan', 'animations'].map((name) => [
+    ['base', 'peach', 'starlight', 'soda', 'timeline', 'digital', 'minimal', 'orbit', 'flip', 'moonlit-fan', 'animations'].map((name) => [
       name,
       fs.readFileSync(path.join(styleRoot, 'clock', `${name}.css`), 'utf8'),
     ]),
@@ -87,6 +88,7 @@ test('clock styles keep fixed base, named theme, and animation ownership', () =>
   assert.match(owners.timeline, /data-clock-style='timeline-vertical'/);
   assert.doesNotMatch(owners.timeline, /data-clock-style='digital'/);
   assert.match(owners.digital, /data-clock-style='digital'/);
+  assert.match(owners.minimal, /data-clock-style='minimal'/);
   assert.match(owners.orbit, /data-clock-style='orbit'/);
   assert.match(owners.flip, /data-clock-style='flip'/);
   assert.match(owners['moonlit-fan'], /data-clock-style='moonlit-fan'/);
@@ -95,7 +97,7 @@ test('clock styles keep fixed base, named theme, and animation ownership', () =>
   assert.doesNotMatch(owners.animations, /data-clock-style/);
 });
 
-test('cute clock overlay exposes nine distinct styles and safe time parameters', () => {
+test('cute clock overlay exposes distinct styles and safe time parameters', () => {
   const html = read('public', 'pages', 'overlays', 'clock.html');
   const css = readCssBundle('public', 'css', 'overlays', 'clock.css');
   const script = read('public', 'js', 'overlays', 'clock.js');
@@ -196,7 +198,7 @@ test('live components compose the named clock card with fixed URL and custom con
 test('clock settings are persisted through validated keys and exposed by the clock page read-only capability', async () => {
   assert.deepEqual(
     [...CLOCK_STYLE_VALUES],
-    ['peach', 'starlight', 'soda', 'timeline-horizontal', 'timeline-vertical', 'digital', 'orbit', 'flip', 'moonlit-fan'],
+    ['peach', 'starlight', 'soda', 'timeline-horizontal', 'timeline-vertical', 'digital', 'minimal', 'orbit', 'flip', 'moonlit-fan'],
   );
   assert.equal(DEFAULT_SETTINGS.clockStyle, 'peach');
   assert.equal(DEFAULT_SETTINGS.clockShowDate, 'true');
@@ -371,7 +373,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
   assert.equal(publicResponse.payload.ok, true);
 });
 
-for (const style of ['digital', 'moonlit-fan']) test(`${style} clock config round-trips through admin payload and fixed URL query overrides`, async () => {
+for (const style of ['digital', 'minimal', 'moonlit-fan']) test(`${style} clock config round-trips through admin payload and fixed URL query overrides`, async () => {
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
   const config = {

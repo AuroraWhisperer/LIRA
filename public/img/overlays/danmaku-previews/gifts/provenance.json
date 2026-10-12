@@ -1,0 +1,32 @@
+[
+  {
+    "file": "flower.webp",
+    "giftId": 31036,
+    "name": "小花花",
+    "sourceUrl": "https://i0.hdslb.com/bfs/live/28357ba4cd566418730ca29da2c552efa7e4a390.webp"
+  },
+  {
+    "file": "cheer.webp",
+    "giftId": 31039,
+    "name": "牛哇牛哇",
+    "sourceUrl": "https://i0.hdslb.com/bfs/live/7571c8bdfcb65f9b00ab1307b2c86630f0d00859.webp"
+  },
+  {
+    "file": "call.webp",
+    "giftId": 31212,
+    "name": "打call",
+    "sourceUrl": "https://i0.hdslb.com/bfs/live/196a1122f2eda36a36b5f85f2630ce2f0c35a119.webp"
+  },
+  {
+    "file": "crystal.webp",
+    "giftId": 31117,
+    "name": "星愿水晶球",
+    "sourceUrl": "https://i0.hdslb.com/bfs/live/72bdc71f91ebec5681bb1975bc5f97862e996a34.webp"
+  },
+  {
+    "file": "spaceship.webp",
+    "giftId": 25,
+    "name": "小电视飞船",
+    "sourceUrl": "https://i0.hdslb.com/bfs/live/29e01d47ca7584754a682171e3644fcec3669280.webp"
+  }
+]

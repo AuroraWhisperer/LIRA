@@ -146,10 +146,6 @@
   color: var(--usage-guide-accent);
 }
 
-.usage-guide-search-target {
-  scroll-margin-top: var(--usage-guide-scroll-offset, 110px);
-}
-
 .usage-guide-search-match {
   --usage-guide-search-ink: color-mix(in srgb, var(--color-info) 65%, var(--text));
   --usage-guide-search-fill: color-mix(in srgb, var(--color-info) 20%, var(--surface));
@@ -184,7 +180,7 @@
 
 .usage-guide-search-clear:focus-visible,
 .usage-guide-search-result:focus-visible,
-.usage-guide-search-target:focus-visible {
+.usage-guide-navigation-target:focus-visible {
   outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }

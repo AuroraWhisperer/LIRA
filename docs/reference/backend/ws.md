@@ -2,7 +2,7 @@
 
 > 涉及文件:[src/server/ws.js](../../../src/server/ws.js)、[src/server.js](../../../src/server.js)(getState/广播点)
 
-本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 17 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
+本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 18 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
 
 ## 1. 传输层(手写 RFC 6455)
 
@@ -37,9 +37,9 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 尚未交给 hub 的拒绝升级由 HTTP 入口收尾：400/423/503 响应写出后销毁 socket，不等待对方回 FIN。它们不属于 hub 的升级连接集合，不能依赖 hub.stop() 兜底。
 
-## 2. 快照(Snapshot)17 字段
+## 2. 快照(Snapshot)18 字段
 
-每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **17 个字段**；overlay 不接收这个完整对象：
+每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **18 个字段**；overlay 不接收这个完整对象：
 
 `topic=danmaku` 仅选择高频 `danmaku:message` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅该增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/transport/websocket-access-policy.test.js` 和 `test/transport/websocket-access-policy.test.js`。
 
@@ -56,6 +56,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `categories`          | `domainServices.songs.listCategories()`    | 歌曲分类                                                                                                          |
 | `tags`                | `domainServices.songs.listTags()`          | 歌曲标签                                                                                                          |
 | `songCount`           | `domainServices.songs.count()`             | 曲库歌曲总数                                                                                                      |
+| `roomGuard` | `bilibiliRuntime.getRoomGuardState()` | 当前配置直播间的 `{ roomId, count }`；人数未知为 `null`，变化原因 `bilibili:room-guard` |
 | `liveStatus`          | `liveStatus` 对象                          | 直播间连接状态(`connected/enabled/roomId/mode/message/updatedAt`)                                                 |
 | `bilibiliDiagnostics` | `bilibiliDiagnostics` 对象                 | Bilibili 诊断信息(最近包/命令/礼物时间戳、解析计数等),见 [bilibili/danmaku.md](bilibili/danmaku.md)               |
 | `lyricState`          | `lyricState` 对象                          | 当前歌词行状态(单行),见 [music/services.md](music/services.md)                                                    |
@@ -160,3 +161,5 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 ## 游戏增量恢复
 
 连接/重连使用 GET /api/games/session 建立完整基线。[games-session.js](../../../public/js/overlays/games-session.js) 在读取期间缓存最多 512 条增量，完成后只重放同 sessionId 且大于快照 eventRevision 的连续事件；重复事件忽略，缺口或缓冲溢出重新读取。新的 game:update 使旧 HTTP 响应失效。普通聊天只追加消息，状态 patch 不触发画布重绘；在恢复前完成本页待提交画笔，恢复期间暂停新作画。公开 scope 投影独立选择各字段，仍禁止未公布答案。请求失败以最多 5 秒间隔重试，卸载清理计时器。
+
+`roomGuard` 只投影给 queue、overtime、danmaku、gift-feed、gift-wishes；正式场景的文字组件也通过 `getDisplayData` 获得该最小字段，并通过 `component-preview:room-guard` 送至既有 iframe。人数更新只替换图片，不重放消息。云端弹幕使用协商 `roomGuard=1` 后的 Server 快照／人数事件，Electron 验证房号、人数和时间戳后进入现有 display buffer；人数变化保留 epoch/cursor，换账号或连接重置清除该状态。

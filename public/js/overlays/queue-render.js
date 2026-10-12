@@ -24,14 +24,9 @@ import {
   superChatPriceClass,
 } from './queue-utils.js';
 import { applyTheme, setIdentityRuleThemeVars } from './queue-theme.js';
+import { getGuardIcon } from '../shared/bilibili-guard-icons.js';
 
 export { applyTheme, setIdentityRuleThemeVars } from './queue-theme.js';
-
-const BILIBILI_GUARD_IMAGES = {
-  1: '/img/admin/gifts/bilibili-guard-governor.webp',
-  2: '/img/admin/gifts/bilibili-guard-prefect.webp',
-  3: '/img/admin/gifts/bilibili-guard-captain.webp',
-};
 
 function displaySongName(value) {
   return String(value ?? '').trimStart();
@@ -198,9 +193,9 @@ export function renderIdentityRow(item, index, showIndex = true, useGuardImages 
   const medalName = String(item.requester_medal_name || '').trim();
   const identityText = requesterIdentityLabel(guardLevel, medalName);
   const identityClass = requesterIdentityClass(guardLevel, medalLevel);
-  const guardImage = useGuardImages && BILIBILI_GUARD_IMAGES[guardLevel];
+  const guardImage = useGuardImages && getGuardIcon(guardLevel);
   const identityHtml = guardImage
-    ? `<img class="identity-guard-image" src="${guardImage}" alt="${guardLabel(guardLevel)}" />`
+    ? `<img class="identity-guard-image" data-guard-icon="${guardLevel}" src="${guardImage}" alt="${guardLabel(guardLevel)}" />`
     : identityText ? `<span class="identity-badge ${identityClass}">${escapeHtml(identityText)}</span>` : '';
   const medalClass = medalLevelClass(medalLevel);
   const songName = escapeHtml(displaySongName(item.song_name));

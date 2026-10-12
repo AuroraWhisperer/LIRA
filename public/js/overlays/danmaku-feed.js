@@ -1,3 +1,4 @@
+import { isHarborGiftVisible } from './danmaku-harbor.js';
 /* global document */
 import { componentEffectBounds } from './component-effect-filters.js';
 import { createFloatingDanmakuFeed } from './danmaku-floating.js';
@@ -46,6 +47,7 @@ export function createDanmakuFeed(root, options = {}) {
   };
   const autoScroll = options.autoScroll !== false;
   const fullscreen = options.layout === FULLSCREEN_LAYOUT;
+  const showSuperchat = !fullscreen || options.style === 'mist';
   const createBubble = createDanmakuMessageRenderer({
     document,
     classNames,
@@ -61,6 +63,8 @@ export function createDanmakuFeed(root, options = {}) {
   const fitViewport = !fullscreen && offscreenViewports === 0;
   const smoothLayout = fitViewport && typeof root.animate === 'function';
   if (smoothLayout) root.dataset.smoothLayout = 'true';
+  const hasEntrance = smoothLayout && Boolean(globalThis.getComputedStyle?.(root)
+    ?.getPropertyValue?.('--danmaku-enter-animation')?.trim());
   const requestedLifetime = Number(options.itemLifetimeMs);
   const itemLifetimeMs = Number.isFinite(requestedLifetime) && requestedLifetime > 0 ? requestedLifetime : 0;
   const expireItems = options.expireItems !== false;
@@ -99,6 +103,11 @@ export function createDanmakuFeed(root, options = {}) {
   resizeObserver?.observe(root);
   root.ownerDocument?.defaultView?.addEventListener('lira:effects-updated', scheduleLayout);
   reducedMotion?.addEventListener?.('change', finishMotion);
+  if (hasEntrance) root.addEventListener?.('animationend', finishEntrance);
+
+  function finishEntrance(event) {
+    if (!event.pseudoElement && event.target?.parentNode === root) delete event.target.dataset.liveEntry;
+  }
 
   function cancelAnimations(entry) {
     entry.fade?.cancel();
@@ -113,6 +122,7 @@ export function createDanmakuFeed(root, options = {}) {
   function finishMotion() {
     if (reducedMotion?.matches) {
       renderedEntries.forEach(cancelAnimations);
+      if (hasEntrance) renderedEntries.forEach(({ node }) => { delete node.dataset.liveEntry; });
       if (smoothLayout) scheduleLayout();
     }
   }
@@ -154,12 +164,14 @@ export function createDanmakuFeed(root, options = {}) {
   }
 
   function append(item) {
-    if (fullscreen && item?.kind === 'superchat') return;
+    if (options.style === 'harbor' && !isHarborGiftVisible(item, options.minGiftAmount)) return;
+    if (!showSuperchat && item?.kind === 'superchat') return;
     if (root.children.length === 1 && root.children[0].className === classNames.empty) {
       root.replaceChildren();
     }
     const node = createBubble(item, renderedSequence);
     const height = estimateItemHeight(item);
+    if (hasEntrance && !reducedMotion?.matches) node.dataset.liveEntry = 'true';
     root.append(node);
     const entry = { node, height, item, timer: null, entering: smoothLayout };
     renderedEntries.push(entry);
@@ -214,7 +226,7 @@ export function createDanmakuFeed(root, options = {}) {
       entry.height = measured > 0 ? measured : estimateItemHeight(entry.item);
       return total + entry.height;
     }, 0);
-    if (smoothLayout) animateFixedLayout(gap, styles?.flexDirection === 'column-reverse' ? -1 : 1);
+    if (smoothLayout) animateFixedLayout(gap, styles?.flexDirection === 'column-reverse' ? -1 : 1, styles);
     // Moving messages can still be visible even when their destination is clipped.
     // Keep them until the move finishes; the item limit still bounds a busy feed.
     // Layout heights ignore entrance transforms and work in either scroll direction.
@@ -228,7 +240,7 @@ export function createDanmakuFeed(root, options = {}) {
     }
   }
 
-  function animateFixedLayout(gap, direction) {
+  function animateFixedLayout(gap, direction, feedStyles) {
     // Relative positioning keeps the font rasterization stable during movement.
     // Read before writing and continue from the visible offset on interrupted moves.
     let previousOffset;
@@ -248,11 +260,15 @@ export function createDanmakuFeed(root, options = {}) {
     });
     // One duration and curve per pass keeps rows in step; taller arrivals glide a little longer.
     const distance = Math.max(0, ...positions.map(({ from }) => Math.abs(from)));
-    const duration = Math.round(Math.min(LAYOUT_MOVE_MAX_MS, LAYOUT_MOVE_BASE_MS + distance));
+    const baseMs = Number.parseFloat(feedStyles?.getPropertyValue?.('--danmaku-move-base-ms')) || LAYOUT_MOVE_BASE_MS;
+    const maxMs = Number.parseFloat(feedStyles?.getPropertyValue?.('--danmaku-move-max-ms')) || LAYOUT_MOVE_MAX_MS;
+    const duration = Math.round(Math.min(maxMs, baseMs + distance));
     // An arrival during a move starts the new curve at the current speed instead of jolting the rows.
     const running = renderedEntries.find((entry) => entry.motion && entry.move);
     const reference = positions.find(({ dy }) => Math.abs(dy) >= 0.01)?.from;
-    const [x1, y1, x2, y2] = LAYOUT_MOVE_CURVE;
+    const styleCurve = feedStyles?.getPropertyValue?.('--danmaku-move-curve')?.split(',').map(Number);
+    const [x1, y1, x2, y2] = styleCurve?.length === 4 && styleCurve.every(Number.isFinite)
+      ? styleCurve : LAYOUT_MOVE_CURVE;
     let startY = y1;
     if (running && reference) {
       const { from: runningFrom, duration: runningDuration, curve } = running.move;
@@ -286,7 +302,7 @@ export function createDanmakuFeed(root, options = {}) {
     const node = entry.node;
     node.style.setProperty('width', '');
     node.style.setProperty('zoom', '');
-    if (options.style === 'prismatic' && (entry.item.kind === 'superchat' ||
+    if (['prismatic', 'snowfox'].includes(options.style) && (entry.item.kind === 'superchat' ||
       (entry.item.kind === 'gift' && [1, 2, 3].includes(entry.item.giftGuardLevel)))) {
       // Full-width cards reflow at a smaller type size instead of narrowing the panel.
       node.style.setProperty('font-size', '');
@@ -446,7 +462,8 @@ export function createDanmakuFeed(root, options = {}) {
 
   function selectMessages(items, bypassViewportPruning = false) {
     const bounded = Array.isArray(items)
-      ? items.filter((item) => !fullscreen || item?.kind !== 'superchat').slice(-maxItems) : [];
+      ? items.filter((item) => (showSuperchat || item?.kind !== 'superchat')
+        && (options.style !== 'harbor' || isHarborGiftVisible(item, options.minGiftAmount))).slice(-maxItems) : [];
     if (fullscreen || fitViewport || bypassViewportPruning || viewportHeight <= 0 || bounded.length <= 1)
       return bounded;
 
@@ -481,6 +498,7 @@ export function createDanmakuFeed(root, options = {}) {
       resizeObserver?.disconnect();
       root.ownerDocument?.defaultView?.removeEventListener('lira:effects-updated', scheduleLayout);
       reducedMotion?.removeEventListener?.('change', finishMotion);
+      if (hasEntrance) root.removeEventListener?.('animationend', finishEntrance);
       clearExpirationTimers();
       if (smoothLayout) delete root.dataset.smoothLayout;
       renderedSequence = 0;

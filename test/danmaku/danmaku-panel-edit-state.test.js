@@ -7,6 +7,41 @@ const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 
 const fixture = createUiFixture();
 
+test('snowfox palette controls update the shared draft and restore identity colors', async (t) => {
+  const page = await fixture(t, 'danmaku');
+  await page.evaluate(async (html) => {
+    document.body.innerHTML = html;
+    document.getElementById('liveDanmakuFeature').hidden = false;
+    const { bindDanmakuParameters } = await import('/js/admin/danmaku-parameter-view.js');
+    const listeners = new Set();
+    window.paletteState = { loaded: true, draft: { style: 'snowfox', styleOptions: {}, fullscreenDurationSeconds: 6 } };
+    const controller = {
+      getState: () => window.paletteState,
+      edit: patch => {
+        Object.assign(window.paletteState.draft, patch);
+        listeners.forEach(listener => listener(window.paletteState));
+      },
+      subscribe: listener => { listeners.add(listener); listener(window.paletteState); return () => listeners.delete(listener); },
+    };
+    window.paletteBinding = bindDanmakuParameters(document.body, controller, message => window.messages.push(message));
+  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  assert.equal(await page.locator('#danmakuBubbleColorModeField').isVisible(), true);
+  assert.equal(await page.locator('#danmakuBubbleColorField').isVisible(), false);
+  await page.locator('#danmakuBubbleColorMode').selectOption('custom');
+  assert.equal(await page.locator('#danmakuBubbleColorField').isVisible(), true);
+  await page.locator('#danmakuBubbleColor').evaluate(input => {
+    input.value = '#ba739c';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  assert.equal(await page.evaluate(() => window.paletteState.draft.styleOptions.snowfox.bubbleColor), '#ba739c');
+  await page.locator('#danmakuBubbleColorMode').selectOption('default');
+  assert.equal(await page.evaluate(() => window.paletteState.draft.styleOptions.snowfox.bubbleColor), 'default');
+  await page.locator('#danmakuResetParameters').click();
+  assert.deepEqual(await page.evaluate(() => window.paletteState.draft.styleOptions.snowfox), {});
+  assert.deepEqual(await page.evaluate(() => window.messages), []);
+  await page.evaluate(() => window.paletteBinding.dispose());
+});
+
 test('danmaku panel initializes every shipped style and keeps existing controls working', async (t) => {
   const page = await fixture(t, 'danmaku');
   await page.evaluate(async (html) => {
@@ -117,7 +152,7 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
   const randomTab = page.getByRole('tab', { name: '区域随机', exact: true });
   await randomTab.click();
   assert.equal(await visibleGroups.getAttribute('id'), 'danmakuRandomStyles');
-  assert.equal(await visibleGroups.locator('[data-danmaku-style]').count(), 5);
+  assert.equal(await visibleGroups.locator('[data-danmaku-style]').count(), 6);
   assert.equal(await page.locator('[data-danmaku-style="signal"]').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('#danmakuApplyOverlayBtn').isDisabled(), true);
   assert.equal(await page.evaluate(() => window.requests.length), requestCount, 'Browsing categories must not write settings.');

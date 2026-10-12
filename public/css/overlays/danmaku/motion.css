@@ -1,6 +1,10 @@
-/* The fixed feed owns row movement; theme decorations keep their own animations. */
+/* The feed moves rows; each theme owns the live entrance and its decorations. */
 .draw-danmaku-feed[data-smooth-layout='true'] > .draw-danmaku-item {
   animation: none;
+}
+
+.draw-danmaku-feed[data-smooth-layout='true'] > .draw-danmaku-item[data-live-entry] {
+  animation: var(--danmaku-enter-animation, none);
 }
 
 /* Fixed feeds keep their original exit fade unless another edge mode is selected. */
@@ -26,16 +30,6 @@ body[data-edge-fade='none'] .draw-danmaku-feed[data-smooth-layout='true'] {
   mask: none;
 }
 
-@keyframes signalMessageIn {
-  from {
-    opacity: 0;
-    transform: translateX(-18px) var(--component-transform, translate(0px, 0px));
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) var(--component-transform, translate(0px, 0px));
-  }
-}
 @keyframes giftSheen {
   from {
     opacity: 1;
@@ -54,36 +48,6 @@ body[data-edge-fade='none'] .draw-danmaku-feed[data-smooth-layout='true'] {
   to {
     transform: scaleY(1);
     opacity: 1;
-  }
-}
-@keyframes bubbleMessageIn {
-  from {
-    opacity: 0;
-    transform: translateY(calc(8px * var(--danmaku-entry-direction, 1))) scale(0.97) var(--component-transform, translate(0px, 0px));
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1) var(--component-transform, translate(0px, 0px));
-  }
-}
-@keyframes minimalMessageIn {
-  from {
-    opacity: 0;
-    transform: translateY(calc(5px * var(--danmaku-entry-direction, 1))) var(--component-transform, translate(0px, 0px));
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) var(--component-transform, translate(0px, 0px));
-  }
-}
-@keyframes rankedMessageIn {
-  from {
-    opacity: 0;
-    transform: translateX(-12px) var(--component-transform, translate(0px, 0px));
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) var(--component-transform, translate(0px, 0px));
   }
 }
 @keyframes outlineMessageIn {
@@ -113,6 +77,9 @@ body[data-edge-fade='none'] .draw-danmaku-feed[data-smooth-layout='true'] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .draw-danmaku-feed[data-smooth-layout='true'] > .draw-danmaku-item[data-live-entry] {
+    animation: none !important;
+  }
   *,
   *::before,
   *::after {

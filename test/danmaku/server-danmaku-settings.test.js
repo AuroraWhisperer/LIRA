@@ -175,7 +175,7 @@ test('edits and local preview do not write until explicit apply; late save prese
   f.click('identity');
   f.writes[0].resolve(saved('outline', 12));
   await first;
-  assert.match(f.elements.styleChip.textContent, /待应用.*画中人/);
+  assert.match(f.elements.styleChip.textContent, /待应用.*灵动弹幕/);
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
   const next = f.click('danmakuApplyOverlayBtn');
   f.writes[1].resolve(saved('identity', 12));

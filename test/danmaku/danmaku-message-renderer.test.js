@@ -23,7 +23,133 @@ async function createRenderer(options) {
   return createDanmakuMessageRenderer({ document: createFakeDocument(), classNames: DEFAULT_DANMAKU_CLASSES, ...options });
 }
 
+test('mist uses current-room membership, one avatar and safe inline or sticker content', async () => {
+  const render = await createRenderer({ style: 'mist', fullscreen: true, showAvatar: true });
+  const item = { name: '<b>观众</b>', message: '好听[星]', guardLevel: 1,
+    emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] };
+  for (const roomGuardLevel of [undefined, 0, 1, 2, 3]) {
+    const root = render({ ...item, roomGuardLevel });
+    assert.equal(root.dataset.roomGuard, String(roomGuardLevel || 0));
+    assert.equal(findByClass(root, 'draw-danmaku-identity').children[0].textContent, item.name);
+    assert.equal(findAllByClass(root, 'draw-danmaku-avatar').length, 1);
+    assert.equal(findAllByClass(root, 'draw-danmaku-emote').length, 1);
+    assert.equal(findAllByClass(root, 'draw-danmaku-badge').length, 0);
+    assert.deepEqual(root.children.map(node => node.className), ['draw-danmaku-identity', 'draw-danmaku-body']);
+  }
+  for (const [kind, enlarged] of [['inline', false], ['sticker', true]]) {
+    assert.equal(render({ ...item, message: '[星]', emotes: [{ ...item.emotes[0], kind }] }).className.includes('is-emote-only'), enlarged);
+  }
+});
+
+test('mist gifts, purchased memberships and SC preserve amounts and original content', async () => {
+  const render = await createRenderer({ style: 'mist', fullscreen: true, showAvatar: true });
+  const item = { kind: 'gift', name: '<b>送礼人</b>', giftName: '<img>灯牌', giftCount: 5, giftTotalPrice: 0.5 };
+  const gift = render(item);
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-action').textContent, '赠送');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, item.giftName);
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, '× 5');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-amount').textContent, '¥0.5');
+  assert.deepEqual(findByClass(gift, 'draw-danmaku-body').children.map(node => node.className), ['draw-danmaku-gift', 'draw-danmaku-identity']);
+  for (const [giftGuardLevel, role] of [[3, '舰长'], [2, '提督'], [1, '总督']]) {
+    const guard = render({ ...item, giftGuardLevel, giftCount: 1, guardAction: 'renew', guardAccompanyDays: 360 });
+    assert.equal(findByClass(guard, 'mist-guard-title').textContent, `续费${role}`);
+    assert.equal(findByClass(guard, 'mist-guard-name').textContent, item.name);
+    assert.equal(findByClass(guard, 'mist-guard-amount').textContent, '¥0.5');
+    assert.equal(findByClass(guard, 'mist-guard-companion').textContent, '已陪伴 360 天');
+    assert.equal(findByClass(guard, 'draw-danmaku-gift'), undefined);
+    const unknown = render({ ...item, giftGuardLevel, giftTotalPrice: undefined });
+    assert.equal(findByClass(unknown, 'mist-guard-title').textContent, `感谢支持${role}`);
+    assert.equal(findByClass(unknown, 'mist-guard-companion').textContent, '感谢你的陪伴');
+    assert.equal(findByClass(unknown, 'mist-guard-amount').textContent, '—');
+  }
+  const message = '  保留原文\n<img src=x> 谢谢陪伴  ';
+  const sc = render({ kind: 'superchat', name: item.name, message, price: 30.5 });
+  assert.equal(findByClass(sc, 'sc-copy').textContent, message);
+  assert.equal(findByClass(sc, 'sc-name').textContent, item.name);
+  assert.equal(findByClass(sc, 'sc-value').textContent, '30.5');
+  assert.equal(findAllByClass(sc, 'sc-avatar').length, 1);
+});
+
+test('harbor uses current-room guards and only online top-three badges without exposing chat nicknames', async () => {
+  const render = await createRenderer({ style: 'harbor' });
+  for (const roomGuardLevel of [0, 1, 2, 3]) {
+    const root = render({ name: '<b>观众</b>', message: '今晚好耶', roomGuardLevel, guardLevel: 1, onlineRank: 2 });
+    assert.equal(root.dataset.roomGuard, String(roomGuardLevel));
+    assert.equal(findAllByClass(root, 'harbor-avatar-frame').length, roomGuardLevel ? 1 : 0);
+    assert.equal(findByClass(root, 'draw-danmaku-identity'), undefined);
+    assert.equal(findByClass(root, 'harbor-rank').textContent, '榜2');
+  }
+  for (const onlineRank of [undefined, 0, 4, '1', 1.5]) {
+    const root = render({ name: '观众', message: '你好', guardLevel: 1, onlineRank });
+    assert.equal(root.dataset.roomGuard, '0');
+    assert.equal(findByClass(root, 'harbor-avatar-frame'), undefined);
+    assert.equal(findByClass(root, 'harbor-rank'), undefined);
+  }
+});
+
+test('harbor guard cards use the purchased rank and known facts; SC keeps the original text', async () => {
+  const render = await createRenderer({ style: 'harbor' });
+  const gift = { kind: 'gift', name: '<img>观众', giftGuardLevel: 3, roomGuardLevel: 1,
+    giftTotalPrice: 168, guardAction: 'renew', guardAccompanyDays: 211 };
+  const root = render(gift);
+  assert.equal(root.dataset.roomGuard, '3');
+  assert.equal(findByClass(root, 'harbor-guard-name').textContent, gift.name);
+  assert.equal(findByClass(root, 'harbor-guard-amount').textContent, 'CN¥168');
+  assert.equal(findByClass(root, 'harbor-guard-copy').textContent, '续费舰长，已陪伴主播 211 天');
+  assert.equal(findByClass(render({ ...gift, guardAction: undefined, guardAccompanyDays: undefined }), 'harbor-guard-copy').textContent, '感谢支持舰长');
+  const original = '  完整留言\n<img src=x> 好耶  ';
+  const sc = render({ kind: 'superchat', name: '观众', price: 2, message: original });
+  assert.equal(findByClass(sc, 'sc-copy').textContent, original);
+  assert.equal(findByClass(sc, 'sc-currency').textContent, 'CN¥');
+  const head = findByClass(sc, 'sc-harbor-head');
+  assert.deepEqual(head.children.map(node => node.className), ['sc-avatar', 'sc-harbor-profile']);
+});
+
 const EMOTE_CHAT = { name: '<b>观众</b>', message: '你好[星]', emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] };
+
+test('snowfox uses current-room identity and preserves safe text and sticker semantics', async () => {
+  const render = await createRenderer({ style: 'snowfox' });
+  const legacy = render({ ...EMOTE_CHAT, guardLevel: 3, medalName: '其他房间', medalLevel: 40 });
+  assert.equal(legacy.dataset.roomGuard, '0');
+  assert.equal(legacy.dataset.roomMedal, 'false');
+  assert.equal(findByClass(legacy, 'snowfox-medal'), undefined);
+  for (const roomGuardLevel of [0, 1, 2, 3]) {
+    const root = render({ ...EMOTE_CHAT, roomGuardLevel, roomMedal: { name: '雪狐咕', level: 37 } });
+    assert.equal(root.dataset.roomGuard, String(roomGuardLevel));
+    assert.equal(findByClass(root, 'draw-danmaku-identity').children[0].textContent, EMOTE_CHAT.name);
+    assert.equal(findByClass(root, 'snowfox-medal').textContent, '雪狐咕 37');
+    assert.equal(findAllByClass(root, 'snowfox-guard').length, roomGuardLevel ? 1 : 0);
+    assert.equal(findAllByClass(root, 'draw-danmaku-emote').length, 1);
+  }
+  for (const [kind, enlarged] of [['inline', false], ['sticker', true]]) {
+    const root = render({ message: '[星]', emotes: [{ ...EMOTE_CHAT.emotes[0], kind }] });
+    assert.equal(root.className.includes('is-emote-only'), enlarged);
+  }
+});
+
+test('snowfox gift, SC and membership each render one distinct card with original values', async () => {
+  const render = await createRenderer({ style: 'snowfox' });
+  const item = { kind: 'gift', name: '<b>送礼人</b>', giftName: '星尘烟花', giftCount: 3, giftTotalPrice: 9 };
+  const gift = render(item);
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-action').textContent, '投喂');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-amount').textContent, 'CN¥9');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, '× 3');
+  for (const giftTotalPrice of [undefined, -1, NaN]) assert.equal(findByClass(render({ ...item, giftTotalPrice }), 'draw-danmaku-gift-amount'), undefined);
+  for (const giftGuardLevel of [1, 2, 3]) {
+    const guard = render({ ...item, giftGuardLevel });
+    assert.equal(findByClass(guard, 'snowfox-member-title').textContent, 'NEW MEMBER');
+    assert.equal(findByClass(guard, 'snowfox-member-name').textContent, item.name);
+    assert.equal(guard.dataset.guard, String(giftGuardLevel));
+    assert.equal(findByClass(guard, 'draw-danmaku-gift'), undefined);
+  }
+  const message = '  <b>原文</b>\n第二行  ';
+  const sc = render({ kind: 'superchat', name: '留言人', price: 50.5, message });
+  assert.equal(findAllByClass(sc, 'sc-snowfox').length, 1);
+  assert.equal(findByClass(sc, 'sc-copy').textContent, message);
+  assert.equal(findByClass(sc, 'sc-value').textContent, '50.5');
+  assert.equal(findByClass(sc, 'sc-currency').textContent, 'CN¥');
+  assert.equal(findAllByClass(sc, 'sc-avatar').length, 1);
+});
 
 test('prismatic uses official honor and verified room medal while preserving safe plain text', async () => {
   const render = await createRenderer({ style: 'prismatic' });

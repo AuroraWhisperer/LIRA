@@ -1,4 +1,5 @@
 import { componentEffectBounds } from './component-effect-filters.js';
+import { findFloatingDanmakuTop } from './danmaku-floating-position.js';
 import { DEFAULT_DANMAKU_CLASSES, createDanmakuMessageRenderer } from './danmaku-message-renderer.js';
 
 // Horizontal travel has its own lifetime: a card leaves only after its trailing edge exits.
@@ -12,6 +13,8 @@ export function createFloatingDanmakuFeed(root, options = {}) {
   const cancelTimeout = options.cancelTimeout || ((timer) => clearTimeout(timer));
   const maxItems = options.maxItems || 50;
   let speed = options.speedPixelsPerSecond || 120;
+  let dispersion = options.floatingDispersion ?? 50;
+  let pendingTimer = null;
   let entries = [];
   let sequence = 0;
   const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(layout) : null;
@@ -34,6 +37,8 @@ export function createFloatingDanmakuFeed(root, options = {}) {
   }
 
   function layout() {
+    if (pendingTimer !== null) cancelTimeout(pendingTimer);
+    pendingTimer = null;
     const width = root.clientWidth;
     const height = root.clientHeight;
     if (!width || !height) return;
@@ -50,13 +55,32 @@ export function createFloatingDanmakuFeed(root, options = {}) {
       const geometry = `${width}:${height}:${travelWidth}:${cardHeight}:${speed}`;
       if (entry.geometry === geometry) continue;
       const left = Math.min(width, entry.startedAt === undefined
-        ? width - Math.max(0, time - (Number(entry.item.timestamp) || time)) * speed / 1000
+        ? entry.waitingAt === undefined
+          ? width - Math.max(0, time - (Number(entry.item.timestamp) || time)) * speed / 1000 : width
         : entry.left - (time - entry.startedAt) * entry.speed / 1000);
       stop(entry);
       if (left + travelWidth <= 0) {
         remove(entry);
         continue;
       }
+      if (entry.topRatio === undefined) {
+        const occupied = entries.filter(current => current !== entry && current.startedAt !== undefined)
+          .map(current => ({
+            left: current.left - (time - current.startedAt) * current.speed / 1000,
+            top: current.topRatio * Math.max(0, height - current.cardHeight),
+            width: current.travelWidth, height: current.cardHeight,
+          })).filter(box => box.left + box.width > 0);
+        const top = findFloatingDanmakuTop({ left, width: travelWidth, height: cardHeight }, height, occupied, dispersion);
+        if (top === undefined) {
+          entry.waitingAt ??= time;
+          if (time - entry.waitingAt >= 2000) remove(entry);
+          else if (pendingTimer === null) pendingTimer = scheduleTimeout(layout, 100);
+          continue;
+        }
+        entry.topRatio = top / (height - cardHeight || 1);
+      }
+      entry.cardHeight = cardHeight;
+      entry.travelWidth = travelWidth;
       entry.geometry = geometry;
       entry.left = left;
       entry.startedAt = time;
@@ -70,7 +94,7 @@ export function createFloatingDanmakuFeed(root, options = {}) {
         { transform: `translateX(${left - bounds.x * scale}px) scale(${scale}) var(--component-transform, translate(0px, 0px))` },
         { transform: `translateX(${-travelWidth - bounds.x * scale}px) scale(${scale}) var(--component-transform, translate(0px, 0px))` },
       ], { duration, easing: 'linear', fill: 'forwards' });
-      entry.timer = scheduleTimeout(() => remove(entry), duration);
+      entry.timer = scheduleTimeout(() => { remove(entry); layout(); }, duration);
     }
   }
 
@@ -78,7 +102,8 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     if (item?.kind === 'superchat') return;
     if (!entries.length) root.replaceChildren();
     const node = createMessage(item, sequence++);
-    const entry = { node, item, topRatio: Math.random(), timer: null };
+    node.style.visibility = 'hidden';
+    const entry = { node, item, timer: null };
     entries.push(entry);
     root.append(node);
     observer?.observe(node);
@@ -87,6 +112,8 @@ export function createFloatingDanmakuFeed(root, options = {}) {
   }
 
   function clear() {
+    if (pendingTimer !== null) cancelTimeout(pendingTimer);
+    pendingTimer = null;
     for (const entry of [...entries]) remove(entry, false);
     root.replaceChildren();
   }
@@ -100,6 +127,9 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     setSpeedPixelsPerSecond(value) {
       speed = value;
       layout();
+    },
+    setFloatingDispersion(value) {
+      dispersion = value;
     },
     destroy() {
       observer?.disconnect();

@@ -58,6 +58,9 @@ function createFakeElement() {
     setAttribute(name, value) {
       this.attributes[name] = String(value);
     },
+    removeAttribute(name) {
+      delete this.attributes[name];
+    },
     querySelector() {
       return createFakeElement();
     },

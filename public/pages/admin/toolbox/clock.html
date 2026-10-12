@@ -63,6 +63,10 @@
               >
               <strong>白字数显</strong>
             </button>
+            <button class="clock-style-option" type="button" data-clock-style-option="minimal" aria-pressed="false">
+              <span class="clock-style-swatch is-minimal" aria-hidden="true"><b>21:05:57</b></span>
+              <strong>极简</strong>
+            </button>
             <button class="clock-style-option" type="button" data-clock-style-option="orbit" aria-pressed="false">
               <span class="clock-style-swatch is-orbit" aria-hidden="true"><i></i><b>13:07</b></span>
               <strong>星轨时钟</strong>
@@ -114,7 +118,7 @@
           </fieldset>
 
           <div class="clock-toggle-grid">
-            <label class="clock-toggle-field">
+            <label id="clockShowDateField" class="clock-toggle-field">
               <strong>显示日期</strong>
               <input id="clockShowDate" type="checkbox" checked />
               <i aria-hidden="true"></i>

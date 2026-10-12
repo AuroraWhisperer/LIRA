@@ -11,14 +11,15 @@ const SUPERCHAT_PALETTES = [
   [2000, '#FFD8D8', '#AB1A32', '#C86A7A'],
 ];
 
-export function getSuperChatColors(item) {
+export function getSuperChatColors(item, style) {
   const tier = SUPERCHAT_PALETTES.findLast(([minimum]) => Number(item.price) >= minimum)
     || SUPERCHAT_PALETTES[0];
+  const fallback = style === 'harbor' && tier[0] === 0 ? [0, '#EDF5FF', '#11468A', '#70829C'] : tier;
   const colors = {};
   ['backgroundColor', 'accentColor', 'priceColor'].forEach((key, index) => {
     const value = item.colors?.[key];
     colors[key] = typeof value === 'string' && value.length === 7 && /^#[0-9a-f]{6}$/i.test(value)
-      ? value.toUpperCase() : tier[index + 1];
+      ? value.toUpperCase() : fallback[index + 1];
   });
   return colors;
 }
@@ -33,7 +34,7 @@ function superChatForeground(hex) {
 }
 
 export function createSuperChatCard(document, item, style, resolveAvatarUrl, classNames) {
-  const colors = getSuperChatColors(item);
+  const colors = getSuperChatColors(item, style);
   const root = document.createElement('article');
   root.className = `${classNames.item} is-superchat`;
   root.style.setProperty('--danmaku-delay', '0ms');
@@ -49,10 +50,26 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
     minimumFractionDigits: ['starlight', 'sketch'].includes(style) ? 2 : 0, maximumFractionDigits: 2,
   });
   const amount = node('span', 'sc-money');
-  amount.append(node('span', 'sc-currency', style === 'prismatic' ? 'CN¥' : '¥'), node('span', 'sc-value', price));
+  amount.append(node('span', 'sc-currency', ['prismatic', 'snowfox', 'harbor'].includes(style) ? 'CN¥' : '¥'), node('span', 'sc-value', price));
   root.setAttribute('aria-label', `醒目留言，¥${price}`);
 
-  if (style === 'prismatic') {
+  if (style === 'mist') {
+    const header = node('div', 'sc-mist-head');
+    header.append(avatar(), node('span', 'sc-name', name), amount);
+    card.append(header, copy);
+  } else if (style === 'harbor') {
+    root.style.setProperty('--sc-on-price', superChatForeground(colors.priceColor));
+    const header = node('div', 'sc-harbor-head');
+    const profile = node('div', 'sc-harbor-profile');
+    profile.append(node('span', 'sc-name', name), amount);
+    header.append(avatar(), profile);
+    card.append(header, copy);
+  } else if (style === 'snowfox') {
+    const header = node('div', 'sc-snowfox-head');
+    header.append(node('span', 'sc-name', name), amount);
+    card.append(header, copy);
+    root.append(avatar());
+  } else if (style === 'prismatic') {
     const header = node('div', 'sc-prismatic-head');
     header.append(node('span', 'sc-name', name), amount);
     card.append(header, copy);

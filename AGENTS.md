@@ -217,6 +217,11 @@ visual hierarchy, sizing, interaction, and privileged integration. Reuse existin
 design tokens and nearby patterns. Overlays for OBS and Bilibili Livehime are
 browser-source surfaces.
 
+Fixed danmaku motion follows [the motion contract](docs/reference/frontend/danmaku-motion.md).
+Each style owns its entrance and movement design; the shared feed owns layout,
+interruption, removal and cleanup. Verify changed motion in actual playback,
+including dense arrivals and text stability, rather than relying on code alone.
+
 For a small UI change, one targeted runtime inspection is normally enough when
 code alone cannot establish the result. Verify what the task actually changes.
 

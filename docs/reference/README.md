@@ -29,6 +29,7 @@
 | [app.md](frontend/app.md)           | Admin 应用与公共框架(EventBus/DI/StateService)及业务模块                  |
 | [playback.md](frontend/playback.md) | 播放引擎:状态机、音源解析、本地文件、队列持久化                                 |
 | [overlays.md](frontend/overlays.md) | 展示页:队列/歌单/盲盒/加班机/礼物特效/歌词/弹幕/小游戏/转盘/开播画面/时钟 |
+| [danmaku-motion.md](frontend/danmaku-motion.md) | 固定弹幕逐款动效、公共职责、制作提示词与体感验收 |
 
 ## 桌面端 desktop/
 

@@ -176,6 +176,7 @@ async function createSessionFixture(t, deepseek, waitForDelivery) {
   };
   let service;
   const runtime = createBilibiliRuntime({
+    readRoomGuardCount: async () => null,
     settingsStore: { getSettings: () => settings },
     domainServices,
     broadcastSnapshot() {},

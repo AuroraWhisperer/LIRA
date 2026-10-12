@@ -1,13 +1,13 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
-import { createDanmakuPreviewItems, DANMAKU_PREVIEW_ENTRY } from './danmaku-preview-samples.js';
+import { createDanmakuPreviewItems, DANMAKU_PREVIEW_ENTRY, DANMAKU_PREVIEW_GIFT_IMAGES } from './danmaku-preview-samples.js';
 import { createComponentStyleEffects } from './component-style-effects.js';
 import { styleParametersFor } from '../shared/component-style-parameters.js';
 import { isSceneComponent, isComponentPreview } from './component-preview-client.js';
 import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
 import { initDanmakuComponentSource } from './danmaku-component-source.js';
 import { createOverlaySocket } from './socket-client.js';
-import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, applyStyleOptions, parseStyleOptions } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, applyStyleOptions, parseStyleOptions, styleOptionsFor } from '../shared/danmaku-style-options.js';
 
 ('use strict');
 
@@ -43,7 +43,9 @@ let renderFrame = null;
 let currentOverlayStyle = 'signal';
 let currentFullscreenDurationSeconds = DEFAULT_FULLSCREEN_DURATION_SECONDS;
 let currentGiftImage = 'theme';
+let currentMinGiftAmount = 0;
 let currentSpeedPixelsPerSecond = 120;
+let currentFloatingDispersion = 50;
 let currentRandomPlacement = {};
 let effectConfig = {};
 let effects;
@@ -78,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('is-preview');
     let previewTimer = null;
     let previewSequence = 0;
+    let sampleAppearanceKey = '';
     let playNext;
     const sceneDisplay = createSceneDanmakuDisplay({ clear: () => applyItems([]), append: appendItem, remove: removeSuperChats,
       status: setConnectionState, getStyle: () => currentOverlayStyle, showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true });
@@ -93,8 +96,17 @@ document.addEventListener('DOMContentLoaded', () => {
       renderData: sceneDisplay.update,
       renderSamples(style, options, duration, layout, config = { style }) {
         effectConfig = config;
+        const appearance = styleOptionsFor(style, options);
+        const nextAppearanceKey = JSON.stringify([style, { ...appearance,
+          speedPixelsPerSecond: null, floatingDispersion: null }, duration, config.styleParameters]);
+        if (isFloatingDanmakuStyle(style) && playNext && sampleAppearanceKey === nextAppearanceKey) {
+          applyConfiguration(style, duration, options);
+          configureEffects(config);
+          return;
+        }
+        sampleAppearanceKey = nextAppearanceKey;
         const samples = createDanmakuPreviewItems(style).filter((item) =>
-          (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
+          style === 'mist' || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
         if (styleParametersFor(config).showEntryMessages) samples.push({ ...DANMAKU_PREVIEW_ENTRY });
         clearTimeout(previewTimer);
         applyConfiguration(style, duration, options, true);
@@ -102,7 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
         applyItems([]);
         let remainingSamples = [];
         // Introduce each theme's distinctive message forms before the shuffled loop.
-        const openingSamples = style === 'prismatic'
+        const openingSamples = style === 'mist'
+          ? [samples.find((item) => item.id === 'preview-chat-everyday-1'),
+            samples.find((item) => item.roomGuardLevel === 3),
+            samples.find((item) => item.kind === 'gift' && !item.giftGuardLevel),
+            samples.find((item) => item.giftGuardLevel === 3),
+            samples.find((item) => item.kind === 'superchat')]
+          : style === 'prismatic'
           ? [samples.find((item) => Number(item.roomGuardLevel) === 3),
             samples.find((item) => item.id === 'preview-emote'), samples.find((item) => item.kind === 'gift')]
           : style === 'moonlit'
@@ -244,23 +262,25 @@ function createOverlayFeed(style, durationSeconds) {
   const options = {
     style,
     maxItems: MAX_ITEMS,
+    minGiftAmount: currentMinGiftAmount,
     offscreenViewports: 0,
     autoScroll: false,
     resolveAvatarUrl: bilibiliAvatarSource,
     resolveEmoteUrl: bilibiliImageSource,
     resolveGiftImageUrl: (value) =>
       currentGiftImage === 'gift'
-        ? previewMode && value === '/img/gift-placeholder.png'
+        ? previewMode && DANMAKU_PREVIEW_GIFT_IMAGES.includes(value)
           ? value
           : bilibiliAvatarSource(value)
         : '',
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'whiteframe', 'starveil', 'glow', 'starlight', 'sketch'].includes(style) && !isFloatingDanmakuStyle(style),
-    showGiftTotal: ['transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic'].includes(style),
+    showGiftTotal: ['mist', 'harbor', 'transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox'].includes(style),
   };
   if (isFloatingDanmakuStyle(style)) {
     options.layout = 'floating';
     options.speedPixelsPerSecond = currentSpeedPixelsPerSecond;
+    options.floatingDispersion = currentFloatingDispersion;
   }
   if (isRandomDanmakuStyle(style)) {
     options.layout = 'fullscreen-random';
@@ -287,13 +307,17 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   const changed =
     style !== currentOverlayStyle ||
     appearance.giftImage !== currentGiftImage ||
+    (appearance.minGiftAmount || 0) !== currentMinGiftAmount ||
     (isRandomDanmakuStyle(style) && duration !== currentFullscreenDurationSeconds);
   currentOverlayStyle = style;
   currentFullscreenDurationSeconds = duration;
   currentGiftImage = appearance.giftImage;
+  currentMinGiftAmount = appearance.minGiftAmount || 0;
   currentRandomPlacement = { centerBias: appearance.centerBias, dispersion: appearance.dispersion };
   feed?.setRandomPlacement?.(currentRandomPlacement);
   currentSpeedPixelsPerSecond = appearance.speedPixelsPerSecond || 120;
+  currentFloatingDispersion = appearance.floatingDispersion ?? 50;
+  if (isFloatingDanmakuStyle(style)) feed?.setFloatingDispersion?.(currentFloatingDispersion);
   if (isFloatingDanmakuStyle(style)) feed?.setSpeedPixelsPerSecond?.(currentSpeedPixelsPerSecond);
   document.body.dataset.style = style;
   if (changed || refreshPreview) createOverlayFeed(style, duration);

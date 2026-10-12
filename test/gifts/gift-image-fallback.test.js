@@ -10,6 +10,7 @@ const moduleUrl = pathToFileURL(path.join(__dirname, '../../public/js/shared/gif
 function createImage() {
   const listeners = new Map();
   const requests = [];
+  const attributes = {};
   return {
     listeners,
     requests,
@@ -18,7 +19,9 @@ function createImage() {
       if (!listeners.has(type)) listeners.set(type, []);
       listeners.get(type).push(callback);
     },
-    getAttribute: (name) => (name === 'src' ? requests.at(-1) || null : null),
+    getAttribute: (name) => (name === 'src' ? requests.at(-1) || null : attributes[name] || null),
+    setAttribute: (name, value) => { attributes[name] = String(value); },
+    removeAttribute: (name) => { delete attributes[name]; },
     set src(value) {
       requests.push(value);
     },

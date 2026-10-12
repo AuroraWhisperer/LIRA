@@ -61,6 +61,19 @@ const connected = events => ({ status: 'connected', epoch: 'one', nextCursor: 2,
 const sceneData = events => ({ danmaku: connected(events) });
 const outputDoc = () => documentOf([item('danmaku', 'independent', { style: 'signal' })]);
 
+test('room icon state reaches a prepared frame and updates without replacing the frame', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const roomGuard = { roomId: '52030', count: 999 };
+  f.renderer.update({ version: 1, document: documentOf([item('text-box', 'independent', {})]), data: { roomGuard } });
+  const frame = f.host.children[0].children[0];
+  f.complete(frame);
+  f.renderer.update({ version: 1, document: null, data: { roomGuard: { ...roomGuard, count: 1000 } } });
+  assert.equal(f.host.children[0].children[0], frame);
+  assert.deepEqual(f.messages.get(frame).filter(message => message.type === 'component-preview:room-guard')
+    .map(message => message.roomGuard.count), [999, 1000]);
+  assert.equal(f.messages.get(frame).filter(message => message.type === 'component-preview:init').length, 1);
+});
+
 test('initial timeout names unready layers without claiming an old version and can recover', async t => {
   const f = await rendererFixture(); t.after(() => f.renderer.dispose());
   const document = documentOf([item(), item('queue', 'independent', {})]);

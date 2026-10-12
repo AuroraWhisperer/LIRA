@@ -1,4 +1,10 @@
 /* 蝴蝶结：整列靠左，昵称、统一装饰和正文在列内居中，消息之间留白。 */
+body[data-style='minimal'] {
+  --danmaku-move-base-ms: 360;
+  --danmaku-move-max-ms: 620;
+  --danmaku-move-curve: .26, .08, .24, 1;
+  --danmaku-enter-animation: minimalMessageIn 380ms cubic-bezier(.16, 1, .3, 1) backwards;
+}
 body[data-style='minimal'] .danmaku-signal-header {
   display: none;
 }
@@ -112,4 +118,9 @@ body[data-style='minimal'] .draw-danmaku-gift-count {
   color: #ffe2a8;
   font-size: var(--danmaku-font-size);
   font-weight: 700;
+}
+
+@keyframes minimalMessageIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

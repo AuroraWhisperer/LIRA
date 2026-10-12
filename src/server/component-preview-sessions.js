@@ -119,7 +119,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     const { links, ...selection } = resolveLink(key);
     const session = get(links.find(({ component }) => component === 'canvas')?.id || links[0].id);
     session.focusRequest?.finish(false);
-    if (!session.attachmentId) return Promise.resolve({ focused: false });
+    if (!session.attachmentId || session.detached) return Promise.resolve({ focused: false });
     return new Promise(resolve => {
       const request = { selection: { id: crypto.randomUUID(), ...selection }, attachmentId: session.attachmentId,
         finish(focused) {
@@ -204,17 +204,27 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       if (typeof attachmentId !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(attachmentId)) {
         fail(400, '预览页面标识无效。');
       }
+      if (attachmentId === session.attachmentId && session.detached) fail(409, '编辑已在其他页面继续，请刷新此页后重试。');
       if (attachmentId !== session.attachmentId) {
         if (previousAttachmentId !== (session.attachmentId || null)) fail(409, '编辑已在其他页面继续，请刷新此页后重试。');
         session.focusRequest?.finish(false);
         session.attachmentId = attachmentId;
+        session.detached = false;
         session.lastCommand = undefined;
       }
       session.touched = now();
       return publicState(session);
     }
-    if ((action !== 'read' || attachmentId !== undefined) && attachmentId !== session.attachmentId) {
+    if ((action !== 'read' || attachmentId !== undefined)
+      && (attachmentId !== session.attachmentId || session.detached && action !== 'detach')) {
       fail(409, '编辑已在其他页面继续，请刷新此页后重试。');
+    }
+    if (action === 'detach') {
+      if (!attachmentId) fail(400, '预览页面标识无效。');
+      session.focusRequest?.finish(false);
+      // Keep the last identity so an in-flight startup read can still attach safely.
+      session.detached = true;
+      return {};
     }
     if (action === 'close') { session.focusRequest?.finish(false); session.closed = true; session.touched = now(); return {}; }
     if (action === 'read') {
@@ -273,7 +283,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     const session = authenticate(id, token);
     if (session.component !== 'canvas') fail(403, '此预览无权访问画布素材。');
     if (now() - session.touched > SESSION_TTL_MS) fail(503, '正在等待客户端恢复连接，未保存修改仍保留。');
-    if (!session.attachmentId || attachmentId !== session.attachmentId) {
+    if (!session.attachmentId || session.detached || attachmentId !== session.attachmentId) {
       fail(409, '编辑已在其他页面继续，请刷新此页后重试。');
     }
     if (!session.state.loaded) fail(409, '配置尚未读取，请稍后重试。');

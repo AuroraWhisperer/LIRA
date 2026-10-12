@@ -67,6 +67,10 @@
   margin-top: var(--usage-guide-toc-space, 0px);
 }
 
+.usage-guide-render-all .usage-guide-main {
+  transition: none;
+}
+
 .usage-guide-toc {
   --usage-guide-nav-bg: var(--color-help-surface, var(--surface-2));
   --usage-guide-nav-text: var(--color-help-text, var(--text));
@@ -348,29 +352,66 @@
   outline-offset: 1px;
 }
 
-.usage-guide-back-to-top {
+.usage-guide-floating-actions {
   position: absolute;
   right: 16px;
   bottom: 16px;
   z-index: 7;
+  display: grid;
+  grid-template-columns: 0px 44px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  transition: grid-template-columns 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.usage-guide-floating-actions.has-history {
+  grid-template-columns: 44px 44px;
+}
+
+.usage-guide-floating-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 44px;
   height: 44px;
   padding: 0;
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
-.usage-guide-back-to-top:hover {
-  border-color: var(--color-border-strong);
+.usage-guide-go-back {
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.usage-guide-go-back::after {
+  content: '';
+  position: absolute;
+  top: 13px;
+  right: 0;
+  width: 1px;
+  height: 18px;
+  background: var(--color-border-strong);
+}
+
+.usage-guide-floating-actions.has-history .usage-guide-go-back {
+  opacity: 1;
+}
+
+.usage-guide-floating-actions button:hover:not(:disabled) {
   background: var(--color-bg-tertiary);
+  color: var(--usage-guide-accent);
 }
 
-.usage-guide-back-to-top:focus-visible {
+.usage-guide-floating-actions button:focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 3px;
+  outline-offset: -3px;
 }
 
 @media (max-width: 640px) {
@@ -436,7 +477,10 @@
   .usage-guide-toc + .usage-guide-main,
   .usage-guide-toc-links,
   .usage-guide-reading-fill,
-  .usage-guide-toc-toggle svg {
+  .usage-guide-toc-toggle svg,
+  .usage-guide-floating-actions,
+  .usage-guide-floating-actions button,
+  .usage-guide-go-back {
     transition: none;
   }
 }

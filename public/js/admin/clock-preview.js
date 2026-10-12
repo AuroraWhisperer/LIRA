@@ -24,7 +24,7 @@ export function buildClockUrl(baseUrl, config) {
 }
 
 function isTransparentClockStyle(style) {
-  return ['timeline-horizontal', 'timeline-vertical', 'digital', 'orbit', 'flip', 'moonlit-fan'].includes(style);
+  return ['timeline-horizontal', 'timeline-vertical', 'digital', 'minimal', 'orbit', 'flip', 'moonlit-fan'].includes(style);
 }
 
 export function usesDefaultClockLabel(style, label) {
@@ -75,9 +75,11 @@ export function bindClockParameters(root, controller) {
       if (key.startsWith('show')) control.checked = draft[key];
       else if (control.value !== String(draft[key])) control.value = draft[key];
       control.disabled = !loaded || (key === 'label' && transparent)
+        || (key === 'showDate' && draft.style === 'minimal')
         || (key === 'moonIntervalSeconds' && draft.moonMode !== 'auto');
     }
     node('clockCustomLabelField').hidden = transparent;
+    node('clockShowDateField').hidden = draft.style === 'minimal';
     node('clockFlipColors').hidden = draft.style !== 'flip';
     node('clockMoonColors').hidden = draft.style !== 'moonlit-fan';
     node('clockMoonIntervalField').hidden = draft.moonMode !== 'auto';

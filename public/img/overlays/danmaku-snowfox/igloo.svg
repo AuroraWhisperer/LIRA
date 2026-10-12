@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 130" fill="none">
+  <defs><pattern id="bricks" width="60" height="42" patternUnits="userSpaceOnUse"><path fill="#faffff" d="M0 0h60v42H0z"/><path stroke="#e8f0f2" stroke-width="2" d="M0 1h60M0 22h60M30 0v22M0 22v20M60 22v20"/></pattern><linearGradient id="ice"><stop stop-color="#fff"/><stop offset="1" stop-color="#e1edf1"/></linearGradient></defs>
+  <path d="M4 126C4 53 34 15 94 16C151 17 176 58 177 126Z" fill="url(#bricks)" stroke="#faffff" stroke-width="4"/>
+  <path d="M15 65C29 29 53 19 91 19C126 20 153 38 164 63" stroke="#fff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M113 127V90C113 73 123 65 139 65C155 65 165 77 165 94V127" fill="url(#ice)" stroke="#edf4f5" stroke-width="4"/>
+</svg>

@@ -1,9 +1,12 @@
 'use strict';
 
+import { bindGuardImage } from './bilibili-guard-icons.js';
+
 export const GIFT_PLACEHOLDER = '/img/gift-placeholder.png';
 const boundImages = new WeakSet();
 
 export function setGiftImage(image, source) {
+  source = bindGuardImage(image, source);
   if (!boundImages.has(image)) {
     image.addEventListener('error', () => {
       if (image.getAttribute('src') === GIFT_PLACEHOLDER) {

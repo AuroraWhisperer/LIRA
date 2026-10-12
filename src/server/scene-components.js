@@ -162,6 +162,10 @@ function createSceneComponentPorts({ getState, cloud, getExtraDisplay }) {
     let state;
     const readState = () => state ??= getState();
     const data = {};
+    if (types.some((type) => ['queue', 'overtime', 'gift-feed', 'gift-wishes', 'text-box'].includes(type))) {
+      const roomGuard = projectOverlayState('queue', readState()).roomGuard;
+      if (roomGuard) data.roomGuard = roomGuard;
+    }
     const pending = [];
     for (const [type, port] of Object.entries(COMPONENT_PORTS)) {
       if (!types.includes(type) || !port.getDisplay) continue;

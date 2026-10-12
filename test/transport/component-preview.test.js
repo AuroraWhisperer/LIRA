@@ -87,6 +87,44 @@ test('preview focus expires or is cancelled without discarding drafts and accept
   assert.deepEqual(await revoked, { focused: false });
 });
 
+test('detaching a page cancels focus immediately and preserves commands for a fresh attachment', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sessions = createComponentPreviewSessions();
+  t.after(() => sessions.clear());
+  const canvas = sessions.open({ component: 'canvas', state: state() });
+  const link = sessions.link({ links: [canvas] });
+  const attachmentId = randomUUID();
+  const browser = body => sessions.browser({ id: canvas.id, attachmentId, ...body }, canvas.token);
+  assert.throws(() => browser({ action: 'detach', attachmentId: undefined }), { statusCode: 400 });
+  browser({ action: 'attach', previousAttachmentId: null });
+  browser({ action: 'edit', change: { label: 'unsaved' }, commandId: 1 });
+  // A reload can read the previous identity before the departing page releases it.
+  const startup = browser({ action: 'read', attachmentId: undefined });
+  const pending = sessions.focus(link);
+  assert.throws(() => sessions.browser({ id: canvas.id, attachmentId, action: 'detach' }, 'a'.repeat(64)), { statusCode: 403 });
+  assert.deepEqual(browser({ action: 'detach' }), {});
+  assert.deepEqual(browser({ action: 'detach' }), {}, 'Releasing the same page is idempotent.');
+  assert.deepEqual(await pending, { focused: false });
+  assert.deepEqual(await sessions.focus(link), { focused: false }, 'No focus timer is needed after a page leaves.');
+  for (const action of ['read', 'edit', 'save', 'publish', 'close', 'attach']) {
+    assert.throws(() => browser({ action, change: { label: 'late' }, previousAttachmentId: null }), { statusCode: 409 });
+  }
+  assert.throws(() => sessions.authorizeCanvasMedia({ id: canvas.id, attachmentId }, canvas.token), { statusCode: 409 });
+  const resumedId = randomUUID();
+  const resumed = browser({ action: 'attach', attachmentId: resumedId, previousAttachmentId: startup.attachmentId });
+  assert.equal(resumed.draftKey, canvas.draftKey);
+  assert.equal(resumed.sequence, 1);
+  assert.equal(resumed.ack, 0);
+  assert.deepEqual(sessions.exchange({ id: canvas.id, ack: 0, state: state() }), {
+    commands: [{ sequence: 1, action: 'edit', change: { label: 'unsaved' } }], closed: false,
+  });
+  assert.throws(() => browser({ action: 'detach' }), { statusCode: 409 });
+  const refocused = sessions.focus(link);
+  const { focus } = browser({ action: 'read', attachmentId: resumedId });
+  browser({ action: 'read', attachmentId: resumedId, focusId: focus.id });
+  assert.deepEqual(await refocused, { focused: true });
+});
+
 test('canvas preset relay only selects desktop-listed presets and isolates their recovery keys', () => {
   const sessions = createComponentPreviewSessions();
   const first = randomUUID();
@@ -377,7 +415,7 @@ test('page attachments fence late requests and reset replay IDs without dropping
   assert.equal(second.sequence, 1, 'The next page must wait for accepted commands before restoring drafts.');
   assert.throws(() => browser(firstAttach), { statusCode: 409 });
   assert.throws(() => browser({ ...secondAttach, attachmentId: randomUUID() }), { statusCode: 409 });
-  for (const action of ['read', 'edit', 'save', 'publish', 'close']) {
+  for (const action of ['read', 'edit', 'save', 'publish', 'close', 'detach']) {
     assert.throws(() => browser({ action, attachmentId: firstId, commandId: 2, change: { label: 'late' } }), { statusCode: 409 });
   }
   assert.throws(() => browser({ action: 'close' }), { statusCode: 409 });

@@ -7,6 +7,7 @@ const { formatBilibiliApiError } = require('../api-error');
 const { cleanText } = require('../../shared/utils');
 const { readResponseBytes, readResponseText } = require('../../shared/response-body');
 const { normalizeMentionTarget } = require('./mention-policy');
+const { readRoomGuardCount } = require('../room-guard-service');
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const MAX_JSON_BYTES = 4 * 1024 * 1024;
@@ -73,6 +74,22 @@ class BilibiliApiClient {
       return payload.data.info.uname;
     }
     return '';
+  }
+
+  async fetchRoomGuardCount({ signal } = {}) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      signal?.throwIfAborted();
+      const key = await wbiSigner.getBilibiliWbiKey(this.requestHeaders());
+      const query = wbiSigner.buildBilibiliWbiQuery({ room_id: this.roomId }, key.mixinKey, Date.now());
+      const { payload, response } = await this.fetchJson('room_guard_count',
+        `https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?${query}`, { signal });
+      if (attempt === 0 && payload.code === -352) {
+        wbiSigner.invalidateBilibiliWbiKey(key);
+        continue;
+      }
+      if (payload.code !== 0) throw new Error(formatBilibiliApiError('room_guard_count', response, payload, '大航海人数读取失败。'));
+      return readRoomGuardCount(payload.data);
+    }
   }
 
   async fetchCurrentUserName() {
@@ -254,7 +271,7 @@ class BilibiliApiClient {
 
   async fetchJson(endpointName, url, options = {}) {
     const quiet =
-      endpointName === 'gethistory' || endpointName === 'online_gold_rank' || endpointName === 'fans_members_rank';
+      endpointName === 'gethistory' || endpointName === 'online_gold_rank' || endpointName === 'fans_members_rank' || endpointName === 'room_guard_count';
     if (!quiet) {
       console.log(`[Bilibili] request ${endpointName}: ${redactUrl(url)}`);
     }

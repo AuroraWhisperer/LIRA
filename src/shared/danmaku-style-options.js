@@ -47,7 +47,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   identity: {
     scrollDirection: true,
-    label: '画中人',
+    label: '灵动弹幕',
     minFontSize: 18,
     maxFontSize: 42,
     background: true,
@@ -63,6 +63,16 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     giftImage: false,
     defaultTextColor: '#7f9f76',
   },
+  harbor: {
+    scrollDirection: true,
+    label: '航海气泡',
+    minFontSize: 18,
+    maxFontSize: 48,
+    background: true,
+    giftImage: false,
+    minGiftAmount: true,
+    defaultTextColor: '#ffffff',
+  },
   prismatic: {
     scrollDirection: true,
     defaultEdgeFade: 'both',
@@ -72,6 +82,16 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     background: false,
     giftImage: false,
     defaultTextColor: '#292b32',
+  },
+  snowfox: {
+    scrollDirection: true,
+    label: '雪狐物语',
+    minFontSize: 18,
+    maxFontSize: 48,
+    background: false,
+    giftImage: false,
+    bubbleColor: true,
+    defaultTextColor: '#78a9d6',
   },
   starlight: {
     scrollDirection: true,
@@ -99,6 +119,15 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     background: true,
     giftImage: true,
     defaultTextColor: '#1d1d1f',
+  },
+  mist: {
+    layout: 'fullscreen-random',
+    label: '青雾',
+    minFontSize: 18,
+    maxFontSize: 40,
+    background: true,
+    giftImage: false,
+    defaultTextColor: '#ffffff',
   },
   whiteframe: {
     layout: 'fullscreen-random',
@@ -203,8 +232,15 @@ function normalizeStyleOptions(value) {
         normalized[key] = item;
       else if (key === 'speedPixelsPerSecond' && limits.speed && Number.isInteger(item) && item >= 20 && item <= 600)
         normalized[key] = item;
+      else if (key === 'floatingDispersion' && limits.layout === 'floating'
+        && Number.isInteger(item) && item >= 1 && item <= 100) normalized[key] = item;
       else if (['centerBias', 'dispersion'].includes(key) && limits.layout === 'fullscreen-random'
         && Number.isInteger(item) && item >= 1 && item <= 50) normalized[key] = item;
+      else if (key === 'bubbleColor' && limits.bubbleColor && typeof item === 'string'
+        && (item === 'default' || ([7, 9].includes(item.length) && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item))))
+        normalized[key] = item.toLowerCase();
+      else if (key === 'minGiftAmount' && limits.minGiftAmount && Number.isFinite(item)
+        && item >= 0 && item <= 100000 && Number(item.toFixed(2)) === item) normalized[key] = item;
       else fail();
     }
     result[style] = normalized;
@@ -217,13 +253,15 @@ function styleOptionsFor(style, options = {}) {
     textColor: DANMAKU_STYLE_OPTIONS[style]?.defaultTextColor || '#eaf2ff',
     fontFamily: 'default',
     fontSize: 30,
+    ...(DANMAKU_STYLE_OPTIONS[style]?.minGiftAmount ? { minGiftAmount: 0 } : {}),
+    ...(DANMAKU_STYLE_OPTIONS[style]?.bubbleColor ? { bubbleColor: 'default' } : {}),
     backgroundOpacity: 100,
     giftImage: 'theme',
     scrollDirection: 'up',
     ...(DANMAKU_STYLE_OPTIONS[style]?.scrollDirection
       ? { edgeFade: DANMAKU_STYLE_OPTIONS[style].defaultEdgeFade || 'single' } : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.layout === 'fullscreen-random' ? { centerBias: 1, dispersion: 1 } : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.speed ? { speedPixelsPerSecond: 120 } : {}),
+    ...(DANMAKU_STYLE_OPTIONS[style]?.speed ? { speedPixelsPerSecond: 120, floatingDispersion: 50 } : {}),
   };
   let resolved = defaults;
   try {
@@ -231,6 +269,8 @@ function styleOptionsFor(style, options = {}) {
   } catch {
     resolved = defaults;
   }
+  // Keep accepting the legacy image option while this style always shows the gift itself.
+  if (style === 'identity') resolved.giftImage = 'gift';
   if (resolved.edgeFade === 'single') {
     resolved.edgeFade = resolved.scrollDirection === 'down' ? 'bottom' : 'top';
   }

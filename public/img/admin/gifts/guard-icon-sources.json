@@ -1,0 +1,10 @@
+{
+  "description": "B 站千舰身份图标，官方透明 PNG 无损转换为 WebP，保留像素与透明度。普通款复用客户端既有 WebP。",
+  "source": "https://api.live.bilibili.com/xlive/open-interface/v1/query_resource?module=medal_icon",
+  "retrievedAt": "2026-10-11",
+  "thousandGuardIcons": {
+    "1": "https://i0.hdslb.com/bfs/live/ffcd832b5d7b84ea851cb8156ec0a71940439511.png",
+    "2": "https://i0.hdslb.com/bfs/live/7cb7dfb5a2e652eb939585ddfd269238868cc5de.png",
+    "3": "https://i0.hdslb.com/bfs/live/fd26e0053f3d24672ffdabcb1f6d2545e26b1e33.png"
+  }
+}

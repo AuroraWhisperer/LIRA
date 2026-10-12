@@ -2,6 +2,7 @@ import { api, localOverlayOrigin, toast } from '../shared/utils.js';
 import { getActiveComponentPreview, closeComponentPreview, setActiveComponentPreview, releaseComponentPreview } from './component-preview-session.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
+import { getRoomGuardState } from '../shared/bilibili-guard-icons.js';
 
 const sceneOnly = (component) => SCENE_COMPONENTS[component?.id]?.independentOnly === true;
 
@@ -16,8 +17,8 @@ export function openComponentPreview(selected = null) {
   const connections = [];
   const previewData = {};
   if (selected?.previewData) previewData[selected.id] = selected.previewData;
-  const displayOf = (connection) => connection.options.id === 'canvas'
-    ? { ...connection.display, previewData: { ...connection.previewData, ...previewData } } : connection.display;
+  const displayOf = (connection) => ({ ...connection.display, roomGuard: getRoomGuardState(),
+    ...(connection.options.id === 'canvas' ? { previewData: { ...connection.previewData, ...previewData } } : {}) });
   const requests = new AbortController();
   const post = (body) => api('/api/component-preview', body, { notifyError: false,
     signal: AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]) });

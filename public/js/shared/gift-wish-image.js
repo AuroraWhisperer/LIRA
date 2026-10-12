@@ -1,8 +1,13 @@
 import { GIFT_PLACEHOLDER, setGiftImage } from './gift-image-fallback.js';
+import { bindGuardImage } from './bilibili-guard-icons.js';
 
 const staticImages = new Map();
 
 export function setGiftWishTextImage(image, source, format) {
+  if (bindGuardImage(image, source) !== source || image.hasAttribute('data-guard-icon')) {
+    setGiftImage(image, source);
+    return;
+  }
   if (format !== 'static') {
     setGiftImage(image, source);
     return;

@@ -9,6 +9,7 @@ const sharedUtils = require('../shared/utils');
 const { normalizeRoomInput } = require('../bilibili/room-input');
 const { publicBilibiliErrorMessage } = require('../bilibili/api-error');
 const { logBilibiliDiagnostic, summarizeConnectionAuth } = require('../bilibili/diagnostics');
+const { createRoomGuardService } = require('../bilibili/room-guard-service');
 
 function createBilibiliRuntime(options) {
   const { settingsStore, domainServices, broadcastSnapshot, buildClient, setActiveDanmakuRoom = () => {} } = options;
@@ -53,6 +54,11 @@ function createBilibiliRuntime(options) {
   let stopped = false;
   let clientGeneration = 0;
   let replaceClientChain = Promise.resolve();
+  const roomGuard = createRoomGuardService({
+    readCount: options.readRoomGuardCount || ((roomId, readOptions) =>
+      new BilibiliApiClient(roomId, authCache).fetchRoomGuardCount(readOptions)),
+    onChange: () => broadcastSnapshot('bilibili:room-guard'),
+  });
 
   const danmakuSender = createDanmakuSenderService({
     async getAuth() {
@@ -153,6 +159,7 @@ function createBilibiliRuntime(options) {
     if (stopped) return;
     const settings = settingsStore.getSettings();
     const roomId = normalizeRoomInput(settings.roomId);
+    roomGuard.configure(roomId, force);
     const enabled = (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) === 'true' && roomId;
     options.onRealtimeStatus?.();
     setActiveDanmakuRoom(enabled ? roomId : '');
@@ -201,6 +208,7 @@ function createBilibiliRuntime(options) {
       return { liveStatus };
     }
 
+    roomGuard.configure(roomId, true);
     await replaceClient(roomId, true);
     return { liveStatus };
   }
@@ -330,6 +338,7 @@ function createBilibiliRuntime(options) {
   function stop() {
     if (stopped) return;
     stopped = true;
+    roomGuard.stop();
     disconnect();
     realtimeListeners.clear();
     userInfoService.dispose();
@@ -356,6 +365,7 @@ function createBilibiliRuntime(options) {
   }
 
   return {
+    getRoomGuardState: roomGuard.getSnapshot,
     getRealtimeState,
     getLikeState,
     subscribeRealtime(listener) {

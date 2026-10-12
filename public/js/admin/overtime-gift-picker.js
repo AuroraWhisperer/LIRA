@@ -1,6 +1,7 @@
 import { createGiftCatalogRoleLookup } from '../shared/gift-catalog-roles.js';
 import { giftSelectionKey, giftArtworkKey, rowGiftIdentity } from './overtime-gift-identity.js';
 import { setGiftImage } from '../shared/gift-image-fallback.js';
+import { getGuardIcon } from '../shared/bilibili-guard-icons.js';
 import { createGiftPickerButton } from './gifts/picker-option.js';
 import { api, readJsonResponse, showError, toast } from '../shared/utils.js';
 
@@ -8,17 +9,17 @@ const GUARD_GIFTS = [
   {
     id: 'guard-1',
     name: '总督',
-    image: 'admin/gifts/bilibili-guard-governor.webp',
+    guardLevel: 1,
   },
   {
     id: 'guard-2',
     name: '提督',
-    image: 'admin/gifts/bilibili-guard-prefect.webp',
+    guardLevel: 2,
   },
   {
     id: 'guard-3',
     name: '舰长',
-    image: 'admin/gifts/bilibili-guard-captain.webp',
+    guardLevel: 3,
   },
 ];
 
@@ -85,7 +86,7 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
         catalogGroup: gift.catalogGroup,
         catalogOrder: gift.catalogOrder,
         imagePath: String(
-          serverGiftArtworkById.get(giftArtworkKey(gift)) ||
+          (gift.guardLevel ? getGuardIcon(gift.guardLevel) : '') || serverGiftArtworkById.get(giftArtworkKey(gift)) ||
             gift.imagePath ||
             (gift.image ? `/img/${String(gift.image).replace(/^\/+/, '')}` : ''),
         ),

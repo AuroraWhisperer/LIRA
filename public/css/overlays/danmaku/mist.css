@@ -1,0 +1,292 @@
+/* 青雾: translucent white frames, jade member cards and compact gift thanks. */
+body[data-style='mist'] {
+  --mist-ink: #557e76;
+  --mist-deep: #315f57;
+  --mist-surface: color-mix(in srgb, #e3f0ec var(--danmaku-background-weight, 100%), transparent);
+}
+body[data-style='mist'] .danmaku-signal-stage {
+  display: block;
+  padding: 0;
+}
+body[data-style='mist'] .danmaku-signal-header { display: none; }
+body[data-style='mist'] .draw-danmaku-feed {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+body[data-style='mist'] .draw-danmaku-item,
+body[data-style='mist'] .draw-danmaku-item.is-gift,
+body[data-style='mist'] .draw-danmaku-item.is-superchat {
+  position: absolute;
+  display: grid;
+  gap: 0.26em;
+  width: max-content;
+  min-width: 0;
+  max-width: min(calc(100% - 32px), 18em);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  grid-template: none;
+  overflow: visible;
+  visibility: hidden;
+  zoom: 1;
+  color: #fff;
+  font: 700 var(--danmaku-font-size, 30px)/1.45 var(--danmaku-custom-font, var(--danmaku-ui-font));
+  letter-spacing: 0.035em;
+  text-shadow: 0 1px 3px rgb(25 55 47 / 80%);
+  animation: mistMessageIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+body[data-style='mist'] .draw-danmaku-item::before,
+body[data-style='mist'] .draw-danmaku-feed .draw-danmaku-item::after,
+body[data-style='mist'] .draw-danmaku-body::before,
+body[data-style='mist'] .draw-danmaku-badge { display: none; }
+body[data-style='mist'] .draw-danmaku-body {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75em;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.48em 0.75em 0.48em 0.45em;
+  border: 2px solid #edf9f6;
+  border-radius: 0;
+  background: transparent;
+  text-shadow: inherit;
+}
+body[data-style='mist'] .draw-danmaku-avatar,
+body[data-style='mist'] .is-gift .draw-danmaku-avatar,
+body[data-style='mist'] .sc-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  grid-area: auto;
+  align-self: start;
+  flex-shrink: 0;
+  width: 1.25em;
+  min-width: 0;
+  height: 1.25em;
+  margin: 0.12em 0 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background: #e2efeb;
+  color: var(--mist-deep);
+  font: inherit;
+  line-height: 1;
+  text-shadow: none;
+  mask: none;
+  clip-path: none;
+}
+body[data-style='mist'] .draw-danmaku-avatar img { width: 100%; height: 100%; object-fit: cover; }
+body[data-style='mist'] .draw-danmaku-identity {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: start;
+  gap: 0.35em;
+  min-width: 0;
+  padding: 0 0.15em;
+  color: #f3fffc;
+  font-size: 0.8em;
+}
+body[data-style='mist'] .draw-danmaku-identity::before {
+  flex: 0 0 1em;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask: url('/img/overlays/danmaku-mist/paw.svg') center / contain no-repeat;
+  content: '';
+}
+body[data-style='mist'] .draw-danmaku-identity strong {
+  min-width: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-shadow: inherit;
+}
+body[data-style='mist'] .draw-danmaku-body > p {
+  min-width: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  text-shadow: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+body[data-style='mist'] .draw-danmaku-item:not(.is-gift):not([data-room-guard='0']) .draw-danmaku-body {
+  border-color: transparent;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, #cce4dd var(--danmaku-background-weight, 100%), transparent),
+    color-mix(in srgb, #fcfefd var(--danmaku-background-weight, 100%), transparent));
+  color: var(--mist-ink);
+  text-shadow: none;
+}
+body[data-style='mist'][data-custom-text-color='true'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body > p {
+  color: var(--danmaku-text-color);
+}
+body[data-style='mist'] .draw-danmaku-emote {
+  display: inline-block;
+  width: auto;
+  height: 1.75em;
+  max-width: 100%;
+  margin: 0.04em 0.08em;
+  object-fit: contain;
+  vertical-align: middle;
+}
+body[data-style='mist'] .is-emote-only .draw-danmaku-emote { height: 3.2em; }
+
+/* The avatar belongs to the sender; gift art never duplicates it. */
+body[data-style='mist'] .draw-danmaku-item.is-gift:not(.is-guard-thanks) {
+  grid-template-columns: 1.25em minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25em;
+}
+body[data-style='mist'] .is-gift .draw-danmaku-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-area: auto;
+  justify-items: start;
+  gap: 0.16em;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-shadow: inherit;
+}
+body[data-style='mist'] .is-gift .draw-danmaku-gift {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: start;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-shadow: inherit;
+  text-align: left;
+}
+body[data-style='mist'] .is-gift .draw-danmaku-gift-art { display: none; }
+body[data-style='mist'] .is-gift .draw-danmaku-gift-copy {
+  display: block;
+  min-width: 0;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+body[data-style='mist'] .is-gift :is(.draw-danmaku-gift-action, .draw-danmaku-gift-name, .draw-danmaku-gift-count) {
+  position: static;
+  margin: 0 0.12em 0 0;
+  color: inherit;
+  font: inherit;
+  white-space: normal;
+}
+body[data-style='mist'] .is-gift .draw-danmaku-gift-amount {
+  position: static;
+  color: #dbebe6;
+  font: 500 0.86em/1.1 var(--danmaku-num-font);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+body[data-style='mist'] .is-gift .draw-danmaku-identity {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.05em 1.2em;
+  border-radius: 2em;
+  color: var(--mist-deep);
+  background: #f5fcf9;
+  font-size: 0.64em;
+  text-shadow: none;
+}
+body[data-style='mist'] .is-gift .draw-danmaku-identity::before { display: none; }
+body[data-style='mist'] .is-gift .draw-danmaku-identity strong { color: inherit; font: inherit; font-weight: 700; }
+
+body[data-style='mist'] .draw-danmaku-item.is-guard-thanks { width: 12em; }
+body[data-style='mist'] .mist-guard-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1.8em;
+  gap: 0.45em 0.5em;
+  padding: 0.7em 0.85em;
+  border: 2px solid #effbf7;
+  background: var(--mist-surface);
+  color: var(--mist-deep);
+  text-shadow: none;
+}
+body[data-style='mist'] .mist-guard-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  min-width: 0;
+}
+body[data-style='mist'] .mist-guard-name { font-size: 0.72em; overflow-wrap: anywhere; }
+body[data-style='mist'] .mist-guard-seal {
+  width: 1.8em;
+  height: 1.8em;
+  background: center / contain no-repeat;
+}
+body[data-style='mist'] [data-room-guard='3'] .mist-guard-seal {
+  background-image: var(--bilibili-guard-captain, url('/img/admin/gifts/bilibili-guard-captain.webp'));
+}
+body[data-style='mist'] [data-room-guard='2'] .mist-guard-seal {
+  background-image: var(--bilibili-guard-prefect, url('/img/admin/gifts/bilibili-guard-prefect.webp'));
+}
+body[data-style='mist'] [data-room-guard='1'] .mist-guard-seal {
+  background-image: var(--bilibili-guard-governor, url('/img/admin/gifts/bilibili-guard-governor.webp'));
+}
+body[data-style='mist'] .mist-guard-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+body[data-style='mist'] .mist-guard-count { font-size: 0.7em; font-weight: 500; }
+body[data-style='mist'] .mist-guard-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25em 0.7em;
+  padding-top: 0.45em;
+  border-top: 1px solid #a9c8be;
+  font-size: 0.62em;
+  overflow-wrap: anywhere;
+}
+body[data-style='mist'] .mist-guard-amount { font-variant-numeric: tabular-nums; }
+body[data-style='mist'] .draw-danmaku-item.is-superchat { width: 14em; }
+body[data-style='mist'] .sc-mist {
+  border: 2px solid #effbf7;
+  background: var(--mist-surface);
+  color: var(--mist-deep);
+  text-shadow: none;
+}
+body[data-style='mist'] .sc-mist-head {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.42em 0.55em;
+  background: #416e64;
+  color: #fff;
+}
+body[data-style='mist'] .sc-name { font: 700 0.7em/1.5 var(--danmaku-ui-font); }
+body[data-style='mist'] .sc-money { max-width: 5em; font-size: 0.9em; white-space: normal; overflow-wrap: anywhere; }
+body[data-style='mist'] .sc-copy { padding: 0.6em 0.7em; color: var(--mist-deep); font: 600 0.9em/1.65 var(--danmaku-custom-font, var(--danmaku-ui-font)); }
+@keyframes mistMessageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='mist'] .draw-danmaku-item { animation: none; }
+}

@@ -30,7 +30,7 @@ body.has-layout .draw-danmaku-feed {
 body.has-layout[data-style='ranked'] .draw-danmaku-item { max-width: 100%; }
 body.has-layout[data-style='identity'] .draw-danmaku-item {
   width: min(600px, 100%); min-width: 0; max-width: 100%;
-  grid-template-columns: minmax(0, 1fr) min(180px, 30%);
+  grid-template-columns: minmax(0, 1fr) var(--identity-avatar-max-size);
 }
 body.has-layout:is([data-style='outline'], [data-style='cream'], [data-style='glow']) .draw-danmaku-feed {
   width: 100%; height: 100%;

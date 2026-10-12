@@ -158,12 +158,10 @@ function createUsageGuideFixture({
     };
   };
   const sections = sectionTops.map((_, index) => ({
+    ...createNode(),
     id: `usage-section-${index + 1}`,
-    scrollCalls: 0,
-    scrollIntoView() {
-      this.scrollCalls += 1;
-    },
-    getBoundingClientRect: () => ({ top: sectionTops[index] }),
+    querySelector: () => null,
+    getBoundingClientRect: () => ({ top: sectionTops[index], height: 30 }),
   }));
   const links = sections.map((section, index) => ({
     ...createNode(),
@@ -171,11 +169,11 @@ function createUsageGuideFixture({
     textContent: ['快速上手', '账号与设备'][index],
   }));
   const backToTopButton = {
-    hidden: true,
     addEventListener(name, listener) {
       this[name] = listener;
     },
   };
+  const floatingActions = { hidden: true };
   const toc = {
     ...createNode(),
     flexDirection,
@@ -199,8 +197,12 @@ function createUsageGuideFixture({
     clientHeight: scrollerHeight,
     scrollHeight: scrollerScrollHeight,
     scrollTop: scrollerScrollTop,
+    scrollPositions: [],
     scrollTo({ top }) {
+      const delta = top - this.scrollTop;
+      sectionTops.forEach((value, index) => { sectionTops[index] = value - delta; });
       this.scrollTop = top;
+      this.scrollPositions.push(top);
     },
     addEventListener: (name, listener) => scrollerListeners.set(name, listener),
     getBoundingClientRect: () => ({ top: scrollerTop, bottom: scrollerTop + scrollerHeight }),
@@ -221,6 +223,7 @@ function createUsageGuideFixture({
       if (selector === '.usage-guide-toc-links') return tocMenu;
       if (selector === '.usage-guide-toc-current') return tocCurrent;
       if (selector === '.usage-guide-back-to-top') return backToTopButton;
+      if (selector === '.usage-guide-floating-actions') return floatingActions;
       return null;
     },
     querySelectorAll(selector) {
@@ -241,12 +244,13 @@ function createUsageGuideFixture({
   const window = {
     innerHeight: 600,
     scrollY: 0,
-    matchMedia: () => ({ matches: false }),
+    matchMedia: () => ({ matches: true }),
     getComputedStyle: (element) =>
       element === toc
         ? { flexDirection: toc.flexDirection, top: tocTop }
         : { paddingTop: scrollerPaddingTop, overflowY: scrollerOverflowY },
     requestAnimationFrame: (callback) => callback(),
+    cancelAnimationFrame() {},
     setTimeout(callback, delay = 0) {
       const timerId = nextTimerId++;
       timers.set(timerId, { callback, at: now + delay });
@@ -283,6 +287,7 @@ function createUsageGuideFixture({
     scroller,
     sections,
     backToTopButton,
+    floatingActions,
     sectionTops,
     links,
     toc,
@@ -329,7 +334,7 @@ test('guide directory stays expanded at the top and collapses only after scrolli
   assert.equal(fixture.tocMenu.inert, false);
 
   fixture.links[1].click({ preventDefault() {} });
-  assert.equal(fixture.sections[1].scrollCalls, 1);
+  assert.equal(fixture.sections[1].getBoundingClientRect().top, parseFloat(fixture.scrollOffset) + 1);
   fixture.scroller.scrollTop = 24;
   fixture.triggerScrollerScroll();
   assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'false');
@@ -403,7 +408,7 @@ test('compact guide directory supports touch and keyboard, keeps focused links o
   fixture.links[1].click({ preventDefault() {} });
   assert.equal(fixture.tocCurrent.textContent, '账号与设备');
   assert.equal(fixture.links[1].getAttribute('aria-current'), 'location');
-  assert.equal(fixture.sections[1].scrollCalls, 1);
+  assert.equal(fixture.sections[1].getBoundingClientRect().top, parseFloat(fixture.scrollOffset) + 1);
   assert.equal(fixture.tocMenu.inert, true);
 });
 
@@ -536,19 +541,42 @@ test('usage guide return to top cancels pending chapter navigation', async () =>
   await loadUsageGuide(fixture);
 
   fixture.triggerResize();
-  assert.equal(fixture.backToTopButton.hidden, true);
+  assert.equal(fixture.floatingActions.hidden, true);
 
+  const frames = [];
+  fixture.window.requestAnimationFrame = (callback) => frames.push(callback);
   fixture.links[1].click({ preventDefault() {} });
   fixture.scroller.scrollTop = 600;
   fixture.triggerScrollerScroll();
-  assert.equal(fixture.backToTopButton.hidden, false);
-  assert.equal(fixture.sections[1].scrollCalls, 1);
+  assert.equal(fixture.panel.classList.contains('usage-guide-render-all'), true);
 
   fixture.backToTopButton.click();
+  while (frames.length) frames.shift()();
   fixture.flushTimers();
   fixture.triggerScrollerScroll();
+  while (frames.length) frames.shift()();
   assert.equal(fixture.scroller.scrollTop, 0);
-  assert.equal(fixture.backToTopButton.hidden, true);
-  assert.equal(fixture.sections[1].scrollCalls, 1);
+  assert.equal(fixture.floatingActions.hidden, true);
+  assert.ok(fixture.scroller.scrollPositions.every((top) => top === 0), 'the cancelled chapter must never scroll');
   assert.equal(fixture.panel.classList.contains('usage-guide-render-all'), false);
+});
+
+test('a newer guide action cancels navigation queued before the next frame', async () => {
+  const fixture = createUsageGuideFixture();
+  await loadUsageGuide(fixture);
+  const frames = [];
+  fixture.window.requestAnimationFrame = (callback) => frames.push(callback);
+
+  fixture.links[1].click({ preventDefault() {} });
+  fixture.backToTopButton.click();
+  while (frames.length) frames.shift()();
+  fixture.flushTimers();
+  assert.ok(fixture.scroller.scrollPositions.every((top) => top === 0));
+  assert.equal(fixture.panel.classList.contains('usage-guide-render-all'), false);
+
+  fixture.links[1].click({ preventDefault() {} });
+  fixture.links[0].click({ preventDefault() {} });
+  while (frames.length) frames.shift()();
+  fixture.flushTimers();
+  assert.ok(fixture.scroller.scrollPositions.every((top) => top === 0), 'only the latest destination may scroll');
 });

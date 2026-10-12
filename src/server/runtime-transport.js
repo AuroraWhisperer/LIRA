@@ -9,7 +9,7 @@ const SNAPSHOT_SCENE_TYPES = ['queue', 'overtime', 'songlist', 'opening', 'lyric
 const GIFT_SCENE_TYPES = ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'];
 
 function snapshotSceneTypes(reason) {
-  if (reason === 'settings' || reason === 'component:styles') return undefined;
+  if (reason === 'settings' || reason === 'component:styles' || reason === 'bilibili:room-guard') return undefined;
   if (reason === 'gift:wishes') return ['gift-wishes'];
   if (/^(?:gift:|bilibili:gift$|database:clear-gifts$)/.test(reason)) return GIFT_SCENE_TYPES;
   if (/^(?:queue:|superchat:|bilibili:(?:danmaku|superchat)$|database:clear-superchats$)/.test(reason)) return ['queue'];

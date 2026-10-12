@@ -285,6 +285,9 @@ function projectGameSession(session) {
 function projectOverlayState(scope, state) {
   if (!Object.hasOwn(STATE_SCHEMAS, scope)) return null;
   const result = select(state || {}, STATE_SCHEMAS[scope]);
+  if (['queue', 'overtime', 'danmaku', 'gift-feed', 'gift-wishes'].includes(scope) && state?.roomGuard) {
+    result.roomGuard = select(state.roomGuard, fields('roomId count'));
+  }
   if (SETTING_KEYS[scope]) result.settings = select(state?.settings || {}, SETTING_SCHEMAS[scope]);
   // Retain the optional legacy dedicated game snapshot without expanding the
   // global runtime snapshot to include a new domain.

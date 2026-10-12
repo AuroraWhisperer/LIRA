@@ -125,7 +125,8 @@ test('runtime HTTP saves and publishes a scene, retaining its capability and fro
   const firstOutput = await readOutput();
   assert.equal(firstOutput.document.items[0].appearance.config.label, '首次发布');
   assert.ok(firstOutput.document.items.every((item) => item.appearance.mode === 'independent'));
-  assert.deepEqual(Object.keys(firstOutput.data).sort(), ['overtime', 'queue']);
+  assert.deepEqual(Object.keys(firstOutput.data).sort(), ['overtime', 'queue', 'roomGuard']);
+  assert.deepEqual(firstOutput.data.roomGuard, { roomId: '', count: null });
   assert.deepEqual(firstOutput.data.queue, { queue: { current: null, waiting: [] }, superChats: [] });
   assert.equal(typeof firstOutput.data.overtime.effectiveRemainingMs, 'number');
   assert.equal(Object.hasOwn(firstOutput.data.overtime, 'background'), false);

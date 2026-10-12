@@ -2,6 +2,7 @@ import { escapeHtml, formatMoney, showStackedToast } from '../../shared/utils.js
 // 编写人：Aurora
 // 礼物通知模块 - 负责礼物到账的 toast 通知显示
 import { getGiftToastArtwork } from './recent.js';
+import { bindGuardImage } from '../../shared/bilibili-guard-icons.js';
 
 ('use strict');
 
@@ -125,7 +126,7 @@ export function createGiftNotification({ notify = showStackedToast } = {}) {
     image.addEventListener('load', () => artwork.classList.add('is-loaded'), { once: true });
     image.addEventListener('error', () => image.remove(), { once: true });
     artwork.append(image);
-    image.src = source;
+    image.src = bindGuardImage(image, source);
   }
 
   /**

@@ -8,6 +8,7 @@ const { createFakeDocument } = require('../helpers/fake-dom');
 
 // Expected per-style controls. Font family, size and text color apply to every style.
 const CONTROLS = {
+  harbor: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'minGiftAmount'],
   bubble: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
   signal: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
   minimal: ['scrollDirection', 'edgeFade'],
@@ -16,17 +17,22 @@ const CONTROLS = {
   identity: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
   sketch: ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
   prismatic: ['scrollDirection', 'edgeFade'],
+  snowfox: ['scrollDirection', 'edgeFade', 'bubbleColor'],
   starlight: ['scrollDirection', 'edgeFade'],
   moonlit: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
   outline: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
   whiteframe: ['centerBias', 'dispersion'],
+  mist: ['centerBias', 'dispersion', 'backgroundOpacity'],
   cream: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
-  floating: ['speedPixelsPerSecond', 'backgroundOpacity'],
-  comet: ['speedPixelsPerSecond', 'backgroundOpacity'],
+  floating: ['speedPixelsPerSecond', 'floatingDispersion', 'backgroundOpacity'],
+  comet: ['speedPixelsPerSecond', 'floatingDispersion', 'backgroundOpacity'],
   starveil: ['centerBias', 'dispersion', 'backgroundOpacity'],
   glow: ['centerBias', 'dispersion', 'backgroundOpacity'],
 };
 const CONTROL_VALUES = {
+  floatingDispersion: { valid: [1, 50, 100], invalid: [0, 101, 1.5, '50', null, true], fallback: 50, optional: true },
+  minGiftAmount: { valid: [0, 0.01, 9.99, 100000], invalid: [-1, 100000.01, 1.005, '1', null, true, Infinity, NaN], fallback: 0, optional: true },
+  bubbleColor: { valid: ['default', '#ba739c', '#ba739c80'], invalid: ['', 'red', '#abc', '#123456\n', null, 1], fallback: 'default', optional: true },
   edgeFade: { valid: ['both', 'top', 'bottom', 'single', 'none'], invalid: ['left', 'BOTH', '', null, true, 1], optional: true },
   scrollDirection: { valid: ['up', 'down'], invalid: ['left', 'DOWN', '', null, true, 1], fallback: 'up' },
   backgroundOpacity: { valid: [0, 100], invalid: [-1, 101, 50.5, '50', null] },
@@ -61,6 +67,15 @@ test('each style accepts exactly its own controls with bounded values and defaul
         assert.equal(contract.styleOptionsFor(style)[control], fallback, `${style} ${control}`);
     }
   }
+});
+
+test('identity always uses real gift images while accepting legacy saved options', () => {
+  assert.equal(contract.DANMAKU_STYLE_OPTIONS.identity.label, '灵动弹幕');
+  for (const options of [{}, { giftImage: 'theme' }, { giftImage: 'gift' }]) {
+    assert.deepEqual(contract.normalizeStyleOptions({ identity: options }), { identity: options });
+    assert.equal(contract.styleOptionsFor('identity', { identity: options }).giftImage, 'gift');
+  }
+  assert.equal(contract.styleOptionsFor('signal').giftImage, 'theme');
 });
 
 test('scroll direction applies to fixed styles and resets to upward for other layouts', async () => {

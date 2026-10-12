@@ -1,4 +1,10 @@
 /* 透明简约：头像、昵称、正文与粉丝牌直接叠加在直播画面上。 */
+body[data-style='transparent'] {
+  --danmaku-move-base-ms: 280;
+  --danmaku-move-max-ms: 500;
+  --danmaku-move-curve: .25, .12, .25, 1;
+  --danmaku-enter-animation: transparentMessageIn 180ms cubic-bezier(.16, 1, .3, 1) backwards;
+}
 body[data-style='transparent'] .danmaku-signal-header {
   display: none;
 }
@@ -25,7 +31,7 @@ body[data-style='transparent'] .draw-danmaku-item {
   background: transparent;
   box-shadow: none;
   clip-path: none;
-  animation-name: rankedMessageIn;
+  animation-name: transparentMessageIn;
 }
 body[data-style='transparent'] .draw-danmaku-item::after {
   display: none;
@@ -173,4 +179,9 @@ body[data-custom-background='true'][data-style='transparent'] .draw-danmaku-item
     rgb(29 42 61 / var(--danmaku-background-opacity)),
     rgb(42 59 85 / var(--danmaku-background-opacity))
   );
+}
+
+@keyframes transparentMessageIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

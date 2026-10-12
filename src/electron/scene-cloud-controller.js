@@ -183,7 +183,7 @@ function createSceneCloudController({ licenseManager, publish, subscribeDemand, 
             if (event.type === 'live-started') {
               requireValid(liveSessionId === null);
               liveSessionId = event.liveSessionId;
-            } else if (event.type !== 'overlay-settings') {
+            } else if (!['overlay-settings', 'room-guard'].includes(event.type)) {
               if (event.type === 'superchat-delete' && event.liveSessionId !== liveSessionId) return;
               requireValid(liveSessionId !== null && liveSessionId === event.liveSessionId);
               if (event.type === 'live-ended') liveSessionId = null;
@@ -244,7 +244,7 @@ function streamUrl(value) {
   const url = new URL(value);
   requireValid(url.protocol === 'https:' && isDnsHostname(url.hostname) && !url.username && !url.password &&
     !url.search && !url.hash && /^\/overlay\/[A-Za-z0-9_-]{16}$/.test(url.pathname));
-  return `${url.origin}/api/public/overlay/events?token=${url.pathname.slice('/overlay/'.length)}&superchatDelete=1`;
+  return `${url.origin}/api/public/overlay/events?token=${url.pathname.slice('/overlay/'.length)}&superchatDelete=1&roomGuard=1`;
 }
 
 function text(value, maximum, minimum = 1) {
@@ -312,6 +312,12 @@ function appearance(value) {
   };
 }
 
+function roomGuardState(value) {
+  requireValid(value && typeof value === 'object' && !Array.isArray(value));
+  requireValid(typeof value.roomId === 'string' && /^(?:[1-9]\d{0,19})?$/.test(value.roomId));
+  return { roomId: value.roomId, count: value.count === null ? null : integer(value.count, 0) };
+}
+
 function displayEvent(value) {
   requireValid(value && typeof value === 'object' && !Array.isArray(value));
   const { type } = value;
@@ -322,9 +328,11 @@ function displayEvent(value) {
     const confirmationMessage = value.confirmationMessage === null ? null : text(value.confirmationMessage, 200);
     requireValid((liveSessionId === null) === (confirmationMessage === null));
     requireValid(liveSessionId === null || value.liveStatus === 1);
-    return { type, ...appearance(value), state: value.state, liveStatus: value.liveStatus, liveSessionId, confirmationMessage };
+    return { type, ...appearance(value), state: value.state, liveStatus: value.liveStatus, liveSessionId, confirmationMessage,
+      ...(value.roomGuard === undefined ? {} : { roomGuard: roomGuardState(value.roomGuard) }) };
   }
   if (type === 'overlay-settings') return { type, ...appearance(value), timestamp: timestamp(value.timestamp) };
+  if (type === 'room-guard') return { type, ...roomGuardState(value), timestamp: timestamp(value.timestamp) };
   requireValid(['live-started', 'live-ended', 'danmaku', 'gift', 'superchat', 'superchat-delete', 'entry'].includes(type));
   const result = { type, liveSessionId: text(value.liveSessionId, 128), timestamp: timestamp(value.timestamp) };
   if (type === 'live-ended') return result;
@@ -376,6 +384,7 @@ function displayEvent(value) {
   result.medalLevel = integer(value.medalLevel, 0);
   if (value.honorLevel !== undefined) result.honorLevel = integer(value.honorLevel, 1);
   if (value.roomGuardLevel !== undefined) result.roomGuardLevel = integer(value.roomGuardLevel, 0, 3);
+  if (value.onlineRank !== undefined) result.onlineRank = integer(value.onlineRank, 1, 3);
   if (value.roomMedal !== undefined) result.roomMedal = roomMedal(value.roomMedal);
   if (value.isStreamer !== undefined) {
     requireValid(typeof value.isStreamer === 'boolean');

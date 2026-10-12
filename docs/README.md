@@ -17,11 +17,13 @@
 | 为横屏背景制作可调滤镜包 | [背景样式包作者指南](guides/background-style-packages.md) | AI 制作接口、示例清单、导入和恢复作者默认 |
 | 核对背景滤镜与制作方式 | [背景美术与滤镜来源](guides/background-art-workflow.md) | Shoost 参数差异、成熟工具、分层合成及交付格式 |
 | 制作配套直播视觉主题 | [套装制作指南：月渡花汀](guides/overlay-suites/README.md) | 分层流程、提示词、参考路径、制作档案与版本状态 |
+| 设计和维护固定弹幕动效 | [固定弹幕动效](reference/frontend/danmaku-motion.md) | 逐款入场与滑动、公共职责、提示词及实际播放验收 |
 | Bilibili 外部协议资料 | [上游参考](bilibili-live-api/README.md) | 外部资料，不代表本客户端支持全部上游接口 |
 
 ## 维护规则
 
 - 每次代码变更按根 [AGENTS.md 的测试与文档同步规则](../AGENTS.md#test-and-documentation-synchronization)在同一任务内核对并更新受影响内容；应用内使用文档和交互式引导也属于检查范围。
+- 更新应用内使用文档时，按[使用文档跳转维护规则](reference/frontend/pages.md#使用文档跳转维护规则)核对受影响的文档内链接和其他页面入口，确认目标内容对应、锚点唯一且首行不被目录条遮挡。
 - 架构文档保留必要的职责摘要并链接实现参考；不复制端点表、DTO、DDL、常量清单或配置模板。
 - 技术参考可以解释局部协作上下文；跨系统的决策理由由 ADR 维护，尚未实施的步骤由计划维护。
 - 修改事实时直接更新原章节；历史变化放到计划或报告。不要通过文末追加“本节替代前文”保留两套现状。

@@ -1,4 +1,5 @@
 import { isFloatingDanmakuStyle, isRandomDanmakuStyle } from '../shared/danmaku-style-options.js';
+import { applyRoomGuardState } from '../shared/bilibili-guard-icons.js';
 
 export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, status, getStyle, showEntryMessages = () => false }) {
   let epoch = null;
@@ -6,6 +7,7 @@ export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, st
   let sequence = 0;
   function update(snapshot) {
     if (!snapshot) return;
+    applyRoomGuardState(snapshot.state?.roomGuard);
     const nextSession = snapshot.status === 'connected' && snapshot.state?.liveStatus === 1
       ? snapshot.state.liveSessionId : null;
     if (snapshot.reset || snapshot.epoch !== epoch || nextSession !== session) {
@@ -25,7 +27,7 @@ export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, st
       }
       if (!['danmaku', 'gift', 'superchat', 'entry'].includes(event.type)) continue;
       if (event.type === 'entry' && !showEntryMessages()) continue;
-      if (event.type === 'superchat' && (isRandomDanmakuStyle(getStyle()) || isFloatingDanmakuStyle(getStyle()))) continue;
+      if (event.type === 'superchat' && getStyle() !== 'mist' && (isRandomDanmakuStyle(getStyle()) || isFloatingDanmakuStyle(getStyle()))) continue;
       append({ ...event, id: `scene-event-${++sequence}`, kind: event.type, timestamp: Date.now(),
         message: event.type === 'gift' ? `送出 ${event.giftName} × ${event.giftCount}` : event.type === 'entry' ? '进入了直播间' : event.message });
     }

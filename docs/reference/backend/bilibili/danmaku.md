@@ -20,6 +20,8 @@
 
 ## 2. 客户端内部生命周期
 
+房间舰徽人数由运行时单独拥有的 `src/bilibili/room-guard-service.js` 读取：按当前配置房间调用 `fetchRoomGuardCount`，每次读取结束后间隔 60 秒继续，最多一个有效请求。该展示状态不依赖本地弹幕监听开关。换房立即发布 `{ roomId, count: null }`、取消旧请求并拒绝迟到结果；失败回退未知，停止时取消请求与定时器。快照由 `bilibili-runtime.getRoomGuardState()` 提供，变化原因是 `bilibili:room-guard`；不保存到设置或礼物账本。
+
 > 服务端何时调用 start/restart/stop、`_replaceClientChain` 串行化见 [server-core.md](../server-core.md) §6。此处只描述客户端内部行为。
 
 ### 2.1 start / restart / stop

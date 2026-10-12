@@ -30,6 +30,7 @@ LIRA 配套资源样式在时钟、弹幕、许愿、大航海感谢和点歌板
 场景操作和编辑命令完成后，桌面立即回传确认和结果；网页在待确认操作期间以 40ms 间隔读取，
 完成后恢复 250ms 空闲轮询。同一连接只允许一次状态读取在途，保留命令序号重试和草稿恢复规则。
 重新打开画布时，若初始旧快照触发恢复冲突，后续客户端草稿追上全部缓存改动后自动解除该冲突并恢复编辑；仍有差异时继续要求明确选择，不自动覆盖客户端草稿或保存。
+画布关闭或刷新时，网页通过 keepalive detach 通知中继释放当前页面，同时停止轮询；客户端继续保留会话和未保存草稿。再次打开已释放页面时直接打开原短链接，不等待旧页面的两秒 focus 超时；仍打开的画布继续复用并定位。释放请求按 attachment 隔离，迟到旧页面不能断开新页面；异常退出未送达时仍由原超时回退处理。
 
 > 涉及文件:[pages/admin/](../../../public/pages/admin)、[server/admin-page.js](../../../src/server/admin-page.js)、[admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js)、[js/admin/index.js](../../../public/js/admin/index.js)、[js/admin/app.js](../../../public/js/admin/app.js)、[js/admin/legacy-admin-bridge.js](../../../public/js/admin/legacy-admin-bridge.js)、[js/admin/state.js](../../../public/js/admin/state.js)、[js/admin/forms.js](../../../public/js/admin/forms.js)、[js/shared/](../../../public/js/shared)、[js/desktop.js](../../../public/js/desktop.js)、[js/admin/gifts/](../../../public/js/admin/gifts)、[js/admin/overtime.js](../../../public/js/admin/overtime.js)、[pages/gift-audit.html](../../../public/pages/gift-audit.html)
 

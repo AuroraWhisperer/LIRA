@@ -1,7 +1,10 @@
+import { createMistGuardCard, decorateMistMessage } from "./danmaku-mist.js";
+import { createHarborGuardCard, decorateHarborMessage } from "./danmaku-harbor.js";
 import { createSuperChatCard } from "./danmaku-superchat-renderer.js";
 import { createPrismaticGuardCard, createPrismaticIdentity, decoratePrismaticMessage } from "./danmaku-prismatic.js";
 import { decorateSketchMessage } from "./danmaku-sketch.js";
 import { decorateMoonlitMessage } from "./danmaku-moonlit.js";
+import { createSnowfoxGuardCard, createSnowfoxIdentity, decorateSnowfoxMessage } from "./danmaku-snowfox.js";
 
 export const DEFAULT_DANMAKU_CLASSES = Object.freeze({
   item: "draw-danmaku-item",
@@ -65,6 +68,15 @@ export function createDanmakuRenderer({
     if (style === "prismatic" && item.kind === "gift" && [1, 2, 3].includes(item.giftGuardLevel)) {
       return createPrismaticGuardCard(document, item, classNames, createAvatar);
     }
+    if (style === "snowfox" && item.kind === "gift" && [1, 2, 3].includes(item.giftGuardLevel)) {
+      return createSnowfoxGuardCard(document, item, classNames);
+    }
+    if (style === "mist" && item.kind === "gift" && [1, 2, 3].includes(item.giftGuardLevel)) {
+      return createMistGuardCard(document, item, classNames, createAvatar);
+    }
+    if (style === "harbor" && item.kind === "gift" && [1, 2, 3].includes(item.giftGuardLevel)) {
+      return createHarborGuardCard(document, item, classNames, createAvatar);
+    }
     const message = String(item.message || "").trim();
     const metrics = measureDanmakuText(message);
     const bubble = document.createElement("article");
@@ -81,13 +93,14 @@ export function createDanmakuRenderer({
     }
     bubble.dataset.identity = identityVariant(item.guardLevel, item.medalName);
     if (style === "prismatic") decoratePrismaticMessage(bubble, item);
+    if (style === "snowfox") decorateSnowfoxMessage(bubble, item);
     if (item.isStreamer === true) bubble.dataset.streamer = "true";
     if (fullscreen) bubble.style.setProperty("visibility", "hidden");
     bubble.style.setProperty("--danmaku-width", `${metrics.width}%`);
     bubble.style.setProperty("--danmaku-height", `${metrics.height}px`);
     bubble.style.setProperty("--danmaku-lines", String(metrics.lines));
     bubble.style.setProperty("--danmaku-delay", `${entranceDelay(index)}ms`);
-    if (isEmoteOnlyMessage(message, item.emotes, style === "prismatic")) bubble.className += " is-emote-only";
+    if (isEmoteOnlyMessage(message, item.emotes, ["prismatic", "snowfox", "mist"].includes(style))) bubble.className += " is-emote-only";
 
     const name = String(item.name || "观众").trim() || "观众";
     const avatar = style === "prismatic" && item.kind === "gift" ? null : createAvatar(item, name, bubble);
@@ -102,6 +115,8 @@ export function createDanmakuRenderer({
     body.append(identity, messageElement);
     if (avatar) bubble.append(avatar);
     bubble.append(body);
+    if (style === "mist") decorateMistMessage(bubble, item, { avatar, identity, body, message: messageElement });
+    if (style === "harbor") decorateHarborMessage(document, bubble, item, { avatar, identity, body });
     if (style === "moonlit") {
       decorateMoonlitMessage(document, bubble, item, {
         avatar,
@@ -137,14 +152,14 @@ export function createDanmakuRenderer({
         art.className = "draw-danmaku-gift-art";
         art.style.setProperty("background-image", "");
       });
-      image.src = giftSource;
+      image.src = options.bindGiftImage?.(image, giftSource) ?? giftSource;
       art.append(image);
     }
     const copy = document.createElement("span");
     copy.className = "draw-danmaku-gift-copy";
     const action = document.createElement("span");
     action.className = "draw-danmaku-gift-action";
-    action.textContent = style === "prismatic" ? "赠送了" : style === "starlight" ? "赠送" : "送出";
+    action.textContent = style === "snowfox" ? "投喂" : style === "prismatic" ? "赠送了" : ["starlight", "mist"].includes(style) ? "赠送" : "送出";
     const name = document.createElement("strong");
     name.className = "draw-danmaku-gift-name";
     name.textContent = String(item.giftName || "礼物");
@@ -152,7 +167,7 @@ export function createDanmakuRenderer({
     count.className = "draw-danmaku-gift-count";
     count.textContent = style === "starlight" ? `x${item.giftCount}` : `× ${item.giftCount}`;
     copy.append(action, name);
-    if (showGiftTotal || style === "prismatic") {
+    if (showGiftTotal || ["prismatic", "snowfox", "mist"].includes(style)) {
       const amount = document.createElement("b");
       amount.className = "draw-danmaku-gift-amount";
       const total =
@@ -163,10 +178,11 @@ export function createDanmakuRenderer({
             })
           : null;
       amount.textContent =
-        total === null ? "—" : ["whiteframe", "sketch"].includes(style) ? `${total}¥` : `¥${total}`;
+        total === null ? "—" : style === "snowfox" ? `CN¥${total}` : ["whiteframe", "sketch"].includes(style) ? `${total}¥` : `¥${total}`;
       if (style !== "prismatic" || Number(item.giftCount) > 1) copy.append(count);
       if (style !== "prismatic") rootElement.append(art);
-      rootElement.append(copy, amount);
+      rootElement.append(copy);
+      if (style !== "snowfox" || total !== null) rootElement.append(amount);
     } else rootElement.append(art, copy, count);
   }
 
@@ -203,6 +219,7 @@ export function createDanmakuRenderer({
 
   function createIdentity(item, name) {
     if (style === "prismatic") return createPrismaticIdentity(document, item, name, classNames, resolveEmoteUrl);
+    if (style === "snowfox") return createSnowfoxIdentity(document, item, name, classNames, resolveEmoteUrl);
     const identity = document.createElement("div");
     identity.className = classNames.identity;
     const nameElement = document.createElement("strong");

@@ -2,6 +2,7 @@
 
 import { GIFT_PLACEHOLDER } from './gift-image-fallback.js';
 import { fitTextToWidth } from './fit-text-to-width.js';
+import { bindGuardImage, getGuardIcon } from './bilibili-guard-icons.js';
 
 export const BANNER_WIDTH = 428;
 export const BANNER_HEIGHT = 72;
@@ -34,7 +35,7 @@ export function resolveGiftArtwork(gift, catalog) {
     /^guard-([123])$/.exec(gift.giftId)?.[1] ||
     (gift.coinType === 'guard' ? ['总督', '提督', '舰长'].indexOf(gift.giftName) + 1 : 0);
   if (purchasedGuardLevel) {
-    return `/img/admin/gifts/bilibili-guard-${{ 1: 'governor', 2: 'prefect', 3: 'captain' }[purchasedGuardLevel]}.webp`;
+    return getGuardIcon(purchasedGuardLevel);
   }
   const normalize = (value) =>
     String(value || '')
@@ -142,6 +143,7 @@ export function giftAvatarSource(value) {
 }
 
 function updateBannerImage(image, source, retry = false) {
+  source = bindGuardImage(image, source);
   if (image.dataset.source !== source || (retry && image.getAttribute('src') !== source)) {
     image.dataset.source = source;
     image.style.visibility = '';
@@ -159,7 +161,7 @@ function bannerImage(source, className, fallback) {
   image.alt = '';
   image.draggable = false;
   image.referrerPolicy = 'no-referrer';
-  image.src = source;
+  image.src = bindGuardImage(image, source);
   image.dataset.source = source;
   image.dataset.fallback = fallback;
   image.addEventListener('error', () => {

@@ -416,6 +416,7 @@ function createServerRuntime(runtimeOptions = {}) {
       tags: songMetadata.tags,
       songCount: songMetadata.songCount,
       liveStatus,
+      roomGuard: bilibiliRuntime.getRoomGuardState(),
       bilibiliDiagnostics,
       lyricState: musicRuntime.getLyricState(),
       lyricTimeline: musicRuntime.getLyricTimeline(),

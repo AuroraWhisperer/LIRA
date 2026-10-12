@@ -243,6 +243,10 @@ function createFakeDocument() {
 }
 
 class FakeElement {
+  setAttribute(name, value) { this[name] = String(value); }
+  getAttribute(name) { return this[name] ?? null; }
+  removeAttribute(name) { delete this[name]; }
+
   constructor(tagName, ownerDocument) {
     this.tagName = tagName;
     this.ownerDocument = ownerDocument;

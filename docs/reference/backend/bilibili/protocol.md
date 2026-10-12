@@ -10,8 +10,8 @@
 
 ```
 BilibiliDanmakuClient (顶层编排, 见 danmaku.md)
-├─ BilibiliApiClient        HTTP API 层 (8 个 JSON/表单端点 + 头像图片读取, 见 §2)
-├─ WBI 签名 (wbi-signer)     getDanmuInfo / nav 的签名与密钥缓存
+├─ BilibiliApiClient        HTTP API 层 (9 个 JSON/表单端点 + 头像图片读取, 见 §2)
+├─ WBI 签名 (wbi-signer)     getDanmuInfo / getInfoByRoom 的签名与 nav 密钥缓存
 ├─ WebSocketConnection       二进制帧封装 + 心跳 (30s, 见 §4)
 ├─ parseBilibiliPackets      帧解码 + Brotli/zlib 解压 (见 §4.4)
 ├─ Protobuf 解码器           自实现 LEB128 解码 (见 §5)
@@ -51,6 +51,8 @@ Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [de
 | `60004` | 直播间不存在                                              | [api-client.js:205-207](../../../../src/bilibili/danmaku/api-client.js#L205-L207) |
 
 ### 2.3 端点清单
+
+`fetchRoomGuardCount({ signal })` 调用 WBI 签名的 `https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id={roomId}&wts=...&w_rid=...`，只读取 `data.guard_info.count`。接受非负安全整数及十进制数字字符串，未知或无效字段返回 `null`；非成功响应拒绝。首次 `-352` 淘汰当前签名密钥并重试一次；请求沿用通用期限及调用方取消信号。不得使用在线人数、榜单长度或礼物累计数量替代大航海总人数。
 
 | 端点                | URL                                                                                                           | 用途与关键响应                                                                                                                                                         | 出处                                                                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |

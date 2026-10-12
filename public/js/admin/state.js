@@ -4,6 +4,7 @@
 
 import { showError } from '../shared/utils.js';
 import { eventBus, Events } from '../shared/event-bus.js';
+import { applyRoomGuardState } from '../shared/bilibili-guard-icons.js';
 
 /**
  * 状态管理服务
@@ -195,6 +196,7 @@ export class StateService {
       (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
     );
     this.appState = next;
+    if (changedKeys.includes('roomGuard')) applyRoomGuardState(next.roomGuard);
     if (changedKeys.includes('categories')) this.categories = next.categories || [];
     if (changedKeys.includes('tags')) this.songTags = new Set(next.tags || []);
     for (const [key, eventName] of [

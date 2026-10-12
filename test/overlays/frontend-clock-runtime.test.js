@@ -216,10 +216,14 @@ test('clock preview loads once, shares drafts and only writes on explicit save',
   assert.equal(dom.document.getElementById('clockFixedUrl').textContent, 'http://127.0.0.1:3000/clock');
   assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, true);
 
-  for (const style of ['timeline-vertical', 'soda']) {
+  for (const style of ['minimal', 'timeline-vertical', 'soda']) {
     const button = dom.options.find((option) => option.dataset.clockStyleOption === style);
     button.listeners.get('click')();
-    assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, style === 'timeline-vertical');
+    assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, style !== 'soda');
+    assert.equal(dom.document.getElementById('clockShowDateField').hidden, style === 'minimal');
+    assert.equal(dom.document.getElementById('clockShowDate').disabled, style === 'minimal');
+    assert.equal(dom.document.getElementById('clockShowDate').checked, true);
+    assert.equal(dom.document.getElementById('clockShowSeconds').disabled, false);
   }
   const label = dom.document.getElementById('clockCustomLabel');
   label.value = '预览文字';
@@ -242,6 +246,36 @@ test('clock preview loads once, shares drafts and only writes on explicit save',
   assert.equal(writes[0].clockStyle, 'soda');
   assert.equal(writes[0].clockShowSeconds, 'false');
   assert.equal(writes[0].clockLabel, '预览文字');
+});
+
+test('minimal clock stays time-only and restores date and period when switching styles', async () => {
+  const dom = createClockDom();
+  await loadModuleExports(entry('overlays', 'clock.js'), {
+    ...dom, URL, URLSearchParams,
+    location: new URL('http://127.0.0.1:3000/clock?style=minimal&date=1&seconds=1&format=12'),
+    fetch: () => assert.fail('complete preview parameters need no fetch'),
+  });
+  const node = (id) => dom.document.getElementById(id);
+  assert.equal(node('clockCard').dataset.clockStyle, 'minimal');
+  assert.equal(node('clockSeconds').hidden, false);
+  assert.equal(node('clockDateRow').hidden, true);
+  assert.equal(node('clockYear').hidden, true);
+  assert.equal(node('clockPeriod').hidden, true);
+  assert.match(node('clockTime').getAttribute('aria-label'), /^\d{2}点\d{2}分\d{2}秒$/);
+  const timers = [...dom.timers.keys()];
+  const update = (style) => dom.window.listeners.get('message')({
+    source: dom.window.parent, origin: 'http://127.0.0.1:3000',
+    data: { type: 'lira:clock-preview-config', config: { style, showDate: true, showSeconds: false, hourFormat: '12' } },
+  });
+  update('minimal');
+  assert.equal(node('clockSeconds').hidden, true);
+  assert.equal(node('clockDateRow').hidden, true);
+  update('digital');
+  assert.equal(node('clockDateRow').hidden, false);
+  assert.equal(node('clockPeriod').hidden, false);
+  assert.deepEqual([...dom.timers.keys()], timers);
+  dom.window.listeners.get('pagehide')();
+  assert.equal(dom.timers.size, 0);
 });
 
 test('clock applies only same-origin parent previews without restarting its timer', async () => {

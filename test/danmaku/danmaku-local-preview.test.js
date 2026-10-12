@@ -5,8 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { createDanmakuPreviewItems } = require('../../public/js/overlays/danmaku-preview-samples.js');
 
-const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'starlight', 'moonlit', 'outline', 'whiteframe', 'cream', 'glow', 'starveil'];
-const randomStyles = ['outline', 'whiteframe', 'cream', 'glow', 'starveil'];
+const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
+const randomStyles = ['outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
 
 async function fixture(search = '?preview=1', savedStyle) {
   const nodes = new Map();
@@ -35,7 +35,7 @@ async function fixture(search = '?preview=1', savedStyle) {
       });
     return nodes.get(id);
   };
-  const buttons = styles.map((style) => {
+  const buttons = [...styles, 'floating', 'comet'].map((style) => {
     const button = node(style);
     button.dataset.previewStyle = style;
     button.querySelector = () => ({ textContent: `${style} description`, firstChild: { textContent: style } });
@@ -159,6 +159,8 @@ async function fixture(search = '?preview=1', savedStyle) {
               renders.push(items);
             },
             append(item) { appends.push(item); appendTimes.push(elapsed); },
+            setSpeedPixelsPerSecond(value) { config.speedPixelsPerSecond = value; },
+            setFloatingDispersion(value) { config.floatingDispersion = value; },
           };
         });
       },
@@ -181,8 +183,8 @@ test('all local styles replay every example through the live feed without connec
   assert.equal(f.document.body.dataset.style, 'cream');
   for (const style of styles) {
     const start = f.appends.length;
-    const fullscreen = ['outline', 'whiteframe', 'cream', 'glow', 'starveil'].includes(style);
-    const expectedSamples = createDanmakuPreviewItems(style).filter(item => !fullscreen || item.kind !== 'superchat');
+    const fullscreen = ['outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'].includes(style);
+    const expectedSamples = createDanmakuPreviewItems(style).filter(item => style === 'mist' || !fullscreen || item.kind !== 'superchat');
     const sampleCount = expectedSamples.length;
     f.node(style).events.click();
     f.flushFrames();
@@ -214,22 +216,22 @@ test('all local styles replay every example through the live feed without connec
       assert.deepEqual(Array.from(items.filter((item) => item.giftGuardLevel), (item) => item.giftGuardLevel).sort(), [1, 2, 3]);
     }
     assert.equal(items.find((item) => item.kind === 'gift' && item.giftCount === 10).giftTotalPrice, 1);
-    assert.equal(f.options.at(-1).showGiftTotal, ['transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic'].includes(style));
+    assert.equal(f.options.at(-1).showGiftTotal, ['mist', 'harbor', 'transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox'].includes(style));
     assert.ok(items.every((item) => !item.id.startsWith('preview-thanks')));
     assert.equal(f.options.at(-1).resolveEmoteUrl(members[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
     const superChats = items.filter((item) => item.kind === 'superchat');
-    if (!fullscreen) {
+    if (!fullscreen || style === 'mist') {
       assert.deepEqual([...new Set(Array.from(superChats, item => item.price))].sort((a, b) => a - b), [2, 30, 50, 100, 500, 1000, 2000]);
       assert.ok(superChats.every((item) => item.message));
       assert.ok(superChats.some((item) => item.message.includes('\n')));
       assert.equal(f.options.at(-1).style, style);
     }
     if (fullscreen) {
-      assert.equal(superChats.length, 0);
+      if (style !== 'mist') assert.equal(superChats.length, 0);
       assert.notEqual(f.options.at(-1).expireItems, false);
       assert.equal(f.options.at(-1).itemLifetimeMs, 12000);
       assert.equal(f.options.at(-1).layout, 'fullscreen-random', 'preview uses the same region layout as live output');
-      assert.equal(f.options.at(-1).showAvatar, style === 'cream');
+      assert.equal(f.options.at(-1).showAvatar, ['cream', 'mist'].includes(style));
     }
   }
 });
@@ -331,16 +333,34 @@ test('local preview applies per-style parameters without external image requests
   assert.equal(f.document.body.dataset.scrollDirection, 'down');
   assert.equal(f.node('root').style['--danmaku-background-opacity'], '0.35');
   assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions)), options);
-  assert.equal(f.options.at(-1).resolveGiftImageUrl('/img/gift-placeholder.png'), '/img/gift-placeholder.png');
+  const gift = createDanmakuPreviewItems().find(item => item.id === 'preview-gift-cheer');
+  assert.equal(f.options.at(-1).resolveGiftImageUrl(gift.giftImageUrl), gift.giftImageUrl);
   f.node('minimal').events.click();
   assert.equal(f.node('root').style['--danmaku-font-size'], '24px');
   assert.equal(f.document.body.dataset.customBackground, 'false');
   assert.equal(f.document.body.dataset.scrollDirection, 'up');
-  assert.equal(f.options.at(-1).resolveGiftImageUrl('/img/gift-placeholder.png'), '');
+  assert.equal(f.options.at(-1).resolveGiftImageUrl(gift.giftImageUrl), '');
   f.node('signal').events.click();
   assert.equal(f.document.body.dataset.scrollDirection, 'down');
   f.node('outline').events.click();
   assert.equal(f.document.body.dataset.scrollDirection, 'up');
+});
+
+test('identity preview resolves matching local WebP gifts even with legacy theme options', async () => {
+  const options = { identity: { giftImage: 'theme' } };
+  const f = await fixture(`?preview=1&style=identity&styleOptions=${encodeURIComponent(JSON.stringify(options))}`);
+  assert.equal(f.node('previewGiftField').hidden, true);
+  const gifts = createDanmakuPreviewItems('identity').filter(item => item.kind === 'gift');
+  assert.equal(new Set(gifts.map(item => item.giftImageUrl)).size, gifts.length);
+  for (const gift of gifts) {
+    assert.equal(f.options.at(-1).resolveGiftImageUrl(gift.giftImageUrl), gift.giftImageUrl);
+    const bytes = fs.readFileSync(path.join(__dirname, '../../public', gift.giftImageUrl));
+    assert.equal(bytes.toString('ascii', 0, 4), 'RIFF');
+    assert.equal(bytes.toString('ascii', 8, 12), 'WEBP');
+  }
+  assert.equal(f.options.at(-1).resolveGiftImageUrl('/img/gift-placeholder.png'), '');
+  assert.equal(f.options.at(-1).resolveGiftImageUrl('/img/overlays/danmaku-previews/gifts/unknown.webp'), '');
+  assert.equal(f.options.at(-1).resolveGiftImageUrl('https://example.com/gift.webp'), '');
 });
 
 test('scaled appearance edits keep logical font sizes and reset only the selected style', async () => {
@@ -431,6 +451,34 @@ test('random position controls reach the preview feed, reject invalid edits and 
   f.node('signal').events.click();
   assert.equal(f.node('previewCenterBiasField').hidden, true);
   assert.equal(f.node('previewDispersionField').hidden, true);
+});
+
+test('floating preview controls save mapped speed and dispersion independently and restore defaults', async () => {
+  const f = await fixture('?preview=1&style=floating');
+  for (const style of ['floating', 'comet']) {
+    f.node(style).events.click();
+    assert.equal(f.node('previewFloatingSpeed').value, '50');
+    assert.equal(f.node('previewFloatingDispersion').value, '50');
+    assert.equal(f.node('previewFloatingDispersionField').hidden, false);
+    const originalFeed = f.options.at(-1);
+    for (const [id, key, value] of [['previewFloatingSpeed', 'speedPixelsPerSecond', 360], ['previewFloatingDispersion', 'floatingDispersion', 100]]) {
+      const control = f.node(id);
+      control.min = '1'; control.max = '100'; control.value = '100';
+      control.events.input();
+      assert.equal(f.history.state.danmakuStyleOptions[style][key], value);
+      assert.equal(f.options.at(-1)[key], value);
+      assert.equal(f.options.at(-1), originalFeed, 'motion edits keep the existing preview feed');
+      control.value = '101'; control.events.input();
+      assert.equal(control.value, '100');
+    }
+  }
+  f.node('floating').events.click();
+  assert.equal(f.node('previewFloatingDispersion').value, '100');
+  f.node('previewAppearanceReset').events.click();
+  assert.equal(f.options.at(-1).speedPixelsPerSecond, 120);
+  assert.equal(f.options.at(-1).floatingDispersion, 50);
+  f.node('signal').events.click();
+  assert.equal(f.node('previewFloatingDispersionField').hidden, true);
 });
 
 test('fixed canvas regions scale all content with width while height controls message capacity', async () => {

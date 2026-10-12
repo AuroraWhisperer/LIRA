@@ -259,11 +259,22 @@ test('reopening and style changes reuse one short link and connected canvas, and
   assert.equal(commands.filter(({ action }) => action === 'open').length, 5);
   await page.close();
   await second.close();
-  await desktop.evaluate(async () => {
+  const reopenMs = await desktop.evaluate(async () => {
+    const started = performance.now();
     window.externalPreviewUrl = '';
     await window.previewHandle.focus({ id: 'clock', controller: window.controllers.clock });
+    return performance.now() - started;
   });
+  t.diagnostic(`Closed canvas reopened in ${Math.round(reopenMs)}ms.`);
+  assert.ok(reopenMs < 1000, 'Reopening must not wait for the closed page to acknowledge focus.');
   assert.equal(await desktop.evaluate(() => window.externalPreviewUrl), url, 'Without an attached page, focusing reopens the same link.');
+  const reopened = await browser.newPage();
+  await reopened.goto(url);
+  assert.equal(await reopened.locator('[data-preview-field="clockCustomLabel"]').inputValue(), '刷新后继续编辑');
+  assert.equal(await reopened.getByRole('button', { name: '保存并应用', exact: true }).isEnabled(), true);
+  assert.equal(fixture.service.list()[0].publishedVersion, 0);
+  assert.equal(commands.filter(({ action }) => action === 'open').length, 5);
+  await reopened.close();
   await desktop.evaluate(() => {
     window.previewHandle.close();
     window.reopen('clock');

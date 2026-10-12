@@ -71,6 +71,18 @@ class FakeNode {
     this[name] = value;
   }
 
+  getAttribute(name) {
+    return this.attributes[name] ?? null;
+  }
+
+  removeAttribute(name) {
+    delete this.attributes[name];
+  }
+
+  hasAttribute(name) {
+    return Object.hasOwn(this.attributes, name);
+  }
+
   addEventListener(name, listener) {
     this.listeners[name] = listener;
   }

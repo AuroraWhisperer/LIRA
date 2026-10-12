@@ -114,9 +114,7 @@ function fixture(name) {
   if (name === 'lyric-window') {
     // 该页面通过公共连接模块建连，这里运行真实实现而不是复制重连逻辑。
     vm.runInContext(
-      fs
-        .readFileSync(path.join(__dirname, '../..', 'public', 'js', 'overlays', 'socket-client.js'), 'utf8')
-        .replace(/^export\s+/gm, ''),
+      readJsModuleBundle('public', 'js', 'overlays', 'socket-client.js'),
       context,
     );
   }

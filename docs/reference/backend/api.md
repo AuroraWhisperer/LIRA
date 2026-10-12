@@ -76,6 +76,7 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 | `revoke` | 管理身份；`{id}` | `{closed}` |
 | `read` | 当前会话 Bearer；`{id,attachmentId?,focusId?}`；未附页面标识的读取用于接管前取得快照；只有当前 attachment 可用 focusId 确认定位 | `{component,draftKey,state,display,ack,sequence,attachmentId,focus?}`，attachmentId 初始为 null；focus 仅请求待处理时存在，为 `{id,selectedId,selectedSize,selectedItemId?}`；确认或过期后移除 |
 | `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
+| `detach` | 当前会话 Bearer；`{id,attachmentId}`，必须匹配最后接管的页面 | `{}`；释放页面并立即结束待确认 focus，保留会话、草稿及已接受命令；同一页面重复释放幂等，迟到旧页面不能释放新页面。已释放标识仅保留为下次 attach 的比较基线，不能继续操作或恢复自身接管 |
 | `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?,baseItemIds?}`，edit 允许该组件已有草稿字段；clock/danmaku 另允许向旧草稿新增经类型校验的 styleParameters，禁止原型键。baseItemIds 仅允许 canvas 文档 edit，为编辑前已知的 UUID 列表 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准。可选 baseItemIds 经 exchange 原样转发，桌面应用文档时保留当前场景中不在此基线和提交文档中的新增图层；已知图层删除仍生效。旧请求保持原替换语义，基线不持久化 |
 | `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}`，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
 | `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}`、`{action:'create',title,duplicate:boolean}`、`{action:'delete',id}` 或 `{action:'refresh'}` | 选择/删除仅操作桌面 state.presets 列出的预设；删除还须匹配当前草稿 ID，由桌面持有的 revision 提交。refresh 只读取并补入新增预设，不覆盖已有草稿。结果 `{id}` 为最终选中预设（删空为 null），经 display 返回；删除当前输出会切换到剩余已保存预设或透明空画面，其余操作不发布，不授予通用管理权限 |
@@ -90,7 +91,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 切换预设后 draftKey 随当前文档 ID 更新，恢复副本不能跨预设写入或重放。短链接记住入口所属
 预设；切换后刷新该链接不再添加或选中旧入口组件，显式从客户端重新打开组件则绑定当前预设。
 
-中继拥有分层 UTF-8 大小限制：每份场景 document 仍限 256 KiB；单个 saved/draft 配置或 edit change 限 257 KiB，双份状态封装限 518 KiB，display 限 256 KiB；完整 HTTP 请求限 778 KiB（含 4 KiB 请求元数据余量）。超限不改变已有会话或命令，文档结构和领域配置仍由原保存 owner 校验。每会话最多 64 条待确认命令、每类型最多一会话。有效网页请求或客户端 exchange 续期；双方连续两分钟无有效请求暂停网页操作并返回可重试的 503，保留会话等待原客户端通过认证、同 generation 的 exchange 恢复，网页不能自行续活。账号归属/登录生命周期变化、控制器 generation 变化、显式 close/revoke 或同类型新会话使旧会话永久失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此中继及下述受限画布文本素材接口，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪或页面/操作已被替代，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端关闭撤销会话；网页 pagehide 仅停止当前页面轮询，刷新可继续编辑；领域保存失败保留原控制器草稿。
+中继拥有分层 UTF-8 大小限制：每份场景 document 仍限 256 KiB；单个 saved/draft 配置或 edit change 限 257 KiB，双份状态封装限 518 KiB，display 限 256 KiB；完整 HTTP 请求限 778 KiB（含 4 KiB 请求元数据余量）。超限不改变已有会话或命令，文档结构和领域配置仍由原保存 owner 校验。每会话最多 64 条待确认命令、每类型最多一会话。有效网页读取、变更或客户端 exchange 续期；detach 不续租。双方连续两分钟无有效请求暂停网页操作并返回可重试的 503，保留会话等待原客户端通过认证、同 generation 的 exchange 恢复，网页不能自行续活。账号归属/登录生命周期变化、控制器 generation 变化、显式 close/revoke 或同类型新会话使旧会话永久失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此中继及下述受限画布文本素材接口，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪或页面/操作已被替代，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端关闭撤销会话；网页 pagehide 停止当前页面轮询，并通过带当前 attachment 的 keepalive detach 释放页面，刷新与重开继续使用原会话和草稿，focus 不等待已释放页面。异常退出未能发送 detach 时保留两秒 focus 超时回退；领域保存失败保留原控制器草稿。
 
 ### 本地场景
 

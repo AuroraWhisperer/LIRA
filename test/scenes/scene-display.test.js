@@ -51,6 +51,24 @@ test('buffer cursor delivers each event once when advanced, independently for mu
   assert.deepEqual(buffer.getSnapshot({ epoch: first.epoch, cursor: first.nextCursor }).events, [gift('three')]);
 });
 
+test('room guard updates preserve the event cursor and survive live-session transitions', () => {
+  const { buffer, update, connect } = bufferFixture();
+  connect();
+  update('connected', gift('one'));
+  const before = buffer.getSnapshot();
+  update('connected', { type: 'room-guard', roomId: '52030', count: 1000, timestamp, privateValue: 'omit' });
+  const after = buffer.getSnapshot({ epoch: before.epoch, cursor: before.nextCursor });
+  assert.equal(after.epoch, before.epoch);
+  assert.equal(after.nextCursor, before.nextCursor);
+  assert.deepEqual(after.events, []);
+  assert.deepEqual(after.state.roomGuard, { roomId: '52030', count: 1000 });
+  update('connected', { type: 'live-ended', liveSessionId: 'session-a' });
+  update('connected', { type: 'live-started', liveSessionId: 'session-b', message: '开播' });
+  assert.deepEqual(buffer.getSnapshot().state.roomGuard, after.state.roomGuard);
+  update('offline');
+  assert.equal(buffer.getSnapshot().state, null);
+});
+
 test('bounded 200-event window reports gap and resets to current cursor without replay or compensation', () => {
   const { buffer, update, connect } = bufferFixture();
   const initial = connect();
@@ -289,6 +307,15 @@ test('component defaults are complete isolated appearance copies and cloud unava
   assert.throws(() => fixture.ports.getDefaultConfig('private'), { code: 'INVALID_SCENE_CONFIG' });
 });
 
+test('local scene consumers receive only the shared room icon projection', () => {
+  const fixture = componentFixture();
+  fixture.setState({ ...fixture.state, roomGuard: { roomId: '52030', count: 1000, cookie: 'PRIVATE' } });
+  for (const type of ['queue', 'overtime', 'gift-feed', 'gift-wishes', 'text-box']) {
+    assert.deepEqual(fixture.ports.getDisplayData([type], {}).roomGuard, { roomId: '52030', count: 1000 });
+  }
+  assert.equal(fixture.ports.getDisplayData(['clock'], {}).roomGuard, undefined);
+});
+
 test('component ports deduplicate live data reads and omit absent or unknown projections', () => {
   let stateReads = 0;
   const requests = [];
@@ -300,18 +327,18 @@ test('component ports deduplicate live data reads and omit absent or unknown pro
   for (const types of [[], ['browser'], ['browser', 'clock', 'text-box']]) {
     assert.deepEqual(ports.getDisplayData(types, request), {}, 'self-contained layers need no runtime snapshot');
   }
-  assert.equal(stateReads, 0);
+  assert.equal(stateReads, 1, 'Text boxes receive room guard artwork state.');
   assert.deepEqual(ports.getDisplayData(['danmaku'], request), { danmaku: { events: [] } });
-  assert.equal(stateReads, 0, 'Cloud-only displays do not need local business state.');
+  assert.equal(stateReads, 1, 'Cloud-only displays do not need local business state.');
   assert.deepEqual(ports.getDisplayData(['danmaku', 'danmaku', 'overtime', 'browser', 'clock', 'text-box', 'constructor', 'unknown'], request),
     { danmaku: { events: [] } });
-  assert.equal(stateReads, 1);
+  assert.equal(stateReads, 2);
   assert.deepEqual(requests, [request, request]);
   for (const type of ['canvas', 'unknown', 'constructor', '__proto__', ['clock'], { toString: () => 'clock' }]) {
     assert.throws(() => ports.getDefaultConfig(type), { code: 'INVALID_SCENE_CONFIG' });
     assert.throws(() => normalizeSceneConfig(type, {}), { code: 'INVALID_SCENE_CONFIG' });
   }
-  assert.equal(stateReads, 1, 'Invalid types must be rejected before accessing business state.');
+  assert.equal(stateReads, 2, 'Invalid types must be rejected before accessing business state.');
 });
 
 test('appearance normalization rejects private keys, nested objects, nonfinite values and unsafe backgrounds', () => {

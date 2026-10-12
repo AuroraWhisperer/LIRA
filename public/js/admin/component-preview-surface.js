@@ -1,3 +1,5 @@
+import { getRoomGuardState, subscribeRoomGuardState } from '../shared/bilibili-guard-icons.js';
+
 export function previewElement(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -128,6 +130,7 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
     if (closed || event.source !== frame.contentWindow || event.origin !== 'null') return;
     if (event.data?.type === 'component-preview:ready') {
       ready = true;
+      send('room-guard', { roomGuard: getRoomGuardState() });
       fit();
       const state = controller.getState();
       const values = { config: projectConfig(state.draft), editable: state.loaded };
@@ -151,6 +154,9 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
   const observer = new ResizeObserver(fit);
   observer.observe(stage);
   const unsubscribe = controller.subscribe(update);
+  const stopRoomGuard = subscribeRoomGuardState((roomGuard) => {
+    if (ready) send('room-guard', { roomGuard });
+  });
   const loadTimer = window.setTimeout(() => {
     if (!closed) loadState.textContent = '预览未能加载，请关闭后重试。';
   }, 12000);
@@ -166,6 +172,7 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
     dataGeneration += 1;
     stopData?.();
     unsubscribe();
+    stopRoomGuard();
     observer.disconnect();
     window.clearTimeout(loadTimer);
     window.clearTimeout(focusTimer);

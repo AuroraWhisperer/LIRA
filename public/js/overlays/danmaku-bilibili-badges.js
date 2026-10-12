@@ -82,9 +82,3 @@ export const HONOR_BADGES = Object.freeze({
   79: 'https://i0.hdslb.com/bfs/live/549b31ea6af55a3559a8d3ff46380e0a22b10c08.png',
   80: 'https://i0.hdslb.com/bfs/live/6da9d5d7e68722cb7ec018c4f15dcbe15937ce8f.webp',
 });
-
-export const GUARD_ICONS = Object.freeze({
-  1: 'https://i0.hdslb.com/bfs/live/bf4f5ea4b54ca7bb358dec4e6c4afcc300c12eb9.png',
-  2: 'https://i0.hdslb.com/bfs/live/62ac06fd72b05fe22be26426b9e1a8e1fc2c6b89.png',
-  3: 'https://i0.hdslb.com/bfs/live/48360c8f3b7de8031e86ff1ef4a2dfc0ec2a61c2.png',
-});

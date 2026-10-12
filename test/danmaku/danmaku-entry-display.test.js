@@ -6,6 +6,24 @@ const { FakeNode, allNodes } = require('../helpers/fake-dom');
 const { createSceneDanmakuDisplay } = require('../../public/js/overlays/scene-danmaku-display.js');
 const { createCloudDisplayBuffer } = require('../../src/scenes/cloud-display-buffer');
 
+test('mist scene output includes SC and forwards its deletion; existing random and floating styles omit SC', () => {
+  for (const style of ['mist', 'whiteframe', 'outline', 'cream', 'glow', 'starveil', 'floating', 'comet']) {
+    const items = [];
+    const deleted = [];
+    const display = createSceneDanmakuDisplay({ clear() {}, append: item => items.push(item),
+      remove: ids => deleted.push(...ids), status() {}, getStyle: () => style });
+    const snapshot = { status: 'connected', epoch: 'mist-test', state: { liveStatus: 1, liveSessionId: 'live' } };
+    display.update({ ...snapshot, events: [
+      { type: 'superchat', liveSessionId: 'live', messageId: 'sc', message: '原文\n第二行', price: 30 },
+      { type: 'superchat', liveSessionId: 'old', messageId: 'old-sc', message: '旧场次', price: 30 },
+    ] });
+    assert.equal(items.length, style === 'mist' ? 1 : 0);
+    if (items.length) assert.equal(items[0].message, '原文\n第二行');
+    display.update({ ...snapshot, events: [{ type: 'superchat-delete', liveSessionId: 'live', messageIds: ['sc'] }] });
+    assert.deepEqual(deleted, ['sc']);
+  }
+});
+
 test('entry events cross the display buffer only within the active session and opt in per component', () => {
   const buffer = createCloudDisplayBuffer({ getOwner: () => ({ scope: 'tenant', epoch: 1 }) });
   const envelope = { ownerScope: 'tenant', authorizationEpoch: 1, connectionEpoch: 'connection', status: 'connected' };

@@ -1,0 +1,49 @@
+.clock-card[data-clock-style='minimal'] {
+  color: #fff;
+}
+
+.clock-card[data-clock-style='minimal'] .clock-content {
+  padding: 0;
+}
+
+.clock-card[data-clock-style='minimal'] .clock-sparkles,
+.clock-card[data-clock-style='minimal'] .clock-peach-mascot,
+.clock-card[data-clock-style='minimal'] .clock-night-mascot,
+.clock-card[data-clock-style='minimal'] .clock-soda-mascot,
+.clock-card[data-clock-style='minimal'] .clock-kicker-row,
+.clock-card[data-clock-style='minimal'] .clock-year,
+.clock-card[data-clock-style='minimal'] .clock-date-row {
+  display: none;
+}
+
+.clock-card[data-clock-style='minimal'] .clock-time {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  font-size: 120px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.clock-card[data-clock-style='minimal'] .clock-colon {
+  margin: 0;
+  animation: none;
+}
+
+.clock-card[data-clock-style='minimal'] .clock-seconds {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: 0;
+}
+
+.clock-card[data-clock-style='minimal'] .clock-seconds::before {
+  content: ':';
+}

@@ -5,10 +5,10 @@
 import { initUsageGuideLightbox } from './usage-guide-lightbox.js';
 import { initUsageGuideSearch } from './usage-guide-search.js';
 import { initUsageGuideProgress } from './usage-guide-progress.js';
-import { createUsageGuideSidebarTransition } from './usage-guide-layout.js';
+import { captureUsageGuidePosition, getUsageGuideScrollTop, createUsageGuideSidebarTransition } from './usage-guide-layout.js';
+import { createUsageGuideMotion } from './usage-guide-motion.js';
 
 let initialized = false;
-let navigationCorrectionTimer = null;
 
 export function initUsageGuide() {
   if (initialized) return;
@@ -20,6 +20,8 @@ export function initUsageGuide() {
   const tocMenu = panel.querySelector('.usage-guide-toc-links');
   const tocCurrent = panel.querySelector('.usage-guide-toc-current');
   const backToTopButton = panel.querySelector('.usage-guide-back-to-top');
+  const backButton = panel.querySelector('.usage-guide-go-back');
+  const floatingActions = panel.querySelector('.usage-guide-floating-actions');
   // Build the second level from the chapter headings so the directory stays in sync.
   for (const chapterLink of panel.querySelectorAll('.usage-guide-toc-group > a')) {
     const section = document.getElementById(chapterLink.hash.slice(1));
@@ -40,6 +42,7 @@ export function initUsageGuide() {
   if (!scroller || !toc || !tocToggle || !tocMenu || !tocCurrent || !links.length) return;
 
   const reduceMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  const motion = createUsageGuideMotion(scroller, reduceMotionQuery);
   const sections = Array.from(panel.querySelectorAll('.usage-guide-section[id]'));
   if (!sections.length) return;
 
@@ -47,6 +50,8 @@ export function initUsageGuide() {
   let compactToc = true;
   let tocAtTop = null;
   let tocTimer = null;
+  let navigationRevision = 0;
+  const navigationHistory = [];
   const updateReadingPosition = initUsageGuideProgress(panel, sections, navigateToTarget, reduceMotionQuery);
 
   function updateTocAvailableHeight() {
@@ -81,7 +86,8 @@ export function initUsageGuide() {
 
   function updateTocScrollState() {
     if (panel.hidden) return;
-    const atTop = compactToc && scroller.scrollTop <= 8 && scroller.getBoundingClientRect().top >= -8;
+    const atTop = !panel.classList.contains('usage-guide-render-all')
+      && compactToc && scroller.scrollTop <= 8 && scroller.getBoundingClientRect().top >= -8;
     if (atTop === tocAtTop) return;
     tocAtTop = atTop;
     toc.classList.toggle('is-at-top', atTop);
@@ -152,8 +158,13 @@ export function initUsageGuide() {
   function updateActiveOnScroll() {
     if (panel.hidden) return;
     const scrollerTop = scroller.getBoundingClientRect().top;
-    if (backToTopButton) {
-      backToTopButton.hidden = scroller.scrollTop <= 160 && scrollerTop >= -160;
+    if (floatingActions) {
+      floatingActions.hidden = !navigationHistory.length && scroller.scrollTop <= 160 && scrollerTop >= -160;
+      backToTopButton.disabled = scroller.scrollTop <= 8 && scrollerTop >= -8;
+      if (backButton) {
+        backButton.inert = !navigationHistory.length;
+        floatingActions.classList.toggle('has-history', navigationHistory.length > 0);
+      }
     }
     // 吸顶目录下方的判定线：越过该线的最近一个章节视为当前章节
     const marker = Math.max(0, scrollerTop) + sectionOffset + 1;
@@ -188,28 +199,54 @@ export function initUsageGuide() {
     });
   }
 
-  function navigateToTarget(target, sectionId, focusTarget = false, onArrive) {
-    setTocOpen(false);
-    setActiveLink(sectionId);
+  function rememberPosition() {
+    if (!backButton) return;
+    navigationHistory.push({
+      position: captureUsageGuidePosition(scroller, sections, sectionOffset),
+      focus: panel.contains(document.activeElement) ? document.activeElement : null,
+    });
+    backButton.inert = false;
+    floatingActions.hidden = false;
+    floatingActions.classList.add('has-history');
+  }
+
+  function cancelNavigation() {
+    navigationRevision += 1;
+    motion.cancel();
+    panel.classList.remove('usage-guide-render-all');
+  }
+
+  function moveToPosition(position, onArrive) {
+    cancelNavigation();
+    const revision = navigationRevision;
     panel.classList.add('usage-guide-render-all');
+    updateTocScrollState();
+    setTocOpen(false);
     window.requestAnimationFrame(() => {
+      if (revision !== navigationRevision) return;
+      motion.move(() => {
+        updateTocLayout(false);
+        return getUsageGuideScrollTop(scroller, position, sectionOffset);
+      }, () => {
+        panel.classList.remove('usage-guide-render-all');
+        updateTocLayout();
+        onArrive?.();
+      });
+    });
+  }
+
+  function navigateToTarget(target, sectionId, focusTarget = false, onArrive) {
+    rememberPosition();
+    setActiveLink(sectionId);
+    // Align the first line, not an article's padding above its heading.
+    target = target.querySelector('.usage-guide-section-title, .usage-guide-feature-head strong') || target;
+    target.classList.add('usage-guide-navigation-target');
+    moveToPosition({ target, fraction: 0 }, () => {
       if (focusTarget) {
-        target.classList.add('usage-guide-search-target');
         target.setAttribute('tabindex', '-1');
         target.focus({ preventScroll: true });
       }
-      const behavior = reduceMotionQuery?.matches ? 'auto' : 'smooth';
-      target.scrollIntoView({ behavior, block: 'start' });
-      window.clearTimeout(navigationCorrectionTimer);
-      navigationCorrectionTimer = window.setTimeout(
-        () => {
-          target.scrollIntoView({ behavior: 'auto', block: 'start' });
-          panel.classList.remove('usage-guide-render-all');
-          navigationCorrectionTimer = null;
-          onArrive?.();
-        },
-        behavior === 'smooth' ? 700 : 0,
-      );
+      onArrive?.();
     });
   }
 
@@ -224,15 +261,39 @@ export function initUsageGuide() {
   initUsageGuideSearch(panel, navigateToTarget);
   initUsageGuideLightbox(panel);
 
-  backToTopButton?.addEventListener('click', () => {
-    window.clearTimeout(navigationCorrectionTimer);
-    navigationCorrectionTimer = null;
-    panel.classList.remove('usage-guide-render-all');
-    const behavior = reduceMotionQuery?.matches ? 'auto' : 'smooth';
-    scroller.scrollTo({ top: 0, behavior });
-    if (window.getComputedStyle(scroller).overflowY !== 'auto') {
-      panel.scrollIntoView({ behavior, block: 'start' });
+  backButton?.addEventListener('click', () => {
+    const previous = navigationHistory.pop();
+    if (!previous) return;
+    for (let details = previous.position?.target.closest('details'); details; details = details.parentElement.closest('details')) {
+      details.open = true;
     }
+    moveToPosition(previous.position, () => {
+      const focus = previous.focus?.isConnected && previous.focus.getClientRects().length
+        && !previous.focus.closest('[inert]') && previous.focus !== backToTopButton
+        ? previous.focus : previous.position?.target || scroller;
+      if (focus.tabIndex < 0) focus.setAttribute('tabindex', '-1');
+      focus.focus({ preventScroll: true });
+    });
+  });
+
+  backToTopButton?.addEventListener('click', () => {
+    rememberPosition();
+    moveToPosition(null);
+  });
+
+  function interruptNavigation() {
+    if (!panel.classList.contains('usage-guide-render-all')) return;
+    cancelNavigation();
+    updateTocLayout();
+  }
+  scroller.addEventListener('wheel', interruptNavigation, { passive: true });
+  scroller.addEventListener('touchstart', interruptNavigation, { passive: true });
+  scroller.addEventListener('pointerdown', (event) => {
+    if (event.target === scroller) interruptNavigation();
+  });
+  scroller.addEventListener('keydown', (event) => {
+    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)
+      && !event.target.closest('input, textarea, select, button, [contenteditable="true"]')) interruptNavigation();
   });
 
   scroller.addEventListener('scroll', onScroll, { passive: true });
@@ -264,9 +325,7 @@ export function initUsageGuide() {
     reduceMotion: reduceMotionQuery,
   });
   return (apply) => {
-    window.clearTimeout(navigationCorrectionTimer);
-    navigationCorrectionTimer = null;
-    panel.classList.remove('usage-guide-render-all');
+    cancelNavigation();
     return transitionSidebar(apply);
   };
 }

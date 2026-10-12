@@ -1,6 +1,7 @@
 import { requestTextBoxMedia } from './text-box-media.js';
 import { requestComponentStyles } from './component-style-api.js';
 import { requestOpeningSettings } from './opening-settings-api.js';
+import { applyRoomGuardState } from '../shared/bilibili-guard-icons.js';
 
 export function createRemotePreviewController(initial, send) {
   let state = initial;
@@ -176,6 +177,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       draftKey = update.draftKey;
       controller.receive(update);
       display = update.display;
+      applyRoomGuardState(display?.roomGuard);
       for (const listener of displayListeners) listener(display);
       if (update.focus && update.focus.id !== focusId && focusListener) {
         focusListener(update.focus);
@@ -269,6 +271,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       draftKey = initial.draftKey;
       controller = createRemotePreviewController(initial.state, send);
       display = initial.display;
+      applyRoomGuardState(display?.roomGuard);
       timer = window.setTimeout(poll, 250);
     },
     startActualData(emit) {
@@ -276,7 +279,11 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       displayListeners.add(emit);
       return () => displayListeners.delete(emit);
     },
-    detach() { stop(new Error('预览页面已离开。')); },
+    detach() {
+      if (closed) return;
+      stop(new Error('预览页面已离开。'));
+      if (attachmentId) void requestOnce({ action: 'detach' }, true).catch(() => {});
+    },
     close() {
       if (closed) return;
       stop(new Error('预览连接已结束。'));

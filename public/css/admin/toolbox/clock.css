@@ -268,6 +268,15 @@
   letter-spacing: 0;
 }
 
+.clock-style-swatch.is-minimal {
+  color: #fff;
+  background: #303030;
+}
+
+.clock-style-swatch.is-minimal b {
+  font: 700 11px/1 Arial, sans-serif;
+}
+
 .clock-style-swatch.is-orbit {
   overflow: hidden;
   color: #fff;

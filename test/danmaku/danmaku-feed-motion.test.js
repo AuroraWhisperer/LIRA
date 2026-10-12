@@ -4,8 +4,11 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { useSharedBrowser } = require('../helpers/shared-browser');
+const { DANMAKU_STYLE_OPTIONS } = require('../../src/shared/danmaku-style-options');
 
 const openBrowserSession = useSharedBrowser();
+const styledMotion = Object.keys(DANMAKU_STYLE_OPTIONS)
+  .filter(style => DANMAKU_STYLE_OPTIONS[style].scrollDirection && style !== 'moonlit');
 
 async function preview(t, direction, scale, style = 'moonlit') {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
@@ -40,7 +43,14 @@ async function preview(t, direction, scale, style = 'moonlit') {
       animation.currentTime = time;
     }));
   }, style);
-  await page.waitForFunction(() => document.getAnimations().every(animation => animation.playState !== 'running'));
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+  });
+  await page.waitForFunction(() => document.getAnimations()
+    .filter(animation => animation.effect.getTiming().iterations !== Infinity)
+    .every(animation => animation.playState !== 'running'));
   return page;
 }
 
@@ -120,3 +130,77 @@ test('moonlit bounds bursts and finishes active movement when reduced motion is 
   assert.equal(await page.locator('#feed > *').count(), 0);
   assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
 });
+
+for (const style of styledMotion) {
+  for (const direction of ['up', 'down']) {
+    test(`${style} ${direction} owns its entrance while interrupted rows stay together`, { timeout: 15000 }, async t => {
+      const scale = direction === 'up' ? 1 : 0.63;
+      const page = await preview(t, direction, scale, style);
+      const start = await page.evaluate(async style => {
+        const old = Array.from(root.children);
+        const tops = old.map(node => node.getBoundingClientRect().top);
+        feed.append({ id: 'new-chat', name: '新观众', message: '晚上好，这段好听！' });
+        feed.append({ id: 'new-sc', kind: 'superchat', name: '远方来信', price: 30,
+          message: '今晚也很开心。愿每个认真生活的人，都能遇到温柔的回应。' });
+        await new Promise(requestAnimationFrame);
+        freezeMoves(0);
+        const arrivals = Array.from(root.children).slice(-2);
+        const rowMotions = Array.from(root.children).flatMap(node => node.getAnimations())
+          .filter(animation => !animation.animationName);
+        return {
+          names: arrivals.map(node => node.getAnimations({ subtree: style === 'snowfox' }).filter(animation => animation.animationName).map(animation => animation.animationName)),
+          oldEntrances: old.flatMap(node => node.getAnimations()).filter(animation => animation.animationName).length,
+          deltas: old.map((node, i) => node.getBoundingClientRect().top - tops[i]),
+          durations: rowMotions.map(animation => animation.effect.getTiming().duration),
+          max: Number(getComputedStyle(root).getPropertyValue('--danmaku-move-max-ms')),
+        };
+      }, style);
+      assert.ok(start.names.every(names => names.length >= 1 && names.every(name => name.startsWith(style))), 'live cards use their own entrance or existing decorative sequence');
+      assert.equal(start.oldEntrances, 0, 'snapshot rows never replay a live entrance');
+      // Variable-width cards use rounded offsetWidth; allow half a layout pixel, as in the original feed.
+      assert.ok(start.deltas.every(delta => Math.abs(delta) < 0.5 * scale), `existing rows begin at their visible positions: ${start.deltas}`);
+      assert.ok(start.durations.length > 0 && start.durations.every(duration => duration === start.durations[0] && duration <= start.max),
+        'one style-owned duration keeps all moving rows in step');
+
+      const interrupted = await page.evaluate(async () => {
+        freezeMoves(120);
+        const nodes = Array.from(root.children);
+        const tops = nodes.map(node => node.getBoundingClientRect().top);
+        const entrances = nodes.flatMap(node => node.getAnimations()).filter(animation => animation.animationName);
+        feed.append({ id: 'new-gift', kind: 'gift', name: '星河', giftName: '小花花', giftCount: 3, giftTotalPrice: 15 });
+        await new Promise(requestAnimationFrame);
+        nodes.forEach(node => node.getAnimations().filter(animation => !animation.animationName).forEach(animation => {
+          animation.pause();
+          animation.currentTime = 0;
+        }));
+        const newest = root.lastElementChild;
+        newest.getAnimations().forEach(animation => { animation.pause(); animation.currentTime = 0; });
+        const boxes = Array.from(root.children).map(node => {
+          const rect = node.getBoundingClientRect();
+          return { top: rect.top, bottom: rect.bottom };
+        }).sort((a, b) => a.top - b.top);
+        return {
+          deltas: nodes.map((node, i) => node.getBoundingClientRect().top - tops[i]),
+          entranceTimes: entrances.map(animation => animation.currentTime),
+          gaps: boxes.slice(1).map((box, i) => box.top - boxes[i].bottom),
+        };
+      });
+      assert.ok(interrupted.deltas.every(delta => Math.abs(delta) < 0.5 * scale), `retargeting stays within layout rounding: ${interrupted.deltas}`);
+      assert.ok(interrupted.entranceTimes.every(time => time === 120), 'retargeting does not restart or cancel an entrance');
+      assert.ok(interrupted.gaps.every(gap => gap >= -0.2), 'different-height arrivals never cross other cards');
+
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length));
+      assert.ok(await page.evaluate(() => Array.from(root.children).every(node => getComputedStyle(node).opacity === '1')));
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.evaluate(() => feed.render([{ id: 'snapshot', name: '恢复消息', message: '内容完整，直接可读。' }]));
+      await page.waitForFunction(() => root.children.length === 1 && !root.firstElementChild.getAnimations().length);
+      assert.equal(await page.evaluate(() => root.firstElementChild.hasAttribute('data-live-entry')), false);
+      await page.evaluate(() => feed.append({ name: '正常完成', message: '读完之后，画面安静下来。' }));
+      await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length && !node.hasAttribute('data-live-entry')));
+      await page.evaluate(async () => { feed.append({ name: '结束', message: '动画中销毁' }); await new Promise(requestAnimationFrame); feed.destroy(); });
+      assert.equal(await page.locator('#feed > *').count(), 0);
+      assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
+    });
+  }
+}

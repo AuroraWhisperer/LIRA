@@ -3,5 +3,5 @@
   "sourceRepository": "lira-server",
   "source": "public/overlay/danmaku-renderer-core.js",
   "target": "public/js/overlays/danmaku-renderer-core.js",
-  "sha256": "2a0d8e2750fe0ea472f6e09c82b6f690b5f6f1f08accfd07dbf29b6dd4c291c2"
+  "sha256": "d37db7cceb3e3152105176c120370ce2afddf6c2af659efb05d6df79e72e38ba"
 }

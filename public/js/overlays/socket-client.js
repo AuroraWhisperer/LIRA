@@ -1,5 +1,7 @@
 'use strict';
 
+import { applyRoomGuardState } from '../shared/bilibili-guard-icons.js';
+
 const DEFAULT_RECONNECT_BASE_DELAY_MS = 800;
 const DEFAULT_RECONNECT_MAX_DELAY_MS = 30000;
 const DEFAULT_RECONNECT_EXPONENT_MAX = 6;
@@ -110,6 +112,7 @@ export function createOverlaySocket(options = {}) {
       return;
     }
     if (!isCurrentConnection(candidate, generation)) return;
+    if (payload.type === 'snapshot' && payload.state) applyRoomGuardState(payload.state.roomGuard);
     onMessage?.(payload, event);
   }
 

@@ -100,6 +100,21 @@ function fixture(t, options = {}) {
   };
 }
 
+test('cloud ingress validates room guard snapshots and updates without requiring a live session', async (t) => {
+  const env = fixture(t);
+  env.controller.start();
+  await flush();
+  env.streams[0].send({ ...state(null), roomGuard: { roomId: '52030', count: 999, privateValue: 'omit' } });
+  env.streams[0].send({ type: 'room-guard', roomId: '52030', count: 1000, timestamp: TIMESTAMP });
+  await flush();
+  assert.deepEqual(env.events()[0].roomGuard, { roomId: '52030', count: 999 });
+  assert.deepEqual(env.events()[1], { type: 'room-guard', roomId: '52030', count: 1000, timestamp: TIMESTAMP });
+  env.streams[0].send({ type: 'room-guard', roomId: '52030', count: -1, timestamp: TIMESTAMP });
+  await flush();
+  assert.equal(env.events().length, 2);
+  assert.equal(env.updates.at(-1).status, 'offline');
+});
+
 test('idle desktops make no upstream requests and active readers share one cancellable connection', async (t) => {
   const buffer = createCloudDisplayBuffer({ getOwner: () => ({
     scope: '["https://api.example.test","7"]', epoch: env.identity.epoch,
@@ -172,7 +187,7 @@ test('one public connection preserves split UTF-8/CRLF events and strips non-dis
   assert.equal(env.listeners.size, 1);
   assert.equal(env.requests.length, 1);
   const { url, init } = env.requests[0];
-  assert.equal(url, 'https://stream.example.test/api/public/overlay/events?token=abcdefghijklmnop&superchatDelete=1');
+  assert.equal(url, 'https://stream.example.test/api/public/overlay/events?token=abcdefghijklmnop&superchatDelete=1&roomGuard=1');
   assert.equal(init.redirect, 'error');
   assert.equal(init.credentials, 'omit');
   assert.equal(init.referrerPolicy, 'no-referrer');
@@ -244,7 +259,7 @@ test('prismatic identity passes only official display fields without reusing an 
   const event = { type: 'danmaku', liveSessionId: 'session-a', timestamp: TIMESTAMP,
     name: '观众', message: '晚上好', avatarUrl: '', emotes: [],
     guardLevel: 1, medalName: '其他房间', medalLevel: 60,
-    honorLevel: 45, roomGuardLevel: 0,
+    honorLevel: 45, roomGuardLevel: 0, onlineRank: 2,
     roomMedal: { name: '当前房间', level: 28, guardLevel: 0, isLight: true,
       colorStart: '#3FB4F699', colorEnd: '#3FB4F699', colorBorder: '#5FC7F4', colorText: '#FFFFFF' } };
   env.streams[0].send(state());
@@ -261,6 +276,7 @@ test('prismatic identity passes only official display fields without reusing an 
 });
 
 for (const patch of [
+  { onlineRank: 0 }, { onlineRank: 4 }, { onlineRank: '1' },
   { honorLevel: 0 }, { honorLevel: Number.MAX_SAFE_INTEGER + 1 }, { roomGuardLevel: 4 },
   { roomMedal: null },
   { roomMedal: { name: '粉丝团', level: 1, guardLevel: 3, isLight: 1 } },

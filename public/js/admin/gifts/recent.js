@@ -4,6 +4,7 @@ import { eventBus, Events } from '../../shared/event-bus.js';
 import { escapeHtml, formatTime, formatMoney } from '../../shared/utils.js';
 import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
 import { findBlindBoxTheme } from './blindbox-theme.js';
+import { getGuardIcon } from '../../shared/bilibili-guard-icons.js';
 
 ('use strict');
 
@@ -60,7 +61,7 @@ function getGuardBadge(item) {
     return {
       name: '总督',
       level: 1,
-      src: '/img/admin/gifts/bilibili-guard-governor.webp',
+      src: getGuardIcon(1),
     };
   }
   if (
@@ -72,14 +73,14 @@ function getGuardBadge(item) {
     return {
       name: '提督',
       level: 2,
-      src: '/img/admin/gifts/bilibili-guard-prefect.webp',
+      src: getGuardIcon(2),
     };
   }
   if (giftName.includes('舰长') || giftName.includes('captain') || giftId === 'guard-3') {
     return {
       name: '舰长',
       level: 3,
-      src: '/img/admin/gifts/bilibili-guard-captain.webp',
+      src: getGuardIcon(3),
     };
   }
   return null;

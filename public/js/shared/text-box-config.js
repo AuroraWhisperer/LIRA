@@ -31,7 +31,7 @@ export function normalizeTextBoxImageSource(value, type = 'image') {
   if (/^\/scene-text-images\/[a-f\d]{8}-[a-f\d]{4}-4[a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}\.(?:png|jpg|gif|webp)$/i.test(value)) return value;
   if (type !== 'gift') throw invalid();
   if (/^\/overtime-gift-images\/[a-z\d_-][a-z\d._-]*\.(?:png|jpe?g|gif|webp)$/i.test(value) && !value.includes('..')) return value;
-  if (/^\/img\/admin\/gifts\/bilibili-guard-(?:captain|prefect|governor)\.webp$/.test(value)
+  if (/^\/img\/admin\/gifts\/bilibili-guard-(?:captain|prefect|governor)(?:-thousand)?\.webp$/.test(value)
     || value === '/img/gift-placeholder.png') return value;
   try {
     const url = new URL(value);

@@ -65,6 +65,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
   function data(version, values) {
     if (!version) return;
     for (const entry of version.entries) {
+      if (entry.ready && Object.hasOwn(values, 'roomGuard')) send(entry, 'room-guard', { roomGuard: values.roomGuard });
       if (entry.ready && values[entry.item.type] !== undefined) send(entry, 'data', { data: values[entry.item.type], source: dataSequence });
     }
   }

@@ -15,6 +15,7 @@ const CLOCK_STYLE_VALUES = new Set([
   'timeline-horizontal',
   'timeline-vertical',
   'digital',
+  'minimal',
   'orbit',
   'flip',
   'moonlit-fan',
@@ -26,6 +27,7 @@ const DEFAULT_LABELS = Object.freeze({
   'timeline-horizontal': '',
   'timeline-vertical': '',
   digital: '',
+  minimal: '',
   orbit: '',
   flip: '',
   'moonlit-fan': '',
@@ -40,6 +42,7 @@ const CLOCK_LAYOUTS = Object.freeze({
   'timeline-horizontal': Object.freeze({ width: 560, height: 190 }),
   'timeline-vertical': Object.freeze({ width: 220, height: 380 }),
   digital: Object.freeze({ width: 560, height: 190 }),
+  minimal: Object.freeze({ width: 560, height: 190 }),
   orbit: Object.freeze({ width: 560, height: 190 }),
   flip: Object.freeze({ width: 560, height: 190 }),
   'moonlit-fan': Object.freeze({ width: 560, height: 360 }),
@@ -280,9 +283,9 @@ async function initClock() {
     syncFlipCells();
     labelNode.textContent = config.label;
     secondsNode.hidden = !config.showSeconds;
-    periodNode.hidden = !config.hour12;
-    yearNode.hidden = !config.showDate;
-    dateRow.hidden = !config.showDate;
+    periodNode.hidden = !config.hour12 || config.style === 'minimal';
+    yearNode.hidden = !config.showDate || config.style === 'minimal';
+    dateRow.hidden = !config.showDate || config.style === 'minimal';
     card.hidden = false;
     render();
     effects?.update('clock', config);

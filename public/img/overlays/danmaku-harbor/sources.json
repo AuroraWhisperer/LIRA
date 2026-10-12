@@ -1,0 +1,14 @@
+{
+  "description": "航海气泡图案来源；头像框直接保留 B 站原始 PNG，固定采用参考房间 52030 使用的千舰款。",
+  "retrievedAt": "2026-10-11",
+  "frames": {
+    "source": "https://api.live.bilibili.com/xlive/open-interface/v1/query_resource?module=guard_resource",
+    "captain": "https://i0.hdslb.com/bfs/live/647ef90995effa59fc15ec159086db4dead867a3.png",
+    "admiral": "https://i0.hdslb.com/bfs/live/c3eedafafbee89dca24e3028f6f20904a43eb086.png",
+    "governor": "https://i0.hdslb.com/bfs/live/e9552feb78ad1f41a748b80f2bc617b7c53f40f8.png"
+  },
+  "emblems": {
+    "source": "https://api.live.bilibili.com/xlive/open-interface/v1/query_resource?module=medal_icon",
+    "treatment": "共用 bilibili-guard-icons 模块按房间人数选取普通或千舰 WebP；不再使用截图裁切图案。"
+  }
+}

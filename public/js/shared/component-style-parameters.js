@@ -36,11 +36,11 @@ export const STYLE_PARAMETER_GROUPS = Object.freeze({
 export const STYLE_PARAMETER_CAPABILITIES = Object.freeze({
   clock: {
     peach: 'panel', starlight: 'panel', soda: 'panel', 'timeline-horizontal': 'text',
-    'timeline-vertical': 'text', digital: 'text', orbit: 'art', flip: 'panel', 'moonlit-fan': 'moon',
+    'timeline-vertical': 'text', digital: 'text', minimal: 'text', orbit: 'art', flip: 'panel', 'moonlit-fan': 'moon',
   },
   danmaku: {
     bubble: 'panel', signal: 'panel', minimal: 'art', ranked: 'panel', transparent: 'text',
-    identity: 'panel', sketch: 'panel', prismatic: 'panel', starlight: 'art', moonlit: 'art', outline: 'panel', whiteframe: 'frame',
+    identity: 'panel', sketch: 'panel', harbor: 'panel', prismatic: 'panel', snowfox: 'panel', starlight: 'art', moonlit: 'art', outline: 'panel', mist: 'panel', whiteframe: 'frame',
     cream: 'panel', glow: 'panel', starveil: 'panel', floating: 'panel', comet: 'art',
   },
 });

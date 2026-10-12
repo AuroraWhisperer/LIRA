@@ -119,9 +119,9 @@ body[data-style='moonlit'] .draw-danmaku-body p {
   height: 38px;
   background: var(--moonlit-icon) center / contain no-repeat;
 }
-.moonlit-icon-captain { --moonlit-icon: url('/img/overlays/danmaku-moonlit/captain.webp'); }
-.moonlit-icon-admiral { --moonlit-icon: url('/img/overlays/danmaku-moonlit/admiral.webp'); }
-.moonlit-icon-governor { --moonlit-icon: url('/img/overlays/danmaku-moonlit/governor.webp'); }
+.moonlit-icon-captain { --moonlit-icon: var(--bilibili-guard-captain, url('/img/admin/gifts/bilibili-guard-captain.webp')); }
+.moonlit-icon-admiral { --moonlit-icon: var(--bilibili-guard-prefect, url('/img/admin/gifts/bilibili-guard-prefect.webp')); }
+.moonlit-icon-governor { --moonlit-icon: var(--bilibili-guard-governor, url('/img/admin/gifts/bilibili-guard-governor.webp')); }
 .moonlit-chat-flowers {
   position: absolute;
   z-index: 1;

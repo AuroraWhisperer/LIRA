@@ -8,6 +8,60 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('mist random SC supports snapshots, increments, removal and timed expiry while old random styles omit SC', async () => {
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), { document: createFakeDocument() });
+  for (const style of ['mist', 'whiteframe', 'outline', 'cream', 'glow', 'starveil']) {
+    const root = new FakeNode('div');
+    const timers = new Map();
+    let nextTimer = 0;
+    const feed = module.createDanmakuFeed(root, {
+      style, layout: 'fullscreen-random', itemLifetimeMs: 6000, now: () => 1000, autoScroll: false,
+      scheduleTimeout(callback, delay) {
+        const id = ++nextTimer;
+        timers.set(id, { callback() { timers.delete(id); callback(); }, delay });
+        return id;
+      },
+      cancelTimeout(id) { timers.delete(id); },
+    });
+    const sc = { id: 'sc', kind: 'superchat', price: 30, message: '留言', timestamp: 1000 };
+    feed.render([{ id: 'chat', name: '观众', message: '弹幕', timestamp: 1000 }, sc]);
+    const chat = root.children[0];
+    assert.equal(root.children.length, style === 'mist' ? 2 : 1);
+    feed.append({ ...sc, id: 'second' });
+    assert.equal(root.children.length, style === 'mist' ? 3 : 1);
+    feed.remove(['sc']);
+    assert.equal(root.children.length, style === 'mist' ? 2 : 1);
+    assert.equal(root.children[0], chat);
+    assert.ok([...timers.values()].every(timer => timer.delay === 6000));
+    for (const { callback } of [...timers.values()]) callback();
+    assert.equal(root.children.length, 0);
+    feed.destroy();
+    assert.equal(timers.size, 0);
+  }
+});
+
+test('harbor gift minimum filters snapshots and increments by total and never filters SC', async () => {
+  const root = new FakeNode('div');
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), {
+    document: createFakeDocument(),
+  });
+  const feed = module.createDanmakuFeed(root, { style: 'harbor', minGiftAmount: 10, autoScroll: false });
+  const small = { id: 'small', kind: 'gift', giftName: '花', giftCount: 100, giftTotalPrice: 9.99 };
+  const boundary = { ...small, id: 'boundary', giftCount: 1, giftTotalPrice: 10 };
+  feed.render([small, boundary, { id: 'sc', kind: 'superchat', price: 2, message: '保留' }]);
+  assert.equal(root.children.length, 2);
+  feed.append(small);
+  feed.append({ ...small, giftTotalPrice: undefined });
+  assert.equal(root.children.length, 2);
+  feed.append({ ...boundary, id: 'guard', giftGuardLevel: 3, giftTotalPrice: 168 });
+  assert.equal(root.children.length, 3);
+  feed.destroy();
+  const unfiltered = module.createDanmakuFeed(root, { style: 'harbor', minGiftAmount: 0, autoScroll: false });
+  unfiltered.render([small, { ...small, giftTotalPrice: undefined }]);
+  assert.equal(root.children.length, 2);
+  unfiltered.destroy();
+});
+
 test('fixed feed removes selected SC nodes without rebuilding retained messages', async () => {
   const root = new FakeNode('div');
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {

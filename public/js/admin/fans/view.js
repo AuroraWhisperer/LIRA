@@ -1,5 +1,6 @@
 import { escapeHtml, escapeAttr } from '../../shared/utils.js';
 import { bilibiliAvatarSource } from '../settings-auth.js';
+import { getGuardIcon } from '../../shared/bilibili-guard-icons.js';
 
 export const html = escapeHtml;
 export const attr = escapeAttr;
@@ -56,9 +57,9 @@ export function memberLabel(membership, guardRoster) {
   return membership.hasHistory ? '曾经上舰 · 当前状态待确认' : '暂无大航海记录';
 }
 function guardIcon(level) {
-  const icon = { 1: 'governor', 2: 'prefect', 3: 'captain' }[level];
+  const icon = getGuardIcon(level);
   return icon
-    ? `<img class="fan-status" src="/img/admin/gifts/bilibili-guard-${icon}.webp" alt="${levels[level]}" title="${levels[level]}" width="32" height="32" draggable="false">`
+    ? `<img class="fan-status" data-guard-icon="${level}" src="${icon}" alt="${levels[level]}" title="${levels[level]}" width="32" height="32" draggable="false">`
     : '';
 }
 function button(action, label, extra = '') {

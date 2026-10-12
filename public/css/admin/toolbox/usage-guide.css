@@ -111,15 +111,16 @@
   min-width: 0;
   font-size: 16px;
   line-height: 28px;
+  counter-reset: usage-guide-chapter;
 }
 
 /* 章节以留白和分隔线组织，避免多层卡片边框。 */
 .usage-guide-section {
+  counter-increment: usage-guide-chapter;
   display: grid;
   gap: 0;
   min-width: 0;
-  padding: 0 6px 28px;
-  border-bottom: 1px solid var(--usage-guide-rule);
+  padding: 0 6px 8px;
   content-visibility: auto;
   contain-intrinsic-size: auto 720px;
   scroll-margin-top: var(--usage-guide-scroll-offset, 110px);
@@ -129,15 +130,48 @@
   content-visibility: visible;
 }
 
+/* 换章节：从第 2 章起，章节顶部是「第 N 章」标签和两端渐隐的主题色双线。 */
+.usage-guide-section + .usage-guide-section::before,
+.usage-guide-section + .usage-guide-section::after {
+  grid-area: 1 / 1;
+  margin-bottom: 26px;
+}
+
+.usage-guide-section + .usage-guide-section::before {
+  content: '';
+  align-self: center;
+  height: 4px;
+  background:
+    linear-gradient(90deg, transparent, var(--usage-guide-accent) 50%, transparent) top / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--usage-guide-accent) 45%, transparent) 50%, transparent)
+      bottom / 100% 1px no-repeat;
+}
+
+/* 标签外圈用正文底色遮断双线，留出间隙。 */
+.usage-guide-section + .usage-guide-section::after {
+  content: '第 ' counter(usage-guide-chapter) ' 章';
+  justify-self: center;
+  padding: 4px 20px;
+  border: 1px solid var(--usage-guide-accent-border);
+  border-radius: 999px;
+  background: var(--usage-guide-accent-soft);
+  box-shadow: 0 0 0 14px var(--surface);
+  color: var(--usage-guide-accent);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 24px;
+  letter-spacing: 0.06em;
+}
+
 .usage-guide-section-title {
   display: flex;
   align-items: baseline;
   gap: 12px;
   margin: 0;
   color: var(--text);
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
-  line-height: 34px;
+  line-height: 36px;
 }
 
 .usage-guide-section-index {
@@ -155,15 +189,30 @@
   line-height: 28px;
 }
 
+/* 一级标题前的主题色竖条与二级标题区分。 */
 .usage-guide-subsection-title {
-  margin: 36px 0 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 40px 0 14px;
   color: var(--text);
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 30px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 32px;
 }
 
-.usage-guide-main [id] {
+.usage-guide-subsection-title::before {
+  content: '';
+  flex: none;
+  width: 4px;
+  height: 20px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: var(--usage-guide-accent);
+}
+
+.usage-guide-main [id],
+.usage-guide-main .usage-guide-navigation-target {
   scroll-margin-top: var(--usage-guide-scroll-offset, 110px);
 }
 
@@ -226,6 +275,12 @@
   line-height: var(--type-leading-section-title);
 }
 
+/* 未用 h5 的条目标题与二级标题同字重、行高。 */
+.usage-guide-feature-head > strong {
+  font-weight: 600;
+  line-height: 28px;
+}
+
 .usage-guide-card p,
 .usage-guide-feature p,
 .usage-guide-feature li,
@@ -258,6 +313,21 @@
   text-underline-offset: 3px;
 }
 
+.usage-guide-main .usage-guide-website-link {
+  border-radius: 3px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.usage-guide-main .usage-guide-website-link:hover {
+  background: var(--usage-guide-accent-soft);
+}
+
+.usage-guide-main .usage-guide-website-link:focus-visible {
+  outline: 2px solid var(--usage-guide-accent);
+  outline-offset: 3px;
+}
+
 .usage-guide-main code {
   font-family: var(--font-mono);
   font-size: inherit;
@@ -286,7 +356,19 @@
 }
 
 .usage-guide-steps li + li {
-  border-top: 1px solid var(--usage-guide-rule);
+  border-top: 1px solid transparent;
+}
+
+/* 步骤行：圆点线从步骤文字起始处开始，序号列保持干净。 */
+.usage-guide-steps li + li::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: 2px;
+  left: 40px;
+  height: 2px;
+  background: radial-gradient(circle, var(--color-border-strong) 0 0.9px, transparent 1.2px) left center / 6px 2px
+    repeat-x;
 }
 
 .usage-guide-steps li::before {
@@ -330,8 +412,29 @@
   padding-bottom: 2px;
 }
 
-.usage-guide-feature + .usage-guide-feature {
-  border-top: 1px solid var(--usage-guide-rule);
+/* 换条目：中性色细线两端渐隐，正中一颗小菱形；只作遮罩，颜色跟随外观。 */
+.usage-guide-feature + .usage-guide-feature,
+.usage-guide-feature + .usage-guide-step-pair,
+.usage-guide-step-pair + .usage-guide-feature {
+  position: relative;
+  border-top: 1px solid transparent;
+}
+
+.usage-guide-feature + .usage-guide-feature::before,
+.usage-guide-feature + .usage-guide-step-pair::before,
+.usage-guide-step-pair + .usage-guide-feature::before {
+  content: '';
+  position: absolute;
+  top: -4.5px;
+  right: 2px;
+  left: 2px;
+  height: 8px;
+  background: var(--color-border-strong);
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M4 0 8 4 4 8 0 4Z'/%3E%3C/svg%3E")
+      center / 8px 8px no-repeat,
+    linear-gradient(90deg, transparent, #000 40%) left center / calc(50% - 14px) 1px no-repeat,
+    linear-gradient(90deg, #000 60%, transparent) right center / calc(50% - 14px) 1px no-repeat;
 }
 
 .usage-guide-feature-head {
@@ -400,9 +503,8 @@
   border-top: 0;
 }
 
-.usage-guide-feature + .usage-guide-step-pair,
-.usage-guide-step-pair + .usage-guide-feature {
-  border-top: 1px solid var(--usage-guide-rule);
+.usage-guide-step-pair > .usage-guide-feature::before {
+  content: none;
 }
 
 /* 常见问题（手风琴） */

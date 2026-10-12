@@ -1,0 +1,169 @@
+/* Pills follow room 52030; the unseen governor hue uses Bilibili's keeper-popup palette. */
+body[data-style='harbor'] {
+  --danmaku-move-base-ms: 270;
+  --danmaku-move-max-ms: 500;
+  --danmaku-move-curve: .24, .12, .22, 1;
+  --danmaku-enter-animation: harborMessageIn 240ms cubic-bezier(.16, 1, .3, 1) backwards;
+  --harbor-captain: #4055ad;
+  --harbor-admiral: #8b5d99;
+  --harbor-governor: #b72e2e;
+}
+body[data-style='harbor'] .danmaku-signal-header { display: none; }
+body[data-style='harbor'] .draw-danmaku-feed { gap: 0; }
+
+body[data-style='harbor'] .draw-danmaku-item {
+  --harbor-color: #4c4c54;
+  --harbor-avatar-size: 1.75em;
+  display: flex;
+  align-items: center;
+  gap: .5em;
+  width: max-content;
+  max-width: 100%;
+  min-height: 0;
+  padding: .28em .32em;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  color: #fff;
+  font: 600 var(--danmaku-font-size)/1.35 var(--danmaku-custom-font, var(--danmaku-ui-font));
+}
+body[data-style='harbor'] .draw-danmaku-item::after { display: none; }
+body[data-style='harbor'] [data-room-guard='3'] {
+  --harbor-color: var(--harbor-captain);
+  --harbor-frame: url('/img/overlays/danmaku-harbor/captain-frame.png');
+  --harbor-emblem: var(--bilibili-guard-captain, url('/img/admin/gifts/bilibili-guard-captain.webp'));
+}
+body[data-style='harbor'] [data-room-guard='2'] {
+  --harbor-color: var(--harbor-admiral);
+  --harbor-frame: url('/img/overlays/danmaku-harbor/admiral-frame.png');
+  --harbor-emblem: var(--bilibili-guard-prefect, url('/img/admin/gifts/bilibili-guard-prefect.webp'));
+}
+body[data-style='harbor'] [data-room-guard='1'] {
+  --harbor-color: var(--harbor-governor);
+  --harbor-frame: url('/img/overlays/danmaku-harbor/governor-frame.png');
+  --harbor-emblem: var(--bilibili-guard-governor, url('/img/admin/gifts/bilibili-guard-governor.webp'));
+}
+
+body[data-style='harbor'] .draw-danmaku-avatar {
+  flex: 0 0 auto;
+  width: var(--harbor-avatar-size);
+  height: var(--harbor-avatar-size);
+  overflow: hidden;
+  border-radius: 50%;
+  clip-path: none;
+  color: #fff;
+  background: #707078;
+  display: grid;
+  place-items: center;
+  font-size: inherit;
+}
+body[data-style='harbor'] .harbor-portrait {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--harbor-avatar-size);
+  height: var(--harbor-avatar-size);
+}
+body[data-style='harbor'] .harbor-avatar-frame {
+  position: absolute;
+  inset: -19% -19% -17%;
+  background: var(--harbor-frame) center / contain no-repeat;
+  pointer-events: none;
+}
+body[data-style='harbor'] .draw-danmaku-body {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: .2em .7em;
+  border-radius: .95em;
+  background: color-mix(in srgb, var(--harbor-color) var(--danmaku-background-weight, 100%), transparent);
+  font-size: var(--danmaku-font-size);
+}
+body[data-style='harbor'] .draw-danmaku-body > p {
+  margin: 0;
+  color: var(--danmaku-text-color, #fff);
+  font: 600 1em/1.35 var(--danmaku-custom-font, var(--danmaku-ui-font));
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+body[data-style='harbor'] .harbor-rank {
+  flex: 0 0 auto;
+  margin-right: -.2em;
+  padding: .1em .23em;
+  border: 0;
+  border-radius: .22em;
+  background: #ffdc40;
+  color: #69470b;
+  font-size: .63em;
+  font-weight: 700;
+  line-height: 1.1;
+}
+body[data-style='harbor'] .harbor-rank[data-rank='2'] { background: #dbe5f3; color: #3b506f; }
+body[data-style='harbor'] .harbor-rank[data-rank='3'] { background: #eec3a1; color: #6e4025; }
+body[data-style='harbor'] .draw-danmaku-item.is-gift {
+  --gift-surface: var(--harbor-color);
+  --gift-ink: #fff;
+  --gift-accent: #fff;
+  display: flex;
+  width: min(100%, 24em);
+  margin-block: .14em;
+  max-width: 100%;
+  min-height: 0;
+  padding: .42em .6em;
+  border-radius: .28em;
+  background: color-mix(in srgb, var(--harbor-color) var(--danmaku-background-weight, 100%), transparent);
+  font-size: var(--danmaku-font-size);
+  zoom: 1;
+  box-shadow: none;
+}
+body[data-style='harbor'] .is-gift .draw-danmaku-avatar {
+  width: var(--harbor-avatar-size);
+  height: var(--harbor-avatar-size);
+  border: 0;
+}
+body[data-style='harbor'] .is-gift .draw-danmaku-body { flex: 1; padding: 0; border-radius: 0; background: none; }
+body[data-style='harbor'] .is-gift .draw-danmaku-identity strong { color: #fff; font-size: .85em; }
+body[data-style='harbor'] .is-gift .draw-danmaku-badge,
+body[data-style='harbor'] .is-gift .draw-danmaku-gift-art { display: none; }
+body[data-style='harbor'] .is-gift .draw-danmaku-gift { display: flex; gap: .5em; flex-wrap: wrap; }
+body[data-style='harbor'] .is-gift .draw-danmaku-gift-copy { display: inline; }
+body[data-style='harbor'] .is-gift .draw-danmaku-gift-action { margin-right: .3em; font-size: .8em; }
+body[data-style='harbor'] .is-gift .draw-danmaku-gift-name,
+body[data-style='harbor'] .is-gift .draw-danmaku-gift-count,
+body[data-style='harbor'] .is-gift .draw-danmaku-gift-amount { font-size: .85em; }
+body[data-style='harbor'] .is-guard-thanks { --harbor-avatar-size: 1.85em; gap: .75em; }
+body[data-style='harbor'] .is-guard-thanks[data-room-guard='3'] { --harbor-color: #0067d5; }
+body[data-style='harbor'] .is-guard-thanks[data-room-guard='2'] { --harbor-color: #6f3ec0; }
+body[data-style='harbor'] .is-guard-thanks[data-room-guard='1'] { --harbor-color: #b72e2e; }
+body[data-style='harbor'] .draw-danmaku-item.is-guard-thanks {
+  background-image: linear-gradient(120deg, transparent 34%, #001e6a20 34% 56%, transparent 56% 63%, #001e6a30 63%);
+}
+body[data-style='harbor'] .harbor-guard-body { flex: 1; min-width: 0; line-height: 1.25; }
+body[data-style='harbor'] .harbor-guard-name,
+body[data-style='harbor'] .harbor-guard-amount { display: block; font-size: 1em; overflow-wrap: anywhere; }
+body[data-style='harbor'] .harbor-guard-name { font-weight: 600; }
+body[data-style='harbor'] .harbor-guard-amount { font-weight: 500; }
+body[data-style='harbor'] .harbor-guard-copy { margin: .12em 0 0; font-size: 1em; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }
+body[data-style='harbor'] .harbor-guard-icon { flex: 0 0 auto; width: 2.8em; height: 3em; background: var(--harbor-emblem) center / contain no-repeat; }
+
+body[data-style='harbor'] .draw-danmaku-item.is-superchat {
+  display: block;
+  width: min(100%, 380px);
+  margin-block: .14em;
+  max-width: 100%;
+  padding: 0;
+  zoom: 1;
+}
+.is-superchat .sc-harbor { border-radius: 5px; overflow: hidden; }
+.sc-harbor-head { display: flex; align-items: center; gap: .5em; padding: .4em .55em; background: var(--sc-price); color: var(--sc-on-price); font-size: var(--danmaku-font-size); }
+.sc-harbor-profile { min-width: 0; display: grid; gap: .06em; }
+.sc-harbor .sc-avatar { width: 1.8em; height: 1.8em; font-size: inherit; }
+.sc-harbor .sc-name { font-size: .8em; letter-spacing: 0; line-height: 1.3; }
+.sc-harbor .sc-money { font-size: .78em; line-height: 1.2; }
+.sc-harbor .sc-currency { font-size: 1em; }
+.sc-harbor .sc-copy { padding: .38em .55em; background: var(--sc-accent); color: var(--sc-on-accent); font-size: calc(var(--danmaku-font-size) * .8); line-height: 1.45; }
+
+@keyframes harborMessageIn {
+  from { opacity: 0; translate: -8px 0; }
+  to { opacity: 1; translate: 0 0; }
+}

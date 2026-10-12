@@ -4,6 +4,34 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createBilibiliRuntime } = require('../../src/server/bilibili-runtime');
 
+test('configured-room guard counts update even while local danmaku monitoring is disabled', async (t) => {
+  const settings = { roomId: '52030', enableBilibili: 'false' };
+  const broadcasts = [];
+  const pending = [];
+  const runtime = createBilibiliRuntime({
+    settingsStore: { getSettings: () => settings }, domainServices: {},
+    broadcastSnapshot: reason => broadcasts.push(reason),
+    readRoomGuardCount(roomId, { signal }) {
+      const read = Promise.withResolvers();
+      pending.push({ ...read, roomId, signal });
+      return read.promise;
+    },
+  });
+  t.after(() => runtime.stop());
+  runtime.configure();
+  pending[0].resolve(1000);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(runtime.getRoomGuardState(), { roomId: '52030', count: 1000 });
+  settings.roomId = '42';
+  runtime.configure();
+  assert.deepEqual(runtime.getRoomGuardState(), { roomId: '42', count: null });
+  assert.equal(pending[0].signal.aborted, true);
+  pending[1].resolve(999);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(runtime.getRoomGuardState(), { roomId: '42', count: 999 });
+  assert.ok(broadcasts.includes('bilibili:room-guard'));
+});
+
 test('Bilibili runtime owns auth refresh, client replacement, and shutdown', async (t) => {
   const logs = [];
   t.mock.method(console, 'info', (line) => logs.push(line));
@@ -14,6 +42,7 @@ test('Bilibili runtime owns auth refresh, client replacement, and shutdown', asy
   const clients = [];
   const activeRooms = [];
   const runtime = createBilibiliRuntime({
+    readRoomGuardCount: async () => null,
     settingsStore: { getSettings: () => settings },
     domainServices: {
       requesterTargets: { getLatestRandomRequester: () => null },
@@ -248,6 +277,7 @@ function createReplacementFixture(options = {}) {
   const settings = { roomId: '123', enableBilibili: 'true' };
   const clients = [];
   const runtime = createBilibiliRuntime({
+    readRoomGuardCount: async () => null,
     settingsStore: { getSettings: () => settings },
     domainServices: {
       requesterTargets: { getLatestRandomRequester: () => null },

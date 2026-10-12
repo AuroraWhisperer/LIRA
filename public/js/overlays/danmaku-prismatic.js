@@ -1,4 +1,5 @@
-import { HONOR_BADGES, GUARD_ICONS } from './danmaku-bilibili-badges.js';
+import { HONOR_BADGES } from './danmaku-bilibili-badges.js';
+import { getGuardIcon, setGuardIcon } from '../shared/bilibili-guard-icons.js';
 
 // Hue families keep the washes soft while varying both colors and placement per event.
 const PRISMATIC_PALETTES = [
@@ -44,8 +45,8 @@ export function decoratePrismaticMessage(bubble, item) {
 export function createPrismaticIdentity(document, item, name, classNames, resolveImageUrl) {
   const identity = document.createElement('div');
   identity.className = classNames.identity;
-  const image = (source, className, label) => {
-    const url = source && resolveImageUrl(source);
+  const image = (source, className, label, guardLevel = 0) => {
+    const url = guardLevel ? source : source && resolveImageUrl(source);
     if (!url) return null;
     const node = document.createElement('img');
     node.className = className;
@@ -53,7 +54,8 @@ export function createPrismaticIdentity(document, item, name, classNames, resolv
     node.referrerPolicy = 'no-referrer';
     node.decoding = 'async';
     node.addEventListener('error', () => node.remove());
-    node.src = url;
+    if (guardLevel) setGuardIcon(node, guardLevel);
+    else node.src = url;
     return node;
   };
   const honorSource = Object.hasOwn(HONOR_BADGES, item.honorLevel) ? HONOR_BADGES[item.honorLevel] : '';
@@ -62,7 +64,7 @@ export function createPrismaticIdentity(document, item, name, classNames, resolv
   if (item.kind !== 'gift') {
     const medal = item.roomMedal;
     const guardLevel = Number(medal?.guardLevel ?? item.roomGuardLevel);
-    const guard = image(GUARD_ICONS[guardLevel], 'prismatic-guard', ({ 1: '总督', 2: '提督', 3: '舰长' })[guardLevel]);
+    const guard = image(getGuardIcon(guardLevel), 'prismatic-guard', ({ 1: '总督', 2: '提督', 3: '舰长' })[guardLevel], guardLevel);
     if (medal?.name && Number.isSafeInteger(medal.level) && medal.level > 0) {
       const badge = document.createElement('span');
       badge.className = 'prismatic-medal';

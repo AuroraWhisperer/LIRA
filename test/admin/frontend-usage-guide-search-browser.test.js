@@ -87,10 +87,12 @@ test('guide chapters own their migrated content and every internal link has one 
   const page = await setup(t);
   const owners = {
     'ug-quick': 'ug-setup',
+    'ug-install': 'ug-setup',
     'ug-login': 'ug-setup',
     'ug-password-reset': 'ug-setup',
     'ug-song-rules': 'ug-song',
     'ug-playback-queue': 'ug-song',
+    'ug-wesing-lyrics': 'ug-song',
     'ug-web-share': 'ug-song',
     'ug-deepseek': 'ug-interactions',
     'ug-dynamic-lottery': 'ug-interactions',
@@ -110,6 +112,19 @@ test('guide chapters own their migrated content and every internal link has one 
     [id, document.getElementById(id)?.closest('.usage-guide-section')?.id])), Object.keys(owners)), owners);
   assert.deepEqual(await page.evaluate(() => Array.from(document.querySelectorAll('a[href^="#ug-"]'))
     .map((link) => link.hash).filter((hash) => document.querySelectorAll(hash).length !== 1)), []);
+  for (const [label, hash] of [
+    ['全民 K 歌歌词同步', '#ug-wesing-lyrics'],
+    ['管理队列与导入点歌', '#ug-playback-queue'],
+    ['把礼物记录导出为 PNG 图片', '#ug-gift-export'],
+    ['场景与素材', '#ug-scene-guide'],
+    ['换电脑与迁移', '#ug-migration'],
+    ['安装说明', '#ug-install'],
+  ]) {
+    const links = await page.getByRole('link', { name: label, exact: true, includeHidden: true }).evaluateAll((items) =>
+      items.map((link) => link.hash));
+    assert.ok(links.length > 0, label);
+    assert.ok(links.every((target) => target === hash), `${label} must point to its operating instructions`);
+  }
   assert.equal(await page.locator('article article').count(), 0);
   await page.locator('#usageGuideSearchInput').fill('不适用于永久删除');
   await page.locator('.usage-guide-search-result').first().click();

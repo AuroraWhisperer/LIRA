@@ -105,16 +105,21 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
     if (event.type === 'overlay-state') {
       reset();
       state = pick(event, 'type state liveStatus liveSessionId confirmationMessage');
+      if (event.roomGuard) state.roomGuard = pick(event.roomGuard, 'roomId count');
+    } else if (event.type === 'room-guard') {
+      state.roomGuard = pick(event, 'roomId count');
     } else if (event.type === 'live-started') {
       if (state.liveSessionId || typeof event.liveSessionId !== 'string' || !event.liveSessionId
         || typeof event.message !== 'string' || !event.message) return false;
+      const roomGuard = state.roomGuard;
       reset();
       state = { type: 'overlay-state', liveStatus: 1, liveSessionId: event.liveSessionId,
-        confirmationMessage: event.message, state: 'running' };
+        confirmationMessage: event.message, state: 'running', roomGuard };
     } else if (event.type === 'live-ended') {
       if (!state.liveSessionId || state.liveSessionId !== event.liveSessionId) return false;
+      const roomGuard = state.roomGuard;
       reset();
-      state = { type: 'overlay-state', liveStatus: 0, liveSessionId: null, confirmationMessage: null, state: 'running' };
+      state = { type: 'overlay-state', liveStatus: 0, liveSessionId: null, confirmationMessage: null, state: 'running', roomGuard };
     } else if (['danmaku', 'gift', 'superchat', 'superchat-delete', 'entry'].includes(event.type)) {
       if (!state?.liveSessionId || event.liveSessionId !== state.liveSessionId) return false;
       if (event.type === 'superchat-delete' && (!Array.isArray(event.messageIds) || !event.messageIds.length

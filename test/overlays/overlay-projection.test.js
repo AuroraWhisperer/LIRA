@@ -502,11 +502,13 @@ test('actual shared gift banner renders the same avatar, guard, artwork, amount 
       children: [],
       dataset: {},
       properties: {},
+      attributes: {},
       textContent: '',
       append(...items) {
         this.children.push(...items);
       },
-      setAttribute() {},
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      removeAttribute(name) { delete this.attributes[name]; },
       addEventListener() {},
     };
     node.style = {
