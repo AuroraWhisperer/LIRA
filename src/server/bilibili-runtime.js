@@ -33,6 +33,7 @@ function createBilibiliRuntime(options) {
   };
   let authProvider = null;
   let authCache = { cookieHeader: '', uid: 0 };
+  let authFailureRevision = 0;
   let client = null;
   let lastRealtimeRoom = '';
   let lastRealtimeInput = '';
@@ -54,6 +55,8 @@ function createBilibiliRuntime(options) {
   let stopped = false;
   let clientGeneration = 0;
   let replaceClientChain = Promise.resolve();
+  let authRetryTimer = null;
+  let authRetryAttempts = 0;
   const roomGuard = createRoomGuardService({
     readCount: options.readRoomGuardCount || ((roomId, readOptions) =>
       new BilibiliApiClient(roomId, authCache).fetchRoomGuardCount(readOptions)),
@@ -62,10 +65,7 @@ function createBilibiliRuntime(options) {
 
   const danmakuSender = createDanmakuSenderService({
     async getAuth() {
-      await refreshAuthCache();
-      const state = authProvider
-        ? await authProvider.getAuthState().catch(() => ({ loggedIn: false, uid: 0 }))
-        : { loggedIn: false, uid: 0 };
+      const state = await refreshAuthCache(true);
       return {
         loggedIn: Boolean(state.loggedIn),
         uid: Number(state.uid || authCache.uid) || 0,
@@ -167,6 +167,12 @@ function createBilibiliRuntime(options) {
   }
 
   function setAuthProvider(nextAuthProvider) {
+    if (authProvider !== (nextAuthProvider || null)) {
+      authCache = { cookieHeader: '', uid: 0 };
+      authFailureRevision += 1;
+      authRetryAttempts = 0;
+      disconnect();
+    }
     authProvider = nextAuthProvider || null;
   }
 
@@ -208,6 +214,7 @@ function createBilibiliRuntime(options) {
 
   async function reconnect() {
     if (stopped) throw new Error('Bilibili runtime is shutting down.');
+    authRetryAttempts = 0;
     const settings = settingsStore.getSettings();
     const roomId = normalizeRoomInput(settings.roomId);
     const enabled = (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) === 'true' && roomId;
@@ -236,6 +243,7 @@ function createBilibiliRuntime(options) {
       if (!isCurrent()) return;
       await refreshAuthCache();
       if (!isCurrent()) return;
+      authRetryAttempts = 0;
       logBilibiliDiagnostic('listener-created', {
         roomId,
         clientGeneration: generation,
@@ -249,6 +257,7 @@ function createBilibiliRuntime(options) {
         async captureReplySession() {
           const sessionAuthProvider = authProvider;
           const authSessionRevision = authProvider?.getSessionRevision?.();
+          const failureRevision = authFailureRevision;
           let accountUid;
           try {
             accountUid = Number(await (sessionAuthProvider?.getUid?.() ?? authCache.uid)) || 0;
@@ -261,6 +270,7 @@ function createBilibiliRuntime(options) {
               roomId === getConfiguredRoomId() &&
               sessionAuthProvider === authProvider &&
               authSessionRevision === authProvider?.getSessionRevision?.() &&
+              failureRevision === authFailureRevision &&
               accountUid !== null &&
               (!auth || (auth.loggedIn && Number(auth.uid) === accountUid))
             ) {
@@ -295,25 +305,39 @@ function createBilibiliRuntime(options) {
       }
     };
     const result = replaceClientChain.then(run, run).catch((error) => {
-      if (isCurrent()) throw error;
+      if (!isCurrent()) return;
+      throw error;
     });
     replaceClientChain = result.catch(() => {});
     return result;
   }
 
-  async function refreshAuthCache() {
-    if (!authProvider) return;
+  function scheduleAuthRecovery() {
+    const settings = settingsStore.getSettings();
+    if (stopped || authRetryTimer || authRetryAttempts >= 3 ||
+      (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) !== 'true' || !getConfiguredRoomId()) return;
+    const generation = clientGeneration;
+    authRetryTimer = setTimeout(() => {
+      authRetryTimer = null;
+      if (!stopped && generation === clientGeneration) configure(true);
+    }, 1000 * (2 ** authRetryAttempts++));
+    authRetryTimer.unref?.();
+  }
+
+  async function refreshAuthCache(includeState = false) {
+    const provider = authProvider;
+    if (!provider) return { loggedIn: false, uid: 0 };
+    const revision = provider.getSessionRevision?.();
+    const generation = clientGeneration;
     try {
-      const [cookieHeader, uid] = await Promise.all([
-        authProvider.getCookieHeader().catch(() => {
-          logBilibiliDiagnostic('auth-read-failed', { field: 'cookieHeader' });
-          return '';
-        }),
-        authProvider.getUid().catch(() => {
-          logBilibiliDiagnostic('auth-read-failed', { field: 'uid' });
-          return 0;
-        }),
+      const [cookieHeader, uid, state] = await Promise.all([
+        Promise.resolve().then(() => provider.getCookieHeader()),
+        Promise.resolve().then(() => provider.getUid()),
+        includeState ? Promise.resolve().then(() => provider.getAuthState()) : null,
       ]);
+      if (provider !== authProvider || revision !== provider.getSessionRevision?.() || generation !== clientGeneration) {
+        throw new Error('Bilibili auth session changed during credential read.');
+      }
       if (authCache.cookieHeader !== (cookieHeader || '') || authCache.uid !== (Number(uid) || 0)) {
         logBilibiliDiagnostic('auth-cache-changed', {
           clientGeneration,
@@ -322,8 +346,20 @@ function createBilibiliRuntime(options) {
       }
       authCache = { cookieHeader: cookieHeader || '', uid: Number(uid) || 0 };
       options.onRealtimeStatus?.();
-    } catch (_) {
-      // Non-Electron mode can run without a Bilibili auth provider.
+      return state;
+    } catch (cause) {
+      if (provider === authProvider && revision === provider.getSessionRevision?.() && generation === clientGeneration) {
+        authCache = { cookieHeader: '', uid: 0 };
+        authFailureRevision += 1;
+        client?.apiClient?.updateAuth('', 0);
+        stopClient();
+        updateStatus({ connected: false, message: '直播账号凭据读取失败，请稍后重试。' });
+        scheduleAuthRecovery();
+      }
+      logBilibiliDiagnostic('auth-read-failed', { clientGeneration });
+      throw Object.assign(new Error('直播账号凭据读取失败，请稍后重试。', { cause }), {
+        code: 'BILIBILI_AUTH_UNAVAILABLE',
+      });
     }
   }
 
@@ -345,6 +381,8 @@ function createBilibiliRuntime(options) {
   }
 
   function disconnect() {
+    if (authRetryTimer) clearTimeout(authRetryTimer);
+    authRetryTimer = null;
     clientGeneration += 1;
     stopClient();
     options.onRealtimeStatus?.();

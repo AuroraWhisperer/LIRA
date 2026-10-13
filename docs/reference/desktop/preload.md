@@ -36,7 +36,7 @@ Owner 为 [update-ipc.js](../../../src/electron/ipc/update-ipc.js)，客户端�
 | `desktop:check-for-updates` | `checkForUpdates()` | 更新状态对象，字段与错误状态见 [update.md](update.md) |
 | `desktop:download-update` | `downloadUpdate()` | 更新状态对象 |
 | `desktop:install-update` | `installUpdate()` | 更新状态对象；安装前停止资源检查，生命周期见 [main.md](main.md#7-关闭序列与播放状态冲刷) |
-| `desktop:open-data-dir` | `openDataDir()` | `shell.openPath` 的空字符串或错误文字 |
+| `desktop:open-data-dir` | `openDataDir()` | 成功返回空字符串；目录未就绪或 `shell.openPath` 返回错误文字时 Promise 拒绝，由桌面入口提示失败 |
 | `desktop:open-log-dir` | `openLogDir()` | 同上 |
 | `desktop:open-github` | `openGithub()` | `undefined`（等待系统打开固定仓库地址） |
 | `desktop:set-auto-update` | `setAutoUpdate(enabled)`，调用方传 boolean | `undefined`；handler 只记录 `Boolean(enabled)`，不严格校验/持久化；设置另经 HTTP 保存 |
@@ -111,9 +111,9 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:update-pk-report-settings` | `updatePkReportSettings({enabled})`，严格 boolean、唯一字段 | 同上；INVALID_PK_REPORT_SETTINGS / INVALID_RESPONSE | 同上 |
 | `license:get-fixed-reply-settings` | `getFixedReplySettings()` | `{ok:true,customExactReplyEnabled,customExactReplies,scheduledDanmakuEnabled,scheduledDanmaku}`；FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 弹幕互动固定回复 |
 | `license:update-fixed-reply-settings` | `updateFixedReplySettings(patch)`，仅上述四个配置字段、至少一个；约束见 [固定回复契约](main.md#服务器固定回复设置) | 同上；INVALID_FIXED_REPLY_SETTINGS / FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 同上 |
-| `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000，JSON.stringify.length ≤4×1024×1024（UTF-16 单元，不是字节）；与自动同步串行，保留传入快照语义 | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / SONG_LIST_TOO_LARGE | 兼容入口 |
+| `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000；与自动同步串行，保留传入快照语义。统一在授权歌库 owner 按归一化后的完整 `{songs}` JSON 的 UTF-8 字节检查 ≤5 MiB | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / PAYLOAD_TOO_LARGE | 兼容入口 |
 | `license:get-local-song-count` | `getLocalSongCount()` | `{ok:true,count,generation}`；主进程完整歌库数量及确认代次 | [cloud-song-sync.js](../../../public/js/admin/cloud-song-sync.js) |
-| `license:sync-current-songs` | `syncCurrentSongs(generation)`；非负安全整数 | `{ok,count,index?,songPageUrl?}`；确认代次过期报 CLOUD_SONGS_CHANGED，未就绪报 CLOUD_SYNC_NOT_READY；失败走公共错误脱敏 | 同上 |
+| `license:sync-current-songs` | `syncCurrentSongs(generation)`；非负安全整数；与兼容入口和自动上传共享归一化后的 5 MiB UTF-8 请求预算 | `{ok,count,index?,songPageUrl?}`；确认代次过期报 CLOUD_SONGS_CHANGED，未就绪报 CLOUD_SYNC_NOT_READY，超限报 PAYLOAD_TOO_LARGE；失败走公共错误脱敏 | 同上 |
 | `license:get-cloud-songs` | `getCloudSongs()` | `{songs:[SongPublic]}`，没有统一 ok 外层 | 同上 |
 | `license:get-cloud-song-count` | `getCloudSongCount()` | `{ok:true,count}`；优先读取 cloud-state.songs.count，旧服务器缺字段时才回退完整歌库；非法数量报 INVALID_RESPONSE | cloud-song-sync |
 | `license:get-song-page-background` | `getSongPageBackground()` | BackgroundResponse | [song-background.js](../../../public/js/admin/song-background.js) |

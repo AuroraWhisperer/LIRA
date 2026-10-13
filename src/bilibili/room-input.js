@@ -7,7 +7,14 @@ function normalizeRoomInput(value) {
   if (!text) return '';
   if (/^\d+$/.test(text)) return text;
 
-  const decoded = decodeURIComponent(text);
+  let decoded;
+  try {
+    decoded = decodeURIComponent(text);
+  } catch (error) {
+    throw Object.assign(new Error('直播间地址包含无效的百分号编码。', { cause: error }), {
+      code: 'INVALID_ROOM_INPUT', statusCode: 400,
+    });
+  }
   const explicitPatterns = [/live\.bilibili\.com\/(?:blanc\/)?(\d+)/i, /[?&](?:room_id|id)=(\d+)/i];
   for (const pattern of explicitPatterns) {
     const match = decoded.match(pattern);

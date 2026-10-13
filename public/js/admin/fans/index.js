@@ -23,6 +23,8 @@ function createFanUi() {
   const form = get('fanEditorForm');
   const detailNode = get('fanDetail');
   const panel = get('otherFanProfilesFeature');
+  const mainPage = get('otherAssistantPage');
+  const isVisible = () => !panel.hidden && mainPage.classList.contains('active');
   document.body.append(editor);
   const state = {
     contextId: null,
@@ -570,25 +572,22 @@ function createFanUi() {
     get('fanRestoreFile').value = '';
     if (file) void transfer.restoreFile(file).catch((error) => showError(error));
   });
-  const observer = new MutationObserver(() => {
-    if (!panel.hidden)
+  const refreshVisible = () => {
+    if (isVisible())
       void load(true)
         .then(() => {
           if (!state.settings.initialized && !editor.open) settings();
         })
         .catch((error) => showError(error));
-  });
+  };
+  const observer = new MutationObserver(refreshVisible);
   observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+  observer.observe(mainPage, { attributes: true, attributeFilter: ['class'] });
   const namesObserver = new ResizeObserver(fitPeopleNames);
   namesObserver.observe(get('fanPeople'));
-  if (!panel.hidden)
-    void load(true)
-      .then(() => {
-        if (!state.settings.initialized) settings();
-      })
-      .catch((error) => showError(error));
+  refreshVisible();
   pollTimer = setInterval(() => {
-    if (!panel.hidden && !editor.open && state.contextId) {
+    if (isVisible() && !editor.open && state.contextId) {
       const id = state.profile?.id;
       const selection = state.selection;
       void load(true, true)

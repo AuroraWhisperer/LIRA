@@ -131,9 +131,9 @@
         <div class="danmaku-fixed-item" data-fixed-item="random">
           <div class="danmaku-fixed-copy">
             <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuReplyTitle">点歌回复</strong><lira-help label="点歌回复说明">随机点歌无匹配或歌曲冷却时，自动 @ 回复观众。内容由系统生成，无需设置词库；点击“说明”查看触发场景与示例。关闭回复不影响点歌限制。</lira-help>
+              <strong id="danmakuReplyTitle">点歌回复</strong><lira-help label="点歌回复说明">随机点歌无匹配、歌曲冷却、队列已满、重复歌曲或仅歌库规则拦截时，自动 @ 回复观众。内容由系统生成，无需设置词库；点击“说明”查看触发场景与示例。关闭回复不影响点歌限制。</lira-help>
             </div
-            ><span class="danmaku-fixed-summary">无匹配或歌曲冷却时自动回复</span
+            ><span class="danmaku-fixed-summary">点歌未通过规则时自动回复</span
             ><span class="danmaku-fixed-note" data-fixed-note="random"></span>
           </div>
           <button class="danmaku-fixed-open" type="button" data-fixed-open="random" aria-label="查看点歌回复说明" aria-controls="danmakuSongReplyPanel" aria-expanded="false">
@@ -222,8 +222,11 @@
           <div><dt>多个条件无匹配</dt><dd>你输入的组合条件「粤语＋民谣」暂时没有匹配歌曲，请调整组合条件后再试。</dd></div>
           <div><dt>歌曲正在冷却</dt><dd>《晴天》冷却中，还需 2小时15分。<br />按自然日设置时：《晴天》冷却中，明天 00:00 后可再点。</dd></div>
           <div><dt>随机候选全部冷却</dt><dd>符合条件的歌曲都在冷却，请稍后再试。</dd></div>
+          <div><dt>队列已满</dt><dd>点歌队列已达到上限。</dd></div>
+          <div><dt>不允许重复点歌</dt><dd>队列里已经有这首歌。</dd></div>
+          <div><dt>只允许歌库歌曲</dt><dd>歌库里没有这首歌。</dd></div>
         </dl>
-        <p class="hint">成功点歌不发送此类回复。关闭开关只停止回复，冷却期间仍不上点歌板。点歌回复需保持客户端运行并登录直播账号。</p>
+        <p class="hint">成功点歌不发送此类回复。关闭开关只停止回复，点歌规则仍然生效。点歌回复需保持客户端运行并登录直播账号。</p>
       </div>
       <div id="danmakuExactRepliesPanel" data-fixed-editor="exact" hidden>
         <p class="hint"><span id="danmakuExactReplyCount">0 条</span>自定义规则，最多 30 条。</p>

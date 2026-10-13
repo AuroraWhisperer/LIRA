@@ -53,11 +53,17 @@ function registerUpdateIpc({
     writeLog('ipc', { action: 'install-update' });
     return installUpdate();
   });
+  async function openDirectory(directory) {
+    if (!directory) throw new Error('目录尚未就绪，请稍后重试。');
+    const error = await shell.openPath(directory);
+    if (error) throw new Error(error);
+    return '';
+  }
   handle('desktop:open-data-dir', function () {
-    return getDataDir() ? shell.openPath(getDataDir()) : '';
+    return openDirectory(getDataDir());
   });
   handle('desktop:open-log-dir', function () {
-    return getLogDir() ? shell.openPath(getLogDir()) : '';
+    return openDirectory(getLogDir());
   });
   handle('desktop:open-github', function () {
     return shell.openExternal(githubRepoUrl);

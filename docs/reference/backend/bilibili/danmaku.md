@@ -198,7 +198,11 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 | 显示名缓存   | 账号名/房间名 `DISPLAY_CACHE_TTL_MS = 10min`                                                                                                                        | [sender-service.js:6](../../../../src/bilibili/danmaku/sender-service.js#L6)、[sender-service.js:64-99](../../../../src/bilibili/danmaku/sender-service.js#L64-L99)       |
 | 状态         | `getState()` 返回 `loggedIn/accountUid/roomId/roomName/connected/canSend/requester/各机器人开关` 等                                                                 | [sender-service.js:30-53](../../../../src/bilibili/danmaku/sender-service.js#L30-L53)                                                                                     |
 
-**本地自动回复路径**由 [bilibili-client.js](../../../../src/server/bilibili-client.js) 的 `onMessage` 持有：`result.autoReply` 用于随机点歌无匹配，`result.customReplyReply` 用于自定义关键词命中。两者调用 `danmakuSender.send({message, mentionTarget, mentionEveryChunk: true})`，每段均通过原生回复 @ 原弹幕发送者并预留完整昵称长度；`mentionEveryChunk` 缺少 UID 或昵称时发送器拒绝发送，不退回普通弹幕，调用方记录发送失败；`cloud-owned` 结果提前返回，不发送签到或抽签回复。云端职责见 §6。
+**本地自动回复路径**由 [bilibili-client.js](../../../../src/server/bilibili-client.js) 的 `onMessage` 持有：`result.autoReply` 用于随机点歌无匹配及队列 owner 的预期业务拒绝（受既有点歌回复开关控制），`result.customReplyReply` 用于自定义关键词命中。两者调用 `danmakuSender.send({message, mentionTarget, mentionEveryChunk: true})`，每段均通过原生回复 @ 原弹幕发送者并预留完整昵称长度；`mentionEveryChunk` 缺少 UID 或昵称时发送器拒绝发送，不退回普通弹幕，调用方记录发送失败；`cloud-owned` 结果提前返回，不发送签到或抽签回复。云端职责见 §6。
+
+发送器只缓存配置房间到真实房间 ID 的映射，最多五分钟；房间或账号 UID/Cookie 变化立即重新解析，失败不缓存。发送解析调用 `resolveRoomInfo({includeOwner:false})`，无需主播资料请求；监听、开播状态和其他资料读取仍使用新鲜 `resolveRoomInfo()`，不复用动态状态。
+
+`bilibili-runtime` 在凭据读取异常时返回 `BILIBILI_AUTH_UNAVAILABLE`，清掉当前代次的凭据并停止旧监听，不当成主动登出或沿用旧账号 Cookie；真正成功读取的空凭据仍按匿名/未登录语义处理。捕获的 provider 与 session revision 不再当前时，拒绝过期结果且不清新代次缓存。监听重建读取失败后最多按 1、2、4 秒重试三次，成功清零，房间切换、断开和停止使已排队恢复失效；失败的发送不自动重发。连续故障保留明确状态，用户可重新刷新。
 
 ## 8. 诊断快照与调试缓冲
 

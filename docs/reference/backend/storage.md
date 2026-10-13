@@ -313,6 +313,8 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 `gift-maintenance-store.deleteGiftsWithSettlements` 将待删除 ID 按每批 1000 个参数执行，所有批次仍在同一个 `BEGIN IMMEDIATE` 事务内。删除前将关联 pending 结算置为 ignored，任一批失败则整体回滚；dry-run 只统计候选行，不改礼物或结算状态。
 
+旧本地礼物的自动/手动保留期清理改走 `deleteExpiredLocalBatch`，仅选择 `source_id IS NULL`、早于期限的最多 1000 行；利用已有 `idx_gift_events_created_at` 顺序读，避免每批按 source 索引全量排序。批大小沿用上述参数预算，每一批礼物删除与 pending 结算失效在同一事务提交，批内失败全部回滚，之前已完成的批次保留。`applyRetentionPolicies` 仍同步返回当批计数及 `hasMoreGiftEvents`；自动维护有积压时每隔 25ms 续批并重读开关/策略，停止时撤销续批。手动 HTTP 在批次间让出事件循环，固定策略与开始时间，累计完成后响应；其在途请求由正常 shutdown drain 等待完成，不会在数据库关闭后继续。远程投影的清理路径、dry-run 全量统计和显式全量清空的原子性不变。
+
 ## 6. 清库操作
 
 [database.js](../../../src/storage/database.js) 的清空函数(经 `/api/database/*` 暴露,见 [api.md](api.md)):

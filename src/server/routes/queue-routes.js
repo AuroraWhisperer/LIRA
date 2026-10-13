@@ -3,6 +3,7 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
+const { isQueueRequestRejection } = require('../../music/queue-service');
 
 const prefixes = ['/api/queue/'];
 
@@ -12,14 +13,12 @@ const routes = {
     try {
       result = await context.queue.requestRandom();
     } catch (error) {
-      if (!['点歌队列已达到上限。', '队列里已经有这首歌。'].includes(error.message)) {
-        throw error;
-      }
-      sendJson(res, 400, { ok: false, error: error.message });
+      if (!isQueueRequestRejection(error)) throw error;
+      sendJson(res, 400, { ok: false, error: error.message, code: error.code });
       return;
     }
     if (!result.accepted) {
-      sendJson(res, 400, { ok: false, error: result.reason });
+      sendJson(res, 400, { ok: false, error: result.reason, ...(result.code ? { code: result.code } : {}) });
       return;
     }
     context.broadcastSnapshot('queue:add');
@@ -43,8 +42,8 @@ const routes = {
         message: body.message || '',
       });
     } catch (error) {
-      if (error.code !== 'SONG_COOLDOWN') throw error;
-      sendJson(res, 400, { ok: false, error: error.message });
+      if (!isQueueRequestRejection(error)) throw error;
+      sendJson(res, 400, { ok: false, error: error.message, code: error.code });
       return;
     }
     context.broadcastSnapshot('queue:add');

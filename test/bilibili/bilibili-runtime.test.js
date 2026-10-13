@@ -308,3 +308,125 @@ function createReplacementFixture(options = {}) {
   });
   return { runtime, settings, clients };
 }
+
+test('credential read failures reject listener replacement and sender state, then recover without anonymous fallback', async (t) => {
+  let fail = false;
+  const fixture = createReplacementFixture({
+    getCookieHeader: async () => {
+      if (fail) throw new Error('synthetic secret store failure');
+      return 'synthetic-cookie';
+    },
+  });
+  t.after(() => fixture.runtime.stop());
+  await fixture.runtime.reconnect();
+  fail = true;
+  await assert.rejects(fixture.runtime.reconnect(), { code: 'BILIBILI_AUTH_UNAVAILABLE' });
+  assert.equal(fixture.clients.length, 1);
+  assert.equal(fixture.clients[0].stopCount, 1);
+  assert.equal(fixture.runtime.getRealtimeState().accountUid, '');
+  await assert.rejects(fixture.runtime.getDanmakuSender().getState(), { code: 'BILIBILI_AUTH_UNAVAILABLE' });
+  fail = false;
+  await fixture.runtime.reconnect();
+  assert.equal(fixture.clients.length, 2);
+  assert.equal(fixture.clients[1].context.bilibiliAuthCache.cookieHeader, 'synthetic-cookie');
+});
+
+test('credentials captured before an account switch cannot create a listener for the new provider', async (t) => {
+  const cookie = Promise.withResolvers();
+  const fixture = createReplacementFixture({ getCookieHeader: () => cookie.promise });
+  t.after(() => fixture.runtime.stop());
+  const old = fixture.runtime.reconnect();
+  await new Promise((resolve) => setImmediate(resolve));
+  fixture.runtime.setAuthProvider({ getCookieHeader: async () => '', getUid: async () => 0 });
+  cookie.resolve('obsolete-cookie');
+  await old;
+  assert.equal(fixture.clients.length, 0);
+  await fixture.runtime.reconnect();
+  assert.deepEqual(fixture.clients[0].context.bilibiliAuthCache, { cookieHeader: '', uid: 0 });
+});
+
+test('temporary credential failures retry with bounded backoff and stop cancels recovery', async (t) => {
+  const scheduled = [];
+  const cancelled = [];
+  t.mock.method(global, 'setTimeout', (callback, ms) => {
+    const timer = { callback, ms, unref() {} };
+    scheduled.push(timer);
+    return timer;
+  });
+  t.mock.method(global, 'clearTimeout', (timer) => cancelled.push(timer));
+  t.mock.method(console, 'warn', () => {});
+  let fail = true;
+  const f = createReplacementFixture({ getCookieHeader: async () => {
+    if (fail) throw new Error('temporary read fault');
+    return 'recovered-cookie';
+  } });
+  t.after(() => f.runtime.stop());
+  await assert.rejects(f.runtime.reconnect(), { code: 'BILIBILI_AUTH_UNAVAILABLE' });
+  const first = scheduled.find((timer) => timer.ms === 1000);
+  assert.ok(first);
+  first.callback();
+  await new Promise((resolve) => setImmediate(resolve));
+  const second = scheduled.find((timer) => timer.ms === 2000);
+  assert.ok(second);
+  fail = false;
+  second.callback();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(f.clients.length, 1);
+  fail = true;
+  await assert.rejects(f.runtime.reconnect(), { code: 'BILIBILI_AUTH_UNAVAILABLE' });
+  const pending = scheduled.findLast((timer) => timer.ms === 1000);
+  f.runtime.stop();
+  pending.callback();
+  assert.ok(cancelled.includes(pending));
+  assert.equal(f.clients.length, 1);
+});
+
+test('an obsolete read failure cannot clear credentials loaded for a newer account revision', async (t) => {
+  const f = createReplacementFixture();
+  t.after(() => f.runtime.stop());
+  const oldRead = Promise.withResolvers();
+  let revision = 1;
+  f.runtime.setAuthProvider({
+    getSessionRevision: () => revision,
+    getCookieHeader: () => revision === 1 ? oldRead.promise : Promise.resolve('new-cookie'),
+    getUid: async () => revision === 1 ? 1 : 2,
+    getAuthState: async () => ({ loggedIn: false, uid: revision }),
+  });
+  const obsolete = f.runtime.getDanmakuSender().getState();
+  const rejection = assert.rejects(obsolete, { code: 'BILIBILI_AUTH_UNAVAILABLE' });
+  await new Promise((resolve) => setImmediate(resolve));
+  revision = 2;
+  await f.runtime.getDanmakuSender().getState();
+  oldRead.reject(new Error('old read failed'));
+  await rejection;
+  assert.equal(f.runtime.getRealtimeState().accountUid, '2');
+});
+
+test('a sender credential fault also schedules listener recovery without retrying the failed send', async (t) => {
+  const scheduled = [];
+  t.mock.method(global, 'setTimeout', (callback, ms) => {
+    const timer = { callback, ms, unref() {} };
+    scheduled.push(timer);
+    return timer;
+  });
+  t.mock.method(global, 'clearTimeout', () => {});
+  const f = createReplacementFixture();
+  t.after(() => f.runtime.stop());
+  let fail = false;
+  f.runtime.setAuthProvider({
+    getCookieHeader: async () => { if (fail) throw new Error('read fault'); return 'valid-cookie'; },
+    getUid: async () => 42,
+    getAuthState: async () => ({ loggedIn: true, uid: 42 }),
+  });
+  await f.runtime.reconnect();
+  fail = true;
+  await assert.rejects(f.runtime.getDanmakuSender().send({ message: 'never sent' }), { code: 'BILIBILI_AUTH_UNAVAILABLE' });
+  assert.equal(f.clients[0].stopCount, 1);
+  const retry = scheduled.find((timer) => timer.ms === 1000);
+  assert.ok(retry);
+  fail = false;
+  retry.callback();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(f.clients.length, 2);
+  assert.equal(f.clients[1].context.bilibiliAuthCache.cookieHeader, 'valid-cookie');
+});

@@ -41,6 +41,7 @@ function createRemoteGiftImageCache(options = {}) {
   const indexPath = path.join(cacheDir, 'index.json');
   const lastGoodImages = readImageIndex(indexPath);
   let indexDirty = false;
+  let revision = 0;
 
   async function cacheGifts(gifts, cacheOptions = {}) {
     if (!Array.isArray(gifts)) return [];
@@ -118,6 +119,7 @@ function createRemoteGiftImageCache(options = {}) {
       if (lastGoodImages.get(id) !== basename) {
         lastGoodImages.set(id, basename);
         indexDirty = true;
+        revision += 1;
       }
       if (persist) persistImageIndex();
     }
@@ -160,6 +162,7 @@ function createRemoteGiftImageCache(options = {}) {
         if (!validateImageBytes(bytes, basename))
           throw new Error('downloaded image signature does not match extension');
         writeAtomic(targetPath, bytes);
+        revision += 1;
         return `${LOCAL_IMAGE_PREFIX}${basename}`;
       } catch (error) {
         logger.debug?.(`[GiftImageCache] image unavailable (${basename}):`, error?.message || error);
@@ -183,6 +186,8 @@ function createRemoteGiftImageCache(options = {}) {
 
   return {
     cacheDir,
+    // Writes invalidate immediately; external removal/corruption is rechecked within one second.
+    getRevision: () => `${revision}:${Math.floor((options.now || Date.now)() / 1000)}:${safeImageBaseUrl()}`,
     cacheGifts,
     cacheGiftImage,
     getCachedImagePath,

@@ -164,19 +164,28 @@ export function createSettingsOperations({
       initialFocus: 'cancel',
     });
     if (!confirmed) return;
-    await getState()?.setShuttingDown?.(true);
     const shutdownBtn = documentRef.getElementById('shutdownBtn');
+    const buttonText = shutdownBtn.textContent;
     shutdownBtn.disabled = true;
     shutdownBtn.textContent = '正在退出';
     const wsStatus = documentRef.getElementById('wsStatus');
+    const previousStatus = { hidden: wsStatus.hidden, textContent: wsStatus.textContent, className: wsStatus.className };
     wsStatus.hidden = false;
     wsStatus.textContent = '正在退出';
     wsStatus.className = 'pill warn';
     try {
-      await api('/api/system/shutdown', { confirm: true });
+      await api('/api/system/shutdown', { confirm: true }, { notifyError: false });
     } catch (error) {
-      void error;
+      // A shutdown broadcast confirms acceptance even if its HTTP response was lost.
+      if (!getState()?.shuttingDown) {
+        shutdownBtn.disabled = false;
+        shutdownBtn.textContent = buttonText;
+        if (wsStatus.textContent === '正在退出') Object.assign(wsStatus, previousStatus);
+        toast('退出请求失败：' + (error.message || String(error)), { type: 'error' });
+        return;
+      }
     }
+    getState()?.setShuttingDown?.(true);
 
     const isDesktop = Boolean(windowRef.songAssistantDesktop);
     documentRef.body.innerHTML = renderShutdownScreen(isDesktop);

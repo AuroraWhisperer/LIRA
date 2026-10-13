@@ -10,7 +10,7 @@ function readJsonBody(req, maxBodyBytes = 0) {
     try {
       return JSON.parse(body.toString('utf8'));
     } catch (_) {
-      throw new Error('Invalid JSON body.');
+      throw Object.assign(new Error('Invalid JSON body.'), { code: 'INVALID_JSON_BODY', statusCode: 400 });
     }
   });
 }
@@ -148,10 +148,8 @@ function validateOrigin(req, allowedOrigins) {
  * @param {Error} error - Error to map
  */
 function sendStableError(res, error) {
-  const message = error?.message || '';
-
-  // Map known error patterns to stable 4xx responses
-  if (message === 'Invalid JSON body.' || message.includes('JSON')) {
+  // Input owners identify malformed JSON and exceeded resource budgets with stable codes.
+  if (error?.code === 'INVALID_JSON_BODY') {
     sendJson(res, 400, {
       ok: false,
       error: 'Request body must be valid JSON.',
@@ -159,7 +157,7 @@ function sendStableError(res, error) {
     return;
   }
 
-  if (message === 'Request body is too large.' || message.includes('too large')) {
+  if (error?.code === 'REQUEST_BODY_TOO_LARGE' || error?.code === 'XLSX_RESOURCE_LIMIT_EXCEEDED') {
     sendJson(res, 413, {
       ok: false,
       error: 'Request body exceeds size limit.',

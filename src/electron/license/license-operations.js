@@ -16,6 +16,8 @@ const {
   mapSongForSync,
 } = require('./license-response-utils');
 
+const MAX_SONG_SYNC_REQUEST_BYTES = 5 * 1024 * 1024;
+
 function createLicenseOperations(options = {}) {
   const remote = options.remote;
   const withAuthorizedToken = options.withAuthorizedToken;
@@ -317,6 +319,9 @@ function createLicenseOperations(options = {}) {
     if (songs.length > 5000)
       throw new RemoteLicenseError('TOO_MANY_SONGS', '歌库超过 5000 首，请先整理后重新同步。');
     const snapshot = songs.map(mapSongForSync);
+    if (Buffer.byteLength(JSON.stringify({ songs: snapshot }), 'utf8') > MAX_SONG_SYNC_REQUEST_BYTES) {
+      throw new RemoteLicenseError('PAYLOAD_TOO_LARGE', '歌库数据超过同步大小限制，请减少歌曲或缩短备注、点歌价格和歌切后重新同步。');
+    }
     return withAuthorizedToken(
       (token) => remote.syncSongs(snapshot, token, requestOptions),
       0,

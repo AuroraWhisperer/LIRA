@@ -26,8 +26,10 @@ function resourceLimit(limits, name) {
 
 function checkBudget(size, limit, name) {
   if (size > limit) {
-    // Reuse the existing HTTP oversized-input error mapping (413).
-    throw new Error(`Excel file is too large (${name}). Please split the workbook before importing.`);
+    throw Object.assign(new Error(`Excel file is too large (${name}). Please split the workbook before importing.`), {
+      code: 'XLSX_RESOURCE_LIMIT_EXCEEDED',
+      statusCode: 413,
+    });
   }
 }
 

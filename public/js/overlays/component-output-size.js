@@ -11,6 +11,7 @@ export function watchComponentOutputSize(type, onChange = () => {}) {
   let stopped = false;
   let timer;
   let request;
+  let requestTimeout;
   let previous = '';
   function apply(size) {
     const key = JSON.stringify(size);
@@ -33,10 +34,11 @@ export function watchComponentOutputSize(type, onChange = () => {}) {
   }
   async function poll() {
     request = new AbortController();
+    requestTimeout = setTimeout(() => request?.abort(), 8000);
     try {
       const response = await fetch(`/api/component/size?type=${encodeURIComponent(type)}`, {
         headers: { Authorization: `Bearer ${window.__API_TOKEN__}` }, credentials: 'omit',
-        cache: 'no-store', signal: AbortSignal.any([request.signal, AbortSignal.timeout(8000)]),
+        cache: 'no-store', signal: request.signal,
       });
       if (stopped) return;
       if ([401, 403, 423].includes(response.status)) { apply(null); return; }
@@ -49,6 +51,7 @@ export function watchComponentOutputSize(type, onChange = () => {}) {
       // A temporary disconnection retains the last confirmed dimensions.
       return;
     } finally {
+      clearTimeout(requestTimeout);
       request = null;
       if (!stopped) timer = setTimeout(poll, 750);
     }
@@ -56,6 +59,7 @@ export function watchComponentOutputSize(type, onChange = () => {}) {
   function dispose() {
     stopped = true;
     clearTimeout(timer);
+    clearTimeout(requestTimeout);
     request?.abort();
   }
   void poll();

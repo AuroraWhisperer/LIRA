@@ -130,13 +130,13 @@ npm run verify:roundtrip
 
 ### 两仓歌库往返回归
 
-[verify-song-roundtrip.cjs](../../../scripts/verify-song-roundtrip.cjs) 使用解析后的两仓绝对检出路径，在本机随机端口运行真实服务器 JSON parser、歌曲事务、内存 SQLite store 与 DTO，再由真实桌面 HTTP client 上传、回读。设备鉴权与路由接线使用测试 adapter，不能把结果当作生产认证或线上容量验收。两仓需先安装各自锁文件依赖；服务器的 `better-sqlite3` 必须匹配执行测试的 Node ABI。
+[verify-song-roundtrip.cjs](../../../scripts/verify-song-roundtrip.cjs) 使用解析后的两仓绝对检出路径，在本机随机端口运行歌曲事务、内存 SQLite store 与 DTO，再由真实桌面 HTTP client 上传、回读。设备鉴权与路由接线使用测试 adapter，JSON parser 按该 revision 的 fixture 请求预算配置；真实设备路由的认证、解析器装配与 413 映射由服务端路由回归验证，不能把本检查当作生产认证或线上容量验收。两仓需先安装各自锁文件依赖；服务器的 `better-sqlite3` 必须匹配执行测试的 Node ABI。
 
 ```powershell
 node scripts/verify-song-roundtrip.cjs D:\Work\Live D:\Work\lira-server
 ```
 
-该检查独立于 `npm test`。`npm run verify:roundtrip` 使用当前客户端和上述服务器目录解析规则；原有两个显式绝对路径的调用方式继续有效。脚本在加载服务器模块前校验锁、fixture 和运行时工作区，再执行往返场景。客户端完整测试也需要锁定的服务器 fixture；单仓的 `verify:quick` 和 `node --test test/engineering/server-contract.test.js` 不需要私有服务器检出。本地发布验证及访问配置见 [构建文档](build.md#本地发布验证)。
+该检查独立于 `npm test`。`npm run verify:roundtrip` 使用当前客户端和上述服务器目录解析规则；原有两个显式绝对路径的调用方式继续有效。脚本在加载服务器模块前校验锁、fixture 和运行时工作区，再执行往返场景。开发联调可显式使用 `node scripts/verify-song-roundtrip.cjs --working-tree <客户端绝对路径> <服务端绝对路径>` 检查当前两仓实现，结果不能替代固定提交的发布契约验收。客户端完整测试也需要锁定的服务器 fixture；单仓的 `verify:quick` 和 `node --test test/engineering/server-contract.test.js` 不需要私有服务器检出。本地发布验证及访问配置见 [构建文档](build.md#本地发布验证)。
 
 ### Windows 安装器集成测试
 
@@ -331,7 +331,7 @@ npm run verify
 
 ## 3. 静态检查:npm run check
 
-- 命令:`npm run check` → `node scripts/check-js.js`([package.json:12](../../../package.json#L12))。
+- 命令:`npm run check` → `node scripts/check-js.js`（[package.json](../../../package.json) 的 `scripts.check`）。
 - 行为:[check-js.js](../../../scripts/check-js.js) 递归收集 `src/`、`public/`、`scripts/`、`test/` 下全部 `.js` 文件，逐文件比较内容、最近包的模块解析配置、实际 Node 和 checker 实现，仅对缺少有效证明的文件执行原生 `node --check`。最多 4 个子进程，并发数同时受可用 CPU 数和文件数限制。应用版本号变化不单独使语法结果失效；模块类型、包边界或文件变化仍重查。失败后停止分配新文件并等待已启动检查，返回非零；输入在检查期间变化不登记成功。
 - `npm run check -- --plan` 只列出待运行文件，`npm run check -- --force` 强制重查并先撤销旧记录。执行输出运行、复用与总文件数，新增文件自动纳入，已删除文件不再计入覆盖。记录和互斥锁位于仓库 `tmp/verification/`，损坏记录按未验证处理；拒绝 `NODE_OPTIONS` 和父进程 Node flags。异常退出后先确认锁中 PID 已停止，再移除该锁。
 - 边界:**仅查语法**,不做类型检查、模块导入一致性或风格检查(旧文档的描述不准确)。
@@ -339,7 +339,7 @@ npm run verify
 
 ## 4. 专用诊断:diagnose:wesing
 
-- 命令:`npm run diagnose:wesing` → `node scripts/inspect-wesing-playback.js`([package.json:14](../../../package.json#L14));Windows 便捷包装 [scripts/inspect-wesing-playback.cmd](../../../scripts/inspect-wesing-playback.cmd)(chcp 65001、运行后 pause)。
+- 命令:`npm run diagnose:wesing` → `node scripts/inspect-wesing-playback.js`（[package.json](../../../package.json) 的 `scripts["diagnose:wesing"]`）；Windows 便捷包装 [scripts/inspect-wesing-playback.cmd](../../../scripts/inspect-wesing-playback.cmd)(chcp 65001、运行后 pause)。
 - 用途:现场诊断全民 K 歌播放状态识别问题。同时抓两条数据流 — PowerShell 窗口采样(`createPowerShellWeSingMonitor`:标题/进度/audioActive 等,250ms 轮询)与 WeSingCache 日志 tail(UTF-16LE,轮询最新 .log 的新增字节),并解析 `StartKSong` 行提取 mid/歌名。日志选择、UTF-16 残字节、偏移和停止刷新由 [wesing-log-probe.js](../../../scripts/wesing-log-probe.js) 管理；[wesing-diagnostic-terminal.js](../../../scripts/wesing-diagnostic-terminal.js) 管理键盘 setup/cleanup，CLI 保持统一结束顺序。
 - 交互:启动后在全民 K 歌执行动作并按键打标 — `1` 点击 K 歌/开始录制、`2` 暂停、`3` 继续、`4` 退出录制、`5` 重新进入同一首歌、`6` 歌词状态不正确;`q`/Ctrl+C 结束。JSONL 落盘 `tmp/wesing-playback-diagnostic-{时间戳}.jsonl`(含 diagnostic-start/monitor-sample/wesing-log-line/user-marker/diagnostic-stop 事件)。
 - 参数:`--cache <WeSingCache 目录>`(缺省时经 `/api/music/wesing/status` 从运行中的服务读取,[inspect-wesing-playback.js:96-126](../../../scripts/inspect-wesing-playback.js#L96-L126))、`--output <文件>`、`--duration <秒>`(1-3600)、`--help`。

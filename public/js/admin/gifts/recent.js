@@ -104,6 +104,7 @@ export const giftRecent = (() => {
   let giftSheenTimer = null;
   const visibleSheenCards = new Set();
   let giftArtworkLoadPromise = null;
+  let giftArtworkRetryAfter = 0;
   let giftArtworkRevision = 0;
   let giftArtworkEventsUnsubscribe = null;
   let latestRecentGiftItems = [];
@@ -174,6 +175,7 @@ export const giftRecent = (() => {
   async function loadGiftArtworkCatalog() {
     if (giftArtworkById) return giftArtworkById;
     if (giftArtworkLoadPromise) return giftArtworkLoadPromise;
+    if (Date.now() < giftArtworkRetryAfter) return new Map();
 
     const requestRevision = giftArtworkRevision;
     giftArtworkLoadPromise = (async () => {
@@ -189,23 +191,21 @@ export const giftRecent = (() => {
           addGiftArtwork(artworkById, gift);
         }
       } catch (error) {
+        giftArtworkRetryAfter = Date.now() + 5000;
         console.warn('读取礼物图片目录失败：', error);
+        return null;
       }
       return artworkById;
     })();
 
     const loadedArtwork = await giftArtworkLoadPromise;
     giftArtworkLoadPromise = null;
-    if (!giftArtworkById && requestRevision === giftArtworkRevision) {
+    if (loadedArtwork && !giftArtworkById && requestRevision === giftArtworkRevision) {
       giftArtworkById = loadedArtwork;
       giftArtworkByName = buildGiftArtworkNameIndex(loadedArtwork);
     }
-    if (!giftArtworkById) {
-      giftArtworkById = new Map();
-      giftArtworkByName = new Map();
-    }
-    if (latestRecentGiftItems.length > 0) renderGiftRecentList(latestRecentGiftItems);
-    return giftArtworkById;
+    if (giftArtworkById && latestRecentGiftItems.length > 0) renderGiftRecentList(latestRecentGiftItems);
+    return giftArtworkById || new Map();
   }
 
   function normalizeGiftArtworkPath(value) {
@@ -262,6 +262,7 @@ export const giftRecent = (() => {
     const list = document.getElementById('giftRecentList');
     if (!list) return;
     latestRecentGiftItems = items;
+    if (!giftArtworkById && items.length > 0) void loadGiftArtworkCatalog();
     const isEmpty = items.length === 0;
     list.classList.toggle('is-empty', isEmpty);
     if (isEmpty) {

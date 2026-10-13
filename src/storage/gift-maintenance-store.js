@@ -3,6 +3,8 @@
 // 确保删除礼物时同步处理关联的 overtime_settlements，防止孤儿记录。
 'use strict';
 
+const RETENTION_BATCH_SIZE = 1000;
+
 /**
  * 创建礼物维护存储，提供协调的礼物删除操作。
  * 所有礼物删除路径（手动清空、保留期清理、近期礼物清理）统一使用本模块，
@@ -101,6 +103,19 @@ function createGiftMaintenanceStore(giftDb) {
     return Number(result?.count) || 0;
   }
 
+  function deleteExpiredLocalBatch(threshold, updatedAt) {
+    const ids = giftDb.prepare(`SELECT id FROM gift_events INDEXED BY idx_gift_events_created_at
+      WHERE source_id IS NULL AND created_at < ? ORDER BY created_at, id LIMIT ?`)
+      .all(threshold, RETENTION_BATCH_SIZE).map((row) => Number(row.id));
+    const result = deleteGiftsWithSettlements(ids, 'retention:expired', updatedAt);
+    return {
+      ...result,
+      hasMore: ids.length === RETENTION_BATCH_SIZE && Boolean(giftDb.prepare(
+        'SELECT 1 FROM gift_events WHERE source_id IS NULL AND created_at < ? LIMIT 1',
+      ).get(threshold)),
+    };
+  }
+
   function clearRecent({ updatedAt }) {
     return deleteGiftsByPredicate(
       `source_id IS NULL
@@ -125,6 +140,7 @@ function createGiftMaintenanceStore(giftDb) {
     deleteGiftsWithSettlements,
     deleteGiftsByPredicate,
     countGiftsByPredicate,
+    deleteExpiredLocalBatch,
   };
 }
 

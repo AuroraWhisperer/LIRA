@@ -420,6 +420,24 @@ test('Admin cancels pending reconnects when shutdown starts', async () => {
   assert.equal(sockets.length, 1);
 });
 
+test('server shutdown stops song reloads and reconnection and announces its terminal state once', async () => {
+  const { service, sockets, timers, globals } = await createSocketLifecycleHarness();
+  let shutdowns = 0;
+  globals.window.AdminApp.eventBus.on('app:shutdown', () => shutdowns++);
+  service.connectSocket();
+  service.scheduleSongReload();
+  sockets[0].emit('message', { data: JSON.stringify({ type: 'shutdown' }) });
+  assert.equal(service.shuttingDown, true);
+  assert.equal(timers.size, 0);
+  assert.equal(shutdowns, 1);
+  sockets[0].emit('message', { data: JSON.stringify({ type: 'shutdown' }) });
+  sockets[0].emit('close');
+  service.connectSocket();
+  assert.equal(timers.size, 0);
+  assert.equal(sockets.length, 1);
+  assert.equal(shutdowns, 1);
+});
+
 test('Admin reconciles songs after reconnect with current filters and no duplicate first load', async () => {
   const requests = [];
   let songs = [{ id: 1, name: '旧歌单' }];

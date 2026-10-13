@@ -405,6 +405,7 @@ test('failed XLSX import causes no writes, broadcasts or sync and next import wo
       },
     );
     assert.deepEqual(effects, []);
+    if (status === 413) assert.equal(importError.code, 'XLSX_RESOURCE_LIMIT_EXCEEDED');
     sendStableError(response, importError);
     assert.equal(response.body.ok, false);
     assert.equal(response.status, status);

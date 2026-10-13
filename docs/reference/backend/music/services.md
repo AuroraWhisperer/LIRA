@@ -238,6 +238,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 冷却使用实际入队时刻，不能使用上游消息时间。存储事务内再次检查，并将最近成功入队时间与队列、流水原子写入；失败或冷却拦截不更新时间。关闭规则期间也记录成功时间，改规则据此重新计算。完成、跳过、删除、清空队列及重启保留记录；升级前流水不回填冷却。账号 scope 来自组合根，客户端输入不能选择冷却归属。
 
+空歌名、队列满、仅歌库拒绝、重复与冷却由队列 owner 标记稳定业务 code（见 [HTTP 队列契约](../api.md)）。手动与随机入口统一映射为 400；弹幕桥返回 `accepted:false`、`code`、`reason`，仅在既有 `enableRandomTagReply` 开启时生成 @ 原请求者的提示，不更新成功点歌冷却、不写入请求。
+
 入队(与 `requests` 流水及 `song_cooldowns` **同事务**):`song_id`/`song_name`/`artist`/`category_name` 在命中曲库时用曲库规范值;`requester_name` 缺省"观众";`source` 缺省 `admin`;`status = 'waiting'`;`is_pinned` 时 `pinned_at = createdAt`。返回 `normalizeQueueRow`(布尔化 `is_pinned`、归一 guard/medal)。
 
 ### 8.3 handleQueueAction(context, action, rawId)([queue-service.js](../../../../src/music/queue-service.js))

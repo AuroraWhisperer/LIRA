@@ -6,21 +6,31 @@ const { cleanText, now, timestampToIso, normalizePositiveInteger } = require('..
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 const { songCooldownKey, songCooldownUntil, assertSongAvailable } = require('./song-cooldown');
 
+const REQUEST_REJECTION_CODES = new Set(['SONG_NAME_REQUIRED', 'QUEUE_FULL', 'SONG_NOT_IN_LIBRARY', 'SONG_ALREADY_QUEUED', 'SONG_COOLDOWN']);
+
+function isQueueRequestRejection(error) {
+  return REQUEST_REJECTION_CODES.has(error?.code);
+}
+
+function requestRejection(code, message) {
+  return Object.assign(new Error(message), { code });
+}
+
 function addQueueItem(context, input) {
   const songName = cleanText(input.songName);
-  if (!songName) throw new Error('歌曲名不能为空。');
+  if (!songName) throw requestRejection('SONG_NAME_REQUIRED', '歌曲名不能为空。');
 
   const settings = context.settings();
   const defaults = context.defaults();
   const store = context.store;
   const queueLimit = Number(settings.queueLimit || defaults.queueLimit);
   if (Number.isFinite(queueLimit) && queueLimit > 0 && store.countActive() >= queueLimit) {
-    throw new Error('点歌队列已达到上限。');
+    throw requestRejection('QUEUE_FULL', '点歌队列已达到上限。');
   }
 
   const matchedSong = context.findSong ? context.findSong(songName, input.artist) : null;
   if (settings.onlyFromLibrary === 'true' && !matchedSong) {
-    throw new Error('歌库里没有这首歌。');
+    throw requestRejection('SONG_NOT_IN_LIBRARY', '歌库里没有这首歌。');
   }
 
   const createdAt = timestampToIso(input.messageTimestamp || input.createdAt) || now();
@@ -32,7 +42,7 @@ function addQueueItem(context, input) {
     assertSongAvailable(settings, store.getSongCooldown(cooldownKey), canonicalName, acceptedAt);
   }
   if (settings.allowDuplicate !== 'true' && store.findActiveBySongName(songName)) {
-    throw new Error('队列里已经有这首歌。');
+    throw requestRejection('SONG_ALREADY_QUEUED', '队列里已经有这首歌。');
   }
   const isPinned = input.isPinned === true || input.isPinned === 1 || input.isPinned === 'true' ? 1 : 0;
   return store.insertRequest({
@@ -109,6 +119,7 @@ function ensureUnifiedQueue(context) {
 }
 
 module.exports = {
+  isQueueRequestRejection,
   addQueueItem,
   filterSongsByCooldown,
   handleQueueAction,

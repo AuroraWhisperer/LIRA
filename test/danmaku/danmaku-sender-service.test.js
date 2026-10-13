@@ -9,6 +9,49 @@ const {
 } = require('../../src/bilibili/danmaku/sender-service');
 const { buildMentionedMessage } = require('../../src/bilibili/danmaku/mention-policy');
 
+test('sender reuses only room mappings and refreshes them on room, credential or TTL changes', async () => {
+  const { BilibiliApiClient } = require('../../src/bilibili/danmaku/api-client');
+  let roomId = '123';
+  let cookieHeader = 'first-cookie';
+  let clock = 1000;
+  let roomReads = 0;
+  let ownerReads = 0;
+  let fail = false;
+  const service = createDanmakuSenderService({
+    getAuth: async () => ({ loggedIn: true, uid: 1, cookieHeader }),
+    getRoom: async () => ({ roomId }), minIntervalMs: 0, now: () => clock, log() {},
+    createClient(id, auth) {
+      const client = new BilibiliApiClient(id, auth);
+      client.fetchJson = async (endpoint) => {
+        if (endpoint === 'master_info') { ownerReads++; return { payload: { code: 0, data: {} } }; }
+        roomReads++;
+        if (fail) throw new Error('room failed');
+        return { payload: { code: 0, data: { room_id: Number(id) + 1000, uid: 2, live_status: 1 } }, response: { status: 200 } };
+      };
+      client.sendDanmaku = async (resolved, message) => {
+        assert.equal(resolved, Number(id) + 1000);
+        return { message };
+      };
+      return client;
+    },
+  });
+  await service.send({ message: 'one' });
+  await service.send({ message: 'two' });
+  assert.equal(roomReads, 1);
+  assert.equal(ownerReads, 0);
+  roomId = '456';
+  await service.send({ message: 'room change' });
+  cookieHeader = 'second-cookie';
+  await service.send({ message: 'account change' });
+  clock += 5 * 60 * 1000;
+  fail = true;
+  await assert.rejects(service.send({ message: 'expired' }), /room failed/);
+  fail = false;
+  await service.send({ message: 'retry' });
+  assert.equal(roomReads, 5);
+  assert.equal(ownerReads, 0);
+});
+
 test('mention policy formats a visible mention without transport dependencies', () => {
   assert.deepEqual(buildMentionedMessage('选中了一首歌', { uid: '42', name: 'Alice' }), {
     message: '@Alice 选中了一首歌',

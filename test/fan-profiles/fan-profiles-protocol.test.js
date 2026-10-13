@@ -6,7 +6,7 @@ const { fanFixture, SCOPE } = require('../helpers/fan-profile-fixture');
 const { readServerFixture } = require('../../scripts/verify-server-contract');
 const fixture = readServerFixture('docs/protocol/fixtures/fan-facts-v1.json');
 
-test('the published Server fan facts fixture creates one unknown-term profile with its latest name', (t) => {
+test('the published Server fan facts preserve companion days without inventing membership dates', (t) => {
   const f = fanFixture(t);
   const scope = JSON.stringify(['https://lira.example', fixture.page.streamerId]);
   f.run('configure', { autoUpdate: true, autoCreate: true }, scope);
@@ -17,6 +17,9 @@ test('the published Server fan facts fixture creates one unknown-term profile wi
   assert.equal(list[0].membership.status, 'unknown');
   assert.equal(list[0].membership.expiry, null);
   assert.equal(list[0].membership.totalDays, null);
+  const detail = f.detail(list[0].id, scope);
+  assert.equal(detail.guardAccompany.days, 499);
+  assert.equal(detail.guardAccompany.roomId, '900000099');
   f.service.consumeFacts(scope, { ...fixture.page, reset: true });
   assert.equal(f.detail(list[0].id, scope).records.length, 1);
   assert.equal(f.run('settings', {}, scope).cursor, fixture.page.nextCursor);

@@ -50,12 +50,6 @@ function registerLicenseSongsIpc({ safeHandle, licenseManager, getCloudSyncContr
         state: safeState(licenseManager.getState()),
         error: 'SONG_LIST_INVALID',
       };
-    if (JSON.stringify(songs).length > 4 * 1024 * 1024)
-      return {
-        ok: false,
-        state: safeState(licenseManager.getState()),
-        error: 'SONG_LIST_TOO_LARGE',
-      };
     return controller().syncSongs(songs).then(sanitizeSyncResponse);
   });
   safeHandle('license:get-song-page-background', () =>

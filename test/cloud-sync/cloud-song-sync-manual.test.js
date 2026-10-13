@@ -3,6 +3,32 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createFixture } = require('../helpers/cloud-sync-controller-fixture');
+const { createHarness } = require('../helpers/license-manager-harness');
+const { createLicenseIpcFixture } = require('../helpers/license-ipc-fixture');
+
+test('current and legacy IPC uploads share the automatic song byte budget', async (t) => {
+  const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  let uploads = 0;
+  remote.syncSongs = async (songs) => { uploads += 1; return { ok: true, count: songs.length }; };
+  const songs = Array.from({ length: 5000 }, (_, index) => ({ name: `歌曲${index}`, note: '歌'.repeat(350) }));
+  assert.ok(JSON.stringify(songs).length < 4 * 1024 * 1024);
+  const f = createFixture({
+    licenseManager: { syncSongs: manager.syncSongs },
+    runtime: { getCloudSongsSnapshot: () => songs },
+  });
+  t.after(() => f.controller.dispose());
+  const ipc = createLicenseIpcFixture({ licenseManager: manager, cloudSyncController: f.controller });
+  const generation = f.controller.getLocalSongCount().generation;
+  for (const [channel, value] of [['license:sync-songs', songs], ['license:sync-current-songs', generation]]) {
+    assert.equal((await ipc.invoke(channel, value)).error, 'PAYLOAD_TOO_LARGE');
+  }
+  await f.controller.start();
+  f.emitLocal('songs');
+  await f.controller.whenIdle();
+  assert.equal(uploads, 0);
+});
 
 test('manual sync fences an in-flight pull and uploads the complete current library', async (t) => {
   let finishPull;

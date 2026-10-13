@@ -62,9 +62,11 @@ async function fixture(t) {
       express.Router(),
     ]),
   );
-  // Authentication and route wiring are adapters here. Parser, domain service,
-  // transaction, SQLite, DTO and desktop HTTP transport are production code.
-  // Production auth/413 mappings have a separate server route regression.
+  // Authentication and route wiring are adapters here. The parser follows the
+  // published request budget; domain service, transaction, SQLite, DTO and desktop
+  // transport are production code. Production auth/parser/413 mappings have a
+  // separate server route regression.
+  routes.device.use(express.json({ limit: budget.requestMaxBytes }));
   routes.device.put('/songs/sync', (req, res) => {
     try {
       res.json({ ok: true, ...service.replaceSongs(1, db, req.body.songs, 'device', 'synthetic-device') });
@@ -180,7 +182,7 @@ test('5000-song ASCII uploads roundtrip using only canonical fields', async (t) 
   t.diagnostic(JSON.stringify(size));
 });
 
-test('exactly 2 MiB uploads roundtrip; one additional byte leaves the prior snapshot intact', async (t) => {
+test('the exact published request budget roundtrips; one extra byte preserves the prior snapshot', async (t) => {
   const f = await fixture(t);
   const input = auditSongs();
   let remaining = budget.requestMaxBytes - Buffer.byteLength(JSON.stringify({ songs: input }));

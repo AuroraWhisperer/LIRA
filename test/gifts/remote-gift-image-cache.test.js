@@ -8,6 +8,34 @@ const test = require('node:test');
 const { createRemoteGiftImageCache, MAX_IMAGE_BYTES } = require('../../src/bilibili/gift/remote-gift-image-cache');
 const { QUIET_LOGGER, webpBytes } = require('../helpers/remote-catalog-fixture');
 
+test('catalog image revisions invalidate on downloads and recheck external file changes within one second', async (t) => {
+  const { createHybridGiftSaleCatalogService } = require('../../src/bilibili/gift/hybrid-catalog');
+  const scratch = path.join(__dirname, '../../tmp');
+  fs.mkdirSync(scratch, { recursive: true });
+  const dataDir = fs.mkdtempSync(path.join(scratch, 'gift-image-revision-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  let clock = 1000;
+  const cache = createRemoteGiftImageCache({ dataDir, imageBaseUrl: 'https://api.example.test',
+    now: () => clock, fetch: async () => new Response(webpBytes()), logger: QUIET_LOGGER });
+  const gift = { id: '1', imagePath: 'https://api.example.test/gift-media/images/image.webp' };
+  const catalog = createHybridGiftSaleCatalogService({
+    local: { getRevision: () => 0, getSnapshot: () => ({ gifts: [] }), refresh: async () => null },
+    remoteCatalog: { getRevision: () => 0, getSnapshot: () => ({ gifts: [gift] }), refresh: async () => null },
+    remoteImageCache: cache,
+  });
+  assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, '');
+  const downloaded = await cache.cacheGiftImage(gift);
+  assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, downloaded);
+  fs.writeFileSync(path.join(cache.cacheDir, 'image.webp'), 'invalid');
+  clock += 1000;
+  assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, '');
+  await cache.cacheGiftImage(gift);
+  assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, downloaded);
+  fs.unlinkSync(path.join(cache.cacheDir, 'image.webp'));
+  clock += 1000;
+  assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, '');
+});
+
 test('downloads configured server images into a reusable local cache', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-'));
   try {

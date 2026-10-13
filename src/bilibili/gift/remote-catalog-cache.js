@@ -50,6 +50,7 @@ function createRemoteGiftCatalogCache(options = {}) {
   let lifecycleGeneration = 0;
   let stopped = false;
   let lastAttemptMs = parseTime(cache?.checkedAt);
+  let revision = 0;
 
   function getSnapshot() {
     if (!cache?.snapshot) return null;
@@ -103,7 +104,10 @@ function createRemoteGiftCatalogCache(options = {}) {
           checkedAt: isoTime(currentTimeMs(now)),
         };
         if (stopped || requestGeneration !== lifecycleGeneration) return getSnapshot();
-        if (writePersistedCache(cachePath, nextCache, logger)) cache = nextCache;
+        if (writePersistedCache(cachePath, nextCache, logger)) {
+          cache = nextCache;
+          revision += 1;
+        }
         return getSnapshot();
       }
 
@@ -135,6 +139,7 @@ function createRemoteGiftCatalogCache(options = {}) {
           throw catalogError('REMOTE_CATALOG_CACHE_WRITE_FAILED');
         }
         cache = nextCache;
+        revision += 1;
         giftsById = indexGifts(snapshot.gifts);
         if (stopped || requestGeneration !== lifecycleGeneration) return getSnapshot();
         const update = cloneSnapshot(cache.snapshot, false);
@@ -152,7 +157,10 @@ function createRemoteGiftCatalogCache(options = {}) {
       // not change. This keeps a restarted client from losing the latest
       // server freshness information while avoiding another update event for
       // an identical snapshot.
-      if (writePersistedCache(cachePath, nextCache, logger)) cache = nextCache;
+      if (writePersistedCache(cachePath, nextCache, logger)) {
+        cache = nextCache;
+        revision += 1;
+      }
       return getSnapshot();
     })().finally(() => {
       pending = null;
@@ -183,6 +191,7 @@ function createRemoteGiftCatalogCache(options = {}) {
 
   return {
     cachePath,
+    getRevision: () => revision,
     getSnapshot,
     getGift,
     refresh,
@@ -266,15 +275,6 @@ function cloneSnapshot(snapshot, cached) {
   return {
     ...structuredClone(publicSnapshot),
     cached,
-    sources: {
-      gifts: { ...snapshot.sources.gifts },
-      effects: { ...snapshot.sources.effects },
-    },
-    gifts: structuredClone(snapshot.gifts),
-    blindBoxes: snapshot.blindBoxes.map((box) => ({
-      ...box,
-      outputGiftIds: [...box.outputGiftIds],
-    })),
   };
 }
 

@@ -26,7 +26,7 @@ class BilibiliApiClient {
     this.uid = Number(uid) || 0;
   }
 
-  async resolveRoomInfo() {
+  async resolveRoomInfo({ includeOwner = true } = {}) {
     if (!this.roomId) {
       throw new Error('请填写直播间号，或直接粘贴直播间链接。');
     }
@@ -46,7 +46,7 @@ class BilibiliApiClient {
     }
     const uid = payload.data.uid || '';
     let ownerName = '';
-    if (uid) {
+    if (uid && includeOwner) {
       try {
         ownerName = await this.fetchOwnerName(uid);
       } catch (e) {

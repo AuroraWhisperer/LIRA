@@ -312,6 +312,34 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
   assert.match(list.innerHTML, /\/overtime-gift-images\/35792-new\.webp/);
 });
 
+test('failed gift artwork reads can retry after a bounded delay and valid empty catalogs stay cached', async () => {
+  let now = 0;
+  let requests = 0;
+  const list = { classList: { toggle() {} }, querySelectorAll: () => [], innerHTML: '' };
+  const { giftRecent } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), {
+    Date: class extends Date { static now() { return now; } },
+    console: { warn() {} },
+    window: {
+      getComputedStyle: () => ({ gridTemplateColumns: '270px' }),
+      fetch: async () => {
+        if (++requests === 1) throw new Error('offline');
+        return { ok: true, json: async () => ({ ok: true, data: { gifts: [] } }) };
+      },
+    },
+    document: { getElementById: () => list },
+  });
+  await giftRecent.loadGiftArtworkCatalog();
+  await giftRecent.loadGiftArtworkCatalog();
+  assert.equal(requests, 1, 'a failed request must not cause a retry storm');
+  now = 5000;
+  giftRecent.renderGiftRecentList([{ gift_name: '测试礼物', total_price: 1 }]);
+  await giftRecent.loadGiftArtworkCatalog();
+  assert.equal(requests, 2, 'a later render retries the failed catalog');
+  now = 10000;
+  await giftRecent.loadGiftArtworkCatalog();
+  assert.equal(requests, 2, 'an accepted empty catalog is a valid cache result');
+});
+
 test('recent gift totals worth at least 1000 RMB use gold while unit-value artwork comes from the catalog', async () => {
   const list = {
     classList: { toggle() {} },

@@ -26,8 +26,8 @@ function normalizeDays(value, fallback = 0) {
 }
 
 /** 生成 N 天前的 ISO 时间戳，与各表 created_at 的格式保持一致 */
-function isoDaysAgo(days) {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+function isoDaysAgo(days, at = Date.now()) {
+  return new Date(at - days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 /**
@@ -37,11 +37,12 @@ function applyRetentionPolicies(databases, options = {}) {
   const policy = { ...DEFAULT_POLICY, ...(options.policy || {}) };
   const dryRun = options.dryRun === true;
   const result = {
-    ranAt: now(),
+    ranAt: options.ranAt || now(),
     dryRun,
     policy,
     giftRawJsonCleared: 0,
     giftEventsDeleted: 0,
+    hasMoreGiftEvents: false,
     requestsDeleted: 0,
     superChatsDeleted: 0,
     aiRequestLogsDeleted: 0,
@@ -76,7 +77,7 @@ function applyRetentionPolicies(databases, options = {}) {
 
   const giftEventDays = normalizeDays(policy.giftEventDays);
   if (giftEventDays > 0 && databases.giftDb) {
-    const threshold = isoDaysAgo(giftEventDays);
+    const threshold = isoDaysAgo(giftEventDays, Date.parse(result.ranAt));
     const maintenance = createGiftMaintenanceStore(databases.giftDb);
 
     if (dryRun) {
@@ -84,13 +85,9 @@ function applyRetentionPolicies(databases, options = {}) {
       result.giftEventsDeleted = maintenance.countGiftsByPredicate('source_id IS NULL AND created_at < ?', [threshold]);
     } else {
       // 实际删除：使用维护存储协调删除，确保 pending settlements 被标记为 ignored
-      const deleteResult = maintenance.deleteGiftsByPredicate(
-        'source_id IS NULL AND created_at < ?',
-        [threshold],
-        'retention:expired',
-        now(),
-      );
+      const deleteResult = maintenance.deleteExpiredLocalBatch(threshold, now());
       result.giftEventsDeleted = deleteResult.deletedGifts;
+      result.hasMoreGiftEvents = deleteResult.hasMore;
     }
   }
 

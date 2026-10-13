@@ -9,8 +9,11 @@ test('sendStableError maps known failures and never exposes internal details', (
   const stackError = new Error('Critical failure');
   stackError.stack = 'Error: Critical failure\n    at Object.<anonymous> (/app/src/secret-module.js:10:15)';
   for (const [name, error, status, message, hidden] of [
-    ['malformed JSON', new Error('Invalid JSON body.'), 400, 'Request body must be valid JSON.', ['stack']],
-    ['oversized body', new Error('Request body is too large.'), 413, 'Request body exceeds size limit.', []],
+    ['malformed JSON', Object.assign(new Error('Invalid JSON body.'), { code: 'INVALID_JSON_BODY' }), 400, 'Request body must be valid JSON.', ['stack']],
+    ['oversized body', Object.assign(new Error('Request body is too large.'), { code: 'REQUEST_BODY_TOO_LARGE' }), 413, 'Request body exceeds size limit.', []],
+    ['XLSX resource limit', Object.assign(new Error('Excel file is too large (expanded bytes).'), { code: 'XLSX_RESOURCE_LIMIT_EXCEEDED' }), 413, 'Request body exceeds size limit.', ['expanded bytes']],
+    ['upstream JSON error', new Error('Upstream returned invalid JSON'), 500, 'Internal server error.', ['Upstream']],
+    ['upstream size error', new Error('Upstream image too large'), 500, 'Internal server error.', ['Upstream']],
     [
       'unexpected exception',
       new Error('Unexpected database connection failed at /internal/path/db.js:42'),
@@ -32,12 +35,32 @@ test('sendStableError maps known failures and never exposes internal details', (
 test('readJsonBody enforces the byte limit and JSON syntax and treats an empty body as an object', async () => {
   await assert.rejects(httpUtils.readJsonBody(createMockRequest('{"data": "large payload"}'), 10), {
     message: 'Request body is too large.',
+    code: 'REQUEST_BODY_TOO_LARGE',
   });
   await assert.rejects(httpUtils.readJsonBody(createMockRequest('not valid json {]'), 1000), {
     message: 'Invalid JSON body.',
+    code: 'INVALID_JSON_BODY',
   });
   assert.deepEqual(await httpUtils.readJsonBody(createMockRequest('{"test": "value"}'), 1000), { test: 'value' });
   assert.deepEqual(await httpUtils.readJsonBody(createMockRequest(''), 1000), {});
+});
+
+test('malformed room escapes and unknown superchat actions are typed input errors', () => {
+  const { normalizeRoomInput } = require('../../src/bilibili/room-input');
+  const { handleSuperChatAction } = require('../../src/bilibili/superchat-service');
+  assert.equal(normalizeRoomInput('https%3A%2F%2Flive.bilibili.com%2F123'), '123');
+  for (const [operation, code] of [
+    [() => normalizeRoomInput('https://live.bilibili.com/123%'), 'INVALID_ROOM_INPUT'],
+    [() => handleSuperChatAction({}, 'unknown', 1), 'INVALID_SUPERCHAT_ACTION'],
+  ]) {
+    assert.throws(operation, (error) => {
+      assert.equal(error.code, code);
+      const response = createMockResponse();
+      httpUtils.sendStableError(response, error);
+      assert.equal(response.statusCode, 400);
+      return true;
+    });
+  }
 });
 
 function createMockResponse() {

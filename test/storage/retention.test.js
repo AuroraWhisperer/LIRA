@@ -14,6 +14,34 @@ const NOW = Date.parse('2026-09-30T00:00:00.000Z');
 const DAY = 24 * 60 * 60 * 1000;
 const daysAgo = (days) => new Date(NOW - days * DAY).toISOString();
 
+test('manual retention yields between bounded batches and keeps its original policy and cutoff', async () => {
+  const { routes } = require('../../src/server/routes/data-routes');
+  let reads = 0;
+  let yielded = false;
+  const policy = { giftEventDays: 30 };
+  const result = {
+    ranAt: new Date(NOW).toISOString(), policy, giftRawJsonCleared: 0, giftEventsDeleted: 1000,
+    requestsDeleted: 0, superChatsDeleted: 0, aiRequestLogsDeleted: 0, cooldownsDeleted: 0,
+    songCooldownsDeleted: 0, importBatchesDeleted: 0, hasMoreGiftEvents: true,
+  };
+  const context = { broadcastSnapshot() {}, data: { runRetention(options) {
+    reads++;
+    if (reads === 1) {
+      setImmediate(() => { yielded = true; });
+      return { ...result };
+    }
+    assert.equal(yielded, true);
+    assert.equal(options.policy, policy);
+    assert.equal(options.ranAt, result.ranAt);
+    return { ...result, giftEventsDeleted: 500, hasMoreGiftEvents: false };
+  } } };
+  const response = { writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
+  await routes['POST /api/database/retention'](context, { body: async () => ({ confirm: true, policy }) }, response);
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.giftEventsDeleted, 1500);
+  assert.equal(response.body.data.hasMoreGiftEvents, false);
+});
+
 function seed(databases) {
   const insertGift = databases.giftDb.prepare(`
     INSERT INTO gift_events (platform_id, cmd, gift_name, total_price, raw_json, created_at, updated_at)

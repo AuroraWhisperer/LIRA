@@ -98,6 +98,37 @@ function seedSettlement(db, giftEventId, status = 'pending') {
 const countSettlements = (db, status) =>
   db.prepare('SELECT COUNT(*) AS count FROM overtime_settlements WHERE status = ?').get(status).count;
 
+test('local retention bounds each transaction and rolls back only the failing batch with its settlements', (t) => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(schema.GIFT_TABLE_SCHEMA);
+  db.exec(schema.GIFT_INDEX_SCHEMA);
+  db.exec(`WITH RECURSIVE rows(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM rows WHERE id < 2500)
+    INSERT INTO gift_events (id, platform_id, gift_name, created_at, updated_at)
+    SELECT id, 'expired-' || id, 'gift', '2020-01-01', '2020-01-01' FROM rows`);
+  seedSettlement(db, 1, 'pending');
+  seedSettlement(db, 1001, 'pending');
+  const maintenance = createGiftMaintenanceStore(db);
+  assert.deepEqual(maintenance.deleteExpiredLocalBatch('2021', 'now'), {
+    deletedGifts: 1000, ignoredSettlements: 1, hasMore: true,
+  });
+  db.exec(`CREATE TRIGGER fail_batch BEFORE DELETE ON gift_events WHEN OLD.id = 1500
+    BEGIN SELECT RAISE(ABORT, 'batch failed'); END`);
+  assert.throws(() => maintenance.deleteExpiredLocalBatch('2021', 'now'), /batch failed/);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM gift_events').get().n, 1500);
+  assert.equal(countSettlements(db, 'pending'), 1);
+  assert.equal(countSettlements(db, 'ignored'), 1);
+  db.exec('DROP TRIGGER fail_batch');
+  assert.equal(maintenance.deleteExpiredLocalBatch('2021', 'now').deletedGifts, 1000);
+  assert.deepEqual(maintenance.deleteExpiredLocalBatch('2021', 'now'), {
+    deletedGifts: 500, ignoredSettlements: 0, hasMore: false,
+  });
+  const plan = db.prepare(`EXPLAIN QUERY PLAN SELECT id FROM gift_events INDEXED BY idx_gift_events_created_at
+    WHERE source_id IS NULL AND created_at < ? ORDER BY created_at, id LIMIT ?`).all('2021', 1000);
+  assert.ok(plan.some((row) => row.detail.includes('idx_gift_events_created_at')));
+  assert.ok(plan.every((row) => !row.detail.includes('TEMP B-TREE')));
+});
+
 test('retention handles 40000 expired gifts and rolls back every batch on failure', (t) => {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());

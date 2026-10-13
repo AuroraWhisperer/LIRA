@@ -60,7 +60,9 @@ export class StateService {
         return;
       }
       if (!isRecord(payload)) return;
-      if (payload.type === 'snapshot') {
+      if (payload.type === 'shutdown') {
+        this.setShuttingDown(true);
+      } else if (payload.type === 'snapshot') {
         if (!isStateSnapshot(payload.state)) return;
         this.realtimeVersion += 1;
         for (const key of Object.keys(payload.state)) {
@@ -129,10 +131,7 @@ export class StateService {
     this.ws.addEventListener('close', () => {
       if (this.ws !== connection) return;
       this.ws = null;
-      if (this.shuttingDown) {
-        eventBus.emit('app:shutdown');
-        return;
-      }
+      if (this.shuttingDown) return;
       eventBus.emit('ws:disconnected');
       this.reconnectTimer = setTimeout(() => {
         this.reconnectTimer = null;
@@ -314,6 +313,7 @@ export class StateService {
    * 设置关闭状态
    */
   setShuttingDown(value) {
+    const wasShuttingDown = this.shuttingDown;
     this.shuttingDown = value;
     if (value) {
       clearTimeout(this.songReloadTimer);
@@ -323,6 +323,7 @@ export class StateService {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    if (value && !wasShuttingDown) eventBus.emit('app:shutdown');
   }
 
   acceptLyricState(state) {

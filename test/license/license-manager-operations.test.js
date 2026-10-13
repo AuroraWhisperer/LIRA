@@ -111,6 +111,30 @@ test('song sync distinguishes an oversized historical library without submitting
   assert.equal(calls, 1);
 });
 
+test('song sync measures the normalized complete JSON request in UTF-8 bytes', async (t) => {
+  const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  const maxBytes = 5 * 1024 * 1024;
+  const requests = [];
+  remote.syncSongs = async (songs) => {
+    requests.push(JSON.stringify({ songs }));
+    return { ok: true, count: songs.length };
+  };
+  for (const text of ['x', '歌', '😀', '\"\\\u0000\n']) {
+    const song = { name: 'Budget', note: text.repeat(100) + 'end', private: 'ignored'.repeat(800_000) };
+    const normalizedBytes = Buffer.byteLength(JSON.stringify({ songs: [mapSongForSync(song)] }), 'utf8');
+    song.note += 'x'.repeat(maxBytes - normalizedBytes);
+    await manager.syncSongs([song]);
+    assert.equal(Buffer.byteLength(requests.at(-1), 'utf8'), maxBytes);
+    assert.equal(JSON.parse(requests.at(-1)).songs[0].private, undefined);
+    const calls = requests.length;
+    song.note += 'x';
+    await assert.rejects(manager.syncSongs([song]), { code: 'PAYLOAD_TOO_LARGE', retryable: false });
+    assert.equal(requests.length, calls);
+  }
+});
+
 test('song background operations use the authorized device token and preserve binary bytes', async () => {
   const { manager, backgroundCalls } = createHarness({
     identity: { deviceId: 'd', publicKeyPem: 'public' },

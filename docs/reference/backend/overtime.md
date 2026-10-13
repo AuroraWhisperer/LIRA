@@ -65,6 +65,8 @@ final    → service.finalizeGift(event)  // 收到服务器 final 后立即结�
 
 规则图片解析使用目录 facade 的 `resolveGiftImagePath(giftId, imagePath, rule)` 点查询。远程缓存维护随完整目录替换的 ID 索引，`getGift(id, variantId)` 返回单条副本；仅有 ID 且多候选时返回 null；解析一条规则只检查该礼物的本地图片，不调用全局或房间完整快照来逐个验证全部图片。目录更新立即替换索引，图片缓存仍自行负责当前图片与最近成功图片的选择；快照查询不修改持久化规则或历史结算。
 
+房间/全局快照按本地与远程目录 revision、自定义盲盒配置和图片 revision 缓存合并及素材检查结果，公开读取继续返回隔离副本。目录刷新、下载完成及最近可用图片变更立即使缓存失效；外部文件删除或损坏至多一秒后重新校验，不依赖不可靠的文件监听。没有 revision 能力的注入式目录沿用实时读取，不猜测缓存有效性。远程快照仅做一次完整深拷贝，避免重复拷贝 gifts 与关系。
+
 礼物图片缺失或加载失败时，选择器、规则编辑、加班机直播画面、最近收礼和盲盒映射统一通过 `public/js/shared/gift-image-fallback.js` 显示内置 `/img/gift-placeholder.png`。旧规则中的 SVG 占位地址仅在显示时替换，不修改规则身份或缓存元数据。重复更新图片仍保留错误回退；默认图本身失败时停止重试并保留周围的礼物名称。
 
 目录选择器与礼物事件管线分离。主目录始终来自当前配置直播间的礼物面板、`giftConfig` 和已配置的在售盲盒展开，不读取个人账号背包。Electron main process 将已配置的 `LIRA_LICENSE_API_BASE` 作为唯一服务器入口，通过公开的 `GET /api/public/gifts/catalog?schemaVersion=3` 读取全局身份档案；完整校验原包后向选择器提供金瓜子礼物，并供主目录按完整身份补图和弹窗“搜索全部礼物”使用，不会增加或替换房间成员，也不会按名称合并同名不同 ID。入口只接受使用 DNS 主机名的 HTTPS 根 origin，HTTP、`localhost` 和 IP literal 均被拒绝。设备令牌只用于授权门控，不随公共目录请求发送，也不进入 renderer。

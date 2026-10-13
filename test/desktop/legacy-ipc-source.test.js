@@ -103,6 +103,26 @@ test('authorized playback save and shutdown acknowledgement keep their existing 
   assert.equal(f.calls(), 2);
 });
 
+for (const channel of ['desktop:open-data-dir', 'desktop:open-log-dir']) {
+  test(`${channel} rejects shell error strings so the renderer can report failure`, async () => {
+    let result = '文件不存在';
+    let directory = 'D:/synthetic-lira-directory';
+    const calls = [];
+    const f = fixture(registerUpdateIpc, channel, {
+      getDataDir: () => directory,
+      getLogDir: () => directory,
+      shell: { openPath: async (value) => { calls.push(value); return result; } },
+    });
+    await assert.rejects(f.invoke(f.event), /文件不存在/);
+    result = '';
+    assert.equal(await f.invoke(f.event), '');
+    assert.deepEqual(calls, [directory, directory]);
+    directory = '';
+    await assert.rejects(f.invoke(f.event), /目录尚未就绪/);
+    assert.equal(calls.length, 2);
+  });
+}
+
 for (const channel of ['desktop:get-resource-integrity-state', 'desktop:check-resource-integrity']) {
   test(`${channel} permits only the main admin frame and rejects all arguments`, () => {
     let calls = 0;

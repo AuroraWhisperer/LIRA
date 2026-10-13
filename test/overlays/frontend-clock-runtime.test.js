@@ -13,11 +13,20 @@ test('live clock snapshots defeat late reads and retain explicit URL overrides w
   const dom = createClockDom();
   dom.window.parent = dom.window;
   let finishRead;
+  let sizeRequestSignal;
   await loadModuleExports(entry('overlays', 'clock.js'), {
     ...dom, URL, URLSearchParams, location: new URL('http://127.0.0.1:3000/clock?seconds=0'),
-    fetch: () => new Promise((resolve) => { finishRead = resolve; }),
+    fetch: (url, options) => {
+      if (url.startsWith('/api/component/size?')) {
+        sizeRequestSignal = options.signal;
+        return new Promise(() => {});
+      }
+      assert.equal(url, '/api/clock/config');
+      return new Promise((resolve) => { finishRead = resolve; });
+    },
   });
   assert.equal(dom.sockets.length, 1);
+  assert.equal(dom.timers.size, 1, 'only the pending size request has a timeout before clock settings arrive');
   const snapshot = (style) => dom.sockets[0].listeners.get('message')({ data: JSON.stringify({
     type: 'snapshot', state: { settings: { clockStyle: style, clockShowSeconds: 'true', clockLabel: '实时' } },
   }) });
@@ -26,12 +35,14 @@ test('live clock snapshots defeat late reads and retain explicit URL overrides w
   await flush();
   assert.equal(dom.document.getElementById('clockCard').dataset.clockStyle, 'soda');
   assert.equal(dom.document.getElementById('clockSeconds').hidden, true);
+  assert.equal(dom.timers.size, 2, 'one size-request timeout and one clock tick');
   const timer = [...dom.timers.keys()];
   snapshot('starlight');
   assert.deepEqual([...dom.timers.keys()], timer);
   assert.equal(dom.document.getElementById('clockCard').dataset.clockStyle, 'starlight');
   dom.window.listeners.get('pagehide')();
   assert.equal(dom.timers.size, 0);
+  assert.equal(sizeRequestSignal.aborted, true);
   assert.equal(dom.sockets[0].closed, true);
 });
 
@@ -427,18 +438,25 @@ test('moon palettes alternate on clock boundaries and keep fixed choices with on
 test('browser source reveals saved settings and current time together, retaining query overrides', async () => {
   const dom = createClockDom();
   let resolveConfig;
+  let sizeRequestSignal;
   await loadModuleExports(entry('overlays', 'clock.js'), {
     ...dom,
     URLSearchParams,
     location: new URL('http://127.0.0.1:3000/clock?seconds=0'),
-    fetch: () =>
-      new Promise((resolve) => {
+    fetch: (url, options) => {
+      if (url.startsWith('/api/component/size?')) {
+        sizeRequestSignal = options.signal;
+        return new Promise(() => {});
+      }
+      assert.equal(url, '/api/clock/config');
+      return new Promise((resolve) => {
         resolveConfig = resolve;
-      }),
+      });
+    },
   });
   const card = dom.document.getElementById('clockCard');
   assert.equal(card.hidden, true);
-  assert.equal(dom.timers.size, 0);
+  assert.equal(dom.timers.size, 1, 'only the pending size request has a timeout before clock settings arrive');
   resolveConfig({
     ok: true,
     json: async () => ({
@@ -457,7 +475,10 @@ test('browser source reveals saved settings and current time together, retaining
   assert.equal(dom.document.getElementById('clockSeconds').hidden, true);
   assert.match(dom.document.getElementById('clockTime').dateTime, /^\d{4}-/);
   assert.match(dom.document.getElementById('clockDate').textContent, /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal(dom.timers.size, 1);
+  assert.equal(dom.timers.size, 2, 'one size-request timeout and one clock tick');
+  dom.window.listeners.get('pagehide')();
+  assert.equal(dom.timers.size, 0);
+  assert.equal(sizeRequestSignal.aborted, true);
 });
 
 test('flip presets and custom colors update and save without reloading the preview', async () => {

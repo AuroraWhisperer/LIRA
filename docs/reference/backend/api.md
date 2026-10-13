@@ -181,6 +181,8 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 - 405/404：管理路由的方法不支持/路径不存在；overlay 未列入能力表的请求均为 403。
 - 顶层异常返回脱敏 500；非法 JSON 返回 400，请求体超预算返回带 `Connection: close` 的 413。
 
+请求解析器分别产生 `INVALID_JSON_BODY` 与 `REQUEST_BODY_TOO_LARGE`；XLSX 解码器的展开体积、行列等资源预算超限产生 `XLSX_RESOURCE_LIMIT_EXCEEDED`，沿用 413。通用错误映射按这些稳定 code 分类，不通过消息中的 `JSON` 或 `too large` 猜测。其他已标记 `statusCode:400` 的领域输入错误返回通用参数错误；上游或存储异常继续返回脱敏 500。
+
 
 **请求体与预算**：常规 JSON 使用 [api-routes.js](../../../src/server/api-routes.js) 的惰性 `createBodyReader`，空 body 为 `{}`、非法 JSON 为 400；默认入站预算为 16 MiB，`/api/interactions/` 明确收紧为 **16 KiB**。原始文件上传由所属路由调用 `readRawBody` 并独立设定预算（开播动画上传见 §2.1），不能从 JSON 上限推断文件大小上限。超量读取标记 `REQUEST_BODY_TOO_LARGE`；[http-utils.js](../../../src/server/http-utils.js) 清缓存并丢弃后续数据，避免未读数据在关闭连接时重置错误响应；413 携带 `Connection: close` 和准确的 `Content-Length`，先写出完整错误响应，再等待请求读完后结束响应；未结束上传有 1 秒强制回收上界。领域 handler 应透传该限额错误。
 
@@ -375,7 +377,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 | 其他含 ≥ 3 位连续数字的字符串                                         | 提取第一组连续数字（松散兜底） |
 | 均无匹配                                                              | 返回 `''`                      |
 
-在精确模式匹配之前先对输入做 `decodeURIComponent`，因此直接粘贴浏览器地址栏的编码 URL 也能正确解析。
+在精确模式匹配之前先对输入做 `decodeURIComponent`，因此直接粘贴浏览器地址栏的编码 URL 也能正确解析。畸形百分号编码抛 `INVALID_ROOM_INPUT`（HTTP 400），在设置写入前拒绝。
 
 ### 2.3 parseCustomReplyRules 实现细节([bilibili/custom-reply-service.js](../../../src/bilibili/custom-reply-service.js))
 
@@ -537,7 +539,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 | 端点                     | 请求                                                                                                                                                                                                                                                                                                                                 | 响应(data)                                          | 错误码                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `POST /api/queue/add`    | `{songName`(必填), `artist?`, `categoryName?`, `requesterName?`(默认 `'主播'`), `requesterUid?`(默认 `'admin'`), `requesterGuardLevel?`, `requesterMedalName?`, `requesterMedalLevel?`, `source?`(默认 `'admin'`), `message?`(默认 `''`), `isPinned?`};命中曲库时自动补全 artist/category 并关联 `song_id`,同时写点歌流水 `requests` | 新队列项;广播 `queue:add`                           | 400(歌曲冷却，返回剩余时间或恢复日期，不广播);500(`歌曲名不能为空。`/`点歌队列已达到上限。`/`队列里已经有这首歌。`/`歌库里没有这首歌。`) |
+| `POST /api/queue/add`    | `{songName`(必填), `artist?`, `categoryName?`, `requesterName?`(默认 `'主播'`), `requesterUid?`(默认 `'admin'`), `requesterGuardLevel?`, `requesterMedalName?`, `requesterMedalLevel?`, `source?`(默认 `'admin'`), `message?`(默认 `''`), `isPinned?`};命中曲库时自动补全 artist/category 并关联 `song_id`,同时写点歌流水 `requests` | 新队列项;广播 `queue:add` | 400：`SONG_NAME_REQUIRED`（空歌名）、`QUEUE_FULL`（队列上限）、`SONG_ALREADY_QUEUED`（重复歌曲）、`SONG_NOT_IN_LIBRARY`（仅歌库规则）、`SONG_COOLDOWN`（冷却）；响应含 `code` 与原提示，拒绝时不广播 |
 | `POST /api/queue/action` | `{action, id?}`:`next`/`clear` 不需要 id;`pin`/`unpin`/`delete`/`done`/`skip` 需要 `id`(取第一首当前歌时置 `done`)                                                                                                                                                                                                                   | 队列快照 `{current, waiting}`;广播 `queue:<action>` | 500(`缺少队列 ID。`/`未知队列操作。`)                                                      |
 | `POST /api/queue/random` | 无；忽略客户端提供的身份或指令，以服务端当前已登录 Bilibili 账号 UID 和用户信息门面中的昵称、可用房间身份调用现有“随机点歌”处理器；昵称不可用时显示 `UID <uid>` | 新队列项；来源为 `random`，广播既有 `queue:add`；不发送直播弹幕 | 401（缺少会话 token）；400（未登录直播账号、在途账号或房间变化、暂停点歌、用户冷却、无可随机歌曲、重复歌曲、队列上限）；其他异常沿用顶层 500 脱敏处理 |
 
@@ -556,7 +558,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 | 端点                          | 请求                                                                                          | 响应(data)                                    | 错误码                |
 | ----------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------- |
-| `POST /api/superchats/action` | `{action, id}`:`delete`(状态 `deleted`)、`assist`(状态 `assisted`)、`unassist`(状态 `active`) | SC 快照(按价格降序);广播 `superchat:<action>` | 500(`未知 SC 操作。`) |
+| `POST /api/superchats/action` | `{action, id}`:`delete`(状态 `deleted`)、`assist`(状态 `assisted`)、`unassist`(状态 `active`) | SC 快照(按价格降序);广播 `superchat:<action>` | 400（未知操作 `INVALID_SUPERCHAT_ACTION` 或无效 ID `INVALID_SUPERCHAT_ID` 经通用参数错误响应映射） |
 
 行为文档:[bilibili/gift.md](bilibili/gift.md)(醒目留言)。
 
@@ -645,6 +647,8 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `POST /api/database/clear-all`        | `{confirm: true}`                                                                                            | **清五库全部业务数据**(见 §12.1);调用前静默异步写入器;成功广播 `database:clear-all` | 400、**500**(部分失败,见 §12.1) |
 | `GET /api/database/stats`             | 无                                                                                                           | `{schemaVersions, tables}`(各库版本 + 保留期统计行数/时间范围/raw_json 字节数)      | —                               |
 | `POST /api/database/retention`        | `{dryRun?`, `confirm?`, `policy?}`:`dryRun: true` 只统计不删除(**免 confirm**,不广播);否则需 `confirm: true` | 保留策略执行统计;非 dryRun 广播 `database:retention`                                | 400(`缺少清理确认。`)           |
+
+手动保留期清理在旧本地礼物批次之间让出事件循环，以固定 `policy` 与 `ranAt` 完成全部批次后返回累计计数及 `hasMoreGiftEvents:false`；dry-run 仍只统计全部候选。单批原子性与自动续批见 [存储保留策略](storage.md)。连接断开后不再继续未开始的批次，已提交批次保留，重试可继续清理。
 
 ### 12.1 Clear-All 部分失败契约
 

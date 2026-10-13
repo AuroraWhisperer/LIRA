@@ -30,6 +30,8 @@ function createHybridGiftSaleCatalogService(options = {}) {
   let disposed = false;
   let lastUpdateSignature = '';
   let assetsUpdatedAt = '';
+  let roomCache = null;
+  let globalCache = null;
   const getCustomBlindBoxes =
     typeof options.getBlindBoxCustomConfigV2 === 'function' ? options.getBlindBoxCustomConfigV2 : () => [];
   const remoteCatalog =
@@ -39,10 +41,8 @@ function createHybridGiftSaleCatalogService(options = {}) {
       cachePath: options.cachePath,
       fetchRemote: options.fetchRemote,
       onUpdated: (snapshot) => {
-        roomSnapshot = decorateWithCachedImages(
-          mergeRoomCatalog(local.getSnapshot(), snapshot, getCustomBlindBoxes()),
-          remoteImageCache,
-        );
+        roomCache = null;
+        globalCache = null;
         if (!giftCatalogInitializer) {
           options.onUpdated?.(snapshot);
           return;
@@ -76,10 +76,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
       now: options.now,
     });
   }
-  let roomSnapshot = decorateWithCachedImages(
-    mergeRoomCatalog(local.getSnapshot(), remoteCatalog.getSnapshot(), getCustomBlindBoxes()),
-    remoteImageCache,
-  );
+  let roomSnapshot = local.getSnapshot();
   let roomRefreshPending = null;
   let unsubscribe = giftCatalogInitializer?.onStateChanged?.((state) => {
     if (stopped || state.status !== 'ready') return;
@@ -101,13 +98,15 @@ function createHybridGiftSaleCatalogService(options = {}) {
   });
 
   function getSnapshot() {
-    return cloneRoomSnapshot(
-      decorateWithCachedImages(
-        mergeRoomCatalog(roomSnapshot, remoteCatalog.getSnapshot(), getCustomBlindBoxes()),
-        remoteImageCache,
-      ),
-      true,
-    );
+    const custom = getCustomBlindBoxes();
+    const key = [local.getRevision?.(), remoteCatalog.getRevision?.(), remoteImageCache?.getRevision?.(), JSON.stringify(custom)];
+    const cacheable = local.getRevision && remoteCatalog.getRevision && (!remoteImageCache || remoteImageCache.getRevision);
+    if (!cacheable || !roomCache || !key.every((value, index) => value === roomCache.key[index])) {
+      roomSnapshot = local.getSnapshot();
+      const snapshot = decorateWithCachedImages(mergeRoomCatalog(roomSnapshot, remoteCatalog.getSnapshot(), custom), remoteImageCache);
+      roomCache = { key, snapshot: cloneRoomSnapshot(snapshot, true) };
+    }
+    return structuredClone(roomCache.snapshot);
   }
 
   async function refresh(options = {}) {
@@ -121,8 +120,11 @@ function createHybridGiftSaleCatalogService(options = {}) {
         serverSnapshot = remoteCatalog.getSnapshot();
         logger.warn?.('[GiftCatalog] room artwork refresh failed:', error?.message || error);
       }
-      roomSnapshot = await decorateRoomSnapshot(localSnapshot, serverSnapshot, remoteImageCache, getCustomBlindBoxes());
-      return cloneRoomSnapshot(roomSnapshot, localSnapshot.cached === true);
+      roomSnapshot = localSnapshot;
+      const snapshot = await decorateRoomSnapshot(localSnapshot, serverSnapshot, remoteImageCache, getCustomBlindBoxes());
+      roomCache = null;
+      globalCache = null;
+      return cloneRoomSnapshot(snapshot, localSnapshot.cached === true);
     })().finally(() => {
       roomRefreshPending = null;
     });
@@ -131,23 +133,32 @@ function createHybridGiftSaleCatalogService(options = {}) {
 
   async function refreshRemote(options = {}) {
     const serverSnapshot = await remoteCatalog.refresh(options);
-    roomSnapshot = await decorateRoomSnapshot(
+    await decorateRoomSnapshot(
       local.getSnapshot(),
       serverSnapshot,
       remoteImageCache,
       getCustomBlindBoxes(),
     );
+    roomCache = null;
+    globalCache = null;
     return serverSnapshot;
   }
 
   function getGlobalSnapshot() {
+    const key = [remoteCatalog.getRevision?.(), remoteImageCache?.getRevision?.(), assetsUpdatedAt];
+    const cacheable = remoteCatalog.getRevision && (!remoteImageCache || remoteImageCache.getRevision);
+    if (cacheable && globalCache && key.every((value, index) => value === globalCache.key[index])) {
+      return structuredClone(globalCache.snapshot);
+    }
     const snapshot = remoteCatalog.getSnapshot();
     if (!snapshot) return null;
     const gifts = (Array.isArray(snapshot.gifts) ? snapshot.gifts : []).map((gift) => ({
       ...gift,
       imagePath: remoteImageCache ? remoteImageCache.getCachedGiftImagePath(gift) : '',
     }));
-    return { ...snapshot, assetsUpdatedAt, count: gifts.length, gifts };
+    const result = { ...snapshot, assetsUpdatedAt, count: gifts.length, gifts };
+    if (cacheable) globalCache = { key, snapshot: result };
+    return structuredClone(result);
   }
 
   function searchLocal(value) {

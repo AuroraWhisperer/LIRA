@@ -116,7 +116,6 @@ function fixture({ failure = '', cleanupFails = false, shared = true } = {}) {
   };
   const remoteCatalog = {
     getSnapshot() {
-      if (phase === 'hybrid') throw originalError;
       return null;
     },
     refresh: async () => null,
@@ -125,6 +124,8 @@ function fixture({ failure = '', cleanupFails = false, shared = true } = {}) {
   };
   const initializer = {
     onStateChanged(listener) {
+      // Hybrid construction subscribes immediately; catalog snapshots are read lazily.
+      if (phase === 'hybrid') throw originalError;
       listeners.add(listener);
       return () => {
         events.push('unsubscribe');

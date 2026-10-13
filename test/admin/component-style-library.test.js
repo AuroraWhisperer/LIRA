@@ -226,11 +226,12 @@ test('suite management groups versions, confirms whole deletion and replaces thr
   const { fixture, context, page, errors, request, dataDir } = await setup(t);
   const { randomUUID } = require('node:crypto');
   const { createComponentStyleStore } = require('../../src/storage/component-style-store');
+  const { createComponentStyleLibrary } = require('../../src/server/component-style-library');
   const store = createComponentStyleStore(dataDir);
   const pack = { id: randomUUID(), packageId: 'test.ui-suite', name: '测试套装', version: '1.0.0', bytes: 100, digest: 'v1',
     styles: ['clock', 'background'].map(type => ({ id: randomUUID(), type, name: `测试套装 · ${type === 'clock' ? '时钟' : '背景'}`,
       config: { mediaStyle: { kind: 'image', src: '/img/component-previews/clock-moonlit-fan.webp', width: 640, height: 400 } } })) };
-  store.stage(pack); store.install(pack.id);
+  store.stage(pack); await createComponentStyleLibrary(dataDir).install(pack.id);
   const desktop = await context.newPage();
   const url = await openCanvasDesktop(desktop, fixture);
   assert.equal((await fetch(url)).status, 200);

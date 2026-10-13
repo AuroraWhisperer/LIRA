@@ -39,7 +39,7 @@ function addSuperChatItem(context, input) {
 
 function handleSuperChatAction(context, action, rawId) {
   const id = Number(rawId);
-  if (!Number.isFinite(id)) throw new Error('缺少 SC ID。');
+  if (!Number.isFinite(id)) throw Object.assign(new Error('缺少 SC ID。'), { code: 'INVALID_SUPERCHAT_ID', statusCode: 400 });
 
   if (action === 'delete') {
     context.store.setStatus(id, 'deleted', now());
@@ -50,7 +50,7 @@ function handleSuperChatAction(context, action, rawId) {
     return getSuperChatSnapshot(context);
   }
 
-  throw new Error('未知 SC 操作。');
+  throw Object.assign(new Error('未知 SC 操作。'), { code: 'INVALID_SUPERCHAT_ACTION', statusCode: 400 });
 }
 
 function getSuperChatSnapshot(context) {

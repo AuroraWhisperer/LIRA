@@ -17,13 +17,75 @@ async function open(t) {
       { id: 2, name: '歌曲乙', artist: '歌手乙', language: '英语', is_enabled: true },
     ];
     const filters = [new Set(), new Set(), new Set()];
-    window.songs = createSongs({ state: { reloadSongs() {}, reloadAll() {} } });
+    window.songState = { reloadSongs() {}, reloadAll() {}, reloadState() {} };
+    window.songs = createSongs({ state: window.songState });
     window.songs.initSongForm();
     window.renderSongs = (songs) => window.songs.renderSongs(songs, ...filters);
     window.renderSongs(window.library);
   });
   return page;
 }
+
+test('a large song library renders bounded pages and keeps page actions and filters consistent', async (t) => {
+  const page = await open(t);
+  await page.evaluate(() => {
+    window.library = Array.from({ length: 5000 }, (_, index) => ({
+      id: index + 1, name: `歌曲 ${index + 1}`, artist: '测试歌手', is_enabled: true,
+    }));
+    for (let count = 0; count < 3; count++) window.renderSongs(window.library);
+  });
+  assert.equal(await page.locator('#songsTable tr').count(), 100);
+  assert.equal(await page.locator('#songLibraryPage').textContent(), '第 1 / 50 页');
+  await page.locator('#songLibraryNextPage').click();
+  assert.equal(await page.locator('#songLibraryPage').textContent(), '第 2 / 50 页');
+  assert.equal(await page.locator('[data-edit-song="101"]').count(), 1);
+  await page.locator('[data-edit-song="101"]').dispatchEvent('click');
+  await page.waitForFunction(() => document.getElementById('songId').value === '101');
+  assert.equal(await page.locator('#songName').inputValue(), '歌曲 101');
+  await page.locator('[data-add-song="101"]').dispatchEvent('click');
+  await page.waitForFunction(() => window.pendingSaves.length === 1);
+  assert.deepEqual(await page.evaluate(() => window.pendingSaves.map(({ url, body }) => [url, body.songName])), [
+    ['/api/queue/add', '歌曲 101'],
+  ]);
+  await page.evaluate(() => {
+    window.pendingSaves[0].resolve({ ok: true });
+    window.renderSongs(window.library);
+  });
+  assert.equal(await page.locator('#songLibraryPage').textContent(), '第 2 / 50 页', 'refresh preserves the current page');
+  await page.locator('#songSearch').fill('歌曲 4001');
+  await page.evaluate(() => window.renderSongs(window.library.slice(4000, 4001)));
+  assert.equal(await page.locator('#songsTable tr').count(), 1);
+  assert.equal(await page.locator('[data-edit-song="4001"]').count(), 1);
+  assert.equal(await page.locator('#songLibraryPagination').isVisible(), false);
+  await page.locator('#songSearch').fill('');
+  await page.evaluate(() => window.renderSongs(window.library));
+  assert.equal(await page.locator('#songLibraryPage').textContent(), '第 1 / 50 页');
+});
+
+test('deleting the only song on the last page returns to the preceding page', async (t) => {
+  const page = await open(t);
+  await page.evaluate(() => {
+    window.library = Array.from({ length: 201 }, (_, index) => ({ id: index + 1, name: `歌曲 ${index + 1}`, is_enabled: true }));
+    window.songState.reloadAll = () => {
+      window.library.pop();
+      window.renderSongs(window.library);
+    };
+    window.renderSongs(window.library);
+  });
+  await page.locator('#songLibraryNextPage').click();
+  await page.locator('#songLibraryNextPage').click();
+  assert.equal(await page.locator('#songsTable tr').count(), 1);
+  await page.locator('[data-delete-song="201"]').dispatchEvent('click');
+  await page.getByRole('button', { name: '确认删除', exact: true }).click();
+  await page.waitForFunction(() => window.pendingSaves.length === 1);
+  assert.deepEqual(await page.evaluate(() => window.pendingSaves.map(({ url, body }) => [url, body.id])), [
+    ['/api/songs/delete', '201'],
+  ]);
+  await page.evaluate(() => window.pendingSaves[0].resolve({ ok: true }));
+  await page.waitForFunction(() => document.getElementById('songLibraryPage').textContent === '第 2 / 2 页');
+  assert.equal(await page.locator('#songsTable tr').count(), 100);
+  assert.equal(await page.locator('#songLibraryNextPage').isDisabled(), true);
+});
 
 test('song editing protects drafts when changing songs or clearing the form', async (t) => {
   const page = await open(t);

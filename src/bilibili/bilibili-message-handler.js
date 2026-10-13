@@ -7,6 +7,7 @@ const { cleanText, formatLogTimestamp } = require('../shared/utils');
 const { parseRandomSongTerms } = require('../music/random-song-filter');
 const { normalizeRandomScopeText, randomSourceValue } = require('../music/song-field-utils');
 const { logSongRequest, songRequestReason } = require('./diagnostics');
+const { isQueueRequestRejection } = require('../music/queue-service');
 
 // ── 弹幕指令入口 ──
 
@@ -116,10 +117,11 @@ function handleDanmakuMessage(
       });
     }
   } catch (error) {
-    if (error.code !== 'SONG_COOLDOWN') throw error;
+    if (!isQueueRequestRejection(error)) throw error;
     return {
       accepted: false,
       reason: error.message,
+      code: error.code,
       command,
       autoReply: settings.enableRandomTagReply === 'true'
         ? buildSongRequestAutoReply(error.message, { uid, name: userName }) : null,

@@ -63,6 +63,22 @@ test('update failures notify once for manual checks and active downloads, keepin
   assert.equal(notices[1].title, '更新没下载成功');
 });
 
+test('directory opening failures use the existing desktop error notice', async () => {
+  const notices = [];
+  const { desktop, nodes, windowRef } = createFixture({ toast: (message) => notices.push(message) });
+  windowRef.songAssistantDesktop = {
+    onShowUpdatePage() {}, onUpdateState() {}, getInfo: async () => ({}),
+    openDataDir: async () => { throw new Error('无法打开数据目录'); },
+    openLogDir: async () => { throw new Error('无法打开日志目录'); },
+  };
+  desktop.initDesktopShell();
+  await new Promise(setImmediate);
+  nodes.desktopOpenDataBtn.listeners.get('click')();
+  nodes.desktopOpenLogBtn.listeners.get('click')();
+  await new Promise(setImmediate);
+  assert.deepEqual(notices, ['操作失败，详细原因已写入日志。', '操作失败，详细原因已写入日志。']);
+});
+
 test('desktop update shows only the action for the current update phase', () => {
   const { nodes, render } = createFixture();
   const buttons = ['desktopCheckUpdateBtn', 'desktopDownloadUpdateBtn', 'desktopInstallUpdateBtn'];

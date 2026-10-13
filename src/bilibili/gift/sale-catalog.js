@@ -21,6 +21,7 @@ const SNAPSHOT_SCHEMA_VERSION = 1;
 
 function createUnavailableGiftSaleCatalogService() {
   return {
+    getRevision: () => 0,
     getSnapshot() {
       return {
         roomId: '',
@@ -53,6 +54,7 @@ function createGiftSaleCatalogService(options = {}) {
   let snapshot = readSnapshot(snapshotPath);
   let lastRefreshMs = snapshot.refreshedAt ? Date.parse(snapshot.refreshedAt) || 0 : 0;
   let pending = null;
+  let revision = 0;
 
   function getSnapshot() {
     return {
@@ -90,6 +92,7 @@ function createGiftSaleCatalogService(options = {}) {
         gifts,
         cached: false,
       };
+      revision += 1;
       writeJsonAtomic(snapshotPath, {
         schemaVersion: SNAPSHOT_SCHEMA_VERSION,
         ...snapshot,
@@ -104,6 +107,7 @@ function createGiftSaleCatalogService(options = {}) {
   }
 
   return {
+    getRevision: () => revision,
     getSnapshot,
     refresh,
     searchLocal() {

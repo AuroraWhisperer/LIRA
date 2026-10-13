@@ -98,3 +98,21 @@ test('retention logging includes compacted tables while accepting older result s
   assert.equal(f.warn.mock.callCount(), 0);
   stop();
 });
+
+test('automatic retention yields between gift batches and cancels queued continuation on shutdown', (t) => {
+  const f = fixture(t);
+  f.result.hasMoreGiftEvents = true;
+  const timeout = { unref() {} };
+  const schedule = t.mock.method(global, 'setTimeout', () => timeout);
+  const clear = t.mock.method(global, 'clearTimeout', () => {});
+  const stop = startRetentionMaintenance(f.settingsStore, f.dataService);
+  assert.equal(schedule.mock.calls[0].arguments[1], 25);
+  const next = schedule.mock.calls[0].arguments[0];
+  assert.equal(f.dataService.runRetention.mock.callCount(), 1);
+  next();
+  assert.equal(f.dataService.runRetention.mock.callCount(), 2);
+  stop();
+  next();
+  assert.equal(f.dataService.runRetention.mock.callCount(), 2);
+  assert.ok(clear.mock.calls.some((call) => call.arguments[0] === timeout));
+});

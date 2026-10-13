@@ -4,6 +4,7 @@ const { cleanText, splitTextIntoCharacters } = require('../../shared/utils');
 const { DANMAKU_MESSAGE_LIMIT } = require('./contract');
 
 const DISPLAY_CACHE_TTL_MS = 10 * 60 * 1000;
+const ROOM_MAPPING_TTL_MS = 5 * 60 * 1000;
 
 function createDanmakuSenderService(dependencies) {
   const {
@@ -23,6 +24,7 @@ function createDanmakuSenderService(dependencies) {
   } = dependencies;
   let lastSentAt = 0;
   let sendChain = Promise.resolve();
+  let roomMapping = null;
   const displayCache = {
     account: { key: '', name: '', expiresAt: 0 },
     room: { key: '', name: '', expiresAt: 0 },
@@ -137,7 +139,14 @@ function createDanmakuSenderService(dependencies) {
       ? splitDanmakuEveryMentionMessage(message, target)
       : splitDanmakuReplyMessage(message, target);
     const client = createClient(room.roomId, auth);
-    const roomInfo = await client.resolveRoomInfo();
+    const mappingKey = JSON.stringify([String(room.roomId), String(auth.uid), auth.cookieHeader]);
+    if (!roomMapping || roomMapping.key !== mappingKey || roomMapping.expiresAt <= now()) {
+      roomMapping = null;
+      const resolved = await client.resolveRoomInfo({ includeOwner: false });
+      // Only the stable room mapping is reusable; live status and owner data stay fresh.
+      roomMapping = { key: mappingKey, roomId: resolved.roomId, expiresAt: now() + ROOM_MAPPING_TTL_MS };
+    }
+    const roomInfo = roomMapping;
     const results = [];
     const sentAfter = now();
     for (let index = 0; index < messages.length; index += 1) {

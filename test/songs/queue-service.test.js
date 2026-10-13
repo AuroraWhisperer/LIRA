@@ -13,6 +13,44 @@ const { createRequesterTargetStore } = require('../../src/storage/requester-targ
 const { migrateQueueHistory } = require('../../src/storage/queue-history-store');
 const { runMigrations } = require('../../src/storage/schema');
 
+test('queue owner classifies expected request rejections without writing a request', () => {
+  for (const [settings, count, duplicate, input, code] of [
+    [{}, 0, false, {}, 'SONG_NAME_REQUIRED'],
+    [{ queueLimit: '1' }, 1, false, { songName: '歌曲' }, 'QUEUE_FULL'],
+    [{ onlyFromLibrary: 'true' }, 0, false, { songName: '歌曲' }, 'SONG_NOT_IN_LIBRARY'],
+    [{ allowDuplicate: 'false' }, 0, true, { songName: '歌曲' }, 'SONG_ALREADY_QUEUED'],
+  ]) {
+    const context = { settings: () => settings, defaults: () => ({}),
+      store: { countActive: () => count, findActiveBySongName: () => duplicate,
+        insertRequest() { assert.fail('rejected requests must not be persisted'); } } };
+    assert.throws(() => addQueueItem(context, input), { code });
+  }
+});
+
+test('queue rejection codes reach HTTP and the existing optional danmaku reply', async () => {
+  const { routes } = require('../../src/server/routes/queue-routes');
+  const { handleDanmakuMessage } = require('../../src/bilibili/bilibili-message-handler');
+  for (const code of ['QUEUE_FULL', 'SONG_NOT_IN_LIBRARY', 'SONG_ALREADY_QUEUED']) {
+    const reject = () => { throw Object.assign(new Error('预期拒绝'), { code }); };
+    const context = { queue: { add: reject, requestRandom: reject }, broadcastSnapshot() { assert.fail(); } };
+    for (const route of ['POST /api/queue/add', 'POST /api/queue/random']) {
+      const response = { writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
+      await routes[route](context, { body: async () => ({ songName: '歌曲' }) }, response);
+      assert.equal(response.status, 400);
+      assert.equal(response.body.code, code);
+    }
+    for (const enabled of ['true', 'false']) {
+      const result = handleDanmakuMessage({
+        settings: () => ({ enableRandomTagReply: enabled }), settingsStore: { getDefaultSettings: () => ({}) },
+        state: { cooldownByUser: new Map() }, addQueueItem: reject,
+      }, { message: '点歌歌曲', uid: '1', userName: '观众' });
+      assert.equal(result.accepted, false);
+      assert.equal(result.code, code);
+      assert.equal(Boolean(result.autoReply), enabled === 'true');
+    }
+  }
+});
+
 test('queue and request inserts roll back together when request persistence fails', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-queue-atomic-'));
   const db = createDatabases({ dataDir });

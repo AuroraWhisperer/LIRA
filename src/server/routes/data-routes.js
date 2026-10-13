@@ -187,6 +187,16 @@ const routes = {
       return;
     }
     const result = context.data.runRetention({ dryRun, policy: body.policy });
+    while (result.hasMoreGiftEvents) {
+      await new Promise((resolve) => setImmediate(resolve));
+      if (res.destroyed) return;
+      const batch = context.data.runRetention({ policy: result.policy, ranAt: result.ranAt });
+      for (const key of ['giftRawJsonCleared', 'giftEventsDeleted', 'requestsDeleted', 'superChatsDeleted',
+        'aiRequestLogsDeleted', 'cooldownsDeleted', 'songCooldownsDeleted', 'importBatchesDeleted']) {
+        result[key] += batch[key];
+      }
+      result.hasMoreGiftEvents = batch.hasMoreGiftEvents;
+    }
     if (!dryRun) context.broadcastSnapshot('database:retention');
     sendJson(res, 200, { ok: true, data: result });
   },

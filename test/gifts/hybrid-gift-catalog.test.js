@@ -4,6 +4,49 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createHybridGiftSaleCatalogService, mergeRoomCatalog } = require('../../src/bilibili/gift/hybrid-catalog');
 
+test('hybrid memoization invalidates for local, remote, custom and image changes and protects returned snapshots', () => {
+  let localRevision = 0;
+  let remoteRevision = 0;
+  let imageRevision = 0;
+  let custom = [];
+  let reads = 0;
+  let imageChecks = 0;
+  const remote = {
+    getRevision: () => remoteRevision,
+    getSnapshot() { reads++; return { version: String(remoteRevision), gifts: [
+      { id: '1', name: 'box', imagePath: 'source' }, { id: '2', name: 'output' },
+    ], blindBoxes: [] }; }, refresh: async () => null,
+  };
+  const hybrid = createHybridGiftSaleCatalogService({
+    local: { getRevision: () => localRevision, getSnapshot: () => ({ roomId: String(localRevision), gifts: [{ id: '1' }] }), refresh: async () => null },
+    remoteCatalog: remote, getBlindBoxCustomConfigV2: () => custom,
+    remoteImageCache: { getRevision: () => imageRevision,
+      getCachedGiftImagePath() { imageChecks++; return `image-${imageRevision}`; } },
+  });
+  const first = hybrid.getSnapshot();
+  first.gifts[0].name = 'caller mutation';
+  const checks = imageChecks;
+  const count = reads;
+  assert.notEqual(hybrid.getSnapshot().gifts[0].name, 'caller mutation');
+  assert.equal(imageChecks, checks);
+  assert.equal(reads, count);
+  imageRevision++;
+  assert.equal(hybrid.getSnapshot().gifts[0].imagePath, 'image-1');
+  localRevision++;
+  assert.equal(hybrid.getSnapshot().roomId, '1');
+  custom = [{ giftId: '1', outputs: [{ giftId: '2' }] }];
+  assert.equal(hybrid.getSnapshot().gifts.length, 2);
+  custom = [];
+  assert.equal(hybrid.getSnapshot().gifts.length, 1);
+  const global = hybrid.getGlobalSnapshot();
+  global.gifts[0].name = 'caller mutation';
+  const globalChecks = imageChecks;
+  assert.equal(hybrid.getGlobalSnapshot().gifts[0].name, 'box');
+  assert.equal(imageChecks, globalChecks);
+  remoteRevision++;
+  assert.equal(hybrid.getGlobalSnapshot().version, '1');
+});
+
 test('hybrid catalog keeps local room catalog primary and exposes remote search separately', async () => {
   const calls = { local: 0, remote: 0, search: 0 };
   const local = {

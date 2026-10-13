@@ -99,6 +99,8 @@ Admin 首次成功连接不重复初始歌库加载；后续每次成功重连�
 
 `snapshot`(订阅快照的页面；clock/opening 仅 HTTP 获取)、`overtime:update`(管理页 + 加班机层,revision 去重)、`gift-catalog:update`(管理页加班机选择器,version 去重)、`wesing-state`(管理页 WeSing 面板)、`lyric-state`/`lyric-timeline`(管理页歌词预览、歌词窗口)、`shutdown`(管理页)，以及 `gift:frame`、`game:update`/`game:draw`、`wheel:update`、`danmaku:message` 各自的专用消费者。所有页面都不发送 WS 业务消息；overlay 业务入站帧被服务端以 1008 关闭，管理身份沿用校验后丢弃的行为，协议控制帧保持正常（见 [ws.md](../backend/ws.md) §1）。
 
+管理页收到 `shutdown` 即进入关闭终态，清理待执行的歌库刷新和重连定时器，并只发布一次 `app:shutdown`；后续 socket 关闭不安排重连。
+
 ## 4. 桌面桥(preload 命名空间)
 
 桌面渲染进程通过 preload 的 `contextBridge` 获得受限命名空间，完整名称与通道注册表见 [desktop/preload.md](../desktop/preload.md)。下表为典型通信入口示例，不是完整桥清单；浏览器环境**不注入**，前端一律先做特性检测：

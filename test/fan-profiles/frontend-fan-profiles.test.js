@@ -143,6 +143,9 @@ async function archiveUi(t, storage = new Map()) {
     nodes.set(id, item);
     documentRef.body.append(item);
   }
+  const mainPage = node();
+  mainPage.classList.add('active');
+  nodes.set('otherAssistantPage', mainPage);
   documentRef.getElementById = (id) => nodes.get(id);
   const filters = ['', 'active', 'past', 'favorite', 'incomplete', 'unknown'].map((fanFilter) => node({ fanFilter }));
   const scopes = ['back-profiles', 'archived'].map((fanAction) => node({ fanAction }));
@@ -236,6 +239,7 @@ async function archiveUi(t, storage = new Map()) {
   ui.listCalls = () => ui.calls.filter((call) => ['open', 'list'].includes(call.action));
   ui.people = () => nodes.get('fanPeople').innerHTML;
   ui.detail = () => nodes.get('fanDetail').innerHTML;
+  ui.visibilityChanged = () => observers[0]();
   ui.notices = () => container.textContent;
   t.after(() => {
     for (const listener of windowListeners.get('pagehide') || []) listener();
@@ -245,6 +249,26 @@ async function archiveUi(t, storage = new Map()) {
   ui.calls.length = 0;
   return ui;
 }
+
+test('fan polling pauses outside its main page and refreshes immediately on return', async (t) => {
+  const ui = await archiveUi(t);
+  const mainPage = ui.nodes.get('otherAssistantPage');
+  mainPage.classList.remove('active');
+  ui.visibilityChanged();
+  ui.poll();
+  await ui.flush();
+  assert.equal(ui.calls.length, 0);
+  mainPage.classList.add('active');
+  ui.visibilityChanged();
+  await ui.flush();
+  assert.equal(ui.listCalls().length, 1);
+  ui.calls.length = 0;
+  ui.nodes.get('otherFanProfilesFeature').hidden = true;
+  ui.visibilityChanged();
+  ui.poll();
+  await ui.flush();
+  assert.equal(ui.calls.length, 0);
+});
 
 test('hiding the local reminder banner persists without changing reminders or notifying the calendar', async (t) => {
   const storage = new Map();

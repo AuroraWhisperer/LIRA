@@ -283,6 +283,7 @@ function createDomainServices(options) {
         return retention.applyRetentionPolicies(db, {
           policy,
           dryRun: options.dryRun === true,
+          ranAt: options.ranAt,
         });
       },
     };
