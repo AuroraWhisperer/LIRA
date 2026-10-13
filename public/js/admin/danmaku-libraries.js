@@ -55,7 +55,10 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
   const render = () => {
     elements.list.replaceChildren();
     elements.count.textContent = `${items.length} 条`;
-    if (items.length === 0) {
+    if (exact) {
+      elements.list.appendChild(document.getElementById('danmakuExactBuiltInReply').content.cloneNode(true));
+    }
+    if (!exact && items.length === 0) {
       appendEmptyState(document, elements.list, '还没有自定义回复规则');
       return;
     }

@@ -129,6 +129,9 @@ function createDanmakuSenderService(dependencies) {
     if (!room || !room.roomId) throw new Error('请先设置直播间号。');
 
     const target = normalizeReplyTarget(mentionTarget || (mentionRequester ? await getMentionTarget() : null));
+    if (mentionEveryChunk && (!target.uid || !target.name)) {
+      throw new Error('缺少弹幕发送者信息，无法 @ 回复。');
+    }
     assertSessionCurrent?.(auth);
     const messages = mentionEveryChunk
       ? splitDanmakuEveryMentionMessage(message, target)

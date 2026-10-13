@@ -628,9 +628,23 @@
   outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }
+#danmakuSendForm {
+  --danmaku-compose-line-height: calc(1.6 * var(--type-size-control) + 18px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: 4px 12px;
+}
+#danmakuSendForm > label {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+}
 #danmakuMessage {
-  min-height: calc(1.6em + 18px);
-  max-height: 160px;
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  min-height: var(--danmaku-compose-line-height);
+  padding: 8px 10px;
   field-sizing: content;
   resize: none;
   line-height: 1.6;
@@ -638,14 +652,21 @@
     border-color 160ms ease,
     box-shadow 160ms ease;
 }
-#danmakuSendForm .form-actions-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+#danmakuSendForm > button {
+  grid-row: 2;
+  height: var(--danmaku-compose-line-height);
+  white-space: nowrap;
 }
-#danmakuSendForm .form-actions-row > .hint {
-  margin-right: auto;
+#danmakuAutoBtn {
+  grid-column: 2;
+}
+#danmakuSendBtn {
+  grid-column: 3;
+}
+#danmakuCounter {
+  grid-column: 1;
+  grid-row: 3;
+  margin: 0;
 }
 .danmaku-send-result {
   min-height: 38px;

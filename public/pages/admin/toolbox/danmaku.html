@@ -63,16 +63,13 @@
           </h3>
         </div>
       </div>
-      <form id="danmakuSendForm" class="stack">
-        <label
-          >弹幕内容<textarea id="danmakuMessage" rows="1" required placeholder="输入内容，Ctrl + Enter 发送"></textarea>
-        </label>
-        <div class="form-actions-row">
-          <span id="danmakuCounter" class="hint">0 字</span
-          ><button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">
-            自动钓鱼/打劫</button
-          ><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button>
-        </div>
+      <form id="danmakuSendForm">
+        <label for="danmakuMessage">弹幕内容</label>
+        <textarea id="danmakuMessage" rows="1" required aria-describedby="danmakuCounter" placeholder="输入内容，Ctrl + Enter 发送"></textarea>
+        <span id="danmakuCounter" class="hint">0 字</span>
+        <button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">
+          自动钓鱼/打劫</button>
+        <button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button>
       </form>
       <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">
         发送结果会显示在这里
@@ -147,9 +144,9 @@
         <div class="danmaku-fixed-item" data-fixed-item="exact">
           <div class="danmaku-fixed-copy">
             <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuExactReplyTitle">自定义回复</strong><lira-help label="自定义回复说明">单独发送完整触发词后回复固定文案，例如“歌单”；忽略首尾空格，英文字母区分大小写。内置“菜单”列出互动指令，已有系统指令优先。开启后在云端运行，菜单中的桌面指令会标注需客户端在线。</lira-help>
+              <strong id="danmakuExactReplyTitle">自定义回复</strong><lira-help label="自定义回复说明">单独发送完整触发词后回复固定文案，例如“歌单”；忽略首尾空格，英文字母区分大小写。内置“菜单”的回复见下方列表，已有系统指令优先。开启后在云端运行，每条回复都会 @ 发送弹幕的观众。</lira-help>
             </div>
-            <span class="danmaku-fixed-summary">完整匹配 · 内置“菜单”</span>
+            <span class="danmaku-fixed-summary">完整匹配触发词后回复</span>
             <span id="danmakuExactState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
           </div>
           <button class="danmaku-fixed-open" type="button" data-fixed-open="exact" aria-label="编辑自定义回复" aria-controls="danmakuExactRepliesPanel" aria-expanded="false" disabled>
@@ -229,7 +226,16 @@
         <p class="hint">成功点歌不发送此类回复。关闭开关只停止回复，冷却期间仍不上点歌板。点歌回复需保持客户端运行并登录直播账号。</p>
       </div>
       <div id="danmakuExactRepliesPanel" data-fixed-editor="exact" hidden>
-        <p class="hint">单独发送“菜单”可查看互动指令，无需添加规则。“菜单”为内置触发词。<span id="danmakuExactReplyCount">0 条</span>自定义规则，最多 30 条。</p>
+        <p class="hint"><span id="danmakuExactReplyCount">0 条</span>自定义规则，最多 30 条。</p>
+        <template id="danmakuExactBuiltInReply">
+          <div class="danmaku-custom-reply-row">
+            <span class="danmaku-blessing-index">内置</span>
+            <div class="danmaku-custom-reply-fields">
+              <label>触发词<input type="text" value="菜单" aria-label="内置回复的触发词" readonly /></label>
+              <label>回复内容<input type="text" value="签到、抽签、礼物特效、礼物查询、盲盒查询" aria-label="内置菜单的回复内容" readonly /></label>
+            </div>
+          </div>
+        </template>
         <fieldset id="danmakuExactFields" class="danmaku-reply-fields" disabled>
           <legend class="sr-only">自定义回复规则</legend>
           <div id="danmakuExactReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>

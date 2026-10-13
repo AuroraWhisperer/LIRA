@@ -35,7 +35,7 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 不会持久化这份投影，也不会加入默认云同步上传键。云同步读取/写入回包和固定回复 IPC
 成功后立即更新投影，旧 revision 不能覆盖新结果；授权停止、切换账号会清空。
 已有签到、抽签和点歌命令优先；其余消息完整 trim 后命中“菜单”或精确触发词时返回
-`cloud-owned`，阻止本地关键词回复和 AI 再次回复。网络不可用时不会排队重放设置写入。
+`cloud-owned`，阻止本地关键词回复和 AI 再次回复。菜单固定回复“签到、抽签、礼物特效、礼物查询、盲盒查询”；菜单与精确自定义回复的每一段都通过 B 站原生回复关联原弹幕发送者，并为完整昵称预留长度。网络不可用时不会排队重放设置写入。
 回归见 [fixed-reply-settings-ipc.test.js](../../../test/bots/fixed-reply-settings-ipc.test.js)、
 [custom-reply-service.test.js](../../../test/bots/custom-reply-service.test.js) 与
 [cloud-fixed-reply-projection.test.js](../../../test/cloud-sync/cloud-fixed-reply-projection.test.js)。

@@ -60,6 +60,12 @@ test('query replies have a separate entry after the existing eight and exact edi
   assert.deepEqual(await page.locator('[data-fixed-item]').evaluateAll((items) => items.map((item) => item.dataset.fixedItem)),
     ['checkin', 'fortune', 'welcome', 'random', 'exact', 'diy', 'pk', 'scheduled', 'query']);
   await page.getByRole('button', { name: '编辑自定义回复', exact: true }).click();
+  const builtIn = page.locator('#danmakuExactReplyList .danmaku-custom-reply-row').first();
+  assert.equal(await builtIn.locator('input').first().inputValue(), '菜单');
+  assert.equal(await builtIn.locator('input').nth(1).inputValue(), '签到、抽签、礼物特效、礼物查询、盲盒查询');
+  assert.equal(await builtIn.locator('input[readonly]').count(), 2);
+  assert.equal(await builtIn.locator('button').count(), 0);
+  assert.equal(await page.locator('#danmakuExactReplyCount').innerText(), '1 条');
   await page.locator('#danmakuExactKeywordInput').fill('月卡');
   await page.locator('#danmakuExactReplyInput').fill('上舰解锁点歌月卡');
   await page.locator('#danmakuExactReplyAddBtn').click();
@@ -75,7 +81,7 @@ test('query replies have a separate entry after the existing eight and exact edi
   assert.equal(await page.locator('#danmakuPkReportRefreshBtn').count(), 0);
 });
 
-test('query library lists all months and year syntax, filters locally and uses the existing gift-query switch', async (t) => {
+test('query library uses month placeholders and year syntax, filters locally and uses the existing gift-query switch', async (t) => {
   const page = await editorFixture(t);
   await page.evaluate(async (html) => {
     const parsed = new DOMParser().parseFromString(html, 'text/html');
@@ -87,9 +93,11 @@ test('query library lists all months and year syntax, filters locally and uses t
   const list = page.locator('#danmakuQueryReplyList');
   const triggers = await list.locator('input').evaluateAll((inputs) => inputs.filter((_input, index) => index % 2 === 0).map((input) => input.value));
   for (const period of ['今天', '昨天', '本周', '本月', '上月', '今年', '去年', '累计',
-    ...Array.from({ length: 12 }, (_, index) => `${index + 1}月`), '2026年', '2026年3月']) {
+    'x月', '2026年', '2026年x月']) {
     for (const object of ['礼物', '盲盒']) assert.ok(triggers.includes(`${period}${object}`));
   }
+  assert.equal(triggers.length, 23);
+  assert.equal(triggers.some((trigger) => /\d月/.test(trigger)), false);
   assert.equal(await list.locator('input:not([readonly])').count(), 0);
   assert.equal(await page.locator('#danmakuQueryRepliesPanel button.primary').count(), 0);
   await page.getByLabel('查找指令').fill('本月盲盒');
@@ -98,7 +106,7 @@ test('query library lists all months and year syntax, filters locally and uses t
   for (const [alias, trigger] of [
     ['今日礼物', '今天礼物'], ['昨日盲盒', '昨天盲盒'], ['这周礼物', '本周礼物'],
     ['这个月盲盒', '本月盲盒'], ['上个月礼物', '上月礼物'], ['历史礼物', '累计礼物'],
-    ['全部盲盒', '累计盲盒'], ['03月礼物', '3月礼物'], ['2026年03月盲盒', '2026年3月盲盒'],
+    ['全部盲盒', '累计盲盒'], ['x月礼物', 'x月礼物'], ['2026年x月盲盒', '2026年x月盲盒'],
   ]) {
     await page.getByLabel('查找指令').fill(alias);
     assert.ok((await list.locator('.danmaku-query-reply-row:visible input').evaluateAll(
@@ -106,6 +114,8 @@ test('query library lists all months and year syntax, filters locally and uses t
     )).includes(trigger), `${alias} should find ${trigger}`);
   }
   await page.getByLabel('查找指令').fill('2026年');
+  assert.equal(await list.locator('.danmaku-query-reply-row:visible').count(), 4);
+  await page.getByLabel('查找指令').fill('两位月份');
   assert.equal(await list.locator('.danmaku-query-reply-row:visible').count(), 4);
   await page.getByLabel('查找指令').fill('不存在的词条');
   assert.equal(await page.locator('#danmakuQuerySearchEmpty').isVisible(), true);
@@ -220,7 +230,7 @@ test('scheduled library validates off-page drafts and clears them when the accou
 test('exact rule drafts survive failed saves and are cleared when the account changes during a save', async (t) => {
   const page = await editorFixture(t);
   await page.getByRole('button', { name: '编辑自定义回复', exact: true }).click();
-  const field = page.locator('#danmakuExactReplyList input').nth(1);
+  const field = page.getByLabel('第 1 条自定义回复的回复内容', { exact: true });
   await field.fill('保留我的草稿');
   await page.evaluate(() => { window.failSave = true; });
   await page.locator('#danmakuExactReplySaveBtn').click();
@@ -231,7 +241,10 @@ test('exact rule drafts survive failed saves and are cleared when the account ch
   await page.locator('#danmakuExactReplySaveBtn').click();
   await page.waitForFunction(() => typeof window.finishSave === 'function');
   await page.evaluate(() => { window.changeAccount({ state: 'unauthorized' }); window.finishSave(); });
-  assert.equal(await page.locator('#danmakuExactReplyList input').count(), 0);
+  assert.equal(await page.locator('#danmakuExactReplyList input:not([readonly])').count(), 0);
+  assert.equal(await page.locator('#danmakuExactReplyList input[readonly]').count(), 2);
+  assert.equal(await page.locator('#danmakuExactReplyCount').innerText(), '0 条');
+  assert.equal(await page.locator('#danmakuExactReplyList .danmaku-blessing-empty').count(), 0);
   assert.equal(await page.locator('#danmakuExactKeywordInput').isDisabled(), true);
   assert.equal(await page.locator('#danmakuExactReplyToggle').isChecked(), false);
 });

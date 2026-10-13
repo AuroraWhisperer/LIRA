@@ -98,6 +98,7 @@ export function initBilibiliAuth() {
     documentRef,
     fetchRef,
     apiToken: windowRef.__API_TOKEN__,
+    onProfileChange: (profile) => guardExpirySettings.updateRoomProfile(profile),
   });
   void roomProfile.refresh(getState()?.getAppState?.()?.settings?.roomId);
   eventBus.on(Events.STATE_LOADED, ({ state }) => {

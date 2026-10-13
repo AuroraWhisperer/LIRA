@@ -497,7 +497,7 @@
 .xiaomi-ai-persona-dialog {
   width: min(860px, calc(100vw - 48px));
   max-height: calc(100dvh - 48px);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -508,10 +508,18 @@
 }
 .xiaomi-ai-persona-editor {
   display: grid;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
 }
 .xiaomi-ai-persona-editor .xiaomi-ai-field-grid {
   align-items: start;
+  row-gap: var(--spacing-sm);
+}
+.xiaomi-ai-persona-editor label {
+  gap: var(--spacing-xs);
+}
+.xiaomi-ai-persona-editor input,
+.xiaomi-ai-persona-editor textarea {
+  margin-top: 0;
 }
 .xiaomi-ai-persona-header,
 .xiaomi-ai-persona-footer,
@@ -530,15 +538,16 @@
 }
 .xiaomi-ai-persona-editor textarea {
   width: 100%;
-  min-height: 260px;
+  height: clamp(160px, 36dvh, 280px);
+  min-height: 160px;
   resize: vertical;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 .xiaomi-ai-persona-editor .hint {
   margin: 0;
 }
 .xiaomi-ai-persona-footer {
   justify-content: flex-end;
-  padding-top: var(--spacing-md);
+  padding-top: var(--spacing-sm);
   border-top: 1px solid var(--border);
 }

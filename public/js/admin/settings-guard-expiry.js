@@ -10,9 +10,10 @@ const ERROR_MESSAGES = {
 
 export function initGuardExpirySettings({ documentRef, windowRef }) {
   const source = documentRef.getElementById('guardExpirySource');
-  if (!source) return { refresh: async () => {} };
+  if (!source) return { refresh: async () => {}, updateRoomProfile() {} };
   const status = documentRef.getElementById('guardExpiryAccountStatus');
   const profile = documentRef.getElementById('guardExpiryAccountProfile');
+  const avatar = documentRef.getElementById('guardExpiryAccountAvatar');
   const name = documentRef.getElementById('guardExpiryAccountName');
   const uid = documentRef.getElementById('guardExpiryAccountUid');
   const message = documentRef.getElementById('guardExpiryAccountMessage');
@@ -21,19 +22,26 @@ export function initGuardExpirySettings({ documentRef, windowRef }) {
   const retry = documentRef.getElementById('guardExpiryRetryBtn');
   const bridge = windowRef.guardExpiryAuth;
   let account = null;
+  let roomProfile = null;
   let busy = false;
 
   function render() {
     const separate = account?.source === 'separate';
+    const showProfile = separate && account.loggedIn;
+    const avatarSource = showProfile && roomProfile?.uid === account.uid ? roomProfile.avatarSource : '';
     source.value = account?.source || 'shared';
     source.disabled = busy || !account;
     login.hidden = !separate || account.loggedIn;
     logout.hidden = !separate || !account.loggedIn;
     login.disabled = logout.disabled = retry.disabled = busy;
-    profile.hidden = !account?.loggedIn;
-    name.textContent = account?.loggedIn ? account.displayName || 'B 站账号' : '';
+    profile.hidden = !showProfile;
+    name.textContent = showProfile ? account.displayName || 'B 站账号' : '';
     name.title = name.textContent;
-    uid.textContent = account?.loggedIn ? `UID: ${account.uid}` : '';
+    uid.textContent = showProfile ? `UID: ${account.uid}` : '';
+    avatar.hidden = !avatarSource;
+    avatar.alt = avatarSource ? `${name.textContent}的头像` : '';
+    if (avatarSource) avatar.src = avatarSource;
+    else avatar.removeAttribute('src');
     status.textContent = !account ? '状态未知' : account.loggedIn ? (separate ? '主播账号已登录' : '已复用上方账号') : '未登录';
     status.className = account?.loggedIn ? 'pill good' : 'pill warn';
   }
@@ -59,6 +67,11 @@ export function initGuardExpirySettings({ documentRef, windowRef }) {
   }
 
   const refresh = () => run(() => bridge.getState(), '正在读取同步账号…');
+  avatar.addEventListener('error', () => {
+    avatar.hidden = true;
+    avatar.alt = '';
+    avatar.removeAttribute('src');
+  });
   source.addEventListener('change', () => {
     const selected = source.value;
     void run(() => bridge.setSource(selected), '正在保存账号来源…');
@@ -72,5 +85,5 @@ export function initGuardExpirySettings({ documentRef, windowRef }) {
     render();
     message.textContent = '请从桌面客户端设置同步账号。此项为可选。';
   }
-  return { refresh };
+  return { refresh, updateRoomProfile(profile) { roomProfile = profile; render(); } };
 }

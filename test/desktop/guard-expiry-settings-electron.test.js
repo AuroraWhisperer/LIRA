@@ -25,9 +25,13 @@ test('optional owner settings use real preload and isolated login without changi
     await page.getByRole('option', { name: label, exact: true }).click();
   }
   await page.locator('#guardExpiryAccountStatus').filter({ hasText: '已复用上方账号' }).waitFor();
+  assert.equal(await page.locator('#guardExpiryAccountProfile').isVisible(), false);
+  assert.equal(await page.locator('#guardExpiryAccountName').textContent(), '');
+  assert.equal(await page.locator('#guardExpiryAccountUid').textContent(), '');
   assert.match(await page.locator('#guardExpirySettings legend').textContent(), /可选/);
   await selectSource('单独登录主播账号（可选）');
   await page.locator('#guardExpiryLoginBtn').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#guardExpiryAccountProfile').isVisible(), false);
   const loginWindow = app.waitForEvent('window');
   await page.locator('#guardExpiryLoginBtn').click();
   const popup = await loginWindow;
@@ -35,6 +39,14 @@ test('optional owner settings use real preload and isolated login without changi
   await page.locator('#guardExpiryAccountStatus').filter({ hasText: '主播账号已登录' }).waitFor();
   assert.equal(await page.locator('#guardExpiryAccountName').textContent(), '合成主播');
   assert.equal(await page.locator('#guardExpiryAccountUid').textContent(), 'UID: 123');
+  await page.waitForFunction(() => {
+    const avatar = document.getElementById('guardExpiryAccountAvatar');
+    return !avatar.hidden && avatar.complete && avatar.naturalWidth > 0;
+  });
+  assert.equal(await page.locator('#guardExpiryAccountAvatar').getAttribute('class'),
+    await page.locator('#bilibiliAuthAvatar').getAttribute('class'));
+  assert.equal(await page.locator('#guardExpiryAccountAvatar').getAttribute('src'),
+    await page.locator('#bilibiliRoomAvatar').getAttribute('src'));
   assert.equal(await page.locator('#bilibiliAuthName').textContent(), '合成机器人');
   const isolation = await app.evaluate(async ({ session }) => {
     const partition = global.guardExpiryTest.partitions[0];
@@ -45,6 +57,8 @@ test('optional owner settings use real preload and isolated login without changi
   assert.equal(isolation.remaining, 0); assert.equal(isolation.main, 0); assert.equal(isolation.uploads, 1);
   await page.locator('#guardExpiryLogoutBtn').click();
   await page.locator('#guardExpiryLoginBtn').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#guardExpiryAccountProfile').isVisible(), false);
+  assert.equal(await page.locator('#guardExpiryAccountAvatar').getAttribute('src'), null);
   await app.evaluate(() => { global.guardExpiryTest.failNext = 'GUARD_EXPIRY_UNAVAILABLE'; });
   await selectSource('使用上方登录账号');
   await page.locator('#guardExpiryRetryBtn').waitFor({ state: 'visible' });
@@ -59,4 +73,7 @@ test('optional owner settings use real preload and isolated login without changi
   await page.locator('#guardExpiryAccountMessage').filter({ hasText: '已取消登录' }).waitFor();
   await selectSource('使用上方登录账号');
   await page.locator('#guardExpiryAccountStatus').filter({ hasText: '已复用上方账号' }).waitFor();
+  assert.equal(await page.locator('#guardExpiryAccountProfile').isVisible(), false);
+  assert.equal(await page.locator('#guardExpiryAccountName').textContent(), '');
+  assert.equal(await page.locator('#guardExpiryAccountUid').textContent(), '');
 });

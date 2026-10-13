@@ -145,7 +145,7 @@ test('cat persona shows its name and DeepSeek scope separately from the editable
   assert.equal(f.elements.get('xiaomiAiPersonaSummary').textContent, '说明：针对 DeepSeek；骄傲又黏人的橘猫，自然陪聊');
   f.fire('xiaomiAiPersonaManage', 'click');
   assert.equal(f.elements.get('xiaomiAiPersonaName').value, '小猫人格');
-  assert.equal(f.elements.get('xiaomiAiPersonaProviderNote').textContent, '针对 DeepSeek，其他模型尚未测试。');
+  assert.equal(f.elements.get('xiaomiAiPersonaProviderNote').textContent, '针对 DeepSeek；其他模型未测试。');
   assert.equal(f.elements.get('xiaomiAiPersonaDescription').value, '骄傲又黏人的橘猫，自然陪聊');
 });
 

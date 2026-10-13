@@ -1,8 +1,8 @@
 <h4 class="usage-guide-subsection-title">3.1 发送与固定回复</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-send-danmaku"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.1 手动发送</strong></h5></div>
-<p>打开「百宝箱 → 互动娱乐 → 弹幕互动」，先确认连接状态区的发送账号、目标直播间和发送权限。在发送区输入文字，按 Ctrl + Enter 发送，并查看发送结果。该区域没有独立网页地址。</p>
+<p>打开「百宝箱 → 互动娱乐 → 弹幕互动」，先确认连接状态区的发送账号、目标直播间和发送权限。在发送区输入文字，输入框随内容自动增高，下方显示字数；右侧按钮与第一行对齐。点击「发送弹幕」或按 Ctrl + Enter 发送，超过 40 字会自动分段发送，并在发送结果中显示条数。该区域没有独立网页地址。</p>
 <figure class="usage-guide-figure">
-<img alt="弹幕输入、发送和自动钓鱼入口；截图未实际发送消息。" class="usage-guide-image" decoding="async" height="323" loading="lazy" src="/img/usage-guide/E/danmaku-send.webp" style="--usage-guide-image-width: 1092px" width="1092"/>
+<img alt="弹幕输入、发送和自动钓鱼入口；截图未实际发送消息。" class="usage-guide-image" decoding="async" height="226" loading="lazy" src="/img/usage-guide/E/danmaku-send.webp" style="--usage-guide-image-width: 1330px" width="1330"/>
 <figcaption>弹幕输入、发送和自动钓鱼入口；截图未实际发送消息。</figcaption>
 </figure></article>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.2 自动钓鱼与打劫</strong></h5></div>
@@ -19,7 +19,7 @@
 </figure></article>
 <article class="usage-guide-feature" id="ug-exact-replies"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.4 自定义回复与菜单</strong></h5></div>
 <p>点击「自定义回复 → 编辑」，填写完整触发词与回复，添加后保存。例如设为「月卡」时，观众单独发送「月卡」才回复；「怎么开月卡」不会触发，前后空格不影响，英文字母区分大小写。这里设置固定文案，不解析正则或变量。最多 30 条规则，触发词最多 30 字、回复最多 120 字。内置指令优先于自定义规则，不要用点歌、签到等已有指令作为触发词。</p>
-<p>开启自定义回复后，单独发送「菜单」即可查看互动指令，不需要另建菜单规则。「菜单」是保留词，不能覆盖；菜单按已开启的能力生成，点歌、AI、投票和游戏等桌面功能会标注需客户端在线。精确自定义回复由服务器执行，命中后不会再重复触发关键词或 AI 回复。保存失败会保留草稿，切换账号会清空草稿。</p>
+<p>开启自定义回复后，单独发送「菜单」即可查看互动指令，不需要另建菜单规则；回复列表首行显示这条内置规则及回复说明，不可修改或删除，也不占自定义规则额度。「菜单」是保留词，不能覆盖；菜单固定回复「签到、抽签、礼物特效、礼物查询、盲盒查询」，只列功能名称，不展开其他指令。签到、抽签、AI 互动助手、点歌回复、两类自定义回复和查询回复都会 @ 原弹幕发送者，长回复的每一段也会保留 @。精确自定义回复由服务器执行，命中后不会再重复触发关键词或 AI 回复。保存失败会保留草稿，切换账号会清空草稿。</p>
 <figure class="usage-guide-figure"><img alt="自定义回复编辑示例：完整触发词和固定回复" class="usage-guide-image" decoding="async" loading="lazy" src="/img/usage-guide/E/danmaku-exact-reply.png" width="1330" height="277"/><figcaption>隔离桌面中的示例规则，未向直播间发送消息。</figcaption></figure>
 </article>
 <article class="usage-guide-feature" id="ug-scheduled-danmaku"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.5 定时／随机弹幕</strong></h5></div>
@@ -32,7 +32,7 @@
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-query-replies"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.6 查询回复</strong></h5></div>
 <p>在「固定回复 → 查询回复」打开开关，再点「清单」查看、搜索可用指令。这里按真实账本动态统计，不填写固定文案，也无需保存；开关与「礼物 → 弹幕查询」同步。观众查询自己的记录，主播查询本房间记录，退出客户端后仍由服务器回复。</p>
 <p>可用「今天／今日」「昨天／昨日」「本周／这周」「本月／这个月」「上月／上个月」「今年」「去年」「累计／历史」加「礼物」「盲盒」或完整礼物名称，例如「本月盲盒」「上月礼物」；「全部盲盒」也表示累计盲盒。时间后可以加“的”。清单可按完整别名搜索，例如「今日礼物」。累计包含 LIRA 已记录并保留的历史汇总，不受约 90 天逐笔明细保留期限制，也不会补齐 LIRA 开始记录前的送礼。</p>
-<p>指定月份可发送「3月礼物」「12月盲盒」，月份支持 1—12 月，也可写作「03月礼物」；只写月份表示发送时北京时间的当年。指定年份发送「2026年礼物」，指定年月发送「2026年3月盲盒」；年份可替换为其他四位年份。所有范围按北京时间自然月／年计算，清单里的年月只是可替换的示例。</p>
+<p>指定月份可发送「3月礼物」「12月盲盒」，月份支持 1—12 月，也可写作「03月礼物」；只写月份表示发送时北京时间的当年。指定年份发送「2026年礼物」，指定年月发送「2026年3月盲盒」；年份可替换为其他四位年份。所有范围按北京时间自然月／年计算；清单用「x月礼物／盲盒」「2026年x月礼物／盲盒」合并展示月份写法，发送时将 x 换成实际月份。</p>
 <figure class="usage-guide-figure"><img alt="独立的查询回复指令清单，搜索年份查看礼物和盲盒查询写法" class="usage-guide-image" decoding="async" loading="lazy" src="/img/usage-guide/E/danmaku-query-replies.png" width="1331" height="569"/><figcaption>指令清单展示动态回复说明；数据由实际账本生成。</figcaption></figure>
 </article></div>
 <h4 class="usage-guide-subsection-title">3.2 欢迎与机器人</h4>

@@ -3,6 +3,8 @@
 const { readAdminFragmentHtml, readAdminHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 
@@ -74,6 +76,35 @@ test('danmaku character counter counts Chinese and emoji as code points', async 
   const page = await createDanmakuPage(t);
   await page.locator('#danmakuMessage').fill('中文🙂');
   assert.equal(await page.locator('#danmakuCounter').textContent(), '3 字');
+});
+
+test('danmaku compose buttons stay beside the first line while the input grows and shrinks', async (t) => {
+  const page = await createDanmakuPage(t);
+  for (const file of ['styles-base.css', 'admin/toolbox/danmaku-tool.css']) {
+    await page.addStyleTag({ content: fs.readFileSync(path.join(__dirname, '../../public/css', file), 'utf8') });
+  }
+  const input = page.locator('#danmakuMessage');
+  const autoButton = page.locator('#danmakuAutoBtn');
+  const sendButton = page.locator('#danmakuSendBtn');
+  const initial = await input.boundingBox();
+  const auto = await autoButton.boundingBox();
+  const send = await sendButton.boundingBox();
+  assert.equal(auto.y, initial.y);
+  assert.equal(send.y, initial.y);
+  assert.ok(auto.x >= initial.x + initial.width);
+  assert.ok(send.x >= auto.x + auto.width);
+  assert.ok(Math.abs(auto.height - initial.height) < 1);
+  assert.ok(Math.abs(send.height - initial.height) < 1);
+  await input.fill(Array(20).fill('中文🙂输入内容').join('\n'));
+  const expanded = await input.boundingBox();
+  assert.ok(expanded.height > 160, 'long input grows beyond the former height cap');
+  assert.equal((await sendButton.boundingBox()).height, send.height);
+  assert.equal((await sendButton.boundingBox()).y, expanded.y);
+  const counter = await page.locator('#danmakuCounter').boundingBox();
+  assert.ok(counter.y - expanded.y - expanded.height <= 4);
+  assert.equal(await input.inputValue(), Array(20).fill('中文🙂输入内容').join('\n'));
+  await input.fill('');
+  assert.equal((await input.boundingBox()).height, initial.height);
 });
 
 test('sending a danmaku clears only the submitted draft and preserves edits made while sending', async (t) => {

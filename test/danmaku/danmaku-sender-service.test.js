@@ -234,6 +234,16 @@ test('sender service splits long admin messages into Bilibili-sized chunks', asy
   assert.equal(result.message, '1234567890'.repeat(8));
 });
 
+test('automatic replies never fall back to a broadcast when the mention target is incomplete', async () => {
+  const { service, sent } = createConcurrentSenderFixture();
+  for (const mentionTarget of [null, { uid: '', name: 'Alice' }, { uid: '42', name: '' }]) {
+    await assert.rejects(service.send({
+      message: '回复内容', mentionTarget, mentionEveryChunk: true,
+    }), /缺少弹幕发送者信息/);
+  }
+  assert.deepEqual(sent, []);
+});
+
 test('sender service repeats an AI mention on every 40-character chunk', async () => {
   const calls = [];
   const waits = [];

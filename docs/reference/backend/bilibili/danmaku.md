@@ -165,7 +165,7 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 
 ### 6.4 云端菜单的桌面命令投影
 
-[danmaku-menu.js](../../../../src/server/danmaku-menu.js) 从当前桌面状态生成可选的 `menuCommands: string[]` 云设置展示字段。弹幕监听关闭时为空；点歌未暂停时列出点歌与随机点歌；有启用的关键词规则时显示关键词回复提示；AI 仅在实际配置就绪时显示触发词；投票、评分和小游戏只在当前会话接受弹幕时列出，并标明「进行中」。菜单不列出没有弹幕命令的切歌、加班或自动播报功能。云端将这组提示统一标为「需客户端在线」，它不授予执行权限，也不证明客户端仍在线。
+[danmaku-menu.js](../../../../src/server/danmaku-menu.js) 从当前桌面状态生成可选的 `menuCommands: string[]` 云设置展示字段。弹幕监听关闭时为空；点歌未暂停时列出点歌与随机点歌；有启用的关键词规则时显示关键词回复提示；AI 仅在实际配置就绪时显示触发词；投票、评分和小游戏只在当前会话接受弹幕时列出，并标明「进行中」。菜单不列出没有弹幕命令的切歌、加班或自动播报功能。该字段保留旧客户端的读写兼容；当前云端菜单固定回复“签到、抽签、礼物特效、礼物查询、盲盒查询”，不再消费这组投影。投影不授予执行权限，也不证明客户端仍在线。
 
 [server.js](../../../../src/server.js) 组合根在完整设置快照和待传设置出口合入当前投影，不把菜单、AI 密钥、关键词回复正文或游戏内部状态持久化为同步设置。关键词设置和 AI 可用性/触发词变更沿用现有 settings 同步通知；游戏/互动广播在同轮变更合并后比较菜单，仅有实际变化时请求上传，无新增心跳。服务端返回的菜单字段不回写本地配置。
 
@@ -198,7 +198,7 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 | 显示名缓存   | 账号名/房间名 `DISPLAY_CACHE_TTL_MS = 10min`                                                                                                                        | [sender-service.js:6](../../../../src/bilibili/danmaku/sender-service.js#L6)、[sender-service.js:64-99](../../../../src/bilibili/danmaku/sender-service.js#L64-L99)       |
 | 状态         | `getState()` 返回 `loggedIn/accountUid/roomId/roomName/connected/canSend/requester/各机器人开关` 等                                                                 | [sender-service.js:30-53](../../../../src/bilibili/danmaku/sender-service.js#L30-L53)                                                                                     |
 
-**本地自动回复路径**由 [bilibili-client.js](../../../../src/server/bilibili-client.js) 的 `onMessage` 持有：`result.autoReply` 用于随机点歌无匹配，`result.customReplyReply` 用于自定义关键词命中。两者调用 `danmakuSender.send({message, mentionTarget})` 并记录发送失败；`cloud-owned` 结果提前返回，不发送签到或抽签回复。云端职责见 §6。
+**本地自动回复路径**由 [bilibili-client.js](../../../../src/server/bilibili-client.js) 的 `onMessage` 持有：`result.autoReply` 用于随机点歌无匹配，`result.customReplyReply` 用于自定义关键词命中。两者调用 `danmakuSender.send({message, mentionTarget, mentionEveryChunk: true})`，每段均通过原生回复 @ 原弹幕发送者并预留完整昵称长度；`mentionEveryChunk` 缺少 UID 或昵称时发送器拒绝发送，不退回普通弹幕，调用方记录发送失败；`cloud-owned` 结果提前返回，不发送签到或抽签回复。云端职责见 §6。
 
 ## 8. 诊断快照与调试缓冲
 

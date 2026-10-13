@@ -178,12 +178,13 @@ test('domain services attach a custom reply after built-in commands decline', ()
     assert.equal(services.messages.handleDanmaku({ message: '随机点歌', uid: '456' }).command.type, 'random');
     assert.equal(services.messages.handleDanmaku({ message: '看看菜单', uid: '456' }).customReply.accepted, true);
     const deliveries = [];
+    const replies = [];
     const client = createBilibiliClient('123', {
       isShuttingDown: () => false,
       aiDanmakuDeliveryVerifier: { observe() {} },
       domainServices: services,
       aiAssistant: { handleDanmaku: () => deliveries.push('ai') },
-      danmakuSender: { send: async () => deliveries.push('keyword') },
+      danmakuSender: { send: async (reply) => { replies.push(reply); deliveries.push('keyword'); } },
       broadcastSnapshot() {}, updateLiveStatus() {},
       bilibiliDiagnostics: {}, bilibiliAuthCache: { cookieHeader: '', uid: 0 },
     });
@@ -192,6 +193,16 @@ test('domain services attach a custom reply after built-in commands decline', ()
       assert.deepEqual(deliveries, [], 'a server-owned exact command must not also trigger local AI or keyword replies');
       client.handlers.onMessage({ message: '看看菜单', uid: '456', userName: 'Bob' });
       assert.deepEqual(deliveries, ['ai', 'keyword']);
+      assert.deepEqual(replies[0], {
+        message: custom.customReplyReply.message,
+        mentionTarget: { uid: '456', name: 'Bob' },
+        mentionEveryChunk: true,
+      });
+      settingsStore.setSetting('enableRandomTagReply', 'true');
+      client.handlers.onMessage({ message: '随机点歌 不存在的分类', uid: '789', userName: 'Alice' });
+      assert.equal(replies.length, 2);
+      assert.deepEqual(replies[1].mentionTarget, { uid: '789', name: 'Alice' });
+      assert.equal(replies[1].mentionEveryChunk, true);
     } finally {
       client.stop();
     }

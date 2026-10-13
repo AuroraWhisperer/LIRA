@@ -43,6 +43,7 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
     ['甲', '乙'],
   );
   assert.ok(deliveries.every((item) => item.mentionTarget.source === 'ai-assistant'));
+  assert.deepEqual(deliveries.map((item) => item.mentionTarget.uid), ['1', '2']);
   assert.ok(deliveries.every((item) => item.mentionEveryChunk === true));
 });
 

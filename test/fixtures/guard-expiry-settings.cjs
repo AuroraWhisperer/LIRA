@@ -49,13 +49,18 @@ async function run() {
   const server = createHttpServer({
     host: '127.0.0.1', startPort: 0, dataDir: directory, getPhase: () => 'ready',
     getStartedPort: () => server.address().port, isLicenseAuthorized: () => true,
-    inflightTracker: { run: (fn) => fn() }, getSettings: () => ({}), createApiContext: () => ({ sessionToken: token }),
+    inflightTracker: { run: (fn) => fn() }, getSettings: () => ({}),
+    createApiContext: () => ({ sessionToken: token, bilibili: {
+      getRoomProfile: async () => ({ roomId: '12345', uid: '123', name: '合成主播', avatarUrl: 'https://i0.hdslb.com/bfs/face/synthetic-owner.png' }),
+      fetchAvatarImage: async () => ({ contentType: 'image/png', data: fs.readFileSync(path.join(root, 'build/icon.png')) }),
+    } }),
     servePageOrAsset(req, res, url) {
       if (url.pathname === '/js/admin/index.js') {
         res.setHeader('Content-Type', 'application/javascript');
         res.end(`import './contextual-help.js';
           import { enhanceSelects } from '../shared/select-menu.js';
           import { initGuardExpirySettings } from './settings-guard-expiry.js';
+          import { createBilibiliRoomProfile } from './settings-room-profile.js';
           const panel = document.getElementById('settingsPage');
           const shell = document.querySelector('.app-shell');
           shell.replaceChildren(panel); document.body.replaceChildren(shell);
@@ -67,11 +72,11 @@ async function run() {
           document.getElementById('bilibiliAuthProfile').hidden = false;
           document.getElementById('bilibiliAuthName').textContent = '合成机器人';
           document.getElementById('bilibiliAuthUid').textContent = 'UID 456';
-          document.getElementById('bilibiliRoomName').textContent = '合成主播的直播间';
-          document.getElementById('bilibiliRoomStatus').textContent = '已设置';
-          document.getElementById('bilibiliRoomStatus').className = 'pill good';
           document.getElementById('roomId').value = '12345';
-          initGuardExpirySettings({ documentRef: document, windowRef: window });
+          const guardExpirySettings = initGuardExpirySettings({ documentRef: document, windowRef: window });
+          const roomProfile = createBilibiliRoomProfile({ documentRef: document, fetchRef: fetch, apiToken: window.__API_TOKEN__,
+            onProfileChange: (profile) => guardExpirySettings.updateRoomProfile(profile) });
+          void roomProfile.refresh('12345');
           enhanceSelects(panel);`);
         return;
       }

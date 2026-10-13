@@ -330,10 +330,10 @@
         <label>预设名称<input id="xiaomiAiPersonaName" type="text" maxlength="40" required autocomplete="off" /></label>
         <label>说明<input id="xiaomiAiPersonaDescription" type="text" maxlength="200" placeholder="简要介绍角色身份与说话风格" aria-describedby="xiaomiAiPersonaProviderNote" /><small id="xiaomiAiPersonaProviderNote" hidden></small></label>
         <label class="wide">角色指南
-          <textarea id="xiaomiAiPersonaPrompt" rows="14" minlength="20" maxlength="8000" required aria-describedby="xiaomiAiPersonaHelp"></textarea>
+          <textarea id="xiaomiAiPersonaPrompt" rows="10" minlength="20" maxlength="8000" required aria-describedby="xiaomiAiPersonaHelp"></textarea>
         </label>
       </div>
-      <p id="xiaomiAiPersonaHelp" class="hint">用 {{name}} 代替机器人名字，回复时自动使用「触发关键词」。这里只编辑身份、性格和说话方式。</p>
+      <p id="xiaomiAiPersonaHelp" class="hint">仅编辑身份、性格和语气；{{name}} 会替换为「触发关键词」。</p>
       <p id="xiaomiAiPersonaState" class="hint" role="status" aria-live="polite"></p>
       <div class="xiaomi-ai-persona-library-actions">
         <button id="xiaomiAiPersonaImport" class="secondary" type="button">导入角色包</button>

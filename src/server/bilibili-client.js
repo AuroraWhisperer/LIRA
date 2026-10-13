@@ -82,6 +82,7 @@ function createBilibiliClient(roomId, context) {
               .send({
                 message: result.autoReply.message,
                 mentionTarget: result.autoReply.target,
+                mentionEveryChunk: true,
               })
               .catch((error) => {
                 console.warn(
@@ -94,6 +95,7 @@ function createBilibiliClient(roomId, context) {
               .send({
                 message: result.customReplyReply.message,
                 mentionTarget: result.customReplyReply.target,
+                mentionEveryChunk: true,
               })
               .catch((error) => {
                 console.warn(

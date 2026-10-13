@@ -62,7 +62,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig }) {
     const persona = personas.find((entry) => entry.id === id);
     name.value = persona?.name || (id === 'custom' ? '原有自定义角色' : '');
     description.value = persona?.description || '';
-    byId('PersonaProviderNote').textContent = persona?.providerNote ? `${persona.providerNote}，其他模型尚未测试。` : '';
+    byId('PersonaProviderNote').textContent = persona?.providerNote ? `${persona.providerNote}；其他模型未测试。` : '';
     byId('PersonaProviderNote').hidden = !persona?.providerNote;
     prompt.value = persona?.prompt || (id === 'custom' ? legacyPrompt.value : '');
     name.disabled = Boolean(persona?.builtin) || id === 'custom';
@@ -74,7 +74,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig }) {
     byId('PersonaExport').disabled = !id;
     byId('PersonaCreate').hidden = !id;
     byId('PersonaDialogTitle').textContent = id ? `编辑预设 · ${name.value}` : '新建预设';
-    setState(state, persona?.builtin ? '内置预设会始终保留，修改后可以恢复默认。' : '修改后点击保存，取消则放弃本次编辑。');
+    setState(state, persona?.builtin ? '内置预设可修改、恢复默认。' : '点击「保存预设」生效。');
   }
 
   manageButton.addEventListener('click', () => {
