@@ -17,7 +17,7 @@ export function createDesktopLyric({
   preview = desktopLyricPreview,
 } = {}) {
   const AUTOSAVE_DELAY_MS = 500;
-  const { setValue, api } = utils;
+  const { setValue, api, dangerConfirm } = utils;
   const CHECKBOX_KEYS = new Set([
     'desktopLyricStrokeEnabled',
     'desktopLyricShadowEnabled',
@@ -146,7 +146,10 @@ export function createDesktopLyric({
 
     form.addEventListener('input', () => scheduleAutosave());
     form.addEventListener('change', () => scheduleAutosave(true));
-    document.getElementById('desktopLyricResetBtn')?.addEventListener('click', () => {
+    document.getElementById('desktopLyricResetBtn')?.addEventListener('click', async () => {
+      if (!await dangerConfirm({ title: '恢复直播歌词默认设置？',
+        message: '将覆盖已保存的歌词外观、显示行为和画面时间偏移，并立即应用。全民 K 歌的歌词源设置会保留。',
+        confirmLabel: '恢复默认设置' })) return;
       loadDesktopLyricSettings(DESKTOP_LYRIC_DEFAULTS, {
         includeWeSing: false,
       });

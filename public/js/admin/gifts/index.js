@@ -12,7 +12,7 @@ export function renderGiftPanel(gifts, sprint, live, diagnostics, settings = {},
   const changed = (key) => !changedKeys || changedKeys.includes(key);
   // 礼物检测状态
   if (changed('giftSprint') || changed('liveStatus') || changed('settings')) {
-    giftDetection.renderDetectionStatus(sprint, live);
+    giftDetection.renderDetectionStatus(sprint, live, settings);
   }
 
   // 礼物提示 toggle

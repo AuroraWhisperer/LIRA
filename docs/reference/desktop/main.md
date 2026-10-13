@@ -1,5 +1,22 @@
 # 桌面壳主进程:窗口、协议与生命周期
 
+## 使用中的本机画面与退出
+
+窗口关闭或普通退出时，`requestDesktopClose()` 读取当前 runtime 的
+`hasActiveOverlayConnections()`：授权的 overlay WebSocket，或场景/弹幕显示 SSE
+仍有连接时，先提示“仍有本机画面正在使用”。管理页连接和组件编辑预览不计入。
+最后一个画面断开后直接退出；独立网页打开本机画面也算使用，这不是推流状态检测。
+确认框只保留一份，取消不会启动清理；确认后才进入原有关闭期限、同步排空和播放
+快照 flush。启动失败退出、已确认的程序重启沿用原流程。
+
+更新器启动安装后发出的 Electron `before-quit-for-update` 事件直接调用
+`requestDesktopShutdown()`，随后 `before-quit` 复用同一关闭任务，不再弹出使用确认。
+仅下载完成不会绕过普通关窗确认；安装发起后的退出仍等待原有同步排空和播放快照 flush。
+
+## 豆包账号会话
+
+豆包账号会话在 `createDesktopRuntime` 前由 main 创建并初始化，经 runtime options 注入 AI 域；退出时和其他认证 controller 一起先 `dispose()`、再等待 `whenIdle()`，终止本会话的请求及窗口。具体持久化与登录合同见 [auth.md](auth.md#16-豆包个人账号)。
+
 ## 礼物保留快照同步
 
 [remote-gift-retention.js](../../../src/electron/remote-gift-retention.js) 由既有
@@ -287,7 +304,7 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 `ready-to-show` 后:显示窗口、下发当前更新状态,并触发首轮自动更新检查(仅打包版且 `enableAutoUpdate==='true'`,延迟 1s,见 [update.md](update.md) §1)。
 
-本机字体权限:`desktop-permissions.js` 只处理 Chromium `localFonts` 请求,并用 `hasExactOrigin(requestingUrl, baseUrl)` 拒绝非 LIRA origin 与所有其他权限。可信页面请求时显示 Electron 原生对话框,明确说明只读取字体名称、不读取字体文件/路径/内容;用户选择“允许”才向 Chromium 放行。管理页的桌面歌词、点歌板风格 3–6 与大播放器字体选择器通过 `shared/local-font-library.js` 共用一次 `window.queryLocalFonts()` 查询,去重、排序后分别保留各自的内置选项和当前值;若 Chromium 首次调用要求瞬时用户激活,管理页在用户首次正常点击/按键时自动重试,不新增 IPC 或文件访问桥。
+本机字体权限:`desktop-permissions.js` 只处理 Chromium `localFonts` 请求,并用 `hasExactOrigin(requestingUrl, baseUrl)` 拒绝非 LIRA origin 与所有其他权限。可信页面请求时显示 Electron 原生对话框,明确说明只读取字体名称、不读取字体文件/路径/内容;用户选择“允许”才向 Chromium 放行。管理页的直播歌词、点歌板风格 3–6 与大播放器字体选择器通过 `shared/local-font-library.js` 共用一次 `window.queryLocalFonts()` 查询,去重、排序后分别保留各自的内置选项和当前值;若 Chromium 首次调用要求瞬时用户激活,管理页在用户首次正常点击/按键时自动重试,不新增 IPC 或文件访问桥。
 
 ## 5. local-media:// 协议(唯一成文处)
 

@@ -269,3 +269,15 @@ IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用�
 `guard-expiry-auth.js` 选择 `shared` 时让服务器内部复用原 B 站直播凭据；`separate` 时每次新建不带 persist 的 `guard-expiry-<uuid>` 分区，使用 passport 登录页和现有受限登录窗。只读取能发送给 api.live.bilibili.com 的 Cookie，在 main 上传至当前授权租户的专用接口；服务器验证房主后独立加密存储。临时 session 结束即清理，无本地 Cookie 快照或主账号恢复。切回 shared 清除云端独立凭据，独立退出不退出原直播账号。
 
 操作绑定发起时 streamerId 与授权 generation；授权变更、来源切换、退出和应用关闭取消未完成登录。状态仅返回安全元数据，主窗口 IPC 不接受凭据。服务器未支持时显示明确提示。要求和验收见[到期同步规格](../../../specs/guard-expiry-sync.md)。
+
+## 16. 豆包个人账号
+
+[豆包会话 owner](../../../src/electron/doubao-session.js) 独立于音乐、B 站及 LIRA 服务器授权。系统 safeStorage 可用时使用 `persist:lira-doubao`；不可用时使用内存分区 `lira-doubao`，不写任何登录快照。入口固定为 `https://www.doubao.com/chat/`，用手机豆包扫码；电脑只使用 Electron 自带 Chromium。
+
+登录状态来自官方 origin 下非空的 `sessionid` 或 `sessionid_ss` Cookie；这只表示本地会话存在，实际服务是否接受由文字连接测试确认。Cookie 值只留在隔离官方页面/主进程，管理页只有四个 boolean：`available`、`loggedIn`、`needsVerification`、`encryptionAvailable`。会话身份散列仅用于内部代次比较，不对外公开。
+
+豆包域及其子域的 Cookie 经 `toSerializableCookie` 序列化为 `{version:1,cookies}`，用 safeStorage 加密后写入 `dataDir/doubao-auth/cookies.enc`。Cookie 变化后 600ms 防抖、临时文件原子替换；不导出明文。初始化仅在当前分区缺少登录 Cookie 时恢复快照，过滤过期 Cookie；不能解密时不回落明文。官网退出导致登录 Cookie 消失时删除旧快照，避免重新恢复已退出的会话。
+
+显式退出先增加代次并取消全部排队/在途请求，再关闭本窗口、排空账号工作、清理本分区 storage 和本快照；不清除其他平台账号。登录变化、验证状态变化、退出及 dispose 均使旧请求失效；`whenIdle()` 排空本 owner 的工作。main 在后端启动前初始化，在应用退出时统一释放。HTTP 操作沿用现有管理授权，见 [API](../backend/api.md#13-ai-域ai)；文字协议和人工验证后的恢复规则见 [AI](../backend/ai.md#44-豆包个人账号实验性)。
+
+owner 在内存中保留一组已确认 conversation/section 标识，问答和连接测试共同复用；不写入 Cookie 快照，也不向管理页公开。身份变化、退出及 dispose 清除标识；验证码状态变化只取消旧请求，保留标识供恢复后复用。首建及上下文切换确认失败会阻塞请求，完整规则与实验性验收限制见上述 AI 契约。

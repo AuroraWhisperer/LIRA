@@ -385,6 +385,8 @@ function createWebSocketHub(options = {}) {
     broadcastSnapshot,
     broadcast,
     stop,
+    hasOverlayConnections: () => [...sockets].some((socket) =>
+      !socket.destroyed && !socket._wsCleanedUp && socket._wsPrincipal?.type === 'overlay'),
   };
 }
 

@@ -33,16 +33,17 @@
         </header>
         <div class="gift-frame-controls">
           <section class="gift-frame-preview" aria-labelledby="giftFramePreviewTitle">
-            <header class="gift-frame-section-heading"><h4 id="giftFramePreviewTitle">模拟预览</h4></header>
+            <header class="gift-frame-section-heading"><h4 id="giftFramePreviewTitle">画布预览</h4></header>
             <div class="gift-frame-preview-grid">
               <label class="component-inline-field"><span>观众</span><input id="giftFramePreviewUser" type="text" value="观众A" maxlength="80" /></label>
               <label class="component-inline-field"><span>礼物</span><input id="giftFramePreviewGift" type="text" value="林间花信" maxlength="80" /></label>
               <label class="component-inline-field"><span>数量</span><input id="giftFramePreviewNum" type="number" min="1" step="1" value="2" /></label>
-              <button id="giftFramePreviewBtn" class="secondary" type="button">预览</button>
+              <button id="giftFramePreviewBtn" class="secondary" type="button">在画布中预览</button>
             </div>
           </section>
         </div>
         <p id="giftFrameSaveState" class="hint gift-frame-status" role="status" aria-live="polite"></p>
+        <p id="giftFrameStyleState" class="hint" role="status">正在检查样式包…</p>
       </section>
       <div class="component-subsection-heading">
         <h3 class="ui-section-title">更多样式</h3>
@@ -69,7 +70,7 @@
                   aria-label="复制滚动礼物浏览器源地址"
                   title="点击复制地址"
                 ></button>
-                <button id="giftFeedPreviewBtn" type="button" class="secondary">预览</button>
+                <button id="giftFeedPreviewBtn" type="button" class="secondary">打开画布</button>
               </div>
             </div>
             <div class="gift-display-actions">
@@ -226,7 +227,7 @@
         </header>
         <div class="guard-thanks-controls">
           <section class="guard-thanks-preview" aria-labelledby="guardThanksAuroraPreviewTitle">
-            <h4 id="guardThanksAuroraPreviewTitle">模拟预览</h4>
+            <h4 id="guardThanksAuroraPreviewTitle">画布预览</h4>
             <div class="guard-thanks-preview-grid">
               <label class="component-inline-field"><span>等级</span>
                 <select id="guardThanksAuroraPreviewTier" data-dropdown-variant="settings">
@@ -234,7 +235,7 @@
                 </select>
               </label>
               <label class="component-inline-field"><span>月数</span><input id="guardThanksAuroraPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
-              <button id="guardThanksAuroraPlayBtn" class="secondary" type="button">预览</button>
+              <button id="guardThanksAuroraPlayBtn" class="secondary" type="button">在画布中预览</button>
             </div>
           </section>
         </div>
@@ -258,7 +259,7 @@
         </header>
         <div class="guard-thanks-controls">
           <section class="guard-thanks-preview" aria-labelledby="guardThanksClassicPreviewTitle">
-            <h4 id="guardThanksClassicPreviewTitle">模拟预览</h4>
+            <h4 id="guardThanksClassicPreviewTitle">画布预览</h4>
             <div class="guard-thanks-preview-grid">
               <label class="component-inline-field"><span>等级</span>
                 <select id="guardThanksClassicPreviewTier" data-dropdown-variant="settings">
@@ -267,7 +268,7 @@
               </label>
               <label class="component-inline-field"><span>观众</span><input id="guardThanksClassicPreviewUser" type="text" value="观众A" maxlength="100" /></label>
               <label class="component-inline-field"><span>月数</span><input id="guardThanksClassicPreviewMonths" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
-              <button id="guardThanksClassicPlayBtn" class="secondary" type="button">预览</button>
+              <button id="guardThanksClassicPlayBtn" class="secondary" type="button">在画布中预览</button>
             </div>
           </section>
         </div>

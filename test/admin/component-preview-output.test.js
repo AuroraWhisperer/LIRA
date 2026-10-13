@@ -37,6 +37,8 @@ test('canvas discard restores its shared and independent edits without clearing 
   });
   await receivedDrafts;
   await page.locator(`.preview-canvas-layer-select[data-item-id="${independentId}"]`).click();
+  assert.match(await page.locator('.scene-editor-target').textContent(), /随“保存并应用”生效/);
+  assert.doesNotMatch(await page.locator('.scene-editor-target').textContent(), /自动保存/);
   await page.locator('[data-preview-field="clockCustomLabel"]').fill('Local draft');
   await desktop.waitForFunction(() => window.controllers.clock.getState().draft.label === 'Local draft');
   assert.notEqual(await desktop.evaluate(id => window.controllers.canvas.getState().draft.document.items
@@ -50,6 +52,32 @@ test('canvas discard restores its shared and independent edits without clearing 
   assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items), items);
   await page.waitForFunction(() => [...document.querySelectorAll('button')]
     .find(button => button.textContent === '放弃修改')?.disabled);
+});
+
+test('the shared song-board provider labels parameters as automatic and saves without publishing', { timeout: 20000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  fixture.runtime.settings.songBoardSyncTheme = 'false';
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const created = fixture.service.create({ title: 'Automatic parameters', canvas: { width: 1920, height: 1080 } });
+  const item = { id: randomUUID(), type: 'songlist', name: '展示板', x: 0, y: 0, width: 640, height: 500,
+    visible: true, locked: false, appearance: { mode: 'independent', config: {} } };
+  fixture.service.save({ id: created.document.id, expectedRevision: 1, document: { ...created.document, items: [item] } });
+  const desktop = await browser.newPage();
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.locator(`.preview-canvas-layer-select[data-item-id="${item.id}"]`).click();
+  assert.match(await page.locator('.scene-editor-target').textContent(), /自动保存、即时生效/);
+  const savedParameters = page.waitForResponse(async response => response.url().includes('/api/component-preview/appearance')
+    && response.request().postDataJSON()?.action === 'patch' && response.ok());
+  await page.locator('[data-component-parameter="songBoardTitle"]').fill('自动保存标题');
+  await page.locator('[data-component-parameter="songBoardTitle"]').press('Tab');
+  await savedParameters;
+  assert.equal(fixture.runtime.settings.songBoardTitle, '自动保存标题');
+  assert.equal(fixture.service.list()[0].publishedVersion, 0);
 });
 
 for (const type of ['clock', 'queue', 'danmaku', 'overtime']) {
@@ -239,6 +267,7 @@ test('canvas save updates the original default source and separate instance URLs
   await save();
   assert.deepEqual(fixture.service.getComponentSize('clock'), { width: 800, height: defaultHeight });
   const defaultUrl = await copy();
+  await page.getByRole('status').filter({ hasText: `800 × ${defaultHeight}` }).waitFor();
   assert.equal(new URL(defaultUrl).pathname, '/clock');
   assert.equal((await fetch(defaultUrl)).status, 200);
   await output.goto(defaultUrl);
@@ -249,6 +278,7 @@ test('canvas save updates the original default source and separate instance URLs
   const independentHeight = await setSize(600);
   await save();
   const independentUrl = await copy();
+  await page.getByRole('status').filter({ hasText: `600 × ${independentHeight}` }).waitFor();
   const address = new URL(independentUrl);
   assert.ok(address.searchParams.get('item'));
   assert.equal((await fetch(independentUrl)).status, 200);

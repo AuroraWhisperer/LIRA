@@ -29,8 +29,8 @@ export class ImportService {
     const queueData = await this.fetchSongQueue();
     if (!isCurrent()) return null;
     if (!queueData || !queueData.items || queueData.items.length === 0) {
-      this.toast('点歌队列为空');
       return {
+        empty: true,
         imported: 0,
         pending: 0,
         skipped: 0,

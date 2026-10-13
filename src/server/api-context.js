@@ -58,6 +58,8 @@ function createApiContext(options) {
     },
     superChat: {
       handleAction: domainServices.superChats.handleAction,
+      deleteWithUndo: domainServices.superChats.deleteWithUndo,
+      undoDelete: domainServices.superChats.undoDelete,
     },
     giftCards: options.giftCards,
     giftWishes: domainServices.giftWishes,
@@ -155,6 +157,9 @@ function createApiContext(options) {
       listModels: (input) => ai.service.listModels(input),
       test: () => ai.service.testConfiguration(),
       testProvider: (provider) => ai.service.testProvider(provider),
+      getDoubaoStatus: () => ai.doubao.getStatus(),
+      openDoubaoLogin: () => ai.doubao.openLogin(),
+      logoutDoubao: () => ai.doubao.logout(),
     },
     games: createGamesContext(games),
     wheel: createWheelContext(wheel),

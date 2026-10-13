@@ -6,6 +6,8 @@ import { mountComponentPreview, previewElement } from './component-preview-surfa
 import { validateSceneDocument } from './scene-template.js';
 import { copyText } from '../shared/utils.js';
 import { sceneSourceUrl } from './scene-source-url.js';
+import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
+import { getCanvasPublicationEntries } from './component-preview-publication.js';
 
 export function initTextBoxes() {
   const root = document.getElementById('textBoxPage');
@@ -14,12 +16,14 @@ export function initTextBoxes() {
   const get = name => root.querySelector(`[data-text-box="${name}"]`);
   const status = get('status');
   let canvas;
+  let components;
   let selected;
   let panel;
   let preview;
   let stop;
   let listSignature = '';
   let busy = false;
+  let busyMessage = '';
   let disposed = false;
   const definition = createTextBoxPreview();
   function fail(error) { status.textContent = error.message; status.classList.add('text-box-error'); }
@@ -32,6 +36,41 @@ export function initTextBoxes() {
     } catch (error) { fail(error); }
   }
   const current = () => canvas?.controller.getState().draft.document.items.find(item => item.id === selected);
+  function otherSceneChanges(state) {
+    const withoutTextBoxes = document => ({ ...document, items: document.items.filter(item => item.type !== 'text-box') });
+    return JSON.stringify(withoutTextBoxes(state.draft.document)) !== JSON.stringify(withoutTextBoxes(state.saved.document));
+  }
+  async function confirmSceneAction(action) {
+    const state = canvas.controller.getState();
+    const sharedChanges = action === 'save' && getCanvasPublicationEntries(components)
+      .some(entry => entry.id !== 'canvas' && entry.controller.getState().dirty);
+    const otherChanges = otherSceneChanges(state) || sharedChanges;
+    const changesOutput = action === 'save' && state.activeSceneId && state.activeSceneId !== state.draft.document.id;
+    if (!otherChanges && !changesOutput) return true;
+    const snapshot = () => {
+      const current = canvas.controller.getState();
+      return JSON.stringify([current.generation, current.draft, current.activeSceneId,
+        ...(action === 'save' ? getCanvasPublicationEntries(components).map(entry => {
+          const next = entry.controller.getState();
+          return [entry.id, next.generation, next.draft];
+        }) : [])]);
+    };
+    const before = snapshot();
+    busyMessage = '等待确认…'; render();
+    const confirmed = await showConfirmationDialog({
+      title: action === 'save' ? '应用整个场景？' : '放弃整个场景的修改？',
+      description: action === 'save'
+        ? `${changesOutput ? `当前输出是“${state.activeSceneTitle}”，将切换为“${state.draft.document.title}”。` : ''}${otherChanges ? '场景中还有其他未保存修改，也会一起保存并应用。' : ''}`
+        : `“${state.draft.document.title}”中还有文本框以外的修改，也会一起放弃。当前已发布的画面不变。`,
+      confirmLabel: action === 'save' ? '保存并应用' : '放弃修改',
+      variant: action === 'save' ? 'caution' : 'destructive',
+    });
+    if (!confirmed || disposed) return false;
+    if (before !== snapshot()) {
+      throw new Error('场景已变化，请核对后重新操作。');
+    }
+    return true;
+  }
   function select(id) {
     selected = id;
     panel?.dispose(); preview?.dispose();
@@ -69,6 +108,7 @@ export function initTextBoxes() {
     const items = state.draft.document.items.filter(item => item.type === 'text-box');
     const textBoxesChanged = state.dirty && JSON.stringify(items)
       !== JSON.stringify(state.saved.document.items.filter(item => item.type === 'text-box'));
+    get('scene').textContent = `正在编辑：${state.presets.length ? state.draft.document.title : '暂无场景'} / 当前输出：${state.activeSceneId ? state.activeSceneTitle : '尚未应用'}`;
     get('library').hidden = !items.length;
     if (!items.some(item => item.id === selected)) { select(items[0]?.id); }
     const signature = JSON.stringify(items.map(item => [item.id, item.name, item.visible, item.locked]));
@@ -92,13 +132,13 @@ export function initTextBoxes() {
     get('discard').disabled = !state.dirty || busy;
     get('copy').disabled = !item || busy;
     if (!status.classList.contains('text-box-error')) status.textContent = state.error
-      || (busy ? '正在保存并应用…' : textBoxesChanged ? '文本框有未保存修改'
+      || (busy ? busyMessage : textBoxesChanged ? '文本框有未保存修改'
         : state.dirty ? '场景其他内容有未保存修改' : items.length ? '已保存' : '');
   }
   get('add').addEventListener('click', async () => {
     if (!canvas || busy) return;
     if (!canvas.controller.getState().presets.length) {
-      busy = true;
+      busy = true; busyMessage = '正在新建场景…';
       try { await canvas.preset({ action: 'create', title: '场景 1', duplicate: false }); }
       catch (error) { fail(error); return; }
       finally { busy = false; render(); }
@@ -127,11 +167,23 @@ export function initTextBoxes() {
     edit(document => { document.items = document.items.filter(item => item.id !== selected); });
   });
   get('canvas').addEventListener('click', () => openComponentPreview({ ...definition, selectedItemId: selected }));
-  get('discard').addEventListener('click', () => { status.classList.remove('text-box-error'); canvas?.controller.discard(); });
+  get('discard').addEventListener('click', async () => {
+    if (!canvas || busy) return;
+    busy = true; busyMessage = '正在放弃修改…'; render();
+    try {
+      if (await confirmSceneAction('discard')) { status.classList.remove('text-box-error'); canvas.controller.discard(); }
+    } catch (error) { fail(error); }
+    finally { busy = false; render(); }
+  });
   get('save').addEventListener('click', async () => {
     if (!canvas || busy || current() && !get('name').reportValidity()) return;
-    busy = true; status.classList.remove('text-box-error'); render();
-    try { await canvas.publish(); status.textContent = '已保存并应用到直播'; }
+    busy = true; busyMessage = '正在保存并应用…'; status.classList.remove('text-box-error'); render();
+    try {
+      if (await confirmSceneAction('save')) {
+        busyMessage = '正在保存并应用…'; render();
+        await canvas.publish(); status.textContent = '已保存并应用到直播';
+      }
+    }
     catch (error) { fail(error); }
     finally { busy = false; render(); }
   });
@@ -141,13 +193,15 @@ export function initTextBoxes() {
       const source = await canvas.source();
       if (!source.itemIds?.includes(selected)) throw new Error('请先保存并应用这个文本框，再复制地址。');
       await copyText(sceneSourceUrl({ ...source, item: selected }));
-      status.classList.remove('text-box-error'); status.textContent = '已复制此文本框的直播地址';
+      const size = source.itemSizes?.[selected];
+      status.classList.remove('text-box-error'); status.textContent = `已复制此文本框的直播地址${size ? `；浏览器源尺寸设为 ${size.width} × ${size.height}` : ''}`;
     } catch (error) { fail(error); }
   });
   async function load() {
     try {
       status.textContent = '正在读取文本框…';
-      canvas = (await prepareComponentPreviews()).find(item => item.id === 'canvas');
+      components = await prepareComponentPreviews();
+      canvas = components.find(item => item.id === 'canvas');
       if (disposed) return;
       if (!canvas) throw new Error('场景尚未就绪，请重试。');
       get('retry').hidden = true;

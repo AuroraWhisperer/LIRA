@@ -50,20 +50,30 @@ async function createFixture() {
   module.initGiftFrame();
   const render = (settings) => handlers.get('app:settings-state')({ detail: settings });
   const edit = (id, value) => {
-    node(id).value = value;
+    node(id)[id.endsWith('Enabled') ? 'checked' : 'value'] = value;
     node('otherGiftFeature').handlers.get('input')?.({ target: node(id) });
     node(id).handlers.get('input')?.({ target: node(id) });
   };
-  return { node, requests, render, edit, toasts };
+  return { node, requests, render, edit, toasts, renderStyles: module.renderGiftFrameStyleState };
 }
 
 test('settings pushes preserve unsaved gift-frame fields and update untouched fields', async () => {
   const { node, render, edit } = await createFixture();
   render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'false' });
   edit('giftFrameThresholdRmb', '99');
+  assert.match(node('giftFrameSaveState').textContent, /有未保存修改/);
   render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'true' });
   assert.equal(node('giftFrameThresholdRmb').value, '99');
   assert.equal(node('giftFrameEnabled').checked, true);
+});
+
+test('missing woodland package is visible before attempting a preview', async () => {
+  const { node, renderStyles } = await createFixture();
+  renderStyles([]);
+  assert.equal(node('giftFrameStyleState').hidden, false);
+  assert.match(node('giftFrameStyleState').textContent, /尚未导入林间花信/);
+  renderStyles([{ packageId: 'lira.woodland-gift-frame', styles: [{ config: { resourceStyle: { preset: 'woodland-gift-frame' } } }] }]);
+  assert.equal(node('giftFrameStyleState').hidden, true);
 });
 
 test('save uses the submitted draft and preserves edits made while awaiting its response', async () => {
@@ -92,6 +102,26 @@ test('saving woodland does not resubmit retired ribbon settings', async () => {
   assert.deepEqual(requests[0].body, { giftFrameEnabled: 'true', giftFrameThresholdRmb: '99.00' });
   requests[0].resolve();
   await save;
+});
+
+test('reverting to the saved setting clears dirty state, except while that value is being replaced', async () => {
+  const { node, requests, render, edit } = await createFixture();
+  render({ giftFrameThresholdRmb: '20.00', giftFrameEnabled: 'false' });
+  edit('giftFrameEnabled', true);
+  edit('giftFrameEnabled', false);
+  assert.equal(node('giftFrameSaveState').textContent, '');
+  edit('giftFrameThresholdRmb', '99');
+  edit('giftFrameThresholdRmb', '20');
+  assert.equal(node('giftFrameSaveState').textContent, '');
+  assert.equal(node('giftFrameThresholdRmb').dataset.dirty, 'false');
+  edit('giftFrameThresholdRmb', '99');
+  const save = node('giftFrameSaveBtn').handlers.get('click')();
+  edit('giftFrameThresholdRmb', '20');
+  render({ giftFrameThresholdRmb: '99.00', giftFrameEnabled: 'false' });
+  requests[0].resolve(); await save;
+  assert.equal(node('giftFrameThresholdRmb').value, '20');
+  assert.equal(node('giftFrameThresholdRmb').dataset.dirty, 'true');
+  assert.match(node('giftFrameSaveState').textContent, /新修改还没保存/);
 });
 
 test('invalid simulated quantity stays in the settings page without sending requests', async () => {

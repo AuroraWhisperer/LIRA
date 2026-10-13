@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {
   app,
+  autoUpdater,
   BrowserWindow,
   dialog,
   ipcMain,
@@ -17,6 +18,7 @@ const {
   powerMonitor,
 } = require('electron');
 const { createDesktopAuthController } = require('./desktop-auth-controller');
+const { createDoubaoSession } = require('./doubao-session');
 const { createDynamicLotteryAuth } = require('./dynamic-lottery-auth');
 const { registerDynamicLotteryAuthIpc } = require('./ipc/dynamic-lottery-auth-ipc');
 const { createCloudSyncController } = require('./cloud-sync-controller');
@@ -137,6 +139,7 @@ var remoteGiftController = null;
 var sceneCloudController = null;
 var readinessController = null;
 var clientAppearance = null;
+var doubaoSession = null;
 var disposeClientAppearanceIpc = null;
 var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
@@ -240,14 +243,44 @@ app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
 });
 
+// electron-updater emits this after starting the installer and before app.quit().
+autoUpdater.on('before-quit-for-update', function () {
+  void requestDesktopShutdown();
+});
+
 app.on('before-quit', function (event) {
   if (!lifecycleState.shutdownPromise && !lifecycleState.shutdown) {
     void resourceIntegrity.stop();
     return;
   }
   event.preventDefault();
-  requestDesktopShutdown();
+  requestDesktopClose();
 });
+
+function requestDesktopClose() {
+  if (lifecycleState.shutdownPromise) return lifecycleState.shutdownPromise;
+  if (lifecycleState.closePromptPromise) return lifecycleState.closePromptPromise;
+  if (!lifecycleState.runtime?.hasActiveOverlayConnections?.()) return requestDesktopShutdown();
+  const options = {
+    type: 'question',
+    title: '退出 LIRA',
+    message: '仍有本机画面正在使用，确定退出？',
+    detail: '退出后，连接中的本机画面将停止更新。',
+    buttons: ['继续使用', '退出 LIRA'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  };
+  const result = windowState.main && !windowState.main.isDestroyed()
+    ? dialog.showMessageBox(windowState.main, options)
+    : dialog.showMessageBox(options);
+  lifecycleState.closePromptPromise = result.then(({ response }) => {
+    if (response === 1) return requestDesktopShutdown();
+  }).catch((error) => writeLog('close-prompt-error', error)).finally(() => {
+    lifecycleState.closePromptPromise = null;
+  });
+  return lifecycleState.closePromptPromise;
+}
 
 function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
   if (lifecycleState.shutdownPromise) return lifecycleState.shutdownPromise;
@@ -311,7 +344,7 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
       disposeClientAppearanceIpc?.();
       plannerReminderController?.dispose();
       dynamicLotteryAuth?.dispose();
-      const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth].filter(
+      const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth, doubaoSession].filter(
         Boolean,
       );
       for (const controller of controllersToDrain) controller.dispose();
@@ -478,11 +511,15 @@ async function startDesktopApp() {
       imageBaseUrl: () => licenseManager?.getRemoteBaseUrl?.() || remoteGiftCatalogBootstrapBase,
     },
   };
+  doubaoSession = createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir: pathState.dataDir, getParent: () => windowState.main });
+  await doubaoSession.initialize();
+  if (lifecycleState.shutdownPromise) return;
   lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
     dataDir: pathState.dataDir,
     pickComponentWebFile: createComponentWebPicker({ dialog, getWindow: () => windowState.main }),
     getClientTheme: clientAppearance.getThemeId,
     safeStorage,
+    doubaoSession,
     appVersion: app.getVersion(),
     dynamicLotteryAuth: {
       getIdentity: () => dynamicLotteryAuth?.getIdentity(),
@@ -790,7 +827,7 @@ function createMainWindow(baseUrl, authorized = false) {
 
   windowState.main.on('close', function (event) {
     event.preventDefault();
-    requestDesktopShutdown();
+    requestDesktopClose();
   });
 
   windowState.main.on('closed', function () {

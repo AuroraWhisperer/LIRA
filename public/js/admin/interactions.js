@@ -11,6 +11,7 @@ import {
 import { createInteractionClient } from '../shared/interaction-client.js';
 import { renderPollRows, interactionStatus } from '../shared/interaction-view.js';
 import { initInteractionAppearance } from './interaction-appearance.js';
+import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
 let initialized = false;
 
@@ -169,9 +170,19 @@ export function initInteractions() {
   get('interactionFinish').addEventListener('click', () =>
     mutate('/api/interactions/session/finish', { sessionId: session?.sessionId }).catch(showError),
   );
-  get('interactionClear').addEventListener('click', () =>
-    mutate('/api/interactions/session/clear', { sessionId: session?.sessionId }).catch(showError),
-  );
+  get('interactionClear').addEventListener('click', async () => {
+    if (!session || busy) return;
+    const sessionId = session.sessionId;
+    const participants = host?.session?.sessionId === sessionId ? host.participants : session.participants || 0;
+    if (session.phase !== 'finished' && participants > 0) {
+      const confirmed = await showConfirmationDialog({
+        title: '取消本场互动？', description: `已收到 ${participants} 人参与，取消后本场${session.kind === 'poll' ? '票数' : '评分'}将被清除。`,
+        confirmLabel: '取消本场', cancelLabel: '继续互动', variant: 'destructive',
+      });
+      if (!confirmed || session?.sessionId !== sessionId) return;
+    }
+    mutate('/api/interactions/session/clear', { sessionId }).catch(showError);
+  });
 
   function render() {
     renderWorkspace();

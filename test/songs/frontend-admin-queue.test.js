@@ -10,7 +10,7 @@ const { createDom, createClock } = require('../helpers/toast-dom');
 const ROOT_DIR = path.join(__dirname, '../..');
 const MESSAGE = '测试 "SC" & <留言>\n继续加油 ⚡🥵';
 
-async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true } = {}) {
+async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true, fetch } = {}) {
   const dom = createDom();
   const clock = createClock();
   const copied = [];
@@ -27,8 +27,17 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true 
   };
   const createList = () => ({
     buttons: [],
+    actions: [],
     style: { setProperty() {} },
+    closest() { return this; },
+    addEventListener() {},
     set innerHTML(html) {
+      this.actions = [...html.matchAll(/<button\b[^>]*data-sc-action="([^"]*)"[^>]*data-id="([^"]*)"[^>]*>/g)]
+        .map(([, scAction, id]) => {
+          const button = dom.documentRef.createElement('button');
+          button.dataset = { scAction, id };
+          return button;
+        });
       this.buttons = [...html.matchAll(/<button\b[^>]*data-copy="([^"]*)"[^>]*>/g)].map((match) => {
         const listeners = [];
         return {
@@ -47,7 +56,7 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true 
       });
     },
     querySelectorAll(selector) {
-      return selector === '[data-copy]' ? this.buttons : [];
+      return selector === '[data-copy]' ? this.buttons : selector === '[data-sc-action]' ? this.actions : [];
     },
   });
   const elements = {
@@ -58,9 +67,14 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true 
     queueSize: {},
     liveStatus: {},
     toast: dom.container,
+    ...Object.fromEntries(['superChatUndo', 'superChatUndoMessage', 'superChatUndoBtn', 'randomSongBtn', 'nextBtn', 'clearBtn']
+      .map((id) => [id, dom.documentRef.createElement(id.endsWith('Btn') ? 'button' : 'div')])),
   };
+  elements.superChatUndo.hidden = true;
   const globals = {
     window: dom.windowRef,
+    fetch,
+    Date: class extends Date { static now() { return clock.now(); } },
     navigator:
       clipboardMode === 'missing'
         ? {}
@@ -110,6 +124,7 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true 
     copied,
     messages,
     inputs,
+    clock,
   };
 }
 
@@ -178,6 +193,54 @@ test('queue actions remain unique non-submit buttons in the actual page', () => 
     assert.match(matches[0], /\stype\s*=\s*["']button["']/);
   }
 });
+
+for (const scenario of ['response-after-expiry', 'delete-during-fade', 'explicit-clear']) {
+  test(`SC undo keeps the correct batch after ${scenario}`, async () => {
+    let pending;
+    let requestCount = 0;
+    const response = (undo) => ({ ok: true, text: async () => JSON.stringify({ ok: true, undo }) });
+    const { queue, elements, clock } = await createQueueRuntime({ fetch: async (url) => {
+      if (url === '/api/state') return { json: async () => ({ ok: true, data: {} }) };
+      assert.equal(url, '/api/superchats/delete');
+      requestCount++;
+      if (requestCount === 1) return response({ token: 'first', count: 1, expiresAt: 10000 });
+      pending = Promise.withResolvers();
+      return pending.promise;
+    } });
+    queue.initQueueForm();
+    queue.renderSuperChatQueue([{ id: 1, price: 30 }, { id: 2, price: 30 }]);
+    const deletes = elements.superChatList.actions.filter((button) => button.dataset.scAction === 'delete');
+    await deletes[0].fire('click');
+    assert.equal(elements.superChatUndo.hidden, false);
+    assert.equal(elements.superChatUndoBtn.disabled, false);
+
+    clock.tick(scenario === 'delete-during-fade' ? 10500 : 9990);
+    const second = deletes[1].fire('click');
+    await Promise.resolve();
+    if (scenario === 'explicit-clear') queue.clearSuperChatUndo();
+    else if (scenario === 'response-after-expiry') clock.tick(20);
+    assert.equal(elements.superChatUndo.classList.contains('is-leaving'), true);
+    pending.resolve(response({ token: 'new-batch', count: 2, expiresAt: clock.now() + 10000 }));
+    await second;
+
+    if (scenario === 'explicit-clear') {
+      assert.equal(elements.superChatUndoBtn.disabled, true, 'clear rejects a late delete response');
+      clock.tick(1000);
+      assert.equal(elements.superChatUndo.hidden, true);
+    } else {
+      assert.equal(elements.superChatUndoBtn.disabled, false, 'the valid new batch remains undoable');
+      assert.equal(elements.superChatUndoMessage.textContent, '已删除 2 条 SC');
+      assert.equal(elements.superChatUndo.classList.contains('is-leaving'), false);
+      clock.tick(1000);
+      assert.equal(elements.superChatUndo.hidden, false, 'the previous hide timer is cancelled');
+      clock.tick(9000);
+      assert.equal(elements.superChatUndoBtn.disabled, true);
+      assert.equal(elements.superChatUndo.hidden, false, 'the new batch fades for one second');
+      clock.tick(1000);
+      assert.equal(elements.superChatUndo.hidden, true);
+    }
+  });
+}
 
 test('queue random click stays disabled while pending and recovers after success or failure', async () => {
   const dom = createDom();

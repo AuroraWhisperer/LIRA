@@ -5,6 +5,7 @@ const { createAiConfigStore } = require('../ai/config-store');
 const { createAiApiQuotaStore } = require('../ai/api-quota-store');
 const { createElectronSecretCodec } = require('../ai/secret-codec');
 const { createDeepSeekClient } = require('../ai/deepseek-client');
+const { createDoubaoClient } = require('../ai/doubao-client');
 const { createAiRequestLogger } = require('../ai/request-logger');
 const { createQWeatherTool } = require('../ai/tools/qweather-tool');
 const { createAmapTool } = require('../ai/tools/amap-tool');
@@ -20,10 +21,15 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
   const quotaStore = createAiApiQuotaStore(songDb);
   const deliveryVerifier = createDanmakuDeliveryVerifier();
   const requestLogger = runtimeOptions.aiRequestLogger || createAiRequestLogger({ logDir: path.dirname(aiLogPath) });
+  const doubao = createDoubaoClient({
+    session: runtimeOptions.doubaoSession,
+    logEvent: (event) => requestLogger.log(event),
+  });
   const service = createAiAssistantService({
     store: configStore,
     quotaStore,
     deepseek: createDeepSeekClient({
+      doubao,
       fetchImpl: runtimeOptions.fetchImpl,
       logEvent: (event, options) => requestLogger.log(event, options),
     }),
@@ -51,6 +57,7 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
   }
 
   return {
+    doubao,
     configStore,
     quotaStore,
     deliveryVerifier,

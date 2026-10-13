@@ -115,10 +115,14 @@ export class FormsService {
       e.stopPropagation();
       const collapsed = !document.body.classList.contains('player-dock-collapsed');
       this.setPlayerDockCollapsed(collapsed);
+      try { window.localStorage?.setItem('lira-player-dock-collapsed', String(collapsed)); }
+      catch (error) { console.warn('[player dock] Could not remember layout:', error); }
     });
 
-    // 播放器默认收起，避免遮挡主工作区；用户仍可通过手柄展开。
-    this.setPlayerDockCollapsed(true);
+    let playerCollapsed = true;
+    try { playerCollapsed = window.localStorage?.getItem('lira-player-dock-collapsed') !== 'false'; }
+    catch (error) { console.warn('[player dock] Could not restore layout:', error); }
+    this.setPlayerDockCollapsed(playerCollapsed);
 
     const handleFullscreenKeydown = (e) => {
       if (!fsEl?.classList.contains('open') || fsEl.closest('[inert]') || e.defaultPrevented) return;

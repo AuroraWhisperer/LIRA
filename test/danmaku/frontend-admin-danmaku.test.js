@@ -46,8 +46,9 @@ async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pa
       window.AdminApp = {
         utils: { toast() {} },
         settings: {
-          async reconnectBilibili() {
+          async reconnectBilibili(options) {
             window.reconnects++;
+            window.reconnectOptions = options;
             window.danmakuState.connected = true;
           },
         },
@@ -124,6 +125,43 @@ test('sending a danmaku clears only the submitted draft and preserves edits made
     assert.equal(await page.locator('#danmakuMessage').inputValue(), edit ? '下一条🙂' : '');
     assert.equal(await page.locator('#danmakuCounter').textContent(), edit ? '4 字' : '0 字');
   }
+});
+
+test('automatic sending stops during the five-second wait and sends no remaining messages', async (t) => {
+  const page = await createDanmakuPage(t);
+  await page.clock.install();
+  await page.evaluate(() => {
+    const read = window.fetch;
+    window.autoMessages = [];
+    window.fetch = async (url, options) => {
+      if (url !== '/api/bilibili/danmaku/send') return read(url);
+      window.autoMessages.push(JSON.parse(options.body).message);
+      return { ok: true, json: async () => ({ ok: true, data: {} }) };
+    };
+  });
+  await page.locator('#danmakuAutoBtn').click();
+  await page.waitForFunction(() => window.autoMessages.length === 1);
+  assert.equal(await page.locator('#danmakuAutoBtn').textContent(), '停止自动发送');
+  await page.locator('#danmakuAutoBtn').click();
+  await page.waitForFunction(() => document.getElementById('danmakuAutoBtn').textContent === '自动钓鱼/打劫（15 条）');
+  await page.clock.runFor(10000);
+  assert.deepEqual(await page.evaluate(() => window.autoMessages), ['钓鱼']);
+  assert.match(await page.locator('#danmakuSendResult').textContent(), /已停止后续/);
+});
+
+test('automatic refresh stays quiet and skips disabled monitoring or an unset room', async (t) => {
+  const page = await createDanmakuPage(t, { connected: false });
+  await page.evaluate(async () => {
+    document.getElementById('danmakuMonitoringEnabled').checked = false;
+    await window.AdminApp.danmakuTool.refresh({ reconnectIfDisconnected: true });
+  });
+  assert.equal(await page.evaluate(() => window.reconnects), 0);
+  await page.evaluate(async () => {
+    document.getElementById('danmakuMonitoringEnabled').checked = true;
+    window.danmakuState.roomId = '';
+    await window.AdminApp.danmakuTool.refresh({ reconnectIfDisconnected: true });
+  });
+  assert.equal(await page.evaluate(() => window.reconnects), 0);
 });
 
 for (const scenario of [
@@ -206,10 +244,17 @@ test('opening a disconnected danmaku panel reconnects once and renders the refre
   });
   assert.equal(await page.locator('#danmakuToolStatus').textContent(), '可发送，监听已连接');
   assert.equal(await page.evaluate(() => window.reconnects), 1);
+  assert.deepEqual(await page.evaluate(() => window.reconnectOptions), { silent: true });
   assert.equal(await page.evaluate(() => window.danmakuRequests.length), 3);
   await page.evaluate(() => window.AdminApp.other.selectFeatureById('otherDanmakuFeature'));
   await page.waitForFunction(() => window.danmakuRequests.length === 4, null, {
     timeout: 2000,
   });
   assert.equal(await page.evaluate(() => window.reconnects), 1);
+});
+
+test('degraded live listening is shown as possibly delayed instead of connected', async (t) => {
+  const page = await createDanmakuPage(t, { liveMessage: '弹幕长连已断开，历史消息监听中' });
+  assert.equal(await page.locator('#danmakuToolStatus').textContent(), '可发送，弹幕可能延迟');
+  assert.equal(await page.locator('#danmakuToolStatus').getAttribute('class'), 'warn');
 });

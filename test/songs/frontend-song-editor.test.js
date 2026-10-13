@@ -87,6 +87,44 @@ test('deleting the only song on the last page returns to the preceding page', as
   assert.equal(await page.locator('#songLibraryNextPage').isDisabled(), true);
 });
 
+for (const switchSong of [false, true]) test(`deleting the edited song ${switchSong ? 'preserves a later edit' : 'resets the editor'}`, async (t) => {
+  const page = await open(t);
+  await page.locator('[data-edit-song="1"]').dispatchEvent('click');
+  await page.waitForFunction(() => document.getElementById('songId').value === '1');
+  await page.locator('[data-delete-song="1"]').dispatchEvent('click');
+  await page.getByRole('button', { name: '确认删除', exact: true }).click();
+  await page.waitForFunction(() => window.pendingSaves.length === 1);
+  if (switchSong) {
+    await page.locator('[data-edit-song="2"]').dispatchEvent('click');
+    await page.waitForFunction(() => document.getElementById('songId').value === '2');
+    await page.locator('#songName').fill('新的未保存草稿');
+  }
+  await page.evaluate(() => window.pendingSaves[0].resolve({ ok: true }));
+  await page.waitForFunction(() => window.messages.length === 1);
+  assert.equal(await page.locator('#songId').inputValue(), switchSong ? '2' : '');
+  assert.equal(await page.locator('#songName').inputValue(), switchSong ? '新的未保存草稿' : '');
+});
+
+test('a complete library refresh resets the editor only when its song was removed', async (t) => {
+  const page = await open(t);
+  await page.evaluate(() => {
+    window.renderComplete = (songs) => window.songs.renderSongs(songs, new Set(), new Set(), new Set(), { complete: true });
+    window.renderComplete(window.library);
+  });
+  await page.locator('[data-edit-song="1"]').dispatchEvent('click');
+  await page.waitForFunction(() => document.getElementById('songId').value === '1');
+  await page.evaluate(() => window.renderSongs([window.library[1]]));
+  assert.equal(await page.locator('#songId').inputValue(), '1', 'a filtered result is not treated as a deletion');
+  await page.evaluate(() => window.renderComplete([window.library[1]]));
+  assert.equal(await page.locator('#songId').inputValue(), '');
+  assert.equal(await page.locator('#songFormTitle').textContent(), '添加歌曲');
+  await page.evaluate(() => {
+    document.getElementById('songId').value = '3';
+    window.renderComplete([window.library[1]]);
+  });
+  assert.equal(await page.locator('#songId').inputValue(), '3', 'a newly saved song not yet listed stays in the editor');
+});
+
 test('song editing protects drafts when changing songs or clearing the form', async (t) => {
   const page = await open(t);
   await page.locator('[data-edit-song="1"]').dispatchEvent('click');

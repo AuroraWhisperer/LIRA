@@ -19,7 +19,11 @@ const SHOTS = [
     ],
   },
   { id: 'B3', file: 'song-library-list', title: '歌库列表、搜索与筛选', scroll: '#songSearch' },
-  { id: 'B4', file: 'song-library-edit', title: '新增歌曲表单与可点开关', clip: '#songForm' },
+  { id: 'B4', file: 'song-library-edit', title: '歌曲编辑状态与取消编辑', clip: '#songForm',
+    setup: async (page) => {
+      await page.locator('[data-edit-song]').first().evaluate((button) => button.click());
+      await page.locator('#songFormTitle').filter({ hasText: '正在编辑' }).waitFor();
+    } },
   {
     id: 'B5',
     file: 'song-settings-account',
@@ -37,9 +41,9 @@ const SHOTS = [
   {
     id: 'B7',
     file: 'song-settings-rules',
-    title: '点歌板：点歌规则、黑名单与保存',
-    tab: 'themePage',
-    clip: '#songRequestSettingsForm',
+    title: '点歌规则：接收限制、屏蔽词与保存',
+    tab: 'songRequestPage',
+    clip: '.song-management-panel',
   },
   { id: 'B8', file: 'song-theme-styles', title: '点歌板六种风格', tab: 'themePage', scroll: '#themePage' },
   { id: 'B9', file: 'song-theme-detail', title: '点歌板文字与滚动设置', tab: 'themePage', clip: '#classicThemeArea' },
@@ -74,9 +78,16 @@ const SHOTS = [
   {
     id: 'B12',
     file: 'song-import-export',
-    title: '下载模板、导入与导出歌库',
+    title: '歌单检查结果与确认替换入口',
     tab: 'importPage',
-    scroll: '#importPage',
+    setup: async (page) => {
+      await page.locator('#importText').fill(
+        '歌曲名字\t原唱/首发歌手\t歌曲分类\n说明用示例歌曲\t示例歌手\t示例',
+      );
+      await page.locator('#songImportPreviewBtn').click();
+      await page.locator('#songImportApplyBtn:enabled').waitFor();
+    },
+    clip: '#songImportPreview',
   },
   {
     id: 'B12b',
@@ -89,13 +100,14 @@ const SHOTS = [
         .fill(
           '歌曲名字\t原唱/首发歌手\t歌曲分类\t歌曲标签\t是否可点\t语言\t点歌价格\n说明用示例歌曲\t示例歌手\t示例\t文档\t是\t华语\t免费',
         );
-      await page.locator('#importBtn').click();
+      await page.locator('#songImportPreviewBtn').click();
+      await page.locator('#songImportApplyBtn').click();
       await page
         .locator('#importResult')
-        .filter({ hasText: /成功|导入|跳过/ })
+        .filter({ hasText: /本地歌库已替换/ })
         .waitFor();
     },
-    scroll: '#importBtn',
+    scroll: '#songImportPreviewBtn',
     mustShow: ['#importResult'],
   },
   {
@@ -176,7 +188,7 @@ const SHOTS = [
   {
     id: 'C6',
     file: 'playback-queue-drawer',
-    title: '播放队列、导入点歌与清空',
+    title: '播放队列、导入点歌与停止并清空',
     main: 'playbackAssistantPage',
     click: ['#playerDockToggle', '#playbackQueueBtn'],
     clip: '#queuePopup',
@@ -203,13 +215,18 @@ const SHOTS = [
   {
     id: 'C9',
     file: 'playback-match-diagnostic',
-    title: '点歌匹配诊断（未找到候选的示例）',
+    title: '点歌匹配诊断（隔离的候选搜索示例）',
     main: 'playbackAssistantPage',
     click: '.playback-match-panel summary',
     setup: async (page) => {
+      await page.route('**/api/music/search', (route) => route.fulfill({
+        json: { ok: true, data: { tracks: [{ id: 'guide-match', title: '晴天', artists: ['周杰伦'],
+          platform: 'qq', durationMs: 269000 }] } },
+      }));
       await page.locator('#playbackMatchSong').fill('晴天');
       await page.locator('#playbackMatchArtist').fill('周杰伦');
       await page.locator('#playbackMatchBtn').click();
+      await page.locator('#playbackMatchResults .match-result-row').first().waitFor();
     },
     scroll: '.playback-match-panel',
     mustShow: ['#playbackMatchBtn', '#playbackMatchResults'],

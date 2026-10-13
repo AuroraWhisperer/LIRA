@@ -36,7 +36,7 @@
         </button>
       </div>
       <div class="danmaku-status-grid">
-        <div><span>发送账号</span><strong id="danmakuAccountState">检查中</strong></div>
+        <div><span>B 站发送账号</span><strong id="danmakuAccountState">检查中</strong></div>
         <div><span>直播间</span><strong id="danmakuRoomState">检查中</strong></div>
         <div><span>发送状态</span><strong id="danmakuToolStatus">检查中</strong></div>
       </div>
@@ -68,7 +68,7 @@
         <textarea id="danmakuMessage" rows="1" required aria-describedby="danmakuCounter" placeholder="输入内容，Ctrl + Enter 发送"></textarea>
         <span id="danmakuCounter" class="hint">0 字</span>
         <button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">
-          自动钓鱼/打劫</button>
+          自动钓鱼/打劫（15 条）</button>
         <button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button>
       </form>
       <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">
@@ -144,12 +144,12 @@
         <div class="danmaku-fixed-item" data-fixed-item="exact">
           <div class="danmaku-fixed-copy">
             <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuExactReplyTitle">自定义回复</strong><lira-help label="自定义回复说明">单独发送完整触发词后回复固定文案，例如“歌单”；忽略首尾空格，英文字母区分大小写。内置“菜单”的回复见下方列表，已有系统指令优先。开启后在云端运行，每条回复都会 @ 发送弹幕的观众。</lira-help>
+              <strong id="danmakuExactReplyTitle">完整匹配回复</strong><lira-help label="完整匹配回复说明">单独发送完整触发词后回复固定文案，例如“歌单”；忽略首尾空格，英文字母区分大小写。内置“菜单”的回复见下方列表，已有系统指令优先。开启后在云端运行，每条回复都会 @ 发送弹幕的观众。</lira-help>
             </div>
             <span class="danmaku-fixed-summary">完整匹配触发词后回复</span>
             <span id="danmakuExactState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
           </div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="exact" aria-label="编辑自定义回复" aria-controls="danmakuExactRepliesPanel" aria-expanded="false" disabled>
+          <button class="danmaku-fixed-open" type="button" data-fixed-open="exact" aria-label="编辑完整匹配回复" aria-controls="danmakuExactRepliesPanel" aria-expanded="false" disabled>
             编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
           </button>
           <label class="switch-control"><input id="danmakuExactReplyToggle" type="checkbox" aria-labelledby="danmakuExactReplyTitle" disabled /><span class="switch-track"></span></label>
@@ -157,7 +157,7 @@
         <div class="danmaku-fixed-item" data-fixed-item="diy">
           <div class="danmaku-fixed-copy">
             <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuCustomReplyTitle">自定义关键词回复</strong><lira-help label="自定义关键词回复说明">弹幕包含关键词就回复固定文案，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。修改后请保存；需客户端保持运行并连接直播间。</lira-help>
+              <strong id="danmakuCustomReplyTitle">关键词回复</strong><lira-help label="关键词回复说明">弹幕包含关键词就回复固定文案，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。修改后请保存；需客户端保持运行并连接直播间。</lira-help>
             </div
             ><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span
             ><span class="danmaku-fixed-note" data-fixed-note="diy"></span>
@@ -166,7 +166,7 @@
             class="danmaku-fixed-open"
             type="button"
             data-fixed-open="diy"
-            aria-label="编辑自定义关键词回复"
+            aria-label="编辑关键词回复"
             aria-controls="danmakuCustomRepliesPanel"
             aria-expanded="false"
           >
@@ -203,7 +203,7 @@
         </div>
       </div>
       <div class="daily-bot-cloud-status">
-        <p id="dailyBotStatus" class="hint" role="status">连接云端账号后可设置</p>
+        <p id="dailyBotStatus" class="hint" role="status">连接 LIRA 账号后可设置</p>
         <button id="dailyBotRefresh" type="button" class="danmaku-text-action" aria-label="刷新固定回复云端状态" disabled>刷新云端状态</button>
       </div>
       <div id="danmakuFixedEditorHeading" class="danmaku-fixed-editor-heading" hidden>
@@ -240,7 +240,7 @@
           </div>
         </template>
         <fieldset id="danmakuExactFields" class="danmaku-reply-fields" disabled>
-          <legend class="sr-only">自定义回复规则</legend>
+          <legend class="sr-only">完整匹配回复规则</legend>
           <div id="danmakuExactReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>
           <div class="danmaku-custom-reply-add-grid">
             <label>触发词<input id="danmakuExactKeywordInput" type="text" placeholder="例如：歌单，最多 30 字" /></label>
@@ -248,8 +248,8 @@
             <button id="danmakuExactReplyAddBtn" class="secondary" type="button">添加回复</button>
           </div>
           <div class="danmaku-blessing-actions">
-            <span id="danmakuExactReplyStatus" class="hint" role="status" aria-live="polite">正在读取自定义回复</span>
-            <button id="danmakuExactReplySaveBtn" class="primary" type="button">保存自定义回复</button>
+            <span id="danmakuExactReplyStatus" class="hint" role="status" aria-live="polite">正在读取完整匹配回复</span>
+            <button id="danmakuExactReplySaveBtn" class="primary" type="button">保存完整匹配回复</button>
           </div>
         </fieldset>
       </div>
@@ -294,7 +294,7 @@
       <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section" data-fixed-editor="diy" hidden>
         <summary>
           <div>
-            <h3>自定义关键词回复 <lira-help>弹幕包含关键词就回复固定文案；英文字母不区分大小写，多条命中时只回复第一条启用规则。</lira-help></h3>
+            <h3>关键词回复 <lira-help>弹幕包含关键词就回复固定文案；英文字母不区分大小写，多条命中时只回复第一条启用规则。</lira-help></h3>
             <p><span id="danmakuCustomReplyCount">0 条</span></p>
           </div>
           <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -323,8 +323,8 @@
             <button id="danmakuCustomReplyAddBtn" class="secondary" type="button">添加回复</button>
           </div>
           <div class="danmaku-blessing-actions">
-            <span id="danmakuCustomReplyStatus" class="hint" role="status" aria-live="polite">正在读取自定义回复</span>
-            <button id="danmakuCustomReplySaveBtn" class="primary" type="button">保存自定义回复</button>
+            <span id="danmakuCustomReplyStatus" class="hint" role="status" aria-live="polite">正在读取关键词回复</span>
+            <button id="danmakuCustomReplySaveBtn" class="primary" type="button">保存关键词回复</button>
           </div>
         </div>
       </details>

@@ -1,8 +1,11 @@
 'use strict';
 
+import { clearSuperChatUndo } from './queue.js';
+
 function reloadAfterPartialClearAll(response, { alertRef, locationRef }) {
   if (response?.partial !== true) return false;
   const committed = response.data?.committed || [];
+  if (committed.includes('superChatDb')) clearSuperChatUndo();
   const failed = response.data?.failed || [];
   const phase = response.data?.phase || response.phase;
   const phaseText = phase === 'runtime-reset' ? '数据库已提交，但运行状态重载失败。'
@@ -63,6 +66,7 @@ export function createSettingsOperations({
     const response = await api('/api/database/clear-superchats', {
       confirm: true,
     });
+    clearSuperChatUndo();
     toast(`SC 记录已清空（共 ${response.data.deletedCount} 条）`);
     await getState()?.reloadState?.();
   }
@@ -101,6 +105,7 @@ export function createSettingsOperations({
       }
 
       if (reloadAfterPartialClearAll(response, { alertRef, locationRef })) return;
+      clearSuperChatUndo();
 
       const deleted = response.data.deletedCounts;
       const total = response.data.totalDeleted || 0;
@@ -142,8 +147,8 @@ export function createSettingsOperations({
           <ul class="shutdown-checklist ui-body">
             <li><span class="check-mark">✓</span> 本地 HTTP 服务已停止</li>
             <li><span class="check-mark">✓</span> 端口已释放</li>
-            <li><span class="check-mark">✓</span> 弹幕监听已断开</li>
-            <li><span class="check-mark">✓</span> 数据已保存</li>
+            <li><span class="check-mark">✓</span> 本机连接已断开；云端监听与已开启的机器人继续运行</li>
+            <li><span class="check-mark">✓</span> 已保存的数据保留</li>
           </ul>
           <div class="shutdown-actions">
             ${isDesktop ? `<button id="restartAppBtn" class="primary shutdown-restart-btn" type="button">🔄 重新启动</button>` : ''}
@@ -159,7 +164,7 @@ export function createSettingsOperations({
     const confirmed = await showConfirmationDialog({
       variant: 'caution',
       title: '退出 LIRA？',
-      description: '应用会关闭本地服务、断开弹幕连接并释放端口。已保存的数据不会受到影响。',
+      description: '本地服务及本机浏览器源会停止；云端监听、在线弹幕源和已开启的云端机器人会继续运行。已保存的数据不会受到影响。',
       confirmLabel: '退出 LIRA',
       initialFocus: 'cancel',
     });
@@ -208,10 +213,12 @@ export function createSettingsOperations({
     });
   }
 
-  async function reconnectBilibili() {
+  async function reconnectBilibili({ silent = false } = {}) {
     const button = documentRef.getElementById('reconnectBtn');
-    button.disabled = true;
-    button.textContent = '刷新中…';
+    if (!silent) {
+      button.disabled = true;
+      button.textContent = '刷新中…';
+    }
     try {
       const response = await fetchRef('/api/bilibili/reconnect', {
         method: 'POST',
@@ -228,7 +235,7 @@ export function createSettingsOperations({
         throw new Error(payload.error || `刷新直播失败（HTTP ${response.status}）`);
       }
       if (payload.data?.liveStatus) {
-        showStackedToast({
+        if (!silent) showStackedToast({
           key: 'live-refresh-ok',
           title: '直播状态已刷新',
           message: payload.data.liveStatus.message || '弹幕连接已重新建立',
@@ -240,10 +247,12 @@ export function createSettingsOperations({
       }
     } catch (error) {
       const customMessage = getForms()?.reconnectErrorMessage?.(error);
-      toast(customMessage || error.message || String(error));
+      if (!silent) toast(customMessage || error.message || String(error), { type: 'error' });
     } finally {
-      button.disabled = false;
-      button.textContent = '刷新直播';
+      if (!silent) {
+        button.disabled = false;
+        button.textContent = '刷新直播';
+      }
     }
   }
 

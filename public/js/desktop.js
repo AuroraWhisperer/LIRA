@@ -68,10 +68,10 @@
       });
     }
     if (dataButton) {
-      dataButton.addEventListener('click', () => runDesktopAction(() => desktop.openDataDir(), false));
+      dataButton.addEventListener('click', () => runDesktopAction(() => desktop.openDataDir(), false, 'open-data'));
     }
     if (logButton) {
-      logButton.addEventListener('click', () => runDesktopAction(() => desktop.openLogDir(), false));
+      logButton.addEventListener('click', () => runDesktopAction(() => desktop.openLogDir(), false, 'open-log'));
     }
 
     // 自动更新 toggle
@@ -91,7 +91,7 @@
           if (autoUpdateLabel) {
             autoUpdateLabel.textContent = enabled ? '已开启' : '已关闭';
           }
-          toast(enabled ? '自动更新已开启' : '自动更新已关闭');
+          toast(enabled ? '启动时自动检查已开启' : '启动时自动检查已关闭');
           // 通知主进程
           if (desktop.setAutoUpdate) {
             desktop.setAutoUpdate(enabled);
@@ -275,7 +275,7 @@
     const versionText = updateVersion ? ` v${updateVersion}` : '';
     const title = status === 'downloaded' ? `更新${versionText}已下载` : `发现新版本${versionText}`;
     const body =
-      status === 'downloaded' ? '点击前往桌面版更新页面，重启后完成安装。' : '点击前往桌面版更新页面处理更新。';
+      status === 'downloaded' ? '退出程序时会安装；点击前往更新页，可在直播结束后重启。' : '即将自动下载；点击前往更新页查看进度。';
 
     showStackedToast({
       key: `desktop-update:${updateVersion || 'current'}`,
@@ -301,7 +301,7 @@
   }
 
   async function runDesktopAction(action, shouldRender = true, actionName = '') {
-    if (actionName) desktopUpdateAction = actionName;
+    if (['check', 'download', 'install'].includes(actionName)) desktopUpdateAction = actionName;
     try {
       const state = await action();
       if (shouldRender) {
@@ -318,7 +318,10 @@
           progress: null,
         });
       } else {
-        toast(desktopActionErrorMessage(error));
+        const message = actionName === 'open-log' ? '无法打开日志目录，请检查目录权限后重试。'
+          : actionName === 'open-data' ? '无法打开数据目录，请检查目录权限后重试。'
+            : desktopActionErrorMessage(error);
+        toast(message, { type: 'error' });
       }
     }
   }
@@ -342,7 +345,7 @@
     const isDownloading = state.status === 'downloading';
     const isInstalling = state.status === 'installing';
     const showInstall = Boolean(state.canInstall) || isInstalling;
-    const showDownload = Boolean(state.canDownload) && !isDownloading && !showInstall;
+    const showDownload = Boolean(state.canDownload) && state.status !== 'available' && !isDownloading && !showInstall;
     const showCheck = !isDownloading && !showInstall && !showDownload;
     const percent =
       state.progress && Number.isFinite(Number(state.progress.percent))
@@ -394,8 +397,8 @@
     if (checkButton) {
       checkButton.hidden = !showCheck;
       checkButton.disabled =
-        state.status === 'checking' || state.status === 'dev-disabled' || isDownloading || isInstalling;
-      checkButton.textContent = state.status === 'checking' ? '检查中...' : '检查更新';
+        state.status === 'checking' || state.status === 'available' || state.status === 'dev-disabled' || isDownloading || isInstalling;
+      checkButton.textContent = state.status === 'checking' ? '检查中...' : state.status === 'available' ? '准备下载…' : '检查并下载更新';
     }
     if (downloadButton) {
       downloadButton.hidden = !showDownload;
@@ -419,7 +422,7 @@
   }
 
   function desktopUpdateHintText(state) {
-    if (state.status === 'downloaded') return '建议在直播结束后重启更新。';
+    if (state.status === 'downloaded') return '退出程序时会安装更新，建议在直播结束后重启。';
     if (state.status === 'dev-disabled') return '开发模式不支持更新，请使用安装版。';
     if (state.status === 'error') return '可重新检查更新，或打开日志目录查看详情。';
     return '';
@@ -437,6 +440,7 @@
   }
 
   function desktopUpdateStatusText(state) {
+    if (state?.status === 'available') return `发现新版本 ${state.updateVersion || ''}，即将自动下载。`;
     const fallback = '等待检查更新';
     const message = String((state && state.message) || fallback)
       .replace(/\s+/g, ' ')

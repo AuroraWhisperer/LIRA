@@ -120,6 +120,25 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
       assert.ok((await dimensions.textContent()).endsWith(initialSize[component]));
     }
     assert.equal(await dimensions.isVisible(), true);
+    if (component === 'clock') {
+      const x = page.getByRole('spinbutton', { name: 'X', exact: true });
+      const before = await x.inputValue();
+      await x.fill('100');
+      await x.press('Tab');
+      await page.getByRole('button', { name: '撤销', exact: true }).click();
+      assert.equal(await x.inputValue(), before);
+      await page.getByRole('button', { name: '重做', exact: true }).click();
+      assert.equal(await x.inputValue(), '100');
+      const stage = page.locator('.scene-editor-stage-host');
+      await stage.focus();
+      await page.keyboard.press('Control+z');
+      assert.equal(await x.inputValue(), before);
+      await page.keyboard.press('Control+Shift+z');
+      assert.equal(await x.inputValue(), '100');
+      await page.keyboard.press('Control+z');
+      await page.keyboard.press('Control+y');
+      assert.equal(await x.inputValue(), '100');
+    }
     const labelHeight = await dimensions.evaluate(node => node.getBoundingClientRect().height);
     await page.getByRole('button', { name: '画布设置', exact: true }).click();
     await dimensions.waitFor({ state: 'hidden' });

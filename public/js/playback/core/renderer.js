@@ -11,6 +11,8 @@ const ONLINE_CONTROL_TITLES = {
   playbackSeek: '',
   playbackQueueBtn: '播放队列',
   playbackQualityBtn: '选择播放音质',
+  playbackImportSongQueue: '导入点歌队列',
+  songQueueImportPlayback: '将点歌队列导入播放器，不会自动完成点歌',
 };
 
 export function createRenderer(deps) {
@@ -61,10 +63,12 @@ export function createRenderer(deps) {
       'playbackModeBtn',
       'playbackQueueBtn',
       'playbackQualityBtn',
+      'playbackImportSongQueue',
+      'songQueueImportPlayback',
     ].forEach((id) => {
       const control = document.getElementById(id);
       if (!control) return;
-      control.disabled = isWeSing;
+      control.disabled = isWeSing || control.dataset.importing === 'true';
       if (isWeSing) {
         control.title = '全民 K歌播放请在全民 K歌客户端中控制';
       } else if (Object.hasOwn(ONLINE_CONTROL_TITLES, id)) {
@@ -166,10 +170,10 @@ export function createRenderer(deps) {
     if (!resultNode) return;
     const results = data && Array.isArray(data.results) ? data.results.slice(0, 5) : [];
     if (!results.length) {
-      resultNode.innerHTML = '没有找到候选歌曲。';
+      resultNode.textContent = [data?.searchSummary, data?.emptyReason || '没有找到候选歌曲。'].filter(Boolean).join(' ');
       return;
     }
-    resultNode.innerHTML = results
+    resultNode.innerHTML = (data?.searchSummary ? `<p class="hint">${escapeHtml(data.searchSummary)}</p>` : '') + results
       .map((item) => {
         const track = item.track || {};
         const reasons = Array.isArray(item.reasons) ? item.reasons.join('；') : '';

@@ -25,6 +25,23 @@ function createProviderTestRoute(provider) {
 }
 
 const routes = {
+  'GET /api/ai/doubao/status'(context, request, res) {
+    sendJson(res, 200, { ok: true, data: context.ai.getDoubaoStatus() });
+  },
+  async 'POST /api/ai/doubao/login'(context, request, res) {
+    try {
+      sendJson(res, 200, { ok: true, data: await context.ai.openDoubaoLogin() });
+    } catch (error) {
+      sendJson(res, 503, { ok: false, code: error.code, error: error.message });
+    }
+  },
+  async 'POST /api/ai/doubao/logout'(context, request, res) {
+    try {
+      sendJson(res, 200, { ok: true, data: await context.ai.logoutDoubao() });
+    } catch (error) {
+      sendJson(res, 503, { ok: false, code: error.code, error: error.message });
+    }
+  },
   async 'POST /api/ai/personas/update'(context, request, res) {
     try {
       sendJson(res, 200, { ok: true, data: context.ai.updatePersona(await request.body()) });

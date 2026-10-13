@@ -91,7 +91,7 @@ export const giftAnalysis = (() => {
     load();
   }
 
-  function close() {
+  function close({ restoreFocus = true } = {}) {
     const workspace = get('blindBoxAnalysisWorkspace');
     if (!workspace || !state.open) return;
     state.open = false;
@@ -100,7 +100,7 @@ export const giftAnalysis = (() => {
     datePicker.close();
     workspace.hidden = true;
     document.body.classList.remove('blind-analysis-open');
-    state.returnFocus?.focus?.();
+    if (restoreFocus) state.returnFocus?.focus?.();
   }
 
   function refreshIfOpen() {

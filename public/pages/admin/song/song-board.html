@@ -1,6 +1,8 @@
 <div id="displayPage" class="tab-page">
   <div class="panel-body stack">
     <form id="displayForm" class="stack">
+      <p id="songBoardSaveState" class="hint" role="status">修改会自动保存并应用到直播画面</p>
+      <p class="hint">外观参数与画布中同样式的展示板共用；画布的位置、尺寸和图层仍需“保存并应用”。</p>
       <label>
         <span>滚动速度（1–100，数值越大越快） <lira-help>滚动速度不随展示板高度变化。</lira-help></span>
         <span class="range-row">
@@ -21,14 +23,14 @@
           <span>歌曲排序方式</span>
           <select id="songBoardSortMode" data-dropdown-variant="settings">
             <option value="initial">按首字母</option>
-            <option value="category">按歌曲风格</option>
+            <option value="category">按歌曲分类</option>
             <option value="artist">按歌手</option>
             <option value="language">按语言</option>
             <option value="length">按歌曲名字长度</option>
           </select>
         </label>
         <label>
-          <span>字体大小 <lira-help>控制歌单板全部文字，默认 28 px。</lira-help></span>
+          <span>字体大小 <lira-help>控制展示板全部文字，默认 28 px。</lira-help></span>
           <span class="range-row">
             <input
               id="songBoardFontSize"
@@ -48,13 +50,13 @@
         <label class="switch-control">
           <input id="songBoardSyncTheme" type="checkbox" checked />
           <span class="switch-track"></span>
-          <span>同步点歌板主题 <lira-help>关闭后可单独设置歌单板的颜色、字体和效果。</lira-help></span>
+          <span>同步点歌板主题 <lira-help>开启时共用点歌板的标题、颜色、字体和效果；关闭后可单独设置展示板。</lira-help></span>
         </label>
       </div>
 
       <div id="songBoardThemeArea" hidden>
         <fieldset class="theme-section">
-          <legend>歌单展示板预设</legend>
+          <legend>展示板预设</legend>
           <div class="preset-grid" id="songBoardPresets"></div>
         </fieldset>
 
@@ -111,9 +113,9 @@
               <select id="songBoardFontWeight" data-dropdown-variant="settings">
                 <option value="400">常规</option>
                 <option value="500">略粗</option>
-                <option value="600">较细</option>
-                <option value="700">中等</option>
-                <option value="800" selected>粗体（默认）</option>
+                <option value="600">半粗</option>
+                <option value="700">粗体</option>
+                <option value="800" selected>很粗（默认）</option>
                 <option value="900">超粗</option>
               </select>
             </label>
@@ -126,7 +128,7 @@
               <input id="songBoardSongColor" type="color" aria-label="自定义歌名颜色" disabled />
             </label>
             <label>
-              <span>面板标题 <lira-help>修改歌单板顶部标题；留空时使用默认标题。</lira-help></span>
+              <span>面板标题 <lira-help>修改展示板顶部标题；留空时使用默认标题。</lira-help></span>
               <input id="songBoardTitle" placeholder="留空显示默认：可点歌单" />
             </label>
           </div>
@@ -221,7 +223,7 @@
           <legend>面板设置</legend>
           <div class="grid-2">
             <label>
-              背景透明度
+              背景不透明度
               <span class="range-row">
                 <input
                   id="songBoardThemeOpacity"
@@ -231,7 +233,8 @@
                   max="1"
                   step="0.01"
                 />
-                <input id="songBoardThemeOpacityNumber" type="number" min="0" max="1" step="0.01" />
+                <input id="songBoardThemeOpacityNumber" type="number" min="0" max="100" step="1" />
+                <span class="range-value">%</span>
               </span>
             </label>
             <label>

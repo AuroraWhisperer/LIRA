@@ -34,7 +34,7 @@ async function fixture(t, overrides = {}) {
     const { renderPresetCards } = await import('/js/admin/theme-preset-cards.js');
     await loadThemeConfig();
     renderPresetCards('songBoardPresets', theme.songBoardThemePresets, theme.songBoardPresetLabels, theme.songBoardPresetSwatches);
-    const render = createAdminStateRenderer({ renderGifts() {}, renderQueueStyle() {} });
+    const render = createAdminStateRenderer({ renderGifts() {}, renderQueueStyle() {}, renderQueue() {} });
     window.emitSettings = settings => render({ state: { settings }, changedKeys: ['settings'] });
     window.savedSettings = settings;
     window.writes = [];
@@ -94,14 +94,16 @@ test('standalone theme hydrates every pair and preserves inheritance, custom bla
   const page = await fixture(t, { songBoardSyncTheme: 'false', ...pairs });
   for (const [key, value] of Object.entries(pairs)) {
     assert.equal(await page.locator(`#${key}`).inputValue(), value);
-    assert.equal(await page.locator(`#${key}Number`).inputValue(), value);
+    assert.equal(await page.locator(`#${key}Number`).inputValue(), key === 'songBoardThemeOpacity' ? '48' : value);
   }
   assert.equal(await page.locator('#songBoardSongColor').isDisabled(), true);
   await page.locator('#songBoardTitle').fill('测试标题');
   await page.waitForFunction(() => window.writes.length === 1);
   assert.equal(await page.evaluate(() => Object.hasOwn(window.writes[0].body, 'songBoardSongColor')), false);
+  assert.equal(await page.locator('#songBoardSaveState').textContent(), '正在保存…');
   await page.evaluate(() => window.writes[0].finish(false));
   await page.waitForFunction(() => window.controller.getState().error);
+  assert.match(await page.locator('#songBoardSaveState').textContent(), /保存失败/);
   await page.evaluate(() => window.emitSettings(window.savedSettings));
   assert.equal(await page.locator('#songBoardTitle').inputValue(), '测试标题');
   await page.getByRole('button', { name: '保存展示板', exact: true }).click();
@@ -120,6 +122,13 @@ test('standalone theme hydrates every pair and preserves inheritance, custom bla
   await page.evaluate(() => window.writes[3].finish());
   await page.waitForFunction(() => !window.controller.getState().dirty);
   assert.equal(await page.locator('#songBoardSongColor').isDisabled(), true);
+  assert.equal(await page.locator('#songBoardSaveState').textContent(), '已保存并应用到直播画面');
+  await page.locator('#songBoardThemeOpacityNumber').fill('29');
+  await page.waitForFunction(() => window.writes.length === 5);
+  assert.equal(await page.evaluate(() => window.writes[4].body.songBoardThemeOpacity), '0.29');
+  await page.evaluate(() => window.writes[4].finish());
+  await page.waitForFunction(() => !window.controller.getState().dirty);
+  assert.equal(await page.locator('#songBoardThemeOpacityNumber').inputValue(), '29');
 });
 
 test('reset and presets replace the draft, synchronize pairs and save only persisted fields', async (t) => {

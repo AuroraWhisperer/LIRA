@@ -27,7 +27,7 @@ export function mountOpeningStylePicker({ onBuiltin, beforeSelect }) {
     document.getElementById('openingAnimationForm').hidden = Boolean(selected);
     settings.hidden = !selected;
     document.getElementById('openingSourceAddress').hidden = Boolean(selected);
-    document.getElementById('openingPreviewBtn').textContent = selected ? '在画布中使用' : '预览';
+    document.getElementById('openingPreviewBtn').textContent = selected ? '在画布中使用' : '打开画布';
   }
   function select(style) {
     if (!ready || selected?.id === style?.id) return;

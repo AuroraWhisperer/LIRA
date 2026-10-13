@@ -14,7 +14,7 @@ Download the latest installer from [Releases](https://github.com/AuroraWhisperer
 
 ### First Launch and Server-Assisted Features
 
-LIRA remains local-first, but the desktop client must complete online authorization before the main UI opens. Release builds use the production authorization service automatically (the current default is `https://api.lirahub.cn`); custom deployments use the address supplied by the administrator.
+LIRA remains local-first, but the desktop client must complete online authorization before the main UI opens. Release builds use the LIRA authorization service automatically (the current default is `https://api.lirahub.cn`); custom deployments use the address supplied by the administrator.
 
 1. **Register on first use.** Choose “Register a new account” (注册新账号), enter the username, password, and administrator-issued registration activation code, then choose “Register and enter” (注册并进入). Existing users choose “Log in to an existing account” (登录已有账号). The server creates an independent device identity; the password and activation code are not stored locally.
 2. **Later launches verify automatically.** A bound device does not require the account name, password, or registration activation code again, but it still performs an online authorization check at startup. If the service is temporarily unreachable, use “Retry connection”. A revoked device/license or disabled account requires administrator assistance.

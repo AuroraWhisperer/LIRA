@@ -1,82 +1,9 @@
 <div id="themePage" class="tab-page">
   <div class="panel-body stack">
-    <form id="songRequestSettingsForm" class="stack song-board-section">
-      <section class="song-request-section" aria-labelledby="songRequestRulesTitle">
-        <div class="song-request-section-header">
-          <h3 id="songRequestRulesTitle" class="song-board-section-heading">点歌规则</h3>
-        </div>
-        <div class="song-request-rules song-board-section-body">
-          <label>
-            暂停接收点歌
-            <select id="paused" data-dropdown-variant="settings">
-              <option value="false">接收点歌</option>
-              <option value="true">暂停点歌</option>
-            </select>
-          </label>
-          <label>
-            只允许点歌库歌曲
-            <select id="onlyFromLibrary" data-dropdown-variant="settings">
-              <option value="false">不限制</option>
-              <option value="true">只允许歌库歌曲</option>
-            </select>
-          </label>
-          <label>
-            允许重复点歌
-            <select id="allowDuplicate" data-dropdown-variant="settings">
-              <option value="true">允许</option>
-              <option value="false">不允许</option>
-            </select>
-          </label>
-          <label>
-            最多排队歌曲数
-            <input id="queueLimit" type="number" min="1" max="300" />
-          </label>
-          <label>
-            同一观众点歌间隔（秒）
-            <input id="userCooldownSeconds" type="number" min="0" max="3600" />
-          </label>
-          <div class="song-cooldown-setting">
-            <span id="songCooldownLabel">单首歌曲冷却 <lira-help label="单首歌曲冷却说明">歌曲成功加入点歌板后，所有观众再次点同一首歌都会被拦截。唱完、删除或清空队列不解除冷却，重启后仍有效。自然日按北京时间计算，1 自然日表示次日 00:00 恢复；时长可填 1–999。</lira-help></span>
-            <div class="song-cooldown-controls">
-              <select id="songCooldownMode" data-dropdown-variant="settings" aria-label="单首歌曲冷却模式" aria-describedby="songCooldownHint">
-                <option value="off">不限制</option>
-                <option value="hours">按小时</option>
-                <option value="days">按自然日</option>
-              </select>
-              <span id="songCooldownAmount" hidden><input id="songCooldownValue" type="number" min="1" max="999" step="1" value="1" required disabled aria-label="冷却小时数" /></span>
-            </div>
-            <p id="songCooldownHint" class="hint">不限制同一首歌再次点入的时间。</p>
-          </div>
-        </div>
-      </section>
-      <section class="song-request-section song-request-blacklist" aria-labelledby="songRequestBlacklistTitle">
-        <div class="song-request-section-header">
-          <div class="song-board-section-title">
-            <h3 id="songRequestBlacklistTitle" class="song-board-section-heading">
-              点歌板黑名单
-              <lira-help label="查看黑名单说明" tooltip-id="songRequestBlacklistHint"
-                >仅拦截与词条完全一致的点歌内容，忽略首尾空格。例如 78 拦截「点歌78」，不拦截「点歌78号公路」。</lira-help
-              >
-            </h3>
-            <span id="songRequestBlacklistCount" class="song-board-section-meta">0 个词条</span>
-          </div>
-          <button id="songRequestBlacklistAdd" class="secondary" type="button">添加词条</button>
-        </div>
-        <div class="song-board-section-body">
-          <input id="songRequestBlacklist" type="hidden" />
-          <ul id="songRequestBlacklistWords" class="song-blacklist-words" aria-label="点歌板屏蔽词"></ul>
-          <p id="songRequestBlacklistEmpty" class="hint song-blacklist-empty">暂无屏蔽词</p>
-        </div>
-      </section>
-      <div class="song-board-actions">
-        <button class="primary" type="submit">保存点歌设置</button>
-      </div>
-    </form>
-
     <section id="songBoardAppearance" class="song-board-section" aria-labelledby="songBoardAppearanceTitle">
       <h3 id="songBoardAppearanceTitle" class="song-board-section-heading">
         点歌板样式
-        <lira-help>共享主题参数也用于启用主题跟随的歌单板。</lira-help>
+        <lira-help>共享主题参数（含标题）也用于启用主题跟随的展示板。</lira-help>
       </h3>
       <form id="themeForm" class="stack song-board-section-body">
         <!-- 风格选择器 — 始终可见 -->
@@ -112,7 +39,7 @@
           <legend>标题设置</legend>
           <div class="grid-2">
             <label style="grid-column: 1 / -1">
-              <span>面板标题 <lira-help>修改点歌板顶部标题；留空时使用默认标题。</lira-help></span>
+              <span>面板标题 <lira-help>修改点歌板顶部标题，也会影响启用“同步点歌板主题”的展示板；留空时各自使用默认标题。</lira-help></span>
               <input id="overlayTitle" placeholder="留空显示默认：可点歌单 / 点歌队列" />
             </label>
             <label>
@@ -253,9 +180,9 @@
               <label>
                 字重
                 <select id="overlayFontWeight" data-dropdown-variant="settings">
-                  <option value="600">较细</option>
-                  <option value="700">中等</option>
-                  <option value="800" selected>粗体（默认）</option>
+                  <option value="600">半粗</option>
+                  <option value="700">粗体</option>
+                  <option value="800" selected>很粗（默认）</option>
                   <option value="900">超粗</option>
                 </select>
               </label>
@@ -314,7 +241,7 @@
                 </select>
               </label>
               <label>
-                背景透明度
+                背景不透明度
                 <span class="range-row">
                   <input
                     id="themeOpacity"
@@ -328,7 +255,7 @@
                     <input
                       id="themeOpacityNumber"
                       type="number"
-                      aria-label="背景透明度，百分比"
+                      aria-label="背景不透明度，百分比"
                       min="0"
                       max="100"
                       step="1"
@@ -432,10 +359,10 @@
               <label>
                 字重
                 <select id="illustratedQueueFontWeight" data-dropdown-variant="settings">
-                  <option value="default">粗体</option>
-                  <option value="600">较细</option>
-                  <option value="700">中等</option>
-                  <option value="800">粗体</option>
+                  <option value="default">样式默认（粗体）</option>
+                  <option value="600">半粗</option>
+                  <option value="700">粗体</option>
+                  <option value="800">很粗</option>
                   <option value="900">超粗</option>
                 </select>
               </label>

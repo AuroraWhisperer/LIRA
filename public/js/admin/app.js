@@ -32,6 +32,7 @@ import { initGiftFrame } from './gift-frame.js';
 import { initGuardThanks } from './gift-guard-thanks.js';
 import { initGiftHistoryDrawer } from './gifts/history.js';
 import { renderGiftPanel } from './gifts/index.js';
+import { giftAnalysis } from './gifts/blindbox-analysis.js';
 import { initSongImportUpdate } from './song-import-update.js';
 
 import { stateService } from './state.js';
@@ -223,8 +224,8 @@ async function initializeApp() {
         ),
     }),
   );
-  eventBus.on(Events.SONG_UPDATED, ({ songs, languages, artists, tags }) => {
-    songPanel.renderSongs(songs, languages, artists, tags);
+  eventBus.on(Events.SONG_UPDATED, ({ songs, languages, artists, tags, complete }) => {
+    songPanel.renderSongs(songs, languages, artists, tags, { complete });
   });
   eventBus.on('ws:connected', () => renderConnectionStatus('connected'));
   eventBus.on('ws:disconnected', () => renderConnectionStatus('disconnected'));
@@ -343,6 +344,7 @@ function syncMainPageIndicator(activeButton) {
  */
 function setMainPage(pageId) {
   const nextPageId = VALID_MAIN_PAGES.includes(pageId) ? pageId : 'songAssistantPage';
+  if (nextPageId !== 'giftAssistantPage') giftAnalysis.close({ restoreFocus: false });
 
   document.querySelectorAll('.main-page').forEach((page) => {
     page.classList.toggle('active', page.id === nextPageId);

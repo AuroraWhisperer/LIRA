@@ -4,6 +4,7 @@ const { setTimeout: sleep } = require('node:timers/promises');
 const { cleanText } = require('../shared/utils');
 const {
   SAFE_REFUSAL,
+  DOUBAO_CHAT_POLICY,
   checkLocalInput,
   buildInputReviewPrompt,
   buildOutputReviewPrompt,
@@ -74,9 +75,9 @@ function createAiAssistantService(dependencies) {
     return createOrderedAsyncCoordinator({
       generate: generateReply,
       deliver: deliverReply,
-      getConcurrency: () => store.getConfig().generationConcurrency,
+      getConcurrency: () => store.getConfig().modelProvider === 'doubao' ? 1 : store.getConfig().generationConcurrency,
       onError(error, item) {
-        if (item.signal.aborted || isShutdownError(error) || error?.code === 'DANMAKU_SESSION_CHANGED') return;
+        if (item.signal.aborted || isShutdownError(error) || ['DANMAKU_SESSION_CHANGED', 'DOUBAO_SESSION_CHANGED'].includes(error?.code)) return;
         lastError = publicError(error);
         store.logRequest({
           uid: item.uid,
@@ -94,10 +95,12 @@ function createAiAssistantService(dependencies) {
 
   function updateConfig(changes) {
     throwIfShuttingDown();
-    const wasEnabled = store.getConfig().enabled;
+    const previous = store.getConfig();
+    const wasEnabled = previous.enabled;
     const config = store.updateConfig(changes);
-    if (wasEnabled && config.enabled === false) {
-      replyController.abort(codedError('AI_DISABLED', 'AI 助手已关闭。'));
+    const accountProviderChanged = previous.modelProvider !== config.modelProvider && [previous.modelProvider, config.modelProvider].includes('doubao');
+    if ((wasEnabled && config.enabled === false) || accountProviderChanged) {
+      replyController.abort(accountProviderChanged ? codedError('DOUBAO_SESSION_CHANGED', '模型服务已切换。') : codedError('AI_DISABLED', 'AI 助手已关闭。'));
       const drain = coordinator.stop();
       replyDrains.add(drain);
       drain.then(() => replyDrains.delete(drain));
@@ -110,7 +113,7 @@ function createAiAssistantService(dependencies) {
   function handleDanmaku(danmaku = {}) {
     if (shuttingDown) return { accepted: false, reason: 'stopped' };
     const config = store.getConfig();
-    if (!isAiReady(config)) return { accepted: false, reason: 'disabled_or_unconfigured' };
+    if (!isAiReady(config) || deepseek.isReady?.(config) === false) return { accepted: false, reason: 'disabled_or_unconfigured' };
     const message = cleanText(danmaku.message);
     const uid = cleanText(danmaku.uid) || `name:${cleanText(danmaku.userName)}`;
     pruneReplyEchoes();
@@ -150,6 +153,9 @@ function createAiAssistantService(dependencies) {
   function enqueueReply(item, captureReplySession) {
     item.signal = AbortSignal.any([shutdownController.signal, replyController.signal]);
     item.replySession = captureReplySession?.();
+    if (store.getConfig().modelProvider === 'doubao') {
+      item.modelSessionRevision = deepseek.getSessionRevision?.();
+    }
     const accepted = coordinator.enqueue(item);
     if (accepted) handledCount += 1;
     return { accepted, reason: accepted ? 'queued' : 'stopped' };
@@ -185,6 +191,7 @@ function createAiAssistantService(dependencies) {
     item.assertSessionCurrent?.();
     const startedAt = now();
     const config = store.getConfig();
+    const accountChat = config.modelProvider === 'doubao';
     if (item.localRefusal) {
       return {
         text: item.localRefusal,
@@ -199,14 +206,16 @@ function createAiAssistantService(dependencies) {
       const persona = item.persona || (item.persona = resolvePersona(config));
       item.personaScope = JSON.stringify([persona.id, persona.prompt]);
       if (!Object.prototype.hasOwnProperty.call(item, 'conversationContext')) {
-        item.conversationContext = store.getContext(item.uid, item.personaScope);
+        const previous = store.getContext(item.uid, item.personaScope);
+        item.conversationContext = previous && checkLocalInput(previous.question).allowed && checkLocalInput(previous.answer).allowed ? previous : null;
       }
       const context = item.conversationContext;
       const excludedToolNames = new Set(quotaStore?.getExcludedToolNames?.() || []);
       // The store persists only the key hash, not config secrets or context text.
       const cacheKey = JSON.stringify([
-        'reply-v3',
+        'reply-v4',
         config,
+        item.modelSessionRevision,
         item.personaScope,
         item.uid,
         item.userName,
@@ -218,18 +227,15 @@ function createAiAssistantService(dependencies) {
       if (cached?.text) {
         return { ...cached, category: 'cache' };
       }
-      const inputReview = await runSafetyReview(config, buildInputReviewPrompt(item.question), usage, 'input_review', item.signal);
-      throwIfReplyCancelled(item);
-      if (!inputReview.allowed) {
-        return {
-          text: inputReview.safeText || SAFE_REFUSAL,
-          category: 'safety',
-          usage,
-          toolCalls: 0,
-        };
+      const input = buildConversationInput(item.question, context);
+      if (!accountChat) {
+        const inputReview = await runSafetyReview(config, buildInputReviewPrompt(input), usage, 'input_review', item.signal);
+        throwIfReplyCancelled(item);
+        if (!inputReview.allowed) {
+          return { text: SAFE_REFUSAL, category: 'safety', usage, toolCalls: 0 };
+        }
       }
 
-      const input = buildConversationInput(item.question, context);
       const currentTime = getCurrentTime({}, { now: new Date(now()) }).formatted;
       const replyBudget = getReplyLengthBudget(item.userName, config.replyMaxChars);
       let response = await deepseek.createResponse({
@@ -240,7 +246,7 @@ function createAiAssistantService(dependencies) {
           buildAvailableTools(config, excludedToolNames),
           item.userName,
           currentTime,
-        ),
+        ) + (accountChat ? `\n${DOUBAO_CHAT_POLICY}` : ''),
         input,
         tools: buildAvailableTools(config, excludedToolNames),
         maxOutputTokens: getModelOutputTokens(config),
@@ -286,17 +292,22 @@ function createAiAssistantService(dependencies) {
       }
 
       const rawText = cleanModelText(response.text);
-      const outputReview = await runSafetyReview(
-        config,
-        buildOutputReviewPrompt(item.question, rawText),
-        usage,
-        'output_review',
-        item.signal,
-      );
-      throwIfReplyCancelled(item);
-      const approvedText = outputReview.allowed
-        ? outputReview.safeText || rawText
-        : outputReview.safeText || SAFE_REFUSAL;
+      let approvedText = rawText;
+      if (!accountChat) {
+        const outputReview = await runSafetyReview(
+          config,
+          buildOutputReviewPrompt(item.question, rawText),
+          usage,
+          'output_review',
+          item.signal,
+        );
+        throwIfReplyCancelled(item);
+        if (!outputReview.allowed) return { text: SAFE_REFUSAL, category: 'safety', usage, toolCalls: toolCallCount };
+        approvedText = cleanModelText(outputReview.safeText || rawText);
+      }
+      if (!checkLocalInput(approvedText).allowed || (accountChat && approvedText === SAFE_REFUSAL)) {
+        return { text: SAFE_REFUSAL, category: 'safety', usage, toolCalls: toolCallCount };
+      }
       const text = truncateReply(approvedText, replyBudget.threeMessages);
       const result = {
         text,
@@ -343,14 +354,10 @@ function createAiAssistantService(dependencies) {
   }
 
   async function runSafetyReview(config, prompt, usage, purpose, signal) {
-    const instructions =
-      purpose === 'output_review'
-        ? '执行直播输出安全与质量校验，只输出指定 JSON。'
-        : '执行直播输入安全审核，只输出指定 JSON。';
     const response = await deepseek.createResponse({
       config,
-      instructions,
-      input: prompt,
+      instructions: prompt.instructions,
+      input: prompt.input,
       tools: [],
       maxOutputTokens: REVIEW_OUTPUT_TOKENS,
       purpose,
@@ -485,7 +492,10 @@ function createAiAssistantService(dependencies) {
       modelProvider: input.modelProvider || config.modelProvider,
       modelApiProtocol: input.modelApiProtocol || config.modelApiProtocol,
     });
-    assertSavedModelKeyOrigin(config, requested, Boolean(explicitKey));
+    // Account mode has no API destination. A temporary API probe must supply its
+    // own key, or wait until switching back has validated the saved key origin.
+    assertSavedModelKeyOrigin(config.modelProvider === 'doubao' ? { ...config, deepseekResponsesUrl: '' } : config,
+      requested, Boolean(explicitKey));
     return runDirectOperation(() =>
       deepseek.listModels({
         apiKey: explicitKey || config.deepseekApiKey,
@@ -502,9 +512,10 @@ function createAiAssistantService(dependencies) {
     const config = store.getConfig();
     return {
       enabled: config.enabled,
-      ready: isAiReady(config),
+      ready: isAiReady(config) && deepseek.isReady?.(config) !== false,
       trigger: config.trigger,
-      model: config.model,
+      model: config.modelProvider === 'doubao' ? '豆包' : config.model,
+      doubao: deepseek.getAccountStatus?.(),
       handledCount,
       lastError,
       apiUsage: quotaStore?.getAllUsage?.() || [],
@@ -531,6 +542,9 @@ function createAiAssistantService(dependencies) {
   function throwIfReplyCancelled(item) {
     throwIfShuttingDown();
     item.signal.throwIfAborted();
+    if (item.modelSessionRevision !== undefined && item.modelSessionRevision !== deepseek.getSessionRevision?.()) {
+      throw codedError('DOUBAO_SESSION_CHANGED', '豆包会话已变化，本次回复已取消。');
+    }
   }
 
   function shutdown() {

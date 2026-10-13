@@ -5,7 +5,7 @@
       <a class="song-data-action" href="/api/songs/export.xlsx">导出歌库 Excel</a>
       <button id="clearDatabaseBtn" class="song-data-action danger" type="button">清空歌库</button>
       <button id="clearAllBtn" class="song-data-action danger song-data-action-solid" type="button">
-        清空歌曲和使用记录
+        清空歌曲及使用记录（含礼物、加班机等）
       </button>
     </div>
     <p id="clearAllResult" class="hint" role="status" hidden></p>
@@ -24,32 +24,43 @@
         placeholder="歌曲名字	原唱/首发歌手	歌曲分类	歌曲标签	是否可点	语言	点歌价格	歌切	核对平台	核对备注"
       ></textarea>
     </label>
-    <p class="hint song-import-note">
-      导入会用整份表格替换歌库，未列出的旧歌曲会删除。请上传完整歌单；先预览变化，确认后才保存。
-    </p>
-    <button id="songImportPreviewBtn" class="primary" type="button">预览导入</button>
-    <section id="songImportPreview" class="stack" aria-label="歌库替换预览" hidden>
-      <p id="songImportPreviewSummary" class="hint" role="status"></p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>数据行</th>
-              <th>歌曲 / 歌手</th>
-              <th>操作</th>
-              <th>差异</th>
-              <th>说明</th>
-            </tr>
-          </thead>
-          <tbody id="songImportPreviewRows"></tbody>
-        </table>
+    <div class="actions song-import-input-actions">
+      <span id="songImportSource" class="hint" role="status">请选择文件或粘贴表格；切换来源会清除另一种输入。</span>
+      <p class="hint song-import-note">
+        导入会用整份表格替换歌库，未列出的旧歌曲会删除。请上传完整歌单；检查不会保存，确认后才替换。
+      </p>
+      <button id="songImportPreviewBtn" class="song-data-action primary" type="button">下一步：检查歌单</button>
+    </div>
+    <div id="importResult" class="hint" role="status" aria-live="polite"></div>
+    <section id="songImportPreview" class="stack song-import-preview" aria-labelledby="songImportPreviewTitle" aria-describedby="songImportPreviewGuidance" tabindex="-1" hidden>
+      <div class="song-import-preview-heading">
+        <h3 id="songImportPreviewTitle" class="ui-card-title">检查完成，尚未导入</h3>
+        <p id="songImportPreviewSummary"></p>
+        <button id="songImportApplyBtn" class="song-data-action primary" type="button" disabled>确认替换歌库</button>
       </div>
-      <div class="actions">
-        <button id="songImportPreviousPage" type="button">上一页</button>
-        <span id="songImportPage" class="hint"></span>
-        <button id="songImportNextPage" type="button">下一页</button>
-      </div>
-      <button id="songImportApplyBtn" class="primary" type="button" disabled>确认替换歌库</button>
+      <p id="songImportPreviewGuidance" class="hint"></p>
+      <details id="songImportDetails" class="song-import-details">
+        <summary id="songImportDetailsLabel">查看逐行明细</summary>
+        <div class="actions song-import-pagination">
+          <button id="songImportPreviousPage" type="button">上一页</button>
+          <span id="songImportPage" class="hint"></span>
+          <button id="songImportNextPage" type="button">下一页</button>
+        </div>
+        <div id="songImportTable" class="table-wrap song-import-table" tabindex="0" role="region" aria-label="歌单导入明细">
+          <table>
+            <thead>
+              <tr>
+                <th>数据行</th>
+                <th>歌曲 / 歌手</th>
+                <th>操作</th>
+                <th>差异</th>
+                <th>说明</th>
+              </tr>
+            </thead>
+            <tbody id="songImportPreviewRows"></tbody>
+          </table>
+        </div>
+      </details>
     </section>
     <details class="song-import-help">
       <summary>表格填写说明</summary>
@@ -83,12 +94,11 @@
         </div>
       </dl>
     </details>
-    <div id="importResult" class="hint" role="status" aria-live="polite"></div>
     <div class="song-cloud-settings">
       <section id="licenseSongSync" class="song-cloud-panel" aria-labelledby="songCloudSyncTitle" hidden>
         <header class="song-cloud-heading">
           <h3 id="songCloudSyncTitle" class="ui-card-title">网页歌单同步</h3>
-          <p class="hint">将本机歌库同步到网页，供观众查看。</p>
+          <p class="hint">歌库修改会自动同步到网页。需要用本机完整歌库覆盖网页时，可在这里手动同步。</p>
         </header>
         <dl class="song-cloud-facts">
           <div>
@@ -106,7 +116,7 @@
           <p class="hint">请确认本机歌曲齐全，避免多台电脑同时修改歌库。</p>
         </div>
         <div class="actions song-cloud-actions">
-          <button id="licenseSyncSongsBtn" class="song-data-action primary" type="button">同步到网页</button>
+          <button id="licenseSyncSongsBtn" class="song-data-action primary" type="button">用本机覆盖网页歌单</button>
           <a id="licenseSongPageLink" class="song-data-action" href="#" target="_blank" rel="noreferrer" hidden
             >查看网页歌单</a
           >
@@ -145,7 +155,7 @@
         <div class="actions song-cloud-actions">
           <input id="licenseSongBgFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
           <button id="licenseSongBgPickBtn" class="song-data-action" type="button">上传背景</button>
-          <button id="licenseSongBgDeleteBtn" class="song-data-action" type="button" hidden>恢复默认</button>
+          <button id="licenseSongBgDeleteBtn" class="song-data-action" type="button" hidden>删除背景图并恢复默认</button>
         </div>
         <p id="licenseSongBgResult" class="hint song-cloud-result" role="status" aria-live="polite"></p>
       </section>

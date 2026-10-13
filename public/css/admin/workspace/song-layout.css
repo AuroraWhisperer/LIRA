@@ -61,6 +61,29 @@ body.player-dock-expanded .song-workspace {
   min-width: 0;
 }
 
+.sc-undo:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: var(--type-size-caption);
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+
+@starting-style {
+  .sc-undo:not([hidden]) { opacity: 0; }
+}
+
+.sc-undo.is-leaving:not([hidden]) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-undo:not([hidden]) { transition: none; }
+}
+
 .queues-row .queue-panel .panel-header .actions {
   margin-left: auto;
   gap: 6px;

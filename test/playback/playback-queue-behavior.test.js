@@ -7,6 +7,52 @@ const test = require('node:test');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
+test('pending matches remain visible before the first playable track is confirmed', async () => {
+  const app = await createPlaybackApp({ current: null, normalQueue: [], normalQueueTracks: [],
+    pendingRequests: [{ songName: '等待核对的歌', score: 60, reasons: ['版本待核对'], track: track('pending', '候选歌') }],
+    mode: 'sequence', volume: 0.75, selectedSource: 'qq', queueType: 'queue' });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackQueueBtn', 'click');
+  assert.match(app.element('playbackQueueList').innerHTML, /等待核对的歌[\s\S]*下一首播放[\s\S]*跳过/);
+  assert.doesNotMatch(app.element('playbackQueueList').innerHTML, /播放队列为空/);
+});
+
+test('cancelling queue clearing preserves music, pending matches and imported request history', async () => {
+  const current = { ...track('current', '当前歌曲'), songRequestKey: 'handled' };
+  const app = await createPlaybackApp({ current, normalQueue: [track('next', '下一首')],
+    pendingRequests: [{ songName: '待确认', track: track('pending', '候选') }], importedSongRequestKeys: ['handled'],
+    mode: 'sequence', volume: 0.75, selectedSource: 'qq', queueType: 'queue' }, { confirmationResult: false });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  await app.emit('playbackClearQueue', 'click');
+  assert.equal(app.element('music-player').paused, false);
+  assert.equal(app.savedState().current.id, 'current');
+  assert.equal(app.savedState().pendingRequests.length, 1);
+  assert.deepEqual(app.savedState().importedSongRequestKeys, ['handled']);
+  assert.match(app.confirmations()[0].message, /停止当前音乐/);
+});
+
+test('clearing pending matches removes back history but keeps recent plays and handled request keys', async () => {
+  const recent = track('recent', '最近播放');
+  const app = await createPlaybackApp({ current: null, normalQueue: [],
+    pendingRequests: [{ songName: '待确认', songRequestKey: 'pending', track: track('candidate', '候选') }],
+    history: [recent], displayHistory: [recent], importedSongRequestKeys: ['pending'],
+    mode: 'sequence', volume: 0.75, selectedSource: 'qq' });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackClearQueue', 'click');
+  assert.equal(app.savedState().pendingRequests.length, 0);
+  assert.equal(app.savedState().history.length, 0);
+  assert.equal(app.savedState().displayHistory[0].id, 'recent');
+  assert.deepEqual(app.savedState().importedSongRequestKeys, ['pending']);
+  assert.match(app.confirmations()[0].message, /上一首记录[\s\S]*待确认点歌[\s\S]*不会重新导入/);
+  assert.match(app.confirmations()[0].keeps.join(' '), /最近播放/);
+  await app.emit('playbackClearQueue', 'click');
+  assert.equal(app.confirmations().length, 1, 'recent plays and handled keys alone do not prompt destructive confirmation');
+});
+
 test('queue rendering follows in-place metadata, match corrections and playlist cursor changes', async () => {
   const elements = new Map();
   const document = {
@@ -189,8 +235,9 @@ test('repeated imports keep different requests of the same song and do not inter
   await app.emit('playbackPlayPause', 'click');
   await flushAsyncWork();
   const first = app.emit('playbackImportSongQueue', 'click');
-  const duplicate = app.emit('playbackImportSongQueue', 'click');
+  const duplicate = app.emit('songQueueImportPlayback', 'click');
   assert.equal(app.element('playbackImportSongQueue').disabled, true);
+  assert.equal(app.element('songQueueImportPlayback').disabled, true);
   releaseQueue();
   await Promise.all([first, duplicate]);
   await app.emit('playbackImportSongQueue', 'click');
@@ -204,6 +251,7 @@ test('repeated imports keep different requests of the same song and do not inter
   assert.deepEqual(saved.normalQueue.map((item) => item.requestedBy), ['观众1', '观众2']);
   assert.equal(saved.importedSongRequestKeys.length, 2);
   assert.equal(app.element('playbackImportSongQueue').disabled, false);
+  assert.equal(app.element('songQueueImportPlayback').disabled, false);
 });
 
 for (const action of ['ended', 'next', 'error']) {

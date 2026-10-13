@@ -177,6 +177,7 @@ function createServerRuntime(runtimeOptions = {}) {
       domainServices = createDomainServices({
         db,
         getFanScope: runtimeOptions.getFanScope,
+        getSceneOwner: runtimeOptions.getSceneOwner,
         settingsStore,
         dataDir: DATA_DIR,
         giftSaleGetRoomId: runtimeOptions.giftSaleGetRoomId,
@@ -519,6 +520,7 @@ function createServerRuntime(runtimeOptions = {}) {
       ['lottery', () => dynamicLottery?.dispose()],
       ['AI drain', () => aiRuntime?.shutdown()],
       ['pending gift flush', () => domainServices?.gifts.dispose()],
+      ['SC undo', () => domainServices?.superChats.dispose()],
       ['gift catalog', () => domainServices?.overtimeGiftCatalog.stop?.()],
       ['overtime', () => domainServices?.overtime.dispose()],
       ['WeSing', () => musicRuntime?.weSingCapture.stop()],
@@ -808,6 +810,8 @@ function createServerRuntime(runtimeOptions = {}) {
     isGiftCatalogInitialized,
     onGiftCatalogInitializationStateChanged,
     getApiToken: () => sessionToken,
+    hasActiveOverlayConnections: () => Boolean(webSocketHub?.hasOverlayConnections()
+      || sceneRuntime?.events.hasConnections() || sceneRuntime?.danmakuEvents.hasConnections()),
     getFanProfiles: () => domainServices?.fans,
     receiveSceneCloud: (update) => sceneRuntime?.receiveCloud(update),
     receiveSceneCloudSettings: (update) => sceneRuntime?.receiveCloudSettings(update),

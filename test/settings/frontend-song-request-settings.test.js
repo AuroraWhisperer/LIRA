@@ -69,24 +69,31 @@ test('connection and song request forms save independently and preserve pending 
   assert.equal(reloads, 2);
   assert.deepEqual(notices, ['设置已保存', '点歌设置已保存']);
   assert.deepEqual(renderedBlacklists, [{ savedValue: '78\n不要唱', dirty: 'false' }]);
+  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '已保存');
 
   const blacklist = elements.get('songRequestBlacklist');
   listeners.get('songRequestSettingsForm:input')({ target: blacklist });
   assert.deepEqual(blacklist.dataset, { preserveDirty: 'true', dirty: 'true' });
+  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '有未保存修改');
   saveOutcome = Promise.withResolvers();
   const pending = listeners.get('songRequestSettingsForm:submit')({ preventDefault() {} });
+  assert.equal(elements.get('songRequestSettingsSave').disabled, true);
+  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '保存中…');
   values.songRequestBlacklist = '78\n保存期间继续编辑';
   listeners.get('songRequestSettingsForm:change')({ target: blacklist });
   saveOutcome.resolve();
   await pending;
   assert.equal(blacklist.dataset.dirty, 'true');
   assert.equal(requests[2].payload.songRequestBlacklist, '78\n不要唱');
-  assert.deepEqual(renderedBlacklists.at(-1), { savedValue: '78\n不要唱', dirty: 'true' });
+  assert.equal(renderedBlacklists.length, 1, 'a late save does not redraw over a newer blacklist draft');
+  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '有未保存修改');
 
   saveOutcome = Promise.withResolvers();
   const failed = listeners.get('songRequestSettingsForm:submit')({ preventDefault() {} });
   saveOutcome.reject(new Error('save failed'));
   await assert.rejects(failed, /save failed/);
+  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '保存失败，修改已保留，请重试');
+  assert.equal(elements.get('songRequestSettingsSave').disabled, false);
   assert.equal(blacklist.dataset.dirty, 'true');
   assert.equal(reloads, 3);
   assert.equal(notices.length, 3);
@@ -94,5 +101,6 @@ test('connection and song request forms save independently and preserve pending 
   saveOutcome = null;
   await listeners.get('songRequestSettingsForm:submit')({ preventDefault() {} });
   assert.equal(blacklist.dataset.dirty, 'false');
+  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '已保存');
   assert.equal(requests[4].payload.songRequestBlacklist, values.songRequestBlacklist);
 });

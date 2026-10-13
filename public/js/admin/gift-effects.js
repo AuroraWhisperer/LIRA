@@ -34,7 +34,7 @@ export const giftEffects = (() => {
         });
         commandEnabled = nextEnabled;
       } catch (_) {
-        toast('保存失败，请重试。');
+        toast('保存失败，请重试。', { type: 'error' });
       } finally {
         commandToggle.checked = commandEnabled;
         commandToggle.disabled = false;

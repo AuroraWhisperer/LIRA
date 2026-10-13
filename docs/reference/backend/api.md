@@ -130,7 +130,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 | `POST /api/scenes/delete` | `{id,expectedRevision,expectedPublishedVersion?}` | 删除当前账号指定预设，返回 `{id,canvas}`，canvas 同画布绑定 DTO。编辑器携带输出版本，防止确认期间输出变化后误删。当前输出被删除时原子切换到剩余 ID 排序首项的已保存版本；删空则发布透明空画面，固定来源 ID/凭据保留。未应用过的画布不因删除而发布。版本或绑定冲突返回 409，不存在、已删除或跨账号返回 404；其他草稿不变 |
 | `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 原子发布布局、样式选择及场景自有字段，递增 publishedVersion；旧 shared 模式传外观快照确认，缓存尚未同步或已变化返回 503；失败保留旧版布局，共享参数继续跟随各 owner 已保存值 |
 | `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源；事务检查预设 revision 和来源 publishedVersion，提交发布快照、当前预设和共享尺寸；任一冲突返回 409、失败保留旧输出 |
-| `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds}`，itemIds 为已发布实例 ID，仅显式复制来源使用 |
+| `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds,canvas,itemSizes}`，取已发布版本；canvas 为 `{width,height}`（未发布为 null），itemSizes 按实例 ID 映射 `{width,height}`；仅显式复制来源使用 |
 | `POST /api/scenes/rotate` | `{id}` | 新 `{id,token}`，旧凭据立即失效 |
 | `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?` 查询；场景 Bearer | `{sceneId,version,projection,document,data,appearances}`；相同发布版本 document 为 null，appearances 仍按已发布 item ID 返回当前共享字段；item 可选 UUID 只投影该发布实例，移至原点并使用保存宽高；凭据权限仍属于整个场景 |
 | `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
@@ -227,7 +227,7 @@ HTML sandbox 使展示请求的 Origin 为 `null`。该值本身没有权限：�
 
 ## 0.1 LIRA Server 设备授权域(song-page background)
 
-> 远端模块:lira-server 的设备路由;桌面端通过 [remote-license-client.js](../../../src/electron/license/remote-license-client.js) 调用。服务地址由 `LIRA_LICENSE_API_BASE` 配置,生产环境默认 `https://api.lirahub.cn`。
+> 远端模块:lira-server 的设备路由;桌面端通过 [remote-license-client.js](../../../src/electron/license/remote-license-client.js) 调用。服务地址由 `LIRA_LICENSE_API_BASE` 配置,发布版默认 `https://api.lirahub.cn`。
 
 `LIRA_LICENSE_API_BASE` 只接受使用 DNS 主机名的 HTTPS 根 origin，不允许凭据、子路径、查询参数或片段；HTTP、`localhost` 和 IPv4/IPv6 literal 都会被拒绝。这里填写服务根地址，不要填写 `/admin/activations` 页面路径，客户端会自行请求 `/api/device/*`。
 
@@ -554,11 +554,17 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 > 模块文件:[src/server/routes/superchat-routes.js](../../../src/server/routes/superchat-routes.js)
 > 前缀:`/api/superchats/`
 
-handler 未包 try/catch:抛错走顶层 **500**。
+普通参数错误由通用边界返回 400，未知错误返回 500；撤销失效由本域返回 409。
 
 | 端点                          | 请求                                                                                          | 响应(data)                                    | 错误码                |
 | ----------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------- |
-| `POST /api/superchats/action` | `{action, id}`:`delete`(状态 `deleted`)、`assist`(状态 `assisted`)、`unassist`(状态 `active`) | SC 快照(按价格降序);广播 `superchat:<action>` | 400（未知操作 `INVALID_SUPERCHAT_ACTION` 或无效 ID `INVALID_SUPERCHAT_ID` 经通用参数错误响应映射） |
+| `POST /api/superchats/action` | `{action, id}`:`delete`(删除正文并保留去重凭证，不创建撤销批次)、`assist`(状态 `assisted`)、`unassist`(状态 `active`) | SC 快照(按价格降序);广播 `superchat:<action>` | 400（未知操作 `INVALID_SUPERCHAT_ACTION` 或无效 ID `INVALID_SUPERCHAT_ID` 经通用参数错误响应映射） |
+| `POST /api/superchats/delete` | `{id}`，正整数 SC ID | 顶层 `undo:{token,count,expiresAt}` 或 `null`；广播 `superchat:delete` | 400 |
+| `POST /api/superchats/undo` | `{token}`，删除接口返回的当前批次 token | `{ok:true}`；广播 `superchat:undo` | 409 `SUPERCHAT_UNDO_EXPIRED` |
+
+新删除接口的连续操作合并一批，最后一次真实删除后 10 秒失效。恢复行由服务器短期内存
+保存，不接收客户端提交的 SC 内容。旧 action 接口行为保持不变。清空、平台撤回涉及
+该批次、账号/房间变更、保留清理或运行时退出后不可恢复；不改变 SC 防重规则。
 
 行为文档:[bilibili/gift.md](bilibili/gift.md)(醒目留言)。
 
@@ -746,7 +752,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 > 模块文件:[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)
 > 前缀:`/api/ai`
 
-`ALLOWED_KEYS`([ai-routes.js:7-15](../../../src/server/routes/ai-routes.js#L7-L15)):`enabled, trigger, modelProvider, deepseekResponsesUrl, modelApiProtocol, deepseekApiKey, model, webSearchEnabled, functionCallingEnabled, reasoningEnabled, reasoningEffort, qweatherApiHost, qweatherApiKey, amapApiHost, amapApiKey, weatherEnabled, placesEnabled, routesEnabled, replyMaxChars, generationConcurrency, queueLimit, sendIntervalMs, userCooldownSeconds, roomLimitPerMinute, requestTimeoutMs, maxToolCalls, cacheTtlSeconds, contextTtlSeconds, systemPrompt, personaId, personaPacks`;`modelProvider` 固定枚举为 `auto, deepseek, openai, anthropic, gemini, custom`，官方预设的地址与协议由服务端强制；密钥键 `SECRET_KEYS = {deepseekApiKey, qweatherApiKey, amapApiKey}` 与 settings 隔离存 `ai_configuration` 表(见 [storage.md](storage.md) §3.1)。
+`ALLOWED_KEYS`([ai-routes.js:7-15](../../../src/server/routes/ai-routes.js#L7-L15)):`enabled, trigger, modelProvider, deepseekResponsesUrl, modelApiProtocol, deepseekApiKey, model, webSearchEnabled, functionCallingEnabled, reasoningEnabled, reasoningEffort, qweatherApiHost, qweatherApiKey, amapApiHost, amapApiKey, weatherEnabled, placesEnabled, routesEnabled, replyMaxChars, generationConcurrency, queueLimit, sendIntervalMs, userCooldownSeconds, roomLimitPerMinute, requestTimeoutMs, maxToolCalls, cacheTtlSeconds, contextTtlSeconds, systemPrompt, personaId, personaPacks`;`modelProvider` 固定枚举为 `auto, deepseek, openai, anthropic, gemini, custom, doubao`，官方预设的地址与协议由服务端强制；密钥键 `SECRET_KEYS = {deepseekApiKey, qweatherApiKey, amapApiKey}` 与 settings 隔离存 `ai_configuration` 表(见 [storage.md](storage.md) §3.1)。
 
 **密钥字段安全契约**:GET 响应与 PUT 响应均**不回显密钥明文**;GET 返回 `has*ApiKey` 布尔标志(`hasDeepSeekApiKey, hasQWeatherApiKey, hasAmapApiKey`),密钥字段本身**不出现**在响应中;PUT 请求时传 `''` 跳过更新(保留现值)、传非空字符串更新、传 `null` 清空。前端密码框不回填已保存密钥，保持为空；提交时空值及旧版 `'********'` 遮罩均跳过。
 
@@ -762,6 +768,16 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `POST /api/ai/test/deepseek` | 无                                                                                                       | 该 Provider 连接测试                                                                                                                       | **502** `{ok:false, code(≤80 字符), error}` |
 | `POST /api/ai/test/qweather` | 无                                                                                                       | 同上(和风天气)                                                                                                                             | 502                                         |
 | `POST /api/ai/test/amap`     | 无                                                                                                       | 同上(高德地图)                                                                                                                             | 502                                         |
+
+豆包账号端点沿用现有 AI 管理授权，不接受 URL、脚本或 Cookie。状态只包含四个 boolean：`available`、`loggedIn`、`needsVerification`、`encryptionAvailable`；`GET /api/ai/status` 的 `doubao` 字段也使用此形状。账号不可用等错误使用安全的 `DOUBAO_*` 错误码，不回传底层异常或凭据。
+
+| 端点 | 请求 | 响应(data) | 错误 |
+| --- | --- | --- | --- |
+| `GET /api/ai/doubao/status` | 无 | 公开账号状态 | — |
+| `POST /api/ai/doubao/login` | 无 | 打开官网登录/验证窗口后的状态 | 503 `{ok:false,code,error}` |
+| `POST /api/ai/doubao/logout` | 无 | 取消请求、清除账号分区和快照后的状态 | 503 `{ok:false,code,error}` |
+
+豆包继续使用现有模型连接测试端点，测试回复不会发到直播间；需要验证时只有用户主动测试允许探测恢复，详见 [ai.md](ai.md#44-豆包个人账号实验性)。
 
 角色包格式、数量和兼容规则见 [ai.md](ai.md) §7.3；以下端点均沿用 AI 管理权限，写操作失败不改动现有角色包：
 

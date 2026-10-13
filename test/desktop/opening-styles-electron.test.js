@@ -157,7 +157,7 @@ test('desktop and canvas share pixel controls, animated avatar and music without
     const { initStartAnimation } = await import('/js/admin/start-animation.js');
     initStartAnimation();
   }, fs.readFileSync(path.join(root, 'public/pages/admin/toolbox/start-animation.html'), 'utf8'));
-  await desktop.getByRole('button', { name: '预览', exact: true }).click();
+  await desktop.getByRole('button', { name: '打开画布', exact: true }).click();
   await desktop.waitForFunction(async () => {
     const { getActiveComponentPreview } = await import('/js/admin/component-preview-session.js');
     return Boolean(getActiveComponentPreview());

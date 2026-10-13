@@ -43,4 +43,10 @@
 
 两个辅助窗口均由主窗口的 IPC 驱动创建/销毁,通道清单与载荷见 [preload.md](preload.md) §2;窗口事件(`create/open/close`)经 main.js `writeLog` 记入 desktop.log([main.md](main.md) §8)。
 
-- 登录窗生命周期绑定 `music:login` / `bilibili:login`:handler `await` 窗口 `closed` 后 resolve 结果给渲染进程(登录态判定与快照返回见 [auth.md](auth.md) §4/§9)。桌面歌词改为 `/lyrics` 浏览器源,不再创建 Electron 辅助窗口。
+- 登录窗生命周期绑定 `music:login` / `bilibili:login`:handler `await` 窗口 `closed` 后 resolve 结果给渲染进程(登录态判定与快照返回见 [auth.md](auth.md) §4/§9)。直播歌词改为 `/lyrics` 浏览器源,不再创建 Electron 辅助窗口。
+
+## 4. 豆包账号与验证窗口
+
+[doubao-session.js](../../../src/electron/doubao-session.js) 拥有单一 1100×820 的官网窗口，父窗口为 LIRA 主窗口；标题为“LIRA · 豆包账号登录与验证”。无 preload、无 Node 集成，启用 contextIsolation 和 sandbox，拒绝权限请求、下载及弹窗。顶层导航/重定向只允许精确官方 origin；分区及入口见 [auth.md](auth.md#16-豆包个人账号)。
+
+点击扫码/验证按钮显示并聚焦该窗口，未登录时最多 15 秒等待官网“登录”按钮并打开登录面板；扫码确认和验证码由用户完成。普通关窗只隐藏，保留网页运行时用于后续文字请求；显式退出、请求取消/超时或应用 dispose 销毁本窗口。窗口不会加载 LIRA 管理页，也没有管理凭据或任意脚本 IPC。下次需要时重新创建，登录态仍由会话 owner 管理。

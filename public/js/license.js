@@ -34,9 +34,9 @@
   let unsubscribeWindowMaximized = () => {};
 
   const messages = {
-    ACTIVATION_CODE_INVALID: '激活密钥无效，请检查后重试。',
-    ACTIVATION_CODE_NOT_USABLE: '此激活密钥已使用或已撤销。',
-    ACTIVATION_CODE_EXPIRED: '此激活密钥已过期，请联系管理员重新生成。',
+    ACTIVATION_CODE_INVALID: () => `${registration ? '注册激活码' : '短效登录码'}无效，请检查后重试。`,
+    ACTIVATION_CODE_NOT_USABLE: () => `此${registration ? '注册激活码' : '短效登录码'}已使用或已撤销。`,
+    ACTIVATION_CODE_EXPIRED: () => `此${registration ? '注册激活码' : '短效登录码'}已过期，请联系管理员重新生成。`,
     ACCOUNT_NAME_LENGTH: '用户名长度应为 2–32 个字符。',
     ACCOUNT_NAME_INVALID: '用户名只能使用英文字母、数字和中划线（-），且不能以中划线开头或结尾，不支持中文。',
     ACCOUNT_NAME_RESERVED: '此用户名为系统保留名称，请更换。',
@@ -47,7 +47,7 @@
     PASSWORD_COMPLEXITY: '密码不符合要求，请查看密码旁的说明。',
     PASSWORD_BCRYPT_TRUNCATED: '密码的 UTF-8 编码不能超过 72 字节，请缩短密码。',
     PASSWORD_WEAK: '密码过于常见或接近用户名，请更换。',
-    ACCOUNT_NAME_MISMATCH: '此激活码不属于该主播账号。',
+    ACCOUNT_NAME_MISMATCH: () => `此${registration ? '注册激活码' : '短效登录码'}不属于该 LIRA 账号。`,
     ACCOUNT_NAME_MUST_MATCH_SUBDOMAIN: '用户名与已分配主播空间不一致。',
     INVALID_CREDENTIALS: '用户名或密码错误。',
     ACTIVATION_PROOF_INVALID: '当前设备激活证明失败，请重试。',
@@ -90,10 +90,12 @@
     status.className = `license-status${tone ? ` ${tone}` : ''}`;
   }
 
-  function errorMessage(code) {
+  function errorMessage(code, operation = '') {
     const value = String(code || '');
     if (/^HTTP_(429|5\d\d)$/.test(value)) return '授权服务器暂时不可用，请稍后重试。';
-    return messages[value] || '激活失败，请检查信息后重试。';
+    if (typeof messages[value] === 'function') return messages[value]();
+    return messages[value] || (operation ? `${operation}失败，请检查信息后重试。`
+      : '本机授权校验未通过，请联系管理员核对账号和设备授权。');
   }
 
   function connectionErrorMessage(code) {
@@ -154,7 +156,7 @@
     passwordIcon.setAttribute('href', `/img/shared/password-visibility.svg#${visible ? 'eye-off' : 'eye'}`);
   }
 
-  function render(snapshot = {}) {
+  function render(snapshot = {}, operation = '') {
     const state = String(snapshot.state || 'needs_activation');
     licenseState = state;
     if (state === 'authorizing' || state === 'authorized') showSavedAuthorizationNotice = false;
@@ -177,8 +179,8 @@
     else if (state === 'needs_connection') setStatus(connectionErrorMessage(snapshot.error), 'error');
     else if (state === 'blocked' && snapshot.error === 'DEVICE_REVOKED' && showSavedAuthorizationNotice)
       setStatus('本机保留的旧设备授权已撤销，请获取新的短效登录码后重新登录。');
-    else if (state === 'blocked') setStatus(errorMessage(snapshot.error), 'error');
-    else if (snapshot.error) setStatus(errorMessage(snapshot.error), 'error');
+    else if (state === 'blocked') setStatus(errorMessage(snapshot.error, operation), 'error');
+    else if (snapshot.error) setStatus(errorMessage(snapshot.error, operation), 'error');
   }
 
   function showGiftCatalogInitialization() {
@@ -226,7 +228,7 @@
   function catalogErrorMessage(code) {
     const value = String(code || '');
     if (value === 'CATALOG_INVALID' || value === 'REMOTE_CATALOG_SCHEMA_UNSUPPORTED')
-      return '准备数据与当前客户端不兼容，请联系管理员更新服务端后重试。';
+      return '准备数据与当前客户端不兼容，请联系管理员处理后重试。';
     if (
       value === 'REMOTE_CATALOG_NOT_READY' ||
       value === 'REMOTE_CATALOG_EMPTY' ||
@@ -300,7 +302,7 @@
         setPasswordVisible(false);
         render(result);
       } else {
-        render(result || { state: 'needs_activation' });
+        render(result || { state: 'needs_activation' }, registration ? '注册' : '登录');
       }
     } catch (_) {
       setStatus(errorMessage('NETWORK_UNAVAILABLE'), 'error');

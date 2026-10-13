@@ -109,7 +109,7 @@ export class QueuePopup {
     }
 
     // 空队列
-    if (this.getTotalCount(state) === 0 && !state.current) {
+    if (this.getTotalCount(state) === 0 && !state.current && !state.pendingRequests?.length) {
       this.listContainer.innerHTML =
         '<div class="queue-empty-state"><div class="queue-empty-icon">♫</div><p>播放队列为空</p><span>搜索歌曲或从首页添加音乐</span></div>';
       return;

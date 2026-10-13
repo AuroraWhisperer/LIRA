@@ -57,6 +57,21 @@ function fixture(t, config = {}) {
   return { db, store, service, requests };
 }
 
+test('Doubao preserves an official key origin across reload without replacing the saved custom endpoint', async (t) => {
+  const { db, store } = fixture(t);
+  store.updateConfig({ modelProvider: 'openai', deepseekApiKey: 'openai-test-key' });
+  store.updateConfig({ modelProvider: 'doubao' });
+  assert.equal(store.getPublicConfig().doubaoPreviousKeyOrigin, undefined);
+  const reloaded = createAiConfigStore(db, { isAvailable: () => true,
+    encrypt: value => Buffer.from(value).toString('base64'), decrypt: value => Buffer.from(value, 'base64').toString() });
+  assert.throws(() => reloaded.updateConfig({ modelProvider: 'custom' }), { code: 'AI_KEY_ORIGIN_CHANGED' });
+  assert.equal(reloaded.getConfig().modelProvider, 'doubao');
+  reloaded.updateConfig({ modelProvider: 'openai' });
+  assert.equal(reloaded.getConfig().deepseekApiKey, 'openai-test-key');
+  reloaded.updateConfig({ modelProvider: 'custom', deepseekApiKey: 'custom-test-key' });
+  assert.equal(reloaded.getConfig().deepseekResponsesUrl, 'https://saved.example/v1');
+});
+
 test('model listing rejects saved-key reuse across scheme, host or port before fetching', async (t) => {
   const { service, requests, store } = fixture(t);
   for (const apiUrl of ['https://different.example/v1', 'http://saved.example/v1', 'https://saved.example:444/v1']) {
@@ -64,6 +79,25 @@ test('model listing rejects saved-key reuse across scheme, host or port before f
   }
   assert.equal(requests.length, 0);
   assert.equal(store.getConfig().deepseekApiKey, 'fake-saved-key');
+});
+
+test('account mode cannot send the saved API key to a temporary model-list destination', async t => {
+  const { store, service, requests } = fixture(t);
+  store.updateConfig({ modelProvider: 'openai', deepseekApiKey: 'openai-test-key' });
+  store.updateConfig({ modelProvider: 'doubao' });
+  await assert.rejects(service.listModels({ modelProvider: 'custom', apiUrl: 'https://saved.example/v1' }), { code: 'AI_KEY_ORIGIN_CHANGED' });
+  await assert.rejects(service.listModels({ modelProvider: 'openai' }), { code: 'AI_KEY_ORIGIN_CHANGED' });
+  assert.deepEqual(await service.listModels(), { models: ['doubao'] });
+  assert.equal(requests.length, 0);
+  await service.listModels({ modelProvider: 'custom', apiUrl: 'https://saved.example/v1', apiKey: 'explicit-test-key' });
+  assert.equal(requests[0].headers.Authorization, 'Bearer explicit-test-key');
+});
+
+test('a key first stored in account mode has no reusable API origin', t => {
+  const { store } = fixture(t, { deepseekApiKey: '' });
+  store.updateConfig({ modelProvider: 'doubao' });
+  store.updateConfig({ deepseekApiKey: 'unbound-test-key' });
+  assert.throws(() => store.updateConfig({ modelProvider: 'custom' }), { code: 'AI_KEY_ORIGIN_CHANGED' });
 });
 
 test('same-origin model listing preserves saved keys and accepts explicit replacement keys', async (t) => {

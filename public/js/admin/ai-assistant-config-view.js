@@ -25,6 +25,7 @@ const FIELD_MAP = Object.freeze({
   placesEnabled: ['xiaomiAiPlacesEnabled', 'checked'],
   routesEnabled: ['xiaomiAiRoutesEnabled', 'checked'],
 });
+let doubaoStatus = null;
 
 export async function readApi(url, options = {}) {
   const response = await fetch(url, {
@@ -46,7 +47,7 @@ export function collectConfig() {
     const element = document.getElementById(id);
     if (!element) continue;
     if (key === 'systemPrompt' && document.getElementById('xiaomiAiPersona')?.value !== 'custom') continue;
-    if (element.disabled && ['deepseekResponsesUrl', 'modelApiProtocol', 'qweatherApiHost', 'qweatherApiKey', 'amapApiHost', 'amapApiKey'].includes(key)) continue;
+    if (element.disabled && ['deepseekResponsesUrl', 'deepseekApiKey', 'model', 'modelApiProtocol', 'qweatherApiHost', 'qweatherApiKey', 'amapApiHost', 'amapApiKey'].includes(key)) continue;
     if (kind === 'checked') {
       config[key] = element.checked;
     } else if (kind === 'number') {
@@ -89,6 +90,10 @@ export function renderConfigSummary(config) {
   document.getElementById('xiaomiAiModelState').textContent = config.model || '未配置';
   renderProviderSelection(config);
   renderModelCapabilities(config.modelEndpoint);
+  if (config.modelProvider === 'doubao') {
+    document.getElementById('xiaomiAiModelState').textContent = '豆包';
+    renderDoubaoStatus(doubaoStatus);
+  }
 }
 
 export function renderToolSettings() {
@@ -110,8 +115,9 @@ export function renderToolSettings() {
 export function renderProviderSelection(value, options = {}) {
   const config = value && typeof value === 'object' ? value : null;
   const provider = String(config?.modelProvider || value || 'auto');
+  const accountMode = provider === 'doubao';
   const official = ['deepseek', 'openai', 'anthropic', 'gemini'].includes(provider);
-  const endpointLocked = official || options.keepEndpointLocked === true;
+  const endpointLocked = official || accountMode || options.keepEndpointLocked === true;
   const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
   const protocolInput = document.getElementById('xiaomiAiModelApiProtocol');
   const protocolControl = document.getElementById('xiaomiAiProtocolControl');
@@ -123,7 +129,17 @@ export function renderProviderSelection(value, options = {}) {
     protocolInput.disabled = endpointLocked;
     if (official && config?.modelApiProtocol) protocolInput.value = config.modelApiProtocol;
   }
-  if (protocolControl) protocolControl.hidden = official;
+  if (protocolControl) protocolControl.hidden = official || accountMode;
+  for (const id of ['xiaomiAiEndpointControl', 'xiaomiAiKeyControl', 'xiaomiAiModelControl', 'xiaomiAiCapabilitiesControl', 'xiaomiAiToolsControl']) {
+    const element = document.getElementById(id);
+    if (element) element.hidden = accountMode;
+  }
+  for (const id of ['xiaomiAiDeepSeekKey', 'xiaomiAiModel', 'xiaomiAiFetchModelsBtn']) {
+    const element = document.getElementById(id);
+    if (element) element.disabled = accountMode;
+  }
+  const accountControl = document.getElementById('xiaomiAiDoubaoAccount');
+  if (accountControl) accountControl.hidden = !accountMode;
 
   const labels = {
     auto: ['自动识别', '保留原有设置；首次设置时建议选择你使用的 AI 平台。'],
@@ -131,6 +147,7 @@ export function renderProviderSelection(value, options = {}) {
     openai: ['OpenAI 官方', '使用 OpenAI 官方服务，地址会自动填好。'],
     anthropic: ['Claude 官方兼容', '使用 Claude 官方兼容服务，部分功能不可用。'],
     gemini: ['Gemini 官方兼容', '使用 Gemini 官方兼容服务，可以调整思考强度。'],
+    doubao: ['个人账号·实验性', '使用豆包个人账号文字对话；服务可能要求人工验证，不保证无人值守。'],
     custom: ['自定义兼容', '按所用平台的说明填写地址，连接方式不确定时保持自动。'],
   };
   const [badge, note] = labels[provider] || labels.auto;
@@ -219,6 +236,24 @@ function setText(id, text) {
 export function renderStatus(status) {
   document.getElementById('xiaomiAiQueueState').textContent = String(status.queued || 0);
   if (status.lastError) document.getElementById('xiaomiAiSaveState').textContent = `最近错误：${status.lastError}`;
+  if (status.doubao) renderDoubaoStatus(status.doubao);
+}
+
+export function renderDoubaoStatus(status) {
+  doubaoStatus = status;
+  if (document.getElementById('xiaomiAiModelProvider')?.value !== 'doubao') return;
+  let message = '正在读取豆包登录状态…';
+  if (status) {
+    message = !status.available ? '请从 LIRA 桌面客户端使用豆包账号登录。' :
+      status.needsVerification ? '需要人工验证，豆包请求已暂停。' :
+        status.loggedIn ? (status.encryptionAvailable ? '已登录豆包。' : '已登录；系统加密不可用，登录仅在本次运行中有效。') : '尚未登录豆包。';
+  }
+  setText('xiaomiAiDoubaoState', message);
+  setText('xiaomiAiDoubaoLogin', status?.needsVerification ? '打开豆包完成验证' : status?.loggedIn ? '打开豆包窗口' : '扫码登录豆包');
+  setText('xiaomiAiConfigState', status?.needsVerification ? '等待验证' : status?.loggedIn && document.getElementById('xiaomiAiTrigger')?.value ? '可运行' : '等待配置');
+  setText('xiaomiAiModelState', '豆包');
+  const logout = document.getElementById('xiaomiAiDoubaoLogout');
+  if (logout) logout.hidden = !status?.loggedIn;
 }
 
 function renderSecretHint(id, saved) {

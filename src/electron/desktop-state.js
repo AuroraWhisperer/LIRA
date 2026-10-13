@@ -10,6 +10,7 @@ function createDesktopState() {
       runtime: null,
       shutdown: null,
       shutdownPromise: null,
+      closePromptPromise: null,
       requestAuth: null,
     },
     media: {
@@ -36,7 +37,6 @@ function createDesktopState() {
         progress: null,
         updateVersion: '',
       },
-      lastStatus: '',
     },
   };
 }

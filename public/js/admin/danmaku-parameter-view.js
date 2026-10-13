@@ -22,7 +22,7 @@ export function bindDanmakuParameters(root, controller, onError) {
     const supported = Object.hasOwn(draft, 'styleOptions');
     node('danmakuParametersTitle').textContent = `参数调节 · ${limits.label}`;
     node('danmakuParametersHint').textContent = !loaded ? '登录并读取配置后可调节参数。'
-      : !supported ? '当前服务器尚不支持参数调节，请更新服务器。' : '';
+      : !supported ? '当前服务暂不支持参数调节，请联系管理员。' : '';
     node('danmakuParametersHint').hidden = loaded && supported;
     const selectedFont = { default: draft.style === 'starveil' ? '"SimSun"' : draft.style === 'outline' ? '"Segoe UI"' : '"Microsoft YaHei UI"',
       sans: '"Microsoft YaHei UI"', serif: '"SimSun"', kai: '"KaiTi"' }[options.fontFamily] || options.fontFamily;

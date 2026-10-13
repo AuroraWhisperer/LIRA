@@ -23,7 +23,7 @@
           </div>
           <span id="desktopUpdatePercent" hidden></span>
           <div id="desktopUpdateActions" class="actions desktop-update-actions">
-            <button id="desktopCheckUpdateBtn" class="primary" type="button">检查更新</button>
+            <button id="desktopCheckUpdateBtn" class="primary" type="button">检查并下载更新</button>
             <button id="desktopDownloadUpdateBtn" class="primary" type="button" disabled hidden>下载更新</button>
             <button id="desktopInstallUpdateBtn" class="primary" type="button" disabled hidden>重启并更新</button>
           </div>
@@ -45,10 +45,12 @@
             <span id="desktopUpdateSpeed"></span>
           </div>
         </div>
+        <p class="hint">检查发现新版本后会自动下载，下载完成后退出程序即安装。直播中请留意下载带宽。</p>
+        <a class="secondary" href="https://github.com/AuroraWhisperer/LIRA/releases/latest" target="_blank" rel="noopener noreferrer">打开官方下载页</a>
       </div>
 
       <div class="desktop-auto-update-row">
-        <span id="desktopAutoUpdateTitle">自动更新</span>
+        <span id="desktopAutoUpdateTitle">启动时自动检查更新</span>
         <label class="switch-control">
           <span id="autoUpdateLabel">已关闭</span>
           <input id="autoUpdateToggle" type="checkbox" aria-labelledby="desktopAutoUpdateTitle" />

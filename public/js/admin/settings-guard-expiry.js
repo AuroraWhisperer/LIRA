@@ -1,6 +1,6 @@
 const ERROR_MESSAGES = {
   LICENSE_NOT_AUTHORIZED: '请先登录 LIRA 账号。',
-  GUARD_EXPIRY_UNSUPPORTED: '服务器尚未支持此功能，请更新服务器。',
+  GUARD_EXPIRY_UNSUPPORTED: '当前服务暂不支持到期提示，请联系管理员。',
   GUARD_EXPIRY_OWNER_MISMATCH: '登录的账号不是当前直播间房主，请使用主播本人的账号。',
   GUARD_EXPIRY_ROOM_REQUIRED: '请先填写右侧直播间号并保存设置，再登录主播账号。',
   GUARD_EXPIRY_SOURCE_CHANGED: '账号或直播间已变更，请重试。',

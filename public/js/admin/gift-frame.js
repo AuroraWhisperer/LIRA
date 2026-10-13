@@ -32,6 +32,7 @@ const EFFECTS = [
 let initialized = false;
 let currentSettings = {};
 const draftFields = new Set();
+const savingFields = new Set();
 const settingIds = EFFECTS.flatMap((effect) => [effect.enabledKey, effect.thresholdKey]);
 
 export function initGiftFrame() {
@@ -41,8 +42,9 @@ export function initGiftFrame() {
   if (!root || !enabled) return;
   const markDraft = (event) => {
     if (settingIds.includes(event.target.id)) {
-      draftFields.add(event.target.id);
-      event.target.dataset.dirty = 'true';
+      const effect = EFFECTS.find(effect => [effect.enabledKey, effect.thresholdKey].includes(event.target.id));
+      syncDraftField(event.target, effect);
+      setStatus(effect.ids.status, '', '');
     }
   };
   for (const id of settingIds) document.getElementById(id).dataset.preserveDirty = 'true';
@@ -56,10 +58,24 @@ export function initGiftFrame() {
   window.addEventListener('app:settings-state', (event) => renderGiftFrame(event.detail || {}));
   window.addEventListener('component-styles:changed', () => {
     const status = document.getElementById('giftFrameSaveState');
-    if (status.textContent === MISSING_STYLE_MESSAGE) setStatus(status.id, '', '');
+    if (status.textContent.startsWith(MISSING_STYLE_MESSAGE)) setStatus(status.id, '', '');
   });
   initialized = true;
   renderGiftFrame(currentSettings);
+}
+
+export function renderGiftFrameStyleState(packs) {
+  const status = document.getElementById('giftFrameStyleState');
+  if (!status) return;
+  if (packs) {
+    const installed = packs.some(pack => pack.packageId === 'lira.woodland-gift-frame'
+      && pack.styles.some(style => style.config.resourceStyle?.preset === 'woodland-gift-frame'));
+    status.hidden = installed;
+    status.textContent = installed ? '' : `尚未导入林间花信，启用后暂不会显示。${MISSING_STYLE_MESSAGE}`;
+  } else {
+    status.hidden = false;
+    status.textContent = '样式库状态暂未读取成功；使用前请确认已导入林间花信样式包。';
+  }
 }
 
 export function renderGiftFrame(settings = {}) {
@@ -73,7 +89,17 @@ export function renderGiftFrame(settings = {}) {
     if (!draftFields.has(effect.thresholdKey)) {
       document.getElementById(threshold).value = settings[effect.thresholdKey] || effect.fallback;
     }
+    for (const id of [enabled, threshold]) syncDraftField(document.getElementById(id), effect);
+    if (document.getElementById(effect.ids.status).dataset.state === 'pending') setStatus(effect.ids.status, '', '');
   }
+}
+
+function syncDraftField(node, effect) {
+  const same = node.id === effect.enabledKey ? node.checked === (currentSettings[node.id] === 'true')
+    : node.value.trim() !== '' && Number(node.value) === Number(currentSettings[node.id] || effect.fallback);
+  const dirty = savingFields.has(node.id) || !same;
+  if (dirty) draftFields.add(node.id); else draftFields.delete(node.id);
+  node.dataset.dirty = String(dirty);
 }
 
 async function saveSettings(effect) {
@@ -88,16 +114,15 @@ async function saveSettings(effect) {
     [effect.thresholdKey]: document.getElementById(threshold).value,
   };
   const values = { ...submitted, [effect.thresholdKey]: amount.toFixed(2) };
+  for (const key of Object.keys(submitted)) savingFields.add(key);
   try {
     await api('/api/settings', values, { notifyError: false });
-    renderGiftFrame({ ...currentSettings, ...values });
-    for (const [id, key] of [[enabled, effect.enabledKey], [threshold, effect.thresholdKey]]) {
-      const current = id === enabled ? String(document.getElementById(id).checked) : document.getElementById(id).value;
-      if (current === submitted[key]) {
-        draftFields.delete(key);
-        document.getElementById(id).dataset.dirty = 'false';
-      }
+    currentSettings = { ...currentSettings, ...values };
+    for (const key of Object.keys(submitted)) {
+      savingFields.delete(key);
+      syncDraftField(document.getElementById(key), effect);
     }
+    renderGiftFrame(currentSettings);
     const message = draftFields.size
       ? `${effect.label}设置已保存，刚才的新修改还没保存。`
       : `${effect.label}设置已保存。`;
@@ -107,6 +132,11 @@ async function saveSettings(effect) {
     const message = `${effect.label}设置没保存成功，修改还在，请再试一次。`;
     setStatus(status, message, 'error');
     toast(message, { type: 'error' });
+  } finally {
+    for (const key of Object.keys(submitted)) {
+      savingFields.delete(key);
+      syncDraftField(document.getElementById(key), effect);
+    }
   }
 }
 
@@ -141,6 +171,8 @@ async function playPreview(effect) {
 function setStatus(id, message, state) {
   const node = document.getElementById(id);
   if (!node) return;
-  node.textContent = message;
-  node.dataset.state = state;
+  const dirty = draftFields.size > 0;
+  node.textContent = dirty && !message.includes('保存')
+    ? `${message}${message ? ' ' : ''}有未保存修改，点击“保存设置”后生效。` : message;
+  node.dataset.state = state || (dirty ? 'pending' : '');
 }

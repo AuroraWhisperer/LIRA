@@ -9,6 +9,7 @@ import { validateSceneDocument } from './scene-template.js';
 import { loadComponentStyleCss, requestComponentStyles } from './component-style-api.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
 import { mountResourceStyleSettings } from './component-resource-settings-panel.js';
+import { renderGiftFrameStyleState } from './gift-frame.js';
 
 export async function addStyleToCanvas(style) {
   const entries = await prepareComponentPreviews();
@@ -50,7 +51,13 @@ export function initComponentStyleLibraries() {
   function request(action, options) {
     if (action !== 'list') return requestComponentStyles(action, options);
     if (!pendingList) {
-      const next = requestComponentStyles('list', { signal: requests.signal }).finally(() => {
+      const next = requestComponentStyles('list', { signal: requests.signal }).then(packs => {
+        renderGiftFrameStyleState(packs);
+        return packs;
+      }, error => {
+        renderGiftFrameStyleState(null);
+        throw error;
+      }).finally(() => {
         if (pendingList === next) pendingList = null;
       });
       pendingList = next;

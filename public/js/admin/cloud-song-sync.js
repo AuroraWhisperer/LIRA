@@ -47,8 +47,8 @@ function renderLastCloudSync(lastSyncEl) {
     record = null;
   }
   lastSyncEl.textContent = record?.time
-    ? `本机上次同步：${new Date(record.time).toLocaleString()}，共 ${Number(record.count) || 0} 首。`
-    : '本机尚未同步。';
+    ? `本机上次手动同步：${new Date(record.time).toLocaleString()}，共 ${Number(record.count) || 0} 首。`
+    : '本机没有手动同步记录；此处不代表自动同步状态。';
 }
 
 export async function initCloudSongSync({ toast, showConfirmationDialog }) {

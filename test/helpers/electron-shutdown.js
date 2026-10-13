@@ -65,6 +65,7 @@ function createShutdownHarness(options = {}) {
   const backendStop = Promise.withResolvers();
   const handlers = new Map();
   const powerMonitor = new EventEmitter();
+  const autoUpdater = new EventEmitter();
   let preShutdownHook;
   let startPromise;
   let runtimeOpen = false;
@@ -139,6 +140,7 @@ function createShutdownHarness(options = {}) {
   }
 
   const runtime = {
+    hasActiveOverlayConnections: () => options.hasActiveOverlayConnections?.() || false,
     start(startOptions) {
       runtimeStartOptions = startOptions;
       calls.push('runtime:start');
@@ -205,8 +207,13 @@ function createShutdownHarness(options = {}) {
     'node:crypto': { randomUUID: () => 'shutdown-test' },
     electron: {
       app,
+      autoUpdater,
       BrowserWindow: FakeWindow,
       dialog: {
+        showMessageBox: (...args) => {
+          calls.push('dialog:close');
+          return options.closeDialog?.(...args) || Promise.resolve({ response: 0 });
+        },
         showErrorBox: (_title, message) => {
           startupErrors.push(message);
           if (options.startupReportError) throw options.startupReportError;
@@ -241,6 +248,13 @@ function createShutdownHarness(options = {}) {
         whenIdle: () => options.authIdle?.promise,
         restoreMusicCookieSnapshots: () => options.musicRestore?.promise,
         restoreBilibiliCookieSnapshot: () => options.bilibiliRestore?.promise,
+      }),
+    },
+    './doubao-session': {
+      createDoubaoSession: () => ({
+        initialize: () => options.doubaoRestore?.promise,
+        dispose: () => calls.push('doubao:dispose'),
+        whenIdle: () => options.doubaoIdle?.promise,
       }),
     },
     './dynamic-lottery-auth': {
@@ -472,6 +486,10 @@ function createShutdownHarness(options = {}) {
     },
     safeStorage,
     quit,
+    quitForUpdate() {
+      autoUpdater.emit('before-quit-for-update');
+      return quit();
+    },
     settle,
     get runtimeOpen() {
       return runtimeOpen;

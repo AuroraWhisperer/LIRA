@@ -80,7 +80,13 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 
 形状出处 [update-manager.js:81-95](../../../src/electron/update-manager.js#L81-L95)。前端消费由 [desktop.js](../../../public/js/desktop.js) 的更新状态订阅负责。
 
+更新状态只通过 `desktop:update-state` 投递，不再要求用户切换页面；发现新版本与下载完成仍显示可点击前往更新页的通知。界面「启动时自动检查更新」对应已有 `enableAutoUpdate`，只控制启动检查；手动「检查并下载更新」同样沿用自动下载。`available` 阶段显示准备下载，不展示需要用户点击才下载的假象；下载完成提示退出安装，更新页始终提供项目 GitHub Releases 最新版入口。
+
 `installUpdate()`([update-manager.js:150-159](../../../src/electron/update-manager.js#L150-L159)):仅 `canInstall` 放行;置 `installing` → `app.releaseSingleInstanceLock()`(允许新实例启动)→ `autoUpdater.quitAndInstall(true, true)`(静默安装 + 装后启动)。
+
+`electron-updater` 启动安装程序后、调用 `app.quit()` 前发出 Electron 原生
+`before-quit-for-update`。主进程监听此事件，直接进入已有的受控关闭流程；即使本机来源
+仍连接，也不会在安装已启动后再询问是否继续使用。普通关窗不凭下载完成状态跳过确认。
 
 ## 5. friendlyUpdateError 映射
 

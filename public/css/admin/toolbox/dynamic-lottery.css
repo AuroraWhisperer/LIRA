@@ -40,20 +40,6 @@
   font-size: var(--type-size-control);
 }
 
-.dynamic-lottery-panel .dynamic-lottery-text-button {
-  border: 0;
-  padding-inline: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--muted);
-}
-
-.dynamic-lottery-text-button:hover:not(:disabled) {
-  color: var(--text);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
 .dynamic-lottery-panel :is(button, input, select, summary, a):focus-visible {
   outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;

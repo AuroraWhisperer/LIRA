@@ -87,6 +87,16 @@ test('a WebSocket context without an authentication owner fails closed', (t) => 
   assert.equal(socket.writes.some(Buffer.isBuffer), false);
 });
 
+test('output use includes verified overlay sockets only and ends on disconnect', (t) => {
+  const admin = connect(t, { context: { sessionToken: ADMIN_TOKEN },
+    headers: { authorization: `Bearer ${ADMIN_TOKEN}` } });
+  assert.equal(admin.hub.hasOverlayConnections(), false);
+  const overlay = overlayConnection(t, 'queue');
+  assert.equal(overlay.hub.hasOverlayConnections(), true);
+  overlay.socket.destroy();
+  assert.equal(overlay.hub.hasOverlayConnections(), false);
+});
+
 test('canonical admin Bearer authentication retains the full initial snapshot', (t) => {
   const { socket } = connect(t, {
     context: { sessionToken: ADMIN_TOKEN },

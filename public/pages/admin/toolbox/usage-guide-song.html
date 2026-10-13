@@ -10,7 +10,7 @@
 <strong>查找：</strong>搜索框能搜歌名、歌手、分类或标签。还能按分类、语言、歌手、标签筛选，或选「只看可点」。列表每页显示 100 首，用下方「上一页 / 下一页」翻页；搜索和筛选仍覆盖整个歌库，变更筛选后从第一页查看。
         </li>
 <li>
-<strong>修改与删除：</strong>点歌曲行最右边的 ··· 按钮，选「编辑」或「删除」。把「是否可点」设为「否」，歌就会停用：不公开，也不会被随机点歌抽到。
+<strong>修改与删除：</strong>点歌曲行最右边的 ··· 按钮，选「编辑」或「删除」。表单会显示“正在编辑”的歌名；要改为添加新歌，先点「取消编辑」。把「是否可点」设为「否」，歌就会停用：不公开，也不会被随机点歌抽到。
         </li>
 <li>
 <strong>批量修改：</strong>在「歌单导入导出」导出完整歌库 Excel，修改后重新上传，预览并确认替换。新表格里没列出的旧歌曲会删除。
@@ -20,8 +20,8 @@
         </li>
 </ul>
 <figure class="usage-guide-figure">
-<img alt="歌库的加歌表单：歌曲名字、原唱/首发歌手、歌曲分类、是否可点、标签、语言、歌切和点歌价格，右下角是保存歌曲按钮" class="usage-guide-image" decoding="async" height="362" loading="lazy" src="/img/usage-guide/B/song-library-edit.webp" style="--usage-guide-image-width: 1362px" width="1362"/>
-<figcaption>「点歌 → 歌库」上方的加歌表单。</figcaption>
+<img alt="歌库的编辑表单显示正在编辑的歌名和取消编辑：歌曲名字、原唱/首发歌手、歌曲分类、是否可点、标签、语言、歌切和点歌价格，右下角是保存歌曲按钮" class="usage-guide-image" decoding="async" height="429" loading="lazy" src="/img/usage-guide/B/song-library-edit.webp" style="--usage-guide-image-width: 1362px" width="1362"/>
+<figcaption>编辑时显示歌曲名；点「取消编辑」返回添加歌曲。</figcaption>
 </figure>
 <details class="usage-guide-foldout">
 <summary>查看歌库列表和筛选</summary>
@@ -43,23 +43,24 @@
           复制表格，粘贴到输入框。多个歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。
         </li>
 <li>修改现有歌单时，先「导出歌库 Excel」，在完整表格中修改、增删歌曲，再上传。不要只上传本次改动的几首歌。</li>
+<li>文件和粘贴表格二选一：选择文件会清空粘贴内容，粘贴时会取消已选文件。检查前核对“当前来源”。</li>
 <li>
-          点「预览导入」，核对新增、更新、删除和每行差异，再点「确认替换歌库」。新表格就是完整歌库，未列出的旧歌曲会删除，当前点歌队列和粉丝档案中的点歌汇总不受影响。空白或缺失文本清空，分类默认为「默认」，是否可点默认为「是」。
+          点「下一步：检查歌单」，页面会定位到检查结果，此时尚未导入。核对新增、更新和删除数量，需要时展开「查看逐行明细」，再点明细上方的「确认替换歌库」。新表格就是完整歌库，未列出的旧歌曲会删除，当前点歌队列和粉丝档案中的点歌汇总不受影响。空白或缺失文本清空，分类默认为「默认」，是否可点默认为「是」。
         </li>
-<li>有冲突、无效行或空表时，原歌库不会改变。请按提示修正后重新预览。成功后查看新增、更新、删除和未改变的数量。</li>
+<li>有冲突、无效行或空表时，原歌库不会改变。请按检查结果或明细中的说明修正后重新检查；没有变更时会提示「无需导入」。成功后查看新增、更新、删除和未改变的数量。</li>
 </ol>
 <p>
         歌名和歌手都相同，才会更新原来的歌；改了歌名或歌手，会当成新歌。点歌价格可以填免费、30元SC、舰长这类说明，它只是给观众看的文字，不会自动收款。
       </p>
 <figure class="usage-guide-figure">
-<img alt="歌单导入导出页：下载导入模板、导出歌库 Excel、选择文件、粘贴表格的输入框及预览导入按钮" class="usage-guide-image" decoding="async" height="505" loading="lazy" src="/img/usage-guide/B/song-import-export.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>使用完整表格，先预览变化，再确认替换歌库。</figcaption>
+<img alt="歌单检查结果：尚未导入、变更数量、确认替换歌库按钮及可展开的逐行明细" class="usage-guide-image" decoding="async" height="122" loading="lazy" src="/img/usage-guide/B/song-import-export.webp" style="--usage-guide-image-width: 1362px" width="1362"/>
+<figcaption>检查后先核对数量，再点「确认替换歌库」；无需翻到明细底部。</figcaption>
 </figure>
 <details class="usage-guide-foldout">
 <summary>查看导入结果提示</summary>
 <figure class="usage-guide-figure">
-<img alt="确认替换后显示本地歌库的新增、更新、删除和未改变数量" class="usage-guide-image" decoding="async" height="562" loading="lazy" src="/img/usage-guide/B/song-import-result.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>替换后，下方显示新增、更新、删除和未改变数量；网页以云同步结果为准。</figcaption>
+<img alt="确认替换后显示本地歌库的新增、更新、删除和未改变数量" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-import-result.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>替换后，检查入口下方显示新增、更新、删除和未改变数量；网页以云同步结果为准。</figcaption>
 </figure>
 </details>
 <p>歌库最多 5000 首，手动新增和更新导入都把原有歌曲（含停用歌曲）与新增歌曲一起计算。历史超量歌库仍可查看、编辑和删除。超过上限时先<a data-usage-guide-link href="#ug-web-sync">导出备份</a>，再整理重复或不再使用的歌。表头和文件格式要与模板一致，只改扩展名无效。</p>
@@ -74,7 +75,7 @@
       </p>
 <ol class="usage-guide-checks">
 <li>先确认这台电脑的歌库是全的。要手动同步，就打开「点歌 → 歌单导入导出」。同步使用完整歌库，不受当前搜索和筛选影响。</li>
-<li>点<strong class="usage-guide-keyword">「同步到网页」</strong>，看完覆盖提醒再确认。</li>
+<li>点<strong class="usage-guide-keyword">「用本机覆盖网页歌单」</strong>，看完覆盖提醒再确认。</li>
 <li>等同步结果出来，再点「查看网页歌单」看看。失败了就按提示检查网络或歌曲信息，再试一次。</li>
 </ol>
 <p class="usage-guide-notice" data-tone="warning">
@@ -82,12 +83,12 @@
         5000 首。别在两台电脑上同时改歌库。
       </p>
 <p>歌曲不足 5000 首也可能超过同步大小限制。若出现超限提示，请减少歌曲或缩短备注、点歌价格和歌切后重试；同步不会截断歌库。</p>
-<p>「本机上次同步」只记你手动点「同步到网页」的时间。不能靠它判断这台电脑和云端是否完全一样。</p>
+<p>歌库修改会自动同步。「本机上次手动同步」只记你手动点「用本机覆盖网页歌单」的时间；没有手动记录不代表没有自动同步，也不能靠它判断本机和云端是否完全一样。</p>
 </article></div>
 <h4 class="usage-guide-subsection-title">2.2 点歌管理</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-song-queues"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>2.2.1 SC 队列 + 点歌队列</strong></h5></div>
 
-<p>收到 B 站的 SC 下线通知后，对应留言会自动移除。删除或清空后不再保留留言内容，重复消息也不会重新出现；标记「已处理」的留言仍会保留在队列中。</p>
+<p>单条删除 SC 后，可在「清空 SC 记录」左侧 10 秒内撤销；连续删除合并为一批，最后一次删除重新计时。撤销恢复原留言和已处理状态；清空 SC、平台撤回不可撤销。收到 B 站的 SC 下线通知后，对应留言会自动移除；标记「已处理」的留言仍保留在队列中。</p>
 <p>
         「点歌」页上方左边是 SC 队列，右边是点歌队列。SC（醒目留言）是观众付费发的留言。观众发「点歌
         歌名」就能点歌，歌名不完整也会尝试匹配歌库。
@@ -98,21 +99,21 @@
 <li><strong>清空点歌队列：</strong>移除队首和全部等待点歌，歌库不受影响。</li>
 <li><strong>重启恢复：</strong>关闭或更新 LIRA 后重新打开，未完成点歌会按原顺序恢复。开始新一场时可点「清空点歌队列」。</li>
 <li>
-<strong>队列满了：</strong>新的点歌进不来。先唱完或删掉几首，也可以到「点歌板」调大「最多排队歌曲数」。
+<strong>队列满了：</strong>新的点歌进不来。先唱完或删掉几首，也可以到「点歌规则」调大「最多排队歌曲数」。
         </li>
 </ul>
-<p>点歌队列记的是观众想听什么，播放队列决定接下来放什么。完整导入操作见<a data-usage-guide-link href="#ug-playback-queue">管理播放队列与导入点歌</a>。</p>
+<p>点歌队列记的是观众想听什么，播放队列决定接下来放什么。可点队列旁的「导入播放器」匹配尚未处理的请求；播放结束不会自动完成点歌。完整操作见<a data-usage-guide-link href="#ug-playback-queue">管理播放队列与导入点歌</a>。</p>
 <figure class="usage-guide-figure">
 <img alt="点歌队列中一首歌右侧的三个按钮：置顶、复制歌名、删除" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-queue-item-actions.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>每首点歌右边：①置顶或取消置顶，②复制歌名，③删除。</figcaption>
 </figure>
 <p>
-        弹出「收到点歌请求」时，先看歌名、匹配到的歌和点歌人，再选「下一首播放」或「跳过」。「下一首播放」会把歌曲排到当前歌曲之后，当前音乐继续播放；播放器空闲时，点播放按钮开始。
+        弹出「匹配待确认」时，先看歌名、匹配到的歌和点歌人，再选「下一首播放」或「跳过」。「下一首播放」会把歌曲排到当前歌曲之后，当前音乐继续播放；播放器空闲时，点播放按钮开始。
       </p>
 <details class="usage-guide-foldout">
 <summary>查看点歌请求通知的样子</summary>
 <figure class="usage-guide-figure">
-<img alt="窗口上方弹出的收到点歌请求通知，显示歌名、匹配信息和点歌人，下方是下一首播放和跳过按钮" class="usage-guide-image" decoding="async" height="170" loading="lazy" src="/img/usage-guide/B/song-request-confirmation.webp" style="--usage-guide-image-width: 348px" width="348"/>
+<img alt="窗口上方弹出的收到点歌请求通知，显示歌名、匹配信息和点歌人，下方是下一首播放和跳过按钮" class="usage-guide-image" decoding="async" height="168" loading="lazy" src="/img/usage-guide/B/song-request-confirmation.webp" style="--usage-guide-image-width: 346px" width="346"/>
 <figcaption>收到待确认的点歌请求时，客户端上方自动出现此通知：①下一首播放，②跳过。</figcaption>
 </figure>
 </details>
@@ -120,8 +121,8 @@
 <article class="usage-guide-feature" id="ug-song-rules"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>2.2.2 设置点歌规则</strong></h5></div>
 
 <p>
-        打开「点歌 → 点歌板」，上方就是点歌规则和黑名单。改完点底部的「保存点歌设置」。再往下是「点歌板样式」。B
-        站账号和直播间号仍在「设置」页。
+        打开「点歌 → 点歌规则」，调整接收限制和屏蔽词，改完点「保存点歌规则」。
+        点歌板外观在「点歌板」页，B 站账号和直播间号在「账号登录」页。
       </p>
 <ul>
 <li>
@@ -129,16 +130,16 @@
         </li>
 <li><strong>最多排队歌曲数：</strong>默认 50，可填 1–300。</li>
 <li><strong>同一观众点歌间隔（秒）：</strong>默认 0，也就是不设间隔；可填 0–3600。</li>
-<li><strong>单首歌曲冷却：</strong>默认不限制，可按小时或自然日设置 1–999。歌曲成功加入点歌板即开始冷却，所有观众共用；1 自然日表示北京时间次日 00:00 恢复，2 自然日为后天 00:00。唱完、跳过、删除、清空队列或重启不会解除冷却；修改时长按最近成功入队时间重新计算。保存点歌设置后生效。</li>
+<li><strong>单首歌曲冷却：</strong>默认不限制，可按小时或自然日设置 1–999。歌曲成功加入点歌队列即开始冷却，所有观众共用；1 自然日表示北京时间次日 00:00 恢复，2 自然日为后天 00:00。唱完、跳过、删除、清空队列或重启不会解除冷却；修改时长按最近成功入队时间重新计算。保存点歌规则后生效。</li>
 <li><strong>只允许点歌库歌曲 / 允许重复点歌：</strong>按你的直播规则选。允许重复点歌只控制当前队列，同一首歌仍须满足冷却规则。</li>
 <li>
-<strong>点歌板黑名单：</strong>点「添加词条」后直接输入，可以编辑和删除。词条太长时，在输入框里选中文字或移动光标查看。只有「点歌」后面的内容和词条完全一样才会拦截：比如词条
+<strong>点歌屏蔽词：</strong>点「添加词条」后直接输入，可以编辑和删除。词条太长时，在输入框里选中文字或移动光标查看。只有「点歌」后面的内容和词条完全一样才会拦截：比如词条
           78 会拦截「点歌78」，不拦截「点歌78号公路」。要取消拦截，删掉全部词条再保存。
         </li>
 </ul>
 <figure class="usage-guide-figure">
-<img alt="点歌板中的点歌规则、单首歌曲冷却、点歌板黑名单和保存点歌设置按钮" class="usage-guide-image" decoding="async" height="353" loading="lazy" src="/img/usage-guide/B/song-settings-rules.webp" style="--usage-guide-image-width: 1396px" width="1396"/>
-<figcaption>「点歌 → 点歌板」：图中示例为冷却 1 自然日，改完点「保存点歌设置」。</figcaption>
+<img alt="独立点歌规则页：接收限制、单首歌曲冷却、点歌屏蔽词和保存点歌规则按钮" class="usage-guide-image" decoding="async" height="439" loading="lazy" src="/img/usage-guide/B/song-settings-rules.webp" style="--usage-guide-image-width: 1396px" width="1396"/>
+<figcaption>「点歌 → 点歌规则」：图中示例为冷却 1 自然日，改完点「保存点歌规则」。</figcaption>
 </figure>
 <p>看到「点歌队列已达到上限。」时，先唱完或删掉已处理的点歌，再让观众重试。清空会删除全部等待歌曲，不必为了腾一个位置就清空。</p>
 <p>「队列里已经有这首歌。」按「允许重复点歌」处理；「当前已暂停接收点歌。」需改回「接收点歌」并保存。改好后让观众重发，暂停期间被拒的点歌不会自动补回。</p>

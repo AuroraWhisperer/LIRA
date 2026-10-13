@@ -6,7 +6,7 @@
       </p>
 <p>
         「点歌 →
-        点歌板」：先选点歌板风格，再调颜色、背景透明度、毛玻璃、发光和渐变。每种风格能调的参数不一样。可以先从「配色方案」挑一套，再微调。网页歌单的背景和外观在别处设置。
+        点歌板」：先选点歌板风格，再调颜色、背景不透明度、毛玻璃、发光和渐变。每种风格能调的参数不一样。可以先从「配色方案」挑一套，再微调。网页歌单的背景和外观在别处设置。
       </p>
 <figure class="usage-guide-figure">
 <img alt="点歌板样式：上方六种点歌板风格，下面是队列布局、配色方案和文字设置" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-theme-styles.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
@@ -20,7 +20,7 @@
 <details class="usage-guide-foldout">
 <summary>查看文字和滚动设置</summary>
 <figure class="usage-guide-figure">
-<img alt="点歌板样式的完整设置：队列滚动模式和速率、配色方案、字体和字号、序号显示、背景透明度和毛玻璃" class="usage-guide-image" decoding="async" height="1378" loading="lazy" src="/img/usage-guide/B/song-theme-detail.webp" style="--usage-guide-image-width: 1362px" width="1362"/>
+<img alt="点歌板样式的完整设置：队列滚动模式和速率、配色方案、字体和字号、序号显示、背景不透明度和毛玻璃" class="usage-guide-image" decoding="async" height="1058" loading="lazy" src="/img/usage-guide/B/song-theme-detail.webp" style="--usage-guide-image-width: 1320px" width="1320"/>
 <figcaption>队列布局、文字设置、序号显示和面板外观。</figcaption>
 </figure>
 </details>
@@ -28,7 +28,7 @@
 <img alt="点歌板示例输出" class="usage-guide-image" decoding="async" height="900" loading="lazy" src="/img/usage-guide/F/public-overlay-queue.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>本机点歌板的示例输出；添加来源时请在所用直播软件中操作。</figcaption>
 </figure>
-<p>这里显示等待演唱的点歌队列，不会播放歌曲。观众点歌规则和黑名单见<a data-usage-guide-link href="#ug-song-rules">点歌规则</a>。</p></article>
+<p>这里显示等待演唱的点歌队列，不会播放歌曲。观众点歌规则和点歌屏蔽词见<a data-usage-guide-link href="#ug-song-rules">点歌规则</a>。</p></article>
 <article class="usage-guide-feature" id="ug-song-display"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>5.2.2 歌曲展示板</strong></h5></div>
 <p>
         在「浏览器源」或「展示板」复制，循环展示歌库歌曲。到「点歌 →
@@ -39,8 +39,8 @@
         1–100，数值越大越快，不随展示板高度变化；还可调整歌曲排序方式、字号和「同步点歌板主题」。这里改的是歌库展示画面，播放队列的顺序不受影响。
       </p>
 <figure class="usage-guide-figure">
-<img alt="展示板设置：歌单滚动速率、歌曲排序方式、字体大小、同步点歌板主题开关和保存展示板按钮" class="usage-guide-image" decoding="async" height="370" loading="lazy" src="/img/usage-guide/B/song-board-settings.webp" style="--usage-guide-image-width: 1394px" width="1394"/>
-<figcaption>「点歌 → 展示板」：改完点「保存展示板」。</figcaption>
+<img alt="展示板设置：歌单滚动速率、歌曲排序方式、字体大小、同步点歌板主题开关和保存展示板按钮" class="usage-guide-image" decoding="async" height="429" loading="lazy" src="/img/usage-guide/B/song-board-settings.webp" style="--usage-guide-image-width: 1394px" width="1394"/>
+<figcaption>「点歌 → 展示板」修改后自动保存并应用，也可点「保存展示板」手动保存或在失败后重试。外观与画布中同样式的组件共用；同步点歌板主题时也会同步标题。</figcaption>
 </figure>
 <figure class="usage-guide-figure usage-guide-figure--portrait">
 <img alt="歌曲展示板滚动显示示例歌库" class="usage-guide-image" decoding="async" height="650" loading="lazy" src="/img/usage-guide/F/public-overlay-songs.webp" style="--usage-guide-image-width: 440px" width="440"/>
@@ -48,7 +48,7 @@
 </figure></article>
 <article class="usage-guide-feature" id="ug-lyric-overlay"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>5.2.3 直播歌词</strong></h5></div>
 <p>
-        在<strong class="usage-guide-keyword">「点歌 → 桌面歌词设置」</strong>里调样式，能实时预览。点<strong class="usage-guide-keyword">「复制桌面歌词」</strong>拿到浏览器源地址，加到直播姬的「浏览器」或 OBS
+        在<strong class="usage-guide-keyword">「点歌 → 直播歌词」</strong>里调样式，能实时预览并自动保存。点<strong class="usage-guide-keyword">「复制浏览器源地址」</strong>拿到地址，加到直播姬的「浏览器」或 OBS
         的「浏览器源」。画面会按预览的样式显示完整歌词、翻译、罗马音、逐字高亮和播放进度。
       </p>
 <ul>
@@ -56,7 +56,7 @@
 <li>歌词区域可以单独滚动。手动翻看其他歌词后会暂停跟随，过一会儿自动回到当前行。</li>
 </ul>
 <figure class="usage-guide-figure">
-<img alt="桌面歌词逐字效果设置入口" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/desktop-lyric-karaoke.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="直播歌词逐字效果设置入口" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/desktop-lyric-karaoke.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>逐字效果设置示意；显示内容取决于当前歌曲及歌词来源。</figcaption>
 </figure>
-<p>可调整字体、字号、颜色、描边、透明度和逐字效果；歌词来源与缓存检测见<a data-usage-guide-link href="#ug-wesing-lyrics">全民 K 歌歌词同步</a>。直播歌词时间偏移范围为 ±5000 毫秒。没播放有歌词的歌曲时，画面空白是正常的。</p></article></div>
+<p>可调整字体、字号、颜色、描边、透明度和逐字效果，外观与画布中同样式的组件共用。恢复默认前会询问，确认后覆盖已保存的歌词设置并应用；全民 K 歌歌词源设置保留。歌词来源与缓存检测见<a data-usage-guide-link href="#ug-wesing-lyrics">全民 K 歌歌词同步</a>。歌词画面时间偏移范围为 ±5000 毫秒，使用全民 K 歌时与其播放页的时间调整叠加。没播放有歌词的歌曲时，画面空白是正常的。</p></article></div>

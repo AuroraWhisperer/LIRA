@@ -8,6 +8,7 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-13-doubao-conversation-isolation](2026-10-13-doubao-conversation-isolation.md) | Awaiting Verification | 豆包已改为单次生成与本地检查、单会话复用并记录首字耗时；AI 238 项、隔离 Electron 10 项及指南 16 项通过；真实账号上下文隔离及约 1 秒首字仍待更新后验收。 |
 | [2026-10-12-fan-song-retention](2026-10-12-fan-song-retention.md) | Awaiting Verification | 汇总、30 天统计、队列回收及两份恢复点已实现，相关 299 项与指南 16 项通过；隔离桌面工具超时，临时实例清理被策略拦截，桌面验收尚未完成。 |
 | [2026-10-12-gift-retention](2026-10-12-gift-retention.md) | Awaiting Verification | 存储实现及两端聚焦回归已完成，B 站读取保持原样；待发布阶段固定提交契约锁与验收，删除默认关闭，未上线。 |
 | [2026-10-12-guard-expiry-sync](2026-10-12-guard-expiry-sync.md) | Awaiting Verification | 客户端与服务器实现及合成验证完成；真实主播账号上游验收尚未执行。 |

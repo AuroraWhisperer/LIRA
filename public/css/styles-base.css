@@ -255,13 +255,13 @@ button.primary:hover {
 }
 
 button.danger {
-  border-color: transparent;
+  border-color: var(--color-danger-border, var(--danger));
   background: transparent;
   color: var(--danger);
 }
 
 button.danger:hover {
-  border-color: transparent;
+  border-color: var(--danger);
   background: var(--color-danger-light);
 }
 

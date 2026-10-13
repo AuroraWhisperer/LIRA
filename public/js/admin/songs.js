@@ -33,6 +33,8 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
   const SONGS_PER_PAGE = 100;
   let songPage = 0;
   let renderedFilterKey = '';
+  // 上一次完整歌库的 ID；新保存、尚未出现在列表里的歌曲不会被当成已删除。
+  let completeSongIds = null;
 
   function readSongForm() {
     return JSON.stringify([
@@ -55,6 +57,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
 
   function initSongForm() {
     savedForm = readSongForm();
+    renderSongEditMode();
     document.getElementById('songRequestPrice').addEventListener('input', () => {
       setValue('songPricePreset', '');
       updateSongPricePreview();
@@ -93,6 +96,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
           savedValues[0] = String(result.data.id);
           setValue('songId', savedValues[0]);
           savedForm = JSON.stringify(savedValues);
+          renderSongEditMode(savedValues[1]);
         }
       }
       toast('歌曲已保存到本地', { type: 'success' });
@@ -260,9 +264,24 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     setValue('songSourcePlatform', '');
     setValue('songNote', '');
     savedForm = readSongForm();
+    renderSongEditMode();
   }
 
-  function renderSongs(songs, songLanguages, songArtists, songTags) {
+  function renderSongEditMode(name = value('songName')) {
+    const editing = Boolean(value('songId'));
+    const heading = document.getElementById('songFormTitle');
+    if (heading) heading.textContent = editing ? `正在编辑《${name}》` : '添加歌曲';
+    document.getElementById('resetSongForm').textContent = editing ? '取消编辑' : '清空表单';
+  }
+
+  function renderSongs(songs, songLanguages, songArtists, songTags, { complete = false } = {}) {
+    if (complete) {
+      const ids = new Set(songs.map((song) => String(song.id)));
+      const editingId = value('songId');
+      // 清空或替换歌库后，正在编辑的歌曲已不存在时回到添加状态。
+      if (editingId && completeSongIds?.has(editingId) && !ids.has(editingId)) resetSongForm();
+      completeSongIds = ids;
+    }
     renderedSongs = songs;
     bindSongTableActions();
     const filterKey = JSON.stringify(readSongFilters());
@@ -296,7 +315,11 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     const showNoteColumn = songs.some((song) => String(song.note || '').trim());
     document.getElementById('songNoteColumnHeader').hidden = !showNoteColumn;
     if (songs.length === 0) {
-      table.innerHTML = '<tr><td colspan="9">暂无歌曲</td></tr>';
+      const filters = readSongFilters();
+      const filtered = filters.query || filters.categories.length || filters.language || filters.artist || filters.tags.length || filters.enabledOnly;
+      table.innerHTML = filtered
+        ? '<tr><td colspan="9">没有符合筛选条件的歌曲，请调整或清除筛选。</td></tr>'
+        : '<tr><td colspan="9">歌库还没有歌曲。可在上方添加，或到“歌单导入导出”批量导入。</td></tr>';
       return;
     }
     table.innerHTML = songs
@@ -324,7 +347,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
             </button>
             <div id="song-actions-${song.id}" class="song-actions-list" role="menu" aria-label="歌曲操作" popover="manual" hidden>
               <button type="button" role="menuitem" data-edit-song="${song.id}" title="加载到编辑表单">编辑</button>
-              <button type="button" role="menuitem" data-add-song="${song.id}" title="以主播身份加入点歌队列">入队</button>
+              <button type="button" role="menuitem" data-add-song="${song.id}" title="以主播身份加入点歌队列">加入点歌队列</button>
               <button class="danger" type="button" role="menuitem" data-delete-song="${song.id}" title="从歌库中移除该歌曲">删除</button>
             </div>
           </div>
@@ -398,6 +421,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     setValue('songSourcePlatform', song.source_platform || '');
     setValue('songNote', song.note || '');
     savedForm = readSongForm();
+    renderSongEditMode(song.name);
     document.getElementById('songName')?.focus();
   }
 
@@ -426,6 +450,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     });
     if (!confirmed) return;
     await api('/api/songs/delete', { id: button.dataset.deleteSong });
+    if (value('songId') === String(button.dataset.deleteSong)) resetSongForm();
     toast('歌曲已删除');
     await state.reloadAll();
   }

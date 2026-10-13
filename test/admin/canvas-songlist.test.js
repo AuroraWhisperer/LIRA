@@ -115,6 +115,10 @@ test('song board parameters reach the canvas renderer and persist into the live 
   await renderedStyle('.song-group-title', 'color', 'rgb(0, 170, 255)');
   await edit('songBoardThemeBackground', '#abcdef');
   await edit('songBoardThemeOpacity', '0.5');
+  const opacity = page.locator('[data-component-parameter="songBoardThemeOpacity"]');
+  assert.equal(await opacity.inputValue(), '50');
+  assert.equal(await opacity.getAttribute('max'), '100');
+  assert.equal(await opacity.getAttribute('step'), '1');
   await renderedStyle('.overlay-panel', 'backgroundColor', 'rgba(171, 205, 239, 0.5)');
   await edit('songBoardThemeRadius', '24');
   await renderedStyle('.overlay-panel', 'borderRadius', '24px');

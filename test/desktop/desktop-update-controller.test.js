@@ -68,7 +68,7 @@ test('automatic updates are enabled only by the exact stored setting and never b
   }
 });
 
-test('update state reaches only a live window and opens the update page once per available transition', () => {
+test('update state reaches only a live window without forcing navigation', () => {
   const updateRuntime = { value: { status: 'idle' }, lastStatus: undefined };
   let mainWindow = null;
   const controller = createDesktopUpdateController({ updateRuntime, getMainWindow: () => mainWindow });
@@ -84,12 +84,12 @@ test('update state reaches only a live window and opens the update page once per
   const pages = () => mainWindow.sent.filter(([channel]) => channel === 'desktop:show-update-page').length;
   const states = () => mainWindow.sent.filter(([channel]) => channel === 'desktop:update-state').length;
   for (const [status, expectedPages] of [
-    ['available', 1],
-    ['available', 1],
-    ['downloading', 1],
-    ['downloaded', 2],
-    ['downloaded', 2],
-    ['error', 2],
+    ['available', 0],
+    ['available', 0],
+    ['downloading', 0],
+    ['downloaded', 0],
+    ['downloaded', 0],
+    ['error', 0],
   ]) {
     updateRuntime.value = { status };
     controller.sendUpdateState();

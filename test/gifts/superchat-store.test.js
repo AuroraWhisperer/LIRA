@@ -13,6 +13,7 @@ const {
 } = require('../../src/bilibili/superchat-service');
 const { clearAllData, clearSuperChatData, closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createSuperChatStore } = require('../../src/storage/superchat-store');
+const { createSuperChatUndo } = require('../../src/bilibili/superchat-undo');
 const { migrateSuperChatReceipts } = require('../../src/storage/superchat-receipt-migration');
 const { SUPER_CHAT_SCHEMA, runMigrations, getSchemaVersion } = require('../../src/storage/schema');
 const { applyRetentionPolicies } = require('../../src/storage/retention');
@@ -38,6 +39,70 @@ function fixture(t) {
 function receipts(db) {
   return db.prepare('SELECT * FROM super_chat_receipts ORDER BY platform_id').all().map((row) => ({ ...row }));
 }
+
+test('consecutive SC deletions form one batch and restore original identity, status and order', (t) => {
+  const { context, db } = fixture(t);
+  const undo = createSuperChatUndo({ store: context.store, getScope: () => 'owner:room' });
+  t.after(undo.clear);
+  const first = addSuperChatItem(context, { platformId: 'undo-1', price: 30, message: '第一条' });
+  const second = addSuperChatItem(context, { platformId: 'undo-2', price: 50, message: '第二条' });
+  handleSuperChatAction(context, 'assist', first.id);
+  const before = getSuperChatSnapshot(context);
+  const one = undo.remove(first.id);
+  const two = undo.remove(second.id);
+  assert.equal(two.token, one.token);
+  assert.equal(two.count, 2);
+  assert.ok(two.expiresAt >= one.expiresAt);
+  assert.deepEqual(getSuperChatSnapshot(context), []);
+  assert.equal(addSuperChatItem(context, { platformId: 'undo-1', price: 30 }), null);
+  assert.throws(() => undo.restore('forged'), { code: 'SUPERCHAT_UNDO_EXPIRED' });
+  undo.restore(two.token);
+  assert.deepEqual(getSuperChatSnapshot(context), before);
+  assert.deepEqual(receipts(db.superChatDb), []);
+  assert.equal(addSuperChatItem(context, { platformId: 'undo-1', price: 30 }).id, first.id);
+  assert.throws(() => undo.restore(two.token), { code: 'SUPERCHAT_UNDO_EXPIRED' });
+});
+
+test('SC undo expires and cannot cross account/room changes, platform retraction or explicit clear', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-13T00:00:00Z') });
+  const { context } = fixture(t);
+  let scope = 'owner:room-a';
+  const undo = createSuperChatUndo({ store: context.store, getScope: () => scope });
+  t.after(undo.clear);
+  for (const reason of ['expired', 'scope', 'retract', 'clear']) {
+    const item = addSuperChatItem(context, { platformId: reason, price: 30 });
+    const batch = undo.remove(item.id);
+    if (reason === 'expired') t.mock.timers.setTime(batch.expiresAt);
+    if (reason === 'scope') scope = 'owner:room-b';
+    if (reason === 'retract') {
+      retractSuperChatItems(context, [reason]);
+      undo.retract([reason]);
+    }
+    if (reason === 'clear') undo.clear();
+    assert.throws(() => undo.restore(batch.token), { code: 'SUPERCHAT_UNDO_EXPIRED' });
+    assert.equal(addSuperChatItem(context, { platformId: reason, price: 30 }), null);
+  }
+});
+
+test('failed SC batch restore rolls back all rows and receipts and remains retryable', (t) => {
+  const { context, db } = fixture(t);
+  const undo = createSuperChatUndo({ store: context.store, getScope: () => 'owner:room' });
+  t.after(undo.clear);
+  for (const platformId of ['restore-ok', 'restore-fail']) {
+    const item = addSuperChatItem(context, { platformId, price: 30 });
+    undo.remove(item.id);
+  }
+  const batch = undo.remove(9999);
+  const before = receipts(db.superChatDb);
+  db.superChatDb.exec(`CREATE TRIGGER fail_sc_restore BEFORE INSERT ON super_chats
+    WHEN NEW.platform_id = 'restore-fail' BEGIN SELECT RAISE(ABORT, 'restore failure'); END;`);
+  assert.throws(() => undo.restore(batch.token), /restore failure/);
+  assert.deepEqual(getSuperChatSnapshot(context), []);
+  assert.deepEqual(receipts(db.superChatDb), before);
+  db.superChatDb.exec('DROP TRIGGER fail_sc_restore');
+  undo.restore(batch.token);
+  assert.equal(getSuperChatSnapshot(context).length, 2);
+});
 
 test('displayed SuperChats retain content while deletion keeps only replay receipts', (t) => {
   const { db, context } = fixture(t);

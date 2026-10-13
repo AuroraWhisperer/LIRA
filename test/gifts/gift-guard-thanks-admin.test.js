@@ -7,6 +7,10 @@ const test = require('node:test');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom, createClock } = require('../helpers/toast-dom');
+const { startComponentPreviewServer } = require('../helpers/component-preview-server');
+const { useSharedBrowser } = require('../helpers/shared-browser');
+
+const openBrowserSession = useSharedBrowser();
 
 async function createFixture() {
   const { documentRef, windowRef } = createDom();
@@ -45,6 +49,7 @@ test('each style saves only its own fields and leaves the other draft intact', a
   edit('guardThanksAuroraEnabled', true);
   edit('guardThanksAuroraTextMode', 'zh');
   edit('guardThanksClassicTextMode', 'bilingual');
+  assert.match(node('guardThanksClassicSaveState').textContent, /有未保存修改/);
   const save = click('guardThanksAuroraSaveBtn');
   assert.equal(requests[0].url, '/api/settings');
   assert.deepEqual(requests[0].body, { guardThanksAuroraEnabled: 'true', guardThanksAuroraTextMode: 'zh' });
@@ -97,6 +102,65 @@ test('invalid preview months are reported independently without opening or savin
     }
   }
   assert.equal(requests.length, 0);
+});
+
+test('successful previews and preview errors preserve unsaved reminders until the values are restored', { timeout: 20000 }, async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><html><body></body></html>' });
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  let installed = true;
+  let settingsWrites = 0;
+  await page.route('**/api/component-styles/list', route => route.fulfill({ json: { ok: true, data: installed
+    ? [{ packageId: 'lira.woodland-gift-frame', styles: [{ config: { resourceStyle: { preset: 'woodland-gift-frame' } } }] }] : [] } }));
+  await page.route('**/api/settings', route => { settingsWrites += 1; return route.fulfill({ json: { ok: true } }); });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.evaluate(async markup => {
+    const html = new DOMParser().parseFromString(markup, 'text/html');
+    for (const id of ['guardThanksPanel', 'otherGiftFeature']) {
+      const node = html.getElementById(id); node.hidden = false; document.body.append(node);
+    }
+    const { setComponentPreviewPreparation } = await import('/js/admin/component-preview-registry.js');
+    const { setActiveComponentPreview } = await import('/js/admin/component-preview-session.js');
+    const draft = { document: { canvas: { width: 1920, height: 1080 }, items: [] } };
+    setComponentPreviewPreparation(() => ({ id: 'canvas', controller: { getState: () => ({ loaded: true, draft }),
+      edit(next) { Object.assign(draft, next); } } }));
+    window.previewRequests = [];
+    setActiveComponentPreview({ id: 'browser-preview', canReuse: () => true,
+      focus: request => window.previewRequests.push(request), syncCanvas: async () => {} });
+    const guard = await import('/js/admin/gift-guard-thanks.js');
+    const frame = await import('/js/admin/gift-frame.js');
+    guard.initGuardThanks(); frame.initGiftFrame();
+    guard.renderGuardThanks({ guardThanksClassicEnabled: 'false', guardThanksClassicTextMode: 'bilingual' });
+    frame.renderGiftFrame({ giftFrameEnabled: 'false', giftFrameThresholdRmb: '20' });
+  }, readAdminFragmentHtml('pages/admin/toolbox/gift.html'));
+  for (const [prefix, button, quantity] of [
+    ['guardThanksClassic', 'PlayBtn', 'PreviewMonths'], ['giftFrame', 'PreviewBtn', 'PreviewNum'],
+  ]) {
+    await page.locator(`#${prefix}Enabled`).check();
+    await page.locator(`#${prefix}${quantity}`).fill('1');
+    await page.locator(`#${prefix}${button}`).click();
+    await page.waitForFunction(expected => previewRequests.some(request => request.id === expected),
+      prefix === 'giftFrame' ? 'gift-frame' : 'guard-thanks');
+    assert.match(await page.locator(`#${prefix}SaveState`).textContent(), /有未保存修改/);
+    await page.locator(`#${prefix}${quantity}`).fill('0');
+    await page.locator(`#${prefix}${button}`).click();
+    const error = await page.locator(`#${prefix}SaveState`).textContent();
+    assert.match(error, /预览/); assert.match(error, /有未保存修改/);
+    await page.locator(`#${prefix}Enabled`).uncheck();
+    assert.equal(await page.locator(`#${prefix}SaveState`).textContent(), '');
+    assert.equal(await page.locator(`#${prefix}Enabled`).getAttribute('data-dirty'), 'false');
+  }
+  installed = false;
+  await page.locator('#giftFrameEnabled').check();
+  await page.locator('#giftFramePreviewNum').fill('1');
+  await page.locator('#giftFramePreviewBtn').click();
+  await page.locator('#giftFrameSaveState').filter({ hasText: '请先从' }).waitFor();
+  assert.match(await page.locator('#giftFrameSaveState').textContent(), /有未保存修改/);
+  assert.equal(settingsWrites, 0, 'preview never saves the settings draft');
 });
 
 test('the real gift page exposes every style control and the module previews through the canvas', () => {

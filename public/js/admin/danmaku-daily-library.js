@@ -1,7 +1,7 @@
 const NAMES = { checkin: '签到词库', fortune: '抽签词库' };
 const FIELDS = { level: '签级', name: '签名', text: '签文', advice: '建议' };
 const ERRORS = {
-  DAILY_BOT_UNSUPPORTED: '服务器暂不支持词库编辑，请先更新服务器。',
+  DAILY_BOT_UNSUPPORTED: '当前服务暂不支持词库编辑，请联系管理员。',
   DAILY_BOT_LIBRARY_CONFLICT: '另一台设备修改了词库。草稿已保留，请核对后重新载入云端词库。',
   DAILY_BOT_LIBRARY_INVALID: '词库需有 1～1000 条完整文案，回复需能在完整昵称后分为最多 4 条。请缩短过长文案后重试。',
   DAILY_BOT_TAKEOVER_REQUIRED: '旧数据正在导入，完成后可编辑词库。',

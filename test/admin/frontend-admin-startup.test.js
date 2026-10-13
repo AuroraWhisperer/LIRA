@@ -98,6 +98,7 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
     './gift-guard-thanks.js': { initGuardThanks: noop },
     './gifts/history.js': { initGiftHistoryDrawer: noop },
     './gifts/index.js': { renderGiftPanel: noop },
+    './gifts/blindbox-analysis.js': { giftAnalysis: { close: noop } },
     './song-import-update.js': { initSongImportUpdate: noop },
     './state.js': {
       stateService: {

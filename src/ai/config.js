@@ -70,7 +70,7 @@ const BOOLEAN_KEYS = new Set([
 ]);
 
 const ENUM_VALUES = Object.freeze({
-  modelProvider: new Set(['auto', 'deepseek', 'openai', 'anthropic', 'gemini', 'custom']),
+  modelProvider: new Set(['auto', 'deepseek', 'openai', 'anthropic', 'gemini', 'custom', 'doubao']),
   modelApiProtocol: new Set(['auto', 'responses', 'chat_completions']),
   reasoningEffort: new Set(['auto', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
 });
@@ -173,6 +173,7 @@ function validateHttpUrl(key, value) {
 }
 
 function assertSavedModelKeyOrigin(current, next, hasExplicitKey) {
+  if (next.modelProvider === 'doubao') return;
   if (hasExplicitKey || !current.deepseekApiKey) return;
   const previousUrl = applyModelProviderPreset(current).deepseekResponsesUrl;
   const nextUrl = applyModelProviderPreset(next).deepseekResponsesUrl;
@@ -185,6 +186,7 @@ function assertSavedModelKeyOrigin(current, next, hasExplicitKey) {
 }
 
 function isAiReady(config) {
+  if (config.modelProvider === 'doubao') return Boolean(config.enabled && config.trigger);
   return Boolean(
     config.enabled && config.trigger && config.deepseekResponsesUrl && config.deepseekApiKey && config.model,
   );

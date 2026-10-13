@@ -111,6 +111,23 @@ async function run() {
     servePageOrAsset(req, res, url) {
       if (url.pathname === '/js/admin/index.js') {
         res.setHeader('Content-Type', 'application/javascript');
+        if (process.argv[3] === 'ai-personas') {
+          res.end(`import { createPersonaControls } from './ai-assistant-personas.js';
+            import './contextual-help.js';
+            const panel = document.getElementById('xiaomiAiSection');
+            document.body.replaceChildren(panel);
+            document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
+            document.getElementById('xiaomiAiModelProvider').value = 'custom';
+            const config = { personaId: 'general', modelProvider: 'custom', personas: [
+              { id: 'general', name: '通用人格', builtin: true, description: '已保存的说明', prompt: '已保存的角色指南内容，长度足够用于实际表单校验。' },
+              { id: 'test-persona', name: '测试预设', description: '自建角色', prompt: '这是自建角色的已保存指南，长度足够用于实际表单校验。' }
+            ] };
+            const controls = createPersonaControls({ flushPendingSave: async () => true,
+              acceptConfig: (value) => { window.aiPersonaTest.config = value; controls.render(value); } });
+            window.aiPersonaTest = { config, controls };
+            controls.render(config);`);
+          return;
+        }
         res.end(`import { initDanmakuDailyBots } from './danmaku-daily-bots.js';
           import { initFixedReplyEditor } from './danmaku-fixed-replies.js';
           import { initDanmakuCloudReplies } from './danmaku-cloud-replies.js';
@@ -133,7 +150,8 @@ async function run() {
   const origin = `http://127.0.0.1:${server.address().port}`;
   if ((await fetch(`${origin}/admin`)).status !== 401) throw new Error('Admin must require desktop authorization.');
   const window = new BrowserWindow({ width: 1440, height: 1000, show: false,
-    webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false } });
+    webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false,
+      backgroundThrottling: process.argv[3] !== 'ai-personas' } });
   const auth = createDesktopRequestAuth({ desktopSession: session.defaultSession,
     getMainWindow: () => window, getBaseUrl: () => origin, getToken: () => token });
   configureMediaRequestHeaders(session.defaultSession, {}, auth);

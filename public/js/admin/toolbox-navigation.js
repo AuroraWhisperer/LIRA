@@ -371,6 +371,8 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
     navigationLinks.forEach((link) =>
       link.addEventListener('click', () => {
         options.onNavigate?.(link.dataset.mainPageLink);
+        const targetTab = link.dataset.songTabTarget;
+        if (targetTab) document.querySelector(`[data-tab="${targetTab}"]`)?.click();
         const targetFeature = link.dataset.otherFeatureTarget;
         if (targetFeature) {
           // The main page switch is synchronous; select the requested toolbox panel after it becomes visible.

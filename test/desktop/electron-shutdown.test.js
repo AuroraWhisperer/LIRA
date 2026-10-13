@@ -12,6 +12,75 @@ test('every main process dependency is modelled for shutdown review', () => {
   assert.deepEqual(h.unmodelledDependencies, [], 'add each new main.js dependency to helpers/electron-shutdown.js');
 });
 
+test('connected output prompts once and cancellation leaves the runtime and renderer intact', async () => {
+  const answer = Promise.withResolvers();
+  let connected = true;
+  const h = createShutdownHarness({ hasActiveOverlayConnections: () => connected,
+    closeDialog: (_window, options) => {
+      assert.equal(options.cancelId, 0);
+      assert.equal(options.defaultId, 0);
+      return answer.promise;
+    } });
+  await h.start();
+  h.state.window.main.close();
+  h.quit();
+  assert.equal(h.count('dialog:close'), 1);
+  assert.equal(h.state.lifecycle.shutdownPromise, null);
+  assert.deepEqual(h.clock.delays, [], 'shutdown deadline starts only after approval');
+  answer.resolve({ response: 0 });
+  await h.state.lifecycle.closePromptPromise;
+  assert.equal(h.runtimeOpen, true);
+  assert.equal(h.count('cloud:dispose'), 0);
+  assert.equal(h.state.window.main.isDestroyed(), false);
+  connected = false;
+  h.state.window.main.close();
+  assert.equal(h.count('dialog:close'), 1, 'disconnected outputs do not prompt again');
+  h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
+  await h.state.lifecycle.shutdownPromise;
+  assert.equal(h.count('app:exit'), 1);
+});
+
+test('confirming connected output close runs the existing ordered shutdown once', async () => {
+  const h = createShutdownHarness({ hasActiveOverlayConnections: () => true,
+    closeDialog: () => Promise.resolve({ response: 1 }) });
+  await h.start();
+  h.quit();
+  h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
+  await h.state.lifecycle.closePromptPromise;
+  assert.equal(h.count('dialog:close'), 1);
+  assert.equal(h.count('runtime:stop'), 1);
+  assert.equal(h.count('playback:flush'), 1);
+  assert.equal(h.count('app:exit'), 1);
+});
+
+test('updater quit bypasses the usage prompt and still drains before playback flush and exit', async () => {
+  const h = createShutdownHarness({ hasActiveOverlayConnections: () => true });
+  await h.start();
+  h.quitForUpdate();
+  assert.equal(h.count('dialog:close'), 0);
+  assert.ok(h.state.lifecycle.shutdownPromise);
+  assert.equal(h.count('playback:flush'), 0, 'pending controllers must drain first');
+  assert.equal(h.count('app:exit'), 0);
+  h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
+  await h.state.lifecycle.shutdownPromise;
+  assert.equal(h.count('playback:flush'), 1);
+  assert.equal(h.count('runtime:stop'), 1);
+  assert.equal(h.count('app:exit'), 1);
+  assert.ok(h.calls.indexOf('playback:flushed') < h.calls.indexOf('runtime:stopped'));
+  assert.ok(h.calls.indexOf('runtime:stopped') < h.calls.indexOf('app:exit'));
+});
+
+test('a downloaded update does not bypass the prompt for an ordinary close', async () => {
+  const h = createShutdownHarness({ hasActiveOverlayConnections: () => true });
+  await h.start();
+  h.state.update.value = { status: 'downloaded', canInstall: true };
+  h.quit();
+  await h.state.lifecycle.closePromptPromise;
+  assert.equal(h.count('dialog:close'), 1);
+  assert.equal(h.state.lifecycle.shutdownPromise, null);
+  assert.equal(h.runtimeOpen, true);
+});
+
 test('quit drains a scene waiting for scheduled renewal and reaches the actual playback flush', async (t) => {
   const scheduled = new Set();
   const license = createLicenseHarness({
@@ -157,6 +226,7 @@ for (const [idleOption, disposedOnce, stoppedAtLeastOnce] of [
   ['appearanceIdle', [], []],
   ['integrityIdle', [], ['integrity:stop']],
   ['authIdle', ['auth:dispose'], []],
+  ['doubaoIdle', ['doubao:dispose'], []],
   ['lotteryIdle', ['lottery:dispose', 'lottery:remove-ipc'], []],
   ['fanIdle', ['fan:dispose', 'fan:remove-ipc'], []],
 ]) {
@@ -385,7 +455,7 @@ test('quit before runtime initialization preserves Electron default exit', () =>
   assert.equal(h.clock.pending, 0);
 });
 
-for (const restore of ['musicRestore', 'bilibiliRestore']) {
+for (const restore of ['musicRestore', 'bilibiliRestore', 'doubaoRestore']) {
   test(`restart during ${restore} exits without creating a runtime later`, async () => {
     const pendingRestore = Promise.withResolvers();
     const h = createShutdownHarness({ [restore]: pendingRestore });

@@ -16,7 +16,27 @@ import {
 } from '../shared/utils.js';
 import { stateService } from './state.js';
 
+let superChatUndo = null;
+let superChatUndoTimer = null;
+let superChatUndoHideTimer = null;
+let superChatActions = Promise.resolve();
+let superChatUndoRevision = 0;
+
 function initQueueForm() {
+  document.getElementById('superChatUndoBtn')?.addEventListener('click', () => {
+    if (!superChatUndo) return;
+    const token = superChatUndo.token;
+    enqueueSuperChatAction(async () => {
+      try {
+        await api('/api/superchats/undo', { token }, { notifyError: false });
+        clearSuperChatUndo();
+        await stateService.reloadState();
+      } catch (error) {
+        if (error.status === 409 || error.statusCode === 409 || error.code === 'SUPERCHAT_UNDO_EXPIRED') clearSuperChatUndo();
+        throw error;
+      }
+    });
+  });
   const randomButton = document.getElementById('randomSongBtn');
   randomButton.addEventListener('click', async () => {
     if (randomButton.disabled) return;
@@ -80,21 +100,25 @@ function initQueueForm() {
 
 function renderState(appState) {
   if (!appState) return;
-  renderQueueState(appState.queue);
+  renderQueueState(appState.queue, appState.settings);
   renderSuperChatQueue(appState.superChats || []);
   applyAdminQueueFontPreview(appState.settings || {});
 }
 
-function renderQueueState(queue = {}) {
+function renderQueueState(queue = {}, settings = {}) {
   const queueItems = [queue.current, ...(queue.waiting || [])].filter(Boolean);
   document.getElementById('queueSize').textContent = `${queueItems.length} 首`;
   const list = document.getElementById('queueList');
   if (queueItems.length === 0) {
+    const paused = settings.paused === true || settings.paused === 'true';
+    const monitoringOff = settings.danmakuMonitoringEnabled === false || settings.danmakuMonitoringEnabled === 'false';
+    const hint = monitoringOff ? '弹幕监控已关闭，暂不接收观众点歌'
+      : paused ? '点歌已暂停，恢复后可接收观众点歌' : '观众点歌后，会按顺序出现在这里';
     list.innerHTML = `
       <div class="empty queue-empty">
         <div class="empty-icon" aria-hidden="true"><img class="empty-queue-image" src="/img/admin/queue/admin-queue-song.webp" alt="" draggable="false"></div>
         <div class="empty-text">暂无点歌</div>
-        <div class="empty-hint">观众点歌后，会按顺序出现在这里</div>
+        <div class="empty-hint">${hint}</div>
       </div>
     `;
   } else {
@@ -216,8 +240,65 @@ async function queueAction(action, id) {
 }
 
 async function superChatAction(action, id) {
-  await api('/api/superchats/action', { action, id });
-  await stateService.reloadState();
+  return enqueueSuperChatAction(async () => {
+    if (action === 'delete') {
+      const revision = superChatUndoRevision;
+      const response = await api('/api/superchats/delete', { id }, { notifyError: false });
+      if (revision === superChatUndoRevision) showSuperChatUndo(response.undo);
+    } else {
+      await api('/api/superchats/action', { action, id }, { notifyError: false });
+    }
+    await stateService.reloadState();
+  });
+}
+
+function enqueueSuperChatAction(action) {
+  superChatActions = superChatActions.then(async () => {
+    const button = document.getElementById('superChatUndoBtn');
+    if (button) button.disabled = true;
+    try { await action(); }
+    catch (error) { showError(error); }
+    finally { if (button) button.disabled = !superChatUndo; }
+  });
+  return superChatActions;
+}
+
+function showSuperChatUndo(undo) {
+  if (!undo || undo.expiresAt <= Date.now()) { clearSuperChatUndo(); return; }
+  clearTimeout(superChatUndoTimer);
+  clearTimeout(superChatUndoHideTimer);
+  superChatUndoHideTimer = null;
+  superChatUndo = undo;
+  const panel = document.getElementById('superChatUndo');
+  const message = document.getElementById('superChatUndoMessage');
+  if (message) message.textContent = `已删除 ${undo.count} 条 SC`;
+  if (panel) {
+    panel.hidden = false;
+    panel.classList.remove('is-leaving');
+  }
+  superChatUndoTimer = setTimeout(expireSuperChatUndo, undo.expiresAt - Date.now());
+}
+
+export function clearSuperChatUndo() {
+  superChatUndoRevision += 1;
+  expireSuperChatUndo();
+}
+
+function expireSuperChatUndo() {
+  clearTimeout(superChatUndoTimer);
+  superChatUndoTimer = null;
+  superChatUndo = null;
+  const panel = document.getElementById('superChatUndo');
+  const button = document.getElementById('superChatUndoBtn');
+  if (button) button.disabled = true;
+  clearTimeout(superChatUndoHideTimer);
+  if (!panel || panel.hidden) return;
+  panel.classList.add('is-leaving');
+  superChatUndoHideTimer = setTimeout(() => {
+    panel.hidden = true;
+    panel.classList.remove('is-leaving');
+    superChatUndoHideTimer = null;
+  }, 1000);
 }
 
 function requesterLabel(item) {

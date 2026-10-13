@@ -82,6 +82,9 @@ function resolveModelsEndpoint(value, protocolPreference = 'auto') {
 }
 
 function describeModelEndpoint(value, protocolPreference = 'auto', providerPreference = 'auto') {
+  if (providerPreference === 'doubao') {
+    return { protocol: 'account', provider: 'doubao', webSearchMode: 'unsupported', reasoningMode: 'unsupported' };
+  }
   const input = String(value || '').trim();
   if (!input) {
     return {

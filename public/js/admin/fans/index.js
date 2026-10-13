@@ -131,7 +131,7 @@ function createFanUi() {
       roomNotConfigured: '到期提示：请先设置直播间',
       sourceChanged: '到期提示：账号或房间已变化，请重新加载',
       unavailable: '到期提示暂不可用，可重新加载重试',
-      unsupported: '到期提示需要更新服务器',
+      unsupported: '到期提示暂不可用，请联系管理员',
     }[state.expiry.state];
     const label = [syncLabel, expiryLabel].filter(Boolean).join(' · ');
     const syncNode = get('fanSyncState');

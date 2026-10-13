@@ -54,6 +54,14 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   assert.ok(statusBounds.y >= saveBounds.y && statusBounds.y < saveBounds.y + saveBounds.height,
     'save status stays beside the toolbar actions');
   await desktop.locator('[data-text-box="discard"]').click({ force: true });
+  await desktop.getByRole('dialog', { name: '放弃整个场景的修改？' }).waitFor();
+  assert.equal(await status.textContent(), '等待确认…');
+  await desktop.locator('.lira-confirm-cancel').click({ force: true });
+  await desktop.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
+  assert.equal(await status.textContent(), '场景其他内容有未保存修改');
+  await desktop.locator('[data-text-box="discard"]').click({ force: true });
+  await desktop.locator('.lira-confirm-confirm').click({ force: true });
+  await desktop.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
   assert.equal(await status.textContent(), '');
   await desktop.locator('[data-text-box="add"]').click({ force: true });
   assert.equal(await status.textContent(), '文本框有未保存修改');
@@ -106,6 +114,27 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   const saved = await app.evaluate(() => global.canvasTest.scene());
   assert.equal(saved.document.items[0].appearance.config.nodes[0].underline, true);
   assert.ok(saved.publishedVersion > 0);
+  const source = await desktop.evaluate(() => textBoxCanvas.source());
+  const readPublished = async () => {
+    const response = await fetch(`${new URL(desktop.url()).origin}/api/scene/output?id=${source.id}&version=0`,
+      { headers: { Authorization: `Bearer ${source.token}` } });
+    assert.equal(response.status, 200);
+    return (await response.json()).data.document;
+  };
+  const published = await readPublished();
+  await desktop.evaluate(async () => {
+    const { document } = textBoxCanvas.controller.getState().draft;
+    document.canvas.width += 100;
+    textBoxCanvas.controller.edit({ document });
+    await textBoxCanvas.controller.save();
+  });
+  assert.equal(await desktop.evaluate(() => textBoxCanvas.controller.getState().dirty), false);
+  assert.equal((await readPublished()).canvas.width, published.canvas.width, 'saving a scene does not apply the new layout');
+  assert.match(await desktop.locator('.text-box-scene-context').textContent(), /包含已保存但尚未应用的内容/);
+  await desktop.locator('[data-text-box="save"]').click({ force: true });
+  await desktop.waitForFunction(() => document.querySelector('[data-text-box="status"]').textContent === '已保存');
+  assert.equal((await readPublished()).canvas.width, published.canvas.width + 100,
+    'text-box publication applies the saved non-text layout too, as disclosed beside the action');
   await desktop.locator('[data-text-box="remove"]').click({ force: true });
   assert.equal(await status.textContent(), '文本框有未保存修改');
   assert.equal(await desktop.locator('[data-text-box="empty"]').isVisible(), true);
@@ -128,5 +157,21 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   await desktop.locator('[data-text-box="save"]').click({ force: true });
   await desktop.waitForFunction(() => document.querySelector('[data-text-box="status"]').textContent === '已保存');
   assert.equal((await app.evaluate(() => global.canvasTest.scene())).document.items.length, 1);
+  await desktop.evaluate(async () => {
+    const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
+    const canvas = (await prepareComponentPreviews()).find(component => component.id === 'canvas');
+    await canvas.preset({ action: 'create', title: '备用场景', duplicate: true });
+  });
+  assert.match(await desktop.locator('[data-text-box="scene"]').textContent(), /正在编辑：备用场景 \/ 当前输出：场景 1/);
+  await desktop.locator('[data-text-box="save"]').click({ force: true });
+  await desktop.getByRole('dialog', { name: '应用整个场景？' }).waitFor();
+  assert.equal(await status.textContent(), '等待确认…');
+  await desktop.locator('.lira-confirm-cancel').click({ force: true });
+  await desktop.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
+  assert.match(await desktop.locator('[data-text-box="scene"]').textContent(), /当前输出：场景 1/);
+  await desktop.locator('[data-text-box="save"]').click({ force: true });
+  await desktop.locator('.lira-confirm-confirm').click({ force: true });
+  await desktop.waitForFunction(() => document.querySelector('[data-text-box="status"]').textContent === '已保存');
+  assert.match(await desktop.locator('[data-text-box="scene"]').textContent(), /当前输出：备用场景/);
   assert.deepEqual(errors, []);
 });

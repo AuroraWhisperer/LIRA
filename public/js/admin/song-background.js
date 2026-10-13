@@ -1,6 +1,7 @@
 'use strict';
 
 import { createSongBackgroundImages, prepareSongBackground } from './song-background-image.js';
+import { dangerConfirm } from '../shared/confirmation-dialog.js';
 
 const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const SONG_BACKGROUND_ERROR_MESSAGES = {
@@ -181,6 +182,9 @@ export async function initCloudSongBackground() {
 
   deleteButton.addEventListener('click', async () => {
     if (deleteButton.disabled) return;
+    if (!await dangerConfirm({ title: '删除网页歌单自定义背景？',
+      message: '将删除已上传的背景图片，并恢复默认水彩背景。其他电脑和观众网页也会更新。',
+      confirmLabel: '删除并恢复默认' })) return;
     setBusy(true);
     setResult('正在恢复默认背景…');
     try {

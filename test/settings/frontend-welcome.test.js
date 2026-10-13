@@ -183,7 +183,7 @@ test('an unauthorized account shows a stable explanation without reading setting
   const f = await fixture({ state: 'unbound' });
   assert.equal(f.reads.length, 0);
   assert.equal(f.get('Toggle').disabled, true);
-  assert.match(f.get('Status').textContent, /连接已授权账号/);
+  assert.match(f.get('Status').textContent, /连接 LIRA 账号/);
 });
 
 test('add, delete and save messages, preserving edits made during a save', async () => {

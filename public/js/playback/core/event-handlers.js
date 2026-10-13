@@ -6,6 +6,7 @@ import { createPlaybackStateActions } from '../state/actions.js';
 
 import * as PlaybackUtils from '../utils.js';
 import * as PlaybackComponents from '../ui/components.js';
+import { dangerConfirm } from '../../shared/confirmation-dialog.js';
 
 function menuNavigationIndex(key, currentIndex, itemCount) {
   if (key === 'Home') return 0;
@@ -82,8 +83,23 @@ export function createEventHandlers(deps) {
   }
 
   function setupPlaybackControlButtons() {
-    document.getElementById('playbackClearQueue')?.addEventListener('click', clearPlaybackQueue);
+    document.getElementById('playbackClearQueue')?.addEventListener('click', async () => {
+      const hasContent = playbackState.current || ['normalQueue', 'normalQueueTracks', 'radioQueue', 'pendingRequests', 'history']
+        .some((key) => playbackState[key]?.length);
+      if (!hasContent) {
+        clearPlaybackQueue();
+        return;
+      }
+      const confirmed = await dangerConfirm({
+        title: '停止播放并清空队列？',
+        message: '将立即停止当前音乐，清空播放队列、待确认点歌和上一首记录。已处理及本次清掉的待确认点歌，在点歌队列仍存在期间都不会重新导入。',
+        keeps: ['最近播放（播放历史抽屉）、点歌队列和歌库'],
+        confirmLabel: '停止并清空',
+      });
+      if (confirmed) clearPlaybackQueue();
+    });
     document.getElementById('playbackImportSongQueue')?.addEventListener('click', importSongQueueToPlayback);
+    document.getElementById('songQueueImportPlayback')?.addEventListener('click', importSongQueueToPlayback);
     document.getElementById('playbackPrev')?.addEventListener('click', playbackPrevious);
     document.getElementById('playbackNext')?.addEventListener('click', () => playbackNext(false));
     document.getElementById('playbackPlayPause')?.addEventListener('click', togglePlayback);
@@ -255,7 +271,7 @@ export function createEventHandlers(deps) {
         else if (event.key === 'End') next = tabs.length - 1;
         else return;
         event.preventDefault();
-        tabs[next].click();
+        tabs.forEach((tab, tabIndex) => { tab.tabIndex = tabIndex === next ? 0 : -1; });
         tabs[next].focus();
       });
     });

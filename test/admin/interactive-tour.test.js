@@ -152,14 +152,13 @@ test('refresh step spotlights the live-room status together with the refresh but
 test('tour waits for the saved room and an actually connected live status', async () => {
   const window = {};
   const roomInput = { value: '12345' };
-  let liveClass = '';
-  const liveStatus = { classList: { contains: (name) => name === liveClass } };
+  const data = { settings: { roomId: '12345' } };
   const config = await loadModuleExports(
     path.join(__dirname, '../helpers/interactive-tour-graph.js'),
     {
       window,
-      document: { getElementById: (id) => id === 'roomId' ? roomInput : liveStatus },
-      fetch: async () => ({ json: async () => ({ ok: true, data: { settings: { roomId: '12345' } } }) }),
+      document: { getElementById: (id) => id === 'roomId' ? roomInput : null },
+      fetch: async () => ({ json: async () => ({ ok: true, data }) }),
     },
   );
   const roomStep = config.TOUR_CONFIG_STEPS.find((step) => step.id === 'room-id');
@@ -169,9 +168,18 @@ test('tour waits for the saved room and an actually connected live status', asyn
   assert.equal(roomStep.checkCompleted(), true);
   roomInput.value = '67890';
   assert.equal(roomStep.checkCompleted(), false);
-  for (const status of ['', 'warn', 'good']) {
-    liveClass = status;
-    assert.equal(liveStep.checkCompleted(), status === 'good');
+  for (const [connected, message, completed] of [
+    [false, '正在连接', false],
+    [true, '弹幕监听中', true],
+    [true, '未开播，历史消息监听中', true],
+    [true, '直播弹幕长连失败，历史消息监听中', false],
+    [true, '弹幕长连已断开，历史消息监听中', false],
+    [true, '已开播，但弹幕长连重连失败，历史消息监听中', false],
+    [true, '直播弹幕长连重连失败，历史消息监听中', false],
+  ]) {
+    data.liveStatus = { connected, message };
+    await config.stateService.reloadState();
+    assert.equal(liveStep.checkCompleted(), completed, message);
   }
 });
 

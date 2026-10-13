@@ -11,7 +11,7 @@ const aiResponse = (data) => ({
   json: async () => ({ ok: true, data }),
 });
 
-async function createAiSettingsFixture({ config = {}, deferInitialConfig = false, request } = {}) {
+async function createAiSettingsFixture({ config = {}, deferInitialConfig = false, request, confirm = async () => true } = {}) {
   const publicConfig = {
     enabled: false,
     trigger: '小米',
@@ -144,7 +144,7 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
       clearTimeout: (id) => timers.delete(id),
     },
   );
-  api.init({ notify: (value) => toasts.push(value) });
+  api.init({ notify: (value) => toasts.push(value), confirm });
   await flushAiTasks();
 
   return {

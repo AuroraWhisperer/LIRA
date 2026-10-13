@@ -223,6 +223,7 @@ test('browser source tab classifies and exposes every overlay address', () => {
     ['liveWheelUrl', '/wheel'],
     ['liveInteractionsUrl', '/interactions'],
     ['liveGiftFeedUrl', '/gift-feed'],
+    ['liveGiftSprintUrl', '/gift-sprint'],
     ['liveGiftWishUrl', '/gift-wishes'],
     ['liveOvertimeUrl', '/overtime'],
     ['liveGiftEffectsUrl', '/gift-effects'],

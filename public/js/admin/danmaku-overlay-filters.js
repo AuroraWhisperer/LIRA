@@ -1,7 +1,8 @@
 import { observeServerOverlayUrl } from './server-overlay-url.js';
+import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
 const ERRORS = {
-  OVERLAY_FILTERS_UNSUPPORTED: '服务器尚未支持弹幕屏蔽，请更新服务器后重新读取。',
+  OVERLAY_FILTERS_UNSUPPORTED: '当前服务暂不支持弹幕屏蔽，请联系管理员。',
   NETWORK_UNAVAILABLE: '无法连接服务器，请检查网络后重试。',
   INVALID_OVERLAY_FILTERS: '请检查 UID 或屏蔽词：最多 500 人、200 个词，每个词不超过 100 字。',
   BILIBILI_LOGIN_REQUIRED: '请先登录 B 站，再读取直播间观众。',
@@ -184,7 +185,15 @@ export function initDanmakuOverlayFilters() {
       wordInput.value = '';
     });
   });
-  get('ClearKeywords').addEventListener('click', () => save({ blockedKeywords: [] }));
+  get('ClearKeywords').addEventListener('click', async () => {
+    if (!loaded || loading || saving || !settings.blockedKeywords.length) return;
+    const current = generation;
+    const confirmed = await showConfirmationDialog({
+      title: '清空屏蔽词？', description: `将移除全部 ${settings.blockedKeywords.length} 个屏蔽词，之后这些词可以显示在弹幕画面中。用户黑名单不受影响。`,
+      confirmLabel: '清空屏蔽词', variant: 'destructive',
+    });
+    if (confirmed && current === generation) await save({ blockedKeywords: [] });
+  });
   get('FiltersReload').addEventListener('click', reload);
   get('ViewerSearch').addEventListener('input', renderViewers);
   get('CloseViewers').addEventListener('click', () => {

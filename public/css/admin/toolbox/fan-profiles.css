@@ -803,7 +803,6 @@
   gap: var(--spacing-xs);
 }
 .fan-profiles .fan-reminder-actions button {
-  border-color: transparent;
   background: transparent;
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-medium);

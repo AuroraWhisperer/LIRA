@@ -129,6 +129,7 @@ test('cloud sync waits for the initial count and uploads only the post-confirmat
   ui.finishCount({ ok: true, count: 2 });
   await ui.initialized;
   assert.equal(button.disabled, false);
+  assert.match(ui.element('licenseLastCloudSync').textContent, /没有手动同步记录.*不代表自动同步状态/);
   const syncing = button.events.click();
   await button.events.click();
   assert.equal(ui.dialogs.length, 1);
@@ -141,6 +142,7 @@ test('cloud sync waits for the initial count and uploads only the post-confirmat
   assert.equal(ui.uploads[0][0].name, 'after');
   assert.match(ui.element('licenseSyncResult').textContent, /已同步 2 首/);
   assert.equal(JSON.parse(ui.stored.get('lira:license:lastCloudSync')).count, 2);
+  assert.match(ui.element('licenseLastCloudSync').textContent, /本机上次手动同步/);
   assert.equal(button.disabled, false);
 });
 

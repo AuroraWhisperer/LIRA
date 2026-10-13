@@ -303,8 +303,12 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
       return withOwner((owner) => {
         const id = normalizeSceneId(sceneId);
         const record = readStored(owner.scope, id);
+        const published = record.publishedDocument;
         return { id, token: decodeCapability(owner.scope, id, record.capability),
-          itemIds: record.publishedDocument?.items.map((item) => item.id) || [] };
+          itemIds: published?.items.map((item) => item.id) || [],
+          canvas: published ? { ...published.canvas } : null,
+          itemSizes: Object.fromEntries((published?.items || []).map(item => [item.id,
+            { width: item.width, height: item.height }])) };
       });
     },
 

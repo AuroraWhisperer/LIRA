@@ -80,15 +80,20 @@ export function createSettingsForm({
       await reloadState();
     });
     const songRequestForm = documentRef.getElementById('songRequestSettingsForm');
+    const requestSaveButton = documentRef.getElementById('songRequestSettingsSave');
+    const requestSaveState = documentRef.getElementById('songRequestSettingsSaveState');
+    let savingRequest = false;
     const markRequestSettingDirty = ({ target }) => {
       target.dataset.preserveDirty = 'true';
       target.dataset.dirty = 'true';
+      if (requestSaveState) requestSaveState.textContent = '有未保存修改';
       if (target.id === 'songCooldownMode') renderSongCooldownControls(documentRef);
     };
     songRequestForm.addEventListener('input', markRequestSettingDirty);
     songRequestForm.addEventListener('change', markRequestSettingDirty);
     songRequestForm.addEventListener('submit', async (event) => {
       event.preventDefault();
+      if (savingRequest) return;
       const updates = {
         paused: value('paused'),
         queueLimit: value('queueLimit'),
@@ -99,13 +104,28 @@ export function createSettingsForm({
         allowDuplicate: value('allowDuplicate'),
         songRequestBlacklist: value('songRequestBlacklist'),
       };
-      const result = await api('/api/settings', updates);
-      for (const [key, savedValue] of Object.entries(updates)) {
-        if (value(key) === savedValue) documentRef.getElementById(key).dataset.dirty = 'false';
+      savingRequest = true;
+      if (requestSaveButton) requestSaveButton.disabled = true;
+      if (requestSaveState) requestSaveState.textContent = '保存中…';
+      try {
+        const result = await api('/api/settings', updates);
+        for (const [key, savedValue] of Object.entries(updates)) {
+          if (value(key) === savedValue) documentRef.getElementById(key).dataset.dirty = 'false';
+        }
+        if (value('songRequestBlacklist') === updates.songRequestBlacklist) {
+          blacklistEditor?.render(result.data.settings.songRequestBlacklist);
+        }
+        const changed = Object.entries(updates).some(([key, savedValue]) => value(key) !== savedValue);
+        if (requestSaveState) requestSaveState.textContent = changed ? '有未保存修改' : '已保存';
+        toast('点歌设置已保存', { type: 'success' });
+        await reloadState();
+      } catch (error) {
+        if (requestSaveState) requestSaveState.textContent = '保存失败，修改已保留，请重试';
+        throw error;
+      } finally {
+        savingRequest = false;
+        if (requestSaveButton) requestSaveButton.disabled = false;
       }
-      blacklistEditor?.render(result.data.settings.songRequestBlacklist);
-      toast('点歌设置已保存', { type: 'success' });
-      await reloadState();
     });
     documentRef.getElementById('giftSprintForm').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -116,7 +136,7 @@ export function createSettingsForm({
       await reloadState();
     });
 
-    initImmediateToggle('danmakuMonitoringEnabled', 'danmakuMonitoringEnabled', '监控设置已保存', '监控设置已保存');
+    initImmediateToggle('danmakuMonitoringEnabled', 'danmakuMonitoringEnabled', '已开启弹幕监控', '已关闭弹幕监控，观众点歌、进场欢迎和自动回复已暂停');
     initImmediateToggle('giftMonitoringEnabled', 'giftMonitoringEnabled', '监控设置已保存', '监控设置已保存');
     initImmediateToggle('giftDetectToggle', 'enableGiftSprint', '礼物统计已开启', '礼物统计已关闭');
     initImmediateToggle('enableGiftNotification', 'enableGiftNotification', '礼物提示已开启', '礼物提示已关闭');

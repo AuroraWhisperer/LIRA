@@ -7,6 +7,7 @@ import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 import { createOvertimeTimeView } from './overtime-time-view.js';
 import { createOvertimeStatusView } from './overtime-status-view.js';
 import { createOvertimeAppearance } from './overtime-preview.js';
+import { readComponentOutputSize } from './scene-api.js';
 
 let initialized = false;
 let serverLimits = null;
@@ -220,8 +221,10 @@ function overlayUrl() {
 
 async function copyOverlayUrl() {
   try {
+    const size = await readComponentOutputSize('overtime').catch(() => null);
     await copyText(overlayUrl());
-    toast('地址已复制');
+    toast(size ? `地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}`
+      : '地址已复制；需要固定宽高时，请在画布中调整后点击“保存并应用”。');
   } catch (error) {
     showError(error);
   }

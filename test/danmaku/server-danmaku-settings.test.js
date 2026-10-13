@@ -289,7 +289,7 @@ test('older servers keep style editing available and explain unsupported appeara
   f.reads[0].resolve(saved());
   await flush();
   assert.equal(f.node('danmakuFontSize').disabled, true);
-  assert.match(f.node('danmakuParametersHint').textContent, /更新服务器/);
+  assert.match(f.node('danmakuParametersHint').textContent, /暂不支持参数调节.*联系管理员/);
   assert.equal(f.node('danmakuScrollDirection').disabled, true);
   f.click('outline');
   assert.equal(f.elements.fullscreenDuration.disabled, false);

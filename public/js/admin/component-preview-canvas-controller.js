@@ -193,8 +193,13 @@ export async function prepareComponentPreviewCanvas(components, request = reques
           assertCurrent();
           if (!binding.publishedVersion) throw new Error('请先保存并应用场景，再复制直播源地址。');
           const source = await request('source', undefined, binding.outputId);
+          const sharedTypes = new Set(controller.getState().saved.document.items
+            .filter(item => item.appearance.mode === 'shared').map(item => item.type));
+          const componentSizes = Object.fromEntries(await Promise.all([...sharedTypes]
+            .map(async type => [type, await readComponentOutputSize(type)])));
           assertCurrent();
-          return { id: binding.outputId, token: source.token, itemIds: source.itemIds };
+          return { id: binding.outputId, token: source.token, itemIds: source.itemIds,
+            canvas: source.canvas, itemSizes: source.itemSizes, componentSizes };
         },
       };
     }

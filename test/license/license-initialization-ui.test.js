@@ -76,6 +76,43 @@ async function createPage({
   };
 }
 
+test('authorization errors name the code for the selected registration or login mode', async () => {
+  const page = await createPage({ licenseSnapshot: { state: 'needs_activation' } });
+  page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_CODE_INVALID' });
+  assert.match(page.get('licenseStatus').textContent, /^注册激活码无效/);
+  page.click('licenseLoginMode');
+  page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_CODE_EXPIRED' });
+  assert.match(page.get('licenseStatus').textContent, /^此短效登录码已过期/);
+  page.licenseChanged({ state: 'needs_activation', error: 'UNKNOWN_CODE' });
+  assert.match(page.get('licenseStatus').textContent, /^本机授权校验未通过/);
+});
+
+test('unknown startup and retry failures are authorization checks rather than registration attempts', async () => {
+  for (const [state, error] of [['needs_activation', 'DEVICE_KEY_CORRUPT'], ['blocked', 'STREAMER_NOT_FOUND']]) {
+    const snapshot = { state, error };
+    const page = await createPage({ licenseSnapshot: snapshot, authorizationResult: snapshot });
+    assert.match(page.get('licenseStatus').textContent, /^本机授权校验未通过/);
+    assert.doesNotMatch(page.get('licenseStatus').textContent, /注册失败|登录失败/);
+    if (state === 'blocked') {
+      await page.click('licenseRetryBtn');
+      assert.match(page.get('licenseStatus').textContent, /^本机授权校验未通过/);
+    } else assert.equal(page.get('licenseRetryBtn').hidden, true);
+  }
+});
+
+test('unknown submitted authorization failures name the action the user actually submitted', async () => {
+  for (const mode of ['注册', '登录']) {
+    const page = await createPage({ licenseSnapshot: { state: 'needs_activation' },
+      authorizationResult: { state: 'needs_activation', error: 'UNKNOWN_CODE' } });
+    if (mode === '登录') page.click('licenseLoginMode');
+    page.get('licenseAccountName').value = 'test-account';
+    page.get('licensePassword').value = 'Test-password-123';
+    page.get('licenseActivationCode').value = 'TEST-CODE';
+    await page.submit();
+    assert.equal(page.get('licenseStatus').textContent, `${mode}失败，请检查信息后重试。`);
+  }
+});
+
 test('a revoked saved device opens with a neutral login notice before any user action', async () => {
   const snapshot = { state: 'blocked', error: 'DEVICE_REVOKED' };
   const page = await createPage({ licenseSnapshot: snapshot });
@@ -209,11 +246,11 @@ test('continue preparation reuses authorization and allows returning after anoth
   assert.equal(page.get('licenseLoginCard').hidden, false);
 });
 
-test('incompatible preparation data explains the server update instead of a network retry', async () => {
+test('incompatible preparation data directs users to administrator support', async () => {
   const page = await createPage({
     getCatalog: async () => ({ ...FAILED, error: 'CATALOG_INVALID' }),
   });
-  assert.match(page.get('giftCatalogInitializationStatus').textContent, /数据.*不兼容.*管理员.*更新服务端/);
+  assert.match(page.get('giftCatalogInitializationStatus').textContent, /数据.*不兼容.*联系管理员/);
   assert.doesNotMatch(page.get('giftCatalogInitializationStatus').textContent, /检查网络/);
   assert.equal(page.get('giftCatalogInitializationRetryBtn').hidden, false);
   assert.equal(page.get('giftCatalogInitializationBackBtn').hidden, false);

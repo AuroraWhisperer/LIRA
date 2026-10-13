@@ -1,13 +1,14 @@
 'use strict';
 
 import { readApi, setState } from './ai-assistant-config-view.js';
+import { dangerConfirm } from '../shared/confirmation-dialog.js';
 
 const BUILTIN_PRESENTATION = {
   general: { name: '通用人格' },
   cat: { name: '小猫人格', provider: 'deepseek', providerNote: '针对 DeepSeek' },
 };
 
-export function createPersonaControls({ flushPendingSave, acceptConfig }) {
+export function createPersonaControls({ flushPendingSave, acceptConfig, confirm: confirmAction = dangerConfirm }) {
   const byId = (suffix) => document.getElementById(`xiaomiAi${suffix}`);
   const select = byId('Persona');
   const legacyPrompt = byId('SystemPrompt');
@@ -119,12 +120,20 @@ export function createPersonaControls({ flushPendingSave, acceptConfig }) {
     acceptConfig(config);
     loadEditor(editorId);
     setState(state, '已恢复内置角色指南。', 'good');
+  }, {
+    title: '恢复角色默认内容？',
+    description: '将覆盖此预设已保存及正在编辑的说明和角色指南。需要保留已保存内容时，请先导出。',
+    confirmLabel: '恢复默认',
   }));
   byId('PersonaDelete').addEventListener('click', () => void runOperation(async () => {
     const config = await readApi('/api/ai/personas/delete', { method: 'POST', body: JSON.stringify({ id: editorId }) });
     acceptConfig(config);
     loadEditor(config.personaId);
     setState(state, '已删除预设。', 'good');
+  }, {
+    title: `删除预设「${name.value}」？`,
+    description: '此预设及当前未保存的编辑将被删除，无法恢复。需要保留已保存内容时，请先导出。',
+    confirmLabel: '删除预设',
   }));
   byId('PersonaImport').addEventListener('click', () => { if (!busy) fileInput.click(); });
   fileInput.addEventListener('change', async () => {
@@ -157,11 +166,17 @@ export function createPersonaControls({ flushPendingSave, acceptConfig }) {
     setState(state, '已导出保存过的预设，未保存的编辑不会包含在文件里。', 'good');
   }));
 
-  async function runOperation(work) {
+  async function runOperation(work, confirmation) {
     if (busy) return;
     busy = true;
     dialog.inert = true;
+    const reopen = Boolean(confirmation && dialog.open);
+    if (reopen) dialog.close();
     try {
+      if (confirmation && !(await confirmAction(confirmation))) {
+        setState(state, '已取消，预设内容未改动。');
+        return;
+      }
       if (!(await flushPendingSave())) throw new Error('请先保存当前设置，再操作预设。');
       setState(state, '正在保存…');
       await work();
@@ -170,6 +185,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig }) {
     } finally {
       dialog.inert = false;
       busy = false;
+      if (reopen) dialog.showModal();
     }
   }
 

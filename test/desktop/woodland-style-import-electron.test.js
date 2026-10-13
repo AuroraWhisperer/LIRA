@@ -84,7 +84,7 @@ test('woodland ZIP imports through desktop styles and retains native layout, set
   await page.locator('#giftFrameSaveBtn').click();
   await page.waitForFunction(() => document.getElementById('giftFrameSaveState').textContent.includes('已保存'));
   await importArchive();
-  assert.equal(await page.locator('#giftFrameThresholdRmb').inputValue(), '35');
+  assert.equal(Number(await page.locator('#giftFrameThresholdRmb').inputValue()), 35);
   assert.equal(await page.locator('#giftFrameEnabled').isChecked(), true);
   assert.deepEqual(await app.evaluate(() => [global.canvasTest.openingSettings.giftFrameThresholdRmb,
     global.canvasTest.openingSettings.giftFrameEnabled]), ['35', 'true']);

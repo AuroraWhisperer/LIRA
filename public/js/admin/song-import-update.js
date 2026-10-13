@@ -36,10 +36,16 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
   if (!previewButton) return;
   const textInput = documentRef.getElementById('importText');
   const fileInput = documentRef.getElementById('importFile');
+  const sourceLabel = documentRef.getElementById('songImportSource');
   const applyButton = documentRef.getElementById('songImportApplyBtn');
   const panel = documentRef.getElementById('songImportPreview');
+  const title = documentRef.getElementById('songImportPreviewTitle');
   const summary = documentRef.getElementById('songImportPreviewSummary');
+  const guidance = documentRef.getElementById('songImportPreviewGuidance');
+  const details = documentRef.getElementById('songImportDetails');
+  const detailsLabel = documentRef.getElementById('songImportDetailsLabel');
   const table = documentRef.getElementById('songImportPreviewRows');
+  const tableScroll = documentRef.getElementById('songImportTable');
   const result = documentRef.getElementById('importResult');
   const previous = documentRef.getElementById('songImportPreviousPage');
   const next = documentRef.getElementById('songImportNextPage');
@@ -51,6 +57,8 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
 
   function refreshButtons() {
     previewButton.disabled = busy;
+    previewButton.textContent = preview ? '重新检查歌单' : '下一步：检查歌单';
+    previewButton.classList.toggle('primary', !preview);
     applyButton.disabled = busy || !preview?.data.canApply;
   }
 
@@ -76,25 +84,40 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
     const rows = preview.data.rows;
     for (const row of rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)) {
       const tr = documentRef.createElement('tr');
-      const changes = row.differences
-        .map(
-          (diff) =>
-            `${FIELD_LABELS[diff.field] || diff.field}：${displayValue(diff.before)} → ${displayValue(diff.after)}`,
-        )
-        .join('\n');
       for (const value of [
         row.row ?? '—',
         `${row.name || '（无歌名）'} / ${row.artist || '（无歌手）'}`,
         STATUS_LABELS[row.status],
-        changes,
-        row.reason || '',
       ]) {
         const td = documentRef.createElement('td');
         td.textContent = String(value);
         tr.appendChild(td);
       }
+      const changesCell = documentRef.createElement('td');
+      if (row.differences.length) {
+        const changes = documentRef.createElement('details');
+        const label = documentRef.createElement('summary');
+        label.textContent = row.status === 'inserted' ? '查看歌曲信息' : `查看 ${row.differences.length} 项变更`;
+        const content = documentRef.createElement('div');
+        content.className = 'song-import-differences';
+        content.textContent = row.differences
+          .map((diff) => row.status === 'inserted'
+            ? `${FIELD_LABELS[diff.field] || diff.field}：${displayValue(diff.after)}`
+            : `${FIELD_LABELS[diff.field] || diff.field}：${displayValue(diff.before)} → ${displayValue(diff.after)}`)
+          .join('\n');
+        changes.appendChild(label);
+        changes.appendChild(content);
+        changesCell.appendChild(changes);
+      } else {
+        changesCell.textContent = '—';
+      }
+      tr.appendChild(changesCell);
+      const reason = documentRef.createElement('td');
+      reason.textContent = row.reason || '';
+      tr.appendChild(reason);
       table.appendChild(tr);
     }
+    tableScroll.scrollTop = 0;
     const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
     pageLabel.textContent = `第 ${page + 1} / ${pages} 页，每页最多 ${PAGE_SIZE} 行`;
     previous.disabled = page === 0;
@@ -130,15 +153,27 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
       const response = await request('/api/songs/import-preview', payload);
       if (current !== generation) return;
       preview = { payload, data: response.data };
+      sourceLabel.textContent = fileInput.files[0] ? `本次来源：文件 ${fileInput.files[0].name}` : '本次来源：粘贴的表格';
       page = 0;
-      summary.textContent = Object.entries(response.data.counts)
+      const { counts, canApply, rows } = response.data;
+      const hasErrors = counts.conflict > 0 || counts.invalid > 0;
+      summary.textContent = Object.entries(counts)
+        .filter(([, count]) => count > 0)
         .map(([key, count]) => `${STATUS_LABELS[key]} ${count}`)
-        .join('，');
+        .join('，') || '没有可导入的歌曲';
+      title.textContent = canApply ? '检查完成，尚未导入' : hasErrors ? '请先修正表格' : '无需导入';
+      guidance.textContent = canApply
+        ? `确认后将以新表格替换整个歌库，删除 ${counts.deleted} 首未列出的旧歌曲；已有点歌记录保留。请核对上方数量，再点击「确认替换歌库」。`
+        : hasErrors
+          ? '尚未导入。请查看明细中的说明，修正冲突或无效行后重新检查。'
+          : '歌库没有可应用的变更，原歌库保持不变。';
+      details.open = hasErrors;
+      detailsLabel.textContent = `查看逐行明细（${rows.length} 项）`;
       panel.hidden = false;
       renderPage();
-      result.textContent = response.data.canApply
-        ? `确认后将以新表格替换整个歌库，删除 ${response.data.counts.deleted} 首未列出的旧歌曲；已有点歌记录保留。`
-        : '没有可应用的变更，或存在冲突/无效行；请修正后重新预览。';
+      result.textContent = '';
+      panel.focus({ preventScroll: true });
+      panel.scrollIntoView({ block: 'start' });
     } catch (error) {
       if (current === generation) showFailure(error);
     } finally {
@@ -183,8 +218,16 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
     }
   });
 
-  textInput.addEventListener('input', invalidate);
-  fileInput.addEventListener('change', invalidate);
+  textInput.addEventListener('input', () => {
+    fileInput.value = '';
+    sourceLabel.textContent = '当前来源：粘贴的表格';
+    invalidate();
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) textInput.value = '';
+    sourceLabel.textContent = fileInput.files[0] ? `当前来源：文件 ${fileInput.files[0].name}` : '请选择文件或粘贴表格';
+    invalidate();
+  });
   previous.addEventListener('click', () => {
     if (preview && page > 0) {
       page -= 1;

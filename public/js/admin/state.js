@@ -258,6 +258,8 @@ export class StateService {
       languages: this.songLanguages,
       artists: this.songArtists,
       tags: this.songTags,
+      // 按本次请求判断是否为完整歌库，不读取请求返回时已变化的筛选框。
+      complete: params.toString() === '',
     });
   }
 

@@ -18,6 +18,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
   let parameters;
   let stopStatus;
   let hasSharedAppearance = false;
+  let autoSavesAppearance = false;
   function edit(mutator) {
     try { model.edit(mutator); } catch (error) { report(error.message); render(true); }
   }
@@ -80,7 +81,8 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       host.append(geometry, target, parameters);
       stylePanel = mountComponentStyleInspector(parameters, { item, model, component, request: requestStyles, report });
       panel = component.createPanel(parameters, controller);
-      const shared = sharedAppearance?.getState(item) || Object.keys(sharedControllerAppearance(item.type,
+      autoSavesAppearance = Boolean(sharedAppearance?.getState(item));
+      const shared = autoSavesAppearance || Object.keys(sharedControllerAppearance(item.type,
         item.appearance.config || {}, component.controller.getState().draft)).length;
       hasSharedAppearance = Boolean(shared);
       if (shared) {
@@ -111,7 +113,8 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     fields.height.max = String(canvas.height);
     target.textContent = item.appearance.mode === 'shared'
       ? '样式与尺寸和默认组件共用；保存并应用后，原单组件地址同步更新。'
-      : hasSharedAppearance ? '公共参数与客户端及同样式组件同步；位置、尺寸和图层单独保存。'
+      : autoSavesAppearance ? '公共参数修改后自动保存、即时生效，并同步到客户端及同样式组件；位置、尺寸和图层仍需保存并应用。'
+        : hasSharedAppearance ? '公共参数与客户端及同样式组件共用，随“保存并应用”生效；位置、尺寸和图层保存在当前场景。'
         : '参数和布局保存在当前场景中。';
     target.hidden = false;
   }

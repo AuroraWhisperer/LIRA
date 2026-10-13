@@ -96,9 +96,8 @@
   color: var(--primary);
 }
 #interactionsAdmin button.interaction-quiet {
-  border-color: transparent;
   background: transparent;
-  padding-inline: 4px;
+  padding-inline: 12px;
   font-size: 13px;
   font-weight: var(--type-weight-medium);
 }

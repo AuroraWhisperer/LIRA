@@ -73,7 +73,7 @@ export function initDanmakuCloudReplies({
   }
 
   function failure(result) {
-    if (result?.error === 'FIXED_REPLY_UNSUPPORTED') return '服务器尚不支持，请升级服务器后刷新。';
+    if (result?.error === 'FIXED_REPLY_UNSUPPORTED') return '当前服务暂不支持完整匹配回复，请联系管理员。';
     if (result?.error === 'INVALID_FIXED_REPLY_SETTINGS') return '设置无效：请检查重复或保留触发词、字数及秒数范围。';
     return result?.message || '云端设置未确认，请检查连接并刷新。';
   }
@@ -111,7 +111,7 @@ export function initDanmakuCloudReplies({
   }
 
   for (const [toggle, key, name] of [
-    [exactToggle, 'customExactReplyEnabled', '自定义回复'],
+    [exactToggle, 'customExactReplyEnabled', '完整匹配回复'],
     [scheduledToggle, 'scheduledDanmakuEnabled', '定时／随机弹幕'],
   ]) {
     toggle.addEventListener('change', async () => {
@@ -177,7 +177,7 @@ export function initDanmakuCloudReplies({
     const next = snapshot?.state === 'authorized' && name ? JSON.stringify([name, snapshot.streamer.songPageUrl]) : '';
     if (next === owner) {
       if (!owner) exactState.textContent = scheduledState.textContent = available
-        ? '连接已授权账号后可设置' : '请升级桌面客户端后设置';
+        ? '连接 LIRA 账号后可设置' : '请升级桌面客户端后设置';
       return;
     }
     owner = next;
@@ -190,7 +190,7 @@ export function initDanmakuCloudReplies({
     max.setCustomValidity('');
     saveState.textContent = '修改后请保存设置';
     get('danmakuScheduledSummary').textContent = '直播中按间隔发送词库';
-    exactState.textContent = scheduledState.textContent = available ? '连接已授权账号后可设置' : '请升级桌面客户端后设置';
+    exactState.textContent = scheduledState.textContent = available ? '连接 LIRA 账号后可设置' : '请升级桌面客户端后设置';
     timingFields();
     controls();
     void sync();

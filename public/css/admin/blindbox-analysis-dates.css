@@ -12,7 +12,7 @@
   flex-shrink: 0;
 }
 
-.blind-analysis-dates button {
+.blind-analysis-dates button:not(:where(.blind-analysis-date-footer > button)) {
   border: 0;
   background: transparent;
   color: inherit;

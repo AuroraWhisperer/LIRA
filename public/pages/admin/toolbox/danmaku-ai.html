@@ -47,6 +47,7 @@
               <option value="openai">OpenAI 官方</option>
               <option value="anthropic">Claude 官方兼容</option>
               <option value="gemini">Gemini 官方兼容</option>
+              <option value="doubao">豆包（账号登录·实验性）</option>
               <option value="custom">自定义 / 第三方兼容</option>
             </select>
           </label>
@@ -69,7 +70,15 @@
             autocomplete="off"
             placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"
         /></label>
-        <label class="wide"
+        <div id="xiaomiAiDoubaoAccount" class="wide" hidden>
+          <p id="xiaomiAiDoubaoState" class="hint" role="status" aria-live="polite">正在读取豆包登录状态…</p>
+          <div class="xiaomi-ai-connection-actions">
+            <button id="xiaomiAiDoubaoLogin" class="secondary" type="button">扫码登录豆包</button>
+            <button id="xiaomiAiDoubaoLogout" class="secondary" type="button" hidden>退出豆包</button>
+          </div>
+          <p class="hint">使用手机豆包扫码，电脑无需安装豆包。仅文字对话，不需要 API Key。遇到验证码会暂停请求，请在豆包窗口完成验证后点击「测试 AI 连接」。</p>
+        </div>
+        <label id="xiaomiAiKeyControl" class="wide"
           >密钥（API Key）<input
             id="xiaomiAiDeepSeekKey"
             type="password"
@@ -87,7 +96,7 @@
             <option value="chat_completions">Chat Completions</option>
           </select>
         </label>
-        <label class="xiaomi-ai-model-control"
+        <label id="xiaomiAiModelControl" class="xiaomi-ai-model-control"
           >模型
           <span class="xiaomi-ai-model-picker">
             <span class="xiaomi-ai-model-input-wrap">
@@ -152,7 +161,7 @@
         </label>
       </div>
     </fieldset>
-    <fieldset class="xiaomi-ai-capabilities-config">
+    <fieldset id="xiaomiAiCapabilitiesControl" class="xiaomi-ai-capabilities-config">
       <legend>联网与思考</legend>
       <div class="xiaomi-ai-capability-rail" aria-label="当前模型服务能力">
         <div><span>协议</span><strong id="xiaomiAiProtocolCapability">等待配置</strong></div>
@@ -203,7 +212,7 @@
     </fieldset>
     </div>
     </div>
-    <details class="xiaomi-ai-collapsible">
+    <details id="xiaomiAiToolsControl" class="xiaomi-ai-collapsible">
       <summary>
         <span><strong>可选工具</strong></span>
         <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -267,7 +276,7 @@
                 id="xiaomiAiAmapHost"
                 type="url"
                 autocomplete="off"
-                placeholder="留空，填写你的高德 API Host"
+                placeholder="填写你的高德 API Host"
             /></label>
             <label class="wide"
               >Web 服务 Key<input
@@ -276,7 +285,7 @@
                 autocomplete="off"
                 spellcheck="false"
                 data-ai-secret
-                placeholder="留空，填写高德 Web 服务 Key"
+                placeholder="填写高德 Web 服务 Key"
               /><small id="xiaomiAiAmapKeyHint">尚未保存</small></label
             >
             <button id="xiaomiAiAmapTestBtn" class="secondary" type="button">测试高德地图</button>

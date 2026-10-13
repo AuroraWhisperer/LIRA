@@ -16,7 +16,7 @@ const DEFAULTS = { scrollSeconds: '20', songBoardSyncTheme: 'true', songBoardSor
 const RANGE_PAIRS = [
   ['scrollSecondsRange', 'scrollSeconds', 1, 100, 20],
   ['songBoardFontSize', 'songBoardFontSizeNumber', 10, 80, 28],
-  ['songBoardThemeOpacity', 'songBoardThemeOpacityNumber', 0, 1, 0.35],
+  ['songBoardThemeOpacity', 'songBoardThemeOpacityNumber', 0, 1, 0.35, 100],
   ['songBoardBackdropBlur', 'songBoardBackdropBlurNumber', 0, 30, 0],
   ['songBoardGlowIntensity', 'songBoardGlowIntensityNumber', 0, 20, 0],
   ['songBoardSongFontSize', 'songBoardSongFontSizeNumber', 10, 100, 16],
@@ -65,16 +65,16 @@ export function bindSongBoardSettings(form, controller) {
     clearTimeout(timer);
     timer = setTimeout(() => { void save(); }, 180);
   };
-  for (const [rangeId, numberId, min, max, fallback] of RANGE_PAIRS) {
+  for (const [rangeId, numberId, min, max, fallback, displayScale = 1] of RANGE_PAIRS) {
     const range = node(rangeId), number = node(numberId);
-    range.addEventListener('input', () => { number.value = range.value; });
+    range.addEventListener('input', () => { number.value = String(Math.round(Number(range.value) * displayScale)); });
     number.addEventListener('input', () => {
       if (!number.value || !number.checkValidity()) return;
-      range.value = normalizeRangeValue(number.value, min, max, fallback);
+      range.value = normalizeRangeValue(Number(number.value) / displayScale, min, max, fallback);
     });
     number.addEventListener('change', () => {
-      range.value = normalizeRangeValue(number.value, min, max, fallback);
-      syncComponentFieldValue(number, range.value, true);
+      range.value = normalizeRangeValue(number.value === '' ? '' : Number(number.value) / displayScale, min, max, fallback);
+      syncComponentFieldValue(number, Math.round(Number(range.value) * displayScale), true);
     });
   }
   form.addEventListener('input', edit);
@@ -91,14 +91,16 @@ export function bindSongBoardSettings(form, controller) {
     controller.edit(preset);
     render(controller.getState(), true);
     renderPresetCards('songBoardPresets', theme.songBoardThemePresets, theme.songBoardPresetLabels, theme.songBoardPresetSwatches);
-    if (await save()) toast(`已套用「${theme.songBoardPresetLabels[card.dataset.theme]}」歌单展示板预设`);
+    if (await save()) toast(`已套用「${theme.songBoardPresetLabels[card.dataset.theme]}」展示板预设`);
   });
   node('songBoardResetTheme').addEventListener('click', async () => {
     controller.edit(THEME_DEFAULTS);
     render(controller.getState(), true);
-    if (await save()) toast('歌单展示板主题已恢复默认');
+    if (await save()) toast('展示板主题已恢复默认');
   });
-  function render({ draft }, force = false) {
+  function render({ draft, dirty, saving, error, applied }, force = false) {
+    node('songBoardSaveState').textContent = error ? '保存失败，修改已保留，可点击“保存展示板”重试。'
+      : saving ? '正在保存…' : dirty ? '等待自动保存…' : applied ? '已保存并应用到直播画面' : '修改会自动保存并应用到直播画面';
     for (const key of Object.keys(DEFAULTS)) {
       if (key === 'songBoardSyncTheme' || key === 'songBoardSongColor') continue;
       syncComponentFieldValue(node(key), draft[key], force);
@@ -109,10 +111,10 @@ export function bindSongBoardSettings(form, controller) {
     color.disabled = !draft.songBoardSongColor;
     syncComponentFieldValue(node('songBoardSongColorMode'), draft.songBoardSongColor ? 'custom' : 'inherit', force);
     syncComponentFieldValue(color, draft.songBoardSongColor || draft.songBoardThemeText, force);
-    for (const [rangeId, numberId] of RANGE_PAIRS) {
+    for (const [rangeId, numberId, , , , displayScale = 1] of RANGE_PAIRS) {
       const saved = draft[rangeId] ?? draft[numberId];
       syncComponentFieldValue(node(rangeId), saved, force);
-      syncComponentFieldValue(node(numberId), saved, force);
+      syncComponentFieldValue(node(numberId), Math.round(Number(saved) * displayScale), force);
     }
     initParameterRanges(form);
   }

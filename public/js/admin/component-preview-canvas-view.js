@@ -89,6 +89,11 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   canvasButton.setAttribute('aria-label', '画布设置');
   canvasButton.title = '画布设置';
   canvasButton.append(previewToolbarIcon('canvas'), dimensions);
+  const undo = button(canvasControls, '撤销', () => changeHistory('undo'));
+  undo.title = '撤销 (Ctrl+Z)';
+  const redo = button(canvasControls, '重做', () => changeHistory('redo'));
+  redo.title = '重做 (Ctrl+Y / Ctrl+Shift+Z)';
+  subscriptions.push(model.subscribe(({ canUndo, canRedo }) => { undo.disabled = !canUndo; redo.disabled = !canRedo; }));
   const backgroundLabel = previewElement('label');
   backgroundLabel.title = '预览底色，不影响直播画面';
   const background = previewElement('select');
@@ -172,21 +177,25 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       || (!host.contains(event.target) && event.target !== document.body)
       || event.target.isContentEditable || event.target.closest('input, select, textarea, [role="textbox"], .lira-select, .preview-canvas-preset-menu')) return;
     try {
-      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y' && !event.shiftKey)) {
         event.preventDefault();
-        closeLayerMenu();
-        stage.cancelGesture();
-        const previousIds = new Set(model.getSnapshot().items.map((item) => item.id));
-        if (model.undo()) {
-          const restored = model.getSnapshot().items.find((item) => !previousIds.has(item.id));
-          if (restored) select(restored.id);
-          stageHost.focus({ preventScroll: true });
-        }
+        changeHistory(key === 'y' || event.shiftKey ? 'redo' : 'undo');
       } else if (event.key === 'Delete' && !event.ctrlKey && !event.metaKey && !event.shiftKey && selected) {
         event.preventDefault();
         remove(selected);
       }
     } catch (error) { report(error.message); }
+  }
+  function changeHistory(action) {
+    closeLayerMenu();
+    stage.cancelGesture();
+    const previousIds = new Set(model.getSnapshot().items.map((item) => item.id));
+    if (model[action]()) {
+      const restored = model.getSnapshot().items.find((item) => !previousIds.has(item.id));
+      if (restored) select(restored.id);
+      stageHost.focus({ preventScroll: true });
+    }
   }
   document.addEventListener('keydown', keydown);
   function add(component, config, { name, size } = {}) {

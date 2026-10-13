@@ -144,7 +144,7 @@ test('unauthorized profiles cannot read settings', async () => {
   const f = await fixture({ state: 'unbound' });
   assert.equal(f.reads.length, 0);
   assert.equal(f.get('Toggle').disabled, true);
-  assert.match(f.get('Status').textContent, /连接已授权账号/);
+  assert.match(f.get('Status').textContent, /连接 LIRA 账号/);
 });
 
 for (const songPageUrl of ['', undefined]) {

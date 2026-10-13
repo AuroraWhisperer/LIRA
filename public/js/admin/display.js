@@ -15,6 +15,7 @@ import { bindSongBoardSettings, collectSongBoardSettings, songBoardConfigFromSet
 import { updateBlindboxOverlayUrl } from './settings.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
 import { initCanvasOverlaySource } from './canvas-overlay-source.js';
+import { readComponentOutputSize } from './scene-api.js';
 
 export const display = (() => {
   let controller;
@@ -38,8 +39,10 @@ export const display = (() => {
         const url = document.getElementById(button.dataset.copyUrl).textContent;
         if (button.disabled || !url) return;
         try {
+          const component = { queueUrl: 'queue', localDanmakuUrl: 'danmaku', liveClockUrl: 'clock', liveOvertimeUrl: 'overtime' }[button.dataset.copyUrl];
+          const size = component ? await readComponentOutputSize(component).catch(() => null) : null;
           await copyText(url);
-          toast('地址已复制');
+          toast(size ? `地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}` : '地址已复制');
         } catch (error) {
           toast(error?.message || '复制失败，请手动复制地址');
           prompt('复制以下地址：', url);
@@ -63,7 +66,7 @@ export const display = (() => {
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
     document.getElementById('lyricsUrl').textContent = `${origin}/lyrics`;
     observeServerOverlayUrl((url) => {
-      document.getElementById('liveDanmakuUrl').textContent = url || '连接已授权账号后显示服务器地址';
+      document.getElementById('liveDanmakuUrl').textContent = url || '连接 LIRA 账号后显示服务器地址';
       document.querySelector('[data-copy-url="liveDanmakuUrl"]').disabled = !url;
     });
     document.getElementById('liveBlindboxUrl').textContent = `${origin}/blindbox`;
@@ -71,6 +74,7 @@ export const display = (() => {
     document.getElementById('liveWheelUrl').textContent = `${origin}/wheel`;
     document.getElementById('liveInteractionsUrl').textContent = `${origin}/interactions`;
     document.getElementById('liveGiftFeedUrl').textContent = `${origin}/gift-feed`;
+    document.getElementById('liveGiftSprintUrl').textContent = `${origin}/gift-sprint`;
     document.getElementById('liveGiftWishUrl').textContent = `${origin}/gift-wishes`;
     document.getElementById('liveOvertimeUrl').textContent = `${origin}/overtime`;
     document.getElementById('liveGiftEffectsUrl').textContent = `${origin}/gift-effects`;
@@ -93,7 +97,7 @@ export const display = (() => {
           url = '';
         }
       }
-      document.getElementById('webSongPageUrl').textContent = url || '连接已授权账号后显示网页歌单地址';
+      document.getElementById('webSongPageUrl').textContent = url || '连接 LIRA 账号后显示网页歌单地址';
       document.querySelector('[data-copy-url="webSongPageUrl"]').disabled = !url;
       document.querySelector('[data-open-url="webSongPageUrl"]').disabled = !url;
     };

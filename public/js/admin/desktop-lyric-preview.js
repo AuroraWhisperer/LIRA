@@ -42,9 +42,9 @@ async function copyDesktopLyricUrl() {
   const desktopLyricUrl = `${localOverlayOrigin(location)}/lyrics`;
   try {
     await copyText(desktopLyricUrl);
-    toast('桌面歌词地址已复制');
+    toast('直播歌词浏览器源地址已复制');
   } catch (error) {
-    prompt('复制以下桌面歌词地址：', desktopLyricUrl);
+    prompt('复制以下直播歌词浏览器源地址：', desktopLyricUrl);
   }
 }
 

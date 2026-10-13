@@ -4,15 +4,18 @@ const crypto = require('node:crypto');
 const { fetchJson, createPublicError, throwIfAborted } = require('./http-client');
 const { describeModelEndpoint, resolveModelEndpoint, resolveModelsEndpoint } = require('./model-endpoint');
 const { applyModelProviderPreset } = require('./config');
+const { createDoubaoClient } = require('./doubao-client');
 
 function createDeepSeekClient(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const logEvent = options.logEvent;
   const chatHistory = new Map();
+  const doubao = options.doubao || createDoubaoClient();
 
   async function createResponse(request) {
     throwIfAborted(request.signal);
     const config = applyModelProviderPreset(request.config || {});
+    if (config.modelProvider === 'doubao') return doubao.createResponse(request);
     if (!config.deepseekResponsesUrl || !config.deepseekApiKey) {
       throw createPublicError('AI_NOT_CONFIGURED', '模型服务尚未配置。');
     }
@@ -185,6 +188,7 @@ function createDeepSeekClient(options = {}) {
   }
 
   async function listModels(request = {}) {
+    if (request.modelProvider === 'doubao') return { models: ['doubao'] };
     const apiKey = String(request.apiKey || '').trim();
     const providerConfig = applyModelProviderPreset({
       modelProvider: request.modelProvider,
@@ -212,6 +216,7 @@ function createDeepSeekClient(options = {}) {
 
   async function testConnection(config = {}, options = {}) {
     config = applyModelProviderPreset(config);
+    if (config.modelProvider === 'doubao') return doubao.testConnection(config, options);
     if (!config.deepseekResponsesUrl) {
       throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写模型服务 API 地址。');
     }
@@ -249,7 +254,16 @@ function createDeepSeekClient(options = {}) {
     };
   }
 
-  return { createResponse, listModels, testConnection };
+  return {
+    createResponse, listModels, testConnection,
+    getAccountStatus: () => doubao.getStatus(),
+    getSessionRevision: () => doubao.getSessionRevision(),
+    isReady(config) {
+      if (config.modelProvider !== 'doubao') return true;
+      const status = doubao.getStatus();
+      return status.available && status.loggedIn && !status.needsVerification;
+    },
+  };
 }
 
 function normalizeChatResponse(payload) {

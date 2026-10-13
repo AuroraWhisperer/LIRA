@@ -20,6 +20,8 @@ test('admin danmaku input has no fixed character limit and reply bot toggles are
     assert.match(html, new RegExp(`id="danmaku${name}Toggle"[^>]*aria-labelledby="danmaku${name}Title"`));
   }
   assert.match(html, /id="dailyBotRefresh"/);
+  assert.match(html, /id="danmakuExactReplySaveBtn"[^>]*>保存完整匹配回复<\/button>/);
+  assert.match(html, /id="danmakuCustomReplySaveBtn"[^>]*>保存关键词回复<\/button>/);
   assert.match(toolSource(), /initDanmakuDailyBots/, 'daily check-in and fortune controls mount from the danmaku tool');
 });
 

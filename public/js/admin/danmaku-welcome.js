@@ -355,7 +355,7 @@ export function initDanmakuWelcome({
         ? JSON.stringify([snapshot.streamer?.accountName, snapshot.streamer?.songPageUrl])
         : '';
     if (nextOwner === owner) {
-      if (!owner) displayNotice('连接已授权账号后可设置进场欢迎');
+      if (!owner) displayNotice('连接 LIRA 账号后可设置进场欢迎');
       return;
     }
     owner = nextOwner;
@@ -374,7 +374,7 @@ export function initDanmakuWelcome({
     parameterInputs();
     showErrors({});
     editor.select('messages');
-    displayNotice('连接已授权账号后可设置进场欢迎');
+    displayNotice('连接 LIRA 账号后可设置进场欢迎');
     controls();
     void reload();
   }

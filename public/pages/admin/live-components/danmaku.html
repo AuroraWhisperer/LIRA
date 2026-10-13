@@ -4,6 +4,7 @@
       <div class="danmaku-style-tools component-toolbar">
         <div class="danmaku-monitoring-control">
           <label for="danmakuMonitoringEnabled">监控弹幕</label>
+          <span class="hint">同时控制点歌与自动回复</span>
           <lira-help label="监控弹幕说明" tooltip-id="danmakuMonitoringHelp">默认持续监控，关闭客户端后服务端仍会接收。关闭后不再接收新弹幕、醒目留言和进场消息，点歌及自动回复也会暂停；礼物监控独立控制。</lira-help>
           <label class="switch-control">
             <input id="danmakuMonitoringEnabled" type="checkbox" aria-label="监控弹幕" aria-describedby="danmakuMonitoringHelp" checked />
@@ -244,7 +245,7 @@
                 <h6 id="danmakuMessageOptionsTitle">消息显示</h6>
                 <div id="danmakuMessageOptions" class="danmaku-parameter-grid danmaku-message-options">
                   <label id="danmakuMinGiftAmountField" class="danmaku-parameter-field" for="danmakuMinGiftAmount" hidden>
-                    <span><strong>礼物感谢最低金额<lira-help label="礼物感谢最低金额说明">单位为人民币元，0 表示不过滤。按每条礼物消息的总金额判断，等于门槛也会显示；包含上舰，SC 不受影响。</lira-help></strong></span>
+                    <span><strong>弹幕礼物卡片最低金额<lira-help label="弹幕礼物卡片最低金额说明">单位为人民币元，0 表示不过滤。按每条礼物消息的总金额判断，等于门槛也会显示；包含上舰，SC 不受影响。全屏礼物感谢另行设置。</lira-help></strong></span>
                     <input id="danmakuMinGiftAmount" type="number" min="0" max="100000" step="0.01" value="0" disabled />
                   </label>
                   <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">

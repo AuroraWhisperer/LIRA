@@ -36,6 +36,7 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
         await Promise.all(targets.map(({ controller }) => controller.flush()));
         if (JSON.stringify(canvas.getState().draft.document) !== document) throw new Error('场景已变化，请再次保存并应用。');
       }
+      const sharedSource = action === 'source' && item?.appearance.mode === 'shared';
       const result = await connection.execute(action);
       if (disposed) return;
       if (action === 'source') {
@@ -46,7 +47,8 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
         source.value = url;
         source.hidden = false;
         await copyText(url);
-        report(item ? '单组件地址已复制，使用保存的像素尺寸' : '直播源地址已复制；之后保存并应用即可更新，无需重复导入');
+        const size = sharedSource ? result.componentSizes?.[item.type] : item ? result.itemSizes?.[item.id] : result.canvas;
+        report(`${item ? '单组件地址已复制' : '直播源地址已复制'}${size ? `；请在 OBS 或直播姬中设置为 ${size.width} × ${size.height}` : '；请使用已发布画面的像素尺寸'}。之后保存并应用即可更新，无需重复导入。`);
       } else report(() => controllers.some(({ controller }) => controller.getState().dirty)
         ? '本次已应用，新修改仍需保存' : '已保存并应用到直播源');
     } catch (error) {

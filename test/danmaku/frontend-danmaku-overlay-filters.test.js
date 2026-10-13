@@ -40,6 +40,7 @@ async function fixture() {
     return nodes.get(id);
   };
   let observe;
+  const confirmations = [];
   const context = vm.createContext({
     document: { getElementById: node, createElement: makeNode },
     window: {
@@ -54,7 +55,10 @@ async function fixture() {
   const source = fs.readFileSync(path.join(__dirname, '../../public/js/admin/danmaku-overlay-filters.js'), 'utf8');
   const module = new vm.SourceTextModule(source, { context });
   await module.link(
-    () =>
+    (specifier) => specifier.includes('confirmation-dialog')
+      ? new vm.SyntheticModule(['showConfirmationDialog'], function () {
+        this.setExport('showConfirmationDialog', options => new Promise(resolve => confirmations.push({ options, resolve })));
+      }, { context }) :
       new vm.SyntheticModule(
         ['observeServerOverlayUrl'],
         function () {
@@ -74,6 +78,7 @@ async function fixture() {
     reads,
     writes,
     viewerReads,
+    confirmations,
     account: (url) => observe(url),
     click: (id) => get(id).events.click(),
     submit: (form, input, value) => {
@@ -103,6 +108,9 @@ test('blacklist and keyword changes show only confirmed saves; clear does not re
   f.writes[2].resolve(saved({ ...f.writes[0].patch, blockedKeywords: ['广告'] }));
   await flush();
   const clear = f.click('ClearKeywords');
+  assert.match(f.confirmations[0].options.description, /全部 1 个屏蔽词/);
+  f.confirmations[0].resolve(true);
+  await flush();
   assert.deepEqual(f.writes[3].patch, { blockedKeywords: [] });
   f.writes[3].resolve(saved(f.writes[0].patch));
   await clear;
@@ -113,6 +121,22 @@ test('blacklist and keyword changes show only confirmed saves; clear does not re
   f.writes[4].resolve(saved());
   await remove;
   assert.equal(f.get('BlacklistEmpty').hidden, false);
+});
+
+test('clearing keywords can be cancelled and an account switch invalidates an open confirmation', async () => {
+  const f = await fixture();
+  f.reads[0](saved({ blockedKeywords: ['广告'] }));
+  await flush();
+  const cancelled = f.click('ClearKeywords');
+  f.confirmations[0].resolve(false);
+  await cancelled;
+  assert.equal(f.writes.length, 0);
+  assert.equal(f.get('Keywords').children.length, 1);
+  const changedOwner = f.click('ClearKeywords');
+  f.account('account-two');
+  f.confirmations[1].resolve(true);
+  await changedOwner;
+  assert.equal(f.writes.length, 0);
 });
 
 test('viewer picker searches literal names/UIDs, selects users and renders untrusted text safely', async () => {
@@ -162,7 +186,7 @@ test('account changes discard pending saves/viewers and unsupported server reads
   assert.equal(f.get('ViewerPicker').hidden, true);
   f.reads[2]({ ok: false, error: 'OVERLAY_FILTERS_UNSUPPORTED' });
   await flush();
-  assert.match(f.get('FiltersState').textContent, /更新服务器/);
+  assert.match(f.get('FiltersState').textContent, /暂不支持弹幕屏蔽.*联系管理员/);
   assert.equal(f.get('ReadViewers').disabled, true);
 });
 

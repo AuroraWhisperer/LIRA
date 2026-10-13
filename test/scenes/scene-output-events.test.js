@@ -63,6 +63,18 @@ test('scene event streams start immediately with fixed notifications and coalesc
   assert.doesNotMatch(res.chunks.join(''), /queue|scene-a|owner|capability|private-token/);
 });
 
+test('output use clears after the last display disconnects', (t) => {
+  const { events, open } = fixture(t);
+  assert.equal(events.hasConnections(), false);
+  const one = open();
+  const two = open();
+  assert.equal(events.hasConnections(), true);
+  one.end();
+  assert.equal(events.hasConnections(), true);
+  two.end();
+  assert.equal(events.hasConnections(), false);
+});
+
 test('scene events recheck types at delivery and retain all coalesced type reasons', (t) => {
   const { events, state, open } = fixture(t);
   const res = open();

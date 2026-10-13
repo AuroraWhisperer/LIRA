@@ -331,13 +331,13 @@
 
 .desktop-lyric-reset-button {
   min-height: 38px;
-  border-color: transparent;
+  border-color: var(--color-danger-border, var(--danger));
   background: color-mix(in srgb, var(--danger) 7%, var(--surface));
   color: var(--danger);
   font-weight: var(--type-weight-bold);
 }
 
 .desktop-lyric-reset-button:hover {
-  border-color: transparent;
+  border-color: var(--danger);
   background: color-mix(in srgb, var(--danger) 12%, var(--surface));
 }

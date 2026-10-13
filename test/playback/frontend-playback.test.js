@@ -12,6 +12,49 @@ const { createLyricToggleButton, loadModuleExports, response } = require('../hel
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('match diagnosis uses import platform priority and fallback without scoring empty searches', async (t) => {
+  for (const scenario of [
+    { title: 'current song wins over selected tab', current: 'qq', selected: 'netease', qq: 95, netease: 99, searched: ['qq'], chosen: 'qq' },
+    { title: 'secondary platform can auto accept', current: 'qq', selected: 'qq', qq: 60, netease: 95, searched: ['qq', 'netease'], chosen: 'netease' },
+    { title: 'highest score wins when both need confirmation', current: 'local', selected: 'netease', qq: 70, netease: 60, searched: ['netease', 'qq'], chosen: 'qq' },
+    { title: 'equal fallback scores preserve priority', current: 'qq', selected: 'netease', qq: 60, netease: 60, searched: ['qq', 'netease'], chosen: 'qq' },
+    { title: 'empty platforms explain no candidates', selected: 'netease', searched: ['netease', 'qq'] },
+    { title: 'failed first platform continues to fallback', selected: 'qq', qq: 'error', netease: 95, searched: ['qq', 'netease'], chosen: 'netease' },
+  ]) await t.test(scenario.title, async () => {
+    const calls = [];
+    const { MatchService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/match-service.js'), {
+      fetch: async (url, options) => {
+        const body = JSON.parse(options.body);
+        calls.push({ url, body });
+        const platform = body.platform || body.candidates[0].source;
+        const score = scenario[platform];
+        if (score === 'error') throw new Error('模拟连接失败');
+        return response({ ok: true, data: url.endsWith('/search') ? { tracks: score
+          ? [{ id: `${platform}:song`, title: '候选歌', artists: ['歌手'], source: platform }] : [] }
+          : { results: [{ track: body.candidates[0], score, autoAccept: score >= 90, reasons: ['歌手一致'] }] } });
+      },
+    });
+    const service = new MatchService({ state: { current: { source: scenario.current }, selectedSource: scenario.selected }, readJsonResponse: (r) => r.payload });
+    const diagnosis = await service.testMatch('歌名', '歌手', 180000);
+    assert.deepEqual(calls.filter(({ url }) => url.endsWith('/search')).map(({ body }) => body.platform), scenario.searched);
+    assert.equal(calls[0].body.keyword, '歌名 歌手');
+    for (const { body } of calls.filter(({ url }) => url.endsWith('/match-track'))) {
+      assert.equal(body.durationMs, 180000);
+      assert.equal(body.candidates.length, 1);
+    }
+    if (scenario.chosen) {
+      assert.equal(diagnosis.results[0].track.source, scenario.chosen);
+      assert.equal(diagnosis.results[0].score, scenario[scenario.chosen]);
+      assert.match(diagnosis.searchSummary, new RegExp(`本次采用${scenario.chosen === 'qq' ? 'QQ 音乐' : '网易云音乐'}`));
+    } else {
+      assert.equal(diagnosis.results.length, 0);
+      assert.equal(calls.length, 2, 'empty search results are not sent for scoring');
+      assert.match(diagnosis.emptyReason, /没有搜到候选/);
+    }
+    if (scenario.qq === 'error') assert.match(diagnosis.searchSummary, /QQ 音乐：模拟连接失败/);
+  });
+});
+
 test('queue rows highlight the current request without marking another request of the same song active', async () => {
   const { renderQueueRow } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/components.js'));
   const song = { id: 'qq:same-song', source: 'qq', title: '同一首歌', artists: ['歌手'] };
@@ -76,7 +119,7 @@ test('song import retries failed matches and distinguishes reused numeric IDs by
 });
 
 test('failed queue reads restore the import control and leave request history available for retry', async () => {
-  const button = { disabled: false };
+  const button = { disabled: false, dataset: {} };
   const state = { importedSongRequestKeys: ['already-imported'], selectedSource: 'qq' };
   const errors = [];
   let failed = true;

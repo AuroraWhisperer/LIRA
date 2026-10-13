@@ -28,6 +28,7 @@ async function createPlaybackApp(initialState, options = {}) {
   let shutdownAcknowledged = false;
   const fetchCalls = [];
   const errors = [];
+  const confirmations = [];
   let resolveStreamRequestCount = 0;
   const windowListeners = new Map();
   const homeTracks = options.homeTracks;
@@ -255,6 +256,19 @@ async function createPlaybackApp(initialState, options = {}) {
     const identifier = pathToFileURL(filePath).href;
     if (moduleCache.has(identifier)) return moduleCache.get(identifier);
 
+    if (filePath.endsWith(`${path.sep}confirmation-dialog.js`)) {
+      const module = new vm.SyntheticModule(['showConfirmationDialog', 'dangerConfirm', 'logoutConfirm'], function () {
+        for (const name of ['showConfirmationDialog', 'dangerConfirm', 'logoutConfirm']) {
+          this.setExport(name, async (options) => {
+            confirmations.push(options);
+            return appOptions.confirmationResult !== false;
+          });
+        }
+      }, { context, identifier });
+      moduleCache.set(identifier, module);
+      return module;
+    }
+
     const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
       context,
       identifier,
@@ -350,6 +364,7 @@ async function createPlaybackApp(initialState, options = {}) {
     errors() {
       return errors.slice();
     },
+    confirmations: () => confirmations,
     resolveStreamRequestCount() {
       return resolveStreamRequestCount;
     },
@@ -417,6 +432,10 @@ class FakeElement {
 
   contains() {
     return false;
+  }
+
+  focus() {
+    this.focused = true;
   }
 
   async emit(eventName, event = {}) {

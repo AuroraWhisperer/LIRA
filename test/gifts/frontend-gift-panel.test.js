@@ -34,6 +34,7 @@ test('gift subviews skip unrelated state updates while corrections, catalogs and
   });
   const order = [];
   const render = createAdminStateRenderer({
+    renderQueue() {},
     renderLive() {},
     renderSettings() { order.push('settings'); },
     renderQueueStyle() {},
@@ -141,6 +142,16 @@ test('gift detection updates its switch without a redundant state label and keep
   assert.equal(toggle.checked, true);
   assert.equal(status.textContent, '待开播');
   assert.equal(status.title, '未开播，历史消息监听中');
+
+  giftDetection.renderDetectionStatus({ enabled: true }, { connected: true }, { giftMonitoringEnabled: 'false' });
+  assert.equal(status.textContent, '已停收礼物');
+  assert.equal(status.className, 'pill warn');
+  giftDetection.renderDetectionStatus({ enabled: true }, { connected: true }, { giftMonitoringEnabled: 'true' });
+  assert.equal(status.textContent, '统计已开启');
+  assert.equal(status.className, 'pill good');
+  giftDetection.renderDetectionStatus({ enabled: true }, { connected: true, message: '弹幕长连已断开，历史消息监听中' });
+  assert.equal(status.textContent, '连接恢复中');
+  assert.equal(status.className, 'pill warn');
 
   giftDetection.renderDetectionStatus({ enabled: true }, { connected: false, message: '连接失败，请重试' });
   assert.equal(status.textContent, '连接失败，请重试');

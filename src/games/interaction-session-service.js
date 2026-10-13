@@ -91,7 +91,7 @@ function createInteractionSessionService(options = {}) {
     if (disposed) fail('服务已关闭');
     expire();
     if (session) fail('请先关闭当前互动结果');
-    if (options.isGameActive?.()) fail('请先结束类别 1 的游戏');
+    if (options.isGameActive?.()) fail('请先到「百宝箱 › 小游戏 › 直播间互动」结束当前游戏');
     let config;
     try {
       config = validateInteractionConfig(input);
@@ -208,7 +208,7 @@ function createInteractionSessionService(options = {}) {
       blockedReason: session
         ? '请先关闭当前互动结果'
         : options.isGameActive?.()
-          ? '请先结束类别 1 的游戏'
+          ? '请先到「百宝箱 › 小游戏 › 直播间互动」结束当前游戏'
           : source.reason || '',
     };
   }

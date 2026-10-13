@@ -251,6 +251,8 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(liveSource.pathname, '/scene');
   assert.equal(liveSource.searchParams.get('id'), savedScene.document.id);
   assert.match(liveSource.hash, /^#token=/);
+  await desktop.locator('#copyLiveCanvasUrl').click();
+  await desktop.locator('#liveCanvasSourceStatus').filter({ hasText: '2560 × 1440' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.requests.filter(request =>
     request.url.startsWith('/api/scenes/source?')).length), 1, 'Publication refreshes the source once.');
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 1);

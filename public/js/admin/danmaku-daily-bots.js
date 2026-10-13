@@ -12,7 +12,7 @@ const REASONS = {
   'monitor-disconnected': '已开启，监听未连接',
 };
 const ERRORS = {
-  DAILY_BOT_UNSUPPORTED: '服务器不支持云端签到和抽签，请先更新服务器。',
+  DAILY_BOT_UNSUPPORTED: '当前服务暂不支持云端签到和抽签，请联系管理员。',
   DAILY_BOT_REVISION_CONFLICT: '另一台设备改了设置，正在重新读取。',
   DAILY_BOT_BUSY: '上一项操作还没完成，请稍后重试。',
 };
@@ -125,7 +125,7 @@ export function initDanmakuDailyBots({
     busy = false;
     stale = true;
     render();
-    overall.textContent = bridge ? '连接云端账号后可设置' : '请升级桌面客户端';
+    overall.textContent = bridge ? '连接 LIRA 账号后可设置' : '请升级桌面客户端';
     if (owner) void refresh();
   }
   refreshButton.addEventListener('click', refresh);

@@ -23,7 +23,7 @@ test('toolbox navigation and feature capabilities work without the legacy regist
     selector === '[data-main-page-link]'
       ? [
           {
-            dataset: { mainPageLink: 'songAssistantPage' },
+            dataset: { mainPageLink: 'songAssistantPage', songTabTarget: 'settingsPage' },
             addEventListener: (_type, handler) => {
               navigate = handler;
             },
@@ -31,6 +31,10 @@ test('toolbox navigation and feature capabilities work without the legacy regist
         ]
       : querySelectorAll(selector);
   const reconnectBilibili = () => {};
+  runtime.sandbox.document.querySelector = (selector) => {
+    assert.equal(selector, '[data-tab="settingsPage"]');
+    return { click: () => calls.push('settingsPage') };
+  };
   runtime.other.initOtherPage({
     reconnectBilibili,
     onNavigate: (page) => calls.push(page),
@@ -45,7 +49,7 @@ test('toolbox navigation and feature capabilities work without the legacy regist
   });
   navigate();
   runtime.other.selectFeatureById('otherDanmakuFeature');
-  assert.deepEqual(calls, ['ai:init', 'songAssistantPage', true, 'ai:refresh']);
+  assert.deepEqual(calls, ['ai:init', 'songAssistantPage', 'settingsPage', true, 'ai:refresh']);
 });
 
 test('explicit toolbox feature selection reopens and persists its collapsed group', () => {

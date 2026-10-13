@@ -10,6 +10,10 @@
             <span id="superChatSize" class="pill">0 条</span>
           </div>
           <div class="actions">
+            <div id="superChatUndo" class="sc-undo" hidden>
+              <span id="superChatUndoMessage" role="status" aria-live="polite"></span>
+              <button id="superChatUndoBtn" class="secondary" type="button">撤销</button>
+            </div>
             <button id="clearSuperChatsBtn" class="danger" type="button">
               <svg class="queue-action-icon" aria-hidden="true">
                 <use href="/img/admin/workbench-icons.svg#trash"></use>
@@ -32,6 +36,7 @@
             <span id="queueSize" class="pill">0 首</span>
           </div>
           <div class="actions">
+            <button id="songQueueImportPlayback" class="secondary" type="button" title="将尚未处理的点歌匹配到播放队列；不会自动完成点歌">导入播放器</button>
             <button id="randomSongBtn" class="secondary" type="button">
               <svg class="queue-action-icon" aria-hidden="true">
                 <use href="/img/admin/workbench-icons.svg#shuffle"></use>
@@ -65,7 +70,10 @@
             歌库
           </button>
           <button class="tab" data-tab="settingsPage" type="button">
-            设置
+            账号登录
+          </button>
+          <button class="tab" data-tab="songRequestPage" type="button">
+            点歌规则
           </button>
           <button class="tab" data-tab="themePage" type="button">
             点歌板
@@ -86,6 +94,6 @@
             歌单导入导出
           </button>
           <button class="tab" data-tab="desktopLyricPage" type="button">
-            桌面歌词设置
+            直播歌词
           </button>
         </div>

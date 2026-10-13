@@ -24,12 +24,12 @@ export function createImportHandler(deps) {
    * @param {Function} callbacks.renderPlayback - 重新渲染
    */
   async function importSongQueueToPlayback(callbacks) {
-    if (importing) return;
+    if (importing || playbackState.selectedSource === 'wesing') return;
     importing = true;
     const generation = importGeneration;
     const isCurrent = () => generation === importGeneration;
-    const button = document.getElementById('playbackImportSongQueue');
-    if (button) button.disabled = true;
+    const buttons = ['playbackImportSongQueue', 'songQueueImportPlayback'].map((id) => document.getElementById(id)).filter(Boolean);
+    buttons.forEach((button) => { button.disabled = true; button.dataset.importing = 'true'; });
 
     try {
       const currentSource = playbackState.current && playbackState.current.source;
@@ -49,12 +49,15 @@ export function createImportHandler(deps) {
       callbacks.savePlaybackState();
       callbacks.renderPlayback();
 
-      toast(`已导入 ${result.imported} 首，待确认 ${result.pending} 首，跳过 ${result.skipped} 首`);
+      toast(result.empty ? '点歌队列为空' : `已导入 ${result.imported} 首，待确认 ${result.pending} 首，跳过 ${result.skipped} 首`);
     } catch (error) {
       if (isCurrent()) showError(error);
     } finally {
       importing = false;
-      if (button) button.disabled = false;
+      buttons.forEach((button) => {
+        delete button.dataset.importing;
+        button.disabled = playbackState.selectedSource === 'wesing';
+      });
     }
   }
 

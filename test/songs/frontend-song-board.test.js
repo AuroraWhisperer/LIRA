@@ -31,6 +31,7 @@ test('display overlay URLs use explicit settings capabilities without the legacy
       'liveWheelUrl',
       'liveInteractionsUrl',
       'liveGiftFeedUrl',
+      'liveGiftSprintUrl',
       'liveGiftWishUrl',
       'liveOvertimeUrl',
       'liveGiftEffectsUrl',

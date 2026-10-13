@@ -1,6 +1,6 @@
 'use strict';
 
-import { readJsonResponse, toast } from '../shared/utils.js';
+import { copyText, readJsonResponse, toast } from '../shared/utils.js';
 
 const BASE = '/api/bilibili/dynamic-lottery';
 const ERRORS = {
@@ -59,7 +59,7 @@ function errorText(code) {
   return code ? ERRORS[code] || '操作未完成，已保留进度。请刷新状态后再继续。' : '';
 }
 
-export function initLotteryWorkflow(root, { notify = toast } = {}) {
+export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = {}) {
   const form = root.querySelector('[data-lottery-form]');
   if (!form) return { setAuth() {}, reset() {}, dispose() {} };
   const find = (key) => root.querySelector(`[data-lottery-${key}]`);
@@ -231,6 +231,7 @@ export function initLotteryWorkflow(root, { notify = toast } = {}) {
     if (resultRoundId !== result?.roundId) resultPage = 0;
     resultRoundId = result?.roundId;
     const entries = result?.winners || [];
+    find('copy-winners').disabled = entries.length === 0;
     const pageCount = Math.max(1, Math.ceil(entries.length / WINNERS_PER_PAGE));
     resultPage = Math.min(resultPage, pageCount - 1);
     find('result-panel').hidden = !result;
@@ -342,6 +343,19 @@ export function initLotteryWorkflow(root, { notify = toast } = {}) {
       }
     }
   }
+
+  listen(find('copy-winners'), 'click', async () => {
+    const entries = data.result?.winners || [];
+    if (!entries.length) return;
+    const lines = entries.map((winner) =>
+      `${winner.position}. ${winner.displayName || '未提供昵称'} · UID ${winner.uid} · https://space.bilibili.com/${winner.uid}`);
+    try {
+      await copy(lines.join('\n'));
+      notify('已复制全部中奖名单', { type: 'success' });
+    } catch (_) {
+      notify('复制失败，请重试或保存结果截图。', { type: 'error' });
+    }
+  });
 
   listen(form, 'submit', (event) => {
     event.preventDefault();

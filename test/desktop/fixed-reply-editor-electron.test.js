@@ -20,7 +20,8 @@ test('fixed reply editors save through authorized desktop IPC and preserve faile
   page.setDefaultTimeout(7000);
   await page.waitForURL('**/admin');
   assert.equal((await fetch(page.url())).status, 401);
-  await page.getByRole('button', { name: '编辑自定义回复', exact: true }).click();
+  await page.getByRole('button', { name: '编辑完整匹配回复', exact: true }).click();
+  assert.equal(await page.locator('#danmakuFixedEditorTitle').innerText(), '完整匹配回复');
   await page.locator('#danmakuExactKeywordInput').fill('月卡');
   await page.locator('#danmakuExactReplyInput').fill('上舰解锁点歌月卡');
   await page.locator('#danmakuExactReplyAddBtn').click();

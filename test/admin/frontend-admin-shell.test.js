@@ -32,6 +32,7 @@ test('point-song subviews rely on tabs instead of repeated page headings', () =>
   const views = [
     'songsPage',
     'settingsPage',
+    'songRequestPage',
     'themePage',
     'displayPage',
     'overlayPage',
@@ -42,8 +43,16 @@ test('point-song subviews rely on tabs instead of repeated page headings', () =>
   for (const id of views) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
+  assert.match(html, /data-tab="settingsPage"[^>]*>\s*账号登录\s*<\/button>/);
+  assert.match(html, /data-tab="songRequestPage"[^>]*>\s*点歌规则\s*<\/button>/);
+  const rules = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/song/request-rules.html'), 'utf8');
+  const appearance = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/song/queue-theme.html'), 'utf8');
+  assert.match(rules, /id="songRequestSettingsForm"/);
+  assert.doesNotMatch(rules, /id="themeForm"/);
+  assert.doesNotMatch(appearance, /id="songRequestSettingsForm"/);
+  assert.equal(html.split('id="songRequestSettingsForm"').length - 1, 1);
   assert.doesNotMatch(html, /class="song-subview-header"/);
-  assert.doesNotMatch(html, /<h2 class="ui-page-title">(?:歌库|设置|点歌板|展示板|浏览器源|歌单导入导出|桌面歌词)<\/h2>/);
+  assert.doesNotMatch(html, /<h2 class="ui-page-title">(?:歌库|账号登录|点歌规则|点歌板|展示板|浏览器源|歌单导入导出|桌面歌词)<\/h2>/);
 });
 
 test('SuperChat clear control lives in the SC queue header', () => {

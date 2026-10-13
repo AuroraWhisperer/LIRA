@@ -211,6 +211,7 @@ export function createGiftWishes() {
     get('giftWishStatus').textContent = status.join(' ');
     updateDraftPreview();
     get('giftWishEmpty').hidden = items.length > 0;
+    get('giftWishEmpty').textContent = `${{ long: '长效', day: '本日', session: '本场直播' }[period]}暂无许愿`;
     const nextSignature = JSON.stringify(items);
     if (signature === nextSignature) return;
     signature = nextSignature;

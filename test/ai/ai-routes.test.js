@@ -26,6 +26,24 @@ test('AI route allowed keys come from the config contract', () => {
   assert.deepEqual([...ALLOWED_KEYS].sort(), Object.keys(AI_CONFIG_DEFAULTS).sort());
 });
 
+test('Doubao account routes accept no credentials or navigation inputs and report desktop unavailability safely', async () => {
+  const { createDoubaoClient } = require('../../src/ai/doubao-client');
+  const client = createDoubaoClient();
+  const context = { ai: { getDoubaoStatus: client.getStatus, openDoubaoLogin: client.openLogin, logoutDoubao: client.logout } };
+  for (const route of ['GET /api/ai/doubao/status', 'POST /api/ai/doubao/login', 'POST /api/ai/doubao/logout']) {
+    const res = createResponseRecorder();
+    await routes[route](context, { body: () => assert.fail('account routes must not consume arbitrary credentials or URLs') }, res);
+    const body = JSON.parse(res.body);
+    if (route.startsWith('GET')) {
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(body.data, { available: false, loggedIn: false, needsVerification: false, encryptionAvailable: false });
+    } else {
+      assert.equal(res.statusCode, 503);
+      assert.equal(body.code, 'DOUBAO_DESKTOP_REQUIRED');
+    }
+  }
+});
+
 test('saving disabled through the config route aborts accepted work after committing the setting', async (t) => {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);

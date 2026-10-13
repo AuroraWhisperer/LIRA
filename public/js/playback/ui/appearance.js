@@ -3,6 +3,7 @@
 import { initParameterRanges } from '../../shared/parameter-range.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from '../../shared/local-font-library.js';
 import { scrollActiveLyricIntoView } from './lyric-layout.js';
+import { dangerConfirm } from '../../shared/confirmation-dialog.js';
 
 export const PLAYER_APPEARANCE_KEY = 'playbackAppearance:v1';
 export const DEFAULT_PLAYER_APPEARANCE = Object.freeze({
@@ -273,7 +274,10 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
 
   panel.addEventListener('input', update);
   panel.addEventListener('change', update);
-  panel.querySelector('[data-appearance-reset]').addEventListener('click', () => {
+  panel.querySelector('[data-appearance-reset]').addEventListener('click', async () => {
+    if (!await dangerConfirm({ title: '恢复播放器全部默认外观？',
+      message: '将覆盖已保存的播放器样式、排版和颜色，确认后立即生效。',
+      confirmLabel: '恢复全部默认' })) return;
     settings = { ...DEFAULT_PLAYER_APPEARANCE };
     render();
     feedback.textContent = savePlayerAppearance(storage, settings)

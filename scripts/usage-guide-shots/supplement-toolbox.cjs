@@ -146,15 +146,15 @@ const SHOTS = [
   {
     id: 'E14',
     file: 'toolbox-desktop-update',
-    title: '检查更新、自动更新与目录入口（演示状态）',
+    title: '检查更新、启动时自动检查与目录入口（演示状态）',
     feature: 'otherDesktopUpdateFeature',
   },
   {
     id: 'E14b',
     file: 'toolbox-update-download',
-    title: '发现新版本与下载按钮（演示状态）',
+    title: '发现新版本后自动下载（演示状态）',
     feature: 'otherDesktopUpdateFeature',
-    update: { status: 'available', version: '5.0.4', canDownload: true, message: '发现新版本 5.0.4，可以下载更新。' },
+    update: { status: 'available', version: '5.0.4', canDownload: false, message: '发现新版本 5.0.4，即将自动下载。' },
   },
   {
     id: 'E14c',

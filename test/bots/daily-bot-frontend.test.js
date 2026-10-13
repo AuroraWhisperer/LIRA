@@ -194,7 +194,8 @@ test('cloud daily controls keep confirmed state, disclose failed close and ignor
   assert.equal(await page.locator('#danmakuCheckinToggle').isChecked(), false);
   await page.locator('#dailyBotRefresh').click();
   await page.evaluate(() => window.dailyRequests[4].resolve({ ok: false, error: 'DAILY_BOT_UNSUPPORTED' }));
-  await page.waitForFunction(() => document.getElementById('dailyBotStatus').textContent.includes('服务器不支持'));
+  await page.waitForFunction(() => document.getElementById('dailyBotStatus').textContent.includes('暂不支持云端签到和抽签'));
+  assert.match(await page.locator('#dailyBotStatus').textContent(), /联系管理员/);
   assert.equal(await page.locator('#danmakuCheckinToggle').isDisabled(), true);
 });
 

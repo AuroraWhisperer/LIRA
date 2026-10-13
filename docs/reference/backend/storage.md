@@ -1,5 +1,10 @@
 # 存储层:数据目录、SQLite 六库与迁移
 
+SC 的可撤销删除仍立即删除数据库行并留下防重 ID；`superchat-undo.js` 仅在内存保存
+当前 10 秒批次的原记录。`superchat-store.restoreDeleted()` 以单事务恢复原 ID、内容、
+处理状态和时间，同时移除该批次的防重 ID。任意一行失败整批回滚。此路径仅接受
+服务端捕获且仍有效的批次；平台撤回和整库清空不能用它恢复。没有新增表或持久化格式。
+
 ## 礼物保留存储
 
 [gift-retention-migration.js](../../../src/storage/gift-retention-migration.js) 是 gift_db v17：
@@ -103,6 +108,8 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 - **多库拆分**:按域隔离,避免单库写锁竞争与误清数据,详见 ADR [0004-reuse-monolith-and-gift-db](../../architecture/adr/0004-reuse-monolith-and-gift-db.md)。
 
 ## 2. 数据目录布局(唯一成表处)
+
+豆包账号的加密 Cookie 快照新增于业务 `dataDir/doubao-auth/cookies.enc`；Chromium 分区仍位于独立 userData。加密不可用时仅用内存会话，不保存快照。格式与清理边界见 [桌面认证](../desktop/auth.md#16-豆包个人账号)。`ai_configuration` 的私有 `doubaoPreviousKeyOrigin` 配置行用于恢复 API 供应商时检查密钥 origin，详见 [AI 账号路由](ai.md#44-豆包个人账号实验性)。
 
 `dataDir` 解析顺序:`runtimeOptions.dataDir` → 环境变量 `SONG_PLUGIN_DATA_DIR` → 仓库根 `data/`([runtime-config.js](../../../src/server/runtime-config.js));Electron 打包版使用 `<安装目录>/data`，首次安装有 D 盘时默认 `D:\LIRA\data`，无 D 盘时跟随原默认安装位置；开发版继续使用仓库根 `data/`，升级保留与旧 AppData 兼容读取见 [desktop/main.md](../desktop/main.md) §3。
 

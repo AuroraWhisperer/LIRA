@@ -3,6 +3,7 @@
 import { showFieldError } from '../shared/field-feedback.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
+import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
 const OVERLAY_FIELDS = ['blindboxOverlayTitle', 'blindboxOverlayTop', 'blindboxWinnersOnly', 'blindboxHeartBoxOnly',
   'blindboxCastleMultiplier', 'blindboxCastlesRemaining', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'];
@@ -148,6 +149,14 @@ export function createBlindboxSettings({
       const textarea = documentRef.getElementById('giftBlindBoxCustomConfigV2');
       const config = parseBlindboxConfig(textarea);
       if (index < 0 || index >= config.length) return;
+      const before = textarea.value;
+      const confirmed = await showConfirmationDialog({
+        title: `删除自定义盲盒“${config[index].name}”？`,
+        description: '将删除这项手工配置并保存。已收到的礼物记录不会删除。',
+        confirmLabel: '删除盲盒', variant: 'destructive',
+      });
+      if (!confirmed) return;
+      if (textarea.value !== before) { toast('盲盒配置已变化，请核对后重新删除。'); return; }
       config.splice(index, 1);
       const newRaw = JSON.stringify(config, null, 2);
       textarea.value = newRaw;
@@ -195,6 +204,8 @@ export function createBlindboxSettings({
       await getState()?.reloadState?.();
     });
 
+    let pendingAppearanceSaves = 0;
+    const failedAppearanceFields = new Set();
     for (const [id, setting] of overlayFields) {
       const element = documentRef.getElementById(id);
       if (!element) continue;
@@ -203,7 +214,17 @@ export function createBlindboxSettings({
         updateOverlayUrl();
         updateHeartBoxSettings();
         if (!element.checkValidity()) { element.reportValidity(); return; }
-        saveSettings({ [setting]: element.type === 'checkbox' ? String(element.checked) : element.value.trim() }).catch(() => {});
+        const status = documentRef.getElementById('blindboxSaveState');
+        pendingAppearanceSaves += 1;
+        if (status) status.textContent = '正在保存…';
+        saveSettings({ [setting]: element.type === 'checkbox' ? String(element.checked) : element.value.trim() })
+          .then(() => { failedAppearanceFields.delete(setting); })
+          .catch(() => { failedAppearanceFields.add(setting); })
+          .finally(() => {
+            pendingAppearanceSaves -= 1;
+            if (status && !pendingAppearanceSaves) status.textContent = failedAppearanceFields.size
+              ? '部分设置保存失败，请重新修改后重试。' : '已自动保存';
+          });
       });
     }
 

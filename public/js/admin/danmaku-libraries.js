@@ -7,7 +7,7 @@ const DELETE_ICON =
 
 export function createCustomReplyEditor({ document, saveSetting, toast, kind = 'keyword' }) {
   const exact = kind === 'exact';
-  const name = exact ? '自定义回复' : '自定义关键词回复';
+  const name = exact ? '完整匹配回复' : '关键词回复';
   const fieldName = exact ? '触发词' : '关键词';
   const id = (suffix) => `danmaku${exact ? 'Exact' : 'Custom'}${suffix}`;
   const elements = {
@@ -44,7 +44,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
     input.type = 'text';
     if (!exact) input.maxLength = maxLength;
     input.value = rule[field];
-    input.setAttribute('aria-label', `第 ${index + 1} 条自定义回复的${labelText}`);
+    input.setAttribute('aria-label', `第 ${index + 1} 条${name}的${labelText}`);
     input.addEventListener('input', () => {
       items[index][field] = input.value;
       markDirty();
@@ -59,7 +59,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
       elements.list.appendChild(document.getElementById('danmakuExactBuiltInReply').content.cloneNode(true));
     }
     if (!exact && items.length === 0) {
-      appendEmptyState(document, elements.list, '还没有自定义回复规则');
+      appendEmptyState(document, elements.list, '还没有关键词回复规则');
       return;
     }
 
@@ -72,7 +72,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
         createField(rule, index, 'keyword', fieldName, 30),
         createField(rule, index, 'reply', '回复内容', 120),
       );
-      const deleteButton = createDeleteButton(document, `删除第 ${index + 1} 条自定义回复`, () => {
+      const deleteButton = createDeleteButton(document, `删除第 ${index + 1} 条${name}`, () => {
         items.splice(index, 1);
         render();
         markDirty();
@@ -147,7 +147,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
       elements.keywordInput.value = elements.replyInput.value = '';
       elements.saveButton.disabled = true;
       render();
-      setStatus('连接云端账号后可编辑');
+      setStatus('连接 LIRA 账号后可编辑');
     },
     load(rawValue) {
       if (dirty || saving) return;

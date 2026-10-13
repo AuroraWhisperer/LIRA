@@ -59,7 +59,8 @@ test('query replies have a separate entry after the existing eight and exact edi
   const page = await editorFixture(t);
   assert.deepEqual(await page.locator('[data-fixed-item]').evaluateAll((items) => items.map((item) => item.dataset.fixedItem)),
     ['checkin', 'fortune', 'welcome', 'random', 'exact', 'diy', 'pk', 'scheduled', 'query']);
-  await page.getByRole('button', { name: '编辑自定义回复', exact: true }).click();
+  await page.getByRole('button', { name: '编辑完整匹配回复', exact: true }).click();
+  assert.equal(await page.locator('#danmakuFixedEditorTitle').innerText(), '完整匹配回复');
   const builtIn = page.locator('#danmakuExactReplyList .danmaku-custom-reply-row').first();
   assert.equal(await builtIn.locator('input').first().inputValue(), '菜单');
   assert.equal(await builtIn.locator('input').nth(1).inputValue(), '签到、抽签、礼物特效、礼物查询、盲盒查询');
@@ -79,6 +80,8 @@ test('query replies have a separate entry after the existing eight and exact edi
   await page.waitForFunction(() => window.remote.customExactReplyEnabled);
   assert.deepEqual(await page.evaluate(() => window.writes[1]), { customExactReplyEnabled: true });
   assert.equal(await page.locator('#danmakuPkReportRefreshBtn').count(), 0);
+  await page.getByRole('button', { name: '编辑关键词回复', exact: true }).click();
+  assert.equal(await page.locator('#danmakuFixedEditorTitle').innerText(), '关键词回复');
 });
 
 test('query library uses month placeholders and year syntax, filters locally and uses the existing gift-query switch', async (t) => {
@@ -229,8 +232,8 @@ test('scheduled library validates off-page drafts and clears them when the accou
 
 test('exact rule drafts survive failed saves and are cleared when the account changes during a save', async (t) => {
   const page = await editorFixture(t);
-  await page.getByRole('button', { name: '编辑自定义回复', exact: true }).click();
-  const field = page.getByLabel('第 1 条自定义回复的回复内容', { exact: true });
+  await page.getByRole('button', { name: '编辑完整匹配回复', exact: true }).click();
+  const field = page.getByLabel('第 1 条完整匹配回复的回复内容', { exact: true });
   await field.fill('保留我的草稿');
   await page.evaluate(() => { window.failSave = true; });
   await page.locator('#danmakuExactReplySaveBtn').click();

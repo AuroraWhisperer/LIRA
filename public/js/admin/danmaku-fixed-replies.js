@@ -1,4 +1,4 @@
-const TITLES = { checkin: '签到祝福词库', fortune: '抽签词库', random: '点歌回复说明', exact: '自定义回复', diy: '自定义关键词回复', welcome: '进场欢迎', scheduled: '定时／随机弹幕', query: '查询回复指令清单' };
+const TITLES = { checkin: '签到祝福词库', fortune: '抽签词库', random: '点歌回复说明', exact: '完整匹配回复', diy: '关键词回复', welcome: '进场欢迎', scheduled: '定时／随机弹幕', query: '查询回复指令清单' };
 
 export function initFixedReplyEditor({ documentRef = globalThis.document, windowRef = globalThis.window } = {}) {
   const root = documentRef.querySelector?.('.danmaku-fixed-reply-section');

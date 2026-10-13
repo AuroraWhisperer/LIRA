@@ -17,7 +17,7 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
             functionCalls: [],
             usage: {},
           };
-        return await new Promise((resolve) => pendingAnswers.set(String(request.input), resolve));
+        return await new Promise((resolve) => pendingAnswers.set(JSON.parse(request.input).question, resolve));
       },
     },
     sendReply: async (value) => deliveries.push(value),

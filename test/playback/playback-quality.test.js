@@ -4,6 +4,50 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
+test('arrow keys focus music sources without selecting them or stopping playback', async () => {
+  let queueReads = 0;
+  const app = await createPlaybackApp({ current: track('song', '歌曲'), selectedSource: 'netease', mode: 'sequence', volume: 0.75 }, {
+    sourceTabs: ['qq', 'netease', 'wesing'],
+    songQueue: () => { queueReads++; return { current: null, waiting: [] }; },
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  await app.emit('source-tab-netease', 'keydown', { key: 'ArrowRight', preventDefault() {} });
+  assert.equal(app.element('source-tab-wesing').focused, true);
+  assert.equal(app.element('source-tab-wesing').tabIndex, 0);
+  assert.equal(app.savedState().selectedSource, 'netease');
+  assert.equal(app.element('music-player').paused, false);
+  await app.emit('source-tab-wesing', 'click');
+  assert.equal(app.savedState().selectedSource, 'wesing');
+  assert.equal(app.element('music-player').paused, true);
+  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, true);
+  await app.emit('songQueueImportPlayback', 'click');
+  await app.emit('playbackImportSongQueue', 'click');
+  assert.equal(queueReads, 0, 'WeSing refuses both import entry points');
+  assert.equal(app.savedState().selectedSource, 'wesing');
+  await app.emit('source-tab-qq', 'click');
+  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, false);
+});
+
+test('source changes preserve an in-flight import lock and finish disabled in WeSing', async () => {
+  const pending = Promise.withResolvers();
+  const app = await createPlaybackApp({ selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+    sourceTabs: ['qq', 'netease', 'wesing'], songQueue: () => pending.promise,
+  });
+  await app.init();
+  await flushAsyncWork();
+  const importing = app.emit('songQueueImportPlayback', 'click');
+  await app.emit('source-tab-netease', 'click');
+  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, true);
+  await app.emit('source-tab-wesing', 'click');
+  pending.resolve({ current: null, waiting: [] });
+  await importing;
+  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, true);
+  await app.emit('source-tab-qq', 'click');
+  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, false);
+});
+
 for (const pauseThenResume of [false, true]) {
   test(`quality loading respects a later pause${pauseThenResume ? ' and resume' : ''}`, async () => {
     const pending = Promise.withResolvers();

@@ -14,12 +14,6 @@ function createDesktopUpdateController({
     if (!mainWindow || mainWindow.isDestroyed()) return;
 
     mainWindow.webContents.send('desktop:update-state', updateRuntime.value);
-    if (updateRuntime.value.status === updateRuntime.lastStatus) return;
-
-    updateRuntime.lastStatus = updateRuntime.value.status;
-    if (updateRuntime.value.status === 'available' || updateRuntime.value.status === 'downloaded') {
-      mainWindow.webContents.send('desktop:show-update-page');
-    }
   }
 
   function configureAutoUpdater() {

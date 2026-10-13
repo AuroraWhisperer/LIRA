@@ -12,6 +12,7 @@ import {
   renderToolSettings,
   syncReasoningEffortAvailability,
   renderStatus,
+  renderDoubaoStatus,
   setState,
   providerLabel,
   providerErrorMessage,
@@ -22,7 +23,7 @@ let initialized = false;
 let refreshConfig = null;
 const AUTOSAVE_DELAY_MS = 700;
 
-function init({ notify = showStackedToast } = {}) {
+function init({ notify = showStackedToast, confirm } = {}) {
   if (initialized) return;
   const form = document.getElementById('xiaomiAiForm');
   if (!form) return;
@@ -166,6 +167,7 @@ function init({ notify = showStackedToast } = {}) {
   };
 
   personaControls = createPersonaControls({
+    confirm,
     async flushPendingSave() {
       await initialLoadPromise;
       return configLoaded && flushPendingSave();
@@ -178,12 +180,13 @@ function init({ notify = showStackedToast } = {}) {
 
   providerInput?.addEventListener('change', () => {
     const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
-    const official = ['deepseek', 'openai', 'anthropic', 'gemini'].includes(providerInput.value);
+    const official = ['deepseek', 'openai', 'anthropic', 'gemini', 'doubao'].includes(providerInput.value);
     restoreManualEndpointAfterProviderSave = !official && Boolean(endpointInput?.disabled);
     renderProviderSelection(providerInput.value, {
       keepEndpointLocked: restoreManualEndpointAfterProviderSave,
     });
     if (personaControls.changeProvider()) editedFieldIds.add('xiaomiAiPersona');
+    void refreshDoubaoStatus();
   });
 
   form.addEventListener('input', (event) => {
@@ -414,6 +417,31 @@ function init({ notify = showStackedToast } = {}) {
     fetchModelsButton.setAttribute('aria-expanded', 'false');
   }
 
+  let doubaoRefreshPending = false;
+  async function refreshDoubaoStatus() {
+    if (providerInput?.value !== 'doubao' || doubaoRefreshPending) return;
+    doubaoRefreshPending = true;
+    try { renderDoubaoStatus(await readApi('/api/ai/doubao/status')); }
+    catch (error) { setState(document.getElementById('xiaomiAiDoubaoState'), error.message, 'warn'); }
+    finally { doubaoRefreshPending = false; }
+  }
+  for (const [id, operation] of [['xiaomiAiDoubaoLogin', 'login'], ['xiaomiAiDoubaoLogout', 'logout']]) {
+    const button = document.getElementById(id);
+    button?.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        await initialLoadPromise;
+        if (!configLoaded || !(await flushPendingSave())) return;
+        renderDoubaoStatus(await readApi(`/api/ai/doubao/${operation}`, { method: 'POST' }));
+      } catch (error) {
+        setState(document.getElementById('xiaomiAiDoubaoState'), error.message, 'warn');
+      } finally { button.disabled = false; }
+    });
+  }
+  if (typeof window?.addEventListener === 'function') {
+    const timer = setInterval(() => void refreshDoubaoStatus(), 3000);
+    window.addEventListener('pagehide', () => clearInterval(timer), { once: true });
+  }
   initialLoadPromise = refreshConfig();
 }
 

@@ -280,12 +280,16 @@ test('shared dimensions publish to default sources, persist across restart and s
   assert.deepEqual(service.getComponentSize('clock'), { width: 800, height: 400 });
   const source = service.getSource(id);
   const output = service.getOutput({ ...source, item: independent.id });
+  assert.deepEqual(source.canvas, saved.document.canvas);
+  assert.deepEqual(source.itemSizes[shared.id], { width: 800, height: 400 });
+  assert.deepEqual(source.itemSizes[independent.id], { width: 240, height: 120 });
   assert.deepEqual(output.document.canvas, { width: 240, height: 120 });
   assert.deepEqual(output.document.items, [{ ...independent, x: 0, y: 0 }]);
   assert.deepEqual(state.dataCalls.at(-1).types, ['clock']);
   expectError(() => service.getOutput({ ...source, item: randomUUID() }), 'SCENE_ITEM_NOT_FOUND', 404);
   const revised = service.save({ id, expectedRevision: saved.revision,
     document: { ...saved.document, items: [{ ...shared, width: 900 }, independent] } });
+  assert.deepEqual(service.getSource(id), source, 'copy hints use the published size while a different draft is saved');
   expectError(() => service.publish({ id, expectedRevision: saved.revision }), 'SCENE_CONFLICT', 409);
   assert.deepEqual(service.getComponentSize('clock'), { width: 800, height: 400 });
   const restored = restart();
@@ -430,7 +434,7 @@ test('create returns only management DTO, generates unique encrypted source and 
   assert.equal(service.publish({ id, expectedRevision: 1 }).hasPublication, true);
   assert.deepEqual(service.getOutput(source).document.items, []);
   assert.deepEqual(state.dataCalls.at(-1).types, []);
-  assert.deepEqual(createSceneService(ports).getSource(id), source);
+  assert.deepEqual(createSceneService(ports).getSource(id), { ...source, canvas: created.document.canvas });
   const another = create(service);
   assert.notEqual(another.document.id, id);
   assert.notEqual(service.getSource(another.document.id).token, source.token);
@@ -458,7 +462,9 @@ test('publication freezes all appearances while draft saves, business data and c
   state.color = 'black';
   const draft = { ...saved.document, title: 'unpublished changes' };
   service.save({ id, expectedRevision: 2, document: draft });
-  assert.deepEqual(service.getSource(id), { ...source, itemIds: output.document.items.map((item) => item.id) });
+  const publishedSource = { ...source, canvas: output.document.canvas, itemIds: output.document.items.map((item) => item.id),
+    itemSizes: Object.fromEntries(output.document.items.map(item => [item.id, { width: item.width, height: item.height }])) };
+  assert.deepEqual(service.getSource(id), publishedSource);
   assert.deepEqual(service.getOutput({ ...source, version: 0 }).document, output.document);
   assert.equal(service.getOutput({ ...source, version: 1 }).document, null);
   assert.equal(state.dataCalls.length, 3);
@@ -467,7 +473,7 @@ test('publication freezes all appearances while draft saves, business data and c
   const republished = service.publish({ id, expectedRevision: 3 });
   assert.equal(republished.publishedVersion, 2);
   assert.equal(service.getOutput({ ...source, version: 1 }).document.items[0].appearance.config.color, 'black');
-  assert.deepEqual(service.getSource(id), { ...source, itemIds: output.document.items.map((item) => item.id) });
+  assert.deepEqual(service.getSource(id), publishedSource);
 });
 
 test('cross-scene tokens, changed owner, changed server and logout cannot read previous scene', (t) => {
@@ -613,7 +619,8 @@ test('published source survives actual database close/reopen and a new service i
   const expected = service.get(id);
   const published = service.getOutput(source).document;
   const restored = restart();
-  assert.deepEqual(restored.getSource(id), { ...source, itemIds: published.items.map((item) => item.id) });
+  assert.deepEqual(restored.getSource(id), { ...source, canvas: published.canvas, itemIds: published.items.map((item) => item.id),
+    itemSizes: Object.fromEntries(published.items.map(item => [item.id, { width: item.width, height: item.height }])) });
   assert.deepEqual(restored.get(id), expected);
   assert.deepEqual(restored.getOutput(source).document, published);
   assert.equal(restored.getOutput({ ...source, version: 1 }).document, null);

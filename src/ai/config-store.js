@@ -17,12 +17,14 @@ const EXPIRED_PRUNE_INTERVAL_MS = 60 * 1000;
 function createAiConfigStore(db, secretCodec, options = {}) {
   const now = options.now || Date.now;
   let cached = null;
+  let previousKeyOrigin = '';
   let lastPrunedAt = null;
 
   function getConfig() {
     if (cached) return structuredClone(cached);
     const stored = {};
     const rows = db.prepare('SELECT key, value, is_secret FROM ai_configuration').all();
+    previousKeyOrigin = rows.find(row => row.key === 'doubaoPreviousKeyOrigin')?.value || '';
     for (const row of rows) {
       if (!(row.key in AI_CONFIG_DEFAULTS)) continue;
       try {
@@ -68,6 +70,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
 
   function updateConfig(changes = {}) {
     const current = getConfig();
+    const accountKeyOrigin = previousKeyOrigin;
     const normalized = normalizeAiConfig(changes, current);
     const updatedAt = new Date(now()).toISOString();
     const write = db.prepare(`
@@ -94,10 +97,19 @@ function createAiConfigStore(db, secretCodec, options = {}) {
         const storedValue = secret && value ? secretCodec.encrypt(value) : serializeValue(value);
         write.run(key, storedValue, secret ? 1 : 0, updatedAt);
       }
+      // Account mode does not overwrite a previously saved manual endpoint.
+      // Retain only the API key's origin so returning to its preset can safely
+      // reuse the key even when that preset had no stored manual URL.
+      if (current.modelProvider !== 'doubao' && normalized.modelProvider === 'doubao') {
+        const origin = current.deepseekApiKey && current.deepseekResponsesUrl ? new URL(current.deepseekResponsesUrl).origin : '';
+        write.run('doubaoPreviousKeyOrigin', origin, 0, updatedAt);
+      }
       // Read the prospective persisted config: leaving a preset may restore
       // a previously saved custom URL that is hidden by the current preset.
       cached = null;
-      assertSavedModelKeyOrigin(current, getConfig(), Object.hasOwn(changes, 'deepseekApiKey'));
+      assertSavedModelKeyOrigin(current.modelProvider === 'doubao' ? { ...current, deepseekResponsesUrl: accountKeyOrigin } : current,
+        getConfig(), Object.hasOwn(changes, 'deepseekApiKey'));
+      if (current.modelProvider === 'doubao' && normalized.modelProvider !== 'doubao') write.run('doubaoPreviousKeyOrigin', '', 0, updatedAt);
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');

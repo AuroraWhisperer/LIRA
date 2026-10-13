@@ -76,7 +76,7 @@ test('directory opening failures use the existing desktop error notice', async (
   nodes.desktopOpenDataBtn.listeners.get('click')();
   nodes.desktopOpenLogBtn.listeners.get('click')();
   await new Promise(setImmediate);
-  assert.deepEqual(notices, ['操作失败，详细原因已写入日志。', '操作失败，详细原因已写入日志。']);
+  assert.deepEqual(notices, ['无法打开数据目录，请检查目录权限后重试。', '无法打开日志目录，请检查目录权限后重试。']);
 });
 
 test('desktop update shows only the action for the current update phase', () => {
@@ -85,7 +85,7 @@ test('desktop update shows only the action for the current update phase', () => 
   const cases = [
     [{ status: 'idle' }, 'desktopCheckUpdateBtn', false],
     [{ status: 'checking' }, 'desktopCheckUpdateBtn', true],
-    [{ status: 'available', canDownload: true }, 'desktopDownloadUpdateBtn', false],
+    [{ status: 'available', canDownload: true }, 'desktopCheckUpdateBtn', true],
     [{ status: 'downloading' }, null],
     [{ status: 'downloaded', canInstall: true }, 'desktopInstallUpdateBtn', false],
     [{ status: 'installing', canInstall: true }, 'desktopInstallUpdateBtn', true],

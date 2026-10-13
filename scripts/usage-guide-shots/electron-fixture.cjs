@@ -45,6 +45,7 @@ const defaults = {
   'desktop:get-info': () => ({ version: '5.0.3', isPackaged: true, autoUpdate: false, updateState: fixture.update }),
   'bilibili:get-auth-state': () => ({ loggedIn: false }),
   'bilibili:get-profile': () => null,
+  'guard-expiry:get-state': () => ({ ok: true, account: { source: 'shared', loggedIn: false } }),
   'dynamic-lottery-auth:get-state': () => ({ ok: true, state: { loggedIn: false, uid: '', warning: '' } }),
   'music:get-auth-state': () => ({ loggedIn: fixture.musicAuth === true }),
   'music:provider-health': () => ({ ok: true }),

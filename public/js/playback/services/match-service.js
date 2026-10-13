@@ -22,9 +22,10 @@ export class MatchService {
    * 为点歌队列项匹配曲目
    * @param {Object} item - 点歌队列项
    * @param {Array} platforms - 平台列表（优先级顺序）
+   * @param {Function} [onAttempt] - 诊断观察回调，不参与匹配决策
    * @returns {Promise<Object|null>} 匹配结果 {autoAccept, score, reasons, track}
    */
-  async matchQueueItem(item, platforms = []) {
+  async matchQueueItem(item, platforms = [], onAttempt) {
     const songName = item.song_name || item.songName || '';
 
     if (!songName) return null;
@@ -33,7 +34,7 @@ export class MatchService {
 
     for (const platform of platforms) {
       try {
-        const matched = await this.matchOnPlatform(item, platform);
+        const matched = await this.matchOnPlatform(item, platform, onAttempt);
         if (!matched) continue;
 
         // 找到可自动接受的匹配，直接返回
@@ -46,6 +47,7 @@ export class MatchService {
           fallbackMatch = matched;
         }
       } catch (error) {
+        onAttempt?.(null, { error: error.message || String(error) }, platform);
         console.warn('[MatchService] match failed on platform:', platform, error.message || error);
       }
     }
@@ -57,9 +59,28 @@ export class MatchService {
    * 在指定平台上匹配曲目
    * @param {Object} item - 点歌队列项
    * @param {string} platform - 平台名称
+   * @param {Function} [onAttempt] - 诊断观察回调
    * @returns {Promise<Object|null>} 匹配结果
    */
-  async matchOnPlatform(item, platform) {
+  async matchOnPlatform(item, platform, onAttempt) {
+    const data = await this.searchAndRank(item, platform);
+    const best = data.results?.[0];
+    if (!best?.track) {
+      onAttempt?.(null, data, platform);
+      return null;
+    }
+
+    const matched = {
+      autoAccept: Boolean(best.autoAccept),
+      score: Number(best.score || 0),
+      reasons: Array.isArray(best.reasons) ? best.reasons : [],
+      track: PlaybackUtils.normalizeOnlineTrack(best.track),
+    };
+    onAttempt?.(matched, data, platform);
+    return matched;
+  }
+
+  async searchAndRank(item, platform) {
     const songName = item.song_name || item.songName || '';
     const artist = item.artist || '';
 
@@ -75,32 +96,22 @@ export class MatchService {
     });
 
     const searchPayload = await this.readJsonResponse(searchResponse, '搜索点歌候选失败');
-    if (!searchResponse.ok || !searchPayload.ok) return null;
+    if (!searchResponse.ok || !searchPayload.ok) throw new Error(searchPayload.error || '搜索点歌候选失败');
 
     const candidates = Array.isArray(searchPayload.data && searchPayload.data.tracks) ? searchPayload.data.tracks : [];
 
-    if (!candidates.length) return null;
+    if (!candidates.length) return { results: [], emptyReason: '当前音乐平台没有搜到候选歌曲，请调整歌名或歌手后重试。' };
 
     // 第二步：调用匹配接口
     const matchResponse = await fetch('/api/music/match-track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ songName, artist, candidates }),
+      body: JSON.stringify({ songName, artist, durationMs: Number(item.durationMs || 0), candidates }),
     });
 
     const matchPayload = await this.readJsonResponse(matchResponse, '点歌匹配失败');
-    if (!matchResponse.ok || !matchPayload.ok) return null;
-
-    const best = matchPayload.data && Array.isArray(matchPayload.data.results) ? matchPayload.data.results[0] : null;
-
-    if (!best || !best.track) return null;
-
-    return {
-      autoAccept: Boolean(best.autoAccept),
-      score: Number(best.score || 0),
-      reasons: Array.isArray(best.reasons) ? best.reasons : [],
-      track: PlaybackUtils.normalizeOnlineTrack(best.track),
-    };
+    if (!matchResponse.ok || !matchPayload.ok) throw new Error(matchPayload.error || '点歌匹配失败');
+    return matchPayload.data;
   }
 
   /**
@@ -115,23 +126,18 @@ export class MatchService {
       throw new Error('请输入要测试的歌名');
     }
 
-    const response = await fetch('/api/music/match-track', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        songName,
-        artist,
-        durationMs: Number(durationMs || 0),
-      }),
-    });
-
-    const payload = await this.readJsonResponse(response, '点歌匹配测试失败');
-
-    if (!payload.ok) {
-      throw new Error(payload.error || '点歌匹配测试失败');
-    }
-
-    return payload.data;
+    const attempts = [];
+    const platforms = PlaybackUtils.preferredPlatforms(this.state?.current?.source, this.state?.selectedSource || 'qq');
+    const matched = await this.matchQueueItem({ songName, artist, durationMs }, platforms,
+      (match, data, platform) => attempts.push({ match, data, platform }));
+    const selected = matched && attempts.find((attempt) => attempt.match === matched);
+    const platformName = (platform) => platform === 'qq' ? 'QQ 音乐' : '网易云音乐';
+    const summary = `按点歌导入顺序查询：${attempts.map((attempt) => platformName(attempt.platform)).join(' → ')}。`
+      + (selected ? `本次采用${platformName(selected.platform)}的匹配结果。` : '没有找到可用候选歌曲。');
+    const failures = attempts.filter((attempt) => attempt.data.error)
+      .map((attempt) => `${platformName(attempt.platform)}：${attempt.data.error}`);
+    return { ...(selected?.data || { results: [] }), searchSummary: [summary, ...failures].join(' '),
+      emptyReason: '没有搜到候选歌曲，请调整歌名或歌手，并检查音乐平台连接后重试。' };
   }
 
   /**

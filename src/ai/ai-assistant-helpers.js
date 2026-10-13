@@ -41,8 +41,11 @@ function normalizeDanmaku(danmaku, uid) {
 }
 
 function buildConversationInput(question, context) {
-  if (!context?.question || !context?.answer) return question;
-  return `短期上下文（仅用于理解省略，不要逐字复述）：观众上次问“${context.question}”，回答“${context.answer}”。\n本次问题：${question}`;
+  return JSON.stringify({
+    question: String(question || ''),
+    previousExchange: context?.question && context?.answer
+      ? { question: String(context.question), answer: String(context.answer) } : null,
+  });
 }
 
 /**

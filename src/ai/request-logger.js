@@ -109,6 +109,12 @@ function createAiRequestLogger(options = {}) {
     const durationMs = nonNegativeNumber(event.durationMs);
     summary.durationMaxMs = Math.max(summary.durationMaxMs, durationMs);
     incrementDurationBucket(summary.durationBuckets, durationMs);
+    if (Number.isFinite(event.firstTextMs) && event.firstTextMs >= 0) {
+      summary.firstText ||= { count: 0, maxMs: 0, buckets: emptyDurationBuckets() };
+      summary.firstText.count = boundedAdd(summary.firstText.count, 1);
+      summary.firstText.maxMs = Math.max(summary.firstText.maxMs, event.firstTextMs);
+      incrementDurationBucket(summary.firstText.buckets, event.firstTextMs);
+    }
     scheduleSummaryFlush();
   }
 
@@ -147,6 +153,7 @@ function createAiRequestLogger(options = {}) {
         functionCallCount: summary.functionCallCount,
         durationMaxMs: summary.durationMaxMs,
         durationBuckets: summary.durationBuckets,
+        ...(summary.firstText ? { firstText: summary.firstText } : {}),
       };
       return enqueue('runtime', encodeRecord(record, NORMAL_ENTRY_BYTES));
     });

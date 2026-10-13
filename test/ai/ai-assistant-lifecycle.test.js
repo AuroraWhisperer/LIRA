@@ -6,6 +6,55 @@ const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 const { createAnsweringDeepseek, createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 const { createDanmakuSenderService } = require('../../src/bilibili/danmaku/sender-service');
 
+test('Doubao account changes discard accepted replies and verification prevents new admissions', async t => {
+  let revision = 1;
+  let ready = true;
+  let generating = false;
+  const pending = Promise.withResolvers();
+  const sent = [];
+  const service = createTestService({
+    config: { modelProvider: 'doubao' },
+    deepseek: {
+      isReady: () => ready,
+      getSessionRevision: () => revision,
+      async createResponse(request) {
+        if (request.purpose !== 'generation') return { text: '{"allowed":true}', functionCalls: [], usage: {} };
+        generating = true;
+        await pending.promise;
+        return { text: '旧会话的答案', functionCalls: [], usage: {} };
+      },
+    },
+    sendReply: async value => sent.push(value),
+  });
+  t.after(async () => { pending.resolve(); await service.shutdown(); });
+  assert.equal(service.handleDanmaku({ uid: 'old', message: '小米 你好' }).accepted, true);
+  await waitUntil(() => generating);
+  revision++;
+  ready = false;
+  assert.equal(service.handleDanmaku({ uid: 'paused', message: '小米 你好' }).accepted, false);
+  pending.resolve();
+  await waitUntil(() => service.getStatus().queued === 0);
+  assert.deepEqual(sent, []);
+  assert.equal(service.getStatus().lastError, '');
+});
+
+test('switching into account mode cancels the previous provider generation', async t => {
+  let signal;
+  const service = createTestService({ deepseek: {
+    createResponse(request) {
+      signal = request.signal;
+      return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+    },
+  } });
+  t.after(() => service.shutdown());
+  service.handleDanmaku({ uid: 'old', message: '小米 测试' });
+  await waitUntil(() => signal);
+  service.updateConfig({ modelProvider: 'doubao' });
+  assert.equal(signal.aborted, true);
+  assert.equal(signal.reason.code, 'DOUBAO_SESSION_CHANGED');
+  assert.equal(service.getStatus().queued, 0);
+});
+
 test('disabling AI clears waiting and ready replies, aborts generation, and reopening accepts only new work', async (t) => {
   const pending = Promise.withResolvers();
   const sent = [];

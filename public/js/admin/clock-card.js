@@ -9,6 +9,7 @@ import { bindClockParameters, buildClockUrl, clockStyleChange, createClockPrevie
 import { registerComponentSettings } from './component-settings-sync.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
+import { readComponentOutputSize } from './scene-api.js';
 export { buildClockUrl, clockStyleChange, createClockPreview, usesDefaultClockLabel };
 
 let initialized = false;
@@ -62,7 +63,12 @@ function initClockCard() {
   });
   document.getElementById('clockFixedUrl').textContent = fixedUrl;
   document.getElementById('clockCopyFixed').addEventListener('click', async () => {
-    try { await copyText(fixedUrl); toast('萌时钟固定网址已复制'); }
+    try {
+      const size = await readComponentOutputSize('clock').catch(() => null);
+      await copyText(fixedUrl);
+      toast(size ? `时钟地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}`
+        : '时钟地址已复制；需要固定宽高时，请在画布中调整后点击“保存并应用”。');
+    }
     catch (error) { toast(error.message || '复制失败，请手动复制网址。'); }
   });
   document.getElementById('clockSave').addEventListener('click', () => saveComponentWithFeedback(controller, '萌时钟设置'));

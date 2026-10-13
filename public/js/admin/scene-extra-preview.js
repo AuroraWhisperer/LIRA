@@ -87,6 +87,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         let inherit;
         const input = previewElement(['select', 'textarea'].includes(field.type) ? field.type : 'input');
         const cents = type === 'gift-feed' && (key.startsWith('threshold') || key === 'minGiftAmountCents');
+        const scale = field.displayScale || 1;
         if (field.type === 'select') {
           for (const [value, title] of Object.entries(field.options)) {
             const option = previewElement('option', '', title); option.value = value; input.append(option);
@@ -97,9 +98,9 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         if (previewOnly) input.dataset.previewParameter = key;
         else input.dataset.componentParameter = key;
         if (field.type === 'number') {
-          input.min = String(field.min / (cents ? 100 : 1));
-          input.max = String(field.max / (cents ? 100 : 1));
-          input.step = String(field.step / (cents ? 100 : 1));
+          input.min = String(field.min * scale / (cents ? 100 : 1));
+          input.max = String(field.max * scale / (cents ? 100 : 1));
+          input.step = String(field.step * scale / (cents ? 100 : 1));
           input.required = !field.optional;
         }
         if (field.maxLength) input.maxLength = field.maxLength;
@@ -108,7 +109,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         input.addEventListener(!editsOpacity && ['select', 'checkbox', 'number'].includes(field.type) ? 'change' : 'input', () => {
           if (!input.checkValidity()) return;
           let value = field.type === 'checkbox' ? input.checked : input.value;
-          if (field.type === 'number' && !(field.optional && value === '')) value = cents ? Math.round(Number(value) * 100) : Number(value);
+          if (field.type === 'number' && !(field.optional && value === '')) value = cents ? Math.round(Number(value) * 100) : Number(value) / scale;
           if (previewOnly) {
             previewValues[key] = key === 'userName' ? value.trim() || field.default : value;
             for (const listener of previewListeners) listener();
@@ -128,7 +129,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
           inherit.addEventListener('change', () => target.edit({ [key]: inherit.checked ? '' : input.value }));
           label.append(inheritLabel);
         }
-        label.append(input); grid.append(label); fields.set(key, { input, cents, inherit, label });
+        label.append(input); grid.append(label); fields.set(key, { input, cents, scale, inherit, label });
       }
       host.append(grid);
       enhanceColorControls(grid);
@@ -145,7 +146,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         '画布循环展示示例；直播仅在触发时播放。请在“礼物姬”中启用对应效果。'));
       const render = ({ draft, loaded }) => {
         const nautical = draft.resourceStyle?.preset === 'nautical-guard-thanks';
-        for (const [key, { input, cents, inherit, label }] of fields) {
+        for (const [key, { input, cents, scale, inherit, label }] of fields) {
           label.hidden = type === 'opening' && (key === 'style' ? Boolean(draft.resourceStyle)
             : !draft.resourceStyle || !Object.hasOwn(openingFields, key))
             || type === 'games' && key === 'showDanmaku' && draft.game !== 'draw-guess'
@@ -170,7 +171,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
           }
           if (input.type === 'checkbox') input.checked = value === true || value === 'true'
             || type === 'blindbox' && key === 'winnersOnly' && [true, 'true'].includes(draft.hideLoss);
-          else syncComponentFieldValue(input, cents ? Number(value) / 100 : inherit && !value ? draft.songBoardThemeText : value);
+          else syncComponentFieldValue(input, cents ? Number(value) / 100 : scale !== 1 ? Number((Number(value) * scale).toFixed(6))
+            : inherit && !value ? draft.songBoardThemeText : value);
           if (inherit) { inherit.checked = !value; inherit.disabled = !loaded; }
           input.disabled = !loaded || Boolean(inherit && !value);
           if (type === 'songlist' && draft.songBoardSyncTheme === 'true'

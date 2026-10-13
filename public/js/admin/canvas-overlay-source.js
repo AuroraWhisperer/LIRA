@@ -11,9 +11,11 @@ export function initCanvasOverlaySource() {
   const copy = document.getElementById('copyLiveCanvasUrl');
   let generation = 0;
   let sourceUrl = '';
+  let sourceSize = null;
   async function refresh() {
     const requested = ++generation;
     sourceUrl = '';
+    sourceSize = null;
     copy.disabled = true;
     address.textContent = '正在读取场景地址…';
     status.textContent = '';
@@ -27,6 +29,7 @@ export function initCanvasOverlaySource() {
       const source = await requestScene('source', undefined, canvas.outputId);
       if (requested !== generation) return;
       sourceUrl = sceneSourceUrl(source);
+      sourceSize = source.canvas;
       address.textContent = sourceUrl;
       copy.disabled = false;
     } catch (error) {
@@ -50,7 +53,9 @@ export function initCanvasOverlaySource() {
     try {
       await copyText(sourceUrl);
       if (requested === generation) {
-        status.textContent = '地址已复制。';
+        status.textContent = sourceSize
+          ? `地址已复制；请在 OBS 或直播姬中设置为 ${sourceSize.width} × ${sourceSize.height}。`
+          : '地址已复制。';
         toast('直播场景地址已复制');
       }
     } catch (error) {

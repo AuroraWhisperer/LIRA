@@ -254,8 +254,8 @@ export function renderPendingRow(item, index) {
         <div class="meta">${escapeHtml(`候选：${track.title || ''} · ${PlaybackUtils.formatTrackMeta(track)} · ${item.score || 0} 分 · ${reasons || '无命中原因'}`)}</div>
       </div>
       <div class="queue-actions">
-        <button type="button" data-playback-pending-action="confirm" data-playback-pending-index="${index}">确认</button>
-        <button type="button" data-playback-pending-action="ignore" data-playback-pending-index="${index}">忽略</button>
+        <button type="button" data-playback-pending-action="confirm" data-playback-pending-index="${index}">下一首播放</button>
+        <button type="button" data-playback-pending-action="ignore" data-playback-pending-index="${index}">跳过</button>
       </div>
     </div>
   `;
@@ -273,6 +273,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
   const dataPrefix = context === 'search' ? 'playback-search' : 'playback-home-track';
   const showRadioButton = action === 'radio';
   const canAddToPlaylist = PlaybackUtils.canAddTrackToPlaylist(track);
+  const playHint = context === 'search' ? '立即播放这首歌' : '从这首开始播放整个列表，替换当前播放队列';
 
   // 我喜欢和歌单详情显示菜单按钮（带删除功能）
   const showMenuButton = action === 'liked' || action === 'playlist-tracks';
@@ -294,7 +295,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
             <div class="track-menu" id="${menuId}" data-${dataPrefix}-menu-for="${index}" role="menu" aria-label="歌曲操作" hidden>
               <button type="button" role="menuitem" data-${dataPrefix}-action="normal" data-${dataPrefix}-index="${index}">入队</button>
               <button type="button" role="menuitem" data-${dataPrefix}-action="requested" data-${dataPrefix}-index="${index}">插队</button>
-              <button type="button" role="menuitem" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}">播放</button>
+              <button type="button" role="menuitem" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}" title="${playHint}">播放</button>
               <button type="button" role="menuitem" data-${dataPrefix}-action="remove" data-${dataPrefix}-index="${index}" class="danger">删除</button>
             </div>
           </div>
@@ -313,7 +314,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
             ? `<button type="button" data-${dataPrefix}-action="radio" data-${dataPrefix}-index="${index}" title="切换到电台队列并播放">电台</button>`
             : `<button type="button" data-${dataPrefix}-action="requested" data-${dataPrefix}-index="${index}" title="插入到当前播放歌曲之后">插队</button>`
         }
-        <button type="button" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}" title="立即播放这首歌">播放</button>
+        <button type="button" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}" title="${playHint}">播放</button>
         ${
           canAddToPlaylist
             ? `<button type="button" data-${dataPrefix}-action="add-to-playlist" data-${dataPrefix}-index="${index}" title="添加到音乐歌单">歌单</button>`

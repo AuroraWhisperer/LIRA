@@ -7,6 +7,38 @@ const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 const { createAiSettingsFixture, flushAiTasks, aiResponse } = require('../helpers/ai-settings-fixture');
 
+test('Doubao shows account actions, hides API inputs and preserves their drafts', async () => {
+  const status = { available: true, loggedIn: true, needsVerification: true, encryptionAvailable: true };
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'doubao' },
+    request: url => url === '/api/ai/status' ? aiResponse({ queued: 0, doubao: status }) : undefined });
+  for (const id of ['xiaomiAiEndpointControl', 'xiaomiAiKeyControl', 'xiaomiAiModelControl', 'xiaomiAiCapabilitiesControl', 'xiaomiAiToolsControl']) {
+    assert.equal(f.elements.get(id).hidden, true, id);
+  }
+  assert.equal(f.elements.get('xiaomiAiDoubaoAccount').hidden, false);
+  assert.equal(f.elements.get('xiaomiAiDoubaoLogin').textContent, '打开豆包完成验证');
+  assert.equal(f.elements.get('xiaomiAiConfigState').textContent, '等待验证');
+  f.elements.get('xiaomiAiDeepSeekKey').value = 'unsaved-api-key';
+  f.input('xiaomiAiTrigger', '豆豆');
+  await f.advance(700);
+  assert.equal(f.saves()[0].deepseekApiKey, undefined);
+  assert.equal(f.saves()[0].deepseekResponsesUrl, undefined);
+  assert.equal(f.saves()[0].model, undefined);
+  assert.equal(f.elements.get('xiaomiAiDeepSeekKey').value, 'unsaved-api-key');
+});
+
+test('Doubao login and logout use existing authenticated API without sending credentials', async () => {
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'doubao' }, request: url =>
+    url.startsWith('/api/ai/doubao/') ? aiResponse({ available: true, loggedIn: !url.endsWith('/logout'), needsVerification: false, encryptionAvailable: true }) : undefined });
+  await f.fire('xiaomiAiDoubaoLogin', 'click');
+  assert.equal(f.elements.get('xiaomiAiDoubaoLogout').hidden, false);
+  await f.fire('xiaomiAiDoubaoLogout', 'click');
+  assert.equal(f.elements.get('xiaomiAiDoubaoLogout').hidden, true);
+  assert.equal(f.elements.get('xiaomiAiDoubaoLogin').textContent, '扫码登录豆包');
+  const writes = f.calls.filter(call => call.url.startsWith('/api/ai/doubao/') && call.options.method === 'POST');
+  assert.deepEqual(writes.map(call => call.url), ['/api/ai/doubao/login', '/api/ai/doubao/logout']);
+  assert.ok(writes.every(call => call.options.body === undefined));
+});
+
 test('AI initial load preserves edits and blocks saving before configuration arrives', async () => {
   const f = await createAiSettingsFixture({
     deferInitialConfig: true,
@@ -212,6 +244,24 @@ test('create persona choice opens a draft and cancel leaves the saved selection 
   await f.advance(700);
   assert.equal(f.saves().length, 0);
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'general');
+});
+
+test('cancelling a destructive persona action keeps saved and edited content', async () => {
+  const confirmations = [];
+  const f = await createAiSettingsFixture({
+    config: { personaId: 'cat' },
+    confirm: async (options) => { confirmations.push(options); return false; },
+  });
+  f.fire('xiaomiAiPersonaManage', 'click');
+  const draft = '这是一段尚未保存且需要保留的角色指南。';
+  f.input('xiaomiAiPersonaPrompt', draft);
+  f.fire('xiaomiAiPersonaReset', 'click');
+  await flushAiTasks();
+  assert.equal(confirmations.length, 1);
+  assert.equal(f.calls.some(({ url }) => url === '/api/ai/personas/update'), false);
+  assert.equal(f.elements.get('xiaomiAiPersonaPrompt').value, draft);
+  f.fire('xiaomiAiPersonaCancel', 'click');
+  assert.equal(confirmations.length, 1, 'explicit Cancel does not open another confirmation');
 });
 
 test('editing a role remains a draft until saved and cancel does not change the selection', async () => {

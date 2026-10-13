@@ -38,7 +38,8 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       songBoardSongFontSize: number('歌曲字号', '28', 10, 100), songBoardTitleFontSize: number('标题字号', '24', 10, 100),
       songBoardSongColor: { ...color('歌曲颜色', ''), allowEmpty: true }, songBoardThemeText: color('文字颜色', '#fff7fb'),
       songBoardThemePrimary: color('主色', '#ff6f91'), songBoardThemeAccent: color('强调色', '#21b6a8'),
-      songBoardThemeBackground: color('背景颜色', '#181823', 'songBoardThemeOpacity'), songBoardThemeOpacity: number('背景不透明度', '0.35', 0, 1, 0.01),
+      songBoardThemeBackground: color('背景颜色', '#181823', 'songBoardThemeOpacity'),
+      songBoardThemeOpacity: { ...number('背景不透明度（%）', '0.35', 0, 1, 0.01), displayScale: 100 },
       songBoardThemeRadius: number('圆角', '8', 0, 60),
       songBoardSyncTheme: check('跟随队列主题', 'true'), songBoardFontSize: number('整体字号', '28', 10, 80),
       songBoardBackdropBlur: number('背景模糊', '0', 0, 30), songBoardGlowIntensity: number('发光强度', '0', 0, 20),
@@ -46,10 +47,10 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   lyrics: {
-    title: '桌面歌词', size: [960, 480], path: '/lyrics', variantKey: 'style',
-    variants: [variant('default', '桌面歌词', '逐字歌词')],
+    title: '直播歌词', size: [960, 480], path: '/lyrics', variantKey: 'style',
+    variants: [variant('default', '直播歌词', '逐字歌词')],
     fields: {
-      style: select('展示样式', 'default', { default: '桌面歌词', moonlit: '月渡花汀' }),
+      style: select('展示样式', 'default', { default: '直播歌词', moonlit: '月渡花汀' }),
       desktopLyricFontFamily: text('字体', 'Microsoft YaHei'), desktopLyricFontWeight: fontWeight,
       desktopLyricFontSize: number('字号', '56', 24, 72), desktopLyricTextColor: color('文字颜色', '#000000', 'desktopLyricOpacity'),
       desktopLyricTextAlign: select('文字对齐', 'left', { left: '左对齐', center: '居中', right: '右对齐', justify: '两端对齐' }),
@@ -134,8 +135,8 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   'gift-feed': {
-    title: '礼物滚动', size: [428, 232], path: '/gift-feed',
-    variants: [variant('default', '礼物滚动', '感谢投喂')],
+    title: '滚动礼物', size: [428, 232], path: '/gift-feed',
+    variants: [variant('default', '滚动礼物', '感谢投喂')],
     fields: {
       visibleRows: number('显示行数', 3, 1, 10), scrollSpeed: number('滚动速率', 12, 1, 50),
       minGiftAmountCents: number('最低礼物金额（元）', 0, 0, 100000000, 10),
@@ -164,10 +165,10 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
   },
   'gift-wishes': {
     title: '礼物许愿', size: [440, 600], path: '/gift-wishes', variantKey: 'displayStyle',
-    variants: [variant('card', '许愿卡片', '心愿进度'), variant('text', '文字许愿', '距离目标还差…'), variant('circle', '圆环许愿', '完成进度')],
+    variants: [variant('card', '礼物卡片', '心愿进度'), variant('text', '文字版', '距离目标还差…'), variant('circle', '圆形徽章', '完成进度')],
     fields: {
-      period: select('许愿周期', 'all', { all: '全部', long: '长期', day: '每日', session: '本场' }),
-      displayStyle: select('展示样式', 'card', { original: '跟随每条许愿', card: '卡片', text: '文字', circle: '圆环', moonlit: '月渡花汀' }),
+      period: select('许愿周期', 'all', { all: '全部', long: '长效许愿', day: '本日许愿', session: '本场直播许愿' }),
+      displayStyle: select('展示样式', 'card', { original: '跟随每条许愿', card: '礼物卡片', text: '文字版', circle: '圆形徽章', moonlit: '月渡花汀' }),
       showCompleted: check('显示已完成许愿'), limit: number('显示条数', 1, 1, 30),
       gap: number('条目间距', 12, 0, 80), textPendingColor: color('当日未收到的文字颜色', '#3b6ea8'),
       textReceivedColor: color('当日已收到的文字颜色', '#21815c'),

@@ -145,7 +145,7 @@ function createDisplayNotifications({ getAccess, createError = unavailable, hear
     for (const stream of streams) close(stream, true);
   }
 
-  return { open, notify, dispose };
+  return { open, notify, dispose, hasConnections: () => streams.size > 0 };
 }
 
 module.exports = { createDisplayNotifications };

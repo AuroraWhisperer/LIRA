@@ -16,6 +16,7 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/song/shell-start.html',
   'pages/admin/song/library.html',
   'pages/admin/song/settings.html',
+  'pages/admin/song/request-rules.html',
   'pages/admin/song/queue-theme.html',
   'pages/admin/song/song-board.html',
   'pages/admin/song/overlay-addresses.html',

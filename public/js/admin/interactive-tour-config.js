@@ -1,6 +1,7 @@
 'use strict';
 
 import { stateService } from './state.js';
+import { isLiveStatusDegraded } from './live-status-presentation.js';
 
 /**
  * Static configuration and first-run state for the interactive tour.
@@ -59,7 +60,7 @@ export const TOUR_CONFIG_STEPS = [
       '点击高亮区域里的<strong class="lira-tour-keyword">「扫码登录 B 站账号」</strong>，再用手机上的哔哩哔哩 App 扫描弹出的二维码。扫码成功后，继续填写直播间号并保存设置。',
     note: '二维码会在新窗口中打开；请在这台电脑上的 LIRA 桌面版完成。',
     targetPage: 'songAssistantPage', // 切换到点歌页
-    targetTab: '[data-tab="settingsPage"]', // 切换到设置子标签
+    targetTab: '[data-tab="settingsPage"]', // 切换到账号登录子标签
     targetSelector: '.bilibili-auth-row', // 高亮账号登录状态行
     position: 'bottom',
     waitForAction: true, // 等待用户登录
@@ -104,9 +105,8 @@ export const TOUR_CONFIG_STEPS = [
     position: 'bottom',
     waitForAction: true,
     checkCompleted: () => {
-      // 检查直播状态是否已连接
-      const liveStatus = document.getElementById('liveStatus');
-      return Boolean(liveStatus?.classList.contains('good'));
+      const liveStatus = stateService.getAppState()?.liveStatus;
+      return Boolean(liveStatus?.connected && !isLiveStatusDegraded(liveStatus));
     },
   },
   {
@@ -114,7 +114,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '把歌单导入 LIRA',
     kicker: '第 5 步 · 导入歌单',
     content:
-      '现在已打开<strong class="lira-tour-keyword">「歌单导入导出」</strong>。把你准备好的歌单选进来：可以选择 Excel（.xlsx）、CSV 或 TSV 文件，也可以把表格内容粘贴到下方，请使用完整歌单，点击<strong class="lira-tour-keyword">「预览导入」</strong>，核对新增、更新和删除后，再点<strong class="lira-tour-keyword">「确认替换歌库」</strong>。未列出的旧歌曲会删除。',
+      '现在已打开<strong class="lira-tour-keyword">「歌单导入导出」</strong>。选择完整的 Excel（.xlsx）、CSV 或 TSV 歌单，也可以粘贴表格，点击<strong class="lira-tour-keyword">「下一步：检查歌单」</strong>。检查后尚未导入，请核对结果中的新增、更新和删除数量，需要时展开逐行明细，再点<strong class="lira-tour-keyword">「确认替换歌库」</strong>。未列出的旧歌曲会删除。',
     note: '暂时没有歌单也没关系，可以先点「下一步」，以后再从「点歌 → 歌单导入导出」回来添加。',
     targetPage: 'songAssistantPage',
     targetTab: '[data-tab="importPage"]',

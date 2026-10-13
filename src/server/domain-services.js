@@ -27,6 +27,7 @@ const giftService = require('../bilibili/gift');
 const { createGiftWishService } = require('../bilibili/gift/wish-service');
 const { createGiftWishStore } = require('../storage/gift-wish-store');
 const superChatService = require('../bilibili/superchat-service');
+const { createSuperChatUndo } = require('../bilibili/superchat-undo');
 const { dailyBotCommand } = require('../bilibili/danmaku/command-text');
 const { createCustomReplyService } = require('../bilibili/custom-reply-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
@@ -188,11 +189,20 @@ function createDomainServices(options) {
     });
 
     const superChatContext = { store: superChatStore };
+    const superChatUndo = createSuperChatUndo({ store: superChatStore,
+      getScope: () => JSON.stringify([options.getSceneOwner?.(), settingsStore.getSettings().roomId]) });
     const superChats = {
       getSnapshot: () => superChatService.getSuperChatSnapshot(superChatContext),
       add: (input) => superChatService.addSuperChatItem(superChatContext, input),
-      retract: (platformIds) => superChatService.retractSuperChatItems(superChatContext, platformIds),
+      retract(platformIds) {
+        const result = superChatService.retractSuperChatItems(superChatContext, platformIds);
+        if (Array.isArray(platformIds)) superChatUndo.retract(platformIds);
+        return result;
+      },
       handleAction: (action, id) => superChatService.handleSuperChatAction(superChatContext, action, id),
+      deleteWithUndo: superChatUndo.remove,
+      undoDelete: superChatUndo.restore,
+      dispose: superChatUndo.clear,
     };
 
     const messages = {
@@ -239,7 +249,10 @@ function createDomainServices(options) {
         queue.ensureUnified();
         return result;
       },
-      clearSuperChats: () => database.clearSuperChatData(db.superChatDb),
+      clearSuperChats() {
+        superChatUndo.clear();
+        return database.clearSuperChatData(db.superChatDb);
+      },
       clearPlayback: () => database.clearPlaybackData(db.musicDb),
       clearGifts() {
         return database.clearGiftData(db.giftDb, {
@@ -247,6 +260,7 @@ function createDomainServices(options) {
         });
       },
       clearAll() {
+        superChatUndo.clear();
         const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb, db.checkinDb, {
           sourceId: getActiveGiftSourceId(gifts),
         });
@@ -279,6 +293,7 @@ function createDomainServices(options) {
       },
       getRetentionStats: () => retention.getRetentionStats(db),
       runRetention(options = {}) {
+        if (options.dryRun !== true) superChatUndo.clear();
         const policy = options.policy || retention.readRetentionPolicy(settingsStore.getSettings());
         return retention.applyRetentionPolicies(db, {
           policy,

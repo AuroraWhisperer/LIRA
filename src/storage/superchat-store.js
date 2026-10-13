@@ -8,6 +8,32 @@ const { normalizeGuardLevel, normalizeSuperChatPrice } = require('../shared/bili
 
 function createSuperChatStore(superChatDb) {
   return {
+    findById(id) {
+      return normalizeSuperChatRow(superChatDb.prepare('SELECT * FROM super_chats WHERE id = ?').get(id));
+    },
+
+    restoreDeleted(rows) {
+      superChatDb.exec('SAVEPOINT restore_super_chats');
+      try {
+        const insert = superChatDb.prepare(`INSERT INTO super_chats
+          (id, platform_id, uid, user_name, price, message, requester_guard_level,
+           requester_medal_name, requester_medal_level, status, source, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+        const removeReceipt = superChatDb.prepare('DELETE FROM super_chat_receipts WHERE platform_id = ?');
+        for (const row of rows) {
+          insert.run(row.id, row.platform_id, row.uid, row.user_name, row.price, row.message,
+            row.requester_guard_level, row.requester_medal_name, row.requester_medal_level,
+            row.status, row.source, row.created_at, row.updated_at);
+          removeReceipt.run(row.platform_id);
+        }
+        superChatDb.exec('RELEASE restore_super_chats');
+      } catch (error) {
+        superChatDb.exec('ROLLBACK TO restore_super_chats');
+        superChatDb.exec('RELEASE restore_super_chats');
+        throw error;
+      }
+    },
+
     findByPlatformId(platformId) {
       if (superChatDb.prepare('SELECT 1 FROM super_chat_receipts WHERE platform_id = ?').get(platformId)) {
         return { platform_id: platformId, status: 'deleted' };

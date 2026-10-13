@@ -13,7 +13,7 @@ function registerLocalFontPermissionHandler({ desktopSession, dialog, desktopBas
       title: 'LIRA 本地字体权限',
       message: '允许 LIRA 读取本机字体列表吗？',
       detail:
-        '只会读取已安装字体的名称，用于大播放器、点歌板风格 3–6、桌面歌词和弹幕姬的字体选择；不会读取字体文件、文件路径或字体内容。',
+        '只会读取已安装字体的名称，用于大播放器、点歌板风格 3–6、直播歌词和弹幕姬的字体选择；不会读取字体文件、文件路径或字体内容。',
       buttons: ['允许', '取消'],
       defaultId: 0,
       cancelId: 1,

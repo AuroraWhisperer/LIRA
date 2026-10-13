@@ -129,6 +129,7 @@ async function fixture(initial = state()) {
   let pending = null;
   const calls = [];
   const notices = [];
+  const copied = [];
   const timers = new Map();
   let nextTimer = 0;
   const { initLotteryWorkflow } = await loadModuleExports(
@@ -153,13 +154,14 @@ async function fixture(initial = state()) {
   );
   const controller = initLotteryWorkflow({
     querySelector: (selector) => elements.get(selector.match(/data-lottery-([\w-]+)/)[1]),
-  }, { notify: (message, options) => notices.push({ message, ...options }) });
+  }, { notify: (message, options) => notices.push({ message, ...options }), copy: async (text) => copied.push(text) });
   controller.setAuth({ available: true, loggedIn: true, busy: false });
   await settle();
   return {
     get,
     calls,
     notices,
+    copied,
     controller,
     timers,
     setState(next) {
@@ -197,6 +199,15 @@ test('lottery announces running task outcomes once but does not announce histori
   assert.equal(f.notices.length, 2);
   assert.equal(f.notices[1].type, 'warning');
   assert.match(f.notices[1].message, /7 位.*还差 3 位/);
+});
+
+test('copying winners includes all result pages and their Bilibili identities', async () => {
+  const f = await fixture(state(task(), result(7)));
+  f.get('copy-winners').dispatch('click');
+  await settle();
+  assert.equal(f.copied.length, 1);
+  assert.equal(f.copied[0].split('\n').length, 7);
+  assert.match(f.copied[0], /7\. 昵称7 · UID 107 · https:\/\/space.bilibili.com\/107/);
 });
 
 test('lottery polling errors notify once and disposed requests cannot announce outcomes', async (t) => {

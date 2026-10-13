@@ -17,7 +17,7 @@ test('admin state events render queue empty states and song data', () => {
   assert.match(source, /eventBus\.on\(\s*Events\.STATE_LOADED/);
   assert.match(source, /eventBus\.on\(\s*Events\.STATE_LOADED,\s*createAdminStateRenderer\(\{\s*renderGifts:/);
   assert.match(source, /eventBus\.on\(Events\.SONG_UPDATED/);
-  assert.match(source, /songPanel\.renderSongs\s*\(\s*songs\s*,\s*languages\s*,\s*artists\s*,\s*tags\s*,?\s*\)/);
+  assert.match(source, /songPanel\.renderSongs\s*\(\s*songs\s*,\s*languages\s*,\s*artists\s*,\s*tags\s*,\s*\{\s*complete\s*\}\s*\)/);
 });
 
 test('admin wires gift catalog updates into the overtime picker', () => {

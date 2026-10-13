@@ -273,6 +273,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   };
   const autosaveState = { textContent: '', className: '' };
   const resetListeners = new Map();
+  let confirmReset = false;
   const values = {
     desktopLyricFontFamily: 'Microsoft YaHei',
     desktopLyricFontWeight: '800',
@@ -357,6 +358,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
             }
             return Promise.resolve({ ok: true });
           },
+          dangerConfirm: async () => confirmReset,
         },
         forms: { bindRangePair() {} },
         desktopLyricPreview: { init() {}, applySettings() {} },
@@ -421,7 +423,10 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.match(autosaveState.className, /is-saved/);
 
   await new Promise((resolve) => setImmediate(resolve));
-  resetListeners.get('click')();
+  await resetListeners.get('click')();
+  assert.equal(apiCalls.length, 2, 'cancelled reset keeps the saved settings');
+  confirmReset = true;
+  await resetListeners.get('click')();
   assert.equal(apiCalls.length, 3);
   assert.equal(apiCalls[2].body.desktopLyricFontSize, '56');
   assert.equal(apiCalls[2].body.weSingLyricSource, 'qq');

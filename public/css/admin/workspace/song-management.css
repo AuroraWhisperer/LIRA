@@ -167,6 +167,74 @@
 
 .song-import-note {
   margin: 0;
+  flex: 1 1 32em;
+}
+
+.song-import-preview {
+  padding-block: 12px;
+  gap: 8px;
+  border-block: 1px solid var(--border);
+  scroll-margin-top: 72px;
+}
+
+.song-import-preview-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.song-import-preview-heading > p {
+  flex: 1 1 auto;
+}
+
+.song-import-input-actions > button,
+.song-import-preview-heading > button {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.song-import-preview :is(h3, p) {
+  margin: 0;
+}
+
+#importPage #songImportApplyBtn:disabled {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.song-import-details summary {
+  cursor: pointer;
+  font-size: var(--type-size-control);
+}
+
+.song-import-details > summary {
+  padding-block: 2px;
+  font-weight: var(--type-weight-semibold);
+}
+
+.song-import-pagination {
+  margin-block: 12px;
+}
+
+.song-import-table {
+  max-height: min(380px, 45vh);
+  overflow: auto;
+}
+
+.song-import-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-2);
+}
+
+.song-import-differences {
+  padding-top: 8px;
+  white-space: pre-wrap;
+  font-size: var(--type-size-control);
 }
 
 .song-import-help {

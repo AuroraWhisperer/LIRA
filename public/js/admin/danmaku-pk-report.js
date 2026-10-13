@@ -20,7 +20,7 @@ export function initDanmakuPkReport({
   }
   function confirmed(result) {
     if (result?.ok !== true || typeof result.enabled !== 'boolean') {
-      throw new Error('PK 播报设置未确认，请检查服务器连接和版本后重试。');
+      throw new Error('PK 播报设置未确认，请检查网络连接后重试；仍有问题时联系管理员。');
     }
     return result.enabled;
   }
@@ -48,7 +48,7 @@ export function initDanmakuPkReport({
       const message =
         writing && value === false
           ? '关闭尚未同步，服务器可能仍在播报；请刷新核对。'
-          : 'PK 播报功能暂不可用，请检查连接或升级服务器后刷新。';
+          : 'PK 播报功能暂不可用，请检查网络连接后重试；仍有问题时联系管理员。';
       if (writing) toast(message, { type: 'error' });
       else status.textContent = message;
     } finally {
@@ -65,7 +65,7 @@ export function initDanmakuPkReport({
       url = snapshot?.streamer?.songPageUrl;
     const next = snapshot?.state === 'authorized' && name ? JSON.stringify([name, url]) : '';
     if (next === owner) {
-      if (!owner) status.textContent = available ? '连接已授权账号后可设置 PK 播报' : '请升级桌面客户端后设置 PK 播报';
+      if (!owner) status.textContent = available ? '连接 LIRA 账号后可设置 PK 播报' : '请升级桌面客户端后设置 PK 播报';
       return;
     }
     owner = next;
@@ -74,7 +74,7 @@ export function initDanmakuPkReport({
     loaded = false;
     pending = false;
     controls();
-    status.textContent = available ? '连接已授权账号后可设置 PK 播报' : '请升级桌面客户端后设置 PK 播报';
+    status.textContent = available ? '连接 LIRA 账号后可设置 PK 播报' : '请升级桌面客户端后设置 PK 播报';
     reload();
   }
   toggle.addEventListener('change', () => {

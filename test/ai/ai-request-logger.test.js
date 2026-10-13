@@ -8,6 +8,19 @@ const path = require('node:path');
 const { createAiRequestLogger } = require('../../src/ai/request-logger');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 
+test('AI summary records only valid first-text timings, separately from total duration', async () => {
+  const records = [];
+  const logger = createAiRequestLogger({ appendLine: async (_stream, line) => { records.push(JSON.parse(line)); return true; } });
+  for (const firstTextMs of [700, 1200, undefined, null, 'private-text', -2, Infinity, NaN]) {
+    await logger.log({ type: 'request_succeeded', provider: 'doubao', purpose: 'generation', firstTextMs, durationMs: 2500 });
+  }
+  await logger.flush();
+  assert.equal(records.length, 1);
+  assert.equal(records[0].durationMaxMs, 2500);
+  assert.deepEqual(records[0].firstText, { count: 2, maxMs: 1200, buckets: { le250: 0, le1000: 1, le5000: 1, le15000: 0, over15000: 0 } });
+  assert.doesNotMatch(JSON.stringify(records), /private-text/);
+});
+
 test('AI errors continue after rotation with a fixed disk budget', async (t) => {
   const logDir = createScratchDirectory('ai-log-rotation-', t);
   const logger = createAiRequestLogger({ logDir, maxFileBytes: 2048 });

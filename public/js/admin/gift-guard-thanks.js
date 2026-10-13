@@ -12,6 +12,7 @@ import { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } from '../shared/scen
 
 const settingIds = GUARD_THANKS_EFFECTS.flatMap(({ prefix }) => [`${prefix}Enabled`, `${prefix}TextMode`]);
 const draftFields = new Set();
+const savingFields = new Set();
 let initialized = false;
 let currentSettings = {};
 const field = (effect, name) => document.getElementById(`${effect.prefix}${name}`);
@@ -23,8 +24,9 @@ export function initGuardThanks() {
   initialized = true;
   const markDraft = (event) => {
     if (!settingIds.includes(event.target.id)) return;
-    draftFields.add(event.target.id);
-    event.target.dataset.dirty = 'true';
+    const effect = GUARD_THANKS_EFFECTS.find(effect => event.target.id.startsWith(effect.prefix));
+    syncDraftFields(effect);
+    setStatus(effect, '', '');
   };
   for (const id of settingIds) document.getElementById(id).dataset.preserveDirty = 'true';
   panel.addEventListener('input', markDraft);
@@ -46,6 +48,19 @@ export function renderGuardThanks(settings = {}) {
     if (!draftFields.has(enabled.id)) enabled.checked = values.enabled;
     const text = field(effect, 'TextMode');
     if (!draftFields.has(text.id)) text.value = values.textMode;
+    syncDraftFields(effect);
+    if (field(effect, 'SaveState').dataset.state === 'pending') setStatus(effect, '', '');
+  }
+}
+
+function syncDraftFields(effect) {
+  const saved = readGuardThanksEffect(currentSettings, effect);
+  for (const [name, same] of [['Enabled', field(effect, 'Enabled').checked === saved.enabled],
+    ['TextMode', field(effect, 'TextMode').value === saved.textMode]]) {
+    const node = field(effect, name);
+    const dirty = savingFields.has(node.id) || !same;
+    if (dirty) draftFields.add(node.id); else draftFields.delete(node.id);
+    node.dataset.dirty = String(dirty);
   }
 }
 
@@ -105,36 +120,36 @@ async function saveSettings(effect) {
     [textKey]: field(effect, 'TextMode').value,
   };
   button.disabled = true;
+  for (const id of [enabledKey, textKey]) savingFields.add(id);
   setStatus(effect, '正在保存…', '');
   try {
     await api('/api/settings', submitted, { notifyError: false });
-    for (const id of [enabledKey, textKey]) {
-      const node = document.getElementById(id);
-      const current = id === enabledKey ? String(node.checked) : node.value;
-      if (current === submitted[id]) {
-        draftFields.delete(id);
-        node.dataset.dirty = 'false';
-      }
-    }
+    currentSettings = { ...currentSettings, ...submitted };
+    for (const id of [enabledKey, textKey]) savingFields.delete(id);
+    syncDraftFields(effect);
+    renderGuardThanks(currentSettings);
     const dirty = [enabledKey, textKey].some(id => draftFields.has(id));
     const message = dirty ? `${effect.label}设置已保存，刚才的新修改还没保存。`
       : `${effect.label}设置已保存，${submitted[enabledKey] === 'true' ? '已启用' : '已关闭'}。`;
     setStatus(effect, message, 'success');
     toast(message, { type: 'success' });
-    renderGuardThanks({ ...currentSettings, ...submitted });
   } catch (_) {
     const message = `${effect.label}设置没保存成功，修改还在，请再试一次。`;
     setStatus(effect, message, 'error');
     toast(message, { type: 'error' });
   } finally {
+    for (const id of [enabledKey, textKey]) savingFields.delete(id);
+    syncDraftFields(effect);
     button.disabled = false;
   }
 }
 
 function setStatus(effect, message, state) {
   const node = field(effect, 'SaveState');
-  node.textContent = message;
-  node.dataset.state = state;
+  const dirty = ['Enabled', 'TextMode'].some(name => draftFields.has(`${effect.prefix}${name}`));
+  node.textContent = dirty && !message.includes('保存')
+    ? `${message}${message ? ' ' : ''}有未保存修改，点击“保存设置”后生效。` : message;
+  node.dataset.state = state || (dirty ? 'pending' : '');
 }
 
 export function mountNauticalGuardToggle(host) {

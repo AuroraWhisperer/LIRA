@@ -1,9 +1,11 @@
-.song-management-panel:has(> #themePage.active) {
+.song-management-panel:has(> #themePage.active),
+.song-management-panel:has(> #songRequestPage.active) {
   flex: 0 0 auto;
   min-height: 0;
 }
 
-#themePage > .panel-body {
+#themePage > .panel-body,
+#songRequestPage > .panel-body {
   gap: var(--spacing-lg);
 }
 
