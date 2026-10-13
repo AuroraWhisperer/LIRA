@@ -4,7 +4,7 @@ const aliases = {
   name: ['歌曲名字', '歌曲名称', '歌名', '曲名', 'name', 'songName'],
   artist: ['原唱/首发歌手', '歌手', '演唱者', '原唱', 'artist', 'singer'],
   categoryName: ['歌曲分类', '类别', '分类', '分组', 'category', 'categoryName'],
-  tags: ['歌曲标签', '标签', 'tags', 'tag'],
+  tags: ['歌曲标签', '歌曲标签（如：怀旧、抒情、治愈）', '标签', 'tags', 'tag'],
   isEnabled: ['是否可点', '可点', '是否启用', '启用', 'isEnabled', 'enabled'],
   language: ['语言', '语种', 'language'],
   sourcePlatform: ['核对平台', '来源平台', '平台', '来源', 'sourcePlatform', 'source'],

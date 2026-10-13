@@ -1,20 +1,10 @@
 .song-management-panel:has(> #themePage.active) {
   flex: 0 0 auto;
   min-height: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.song-management-panel:has(> #themePage.active) > .tabs {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
 }
 
 #themePage > .panel-body {
   gap: var(--spacing-lg);
-  padding: 0;
 }
 
 #songRequestSettingsForm {

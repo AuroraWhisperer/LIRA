@@ -160,7 +160,7 @@ IPC 通道定义见 [preload.md](preload.md)。
 
 批次 C 将授权/目录就绪后的导航与恢复交给 [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js)。main 在创建主窗口后启动它，退出时先 dispose，再注销系统恢复监听、排空同步并关闭 runtime。就绪控制器拥有两类订阅及恢复代次；内部导航协作者独占 route 与 loadURL 代次。撤销、授权轮换或 dispose 后，等待中的云同步完成不能继续恢复旧授权工作；旧导航失败不能清除较新路由。
 
-模块初始化时先由 `desktop-user-data.js` 解析稳定目录并执行一次性旧 AppData 迁移，在业务数据根申请单实例锁后迁移浏览器/缓存，再设置 Electron `userData` 与 `sessionData`；迁移失败保留数据并停止启动，避免应用以空 profile 继续运行。`app.whenReady()` 后执行:
+模块初始化时先由 `desktop-user-data.js` 解析稳定目录。需要一次性旧 AppData 迁移时，先在来源业务数据根申请旧版单实例锁，持锁检查来源 runtime 已停止并完成复制/发布，随后释放来源锁；再在安装目录的业务数据根申请运行期单实例锁，迁移浏览器/缓存并设置 Electron `userData` 与 `sessionData`。迁移失败保留数据并停止启动，避免应用以空 profile 继续运行。`app.whenReady()` 后执行:
 
 1. `configureDesktopEnvironment()` — 创建迁移后的数据/日志目录、环境变量、terminal 日志、local-media 访问控制(§3/§5/§8)
 2. `migrateUserDataFromAppData()` — 旧 `%APPDATA%` 登录分区迁移(§3.2)
@@ -261,7 +261,7 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 程序替换完成后、启动新版前，安装器将备份恢复为 `<新安装目录>/data`。升级调用新版卸载器时保留 `data/`、`logs/`、`updates/`；普通卸载清理日志和更新文件，默认保留数据，只有勾选并确认后才删除用户数据，详见 [卸载策略](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。恢复失败保留备份并报告具体位置。Electron 发现未完成恢复的同级备份时拒绝启动后端，避免生成空库。
 
-只有本地 `data/` 不存在时，安装器和 `desktop-user-data.js` 才把 `%APPDATA%/com.aurorawhisperer.lira/data` 作为兼容来源，完整复制后发布到安装目录；已有本地目录优先，历史 AppData 副本保留，不再作为活动写入目标。启动侧迁移使用唯一 staging 目录，失败停止启动。更早期 `%APPDATA%/LIRA/Partitions/` 仍在目标缺失时兼容读取。授权私钥继续使用 `safeStorage`，文件位置改变不改变机器绑定或加密边界。决策见 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。Windows 注册表及安装解压使用的系统临时目录不属于客户端持久数据目录。
+只有本地 `data/` 不存在时，安装器和 `desktop-user-data.js` 才把 `%APPDATA%/com.aurorawhisperer.lira/data` 作为兼容来源，完整复制后发布到安装目录；已有本地目录优先，历史 AppData 副本保留，不再作为活动写入目标。启动侧迁移在复制前持有来源旧版单实例锁，并检查 `.server-runtime.json`；来源实例仍在运行、runtime 标记损坏或无法确认进程已退出时停止启动，不发布目标。来源锁一直保持到唯一 staging 目录完成复制和重命名，防止检查后旧客户端重新启动造成主库/WAL 不一致；进程锁文件不复制，成功与失败均释放来源锁，之后才申请安装目录的运行期锁。复制失败清理本次 staging、保留来源供重试；已有目标不获取来源锁，也不会被历史副本覆盖。更早期 `%APPDATA%/LIRA/Partitions/` 仍在目标缺失时兼容读取。授权私钥继续使用 `safeStorage`，文件位置改变不改变机器绑定或加密边界。决策见 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。Windows 注册表及安装解压使用的系统临时目录不属于客户端持久数据目录。
 
 ## 4. 主窗口
 
@@ -397,12 +397,18 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 | 文件                | 位置                                  | 写入者                                                                                                                      |
 | ------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `logs/terminal.log` | `logDir = path.dirname(dataDir)/logs` | `installTerminalLog` 包裹 console.info/warn/error；warn/error 及 `[Bilibili][Diagnostic] ` 前缀 info 镜像落盘，普通 info 不落盘；log/debug 保持原通道 |
-| `logs/desktop.log`  | 同目录                                | main.js `writeLog(scope, value)` — 生命周期、窗口、IPC、更新错误和播放状态等低频记录                                      |
+| `logs/terminal.log` | `logDir = path.dirname(dataDir)/logs` | `installTerminalLog` 保存 `[Bilibili][Diagnostic] ` 前缀 info；普通 info 不落盘，log/debug 保持原通道 |
+| `logs/desktop.log` | 同目录 | 生命周期、窗口、IPC 和播放状态等正常记录 |
+| `logs/errors/terminal.log` | 日志目录的 `errors/` | console.warn/error |
+| `logs/errors/desktop.log` | 同上 | Error 对象，warn/warning/error/failed/failure/fatal scope，页面错误、进程异常及启动失败 |
 
 出处:[main.js](../../../src/electron/main.js) 的 `configureDesktopEnvironment`(目录创建、`logRunId`、`installTerminalLog`)、[desktop-logger.js](../../../src/electron/desktop-logger.js) 的 `createDesktopLogger` / `writeLog`。日志目录位于 data 目录**父目录**下(data 目录树见 [storage.md](../backend/storage.md) §2)。
 
-行格式 `formatLogLine`([terminal-log.js](../../../src/electron/terminal-log.js)):`[ISO 时间] [run=<runId> seq=<n> pid=<pid> type=<processType>] [<source>] <message>`,消息内换行转义为 `\n`;`installTerminalLog` 返回恢复函数。A1 初始化不再清空 terminal.log；普通记录最终 UTF-8 最多 2 KiB、ERROR 最多 16 KiB，desktop.log/terminal.log 各达到 10 MiB 后停止新增。统一分流、轮转与跨重启预算属于后续阶段。所有日志写入失败静默(日志绝不干扰主流程)。
+行格式 `formatLogLine`([terminal-log.js](../../../src/electron/terminal-log.js)) 保留时间、runId、序号、PID、进程类型和 source，消息内换行转义；普通记录最终 UTF-8 最多 2 KiB、ERROR 最多 16 KiB。正常日志每文件 1 MiB，错误日志每文件 3 MiB，各保留活动文件和 `.1`、`.2` 两份归档；包含 AI 的六组受管理日志合计最多 36 MiB。满额轮转后继续写入，超大旧文件仅保留完整行尾部，拒绝符号链接或非普通文件目标，写入失败不干扰业务。
+
+[log-maintenance.js](../../../src/electron/log-maintenance.js) 在桌面启动及每小时维护：正常记录最多保留 3 天，错误/警告最多 14 天；时间和容量上限以先到者为准，不保证完整保留这段时间的全部记录。旧混合 desktop/terminal 日志先在容量范围内提取有效错误；旧 ai.log 只提取安全错误核心，不复制请求或响应正文，其待淘汰文件及两份归档额外最多 3 MiB。提取失败保留源记录待重试。无关文件不删除。六组日志的写入入口也按小时执行过期检查；退出释放维护定时器。
+
+每个桌面/终端 writer 的普通与错误预算分开：每分钟各最多 120 条，同一消息最多 5 条，下一个窗口出现记录时输出抑制数量。主进程致命错误不受普通预算阻挡。[desktop-diagnostics.js](../../../src/electron/desktop-diagnostics.js) 观察 `uncaughtExceptionMonitor`，不替换默认异常处理；只从精确本地应用 Origin 的 webContents/frame 收集 console warning/error（包括脚本异常和未处理 Promise）、预加载及页面加载失败。远程登录窗口只记录进程退出原因/退出码，不收集页面内容；webContents 销毁或应用退出释放监听。入口加载失败仍显示原提示，并尽力同步保存启动错误。原生崩溃、断电、磁盘写入失败仍不保证日志完整。真实 Electron 验证见 [desktop-diagnostics-electron.test.js](../../../test/desktop/desktop-diagnostics-electron.test.js)。
 
 已接入的日志输出(terminal.log 的 console 包裹与 desktop.log 的 `writeLog`)统一经 `src/shared/log-redaction.js` 的 `redactCredentials` 脱敏。terminal wrapper 在调用原 console **之前**按对象键脱敏参数，格式化后再脱敏拼接出的凭据字符串；同一安全消息用于原 console 与文件。格式化/脱敏失败只输出安全占位，写盘失败不回退原始参数。脱敏字段:`password`/`passwd`、`activationcode`、`pairingcode`、`fingerprint`、`hardwareid`(精确键名),`*apikey`/`*secret`/`*token`/`*signature`(键名后缀),包含 `privatekey` 的键名,`authorization`/`cookie` 头,以及 URL 查询参数中的同名键(大小写不敏感)。未包裹的 log/debug 或独立 Node 源日志仍需由各自 owner 在输出前保护；HTTP 错误路径只记录已解析 pathname，并脱敏 error/stack。
 

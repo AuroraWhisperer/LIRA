@@ -7,7 +7,8 @@ const { createShutdownHarness } = require('../helpers/electron-shutdown');
 
 test('main locks the durable root before migration and separates browser paths before ready', async () => {
   const h = createShutdownHarness();
-  const events = h.storageCalls;
+  assert.equal(h.storageCalls[0].type, 'legacy-check');
+  const events = h.storageCalls.slice(1);
   const root = events[0].value;
   assert.equal(events[0].name, 'userData');
   assert.equal(events[1].type, 'lock');
@@ -19,6 +20,15 @@ test('main locks the durable root before migration and separates browser paths b
   await h.start();
   assert.equal(h.state.paths.dataDir, root);
   assert.equal(h.state.paths.logDir, path.join(path.dirname(root), 'logs'));
+});
+
+test('a locked legacy source stops before target locking, profile migration or runtime startup', async () => {
+  const h = createShutdownHarness({ legacyMigrationError: new Error('Close the running LIRA before migrating legacy storage.') });
+  await h.start({ expectStartupError: true });
+  assert.match(h.startupErrors[0], /Close the running LIRA/);
+  assert.deepEqual(h.storageCalls, [{ type: 'legacy-check' }]);
+  assert.equal(h.count('runtime:start'), 0);
+  assert.equal(h.count('app:exit'), 1);
 });
 
 test('a second instance cannot move any profile or cache entries', async () => {

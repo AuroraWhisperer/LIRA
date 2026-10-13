@@ -83,6 +83,7 @@ const groups = {
     'desktop/desktop-request-auth-electron',
     'desktop/electron-data-layout',
     'desktop/electron-startup',
+    'desktop/desktop-diagnostics-electron',
     'desktop/local-instance-windows',
     'desktop/resource-lifecycle-electron',
     'desktop/resource-integrity-electron',

@@ -3,17 +3,21 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const util = require('node:util');
+const { createHash } = require('node:crypto');
+const { createLogRateLimit } = require('../shared/log-rate-limit');
 const { redactCredentials } = require('../shared/log-redaction');
-const { appendBoundedFileSync } = require('../shared/log-size-limit');
+const { appendBoundedFileSync, NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS } = require('../shared/log-size-limit');
 
 const TERMINAL_LOG_METHODS = ['info', 'warn', 'error'];
 const NORMAL_ENTRY_BYTES = 2 * 1024;
 const ERROR_ENTRY_BYTES = 16 * 1024;
-const LEGACY_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_FILE_BYTES = 1024 * 1024;
 
 function installTerminalLog(filePath, options = {}) {
   if (!filePath) return () => {};
   const context = normalizeLogContext(options);
+  const normalBudget = createLogRateLimit({ now: options.monotonicNow });
+  const errorBudget = createLogRateLimit({ now: options.monotonicNow });
 
   try {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -37,7 +41,9 @@ function installTerminalLog(filePath, options = {}) {
       if (method === 'info' && !(typeof args[0] === 'string' && args[0].startsWith('[Bilibili][Diagnostic] '))) {
         return;
       }
-      appendTerminalLine(filePath, message, method, context);
+      const budget = (method === 'error' ? errorBudget : normalBudget)(createHash('sha256').update(`${method}:${message}`).digest('hex'));
+      if (budget.suppressed) appendTerminalLine(filePath, `${budget.suppressed} repeated or excess entries suppressed`, 'warn', context);
+      if (budget.allowed) appendTerminalLine(filePath, message, method, context);
     };
     console[method] = wrapped;
     restorers.push(() => {
@@ -52,8 +58,9 @@ function installTerminalLog(filePath, options = {}) {
 
 function appendTerminalLine(filePath, message, method, context) {
   try {
+    const isError = method === 'error' || method === 'warn';
     appendBoundedFileSync(
-      filePath,
+      isError ? path.join(path.dirname(filePath), 'errors', path.basename(filePath)) : filePath,
       formatLogLine({
         timestamp: context.now(),
         runId: context.runId,
@@ -65,7 +72,8 @@ function appendTerminalLine(filePath, message, method, context) {
       }),
       {
         maxEntryBytes: method === 'error' ? ERROR_ENTRY_BYTES : NORMAL_ENTRY_BYTES,
-        maxFileBytes: context.maxFileBytes,
+        maxFileBytes: isError ? context.maxFileBytes * 3 : context.maxFileBytes,
+        maxAgeMs: isError ? ERROR_LOG_AGE_MS : NORMAL_LOG_AGE_MS,
       },
     );
   } catch (_) {
@@ -79,7 +87,7 @@ function normalizeLogContext(options) {
     runId: String(options.runId || 'unknown'),
     pid: Number(options.pid) || process.pid,
     processType: String(options.processType || process.type || 'node'),
-    maxFileBytes: Number(options.maxFileBytes) > 0 ? Number(options.maxFileBytes) : LEGACY_FILE_BYTES,
+    maxFileBytes: Number(options.maxFileBytes) > 0 ? Number(options.maxFileBytes) : MAX_FILE_BYTES,
     now: typeof options.now === 'function' ? options.now : () => new Date().toISOString(),
     nextSequence:
       typeof options.nextSequence === 'function'

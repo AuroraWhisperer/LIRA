@@ -6,6 +6,43 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { createAiRequestLogger } = require('../../src/ai/request-logger');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+
+test('AI errors continue after rotation with a fixed disk budget', async (t) => {
+  const logDir = createScratchDirectory('ai-log-rotation-', t);
+  const logger = createAiRequestLogger({ logDir, maxFileBytes: 2048 });
+  for (let index = 0; index < 20; index += 1) {
+    assert.equal(await logger.log({ type: 'request_failed', error: { message: `failure-${index}` } }), true);
+  }
+  await logger.flush();
+  const directory = path.join(logDir, 'errors');
+  const files = await fs.readdir(directory);
+  assert.deepEqual(files.sort(), ['ai.jsonl', 'ai.jsonl.1', 'ai.jsonl.2']);
+  for (const file of files) {
+    assert.ok((await fs.stat(path.join(directory, file))).size <= 2048);
+    for (const line of (await fs.readFile(path.join(directory, file), 'utf8')).trim().split('\n')) JSON.parse(line);
+  }
+  assert.match(await fs.readFile(path.join(directory, 'ai.jsonl'), 'utf8'), /failure-19/);
+  assert.equal(logger.getHealth().writeFailureEntries, 0);
+});
+
+test('AI repeated failures keep bounded detail and complete failure counts', async () => {
+  let now = 0;
+  const records = [];
+  const logger = createAiRequestLogger({
+    now: () => new Date(now),
+    appendLine: async (stream, line) => { records.push({ stream, record: JSON.parse(line) }); return true; },
+  });
+  const failure = { type: 'request_failed', error: { message: 'repeat failure' } };
+  for (let index = 0; index < 100; index += 1) await logger.log(failure);
+  assert.equal(records.filter(({ stream }) => stream === 'errors').length, 5);
+  assert.equal(logger.getHealth().suppressedErrorEntries, 95);
+  now += 60_000;
+  await logger.log(failure);
+  assert.equal(records.at(-1).record.suppressedSincePreviousWindow, 95);
+  await logger.flush();
+  assert.equal(records.find(({ stream }) => stream === 'runtime').record.failureCount, 101);
+});
 
 test('AI request logger appends one activity summary without prompt or response bodies', async (t) => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-request-log-'));

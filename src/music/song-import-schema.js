@@ -15,12 +15,16 @@ const SONG_EXPORT_HEADERS = [
   '核对备注',
 ];
 
+const SONG_TEMPLATE_HEADERS = SONG_EXPORT_HEADERS.map((header) =>
+  header === '歌曲标签' ? '歌曲标签（如：怀旧、抒情、治愈）' : header,
+);
+
 const SONG_IMPORT_ALIASES = {
   name: ['name', 'songName', '歌曲名字', '歌曲名称', '歌名', '曲名'],
   artist: ['artist', 'singer', '原唱/首发歌手', '歌手', '演唱者', '原唱'],
   categoryName: ['categoryName', 'category', '歌曲分类', '类别', '分类', '分组'],
   note: ['note', '核对备注', '备注', '说明'],
-  tags: ['tags', 'tag', '歌曲标签', '标签'],
+  tags: ['tags', 'tag', '歌曲标签', '标签', SONG_TEMPLATE_HEADERS[3]],
   isEnabled: ['isEnabled', 'enabled', '是否可点', '可点', '是否启用', '启用'],
   language: ['language', '语言', '语种'],
   sourcePlatform: ['sourcePlatform', 'source', '核对平台', '来源平台', '平台', '来源'],
@@ -66,6 +70,7 @@ function parseEnabled(value, defaultValue) {
 
 module.exports = {
   SONG_EXPORT_HEADERS,
+  SONG_TEMPLATE_HEADERS,
   SONG_IMPORT_ALIASES,
   normalizeImportedSongRow,
   firstValue,

@@ -24,7 +24,8 @@ test('console and file receive the same redacted formatted message', (t) => {
   console.info('ordinary /api/test?token=fake-unpersisted-secret');
   const error = new Error('/api/test?token=fake-stack-secret');
   console.error(error);
-  const persisted = fs.readFileSync(path.join(directory, 'terminal.log'), 'utf8');
+  const persisted = fs.readFileSync(path.join(directory, 'terminal.log'), 'utf8') +
+    fs.readFileSync(path.join(directory, 'errors', 'terminal.log'), 'utf8');
   for (const channel of [output.join('\n'), persisted]) {
     assert.doesNotMatch(channel, /fake-(?:format|object|info|unpersisted|stack)-secret/);
     assert.match(channel, /\[REDACTED\]/);
@@ -39,7 +40,8 @@ test('redaction or disk failures never fall back to raw console arguments', (t) 
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const output = [];
   t.mock.method(console, 'error', (...args) => output.push(util.format(...args)));
-  const restore = installTerminalLog(directory); // Cannot append a file over a directory.
+  fs.mkdirSync(path.join(directory, 'errors', 'terminal.log'), { recursive: true });
+  const restore = installTerminalLog(path.join(directory, 'terminal.log')); // Cannot append over a directory.
   t.after(restore);
   console.error('Authorization: Bearer fake-disk-secret');
   const cyclic = { token: 'fake-cycle-secret' };
@@ -81,7 +83,7 @@ test('preserves prior content and excludes ordinary info/debug output', () => {
     console.error('error line');
 
     assert.equal(
-      fs.readFileSync(filePath, 'utf8'),
+      fs.readFileSync(filePath, 'utf8') + fs.readFileSync(path.join(directory, 'errors', 'terminal.log'), 'utf8'),
       'old session\n' +
         '[2026-08-03T15:07:34.288Z] [run=run-test seq=1 pid=1234 type=browser] [terminal:warn] warning line\n' +
         '[2026-08-03T15:07:34.288Z] [run=run-test seq=2 pid=1234 type=browser] [terminal:error] error line\n',
@@ -132,7 +134,7 @@ test('bounds multibyte terminal errors after final UTF-8 encoding', () => {
     });
     console.error('错'.repeat(10000));
 
-    const content = fs.readFileSync(filePath, 'utf8');
+    const content = fs.readFileSync(path.join(directory, 'errors', 'terminal.log'), 'utf8');
     assert.ok(Buffer.byteLength(content, 'utf8') <= 16 * 1024);
     assert.match(content, /\[truncated\]/);
   } finally {

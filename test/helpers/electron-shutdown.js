@@ -98,7 +98,7 @@ function createShutdownHarness(options = {}) {
     releaseSingleInstanceLock: () => calls.push('app:release-lock'),
     relaunch: () => calls.push('app:relaunch'),
     exit(code) {
-      assert.equal(code, options.expectedExitCode ?? (options.recoveryDataDir || options.migrationError ? 1 : 0));
+      assert.equal(code, options.expectedExitCode ?? (options.recoveryDataDir || options.migrationError || options.legacyMigrationError ? 1 : 0));
       state.window.main?.destroy();
       calls.push('app:exit');
     },
@@ -273,12 +273,28 @@ function createShutdownHarness(options = {}) {
         writeLog: (scope, value) => logs.push({ scope, value }),
       }),
     },
+    './desktop-diagnostics': {
+      installDesktopDiagnostics() {
+        calls.push('diagnostics:install');
+        return () => calls.push('diagnostics:dispose');
+      },
+    },
+    './log-maintenance': {
+      installLogMaintenance() {
+        calls.push('log-maintenance:install');
+        return () => calls.push('log-maintenance:dispose');
+      },
+    },
     './desktop-user-data': {
       resolveDesktopUserDataPaths: () => ({
         ...require('../../src/shared/data-paths').resolveDataPaths(app.getPath()),
         recoveryDataDir: options.recoveryDataDir,
       }),
-      migrateLegacyUserData() {},
+      migrateLegacyUserData(migrationOptions) {
+        assert.equal(migrationOptions.app, app);
+        storageCalls.push({ type: 'legacy-check' });
+        if (options.legacyMigrationError) throw options.legacyMigrationError;
+      },
     },
     '../storage/data-directory-migration': {
       migrateBrowserData() {

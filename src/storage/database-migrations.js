@@ -109,6 +109,13 @@ function runAllMigrations(databases, options = {}) {
       migrateFanSongRetention,
       // v14：共享未编辑的自动大航海名单依据，保留每次观察的身份和日期。
       migrateFanRosterObservations,
+      // v15：粉丝档案级联删除按 profile_id 直接定位子表记录。
+      (db) => {
+        db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_fan_records_profile_id ON fan_records(profile_id);
+          CREATE INDEX IF NOT EXISTS idx_fan_reminder_states_profile_id ON fan_reminder_states(profile_id);
+        `);
+      },
     ]),
   );
 
@@ -340,6 +347,19 @@ function runAllMigrations(databases, options = {}) {
       migrateGiftWishTextColors,
       // v17: source-scoped summary snapshots and local retention contributions.
       migrateGiftRetention,
+      // v18: retained history orders active and staged rows as one time range.
+      (db) => {
+        db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_gift_events_retained_time
+            ON gift_events(source_id, created_at DESC, id DESC)
+            WHERE detection_status = 'final' AND status IN ('active','retention-staged')
+              AND total_price > 0 AND num >= 1;
+          CREATE INDEX IF NOT EXISTS idx_gift_events_retained_time_asc
+            ON gift_events(source_id, created_at ASC, id DESC)
+            WHERE detection_status = 'final' AND status IN ('active','retention-staged')
+              AND total_price > 0 AND num >= 1;
+        `);
+      },
     ]),
   );
 

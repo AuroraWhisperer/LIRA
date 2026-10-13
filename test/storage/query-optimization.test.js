@@ -26,19 +26,21 @@ function observe(db) {
   return { queries, prepare };
 }
 
-test('query indexes upgrade without changing rows and migrate idempotently', (t) => {
-  const versions = { song_db: 6, gift_db: 11 };
+function createVersionedFixture(t, versions) {
   const runMigrations = schema.runMigrations;
   const limitedMigrations = t.mock.method(schema, 'runMigrations', (db, key, steps) =>
     runMigrations(db, key, steps.slice(0, versions[key] ?? steps.length)),
   );
-  let f;
   try {
     // Build the old schema forwards; rewinding a current version leaves future tables and columns behind.
-    f = createFixture();
+    return createFixture();
   } finally {
     limitedMigrations.mock.restore();
   }
+}
+
+test('query indexes upgrade without changing rows and migrate idempotently', (t) => {
+  const f = createVersionedFixture(t, { song_db: 6, gift_db: 11 });
   t.after(() => f.close());
   const source = f.resolveSource('a'.repeat(64));
   f.insertGift(source.id, 'old');
@@ -81,6 +83,112 @@ test('query indexes upgrade without changing rows and migrate idempotently', (t)
       .join('\n');
     assert.match(plan, /idx_gift_events_source_recent/u);
     assert.doesNotMatch(plan, /TEMP B-TREE/u);
+  }
+});
+
+test('fan cascade indexes upgrade without ANALYZE and preserve scope data', (t) => {
+  const f = createVersionedFixture(t, { song_db: 14 });
+  t.after(() => f.close());
+  const db = f.databases.songDb;
+  const profile = db.prepare('INSERT INTO fan_profiles (id, scope, data, updated_at) VALUES (?, ?, ?, ?)');
+  const record = db.prepare(`INSERT INTO fan_records
+    (id, scope, profile_id, kind, occurred_at, data, original) VALUES (?, ?, ?, 'membership', ?, ?, ?)`);
+  const reminder = db.prepare(`INSERT INTO fan_reminder_states
+    (scope, profile_id, item_key, data) VALUES (?, ?, 'membership', ?)`);
+  for (const scope of ['first', 'second']) {
+    for (let i = 0; i < 2; i += 1) {
+      const id = `${scope}-${i}`;
+      profile.run(id, scope, JSON.stringify({ name: id }), '2026-10-13');
+      reminder.run(scope, id, JSON.stringify({ enabled: true }));
+      for (let j = 0; j < 2; j += 1) {
+        record.run(`${id}-${j}`, scope, id, '2026-10-13', JSON.stringify({ value: j }), '{}');
+      }
+    }
+  }
+  const tables = ['fan_profiles', 'fan_records', 'fan_reminder_states'];
+  const before = tables.map((table) => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all());
+  assert.equal(schema.getSchemaVersion(db, 'song_db'), 14);
+  runAllMigrations(f.databases);
+  runAllMigrations(f.databases);
+  assert.equal(db.prepare("SELECT 1 FROM sqlite_schema WHERE name = 'sqlite_stat1'").get(), undefined);
+  assert.equal(db.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
+  for (const [i, table] of tables.entries()) {
+    assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(), before[i]);
+  }
+  assert.ok(db.prepare("SELECT 1 FROM sqlite_schema WHERE name = 'idx_fan_records_profile'").get());
+  const plan = db.prepare('EXPLAIN QUERY PLAN DELETE FROM fan_profiles WHERE scope = ?')
+    .all('first').map((row) => row.detail).join('\n');
+  assert.match(plan, /SEARCH fan_records USING COVERING INDEX idx_fan_records_profile_id \(profile_id=\?\)/u);
+  assert.match(plan, /SEARCH fan_reminder_states USING COVERING INDEX idx_fan_reminder_states_profile_id \(profile_id=\?\)/u);
+  assert.doesNotMatch(plan, /SCAN fan_(records|reminder_states)/u);
+  assert.equal(schema.getSchemaVersion(db, 'song_db'), 15);
+  db.prepare('DELETE FROM fan_profiles WHERE scope = ?').run('first');
+  for (const [i, table] of tables.entries()) {
+    assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
+      before[i].filter((row) => row.scope === 'second'));
+  }
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+});
+
+test('retained history upgrades without ANALYZE and seeks both time directions across statuses', (t) => {
+  const f = createVersionedFixture(t, { gift_db: 17 });
+  t.after(() => f.close());
+  const source = f.resolveSource('a'.repeat(64));
+  const other = f.resolveSource('b'.repeat(64));
+  const detailStart = '2026-09-01T12:00:03.000Z';
+  const asOf = '2026-09-02T00:00:00.000Z';
+  const expected = [];
+  f.giftDb.exec('BEGIN');
+  const snapshotId = f.giftDb.prepare(`INSERT INTO gift_retention_snapshots
+    (source_id, projection_generation, sync_epoch, revision, base_revision, covered_cursor,
+     detail_start, phase, updated_at)
+    VALUES (?, 1, 'epoch-1', 1, 0, 0, ?, 'active', ?)`).run(source.id, detailStart, asOf).lastInsertRowid;
+  f.giftDb.prepare('UPDATE gift_retention_snapshots SET member_snapshot_id = ? WHERE id = ?')
+    .run(snapshotId, snapshotId);
+  f.giftDb.prepare('INSERT INTO gift_retention_state (source_id, active_snapshot_id) VALUES (?, ?)')
+    .run(source.id, snapshotId);
+  for (let i = 0; i < 540; i += 1) {
+    const createdAt = new Date(Date.parse('2026-09-01T12:00:00.000Z') + Math.floor(i / 6) * 1000).toISOString();
+    const status = ['active', 'retention-staged', 'hidden'][i % 3];
+    const detectionStatus = i % 17 === 0 ? 'progress' : 'final';
+    const { lastInsertRowid: id } = f.insertGift(source.id, `event-${i}`, { createdAt, status, detectionStatus });
+    f.insertGift(other.id, `other-${i}`, { createdAt, status });
+    if (i % 7 === 0) f.giftDb.prepare('DELETE FROM gift_retention_members WHERE event_id = ?').run(id);
+    if (i % 7 !== 0 && status !== 'hidden' && detectionStatus === 'final' && createdAt >= detailStart) {
+      expected.push({ id: Number(id), created_at: createdAt });
+    }
+  }
+  f.giftDb.exec('COMMIT');
+  const originalRows = f.giftDb.prepare('SELECT * FROM gift_events ORDER BY id').all();
+  const originalMembers = f.giftDb.prepare('SELECT * FROM gift_retention_members ORDER BY event_id').all();
+  runAllMigrations(f.databases);
+  runAllMigrations(f.databases);
+  assert.deepEqual(f.giftDb.prepare('SELECT * FROM gift_events ORDER BY id').all(), originalRows);
+  assert.deepEqual(f.giftDb.prepare('SELECT * FROM gift_retention_members ORDER BY event_id').all(), originalMembers);
+  assert.equal(f.giftDb.prepare("SELECT 1 FROM sqlite_schema WHERE name = 'sqlite_stat1'").get(), undefined);
+  const { queries, prepare } = observe(f.giftDb);
+  const store = createGiftQueryStore(f.giftDb);
+  for (const sortDirection of ['asc', 'desc']) {
+    const sorted = [...expected].sort((a, b) =>
+      (sortDirection === 'asc' ? 1 : -1) * a.created_at.localeCompare(b.created_at) || b.id - a.id);
+    const actual = [];
+    let cursor;
+    queries.length = 0;
+    while (true) {
+      const rows = store.listHistory({ sourceId: source.id, asOf, sortDirection, cursor, limit: 4 });
+      actual.push(...rows.map((row) => row.id));
+      if (!rows.length) break;
+      cursor = { sortValue: rows.at(-1).history_sort_value, id: rows.at(-1).id };
+    }
+    assert.deepEqual(actual, sorted.map((row) => row.id));
+    const historyQueries = queries.filter(({ sql }) => /SELECT g\.\*/u.test(sql));
+    assert.ok(historyQueries.some(({ sql }) => /g\.created_at = \?/u.test(sql)));
+    assert.ok(historyQueries.some(({ sql }) => /g\.created_at [<>] \?/u.test(sql)));
+    for (const { sql, params } of historyQueries) {
+      const plan = prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params).map((row) => row.detail).join('\n');
+      assert.match(plan, /SEARCH g USING INDEX .*source_id=\?.*created_at/u);
+      assert.doesNotMatch(plan, /TEMP B-TREE/u);
+    }
   }
 });
 

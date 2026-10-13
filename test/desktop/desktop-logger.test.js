@@ -20,7 +20,8 @@ test('desktop logger bounds normal and error entries after UTF-8 encoding', (t) 
   const error = new Error('错'.repeat(10000));
   logger.writeLog('provider-error', error);
 
-  const lines = fs.readFileSync(filePath, 'utf8').trimEnd().split('\n');
+  const lines = [fs.readFileSync(filePath, 'utf8').trimEnd(),
+    fs.readFileSync(path.join(directory, 'errors', 'desktop.log'), 'utf8').trimEnd()];
   assert.equal(lines.length, 2);
   assert.ok(Buffer.byteLength(`${lines[0]}\n`, 'utf8') <= 2 * 1024);
   assert.ok(Buffer.byteLength(`${lines[1]}\n`, 'utf8') <= 16 * 1024);
@@ -28,7 +29,7 @@ test('desktop logger bounds normal and error entries after UTF-8 encoding', (t) 
   assert.match(lines[1], /\[truncated\]/);
 });
 
-test('desktop logger never grows a full compatibility file', (t) => {
+test('desktop logger rotates a full file and keeps the new diagnostic', (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-log-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'desktop.log');
@@ -39,9 +40,11 @@ test('desktop logger never grows a full compatibility file', (t) => {
     maxFileBytes: 128,
   });
 
-  logger.writeLog('status', 'must not be appended');
+  logger.writeLog('status', 'new diagnostic');
 
-  assert.equal(fs.statSync(filePath).size, 128);
+  assert.ok(fs.statSync(filePath).size <= 128);
+  assert.equal(fs.readFileSync(`${filePath}.1`, 'utf8'), 'x'.repeat(128));
+  assert.match(fs.readFileSync(filePath, 'utf8'), /new diagnostic/);
 });
 
 test('desktop logger handles circular diagnostic data without throwing', (t) => {

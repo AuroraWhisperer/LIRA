@@ -3,7 +3,7 @@
 'use strict';
 
 const { sendJson, sendCsv, sendBuffer } = require('../http-utils');
-const { buildSongsCsv, buildSongsWorkbook, parseSongsFromXlsx, templateSongs } = require('../../music/song-file-codec');
+const { buildSongsCsv, buildSongsWorkbook, parseSongsFromXlsx } = require('../../music/song-file-codec');
 
 const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const prefixes = ['/api/songs', '/api/categories'];
@@ -71,11 +71,11 @@ const routes = {
   },
 
   'GET /api/songs/template.csv'(context, request, res) {
-    sendCsv(res, 'song-import-template.csv', `\uFEFF${buildSongsCsv(templateSongs())}\n`);
+    sendCsv(res, 'song-import-template.csv', `\uFEFF${buildSongsCsv([], { template: true })}\n`);
   },
 
   'GET /api/songs/template.xlsx'(context, request, res) {
-    sendBuffer(res, 200, XLSX_CONTENT_TYPE, 'song-import-template.xlsx', buildSongsWorkbook(templateSongs()));
+    sendBuffer(res, 200, XLSX_CONTENT_TYPE, 'song-import-template.xlsx', buildSongsWorkbook([], { template: true }));
   },
 
   'GET /api/songs/export.csv'(context, request, res) {

@@ -142,6 +142,8 @@ test('an interrupted installation cannot start an empty backend', async () => {
 });
 
 function assertFinalized(harness, restart) {
+  assert.equal(harness.count('diagnostics:dispose'), harness.count('diagnostics:install'));
+  assert.equal(harness.count('log-maintenance:dispose'), harness.count('log-maintenance:install'));
   assert.equal(harness.count('license:dispose'), 1);
   assert.equal(harness.count('app:release-lock'), 1);
   assert.equal(harness.count('app:relaunch'), restart ? 1 : 0);

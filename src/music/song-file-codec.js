@@ -9,7 +9,7 @@ const {
   parseSharedStrings,
   parseWorksheetXml,
 } = require('../shared/xlsx-codec');
-const { SONG_EXPORT_HEADERS, SONG_IMPORT_ALIASES, firstValue } = require('./song-import-schema');
+const { SONG_EXPORT_HEADERS, SONG_TEMPLATE_HEADERS, SONG_IMPORT_ALIASES, firstValue } = require('./song-import-schema');
 
 function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
   if (!buffer.length) throw new Error('Excel 文件为空。');
@@ -60,8 +60,8 @@ function songToExportRow(song) {
   ];
 }
 
-function buildSongsCsv(rows) {
-  return [SONG_EXPORT_HEADERS.join(',')]
+function buildSongsCsv(rows, { template = false } = {}) {
+  return [(template ? SONG_TEMPLATE_HEADERS : SONG_EXPORT_HEADERS).join(',')]
     .concat(rows.map((song) => songToExportRow(song).map(songCsvCell).join(',')))
     .join('\n');
 }
@@ -77,61 +77,8 @@ function songCsvCell(value) {
   return cell.startsWith('"') ? cell : `"${cell}"`;
 }
 
-function templateSongs() {
-  return [
-    {
-      name: '晴天',
-      artist: '周杰伦',
-      category_name: '流行',
-      tags: '怀旧,抒情,治愈',
-      is_enabled: true,
-      language: '国语',
-      source_platform: 'QQ音乐 / 网易云音乐',
-      note: '',
-      request_price: '免费',
-      song_clip: '',
-    },
-    {
-      name: '小幸运',
-      artist: '田馥甄',
-      category_name: '流行',
-      tags: '抒情,治愈',
-      is_enabled: true,
-      language: '国语',
-      source_platform: 'QQ音乐 / 网易云音乐',
-      note: '',
-      request_price: '30元SC',
-      song_clip: '',
-    },
-    {
-      name: '红豆',
-      artist: '王菲',
-      category_name: '流行',
-      is_enabled: true,
-      language: '国语',
-      request_price: '舰长',
-    },
-    {
-      name: '后来',
-      artist: '刘若英',
-      category_name: '流行',
-      is_enabled: true,
-      language: '国语',
-      request_price: '提督',
-    },
-    {
-      name: '遇见',
-      artist: '孙燕姿',
-      category_name: '流行',
-      is_enabled: true,
-      language: '国语',
-      request_price: '总督',
-    },
-  ];
-}
-
-function buildSongsWorkbook(rows) {
-  const tableRows = [SONG_EXPORT_HEADERS].concat(rows.map(songToExportRow));
+function buildSongsWorkbook(rows, { template = false } = {}) {
+  const tableRows = [template ? SONG_TEMPLATE_HEADERS : SONG_EXPORT_HEADERS].concat(rows.map(songToExportRow));
   const sheetRows = tableRows
     .map((row, rowIndex) => {
       const rowNumber = rowIndex + 1;
@@ -158,7 +105,8 @@ function buildSongsWorkbook(rows) {
     '<cols><col min="1" max="1" width="24" customWidth="1"/>' +
     '<col min="2" max="2" width="18" customWidth="1"/>' +
     '<col min="3" max="3" width="16" customWidth="1"/>' +
-    '<col min="4" max="8" width="20" customWidth="1"/>' +
+    `<col min="4" max="4" width="${template ? 44 : 20}" customWidth="1"/>` +
+    '<col min="5" max="8" width="20" customWidth="1"/>' +
     '<col min="9" max="9" width="32" customWidth="1"/>' +
     '<col min="10" max="10" width="20" customWidth="1"/></cols>\n' +
     '<sheetData>' +
@@ -194,6 +142,5 @@ module.exports = {
   parseSongsFromXlsx,
   buildSongsCsv,
   buildSongsWorkbook,
-  templateSongs,
   songToExportRow,
 };

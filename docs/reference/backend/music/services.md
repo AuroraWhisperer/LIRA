@@ -319,6 +319,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 `SONG_EXPORT_HEADERS` 10 列([song-import-schema.js:5-16](../../../../src/music/song-import-schema.js#L5-L16)):`歌曲名字 / 原唱/首发歌手 / 歌曲分类 / 歌曲标签 / 是否可点 / 语言 / 点歌价格 / 歌切 / 核对平台 / 核对备注`。`点歌价格` 是自由文本说明，例如 `免费 / 心动 / 30元SC / 舰长 / 冠歌`;`歌切` 是可放链接、BV 号、时间点或其他说明的自由文本。两列均不参与点歌资格或排序判断。
 
+下载模板使用 `SONG_TEMPLATE_HEADERS`，只将标签列表头改为 `歌曲标签（如：怀旧、抒情、治愈）`；其余列名与顺序沿用导出表头。CSV/XLSX 模板仅含表头，不含示例歌曲。XLSX 标签列加宽以容纳提示。后端导入和前端 CSV/TSV/粘贴解析均接受该表头别名，普通歌库导出的表头不变。
+
 `SONG_IMPORT_ALIASES` 每字段维护中英文别名([song-import-schema.js](../../../../src/music/song-import-schema.js));`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求 / 点歌条件 / 点歌说明`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。价格所有非空别名经文本规范化后必须相同，否则该数据行失败；其他字段的 `firstValue` 仍按别名顺序取首个非空。`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集,未识别回退默认值。`normalizeImportedSongRow` 产出清洗后的行,分类缺省"默认"，点歌价格与歌切均缺省空字符串。
 
 按 [点歌资料规范](../../../../specs/song-request-metadata.md)，价格和歌切在导入、保存中使用 `cleanTextPreserveLines`，保留内部空格和换行，统一 CRLF、去除控制字符及首尾空白；价格数值 0 变为文本 `0`。显式升级原先的空白折叠和价格首别名规则，其余字段不变。普通保存省略价格/歌切保留旧值，显式空字符串清空。
@@ -328,9 +330,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | 函数                         | 行为                                                                                                                                                                                                                                                                    |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析(`readZipFiles`):定位 `xl/worksheets/sheet\d+.xml`、读 `sharedStrings.xml`、`parseWorksheetXml`;表头检测 = 任一行单元格命中别名;默认新增模式无表头按导出列序解析、丢弃空歌名行；`preserveMissing:true` 预览导入保留无歌名的非空行交由预览报无效，保留缺列语义且无表头要求完整十列。 |
-| `buildSongsCsv(rows)`        | 表头 + `csvCell` 转义逐行                                                                                                                                                                                                                                               |
-| `buildSongsWorkbook(rows)`   | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels)                                                                                                                                                                                                   |
-| `templateSongs()`            | 五行示例数据，每首一个价格文本：晴天免费、小幸运30元SC、红豆舰长、后来提督、遇见总督；歌切留空，首行仍为十列表头 |
+| `buildSongsCsv(rows, options?)` | 表头 + `csvCell` 转义逐行；`template:true` 使用模板表头，下载模板传入空 rows |
+| `buildSongsWorkbook(rows, options?)` | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels)；`template:true` 使用模板表头及标签列宽，下载模板传入空 rows |
 | `songToExportRow(song)`      | 行映射(分类缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，`source_platform` → 核对平台保存值；阶段 4 显式替代空值规则) |
 
 `parseSongsFromXlsx(buffer,{preserveMissing:true})` 用于替换及兼容更新预览：保留无歌名的非空数据行供预览报无效，表头缺列不补为默认字段，无表头必须完整十列；默认新增解析行为不变。

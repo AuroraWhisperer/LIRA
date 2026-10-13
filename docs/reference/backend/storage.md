@@ -106,6 +106,8 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 
 `dataDir` 解析顺序:`runtimeOptions.dataDir` → 环境变量 `SONG_PLUGIN_DATA_DIR` → 仓库根 `data/`([runtime-config.js](../../../src/server/runtime-config.js));Electron 打包版使用 `<安装目录>/data`，首次安装有 D 盘时默认 `D:\LIRA\data`，无 D 盘时跟随原默认安装位置；开发版继续使用仓库根 `data/`，升级保留与旧 AppData 兼容读取见 [desktop/main.md](../desktop/main.md) §3。
 
+旧 AppData 目录的首次复制在来源业务根的 Electron 单实例锁内执行，并先确认来源服务已停止；复制成功后原子发布目标，再切换到目标业务根的实例锁。已有目标不覆盖，来源仍在使用或运行标记无效时中止迁移，原始数据保留。
+
 ```
 data/
 ├── song-request-data.db       # 点歌库(songs/queue/requests/settings/AI/主题/冷却)
@@ -164,6 +166,8 @@ data/
 | `fan_suppressions` | 当前 scope 黑名单的最小 typed identity 标记；屏蔽档案展示和写入，旧删除排除标记兼容 |
 | `fan_restore_snapshots` | scope 内恢复/合并之前的完整快照，只保留最新两份；恢复点操作校验归属 |
 
+songDb v15 为 `fan_records` 和 `fan_reminder_states` 分别增加 `idx_fan_records_profile_id`、`idx_fan_reminder_states_profile_id`，均以 `profile_id` 为索引键。父档案删除的外键级联由这些索引定位子行，不依赖 ANALYZE 后的 skip-scan；原有 scope 查询索引、外键和事务保持不变。
+
 `fan-profile-store.list(scope)` 默认排除黑名单，不额外读取每份档案的抑制状态；完整备份与恢复点替换显式传入 `{includeSuppressed:true}`。`get` / `byIdentity` 供内部身份匹配及备份使用，应用服务对详情、手动写入与自动写入执行黑名单规则。完整备份保留黑名单及被屏蔽的原资料，恢复时合并当前黑名单，仅 `unsuppress` 明确解除；黑名单不新增 schema。
 
 `requests` 保存 `stable_id`（唯一 UUID）、`owner_scope`、`identity_type` 和 v13 新增的 `fan_recorded`。普通点歌入队、更新档案歌曲汇总与标记已归档在同一事务提交；仍在队列中的请求通过稳定标识和标记避免重复计数。旧流水不猜归属，也不补记以前遗漏的档案记录。`done`、`deleted`、`skipped` 及清空队列会物理删除对应的 `queue` / `requests` 行，已计入档案的次数不扣除；`done` 只表示队列已处理。
@@ -182,9 +186,9 @@ songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-ro
 
 业务表见下表，各库另有一张 `schema_version`。文件常量 `DB_FILE_NAMES`、五个既有库的 DDL 与抽奖库 DDL 分别位于 [database.js](../../../src/storage/database.js)、[schema.js](../../../src/storage/schema.js) 和 [dynamic-lottery-schema.js](../../../src/storage/dynamic-lottery-schema.js)。
 
-### 3.1 song-request-data.db(点歌库,25 表)
+### 3.1 song-request-data.db(点歌库,26 表)
 
-其中六张粉丝档案表见本节前的专表；其余表如下。
+其中七张粉丝档案相关表（含 v14 名单模板）见本节前的专表；其余表如下。
 
 | 表                  | 用途                                                         | 关键列/索引                                                                                                                                                                                                                                                           |
 | ------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -219,7 +223,7 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 
 历史数据由 `migrateLegacySuperChatsToDedicatedDatabase` 从 songDb 旧表迁移后删表([legacy-superchat-migration.js](../../../src/storage/legacy-superchat-migration.js))。旧表的 `deleted` 行同样只转移 ID，已存在防重 ID 的消息不会因迁移重试恢复内容。
 
-### 3.3 gift-data.db(礼物库,8 表)
+### 3.3 gift-data.db(礼物库,16 表，含上文礼物保留表)
 
 | 表                       | 用途                                                                 | 关键列/索引                                                                                                                                                                                                                         |
 | ------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -285,9 +289,9 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 | 库          | key             | 版本  | 步骤内容                                                                                                                                                                                                                                                                                                                      |
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| songDb      | `song_db`       | v1-v14 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设；v11 区分预设与保留输出行，活动预设可空；v12 新增账号隔离的 song_cooldowns 最近入队时间，不回填旧流水；v13 将档案歌曲和保留的两份恢复点转换为汇总，新增 requests.fan_recorded 与 random_request_history，保留随机功能需要的最近记录后清理旧终态队列和流水；v14 新增 fan_roster_templates 与记录引用，无损去重自动名单的重复依据 |
+| songDb      | `song_db`       | v1-v15 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设；v11 区分预设与保留输出行，活动预设可空；v12 新增账号隔离的 song_cooldowns 最近入队时间，不回填旧流水；v13 将档案歌曲和保留的两份恢复点转换为汇总，新增 requests.fan_recorded 与 random_request_history，保留随机功能需要的最近记录后清理旧终态队列和流水；v14 新增 fan_roster_templates 与记录引用，无损去重自动名单的重复依据；v15 新增粉丝记录及提醒的 profile_id 外键索引 |
 | superChatDb | `super_chat_db` | v1-v2 | v1 基线；v2 新增最小防重 ID，删除旧 deleted 内容并覆盖后续删除路径 |
-| giftDb      | `gift_db`       | v1-v17 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度；v17 增加礼物保留快照、日汇总、准确去重键、本机归档及冲刺结转（见上文） |
+| giftDb      | `gift_db`       | v1-v18 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度；v17 增加礼物保留快照、日汇总、准确去重键、本机归档及冲刺结转（见上文）；v18 新增保留快照双状态的时间升序/降序部分索引 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | checkinDb   | `checkin_db`    | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | lotteryDb   | `lottery_db`    | v1–v2 | v1 新建九张抽奖业务表、身份/幂等/顺序唯一约束及查询索引；v2 为 `lottery_evidence` 增加可空 `display_name TEXT`，无默认值，历史行保持 `NULL`，不新增索引；独立失败边界，不加入原五库迁移事务                                                                                                                                                                                                                                      |
@@ -501,6 +505,8 @@ ADR [0011-source-partitioned-gift-ledger-projection](../../architecture/adr/0011
 ## 查询优化：song v7 / gift v12
 
 gift v12 的 `idx_gift_events_source_recent` 按 `(source_id, datetime(created_at) DESC, id DESC)` 索引 active、付费、final 且统计合格的记录，保留旧时间解释。`idx_gift_events_source_time_asc` 按 `(source_id, detection_status, status, created_at ASC, id DESC)` 补齐升序；降序继续使用 v8 索引。时间游标先取同时间较小 ID，再取严格早于/晚于游标的剩余记录，两段共用短读事务；同方向的日期边界合并为最严格值，避免 SQLite 从较宽的 asOf 开始扫描。
+
+gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_asc` 分别按 `(source_id, created_at DESC, id DESC)` / `(source_id, created_at ASC, id DESC)` 索引 final、`status IN ('active','retention-staged')`、`total_price > 0`、`num >= 1` 的记录。活动保留快照的两个状态共用连续时间顺序，无须先扫描两段状态再整段排序，也不依赖 ANALYZE；查询仍检查活动快照成员与 detail_start，同时间仍按 ID 降序。
 
 `gift-query-store.js` 的 `readHistoryPage` 在同一事务内读取总数和页面，按连接保留最多 64 个筛选计数。缓存包含来源、全部筛选/时间参数，并以 `total_changes()`、`data_version`、`schema_version` 失效；任何同连接写入或外部提交均需重新计数，只在成功提交后发布缓存。`asOf` 不承诺排除回填，跨页版本改变时返回当前读快照的新总数。缓存随数据库连接释放，不跨连接复用。
 

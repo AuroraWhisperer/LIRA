@@ -32,6 +32,8 @@ const { createRemoteGiftController } = require('./remote-gift-controller');
 const { createSceneCloudController, getSceneOwner, getComponentPreviewOwner } = require('./scene-cloud-controller');
 const { createDesktopReadinessController } = require('./desktop-readiness-controller');
 const { createDesktopLogger } = require('./desktop-logger');
+const { installDesktopDiagnostics } = require('./desktop-diagnostics');
+const { installLogMaintenance } = require('./log-maintenance');
 const { createDesktopRuntime } = require('./desktop-runtime');
 const { createDesktopUpdateController } = require('./desktop-update-controller');
 const { createDesktopState } = require('./desktop-state');
@@ -146,6 +148,8 @@ var fanProfileController = null;
 var disposeFanProfileIpc = null;
 var disposeDailyBotIpc = null;
 var plannerReminderController = null;
+var disposeDiagnostics = null;
+var disposeLogMaintenance = null;
 var disposePlannerReminderIpc = null;
 const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 
@@ -178,11 +182,12 @@ try {
     throw new Error('上次安装的数据尚未恢复，请重新运行安装包。数据保留在：' + desktopUserDataPaths.recoveryDataDir);
   }
   userDataMigrationState.migration = migrateLegacyUserData({
+    app,
     sourceDir: desktopUserDataPaths.legacyDataDir,
     targetDir: desktopUserDataPaths.dataDir,
   });
   fs.mkdirSync(desktopUserDataPaths.dataDir, { recursive: true });
-  // Keep the lock identity shared with old releases before relocating the profile.
+  // The legacy source lock is released; installed releases share this root lock.
   app.setPath('userData', desktopUserDataPaths.dataDir);
   gotInstanceLock = app.requestSingleInstanceLock();
   if (gotInstanceLock) {
@@ -282,6 +287,8 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
     } catch (error) {
       logError(error);
     } finally {
+      disposeDiagnostics?.();
+      disposeLogMaintenance?.();
       app.exit(exitCode);
       resolve();
     }
@@ -688,12 +695,14 @@ function configureDesktopEnvironment() {
   fs.mkdirSync(pathState.logDir, { recursive: true });
   loggingState.runId = crypto.randomUUID();
   loggingState.sequence = 0;
+  disposeLogMaintenance = installLogMaintenance(pathState.logDir);
   installTerminalLog(pathState.terminalLogFile, {
     runId: loggingState.runId,
     pid: process.pid,
     processType: process.type || 'browser',
     nextSequence: nextLogSequence,
   });
+  disposeDiagnostics = installDesktopDiagnostics({ app, writeLog, getBaseUrl: () => windowState.baseUrl });
   writeLog('lifecycle', {
     event: 'START',
     dataDir: pathState.dataDir,

@@ -1,15 +1,16 @@
 'use strict';
 
-const fs = require('node:fs/promises');
 const path = require('node:path');
 const { redactCredentials } = require('../shared/log-redaction');
-const { truncateUtf8 } = require('../shared/log-size-limit');
+const { truncateUtf8, appendBoundedFileSync, NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS } = require('../shared/log-size-limit');
+const { createLogRateLimit } = require('../shared/log-rate-limit');
+const { createHash } = require('node:crypto');
 
 const SUMMARY_WINDOW_MS = 15 * 60 * 1000;
 const NORMAL_ENTRY_BYTES = 2 * 1024;
 const ERROR_ENTRY_BYTES = 16 * 1024;
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const RUNTIME_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_FILE_BYTES = 3 * 1024 * 1024;
+const RUNTIME_FILE_BYTES = 1024 * 1024;
 const MAX_SUMMARY_GROUPS = 128;
 const MAX_QUEUE_ENTRIES = 2000;
 const MAX_QUEUE_BYTES = 4 * 1024 * 1024;
@@ -40,6 +41,7 @@ function createAiRequestLogger(options = {}) {
   const errorFileBytes = positiveNumber(options.maxFileBytes, MAX_FILE_BYTES);
   const appendLine = options.appendLine || appendToCompatibilityFile;
   const summaries = new Map();
+  const admitError = createLogRateLimit({ now: () => new Date(now()).getTime() });
   const health = {
     queuedEntries: 0,
     queuedBytes: 0,
@@ -47,6 +49,7 @@ function createAiRequestLogger(options = {}) {
     droppedCapacityEntries: 0,
     writeFailureEntries: 0,
     overflowGroupEvents: 0,
+    suppressedErrorEntries: 0,
   };
   let pendingWrite = Promise.resolve();
   let summaryTimer = null;
@@ -61,6 +64,14 @@ function createAiRequestLogger(options = {}) {
 
     recordSummary(event, timestamp, false, logOptions.secrets);
     const record = createFailureRecord(event, timestamp, logOptions.secrets);
+    const budget = admitError(createHash('sha256').update(JSON.stringify({
+      provider: record.provider, model: record.model, purpose: record.purpose, error: record.error,
+    })).digest('hex'));
+    if (!budget.allowed) {
+      health.suppressedErrorEntries += 1;
+      return Promise.resolve(false);
+    }
+    if (budget.suppressed) record.suppressedSincePreviousWindow = budget.suppressed;
     return enqueue('errors', encodeRecord(record, ERROR_ENTRY_BYTES));
   }
 
@@ -194,19 +205,12 @@ function createAiRequestLogger(options = {}) {
   }
 
   async function appendToCompatibilityFile(_stream, line, writeOptions) {
-    await fs.mkdir(path.dirname(writeOptions.filePath), { recursive: true });
-    let currentBytes = 0;
-    try {
-      const stat = await fs.lstat(writeOptions.filePath);
-      if (stat.isSymbolicLink() || !stat.isFile()) return false;
-      currentBytes = stat.size;
-    } catch (error) {
-      if (error?.code !== 'ENOENT') throw error;
-    }
-    if (currentBytes + Buffer.byteLength(line, 'utf8') > writeOptions.maxFileBytes) {
-      return false;
-    }
-    await fs.appendFile(writeOptions.filePath, line, 'utf8');
+    const result = appendBoundedFileSync(writeOptions.filePath, line, {
+      maxEntryBytes: ERROR_ENTRY_BYTES, maxFileBytes: writeOptions.maxFileBytes,
+      maxAgeMs: _stream === 'errors' || !logDir ? ERROR_LOG_AGE_MS : NORMAL_LOG_AGE_MS,
+      now: new Date(now()).getTime(),
+    });
+    if (!result.written) throw new Error(result.reason);
     return true;
   }
 

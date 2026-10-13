@@ -153,4 +153,4 @@ function writeJournal(fileSystem, journalPath, journal) {
   }
 }
 
-module.exports = { migrateBrowserData, migrateCacheData };
+module.exports = { assertRuntimeStopped, migrateBrowserData, migrateCacheData };

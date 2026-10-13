@@ -16,6 +16,12 @@
 
 状态与剩余步骤只在 [签名接入计划](windows-code-signing.md) 维护；当前工具契约见 [签名参考](../../docs/reference/engineering/code-signing.md)。
 
+### A3. 数据库运行验证后续
+
+- 桌面存储 owner：定位 Windows 对旧 `music-api-cache` 目录 rename 的偶发 EPERM 占用者。既有 journal 可恢复且数据完整，但当前证据未确定原因；不以另一轮测试通过宣称已解决。
+- 服务端 gift retention owner：开启物理删除前，核对 `src/storage/gift-retention-store.js` 中全账本完整性检查、保护资格筛选和旧事件筛选的批次读取成本。汇总扫描已修复，独立物理回收路径仍需规模验证；本次没有启用默认关闭的删除开关。
+- 来源与验证：[数据库修复记录](archive/2026-10-13-database-audit-fixes.md#实际验证与交付边界)。
+
 ### B8. 客户端资源自检的正式签名安装验收
 
 - 待做：在正式签名安装包的隔离安装环境完成尚缺的实机验收，核对签名后的资源清单、实际安装资源与 AC01–AC15 的最终闭环证据。

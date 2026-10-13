@@ -15,7 +15,7 @@ test('Electron startup reports load failures and exits instead of remaining in t
   skip: process.platform !== 'win32',
   timeout: 30000,
 }, async (t) => {
-  for (const scenario of ['missing-dependency', 'report-failure', 'loaded']) {
+  for (const scenario of ['missing-dependency', 'missing-diagnostics', 'report-failure', 'loaded']) {
     await t.test(scenario, async () => {
       const directory = createScratchDirectory('electron-startup-');
       const report = path.join(directory, 'report.json');
@@ -44,6 +44,12 @@ test('Electron startup reports load failures and exits instead of remaining in t
         });
         const load = Module._load;
         Module._load = function (request, parent, isMain) {
+          if (request === './desktop-logger' && scenario === 'missing-diagnostics' && parent.filename === ${JSON.stringify(entry)}) {
+            throw new Error('fixture diagnostic unavailable');
+          }
+          if (request === './desktop-user-data' && parent.filename === ${JSON.stringify(entry)}) {
+            return { resolveDesktopUserDataPaths: () => ({ logDir: path.join(directory, 'logs') }) };
+          }
           if (Module._resolveFilename(request, parent) === ${JSON.stringify(main)}) {
             if (scenario !== 'loaded') return require('./missing-startup-dependency');
             app.whenReady().then(() => app.exit(0));
@@ -75,6 +81,13 @@ test('Electron startup reports load failures and exits instead of remaining in t
           assert.equal(messages[0].title, 'LIRA 启动失败');
           assert.match(messages[0].message, /missing-startup-dependency/);
           assert.match(messages[0].message, /重新安装/);
+          if (scenario === 'missing-diagnostics') {
+            assert.match(messages[0].message, /启动日志未能保存/);
+          } else {
+            const diagnostic = fs.readFileSync(path.join(directory, 'logs', 'errors', 'desktop.log'), 'utf8');
+            assert.match(diagnostic, /desktop:startup-error/);
+            assert.match(diagnostic, /missing-startup-dependency/);
+          }
         }
       } finally {
         clearTimeout(timer);

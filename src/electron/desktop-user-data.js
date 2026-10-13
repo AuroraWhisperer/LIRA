@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { resolveDataPaths } = require('../shared/data-paths');
+const { assertRuntimeStopped } = require('../storage/data-directory-migration');
 
 // Compatibility source used by releases that stored data outside the installation.
 const PACKAGED_USER_DATA_DIR_NAME = 'com.aurorawhisperer.lira';
@@ -28,8 +29,9 @@ function resolveDesktopUserDataPaths(options) {
 }
 
 /**
- * Publish a complete legacy directory without overwriting an existing target.
- * @param {{sourceDir: string, targetDir: string, fileSystem?: typeof fs}} options
+ * Hold the legacy instance lock until its complete directory has been published.
+ * Call before acquiring the destination's instance lock or opening databases.
+ * @param {{app: import('electron').App, sourceDir: string, targetDir: string, fileSystem?: typeof fs}} options
  * @returns {{status: string, sourceDir?: string, targetDir?: string}}
  */
 function migrateLegacyUserData(options) {
@@ -43,10 +45,22 @@ function migrateLegacyUserData(options) {
 
   const migrationId = crypto.randomUUID();
   const stagingDir = path.join(path.dirname(targetDir), `.${path.basename(targetDir)}.migration-${migrationId}`);
+  const singletonFiles = new Set(['lockfile', 'SingletonLock', 'SingletonSocket', 'SingletonCookie']
+    .map((name) => path.join(sourceDir, name)));
+  const { app } = options;
+  if (app.hasSingleInstanceLock()) throw new Error('Legacy migration must run before acquiring the destination lock.');
+  // Old AppData releases use this exact data root as their singleton identity.
+  // Keeping that lock through publication prevents a restart after the PID check.
+  app.setPath('userData', sourceDir);
+  if (!app.requestSingleInstanceLock()) throw new Error('Close the running LIRA before migrating legacy storage.');
 
-  fileSystem.mkdirSync(path.dirname(targetDir), { recursive: true });
   try {
-    fileSystem.cpSync(sourceDir, stagingDir, { recursive: true });
+    assertRuntimeStopped(fileSystem, sourceDir);
+    fileSystem.mkdirSync(path.dirname(targetDir), { recursive: true });
+    fileSystem.cpSync(sourceDir, stagingDir, {
+      recursive: true,
+      filter: (entry) => !singletonFiles.has(entry),
+    });
     fileSystem.renameSync(stagingDir, targetDir);
   } catch (error) {
     if (fileSystem.existsSync(targetDir)) {
@@ -56,6 +70,8 @@ function migrateLegacyUserData(options) {
 
     removeStagingDirectory(fileSystem, stagingDir);
     throw error;
+  } finally {
+    app.releaseSingleInstanceLock();
   }
 
   return { status: 'migrated', sourceDir, targetDir };

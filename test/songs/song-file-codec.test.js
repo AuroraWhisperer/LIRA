@@ -4,14 +4,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadSongImportParser: loadCsvParser } = require('../helpers/song-import-parser');
 const { DatabaseSync } = require('node:sqlite');
+const { buildSongsCsv, buildSongsWorkbook, parseSongsFromXlsx } = require('../../src/music/song-file-codec');
 const {
-  buildSongsCsv,
-  buildSongsWorkbook,
-  parseSongsFromXlsx,
-  templateSongs,
-} = require('../../src/music/song-file-codec');
-const { SONG_IMPORT_ALIASES, normalizeImportedSongRow } = require('../../src/music/song-import-schema');
-const { createZip, readZipFiles } = require('../../src/shared/xlsx-codec');
+  SONG_EXPORT_HEADERS,
+  SONG_TEMPLATE_HEADERS,
+  SONG_IMPORT_ALIASES,
+  normalizeImportedSongRow,
+} = require('../../src/music/song-import-schema');
+const { createZip, readZipFiles, parseWorksheetXml } = require('../../src/shared/xlsx-codec');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
 const songService = require('../../src/music/song-service');
@@ -244,26 +244,53 @@ test('CSV and XLSX exports leave stored names and notes unchanged', () => {
   }
 });
 
-test('CSV template and library routes use the song codec output', () => {
+test('CSV library route uses the song codec output', () => {
   const songs = [{ name: '=1+1', note: '@备注' }];
-  for (const [route, rows] of [
-    ['GET /api/songs/template.csv', templateSongs()],
-    ['GET /api/songs/export.csv', songs],
-  ]) {
+  const response = {
+    writeHead() {},
+    end(body) {
+      this.body = body;
+    },
+  };
+  routes['GET /api/songs/export.csv']({ songs: { list: () => songs } }, {}, response);
+  assert.equal(response.body, `\ufeff${buildSongsCsv(songs)}\n`);
+});
+
+test('template downloads contain only headers with a tag example', () => {
+  const { parseDelimited, parseTable } = loadCsvParser();
+  const expectedHeaders = [...SONG_EXPORT_HEADERS];
+  expectedHeaders[3] = '歌曲标签（如：怀旧、抒情、治愈）';
+  for (const format of ['csv', 'xlsx']) {
     const response = {
       writeHead() {},
       end(body) {
         this.body = body;
       },
     };
-    routes[route]({ songs: { list: () => songs } }, {}, response);
-    assert.equal(response.body, `\ufeff${buildSongsCsv(rows)}\n`);
+    routes[`GET /api/songs/template.${format}`]({}, {}, response);
+    const table = format === 'csv'
+      ? Array.from(parseDelimited(response.body.replace(/^\ufeff/, ''), ','), (row) => Array.from(row))
+      : parseWorksheetXml(readZipFiles(response.body).get('xl/worksheets/sheet1.xml'), []);
+    assert.deepEqual(table, [expectedHeaders]);
+    const songs = format === 'csv' ? parseTable(response.body) : parseSongsFromXlsx(response.body);
+    assert.equal(songs.length, 0);
   }
-  assert.equal(parseSongsFromXlsx(buildSongsWorkbook(templateSongs())).length, 5);
-  assert.deepEqual(
-    templateSongs().map((song) => song.request_price),
-    ['免费', '30元SC', '舰长', '提督', '总督'],
-  );
+});
+
+test('filled templates preserve tags through XLSX, CSV and pasted table imports', () => {
+  const { parseTable } = loadCsvParser();
+  const song = { name: '模板填写测试', tags: '抒情,治愈', is_enabled: true };
+  for (const preserveMissing of [false, true]) {
+    const [xlsxRow] = parseSongsFromXlsx(buildSongsWorkbook([song], { template: true }), { preserveMissing });
+    assert.equal(normalizeImportedSongRow(xlsxRow).tags, song.tags);
+    for (const text of [
+      buildSongsCsv([song], { template: true }),
+      `${SONG_TEMPLATE_HEADERS.join('\t')}\n${song.name}\t\t\t${song.tags}\t\t\t\t\t\t`,
+    ]) {
+      const [row] = parseTable(text, { preserveMissing });
+      assert.equal(normalizeImportedSongRow(row).tags, song.tags);
+    }
+  }
 });
 
 test('price aliases report conflicts per data row and duplicates never overwrite metadata', () => {
@@ -355,8 +382,15 @@ test('XLSX accepts both new price aliases and preserves conflict evidence', () =
 
 test('song workbook import preserves the supported 5000-song scale within default budgets', () => {
   const songs = Array.from({ length: 5000 }, (_, index) => ({
-    ...templateSongs()[0],
     name: `合成歌曲${index}`,
+    artist: '测试歌手',
+    category_name: '流行',
+    tags: '怀旧,抒情,治愈',
+    is_enabled: true,
+    language: '国语',
+    source_platform: 'QQ音乐 / 网易云音乐',
+    request_price: '免费',
+    song_clip: '',
     note: '边界验证',
   }));
   const workbook = buildSongsWorkbook(songs);
