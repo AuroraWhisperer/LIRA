@@ -1,13 +1,14 @@
 import { openingAppearanceFields } from '../shared/opening-appearance.js';
 import { previewElement } from './component-preview-surface.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
+import { appendSceneParameterControl, groupSceneExtraParameters } from './scene-extra-parameter-layout.js';
 
 export function mountOpeningCanvasSettings(host, { target, request, startPreviewData }) {
   const root = previewElement('section', 'opening-canvas-settings');
   const heading = previewElement('h4');
   const hint = previewElement('p', 'hint', '修改后自动保存，与客户端及所有同样式组件同步。');
   const controls = previewElement('fieldset');
-  const grid = previewElement('div', 'component-preview-fields preview-extra-fields');
+  const grid = previewElement('div', 'scene-extra-parameters');
   const status = previewElement('p', 'hint'); status.setAttribute('role', 'status');
   const retry = previewElement('button', 'secondary', '重新读取'); retry.type = 'button';
   controls.append(grid); root.append(heading, hint, controls, status, retry); host.append(root);
@@ -22,8 +23,10 @@ export function mountOpeningCanvasSettings(host, { target, request, startPreview
   let failed = false;
   for (const [key, field] of Object.entries({ ...openingAppearanceFields('classic'),
     volume: { label: '音乐音量', type: 'range', min: 0, max: 100, step: 1 } })) {
-    const label = previewElement('label', '', field.label);
+    const label = previewElement('label');
+    label.append(previewElement('span', 'desktop-lyric-control-copy', field.label));
     const input = previewElement(field.type === 'select' ? 'select' : 'input');
+    input.setAttribute('aria-label', field.label);
     input.dataset.openingParameter = key;
     if (field.type === 'select') {
       for (const [value, text] of Object.entries(field.options)) {
@@ -34,7 +37,6 @@ export function mountOpeningCanvasSettings(host, { target, request, startPreview
     if (key === 'volume') { input.min = '0'; input.max = '100'; input.step = '1'; }
     const output = key === 'volume' ? previewElement('output') : null;
     if (output) {
-      label.append(output);
       input.addEventListener('input', () => { output.textContent = `${input.value}%`; });
     }
     input.addEventListener('change', () => {
@@ -42,8 +44,11 @@ export function mountOpeningCanvasSettings(host, { target, request, startPreview
       const value = input.type === 'checkbox' ? input.checked : key === 'volume' ? Number(input.value) / 100 : input.value;
       void perform('config', { patch: { [key]: value } });
     });
-    label.append(input); grid.append(label); fields.set(key, { input, label, output });
+    appendSceneParameterControl(label, input);
+    if (output) input.parentElement.append(output);
+    grid.append(label); fields.set(key, { input, label, output });
   }
+  const syncGroups = groupSceneExtraParameters(grid, 'opening', fields);
   function addMedia(kind, title, accept) {
     const section = previewElement('section', 'opening-canvas-media');
     const heading = previewElement('h4', '', title);
@@ -90,6 +95,7 @@ export function mountOpeningCanvasSettings(host, { target, request, startPreview
       else syncComponentFieldValue(input, key === 'volume' ? Math.round(current.volume * 100) : current[key]);
       if (output) output.textContent = `${input.value}%`;
     }
+    syncGroups();
     for (const entry of media) {
       const character = entry.kind === 'character';
       entry.heading.textContent = character ? pixel ? '大头贴图片' : '人物图片' : '开场音乐';

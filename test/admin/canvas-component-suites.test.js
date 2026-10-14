@@ -85,9 +85,9 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   assert.equal(typography.size, '48px');
   assert.equal(typography.visible, 1);
   const font = page.locator('[data-component-parameter="desktopLyricFontFamily"]');
-  await font.fill('SimSun'); await font.press('Tab');
+  await font.selectOption('SimSun, STSong, serif');
   await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.startsWith('SimSun'));
-  await font.fill('月渡花汀文楷'); await font.press('Tab');
+  await font.selectOption('月渡花汀文楷');
   await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.includes('月渡花汀文楷-'));
   const size = page.locator('[data-component-parameter="desktopLyricFontSize"]');
   await size.fill('32'); await size.press('Tab');
@@ -99,6 +99,7 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   await frame.locator('.desktop-lyric-preview-row-translation').waitFor({ state: 'hidden' });
   await translation.check();
   await frame.locator('.desktop-lyric-preview-row-translation').waitFor({ state: 'visible' });
+  await page.locator('[data-parameter-group="visibility"] > summary').click();
   const pause = page.locator('[data-component-parameter="desktopLyricHideOnPause"]');
   await pause.check();
   assert.equal(await pause.isChecked(), true);

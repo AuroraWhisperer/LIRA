@@ -184,7 +184,7 @@ const DEFAULT_SETTINGS = {
   songBoardTitleFontSize: '15',
   songBoardSortMode: 'initial',
   // 桌面歌词设置
-  desktopLyricFontFamily: 'Microsoft YaHei',
+  desktopLyricFontFamily: 'Lira Maiyuan',
   desktopLyricFontWeight: '800',
   desktopLyricTextColor: '#000000',
   desktopLyricStrokeColor: '#ffffff',
@@ -212,7 +212,7 @@ const DEFAULT_SETTINGS = {
   desktopLyricTraditionalMode: 'false',
   desktopLyricInterludeOffsetEm: '0',
   desktopLyricHideOnPause: 'false',
-  desktopLyricCurrentLineEnhanced: 'true',
+  desktopLyricCurrentLineEnhanced: 'false',
   desktopLyricBaseOpacity: '0.38',
   desktopLyricTranslationOpacity: '0.72',
   desktopLyricTimeOffsetMs: '0',

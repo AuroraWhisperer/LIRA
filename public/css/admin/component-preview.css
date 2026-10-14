@@ -70,6 +70,36 @@
 .component-preview-panel .song-board-section-body { padding: 0; }
 .component-preview-panel .theme-section .grid-2 { grid-template-columns: minmax(0, 1fr); }
 .component-preview-panel [hidden] { display: none; }
+.scene-extra-parameters { display: grid; gap: 8px; margin: 12px 0; min-width: 0; }
+.scene-extra-parameters:empty { display: none; }
+.scene-parameter-group.desktop-lyric-settings-group > summary { min-height: 40px; padding: 8px 12px; gap: 8px; }
+.scene-parameter-group.desktop-lyric-settings-group > summary strong { font-size: var(--type-size-body); font-weight: var(--type-weight-semibold); }
+.scene-parameter-group > .desktop-lyric-group-body { padding: 0 12px 4px; }
+.scene-parameter-group .scene-parameter-control {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.5fr);
+  gap: 8px;
+  margin: 0;
+  padding: 8px 0;
+  line-height: 1.5;
+}
+.scene-parameter-control > .desktop-lyric-control-copy { font-size: var(--type-size-control); }
+.scene-parameter-control:has(textarea) { grid-template-columns: minmax(0, 1fr); }
+.scene-parameter-control:has(.hint) > .hint { grid-column: 1 / -1; margin: 0; }
+.scene-parameter-control:has(.hint) > .scene-parameter-value { grid-column: 1 / -1; }
+.scene-parameter-value { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.scene-parameter-value > :is(input, select, textarea, .lira-select, .lira-color-control) { min-width: 0; width: 100%; }
+.scene-parameter-value :is(input:not([type='range'], [type='color']), select, .lira-select-trigger) { min-height: 32px; height: 32px; padding: 4px 8px; }
+.scene-parameter-value input[type='number'] { font-variant-numeric: tabular-nums; }
+.scene-parameter-control .scene-parameter-value.range-row { display: flex; gap: 8px; margin: 0; }
+.scene-parameter-control .scene-parameter-value.range-row input[type='range'] { width: 0; min-width: 32px; flex: 1; }
+.scene-parameter-control .scene-parameter-value.range-row input[type='number'] { width: 64px; min-width: 0; height: 32px; padding: 4px 8px; flex: 0 0 64px; font-weight: var(--type-weight-medium); }
+.scene-parameter-control > .switch-control { justify-self: end; }
+.scene-parameter-control > .switch-control input { inset: 0; z-index: 1; width: 100%; height: 100%; margin: 0; pointer-events: auto; cursor: pointer; }
+.scene-parameter-control > .switch-control input:disabled { cursor: default; }
+.scene-editor-geometry > label { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; }
+.scene-editor-layout { margin-top: 12px; }
+.scene-editor-layout > .component-preview-fields { gap: 8px 12px; margin: 0; padding: 0 12px 12px; }
+.scene-editor-layout input, .scene-editor-geometry > label input { min-height: 32px; height: 32px; padding: 4px 8px; font-variant-numeric: tabular-nums; }
 @media (max-width: 1000px) {
   .component-preview-body { grid-template-columns: 280px minmax(0, 1fr); }
   .component-preview-panel { padding: 14px; }

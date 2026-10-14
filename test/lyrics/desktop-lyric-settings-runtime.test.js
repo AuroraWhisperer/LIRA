@@ -17,13 +17,14 @@ function readDesktopLyricHtml() {
 
 test('desktop lyric settings automatically list local font families and preserve denial state', async () => {
   const form = { addEventListener() {} };
-  const builtInOption = {
-    value: 'Microsoft YaHei',
-    textContent: '微软雅黑（默认）',
-  };
   const select = {
     value: 'Microsoft YaHei',
     children: [],
+    replaceChildren(...children) {
+      this.children = [];
+      children.forEach(child => this.appendChild(child));
+      this.value = children[0]?.value || '';
+    },
     appendChild(child) {
       child.parentNode = this;
       this.children.push(child);
@@ -34,7 +35,7 @@ test('desktop lyric settings automatically list local font families and preserve
       return this.children.find((child) => child.dataset?.localFonts === 'true') || null;
     },
     get options() {
-      return [builtInOption, ...this.children.flatMap((child) => child.children || [])];
+      return this.children.flatMap(child => child.tagName === 'OPTION' ? [child] : child.children || []);
     },
   };
   const elements = new Map([
@@ -123,23 +124,24 @@ test('desktop lyric settings automatically list local font families and preserve
     localGroup.children.map((option) => option.value),
     ['"Arial"', '"Cascadia Code"', '"宋体"'],
   );
-  assert.equal(select.value, 'Microsoft YaHei');
+  assert.equal(select.value, 'Lira Maiyuan');
+  assert.equal(new Set(select.options.map(option => option.value)).size, select.options.length);
 });
 
 test('desktop lyric local font detection keeps built-ins when permission is denied', async () => {
   const form = { addEventListener() {} };
-  const builtInOption = {
-    value: 'Microsoft YaHei',
-    textContent: '微软雅黑（默认）',
-  };
   const select = {
     value: 'Microsoft YaHei',
     children: [],
+    replaceChildren(...children) {
+      this.children = children;
+      this.value = children[0]?.value || '';
+    },
     querySelector() {
       return null;
     },
     get options() {
-      return [builtInOption];
+      return this.children;
     },
   };
   const elements = new Map([
@@ -150,6 +152,7 @@ test('desktop lyric local font detection keeps built-ins when permission is deni
   const sandbox = {
     console: { ...console, warn() {} },
     document: {
+      createElement: () => ({}),
       getElementById(id) {
         return elements.get(id) || null;
       },
@@ -191,7 +194,9 @@ test('desktop lyric local font detection keeps built-ins when permission is deni
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(queryCount, 1);
-  assert.equal(select.value, 'Microsoft YaHei');
+  assert.equal(select.value, 'Lira Maiyuan');
+  assert.ok(select.options.some(option => option.value === 'Lira Kuaile'));
+  assert.ok(select.options.some(option => option.value === 'Lira Smiley'));
   assert.equal(select.querySelector('optgroup[data-local-fonts="true"]'), null);
 });
 
@@ -290,6 +295,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     desktopLyricTextAlign: 'justify',
   };
   const elements = new Map(Object.entries(values).map(([id, value]) => [id, { value }]));
+  elements.get('desktopLyricFontFamily').replaceChildren = function (...options) { this.options = options; };
   const lyricSourceInputs = [
     { value: 'netease', checked: true },
     { value: 'qq', checked: false },
@@ -313,6 +319,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   let resolveFirstSave;
   const sandbox = {
     document: {
+      createElement: () => ({}),
       getElementById(id) {
         return elements.get(id) || null;
       },
@@ -396,6 +403,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls[0].body.weSingLyricSource, 'netease');
   assert.equal(apiCalls[0].body.weSingSmartLyricMatch, 'true');
   assert.equal(apiCalls[0].body.desktopLyricTextAlign, 'justify');
+  assert.equal(apiCalls[0].body.desktopLyricFontFamily, 'Microsoft YaHei', 'An explicitly saved font is preserved.');
 
   windowListeners.get('app:settings-state')({
     detail: {
@@ -429,6 +437,8 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   await resetListeners.get('click')();
   assert.equal(apiCalls.length, 3);
   assert.equal(apiCalls[2].body.desktopLyricFontSize, '56');
+  assert.equal(apiCalls[2].body.desktopLyricFontFamily, 'Lira Maiyuan');
+  assert.equal(apiCalls[2].body.desktopLyricCurrentLineEnhanced, 'false');
   assert.equal(apiCalls[2].body.weSingLyricSource, 'qq');
   assert.equal(apiCalls[2].body.weSingSmartLyricMatch, 'false');
 });

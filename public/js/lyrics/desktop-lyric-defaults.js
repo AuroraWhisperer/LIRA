@@ -1,7 +1,7 @@
 'use strict';
 
 export const DESKTOP_LYRIC_DEFAULTS = Object.freeze({
-  desktopLyricFontFamily: 'Microsoft YaHei',
+  desktopLyricFontFamily: 'Lira Maiyuan',
   desktopLyricFallbackFontFamily: 'Microsoft JhengHei',
   desktopLyricFontWeight: '800',
   desktopLyricTextColor: '#000000',
@@ -26,7 +26,7 @@ export const DESKTOP_LYRIC_DEFAULTS = Object.freeze({
   desktopLyricTraditionalMode: 'false',
   desktopLyricInterludeOffsetEm: '0',
   desktopLyricHideOnPause: 'false',
-  desktopLyricCurrentLineEnhanced: 'true',
+  desktopLyricCurrentLineEnhanced: 'false',
   desktopLyricOpacity: '0.95',
   desktopLyricBaseOpacity: '0.38',
   desktopLyricTranslationOpacity: '0.72',

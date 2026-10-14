@@ -102,6 +102,8 @@ test('desktop lyric frontend defaults match storage defaults', async () => {
   );
 
   assert.deepEqual(JSON.parse(JSON.stringify(DESKTOP_LYRIC_DEFAULTS)), storageDefaults);
+  assert.equal(DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily, 'Lira Maiyuan');
+  assert.equal(DESKTOP_LYRIC_DEFAULTS.desktopLyricCurrentLineEnhanced, 'false');
 });
 
 test('desktop lyric settings use icon alignment controls and performance-safe motion defaults', () => {
@@ -119,6 +121,9 @@ test('desktop lyric settings use icon alignment controls and performance-safe mo
   assert.match(html, /id="desktopLyricBlurEffect"[\s\S]*?type="checkbox"/);
   assert.match(html, /id="desktopLyricScaleEffect"[\s\S]*?type="checkbox"/);
   assert.match(html, /id="desktopLyricVisibleLines"[\s\S]*?type="number"/);
+  const basicSettings = html.match(/<details\b[^>]*class="desktop-lyric-settings-group is-basic"[^>]* open>([\s\S]*?)<\/details>/)?.[1];
+  assert.match(basicSettings, /id="desktopLyricVisibleLines"/);
+  assert.equal((html.match(/id="desktopLyricVisibleLines"/g) || []).length, 1);
   assert.match(html, /\sid=["']desktopLyricSpringHint["']/);
   assert.match(html, /\sid=["']desktopLyricBlurHint["']/);
   assert.match(styles, /label:has\(input:focus-visible\)/);

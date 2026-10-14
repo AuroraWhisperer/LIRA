@@ -52,7 +52,7 @@ export function normalizeDesktopLyricSettings(settings = {}, defaults = {}) {
     traditionalMode: boolSetting(values.desktopLyricTraditionalMode, false),
     interludeOffsetEm: clamp(numberSetting(values.desktopLyricInterludeOffsetEm, 0), -10, 10),
     hideOnPause: boolSetting(values.desktopLyricHideOnPause, false),
-    currentLineEnhanced: boolSetting(values.desktopLyricCurrentLineEnhanced, true),
+    currentLineEnhanced: boolSetting(values.desktopLyricCurrentLineEnhanced, false),
     opacity: clamp(numberSetting(values.desktopLyricOpacity, 0.95), 0, 1),
     baseOpacity: clamp(numberSetting(values.desktopLyricBaseOpacity, 0.38), 0, 1),
     translationOpacity: clamp(numberSetting(values.desktopLyricTranslationOpacity, 0.72), 0, 1),

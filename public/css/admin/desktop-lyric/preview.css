@@ -4,12 +4,12 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 15px 17px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border);
 }
 
 .desktop-lyric-preview-header h3 {
-  margin: 3px 0 0;
+  margin: 0;
   color: var(--text);
 }
 

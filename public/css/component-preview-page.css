@@ -190,10 +190,6 @@
 .preview-picker-suite-title { align-self: center; margin: 0; color: var(--text); font-size: var(--type-size-control); font-weight: var(--type-weight-semibold); }
 .preview-picker-subcategories button { min-height: 34px; padding: 7px 12px; font-size: var(--type-size-control); }
 .preview-picker-subcategories button[aria-pressed='true'] { background: var(--color-primary-light); color: var(--color-selection-text, var(--picker-accent)); border-color: var(--color-selection-marker, var(--primary-strong)); }
-.preview-extra-fields { grid-template-columns: minmax(0, 1fr); }
-.preview-extra-fields label { display: flex; flex-direction: column; gap: 6px; }
-.preview-extra-fields label[hidden] { display: none; }
-.preview-extra-fields input[type='checkbox'] { align-self: flex-start; }
 .opening-canvas-settings h4 { margin: 16px 0 8px; }
 .opening-canvas-settings > fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .opening-canvas-media { margin-top: 20px; }

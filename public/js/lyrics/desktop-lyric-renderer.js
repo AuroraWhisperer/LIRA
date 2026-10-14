@@ -411,7 +411,7 @@ function updatePreviewStatus() {
   } else if (latestTimeline.status === 'empty' || latestState?.status === 'empty') {
     status.textContent = '这首歌暂无歌词';
   } else if (hasLyric) {
-    status.textContent = latestState?.playing ? `实时播放中 · ${lineCount} 行` : `歌词已载入 · ${lineCount} 行`;
+    status.textContent = latestState?.playing ? `播放中 · ${lineCount} 行` : `已载入 · ${lineCount} 行`;
   } else {
     status.textContent = '等待播放';
   }

@@ -53,6 +53,23 @@ test('word motion follows sung tokens and seeks without animating upcoming words
   assert.ok(created.every(animation => animation.cancelled));
 });
 
+test('clearing and remounting an animator preserves text restored to its previous line', async t => {
+  const { animator } = await createAnimator();
+  t.after(() => animator.dispose());
+  const previousLine = animator.container;
+  previousLine.replaceChildren = () => { previousLine.textContent = ''; };
+  animator.clear({ commit: true });
+  assert.equal(previousLine.textContent, '月光');
+  animator.clear({ commit: false });
+  assert.equal(previousLine.textContent, '月光', 'repeated cleanup preserves committed text');
+
+  animator.mount(previousLine, DEFAULT_WORDS);
+  animator.clear({ commit: false });
+  previousLine.textContent = '上一句';
+  animator.mount({ appendChild() {}, replaceChildren() {} }, [{ text: '下一句', startMs: 3000, endMs: 4000 }]);
+  assert.equal(previousLine.textContent, '上一句', 'mounting the next line preserves restored timeline text');
+});
+
 test('pause freezes the word and resume anchors the same animation to playback', async t => {
   const { animator, created } = await createAnimator();
   t.after(() => animator.dispose());

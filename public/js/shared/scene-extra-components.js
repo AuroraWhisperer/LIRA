@@ -47,11 +47,11 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   lyrics: {
-    title: '直播歌词', size: [960, 480], path: '/lyrics', variantKey: 'style',
+    title: '直播歌词', size: [960, 360], path: '/lyrics', variantKey: 'style',
     variants: [variant('default', '直播歌词', '逐字歌词')],
     fields: {
       style: select('展示样式', 'default', { default: '直播歌词', moonlit: '月渡花汀' }),
-      desktopLyricFontFamily: text('字体', 'Microsoft YaHei'), desktopLyricFontWeight: fontWeight,
+      desktopLyricFontFamily: text('主字体', 'Lira Maiyuan', 256), desktopLyricFontWeight: fontWeight,
       desktopLyricFontSize: number('字号', '56', 24, 72), desktopLyricTextColor: color('文字颜色', '#000000', 'desktopLyricOpacity'),
       desktopLyricTextAlign: select('文字对齐', 'left', { left: '左对齐', center: '居中', right: '右对齐', justify: '两端对齐' }),
       desktopLyricLineHeight: number('行高', '1.4', 1, 2, 0.1), desktopLyricVisibleLines: number('显示行数（0 为自动）', '0', 0, 99),
@@ -69,7 +69,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       desktopLyricShadowBlur: number('阴影模糊', '8', 0, 30),
       desktopLyricShadowOffsetX: number('阴影水平偏移', '0', -20, 20), desktopLyricShadowOffsetY: number('阴影垂直偏移', '3', -20, 20),
       desktopLyricTraditionalMode: check('繁体歌词', 'false'), desktopLyricInterludeOffsetEm: number('间奏位置偏移', '0', -10, 10, 0.1),
-      desktopLyricCurrentLineEnhanced: check('突出当前行', 'true'), desktopLyricBaseOpacity: number('未唱歌词不透明度', '0.38', 0, 1, 0.01),
+      desktopLyricCurrentLineEnhanced: check('当前行底板', 'false'), desktopLyricBaseOpacity: number('未唱歌词不透明度', '0.38', 0, 1, 0.01),
       desktopLyricTranslationOpacity: number('翻译不透明度', '0.72', 0, 1, 0.01),
       desktopLyricShowTitleWhenNoLyric: check('无歌词时显示歌名', 'false'),
       desktopLyricSpringAnimation: check('弹簧动画', 'false'), desktopLyricBlurEffect: check('模糊效果', 'false'),

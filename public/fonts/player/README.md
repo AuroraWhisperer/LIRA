@@ -1,6 +1,6 @@
-# 大播放器内置字体
+# 播放器与直播歌词内置字体
 
-用于「播放 → 播放器外观」的歌曲与歌词字体选项。三款字体均以 SIL Open Font License 1.1 分发，许可原文随字体保存。字体文件随客户端 `public/**/*` 打包，不依赖字体安装、外部组件包或运行时网络请求。`css/playback/appearance.css` 声明 `@font-face`，仅选用时加载，使用 `font-display: swap`；缺字走系统字体回退。
+用于「播放 → 播放器外观」以及直播歌词的字体选项。三款字体均以 SIL Open Font License 1.1 分发，许可原文随字体保存。字体文件随客户端 `public/**/*` 打包，不依赖字体安装、外部组件包或运行时网络请求。`css/shared/display-fonts.css` 声明 `@font-face`，由播放器外观与直播歌词共享样式引入，仅选用时加载，使用 `font-display: swap`；缺字走系统字体回退。
 
 | 文件 / CSS 字体族 | 字体来源 | 原始字符覆盖 | 许可 |
 | --- | --- | --- | --- |
@@ -21,3 +21,5 @@
 | `smiley.woff2` | `731f22973349404b15a88a99ef3b5dd4104c0965c23b7e485c1f11e84fea99e2` |
 
 外观字段、默认值及本机字体权限说明见[播放器外观合同](../../../docs/reference/frontend/playback.md#81-大播放器外观)。
+
+直播歌词默认使用荆南麦圆；选项与旧设置兼容说明见[直播歌词合同](../../../docs/reference/frontend/overlays.md#6-直播歌词页lyrics)。

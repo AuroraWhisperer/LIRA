@@ -158,6 +158,7 @@ export class LyricWordAnimator {
     if (options.commit && this.container)
       this.container.textContent = this.words.map((word) => word.text || '').join('');
     else if (this.container) this.container.replaceChildren?.();
+    this.container = null;
     this.elements = [];
     this.words = [];
     this.signature = '';
@@ -184,7 +185,6 @@ export class LyricWordAnimator {
 
   dispose() {
     this.clear({ commit: false });
-    this.container = null;
   }
 
   static supported() {

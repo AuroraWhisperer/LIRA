@@ -11,6 +11,13 @@ fs.mkdirSync(directory, { recursive: true });
 for (const key of ['userData', 'sessionData']) app.setPath(key, directory);
 app.setPath('crashDumps', path.join(directory, 'crashes'));
 let owner;
+// Exercise the real session and renderer without showing or focusing test windows.
+function TestWindow(options) {
+  const window = new BrowserWindow({ ...options, show: false });
+  window.show = () => {};
+  window.focus = () => {};
+  return window;
+}
 app.on('before-quit', () => owner?.dispose());
 app.on('window-all-closed', () => {});
 app.whenReady().then(async () => {
@@ -36,7 +43,7 @@ app.whenReady().then(async () => {
       <button id="scan" onclick="document.cookie='sessionid=synthetic-doubao-session; path=/; secure; max-age=3600'; this.textContent='已扫码';">模拟手机扫码确认</button>
       <a id="external" href="https://unexpected.invalid/">外部链接</a></body></html>`, { headers: { 'Content-Type': 'text/html' } });
   });
-  const dependencies = { BrowserWindow, session, safeStorage: process.argv[3] === 'no-encryption' ? { isEncryptionAvailable: () => false } : safeStorage, dataDir: directory };
+  const dependencies = { BrowserWindow: TestWindow, session, safeStorage: process.argv[3] === 'no-encryption' ? { isEncryptionAvailable: () => false } : safeStorage, dataDir: directory };
   owner = createDoubaoSession(dependencies);
   const client = createDoubaoClient({ session: owner, logEvent: entry => state.logs.push(entry) });
   global.doubaoTest = {

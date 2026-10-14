@@ -12,6 +12,16 @@ async function createLiveRenderer() {
   const animations = [];
   const createElement = () => {
     const element = new FakeNode();
+    let textContent = '';
+    const replaceChildren = element.replaceChildren.bind(element);
+    element.replaceChildren = (...children) => {
+      textContent = '';
+      replaceChildren(...children);
+    };
+    Object.defineProperty(element, 'textContent', {
+      get: () => textContent + element.children.map(child => child.textContent).join(''),
+      set(value) { element.replaceChildren(); textContent = String(value); },
+    });
     element.appendChild = (child) => element.append(child);
     element.classList = { add() {}, remove() {}, toggle() {} };
     element.animate = (frames) => {
@@ -39,7 +49,7 @@ async function createLiveRenderer() {
   desktopLyricRenderer.updateLyricTimeline({ status: 'ready', lines: [
     { startMs: 0, text: '第一句' }, { startMs: 5000, text: '第二句' },
   ] });
-  return { renderer: desktopLyricRenderer, animations, state: {
+  return { renderer: desktopLyricRenderer, animations, elements, state: {
     currentMs: 1200, durationMs: 10000, playing: true, generation: 1, sequence: 1, status: 'ready',
     lineText: '第一句', words: [{ text: '第一句', startMs: 0, endMs: 5000 }],
   } };
@@ -68,6 +78,23 @@ test('desktop karaoke retains the visible line when a sample is already on the n
   });
   assert.equal(animation.cancelled, true, 'a real line change still releases the previous animation');
   assert.equal(animations.at(-1).currentTime, 50);
+});
+
+test('continuous karaoke line changes preserve every past lyric as plain text', async () => {
+  const { renderer, elements, state } = await createLiveRenderer();
+  const lines = Array.from({ length: 8 }, (_, index) => ({ startMs: index * 5000, text: `第 ${index + 1} 句` }));
+  renderer.updateLyricTimeline({ status: 'ready', lines });
+  for (const [index, line] of lines.entries()) {
+    renderer.updateLyricState({ ...state, sequence: index + 1, currentMs: line.startMs + 1000, durationMs: lines.length * 5000,
+      lineText: line.text, words: [{ text: line.text, startMs: line.startMs, endMs: line.startMs + 5000 }],
+    });
+    const rows = elements.get('desktopLyricPreviewTimeline').children;
+    for (let previous = 0; previous < index; previous += 1) {
+      const text = rows[previous].querySelector('.desktop-lyric-preview-row-text');
+      assert.equal(text.textContent, lines[previous].text);
+      assert.equal(text.children.length, 0, 'past rows retain text without duplicate word layers');
+    }
+  }
 });
 
 test('desktop lyric timeline identifies active lines and countdowns for long gaps', async () => {

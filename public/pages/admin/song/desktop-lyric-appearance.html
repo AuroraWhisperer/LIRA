@@ -1,28 +1,14 @@
 <details class="desktop-lyric-settings-group is-basic" open>
   <summary>
     <span><strong>基础样式</strong></span
-    ><span class="desktop-lyric-group-count">8 项</span>
+    ><span class="desktop-lyric-group-count">9 项</span>
   </summary>
   <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
     <div class="desktop-lyric-control desktop-lyric-font-control">
-      <label class="desktop-lyric-control-copy" for="desktopLyricFontFamily"><strong>主字体</strong></label>
+      <label class="desktop-lyric-control-copy" for="desktopLyricFontFamily"><strong>主字体 <lira-help>前三款字体已内置，无需安装。其他选项使用本机字体；组合按顺序查找可用字体。</lira-help></strong></label>
       <div class="desktop-lyric-font-picker">
         <select id="desktopLyricFontFamily" data-dropdown-variant="settings">
-          <option
-            value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif"
-          >
-            中日英韩通用
-          </option>
-          <option value="Microsoft YaHei">微软雅黑（默认）</option>
-          <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
-          <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
-          <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
-          <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
-          <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
-          <option value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif">思源黑体 · 清晰现代</option>
-          <option value="YouYuan, STYuanti, PingFang SC, sans-serif">幼圆 · 圆润亲切</option>
-          <option value="Georgia, Times New Roman, STSong, serif">Georgia · 优雅衬线</option>
-          <option value="Courier New, Consolas, monospace">等宽字体 · 极客风格</option>
+          <option value="Lira Maiyuan">荆南麦圆 · 圆润可爱（默认）</option>
         </select>
       </div>
     </div>
@@ -141,6 +127,11 @@
         ></span
       >
     </label>
+    <label class="desktop-lyric-control"
+      ><span class="desktop-lyric-control-copy"
+        ><strong>显示歌词行数 <lira-help>同步到浏览器源与预览。0 显示整首；1 只显示当前句；偶数向下多一行。</lira-help></strong></span
+      ><input id="desktopLyricVisibleLines" type="number" min="0" max="99" step="1" value="0" inputmode="numeric"
+    /></label>
   </div>
 </details>
 

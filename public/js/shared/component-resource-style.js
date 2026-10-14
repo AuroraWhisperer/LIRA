@@ -40,7 +40,7 @@ export const COMPONENT_RESOURCE_PRESETS = Object.freeze({
     sheets: ['/css/shared/gift-wish-moonlit.css'] },
   'moonlit-lyrics': { type: 'lyrics', config: { style: 'moonlit', desktopLyricFontFamily: '月渡花汀文楷',
     desktopLyricFontWeight: '400', desktopLyricFontSize: '48', desktopLyricTextColor: '#48657a',
-    desktopLyricTextAlign: 'center', desktopLyricLineHeight: '1.2', desktopLyricVisibleLines: '1',
+    desktopLyricTextAlign: 'center', desktopLyricLineHeight: '1.2', desktopLyricVisibleLines: '1', desktopLyricCurrentLineEnhanced: 'true',
     desktopLyricStrokeWidth: '0.5', desktopLyricStrokeColor: '#f8f6ef', desktopLyricShadowEnabled: 'false' },
     styles: ['moonlit'], size: [960, 480], resources: [opening('flowers-ne')],
     optionalResources: Array.from({ length: 23 }, (_, index) => `/fonts/moonlit-wenkai/wenkai-${String(index).padStart(2, '0')}.woff2`),

@@ -100,6 +100,7 @@ test('preview filters keep samples visible without changing live filtering', { t
   await feed.getByRole('status').waitFor({ state: 'hidden' });
   const lyrics = await add('lyrics', 'default');
   await lyrics.locator('.desktop-lyric-preview-row').first().waitFor();
+  await page.locator('[data-parameter-group="visibility"] > summary').click();
   await page.locator('[data-component-parameter="desktopLyricHideOnPause"]').check();
   assert.equal(await page.locator('[data-component-parameter="desktopLyricHideOnPause"]').isChecked(), true);
   assert.equal(await lyrics.locator('.is-paused-hidden').count(), 0);

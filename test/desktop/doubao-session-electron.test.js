@@ -19,6 +19,8 @@ async function setup(t, mode = '') {
   const page = await app.firstWindow();
   page.setDefaultTimeout(5000);
   await page.waitForURL('https://www.doubao.com/chat/');
+  assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
+    .some(window => window.isVisible() || window.isFocused())), false, 'Doubao test windows stay in the background.');
   return { app, page, directory };
 }
 

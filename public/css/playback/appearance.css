@@ -1,27 +1,4 @@
-/* OFL font sources and licenses: public/fonts/player/README.md. */
-@font-face {
-  font-family: 'Lira Maiyuan';
-  src: url('/fonts/player/maiyuan.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Lira Kuaile';
-  src: url('/fonts/player/kuaile.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Lira Smiley';
-  src: url('/fonts/player/smiley.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+@import url('../shared/display-fonts.css');
 
 .player-appearance {
   padding: 12px 8px 28px;

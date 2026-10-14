@@ -1,5 +1,7 @@
+@import url('../shared/display-fonts.css');
+
 .desktop-lyric-preview-card {
-  --preview-font: 'Microsoft YaHei', sans-serif;
+  --preview-font: 'Lira Maiyuan', 'Microsoft YaHei', sans-serif;
   --preview-weight: 800;
   --preview-size: 42px;
   --preview-translation-size: 27px;

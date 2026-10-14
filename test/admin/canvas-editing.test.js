@@ -42,6 +42,72 @@ async function presetAction(page, name) {
   await page.getByRole('menuitem', { name, exact: true }).click();
 }
 
+test('canvas parameter groups retain edits, slider values and existing lyric dimensions', { timeout: 30000 }, async t => {
+  const { page, fixture } = await editor(t);
+  const addLyrics = async () => {
+    await page.getByRole('button', { name: '添加组件', exact: true }).click();
+    await page.locator('[data-category="lyrics"]').click();
+    await page.locator('[data-picker-style="default"]').click();
+  };
+  await addLyrics();
+  const panel = page.locator('.component-preview-panel');
+  assert.deepEqual(await panel.locator('.scene-parameter-group > summary').allTextContents(), [
+    '位置与尺寸', '基础样式', '显示策略', '描边与阴影', '可见性与同步', '动画与布局', '背景与渲染',
+  ]);
+  const size = page.getByRole('spinbutton', { name: '高度', exact: true });
+  assert.equal(await size.inputValue(), '360');
+  const parameters = await panel.locator('[data-component-parameter]').evaluateAll(inputs => inputs.map(input => input.dataset.componentParameter));
+  assert.equal(new Set(parameters).size, parameters.length, 'Each setting is rendered once.');
+  assert.equal(await panel.locator('.scene-extra-parameters > .scene-parameter-control').count(), 0);
+  assert.equal(await page.locator('[data-parameter-group="layout"]').evaluate(node => node.open), false);
+
+  const font = page.locator('[data-component-parameter="desktopLyricFontFamily"]');
+  assert.equal(await font.inputValue(), 'Lira Maiyuan');
+  assert.equal(await page.locator('[data-component-parameter="desktopLyricCurrentLineEnhanced"]').isChecked(), false);
+  const lyricFrame = await page.locator('.scene-editor-item.is-selected iframe').elementHandle().then(handle => handle.contentFrame());
+  await lyricFrame.locator('.desktop-lyric-preview-row.is-active').waitFor();
+  const appearance = await lyricFrame.locator('.desktop-lyric-preview-row.is-active').evaluate(async row => {
+    await document.fonts.ready;
+    return { background: getComputedStyle(row).backgroundImage, shadow: getComputedStyle(row).boxShadow,
+      fontLoaded: [...document.fonts].some(font => font.family === 'Lira Maiyuan' && font.status === 'loaded') };
+  });
+  assert.deepEqual(appearance, { background: 'none', shadow: 'none', fontLoaded: true });
+  const fontSaved = page.waitForResponse(response => response.url().includes('/api/component-preview/appearance')
+    && response.request().postDataJSON()?.patch?.desktopLyricFontFamily?.startsWith('Microsoft YaHei,'));
+  await font.selectOption({ label: '系统字体组合 · 多语言回退' });
+  const multilingualFont = await font.inputValue();
+  assert.equal((await fontSaved).status(), 200);
+  assert.equal(fixture.runtime.settings.desktopLyricFontFamily, multilingualFont, 'A complete font stack survives saving.');
+  await font.selectOption('Lira Kuaile');
+
+  const fontSize = page.locator('[data-component-parameter="desktopLyricFontSize"]');
+  const slider = page.getByRole('slider', { name: '字号滑块', exact: true });
+  await slider.focus();
+  await slider.press('ArrowRight');
+  await fontSize.press('Tab');
+  assert.equal(await fontSize.inputValue(), '57');
+  await page.waitForFunction(() => document.querySelector('[data-component-parameter="desktopLyricFontSize"]').value === '57');
+  await fontSize.fill('64'); await fontSize.press('Tab');
+  assert.equal(await slider.inputValue(), '64');
+  await page.locator('[data-component-parameter="desktopLyricShowTranslation"]').uncheck();
+  await page.locator('[data-parameter-group="basic"] > summary').click();
+  await poll(page);
+  assert.equal(await page.locator('[data-parameter-group="basic"]').evaluate(node => node.open), false,
+    'Polling must not reopen collapsed groups.');
+  assert.equal(await panel.evaluate(node => node.scrollWidth <= node.clientWidth), true);
+
+  await size.fill('480'); await size.press('Tab');
+  await addLyrics();
+  assert.equal(await size.inputValue(), '360');
+  const dimensions = await page.locator('.scene-editor-item[data-component="lyrics"]').evaluateAll(items => items.map(item => item.style.height));
+  assert.deepEqual(dimensions, ['480px', '360px']);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  assert.equal(fixture.runtime.settings.desktopLyricFontSize, '64');
+  assert.equal(fixture.runtime.settings.desktopLyricFontFamily, 'Lira Kuaile');
+  assert.equal(fixture.runtime.settings.desktopLyricShowTranslation, 'false');
+});
+
 test('canvas inputs preserve native selection, clipboard and undo across preview polling', { timeout: 30000 }, async (t) => {
   const { page, desktop } = await editor(t);
   const font = page.locator('[data-preview-field="danmakuFontSize"]');

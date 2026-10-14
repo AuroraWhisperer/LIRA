@@ -70,7 +70,7 @@ test('the shared song-board provider labels parameters as automatic and saves wi
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.locator(`.preview-canvas-layer-select[data-item-id="${item.id}"]`).click();
-  assert.match(await page.locator('.scene-editor-target').textContent(), /自动保存、即时生效/);
+  assert.match(await page.locator('.scene-editor-target').textContent(), /公共参数自动保存并同步到客户端/);
   const savedParameters = page.waitForResponse(async response => response.url().includes('/api/component-preview/appearance')
     && response.request().postDataJSON()?.action === 'patch' && response.ok());
   await page.locator('[data-component-parameter="songBoardTitle"]').fill('自动保存标题');

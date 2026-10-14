@@ -28,7 +28,7 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
   const requests = new AbortController();
   const { controller } = createResourceStyleSettings(style, { request, signal: requests.signal });
   const preset = COMPONENT_RESOURCE_PRESETS[style.config.resourceStyle.preset];
-  const component = COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview({ controller, embedded: true, panelPrefix: `resource-${style.id}`,
+  const component = COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview({ controller, embedded: true, restrictResourceStyle: true, panelPrefix: `resource-${style.id}`,
     previewHint: onPreview ? '上方预览展示正在编辑的这条许愿；显示条数和间距用于画布及直播画面。' : undefined });
   const panel = component.createPanel(parameters, controller);
   const toggle = preset === COMPONENT_RESOURCE_PRESETS['nautical-guard-thanks'] ? mountNauticalGuardToggle(heading) : null;
@@ -42,10 +42,6 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
     onPreview({ ...style, config: draft });
   }
   const stop = controller.subscribe(state => {
-    for (const input of parameters.querySelectorAll('[data-component-parameter="style"], [data-component-parameter="displayStyle"]')) {
-      for (const option of input.options) option.disabled = !preset.styles?.includes(option.value);
-      if (!preset.styles || preset.styles.length === 1) input.closest('label').hidden = true;
-    }
     save.disabled = !state.dirty || state.saving;
     discard.disabled = !state.dirty || state.saving;
     status.textContent = state.applied && !state.dirty && !state.error ? '已保存并同步到画布。' : componentSaveMessage(state);

@@ -83,6 +83,11 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   assert.equal(await page.locator('#giftWishDraftPreview iframe').count(), 1);
   await wishes.getByLabel('显示条数', { exact: true }).fill('4');
   await wishes.getByLabel('显示条数', { exact: true }).dispatchEvent('change');
+  assert.equal(await wishes.evaluate(node => {
+    node.querySelector('[data-component-parameter="limit"]').dispatchEvent(new Event('blur'));
+    return node.querySelector('[data-component-parameter="displayStyle"]').checkVisibility();
+  }), false,
+    'Refreshing a field after blur must not reveal the fixed resource style or move the save button.');
   let rejectSave = true;
   await page.route('**/api/component-styles/config', async route => {
     if (rejectSave) return route.fulfill({ status: 503, json: { ok: false, error: '模拟保存失败' } });

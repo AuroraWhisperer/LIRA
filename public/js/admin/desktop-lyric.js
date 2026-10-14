@@ -3,6 +3,7 @@
 'use strict';
 
 import { DESKTOP_LYRIC_DEFAULTS } from '../lyrics/desktop-lyric-defaults.js';
+import { populateDesktopLyricFonts } from '../lyrics/desktop-lyric-fonts.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import * as sharedUtils from '../shared/utils.js';
 import { formsService } from './forms.js';
@@ -68,6 +69,7 @@ export function createDesktopLyric({
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
     lyricSourceControls.init();
+    populateDesktopLyricFonts(document.getElementById('desktopLyricFontFamily'));
     registerLocalFontSelect(document.getElementById('desktopLyricFontFamily'));
     preview.init(form);
 
