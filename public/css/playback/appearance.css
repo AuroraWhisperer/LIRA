@@ -7,7 +7,7 @@
 .player-appearance-preview-caption {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
 }
 
@@ -38,10 +38,29 @@
   background: transparent;
 }
 
+.player-appearance-layouts,
 .player-appearance-styles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+}
+
+.player-appearance-styles {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.player-appearance-artwork-controls {
+  display: grid;
+  gap: 16px;
+}
+
+.player-appearance-artwork-controls[hidden] {
+  display: none;
+}
+
+.player-appearance-layout-art {
+  width: 100%;
+  height: 48px;
 }
 
 .player-appearance-controls .player-appearance-style {
@@ -75,14 +94,14 @@
 .player-appearance-style-art {
   display: grid;
   place-items: center;
-  height: 84px;
+  height: 64px;
   pointer-events: none;
 }
 
 .player-appearance-style-art .player-fs-vinyl {
   width: 160px;
   max-width: none;
-  zoom: 0.45;
+  zoom: 0.33;
 }
 
 .player-appearance-actions {
@@ -215,7 +234,7 @@
 .player-appearance-preview-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -231,13 +250,7 @@
   margin-top: 16px;
 }
 
-.player-appearance-preview-caption p {
-  flex: 1 1 200px;
-  margin: 0;
-}
-
 .player-appearance-feedback {
-  min-height: 1.5em;
   margin-top: 12px;
 }
 
@@ -250,6 +263,143 @@
 [data-player-style] .player-fs-lyrics {
   font-family: var(--player-lyric-font, inherit);
   letter-spacing: var(--player-lyric-letter-spacing, normal);
+}
+
+[data-player-style] .lyric-content {
+  width: 100%;
+}
+
+[data-player-layout='vinyl'] .player-fs-content {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 64%) minmax(0, 1fr);
+  gap: 20px;
+  padding: 56px 48px 24px;
+}
+
+[data-player-layout='vinyl'] .player-fs-art-wrap {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  container-type: size;
+}
+
+:is(.player-fullscreen, .player-appearance-canvas)[data-player-layout='vinyl'] .player-fs-vinyl {
+  width: calc(min(440px, 90cqh) * var(--player-art-scale, 1));
+  max-width: min(100%, 100cqh);
+}
+
+[data-player-layout='vinyl'] .player-fs-lyrics {
+  padding-block: 0;
+  overflow: hidden;
+  scrollbar-width: none;
+}
+
+[data-player-layout='vinyl'] .player-fs-lyric-line:not(.active),
+[data-player-layout='vinyl'] .lyric-trans,
+[data-player-layout='vinyl'] .player-fs-follow-btn {
+  display: none;
+}
+
+[data-player-layout='vinyl'] .player-fs-lyrics:not(:has(.active)) .player-fs-lyric-line:first-child {
+  display: flex;
+}
+
+[data-player-layout='vinyl'] .lyric-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-player-layout='vinyl'] .player-fs-lyric-toggles {
+  visibility: hidden;
+}
+
+[data-player-layout='vinyl'] .player-fs-panel,
+[data-player-layout='lyrics'] .player-fs-panel {
+  width: min(100%, 960px);
+  justify-self: center;
+  gap: 16px;
+  padding: 0;
+}
+
+[data-player-layout='lyrics'] .player-fs-content {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+[data-player-layout='lyrics'] .player-fs-art-wrap,
+[data-player-layout='lyrics'] .player-fs-title,
+[data-player-layout='lyrics'] .player-fs-artist,
+[data-player-layout='lyrics'] .player-fs-track:has(.player-fs-follow-btn[hidden]),
+[data-player-layout='lyrics'] .player-fs-track:not(:has(.player-fs-follow-btn)) {
+  display: none;
+}
+
+[data-player-layout='lyrics'] .player-fs-follow-btn {
+  margin-top: 0;
+}
+
+[data-player-layout='lyrics'] .player-fs-lyrics-wrap {
+  container-type: size;
+}
+
+[data-player-layout='lyrics'] .player-fs-lyrics {
+  padding-block: 50cqh;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to bottom, transparent, #000 14% 86%, transparent);
+}
+
+[data-player-layout='lyrics'] .player-fs-lyrics::-webkit-scrollbar {
+  display: none;
+}
+
+[data-player-layout='lyrics'] .player-fs-lyric-line {
+  opacity: 0.28;
+  transition: opacity 400ms ease;
+}
+
+[data-player-layout='lyrics'] .player-fs-lyric-line:has(+ .active),
+[data-player-layout='lyrics'] .player-fs-lyric-line.active + .player-fs-lyric-line {
+  opacity: 0.58;
+}
+
+[data-player-layout='lyrics'] .player-fs-lyric-line.active,
+[data-player-layout='lyrics'] .player-fs-lyric-line:hover,
+[data-player-layout='lyrics'] .player-fs-lyric-line:focus-within,
+[data-player-layout='lyrics'] .is-manual-browsing .player-fs-lyric-line {
+  opacity: 1;
+}
+
+[data-player-layout='lyrics'] .player-fs-lyric-line.active .lyric-text {
+  text-shadow: 0 3px 18px color-mix(in srgb, var(--player-active-lyric-color, var(--text)) 16%, transparent);
+}
+
+[data-player-layout='lyrics'][data-player-background='auto'] .player-fs-bg::before {
+  animation: player-lyric-light 18s ease-in-out infinite alternate;
+}
+
+.player-fullscreen:not(.open)[data-player-layout='lyrics'] .player-fs-bg::before {
+  animation-play-state: paused;
+}
+
+@keyframes player-lyric-light {
+  from { transform: translate(-2%, 1%) scale(1.15) rotate(-5deg); }
+  to { transform: translate(2%, -1%) scale(1.25) rotate(5deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-player-layout='lyrics'][data-player-background='auto'] .player-fs-bg::before {
+    animation: none;
+  }
+
+  [data-player-layout='lyrics'] .player-fs-lyrics {
+    scroll-behavior: auto;
+  }
+
+  [data-player-layout='lyrics'] .player-fs-lyric-line {
+    transition: none;
+  }
 }
 
 [data-player-emphasis='custom'] .player-fs-lyric-line.active .lyric-text {
@@ -292,6 +442,7 @@
 }
 
 [data-player-style='vinyl'] .player-fs-vinyl,
+[data-player-style='vinyl-arm'] .player-fs-vinyl,
 [data-player-style='cover'] .player-fs-vinyl {
   background: none;
   border: 0;
@@ -300,6 +451,7 @@
 
 [data-player-style='vinyl'] .player-fs-vinyl::before,
 [data-player-style='vinyl'] .player-fs-vinyl::after,
+[data-player-style='vinyl-arm'] .player-fs-vinyl::after,
 [data-player-style='cover'] .player-fs-vinyl::before,
 [data-player-style='cover'] .player-fs-vinyl::after,
 [data-player-style='vinyl'] .player-fs-tonearm,
@@ -316,7 +468,7 @@
   width: 100%;
 }
 
-[data-player-style='vinyl'] .player-fs-vinyl-disc {
+:is([data-player-style='vinyl'], [data-player-style='vinyl-arm']) .player-fs-vinyl-disc {
   /* Grason Chan's Turntable, MIT. See turntable.LICENSE.txt and playback.md. */
   inset: 4.54545%;
   width: 90.90909%;
@@ -327,22 +479,77 @@
   animation-duration: 24s;
 }
 
-[data-player-style='vinyl'] .player-fs-vinyl::before {
+:is([data-player-style='vinyl'], [data-player-style='vinyl-arm']) .player-fs-vinyl::before {
   display: block;
   inset: 0;
   border-radius: 50%;
   background: rgba(60, 60, 60, 0.1);
 }
 
-[data-player-style='vinyl'] .player-fs-art {
+:is([data-player-style='vinyl'], [data-player-style='vinyl-arm']) .player-fs-art {
   inset: 16.66667%;
   box-shadow: 0 0 10px rgba(3, 3, 3, 0.5) inset;
 }
 
-[data-player-style='vinyl'] .player-fs-vinyl-center,
-[data-player-style='vinyl'] .player-fs-vinyl-disc::before,
-[data-player-style='vinyl'] .player-fs-vinyl-disc::after {
+:is([data-player-style='vinyl'], [data-player-style='vinyl-arm']) .player-fs-vinyl-center,
+:is([data-player-style='vinyl'], [data-player-style='vinyl-arm']) .player-fs-vinyl-disc::before,
+:is([data-player-style='vinyl'], [data-player-style='vinyl-arm']) .player-fs-vinyl-disc::after {
   display: none;
+}
+
+.player-fs-tonearm > [data-player-tonearm='vinyl'] {
+  display: none;
+}
+
+[data-player-style='vinyl-arm'] .player-fs-vinyl {
+  aspect-ratio: 0.82;
+}
+
+:is(.player-fullscreen, .player-appearance-canvas)[data-player-style='vinyl-arm'] .player-fs-vinyl {
+  max-width: min(100%, calc((100dvh - var(--player-dock-height, 96px) - 180px) * 0.82));
+}
+
+[data-player-layout='vinyl'][data-player-style='vinyl-arm'] .player-fs-vinyl {
+  width: calc(min(440px, 74cqh) * var(--player-art-scale, 1));
+  max-width: min(100%, 82cqh);
+}
+
+[data-player-style='vinyl-arm'] .player-fs-vinyl::before {
+  inset: auto 1.5% 0;
+  aspect-ratio: 1;
+  background: rgb(39 56 75 / 22%);
+  box-shadow: inset 0 1px 2px rgb(255 255 255 / 18%);
+}
+
+[data-player-style='vinyl-arm'] .player-fs-vinyl-disc {
+  inset: auto 4.54545% 2.5%;
+  background:
+    repeating-radial-gradient(circle, transparent 0 2px, rgb(255 255 255 / 3%) 3px, transparent 4px),
+    conic-gradient(from 15deg, #08090b, #292a2c 45deg, #08090b 90deg 180deg, #292a2c 225deg, #08090b 270deg 360deg);
+}
+
+[data-player-style='vinyl-arm'] .player-fs-tonearm {
+  top: 0;
+  right: auto;
+  left: 43%;
+  width: 55%;
+  height: auto;
+  aspect-ratio: 300 / 260;
+  transform: rotate(0deg);
+  transform-origin: 13.33333% 15.38462%;
+  filter: drop-shadow(0 3px 3px rgb(0 0 0 / 18%));
+}
+
+[data-player-style='vinyl-arm'] .player-fs-tonearm.playing {
+  transform: rotate(36deg);
+}
+
+[data-player-style='vinyl-arm'] .player-fs-tonearm > [data-player-tonearm='curved'] {
+  display: none;
+}
+
+[data-player-style='vinyl-arm'] .player-fs-tonearm > [data-player-tonearm='vinyl'] {
+  display: block;
 }
 
 [data-player-style='cover'] .player-fs-vinyl-disc,

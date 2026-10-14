@@ -30,14 +30,61 @@ test('Netease provider requests and aligns translated and romanized lyrics', asy
     };
   };
 
-  const result = await provider.getLyrics({ sourceTrackId: '496869422' });
+  const result = await provider.getLyrics({ sourceTrackId: '496869422', durationMs: 29000 });
 
-  assert.equal(captured.pathname, '/api/song/lyric');
-  assert.equal(captured.params.rv, '-1');
+  assert.equal(captured.pathname, '/api/song/lyric/v1');
+  assert.equal(captured.params.yv, '0');
+  assert.equal(captured.params.yrv, '0');
   assert.equal(result.lines[0].translation, '那天所眺望的海岸');
   assert.equal(result.lines[0].roma, 'a no hi mi wa ta shi ta na gi sa wo');
   assert.equal(result.lines[1].translation, '直至今日仍能想起');
   assert.equal(result.lines[1].roma, 'i ma mo o mo i da su n da');
+  assert.equal(result.lines[0].words[0].startMs, 19640);
+  assert.equal(result.lines[0].words.at(-1).endMs, 24500);
+  assert.equal(result.lines[1].words.at(-1).endMs, 29000);
+});
+
+test('Netease lyrics retain YRC timing and spaces when LRC timestamps differ', async () => {
+  const provider = createProvider();
+  provider.requestJson = async () => ({
+    lrc: { lyric: '[00:01.40]Hello world\n[00:04.50]下一句' },
+    tlyric: { lyric: '[00:01.40]旧译文' },
+    yrc: { lyric: '[1000,2000](1000,700,0)Hello (1700,1300,0)world\n[4000,1000](4000,1000,0)下一句' },
+    ytlrc: { lyric: '[00:01.00]你好世界' },
+    yromalrc: { lyric: '[00:04.00]xia yi ju' },
+  });
+  const result = await provider.getLyrics({ sourceTrackId: '123', durationMs: 10000 });
+  assert.equal(result.lines[0].startMs, 1000);
+  assert.equal(result.lines[0].endMs, 3000);
+  assert.equal(result.lines[0].text, 'Hello world');
+  assert.equal(result.lines[0].translation, '你好世界');
+  assert.deepEqual(result.lines[0].words, [
+    { startMs: 1000, endMs: 1700, text: 'Hello ' },
+    { startMs: 1700, endMs: 3000, text: 'world' },
+  ]);
+  assert.equal(result.lines[1].roma, 'xia yi ju');
+});
+
+test('Netease LRC-only lyrics get continuous estimated words, including an unknown final duration', async () => {
+  const provider = createProvider();
+  provider.requestJson = async () => ({
+    lrc: { lyric: '[00:01.00]你，好 world!\n[00:05.00]最后' },
+    yrc: { lyric: 'invalid' },
+  });
+  const { lines } = await provider.getLyrics({ sourceTrackId: '123' });
+  assert.deepEqual(lines[0].words.map((word) => word.text), ['你，', '好 ', 'world!']);
+  assert.equal(lines[0].words[0].startMs, 1000);
+  assert.equal(lines[0].words.at(-1).endMs, 5000);
+  for (const line of lines) {
+    assert.equal(line.words.map((word) => word.text).join(''), line.text);
+    for (let index = 0; index < line.words.length; index++) {
+      const word = line.words[index];
+      assert.ok(word.endMs > word.startMs);
+      if (index > 0) assert.equal(word.startMs, line.words[index - 1].endMs);
+    }
+  }
+  assert.ok(lines[1].endMs > 5000);
+  assert.ok(lines[1].endMs <= 13000);
 });
 
 test('Netease provider resolves a full stream with the current account rights', async () => {

@@ -8,29 +8,61 @@
         <button type="button" class="tab" data-tab="playerAppearanceLyrics">歌词</button>
       </div>
       <fieldset id="playerAppearanceStyle" data-appearance-group aria-label="样式">
-        <div class="player-appearance-styles">
+        <div class="player-appearance-layouts" role="radiogroup" aria-label="播放器布局">
           <label class="player-appearance-style">
-            <input type="radio" name="playerAppearanceStyle" value="turntable" data-appearance-key="style" checked />
-            <span class="player-appearance-style-art" data-appearance-thumbnail="turntable" aria-hidden="true"></span>
-            <span>默认唱片机</span>
+            <input type="radio" name="playerAppearanceLayout" value="classic" data-appearance-key="layout" checked />
+            <svg class="player-appearance-layout-art" viewBox="0 0 100 56" fill="none" aria-hidden="true">
+              <circle cx="27" cy="28" r="15" fill="currentColor" opacity=".6" />
+              <path d="M53 18h31M53 28h31M53 38h23" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            </svg>
+            <span>经典</span>
           </label>
           <label class="player-appearance-style">
-            <input type="radio" name="playerAppearanceStyle" value="vinyl" data-appearance-key="style" />
-            <span class="player-appearance-style-art" data-appearance-thumbnail="vinyl" aria-hidden="true"></span>
-            <span>黑胶唱片</span>
+            <input type="radio" name="playerAppearanceLayout" value="vinyl" data-appearance-key="layout" />
+            <svg class="player-appearance-layout-art" viewBox="0 0 100 56" fill="none" aria-hidden="true">
+              <circle cx="50" cy="21" r="15" fill="currentColor" opacity=".6" />
+              <path d="M29 46h42" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            </svg>
+            <span>黑胶</span>
           </label>
           <label class="player-appearance-style">
-            <input type="radio" name="playerAppearanceStyle" value="cover" data-appearance-key="style" />
-            <span class="player-appearance-style-art" data-appearance-thumbnail="cover" aria-hidden="true"></span>
-            <span>专辑封面</span>
+            <input type="radio" name="playerAppearanceLayout" value="lyrics" data-appearance-key="layout" />
+            <svg class="player-appearance-layout-art" viewBox="0 0 100 56" fill="none" aria-hidden="true">
+              <path d="M36 10h28M27 19h46M22 28h56M27 37h46M36 46h28" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            </svg>
+            <span>歌词</span>
           </label>
         </div>
-        <div class="player-appearance-range">
-          <label for="playerArtworkSize">唱片／封面大小</label>
-          <input id="playerArtworkSize" class="parameter-range" type="range" min="60" max="110" value="100" data-appearance-key="artworkSize" />
-          <label class="player-appearance-number"><input type="number" min="60" max="110" value="100" required aria-label="唱片／封面大小百分比" data-appearance-key="artworkSize" /><span>%</span></label>
+        <div class="player-appearance-artwork-controls" data-appearance-artwork-controls>
+          <div class="player-appearance-styles" role="radiogroup" aria-label="封面外观">
+            <label class="player-appearance-style">
+              <input type="radio" name="playerAppearanceStyle" value="turntable" data-appearance-key="style" checked />
+              <span class="player-appearance-style-art" data-appearance-thumbnail="turntable" aria-hidden="true"></span>
+              <span>默认唱片机</span>
+            </label>
+            <label class="player-appearance-style">
+              <input type="radio" name="playerAppearanceStyle" value="vinyl" data-appearance-key="style" />
+              <span class="player-appearance-style-art" data-appearance-thumbnail="vinyl" aria-hidden="true"></span>
+              <span>黑胶唱片</span>
+            </label>
+            <label class="player-appearance-style">
+              <input type="radio" name="playerAppearanceStyle" value="cover" data-appearance-key="style" />
+              <span class="player-appearance-style-art" data-appearance-thumbnail="cover" aria-hidden="true"></span>
+              <span>专辑封面</span>
+            </label>
+            <label class="player-appearance-style">
+              <input type="radio" name="playerAppearanceStyle" value="vinyl-arm" data-appearance-key="style" />
+              <span class="player-appearance-style-art" data-appearance-thumbnail="vinyl-arm" aria-hidden="true"></span>
+              <span>唱臂黑胶</span>
+            </label>
+          </div>
+          <div class="player-appearance-range">
+            <label for="playerArtworkSize">唱片／封面大小</label>
+            <input id="playerArtworkSize" class="parameter-range" type="range" min="60" max="110" value="100" data-appearance-key="artworkSize" />
+            <label class="player-appearance-number"><input type="number" min="60" max="110" value="100" required aria-label="唱片／封面大小百分比" data-appearance-key="artworkSize" /><span>%</span></label>
+          </div>
+          <label class="player-appearance-check"><input type="checkbox" checked data-appearance-key="rotation" />播放时旋转唱片</label>
         </div>
-        <label class="player-appearance-check"><input type="checkbox" checked data-appearance-key="rotation" />播放时旋转唱片</label>
         <label>文字对齐
           <select data-appearance-key="textAlign">
             <option value="left">左对齐</option>
@@ -155,20 +187,18 @@
         <button type="button" class="secondary" data-appearance-group-reset>恢复本组默认</button>
         <button type="button" class="secondary" data-appearance-reset>恢复全部默认</button>
       </div>
+      <p class="hint player-appearance-feedback" data-appearance-feedback role="status" aria-live="polite" hidden></p>
     </div>
     <div class="player-appearance-preview-column">
       <div class="player-appearance-preview-toolbar">
-        <span class="ui-card-title">效果预览</span>
         <label class="player-appearance-check"><input type="checkbox" data-appearance-long-sample />长句与译文</label>
       </div>
       <div class="player-appearance-preview" aria-hidden="true" inert>
         <div class="player-appearance-canvas"></div>
       </div>
       <div class="player-appearance-preview-caption">
-        <p class="hint">按当前窗口比例预览 · 播放时显示实际歌曲</p>
         <button id="playerAppearanceOpenBtn" type="button">打开大播放器</button>
       </div>
-      <p class="hint player-appearance-feedback" data-appearance-feedback role="status" aria-live="polite">设置保存在这台电脑上。</p>
     </div>
   </div>
 </section>

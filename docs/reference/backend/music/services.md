@@ -154,7 +154,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 ### 6.3 歌词(`getMusicTrackLyricsWithCache`,[lyrics-service.js:119-129](../../../../src/music/lyrics-service.js#L119-L129))
 
 - 入参先过 `normalizeMusicTrackForProvider`(强制完整契约)
-- 缓存 key:`musicCacheKey('lyrics-v5', { source, sourceTrackId })` — **版本前缀 v5 参与 hash**,解析器升级即自然失效
+- 缓存 key:`musicCacheKey(version, { source, sourceTrackId })`；网易云使用 `lyrics-v6`，QQ 保持 `lyrics-v5`。版本前缀参与 hash，旧网易云无逐字缓存不会压制新解析结果。
 - TTL 30 天(§5);命中返回 `{...cached, cached: true}`
 - 未命中 → `provider.getLyrics(normalizedTrack)` → 写缓存
 
@@ -404,21 +404,23 @@ QQ / 网易云采集器都提供 `getStatus()`、`getLyricState()`、`getTimelin
 
 ### 13.5 外部网易云音乐
 
-[netease-client-monitor.js](../../../../src/music/netease-client-monitor.js) 每 500 ms 优先读取 cloudmusic 的 SMTC 歌曲、状态和时钟；没有可用媒体会话时，匹配 cloudmusic 进程的播放窗口标题，并通过 UI Automation 只读获取 `MM:SS / MM:SS` 或 `MM:SS | MM:SS` 进度及附近的播放/暂停按钮。切换窗口或标题后等待 1.5 秒再扫描，周期性刷新控件引用；读取前后标题不一致时丢弃该次混合样本。辅助进程连续 15 秒无输出会被回收；启动失败、错误或退出按 500 / 1000 / 2000 ms 最多重试三次，停用取消全部计时器。
+[netease-client-monitor.js](../../../../src/music/netease-client-monitor.js) 每 500 ms 优先读取 cloudmusic 的 SMTC 歌曲、状态和时钟；没有可用媒体会话时，匹配 cloudmusic 进程的播放窗口标题，并通过 UI Automation 只读获取 `MM:SS / MM:SS` 或 `MM:SS | MM:SS` 进度及附近的播放/暂停按钮。托管 UIA 读不到进度时，回退到 Windows MSAA（`AccessibleObjectFromWindow` / `AccessibleChildren`）读取 Chromium 的无障碍树，兼容网易云 3.x 的空 UIA 容器和小写 `play/pause` 按钮。MSAA 扫描最多 2000 个节点、32 层，只保留进度与附近状态控件，重扫/切歌释放旧 COM 引用，不调用控件或修改客户端。
+
+切换窗口或标题后等待 1.5 秒再扫描，每 2 秒刷新控件引用；读取前后标题不一致时丢弃该次混合样本。MSAA 与 UIA 都发布整数秒的 `clockSource: 'uia'` 样本，继续使用同一时钟规则。辅助进程连续 15 秒无输出会被回收；启动失败、错误或退出按 500 / 1000 / 2000 ms 最多重试三次，停用取消全部计时器。
 
 [netease-client-track.js](../../../../src/music/netease-client-track.js) 只读 `%LOCALAPPDATA%/NetEase/CloudMusic/Library/webdb.dat` 的最新 `historyTracks` 记录；数据库缺失或读取失败时尝试旧版 `webdata/file/history`，旧格式文件限 8 MiB。记录的歌名、歌手必须与当前窗口或媒体元数据一致，两边都提供时长时相差不超过 2 秒，才补充数值 `sourceTrackId`；不能把历史记录中的另一首歌当作当前曲目。未找到可信记录时保留窗口/媒体元数据，稍后重读，不读取客户端凭据。
 
-[netease-client-capture.js](../../../../src/music/netease-client-capture.js) 等待稳定歌名与有效时钟后获取歌词。SMTC 使用时间戳锚点；新标题到达时，若总时长变化或进度回跳超过 1 秒，可确认随标题到达的新曲锚点，不要求客户端再次更新时间戳。SMTC 同源样本仍拒绝倒退时间戳；在 UIA 与 SMTC 之间切换时不比较两种来源的时间戳。UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且读数未回退时，若上次连续位置加经过时间仍落在该区间内，就保留该估计，避免每次轮询发现新秒数时回拉。首次有效读数、暂停/继续、向后跳转和超出区间的估计仍采用采样锚点；播放中连续 2.5 秒无进度变化时隐藏歌词并等待有效读数。暂停以媒体状态或播放按钮为依据；按钮状态未知时，连续两次正常递增（每次相隔 250–2500 ms、递增不超过 2 秒）才推断播放，单次暂停拖动不触发播放，也不把静音或静止读数当暂停。UIA 路径依赖客户端提供可访问的主窗口控件；托盘、精简模式或客户端改版可能使状态或时钟不可读，此时显示等待/错误，不沿用上一首歌词。本轮实现及自动化验证不代表新版客户端的实机联动已验收。
+[netease-client-capture.js](../../../../src/music/netease-client-capture.js) 等待稳定歌名与有效时钟后获取歌词。SMTC 使用时间戳锚点；新标题到达时，若总时长变化或进度回跳超过 1 秒，可确认随标题到达的新曲锚点，不要求客户端再次更新时间戳。SMTC 同源样本仍拒绝倒退时间戳；在 UIA 与 SMTC 之间切换时不比较两种来源的时间戳。UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且读数未回退时，若上次连续位置加经过时间仍落在该区间内，就保留该估计，避免每次轮询发现新秒数时回拉。首次有效读数、暂停/继续、向后跳转和超出区间的估计仍采用采样锚点；播放中连续 2.5 秒无进度变化时隐藏歌词并等待有效读数。暂停以媒体状态或播放按钮为依据；按钮状态未知时，连续两次正常递增（每次相隔 250–2500 ms、递增不超过 2 秒）才推断播放，单次暂停拖动不触发播放，也不把静音或静止读数当暂停。UIA/MSAA 路径依赖客户端提供可访问的主窗口控件；托盘、精简模式或客户端改版可能使状态或时钟不可读，此时显示等待/错误，不沿用上一首歌词。2026-10-14 已在网易云 3.1.4.203507 实机验证 MSAA 进度、暂停状态与播放期间歌词就绪；托盘/精简模式仍未验收。
 
 ### 13.6 外部播放器歌词解析
 
 [external-client-lyrics.js](../../../../src/music/external-client-lyrics.js) 的 `createExternalClientLyricResolver({platform, getRegistry, lyricsService})` 只接受 qq 或 netease，并返回 `resolveLyrics({title, artists?, artist?, durationMs?, sourceTrackId?})`。网易云有可信数值曲目 ID 时直接取该曲歌词；没有 ID 时与 QQ 一样，在本平台按歌名、歌手搜索最多 20 个候选。候选必须属于本平台，且完整歌名规范化后相同，保留 Live、DJ 等版本信息；已知歌手时，按 `/` 拆分并排序后的完整歌手列表也必须相同。歌名与歌手均执行 NFKC 规范化、合并空白、去除首尾空白及忽略大小写。双方时长已知时相差不得超过 5 秒，合格候选按时长距离择近；没有准确候选则返回空，不跨平台兜底。歌词响应声明了其他平台或没有有效行时也返回空；请求失败交给采集器显示错误。
 
-外部 QQ 始终查询 QQ，外部网易云始终查询网易云，取得的是对应平台的在线歌词，不是直接复制客户端当前渲染的歌词缓存；逐字、翻译和版本匹配取决于该平台返回内容。`weSingLyricSource / weSingSmartLyricMatch` 仅属于 [WeSing 在线兜底](wesing.md#8-在线兜底wesing-online-lyricsjs)，不参与这里的选择。智能播放只决定跟随哪个播放器，智能选词只为全民 K 歌本地 QRC 不可用时选择在线歌词。
+外部 QQ 始终查询 QQ，外部网易云始终查询网易云，取得的是对应平台的在线歌词，不是直接复制客户端当前渲染的歌词缓存；翻译和版本匹配取决于该平台返回内容。网易云优先真实 YRC，只有 LRC 时补估算逐字时间（§14.7），QQ 保持平台逐字数据。`weSingLyricSource / weSingSmartLyricMatch` 仅属于 [WeSing 在线兜底](wesing.md#8-在线兜底wesing-online-lyricsjs)，不参与这里的选择。智能播放只决定跟随哪个播放器，智能选词只为全民 K 歌本地 QRC 不可用时选择在线歌词。
 
 ## 14. 歌词解析器(src/music/lyric-parser.js)
 
-`lyric-parser.js` 是 QQ 音乐与网易云音乐**共用**的歌词行模型实现。导出 4 个函数：`parseLyricResult`、`parseLrc`、`parseWordLyric`、`findCurrentLyricLine`([lyric-parser.js:225-230](../../../../src/music/lyric-parser.js#L225-L230))。
+`lyric-parser.js` 是 QQ 音乐与网易云音乐**共用**的歌词行模型实现。导出 `parseLyricResult`、`parseLrc`、`parseWordLyric`、`findCurrentLyricLine` 及仅由网易云调用的 `estimateWordTimings`([lyric-parser.js](../../../../src/music/lyric-parser.js))。
 
 ### 14.1 parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma)([lyric-parser.js:45-75](../../../../src/music/lyric-parser.js#L45-L75))
 
@@ -452,7 +454,7 @@ QQ / 网易云采集器都提供 `getStatus()`、`getLyricState()`、`getTimelin
 | 前缀词（优先）       | `/\((\d+),(\d+),\d*\)([^()]+)/g` | `(start,duration,?)text`    |
 | 后缀词（仅无前缀时） | `/([^()]*)\((\d+),(\d+)\)/g`     | `text(start,duration)`      |
 
-每词输出 `{ startMs, endMs: startMs + max(0, durationMs), text }`；无词的行整体丢弃；行 `text` = 所有词文本拼接后 `trim()`。
+每词输出 `{ startMs, endMs: startMs + max(0, durationMs), text }`，保留有效词文本中的空格，避免 YRC 英文词连写；无词的行整体丢弃；行 `text` = 所有词文本拼接后 `trim()`。
 
 ### 14.4 createTimedTextResolver(lines, toleranceMs=100)([lyric-parser.js:86-111](../../../../src/music/lyric-parser.js#L86-L111))
 
@@ -473,6 +475,12 @@ CJK 判定三范围：`0x4E00-0x9FFF`（基本汉字）、`0x3400-0x4DBF`（扩�
 ### 14.6 findCurrentLyricLine(lines, currentMs)([lyric-parser.js:204-223](../../../../src/music/lyric-parser.js#L204-L223))
 
 二分查找**最后一个 `startMs ≤ currentMs` 的行**；`lines` 为空或 `currentMs` 非数字时返回 `null`。是播放页、WeSing 采集与歌词窗口的唯一当前行定位入口。
+
+### 14.7 estimateWordTimings(lines, durationMs)
+
+仅网易云 Provider 在解析后调用：已有 `words` 的行原样保留；LRC 行按 Unicode 字素切分，连续拉丁字母/数字合为词，标点和空白附到相邻字词以保留原文。每个字权重为 1，拉丁词按长度 / 3 计算且至少为 1，在行的起止时间间按权重连续分配毫秒。末句缺少结束时间时使用曲目时长；曲目时长也缺失时按每权重 300 ms 估算，限制在 1–8 秒。没有正时长或有效字词的行不生成时间。
+
+这是显示用的估算，不分析音频或承诺演唱级对齐；长间奏、拖腔可能有偏差。真实 YRC 不经过重分配。内置音频和外部真实采样仍各自拥有播放时钟，估算只补行内 `words`。
 
 ## 15. 跨 Provider 的规范形状(Track / Playlist)
 

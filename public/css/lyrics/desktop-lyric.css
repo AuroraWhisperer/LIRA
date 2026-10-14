@@ -199,6 +199,13 @@
   pointer-events: none;
 }
 
+.desktop-lyric-preview-row.is-line-exiting {
+  position: absolute;
+  pointer-events: none;
+  transition: none;
+  content-visibility: visible;
+}
+
 .desktop-lyric-preview-row.is-near {
   opacity: calc(var(--preview-opacity) * var(--preview-base-opacity) * 1.5);
 }

@@ -7,6 +7,7 @@ import { dangerConfirm } from '../../shared/confirmation-dialog.js';
 
 export const PLAYER_APPEARANCE_KEY = 'playbackAppearance:v1';
 export const DEFAULT_PLAYER_APPEARANCE = Object.freeze({
+  layout: 'classic',
   style: 'turntable',
   artworkSize: 100,
   rotation: true,
@@ -33,7 +34,8 @@ export const DEFAULT_PLAYER_APPEARANCE = Object.freeze({
 });
 
 const CHOICES = {
-  style: ['turntable', 'vinyl', 'cover'],
+  layout: ['classic', 'vinyl', 'lyrics'],
+  style: ['turntable', 'vinyl', 'cover', 'vinyl-arm'],
   backgroundMode: ['auto', 'solid', 'gradient'],
   textAlign: ['left', 'center'],
   textColors: ['theme', 'custom'],
@@ -108,6 +110,7 @@ export function savePlayerAppearance(storage, settings) {
 }
 
 export function applyPlayerAppearance(root, settings) {
+  root.dataset.playerLayout = settings.layout;
   root.dataset.playerStyle = settings.style;
   root.dataset.playerBackground = settings.backgroundMode;
   root.dataset.playerRotation = String(settings.rotation);
@@ -219,7 +222,7 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
   const fontSelects = fields.filter((field) => ['fontFamily', 'lyricFontFamily'].includes(field.dataset.appearanceKey));
   let layoutTimer;
   function positionPreviewLyric() {
-    scrollActiveLyricIntoView(canvas.querySelector('.player-fs-lyrics'));
+    scrollActiveLyricIntoView(canvas.querySelector('.player-fs-lyrics'), { center: settings.layout === 'lyrics' });
   }
   function refreshTypography() {
     clearTimeout(layoutTimer);
@@ -250,6 +253,7 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
     panel.querySelector('[data-appearance-gradient]').hidden = settings.backgroundMode !== 'gradient';
     panel.dataset.appearanceBackground = settings.backgroundMode;
     panel.querySelector('[data-appearance-text-colors]').hidden = settings.textColors !== 'custom';
+    panel.querySelector('[data-appearance-artwork-controls]').hidden = settings.layout === 'lyrics';
     panel.querySelector('[data-appearance-key="rotation"]').disabled = settings.style === 'cover';
     initParameterRanges(panel);
     refreshTypography();
@@ -267,9 +271,13 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
     if (value === settings[key]) return;
     settings = normalizePlayerAppearance({ ...settings, [key]: value });
     render();
-    feedback.textContent = savePlayerAppearance(storage, settings)
-      ? '已自动保存'
-      : '外观已生效，但未能保存；请重试，重启后可能恢复原设置。';
+    persistSettings();
+  }
+
+  function persistSettings() {
+    const saved = savePlayerAppearance(storage, settings);
+    feedback.hidden = saved;
+    feedback.textContent = saved ? '' : '外观已生效，但未能保存；请重试，重启后可能恢复原设置。';
   }
 
   panel.addEventListener('input', update);
@@ -280,9 +288,7 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
       confirmLabel: '恢复全部默认' })) return;
     settings = { ...DEFAULT_PLAYER_APPEARANCE };
     render();
-    feedback.textContent = savePlayerAppearance(storage, settings)
-      ? '已恢复默认外观'
-      : '已恢复默认外观，但未能保存；请重试。';
+    persistSettings();
   });
   panel.querySelector('[data-appearance-group-reset]').addEventListener('click', () => {
     const group = panel.querySelector('[data-appearance-group]:not([hidden])');
@@ -291,9 +297,7 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
       settings[key] = DEFAULT_PLAYER_APPEARANCE[key];
     }
     render();
-    feedback.textContent = savePlayerAppearance(storage, settings)
-      ? '已恢复本组默认，其他设置已保留'
-      : '已恢复本组默认，但未能保存；请重试。';
+    persistSettings();
   });
   panel.querySelector('[data-appearance-long-sample]').addEventListener('change', (event) => {
     renderPreviewLyrics(canvas, event.target.checked);

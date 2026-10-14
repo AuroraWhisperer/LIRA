@@ -174,3 +174,26 @@ test('lyric service ignores incomplete v4 lyric cache entries', async (t) => {
   assert.equal(result.lines[0].translation, '中文译');
   assert.equal(result.lines[0].roma, 'romanization');
 });
+
+test('NetEase refetches old line-only cache once while retaining the QQ cache', async (t) => {
+  const lyricCacheDir = createScratchDirectory('netease-word-cache-', t);
+  const service = createLyricsService({ lyricCacheDir });
+  for (const source of ['qq', 'netease']) {
+    const track = { id: `${source}:123`, source, sourceTrackId: '123', title: 'Synthetic song' };
+    writeMusicJsonCache(lyricCacheDir, musicCacheKey('lyrics-v5', { source, sourceTrackId: '123' }), {
+      source, sourceTrackId: '123', lines: [{ startMs: 1000, text: '示例', words: [] }],
+    });
+    let calls = 0;
+    const registry = { get: () => ({ getLyrics: async () => {
+      calls++;
+      return { source, sourceTrackId: '123', lines: [{ startMs: 1000, text: '示例', words: [
+        { startMs: 1000, endMs: 1500, text: '示' }, { startMs: 1500, endMs: 2000, text: '例' },
+      ] }] };
+    } }) };
+    const first = await service.getMusicTrackLyrics(registry, { track });
+    const second = await service.getMusicTrackLyrics(registry, { track });
+    assert.equal(calls, source === 'netease' ? 1 : 0);
+    assert.equal(first.lines[0].words.length, source === 'netease' ? 2 : 0);
+    assert.deepEqual(second.lines, first.lines);
+  }
+});

@@ -161,7 +161,7 @@ function getMusicTrackLyrics(registry, body) {
 async function getMusicTrackLyricsWithCache(registry, body, lyricCacheDir) {
   const input = body && typeof body === 'object' ? body : {};
   const normalizedTrack = normalizeMusicTrackForProvider(input.track || input);
-  const cacheKey = musicCacheKey('lyrics-v5', {
+  const cacheKey = musicCacheKey(normalizedTrack.source === 'netease' ? 'lyrics-v6' : 'lyrics-v5', {
     source: normalizedTrack.source,
     sourceTrackId: normalizedTrack.sourceTrackId,
   });

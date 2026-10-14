@@ -167,13 +167,14 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 
 ### 8.1 大播放器外观
 
-「播放」页顶部使用单行分组切换条：左侧「音乐播放」选中时展开 QQ 音乐、网易云音乐、全民 K 歌三个平台，右侧为「播放器外观」；进入外观后左侧显示「音乐播放」，同一组平台文字缩至标题下方，以「·」分隔；返回音乐播放时文字平滑展开为三个选项，切换条高度保持不变。展开/收起和平台滑块使用 560ms 缓入缓出过渡，减少动态效果时取消位移与缩放过渡并保留短暂淡入淡出。`core/event-handlers.js` 管理分组显隐与焦点，平台标签的方向键和 Home/End 只移动焦点，按 Enter/Space 或点击才激活平台，Tab 可到达外观按钮。平台滑块由 `header.css` 跟随既有 `.source-tab.active` 状态，支持减少动态效果；选中平台复用播放状态中的 `selectedSource` 保存与恢复，首次默认 `qq`，切换外观不修改平台。外观片段为 `public/pages/admin/playback/appearance.html`，`ui/appearance.js` 由 `FullscreenPlayer.init` 初始化一次，负责设置规范化、本机保存、控件和示例预览；`css/playback/appearance.css` 负责设置页与样式变体，字体声明复用 `css/shared/display-fonts.css`。设置区仍由 `FormsService.initTabs` 管理「样式 / 配色 / 歌曲 / 歌词」标签及键盘导航；样式为三种实际视觉的缩略图单选。歌曲信息保留在右侧，与歌词正文同一条起始线，跳转按钮独占左侧留白。极大字号下歌曲信息区域最多占右栏 45%，可独立滚动，保留歌词空间；`ui/lyric-layout.js` 为实际播放器和预览共用定位：正常行在上方 1/3 附近，过高行定位首字，跳过巨大行高产生的前置空白，并换算预览缩放。预览复用全屏播放器的内容 DOM/CSS，按实际播放器尺寸等比缩小，跟随尺寸和背景主题变化；可切换长句与译文样本，移除交互与普通 ID，并为 SVG 资源重命名，不建立第二个音频或歌词运行时。「打开大播放器」复用 FormsService 的 dock 展开与全屏焦点管理。排版修改及字体加载完成后，等待现有 300ms 字号过渡结束，再通过 `onTypographyChange` 调用原有歌词跟随定位；保留手动浏览保护，退出页面清理计时器、字体注册、尺寸及背景监听。主题背景使用不透明底色与独立模糊装饰层，避免 100% 不透明度下边缘透底；自定义背景禁用装饰层，颜色 alpha 和整体不透明度仍分别生效。
+「播放」页顶部使用单行分组切换条：左侧「音乐播放」选中时展开 QQ 音乐、网易云音乐、全民 K 歌三个平台，右侧为「播放器外观」；进入外观后左侧显示「音乐播放」，同一组平台文字缩至标题下方，以「·」分隔；返回音乐播放时文字平滑展开为三个选项，切换条高度保持不变。展开/收起和平台滑块使用 560ms 缓入缓出过渡，减少动态效果时取消位移与缩放过渡并保留短暂淡入淡出。`core/event-handlers.js` 管理分组显隐与焦点，平台标签的方向键和 Home/End 只移动焦点，按 Enter/Space 或点击才激活平台，Tab 可到达外观按钮。平台滑块由 `header.css` 跟随既有 `.source-tab.active` 状态，支持减少动态效果；选中平台复用播放状态中的 `selectedSource` 保存与恢复，首次默认 `qq`，切换外观不修改平台。外观片段为 `public/pages/admin/playback/appearance.html`，`ui/appearance.js` 由 `FullscreenPlayer.init` 初始化一次，负责设置规范化、本机保存、控件和示例预览；`css/playback/appearance.css` 负责设置页与样式变体，字体声明复用 `css/shared/display-fonts.css`。设置区仍由 `FormsService.initTabs` 管理「样式 / 配色 / 歌曲 / 歌词」标签及键盘导航；样式先通过示意图单选经典（左封面、右歌曲与歌词）、黑胶（上封面、下歌曲与歌词）或歌词（只显示歌词）布局。经典和黑胶共用默认唱片机、黑胶唱片、专辑封面和唱臂黑胶四种外观缩略图；歌词布局收起封面控件并保留外观偏好。歌曲信息在经典布局的右侧、黑胶布局的封面下方，均与歌词正文同一条起始线；黑胶布局仅显示当前一行歌词，长句不换行并以省略号截断，无高亮时显示首句，隐藏译文/罗马音副行、切换按钮与手动浏览按钮；歌词布局隐藏歌名和歌手，保留手动浏览时的「返回当前歌词」按钮及歌词跳转。纯歌词隐藏滚动条而保留滚轮、键盘和点击浏览；首末行留足居中空间，当前句突出、相邻句淡化、上下边缘渐隐，手动浏览或焦点所在句恢复清晰。自动主题背景的模糊装饰层以 18 秒周期缓慢流动；关闭大播放器时暂停，减少动态效果时关闭背景动画及平滑滚动。自定义背景沿用用户配色。极大字号下歌曲信息区域最多占右栏 45%，可独立滚动，保留歌词空间；`ui/lyric-layout.js` 为实际播放器和预览共用定位：经典布局正常行在上方 1/3 附近，黑胶布局在固定区域显示单行，纯歌词布局位于中部；过高行定位首字，纯歌词首字避开顶部渐隐区域，跳过巨大行高产生的前置空白，并换算预览缩放。预览复用全屏播放器的内容 DOM/CSS，按实际播放器尺寸等比缩小，跟随尺寸和背景主题变化；右侧仅保留示例画面、「长句与译文」开关和「打开大播放器」，不显示预览标题、比例说明或常驻保存文案。预览移除交互与普通 ID，并为 SVG 资源重命名，不建立第二个音频或歌词运行时。「打开大播放器」复用 FormsService 的 dock 展开与全屏焦点管理。排版修改及字体加载完成后，等待现有 300ms 字号过渡结束，再通过 `onTypographyChange` 调用原有歌词跟随定位；保留手动浏览保护，退出页面清理计时器、字体注册、尺寸及背景监听。主题背景使用不透明底色与独立模糊装饰层，避免 100% 不透明度下边缘透底；自定义背景禁用装饰层，颜色 alpha 和整体不透明度仍分别生效。
 
-外观只作用于大播放器；底部播放栏和直播歌词组件保持各自设置。字段保存在当前管理页 origin 的 localStorage `playbackAppearance:v1`，不进入队列快照、数据库或云端同步。每次有效修改即时应用并保存；保存失败保留本次画面效果并显示未保存提示。缺失、损坏或不可读的数据使用默认值，不在读取时覆盖存储。「恢复本组默认」仅重置当前分类的字段并保留其他分类；「恢复全部默认」先确认再写入本模块默认值，移除自定义字体、字号与文字颜色变量，让客户端配色重新接管。
+外观只作用于大播放器；底部播放栏和直播歌词组件保持各自设置。字段保存在当前管理页 origin 的 localStorage `playbackAppearance:v1`，不进入队列快照、数据库或云端同步。每次有效修改即时应用并保存，成功时不显示提示；保存失败保留本次画面效果并在左侧控件下显示未保存提示，下一次成功保存后隐藏。缺失、损坏或不可读的数据使用默认值，不在读取时覆盖存储。「恢复本组默认」仅重置当前分类的字段并保留其他分类；「恢复全部默认」先确认再写入本模块默认值，移除自定义字体、字号与文字颜色变量，让客户端配色重新接管。
 
 | 字段 | 默认值与范围 |
 | --- | --- |
-| `style` | `turntable`（当前唱片机）、`vinyl`（黑胶）、`cover`（专辑封面） |
+| `layout` | `classic`（左封面、右歌曲与歌词）、`vinyl`（上封面、下歌曲与歌词）、`lyrics`（仅歌词）；旧记录缺失时为 `classic` |
+| `style` | `turntable`（当前唱片机）、`vinyl`（黑胶）、`cover`（专辑封面）、`vinyl-arm`（唱臂黑胶）；独立于布局保存 |
 | `artworkSize` / `rotation` | `100`，60–110%；`true`，播放时旋转；封面样式不旋转，保留旋转偏好供切回唱片时使用 |
 | `backgroundMode` | `auto`（沿用原主题背景）、`solid`、`gradient` |
 | `backgroundColor` / `gradientColor` / `backgroundOpacity` | `#fff1f4` / `#c9dced` / `100`（0–100）；颜色在自定义背景模式下生效 |
@@ -193,7 +194,7 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 
 排版参数参考 [Better Lyrics](https://github.com/better-lyrics/better-lyrics/blob/master/STYLING.md) 的字体、行高、字重与副行配置，以及 [AMLL](https://amll.dev/en/reference/react/interfacelyricplayerprops.html) 的歌词强调与对齐；本页采用独立选项组合风格，不引入外部播放器运行时。
 
-黑胶选项复用 Grason Chan 的 [Spicetify Turntable](https://github.com/spicetify/spicetify-themes/tree/c432012478e1f2e2ffccca8e943e188af40d6190/Turntable)：使用其 `user.css` 的 `--shine`、`#fad-art::before/after`、封面内阴影和 24 秒转速，将原始封面/唱片/外圈 1 : 1.5 : 1.65 的比例换算为现有播放器容器的百分比。仅适配 LIRA DOM、尺寸和播放状态，不导入 Spotify 页面、脚本、登录或播放逻辑，也不宣称整个播放器页面与上游一致。原始 MIT 声明随 [turntable.LICENSE.txt](../../../public/css/playback/turntable.LICENSE.txt) 分发。默认唱片机与简约封面属于原有视觉及本地样式。
+黑胶选项复用 Grason Chan 的 [Spicetify Turntable](https://github.com/spicetify/spicetify-themes/tree/c432012478e1f2e2ffccca8e943e188af40d6190/Turntable)：使用其 `user.css` 的 `--shine`、`#fad-art::before/after`、封面内阴影和 24 秒转速，将原始封面/唱片/外圈 1 : 1.5 : 1.65 的比例换算为现有播放器容器的百分比。仅适配 LIRA DOM、尺寸和播放状态，不导入 Spotify 页面、脚本、登录或播放逻辑，也不宣称整个播放器页面与上游一致。原始 MIT 声明随 [turntable.LICENSE.txt](../../../public/css/playback/turntable.LICENSE.txt) 分发。默认唱片机与简约封面属于原有视觉及本地样式。唱臂黑胶沿用黑胶封面比例与转速，增加本地唱片纹理和白色唱臂 SVG；复用 `FullscreenPlayer.updateVinylAnimation` 的 `playing` / `paused` 状态驱动落针、抬臂与旋转，不创建额外播放监听器。
 
 ### 8.2 歌词动画性能边界
 

@@ -38,6 +38,17 @@ const TONEARM_SVG = `
         <circle cx="0" cy="1" r="8" fill="#d8dcde"/>
       </g>
     </g>
+  </svg>
+  <svg viewBox="0 0 300 260" data-player-tonearm="vinyl" aria-hidden="true">
+    <path d="M40 40 C89 79 122 111 165 116 L247 122" fill="none" stroke="#f7f8fa" stroke-width="9" stroke-linecap="round" />
+    <circle cx="40" cy="40" r="27" fill="#e7edf4" fill-opacity=".14" />
+    <circle cx="40" cy="40" r="20" fill="#fff" />
+    <circle cx="40" cy="40" r="7" fill="#dedee1" />
+    <g transform="translate(247 122) rotate(4)">
+      <rect x="-12" y="-6" width="21" height="12" rx="3" fill="#f7f8fa" />
+      <rect x="4" y="-13" width="25" height="26" rx="4" fill="#fff" />
+      <path d="M10 -7h13M10 1h13M10 8h13" stroke="#c7cbd0" stroke-width="2" stroke-linecap="round" />
+    </g>
   </svg>`;
 
 /**
@@ -339,7 +350,7 @@ export class FullscreenPlayer {
       return;
     }
 
-    scrollActiveLyricIntoView(this.lyricsContainer);
+    scrollActiveLyricIntoView(this.lyricsContainer, { center: this.fsEl?.dataset.playerLayout === 'lyrics' });
   }
 
   setManualBrowsing(manual) {

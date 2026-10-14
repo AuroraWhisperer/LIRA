@@ -134,11 +134,14 @@ $ProgressPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type -AssemblyName Accessibility
 $nativeSource = @'
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
+using Accessibility;
 public sealed class NeteasePlaybackWindow {
   public IntPtr Handle;
   public string Title;
@@ -174,8 +177,88 @@ public static class NeteasePlaybackWindows {
     return result;
   }
 }
+// Chromium's MSAA tree remains readable when the managed UIA bridge exposes
+// only empty host panes. Cache only the two player controls, never invoke them.
+public sealed class NeteaseAccessibleControl {
+  public IAccessible Owner;
+  public int Child;
+  public string Name { get { return Owner.get_accName(Child) ?? ""; } }
+  public int Top { get { int x, y, width, height; Owner.accLocation(out x, out y, out width, out height, Child); return y; } }
+}
+public sealed class NeteaseAccessiblePlayer {
+  [DllImport("oleacc.dll")] private static extern int AccessibleObjectFromWindow(IntPtr window, uint objectId,
+    ref Guid iid, [MarshalAs(UnmanagedType.Interface)] out IAccessible result);
+  [DllImport("oleacc.dll")] private static extern int AccessibleChildren(IAccessible parent, int start, int count,
+    [Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] object[] children, out int obtained);
+  private readonly HashSet<IAccessible> retained = new HashSet<IAccessible>();
+  private readonly List<NeteaseAccessibleControl> buttons = new List<NeteaseAccessibleControl>();
+  public NeteaseAccessibleControl Progress;
+  public NeteaseAccessibleControl State;
+  public void Reset() {
+    Progress = State = null;
+    buttons.Clear();
+    foreach (var owner in retained) Marshal.ReleaseComObject(owner);
+    retained.Clear();
+  }
+  public void Scan(IntPtr window) {
+    Reset();
+    var iid = new Guid("618736e0-3c3d-11cf-810c-00aa00389b71");
+    IAccessible root;
+    if (AccessibleObjectFromWindow(window, unchecked((uint)-4), ref iid, out root) != 0 || root == null) return;
+    int visited = 0;
+    Walk(root, 0, ref visited);
+    try {
+      if (Progress != null) {
+        int distance = 100;
+        foreach (var button in buttons) {
+          int candidate = Math.Abs(button.Top - Progress.Top);
+          if (candidate < distance) { State = button; distance = candidate; }
+        }
+      }
+    } catch { Progress = State = null; }
+    foreach (var owner in new List<IAccessible>(retained)) {
+      if ((Progress == null || owner != Progress.Owner) && (State == null || owner != State.Owner)) {
+        Marshal.ReleaseComObject(owner);
+        retained.Remove(owner);
+      }
+    }
+    buttons.Clear();
+  }
+  private void Observe(IAccessible owner, int child) {
+    string name = owner.get_accName(child) ?? "";
+    var control = new NeteaseAccessibleControl { Owner = owner, Child = child };
+    if (Regex.IsMatch(name, @"^\s*\d{1,3}:\d{2}\s*[/|]\s*\d{1,3}:\d{2}\s*$")) {
+      Progress = control;
+      retained.Add(owner);
+    } else if (Convert.ToInt32(owner.get_accRole(child)) == 43 &&
+      Regex.IsMatch(name, @"^(暂停|播放|Pause|Play)(\s*\([^)]*\))?$", RegexOptions.IgnoreCase)) {
+      buttons.Add(control);
+      retained.Add(owner);
+    }
+  }
+  private void Walk(IAccessible owner, int depth, ref int visited) {
+    try {
+      if (depth > 32 || visited++ >= 2000) return;
+      Observe(owner, 0);
+      int count = Math.Min(owner.accChildCount, Math.Max(0, 2000 - visited));
+      if (count == 0) return;
+      var children = new object[count];
+      int obtained;
+      AccessibleChildren(owner, 0, count, children, out obtained);
+      for (int index = 0; index < obtained; index++) {
+        var accessible = children[index] as IAccessible;
+        if (accessible != null) Walk(accessible, depth + 1, ref visited);
+        else if (children[index] is int && visited++ < 2000) {
+          try { Observe(owner, (int)children[index]); }
+          catch { continue; }
+        }
+      }
+    } catch { return; }
+    finally { if (!retained.Contains(owner)) Marshal.ReleaseComObject(owner); }
+  }
+}
 '@
-Add-Type -TypeDefinition $nativeSource
+Add-Type -TypeDefinition $nativeSource -ReferencedAssemblies Accessibility
 $manager = $null
 try {
   Add-Type -AssemblyName System.Runtime.WindowsRuntime
@@ -196,6 +279,7 @@ $lastWindow = ''
 $nextScanAt = 0
 $progressElement = $null
 $stateElement = $null
+$accessiblePlayer = [NeteaseAccessiblePlayer]::new()
 $controlCondition = [System.Windows.Automation.OrCondition]::new(
   [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text),
   [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
@@ -230,6 +314,7 @@ while ($true) {
           $lastWindow = $windowKey
           $progressElement = $null
           $stateElement = $null
+          $accessiblePlayer.Reset()
           $nextScanAt = $sampledAt + 1500
         }
         $sample.windowTitle = $window.Title
@@ -251,13 +336,16 @@ while ($true) {
             $stateElement = $buttons | Where-Object { [Math]::Abs($_.Current.BoundingRectangle.Top - $progressY) -lt 100 } |
               Sort-Object { [Math]::Abs($_.Current.BoundingRectangle.Top - $progressY) } | Select-Object -First 1
           }
+          if ($null -eq $progressElement) { $accessiblePlayer.Scan($window.Handle) }
+          else { $accessiblePlayer.Reset() }
         }
-        if ($null -ne $stateElement) {
-          $name = [string]$stateElement.Current.Name
-          if ($name -match '^(暂停|Pause)') { $sample.playbackStatus = 'Playing' }
-          elseif ($name -match '^(播放|Play)') { $sample.playbackStatus = 'Paused' }
-        }
-        if ($null -ne $progressElement -and $progressElement.Current.Name -match '^\s*(\d{1,3}):(\d{2})\s*[/|]\s*(\d{1,3}):(\d{2})\s*$') {
+        $stateName = if ($null -ne $stateElement) { [string]$stateElement.Current.Name }
+          elseif ($null -ne $accessiblePlayer.State) { $accessiblePlayer.State.Name } else { '' }
+        if ($stateName -match '^(暂停|Pause)') { $sample.playbackStatus = 'Playing' }
+        elseif ($stateName -match '^(播放|Play)') { $sample.playbackStatus = 'Paused' }
+        $progressName = if ($null -ne $progressElement) { [string]$progressElement.Current.Name }
+          elseif ($null -ne $accessiblePlayer.Progress) { $accessiblePlayer.Progress.Name } else { '' }
+        if ($progressName -match '^\s*(\d{1,3}):(\d{2})\s*[/|]\s*(\d{1,3}):(\d{2})\s*$') {
           if ([int]$matches[2] -lt 60 -and [int]$matches[4] -lt 60) {
             $sample.positionMs = (([int]$matches[1] * 60) + [int]$matches[2]) * 1000
             $sample.durationMs = (([int]$matches[3] * 60) + [int]$matches[4]) * 1000
@@ -267,7 +355,7 @@ while ($true) {
         if ([NeteasePlaybackWindows]::ReadTitle($window.Handle) -ne $window.Title) {
           $sample = @{ detected = $true; playbackStatus = 'Changing'; clockSource = 'uia' }
         }
-      } else { $lastWindow = ''; $progressElement = $null; $stateElement = $null }
+      } else { $lastWindow = ''; $progressElement = $null; $stateElement = $null; $accessiblePlayer.Reset() }
     }
   } catch { $sample = @{ error = $true } }
   finally { foreach ($process in $processes) { $process.Dispose() } }

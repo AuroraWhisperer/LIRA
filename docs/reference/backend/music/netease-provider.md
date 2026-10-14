@@ -100,7 +100,7 @@ User-Agent: Mozilla/5.0 SongAssistant/1.0
 | --- | ------------------- | ----------------------------------- | -------- | ------ |
 | 1   | 搜索                | `/api/search/get/web`               | 否       | §7.1   |
 | 2   | 播放 URL 解析       | `/api/song/enhance/player/url/v1`（按账号权益返回）                | 否       | §7.2   |
-| 3   | 歌词                | `/api/song/lyric`                   | 否       | §7.3   |
+| 3   | 歌词                | `/api/song/lyric/v1`                | 否       | §7.3   |
 | 4   | 推荐歌单            | `/api/personalized/playlist`        | 否       | §7.4   |
 | 5   | 每日推荐            | `/api/v1/discovery/recommend/songs` | **是**   | §7.5   |
 | 6   | 新歌(电台)          | `/api/personalized/newsong`         | 否       | §7.6   |
@@ -133,10 +133,12 @@ GET https://music.163.com/api/search/get/web?s=<关键词>&type=1&limit=<1-30 �
 ### 7.3 歌词([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
 ```
-GET https://music.163.com/api/song/lyric?id=<歌曲ID>&lv=-1&kv=-1&tv=-1&ytv=-1
+GET https://music.163.com/api/song/lyric/v1?id=<歌曲ID>&cp=false&lv=0&kv=0&tv=0&rv=0&yv=0&ytv=0&yrv=0
 ```
 
-四个版本参数全取 `-1`(服务端最新版):`lv` 原始 LRC、`kv` 逐字、`tv` 翻译、`ytv` 罗马音。响应 `data.lrc.lyric` / `data.tlyric.lyric` / `data.yrc.lyric` / `data.romalrc.lyric` 四路缺省为空串,汇入 `parseLyricResult(lrc, tlyric, yrc, romalrc)`(解析器见 §9)。
+同时请求普通歌词与 YRC 逐字歌词及其翻译、罗马音。有效 `yrc.lyric` 优先，并直接以 YRC 的行时间构建歌词；对应翻译优先 `ytlrc.lyric`、罗马音优先 `yromalrc.lyric`，缺失时分别使用 `tlyric.lyric`、`romalrc.lyric`。这样 LRC 与 YRC 行时间不一致时不会丢失逐字数据。
+
+没有有效 YRC 时解析 `lrc.lyric` 及普通翻译、罗马音，再调用 `estimateWordTimings(lines, track.durationMs)` 生成估算逐字时间，供内置和外置播放器共用。估算不替换真实逐字数据，也不保证逐字贴合演唱；算法见 [音乐服务 §14](services.md#14-歌词解析器srcmusiclyric-parserjs)。
 
 ### 7.4 推荐歌单([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 

@@ -192,6 +192,10 @@ test('fullscreen manual browsing holds position until follow resumes', async () 
   player.scrollToActiveLyric();
   assert.equal(player.lyricsContainer.scrollTop, 230);
   assert.equal(player.followBtn.hidden, true);
+  player.fsEl = { dataset: { playerLayout: 'lyrics' } };
+  player.scrollToActiveLyric();
+  assert.equal(player.lyricsContainer.scrollTop, 180, 'lyrics-only mode centers the active line');
+  player.fsEl = null;
   player.lyricsContainer.querySelector = () => ({ offsetTop: 300, clientHeight: 1200, querySelector: () => null });
   player.scrollToActiveLyric();
   assert.equal(player.lyricsContainer.scrollTop, 300, 'large wrapped lyrics keep their beginning visible');
@@ -212,6 +216,9 @@ test('oversized lyric positioning skips leading blank space and accounts for pre
     };
     scrollActiveLyricIntoView(container);
     assert.equal(container.scrollTop, 1000);
+    container.scrollTop = 300;
+    scrollActiveLyricIntoView(container, { center: true });
+    assert.equal(container.scrollTop, 946, 'oversized lyrics start below the lyrics-only edge fade');
   }
 });
 

@@ -3,9 +3,12 @@
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const { EventEmitter } = require('node:events');
+const fs = require('node:fs');
+const path = require('node:path');
 const { PassThrough } = require('node:stream');
 const test = require('node:test');
 const { createNeteaseClientMonitor, buildNeteaseClientMonitorScript } = require('../../src/music/netease-client-monitor');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 function fixture(t, options = {}) {
   const samples = [];
@@ -16,6 +19,7 @@ function fixture(t, options = {}) {
       assert.equal(command, 'powershell.exe');
       assert.equal(settings.windowsHide, true);
       assert.ok(args.includes('-NonInteractive'));
+      assert.ok(args.join(' ').length < 32700, 'Encoded helper must fit the Windows command-line limit');
       assert.equal(Buffer.from(args.at(-1), 'base64').toString('utf16le'), buildNeteaseClientMonitorScript());
       const child = Object.assign(new EventEmitter(), {
         stdout: new PassThrough(), stderr: new PassThrough(), killed: false,
@@ -85,10 +89,38 @@ test('NetEase monitor handles a synchronous launch failure and cancels queued re
   assert.equal(launches, 2);
 });
 
-test('NetEase generated Windows helper compiles without opening or controlling a player', { skip: process.platform !== 'win32' }, () => {
-  const script = buildNeteaseClientMonitorScript().replace('while ($true)', 'while ($false)');
-  const encoded = Buffer.from(script, 'utf16le').toString('base64');
-  const result = spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
+test('NetEase Windows helper reads and refreshes synthetic MSAA controls without a real player', { skip: process.platform !== 'win32' }, (t) => {
+  const script = buildNeteaseClientMonitorScript().replace('while ($true)', 'while ($false)') + String.raw`
+Add-Type -AssemblyName System.Windows.Forms
+$form = [System.Windows.Forms.Form]::new()
+$form.ShowInTaskbar = $false
+$form.Opacity = 0
+$time = [System.Windows.Forms.Label]::new()
+$time.Text = '01:02 / 03:20'
+$time.Top = 20
+$button = [System.Windows.Forms.Button]::new()
+$button.Text = 'play'
+$button.Top = 50
+$form.Controls.Add($time)
+$form.Controls.Add($button)
+try {
+  $form.Show()
+  [System.Windows.Forms.Application]::DoEvents()
+  $reader = [NeteaseAccessiblePlayer]::new()
+  $reader.Scan($form.Handle)
+  if ($reader.Progress.Name -ne '01:02 / 03:20' -or $reader.State.Name -ne 'play') { throw 'Missing player controls' }
+  $time.Text = '01:03 / 03:20'
+  $button.Text = 'pause'
+  if ($reader.Progress.Name -ne '01:03 / 03:20' -or $reader.State.Name -ne 'pause') { throw 'Cached controls did not update' }
+  $reader.Scan($form.Handle)
+  if ($reader.Progress.Name -ne '01:03 / 03:20') { throw 'Rescan lost the clock' }
+  $reader.Reset()
+  if ($null -ne $reader.Progress -or $null -ne $reader.State) { throw 'Track reset retained old controls' }
+} finally { $form.Dispose() }
+`;
+  const scriptPath = path.join(createScratchDirectory('netease-accessibility-', t), 'synthetic-player.ps1');
+  fs.writeFileSync(scriptPath, '\ufeff' + script);
+  const result = spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', scriptPath], {
     windowsHide: true, encoding: 'utf8', timeout: 15000,
   });
   assert.equal(result.error, undefined);

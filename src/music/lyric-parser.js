@@ -164,8 +164,8 @@ function parseWordLyric(rawText) {
     while ((match = prefixWordPattern.exec(body)) !== null) {
       const startMs = Number(match[1]);
       const durationMs = Number(match[2]);
-      const textValue = String(match[3] || '').trim();
-      if (!textValue) continue;
+      const textValue = String(match[3] || '');
+      if (!textValue.trim()) continue;
       words.push({
         startMs,
         endMs: startMs + Math.max(0, durationMs),
@@ -224,7 +224,53 @@ function findCurrentLyricLine(lines, currentMs) {
   return result;
 }
 
+// LRC has only line anchors. Keep supplied word timing, otherwise distribute the
+// line interval across characters / Latin words so both highlight modes can run.
+function estimateWordTimings(lines, durationMs = 0) {
+  const segmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
+  return lines.map((line, index) => {
+    if (line.words?.length) return line;
+    const tokens = [];
+    let prefix = '';
+    let latin = false;
+    for (const { segment } of segmenter.segment(line.text)) {
+      const isLatin = /^[\p{Script=Latin}\p{N}\p{M}]+$/u.test(segment);
+      if (/^[\p{P}\p{Z}\p{M}\s]+$/u.test(segment)) {
+        if (tokens.length) tokens.at(-1).text += segment;
+        else prefix += segment;
+        latin = false;
+      } else if (isLatin && latin) {
+        tokens.at(-1).text += segment;
+        tokens.at(-1).weight += 1 / 3;
+      } else {
+        tokens.push({ text: prefix + segment, weight: isLatin ? 1 / 3 : 1 });
+        prefix = '';
+        latin = isLatin;
+      }
+    }
+    if (!tokens.length) return line;
+    const totalWeight = tokens.reduce((sum, token) => sum + Math.max(1, token.weight), 0);
+    const nextStart = lines[index + 1]?.startMs;
+    // Only the final unbounded line needs a nominal duration (300 ms per unit,
+    // 1–8 seconds). Do not stretch it indefinitely when track duration is absent.
+    const endMs = line.endMs ?? nextStart ?? (durationMs > line.startMs
+      ? durationMs : line.startMs + Math.min(8000, Math.max(1000, totalWeight * 300)));
+    if (endMs <= line.startMs) return line;
+    let weight = 0;
+    let startMs = line.startMs;
+    const words = tokens.map((token) => {
+      weight += Math.max(1, token.weight);
+      const wordEndMs = Math.round(line.startMs + (endMs - line.startMs) * weight / totalWeight);
+      const word = { text: token.text, startMs, endMs: wordEndMs };
+      startMs = wordEndMs;
+      return word;
+    });
+    return { ...line, endMs, words };
+  });
+}
+
 module.exports = {
+  estimateWordTimings,
   findCurrentLyricLine,
   parseLrc,
   parseLyricResult,

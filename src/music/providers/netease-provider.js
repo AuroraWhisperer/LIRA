@@ -8,7 +8,7 @@ function responseLimitError() {
   return Object.assign(new Error('网易云音乐响应过大，无法处理。'), { code: 'MUSIC_RESPONSE_TOO_LARGE' });
 }
 
-const { parseLyricResult } = require('../lyric-parser');
+const { estimateWordTimings, parseLyricResult } = require('../lyric-parser');
 const { encryptNeteaseWeapiPayload } = require('./netease-weapi');
 const {
   clampInteger,
@@ -291,23 +291,27 @@ class NeteaseMusicProvider {
 
   async getLyrics(track) {
     const sourceTrackId = extractSourceTrackId(track);
-    const data = await this.requestJson('/api/song/lyric', {
+    const data = await this.requestJson('/api/song/lyric/v1', {
       id: sourceTrackId,
-      lv: '-1',
-      kv: '-1',
-      tv: '-1',
-      rv: '-1',
-      ytv: '-1',
+      cp: 'false',
+      lv: '0',
+      kv: '0',
+      tv: '0',
+      rv: '0',
+      yv: '0',
+      ytv: '0',
+      yrv: '0',
     });
+    // YRC and LRC can describe different line boundaries. Use YRC's own anchors
+    // and alternates instead of attaching its words by exact LRC timestamps.
+    const wordLines = parseLyricResult('', data?.ytlrc?.lyric || data?.tlyric?.lyric || '',
+      data?.yrc?.lyric || '', data?.yromalrc?.lyric || data?.romalrc?.lyric || '');
+    const lines = wordLines.length ? wordLines : parseLyricResult(
+      data?.lrc?.lyric || '', data?.tlyric?.lyric || '', '', data?.romalrc?.lyric || '');
     return {
       source: this.source,
       sourceTrackId,
-      lines: parseLyricResult(
-        data && data.lrc ? data.lrc.lyric : '',
-        data && data.tlyric ? data.tlyric.lyric : '',
-        data && data.yrc ? data.yrc.lyric : '',
-        data && data.romalrc ? data.romalrc.lyric : '',
-      ),
+      lines: estimateWordTimings(lines, track.durationMs),
     };
   }
 

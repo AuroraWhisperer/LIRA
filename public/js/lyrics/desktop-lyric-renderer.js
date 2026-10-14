@@ -18,6 +18,7 @@ import {
   stepSpringScroll,
 } from './desktop-lyric-timeline.js';
 import { applyDesktopLyricStyles } from './desktop-lyric-styles.js';
+import { createLyricLineTransition } from './desktop-lyric-line-transition.js';
 
 export { calculateFollowTarget, findActiveLyricIndex, getLyricCountdown, getVisibleLyricRange, stepSpringScroll };
 
@@ -62,6 +63,8 @@ let followPosition = 0;
 let followVelocity = 0;
 let followTarget = 0;
 let followFrameAt = 0;
+let lineTransition = null;
+let immediateLineChange = false;
 let currentDisplaySettings = resolveDesktopLyricSettings();
 
 function init() {
@@ -72,6 +75,7 @@ function init() {
   viewport = document.getElementById('desktopLyricPreviewViewport');
   if (!stage || !playback || !timelineElement || !viewport) return false;
   initialized = true;
+  lineTransition = createLyricLineTransition(viewport, timelineElement);
 
   renderer = new LyricWordRenderer({
     lineElement: playback,
@@ -121,7 +125,11 @@ function updateLyricState(state) {
   const previousState = latestState;
   latestState = { ...(latestState || {}), ...state };
   latestWordSignature = JSON.stringify([latestState.lineText || '', latestState.words || []]);
+  immediateLineChange = state.discontinuity === true || latestState.generation !== previousState?.generation
+    || latestState.trackTitle !== previousState?.trackTitle;
+  if (immediateLineChange) lineTransition?.clear();
   renderer?.setState({ ...latestState, discontinuity: state.discontinuity === true });
+  immediateLineChange = false;
   renderActiveWords();
   if (state.discontinuity === true || latestState.generation !== previousState?.generation
     || latestState.trackTitle !== previousState?.trackTitle) {
@@ -147,6 +155,7 @@ function updateLyricTimeline(timeline) {
 
 function renderTimeline() {
   if (!timelineElement) return;
+  lineTransition?.clear();
   const fragment = document.createDocumentFragment();
   rowElements = [];
   countdownElement = null;
@@ -218,6 +227,11 @@ function renderTimelineFrame(currentMs) {
   const nextActiveIndex = findActiveLyricIndex(lines, lyricTime);
 
   if (nextActiveIndex !== activeIndex) {
+    const canTransition = activeIndex >= 0 && nextActiveIndex === activeIndex + 1
+      && !immediateLineChange && latestState?.playing === true && Date.now() >= manualFollowUntil;
+    const positions = canTransition ? lineTransition?.capture(rowElements,
+      getVisibleLyricRange(nextActiveIndex, currentDisplaySettings.visibleLines, rowElements.length)) : null;
+    if (!positions) lineTransition?.clear();
     activeIndex = nextActiveIndex;
     rowElements.forEach((row, index) => {
       row.classList.toggle('is-past', index < activeIndex);
@@ -227,11 +241,14 @@ function renderTimelineFrame(currentMs) {
     applyVisibleLineWindow();
     resetActiveWords();
     renderActiveWords();
+    updateCountdown(lyricTime);
     followActiveLyric();
+    if (positions) lineTransition.play(rowElements, positions);
+  } else {
+    updateCountdown(lyricTime);
   }
 
   updateActiveWordProgress(lyricTime);
-  updateCountdown(lyricTime);
 }
 
 function renderActiveWords() {
@@ -386,6 +403,7 @@ function stopFollowAnimation() {
 
 function pauseAutomaticFollow() {
   if (!latestTimeline.lines.length) return;
+  lineTransition?.clear();
   manualFollowUntil = Date.now() + MANUAL_FOLLOW_PAUSE_MS;
   viewport?.classList.add('is-manual-browsing');
   stopFollowAnimation();
@@ -421,6 +439,7 @@ function updatePreviewStatus() {
 function applySettings(settings = {}) {
   const card = document.getElementById('desktopLyricLivePreview') || document.getElementById('desktopLyricSurface');
   if (!card) return;
+  lineTransition?.clear();
   const previousSettings = currentDisplaySettings;
   currentDisplaySettings = resolveDesktopLyricSettings(settings);
   const values = currentDisplaySettings;
