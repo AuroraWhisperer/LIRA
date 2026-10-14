@@ -7,7 +7,10 @@ const { ALLOWED_KEYS, routes } = require('../../src/server/routes/ai-routes');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createAiConfigStore } = require('../../src/ai/config-store');
+const { buildAiRuntime } = require('../../src/server/ai-runtime');
+const { createRuntimeApiContextFactory } = require('../../src/server/runtime-api-context');
 const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
+const { listenHttpServer } = require('../helpers/transport-fixtures');
 
 function createResponseRecorder() {
   return {
@@ -42,6 +45,63 @@ test('Doubao account routes accept no credentials or navigation inputs and repor
       assert.equal(body.code, 'DOUBAO_DESKTOP_REQUIRED');
     }
   }
+});
+
+test('Doubao account HTTP routes receive the session through AI runtime composition', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  let loggedIn = false;
+  const getStatus = () => ({ available: true, loggedIn, needsVerification: false, encryptionAvailable: true });
+  const openLogin = t.mock.fn(async () => { loggedIn = true; });
+  const logout = t.mock.fn(async () => { loggedIn = false; });
+  const aiRuntime = buildAiRuntime({
+    songDb: db,
+    runtimeOptions: {
+      doubaoSession: { getStatus, openLogin, logout },
+      aiSecretCodec: { encrypt: value => value, decrypt: value => value },
+      aiRequestLogger: { log() {} },
+    },
+  });
+  t.after(async () => { await aiRuntime.shutdown(); db.close(); });
+  const sessionToken = 'synthetic-doubao-admin';
+  const createApiContext = createRuntimeApiContextFactory({
+    maxBodyBytes: 1024,
+    getSessionToken: () => sessionToken,
+    getDomainServices: () => ({ songs: {}, queue: {}, superChats: {}, gifts: {}, overtime: {}, data: {} }),
+    getSettingsStore: () => ({}),
+    getMusicRuntime: () => ({ getMusicRegistry: () => ({}), weSingCapture: {} }),
+    getBilibiliRuntime: () => ({ getAuthProvider: () => null }),
+    getAiRuntime: () => aiRuntime,
+    getLiveStatus: () => ({}),
+    getDanmakuSender: () => ({}),
+    getGameSessionService: () => undefined,
+    getWheelSessionService: () => undefined,
+  });
+  const { origin } = await listenHttpServer(t, {
+    inflightTracker: { run: operation => operation() },
+    createApiContext,
+  });
+
+  for (const [method, operation, expectedLoggedIn] of [
+    ['GET', 'status', false],
+    ['POST', 'login', true],
+    ['GET', 'status', true],
+    ['POST', 'logout', false],
+    ['GET', 'status', false],
+  ]) {
+    const response = await fetch(`${origin}/api/ai/doubao/${operation}`, {
+      method,
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200, `${operation}: ${body.error || ''}`);
+    assert.deepEqual(body, {
+      ok: true,
+      data: { available: true, loggedIn: expectedLoggedIn, needsVerification: false, encryptionAvailable: true },
+    });
+  }
+  assert.equal(openLogin.mock.callCount(), 1);
+  assert.equal(logout.mock.callCount(), 1);
 });
 
 test('saving disabled through the config route aborts accepted work after committing the setting', async (t) => {

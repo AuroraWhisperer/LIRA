@@ -248,9 +248,6 @@
   justify-content: flex-end;
   padding: var(--spacing-md) var(--spacing-lg);
   border-top: 1px solid var(--border);
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
   background: var(--surface);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
@@ -270,10 +267,6 @@
     grid-template-columns: minmax(0, 1fr);
     gap: var(--spacing-md);
     padding: var(--spacing-md);
-  }
-
-  .song-board-actions {
-    bottom: var(--player-dock-height, 102px);
   }
 }
 

@@ -14,6 +14,7 @@ export function createLyricSourceControls({ api, state }) {
   let received = 0;
   let requestVersion = 0;
   let requestError = '';
+  let externalSelection = 'auto';
 
   function init() {
     const root = document.getElementById('desktopLyricSourceControls');
@@ -21,6 +22,8 @@ export function createLyricSourceControls({ api, state }) {
     initialized = true;
     const status = document.getElementById('desktopLyricSourceStatus');
     const track = document.getElementById('desktopLyricSourceTrack');
+    const externalControls = document.getElementById('desktopLyricExternalControls');
+    const weSingSettings = document.getElementById('desktopLyricWeSingSettings');
     const clients = [
       { source: 'qq-client', key: 'qqClient', label: 'QQ 音乐',
         status: document.getElementById('desktopLyricQQStatus'), retry: document.getElementById('desktopLyricSourceRetry') },
@@ -30,8 +33,15 @@ export function createLyricSourceControls({ api, state }) {
 
     function render() {
       root.disabled = saving || !current;
+      const group = current && (['internal', 'wesing'].includes(current.selection) ? current.selection : 'external');
+      if (group === 'external') externalSelection = current.selection;
+      root.querySelectorAll('input[name="desktopLyricSourceGroup"]').forEach((input) => {
+        input.checked = input.value === group;
+      });
+      externalControls.hidden = group !== 'external';
+      weSingSettings.hidden = group !== 'wesing';
       root.querySelectorAll('input[name="desktopLyricSource"]').forEach((input) => {
-        input.checked = input.value === current?.selection;
+        input.checked = input.value === externalSelection;
         const client = clients.find((item) => item.source === input.value);
         input.disabled = !!client && current?.[client.key]?.supported === false;
       });
@@ -73,11 +83,18 @@ export function createLyricSourceControls({ api, state }) {
       }
     }
 
-    root.addEventListener('input', (event) => event.stopPropagation());
+    root.addEventListener('input', (event) => {
+      if (['desktopLyricSourceGroup', 'desktopLyricSource'].includes(event.target.name)) event.stopPropagation();
+    });
     root.addEventListener('change', (event) => {
+      const { name, value, checked } = event.target;
+      if (!['desktopLyricSourceGroup', 'desktopLyricSource'].includes(name)) return;
       event.stopPropagation();
-      if (event.target.name === 'desktopLyricSource' && event.target.checked) {
-        void request('/api/playback/lyric-source', { source: event.target.value });
+      if (!checked) return;
+      if (name === 'desktopLyricSourceGroup') {
+        void request('/api/playback/lyric-source', { source: value === 'external' ? externalSelection : value });
+      } else if (name === 'desktopLyricSource') {
+        void request('/api/playback/lyric-source', { source: value });
       }
     });
     for (const client of clients) {

@@ -14,11 +14,12 @@ const sourceState = (source, selection = 'auto') => ({
 
 async function controlsFixture(api, initial = sourceState('internal')) {
   const window = new EventTarget();
-  const inputs = ['auto', 'internal', 'qq-client', 'netease-client', 'wesing'].map((value) => ({ name: 'desktopLyricSource', value }));
+  const inputs = ['auto', 'qq-client', 'netease-client'].map((value) => ({ name: 'desktopLyricSource', value }));
+  const groups = ['internal', 'external', 'wesing'].map((value) => ({ name: 'desktopLyricSourceGroup', value }));
   const listeners = new Map();
   const elements = new Map();
-  for (const id of ['SourceControls', 'SourceStatus', 'SourceTrack', 'SourceRetry', 'QQStatus', 'NetEaseStatus', 'NetEaseRetry']) elements.set(`desktopLyric${id}`, {
-    querySelectorAll: () => inputs,
+  for (const id of ['SourceControls', 'SourceStatus', 'SourceTrack', 'SourceRetry', 'QQStatus', 'NetEaseStatus', 'NetEaseRetry', 'ExternalControls', 'WeSingSettings']) elements.set(`desktopLyric${id}`, {
+    querySelectorAll: (selector) => selector === 'input[name="desktopLyricSourceGroup"]' ? groups : inputs,
     addEventListener(type, fn) { listeners.set(`${id}:${type}`, [...(listeners.get(`${id}:${type}`) || []), fn]); },
   });
   const { createLyricSourceControls } = await loadModuleExports(path.resolve('public/js/admin/lyric-source-controls.js'), {
@@ -26,9 +27,9 @@ async function controlsFixture(api, initial = sourceState('internal')) {
   });
   const controls = createLyricSourceControls({ api, state: { getAppState: () => ({ lyricSource: initial }) } });
   controls.init(); controls.init();
-  return { window, inputs, elements, listeners, controls,
+  return { window, inputs, groups, elements, listeners, controls,
     async change(value) {
-      const target = inputs.find((input) => input.value === value);
+      const target = [...inputs, ...groups].find((input) => input.value === value);
       target.checked = true;
       let stopped = false;
       for (const listener of listeners.get('SourceControls:change')) listener({ target, stopPropagation() { stopped = true; } });
@@ -47,7 +48,9 @@ test('source controls bind once and preserve newer WS state over a delayed HTTP 
   assert.equal(f.elements.get('desktopLyricSourceControls').disabled, true);
   f.window.dispatchEvent(new CustomEvent('app:lyric-source', { detail: sourceState('netease-client', 'wesing') }));
   pending.resolve({ data: sourceState('qq-client', 'qq-client') }); await tick();
-  assert.equal(f.inputs.find((input) => input.checked).value, 'wesing');
+  assert.equal(f.groups.find((input) => input.checked).value, 'wesing');
+  assert.equal(f.elements.get('desktopLyricExternalControls').hidden, true);
+  assert.equal(f.elements.get('desktopLyricWeSingSettings').hidden, false);
   assert.equal(f.elements.get('desktopLyricSourceStatus').textContent, '当前跟随：外部网易云音乐');
   assert.equal(f.elements.get('desktopLyricSourceControls').disabled, false);
 });
@@ -63,7 +66,58 @@ test('failed selection restores the preference and unsupported clients stay disa
   assert.equal(f.elements.get('desktopLyricNetEaseRetry').disabled, true);
   await f.change('wesing');
   assert.equal(f.inputs.find((input) => input.checked).value, 'auto');
+  assert.equal(f.groups.find((input) => input.checked).value, 'external');
+  assert.equal(f.elements.get('desktopLyricExternalControls').hidden, false);
+  assert.equal(f.elements.get('desktopLyricWeSingSettings').hidden, true);
   assert.equal(f.elements.get('desktopLyricSourceStatus').textContent, 'Request failed');
+});
+
+test('categories reveal their own controls and retain the last external preference', async () => {
+  const requests = [];
+  const f = await controlsFixture(async (url, { source }) => {
+    requests.push([url, source]);
+    return { data: sourceState('internal', source) };
+  }, sourceState('internal', 'internal'));
+  assert.equal(f.groups.find((input) => input.checked).value, 'internal');
+  assert.equal(f.elements.get('desktopLyricExternalControls').hidden, true);
+  assert.equal(f.elements.get('desktopLyricWeSingSettings').hidden, true);
+  for (const value of ['external', 'qq-client', 'netease-client', 'wesing', 'internal', 'external']) {
+    await f.change(value);
+    const group = ['internal', 'wesing'].includes(value) ? value : 'external';
+    assert.equal(f.groups.find((input) => input.checked).value, group);
+    assert.equal(f.elements.get('desktopLyricExternalControls').hidden, group !== 'external');
+    assert.equal(f.elements.get('desktopLyricWeSingSettings').hidden, group !== 'wesing');
+  }
+  assert.equal(f.inputs.find((input) => input.checked).value, 'netease-client');
+  assert.deepEqual(requests, ['auto', 'qq-client', 'netease-client', 'wesing', 'internal', 'netease-client']
+    .map((source) => ['/api/playback/lyric-source', source]));
+});
+
+test('categories stay hidden until the source preference is loaded', async () => {
+  const f = await controlsFixture(async () => {}, null);
+  assert.equal(f.elements.get('desktopLyricSourceControls').disabled, true);
+  assert.equal(f.groups.some((input) => input.checked), false);
+  assert.equal(f.elements.get('desktopLyricExternalControls').hidden, true);
+  assert.equal(f.elements.get('desktopLyricWeSingSettings').hidden, true);
+  f.window.dispatchEvent(new CustomEvent('app:lyric-source', { detail: sourceState('wesing', 'qq-client') }));
+  assert.equal(f.groups.find((input) => input.checked).value, 'external');
+  assert.equal(f.elements.get('desktopLyricExternalControls').hidden, false);
+  assert.equal(f.elements.get('desktopLyricWeSingSettings').hidden, true);
+});
+
+test('nested WeSing preferences bubble to autosave without changing the followed player', async () => {
+  const requests = [];
+  const f = await controlsFixture(async (...args) => { requests.push(args); }, sourceState('wesing', 'wesing'));
+  for (const target of [{ name: 'weSingLyricSource', value: 'qq', checked: true }, { id: 'weSingSmartLyricMatch', checked: false }]) {
+    for (const type of ['input', 'change']) {
+      let stopped = false;
+      for (const listener of f.listeners.get(`SourceControls:${type}`)) {
+        listener({ target, stopPropagation() { stopped = true; } });
+      }
+      assert.equal(stopped, false, 'WeSing preferences must reach the form autosave handler');
+    }
+  }
+  assert.equal(requests.length, 0);
 });
 
 test('external status and retry remain available while another source is preferred', async () => {

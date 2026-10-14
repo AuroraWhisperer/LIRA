@@ -80,8 +80,29 @@
   cursor: pointer;
 }
 
-.desktop-lyric-auto-option {
-  grid-column: 1 / -1;
+.desktop-lyric-source-groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.desktop-lyric-external-controls {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.desktop-lyric-external-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.desktop-lyric-follow-status {
+  display: grid;
+  gap: var(--spacing-xs);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .desktop-lyric-client-status {
@@ -159,6 +180,18 @@
 .desktop-lyric-source-option input:disabled + .desktop-lyric-source-choice {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.desktop-lyric-source-groups .desktop-lyric-source-choice {
+  min-height: 40px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.desktop-lyric-source-groups input:checked + .desktop-lyric-source-choice {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--color-on-primary);
 }
 
 .desktop-lyric-smart-match-row {

@@ -272,7 +272,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 ### 4.3 settings.js(设置)
 
-- 账号登录页表单只收集 `roomId`；弹幕姬的 `danmakuMonitoringEnabled` 和礼物页的 `giftMonitoringEnabled` 是默认开启、独立即时保存的监控开关，帮助通过 `lira-help` 展示，服务端同步后不依赖桌面持续运行；独立点歌规则页 `request-rules.html` 按接收与排队、点歌间隔、点歌资格、屏蔽词、用户黑名单排列，统一提交 `POST /api/settings`。宽窗口左侧分类、右侧控件，通用和三种身份间隔并排，较窄窗口转为两列；空名单为单行提示，长用户名单在固定表头的表格内滚动，保存栏停留在工作区底部、播放器上方。字段及默认值见 [设置契约](../backend/api.md#2-设置settings)，新增项默认无额外限制；身份间隔留空继承通用间隔。冷却模式控制时长输入的显示与禁用，快照填充后更新帮助且保留未保存草稿。各规则共用“保存点歌规则”，点歌板主题在点歌板页另行保存，彼此不提交对方的草稿。
+- 账号登录页表单只收集 `roomId`；弹幕姬的 `danmakuMonitoringEnabled` 和礼物页的 `giftMonitoringEnabled` 是默认开启、独立即时保存的监控开关，帮助通过 `lira-help` 展示，服务端同步后不依赖桌面持续运行；独立点歌规则页 `request-rules.html` 按接收与排队、点歌间隔、点歌资格、屏蔽词、用户黑名单排列，统一提交 `POST /api/settings`。宽窗口左侧分类、右侧控件，通用和三种身份间隔并排，较窄窗口转为两列；空名单为单行提示，长用户名单在固定表头的表格内滚动，保存栏位于所有规则之后的表单底部，随内容自然滚动。字段及默认值见 [设置契约](../backend/api.md#2-设置settings)，新增项默认无额外限制；身份间隔留空继承通用间隔。冷却模式控制时长输入的显示与禁用，快照填充后更新帮助且保留未保存草稿。各规则共用“保存点歌规则”，点歌板主题在点歌板页另行保存，彼此不提交对方的草稿。
 - `song-request-blacklist.js` 管理可编辑的词条列表，支持添加、删除和回车新增；单行原生输入框保留长词全文及光标选择，按可用宽度自动分列。列表通过隐藏字段沿用换行分隔的 `songRequestBlacklist` 设置，保存后按服务端返回的规范值刷新。
 - `song-request-user-blacklist.js` 管理按 UID 的独立用户名单，通过隐藏字段 `songRequestUserBlacklist` 保存 JSON；昵称只是备注，以 DOM 属性写入。新增、编辑、删除都先修改草稿，到期时间按本机时区编辑并转为毫秒值，留空永久，到期项显示已过期；状态快照按内容核对行，保存中继续编辑与保存失败均保留草稿。
 - `song-cooldown-settings.js` 由表单事件与快照渲染共用，按冷却模式切换时长输入的显示与禁用；切回“不限制”时恢复无效时长为默认值，保证关闭冷却可以正常保存。
@@ -354,7 +354,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 直播歌词设置页(点歌主页面 Tab):[desktop-lyric.js](../../../public/js/admin/desktop-lyric.js) 收集 `desktopLyric*` 12 个键 → `/api/settings`,500ms 自动保存(带"等待自动保存/已保存/失败"状态条);客户端打开设置页时自动通过 Chromium `queryLocalFonts()` 读取、去重字体族名称并追加到主字体下拉框,若 Chromium 首次调用要求瞬时用户激活则在用户首次正常点击/按键时自动重试,不提供单独获取按钮;权限边界与原生确认见 [desktop/main.md](../desktop/main.md) §4;[desktop-lyric-preview.js](../../../public/js/admin/desktop-lyric-preview.js) 用 `LyricWordRenderer` + 弹簧动画控制器(`SPRING_STIFFNESS=170, SPRING_DAMPING=26`,[desktop-lyric-preview.js:26-29](../../../public/js/admin/desktop-lyric-preview.js#L26-L29))渲染完整时间轴预览,滚轮缩放、暂停 6 秒手动跟随。
 
-同页的 [lyric-source-controls.js](../../../public/js/admin/lyric-source-controls.js) 独立管理智能播放、内置 / 外部 QQ / 外部网易云 / 全民 K 歌跟随偏好、实际来源与外部客户端重检，不进入外观自动保存。智能选词和首选歌词源只在「全民 K 歌在线歌词」组中配置；外部播放器保持各自平台歌词。状态同步及播放行为见 [playback.md](playback.md#3-歌词链路)，服务端选择规则见[音乐服务 §13](../backend/music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs)。
+同页的 [lyric-source-controls.js](../../../public/js/admin/lyric-source-controls.js) 独立管理跟随偏好、实际来源与外部客户端重检，不进入外观自动保存。一级选择为「内置播放器 / 外部播放器 / 全民 K 歌」；仅选中外部播放器时显示「智能 / QQ 音乐 / 网易云音乐」和客户端检测、重检，切回外部分类沿用本页上次选项。`auto / qq-client / netease-client` 映射到外部分类，`internal / wesing` 各自对应一级分类；按 `selection` 控制显示，实际 `source` 的自动切换不改变分类。智能选词和首选歌词源在选中全民 K 歌后直接展开于同一跟随区域内，沿用设置表单的自动保存；外部播放器保持各自平台歌词。状态同步及播放行为见 [playback.md](playback.md#3-歌词链路)，服务端选择规则见[音乐服务 §13](../backend/music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs)。
 
 主播工作台的页面状态和统一 commit 仍由 `streamer-planner.js` 拥有；[streamer-planner-storage.js](../../../public/js/admin/streamer-planner-storage.js) 拥有版本迁移、读失败锁写和持久化结果；[streamer-planner-reminders.js](../../../public/js/admin/streamer-planner-reminders.js) 拥有 IPC 快照、签名去重、回复代次和同步状态。仅保存成功后同步提醒，失败不替换已保存的提醒快照；提示文案与渲染保留在页面，过期回复不覆盖当前状态。
 

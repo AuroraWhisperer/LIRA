@@ -23,10 +23,17 @@ test('desktop lyric settings and preview retain named headings', () => {
   }
 });
 
-test('desktop lyric settings expose WeSing-only lyric source preferences', () => {
+test('desktop lyric settings group players and expose WeSing-only lyric source preferences', () => {
   const html = readDesktopLyricHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css');
 
+  assert.deepEqual([...html.matchAll(/name="desktopLyricSourceGroup" value="([^"]+)"/g)].map((match) => match[1]),
+    ['internal', 'external', 'wesing']);
+  assert.deepEqual([...html.matchAll(/name="desktopLyricSource" value="([^"]+)"/g)].map((match) => match[1]),
+    ['auto', 'qq-client', 'netease-client']);
+  assert.match(html, /<div id="desktopLyricExternalControls"[^>]* hidden>/);
+  const sourceControls = html.match(/<fieldset id="desktopLyricSourceControls"[^>]*>([\s\S]*?)<\/fieldset>/)?.[1];
+  assert.match(sourceControls, /<div id="desktopLyricWeSingSettings"[^>]* hidden>/);
   assert.match(html, /<[^>]+(?=[^>]*\srole=["']radiogroup["'])(?=[^>]*\saria-labelledby=["']weSingLyricSourceLabel["'])[^>]*>/);
   assert.match(
     html,
