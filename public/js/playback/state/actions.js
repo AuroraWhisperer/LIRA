@@ -80,6 +80,7 @@ export function createPlaybackStateActions(state, { save = () => {}, render = ()
         ...state.normalQueueTracks,
         ...state.radioQueue,
         ...state.history,
+        ...state.displayHistory,
       ].forEach((track) => {
         if (track?.source !== source) return;
         delete track.playUrl;

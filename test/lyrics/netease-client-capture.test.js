@@ -65,6 +65,34 @@ test('NetEase preserves a continuous UIA clock across delayed integer-second obs
   assert.equal(capture.getStatus().currentMs, 16000, 'an actual backward seek still resets the clock');
 });
 
+test('NetEase native clock follows fractional progress, pause and seek without UI controls', async (t) => {
+  let requests = 0;
+  const { capture, send, advance } = fixture(t, async () => { requests++; return LYRICS; });
+  const native = { clockSource: 'native', positionMs: 15123 };
+  send(native); send(native); await tick();
+  assert.equal(capture.getStatus().status, 'ready');
+  advance(500); send({ ...native, positionMs: 15623 });
+  assert.equal(capture.getStatus().currentMs, 15623);
+  advance(500); send({ ...native, positionMs: 15876, playbackStatus: 'Paused' });
+  advance(5000); send({ ...native, positionMs: 15876, playbackStatus: 'Paused' });
+  assert.equal(capture.getStatus().currentMs, 15876);
+  assert.equal(capture.getStatus().playing, false);
+  send({ ...native, positionMs: 15876 });
+  assert.equal(capture.getStatus().status, 'ready', 'resume must not inherit the long pause as a stalled clock');
+  assert.equal(capture.getStatus().playing, true);
+  send({ ...native, positionMs: 3250, playbackStatus: 'Paused' });
+  assert.equal(capture.getLyricState().lineText, 'First');
+  send({ ...native, positionMs: 3250 });
+  advance(500); send({ ...native, positionMs: 3750 });
+  assert.equal(capture.getStatus().currentMs, 3750);
+  assert.equal(capture.getStatus().playing, true);
+  assert.equal(requests, 1);
+  advance(3000); send({ ...native, positionMs: 3750 });
+  assert.equal(capture.getStatus().status, 'loading', 'a frozen native clock cannot keep extrapolating');
+  send({ ...native, positionMs: 6750 });
+  assert.equal(capture.getStatus().status, 'ready');
+});
+
 test('NetEase discards frozen UIA clocks but keeps actual playback independent of lyric readiness', async (t) => {
   const result = Promise.withResolvers();
   const { capture, send, advance } = fixture(t, () => result.promise);

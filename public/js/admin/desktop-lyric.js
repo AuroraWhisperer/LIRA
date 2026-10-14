@@ -39,7 +39,7 @@ export function createDesktopLyric({
   // 第五项把内部小数换算为数值框中的百分数。
   const RANGE_PAIRS = [
     ['desktopLyricFontSize', 24, 72, 56],
-    ['desktopLyricLetterSpacing', -0.1, 0.3, 0],
+    ['desktopLyricLetterSpacing', -0.1, 2, 0],
     ['desktopLyricLineHeight', 1, 2, 1.4, 100],
     ['desktopLyricStrokeWidth', 0, 6, 3],
     ['desktopLyricShadowIntensity', 0, 1, 0.35, 100],
@@ -176,6 +176,7 @@ export function createDesktopLyric({
       weSingSmartLyricMatch: checkedValue('weSingSmartLyricMatch'),
     };
     Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
+      if (key === 'desktopLyricFallbackFontFamily') return;
       if (key === 'desktopLyricTextAlign') {
         settings[key] = selectedTextAlign();
         return;

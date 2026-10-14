@@ -87,6 +87,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         // Keep the legacy config key, but don't offer a color the song board doesn't render.
         if (type === 'songlist' && key === 'songBoardThemePrimary') continue;
         if (type === 'blindbox' && key === 'hideLoss') continue;
+        // Preserve the legacy setting in saved scenes; font fallback is automatic now.
+        if (type === 'lyrics' && key === 'desktopLyricFallbackFontFamily') continue;
         const previewOnly = Object.hasOwn(previewFields, key);
         const label = previewElement(field.allowEmpty ? 'div' : 'label');
         label.append(previewElement('span', 'desktop-lyric-control-copy', field.label));

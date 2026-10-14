@@ -197,7 +197,39 @@ test('desktop lyric local font detection keeps built-ins when permission is deni
   assert.equal(select.value, 'Lira Maiyuan');
   assert.ok(select.options.some(option => option.value === 'Lira Kuaile'));
   assert.ok(select.options.some(option => option.value === 'Lira Smiley'));
+  assert.ok(select.options.some(option => option.value === 'Lira Xiaolai'));
+  assert.ok(select.options.some(option => option.value === 'Lira Assorted'));
+  assert.ok(select.options.every(option => !/内置|推荐|（默认）/.test(option.textContent)));
+  assert.equal(new Set(select.options.map(option => option.value)).size, select.options.length);
   assert.equal(select.querySelector('optgroup[data-local-fonts="true"]'), null);
+});
+
+test('desktop lyric fonts route complex scripts and automatically fill gaps before legacy and system fallback', async () => {
+  const { applyDesktopLyricStyles } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-styles.js'),
+  );
+  const { DESKTOP_LYRIC_DEFAULTS } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-defaults.js'),
+  );
+  const { normalizeDesktopLyricSettings } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-settings.js'),
+  );
+  const properties = new Map();
+  const card = { style: { setProperty: (name, value) => properties.set(name, value) }, classList: { toggle() {} } };
+  for (const [selected, primary, generic] of [
+    ['Lira Maiyuan', 'Lira Maiyuan', 'sans-serif'],
+    ['KaiTi, STKaiti, serif', 'KaiTi, STKaiti', 'serif'],
+    ['Courier New, Consolas, monospace', 'Courier New, Consolas', 'monospace'],
+    ['"Local Font", sans-serif', '"Local Font"', 'sans-serif'],
+  ]) {
+    const values = normalizeDesktopLyricSettings({ desktopLyricFontFamily: selected,
+      desktopLyricFallbackFontFamily: 'Legacy Font' }, DESKTOP_LYRIC_DEFAULTS);
+    applyDesktopLyricStyles(card, values);
+    const stack = properties.get('--preview-font');
+    assert.ok(stack.startsWith(`"Lira Lyric Scripts", ${primary}, "Lira Lyric Korean", "Lira Xiaolai", "Lira Lyric Extended", Legacy Font,`));
+    assert.ok(stack.endsWith(`system-ui, ${generic}`));
+    assert.equal(values.fontFamily, selected, 'Rendering does not change the saved font choice.');
+  }
 });
 
 test('desktop lyric preview keeps accessible controls and shared renderer wiring', () => {
@@ -404,6 +436,8 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls[0].body.weSingSmartLyricMatch, 'true');
   assert.equal(apiCalls[0].body.desktopLyricTextAlign, 'justify');
   assert.equal(apiCalls[0].body.desktopLyricFontFamily, 'Microsoft YaHei', 'An explicitly saved font is preserved.');
+  assert.equal(Object.hasOwn(apiCalls[0].body, 'desktopLyricFallbackFontFamily'), false,
+    'Changing visible settings must not overwrite the retired fallback field.');
 
   windowListeners.get('app:settings-state')({
     detail: {

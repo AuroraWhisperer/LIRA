@@ -129,11 +129,15 @@ test('desktop lyric settings use icon alignment controls and performance-safe mo
   assert.match(styles, /label:has\(input:focus-visible\)/);
 });
 
-test('desktop lyric settings expose all persisted presentation controls', () => {
+test('desktop lyric settings expose presentation controls with automatic font fallback', () => {
   const html = readDesktopLyricHtml();
+  assert.doesNotMatch(html, /desktopLyricFallbackFontFamily|备选字体|备用字体/);
+  assert.match(html, /支持多语言歌词，缺字自动补齐/);
+  for (const id of ['desktopLyricLetterSpacing', 'desktopLyricLetterSpacingNumber']) {
+    assert.match(html, new RegExp(`<input\\b(?=[^>]*\\sid="${id}")(?=[^>]*\\smax="2")[^>]*>`));
+  }
 
   for (const id of [
-    'desktopLyricFallbackFontFamily',
     'desktopLyricTextAlign',
     'desktopLyricLetterSpacing',
     'desktopLyricStrokeEnabled',

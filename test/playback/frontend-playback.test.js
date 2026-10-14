@@ -172,6 +172,38 @@ test('playback success paths do not emit per-render or per-lyric console output'
   assert.match(fullscreenSource, /notifyMediaPlayFailure\(error, audio\)/);
 });
 
+test('fullscreen trial lyrics highlight and seek within the playable excerpt', async () => {
+  const audio = { currentTime: 2, duration: 30, paused: false };
+  const { FullscreenPlayer } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'),
+    { document: { getElementById: () => audio } },
+  );
+  const player = new FullscreenPlayer();
+  const lines = [{ startMs: 0, text: '开头' }, { startMs: 30000, text: '试听' }];
+  const track = { playbackTrial: true, playbackTrialStartMs: 30000, lyrics: { lines } };
+  player.lyricsContainer = { querySelectorAll: () => lines, classList: { toggle() {} } };
+  const highlighted = [];
+  player.updateLyricHighlight = (index) => highlighted.push(index);
+  player.scrollToActiveLyric = () => {};
+  const clickLyric = (startMs) => player.handleLyricClick({
+    target: { closest: () => ({ dataset: { lyricStartMs: String(startMs) } }) },
+  });
+  player.renderLyrics(track, audio);
+  assert.equal(highlighted.at(-1), 1);
+  clickLyric(35000);
+  assert.equal(audio.currentTime, 5);
+  clickLyric(0);
+  assert.equal(audio.currentTime, 5, 'lyrics before the excerpt cannot seek to the wrong line');
+  clickLyric(70000);
+  assert.equal(audio.currentTime, 5, 'lyrics after the excerpt cannot seek outside the audio');
+  track.playbackTrial = false;
+  audio.duration = 180;
+  player.renderLyrics(track, audio);
+  assert.equal(highlighted.at(-1), 0);
+  clickLyric(35000);
+  assert.equal(audio.currentTime, 35);
+});
+
 test('fullscreen manual browsing holds position until follow resumes', async () => {
   const { FullscreenPlayer } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'fullscreen.js'),

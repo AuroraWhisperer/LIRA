@@ -99,7 +99,7 @@ const LYRIC_STATE = {
 const LYRIC_TIMELINE = {
   ...fields('trackTitle status'),
   artists: [true],
-  lines: [fields('startMs endMs text translation roma')],
+  lines: [{ ...fields('startMs endMs text translation roma'), words: [fields('text startMs endMs')] }],
 };
 const WHEEL = {
   entries: [fields('label weight')],

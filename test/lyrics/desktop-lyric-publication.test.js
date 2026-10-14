@@ -8,6 +8,37 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 
+test('official trial playback publishes song-relative lyric time and returns to zero offset for full audio', async () => {
+  const requests = [];
+  const { LyricService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/playback/services/lyric-service.js'),
+    { fetch: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); return { ok: true }; } },
+  );
+  const service = new LyricService();
+  const words = [{ startMs: 30000, endMs: 34000, text: '试听歌词' }];
+  const track = { id: 'netease:123', source: 'netease', playbackTrial: true, playbackTrialStartMs: 30000,
+    lyrics: { lines: [{ startMs: 0, text: '开头' }, { startMs: 30000, text: '试听歌词', words }] } };
+  const audio = { currentTime: 2.345, duration: 30, paused: false };
+  await service.syncWindow(track, audio, true);
+  let state = requests.at(-1).body;
+  assert.equal(state.lineText, '试听歌词');
+  assert.equal(state.currentMs, 32345);
+  assert.equal(state.durationMs, 60000);
+  assert.deepEqual(state.words, words);
+  audio.currentTime = 1.25;
+  audio.paused = true;
+  await service.syncWindow(track, audio, true);
+  assert.equal(requests.at(-1).body.currentMs, 31250);
+  assert.equal(requests.at(-1).body.playing, false);
+  track.playbackTrial = false;
+  audio.duration = 180;
+  await service.syncWindow(track, audio, true);
+  state = requests.at(-1).body;
+  assert.equal(state.currentMs, 1250);
+  assert.equal(state.durationMs, 180000);
+  assert.equal(state.lineText, '开头');
+});
+
 test('playback publishes a complete timeline only when the lyric identity changes', async () => {
   const requests = [];
   const playback = await loadModuleExports(

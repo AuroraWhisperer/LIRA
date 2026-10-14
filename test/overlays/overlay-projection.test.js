@@ -102,7 +102,8 @@ const state = {
   },
   lyricTimeline: {
     status: 'ready',
-    lines: [{ text: '歌', startMs: 0, endMs: 100, translation: 'song', secret }],
+    lines: [{ text: '歌', startMs: 0, endMs: 100, translation: 'song',
+      words: [{ text: '歌', startMs: 0, endMs: 100, secret }], secret }],
     secret,
   },
 };
@@ -132,6 +133,8 @@ test('every scope receives only its own snapshot fields and unknown principals f
     assert.doesNotMatch(JSON.stringify(result), /PRIVATE_SENTINEL/, scope);
     assert.deepEqual(projectOverlayResponse(scope, '/api/state', state), result.state);
     if (scope === 'queue') assert.equal(result.state.queue.current.is_live, true);
+    if (scope === 'lyrics') assert.deepEqual(result.state.lyricTimeline.lines[0].words,
+      [{ text: '歌', startMs: 0, endMs: 100 }]);
   }
   assert.equal(projectWebSocketPayload(null, { type: 'snapshot', state }), null);
   assert.equal(projectWebSocketPayload({ type: 'overlay', scope: 'admin' }, { type: 'snapshot', state }), null);
@@ -217,6 +220,8 @@ test('WS event scope matrix strips nested extras while preserving display and dr
       if (scope === owner) {
         assert.equal(result.type, payload.type);
         assert.doesNotMatch(JSON.stringify(result), /PRIVATE_SENTINEL/);
+        if (payload.type === 'lyric-timeline') assert.deepEqual(result.timeline.lines[0].words,
+          [{ text: '歌', startMs: 0, endMs: 100 }]);
       } else assert.equal(result, null, `${scope} must not receive ${payload.type}`);
     }
   }

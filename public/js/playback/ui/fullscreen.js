@@ -70,6 +70,7 @@ export class FullscreenPlayer {
     this.translationToggleBtn = null;
     this.lyricsInitialized = false;
     this.lastActiveLyricIndex = -1;
+    this.lyricOffsetMs = 0;
     this.lyricMode = 'none'; // 'none' | 'trans' | 'roma'
     this._lastLyricTrackId = null;
     this.manualBrowsing = false;
@@ -242,6 +243,7 @@ export class FullscreenPlayer {
   renderLyrics(track, audio) {
     if (!this.lyricsContainer) return;
 
+    this.lyricOffsetMs = PlaybackUtils.getPlaybackLyricOffsetMs(track);
     const lines = track && track.lyrics && Array.isArray(track.lyrics.lines) ? track.lyrics.lines : [];
 
     // 保存歌词行引用，供 _toggleLyricMode 重渲染使用
@@ -254,7 +256,7 @@ export class FullscreenPlayer {
       return;
     }
 
-    const currentMs = audio && Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
+    const currentMs = audio && Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 + this.lyricOffsetMs : 0;
 
     // 找到当前行索引
     const currentIndex = this.findCurrentLyricIndex(lines, currentMs);
@@ -373,7 +375,9 @@ export class FullscreenPlayer {
     const audio = document.getElementById('music-player');
     if (!audio) return;
 
-    audio.currentTime = startMs / 1000;
+    const seekTime = (startMs - this.lyricOffsetMs) / 1000;
+    if (seekTime < 0 || (Number.isFinite(audio.duration) && seekTime > audio.duration)) return;
+    audio.currentTime = seekTime;
     this.setManualBrowsing(false);
 
     if (audio.paused) {

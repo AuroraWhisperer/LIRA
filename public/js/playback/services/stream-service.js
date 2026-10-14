@@ -2,7 +2,7 @@
 // 流媒体服务 - 负责播放 URL 解析、刷新和错误重试
 'use strict';
 
-import { isLocalTrack, hasUsableUrl, serializeTrackForProvider } from '../utils.js';
+import { isLocalTrack, hasUsableUrl, serializeTrackForProvider, getPlaybackLyricOffsetMs } from '../utils.js';
 
 /**
  * 流媒体服务类
@@ -130,11 +130,13 @@ export class StreamService {
 
     // 尝试刷新播放地址
     this.retryCount++;
-    const resumeAt = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    const songPosition = (audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0) +
+      getPlaybackLyricOffsetMs(track) / 1000;
 
     try {
       const newUrl = await this.getTrackUrl(track, {
         forceRefresh: true,
+        quality: track.requestedPlaybackQuality,
         isCurrent,
       });
       if (!isCurrent()) return;
@@ -142,6 +144,7 @@ export class StreamService {
       if (newUrl) {
         this.toast('播放地址已刷新');
         if (onRetrySuccess) {
+          const resumeAt = Math.max(0, songPosition - getPlaybackLyricOffsetMs(track) / 1000);
           await onRetrySuccess(track, resumeAt);
         }
       } else {

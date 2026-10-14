@@ -128,3 +128,27 @@ test('lyric timeline normalization preserves all 64 renderable lines from 失控
   assert.equal(timeline.lines.at(-1).text, '多嘲讽');
   assert.equal(timeline.lines.at(-1).startMs, 247519);
 });
+
+test('whole-song timing preserves the same bounded words as current-line state', () => {
+  const words = [
+    { text: 'first ', startMs: -20, endMs: 100, extra: 'discard' },
+    { text: 'second\u0000', startMs: 500, endMs: 200 },
+    { text: '', startMs: 0, endMs: 100 },
+    ...Array.from({ length: 130 }, () => ({ text: 'x'.repeat(50), startMs: 600, endMs: Infinity })),
+  ];
+  const timeline = normalizeLyricTimeline({ lines: [{ text: 'line', words }, { text: 'legacy' }] });
+  assert.deepEqual(timeline.lines[0].words, normalizeLyricState({ words }).words);
+  assert.equal(timeline.lines[0].words[0].text, 'first ');
+  assert.equal(Object.hasOwn(timeline.lines[1], 'words'), false, 'legacy line shape stays valid');
+});
+
+test('word timing budget preserves the complete text timeline and bounds socket payload size', () => {
+  const timeline = normalizeLyricTimeline({ lines: Array.from({ length: 500 }, (_, index) => ({
+    startMs: index * 1000, text: `line ${index}`,
+    words: Array.from({ length: 120 }, () => ({ text: '词'.repeat(40), startMs: index * 1000, endMs: index * 1000 + 1000 })),
+  })) });
+  assert.equal(timeline.lines.length, 500, 'optional timing cannot truncate the lyric text');
+  assert.ok(timeline.lines[0].words?.length > 0);
+  assert.equal(Object.hasOwn(timeline.lines.at(-1), 'words'), false, 'over-budget lines retain current-state fallback');
+  assert.ok(Buffer.byteLength(JSON.stringify(timeline), 'utf8') < 1024 * 1024);
+});

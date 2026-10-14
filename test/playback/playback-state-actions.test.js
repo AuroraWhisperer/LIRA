@@ -6,6 +6,25 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const entry = (file) => path.join(__dirname, '../../public/js/playback', file);
 
+test('forgetting provider streams covers every playable collection while retaining other providers and lyrics', async () => {
+  const { createPlaybackStateActions } = await loadModuleExports(entry('state/actions.js'));
+  const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
+  const state = createInitialState();
+  const lyrics = { lines: [{ text: '歌词' }] };
+  const netease = { source: 'netease', playUrl: 'https://example.test/old.mp3', playUrlExpireAt: 123, lyrics };
+  const qq = { source: 'qq', playUrl: 'https://example.test/qq.mp3' };
+  state.current = { ...netease };
+  const collections = ['requestedQueue', 'normalQueue', 'normalQueueTracks', 'radioQueue', 'history', 'displayHistory'];
+  for (const collection of collections) state[collection] = [{ ...netease }, { ...qq }];
+  createPlaybackStateActions(state).forgetProviderStreams('netease');
+  for (const cleared of [state.current, ...collections.map((name) => state[name][0])]) {
+    assert.equal(cleared.playUrl, undefined);
+    assert.equal(cleared.playUrlExpireAt, undefined);
+    assert.equal(cleared.lyrics, lyrics);
+  }
+  for (const collection of collections) assert.equal(state[collection][1].playUrl, qq.playUrl);
+});
+
 test('state actions preserve reader identity and publish only after a completed change', async () => {
   const { createPlaybackStateActions } = await loadModuleExports(entry('state/actions.js'));
   const { createInitialState } = await loadModuleExports(entry('state/manager.js'));

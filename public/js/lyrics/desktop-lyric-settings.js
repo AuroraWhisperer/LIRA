@@ -32,7 +32,7 @@ export function normalizeDesktopLyricSettings(settings = {}, defaults = {}) {
     fontWeight: String(values.desktopLyricFontWeight || defaults.desktopLyricFontWeight),
     textColor: String(values.desktopLyricTextColor || defaults.desktopLyricTextColor),
     textAlign: enumSetting(values.desktopLyricTextAlign, ['left', 'center', 'right', 'justify'], 'left'),
-    letterSpacing: clamp(numberSetting(values.desktopLyricLetterSpacing, 0), -0.1, 0.3),
+    letterSpacing: clamp(numberSetting(values.desktopLyricLetterSpacing, 0), -0.1, 2),
     fontSize: clamp(numberSetting(values.desktopLyricFontSize, 56), 24, 72),
     lineHeight: clamp(numberSetting(values.desktopLyricLineHeight, 1.4), 1, 2),
     strokeEnabled: boolSetting(values.desktopLyricStrokeEnabled, true),

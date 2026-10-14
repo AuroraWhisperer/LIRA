@@ -376,14 +376,16 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 - 状态枚举 **`idle` / `loading` / `ready` / `empty`**,非法值落 `idle`([lyric-state.js:7-9](../../../../src/music/lyric-state.js#L7-L9)、[lyric-timeline.js:9-11](../../../../src/music/lyric-timeline.js#L9-L11))
 - 控制字符(0x00-0x1F、0x7F)替换为空格;`trackTitle` 截 120、`artists` 每项截 80 且最多 8 个、`lineText`/`translation` 截 240
 - 时间一律 `clampNumber` 到 `[0, MAX_TIME_MS = 24h]`;`progress` clamp 到 `[0, 1]`
-- 逐字词:最多 120 个,`text` 截 40,`endMs` 下限取 `startMs`
+- 逐字词:当前句状态与时间轴每行共用 `lyric-normalization.js` 的 `normalizeLyricWords`，最多 120 个，`text` 截 40 且保留有意义的空格，`endMs` 下限取 `startMs`。
 
 ### 13.2 差异
 
 | 模块                     | 特有规则                                                                                                                                                       | 出处                                                                         |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `normalizeLyricState`    | 单行语义:`currentMs`/`durationMs`/`progress`/`playing`/`locked`/`words[]`;兼容版本字段 `generation`/`sequence` 用于客户端拒绝旧状态回灌                        | [lyric-state.js:5-30](../../../../src/music/lyric-state.js#L5-L30)           |
-| `normalizeLyricTimeline` | 全曲语义:**`MAX_LINES = 500` 行上限 + `MAX_TEXT_BUDGET = 48 KB` 文本预算**(按 `text+translation+roma` 长度累计,超预算即截断后续行);输入行按 `startMs` 稳定排序 | [lyric-timeline.js:3-5,7-37](../../../../src/music/lyric-timeline.js#L3-L37) |
+| `normalizeLyricTimeline` | 全曲语义:**`MAX_LINES = 500` 行上限 + `MAX_TEXT_BUDGET = 48 KB` 文本预算**(按 `text+translation+roma` 长度累计,超预算即截断后续行);输入行按 `startMs` 稳定排序。每行可选 `words: [{text,startMs,endMs}]` 预载逐字时间，词数组 JSON 的 UTF-8 总预算 512 KiB；超预算的行仅省略 `words`，保留全文并回退当前句状态。 | [lyric-timeline.js](../../../../src/music/lyric-timeline.js) |
+
+内置、QQ、网易云和 WeSing 的完整时间轴均经过同一归一化入口。管理页快照和增量消息保留上述逐字时间；歌词浏览器源的 `overlay-projection` 对快照及 `lyric-timeline` 均仅允许词文本、起止时间，未知嵌套字段仍剔除。旧时间轴不带 `words` 时继续使用 `lyricState.words`；新增字段不改变消息类型、权限或持久化。
 
 ### 13.3 生产者
 
@@ -404,13 +406,17 @@ QQ / 网易云采集器都提供 `getStatus()`、`getLyricState()`、`getTimelin
 
 ### 13.5 外部网易云音乐
 
-[netease-client-monitor.js](../../../../src/music/netease-client-monitor.js) 每 500 ms 优先读取 cloudmusic 的 SMTC 歌曲、状态和时钟；没有可用媒体会话时，匹配 cloudmusic 进程的播放窗口标题，并通过 UI Automation 只读获取 `MM:SS / MM:SS` 或 `MM:SS | MM:SS` 进度及附近的播放/暂停按钮。托管 UIA 读不到进度时，回退到 Windows MSAA（`AccessibleObjectFromWindow` / `AccessibleChildren`）读取 Chromium 的无障碍树，兼容网易云 3.x 的空 UIA 容器和小写 `play/pause` 按钮。MSAA 扫描最多 2000 个节点、32 层，只保留进度与附近状态控件，重扫/切歌释放旧 COM 引用，不调用控件或修改客户端。
+[netease-client-monitor.js](../../../../src/music/netease-client-monitor.js) 每 500 ms 优先读取 cloudmusic 的 SMTC 歌曲、状态和时钟；没有可用媒体会话时，匹配 cloudmusic 进程的播放窗口标题，先通过 [netease-native-player-source.js](../../../../src/music/netease-native-player-source.js) 读取该进程播放引擎的歌曲 ID、播放/暂停状态、毫秒进度与时长。这条路径不依赖普通页、唱片样式的进度控件。读取仅使用 `PROCESS_VM_READ`，不注入、不写入、不申请调试权限；在 `cloudmusic.dll` 有界 `.text`（最多 32 MiB）中定位两个唯一代码特征，目标必须位于该模块 `.data` 内。每个进程定位一次，后续只读取播放字段；字符串最多 64 字节，拒绝无效 ID、非有限/越界时间、未知状态及读取过程中变化的曲目标识。模块范围、特征或读取不满足条件时保留现有回退。特征与字段布局参考 Music-DiscordRPC，MIT 版权与许可保留在源码中。
 
-切换窗口或标题后等待 1.5 秒再扫描，每 2 秒刷新控件引用；读取前后标题不一致时丢弃该次混合样本。MSAA 与 UIA 都发布整数秒的 `clockSource: 'uia'` 样本，继续使用同一时钟规则。辅助进程连续 15 秒无输出会被回收；启动失败、错误或退出按 500 / 1000 / 2000 ms 最多重试三次，停用取消全部计时器。
+引擎读取不可用时，通过 UI Automation 只读获取 `MM:SS / MM:SS` 或 `MM:SS | MM:SS` 进度及附近的播放/暂停按钮。托管 UIA 读不到进度时，回退到 Windows MSAA（`AccessibleObjectFromWindow` / `AccessibleChildren`）读取 Chromium 的无障碍树，兼容网易云 3.x 的空 UIA 容器和小写 `play/pause` 按钮。MSAA 扫描最多 2000 个节点、32 层，只保留进度与附近状态控件，重扫/切歌释放旧 COM 引用，不调用控件或修改客户端。
 
-[netease-client-track.js](../../../../src/music/netease-client-track.js) 只读 `%LOCALAPPDATA%/NetEase/CloudMusic/Library/webdb.dat` 的最新 `historyTracks` 记录；数据库缺失或读取失败时尝试旧版 `webdata/file/history`，旧格式文件限 8 MiB。记录的歌名、歌手必须与当前窗口或媒体元数据一致，两边都提供时长时相差不超过 2 秒，才补充数值 `sourceTrackId`；不能把历史记录中的另一首歌当作当前曲目。未找到可信记录时保留窗口/媒体元数据，稍后重读，不读取客户端凭据。
+切换窗口或标题后等待 1.5 秒再扫描 UI 控件，每 2 秒刷新控件引用；读取前后标题不一致时丢弃该次混合样本。引擎发布 `clockSource: 'native'` 的毫秒样本；MSAA 与 UIA 都发布整数秒的 `clockSource: 'uia'` 样本。辅助进程通过固定命令从 stdin 读取 UTF-8 源码，避免 Windows 命令行长度限制，不落地临时脚本。连续 15 秒无输出会被回收；启动、输入管道失败或退出按 500 / 1000 / 2000 ms 最多重试三次，停用取消全部计时器并结束辅助进程，原生进程句柄随之释放。目标播放窗口消失时也主动释放句柄。
 
-[netease-client-capture.js](../../../../src/music/netease-client-capture.js) 等待稳定歌名与有效时钟后获取歌词。SMTC 使用时间戳锚点；新标题到达时，若总时长变化或进度回跳超过 1 秒，可确认随标题到达的新曲锚点，不要求客户端再次更新时间戳。SMTC 同源样本仍拒绝倒退时间戳；在 UIA 与 SMTC 之间切换时不比较两种来源的时间戳。UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且读数未回退时，若上次连续位置加经过时间仍落在该区间内，就保留该估计，避免每次轮询发现新秒数时回拉。首次有效读数、暂停/继续、向后跳转和超出区间的估计仍采用采样锚点；播放中连续 2.5 秒无进度变化时隐藏歌词并等待有效读数。暂停以媒体状态或播放按钮为依据；按钮状态未知时，连续两次正常递增（每次相隔 250–2500 ms、递增不超过 2 秒）才推断播放，单次暂停拖动不触发播放，也不把静音或静止读数当暂停。UIA/MSAA 路径依赖客户端提供可访问的主窗口控件；托盘、精简模式或客户端改版可能使状态或时钟不可读，此时显示等待/错误，不沿用上一首歌词。2026-10-14 已在网易云 3.1.4.203507 实机验证 MSAA 进度、暂停状态与播放期间歌词就绪；托盘/精简模式仍未验收。
+[netease-client-track.js](../../../../src/music/netease-client-track.js) 只读 `%LOCALAPPDATA%/NetEase/CloudMusic/Library/webdb.dat` 的最新 `historyTracks` 记录；数据库缺失或读取失败时尝试旧版 `webdata/file/history`，旧格式文件限 8 MiB。记录的歌名、歌手必须与当前窗口或媒体元数据一致，两边都提供时长时相差不超过 2 秒，才补充数值 `sourceTrackId`；不能把历史记录中的另一首歌当作当前曲目。引擎 ID 与匹配记录的 ID 不一致时，丢弃混合样本并重读，不能用历史 ID 覆盖当前引擎 ID。未找到可信记录时保留窗口/媒体元数据及引擎 ID，稍后重读，不读取客户端凭据。
+
+[netease-client-capture.js](../../../../src/music/netease-client-capture.js) 等待稳定歌名与有效时钟后获取歌词。SMTC 使用时间戳锚点；新标题到达时，若总时长变化或进度回跳超过 1 秒，可确认随标题到达的新曲锚点，不要求客户端再次更新时间戳。SMTC 同源样本仍拒绝倒退时间戳；切换时钟来源时不比较不同来源的时间戳。引擎采样按真实毫秒位置及采样时间外推，暂停与 seek 直接采用读数；与 UIA 一样要求样本不超过 2.5 秒，新标题稳定至少 1.5 秒，播放中连续 2.5 秒无进度变化时等待有效读数，不无限外推。
+
+UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且读数未回退时，若上次连续位置加经过时间仍落在该区间内，就保留该估计，避免每次轮询发现新秒数时回拉。首次有效读数、暂停/继续、向后跳转和超出区间的估计仍采用采样锚点。UIA 按钮状态未知时，连续两次正常递增（每次相隔 250–2500 ms、递增不超过 2 秒）才推断播放，单次暂停拖动不触发播放，也不把静音或静止读数当暂停。UIA/MSAA 回退仍依赖可访问的控件；客户端改版后若引擎特征与 UI 都不可读，则显示等待/错误，不沿用上一首歌词。其他版本兼容性及托盘模式需分别验收，不能从普通页面通过推断所有模式均已通过。
 
 ### 13.6 外部播放器歌词解析
 

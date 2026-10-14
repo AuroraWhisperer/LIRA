@@ -51,7 +51,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     variants: [variant('default', '直播歌词', '逐字歌词')],
     fields: {
       style: select('展示样式', 'default', { default: '直播歌词', moonlit: '月渡花汀' }),
-      desktopLyricFontFamily: text('主字体', 'Lira Maiyuan', 256), desktopLyricFontWeight: fontWeight,
+      desktopLyricFontFamily: text('字体', 'Lira Maiyuan', 256), desktopLyricFontWeight: fontWeight,
       desktopLyricFontSize: number('字号', '56', 24, 72), desktopLyricTextColor: color('文字颜色', '#000000', 'desktopLyricOpacity'),
       desktopLyricTextAlign: select('文字对齐', 'left', { left: '左对齐', center: '居中', right: '右对齐', justify: '两端对齐' }),
       desktopLyricLineHeight: number('行高', '1.4', 1, 2, 0.1), desktopLyricVisibleLines: number('显示行数（0 为自动）', '0', 0, 99),
@@ -64,7 +64,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       desktopLyricTimeOffsetMs: number('歌词偏移（毫秒）', '0', -5000, 5000, 50),
       desktopLyricNoLyricText: text('无歌词提示', '纯音乐，请欣赏'),
       desktopLyricFallbackFontFamily: text('备用字体', 'Microsoft JhengHei'),
-      desktopLyricLetterSpacing: number('字间距', '0', -0.1, 0.3, 0.01),
+      desktopLyricLetterSpacing: number('字间距', '0', -0.1, 2, 0.01),
       desktopLyricShadowColor: color('阴影颜色', '#000000', 'desktopLyricShadowIntensity'), desktopLyricShadowIntensity: number('阴影强度', '0.35', 0, 1, 0.01),
       desktopLyricShadowBlur: number('阴影模糊', '8', 0, 30),
       desktopLyricShadowOffsetX: number('阴影水平偏移', '0', -20, 20), desktopLyricShadowOffsetY: number('阴影垂直偏移', '3', -20, 20),

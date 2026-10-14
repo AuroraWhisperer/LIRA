@@ -62,6 +62,7 @@ test('canvas parameter groups retain edits, slider values and existing lyric dim
   assert.equal(await page.locator('[data-parameter-group="layout"]').evaluate(node => node.open), false);
 
   const font = page.locator('[data-component-parameter="desktopLyricFontFamily"]');
+  assert.equal(await page.locator('[data-component-parameter="desktopLyricFallbackFontFamily"]').count(), 0);
   assert.equal(await font.inputValue(), 'Lira Maiyuan');
   assert.equal(await page.locator('[data-component-parameter="desktopLyricCurrentLineEnhanced"]').isChecked(), false);
   const lyricFrame = await page.locator('.scene-editor-item.is-selected iframe').elementHandle().then(handle => handle.contentFrame());
@@ -74,10 +75,17 @@ test('canvas parameter groups retain edits, slider values and existing lyric dim
   assert.deepEqual(appearance, { background: 'none', shadow: 'none', fontLoaded: true });
   const fontSaved = page.waitForResponse(response => response.url().includes('/api/component-preview/appearance')
     && response.request().postDataJSON()?.patch?.desktopLyricFontFamily?.startsWith('Microsoft YaHei,'));
-  await font.selectOption({ label: '系统字体组合 · 多语言回退' });
+  await font.selectOption({ label: '系统字体' });
   const multilingualFont = await font.inputValue();
   assert.equal((await fontSaved).status(), 200);
   assert.equal(fixture.runtime.settings.desktopLyricFontFamily, multilingualFont, 'A complete font stack survives saving.');
+  for (const family of ['Lira Xiaolai', 'Lira Assorted']) {
+    await font.selectOption(family);
+    await lyricFrame.waitForFunction(value => getComputedStyle(document.querySelector('.desktop-lyric-preview-card'))
+      .getPropertyValue('--preview-font').includes(value), family);
+    assert.ok(await lyricFrame.evaluate(async value => (await document.fonts.load(`40px "${value}"`, '可爱 Hello こんにちは')).length > 0, family),
+      `${family} loads from the bundled font asset.`);
+  }
   await font.selectOption('Lira Kuaile');
 
   const fontSize = page.locator('[data-component-parameter="desktopLyricFontSize"]');

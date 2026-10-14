@@ -12,6 +12,38 @@ function createProvider() {
   });
 }
 
+test('NetEase stream requests read the current account cookie each time and honor upstream rights', async (t) => {
+  let cookie = '';
+  const requests = [];
+  const provider = new NeteaseMusicProvider({ getCookieHeader: () => cookie });
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    requests.push({ url: new URL(url), cookie: options.headers.Cookie || '' });
+    const full = options.headers.Cookie === 'MUSIC_U=synthetic-member';
+    return Response.json({ code: 200, data: [{
+      id: 123, url: `https://example.test/${full ? 'full' : 'trial'}.mp3`,
+      expi: 600, level: full ? 'lossless' : 'standard',
+      freeTrialInfo: full ? null : { start: 30, end: 60 },
+    }] });
+  });
+  const track = { sourceTrackId: '123', vip: true };
+  const anonymous = await provider.resolvePlayableUrl(track, { quality: 'lossless' });
+  cookie = 'MUSIC_U=synthetic-member';
+  const member = await provider.resolvePlayableUrl(track, { quality: 'lossless' });
+  cookie = 'MUSIC_U=synthetic-nonmember';
+  const changedAccount = await provider.resolvePlayableUrl(track, { quality: 'lossless' });
+  assert.deepEqual(requests.map((request) => request.cookie), ['', 'MUSIC_U=synthetic-member', 'MUSIC_U=synthetic-nonmember']);
+  for (const { url } of requests) {
+    assert.equal(url.origin, 'https://music.163.com');
+    assert.equal(url.pathname, '/api/song/enhance/player/url/v1');
+    assert.equal(url.searchParams.get('level'), 'lossless');
+  }
+  assert.equal(anonymous.trial, true);
+  assert.equal(anonymous.quality, 'standard');
+  assert.equal(member.trial, false);
+  assert.equal(member.quality, 'lossless');
+  assert.equal(changedAccount.trial, true);
+});
+
 test('Netease provider requests and aligns translated and romanized lyrics', async () => {
   const provider = createProvider();
   let captured;

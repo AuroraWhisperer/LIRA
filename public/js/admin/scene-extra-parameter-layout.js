@@ -3,7 +3,7 @@ import { previewElement } from './component-preview-surface.js';
 // Keep the canvas sections in the same vocabulary as their client settings pages.
 const PARAMETER_GROUPS = {
   lyrics: [
-    ['basic', '基础样式', ['style', 'desktopLyricFontFamily', 'desktopLyricFallbackFontFamily', 'desktopLyricFontSize',
+    ['basic', '基础样式', ['style', 'desktopLyricFontFamily', 'desktopLyricFontSize',
       'desktopLyricFontWeight', 'desktopLyricTextColor', 'desktopLyricOpacity', 'desktopLyricTextAlign',
       'desktopLyricLineHeight', 'desktopLyricLetterSpacing', 'desktopLyricVisibleLines']],
     ['content', '显示策略', ['desktopLyricKaraokeMode', 'desktopLyricShowTranslation', 'desktopLyricTranslationScale',

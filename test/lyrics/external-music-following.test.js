@@ -46,6 +46,27 @@ test('sole playing external client follows without selection; choosing another d
   assert.deepEqual(stops, {});
 });
 
+test('playing native NetEase replaces a paused internal track in auto and explicit preference', async (t) => {
+  const { runtime, samples } = await fixture(t);
+  runtime.publishLyricTimeline({ trackTitle: 'Internal', status: 'ready', lines: [{ startMs: 0, text: 'Internal line' }] });
+  runtime.publishLyricState({ trackTitle: 'Internal', playing: false, status: 'ready', currentMs: 20000 });
+  samples.netease({ detected: true, title: 'External', artists: ['Artist'], playbackStatus: 'Unknown', clockSource: 'uia' });
+  assert.equal(runtime.getLyricSource().source, 'internal');
+  const input = { detected: true, title: 'External', artists: ['Artist'], sourceTrackId: '123', clockSource: 'native',
+    playbackStatus: 'Playing', positionMs: 104123, durationMs: 200008, timelineUpdatedAt: Date.now() };
+  samples.netease(input);
+  await new Promise(setImmediate);
+  assert.equal(runtime.getLyricSource().source, 'netease-client');
+  assert.equal(runtime.getLyricTimeline().lines[0].text, 'NetEase line');
+  assert.equal(runtime.getLyricState().trackTitle, 'External');
+  assert.equal(runtime.getLyricState().playing, true);
+  await runtime.selectLyricSource('netease-client');
+  assert.equal(runtime.getLyricSource().source, 'netease-client');
+  samples.netease({ ...input, playbackStatus: 'Paused', timelineUpdatedAt: Date.now() });
+  assert.equal(runtime.getLyricSource().source, 'netease-client');
+  assert.equal(runtime.getLyricState().playing, false);
+});
+
 test('simultaneous players retain current in auto; preference and pause handoff replay matching timeline', async (t) => {
   const { runtime, sample } = await fixture(t);
   await sample('qq');

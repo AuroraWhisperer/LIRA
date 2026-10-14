@@ -10,6 +10,9 @@ const ROOT_DIR = path.resolve(__dirname, '../..');
 
 async function createLiveRenderer() {
   const animations = [];
+  const frames = new Map();
+  let frameId = 0;
+  let now = 1000;
   const createElement = () => {
     const element = new FakeNode();
     let textContent = '';
@@ -36,24 +39,48 @@ async function createLiveRenderer() {
   const elements = new Map(['Stage', 'Playback', 'Timeline', 'Viewport'].map((name) => [
     `desktopLyricPreview${name}`, createElement(),
   ]));
+  elements.set('desktopLyricSurface', createElement());
   elements.get('desktopLyricPreviewViewport').clientHeight = 0;
   const { desktopLyricRenderer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/lyrics/desktop-lyric-renderer.js'), {
-    performance: { now: () => 1000 },
+    performance: { now: () => now },
     Element: { prototype: { animate() {} } },
     window: { addEventListener() {}, matchMedia: () => ({ matches: false }) },
     document: { createElement, createDocumentFragment: () => Object.assign(createElement(), { isFragment: true }),
       getElementById: (id) => elements.get(id), addEventListener() {} },
-    requestAnimationFrame: () => 0, cancelAnimationFrame() {}, clearTimeout() {},
+    requestAnimationFrame: (callback) => { frames.set(++frameId, callback); return frameId; },
+    cancelAnimationFrame: (id) => frames.delete(id), clearTimeout() {},
   });
   desktopLyricRenderer.init();
   desktopLyricRenderer.updateLyricTimeline({ status: 'ready', lines: [
     { startMs: 0, text: '第一句' }, { startMs: 5000, text: '第二句' },
   ] });
-  return { renderer: desktopLyricRenderer, animations, elements, state: {
+  const advance = (elapsed) => {
+    now += elapsed;
+    const callbacks = [...frames.values()];
+    frames.clear();
+    callbacks.forEach((callback) => callback(now));
+  };
+  return { renderer: desktopLyricRenderer, animations, elements, advance, state: {
     currentMs: 1200, durationMs: 10000, playing: true, generation: 1, sequence: 1, status: 'ready',
     lineText: '第一句', words: [{ text: '第一句', startMs: 0, endMs: 5000 }],
   } };
 }
+
+test('joining scripts and combining marks remain intact during karaoke', async () => {
+  for (const mode of ['continuous', 'discrete']) {
+    for (const text of ['أُحِبُّكَ', 'אַהֲבָה', 'तुमसे प्यार', 'ฉันรักเธอ', 'Cafe\u0301', '\u1109\u1161\u1105\u1161\u11BC']) {
+      const { renderer, elements, state } = await createLiveRenderer();
+      const words = Array.from(text, (character, index) => ({ text: character, startMs: index * 100, endMs: (index + 1) * 100 }));
+      renderer.applySettings({ desktopLyricKaraokeMode: mode });
+      renderer.updateLyricTimeline({ status: 'ready', lines: [{ startMs: 0, text, words }] });
+      renderer.updateLyricState({ ...state, lineText: text, words });
+      const line = elements.get('desktopLyricPreviewTimeline').children[0].querySelector('.desktop-lyric-preview-row-text');
+      assert.equal(line.textContent, text);
+      assert.equal(line.children.length, 0, 'Separate inline blocks must not break text shaping.');
+      assert.equal(line.getAttribute('dir'), 'auto');
+    }
+  }
+});
 
 test('desktop karaoke immediately anchors a small explicit seek within the same word', async () => {
   const { renderer, animations, state } = await createLiveRenderer();
@@ -64,6 +91,48 @@ test('desktop karaoke immediately anchors a small explicit seek within the same 
   assert.equal(animation.currentTime, 1100);
   assert.equal(animation.cancelled, false, 'seeking within a word reuses its animation');
 });
+
+for (const mode of ['continuous', 'discrete']) {
+  test(`${mode} karaoke starts the next line before its sampled state arrives`, async () => {
+    const { renderer, elements, animations, advance, state } = await createLiveRenderer();
+    const nextWords = [
+      { text: '第', startMs: 5000, endMs: 5100 },
+      { text: '二', startMs: 5100, endMs: 5200 },
+      { text: '句', startMs: 5200, endMs: 5500 },
+    ];
+    renderer.applySettings({ desktopLyricKaraokeMode: mode });
+    renderer.updateLyricTimeline({ status: 'ready', lines: [
+      { startMs: 0, text: '第一句', words: state.words },
+      { startMs: 5000, text: '第二句', words: nextWords },
+    ] });
+    renderer.updateLyricState({ ...state, currentMs: 4900 });
+    advance(150);
+    const row = elements.get('desktopLyricPreviewTimeline').children[1];
+    const wordNodes = row.querySelector('.desktop-lyric-preview-row-text').children;
+    assert.equal(wordNodes.length, 3, 'the first word must exist 50 ms into the new line, before the next 500 ms sample');
+    if (mode === 'continuous') {
+      assert.equal(animations.at(-3).currentTime, 50);
+      assert.equal(animations.at(-3).playState, 'running');
+    } else {
+      assert.equal(wordNodes[0].dataset.wordState, 'complete');
+      assert.equal(wordNodes[1].dataset.wordState, 'upcoming');
+    }
+    const firstNode = wordNodes[0];
+    renderer.updateLyricState({ ...state, currentMs: 5050, sequence: 2, lineText: '第二句', words: nextWords });
+    assert.equal(row.querySelector('.desktop-lyric-preview-row-text').children[0], firstNode,
+      'the later current-line sample must not rebuild the preloaded words');
+    renderer.updateLyricState({ ...state, currentMs: 5050, sequence: 3, playing: false,
+      lineText: '第二句', words: nextWords });
+    advance(1000);
+    if (mode === 'continuous') {
+      assert.equal(animations.at(-3).currentTime, 50);
+      assert.equal(animations.at(-3).playState, 'paused');
+    } else assert.equal(wordNodes[1].dataset.wordState, 'upcoming');
+    renderer.updateLyricState({ ...state, currentMs: 4900, generation: 2, playing: false });
+    assert.equal(row.querySelector('.desktop-lyric-preview-row-text').children.length, 0,
+      'seeking backwards releases the next line and restores its plain text');
+  });
+}
 
 test('desktop karaoke retains the visible line when a sample is already on the next line', async () => {
   const { renderer, animations, state } = await createLiveRenderer();
@@ -78,6 +147,18 @@ test('desktop karaoke retains the visible line when a sample is already on the n
   });
   assert.equal(animation.cancelled, true, 'a real line change still releases the previous animation');
   assert.equal(animations.at(-1).currentTime, 50);
+});
+
+test('preloaded words wait for the matching track state during a timeline handoff', async () => {
+  const { renderer, elements, state } = await createLiveRenderer();
+  renderer.updateLyricState({ ...state, trackTitle: 'Previous', currentMs: 5200 });
+  renderer.updateLyricTimeline({ trackTitle: 'Next', status: 'ready', lines: [
+    { startMs: 0, text: '新歌', words: [{ text: '新歌', startMs: 0, endMs: 6000 }] },
+  ] });
+  const text = elements.get('desktopLyricPreviewTimeline').children[0].querySelector('.desktop-lyric-preview-row-text');
+  assert.equal(text.children.length, 0, 'the previous song clock must not fill the new song');
+  renderer.updateLyricState({ ...state, trackTitle: 'Next', currentMs: 50, generation: 2, lineText: '新歌', words: [] });
+  assert.equal(text.children.length, 1);
 });
 
 test('continuous karaoke line changes preserve every past lyric as plain text', async () => {
@@ -137,6 +218,7 @@ test('desktop lyric renderer normalizes timing, empty text, and anchor settings'
     desktopLyricHideOnPause: 'true',
     desktopLyricAlignPosition: '0.25',
     desktopLyricAlignAnchor: 'end',
+    desktopLyricLetterSpacing: '2',
   });
 
   assert.equal(settings.timeOffsetMs, 350);
@@ -144,6 +226,8 @@ test('desktop lyric renderer normalizes timing, empty text, and anchor settings'
   assert.equal(settings.hideOnPause, true);
   assert.equal(settings.alignPosition, 0.25);
   assert.equal(settings.alignAnchor, 'end');
+  assert.equal(settings.letterSpacing, 2);
+  assert.equal(preview.resolveDesktopLyricSettings({ desktopLyricLetterSpacing: '3' }).letterSpacing, 2);
   assert.equal(preview.resolveLyricTime(1000, settings), 1350);
   assert.equal(preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, settings), '测试歌曲');
   assert.equal(preview.calculateFollowTarget(600, 100, 400, 1200, settings.alignPosition, settings.alignAnchor), 600);

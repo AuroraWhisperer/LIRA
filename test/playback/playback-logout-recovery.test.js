@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
-async function createPlayingApp(pending, { currentSource = 'qq', nextSource = 'qq' } = {}) {
+async function createPlayingApp(pending, { currentSource = 'qq', nextSource = 'qq', selectedSource = 'qq' } = {}) {
   const current = { ...track('a', '歌曲 A'), source: currentSource };
   const next = { ...track('b', '歌曲 B'), source: nextSource };
   const app = await createPlaybackApp(
@@ -15,7 +15,7 @@ async function createPlayingApp(pending, { currentSource = 'qq', nextSource = 'q
       normalQueueTracks: [current, next],
       mode: 'sequence',
       volume: 0.75,
-      selectedSource: 'qq',
+      selectedSource,
       queueType: 'queue',
     },
     {
@@ -30,6 +30,68 @@ async function createPlayingApp(pending, { currentSource = 'qq', nextSource = 'q
   await flushAsyncWork();
   return app;
 }
+
+test('NetEase login discards a cached trial URL before the next playback without stopping current audio', async () => {
+  const current = { ...track('a', '会员歌曲'), source: 'netease', vip: true };
+  const options = {
+    authState: { platform: 'netease', loggedIn: false },
+    login: async () => { options.authState = { platform: 'netease', loggedIn: true }; },
+    resolveStream: () => ({
+      url: options.authState.loggedIn ? 'https://example.test/full.mp3' : 'https://example.test/trial.mp3',
+      trial: !options.authState.loggedIn,
+      expireAt: Date.now() + 600000,
+    }),
+  };
+  const app = await createPlaybackApp({ current, selectedSource: 'netease', mode: 'repeat-one', volume: 0.75 }, options);
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  await flushAsyncWork();
+  const audio = app.element('music-player');
+  assert.equal(audio.src, 'https://example.test/trial.mp3');
+  audio.currentTime = 12;
+
+  await app.emit('playbackLoginBtn', 'click');
+  assert.equal(audio.src, 'https://example.test/trial.mp3');
+  assert.equal(audio.currentTime, 12);
+  assert.equal(audio.paused, false);
+  await app.emit('music-player', 'ended');
+  await flushAsyncWork();
+  assert.equal(app.resolveStreamRequestCount(), 2);
+  assert.equal(audio.src, 'https://example.test/full.mp3');
+  assert.equal(app.savedState().current.id, 'a');
+});
+
+for (const result of ['success', 'failure']) {
+  test(`NetEase login invalidates recovery from the previous account (${result})`, async () => {
+    const pending = Promise.withResolvers();
+    const app = await createPlayingApp(pending, { currentSource: 'netease', selectedSource: 'netease' });
+    const recovery = app.emit('music-player', 'error');
+    await flushAsyncWork();
+    assert.equal(app.resolveStreamRequestCount(), 2);
+    await app.emit('playbackLoginBtn', 'click');
+    if (result === 'success') pending.resolve({ url: 'https://example.test/old-account.mp3' });
+    else pending.reject(new Error('old account unavailable'));
+    await recovery;
+    await flushAsyncWork();
+    assert.equal(app.element('music-player').src, 'https://example.test/a.mp3');
+    assert.equal(app.savedState().current.id, 'a');
+    assert.equal(app.audioPlayCalls(), 1);
+    assert.deepEqual(app.errors(), []);
+  });
+}
+
+test('NetEase login keeps an in-flight stream request belonging to QQ Music', async () => {
+  const pending = Promise.withResolvers();
+  const app = await createPlayingApp(pending, { currentSource: 'netease', selectedSource: 'netease' });
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  await app.emit('playbackLoginBtn', 'click');
+  pending.resolve({ url: 'https://example.test/qq.mp3' });
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'b');
+  assert.equal(app.element('music-player').src, 'https://example.test/qq.mp3');
+});
 
 for (const action of ['next', 'quality', 'recovery']) {
   for (const result of ['success', 'failure']) {

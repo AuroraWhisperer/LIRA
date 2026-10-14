@@ -39,6 +39,8 @@ const EMPTY_TIMELINE = {
   lines: [],
 };
 const MANUAL_FOLLOW_PAUSE_MS = 6000;
+// Per-token inline blocks break joining scripts, combining marks and decomposed Hangul.
+const JOINED_TEXT = /\p{Mark}|[\u0590-\u11FF\u1780-\u17FF\uA960-\uA97F\uA9E0-\uA9FF\uAA60-\uAA7F\uD7B0-\uD7FF]/u;
 
 let initialized = false;
 let renderer = null;
@@ -179,18 +181,21 @@ function renderTimeline() {
 
       const text = document.createElement('div');
       text.className = 'desktop-lyric-preview-row-text';
+      text.setAttribute('dir', 'auto');
       text.textContent = line.text || '';
       row.appendChild(text);
 
       if (line.translation) {
         const translation = document.createElement('div');
         translation.className = 'desktop-lyric-preview-row-translation';
+        translation.setAttribute('dir', 'auto');
         translation.textContent = line.translation;
         row.appendChild(translation);
       }
       if (line.roma) {
         const roma = document.createElement('div');
         roma.className = 'desktop-lyric-preview-row-roma';
+        roma.setAttribute('dir', 'auto');
         roma.textContent = line.roma;
         row.appendChild(roma);
       }
@@ -253,21 +258,24 @@ function renderTimelineFrame(currentMs) {
 
 function renderActiveWords() {
   if (activeIndex < 0 || !rowElements[activeIndex]) return;
-  if (!currentDisplaySettings.karaokeEnabled) {
+  if (!currentDisplaySettings.karaokeEnabled || (latestTimeline.trackTitle && latestState?.trackTitle
+    && latestTimeline.trackTitle !== latestState.trackTitle)) {
     resetActiveWords();
     return;
   }
   const line = latestTimeline.lines[activeIndex] || {};
-  const words = Array.isArray(latestState?.words) ? latestState.words : [];
+  const timelineWords = Array.isArray(line.words) && line.words.length > 0 ? line.words : null;
+  const words = timelineWords || (Array.isArray(latestState?.words) ? latestState.words : []);
   const matchesCurrentLine = latestState?.lineText === line.text;
-  // The local clock can still be finishing this line when the next sample arrives.
-  if (!matchesCurrentLine && activeWordIndex === activeIndex) return;
-  const signature = `${activeIndex}:${matchesCurrentLine ? latestWordSignature : ''}`;
+  // Preloaded timing lets the local clock cross a line before the next state sample.
+  if (!timelineWords && !matchesCurrentLine && activeWordIndex === activeIndex) return;
+  const wordSignature = timelineWords ? JSON.stringify(timelineWords) : matchesCurrentLine ? latestWordSignature : '';
+  const signature = `${activeIndex}:${wordSignature}`;
   if (signature === activeWordSignature) return;
 
   resetActiveWords();
   const textElement = rowElements[activeIndex].querySelector('.desktop-lyric-preview-row-text');
-  if (!textElement || !matchesCurrentLine || !words.length) {
+  if (!textElement || (!timelineWords && !matchesCurrentLine) || !words.length || JOINED_TEXT.test(line.text || '')) {
     activeWordSignature = signature;
     return;
   }

@@ -2,6 +2,8 @@
 // 歌词服务 - 负责歌词加载和浏览器源同步
 'use strict';
 
+import { getPlaybackLyricOffsetMs } from '../utils.js';
+
 const MAX_PENDING_FORCED_STATES = 64;
 
 /**
@@ -120,8 +122,9 @@ export class LyricService {
    */
   async syncWindow(track, audio, force = false) {
     this.windowSuspended = false;
-    const duration = audio && Number.isFinite(audio.duration) ? audio.duration : 0;
-    const currentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    const offset = getPlaybackLyricOffsetMs(track) / 1000;
+    const duration = audio && Number.isFinite(audio.duration) ? audio.duration + offset : 0;
+    const currentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime + offset : 0;
     const progress = duration > 0 ? currentTime / duration : 0;
     const lyricLine = this.findLyricLine(track, currentTime * 1000);
     const hasLyrics = Boolean(track?.lyrics && Array.isArray(track.lyrics.lines));

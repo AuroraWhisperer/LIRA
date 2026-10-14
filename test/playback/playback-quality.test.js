@@ -4,6 +4,48 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
+for (const action of ['quality', 'recovery']) {
+  for (const scenario of [
+    { name: 'trial to full', before: 30000, after: 0, position: 5, expected: 35 },
+    { name: 'full to trial', before: 0, after: 30000, position: 35, expected: 5 },
+    { name: 'changed excerpt', before: 30000, after: 45000, position: 20, expected: 5 },
+    { name: 'before the new excerpt', before: 30000, after: 45000, position: 5, expected: 0 },
+  ]) {
+    test(`NetEase ${action} resumes the same song position (${scenario.name})`, async () => {
+      const app = await createPlaybackApp({
+        current: { ...track('song', '会员歌曲'), source: 'netease' },
+        selectedSource: 'netease', mode: 'sequence', volume: 0.75,
+      }, {
+        resolveStream: (count, request) => {
+          const startMs = count === 1 ? scenario.before : scenario.after;
+          return { url: `https://example.test/${count}.mp3`, quality: request.quality,
+            expireAt: Date.now() + 600000, trial: startMs > 0, trialStartMs: startMs };
+        },
+      });
+      await app.init();
+      await flushAsyncWork();
+      await app.emit('playbackPlayPause', 'click');
+      const audio = app.element('music-player');
+      audio.load = () => { audio.currentTime = 0; };
+      audio.currentTime = scenario.position;
+      if (action === 'quality') {
+        await app.emit('playbackQualityPanel', 'click', {
+          stopPropagation() {}, target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
+        });
+      } else {
+        await app.emit('music-player', 'error');
+      }
+      await flushAsyncWork();
+      audio.duration = scenario.after ? 30 : 180;
+      await app.emit('music-player', 'loadedmetadata');
+      assert.equal(app.resolveStreamRequestCount(), 2);
+      assert.equal(audio.currentTime, scenario.expected);
+      assert.equal(audio.paused, false);
+      assert.equal(app.savedState().current.id, 'song');
+    });
+  }
+}
+
 test('arrow keys focus music sources without selecting them or stopping playback', async () => {
   let queueReads = 0;
   const app = await createPlaybackApp({ current: track('song', '歌曲'), selectedSource: 'netease', mode: 'sequence', volume: 0.75 }, {

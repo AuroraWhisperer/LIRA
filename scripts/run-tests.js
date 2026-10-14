@@ -49,6 +49,8 @@ const groups = {
     'gifts/frontend-gift-sprint',
     'gifts/frontend-guard-thanks',
     'gifts/guard-nautical-player',
+    'lyrics/desktop-lyric-fonts-browser',
+    'lyrics/desktop-lyric-layout-browser',
     'overlays/component-source',
     'overlays/background-windowlight',
     'overlays/component-style-effects',

@@ -256,6 +256,19 @@
   user-select: none;
 }
 
+.desktop-lyric-settings .desktop-lyric-settings-group > summary,
+.desktop-lyric-settings .desktop-lyric-reset-group {
+  background: color-mix(in srgb, var(--color-selection-marker) 12%, var(--surface));
+}
+
+.desktop-lyric-settings .desktop-lyric-settings-group > summary:hover {
+  background: color-mix(in srgb, var(--color-selection-marker) 18%, var(--surface));
+}
+
+.desktop-lyric-settings .desktop-lyric-group-count {
+  background: var(--surface);
+}
+
 .desktop-lyric-settings-group > summary::-webkit-details-marker {
   display: none;
 }

@@ -19,6 +19,8 @@ test('NetEase login closure names the selected music provider', async () => {
   );
   const operations = createProviderOperations({
     playbackState: { selectedSource: 'netease' },
+    stateActions: { forgetProviderStreams: () => {} },
+    invalidatePlaybackRequests: () => {},
     providerManager: {
       refreshAuthState: async () => ({ platform: 'netease', loggedIn: false }),
       checkProviderHealth: async () => ({ source: 'netease', ok: true }),

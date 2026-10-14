@@ -217,7 +217,8 @@ export function createPlaybackControls(deps) {
       return;
     }
 
-    const resumeAt = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    const songPosition = (Number.isFinite(audio.currentTime) ? audio.currentTime : 0) +
+      PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000;
     const requestGeneration = invalidatePlaybackRequests();
     playRequestSource = track.source;
     try {
@@ -230,6 +231,7 @@ export function createPlaybackControls(deps) {
       audioRequestGeneration = requestGeneration;
       if (!streamUrl) return;
       Object.assign(track, streamTrack);
+      const resumeAt = Math.max(0, songPosition - PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000);
 
       const shouldResume = !audio.paused;
       audio.src = streamUrl;

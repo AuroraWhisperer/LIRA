@@ -162,9 +162,10 @@ function createNeteaseClientCapture({
     const duration = sample.durationMs;
     const stamp = sample.timelineUpdatedAt;
     const isUIA = sample.clockSource === 'uia';
+    const isSampledClock = isUIA || sample.clockSource === 'native';
     const validClock = Number.isFinite(position) && position >= 0 && Number.isFinite(duration) && duration > 0 &&
       position <= duration && Number.isFinite(stamp) && stamp > 0 && stamp <= time + 2000;
-    if (isUIA && validClock && position !== observedPosition) {
+    if (isSampledClock && validClock && (position !== observedPosition || (sample.playbackStatus === 'Playing' && !previousPlaying))) {
       const delta = position - observedPosition;
       const elapsed = time - positionChangedAt;
       advancingSamples = observedPosition !== null && delta > 0 && delta <= 2000 && elapsed >= 250 && elapsed <= 2500
@@ -180,19 +181,19 @@ function createNeteaseClientCapture({
     const knownPlayback = playing || sample.playbackStatus === 'Paused';
     // A new SMTC song can publish its only anchor together with the title.
     // Require a reset position or different duration before reusing that anchor.
-    const clockSource = isUIA ? 'uia' : 'smtc';
+    const clockSource = isSampledClock ? sample.clockSource : 'smtc';
     const sameClock = lastTimeline?.clockSource === clockSource;
     const newTrackClock = previousTimeline &&
       (previousTimeline.clockSource !== clockSource || stamp >= previousTimeline.stamp) &&
       (duration !== previousTimeline.duration || position + 1000 < previousTimeline.position);
-    const freshClock = isUIA
+    const freshClock = isSampledClock
       ? (!trackChangedAt || time - trackChangedAt >= 1500) && time - stamp <= 2500 && (!playing || time - positionChangedAt <= 2500)
       : (!sameClock || stamp >= lastStamp) && (stamp > previousStamp || newTrackClock);
     clockReady = Boolean(title && stableTrack && validClock && knownPlayback && freshClock);
     if (!clockReady) {
       const wasReady = state.status === 'ready';
       state.status = 'loading';
-      state.message = '正在等待网易云当前曲目的有效进度，请保持播放器主窗口可用';
+      state.message = '正在读取网易云当前曲目的播放进度，请稍候或重新检测';
       state.currentMs = state.durationMs = 0;
       if (wasReady) onTimeline(getTimeline());
       emit();

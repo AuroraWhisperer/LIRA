@@ -137,6 +137,8 @@ test('music login action and result remain bound to the prompted platform after 
     );
     const operations = createProviderOperations({
       playbackState: state,
+      invalidatePlaybackRequests() {},
+      stateActions: { forgetProviderStreams() {} },
       providerManager: {
         refreshAuthState: async ({ platform }) => {
           requested.push(platform);

@@ -157,6 +157,9 @@ export function createProviderOperations(deps) {
     if (button) button.disabled = true;
     try {
       await window.musicAPI.login(platform);
+      // A login may replace account rights even when the current audio keeps playing.
+      invalidatePlaybackRequests(platform);
+      stateActions.forgetProviderStreams(platform);
       invalidateProviderContent?.(platform);
       cacheManager?.clearByPrefix(`${platform}:`);
       let authState = null;

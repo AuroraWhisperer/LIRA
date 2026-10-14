@@ -73,7 +73,7 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   const typography = await frame.evaluate(async () => {
     const row = document.querySelector('.desktop-lyric-preview-row.is-active');
     const text = row.querySelector('.desktop-lyric-preview-row-text');
-    const family = getComputedStyle(text).fontFamily.split(',')[0];
+    const family = getComputedStyle(text).fontFamily.split(',').find(value => value.includes('月渡花汀文楷-'));
     const faces = await document.fonts.load(`48px ${family}`, '月渡花汀清風星河こんにちは');
     return { family, loaded: faces.length > 0 && faces.every(face => face.status === 'loaded'),
       height: row.offsetHeight, size: getComputedStyle(text).fontSize,
@@ -86,7 +86,7 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   assert.equal(typography.visible, 1);
   const font = page.locator('[data-component-parameter="desktopLyricFontFamily"]');
   await font.selectOption('SimSun, STSong, serif');
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.startsWith('SimSun'));
+  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.split(',').some(value => value.trim() === 'SimSun'));
   await font.selectOption('月渡花汀文楷');
   await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.includes('月渡花汀文楷-'));
   const size = page.locator('[data-component-parameter="desktopLyricFontSize"]');

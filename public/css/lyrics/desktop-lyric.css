@@ -1,7 +1,8 @@
 @import url('../shared/display-fonts.css');
+@import url('./font-fallbacks.css');
 
 .desktop-lyric-preview-card {
-  --preview-font: 'Lira Maiyuan', 'Microsoft YaHei', sans-serif;
+  --preview-font: 'Lira Lyric Scripts', 'Lira Maiyuan', 'Lira Lyric Korean', 'Lira Xiaolai', 'Lira Lyric Extended', system-ui, sans-serif;
   --preview-weight: 800;
   --preview-size: 42px;
   --preview-translation-size: 27px;
@@ -20,6 +21,7 @@
   --preview-letter-spacing: 0em;
   --preview-text-align: left;
   --preview-row-align: flex-start;
+  --preview-row-origin: left;
   --preview-interlude-offset: 0em;
   --preview-translate-x: 0px;
   --preview-translate-y: 0px;
@@ -179,7 +181,7 @@
   opacity: calc(var(--preview-opacity) * var(--preview-base-opacity));
   filter: blur(0);
   transform: translateX(0) scale(1);
-  transform-origin: left center;
+  transform-origin: var(--preview-row-origin) center;
   transition:
     opacity 260ms ease,
     filter 320ms ease,
@@ -279,6 +281,18 @@
   text-align-last: justify;
 }
 
+.desktop-lyric-preview-card.is-text-justify .desktop-lyric-preview-row-text:has(> .desktop-lyric-preview-word) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.desktop-lyric-preview-card.is-text-center .desktop-lyric-preview-row-text,
+.desktop-lyric-preview-card.is-text-center .desktop-lyric-preview-row-translation,
+.desktop-lyric-preview-card.is-text-center .desktop-lyric-preview-row-roma {
+  text-wrap: balance;
+}
+
 .desktop-lyric-preview-word {
   position: relative;
   display: inline-block;
@@ -290,6 +304,7 @@
 .desktop-lyric-preview-word-base,
 .desktop-lyric-preview-word-highlight {
   display: inline-block;
+  white-space: pre-wrap;
 }
 
 .desktop-lyric-preview-word-highlight {

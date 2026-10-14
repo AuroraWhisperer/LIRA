@@ -133,6 +133,26 @@ test('current stream recovery resumes the track and still skips after its retry 
   assert.deepEqual(app.errors(), []);
 });
 
+test('NetEase stream recovery preserves the requested quality with one URL refresh', async () => {
+  const requests = [];
+  const { app, audio } = await createPlayingApp((_count, request) => {
+    requests.push(request);
+    return { ...streamFor(request), expireAt: Date.now() + 600000 };
+  }, {
+    current: { ...track('a', '会员歌曲'), source: 'netease', vip: true },
+    selectedSource: 'netease',
+    qualityPreferences: { netease: 'lossless' },
+  });
+  await app.emit('music-player', 'error');
+  await flushAsyncWork();
+  assert.deepEqual(requests.map(({ quality, forceRefresh }) => ({ quality, forceRefresh })), [
+    { quality: 'lossless', forceRefresh: false },
+    { quality: 'lossless', forceRefresh: true },
+  ]);
+  assert.equal(audio.currentTime, 42);
+  assert.equal(audio.src, 'https://example.test/a-lossless.mp3');
+});
+
 test('a current refresh failure reports its error and advances to the next track', async () => {
   const { app, audio } = await createPlayingApp((_count, request) => {
     if (request.forceRefresh) throw new Error('current refresh failed');

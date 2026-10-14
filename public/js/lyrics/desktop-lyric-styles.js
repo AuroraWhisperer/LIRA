@@ -1,5 +1,7 @@
 import { parseHexColor } from '../shared/color-value.js';
 
+const GENERIC_FONT_SUFFIX = /(?:^|,)\s*(sans-serif|serif|monospace)\s*$/i;
+
 function textAlignToFlex(textAlign) {
   if (textAlign === 'center') return 'center';
   if (textAlign === 'right') return 'flex-end';
@@ -15,14 +17,25 @@ function hexWithAlpha(color, alpha) {
 }
 
 export function applyDesktopLyricStyles(card, values) {
+  const genericFont = values.fontFamily.match(GENERIC_FONT_SUFFIX)?.[1] || 'sans-serif';
+  // Route joining scripts as a whole, and fill gaps before generic families use OS fallback.
+  const fontStack = [
+    '"Lira Lyric Scripts"',
+    values.fontFamily.replace(GENERIC_FONT_SUFFIX, ''),
+    '"Lira Lyric Korean"', '"Lira Xiaolai"', '"Lira Lyric Extended"',
+    values.fallbackFontFamily.replace(GENERIC_FONT_SUFFIX, ''),
+    '"Microsoft YaHei"', '"Nirmala UI"', '"Leelawadee UI"', '"Ebrima"',
+    '"Segoe UI Symbol"', '"Segoe UI Emoji"', '"Apple Color Emoji"', 'system-ui', genericFont,
+  ].filter(Boolean).join(', ');
   card.style.setProperty(
     '--preview-font',
-    `${values.fontFamily}, ${values.fallbackFontFamily}, "Microsoft YaHei", sans-serif`,
+    fontStack,
   );
   card.style.setProperty('--preview-weight', values.fontWeight);
   card.style.setProperty('--preview-color', values.textColor);
   card.style.setProperty('--preview-text-align', values.textAlign);
   card.style.setProperty('--preview-row-align', textAlignToFlex(values.textAlign));
+  card.style.setProperty('--preview-row-origin', values.textAlign === 'justify' ? 'center' : values.textAlign);
   card.style.setProperty('--preview-letter-spacing', `${values.letterSpacing}em`);
   card.style.setProperty('--preview-stroke', values.strokeColor);
   card.style.setProperty('--preview-size', `${values.fontSize}px`);
@@ -53,6 +66,7 @@ export function applyDesktopLyricStyles(card, values) {
   card.style.setProperty('--preview-saturation', String(values.saturation));
   card.classList.toggle('is-translation-hidden', !values.showTranslation);
   card.classList.toggle('is-text-justify', values.textAlign === 'justify');
+  card.classList.toggle('is-text-center', values.textAlign === 'center');
   card.classList.toggle('is-hide-passed', values.hidePassedLines);
   card.classList.toggle('is-traditional', values.traditionalMode);
   card.classList.toggle('is-current-enhanced', values.currentLineEnhanced);

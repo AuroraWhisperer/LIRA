@@ -141,6 +141,12 @@ export function hasUsableUrl(track, refreshMarginMs = 30000) {
   return !expireAt || expireAt - Date.now() > refreshMarginMs;
 }
 
+// Official excerpt audio starts at zero; lyric timestamps belong to the full song.
+export function getPlaybackLyricOffsetMs(track) {
+  const startMs = Number(track?.playbackTrialStartMs);
+  return track?.playbackTrial === true && Number.isFinite(startMs) ? Math.max(0, startMs) : 0;
+}
+
 /**
  * 获取优先搜索的音乐平台列表
  * @param {string} currentSource - 当前播放歌曲的音乐源

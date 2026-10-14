@@ -1,0 +1,198 @@
+/* Offline lyric fallback fonts. Sources and licenses: public/fonts/lyrics-fallback/README.md. */
+
+@font-face {
+  font-family: 'Lira Lyric Extended';
+  src: url('/fonts/lyrics-fallback/notosans.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Korean';
+  src: url('/fonts/lyrics-fallback/gowundodum.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7FF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Extended';
+  src: url('/fonts/lyrics-fallback/notosansarmenian.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0530-058F, U+FB13-FB17;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Extended';
+  src: url('/fonts/lyrics-fallback/notosansgeorgian.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+10A0-10FF, U+1C90-1CBF, U+2D00-2D2F;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Extended';
+  src: url('/fonts/lyrics-fallback/notosansethiopic.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1200-139F, U+2D80-2DDF, U+AB00-AB2F, U+1E7E0-1E7FF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosansarabic.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosanshebrew.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosansdevanagari.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0900-097F, U+A8E0-A8FF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosansbengali.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0980-09FF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosansgurmukhi.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0A00-0A7F;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosansgujarati.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0A80-0AFF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosansoriya.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0B00-0B7F;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosanstamil.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0B80-0BFF, U+11FC0-11FFF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosanstelugu.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0C00-0C7F;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosanskannada.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0C80-0CFF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosansmalayalam.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0D00-0D7F;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosanssinhala.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0D80-0DFF, U+111E0-111FF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosansthai.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E00-0E7F;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosanslao.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E80-0EFF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notoseriftibetan.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0F00-0FFF;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosansmyanmar.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1000-109F, U+A9E0-A9FF, U+AA60-AA7F;
+}
+
+@font-face {
+  font-family: 'Lira Lyric Scripts';
+  src: url('/fonts/lyrics-fallback/notosanskhmer.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1780-17FF, U+19E0-19FF;
+}

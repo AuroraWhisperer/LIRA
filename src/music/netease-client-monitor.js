@@ -2,6 +2,9 @@
 
 const { spawn: spawnProcess } = require('node:child_process');
 const { parseNeteaseWindowTitle, readNeteaseClientTrack } = require('./netease-client-track');
+const { NETEASE_NATIVE_PLAYER_SOURCE } = require('./netease-native-player-source');
+
+const SCRIPT_INPUT_COMMAND = '[Console]::InputEncoding = [Text.UTF8Encoding]::new($false); & ([ScriptBlock]::Create([Console]::In.ReadToEnd()))';
 
 function createNeteaseClientMonitor(onSample, {
   spawn = spawnProcess,
@@ -53,7 +56,7 @@ function createNeteaseClientMonitor(onSample, {
     }
     const parsed = sample.windowTitle ? parseNeteaseWindowTitle(sample.windowTitle) : null;
     const result = { ...sample, ...(parsed || {}) };
-    const key = JSON.stringify([result.windowTitle, result.title, result.artists, result.artist, result.durationMs]);
+    const key = JSON.stringify([result.windowTitle, result.title, result.artists, result.artist, result.durationMs, result.sourceTrackId]);
     if (key !== metadataKey) {
       metadataKey = key;
       track = null;
@@ -64,6 +67,11 @@ function createNeteaseClientMonitor(onSample, {
       try { track = readTrack(result); } catch (_) { track = null; }
     }
     if (track) {
+      if (result.clockSource === 'native' && result.sourceTrackId !== track.sourceTrackId) {
+        track = null;
+        nextTrackReadAt = 0;
+        return { detected: true, playbackStatus: 'Changing', clockSource: 'native' };
+      }
       result.title = track.title;
       result.artists = track.artists;
       result.sourceTrackId = track.sourceTrackId;
@@ -73,11 +81,13 @@ function createNeteaseClientMonitor(onSample, {
 
   function launch() {
     if (!active || child) return;
-    const encoded = Buffer.from(buildNeteaseClientMonitorScript(), 'utf16le').toString('base64');
+    // The native readers exceed Windows' command-line limit. Keep the command
+    // fixed and send trusted source through stdin, without a temporary script.
+    const encoded = Buffer.from(SCRIPT_INPUT_COMMAND, 'utf16le').toString('base64');
     let running;
     try {
       running = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
-        windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
       });
     } catch (_) {
       onSample({ error: true });
@@ -104,7 +114,9 @@ function createNeteaseClientMonitor(onSample, {
     running.stderr.resume();
     running.on('error', () => retire(running));
     running.on('exit', () => retire(running));
+    running.stdin.on('error', () => retire(running));
     armWatchdog(running);
+    running.stdin.end(buildNeteaseClientMonitorScript(), 'utf8');
   }
 
   function start() {
@@ -145,6 +157,7 @@ using Accessibility;
 public sealed class NeteasePlaybackWindow {
   public IntPtr Handle;
   public string Title;
+  public int ProcessId;
 }
 public static class NeteasePlaybackWindows {
   private delegate bool WindowCallback(IntPtr window, IntPtr parameter);
@@ -171,7 +184,7 @@ public static class NeteasePlaybackWindows {
       Rect rect;
       GetWindowRect(handle, out rect);
       long area = (long)Math.Max(0, rect.Right - rect.Left) * Math.Max(0, rect.Bottom - rect.Top);
-      if (area > largestArea) { result = new NeteasePlaybackWindow { Handle = handle, Title = title }; largestArea = area; }
+      if (area > largestArea) { result = new NeteasePlaybackWindow { Handle = handle, Title = title, ProcessId = (int)processId }; largestArea = area; }
       return true;
     }, IntPtr.Zero);
     return result;
@@ -257,6 +270,7 @@ public sealed class NeteaseAccessiblePlayer {
     finally { if (!retained.Contains(owner)) Marshal.ReleaseComObject(owner); }
   }
 }
+${NETEASE_NATIVE_PLAYER_SOURCE}
 '@
 Add-Type -TypeDefinition $nativeSource -ReferencedAssemblies Accessibility
 $manager = $null
@@ -280,6 +294,7 @@ $nextScanAt = 0
 $progressElement = $null
 $stateElement = $null
 $accessiblePlayer = [NeteaseAccessiblePlayer]::new()
+$nativePlayer = [NeteaseNativePlayer]::new()
 $controlCondition = [System.Windows.Automation.OrCondition]::new(
   [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text),
   [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
@@ -318,44 +333,57 @@ while ($true) {
           $nextScanAt = $sampledAt + 1500
         }
         $sample.windowTitle = $window.Title
-        if ($sampledAt -ge $nextScanAt) {
-          $nextScanAt = $sampledAt + 2000
+        $native = $nativePlayer.Read($window.ProcessId)
+        if ($null -ne $native) {
+          $sample.clockSource = 'native'
+          $sample.sourceTrackId = $native.SourceTrackId
+          $sample.playbackStatus = $native.PlaybackStatus
+          $sample.positionMs = $native.PositionMs
+          $sample.durationMs = $native.DurationMs
+          $sample.timelineUpdatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
           $progressElement = $null
           $stateElement = $null
-          $root = [System.Windows.Automation.AutomationElement]::FromHandle($window.Handle)
-          $controls = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $controlCondition)
-          $buttons = @()
-          for ($index = 0; $index -lt [Math]::Min($controls.Count, 2000); $index++) {
-            $control = $controls.Item($index)
-            $name = [string]$control.Current.Name
-            if ($name -match '^\s*\d{1,3}:\d{2}\s*[/|]\s*\d{1,3}:\d{2}\s*$') { $progressElement = $control }
-            if ($control.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $name -match '^(暂停|播放|Pause|Play)(\s*\([^)]*\))?$') { $buttons += $control }
+          $accessiblePlayer.Reset()
+        } else {
+          if ($sampledAt -ge $nextScanAt) {
+            $nextScanAt = $sampledAt + 2000
+            $progressElement = $null
+            $stateElement = $null
+            $root = [System.Windows.Automation.AutomationElement]::FromHandle($window.Handle)
+            $controls = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $controlCondition)
+            $buttons = @()
+            for ($index = 0; $index -lt [Math]::Min($controls.Count, 2000); $index++) {
+              $control = $controls.Item($index)
+              $name = [string]$control.Current.Name
+              if ($name -match '^\s*\d{1,3}:\d{2}\s*[/|]\s*\d{1,3}:\d{2}\s*$') { $progressElement = $control }
+              if ($control.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $name -match '^(暂停|播放|Pause|Play)(\s*\([^)]*\))?$') { $buttons += $control }
+            }
+            if ($null -ne $progressElement) {
+              $progressY = $progressElement.Current.BoundingRectangle.Top
+              $stateElement = $buttons | Where-Object { [Math]::Abs($_.Current.BoundingRectangle.Top - $progressY) -lt 100 } |
+                Sort-Object { [Math]::Abs($_.Current.BoundingRectangle.Top - $progressY) } | Select-Object -First 1
+            }
+            if ($null -eq $progressElement) { $accessiblePlayer.Scan($window.Handle) }
+            else { $accessiblePlayer.Reset() }
           }
-          if ($null -ne $progressElement) {
-            $progressY = $progressElement.Current.BoundingRectangle.Top
-            $stateElement = $buttons | Where-Object { [Math]::Abs($_.Current.BoundingRectangle.Top - $progressY) -lt 100 } |
-              Sort-Object { [Math]::Abs($_.Current.BoundingRectangle.Top - $progressY) } | Select-Object -First 1
-          }
-          if ($null -eq $progressElement) { $accessiblePlayer.Scan($window.Handle) }
-          else { $accessiblePlayer.Reset() }
-        }
-        $stateName = if ($null -ne $stateElement) { [string]$stateElement.Current.Name }
-          elseif ($null -ne $accessiblePlayer.State) { $accessiblePlayer.State.Name } else { '' }
-        if ($stateName -match '^(暂停|Pause)') { $sample.playbackStatus = 'Playing' }
-        elseif ($stateName -match '^(播放|Play)') { $sample.playbackStatus = 'Paused' }
-        $progressName = if ($null -ne $progressElement) { [string]$progressElement.Current.Name }
-          elseif ($null -ne $accessiblePlayer.Progress) { $accessiblePlayer.Progress.Name } else { '' }
-        if ($progressName -match '^\s*(\d{1,3}):(\d{2})\s*[/|]\s*(\d{1,3}):(\d{2})\s*$') {
-          if ([int]$matches[2] -lt 60 -and [int]$matches[4] -lt 60) {
-            $sample.positionMs = (([int]$matches[1] * 60) + [int]$matches[2]) * 1000
-            $sample.durationMs = (([int]$matches[3] * 60) + [int]$matches[4]) * 1000
-            $sample.timelineUpdatedAt = $sampledAt
+          $stateName = if ($null -ne $stateElement) { [string]$stateElement.Current.Name }
+            elseif ($null -ne $accessiblePlayer.State) { $accessiblePlayer.State.Name } else { '' }
+          if ($stateName -match '^(暂停|Pause)') { $sample.playbackStatus = 'Playing' }
+          elseif ($stateName -match '^(播放|Play)') { $sample.playbackStatus = 'Paused' }
+          $progressName = if ($null -ne $progressElement) { [string]$progressElement.Current.Name }
+            elseif ($null -ne $accessiblePlayer.Progress) { $accessiblePlayer.Progress.Name } else { '' }
+          if ($progressName -match '^\s*(\d{1,3}):(\d{2})\s*[/|]\s*(\d{1,3}):(\d{2})\s*$') {
+            if ([int]$matches[2] -lt 60 -and [int]$matches[4] -lt 60) {
+              $sample.positionMs = (([int]$matches[1] * 60) + [int]$matches[2]) * 1000
+              $sample.durationMs = (([int]$matches[3] * 60) + [int]$matches[4]) * 1000
+              $sample.timelineUpdatedAt = $sampledAt
+            }
           }
         }
         if ([NeteasePlaybackWindows]::ReadTitle($window.Handle) -ne $window.Title) {
           $sample = @{ detected = $true; playbackStatus = 'Changing'; clockSource = 'uia' }
         }
-      } else { $lastWindow = ''; $progressElement = $null; $stateElement = $null; $accessiblePlayer.Reset() }
+      } else { $lastWindow = ''; $progressElement = $null; $stateElement = $null; $accessiblePlayer.Reset(); $nativePlayer.Dispose() }
     }
   } catch { $sample = @{ error = $true } }
   finally { foreach ($process in $processes) { $process.Dispose() } }

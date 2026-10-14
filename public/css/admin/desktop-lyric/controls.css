@@ -275,6 +275,11 @@
   gap: 8px;
 }
 
+.desktop-lyric-settings .desktop-lyric-range-control {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 16px;
+}
+
 .desktop-lyric-control .range-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 82px;

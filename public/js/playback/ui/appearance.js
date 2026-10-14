@@ -248,6 +248,10 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
       if (field.type === 'checkbox') field.checked = settings[key];
       else if (field.type === 'radio') field.checked = field.value === settings[key];
       else field.value = String(settings[key]);
+      if (key === 'textAlign') {
+        field.disabled = settings.layout === 'vinyl';
+        if (field.disabled) field.value = 'center';
+      }
     }
     panel.querySelector('[data-appearance-background-colors]').hidden = settings.backgroundMode === 'auto';
     panel.querySelector('[data-appearance-gradient]').hidden = settings.backgroundMode !== 'gradient';

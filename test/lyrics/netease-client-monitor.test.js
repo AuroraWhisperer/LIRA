@@ -20,9 +20,10 @@ function fixture(t, options = {}) {
       assert.equal(settings.windowsHide, true);
       assert.ok(args.includes('-NonInteractive'));
       assert.ok(args.join(' ').length < 32700, 'Encoded helper must fit the Windows command-line limit');
-      assert.equal(Buffer.from(args.at(-1), 'base64').toString('utf16le'), buildNeteaseClientMonitorScript());
+      assert.match(Buffer.from(args.at(-1), 'base64').toString('utf16le'), /ScriptBlock.*ReadToEnd/);
+      assert.deepEqual(settings.stdio, ['pipe', 'pipe', 'pipe']);
       const child = Object.assign(new EventEmitter(), {
-        stdout: new PassThrough(), stderr: new PassThrough(), killed: false,
+        stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), killed: false,
         kill() { this.killed = true; },
       });
       children.push(child);
@@ -43,6 +44,7 @@ test('NetEase monitor parses split rows, enriches matched IDs and ignores retire
   } });
   monitor.start(); monitor.start();
   assert.equal(children.length, 1);
+  assert.equal(children[0].stdin.read().toString('utf8'), buildNeteaseClientMonitorScript());
   children[0].stdout.write('{"detected":');
   children[0].stdout.write('true,"windowTitle":"Song - Artist"}\n');
   children[0].stdout.write('{"detected":true,"windowTitle":"Song - Artist"}\ninvalid\n');
@@ -56,6 +58,25 @@ test('NetEase monitor parses split rows, enriches matched IDs and ignores retire
   assert.equal(children[0].killed, true);
   monitor.stop();
   assert.equal(children[1].killed, true);
+});
+
+test('NetEase rejects a native clock paired with the previous local song identity', (t) => {
+  const { monitor, children, samples } = fixture(t, { readTrack: () => ({ title: 'Previous', artists: ['Artist'], sourceTrackId: '123' }) });
+  monitor.start();
+  children[0].stdout.write(JSON.stringify({ detected: true, windowTitle: 'Previous - Artist',
+    clockSource: 'native', playbackStatus: 'Playing', sourceTrackId: '456', positionMs: 1500 }) + '\n');
+  assert.deepEqual(samples.at(-1), { detected: true, playbackStatus: 'Changing', clockSource: 'native' });
+});
+
+test('NetEase helper input failures retire the child and cannot restart after stop', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { monitor, children, samples } = fixture(t);
+  monitor.start();
+  children[0].stdin.emit('error', new Error('EPIPE'));
+  assert.equal(children[0].killed, true);
+  assert.deepEqual(samples.at(-1), { error: true });
+  monitor.stop(); t.mock.timers.tick(100000);
+  assert.equal(children.length, 1);
 });
 
 test('NetEase UIA hangs are bounded and failed helper restarts have a finite budget', (t) => {

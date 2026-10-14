@@ -39,8 +39,9 @@ test('real Electron protects the legacy copy and switches to the installed insta
     const targetDir = ${JSON.stringify(targetDir)};
     const mode = process.argv[2];
     const profile = process.argv[3];
-    const sessionDir = path.join(root, 'session-' + process.pid);
-    fs.mkdirSync(sessionDir);
+    // Model a reused PID whose earlier probe left its session directory behind.
+    fs.mkdirSync(path.join(root, 'session-' + process.pid), { recursive: true });
+    const sessionDir = fs.mkdtempSync(path.join(root, 'session-'));
     app.setPath('userData', sessionDir);
     app.setPath('sessionData', sessionDir);
     app.setPath('crashDumps', path.join(sessionDir, 'crashes'));
