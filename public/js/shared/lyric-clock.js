@@ -26,7 +26,8 @@ export class LyricClock {
     const playing = nextState.playing === true;
     const discontinuity = options.force === true || options.discontinuity === true;
     const drift = incomingCurrentMs - previous.currentMs;
-    const shouldAnchor = !this.hasState || discontinuity || !playing || Math.abs(drift) > this.driftThresholdMs;
+    const shouldAnchor = !this.hasState || discontinuity || !playing || playing !== this.state.playing
+      || Math.abs(drift) > this.driftThresholdMs;
     const currentMs = shouldAnchor ? incomingCurrentMs : previous.currentMs;
 
     this.state = {

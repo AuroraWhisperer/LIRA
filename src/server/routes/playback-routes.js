@@ -28,6 +28,18 @@ function clientIdOf(request, body) {
 }
 
 const routes = {
+  'GET /api/playback/lyric-source': storeRoute((context) => context.playbackLyrics.getSource()),
+
+  'POST /api/playback/lyric-source': storeRoute(async (context, request) => {
+    const body = await request.body();
+    return context.playbackLyrics.selectSource(body.source);
+  }),
+
+  'POST /api/playback/lyric-source/refresh': storeRoute(async (context, request) => {
+    const body = await request.body();
+    return context.playbackLyrics.refreshSource(body?.source);
+  }),
+
   'POST /api/playback/lyric-state': storeRoute(async (context, request) => {
     const state = normalizeLyricState(await request.body());
     return context.playbackLyrics.publish(state) || state;

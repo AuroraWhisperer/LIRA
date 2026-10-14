@@ -270,7 +270,10 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
   function renderSongEditMode(name = value('songName')) {
     const editing = Boolean(value('songId'));
     const heading = document.getElementById('songFormTitle');
-    if (heading) heading.textContent = editing ? `正在编辑《${name}》` : '添加歌曲';
+    if (heading) {
+      heading.hidden = !editing;
+      heading.textContent = editing ? `正在编辑《${name}》` : '';
+    }
     document.getElementById('resetSongForm').textContent = editing ? '取消编辑' : '清空表单';
   }
 

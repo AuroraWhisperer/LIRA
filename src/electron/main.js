@@ -516,6 +516,7 @@ async function startDesktopApp() {
   if (lifecycleState.shutdownPromise) return;
   lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
     dataDir: pathState.dataDir,
+    nativeMusicCapture: true,
     pickComponentWebFile: createComponentWebPicker({ dialog, getWindow: () => windowState.main }),
     getClientTheme: clientAppearance.getThemeId,
     safeStorage,

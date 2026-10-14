@@ -6,6 +6,9 @@ const { createQueueStore } = require('../../src/storage/queue-store');
 const { pruneFanRestoreSnapshots } = require('../../src/storage/fan-snapshot-retention');
 const { addQueueItem } = require('../../src/music/queue-service');
 const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('../helpers/fan-profile-fixture');
+const { createDatabases, closeDatabases, getSchemaVersions } = require('../../src/storage/database');
+const { createLegacyDatabases } = require('../helpers/legacy-databases');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 
 function oldRequest(f, input = {}, scope = null) {
   const defaults = { queueLimit: '50', allowDuplicate: 'true', onlyFromLibrary: 'false' };
@@ -375,29 +378,26 @@ test('A29: legacy date ranges use Shanghai business dates at both UTC midnight b
 });
 
 test('fan schema upgrades existing request history without attributing it and reopens idempotently', (t) => {
-  const f = fanFixture(t);
-  const currentVersion = f.db.songDb.prepare("SELECT version FROM schema_version WHERE key = 'song_db'").get().version;
-  oldRequest(f);
-  f.db.songDb.exec(`DROP TABLE fan_records;
-    DROP TABLE fan_reminder_states;
-    DROP TABLE fan_profiles;
-    DROP TABLE fan_scopes;
-    DROP TABLE fan_suppressions;
-    DROP TABLE fan_restore_snapshots;
-    DROP INDEX idx_requests_stable_id;
-    ALTER TABLE requests DROP COLUMN stable_id;
-    ALTER TABLE requests DROP COLUMN owner_scope;
-    ALTER TABLE requests DROP COLUMN identity_type;
-    UPDATE schema_version SET version = 5 WHERE key = 'song_db';`);
-  f.restart();
-  const restored = f.db.songDb.prepare('SELECT * FROM requests WHERE id = 1').get();
+  const dataDir = createScratchDirectory('fan-transfer-legacy-');
+  let databases = createLegacyDatabases(t, { dataDir }, 5);
+  t.after(() => { closeDatabases(databases); removeScratchDirectory(dataDir); });
+  assert.equal(getSchemaVersions(databases).songDb, 5);
+  databases.songDb.prepare(`INSERT INTO queue (song_name, requester_uid, status, created_at, updated_at)
+    VALUES (?, ?, 'waiting', ?, ?)`).run('旧点歌曲目', IDENTITY.value, NOW, NOW);
+  databases.songDb.prepare(`INSERT INTO requests (song_name, requester_uid, queue_id, created_at)
+    VALUES (?, ?, 1, ?)`).run('旧点歌曲目', IDENTITY.value, NOW);
+  closeDatabases(databases);
+  databases = createDatabases({ dataDir });
+  const currentVersion = getSchemaVersions(databases).songDb;
+  const restored = databases.songDb.prepare('SELECT * FROM requests WHERE id = 1').get();
   assert.equal(restored.song_name, '旧点歌曲目');
   assert.equal(restored.requester_uid, IDENTITY.value);
   assert.equal(restored.stable_id, null);
   assert.equal(restored.owner_scope, null);
   assert.equal(restored.identity_type, null);
-  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM fan_profiles').get().n, 0);
-  f.restart();
-  assert.deepEqual(f.db.songDb.prepare('SELECT * FROM requests WHERE id = 1').get(), restored);
-  assert.equal(f.db.songDb.prepare("SELECT version FROM schema_version WHERE key = 'song_db'").get().version, currentVersion);
+  assert.equal(databases.songDb.prepare('SELECT COUNT(*) AS n FROM fan_profiles').get().n, 0);
+  closeDatabases(databases);
+  databases = createDatabases({ dataDir });
+  assert.deepEqual(databases.songDb.prepare('SELECT * FROM requests WHERE id = 1').get(), restored);
+  assert.equal(getSchemaVersions(databases).songDb, currentVersion);
 });

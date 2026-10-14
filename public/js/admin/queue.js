@@ -21,6 +21,7 @@ let superChatUndoTimer = null;
 let superChatUndoHideTimer = null;
 let superChatActions = Promise.resolve();
 let superChatUndoRevision = 0;
+let queueHeadId = null;
 
 function initQueueForm() {
   document.getElementById('superChatUndoBtn')?.addEventListener('click', () => {
@@ -51,7 +52,19 @@ function initQueueForm() {
       randomButton.disabled = false;
     }
   });
-  document.getElementById('nextBtn').addEventListener('click', () => queueAction('next'));
+  const nextButton = document.getElementById('nextBtn');
+  nextButton.addEventListener('click', async () => {
+    if (nextButton.disabled || queueHeadId === null) return;
+    nextButton.disabled = true;
+    try {
+      await api('/api/queue/action', { action: 'done', id: queueHeadId }, { notifyError: false });
+      await stateService.reloadState();
+    } catch (error) {
+      showError(error);
+    } finally {
+      nextButton.disabled = false;
+    }
+  });
   document.getElementById('clearBtn').addEventListener('click', async () => {
     const confirmed = await dangerConfirm({
       title: '清空点歌队列',
@@ -107,6 +120,7 @@ function renderState(appState) {
 
 function renderQueueState(queue = {}, settings = {}) {
   const queueItems = [queue.current, ...(queue.waiting || [])].filter(Boolean);
+  queueHeadId = queueItems[0]?.id ?? null;
   document.getElementById('queueSize').textContent = `${queueItems.length} 首`;
   const list = document.getElementById('queueList');
   if (queueItems.length === 0) {
@@ -124,6 +138,9 @@ function renderQueueState(queue = {}, settings = {}) {
   } else {
     list.innerHTML = queueItems
       .map((item, index) => {
+        const liveButton = index === 0
+          ? `<button class="queue-live-button" type="button" aria-pressed="${Boolean(item.is_live)}" title="${item.is_live ? '取消 LIVE，恢复排队顺序' : '标记 LIVE，准备唱或正在唱，保留第 1 位'}" aria-label="${item.is_live ? '取消 LIVE' : '标记 LIVE'}" data-action="${item.is_live ? 'unlive' : 'live'}" data-id="${item.id}">LIVE</button>`
+          : '';
         const pinButton =
           index === 0 && !item.is_pinned
             ? ''
@@ -144,12 +161,13 @@ function renderQueueState(queue = {}, settings = {}) {
         }
 
         return `
-          <div class="queue-row">
+          <div class="queue-row${item.is_live ? ' is-live' : ''}">
             <div>
               <div class="song"${lengthAttr}>${songText}</div>
               <div class="meta">${escapeHtml(requesterLabel(item))} · ${escapeHtml(sourceLabel(item))} · ${formatTime(item.created_at)}</div>
             </div>
             <div class="queue-actions">
+              ${liveButton}
               ${pinButton}
               <button class="icon" title="复制歌名" type="button" data-copy="${escapeAttr(item.song_name)}">⧉</button>
               <button class="icon" title="删除" type="button" data-action="delete" data-id="${item.id}">×</button>
@@ -161,7 +179,17 @@ function renderQueueState(queue = {}, settings = {}) {
   }
 
   list.querySelectorAll('[data-action]').forEach((button) => {
-    button.addEventListener('click', () => queueAction(button.dataset.action, button.dataset.id));
+    button.addEventListener('click', async () => {
+      if (button.disabled) return;
+      button.disabled = true;
+      try {
+        await queueAction(button.dataset.action, button.dataset.id);
+      } catch (error) {
+        if (error.code === 'QUEUE_LIVE_NOT_FIRST') await stateService.reloadState();
+      } finally {
+        button.disabled = false;
+      }
+    });
   });
   bindQueueCopyButtons(list, '歌名已复制');
 }

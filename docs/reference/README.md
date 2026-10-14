@@ -91,6 +91,7 @@
 | 页面入口 URL 与 public/ 模块清单                              | [frontend/pages.md](frontend/pages.md)                                   |
 | 礼物目录来源、精确 ID 图片缓存与 `theme-presets.json` 结构       | [backend/overtime.md](backend/overtime.md) §1.5 / [frontend/pages.md](frontend/pages.md) §6.1 |
 | 叠加层 CSS 变量(`--overlay-*`)完整注入表                      | [frontend/overlays.md](frontend/overlays.md) §1.2                        |
+| 外部 QQ / 网易云采集、固定平台歌词与智能播放仲裁 | [backend/music/services.md](backend/music/services.md) §13 |
 | 歌词解析器(LRC/YRC/QRC 行模型、逐字词、时间容差)              | [backend/music/services.md](backend/music/services.md) §14               |
 | 加班机算法(权重/时钟/重试)                                    | [backend/overtime.md](backend/overtime.md)                               |
 | npm scripts/依赖版本/electron-builder 配置                    | [engineering/build.md](engineering/build.md)                             |

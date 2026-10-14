@@ -17,6 +17,7 @@ const { normalizeOpeningStyle, normalizeOpeningTrackMotion } = require('./openin
 const { normalizeWeSingCachePath, normalizeWeSingLyricOffsetMs } = require('../music/wesing-cache');
 const { CLOCK_SETTING_KEYS, normalizeClockSettingValue } = require('./clock-contract');
 const { CLOUD_SETTING_KEYS, hasCloudSettingChanges } = require('../shared/cloud-settings');
+const { SONG_REQUEST_CONTROL_KEYS, normalizeSongRequestSettingValue, serializeSongRequestSettings } = require('../shared/song-request-settings');
 const CLOUD_BOOLEAN_KEYS = new Set([
   'danmakuMonitoringEnabled',
   'giftMonitoringEnabled',
@@ -25,6 +26,7 @@ const CLOUD_BOOLEAN_KEYS = new Set([
   'paused',
   'onlyFromLibrary',
   'allowDuplicate',
+  'guardPriorityEnabled',
 ]);
 const JSON_SETTING_KEYS = new Set(['checkinBlessings', 'fortunePool']);
 const FRAME_SETTING_KEYS = new Set([
@@ -36,6 +38,7 @@ const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTex
 const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline']);
 
 function normalizeSettingValue(key, rawValue) {
+  if (SONG_REQUEST_CONTROL_KEYS.includes(key)) return normalizeSongRequestSettingValue(key, rawValue);
   if (['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxCompact', 'blindboxAutoPages', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'].includes(key)) {
     return [true, false, 'true', 'false'].includes(rawValue) ? String(rawValue) : null;
   }
@@ -163,7 +166,7 @@ function normalizeCloudSettingsSnapshot(input) {
     if (value === null) throw new Error(`云端同步设置 ${key} 的值无效。`);
     values[key] = value;
   }
-  for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled', 'songCooldownMode', 'songCooldownValue']) {
+  for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled', 'songCooldownMode', 'songCooldownValue', 'guardPriorityEnabled', ...SONG_REQUEST_CONTROL_KEYS]) {
     if (!Object.hasOwn(input, key)) continue;
     const value = normalizeSettingValue(key, input[key]);
     if (value === null) throw new Error(`云端同步设置 ${key} 的值无效。`);
@@ -184,6 +187,7 @@ function normalizeCloudSettingsSnapshot(input) {
 
 function serializeCloudSettings(settings) {
   const values = {
+    ...serializeSongRequestSettings(settings),
     giftEffectDanmakuEnabled: settings.giftEffectDanmakuEnabled === 'true',
     roomId: normalizeRoomInput(settings.roomId),
     enableBilibili: settings.enableBilibili === 'true',
@@ -196,6 +200,7 @@ function serializeCloudSettings(settings) {
     songCooldownValue: Number(settings.songCooldownValue || 1),
     onlyFromLibrary: settings.onlyFromLibrary === 'true',
     allowDuplicate: settings.allowDuplicate === 'true',
+    guardPriorityEnabled: settings.guardPriorityEnabled === 'true',
     giftBlindBoxConfig: normalizeGiftBlindBoxConfig(JSON.parse(settings.giftBlindBoxConfig)),
   };
   const customConfigV2 = JSON.parse(settings.giftBlindBoxCustomConfigV2 || 'null');

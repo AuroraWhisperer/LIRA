@@ -32,6 +32,13 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true,
     closest() { return this; },
     addEventListener() {},
     set innerHTML(html) {
+      this.html = html;
+      this.queueActions = [...html.matchAll(/<button\b[^>]*data-action="([^"]*)"[^>]*data-id="([^"]*)"[^>]*>/g)]
+        .map(([, action, id]) => {
+          const button = dom.documentRef.createElement('button');
+          button.dataset = { action, id };
+          return button;
+        });
       this.actions = [...html.matchAll(/<button\b[^>]*data-sc-action="([^"]*)"[^>]*data-id="([^"]*)"[^>]*>/g)]
         .map(([, scAction, id]) => {
           const button = dom.documentRef.createElement('button');
@@ -56,7 +63,8 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true,
       });
     },
     querySelectorAll(selector) {
-      return selector === '[data-copy]' ? this.buttons : selector === '[data-sc-action]' ? this.actions : [];
+      return selector === '[data-copy]' ? this.buttons : selector === '[data-sc-action]' ? this.actions
+        : selector === '[data-action]' ? this.queueActions : [];
     },
   });
   const elements = {
@@ -137,6 +145,85 @@ function renderState(queue, message = MESSAGE) {
     [],
   );
 }
+
+test('completing the queue head targets the displayed song and ignores clicks while pending', async () => {
+  const requests = [];
+  const pending = Promise.withResolvers();
+  const { queue, elements } = await createQueueRuntime({ fetch: async (url, options) => {
+    if (url === '/api/state') return { json: async () => ({ ok: true, data: {} }) };
+    requests.push(JSON.parse(options.body));
+    await pending.promise;
+    return { ok: true, text: async () => JSON.stringify({ ok: true }) };
+  } });
+  queue.initQueueForm();
+  const first = { id: 1, song_name: '正在完成的歌' };
+  const priority = { id: 2, song_name: '新插队的歌' };
+  queue.renderQueueState({ waiting: [first] });
+  const click = elements.nextBtn.fire('click');
+  queue.renderQueueState({ waiting: [priority, first] });
+  const repeated = elements.nextBtn.fire('click');
+  pending.resolve();
+  await Promise.all([click, repeated]);
+  assert.deepEqual(requests, [{ action: 'done', id: 1 }]);
+  assert.equal(elements.nextBtn.disabled, false);
+  await elements.nextBtn.fire('click');
+  assert.deepEqual(requests[1], { action: 'done', id: 2 });
+  queue.renderQueueState({ waiting: [] });
+  await elements.nextBtn.fire('click');
+  assert.equal(requests.length, 2, 'an empty queue cannot complete another song');
+});
+
+test('queue completion reports failure once and allows a retry', async () => {
+  let calls = 0;
+  const { queue, elements } = await createQueueRuntime({ fetch: async (url) => {
+    if (url === '/api/state') return { json: async () => ({ ok: true, data: {} }) };
+    calls += 1;
+    return calls === 1
+      ? { ok: false, status: 503, text: async () => JSON.stringify({ ok: false, error: '暂时无法完成，请重试' }) }
+      : { ok: true, text: async () => JSON.stringify({ ok: true }) };
+  } });
+  queue.initQueueForm();
+  queue.renderQueueState({ waiting: [{ id: 1, song_name: '待完成的歌' }] });
+  await elements.nextBtn.fire('click');
+  assert.equal(elements.nextBtn.disabled, false);
+  assert.equal(elements.toast.children.length, 1);
+  assert.match(elements.toast.textContent, /暂时无法完成，请重试/);
+  await elements.nextBtn.fire('click');
+  assert.equal(calls, 2);
+});
+
+test('only the queue head offers LIVE, its state toggles, and repeated clicks submit once', async () => {
+  const requests = [];
+  const pending = Promise.withResolvers();
+  const { queue, elements } = await createQueueRuntime({ fetch: async (url, options) => {
+    if (url === '/api/state') return { json: async () => ({ ok: true, data: {} }) };
+    assert.equal(url, '/api/queue/action');
+    requests.push(JSON.parse(options.body));
+    await pending.promise;
+    return { ok: true, text: async () => JSON.stringify({ ok: true }) };
+  } });
+  const items = [{ id: 1, song_name: '<歌曲>' }, { id: 2, song_name: '待唱' }];
+  const render = () => queue.renderQueueState({ waiting: items });
+  render();
+  render();
+  let actions = elements.queueList.queueActions.filter((button) => button.dataset.action === 'live');
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].dataset.id, '1');
+  assert.match(elements.queueList.html, /aria-pressed="false"/);
+  assert.match(elements.queueList.html, /&lt;歌曲&gt;/);
+  const click = actions[0].fire('click');
+  await actions[0].fire('click');
+  pending.resolve();
+  await click;
+  assert.deepEqual(requests, [{ action: 'live', id: '1' }]);
+  items[0].is_live = true;
+  render();
+  actions = elements.queueList.queueActions.filter((button) => button.dataset.action === 'unlive');
+  assert.equal(actions.length, 1);
+  assert.match(elements.queueList.html, /aria-pressed="true"/);
+  await actions[0].fire('click');
+  assert.deepEqual(requests[1], { action: 'unlive', id: '1' });
+});
 
 test('SC and song copy buttons copy their own text once after state refresh', async () => {
   const { queue, elements, copied, messages } = await createQueueRuntime();

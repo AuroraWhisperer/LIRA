@@ -5,6 +5,7 @@
 const path = require('node:path');
 const { CHECKIN_BLESSINGS, FORTUNES } = require('../shared/bot-defaults');
 const DEFAULT_BLIND_BOX_CONFIG = require('./default-blind-box-config.json');
+const { SONG_REQUEST_CONTROL_DEFAULTS } = require('../shared/song-request-settings');
 
 const DEFAULT_WESING_CACHE_PATH =
   process.platform === 'win32' && process.env.APPDATA
@@ -57,6 +58,8 @@ const DEFAULT_SETTINGS = {
   allowCompactRequest: 'true',
   onlyFromLibrary: 'false',
   allowDuplicate: 'true',
+  guardPriorityEnabled: 'false',
+  ...SONG_REQUEST_CONTROL_DEFAULTS,
   songCooldownMode: 'off',
   songCooldownValue: '1',
   songRequestBlacklist: '',

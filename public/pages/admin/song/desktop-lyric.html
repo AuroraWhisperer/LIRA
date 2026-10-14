@@ -4,13 +4,48 @@
       <section id="desktopLyricForm" class="desktop-lyric-settings stack" aria-labelledby="desktopLyricSettingsTitle">
         <h3 id="desktopLyricSettingsTitle" class="sr-only">歌词样式</h3>
         <span id="desktopLyricAutosaveState" class="desktop-lyric-autosave-state" aria-live="polite">修改会自动保存并应用到直播画面</span>
-        <p class="hint">用于 OBS / 哔哩哔哩直播姬浏览器源。外观参数与画布中同样式的歌词组件共用；画布的位置、尺寸和图层仍需“保存并应用”。</p>
+        <fieldset id="desktopLyricSourceControls" class="theme-section desktop-lyric-source-settings" disabled>
+          <legend>歌词跟随</legend>
+          <div class="desktop-lyric-source-options">
+            <label class="desktop-lyric-source-option desktop-lyric-auto-option">
+              <input type="radio" name="desktopLyricSource" value="auto" />
+              <span class="desktop-lyric-source-choice">智能播放</span>
+            </label>
+            <label class="desktop-lyric-source-option">
+              <input type="radio" name="desktopLyricSource" value="internal" />
+              <span class="desktop-lyric-source-choice">内置播放器</span>
+            </label>
+            <label class="desktop-lyric-source-option">
+              <input type="radio" name="desktopLyricSource" value="qq-client" />
+              <span class="desktop-lyric-source-choice"><img src="/img/playback/qqmusic-icon.webp" alt="" draggable="false" />外部 QQ 音乐</span>
+            </label>
+            <label class="desktop-lyric-source-option">
+              <input type="radio" name="desktopLyricSource" value="netease-client" />
+              <span class="desktop-lyric-source-choice"><img src="/img/playback/netease-music-icon.ico" alt="" draggable="false" />外部网易云音乐</span>
+            </label>
+            <label class="desktop-lyric-source-option">
+              <input type="radio" name="desktopLyricSource" value="wesing" />
+              <span class="desktop-lyric-source-choice"><img src="/img/playback/wesing-icon.png" alt="" draggable="false" />全民 K 歌</span>
+            </label>
+          </div>
+          <p class="muted">只有一个播放器播放时自动跟随；多个同时播放时，优先跟随所选播放器。智能播放会保持当前跟随，停止后自动切换。</p>
+          <p id="desktopLyricSourceStatus" class="muted" role="status">正在读取歌词来源…</p>
+          <p id="desktopLyricSourceTrack" class="muted" hidden></p>
+          <div class="desktop-lyric-client-status">
+            <p id="desktopLyricQQStatus" class="muted" role="status">QQ 音乐：正在读取检测状态…</p>
+            <button id="desktopLyricSourceRetry" type="button" class="btn secondary">重新检测 QQ 音乐</button>
+          </div>
+          <div class="desktop-lyric-client-status">
+            <p id="desktopLyricNetEaseStatus" class="muted" role="status">网易云音乐：正在读取检测状态…</p>
+            <button id="desktopLyricNetEaseRetry" type="button" class="btn secondary">重新检测网易云音乐</button>
+          </div>
+        </fieldset>
         <fieldset class="theme-section desktop-lyric-source-settings">
           <legend>
             全民 K 歌在线歌词
             <lira-help
               ><span id="weSingLyricSourceHint"
-                >仅在本地 QRC 不可用；不影响 QQ 音乐和网易云音乐的歌词来源。</span
+                >仅在全民 K 歌本地 QRC 不可用时使用。外部 QQ 音乐和网易云音乐始终使用各自平台的歌词。</span
               ></lira-help
             >
           </legend>
@@ -41,7 +76,7 @@
           <div class="desktop-lyric-smart-match-row">
             <div class="desktop-lyric-smart-match-copy">
               <strong id="weSingSmartLyricMatchLabel"
-                >智能匹配最佳歌词
+                >智能选词
                 <lira-help
                   ><span id="weSingSmartLyricMatchHint"
                     >同时查询两种歌词源并选更完整的结果；结果接近时使用首选源。</span

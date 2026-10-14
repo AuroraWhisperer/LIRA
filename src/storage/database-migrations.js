@@ -116,6 +116,13 @@ function runAllMigrations(databases, options = {}) {
           CREATE INDEX IF NOT EXISTS idx_fan_reminder_states_profile_id ON fan_reminder_states(profile_id);
         `);
       },
+      // v16：手动 LIVE 仅保护一首点歌，不改变队列状态机。
+      (db) => {
+        db.exec(`
+          ALTER TABLE queue ADD COLUMN is_live INTEGER NOT NULL DEFAULT 0 CHECK (is_live IN (0, 1));
+          CREATE UNIQUE INDEX idx_queue_single_live ON queue(is_live) WHERE is_live = 1;
+        `);
+      },
     ]),
   );
 

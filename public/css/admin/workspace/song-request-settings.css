@@ -10,8 +10,7 @@
 }
 
 #songRequestSettingsForm {
-  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
-  gap: 0;
+  display: block;
   padding: 0;
 }
 
@@ -24,24 +23,73 @@
 }
 
 .song-request-section {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: var(--spacing-lg);
   min-width: 0;
   padding: var(--spacing-lg);
 }
 
-.song-request-blacklist {
-  border-left: 1px solid var(--border);
+.song-request-section + .song-request-section {
+  border-top: 1px solid var(--border);
+}
+
+.song-user-blacklist-table {
+  max-height: min(380px, 45vh);
+  overflow: auto;
+  margin-top: var(--spacing-sm);
+}
+
+.song-user-blacklist-table table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.song-user-blacklist-table th,
+.song-user-blacklist-table td {
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.song-user-blacklist-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+}
+
+.song-user-blacklist-table input {
+  min-width: 160px;
+}
+
+.song-user-blacklist-table input[type='datetime-local'] {
+  min-width: 230px;
+}
+
+.song-user-blacklist-table td:nth-last-child(-n + 2) {
+  white-space: nowrap;
 }
 
 .song-request-section-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--spacing-sm) var(--spacing-md);
-  min-height: 36px;
 }
 
-.song-request-section-header > button {
+.song-request-list-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.song-request-list-actions > button {
   flex: none;
   margin-left: auto;
 }
@@ -72,16 +120,24 @@
   margin-top: var(--spacing-md);
 }
 
+.song-request-section > .song-board-section-body {
+  min-width: 0;
+  margin-top: 0;
+}
+
 .song-request-rules {
   display: grid;
   align-items: start;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--spacing-md);
 }
 
-.song-request-rules > label,
 .song-cooldown-setting {
   grid-column: span 2;
+}
+
+.song-request-eligibility {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .song-cooldown-setting {
@@ -89,8 +145,9 @@
   gap: 6px;
   min-width: 0;
   align-content: start;
-  color: var(--muted);
+  color: var(--text);
   font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
 }
 
 .song-cooldown-controls {
@@ -117,11 +174,7 @@
 }
 
 .song-blacklist-empty {
-  padding: var(--spacing-lg) var(--spacing-md);
   margin: 0;
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
-  text-align: center;
 }
 
 .song-blacklist-words {
@@ -135,7 +188,7 @@
   overscroll-behavior-y: contain;
   scrollbar-gutter: stable;
   gap: 10px 12px;
-  margin: 0;
+  margin: var(--spacing-sm) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -192,20 +245,35 @@
 
 .song-board-actions {
   display: flex;
-  grid-column: 1 / -1;
   justify-content: flex-end;
   padding: var(--spacing-md) var(--spacing-lg);
   border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 @media (max-width: 1200px) {
-  #songRequestSettingsForm {
-    grid-template-columns: minmax(0, 1fr);
+  .song-request-section {
+    grid-template-columns: 140px minmax(0, 1fr);
   }
 
-  .song-request-blacklist {
-    border-top: 1px solid var(--border);
-    border-left: 0;
+  .song-request-rules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .song-request-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+  }
+
+  .song-board-actions {
+    bottom: var(--player-dock-height, 102px);
   }
 }
 
@@ -214,7 +282,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .song-request-rules > label,
   .song-cooldown-setting {
     grid-column: auto;
   }

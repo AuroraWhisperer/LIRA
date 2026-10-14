@@ -84,7 +84,7 @@ const DANMAKU_ITEM = {
   emotes: [fields('text url kind width height')],
 };
 const QUEUE_ITEM = fields(
-  'song_name requester_name is_pinned requester_guard_level requester_medal_level requester_medal_name',
+  'song_name requester_name is_pinned is_live requester_guard_level requester_medal_level requester_medal_name',
 );
 const OVERTIME = {
   ...fields('revision status serverNowMs effectiveRemainingMs'),

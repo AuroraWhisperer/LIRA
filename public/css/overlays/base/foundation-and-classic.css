@@ -59,6 +59,16 @@
   );
 }
 
+.queue-live-badge {
+  display: inline-block;
+  padding: 0.1em 0.35em;
+  border: 1px solid currentColor;
+  border-radius: 0.25em;
+  font-size: 0.65em;
+  line-height: 1.2;
+  vertical-align: 0.1em;
+}
+
 .overlay-header {
   display: flex;
   align-items: center;

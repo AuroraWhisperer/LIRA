@@ -1,5 +1,7 @@
 'use strict';
 
+const { SONG_REQUEST_CONTROL_KEYS } = require('./song-request-settings');
+
 const CLOUD_SETTING_KEYS = Object.freeze([
   'roomId',
   'enableBilibili',
@@ -10,6 +12,8 @@ const CLOUD_SETTING_KEYS = Object.freeze([
   'allowDuplicate',
 ]);
 const CLOUD_SYNC_KEYS = Object.freeze([
+  ...SONG_REQUEST_CONTROL_KEYS,
+  'guardPriorityEnabled',
   'songCooldownMode',
   'songCooldownValue',
   'danmakuMonitoringEnabled',

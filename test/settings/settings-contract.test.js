@@ -43,6 +43,92 @@ function fixture(t) {
   return { db, store, context, dirtyScopes, post };
 }
 
+test('new request controls default to no additional restrictions and synchronize optional values', async (t) => {
+  const f = fixture(t);
+  const { SONG_REQUEST_CONTROL_DEFAULTS, SONG_REQUEST_CONTROL_KEYS } = require('../../src/shared/song-request-settings');
+  const { serializeCloudSettings, normalizeCloudSettingsSnapshot } = require('../../src/server/settings-contract');
+  for (const [key, value] of Object.entries(SONG_REQUEST_CONTROL_DEFAULTS)) {
+    assert.equal(f.store.getSettings()[key], value);
+  }
+  const patch = {
+    userQueueLimit: ' 02 ', userCooldownCaptainSeconds: '', userCooldownAdmiralSeconds: 0,
+    userCooldownGovernorSeconds: '0030', songRequestMinMedalLevel: 5, songRequestGuardLevel: 3,
+    songRequestGuardMedalBypass: true,
+    songRequestUserBlacklist: [{ uid: '123', name: ' 测试用户 ', expiresAt: 0 }],
+  };
+  assert.equal((await f.post(patch)).status, 200);
+  assert.deepEqual(f.dirtyScopes, ['settings']);
+  const saved = createSettingsStore(f.db).getSettings();
+  const cloud = serializeCloudSettings(saved);
+  assert.deepEqual(Object.fromEntries(SONG_REQUEST_CONTROL_KEYS.map((key) => [key, cloud[key]])), {
+    ...patch, userQueueLimit: 2, userCooldownGovernorSeconds: 30,
+    songRequestUserBlacklist: [{ uid: '123', name: '测试用户', expiresAt: 0 }],
+  });
+  assert.equal(normalizeCloudSettingsSnapshot(cloud).userCooldownCaptainSeconds, '');
+  assert.equal(normalizeCloudSettingsSnapshot(cloud).userCooldownAdmiralSeconds, '0');
+  for (const key of SONG_REQUEST_CONTROL_KEYS) delete cloud[key];
+  f.store.setSettings(normalizeCloudSettingsSnapshot(cloud));
+  for (const key of SONG_REQUEST_CONTROL_KEYS) assert.equal(f.store.getSettings()[key], saved[key]);
+  assert.equal((await f.post(SONG_REQUEST_CONTROL_DEFAULTS)).status, 200);
+  for (const [key, value] of Object.entries(SONG_REQUEST_CONTROL_DEFAULTS)) assert.equal(f.store.getSettings()[key], value);
+});
+
+test('request control limits reject invalid batches without saving or requesting sync', async (t) => {
+  const f = fixture(t);
+  const cases = {
+    userQueueLimit: [-1, 301, '', ' ', true, null, [], {}, 1.5, '1e2'],
+    userCooldownCaptainSeconds: [-1, 3601, ' ', null, [], false, 0.5],
+    userCooldownAdmiralSeconds: [-1, 'NaN'],
+    userCooldownGovernorSeconds: [3601, '1e2'],
+    songRequestMinMedalLevel: [-1, 101, '', true],
+    songRequestGuardLevel: [-1, 4, 'captain', true],
+    songRequestGuardMedalBypass: [null, [], {}, 'TRUE', ' false ', 2],
+  };
+  for (const [key, values] of Object.entries(cases)) {
+    for (const value of values) {
+      assert.equal((await f.post({ paused: true, [key]: value })).status, 400, `${key}: ${JSON.stringify(value)}`);
+      assert.equal(f.store.getSettings().paused, 'false');
+    }
+  }
+  assert.deepEqual(f.dirtyScopes, []);
+});
+
+test('user blacklist validates stable IDs and deadlines', async (t) => {
+  const f = fixture(t);
+  const valid = [{ uid: '123' }, { uid: '9999999999999999999999999', name: '🎵'.repeat(80), expiresAt: 253402300799999 }];
+  assert.equal((await f.post({ songRequestUserBlacklist: JSON.stringify(valid) })).status, 200);
+  const saved = f.store.getSettings().songRequestUserBlacklist;
+  assert.deepEqual(JSON.parse(saved)[0], { uid: '123', name: '', expiresAt: 0 });
+  for (const value of [null, {}, 'bad json', [null], [{ uid: 123 }], [{ uid: '0' }], [{ uid: ' 123' }],
+    [{ uid: '123', name: null }], [{ uid: '123', name: '🎵'.repeat(81) }], [{ uid: '123', expiresAt: '0' }],
+    [{ uid: '123', expiresAt: -1 }], [{ uid: '123', expiresAt: 1.5 }], [{ uid: '123', expiresAt: 253402300800000 }],
+    [{ uid: '123', extra: true }], [{ uid: '123' }, { uid: '123', name: '改名' }],
+    Array.from({ length: 201 }, (_, i) => ({ uid: String(i + 1) }))]) {
+    assert.equal((await f.post({ paused: true, songRequestUserBlacklist: value })).status, 400);
+    assert.equal(f.store.getSettings().paused, 'false');
+    assert.equal(f.store.getSettings().songRequestUserBlacklist, saved);
+  }
+});
+
+test('guard priority is opt-in, validates atomically and preserves its value with old cloud snapshots', async (t) => {
+  const f = fixture(t);
+  assert.equal(f.store.getSettings().guardPriorityEnabled, 'false');
+  for (const value of [null, [], {}, 'yes', 2]) {
+    assert.equal((await f.post({ paused: true, guardPriorityEnabled: value })).status, 400);
+    assert.equal(f.store.getSettings().paused, 'false');
+  }
+  assert.equal((await f.post({ guardPriorityEnabled: true })).status, 200);
+  assert.deepEqual(f.dirtyScopes, ['settings']);
+  const { serializeCloudSettings, normalizeCloudSettingsSnapshot } = require('../../src/server/settings-contract');
+  const saved = createSettingsStore(f.db).getSettings();
+  const cloud = serializeCloudSettings(saved);
+  assert.equal(cloud.guardPriorityEnabled, true);
+  assert.equal(normalizeCloudSettingsSnapshot(cloud).guardPriorityEnabled, 'true');
+  delete cloud.guardPriorityEnabled;
+  f.store.setSettings(normalizeCloudSettingsSnapshot(cloud));
+  assert.equal(f.store.getSettings().guardPriorityEnabled, 'true');
+});
+
 test('song cooldown settings validate atomically, synchronize and survive reopening', async (t) => {
   const f = fixture(t);
   assert.equal(f.store.getSettings().songCooldownMode, 'off');

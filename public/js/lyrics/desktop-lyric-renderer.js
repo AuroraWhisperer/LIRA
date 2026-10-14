@@ -118,10 +118,15 @@ function init() {
 function updateLyricState(state) {
   if (!state || typeof state !== 'object') return;
   if (!acceptLyricVersion(state)) return;
+  const previousState = latestState;
   latestState = { ...(latestState || {}), ...state };
   latestWordSignature = JSON.stringify([latestState.lineText || '', latestState.words || []]);
-  renderer?.setState(latestState);
+  renderer?.setState({ ...latestState, discontinuity: state.discontinuity === true });
   renderActiveWords();
+  if (state.discontinuity === true || latestState.generation !== previousState?.generation
+    || latestState.trackTitle !== previousState?.trackTitle) {
+    updateActiveWordProgress(resolveLyricTime(currentPreviewPosition(), currentDisplaySettings), true);
+  }
   applyPlaybackVisibility();
   updatePreviewStatus();
 }
@@ -238,6 +243,8 @@ function renderActiveWords() {
   const line = latestTimeline.lines[activeIndex] || {};
   const words = Array.isArray(latestState?.words) ? latestState.words : [];
   const matchesCurrentLine = latestState?.lineText === line.text;
+  // The local clock can still be finishing this line when the next sample arrives.
+  if (!matchesCurrentLine && activeWordIndex === activeIndex) return;
   const signature = `${activeIndex}:${matchesCurrentLine ? latestWordSignature : ''}`;
   if (signature === activeWordSignature) return;
 
@@ -268,8 +275,8 @@ function resetActiveWords() {
   activeWordSignature = '';
 }
 
-function updateActiveWordProgress(currentMs) {
-  activeWordAnimator?.sync({ currentMs }, { playing: latestState?.playing === true });
+function updateActiveWordProgress(currentMs, force = false) {
+  activeWordAnimator?.sync({ currentMs }, { playing: latestState?.playing === true, force });
 }
 
 function resolveWordAnimationMode(profile = performanceProfile?.profile) {

@@ -48,6 +48,40 @@ test('source changes preserve an in-flight import lock and finish disabled in We
   for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, false);
 });
 
+for (const source of ['qq-client', 'netease-client']) {
+  test(`following ${source} preserves internal audio, quality changes and playback controls`, async () => {
+    const pending = Promise.withResolvers();
+    const app = await createPlaybackApp({ current: track('song', '歌曲'), normalQueue: [track('next', '下一首')],
+      selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+      sourceTabs: ['qq', 'netease', 'wesing'],
+      resolveStream: (count) => count === 1 ? { url: 'https://example.test/original.mp3' } : pending.promise,
+    });
+    await app.init(); await flushAsyncWork();
+    await app.emit('playbackPlayPause', 'click');
+    const audio = app.element('music-player');
+    const changing = app.emit('playbackQualityPanel', 'click', {
+      stopPropagation() {}, target: closestTarget({ playbackQuality: 'high' }, 'data-playback-quality'),
+    });
+    await flushAsyncWork();
+    await app.emitWindow('app:lyric-source', { detail: { source, selection: 'auto' } });
+    assert.equal(audio.paused, false, 'lyric following does not stop audio');
+    pending.resolve({ url: 'https://example.test/high.mp3' });
+    await changing; await flushAsyncWork();
+    assert.equal(audio.src, 'https://example.test/high.mp3');
+    assert.equal(app.audioPlayCalls(), 2, 'output changes do not cancel internal stream requests');
+    await app.emit('playbackPlayPause', 'click');
+    assert.equal(audio.paused, true);
+    await app.emit('playbackPlayPause', 'click');
+    assert.equal(audio.paused, false);
+    await app.emit('music-player', 'ended');
+    await flushAsyncWork();
+    assert.equal(app.savedState().current.id, 'next', 'automatic next remains available');
+    await app.emit('source-tab-netease', 'click');
+    assert.equal(app.savedState().selectedSource, 'netease', 'provider navigation does not require an output change');
+    assert.deepEqual(app.errors(), []);
+  });
+}
+
 for (const pauseThenResume of [false, true]) {
   test(`quality loading respects a later pause${pauseThenResume ? ' and resume' : ''}`, async () => {
     const pending = Promise.withResolvers();

@@ -39,6 +39,22 @@ function createVersionedFixture(t, versions) {
   }
 }
 
+test('LIVE migration preserves an existing v15 queue and enforces a single marker after repeated startup', (t) => {
+  const f = createVersionedFixture(t, { song_db: 15 });
+  t.after(() => f.close());
+  const db = f.databases.songDb;
+  db.exec(`INSERT INTO queue (song_name, created_at, updated_at) VALUES ('第一首', '2026-10-14', '2026-10-14'),
+    ('第二首', '2026-10-14', '2026-10-14')`);
+  const before = db.prepare('SELECT * FROM queue ORDER BY id').all();
+  runAllMigrations(f.databases);
+  assert.deepEqual(db.prepare('SELECT * FROM queue ORDER BY id').all().map((row) => ({ ...row })),
+    before.map((row) => ({ ...row, is_live: 0 })));
+  db.prepare('UPDATE queue SET is_live = 1 WHERE id = ?').run(before[0].id);
+  runAllMigrations(f.databases);
+  assert.equal(db.prepare('SELECT id FROM queue WHERE is_live = 1').get().id, before[0].id);
+  assert.throws(() => db.prepare('UPDATE queue SET is_live = 1 WHERE id = ?').run(before[1].id), /UNIQUE/);
+});
+
 test('query indexes upgrade without changing rows and migrate idempotently', (t) => {
   const f = createVersionedFixture(t, { song_db: 6, gift_db: 11 });
   t.after(() => f.close());
@@ -121,7 +137,7 @@ test('fan cascade indexes upgrade without ANALYZE and preserve scope data', (t) 
   assert.match(plan, /SEARCH fan_records USING COVERING INDEX idx_fan_records_profile_id \(profile_id=\?\)/u);
   assert.match(plan, /SEARCH fan_reminder_states USING COVERING INDEX idx_fan_reminder_states_profile_id \(profile_id=\?\)/u);
   assert.doesNotMatch(plan, /SCAN fan_(records|reminder_states)/u);
-  assert.equal(schema.getSchemaVersion(db, 'song_db'), 15);
+  assert.equal(schema.getSchemaVersion(db, 'song_db'), 16);
   db.prepare('DELETE FROM fan_profiles WHERE scope = ?').run('first');
   for (const [i, table] of tables.entries()) {
     assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),

@@ -43,10 +43,12 @@ export class LyricWordRenderer {
 
   setState(nextState = {}) {
     const previousPlaying = this.state.playing === true;
+    const previousGeneration = this.state.generation;
+    const previousTrackTitle = this.state.trackTitle;
     this.state = { ...this.state, ...nextState };
     this.clock.setState(this.state, {
-      force: true,
-      discontinuity: this.state.discontinuity === true,
+      discontinuity: nextState.discontinuity === true || this.state.generation !== previousGeneration
+        || this.state.trackTitle !== previousTrackTitle,
     });
     this.renderContent();
     if (this.state.playing && !isReducedMotion() && isDocumentVisible()) {

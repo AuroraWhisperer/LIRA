@@ -6,128 +6,218 @@ const { normalizeLyricTimeline } = require('../music/lyric-timeline');
 const { normalizeLyricState } = require('../music/lyric-state');
 const { createWeSingCapture } = require('../music/wesing-capture');
 const { createWeSingOnlineLyricResolver } = require('../music/wesing-online-lyrics');
+const { createExternalClientLyricResolver } = require('../music/external-client-lyrics');
+const { createQQClientCapture } = require('../music/qq-client-capture');
+const { createNeteaseClientCapture } = require('../music/netease-client-capture');
+const { LYRIC_SOURCES, chooseLyricSource } = require('../music/lyric-source-selection');
 
 function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSocketHub, onLyricsChanged }) {
   const lyricsService = createLyricsService({
-    apiCacheDir: dataDir.apiCacheDir,
-    lyricCacheDir: dataDir.lyricCacheDir,
+    apiCacheDir: dataDir.apiCacheDir, lyricCacheDir: dataDir.lyricCacheDir,
   });
   let musicRegistry = createMusicProviderRegistry();
-  let lyricState = {
-    trackTitle: '',
-    artists: [],
-    lineText: '',
-    translation: '',
-    words: [],
-    currentMs: 0,
-    progress: 0,
-    playing: false,
-    locked: false,
-    generation: 0,
-    sequence: 0,
-    status: 'idle',
-  };
-  let lyricTimeline = {
-    trackTitle: '',
-    artists: [],
-    status: 'idle',
-    lines: [],
-  };
+  let lyricState = normalizeLyricState({});
+  let lyricTimeline = normalizeLyricTimeline({});
   let lyricGeneration = 0;
   let lyricSequence = 0;
-  let lyricTimelineKey = JSON.stringify(lyricTimeline);
+  let internalGeneration = 0;
+  let internalSequence = 0;
+  let lyricSource = 'internal';
+  let selection = 'auto';
+  let started = false;
+  let stopped = false;
+  let sourceSnapshot = '';
+  const candidates = Object.fromEntries(LYRIC_SOURCES.map((source) => [source, {
+    playing: false, available: false, state: normalizeLyricState({}), timeline: normalizeLyricTimeline({}),
+  }]));
 
-  function versionLyricState(input) {
-    const state = normalizeLyricState(input);
-    const incomingGeneration = state.generation;
-    const incomingSequence = state.sequence;
-    const hasClientVersion = incomingGeneration > 0 || incomingSequence > 0;
-    if (hasClientVersion) {
-      if (
-        incomingGeneration < lyricGeneration ||
-        (incomingGeneration === lyricGeneration && incomingSequence <= lyricSequence)
-      ) {
-        return null;
-      }
-      lyricGeneration = incomingGeneration;
-      lyricSequence = incomingSequence;
-    } else {
-      lyricSequence += 1;
-    }
-    return { ...state, generation: lyricGeneration, sequence: lyricSequence };
-  }
-  const resolveWeSingOnlineLyrics = createWeSingOnlineLyricResolver({
-    getRegistry: () => musicRegistry,
-    lyricsService,
-    getPreferences() {
-      const settings = settingsStore.getSettings();
-      return {
-        preferredPlatform: settings.weSingLyricSource,
-        smartMatch: settings.weSingSmartLyricMatch,
-      };
-    },
-  });
-  const publishLyricTimeline = (input) => {
-    const nextTimeline = normalizeLyricTimeline(input);
-    const nextKey = JSON.stringify(nextTimeline);
-    const changed = nextKey !== lyricTimelineKey;
-    if (changed) {
-      lyricGeneration += 1;
+  function publishCurrentState() {
+    if (lyricSource === 'internal' && internalGeneration > lyricGeneration) {
+      lyricGeneration = internalGeneration;
       lyricSequence = 0;
-      lyricTimelineKey = nextKey;
     }
-    lyricTimeline = nextTimeline;
-    webSocketHub.broadcast({ type: 'lyric-timeline', timeline: lyricTimeline });
-    if (changed) onLyricsChanged?.();
-    return lyricTimeline;
-  };
+    lyricState = { ...candidates[lyricSource].state, generation: lyricGeneration, sequence: ++lyricSequence };
+    webSocketHub.broadcast({ type: 'lyric-state', state: lyricState });
+  }
+
+  function publishCurrentTimeline(force = false) {
+    const timeline = candidates[lyricSource].timeline;
+    if (!force && JSON.stringify(timeline) === JSON.stringify(lyricTimeline)) return false;
+    lyricGeneration++;
+    lyricSequence = 0;
+    lyricTimeline = timeline;
+    webSocketHub.broadcast({ type: 'lyric-timeline', timeline });
+    return true;
+  }
+
+  function updateSource(changedSource, stateChanged = false) {
+    if (stopped) return;
+    const next = chooseLyricSource(selection, lyricSource, candidates);
+    const switched = next !== lyricSource;
+    lyricSource = next;
+    if (switched || changedSource === lyricSource) {
+      const timelineChanged = publishCurrentTimeline(switched);
+      if (switched || stateChanged) publishCurrentState();
+      if (timelineChanged || switched || stateChanged) onLyricsChanged?.();
+    }
+    broadcastLyricSource();
+  }
+
+  function acceptExternalState(source, status, input) {
+    if (stopped) return;
+    const candidate = candidates[source];
+    candidate.state = normalizeLyricState(input);
+    candidate.playing = status.active && status.playing === true;
+    candidate.available = status.active && (status.detected === true || status.platformDetected === true) && Boolean(status.trackTitle);
+    updateSource(source, true);
+  }
+
+  function acceptExternalTimeline(source, timeline) {
+    if (stopped) return;
+    candidates[source].timeline = normalizeLyricTimeline(timeline);
+    updateSource(source);
+  }
+
   const weSingCapture = createWeSingCapture({
     cachePath: settingsStore.getSettings().weSingCachePath,
     lyricOffsetMs: settingsStore.getSettings().weSingLyricOffsetMs,
     platform: runtimeOptions.weSingPlatform || process.platform,
     monitorFactory: runtimeOptions.weSingMonitorFactory,
-    resolveFallbackLyrics: runtimeOptions.weSingLyricResolver || resolveWeSingOnlineLyrics,
-    saveCachePath(cachePath) {
-      settingsStore.setSetting('weSingCachePath', cachePath);
-    },
-    saveLyricOffsetMs(offsetMs) {
-      settingsStore.setSetting('weSingLyricOffsetMs', String(offsetMs));
-    },
+    resolveFallbackLyrics: runtimeOptions.weSingLyricResolver || createWeSingOnlineLyricResolver({
+      getRegistry: () => musicRegistry, lyricsService,
+      getPreferences() {
+        const settings = settingsStore.getSettings();
+        return { preferredPlatform: settings.weSingLyricSource, smartMatch: settings.weSingSmartLyricMatch };
+      },
+    }),
+    saveCachePath: (cachePath) => settingsStore.setSetting('weSingCachePath', cachePath),
+    saveLyricOffsetMs: (offsetMs) => settingsStore.setSetting('weSingLyricOffsetMs', String(offsetMs)),
     onState(state) {
+      if (stopped) return;
       webSocketHub.broadcast({ type: 'wesing-state', state });
-      if (!state.active || !state.lyricState) return;
-      const nextState = versionLyricState(state.lyricState);
-      if (!nextState) return;
-      lyricState = nextState;
-      webSocketHub.broadcast({ type: 'lyric-state', state: lyricState });
-      onLyricsChanged?.();
+      acceptExternalState('wesing', state, state.lyricState);
     },
-    onTimeline(timeline) {
-      if (timeline.active) publishLyricTimeline(timeline);
-    },
+    onTimeline: (timeline) => acceptExternalTimeline('wesing', timeline),
   });
+  const qqClientCapture = createQQClientCapture({
+    platform: runtimeOptions.qqClientPlatform || process.platform,
+    monitorFactory: runtimeOptions.qqClientMonitorFactory,
+    resolveLyrics: runtimeOptions.qqClientLyricResolver || createExternalClientLyricResolver({
+      platform: 'qq', getRegistry: () => musicRegistry, lyricsService,
+    }),
+    onState: (status, state) => acceptExternalState('qq-client', status, state),
+    onTimeline: (timeline) => acceptExternalTimeline('qq-client', timeline),
+  });
+  const neteaseClientCapture = createNeteaseClientCapture({
+    platform: runtimeOptions.neteaseClientPlatform || process.platform,
+    monitorFactory: runtimeOptions.neteaseClientMonitorFactory,
+    resolveLyrics: runtimeOptions.neteaseClientLyricResolver || createExternalClientLyricResolver({
+      platform: 'netease', getRegistry: () => musicRegistry, lyricsService,
+    }),
+    onState: (status, state) => acceptExternalState('netease-client', status, state),
+    onTimeline: (timeline) => acceptExternalTimeline('netease-client', timeline),
+  });
+  const captures = { 'qq-client': qqClientCapture, 'netease-client': neteaseClientCapture, wesing: weSingCapture };
+
+  function getLyricSource() {
+    return { source: lyricSource, selection,
+      playingSources: LYRIC_SOURCES.filter((source) => candidates[source].playing),
+      qqClient: qqClientCapture.getStatus(), neteaseClient: neteaseClientCapture.getStatus(), weSing: weSingCapture.getStatus() };
+  }
+
+  function broadcastLyricSource() {
+    const state = getLyricSource();
+    const key = JSON.stringify(state);
+    if (key === sourceSnapshot) return;
+    sourceSnapshot = key;
+    webSocketHub.broadcast({ type: 'lyric-source', state });
+  }
+
+  async function start() {
+    if (started) return;
+    started = true;
+    stopped = false;
+    await Promise.all(Object.values(captures).filter((capture) => capture.getStatus().supported)
+      .map((capture) => capture.setActive(true)));
+  }
+
+  async function selectLyricSource(source) {
+    if (source !== 'auto' && !LYRIC_SOURCES.includes(source)) throw new Error('歌词来源无效。');
+    if (captures[source]?.getStatus().supported === false) throw new Error('外部播放器采集仅支持 Windows。');
+    selection = source;
+    updateSource();
+    return getLyricSource();
+  }
 
   return {
     lyricsService,
-    weSingCapture,
+    start,
+    weSingCapture: {
+      ...weSingCapture,
+      async setActive(active) {
+        if (active) {
+          if (!weSingCapture.getStatus().active) await weSingCapture.setActive(true);
+          await selectLyricSource('wesing');
+        } else if (selection === 'wesing') {
+          await selectLyricSource('auto');
+        }
+        return weSingCapture.getStatus();
+      },
+    },
+    getLyricSource,
+    selectLyricSource,
+    async refreshLyricSource(source) {
+      if (source !== undefined && !captures[source]) throw new Error('外部播放器来源无效。');
+      const targets = source ? [captures[source]] : captures[lyricSource] ? [captures[lyricSource]] : Object.values(captures);
+      await Promise.all(targets.filter((capture) => capture.getStatus().supported).map((capture) => capture.refresh()));
+      return getLyricSource();
+    },
+    stop() {
+      stopped = true;
+      started = false;
+      for (const capture of Object.values(captures)) capture.stop();
+    },
     getMusicRegistry: () => musicRegistry,
     setMusicRegistry(options = {}) {
       musicRegistry = createMusicProviderRegistry(options);
     },
     getLyricState: () => lyricState,
     getLyricTimeline: () => lyricTimeline,
-    publishLyricState(nextState) {
-      const versionedState = versionLyricState(nextState);
-      if (!versionedState) {
-        // HTTP acknowledgement only; the last accepted state stays unchanged.
-        return { ...lyricState, nextGeneration: lyricGeneration + 1 };
+    publishLyricState(input) {
+      const state = normalizeLyricState(input);
+      if (state.generation > 0 || state.sequence > 0) {
+        if (state.generation < internalGeneration ||
+            (state.generation === internalGeneration && state.sequence <= internalSequence)) {
+          return { ...candidates.internal.state, nextGeneration: Math.max(internalGeneration, lyricGeneration) + 1 };
+        }
+        internalGeneration = state.generation;
+        internalSequence = state.sequence;
+      } else {
+        internalSequence++;
       }
-      lyricState = versionedState;
-      webSocketHub.broadcast({ type: 'lyric-state', state: versionedState });
-      onLyricsChanged?.();
-      return lyricState;
+      candidates.internal.state = { ...state, generation: internalGeneration, sequence: internalSequence };
+      candidates.internal.playing = state.playing;
+      candidates.internal.available = Boolean(state.trackTitle);
+      updateSource('internal', true);
+      return candidates.internal.state;
     },
-    publishLyricTimeline,
+    publishLyricTimeline(input) {
+      const timeline = normalizeLyricTimeline(input);
+      const changed = JSON.stringify(timeline) !== JSON.stringify(candidates.internal.timeline);
+      if (changed) {
+        internalGeneration = Math.max(internalGeneration, lyricGeneration) + 1;
+        internalSequence = 0;
+        // Keep the last measured playback intent, but never pair new lyrics with
+        // the previous track's text or clock while the matching state is in flight.
+        candidates.internal.state = normalizeLyricState({ trackTitle: timeline.trackTitle, artists: timeline.artists,
+          status: timeline.trackTitle ? 'loading' : 'idle', generation: internalGeneration });
+        candidates.internal.available = Boolean(timeline.trackTitle);
+        if (!timeline.trackTitle) candidates.internal.playing = false;
+      }
+      candidates.internal.timeline = timeline;
+      updateSource('internal', changed);
+      return timeline;
+    },
   };
 }
 

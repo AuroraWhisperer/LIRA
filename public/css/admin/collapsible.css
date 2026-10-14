@@ -281,6 +281,23 @@
   gap: 6px;
 }
 
+.queue-live-button {
+  padding: 4px 8px;
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-bold);
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+.queue-live-button[aria-pressed='true'] {
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.queue-row.is-live {
+  border-color: var(--color-danger);
+}
+
 .empty {
   min-height: 120px;
   display: flex;

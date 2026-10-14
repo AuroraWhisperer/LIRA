@@ -265,6 +265,7 @@ function initPlaybackAssistant() {
   if (playback?.initPlaybackAssistant) {
     playback.initPlaybackAssistant({
       getSongs: () => stateService.getSongs(),
+      getWeSingState: () => stateService.getAppState()?.weSing,
       reloadSongs: () => stateService.reloadSongs(),
       toast: Utils.toast,
       showError: Utils.showError,

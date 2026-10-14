@@ -17,6 +17,9 @@ function createApiContext(options) {
     domainServices,
     publishLyricState,
     publishLyricTimeline,
+    getLyricSource,
+    selectLyricSource,
+    refreshLyricSource,
     weSingCapture,
     bilibili,
     ai,
@@ -115,6 +118,9 @@ function createApiContext(options) {
     playbackLyrics: {
       publish: publishLyricState,
       publishTimeline: publishLyricTimeline,
+      getSource: getLyricSource,
+      selectSource: selectLyricSource,
+      refreshSource: refreshLyricSource,
     },
     weSing: {
       getStatus: weSingCapture.getStatus,

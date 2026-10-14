@@ -72,6 +72,7 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
   let gifts = 0;
   let danmaku = 0;
   let superChats = 0;
+  let requested;
   const hints = [];
   const logs = [];
   t.mock.method(console, 'log', (...args) => logs.push(args));
@@ -80,7 +81,8 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
     aiDanmakuDeliveryVerifier: { observe() {} },
     domainServices: {
       messages: {
-        handleDanmaku: () => {
+        handleDanmaku: (event) => {
+          requested = event;
           danmaku += 1;
           return { accepted: false };
         },
@@ -126,6 +128,9 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
       userName: 'Alice',
       message: '点歌 测试',
       source: 'danmaku',
+      requesterGuardVerified: false,
+      requesterMedalVerified: true,
+      currentRoomVerified: true,
     });
     client.handlers.onSuperChat({
       id: 'sc-1',
@@ -136,6 +141,9 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
     });
     assert.equal(gifts, 0);
     assert.equal(danmaku, 1);
+    assert.equal(requested.requesterGuardVerified, false, 'unknown guard evidence stays unknown across the domain bridge');
+    assert.equal(requested.requesterMedalVerified, true);
+    assert.equal(requested.currentRoomVerified, true);
     assert.equal(superChats, 1);
     assert.equal(hints.length, 1);
     assert.equal(hints[0].name, 'Alice');

@@ -43,8 +43,6 @@ export function createProviderOperations(deps) {
   async function refreshSelectedMusicProviderState() {
     const platform = playbackState.selectedSource;
     const refreshId = ++playbackProviderRefreshId;
-    await weSingService.setSelected(platform === 'wesing');
-    if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
     if (platform === 'wesing') {
       playbackAuthState = weSingService.getAuthState();
       playbackProviderHealth = weSingService.getProviderHealth();

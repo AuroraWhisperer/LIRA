@@ -164,7 +164,7 @@ function computeStateKey(nextState) {
   var identity = settings.overlayQueueStyle !== 'classic';
   function itemKey(item) {
     if (!item) return null;
-    return [item.id, item.song_name, item.requester_name || '', Boolean(item.is_pinned),
+    return [item.id, item.song_name, item.requester_name || '', Boolean(item.is_pinned), Boolean(item.is_live),
       ...(identity ? [item.requester_guard_level, item.requester_medal_level, item.requester_medal_name] : [])];
   }
   return JSON.stringify([

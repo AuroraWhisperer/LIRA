@@ -1,9 +1,9 @@
 <div id="songRequestPage" class="tab-page">
   <div class="panel-body stack">
     <form id="songRequestSettingsForm" class="stack song-board-section">
-      <section class="song-request-section" aria-labelledby="songRequestRulesTitle">
+      <section class="song-request-section" aria-labelledby="songRequestQueueTitle">
         <div class="song-request-section-header">
-          <h3 id="songRequestRulesTitle" class="song-board-section-heading">点歌规则</h3>
+          <h3 id="songRequestQueueTitle" class="song-board-section-heading">接收与排队</h3>
         </div>
         <div class="song-request-rules song-board-section-body">
           <label>
@@ -28,28 +28,84 @@
             </select>
           </label>
           <label>
+            <span>大航海优先插队 <lira-help label="大航海优先插队说明">开启后按总督、提督、舰长、非大航海排序，同身份先来后到。手动置顶优先于身份排序，LIVE 歌曲始终保留在第 1 位。保存后对当前队列生效。</lira-help></span>
+            <select id="guardPriorityEnabled" data-dropdown-variant="settings" aria-label="大航海优先插队">
+              <option value="false">关闭 · 按点歌顺序</option>
+              <option value="true">开启 · 按身份排序</option>
+            </select>
+          </label>
+          <label>
             最多排队歌曲数
             <input id="queueLimit" type="number" min="1" max="300" />
           </label>
           <label>
-            同一观众点歌间隔（秒）
-            <input id="userCooldownSeconds" type="number" min="0" max="3600" />
+            <span>每人同时排队上限 <lira-help label="每人同时排队上限说明">0 表示不限制。按观众身份统计等待和 LIVE 歌曲，唱完或删除后释放名额。修改规则不会移除已排队的歌曲。</lira-help></span>
+            <input id="userQueueLimit" type="number" min="0" max="300" step="1" value="0" required />
           </label>
           <div class="song-cooldown-setting">
             <span id="songCooldownLabel">单首歌曲冷却 <lira-help label="单首歌曲冷却说明">歌曲成功加入点歌队列后，所有观众再次点同一首歌都会被拦截。唱完、删除或清空队列不解除冷却，重启后仍有效。自然日按北京时间计算，1 自然日表示次日 00:00 恢复；时长可填 1–999。</lira-help></span>
             <div class="song-cooldown-controls">
-              <select id="songCooldownMode" data-dropdown-variant="settings" aria-label="单首歌曲冷却模式" aria-describedby="songCooldownHint">
+              <select id="songCooldownMode" data-dropdown-variant="settings" aria-label="单首歌曲冷却模式">
                 <option value="off">不限制</option>
                 <option value="hours">按小时</option>
                 <option value="days">按自然日</option>
               </select>
               <span id="songCooldownAmount" hidden><input id="songCooldownValue" type="number" min="1" max="999" step="1" value="1" required disabled aria-label="冷却小时数" /></span>
             </div>
-            <p id="songCooldownHint" class="hint">不限制同一首歌再次点入的时间。</p>
           </div>
         </div>
       </section>
-      <section class="song-request-section song-request-blacklist" aria-labelledby="songRequestBlacklistTitle">
+      <section class="song-request-section" aria-labelledby="songRequestIntervalTitle">
+        <div class="song-request-section-header">
+          <h3 id="songRequestIntervalTitle" class="song-board-section-heading">点歌间隔</h3>
+        </div>
+        <div class="song-request-rules song-board-section-body">
+          <label>
+            同一观众点歌间隔（秒）
+            <input id="userCooldownSeconds" type="number" min="0" max="3600" />
+          </label>
+          <label>
+            <span>舰长点歌间隔（秒） <lira-help label="大航海点歌间隔说明">留空沿用「同一观众点歌间隔」，填 0 表示该身份不设间隔。普通观众使用通用间隔。身份按本直播间核验。</lira-help></span>
+            <input id="userCooldownCaptainSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用通用间隔" />
+          </label>
+          <label>
+            提督点歌间隔（秒）
+            <input id="userCooldownAdmiralSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用通用间隔" />
+          </label>
+          <label>
+            总督点歌间隔（秒）
+            <input id="userCooldownGovernorSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用通用间隔" />
+          </label>
+        </div>
+      </section>
+      <section class="song-request-section" aria-labelledby="songRequestIdentityTitle">
+        <div class="song-request-section-header">
+          <h3 id="songRequestIdentityTitle" class="song-board-section-heading">点歌资格</h3>
+        </div>
+        <div class="song-request-rules song-request-eligibility song-board-section-body">
+          <label>
+            <span>本直播间粉丝牌最低等级 <lira-help label="粉丝牌资格说明">0 表示不要求粉丝牌。设置后，观众须有本直播间对应等级的粉丝牌；其他直播间的牌子不计入。粉丝牌与大航海等级要求须同时满足。</lira-help></span>
+            <input id="songRequestMinMedalLevel" type="number" min="0" max="100" step="1" value="0" required />
+          </label>
+          <label>
+            本直播间大航海要求
+            <select id="songRequestGuardLevel" data-dropdown-variant="settings">
+              <option value="0">不要求</option>
+              <option value="3">舰长及以上</option>
+              <option value="2">提督及以上</option>
+              <option value="1">总督</option>
+            </select>
+          </label>
+          <label>
+            <span>大航海免粉丝牌要求 <lira-help label="大航海免牌说明">开启后，本直播间有效大航海无需满足粉丝牌等级要求，仍须满足「大航海要求」。默认关闭。</lira-help></span>
+            <select id="songRequestGuardMedalBypass" data-dropdown-variant="settings">
+              <option value="false">关闭</option>
+              <option value="true">开启</option>
+            </select>
+          </label>
+        </div>
+      </section>
+      <section class="song-request-section" aria-labelledby="songRequestBlacklistTitle">
         <div class="song-request-section-header">
           <div class="song-board-section-title">
             <h3 id="songRequestBlacklistTitle" class="song-board-section-heading">
@@ -60,17 +116,43 @@
             </h3>
             <span id="songRequestBlacklistCount" class="song-board-section-meta">0 个词条</span>
           </div>
-          <button id="songRequestBlacklistAdd" class="secondary" type="button">添加词条</button>
         </div>
         <div class="song-board-section-body">
           <input id="songRequestBlacklist" type="hidden" />
+          <div class="song-request-list-actions">
+            <p id="songRequestBlacklistEmpty" class="hint song-blacklist-empty">暂无屏蔽词</p>
+            <button id="songRequestBlacklistAdd" class="secondary" type="button">添加词条</button>
+          </div>
           <ul id="songRequestBlacklistWords" class="song-blacklist-words" aria-label="点歌屏蔽词"></ul>
-          <p id="songRequestBlacklistEmpty" class="hint song-blacklist-empty">暂无屏蔽词</p>
+        </div>
+      </section>
+      <section class="song-request-section" aria-labelledby="songRequestUserBlacklistTitle">
+        <div class="song-request-section-header">
+          <div class="song-board-section-title">
+            <h3 id="songRequestUserBlacklistTitle" class="song-board-section-heading">
+              点歌用户黑名单
+              <lira-help label="点歌用户黑名单说明">按 B 站 UID 拦截点歌，改昵称也不影响。备注昵称仅供辨认。到期时间按本机时区填写，留空表示永久；到期后自动失效。最多 200 人，添加、修改或删除后统一保存点歌规则。</lira-help>
+            </h3>
+            <span id="songRequestUserBlacklistCount" class="song-board-section-meta">0 人</span>
+          </div>
+        </div>
+        <div class="song-board-section-body">
+          <input id="songRequestUserBlacklist" type="hidden" value="[]" />
+          <div class="song-request-list-actions">
+            <p id="songRequestUserBlacklistEmpty" class="hint song-blacklist-empty">暂无用户黑名单，不限制任何用户</p>
+            <button id="songRequestUserBlacklistAdd" class="secondary" type="button">添加用户</button>
+          </div>
+          <div id="songRequestUserBlacklistTable" class="song-user-blacklist-table" hidden>
+            <table aria-label="点歌用户黑名单">
+              <thead><tr><th scope="col">B 站 UID</th><th scope="col">备注昵称</th><th scope="col">到期时间（留空永久）</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
+              <tbody id="songRequestUserBlacklistRows"></tbody>
+            </table>
+          </div>
         </div>
       </section>
       <div class="song-board-actions actions">
-        <button id="songRequestSettingsSave" class="primary" type="submit">保存点歌规则</button>
         <span id="songRequestSettingsSaveState" class="hint" role="status" aria-live="polite"></span>
+        <button id="songRequestSettingsSave" class="primary" type="submit">保存点歌规则</button>
       </div>
     </form>
   </div>

@@ -136,6 +136,19 @@ const BASE_SETTINGS = {
   overlayLowPowerMode: 'false',
 };
 
+test('every queue theme renders LIVE only for explicitly marked songs and escapes song names', async () => {
+  const dom = createQueueDom();
+  const render = await loadQueueOverlay(dom);
+  for (const name of ['renderClassicQueue', 'renderIdentityQueue', 'renderStorybookQueue',
+    'renderNeonVinylQueue', 'renderCherryRibbonQueue', 'renderGoldenLilyQueue']) {
+    for (const is_live of [true, false]) {
+      render[name](BASE_SETTINGS, null, [{ id: 1, is_live, song_name: '<待唱>', requester_name: '观众' }], dom.content);
+      assert.equal(dom.content.innerHTML.includes('class="queue-live-badge"'), is_live, name);
+      assert.match(dom.content.innerHTML, /&lt;待唱&gt;/);
+    }
+  }
+});
+
 test('queue overlay entry links and evaluates through the real module graph', async () => {
   const dom = createQueueDom();
   const namespace = await loadQueueOverlay(dom, QUEUE_ENTRY);

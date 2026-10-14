@@ -226,6 +226,7 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
   try {
     const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
     const localBlindBoxConfig = runtime.getCloudSettingsSnapshot().giftBlindBoxConfig;
+    const initialSettings = runtime.getCloudSettingsSnapshot();
     runtime.applyCloudSettingsSnapshot({
       roomId: 'https://live.bilibili.com/1963694209',
       enableBilibili: false,
@@ -236,6 +237,7 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       allowDuplicate: false,
     });
     assert.deepEqual(runtime.getCloudSettingsSnapshot(), {
+      ...initialSettings,
       giftEffectDanmakuEnabled: false,
       roomId: '1963694209',
       enableBilibili: false,

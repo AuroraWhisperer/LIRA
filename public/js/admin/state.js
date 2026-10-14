@@ -109,6 +109,10 @@ export class StateService {
         if (payload.state !== null && !isRecord(payload.state)) return;
         this.applyRealtimeField('weSing', payload.state);
         dispatchRealtimeState('app:wesing-state', payload.state);
+      } else if (payload.type === 'lyric-source') {
+        if (!isRecord(payload.state)) return;
+        this.applyRealtimeField('lyricSource', payload.state);
+        dispatchRealtimeState('app:lyric-source', payload.state);
       } else if (payload.type === 'lyric-state') {
         if (!this.acceptLyricState(payload.state)) return;
         this.applyRealtimeField('lyricState', payload.state);
@@ -201,6 +205,7 @@ export class StateService {
     for (const [key, eventName] of [
       ['settings', 'app:settings-state'],
       ['weSing', 'app:wesing-state'],
+      ['lyricSource', 'app:lyric-source'],
       ['lyricState', 'app:lyric-state'],
       ['lyricTimeline', 'app:lyric-timeline'],
     ]) {

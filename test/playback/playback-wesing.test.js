@@ -45,7 +45,7 @@ test('WeSing browser client renders lyrics through the shared text renderer', ()
   assert.doesNotMatch(source, /innerHTML\s*=/);
 });
 
-test('WeSing browser client activates capture, saves settings and follows live state events', async () => {
+test('WeSing browser client selects its preference, saves settings and follows only its own live state', async () => {
   const listeners = new Map();
   const windowListeners = new Map();
   const requests = [];
@@ -88,9 +88,10 @@ test('WeSing browser client activates capture, saves settings and follows live s
       },
     },
   );
-  const playbackState = { selectedSource: 'qq' };
-  const service = new WeSingService({ playbackState });
-  service.init();
+  const service = new WeSingService();
+  service.init({ cacheReady: true, platformDetected: true, trackTitle: '缓存歌曲' });
+  assert.equal(service.getProviderHealth().ok, true, 'late initialization uses the current app snapshot');
+  assert.equal(elements.get('weSingTrackTitle').textContent, '缓存歌曲');
 
   await service.setSelected(true);
   await listeners.get('weSingResetLyricOffsetBtn:click')();
@@ -110,10 +111,8 @@ test('WeSing browser client activates capture, saves settings and follows live s
   assert.equal(service.getProviderHealth().ok, true);
   assert.equal(service.getAuthState().loggedIn, true);
 
-  windowListeners.get('app:lyric-state')({ detail: { lineText: '其他音源' } });
-  assert.equal(service.status.lyricState.lineText, '', 'lyrics from another selected source are ignored');
-  playbackState.selectedSource = 'wesing';
-  windowListeners.get('app:lyric-state')({ detail: { lineText: '全民歌词' } });
+  assert.equal(windowListeners.has('app:lyric-state'), false, 'global lyric output can belong to another player');
+  windowListeners.get('app:wesing-state')({ detail: { lyricState: { lineText: '全民歌词' } } });
   assert.equal(service.status.lyricState.lineText, '全民歌词');
 });
 

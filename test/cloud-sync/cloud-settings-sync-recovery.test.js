@@ -146,20 +146,31 @@ test('pending settings stay with their owner across account switches and late re
   const firstKey = f.key();
   const pending = Promise.withResolvers();
   f.setUpload(() => pending.promise);
-  f.edit({ roomId: '456', queueLimit: '77' });
+  const blacklist = JSON.stringify([{ uid: '123', name: '仅首个账号可见', expiresAt: 0 }]);
+  f.edit({ roomId: '456', queueLimit: '77', userQueueLimit: '2', userCooldownCaptainSeconds: '0',
+    songRequestMinMedalLevel: '5', songRequestUserBlacklist: blacklist });
   await new Promise(setImmediate);
   f.setAccount('second', 2);
   pending.resolve();
   await f.controller.whenIdle();
   assert.equal(f.settings.getSettings().queueLimit, '50');
   assert.equal(f.settings.getSettings().roomId, '123');
+  assert.equal(f.settings.getSettings().userQueueLimit, '0');
+  assert.equal(f.settings.getSettings().userCooldownCaptainSeconds, '');
+  assert.equal(f.settings.getSettings().songRequestMinMedalLevel, '0');
+  assert.equal(f.settings.getSettings().songRequestUserBlacklist, '[]');
   assert.equal(f.settings.getPendingCloudSettings(firstKey).values.queueLimit, '77');
+  assert.equal(f.settings.getPendingCloudSettings(firstKey).values.songRequestUserBlacklist, blacklist);
   assert.equal(f.settings.getPendingCloudSettings(f.key()), null);
   assert.ok(f.uploads.every((entry) => entry.account === firstKey));
   f.setAccount('first', 1);
   await f.controller.whenIdle();
   assert.equal(f.settings.getSettings().queueLimit, '77');
   assert.equal(f.settings.getSettings().roomId, '456');
+  assert.equal(f.settings.getSettings().userQueueLimit, '2');
+  assert.equal(f.settings.getSettings().userCooldownCaptainSeconds, '0');
+  assert.equal(f.settings.getSettings().songRequestMinMedalLevel, '5');
+  assert.equal(f.settings.getSettings().songRequestUserBlacklist, blacklist);
   assert.equal(f.settings.getPendingCloudSettings(firstKey), null);
 });
 

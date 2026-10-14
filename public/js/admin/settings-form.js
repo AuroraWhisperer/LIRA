@@ -13,6 +13,7 @@ export function createSettingsForm({
   initLicenseAccountDevice,
   blindboxSettings,
   blacklistEditor,
+  userBlacklistEditor,
   clearDatabase,
   clearSuperChats,
   clearAll,
@@ -71,6 +72,7 @@ export function createSettingsForm({
   async function init() {
     initDesktopControls();
     blacklistEditor?.init();
+    userBlacklistEditor?.init();
     await initLicenseAccountDevice();
     documentRef.getElementById('settingsForm').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -98,10 +100,19 @@ export function createSettingsForm({
         paused: value('paused'),
         queueLimit: value('queueLimit'),
         userCooldownSeconds: value('userCooldownSeconds'),
+        userQueueLimit: value('userQueueLimit'),
+        userCooldownCaptainSeconds: value('userCooldownCaptainSeconds'),
+        userCooldownAdmiralSeconds: value('userCooldownAdmiralSeconds'),
+        userCooldownGovernorSeconds: value('userCooldownGovernorSeconds'),
+        songRequestMinMedalLevel: value('songRequestMinMedalLevel'),
+        songRequestGuardLevel: value('songRequestGuardLevel'),
+        songRequestGuardMedalBypass: value('songRequestGuardMedalBypass'),
+        songRequestUserBlacklist: value('songRequestUserBlacklist'),
         songCooldownMode: value('songCooldownMode'),
         songCooldownValue: value('songCooldownValue'),
         onlyFromLibrary: value('onlyFromLibrary'),
         allowDuplicate: value('allowDuplicate'),
+        guardPriorityEnabled: value('guardPriorityEnabled'),
         songRequestBlacklist: value('songRequestBlacklist'),
       };
       savingRequest = true;
@@ -114,6 +125,9 @@ export function createSettingsForm({
         }
         if (value('songRequestBlacklist') === updates.songRequestBlacklist) {
           blacklistEditor?.render(result.data.settings.songRequestBlacklist);
+        }
+        if (value('songRequestUserBlacklist') === updates.songRequestUserBlacklist) {
+          userBlacklistEditor?.render(result.data.settings.songRequestUserBlacklist);
         }
         const changed = Object.entries(updates).some(([key, savedValue]) => value(key) !== savedValue);
         if (requestSaveState) requestSaveState.textContent = changed ? '有未保存修改' : '已保存';

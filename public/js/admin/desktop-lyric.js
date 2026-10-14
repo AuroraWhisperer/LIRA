@@ -9,6 +9,7 @@ import { formsService } from './forms.js';
 import { stateService } from './state.js';
 import { desktopLyricPreview } from './desktop-lyric-preview.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
+import { createLyricSourceControls } from './lyric-source-controls.js';
 
 export function createDesktopLyric({
   utils = sharedUtils,
@@ -18,6 +19,7 @@ export function createDesktopLyric({
 } = {}) {
   const AUTOSAVE_DELAY_MS = 500;
   const { setValue, api, dangerConfirm } = utils;
+  const lyricSourceControls = createLyricSourceControls({ api, state });
   const CHECKBOX_KEYS = new Set([
     'desktopLyricStrokeEnabled',
     'desktopLyricShadowEnabled',
@@ -65,6 +67,7 @@ export function createDesktopLyric({
   function initDesktopLyricForm() {
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
+    lyricSourceControls.init();
     registerLocalFontSelect(document.getElementById('desktopLyricFontFamily'));
     preview.init(form);
 

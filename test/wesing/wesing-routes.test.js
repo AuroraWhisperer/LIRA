@@ -166,6 +166,7 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
     method: 'POST',
     body: JSON.stringify({ active: false }),
   });
-  assert.equal(deactivated.payload.data.active, false);
-  assert.equal(monitorStops, 1);
+  assert.equal(deactivated.payload.data.active, true, 'clearing the preference must not disable detection');
+  assert.equal(monitorStops, 0);
+  assert.equal((await requestJson(`${app.baseUrl}/api/playback/lyric-source`, token)).payload.data.selection, 'auto');
 });

@@ -2,7 +2,7 @@
 
 > 涉及文件:[src/server/ws.js](../../../src/server/ws.js)、[src/server.js](../../../src/server.js)(getState/广播点)
 
-本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 18 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
+本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 19 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
 
 ## 1. 传输层(手写 RFC 6455)
 
@@ -37,15 +37,15 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 尚未交给 hub 的拒绝升级由 HTTP 入口收尾：400/423/503 响应写出后销毁 socket，不等待对方回 FIN。它们不属于 hub 的升级连接集合，不能依赖 hub.stop() 兜底。
 
-## 2. 快照(Snapshot)18 字段
+## 2. 快照(Snapshot)19 字段
 
-每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **18 个字段**；overlay 不接收这个完整对象：
+每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **19 个字段**；overlay 不接收这个完整对象：
 
 `topic=danmaku` 仅选择高频 `danmaku:message` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅该增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/transport/websocket-access-policy.test.js` 和 `test/transport/websocket-access-policy.test.js`。
 
 | 字段                  | 生产者                                     | 内容概述                                                                                                          |
 | --------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `queue`               | `domainServices.queue.getSnapshot()`       | 点歌队列快照,见 [music/services.md](music/services.md)                                                            |
+| `queue`               | `domainServices.queue.getSnapshot()`       | 点歌队列快照，单项 `is_live` 为布尔标记，queue overlay 白名单保留该字段；排序由后端确定，见 [music/services.md](music/services.md)                                                            |
 | `superChats`          | `domainServices.superChats.getSnapshot()`  | SC 列表(按价格降序),见 [bilibili/gift.md](bilibili/gift.md)                                                       |
 | `gifts`               | `domainServices.gifts.getSnapshot()`       | `recent` 近期礼物列表与 `viewRevision` 来源投影版本（未就绪时 null）；版本变化使流水选择与本日展示失效 |
 | `giftSprint`          | `domainServices.gifts.getSprintSnapshot()` | 礼物冲刺状态                                                                                                      |
@@ -61,6 +61,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `bilibiliDiagnostics` | `bilibiliDiagnostics` 对象                 | Bilibili 诊断信息(最近包/命令/礼物时间戳、解析计数等),见 [bilibili/danmaku.md](bilibili/danmaku.md)               |
 | `lyricState`          | `lyricState` 对象                          | 当前歌词行状态(单行),见 [music/services.md](music/services.md)                                                    |
 | `lyricTimeline`       | `lyricTimeline` 对象                       | 歌词时间轴(全曲),经 `normalizeLyricTimeline` 归一化                                                               |
+| `lyricSource` | `musicRuntime.getLyricSource()` | 实际输出来源、跟随偏好、正在播放的来源及 QQ / 网易云 / WeSing 采集状态，仅 Admin；见[音乐服务 §13](music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs) |
 | `weSing`              | `weSingCapture.getStatus()`                | 全民K歌采集状态,见 [music/wesing.md](music/wesing.md)                                                             |
 | `danmakuFeed`         | `danmakuFeedBuffer.getSnapshot()`          | 当前直播间最近 50 条弹幕和已结算礼物提示的公开投影，含可选 B 站表情或礼物字段，见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1 |
 
@@ -97,8 +98,9 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `gift:frame` | `{type,eventId,giftEventId,giftId,giftName,num,totalPriceCents,userName,avatarUrl,themeId}`；头像缺失为空字符串，旧事件可省略；预览另含 `preview/previewSessionId`；`themeId` 为 `woodland-bloom`，旧 motionMode 不再生成/投影 | final 礼物达到林间花信配置阈值时广播，或管理页显式预览；由 `gift/frame-config.js` 生成，一笔礼物只产生一个事件，金额单位为人民币分；头像仅接受已知 HTTPS B 站 CDN URL，并投影至 gift-effects 与场景 |
 | `gift:guard-thanks` | `{type,eventId,giftEventId,tier,userName,months,avatarUrl,textMode,style}`；style 为 aurora/classic，预览另含 `preview` | final 大航海礼物按各风格的独立开关生成事件，或管理页显式预览；由 `gift/guard-thanks-config.js` 生成；实时事件 ID 含风格后缀，旧设置兼容与广播顺序见 [礼物契约](bilibili/gift.md)；gift-effects scope 保留 style，但不接收 `giftEventId` |
 | `gift:effect` | `{type,source,eventId,giftId,effect}`；effect 为播放素材和布局展示 DTO | 礼物特效发布；仅 Admin 与 gift-effects scope 接收 |
-| `lyric-state`         | `{type:'lyric-state', state}`;state 兼容携带单调 `generation`/`sequence`                                             | 播放页歌词上报([server.js:348](../../../src/server.js#L348))、WeSing 采集状态变化([server.js:187](../../../src/server.js#L187))                                                                                                                                                                                                                                    |
-| `lyric-timeline`      | `{type:'lyric-timeline', timeline}`                                                                                  | 播放页歌词时间轴上报、WeSing 时间轴([server.js:163](../../../src/server.js#L163))                                                                                                                                                                                                                                                                                  |
+| `lyric-state` | `{type:'lyric-state', state}`；含 `generation/sequence` | `music-runtime` 更新实际输出来源（内置、QQ、网易云、WeSing）的状态或切换输出来源时广播 |
+| `lyric-timeline` | `{type:'lyric-timeline', timeline}` | `music-runtime` 接受当前生产者的完整时间轴时广播 |
+| `lyric-source` | `{type:'lyric-source', state:{source,selection,playingSources,qqClient,neteaseClient,weSing}}` | 跟随偏好、实际来源或采集状态变化；仅 Admin，相同快照去重，重连从 snapshot.lyricSource 恢复 |
 | `wesing-state`        | `{type:'wesing-state', state}`                                                                                       | WeSing 采集状态变化([server.js:184](../../../src/server.js#L184))                                                                                                                                                                                                                                                                                                  |
 | `overtime:update`     | `{type, reason, state, adjustment?}`                                                                                 | 加班机状态变更([server.js:148-153](../../../src/server.js#L148-L153)),`adjustment` 仅礼物结算时携带                                                                                                                                                                                                                                                                |
 | `gift-catalog:update` | `{type:'gift-catalog:update', snapshot}`；`snapshot` 包含付费全局目录、`version`、`stale`、来源时间、本地 `imagePath` 及 `assetsUpdatedAt`（ISO 字符串或空） | 本地图片扫描完成后广播；目录元数据变化及同版本缺图修复均可触发。Admin 去重包含图片 ID/路径和资源时间，按 ID 更新图片，不替换当前直播间成员，不改变礼物事件或规则结算 |

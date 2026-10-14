@@ -33,6 +33,7 @@ export function createEventHandlers(deps) {
     togglePlayback,
     changePlaybackQuality,
     suspendPlaybackForExternalSource,
+    setWeSingSelected,
     addCurrentTrackToPlaylist,
     loginSelectedMusicProvider,
     logoutSelectedMusicProvider,
@@ -246,8 +247,9 @@ export function createEventHandlers(deps) {
         const newSource = button.dataset.source;
         console.log('[Playback] Tab clicked:', newSource, 'Current:', playbackState.selectedSource);
         if (!newSource || newSource === playbackState.selectedSource) return;
-
+        const wasWeSing = playbackState.selectedSource === 'wesing';
         stateActions.selectSource(newSource);
+        if (wasWeSing || newSource === 'wesing') void setWeSingSelected(newSource === 'wesing');
         if (newSource === 'wesing') {
           // The WeSing client is the playback clock while this source is selected.
           suspendPlaybackForExternalSource();

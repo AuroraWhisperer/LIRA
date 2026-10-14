@@ -163,6 +163,11 @@ test('queue refusal codes preserve useful distinctions without echoing request t
   for (const [reason, code] of [
     ['不是点歌指令。', 'not-a-song-command'],
     ['用户冷却中，还需 10 秒。', 'user-cooldown'],
+    ['你目前已被限制点歌。', 'requester-blacklisted'],
+    ['暂时无法确认你的 UID，请稍后再点歌。', 'requester-identity-required'],
+    ['每人最多同时排队 2 首，请等待已点歌曲完成后再点歌。', 'user-queue-full'],
+    ['点歌需要本直播间 10 级及以上粉丝牌，暂未确认你符合要求。', 'requester-medal-required'],
+    ['点歌需要本直播间提督及以上身份，暂未确认你符合要求。', 'requester-guard-required'],
     ['《晴天》冷却中，还需 2小时。', 'song-cooldown'],
     ['符合条件的歌曲都在冷却，请稍后再试。', 'song-cooldown'],
     ['歌库里没有同时满足全部条件「私密条件」的可随机歌曲。', 'no-random-candidate'],

@@ -39,6 +39,10 @@ test('queue reconnect renders new requests and visible identity changes once', (
   const before = renders;
   apply({ ...item, requester_medal_level: 30 }, 'classic');
   assert.equal(renders, before, 'classic ignores identity fields it does not display');
+  apply({ ...item, is_live: true }, 'classic');
+  assert.equal(renders, before + 1, 'LIVE updates even when the queue order stays the same');
+  apply(item, 'classic');
+  assert.equal(renders, before + 2, 'removing LIVE also updates the overlay');
 });
 
 test('queue opacity percentages survive form refresh and preset sync without changing the saved scale', async () => {

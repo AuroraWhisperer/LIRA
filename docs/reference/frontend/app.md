@@ -88,6 +88,8 @@ LIRA 配套资源样式在时钟、弹幕、许愿、大航海感谢和点歌板
 
 `state-renderer.js` 消费 StateService 的 `changedKeys`，分别调度设置、队列、SC、直播状态、礼物和歌库元数据视图。`queue.js` 以具名 ESM 导出队列操作和渲染，只在 `legacy-admin-bridge.js` 发布既有兼容入口；它不再回填设置或渲染礼物、直播与分类。礼物专属快照不会重建队列或覆盖表单。
 
+「完成队首」捕获点击时已渲染的队首 ID，通过既有 `done` 动作完成该项；请求期间禁止重复点击，空队列不发送请求。请求途中身份优先或置顶改变顺序时，不会改为完成新队首；失败提示一次并恢复按钮供重试。
+
 `live-status-presentation.js` 统一识别长连失败、断开及两种重连失败的四条既有降级消息，供 `state-renderer.js`、新手引导、礼物统计状态和弹幕工具发送状态共用。降级时显示历史消息监听及可能延迟，不显示长连正常；不增加直播快照字段。弹幕工具读取发送状态接口已有的 `liveMessage`，降级时显示黄色“可发送，弹幕可能延迟”。
 
 礼物面板继续将 `changedKeys` 分发至检测状态、诊断、冲刺统计和最近礼物；仅诊断或直播状态变化不重建两个礼物列表。目录事件独立刷新图片和盲盒，配置输入与展开操作直接刷新盲盒列表，`blindBoxMapping` 独立更新映射状态文字。礼物通知仍执行原有去重检查。
@@ -182,7 +184,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 | `Events.GIFT_RECEIVED`                                                                           | stateService(礼物类 reason)→ 礼物通知模块       | 新礼物 toast 触发                                                    |
 | `Events.OVERTIME_UPDATED`                                                                        | stateService(overtime:update)→ overtime.js      | 加班机面板增量刷新(带 revision 去重)                                 |
 | `Events.GIFT_CATALOG_UPDATED`                                                                    | stateService(gift-catalog:update)→ overtime.js / gifts/recent.js  | 图片扫描完成后按精确 ID 刷新本地图片，去重包含图片路径和 assetsUpdatedAt；不得覆盖当前直播间成员，不触发歌库或礼物事件重载 |
-| CustomEvent `app:lyric-state` / `app:lyric-timeline` / `app:wesing-state` / `app:settings-state` | stateService → 各页面 `window.addEventListener` | WeSing 面板、直播歌词预览、设置自动保存就绪信号                      |
+| CustomEvent `app:lyric-state` / `app:lyric-timeline` / `app:lyric-source` / `app:wesing-state` / `app:settings-state` | stateService → 各页面 `window.addEventListener` | 歌词跟随与外部客户端状态、WeSing 面板、直播歌词预览、设置自动保存就绪信号 |
 
 **迁移期调用示例**:`app.js` 将 `STATE_LOADED` 交给具名导入的 `createAdminStateRenderer`，并显式注入礼物渲染函数；协调器直接调用队列、歌曲和表单 ESM 接口。歌曲模块通过 `createSongs({state, utils})` 显式依赖状态服务和工具。礼物入口通过具名 import 组装通知、检测、冲刺、最近礼物、盲盒和历史模块；工具函数和状态服务直接导入，通知工厂可注入 toast 能力。盲盒直接导入最近礼物图标及分析能力，并独立订阅 `GIFT_CATALOG_UPDATED`，不依赖全局注册顺序或最近礼物模块的转发；旧调用的发布集中在 bridge。遗留调用保持兼容，新增跨模块调用不得扩大全局模式。
 
@@ -255,9 +257,11 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 ### 4.1 queue.js(队列与 SC)
 
 - 渲染:点歌队列 = `current + waiting` 拼表,置顶📌、序号、来源标签(`admin/danmaku/superchat/random:<scope>`/history)、SC 列表(价格降序、已处理状态);长歌名分级字号(`data-length="long|very-long"`);管理员队列字体预览(`--admin-queue-font-family`,[queue.js:236-243](../../../public/js/admin/queue.js#L236-L243))。
-- 操作:`/api/queue/action`(next/clear/pin/unpin/delete)、`/api/superchats/action`(assist/unassist/delete),成功后 `reloadState()` 乐观刷新;清空队列走 `dangerConfirm` 二次确认;首行(当前播放)不显示置顶按钮,置顶按钮行为随 `is_pinned` 切换(↧/↑)。
+- 操作:`/api/queue/action`(done/clear/pin/unpin/live/unlive/delete)、`/api/superchats/action`(assist/unassist/delete),成功后 `reloadState()` 乐观刷新;清空队列走 `dangerConfirm` 二次确认;未置顶首行不显示置顶按钮；仅首行显示 LIVE 切换按钮（aria-pressed），标记后保留第 1 位，取消恢复规则排序,置顶按钮行为随 `is_pinned` 切换(↧/↑)。
 - 状态条归属：`queue.js` 更新队列计数 `#queueSize`；歌库计数 `#songCount` 与 `#liveStatus` 由 `state-renderer.js` 按对应字段变化更新。
 - 滚轮处理:队列内滚动用 wheel 事件归一化(deltaMode 换算),到达边界后放行页面滚动([queue.js:47-74](../../../public/js/admin/queue.js#L47-L74))。
+
+点歌规则的 `guardPriorityEnabled` 默认关闭，通过现有表单统一保存并保留未保存草稿；排序说明放在问号中。冷却模式保留问号说明，不再渲染控件下方重复段落。LIVE 是点歌队列标记，与播放器运行状态独立；各点歌板样式显示 LIVE，并把它纳入渲染变更判断。
 
 ### 4.2 songs.js(歌库)
 
@@ -268,9 +272,10 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 ### 4.3 settings.js(设置)
 
-- 账号登录页表单只收集 `roomId`；弹幕姬的 `danmakuMonitoringEnabled` 和礼物页的 `giftMonitoringEnabled` 是默认开启、独立即时保存的监控开关，帮助通过 `lira-help` 展示，服务端同步后不依赖桌面持续运行；独立点歌规则页 `request-rules.html` 的表单收集 `paused/queueLimit/userCooldownSeconds/songCooldownMode/songCooldownValue/onlyFromLibrary/allowDuplicate/songRequestBlacklist`，各自提交 `POST /api/settings`。点歌规则为两行三列，与屏蔽词分区展示；冷却模式控制时长输入的显示与禁用，快照填充后更新帮助且保留未保存草稿。规则和屏蔽词共用“保存点歌规则”，点歌板主题在点歌板页另行保存，彼此不提交对方的草稿。
-- `song-request-blacklist.js` 管理可编辑的词条列表，支持添加、删除和回车新增；单行原生输入框保留长词全文及光标选择，宽窗口三列、较窄窗口两列。列表通过隐藏字段沿用换行分隔的 `songRequestBlacklist` 设置，保存后按服务端返回的规范值刷新。
-- `song-cooldown-settings.js` 由表单事件与快照渲染共用，按冷却模式切换时长输入及说明；切回“不限制”时恢复无效时长为默认值，保证关闭冷却可以正常保存。
+- 账号登录页表单只收集 `roomId`；弹幕姬的 `danmakuMonitoringEnabled` 和礼物页的 `giftMonitoringEnabled` 是默认开启、独立即时保存的监控开关，帮助通过 `lira-help` 展示，服务端同步后不依赖桌面持续运行；独立点歌规则页 `request-rules.html` 按接收与排队、点歌间隔、点歌资格、屏蔽词、用户黑名单排列，统一提交 `POST /api/settings`。宽窗口左侧分类、右侧控件，通用和三种身份间隔并排，较窄窗口转为两列；空名单为单行提示，长用户名单在固定表头的表格内滚动，保存栏停留在工作区底部、播放器上方。字段及默认值见 [设置契约](../backend/api.md#2-设置settings)，新增项默认无额外限制；身份间隔留空继承通用间隔。冷却模式控制时长输入的显示与禁用，快照填充后更新帮助且保留未保存草稿。各规则共用“保存点歌规则”，点歌板主题在点歌板页另行保存，彼此不提交对方的草稿。
+- `song-request-blacklist.js` 管理可编辑的词条列表，支持添加、删除和回车新增；单行原生输入框保留长词全文及光标选择，按可用宽度自动分列。列表通过隐藏字段沿用换行分隔的 `songRequestBlacklist` 设置，保存后按服务端返回的规范值刷新。
+- `song-request-user-blacklist.js` 管理按 UID 的独立用户名单，通过隐藏字段 `songRequestUserBlacklist` 保存 JSON；昵称只是备注，以 DOM 属性写入。新增、编辑、删除都先修改草稿，到期时间按本机时区编辑并转为毫秒值，留空永久，到期项显示已过期；状态快照按内容核对行，保存中继续编辑与保存失败均保留草稿。
+- `song-cooldown-settings.js` 由表单事件与快照渲染共用，按冷却模式切换时长输入的显示与禁用；切回“不限制”时恢复无效时长为默认值，保证关闭冷却可以正常保存。
 - 点歌规则与黑名单编辑复用 `data-preserve-dirty`，主题保存或其他状态快照不覆盖草稿；保存成功只清除仍与提交值一致的字段标记，失败或保存期间继续编辑的字段保留草稿。
 - 立即生效开关:礼物检测 `enableGiftSprint`、礼物提示 `enableGiftNotification`(失败回滚 checkbox)。
 - Bilibili 扫码登录(仅桌面,`window.bilibiliAuth`,Web 模式禁用);登出走 `logoutConfirm` 弹窗。
@@ -348,6 +353,8 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 | 首次启动引导        | [interactive-tour.js](../../../public/js/admin/interactive-tour.js)                                                                                                                                                                             | 旧七步弹窗及全局 onboarding 控制器已退役，旧 settings 标记保留兼容；交互式导览只在用户配置首次使用时自动展示一次，并立即写入 `localStorage.liraTourFirstRunShown`，已有任意 `liraTourCompleted` 值也视为展示过，覆盖安装、版本升级和手动重看均不重新启用自动展示                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 直播歌词设置页(点歌主页面 Tab):[desktop-lyric.js](../../../public/js/admin/desktop-lyric.js) 收集 `desktopLyric*` 12 个键 → `/api/settings`,500ms 自动保存(带"等待自动保存/已保存/失败"状态条);客户端打开设置页时自动通过 Chromium `queryLocalFonts()` 读取、去重字体族名称并追加到主字体下拉框,若 Chromium 首次调用要求瞬时用户激活则在用户首次正常点击/按键时自动重试,不提供单独获取按钮;权限边界与原生确认见 [desktop/main.md](../desktop/main.md) §4;[desktop-lyric-preview.js](../../../public/js/admin/desktop-lyric-preview.js) 用 `LyricWordRenderer` + 弹簧动画控制器(`SPRING_STIFFNESS=170, SPRING_DAMPING=26`,[desktop-lyric-preview.js:26-29](../../../public/js/admin/desktop-lyric-preview.js#L26-L29))渲染完整时间轴预览,滚轮缩放、暂停 6 秒手动跟随。
+
+同页的 [lyric-source-controls.js](../../../public/js/admin/lyric-source-controls.js) 独立管理智能播放、内置 / 外部 QQ / 外部网易云 / 全民 K 歌跟随偏好、实际来源与外部客户端重检，不进入外观自动保存。智能选词和首选歌词源只在「全民 K 歌在线歌词」组中配置；外部播放器保持各自平台歌词。状态同步及播放行为见 [playback.md](playback.md#3-歌词链路)，服务端选择规则见[音乐服务 §13](../backend/music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs)。
 
 主播工作台的页面状态和统一 commit 仍由 `streamer-planner.js` 拥有；[streamer-planner-storage.js](../../../public/js/admin/streamer-planner-storage.js) 拥有版本迁移、读失败锁写和持久化结果；[streamer-planner-reminders.js](../../../public/js/admin/streamer-planner-reminders.js) 拥有 IPC 快照、签名去重、回复代次和同步状态。仅保存成功后同步提醒，失败不替换已保存的提醒快照；提示文案与渲染保留在页面，过期回复不覆盖当前状态。
 

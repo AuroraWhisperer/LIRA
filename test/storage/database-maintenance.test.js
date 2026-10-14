@@ -147,7 +147,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       databases = createDatabases({ dataDir });
 
       assert.deepEqual(getSchemaVersions(databases), {
-        songDb: 15,
+        songDb: 16,
         superChatDb: 2,
         giftDb: 18,
         musicDb: 1,
@@ -186,7 +186,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       const queue = databases.songDb
         .prepare(
           `
-        SELECT song_name, requester_uid, is_pinned, pinned_at FROM queue WHERE id = 1
+        SELECT song_name, requester_uid, is_pinned, pinned_at, is_live FROM queue WHERE id = 1
       `,
         )
         .get();
@@ -196,6 +196,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
           song_name: 'Legacy Song',
           requester_uid: 'legacy-user',
           is_pinned: 1,
+          is_live: 0,
           pinned_at: '2026-01-01T00:00:02.000Z',
         },
       );

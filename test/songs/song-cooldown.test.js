@@ -166,12 +166,15 @@ test('manual admission returns a readable cooldown error without broadcasting an
 });
 
 test('migration upgrades an existing library once and full data clearing removes cooldown records', (t) => {
-  const f = fixture(t);
+  const schema = require('../../src/storage/schema');
+  const migrate = schema.runMigrations;
+  const legacy = t.mock.method(schema, 'runMigrations', (db, key, steps) =>
+    migrate(db, key, key === 'song_db' ? steps.slice(0, 11) : steps));
+  let f;
+  try { f = fixture(t); } finally { legacy.mock.restore(); }
   f.saveSong({ name: '已有歌曲' });
-  f.db.songDb.exec("DROP TABLE song_cooldowns; UPDATE schema_version SET version = 11 WHERE key = 'song_db'");
   runAllMigrations(f.db);
   f.add();
-  f.db.songDb.exec("UPDATE schema_version SET version = 11 WHERE key = 'song_db'");
   runAllMigrations(f.db);
   assert.equal(f.context.store.listSongCooldowns().length, 1);
   assert.equal(f.db.songDb.prepare('SELECT name FROM songs').get().name, '已有歌曲');

@@ -52,7 +52,14 @@ const routes = {
 
   async 'POST /api/queue/action'(context, request, res) {
     const body = await request.body();
-    const result = context.queue.handleAction(body.action, body.id);
+    let result;
+    try {
+      result = context.queue.handleAction(body.action, body.id);
+    } catch (error) {
+      if (error.code !== 'QUEUE_LIVE_NOT_FIRST') throw error;
+      sendJson(res, 409, { ok: false, error: error.message, code: error.code });
+      return;
+    }
     context.broadcastSnapshot(`queue:${body.action}`);
     sendJson(res, 200, { ok: true, data: result });
   },

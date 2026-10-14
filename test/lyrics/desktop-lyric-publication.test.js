@@ -315,7 +315,7 @@ test('shared lyric renderer freezes its clock when playback pauses', async () =>
   assert.equal(renderer.getPosition(5000).currentMs, 1200);
 });
 
-test('shared lyric renderer accepts small backward authoritative corrections', async () => {
+test('shared lyric renderer ignores ordinary jitter but applies explicit small seeks', async () => {
   let currentTime = 1000;
   const rendererModule = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'),
@@ -334,15 +334,100 @@ test('shared lyric renderer accepts small backward authoritative corrections', a
   );
   const renderer = new rendererModule.LyricWordRenderer();
 
-  renderer.setState({ currentMs: 1000, durationMs: 10000, playing: true });
+  renderer.setState({ currentMs: 1000, durationMs: 10000, playing: true, generation: 1 });
   currentTime = 1300;
   assert.equal(renderer.getPosition(currentTime).currentMs, 1300);
 
   renderer.setState({ currentMs: 1100, durationMs: 10000, playing: true });
+  assert.equal(renderer.getPosition(currentTime).currentMs, 1300, 'ordinary sampling must not rewind playback');
+
+  renderer.setState({ currentMs: 1100, generation: 2 });
   assert.equal(renderer.getPosition(currentTime).currentMs, 1100);
+
+  currentTime = 1500;
+  renderer.setState({ currentMs: 1200, generation: 2 });
+  assert.equal(renderer.getPosition(currentTime).currentMs, 1300, 'the seek must not force later ordinary samples');
+  renderer.setState({ currentMs: 1250, discontinuity: true });
+  assert.equal(renderer.getPosition(currentTime).currentMs, 1250);
+  currentTime = 1600;
+  renderer.setState({ currentMs: 1300 });
+  assert.equal(renderer.getPosition(currentTime).currentMs, 1350, 'explicit discontinuities apply only once');
+  renderer.setState({ currentMs: 9000 });
+  assert.equal(renderer.getPosition(currentTime).currentMs, 9000, 'large external seeks still correct immediately');
+  renderer.dispose();
 
   const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'lyric-window.js'), 'utf8');
   assert.doesNotMatch(overlaySource, /Math\.max\(incoming, estimated\)/);
+});
+
+test('lyric clock anchors pause and resume without advancing while paused', async () => {
+  let now = 1000;
+  const { LyricClock } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/lyric-clock.js'));
+  const clock = new LyricClock({ now: () => now });
+  clock.setState({ currentMs: 1000, durationMs: 10000, playing: true });
+  now = 1500;
+  clock.setState({ currentMs: 1400, playing: false });
+  now = 2500;
+  assert.equal(clock.getPosition().currentMs, 1400);
+  clock.setState({ currentMs: 1500, playing: true });
+  assert.equal(clock.getPosition().currentMs, 1500, 'resume uses the newly measured position');
+  now = 2700;
+  assert.equal(clock.getPosition().currentMs, 1700);
+  clock.dispose();
+});
+
+test('shared lyric renderer keeps external sampling corrections from reversing lyric lines', async () => {
+  let now = 0;
+  const { LyricWordRenderer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/lyric-word-renderer.js'), {
+    performance: { now: () => now },
+  });
+  const { findActiveLyricIndex } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/lyrics/desktop-lyric-timeline.js'));
+  const renderer = new LyricWordRenderer({ scheduler: { start() {}, stop() {} } });
+  const lines = [{ startMs: 0 }, { startMs: 16050 }, { startMs: 17150 }];
+  renderer.setState({ currentMs: 15000, playing: true, durationMs: 180000, generation: 1 });
+  for (const currentMs of [15550, 16000, 16550, 17000]) {
+    now += 550;
+    const before = renderer.getPosition(now).currentMs;
+    renderer.setState({ currentMs });
+    const after = renderer.getPosition(now).currentMs;
+    assert.ok(after >= before, `normal sampling must not move ${before} back to ${after}`);
+    assert.ok(findActiveLyricIndex(lines, after) >= findActiveLyricIndex(lines, before));
+  }
+  renderer.setState({ currentMs: 17000, generation: 2, trackTitle: 'Other source' });
+  assert.equal(renderer.getPosition(now).currentMs, 17000, 'a source/track change still anchors within the tolerance');
+  renderer.dispose();
+});
+
+test('internal lyric publication preserves millisecond timing and does not jitter during playback', async () => {
+  let now = 100000;
+  const { LyricWordRenderer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/lyric-word-renderer.js'), {
+    performance: { now: () => now },
+  });
+  const renderer = new LyricWordRenderer({ scheduler: { start() {}, stop() {} } });
+  const positions = [];
+  const corrections = [];
+  const { LyricService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/lyric-service.js'), {
+    Date: class extends Date { static now() { return now; } },
+    fetch: async (url, options) => {
+      const body = JSON.parse(options.body);
+      if (url.endsWith('/lyric-state')) {
+        const before = renderer.getPosition(now).currentMs;
+        renderer.setState(body);
+        positions.push(body.currentMs);
+        corrections.push(renderer.getPosition(now).currentMs - before);
+      }
+      return { ok: true, json: async () => ({ ok: true, data: body }) };
+    },
+  });
+  const service = new LyricService();
+  const track = { id: 'steady', source: 'qq', title: 'Steady', lyrics: { lines: [{ startMs: 0, text: 'line' }] } };
+  for (let step = 0; step < 7; step++) {
+    now = 100000 + step * 250;
+    await service.syncWindow(track, { currentTime: (10040 + step * 250) / 1000, duration: 180, paused: false });
+  }
+  assert.deepEqual(positions, [10040, 10290, 10540, 10790, 11040, 11290, 11540]);
+  assert.ok(corrections.every((correction) => correction >= 0), 'continuous audio cannot rewind the display');
+  renderer.dispose();
 });
 
 test('built-in playback forces lyric sync for play, pause, and seek transitions', () => {

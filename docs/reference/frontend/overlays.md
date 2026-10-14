@@ -142,7 +142,7 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 
 | Scope | 专用 HTTP 读取与允许操作 | 快照字段与专用 WS 消息 |
 |---|---|---|
-| `queue` | 无 | `queue.current/waiting` 的歌名、请求者显示名、置顶与大航海/灯牌展示字段；`superChats.message/price`；本页主题设置 |
+| `queue` | 无 | `queue.current/waiting` 的歌名、请求者显示名、置顶、`is_live` 与大航海/灯牌展示字段；`superChats.message/price`；本页主题设置 |
 | `songlist` | GET `/songs`，服务端固定 `enabledOnly: true`，保留分类筛选 | 本页歌单主题设置；歌曲仅 `id/name/artist/category_name/language/name_initial` |
 | `blindbox` | GET `/gifts/blind-box-stats`，保留 `boxName` 筛选 | 本页主题与心动盲盒展示设置；统计仅盒数、总成本、开出礼物总价值、总盈亏、榜单显示名/盒数/盈亏及 `heartBoxProgress.openedSinceCastle` |
 | `overtime` | 无 | `overtime` 的 revision、状态、服务端时间、有效余时、背景与展示规则；`overtime:update` 的同一状态及结算动画字段 |
@@ -187,6 +187,7 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 - **状态获取**:队列、歌单、盲盒、加班机等快照消费者先 `fetch('/api/state')` 拿首帧快照,再连 `/ws` 收后续快照;WS 断开时按指数退避重连,重连前再次 `loadState()` 兜底(见 [comms.md](comms.md) §3)。
 - **字体**:中文字体栈 `Microsoft YaHei / PingFang SC` + 多语言回退(`overlay-utils.js` 的 `multilingualFontFallback`);队列/歌单板经 CSS 变量 `--overlay-font-family` 由管理页设置注入,加班机数字与 LIVE 徽标用 Bahnschrift / Bahnschrift SemiCondensed(见 §4)。
 - **指纹去重**:内容未变不重渲染(队列层 `computeStateKey`、歌单层三段指纹、加班机 revision 比较,详见 [comms.md](comms.md) §3.2)。
+- **点歌 LIVE**：所有点歌板样式仅在单项 `is_live` 为 true 时显示 LIVE；使用后端队列顺序，不根据第 1 位猜测演唱状态。`is_live` 纳入队列指纹，单独切换标记也会刷新。
 - **低功耗模式**:`overlay-utils.js` 的 `overlayLowPowerEnabled(settings)`——URL 参数 `?quality=low` 强制开启、`?quality=pretty|smooth` 强制关闭、否则读设置 `overlayLowPowerMode`([overlay-utils.js:48-53](../../../public/js/overlays/overlay-utils.js#L48-L53))。低功耗下加班机走 `low-motion` 类(动画 180ms、关闭 transform/filter,[overtime.css:307-310](../../../public/css/overlays/overtime.css#L307-L310))。
 
 ### 1.2 CSS 变量注入表(唯一成文处)
@@ -435,6 +436,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 - 性能默认值:新配置默认关闭弹性滚动、非当前行模糊和行缩放,优先保证歌词清晰与浏览器源稳定;用户已保存的显式设置继续生效。对齐方式支持左对齐、居中、右对齐和两端对齐。
 - **滚动与跟随**:歌词视口拥有独立纵向滚动;当前行切换时使用弹簧动画居中跟随。用户滚轮、触摸、指针或键盘滚动后暂停自动跟随 6 秒,再恢复到当前行。
 - **状态防回灌**:客户端只接受更大的 `generation`,或同一 generation 下严格递增的 `sequence`;旧客户端缺字段时保持兼容。`content-visibility:auto` 与 `contain-intrinsic-size` 跳过视口外绘制,不改变完整歌词的滚动结构。
+- **时钟与逐字连续性**:共享 `LyricWordRenderer` 的普通状态更新使用 `LyricClock` 已有的 350 ms 漂移容差，在容差内保持本地连续时钟，不逐包强制校准。首次状态、generation/曲目变化、显式 discontinuity、暂停/继续及超阈值漂移才重锚；因此内置 seek 和来源切换允许小幅向后跳转，外置大幅跳转也能立即跟随。generation/曲目变化同步重锚当前逐字动画；下一行采样提前到达时，保留显示中当前行的动画，实际换行再释放，避免容差内的时差清掉高亮。此策略同样供管理页预览与 WeSing 播放页的共享时钟使用。
 
 ## 6.1 弹幕姬
 

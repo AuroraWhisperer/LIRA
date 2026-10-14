@@ -114,7 +114,9 @@ test('recovery uses the timeline fence even before that generation has any accep
   for (let index = 0; index < 7; index += 1) {
     f.runtime.publishLyricTimeline({ trackTitle: String(index), lines: [], status: 'empty' });
   }
-  assert.equal(f.runtime.getLyricState().generation, 0);
+  assert.equal(f.runtime.getLyricState().trackTitle, '6');
+  assert.equal(f.runtime.getLyricState().status, 'loading');
+  assert.equal(f.runtime.getLyricState().currentMs, 0);
   await f.create().syncWindow(track, audioAt(15), true);
   assert.equal(f.runtime.getLyricState().currentMs, 15000);
   assert.ok(f.runtime.getLyricState().generation > 7);

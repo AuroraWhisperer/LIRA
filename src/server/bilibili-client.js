@@ -66,6 +66,9 @@ function createBilibiliClient(roomId, context) {
             requesterGuardLevel: danmaku.requesterGuardLevel,
             requesterMedalName: danmaku.requesterMedalName,
             requesterMedalLevel: danmaku.requesterMedalLevel,
+            requesterGuardVerified: danmaku.requesterGuardVerified,
+            requesterMedalVerified: danmaku.requesterMedalVerified,
+            currentRoomVerified: danmaku.currentRoomVerified,
             isPinned: danmaku.isPinned,
           });
           domainServices.messages.logDanmaku(danmaku, result);

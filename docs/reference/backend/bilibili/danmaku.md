@@ -134,11 +134,11 @@ text.startsWith('点歌') || text.startsWith('随机')
 1. 解析命令 → 非命令 `{accepted:false, reason:'不是点歌指令。'}`
 2. `settings.paused === 'true'` → 拒绝
    普通 request 随后对 `songRequestBlacklist` 每行应用 `cleanText`，与解析后的 `songName` 区分大小写完整比较；命中返回 `点歌内容命中黑名单。`，不进入冷却、歌库自动补全或入队。`78` 拦截 `点歌78` / `点歌 78`，不拦截 `点歌78号公路`。空名单不拦截；随机指令、手动入队及已有队列不受影响。
-3. 用户冷却:`userCooldownSeconds`(默认见 [storage.md](../storage.md) §7),内存 `cooldownByUser` Map + `cooldownStore.touch` 持久化(DB 失败不阻断本次点歌,[bilibili-message-handler.js:90-99](../../../../src/bilibili/bilibili-message-handler.js#L90-L99))
-4. `enableRandomTagReply` 保留原设置键，对应 UI“点歌回复”；单曲和随机的 `SONG_COOLDOWN` 转为未接受结果及自动 @ 回复（开关关闭则无回复），不推进观众冷却。内容由系统生成，无需词库；发送仍由客户端执行。
+3. 用户冷却：按本直播间已核验大航海选择对应身份间隔，空串沿用 `userCooldownSeconds`，0 不限；普通观众使用通用间隔。内存 `cooldownByUser` Map + `cooldownStore.touch` 持久化（DB 失败不阻断本次点歌）；UID 与 `open_id` 独立计时，启用间隔但缺少稳定身份时拒绝。
+4. `enableRandomTagReply` 保留原设置键，对应 UI“点歌回复”；单曲和随机的歌曲冷却、配额、用户黑名单及身份资格拒绝转为未接受结果及自动 @ 回复（开关关闭则无回复），不推进观众冷却。内容由系统生成，无需词库；发送仍由客户端执行。
 5. random:`context.pickRandomSong(scopeText)`(歌库随机,scope 匹配标签/分类,见 [services.md](../music/services.md));无歌时若 `enableRandomTagReply==='true'` 生成 autoReply([bilibili-message-handler.js:42-57](../../../../src/bilibili/bilibili-message-handler.js#L42-L57)、[bilibili-message-handler.js:156-173](../../../../src/bilibili/bilibili-message-handler.js#L156-L173))
 6. request:`resolveSongRequest(songName)` 唯一名匹配后 `addQueueItem`([bilibili-message-handler.js:72-88](../../../../src/bilibili/bilibili-message-handler.js#L72-L88))
-7. 队列项携带 `requesterName/requesterUid/requesterGuardLevel/requesterMedalName/requesterMedalLevel/isPinned/messageTimestamp`(消费方 queue-service 见 [services.md](../music/services.md))
+7. 入队输入携带 `requesterName/requesterUid/requesterIdentityType/requesterGuardLevel/requesterMedalName/requesterMedalLevel/isPinned/messageTimestamp`，以及内部 `viewerRequest` 与独立的 `requesterGuardVerified/requesterMedalVerified`。实时弹幕、SC、历史消息及桌面随机入口都转发 user-info 的当前房间证据；未知或外间身份不能满足资格。统一准入、事务配额及默认值见 [services.md](../music/services.md) §8.2 与 [storage.md](../storage.md) §7。
 
 ## 6. 弹幕机器人职责
 
@@ -231,6 +231,7 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 
 拒绝原因代码：`requests-paused` 暂停接收、`user-cooldown` 用户冷却、`song-cooldown` 单首歌曲／随机候选全部冷却、
 `song-request-blacklisted` 点歌内容完整命中本机黑名单、
+`requester-blacklisted` 用户名单、`requester-identity-required` 缺少身份、`user-queue-full` 个人配额、`requester-medal-required` 粉丝牌门槛、`requester-guard-required` 大航海门槛、
 `no-random-candidate` 无符合条件的随机歌曲、`empty-song-name` 缺少歌名、
 `queue-full` 队列满、`song-already-queued` 已入队、`song-not-in-library` 不在歌库、
 `not-a-song-command` 指令不完整、`stale-timestamp` 超出接收时间窗、

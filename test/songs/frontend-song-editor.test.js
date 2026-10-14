@@ -117,7 +117,7 @@ test('a complete library refresh resets the editor only when its song was remove
   assert.equal(await page.locator('#songId').inputValue(), '1', 'a filtered result is not treated as a deletion');
   await page.evaluate(() => window.renderComplete([window.library[1]]));
   assert.equal(await page.locator('#songId').inputValue(), '');
-  assert.equal(await page.locator('#songFormTitle').textContent(), '添加歌曲');
+  assert.equal(await page.locator('#songFormTitle').isVisible(), false);
   await page.evaluate(() => {
     document.getElementById('songId').value = '3';
     window.renderComplete([window.library[1]]);

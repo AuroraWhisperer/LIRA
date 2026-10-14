@@ -35,13 +35,20 @@ function oldQueue(f) {
 }
 
 function upgrade(f) {
-  f.db.songDb.prepare("UPDATE schema_version SET version = 12 WHERE key = 'song_db'").run();
   return runMigrations(f.db.songDb, 'song_db', [...Array(12).fill(null), migrateFanSongRetention]);
+}
+
+function legacyFixture(t) {
+  const schema = require('../../src/storage/schema');
+  const migrate = schema.runMigrations;
+  const legacy = t.mock.method(schema, 'runMigrations', (db, key, steps) =>
+    migrate(db, key, key === 'song_db' ? steps.slice(0, 12) : steps));
+  try { return fanFixture(t); } finally { legacy.mock.restore(); }
 }
 
 test('v13 compacts existing songs and snapshots, retains active replay protection and upgrades once', (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
-  const f = fanFixture(t);
+  const f = legacyFixture(t);
   const p = f.create();
   const request = oldQueue(f);
   f.record(p.id, 'preference', { sentiment: 'like', label: '轻音乐', reason: '本人确认' });
@@ -63,7 +70,7 @@ test('v13 compacts existing songs and snapshots, retains active replay protectio
     .run(`snapshot-${i}`, SCOPE, NOW, JSON.stringify(backup));
   const terminal = oldQueue(f);
   f.db.songDb.prepare("UPDATE queue SET status = 'done' WHERE id = ?").run(terminal.queue_id);
-  f.db.songDb.exec('ALTER TABLE requests DROP COLUMN fan_recorded');
+  assert.equal(f.db.songDb.prepare('PRAGMA table_info(requests)').all().some((column) => column.name === 'fan_recorded'), false);
 
   assert.equal(upgrade(f).applied, 1);
   const detail = f.detail(p.id);
@@ -102,7 +109,7 @@ test('v13 compacts existing songs and snapshots, retains active replay protectio
 
 test('failed source deletion rolls back song conversion, snapshot pruning and migration version', (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
-  const f = fanFixture(t);
+  const f = legacyFixture(t);
   const p = f.create();
   const request = oldQueue(f);
   rawSong(f, p.id, 'raw', NOW, {}, `request:${request.stable_id}`);
@@ -117,7 +124,8 @@ test('failed source deletion rolls back song conversion, snapshot pruning and mi
   assert.deepEqual(f.db.songDb.prepare('SELECT * FROM fan_records').all(), rawBefore);
   assert.deepEqual(f.db.songDb.prepare('SELECT * FROM fan_restore_snapshots').all(), snapshotsBefore);
   assert.equal(f.db.songDb.prepare("SELECT version FROM schema_version WHERE key = 'song_db'").get().version, 12);
-  assert.equal(f.db.songDb.prepare('SELECT fan_recorded FROM requests').get().fan_recorded, 0);
+  assert.equal(f.db.songDb.prepare('PRAGMA table_info(requests)').all().some((column) => column.name === 'fan_recorded'), false,
+    'a failed v13 migration also rolls back its new column');
   f.db.songDb.exec('DROP TRIGGER fail_old_request_delete');
   assert.equal(upgrade(f).applied, 1);
   assert.equal(f.detail(p.id).songs[0].data.count, 1);

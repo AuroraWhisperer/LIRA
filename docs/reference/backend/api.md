@@ -301,9 +301,14 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 | 键/组 | 接受输入与存储形态 |
 | --- | --- |
-| `danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`onlyFromLibrary`、`allowDuplicate`、`giftEffectDanmakuEnabled` | 仅 boolean、数字 0/1、精确字符串 `'true'/'false'/'0'/'1'`；存为 `'true'/'false'`，不接受任意 truthy 值 |
+| `danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`onlyFromLibrary`、`allowDuplicate`、`guardPriorityEnabled`、`giftEffectDanmakuEnabled` | 仅 boolean、数字 0/1、精确字符串 `'true'/'false'/'0'/'1'`；存为 `'true'/'false'`，不接受任意 truthy 值 |
 | `queueLimit` / `userCooldownSeconds` | number 或十进制数字字符串（可首尾空白）；整数分别 1–300 / 0–3600，存规范十进制字符串；不接受指数/小数/符号形式的字符串 |
 | `songCooldownMode` / `songCooldownValue` | 模式严格为 `off/hours/days`；数值接受 1–999 的整数或十进制整数字符串，存规范字符串；非法批次不写入。云端同步新增可选字段，旧快照省略时保留本地值 |
+| `guardPriorityEnabled` | 默认关闭；按账号同步的可选字段，旧快照省略保留本地值；保存后重排现有等待队列，具体顺序见 [音乐服务](music/services.md#83-handlequeueactioncontext-action-rawidqueue-servicejs) |
+| `userQueueLimit` | 0–300 的整数或十进制整数字符串，默认 0（不限制单人活跃点歌数） |
+| `userCooldownCaptainSeconds` / `userCooldownAdmiralSeconds` / `userCooldownGovernorSeconds` | 精确空串表示沿用通用用户间隔（默认）；否则接受 0–3600 的整数或十进制整数字符串，0 明确不限制，空白串无效 |
+| `songRequestMinMedalLevel` / `songRequestGuardLevel` / `songRequestGuardMedalBypass` | 粉丝牌要求为 0–100（默认 0 不限）；大航海要求为 0 不限、3 舰长及以上、2 提督及以上、1 总督；前两项接受整数或十进制整数字符串。免牌开关默认 false，接受既有兼容 boolean 标量，只免粉丝牌、不免大航海等级要求 |
+| `songRequestUserBlacklist` | 数组或 JSON 数组文本，最多 200 项；每项仅允许 `uid`、`name`、`expiresAt`。uid 必填且为 1–25 位正整数文本、不能重复；name 可省略为空，原始值最多 80 个 Unicode code point，保存去首尾空白；expiresAt 可省略为 0，仅接受 0–253402300799999 的整数毫秒时间，0 永久，到期自动失效。默认 `[]`，不与点歌屏蔽词混用 |
 | `roomId` | §2.2 的 `normalizeRoomInput`；空值可清空，非空但不能解析的输入失败，不默认为有效空房间 |
 | `customReplyRules` | §2.3 的数组/JSON 解析与清洗，结果保存为 JSON 文本；非法 JSON 按该 owner 的既有规则回退空数组 |
 | `songRequestBlacklist` | 仅接受字符串；每行一项，将 CRLF/CR 转 LF、按 `cleanText` 合并行内空白并去首尾空白，去掉空行和重复项；存为换行分隔文本。空字符串清空名单；仅保存在本机 |
@@ -317,6 +322,8 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | 互动外观 | [interaction-appearance.js](../../../public/js/shared/interaction-appearance.js)：标题/提示为字符串且最多 60/80 字素；规则文本转 LF、NFC；显示开关仅 boolean/字符串 true/false；透明度整数 0–100、字号 16–24、圆角 0–32（数字或 1–3 位数字字符串）；颜色为六位十六进制，存小写；数字/布尔存字符串 |
 | `weSingCachePath` / `weSingLyricOffsetMs` | [wesing-cache.js](../../../src/music/wesing-cache.js)：路径转字符串、trim/去外层双引号，必须为绝对路径且末级名为 WeSingCache，长度 ≤1024、无控制字符；偏移 Number 转换、四舍五入后为 -3000～3000 ms，存字符串 |
 | `checkinBlessings` / `fortunePool` | 兼容遗留键；字符串保持原样，其他值 JSON.stringify，null/undefined 按 String 保存；不是云端每日机器人配置入口 |
+
+上述每人配额、身份间隔、资格与用户黑名单通过 `song-request-settings.js` 统一标准化，本地保存字符串；云端为可选字段，响应使用数值、布尔值、数组（身份间隔继承时仍为空串）。旧端省略保留已有值，错误批次整体拒绝；规则按账号同步，名单不进入公开 overlay。启用后的准入语义见 [音乐服务](music/services.md)。
 
 盲盒 normalizer 的边界补充：两个配置数组均最多100盒，每盒 outputs 为1–200项；归一化后 JSON UTF-8≤64 KiB。legacy 盒为 `{name,price,outputs}`，output 可名称字符串或 `{name,price?}`；名称 trim 后≤100个 UTF-16单元，禁止 NUL/换行。V2 盒为 `{customId?,giftId:null或ID,name,price,outputs:[{giftId,name,price?}]}`；customId 若提供须合法 UUID（转小写），giftId 为1–20位非零开头数字；名称 NFC、禁止所有 Cc。V2 盒名/customId/非空 giftId 不重复，每盒 output giftId 不重复。价格 Number 转换后须有限、>0且≤1,000,000元，四舍五入两位后仍>0；可选产物价 null/undefined 表示未知并省略。以上只定义可同步格式，不在客户端重建服务器收礼判定。
 
@@ -411,7 +418,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 | `GET /api/music/wesing/status`     | 无                              | 全民K歌采集状态(WS 快照 `weSing` 字段同源)   | 400                                   |
 | `POST /api/music/wesing/configure` | `{cachePath}`                   | 配置缓存目录(写回设置 `weSingCachePath`)     | 400                                   |
 | `POST /api/music/wesing/offset`    | `{offsetMs}`                    | 设置歌词偏移(写回设置 `weSingLyricOffsetMs`) | 400                                   |
-| `POST /api/music/wesing/active`    | `{active: boolean}`(必须为布尔) | 开关采集                                     | 400(非布尔时 `active 必须是布尔值。`) |
+| `POST /api/music/wesing/active`    | `{active: boolean}`(必须为布尔) | true 确保采集已启用并设置 wesing 跟随偏好；false 仅在偏好为 wesing 时恢复 auto，保持后台采集；返回 WeSing 状态 | 400(非布尔时 `active 必须是布尔值。`) |
 | `POST /api/music/wesing/refresh`   | 无                              | 立即刷新当前歌词                             | 400                                   |
 
 行为文档:[music/wesing.md](music/wesing.md)。
@@ -453,8 +460,11 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 
 | 端点                                         | 请求                                                                       | 响应(data)                                                        | 错误码 |
 | -------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------ |
-| `POST /api/playback/lyric-state`             | body(歌词行状态,经 `normalizeLyricState`;可选兼容 `generation`/`sequence`) | 接受时返回版本化 state 并广播；旧版本不广播，返回最后接受的 state + `nextGeneration`（当前服务代际门槛 + 1），供发送者恢复 | 400    |
-| `POST /api/playback/lyric-timeline`          | body(歌词时间轴,经 `normalizeLyricTimeline`)                               | 归一化后的 timeline;同时广播 `lyric-timeline`                     | 400    |
+| `GET /api/playback/lyric-source` | 无 | 当前 `{source, selection, playingSources, qqClient, neteaseClient, weSing}`；字段与选择规则见[音乐服务 §13](music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs) | 401 |
+| `POST /api/playback/lyric-source` | `{source}`：auto、internal、qq-client、netease-client 或 wesing | 修改跟随偏好并返回完整来源状态；只有一个播放器播放时仍自动跟随它；外部采集仅 Windows，偏好不持久化，不控制音频或启停采集 | 400/401 |
+| `POST /api/playback/lyric-source/refresh` | `{source?}`：qq-client、netease-client 或 wesing | 重检指定采集器；省略 source 时重检当前外部来源，当前为 internal 时重检全部受支持采集器；返回来源状态，不修改偏好 | 400/401 |
+| `POST /api/playback/lyric-state` | 归一化内置歌词状态；可选 `generation/sequence` | 接受为 internal 候选后重新选择输出来源，仅实际输出 internal 时广播；旧版本返回最后接受的内置状态及 `nextGeneration` | 400 |
+| `POST /api/playback/lyric-timeline` | 归一化内置歌词时间轴 | 返回归一化输入并缓存 internal 候选；仅实际输出 internal 时广播 | 400 |
 | `GET /api/playback/history`                  | 查询参数 `clientId?`、`limit?`(默认 500)                                   | `{tracks}`                                                        | 400    |
 | `POST /api/playback/history`                 | `{track, clientId?, origin?, requesterName?, playedAt?}`                   | `recordPlay` 结果                                                 | 400    |
 | `POST /api/playback/history/remove`          | `{trackKey, clientId?}`                                                    | `{removed: boolean}`                                              | 400    |
@@ -540,8 +550,10 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | 端点                     | 请求                                                                                                                                                                                                                                                                                                                                 | 响应(data)                                          | 错误码                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `POST /api/queue/add`    | `{songName`(必填), `artist?`, `categoryName?`, `requesterName?`(默认 `'主播'`), `requesterUid?`(默认 `'admin'`), `requesterGuardLevel?`, `requesterMedalName?`, `requesterMedalLevel?`, `source?`(默认 `'admin'`), `message?`(默认 `''`), `isPinned?`};命中曲库时自动补全 artist/category 并关联 `song_id`,同时写点歌流水 `requests` | 新队列项;广播 `queue:add` | 400：`SONG_NAME_REQUIRED`（空歌名）、`QUEUE_FULL`（队列上限）、`SONG_ALREADY_QUEUED`（重复歌曲）、`SONG_NOT_IN_LIBRARY`（仅歌库规则）、`SONG_COOLDOWN`（冷却）；响应含 `code` 与原提示，拒绝时不广播 |
-| `POST /api/queue/action` | `{action, id?}`:`next`/`clear` 不需要 id;`pin`/`unpin`/`delete`/`done`/`skip` 需要 `id`(取第一首当前歌时置 `done`)                                                                                                                                                                                                                   | 队列快照 `{current, waiting}`;广播 `queue:<action>` | 500(`缺少队列 ID。`/`未知队列操作。`)                                                      |
+| `POST /api/queue/action` | `{action, id?}`:`next`/`clear` 不需要 id;`pin`/`unpin`/`live`/`unlive`/`delete`/`done`/`skip` 需要 `id`(取第一首当前歌时置 `done`)                                                                                                                                                                                                                   | 队列快照 `{current, waiting}`;广播 `queue:<action>` | 409(`QUEUE_LIVE_NOT_FIRST`，LIVE 目标不是当前队首或 ID 无效)；500(`缺少队列 ID。`/`未知队列操作。`)                                                      |
 | `POST /api/queue/random` | 无；忽略客户端提供的身份或指令，以服务端当前已登录 Bilibili 账号 UID 和用户信息门面中的昵称、可用房间身份调用现有“随机点歌”处理器；昵称不可用时显示 `UID <uid>` | 新队列项；来源为 `random`，广播既有 `queue:add`；不发送直播弹幕 | 401（缺少会话 token）；400（未登录直播账号、在途账号或房间变化、暂停点歌、用户冷却、无可随机歌曲、重复歌曲、队列上限）；其他异常沿用顶层 500 脱敏处理 |
+
+随机点歌还执行新观众规则，业务拒绝返回 400 及 `REQUESTER_IDENTITY_REQUIRED`（缺少所需可验证身份）、`REQUESTER_BLACKLISTED`（有效 UID 名单）、`REQUESTER_GUARD_REQUIRED`（大航海门槛）、`REQUESTER_MEDAL_REQUIRED`（本直播间粉丝牌）、`USER_QUEUE_FULL`（个人活跃配额）。规则同样作用于普通弹幕与 SC；歌库手动 `/api/queue/add` 保留管理员权限，HTTP body 不能传入内部 `viewerRequest` 或核验标志来授予观众资格。
 
 随机点歌在昵称等异步读取完成后、同步入队前复核 Bilibili 登录身份与配置房间。账号切换、退出后重登或房间切换（包括切走再切回）使旧请求返回 400、`{ok:false,error:'直播账号或房间已变更，已取消本次随机点歌，请重试。'}`，不入队也不消耗点歌冷却。正常 token 续期、同账号打开登录窗口／替换 Cookie、同房间重连不取消；已经成功入队的歌曲保持不变。身份变化由桌面认证 owner 的私有读取能力提供，见 [登录与会话](../desktop/auth.md#71-登录退出与替换竞争)。
 

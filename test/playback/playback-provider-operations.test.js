@@ -40,7 +40,7 @@ test('NetEase login closure names the selected music provider', async () => {
   assert.equal(button.disabled, false);
 });
 
-test('WeSing selection uses capture state instead of online-provider auth and health checks', async () => {
+test('WeSing health reads capture state without changing source preference or querying online providers', async () => {
   const selected = [];
   const { createProviderOperations } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'operations', 'provider-operations.js'),
@@ -68,7 +68,7 @@ test('WeSing selection uses capture state instead of online-provider auth and he
   });
 
   await operations.refreshSelectedMusicProviderState();
-  assert.deepEqual(selected, [true]);
+  assert.deepEqual(selected, []);
   assert.deepEqual({ ...operations.getAuthState() }, { loggedIn: true });
   assert.equal(operations.getProviderHealth().source, 'wesing');
   assert.equal((await operations.refreshSelectedMusicAuthState()).loggedIn, true);

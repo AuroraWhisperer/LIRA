@@ -21,6 +21,9 @@
 | song-import-schema.js + song-file-codec.js | 导入导出列契约与 CSV/XLSX 编解码                         | §11  |
 | requester-target-store.js                  | 随机点歌请求者定位(弹幕机器人用)                         | §12  |
 | lyric-state.js / lyric-timeline.js         | 歌词状态/时间轴归一化(WS 载荷生产者)                     | §13  |
+| lyric-source-selection.js                 | 按实际播放状态与手动偏好选择歌词输出                     | §13  |
+| qq-client-* / netease-client-*            | 外部 QQ / 网易云客户端的只读识别、时钟与歌词采集         | §13  |
+| external-client-lyrics.js                 | 外部播放器固定本平台的歌词解析                          | §13  |
 | providers/ + lyric-parser.js + wesing-*          | 见各自文档                                               | —    |
 
 ## 2. 领域装配(server-core.md §5 的接线详情)
@@ -231,33 +234,41 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 校验链(顺序即语义):
 
 1. `songName` 必填
-2. **队列上限**:`queueLimit` 设置(defaults 兜底),统计 `status IN ('current','waiting')` 的活跃数,满则抛"点歌队列已达到上限。"
-3. **曲库校验**:`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛"歌库里没有这首歌。"
-4. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与当前账号 scope 检查最近成功入队时间；小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
-5. **重复检查**:`allowDuplicate !== 'true'` 时,活跃队列内同名(仅 song_name)即抛"队列里已经有这首歌。"
+2. **观众资格**：仅内部入口标记 `viewerRequest: true` 时由 [song-request-policy.js](../../../../src/music/song-request-policy.js) 检查有效 UID 黑名单、配额所需身份、大航海与粉丝牌门槛。默认均不限，已过期名单忽略；名单启用但无法核验 UID 时拒绝，不能把 `open_id` 当 UID。粉丝牌与大航海分别依赖当前房间已核验证据；免牌只豁免粉丝牌，不豁免大航海门槛。
+3. **队列上限**:`queueLimit` 设置(defaults 兜底),统计 `status IN ('current','waiting')` 的活跃数,满则抛"点歌队列已达到上限。"
+4. **曲库校验**:`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛"歌库里没有这首歌。"
+5. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与当前账号 scope 检查最近成功入队时间；小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
+6. **重复检查**:`allowDuplicate !== 'true'` 时,活跃队列内同名(仅 song_name)即抛"队列里已经有这首歌。"
+
+每人同时排队上限在 `queue-store.insertRequest` 的 `BEGIN IMMEDIATE` 事务内检查，以 `requests.identity_type` 与 `queue.requester_uid` 统计活跃队列，包含 LIVE；改昵称不释放配额，完成、删除、跳过与清空后释放，重启仍从已存队列统计。超限抛 `USER_QUEUE_FULL`，不写入流水、歌曲冷却或队列。资格与配额同样约束普通弹幕、随机点歌（含桌面随机按钮）及 SC；SC 置顶不豁免，歌库手动入队保留管理员能力。保存新规则不删除已有队列。
+
+分身份用户间隔由同一 policy 根据本直播间已核验的大航海身份选择；空串沿用 `userCooldownSeconds`，0 明确不限制。弹幕桥在入队前检查、成功后记录既有冷却 store；普通 UID 与 `open_id` 使用独立键，开启间隔却缺稳定身份时拒绝。
 
 冷却使用实际入队时刻，不能使用上游消息时间。存储事务内再次检查，并将最近成功入队时间与队列、流水原子写入；失败或冷却拦截不更新时间。关闭规则期间也记录成功时间，改规则据此重新计算。完成、跳过、删除、清空队列及重启保留记录；升级前流水不回填冷却。账号 scope 来自组合根，客户端输入不能选择冷却归属。
 
 空歌名、队列满、仅歌库拒绝、重复与冷却由队列 owner 标记稳定业务 code（见 [HTTP 队列契约](../api.md)）。手动与随机入口统一映射为 400；弹幕桥返回 `accepted:false`、`code`、`reason`，仅在既有 `enableRandomTagReply` 开启时生成 @ 原请求者的提示，不更新成功点歌冷却、不写入请求。
 
-入队(与 `requests` 流水及 `song_cooldowns` **同事务**):`song_id`/`song_name`/`artist`/`category_name` 在命中曲库时用曲库规范值;`requester_name` 缺省"观众";`source` 缺省 `admin`;`status = 'waiting'`;`is_pinned` 时 `pinned_at = createdAt`。返回 `normalizeQueueRow`(布尔化 `is_pinned`、归一 guard/medal)。
+入队(与 `requests` 流水及 `song_cooldowns` **同事务**):`song_id`/`song_name`/`artist`/`category_name` 在命中曲库时用曲库规范值;`requester_name` 缺省"观众";`source` 缺省 `admin`;`status = 'waiting'`;`is_pinned` 时 `pinned_at = createdAt`。返回 `normalizeQueueRow`(布尔化 `is_pinned` / `is_live`、归一 guard/medal)。
 
 ### 8.3 handleQueueAction(context, action, rawId)([queue-service.js](../../../../src/music/queue-service.js))
 
 | action          | 行为                                                                                                       |
 | --------------- | ---------------------------------------------------------------------------------------------------------- |
-| `next`          | 取活跃队列**第一个**(排序 `is_pinned DESC, pinned_at ASC, created_at ASC, id ASC`)标 `done`;无活跃项则空转 |
+| `next`          | 按下述统一顺序完成队首；无活跃项则空转 |
 | `clear`         | 全部活跃项 → `deleted`                                                                                     |
-| `pin` / `unpin` | 置位 + `pinned_at = updatedAt` / 清空                                                                      |
+| `pin` / `unpin` | 置位并更新 `pinned_at` / 清空；连续置顶时间至少递增 1ms，最近置顶最靠前                                                                      |
+| `live` / `unlive` | 仅允许当前队首切换 `is_live`；ID 非正整数或队首已变化时拒绝，HTTP 返回 409 `QUEUE_LIVE_NOT_FIRST` |
 | `delete`        | → `deleted`                                                                                                |
 | `done`          | → `done`                                                                                                   |
 | `skip`          | → `skipped`                                                                                                |
 | 其他            | 抛"未知队列操作。"                                                                                         |
 
+排序统一为：LIVE → 手动置顶（最近置顶优先）→ 开启 `guardPriorityEnabled` 时按点歌入队携带的总督(1)、提督(2)、舰长(3)、非大航海(0) → 原创建时间和 ID。默认关闭身份优先；开关保存立即作用于已有队列。LIVE 是手动标记，最多一首，独立于 `status`；不触发播放器。完成、删除、跳过、清空移除该项，不自动标记下一首。
+
 ### 8.4 快照与重启恢复
 
 - `getQueueSnapshot`([queue-service.js](../../../../src/music/queue-service.js)):返回 **`{ current: null, waiting: [...] }`**——`current` 恒为 null,前端自行消费(与 WS 快照 `queue` 字段一一对应,见 [ws.md](../ws.md) §2);waiting 排序同 `next`,并 LEFT JOIN `requests.message AS request_message`
-- 启动调用 `ensureUnifiedQueue`([queue-service.js](../../../../src/music/queue-service.js))，仅将历史 `current` 态归位为 `waiting`；未完成点歌的 ID、内容、时间和置顶顺序保留，已完成/删除/跳过的项不恢复。只有显式完成或清空操作改变相应状态（调用点见 [server-core.md](../server-core.md) §5 启动修复链）。
+- 启动调用 `ensureUnifiedQueue`([queue-service.js](../../../../src/music/queue-service.js))，仅将历史 `current` 态归位为 `waiting`；未完成点歌的 ID、内容、时间、LIVE 与置顶标记保留，已完成/删除/跳过的项不恢复。只有显式完成或清空操作改变相应状态（调用点见 [server-core.md](../server-core.md) §5 启动修复链）。
 
 ## 9. 歌曲匹配(song-matcher.js)
 
@@ -344,7 +355,19 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ## 13. 歌词状态与时间轴(lyric-state.js / lyric-timeline.js)
 
-`music-runtime` 拥有全局 `generation`/`sequence` 筛选门槛，时间轴变化也会升代。旧版本状态仍不修改或广播当前状态；其 HTTP 发布响应在最后接受状态旁附加 `nextGeneration = 当前门槛 + 1`。该字段仅用于发送端重建后的恢复，不进入状态快照或 WS 广播；不能用最后接受状态的 generation 代替可能已被时间轴推进的门槛。未携带版本的 WeSing/兼容输入仍由服务端递增 sequence。
+`music-runtime` 分别保存内置播放器、外部 QQ、外部网易云和全民 K 歌的候选状态与完整时间轴。`selection` 是跟随偏好（`auto / internal / qq-client / netease-client / wesing`），`source` 是当前实际输出来源（不含 auto）。候选的 `playing` 取实际播放状态，不以歌词已加载为前提；未选中的播放器仍持续更新候选。只有实际输出来源向歌词窗口、预览与浏览器源广播，切换时立即发布该来源已缓存的完整时间轴和状态。
+
+[lyric-source-selection.js](../../../../src/music/lyric-source-selection.js) 拥有智能播放的选择规则：
+
+- 只有一个来源正在播放时，跟随该来源，包括用户此前选了其他来源的情况。
+- 多个来源同时播放时，优先使用正在播放的手动所选来源；否则保持仍在播放的当前来源；再按 `internal → qq-client → netease-client → wesing` 选择。
+- 没有来源播放时，保留手动所选来源的等待或暂停状态；智能播放优先保留有曲目的当前来源，再按上述顺序选有曲目的来源，全部不可用时回到 internal。
+
+偏好不持久化，服务重启默认 `selection: 'auto'`，初始 `source: 'internal'`。`selectLyricSource` 只修改偏好，不启停采集或控制音频。Electron 主进程显式传入 `nativeMusicCapture: true`，`server.js` 在音乐注册表就绪后调用 `musicRuntime.start()`，独立启动所有受支持的采集器；独立 server / 测试默认不启动原生采集，可显式启用。服务退出统一停止采集。旧 WeSing active 接口的 true 会确保 WeSing 已启用并设置 wesing 偏好；false 仅在当前偏好为 wesing 时恢复 auto，持续检测保留。
+
+内置 HTTP 的输入 `generation/sequence` 门槛与广播的全局版本分别维护。内置时间轴变化推进输入代际，并立即缓存新曲的加载状态，清空进度和歌词，防止旧曲状态继续输出；匹配的新状态到达前保留候选最后的实际播放标志，空曲目则明确清除该标志。过时状态不覆盖候选，响应返回最后接受的内置状态及 `nextGeneration = max(内置门槛, 广播代际) + 1`，只供发送端恢复。当前输出的时间轴改变或来源切换时，广播代际递增并重置 sequence；当前状态广播递增 sequence。外部来源输出期间仍接受有效内置候选，输入版本不会被其他播放器的状态误判为旧包；`nextGeneration` 不进入快照或 WS 广播。
+
+管理状态 `lyricSource` 为 `{source, selection, playingSources, qqClient, neteaseClient, weSing}`；`playingSources` 使用上述来源顺序，仅列实际正在播放的来源。`qqClient` / `neteaseClient` 共有字段为 `active / supported / detected / status / message / trackTitle / artists / currentMs / durationMs / playing / lyricSource`；其中 `lyricSource` 表示实际歌词平台（qq、netease 或空），区别于顶层输出来源。WeSing 字段由 [wesing.md](wesing.md) 维护。完整采集诊断仅向 Admin 提供。
 
 ### 13.1 归一化规则(共同)
 
@@ -366,10 +389,32 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 | 载荷                                                | 生产者                                                                                                                        | 广播点                                                                                                             |
 | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `lyricState`(快照 17 字段之一 + `lyric-state` 消息) | 播放页上报:API context `playbackLyrics.publish(state)`;WeSing 采集:`weSingCapture.onState` 在 active 且有 `lyricState` 时同步 | [server.js:345-349](../../../../src/server.js#L345-L349)、[server.js:183-188](../../../../src/server.js#L183-L188) |
-| `lyricTimeline`(快照字段 + `lyric-timeline` 消息)   | `publishLyricTimeline(input)`:归一化后广播;WeSing `onTimeline` 仅 `active` 时发布                                             | [server.js:161-165](../../../../src/server.js#L161-L165)、[server.js:189-191](../../../../src/server.js#L189-L191) |
+| `lyricState`（快照与 `lyric-state` 消息） | 内置 HTTP、QQ / 网易云 / WeSing `onState` 更新各自候选；仅实际输出来源广播 | [music-runtime.js](../../../../src/server/music-runtime.js) 的 `publishCurrentState` |
+| `lyricTimeline`（快照与 `lyric-timeline` 消息） | 内置 HTTP、QQ / 网易云 / WeSing `onTimeline` 更新各自候选；仅实际输出来源广播 | [music-runtime.js](../../../../src/server/music-runtime.js) 的 `publishCurrentTimeline` |
 
-歌词内容本身的时序消费在下方 §14 的解析器文档。
+场景输出通知在本轮来源仲裁的时间轴与状态更新完成后合并发送一次，避免重复读取或把新时间轴与旧状态组合；未变化的时间轴与被拒绝的状态不触发通知。歌词内容本身的时序消费在下方 §14 的解析器文档。
+
+### 13.4 外部 QQ 音乐
+
+[qq-client-monitor.js](../../../../src/music/qq-client-monitor.js) 在 Windows 上以隐藏的 PowerShell 子进程只读采样系统媒体会话，每 500 ms 检查 QQMusic 会话的歌名、歌手、播放状态、速率及时间轴；不控制客户端、不读取客户端凭据。辅助进程启动失败、error 或退出时按 500 / 1000 / 2000 ms 最多自动重试三次，有效样本重置重试预算；停用或服务退出取消重试并关闭进程，旧进程及已缓冲回调失效。
+
+[qq-client-capture.js](../../../../src/music/qq-client-capture.js) 负责曲目及解析代际：新歌名至少经过连续两次样本；连续的旧曲时钟须等待超过切换边界的新时间戳，已随新歌名更新且时长变化或进度明显回跳的时钟可在歌名稳定后接受。无效或倒退的时间戳保持 loading。SMTC 的 Position 是 LastUpdatedTime 时刻的位置；播放中按经过时间及 PlaybackRate 外推并限制在曲目时长内，暂停不外推，不能仅因锚点超过 3 秒未更新而判定失效。有效时钟下短暂无会话容忍 1.5 秒，持续失联、明确 Stopped/Closed 或采集错误清除旧曲。
+
+QQ / 网易云采集器都提供 `getStatus()`、`getLyricState()`、`getTimeline()` 快照。采集状态区分 inactive、waiting、loading、ready、empty、error；只有有效时钟和非空歌词同时就绪才 ready。管理状态 `playing` 保留实际播放状态，即使歌词缺失或加载中；歌词状态的 `playing` 只在 ready 时为真。歌词读取错误映射为 overlay idle，清除旧内容；无歌词为 empty。异步歌词结果不能覆盖新曲或停用后的状态；暂停、继续及同曲 seek 不重复解析歌词。手动重新检测会重建该采集器与当前曲目解析，不修改跟随偏好。
+
+### 13.5 外部网易云音乐
+
+[netease-client-monitor.js](../../../../src/music/netease-client-monitor.js) 每 500 ms 优先读取 cloudmusic 的 SMTC 歌曲、状态和时钟；没有可用媒体会话时，匹配 cloudmusic 进程的播放窗口标题，并通过 UI Automation 只读获取 `MM:SS / MM:SS` 或 `MM:SS | MM:SS` 进度及附近的播放/暂停按钮。切换窗口或标题后等待 1.5 秒再扫描，周期性刷新控件引用；读取前后标题不一致时丢弃该次混合样本。辅助进程连续 15 秒无输出会被回收；启动失败、错误或退出按 500 / 1000 / 2000 ms 最多重试三次，停用取消全部计时器。
+
+[netease-client-track.js](../../../../src/music/netease-client-track.js) 只读 `%LOCALAPPDATA%/NetEase/CloudMusic/Library/webdb.dat` 的最新 `historyTracks` 记录；数据库缺失或读取失败时尝试旧版 `webdata/file/history`，旧格式文件限 8 MiB。记录的歌名、歌手必须与当前窗口或媒体元数据一致，两边都提供时长时相差不超过 2 秒，才补充数值 `sourceTrackId`；不能把历史记录中的另一首歌当作当前曲目。未找到可信记录时保留窗口/媒体元数据，稍后重读，不读取客户端凭据。
+
+[netease-client-capture.js](../../../../src/music/netease-client-capture.js) 等待稳定歌名与有效时钟后获取歌词。SMTC 使用时间戳锚点；新标题到达时，若总时长变化或进度回跳超过 1 秒，可确认随标题到达的新曲锚点，不要求客户端再次更新时间戳。SMTC 同源样本仍拒绝倒退时间戳；在 UIA 与 SMTC 之间切换时不比较两种来源的时间戳。UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且读数未回退时，若上次连续位置加经过时间仍落在该区间内，就保留该估计，避免每次轮询发现新秒数时回拉。首次有效读数、暂停/继续、向后跳转和超出区间的估计仍采用采样锚点；播放中连续 2.5 秒无进度变化时隐藏歌词并等待有效读数。暂停以媒体状态或播放按钮为依据；按钮状态未知时，连续两次正常递增（每次相隔 250–2500 ms、递增不超过 2 秒）才推断播放，单次暂停拖动不触发播放，也不把静音或静止读数当暂停。UIA 路径依赖客户端提供可访问的主窗口控件；托盘、精简模式或客户端改版可能使状态或时钟不可读，此时显示等待/错误，不沿用上一首歌词。本轮实现及自动化验证不代表新版客户端的实机联动已验收。
+
+### 13.6 外部播放器歌词解析
+
+[external-client-lyrics.js](../../../../src/music/external-client-lyrics.js) 的 `createExternalClientLyricResolver({platform, getRegistry, lyricsService})` 只接受 qq 或 netease，并返回 `resolveLyrics({title, artists?, artist?, durationMs?, sourceTrackId?})`。网易云有可信数值曲目 ID 时直接取该曲歌词；没有 ID 时与 QQ 一样，在本平台按歌名、歌手搜索最多 20 个候选。候选必须属于本平台，且完整歌名规范化后相同，保留 Live、DJ 等版本信息；已知歌手时，按 `/` 拆分并排序后的完整歌手列表也必须相同。歌名与歌手均执行 NFKC 规范化、合并空白、去除首尾空白及忽略大小写。双方时长已知时相差不得超过 5 秒，合格候选按时长距离择近；没有准确候选则返回空，不跨平台兜底。歌词响应声明了其他平台或没有有效行时也返回空；请求失败交给采集器显示错误。
+
+外部 QQ 始终查询 QQ，外部网易云始终查询网易云，取得的是对应平台的在线歌词，不是直接复制客户端当前渲染的歌词缓存；逐字、翻译和版本匹配取决于该平台返回内容。`weSingLyricSource / weSingSmartLyricMatch` 仅属于 [WeSing 在线兜底](wesing.md#8-在线兜底wesing-online-lyricsjs)，不参与这里的选择。智能播放只决定跟随哪个播放器，智能选词只为全民 K 歌本地 QRC 不可用时选择在线歌词。
 
 ## 14. 歌词解析器(src/music/lyric-parser.js)
 

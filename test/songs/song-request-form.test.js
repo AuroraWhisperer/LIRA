@@ -90,6 +90,7 @@ test('song form edits and clears price and clip, resets presets, and escapes lis
   assert.match(element('songsTable').innerHTML, /&lt;img&gt;/);
   await clickEdit();
   assert.equal(element('songFormTitle').textContent, '正在编辑《测试歌》');
+  assert.equal(element('songFormTitle').hidden, false);
   assert.equal(element('resetSongForm').textContent, '取消编辑');
   assert.equal(element('songRequestPrice').value, price);
   assert.equal(element('songClip').value, 'BV1\n<img>');
@@ -99,7 +100,8 @@ test('song form edits and clears price and clip, resets presets, and escapes lis
   assert.equal(calls.find((call) => call.url).body.songClip, 'BV1\n<img>');
   assert.ok(calls.some((call) => call.toast?.includes('本地')));
   for (const id of ['songId', 'songRequestPrice', 'songClip', 'songPricePreset']) assert.equal(element(id).value, '');
-  assert.equal(element('songFormTitle').textContent, '添加歌曲');
+  assert.equal(element('songFormTitle').textContent, '');
+  assert.equal(element('songFormTitle').hidden, true);
   assert.equal(element('resetSongForm').textContent, '清空表单');
   await clickEdit();
   element('songRequestPrice').value = '';

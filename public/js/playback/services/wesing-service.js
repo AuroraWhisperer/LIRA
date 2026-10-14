@@ -37,7 +37,6 @@ const EMPTY_STATUS = {
  */
 export class WeSingService {
   constructor(options = {}) {
-    this.playbackState = options.playbackState;
     this.onStateChange = options.onStateChange || (() => {});
     this.showError = options.showError || (() => {});
     this.toast = options.toast || (() => {});
@@ -53,7 +52,7 @@ export class WeSingService {
     this.pendingLyricOffsetMs = null;
   }
 
-  init() {
+  init(initialStatus) {
     if (this.initialized) return;
     this.initialized = true;
     document.getElementById('weSingSaveCacheBtn')?.addEventListener('click', () => {
@@ -95,9 +94,6 @@ export class WeSingService {
       }
     });
     window.addEventListener('app:wesing-state', (event) => this.applyStatus(event.detail));
-    window.addEventListener('app:lyric-state', (event) => {
-      if (this.playbackState?.selectedSource === 'wesing') this.applyLyricState(event.detail);
-    });
     this.lyricRenderer = new LyricWordRenderer({
       lineElement: document.getElementById('weSingLyricLine'),
       progressElement: document.getElementById('weSingProgressBar'),
@@ -106,7 +102,8 @@ export class WeSingService {
       fallbackText: lyricFallback,
       onFrame: (position) => setText('weSingCurrentTime', formatTime(position.currentMs)),
     });
-    this.render();
+    if (initialStatus) this.applyStatus(initialStatus);
+    else this.render();
   }
 
   /** Serialize source switches so a rapid tab change cannot leave the backend in the older state. */

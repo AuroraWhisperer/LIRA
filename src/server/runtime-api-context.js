@@ -29,6 +29,9 @@ function createRuntimeApiContextFactory(options = {}) {
       dynamicLottery: options.getDynamicLottery?.(),
       publishLyricState: musicRuntime.publishLyricState,
       publishLyricTimeline: musicRuntime.publishLyricTimeline,
+      getLyricSource: musicRuntime.getLyricSource,
+      selectLyricSource: musicRuntime.selectLyricSource,
+      refreshLyricSource: musicRuntime.refreshLyricSource,
       weSingCapture: musicRuntime.weSingCapture,
       bilibili: {
         liveStatus: options.getLiveStatus(),

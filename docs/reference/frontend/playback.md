@@ -66,7 +66,7 @@ playbackControls → audio.load()/play()
 | `playbackNext` | 自然结束时执行单曲循环并有界跳过不可播曲目；手动下一首与失败跳过推进队列，保留列表回绕及电台补量 |
 | `changePlaybackQuality` | 保存音质选择并重新解析当前流，只有请求仍有效时恢复切换前进度；是否继续播放以 URL 返回时的暂停状态为准 |
 
-切歌、音质切换、清空队列与平台退出共用播放控制器拥有的请求代际。队列通过内部 `invalidatePlaybackRequests` 回调使全部在途操作失效；切入全民 K 歌也使旧请求失效并暂停本页音频，QQ/网易云标签互切保持原播放行为。Provider 在成功退出后传入平台，仅取消该平台发起的播放请求，包括当前曲目尚属于另一平台的情况。另一个平台的在途请求可继续，保留音频也可继续错误恢复。流解析使用曲目副本，只有当前请求才能合并流元数据、替换音频或恢复进度，迟到成功与失败不能覆盖新状态或在退出后恢复播放。
+切歌、音质切换、清空队列与平台退出共用播放控制器拥有的请求代际。队列通过内部 `invalidatePlaybackRequests` 回调使全部在途操作失效；播放页切入全民 K 歌标签也使旧请求失效并暂停本页音频，QQ/网易云标签互切保持原播放行为。Provider 在成功退出后传入平台，仅取消该平台发起的播放请求，包括当前曲目尚属于另一平台的情况。另一个平台的在途请求可继续，保留音频也可继续错误恢复。流解析使用曲目副本，只有当前请求才能合并流元数据、替换音频或恢复进度，迟到成功与失败不能覆盖新状态或在退出后恢复播放。
 
 错误重试通过 `createPlaybackRequestGuard` 捕获当前音频的有效代际，经 `stream-handler` 注入 `StreamService`。重试使用曲目副本和原始来源；入口、URL 解析结果与失败分支均校验播放权，过时任务不能重播、跳过新曲或提示旧错误。全民 K 歌被选中时，保留音频也不能触发在线重试；退出该信源后，显式恢复的音频仍可正常重试。新曲仍在解析时，旧音频新触发的错误也不再拥有播放权；切换失败后，为保留的原音频建立新的有效代际，允许其后续错误恢复，旧任务仍失效。手动切歌无可用 URL 时保留当前曲目、来源与音频，并沿用地址解析服务的不可播放提示。
 
@@ -83,12 +83,16 @@ playbackControls → audio.load()/play()
 | 获取             | `LyricService.loadLyrics(track)` → `POST /api/music/lyrics`(按 source 走 QQ/网易云解析,本地与已缓存跳过)                                                                                                                                                                                                                                                           |
 | 行定位           | `findLyricLine` 对 `lines[]` 做二分查找([lyric-service.js:62-88](../../../public/js/playback/services/lyric-service.js#L62-L88))                                                                                                                                                                                                                                   |
 | 逐字进度         | `shared/lyric-clock.js` 按 `performance.now()` 计算本地位置;`LyricWordRenderer` 使用 `LyricFrameScheduler` 的 rAF+33.3ms 门控;当前行 `LyricWordAnimator` 优先 WAAPI reveal，卡顿时逐级回退到手动 reveal/静态高亮，持续流畅后逐级恢复；计数与减少动态效果约定由 [overlay 性能策略](overlays.md#7-数据消费一览)维护 |
-| **上报**         | `publishBrowserState`:`POST /api/playback/lyric-state`(100ms 取整 + 180ms 节流 + latest-wins 队列);每条状态兼容携带 `generation`/`sequence`,切歌/seek/时间线变化切 generation;`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端收到后转 WS 广播 `lyric-state`/`lyric-timeline`(见 [ws.md](../backend/ws.md) §3) |
+| **上报**         | `publishBrowserState`:`POST /api/playback/lyric-state`(保留毫秒精度 + 180ms 节流 + latest-wins 队列);每条状态兼容携带 `generation`/`sequence`,切歌/seek/时间线变化切 generation;`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端缓存内置候选，仅实际输出来源为 internal 时转 WS 广播(见 [ws.md](../backend/ws.md) §3) |
 | 直播歌词浏览器源 | `syncWindow` 仅通过 HTTP 发布状态与完整时间轴;`/lyrics` 经 WebSocket 消费 `lyric-state`/`lyric-timeline`并复用管理页实时预览渲染                                                                                                                                                                                                                                   |
 
 发送者重建时不从零版本持续覆盖服务状态。`lyric-state` HTTP 响应若带 `data.nextGeneration`，表示本次旧版本被拒；发送队列更新代际偏移并至多立即重试一次。偏移在发送时应用于后续排队项，保留切歌/seek 的本地版本顺序；已被成功强制状态超过的旧 pending 直接丢弃，不能因重新升代而回灌。只有有效成功响应才记录发布成功；服务端旧包过滤仍有效，响应恢复信息不进入 WS 状态。
 
 时间轴发布串行执行，最多保留一份最新待发时间轴；失败后解除该曲目去重，下一次同步可重试。等待旧时间轴的状态若已被新 generation 替代则丢弃。时间轴与状态请求使用 10 秒取消期限（状态包括响应体读取），强制状态待发队列最多 64 项；超限完成最旧等待者并保留较新的状态，不改变服务端版本合同。
+
+歌词跟随与播放页选中的音乐平台分别维护。外部歌词正在输出时，内置播放器继续上报自己的状态与时间轴，服务端将其保留为候选，切回时可立即使用；来源变化不会暂停内置音频、取消 URL 请求或阻止自动下一首。播放页显式切入全民 K 歌标签仍会暂停内置音频，并由 `LyricService.suspendWindow()` 清除旧发送队列；暂停后的状态继续作为内置候选上报。服务端统一决定唯一输出，规则见[歌词状态与时间轴](../backend/music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs)。
+
+管理页 `lyric-source-controls.js` 在「点歌 → 直播歌词」的「歌词跟随」中提供智能播放及四个来源偏好；单选反映 `selection`，状态文案反映实际 `source`，并分别展示 QQ / 网易云状态和重检按钮。只有一个播放器播放时始终跟随它，多播放器按偏好或当前跟随仲裁；服务重启恢复智能播放。来源与重检请求不触发外观自动保存，旧 HTTP 响应不能覆盖新实时状态，重复初始化不重复注册事件。「全民 K 歌在线歌词」中的首选歌词源和智能选词只影响 WeSing 本地 QRC 不可用时的在线兜底；外部 QQ / 网易云各用自己的平台歌词。
 
 ## 4. 服务层(services/)
 

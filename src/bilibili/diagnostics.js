@@ -59,6 +59,11 @@ function songRequestReason(reason) {
   if (/不是点歌指令/.test(text)) return 'not-a-song-command';
   if (/暂停接收点歌/.test(text)) return 'requests-paused';
   if (/点歌内容命中黑名单/.test(text)) return 'song-request-blacklisted';
+  if (/你目前已被限制点歌/.test(text)) return 'requester-blacklisted';
+  if (/暂时无法确认你的/.test(text)) return 'requester-identity-required';
+  if (/每人最多同时排队/.test(text)) return 'user-queue-full';
+  if (/点歌需要本直播间.*粉丝牌/.test(text)) return 'requester-medal-required';
+  if (/点歌需要本直播间.*身份/.test(text)) return 'requester-guard-required';
   if (/用户冷却中/.test(text)) return 'user-cooldown';
   if (/冷却中|歌曲都在冷却/.test(text)) return 'song-cooldown';
   if (/没有.*可随机歌曲/.test(text)) return 'no-random-candidate';

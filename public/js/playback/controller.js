@@ -168,7 +168,6 @@ export function createPlaybackController(initialOptions = {}) {
 
   const uiRenderer = new UIRenderer();
   const weSingService = new WeSingService({
-    playbackState,
     onStateChange: renderPlayback,
     showError: (error) => showError(error),
     toast: (message) => toast(message),
@@ -448,6 +447,7 @@ export function createPlaybackController(initialOptions = {}) {
     togglePlayback,
     changePlaybackQuality,
     suspendPlaybackForExternalSource: () => playbackControls.suspendPlaybackForExternalSource(),
+    setWeSingSelected: (selected) => weSingService.setSelected(selected),
     addCurrentTrackToPlaylist: () => playlistOperations.addCurrentTrackToPlaylist(),
     loginSelectedMusicProvider: () => providerOperations.loginSelectedMusicProvider(),
     logoutSelectedMusicProvider: () => providerOperations.logoutSelectedMusicProvider(),
@@ -513,7 +513,7 @@ export function createPlaybackController(initialOptions = {}) {
     init: async (options) => {
       updateContext(options);
 
-      weSingService.init();
+      weSingService.init(initialOptions.getWeSingState?.());
 
       await playbackInitializer.init(
         eventHandlersModule.setupEventHandlers,

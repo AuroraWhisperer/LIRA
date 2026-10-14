@@ -54,6 +54,7 @@ const state = {
   secret,
   settings: {
     roomId: secret,
+    songRequestUserBlacklist: JSON.stringify([{ uid: '123', name: secret, expiresAt: 0 }]),
     aiApiKey: secret,
     songBoardTitle: '歌单',
     overlayTitle: '队列',
@@ -65,7 +66,7 @@ const state = {
     unknown: secret,
   },
   queue: {
-    current: { song_name: '歌', requester_name: '观众', requester_uid: secret, secret },
+    current: { song_name: '歌', requester_name: '观众', is_live: true, requester_uid: secret, secret },
     waiting: [],
     history: secret,
   },
@@ -130,6 +131,7 @@ test('every scope receives only its own snapshot fields and unknown principals f
     assert.deepEqual(Object.keys(result.state).sort(), (allowed[scope] || []).sort(), scope);
     assert.doesNotMatch(JSON.stringify(result), /PRIVATE_SENTINEL/, scope);
     assert.deepEqual(projectOverlayResponse(scope, '/api/state', state), result.state);
+    if (scope === 'queue') assert.equal(result.state.queue.current.is_live, true);
   }
   assert.equal(projectWebSocketPayload(null, { type: 'snapshot', state }), null);
   assert.equal(projectWebSocketPayload({ type: 'overlay', scope: 'admin' }, { type: 'snapshot', state }), null);

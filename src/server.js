@@ -252,6 +252,7 @@ function createServerRuntime(runtimeOptions = {}) {
       });
 
       musicRuntime.setMusicRegistry(options.musicAuth || {});
+      if (runtimeOptions.nativeMusicCapture === true) await musicRuntime.start();
       bilibiliRuntime.setAuthProvider(options.bilibiliAuth);
       domainServices.songs.ensureCategory('默认');
       domainServices.queue.ensureUnified();
@@ -438,6 +439,7 @@ function createServerRuntime(runtimeOptions = {}) {
       bilibiliDiagnostics,
       lyricState: musicRuntime.getLyricState(),
       lyricTimeline: musicRuntime.getLyricTimeline(),
+      lyricSource: musicRuntime.getLyricSource(),
       weSing: musicRuntime.weSingCapture.getStatus(),
       danmakuFeed: danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : [],
     };
@@ -523,7 +525,7 @@ function createServerRuntime(runtimeOptions = {}) {
       ['SC undo', () => domainServices?.superChats.dispose()],
       ['gift catalog', () => domainServices?.overtimeGiftCatalog.stop?.()],
       ['overtime', () => domainServices?.overtime.dispose()],
-      ['WeSing', () => musicRuntime?.weSingCapture.stop()],
+      ['Music capture', () => musicRuntime?.stop()],
       ['database optimize', () => options.optimize === true && db && optimizeDatabases(db)],
       ['database close', () => db && closeDatabases(db)],
     ];

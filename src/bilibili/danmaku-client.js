@@ -449,6 +449,8 @@ class BilibiliDanmakuClient {
       requesterGuardLevel: requester.guardLevel,
       requesterMedalName: requester.medalName,
       requesterMedalLevel: requester.medalLevel,
+      requesterGuardVerified: requester.guardVerified,
+      requesterMedalVerified: requester.medalVerified,
       source: messageData.source,
       messageTimestamp: messageData.messageTimestamp,
       connectionGeneration: this.connectionGeneration,
@@ -565,8 +567,10 @@ function compatibilityRequester(snapshot, fallback = {}) {
       snapshot && snapshot.guard && snapshot.guard.known
         ? snapshot.guard.level
         : Number(fallback.requesterGuardLevel) || 0,
-    medalName: medal ? medal.name : cleanText(fallback.requesterMedalName),
-    medalLevel: medal ? medal.level : Number(fallback.requesterMedalLevel) || 0,
+    medalName: snapshot?.fansMedal?.known ? medal?.name || '' : cleanText(fallback.requesterMedalName),
+    medalLevel: snapshot?.fansMedal?.known ? medal?.level || 0 : Number(fallback.requesterMedalLevel) || 0,
+    guardVerified: snapshot ? snapshot.guard?.known === true : fallback.currentRoomVerified === true,
+    medalVerified: snapshot ? snapshot.fansMedal?.known === true : fallback.currentRoomVerified === true,
   };
 }
 

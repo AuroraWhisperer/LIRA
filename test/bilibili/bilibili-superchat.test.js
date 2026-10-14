@@ -100,6 +100,9 @@ test('every SuperChat packet reaches the SC consumer; only fresh, unique command
     'duplicate, non-command and stale SCs never become commands; pinning follows the price threshold');
   assert.equal(f.commands[0].source, 'superchat');
   assert.equal(f.commands[0].requesterMedalName, '本房牌');
+  assert.equal(f.commands[0].requesterGuardVerified, true);
+  assert.equal(f.commands[0].requesterMedalVerified, true);
+  assert.equal(f.commands[1].requesterGuardVerified, true, 'cached known identity remains usable when the new SC has no medal');
   assert.equal(f.logs.filter((line) => line.startsWith('[Bilibili][SuperChat] status=received')).length, 5);
 });
 

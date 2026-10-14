@@ -234,6 +234,22 @@ test('a failed room commit preserves the pending random request', async (t) => {
   assert.equal(f.rows.length, 1);
 });
 
+test('desktop random applies verified room gates and guard cooldowns without trusting absent medal evidence', async (t) => {
+  const f = await randomFixture(t);
+  f.profile.resolve({ name: '账号42' });
+  f.settingsStore.setSettings({ songRequestMinMedalLevel: '1', userCooldownSeconds: '60', userCooldownCaptainSeconds: '0' });
+  assert.equal((await f.runtime.requestRandomSong()).code, 'REQUESTER_MEDAL_REQUIRED');
+  assert.equal(f.cooldown.size, 0);
+  f.settingsStore.setSettings({ songRequestGuardMedalBypass: 'true', songRequestGuardLevel: '2' });
+  assert.equal((await f.runtime.requestRandomSong()).code, 'REQUESTER_GUARD_REQUIRED');
+  f.settingsStore.setSetting('songRequestGuardLevel', '3');
+  assert.equal((await f.runtime.requestRandomSong()).accepted, true);
+  assert.equal((await f.runtime.requestRandomSong()).accepted, true, 'verified captain override zero bypasses the general interval');
+  f.settingsStore.setSetting('songRequestUserBlacklist', JSON.stringify([{ uid: '42', expiresAt: 0 }]));
+  assert.equal((await f.runtime.requestRandomSong()).code, 'REQUESTER_BLACKLISTED');
+  assert.equal(f.rows.length, 2);
+});
+
 async function randomFixture(t) {
   const db = new DatabaseSync(':memory:');
   db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');

@@ -5,15 +5,13 @@
 const { cleanText, now, timestampToIso, normalizePositiveInteger } = require('../shared/utils');
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 const { songCooldownKey, songCooldownUntil, assertSongAvailable } = require('./song-cooldown');
+const { requestRejection, requesterIdentity, assertSongRequesterAllowed } = require('./song-request-policy');
 
-const REQUEST_REJECTION_CODES = new Set(['SONG_NAME_REQUIRED', 'QUEUE_FULL', 'SONG_NOT_IN_LIBRARY', 'SONG_ALREADY_QUEUED', 'SONG_COOLDOWN']);
+const REQUEST_REJECTION_CODES = new Set(['SONG_NAME_REQUIRED', 'QUEUE_FULL', 'SONG_NOT_IN_LIBRARY', 'SONG_ALREADY_QUEUED', 'SONG_COOLDOWN',
+  'REQUESTER_IDENTITY_REQUIRED', 'REQUESTER_BLACKLISTED', 'REQUESTER_GUARD_REQUIRED', 'REQUESTER_MEDAL_REQUIRED', 'USER_QUEUE_FULL']);
 
 function isQueueRequestRejection(error) {
   return REQUEST_REJECTION_CODES.has(error?.code);
-}
-
-function requestRejection(code, message) {
-  return Object.assign(new Error(message), { code });
 }
 
 function addQueueItem(context, input) {
@@ -23,6 +21,10 @@ function addQueueItem(context, input) {
   const settings = context.settings();
   const defaults = context.defaults();
   const store = context.store;
+  const acceptedAt = Date.now();
+  if (input.viewerRequest === true) assertSongRequesterAllowed(settings, input, acceptedAt);
+  const identity = requesterIdentity(input);
+  const userQueueLimit = input.viewerRequest === true ? Number(settings.userQueueLimit) || 0 : 0;
   const queueLimit = Number(settings.queueLimit || defaults.queueLimit);
   if (Number.isFinite(queueLimit) && queueLimit > 0 && store.countActive() >= queueLimit) {
     throw requestRejection('QUEUE_FULL', '点歌队列已达到上限。');
@@ -34,7 +36,6 @@ function addQueueItem(context, input) {
   }
 
   const createdAt = timestampToIso(input.messageTimestamp || input.createdAt) || now();
-  const acceptedAt = Date.now();
   const canonicalName = matchedSong ? matchedSong.name : songName;
   const canonicalArtist = matchedSong ? matchedSong.artist : input.artist;
   const cooldownKey = songCooldownKey(canonicalName, canonicalArtist);
@@ -54,12 +55,7 @@ function addQueueItem(context, input) {
     categoryName: cleanText(input.categoryName) || (matchedSong ? matchedSong.category_name : ''),
     requesterUid: cleanText(input.requesterUid),
     fanScope: input.fanScope,
-    identityType:
-      input.requesterIdentityType === 'open_id'
-        ? 'open_id'
-        : input.requesterIdentityType === 'uid' && /^[1-9]\d{0,24}$/.test(cleanText(input.requesterUid))
-          ? 'uid'
-          : null,
+    identityType: identity?.type || null,
     requesterName: cleanText(input.requesterName) || '观众',
     requesterGuardLevel: normalizeGuardLevel(input.requesterGuardLevel),
     requesterMedalName: cleanText(input.requesterMedalName),
@@ -72,6 +68,9 @@ function addQueueItem(context, input) {
     createdAt,
   }, {
     checkCooldown: (lastAcceptedAt) => assertSongAvailable(settings, lastAcceptedAt, canonicalName, acceptedAt),
+    checkRequesterCount: userQueueLimit > 0 ? (count) => {
+      if (count >= userQueueLimit) throw requestRejection('USER_QUEUE_FULL', `每人最多同时排队 ${userQueueLimit} 首，请等待已点歌曲完成后再点歌。`);
+    } : undefined,
   });
 }
 
@@ -88,11 +87,19 @@ function handleQueueAction(context, action, rawId) {
   const updatedAt = now();
 
   if (action === 'next') {
-    context.store.completeNext(updatedAt);
+    context.store.completeNext(updatedAt, context.settings().guardPriorityEnabled === 'true');
     return getQueueSnapshot(context);
   }
   if (action === 'clear') {
     context.store.clearActive(updatedAt);
+    return getQueueSnapshot(context);
+  }
+  if (action === 'live' || action === 'unlive') {
+    if (!['number', 'string'].includes(typeof rawId) || !Number.isSafeInteger(id) || id <= 0
+      || getQueueSnapshot(context).waiting[0]?.id !== id) {
+      throw Object.assign(new Error('队首已变化，请刷新后重新标记 LIVE。'), { code: 'QUEUE_LIVE_NOT_FIRST' });
+    }
+    context.store.setLive(id, action === 'live', updatedAt);
     return getQueueSnapshot(context);
   }
   if (!Number.isFinite(id)) throw new Error('缺少队列 ID。');
@@ -111,7 +118,7 @@ function handleQueueAction(context, action, rawId) {
 }
 
 function getQueueSnapshot(context) {
-  return { current: null, waiting: context.store.listActive() };
+  return { current: null, waiting: context.store.listActive(context.settings().guardPriorityEnabled === 'true') };
 }
 
 function ensureUnifiedQueue(context) {

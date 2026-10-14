@@ -56,6 +56,7 @@ export function createPlaybackControls(deps) {
   function suspendPlaybackForExternalSource() {
     audioRequestGeneration = invalidatePlaybackRequests();
     playRequestSource = playbackState.current?.source || null;
+    lyricService.suspendWindow();
     getPlaybackAudio()?.pause();
   }
 

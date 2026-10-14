@@ -80,6 +80,30 @@
   cursor: pointer;
 }
 
+.desktop-lyric-auto-option {
+  grid-column: 1 / -1;
+}
+
+.desktop-lyric-client-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.desktop-lyric-client-status p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.desktop-lyric-client-status button {
+  flex: 0 0 auto;
+}
+
+#desktopLyricSourceControls p {
+  margin: 0;
+}
+
 .desktop-lyric-source-option input {
   position: absolute;
   width: 1px;
@@ -130,6 +154,11 @@
 .desktop-lyric-source-option input:focus-visible + .desktop-lyric-source-choice {
   outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
+}
+
+.desktop-lyric-source-option input:disabled + .desktop-lyric-source-choice {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .desktop-lyric-smart-match-row {

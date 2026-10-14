@@ -9,7 +9,7 @@ const MIN_TITLE_MATCH_SCORE = 60;
 const CLOSE_MATCH_SCORE_GAP = 5;
 
 /**
- * Creates the optional online fallback used by the WeSing capture service.
+ * Matches online lyrics for WeSing fallback only.
  *
  * Provider access stays behind this function so the capture state machine does
  * not know about QQ/NetEase APIs, authentication, caching, or match scoring.

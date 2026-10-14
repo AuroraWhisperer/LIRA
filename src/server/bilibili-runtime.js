@@ -163,6 +163,8 @@ function createBilibiliRuntime(options) {
       requesterGuardLevel: identity?.guard?.level,
       requesterMedalName: identity?.fansMedal?.value?.name,
       requesterMedalLevel: identity?.fansMedal?.value?.level,
+      requesterGuardVerified: identity?.guard?.known === true,
+      requesterMedalVerified: identity?.fansMedal?.known === true,
     });
   }
 

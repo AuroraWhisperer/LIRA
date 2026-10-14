@@ -8,6 +8,7 @@ const { parseRandomSongTerms } = require('../music/random-song-filter');
 const { normalizeRandomScopeText, randomSourceValue } = require('../music/song-field-utils');
 const { logSongRequest, songRequestReason } = require('./diagnostics');
 const { isQueueRequestRejection } = require('../music/queue-service');
+const { requesterIdentity, userCooldownSeconds, requestRejection } = require('../music/song-request-policy');
 
 // ── 弹幕指令入口 ──
 
@@ -24,6 +25,9 @@ function handleDanmakuMessage(
     requesterGuardLevel,
     requesterMedalName,
     requesterMedalLevel,
+    requesterGuardVerified,
+    requesterMedalVerified,
+    currentRoomVerified,
     isPinned,
   },
 ) {
@@ -45,24 +49,40 @@ function handleDanmakuMessage(
     return { accepted: false, reason: '点歌内容命中黑名单。', command };
   }
 
+  const requester = {
+    requesterUid: uid,
+    requesterIdentityType: identityType || (/^[1-9]\d{0,24}$/.test(cleanText(uid)) ? 'uid' : undefined),
+    requesterGuardLevel,
+    requesterMedalName,
+    requesterMedalLevel,
+    requesterGuardVerified,
+    requesterMedalVerified,
+    currentRoomVerified,
+    viewerRequest: true,
+  };
+  const identity = requesterIdentity(requester);
   const defaults = context.settingsStore.getDefaultSettings();
-  const cooldownSeconds = Number(settings.userCooldownSeconds || defaults.userCooldownSeconds);
-  const cooldownKey = cleanText(uid) || cleanText(userName) || 'anonymous';
+  const cooldownSeconds = userCooldownSeconds({ ...defaults, ...settings }, requester);
+  // UID keys remain compatible with persisted cooldowns; open_id is a separate namespace.
+  const cooldownKey = identity?.type === 'open_id' ? `open_id:${identity.uid}`
+    : identity?.uid || cleanText(userName) || 'anonymous';
   if (context.cooldownStore?.pruneMap) {
     context.cooldownStore.pruneMap(context.state.cooldownByUser);
   }
   const lastAt = context.state.cooldownByUser.get(cooldownKey) || 0;
   const elapsedSeconds = (Date.now() - lastAt) / 1000;
-  if (cooldownSeconds > 0 && elapsedSeconds < cooldownSeconds) {
-    return {
-      accepted: false,
-      reason: `用户冷却中，还需 ${Math.ceil(cooldownSeconds - elapsedSeconds)} 秒。`,
-      command,
-    };
-  }
-
   let queueItem;
   try {
+    if (cooldownSeconds > 0 && !identity) {
+      throw requestRejection('REQUESTER_IDENTITY_REQUIRED', '暂时无法确认你的点歌身份，请稍后再点歌。');
+    }
+    if (cooldownSeconds > 0 && elapsedSeconds < cooldownSeconds) {
+      return {
+        accepted: false,
+        reason: `用户冷却中，还需 ${Math.ceil(cooldownSeconds - elapsedSeconds)} 秒。`,
+        command,
+      };
+    }
     if (command.type === 'random') {
       // 通过 context.pickRandomSong 调用，不直接持有 DB 句柄
       const song = context.pickRandomSong(command.scopeText);
@@ -87,12 +107,8 @@ function handleDanmakuMessage(
         artist: song.artist,
         categoryName: song.category_name,
         requesterName: userName,
-        requesterUid: uid,
-        requesterIdentityType: identityType,
+        ...requester,
         fanScope,
-        requesterGuardLevel,
-        requesterMedalName,
-        requesterMedalLevel,
         source: randomSourceValue(command.scopeText),
         message: text,
         messageTimestamp,
@@ -104,12 +120,8 @@ function handleDanmakuMessage(
         songName: matchedSong ? matchedSong.name : command.songName,
         artist: matchedSong?.artist,
         requesterName: userName,
-        requesterUid: uid,
-        requesterIdentityType: identityType,
+        ...requester,
         fanScope,
-        requesterGuardLevel,
-        requesterMedalName,
-        requesterMedalLevel,
         source: source || 'danmaku',
         message: text,
         messageTimestamp,

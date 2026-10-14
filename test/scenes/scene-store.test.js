@@ -12,6 +12,7 @@ const { createDatabases, closeDatabases, getSchemaVersions } = require('../../sr
 const { runAllMigrations } = require('../../src/storage/database-migrations');
 const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../../src/shared/scene-component-types');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
+const { createLegacyDatabases } = require('../helpers/legacy-databases');
 
 function document(title = '场景') {
   return { schemaVersion: 1, id: randomUUID(), title, canvas: { width: 1920, height: 1080 }, items: [] };
@@ -47,23 +48,22 @@ function fixture(t) {
 
 test('songDb scene migrations preserve v7 rows and are idempotent after restart', (t) => {
   const directory = createScratchDirectory('scene-store-');
-  let databases = createDatabases({ dataDir: directory });
+  let databases = createLegacyDatabases(t, { dataDir: directory }, 7);
   t.after(() => {
     closeDatabases(databases);
     fs.rmSync(directory, { recursive: true, force: true });
   });
   const db = databases.songDb;
-  const currentVersion = getSchemaVersions(databases).songDb;
+  assert.equal(getSchemaVersions(databases).songDb, 7);
   db.exec(`
-    DROP TABLE component_scenes;
-    UPDATE schema_version SET version = 7 WHERE key = 'song_db';
     INSERT INTO queue (song_name, status, created_at, updated_at)
       VALUES ('keep this request', 'waiting', '2026-09-30', '2026-09-30');
     INSERT INTO requests (song_name, queue_id, created_at)
       VALUES ('keep this request', last_insert_rowid(), '2026-09-30');
   `);
-  const before = db.prepare('SELECT * FROM requests').all();
+  const before = db.prepare('SELECT * FROM requests').all().map(row => Object.assign(row, { fan_recorded: 0 }));
   const result = runAllMigrations(databases);
+  const currentVersion = getSchemaVersions(databases).songDb;
   assert.deepEqual(result.find((entry) => entry.key === 'song_db'),
     { key: 'song_db', from: 7, to: currentVersion, applied: currentVersion - 7 });
   const store = createSceneStore(db);
@@ -112,14 +112,15 @@ test('v10 binds the previously first scene without rewriting drafts or credentia
 
 test('v9 upgrades an existing v8 database and atomically publishes default dimensions', (t) => {
   const directory = createScratchDirectory('scene-store-');
-  const databases = createDatabases({ dataDir: directory });
+  const databases = createLegacyDatabases(t, { dataDir: directory }, 8);
   t.after(() => { closeDatabases(databases); fs.rmSync(directory, { recursive: true, force: true }); });
   const db = databases.songDb;
   const store = createSceneStore(db);
   const original = store.create({ scope: 'owner', document: document(), capability: capability() });
+  assert.equal(getSchemaVersions(databases).songDb, 8);
+  const result = runAllMigrations(databases);
   const currentVersion = getSchemaVersions(databases).songDb;
-  db.exec("DROP TABLE component_output_sizes; UPDATE schema_version SET version = 8 WHERE key = 'song_db'");
-  assert.deepEqual(runAllMigrations(databases).find((entry) => entry.key === 'song_db'),
+  assert.deepEqual(result.find((entry) => entry.key === 'song_db'),
     { key: 'song_db', from: 8, to: currentVersion, applied: currentVersion - 8 });
   migrateComponentOutputSizes(db);
   migrateCanvasPresets(db); migrateSceneDeletion(db);

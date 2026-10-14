@@ -94,8 +94,9 @@
         歌名」就能点歌，歌名不完整也会尝试匹配歌库。
       </p>
 <ul>
-<li><strong>置顶 / 取消置顶：</strong>调整点歌顺序。每首歌旁边还有「复制歌名」和「删除」。</li>
-<li><strong>完成队首：</strong>把点歌队列的第一首标为完成。要切换正在放的音乐，用播放页的播放器。</li>
+<li><strong>置顶 / 取消置顶：</strong>最近置顶的歌排到最前面；有 LIVE 时排第 2 位。取消置顶后恢复身份优先或点歌顺序。每首歌旁边还有「复制歌名」和「删除」。</li>
+<li><strong>LIVE：</strong>准备唱或正在唱队首歌曲时，点它右侧的「LIVE」，保留第 1 位；再点一次取消。完成、删除或清空后不自动标记下一首；重启会保留已有标记。LIVE 也会显示在点歌板上，不控制播放器。</li>
+<li><strong>完成队首：</strong>完成点击时看到的第一首歌，处理中按钮暂时不可用；期间有人插队也不会误完成新来的歌。要切换正在放的音乐，用播放页的播放器。</li>
 <li><strong>清空点歌队列：</strong>移除队首和全部等待点歌，歌库不受影响。</li>
 <li><strong>重启恢复：</strong>关闭或更新 LIRA 后重新打开，未完成点歌会按原顺序恢复。开始新一场时可点「清空点歌队列」。</li>
 <li>
@@ -104,8 +105,8 @@
 </ul>
 <p>点歌队列记的是观众想听什么，播放队列决定接下来放什么。可点队列旁的「导入播放器」匹配尚未处理的请求；播放结束不会自动完成点歌。完整操作见<a data-usage-guide-link href="#ug-playback-queue">管理播放队列与导入点歌</a>。</p>
 <figure class="usage-guide-figure">
-<img alt="点歌队列中一首歌右侧的三个按钮：置顶、复制歌名、删除" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-queue-item-actions.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>每首点歌右边：①置顶或取消置顶，②复制歌名，③删除。</figcaption>
+<img alt="点歌队首的 LIVE 标记及等待歌曲的置顶、复制、删除操作" class="usage-guide-image" decoding="async" height="677" loading="lazy" src="/img/usage-guide/B/song-queue-item-actions.webp" style="--usage-guide-image-width: 1023px" width="1023"/>
+<figcaption>队首可切换 LIVE；其余歌曲可置顶插队，LIVE 始终保留第 1 位。</figcaption>
 </figure>
 <p>
         弹出「匹配待确认」时，先看歌名、匹配到的歌和点歌人，再选「下一首播放」或「跳过」。「下一首播放」会把歌曲排到当前歌曲之后，当前音乐继续播放；播放器空闲时，点播放按钮开始。
@@ -121,15 +122,21 @@
 <article class="usage-guide-feature" id="ug-song-rules"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>2.2.2 设置点歌规则</strong></h5></div>
 
 <p>
-        打开「点歌 → 点歌规则」，调整接收限制和屏蔽词，改完点「保存点歌规则」。
+        打开「点歌 → 点歌规则」，调整接收限制、身份资格和黑名单，改完点「保存点歌规则」。
         点歌板外观在「点歌板」页，B 站账号和直播间号在「账号登录」页。
       </p>
+<p>通用与大航海点歌间隔放在同一组，资格要求单独设置；两类屏蔽名单在下方。编辑时保存栏会留在播放器上方，用户黑名单较长时可在表格内滚动。</p>
 <ul>
 <li>
 <strong>暂停接收点歌：</strong>选「接收点歌」或「暂停点歌」。暂停点歌只停接点歌，不会停止接收其他直播消息。
         </li>
 <li><strong>最多排队歌曲数：</strong>默认 50，可填 1–300。</li>
+<li><strong>每人同时排队上限：</strong>默认 0，不限制；可填 0–300。按观众身份计算等待和 LIVE 歌曲，改昵称不会获得额外名额。唱完或删除后释放名额；调低上限不会移除已经排队的歌曲。</li>
 <li><strong>同一观众点歌间隔（秒）：</strong>默认 0，也就是不设间隔；可填 0–3600。</li>
+<li><strong>舰长 / 提督 / 总督点歌间隔：</strong>默认留空，沿用通用间隔。各身份可单独填 0–3600 秒，填 0 表示该身份不设间隔；普通观众继续使用通用间隔。身份按本直播间核验。</li>
+<li><strong>点歌资格：</strong>本直播间粉丝牌最低等级默认 0，表示不要求；大航海要求默认「不要求」。设置后两项须同时满足，其他直播间的身份不算。可开启「大航海免粉丝牌要求」，让本直播间有效大航海免粉丝牌门槛，但仍须满足指定的大航海等级。新设置默认不增加资格限制。</li>
+<li><strong>点歌用户黑名单：</strong>默认空名单，不限制任何用户。点「添加用户」，填写 B 站 UID、选填备注昵称及到期时间；UID 必须唯一，最多 200 人。备注只帮助辨认，拦截以 UID 为准。时间按本机时区填写，留空永久，到期自动失效；列表会显示「已过期」，可直接删除。添加、编辑、删除及清空后均需保存才生效。</li>
+<li><strong>大航海优先插队：</strong>默认关闭。开启并保存后，当前等待队列按总督 &gt; 提督 &gt; 舰长 &gt; 非大航海排序，同身份先来后到。身份取点歌时的记录；手动置顶优先于身份排序，LIVE 始终保留第 1 位。</li>
 <li><strong>单首歌曲冷却：</strong>默认不限制，可按小时或自然日设置 1–999。歌曲成功加入点歌队列即开始冷却，所有观众共用；1 自然日表示北京时间次日 00:00 恢复，2 自然日为后天 00:00。唱完、跳过、删除、清空队列或重启不会解除冷却；修改时长按最近成功入队时间重新计算。保存点歌规则后生效。</li>
 <li><strong>只允许点歌库歌曲 / 允许重复点歌：</strong>按你的直播规则选。允许重复点歌只控制当前队列，同一首歌仍须满足冷却规则。</li>
 <li>
@@ -138,11 +145,12 @@
         </li>
 </ul>
 <figure class="usage-guide-figure">
-<img alt="独立点歌规则页：接收限制、单首歌曲冷却、点歌屏蔽词和保存点歌规则按钮" class="usage-guide-image" decoding="async" height="439" loading="lazy" src="/img/usage-guide/B/song-settings-rules.webp" style="--usage-guide-image-width: 1396px" width="1396"/>
-<figcaption>「点歌 → 点歌规则」：图中示例为冷却 1 自然日，改完点「保存点歌规则」。</figcaption>
+<img alt="点歌规则按接收与排队、点歌间隔、点歌资格及两类屏蔽名单分组，底部为保存栏" class="usage-guide-image" decoding="async" height="702" loading="lazy" src="/img/usage-guide/B/song-settings-rules.webp" style="--usage-guide-image-width: 1392px" width="1392"/>
+<figcaption>「点歌 → 点歌规则」：新增规则默认不限制，按需调整后点「保存点歌规则」。</figcaption>
 </figure>
 <p>看到「点歌队列已达到上限。」时，先唱完或删掉已处理的点歌，再让观众重试。清空会删除全部等待歌曲，不必为了腾一个位置就清空。</p>
 <p>「队列里已经有这首歌。」按「允许重复点歌」处理；「当前已暂停接收点歌。」需改回「接收点歌」并保存。改好后让观众重发，暂停期间被拒的点歌不会自动补回。</p>
+<p>每人排队上限、身份间隔、用户黑名单和资格要求同样适用于普通点歌、随机点歌及 SC 点歌；SC 置顶不会绕过这些规则。从歌库手动加入队列保留主播操作权限。规则只限制新点歌，不删除已有队列，也不改变 LIVE 标记。</p>
 <p>同一观众点歌间隔未到时，请求会被悄悄拦下。点歌规则跟着账号同步；暂停点歌不会停止接收礼物。</p></article>
 <article class="usage-guide-feature" id="ug-random-song"><div class="usage-guide-feature-head">
 <h5 class="usage-guide-task-title"><strong>2.2.3 随机点歌</strong></h5>

@@ -4,8 +4,71 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { FakeNode } = require('../helpers/fake-dom');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
+
+async function createLiveRenderer() {
+  const animations = [];
+  const createElement = () => {
+    const element = new FakeNode();
+    element.appendChild = (child) => element.append(child);
+    element.classList = { add() {}, remove() {}, toggle() {} };
+    element.animate = (frames) => {
+      const animation = { currentTime: null, playState: 'paused', cancelled: false,
+        play() { this.playState = 'running'; }, pause() { this.playState = 'paused'; },
+        cancel() { this.cancelled = true; } };
+      if (frames[0].clipPath) animations.push(animation);
+      return animation;
+    };
+    return element;
+  };
+  const elements = new Map(['Stage', 'Playback', 'Timeline', 'Viewport'].map((name) => [
+    `desktopLyricPreview${name}`, createElement(),
+  ]));
+  elements.get('desktopLyricPreviewViewport').clientHeight = 0;
+  const { desktopLyricRenderer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/lyrics/desktop-lyric-renderer.js'), {
+    performance: { now: () => 1000 },
+    Element: { prototype: { animate() {} } },
+    window: { addEventListener() {}, matchMedia: () => ({ matches: false }) },
+    document: { createElement, createDocumentFragment: () => Object.assign(createElement(), { isFragment: true }),
+      getElementById: (id) => elements.get(id), addEventListener() {} },
+    requestAnimationFrame: () => 0, cancelAnimationFrame() {}, clearTimeout() {},
+  });
+  desktopLyricRenderer.init();
+  desktopLyricRenderer.updateLyricTimeline({ status: 'ready', lines: [
+    { startMs: 0, text: '第一句' }, { startMs: 5000, text: '第二句' },
+  ] });
+  return { renderer: desktopLyricRenderer, animations, state: {
+    currentMs: 1200, durationMs: 10000, playing: true, generation: 1, sequence: 1, status: 'ready',
+    lineText: '第一句', words: [{ text: '第一句', startMs: 0, endMs: 5000 }],
+  } };
+}
+
+test('desktop karaoke immediately anchors a small explicit seek within the same word', async () => {
+  const { renderer, animations, state } = await createLiveRenderer();
+  renderer.updateLyricState(state);
+  const animation = animations.at(-1);
+  assert.equal(animation.currentTime, 1200);
+  renderer.updateLyricState({ ...state, currentMs: 1100, generation: 2 });
+  assert.equal(animation.currentTime, 1100);
+  assert.equal(animation.cancelled, false, 'seeking within a word reuses its animation');
+});
+
+test('desktop karaoke retains the visible line when a sample is already on the next line', async () => {
+  const { renderer, animations, state } = await createLiveRenderer();
+  renderer.updateLyricState({ ...state, currentMs: 4900 });
+  const animation = animations.at(-1);
+  renderer.updateLyricState({ ...state, currentMs: 5050, sequence: 2,
+    lineText: '第二句', words: [{ text: '第二句', startMs: 5000, endMs: 10000 }],
+  });
+  assert.equal(animation.cancelled, false, 'a tolerated timing difference must not erase the current highlight');
+  renderer.updateLyricState({ ...state, currentMs: 5050, generation: 2,
+    lineText: '第二句', words: [{ text: '第二句', startMs: 5000, endMs: 10000 }],
+  });
+  assert.equal(animation.cancelled, true, 'a real line change still releases the previous animation');
+  assert.equal(animations.at(-1).currentTime, 50);
+});
 
 test('desktop lyric timeline identifies active lines and countdowns for long gaps', async () => {
   const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));

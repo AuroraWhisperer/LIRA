@@ -139,16 +139,19 @@ test('lyrics notify scenes after accepted states and changed timelines without c
   assert.equal(runtime.getLyricTimeline(), timeline);
   assert.equal(reads.length, 1);
   assert.equal(reads[0].timeline, timeline);
+  assert.equal(reads[0].state.trackTitle, '测试歌曲');
+  assert.equal(reads[0].state.status, 'loading');
   runtime.publishLyricTimeline(timeline);
   assert.equal(reads.length, 1, 'Identical timelines need no new scene read.');
   const state = runtime.publishLyricState({ trackTitle: '测试歌曲', lineText: '第一句', currentMs: 600, generation: 2, sequence: 1 });
-  assert.equal(runtime.getLyricState(), state);
+  const publishedState = runtime.getLyricState();
+  assert.deepEqual(publishedState, state);
   assert.equal(reads.length, 2);
-  assert.equal(reads[1].state, state);
+  assert.equal(reads[1].state, publishedState);
   for (const input of [{ generation: 1, sequence: 100 }, { generation: 2, sequence: 1 }]) {
     const rejected = runtime.publishLyricState(input);
     assert.equal(rejected.nextGeneration, 3);
-    assert.equal(runtime.getLyricState(), state);
+    assert.equal(runtime.getLyricState(), publishedState);
     assert.equal(reads.length, 2, 'A stale generation or duplicate sequence must not notify.');
   }
   assert.equal(Object.hasOwn(state, 'nextGeneration'), false);

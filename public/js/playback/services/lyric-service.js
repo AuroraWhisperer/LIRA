@@ -26,6 +26,8 @@ export class LyricService {
     this.lastTimelineLyrics = null;
     this.timelinePublishInFlight = null;
     this.pendingTimeline = null;
+    this.publicationVersion = 0;
+    this.windowSuspended = false;
   }
 
   /**
@@ -94,6 +96,21 @@ export class LyricService {
     return result;
   }
 
+  suspendWindow() {
+    if (this.windowSuspended) return;
+    this.windowSuspended = true;
+    this.publicationVersion += 1;
+    this.stateGeneration += 1;
+    this.lastTimelineTrackKey = null;
+    this.lastTimelineLyrics = null;
+    this.lastPublishedState = '';
+    this.pendingTimeline?.resolve();
+    this.pendingTimeline = null;
+    this.pendingState?.resolve();
+    this.pendingState = null;
+    this.forcedStateQueue.splice(0).forEach((request) => request.resolve());
+  }
+
   /**
    * 同步桌面歌词浏览器源
    * @param {Object} track - 当前曲目
@@ -102,6 +119,7 @@ export class LyricService {
    * @returns {Promise<void>}
    */
   async syncWindow(track, audio, force = false) {
+    this.windowSuspended = false;
     const duration = audio && Number.isFinite(audio.duration) ? audio.duration : 0;
     const currentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
     const progress = duration > 0 ? currentTime / duration : 0;
@@ -196,7 +214,7 @@ export class LyricService {
     const now = Date.now();
     const roundedState = {
       ...state,
-      currentMs: Math.round(Number(state.currentMs || 0) / 100) * 100,
+      currentMs: Math.round(Number(state.currentMs || 0)),
       progress: Math.round(Number(state.progress || 0) * 1000) / 1000,
     };
     const serialized = JSON.stringify(roundedState);
@@ -229,11 +247,13 @@ export class LyricService {
       request.resolve();
       return this.flushStateQueue();
     }
+    const publicationVersion = this.publicationVersion;
     this.statePublishInFlight = Promise.resolve().then(async () => {
       try {
         this.lastPublishedState = '';
         // A rebuilt sender may trail the server. Rebase once, never spin on conflicts.
         for (let attempt = 0; attempt < 2; attempt += 1) {
+          if (publicationVersion !== this.publicationVersion) break;
           const state = {
             ...request.state,
             generation: request.state.generation + this.stateGenerationOffset,
@@ -246,6 +266,7 @@ export class LyricService {
             body: JSON.stringify(state),
           });
           const payload = await this.readJsonResponse(response, '同步歌词失败');
+          if (publicationVersion !== this.publicationVersion) break;
           if (!response.ok || !payload?.ok || !payload.data) break;
           const nextGeneration = payload.data?.nextGeneration;
           if (nextGeneration !== undefined) {

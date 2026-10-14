@@ -6,6 +6,13 @@ const { cleanText, normalizePositiveInteger } = require('../shared/utils');
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 const { rememberRandomRequest } = require('./queue-history-store');
 
+// 快照与完成队首必须使用相同顺序；身份优先由领域层传入。
+const ACTIVE_QUEUE_ORDER = `queue.is_live DESC, queue.is_pinned DESC,
+  julianday(NULLIF(queue.pinned_at, '')) DESC,
+  CASE WHEN ? = 1 AND queue.requester_guard_level IN (1, 2, 3)
+    THEN queue.requester_guard_level ELSE 4 END ASC,
+  datetime(queue.created_at) ASC, queue.id ASC`;
+
 function createQueueStore(
   songDb,
   { getFanScope = () => null, archiveAccepted = () => {} } = {},
@@ -65,12 +72,20 @@ function createQueueStore(
       );
     },
 
-    insertRequest(input, { checkCooldown } = {}) {
+    insertRequest(input, { checkCooldown, checkRequesterCount } = {}) {
       const currentScope = getFanScope();
       const ownerScope = input.fanScope === undefined || input.fanScope === currentScope ? currentScope : null;
       const stableId = randomUUID();
       songDb.exec('BEGIN IMMEDIATE');
       try {
+        if (checkRequesterCount) {
+          const { count } = songDb.prepare(`SELECT COUNT(*) AS count FROM queue
+            JOIN requests ON requests.queue_id = queue.id
+            WHERE queue.status IN ('current', 'waiting')
+              AND queue.requester_uid = ? AND requests.identity_type = ?`)
+            .get(input.requesterUid, input.identityType);
+          checkRequesterCount(count);
+        }
         const cooldownScope = currentScope || '';
         if (input.cooldownKey) {
           const previous = songDb.prepare('SELECT accepted_at_ms FROM song_cooldowns WHERE owner_scope = ? AND song_key = ?')
@@ -154,17 +169,17 @@ function createQueueStore(
       }
     },
 
-    completeNext(updatedAt) {
+    completeNext(updatedAt, guardPriority = false) {
       const first = songDb
         .prepare(
           `
         SELECT id FROM queue
         WHERE status IN ('current', 'waiting')
-        ORDER BY is_pinned DESC, datetime(NULLIF(pinned_at, '')) ASC, datetime(created_at) ASC, id ASC
+        ORDER BY ${ACTIVE_QUEUE_ORDER}
         LIMIT 1
       `,
         )
-        .get();
+        .get(guardPriority ? 1 : 0);
       if (!first) return false;
       updateStatus('queue.id = ?', [first.id], 'done', updatedAt);
       return true;
@@ -175,16 +190,26 @@ function createQueueStore(
     },
 
     setPinned(id, pinned, updatedAt) {
+      const latest = pinned
+        ? songDb.prepare('SELECT MAX(pinned_at) AS at FROM queue WHERE is_pinned = 1').get().at
+        : '';
+      // 同一毫秒的连续置顶仍按操作先后排列。
+      const pinnedAt = pinned ? new Date(Math.max(Date.parse(updatedAt), (Date.parse(latest) || 0) + 1)).toISOString() : '';
       songDb
         .prepare('UPDATE queue SET is_pinned = ?, pinned_at = ?, updated_at = ? WHERE id = ?')
-        .run(pinned ? 1 : 0, pinned ? updatedAt : '', updatedAt, id);
+        .run(pinned ? 1 : 0, pinnedAt, updatedAt, id);
+    },
+
+    setLive(id, live, updatedAt) {
+      songDb.prepare('UPDATE queue SET is_live = ?, updated_at = ? WHERE id = ?')
+        .run(live ? 1 : 0, updatedAt, id);
     },
 
     setStatus(id, status, updatedAt) {
       updateStatus('queue.id = ?', [id], status, updatedAt);
     },
 
-    listActive() {
+    listActive(guardPriority = false) {
       return songDb
         .prepare(
           `
@@ -193,10 +218,10 @@ function createQueueStore(
         FROM queue
         LEFT JOIN requests ON requests.queue_id = queue.id
         WHERE status IN ('current', 'waiting')
-        ORDER BY queue.is_pinned DESC, datetime(NULLIF(queue.pinned_at, '')) ASC, datetime(queue.created_at) ASC, queue.id ASC
+        ORDER BY ${ACTIVE_QUEUE_ORDER}
       `,
         )
-        .all()
+        .all(guardPriority ? 1 : 0)
         .map(normalizeQueueRow);
     },
 
@@ -218,6 +243,7 @@ function normalizeQueueRow(row) {
   return {
     ...row,
     is_pinned: Boolean(row.is_pinned),
+    is_live: Boolean(row.is_live),
     requester_guard_level: normalizeGuardLevel(row.requester_guard_level),
     requester_medal_name: cleanText(row.requester_medal_name),
     requester_medal_level: normalizePositiveInteger(row.requester_medal_level),

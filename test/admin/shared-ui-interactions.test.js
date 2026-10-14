@@ -161,6 +161,7 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
       renderPlaybackSearchResults() {}, closePlaybackDrawer() {},
       refreshSelectedMusicProviderState() {}, syncPlaybackLyricWindow() {},
       suspendPlaybackForExternalSource() {},
+      setWeSingSelected() {},
       toggleQueuePopup: () => queue.toggle(), closeQueuePopup: () => queue.close(),
       handlePlaybackPendingAction: action => {
         window.pendingActions.push(action);
