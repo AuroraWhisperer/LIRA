@@ -271,7 +271,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `shared/logger.js`              | `Logger` 单例(挂 `window.AdminApp.logger`)                                           |
 | `shared/theme.js`               | 主题配置加载(`/data/theme-presets.json`)与预设访问器                                 |
 | `shared/lyric-word-renderer.js` | 逐字歌词渲染器(rAF 驱动,WeSing 面板/直播歌词预览/歌词窗口共用)                       |
-| `shared/parameter-range.js`     | Admin 参数滑块进度与零点区段同步；扫描显式 `parameter-range` 控件并维护轨道 CSS 变量 |
+| `shared/parameter-range.js`     | Admin 参数滑块进度与零点区段同步；扫描显式 `parameter-range` 控件并维护轨道 CSS 变量；`data-range-scale="balanced"` 为零点两侧各保留至少 25% 行程，统一拖动与视觉映射，原生值和键盘步长不变 |
 | `shared/color-picker.js` | 统一选色弹层：色相/明度饱和度、RGB/HEX、不透明度、可用时的屏幕取色；关闭释放本次编辑状态 |
 | `shared/color-value.js` | 无 DOM 的 HEX 解析和 Alpha 序列化，保留旧六位纯色格式 |
 | `shared/color-control.js`       | `enhanceColorControls(root = document)` 原位增强颜色输入框，保留输入节点与业务事件；同步程序赋值、重置、动态节点及克隆面板。`data-color-opacity` 关联已有不透明度字段（按其 max/step 换算百分比），隐藏原控制行；未关联时以六/八位 HEX 保存颜色及 Alpha。表单序列化保留 Alpha |

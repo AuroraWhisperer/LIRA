@@ -67,6 +67,7 @@ async function choose(page, name, option) {
 
 test('song board protects paired fields and enhanced selects through old snapshots and serial autosaves', async (t) => {
   const page = await fixture(t);
+  assert.equal(await page.locator('#songBoardSaveState').isVisible(), false);
   assert.equal(await page.locator('#scrollSeconds').inputValue(), '20');
   assert.equal(await page.locator('#scrollSecondsRange').inputValue(), '20');
   await page.locator('#songBoardFontSizeNumber').fill('40');
@@ -101,6 +102,7 @@ test('standalone theme hydrates every pair and preserves inheritance, custom bla
   await page.waitForFunction(() => window.writes.length === 1);
   assert.equal(await page.evaluate(() => Object.hasOwn(window.writes[0].body, 'songBoardSongColor')), false);
   assert.equal(await page.locator('#songBoardSaveState').textContent(), '正在保存…');
+  assert.equal(await page.locator('#songBoardSaveState').isVisible(), true);
   await page.evaluate(() => window.writes[0].finish(false));
   await page.waitForFunction(() => window.controller.getState().error);
   assert.match(await page.locator('#songBoardSaveState').textContent(), /保存失败/);

@@ -99,8 +99,10 @@ export function bindSongBoardSettings(form, controller) {
     if (await save()) toast('展示板主题已恢复默认');
   });
   function render({ draft, dirty, saving, error, applied }, force = false) {
-    node('songBoardSaveState').textContent = error ? '保存失败，修改已保留，可点击“保存展示板”重试。'
-      : saving ? '正在保存…' : dirty ? '等待自动保存…' : applied ? '已保存并应用到直播画面' : '修改会自动保存并应用到直播画面';
+    const saveState = node('songBoardSaveState');
+    saveState.textContent = error ? '保存失败，修改已保留，可点击“保存展示板”重试。'
+      : saving ? '正在保存…' : dirty ? '等待自动保存…' : applied ? '已保存并应用到直播画面' : '';
+    saveState.hidden = !saveState.textContent;
     for (const key of Object.keys(DEFAULTS)) {
       if (key === 'songBoardSyncTheme' || key === 'songBoardSongColor') continue;
       syncComponentFieldValue(node(key), draft[key], force);

@@ -83,6 +83,18 @@ input.parameter-range[type='range']:focus-visible {
   outline-offset: -2px;
 }
 
+input.parameter-range[data-range-scale='balanced'] {
+  touch-action: none;
+}
+
+input.parameter-range[data-range-scale='balanced']::-webkit-slider-thumb {
+  transform: translateX(var(--parameter-range-thumb-offset, 0px));
+}
+
+input.parameter-range[data-range-scale='balanced']::-moz-range-thumb {
+  transform: translateX(var(--parameter-range-thumb-offset, 0px));
+}
+
 /* 正负偏移沿用统一外观，以零点标记和双向填充表达数值方向。 */
 input.parameter-range--centered[type='range'] {
   background:

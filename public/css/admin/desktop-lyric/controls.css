@@ -140,6 +140,11 @@
   padding: 12px 0;
 }
 
+.desktop-lyric-settings .desktop-lyric-control {
+  min-height: 58px;
+  padding: 6px 0;
+}
+
 .desktop-lyric-control + .desktop-lyric-control {
   border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
 }
@@ -276,8 +281,23 @@
 }
 
 .desktop-lyric-settings .desktop-lyric-range-control {
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  grid-template-columns: minmax(140px, 1fr) minmax(0, 3fr);
   gap: 16px;
+}
+
+.desktop-lyric-settings input.parameter-range[type='range'] {
+  background-position-x: 0, 0;
+  background-size:
+    calc(var(--parameter-range-fill-length) + var(--parameter-range-track-inset)) var(--parameter-range-track-height),
+    100% var(--parameter-range-track-height);
+}
+
+.desktop-lyric-settings input.parameter-range--centered[type='range'] {
+  background-position-x: var(--parameter-range-origin-start), calc(var(--parameter-range-zero-position) - 1px), 0;
+  background-size:
+    var(--parameter-range-origin-length) var(--parameter-range-track-height),
+    2px 10px,
+    100% var(--parameter-range-track-height);
 }
 
 .desktop-lyric-control .range-row {
