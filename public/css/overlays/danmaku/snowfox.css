@@ -164,7 +164,7 @@ body[data-style='snowfox'] .sc-snowfox :is(.sc-name, .sc-copy, .sc-money) { font
 body[data-style='snowfox'] .sc-snowfox .sc-name { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 body[data-style='snowfox'] .sc-snowfox .sc-money { flex: 0 0 auto; padding: 0 0.12em; border: 1px solid #f7ffff9c; border-radius: 0.12em; font-size: 0.86em; white-space: nowrap; }
 body[data-style='snowfox'] .sc-snowfox .sc-currency { font-size: 1em; margin: 0; }
-body[data-style='snowfox'] .sc-snowfox .sc-copy { margin: 0.12em 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+body[data-style='snowfox'] .sc-snowfox .sc-copy { margin: 0.12em 0 0; font-size: 1em; white-space: pre-wrap; overflow-wrap: anywhere; }
 body[data-style='snowfox'] .sc-avatar {
   position: absolute;
   top: auto;

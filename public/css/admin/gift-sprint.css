@@ -8,7 +8,7 @@
 }
 .gift-sprint-panel { container: gift-sprint-card / inline-size; }
 .gift-sprint-panel > .panel-header { padding: 0 0 16px; }
-.gift-sprint-panel > .panel-body { padding: 0; }
+.gift-sprint-panel > .panel-body { padding: var(--spacing-md) 0 0; }
 .gift-sprint-source {
   display: flex;
   align-items: center;

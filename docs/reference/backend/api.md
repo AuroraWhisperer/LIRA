@@ -320,7 +320,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `openingTrackMotion` | [opening-contract.js](../../../src/server/opening-contract.js) 的 `heart/barber/progress` 枚举 |
 | `openingStyle` | [opening-contract.js](../../../src/server/opening-contract.js) 的 `classic/pixel-cassette` 枚举；默认 `classic` |
 | 互动外观 | [interaction-appearance.js](../../../public/js/shared/interaction-appearance.js)：标题/提示为字符串且最多 60/80 字素；规则文本转 LF、NFC；显示开关仅 boolean/字符串 true/false；透明度整数 0–100、字号 16–24、圆角 0–32（数字或 1–3 位数字字符串）；颜色为六位十六进制，存小写；数字/布尔存字符串 |
-| `weSingCachePath` / `weSingLyricOffsetMs` | [wesing-cache.js](../../../src/music/wesing-cache.js)：路径转字符串、trim/去外层双引号，必须为绝对路径且末级名为 WeSingCache，长度 ≤1024、无控制字符；偏移 Number 转换、四舍五入后为 -3000～3000 ms，存字符串 |
+| `weSingCachePath` / `weSingLyricOffsetMs` | [wesing-cache.js](../../../src/music/wesing-cache.js)：路径转字符串、trim/去外层双引号，必须为绝对路径且末级名为 WeSingCache，长度 ≤1024、无控制字符；保存前还须通过[实际缓存校验](music/wesing.md#71-偏移lyricoffsetms)，不创建空目录；偏移 Number 转换、四舍五入后为 -3000～3000 ms，存字符串 |
 | `checkinBlessings` / `fortunePool` | 兼容遗留键；字符串保持原样，其他值 JSON.stringify，null/undefined 按 String 保存；不是云端每日机器人配置入口 |
 
 上述每人配额、身份间隔、资格与用户黑名单通过 `song-request-settings.js` 统一标准化，本地保存字符串；云端为可选字段，响应使用数值、布尔值、数组（身份间隔继承时仍为空串）。旧端省略保留已有值，错误批次整体拒绝；规则按账号同步，名单不进入公开 overlay。启用后的准入语义见 [音乐服务](music/services.md)。

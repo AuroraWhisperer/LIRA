@@ -17,8 +17,13 @@ test.before(async () => {
 });
 test.after(async () => { await browser?.close(); await fixture?.close(); });
 
-async function openRenderer(t) {
-  const context = await browser.newContext({ viewport: { width: 1000, height: 800 }, reducedMotion: 'reduce' });
+async function openRenderer(t, { slowFrames = false } = {}) {
+  const context = await browser.newContext({ viewport: { width: 1000, height: 800 },
+    reducedMotion: slowFrames ? 'no-preference' : 'reduce' });
+  if (slowFrames) await context.addInitScript(() => {
+    window.requestAnimationFrame = callback => setTimeout(() => callback(performance.now()), 60);
+    window.cancelAnimationFrame = clearTimeout;
+  });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -34,6 +39,40 @@ async function openRenderer(t) {
   });
   return page;
 }
+
+test('continuous fill keeps advancing between slow JS frames and still pauses precisely', async t => {
+  const page = await openRenderer(t, { slowFrames: true });
+  await page.evaluate(() => {
+    const renderer = window.testLyricRenderer;
+    const text = '这一句歌词应当一点一点填满';
+    const words = [{ text, startMs: 0, endMs: 8000 }];
+    renderer.applySettings({ desktopLyricKaraokeMode: 'continuous', desktopLyricHideOnPause: 'false' });
+    renderer.updateLyricTimeline({ status: 'ready', lines: [{ startMs: 0, text, words }] });
+    renderer.updateLyricState({ status: 'ready', currentMs: 0, durationMs: 8000, playing: true,
+      generation: 1, sequence: ++window.testLyricSequence, lineText: text, words, discontinuity: true });
+  });
+  await page.waitForFunction(() => document.getElementById('desktopLyricPreviewStage').classList.contains('is-low-power'));
+  const samples = await page.evaluate(async () => {
+    const highlight = document.querySelector('.desktop-lyric-preview-word-highlight');
+    const values = [];
+    for (let index = 0; index < 8; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+      values.push(getComputedStyle(highlight).clipPath);
+    }
+    return values;
+  });
+  assert.ok(new Set(samples).size >= 6, 'a long sung word must keep filling instead of waiting for its end');
+  const paused = await page.evaluate(async () => {
+    window.testLyricRenderer.updateLyricState({ playing: false, currentMs: 1000,
+      generation: 1, sequence: ++window.testLyricSequence, discontinuity: true });
+    const highlight = document.querySelector('.desktop-lyric-preview-word-highlight');
+    const before = getComputedStyle(highlight).clipPath;
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return { before, after: getComputedStyle(highlight).clipPath };
+  });
+  assert.equal(paused.before, 'inset(0px 87.5% 0px 0px)');
+  assert.equal(paused.after, paused.before);
+});
 
 async function render(page, text, tokens, settings) {
   await page.evaluate(async ({ text, tokens, settings }) => {

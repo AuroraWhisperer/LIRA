@@ -282,7 +282,7 @@ body[data-style='mist'] .sc-mist-head {
 }
 body[data-style='mist'] .sc-name { font: 700 0.7em/1.5 var(--danmaku-ui-font); }
 body[data-style='mist'] .sc-money { max-width: 5em; font-size: 0.9em; white-space: normal; overflow-wrap: anywhere; }
-body[data-style='mist'] .sc-copy { padding: 0.6em 0.7em; color: var(--mist-deep); font: 600 0.9em/1.65 var(--danmaku-custom-font, var(--danmaku-ui-font)); }
+body[data-style='mist'] .sc-copy { padding: 0.6em 0.7em; color: var(--mist-deep); font: 600 1em/1.65 var(--danmaku-custom-font, var(--danmaku-ui-font)); }
 @keyframes mistMessageIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }

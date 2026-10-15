@@ -50,6 +50,7 @@ export class WeSingService {
     this.activationQueue = Promise.resolve();
     this.lyricRenderer = null;
     this.pendingLyricOffsetMs = null;
+    this.cachePathDraft = null;
   }
 
   init(initialStatus) {
@@ -87,7 +88,11 @@ export class WeSingService {
     document.getElementById('weSingResetLyricOffsetBtn')?.addEventListener('click', () => {
       void this.saveLyricOffset(0);
     });
-    document.getElementById('weSingCachePath')?.addEventListener('keydown', (event) => {
+    const cachePathInput = document.getElementById('weSingCachePath');
+    cachePathInput?.addEventListener('input', () => {
+      this.cachePathDraft = cachePathInput.value;
+    });
+    cachePathInput?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
         void this.saveCachePath();
@@ -148,11 +153,13 @@ export class WeSingService {
   async saveCachePath() {
     const input = document.getElementById('weSingCachePath');
     const cachePath = input ? input.value.trim() : '';
+    const savedDraft = this.cachePathDraft;
     try {
       const data = await this.request('/api/music/wesing/configure', {
         method: 'POST',
         body: { cachePath },
       });
+      if (this.cachePathDraft === savedDraft) this.cachePathDraft = null;
       this.applyStatus(data);
       this.toast('全民 K 歌缓存目录已保存');
     } catch (error) {
@@ -196,6 +203,7 @@ export class WeSingService {
       if (!result || result.canceled || !result.path) return;
       const input = document.getElementById('weSingCachePath');
       if (input) input.value = result.path;
+      this.cachePathDraft = result.path;
       await this.saveCachePath();
     } catch (error) {
       this.showError(error);
@@ -253,7 +261,9 @@ export class WeSingService {
     setText('weSingPlaybackState', status.playing ? '正在播放' : status.waitingForPlayback ? '等待播放' : '已暂停');
     setText('weSingStatusMessage', getCompactStatusMessage(status));
     setText('weSingClientStatus', status.platformDetected ? '已检测' : '未检测');
-    setText('weSingCacheStatus', status.cacheReady ? '已就绪' : '待生成');
+    setText('weSingCacheStatus', status.cacheReady ? '已就绪' : '未找到');
+    const cacheHint = document.getElementById('weSingCacheHint');
+    if (cacheHint) cacheHint.hidden = status.cacheReady;
     setText(
       'weSingLyricStatus',
       status.qrcReady
@@ -266,8 +276,8 @@ export class WeSingService {
     setText('weSingDuration', formatTime(status.lyricState.durationMs || status.durationMs));
 
     const pathInput = document.getElementById('weSingCachePath');
-    if (pathInput && pathInput !== document.activeElement && status.cachePath) {
-      pathInput.value = status.cachePath;
+    if (pathInput && pathInput !== document.activeElement) {
+      pathInput.value = this.cachePathDraft ?? status.cachePath;
     }
     this.renderOffsetInputs();
     setSignal('weSingClientSignal', status.platformDetected);

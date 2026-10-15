@@ -58,7 +58,8 @@ export class LyricWordAnimator {
       const progress =
         endMs > startMs ? clamp((currentMs - startMs) / (endMs - startMs), 0, 1) : currentMs >= endMs ? 1 : 0;
       const animationTime = clamp(currentMs - startMs, 0, Math.max(1, endMs - startMs));
-      if (this.mode === 'waapi' && typeof entry.highlight.animate === 'function') {
+      if (this.mode === 'waapi' && typeof entry.highlight.animate === 'function'
+        && currentMs >= startMs && currentMs < endMs) {
         let animation = this.animations[index];
         if (!animation) {
           animation = entry.highlight.animate([{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }], {
@@ -72,22 +73,26 @@ export class LyricWordAnimator {
         const shouldAnchor =
           force ||
           !playing ||
-          currentMs < startMs ||
-          currentMs >= endMs ||
           animation.playState === 'paused' ||
           animation.currentTime === null ||
           Math.abs(Number(animation.currentTime) - animationTime) > DRIFT_THRESHOLD_MS;
-        // Once a word is fully hidden or filled, its paused effect needs no more writes.
-        if (shouldAnchor && animation.currentTime !== animationTime) animation.currentTime = animationTime;
-        if (playing && currentMs >= startMs && currentMs < endMs) {
+        if (!playing && animation.playState !== 'paused') animation.pause();
+        // Set the hold time after pause(), which otherwise settles on a later frame.
+        if (shouldAnchor && (animation.currentTime !== animationTime || (!playing && animation.pending))) {
+          animation.currentTime = animationTime;
+        }
+        if (playing) {
           if (animation.playState !== 'running') animation.play();
-        } else if (animation.playState !== 'paused') animation.pause();
+        }
       } else {
-        const clipPath = `inset(0 ${this.mode === 'manual' ? 100 - progress * 100 : progress >= 1 ? 0 : 100}% 0 0)`;
+        const clipPath = `inset(0 ${this.mode === 'static' ? progress >= 1 ? 0 : 100 : 100 - progress * 100}% 0 0)`;
         if (entry.clipPath !== clipPath) {
           entry.highlight.style.clipPath = clipPath;
           entry.clipPath = clipPath;
         }
+        // Upcoming/completed words keep their fill without a live animation effect.
+        this.animations[index]?.cancel();
+        this.animations[index] = null;
       }
     });
   }
@@ -136,11 +141,11 @@ export class LyricWordAnimator {
         entry.motion.pause();
       }
       const animation = entry.motion;
+      if (!playing && animation.playState !== 'paused') animation.pause();
       if ((force || !playing || animation.playState !== 'running'
         || Math.abs(Number(animation.currentTime) - time) > DRIFT_THRESHOLD_MS)
-        && animation.currentTime !== time) animation.currentTime = time;
+        && (animation.currentTime !== time || (!playing && animation.pending))) animation.currentTime = time;
       if (playing && animation.playState !== 'running') animation.play();
-      else if (!playing && animation.playState !== 'paused') animation.pause();
     });
   }
 
@@ -183,7 +188,11 @@ export class LyricWordAnimator {
     if (mode === 'discrete' && this.mode !== 'discrete') {
       this.discreteCursor = 0;
       this.discreteLastMs = null;
-      this.elements.forEach((entry) => setDiscreteState(entry, false));
+      this.elements.forEach((entry) => {
+        entry.highlight.style.clipPath = '';
+        entry.clipPath = null;
+        setDiscreteState(entry, false);
+      });
     }
     this.mode = mode;
   }

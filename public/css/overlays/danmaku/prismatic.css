@@ -186,6 +186,7 @@ body[data-style='prismatic'] .draw-danmaku-item.is-gift .draw-danmaku-body > p {
 }
 body[data-style='prismatic'] .draw-danmaku-item.is-gift .draw-danmaku-gift-copy {
   display: contents;
+  font-size: var(--danmaku-font-size);
 }
 body[data-style='prismatic'] .draw-danmaku-item.is-gift :is(.draw-danmaku-gift-action, .draw-danmaku-gift-name, .draw-danmaku-gift-count, .draw-danmaku-gift-amount) {
   color: var(--prismatic-ink);
@@ -302,6 +303,7 @@ body[data-style='prismatic'] .prismatic-guard-amount {
 }
 body[data-style='prismatic'] .draw-danmaku-item.is-superchat {
   padding: 0;
+  font-size: var(--danmaku-font-size);
   zoom: 1;
 }
 body[data-style='prismatic'] .sc-prismatic {

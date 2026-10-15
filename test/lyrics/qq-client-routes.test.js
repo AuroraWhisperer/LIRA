@@ -23,6 +23,7 @@ test('external source routes protect access, independently detect and stop captu
     },
     qqClientLyricResolver: async () => ({ source: 'qq', lines: [{ startMs: 0, text: 'Synthetic QQ lyric' }] }),
     weSingPlatform: 'win32',
+    weSingCacheDiscovery: async () => '',
     weSingMonitorFactory: () => ({ start() {}, stop() {} }),
   });
   t.after(async () => {

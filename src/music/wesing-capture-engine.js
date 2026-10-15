@@ -1,13 +1,13 @@
 'use strict';
 
-const path = require('node:path');
 const { performance } = require('node:perf_hooks');
 const { findCurrentLyricLine } = require('./lyric-parser');
 const { normalizeLyricState } = require('./lyric-state');
 const {
   ensureWeSingCacheDirectory,
+  findLatestSongEntry,
   formatLyricSource,
-  isDirectory,
+  hasWeSingCacheData,
   normalizeWeSingLyricOffsetMs,
   safeInitialCachePath,
   safeInitialLyricOffsetMs,
@@ -19,8 +19,10 @@ const { resolveWeSingLyrics } = require('./wesing-lyric-resolver');
 const { createWeSingQrcWatcher } = require('./wesing-qrc-watcher');
 
 const PAUSED_AFTER_MS = 1500;
+const AUDIO_PEAK_THRESHOLD = 0.001;
 const PROGRESS_COMPENSATION_MS = 130;
 const PLAYBACK_REFRESH_DELAY_MS = 1000;
+const AUTOMATIC_REFRESH_INTERVAL_MS = 3000;
 
 function createWeSingCapture(options = {}) {
   const now = typeof options.now === 'function' ? options.now : () => performance.now();
@@ -45,9 +47,16 @@ function createWeSingCapture(options = {}) {
   let pendingRefresh = Promise.resolve();
   let lastProgressMs = -1;
   let lastProgressChangeAt = 0;
+  let lastAudibleAt = -Infinity;
+  let extrapolatingStaleProgress = false;
   let hasStartedCurrentTrack = false;
   let loadingTrackTitle = '';
   let cachePathQueue = Promise.resolve();
+  let cachePathVersion = 0;
+  let pendingCacheDiscovery = null;
+  let pendingAutomaticRefresh = null;
+  let lastAutomaticRefreshAt = -Infinity;
+  let observedSongMid = '';
 
   const state = {
     active: false,
@@ -85,6 +94,9 @@ function createWeSingCapture(options = {}) {
       if (!state.trackTitle) return;
       pendingRefresh = refreshLyrics(state.trackTitle);
     },
+    onSongChange: () => {
+      pendingRefresh = refreshSongIdentity();
+    },
   });
   const { sync: syncQrcWatcher, stop: stopQrcWatcher } = qrcWatcher;
 
@@ -92,6 +104,7 @@ function createWeSingCapture(options = {}) {
     const nextLyricOffsetMs = Object.hasOwn(input, 'lyricOffsetMs')
       ? normalizeWeSingLyricOffsetMs(input.lyricOffsetMs)
       : undefined;
+    if (Object.hasOwn(input, 'cachePath')) cachePathVersion += 1;
     const nextCachePath = Object.hasOwn(input, 'cachePath')
       ? await ensureWeSingCacheDirectory(input.cachePath)
       : undefined;
@@ -111,7 +124,7 @@ function createWeSingCapture(options = {}) {
           cachePath = nextCachePath;
           state.cachePath = cachePath;
           resetLyrics();
-          await refresh();
+          await refresh({ discover: false });
         } else {
           updateLyricState();
           emit();
@@ -122,10 +135,11 @@ function createWeSingCapture(options = {}) {
   }
 
   function setCachePath(input) {
+    cachePathVersion += 1;
     const update = cachePathQueue.then(async () => {
       const prepared = await prepareConfiguration({ cachePath: input });
       if (typeof options.saveCachePath === 'function') await options.saveCachePath(prepared.cachePath);
-      return prepared.cachePath === cachePath ? refresh() : prepared.apply();
+      return prepared.cachePath === cachePath ? refresh({ discover: false }) : prepared.apply();
     });
     cachePathQueue = update.catch(() => {});
     return update;
@@ -147,6 +161,9 @@ function createWeSingCapture(options = {}) {
     }
     state.active = nextActive;
     const version = ++lifecycleVersion;
+    pendingCacheDiscovery = null;
+    pendingAutomaticRefresh = null;
+    lastAutomaticRefreshAt = -Infinity;
     refreshVersion += 1;
     if (!nextActive) {
       stopMonitor();
@@ -169,19 +186,6 @@ function createWeSingCapture(options = {}) {
       emit();
       return getStatus();
     }
-    if (cachePath) {
-      try {
-        await ensureWeSingCacheDirectory(cachePath);
-      } catch (error) {
-        if (version !== lifecycleVersion) return getStatus();
-        state.active = false;
-        state.status = 'error';
-        state.message = `无法创建全民 K 歌缓存目录：${error.message || String(error)}`;
-        updateLyricState();
-        emit();
-        return getStatus();
-      }
-    }
     if (version !== lifecycleVersion || !state.active) return getStatus();
     try {
       monitor = monitorFactory((sample) => {
@@ -198,14 +202,69 @@ function createWeSingCapture(options = {}) {
     return getStatus();
   }
 
-  async function refresh() {
+  function discoverCachePath() {
+    const title = state.trackTitle;
+    if (!pendingCacheDiscovery || pendingCacheDiscovery.title !== title || pendingCacheDiscovery.cachePath !== cachePath) {
+      const requestedCachePath = cachePath;
+      const discovery = Promise.resolve()
+        .then(() => options.discoverCachePath({ cachePath: requestedCachePath, title }))
+        .catch(() => '')
+        .finally(() => {
+          if (pendingCacheDiscovery?.promise === discovery) pendingCacheDiscovery = null;
+        });
+      pendingCacheDiscovery = { title, cachePath: requestedCachePath, promise: discovery };
+    }
+    return pendingCacheDiscovery.promise;
+  }
+
+  async function refresh({ discover = true, automatic = false } = {}) {
     const version = lifecycleVersion;
-    const requestedCachePath = cachePath;
-    const cacheReady = await isDirectory(path.join(requestedCachePath, 'WeSingDL', 'Res'));
-    if (version !== lifecycleVersion || requestedCachePath !== cachePath) return getStatus();
+    const requestedTitle = state.trackTitle;
+    const previousCachePath = cachePath;
+    const previousCacheReady = state.cacheReady;
+    let configurationVersion = cachePathVersion;
+    let requestedCachePath = cachePath;
+    const isCurrent = () => version === lifecycleVersion && configurationVersion === cachePathVersion &&
+      requestedCachePath === cachePath && (!discover || requestedTitle === state.trackTitle);
+    let cacheReady = await hasWeSingCacheData(requestedCachePath);
+    if (!isCurrent()) return getStatus();
+    if ((!cacheReady || state.platformDetected) && discover && state.active && state.supported && typeof options.discoverCachePath === 'function') {
+      const detectedPath = await discoverCachePath();
+      if (!isCurrent()) return getStatus();
+      if (detectedPath && (detectedPath !== cachePath || !cacheReady)) {
+        const update = cachePathQueue.then(async () => {
+          if (!isCurrent()) return false;
+          const verifiedPath = await ensureWeSingCacheDirectory(detectedPath);
+          if (!isCurrent()) return false;
+          if (typeof options.saveCachePath === 'function') await options.saveCachePath(verifiedPath);
+          if (!isCurrent()) return false;
+          stopQrcWatcher();
+          cachePath = verifiedPath;
+          state.cachePath = cachePath;
+          requestedCachePath = cachePath;
+          configurationVersion = ++cachePathVersion;
+          resetLyrics();
+          return true;
+        });
+        cachePathQueue = update.catch(() => {});
+        if (!(await update)) return getStatus();
+        cacheReady = true;
+      }
+    }
     state.cacheReady = cacheReady;
     await syncQrcWatcher();
-    if (version !== lifecycleVersion || requestedCachePath !== cachePath) return getStatus();
+    if (!isCurrent()) return getStatus();
+    if (automatic && previousCachePath === cachePath && previousCacheReady === cacheReady) {
+      if (state.status !== 'loading') {
+        if (cacheReady && state.trackTitle && !state.qrcReady) {
+          pendingRefresh = refreshLyrics(state.trackTitle);
+          await pendingRefresh;
+        } else {
+          await refreshSongIdentity();
+        }
+      }
+      return getStatus();
+    }
     if (!state.active) {
       emit();
       return getStatus();
@@ -223,6 +282,26 @@ function createWeSingCapture(options = {}) {
       emit();
     }
     return getStatus();
+  }
+
+  function scheduleAutomaticRefresh(timestamp, immediate) {
+    if (!state.supported || typeof options.discoverCachePath !== 'function') return;
+    if (immediate) lastAutomaticRefreshAt = -Infinity;
+    if (pendingAutomaticRefresh || timestamp - lastAutomaticRefreshAt < AUTOMATIC_REFRESH_INTERVAL_MS) return;
+    lastAutomaticRefreshAt = timestamp;
+    const version = lifecycleVersion;
+    const configurationVersion = cachePathVersion;
+    const title = state.trackTitle;
+    const update = refresh({ automatic: true })
+      .catch((error) => {
+        if (version !== lifecycleVersion || configurationVersion !== cachePathVersion || title !== state.trackTitle || !state.active) return;
+        state.message = `缓存自动检测暂未完成，将自动重试：${String(error.message || error).slice(0, 120)}`;
+        emit();
+      })
+      .finally(() => {
+        if (pendingAutomaticRefresh === update) pendingAutomaticRefresh = null;
+      });
+    pendingAutomaticRefresh = update;
   }
 
   function handleMonitorSample(sample = {}) {
@@ -287,6 +366,7 @@ function createWeSingCapture(options = {}) {
         pendingRefresh = refreshLyrics(title);
       }
     }
+    scheduleAutomaticRefresh(timestamp, titleChanged || platformResumed);
 
     if (!title) {
       loadingTrackTitle = '';
@@ -319,9 +399,12 @@ function createWeSingCapture(options = {}) {
 
     if (audioActive === false) {
       pausePlaybackClock(timestamp);
-      if (hasSampledProgress) {
+      lastAudibleAt = -Infinity;
+      // A frozen UI value must not rewind the clock after audio kept it moving.
+      if (hasSampledProgress && (!extrapolatingStaleProgress || sampledCurrentMs !== lastProgressMs)) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
+        extrapolatingStaleProgress = false;
         setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
       }
       state.currentMs = readPlaybackClock(timestamp);
@@ -332,20 +415,24 @@ function createWeSingCapture(options = {}) {
       return;
     }
 
+    const hasAudibleAudio = audioActive === true && Number(sample.audioPeak) > AUDIO_PEAK_THRESHOLD;
+    if (hasAudibleAudio) lastAudibleAt = timestamp;
+
     if (hasSampledProgress) {
       const progressChanged = lastProgressMs >= 0 && sampledCurrentMs !== lastProgressMs;
       const isFirstProgress = lastProgressMs < 0;
       const replayedFromStart =
         lastProgressMs > 3000 && sampledCurrentMs <= 2000 && sampledCurrentMs < lastProgressMs - 2000;
+      if (progressChanged || isFirstProgress) extrapolatingStaleProgress = false;
 
       if (replayedFromStart) {
         pausePlaybackClock(timestamp);
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
         setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
-        hasStartedCurrentTrack = sampledCurrentMs > 0;
-        state.playing = sampledCurrentMs > 0;
-        state.waitingForPlayback = sampledCurrentMs === 0;
+        hasStartedCurrentTrack = sampledCurrentMs > 0 || hasAudibleAudio;
+        state.playing = hasStartedCurrentTrack;
+        state.waitingForPlayback = !hasStartedCurrentTrack;
         if (state.playing) startPlaybackClock(timestamp);
         state.message = `检测到《${title}》重新开始，歌词已回到开头。`;
       } else if (progressChanged) {
@@ -361,7 +448,7 @@ function createWeSingCapture(options = {}) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
         setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
-        if (sampledCurrentMs > 0) {
+        if (sampledCurrentMs > 0 || hasAudibleAudio) {
           startPlaybackClock(timestamp);
           state.playing = true;
           hasStartedCurrentTrack = true;
@@ -371,6 +458,13 @@ function createWeSingCapture(options = {}) {
           state.playing = false;
           state.waitingForPlayback = true;
         }
+      } else if (hasAudibleAudio ||
+        (state.playing && audioActive === true && timestamp - lastAudibleAt <= PAUSED_AFTER_MS)) {
+        if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) extrapolatingStaleProgress = true;
+        startPlaybackClock(timestamp);
+        state.playing = true;
+        hasStartedCurrentTrack = true;
+        state.waitingForPlayback = false;
       } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
         pausePlaybackClock(timestamp);
         state.playing = false;
@@ -397,8 +491,27 @@ function createWeSingCapture(options = {}) {
     playbackClock.reset(timestamp);
     lastProgressMs = -1;
     lastProgressChangeAt = timestamp;
+    lastAudibleAt = -Infinity;
+    extrapolatingStaleProgress = false;
     hasStartedCurrentTrack = false;
     state.waitingForPlayback = true;
+  }
+
+  async function refreshSongIdentity() {
+    const title = state.trackTitle;
+    if (!state.active || !title) return;
+    const version = refreshVersion;
+    const entry = await findLatestSongEntry(cachePath, title).catch(() => null);
+    if (!state.active || version !== refreshVersion || !entry || entry.mid === observedSongMid) return;
+    cancelPlaybackRefresh();
+    resetLyrics();
+    observedSongMid = entry.mid;
+    resetPlaybackClock(now());
+    state.currentMs = 0;
+    state.durationMs = 0;
+    state.playing = false;
+    playbackRefreshPending = true;
+    await refreshLyrics(title);
   }
 
   async function refreshLyrics(title) {
@@ -408,7 +521,7 @@ function createWeSingCapture(options = {}) {
     state.message = `正在匹配《${title}》的歌词…`;
     updateLyricState();
     emit();
-    const { result, fallbackError } = await resolveWeSingLyrics({
+    const { result, fallbackError, songMid } = await resolveWeSingLyrics({
       cachePath,
       title,
       cacheReady: state.cacheReady,
@@ -416,6 +529,7 @@ function createWeSingCapture(options = {}) {
       resolveFallbackLyrics,
     });
     if (!state.active || version !== refreshVersion || title !== state.trackTitle) return;
+    observedSongMid = songMid || '';
     if (!result) {
       lyrics = [];
       lyricArtists = [];
@@ -484,6 +598,7 @@ function createWeSingCapture(options = {}) {
     state.qrcReady = false;
     state.lyricSource = '';
     state.songMid = '';
+    observedSongMid = '';
     publishTimeline();
     updateLyricState();
   }
@@ -536,6 +651,7 @@ function createWeSingCapture(options = {}) {
   }
 
   async function waitForRefresh() {
+    await pendingAutomaticRefresh;
     await pendingRefresh;
     return getStatus();
   }
@@ -543,6 +659,8 @@ function createWeSingCapture(options = {}) {
   function stop() {
     lifecycleVersion += 1;
     refreshVersion += 1;
+    pendingCacheDiscovery = null;
+    pendingAutomaticRefresh = null;
     state.active = false;
     loadingTrackTitle = '';
     pausePlaybackClock(now());

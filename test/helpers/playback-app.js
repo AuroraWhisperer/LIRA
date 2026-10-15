@@ -45,7 +45,12 @@ async function createPlaybackApp(initialState, options = {}) {
     getElementById(id) {
       if (id === 'playerAppearance') return null;
       if (!elements.has(id)) {
-        elements.set(id, id === 'music-player' ? new FakeAudioElement() : new FakeElement());
+        const element = id === 'music-player' ? new FakeAudioElement() : new FakeElement();
+        if (id === 'playerFsArt' || id === 'playerFsLyrics') {
+          element.querySelector = () => null;
+          element.querySelectorAll = () => [];
+        }
+        elements.set(id, element);
       }
       return elements.get(id);
     },

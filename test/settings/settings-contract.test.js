@@ -9,6 +9,7 @@ const test = require('node:test');
 const { createSettingsStore, DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { routes } = require('../../src/server/routes/settings-routes');
 const { createWeSingCapture } = require('../../src/music/wesing-capture');
+const { createFixture: createWeSingCacheFixture } = require('../helpers/wesing-capture-fixture');
 
 function fixture(t) {
   const db = new DatabaseSync(':memory:');
@@ -383,7 +384,7 @@ test('invalid WeSing settings do not commit other fields in a batch', async (t) 
 
 test('failed settings transactions do not apply prepared WeSing configuration', async (t) => {
   const f = fixture(t);
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-wesing-settings-'));
+  const { root, cachePath: nextCachePath } = createWeSingCacheFixture();
   const previousCachePath = path.join(root, 'previous', 'WeSingCache');
   f.store.setSettings({ weSingCachePath: previousCachePath, weSingLyricOffsetMs: '0' });
   const capture = createWeSingCapture({ cachePath: previousCachePath, platform: 'win32' });
@@ -398,7 +399,7 @@ test('failed settings transactions do not apply prepared WeSing configuration', 
   const before = f.store.getSettings();
   await assert.rejects(
     f.post({
-      weSingCachePath: path.join(root, 'next', 'WeSingCache'),
+      weSingCachePath: nextCachePath,
       weSingLyricOffsetMs: 250,
       paused: true,
     }),

@@ -7,7 +7,9 @@ import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, controllers, beforeApply, flushAppearance, getSelection, setBusy, report }) {
   let disposed = false;
   let busy = false;
+  let sourceButton = null;
   const source = previewElement('input', 'preview-canvas-source');
+  source.id = 'previewCanvasSource';
   source.readOnly = true;
   source.hidden = true;
   source.setAttribute('aria-label', '直播源地址');
@@ -22,6 +24,31 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
   copy.type = copyComponent.type = apply.type = 'button';
   sourceHost.append(source, copy, copyComponent);
   applyHost.append(apply);
+  for (const button of [copy, copyComponent]) {
+    button.setAttribute('aria-controls', source.id);
+    button.setAttribute('aria-expanded', 'false');
+  }
+  function showSource(button) {
+    sourceButton = button;
+    source.hidden = !button;
+    copy.setAttribute('aria-expanded', String(button === copy));
+    copyComponent.setAttribute('aria-expanded', String(button === copyComponent));
+  }
+  function dismissSource(event) {
+    if (!source.hidden && !sourceHost.contains(event.target)) showSource(null);
+  }
+  function escapeSource(event) {
+    if (event.key !== 'Escape' || source.hidden) return;
+    event.preventDefault();
+    if (document.activeElement === source) sourceButton?.focus({ preventScroll: true });
+    showSource(null);
+  }
+  function toggleSource(item = null) {
+    if (sourceButton === (item ? copyComponent : copy)) showSource(null);
+    else void run('source', item);
+  }
+  document.addEventListener('pointerdown', dismissSource, true);
+  document.addEventListener('keydown', escapeSource);
   async function run(action, item = null) {
     if (busy || (action === 'publish' && !beforeApply())) return;
     busy = true;
@@ -45,7 +72,7 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
           ? new URL(SCENE_COMPONENTS[item.type].sourceUrl, localOverlayOrigin()).href
           : sceneSourceUrl({ ...result, ...(item ? { item: item.id } : {}) });
         source.value = url;
-        source.hidden = false;
+        showSource(item ? copyComponent : copy);
         await copyText(url);
         const size = sharedSource ? result.componentSizes?.[item.type] : item ? result.itemSizes?.[item.id] : result.canvas;
         report(`${item ? '单组件地址已复制' : '直播源地址已复制'}${size ? `；请在 OBS 或直播姬中设置为 ${size.width} × ${size.height}` : '；请使用已发布画面的像素尺寸'}。之后保存并应用即可更新，无需重复导入。`);
@@ -58,8 +85,8 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
       if (!disposed) setBusy(false);
     }
   }
-  copy.addEventListener('click', () => { void run('source'); });
-  copyComponent.addEventListener('click', () => { const item = getSelection?.(); if (item) void run('source', item); });
+  copy.addEventListener('click', () => toggleSource());
+  copyComponent.addEventListener('click', () => { const item = getSelection?.(); if (item) toggleSource(item); });
   apply.addEventListener('click', () => { void run('publish'); });
   return {
     render(connected, saving) {
@@ -67,6 +94,11 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
       copyComponent.hidden = !getSelection?.();
       copyComponent.disabled = copy.disabled;
     },
-    dispose() { disposed = true; source.remove(); copy.remove(); copyComponent.remove(); apply.remove(); },
+    dispose() {
+      disposed = true;
+      document.removeEventListener('pointerdown', dismissSource, true);
+      document.removeEventListener('keydown', escapeSource);
+      source.remove(); copy.remove(); copyComponent.remove(); apply.remove();
+    },
   };
 }

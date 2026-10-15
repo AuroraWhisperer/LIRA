@@ -5,7 +5,10 @@
 While the performance panel is opened, when the client requests its initial
 hardware summary, the system shall show the current CPU model, installed memory
 capacity and module details, and physical GPU model and reported video-memory
-capacity. Virtual display adapters shall not be presented as GPUs.
+capacity. This capacity represents dedicated or reserved memory, not the shared
+system-memory limit. Saturated legacy values shall be shown as unknown when a
+reliable capacity cannot be read. Virtual display adapters shall not be presented
+as GPUs.
 
 While the user starts a five-second performance sample, when the sample runs,
 the system shall refresh any supported hardware temperatures without creating a
@@ -23,8 +26,10 @@ shown as `未知`, and the memory card shall not show a temperature row.
   renderer writes all returned values through `textContent`.
 - Backend: `system-metrics.js` owns operating-system reads. It uses Node `os`
   data for CPU and total memory, starts one hidden PowerShell CIM query for
-  static Windows device details, and conditionally invokes `nvidia-smi` for an
-  NVIDIA GPU temperature only during a refresh.
+  static Windows device details and the corresponding driver's 64-bit memory
+  capacity, and conditionally invokes `nvidia-smi` for an NVIDIA GPU temperature
+  only during a refresh. Memory-source and fallback rules belong to the
+  [system-metrics reference](../docs/reference/backend/server-core.md#8-系统指标).
 - API: `GET /api/system/hardware` returns a narrow, read-only summary. The
   optional `includeTemperatures=true` flag is interpreted server-side; no value
   is inserted into a shell command.

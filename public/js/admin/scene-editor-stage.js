@@ -211,7 +211,11 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     event.stopPropagation();
     cancelGesture();
   });
-  canvas.addEventListener('pointerdown', (event) => { if (event.target === canvas) select(null); });
+  viewport.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || gesture || event.target.closest('.scene-editor-item')) return;
+    host.focus({ preventScroll: true });
+    select(null);
+  });
   window.addEventListener('blur', cancelGesture);
   const unsubscribe = model.subscribeSnapshot(render);
   const observer = new ResizeObserver(fit);

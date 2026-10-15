@@ -39,6 +39,11 @@ body[data-style] .draw-danmaku-item.is-superchat::after {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+/* Match ordinary body text independently of the legacy card's design scale. */
+body:is([data-style='bubble'], [data-style='signal'], [data-style='ranked'], [data-style='transparent'], [data-style='identity'])
+  .is-superchat .sc-copy {
+  font-size: calc(var(--danmaku-font-size) / var(--danmaku-superchat-scale, 1));
+}
 .is-superchat .sc-money {
   white-space: nowrap;
   font-family: var(--danmaku-num-font);

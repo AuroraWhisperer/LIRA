@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { encryptQrc } = require('qrc-decoder');
 const {
   buildPowerShellMonitorScript,
   createWeSingCapture,
@@ -12,7 +13,9 @@ const {
   loadWeSingLyrics,
   normalizeWeSingCachePath,
 } = require('../../src/music/wesing-capture');
-const { createFixture } = require('../helpers/wesing-capture-fixture');
+const { createFixture, qrcXml } = require('../helpers/wesing-capture-fixture');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+const { resolveWeSingLyrics } = require('../../src/music/wesing-lyric-resolver');
 
 test('WeSing capture facade preserves focused module exports', () => {
   const facade = require('../../src/music/wesing-capture');
@@ -43,13 +46,37 @@ test('WeSing cache parser reads matching UTF-16LE log and decrypts local word-ti
   assert.equal(result.songMid, fixture.mid);
   assert.equal(result.title, '测试歌曲');
   assert.deepEqual(result.artists, ['测试歌手']);
-  assert.equal(result.durationMs, 8000);
+  assert.equal(result.durationMs, 5200, 'QRC SaveTime is a save timestamp, not the song duration');
   assert.equal(result.lines.length, 2);
   assert.equal(result.lines[0].text, '你好');
   assert.deepEqual(result.lines[0].words, [
     { text: '你', startMs: 1000, endMs: 1800 },
     { text: '好', startMs: 1800, endMs: 2800 },
   ]);
+});
+
+test('WeSing falls back online instead of using a cached different version of the same title', async (t) => {
+  const fixture = createFixture();
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+  fs.appendFileSync(
+    path.join(fixture.cachePath, 'Log', 'WeSing', 'WeSing-1.log'),
+    Buffer.from('\r\nevent "StartKSong" payload {"mid":"new-cover","songname":"测试歌曲","singer":"翻唱歌手"}', 'utf16le'),
+  );
+  const requests = [];
+  const onlineLyrics = { source: 'qq', songMid: 'online-cover', artists: ['翻唱歌手'], lines: [] };
+  const { result } = await resolveWeSingLyrics({
+    cachePath: fixture.cachePath,
+    cacheReady: true,
+    title: '测试歌曲',
+    durationMs: 240000,
+    async resolveFallbackLyrics(input) {
+      requests.push(input);
+      return onlineLyrics;
+    },
+  });
+
+  assert.equal(result, onlineLyrics);
+  assert.deepEqual(requests, [{ title: '测试歌曲', artist: '翻唱歌手', artists: ['翻唱歌手'], durationMs: 240000 }]);
 });
 
 test('WeSing log parser ignores title mismatches and unsafe song IDs', async (t) => {
@@ -66,33 +93,72 @@ test('WeSing log parser ignores title mismatches and unsafe song IDs', async (t)
 
   assert.equal(await findLatestSongEntry(fixture.cachePath, '另一首歌'), null);
   assert.equal(await findLatestSongEntry(fixture.cachePath, '测试歌曲'), null);
+  assert.equal(await loadWeSingLyrics({ cachePath: fixture.cachePath, logEntry: { mid: '../escape' } }), null);
   assert.throws(() => normalizeWeSingCachePath('relative\\WeSingCache'), /绝对路径/);
   assert.throws(() => normalizeWeSingCachePath('C:\\Temp\\OtherFolder'), /WeSingCache/);
 });
 
-test('WeSing cache configuration creates a missing user cache directory', async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-missing-cache-'));
+test('WeSing recovers the newest song record across a log read boundary', async (t) => {
+  const fixture = createFixture();
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+  const logPath = path.join(fixture.cachePath, 'Log', 'WeSing', 'WeSing-1.log');
+  const latest = { mid: 'current-cover', songname: '测试歌曲', singername: '翻唱歌手' };
+  const padding = '\r\nordinary log entry'.repeat(3000).slice(0, 100 * 1024 / 2 - 40);
+  fs.appendFileSync(logPath, Buffer.from(`\r\nevent "StartKSong" payload ${JSON.stringify(latest)}${padding}`, 'utf16le'));
+
+  assert.deepEqual(await findLatestSongEntry(fixture.cachePath, '测试歌曲'), {
+    mid: latest.mid, songName: latest.songname, artist: latest.singername,
+  });
+  fs.appendFileSync(logPath, Buffer.from('\r\nordinary log entry'.repeat(4000), 'utf16le'));
+  assert.equal((await findLatestSongEntry(fixture.cachePath, '测试歌曲')).mid, latest.mid);
+});
+
+test('WeSing does not reuse an older matching title after a different song starts', async (t) => {
+  const fixture = createFixture();
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+  fs.appendFileSync(path.join(fixture.cachePath, 'Log', 'WeSing', 'WeSing-1.log'),
+    Buffer.from('\r\nevent "StartKSong" payload {"mid":"next-song","songname":"下一首歌"}', 'utf16le'));
+  assert.equal(await findLatestSongEntry(fixture.cachePath, '测试歌曲'), null);
+  assert.deepEqual(await findLatestSongEntry(fixture.cachePath, '下一首歌'), {
+    mid: 'next-song', songName: '下一首歌',
+  });
+});
+
+test('WeSing does not choose between same-title cached renditions without a song ID', async (t) => {
+  const fixture = createFixture();
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+  assert.equal((await loadWeSingLyrics({ cachePath: fixture.cachePath, title: '测试歌曲', logEntry: null })).songMid, fixture.mid);
+  const directory = path.join(fixture.cachePath, 'WeSingDL', 'Res', 'another-cover');
+  fs.mkdirSync(directory);
+  const content = '[ti:测试歌曲]\n[ar:翻唱歌手]\n[1000,1000]翻(1000,500)唱(1500,500)';
+  fs.writeFileSync(path.join(directory, 'another-cover.qrc'), Buffer.from(encryptQrc(qrcXml(content)), 'hex'));
+  assert.equal(await loadWeSingLyrics({ cachePath: fixture.cachePath, title: '测试歌曲', logEntry: null }), null);
+});
+
+test('WeSing cache configuration rejects a missing directory without creating it', async (t) => {
+  const root = createScratchDirectory('wesing-missing-cache-');
   const cachePath = path.join(root, 'Tencent', 'WeSing', 'WeSingCache');
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 
   const capture = createWeSingCapture({ platform: 'win32' });
-  const status = await capture.setCachePath(cachePath);
-
-  assert.equal(status.cachePath, cachePath);
-  assert.equal(fs.statSync(cachePath).isDirectory(), true);
+  await assert.rejects(capture.setCachePath(cachePath), /未找到全民 K 歌缓存文件/);
+  assert.equal(capture.getStatus().cachePath, '');
+  assert.equal(fs.existsSync(cachePath), false);
 });
 
 test('WeSing serializes directory saves and recovers after an invalid path', async (t) => {
-  const scratch = path.resolve(__dirname, '../../tmp/audit-remediation-2026-10-12/playback');
-  fs.mkdirSync(scratch, { recursive: true });
-  const root = fs.mkdtempSync(path.join(scratch, 'wesing-order-'));
+  const root = createScratchDirectory('wesing-order-');
   const firstPath = path.join(root, 'A', 'WeSingCache');
   const lastPath = path.join(root, 'B', 'WeSingCache');
   const pending = Promise.withResolvers();
-  const mkdir = fs.promises.mkdir.bind(fs.promises);
-  t.mock.method(fs.promises, 'mkdir', async (directory, options) => {
-    if (directory === firstPath) await pending.promise;
-    return mkdir(directory, options);
+  for (const directory of [firstPath, lastPath]) {
+    fs.mkdirSync(path.join(directory, 'Log', 'WeSing'), { recursive: true });
+    fs.writeFileSync(path.join(directory, 'Log', 'WeSing', 'test.log'), 'synthetic cache');
+  }
+  const readdir = fs.promises.readdir.bind(fs.promises);
+  t.mock.method(fs.promises, 'readdir', async (directory, options) => {
+    if (directory === path.join(firstPath, 'Log', 'WeSing')) await pending.promise;
+    return readdir(directory, options);
   });
   const saved = [];
   const capture = createWeSingCapture({ platform: 'win32', saveCachePath: (value) => saved.push(value) });
@@ -117,10 +183,10 @@ test('WeSing serializes directory saves and recovers after an invalid path', asy
   assert.equal(saved.at(-1), firstPath);
 });
 
-test('WeSing activation creates a missing initial cache directory before detection starts', async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-initial-cache-'));
+test('WeSing activation keeps monitoring without creating a missing cache directory', async (t) => {
+  const root = createScratchDirectory('wesing-initial-cache-');
   const cachePath = path.join(root, 'Tencent', 'WeSing', 'WeSingCache');
-  let cacheExistedAtMonitorStart = false;
+  let monitorStarted = false;
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 
   const capture = createWeSingCapture({
@@ -129,7 +195,7 @@ test('WeSing activation creates a missing initial cache directory before detecti
     monitorFactory() {
       return {
         start() {
-          cacheExistedAtMonitorStart = fs.existsSync(cachePath);
+          monitorStarted = true;
         },
         stop() {},
       };
@@ -140,7 +206,9 @@ test('WeSing activation creates a missing initial cache directory before detecti
   const status = await capture.setActive(true);
 
   assert.equal(status.active, true);
-  assert.equal(cacheExistedAtMonitorStart, true);
+  assert.equal(monitorStarted, true);
+  assert.equal(status.cacheReady, false);
+  assert.equal(fs.existsSync(cachePath), false);
 });
 
 test('unchanged WeSing configuration preserves listeners and does not reset capture state', async (t) => {
@@ -215,8 +283,11 @@ test('a prepared cache directory that disappears is reported unavailable without
   });
   await capture.setActive(true);
   const cachePath = path.join(fixture.root, 'missing', 'WeSingCache');
+  const logDir = path.join(cachePath, 'Log', 'WeSing');
+  fs.mkdirSync(logDir, { recursive: true });
+  fs.writeFileSync(path.join(logDir, 'test.log'), 'synthetic cache');
   const prepared = await capture.prepareConfiguration({ cachePath });
-  fs.rmdirSync(cachePath);
+  fs.rmSync(cachePath, { recursive: true });
   const status = await prepared.apply();
   assert.equal(status.cachePath, cachePath);
   assert.equal(status.cacheReady, false);
@@ -266,3 +337,28 @@ for (const size of [2 ** 31 + 102400, 3 * 2 ** 30, 2 ** 32, 2 ** 32 + 11, 2 ** 3
     assert.equal(closed, true);
   });
 }
+
+test('WeSing bounds backward scanning when a large log has no song record', async (t) => {
+  const cachePath = path.join(os.tmpdir(), 'synthetic-missing-record', 'WeSingCache');
+  const size = 2 ** 33 + 1;
+  let bytes = 0;
+  let previousStart = size;
+  let closed = false;
+  t.mock.method(fs.promises, 'readdir', async () => [{ name: 'WeSing.log', isFile: () => true }]);
+  t.mock.method(fs.promises, 'stat', async () => ({ mtimeMs: 1, size }));
+  t.mock.method(fs.promises, 'open', async () => ({
+    async read(buffer, offset, length, position) {
+      assert.equal(position % 2, 0);
+      assert.equal(position + length, previousStart);
+      assert.ok(length <= 102401);
+      previousStart = position;
+      bytes += length;
+      buffer.fill(Buffer.from('ordinary log entry\r\n', 'utf16le'));
+      return { bytesRead: length };
+    },
+    async close() { closed = true; },
+  }));
+  assert.equal(await findLatestSongEntry(cachePath, '测试歌曲'), null);
+  assert.ok(bytes > 102400 && bytes <= 4 * 1024 * 1024 + 1);
+  assert.equal(closed, true);
+});

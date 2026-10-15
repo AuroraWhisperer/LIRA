@@ -102,19 +102,19 @@
 <ol class="usage-guide-checks">
 <li>打开全民 K 歌电脑版，登录后播放伴奏。</li>
 <li>
-          在 LIRA 的<strong class="usage-guide-keyword">「播放 → 全民 K歌」</strong>里，选好全民 K 歌用的
-          <code>WeSingCache</code> 文件夹，点<strong class="usage-guide-keyword">「保存并检测」</strong>。
+          打开 LIRA 的<strong class="usage-guide-keyword">「播放 → 全民 K歌」</strong>，会自动查找已有缓存。
+          尚未下载过伴奏时，直接在全民 K 歌播放即可；缓存生成后会自动识别，切换伴奏版本或缓存位置也会自动跟随，无需点「重新检测」。
         </li>
 <li>
-          歌词和伴奏对不上时，用<strong class="usage-guide-keyword">「歌词时间调整」</strong>往前或往后调。范围是
+          确认歌手和版本一致后，如果歌词只是整体提前或落后，用<strong class="usage-guide-keyword">「歌词时间调整」</strong>往前或往后调。范围是
           ±3000 毫秒（±3 秒），每次调 50 毫秒。
         </li>
 </ol>
 <figure class="usage-guide-figure">
 <img alt="全民 K歌页面：左边是实时歌词，右边是缓存文件夹、保存并检测按钮、歌词时间调整和连接状态" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/C/playback-wesing-cache.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>右侧「歌词同步设置」：选缓存文件夹，点「保存并检测」。</figcaption>
+<figcaption>右侧显示自动识别的缓存位置；文件夹选择与「保存并检测」保留为特殊位置的备用入口。</figcaption>
 </figure>
-<p>默认缓存一般在当前 Windows 用户的 <code>%APPDATA%\Tencent\WeSing\WeSingCache</code>，可粘贴到文件资源管理器地址栏打开。全民 K 歌改过缓存位置，就选实际位置，不能选空文件夹。</p>
+<p>LIRA 会持续检查当前用户的 <code>%APPDATA%\Tencent\WeSing\WeSingCache</code> 等用户目录、各盘根目录的 <code>WeSingCache</code>（例如 <code>D:\WeSingCache</code>、<code>E:\WeSingCache</code>）及已保存的位置。用户目录会随当前 Windows 用户自动确定，缓存位置也不要求与全民安装盘一致，无需按安装盘手动填写。多个目录都有缓存时，会结合当前歌名和歌曲日志的写入活动自动选择；旧目录仍有文件也不会阻止跟随新位置。特殊自定义位置可用文件夹按钮指定外层 <code>WeSingCache</code>，不要选里面的 <code>WeSingDL\Res</code>：歌曲版本由 <code>Log\WeSing</code> 的日志定位，歌词和伴奏在 <code>WeSingDL\Res</code> 中。空文件夹不能保存为有效缓存。时间偏移只调整同步时间，不能修复版本选错。</p>
 <p>这里的歌词时间调整为 ±3000 毫秒，只影响全民 K 歌；浏览器源歌词另有 ±5000 毫秒的画面偏移，两者会叠加。全民 K 歌在线兜底使用的首选歌词源和「智能选词」，需在「点歌 → 直播歌词」选择「全民 K 歌」后设置；画面偏移也在该页，见<a data-usage-guide-link href="#ug-lyric-overlay">直播歌词</a>。歌词源与智能选词不会改变外部 QQ 或网易云的歌词平台。</p></article>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head">
 <h5 class="usage-guide-task-title"><strong>2.6.2 全屏歌词</strong></h5>

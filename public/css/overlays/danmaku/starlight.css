@@ -74,7 +74,7 @@ body[data-style='starlight'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-iden
 body[data-style='starlight'] .draw-danmaku-body > p {
   margin: 8px 16px 0;
   color: var(--starlight-ink);
-  font-size: calc(var(--danmaku-font-size) * .62);
+  font-size: var(--danmaku-font-size);
   font-weight: 700;
   line-height: 1.45;
   letter-spacing: .06em;
@@ -144,7 +144,7 @@ body[data-style='starlight'] .sc-copy {
   margin: 7px 0 0;
   padding-left: 34px;
   color: var(--starlight-ink);
-  font-size: calc(var(--danmaku-font-size) * .75);
+  font-size: var(--danmaku-font-size);
   font-weight: 700;
   line-height: 1.45;
   letter-spacing: .06em;

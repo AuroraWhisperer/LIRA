@@ -6,7 +6,7 @@ const childProcess = require('node:child_process');
 const os = require('node:os');
 const { cleanText, clampPercent, now, sleep } = require('../shared/utils');
 
-const GPU_SAMPLE_GRACE_MS = 250;
+const GPU_COUNTER_OVERHEAD_MS = 10000;
 
 const hardwareSummaryService = createHardwareSummaryService();
 
@@ -27,22 +27,15 @@ async function getSystemMetrics(rawWindowMs = 5000) {
   const totalMemory = os.totalmem();
   const freeMemory = os.freemem();
   const processMemory = process.memoryUsage();
-  // Windows' performance-counter process can finish a little after the exact
-  // sample window. Do not hold the whole metrics response for that tail; the
-  // next sample can retry GPU data without delaying CPU/memory results.
-  const gpu = await Promise.race([
-    gpuPromise,
-    sleep(GPU_SAMPLE_GRACE_MS).then(() => ({
-      available: false,
-      totalPercent: null,
-      processPercent: null,
-      message: 'GPU 计数器采样超时',
-    })),
-  ]);
+  const sampledAt = now();
+  const sampledWindowMs = Date.now() - startedAt;
+  // Counter initialization can take several seconds. Its child-process timeout
+  // bounds the wait without discarding a valid result after the CPU window.
+  const gpu = await gpuPromise;
 
   return {
-    sampledAt: now(),
-    windowMs: Date.now() - startedAt,
+    sampledAt,
+    windowMs: sampledWindowMs,
     system: {
       cpuPercent: calculateSystemCpuPercent(cpuStart, cpuEnd),
       memoryPercent: totalMemory > 0 ? clampPercent(((totalMemory - freeMemory) / totalMemory) * 100) : null,
@@ -149,10 +142,25 @@ function readWindowsDeviceDetails() {
   const command = `
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$gpus = @(foreach ($gpu in Get-CimInstance Win32_VideoController) {
+  $videoMemoryBytes = $null
+  try {
+    $driver = Get-ItemPropertyValue -LiteralPath ('HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\' + $gpu.PNPDeviceID) -Name Driver
+    $videoMemoryBytes = Get-ItemPropertyValue -LiteralPath ('HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\' + $driver) -Name 'HardwareInformation.qwMemorySize'
+  } catch {
+    # Some drivers only expose the legacy allocation; retain other device data.
+  }
+  [pscustomobject]@{
+    Name = $gpu.Name
+    AdapterCompatibility = $gpu.AdapterCompatibility
+    AdapterRAM = $gpu.AdapterRAM
+    VideoMemoryBytes = $videoMemoryBytes
+  }
+})
 [pscustomobject]@{
   cpus = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors)
   memoryModules = @(Get-CimInstance Win32_PhysicalMemory | Select-Object Manufacturer, PartNumber, Capacity, Speed)
-  gpus = @(Get-CimInstance Win32_VideoController | Select-Object Name, AdapterCompatibility, AdapterRAM)
+  gpus = $gpus
 } | ConvertTo-Json -Depth 3 -Compress
 `;
 
@@ -293,13 +301,19 @@ function buildHardwareSummary(details = {}, osSnapshot = {}) {
       temperatureCelsius: null,
       temperatureMessage: 'Windows 未提供可靠的内存温度',
     },
-    gpus: gpus.map((gpu) => ({
-      name: hardwareText(gpu.Name) || '未知 GPU',
-      vendor: hardwareText(gpu.AdapterCompatibility),
-      videoMemoryBytes: positiveInteger(gpu.AdapterRAM) || null,
-      temperatureCelsius: null,
-      temperatureMessage: isNvidiaGpu(gpu) ? '点击检测时读取温度' : 'Windows/驱动未提供可靠的 GPU 温度',
-    })),
+    gpus: gpus.map((gpu) => {
+      // AdapterRAM is uint32 and may saturate at 4095 MiB for larger GPUs.
+      const legacyMemoryBytes = positiveInteger(gpu.AdapterRAM);
+      const videoMemoryBytes = positiveInteger(gpu.VideoMemoryBytes) ||
+        (legacyMemoryBytes < 4095 * 1024 * 1024 ? legacyMemoryBytes : 0);
+      return {
+        name: hardwareText(gpu.Name) || '未知 GPU',
+        vendor: hardwareText(gpu.AdapterCompatibility),
+        videoMemoryBytes: videoMemoryBytes || null,
+        temperatureCelsius: null,
+        temperatureMessage: isNvidiaGpu(gpu) ? '点击检测时读取温度' : 'Windows/驱动未提供可靠的 GPU 温度',
+      };
+    }),
   };
 }
 
@@ -428,7 +442,7 @@ if ($count -lt 1) { $count = 1 }
       ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
       {
         windowsHide: true,
-        timeout: (sampleCount + 3) * 1000,
+        timeout: sampleCount * 1000 + GPU_COUNTER_OVERHEAD_MS,
         maxBuffer: 1024 * 1024,
       },
       (error, stdout) => {
@@ -437,7 +451,7 @@ if ($count -lt 1) { $count = 1 }
             available: false,
             totalPercent: null,
             processPercent: null,
-            message: 'GPU 计数器不可用',
+            message: error.killed ? 'GPU 计数器采样超时' : 'GPU 计数器不可用',
           });
           return;
         }

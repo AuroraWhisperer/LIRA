@@ -158,6 +158,46 @@ test('WeSing lyric-offset preview survives older live status while saving', asyn
   assert.equal(number.value, '700');
 });
 
+test('WeSing cache path preserves unsaved edits and explains how to recover missing detection', async () => {
+  const listeners = new Map();
+  const input = { value: '', addEventListener: (type, callback) => listeners.set(type, callback) };
+  const hint = { hidden: false };
+  const cacheStatus = { textContent: '' };
+  const document = {
+    activeElement: null,
+    getElementById: (id) => ({ weSingCachePath: input, weSingCacheHint: hint, weSingCacheStatus: cacheStatus }[id] || null),
+  };
+  const { WeSingService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/playback/services/wesing-service.js'),
+    { document, window: { addEventListener() {} }, performance: { now: () => 0 } },
+  );
+  const service = new WeSingService();
+  service.init({ cachePath: 'C:\\WeSingCache', cacheReady: false });
+  assert.equal(hint.hidden, false);
+  assert.equal(cacheStatus.textContent, '未找到');
+  input.value = 'E:\\WeSingCache';
+  listeners.get('input')();
+  service.applyStatus({ cachePath: 'D:\\WeSingCache', cacheReady: true });
+  assert.equal(input.value, 'E:\\WeSingCache', 'live detection must not replace an unsaved edit after blur');
+  assert.equal(hint.hidden, true);
+
+  let finish;
+  service.request = () => new Promise((resolve) => { finish = resolve; });
+  const saving = service.saveCachePath();
+  input.value = 'F:\\WeSingCache';
+  listeners.get('input')();
+  finish({ cachePath: 'E:\\WeSingCache', cacheReady: true });
+  await saving;
+  assert.equal(input.value, 'F:\\WeSingCache', 'a late save response preserves a newer edit');
+
+  service.request = async () => ({ cachePath: 'F:\\WeSingCache', cacheReady: true });
+  await service.saveCachePath();
+  assert.equal(service.cachePathDraft, null);
+  assert.equal(input.value, 'F:\\WeSingCache');
+  service.applyStatus({ cachePath: 'G:\\WeSingCache' });
+  assert.equal(input.value, 'G:\\WeSingCache', 'live status fills the input once the draft has been saved');
+});
+
 test('Electron exposes a directory-only WeSing cache picker', () => {
   const main = [read('src', 'electron', 'main.js'), read('src', 'electron', 'ipc', 'music-ipc.js')].join('\n');
   const preload = read('src', 'electron', 'preload.js');

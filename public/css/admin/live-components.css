@@ -703,16 +703,11 @@
   background: var(--surface);
 }
 
-.live-components-page :is(.gift-display-settings, .guard-thanks-card, .opening-style-picker, .opening-animation-editor) {
+.live-components-page :is(.gift-display-settings, .opening-style-picker, .opening-animation-editor) {
   padding: 0;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-}
-
-.live-components-page .guard-thanks-card + .guard-thanks-card {
-  padding-top: 24px;
-  border-top: 1px solid var(--border);
 }
 
 .live-components-page .text-box-page-heading {

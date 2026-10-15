@@ -103,7 +103,9 @@ export function openComponentSourceImport({ type, request, onSaved, onUse, onMed
     status.textContent = '暂不支持这个文件，请选择样式文件、图片、视频或样式压缩包。';
   }
   const pick = action(form, '选择文件', () => {
-    if (valid()) return save(() => request('pick-web', { kind: 'auto', description: describe(), signal: requests.signal }));
+    if (!valid()) return;
+    if (!window.songAssistantDesktop) { file.click(); return; }
+    return save(() => request('pick-web', { kind: 'auto', description: describe(), signal: requests.signal }));
   });
   pick.className = 'primary component-source-file';
   const fileIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

@@ -6,9 +6,10 @@ async function resolveWeSingLyrics({ cachePath, title, cacheReady, durationMs, r
   let result = null;
   let fallbackError = null;
   let detectedArtist = '';
+  let logEntry = null;
 
   try {
-    const logEntry = await findLatestSongEntry(cachePath, title);
+    logEntry = await findLatestSongEntry(cachePath, title);
     detectedArtist = String(logEntry?.artist || '').trim();
   } catch (_) {
     detectedArtist = '';
@@ -16,8 +17,11 @@ async function resolveWeSingLyrics({ cachePath, title, cacheReady, durationMs, r
 
   if (cacheReady) {
     try {
-      result = await loadWeSingLyrics({ cachePath, title });
-      if (result) result.source = 'wesing';
+      result = await loadWeSingLyrics({ cachePath, title, logEntry });
+      if (result) {
+        result.source = 'wesing';
+        if (!result.artists.length && detectedArtist) result.artists = [detectedArtist];
+      }
     } catch (_) {
       result = null;
     }
@@ -36,7 +40,7 @@ async function resolveWeSingLyrics({ cachePath, title, cacheReady, durationMs, r
     }
   }
 
-  return { result, fallbackError };
+  return { result, fallbackError, songMid: logEntry?.mid || '' };
 }
 
 module.exports = { resolveWeSingLyrics };

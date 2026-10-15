@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const childProcess = require('node:child_process');
 const test = require('node:test');
 
 const {
@@ -8,7 +9,58 @@ const {
   buildDisplaySummary,
   createHardwareSummaryService,
   parseNvidiaSmiOutput,
+  getSystemMetrics,
+  sampleWindowsGpuMetrics,
 } = require('../../src/server/system-metrics');
+
+function mockWindowsCommand(t, callback) {
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+  Object.defineProperty(process, 'platform', { value: 'win32' });
+  t.after(() => Object.defineProperty(process, 'platform', platform));
+  t.mock.method(childProcess, 'execFile', callback);
+}
+
+test('metrics retain GPU results that finish after the CPU sample window', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 100000 });
+  mockWindowsCommand(t, (file, args, options, callback) => {
+    assert.equal(options.windowsHide, true);
+    assert.ok(options.timeout > 11000, 'allow the observed Windows counter startup overhead');
+    setTimeout(() => callback(null, JSON.stringify({
+      available: true, totalPercent: 18.8, processPercent: 0, message: '',
+    })), 11000);
+  });
+
+  const pending = getSystemMetrics(5000);
+  t.mock.timers.tick(5000);
+  await Promise.resolve();
+  t.mock.timers.tick(300);
+  await Promise.resolve();
+  await Promise.resolve();
+  t.mock.timers.tick(5700);
+  const result = await pending;
+
+  assert.equal(result.system.gpuAvailable, true);
+  assert.equal(result.system.gpuPercent, 18.8);
+  assert.equal(result.process.gpuPercent, 0);
+  assert.equal(result.windowMs, 5000, 'GPU command overhead is not part of the CPU sample window');
+});
+
+test('GPU command timeout stays unavailable instead of reporting zero load', async (t) => {
+  mockWindowsCommand(t, (file, args, options, callback) => {
+    assert.ok(options.timeout <= 20000, 'GPU sampling remains bounded');
+    callback(Object.assign(new Error('timed out'), { killed: true }), '');
+  });
+  assert.deepEqual(await sampleWindowsGpuMetrics(5000), {
+    available: false, totalPercent: null, processPercent: null, message: 'GPU 计数器采样超时',
+  });
+});
+
+test('GPU counter errors keep an unavailable result', async (t) => {
+  mockWindowsCommand(t, (file, args, options, callback) => callback(new Error('counter unavailable'), ''));
+  assert.deepEqual(await sampleWindowsGpuMetrics(5000), {
+    available: false, totalPercent: null, processPercent: null, message: 'GPU 计数器不可用',
+  });
+});
 
 test('hardware summary exposes useful device data without serial numbers', () => {
   const summary = buildHardwareSummary(
@@ -33,7 +85,8 @@ test('hardware summary exposes useful device data without serial numbers', () =>
         {
           Name: 'Example GPU',
           AdapterCompatibility: 'NVIDIA',
-          AdapterRAM: '8589934592',
+          AdapterRAM: 4293918720,
+          VideoMemoryBytes: '8589934592',
         },
       ],
     },
@@ -70,6 +123,15 @@ test('hardware summary exposes useful device data without serial numbers', () =>
     },
   ]);
   assert.doesNotMatch(JSON.stringify(summary), /must-not-leak/);
+});
+
+test('hardware summary uses small legacy allocations but rejects saturated 32-bit GPU memory', () => {
+  const summary = buildHardwareSummary({ gpus: [
+    { Name: 'Integrated GPU', AdapterRAM: 134217728 },
+    { Name: 'Unknown capacity GPU', AdapterRAM: 4293918720 },
+    { Name: 'Maximum legacy value', AdapterRAM: 4294967295 },
+  ] });
+  assert.deepEqual(summary.gpus.map((gpu) => gpu.videoMemoryBytes), [134217728, null, null]);
 });
 
 test('hardware summary excludes virtual display adapters from the GPU list', () => {

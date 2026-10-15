@@ -53,6 +53,98 @@ test('WeSing online lyric matching uses the WeSing artist to disambiguate covers
   assert.equal(result.songMid, 'qq:original');
 });
 
+for (const scenario of [
+  { title: '春泥', artist: '余超颖', candidateTitle: '春泥 (Live)', candidateArtist: '余超颖', otherArtist: '庾澄庆' },
+  { title: '天若有情', artist: 'en (王翊恩)', candidateTitle: '天若有情（翻唱）', candidateArtist: 'EN', otherArtist: 'A-Lin' },
+]) {
+  test(`WeSing matches ${scenario.title} to the requested singer instead of the original`, async () => {
+    const requestedLyrics = [];
+    const resolve = createWeSingOnlineLyricResolver({
+      registry: {},
+      preferredPlatform: 'netease',
+      lyricsService: {
+        async searchMusicTracks(_registry, { platform, keyword }) {
+          assert.equal(keyword, `${scenario.title} ${scenario.artist.split(' (')[0]}`);
+          const original = createTrack(`${platform}:original`, scenario.otherArtist, 240000, platform, scenario.title);
+          const cover = createTrack('qq:cover', scenario.candidateArtist, 240000, 'qq', scenario.candidateTitle);
+          return { tracks: platform === 'qq' ? [original, cover] : [original] };
+        },
+        async getMusicTrackLyrics(_registry, { track }) {
+          requestedLyrics.push(track.id);
+          return { source: track.source, lines: [{ startMs: 1000, endMs: 2000, text: '合成歌词' }] };
+        },
+      },
+    });
+
+    const result = await resolve({ title: scenario.title, artist: scenario.artist, durationMs: 240000 });
+    assert.equal(result?.songMid, 'qq:cover');
+    assert.deepEqual(requestedLyrics, ['qq:cover'], 'a different singer must not supply the timeline');
+  });
+}
+
+test('WeSing rejects a different singer even when no matching version is available', async () => {
+  const requestedLyrics = [];
+  const resolve = createWeSingOnlineLyricResolver({
+    registry: {},
+    lyricsService: {
+      async searchMusicTracks(_registry, { platform }) {
+        return { tracks: [createTrack(`${platform}:other`, 'Wen', 240000, platform, '天若有情')] };
+      },
+      async getMusicTrackLyrics(_registry, { track }) {
+        requestedLyrics.push(track.id);
+        return { lines: [{ startMs: 1000, endMs: 2000, text: '其他歌手' }] };
+      },
+    },
+  });
+
+  assert.equal(await resolve({ title: '天若有情', artist: 'en', durationMs: 240000 }), null);
+  assert.deepEqual(requestedLyrics, []);
+});
+
+test('WeSing compares version duration before word timing and preferred platform', async () => {
+  const resolve = createWeSingOnlineLyricResolver({
+    registry: {},
+    preferredPlatform: 'netease',
+    lyricsService: {
+      async searchMusicTracks(_registry, { platform }) {
+        return { tracks: [createTrack(`${platform}:cover`, '余超颖', platform === 'qq' ? 240000 : 244000, platform, '春泥')] };
+      },
+      async getMusicTrackLyrics(_registry, { track }) {
+        return {
+          source: track.source,
+          lines: [{
+            startMs: 1000, endMs: 2000, text: '合成歌词',
+            words: track.source === 'netease' ? [{ text: '合成歌词', startMs: 1000, endMs: 2000 }] : [],
+          }],
+        };
+      },
+    },
+  });
+
+  assert.equal((await resolve({ title: '春泥', artist: '余超颖', durationMs: 240000 }))?.source, 'qq');
+});
+
+test('WeSing preserves an explicit version while normalizing title punctuation', () => {
+  const selected = selectWeSingLyricTrack('春泥（Live）', 240000, [
+    createTrack('qq:studio', '余超颖', 240000, 'qq', '春泥'),
+    createTrack('qq:live', '余超颖', 240000, 'qq', '春泥 (Live)'),
+  ], '余超颖');
+  assert.equal(selected?.id, 'qq:live');
+  assert.equal(selectWeSingLyricTrack('另一首歌', 240000, [selected], '余超颖'), null);
+  assert.equal(selectWeSingLyricTrack('春泥（Live）', 240000, [
+    createTrack('qq:studio', '余超颖', 240000, 'qq', '春泥'),
+  ], '余超颖'), null);
+});
+
+test('WeSing rejects incompatible durations and accepts missing duration metadata', () => {
+  const track = createTrack('qq:cover', '余超颖', 240000, 'qq', '春泥');
+  assert.equal(selectWeSingLyricTrack('春泥', 180000, [track], '余超颖'), null);
+  assert.equal(selectWeSingLyricTrack('春泥', 245000, [track], '余超颖'), track);
+  assert.equal(selectWeSingLyricTrack('春泥', 0, [track], '余超颖'), track);
+  const unknownDuration = { ...track, durationMs: 0 };
+  assert.equal(selectWeSingLyricTrack('春泥', 240000, [unknownDuration], '余超颖'), unknownDuration);
+});
+
 test('WeSing online fallback queries both providers and prefers complete word lyrics', async () => {
   const requestedLyrics = [];
   const lyricsService = {

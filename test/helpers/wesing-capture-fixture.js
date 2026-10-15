@@ -1,17 +1,17 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { encryptQrc } = require('qrc-decoder');
+const { createScratchDirectory } = require('./scratch-directory');
 
 function qrcXml(content, options = {}) {
-  const saveTime = options.saveTime || 8;
+  const saveTime = options.saveTime || 1700000000000;
   return `<?xml version="1.0" encoding="utf-8"?>\n<QrcInfos><LyricInfo SaveTime="${saveTime}"><Lyric_1 LyricType="1" LyricContent="${content}"/></LyricInfo></QrcInfos>`;
 }
 
 function createFixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-cache-'));
+  const root = createScratchDirectory('wesing-cache-');
   const cachePath = path.join(root, 'WeSingCache');
   const mid = 'safe_mid-123';
   const logDir = path.join(cachePath, 'Log', 'WeSing');

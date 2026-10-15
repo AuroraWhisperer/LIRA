@@ -38,20 +38,54 @@ async function createAnimator(mode = 'discrete', { words = DEFAULT_WORDS, motion
 }
 
 test('continuous highlights leave unchanged upcoming and completed words idle', async t => {
-  const { animator } = await createAnimator('waapi', { motionEnabled: false });
+  const { animator, created, getStyleWrites } = await createAnimator('waapi', { motionEnabled: false });
   t.after(() => animator.dispose());
   animator.sync({ currentMs: 2100 }, { playing: true });
-  const operations = () => animator.animations.map(({ timeWrites, playCount, pauseCount }) =>
-    ({ timeWrites, playCount, pauseCount }));
-  const firstOperations = operations();
+  assert.equal(created.length, 0, 'words outside their sung interval need no animation objects');
+  const writes = getStyleWrites();
   for (const currentMs of [2133, 2166, 2200, 2300]) animator.sync({ currentMs }, { playing: true });
-  assert.deepEqual(operations(), firstOperations, 'unchanged fill states need no animation writes');
-  assert.equal(animator.animations[0].currentTime, 1000, 'finished fill is held at its end');
-  assert.equal(animator.animations[1].currentTime, 0);
+  assert.equal(getStyleWrites(), writes, 'unchanged fill states need no style writes');
+  assert.equal(animator.elements[0].highlight.style.clipPath, 'inset(0 0% 0 0)');
+  assert.equal(animator.elements[1].highlight.style.clipPath, 'inset(0 100% 0 0)');
   animator.sync({ currentMs: 1100 }, { playing: true, force: true });
   assert.equal(animator.animations[0].currentTime, 100, 'backward seeks restore partial fill');
   animator.sync({ currentMs: 1133 }, { playing: true });
   assert.equal(animator.animations[0].playCount, 1, 'a running highlight is not restarted each frame');
+  animator.sync({ currentMs: 2100 }, { playing: true });
+  assert.equal(created[0].cancelled, true, 'completed effects are released');
+  assert.equal(animator.animations[0], null);
+  assert.equal(animator.elements[0].highlight.style.clipPath, 'inset(0 0% 0 0)', 'released effects keep their fill');
+  animator.sync({ currentMs: 1200 }, { playing: false });
+  assert.equal(created.length, 2, 'backward seeks recreate only the current word');
+  assert.equal(animator.animations[0].currentTime, 200);
+  assert.equal(animator.animations[0].playState, 'paused');
+});
+
+test('overlapping words retain independent fills and release only completed effects', async t => {
+  const { animator, created } = await createAnimator('waapi', { motionEnabled: false, words: [
+    { text: '和', startMs: 0, endMs: 1000 }, { text: '声', startMs: 500, endMs: 1500 },
+  ] });
+  t.after(() => animator.dispose());
+  animator.sync({ currentMs: 750 }, { playing: true });
+  assert.equal(animator.animations[0].currentTime, 750);
+  assert.equal(animator.animations[1].currentTime, 250);
+  animator.sync({ currentMs: 1100 }, { playing: true });
+  assert.equal(created[0].cancelled, true);
+  assert.equal(created[1].cancelled, false);
+  assert.equal(created[1].playState, 'running');
+});
+
+test('changing to discrete fill clears fixed clip boundaries from continuous fill', async t => {
+  const { animator } = await createAnimator('waapi', { motionEnabled: false });
+  t.after(() => animator.dispose());
+  animator.sync({ currentMs: 900 }, { playing: true });
+  animator.setMode('discrete');
+  animator.sync({ currentMs: 1500 }, { playing: true });
+  assert.equal(animator.elements[0].highlight.style.clipPath, '');
+  assert.equal(animator.elements[0].wrapper.dataset.wordState, 'complete');
+  animator.setMode('waapi');
+  animator.sync({ currentMs: 900 }, { playing: true });
+  assert.equal(animator.elements[0].highlight.style.clipPath, 'inset(0 100% 0 0)');
 });
 
 for (const mode of ['manual', 'static']) {
@@ -150,14 +184,15 @@ test('continuous karaoke runs the same word motion and clears both effects on do
   assert.equal(animator.elements[1].motion, null);
   assert.equal(animator.animations[0].currentTime, 300);
   assert.equal(animator.animations[0].playState, 'running');
-  assert.equal(animator.animations[1].playState, 'paused', 'Upcoming highlights must not run ahead of their words.');
-  assert.equal(animator.animations[1].currentTime, 0);
+  assert.equal(animator.animations[1], null, 'upcoming highlights do not allocate animations');
+  assert.equal(animator.elements[1].highlight.style.clipPath, 'inset(0 100% 0 0)');
   animator.sync({ currentMs: 2450 }, { playing: true });
-  assert.equal(animator.animations[0].playState, 'paused');
+  assert.equal(animator.animations[0], null);
+  assert.equal(animator.elements[0].highlight.style.clipPath, 'inset(0 0% 0 0)');
   assert.equal(animator.animations[1].playState, 'running');
   animator.sync({ currentMs: 1100 }, { playing: true, force: true });
   assert.equal(animator.animations[0].currentTime, 100);
-  assert.equal(animator.animations[1].playState, 'paused');
+  assert.equal(animator.animations[1], null);
   animator.setMode('static');
   assert.ok(created.every(animation => animation.cancelled));
   animator.sync({ currentMs: 1500 });

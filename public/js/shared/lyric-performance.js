@@ -3,7 +3,6 @@
 const LONG_FRAME_MS = 45;
 const DEGRADE_AFTER = 4;
 const RECOVER_AFTER = 30;
-const STATIC_RECOVER_AFTER = 150;
 
 export function createLyricPerformanceProfile(options = {}) {
   const onChange = options.onChange || (() => {});
@@ -34,18 +33,15 @@ export function createLyricPerformanceProfile(options = {}) {
       if (frameMs > LONG_FRAME_MS) {
         longFrames += 1;
         healthyFrames = 0;
-        if (longFrames >= DEGRADE_AFTER && profile.wordAnimation === 'waapi') {
-          publish({ wordAnimation: 'manual', effects: 'low' });
-        } else if (longFrames >= DEGRADE_AFTER && profile.wordAnimation === 'manual') {
-          publish({ wordAnimation: 'static', effects: 'low' });
+        if (longFrames >= DEGRADE_AFTER && profile.effects === 'full') {
+          // Keep continuous fill on the browser timeline when JS frames are slow.
+          publish({ effects: 'low' });
         }
       } else {
         longFrames = 0;
         healthyFrames += 1;
-        if (healthyFrames >= STATIC_RECOVER_AFTER && profile.wordAnimation === 'static' && !reducedMotion) {
-          publish({ wordAnimation: 'manual', effects: 'low' });
-        } else if (healthyFrames >= RECOVER_AFTER && profile.wordAnimation === 'manual' && !reducedMotion) {
-          publish({ wordAnimation: 'waapi', effects: 'full' });
+        if (healthyFrames >= RECOVER_AFTER && profile.effects === 'low' && !reducedMotion) {
+          publish({ effects: 'full' });
         }
       }
       return { ...profile };

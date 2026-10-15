@@ -432,14 +432,14 @@ test('WeSing capture lets explicit audio inactivity override stale UI progress',
 test('WeSing capture keeps a measured pause frozen even when the audio session stays active', async (t) => {
   let currentTime = 1000;
   const { capture, onSample } = await startTimedCapture(t, () => currentTime);
-  const sample = (currentSec) =>
+  const sample = (currentSec, audioPeak = 0) =>
     onSample({
       detected: true,
       title: '全民K歌 - 失眠飞行',
       currentSec,
       totalSec: 207,
       audioActive: true,
-      audioPeak: 0,
+      audioPeak,
     });
 
   sample(30);
@@ -455,10 +455,144 @@ test('WeSing capture keeps a measured pause frozen even when the audio session s
   assert.equal(capture.getStatus().playing, false, 'Active 不能推翻不变的真实进度');
   assert.equal(capture.getStatus().currentMs, pausedMs);
 
+  currentTime = 5100;
+  sample(31, 0.0001);
+  assert.equal(capture.getStatus().playing, false, '微弱底噪不能恢复歌词播放');
+  assert.equal(capture.getStatus().currentMs, pausedMs);
+
   currentTime = 5200;
   sample(32);
   assert.equal(capture.getStatus().playing, true, '真实进度重新变化后才恢复');
   assert.ok(capture.getStatus().currentMs >= 32130);
+});
+
+for (const currentSec of [0, 1]) {
+  test(`WeSing capture advances past the first lyric with audible audio and progress stuck at ${currentSec}s`, async (t) => {
+    let currentTime = 1000;
+    const { capture, onSample } = await startTimedCapture(t, () => currentTime, {
+      resolveFallbackLyrics: async () => ({
+        source: 'qq', songMid: 'synthetic', title: '测试歌曲', artists: [], durationMs: 60000,
+        lines: [
+          { startMs: 0, endMs: 5000, text: '第一句', words: [] },
+          { startMs: 5000, endMs: 20000, text: '第二句', words: [] },
+        ],
+      }),
+    });
+    const sample = { detected: true, title: '全民K歌 - 测试歌曲', currentSec, totalSec: 60,
+      audioActive: true, audioPeak: 0.2 };
+    onSample(sample);
+    await capture.waitForRefresh();
+    assert.equal(capture.getStatus().lyricState.lineText, '第一句');
+    let previousMs = capture.getStatus().currentMs;
+
+    for (currentTime = 1100; currentTime <= 11000; currentTime += 100) {
+      onSample(sample);
+      const state = capture.getStatus();
+      assert.equal(state.playing, true);
+      assert.ok(state.currentMs > previousMs, '静止的进度文本不能反复重置歌词时钟');
+      previousMs = state.currentMs;
+    }
+    const state = capture.getStatus();
+    assert.equal(state.currentMs, currentSec * 1000 + 10130);
+    assert.equal(state.waitingForPlayback, false);
+    assert.equal(state.lyricState.playing, true);
+    assert.equal(state.lyricState.lineText, '第二句');
+
+    onSample({ ...sample, currentSec: 9 });
+    assert.equal(capture.getStatus().currentMs, 9130, '进度恢复后应重新对齐真实位置');
+    currentTime += 100;
+    onSample({ ...sample, currentSec: 9, audioActive: false });
+    assert.equal(capture.getStatus().currentMs, 9130, '恢复后的进度应重新作为暂停锚点');
+    assert.equal(capture.getStatus().playing, false);
+  });
+}
+
+test('WeSing stale progress tolerates brief silence and resumes from a confirmed silent pause', async (t) => {
+  let currentTime = 1000;
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
+  const sample = (audioPeak) => onSample({
+    detected: true, title: '全民K歌 - 测试歌曲', currentSec: 1, totalSec: 60,
+    audioActive: true, audioPeak,
+  });
+  sample(0.2);
+  currentTime = 3000;
+  sample(0.2);
+  assert.equal(capture.getStatus().currentMs, 3130);
+
+  currentTime = 3300;
+  sample(0);
+  assert.equal(capture.getStatus().playing, true);
+  currentTime = 4500;
+  sample(0);
+  assert.equal(capture.getStatus().playing, true, '短暂静音应沿用最近的播放证据');
+  assert.equal(capture.getStatus().currentMs, 4630);
+
+  currentTime = 4600;
+  sample(0);
+  const pausedMs = capture.getStatus().currentMs;
+  assert.equal(capture.getStatus().playing, false);
+  currentTime = 8000;
+  sample(0);
+  assert.equal(capture.getStatus().currentMs, pausedMs);
+
+  currentTime = 8100;
+  sample(0.2);
+  assert.equal(capture.getStatus().playing, true, '声音恢复时不应继续卡在旧进度');
+  assert.equal(capture.getStatus().currentMs, pausedMs);
+  currentTime = 9100;
+  sample(0.2);
+  assert.equal(capture.getStatus().currentMs, pausedMs + 1000);
+});
+
+test('WeSing audio inactivity freezes an extrapolated clock without rewinding to stale progress', async (t) => {
+  let currentTime = 1000;
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
+  const sample = { detected: true, title: '全民K歌 - 测试歌曲', currentSec: 1, totalSec: 60,
+    audioActive: true, audioPeak: 0.2 };
+  onSample(sample);
+  currentTime = 3000;
+  onSample(sample);
+  currentTime = 3100;
+  onSample({ ...sample, audioActive: false });
+  assert.equal(capture.getStatus().playing, false, '明确停止优先于残留音量峰值');
+  assert.equal(capture.getStatus().currentMs, 3230);
+
+  currentTime = 4000;
+  onSample({ ...sample, audioActive: false });
+  assert.equal(capture.getStatus().currentMs, 3230, '反复收到旧进度也不能倒退');
+  currentTime = 4100;
+  onSample({ ...sample, audioPeak: 0 });
+  assert.equal(capture.getStatus().playing, false, '仅恢复 Active 不能取消已确认的暂停');
+  currentTime = 4200;
+  onSample(sample);
+  assert.equal(capture.getStatus().playing, true);
+  assert.equal(capture.getStatus().currentMs, 3230);
+  currentTime = 5200;
+  onSample(sample);
+  assert.equal(capture.getStatus().currentMs, 4230);
+});
+
+test('WeSing loading resets stale-progress audio evidence before the next playback', async (t) => {
+  let currentTime = 1000;
+  const { capture, onSample } = await startTimedCapture(t, () => currentTime);
+  const sample = { detected: true, title: '全民K歌 - 测试歌曲', currentSec: 1, totalSec: 60,
+    audioActive: true, audioPeak: 0.2 };
+  onSample(sample);
+  currentTime = 3000;
+  onSample(sample);
+  assert.equal(capture.getStatus().playing, true);
+
+  currentTime = 3100;
+  onSample({ ...sample, loading: true });
+  assert.equal(capture.getStatus().playing, false);
+  assert.equal(capture.getStatus().currentMs, 0);
+  currentTime = 3200;
+  onSample({ ...sample, currentSec: 0, audioPeak: 0 });
+  currentTime = 3300;
+  onSample({ ...sample, currentSec: 0, audioPeak: 0 });
+  assert.equal(capture.getStatus().playing, false);
+  assert.equal(capture.getStatus().currentMs, 130);
+  assert.equal(capture.getStatus().waitingForPlayback, true);
 });
 
 test('WeSing capture resets a same-title replay when measured progress returns to zero', async (t) => {

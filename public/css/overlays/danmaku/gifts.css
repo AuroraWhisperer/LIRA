@@ -160,6 +160,12 @@ body:not([data-style='minimal']) .is-gift .draw-danmaku-gift-amount {
   font-variant-numeric: tabular-nums;
 }
 
+/* Card fitting scales the artwork, but body text keeps its configured size. */
+body:is([data-style='bubble'], [data-style='signal'], [data-style='ranked'], [data-style='transparent'], [data-style='identity'])
+  .is-gift :is(.draw-danmaku-gift-name, .draw-danmaku-gift-count) {
+  font-size: calc(var(--danmaku-font-size) / var(--danmaku-gift-scale, 1.5));
+}
+
 /* Custom background strength leaves text and images opaque. */
 body[data-custom-background='true']:not([data-style='minimal']) .draw-danmaku-item.is-gift {
   background: color-mix(in srgb, var(--gift-surface) var(--danmaku-background-weight), transparent);

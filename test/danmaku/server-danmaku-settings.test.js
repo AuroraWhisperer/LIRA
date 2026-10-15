@@ -26,7 +26,7 @@ async function fixture() {
         hidden: false,
         dataset: {},
         events: {},
-        closest() { return null; },
+        closest(selector) { return selector === '.danmaku-parameters' ? node('parameters') : null; },
         addEventListener(name, listener) {
           this.events[name] = listener;
         },

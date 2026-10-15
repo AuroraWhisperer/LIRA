@@ -200,6 +200,8 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 ## 8. 系统指标
 
-[src/server/system-metrics.js](../../../src/server/system-metrics.js) 的 `getSystemMetrics(rawWindowMs = 5000)`:5 秒采样窗口内的 CPU/内存/GPU(Windows 下 PowerShell 采样 GPU 引擎)指标,由 `/api/system/metrics` 暴露(见 [api.md](api.md))。
+[src/server/system-metrics.js](../../../src/server/system-metrics.js) 的 `getSystemMetrics(rawWindowMs = 5000)`:默认 5 秒采样窗口内的 CPU/内存/GPU(Windows 下 PowerShell 采样 GPU 引擎)指标,由 `/api/system/metrics` 暴露(见 [api.md](api.md))。GPU 命令需要额外启动和枚举计数器，统一由子进程超时限制为采样时长加 10 秒；CPU/内存取样完成后等待 GPU 返回，不提前丢弃有效结果。`windowMs` 和 `sampledAt` 记录 CPU/内存采样窗口及结束时间，不计入等待 GPU 的额外耗时。GPU 命令超时、计数器不可用或解析失败时仍返回不可用状态和 `null`，不伪装为零负载。
 
 同模块的 `getHardwareSummary(includeTemperatures)` 读取 CPU/物理 GPU/内存型号与容量、排除虚拟显示适配器，并在进程内缓存静态结果。只有 `/api/system/hardware?includeTemperatures=true` 明确请求时，才会为 NVIDIA GPU 短暂调用 `nvidia-smi`;不支持的传感器返回不可用状态，不启动常驻监控进程，也不返回序列号。
+
+GPU 的 `videoMemoryBytes` 是驱动报告的专用或预留显存，不包含核显可动态使用的共享系统内存。Windows 静态查询按显卡设备对应的驱动注册表项读取 64 位 `HardwareInformation.qwMemorySize`；缺失时仅采用低于 4095 MiB 的 `Win32_VideoController.AdapterRAM`。旧字段为 32 位，4095 MiB 及以上可能是饱和值；没有可靠容量时返回 `null`，避免将 8 GB 等显卡误报为 4 GB。

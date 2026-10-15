@@ -219,7 +219,7 @@ body[data-style='sketch'] .is-gift .draw-danmaku-gift-copy { flex-wrap: wrap; ga
 body[data-style='sketch'] .is-gift .draw-danmaku-gift-name,
 body[data-style='sketch'] .is-gift .draw-danmaku-gift-count {
   color: var(--sketch-line);
-  font-size: .7em;
+  font-size: 1em;
   font-weight: 600;
   letter-spacing: .08em;
 }

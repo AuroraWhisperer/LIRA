@@ -20,6 +20,7 @@ async function fixture(t) {
     dataDir: { apiCacheDir: path.join(dir, 'api'), lyricCacheDir: path.join(dir, 'lyrics') },
     runtimeOptions: {
       weSingPlatform: 'win32',
+      weSingCacheDiscovery: async () => '',
       weSingMonitorFactory(callback) {
         sample = callback;
         return { start() {}, stop() {} };

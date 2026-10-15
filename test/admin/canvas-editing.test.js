@@ -49,6 +49,83 @@ async function presetAction(page, name) {
   await page.getByRole('menuitem', { name, exact: true }).click();
 }
 
+test('canvas source address dismisses outside, on Escape and on its trigger while remaining selectable', { timeout: 30000 }, async t => {
+  const { page } = await editor(t, 'clock');
+  await page.evaluate(() => {
+    window.copiedSources = [];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true,
+      value: { async writeText(value) { window.copiedSources.push(value); } } });
+  });
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  const sceneCopy = page.getByRole('button', { name: '复制场景地址', exact: true });
+  const componentCopy = page.getByRole('button', { name: '复制组件地址', exact: true });
+  const address = page.getByRole('textbox', { name: '直播源地址', exact: true });
+  await sceneCopy.click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '直播源地址已复制' }).waitFor();
+  const sceneUrl = await address.inputValue();
+  assert.equal(await page.evaluate(() => window.copiedSources.at(-1)), sceneUrl);
+  await address.click();
+  await address.press('Control+a');
+  assert.equal(await address.isVisible(), true, 'The address remains available for manual copying.');
+  await page.getByRole('textbox', { name: '组件名称', exact: true }).click();
+  assert.equal(await address.isVisible(), false, 'Clicking outside dismisses the address.');
+
+  await sceneCopy.click();
+  await address.waitFor({ state: 'visible' });
+  await sceneCopy.click();
+  assert.equal(await address.isVisible(), false, 'Clicking the same copy button dismisses the address.');
+  assert.equal(await page.evaluate(() => window.copiedSources.length), 2, 'Closing does not request or copy another source.');
+  await sceneCopy.click();
+  await address.waitFor({ state: 'visible' });
+  await componentCopy.click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '单组件地址已复制' }).waitFor();
+  assert.notEqual(await address.inputValue(), sceneUrl, 'The other copy button switches to its own source.');
+  assert.equal(await page.evaluate(() => window.copiedSources.at(-1)), await address.inputValue());
+  await address.focus();
+  await address.press('Escape');
+  assert.equal(await address.isVisible(), false);
+  assert.equal(await componentCopy.evaluate(node => document.activeElement === node), true);
+  await componentCopy.click();
+  await address.waitFor({ state: 'visible' });
+  await componentCopy.click();
+  assert.equal(await address.isVisible(), false);
+});
+
+test('canvas surrounding whitespace clears selection even when a component fills the canvas', { timeout: 30000 }, async t => {
+  const { page, desktop } = await editor(t);
+  const item = page.locator('.scene-editor-item');
+  const viewport = page.locator('.scene-editor-viewport');
+  const selected = page.locator('.scene-editor-item.is-selected');
+  const name = page.getByRole('textbox', { name: '组件名称', exact: true });
+  await page.getByRole('spinbutton', { name: 'X', exact: true }).fill('0');
+  await page.getByRole('spinbutton', { name: 'Y', exact: true }).fill('0');
+  await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('1920');
+  await page.getByRole('spinbutton', { name: '高度', exact: true }).fill('1080');
+  await name.click();
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items
+    .some(item => item.x === 0 && item.y === 0 && item.width === 1920 && item.height === 1080));
+  const before = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document);
+  assert.equal(await selected.count(), 1, 'Using inspector inputs preserves selection.');
+  await viewport.click({ position: { x: 4, y: 4 }, button: 'right' });
+  assert.equal(await selected.count(), 1);
+  await viewport.click({ position: { x: 4, y: 4 } });
+  assert.equal(await selected.count(), 0);
+  assert.equal(await page.locator('.preview-canvas-layer-select[aria-pressed="true"]').count(), 0);
+  assert.equal(await page.getByRole('heading', { name: '画布设置', exact: true }).count(), 1);
+  await item.click({ position: { x: 40, y: 40 } });
+  assert.equal(await selected.count(), 1, 'Clicking the component can select it again.');
+  await name.fill('取消选择前改名');
+  const bounds = await viewport.boundingBox();
+  await viewport.click({ position: { x: bounds.width - 4, y: bounds.height - 4 } });
+  assert.equal(await selected.count(), 0);
+  assert.equal(await item.getAttribute('aria-label'), '取消选择前改名');
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[0].name === '取消选择前改名');
+  assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document), {
+    ...before, items: before.items.map(item => ({ ...item, name: '取消选择前改名' })),
+  }, 'Deselecting commits the focused input without changing other scene data.');
+});
+
 test('canvas parameter groups retain edits, slider values and existing lyric dimensions', { timeout: 30000 }, async t => {
   const { page, fixture } = await editor(t);
   const addLyrics = async () => {

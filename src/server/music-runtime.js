@@ -6,6 +6,7 @@ const { normalizeLyricTimeline } = require('../music/lyric-timeline');
 const { normalizeLyricState } = require('../music/lyric-state');
 const { createWeSingCapture } = require('../music/wesing-capture');
 const { createWeSingOnlineLyricResolver } = require('../music/wesing-online-lyrics');
+const { discoverWeSingCachePath } = require('../music/wesing-cache-discovery');
 const { createExternalClientLyricResolver } = require('../music/external-client-lyrics');
 const { createQQClientCapture } = require('../music/qq-client-capture');
 const { createNeteaseClientCapture } = require('../music/netease-client-capture');
@@ -86,6 +87,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     lyricOffsetMs: settingsStore.getSettings().weSingLyricOffsetMs,
     platform: runtimeOptions.weSingPlatform || process.platform,
     monitorFactory: runtimeOptions.weSingMonitorFactory,
+    discoverCachePath: runtimeOptions.weSingCacheDiscovery || discoverWeSingCachePath,
     resolveFallbackLyrics: runtimeOptions.weSingLyricResolver || createWeSingOnlineLyricResolver({
       getRegistry: () => musicRegistry, lyricsService,
       getPreferences() {

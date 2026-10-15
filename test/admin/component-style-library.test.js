@@ -9,7 +9,7 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
-test('wrong-category guidance moves to the matching picker entry and reuses the chosen ZIP', async t => {
+test('canvas ZIP selection stays in the browser and wrong-category guidance reuses the chosen file', async t => {
   const { fixture, context, page, media, errors } = await setup(t);
   const desktop = await context.newPage();
   const url = await openCanvasDesktop(desktop, fixture);
@@ -23,7 +23,13 @@ test('wrong-category guidance moves to the matching picker entry and reuses the 
   const file = { name: 'redirect.zip', mimeType: 'application/zip', buffer: createStoredStyleZip(new Map([
     ['lira-pack.json', Buffer.from(JSON.stringify(manifest))], ['frame.webp', media.buffer],
   ])) };
+  let desktopPickerRequests = 0;
+  await page.route('**/styles/pick-web?*', route => {
+    desktopPickerRequests++;
+    return route.fulfill({ json: { ok: true, data: null } });
+  });
   await pickImportFile(page, picker, file);
+  assert.equal(desktopPickerRequests, 0, 'Canvas imports open the chooser in the current browser, even when the desktop picker is available.');
   await picker.getByRole('button', { name: '前往「套装」导入', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: '确认导入套装', exact: true });
   await confirmation.getByText('导入引导套装', { exact: true }).waitFor();
@@ -128,7 +134,9 @@ async function pickImportFile(page, host, file) {
   await host.locator('.component-style-add, .preview-picker-import').first().click();
   const source = page.getByRole('dialog', { name: '添加第三方样式', exact: true });
   await source.waitFor();
-  await source.locator('input[type="file"]').first().setInputFiles(file);
+  const chooser = page.waitForEvent('filechooser');
+  await source.getByRole('button', { name: '选择文件', exact: true }).click();
+  await (await chooser).setFiles(file);
   return source;
 }
 

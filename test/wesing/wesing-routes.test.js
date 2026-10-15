@@ -2,10 +2,10 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createServerRuntime } = require('../../src/server');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 async function requestJson(url, token, options = {}) {
   const response = await fetch(url, {
@@ -20,15 +20,17 @@ async function requestJson(url, token, options = {}) {
 }
 
 test('WeSing routes require auth, persist cache path, and control monitor lifecycle', async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-routes-'));
+  const root = createScratchDirectory('wesing-routes-');
   const dataDir = path.join(root, 'data');
   const cachePath = path.join(root, 'WeSingCache');
-  fs.mkdirSync(path.join(cachePath, 'WeSingDL', 'Res'), { recursive: true });
+  fs.mkdirSync(path.join(cachePath, 'Log', 'WeSing'), { recursive: true });
+  fs.writeFileSync(path.join(cachePath, 'Log', 'WeSing', 'test.log'), 'synthetic cache');
   let monitorStarts = 0;
   let monitorStops = 0;
   const runtime = createServerRuntime({
     dataDir,
     weSingPlatform: 'win32',
+    weSingCacheDiscovery: async () => '',
     weSingMonitorFactory() {
       return {
         start() {
@@ -92,7 +94,8 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
   assert.equal('rawLog' in status.payload.data, false);
 
   const nextCachePath = path.join(root, 'second', 'WeSingCache');
-  fs.mkdirSync(path.join(nextCachePath, 'WeSingDL', 'Res'), { recursive: true });
+  fs.mkdirSync(path.join(nextCachePath, 'Log', 'WeSing'), { recursive: true });
+  fs.writeFileSync(path.join(nextCachePath, 'Log', 'WeSing', 'test.log'), 'synthetic cache');
   const updated = await requestJson(`${app.baseUrl}/api/settings`, token, {
     method: 'POST',
     body: JSON.stringify({ weSingCachePath: nextCachePath, weSingLyricOffsetMs: 125 }),

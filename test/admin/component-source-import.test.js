@@ -287,8 +287,9 @@ test('browser source addresses imported as styles render, publish and receive no
 test('simple import recovers from cancellation and invalid paste, then saves HTML with automatic name and size', { timeout: 30000 }, async t => {
   const { page, listStyles, errors } = await setup(t);
   const { dialog } = await openImport(page, 'clock');
-  await page.route('**/styles/pick-web?*', route => route.fulfill({ json: { ok: true, data: null } }));
+  const chooser = page.waitForEvent('filechooser');
   await dialog.getByRole('button', { name: '选择文件', exact: true }).click();
+  await (await chooser).setFiles([]);
   await page.waitForFunction(() => !document.querySelector('.component-source-import button').disabled);
   assert.equal(await dialog.isVisible(), true);
   assert.deepEqual(await listStyles(), []);

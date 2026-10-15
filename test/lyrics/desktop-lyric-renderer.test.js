@@ -177,6 +177,18 @@ test('desktop karaoke immediately anchors a small explicit seek within the same 
   assert.equal(animation.cancelled, false, 'seeking within a word reuses its animation');
 });
 
+test('slow frames reduce decoration without interrupting continuous word fill', async () => {
+  const { renderer, animations, advance, state } = await createLiveRenderer();
+  renderer.updateLyricState(state);
+  const animation = animations.at(-1);
+  for (let index = 0; index < 12; index += 1) advance(60);
+  assert.equal(animation.cancelled, false, 'continuous fill must survive sustained slow frames');
+  assert.equal(animation.playState, 'running');
+  renderer.updateLyricState({ ...state, currentMs: 1920, sequence: 2, playing: false });
+  assert.equal(animation.playState, 'paused', 'pause must still stop the preserved highlight');
+  assert.equal(animation.currentTime, 1920);
+});
+
 for (const mode of ['continuous', 'discrete']) {
   test(`${mode} karaoke starts the next line before its sampled state arrives`, async () => {
     const { renderer, elements, animations, advance, state } = await createLiveRenderer();
@@ -196,8 +208,8 @@ for (const mode of ['continuous', 'discrete']) {
     const wordNodes = row.querySelector('.desktop-lyric-preview-row-text').children;
     assert.equal(wordNodes.length, 3, 'the first word must exist 50 ms into the new line, before the next 500 ms sample');
     if (mode === 'continuous') {
-      assert.equal(animations.at(-3).currentTime, 50);
-      assert.equal(animations.at(-3).playState, 'running');
+      assert.equal(animations.at(-1).currentTime, 50);
+      assert.equal(animations.at(-1).playState, 'running');
     } else {
       assert.equal(wordNodes[0].dataset.wordState, 'complete');
       assert.equal(wordNodes[1].dataset.wordState, 'upcoming');
@@ -210,8 +222,8 @@ for (const mode of ['continuous', 'discrete']) {
       lineText: '第二句', words: nextWords });
     advance(1000);
     if (mode === 'continuous') {
-      assert.equal(animations.at(-3).currentTime, 50);
-      assert.equal(animations.at(-3).playState, 'paused');
+      assert.equal(animations.at(-1).currentTime, 50);
+      assert.equal(animations.at(-1).playState, 'paused');
     } else assert.equal(wordNodes[1].dataset.wordState, 'upcoming');
     renderer.updateLyricState({ ...state, currentMs: 4900, generation: 2, playing: false });
     assert.equal(row.querySelector('.desktop-lyric-preview-row-text').children.length, 0,

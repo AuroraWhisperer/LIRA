@@ -81,6 +81,7 @@ export const metrics = (() => {
       const remainingSeconds = Math.max(0, METRICS_SAMPLE_SECONDS - elapsedSeconds);
       countdownValue.textContent = String(remainingSeconds);
       if (remainingSeconds === 0) {
+        document.getElementById('metricsStatus').textContent = '正在等待显卡采样结果';
         clearInterval(metricsCountdownTimer);
         metricsCountdownTimer = null;
       }
@@ -172,7 +173,7 @@ export const metrics = (() => {
     setHardwareText(
       'hardwareGpuDetail',
       gpus.length
-        ? gpus.map((gpu) => `${gpu.vendor || '未知厂商'}，显存 ${formatHardwareBytes(gpu.videoMemoryBytes)}`).join('\n')
+        ? gpus.map((gpu) => `${gpu.vendor || '未知厂商'}，专用/预留显存 ${formatHardwareBytes(gpu.videoMemoryBytes)}`).join('\n')
         : 'Windows 未返回显卡信息',
     );
     setHardwareText(

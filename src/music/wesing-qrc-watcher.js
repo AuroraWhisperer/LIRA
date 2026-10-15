@@ -14,6 +14,7 @@ function createWeSingQrcWatcher(options) {
   let watcher = null;
   let watchedCachePath = '';
   let refreshTimer = null;
+  let logTimer = null;
   let watchVersion = 0;
   let syncVersion = 0;
 
@@ -47,7 +48,20 @@ function createWeSingQrcWatcher(options) {
   }
 
   function handleWatchEvent(_eventType, filename) {
-    if (!options.isActive() || !/\.qrc$/i.test(String(filename || ''))) return;
+    if (!options.isActive()) return;
+    const changedPath = String(filename || '');
+    if (/^Log[\\/]WeSing[\\/][^\\/]+\.log$/i.test(changedPath) && options.onSongChange) {
+      if (logTimer !== null) return;
+      const version = watchVersion;
+      logTimer = setTimer(() => {
+        if (version !== watchVersion) return;
+        logTimer = null;
+        if (options.isActive()) options.onSongChange();
+      }, 100);
+      logTimer?.unref?.();
+      return;
+    }
+    if (!/\.qrc$/i.test(changedPath)) return;
     if (refreshTimer !== null) clearTimer(refreshTimer);
     const version = watchVersion;
     refreshTimer = setTimer(() => {
@@ -64,6 +78,10 @@ function createWeSingQrcWatcher(options) {
     if (refreshTimer !== null) {
       clearTimer(refreshTimer);
       refreshTimer = null;
+    }
+    if (logTimer !== null) {
+      clearTimer(logTimer);
+      logTimer = null;
     }
     if (watcher) {
       try {

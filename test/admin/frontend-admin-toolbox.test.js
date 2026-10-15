@@ -65,6 +65,47 @@ test('hardware summary hides memory temperature and renders missing CPU temperat
   assert.doesNotMatch(html, /id="hardwareMemoryTemperature"/);
 });
 
+test('hardware GPU capacity is labelled as dedicated or reserved memory', async () => {
+  const elements = new Map();
+  const { metrics } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/metrics.js'), {
+    document: { getElementById(id) {
+      if (!elements.has(id)) elements.set(id, { textContent: '' });
+      return elements.get(id);
+    } }, window: {},
+  });
+  metrics.renderHardwareSummary({ gpus: [
+    { vendor: 'Intel Corporation', videoMemoryBytes: 134217728 },
+    { vendor: 'NVIDIA', videoMemoryBytes: 8589934592 },
+  ] }, false);
+  assert.equal(elements.get('hardwareGpuDetail').textContent,
+    'Intel Corporation，专用/预留显存 128.0 MB\nNVIDIA，专用/预留显存 8.00 GB');
+});
+
+test('metrics countdown keeps the button busy while waiting for GPU results', async () => {
+  const elements = new Map();
+  let elapsed = 0;
+  let tick;
+  let cleared = false;
+  const { metrics } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/metrics.js'), {
+    document: { getElementById(id) {
+      if (!elements.has(id)) elements.set(id, { textContent: '', classList: { add() {}, remove() {} } });
+      return elements.get(id);
+    } },
+    window: {}, Date: { now: () => elapsed },
+    setInterval(callback) { tick = callback; return 1; },
+    clearInterval() { cleared = true; },
+  });
+  metrics.setMetricsBusy(true);
+  elapsed = 5000;
+  tick();
+  assert.equal(elements.get('metricsRefreshBtn').disabled, true);
+  assert.equal(elements.get('metricsStatus').textContent, '正在等待显卡采样结果');
+  assert.equal(cleared, true);
+  metrics.setMetricsBusy(false);
+  assert.equal(elements.get('metricsRefreshBtn').disabled, false);
+  assert.equal(elements.get('metricsCountdownValue').textContent, '5');
+});
+
 test('other feature navigation selects panels without feature-specific dependencies', () => {
   const source = readJsModuleBundle('public', 'js', 'admin', 'toolbox-navigation.js');
   const createNode = ({ id = '', feature = '', hidden = false } = {}) => {

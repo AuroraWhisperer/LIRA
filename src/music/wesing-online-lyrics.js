@@ -1,12 +1,9 @@
 'use strict';
 
-const { scoreTrackMatch } = require('./song-matcher');
-
 const DEFAULT_PLATFORMS = ['qq', 'netease'];
 const DEFAULT_PREFERRED_PLATFORM = 'netease';
 const SUPPORTED_PLATFORMS = new Set(DEFAULT_PLATFORMS);
-const MIN_TITLE_MATCH_SCORE = 60;
-const CLOSE_MATCH_SCORE_GAP = 5;
+const MAX_DURATION_DISTANCE_MS = 5000;
 
 /**
  * Matches online lyrics for WeSing fallback only.
@@ -76,14 +73,15 @@ function createWeSingOnlineLyricResolver(options = {}) {
 
 async function resolveProviderLyrics(options) {
   const { registry, lyricsService, platform, title, artist, durationMs } = options;
-  const keyword = [title, artist].filter(Boolean).join(' ');
+  const searchArtist = artist.replace(/[（(].*?[）)]/g, '').trim();
+  const keyword = [title, searchArtist].filter(Boolean).join(' ');
   const searchResult = await lyricsService.searchMusicTracks(registry, {
     platform,
     keyword,
     limit: 20,
   });
   const match = rankWeSingLyricTracks(title, durationMs, searchResult.tracks, artist)[0];
-  if (!match || match.score < MIN_TITLE_MATCH_SCORE) return null;
+  if (!match) return null;
 
   const lyricResult = await lyricsService.getMusicTrackLyrics(registry, {
     track: match.track,
@@ -93,7 +91,6 @@ async function resolveProviderLyrics(options) {
 
   return {
     platform,
-    matchScore: match.score,
     durationDistance: match.durationDistance,
     qualityScore: scoreLyricQuality(lines),
     result: {
@@ -108,9 +105,8 @@ async function resolveProviderLyrics(options) {
 }
 
 /**
- * Uses the window duration as an extra discriminator for same-name covers.
- * Now Playing only has title/artist similarity here; the duration improves the
- * ambiguous no-artist case without weakening its strict title requirement.
+ * Match the requested rendition, including covers, before comparing timelines.
+ * The general song-request matcher prefers originals and is unsuitable here.
  */
 function selectWeSingLyricTrack(title, durationMs, tracks, artist = '') {
   return rankWeSingLyricTracks(title, durationMs, tracks, artist)[0]?.track || null;
@@ -118,36 +114,55 @@ function selectWeSingLyricTrack(title, durationMs, tracks, artist = '') {
 
 function rankWeSingLyricTracks(title, durationMs, tracks, artist = '') {
   const candidates = Array.isArray(tracks) ? tracks : [];
+  const requestedTitle = normalizeMatchText(title);
+  const baseTitle = requestedTitle.replace(/\([^)]*\)/g, '');
+  const requestedArtists = getArtistNames(artist);
   return candidates
+    .filter((track) => {
+      const candidateTitle = normalizeMatchText(track?.title);
+      if (!baseTitle || candidateTitle.replace(/\([^)]*\)/g, '') !== baseTitle) return false;
+      const candidateDuration = Math.max(0, Number(track.durationMs) || 0);
+      if (durationMs > 0 && candidateDuration > 0 && Math.abs(durationMs - candidateDuration) > MAX_DURATION_DISTANCE_MS) {
+        return false;
+      }
+      // An explicit version must match; an unspecified version may be a cover or Live.
+      if (requestedTitle !== baseTitle && candidateTitle !== requestedTitle) return false;
+      const artists = Array.isArray(track.artists) ? track.artists : [track.artist];
+      return (
+        requestedArtists.length === 0 ||
+        artists.some((name) => getArtistNames(name).some((candidate) => requestedArtists.includes(candidate)))
+      );
+    })
     .map((track, index) => {
-      const result = scoreTrackMatch({ songName: title, artist, durationMs }, track);
       const candidateDuration = Math.max(0, Number(track?.durationMs) || 0);
       return {
         track,
-        score: result.score,
         durationDistance:
           durationMs > 0 && candidateDuration > 0 ? Math.abs(candidateDuration - durationMs) : Number.MAX_SAFE_INTEGER,
         index,
       };
     })
-    .sort(
-      (left, right) =>
-        right.score - left.score || left.durationDistance - right.durationDistance || left.index - right.index,
-    );
+    .sort((left, right) => left.durationDistance - right.durationDistance || left.index - right.index);
+}
+
+function normalizeMatchText(value) {
+  return String(value || '').normalize('NFKC').toLowerCase().replace(/[\s《》"'“”‘’]+/g, '');
+}
+
+function getArtistNames(value) {
+  // WeSing may report an alias such as "en (王翊恩)" while providers use "en".
+  return normalizeMatchText(value).split(/[()/、&]/).filter(Boolean);
 }
 
 function selectBestLyricCandidate(candidates, preferredPlatform) {
   return (
-    [...candidates].sort((left, right) => {
-      const matchGap = Math.abs(left.matchScore - right.matchScore);
-      if (matchGap > CLOSE_MATCH_SCORE_GAP) return right.matchScore - left.matchScore;
-      return (
+    [...candidates].sort(
+      (left, right) =>
+        left.durationDistance - right.durationDistance ||
         right.qualityScore - left.qualityScore ||
         getLyricLineCount(right) - getLyricLineCount(left) ||
-        left.durationDistance - right.durationDistance ||
-        Number(right.platform === preferredPlatform) - Number(left.platform === preferredPlatform)
-      );
-    })[0] || null
+        Number(right.platform === preferredPlatform) - Number(left.platform === preferredPlatform),
+    )[0] || null
   );
 }
 
