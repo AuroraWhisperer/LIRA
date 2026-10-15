@@ -4,6 +4,15 @@ export function formatClockDisplay(milliseconds, status) {
   return finished ? '该下播了' : formatClock(remainingMs);
 }
 
+export function nextClockDelay(remainingMs) {
+  const remaining = Math.max(0, Number(remainingMs) || 0);
+  const wholeSeconds = Math.ceil(remaining / 1000);
+  const resolutionSeconds = wholeSeconds >= 365 * 86400 ? 3600 : wholeSeconds >= 86400 ? 60 : 1;
+  // Formatting rounds up seconds before flooring calendar units; wake when that visible value changes.
+  const nextSeconds = Math.floor(wholeSeconds / resolutionSeconds) * resolutionSeconds - 1;
+  return Math.max(25, Math.ceil(remaining - nextSeconds * 1000));
+}
+
 export function formatClock(milliseconds) {
   return formatClockSeconds(Math.ceil((Number(milliseconds) || 0) / 1000));
 }

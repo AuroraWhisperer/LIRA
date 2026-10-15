@@ -70,6 +70,7 @@ export class FullscreenPlayer {
     this.translationToggleBtn = null;
     this.lyricsInitialized = false;
     this.lastActiveLyricIndex = -1;
+    this.highlightedLyricIndex = null;
     this.lyricOffsetMs = 0;
     this.lyricMode = 'none'; // 'none' | 'trans' | 'roma'
     this._lastLyricTrackId = null;
@@ -166,11 +167,13 @@ export class FullscreenPlayer {
    */
   renderTrackInfo(track) {
     if (this.titleEl) {
-      this.titleEl.textContent = track ? track.title : '未选择歌曲';
+      const title = track ? track.title : '未选择歌曲';
+      if (this.titleEl.textContent !== title) this.titleEl.textContent = title;
     }
 
     if (this.artistEl) {
-      this.artistEl.textContent = track ? (track.artists || []).join(' / ') || '未知歌手' : '—';
+      const artist = track ? (track.artists || []).join(' / ') || '未知歌手' : '—';
+      if (this.artistEl.textContent !== artist) this.artistEl.textContent = artist;
     }
   }
 
@@ -190,7 +193,7 @@ export class FullscreenPlayer {
       if (!existing || existing.src !== coverUrl) {
         this.artEl.innerHTML = `<img src="${escapeAttr(coverUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">`;
       }
-    } else {
+    } else if (!this.artEl.querySelector('svg')) {
       this.artEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
     }
   }
@@ -245,13 +248,16 @@ export class FullscreenPlayer {
 
     this.lyricOffsetMs = PlaybackUtils.getPlaybackLyricOffsetMs(track);
     const lines = track && track.lyrics && Array.isArray(track.lyrics.lines) ? track.lyrics.lines : [];
+    const lyricsChanged = this._lastLyricLines !== lines;
 
     // 保存歌词行引用，供 _toggleLyricMode 重渲染使用
     this._lastLyricLines = lines;
 
     if (!lines.length) {
       this.setManualBrowsing(false);
-      this.lyricsContainer.innerHTML = '<div class="player-fs-lyrics-empty">暂无歌词</div>';
+      if (!this.lyricsContainer.querySelector('.player-fs-lyrics-empty')) {
+        this.lyricsContainer.innerHTML = '<div class="player-fs-lyrics-empty">暂无歌词</div>';
+      }
       this.lastActiveLyricIndex = -1;
       return;
     }
@@ -263,7 +269,7 @@ export class FullscreenPlayer {
 
     // 重新渲染（仅在歌词变化时）
     const existingCount = this.lyricsContainer.querySelectorAll('.player-fs-lyric-line').length;
-    if (existingCount !== lines.length) {
+    if (lyricsChanged || existingCount !== lines.length) {
       this.renderLyricLines(lines);
       this.lastActiveLyricIndex = -1; // 歌词列表变化，重置索引以触发初始滚动
     }
@@ -302,6 +308,7 @@ export class FullscreenPlayer {
    */
   renderLyricLines(lines) {
     if (!this.lyricsContainer) return;
+    this.highlightedLyricIndex = null;
 
     const showTrans = this.lyricMode === 'trans';
     const showRoma = this.lyricMode === 'roma';
@@ -337,11 +344,12 @@ export class FullscreenPlayer {
    * @param {number} currentIndex - 当前行索引
    */
   updateLyricHighlight(currentIndex) {
-    if (!this.lyricsContainer) return;
+    if (!this.lyricsContainer || this.highlightedLyricIndex === currentIndex) return;
 
     this.lyricsContainer.querySelectorAll('.player-fs-lyric-line').forEach((el, i) => {
       el.classList.toggle('active', i === currentIndex);
     });
+    this.highlightedLyricIndex = currentIndex;
   }
 
   /**

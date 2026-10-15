@@ -57,7 +57,7 @@ export class LyricWordAnimator {
       const endMs = Math.max(startMs, numberValue(entry.word.endMs, startMs));
       const progress =
         endMs > startMs ? clamp((currentMs - startMs) / (endMs - startMs), 0, 1) : currentMs >= endMs ? 1 : 0;
-      const animationTime = Math.max(0, currentMs - startMs);
+      const animationTime = clamp(currentMs - startMs, 0, Math.max(1, endMs - startMs));
       if (this.mode === 'waapi' && typeof entry.highlight.animate === 'function') {
         let animation = this.animations[index];
         if (!animation) {
@@ -77,13 +77,17 @@ export class LyricWordAnimator {
           animation.playState === 'paused' ||
           animation.currentTime === null ||
           Math.abs(Number(animation.currentTime) - animationTime) > DRIFT_THRESHOLD_MS;
-        if (shouldAnchor) animation.currentTime = animationTime;
-        if (playing && currentMs >= startMs && currentMs < endMs) animation.play();
-        else animation.pause();
-      } else if (this.mode === 'manual') {
-        entry.highlight.style.clipPath = `inset(0 ${100 - progress * 100}% 0 0)`;
+        // Once a word is fully hidden or filled, its paused effect needs no more writes.
+        if (shouldAnchor && animation.currentTime !== animationTime) animation.currentTime = animationTime;
+        if (playing && currentMs >= startMs && currentMs < endMs) {
+          if (animation.playState !== 'running') animation.play();
+        } else if (animation.playState !== 'paused') animation.pause();
       } else {
-        entry.highlight.style.clipPath = `inset(0 ${progress >= 1 ? 0 : 100}% 0 0)`;
+        const clipPath = `inset(0 ${this.mode === 'manual' ? 100 - progress * 100 : progress >= 1 ? 0 : 100}% 0 0)`;
+        if (entry.clipPath !== clipPath) {
+          entry.highlight.style.clipPath = clipPath;
+          entry.clipPath = clipPath;
+        }
       }
     });
   }
@@ -132,10 +136,11 @@ export class LyricWordAnimator {
         entry.motion.pause();
       }
       const animation = entry.motion;
-      if (force || !playing || animation.playState !== 'running'
-        || Math.abs(Number(animation.currentTime) - time) > DRIFT_THRESHOLD_MS) animation.currentTime = time;
+      if ((force || !playing || animation.playState !== 'running'
+        || Math.abs(Number(animation.currentTime) - time) > DRIFT_THRESHOLD_MS)
+        && animation.currentTime !== time) animation.currentTime = time;
       if (playing && animation.playState !== 'running') animation.play();
-      else if (!playing) animation.pause();
+      else if (!playing && animation.playState !== 'paused') animation.pause();
     });
   }
 

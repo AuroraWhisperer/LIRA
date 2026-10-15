@@ -103,7 +103,25 @@ test('desktop lyric frontend defaults match storage defaults', async () => {
 
   assert.deepEqual(JSON.parse(JSON.stringify(DESKTOP_LYRIC_DEFAULTS)), storageDefaults);
   assert.equal(DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily, 'Lira Maiyuan');
+  assert.equal(DESKTOP_LYRIC_DEFAULTS.desktopLyricStrokeEnabled, 'false');
+  assert.equal(DESKTOP_LYRIC_DEFAULTS.desktopLyricSungColor, '');
   assert.equal(DESKTOP_LYRIC_DEFAULTS.desktopLyricCurrentLineEnhanced, 'false');
+});
+
+test('desktop lyric stroke starts disabled and preserves an explicit opt-in', async () => {
+  const { normalizeDesktopLyricSettings } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-settings.js'),
+  );
+  const { createSceneExtraDefaults } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'scene-extra-components.js'),
+  );
+  const strokeInput = readDesktopLyricHtml().match(/<input\b[^>]*\bid="desktopLyricStrokeEnabled"[^>]*>/)?.[0];
+
+  assert.ok(strokeInput);
+  assert.doesNotMatch(strokeInput, /\bchecked\b/);
+  assert.equal(createSceneExtraDefaults('lyrics').desktopLyricStrokeEnabled, 'false');
+  assert.equal(normalizeDesktopLyricSettings().strokeEnabled, false);
+  assert.equal(normalizeDesktopLyricSettings({ desktopLyricStrokeEnabled: 'true' }, DEFAULT_SETTINGS).strokeEnabled, true);
 });
 
 test('desktop lyric settings use icon alignment controls and performance-safe motion defaults', () => {
@@ -184,4 +202,33 @@ test('desktop lyric display strategy presents continuous and discrete highlighti
     assert.match(html, new RegExp(`name="desktopLyricKaraokeMode"[\\s\\S]*?value="${value}"`));
   }
   assert.match(styles, /\.desktop-lyric-preview-card\.is-karaoke-discrete/);
+  for (const key of ['desktopLyricSungColor', 'desktopLyricTextColor']) {
+    assert.match(html, new RegExp(`<input\\b(?=[^>]*\\sid="${key}")(?=[^>]*\\stype="color")[^>]*>`));
+  }
+  assert.match(html, /id="desktopLyricSungColorInherited"[^>]*checked/);
+  assert.equal((html.match(/id="desktopLyricTextColor"/g) || []).length, 1);
+  assert.doesNotMatch(html.match(/class="desktop-lyric-settings-group is-basic"[\s\S]*?<\/details>/)[0], /desktopLyricTextColor/);
+  assert.doesNotMatch(html, /id="desktopLyricTextColor"[^>]*data-color-opacity/);
+});
+
+test('karaoke colors preserve explicit alpha and reuse the saved text color for unsung lyrics', async () => {
+  const { normalizeDesktopLyricSettings } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-settings.js'),
+  );
+  const { applyDesktopLyricStyles } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-styles.js'),
+  );
+  const properties = new Map();
+  const card = { style: { setProperty: (key, value) => properties.set(key, value) }, classList: { toggle() {} } };
+  applyDesktopLyricStyles(card, normalizeDesktopLyricSettings({
+    desktopLyricSungColor: '#12345680', desktopLyricTextColor: '#abcdef80',
+  }, DEFAULT_SETTINGS));
+  assert.equal(properties.get('--preview-sung-color'), '#12345680');
+  assert.equal(properties.get('--preview-color'), '#abcdef80');
+  assert.equal(properties.get('--preview-opacity'), '0.95', 'Global opacity stays independent of either color alpha.');
+  applyDesktopLyricStyles(card, normalizeDesktopLyricSettings({
+    desktopLyricSungColor: 'invalid',
+  }, DEFAULT_SETTINGS));
+  assert.equal(properties.get('--preview-sung-color'), '');
+  assert.equal(properties.get('--preview-color'), '#000000');
 });

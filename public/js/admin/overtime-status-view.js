@@ -1,5 +1,7 @@
 'use strict';
 
+import { nextClockDelay } from '../shared/overtime-time-format.js';
+
 export function createOvertimeStatusView({
   byId,
   formatClockDisplay,
@@ -12,7 +14,7 @@ export function createOvertimeStatusView({
   let overtimeState = null;
   let anchorRemainingMs = 0;
   let localAnchorMs = 0;
-  let clockRafId = null;
+  let clockTimer = null;
   let lastClockValue = '';
 
   function renderState(nextState, { allowRevisionReset = false } = {}) {
@@ -66,8 +68,10 @@ export function createOvertimeStatusView({
     node.classList.toggle('warn', !active);
   }
 
-  function updateClock(nowMs) {
+  function updateClock() {
+    clockTimer = null;
     if (overtimeState) {
+      const nowMs = performance.now();
       const elapsed = overtimeState.status === 'running' ? Math.max(0, nowMs - localAnchorMs) : 0;
       const remainingMs = Math.max(0, anchorRemainingMs - elapsed);
       const value = formatClockDisplay(remainingMs, overtimeState.status);
@@ -78,28 +82,20 @@ export function createOvertimeStatusView({
         clock.classList.toggle('is-finished', value === '该下播了');
         lastClockValue = value;
       }
-      if (overtimeState.status === 'running' && document.visibilityState === 'visible') {
-        clockRafId = requestAnimationFrame(updateClock);
-        return;
+      if (overtimeState.status === 'running' && remainingMs > 0 && document.visibilityState === 'visible') {
+        clockTimer = setTimeout(updateClock, nextClockDelay(remainingMs));
       }
     }
-    clockRafId = null;
   }
 
   function syncClockLoop() {
-    const shouldRun = overtimeState?.status === 'running' && document.visibilityState === 'visible';
-    if (!shouldRun) {
-      if (clockRafId !== null) cancelAnimationFrame(clockRafId);
-      clockRafId = null;
-      updateClock(performance.now());
-      return;
-    }
-    if (clockRafId === null) clockRafId = requestAnimationFrame(updateClock);
+    stopClockLoop();
+    updateClock();
   }
 
   function stopClockLoop() {
-    if (clockRafId !== null) cancelAnimationFrame(clockRafId);
-    clockRafId = null;
+    if (clockTimer !== null) clearTimeout(clockTimer);
+    clockTimer = null;
   }
 
   return {

@@ -57,6 +57,53 @@ test('selected WeSing owns lyrics even when delayed internal state has a newer g
   assert.equal(messages.length, count, 'rejected internal state must not be broadcast');
 });
 
+test('clock updates reuse the checked timeline, including after an equal replacement', async (t) => {
+  const { runtime, messages } = await fixture(t);
+  runtime.publishLyricTimeline(INTERNAL_TIMELINE);
+  let reads = 0;
+  const observeLines = timeline => {
+    const lines = timeline.lines;
+    Object.defineProperty(timeline, 'lines', { enumerable: true, get() { reads++; return lines; } });
+  };
+  observeLines(runtime.getLyricTimeline());
+  const updateClock = () => {
+    reads = 0;
+    const offset = messages.length;
+    for (let index = 1; index <= 10; index++) {
+      runtime.publishLyricState({ trackTitle: 'Internal', status: 'ready', playing: true, currentMs: index * 100 });
+    }
+    assert.equal(reads, 0, 'clock-only updates must not traverse a previously checked timeline');
+    const states = messages.slice(offset).filter(message => message.type === 'lyric-state').map(message => message.state);
+    assert.equal(states.length, 10);
+    assert.deepEqual(states.map(state => state.currentMs), Array.from({ length: 10 }, (_, i) => (i + 1) * 100));
+    assert.ok(states.every((state, index) => index === 0 || state.sequence > states[index - 1].sequence));
+    assert.equal(messages.slice(offset).filter(message => message.type === 'lyric-timeline').length, 0);
+  };
+  updateClock();
+  const count = messages.filter(message => message.type === 'lyric-timeline').length;
+  observeLines(runtime.publishLyricTimeline(structuredClone(INTERNAL_TIMELINE)));
+  assert.equal(messages.filter(message => message.type === 'lyric-timeline').length, count);
+  updateClock();
+  runtime.publishLyricTimeline({ ...INTERNAL_TIMELINE, lines: [{ startMs: 10, text: 'Changed line' }] });
+  assert.equal(messages.filter(message => message.type === 'lyric-timeline').length, count + 1);
+  assert.equal(runtime.getLyricTimeline().lines[0].startMs, 10);
+});
+
+test('a source switch publishes even when both sources have equal timelines', async t => {
+  const { runtime, messages, selectExternal } = await fixture(t);
+  await selectExternal();
+  const external = structuredClone(runtime.getLyricTimeline());
+  runtime.publishLyricTimeline(external);
+  runtime.publishLyricState({ trackTitle: external.trackTitle, status: 'ready', playing: true });
+  const generation = runtime.getLyricState().generation;
+  const offset = messages.length;
+  await runtime.selectLyricSource('internal');
+  assert.equal(runtime.getLyricSource().source, 'internal');
+  assert.deepEqual(runtime.getLyricTimeline(), external);
+  assert.equal(messages.slice(offset).filter(message => message.type === 'lyric-timeline').length, 1);
+  assert.ok(runtime.getLyricState().generation > generation);
+});
+
 test('WeSing keeps output while playing and cached internal timeline returns when it stops', async (t) => {
   const { runtime, messages, selectExternal, stopExternal } = await fixture(t);
   await selectExternal();

@@ -139,8 +139,9 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         input.addEventListener(saveEvent, save);
         if (field.allowEmpty) {
           inherit = previewElement('input'); inherit.type = 'checkbox';
-          inherit.setAttribute('aria-label', `${field.label}跟随文字颜色`);
-          const inheritLabel = previewElement('label', 'hint', '跟随文字颜色'); inheritLabel.prepend(inherit);
+          const inheritText = field.inheritLabel || '跟随文字颜色';
+          inherit.setAttribute('aria-label', `${field.label}${inheritText}`);
+          const inheritLabel = previewElement('label', 'hint', inheritText); inheritLabel.prepend(inherit);
           inherit.addEventListener('change', () => target.edit({ [key]: inherit.checked ? '' : input.value }));
           label.append(inheritLabel);
         }
@@ -184,6 +185,9 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
               : ['showAvatar', 'showUserName', 'nameFontSize'].includes(key));
           const value = Object.hasOwn(previewFields, key) ? previewValues[key]
             : draft[key] ?? openingFields[key]?.default ?? definition.fields[key].default;
+          const inheritedColor = type === 'lyrics'
+            ? draft.style === 'moonlit' ? '#93682f' : '#ffcf4a'
+            : draft.songBoardThemeText;
           if (key === 'desktopLyricFontFamily') ensureSavedFontOption(input, value);
           if (input.tagName === 'SELECT' && ['style', 'displayStyle'].includes(key)) {
             const preset = COMPONENT_RESOURCE_PRESETS[draft.resourceStyle?.preset];
@@ -196,7 +200,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
           if (input.type === 'checkbox') input.checked = value === true || value === 'true'
             || type === 'blindbox' && key === 'winnersOnly' && [true, 'true'].includes(draft.hideLoss);
           else syncComponentFieldValue(input, cents ? Number(value) / 100 : scale !== 1 ? Number((Number(value) * scale).toFixed(6))
-            : inherit && !value ? draft.songBoardThemeText : value);
+            : inherit && !value ? inheritedColor : value);
           if (inherit) { inherit.checked = !value; inherit.disabled = !loaded; }
           input.disabled = !loaded || Boolean(inherit && !value);
           if (slider) {

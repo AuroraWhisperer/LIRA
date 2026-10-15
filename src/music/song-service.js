@@ -74,7 +74,7 @@ function listSongs(
       }
       if (tagFilters.length === 0) return true;
       const songTags = new Set(splitSongTags(row.tags).map((tag) => tag.toLocaleLowerCase()));
-      return tagFilters.every((tag) => songTags.has(tag.toLocaleLowerCase()));
+      return tagFilters.some((tag) => songTags.has(tag.toLocaleLowerCase()));
     })
     .sort((a, b) => {
       const initialCompare = String(a.name_initial).localeCompare(String(b.name_initial), 'zh-Hans-CN');

@@ -164,6 +164,8 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 
 搜索结果由搜索完成、清空和切换音源入口更新，不随普通播放状态刷新重复构造。队列弹窗关闭时暂缓列表渲染，打开时读取最新状态；可见时只在实际展示字段变化后重建列表，包含数组或曲目原地修改。
 
+全屏播放器在音频更新时复用相同标题、歌手、缺省封面与空歌词节点；当前歌词索引不变时跳过整表高亮遍历，重建歌词（含翻译/罗马音切换）后重新应用高亮。歌词获取沿既有状态入口替换行数组，播放器按数组引用检测新版歌词：即使歌曲 id 与行数未变，关闭期间重新获取歌词后再打开也更新文字和点击跳转时间；相同行数组的重复渲染继续复用节点，不逐帧序列化歌词。时间更新、seek、手动浏览、滚动和唱片动画保持原节奏。
+
 - `ui/index.js` `UIRenderer` 渲染整页;`ui/playback-bar.js` 底部控制栏(进度/播放暂停/上下首/音量/模式/队列弹出/歌词);`ui/fullscreen.js` 全屏播放器(点击面板切换,ESC 退出,空格播放暂停,封面背景按 `pickBackgroundTheme` 30 套轮换,[forms.js:74-92](../../../public/js/admin/forms.js#L74-L92));`ui/drawer.js` 首页抽屉(歌单内页与返回栈);`ui/queue-popup.js` 队列弹出窗(收起播放器时联动关闭)。
 - **音质菜单**:`ui/playback-bar.js` 对 QQ 显示标准(128kbps)/HQ(最高 320kbps)/SQ(FLAC)/臻品(Q0 本地解密)/全景声(O8 本地解密),对网易云显示五档;选项沿用共享单选样式(`.lira-select-panel` + `.lira-select-option`),当前档位以选中竖条与底色表示,不显示对勾;`features/playback-controls.js:changePlaybackQuality` 保存默认档位、强制刷新当前流并在 `loadedmetadata` 后恢复切换前进度。服务端若降级,按钮显示实际档位并 toast 提示。Q0/O8 不承诺 QQ 客户端专属杜比或空间 DSP 效果,边界见 [qq-provider.md](../backend/music/qq-provider.md) §7.2。
 - **工作区集成**:播放器 dock 默认收起(`player-dock-collapsed`,避免遮挡点歌工作区),由 `forms.js` 的 `setPlayerDockCollapsed` 统一管理,收起时联动关闭全屏播放器/队列弹窗/音量面板([forms.js:133-169](../../../public/js/admin/forms.js#L133-L169))。

@@ -231,8 +231,6 @@
 .live-components-page .other-feature-panel-body {
   box-sizing: border-box;
   width: 100%;
-  max-width: 1200px;
-  margin-inline: auto;
   padding: var(--component-page-padding);
   scrollbar-gutter: stable;
 }

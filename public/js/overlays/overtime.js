@@ -1,6 +1,6 @@
 'use strict';
 
-import { formatClockDisplay, formatClockSeconds } from '../shared/overtime-time-format.js';
+import { formatClockDisplay, formatClockSeconds, nextClockDelay } from '../shared/overtime-time-format.js';
 import { createOverlaySocket } from './socket-client.js';
 import { setGiftImage } from '../shared/gift-image-fallback.js';
 import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
@@ -321,17 +321,6 @@ function flashClock(delta) {
   void clock.offsetWidth;
   clock.classList.add(className);
   afterAdjustment(() => clock.classList.remove(className), lowMotion ? 220 : 920);
-}
-
-function nextClockDelay(remainingMs) {
-  const remaining = Math.max(0, Number(remainingMs) || 0);
-  const dayMs = 24 * 60 * 60 * 1000;
-  const yearMs = 365 * dayMs;
-  const resolutionMs = remaining >= yearMs ? 60 * 60 * 1000 : remaining >= dayMs ? 60 * 1000 : 1000;
-  const boundaryDelay = remaining % resolutionMs || resolutionMs;
-  const tierBoundaryDelay =
-    remaining >= yearMs ? remaining - yearMs || 1000 : remaining >= dayMs ? remaining - dayMs || 1000 : boundaryDelay;
-  return Math.max(25, Math.ceil(Math.min(boundaryDelay, tierBoundaryDelay)));
 }
 
 function describeRuleEffect(rule) {

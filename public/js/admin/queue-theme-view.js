@@ -2,7 +2,7 @@ import { theme } from '../shared/theme.js';
 import { normalizeRangeValue } from '../shared/utils.js';
 import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { initParameterRanges, disposeParameterRanges } from '../shared/parameter-range.js';
-import { componentField, syncComponentFieldValue } from './component-preview-panel.js';
+import { componentField, syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { componentSaveMessage } from './component-config-controller.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
 import { setOverlayStyle } from './theme-style-view.js';
@@ -84,6 +84,6 @@ export function bindQueueTheme(root, controller) {
     const status = node('queueThemeSaveState');
     if (status) status.textContent = componentSaveMessage(state);
   }
-  const unsubscribe = controller.subscribe(render);
+  const unsubscribe = subscribeComponentFields(root, controller, render);
   return { dispose() { unsubscribe(); unregisterFont?.(); disposeParameterRanges(root); } };
 }

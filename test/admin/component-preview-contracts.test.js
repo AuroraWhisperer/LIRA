@@ -126,3 +126,55 @@ test('closing parameter panels releases observed ranges and their event listener
   assert.equal(observed.size, 1);
   ranges.disposeParameterRanges(input);
 });
+
+test('component fields refill after editing with current optimistic state and release queued work on disposal', async () => {
+  const { subscribeComponentFields, syncComponentFieldValue } = await loadModuleExports(entry('admin/component-preview-panel.js'), { queueMicrotask });
+  const { createRemotePreviewController } = await loadModuleExports(entry('admin/component-preview-remote.js'), { structuredClone });
+  const state = (value) => ({ loaded: true, saved: { value: 'saved' }, draft: { value } });
+  const commands = [];
+  let confirm;
+  const controller = createRemotePreviewController(state('saved'), command => {
+    commands.push(command);
+    return new Promise(resolve => { confirm = resolve; });
+  });
+  const root = new EventTarget();
+  const document = { activeElement: null };
+  const control = { ownerDocument: document, value: '' };
+  let renders = 0;
+  const render = ({ draft }) => { renders++; syncComponentFieldValue(control, draft.value); };
+  const stop = subscribeComponentFields(root, controller, render);
+  document.activeElement = control;
+  controller.receive({ state: state('remote'), ack: 0 });
+  assert.equal(control.value, 'saved');
+  document.activeElement = null;
+  root.dispatchEvent(new Event('focusout'));
+  root.dispatchEvent(new Event('lira-color-edit-end'));
+  const before = renders;
+  await Promise.resolve();
+  assert.equal(control.value, 'remote');
+  assert.equal(renders, before + 1, 'Only one refill is queued for the same editing boundary.');
+  assert.equal(commands.length, 0, 'Refilling never submits an edit.');
+
+  document.activeElement = control;
+  control.value = 'local';
+  root.dispatchEvent(new Event('focusout'));
+  const editing = controller.edit({ value: 'local' });
+  document.activeElement = null;
+  await Promise.resolve();
+  assert.equal(control.value, 'local', 'A pending edit takes priority over the last authoritative snapshot.');
+  assert.equal(commands.length, 1);
+  confirm({ sequence: 1 });
+  await editing;
+
+  root.dispatchEvent(new Event('focusout'));
+  stop();
+  const disposedRenders = renders;
+  root.dispatchEvent(new Event('lira-color-edit-end'));
+  await Promise.resolve();
+  assert.equal(renders, disposedRenders);
+  const rebound = subscribeComponentFields(root, controller, render);
+  root.dispatchEvent(new Event('focusout'));
+  await Promise.resolve();
+  assert.equal(renders, disposedRenders + 2, 'Rebinding retains one subscription and one refill listener.');
+  rebound();
+});

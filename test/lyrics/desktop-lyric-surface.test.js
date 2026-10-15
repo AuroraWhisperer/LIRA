@@ -23,7 +23,7 @@ test('lyrics browser source reuses the neutral live timeline renderer', () => {
   assert.match(html, /id="desktopLyricPreviewViewport"[^>]*tabindex="0"/);
   assert.match(html, /id="desktopLyricPreviewTimeline"/);
   assert.match(html, /id="desktopLyricPreviewPlayback"[^>]*aria-live="polite"/);
-  assert.match(html, /id="desktopLyricPreviewProgress"/);
+  assert.doesNotMatch(html, /desktopLyricPreviewProgress|desktop-lyric-preview-progress/);
   assert.match(html, /type="module"[\s\S]*js\/overlays\/lyric-window\.js/);
   assert.match(
     source,

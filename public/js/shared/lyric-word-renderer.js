@@ -24,6 +24,7 @@ export class LyricWordRenderer {
     this.fallbackText = options.fallbackText || (() => '等待歌词');
     this.onFrame = options.onFrame || (() => {});
     this.onFrameBudget = options.onFrameBudget || (() => {});
+    this.onVisibilityChange = options.onVisibilityChange || (() => {});
     this.renderWords = options.renderWords !== false;
     this.state = { ...EMPTY_STATE };
     this.clock = options.clock || new LyricClock();
@@ -31,14 +32,32 @@ export class LyricWordRenderer {
     this.signature = '';
     this.renderedWords = [];
     this.wordElements = [];
+    this.wordProgress = [];
+    this.surfaceVisible = true;
     this.visibilityHandler = () => {
-      if (isDocumentVisible() && this.state.playing && !isReducedMotion()) {
+      const visible = this.isVisible();
+      if (visible) this.renderFrame(clockNow());
+      if (visible && this.state.playing && !isReducedMotion()) {
         this.scheduler.start(this.renderFrame);
-      } else if (!isDocumentVisible()) {
+      } else {
         this.scheduler.stop();
       }
+      this.onVisibilityChange(visible);
     };
     if (typeof document !== 'undefined') document.addEventListener?.('visibilitychange', this.visibilityHandler);
+    const visibilityElement = options.visibilityElement;
+    if (visibilityElement && typeof IntersectionObserver === 'function') {
+      this.visibilityObserver = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting === this.surfaceVisible) return;
+        this.surfaceVisible = entry.isIntersecting;
+        this.visibilityHandler();
+      });
+      this.visibilityObserver.observe(visibilityElement);
+    }
+  }
+
+  isVisible() {
+    return this.surfaceVisible && isDocumentVisible();
   }
 
   setState(nextState = {}) {
@@ -51,7 +70,7 @@ export class LyricWordRenderer {
         || this.state.trackTitle !== previousTrackTitle,
     });
     this.renderContent();
-    if (this.state.playing && !isReducedMotion() && isDocumentVisible()) {
+    if (this.state.playing && !isReducedMotion() && this.isVisible()) {
       this.scheduler.start(this.renderFrame);
     } else {
       this.scheduler.stop();
@@ -69,6 +88,7 @@ export class LyricWordRenderer {
       return;
     }
     clearElement(this.lineElement);
+    this.wordProgress = [];
     this.renderedWords = this.renderWords ? words : [];
     this.wordElements =
       this.renderWords && words.length > 0
@@ -86,6 +106,7 @@ export class LyricWordRenderer {
   }
 
   renderFrame = (now, elapsed = 0) => {
+    if (!this.isVisible()) return;
     this.onFrameBudget(elapsed);
     const position = this.clock.getPosition(now);
     if (this.progressElement) this.progressElement.style.transform = `scaleX(${position.progress})`;
@@ -101,7 +122,10 @@ export class LyricWordRenderer {
           : position.currentMs >= endMs
             ? 1
             : 0;
-      element.style.setProperty(this.progressProperty, `${progress * 100}%`);
+      if (this.wordProgress[index] !== progress) {
+        element.style.setProperty(this.progressProperty, `${progress * 100}%`);
+        this.wordProgress[index] = progress;
+      }
     });
   };
 
@@ -111,6 +135,7 @@ export class LyricWordRenderer {
 
   dispose() {
     this.scheduler.stop();
+    this.visibilityObserver?.disconnect();
     this.clock.dispose();
     if (typeof document !== 'undefined') document.removeEventListener?.('visibilitychange', this.visibilityHandler);
   }

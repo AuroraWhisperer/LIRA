@@ -40,7 +40,7 @@ async function loadSongsModule(globals) {
   return createSongs({ utils, state });
 }
 
-test('category filter presents each slash-separated category on its own row', async () => {
+test('category filter presents each punctuation-separated category once on its own row', async () => {
   const { readSelectedTags, splitCategoryNames } = await loadCategoryFilterModule();
 
   const names = Array.from(
@@ -48,11 +48,14 @@ test('category filter presents each slash-separated category on its own row', as
       { name: '流行 / R&B / 说唱' },
       { name: 'R&B / 古风' },
       { name: '舞曲／流行' },
-      { name: '默认' },
+      { name: ' 儿歌; 流行；儿歌; ' },
+      { name: '儿歌，甜歌、整活' },
+      { name: 'Hip Hop, 流行' },
+      { name: '默认；;，' },
     ]),
   ).sort();
 
-  assert.deepEqual(names, ['R&B', '古风', '流行', '舞曲', '说唱'].sort());
+  assert.deepEqual(names, ['R&B', 'Hip Hop', '儿歌', '古风', '流行', '甜歌', '整活', '舞曲', '说唱'].sort());
   assert.deepEqual(
     Array.from(
       readSelectedTags({
@@ -86,7 +89,7 @@ test('song library filter menus close only when clicking outside', async () => {
   assert.equal(filter.open, false);
 });
 
-test('song library requires every selected category and composes with other filters', () => {
+test('song library matches any selected category and intersects other filter groups', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-filter-'));
   const databases = createDatabases({ dataDir });
   const songStore = createSongStore(databases.songDb);
@@ -95,13 +98,13 @@ test('song library requires every selected category and composes with other filt
     songService.saveSong(songStore, {
       name: '双分类可点',
       artist: '歌手甲',
-      categoryName: '流行 / R&B / 说唱',
+      categoryName: '流行； R&B; 说唱',
       language: '国语',
     });
     songService.saveSong(songStore, {
       name: '双分类停用',
       artist: '歌手甲',
-      categoryName: 'R&B / 说唱',
+      categoryName: 'R&B，说唱',
       language: '国语',
       isEnabled: false,
     });
@@ -114,29 +117,45 @@ test('song library requires every selected category and composes with other filt
     songService.saveSong(songStore, {
       name: '语言不同',
       artist: '歌手甲',
-      categoryName: 'R&B / 说唱',
+      categoryName: 'R&B、说唱',
       language: '粤语',
+    });
+    songService.saveSong(songStore, {
+      name: '其他分类',
+      artist: '歌手甲',
+      categoryName: '民谣',
+      language: '国语',
     });
 
     assert.deepEqual(
       songService
-        .listSongs(songStore, { categories: ['R&B', '说唱'] })
+        .listSongs(songStore, { categories: ['流行', '说唱'] })
         .map((song) => song.name)
         .sort(),
-      ['双分类停用', '双分类可点', '语言不同'],
+      ['双分类停用', '双分类可点', '只有R&B', '语言不同'].sort(),
     );
     assert.deepEqual(
       songService
         .listSongs(songStore, {
-          categories: ['R&B', '说唱'],
+          categories: ['流行', '说唱'],
           language: '国语',
           artist: '歌手甲',
           enabledOnly: true,
         })
-        .map((song) => song.name),
-      ['双分类可点'],
+        .map((song) => song.name)
+        .sort(),
+      ['双分类可点', '只有R&B'].sort(),
     );
-    assert.deepEqual(songService.listSongs(songStore, { categories: ['R&B', '民谣'] }), []);
+    assert.deepEqual(
+      songService.listSongs(songStore, { categories: ['民谣', '不存在'] }).map((song) => song.name),
+      ['其他分类'],
+    );
+    assert.deepEqual(songService.listSongs(songStore, { categories: ['不存在'] }), []);
+    assert.equal(songService.listSongs(songStore, { categories: [] }).length, 5);
+    assert.deepEqual(
+      songService.listSongs(songStore, { categories: ['流行', '说唱'], query: '只有' }).map((song) => song.name),
+      ['只有R&B'],
+    );
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -221,7 +240,7 @@ test('song library language filter matches an individual language in a combined 
   }
 });
 
-test('song library requires every selected complete tag and composes with category filters', () => {
+test('song library matches any selected complete tag and intersects category filters', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-tag-filter-'));
   const databases = createDatabases({ dataDir });
   const songStore = createSongStore(databases.songDb);
@@ -238,6 +257,11 @@ test('song library requires every selected complete tag and composes with catego
       tags: '抒情',
     });
     songService.saveSong(songStore, {
+      name: '只有治愈',
+      categoryName: '流行',
+      tags: '治愈',
+    });
+    songService.saveSong(songStore, {
       name: '分类不同',
       categoryName: '民谣',
       tags: '抒情，治愈',
@@ -252,13 +276,19 @@ test('song library requires every selected complete tag and composes with catego
     assert.deepEqual(
       songService
         .listSongs(songStore, {
-          categories: ['R&B', '说唱'],
+          categories: ['R&B', '流行'],
           tags: ['抒情', '治愈'],
         })
-        .map((song) => song.name),
-      ['双标签匹配'],
+        .map((song) => song.name)
+        .sort(),
+      ['双标签匹配', '只有抒情', '只有治愈'].sort(),
     );
-    assert.deepEqual(songService.listSongs(songStore, { tags: ['抒情', '摇滚'] }), []);
+    assert.deepEqual(
+      songService.listSongs(songStore, { tags: ['抒情', '摇滚'] }).map((song) => song.name).sort(),
+      ['双标签匹配', '只有抒情', '分类不同'].sort(),
+    );
+    assert.deepEqual(songService.listSongs(songStore, { tags: ['摇滚'] }), []);
+    assert.equal(songService.listSongs(songStore, { tags: [] }).length, 5);
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });

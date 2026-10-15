@@ -181,7 +181,7 @@ test('fullscreen trial lyrics highlight and seek within the playable excerpt', a
   const player = new FullscreenPlayer();
   const lines = [{ startMs: 0, text: '开头' }, { startMs: 30000, text: '试听' }];
   const track = { playbackTrial: true, playbackTrialStartMs: 30000, lyrics: { lines } };
-  player.lyricsContainer = { querySelectorAll: () => lines, classList: { toggle() {} } };
+  player.lyricsContainer = { querySelectorAll: () => lines, classList: { toggle() {} }, addEventListener() {} };
   const highlighted = [];
   player.updateLyricHighlight = (index) => highlighted.push(index);
   player.scrollToActiveLyric = () => {};
@@ -202,6 +202,103 @@ test('fullscreen trial lyrics highlight and seek within the playable excerpt', a
   assert.equal(highlighted.at(-1), 0);
   clickLyric(35000);
   assert.equal(audio.currentTime, 35);
+});
+
+test('fullscreen track text and lyric highlights update only when their visible values change', async () => {
+  const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'));
+  const player = new FullscreenPlayer();
+  let textWrites = 0;
+  const textNode = () => {
+    let text = '';
+    return { get textContent() { return text; }, set textContent(value) { text = value; textWrites++; } };
+  };
+  player.titleEl = textNode();
+  player.artistEl = textNode();
+  const track = { title: '歌曲', artists: ['歌手'] };
+  player.renderTrackInfo(track);
+  for (let index = 0; index < 20; index++) player.renderTrackInfo({ ...track });
+  assert.equal(textWrites, 2);
+  player.renderTrackInfo({ title: '另一首', artists: ['另一位'] });
+  assert.equal(player.titleEl.textContent, '另一首');
+  assert.equal(player.artistEl.textContent, '另一位');
+
+  let highlights = 0;
+  const nodes = Array.from({ length: 2 }, () => {
+    const node = { active: false };
+    node.classList = { toggle(_name, active) { node.active = active; highlights++; } };
+    return node;
+  });
+  player.lyricsContainer = { querySelectorAll: () => nodes, addEventListener() {} };
+  player.updateLyricHighlight(0);
+  for (let index = 0; index < 20; index++) player.updateLyricHighlight(0);
+  assert.equal(highlights, 2);
+  player.updateLyricHighlight(1);
+  assert.deepEqual(nodes.map(node => node.active), [false, true]);
+  player.updateLyricHighlight(0);
+  assert.deepEqual(nodes.map(node => node.active), [true, false]);
+  player._lastLyricLines = [{ text: '原文', translation: '翻译' }, { text: '第二句' }];
+  player._toggleLyricMode('trans');
+  nodes.forEach(node => { node.active = false; });
+  player.updateLyricHighlight(0);
+  assert.deepEqual(nodes.map(node => node.active), [true, false], 'rebuilding translated lines invalidates the highlight');
+  player.updateLyricHighlight(-1);
+  assert.deepEqual(nodes.map(node => node.active), [false, false]);
+});
+
+test('reopening fullscreen refreshes same-track lyrics and seek times without rebuilding unchanged lines', async () => {
+  const audio = { currentTime: 1.8, duration: 180, paused: false };
+  const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'), {
+    document: { getElementById: () => audio },
+  });
+  const { createPlaybackStateActions } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/state/actions.js'));
+  const player = new FullscreenPlayer();
+  const state = { current: { id: 'qq:same-song', lyrics: { lines: [
+    { startMs: 0, text: '旧歌词' }, { startMs: 5000, text: '旧第二句' },
+  ] } }, history: [], displayHistory: [] };
+  const actions = createPlaybackStateActions(state);
+  let open = true;
+  let rows = [];
+  let rebuilds = 0;
+  let highlights = 0;
+  const listeners = new Map();
+  player.fsEl = { classList: { contains: () => open } };
+  player.scrollToActiveLyric = () => {};
+  player.lyricsContainer = {
+    classList: { toggle() {} },
+    querySelectorAll: () => rows,
+    addEventListener: (type, listener) => listeners.set(type, listener),
+    set innerHTML(value) {
+      rebuilds++;
+      const starts = [...value.matchAll(/data-lyric-start-ms="([^"]+)"/g)];
+      rows = [...value.matchAll(/<span class="lyric-text">([^<]*)<\/span>/g)].map((match, index) => {
+        const row = { textContent: match[1], dataset: { lyricStartMs: starts[index][1] }, active: false };
+        row.classList = { toggle(_name, active) { row.active = active; highlights++; } };
+        return row;
+      });
+    },
+  };
+  player.render(state.current, audio);
+  const oldRow = rows[0];
+  assert.equal(oldRow.textContent, '旧歌词');
+  open = false;
+  actions.beginTrack({ id: 'qq:same-song' });
+  player.render(state.current, audio);
+  actions.setLyrics('qq:same-song', { lines: [
+    { startMs: 1500, text: '更新歌词' }, { startMs: 5500, text: '更新第二句' },
+  ] });
+  player.render(state.current, audio);
+  open = true;
+  player.render(state.current, audio);
+  assert.deepEqual(rows.map(row => row.textContent), ['更新歌词', '更新第二句']);
+  assert.notEqual(rows[0], oldRow);
+  assert.deepEqual(rows.map(row => row.active), [true, false]);
+  listeners.get('click')({ target: { closest: () => rows[0] } });
+  assert.equal(audio.currentTime, 1.5, 'the existing click handler reads the replacement lyric timestamp');
+  const renderedRows = rows;
+  const renderedCounts = { rebuilds, highlights };
+  for (let index = 0; index < 20; index++) player.render(state.current, audio);
+  assert.equal(rows, renderedRows);
+  assert.deepEqual({ rebuilds, highlights }, renderedCounts, 'unchanged lyric arrays keep their nodes and highlight');
 });
 
 test('fullscreen manual browsing holds position until follow resumes', async () => {

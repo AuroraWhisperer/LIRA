@@ -113,3 +113,33 @@ test('centered lyrics preserve word spaces, balance wrapping and keep scaling on
     }
   }
 });
+
+test('karaoke colors update both modes independently and restore each style when inherited', async t => {
+  const page = await openRenderer(t);
+  const text = '唱词';
+  const colors = () => page.evaluate(() => {
+    const color = selector => getComputedStyle(document.querySelector(selector)).color;
+    return {
+      sung: color('.desktop-lyric-preview-word-highlight'),
+      unsung: color('.desktop-lyric-preview-word-base'),
+      plain: color('.desktop-lyric-preview-row:not(.is-active) .desktop-lyric-preview-row-text'),
+    };
+  });
+  for (const desktopLyricKaraokeMode of ['continuous', 'discrete']) {
+    await render(page, text, [...text], { desktopLyricKaraokeMode });
+    assert.deepEqual(await colors(), { sung: 'rgb(255, 207, 74)', unsung: 'rgb(0, 0, 0)', plain: 'rgb(0, 0, 0)' });
+    await page.evaluate(mode => window.testLyricRenderer.applySettings({
+      desktopLyricKaraokeMode: mode, desktopLyricSungColor: '#ff220080', desktopLyricTextColor: '#123456',
+    }), desktopLyricKaraokeMode);
+    assert.deepEqual(await colors(), { sung: 'rgba(255, 34, 0, 0.5)', unsung: 'rgb(18, 52, 86)', plain: 'rgb(18, 52, 86)' });
+  }
+  await page.addStyleTag({ url: `${fixture.origin}/css/lyrics/moonlit.css` });
+  assert.equal((await colors()).sung, 'rgba(255, 34, 0, 0.5)', 'Moonlit respects an explicit sung color.');
+  await page.evaluate(() => window.testLyricRenderer.applySettings({ desktopLyricSungColor: '', desktopLyricTextColor: '#654321' }));
+  assert.deepEqual(await colors(), { sung: 'rgb(147, 104, 47)', unsung: 'rgb(101, 67, 33)', plain: 'rgb(101, 67, 33)' });
+  await render(page, text, [...text], { desktopLyricKaraokeMode: 'off',
+    desktopLyricSungColor: '#ff2200', desktopLyricTextColor: '#123456' });
+  assert.equal(await page.locator('.desktop-lyric-preview-word').count(), 0);
+  assert.equal(await page.locator('.desktop-lyric-preview-row.is-active .desktop-lyric-preview-row-text')
+    .evaluate(element => getComputedStyle(element).color), 'rgb(18, 52, 86)');
+});

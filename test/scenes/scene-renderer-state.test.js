@@ -97,6 +97,28 @@ test('room icon state reaches a prepared frame and updates without replacing the
   assert.deepEqual(f.messages.get(frame).filter(message => message.type === 'component-preview:room-guard')
     .map(message => message.roomGuard.count), [999, 1000]);
   assert.equal(f.messages.get(frame).filter(message => message.type === 'component-preview:init').length, 1);
+  for (let index = 0; index < 100; index++) {
+    f.renderer.update({ version: 1, document: null, data: { roomGuard: { ...roomGuard, count: 1000 } } });
+  }
+  const guards = () => f.messages.get(frame).filter(message => message.type === 'component-preview:room-guard');
+  assert.equal(guards().length, 2, 'identical room state does not cross the frame boundary again');
+  f.signal(frame, 'ready');
+  f.renderer.update({ version: 1, document: null, data: { roomGuard: { ...roomGuard, count: 1000 } } });
+  assert.equal(guards().length, 3, 'a reloaded child receives room state even when its WindowProxy is reused');
+  f.renderer.update({ version: 1, document: null, data: { roomGuard: { ...roomGuard, count: 1000 } } });
+  assert.equal(guards().length, 3, 'unchanged state is deduplicated again after the child restarts');
+  f.renderer.update({ version: 1, document: null, data: { roomGuard: { roomId: 'other-room', count: 1000 } } });
+  assert.deepEqual(guards().at(-1).roomGuard, { roomId: 'other-room', count: 1000 });
+  f.renderer.update({ version: 1, document: null, data: { roomGuard: null } });
+  f.renderer.update({ version: 1, document: null, data: { roomGuard: null } });
+  assert.equal(guards().length, 5);
+  assert.equal(guards().at(-1).roomGuard, null);
+  f.renderer.update({ version: 2, document: documentOf([item('text-box', 'independent', {})]), data: { roomGuard: null } });
+  const replacement = f.host.children.at(-1).children[0];
+  f.complete(replacement);
+  assert.notEqual(replacement, frame);
+  assert.deepEqual(f.messages.get(replacement).filter(message => message.type === 'component-preview:room-guard')
+    .map(message => message.roomGuard), [null]);
 });
 
 test('initial timeout names unready layers without claiming an old version and can recover', async t => {

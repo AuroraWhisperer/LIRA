@@ -1,7 +1,7 @@
 <details class="desktop-lyric-settings-group is-content" open>
   <summary>
     <span><strong>显示策略</strong></span
-    ><span class="desktop-lyric-group-count">6 项</span>
+    ><span class="desktop-lyric-group-count">8 项</span>
   </summary>
   <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
     <section class="desktop-lyric-karaoke-card" aria-labelledby="desktopLyricKaraokeTitle">
@@ -10,7 +10,7 @@
           <strong id="desktopLyricKaraokeTitle"
             >逐字高亮方式
             <lira-help
-              ><span id="desktopLyricKaraokeHint">连续填充更细腻；逐字点亮按时间点切换，更省资源。</span></lira-help
+              ><span id="desktopLyricKaraokeHint">连续填充更细腻；逐字点亮按时间点切换，更省资源。已唱颜色用于当前句的逐字高亮；未唱颜色也用于普通整句、翻译及关闭逐字时的歌词。</span></lira-help
             ></strong
           >
         </div>
@@ -36,9 +36,19 @@
           <span class="desktop-lyric-karaoke-choice"><strong>逐字点亮</strong><small>低功耗</small></span>
         </label>
       </div>
-      <div class="desktop-lyric-karaoke-legend" aria-label="逐字高亮状态示例">
-        <span><i class="is-complete" aria-hidden="true">唱</i>已唱</span>
-        <span><i class="is-upcoming" aria-hidden="true">词</i>未唱</span>
+      <div class="desktop-lyric-control">
+        <div class="desktop-lyric-control-copy">
+          <strong id="desktopLyricSungColorLabel">已唱颜色</strong>
+          <label class="hint"><input id="desktopLyricSungColorInherited" type="checkbox" checked />跟随样式</label>
+        </div>
+        <input id="desktopLyricSungColor" type="color" value="#ffcf4a" aria-labelledby="desktopLyricSungColorLabel" disabled />
+      </div>
+      <div class="desktop-lyric-control">
+        <div class="desktop-lyric-control-copy">
+          <strong id="desktopLyricTextColorLabel">未唱颜色</strong>
+          <small>同时用于普通整句、翻译和罗马音</small>
+        </div>
+        <input id="desktopLyricTextColor" type="color" value="#000000" aria-labelledby="desktopLyricTextColorLabel" />
       </div>
     </section>
     <input id="desktopLyricKaraokeEnabled" type="checkbox" hidden />
@@ -123,7 +133,7 @@
       ></label>
     </div>
     <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricOpacityLabel">歌词文字不透明度</span></strong></span
+      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricOpacityLabel">歌词文字不透明度</span> <lira-help>统一影响已唱与未唱文字；两个颜色按钮中的不透明度分别作用于各自颜色。</lira-help></strong></span
       ><span class="range-row"
         ><input
           aria-labelledby="desktopLyricOpacityLabel" id="desktopLyricOpacity"

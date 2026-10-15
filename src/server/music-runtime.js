@@ -18,6 +18,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
   let musicRegistry = createMusicProviderRegistry();
   let lyricState = normalizeLyricState({});
   let lyricTimeline = normalizeLyricTimeline({});
+  let lastCheckedTimeline = lyricTimeline;
   let lyricGeneration = 0;
   let lyricSequence = 0;
   let internalGeneration = 0;
@@ -42,6 +43,8 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
 
   function publishCurrentTimeline(force = false) {
     const timeline = candidates[lyricSource].timeline;
+    if (!force && timeline === lastCheckedTimeline) return false;
+    lastCheckedTimeline = timeline;
     if (!force && JSON.stringify(timeline) === JSON.stringify(lyricTimeline)) return false;
     lyricGeneration++;
     lyricSequence = 0;

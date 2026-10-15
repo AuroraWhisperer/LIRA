@@ -1,3 +1,5 @@
+import { parseHexColor } from '../shared/color-value.js';
+
 const KARAOKE_MODES = ['off', 'continuous', 'discrete'];
 
 function clamp(value, minimum, maximum) {
@@ -31,11 +33,12 @@ export function normalizeDesktopLyricSettings(settings = {}, defaults = {}) {
     fallbackFontFamily: String(values.desktopLyricFallbackFontFamily || defaults.desktopLyricFallbackFontFamily),
     fontWeight: String(values.desktopLyricFontWeight || defaults.desktopLyricFontWeight),
     textColor: String(values.desktopLyricTextColor || defaults.desktopLyricTextColor),
+    sungColor: parseHexColor(values.desktopLyricSungColor) ? values.desktopLyricSungColor : '',
     textAlign: enumSetting(values.desktopLyricTextAlign, ['left', 'center', 'right', 'justify'], 'left'),
     letterSpacing: clamp(numberSetting(values.desktopLyricLetterSpacing, 0), -0.1, 2),
     fontSize: clamp(numberSetting(values.desktopLyricFontSize, 56), 24, 72),
     lineHeight: clamp(numberSetting(values.desktopLyricLineHeight, 1.4), 1, 2),
-    strokeEnabled: boolSetting(values.desktopLyricStrokeEnabled, true),
+    strokeEnabled: boolSetting(values.desktopLyricStrokeEnabled, false),
     strokeColor: String(values.desktopLyricStrokeColor || defaults.desktopLyricStrokeColor),
     strokeWidth: clamp(numberSetting(values.desktopLyricStrokeWidth, 3), 0, 6),
     shadowEnabled: boolSetting(values.desktopLyricShadowEnabled, true),

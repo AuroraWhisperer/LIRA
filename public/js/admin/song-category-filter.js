@@ -1,6 +1,6 @@
 'use strict';
 
-const CATEGORY_SEPARATOR = /[\/／]/;
+const CATEGORY_SEPARATOR = /[\/／;；,，、]+/;
 
 export function splitCategoryNames(categories) {
   const names = new Set();

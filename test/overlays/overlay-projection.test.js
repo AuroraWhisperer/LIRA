@@ -29,6 +29,12 @@ const scopes = [
   'opening',
   'clock',
 ];
+
+test('lyrics project independent karaoke colors without exposing unrelated settings', () => {
+  const settings = { desktopLyricSungColor: '#ff220080', desktopLyricTextColor: '#123456' };
+  const projected = projectOverlayState('lyrics', { settings: { ...settings, aiApiKey: 'private' } });
+  assert.deepEqual(projected.settings, settings);
+});
 const secret = 'PRIVATE_SENTINEL';
 test('clock snapshot allows its scalar settings and style profiles without other domain state', () => {
   const clockKeys = ['clockStyle', 'clockShowDate', 'clockShowSeconds', 'clockHourFormat', 'clockLabel',

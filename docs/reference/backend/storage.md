@@ -440,6 +440,8 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 ### 7.1 关键设置的归属与约束
 
+直播歌词已唱颜色由本地 settings 的 `desktopLyricSungColor` 保存，默认 `''` 表示跟随样式高亮色；显式值使用十六进制颜色，支持透明度，渲染器对无效值回退继承。未唱颜色复用原 `desktopLyricTextColor`（默认 `#000000`），普通整句、翻译和关闭逐字时同样使用它，不新增另一套未唱设置。原 `desktopLyricOpacity` 保持统一文字不透明度，颜色按钮各自的 Alpha 不改写该值。旧库沿用缺失键默认补齐，无 schema 迁移，不覆盖已存颜色。两项颜色只投影至歌词 scope；与现有歌词外观一样同步到同样式画布组件，独立资源样式保留自己的外观。
+
 开播样式保持独立：经典舞台沿用原键；像素卡带新增 `openingPixelQuality='high'`、`openingPixelShowNotes='true'`、`openingPixelShowEq='true'`、`openingPixelAudioVolume='0.35'`、`openingPixelAudioFile=''`、`openingPixelAudioName=''`。既有 settings 默认值补齐负责旧库升级，不覆盖经典配置，无 schema 迁移。导入资源样式的公共参数由组件库 config 拥有，覆盖已有场景中的旧副本；不写内置样式设置。
 
 settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用十进制文本，结构数据使用 JSON 文本。defaults 是默认键清单，不是所有运行期持久键的完整清单。下表聚焦同步、路径和非显然语义；HTTP 输入范围集中于 [api.md](api.md) 的 settings 契约，不另维护第二份校验算法。

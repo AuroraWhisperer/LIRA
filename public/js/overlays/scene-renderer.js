@@ -67,8 +67,13 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
   }
   function data(version, values) {
     if (!version) return;
+    const hasRoomGuard = Object.hasOwn(values, 'roomGuard');
+    const roomGuardKey = hasRoomGuard ? JSON.stringify(values.roomGuard ?? null) : '';
     for (const entry of version.entries) {
-      if (entry.ready && Object.hasOwn(values, 'roomGuard')) send(entry, 'room-guard', { roomGuard: values.roomGuard });
+      if (entry.ready && hasRoomGuard && entry.roomGuardKey !== roomGuardKey) {
+        send(entry, 'room-guard', { roomGuard: values.roomGuard });
+        entry.roomGuardKey = roomGuardKey;
+      }
       if (entry.ready && values[entry.item.type] !== undefined) send(entry, 'data', { data: values[entry.item.type], source: dataSequence });
     }
   }
@@ -131,6 +136,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       .find((candidate) => candidate.frame.contentWindow === event.source);
     if (!entry || entry.external) return;
     if (event.data?.type === 'component-preview:ready') {
+      entry.roomGuardKey = undefined;
       if (!staging?.entries.includes(entry)) return;
       entry.ready = true;
       const config = { ...entry.item.appearance.config,

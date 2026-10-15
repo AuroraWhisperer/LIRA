@@ -42,7 +42,7 @@ test('admin idle timers are lifecycle-bound', () => {
     .join('\n');
   const games = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
   assert.match(overtime, /document\.addEventListener\(["']visibilitychange["'], syncClockLoop\)/);
-  assert.match(overtime, /cancelAnimationFrame\(clockRafId\)/);
+  assert.match(overtime, /clearTimeout\(clockTimer\)/);
   assert.match(games, /let drawClockTimer = null;/);
   assert.match(games, /function syncDrawClockTimer\(\)/);
   assert.doesNotMatch(games, /setInterval\(updateDrawClock, 250\);\s*Promise\.all/);

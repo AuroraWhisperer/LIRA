@@ -12,14 +12,20 @@ const DEFAULT_WORDS = [
 
 async function createAnimator(mode = 'discrete', { words = DEFAULT_WORDS, motionEnabled = true } = {}) {
   const created = [];
+  let styleWrites = 0;
   const { LyricWordAnimator } = await loadModuleExports(
     path.join(__dirname, '../../public/js/shared/lyric-word-animator.js'),
     { document: { createElement: () => ({
-      style: {}, dataset: {}, classList: { toggle() {} }, append() {}, setAttribute() {},
+      style: new Proxy({}, { set(target, key, value) { styleWrites += 1; target[key] = value; return true; } }),
+      dataset: {}, classList: { toggle() {} }, append() {}, setAttribute() {},
       animate(keyframes, timing) {
-        const animation = { keyframes, timing, currentTime: null, playState: 'running', cancelled: false, cancelCount: 0,
-          play() { this.playState = 'running'; },
-          pause() { this.playState = 'paused'; },
+        let currentTime = null;
+        const animation = { keyframes, timing, timeWrites: 0, playCount: 0, pauseCount: 0,
+          get currentTime() { return currentTime; },
+          set currentTime(value) { this.timeWrites += 1; currentTime = value; },
+          playState: 'running', cancelled: false, cancelCount: 0,
+          play() { this.playCount += 1; this.playState = 'running'; },
+          pause() { this.pauseCount += 1; this.playState = 'paused'; },
           cancel() { this.cancelled = true; this.cancelCount += 1; this.playState = 'idle'; } };
         created.push(animation);
         return animation;
@@ -28,7 +34,38 @@ async function createAnimator(mode = 'discrete', { words = DEFAULT_WORDS, motion
   );
   const animator = new LyricWordAnimator({ mode, motionEnabled });
   animator.mount({ appendChild() {}, replaceChildren() {} }, words, { mode });
-  return { animator, created };
+  return { animator, created, getStyleWrites: () => styleWrites };
+}
+
+test('continuous highlights leave unchanged upcoming and completed words idle', async t => {
+  const { animator } = await createAnimator('waapi', { motionEnabled: false });
+  t.after(() => animator.dispose());
+  animator.sync({ currentMs: 2100 }, { playing: true });
+  const operations = () => animator.animations.map(({ timeWrites, playCount, pauseCount }) =>
+    ({ timeWrites, playCount, pauseCount }));
+  const firstOperations = operations();
+  for (const currentMs of [2133, 2166, 2200, 2300]) animator.sync({ currentMs }, { playing: true });
+  assert.deepEqual(operations(), firstOperations, 'unchanged fill states need no animation writes');
+  assert.equal(animator.animations[0].currentTime, 1000, 'finished fill is held at its end');
+  assert.equal(animator.animations[1].currentTime, 0);
+  animator.sync({ currentMs: 1100 }, { playing: true, force: true });
+  assert.equal(animator.animations[0].currentTime, 100, 'backward seeks restore partial fill');
+  animator.sync({ currentMs: 1133 }, { playing: true });
+  assert.equal(animator.animations[0].playCount, 1, 'a running highlight is not restarted each frame');
+});
+
+for (const mode of ['manual', 'static']) {
+  test(`${mode} highlights only write changed fill values`, async t => {
+    const { animator, getStyleWrites } = await createAnimator(mode, { motionEnabled: false });
+    t.after(() => animator.dispose());
+    animator.sync({ currentMs: 2100 });
+    const writes = getStyleWrites();
+    animator.sync({ currentMs: 2200 });
+    assert.equal(getStyleWrites(), writes);
+    animator.sync({ currentMs: 900 });
+    assert.equal(animator.elements[0].highlight.style.clipPath, 'inset(0 100% 0 0)');
+    assert.equal(getStyleWrites(), writes + 1, 'a backward seek updates the completed word');
+  });
 }
 
 test('word motion follows sung tokens and seeks without animating upcoming words', async t => {

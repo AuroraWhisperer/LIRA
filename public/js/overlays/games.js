@@ -22,6 +22,8 @@ let drawDanmakuFeed = null;
 let drawController = null;
 let componentConfig = null;
 let componentData = null;
+let bombBoardKey = '';
+let gomokuBoardKey = '';
 
 const INITIAL_SNAPSHOT_RETRIES = 4;
 const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
@@ -202,6 +204,9 @@ function renderGame(nextSession) {
 function renderBomb(state) {
   byId('bombHint').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}先选一个数字`;
   byId('bombHistory').textContent = state.lastGuess ? `上次：${state.lastGuess}` : '尚未落子';
+  const key = JSON.stringify([state.min, state.max, state.lastGuess, Boolean(state.winner), state.turn]);
+  if (key === bombBoardKey) return;
+  bombBoardKey = key;
   const root = byId('bombNumbers');
   root.replaceChildren();
   for (let value = 1; value <= 100; value += 1) {
@@ -219,6 +224,9 @@ function renderBomb(state) {
 }
 
 function renderGomoku(state) {
+  const key = JSON.stringify([state.size, state.board, Boolean(state.winner), state.turn]);
+  if (key === gomokuBoardKey) return;
+  gomokuBoardKey = key;
   renderGomokuCoordinates(state.size);
   const root = byId('gomokuBoard');
   root.replaceChildren();

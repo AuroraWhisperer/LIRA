@@ -346,6 +346,94 @@ test('shared lyric renderer freezes its clock when playback pauses', async () =>
   assert.equal(renderer.getPosition(5000).currentMs, 1200);
 });
 
+test('hidden lyric surfaces stop frame work and resume at the current clock without dropping state', async t => {
+  let now = 1000;
+  let observerCallback;
+  let observed;
+  let disconnected = false;
+  const listeners = new Map();
+  const frames = new Map();
+  let frameId = 0;
+  const positions = [];
+  const visibility = [];
+  const document = { visibilityState: 'visible',
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener: (name) => listeners.delete(name) };
+  const { LyricWordRenderer } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/shared/lyric-word-renderer.js'), {
+      document, performance: { now: () => now },
+      IntersectionObserver: class {
+        constructor(callback) { observerCallback = callback; }
+        observe(element) { observed = element; }
+        disconnect() { disconnected = true; }
+      },
+      requestAnimationFrame: (callback) => { frames.set(++frameId, callback); return frameId; },
+      cancelAnimationFrame: (id) => frames.delete(id),
+    },
+  );
+  const stage = {};
+  const renderer = new LyricWordRenderer({ lineElement: { replaceChildren() {} }, visibilityElement: stage,
+    renderWords: false, onFrame: position => positions.push(position.currentMs),
+    onVisibilityChange: visible => visibility.push(visible) });
+  t.after(() => renderer.dispose());
+  renderer.setState({ playing: true, currentMs: 1000, durationMs: 10000, lineText: '第一句' });
+  assert.equal(observed, stage, 'observe the actual surface, not the hidden aria-live line');
+  assert.equal(frames.size, 1);
+  observerCallback([{ isIntersecting: false }]);
+  assert.equal(frames.size, 0);
+  const draws = positions.length;
+  now = 2000;
+  renderer.setState({ currentMs: 2000, lineText: '第二句' });
+  assert.equal(frames.size, 0);
+  assert.equal(positions.length, draws, 'state reception must not restart hidden frame work');
+  now = 2500;
+  observerCallback([{ isIntersecting: true }]);
+  assert.equal(positions.at(-1), 2500);
+  assert.equal(frames.size, 1);
+  assert.equal(renderer.lineElement.textContent, '第二句');
+  document.visibilityState = 'hidden';
+  listeners.get('visibilitychange')();
+  assert.equal(frames.size, 0);
+  observerCallback([{ isIntersecting: false }]);
+  observerCallback([{ isIntersecting: true }]);
+  assert.equal(frames.size, 0, 'intersection cannot restart a hidden document');
+  renderer.setState({ playing: false, currentMs: 2600 });
+  now = 4000;
+  document.visibilityState = 'visible';
+  listeners.get('visibilitychange')();
+  assert.equal(positions.at(-1), 2600, 'paused state is restored without advancing');
+  assert.equal(frames.size, 0);
+  assert.equal(visibility.at(-1), true);
+  renderer.dispose();
+  assert.equal(disconnected, true);
+  assert.equal(listeners.size, 0);
+});
+
+test('shared lyric progress skips unchanged words and refreshes its cache for new content', async t => {
+  let writes = 0;
+  const nodes = [];
+  const { LyricWordRenderer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/lyric-word-renderer.js'), {
+    document: { createElement: () => ({ style: { setProperty(name, value) { writes += 1; this[name] = value; } } }) },
+    performance: { now: () => 0 },
+  });
+  const renderer = new LyricWordRenderer({
+    lineElement: { replaceChildren() { nodes.length = 0; }, appendChild(node) { nodes.push(node); } },
+    scheduler: { start() {}, stop() {} },
+  });
+  t.after(() => renderer.dispose());
+  const words = [{ text: '第', startMs: 0, endMs: 500 }, { text: '一句', startMs: 1000, endMs: 1500 }];
+  renderer.setState({ lineText: '第一句', words, currentMs: 750 });
+  assert.equal(writes, 2);
+  renderer.setState({ currentMs: 800 });
+  assert.equal(writes, 2);
+  renderer.setState({ currentMs: 200 });
+  assert.equal(nodes[0].style['--word-progress'], '40%');
+  assert.equal(writes, 3, 'only the changed word is updated on seek');
+  renderer.setState({ lineText: '下一句', words: [{ ...words[0], text: '下' }, words[1]] });
+  assert.equal(writes, 5, 'replacement nodes receive their progress even at the same timestamp');
+  assert.equal(nodes[0].style['--word-progress'], '40%');
+});
+
 test('shared lyric renderer ignores ordinary jitter but applies explicit small seeks', async () => {
   let currentTime = 1000;
   const rendererModule = await loadModuleExports(

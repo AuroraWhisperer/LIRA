@@ -480,7 +480,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
 
   function updateCategoryFilterSummary() {
     const selected = readSelectedCategories();
-    document.getElementById('categoryFilterSummary').textContent = selected.length ? selected.join(' + ') : '全部分类';
+    document.getElementById('categoryFilterSummary').textContent = selected.length ? selected.join('、') : '全部分类';
     document.getElementById('clearCategoryFilter').disabled = selected.length === 0;
   }
 
@@ -548,7 +548,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
 
   function updateTagFilterSummary() {
     const selected = readSelectedTags();
-    document.getElementById('tagFilterSummary').textContent = selected.length ? selected.join(' + ') : '全部标签';
+    document.getElementById('tagFilterSummary').textContent = selected.length ? selected.join('、') : '全部标签';
     document.getElementById('clearTagFilter').disabled = selected.length === 0;
   }
 

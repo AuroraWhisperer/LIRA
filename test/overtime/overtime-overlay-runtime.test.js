@@ -99,4 +99,14 @@ test('overtime clock schedules work only for displayed-value boundaries while ru
   await page.clock.runFor(10_000);
   assert.equal(await timers(), 0);
   assert.equal(await clock(), '00:00:05');
+
+  await page.evaluate(({ remaining }) => {
+    window.socketOptions.onMessage({
+      type: 'snapshot',
+      state: { overtime: { revision: 3, status: 'running', effectiveRemainingMs: remaining, serverNowMs: Date.now(), rules: [] } },
+    });
+  }, { remaining: dayMs + 60_000 });
+  assert.equal(await clock(), '1天 00:01');
+  await page.clock.runFor(1_000);
+  assert.equal(await clock(), '1天 00:00');
 });

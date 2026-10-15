@@ -97,38 +97,10 @@
   outline-offset: 2px;
 }
 
-.desktop-lyric-karaoke-legend {
+.desktop-lyric-karaoke-card .hint {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.desktop-lyric-karaoke-legend span {
-  display: inline-flex;
   align-items: center;
-  gap: 5px;
-}
-
-.desktop-lyric-karaoke-legend i {
-  display: inline-grid;
-  width: 23px;
-  height: 23px;
-  place-items: center;
-  border-radius: 6px;
-  font-style: normal;
-  font-weight: var(--type-weight-bold);
-}
-
-.desktop-lyric-karaoke-legend i.is-complete {
-  background: rgba(255, 207, 74, 0.16);
-  color: #c79000;
-}
-
-.desktop-lyric-karaoke-legend i.is-upcoming {
-  background: color-mix(in srgb, var(--muted) 12%, transparent);
-  color: var(--muted);
+  gap: 6px;
 }
 
 .desktop-lyric-control {

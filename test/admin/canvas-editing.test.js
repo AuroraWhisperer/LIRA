@@ -9,7 +9,7 @@ let browser;
 test.before(async () => { browser = await chromium.launch({ headless: true }); });
 test.after(async () => { await browser?.close(); });
 
-async function editor(t) {
+async function editor(t, component = 'danmaku') {
   const fixture = await startCanvasOutputFixture();
   const desktopContext = await browser.newContext();
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
@@ -24,7 +24,7 @@ async function editor(t) {
     await fixture.close();
     assert.deepEqual(errors, []);
   });
-  const url = await openCanvasDesktop(desktop, fixture, 'danmaku');
+  const url = await openCanvasDesktop(desktop, fixture, component);
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
@@ -35,6 +35,13 @@ async function poll(page) {
   await page.waitForResponse(response => response.url().endsWith('/api/component-preview')
     && response.request().postDataJSON()?.action === 'read');
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
+}
+
+function waitForDraft(page, matches) {
+  return page.waitForResponse(async response => {
+    if (!response.url().endsWith('/api/component-preview') || response.request().postDataJSON()?.action !== 'read') return false;
+    return matches((await response.json()).data?.state?.draft || {});
+  });
 }
 
 async function presetAction(page, name) {
@@ -156,6 +163,114 @@ test('canvas inputs preserve native selection, clipboard and undo across preview
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[0].name === 'Canvas title');
 });
 
+test('shared queue fields refill remote updates after focus or color editing without writing stale values back', { timeout: 30000 }, async t => {
+  const { page, desktop } = await editor(t, 'queue');
+  const title = page.locator('[data-preview-field="overlayTitle"]');
+  const originalTitle = await title.inputValue();
+  const edits = [];
+  page.on('request', request => {
+    if (request.url().endsWith('/api/component-preview') && request.postDataJSON()?.action === 'edit'
+      && Object.hasOwn(request.postDataJSON().change || {}, 'overlayTitle')) edits.push(request.postDataJSON());
+  });
+  await title.focus();
+  const titleUpdate = waitForDraft(page, draft => draft.overlayTitle === 'Desktop title');
+  await desktop.evaluate(() => window.controllers.queue.edit({ overlayTitle: 'Desktop title' }));
+  await titleUpdate;
+  assert.equal(await title.inputValue(), originalTitle, 'Focus preserves the active native editing surface.');
+  await title.press('Tab');
+  await page.waitForFunction(() => document.querySelector('[data-preview-field="overlayTitle"]').value === 'Desktop title');
+  assert.equal(edits.length, 0, 'Leaving an untouched field does not submit a mutation.');
+  const radius = page.locator('[data-preview-field="themeRadius"]');
+
+  const color = page.locator('[data-preview-field="themeText"]');
+  const originalColor = await color.inputValue();
+  await color.click();
+  const colorUpdate = waitForDraft(page, draft => draft.themeText === '#123456');
+  await desktop.evaluate(() => window.controllers.queue.edit({ themeText: '#123456' }));
+  await colorUpdate;
+  assert.equal(await color.inputValue(), originalColor);
+  const beforeClose = edits.length;
+  await radius.click();
+  await page.waitForFunction(() => document.querySelector('[data-preview-field="themeText"]').value === '#123456');
+  assert.equal(edits.length, beforeClose, 'Closing an untouched picker only refills the field.');
+
+  await color.click();
+  const nextColorUpdate = waitForDraft(page, draft => draft.themeText === '#345678');
+  await desktop.evaluate(() => window.controllers.queue.edit({ themeText: '#345678' }));
+  await nextColorUpdate;
+  const beforeEscape = edits.length;
+  const picker = page.getByRole('dialog', { name: '颜色与不透明度' });
+  await picker.press('Escape');
+  await page.waitForFunction(() => document.querySelector('[data-preview-field="themeText"]').value === '#345678');
+  assert.equal(await color.evaluate(node => document.activeElement === node), true, 'Closing the picker retains its keyboard focus.');
+  await color.press('Enter');
+  assert.equal(await picker.getByLabel('十六进制颜色').inputValue(), '#345678');
+  assert.equal(edits.length, beforeEscape);
+  await picker.press('Escape');
+  await radius.fill('9');
+  await radius.press('Tab');
+  await desktop.waitForFunction(() => window.controllers.queue.getState().draft.themeRadius === '9');
+  assert.deepEqual(await desktop.evaluate(() => {
+    const { draft } = window.controllers.queue.getState();
+    return [draft.overlayTitle, draft.themeText];
+  }), ['Desktop title', '#345678'], 'Editing another field cannot write stale title or color values back.');
+});
+
+test('danmaku fields refill after focus and keep change commits while their acknowledgement is delayed', { timeout: 30000 }, async t => {
+  const { page, desktop } = await editor(t);
+  const font = page.locator('[data-preview-field="danmakuFontSize"]');
+  const original = await font.inputValue();
+  await font.focus();
+  const remoteUpdate = waitForDraft(page, draft => draft.styleOptions?.signal?.fontSize === 38);
+  await desktop.evaluate(() => {
+    const { draft } = window.controllers.danmaku.getState();
+    window.controllers.danmaku.edit({ styleOptions: { ...draft.styleOptions, signal: { ...draft.styleOptions.signal, fontSize: 38 } } });
+  });
+  await remoteUpdate;
+  assert.equal(await font.inputValue(), original);
+  await font.press('Tab');
+  await page.waitForFunction(() => document.querySelector('[data-preview-field="danmakuFontSize"]').value === '38');
+
+  let release;
+  let edits = 0;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/component-preview', async route => {
+    const command = route.request().postDataJSON();
+    if (command?.action === 'edit' && command.change?.styleOptions) { edits++; await held; }
+    await route.continue();
+  });
+  t.after(() => release());
+  await font.fill('40');
+  await font.press('Tab');
+  await poll(page);
+  assert.equal(await font.inputValue(), '40', 'The field uses the pending local draft before the desktop acknowledges it.');
+  assert.equal(edits, 1, 'Blur does not create a second command.');
+  assert.equal(await desktop.evaluate(() => window.controllers.danmaku.getState().draft.styleOptions.signal.fontSize), 38);
+  release();
+  await desktop.waitForFunction(() => window.controllers.danmaku.getState().draft.styleOptions.signal.fontSize === 40);
+});
+
+test('shared clock effect fields refill the latest values after leaving an untouched number', { timeout: 30000 }, async t => {
+  const { page, desktop } = await editor(t, 'clock');
+  const shadow = page.locator('[data-effect-group="shadow"]');
+  await shadow.locator('summary').click();
+  await shadow.locator('[data-effect-enabled="shadow"]').check();
+  await desktop.waitForFunction(() => window.controllers.clock.getState().draft.styleParameters?.peach?.shadow);
+  const blur = shadow.locator('[data-effect-field="shadow.blur"]');
+  const original = await blur.inputValue();
+  await blur.focus();
+  const remoteUpdate = waitForDraft(page, draft => draft.styleParameters?.peach?.shadow?.blur === 19);
+  await desktop.evaluate(() => {
+    const { draft } = window.controllers.clock.getState();
+    const current = draft.styleParameters.peach;
+    window.controllers.clock.edit({ styleParameters: { ...draft.styleParameters, peach: { ...current, shadow: { ...current.shadow, blur: 19 } } } });
+  });
+  await remoteUpdate;
+  assert.equal(await blur.inputValue(), original);
+  await blur.press('Tab');
+  await page.waitForFunction(() => document.querySelector('[data-effect-field="shadow.blur"]').value === '19');
+});
+
 test('canvas layer controls toggle visibility and locking, preserve selection and support undo', { timeout: 30000 }, async (t) => {
   const { page, desktop } = await editor(t);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
@@ -208,6 +323,9 @@ test('canvas layer controls toggle visibility and locking, preserve selection an
   assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
   await page.locator('.preview-canvas-layer-select').last().click();
   await poll(page);
+  // The preceding visibility edit must reach the desktop before capturing the undo baseline.
+  await desktop.waitForFunction(id => window.controllers.canvas.getState().draft.document.items
+    .find(item => item.id === id)?.visible === true, clockId);
   const beforeRemoval = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document);
   await toggle.click();
   await menu.getByRole('menuitem', { name: '删除', exact: true }).click();
@@ -438,6 +556,7 @@ test('canvas Delete and Ctrl+Z restore deletion, resize and move as separate edi
   const item = page.locator('.scene-editor-item');
   const geometry = () => item.evaluate(node => ['left', 'top', 'width', 'height'].map(key => parseFloat(node.style[key])));
   const before = await geometry();
+  await item.locator('.scene-editor-item-label').evaluate(label => { window.labelBeforeMove = label.firstChild; });
   const start = await item.boundingBox();
   await page.mouse.move(start.x + 40, start.y + 40);
   await page.mouse.down();
@@ -445,6 +564,8 @@ test('canvas Delete and Ctrl+Z restore deletion, resize and move as separate edi
   await page.mouse.up();
   const moved = await geometry();
   assert.notDeepEqual(moved, before);
+  assert.equal(await item.locator('.scene-editor-item-label').evaluate(label => label.firstChild === window.labelBeforeMove), true,
+    'moving a layer retains its unchanged dimension label');
   const handle = await item.locator('[data-resize="se"]').boundingBox();
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
   await page.mouse.down();

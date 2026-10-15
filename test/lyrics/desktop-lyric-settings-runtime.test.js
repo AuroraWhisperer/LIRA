@@ -253,7 +253,7 @@ test('desktop lyric preview keeps accessible controls and shared renderer wiring
   assert.match(html, /<[^>]+(?=[^>]*\sid=["']desktopLyricPreviewViewport["'])(?=[^>]*\stabindex=["']0["'])[^>]*>/);
   assert.match(html, /id="desktopLyricPreviewTimeline"/);
   assert.match(html, /<[^>]+(?=[^>]*\sid=["']desktopLyricPreviewPlayback["'])(?=[^>]*\saria-live=["']polite["'])[^>]*>/);
-  assert.match(html, /id="desktopLyricPreviewProgress"/);
+  assert.doesNotMatch(html, /desktopLyricPreviewProgress|desktop-lyric-preview-progress/);
   assert.match(html, /<button\b(?=[^>]*\sid=["']desktopLyricCopyUrlBtn["'])(?=[^>]*\stype=["']button["'])[^>]*>/);
   assert.match(html, /data-lyric-preview-background="grid"/);
   assert.match(rendererSource, /new LyricWordRenderer/);
@@ -314,7 +314,8 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   const values = {
     desktopLyricFontFamily: 'Microsoft YaHei',
     desktopLyricFontWeight: '800',
-    desktopLyricTextColor: '#000000',
+    desktopLyricTextColor: '#123456',
+    desktopLyricSungColor: '#ff220080',
     desktopLyricStrokeColor: '#ffffff',
     desktopLyricFontSize: '56',
     desktopLyricStrokeWidth: '3',
@@ -327,6 +328,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     desktopLyricTextAlign: 'justify',
   };
   const elements = new Map(Object.entries(values).map(([id, value]) => [id, { value }]));
+  elements.set('desktopLyricSungColorInherited', { checked: true });
   elements.get('desktopLyricFontFamily').replaceChildren = function (...options) { this.options = options; };
   const lyricSourceInputs = [
     { value: 'netease', checked: true },
@@ -435,6 +437,10 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls[0].body.weSingLyricSource, 'netease');
   assert.equal(apiCalls[0].body.weSingSmartLyricMatch, 'true');
   assert.equal(apiCalls[0].body.desktopLyricTextAlign, 'justify');
+  assert.equal(apiCalls[0].body.desktopLyricSungColor, '#ff220080');
+  assert.equal(apiCalls[0].body.desktopLyricTextColor, '#123456');
+  assert.equal(elements.get('desktopLyricSungColorInherited').checked, false);
+  assert.equal(elements.get('desktopLyricSungColor').disabled, false);
   assert.equal(apiCalls[0].body.desktopLyricFontFamily, 'Microsoft YaHei', 'An explicitly saved font is preserved.');
   assert.equal(Object.hasOwn(apiCalls[0].body, 'desktopLyricFallbackFontFamily'), false,
     'Changing visible settings must not overwrite the retired fallback field.');
@@ -451,6 +457,8 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(smartLyricMatch.checked, false);
 
   elements.get('desktopLyricFontSize').value = '64';
+  elements.get('desktopLyricSungColorInherited').checked = true;
+  elements.get('desktopLyricTextColor').value = '#abcdef80';
   listeners.get('change')();
   assert.equal(apiCalls.length, 1, 'a second write waits for the in-flight request');
   resolveFirstSave({ ok: true });
@@ -459,6 +467,8 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls.length, 2);
   assert.equal(apiCalls[0].url, '/api/settings');
   assert.equal(apiCalls[1].body.desktopLyricFontSize, '64');
+  assert.equal(apiCalls[1].body.desktopLyricSungColor, '');
+  assert.equal(apiCalls[1].body.desktopLyricTextColor, '#abcdef80');
   assert.equal(apiCalls[1].body.weSingLyricSource, 'qq');
   assert.equal(apiCalls[1].body.weSingSmartLyricMatch, 'false');
   assert.equal(autosaveState.textContent, '已自动保存');
@@ -473,6 +483,9 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls[2].body.desktopLyricFontSize, '56');
   assert.equal(apiCalls[2].body.desktopLyricFontFamily, 'Lira Maiyuan');
   assert.equal(apiCalls[2].body.desktopLyricCurrentLineEnhanced, 'false');
+  assert.equal(apiCalls[2].body.desktopLyricSungColor, '');
+  assert.equal(apiCalls[2].body.desktopLyricTextColor, '#000000');
+  assert.equal(elements.get('desktopLyricSungColor').disabled, true);
   assert.equal(apiCalls[2].body.weSingLyricSource, 'qq');
   assert.equal(apiCalls[2].body.weSingSmartLyricMatch, 'false');
 });

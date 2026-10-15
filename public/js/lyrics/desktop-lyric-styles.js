@@ -33,6 +33,7 @@ export function applyDesktopLyricStyles(card, values) {
   );
   card.style.setProperty('--preview-weight', values.fontWeight);
   card.style.setProperty('--preview-color', values.textColor);
+  card.style.setProperty('--preview-sung-color', values.sungColor);
   card.style.setProperty('--preview-text-align', values.textAlign);
   card.style.setProperty('--preview-row-align', textAlignToFlex(values.textAlign));
   card.style.setProperty('--preview-row-origin', values.textAlign === 'justify' ? 'center' : values.textAlign);

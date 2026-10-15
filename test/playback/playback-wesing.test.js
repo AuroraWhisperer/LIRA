@@ -48,6 +48,7 @@ test('WeSing browser client renders lyrics through the shared text renderer', ()
 test('WeSing browser client selects its preference, saves settings and follows only its own live state', async () => {
   const listeners = new Map();
   const windowListeners = new Map();
+  let observedSurface;
   const requests = [];
   const element = (id) => ({
     id,
@@ -80,6 +81,10 @@ test('WeSing browser client selects its preference, saves settings and follows o
       document,
       window,
       performance: { now: () => 0 },
+      IntersectionObserver: class {
+        observe(element) { observedSurface = element; }
+        disconnect() {}
+      },
       requestAnimationFrame: () => 0,
       cancelAnimationFrame() {},
       fetch: async (url, options) => {
@@ -90,6 +95,8 @@ test('WeSing browser client selects its preference, saves settings and follows o
   );
   const service = new WeSingService();
   service.init({ cacheReady: true, platformDetected: true, trackTitle: '缓存歌曲' });
+  assert.equal(observedSurface, elements.get('playbackWeSingView'),
+    'visibility covers the progress bar and current time as well as the lyric line');
   assert.equal(service.getProviderHealth().ok, true, 'late initialization uses the current app snapshot');
   assert.equal(elements.get('weSingTrackTitle').textContent, '缓存歌曲');
 

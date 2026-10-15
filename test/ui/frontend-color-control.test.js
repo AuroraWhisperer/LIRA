@@ -170,6 +170,23 @@ test('existing opacity is edited through its original field without adding a sec
   await page.waitForFunction(() => document.querySelector('form .lira-color-alpha-value').textContent === '35%');
 });
 
+test('color editing ends once for the owning field when switching pickers or closing with the keyboard', async t => {
+  const page = await pageFor(t, '<form><input id="first" type="color" value="#112233"><input id="second" type="color" value="#445566"></form>');
+  await page.evaluate(() => {
+    window.endedColors = [];
+    document.querySelector('form').addEventListener('lira-color-edit-end', event => {
+      window.endedColors.push({ id: event.target.id, editing: event.target.dataset.colorEditing === 'true' });
+    });
+  });
+  await page.locator('#first').click();
+  await page.locator('#second').click();
+  await page.getByRole('dialog').press('Escape');
+  await page.waitForFunction(() => window.endedColors.length === 2);
+  assert.deepEqual(await page.evaluate(() => window.endedColors), [{ id: 'first', editing: false }, { id: 'second', editing: false }]);
+  assert.equal(await page.locator('#second').evaluate(input => document.activeElement === input), true);
+  assert.deepEqual(await page.evaluate(() => window.colorEvents), [], 'Editing boundaries are not business input/change events.');
+});
+
 test('generated component parameters restore defaults and update the owning draft immediately', async t => {
   const page = await pageFor(t, '');
   await page.evaluate(async () => {

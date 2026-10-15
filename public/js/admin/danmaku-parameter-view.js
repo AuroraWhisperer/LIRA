@@ -4,7 +4,7 @@ import { readAppearanceValue, editStyleOption, resetStyleOptions, isValidFullscr
   floatingSpeedFromPixelsPerSecond, floatingSpeedLabel } from '../shared/danmaku-appearance-draft.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
-import { componentField, syncComponentFieldValue } from './component-preview-panel.js';
+import { componentField, syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 
 export function bindDanmakuParameters(root, controller, onError) {
@@ -111,6 +111,6 @@ export function bindDanmakuParameters(root, controller, onError) {
   const effects = mountStyleParameters(node('danmakuAppearanceEffects'), controller, 'danmaku', {
     messageHost: node('danmakuMessageOptions'),
   });
-  const unsubscribe = controller.subscribe(render);
+  const unsubscribe = subscribeComponentFields(node('danmakuParametersTitle').closest('.danmaku-parameters'), controller, render);
   return { dispose() { effects.dispose(); unsubscribe(); unregisterFont?.(); ranges.forEach((key) => disposeParameterRanges(controls[key])); } };
 }

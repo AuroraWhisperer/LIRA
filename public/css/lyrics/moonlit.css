@@ -72,7 +72,7 @@
 }
 
 .lyric-window-card .desktop-lyric-preview-word-highlight {
-  color: var(--moonlit-gold);
+  color: var(--preview-sung-color, var(--moonlit-gold));
 }
 
 .lyric-window-card .desktop-lyric-preview-countdown {
@@ -88,24 +88,6 @@
   color: var(--preview-color);
   font-family: var(--preview-font);
   opacity: var(--preview-opacity);
-}
-
-.lyric-window-card .desktop-lyric-preview-progress {
-  right: 10%;
-  bottom: 12px;
-  left: 10%;
-  width: auto;
-  height: 1px;
-  background: rgb(196 173 126 / 20%);
-  opacity: var(--preview-global-opacity);
-}
-
-.lyric-window-card .desktop-lyric-preview-progress span {
-  background: var(--moonlit-thread);
-}
-
-.lyric-window-card.is-paused-hidden .desktop-lyric-preview-progress {
-  opacity: 0;
 }
 
 .lyric-window-card .desktop-lyric-preview-viewport:focus-visible {

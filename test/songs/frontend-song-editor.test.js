@@ -26,6 +26,49 @@ async function open(t) {
   return page;
 }
 
+test('song multiselects show union hints and retain independent category choices on refresh', async (t) => {
+  const page = await open(t);
+  await page.evaluate(() => {
+    window.categoryRows = [
+      { name: '儿歌; 流行；儿歌' },
+      { name: '儿歌；甜歌' },
+      { name: '流行，R&B' },
+    ];
+    window.filterChanges = [];
+    window.songState.reloadSongs = () => window.filterChanges.push(window.songs.readSongFilters().categories);
+    window.songs.renderCategoryFilter(window.categoryRows);
+  });
+  await page.locator('#categoryFilter summary').click();
+  assert.equal(await page.locator('#categoryFilter .lira-multiselect-hint').textContent(), '匹配任一');
+  const options = page.locator('#categoryFilterOptions');
+  assert.deepEqual(
+    await options.locator('input').evaluateAll((inputs) => inputs.map((input) => input.value).sort()),
+    ['儿歌', '流行', '甜歌', 'R&B'].sort(),
+  );
+  for (const name of ['儿歌', '流行']) {
+    await options.getByRole('checkbox', { name, exact: true }).check();
+  }
+  assert.deepEqual(await page.evaluate(() => window.filterChanges), [['儿歌'], ['儿歌', '流行']]);
+  await page.evaluate(() => window.songs.renderCategoryFilter(window.categoryRows));
+  assert.equal(await options.locator('input:checked').count(), 2);
+  assert.equal(await page.locator('#categoryFilterSummary').textContent(), '儿歌、流行');
+  await page.locator('#clearCategoryFilter').click();
+  assert.equal(await options.locator('input:checked').count(), 0);
+  assert.equal(await page.locator('#categoryFilterSummary').textContent(), '全部分类');
+  assert.deepEqual(await page.evaluate(() => window.filterChanges), [['儿歌'], ['儿歌', '流行'], []]);
+  await page.evaluate(() => window.songs.renderTagFilter(new Set(['抒情', '治愈'])));
+  await page.locator('#tagFilter summary').click();
+  assert.equal(await page.locator('#tagFilter .lira-multiselect-hint').textContent(), '匹配任一');
+  for (const name of ['抒情', '治愈']) {
+    await page.locator('#tagFilterOptions').getByRole('checkbox', { name, exact: true }).check();
+  }
+  assert.deepEqual(await page.evaluate(() => window.songs.readSongFilters().tags), ['抒情', '治愈']);
+  assert.equal(await page.locator('#tagFilterSummary').textContent(), '抒情、治愈');
+  await page.locator('#clearTagFilter').click();
+  assert.deepEqual(await page.evaluate(() => window.songs.readSongFilters().tags), []);
+  assert.equal(await page.locator('#tagFilterSummary').textContent(), '全部标签');
+});
+
 test('a large song library renders bounded pages and keeps page actions and filters consistent', async (t) => {
   const page = await open(t);
   await page.evaluate(() => {

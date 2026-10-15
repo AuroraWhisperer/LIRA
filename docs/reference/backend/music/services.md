@@ -175,7 +175,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | 函数                                       | 行为                                                                                                                                                                                                                                                                                    | 出处                                                                       |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `saveSong(store, input)`                   | **upsert 语义**:有 `input.id` 走 UPDATE(不存在抛"歌曲不存在",UNIQUE 冲突翻译成"歌曲名称和艺术家与已有歌曲重复");无 id 时先按 `(name, artist)` 精确查重,存在则 UPDATE 其余字段,否则 INSERT。`name` 必填;分类缺省"默认"(`ensureCategory`);`name_pinyin = name_initial = getInitial(name)` | [song-service.js](../../../../src/music/song-service.js) |
-| `listSongs(store, filters)`                | store 保留关键词/分类的 SQL LIKE 语义、语言/歌手候选筛选与启用筛选及 SQL 初始顺序；领域层做完整字段和 tag 匹配，再按 `name_initial` + `name`(`zh-Hans-CN-u-co-pinyin`) 稳定排序并布尔化 `is_enabled` | [song-service.js](../../../../src/music/song-service.js) |
+| `listSongs(store, filters)`                | store 保留关键词/分类的 SQL LIKE 语义，将分类候选以 OR 组合后与其他条件取交集；领域层做语言/歌手完整字段及任一完整 tag 匹配，再按 `name_initial` + `name`(`zh-Hans-CN-u-co-pinyin`) 稳定排序并布尔化 `is_enabled` | [song-service.js](../../../../src/music/song-service.js) |
 | `findSong(store, songName, artist?)`       | 有 artist 先精确 `(name, artist)`;否则按 name 取 `updated_at` 最新;仅启用歌曲 | [song-service.js](../../../../src/music/song-service.js) |
 | `findUniqueSongNameMatch(store, songName)` | 精确失败后由 store 执行转义 LIKE `%name%`,**恰好 1 条才返回**(模糊匹配拒绝猜测) | [song-service.js](../../../../src/music/song-service.js) |
 | `deleteSong` / `toggleSong` / `countSongs` | 委托 store 的单曲写操作(删除时在同一事务解除 queue/request 引用);切换启用返回 `{ok}`;总数 | [song-service.js](../../../../src/music/song-service.js) |
@@ -356,6 +356,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 ## 13. 歌词状态与时间轴(lyric-state.js / lyric-timeline.js)
 
 `music-runtime` 分别保存内置播放器、外部 QQ、外部网易云和全民 K 歌的候选状态与完整时间轴。`selection` 是跟随偏好（`auto / internal / qq-client / netease-client / wesing`），`source` 是当前实际输出来源（不含 auto）。候选的 `playing` 取实际播放状态，不以歌词已加载为前提；未选中的播放器仍持续更新候选。只有实际输出来源向歌词窗口、预览与浏览器源广播，切换时立即发布该来源已缓存的完整时间轴和状态。
+
+时间轴入口归一化并整体替换候选对象；运行时记住最近已比较的引用，单纯时钟/播放状态更新不重复序列化整首歌词。同内容的新对象仍经内容比较并记入缓存，实际歌词变化正常发布；切换来源强制发布时间轴并推进广播代际，即使两端歌词内容相同也不省略。采集和状态广播频率保持原样。
 
 [lyric-source-selection.js](../../../../src/music/lyric-source-selection.js) 拥有智能播放的选择规则：
 

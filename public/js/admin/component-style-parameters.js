@@ -1,7 +1,7 @@
 import { STYLE_PARAMETER_GROUPS, STYLE_PARAMETER_CAPABILITIES, componentStyleKey, styleParameterCapabilities, styleParameterDefaults,
   styleParametersFor, editStyleParameter, normalizeStyleParameters } from '../shared/component-style-parameters.js';
 import { previewElement } from './component-preview-surface.js';
-import { syncComponentFieldValue } from './component-preview-panel.js';
+import { syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 
@@ -101,7 +101,7 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
   root.append(status, reset); host.append(root);
   enhanceColorControls(root);
   initParameterRanges(root);
-  const stop = controller.subscribe(({ draft, loaded }) => {
+  const stop = subscribeComponentFields(root, controller, ({ draft, loaded }) => {
     const key = componentStyleKey(draft);
     const force = key !== currentKey;
     currentKey = key;

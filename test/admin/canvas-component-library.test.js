@@ -174,6 +174,18 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     if (type === 'songlist') await page.locator('[data-component-parameter="songBoardSyncTheme"]').uncheck();
     const input = page.locator(`[data-component-parameter="${key}"]`);
     await input.fill(value); await input.press('Tab');
+    if (type === 'lyrics') {
+      for (const [colorKey, label, color] of [
+        ['desktopLyricSungColor', '已唱颜色跟随样式', '#ec4899'],
+        ['desktopLyricTextColor', null, '#38bdf8'],
+      ]) {
+        if (label) await page.getByRole('checkbox', { name: label, exact: true }).uncheck();
+        await page.locator(`[data-component-parameter="${colorKey}"]`).click();
+        await page.getByRole('textbox', { name: '十六进制颜色' }).fill(color);
+        await page.getByRole('textbox', { name: '十六进制颜色' }).press('Tab');
+        await page.getByRole('button', { name: '完成', exact: true }).click();
+      }
+    }
     for (const [name, size] of [['宽度', '400'], ['高度', '300']]) {
       if (type === 'gift-wishes' && name === '高度') continue;
       const dimension = page.getByRole('spinbutton', { name, exact: true });
@@ -195,6 +207,10 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     const shared = createSceneSharedAppearance({ settings: { get: () => fixture.runtime.settings }, system: {} })
       .read(item.type, item.appearance.config);
     const expected = item.type === 'interactions' ? '实时评分' : cases[index][4];
+    if (item.type === 'lyrics') {
+      assert.equal(shared.desktopLyricSungColor, '#ec4899');
+      assert.equal(shared.desktopLyricTextColor, '#38bdf8');
+    }
     assert.equal(String({ ...item.appearance.config, ...shared }[cases[index][3]]), expected);
     assert.equal(item.appearance.mode, 'independent');
     assert.equal(item.width, 400);

@@ -12,6 +12,7 @@ async function createLiveRenderer() {
   const animations = [];
   const frames = new Map();
   let frameId = 0;
+  let visibilityCallback;
   let now = 1000;
   const createElement = () => {
     const element = new FakeNode();
@@ -26,6 +27,14 @@ async function createLiveRenderer() {
       set(value) { element.replaceChildren(); textContent = String(value); },
     });
     element.appendChild = (child) => element.append(child);
+    element.insertBefore = (child, sibling) => {
+      child.detach();
+      child.parent = element;
+      element.children.splice(element.children.indexOf(sibling), 0, child);
+    };
+    Object.defineProperty(element, 'nextElementSibling', {
+      get: () => element.parent?.children[element.parent.children.indexOf(element) + 1] || null,
+    });
     element.classList = { add() {}, remove() {}, toggle() {} };
     element.animate = (frames) => {
       const animation = { currentTime: null, playState: 'paused', cancelled: false,
@@ -43,6 +52,11 @@ async function createLiveRenderer() {
   elements.get('desktopLyricPreviewViewport').clientHeight = 0;
   const { desktopLyricRenderer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/lyrics/desktop-lyric-renderer.js'), {
     performance: { now: () => now },
+    IntersectionObserver: class {
+      constructor(callback) { visibilityCallback = callback; }
+      observe() {}
+      disconnect() {}
+    },
     Element: { prototype: { animate() {} } },
     window: { addEventListener() {}, matchMedia: () => ({ matches: false }) },
     document: { createElement, createDocumentFragment: () => Object.assign(createElement(), { isFragment: true }),
@@ -60,7 +74,8 @@ async function createLiveRenderer() {
     frames.clear();
     callbacks.forEach((callback) => callback(now));
   };
-  return { renderer: desktopLyricRenderer, animations, elements, advance, state: {
+  return { renderer: desktopLyricRenderer, animations, elements, advance, frames,
+    setVisible: isIntersecting => visibilityCallback([{ isIntersecting }]), state: {
     currentMs: 1200, durationMs: 10000, playing: true, generation: 1, sequence: 1, status: 'ready',
     lineText: '第一句', words: [{ text: '第一句', startMs: 0, endMs: 5000 }],
   } };
@@ -80,6 +95,76 @@ test('joining scripts and combining marks remain intact during karaoke', async (
       assert.equal(line.getAttribute('dir'), 'auto');
     }
   }
+});
+
+test('identical timeline snapshots retain rows and word animations', async () => {
+  const { renderer, elements, animations, state } = await createLiveRenderer();
+  const timeline = { status: 'ready', lines: [
+    { startMs: 0, text: '第一句', words: state.words }, { startMs: 5000, text: '第二句' },
+  ] };
+  renderer.updateLyricTimeline(timeline);
+  renderer.updateLyricState(state);
+  const row = elements.get('desktopLyricPreviewTimeline').children[0];
+  const animation = animations.at(-1);
+  renderer.updateLyricTimeline(JSON.parse(JSON.stringify(timeline)));
+  assert.equal(elements.get('desktopLyricPreviewTimeline').children[0], row);
+  assert.equal(animation.cancelled, false);
+  renderer.updateLyricTimeline({ ...timeline, lines: [{ ...timeline.lines[0], translation: 'Translation' }] });
+  assert.notEqual(elements.get('desktopLyricPreviewTimeline').children[0], row, 'real text changes still render');
+  assert.equal(animation.cancelled, true);
+});
+
+test('identical normalized settings avoid style writes while real changes still apply', async () => {
+  const { renderer, elements } = await createLiveRenderer();
+  let writes = 0;
+  const card = elements.get('desktopLyricSurface');
+  const setProperty = card.style.setProperty.bind(card.style);
+  card.style.setProperty = (...args) => { writes += 1; setProperty(...args); };
+  renderer.applySettings({ desktopLyricFontSize: '56' });
+  assert.ok(writes > 0, 'the first call must apply the default styles');
+  writes = 0;
+  renderer.applySettings({ desktopLyricFontSize: 56, unrelatedSetting: 'updated' });
+  assert.equal(writes, 0);
+  renderer.applySettings({ desktopLyricFontSize: '60' });
+  assert.ok(writes > 0);
+});
+
+test('settings updates cannot restart spring scrolling on a hidden lyric surface', async () => {
+  const { renderer, elements, frames, setVisible } = await createLiveRenderer();
+  const viewport = elements.get('desktopLyricPreviewViewport');
+  viewport.clientHeight = 500;
+  viewport.scrollHeight = 2000;
+  viewport.scrollTop = 0;
+  renderer.applySettings({ desktopLyricSpringAnimation: 'true' });
+  assert.equal(frames.size, 1);
+  setVisible(false);
+  assert.equal(frames.size, 0);
+  renderer.applySettings({ desktopLyricSpringAnimation: 'true', desktopLyricFontSize: '60' });
+  assert.equal(frames.size, 0, 'an invisible but laid-out surface must not restart its spring');
+  setVisible(true);
+  assert.equal(frames.size, 1, 'revealing the surface restores following');
+});
+
+test('countdown writes only when its displayed second changes and resets for new timelines', async () => {
+  const { renderer, elements, state, advance } = await createLiveRenderer();
+  const timeline = { status: 'ready', lines: [{ startMs: 0, text: '第一句' }, { startMs: 9000, text: '第二句' }] };
+  renderer.updateLyricTimeline(timeline);
+  const countdown = elements.get('desktopLyricPreviewTimeline').children.at(-1);
+  let labels = 0;
+  const setAttribute = countdown.setAttribute.bind(countdown);
+  countdown.setAttribute = (name, value) => { if (name === 'aria-label') labels += 1; setAttribute(name, value); };
+  renderer.updateLyricState({ ...state, currentMs: 6200 });
+  assert.equal(countdown.hidden, false);
+  assert.equal(countdown.getAttribute('aria-label'), '距离下一句 3 秒');
+  for (let i = 0; i < 10; i += 1) advance(34);
+  assert.equal(labels, 1, 'frames within the same second leave the countdown unchanged');
+  renderer.updateLyricState({ ...state, currentMs: 7200, sequence: 2, discontinuity: true });
+  assert.equal(labels, 2);
+  assert.equal(countdown.getAttribute('aria-label'), '距离下一句 2 秒');
+  renderer.updateLyricTimeline({ ...timeline, trackTitle: 'New song' });
+  const nextCountdown = elements.get('desktopLyricPreviewTimeline').querySelector('.desktop-lyric-preview-countdown');
+  assert.equal(nextCountdown.hidden, false);
+  assert.equal(nextCountdown.getAttribute('aria-label'), '距离下一句 2 秒');
 });
 
 test('desktop karaoke immediately anchors a small explicit seek within the same word', async () => {

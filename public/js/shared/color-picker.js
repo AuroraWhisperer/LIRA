@@ -127,6 +127,7 @@ function createPicker(document) {
     input.setAttribute('aria-expanded', 'false');
     current = null;
     if (document.activeElement === document.body || panel.contains(document.activeElement)) input.focus({ preventScroll: true });
+    input.dispatchEvent(new Event('lira-color-edit-end', { bubbles: true }));
   });
   return { panel, refresh };
 }
@@ -136,6 +137,7 @@ export function openColorPicker(input, hex, alpha, onEdit, alphaStep = 1) {
   if (current) {
     delete current.input.dataset.colorEditing;
     current.input.setAttribute('aria-expanded', 'false');
+    current.input.dispatchEvent(new Event('lira-color-edit-end', { bubbles: true }));
   }
   current = { input, hex, alpha, onEdit };
   for (const control of picker.panel.querySelectorAll('.lira-color-opacity, [data-channel="alpha"]')) control.step = String(alphaStep);

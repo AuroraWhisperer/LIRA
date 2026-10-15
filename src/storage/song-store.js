@@ -203,9 +203,9 @@ function createSongStore(songDb) {
         );
         args.push(...Array(4).fill(`%${query}%`));
       }
-      for (const category of categories) {
-        conditions.push('song_categories.name LIKE ?');
-        args.push(`%${category}%`);
+      if (categories.length) {
+        conditions.push(`(${categories.map(() => 'song_categories.name LIKE ?').join(' OR ')})`);
+        args.push(...categories.map((category) => `%${category}%`));
       }
       if (language) {
         conditions.push('(songs.language = ? OR songs.language LIKE ?)');

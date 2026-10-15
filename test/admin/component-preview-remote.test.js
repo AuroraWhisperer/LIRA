@@ -7,6 +7,45 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const entry = path.resolve(__dirname, '../../public/js/admin/component-preview-remote.js');
 const state = (label = 'saved') => ({ saved: { label: 'saved' }, draft: { label }, generation: 0, loaded: true });
 
+test('identical preview snapshots do not notify, but authoritative changes arrive immediately', async () => {
+  const { createRemotePreviewController } = await loadModuleExports(entry, { structuredClone });
+  const controller = createRemotePreviewController(state(), async () => ({ sequence: 1 }));
+  const received = [];
+  controller.subscribe(value => received.push(value));
+  for (let index = 0; index < 20; index++) controller.receive({ state: state(), ack: 0 });
+  assert.equal(received.length, 1);
+  controller.receive({ state: { ...state('new'), error: '保存失败' }, ack: 0 });
+  assert.equal(received.length, 2);
+  assert.equal(received[1].draft.label, 'new');
+  assert.equal(received[1].error, '保存失败');
+  controller.setConnectionError('正在重连');
+  controller.receive({ state: { ...state('new'), error: '保存失败' }, ack: 0 });
+  controller.setConnectionError('');
+  assert.deepEqual(received.slice(2).map(value => value.error), ['正在重连', '保存失败']);
+});
+
+test('acknowledging an unchanged edit notifies and completes flush without a state change', async () => {
+  const { createRemotePreviewController } = await loadModuleExports(entry, { structuredClone });
+  const controller = createRemotePreviewController(state(), async () => ({ sequence: 1 }));
+  let notifications = 0;
+  controller.subscribe(() => notifications++);
+  await controller.edit({ label: 'saved' });
+  assert.equal(controller.getState().dirty, true);
+  let flushed = false;
+  const flushing = controller.flush().then(() => { flushed = true; });
+  await new Promise(setImmediate);
+  controller.receive({ state: state(), ack: 0 });
+  assert.equal(flushed, false);
+  assert.equal(notifications, 2);
+  controller.receive({ state: state(), ack: 1 });
+  await flushing;
+  assert.equal(flushed, true);
+  assert.equal(notifications, 3);
+  assert.notEqual(controller.getState().dirty, true);
+  controller.receive({ state: state(), ack: 1 });
+  assert.equal(notifications, 3);
+});
+
 test('pending browser edits poll promptly without overlapping reads, then return to idle frequency', async () => {
   const timers = new Map();
   let timerId = 0;

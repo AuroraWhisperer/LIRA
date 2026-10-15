@@ -11,6 +11,7 @@ import { stateService } from './state.js';
 import { desktopLyricPreview } from './desktop-lyric-preview.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 import { createLyricSourceControls } from './lyric-source-controls.js';
+import { syncDesktopLyricKaraokeColorControls } from './desktop-lyric-controls.js';
 
 export function createDesktopLyric({
   utils = sharedUtils,
@@ -190,7 +191,8 @@ export function createDesktopLyric({
         return;
       }
       const input = document.getElementById(key);
-      settings[key] = input ? (CHECKBOX_KEYS.has(key) ? String(input.checked) : input.value) : fallback;
+      settings[key] = document.getElementById(`${key}Inherited`)?.checked
+        ? '' : input ? (CHECKBOX_KEYS.has(key) ? String(input.checked) : input.value) : fallback;
     });
     return settings;
   }
@@ -250,6 +252,7 @@ export function createDesktopLyric({
       }
     });
     forms.refreshParameterRanges?.();
+    syncDesktopLyricKaraokeColorControls(settings);
     preview.applySettings(settings);
   }
 

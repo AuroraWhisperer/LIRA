@@ -45,7 +45,8 @@ const SETTING_KEYS = {
     desktopLyricShadowEnabled desktopLyricShadowIntensity desktopLyricShadowOffsetX desktopLyricShadowOffsetY
     desktopLyricShowTitleWhenNoLyric desktopLyricShowTranslation desktopLyricSpringAnimation
     desktopLyricStrokeColor desktopLyricStrokeEnabled desktopLyricStrokeWidth desktopLyricTextAlign
-    desktopLyricTextColor desktopLyricTimeOffsetMs desktopLyricTraditionalMode desktopLyricTranslateX
+    desktopLyricTextColor desktopLyricSungColor
+    desktopLyricTimeOffsetMs desktopLyricTraditionalMode desktopLyricTranslateX
     desktopLyricTranslateY desktopLyricTranslationOpacity desktopLyricTranslationScale desktopLyricVisibleLines`,
   danmaku: 'danmakuOverlayStyle danmakuFullscreenDurationSeconds',
   'gift-effects': 'giftEffectDanmakuEnabled',

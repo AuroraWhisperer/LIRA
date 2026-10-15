@@ -20,6 +20,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   const contentSizes = new Map();
   let resizeFrame = 0;
   let scale = 1;
+  let fittedCanvas = '';
   let zoom = 'fit';
   let snap = true;
   let gesture = null;
@@ -48,18 +49,25 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
       } catch (error) { report(error.message); }
     });
   }
-  function fit() {
+  function fit(repositionLabels = true) {
     const document = model.getSnapshot();
     scale = zoom === 'fit' ? Math.max(0.03, Math.min(
       (viewport.clientWidth - 24) / document.canvas.width,
       (viewport.clientHeight - 24) / document.canvas.height, 1)) : Number(zoom) / 100;
-    extent.style.width = `${document.canvas.width * scale}px`;
-    extent.style.height = `${document.canvas.height * scale}px`;
-    canvas.style.width = `${document.canvas.width}px`;
-    canvas.style.height = `${document.canvas.height}px`;
-    canvas.style.transform = `scale(${scale})`;
-    canvas.style.setProperty('--scene-inverse-scale', String(1 / scale));
-    for (const entry of entries.values()) positionContentLabel(entry);
+    const fitKey = `${document.canvas.width}:${document.canvas.height}:${scale}`;
+    if (fitKey !== fittedCanvas) {
+      extent.style.width = `${document.canvas.width * scale}px`;
+      extent.style.height = `${document.canvas.height * scale}px`;
+      canvas.style.width = `${document.canvas.width}px`;
+      canvas.style.height = `${document.canvas.height}px`;
+      canvas.style.transform = `scale(${scale})`;
+      canvas.style.setProperty('--scene-inverse-scale', String(1 / scale));
+      fittedCanvas = fitKey;
+    }
+    if (repositionLabels) for (const entry of entries.values()) positionContentLabel(entry);
+  }
+  function setStyle(node, name, value) {
+    if (node.style[name] !== value) node.style[name] = value;
   }
   function positionContentLabel(entry) {
     if (!SCENE_COMPONENTS[entry.host.dataset.component].contentHeight && entry.host.dataset.component !== 'gift-sprint') return;
@@ -72,9 +80,12 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   function syncSelection() {
     const selected = getSelection();
     for (const [id, entry] of entries) {
-      entry.host.classList.toggle('is-selected', selected.has(id));
+      const pressed = String(selected.has(id));
+      if (entry.host.getAttribute('aria-pressed') !== pressed) {
+        entry.host.classList.toggle('is-selected', selected.has(id));
+        entry.host.setAttribute('aria-pressed', pressed);
+      }
       entry.host.classList.toggle('is-resizable', selected.size === 1 && selected.has(id));
-      entry.host.setAttribute('aria-pressed', String(selected.has(id)));
       positionContentLabel(entry);
     }
   }
@@ -174,17 +185,19 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
         entry = { host: node, label, surface, cssEngine: item.appearance.config?.cssStyle?.engine || '' };
         entries.set(item.id, entry);
       }
-      entry.host.style.left = `${item.x}px`;
-      entry.host.style.top = `${item.y}px`;
-      entry.host.style.width = `${item.width}px`;
-      entry.host.style.height = `${item.height}px`;
-      entry.host.style.zIndex = String(index + 1);
+      setStyle(entry.host, 'left', `${item.x}px`);
+      setStyle(entry.host, 'top', `${item.y}px`);
+      setStyle(entry.host, 'width', `${item.width}px`);
+      setStyle(entry.host, 'height', `${item.height}px`);
+      setStyle(entry.host, 'zIndex', String(index + 1));
       entry.host.classList.toggle('is-locked', item.locked);
-      entry.host.setAttribute('aria-label', `${item.name}${item.locked ? '（已锁定）' : ''}`);
-      entry.label.textContent = `${item.name} · ${Math.round(item.width)} × ${Math.round(item.height)} px`;
+      const name = `${item.name}${item.locked ? '（已锁定）' : ''}`;
+      if (entry.host.getAttribute('aria-label') !== name) entry.host.setAttribute('aria-label', name);
+      const label = `${item.name} · ${Math.round(item.width)} × ${Math.round(item.height)} px`;
+      if (entry.label.textContent !== label) entry.label.textContent = label;
     }
     empty.hidden = document.items.some((item) => item.visible);
-    fit();
+    fit(false);
     syncSelection();
     scheduleContentResize();
   }

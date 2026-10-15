@@ -96,6 +96,7 @@ export class WeSingService {
     window.addEventListener('app:wesing-state', (event) => this.applyStatus(event.detail));
     this.lyricRenderer = new LyricWordRenderer({
       lineElement: document.getElementById('weSingLyricLine'),
+      visibilityElement: document.getElementById('playbackWeSingView'),
       progressElement: document.getElementById('weSingProgressBar'),
       wordClass: 'wesing-lyric-word',
       progressProperty: '--wesing-word-progress',

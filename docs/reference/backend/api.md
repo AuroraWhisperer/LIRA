@@ -538,6 +538,8 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 行为文档:[music/services.md](music/services.md)(歌库服务)。
 
+歌库筛选的 `category` 多值之间取并集（OR），`tag` 多值之间同样取并集；分类、标签、搜索、语言、歌手和可点状态各组之间取交集（AND），空选择不限制该组。分类保留原有 SQL LIKE 匹配，标签按拆分后的完整值不区分大小写匹配。例如选择“儿歌”“流行”并限制“国语”，返回国语儿歌或国语流行歌，不要求歌曲同时属于两个分类。返回行不因匹配多个选项重复，排序与原字段不变。回归：`test/songs/song-library-filter.test.js`、`test/songs/frontend-song-editor.test.js`。
+
 手动保存仅在新增歌曲时检查完整歌库 5000 首上限（含停用歌曲），超限返回 HTTP 422、`error: SONG_IMPORT_LIMIT_EXCEEDED`，并用 `message` 提供整理提示，不写入、广播或同步。按 ID 编辑、同名同歌手更新和删除仍可用于整理历史超量歌库；不会截断或自动删歌。
 
 ## 8. 播放队列域(queue)

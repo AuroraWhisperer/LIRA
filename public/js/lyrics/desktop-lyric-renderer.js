@@ -46,9 +46,12 @@ let initialized = false;
 let renderer = null;
 let latestState = null;
 let latestTimeline = EMPTY_TIMELINE;
+let timelineSignature = '';
+let settingsSignature = '';
 let timelineElement = null;
 let viewport = null;
 let countdownElement = null;
+let countdownSignature = '';
 let rowElements = [];
 let activeIndex = -1;
 let activeWordIndex = -1;
@@ -81,13 +84,21 @@ function init() {
 
   renderer = new LyricWordRenderer({
     lineElement: playback,
-    progressElement: document.getElementById('desktopLyricPreviewProgress'),
+    visibilityElement: stage,
     renderWords: false,
     wordClass: 'desktop-lyric-preview-live-word',
     progressProperty: '--preview-word-progress',
     fallbackText: previewFallback,
     onFrameBudget: (duration) => performanceProfile?.recordFrame(duration),
     onFrame: (position) => renderTimelineFrame(position.currentMs),
+    onVisibilityChange: (visible) => {
+      if (visible) followActiveLyric();
+      else {
+        stopFollowAnimation();
+        lineTransition?.clear();
+        updateActiveWordProgress(resolveLyricTime(currentPreviewPosition(), currentDisplaySettings));
+      }
+    },
   });
   performanceProfile = createLyricPerformanceProfile({
     onChange: (profile) => {
@@ -143,14 +154,18 @@ function updateLyricState(state) {
 
 function updateLyricTimeline(timeline) {
   if (!timeline || typeof timeline !== 'object') return;
-  clearTimeout(followResumeTimer);
-  manualFollowUntil = 0;
-  viewport?.classList.remove('is-manual-browsing');
-  latestTimeline = {
+  const nextTimeline = {
     ...EMPTY_TIMELINE,
     ...timeline,
     lines: Array.isArray(timeline.lines) ? timeline.lines : [],
   };
+  const signature = JSON.stringify(nextTimeline);
+  if (signature === timelineSignature) return;
+  timelineSignature = signature;
+  latestTimeline = nextTimeline;
+  clearTimeout(followResumeTimer);
+  manualFollowUntil = 0;
+  viewport?.classList.remove('is-manual-browsing');
   renderTimeline();
   updatePreviewStatus();
 }
@@ -161,6 +176,7 @@ function renderTimeline() {
   const fragment = document.createDocumentFragment();
   rowElements = [];
   countdownElement = null;
+  countdownSignature = '';
   activeIndex = -1;
   stopFollowAnimation();
   followPosition = viewport?.scrollTop || 0;
@@ -301,7 +317,9 @@ function resetActiveWords() {
 }
 
 function updateActiveWordProgress(currentMs, force = false) {
-  activeWordAnimator?.sync({ currentMs }, { playing: latestState?.playing === true, force });
+  activeWordAnimator?.sync({ currentMs }, {
+    playing: latestState?.playing === true && renderer?.isVisible() !== false, force,
+  });
 }
 
 function resolveWordAnimationMode(profile = performanceProfile?.profile) {
@@ -334,6 +352,9 @@ function applyVisibleLineWindow() {
 function updateCountdown(currentMs) {
   if (!countdownElement || !timelineElement) return;
   const countdown = getLyricCountdown(latestTimeline.lines, activeIndex, currentMs);
+  const signature = countdown ? `${countdown.nextIndex}:${countdown.seconds}` : '';
+  if (signature === countdownSignature) return;
+  countdownSignature = signature;
   if (!countdown) {
     countdownElement.hidden = true;
     return;
@@ -353,7 +374,7 @@ function updateCountdown(currentMs) {
 }
 
 function followActiveLyric() {
-  if (activeIndex < 0 || Date.now() < manualFollowUntil) return;
+  if (renderer?.isVisible() === false || activeIndex < 0 || Date.now() < manualFollowUntil) return;
   const activeRow = rowElements[activeIndex];
   if (!activeRow || !viewport || viewport.clientHeight <= 0) return;
   followTarget = calculateFollowTarget(
@@ -447,10 +468,13 @@ function updatePreviewStatus() {
 function applySettings(settings = {}) {
   const card = document.getElementById('desktopLyricLivePreview') || document.getElementById('desktopLyricSurface');
   if (!card) return;
+  const values = resolveDesktopLyricSettings(settings);
+  const signature = JSON.stringify(values);
+  if (signature === settingsSignature) return;
+  settingsSignature = signature;
   lineTransition?.clear();
   const previousSettings = currentDisplaySettings;
-  currentDisplaySettings = resolveDesktopLyricSettings(settings);
-  const values = currentDisplaySettings;
+  currentDisplaySettings = values;
   applyDesktopLyricStyles(card, values);
   applyPlaybackVisibility();
   if (

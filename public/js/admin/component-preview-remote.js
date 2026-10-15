@@ -5,6 +5,7 @@ import { applyRoomGuardState } from '../shared/bilibili-guard-icons.js';
 
 export function createRemotePreviewController(initial, send) {
   let state = initial;
+  let stateKey = JSON.stringify(initial);
   let pending = [];
   let chain = Promise.resolve();
   let stopped = false;
@@ -72,8 +73,12 @@ export function createRemotePreviewController(initial, send) {
     },
     receive(update) {
       if (stopped) return;
+      const nextKey = JSON.stringify(update.state);
+      const pendingCount = pending.length;
       state = update.state;
       pending = pending.filter((command) => command.sequence === undefined || command.sequence > update.ack);
+      if (nextKey === stateKey && pending.length === pendingCount) return;
+      stateKey = nextKey;
       notify();
     },
     disconnect,

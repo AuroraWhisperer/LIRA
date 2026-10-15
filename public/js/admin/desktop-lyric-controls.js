@@ -18,9 +18,19 @@ export function readDesktopLyricFormSettings(defaults = {}) {
       continue;
     }
     const input = document.getElementById(key);
-    if (input) values[key] = input.type === 'checkbox' ? String(input.checked) : input.value;
+    if (input) values[key] = document.getElementById(`${key}Inherited`)?.checked
+      ? '' : input.type === 'checkbox' ? String(input.checked) : input.value;
   }
   return values;
+}
+
+export function syncDesktopLyricKaraokeColorControls(settings) {
+  const input = document.getElementById('desktopLyricSungColor');
+  const inherit = document.getElementById('desktopLyricSungColorInherited');
+  if (!input || !inherit) return;
+  inherit.checked = !settings.desktopLyricSungColor;
+  input.disabled = inherit.checked;
+  input.value = settings.desktopLyricSungColor || '#ffcf4a';
 }
 
 export function setDesktopLyricBackground(background) {

@@ -6,7 +6,6 @@ import { COMPONENT_RESOURCE_PRESETS } from '../shared/component-resource-style.j
 import { createOverlaySocket } from './socket-client.js';
 
 let socketController = null;
-let componentTimeline = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   desktopLyricRenderer.init();
@@ -19,11 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     onData(data) {
       const timeline = data?.lyricTimeline || { lines: [] };
-      const signature = JSON.stringify(timeline);
-      if (signature !== componentTimeline) {
-        componentTimeline = signature;
-        desktopLyricRenderer.updateLyricTimeline(timeline);
-      }
+      desktopLyricRenderer.updateLyricTimeline(timeline);
       desktopLyricRenderer.updateLyricState(data?.lyricState || { playing: false, lineText: '', words: [], currentMs: 0, status: 'idle' });
     },
   })) return;
