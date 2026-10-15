@@ -6,6 +6,7 @@ import {
   resetStyleOptions,
   isValidFullscreenDuration,
   floatingSpeedFromPixelsPerSecond,
+  floatingSpeedToPixelsPerSecond,
   floatingSpeedLabel,
 } from '../shared/danmaku-appearance-draft.js';
 
@@ -17,11 +18,19 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     giftImage: byId('previewGiftImage'), scrollDirection: byId('previewScrollDirection'),
     minGiftAmount: byId('previewMinGiftAmount'),
     edgeFade: byId('previewEdgeFade'),
+    entranceAnimation: byId('previewEntranceAnimation'),
+    decorationShape: byId('previewDecorationShape'),
     floatingSpeed: byId('previewFloatingSpeed'), floatingDispersion: byId('previewFloatingDispersion'),
     centerBias: byId('previewCenterBias'), dispersion: byId('previewDispersion'),
   };
+  fields.floatingSpeed.addEventListener('input', () => {
+    byId('previewFloatingSpeedValue').textContent = floatingSpeedLabel(floatingSpeedToPixelsPerSecond(Number(fields.floatingSpeed.value)));
+  });
+  fields.floatingDispersion.addEventListener('input', () => {
+    byId('previewFloatingDispersionValue').textContent = fields.floatingDispersion.value;
+  });
   for (const [key, control] of Object.entries(fields)) {
-    control.addEventListener(key.startsWith('floating') ? 'input' : 'change', () => {
+    control.addEventListener('change', () => {
       const draft = getDraft();
       let value;
       try {
@@ -77,11 +86,15 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     fields.fontSize.min = String(Math.ceil(limits.minFontSize * scale));
     fields.fontSize.max = String(Math.floor(limits.maxFontSize * scale));
     byId('previewBackgroundField').hidden = !limits.background;
-    byId('previewGiftField').hidden = !limits.giftImage || draft.style === 'identity';
+    byId('previewGiftField').hidden = !limits.giftImage || ['identity', 'transparent', 'outline'].includes(draft.style);
     byId('previewMinGiftAmountField').hidden = !limits.minGiftAmount;
     fields.minGiftAmount.value = String(options.minGiftAmount || 0);
     byId('previewDirectionField').hidden = !limits.scrollDirection;
     byId('previewEdgeFadeField').hidden = !limits.scrollDirection;
+    byId('previewDecorationShapeField').hidden = !limits.decorationShape;
+    fields.decorationShape.value = options.decorationShape || 'sparkle';
+    byId('previewEntranceAnimationField').hidden = !limits.entranceAnimation;
+    fields.entranceAnimation.value = options.entranceAnimation || 'fade';
     byId('previewSpeedField').hidden = !limits.speed;
     fields.floatingSpeed.value = String(floatingSpeedFromPixelsPerSecond(options.speedPixelsPerSecond || 120));
     byId('previewFloatingSpeedValue').textContent = floatingSpeedLabel(options.speedPixelsPerSecond || 120);

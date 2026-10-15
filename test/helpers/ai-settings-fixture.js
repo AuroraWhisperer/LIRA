@@ -35,6 +35,7 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     generationConcurrency: 3,
     userCooldownSeconds: 0,
     roomLimitPerMinute: 20,
+    contextTtlSeconds: 600,
     systemPrompt: '这是一个长度足够的测试人格预设。',
     personaId: 'custom',
     hasCustomPersona: true,

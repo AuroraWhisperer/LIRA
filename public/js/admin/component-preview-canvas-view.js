@@ -12,6 +12,8 @@ import { mountPreviewLayerDrag } from './component-preview-layer-drag.js';
 import { mountPreviewPresets } from './component-preview-presets.js';
 import { createCanvasSharedAppearance } from './canvas-shared-appearance.js';
 import { SHARED_CONTROLLER_TYPES, hasInstalledAppearance } from '../shared/scene-shared-appearance.js';
+import { toast } from '../shared/toast.js';
+import { componentFieldLabel } from './component-preview-panel.js';
 
 export function mountComponentPreviewCanvas(host, { components, canvasController, canvasConnection, selectedId, selectedSize, selectedItemId, source, recovery }) {
   const initial = canvasController?.getState().draft.document || {
@@ -29,6 +31,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   let stage;
   let receiving = false;
   let message = '';
+  let reportedErrors = new Set();
   let closed = false;
   let output;
   let presets;
@@ -36,6 +39,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   let outputBusy = false;
   let inspectorOpen = Boolean(selectedId);
   const subscriptions = [];
+  const toastContainer = document.getElementById('toast');
   const toolbar = previewElement('div', 'preview-canvas-toolbar');
   toolbar.setAttribute('aria-label', '场景工具');
   const body = previewElement('div', 'component-preview-body');
@@ -66,7 +70,27 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   sidebar.append(inspectorHost);
   canvasTools.append(library, canvasControls);
   toolbar.append(canvasTools, actions);
-  const report = (text) => { message = text; renderStatus(); };
+  const report = (text, type = 'error') => {
+    message = text;
+    renderStatus();
+    if (text && type === 'error' && !reportedErrors.has(text)) toast(text, { type });
+  };
+  inspectorHost.addEventListener('invalid', (event) => {
+    event.preventDefault();
+    const input = event.target;
+    const label = componentFieldLabel(input);
+    const validity = input.validity;
+    let reason = input.validationMessage;
+    if (!validity.customError) {
+      if (validity.badInput) reason = `${label}需要填写数字。`;
+      else if (validity.valueMissing) reason = `请填写${label}。`;
+      else if (validity.rangeUnderflow) reason = `${label}不能小于 ${input.min}。`;
+      else if (validity.rangeOverflow) reason = `${label}不能大于 ${input.max}。`;
+      else if (validity.stepMismatch) reason = !input.step || input.step === '1'
+        ? `${label}只能填写整数。` : `${label}请按 ${input.step} 的间隔填写。`;
+    }
+    report(reason.includes(label) ? reason : `${label}：${reason}`);
+  }, true);
   const sharedAppearance = createCanvasSharedAppearance({ model, request: canvasConnection?.requestAppearance });
   const layerDrag = mountPreviewLayerDrag(layers, { report,
     beforeDrag() { closeLayerMenu(); stage?.cancelGesture(); },
@@ -132,12 +156,13 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       const state = controller.getState();
       if (state.dirty || state.error) controller.discard();
     }
+    inspector?.render?.(true);
   });
   function validateInputs() {
     stage.cancelGesture();
     layerDrag.cancel();
-    const invalid = [...inspectorHost.querySelectorAll('input, select, textarea')].find((input) => !input.checkValidity());
-    if (invalid) { setInspectorOpen(true); invalid.reportValidity(); return false; }
+    const invalid = [...inspectorHost.querySelectorAll('input, select, textarea')].find((input) => input.willValidate && !input.validity.valid);
+    if (invalid) { setInspectorOpen(true); invalid.focus(); invalid.reportValidity(); return false; }
     return true;
   }
   const save = canvasConnection ? null : button(applyActions, '保存全部修改', () => {
@@ -356,6 +381,12 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       if (!errors.has(error)) errors.set(error, []);
       errors.get(error).push(title);
     }
+    for (const [error, titles] of errors) {
+      const reportedByAction = message === error || titles.some(title => message === `${title}：${error}`);
+      if (!reportedErrors.has(error) && !reportedByAction) toast(error, { type: 'error' });
+    }
+    // Publication failures may add the owner title to an error already announced by its controller.
+    reportedErrors = new Set(failures.flatMap(({ title, error }) => [error, `${title}：${error}`]));
     status.classList.toggle('has-error', failures.length > 0 || Boolean(recoveryState?.pending));
     status.textContent = failures.length ? [...errors].map(([error, titles]) =>
       titles.length === states.length ? error : `${titles.join('、')}：${error}`).join('\n')
@@ -382,14 +413,16 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     subscriptions.push(component.controller.subscribe(renderStatus));
   }
   stage = mountSceneEditorStage(stageHost, { model, components, getSelection: () => new Set(selected ? [selected] : []), select, report, sharedAppearance });
-  function updateInspectorWidth() {
+  function updateLayout() {
     const { width, height } = model.getSnapshot().canvas;
     // Reserve the height-fitted canvas and its 12px viewport padding on each side.
     const fitWidth = Math.min(width, Math.max(0, stageHost.clientHeight - 24) * width / height);
     body.style.setProperty('--preview-canvas-fit-width', `${Math.ceil(fitWidth)}px`);
+    toastContainer?.style.setProperty('--toast-anchor-bottom', `${Math.ceil(toolbar.getBoundingClientRect().bottom)}px`);
   }
-  const layoutObserver = new ResizeObserver(updateInspectorWidth);
+  const layoutObserver = new ResizeObserver(updateLayout);
   layoutObserver.observe(stageHost);
+  layoutObserver.observe(toolbar);
   background.addEventListener('change', () => { stageHost.dataset.background = background.value; });
   subscriptions.push(model.subscribeSnapshot(() => {
     message = '';
@@ -399,7 +432,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       || SHARED_CONTROLLER_TYPES.includes(item.type) && !hasInstalledAppearance(item.appearance.config)) sharedTypes.add(item.type);
     if (selected && !document.items.some((item) => item.id === selected)) select(null);
     dimensions.textContent = `${document.canvas.width} × ${document.canvas.height}`;
-    updateInspectorWidth();
+    updateLayout();
     if (canvasController && !receiving && !model.isGestureActive()
       && JSON.stringify(document) !== JSON.stringify(canvasController.getState().draft.document)) canvasController.edit({ document });
     renderLayers();
@@ -444,6 +477,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     document.removeEventListener('keydown', keydown);
     window.removeEventListener('resize', closeLayerMenu);
     layoutObserver.disconnect();
+    toastContainer?.style.removeProperty('--toast-anchor-bottom');
     for (const stop of subscriptions) stop();
     inspector?.dispose(); stage.dispose(); picker.dispose(); libraryManager?.dispose(); output?.dispose(); presets?.dispose();
     host.replaceChildren();

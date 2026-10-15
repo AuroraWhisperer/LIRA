@@ -38,6 +38,11 @@ const routes = {
   }),
 
   'POST /api/music/wesing/refresh': weSingRoute((context) => context.weSing.refresh()),
+  'POST /api/music/wesing/diagnose': weSingRoute((context) => context.weSing.diagnose()),
+  'POST /api/music/wesing/diagnose/export': weSingRoute(async (context, request) => {
+    const body = await request.body();
+    return context.weSing.exportDiagnostics(body.startedAt);
+  }),
 };
 
 module.exports = { prefixes, routes };

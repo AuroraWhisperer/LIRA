@@ -61,7 +61,7 @@ body[data-style='glow'] .draw-danmaku-identity {
 }
 body[data-style='glow'] .draw-danmaku-identity strong {
   color: #fff;
-  font: 600 20px/1.35 var(--danmaku-ui-font);
+  font: 600 26px/1.35 var(--danmaku-ui-font);
   letter-spacing: 0.03em;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -162,7 +162,7 @@ body[data-style='glow'] .is-gift .draw-danmaku-identity {
   padding: 0;
 }
 body[data-style='glow'] .is-gift .draw-danmaku-identity strong {
-  font-size: 15px;
+  font-size: 19.5px;
   text-shadow: none;
 }
 body[data-style='glow'] .is-gift .draw-danmaku-gift {

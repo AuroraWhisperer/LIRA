@@ -87,6 +87,7 @@ test('AI initial load preserves edits and blocks saving before configuration arr
     generationConcurrency: 3,
     userCooldownSeconds: 0,
     roomLimitPerMinute: 20,
+    contextTtlSeconds: 600,
     systemPrompt: f.publicConfig.systemPrompt,
     personaId: 'custom',
     weatherEnabled: true,
@@ -104,6 +105,19 @@ test('AI enabled toggle saves immediately', async () => {
   assert.equal(f.saves().length, 1);
   assert.equal(f.saves()[0].enabled, true);
 });
+
+for (const seconds of [61, 90, 600, 1200]) {
+  test(`conversation idle minutes preserve existing ${seconds}s settings and autosave edits`, async () => {
+    const f = await createAiSettingsFixture({ config: { contextTtlSeconds: seconds } });
+    assert.equal(Number(f.elements.get('xiaomiAiContextMinutes').value), seconds / 60);
+    f.input('xiaomiAiTrigger', '小猫');
+    await f.advance(700);
+    assert.equal(f.saves().at(-1).contextTtlSeconds, seconds);
+    f.input('xiaomiAiContextMinutes', '15');
+    await f.advance(700);
+    assert.equal(f.saves().at(-1).contextTtlSeconds, 900);
+  });
+}
 
 test('AI off saves independently of invalid form drafts', async () => {
   const f = await createAiSettingsFixture({ config: { enabled: true } });

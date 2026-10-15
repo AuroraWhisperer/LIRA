@@ -5,7 +5,7 @@
 
 本文档是 WeSing(全民 K 歌)**离线歌词采集**的唯一事实源:监视源、日志/QRC 扫描、播放时钟、v3.3.14 的 loading 过渡跟踪、在线兜底打分与 WS 集成只在此成表。消息契约见 [ws.md](../ws.md),设置持久化见 [storage.md](../storage.md) §7,诊断工具见 [engineering/test.md](../../engineering/test.md)。
 
-**内部模块边界:** `wesing-capture.js` 是兼容导出门面；`wesing-capture-engine.js` 拥有采集生命周期和监视样本状态机；`wesing-playback-clock.js` 只维护单调播放时钟；`wesing-lyric-resolver.js` 只决定本地/在线歌词结果；`wesing-qrc-watcher.js` 管理 QRC 和歌曲日志的文件监听与事件合并；`wesing-cache.js` 拥有目录、日志、QRC 解密与偏移校验；[wesing-cache-discovery.js](../../../../src/music/wesing-cache-discovery.js) 只探测固定候选缓存位置，由运行时注入引擎；`wesing-monitor.js` 拥有 PowerShell 进程与脚本组装。这些模块不反向依赖引擎状态。
+**内部模块边界:** `wesing-capture.js` 是兼容导出门面；`wesing-capture-engine.js` 拥有采集生命周期和监视样本状态机；`wesing-playback-clock.js` 只维护单调播放时钟；`wesing-lyric-resolver.js` 只决定本地/在线歌词结果；`wesing-qrc-watcher.js` 管理 QRC 和歌曲日志的文件监听与事件合并；`wesing-cache.js` 拥有目录、日志、QRC 解密与偏移校验；[wesing-cache-discovery.js](../../../../src/music/wesing-cache-discovery.js) 只探测固定候选缓存位置，由运行时注入引擎；`wesing-monitor.js` 拥有 PowerShell 进程与脚本组装；[wesing-diagnostics.js](../../../../src/music/wesing-diagnostics.js) 负责按需记录现有样本和归纳诊断结果。这些模块不反向依赖引擎状态。
 
 采集器的启停代次使旧目录检查、旧监视样本及延时刷新失效；停用和 `stop()` 同时推进歌词刷新版本。旧歌词结果即使在重新启用后才返回，也不能发布状态或时间线。QRC watcher 单独持有监听代次，关闭后的目录检查、防抖回调和旧文件事件均不能重新创建监听或干扰新会话。
 
@@ -89,7 +89,9 @@ Windows 独有(仅 `platform === 'win32'` 支持):采集全民 K 歌客户端**�
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `FindPlaybackWindow(processIds)`        | `EnumWindows` 遍历**全部顶层窗口(含隐藏窗口)**,`GetWindowThreadProcessId` 匹配进程 → 标题以 `"全民K歌 - "`(`全民K歌 - `)开头且长度 > 7 → 返回 `{Handle, Title}`(取第一个即停)([wesing-native-monitor-source.js:70-89](../../../../src/music/wesing-native-monitor-source.js#L70-L89))                                                                                                                                                                                                                              |
 | `GetAccessiblePlaybackSnapshot(handle)` | MSAA:`AccessibleObjectFromWindow(OBJID_CLIENT = 0xFFFFFFFC)` 拿 `IAccessible` 根,深度优先遍历(`MaximumAccessibleDepth = 20`、`MaximumAccessibleNodes = 3000` 双上限);每个节点 `get_accName` 匹配 `^\s*(\d{1,3}):(\d{2})\s*\|\s*(\d{1,3}):(\d{2})\s*$`(**MM:SS \| MM:SS 双进度**),校验 `total > 0 && 0 ≤ current ≤ total` 后返回 `{CurrentSec, TotalSec}`;任何节点名含 `"歌曲加载中"` 置 `Loading = true`([wesing-native-monitor-source.js:91-186](../../../../src/music/wesing-native-monitor-source.js#L91-L186)) |
-| `GetAudioSessionSnapshot(processIds)`   | WASAPI:默认音频端点(渲染流)→ `IAudioSessionManager2.GetSessionEnumerator` 遍历会话,`IAudioSessionControl2.GetProcessId` 匹配进程 → `GetState`(Active=1 即 `audioActive`)+ `IAudioMeterInformation.GetPeakValue`(跨会话取峰);无匹配会话 `State = -1`([wesing-native-monitor-source.js:193-253](../../../../src/music/wesing-native-monitor-source.js#L193-L253))                                                                                                                                                    |
+| `GetAudioSessionSnapshot(processIds)`   | WASAPI: `EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)` 枚举全部可用输出设备 → `IAudioSessionManager2.GetSessionEnumerator` 遍历会话，按 `IAudioSessionControl2.GetProcessId` 匹配全民进程；任一匹配会话 Active=1 即 `audioActive=true`，跨设备取最大峰值。无匹配会话 `State=-1`，单设备异常不阻断其他设备，每层 COM 引用均释放。覆盖 Windows 可见的内置、独立及虚拟声卡，无需切换默认输出。 |
+
+音频快照同时输出 `outputDeviceCount`（可用输出设备数）、`audioSessionCount`（匹配的全民会话数）、`activeAudioSessionCount`（其中活跃的会话数）。它们随原始监视样本进入按需诊断，不进入普通 `wesing-state` 广播。未找到全民进程时不扫描音频设备；计数为 0 不代表系统没有声卡。音频活跃状态与峰值仍按 §6 的现有时钟规则共同判定，其他应用的声音不能推动全民歌词。
 
 PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `AutomationElement.FromHandle` 找全部 Text 控件,`Name` 匹配同一正则即 `progressSource: 'uia'`,含"歌曲加载中"同样置 loading([wesing-monitor.js](../../../../src/music/wesing-monitor.js));`includeDiagnostics` 开启时额外收集控件清单(≤250 行,仅 Button/Text/Slider)。
 
@@ -220,8 +222,9 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 | `platform`                            | `process.platform`              | 平台;非 win32 直接 `supported:false`                       |
 | `onState` / `onTimeline`              | 空函数                          | WS 广播回调(§10)                                           |
 | `monitorFactory`                      | `createPowerShellWeSingMonitor` | 监视器工厂(测试可注入)                                     |
+| `logDir`                              | 无                              | 运行时注入 `resolveDataPaths(dataDir).logDir`，仅用于用户主动导出诊断 |
 | `watchFactory`                        | `fs.watch` 包装                 | 目录监视工厂                                               |
-| `setTimer` / `clearTimer`             | `setTimeout`/`clearTimeout`     | 防抖定时器                                                 |
+| `setTimer` / `clearTimer`             | `setTimeout`/`clearTimeout`     | 防抖及诊断定时器                                           |
 | `resolveFallbackLyrics`               | null                            | 在线兜底(§8);null 则无兜底                                 |
 | `discoverCachePath`                   | 无                              | 异步目录发现函数；运行时注入固定候选发现器，测试可替换       |
 | `saveCachePath` / `saveLyricOffsetMs` | 无                              | 设置持久化回调(写 `weSingCachePath`/`weSingLyricOffsetMs`) |
@@ -252,6 +255,9 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 | `setLyricOffsetMs(input)` | ±3000 校验 + 持久化 + 立即重算 lyricState 并 emit                                                                        |
 | `setActive(active)`       | 启停总开关:停 = 停监视/watcher/时钟;启 = supported 检查 → `monitor.start()` → `refresh`                                  |
 | `refresh()`               | 校验目录，无效时尝试自动发现，再同步 watcher；有标题则刷新歌词（`waitForRefresh` 等待在途歌词刷新）                      |
+| `diagnose()`              | 已启用的 Windows 采集器开始或复用按需诊断；返回报告 Promise（§11）                                                        |
+| `exportDiagnostics(startedAt)` | 将最近一份时间匹配的诊断报告写入日志目录；返回 `{path}`，不重新采样（§11） |
+| `cancelDiagnostics()`     | 结束当前诊断并返回中断报告；服务关闭时在等待在途请求之前调用，不改变播放器状态                                             |
 | `stop()`                  | 关闭一切(服务关闭时序调用点 [server.js](../../../../src/server.js),见 [server-core.md](../server-core.md) §6.2) |
 
 ## 10. WS 集成与本地端点
@@ -267,7 +273,23 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 
 本地端点前缀为 `/api/music/wesing/*`(端点清单与请求体见 [api.md](../api.md) 的 wesing-routes 节,此处不枚举):全部路由转发到 `context.weSing` 门面([api-context.js](../../../../src/server/api-context.js)),统一 `{ok, data}` 包装、业务失败回 400;`configure`/`offset` 在门面内完成设置持久化(§9.1 的 save 回调),`active`/`refresh` 直接透传采集器。
 
-## 11. 诊断工具
+## 11. 按需播放诊断
+
+桌面“播放 → 全民 K歌”在“重新检测”左侧提供“播放诊断”，调用管理端 `POST /api/music/wesing/diagnose`。沿用现有管理端认证；匿名请求返回 401，歌词 overlay 凭据不能访问。非 Windows 或采集未启用时返回 400。没有用户参数，不允许指定路径、采样时长或原始日志。
+
+诊断复用当前监视器，固定采样 20 秒，记录间隔至少 250ms、最多 80 条，不创建第二个进程。并发请求共用一次采样。停用、停止采集或服务器关闭会清理计时器，以 `reason: 'stopped'` 返回已有记录；正常完成为 `reason: 'completed'`。服务器在等待在途 HTTP 请求之前取消诊断，避免关闭时等待完整采样周期。
+
+报告 `version: 1` 包含 `startedAt`（ISO 时间）、`durationMs`、`reason`、`initial`/`final` 播放快照、`summary` 和 `samples`：
+
+- 播放快照白名单：歌名（最多 120 字符）、缓存/歌词就绪状态、歌词来源和行数、首句时间、有无当前歌词、播放位置、时长、播放状态。没有缓存路径或歌词正文。
+- 样本白名单：相对采样时间、客户端检测、原始进度/时长、加载状态、进度来源（`msaa`/`uia`）、音频活跃状态、峰值、设备/会话计数、是否达到现有有效音量阈值、错误布尔标志和播放快照。没有原始异常文本、控件列表、账号凭据、歌曲日志或录音。
+- `summary` 包含客户端/声音是否被检测到、原始进度/歌词时钟是否净推进至少 1 秒、设备/会话计数及峰值的采样最大值、错误样本数。结果优先级为 `interrupted` → `no-samples` → `monitor-error`（全部样本异常）→ `client-missing` → `track-missing` → `track-changed` → `lyrics-missing` → `playback-stalled` → `intro` → `ready`。`intro` 表示已推进但尚未到首句；`ready` 表示采样期间歌词时钟推进，不代表远端直播画面已验证同步。
+
+前端展示本次歌曲、歌词、进度和音频结果。采样期间禁用重复启动，失败可重试，收起后迟到结果不会自动展开。诊断 owner 在内存中只保留最近一份已结束的报告；点击“导出诊断”才调用管理端 `POST /api/music/wesing/diagnose/export`，以 `startedAt` 严格匹配报告。未完成任何诊断或该报告已被后续诊断替换时返回 400。服务端只写自己的白名单报告，不接收客户端报告正文或文件路径；认证边界与诊断端点相同。
+
+保存位置复用 `resolveDataPaths(dataDir).logDir`，即 LIRA 数据目录同级的 `logs` 文件夹。文件名为 `wesing-playback-diagnostic-YYYY-MM-DD_HH-mm-ss-SSS.json`，采用导出时的本机时间，含毫秒。需要时创建日志目录，以 `wx` 排他创建文件，同名冲突不覆盖；写入失败返回 400，前端保留报告以便重试。成功返回 `{path}` 并在面板显示完整保存路径；保存期间阻止重复点击，旧导出结果不会覆盖新诊断的状态文案。不会自动导出或上传。端点和前端适配器分别见 [api.md](../api.md) 和 [playback.md](../../frontend/playback.md)。
+
+### 11.1 开发诊断工具
 
 [scripts/inspect-wesing-playback.js](../../../../scripts/inspect-wesing-playback.js)(配套 `inspect-wesing-playback.cmd`)输出 `tmp/wesing-playback-diagnostic-<时间戳>.jsonl`:
 

@@ -354,7 +354,8 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.getByRole('button', { name: '收起参数', exact: true }).click();
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   assert.equal(await page.locator('.preview-canvas-sidebar').isVisible(), true);
-  assert.equal(await xInput.evaluate(input => document.activeElement === input), true);
+  assert.equal(await xInput.evaluate(input => document.activeElement === input), true,
+    await page.evaluate(() => document.activeElement.outerHTML));
   assert.equal(fixture.service.list()[0].publishedVersion, 0, 'Invalid hidden fields must prevent publication');
   await xInput.fill('670');
   await page.getByRole('spinbutton', { name: 'Y', exact: true }).click();
@@ -413,7 +414,8 @@ test('empty editor adds independent styles and publishes every layer through one
   fixture.failPublication(true);
   await page.locator('[data-preview-field="clockCustomLabel"]').fill('更新后的时钟');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: '模拟发布失败' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '模拟发布失败' }).waitFor();
+  await page.locator('#toast .toast-error').filter({ hasText: '模拟发布失败' }).waitFor();
   assert.equal(fixture.service.list()[0].publishedVersion, 1);
   await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('更新后的时钟').waitFor();
   fixture.failPublication(false);

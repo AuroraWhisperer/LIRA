@@ -45,9 +45,18 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
     waitForDelivery: (delivery) => deliveryVerifier.waitForDelivery(delivery),
   });
   let shutdownPromise = null;
+  const contextCleanupTimer = setInterval(() => {
+    try {
+      configStore.pruneExpired();
+    } catch {
+      console.warn('[AI] expired conversation cleanup failed');
+    }
+  }, 60000);
+  contextCleanupTimer.unref?.();
 
   function shutdown() {
     if (shutdownPromise) return shutdownPromise;
+    clearInterval(contextCleanupTimer);
     shutdownPromise = (async () => {
       await service.shutdown();
       deliveryVerifier.dispose();

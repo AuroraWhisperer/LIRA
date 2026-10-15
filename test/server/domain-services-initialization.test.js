@@ -335,6 +335,53 @@ test('failed assembly can retry and transfers successful services to normal shut
   }
 });
 
+test('runtime state selection skips unrelated domains and preserves the complete snapshot', async t => {
+  const f = fixture();
+  f.closeDatabases();
+  let getState;
+  const reads = [];
+  const sceneModule = require('../../src/server/scene-runtime');
+  const serverModule = loadModule('src/server.js', {
+    './server/domain-services': { createDomainServices(options) {
+      const services = f.createWith(options);
+      for (const [domain, method] of [['queue', 'getSnapshot'], ['superChats', 'getSnapshot'],
+        ['gifts', 'getSnapshot'], ['gifts', 'getSprintSnapshot'], ['songs', 'getMetadata']]) {
+        const original = services[domain][method];
+        t.mock.method(services[domain], method, (...args) => {
+          reads.push(`${domain}.${method}`);
+          return original(...args);
+        });
+      }
+      return services;
+    } },
+    './server/scene-runtime': { createSceneRuntime(options) {
+      getState = options.getState;
+      return sceneModule.createSceneRuntime(options);
+    } },
+  });
+  const runtime = serverModule.createServerRuntime({ dataDir: f.dataDir, licenseGate: { isAuthorized: () => false } });
+  try {
+    await runtime.start({ startPort: 0, remoteGiftCatalog: f.remoteOptions });
+    reads.length = 0;
+    const lyrics = getState(['lyricState', 'lyricTimeline']);
+    assert.deepEqual(Object.keys(lyrics), ['lyricState', 'lyricTimeline']);
+    assert.deepEqual(reads, []);
+    getState(['queue', 'superChats']);
+    assert.deepEqual(reads, ['queue.getSnapshot', 'superChats.getSnapshot']);
+    reads.length = 0;
+    const state = getState();
+    assert.deepEqual(Object.keys(state), ['queue', 'superChats', 'gifts', 'giftSprint', 'giftDetection',
+      'blindBoxMapping', 'overtime', 'settings', 'categories', 'tags', 'songCount', 'liveStatus', 'roomGuard',
+      'bilibiliDiagnostics', 'lyricState', 'lyricTimeline', 'lyricSource', 'weSing', 'danmakuFeed']);
+    assert.deepEqual(reads, ['queue.getSnapshot', 'superChats.getSnapshot', 'gifts.getSnapshot',
+      'gifts.getSprintSnapshot', 'songs.getMetadata']);
+    assert.deepEqual(state.lyricState, lyrics.lyricState);
+  } finally {
+    await runtime.stop();
+    f.cleanup();
+  }
+});
+
 test('server startup failure disposes the domain before closing its database handles', async () => {
   const f = fixture({ failure: 'gift' });
   f.closeDatabases();

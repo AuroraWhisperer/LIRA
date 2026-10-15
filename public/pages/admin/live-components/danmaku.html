@@ -220,6 +220,25 @@
                 <option value="none">直接切断</option>
               </select>
             </label>
+            <label id="danmakuDecorationShapeField" class="danmaku-parameter-field" for="danmakuDecorationShape" hidden>
+              <span>装饰图案 <lira-help label="装饰图案动画说明">每种图案搭配自己的轻动画，切换图案即可预览。</lira-help></span>
+              <select id="danmakuDecorationShape" aria-label="装饰图案" disabled>
+                <option value="sparkle">四角星</option>
+                <option value="heart">爱心</option>
+                <option value="square">圆角方块</option>
+                <option value="star">五角星</option>
+                <option value="flower">小花</option>
+                <option value="moon">月牙</option>
+                <option value="bow">蝴蝶结</option>
+              </select>
+            </label>
+            <label id="danmakuEntranceAnimationField" class="danmaku-parameter-field" for="danmakuEntranceAnimation" hidden>
+              <span><strong>入场动画</strong></span>
+              <select id="danmakuEntranceAnimation" disabled>
+                <option value="fade">动画 1 · 渐显</option>
+                <option value="rise">动画 2 · 上浮弹入</option>
+              </select>
+            </label>
             <label id="danmakuFullscreenDurationField" class="danmaku-fullscreen-duration danmaku-parameter-field" hidden>
               <span><strong>停留（秒）</strong></span>
               <input

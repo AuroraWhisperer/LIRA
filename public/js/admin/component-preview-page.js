@@ -7,6 +7,7 @@ import { mountComponentPreviewCanvas } from './component-preview-canvas-view.js'
 import { loadThemeConfig } from '../shared/theme.js';
 import { readComponentPreviewLink } from './component-preview-link.js';
 import { enhanceColorControls } from '../shared/color-control.js';
+import { toast } from '../shared/toast.js';
 
 enhanceColorControls();
 
@@ -117,4 +118,5 @@ void start().catch((error) => {
   message.id = 'componentPreviewStatus';
   message.setAttribute('role', 'status');
   host.replaceChildren(message);
+  toast(error.message, { type: 'error' });
 });

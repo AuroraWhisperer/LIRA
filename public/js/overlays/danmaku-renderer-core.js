@@ -116,6 +116,18 @@ export function createDanmakuRenderer({
     if (floatingGift) messageElement.textContent = message;
     else if (item.kind === "gift") appendGiftContent(messageElement, item);
     else appendMessageContent(messageElement, message, item.emotes);
+    if (["whiteframe", "glow", "starveil"].includes(style)) {
+      // Latch the choice per message so settings edits do not replay existing cards.
+      bubble.dataset.entranceAnimation = document.body?.dataset?.entranceAnimation === "rise" ? "rise" : "fade";
+      if (bubble.dataset.entranceAnimation === "rise") {
+        const content = style === "whiteframe" && item.kind === "gift"
+          ? messageElement.querySelector(".draw-danmaku-gift-copy") : messageElement;
+        const inner = document.createElement("span");
+        inner.className = "draw-danmaku-enter-content";
+        inner.append(...content.childNodes);
+        content.append(inner);
+      }
+    }
     body.append(identity, messageElement);
     if (avatar) bubble.append(avatar);
     bubble.append(body);

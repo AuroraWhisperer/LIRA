@@ -55,7 +55,7 @@ const AI_CONFIG_DEFAULTS = Object.freeze({
   requestTimeoutMs: 12000,
   maxToolCalls: 6,
   cacheTtlSeconds: 60,
-  contextTtlSeconds: 1200,
+  contextTtlSeconds: 600,
   systemPrompt: SYSTEM_PROMPT,
 });
 

@@ -66,6 +66,7 @@
 }
 
 .desktop-lyric-workspace .desktop-lyric-preview-timeline {
+  padding-block: clamp(24px, 4vh, 40px);
   padding-right: clamp(18px, 6%, 44px);
   padding-left: clamp(18px, 6%, 44px);
 }

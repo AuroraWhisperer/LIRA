@@ -18,6 +18,9 @@ public sealed class WeSingAudioSessionSnapshot
 {
     public int State { get; set; }
     public float Peak { get; set; }
+    public uint OutputDeviceCount { get; set; }
+    public int SessionCount { get; set; }
+    public int ActiveSessionCount { get; set; }
 }
 
 public sealed class WeSingAccessiblePlaybackSnapshot
@@ -194,23 +197,51 @@ public static class WeSingNativeMonitor
     {
         var result = new WeSingAudioSessionSnapshot { State = -1, Peak = 0f };
         var wanted = new HashSet<int>(processIds ?? new int[0]);
+        if (wanted.Count == 0) return result;
         object deviceEnumeratorObject = null;
-        IMMDevice device = null;
-        object managerObject = null;
-        IAudioSessionEnumerator sessions = null;
+        IMMDeviceCollection devices = null;
         try
         {
             deviceEnumeratorObject = new MMDeviceEnumeratorComObject();
             var deviceEnumerator = (IMMDeviceEnumerator)deviceEnumeratorObject;
-            Marshal.ThrowExceptionForHR(deviceEnumerator.GetDefaultAudioEndpoint(0, 1, out device));
+            // WeSing may route to a sound card while its old default-device session is inactive.
+            Marshal.ThrowExceptionForHR(deviceEnumerator.EnumAudioEndpoints(0, 1, out devices));
+            uint count;
+            Marshal.ThrowExceptionForHR(devices.GetCount(out count));
+            result.OutputDeviceCount = count;
+            for (uint index = 0; index < count; index += 1)
+            {
+                IMMDevice device = null;
+                try
+                {
+                    if (devices.Item(index, out device) < 0 || device == null) continue;
+                    ReadAudioDeviceSessions(device, wanted, result);
+                }
+                catch { continue; }
+                finally { ReleaseComObject(device); }
+            }
+        }
+        catch { return result; }
+        finally
+        {
+            ReleaseComObject(devices);
+            ReleaseComObject(deviceEnumeratorObject);
+        }
+        return result;
+    }
+
+    private static void ReadAudioDeviceSessions(IMMDevice device, HashSet<int> wanted, WeSingAudioSessionSnapshot result)
+    {
+        object managerObject = null;
+        IAudioSessionEnumerator sessions = null;
+        try
+        {
             Guid managerId = typeof(IAudioSessionManager2).GUID;
             Marshal.ThrowExceptionForHR(device.Activate(ref managerId, 23, IntPtr.Zero, out managerObject));
             var manager = (IAudioSessionManager2)managerObject;
             Marshal.ThrowExceptionForHR(manager.GetSessionEnumerator(out sessions));
             int count;
             Marshal.ThrowExceptionForHR(sessions.GetCount(out count));
-            bool found = false;
-            bool active = false;
             for (int index = 0; index < count; index += 1)
             {
                 IAudioSessionControl control = null;
@@ -220,9 +251,14 @@ public static class WeSingNativeMonitor
                     var control2 = (IAudioSessionControl2)control;
                     int processId;
                     if (control2.GetProcessId(out processId) < 0 || !wanted.Contains(processId)) continue;
-                    found = true;
+                    result.SessionCount += 1;
+                    result.State = Math.Max(result.State, 0);
                     AudioSessionState state;
-                    if (control.GetState(out state) >= 0 && state == AudioSessionState.Active) active = true;
+                    if (control.GetState(out state) >= 0 && state == AudioSessionState.Active)
+                    {
+                        result.State = 1;
+                        result.ActiveSessionCount += 1;
+                    }
                     try
                     {
                         var meter = (IAudioMeterInformation)control;
@@ -236,19 +272,11 @@ public static class WeSingNativeMonitor
                     ReleaseComObject(control);
                 }
             }
-            result.State = found ? (active ? 1 : 0) : -1;
-            return result;
-        }
-        catch
-        {
-            return result;
         }
         finally
         {
             ReleaseComObject(sessions);
             ReleaseComObject(managerObject);
-            ReleaseComObject(device);
-            ReleaseComObject(deviceEnumeratorObject);
         }
     }
 
@@ -272,11 +300,18 @@ internal class MMDeviceEnumeratorComObject { }
 [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")]
 internal interface IMMDeviceEnumerator
 {
-    [PreserveSig] int EnumAudioEndpoints(int dataFlow, uint stateMask, out object devices);
+    [PreserveSig] int EnumAudioEndpoints(int dataFlow, uint stateMask, out IMMDeviceCollection devices);
     [PreserveSig] int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice device);
     [PreserveSig] int GetDevice([MarshalAs(UnmanagedType.LPWStr)] string id, out IMMDevice device);
     [PreserveSig] int RegisterEndpointNotificationCallback(IntPtr client);
     [PreserveSig] int UnregisterEndpointNotificationCallback(IntPtr client);
+}
+
+[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E")]
+internal interface IMMDeviceCollection
+{
+    [PreserveSig] int GetCount(out uint count);
+    [PreserveSig] int Item(uint index, out IMMDevice device);
 }
 
 [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("D666063F-1587-4E43-81F1-B948E807363F")]

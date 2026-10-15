@@ -49,6 +49,62 @@ async function presetAction(page, name) {
   await page.getByRole('menuitem', { name, exact: true }).click();
 }
 
+test('canvas invalid parameters show the field and reason in a top-right toast without publishing', { timeout: 30000 }, async t => {
+  const { page, desktop } = await editor(t);
+  let publications = 0;
+  page.on('request', request => {
+    if (request.url().endsWith('/api/component-preview') && request.postDataJSON()?.action === 'publish') publications += 1;
+  });
+  const width = page.getByRole('spinbutton', { name: '宽度', exact: true });
+  const original = await width.inputValue();
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 1);
+  await width.fill('1');
+  await width.press('Tab');
+  await desktop.evaluate(() => {
+    const { document } = window.controllers.canvas.getState().draft;
+    document.items[0].name = '保留无效输入';
+    window.controllers.canvas.edit({ document });
+  });
+  await page.locator('.preview-canvas-layer-select').filter({ hasText: '保留无效输入' }).waitFor();
+  assert.equal(await width.inputValue(), '1', 'Unrelated scene updates preserve the invalid field until it is corrected.');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  const toast = page.locator('#toast .toast-error').filter({ hasText: '宽度' });
+  await toast.waitFor();
+  assert.equal(await toast.locator('.toast-message').textContent(), '宽度不能小于 32');
+  assert.equal(await width.evaluate(input => document.activeElement === input), true);
+  assert.equal(await toast.count(), 1);
+  assert.equal(publications, 0);
+  assert.equal(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items[0].width), Number(original));
+  const position = await toast.evaluate(node => {
+    const rect = node.getBoundingClientRect();
+    return { top: rect.top, right: innerWidth - rect.right, left: rect.left, viewportWidth: innerWidth };
+  });
+  assert.ok(position.top >= 0 && position.top < 120);
+  assert.equal(position.right, 24);
+  assert.ok(position.left > position.viewportWidth / 2);
+
+  await page.setViewportSize({ width: 1000, height: 760 });
+  await page.waitForFunction(() => {
+    const stack = document.getElementById('toast').getBoundingClientRect();
+    const toolbar = document.querySelector('.preview-canvas-toolbar').getBoundingClientRect();
+    return stack.top >= toolbar.bottom + 16;
+  });
+  assert.equal(await toast.evaluate(node => innerWidth - node.getBoundingClientRect().right), 24);
+  await page.setViewportSize({ width: 1440, height: 960 });
+
+  await width.fill(original);
+  await width.press('Tab');
+  await toast.click();
+  await toast.waitFor({ state: 'detached' });
+  const fontSize = page.locator('[data-preview-field="danmakuFontSize"]');
+  await fontSize.fill('999');
+  await fontSize.press('Tab');
+  const fontToast = page.locator('#toast .toast-error').filter({ hasText: '之间的整数' });
+  await fontToast.waitFor();
+  assert.match(await fontToast.locator('.toast-message').textContent(), /^正文字号：请输入 \d+～\d+ 之间的整数$/);
+  assert.notEqual(await fontSize.inputValue(), '999', 'The existing parameter owner still rejects invalid values.');
+});
+
 test('canvas source address dismisses outside, on Escape and on its trigger while remaining selectable', { timeout: 30000 }, async t => {
   const { page } = await editor(t, 'clock');
   await page.evaluate(() => {
@@ -562,7 +618,7 @@ test('scene presets retain drafts and delete through current output to a persist
   assert.equal(await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).inputValue(), '1600');
   fixture.failPublication(true);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.getByText('模拟发布失败', { exact: true }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '模拟发布失败' }).waitFor();
   assert.equal(live().version, 1);
   fixture.failPublication(false);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();

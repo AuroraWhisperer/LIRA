@@ -222,6 +222,15 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
       await desktop.evaluate(() => { window.failSave = true; });
       await page.getByRole('button', { name: '保存并应用', exact: true }).click();
       await page.locator('.preview-canvas-status').filter({ hasText: '模拟保存失败' }).waitFor();
+      const toast = page.locator('#toast .toast-error').filter({ hasText: '模拟保存失败' });
+      await toast.waitFor();
+      await page.waitForFunction(() => !document.querySelector('.preview-canvas-apply-actions .primary').disabled);
+      assert.equal(await toast.count(), 1);
+      await toast.click();
+      await toast.waitFor({ state: 'detached' });
+      await page.getByRole('button', { name: '收起参数', exact: true }).click();
+      await page.waitForResponse(response => response.request().postDataJSON()?.action === 'read');
+      assert.equal(await toast.count(), 0, 'An unchanged failure does not reappear on polling or rendering.');
       assert.equal(await desktop.evaluate(() => window.controller.getState().dirty), true);
       await desktop.evaluate(() => { window.failSave = false; });
     }
@@ -237,6 +246,7 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     }
     await desktop.evaluate(() => window.handle.close());
     await page.locator('.preview-canvas-status').filter({ hasText: '预览连接已结束' }).waitFor();
+    await page.locator('#toast .toast-error').filter({ hasText: '预览连接已结束' }).waitFor();
     await page.waitForFunction(() => document.querySelector('.preview-canvas-status').textContent
       === '预览连接已结束，请从客户端重新打开预览。', null, { timeout: 5000 });
     assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isDisabled(), true);

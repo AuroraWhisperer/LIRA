@@ -42,7 +42,7 @@ export function mountBrowserSourceFields(host, config = BROWSER_SOURCE_DEFAULTS,
         for (const field of fields.values()) field.setCustomValidity('');
         error.hidden = true;
       }
-      catch (failure) { input.setCustomValidity(failure.message); error.textContent = failure.message; error.hidden = false; }
+      catch (failure) { input.setCustomValidity(failure.message); error.textContent = failure.message; error.hidden = false; input.reportValidity(); }
     });
     fields.set(key, input);
     label.append(input);

@@ -90,9 +90,26 @@
       </div>
       <div class="actions">
         <span id="weSingCaptureStatus" class="pill warn">等待检测</span>
+        <button id="weSingDiagnosticBtn" class="secondary" type="button" aria-controls="weSingDiagnosticPanel">播放诊断</button>
         <button id="weSingRefreshBtn" class="secondary" type="button">重新检测</button>
       </div>
     </div>
+    <section id="weSingDiagnosticPanel" class="wesing-diagnostic-panel" aria-labelledby="weSingDiagnosticTitle" hidden>
+      <div class="wesing-diagnostic-heading">
+        <h3 id="weSingDiagnosticTitle" class="ui-card-title">播放诊断</h3>
+        <div class="actions">
+          <button id="weSingDiagnosticExport" class="secondary" type="button" disabled>导出诊断</button>
+          <button id="weSingDiagnosticClose" class="secondary" type="button">收起</button>
+        </div>
+      </div>
+      <p id="weSingDiagnosticMessage" class="hint" role="status" aria-live="polite"></p>
+      <dl id="weSingDiagnosticResults" class="wesing-diagnostic-results" hidden>
+        <div><dt>识别歌曲</dt><dd id="weSingDiagnosticTrack"></dd></div>
+        <div><dt>歌词读取</dt><dd id="weSingDiagnosticLyrics"></dd></div>
+        <div><dt>歌词进度</dt><dd id="weSingDiagnosticProgress"></dd></div>
+        <div><dt>音频采样</dt><dd id="weSingDiagnosticAudio"></dd></div>
+      </dl>
+    </section>
     <div class="panel-body wesing-capture-layout">
       <article class="wesing-live-stage" aria-labelledby="weSingTrackTitle">
         <div class="wesing-stage-topline">

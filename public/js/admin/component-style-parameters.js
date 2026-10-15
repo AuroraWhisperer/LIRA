@@ -64,7 +64,8 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
         for (const control of [slider, input]) {
           control.min = field.min; control.max = field.max; control.step = field.step;
         }
-        slider.addEventListener('input', () => { input.value = slider.value; save(); });
+        slider.addEventListener('input', () => { input.value = slider.value; });
+        slider.addEventListener('change', save);
         row.append(slider);
       }
       function save() {
@@ -72,8 +73,7 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
         const current = styleParametersFor(controller.getState().draft)[name] || styleParameterDefaults(name);
         change(name, { ...current, [key]: input.type === 'color' ? input.value : Number(input.value) });
       }
-      input.addEventListener('input', save);
-      input.addEventListener('change', () => input.reportValidity());
+      input.addEventListener('change', () => { if (input.reportValidity()) save(); });
       row.append(input); label.append(row); fields.append(label);
       controls.set(key, { input, slider });
     }
@@ -124,7 +124,7 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
       const values = parameters[name] || styleParameterDefaults(name);
       for (const [key, { input, slider }] of view.controls) {
         syncComponentFieldValue(input, values[key], force);
-        if (slider) { slider.value = values[key]; refreshParameterRange(slider); }
+        if (slider) { syncComponentFieldValue(slider, values[key], force); refreshParameterRange(slider); }
       }
     }
     if (entry) { entry.checked = parameters.showEntryMessages === true; entry.disabled = !loaded; }

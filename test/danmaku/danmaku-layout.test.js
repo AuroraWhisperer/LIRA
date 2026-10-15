@@ -7,6 +7,9 @@ const layout = require('../../src/shared/danmaku-layout');
 test('fixed defaults are bottom left; random regions fill the canvas', () => {
   const value = layout.createLayout();
   assert.deepEqual(value.canvas, { width: 1920, height: 1080 });
+  assert.deepEqual(value.regions.bubble, { x: 40, y: 480, width: 570, height: 560 });
+  assert.deepEqual(value.regions.minimal, { x: 40, y: 464, width: 588, height: 576 });
+  assert.deepEqual(value.regions.identity, { x: 40, y: 424, width: 640, height: 616 });
   for (const [style, region] of Object.entries(value.regions)) {
     if (layout.REGION_DEFAULTS[style]) {
       assert.equal(region.x, 40);
@@ -52,6 +55,14 @@ test('invalid layout values never become a partial valid configuration', () => {
     { ...value, canvas: { width: 319, height: 1080 } },
     { ...value, regions: { ...value.regions, signal: { x: 1800, y: 0, width: 560, height: 600 } } }])
     assert.throws(() => layout.normalizeLayout(invalid), { code: 'INVALID_OVERLAY_LAYOUT' });
+});
+
+test('new default regions preserve previously saved dimensions', () => {
+  const saved = layout.createLayout();
+  saved.regions.bubble = { x: 120, y: 240, width: 380, height: 560 };
+  saved.regions.minimal = { x: 600, y: 200, width: 504, height: 592 };
+  saved.regions.identity = { x: 40, y: 480, width: 640, height: 560 };
+  assert.deepEqual(layout.normalizeLayout(saved), saved);
 });
 
 // Styles added after the first saved layouts may be absent from older settings.

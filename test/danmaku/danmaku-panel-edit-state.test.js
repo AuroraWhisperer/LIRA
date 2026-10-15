@@ -31,7 +31,7 @@ test('snowfox palette controls update the shared draft and restore identity colo
   assert.equal(await page.locator('#danmakuBubbleColorField').isVisible(), true);
   await page.locator('#danmakuBubbleColor').evaluate(input => {
     input.value = '#ba739c';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
   });
   assert.equal(await page.evaluate(() => window.paletteState.draft.styleOptions.snowfox.bubbleColor), '#ba739c');
   await page.locator('#danmakuBubbleColorMode').selectOption('default');
@@ -40,6 +40,130 @@ test('snowfox palette controls update the shared draft and restore identity colo
   assert.deepEqual(await page.evaluate(() => window.paletteState.draft.styleOptions.snowfox), {});
   assert.deepEqual(await page.evaluate(() => window.messages), []);
   await page.evaluate(() => window.paletteBinding.dispose());
+});
+
+test('starlight decoration selector edits once, restores saved choices and resets only its style', async (t) => {
+  const page = await fixture(t, 'danmaku');
+  await page.evaluate(async (html) => {
+    document.body.innerHTML = html;
+    document.getElementById('liveDanmakuFeature').hidden = false;
+    const { bindDanmakuParameters } = await import('/js/admin/danmaku-parameter-view.js');
+    const listeners = new Set();
+    window.shapeState = { loaded: true, draft: { style: 'starlight', styleOptions: { signal: { fontSize: 32 } }, fullscreenDurationSeconds: 6 } };
+    window.shapeEdits = [];
+    window.refreshShapes = () => listeners.forEach(listener => listener(window.shapeState));
+    const controller = {
+      getState: () => window.shapeState,
+      edit: patch => { window.shapeEdits.push(patch); Object.assign(window.shapeState.draft, patch); window.refreshShapes(); },
+      subscribe: listener => { listeners.add(listener); listener(window.shapeState); return () => listeners.delete(listener); },
+    };
+    window.shapeBinding = bindDanmakuParameters(document.body, controller, message => window.messages.push(message));
+  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  const select = page.locator('#danmakuDecorationShape');
+  assert.equal(await select.inputValue(), 'sparkle');
+  assert.deepEqual(await select.locator('option').allTextContents(), ['四角星', '爱心', '圆角方块', '五角星', '小花', '月牙', '蝴蝶结']);
+  for (const shape of ['heart', 'square', 'star', 'flower', 'moon', 'bow', 'sparkle']) {
+    await page.evaluate(() => { window.shapeEdits = []; });
+    await select.selectOption(shape);
+    assert.equal(await page.evaluate(() => window.shapeState.draft.styleOptions.starlight.decorationShape), shape);
+    assert.equal(await page.evaluate(() => window.shapeEdits.length), 1);
+  }
+  await select.selectOption('heart');
+  await page.evaluate(() => { window.shapeState.draft.style = 'signal'; window.refreshShapes(); });
+  assert.equal(await page.locator('#danmakuDecorationShapeField').isVisible(), false);
+  await page.evaluate(() => { window.shapeState.draft.style = 'starlight'; window.refreshShapes(); });
+  assert.equal(await select.inputValue(), 'heart');
+  await page.locator('#danmakuResetParameters').click();
+  assert.equal(await select.inputValue(), 'sparkle');
+  assert.deepEqual(await page.evaluate(() => window.shapeState.draft.styleOptions), { signal: { fontSize: 32 }, starlight: {} });
+  assert.deepEqual(await page.evaluate(() => window.messages), []);
+  await page.evaluate(() => window.shapeBinding.dispose());
+});
+
+test('danmaku sliders and effect fields commit once after editing and retain pending readouts', async (t) => {
+  const page = await fixture(t, 'danmaku');
+  await page.evaluate(async (html) => {
+    document.body.innerHTML = html;
+    document.getElementById('liveDanmakuFeature').hidden = false;
+    const { bindDanmakuParameters } = await import('/js/admin/danmaku-parameter-view.js');
+    const listeners = new Set();
+    window.parameterState = { loaded: true, draft: { style: 'starveil', styleOptions: {}, fullscreenDurationSeconds: 6 } };
+    window.parameterEdits = [];
+    window.refreshParameters = () => listeners.forEach(listener => listener(window.parameterState));
+    const controller = {
+      getState: () => window.parameterState,
+      edit: patch => { window.parameterEdits.push(patch); Object.assign(window.parameterState.draft, patch); window.refreshParameters(); },
+      subscribe: listener => { listeners.add(listener); listener(window.parameterState); return () => listeners.delete(listener); },
+    };
+    window.parameterBinding = bindDanmakuParameters(document.body, controller, message => window.messages.push(message));
+  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  const entrance = page.locator('#danmakuEntranceAnimation');
+  assert.deepEqual(await entrance.locator('option').allTextContents(), ['动画 1 · 渐显', '动画 2 · 上浮弹入']);
+  for (const style of ['whiteframe', 'glow', 'starveil']) {
+    await page.evaluate(style => { window.parameterState.draft.style = style; window.refreshParameters(); window.parameterEdits = []; }, style);
+    assert.equal(await page.locator('#danmakuEntranceAnimationField').isVisible(), true);
+    assert.equal(await entrance.inputValue(), 'fade');
+    await entrance.evaluate(input => { input.value = 'rise'; input.dispatchEvent(new Event('input', { bubbles: true })); });
+    assert.equal(await page.evaluate(() => window.parameterEdits.length), 0);
+    await entrance.dispatchEvent('change');
+    assert.equal(await page.evaluate(() => window.parameterEdits.length), 1);
+    assert.equal(await page.evaluate(style => window.parameterState.draft.styleOptions[style].entranceAnimation, style), 'rise');
+  }
+  await page.locator('#danmakuResetParameters').click();
+  assert.equal(await entrance.inputValue(), 'fade');
+  assert.deepEqual(await page.evaluate(() => window.parameterState.draft.styleOptions), {
+    whiteframe: { entranceAnimation: 'rise' }, glow: { entranceAnimation: 'rise' }, starveil: {},
+  });
+  await page.locator('.danmaku-advanced > summary').click();
+  for (const [style, id, key, value, saved] of [
+    ['starveil', 'BackgroundOpacity', 'backgroundOpacity', 55, 55],
+    ['starveil', 'CenterBias', 'centerBias', 30, 30],
+    ['starveil', 'Dispersion', 'dispersion', 25, 25],
+    ['floating', 'FloatingSpeed', 'speedPixelsPerSecond', 100, 360],
+    ['floating', 'FloatingDispersion', 'floatingDispersion', 80, 80],
+  ]) {
+    await page.evaluate(style => { window.parameterState.draft.style = style; window.refreshParameters(); window.parameterEdits = []; }, style);
+    const input = page.locator(`#danmaku${id}`);
+    await input.focus();
+    await input.evaluate((input, value) => {
+      for (const current of [value - 2, value - 1, value]) {
+        input.value = String(current);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      window.refreshParameters();
+    }, value);
+    assert.equal(await page.evaluate(() => window.parameterEdits.length), 0, `${id} must not submit during dragging`);
+    assert.equal(await input.inputValue(), String(value));
+    assert.ok((await page.locator(`#danmaku${id}Value`).textContent()).startsWith(String(value)));
+    await input.dispatchEvent('change');
+    assert.equal(await page.evaluate(() => window.parameterEdits.length), 1);
+    assert.equal(await page.evaluate(({ style, key }) => window.parameterState.draft.styleOptions[style][key], { style, key }), saved);
+  }
+  const color = page.locator('#danmakuTextColor');
+  await color.evaluate(input => { input.value = '#abcdef'; input.dispatchEvent(new Event('input', { bubbles: true })); });
+  assert.equal(await page.evaluate(() => window.parameterEdits.length), 1);
+  await color.dispatchEvent('change');
+  assert.equal(await page.evaluate(() => window.parameterState.draft.styleOptions.floating.textColor), '#abcdef');
+
+  await page.locator('[data-effect-group="shadow"] > summary').click();
+  await page.locator('[data-effect-enabled="shadow"]').check();
+  await page.evaluate(() => { window.parameterEdits = []; });
+  const slider = page.getByRole('slider', { name: '外投影 · 模糊滑块', exact: true });
+  const number = page.locator('[data-effect-field="shadow.blur"]');
+  await slider.focus();
+  await slider.evaluate(input => { input.value = '24'; input.dispatchEvent(new Event('input', { bubbles: true })); window.refreshParameters(); });
+  assert.equal(await number.inputValue(), '24', 'paired number retains the pending slider value');
+  assert.equal(await slider.inputValue(), '24');
+  assert.equal(await page.evaluate(() => window.parameterEdits.length), 0);
+  await slider.dispatchEvent('change');
+  assert.equal(await page.evaluate(() => window.parameterEdits.length), 1);
+  await number.fill('19');
+  assert.equal(await page.evaluate(() => window.parameterEdits.length), 1, 'typing waits for completion');
+  await number.press('Tab');
+  assert.equal(await page.evaluate(() => window.parameterEdits.length), 2);
+  assert.equal(await page.evaluate(() => window.parameterState.draft.styleParameters.floating.shadow.blur), 19);
+  assert.deepEqual(await page.evaluate(() => window.messages), []);
+  await page.evaluate(() => window.parameterBinding.dispose());
 });
 
 test('danmaku panel initializes every shipped style and keeps existing controls working', async (t) => {
@@ -170,6 +294,7 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
     await button.click();
     assert.equal(await button.getAttribute('aria-pressed'), 'true');
     const style = await button.getAttribute('data-danmaku-style');
+    assert.equal(await page.locator('#danmakuEntranceAnimationField').isVisible(), ['whiteframe', 'glow', 'starveil'].includes(style));
     await page.locator('#danmakuPreviewOverlayBtn').click();
     await page.waitForFunction((style) => window.pendingSaves.some((request) =>
       request.url === '/api/component-preview' && request.body.action === 'open'

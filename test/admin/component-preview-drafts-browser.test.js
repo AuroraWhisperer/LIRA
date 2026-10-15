@@ -31,7 +31,7 @@ test('expired mixed recovery renders every component with no live provider or co
     .find(({ component }) => component === 'canvas').draftKey;
   await page.waitForFunction(key => JSON.parse(localStorage.getItem(`lira.preview-draft.v1.${key}`))?.components.canvas, key);
   await desktop.evaluate(() => window.previewHandle.close());
-  await page.getByRole('status').filter({ hasText: '预览连接已结束' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '预览连接已结束' }).waitFor();
   await page.evaluate(key => {
     const name = `lira.preview-draft.v1.${key}`;
     const snapshot = JSON.parse(localStorage.getItem(name));
@@ -43,7 +43,7 @@ test('expired mixed recovery renders every component with no live provider or co
     if (request.url().endsWith('/api/component-preview') && ['edit', 'save', 'publish'].includes(request.postDataJSON()?.action)) writes++;
   });
   await page.reload();
-  await page.getByRole('status').filter({ hasText: '实际数据不可用' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '实际数据不可用' }).waitFor();
   await page.waitForFunction(() => [...document.querySelectorAll('.scene-editor-item .component-preview-load-state')]
     .length === 4 && [...document.querySelectorAll('.scene-editor-item .component-preview-load-state')].every(node => node.hidden));
   assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isDisabled(), true);
@@ -104,7 +104,7 @@ test('refresh keeps desktop-owned drafts editable and saves later changes once',
       && window.controllers.clock.getState().draft.label === '刷新后继续编辑';
   }, appliedSize);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor().catch(async error => {
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor().catch(async error => {
     throw new Error(`Publication status: ${await page.locator('.preview-canvas-status').textContent()}; version: ${fixture.service.list()[0].publishedVersion}`, { cause: error });
   });
   assert.equal(fixture.service.list()[0].publishedVersion, 1);
@@ -199,7 +199,7 @@ test('refresh recovers unsent edits and does not repeat a publication whose resp
   await page.locator('[data-category="clock"]').click();
   await page.locator('.preview-picker-style').first().click();
   const save = page.getByRole('button', { name: '保存并应用', exact: true });
-  const status = page.getByRole('status');
+  const status = page.locator('.preview-canvas-status');
   await page.waitForFunction(() => window.previewSize);
   const initialSize = await page.evaluate(() => window.previewSize);
   await desktop.waitForFunction(size => {
@@ -276,7 +276,7 @@ test('revoked refresh retains unsaved layout and parameters, and reopening resto
   await page.locator('.preview-canvas-status').filter({ hasText: '预览连接已结束' }).waitFor();
   blockEdits = false;
   await page.reload();
-  await page.getByRole('status').filter({ hasText: '已找回上次编辑进度' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已找回上次编辑进度' }).waitFor();
   assert.match(await page.locator('.scene-editor-item-label').textContent(), /777 ×/);
   assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isDisabled(), true);
   const cached = await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('lira.preview-draft.v1.'))
@@ -316,7 +316,7 @@ test('revoked refresh retains unsaved layout and parameters, and reopening resto
   await page.locator('.preview-canvas-layer-select').click();
   assert.equal(await width.inputValue(), '777');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
   assert.equal(fixture.service.list()[0].publishedVersion, 1);
   assert.equal(fixture.runtime.settings.clockLabel, '尚未完成的配置');
   await width.fill('888');

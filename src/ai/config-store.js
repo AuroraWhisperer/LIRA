@@ -239,6 +239,11 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     pruneExpiredIfDue();
   }
 
+  function clearContext(uid, personaScope = '') {
+    if (personaScope) uid = `persona:${hashCacheKey(JSON.stringify([String(uid), personaScope]))}`;
+    db.prepare('DELETE FROM ai_viewer_context WHERE uid = ?').run(String(uid || ''));
+  }
+
   function getCache(key) {
     const cacheKey = hashCacheKey(key);
     const row = db.prepare('SELECT payload, expires_at FROM ai_query_cache WHERE cache_key = ?').get(cacheKey);
@@ -291,6 +296,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     setBlacklist,
     getContext,
     setContext,
+    clearContext,
     getCache,
     setCache,
     pruneExpired,

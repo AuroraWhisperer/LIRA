@@ -108,9 +108,9 @@ body[data-style='outline'] .draw-danmaku-item[data-identity='governor'] {
   --outline-dot: #f0445a;
 }
 
-/* 礼物小票：玫瑰色票面、彩色礼盒，昵称与礼物之间一条虚线撕口，独立于白色聊天卡。 */
+/* 礼物小票：玫瑰色票面、真实礼物图，昵称与礼物之间一条虚线撕口，独立于白色聊天卡。 */
 body[data-style='outline'] .draw-danmaku-item.is-gift {
-  --danmaku-gift-art: url('/img/overlays/danmaku-gifts/outline.svg');
+  --danmaku-gift-art: none;
   --gift-ink: #5c2f43;
   --gift-name: #8a5a6e;
   --gift-action: #a1325e;
@@ -140,7 +140,7 @@ body[data-style='outline'] .is-gift .draw-danmaku-gift-art {
   right: auto;
   width: 50px;
   height: 58px;
-  transform: translateY(-50%) rotate(-8deg);
+  transform: translateY(-50%);
 }
 
 /* Custom background strength leaves text and images opaque. */

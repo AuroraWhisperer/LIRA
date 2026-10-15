@@ -420,6 +420,8 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 | `POST /api/music/wesing/offset`    | `{offsetMs}`                    | 设置歌词偏移(写回设置 `weSingLyricOffsetMs`) | 400                                   |
 | `POST /api/music/wesing/active`    | `{active: boolean}`(必须为布尔) | true 确保采集已启用并设置 wesing 跟随偏好；false 仅在偏好为 wesing 时恢复 auto，保持后台采集；返回 WeSing 状态 | 400(非布尔时 `active 必须是布尔值。`) |
 | `POST /api/music/wesing/refresh`   | 无                              | 立即刷新当前歌词                             | 400                                   |
+| `POST /api/music/wesing/diagnose` | 无 | 固定 20 秒的按需播放诊断报告；并发请求共用一次采样，报告结构见 [播放诊断](music/wesing.md#11-按需播放诊断) | 400（未启用采集或非 Windows）；认证失败 401，overlay 凭据 403 |
+| `POST /api/music/wesing/diagnose/export` | `{startedAt}`（诊断报告的开始时间） | 将服务器保留的最近一份匹配报告写入 LIRA 日志目录；返回 `{path}`，不接受客户端报告正文或保存路径 | 400（记录过期、日志目录未就绪、文件写入失败或同名冲突）；认证失败 401，overlay 凭据 403 |
 
 行为文档:[music/wesing.md](music/wesing.md)。
 

@@ -98,6 +98,9 @@ body[data-custom-font='true'] .is-superchat .sc-name {
 }
 
 /* Classic: compact colored header above the complete message. */
+body[data-style='ranked'] .draw-danmaku-item.is-superchat {
+  padding: 0;
+}
 .is-superchat .sc-ranked {
   border-radius: 10px;
   overflow: hidden;
@@ -155,12 +158,12 @@ body[data-custom-font='true'] .is-superchat .sc-name {
   border-top: 1px solid rgb(127 127 127 / 28%);
 }
 .is-superchat .sc-bubble .sc-avatar {
-  width: 28px;
-  height: 28px;
+  width: 56px;
+  height: 56px;
   box-shadow: 0 0 0 2px var(--sc-accent);
-  font-size: 15px;
+  font-size: 30px;
 }
-.is-superchat .sc-bubble .sc-name { font-size: 15px; opacity: 0.85; }
+.is-superchat .sc-bubble .sc-name { font-size: 30px; opacity: 0.85; }
 
 /* Signal: a cut-corner ink panel, a distinct amount column and the sender above the text. */
 .is-superchat .sc-signal {
@@ -195,18 +198,20 @@ body[data-custom-font='true'] .is-superchat .sc-name {
   opacity: .28;
 }
 .is-superchat .sc-signal .sc-main { padding: 17px 22px 20px; }
-.is-superchat .sc-signal .sc-name { color: rgb(255 255 255 / 66%); font-size: 15px; }
+.is-superchat .sc-signal .sc-name { color: rgb(255 255 255 / 66%); font-size: 30px; }
 .is-superchat .sc-signal .sc-copy { line-height: 1.55; }
 
-/* Minimal: symmetric fine ornaments around a centered message. */
+/* Minimal: a lilac frame and bow around a centered message. */
 body[data-style='minimal'] .draw-danmaku-item.is-superchat {
-  width: min(270px, 100%);
-  max-width: 270px;
-  padding: 0;
+  width: min(564px, 100%);
+  max-width: 564px;
+  padding: 14px 0 0;
   zoom: 1;
 }
 .is-superchat .sc-minimal {
-  padding: 16px 5% 14px;
+  padding: 28px 6% 22px;
+  border: 1px solid rgb(213 198 255 / 78%);
+  border-radius: 20px;
   text-align: center;
   color: #f7f9ff;
   text-shadow:
@@ -214,12 +219,23 @@ body[data-style='minimal'] .draw-danmaku-item.is-superchat {
     0 0 2px rgba(16, 28, 42, 0.9),
     0 0 12px rgb(150 124 226 / 40%);
 }
+.is-superchat .sc-minimal::before {
+  content: '';
+  position: absolute;
+  top: -27px;
+  left: 50%;
+  width: min(180px, 70%);
+  height: 60px;
+  transform: translateX(-50%);
+  background: url('/img/overlays/danmaku-guard/bow-divider.webp') center / contain no-repeat;
+  pointer-events: none;
+}
 .is-superchat .sc-minimal .sc-name {
   display: block;
-  width: 70%;
-  margin: 0 auto 8px;
+  width: 86%;
+  margin: 0 auto 12px;
   color: #ece6ff;
-  font: 700 16px/1.4 var(--danmaku-ui-font);
+  font: 700 18px/1.4 var(--danmaku-ui-font);
   letter-spacing: 0;
 }
 .is-superchat .sc-minimal .sc-copy {
@@ -231,43 +247,50 @@ body[data-style='minimal'] .draw-danmaku-item.is-superchat {
 }
 .is-superchat .sc-bow-edge {
   position: absolute;
-  width: 31px;
-  top: 9px;
+  width: 34px;
+  top: 8px;
   bottom: 8px;
   color: var(--sc-price);
+  pointer-events: none;
 }
 .is-superchat .sc-bow-edge::before,
 .is-superchat .sc-bow-edge::after {
   content: '';
   position: absolute;
-  width: 31px;
-  height: 29px;
+  width: 34px;
+  height: 24px;
   border: 1px solid currentColor;
 }
-.is-superchat .sc-bow-edge-left { left: 0; }
-.is-superchat .sc-bow-edge-right { right: 0; transform: scaleX(-1); }
+.is-superchat .sc-bow-edge-left { left: 7px; }
+.is-superchat .sc-bow-edge-right { right: 7px; transform: scaleX(-1); }
 .is-superchat .sc-bow-edge::before {
-  top: 0; border-right: 0; border-bottom: 0; border-radius: 20px 0 0 0;
+  top: 0; border-right: 0; border-bottom: 0; border-radius: 13px 0 0 0;
 }
 .is-superchat .sc-bow-edge::after {
-  bottom: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 20px;
+  bottom: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 13px;
 }
 .is-superchat .sc-bow-price {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 15px;
-  margin-top: 20px;
+  gap: 7px;
+  margin-top: 18px;
   color: var(--sc-price);
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 24px;
+  font-size: 28px;
   font-variant-numeric: oldstyle-nums;
   text-shadow: 0 2px 4px #0008;
 }
 .is-superchat .sc-bow-price::before,
-.is-superchat .sc-bow-price::after { content: ''; width: 28px; height: 1px; background: currentColor; }
+.is-superchat .sc-bow-price::after {
+  content: '';
+  width: 38px;
+  height: 1px;
+  margin: 0 8px;
+  background: currentColor;
+}
 
-/* Transparent: marginal numerals with open brackets that follow the text height. */
+/* Transparent: marginal numerals inside a fine frame that follows the text height. */
 .is-superchat .sc-transparent {
   --sc-outline:
     1px 0 0 rgb(8 10 16 / 88%), -1px 0 0 rgb(8 10 16 / 88%), 0 1px 0 rgb(8 10 16 / 88%),
@@ -275,21 +298,22 @@ body[data-style='minimal'] .draw-danmaku-item.is-superchat {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: start;
-  column-gap: 25px;
+  column-gap: 18px;
   background: transparent;
 }
-.is-superchat .sc-transparent::before,
-.is-superchat .sc-transparent::after {
+.is-superchat .sc-transparent::before {
   content: '';
   position: absolute;
-  top: -19px;
-  bottom: -19px;
-  width: 46px;
+  inset: -19px;
   border: 1px solid var(--sc-price);
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 24%);
   pointer-events: none;
 }
-.is-superchat .sc-transparent::before { left: -19px; border-right: 0; border-radius: 12px 0 0 12px; }
-.is-superchat .sc-transparent::after { right: -19px; border-left: 0; border-radius: 0 12px 12px 0; }
+.is-superchat .sc-transparent .sc-main {
+  padding-left: 18px;
+  border-left: 1px solid color-mix(in srgb, var(--sc-price) 55%, transparent);
+}
 .is-superchat .sc-transparent .sc-name {
   padding-top: 4px;
   font-size: 17px;
@@ -332,9 +356,10 @@ body[data-style='minimal'] .draw-danmaku-item.is-superchat {
   position: absolute;
   z-index: -1;
   inset: 0 0 0 34px;
+  border: 1px solid var(--sc-price);
   border-radius: 18px;
   background: linear-gradient(160deg, #262a35, #1c1f28);
-  box-shadow: inset 0 3px 0 var(--sc-accent), 0 10px 24px rgb(6 8 14 / 26%);
+  box-shadow: inset 0 0 0 3px rgb(255 255 255 / 6%), 0 10px 24px rgb(6 8 14 / 26%);
 }
 .is-superchat .sc-identity-profile { position: absolute; left: 0; top: 24px; width: 82px; }
 .is-superchat .sc-identity .sc-avatar {
@@ -356,4 +381,11 @@ body[data-style='minimal'] .draw-danmaku-item.is-superchat {
   box-shadow: 0 3px 8px rgb(0 0 0 / 30%);
   font-size: 18px;
 }
-.is-superchat .sc-identity .sc-name { display: block; margin-bottom: 8px; font-size: 15px; color: rgb(255 255 255 / 74%); }
+.is-superchat .sc-identity .sc-name {
+  display: block;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--sc-price) 45%, transparent);
+  font-size: 15px;
+  color: rgb(255 255 255 / 74%);
+}

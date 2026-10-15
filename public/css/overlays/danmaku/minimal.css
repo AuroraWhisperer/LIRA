@@ -37,7 +37,7 @@ body[data-style='minimal'] .draw-danmaku-body {
   grid-template-columns: minmax(0, 1fr);
   justify-self: start;
   gap: 0;
-  width: min(270px, 100%);
+  width: min(564px, 100%);
   min-width: 0;
   text-align: center;
   /* A tight dark edge for legibility plus a faint lilac halo that echoes the bow. */
@@ -64,7 +64,7 @@ body[data-style='minimal'] .draw-danmaku-identity strong {
   white-space: normal;
 }
 body[data-style='minimal'] .draw-danmaku-identity::after {
-  width: 100%;
+  width: min(270px, 100%);
   /* 利用原图透明留白，让上下文字靠近图案。 */
   margin: -20px 0 -19px;
   aspect-ratio: 3 / 1;

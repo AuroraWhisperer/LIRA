@@ -160,9 +160,9 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   byId('regionFill').addEventListener('click', () => regionChange({ x: 0, y: 0, ...draft.layout.canvas }));
   byId('regionReset').addEventListener('click', () => {
     regionChange(defaultRegion(draft.style, draft.layout.canvas, draft.layout.contentScale));
-    renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft);
+    renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft, true);
   });
-  byId('previewRefresh').addEventListener('click', () => renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft));
+  byId('previewRefresh').addEventListener('click', () => renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft, true));
   byId('previewClose').addEventListener('click', () => send('danmaku-editor:close'));
   apply.addEventListener('click', () => { if (canApply && !saving) send('danmaku-editor:apply', { draft }); });
   initRegionEditor(byId('danmakuSelection'), { getLayout: () => draft.layout, getStyle: () => draft.style,

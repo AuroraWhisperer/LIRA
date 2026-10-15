@@ -92,6 +92,9 @@ while ($true) {
     $processIds = [int[]]@($processes | ForEach-Object { [int]$_.Id })
     if ($diagnosticsEnabled) { $sample.processIds = @($processIds) }
     $audioSnapshot = [WeSingNativeMonitor]::GetAudioSessionSnapshot($processIds)
+    $sample.outputDeviceCount = $audioSnapshot.OutputDeviceCount
+    $sample.audioSessionCount = $audioSnapshot.SessionCount
+    $sample.activeAudioSessionCount = $audioSnapshot.ActiveSessionCount
     if ($audioSnapshot.State -ge 0) {
       $sample.audioActive = $audioSnapshot.State -eq 1
       $sample.audioPeak = [Math]::Round([double]$audioSnapshot.Peak, 6)

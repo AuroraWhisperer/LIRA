@@ -8,8 +8,11 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-15-ai-conversation-continuity](2026-10-15-ai-conversation-continuity.md) | Awaiting Verification | 多轮历史、同观众串行、空闲清理和设置已完成；294 项相关测试、隔离 Electron、子代理验收及 DeepSeek 10 回合真实互动通过。豆包官网可聊天，但 adapter 经实际 207 秒间隔仍被验证拒绝；真实多轮待网页接入恢复后补验，安装版未更新。 |
+| [2026-10-15-random-danmaku-entrance](2026-10-15-random-danmaku-entrance.md) | Awaiting Verification | 尺寸、两种入场动画及客户端/画布 UI 已完成，214 项相关测试与隔离 Electron/浏览器验收通过；Server 并行修改使验证记录失效，文档门禁被盲盒 ADR-0102 冲突及豆包计划状态不同步阻断，待外部修改收束后复验。未打包或部署。 |
+| [2026-10-15-wesing-audio-diagnostics](2026-10-15-wesing-audio-diagnostics.md) | Awaiting Verification | 已修复非默认输出设备识别，加入播放诊断；报告按英文用途和本机时间命名，导出到日志文件夹。157 项相关回归、隔离 Electron、本机 COM、文档/架构/固定版本契约通过。待主播更新后实播验收，安装包未构建或发布。 |
 | [2026-10-14-netease-independent-clock](2026-10-14-netease-independent-clock.md) | Awaiting Verification | 实机外置采集、会员完整播放已验收。所有播放器共享的换句首字延迟已修复，91 项相关回归、架构/指南/文档及 Electron 延迟状态对照通过。安装包未更新，更新后的持续实播与特定模式验收仍待完成。 |
-| [2026-10-13-doubao-conversation-isolation](2026-10-13-doubao-conversation-isolation.md) | Awaiting Verification | 豆包已改为单次生成与本地检查、单会话复用并记录首字耗时；AI 238 项、隔离 Electron 10 项及指南 16 项通过；真实账号上下文隔离及约 1 秒首字仍待更新后验收。 |
+| [2026-10-13-doubao-conversation-isolation](2026-10-13-doubao-conversation-isolation.md) | Awaiting Verification | 观众会话隔离与过期新建已完成本地验证；新增全部预设共享的身份/指令边界、JSON 风格资料及本地拦截，保留正常问题和豆包单次生成。AI/指南 277 项、架构 27 项及语法检查通过；真实私人对话隔离、模型防护效果及约 1 秒首字仍待更新后验收，未构建安装包。 |
 | [2026-10-12-fan-song-retention](2026-10-12-fan-song-retention.md) | Awaiting Verification | 汇总、30 天统计、队列回收及两份恢复点已实现，相关 299 项与指南 16 项通过；隔离桌面工具超时，临时实例清理被策略拦截，桌面验收尚未完成。 |
 | [2026-10-12-gift-retention](2026-10-12-gift-retention.md) | Awaiting Verification | 存储实现及两端聚焦回归已完成，B 站读取保持原样；待发布阶段固定提交契约锁与验收，删除默认关闭，未上线。 |
 | [2026-10-12-guard-expiry-sync](2026-10-12-guard-expiry-sync.md) | Awaiting Verification | 客户端与服务器实现及合成验证完成；真实主播账号上游验收尚未执行。 |

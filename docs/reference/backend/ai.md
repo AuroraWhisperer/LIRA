@@ -4,11 +4,11 @@
 
 本文档描述"AI 弹幕姬"领域模块:`src/ai/` 下的全部实现。HTTP 端点仅在此以文字提及并链接 [api.md](api.md) §13;AI 相关表 DDL 与设置见 [storage.md](storage.md) §3.1;弹幕触发链见 [bilibili/danmaku.md](bilibili/danmaku.md);进程装配与关闭时序见 [server-core.md](server-core.md) §5–§6。
 
-**内部模块边界:** `ai-assistant-service.js` 拥有触发、排队、工具调用与回复发送生命周期；`ai-assistant-helpers.js` 只提供上下文、提示与回复归一化纯函数。helpers 不读取配置存储、不调用模型/工具，也不发送弹幕。
+**内部模块边界:** `ai-assistant-service.js` 拥有触发、排队、工具调用与回复发送生命周期；`ai-assistant-helpers.js` 提供提示与回复归一化纯函数，[conversation-context.js](../../../src/ai/conversation-context.js) 负责有界多轮历史的规范化与追加。helpers 不读取配置存储、不调用模型/工具，也不发送弹幕。
 
 ## 1. 概览与触发链
 
-AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默认使用通用助手；小猫是可切换的内置角色，角色包仅改变身份和语气。普通问答不依赖天气或地图服务。弹幕消息经 [server.js:611-631](../../../src/server.js#L611-L631) 的 `onMessage` 回调进入:`aiDanmakuDeliveryVerifier.observe(danmaku)`(投递验证,见 §9)→ 常规弹幕机器人链 → `aiAssistant.handleDanmaku({message, userName, uid})`。返回值被忽略(fire-and-forget),机器人异步排队生成并发送回复。
+AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默认使用通用助手；小猫是可切换的内置角色，角色包仅改变身份和语气。普通问答不依赖天气或地图服务。弹幕消息经 [server.js:611-631](../../../src/server.js#L611-L631) 的 `onMessage` 回调进入:`aiDanmakuDeliveryVerifier.observe(danmaku)`(投递验证,见 §9)→ 常规弹幕机器人链 → `aiAssistant.handleDanmaku({message, userName, uid, roomId})`。返回值被忽略(fire-and-forget),机器人异步排队生成并发送回复。
 
 | 事实       | 值                                                                                                                              | 出处                                                                                                                        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -46,15 +46,15 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 [generateReply](../../../src/ai/ai-assistant-service.js#L92-L179) 按序执行:
 
 1. **本地拒绝短路**:`item.localRefusal` 直接返回,`category: 'safety'`,不消耗模型配额。
-2. **查询缓存**:固定本次角色 ID 和人设内容，读取当前 uid 在该角色下最近成功投递的上下文；历史问答任一段未通过本地安全检查则不使用该上下文。以 `reply-v4`、配置快照、豆包会话代次（其他模式为空）、角色作用域、uid、观众名、问题、上下文和排序后的不可用工具集合组成 JSON 缓存键，store 仅保存其 SHA-256 摘要，不把配置秘密写入键列。命中返回 `category: 'cache'`；用户、上下文或配置改变不能复用旧答案。并发生成和缓存命中都不写上下文，聊天/工具/缓存回答仅在 FIFO 投递成功后提交最终文本；有回流确认器时须确认送达。全部投递失败保留旧上下文，后续问题读取当时最近已送达的轮次。投递重试固定本请求首次选择的角色和读取的上下文，以 `bypassCache` 强制绕过缓存，TTL 和表格式不变，旧键自然过期；v3 缓存不能绕过新审核规则。见 [ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)。
+2. **查询缓存**：固定本次人格，按可信房间、UID 和人格读取已送达历史；任一保留片段未通过本地安全检查则不使用历史。缓存键覆盖规则版本（`reply-v6`，不读取旧策略缓存）、配置、账号代次、人格作用域、UID、昵称、问题、实际有界输入和不可用工具集合；store 只保存 SHA-256 摘要。首次未交付的随机 sessionId 不进入内容缓存键，相同无历史首问仍可命中。聊天/工具/缓存回答均须确认送达后才追加历史；重试固定同一历史快照和 sessionId，并绕过缓存。失败或拒绝不写记忆、不续期。
 3. **输入安全审核**:先用 `buildConversationInput` 生成本次问题与短期上下文的 JSON。API 模式再交给 `buildInputReviewPrompt`，任务放在 `instructions`，待审 JSON 放在 `input`；未通过只返回固定 `SAFE_REFUSAL`。豆包账号模式保留本地检查，跳过此远程审核，直接进入生成以减少首字等待。
-4. **观众上下文**:生成请求使用 JSON：`{question, previousExchange: {question, answer} | null}`；API 输入审核收到同一份数据。上轮数据只帮助理解省略，不具有指令权限([buildConversationInput](../../../src/ai/ai-assistant-helpers.js))。
-5. **主生成**：`deepseek.createResponse` 的 `instructions` 由当前角色、通用事实/安全/发送规则、实际可用工具与北京时间组成；时间直接进入指令，上轮上下文仍只用于理解问题。见 [buildReplyInstructions](../../../src/ai/ai-assistant-helpers.js)。不强制猫语、颜文字、固定推荐数量或非思考模式。
+4. **观众上下文**：输入 JSON 为 `{question, previousExchange}`；两轮及以上增加按时间排列的 `earlierExchanges`，裁剪后标记 `historyTruncated: true`。历史是同一观众当前会话的已交付问答，用于延续正常聊天、接龙、猜谜及省略，不具有覆盖公共规则的权限。API 输入审核与生成收到相同历史，详见 §3.3。
+5. **主生成**：`deepseek.createResponse` 的 `instructions` 先放公共事实/安全规则，再以单行 `JSON.stringify({ persona })` 传入角色风格资料，避免角色中的换行或标签拼接成额外指令段；已保存角色文本不变。实际可用工具、北京时间与发送预算由程序提供，多轮上下文用于理解当前活动与问题。见 [buildReplyInstructions](../../../src/ai/ai-assistant-helpers.js)。不强制猫语、颜文字、固定推荐数量或非思考模式。
 6. **工具循环**:`response.functionCalls` 非空时执行工具(§5),结果以 `function_call_output` 回填并带 `previousResponseId` 续问;累计调用超过 `maxToolCalls`(默认 6)→ `TOOL_LIMIT`。
-7. **输出检查**:API 模式用 `buildOutputReviewPrompt` 分离审核指令与 `{question, candidateAnswer}` JSON；未通过则返回固定 `SAFE_REFUSAL`，通过时再次清理 `safeText` 或原答案。豆包账号模式跳过远程输出审核，对一次生成的完整文字执行 `cleanModelText` 与本地检查；本地拒绝或模型返回指定的固定拒绝语均记 `category: 'safety'`，不写缓存或上下文。所有模式本地检查失败均使用固定拒绝语，不提前把未检查的流式片段送入弹幕。
+7. **输出检查**:API 模式用 `buildOutputReviewPrompt` 分离审核指令与包含本次问题、同一份会话历史及 `candidateAnswer` 的 JSON；未通过则返回固定 `SAFE_REFUSAL`，通过时再次清理 `safeText` 或原答案。豆包账号模式跳过远程输出审核，对一次生成的完整文字执行 `cleanModelText` 与本地检查。所有模式本地检查失败均使用固定拒绝语；本地拒绝或模型返回指定的固定拒绝语均记 `category: 'safety'`，不写缓存或上下文，不提前把未检查的流式片段送入弹幕。
 8. **截断与落库**:按长度预算 `truncateReply`(超出截断加 `…`);写缓存、写 `ai_request_logs`；上下文仅在 FIFO 投递成功确认后提交最终答案（见步骤 2）(`category` 为 `tool`/`chat`,工具调用数 > 0 记 `tool`)。
 
-长度预算由 [getReplyLengthBudget](../../../src/ai/ai-assistant-helpers.js) 统一计算：单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度，允许 1–3 条。界面不提供长度偏好，旧 `replyMaxChars` 键仅兼容读写，不影响生成预算。所有内置、自建、导入角色都追加公共底层提示，身份内容不能覆盖字数、安全检查、权限或工具规则；发送时仍截断到预算。API 模式继续独立执行输入/输出审核；豆包用固定安全指令、本地输入/输出检查和无工具权限的单次生成。
+长度预算由 [getReplyLengthBudget](../../../src/ai/ai-assistant-helpers.js) 统一计算：单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度，允许 1–3 条。界面不提供长度偏好，旧 `replyMaxChars` 键仅兼容读写，不影响生成预算。所有内置、自建、导入角色都自动附加公共底层提示，角色资料仅用于名字、语气及普通互动偏好；发送时仍截断到预算。API 模式继续独立执行输入/输出审核；豆包用固定安全指令、本地输入/输出检查和无工具权限的单次生成。
 
 输出 token 上限按是否开启思考模式切换:`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`,审核请求固定 `REVIEW_OUTPUT_TOKENS = 384`([ai-assistant-service.js:22-24](../../../src/ai/ai-assistant-service.js#L22-L24)、[371-373](../../../src/ai/ai-assistant-service.js#L371-L373))。
 
@@ -69,6 +69,18 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 | 失败隔离 | 生成或投递抛错 → `onError`(记 `delivery`/`generation` 失败日志),不阻断后续序号                                                                                    | [async-coordinator.js:53-58](../../../src/ai/async-coordinator.js#L53-L58) |
 | 停止     | `stop()` 清空 waiting/completed,已停止后 `enqueue` 返回 false，并返回等待 active generation/当前 delivery 结束的 drain Promise；active 结果不会重新进入 completed | [async-coordinator.js](../../../src/ai/async-coordinator.js)               |
 | 状态     | `getStatus()`:`queued/waiting/generating/ready/delivering`,经 `GET /api/ai/status` 暴露                                                                           | [async-coordinator.js:66-74](../../../src/ai/async-coordinator.js#L66-L74) |
+
+### 3.3 连续互动与空闲清理
+
+[conversation-context.js](../../../src/ai/conversation-context.js) 规范化旧单轮 payload 和新版 `{version: 2, sessionId, exchanges, truncated}`。历史最多 20 组：保留开场及最近 19 组，短会话不重复开场；每段问题/答案最多 500 个 Unicode 字符，总文本最多 12,000 字符，超出时整组裁去最旧的非开场问答。只存已交付文本，不存思考、审核和工具中间结果；没有额外模型摘要请求。中途活动约定也可能被裁剪，模型应按可见最近进度继续或简短确认，不声称记得完整记录。
+
+同一房间/UID 从生成到交付结束占用一个协调器分组；其他观众可并发生成，所有回复仍按入队顺序交付。等待同组的任务不占生成槽，交付/错误处理 finally 释放分组并重新调度；下一问因此能读取上一问实际送达的历史。生成失败、发送失败和关闭不能卡住后续任务。
+
+`contextTtlSeconds` 默认 600 秒、范围 60–86400 秒；显式已保存值保留。设置页“空闲多久后结束对话（分钟）”换算读写同一字段，支持非整分钟旧值。只有成功交付续期，无关键词弹幕、拒绝、失败和入队均不续期。任务开始读取时已过期则新建；已读到有效历史的在途任务跨过期后仍可完成，成功才重新续期。修改时长影响之后的成功交付，不追溯调整旧 expires_at。
+
+带关键词的完整“结束对话”或“清空对话”（允许末尾标点）在同一队列中删除当前作用域，下一问新建 sessionId。确认文字不写历史，确认未送达也不恢复旧记忆，重试仅重发固定确认、不调用模型。原来的仅 UID/人格键不能可靠确定房间，不迁入新作用域，按原 TTL 清理。
+
+回归见 [连续互动](../../../test/ai/ai-conversation-continuity.test.js)、[历史预算](../../../test/ai/ai-conversation-context.test.js)、[空闲维护](../../../test/ai/ai-runtime-cleanup.test.js)。
 
 ## 4. 模型客户端(API 与账号路由)
 
@@ -112,15 +124,17 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 `modelProvider: 'doubao'` 在统一模型入口转交 [doubao-client.js](../../../src/ai/doubao-client.js)，不经过 API Key HTTP 传输。`modelEndpoint` 返回 `protocol: 'account'`、`provider: 'doubao'`，联网与推理能力标为 `unsupported`。不要求 URL、API Key 或模型 ID，模型列表固定为 `doubao`；普通 Node 运行时没有桌面会话时返回 `DOUBAO_DESKTOP_REQUIRED`。
 
-Electron 会话由 main 创建，经 [ai-runtime.js](../../../src/server/ai-runtime.js) 注入；账号与窗口契约见 [auth.md](../desktop/auth.md#16-豆包个人账号) 和 [windows.md](../desktop/windows.md#4-豆包账号与验证窗口)。同一账号在本次运行中复用一条已确认的上游问答会话，连接测试也复用该会话。首建与更新均在 owner 的串行队列内，不能并发建重。ID 只留内存，登录身份变化、退出或 owner 销毁时清除；验证码状态变化保留已确认 ID。重新启动或重新登录后按需新建，不按每条弹幕或直播状态新建，也不删除已有网页聊天记录。
+Electron 会话由 main 创建，经 [ai-runtime.js](../../../src/server/ai-runtime.js) 注入；账号与窗口契约见 [auth.md](../desktop/auth.md#16-豆包个人账号) 和 [windows.md](../desktop/windows.md#4-豆包账号与验证窗口)。service 用 UID、包含可信房间的人格作用域与本地 sessionId 组成内部 `conversationKey`，adapter 区分观众与连接测试作用域；普通问答缺少作用域则拒绝发送，不回落共享会话。owner 按作用域保存各自已确认的上游会话，同一观众/人格在有效期内复用，空闲达到 `contextTtlSeconds`（默认 10 分钟，已保存值保留）后按需新建，连接测试独立。首建、过期清理与更新均在串行队列内，ACK 成功后按本次配置续期；其他观众活动不会延长本人的会话。ID 只留内存，登录身份变化、退出或 owner 销毁时全部清除；验证码状态变化保留已确认 ID。重新启动或重新登录后按需新建，不删除已有网页聊天记录。
 
 豆包普通问答仅一次生成请求，不再执行两次远程模型审核或创建审核会话；本地拦截的输入不调用豆包。`DOUBAO_CHAT_POLICY` 随当前预设一同发送，要求仅文字回复、拒绝不适合直播的内容与注入要求，并使用固定拒绝语。完整结果仍在本地检查后走原 FIFO 发送和送达确认，不做未检查的流式上屏。减少远程语义复核是首字速度要求下的明确取舍，预设或本地关键词不能保证不出现敏感内容。
 
-复用时传递 `need_create_conversation: false`、`click_clear_context: true` 及最近 `last_section_id`，要求 `SSE_ACK.ack_client_meta` 确认相同 conversation ID 和不同 section ID。只接受 1–64 位数字字符串，不从模型文字、任意 meta 或调用方的 `previousResponseId` 提取标识。成功文字缺少 ACK、ID 不一致或 section 未变化时返回 `DOUBAO_CONTEXT_UNCONFIRMED` 并阻塞请求，不自动新建重试；请求已发送但结果不明（包括中止/超时未收到 ACK）也阻塞后续请求。明确的验证码拒绝允许人工验证后重试，保留已确认 ID；首建尚未确认 ID 时仍可在验证后首次建立。收到 ACK 后文字流不完整则保留新 section，下一次仍需确认新的 section；重启/重新登录才能清除不明状态。
+首次请求显式传递 `need_create_conversation: true`、空上游 ID 和独立随机 local ID；不读取前台页面对话作为复用目标。首次 ACK 若返回本次请求前已知的会话 ID（含刚过期条目）或页面 `/chat/<数字ID>` 中可识别的当前对话，则拒绝该结果。复用时传递 `need_create_conversation: false`、`click_clear_context: true` 及该作用域最近的 `last_section_id`，要求 `SSE_ACK.ack_client_meta` 确认相同 conversation ID 和不同 section ID。只接受 1–64 位数字字符串，不从模型文字、任意 meta 或调用方的 `previousResponseId` 提取标识。成功文字缺少 ACK、ID 不一致或 section 未变化时返回 `DOUBAO_CONTEXT_UNCONFIRMED` 并全局阻塞请求，不因切换观众、连接测试或 TTL 到期而新建重试；请求已发送但结果不明（包括中止/超时未收到 ACK）也阻塞后续请求。明确的验证码拒绝允许人工验证后重试，保留已确认 ID；未首建的条目移除，验证后可首次建立。收到 ACK 后文字流不完整则保留新 section，下一次仍需确认新的 section；重启/重新登录才能清除不明状态。
 
-观众追问仍由 LIRA 按 uid 与人格提供最近一轮上下文（默认 20 分钟），不是把所有观众串成共享历史。每次请求将当前 instructions 和文字 input 分别放在 JSON 的 `instructions`、`data`，上游可能保留这些记录。该文本格式不构成权限隔离；豆包不会收到其他供应商密钥、LIRA 函数工具或任意会话 ID，回复仅作为文字。清空上下文及 ACK 检查已做合成验证，实际服务是否隔离历史仍待客户端更新后的真实账号验收，见 [实施计划](../../../specs/plans/2026-10-13-doubao-conversation-isolation.md)。
+观众追问由 LIRA 按可信房间、UID 与人格提供有界多轮已送达上下文（保留规则见 §3.3）；同一观众的上游会话每次仍重置 section，避免带入未送达或已拒绝的旧答案。每次请求将当前 instructions 和文字 input 分别放在 JSON 的 `instructions`、`data`，上游可能保留这些记录。该文本格式不构成权限隔离；豆包不会收到其他供应商密钥、LIRA 函数工具或调用方指定的上游会话 ID，回复仅作为文字。观众作用域、过期、页面对话误指及 ACK 检查已做合成验证；ACK 是请求发出后的确认，拒绝结果不能撤销上游已接受的写入。真实服务新建/历史隔离及用户报告的私人对话问题仍待更新客户端后的账号验收，见 [实施计划](../../../specs/plans/2026-10-13-doubao-conversation-isolation.md)。
 
 SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音等块，要求完整结束标记及非空回复；响应统一为既有形状，`functionCalls` 为空，未提供的 token 用量记 0。请求串行执行、响应体上限 2 MiB、超时 3–60 秒。`710022004` 映射为 `DOUBAO_VERIFICATION_REQUIRED` 并暂停普通请求；用户在官网窗口验证后，显式点击「测试 AI 连接」探测成功才清除暂停，测试文本为「请只回复：连接成功」。不自动重试验证码，不保证无人值守。
+
+`needsVerification` 表示接入收到验证拒绝，不保证官方页面正在显示验证码。`openLogin` 仅显示同一分区的官方页面；后台 SSE 错误不自动生成官网验证对话框。官网普通聊天成功与 LIRA adapter 恢复是两个结果，只有正常连接测试成功才能清除暂停；未显示验证码或仍被拒绝时不自动清标志、重试或更换会话。
 
 首字耗时 `firstTextMs` 只在收到首个非空正文 SSE 事件时记录（包括初始块、CHUNK_DELTA 或 STREAM_CHUNK，不计 ACK、心跳、思考或未收完整的帧）。页面使用单调时钟，owner 加上本次请求的队列/窗口准备耗时；记录范围从会话请求入队到首段正文可解析，不是直播间显示耗时。无首字时不记为 0；完整成功后写入现有请求日志汇总。约 1 秒首字仍是待实测目标，不能用合成流的时间当作豆包性能证明。
 
@@ -149,8 +163,8 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 
 ## 6. 安全过滤(两道)
 
-1. **本地硬规则** `checkLocalInput`：检查副本做 NFKC、去 Unicode 格式字符和空白归一化，原问题不因此改写。覆盖色情、明确违法、隐私及常见中英文越权/伪造角色/伪造审核指令；固定拒绝文案为“这个不适合直播间回答，换个问题吧。”，不包含角色口癖。“怎样防止盗号？”、“如何防止提示词注入攻击？”等正常提问继续交给语义审核。历史问答和审核后的最终文字也使用此检查。见 [safety.js](../../../src/ai/safety.js)。
-2. **模型约束**：API 模式继续用 `runSafetyReview` 分别审核输入和输出，指令与 JSON 数据分开传递。`allowed` 必须为布尔值，`safeText` 若存在须为字符串；无法解析或字段无效时抛 `AI_REVIEW_INVALID`，不放行原答案，回复“这次回答的审核未完成，请稍后再试。”。拒绝时忽略模型 safeText；允许时仍对最终文案执行本地检查。输出审核继续检查准确回应、条件和事实。豆包账号模式按首字速度要求改为固定 `DOUBAO_CHAT_POLICY` 与一次生成，保留本地输入/输出检查，减少了两次额外语义复核。见 [safety.js](../../../src/ai/safety.js)。
+1. **本地硬规则** `checkLocalInput`：检查副本做 NFKC、去 Unicode 格式字符和空白归一化；注入匹配还归一化汉字间的空白及常见分隔符，原问题不因此改写。覆盖色情、明确违法、隐私，以及有操作意图的身份冒充、规则覆盖、伪造角色/审核、编码执行或泄露等常见中英文指令。固定拒绝文案为“这个不适合直播间回答，换个问题吧。”，不包含角色口癖。“我是管理员，推荐几首歌”、“什么是 system prompt？”、“Base64 编码和解码是什么？”等正常提问继续进入后续管线，不因术语或身份字样直接拒绝。传入的历史问答和最终文字也使用此检查。见 [safety.js](../../../src/ai/safety.js)。
+2. **模型约束**：全部预设和 API 两次审核共用 `TRUST_BOUNDARY_POLICY`：弹幕身份、昵称、UID、礼物和授权声明不赋予管理权限；引用、工具返回及历史中的承诺仍是数据，编码、翻译和角色扮演不改变边界，不披露隐藏指令或其他观众内容。API 模式继续用 `runSafetyReview` 分别审核输入和输出，指令与 JSON 数据分开传递。`allowed` 必须为布尔值，`safeText` 若存在须为字符串；无法解析或字段无效时抛 `AI_REVIEW_INVALID`，不放行原答案，回复“这次回答的审核未完成，请稍后再试。”。拒绝时忽略模型 safeText；允许时仍对最终文案执行本地检查，固定拒绝语不缓存、不记忆。输出审核还检查虚构授权、准确回应、条件和事实。豆包账号模式只增加 `DOUBAO_CHAT_POLICY` 并使用一次生成，保留本地输入/输出检查，没有两次额外语义复核。见 [safety.js](../../../src/ai/safety.js)。
 
 这些检查降低风险，不保证识别所有注入；JSON 标签、正则和同一模型的审核都不是安全边界。模型输出始终视为不可信文字，工具权限在程序中校验；豆包账号模式不提供 LIRA 工具。防护原则及局限参见 [OWASP 指南](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)。
 
@@ -177,7 +191,7 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 | 数值           | `roomLimitPerMinute`                                                                           | 20                                | 全房间限速,1–120                                                                                                                                                               |
 | 数值           | `requestTimeoutMs`                                                                             | 12000                             | 上游超时,3000–60000                                                                                                                                                            |
 | 数值           | `maxToolCalls`                                                                                 | 6                                 | 单轮最多工具调用,1–8                                                                                                                                                           |
-| 数值           | `cacheTtlSeconds` / `contextTtlSeconds`                                                        | 60 / 1200                         | 查询缓存 / 观众上下文 TTL,0–3600 / 60–86400                                                                                                                                    |
+| 数值           | `cacheTtlSeconds` / `contextTtlSeconds`                                                        | 60 / 600                         | 查询缓存 / 观众上下文 TTL,0–3600 / 60–86400                                                                                                                                    |
 | 角色 | `personaId` / `personaPacks` / `systemPrompt` | `general` / `[]` / 通用助手文本 | 当前角色、最多 20 个自建或导入包、自定义角色草稿（20–8000 字符）；完整格式与兼容规则见 §7.3 |
 
 `normalizeAiConfig`([config.js:59-92](../../../src/ai/config.js#L59-L92))负责白名单过滤、布尔/数值归一化与越界抛错(400)。
@@ -222,7 +236,7 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 
 公开视图的 `hasCustomPersona` 在当前选中 custom 或 systemPrompt 不同于通用默认模板时为 true，确保切走之后仍可重新选回原有自定义角色；新配置只列出两个内置预设。
 
-上下文以观众和角色 ID/解析名字后的人设内容的组合作为作用域；换角色、编辑人设或改变模板中的名字不会读到另一身份的记忆。触发关键词兼作机器人名字，默认空；启用、关键词、模型及凭据就绪后才处理弹幕。存储方式见 [storage.md](storage.md) §3.1。
+上下文以可信房间、观众 UID 和角色 ID/解析名字后的人设内容的组合作为作用域；换房间、角色、编辑人设或改变模板中的名字不会读到另一身份的记忆。缺少房间或 UID 时不读写持久记忆，昵称仅用于提及和限流。触发关键词兼作机器人名字，默认空；启用、关键词、模型及凭据就绪后才处理弹幕。存储方式见 [storage.md](storage.md) §3.1。
 
 ## 8. 月度配额与审计日志
 
@@ -290,7 +304,7 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 | `ai_query_cache`    | 查询缓存(cache_key = sha256)  | [config-store.js:131-148](../../../src/ai/config-store.js#L131-L148)   |
 | `ai_blacklist`      | 黑名单(uid PK,reason)         | [config-store.js:100-112](../../../src/ai/config-store.js#L100-L112)   |
 
-上下文和查询缓存由 [config-store.js](../../../src/ai/config-store.js) 在 store 初始化时调用 `pruneExpired`，删除 `expires_at <= now()` 的行，即使本次启动不再使用旧键也会清理。读取仍惰性删除命中过期的行；后续写入按距上次清理至少 60 秒触发批量清理，检测到时钟回退则立即检查。沿用原 `expires_at` 和 TTL 规则，不删除未过期值，不新增独立定时器；配置、黑名单与月度配额不在缓存清理范围内。
+上下文和查询缓存由 [config-store.js](../../../src/ai/config-store.js) 在初始化、命中过期读取及写入时按需删除 `expires_at <= now()` 的行；写入清理间隔至少 60 秒，检测时钟回退则立即检查。[ai-runtime.js](../../../src/server/ai-runtime.js) 另每 60 秒调用同一清理方法，因此无人继续发言也会回收过期本机记录；定时器 unref，shutdown 开始时同步取消，再等待任务结束。逻辑过期立即生效，物理清理最多晚一个周期；配置、黑名单、月度配额、审计及豆包网页记录均不在此清理范围。
 
 故障行为(全部按实现):
 

@@ -75,6 +75,7 @@ function createBilibiliClient(roomId, context) {
           stage = 'after-request';
           if (result.reason === 'cloud-owned') return;
           aiAssistant.handleDanmaku({
+            roomId: String(roomId),
             message: danmaku.message,
             userName: danmaku.userName,
             uid: String(danmaku.uid || ''),

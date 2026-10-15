@@ -23,6 +23,8 @@ const CLOCK_KEYS = { style: 'clockStyle', showDate: 'clockShowDate', showSeconds
   flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor',
   moonMode: 'clockMoonMode', moonIntervalSeconds: 'clockMoonIntervalSeconds' };
 const QUEUE_DEFAULTS = projectOverlayState('queue', { settings: DEFAULT_SETTINGS }).settings;
+const DISPLAY_STATE_FIELDS = { queue: ['queue', 'superChats'], overtime: ['overtime'],
+  'gift-sprint': ['giftSprint'], lyrics: ['lyricState', 'lyricTimeline'] };
 
 function invalidConfig() {
   return Object.assign(new Error('场景外观参数无效。'), { code: 'INVALID_SCENE_CONFIG', statusCode: 400 });
@@ -153,16 +155,20 @@ function normalizeSceneConfig(type, config) {
 function createSceneComponentPorts({ getState, cloud, getExtraDisplay }) {
   function getDefaultConfig(type) {
     if (typeof type !== 'string' || !Object.hasOwn(COMPONENT_PORTS, type)) throw invalidConfig();
-    const state = getState();
+    const state = getState(type === 'clock' || type === 'queue' ? ['settings'] : type === 'overtime' ? ['overtime'] : []);
     const config = COMPONENT_PORTS[type].getDefault(state, cloud);
     if (!config) throw new SceneError('SCENE_DEFAULT_UNAVAILABLE', 503, '请等待组件默认配置读取完成后再发布。');
     return normalizeSceneConfig(type, config);
   }
   function getDisplayData(types, request) {
     let state;
-    const readState = () => state ??= getState();
+    const needsRoomGuard = types.some((type) => ['queue', 'overtime', 'gift-feed', 'gift-wishes', 'text-box'].includes(type));
+    const readState = () => state ??= getState([...new Set([
+      ...types.flatMap((type) => Object.hasOwn(DISPLAY_STATE_FIELDS, type) ? DISPLAY_STATE_FIELDS[type] : []),
+      ...(needsRoomGuard ? ['roomGuard'] : []),
+    ])]);
     const data = {};
-    if (types.some((type) => ['queue', 'overtime', 'gift-feed', 'gift-wishes', 'text-box'].includes(type))) {
+    if (needsRoomGuard) {
       const roomGuard = projectOverlayState('queue', readState()).roomGuard;
       if (roomGuard) data.roomGuard = roomGuard;
     }

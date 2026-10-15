@@ -44,6 +44,48 @@
   font-weight: var(--type-weight-semibold);
 }
 
+.wesing-diagnostic-panel {
+  margin: 16px 20px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.wesing-diagnostic-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wesing-diagnostic-heading h3 {
+  margin: 0;
+}
+
+.wesing-diagnostic-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 24px;
+  margin: 16px 0 0;
+}
+
+.wesing-diagnostic-results[hidden] {
+  display: none;
+}
+
+.wesing-diagnostic-results dt {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.wesing-diagnostic-results dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  font-size: var(--type-size-body);
+}
+
 .wesing-eyebrow,
 .wesing-console-kicker,
 .wesing-track-kicker,

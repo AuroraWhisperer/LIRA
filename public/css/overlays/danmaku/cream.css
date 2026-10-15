@@ -22,7 +22,7 @@ body[data-style='cream'] .draw-danmaku-item {
   --cream-tint: #f8e9ea;
   position: absolute;
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-columns: 55.2px minmax(0, 1fr);
   align-items: start;
   /* 圆尾外伸 12px，与头像保留 12px 空隙。 */
   gap: 24px;
@@ -42,8 +42,8 @@ body[data-style='cream'] .draw-danmaku-medal {
   display: none;
 }
 body[data-style='cream'] .draw-danmaku-avatar {
-  width: 48px;
-  height: 48px;
+  width: 55.2px;
+  height: 55.2px;
   margin-top: 24px;
   border: 3px solid #fffaf5;
   border-radius: 50%;

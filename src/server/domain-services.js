@@ -73,6 +73,7 @@ function createDomainServices(options) {
     getPendingCloudSongs: cloudSongSync.readPending,
     acknowledgePendingCloudSongs: cloudSongSync.acknowledge,
     getMetadata: createSongMetadataReader(songStore),
+    getChangeToken: songStore.getChangeToken,
     save: (input) => songService.saveSong(songStore, input),
     list: (options) => songService.listSongs(songStore, options),
     find: (songName, artist) => songService.findSong(songStore, songName, artist),

@@ -163,6 +163,9 @@ test('canvas browser sources keep independent viewports through editing, saving 
   await inspectorUrl.fill('javascript:alert(2)');
   await inspectorUrl.press('Tab');
   await page.locator('.scene-editor-parameters [role="alert"]:visible').waitFor();
+  const invalidSourceToast = page.locator('#toast .toast-error').filter({ hasText: '浏览器源地址' });
+  await invalidSourceToast.waitFor();
+  assert.match(await invalidSourceToast.textContent(), /HTTP 或 HTTPS/);
   assert.equal(await inspectorUrl.evaluate((input) => input.checkValidity()), false);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.waitForResponse((response) => response.url().endsWith('/api/component-preview')

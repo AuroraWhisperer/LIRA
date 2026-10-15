@@ -83,6 +83,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
   }
 
   const weSingCapture = createWeSingCapture({
+    logDir: dataDir.logDir,
     cachePath: settingsStore.getSettings().weSingCachePath,
     lyricOffsetMs: settingsStore.getSettings().weSingLyricOffsetMs,
     platform: runtimeOptions.weSingPlatform || process.platform,

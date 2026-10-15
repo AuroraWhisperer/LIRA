@@ -237,15 +237,19 @@ for (const cached of [false, true]) {
     });
     f.ask('第一问');
     f.ask('第二问');
-    await waitUntil(() => f.pending.length === (cached ? 1 : 2));
-    if (!cached) f.pending[1].resolve('第二答');
-    await waitUntil(() => f.service.getStatus().ready === 1);
+    await waitUntil(() => f.pending.length === 1);
+    assert.equal(f.service.getStatus().waiting, 1);
     assert.equal(f.commits.length, 0);
     f.pending[0].resolve('第一答');
+    if (!cached) {
+      await waitUntil(() => f.pending.length === 2);
+      assert.match(f.pending[1].request.input, /第一答/);
+      f.pending[1].resolve('第二答');
+    }
     await waitUntil(() => f.commits.length === 2);
     assert.deepEqual(f.sent, ['第一答', '第二答']);
     assert.deepEqual(
-      f.commits.map((value) => value.question),
+      f.commits.map((value) => value.exchanges.at(-1).question),
       ['第一问', '第二问'],
     );
     f.ask('第三问');
@@ -253,7 +257,7 @@ for (const cached of [false, true]) {
     const third = f.pending.at(-1);
     assert.match(String(third.request.input), /第二问/);
     assert.match(String(third.request.input), /第二答/);
-    assert.doesNotMatch(String(third.request.input), /第一答/);
+    assert.match(String(third.request.input), /第一答/);
     third.resolve('第三答');
     await waitUntil(() => f.commits.length === 3);
   });
@@ -278,7 +282,7 @@ for (const delivered of [true, false]) {
     }
     await waitUntil(() => !f.service.getStatus().delivering && f.service.getStatus().queued === 0);
     assert.deepEqual(
-      f.context(),
+      delivered ? f.context().exchanges.at(-1) : f.context(),
       delivered ? { question: '第一问', answer: '重试回答' } : { question: '旧问', answer: '旧答' },
     );
     assert.equal(f.commits.length, delivered ? 1 : 0);

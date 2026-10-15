@@ -1,12 +1,102 @@
-/* 星语：透明白字、细线和四角星。尺寸随现有画布与字号一起缩放。 */
+/* 星语：透明白字、细线和可选装饰图案。尺寸随现有画布与字号一起缩放。 */
 body[data-style='starlight'] {
   --danmaku-move-base-ms: 380;
   --danmaku-move-max-ms: 650;
   --danmaku-move-curve: .28, .08, .25, 1;
   --danmaku-enter-animation: starlightMessageIn 440ms cubic-bezier(.16, 1, .3, 1) backwards;
   --starlight-ink: #fff;
+  --starlight-decoration-animation: starlightTwinkle;
+  --starlight-decoration-duration: 3.2s;
+  --starlight-decoration-easing: ease-in-out;
   --starlight-shadow: 0 2px 3px rgb(13 25 47 / 65%);
   --starlight-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0C14 9 15 10 24 12C15 14 14 15 12 24C10 15 9 14 0 12C9 10 10 9 12 0Z'/%3E%3C/svg%3E");
+  /* Match the SVG silhouette even when a browser ignores CSS masks. */
+  --starlight-star-outline: polygon(
+    50% 0%, 53% 12.57%, 56.05% 22.46%, 59.59% 30.1%, 64.06% 35.94%, 69.9% 40.41%, 77.54% 43.95%, 87.43% 47%,
+    100% 50%, 87.43% 53%, 77.54% 56.05%, 69.9% 59.59%, 64.06% 64.06%, 59.59% 69.9%, 56.05% 77.54%, 53% 87.43%,
+    50% 100%, 47% 87.43%, 43.95% 77.54%, 40.41% 69.9%, 35.94% 64.06%, 30.1% 59.59%, 22.46% 56.05%, 12.57% 53%,
+    0% 50%, 12.57% 47%, 22.46% 43.95%, 30.1% 40.41%, 35.94% 35.94%, 40.41% 30.1%, 43.95% 22.46%, 47% 12.57%
+  );
+}
+/* Each silhouette owns its motion; positions and color stay shared. */
+body[data-style='starlight'][data-decoration-shape='heart'] {
+  --starlight-decoration-animation: starlightHeartbeat;
+  --starlight-decoration-duration: 2.8s;
+  --starlight-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.5C10 19.7 2 14.5 2 8.5C2 3 8.8 1.5 12 6.5C15.2 1.5 22 3 22 8.5C22 14.5 14 19.7 12 21.5Z'/%3E%3C/svg%3E");
+  --starlight-star-outline: polygon(
+    50% 89.58%, 45.82% 86.13%, 39.97% 81.47%, 33.15% 75.74%, 26.04% 69.06%, 19.32% 61.56%, 13.67% 53.37%, 9.78% 44.61%,
+    8.33% 35.42%, 9.58% 27.62%, 12.97% 21.52%, 18% 17.22%, 24.17% 14.84%, 30.96% 14.52%, 37.86% 16.37%, 44.38% 20.52%,
+    50% 27.08%, 55.62% 20.52%, 62.14% 16.37%, 69.04% 14.52%, 75.83% 14.84%, 82% 17.22%, 87.03% 21.52%, 90.42% 27.62%,
+    91.67% 35.42%, 90.22% 44.61%, 86.33% 53.37%, 80.68% 61.56%, 73.96% 69.06%, 66.85% 75.74%, 60.03% 81.47%, 54.18% 86.13%,
+    50% 89.58%
+  );
+}
+body[data-style='starlight'][data-decoration-shape='square'] {
+  --starlight-decoration-animation: starlightJelly;
+  --starlight-decoration-duration: 3.6s;
+  --starlight-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 3L17 3C19.21 3 21 4.79 21 7L21 17C21 19.21 19.21 21 17 21L7 21C4.79 21 3 19.21 3 17L3 7C3 4.79 4.79 3 7 3Z'/%3E%3C/svg%3E");
+  --starlight-star-outline: polygon(
+    29.17% 12.5%, 70.83% 12.5%, 74.19% 12.84%, 77.32% 13.81%, 80.15% 15.35%, 82.62% 17.38%, 84.65% 19.85%, 86.19% 22.68%,
+    87.16% 25.81%, 87.5% 29.17%, 87.5% 70.83%, 87.16% 74.19%, 86.19% 77.32%, 84.65% 80.15%, 82.62% 82.62%, 80.15% 84.65%,
+    77.32% 86.19%, 74.19% 87.16%, 70.83% 87.5%, 29.17% 87.5%, 25.81% 87.16%, 22.68% 86.19%, 19.85% 84.65%, 17.38% 82.62%,
+    15.35% 80.15%, 13.81% 77.32%, 12.84% 74.19%, 12.5% 70.83%, 12.5% 29.17%, 12.84% 25.81%, 13.81% 22.68%, 15.35% 19.85%,
+    17.38% 17.38%, 19.85% 15.35%, 22.68% 13.81%, 25.81% 12.84%, 29.17% 12.5%
+  );
+}
+body[data-style='starlight'][data-decoration-shape='star'] {
+  --starlight-decoration-animation: starlightSpin;
+  --starlight-decoration-duration: 14s;
+  --starlight-decoration-easing: linear;
+  --starlight-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1.5L15.1 8.1L22.3 9L17 14L18.4 21.4L12 17.8L5.6 21.4L7 14L1.7 9L8.9 8.1Z'/%3E%3C/svg%3E");
+  --starlight-star-outline: polygon(
+    50% 6.25%, 62.92% 33.75%, 92.92% 37.5%, 70.83% 58.33%, 76.67% 89.17%, 50% 74.17%, 23.33% 89.17%, 29.17% 58.33%,
+    7.08% 37.5%, 37.08% 33.75%
+  );
+}
+body[data-style='starlight'][data-decoration-shape='flower'] {
+  --starlight-decoration-animation: starlightBloom;
+  --starlight-decoration-duration: 5.2s;
+  --starlight-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7.14 5.31L7.52 4.27L8.12 3.34L8.91 2.57L9.85 1.98L10.9 1.62L12 1.5L13.1 1.62L14.15 1.98L15.09 2.57L15.88 3.34L16.48 4.27L16.86 5.31L16.86 5.31L17.96 5.35L19.03 5.64L20.02 6.15L20.86 6.86L21.53 7.75L21.99 8.76L22.21 9.84L22.19 10.95L21.93 12.02L21.43 13.01L20.73 13.87L19.86 14.55L19.86 14.55L20.16 15.62L20.23 16.72L20.04 17.82L19.62 18.84L18.99 19.75L18.17 20.49L17.21 21.04L16.15 21.36L15.05 21.45L13.95 21.28L12.92 20.88L12 20.26L12 20.26L11.08 20.88L10.05 21.28L8.95 21.45L7.85 21.36L6.79 21.04L5.83 20.49L5.01 19.75L4.38 18.84L3.96 17.82L3.77 16.72L3.84 15.62L4.14 14.55L4.14 14.55L3.27 13.87L2.57 13.01L2.07 12.02L1.81 10.95L1.79 9.84L2.01 8.76L2.47 7.75L3.14 6.86L3.98 6.15L4.97 5.64L6.04 5.35L7.14 5.31Z'/%3E%3C/svg%3E");
+  --starlight-star-outline: polygon(
+    29.75% 22.12%, 31.33% 17.79%, 33.83% 13.92%, 37.13% 10.71%, 41.04% 8.25%, 45.42% 6.75%, 50% 6.25%, 54.58% 6.75%,
+    58.96% 8.25%, 62.88% 10.71%, 66.17% 13.92%, 68.67% 17.79%, 70.25% 22.12%, 70.25% 22.12%, 74.83% 22.29%, 79.29% 23.5%,
+    83.42% 25.63%, 86.92% 28.58%, 89.71% 32.29%, 91.62% 36.5%, 92.54% 41%, 92.46% 45.63%, 91.38% 50.08%, 89.29% 54.21%,
+    86.38% 57.79%, 82.75% 60.63%, 82.75% 60.63%, 84% 65.08%, 84.29% 69.67%, 83.5% 74.25%, 81.75% 78.5%, 79.12% 82.29%,
+    75.71% 85.37%, 71.71% 87.67%, 67.29% 89%, 62.71% 89.38%, 58.12% 88.67%, 53.83% 87%, 50% 84.42%, 50% 84.42%,
+    46.17% 87%, 41.88% 88.67%, 37.29% 89.38%, 32.71% 89%, 28.29% 87.67%, 24.29% 85.37%, 20.88% 82.29%, 18.25% 78.5%,
+    16.5% 74.25%, 15.71% 69.67%, 16% 65.08%, 17.25% 60.63%, 17.25% 60.63%, 13.63% 57.79%, 10.71% 54.21%, 8.63% 50.08%,
+    7.54% 45.63%, 7.46% 41%, 8.38% 36.5%, 10.29% 32.29%, 13.08% 28.58%, 16.58% 25.63%, 20.71% 23.5%, 25.17% 22.29%,
+    29.75% 22.12%
+  );
+}
+body[data-style='starlight'][data-decoration-shape='moon'] {
+  --starlight-decoration-animation: starlightMoonFloat;
+  --starlight-decoration-duration: 4.8s;
+  --starlight-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M15.8 2.2C9 -0.2 2 4.8 2 12C2 18.1 6.9 23 13 23C17.2 23 21.1 20.5 22.6 16.8C18.7 18.2 14.2 16.8 12 13.3C9.8 9.8 11.5 4.8 15.8 2.2Z'/%3E%3C/svg%3E");
+  --starlight-star-outline: polygon(
+    65.83% 9.17%, 55.23% 6.82%, 44.9% 7.11%, 35.19% 9.78%, 26.46% 14.58%, 19.06% 21.26%, 13.33% 29.56%, 9.64% 39.22%,
+    8.33% 50%, 9.26% 59.27%, 11.92% 67.88%, 16.13% 75.67%, 21.72% 82.45%, 28.5% 88.03%, 36.28% 92.25%, 44.9% 94.91%,
+    54.17% 95.83%, 60.65% 95.36%, 66.92% 93.96%, 72.87% 91.72%, 78.39% 88.7%, 83.38% 84.95%, 87.74% 80.54%, 91.37% 75.54%,
+    94.17% 70%, 87.98% 71.65%, 81.7% 72.23%, 75.47% 71.79%, 69.43% 70.36%, 63.72% 67.98%, 58.48% 64.67%, 53.86% 60.47%,
+    50% 55.42%, 47.31% 49.69%, 46.09% 43.56%, 46.26% 37.23%, 47.76% 30.89%, 50.53% 24.72%, 54.51% 18.91%, 59.63% 13.67%,
+    65.83% 9.17%
+  );
+}
+body[data-style='starlight'][data-decoration-shape='bow'] {
+  --starlight-decoration-animation: starlightBowSway;
+  --starlight-decoration-duration: 3.8s;
+  --starlight-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 10C7 6 2 3 1.5 7.5C1 10 1 14 1.5 16.5C2 21 7 18 10 14C11 15 13 15 14 14C17 18 22 21 22.5 16.5C23 14 23 10 22.5 7.5C22 3 17 6 14 10C13 9 11 9 10 10Z'/%3E%3C/svg%3E");
+  --starlight-star-outline: polygon(
+    41.67% 41.67%, 36.64% 35.66%, 31.15% 30.37%, 25.52% 26.1%, 20.05% 23.18%, 15.08% 21.91%, 10.9% 22.62%, 7.86% 25.63%,
+    6.25% 31.25%, 5.57% 35.42%, 5.08% 40.04%, 4.79% 44.95%, 4.69% 50%, 4.79% 55.05%, 5.08% 59.96%, 5.57% 64.58%,
+    6.25% 68.75%, 7.86% 74.37%, 10.9% 77.38%, 15.08% 78.09%, 20.05% 76.82%, 25.52% 73.9%, 31.15% 69.63%, 36.64% 64.34%,
+    41.67% 58.33%, 43.41% 59.7%, 45.44% 60.68%, 47.67% 61.26%, 50% 61.46%, 52.33% 61.26%, 54.56% 60.68%, 56.59% 59.7%,
+    58.33% 58.33%, 63.36% 64.34%, 68.85% 69.63%, 74.48% 73.9%, 79.95% 76.82%, 84.92% 78.09%, 89.1% 77.38%, 92.14% 74.37%,
+    93.75% 68.75%, 94.43% 64.58%, 94.92% 59.96%, 95.21% 55.05%, 95.31% 50%, 95.21% 44.95%, 94.92% 40.04%, 94.43% 35.42%,
+    93.75% 31.25%, 92.14% 25.63%, 89.1% 22.62%, 84.92% 21.91%, 79.95% 23.18%, 74.48% 26.1%, 68.85% 30.37%, 63.36% 35.66%,
+    58.33% 41.67%, 56.59% 40.3%, 54.56% 39.32%, 52.33% 38.74%, 50% 38.54%, 47.67% 38.74%, 45.44% 39.32%, 43.41% 40.3%,
+    41.67% 41.67%
+  );
 }
 body[data-style='starlight'] .danmaku-signal-header,
 body[data-style='starlight'] .draw-danmaku-avatar,
@@ -83,7 +173,7 @@ body[data-style='starlight'] .draw-danmaku-body > p {
 body[data-style='starlight'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
   height: 1.5em;
 }
-/* Star ornaments stay on the content, separate from the feed's row movement. */
+/* Ornaments stay on the content, separate from the feed's row movement. */
 body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::before,
 body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::after,
 body[data-style='starlight'] :is(.draw-danmaku-gift-amount, .sc-money)::before {
@@ -92,10 +182,13 @@ body[data-style='starlight'] :is(.draw-danmaku-gift-amount, .sc-money)::before {
   width: 15px;
   height: 15px;
   background: var(--starlight-ink);
+  -webkit-clip-path: var(--starlight-star-outline);
+  clip-path: var(--starlight-star-outline);
+  -webkit-mask: var(--starlight-star) center / contain no-repeat;
   mask: var(--starlight-star) center / contain no-repeat;
   content: '';
   pointer-events: none;
-  animation: starlightTwinkle 3.2s ease-in-out infinite;
+  animation: var(--starlight-decoration-animation) var(--starlight-decoration-duration) var(--starlight-decoration-easing) infinite;
 }
 body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::before {
   left: 12px;
@@ -104,7 +197,7 @@ body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::before {
 body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::after {
   right: 8px;
   bottom: -23px;
-  animation-delay: -1.6s;
+  animation-delay: calc(var(--starlight-decoration-duration) / -2);
 }
 body[data-style='starlight'] .draw-danmaku-item.is-gift .draw-danmaku-body,
 body[data-style='starlight'] .sc-starlight {
@@ -181,7 +274,7 @@ body[data-style='starlight'] :is(.draw-danmaku-gift-amount, .sc-money)::before {
   left: 0;
   width: 26px;
   height: 26px;
-  animation-delay: -.8s;
+  animation-delay: calc(var(--starlight-decoration-duration) / -4);
 }
 body[data-style='starlight'] .sc-currency {
   margin: 0;
@@ -217,9 +310,40 @@ body[data-style='starlight'][data-custom-font='true'] :is(.draw-danmaku-identity
   40% { opacity: .2; transform: scale(.45); }
   65% { opacity: 1; transform: scale(1.12); }
 }
+@keyframes starlightHeartbeat {
+  0%, 38%, 100% { opacity: .9; transform: scale(1); }
+  10% { opacity: 1; transform: scale(1.14); }
+  20% { opacity: .95; transform: scale(.98); }
+  28% { opacity: 1; transform: scale(1.08); }
+}
+@keyframes starlightJelly {
+  0%, 60%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+  15% { transform: translateY(-2px) rotate(8deg) scale(.96, 1.04); }
+  28% { transform: translateY(0) rotate(-5deg) scale(1.08, .94); }
+  42% { transform: translateY(-1px) rotate(3deg) scale(1); }
+}
+@keyframes starlightSpin {
+  0% { opacity: .8; transform: rotate(0deg) scale(.94); }
+  50% { opacity: 1; transform: rotate(180deg) scale(1.06); }
+  100% { opacity: .8; transform: rotate(360deg) scale(.94); }
+}
+@keyframes starlightBloom {
+  0%, 100% { opacity: .78; transform: rotate(-8deg) scale(.88); }
+  50% { opacity: 1; transform: rotate(8deg) scale(1.08); }
+}
+@keyframes starlightMoonFloat {
+  0%, 100% { opacity: .9; transform: translateY(0) rotate(-8deg); }
+  50% { opacity: 1; transform: translateY(-2px) rotate(8deg); }
+}
+@keyframes starlightBowSway {
+  0%, 100% { transform: rotate(-10deg) scaleX(1); }
+  25% { transform: rotate(6deg) scaleX(.94); }
+  50% { transform: rotate(10deg) scaleX(1); }
+  75% { transform: rotate(-6deg) scaleX(.94); }
+}
 @media (prefers-reduced-motion: reduce) {
-  body[data-style='starlight'] *::before,
-  body[data-style='starlight'] *::after { animation: none; }
+  body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name, .draw-danmaku-gift-amount, .sc-money)::before,
+  body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::after { animation: none; }
 }
 
 @keyframes starlightMessageIn {

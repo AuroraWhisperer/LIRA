@@ -83,6 +83,8 @@ export function createDanmakuFeed(root, options = {}) {
   let renderedSequence = 0;
   let viewportHeight = 0;
   let renderedContentHeight = 0;
+  let layoutGap = 0;
+  let layoutPadding = 0;
   let renderedEntries = [];
   let lastFullscreenPosition = null;
   let randomPlacement = { centerBias: options.centerBias, dispersion: options.dispersion };
@@ -219,6 +221,8 @@ export function createDanmakuFeed(root, options = {}) {
     const styles = globalThis.getComputedStyle?.(root);
     const gap = Number.parseFloat(styles?.rowGap) || 0;
     const padding = (Number.parseFloat(styles?.paddingTop) || 0) + (Number.parseFloat(styles?.paddingBottom) || 0);
+    layoutGap = gap;
+    layoutPadding = padding;
     if (viewportHeight > padding) renderedEntries.forEach((entry) => fitItem(entry, root.clientWidth, viewportHeight - padding));
     renderedContentHeight = renderedEntries.reduce((total, entry) => {
       const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
@@ -227,6 +231,10 @@ export function createDanmakuFeed(root, options = {}) {
       return total + entry.height;
     }, 0);
     if (smoothLayout) animateFixedLayout(gap, styles?.flexDirection === 'column-reverse' ? -1 : 1, styles);
+    pruneFixedLayout();
+  }
+
+  function pruneFixedLayout() {
     // Moving messages can still be visible even when their destination is clipped.
     // Keep them until the move finishes; the item limit still bounds a busy feed.
     // Layout heights ignore entrance transforms and work in either scroll direction.
@@ -234,7 +242,7 @@ export function createDanmakuFeed(root, options = {}) {
       renderedEntries.length > 1 &&
       (renderedEntries.length > maxItems ||
         (!renderedEntries[0].motion && viewportHeight > 0 && renderedContentHeight - renderedEntries[0].height +
-          gap * (renderedEntries.length - 1) + padding >= viewportHeight))
+          layoutGap * (renderedEntries.length - 1) + layoutPadding >= viewportHeight))
     ) {
       removeEntry(renderedEntries[0]);
     }
@@ -293,7 +301,8 @@ export function createDanmakuFeed(root, options = {}) {
       motion.onfinish = () => {
         motion.cancel();
         if (entry.motion === motion) entry.motion = null;
-        scheduleLayout();
+        // A pending append/resize must measure first; otherwise only cleanup remains.
+        if (layoutFrame === null) pruneFixedLayout();
       };
     }
   }

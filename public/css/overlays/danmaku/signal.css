@@ -16,6 +16,7 @@ body[data-style='signal'] .draw-danmaku-item[data-identity] {
   --signal-accent-rgb: 138 164 191;
   --signal-name: #c3d1e0;
   --signal-wash: 18%;
+  grid-template-columns: 84px minmax(0, 1fr);
   padding: 9px 20px 10px 10px;
   border-left-width: 3px;
   background:
@@ -53,6 +54,8 @@ body[data-style='signal'] .draw-danmaku-item::after {
   opacity: 0.6;
 }
 body[data-style='signal'] .draw-danmaku-avatar {
+  width: 84px;
+  height: 84px;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%);
 }
 body[data-style='signal'] .draw-danmaku-identity {
@@ -61,6 +64,7 @@ body[data-style='signal'] .draw-danmaku-identity {
 }
 body[data-style='signal'] .draw-danmaku-identity strong {
   color: var(--signal-name);
+  font-size: 30px;
 }
 body[data-style='signal'] .draw-danmaku-badge {
   border: 0;
@@ -148,6 +152,9 @@ body[data-style='signal'] .draw-danmaku-item.is-gift::before {
 }
 body[data-style='signal'] .is-gift .draw-danmaku-avatar {
   display: none;
+}
+body[data-style='signal'] .is-gift .draw-danmaku-identity strong {
+  font-size: 30px;
 }
 body[data-style='signal'] .is-gift .draw-danmaku-body {
   padding: 0 0 0 70px;

@@ -21,7 +21,7 @@ function TestWindow(options) {
 app.on('before-quit', () => owner?.dispose());
 app.on('window-all-closed', () => {});
 app.whenReady().then(async () => {
-  const state = { requests: [], logs: [], slow: false, verification: false, omitAck: false, incomplete: false, reuseSection: false, wrongConversation: false, result: null };
+  const state = { requests: [], logs: [], now: Date.now(), slow: false, verification: false, omitAck: false, incomplete: false, reuseSection: false, wrongConversation: false, forcedConversationId: '', result: null };
   session.fromPartition(process.argv[3] === 'no-encryption' ? 'lira-doubao' : 'persist:lira-doubao').protocol.handle('https', async request => {
     const url = new URL(request.url);
     if (url.origin !== 'https://www.doubao.com') return new Response('unexpected origin', { status: 403 });
@@ -30,7 +30,7 @@ app.whenReady().then(async () => {
       state.requests.push(payload);
       if (state.slow) return new Response(new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('event: SSE_HEARTBEAT\ndata: {}\n\n')); } }));
       const meta = {
-        conversation_id: state.wrongConversation ? '999999' : payload.client_meta.conversation_id || String(1000 + state.requests.length),
+        conversation_id: state.forcedConversationId || (state.wrongConversation ? '999999' : payload.client_meta.conversation_id || String(1000 + state.requests.length)),
         section_id: state.reuseSection ? payload.client_meta.last_section_id : String(2000 + state.requests.length),
       };
       const ack = state.omitAck ? '' : `event: SSE_ACK\ndata: ${JSON.stringify({ ack_client_meta: meta })}\n\n`;
@@ -43,7 +43,7 @@ app.whenReady().then(async () => {
       <button id="scan" onclick="document.cookie='sessionid=synthetic-doubao-session; path=/; secure; max-age=3600'; this.textContent='已扫码';">模拟手机扫码确认</button>
       <a id="external" href="https://unexpected.invalid/">外部链接</a></body></html>`, { headers: { 'Content-Type': 'text/html' } });
   });
-  const dependencies = { BrowserWindow: TestWindow, session, safeStorage: process.argv[3] === 'no-encryption' ? { isEncryptionAvailable: () => false } : safeStorage, dataDir: directory };
+  const dependencies = { BrowserWindow: TestWindow, session, safeStorage: process.argv[3] === 'no-encryption' ? { isEncryptionAvailable: () => false } : safeStorage, dataDir: directory, now: () => state.now };
   owner = createDoubaoSession(dependencies);
   const client = createDoubaoClient({ session: owner, logEvent: entry => state.logs.push(entry) });
   global.doubaoTest = {
@@ -59,7 +59,7 @@ app.whenReady().then(async () => {
     },
     startRequest() {
       state.result = null;
-      client.createResponse({ config: { requestTimeoutMs: 10000 }, input: '合成测试' })
+      client.createResponse({ config: { requestTimeoutMs: 10000 }, conversationKey: 'viewer', input: '合成测试' })
         .then(result => { state.result = result; }, error => { state.result = { error: error.code }; });
     },
   };

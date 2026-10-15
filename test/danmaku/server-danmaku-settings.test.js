@@ -209,10 +209,10 @@ test('appearance drafts belong to each style and apply together without leaking 
   };
   change('danmakuFontSize', '42');
   change('danmakuFontFamily', '"Cascadia Code"');
-  change('danmakuTextColor', '#aabbcc', 'input');
+  change('danmakuTextColor', '#aabbcc');
   f.node('danmakuBackgroundOpacity').min = '0';
   f.node('danmakuBackgroundOpacity').max = '100';
-  change('danmakuBackgroundOpacity', '35', 'input');
+  change('danmakuBackgroundOpacity', '35');
   change('danmakuGiftImage', 'gift');
   assert.equal(f.node('danmakuScrollDirection').value, 'up');
   change('danmakuScrollDirection', 'down');
@@ -227,7 +227,12 @@ test('appearance drafts belong to each style and apply together without leaking 
   change('danmakuFontSize', '41');
   assert.equal(f.node('danmakuFontSize').value, '30');
   change('danmakuFontSize', '24');
+  f.click('glow');
+  assert.equal(f.node('danmakuEntranceAnimationField').hidden, false);
+  assert.equal(f.node('danmakuEntranceAnimation').value, 'fade');
+  change('danmakuEntranceAnimation', 'rise');
   f.click('signal');
+  assert.equal(f.node('danmakuEntranceAnimationField').hidden, true);
   assert.equal(f.node('danmakuTextColor').value, '#aabbcc');
   assert.equal(f.node('danmakuFontSize').value, '42');
   assert.equal(f.node('danmakuGiftImage').value, 'gift');
@@ -243,6 +248,7 @@ test('appearance drafts belong to each style and apply together without leaking 
       scrollDirection: 'down',
     },
     minimal: { fontSize: 24 },
+    glow: { entranceAnimation: 'rise' },
   };
   assert.deepEqual(JSON.parse(JSON.stringify(f.editors.at(-1).draft.styleOptions)), expected);
   assert.equal(f.writes.length, 0);
@@ -257,10 +263,15 @@ test('appearance drafts belong to each style and apply together without leaking 
   assert.equal(f.node('danmakuFontSize').value, '30');
   f.click('minimal');
   assert.equal(f.node('danmakuFontSize').value, '24');
+  f.click('glow');
+  assert.equal(f.node('danmakuEntranceAnimation').value, 'rise');
+  f.click('danmakuResetParameters');
+  assert.equal(f.node('danmakuEntranceAnimation').value, 'fade');
   f.account('');
   assert.equal(f.node('danmakuFontSize').disabled, true);
   assert.equal(f.node('danmakuFontFamily').value, '"Microsoft YaHei UI"');
   assert.equal(f.node('danmakuScrollDirection').disabled, true);
+  assert.equal(f.node('danmakuEntranceAnimation').disabled, true);
 });
 
 test('canvas drafts apply through the existing save path and remain when an old server drops layout', async () => {
@@ -293,6 +304,8 @@ test('older servers keep style editing available and explain unsupported appeara
   assert.equal(f.node('danmakuScrollDirection').disabled, true);
   f.click('outline');
   assert.equal(f.elements.fullscreenDuration.disabled, false);
+  f.click('glow');
+  assert.equal(f.node('danmakuEntranceAnimation').disabled, true);
 });
 
 for (const [style, label] of [

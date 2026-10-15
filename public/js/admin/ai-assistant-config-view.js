@@ -19,6 +19,7 @@ const FIELD_MAP = Object.freeze({
   generationConcurrency: ['xiaomiAiConcurrency', 'number'],
   userCooldownSeconds: ['xiaomiAiUserCooldown', 'number'],
   roomLimitPerMinute: ['xiaomiAiRoomLimit', 'number'],
+  contextTtlSeconds: ['xiaomiAiContextMinutes', 'minutes'],
   systemPrompt: ['xiaomiAiSystemPrompt', 'value'],
   personaId: ['xiaomiAiPersona', 'value'],
   weatherEnabled: ['xiaomiAiWeatherEnabled', 'checked'],
@@ -52,6 +53,8 @@ export function collectConfig() {
       config[key] = element.checked;
     } else if (kind === 'number') {
       config[key] = Number(element.value);
+    } else if (kind === 'minutes') {
+      config[key] = Math.round(Number(element.value) * 60);
     } else {
       const value = element.value.trim();
       if (value !== '********' && (value || kind !== 'secret')) {
@@ -74,7 +77,7 @@ export function renderConfig(config, preservedFieldIds = new Set()) {
       element.value = '';
       element.type = 'password';
     } else if (config[key] !== undefined) {
-      element.value = String(config[key]);
+      element.value = String(kind === 'minutes' ? config[key] / 60 : config[key]);
     }
   }
   renderConfigSummary(config);

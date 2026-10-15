@@ -28,8 +28,8 @@ body[data-style='prismatic'] .draw-danmaku-item:not(.is-superchat) {
 body[data-style='prismatic'] .draw-danmaku-item::after { display: none; }
 body[data-style='prismatic'] .draw-danmaku-avatar {
   flex: 0 0 auto;
-  width: 1.85em;
-  height: 1.85em;
+  width: 2.775em;
+  height: 2.775em;
   margin-top: 0.12em;
   border: 2px solid rgb(255 255 255 / 85%);
   border-radius: 50%;
@@ -112,7 +112,7 @@ body[data-style='prismatic'] .draw-danmaku-body > p {
   max-width: 100%;
   margin: 0 0 0 0.35em;
   padding: 0.32em 0.95em 0.38em;
-  border-radius: 1.25em;
+  border-radius: 0 1.25em 1.25em;
   color: var(--prismatic-ink);
   background: #fff;
   font-size: inherit;
@@ -121,25 +121,11 @@ body[data-style='prismatic'] .draw-danmaku-body > p {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-body[data-style='prismatic'] .draw-danmaku-body > p::before {
-  position: absolute;
-  top: 0.65em;
-  left: -0.2em;
-  width: 0.4em;
-  height: 0.4em;
-  border-radius: 0.12em;
-  background: #fff;
-  transform: rotate(45deg);
-  content: '';
-}
 body[data-style='prismatic'] .draw-danmaku-item[data-room-guard]:not([data-room-guard='0']):not(.is-emote-only):not(.is-gift) .draw-danmaku-body > p {
   background:
     radial-gradient(ellipse at var(--prismatic-spot-a), var(--prismatic-color-2), transparent var(--prismatic-spread-a)),
     radial-gradient(ellipse at var(--prismatic-spot-b), var(--prismatic-color-3), transparent var(--prismatic-spread-b)),
     linear-gradient(var(--prismatic-angle), var(--prismatic-color-0), var(--prismatic-color-1));
-}
-body[data-style='prismatic'] .draw-danmaku-item[data-room-guard]:not([data-room-guard='0']):not(.is-emote-only):not(.is-gift) .draw-danmaku-body > p::before {
-  display: none;
 }
 body[data-style='prismatic'] .draw-danmaku-item.is-emote-only .draw-danmaku-body > p {
   margin-left: 0;
@@ -149,8 +135,6 @@ body[data-style='prismatic'] .draw-danmaku-item.is-emote-only .draw-danmaku-body
 }
 body[data-style='prismatic'] .draw-danmaku-emote { filter: none; }
 body[data-style='prismatic'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote { height: 4em; }
-body[data-style='prismatic'] .draw-danmaku-item.is-emote-only .draw-danmaku-body > p::before,
-body[data-style='prismatic'] .draw-danmaku-item.is-gift .draw-danmaku-body > p::before { display: none; }
 body[data-style='prismatic'] .draw-danmaku-item.is-gift {
   width: 100%;
   max-width: 100%;

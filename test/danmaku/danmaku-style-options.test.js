@@ -18,18 +18,20 @@ const CONTROLS = {
   sketch: ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
   prismatic: ['scrollDirection', 'edgeFade'],
   snowfox: ['scrollDirection', 'edgeFade', 'bubbleColor'],
-  starlight: ['scrollDirection', 'edgeFade'],
+  starlight: ['scrollDirection', 'edgeFade', 'decorationShape'],
   moonlit: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
   outline: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
-  whiteframe: ['centerBias', 'dispersion'],
+  whiteframe: ['centerBias', 'dispersion', 'entranceAnimation'],
   mist: ['centerBias', 'dispersion', 'backgroundOpacity'],
   cream: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
   floating: ['speedPixelsPerSecond', 'floatingDispersion', 'backgroundOpacity'],
   comet: ['speedPixelsPerSecond', 'floatingDispersion', 'backgroundOpacity'],
-  starveil: ['centerBias', 'dispersion', 'backgroundOpacity'],
-  glow: ['centerBias', 'dispersion', 'backgroundOpacity'],
+  starveil: ['centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
+  glow: ['centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
 };
 const CONTROL_VALUES = {
+  decorationShape: { valid: ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'], invalid: ['circle', 'HEART', '', null, true, 1, {}], fallback: 'sparkle', optional: true },
+  entranceAnimation: { valid: ['fade', 'rise'], invalid: ['slide', 'RISE', '', null, true, 1, {}], fallback: 'fade', optional: true },
   floatingDispersion: { valid: [1, 50, 100], invalid: [0, 101, 1.5, '50', null, true], fallback: 50, optional: true },
   minGiftAmount: { valid: [0, 0.01, 9.99, 100000], invalid: [-1, 100000.01, 1.005, '1', null, true, Infinity, NaN], fallback: 0, optional: true },
   bubbleColor: { valid: ['default', '#ba739c', '#ba739c80'], invalid: ['', 'red', '#abc', '#123456\n', null, 1], fallback: 'default', optional: true },
@@ -69,11 +71,13 @@ test('each style accepts exactly its own controls with bounded values and defaul
   }
 });
 
-test('identity always uses real gift images while accepting legacy saved options', () => {
+test('identity, transparent and outline always use real gift images while accepting legacy saved options', () => {
   assert.equal(contract.DANMAKU_STYLE_OPTIONS.identity.label, '灵动弹幕');
-  for (const options of [{}, { giftImage: 'theme' }, { giftImage: 'gift' }]) {
-    assert.deepEqual(contract.normalizeStyleOptions({ identity: options }), { identity: options });
-    assert.equal(contract.styleOptionsFor('identity', { identity: options }).giftImage, 'gift');
+  for (const style of ['identity', 'transparent', 'outline']) {
+    for (const options of [{}, { giftImage: 'theme' }, { giftImage: 'gift' }]) {
+      assert.deepEqual(contract.normalizeStyleOptions({ [style]: options }), { [style]: options });
+      assert.equal(contract.styleOptionsFor(style, { [style]: options }).giftImage, 'gift');
+    }
   }
   assert.equal(contract.styleOptionsFor('signal').giftImage, 'theme');
 });
@@ -127,6 +131,25 @@ test('edge fading keeps theme defaults, applies overrides and clears on other la
       browser.applyStyleOptions(document, style, {});
       assert.equal(document.body.dataset.edgeFade, 'none');
     }
+  }
+});
+
+test('entrance animation stays per style and resets on empty options or unsupported styles', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
+  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
+  const saved = contract.normalizeStyleOptions({
+    whiteframe: { entranceAnimation: 'rise' },
+    glow: { entranceAnimation: 'fade' },
+    starveil: { entranceAnimation: 'rise' },
+  });
+  for (const [style, controls] of Object.entries(CONTROLS)) {
+    browser.applyStyleOptions(document, 'whiteframe', saved);
+    const options = browser.applyStyleOptions(document, style, saved);
+    assert.equal(document.body.dataset.entranceAnimation, saved[style]?.entranceAnimation || 'fade');
+    assert.equal(Object.hasOwn(options, 'entranceAnimation'), controls.includes('entranceAnimation'));
+    browser.applyStyleOptions(document, style, { [style]: {} });
+    assert.equal(document.body.dataset.entranceAnimation, 'fade');
   }
 });
 
@@ -188,6 +211,7 @@ test('per-style display limits validate before accepting any options', () => {
     { signal: { fontFamily: '__proto__' } },
     JSON.parse('{"__proto__":{}}'),
     { signal: { streamerId: 1 } },
+    { whiteframe: { entranceAnimation: 'rise' }, glow: { entranceAnimation: 'unknown' } },
   ]) {
     assert.throws(() => contract.normalizeStyleOptions(value), { code: 'INVALID_OVERLAY_OPTIONS' });
   }

@@ -161,6 +161,7 @@ async function fixture(search = '?preview=1', savedStyle) {
             append(item) { appends.push(item); appendTimes.push(elapsed); },
             setSpeedPixelsPerSecond(value) { config.speedPixelsPerSecond = value; },
             setFloatingDispersion(value) { config.floatingDispersion = value; },
+            setRandomPlacement(value) { Object.assign(config, value); },
           };
         });
       },
@@ -216,7 +217,7 @@ test('all local styles replay every example through the live feed without connec
       assert.deepEqual(Array.from(items.filter((item) => item.giftGuardLevel), (item) => item.giftGuardLevel).sort(), [1, 2, 3]);
     }
     assert.equal(items.find((item) => item.kind === 'gift' && item.giftCount === 10).giftTotalPrice, 1);
-    assert.equal(f.options.at(-1).showGiftTotal, ['mist', 'harbor', 'transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox'].includes(style));
+    assert.equal(f.options.at(-1).showGiftTotal, ['mist', 'harbor', 'transparent', 'identity', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox'].includes(style));
     assert.ok(items.every((item) => !item.id.startsWith('preview-thanks')));
     assert.equal(f.options.at(-1).resolveEmoteUrl(members[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
     const superChats = items.filter((item) => item.kind === 'superchat');
@@ -323,6 +324,35 @@ test('preview pauses while hidden and resumes without accumulating messages or t
   assert.equal(f.timeouts.size, 0, 'closing removes the visibility listener');
 });
 
+test('appearance edits preserve current messages and playback timing while explicit replay restarts', async () => {
+  for (const style of ['starveil', 'signal', 'floating']) {
+    const f = await fixture(`?preview=1&style=${style}`);
+    f.advanceMessages(2);
+    const originalFeed = f.options.at(-1);
+    const messages = f.appends.length;
+    const renders = f.renders.length;
+    const timers = [...f.timeouts.keys()];
+    for (const [id, value] of [['previewBackgroundOpacity', '55'], ['previewTextColor', '#abcdef'], ['previewFontSize', '32']]) {
+      const control = f.node(id);
+      control.min = '0'; control.max = '100'; control.value = value;
+      control.events.change();
+      f.flushFrames();
+      assert.equal(f.options.at(-1), originalFeed, `${style}: ${id} keeps the feed`);
+      assert.equal(f.appends.length, messages, 'editing must not introduce a new sample');
+      assert.equal(f.renders.length, renders, 'editing must not clear existing messages');
+      assert.deepEqual([...f.timeouts.keys()], timers, 'editing must not reset the next message timer');
+    }
+    assert.equal(f.node('root').style['--danmaku-background-opacity'], '0.55');
+    assert.equal(f.node('root').style['--danmaku-text-color'], '#abcdef');
+    f.node('previewRefresh').events.click();
+    f.flushFrames();
+    assert.notEqual(f.options.at(-1), originalFeed, 'explicit replay still recreates the feed');
+    assert.equal(f.appends.length, messages + 1);
+    assert.equal(f.timeouts.size, 1);
+    f.pagehide();
+  }
+});
+
 test('local preview applies per-style parameters without external image requests', async () => {
   const options = {
     signal: { fontSize: 42, fontFamily: 'serif', backgroundOpacity: 35, giftImage: 'gift', scrollDirection: 'down' },
@@ -346,11 +376,12 @@ test('local preview applies per-style parameters without external image requests
   assert.equal(f.document.body.dataset.scrollDirection, 'up');
 });
 
-test('identity preview resolves matching local WebP gifts even with legacy theme options', async () => {
-  const options = { identity: { giftImage: 'theme' } };
-  const f = await fixture(`?preview=1&style=identity&styleOptions=${encodeURIComponent(JSON.stringify(options))}`);
+for (const style of ['identity', 'transparent', 'outline']) test(`${style} preview resolves matching local WebP gifts even with legacy theme options`, async () => {
+  const options = { [style]: { giftImage: 'theme' } };
+  const f = await fixture(`?preview=1&style=${style}&styleOptions=${encodeURIComponent(JSON.stringify(options))}`);
   assert.equal(f.node('previewGiftField').hidden, true);
-  const gifts = createDanmakuPreviewItems('identity').filter(item => item.kind === 'gift');
+  if (style === 'identity') assert.equal(f.options.at(-1).showGiftTotal, true);
+  const gifts = createDanmakuPreviewItems(style).filter(item => item.kind === 'gift');
   assert.equal(new Set(gifts.map(item => item.giftImageUrl)).size, gifts.length);
   for (const gift of gifts) {
     assert.equal(f.options.at(-1).resolveGiftImageUrl(gift.giftImageUrl), gift.giftImageUrl);
@@ -428,6 +459,63 @@ test('preview edge fading edits and resets each fixed style without leaking to r
   assert.equal(f.document.body.dataset.edgeFade, 'none');
 });
 
+test('preview entrance choices persist per style and leave existing messages running', async () => {
+  const f = await fixture('?preview=1&style=whiteframe');
+  const select = f.node('previewEntranceAnimation');
+  for (const style of ['whiteframe', 'glow', 'starveil']) {
+    f.node(style).events.click();
+    assert.equal(f.node('previewEntranceAnimationField').hidden, false);
+    assert.equal(select.value, 'fade');
+    const originalFeed = f.options.at(-1);
+    const appendCount = f.appends.length;
+    select.value = 'rise';
+    select.events.change();
+    assert.equal(f.history.state.danmakuStyleOptions[style].entranceAnimation, 'rise');
+    assert.equal(f.options.at(-1), originalFeed, 'changing the entrance keeps the current feed');
+    assert.equal(f.appends.length, appendCount, 'changing the entrance must not replay existing messages');
+  }
+  for (const style of ['whiteframe', 'glow', 'starveil']) {
+    f.node(style).events.click();
+    assert.equal(select.value, 'rise');
+  }
+  f.node('previewAppearanceReset').events.click();
+  assert.equal(select.value, 'fade');
+  assert.equal(f.history.state.danmakuStyleOptions.whiteframe.entranceAnimation, 'rise');
+  assert.equal(f.history.state.danmakuStyleOptions.glow.entranceAnimation, 'rise');
+  assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions.starveil)), {});
+  for (const style of styles.filter(style => !['whiteframe', 'glow', 'starveil'].includes(style)).concat(['floating', 'comet'])) {
+    f.node(style).events.click();
+    assert.equal(f.node('previewEntranceAnimationField').hidden, true, style);
+  }
+});
+
+test('starlight decoration choices update existing preview messages and reset independently', async () => {
+  const f = await fixture('?preview=1&style=starlight');
+  const select = f.node('previewDecorationShape');
+  assert.equal(f.node('previewDecorationShapeField').hidden, false);
+  assert.equal(select.value, 'sparkle');
+  const originalFeed = f.options.at(-1);
+  const appendCount = f.appends.length;
+  for (const shape of ['heart', 'square', 'star', 'flower', 'moon', 'bow', 'sparkle']) {
+    select.value = shape;
+    select.events.change();
+    assert.equal(f.history.state.danmakuStyleOptions.starlight.decorationShape, shape);
+    assert.equal(f.document.body.dataset.decorationShape, shape);
+    assert.equal(f.options.at(-1), originalFeed);
+    assert.equal(f.appends.length, appendCount, 'shape changes must not replay messages');
+  }
+  select.value = 'heart';
+  select.events.change();
+  f.node('signal').events.click();
+  assert.equal(f.node('previewDecorationShapeField').hidden, true);
+  assert.equal(f.document.body.dataset.decorationShape, 'sparkle');
+  f.node('starlight').events.click();
+  assert.equal(select.value, 'heart');
+  f.node('previewAppearanceReset').events.click();
+  assert.equal(select.value, 'sparkle');
+  assert.equal(f.document.body.dataset.decorationShape, 'sparkle');
+});
+
 test('random position controls reach the preview feed, reject invalid edits and reset per style', async () => {
   const f = await fixture('?preview=1&style=outline');
   assert.equal(f.node('previewCenterBiasField').hidden, false);
@@ -465,10 +553,13 @@ test('floating preview controls save mapped speed and dispersion independently a
       const control = f.node(id);
       control.min = '1'; control.max = '100'; control.value = '100';
       control.events.input();
+      assert.equal(f.history.state.danmakuStyleOptions[style]?.[key], undefined, 'dragging only updates the readout');
+      assert.match(f.node(`${id}Value`).textContent, /^100/);
+      control.events.change();
       assert.equal(f.history.state.danmakuStyleOptions[style][key], value);
       assert.equal(f.options.at(-1)[key], value);
       assert.equal(f.options.at(-1), originalFeed, 'motion edits keep the existing preview feed');
-      control.value = '101'; control.events.input();
+      control.value = '101'; control.events.change();
       assert.equal(control.value, '100');
     }
   }

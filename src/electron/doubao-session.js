@@ -15,12 +15,13 @@ function isDoubaoCookie(cookie) {
   return domain === 'doubao.com' || domain.endsWith('.doubao.com');
 }
 
-function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, getParent = () => null }) {
+function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, getParent = () => null, now = Date.now }) {
   const accountSession = session.fromPartition(safeStorage.isEncryptionAvailable() ? 'persist:lira-doubao' : 'lira-doubao');
   const snapshotPath = path.join(dataDir, 'doubao-auth', 'cookies.enc');
   const instanceId = crypto.randomUUID();
   const controllers = new Set();
-  let conversationState = null;
+  const conversations = new Map();
+  let contextUnconfirmed = false;
   let window = null;
   let loading = null;
   let initialized = null;
@@ -55,7 +56,8 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
     const credential = cookies.find(cookie => LOGIN_COOKIE_NAMES.has(cookie.name) && cookie.value)?.value || '';
     const nextIdentity = credential ? crypto.createHash('sha256').update(credential).digest('hex') : '';
     if (identity !== nextIdentity) {
-      conversationState = null;
+      conversations.clear();
+      contextUnconfirmed = false;
       identity = nextIdentity;
       loggedIn = Boolean(identity);
       needsVerification = false;
@@ -167,7 +169,7 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
     return getStatus();
   }
 
-  function request({ text, signal, timeoutMs = 12000 }) {
+  function request({ text, conversationKey, contextTtlSeconds, signal, timeoutMs = 12000 }) {
     const queuedAt = performance.now();
     const controller = new AbortController();
     const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
@@ -176,9 +178,19 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
     const work = queue.then(async () => {
       combined.throwIfAborted();
       if (disposed || loggingOut || revision !== expectedRevision) throw doubaoError('DOUBAO_SESSION_CHANGED');
-      // Resolve inside the queue so simultaneous first calls cannot create duplicates.
-      const conversation = conversationState ||= { conversationId: '', sectionId: '', blocked: false };
-      if (conversation.blocked) throw doubaoError('DOUBAO_CONTEXT_UNCONFIRMED');
+      if (contextUnconfirmed || !conversationKey || !Number.isFinite(contextTtlSeconds) || contextTtlSeconds <= 0) throw doubaoError('DOUBAO_CONTEXT_UNCONFIRMED');
+      // Resolve and expire inside the queue; concurrent calls must share only their own scope.
+      const knownConversationIds = new Set();
+      const timestamp = now();
+      for (const [key, value] of conversations) {
+        if (value.conversationId) knownConversationIds.add(value.conversationId);
+        if (value.expiresAt <= timestamp) conversations.delete(key);
+      }
+      let conversation = conversations.get(conversationKey);
+      if (!conversation) {
+        conversation = { conversationId: '', sectionId: '', expiresAt: 0 };
+        conversations.set(conversationKey, conversation);
+      }
       const duration = Math.min(60000, Math.max(3000, Number(timeoutMs) || 12000));
       let timer;
       let onAbort;
@@ -191,9 +203,11 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
         const operation = (async () => {
           const current = await ensureWindow();
           combined.throwIfAborted();
-          if (current.webContents.getURL().split('/').slice(0, 3).join('/') !== ORIGIN) throw doubaoError('DOUBAO_UNAVAILABLE');
+          const pageUrl = new URL(current.webContents.getURL());
+          if (pageUrl.origin !== ORIGIN) throw doubaoError('DOUBAO_UNAVAILABLE');
+          const visibleConversationId = pageUrl.pathname.match(/^\/chat\/(\d{1,64})\/?$/u)?.[1];
           // Without an ACK, neither creation nor the latest context is known.
-          conversation.blocked = true;
+          contextUnconfirmed = true;
           const { conversationId, sectionId } = conversation;
           const dispatchedAt = performance.now();
           const result = await current.webContents.executeJavaScript(`(${requestDoubaoText.toString()})(${JSON.stringify({ text, timeoutMs: duration, conversationId, sectionId })})`);
@@ -208,21 +222,25 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
               if (conversationId && (acknowledged.conversationId !== conversationId || acknowledged.sectionId === sectionId)) {
                 throw doubaoError('DOUBAO_CONTEXT_UNCONFIRMED');
               }
-              Object.assign(conversation, acknowledged, { blocked: false });
+              if (!conversationId && (knownConversationIds.has(acknowledged.conversationId) || acknowledged.conversationId === visibleConversationId)) {
+                throw doubaoError('DOUBAO_CONTEXT_UNCONFIRMED');
+              }
+              Object.assign(conversation, acknowledged, { expiresAt: now() + contextTtlSeconds * 1000 });
+              contextUnconfirmed = false;
             }
-          } catch (error) { conversation.blocked = true; throw error; }
+          } catch (error) { contextUnconfirmed = true; throw error; }
           // Retain acknowledged IDs even if the stream later fails or needs verification.
           let reply;
           try { reply = parseDoubaoReply(result.body); } catch (error) {
             // An explicit verification rejection before ACK permits a manual retry;
             // unlike a lost response, it does not confirm an accepted conversation.
             if (error.code === 'DOUBAO_VERIFICATION_REQUIRED') {
-              conversation.blocked = false;
-              if (!conversation.conversationId) conversationState = null;
+              contextUnconfirmed = false;
+              if (!conversation.conversationId) conversations.delete(conversationKey);
             }
             throw error;
           }
-          if (!acknowledged) { conversation.blocked = true; throw doubaoError('DOUBAO_CONTEXT_UNCONFIRMED'); }
+          if (!acknowledged) { contextUnconfirmed = true; throw doubaoError('DOUBAO_CONTEXT_UNCONFIRMED'); }
           const firstTextMs = Number.isFinite(result.firstTextMs) && result.firstTextMs >= 0
             ? Math.round(dispatchedAt - queuedAt + result.firstTextMs) : undefined;
           return { status: result.status, text: reply, firstTextMs };
@@ -240,7 +258,8 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
   async function logout() {
     if (disposed) throw doubaoError('DOUBAO_SESSION_CHANGED');
     loggingOut = true;
-    conversationState = null;
+    conversations.clear();
+    contextUnconfirmed = false;
     invalidate();
     clearTimeout(saveTimer);
     destroyWindow();
@@ -258,7 +277,8 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
   function dispose() {
     if (disposed) return;
     disposed = true;
-    conversationState = null;
+    conversations.clear();
+    contextUnconfirmed = false;
     invalidate();
     clearTimeout(saveTimer);
     accountSession.cookies.removeListener('changed', cookieChanged);

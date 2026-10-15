@@ -92,32 +92,91 @@ test('Doubao restores encrypted login and removes the saved snapshot when the we
   assert.equal(await fs.access(snapshot).then(() => true, () => false), false);
 });
 
-test('Doubao serializes first creation and reuses one conversation for chat and connection tests', { timeout: 25000 }, async t => {
+test('Doubao serializes viewer conversations separately from connection tests and the visible personal chat', { timeout: 25000 }, async t => {
   const { app, page } = await setup(t);
   await page.locator('#scan').click();
   await waitFor(async () => app.evaluate(() => global.doubaoTest.owner.getStatus().loggedIn));
+  await page.evaluate(() => history.replaceState({}, '', '/chat/987654321'));
   const requests = await app.evaluate(async () => {
     const { client, state } = global.doubaoTest;
-    await Promise.all([1, 2, 3].map(index => client.createResponse({ config: {}, purpose: 'generation', input: `合成问题 ${index}` })));
+    await Promise.all(['viewer-a', 'viewer-b', 'viewer-a'].map((conversationKey, index) => client.createResponse({ config: {}, conversationKey, purpose: 'generation', input: `合成问题 ${index}` })));
+    await client.testConnection({});
     await client.testConnection({});
     return state.requests;
   });
-  assert.equal(requests.filter(request => request.option.need_create_conversation).length, 1);
-  assert.equal(requests[0].option.click_clear_context, false);
-  assert.equal(requests[0].client_meta.conversation_id, '');
-  for (let index = 1; index < requests.length; index++) {
-    const next = requests[index];
-    assert.equal(next.option.need_create_conversation, false);
-    assert.equal(next.option.click_clear_context, true);
-    assert.equal(next.client_meta.conversation_id, '1001');
-    assert.equal(next.client_meta.last_section_id, String(2000 + index));
-    assert.equal(next.client_meta.local_conversation_id, '');
+  assert.equal(requests.filter(request => request.option.need_create_conversation).length, 3);
+  for (const index of [0, 1, 3]) {
+    assert.equal(requests[index].option.need_create_conversation, true);
+    assert.equal(requests[index].option.click_clear_context, false);
+    assert.equal(requests[index].client_meta.conversation_id, '');
+    assert.equal(requests[index].client_meta.last_section_id, '');
+    assert.ok(requests[index].client_meta.local_conversation_id.startsWith('local_'));
   }
+  for (const [index, conversationId, sectionId] of [[2, '1001', '2001'], [4, '1004', '2004']]) {
+    assert.equal(requests[index].option.need_create_conversation, false);
+    assert.equal(requests[index].option.click_clear_context, true);
+    assert.equal(requests[index].client_meta.conversation_id, conversationId);
+    assert.equal(requests[index].client_meta.last_section_id, sectionId);
+    assert.equal(requests[index].client_meta.local_conversation_id, '');
+  }
+  assert.doesNotMatch(JSON.stringify(requests), /987654321/);
   await page.evaluate(() => { document.cookie = 'sessionid=synthetic-other-account; path=/; secure; max-age=3600'; });
   await app.evaluate(() => global.doubaoTest.owner.whenIdle());
-  await app.evaluate(() => global.doubaoTest.client.testConnection({}));
-  assert.equal(await app.evaluate(() => global.doubaoTest.state.requests.at(-1).option.need_create_conversation), true);
+  const afterLogin = await app.evaluate(async () => {
+    const { client, state } = global.doubaoTest;
+    for (const conversationKey of ['viewer-a', 'viewer-b']) await client.createResponse({ config: {}, conversationKey, input: '新账号' });
+    await client.testConnection({});
+    return state.requests.slice(-3);
+  });
+  assert.ok(afterLogin.every(request => request.option.need_create_conversation));
 });
+
+for (const ttl of [60, 600, 1200]) {
+  test(`Doubao renews only the active viewer and creates a conversation at the ${ttl}s idle boundary`, { timeout: 25000 }, async t => {
+    const { app, page } = await setup(t);
+    await page.locator('#scan').click();
+    await waitFor(async () => app.evaluate(() => global.doubaoTest.owner.getStatus().loggedIn));
+    const requests = await app.evaluate(async (_electron, ttl) => {
+      const { client, state } = global.doubaoTest;
+      const ask = conversationKey => client.createResponse({ config: ttl === 600 ? {} : { contextTtlSeconds: ttl }, conversationKey, input: '合成问题' });
+      await ask('viewer-a');
+      state.now += (ttl - 1) * 1000;
+      await ask('viewer-a');
+      state.now += 1000;
+      await ask('viewer-b');
+      state.now += (ttl - 1) * 1000;
+      await ask('viewer-a');
+      await ask('viewer-b');
+      return state.requests;
+    }, ttl);
+    assert.deepEqual(requests.map(request => request.option.need_create_conversation), [true, false, true, true, false]);
+    assert.equal(requests[1].client_meta.conversation_id, '1001');
+    assert.equal(requests[3].client_meta.conversation_id, '');
+    assert.equal(requests[4].client_meta.conversation_id, '1003');
+  });
+}
+
+for (const source of ['another-viewer', 'expired', 'visible-personal']) {
+  test(`Doubao rejects a new-conversation ACK pointing to ${source}`, { timeout: 25000 }, async t => {
+    const { app, page } = await setup(t);
+    await page.locator('#scan').click();
+    await waitFor(async () => app.evaluate(() => global.doubaoTest.owner.getStatus().loggedIn));
+    await page.evaluate(() => history.replaceState({}, '', '/chat/987654321'));
+    const result = await app.evaluate(async (_electron, source) => {
+      const { client, state } = global.doubaoTest;
+      const ask = conversationKey => client.createResponse({ config: {}, conversationKey, input: '合成问题' });
+      if (source !== 'visible-personal') await ask('viewer-a');
+      state.forcedConversationId = source === 'visible-personal' ? '987654321' : '1001';
+      if (source === 'expired') state.now += 1200000;
+      const errors = [];
+      try { await ask(source === 'expired' ? 'viewer-a' : 'viewer-b'); } catch (error) { errors.push(error.code); }
+      state.now += 86400000;
+      try { await client.testConnection({}); } catch (error) { errors.push(error.code); }
+      return { errors, count: state.requests.length };
+    }, source);
+    assert.deepEqual(result, { errors: ['DOUBAO_CONTEXT_UNCONFIRMED', 'DOUBAO_CONTEXT_UNCONFIRMED'], count: source === 'visible-personal' ? 1 : 2 });
+  });
+}
 
 for (const failure of ['omitAck', 'reuseSection', 'wrongConversation']) {
   test(`Doubao stops reuse instead of creating more conversations when ${failure}`, { timeout: 25000 }, async t => {
@@ -177,7 +236,7 @@ test('Doubao allows a manual retry after an explicit first-call verification rej
     const recovered = await client.testConnection({});
     state.omitAck = true;
     for (let index = 0; index < 2; index++) {
-      try { await client.createResponse({ config: {}, purpose: 'generation', input: '合成问题' }); } catch (error) { errors.push(error.code); }
+      try { await client.createResponse({ config: {}, conversationKey: 'viewer', purpose: 'generation', input: '合成问题' }); } catch (error) { errors.push(error.code); }
     }
     return { errors, count: state.requests.length, recovered: recovered.reply };
   });

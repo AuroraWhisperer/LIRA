@@ -2,8 +2,8 @@ const { CANVAS_PRESETS } = require('./canvas-presets');
 
 // Display contract mirrored by the desktop main process and the server.
 const REGION_DEFAULTS = Object.freeze({
-  bubble: [380, 560], signal: [560, 600], minimal: [294, 480],
-  ranked: [640, 640], transparent: [520, 540], identity: [640, 560],
+  bubble: [570, 560], signal: [560, 600], minimal: [588, 576],
+  ranked: [640, 640], transparent: [520, 540], identity: [640, 616],
   sketch: [680, 720],
   prismatic: [640, 720],
   harbor: [640, 720],

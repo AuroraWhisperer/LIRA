@@ -135,16 +135,17 @@ body[data-style='snowfox'] .is-gift::before {
 body[data-style='snowfox'] .draw-danmaku-item.is-superchat::before { display: block; }
 body[data-style='snowfox'] .sc-snowfox {
   position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 5.1em;
-  padding: 0.12em 1.8em 0.22em 0.68em;
+  padding: 0;
   border: 2px solid #faffff;
   border-top-width: 0.3em;
   border-radius: 0.22em 0.3em 0 0;
   color: #fff;
   background: url('/img/overlays/danmaku-snowfox/frost.svg') right top / auto 100% no-repeat,
-    linear-gradient(105deg, #fff2, transparent 64%, #f2fcffb3),
-    linear-gradient(180deg, #fff3 0 1.28em, #18324665 1.28em 100%), var(--sc-accent);
+    linear-gradient(105deg, #fff2, transparent 64%, #f2fcffb3), var(--sc-accent);
   box-shadow: inset 1px 0 0 #fff7;
   font: inherit;
   text-shadow: 0 1px 1px #233346, 1px 0 1px #233346, -1px 0 1px #233346, 0 -1px 1px #233346;
@@ -159,12 +160,20 @@ body[data-style='snowfox'] .sc-snowfox::after {
   background: url('/img/overlays/danmaku-snowfox/charms.svg') right top / contain no-repeat;
   pointer-events: none;
 }
-body[data-style='snowfox'] .sc-snowfox-head { display: flex; flex-wrap: wrap; gap: 0.12em 0.3em; align-items: baseline; justify-content: space-between; }
+body[data-style='snowfox'] .sc-snowfox-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.12em 0.3em;
+  align-items: start;
+  justify-content: space-between;
+  padding: 0.12em 1.8em 0.14em 0.68em;
+  background: #fff3;
+}
 body[data-style='snowfox'] .sc-snowfox :is(.sc-name, .sc-copy, .sc-money) { font: 800 0.96em/1.16 var(--danmaku-ui-font); color: inherit; }
-body[data-style='snowfox'] .sc-snowfox .sc-name { min-width: 0; flex: 1; overflow-wrap: anywhere; }
-body[data-style='snowfox'] .sc-snowfox .sc-money { flex: 0 0 auto; padding: 0 0.12em; border: 1px solid #f7ffff9c; border-radius: 0.12em; font-size: 0.86em; white-space: nowrap; }
+body[data-style='snowfox'] .sc-snowfox .sc-name { min-width: 0; flex: 1 1 8em; font-size: 0.82em; line-height: 1.3; overflow-wrap: anywhere; }
+body[data-style='snowfox'] .sc-snowfox .sc-money { flex: 0 0 auto; margin-left: auto; padding: 0 0.12em; border: 1px solid #f7ffff9c; border-radius: 0.12em; font-size: 0.86em; white-space: nowrap; }
 body[data-style='snowfox'] .sc-snowfox .sc-currency { font-size: 1em; margin: 0; }
-body[data-style='snowfox'] .sc-snowfox .sc-copy { margin: 0.12em 0 0; font-size: 1em; white-space: pre-wrap; overflow-wrap: anywhere; }
+body[data-style='snowfox'] .sc-snowfox .sc-copy { margin: 0; padding: 0.16em 1.8em 0.22em 0.68em; background: #18324665; font-size: 1em; white-space: pre-wrap; overflow-wrap: anywhere; }
 body[data-style='snowfox'] .sc-avatar {
   position: absolute;
   top: auto;

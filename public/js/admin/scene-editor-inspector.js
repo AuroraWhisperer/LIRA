@@ -14,6 +14,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
   let panel = null;
   let stylePanel = null;
   let fields = {};
+  const invalidFields = new Set();
   let target;
   let parameters;
   let stopStatus;
@@ -33,7 +34,8 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     wrapper.append(input);
     fields[property] = input;
     input.addEventListener('change', () => {
-      if (!input.reportValidity()) return;
+      if (!input.reportValidity()) { invalidFields.add(property); return; }
+      invalidFields.delete(property);
       edit((document) => {
         const item = document.items.find((entry) => entry.id === [...getSelection()][0]);
         if (item && !item.locked) item[property] = type === 'number' ? Number(input.value) : input.value;
@@ -47,6 +49,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     panel?.dispose?.();
     panel = null;
     fields = {};
+    invalidFields.clear();
     host.replaceChildren();
   }
   function render(force = false) {
@@ -86,7 +89,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
         : createSceneItemController(model, item.id, component.controller, sharedAppearance);
       host.append(geometry, target, parameters);
       stylePanel = mountComponentStyleInspector(parameters, { item, model, component, request: requestStyles, report });
-      panel = component.createPanel(parameters, controller);
+      panel = component.createPanel(parameters, controller, report);
       autoSavesAppearance = Boolean(sharedAppearance?.getState(item));
       const shared = autoSavesAppearance || Object.keys(sharedControllerAppearance(item.type,
         item.appearance.config || {}, component.controller.getState().draft)).length;
@@ -107,6 +110,8 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     stylePanel?.update?.(item, force);
     host.firstElementChild.textContent = `${item.name}参数`;
     for (const [property, input] of Object.entries(fields)) {
+      if (force) invalidFields.delete(property);
+      if (invalidFields.has(property)) continue;
       syncComponentFieldValue(input, item[property], force || input.readOnly);
     }
     const { canvas } = model.getSnapshot();

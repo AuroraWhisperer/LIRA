@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('is-preview');
     let previewTimer = null;
     let previewSequence = 0;
-    let sampleAppearanceKey = '';
+    let sampleContentKey = '';
     let playNext;
     const sceneDisplay = createSceneDanmakuDisplay({ clear: () => applyItems([]), append: appendItem, remove: removeSuperChats,
       status: setConnectionState, getStyle: () => currentOverlayStyle, showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true });
@@ -94,17 +94,18 @@ document.addEventListener('DOMContentLoaded', () => {
         applyItems([]);
       },
       renderData: sceneDisplay.update,
-      renderSamples(style, options, duration, layout, config = { style }) {
+      renderSamples(style, options, duration, layout, config = { style }, restart = false) {
         effectConfig = config;
         const appearance = styleOptionsFor(style, options);
-        const nextAppearanceKey = JSON.stringify([style, { ...appearance,
-          speedPixelsPerSecond: null, floatingDispersion: null }, duration, config.styleParameters]);
-        if (isFloatingDanmakuStyle(style) && playNext && sampleAppearanceKey === nextAppearanceKey) {
+        const nextContentKey = JSON.stringify([style, appearance.giftImage, appearance.minGiftAmount,
+          appearance.scrollDirection, isRandomDanmakuStyle(style) ? duration : null,
+          styleParametersFor(config).showEntryMessages === true]);
+        if (!restart && playNext && sampleContentKey === nextContentKey) {
           applyConfiguration(style, duration, options);
           configureEffects(config);
           return;
         }
-        sampleAppearanceKey = nextAppearanceKey;
+        sampleContentKey = nextContentKey;
         const samples = createDanmakuPreviewItems(style).filter((item) =>
           style === 'mist' || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
         if (styleParametersFor(config).showEntryMessages) samples.push({ ...DANMAKU_PREVIEW_ENTRY });
@@ -275,7 +276,7 @@ function createOverlayFeed(style, durationSeconds) {
         : '',
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'whiteframe', 'starveil', 'glow', 'starlight', 'sketch'].includes(style) && !isFloatingDanmakuStyle(style),
-    showGiftTotal: ['mist', 'harbor', 'transparent', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox'].includes(style),
+    showGiftTotal: ['mist', 'harbor', 'transparent', 'identity', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox'].includes(style),
   };
   if (isFloatingDanmakuStyle(style)) {
     options.layout = 'floating';

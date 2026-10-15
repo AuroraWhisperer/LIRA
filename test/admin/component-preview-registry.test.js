@@ -47,7 +47,7 @@ async function loadOwner(filename, overrides = {}) {
       return { close() { options.onClose?.(); } };
     } },
     './component-preview-panel.js': { cloneComponentPanel: createNode,
-      componentField: (root, id) => root.getElementById(id) },
+      componentField: (root, id) => root.getElementById(id), componentFieldLabel: () => '参数' },
     './forms.js': { formsService: {} },
     './component-style-parameters.js': { mountStyleParameters: () => ({ dispose() {} }) },
     './state.js': { stateService: { getAppState: () => ({ settings: {} }) } },

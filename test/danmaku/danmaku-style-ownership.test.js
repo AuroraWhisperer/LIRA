@@ -37,6 +37,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
     "@import url('./danmaku/snowfox.css');",
     "@import url('./danmaku/harbor.css');",
     "@import url('./danmaku/mist.css');",
+    "@import url('./danmaku/random-entrance.css');",
     "@import url('./danmaku/preview.css');",
   ];
   assert.deepEqual(entry.match(/@import url\('[^']+'\);/g), expectedImports);
@@ -78,7 +79,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
   assert.match(owners.motion, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.motion, /body\[data-style=/);
   const giftAssets = new Set();
-  for (const style of ['signal', 'bubble', 'minimal', 'ranked', 'transparent', 'outline', 'cream']) {
+  for (const style of ['signal', 'bubble', 'minimal', 'ranked', 'cream']) {
     const asset = owners[style].match(/url\('(\/img\/overlays\/danmaku-gifts\/[^']+)'\)/)[1];
     const bytes = fs.readFileSync(path.join(ROOT_DIR, 'public', asset));
     if (asset.endsWith('.svg')) {
@@ -87,6 +88,8 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
     }
     giftAssets.add(bytes.toString('base64'));
   }
-  assert.equal(giftAssets.size, 7, 'styles with illustrations have their own gift artwork');
+  assert.equal(giftAssets.size, 5, 'styles with illustrations have their own gift artwork');
   assert.match(owners.identity, /--danmaku-gift-art:\s*none;/);
+  assert.match(owners.transparent, /--danmaku-gift-art:\s*none;/);
+  assert.match(owners.outline, /--danmaku-gift-art:\s*none;/);
 });

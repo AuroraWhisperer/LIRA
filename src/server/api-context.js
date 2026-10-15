@@ -45,6 +45,7 @@ function createApiContext(options) {
       request: typeof requestCloudSync === 'function' ? requestCloudSync : () => {},
     },
     songs: {
+      getChangeToken: domainServices.songs.getChangeToken,
       list: domainServices.songs.list,
       save: domainServices.songs.save,
       delete: domainServices.songs.delete,
@@ -129,6 +130,8 @@ function createApiContext(options) {
       setLyricOffsetMs: weSingCapture.setLyricOffsetMs,
       setActive: weSingCapture.setActive,
       refresh: weSingCapture.refresh,
+      diagnose: weSingCapture.diagnose,
+      exportDiagnostics: weSingCapture.exportDiagnostics,
     },
     theme: domainServices.theme,
     bilibili: {

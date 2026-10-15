@@ -6,6 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { createServerRuntime } = require('../../src/server');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
+const { createOverlayToken } = require('../../src/server/access-policy');
 
 async function requestJson(url, token, options = {}) {
   const response = await fetch(url, {
@@ -54,6 +55,18 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
   const token = runtime.getApiToken();
   const unauthorized = await fetch(`${app.baseUrl}/api/music/wesing/status`);
   assert.equal(unauthorized.status, 401);
+  const diagnosticUrl = `${app.baseUrl}/api/music/wesing/diagnose`;
+  assert.equal((await fetch(diagnosticUrl, { method: 'POST' })).status, 401);
+  assert.equal((await requestJson(diagnosticUrl, createOverlayToken(token, 'lyrics'), { method: 'POST' })).response.status, 403);
+  const inactiveDiagnostic = await requestJson(diagnosticUrl, token, { method: 'POST' });
+  assert.equal(inactiveDiagnostic.response.status, 400);
+  assert.match(inactiveDiagnostic.payload.error, /请先打开/);
+  const exportUrl = `${diagnosticUrl}/export`;
+  assert.equal((await fetch(exportUrl, { method: 'POST' })).status, 401);
+  assert.equal((await requestJson(exportUrl, createOverlayToken(token, 'lyrics'), { method: 'POST' })).response.status, 403);
+  const missingReport = await requestJson(exportUrl, token, { method: 'POST', body: '{"startedAt":"not-a-report"}' });
+  assert.equal(missingReport.response.status, 400);
+  assert.match(missingReport.payload.error, /重新运行/);
 
   const configured = await requestJson(`${app.baseUrl}/api/music/wesing/configure`, token, {
     method: 'POST',
@@ -172,4 +185,61 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
   assert.equal(deactivated.payload.data.active, true, 'clearing the preference must not disable detection');
   assert.equal(monitorStops, 0);
   assert.equal((await requestJson(`${app.baseUrl}/api/playback/lyric-source`, token)).payload.data.selection, 'auto');
+});
+
+test('WeSing diagnostic route returns the capture report without altering playback', async () => {
+  const { routes } = require('../../src/server/routes/wesing-routes');
+  const report = { version: 1, summary: { result: 'ready' }, samples: [] };
+  let calls = 0;
+  let status;
+  let body;
+  await routes['POST /api/music/wesing/diagnose']({ weSing: {
+    async diagnose() { calls++; return report; },
+  } }, {}, { writeHead(code) { status = code; }, end(value) { body = value; } });
+  assert.equal(calls, 1);
+  assert.equal(status, 200);
+  assert.deepEqual(JSON.parse(body), { ok: true, data: report });
+});
+
+test('WeSing diagnostic HTTP request is settled before server shutdown drains requests', async (t) => {
+  const { routes } = require('../../src/server/routes/wesing-routes');
+  const key = 'POST /api/music/wesing/diagnose';
+  const original = routes[key];
+  const entered = Promise.withResolvers();
+  t.mock.method(routes, key, (...args) => {
+    const pending = original(...args);
+    entered.resolve();
+    return pending;
+  });
+  const directory = createScratchDirectory('wesing-diagnostic-shutdown-', t);
+  const runtime = createServerRuntime({ dataDir: directory, weSingPlatform: 'win32',
+    weSingCacheDiscovery: async () => '', weSingMonitorFactory: () => ({ start() {}, stop() {} }),
+  });
+  t.after(() => runtime.stop({ exitProcess: false }));
+  const app = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+  const token = runtime.getApiToken();
+  await requestJson(`${app.baseUrl}/api/music/wesing/active`, token, { method: 'POST', body: '{"active":true}' });
+  const request = requestJson(`${app.baseUrl}/api/music/wesing/diagnose`, token, { method: 'POST' });
+  await entered.promise;
+  const started = performance.now();
+  await runtime.stop({ exitProcess: false });
+  const result = await request;
+  assert.ok(performance.now() - started < 10000, 'shutdown must not wait for the full 20-second recording');
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.data.reason, 'stopped');
+});
+
+test('WeSing export route accepts only a report identity and delegates file ownership', async () => {
+  const { routes } = require('../../src/server/routes/wesing-routes');
+  let received;
+  let status;
+  let body;
+  const result = { path: 'logs/wesing-playback-diagnostic-2026-10-15_20-30-00-123.json' };
+  await routes['POST /api/music/wesing/diagnose/export']({ weSing: {
+    async exportDiagnostics(...args) { received = args; return result; },
+  } }, { body: async () => ({ startedAt: '2026-10-15T12:30:00.123Z', path: '../outside.json', report: { token: 'untrusted' } }) },
+  { writeHead(code) { status = code; }, end(value) { body = value; } });
+  assert.deepEqual(received, ['2026-10-15T12:30:00.123Z']);
+  assert.equal(status, 200);
+  assert.deepEqual(JSON.parse(body), { ok: true, data: result });
 });

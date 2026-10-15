@@ -76,7 +76,8 @@
             <button id="xiaomiAiDoubaoLogin" class="secondary" type="button">扫码登录豆包</button>
             <button id="xiaomiAiDoubaoLogout" class="secondary" type="button" hidden>退出豆包</button>
           </div>
-          <p class="hint">使用手机豆包扫码，电脑无需安装豆包。仅文字对话，不需要 API Key。遇到验证码会暂停请求，请在豆包窗口完成验证后点击「测试 AI 连接」。</p>
+          <p class="hint">使用手机豆包扫码，电脑无需安装豆包。仅文字对话，不需要 API Key。请求受限时会暂停，请按豆包窗口提示处理，再点「测试 AI 连接」。网页未必显示验证码，以连接测试成功为恢复依据。</p>
+          <p class="hint">测试连接使用单独对话。</p>
         </div>
         <label id="xiaomiAiKeyControl" class="wide"
           >密钥（API Key）<input
@@ -158,6 +159,10 @@
         </div>
         <label hidden>原有自定义角色
           <textarea id="xiaomiAiSystemPrompt" hidden></textarea>
+        </label>
+        <label class="wide">空闲多久后结束对话（分钟）
+          <input id="xiaomiAiContextMinutes" type="number" min="1" max="1440" step="any" value="10" aria-describedby="xiaomiAiContextHelp" />
+          <small id="xiaomiAiContextHelp">每位观众独立续聊，收到回复后重新计时，超过时长自动清空。每次仍需触发关键词；发送「关键词 + 结束对话」可提前结束。</small>
         </label>
       </div>
     </fieldset>

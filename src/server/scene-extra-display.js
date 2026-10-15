@@ -38,7 +38,17 @@ function createSceneExtraDisplay({ getContext, getOwner, now = Date.now }) {
     switch (type) {
       case 'gift-sprint': return projectOverlayState(type, getState()).giftSprint ?? null;
       case 'opening': return response('/api/opening/config', getOpeningConfig(context));
-      case 'songlist': return { songs: response('/api/songs', context.songs.list({ enabledOnly: true })) };
+      case 'songlist': {
+        const owner = getOwner?.();
+        const revision = context.songs.getChangeToken?.();
+        const key = JSON.stringify([owner?.scope, owner?.epoch, revision]);
+        let entry = cache.get(type);
+        if (revision === undefined || entry?.key !== key) {
+          entry = { key, songs: response('/api/songs', context.songs.list({ enabledOnly: true })) };
+          if (revision !== undefined) cache.set(type, entry);
+        }
+        return { songs: structuredClone(entry.songs) };
+      }
       case 'lyrics': {
         const { lyricState, lyricTimeline } = projectOverlayState(type, getState());
         return { lyricState, lyricTimeline };

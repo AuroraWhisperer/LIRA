@@ -95,6 +95,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   starlight: {
     scrollDirection: true,
+    decorationShape: true,
     label: '星语',
     minFontSize: 18,
     maxFontSize: 48,
@@ -131,6 +132,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   whiteframe: {
     layout: 'fullscreen-random',
+    entranceAnimation: true,
     label: '白描',
     minFontSize: 18,
     maxFontSize: 40,
@@ -169,6 +171,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   starveil: {
     layout: 'fullscreen-random',
+    entranceAnimation: true,
     label: '点点流萤',
     minFontSize: 18,
     maxFontSize: 40,
@@ -178,6 +181,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   glow: {
     layout: 'fullscreen-random',
+    entranceAnimation: true,
     label: '流光溢彩',
     minFontSize: 18,
     maxFontSize: 40,
@@ -226,6 +230,10 @@ function normalizeStyleOptions(value) {
       else if (key === 'backgroundOpacity' && limits.background && Number.isInteger(item) && item >= 0 && item <= 100)
         normalized[key] = item;
       else if (key === 'giftImage' && limits.giftImage && ['theme', 'gift'].includes(item)) normalized[key] = item;
+      else if (key === 'decorationShape' && limits.decorationShape
+        && ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'].includes(item)) normalized[key] = item;
+      else if (key === 'entranceAnimation' && limits.entranceAnimation && ['fade', 'rise'].includes(item))
+        normalized[key] = item;
       else if (key === 'scrollDirection' && limits.scrollDirection && ['up', 'down'].includes(item))
         normalized[key] = item;
       else if (key === 'edgeFade' && limits.scrollDirection && ['both', 'top', 'bottom', 'single', 'none'].includes(item))
@@ -255,6 +263,8 @@ function styleOptionsFor(style, options = {}) {
     fontSize: 30,
     ...(DANMAKU_STYLE_OPTIONS[style]?.minGiftAmount ? { minGiftAmount: 0 } : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.bubbleColor ? { bubbleColor: 'default' } : {}),
+    ...(DANMAKU_STYLE_OPTIONS[style]?.decorationShape ? { decorationShape: 'sparkle' } : {}),
+    ...(DANMAKU_STYLE_OPTIONS[style]?.entranceAnimation ? { entranceAnimation: 'fade' } : {}),
     backgroundOpacity: 100,
     giftImage: 'theme',
     scrollDirection: 'up',
@@ -269,8 +279,8 @@ function styleOptionsFor(style, options = {}) {
   } catch {
     resolved = defaults;
   }
-  // Keep accepting the legacy image option while this style always shows the gift itself.
-  if (style === 'identity') resolved.giftImage = 'gift';
+  // Keep accepting legacy image options while these styles always show the gift itself.
+  if (['identity', 'transparent', 'outline'].includes(style)) resolved.giftImage = 'gift';
   if (resolved.edgeFade === 'single') {
     resolved.edgeFade = resolved.scrollDirection === 'down' ? 'bottom' : 'top';
   }
@@ -291,6 +301,8 @@ export function applyStyleOptions(document, style, allOptions) {
   const options = styleOptionsFor(style, allOptions);
   document.body.dataset.scrollDirection = options.scrollDirection;
   document.body.dataset.edgeFade = options.edgeFade || 'none';
+  document.body.dataset.entranceAnimation = options.entranceAnimation || 'fade';
+  document.body.dataset.decorationShape = options.decorationShape || 'sparkle';
   const root = document.documentElement.style;
   root.setProperty('--danmaku-bubble-color', options.bubbleColor && options.bubbleColor !== 'default' ? options.bubbleColor : '');
   root.setProperty('--danmaku-text-color', options.textColor);

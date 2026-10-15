@@ -5,18 +5,63 @@ const test = require('node:test');
 const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
-const { normalizeSceneConfig } = require('../../src/server/scene-components');
+const { normalizeSceneConfig, createSceneComponentPorts } = require('../../src/server/scene-components');
 const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneExtraDisplay } = require('../../src/server/scene-extra-display');
+const { createSongStore } = require('../../src/storage/song-store');
+const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { listSongs } = require('../../src/music/song-service');
 
 function documentFor(type, config = createSceneExtraDefaults(type)) {
   return { schemaVersion: 1, id: randomUUID(), title: '新组件', canvas: { width: 1920, height: 1080 },
     items: [{ id: randomUUID(), type, name: type, x: 10, y: 20, width: 400, height: 300,
       visible: true, locked: false, appearance: { mode: 'independent', config } }] };
 }
+
+test('mixed lyric scenes reuse the song query until a write or owner change, without delaying lyrics', t => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(SONG_SCHEMA);
+  db.exec("INSERT INTO songs(name, created_at, updated_at) VALUES ('first', '', '')");
+  const store = createSongStore(db);
+  let owner = { scope: 'streamer-a', epoch: 1 };
+  let reads = 0;
+  let currentMs = 100;
+  const context = { songs: {
+    getChangeToken: store.getChangeToken,
+    list(options) { reads++; return listSongs(store, options); },
+  } };
+  const display = createSceneExtraDisplay({ getContext: () => context, getOwner: () => owner });
+  const ports = createSceneComponentPorts({ getExtraDisplay: display,
+    getState: () => ({ lyricState: { currentMs, playing: true }, lyricTimeline: { lines: [] } }) });
+  const read = () => ports.getDisplayData(['songlist', 'lyrics'], {});
+  const first = read();
+  assert.equal(first.songlist.songs[0].name, 'first');
+  first.songlist.songs[0].name = 'consumer mutation';
+  currentMs = 350;
+  const second = read();
+  assert.equal(second.lyrics.lyricState.currentMs, 350);
+  assert.equal(second.songlist.songs[0].name, 'first');
+  assert.equal(reads, 1);
+  db.exec("UPDATE songs SET name='updated'");
+  assert.equal(read().songlist.songs[0].name, 'updated');
+  assert.equal(reads, 2);
+  db.exec('UPDATE songs SET is_enabled=0');
+  assert.deepEqual(read().songlist.songs, []);
+  assert.equal(reads, 3);
+  owner = { scope: 'streamer-b', epoch: 1 };
+  read();
+  assert.equal(reads, 4);
+  owner.epoch++;
+  read();
+  assert.equal(reads, 5);
+  display.invalidate(['songlist']);
+  read();
+  assert.equal(reads, 6);
+});
 
 test('standalone color alpha survives scene normalization while paired opacity retains its own field', () => {
   for (const [type, definition] of Object.entries(SCENE_EXTRA_COMPONENTS)) {

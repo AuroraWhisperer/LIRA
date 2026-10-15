@@ -101,11 +101,60 @@ for (const direction of ['up', 'down']) {
       await page.evaluate(() => Array.from(root.children).forEach(node => node.getAnimations().forEach(animation => animation.finish())));
       await page.waitForFunction(() => !oldNodes[0].isConnected && Array.from(root.children).every(node => !node.getAnimations().length));
       assert.ok(await page.evaluate(() => oldNodes[2].isConnected), 'retain the partially visible boundary row');
+      const afterPruning = await page.evaluate(async () => {
+        const nodes = Array.from(root.children);
+        const tops = nodes.map(node => node.getBoundingClientRect().top);
+        feed.append({ name: '清理后追加', message: '继续保持原来的位置' });
+        await new Promise(requestAnimationFrame);
+        freezeMoves(0);
+        return nodes.map((node, index) => node.getBoundingClientRect().top - tops[index]);
+      });
+      assert.ok(afterPruning.every(delta => Math.abs(delta) < 0.1), 'pruning must not invalidate the retained rows position');
       await page.evaluate(() => feed.destroy());
       assert.equal(await page.locator('#feed > *').count(), 0);
     });
   }
 }
+
+test('long SC fitting is not repeated at movement completion and still responds to resize and effects', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'prismatic');
+  await page.evaluate(async () => {
+    document.querySelector('.danmaku-signal-stage').style.height = '240px';
+    feed.render([{ id: 'long-sc', kind: 'superchat', name: '测试观众', price: 30,
+      message: '这是一条用于隔离测量的完整长留言。'.repeat(6) }]);
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+    window.card = root.firstElementChild;
+    window.fontWrites = 0;
+    window.originalSetProperty = CSSStyleDeclaration.prototype.setProperty;
+    CSSStyleDeclaration.prototype.setProperty = function (name, value, priority) {
+      if (this === card.style && name === 'font-size') fontWrites++;
+      return originalSetProperty.call(this, name, value, priority);
+    };
+    feed.append({ id: 'short-chat', name: '新观众', message: '新增一条短弹幕' });
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+    freezeMoves(100);
+  });
+  const before = await page.evaluate(() => ({ writes: fontWrites, size: card.style.fontSize }));
+  assert.ok(before.writes > 1, 'the long card is fitted when the content layout changes');
+  await page.evaluate(async () => {
+    Array.from(root.children).forEach(node => node.getAnimations().forEach(animation => animation.finish()));
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+  });
+  assert.deepEqual(await page.evaluate(() => ({ writes: fontWrites, size: card.style.fontSize })), before);
+  await page.evaluate(() => { document.querySelector('.danmaku-signal-stage').style.height = '300px'; });
+  await page.waitForFunction(writes => fontWrites > writes, before.writes);
+  const resized = await page.evaluate(() => ({ writes: fontWrites, size: card.style.fontSize }));
+  assert.ok(parseFloat(resized.size) > parseFloat(before.size));
+  await page.evaluate(() => window.dispatchEvent(new Event('lira:effects-updated')));
+  await page.waitForFunction(writes => fontWrites > writes, resized.writes);
+  await page.evaluate(() => {
+    CSSStyleDeclaration.prototype.setProperty = originalSetProperty;
+    feed.destroy();
+  });
+});
 
 test('moonlit bounds bursts and finishes active movement when reduced motion is enabled', { timeout: 15000 }, async t => {
   const page = await preview(t, 'up', 1);

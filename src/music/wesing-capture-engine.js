@@ -17,6 +17,7 @@ const { createPowerShellWeSingMonitor } = require('./wesing-monitor');
 const { createWeSingPlaybackClock } = require('./wesing-playback-clock');
 const { resolveWeSingLyrics } = require('./wesing-lyric-resolver');
 const { createWeSingQrcWatcher } = require('./wesing-qrc-watcher');
+const { createWeSingDiagnostics } = require('./wesing-diagnostics');
 
 const PAUSED_AFTER_MS = 1500;
 const AUDIO_PEAK_THRESHOLD = 0.001;
@@ -99,6 +100,11 @@ function createWeSingCapture(options = {}) {
     },
   });
   const { sync: syncQrcWatcher, stop: stopQrcWatcher } = qrcWatcher;
+  const diagnostics = createWeSingDiagnostics({
+    now, setTimer, clearTimer, logDir: options.logDir,
+    getSnapshot: () => ({ ...state, lyricLineCount: lyrics.length,
+      firstLineStartMs: lyrics[0]?.startMs, hasCurrentLine: Boolean(state.lyricState.lineText) }),
+  });
 
   async function prepareConfiguration(input) {
     const nextLyricOffsetMs = Object.hasOwn(input, 'lyricOffsetMs')
@@ -166,6 +172,7 @@ function createWeSingCapture(options = {}) {
     lastAutomaticRefreshAt = -Infinity;
     refreshVersion += 1;
     if (!nextActive) {
+      diagnostics.stop();
       stopMonitor();
       stopQrcWatcher();
       cancelPlaybackRefresh();
@@ -189,7 +196,9 @@ function createWeSingCapture(options = {}) {
     if (version !== lifecycleVersion || !state.active) return getStatus();
     try {
       monitor = monitorFactory((sample) => {
-        if (version === lifecycleVersion) handleMonitorSample(sample);
+        if (version !== lifecycleVersion) return;
+        handleMonitorSample(sample);
+        diagnostics.record(sample, !sample.error && sample.audioActive === true && Number(sample.audioPeak) > AUDIO_PEAK_THRESHOLD);
       });
       monitor.start();
       state.status = 'waiting';
@@ -656,7 +665,14 @@ function createWeSingCapture(options = {}) {
     return getStatus();
   }
 
+  function diagnose() {
+    if (!state.supported) throw new Error('播放诊断目前只支持 Windows。');
+    if (!state.active) throw new Error('请先打开全民 K 歌歌词页面，再开始播放诊断。');
+    return diagnostics.start();
+  }
+
   function stop() {
+    diagnostics.stop();
     lifecycleVersion += 1;
     refreshVersion += 1;
     pendingCacheDiscovery = null;
@@ -673,6 +689,9 @@ function createWeSingCapture(options = {}) {
 
   return {
     getStatus,
+    diagnose,
+    exportDiagnostics: diagnostics.exportReport,
+    cancelDiagnostics: diagnostics.stop,
     refresh,
     setActive,
     setCachePath,

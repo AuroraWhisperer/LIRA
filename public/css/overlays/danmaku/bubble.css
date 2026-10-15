@@ -19,7 +19,7 @@ body[data-style='bubble'] .draw-danmaku-item {
   --bubble-accent: #70ddc6;
   --bubble-accent-rgb: 112 221 198;
   --bubble-surface: 28 30 47;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: 84px minmax(0, 1fr);
   gap: 11px;
   min-height: 58px;
   padding: 9px 18px 10px 10px;
@@ -38,8 +38,8 @@ body[data-style='bubble'] .draw-danmaku-item::after {
   display: none;
 }
 body[data-style='bubble'] .draw-danmaku-avatar {
-  width: 42px;
-  height: 42px;
+  width: 84px;
+  height: 84px;
   border: 0;
   border-radius: 50%;
   color: transparent;
@@ -54,6 +54,7 @@ body[data-style='bubble'] .draw-danmaku-identity {
 }
 body[data-style='bubble'] .draw-danmaku-identity strong {
   color: var(--bubble-accent);
+  font-size: 30px;
 }
 body[data-style='bubble'] .draw-danmaku-guard {
   display: none;
@@ -87,6 +88,13 @@ body[data-style='bubble'] .draw-danmaku-body p {
   font-weight: 500;
   line-height: 1.36;
 }
+body[data-style='bubble'] .draw-danmaku-item.is-gift {
+  grid-template-columns: 80px minmax(0, 1fr);
+}
+body[data-style='bubble'] .is-gift .draw-danmaku-avatar {
+  width: 80px;
+  height: 80px;
+}
 body[data-style='bubble'] .draw-danmaku-item[data-identity='captain'] {
   --bubble-accent: var(--guard-captain);
   --bubble-accent-rgb: 47 155 255;
@@ -104,7 +112,7 @@ body[data-style='bubble'] .draw-danmaku-item[data-identity='governor'] {
 }
 body[data-style='bubble']
   .draw-danmaku-item:is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor']) {
-  grid-template-columns: 68px minmax(0, 1fr);
+  grid-template-columns: 136px minmax(0, 1fr);
   gap: 8px;
   min-height: 76px;
   padding-top: 4px;
@@ -122,12 +130,12 @@ body[data-style='bubble']
   .draw-danmaku-item:is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor'])
   .draw-danmaku-avatar {
   position: relative;
-  width: 68px;
-  height: 68px;
+  width: 136px;
+  height: 136px;
   overflow: visible;
   border: 0;
   border-radius: 0;
-  background: var(--danmaku-avatar-art) center 9px / 48px 48px no-repeat;
+  background: var(--danmaku-avatar-art) center 18px / 96px 96px no-repeat;
   box-shadow: none;
 }
 body[data-style='bubble']
@@ -135,10 +143,10 @@ body[data-style='bubble']
   .draw-danmaku-avatar
   img {
   position: absolute;
-  top: 9px;
-  left: 10px;
-  width: 48px;
-  height: 48px;
+  top: 18px;
+  left: 20px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
 }
 body[data-style='bubble']
@@ -177,7 +185,10 @@ body[data-style='bubble'] .is-gift .draw-danmaku-avatar {
   color: #fff;
   background: linear-gradient(135deg, #ee8aa2, #c2416a);
   box-shadow: 0 2px 6px rgb(160 70 90 / 28%);
-  font: 700 18px/1 var(--danmaku-ui-font);
+  font: 700 36px/1 var(--danmaku-ui-font);
+}
+body[data-style='bubble'] .is-gift .draw-danmaku-identity strong {
+  font-size: 30px;
 }
 body[data-style='bubble'] .is-gift .draw-danmaku-gift-art {
   width: 72px;

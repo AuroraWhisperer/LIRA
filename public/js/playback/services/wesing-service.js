@@ -3,6 +3,7 @@
 
 import { LyricWordRenderer } from '../../shared/lyric-word-renderer.js';
 import { refreshParameterRange } from '../../shared/parameter-range.js';
+import { createWeSingDiagnostics } from './wesing-diagnostics.js';
 
 const EMPTY_STATUS = {
   active: false,
@@ -56,6 +57,7 @@ export class WeSingService {
   init(initialStatus) {
     if (this.initialized) return;
     this.initialized = true;
+    createWeSingDiagnostics({ request: this.request.bind(this) }).init();
     document.getElementById('weSingSaveCacheBtn')?.addEventListener('click', () => {
       void this.saveCachePath();
     });

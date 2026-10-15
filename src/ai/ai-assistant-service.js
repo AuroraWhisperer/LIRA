@@ -1,6 +1,7 @@
 'use strict';
 
 const { setTimeout: sleep } = require('node:timers/promises');
+const { randomUUID } = require('node:crypto');
 const { cleanText } = require('../shared/utils');
 const {
   SAFE_REFUSAL,
@@ -15,6 +16,7 @@ const { createOrderedAsyncCoordinator } = require('./async-coordinator');
 const { getQuotaToolNames } = require('./api-quota-store');
 const { resolvePersona } = require('./personas');
 const { getCurrentTime } = require('./tools/current-time-tool');
+const { normalizeConversationContext, appendConversationExchange } = require('./conversation-context');
 const assistantHelpers = require('./ai-assistant-helpers');
 const {
   MIN_CHUNK_INTERVAL_MS,
@@ -75,6 +77,7 @@ function createAiAssistantService(dependencies) {
     return createOrderedAsyncCoordinator({
       generate: generateReply,
       deliver: deliverReply,
+      getKey: (item) => JSON.stringify([item.roomId, item.uid]),
       getConcurrency: () => store.getConfig().modelProvider === 'doubao' ? 1 : store.getConfig().generationConcurrency,
       onError(error, item) {
         if (item.signal.aborted || isShutdownError(error) || ['DANMAKU_SESSION_CHANGED', 'DOUBAO_SESSION_CHANGED'].includes(error?.code)) return;
@@ -151,6 +154,8 @@ function createAiAssistantService(dependencies) {
   }
 
   function enqueueReply(item, captureReplySession) {
+    item.canRemember = Boolean(item.roomId && item.uid && !item.uid.startsWith('name:'));
+    item.endConversation = /^(?:结束对话|清空对话)[。！!？?\s]*$/u.test(item.question);
     item.signal = AbortSignal.any([shutdownController.signal, replyController.signal]);
     item.replySession = captureReplySession?.();
     if (store.getConfig().modelProvider === 'doubao') {
@@ -204,30 +209,34 @@ function createAiAssistantService(dependencies) {
     let toolCallCount = 0;
     try {
       const persona = item.persona || (item.persona = resolvePersona(config));
-      item.personaScope = JSON.stringify([persona.id, persona.prompt]);
+      item.personaScope = JSON.stringify([item.roomId, persona.id, persona.prompt]);
+      if (item.endConversation) {
+        if (item.canRemember) store.clearContext(item.uid, item.personaScope);
+        return { text: '已结束这段对话，下次叫我会重新开始。', category: 'conversation_reset', usage, toolCalls: 0 };
+      }
       if (!Object.prototype.hasOwnProperty.call(item, 'conversationContext')) {
-        const previous = store.getContext(item.uid, item.personaScope);
-        item.conversationContext = previous && checkLocalInput(previous.question).allowed && checkLocalInput(previous.answer).allowed ? previous : null;
+        item.conversationContext = item.canRemember ? normalizeConversationContext(store.getContext(item.uid, item.personaScope)) : null;
       }
       const context = item.conversationContext;
+      item.conversationSessionId ||= context?.sessionId || randomUUID();
+      const input = buildConversationInput(item.question, context);
       const excludedToolNames = new Set(quotaStore?.getExcludedToolNames?.() || []);
       // The store persists only the key hash, not config secrets or context text.
       const cacheKey = JSON.stringify([
-        'reply-v4',
+        'reply-v6',
         config,
         item.modelSessionRevision,
         item.personaScope,
         item.uid,
         item.userName,
         item.question,
-        context,
+        input,
         [...excludedToolNames].sort(),
       ]);
       const cached = options.bypassCache ? null : store.getCache(cacheKey);
       if (cached?.text) {
         return { ...cached, category: 'cache' };
       }
-      const input = buildConversationInput(item.question, context);
       if (!accountChat) {
         const inputReview = await runSafetyReview(config, buildInputReviewPrompt(input), usage, 'input_review', item.signal);
         throwIfReplyCancelled(item);
@@ -251,6 +260,7 @@ function createAiAssistantService(dependencies) {
         tools: buildAvailableTools(config, excludedToolNames),
         maxOutputTokens: getModelOutputTokens(config),
         purpose: 'generation',
+        ...(accountChat ? { conversationKey: JSON.stringify([item.uid, item.personaScope, item.conversationSessionId]) } : {}),
         signal: item.signal,
       });
       throwIfReplyCancelled(item);
@@ -296,7 +306,7 @@ function createAiAssistantService(dependencies) {
       if (!accountChat) {
         const outputReview = await runSafetyReview(
           config,
-          buildOutputReviewPrompt(item.question, rawText),
+          buildOutputReviewPrompt(item.question, rawText, input),
           usage,
           'output_review',
           item.signal,
@@ -305,7 +315,7 @@ function createAiAssistantService(dependencies) {
         if (!outputReview.allowed) return { text: SAFE_REFUSAL, category: 'safety', usage, toolCalls: toolCallCount };
         approvedText = cleanModelText(outputReview.safeText || rawText);
       }
-      if (!checkLocalInput(approvedText).allowed || (accountChat && approvedText === SAFE_REFUSAL)) {
+      if (!checkLocalInput(approvedText).allowed || approvedText === SAFE_REFUSAL) {
         return { text: SAFE_REFUSAL, category: 'safety', usage, toolCalls: toolCallCount };
       }
       const text = truncateReply(approvedText, replyBudget.threeMessages);
@@ -443,10 +453,10 @@ function createAiAssistantService(dependencies) {
         }));
       assertSessionCurrent();
       if (delivered) {
-        if (['chat', 'tool', 'cache'].includes(currentResult.category)) {
+        if (item.canRemember && ['chat', 'tool', 'cache'].includes(currentResult.category)) {
           store.setContext(
             item.uid,
-            { question: item.question, answer: currentResult.text },
+            appendConversationExchange(item.conversationContext, item.question, currentResult.text, item.conversationSessionId),
             store.getConfig().contextTtlSeconds,
             item.personaScope,
           );
@@ -456,7 +466,7 @@ function createAiAssistantService(dependencies) {
       log.warn?.(
         `[AI] reply missing from room feed uid=${JSON.stringify(item.uid)} attempt=${attempt}/${MAX_DELIVERY_ATTEMPTS}`,
       );
-      if (attempt < MAX_DELIVERY_ATTEMPTS) {
+      if (attempt < MAX_DELIVERY_ATTEMPTS && currentResult.category !== 'conversation_reset') {
         currentResult = await generateReply(item, { bypassCache: true });
       }
     }

@@ -1,7 +1,7 @@
 import { localOverlayOrigin } from '../shared/utils.js';
 import { CANVAS_PRESETS, createLayout, defaultRegion, fitRegion, normalizeLayout, resizeCanvas } from '../shared/danmaku-layout.js';
 import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
-import { cloneComponentPanel } from './component-preview-panel.js';
+import { cloneComponentPanel, componentFieldLabel } from './component-preview-panel.js';
 import { bindDanmakuParameters } from './danmaku-parameter-view.js';
 
 export function applyDanmakuRegionEdit(controller, change) {
@@ -14,7 +14,7 @@ export function applyDanmakuRegionEdit(controller, change) {
   } catch { return; }
 }
 
-function createPanel(host, controller, source, embedded, panelPrefix) {
+function createPanel(host, controller, source, embedded, panelPrefix, report) {
   const choices = document.createElement('div');
   choices.className = 'danmaku-style-options';
   for (const original of embedded ? [] : source.querySelectorAll('[data-danmaku-style]')) {
@@ -30,7 +30,11 @@ function createPanel(host, controller, source, embedded, panelPrefix) {
   error.setAttribute('role', 'status');
   if (!embedded) host.append(choices);
   host.append(parameters, error);
-  const parameterView = bindDanmakuParameters(parameters, controller, (message) => { error.textContent = message; });
+  const showError = (message, control) => {
+    if (report) report(control ? `${componentFieldLabel(control)}：${message}` : message);
+    else error.textContent = message;
+  };
+  const parameterView = bindDanmakuParameters(parameters, controller, showError);
   if (embedded) {
     return { dispose() { parameterView.dispose(); } };
   }
@@ -63,7 +67,7 @@ function createPanel(host, controller, source, embedded, panelPrefix) {
           applyDanmakuRegionEdit(controller, { style: draft.style,
             region: fitRegion({ ...layout.regions[draft.style], [key]: value }, layout.canvas) });
         }
-      } catch (failure) { error.textContent = failure.message; render(controller.getState()); }
+      } catch (failure) { showError(failure.message); render(controller.getState()); }
     });
   }
   const presets = document.createElement('select');
@@ -130,7 +134,7 @@ function createPanel(host, controller, source, embedded, panelPrefix) {
 export function createDanmakuPreview({ controller, source = document, embedded = false, panelPrefix = 'preview-danmaku' }) {
   return { id: 'danmaku', title: '弹幕姬', controller,
     url: new URL(`/danmaku?preview=1&componentPreview=1${embedded ? '&componentLayer=1' : ''}`, localOverlayOrigin()).href,
-    createPanel: (host, targetController = controller) => createPanel(host, targetController, source, embedded, panelPrefix),
+    createPanel: (host, targetController = controller, report) => createPanel(host, targetController, source, embedded, panelPrefix, report),
     projectConfig: (draft) => ({ ...draft, ...(Object.hasOwn(draft, 'layout') ? { layout: draft.layout || createLayout() } : {}) }),
     size: (draft) => { const canvas = (draft.layout || createLayout()).canvas; return [canvas.width, canvas.height]; },
     bounds: (draft) => (draft.layout || createLayout()).regions[draft.style],

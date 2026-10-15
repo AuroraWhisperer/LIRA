@@ -10,6 +10,8 @@ function createOrderedAsyncCoordinator(options = {}) {
   const deliver = options.deliver;
   const onError = options.onError || (() => {});
   const getConcurrency = options.getConcurrency || (() => 1);
+  const getKey = options.getKey || (() => undefined);
+  const busyKeys = new Set();
   let nextSequence = 1;
   let nextDelivery = 1;
   let active = 0;
@@ -22,7 +24,7 @@ function createOrderedAsyncCoordinator(options = {}) {
 
   function enqueue(item) {
     if (stopped) return false;
-    waiting.push({ sequence: nextSequence, item });
+    waiting.push({ sequence: nextSequence, item, key: getKey(item) });
     nextSequence += 1;
     pumpGeneration();
     return true;
@@ -31,15 +33,18 @@ function createOrderedAsyncCoordinator(options = {}) {
   function pumpGeneration() {
     const concurrency = Math.max(1, Number(getConcurrency()) || 1);
     while (!stopped && active < concurrency && waiting.length) {
-      const job = waiting.shift();
+      const index = waiting.findIndex(job => job.key === undefined || !busyKeys.has(job.key));
+      if (index < 0) break;
+      const [job] = waiting.splice(index, 1);
+      if (job.key !== undefined) busyKeys.add(job.key);
       active += 1;
       Promise.resolve()
         .then(() => generate(job.item))
         .then((result) => {
-          if (!stopped) completed.set(job.sequence, { item: job.item, result });
+          if (!stopped) completed.set(job.sequence, { ...job, result });
         })
         .catch((error) => {
-          if (!stopped) completed.set(job.sequence, { item: job.item, error });
+          if (!stopped) completed.set(job.sequence, { ...job, error });
         })
         .finally(() => {
           active -= 1;
@@ -69,6 +74,9 @@ function createOrderedAsyncCoordinator(options = {}) {
             // onError 自身抛错不能阻断投递循环，否则剩余回复永远无法送达。
             console.warn('[async-coordinator] onError threw:', onErrorError && onErrorError.message);
           }
+        } finally {
+          busyKeys.delete(job.key);
+          pumpGeneration();
         }
       }
     } finally {
@@ -92,6 +100,7 @@ function createOrderedAsyncCoordinator(options = {}) {
     stopped = true;
     waiting.length = 0;
     completed.clear();
+    busyKeys.clear();
     drainPromise = new Promise((resolve) => {
       resolveDrain = resolve;
       resolveDrainIfIdle();

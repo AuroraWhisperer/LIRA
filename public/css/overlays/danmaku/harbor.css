@@ -106,6 +106,10 @@ body[data-style='harbor'] .draw-danmaku-body > p {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+/* Compensate the inline artwork's transparent vertical padding. */
+body[data-style='harbor'] .draw-danmaku-item:not(.is-emote-only) .draw-danmaku-emote {
+  height: 1.15em;
+}
 body[data-style='harbor'] .harbor-rank {
   flex: 0 0 auto;
   align-self: center;

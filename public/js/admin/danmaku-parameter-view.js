@@ -1,7 +1,7 @@
 import { mountStyleParameters } from './component-style-parameters.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
 import { readAppearanceValue, editStyleOption, resetStyleOptions, isValidFullscreenDuration,
-  floatingSpeedFromPixelsPerSecond, floatingSpeedLabel } from '../shared/danmaku-appearance-draft.js';
+  floatingSpeedFromPixelsPerSecond, floatingSpeedToPixelsPerSecond, floatingSpeedLabel } from '../shared/danmaku-appearance-draft.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 import { componentField, syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
@@ -10,13 +10,24 @@ import { enhanceColorControls } from '../shared/color-control.js';
 export function bindDanmakuParameters(root, controller, onError) {
   enhanceColorControls(root);
   const node = (id) => componentField(root, id);
-  const controls = Object.fromEntries(['minGiftAmount', 'fontFamily', 'fontSize', 'textColor', 'bubbleColor', 'backgroundOpacity', 'giftImage', 'scrollDirection', 'edgeFade', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion']
+  const controls = Object.fromEntries(['minGiftAmount', 'fontFamily', 'fontSize', 'textColor', 'bubbleColor', 'backgroundOpacity', 'giftImage', 'scrollDirection', 'edgeFade', 'entranceAnimation', 'decorationShape', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion']
     .map((key) => [key, node(`danmaku${key[0].toUpperCase()}${key.slice(1)}`)]));
   const unregisterFont = registerLocalFontSelect(controls.fontFamily);
   const ranges = ['backgroundOpacity', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion'];
   ranges.forEach((key) => initParameterRanges(controls[key]));
+  let renderedStyle;
+
+  function renderRangeValue(key, speed) {
+    const value = controls[key].value;
+    const label = key === 'floatingSpeed'
+      ? floatingSpeedLabel(speed ?? floatingSpeedToPixelsPerSecond(Number(value)))
+      : `${value}${key === 'backgroundOpacity' ? '%' : ''}`;
+    node(`danmaku${key[0].toUpperCase()}${key.slice(1)}Value`).textContent = label;
+  }
 
   function render({ draft, loaded }, force = false) {
+    force ||= renderedStyle !== draft.style;
+    renderedStyle = draft.style;
     const limits = DANMAKU_STYLE_OPTIONS[draft.style];
     const options = styleOptionsFor(draft.style, draft.styleOptions);
     const supported = Object.hasOwn(draft, 'styleOptions');
@@ -31,41 +42,46 @@ export function bindDanmakuParameters(root, controller, onError) {
     controls.fontSize.min = String(limits.minFontSize);
     controls.fontSize.max = String(limits.maxFontSize);
     syncComponentFieldValue(controls.fontSize, options.fontSize, force);
-    controls.textColor.value = options.textColor;
+    syncComponentFieldValue(controls.textColor, options.textColor, force);
     node('danmakuBubbleColorModeField').hidden = !limits.bubbleColor;
     const customBubbleColor = limits.bubbleColor && options.bubbleColor !== 'default';
     node('danmakuBubbleColorMode').value = customBubbleColor ? 'custom' : 'default';
     node('danmakuBubbleColorMode').disabled = !loaded || !supported;
     node('danmakuBubbleColorField').hidden = !customBubbleColor;
-    controls.bubbleColor.value = customBubbleColor ? options.bubbleColor : limits.defaultTextColor;
+    syncComponentFieldValue(controls.bubbleColor, customBubbleColor ? options.bubbleColor : limits.defaultTextColor, force);
     node('danmakuTextColorLabel').textContent = draft.style === 'sketch' ? '主题颜色' : '正文颜色';
     node('danmakuFontSizeHint').textContent = `${limits.minFontSize}～${limits.maxFontSize} px`;
     node('danmakuBackgroundOpacityField').hidden = !limits.background;
-    controls.backgroundOpacity.value = String(options.backgroundOpacity);
+    syncComponentFieldValue(controls.backgroundOpacity, options.backgroundOpacity, force);
     refreshParameterRange(controls.backgroundOpacity);
-    node('danmakuBackgroundOpacityValue').textContent = `${options.backgroundOpacity}%`;
+    renderRangeValue('backgroundOpacity');
     node('danmakuMinGiftAmountField').hidden = !limits.minGiftAmount;
     syncComponentFieldValue(controls.minGiftAmount, options.minGiftAmount || 0, force);
-    node('danmakuGiftImageField').hidden = !limits.giftImage || draft.style === 'identity';
+    node('danmakuGiftImageField').hidden = !limits.giftImage || ['identity', 'transparent', 'outline'].includes(draft.style);
     controls.giftImage.value = options.giftImage;
     node('danmakuScrollDirectionField').hidden = !limits.scrollDirection;
     controls.scrollDirection.value = options.scrollDirection;
     node('danmakuEdgeFadeField').hidden = !limits.scrollDirection;
     controls.edgeFade.value = options.edgeFade || 'none';
+    node('danmakuDecorationShapeField').hidden = !limits.decorationShape;
+    controls.decorationShape.value = options.decorationShape || 'sparkle';
+    node('danmakuEntranceAnimationField').hidden = !limits.entranceAnimation;
+    controls.entranceAnimation.value = options.entranceAnimation || 'fade';
     node('danmakuSpeedField').hidden = !limits.speed;
-    controls.floatingSpeed.value = String(floatingSpeedFromPixelsPerSecond(options.speedPixelsPerSecond || 120));
-    node('danmakuFloatingSpeedValue').textContent = floatingSpeedLabel(options.speedPixelsPerSecond || 120);
+    const speed = options.speedPixelsPerSecond || 120;
+    syncComponentFieldValue(controls.floatingSpeed, floatingSpeedFromPixelsPerSecond(speed), force);
+    renderRangeValue('floatingSpeed', Number(controls.floatingSpeed.value) === floatingSpeedFromPixelsPerSecond(speed) ? speed : undefined);
     refreshParameterRange(controls.floatingSpeed);
     node('danmakuFloatingDispersionField').hidden = !limits.speed;
-    controls.floatingDispersion.value = String(options.floatingDispersion ?? 50);
-    node('danmakuFloatingDispersionValue').textContent = controls.floatingDispersion.value;
+    syncComponentFieldValue(controls.floatingDispersion, options.floatingDispersion ?? 50, force);
+    renderRangeValue('floatingDispersion');
     refreshParameterRange(controls.floatingDispersion);
     node('danmakuDistributionOptions').hidden = !isRandomDanmakuStyle(draft.style);
     for (const key of ['centerBias', 'dispersion']) {
       const name = key[0].toUpperCase() + key.slice(1);
       node(`danmaku${name}Field`).hidden = !isRandomDanmakuStyle(draft.style);
-      controls[key].value = String(options[key] ?? 1);
-      node(`danmaku${name}Value`).textContent = controls[key].value;
+      syncComponentFieldValue(controls[key], options[key] ?? 1, force);
+      renderRangeValue(key);
       refreshParameterRange(controls[key]);
     }
     for (const control of Object.values(controls)) control.disabled = !loaded || !supported;
@@ -76,13 +92,14 @@ export function bindDanmakuParameters(root, controller, onError) {
   }
 
   for (const [key, control] of Object.entries(controls)) {
-    control.addEventListener([...ranges, 'textColor', 'bubbleColor'].includes(key) ? 'input' : 'change', () => {
+    if (ranges.includes(key)) control.addEventListener('input', () => renderRangeValue(key));
+    control.addEventListener('change', () => {
       const state = controller.getState();
       if (!state.loaded || !Object.hasOwn(state.draft, 'styleOptions')) return;
       try {
         const value = readAppearanceValue(key, control.value, control.min, control.max);
         controller.edit({ styleOptions: editStyleOption(state.draft, key, value).styleOptions });
-      } catch (error) { onError(error.message); render(state, true); }
+      } catch (error) { onError(error.message, control); render(state, true); }
     });
   }
   node('danmakuBubbleColorMode').addEventListener('change', () => {

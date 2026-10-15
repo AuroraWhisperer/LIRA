@@ -93,12 +93,12 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
         }
         const state = controller.getState();
         if (state.error || state.dirty) throw new Error(state.error || '仍有未保存修改，请重试。');
-        report('场景已保存，直播画面保持当前场景');
+        report('场景已保存，直播画面保持当前场景', 'success');
       } else {
         report(change.action === 'create' ? (change.duplicate ? '正在复制场景…' : '正在新建场景…')
-          : change.action === 'delete' ? '正在删除场景…' : '正在切换场景…');
+          : change.action === 'delete' ? '正在删除场景…' : '正在切换场景…', 'info');
         await connection.execute('preset', change);
-        if (!disposed) report(change.action === 'delete' ? '场景已删除' : '');
+        if (!disposed) report(change.action === 'delete' ? '场景已删除' : '', 'success');
       }
     } catch (error) {
       if (!disposed) report(error.message);

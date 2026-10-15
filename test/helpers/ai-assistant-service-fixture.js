@@ -26,7 +26,7 @@ function createTestService(overrides = {}) {
     logRequest: () => {},
     ...overrides.store,
   };
-  return createAiAssistantService({
+  const service = createAiAssistantService({
     store,
     deepseek: overrides.deepseek || {
       createResponse: async () => ({
@@ -48,6 +48,7 @@ function createTestService(overrides = {}) {
     random: overrides.random,
     log: { warn: () => {} },
   });
+  return { ...service, handleDanmaku: danmaku => service.handleDanmaku({ roomId: 'test-room', ...danmaku }) };
 }
 
 function createAnsweringDeepseek(nextAnswer) {

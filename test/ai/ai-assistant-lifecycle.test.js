@@ -380,7 +380,7 @@ test('reply cache separates viewers and their conversation context', async (t) =
   assert.equal(deliveries[1].message, '你在上海');
 });
 
-test('reply cache reuses identical input but invalidates changed context and generation config', async (t) => {
+test('reply cache reuses identical input but invalidates the old policy, changed context and generation config', async (t) => {
   let context = null;
   const config = {
     ...AI_CONFIG_DEFAULTS,
@@ -392,8 +392,13 @@ test('reply cache reuses identical input but invalidates changed context and gen
   };
   let generated = 0;
   const deliveries = [];
+  const cache = new Map();
   const service = createTestService({
-    store: { getConfig: () => ({ ...config }), getContext: () => context },
+    store: {
+      getConfig: () => ({ ...config }), getContext: () => context,
+      getCache: key => ['reply-v4', 'reply-v5'].includes(JSON.parse(key)[0]) ? { text: '旧策略缓存回答' } : cache.get(key),
+      setCache: (key, value) => cache.set(key, value),
+    },
     deepseek: {
       async createResponse(request) {
         if (request.purpose !== 'generation') {
@@ -423,6 +428,7 @@ test('reply cache reuses identical input but invalidates changed context and gen
     await waitUntil(() => deliveries.length === expected);
   };
   await ask();
+  assert.equal(deliveries[0].message, '回答1');
   await ask();
   assert.equal(generated, 1);
   context = { question: '换到上海', answer: '好的' };

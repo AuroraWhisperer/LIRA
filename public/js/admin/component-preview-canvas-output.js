@@ -53,7 +53,7 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
     if (busy || (action === 'publish' && !beforeApply())) return;
     busy = true;
     setBusy(true);
-    report(action === 'publish' ? '正在保存组件并更新直播源…' : '正在获取直播源地址…');
+    report(action === 'publish' ? '正在保存组件并更新直播源…' : '正在获取直播源地址…', 'info');
     try {
       if (action === 'publish') {
         await flushAppearance?.();
@@ -75,9 +75,9 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
         showSource(item ? copyComponent : copy);
         await copyText(url);
         const size = sharedSource ? result.componentSizes?.[item.type] : item ? result.itemSizes?.[item.id] : result.canvas;
-        report(`${item ? '单组件地址已复制' : '直播源地址已复制'}${size ? `；请在 OBS 或直播姬中设置为 ${size.width} × ${size.height}` : '；请使用已发布画面的像素尺寸'}。之后保存并应用即可更新，无需重复导入。`);
+        report(`${item ? '单组件地址已复制' : '直播源地址已复制'}${size ? `；请在 OBS 或直播姬中设置为 ${size.width} × ${size.height}` : '；请使用已发布画面的像素尺寸'}。之后保存并应用即可更新，无需重复导入。`, 'success');
       } else report(() => controllers.some(({ controller }) => controller.getState().dirty)
-        ? '本次已应用，新修改仍需保存' : '已保存并应用到直播源');
+        ? '本次已应用，新修改仍需保存' : '已保存并应用到直播源', 'success');
     } catch (error) {
       if (!disposed) report(error.message);
     } finally {

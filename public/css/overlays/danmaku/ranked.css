@@ -77,7 +77,7 @@ body[data-style='ranked'] .draw-danmaku-identity {
     0 2px 5px rgb(12 18 30 / 18%);
 }
 body[data-style='ranked']
-  .draw-danmaku-item:not([data-streamer='true']):is(
+  .draw-danmaku-item:not(.is-gift):not([data-streamer='true']):is(
     [data-identity='captain'],
     [data-identity='admiral'],
     [data-identity='governor']
@@ -87,7 +87,7 @@ body[data-style='ranked']
   padding-left: 34px;
 }
 body[data-style='ranked']
-  .draw-danmaku-item:not([data-streamer='true']):is(
+  .draw-danmaku-item:not(.is-gift):not([data-streamer='true']):is(
     [data-identity='captain'],
     [data-identity='admiral'],
     [data-identity='governor']
@@ -108,7 +108,7 @@ body[data-style='ranked'] .draw-danmaku-identity strong {
   overflow: hidden;
   color: #fff;
   font:
-    700 15px/1.2 'Microsoft YaHei UI',
+    700 30px/1.2 'Microsoft YaHei UI',
     'Microsoft YaHei',
     sans-serif;
   letter-spacing: 0;
@@ -183,7 +183,7 @@ body[data-style='ranked'] .draw-danmaku-empty {
     background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), var(--ranked-accent);
   }
   body[data-style='ranked']
-    .draw-danmaku-item:not([data-streamer='true']):is(
+    .draw-danmaku-item:not(.is-gift):not([data-streamer='true']):is(
       [data-identity='captain'],
       [data-identity='admiral'],
       [data-identity='governor']
@@ -193,36 +193,61 @@ body[data-style='ranked'] .draw-danmaku-empty {
   }
 }
 
-/* 礼物票券：紫金飘带与斜放礼章，票根与票面之间一条白色接缝。 */
+/* 礼物沿用 SC 的彩色头部与浅色正文卡片。 */
 body[data-style='ranked'] .draw-danmaku-item.is-gift {
   --danmaku-gift-art: url('/img/overlays/danmaku-gifts/ranked.svg');
   --gift-ink: #4e2d5c;
-  --gift-name: #7a4c8c;
-  --gift-action: #9b3d8d;
+  --gift-name: #4e2d5c;
+  --gift-action: #783e84;
   --gift-accent: #8e2f86;
+  --gift-header: #e6bdf3;
   --gift-surface: #f8eaff;
   --gift-sheen: rgb(255 255 255 / 65%);
-  grid-template-areas: 'content';
-  grid-template-columns: minmax(0, 1fr);
-  padding: 12px 24px 12px 84px;
-  border-radius: 0;
-  background:
-    linear-gradient(110deg, transparent 65px, rgb(255 255 255 / 85%) 65px 67px, transparent 67px),
-    linear-gradient(110deg, #e6bdf3 0, #d29be6 66px, #fcf3ff 66px, #f3e1fb);
-  box-shadow: none;
-  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%, 12px 50%);
+  grid-template-areas: 'avatar identity' 'gift gift';
+  grid-template-columns: 54px minmax(0, 1fr);
+  grid-template-rows: 60px auto;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  border-radius: 10px;
+  background: linear-gradient(var(--gift-header), var(--gift-header)) top / 100% 60px no-repeat;
+  box-shadow: 0 10px 24px rgb(7 10 20 / 24%);
+  clip-path: none;
 }
 body[data-style='ranked'] .is-gift .draw-danmaku-avatar {
-  display: none;
+  width: 38px;
+  height: 38px;
+  margin: 11px 0 11px 16px;
+  border: 0;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 80%);
 }
 body[data-style='ranked'] .is-gift .draw-danmaku-body {
-  padding: 0;
+  display: contents;
+}
+body[data-style='ranked'] .is-gift .draw-danmaku-identity {
+  grid-area: identity;
+  padding: 11px 20px 11px 10px;
+}
+body[data-style='ranked'] .is-gift .draw-danmaku-identity strong {
+  font-size: 16px;
+  line-height: 1.45;
+}
+body[data-style='ranked'] .is-gift .draw-danmaku-gift {
+  grid-area: gift;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 16px 22px 20px;
+  background: var(--gift-surface);
 }
 body[data-style='ranked'] .is-gift .draw-danmaku-gift-art {
-  left: -74px;
-  right: auto;
-  width: 56px;
-  transform: translateY(-50%) rotate(-6deg);
+  position: static;
+  width: 48px;
+  height: 48px;
+  transform: none;
+}
+body[data-style='ranked'] .is-gift .draw-danmaku-gift-copy {
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 /* Custom background strength leaves text and images opaque. */
@@ -237,18 +262,12 @@ body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item:not(
 body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item.is-gift {
   background:
     linear-gradient(
-      110deg,
-      transparent 65px,
-      rgb(255 255 255 / calc(0.85 * var(--danmaku-background-opacity))) 65px 67px,
-      transparent 67px
-    ),
-    linear-gradient(
-      110deg,
-      rgb(230 189 243 / var(--danmaku-background-opacity)) 0,
-      rgb(210 155 230 / var(--danmaku-background-opacity)) 66px,
-      rgb(252 243 255 / var(--danmaku-background-opacity)) 66px,
-      rgb(243 225 251 / var(--danmaku-background-opacity))
-    );
+      rgb(230 189 243 / var(--danmaku-background-opacity)),
+      rgb(230 189 243 / var(--danmaku-background-opacity))
+    ) top / 100% 60px no-repeat;
+}
+body[data-custom-background='true'][data-style='ranked'] .is-gift .draw-danmaku-gift {
+  background: rgb(248 234 255 / var(--danmaku-background-opacity));
 }
 
 @keyframes rankedMessageIn {

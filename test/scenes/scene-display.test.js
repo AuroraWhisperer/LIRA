@@ -307,6 +307,24 @@ test('component defaults are complete isolated appearance copies and cloud unava
   assert.throws(() => fixture.ports.getDefaultConfig('private'), { code: 'INVALID_SCENE_CONFIG' });
 });
 
+test('scene ports request only the state fields consumed by the selected components', () => {
+  const reads = [];
+  const ports = createSceneComponentPorts({
+    getState(fields) { reads.push(fields); return { settings: DEFAULT_SETTINGS }; },
+    getExtraDisplay: (_type, getState) => getState(),
+  });
+  ports.getDisplayData(['lyrics', 'lyrics'], {});
+  ports.getDisplayData(['text-box', 'gift-feed'], {});
+  ports.getDisplayData(['queue', 'overtime', 'gift-sprint', 'lyrics'], {});
+  ports.getDefaultConfig('clock');
+  assert.deepEqual(reads, [
+    ['lyricState', 'lyricTimeline'],
+    ['roomGuard'],
+    ['queue', 'superChats', 'overtime', 'giftSprint', 'lyricState', 'lyricTimeline', 'roomGuard'],
+    ['settings'],
+  ]);
+});
+
 test('local scene consumers receive only the shared room icon projection', () => {
   const fixture = componentFixture();
   fixture.setState({ ...fixture.state, roomGuard: { roomId: '52030', count: 1000, cookie: 'PRIVATE' } });

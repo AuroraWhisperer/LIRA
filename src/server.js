@@ -22,6 +22,7 @@ const wsTransport = require('./server/ws');
 const { createDomainServices } = require('./server/domain-services');
 const { createSceneRuntime } = require('./server/scene-runtime');
 const sharedUtils = require('./shared/utils');
+const { resolveDataPaths } = require('./shared/data-paths');
 const { normalizeRoomInput } = require('./bilibili/room-input');
 const { publicBilibiliErrorMessage } = require('./bilibili/api-error');
 const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
@@ -212,6 +213,7 @@ function createServerRuntime(runtimeOptions = {}) {
       });
       musicRuntime = buildMusicRuntime({
         dataDir: {
+          logDir: resolveDataPaths(DATA_DIR).logDir,
           apiCacheDir: MUSIC_API_CACHE_DIR,
           lyricCacheDir: MUSIC_LYRIC_CACHE_DIR,
         },
@@ -420,29 +422,31 @@ function createServerRuntime(runtimeOptions = {}) {
     return startPromise;
   }
 
-  function getState() {
-    const songMetadata = domainServices.songs.getMetadata();
-    return {
-      queue: domainServices.queue.getSnapshot(),
-      superChats: domainServices.superChats.getSnapshot(),
-      gifts: domainServices.gifts.getSnapshot(),
-      giftSprint: domainServices.gifts.getSprintSnapshot(),
-      giftDetection: domainServices.gifts.getStatus(),
-      blindBoxMapping: blindBoxMappingState,
-      overtime: domainServices.overtime.getSnapshot(),
-      settings: settingsStore.getSettings(),
-      categories: songMetadata.categories,
-      tags: songMetadata.tags,
-      songCount: songMetadata.songCount,
-      liveStatus,
-      roomGuard: bilibiliRuntime.getRoomGuardState(),
-      bilibiliDiagnostics,
-      lyricState: musicRuntime.getLyricState(),
-      lyricTimeline: musicRuntime.getLyricTimeline(),
-      lyricSource: musicRuntime.getLyricSource(),
-      weSing: musicRuntime.weSingCapture.getStatus(),
-      danmakuFeed: danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : [],
+  function getState(fields) {
+    let songMetadata;
+    const readSongMetadata = () => songMetadata ??= domainServices.songs.getMetadata();
+    const readers = {
+      queue: () => domainServices.queue.getSnapshot(),
+      superChats: () => domainServices.superChats.getSnapshot(),
+      gifts: () => domainServices.gifts.getSnapshot(),
+      giftSprint: () => domainServices.gifts.getSprintSnapshot(),
+      giftDetection: () => domainServices.gifts.getStatus(),
+      blindBoxMapping: () => blindBoxMappingState,
+      overtime: () => domainServices.overtime.getSnapshot(),
+      settings: () => settingsStore.getSettings(),
+      categories: () => readSongMetadata().categories,
+      tags: () => readSongMetadata().tags,
+      songCount: () => readSongMetadata().songCount,
+      liveStatus: () => liveStatus,
+      roomGuard: () => bilibiliRuntime.getRoomGuardState(),
+      bilibiliDiagnostics: () => bilibiliDiagnostics,
+      lyricState: () => musicRuntime.getLyricState(),
+      lyricTimeline: () => musicRuntime.getLyricTimeline(),
+      lyricSource: () => musicRuntime.getLyricSource(),
+      weSing: () => musicRuntime.weSingCapture.getStatus(),
+      danmakuFeed: () => danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : [],
     };
+    return Object.fromEntries((fields ?? Object.keys(readers)).map((field) => [field, readers[field]()]));
   }
 
   function shutdownApplication(options = {}) {
@@ -481,6 +485,7 @@ function createServerRuntime(runtimeOptions = {}) {
         }
       }
 
+      musicRuntime?.weSingCapture.cancelDiagnostics();
       await inflightTracker.drain();
       await disposeApplication({ optimize: true });
       await closeHttpServer();

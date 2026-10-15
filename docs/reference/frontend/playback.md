@@ -112,7 +112,7 @@ playbackControls → audio.load()/play()
 | match-service  | 点歌匹配:`/api/music/search` 候选 → `POST /api/music/match-track` 匹配,未匹配进入 `pendingRequests` 待确认(弹确认弹窗)                                                                                                                           |
 | import-service | 点歌队列导入:读 `/api/state` 的 queue 快照，过滤已处理请求后最多匹配 30 条；自动接受结果插入下一首，其余候选进入待确认                                                                                                                                 |
 | home-service   | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后 toast"已自动更新")                                                                                               |
-| wesing-service | 全民 K 歌适配层:`/api/music/wesing/*`(active/refresh/configure/offset)+ WS `wesing-state` 实时状态 + `LyricWordRenderer` 逐字现场(详见 [backend/music/wesing.md](../backend/music/wesing.md));源切换用 `activationQueue` 串行化,避免后端状态错乱 |
+| wesing-service | 全民 K 歌适配层:`/api/music/wesing/*`(active/refresh/configure/offset/diagnose/diagnose/export)+ WS `wesing-state` 实时状态 + `LyricWordRenderer` 逐字现场；`wesing-diagnostics` 管理“重新检测”左侧的“播放诊断”、20 秒采样结果面板及用户主动将 JSON 保存到日志目录（英文用途和本机时间命名，成功显示路径），复用当前采集器，收起后迟到结果不重开面板(详见 [backend/music/wesing.md](../backend/music/wesing.md));源切换用 `activationQueue` 串行化,避免后端状态错乱 |
 
 首页请求在开始时固定平台、action、歌单 ID 和缓存键。HomeService 的代际决定页面是否接受结果，ContentLoader 的每键请求代际决定缓存是否接受写入：切换分类、最近历史、音源或返回历史后，旧成功和旧失败均不能覆盖新页面。后台刷新使用局部结果，不把页面状态当临时工作区；重复缓存读取可复用在途刷新，同键较新的实际请求优先，完成后清理请求记录。可缓存 action 只由 ContentLoader 的 `CACHEABLE_ACTIONS` 定义，HomeService 复用该集合。可修改的歌单详情不再使用服务端第二份内容缓存，后台更新和强制刷新直接读取 Provider 当前结果，空歌单也更新播放器缓存。
 
