@@ -226,6 +226,20 @@ test('memos support editing and pins without changing identity or task links', a
   assert.equal(todo.getState().notes.length, 0);
 });
 
+test('promoting a memo preserves Unicode at the task title limit and keeps the original memo', async () => {
+  const { todo, stored } = await loadTodo();
+  for (const length of [78, 79, 80]) {
+    const prefix = 'a'.repeat(length);
+    const body = `${prefix}😀后续备忘`;
+    const note = todo.addNote({ body });
+    const task = todo.promoteNote(note.id);
+    assert.equal(task.title, length === 78 ? `${prefix}😀` : prefix);
+    const restored = (await loadTodo(stored)).todo.getState();
+    assert.equal(restored.tasks.find((item) => item.id === task.id).title, task.title);
+    assert.equal(restored.notes.find((item) => item.id === note.id).body, body);
+  }
+});
+
 test('returned collections cannot mutate saved records', async () => {
   const { todo } = await loadTodo();
   todo.addEvent({ title: '直播', date: '2026-09-05' });

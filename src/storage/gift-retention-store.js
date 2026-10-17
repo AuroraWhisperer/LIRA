@@ -2,6 +2,7 @@
 
 const { normalizeGiftSummaryPage } = require('../shared/gift-summary-contract');
 const { normalizeProcessedGiftHistoryPage } = require('../shared/processed-gift-contract');
+const { archiveWishContributions } = require('./gift-wish-retention');
 
 function transaction(db, operation) {
   db.exec('BEGIN IMMEDIATE');
@@ -120,6 +121,14 @@ function createGiftRetentionStore({ giftDb: db, importHistoryRecord, importLiveE
       const full = staging.member_snapshot_id === staging.id;
       const cursor = full ? staging.recovery_cursor : state.final_cursor;
       if (!Number.isSafeInteger(cursor) || cursor < staging.covered_cursor || (!full && state.sync_epoch !== staging.sync_epoch)) throw mismatch();
+      if (full) {
+        if (!state.sync_epoch || state.sync_epoch === staging.sync_epoch) {
+          archiveWishContributions(db, sourceId, { syncEpoch: staging.sync_epoch,
+            memberSnapshotId: activeSnapshot(db, sourceId)?.member_snapshot_id,
+            excludedMemberSnapshotId: staging.member_snapshot_id });
+        }
+        db.prepare('DELETE FROM gift_wish_contributions WHERE source_id=? AND sync_epoch<>?').run(sourceId, staging.sync_epoch);
+      }
       for (const pending of db.prepare('SELECT * FROM gift_retention_pending_finals WHERE snapshot_id=?').all(staging.id)) {
         const { finalCursor, ...record } = JSON.parse(pending.record_json);
         importLiveEvent({ ...record, phase: 'final', cursor: finalCursor }, sourceId,

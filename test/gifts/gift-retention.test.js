@@ -15,6 +15,7 @@ const { clearGiftScopeInTransaction } = require('../../src/storage/database-clea
 const { cleanupGiftRetentionBatch } = require('../../src/storage/gift-retention-cleanup');
 const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
 const { DatabaseSync } = require('node:sqlite');
+const { createGiftWishStore } = require('../../src/storage/gift-wish-store');
 
 const NOW = '2026-10-12T04:00:00.000Z';
 const BEFORE = '2026-10-11T16:00:00.000Z';
@@ -66,6 +67,106 @@ function stage(f, summaryPage = summary(), records) {
   f.retention.summaryPage({ ...f.scope(), full: true, page: summaryPage });
   f.retention.historyPage({ ...f.scope(), pageToken: summaryPage.historyPageToken, page: history(records) });
 }
+
+function addWish(f, id, period, createdAt) {
+  f.giftDb.prepare(`INSERT INTO gift_wishes
+    (id,source_id,period,gift_id,gift_name,gift_category,target,created_at) VALUES (?,?,?,'gift-1','礼物','directGift',100,?)`)
+    .run(id, f.source.id, period, createdAt);
+  return createGiftWishStore(f.giftDb).list(f.source.id).find(wish => wish.id === id);
+}
+
+test('wishes combine active history and summaries while preserving exact creation-day quantities', (t) => {
+  const f = fixture(t);
+  const store = createGiftWishStore(f.giftDb);
+  const long = addWish(f, 'long', 'long', OLD);
+  const all = addWish(f, 'all', 'long', DAY);
+  const daily = addWish(f, 'day', 'day', NOW);
+  f.insertGift(f.source.id, 'before-wish', { createdAt: '2026-01-01T01:00:00.000Z', giftStatsEligible: 0 });
+  f.insertGift(f.source.id, 'after-wish', { createdAt: '2026-01-01T03:00:00.000Z', giftStatsEligible: 0 });
+  const count = (wish, start = wish.created_at) => store.count(f.source.id, wish, start, NOW);
+  stage(f);
+  assert.equal(count(daily, BEFORE), 0, 'staging stays hidden');
+  assert.equal(count(long), 1);
+  f.retention.activate(f.scope());
+  assert.equal(count(daily, BEFORE), 1);
+  assert.equal(count(long), 2, 'creation day excludes the gift before creation');
+  assert.equal(count(all), 3, 'complete days use summaries without doubling boundary contributions');
+  assert.equal(f.statistics().summaryRow.itemCount, 3);
+  assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 2);
+  assert.equal(count(long), 2);
+  assert.equal(count(all), 3);
+  assert.equal(f.statistics().summaryRow.itemCount, 3);
+  assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 0);
+  assert.equal(createGiftWishStore(f.giftDb).count(f.source.id, long, OLD, NOW), 2);
+  stage(f);
+  f.retention.activate(f.scope());
+  assert.equal(count(long), 2, 'same-epoch rebuild preserves each exact contribution once');
+  f.retention.summaryPage({ ...f.scope(), full: true, page: summary({ syncEpoch: 'cleared', rows: [] }) });
+  f.retention.historyPage({ ...f.scope(), pageToken: 'history-1', page: history([], { syncEpoch: 'cleared' }) });
+  f.retention.activate(f.scope());
+  assert.equal(count(long), 0, 'new epochs cannot inherit old contributions');
+});
+
+test('wishes retain late creation-day finals when pruning and respect a stale session end', (t) => {
+  const f = fixture(t);
+  const store = createGiftWishStore(f.giftDb);
+  const long = addWish(f, 'long', 'long', OLD);
+  const session = addWish(f, 'session', 'session', OLD);
+  store.saveSession(f.source.id, '123', { started_at: OLD, checked_at: '2026-01-01T02:30:00.000Z', ended_at: null });
+  f.insertGift(f.source.id, 'early', { createdAt: '2026-01-01T02:15:00.000Z', giftStatsEligible: 0 });
+  f.insertGift(f.source.id, 'later', { createdAt: '2026-01-01T03:00:00.000Z', giftStatsEligible: 0 });
+  stage(f);
+  f.retention.activate(f.scope());
+  const late = record('late-boundary', 4, '2026-01-01T04:00:00.000Z');
+  f.projection.importProcessedHistoryRecord(late, f.source.id);
+  f.giftDb.prepare('UPDATE gift_events SET remote_final_cursor=4 WHERE platform_id=?').run('lira-server:late-boundary');
+  f.giftDb.prepare('UPDATE gift_sync_state SET final_cursor=4 WHERE source_id=?').run(f.source.id);
+  f.retention.summaryPage({ ...f.scope(), page: summary({ revision: 2, baseRevision: 1, coveredThroughCursor: 4, rows: [row(3)] }) });
+  f.retention.activate(f.scope());
+  assert.equal(store.count(f.source.id, long, OLD, NOW), 4);
+  assert.equal(store.count(f.source.id, session, OLD, '2026-01-01T02:30:00.000Z'), 1);
+  f.giftDb.exec(`CREATE TRIGGER reject_wish_archive BEFORE INSERT ON gift_wish_contributions
+    WHEN NEW.platform_id='lira-server:late-boundary' BEGIN SELECT RAISE(ABORT,'wish archive failed'); END;`);
+  assert.throws(() => pruneLocalGiftBatch(f.giftDb, f.source.id), /wish archive failed/);
+  assert.equal(store.count(f.source.id, long, OLD, NOW), 4, 'archive failure cannot delete the raw contribution');
+  f.giftDb.exec('DROP TRIGGER reject_wish_archive');
+  pruneLocalGiftBatch(f.giftDb, f.source.id);
+  assert.equal(store.count(f.source.id, long, OLD, NOW), 4);
+  assert.equal(store.count(f.source.id, session, OLD, '2026-01-01T02:30:00.000Z'), 1);
+  assert.equal(store.count(f.source.id, long, BEFORE, NOW), 1, 'todayCount ignores archived start-day contributions');
+  assert.ok(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_contributions WHERE wish_id=?').get(long.id).n > 0);
+  store.remove(f.source.id, long.id);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_contributions WHERE wish_id=?').get(long.id).n, 0);
+  f.giftDb.exec('BEGIN IMMEDIATE');
+  clearGiftScopeInTransaction(f.giftDb, f.source.id, NOW);
+  f.giftDb.exec('COMMIT');
+  assert.equal(store.count(f.source.id, session, OLD, NOW), 0);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_contributions').get().n, 0);
+});
+
+test('summary wish quantities preserve guard aliases and separate box and output identities', (t) => {
+  const f = fixture(t);
+  const guard = row();
+  Object.assign(guard.dimensions, { giftId: '10003' });
+  Object.assign(guard.metrics, { guardEventCount: 2, guardValueCents: 200 });
+  guard.groupKey = groupKey(guard.dimensions);
+  const box = row();
+  Object.assign(box.dimensions, { giftId: 'output', giftVariantId: 'output-v1', isBlindBox: true,
+    blindBoxId: 'box', blindBoxVariantId: 'box-v1', blindBoxName: '盲盒' });
+  Object.assign(box.metrics, { blindBoxEventCount: 2, blindBoxValueCents: 200, blindItemCount: 2,
+    blindBoxUnknownCostEventCount: 2, unknownCostItemCount: 2, unknownCostValueCents: 200 });
+  box.groupKey = groupKey(box.dimensions);
+  const rows = [guard, box].sort((a, b) => a.groupKey.localeCompare(b.groupKey));
+  stage(f, summary({ rows }), []);
+  f.retention.activate(f.scope());
+  const store = createGiftWishStore(f.giftDb);
+  const count = (gift_id, gift_category, variant_id = null) => store.count(f.source.id,
+    { gift_id, gift_category, variant_id }, DAY, NOW);
+  assert.equal(count('guard-3', 'guard'), 2);
+  assert.equal(count('box', 'blindBox', 'box-v1'), 2);
+  assert.equal(count('output', 'blindBoxOutput', 'output-v1'), 2);
+  assert.equal(count('output', 'blindBoxOutput', 'output-v2'), 0);
+});
 
 test('snapshot pages stay hidden until atomic activation, preserve old values on failure and fence stale accounts', (t) => {
   const f = fixture(t);

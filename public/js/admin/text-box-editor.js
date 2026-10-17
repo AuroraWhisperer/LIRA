@@ -1,40 +1,28 @@
 import { renderTextBox } from '../shared/text-box-renderer.js';
 import { normalizeTextBoxConfig } from '../shared/text-box-config.js';
 import { previewElement } from './component-preview-surface.js';
-import { mountTextBoxFormatControls } from './text-box-format-controls.js';
-import { colorWithAlpha } from '../shared/color-value.js';
-import { colorPickerContains } from '../shared/color-picker.js';
+import { mountRichTextToolbar } from './rich-text-toolbar.js';
+import { readTextStyle } from '../shared/text-style.js';
 
-function hexColor(value) {
-  if (/^#[\da-f]{6}(?:[\da-f]{2})?$/i.test(value)) return value;
-  const channels = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
-  return channels ? colorWithAlpha(`#${channels.slice(1, 4).map(value => Number(value).toString(16).padStart(2, '0')).join('')}`,
-    channels[4] === undefined ? 1 : Number(channels[4])) : null;
+function contentSignature({ scrollMode, ...content }) {
+  return JSON.stringify(content);
 }
 
 export function readTextBoxNodes(editor, config, range) {
   const nodes = [];
   function text(value, element) {
     if (!value) return;
-    const style = getComputedStyle(element);
-    const node = { type: 'text', text: value };
-    if (Number(style.fontWeight) >= 600) node.bold = true;
-    if (style.fontStyle === 'italic') node.italic = true;
-    if (parseFloat(style.webkitTextStrokeWidth) > 0) node.stroke = true;
-    if (style.textShadow !== 'none') node.shadow = true;
-    for (let parent = element; parent && editor.contains(parent); parent = parent.parentElement) {
-      if (getComputedStyle(parent).textDecorationLine.includes('underline')) { node.underline = true; break; }
-    }
-    const size = Math.round(parseFloat(style.fontSize));
-    if (size !== config.fontSize) node.fontSize = size;
-    const color = hexColor(style.color);
-    if (color && color !== config.color) node.color = color;
+    const node = { type: 'text', text: value, ...readTextStyle(element, editor, config) };
     const previous = nodes.at(-1);
     if (previous?.type === 'text' && JSON.stringify({ ...previous, text: '' }) === JSON.stringify({ ...node, text: '' })) previous.text += value;
     else nodes.push(node);
   }
   function visit(node) {
     if (range && !range.intersectsNode(node)) return;
+    if (node !== editor && node.previousSibling && (!range || nodes.length)
+      && [node.nodeName, node.previousSibling.nodeName].some(name => ['DIV', 'P'].includes(name))) {
+      text('\n', node.nodeType === Node.TEXT_NODE ? node.parentElement : node);
+    }
     if (node.nodeType === Node.TEXT_NODE) {
       text(node.data.slice(range?.startContainer === node ? range.startOffset : 0,
         range?.endContainer === node ? range.endOffset : node.data.length), node.parentElement);
@@ -42,7 +30,6 @@ export function readTextBoxNodes(editor, config, range) {
     }
     if (node.dataset?.textBoxNode) { nodes.push(JSON.parse(node.dataset.textBoxNode)); return; }
     if (node.nodeName === 'BR') { text('\n', node.parentElement); return; }
-    if (['DIV', 'P'].includes(node.nodeName) && node !== editor && node.previousSibling && (!range || nodes.length)) text('\n', node);
     for (const child of node.childNodes) {
       if (child.nodeName === 'BR' && !child.nextSibling && ['DIV', 'P'].includes(node.nodeName)) continue;
       visit(child);
@@ -56,10 +43,6 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
   const lifetime = new AbortController();
   const listen = (node, event, callback) => node.addEventListener(event, callback, { signal: lifetime.signal });
   const wrapper = previewElement('div', 'text-box-composer');
-  const toolbar = previewElement('div', 'text-box-toolbar');
-  toolbar.hidden = true;
-  toolbar.setAttribute('role', 'toolbar');
-  toolbar.setAttribute('aria-label', '文字格式');
   const editor = previewElement('div', 'text-box-editor');
   editor.contentEditable = 'true';
   editor.setAttribute('role', 'textbox');
@@ -67,13 +50,12 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
   editor.setAttribute('aria-multiline', 'true');
   editor.dataset.placeholder = '输入文字，也可以插入礼物、图片和颜文字…';
   editor.spellcheck = false;
-  wrapper.append(editor, toolbar);
+  wrapper.append(editor);
   host.append(wrapper);
   let savedRange = null;
   let previous = '';
   let disabled = false;
   let applyingCommand = false;
-  const marks = new Map();
 
   function currentRange() {
     const selection = window.getSelection();
@@ -111,7 +93,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
   function sync() {
     try {
       const config = normalizeTextBoxConfig({ ...getConfig(), nodes: readTextBoxNodes(editor, getConfig()) });
-      previous = JSON.stringify(config);
+      previous = contentSignature(config);
       onChange(config);
       const range = currentRange();
       const atom = range?.startContainer.parentElement?.closest('[data-text-box-node]');
@@ -134,6 +116,21 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
     edit(() => {
       restore();
       document.execCommand(name, false, value);
+    });
+  }
+  function insertText(value) {
+    if (!value.includes('\n')) { command('insertText', value); return; }
+    // insertText emits a separate edit for every line. One escaped text span
+    // keeps large pastes compact, including trailing newlines and native undo.
+    edit(() => {
+      const range = restore();
+      let source = range.startContainer;
+      if (source.nodeType === Node.ELEMENT_NODE) source = source.childNodes[range.startOffset] || source;
+      const element = source.nodeType === Node.TEXT_NODE ? source.parentElement : source;
+      const config = getConfig();
+      const fragment = previewElement('div');
+      renderTextBox(fragment, { ...config, nodes: [{ type: 'text', text: value, ...readTextStyle(element, editor, config) }] });
+      document.execCommand('insertHTML', false, fragment.innerHTML);
     });
   }
   function transformSelection(transform) {
@@ -162,88 +159,33 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
     });
   }
   function format(property, value) {
-    transformSelection(nodes => nodes.map(node => node.type === 'text' || property === 'fontSize' ? { ...node, [property]: value } : node));
+    transformSelection(nodes => nodes.map(node => {
+      if (node.type !== 'text' && property !== 'fontSize') return node;
+      const formatted = { ...node, [property]: value };
+      if (value === null) delete formatted[property];
+      return formatted;
+    }));
   }
   function clearFormat() {
     transformSelection(nodes => nodes.map(node => node.type === 'text' ? { type: 'text', text: node.text } : node));
   }
-  function toggleMark(key) {
-    transformSelection(nodes => {
-      const enabled = !nodes.filter(node => node.type === 'text').every(node => node[key]);
-      return nodes.map(node => node.type === 'text' ? { ...node, [key]: enabled } : node);
-    });
-  }
-  for (const [key, label, text] of [['bold', '加粗 (Ctrl+B)', 'B'], ['italic', '斜体 (Ctrl+I)', 'I'], ['underline', '下划线 (Ctrl+U)', 'U']]) {
-    const button = previewElement('button', `text-box-format text-box-format-${key}`, text);
-    button.type = 'button';
-    button.title = label;
-    button.setAttribute('aria-label', label);
-    button.setAttribute('aria-pressed', 'false');
-    listen(button, 'mousedown', event => event.preventDefault());
-    listen(button, 'click', () => toggleMark(key));
-    toolbar.append(button);
-    marks.set(key, button);
-  }
-  const size = previewElement('select', 'text-box-font-size');
-  size.setAttribute('aria-label', '文字字号');
-  for (const number of [12, 16, 20, 24, 28, 32, 40, 48, 64, 72, 96, 120]) {
-    const option = previewElement('option', '', `${number}`); option.value = number; size.append(option);
-  }
-  listen(size, 'change', () => format('fontSize', Number(size.value)));
-  toolbar.append(size);
-  const formatControls = mountTextBoxFormatControls(toolbar, { listen, format, clearFormat });
-
-  function updateSelection() {
-    if (applyingCommand) return;
-    const activeRange = currentRange();
-    if (activeRange) savedRange = activeRange.cloneRange();
-    const toolbarFocused = toolbar.contains(document.activeElement) || colorPickerContains(toolbar, document.activeElement);
-    const range = activeRange || (toolbarFocused ? savedRange : null);
-    toolbar.hidden = disabled || !hasTextSelection(range) || !(document.activeElement === editor || toolbarFocused);
-    if (!toolbar.hidden) {
-      const rect = range.getClientRects()[0] || range.getBoundingClientRect();
-      const bounds = editor.getBoundingClientRect();
-      toolbar.hidden = rect.bottom <= Math.max(0, bounds.top) || rect.top >= Math.min(window.innerHeight, bounds.bottom);
-      const left = Math.max(8, bounds.left);
-      const right = Math.min(window.innerWidth - toolbar.offsetWidth - 8, Math.max(left, bounds.right - toolbar.offsetWidth));
-      toolbar.style.left = `${Math.max(left, Math.min(rect.left + rect.width / 2 - toolbar.offsetWidth / 2, right))}px`;
-      toolbar.style.top = `${Math.max(8, rect.top - toolbar.offsetHeight - 10)}px`;
-      const selectedNodes = readTextBoxNodes(editor, getConfig(), range);
-      const text = selectedNodes.filter(node => node.type === 'text');
-      for (const [key, button] of marks) {
-        const count = text.filter(node => node[key]).length;
-        button.setAttribute('aria-pressed', count === text.length ? 'true' : count ? 'mixed' : 'false');
-      }
-      if (!toolbar.contains(document.activeElement)) {
-        size.value = String(selectedNodes.find(node => node.type === 'text')?.fontSize || getConfig().fontSize);
-      }
-      formatControls.update(selectedNodes, getConfig());
-    }
-    if (toolbar.hidden) formatControls.close();
-    else formatControls.position(range.getBoundingClientRect());
-  }
-  listen(document, 'selectionchange', updateSelection);
-  listen(document, 'focusin', updateSelection);
-  listen(window, 'resize', updateSelection);
-  document.addEventListener('scroll', updateSelection, { capture: true, signal: lifetime.signal });
+  const toolbar = mountRichTextToolbar(editor, {
+    getRange() { const range = currentRange(); if (range) savedRange = range.cloneRange(); return range || savedRange; },
+    getConfig, readNodes: range => readTextBoxNodes(editor, getConfig(), range), format, clearFormat,
+    isDisabled: () => disabled, isApplying: () => applyingCommand,
+  });
+  const updateSelection = () => toolbar.update();
   listen(editor, 'input', () => { if (!applyingCommand) sync(); });
   listen(editor, 'beforeinput', event => {
     if (disabled) { event.preventDefault(); return; }
     const range = currentRange();
     if (range && !range.collapsed) select(expandAtoms(range));
   });
-  listen(editor, 'keydown', event => {
-    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.isComposing) return;
-    const key = { b: 'bold', i: 'italic', u: 'underline' }[event.key.toLowerCase()];
-    if (key) {
-      event.preventDefault();
-      const range = currentRange();
-      if (hasTextSelection(range)) { savedRange = range.cloneRange(); toggleMark(key); }
-    }
-  });
   listen(editor, 'paste', event => {
     event.preventDefault();
-    command('insertText', event.clipboardData.getData('text/plain').replace(/\r\n?/g, '\n'));
+    const range = currentRange();
+    if (range) savedRange = range.cloneRange();
+    insertText(event.clipboardData.getData('text/plain').replace(/\r\n?/g, '\n'));
   });
   listen(editor, 'drop', event => event.preventDefault());
   listen(editor, 'click', event => {
@@ -254,7 +196,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
   return {
     editor,
     rememberSelection() { const range = currentRange(); if (range) savedRange = range.cloneRange(); },
-    insertText(value) { command('insertText', value); },
+    insertText,
     insertNode(node) {
       const content = previewElement('div');
       renderTextBox(content, { ...getConfig(), nodes: [node] }, { editable: true });
@@ -271,16 +213,14 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
       disabled = locked;
       editor.contentEditable = String(!locked);
       editor.setAttribute('aria-disabled', String(locked));
-      for (const input of toolbar.querySelectorAll('button, input, select')) input.disabled = locked;
-      const serialized = JSON.stringify(config);
+      const serialized = contentSignature(config);
       if (serialized !== previous) {
         renderTextBox(editor, config, { editable: true });
         previous = serialized;
         savedRange = null;
       }
-      if (document.activeElement !== size) size.value = String(config.fontSize);
       updateSelection();
     },
-    dispose() { lifetime.abort(); wrapper.remove(); },
+    dispose() { lifetime.abort(); toolbar.dispose(); wrapper.remove(); },
   };
 }

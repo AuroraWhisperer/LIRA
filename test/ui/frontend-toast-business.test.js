@@ -395,7 +395,7 @@ test('gift effect copy handles clipboard and fallback failures without an unhand
   f.documentRef.createElement = (tag) => Object.assign(create(tag), { select() {} });
   const { giftEffects } = await f.load('admin/gift-effects.js');
   giftEffects.init();
-  await nodes.get('giftEffectCopyBtn').listeners.get('click')();
+  await nodes.get('giftEffectOverlayUrl').listeners.get('click')();
   assert.match(f.container.textContent, /网址没复制成功/);
   assert.equal(f.container.children.length, 1);
 });

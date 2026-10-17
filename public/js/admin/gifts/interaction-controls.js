@@ -8,6 +8,7 @@ const ERRORS = {
   BILIBILI_ACCOUNT_MISMATCH: 'B 站登录已失效，请重新登录并同步。',
   BILIBILI_ACCOUNT_CHECK_FAILED: 'B 站登录验证超时，请稍后再试。',
   CLOUD_SETTINGS_CHANGED: '账号或房间已变化，请确认后重试。',
+  INVALID_GIFT_BLIND_BOX_CONFIG: '自定义盲盒配置与服务器冲突，请修正盲盒配置后重试。',
   DEVICE_SESSION_INVALID: '设备授权已失效，请重新登录 LIRA。',
   LICENSE_NOT_AUTHORIZED: '尚未连接服务器，请恢复连接后重试。',
 };

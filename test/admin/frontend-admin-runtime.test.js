@@ -65,7 +65,7 @@ test('queue theme uses explicit draft saves while the display board retains auto
   assert.match(themeSource, /'submit'[\s\S]*saveComponentWithFeedback\(controller, '点歌板主题'\)/);
   assert.match(songBoardSource, /form\.addEventListener\('input', edit\)/);
   assert.match(songBoardSource, /form\.addEventListener\('change', edit\)/);
-  assert.match(displaySource, /await copyText\(url\)/);
+  assert.match(displaySource, /bindCopyUrl\(button,/);
   assert.doesNotMatch(displaySource, /navigator\.clipboard\.writeText\(url\)/);
 
   assert.match(themeSource, /classicPresets[\s\S]*?controller\.edit\(/);

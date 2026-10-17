@@ -149,6 +149,29 @@ test('request controls default to unrestricted and manual library insertion keep
   assert.ok(f.add({ requesterUid: '42', requesterName: '主播手动点入', requesterIdentityType: 'uid' }));
 });
 
+test('disabling SC song requests keeps existing songs and ignores new SC commands without consuming cooldowns', (t) => {
+  const f = requestFixture(t, { userCooldownSeconds: '60', songCooldownMode: 'hours', songCooldownValue: '1' });
+  const existing = f.request({ uid: '7', source: 'superchat', isPinned: true }).queueItem;
+  assert.ok(existing.id, 'missing setting preserves the existing SC behavior');
+  f.settings.scSongRequestEnabled = 'false';
+  const cooldownsBefore = [...f.state.cooldownByUser];
+  for (const message of ['点歌另一首', '随机点歌']) {
+    const result = f.request({ message, source: 'superchat', isPinned: true });
+    assert.equal(result.accepted, false);
+    assert.equal(result.reason, 'SC 点歌已关闭。');
+    assert.equal(result.autoReply, undefined, 'text-only SC does not send a song rejection reply');
+    assert.equal(result.command, undefined, 'text-only SC is not parsed as a song command');
+  }
+  for (const table of ['queue', 'requests', 'user_cooldowns', 'song_cooldowns']) {
+    assert.equal(f.count(table), 1, table);
+  }
+  assert.deepEqual([...f.state.cooldownByUser], cooldownsBefore);
+  assert.deepEqual(getQueueSnapshot(f.context).waiting.map((item) => item.id), [existing.id]);
+  assert.equal(f.request({ message: '点歌另一首', source: 'danmaku' }).accepted, true);
+  f.settings.scSongRequestEnabled = 'true';
+  assert.equal(f.request({ uid: '43', message: '随机点歌', source: 'superchat' }).accepted, true);
+});
+
 test('per-user quota counts LIVE and pinned songs by stable identity, rolls back rejection and frees terminal slots', (t) => {
   const f = requestFixture(t, { userQueueLimit: '2' });
   const first = f.request().queueItem;

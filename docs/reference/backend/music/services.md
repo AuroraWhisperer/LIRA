@@ -334,7 +334,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 下载模板使用 `SONG_TEMPLATE_HEADERS`，只将标签列表头改为 `歌曲标签（如：怀旧、抒情、治愈）`；其余列名与顺序沿用导出表头。CSV/XLSX 模板仅含表头，不含示例歌曲。XLSX 标签列加宽以容纳提示。后端导入和前端 CSV/TSV/粘贴解析均接受该表头别名，普通歌库导出的表头不变。
 
-`SONG_IMPORT_ALIASES` 每字段维护中英文别名([song-import-schema.js](../../../../src/music/song-import-schema.js));`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求 / 点歌条件 / 点歌说明`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。价格所有非空别名经文本规范化后必须相同，否则该数据行失败；其他字段的 `firstValue` 仍按别名顺序取首个非空。`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集,未识别回退默认值。`normalizeImportedSongRow` 产出清洗后的行,分类缺省"默认"，点歌价格与歌切均缺省空字符串。
+`SONG_IMPORT_ALIASES` 每字段维护中英文别名([song-import-schema.js](../../../../src/music/song-import-schema.js));`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求 / 点歌条件 / 点歌说明`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。价格所有非空别名经文本规范化后必须相同，否则该数据行失败；其他字段的 `firstValue` 仍按别名顺序取首个非空，布尔 `false` 和数值 `0` 不当作缺值。`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集，原生 `false/0` 与字符串 `false/0` 均表示停用，空值或未识别值回退默认值。`normalizeImportedSongRow` 产出清洗后的行,分类缺省"默认"，点歌价格与歌切均缺省空字符串。
 
 按 [点歌资料规范](../../../../specs/song-request-metadata.md)，价格和歌切在导入、保存中使用 `cleanTextPreserveLines`，保留内部空格和换行，统一 CRLF、去除控制字符及首尾空白；价格数值 0 变为文本 `0`。显式升级原先的空白折叠和价格首别名规则，其余字段不变。普通保存省略价格/歌切保留旧值，显式空字符串清空。
 
@@ -348,6 +348,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | `songToExportRow(song)`      | 行映射(分类缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，`source_platform` → 核对平台保存值；阶段 4 显式替代空值规则) |
 
 `parseSongsFromXlsx(buffer,{preserveMissing:true})` 用于替换及兼容更新预览：保留无歌名的非空数据行供预览报无效，表头缺列不补为默认字段，无表头必须完整十列；默认新增解析行为不变。
+
+前端 [song-import-parser.js](../../../../public/js/admin/song-import-parser.js) 按首条有内容的逻辑记录中引号外的 Tab 识别 TSV，否则按 CSV 解析；引号内的 Tab、换行和转义双引号不改变格式判断，支持本程序导出的价格与歌切文本重新导入。
 
 ## 12. 请求者定位(storage/requester-target-store.js)
 
@@ -379,6 +381,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 - 控制字符(0x00-0x1F、0x7F)替换为空格;`trackTitle` 截 120、`artists` 每项截 80 且最多 8 个、`lineText`/`translation` 截 240
 - 时间一律 `clampNumber` 到 `[0, MAX_TIME_MS = 24h]`;`progress` clamp 到 `[0, 1]`
 - 逐字词:当前句状态与时间轴每行共用 `lyric-normalization.js` 的 `normalizeLyricWords`，最多 120 个，`text` 截 40 且保留有意义的空格，`endMs` 下限取 `startMs`。
+
+上述文本上限按 UTF-16 码元计算；截断恰好落在代理对中间时退回一个码元，避免发布半个字符。完整时间轴中的文本、翻译与罗马音沿用相同规则，长度预算不改为字素数量。
 
 ### 13.2 差异
 

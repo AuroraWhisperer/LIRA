@@ -53,7 +53,7 @@ function normalizeImportedSongRow(row) {
 
 function firstValue(row, keys) {
   for (const key of keys) {
-    if (Object.prototype.hasOwnProperty.call(row, key) && cleanText(row[key])) {
+    if (Object.prototype.hasOwnProperty.call(row, key) && cleanText(String(row[key] ?? ''))) {
       return row[key];
     }
   }
@@ -61,7 +61,7 @@ function firstValue(row, keys) {
 }
 
 function parseEnabled(value, defaultValue) {
-  const text = cleanText(value).toLowerCase();
+  const text = cleanText(String(value ?? '')).toLowerCase();
   if (!text) return defaultValue;
   if (['是', '可点', '启用', 'true', 'yes', 'y', '1'].includes(text)) return true;
   if (['否', '不可点', '停用', 'false', 'no', 'n', '0'].includes(text)) return false;

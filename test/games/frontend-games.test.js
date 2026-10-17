@@ -85,7 +85,8 @@ test('admin game styles keep shared, wheel, draw, and responsive ownership', () 
 test('games admin uses one base URL and never opens a game-specific URL', () => {
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
   assert.doesNotMatch(script, /data-copy-game|overlayUrl\(game\)/);
-  assert.match(script, /byId\('gamesOverlayUrl'\)\.addEventListener\('click', \(\) => copyUrl\(overlayBaseUrl\(\)\)/);
+  assert.match(script, /byId\('gamesOverlayUrl'\)\.textContent = overlayBaseUrl\(\)/);
+  assert.match(script, /bindCopyUrl\(byId\('gamesOverlayUrl'\)/);
 });
 
 test('games word library styles expose selected and keyboard focus states', () => {
@@ -98,7 +99,7 @@ test('games word library styles expose selected and keyboard focus states', () =
 test('wheel admin applies entry, label and weight limits from server state', async () => {
   const nodes = new Map();
   const node = (id) => {
-    if (!nodes.has(id)) nodes.set(id, Object.assign(new FakeNode('div'), { classList: { toggle() {} } }));
+    if (!nodes.has(id)) nodes.set(id, Object.assign(new FakeNode('div'), { classList: { add() {}, toggle() {} } }));
     return nodes.get(id);
   };
   const limits = { minEntries: 2, maxEntries: 3, minWeight: 1, maxWeight: 7, maxLabelLength: 9 };

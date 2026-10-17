@@ -89,6 +89,12 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.split(',').some(value => value.trim() === 'SimSun'));
   await font.selectOption('月渡花汀文楷');
   await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.includes('月渡花汀文楷-'));
+  await page.evaluate(() => {
+    const select = document.querySelector('[data-component-parameter="desktopLyricFontFamily"]');
+    select.selectedOptions[0].value = '"月渡花汀文楷"';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.includes('月渡花汀文楷-'));
   const size = page.locator('[data-component-parameter="desktopLyricFontSize"]');
   await size.fill('32'); await size.press('Tab');
   await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontSize === '32px');

@@ -321,8 +321,9 @@ test('generation and tool follow-up requests have enough output room for route r
   );
 });
 
-test('reasoning-enabled generation gets extra room for thinking and route tool calls', async () => {
+test('reasoning-enabled generation keeps thinking while reviews use their short output budget without reasoning', async t => {
   const requests = [];
+  const deliveries = [];
   const service = createTestService({
     config: { ...MAP_CONFIG, trigger: 'AI', reasoningEnabled: true },
     deepseek: {
@@ -346,15 +347,25 @@ test('reasoning-enabled generation gets extra room for thinking and route tool c
       },
     },
     tools: { qweather: {}, amap: {}, getCurrentTime: () => ({}) },
-    sendReply: async () => {},
+    sendReply: async reply => deliveries.push(reply.message),
   });
+  t.after(() => service.shutdown());
   service.handleDanmaku({
     uid: '42',
     userName: 'Alice',
     message: 'AI 太原火车站到机场怎么规划',
   });
-  await waitUntil(() => requests.some((request) => request.purpose === 'output_review'));
-  assert.equal(requests.find((request) => request.purpose === 'generation').maxOutputTokens, 4096);
+  await waitUntil(() => deliveries.length === 1);
+  assert.deepEqual(deliveries, ['ok']);
+  const generation = requests.find(request => request.purpose === 'generation');
+  assert.equal(generation.maxOutputTokens, 4096);
+  assert.equal(generation.config.reasoningEnabled, true);
+  const reviews = requests.filter(request => ['input_review', 'output_review'].includes(request.purpose));
+  assert.deepEqual(reviews.map(request => request.purpose), ['input_review', 'output_review']);
+  for (const review of reviews) {
+    assert.equal(review.maxOutputTokens, 384);
+    assert.equal(review.config.reasoningEnabled, false);
+  }
 });
 
 test('Suzhou route planning keeps a concise useful reply after the route tool round', async () => {

@@ -168,21 +168,14 @@
     </fieldset>
     <fieldset id="xiaomiAiCapabilitiesControl" class="xiaomi-ai-capabilities-config">
       <legend>联网与思考</legend>
-      <div class="xiaomi-ai-capability-rail" aria-label="当前模型服务能力">
-        <div><span>协议</span><strong id="xiaomiAiProtocolCapability">等待配置</strong></div>
-        <div><span>联网</span><strong id="xiaomiAiWebSearchCapability">等待配置</strong></div>
-        <div><span>深度思考</span><strong id="xiaomiAiReasoningCapability">等待配置</strong></div>
-      </div>
-      <div class="xiaomi-ai-toggle-row">
+      <div class="xiaomi-ai-capability-controls">
         <label class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control">
           <input id="xiaomiAiWebSearch" type="checkbox" role="switch" />
           <span class="switch-track" aria-hidden="true"></span>
-          <span class="xiaomi-ai-control-copy"
-            ><span
-              ><b id="xiaomiAiWebSearchLabel">联网搜索</b
-              ><lira-help><span id="xiaomiAiWebSearchHelp">使用所选平台支持的搜索方式。</span></lira-help></span
-            ><small>使用当前服务支持的方式检索信息。</small></span
-          >
+          <span class="xiaomi-ai-control-copy">
+            <b id="xiaomiAiWebSearchLabel">联网搜索</b>
+            <lira-help><span id="xiaomiAiWebSearchHelp">使用所选平台支持的搜索方式。</span></lira-help>
+          </span>
         </label>
         <label
           id="xiaomiAiReasoningControl"
@@ -191,16 +184,13 @@
         >
           <input id="xiaomiAiReasoning" type="checkbox" role="switch" />
           <span class="switch-track" aria-hidden="true"></span>
-          <span class="xiaomi-ai-control-copy"
-            ><span
-              ><b id="xiaomiAiReasoningLabel">深度思考</b
-              ><lira-help><span id="xiaomiAiReasoningHelp"></span></lira-help></span
-            ><small>让模型在回答前进行额外思考。</small></span
-          >
+          <span class="xiaomi-ai-control-copy">
+            <b id="xiaomiAiReasoningLabel">深度思考</b>
+            <lira-help><span id="xiaomiAiReasoningHelp"></span></lira-help>
+          </span>
         </label>
-        <label id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-capability-control xiaomi-ai-effort-control" hidden>
-          <span class="xiaomi-ai-control-copy"><b>思考强度</b><small>开启深度思考后可调整。</small></span>
-          <select id="xiaomiAiReasoningEffort" data-dropdown-variant="toolbox">
+        <div id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-effort-control" hidden>
+          <select id="xiaomiAiReasoningEffort" aria-label="思考强度" data-dropdown-variant="toolbox">
             <option value="auto">服务默认</option>
             <option value="minimal">最低</option>
             <option value="low">低</option>
@@ -209,9 +199,9 @@
             <option value="xhigh">很高</option>
             <option value="max">最高</option>
           </select>
-        </label>
+        </div>
         <p id="xiaomiAiProviderManagedReasoning" class="xiaomi-ai-provider-managed" hidden>
-          是否支持深度思考，由所选平台和模型决定。
+          思考由平台和模型自动控制。
         </p>
       </div>
     </fieldset>

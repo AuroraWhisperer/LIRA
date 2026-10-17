@@ -27,6 +27,7 @@ function createDesktopReadinessController({
   let unsubscribeLicense = null;
 
   function resumeAuthorizedWork(startup) {
+    runtime.initializeFontLibrary?.()?.catch?.(error => writeLog('font-library', error));
     const generation = recoveryGeneration;
     const authorizationEpoch = licenseManager.getAuthorizationEpoch?.();
     // Source switching must freeze before waiting for cloud restoration.

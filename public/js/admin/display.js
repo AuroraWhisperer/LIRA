@@ -5,9 +5,9 @@
 import { stateService } from './state.js';
 import {
   localOverlayOrigin,
-  copyText,
   toast,
 } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 import { createComponentConfigController } from './component-config-controller.js';
 import { registerComponentSettings } from './component-settings-sync.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
@@ -35,18 +35,16 @@ export const display = (() => {
     window.addEventListener('pagehide', () => { view.dispose(); unregister(); }, { once: true });
 
     document.querySelectorAll('[data-copy-url]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const url = document.getElementById(button.dataset.copyUrl).textContent;
-        if (button.disabled || !url) return;
-        try {
+      bindCopyUrl(button, {
+        onCopied: async () => {
           const component = { queueUrl: 'queue', localDanmakuUrl: 'danmaku', liveClockUrl: 'clock', liveOvertimeUrl: 'overtime' }[button.dataset.copyUrl];
           const size = component ? await readComponentOutputSize(component).catch(() => null) : null;
-          await copyText(url);
           toast(size ? `地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}` : '地址已复制');
-        } catch (error) {
+        },
+        onError: (error, url) => {
           toast(error?.message || '复制失败，请手动复制地址');
           prompt('复制以下地址：', url);
-        }
+        },
       });
     });
     document.querySelectorAll('[data-open-url]').forEach((button) => {

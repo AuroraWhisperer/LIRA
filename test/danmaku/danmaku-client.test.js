@@ -26,11 +26,13 @@ for (const method of ['start', 'restart']) {
 
 class FakeWebSocket {
   static OPEN = 1;
+  static autoOpen = true;
 
   constructor(url) {
     this.url = url;
     this.readyState = 0;
     this.listeners = new Map();
+    if (!FakeWebSocket.autoOpen) return;
     queueMicrotask(() => {
       this.readyState = FakeWebSocket.OPEN;
       this.emit('open', {});
@@ -314,6 +316,55 @@ test('socket errors keep history active throughout bounded reconnect recovery', 
     global.fetch = originalFetch;
     global.WebSocket = originalWebSocket;
   }
+});
+
+test('stalled automatic connections time out and retry until the socket opens', async (t) => {
+  t.mock.property(global, 'WebSocket', FakeWebSocket);
+  const originalAutoOpen = FakeWebSocket.autoOpen;
+  FakeWebSocket.autoOpen = false;
+  t.after(() => { FakeWebSocket.autoOpen = originalAutoOpen; });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const statuses = [];
+  const client = new BilibiliDanmakuClient('123', { onStatus: status => statuses.push(status) });
+  t.after(() => client.stop());
+  client.apiClient.resolveRoomInfo = async () => ({ roomId: 123, uid: 456, liveStatus: 1, ownerName: '主播' });
+  client.apiClient.resolveDanmuInfo = async () => ({ token: 'test-token', host_list: [{ host: 'example.test' }] });
+  for (const poller of [client.onlineRankPoller, client.fansMedalPoller]) poller.start = () => {};
+  client.historyPoller.start = () => { client.historyPoller.timer = {}; };
+  client.historyPoller.stop = () => { client.historyPoller.timer = null; };
+
+  client.start();
+  await new Promise(setImmediate);
+  const firstSocket = client.ws;
+  t.mock.timers.tick(7999);
+  assert.equal(firstSocket.readyState, 0);
+  assert.equal(client.reconnectTimer, null);
+  t.mock.timers.tick(1);
+  await new Promise(setImmediate);
+  assert.equal(firstSocket.readyState, 3);
+  assert.notEqual(client.reconnectTimer, null);
+  assert.ok(client.historyPoller.timer);
+
+  t.mock.timers.tick(1000);
+  await new Promise(setImmediate);
+  const secondSocket = client.ws;
+  assert.notEqual(secondSocket, firstSocket);
+  t.mock.timers.tick(8000);
+  await new Promise(setImmediate);
+  assert.equal(secondSocket.readyState, 3);
+  assert.notEqual(client.reconnectTimer, null);
+
+  FakeWebSocket.autoOpen = true;
+  t.mock.timers.tick(1999);
+  await new Promise(setImmediate);
+  assert.equal(client.ws, secondSocket);
+  t.mock.timers.tick(1);
+  await new Promise(setImmediate);
+  assert.notEqual(client.ws, secondSocket);
+  assert.equal(client.ws.readyState, FakeWebSocket.OPEN);
+  assert.equal(client.reconnecting, false);
+  assert.equal(client.historyPoller.timer, null);
+  assert.equal(statuses.at(-1).connected, true);
 });
 
 test('danmaku marks only the current room owner as the streamer', (t) => {

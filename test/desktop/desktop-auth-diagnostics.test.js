@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const { createRequire } = require('node:module');
 const test = require('node:test');
 const vm = require('node:vm');
+const { createFixture: createCloudFixture } = require('../helpers/cloud-sync-controller-fixture');
 
 function controller(auth, login) {
   const filename = require.resolve('../../src/electron/desktop-auth-controller');
@@ -30,6 +31,78 @@ function controller(auth, login) {
     writeLog() {},
   });
 }
+
+test('a cloud credential read started before logout cannot restore or re-upload the old Cookie', async (t) => {
+  let state = { loggedIn: true, uid: 42 };
+  let snapshot = true;
+  let writes = 0;
+  const logoutStarted = Promise.withResolvers();
+  const finishLogout = Promise.withResolvers();
+  const credentialsRequested = Promise.withResolvers();
+  const credentials = Promise.withResolvers();
+  const auth = controller({
+    getBilibiliAuthState: async () => state,
+    getBilibiliCookieHeader: async () => 'synthetic-cookie',
+    async logoutBilibiliAccount() {
+      logoutStarted.resolve();
+      await finishLogout.promise;
+      snapshot = false;
+      return (state = { loggedIn: false });
+    },
+    async replaceBilibiliCookieHeader() {
+      writes++;
+      snapshot = true;
+      return (state = { loggedIn: true, uid: 42 });
+    },
+  });
+  const f = createCloudFixture({
+    licenseManager: { getBilibiliCredentialsInternal() { credentialsRequested.resolve(); return credentials.promise; } },
+    bilibiliAuth: {
+      getAuthState: auth.getBilibiliAuthState,
+      getCookieHeader: auth.getBilibiliCookieHeader,
+      getSessionRevision: auth.getBilibiliSessionRevision,
+      replaceCookieHeader: auth.replaceBilibiliCookieHeader,
+      logout: auth.logoutBilibiliAccount,
+    },
+  });
+  t.after(() => { finishLogout.resolve(); f.controller.dispose(); auth.dispose(); });
+  const syncing = f.controller.start();
+  await credentialsRequested.promise;
+  const logout = auth.logoutBilibiliAccount().then(result => { f.controller.markDirty('bilibili'); return result; });
+  await logoutStarted.promise;
+  credentials.resolve({ loggedIn: true, revision: 4, cookie: 'synthetic-cookie' });
+  await new Promise(setImmediate);
+  finishLogout.resolve();
+  assert.equal((await logout).loggedIn, false);
+  await syncing;
+  await f.controller.whenIdle();
+  assert.equal(state.loggedIn, false);
+  assert.equal(snapshot, false);
+  assert.equal(writes, 0);
+  assert.equal(f.calls.filter(call => call[0] === 'clear-bilibili').length, 1);
+  assert.equal(f.calls.filter(call => call[0] === 'push-bilibili').length, 0);
+});
+
+test('queued cloud writes recheck caller ownership and cannot interrupt a local login', async (t) => {
+  let writes = 0;
+  const entered = Promise.withResolvers();
+  const finish = Promise.withResolvers();
+  const auth = controller({ replaceBilibiliCookieHeader: async () => { writes++; return { loggedIn: true }; } },
+    async ({ signal }) => { entered.resolve(signal); await finish.promise; return { cancelled: true, state: { loggedIn: false } }; });
+  t.after(() => { finish.resolve(); auth.dispose(); });
+  let current = true;
+  const queued = auth.replaceBilibiliCookieHeader('old-account', { isCurrent: () => current });
+  current = false;
+  assert.equal(await queued, null);
+  const login = auth.loginBilibiliAccount();
+  const signal = await entered.promise;
+  assert.equal(await auth.replaceBilibiliCookieHeader('cloud', { isCurrent: () => true }), null);
+  assert.equal(signal.aborted, false);
+  finish.resolve();
+  await login;
+  assert.equal(writes, 0);
+  assert.equal((await auth.replaceBilibiliCookieHeader('fresh', { isCurrent: () => true })).loggedIn, true);
+});
 
 test('Bilibili session revision changes as soon as logout or same-account login starts', async () => {
   const logout = Promise.withResolvers();

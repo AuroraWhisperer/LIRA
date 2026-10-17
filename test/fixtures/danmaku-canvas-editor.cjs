@@ -108,7 +108,7 @@ async function run() {
           document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
           const ids = { overlayUrl:'danmakuOverlayUrl', styleChip:'danmakuStyleChip', styleSaveState:'danmakuStyleSaveState',
             fullscreenDurationField:'danmakuFullscreenDurationField', fullscreenDuration:'danmakuFullscreenDurationSeconds',
-            copyOverlayUrlButton:'danmakuCopyOverlayUrlBtn', openOverlayButton:'danmakuOpenOverlayBtn', previewOverlayButton:'danmakuPreviewOverlayBtn' };
+            openOverlayButton:'danmakuOpenOverlayBtn', previewOverlayButton:'danmakuPreviewOverlayBtn' };
           const elements = Object.fromEntries(Object.entries(ids).map(([key,id]) => [key,document.getElementById(id)]));
           elements.styleButtons = Array.from(document.querySelectorAll('[data-danmaku-style]'));
           initDanmakuOverlaySettings(elements, () => {});

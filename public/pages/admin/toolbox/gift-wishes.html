@@ -3,17 +3,16 @@
     <div class="gift-wish-periods gift-wish-field">
       <label for="giftWishPeriod">统计周期</label>
       <select id="giftWishPeriod" aria-label="许愿统计周期" aria-describedby="giftWishPeriodHint">
-        <option value="long">长效许愿</option>
-        <option value="day">本日许愿</option>
-        <option value="session">本场直播许愿</option>
+        <option value="long">长效</option>
+        <option value="day">本日</option>
+        <option value="session">本场直播</option>
       </select>
-      <span id="giftWishPeriodHint" class="hint">从创建时开始累计，不重置。</span>
+      <span id="giftWishPeriodHint" class="hint">创建起累计，不重置。</span>
     </div>
     <div class="gift-wish-source-actions">
       <div class="gift-wish-source gift-wish-field">
-        <input id="giftWishUrl" readonly aria-label="礼物许愿浏览器源地址" />
+        <button id="giftWishUrl" type="button" class="copy-url" aria-label="复制礼物许愿浏览器源地址"></button>
       </div>
-      <button id="giftWishCopy" type="button" class="secondary">复制地址</button>
       <button id="giftWishPreview" type="button" class="secondary">打开画布</button>
       <button id="giftWishesRefresh" type="button" class="secondary">刷新进度</button>
     </div>
@@ -67,7 +66,7 @@
               <span id="giftWishTextLabel">展示文字</span>
               <lira-help label="文字版使用说明">
                 输入想说的话，把光标放到要插入的位置，再点下方按钮加入礼物图片、名称或数量。<br />
-                调整前先选中：拖选要修改的文字后输入替换内容；点击彩色块可整块选中，再删除、复制或剪切移动。<br />
+                选中文字后，可在上方工具栏选择字体、字号、颜色和文字效果，也可输入替换内容；点击彩色块可整块选中，再删除、复制或剪切移动。<br />
                 彩色块中「·」后的礼物或数量会自动更新，不能直接改写；礼物和目标数量在上方设置。右侧「实时预览」可查看实际效果。<br />
                 Ctrl+C 复制，Ctrl+X 剪切，Ctrl+V 粘贴；Ctrl+Z 撤销，Ctrl+Y 重做。确认后点「添加许愿」或「保存修改」。
               </lira-help>
@@ -106,7 +105,7 @@
           <fieldset id="giftWishColorFields" class="gift-wish-style-field" hidden>
             <legend>
               文字颜色
-              <lira-help label="文字颜色说明">点击颜色框选色。今天收到过这份礼物，就使用「今天已收到」的颜色；北京时间零点重新判断。预览只模拟颜色，不改变真实收礼状态。</lira-help>
+              <lira-help label="文字颜色说明">点击颜色框选色。今天收到过这份礼物，就使用「今天已收到」的颜色；北京时间零点重新判断。选区单独设置的颜色会覆盖状态色；在文字工具栏选「默认颜色」即可恢复。预览只模拟颜色，不改变真实收礼状态。</lira-help>
             </legend>
             <div class="gift-wish-colors">
               <div class="gift-wish-field">

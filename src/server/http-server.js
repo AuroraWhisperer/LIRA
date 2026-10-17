@@ -169,7 +169,7 @@ function createHttpServer(options = {}) {
         return;
       }
 
-      servePageOrAsset(req, res, requestUrl);
+      await servePageOrAsset(req, res, requestUrl);
     } catch (error) {
       if (error?.code === 'SERVER_QUIESCING' || getPhase() !== 'ready') {
         if (!res.headersSent) serviceUnavailable(res);

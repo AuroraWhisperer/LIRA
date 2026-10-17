@@ -35,6 +35,8 @@ export function createPlaybackStateActions(state, { save = () => {}, render = ()
     },
     addPending(request) {
       state.pendingRequests.push(request);
+      const key = request.songRequestKey;
+      if (key && !state.importedSongRequestKeys.includes(key)) state.importedSongRequestKeys.push(key);
     },
     removePending(index) {
       return state.pendingRequests.splice(index, 1)[0];

@@ -69,7 +69,9 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 ## 3. electron-builder 配置(唯一成表处)
 
-本机导入的组件素材存储在 `dataDir/component-library/`，位于打包白名单之外。月渡花汀专用背景/开播/时钟/弹幕/许愿图片、WebM、字体和缩略图已从 `build.files` 排除，原始文件保留在源码；小型受信渲染 JS/CSS 继续打包。`node scripts/package-moonlit-suite.js` 生成独立 ZIP，主播导入后选用。排除的运行媒体与预览约 44.52 MiB（不是安装器最终减少量）；实际过滤由 packaging-scope 测试验证。未重新构建安装器。ZIP 格式见[套装指南](../../guides/component-style-packages.md)。
+本机导入的组件素材存储在 `dataDir/component-library/`，位于打包白名单之外。月渡花汀专用背景/开播/时钟/弹幕/许愿图片、WebM、时钟裁剪字体和缩略图从 `build.files` 排除，源码保留；小型受信 JS/CSS 继续打包。`node scripts/package-moonlit-suite.js` 生成独立 ZIP，格式见[套装指南](../../guides/component-style-packages.md)。
+
+共享库的 `public/fonts/{player,library,moonlit-wenkai}/*.woff2`（约 36.5 MiB）同样从 EXE 排除；下载清单 `src/fonts/catalog.json`、OFL 许可及约 6 MiB 歌词多语言补字保留。安装版由客户端直连字体源增量缓存，来源和首装网络量见[字体说明](../../../public/fonts/README.md)。源码压缩副本供开发预览/套装制作，不能删除；打包过滤由 packaging-scope 测试验证。实际安装器压缩体积须重新构建后测量，不能把源码字节数直接当作 EXE 减少量。
 
 全部配置内联在 [package.json](../../../package.json) 的 `build` 字段,无独立 electron-builder 配置文件。
 
@@ -103,13 +105,17 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 正式应用不包含开发依赖 Playwright/Playwright Core 或 Electron 默认示例程序。`afterPack` 删除构建输出里的默认示例文件，校验生产依赖后生成资源清单；不修改开发环境的 Electron 分发目录。离线回归覆盖见 `test/engineering/packaging-scope.test.js`。
 
-弹幕装饰的 PNG 源图保留在源码中，安装包只使用对应 WebP；已有第 3–6 套队列主题 WebP 不变。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
+弹幕装饰的 PNG 源图保留在源码中，安装包只使用对应 WebP；第 3–6 套队列底图、弹幕示意头像、辉光纹章、唱片机底盘与后台队列空状态插画均使用原尺寸的高质量 WebP（质量 90，透明通道无损）。礼物占位图缩为 512×512 RGBA PNG，保留旧 URL 以兼容已保存的引用；不用索引调色板压缩，避免色带。使用指南截图保留现有清晰度。上述压缩前原文件保留在仓库根目录 `tmp/`。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
 
 林间花信改为独立样式包：`node scripts/package-woodland-gift-frame.js` 生成 `tmp/output/林间花信-全屏礼物感谢样式-1.0.0.zip`，仅包含清单、使用说明、预览图和未经转码的原始 WebM。ZIP 写入器与航海旗帜共用 `scripts/component-style-zip.js`。`public/img/overlays/gift-frame/woodland-bloom/` 整个制作目录及 `gift-frame-default.webp` 不再进入安装包；可信播放器、布局 CSS 和共享头像仍保留。导入与旧图层兼容方式见[素材包指南](../../guides/component-style-packages.md#林间花信--全屏礼物感谢)。
 
 窗映四时通过 `node scripts/package-windowlight-background.js` 生成 `tmp/output/窗映四时-背景样式-1.3.0.zip`，沿用 `scripts/component-style-zip.js` 写入清单、使用说明和八张 WebP；四张场景卡片共用这些资源，预览直接引用对应场景底图。各卡片默认手动显示对应场景，持续光影或玻璃水滴动效由客户端可信播放器提供。`public/img/overlays/backgrounds/windowlight/` 排除在应用安装包之外，可信背景播放器与 CSS 保留。包格式和使用步骤见[背景样式指南](../../guides/background-style-packages.md#窗映四时分层背景)。
 
-分发还排除 `AGENTS.md`、`.map` 调试映射及图片目录的 `README.md`、`generated.md`、`provenance.json`、`.webp.json` 制作元数据；运行依赖与许可证保留。验收须检查实际 `app.asar`，不能仅以源码目录大小推断安装包大小；已有 EXE 不会被这些规则自动改写。
+分发还排除 `AGENTS.md`、`.map` 调试映射及图片目录的 `README.md`、`generated.md`、`provenance.json`、`.webp.json`、`sources.json`、`*-sources.json` 制作元数据。字体目录的 `README.md` 和仅供维护脚本校验的 `src/shared/danmaku-source-manifest.json` 保留在源码，排除打包；运行依赖、字体 OFL 与播放器 LICENSE 均保留。
+
+生产依赖额外排除 `@jixun/qmweb-sign/src/` 的 TypeScript 源码和单元测试、`.d.cts` / `.d.mts` 类型声明、`semver/range.bnf` 语法说明和 `@clamber_l/crypto/Readme.MD` 开发说明。`pako/dist/*.js` 与 `js-yaml/dist/*.js` 是未使用的浏览器构建副本，亦不分发；Node 的 CommonJS 入口及其 `lib/`、ESM 入口 `.mjs`、解密 WASM 和许可证保留。`pako/lib/zlib/README` 包含 zlib 许可，不能按普通 README 排除。开发环境 `node_modules` 保持完整，由打包过滤器控制上述范围。
+
+琉璃与杏花白统一显示 B 站礼物原图，旧猫咪 / 兔子 PNG 和专属生成说明已移至 `tmp/`；图片缺失或失败时图位留空，不再回退这些插画。未使用的五张旧鹤映鎏金 `frame-*` / `ribbon-*` / `flag-tail.webp`、两张旧礼物插画 SVG（`outline.svg`、`transparent.svg`）和未引用的 `server-manage-danmaku-url.webp` 截图已移至仓库根目录 `tmp/`。当前 `crane-*` 装饰、动态加载的组件缩略图、千舰徽章/头像框与文档约定的旧字体模块兼容入口继续分发。验收须检查实际 `app.asar`，不能仅以源码目录大小推断安装包大小；已有 EXE 不会被这些规则自动改写。
 
 | 产物                                | 说明                                     |
 | ----------------------------------- | ---------------------------------------- |

@@ -228,7 +228,7 @@ test('common Admin copy uses standard weights with explicit presentation excepti
   const violations = [];
   for (const rule of rules(desktopCss())) {
     const value = rule.declarations['font-weight'];
-    if (!value || /^(?:normal|bold|400|500|600|700|var\(--type-weight-(?:regular|medium|semibold|bold)\))$/.test(value))
+    if (!value || /^(?:normal|bold|400|500|600|700|var\(--type-weight-(?:regular|medium|semibold|bold)(?:,\s*(?:400|500|600|700))?\))$/.test(value))
       continue;
     if (/^(?:800|900)$/.test(value) && allowed(rule.selector, HEAVY_ALLOWLIST)) continue;
     if (/^var\(--preview-weight\)$/.test(value) && /\.desktop-lyric-preview-row-/.test(rule.selector)) continue;

@@ -86,6 +86,7 @@ test('toolbox features and performance controls remain connected to the actual p
   assert.doesNotMatch(html, /id="performancePage"/);
   const tags = [...html.matchAll(/<[^/!][^>]*>/g)].map(([tag]) => tag);
   for (const featureId of [
+    'otherPkScoreFeature',
     'otherOvertimeMachineFeature', 'otherDailyTodoFeature', 'otherStartAnimationFeature',
     'otherPerformanceFeature', 'otherSettingsFeature', 'otherUsageGuideFeature', 'otherDesktopUpdateFeature',
   ]) {

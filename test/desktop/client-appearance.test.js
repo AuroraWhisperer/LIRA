@@ -35,7 +35,7 @@ test('appearance defaults without writing and preserves invalid, future or malfo
 });
 
 test('appearance accepts only theme IDs, atomically saves ID alone and restores on restart', async (t) => {
-  for (const themeId of ['neutral', 'classic', 'terracotta', 'clear-jade', 'black-silver', 'rose-lustre']) {
+  for (const themeId of ['neutral', 'classic', 'terracotta', 'clear-jade', 'black-silver', 'rose-lustre', 'dusty-rose']) {
     const saved = fixture(t);
     assert.deepEqual(await saved.owner.setThemeId(themeId), { ok: true, themeId });
     assert.deepEqual(JSON.parse(fs.readFileSync(saved.file)), { themeId });

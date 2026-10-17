@@ -1,17 +1,19 @@
 'use strict';
 
-const { GUARD_GIFT_ALIASES } = require('../bilibili/gift/guard-gift-aliases');
+const { statisticsFilter } = require('./gift-retention-queries');
+const { wishMatch, readWishContributions } = require('./gift-wish-retention');
 
 function createGiftWishStore(db) {
   const list = db.prepare('SELECT * FROM gift_wishes WHERE source_id = ? ORDER BY created_at, id');
   const insert = db.prepare(`INSERT INTO gift_wishes
     (id, source_id, period, gift_id, variant_id, gift_name, gift_category, image_path, target, label, created_at,
-      display_style, text_template, text_image_position, text_image_format, text_pending_color, text_received_color)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      display_style, text_template, text_image_position, text_image_format, text_pending_color, text_received_color, text_runs)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const update = db.prepare(`UPDATE gift_wishes SET target = ?, label = ?,
     display_style = COALESCE(?, display_style), text_template = COALESCE(?, text_template),
     text_image_position = COALESCE(?, text_image_position), text_image_format = COALESCE(?, text_image_format),
-    text_pending_color = COALESCE(?, text_pending_color), text_received_color = COALESCE(?, text_received_color)
+    text_pending_color = COALESCE(?, text_pending_color), text_received_color = COALESCE(?, text_received_color),
+    text_runs = COALESCE(?, text_runs)
     WHERE source_id = ? AND id = ?`);
   const remove = db.prepare('DELETE FROM gift_wishes WHERE source_id = ? AND id = ?');
   const session = db.prepare('SELECT * FROM gift_wish_sessions WHERE source_id = ? AND room_id = ?');
@@ -22,29 +24,23 @@ function createGiftWishStore(db) {
 
   function count(sourceId, wish, start, end) {
     if (!start || !end || start > end) return 0;
-    const box = wish.gift_category === 'blindBox';
-    const params = [sourceId, start, end];
-    let match;
-    if (GUARD_GIFT_ALIASES[wish.gift_id]) {
-      const ids = [wish.gift_id, ...GUARD_GIFT_ALIASES[wish.gift_id]];
-      match = `gift_id IN (${ids.map(() => '?').join(',')}) AND is_blind_box = 0`;
-      params.push(...ids);
-    } else {
-      const column = box ? 'blind_box_id' : 'gift_id';
-      const variant = box ? 'blind_box_variant_id' : 'gift_variant_id';
-      match = wish.variant_id ? `${variant} = ?` : `${column} = ?`;
-      params.push(wish.variant_id || wish.gift_id);
-      if (box || wish.gift_category === 'blindBoxOutput') match += ' AND is_blind_box = 1';
+    const match = wishMatch(wish);
+    const filter = { sql: `g.source_id=? AND g.created_at>=? AND g.created_at<=?
+      AND g.status = 'active' AND g.detection_status='final'
+      AND g.num>0 AND g.num=CAST(g.num AS INTEGER) AND ${match.sql}`, params: [sourceId, start, end, ...match.params] };
+    const plan = statisticsFilter(db, { sourceId, rangeStart: start, asOf: end }, filter);
+    let count = Number(db.prepare(`SELECT COALESCE(SUM(g.num),0) AS count FROM gift_events g WHERE ${filter.sql}`).get(...filter.params).count);
+    if (plan.window) {
+      const { snapshot, window } = plan;
+      const summaryMatch = wishMatch(wish, true);
+      count += Number(db.prepare(`SELECT COALESCE(SUM(json_extract(s.metrics_json,'$.itemCount')),0) AS count
+        FROM gift_retention_days s WHERE s.source_id=? AND s.sync_epoch=? AND s.day_start>=? AND s.day_start<?
+        AND s.revision=(SELECT MAX(d.revision) FROM gift_retention_days d
+          WHERE d.source_id=s.source_id AND d.sync_epoch=s.sync_epoch AND d.day_start=s.day_start AND d.revision<=?)
+        AND ${summaryMatch.sql}`).get(sourceId, snapshot.sync_epoch, window.start, window.end,
+        snapshot.revision, ...summaryMatch.params).count);
     }
-    const row = db
-      .prepare(
-        `SELECT COALESCE(SUM(num), 0) AS count FROM gift_events
-      WHERE source_id = ? AND created_at >= ? AND created_at <= ?
-        AND status = 'active' AND detection_status = 'final'
-        AND num > 0 AND num = CAST(num AS INTEGER) AND ${match}`,
-      )
-      .get(...params);
-    return Number(row.count);
+    return count + readWishContributions(db, sourceId, wish.id, start, end, plan);
   }
 
   return {
@@ -68,9 +64,10 @@ function createGiftWishStore(db) {
         wish.textImageFormat,
         wish.textPendingColor,
         wish.textReceivedColor,
+        JSON.stringify(wish.textRuns || []),
       );
     },
-    update: (sourceId, id, { target, label, displayStyle, textTemplate, textImagePosition, textImageFormat, textPendingColor, textReceivedColor }) =>
+    update: (sourceId, id, { target, label, displayStyle, textTemplate, textImagePosition, textImageFormat, textPendingColor, textReceivedColor, textRuns }) =>
       Number(
         update.run(
           target,
@@ -81,6 +78,7 @@ function createGiftWishStore(db) {
           textImageFormat ?? null,
           textPendingColor ?? null,
           textReceivedColor ?? null,
+          textRuns === undefined ? null : JSON.stringify(textRuns),
           sourceId,
           id,
         ).changes,

@@ -53,8 +53,10 @@ function replaceLocalFontOptions(select, families) {
   group.dataset.localFonts = 'true';
   families.forEach((family) => {
     if (existingFamilies.has(family.toLocaleLowerCase())) return;
+    const value = quoteCssFontFamily(family);
+    if (Array.from(value).length > Number(select.dataset?.fontMaxLength || Infinity)) return;
     const option = document.createElement('option');
-    option.value = quoteCssFontFamily(family);
+    option.value = value;
     option.textContent = family;
     group.appendChild(option);
   });

@@ -32,9 +32,7 @@ import { publishSettings } from './legacy-admin-bridge.js';
 const documentRef = document;
 const windowRef = window;
 const locationRef = typeof location === 'undefined' ? windowRef.location : location;
-const navigatorRef = typeof navigator === 'undefined' ? null : navigator;
 const localStorageRef = typeof localStorage === 'undefined' ? null : localStorage;
-const promptRef = typeof prompt === 'undefined' ? () => {} : (...args) => prompt(...args);
 const alertRef = typeof alert === 'undefined' ? () => {} : (...args) => alert(...args);
 const fetchRef = typeof fetch === 'undefined' ? null : fetch;
 
@@ -63,8 +61,6 @@ const operations = createSettingsOperations({
 });
 const blindboxSettings = createBlindboxSettings({
   documentRef,
-  navigatorRef,
-  promptRef,
   locationRef,
   value,
   toast,
@@ -110,6 +106,7 @@ export function initBilibiliAuth() {
     void roomProfile.refresh(settings.roomId, true);
   });
   documentRef.addEventListener('app:bilibili-auth-changed', () => {
+    void reconnectBilibili({ silent: true });
     void roomProfile.refresh(getState()?.getAppState?.()?.settings?.roomId, true);
     void guardExpirySettings.refresh();
   });

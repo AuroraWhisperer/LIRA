@@ -4,7 +4,8 @@ function cleanText(value, maxLength) {
   return String(value || '')
     .replace(/[\u0000-\u001f\u007f]+/g, ' ')
     .trim()
-    .slice(0, maxLength);
+    .slice(0, maxLength)
+    .replace(/[\uD800-\uDBFF]$/, '');
 }
 
 function clampNumber(value, minimum, maximum) {
@@ -19,7 +20,10 @@ function normalizeLyricWords(words) {
     const input = word && typeof word === 'object' ? word : {};
     const startMs = clampNumber(input.startMs, 0, maxTimeMs);
     return {
-      text: String(input.text || '').replace(/[\u0000-\u001f\u007f]+/g, ' ').slice(0, 40),
+      text: String(input.text || '')
+        .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+        .slice(0, 40)
+        .replace(/[\uD800-\uDBFF]$/, ''),
       startMs,
       endMs: clampNumber(input.endMs, startMs, maxTimeMs),
     };

@@ -65,4 +65,23 @@ function migrateGiftWishTextColors(db) {
   }
 }
 
-module.exports = { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors };
+function migrateGiftWishTextRuns(db) {
+  const columns = db.prepare('PRAGMA table_info(gift_wishes)').all();
+  if (!columns.some(column => column.name === 'text_runs')) {
+    db.exec("ALTER TABLE gift_wishes ADD COLUMN text_runs TEXT NOT NULL DEFAULT '[]'");
+  }
+}
+
+function migrateGiftWishContributions(db) {
+  db.exec(`CREATE TABLE IF NOT EXISTS gift_wish_contributions (
+    wish_id TEXT NOT NULL REFERENCES gift_wishes(id) ON DELETE CASCADE,
+    source_id INTEGER NOT NULL REFERENCES gift_sources(id) ON DELETE CASCADE,
+    sync_epoch TEXT NOT NULL,
+    platform_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    num INTEGER NOT NULL,
+    PRIMARY KEY(wish_id,sync_epoch,platform_id)
+  );`);
+}
+
+module.exports = { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors, migrateGiftWishTextRuns, migrateGiftWishContributions };

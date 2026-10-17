@@ -376,7 +376,7 @@ test('local preview applies per-style parameters without external image requests
   assert.equal(f.document.body.dataset.scrollDirection, 'up');
 });
 
-for (const style of ['identity', 'transparent', 'outline']) test(`${style} preview resolves matching local WebP gifts even with legacy theme options`, async () => {
+for (const style of ['identity', 'transparent', 'outline', 'bubble', 'cream']) test(`${style} preview resolves matching local WebP gifts even with legacy theme options`, async () => {
   const options = { [style]: { giftImage: 'theme' } };
   const f = await fixture(`?preview=1&style=${style}&styleOptions=${encodeURIComponent(JSON.stringify(options))}`);
   assert.equal(f.node('previewGiftField').hidden, true);

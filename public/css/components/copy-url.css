@@ -1,0 +1,53 @@
+button.copy-url {
+  box-sizing: border-box;
+  display: block;
+  width: var(--copy-url-width, 100%);
+  height: var(--copy-url-height, 36px);
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: var(--type-weight-regular, 400);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+  box-shadow: none;
+}
+
+button.copy-url > :is(code, span) {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: inherit;
+}
+
+button.copy-url:hover:not(:disabled) {
+  border-color: var(--color-border-accent);
+  background: var(--color-accent-light);
+}
+
+button.copy-url:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
+
+button.copy-url:disabled {
+  color: var(--muted);
+}
+
+button.copy-url[hidden] {
+  display: none;
+}

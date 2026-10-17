@@ -40,6 +40,7 @@ async function loadOwner(filename, overrides = {}) {
   const opened = [];
   const bindings = [];
   const replacements = {
+    '../shared/copy-url.js': { bindCopyUrl: () => () => {} },
     '../shared/utils.js': { api: async () => { throw new Error('Unexpected business write'); },
       localOverlayOrigin: () => 'http://127.0.0.1:3000', copyText() {}, toast() {}, value() {}, setValue() {} },
     './component-preview-dialog.js': { openComponentPreview(options) {

@@ -108,16 +108,52 @@ async function runProbe() {
     await second.completion;
   });
 
-  await check('cloud replacement cancels local login without stale success', async (controller) => {
+  await check('guarded cloud replacement preserves an unfinished local login', async (controller) => {
     const login = await openLogin(controller);
-    await controller.replaceBilibiliCookieHeader(header(202));
-    assert.equal(login.window.isDestroyed(), true, 'cloud credentials left the old login active');
-    assert.equal(
-      (await login.completion).state.loggedIn,
-      false,
-      'old login reported the cloud account as its own success',
-    );
-    assert.equal(await controller.getBilibiliUid(), 202);
+    assert.equal(await controller.replaceBilibiliCookieHeader(header(202), { isCurrent: () => true }), null);
+    assert.equal(login.window.isDestroyed(), false);
+    login.window.close();
+    assert.equal((await login.completion).state.loggedIn, false);
+    assert.equal(await controller.getBilibiliUid(), 0);
+  });
+
+  await check('late cloud credentials cannot restore cookies or encrypted snapshots after logout', async (controller) => {
+    await controller.replaceBilibiliCookieHeader(header(101));
+    const { createFixture } = require('../helpers/cloud-sync-controller-fixture');
+    const requested = Promise.withResolvers();
+    const credentials = Promise.withResolvers();
+    const clearing = Promise.withResolvers();
+    const release = Promise.withResolvers();
+    const partition = session.fromPartition(auth.BILIBILI_LOGIN_CONFIG.partition);
+    const originalClear = partition.clearStorageData.bind(partition);
+    partition.clearStorageData = async (...args) => { clearing.resolve(); await release.promise; return originalClear(...args); };
+    const f = createFixture({
+      licenseManager: { getBilibiliCredentialsInternal() { requested.resolve(); return credentials.promise; } },
+      bilibiliAuth: { getAuthState: controller.getBilibiliAuthState, getCookieHeader: controller.getBilibiliCookieHeader,
+        getSessionRevision: controller.getBilibiliSessionRevision, replaceCookieHeader: controller.replaceBilibiliCookieHeader,
+        logout: controller.logoutBilibiliAccount },
+    });
+    try {
+      const syncing = track(f.controller.start());
+      await requested.promise;
+      const logout = track(controller.logoutBilibiliAccount().then(result => { f.controller.markDirty('bilibili'); return result; }));
+      await clearing.promise;
+      credentials.resolve({ loggedIn: true, revision: 4, cookie: header(101) });
+      await new Promise(setImmediate);
+      release.resolve();
+      assert.equal((await logout).loggedIn, false);
+      await syncing;
+      await f.controller.whenIdle();
+      assert.equal((await controller.getBilibiliAuthState()).loggedIn, false);
+      assert.equal(fs.existsSync(path.join(dataDir, 'bilibili-auth', 'cookies.enc')), false);
+      assert.equal(f.calls.filter(call => call[0] === 'clear-bilibili').length, 1);
+      assert.equal(f.calls.filter(call => call[0] === 'push-bilibili').length, 0);
+    } finally {
+      release.resolve();
+      f.controller.dispose();
+      await f.controller.whenIdle();
+      partition.clearStorageData = originalClear;
+    }
   });
 
   await check('a delayed closed-window snapshot cannot resurrect an account after logout', async (controller) => {

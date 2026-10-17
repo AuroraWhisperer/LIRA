@@ -1,6 +1,7 @@
 'use strict';
 
 const SONG_REQUEST_CONTROL_DEFAULTS = Object.freeze({
+  scSongRequestEnabled: 'true',
   userQueueLimit: '0',
   userCooldownCaptainSeconds: '',
   userCooldownAdmiralSeconds: '',
@@ -42,7 +43,7 @@ function normalizeSongRequestSettingValue(key, rawValue) {
     }
     return entries === null ? null : JSON.stringify(entries);
   }
-  if (key === 'songRequestGuardMedalBypass') {
+  if (['scSongRequestEnabled', 'songRequestGuardMedalBypass'].includes(key)) {
     if ([true, 1, 'true', '1'].includes(rawValue)) return 'true';
     if ([false, 0, 'false', '0'].includes(rawValue)) return 'false';
     return null;
@@ -60,7 +61,7 @@ function serializeSongRequestSettings(settings) {
   return Object.fromEntries(SONG_REQUEST_CONTROL_KEYS.map((key) => {
     const value = settings[key] ?? SONG_REQUEST_CONTROL_DEFAULTS[key];
     if (key === 'songRequestUserBlacklist') return [key, JSON.parse(value)];
-    if (key === 'songRequestGuardMedalBypass') return [key, value === 'true'];
+    if (['scSongRequestEnabled', 'songRequestGuardMedalBypass'].includes(key)) return [key, value === 'true'];
     return [key, value === '' ? '' : Number(value)];
   }));
 }

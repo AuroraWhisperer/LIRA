@@ -76,6 +76,12 @@ test('canvas can reuse a configured desktop text box, customize the independent 
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.nodes.some(node => node.text?.includes('新的祝福')));
   assert.deepEqual((await readItems())[0], source, 'customizing the copy preserves the original config and geometry');
   assert.deepEqual((await readItems())[1].appearance.config.nodes.find(node => node.type === 'gift'), source.appearance.config.nodes[1]);
+  await page.getByRole('switch', { name: '横向滚动', exact: true }).check();
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.scrollMode === 'horizontal');
+  await page.getByRole('switch', { name: '纵向滚动', exact: true }).check();
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.scrollMode === 'vertical');
+  assert.equal(await page.getByRole('switch', { name: '横向滚动', exact: true }).isChecked(), false);
+  assert.equal((await readItems())[0].appearance.config.scrollMode, 'none', 'scrolling belongs to the selected instance');
   await openTextBoxes();
   assert.equal(await picker.locator('[data-text-box-source]').count(), 2, 'reopening reads the current scene without duplicate cards');
   assert.match(await picker.locator(`[data-text-box-source="${copy.id}"] .text-box-content`).textContent(), /新的祝福/);
@@ -96,5 +102,6 @@ test('canvas can reuse a configured desktop text box, customize the independent 
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await desktop.waitForFunction(() => !window.controllers.canvas.getState().dirty && !window.controllers.canvas.getState().saving);
   assert.equal(fixture.service.list()[0].document.items.length, 3);
+  assert.equal(fixture.service.list()[0].document.items[1].appearance.config.scrollMode, 'vertical');
   assert.deepEqual(errors, []);
 });

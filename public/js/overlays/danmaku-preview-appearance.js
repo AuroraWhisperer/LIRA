@@ -86,7 +86,7 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     fields.fontSize.min = String(Math.ceil(limits.minFontSize * scale));
     fields.fontSize.max = String(Math.floor(limits.maxFontSize * scale));
     byId('previewBackgroundField').hidden = !limits.background;
-    byId('previewGiftField').hidden = !limits.giftImage || ['identity', 'transparent', 'outline'].includes(draft.style);
+    byId('previewGiftField').hidden = !limits.giftImage || ['identity', 'transparent', 'outline', 'bubble', 'cream'].includes(draft.style);
     byId('previewMinGiftAmountField').hidden = !limits.minGiftAmount;
     fields.minGiftAmount.value = String(options.minGiftAmount || 0);
     byId('previewDirectionField').hidden = !limits.scrollDirection;

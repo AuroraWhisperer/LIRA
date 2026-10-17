@@ -395,6 +395,14 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
   await page.waitForFunction(() => window.copiedSource);
   const source = await page.evaluate(() => window.copiedSource);
+  const sourceBlock = page.getByRole('button', { name: '复制直播源地址', exact: true });
+  assert.equal(await sourceBlock.textContent(), source);
+  const sourceBounds = await sourceBlock.boundingBox();
+  assert.ok(sourceBounds.width >= 260 && sourceBounds.width <= 400, 'the popup keeps its own width outside the toolbar');
+  await page.evaluate(() => { window.copiedSource = ''; });
+  await sourceBlock.click();
+  await page.waitForFunction(() => window.copiedSource);
+  assert.equal(await page.evaluate(() => window.copiedSource), source);
   const address = new URL(source);
   assert.equal(address.hostname, '127.0.0.1');
   assert.equal(address.pathname, '/scene');

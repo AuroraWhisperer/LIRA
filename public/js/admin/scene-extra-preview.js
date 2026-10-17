@@ -12,8 +12,7 @@ import { SONG_BOARD_THEME_FIELDS } from '../shared/song-board-theme-fields.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 import { appendSceneParameterControl, groupSceneExtraParameters } from './scene-extra-parameter-layout.js';
-import { populateDesktopLyricFonts } from '../lyrics/desktop-lyric-fonts.js';
-import { ensureSavedFontOption, registerLocalFontSelect } from '../shared/local-font-library.js';
+import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } from '../shared/font-library.js';
 
 export function createSceneExtraPreview(type, { controller, startPreviewData, openingSettings, embedded = false, previewHint, restrictResourceStyle = false } = {}) {
   const definition = SCENE_EXTRA_COMPONENTS[type];
@@ -77,7 +76,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
     },
     createPanel(host, target = controller) {
       const fields = new Map();
-      let disposeFontPicker;
+      const disposeFontPickers = [];
       const grid = previewElement('div', 'scene-extra-parameters');
       const initialConfig = target.getState().draft;
       const openingFields = type === 'opening' ? openingAppearanceFields(
@@ -93,14 +92,14 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         const label = previewElement(field.allowEmpty ? 'div' : 'label');
         label.append(previewElement('span', 'desktop-lyric-control-copy', field.label));
         let inherit;
-        const lyricFont = key === 'desktopLyricFontFamily';
-        const input = previewElement(lyricFont ? 'select' : ['select', 'textarea'].includes(field.type) ? field.type : 'input');
+        const fontFamily = ['desktopLyricFontFamily', 'songBoardFontFamily', 'overlayFontFamily'].includes(key);
+        const input = previewElement(fontFamily ? 'select' : ['select', 'textarea'].includes(field.type) ? field.type : 'input');
         input.setAttribute('aria-label', field.label);
         const cents = type === 'gift-feed' && (key.startsWith('threshold') || key === 'minGiftAmountCents');
         const scale = field.displayScale || 1;
-        if (lyricFont) {
-          populateDesktopLyricFonts(input);
-          disposeFontPicker = registerLocalFontSelect(input);
+        if (fontFamily) {
+          populateSystemFontOptions(input, field.maxLength);
+          disposeFontPickers.push(registerFontSelect(input, { maxLength: field.maxLength }));
         } else if (field.type === 'select') {
           for (const [value, title] of Object.entries(field.options)) {
             const option = previewElement('option', '', title); option.value = value; input.append(option);
@@ -119,7 +118,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         if (field.maxLength) input.maxLength = field.maxLength;
         input.addEventListener('blur', () => render(target.getState()));
         const editsOpacity = Object.values(definition.fields).some(field => field.opacity === key);
-        const saveEvent = lyricFont || !editsOpacity && ['select', 'checkbox', 'number'].includes(field.type) ? 'change' : 'input';
+        const saveEvent = fontFamily || !editsOpacity && ['select', 'checkbox', 'number'].includes(field.type) ? 'change' : 'input';
         const save = () => {
           if (!input.checkValidity()) return;
           let value = field.type === 'checkbox' ? input.checked : input.value;
@@ -188,7 +187,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
           const inheritedColor = type === 'lyrics'
             ? draft.style === 'moonlit' ? '#93682f' : '#ffcf4a'
             : draft.songBoardThemeText;
-          if (key === 'desktopLyricFontFamily') ensureSavedFontOption(input, value);
+          if (input.dataset.selectFontPreview !== undefined) ensureSavedFontOption(input, value);
           if (input.tagName === 'SELECT' && ['style', 'displayStyle'].includes(key)) {
             const preset = COMPONENT_RESOURCE_PRESETS[draft.resourceStyle?.preset];
             for (const option of input.options) {
@@ -216,7 +215,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
       const stop = target.subscribe(render);
       const syncPreview = () => render(target.getState());
       previewPanels.add(syncPreview);
-      return { dispose() { stop(); disposeFontPicker?.(); disposeParameterRanges(grid); backgroundPanel?.dispose(); openingPanel?.dispose(); previewPanels.delete(syncPreview); } };
+      return { dispose() { stop(); disposeFontPickers.forEach(dispose => dispose?.()); disposeParameterRanges(grid); backgroundPanel?.dispose(); openingPanel?.dispose(); previewPanels.delete(syncPreview); } };
     },
   };
 }

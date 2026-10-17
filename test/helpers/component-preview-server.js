@@ -4,8 +4,9 @@ const path = require('node:path');
 const { createHttpServer } = require('../../src/server/http-server');
 const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createWebSocketHub } = require('../../src/server/ws');
+const { serveFontAsset } = require('../../src/server/font-assets');
 
-async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, danmakuEvents, getState, readDanmakuDisplay, dataDir, overtime, settings } = {}) {
+async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, danmakuEvents, getState, readDanmakuDisplay, dataDir, overtime, settings, fontLibrary } = {}) {
   const token = 'synthetic-desktop-component-preview-token';
   const publicDir = path.resolve(__dirname, '../../public');
   const hub = getState ? createWebSocketHub({ closeTimeoutMs: 20 }) : null;
@@ -18,11 +19,12 @@ async function startComponentPreviewServer({ getOwner = () => null, parentHtml, 
     getSettings: () => getState?.().settings || {},
     getWebSocketHub: () => hub,
     getWebSocketContext: (base) => ({ sessionToken: token, allowedOrigins: [base], getState }),
-    servePageOrAsset: (req, res, url) => {
+    servePageOrAsset: async (req, res, url) => {
+      if (fontLibrary && await serveFontAsset(fontLibrary, req, res, url)) return;
       if (parentHtml && url.pathname === '/preview-test-host') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(parentHtml);
-      } else servePageOrAsset(publicDir, req, res, url, token);
+      } else servePageOrAsset(publicDir, req, res, url, token, undefined, undefined, Boolean(fontLibrary));
     } });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;

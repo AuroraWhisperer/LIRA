@@ -1,4 +1,5 @@
-import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
+import { localOverlayOrigin, toast } from '../../shared/utils.js';
+import { bindCopyUrl } from '../../shared/copy-url.js';
 import { openComponentPreview } from '../component-preview-dialog.js';
 import {
   createGiftBanner,
@@ -149,12 +150,10 @@ export function createGiftDisplaySettings() {
       }
     });
   });
-  get('giftFeedUrl')?.addEventListener('click', () =>
-    run(async () => {
-      await copyText(get('giftFeedUrl').textContent);
-      toast('本日礼物地址已复制');
-    }),
-  );
+  bindCopyUrl(get('giftFeedUrl'), {
+    onCopied: () => toast('本日礼物地址已复制'),
+    onError: error => { get('giftDisplayError').textContent = error.message; },
+  });
   get('giftFeedPreviewBtn')?.addEventListener('click', () => openComponentPreview({ id: 'gift-feed' }));
   const receiveSettings = event => {
     if (!config || saving || !event.detail?.giftDisplayConfig) return;

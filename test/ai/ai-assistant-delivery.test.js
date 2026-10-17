@@ -3,6 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createAnsweringDeepseek, createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
+const { splitDanmakuEveryMentionMessage } = require('../../src/bilibili/danmaku/sender-service');
+const { getReplyLengthBudget } = require('../../src/ai/ai-assistant-helpers');
 
 test('generation may finish out of order but delivery remains FIFO', async () => {
   const deliveries = [];
@@ -165,6 +167,49 @@ for (const scenario of [
     assert.equal(answerCount, scenario.expected);
   });
 }
+
+test('missing reply chunks retry in one message with the original question and commit only the confirmed answer', async t => {
+  const requests = [];
+  const deliveries = [];
+  const contexts = [];
+  const previous = { question: '玩成语接龙', answer: '一马当先' };
+  const userName = '测试观众昵称';
+  const answer = '主客颠倒，轮到你接“倒”。这部分是多余的接龙说明，应该在重试时压缩，避免关键答案被拆散。';
+  const service = createTestService({
+    store: {
+      getContext: () => previous,
+      setContext: (_uid, context) => contexts.push(context),
+    },
+    deepseek: { async createResponse(request) {
+      requests.push(request);
+      return { text: request.purpose === 'generation' ? answer : '{"allowed":true}', functionCalls: [], usage: {} };
+    } },
+    sendReply: async reply => {
+      const messages = splitDanmakuEveryMentionMessage(reply.message, reply.mentionTarget);
+      deliveries.push({ text: reply.message, messages });
+      return { messages };
+    },
+    waitForDelivery: async () => deliveries.length > 1,
+  });
+  t.after(() => service.shutdown());
+  service.handleDanmaku({ uid: 'viewer', userName, message: '小米 先入为主' });
+  await waitUntil(() => !service.getStatus().queued && !service.getStatus().delivering);
+  assert.equal(deliveries.length, 2);
+  assert.ok(deliveries[0].messages.length > 1);
+  assert.equal(deliveries[1].messages.length, 1);
+  const budget = getReplyLengthBudget(userName);
+  assert.ok(Array.from(deliveries[1].text).length <= budget.oneMessage);
+  const generations = requests.filter(request => request.purpose === 'generation');
+  assert.deepEqual(generations.map(request => JSON.parse(request.input)), [
+    { question: '先入为主', previousExchange: previous },
+    { question: '先入为主', previousExchange: previous },
+  ]);
+  assert.match(generations[1].instructions, new RegExp(`只发一条弹幕，正文最多 ${budget.oneMessage} 个字符`));
+  const outputReview = requests.filter(request => request.purpose === 'output_review').at(-1);
+  assert.match(outputReview.instructions, new RegExp(`safeText 最多 ${budget.oneMessage} 个字符`));
+  assert.equal(contexts.length, 1);
+  assert.deepEqual(contexts[0].exchanges.at(-1), { question: '先入为主', answer: deliveries[1].text });
+});
 
 // ---- same-viewer conversation context follows delivery order ----
 

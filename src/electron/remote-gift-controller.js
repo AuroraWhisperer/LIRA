@@ -154,6 +154,10 @@ function createRemoteGiftController(options = {}) {
         legacyMode = true;
         expectedSyncEpoch = null;
         latestCursor = Number(discovery.nextCursor);
+        if (currentState.finalCursor !== null) {
+          startEventStream(generation);
+          return await catchUpLegacy();
+        }
         currentState = runtime.commitLegacyGiftPage({
           sourceId: currentSource.id,
           projectionGeneration: currentState.projectionGeneration,

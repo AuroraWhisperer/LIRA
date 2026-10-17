@@ -52,13 +52,18 @@ function init({ notify = showStackedToast, confirm } = {}) {
   let editVersion = 0;
   let initialLoadPromise = null;
   let restoreManualEndpointAfterProviderSave = false;
+  let modelRequestGeneration = 0;
+  const modelServiceFields = new Set(['xiaomiAiModelProvider', 'xiaomiAiDeepSeekUrl',
+    'xiaomiAiModelApiProtocol', 'xiaomiAiDeepSeekKey']);
   const editedFieldIds = new Set();
   let personaControls;
 
   refreshConfig = async () => {
     try {
       const [config, status] = await Promise.all([readApi('/api/ai/config'), readApi('/api/ai/status')]);
+      const previousService = JSON.stringify(readModelService());
       renderConfig(config, editedFieldIds);
+      if (previousService !== JSON.stringify(readModelService())) invalidateModelLookup();
       personaControls.render(config, editedFieldIds);
       renderStatus(status);
       if (!configLoaded) {
@@ -108,7 +113,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
           if (protocolInput) protocolInput.value = config.modelApiProtocol || 'auto';
           restoreManualEndpointAfterProviderSave = false;
         }
-        renderConfigSummary(config);
+        renderConfigSummary(config, submittedConfig);
         personaControls.render(config);
         for (const id of editedFieldIds) if (id !== enabledInput.id) editedFieldIds.delete(id);
         setState(saveState, '已保存，后续新弹幕立即生效。', 'good');
@@ -173,7 +178,9 @@ function init({ notify = showStackedToast, confirm } = {}) {
       return configLoaded && flushPendingSave();
     },
     acceptConfig(config) {
+      const previousService = JSON.stringify(readModelService());
       renderConfig(config, editedFieldIds);
+      if (previousService !== JSON.stringify(readModelService())) invalidateModelLookup();
       personaControls.render(config, editedFieldIds);
     },
   });
@@ -185,11 +192,13 @@ function init({ notify = showStackedToast, confirm } = {}) {
     renderProviderSelection(providerInput.value, {
       keepEndpointLocked: restoreManualEndpointAfterProviderSave,
     });
+    invalidateModelLookup();
     if (personaControls.changeProvider()) editedFieldIds.add('xiaomiAiPersona');
     void refreshDoubaoStatus();
   });
 
   form.addEventListener('input', (event) => {
+    if (modelServiceFields.has(event.target.id)) invalidateModelLookup();
     if (event.target.matches('input[type="checkbox"], input[type="file"]')) return;
     if (event.target.id === 'xiaomiAiPersona') return;
     if (event.target.id) editedFieldIds.add(event.target.id);
@@ -197,6 +206,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
   });
 
   form.addEventListener('change', (event) => {
+    if (modelServiceFields.has(event.target.id)) invalidateModelLookup();
     if (event.target.matches('input[type="checkbox"], input[type="number"], select')) {
       if (event.target.id === 'xiaomiAiPersona' && !personaControls.changeSelection()) return;
       if (event.target.id) editedFieldIds.add(event.target.id);
@@ -287,28 +297,38 @@ function init({ notify = showStackedToast, confirm } = {}) {
     }
   }
 
+  function readModelService() {
+    const key = document.getElementById('xiaomiAiDeepSeekKey').value.trim();
+    return {
+      apiKey: key === '********' ? '' : key,
+      apiUrl: document.getElementById('xiaomiAiDeepSeekUrl').value.trim(),
+      modelProvider: providerInput?.value || 'auto',
+      modelApiProtocol: document.getElementById('xiaomiAiModelApiProtocol')?.value || 'auto',
+    };
+  }
+
+  function invalidateModelLookup() {
+    modelRequestGeneration += 1;
+    modelMenu.replaceChildren();
+    closeModelMenu();
+    setState(modelFetchState, '');
+    fetchModelsButton.disabled = false;
+    fetchModelsButton.textContent = '获取模型';
+  }
+
   fetchModelsButton.addEventListener('click', async () => {
+    const generation = ++modelRequestGeneration;
+    const service = JSON.stringify(readModelService());
+    const isCurrent = () => generation === modelRequestGeneration && service === JSON.stringify(readModelService());
     fetchModelsButton.disabled = true;
     fetchModelsButton.textContent = '获取中…';
     setState(modelFetchState, '正在从当前模型服务获取可用模型…');
     try {
-      const apiKeyInput = document.getElementById('xiaomiAiDeepSeekKey');
-      const apiKeyValue = apiKeyInput.value.trim();
-      // A previously saved key is intentionally not populated in the input.
-      // Keep this guard for older renderer state that may still contain the mask.
-      const apiKey = apiKeyValue === '********' ? '' : apiKeyValue;
-      const apiUrl = document.getElementById('xiaomiAiDeepSeekUrl').value.trim();
-      const modelProvider = document.getElementById('xiaomiAiModelProvider')?.value || 'auto';
-      const modelApiProtocol = document.getElementById('xiaomiAiModelApiProtocol')?.value || 'auto';
       const result = await readApi('/api/ai/models', {
         method: 'POST',
-        body: JSON.stringify({
-          apiKey,
-          apiUrl,
-          modelProvider,
-          modelApiProtocol,
-        }),
+        body: service,
       });
+      if (!isCurrent()) return;
       const models = Array.isArray(result.models) ? result.models : [];
       const menuItems = models.map((model) => {
         const item = document.createElement('button');
@@ -319,6 +339,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
         item.setAttribute('aria-selected', String(model === modelInput.value));
         item.textContent = model;
         item.addEventListener('click', () => {
+          if (!isCurrent()) return;
           modelInput.value = model;
           editedFieldIds.add(modelInput.id);
           closeModelMenu();
@@ -336,10 +357,12 @@ function init({ notify = showStackedToast, confirm } = {}) {
       modelInput.setAttribute('aria-expanded', String(menuItems.length > 0));
       fetchModelsButton.setAttribute('aria-expanded', String(menuItems.length > 0));
     } catch (error) {
-      setState(modelFetchState, error.message || '无法获取当前服务的模型列表。', 'warn');
+      if (isCurrent()) setState(modelFetchState, error.message || '无法获取当前服务的模型列表。', 'warn');
     } finally {
-      fetchModelsButton.disabled = false;
-      fetchModelsButton.textContent = '获取模型';
+      if (generation === modelRequestGeneration) {
+        fetchModelsButton.disabled = false;
+        fetchModelsButton.textContent = '获取模型';
+      }
     }
   });
 

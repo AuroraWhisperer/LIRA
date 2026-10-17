@@ -8,6 +8,7 @@ const CLIENT_THEMES = Object.freeze([
   { id: 'clear-jade', name: '清白 · 翠光', background: '#ecf0f1' },
   { id: 'black-silver', name: '玄黑 · 银红', background: '#080a0c' },
   { id: 'rose-lustre', name: '玫瑰映光', background: '#faf1f4' },
+  { id: 'dusty-rose', name: '烟粉 · 灰玫瑰', background: '#d4b6bd' },
 ].map(Object.freeze));
 const CLIENT_THEME_BACKGROUNDS = Object.freeze(Object.fromEntries(
   CLIENT_THEMES.map(({ id, background }) => [id, background]),

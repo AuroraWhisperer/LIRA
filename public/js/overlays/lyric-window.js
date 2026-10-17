@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     onConfig(config) {
       const resource = config.resourceStyle;
       const fontFamily = COMPONENT_RESOURCE_PRESETS[resource?.preset]?.fontFamily;
-      desktopLyricRenderer.applySettings(fontFamily && config.desktopLyricFontFamily === fontFamily
+      desktopLyricRenderer.applySettings(fontFamily && [fontFamily, `"${fontFamily}"`].includes(config.desktopLyricFontFamily)
         ? { ...config, desktopLyricFontFamily: `${fontFamily}-${resource.id}` } : config);
     },
     onData(data) {

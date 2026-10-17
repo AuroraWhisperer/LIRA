@@ -7,6 +7,41 @@ const test = require('node:test');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
+test('clearing a partially published import preserves handled requests across restore', async (t) => {
+  const waiting = [1, 2].map(id => ({ id, created_at: '2026-10-16T02:00:00Z', song_name: `request-${id}` }));
+  const release = Promise.withResolvers();
+  t.after(() => release.resolve());
+  const secondStarted = Promise.withResolvers();
+  let delaySecond = true;
+  const services = {
+    songQueue: { waiting },
+    async matchTrack(input) {
+      if (input.songName === 'request-2' && delaySecond) {
+        secondStarted.resolve();
+        await release.promise;
+      }
+      return { autoAccept: false, score: 60, track: track(input.songName, input.songName) };
+    },
+  };
+  const app = await createPlaybackApp({ current: null, selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, services);
+  await app.init();
+  await flushAsyncWork();
+  const importing = app.emit('playbackImportSongQueue', 'click');
+  await secondStarted.promise;
+  await app.emit('playbackClearQueue', 'click');
+  assert.equal(app.savedState().pendingRequests.length, 0);
+  assert.equal(app.savedState().importedSongRequestKeys.length, 1);
+  delaySecond = false;
+  release.resolve();
+  await importing;
+  assert.equal(app.savedState().pendingRequests.length, 0);
+  const restored = await createPlaybackApp(app.savedState(), services);
+  await restored.init();
+  await flushAsyncWork();
+  await restored.emit('playbackImportSongQueue', 'click');
+  assert.deepEqual(restored.savedState().pendingRequests.map(item => item.songName), ['request-2']);
+});
+
 test('pending matches remain visible before the first playable track is confirmed', async () => {
   const app = await createPlaybackApp({ current: null, normalQueue: [], normalQueueTracks: [],
     pendingRequests: [{ songName: '等待核对的歌', score: 60, reasons: ['版本待核对'], track: track('pending', '候选歌') }],

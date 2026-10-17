@@ -25,6 +25,7 @@ async function fixture() {
         disabled: false,
         hidden: false,
         dataset: {},
+        classList: { add() {} },
         events: {},
         closest(selector) { return selector === '.danmaku-parameters' ? node('parameters') : null; },
         addEventListener(name, listener) {
@@ -46,7 +47,6 @@ async function fixture() {
       'styleSaveState',
       'fullscreenDurationField',
       'fullscreenDuration',
-      'copyOverlayUrlButton',
       'openOverlayButton',
       'previewOverlayButton',
     ].map((key) => [key, node(key)]),
@@ -92,6 +92,14 @@ async function fixture() {
   await module.link((specifier, parent) => {
     const filename = path.resolve(path.dirname(parent.identifier), specifier);
     if (modules.has(filename)) return modules.get(filename);
+    if (filename === path.resolve(__dirname, '../../public/js/shared/font-library.js')) {
+      const fonts = new vm.SyntheticModule(['registerFontSelect', 'ensureSavedFontOption'], function () {
+        this.setExport('registerFontSelect', () => () => {});
+        this.setExport('ensureSavedFontOption', () => {});
+      }, { context });
+      modules.set(filename, fonts);
+      return fonts;
+    }
     if (filename === path.resolve(__dirname, '../../public/js/admin/component-style-parameters.js')) {
       const effects = new vm.SyntheticModule(['mountStyleParameters'], function () {
         this.setExport('mountStyleParameters', () => ({ dispose() {} }));
@@ -102,10 +110,11 @@ async function fixture() {
     const dependency = !['utils.js', 'danmaku-canvas-dialog.js', 'server-overlay-url.js'].includes(path.basename(filename))
       ? new vm.SourceTextModule(fs.readFileSync(filename, 'utf8'), { context, identifier: filename })
       : new vm.SyntheticModule(
-          specifier.includes('utils') ? ['copyText', 'localOverlayOrigin'] : specifier.includes('canvas-dialog') ? ['createDanmakuPreview', 'openDanmakuCanvas'] : ['observeServerOverlayUrl'],
+          specifier.includes('utils') ? ['copyText', 'localOverlayOrigin', 'toast'] : specifier.includes('canvas-dialog') ? ['createDanmakuPreview', 'openDanmakuCanvas'] : ['observeServerOverlayUrl'],
           function () {
             if (specifier.includes('utils')) {
               this.setExport('copyText', async (value) => copied.push(value));
+              this.setExport('toast', () => {});
               this.setExport('localOverlayOrigin', () => 'http://127.0.0.1:3000');
             } else if (specifier.includes('canvas-dialog')) {
               this.setExport('createDanmakuPreview', ({ controller }) => ({ id: 'danmaku', controller }));
@@ -351,27 +360,27 @@ test('a late read cannot replace a draft and an old account save cannot affect t
   assert.match(f.elements.styleChip.textContent, /待应用.*留白/);
   const pending = f.click('danmakuApplyOverlayBtn');
   f.account('');
-  assert.equal(f.elements.overlayUrl.value, '');
-  assert.equal(f.elements.copyOverlayUrlButton.disabled, true);
+  assert.equal(f.elements.overlayUrl.textContent, '登录 LIRA 后显示直播画面链接');
+  assert.equal(f.elements.overlayUrl.disabled, true);
   const nextUrl = 'https://other.example.test/overlay/syntheticKey_123';
   f.account(nextUrl);
   f.reads[2].resolve(saved('ranked', 8, nextUrl));
   await flush();
   f.writes[0].resolve(saved('transparent'));
   await pending;
-  assert.equal(f.elements.overlayUrl.value, nextUrl);
+  assert.equal(f.elements.overlayUrl.textContent, nextUrl);
   assert.match(f.elements.styleChip.textContent, /已应用样式.*经典样式/);
   assert.equal(f.elements.fullscreenDuration.value, '8');
 });
 
 test('copy and open use the server; preview is available locally without authorization', async () => {
   const f = await fixture();
-  await f.click('copyOverlayUrlButton');
+  await f.click('overlayUrl');
   f.click('openOverlayButton');
   assert.deepEqual(f.copied, [url]);
   assert.equal(f.opened[0][0], url);
   f.account('');
-  assert.equal(f.elements.copyOverlayUrlButton.disabled, true);
+  assert.equal(f.elements.overlayUrl.disabled, true);
   assert.equal(f.elements.openOverlayButton.disabled, true);
   assert.equal(f.elements.previewOverlayButton.disabled, false);
   f.click('previewOverlayButton');

@@ -205,28 +205,6 @@
   white-space: nowrap;
 }
 
-.blindbox-url-address {
-  display: block;
-  min-width: 0;
-  font-family: var(--font-mono);
-  font-size: var(--type-size-body);
-  font-weight: var(--type-weight-regular);
-  color: var(--text);
-  background: var(--color-bg-primary);
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  word-break: break-all;
-  white-space: normal;
-  text-align: left;
-  line-height: var(--type-leading-body);
-}
-
-.blindbox-url-address:hover {
-  border-color: var(--color-border-accent);
-  background: var(--color-accent-light);
-}
-
 .blindbox-url-actions {
   display: flex;
   gap: 6px;

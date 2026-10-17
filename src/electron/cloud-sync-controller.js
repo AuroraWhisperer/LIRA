@@ -79,9 +79,9 @@ function createCloudSyncController(options = {}) {
       const dirtyGeneration = dirtyGenerations.settings;
       const pending = getPendingSettings(work.accountKey);
       // Omit the untouched flag: the server preserves its current value.
-      const result = await licenseManager.updateCloudSettings(
+      const result = await uploadSettings(
         { ...settingsUploadValues(pending), [intent.key]: intent.enabled },
-        { signal: work.signal },
+        pending, dirtyGeneration, work,
       );
       if (!isCurrent(work)) return null;
       assertGiftInteractionResult(result);
@@ -312,6 +312,26 @@ function createCloudSyncController(options = {}) {
     return applied;
   }
 
+  async function uploadSettings(values, pending, generation, work) {
+    const requestOptions = { signal: work.signal };
+    try {
+      return await licenseManager.updateCloudSettings(values, requestOptions);
+    } catch (error) {
+      if (error?.code !== 'INVALID_GIFT_BLIND_BOX_CONFIG' || !isCurrent(work)) throw error;
+      const state = await licenseManager.getCloudState(requestOptions);
+      if (!isCurrent(work) || generation !== dirtyGenerations.settings
+        || pending?.mutationId !== getPendingSettings(work.accountKey)?.mutationId) throw error;
+      const remote = state?.settings?.values?.giftBlindBoxCustomConfigV2;
+      const local = values.giftBlindBoxCustomConfigV2;
+      if (!state?.settings?.initialized || !Array.isArray(remote) || !Array.isArray(local)) throw error;
+      const activeIds = new Set(remote.map(box => box.customId));
+      // Retired server identities cannot be recreated. Keep current edits and new drafts.
+      const repaired = local.filter(box => !box.customId || activeIds.has(box.customId));
+      if (repaired.length === local.length) throw error;
+      return licenseManager.updateCloudSettings({ ...values, giftBlindBoxCustomConfigV2: repaired }, requestOptions);
+    }
+  }
+
   async function flushScope(scope, work) {
     if (!dirty.has(scope) || !isCurrent(work)) return false;
     const dirtyGeneration = dirtyGenerations[scope];
@@ -320,7 +340,7 @@ function createCloudSyncController(options = {}) {
     let pendingSettings;
     if (scope === 'settings') {
       pendingSettings = getPendingSettings(work.accountKey);
-      result = await licenseManager.updateCloudSettings(settingsUploadValues(pendingSettings), requestOptions);
+      result = await uploadSettings(settingsUploadValues(pendingSettings), pendingSettings, dirtyGeneration, work);
     } else if (scope === 'songs') {
       result = await songSync.upload(work);
     } else {
@@ -350,6 +370,7 @@ function createCloudSyncController(options = {}) {
   }
 
   async function flushDirty(work) {
+    let conflict = null;
     for (const scope of VALID_SCOPES) {
       if (!isCurrent(work)) return;
       if (!dirty.has(scope)) continue;
@@ -358,9 +379,11 @@ function createCloudSyncController(options = {}) {
       } catch (error) {
         // Keep the scope dirty. The next scheduled or explicit sync retries it.
         if (error?.retryAfterMs > 0) throw error;
+        if (error?.code === 'INVALID_GIFT_BLIND_BOX_CONFIG') conflict = error;
         void error;
       }
     }
+    if (conflict) throw conflict;
   }
 
   async function seedScope(scope, work) {
@@ -370,7 +393,7 @@ function createCloudSyncController(options = {}) {
       await flushScope(scope, work);
     } catch (error) {
       // The dirty scope remains protected from cloud pulls until retry succeeds.
-      if (error?.retryAfterMs > 0) throw error;
+      if (error?.retryAfterMs > 0 || error?.code === 'INVALID_GIFT_BLIND_BOX_CONFIG') throw error;
       void error;
     }
   }
@@ -413,11 +436,14 @@ function createCloudSyncController(options = {}) {
 
   async function reconcileBilibili(state, work) {
     if (!isCurrent(work)) return;
+    const sessionRevision = bilibiliAuth.getSessionRevision?.();
+    const canWrite = () => shouldApply('bilibili', state?.revision, work)
+      && sessionRevision === bilibiliAuth.getSessionRevision?.();
     if (!state?.initialized) {
       if (!shouldApply('bilibili', 0, work)) return;
       // An unowned local Cookie must never seed a newly authorized account.
-      await bilibiliAuth.logout();
-      if (isCurrent(work)) revisions.bilibili = 0;
+      const result = await bilibiliAuth.logout({ isCurrent: canWrite });
+      if (result !== null && isCurrent(work)) revisions.bilibili = 0;
       return;
     }
     if (!shouldApply('bilibili', state.revision, work)) return;
@@ -435,12 +461,10 @@ function createCloudSyncController(options = {}) {
     }
     const cloudRevision = Math.max(Number(state.revision) || 0, Number(result?.revision) || 0);
     if (!shouldApply('bilibili', cloudRevision, work)) return;
-    if (result?.loggedIn && result.cookie) {
-      await bilibiliAuth.replaceCookieHeader(result.cookie);
-    } else {
-      await bilibiliAuth.logout();
-    }
-    if (isCurrent(work)) revisions.bilibili = cloudRevision;
+    const applied = result.loggedIn
+      ? await bilibiliAuth.replaceCookieHeader(result.cookie, { isCurrent: canWrite })
+      : await bilibiliAuth.logout({ isCurrent: canWrite });
+    if (applied !== null && isCurrent(work)) revisions.bilibili = cloudRevision;
   }
 
   async function runSync(work) {

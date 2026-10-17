@@ -15,16 +15,25 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   const accounts = new Map();
   const cancelledLogin = () => ({ cancelled: true, snapshot: null, state: { loggedIn: false } });
 
-  function runAccountOperation(key, operation, isLogin = false) {
+  function runAccountOperation(key, operation, isLogin = false, isCurrent = null) {
     if (disposed) return Promise.reject(new Error('AUTH_OPERATION_CANCELLED'));
-    if (!accounts.has(key)) accounts.set(key, { generation: 0, tail: Promise.resolve(), login: null });
+    if (!accounts.has(key)) accounts.set(key, { generation: 0, localOperations: 0, tail: Promise.resolve(), login: null });
     const account = accounts.get(key);
-    const generation = ++account.generation;
-    account.login?.abortController.abort();
+    // Cloud writes do not supersede a user's in-flight login or logout.
+    if (isCurrent && (account.localOperations > 0 || !isCurrent())) return Promise.resolve(null);
+    const generation = isCurrent ? account.generation : ++account.generation;
+    if (!isCurrent) {
+      account.localOperations += 1;
+      account.login?.abortController.abort();
+    }
     const started = account.tail.then(async () => {
       // A closed window may still be encrypting a captured Cookie snapshot.
       await account.login?.completion.catch(() => {});
       account.login = null;
+      if (isCurrent) {
+        if (disposed || generation !== account.generation || !isCurrent()) return null;
+        account.generation += 1;
+      }
       if (isLogin) {
         if (disposed || generation !== account.generation) return { completion: Promise.resolve(cancelledLogin()) };
         const abortController = new AbortController();
@@ -45,7 +54,9 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
       () => {},
       () => {},
     );
-    return started.then((result) => (isLogin ? result.completion : result));
+    return started.then((result) => (isLogin ? result.completion : result)).finally(() => {
+      if (!isCurrent) account.localOperations -= 1;
+    });
   }
 
   function dispose() {
@@ -160,12 +171,14 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     return snapshot;
   }
 
-  async function replaceBilibiliCookieHeader(cookieHeader) {
+  async function replaceBilibiliCookieHeader(cookieHeader, { isCurrent } = {}) {
     logBilibiliDiagnostic('credentials-import-start');
     try {
       const state = await runAccountOperation('bilibili', async () =>
         observeBilibiliIdentity(await bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader)),
+        false, isCurrent,
       );
+      if (state === null) return null;
       logBilibiliDiagnostic('credentials-import-complete', summarizeAuthState(state));
       return state;
     } catch (error) {
@@ -206,12 +219,14 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     }
   }
 
-  async function logoutBilibiliAccount() {
+  async function logoutBilibiliAccount({ isCurrent } = {}) {
     logBilibiliDiagnostic('logout-start');
     try {
       const state = await runAccountOperation('bilibili', async () =>
         observeBilibiliIdentity(await bilibiliAuth.logoutBilibiliAccount(getDataDir())),
+        false, isCurrent,
       );
+      if (state === null) return null;
       logBilibiliDiagnostic('logout-complete', summarizeAuthState(state));
       return state;
     } catch (error) {

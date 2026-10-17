@@ -1,6 +1,7 @@
 'use strict';
 
 const pageAssets = require('./page-assets');
+const { serveFontAsset } = require('./font-assets');
 const { buildGiftFrameEvent } = require('../bilibili/gift/frame-config');
 const { buildGuardThanksEvents, buildNauticalGuardThanksEvent } = require('../bilibili/gift/guard-thanks-config');
 const { normalizeGiftEffectEvent } = require('../bilibili/gift/effect-event');
@@ -20,6 +21,7 @@ function snapshotSceneTypes(reason) {
 
 function createRuntimeTransport({
   publicDir,
+  getFontLibrary,
   defaultPort,
   getHost,
   getStartedPort,
@@ -103,8 +105,9 @@ function createRuntimeTransport({
     notifySceneOutput?.({ types: ['overtime'] });
   }
 
-  function servePageOrAsset(req, res, requestUrl) {
-    pageAssets.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession, getClientTheme);
+  async function servePageOrAsset(req, res, requestUrl) {
+    if (await serveFontAsset(getFontLibrary?.(), req, res, requestUrl)) return;
+    pageAssets.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession, getClientTheme, Boolean(getFontLibrary?.()));
   }
 
   return {

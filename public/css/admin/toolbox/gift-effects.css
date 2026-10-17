@@ -200,21 +200,6 @@
   min-width: 0;
 }
 
-.gift-effect-url-block code {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 36px;
-  padding: 7px 10px;
-  overflow-wrap: anywhere;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: var(--type-size-caption);
-  line-height: 1.55;
-}
-
 .gift-effect-url-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

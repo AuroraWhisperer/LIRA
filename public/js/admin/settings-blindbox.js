@@ -4,6 +4,7 @@ import { showFieldError } from '../shared/field-feedback.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 
 const OVERLAY_FIELDS = ['blindboxOverlayTitle', 'blindboxOverlayTop', 'blindboxWinnersOnly', 'blindboxHeartBoxOnly',
   'blindboxCastleMultiplier', 'blindboxCastlesRemaining', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'];
@@ -48,8 +49,6 @@ function parseBlindboxOutputs(value) {
 
 export function createBlindboxSettings({
   documentRef,
-  navigatorRef,
-  promptRef,
   locationRef,
   value,
   toast,
@@ -228,16 +227,7 @@ export function createBlindboxSettings({
       });
     }
 
-    documentRef.getElementById('blindboxOverlayUrl').addEventListener('click', async () => {
-      const url = buildOverlayUrl();
-      try {
-        await navigatorRef.clipboard.writeText(url);
-        toast('投屏地址已复制');
-      } catch (error) {
-        void error;
-        promptRef('复制以下地址：', url);
-      }
-    });
+    bindCopyUrl(documentRef.getElementById('blindboxOverlayUrl'), { onCopied: () => toast('投屏地址已复制') });
 
     documentRef.getElementById('blindboxPreviewBtn').addEventListener('click', () => {
       openComponentPreview({ id: 'blindbox' });

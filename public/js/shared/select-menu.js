@@ -234,7 +234,7 @@ function enhanceSelect(select) {
     }
     return existing;
   }
-  const labelText = getLabelText(select);
+  const labelText = select.getAttribute('aria-label') || getLabelText(select);
   const wrapper = document.createElement('div');
   wrapper.className = 'lira-select';
   const variant = getVariant(select);

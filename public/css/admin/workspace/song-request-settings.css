@@ -132,10 +132,6 @@
   gap: var(--spacing-md);
 }
 
-.song-cooldown-setting {
-  grid-column: span 2;
-}
-
 .song-request-eligibility {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -273,10 +269,6 @@
 @media (max-width: 640px) {
   .song-request-rules {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .song-cooldown-setting {
-    grid-column: auto;
   }
 
   .song-blacklist-words {

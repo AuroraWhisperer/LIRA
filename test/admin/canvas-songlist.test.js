@@ -32,7 +32,7 @@ test('song board parameters reach the canvas renderer and persist into the live 
     const saved = shared ? page.waitForResponse(response => response.url().includes('/api/component-preview/appearance?')
       && response.request().postDataJSON()?.patch?.[key] === value).catch(error => ({ error })) : null;
     if (kind === 'select') {
-      const title = await field.locator(`option[value="${value}"]`).textContent();
+      const title = await field.evaluate((select, value) => Array.from(select.options).find(option => option.value === value).textContent, value);
       const trigger = field.locator('..').getByRole('button').first();
       if (await trigger.count()) {
         await trigger.click();
@@ -96,8 +96,8 @@ test('song board parameters reach the canvas renderer and persist into the live 
     });
     assert.ok(distance > 0, `speed ${speed} must keep moving`);
   }
-  await edit('songBoardFontFamily', 'Arial');
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.song-card')).fontFamily.startsWith('Arial'));
+  await edit('songBoardFontFamily', '"Lira Zhimangxing"');
+  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.song-card')).fontFamily.startsWith('"Lira Zhimangxing"'));
   for (const weight of ['400', '800']) {
     await edit('songBoardFontWeight', weight);
     await renderedStyle('.song-card strong', 'fontWeight', weight);
@@ -138,7 +138,8 @@ test('song board parameters reach the canvas renderer and persist into the live 
   const rendered = output.frameLocator('.scene-version:not(.is-staging) iframe');
   await rendered.getByText('我的展示板', { exact: true }).waitFor();
   await rendered.getByText('真实歌曲', { exact: true }).waitFor();
-  assert.deepEqual(await rendered.locator('.song-card strong').evaluate(node => {
+  // Resolve and read in one browser task; font relayout can replace the title node.
+  assert.deepEqual(await rendered.locator('.song-card strong').evaluateAll(([node]) => {
     const style = getComputedStyle(node);
     return { size: style.fontSize, weight: style.fontWeight, color: style.color };
   }), { size: '36px', weight: '800', color: 'rgb(18, 52, 86)' });

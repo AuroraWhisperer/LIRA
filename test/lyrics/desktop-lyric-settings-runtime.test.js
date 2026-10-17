@@ -15,53 +15,33 @@ function readDesktopLyricHtml() {
   return readAdminFragmentHtml('pages/admin/song/desktop-lyric.html');
 }
 
-test('desktop lyric settings automatically list local font families and preserve denial state', async () => {
-  const form = { addEventListener() {} };
-  const select = {
-    value: 'Microsoft YaHei',
-    children: [],
+function createFontNode(tagName = 'select') {
+  return {
+    tagName: tagName.toUpperCase(), children: [], dataset: {}, value: '', textContent: '',
+    prepend(child) { child.parentNode = this; this.children.unshift(child); },
+    appendChild(child) { child.parentNode = this; this.children.push(child); return child; },
     replaceChildren(...children) {
-      this.children = [];
-      children.forEach(child => this.appendChild(child));
+      this.children = []; children.forEach(child => this.appendChild(child));
       this.value = children[0]?.value || '';
     },
-    appendChild(child) {
-      child.parentNode = this;
-      this.children.push(child);
-      return child;
+    remove() {
+      if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(child => child !== this);
     },
     querySelector(selector) {
-      if (selector !== 'optgroup[data-local-fonts="true"]') return null;
-      return this.children.find((child) => child.dataset?.localFonts === 'true') || null;
+      const key = selector.includes('data-local-fonts') ? 'localFonts' : 'sharedFonts';
+      return this.children.find(child => child.dataset[key] === 'true') || null;
     },
-    get options() {
-      return this.children.flatMap(child => child.tagName === 'OPTION' ? [child] : child.children || []);
-    },
+    get options() { return this.children.flatMap(child => child.tagName === 'OPTGROUP' ? child.children : [child]); },
   };
+}
+
+test('desktop lyric settings automatically list local font families and preserve denial state', async () => {
+  const form = { addEventListener() {} };
+  const select = createFontNode();
   const elements = new Map([
     ['desktopLyricForm', form],
     ['desktopLyricFontFamily', select],
   ]);
-  function createNode(tagName) {
-    return {
-      tagName: tagName.toUpperCase(),
-      children: [],
-      dataset: {},
-      value: '',
-      textContent: '',
-      appendChild(child) {
-        child.parentNode = this;
-        this.children.push(child);
-        return child;
-      },
-      remove() {
-        if (!this.parentNode) return;
-        this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
-        this.parentNode = null;
-      },
-    };
-  }
-
   let queryCount = 0;
   const sandbox = {
     console: { ...console, warn() {} },
@@ -75,7 +55,7 @@ test('desktop lyric settings automatically list local font families and preserve
       querySelectorAll() {
         return [];
       },
-      createElement: createNode,
+      createElement: createFontNode,
     },
     setTimeout,
     clearTimeout,
@@ -130,20 +110,7 @@ test('desktop lyric settings automatically list local font families and preserve
 
 test('desktop lyric local font detection keeps built-ins when permission is denied', async () => {
   const form = { addEventListener() {} };
-  const select = {
-    value: 'Microsoft YaHei',
-    children: [],
-    replaceChildren(...children) {
-      this.children = children;
-      this.value = children[0]?.value || '';
-    },
-    querySelector() {
-      return null;
-    },
-    get options() {
-      return this.children;
-    },
-  };
+  const select = createFontNode();
   const elements = new Map([
     ['desktopLyricForm', form],
     ['desktopLyricFontFamily', select],
@@ -152,7 +119,7 @@ test('desktop lyric local font detection keeps built-ins when permission is deni
   const sandbox = {
     console: { ...console, warn() {} },
     document: {
-      createElement: () => ({}),
+      createElement: createFontNode,
       getElementById(id) {
         return elements.get(id) || null;
       },
@@ -195,10 +162,10 @@ test('desktop lyric local font detection keeps built-ins when permission is deni
 
   assert.equal(queryCount, 1);
   assert.equal(select.value, 'Lira Maiyuan');
-  assert.ok(select.options.some(option => option.value === 'Lira Kuaile'));
-  assert.ok(select.options.some(option => option.value === 'Lira Smiley'));
-  assert.ok(select.options.some(option => option.value === 'Lira Xiaolai'));
-  assert.ok(select.options.some(option => option.value === 'Lira Assorted'));
+  assert.ok(select.options.some(option => option.value === '"Lira Kuaile"'));
+  assert.ok(select.options.some(option => option.value === '"Lira Smiley"'));
+  assert.ok(select.options.some(option => option.value === '"Lira Xiaolai"'));
+  assert.ok(select.options.some(option => option.value === '"Lira Assorted"'));
   assert.ok(select.options.every(option => !/内置|推荐|（默认）/.test(option.textContent)));
   assert.equal(new Set(select.options.map(option => option.value)).size, select.options.length);
   assert.equal(select.querySelector('optgroup[data-local-fonts="true"]'), null);
@@ -329,7 +296,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   };
   const elements = new Map(Object.entries(values).map(([id, value]) => [id, { value }]));
   elements.set('desktopLyricSungColorInherited', { checked: true });
-  elements.get('desktopLyricFontFamily').replaceChildren = function (...options) { this.options = options; };
+  elements.set('desktopLyricFontFamily', Object.assign(createFontNode(), { value: values.desktopLyricFontFamily }));
   const lyricSourceInputs = [
     { value: 'netease', checked: true },
     { value: 'qq', checked: false },
@@ -353,7 +320,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   let resolveFirstSave;
   const sandbox = {
     document: {
-      createElement: () => ({}),
+      createElement: createFontNode,
       getElementById(id) {
         return elements.get(id) || null;
       },

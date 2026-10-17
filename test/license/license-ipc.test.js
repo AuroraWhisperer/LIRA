@@ -7,6 +7,30 @@ const { createLicenseIpcFixture } = require('../helpers/license-ipc-fixture');
 const PUBLIC_STREAMER = { accountName: 'mlbb', displayName: 'mlbb', subdomain: '' };
 const PUBLIC_DEVICE = { id: 'd', name: '', status: '', licenseId: '' };
 
+test('font IPC permits only authorized main-frame retries and exposes progress without URLs or paths', async () => {
+  let starts = 0; let stateListener;
+  const snapshot = { status: 'downloading', total: 8, completed: 2, failed: 0, currentFont: '小赖字体',
+    completedAt: '', url: 'https://private.test', directory: 'private-path' };
+  const ipc = createLicenseIpcFixture({ fontLibrary: {
+    getState: () => snapshot,
+    initialize: async () => { starts++; return { ...snapshot, status: 'ready' }; },
+    onStateChanged: listener => { stateListener = listener; return () => {}; },
+  } });
+  const result = await ipc.invoke('license:get-font-library-state');
+  assert.deepEqual(result, { ok: true, status: 'downloading', total: 8, completed: 2, failed: 0,
+    currentFont: '小赖字体', completedAt: '' });
+  assert.equal((await ipc.invoke('license:retry-font-library')).error, 'IPC_SOURCE_INVALID');
+  ipc.trustedEvent.sender.mainFrame = ipc.trustedEvent.senderFrame;
+  assert.equal((await ipc.invoke('license:retry-font-library', { url: 'https://evil.test' })).ok, true);
+  assert.equal(starts, 1);
+  ipc.licenseManager.getState = () => 'blocked';
+  assert.equal((await ipc.invoke('license:retry-font-library')).error, 'LICENSE_REQUIRED');
+  assert.equal(starts, 1);
+  stateListener(snapshot);
+  const { ok, ...progress } = result;
+  assert.deepEqual(ipc.sent.at(-1), ['license:font-library-state-changed', progress]);
+});
+
 test('current-library IPC passes only a confirmation generation and sanitizes the result', async () => {
   const calls = [];
   const ipc = createLicenseIpcFixture({

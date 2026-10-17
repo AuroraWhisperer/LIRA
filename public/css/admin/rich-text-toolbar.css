@@ -1,0 +1,34 @@
+.rich-text-toolbar { position: fixed; z-index: 1200; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: calc(100vw - 16px); padding: 5px; border: 0; border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-floating); }
+.rich-text-toolbar[hidden] { display: none; }
+.rich-text-toolbar button.rich-text-format { display: grid; place-items: center; width: 30px; height: 30px; min-height: 30px; padding: 0; border: 0; background: transparent; color: var(--text); border-radius: var(--radius-sm); box-shadow: none; font-family: Georgia, serif; font-size: 17px; }
+.rich-text-toolbar button[aria-pressed='true'] { background: var(--color-primary-light); color: var(--color-selection-text, var(--primary-strong)); }
+.rich-text-format-bold { font-weight: 800; }
+.rich-text-format-italic { font-style: italic; }
+.rich-text-format-underline { text-decoration: underline; text-underline-offset: 3px; }
+.rich-text-toolbar .lira-select { width: 84px; min-width: 84px; }
+.rich-text-toolbar .lira-select-trigger, .rich-text-font-size { min-height: 30px; height: 30px; padding: 3px 8px; font-size: 13px; }
+.rich-text-toolbar .lira-select-trigger { padding-right: 24px; }
+.rich-text-color { position: relative; display: grid; place-items: center; width: 30px; height: 30px; font-size: 18px; font-weight: 650; color: var(--text); cursor: pointer; }
+.rich-text-color::after { content: ''; position: absolute; bottom: 2px; width: 16px; height: 3px; background: var(--rich-text-current-color); outline: 1px solid var(--border); }
+.rich-text-toolbar button:hover { background: var(--surface-2); }
+.rich-text-toolbar button:focus-visible { outline: 2px solid var(--color-control-focus); outline-offset: 2px; }
+.rich-text-toolbar button[aria-expanded='true'] { background: var(--surface-2); }
+.rich-text-format-popover { position: fixed; width: 224px; max-width: calc(100vw - 16px); padding: 10px; border-radius: var(--radius-md); background: var(--surface); color: var(--text); box-shadow: var(--shadow-floating); }
+.rich-text-format-popover[hidden], .rich-text-recent-colors[hidden] { display: none; }
+.rich-text-toolbar .rich-text-format-action { display: flex; align-items: center; width: 100%; min-height: 34px; padding: 7px 9px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); box-shadow: none; text-align: left; font-size: 13px; font-weight: 450; }
+.rich-text-format-action:hover { background: var(--surface-2); }
+.rich-text-palette-label { margin: 12px 3px 8px; font-size: 12px; color: var(--muted); }
+.rich-text-color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.rich-text-toolbar .rich-text-color-swatch { position: relative; min-width: 0; width: 28px; height: 28px; min-height: 28px; padding: 3px; border: 1px solid var(--border); border-radius: 6px; background: transparent; box-shadow: none; }
+.rich-text-color-swatch::before { content: ''; display: block; width: 100%; height: 100%; border-radius: 3px; background: var(--rich-text-swatch); }
+.rich-text-toolbar .rich-text-color-swatch[aria-pressed='true'] { border-color: var(--primary-strong); outline: 1px solid var(--primary-strong); background: transparent; }
+.rich-text-custom-color { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 10px 3px 0; border-top: 1px solid var(--border); font-size: 13px; cursor: pointer; }
+.rich-text-custom-color .lira-color-control { --color-control-height: 28px; width: 124px; }
+.rich-text-effect-toggle::after { content: ''; margin-left: auto; width: 10px; height: 5px; }
+.rich-text-effect-toggle[aria-pressed='true']::after { border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); }
+.rich-text-effect-toggle[aria-pressed='mixed']::after { height: 0; border-bottom: 2px solid currentColor; }
+.rich-text-toolbar .rich-text-clear-format { border-top: 1px solid var(--border); border-radius: 0 0 var(--radius-sm) var(--radius-sm); margin-top: 6px; padding-top: 11px; }
+
+.rich-text-toolbar .lira-select:has(.rich-text-font-family) { width: 158px; min-width: 110px; }
+.rich-text-toolbar .lira-select:has(.rich-text-font-family) .lira-select-menu { width: 260px; max-width: calc(100vw - 16px); }
+.rich-text-font-family { width: 158px; min-height: 30px; height: 30px; padding: 3px 8px; font-size: 13px; }

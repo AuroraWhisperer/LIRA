@@ -337,14 +337,18 @@ test('price and clip retain internal text whitespace through save, export and re
     const store = createSongStore(db);
     songService.saveSong(store, {
       name: '文本',
-      requestPrice: '舰长  原文\r\n第二行',
-      songClip: 'BV1  说明\n01:30',
+      requestPrice: '舰长  原文\t"说明"\r\n第二行',
+      songClip: 'BV1  说明\t片段\n01:30',
     });
     const [song] = songService.listSongs(store);
-    assert.equal(song.request_price, '舰长  原文\n第二行');
-    assert.equal(song.song_clip, 'BV1  说明\n01:30');
+    assert.equal(song.request_price, '舰长  原文\t"说明"\n第二行');
+    assert.equal(song.song_clip, 'BV1  说明\t片段\n01:30');
     const { parseTable } = loadCsvParser();
-    for (const row of [parseSongsFromXlsx(buildSongsWorkbook([song]))[0], parseTable(buildSongsCsv([song]))[0]]) {
+    for (const row of [
+      parseSongsFromXlsx(buildSongsWorkbook([song]))[0],
+      parseTable(buildSongsCsv([song]))[0],
+      parseTable(buildSongsCsv([song]), { preserveMissing: true })[0],
+    ]) {
       const normalized = normalizeImportedSongRow(row);
       assert.equal(normalized.requestPrice, song.request_price);
       assert.equal(normalized.songClip, song.song_clip);
@@ -358,6 +362,37 @@ test('price and clip retain internal text whitespace through save, export and re
     assert.equal(songService.listSongs(store)[0].request_price, '0');
   } finally {
     db.close();
+  }
+});
+
+test('legacy song import preserves explicit false and zero while blank flags keep their default', () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(SONG_SCHEMA);
+    const store = createSongStore(db);
+    const values = [false, 0, 'false', '0', true, 1, 'true', '1', null, undefined, ''];
+    const rows = values.map((isEnabled, index) => ({ name: `flag-${index}`, isEnabled }));
+    rows.push({ name: 'alias-fallback', isEnabled: '', enabled: false });
+    songService.importSongs(store, rows);
+    const saved = new Map(store.listRows().map((song) => [song.name, song.is_enabled]));
+    assert.deepEqual(rows.map((row) => saved.get(row.name)), [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0]);
+  } finally {
+    db.close();
+  }
+});
+
+test('text import detects delimiters outside quoted cells in the first logical record', () => {
+  const { parseTable } = loadCsvParser();
+  const csv = '\n"歌,""曲""\t\n第二行",测试歌手,,,,,免费,,,\n另一首,另一位,,,,,"价格\t说明",,,';
+  const tsv = '\n歌,曲\t测试歌手\t\t\t\t\t"免费\t说明"\t\t\t';
+  for (const preserveMissing of [false, true]) {
+    const rows = parseTable(csv, { preserveMissing });
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].name, '歌,"曲"\t\n第二行');
+    assert.equal(rows[0].artist, '测试歌手');
+    const [row] = parseTable(tsv, { preserveMissing });
+    assert.equal(row.name, '歌,曲');
+    assert.equal(row.requestPrice, '免费\t说明');
   }
 });
 

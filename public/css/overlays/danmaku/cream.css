@@ -163,9 +163,9 @@ body[data-style='cream'] .draw-danmaku-item[data-identity='governor'] {
   --cream-tint: #f9e3e5;
 }
 
-/* 奶油礼物卡：整张卡片与兔子花束插画，不沿用聊天圆尾。 */
+/* 奶油礼物卡：使用礼物原图，不沿用聊天圆尾。 */
 body[data-style='cream'] .draw-danmaku-item.is-gift {
-  --danmaku-gift-art: url('/img/overlays/danmaku-gifts/thank-you-bunny.png');
+  --danmaku-gift-art: none;
   --gift-ink: #6d4038;
   --gift-name: #a0606e;
   --gift-action: #b04a64;

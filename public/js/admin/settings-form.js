@@ -98,6 +98,7 @@ export function createSettingsForm({
       if (savingRequest) return;
       const updates = {
         paused: value('paused'),
+        scSongRequestEnabled: value('scSongRequestEnabled'),
         queueLimit: value('queueLimit'),
         userCooldownSeconds: value('userCooldownSeconds'),
         userQueueLimit: value('userQueueLimit'),

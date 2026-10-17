@@ -1,8 +1,10 @@
-import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
+import { localOverlayOrigin, toast } from '../../shared/utils.js';
+import { bindCopyUrl } from '../../shared/copy-url.js';
 import { openComponentPreview } from '../component-preview-dialog.js';
 import {
   createGiftWishCard,
   getGiftWishTextTemplate,
+  getGiftWishTextRuns,
   DEFAULT_WISH_TEXT,
   DEFAULT_WISH_TEXT_COLORS,
 } from '../../shared/gift-wish-card.js';
@@ -15,9 +17,9 @@ import { eventBus, Events } from '../../shared/event-bus.js';
 import { showConfirmationDialog } from '../../shared/confirmation-dialog.js';
 
 const PERIOD_HINTS = {
-  long: '从创建时开始累计，不重置。',
-  day: '统计当天已捕获的礼物，北京时间零点重置。',
-  session: '统计本次开播以来已捕获的礼物，下次开播重置。',
+  long: '创建起累计，不重置。',
+  day: '北京时间零点重置。',
+  session: '下次开播重置。',
 };
 
 export function createGiftWishes() {
@@ -116,6 +118,7 @@ export function createGiftWishes() {
       completed: count >= target,
       displayStyle: getDisplayStyle(),
       textTemplate,
+      textRuns: textEditor.getRuns(),
       textImageFormat: get('giftWishTextImageFormat').value,
       textPendingColor: get('giftWishTextPendingColor').value,
       textReceivedColor: get('giftWishTextReceivedColor').value,
@@ -125,13 +128,17 @@ export function createGiftWishes() {
   }
 
   function resetTextColors() {
-    get('giftWishTextPendingColor').value = DEFAULT_WISH_TEXT_COLORS.pending;
-    get('giftWishTextReceivedColor').value = DEFAULT_WISH_TEXT_COLORS.received;
+    for (const [id, color] of [['giftWishTextPendingColor', DEFAULT_WISH_TEXT_COLORS.pending],
+      ['giftWishTextReceivedColor', DEFAULT_WISH_TEXT_COLORS.received]]) {
+      get(id).defaultValue = color;
+      get(id).value = color;
+    }
   }
 
   function readWishForm() {
     return JSON.stringify([
       selected?.variantId || selected?.id || '', getDisplayStyle(),
+      textEditor.getRuns(),
       ...['giftWishTarget', 'giftWishLabel', 'giftWishTextTemplate', 'giftWishTextImageFormat',
         'giftWishTextPendingColor', 'giftWishTextReceivedColor'].map((id) => get(id).value),
     ]);
@@ -181,7 +188,7 @@ export function createGiftWishes() {
       .forEach((input) => {
         input.checked = input.value === (wish.displayStyle || 'card');
       });
-    textEditor.setValue(getGiftWishTextTemplate(wish));
+    textEditor.setValue(getGiftWishTextTemplate(wish), getGiftWishTextRuns(wish));
     get('giftWishTextImageFormat').value = wish.textImageFormat || 'animated';
     get('giftWishTextPendingColor').value = wish.textPendingColor || DEFAULT_WISH_TEXT_COLORS.pending;
     get('giftWishTextReceivedColor').value = wish.textReceivedColor || DEFAULT_WISH_TEXT_COLORS.received;
@@ -306,6 +313,7 @@ export function createGiftWishes() {
         label: get('giftWishLabel').value,
         displayStyle: getDisplayStyle(),
         textTemplate: get('giftWishTextTemplate').value,
+        textRuns: textEditor.getRuns(),
         textImagePosition: 'none',
         textImageFormat: get('giftWishTextImageFormat').value,
         textPendingColor: get('giftWishTextPendingColor').value,
@@ -351,18 +359,14 @@ export function createGiftWishes() {
     get('giftWishError').textContent = '';
     feed.refresh();
   });
-  get('giftWishCopy').addEventListener('click', () =>
-    copyText(get('giftWishUrl').value)
-      .then(() => toast('许愿地址已复制'))
-      .catch(fail),
-  );
   get('giftWishPeriod').addEventListener('change', async (event) => {
     const next = event.target.value;
     event.target.value = period;
     if (next !== period && await confirmDiscard()) selectPeriod(next);
   });
   const url = `${localOverlayOrigin(location)}/gift-wishes`;
-  get('giftWishUrl').value = url;
+  get('giftWishUrl').textContent = url;
+  bindCopyUrl(get('giftWishUrl'), { onCopied: () => toast('许愿地址已复制'), onError: fail });
   get('giftWishPreview').addEventListener('click', () => openComponentPreview({ id: 'gift-wishes' }));
   selectPeriod(period);
   const unsubscribe = eventBus.on(Events.STATE_LOADED, ({ state }) => {
@@ -377,6 +381,7 @@ export function createGiftWishes() {
     feed.refresh();
   });
   window.addEventListener('pagehide', () => {
+    textEditor.dispose();
     stylePreview.dispose();
     feed.stop();
     picker.close();

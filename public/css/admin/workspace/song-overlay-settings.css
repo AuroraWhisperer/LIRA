@@ -65,35 +65,11 @@
 .overlay-address-item > .overlay-address-copy {
   grid-column: 1 / -1;
   grid-row: 2;
-  min-width: 0;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
-  text-align: left;
 }
 
 .overlay-address-item-wide > .overlay-address-copy {
   grid-column: 1;
   grid-row: 1;
-}
-
-.overlay-address-copy:not(:disabled):hover code {
-  border-color: var(--color-border-strong);
-}
-
-.overlay-address-copy:focus-visible {
-  outline: 2px solid var(--color-control-focus);
-  outline-offset: 2px;
-}
-
-.overlay-address-copy:disabled {
-  opacity: 1;
-}
-
-.overlay-address-copy:disabled code {
-  color: var(--muted);
 }
 
 .overlay-address-status { grid-column: 1 / -1; }
@@ -116,18 +92,6 @@
 .overlay-address-item span {
   color: var(--muted);
   font-size: var(--type-size-caption);
-}
-
-.overlay-address-item code {
-  display: block;
-  min-width: 0;
-  min-height: 38px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
-  padding: 9px 10px;
-  color: var(--text);
-  overflow-wrap: anywhere;
 }
 
 .overlay-address-actions {

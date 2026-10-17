@@ -14,6 +14,9 @@
 /* Optional setting explanations */
 @import url('./components/contextual-help.css');
 
+/* Click-to-copy URL blocks */
+@import url('./components/copy-url.css');
+
 /* 颜色选择控件 */
 @import url('./components/color-control.css');
 

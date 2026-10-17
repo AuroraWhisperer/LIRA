@@ -14,6 +14,13 @@
             </select>
           </label>
           <label>
+            <span>接受 SC 点歌 <lira-help label="接受 SC 点歌说明">开启后，SC 中的点歌和随机点歌指令按点歌规则加入队列。关闭后，SC 仅作为留言显示，不进入点歌队列和点歌板；已排队的歌曲不受影响。</lira-help></span>
+            <select id="scSongRequestEnabled" data-dropdown-variant="settings" aria-label="接受 SC 点歌">
+              <option value="true">开启 · 接受点歌</option>
+              <option value="false">关闭 · 仅显示留言</option>
+            </select>
+          </label>
+          <label>
             只允许点歌库歌曲
             <select id="onlyFromLibrary" data-dropdown-variant="settings">
               <option value="false">不限制</option>
@@ -61,20 +68,20 @@
         </div>
         <div class="song-request-rules song-board-section-body">
           <label>
-            同一观众点歌间隔（秒）
+            <span>非大航海点歌间隔（秒） <lira-help label="非大航海点歌间隔说明">每位观众分别计时：同一观众成功点歌后，需等待设定秒数才能再次点歌，其他观众不受影响。填 0 表示不设间隔。大航海对应间隔留空时也沿用此值。</lira-help></span>
             <input id="userCooldownSeconds" type="number" min="0" max="3600" />
           </label>
           <label>
-            <span>舰长点歌间隔（秒） <lira-help label="大航海点歌间隔说明">留空沿用「同一观众点歌间隔」，填 0 表示该身份不设间隔。普通观众使用通用间隔。身份按本直播间核验。</lira-help></span>
-            <input id="userCooldownCaptainSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用通用间隔" />
+            <span>舰长点歌间隔（秒） <lira-help label="大航海点歌间隔说明">每位观众分别计时。留空沿用「非大航海点歌间隔」，填 0 表示该身份不设间隔。身份按本直播间核验。</lira-help></span>
+            <input id="userCooldownCaptainSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用非大航海间隔" />
           </label>
           <label>
             提督点歌间隔（秒）
-            <input id="userCooldownAdmiralSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用通用间隔" />
+            <input id="userCooldownAdmiralSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用非大航海间隔" />
           </label>
           <label>
             总督点歌间隔（秒）
-            <input id="userCooldownGovernorSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用通用间隔" />
+            <input id="userCooldownGovernorSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用非大航海间隔" />
           </label>
         </div>
       </section>

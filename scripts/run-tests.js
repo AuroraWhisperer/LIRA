@@ -58,6 +58,7 @@ const groups = {
     'scenes/scene-live-updates',
     'scenes/scene-renderer',
     'playback/playback-drawer-browser',
+    'ui/copy-url',
     'ui/frontend-toast-browser',
     'ui/frontend-color-control',
     'admin/ui-edit-state',

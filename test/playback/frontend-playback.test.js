@@ -118,31 +118,44 @@ test('song import retries failed matches and distinguishes reused numeric IDs by
   assert.notEqual(afterClear.importedRequestKeys[0], retry.importedRequestKeys[0]);
 });
 
-test('failed queue reads restore the import control and leave request history available for retry', async () => {
+test('timed out queue reads restore the import control and leave request history available for retry', async () => {
   const button = { disabled: false, dataset: {} };
   const state = { importedSongRequestKeys: ['already-imported'], selectedSource: 'qq' };
   const errors = [];
   let failed = true;
   let inserted = 0;
   let saved = 0;
+  const { ImportService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/playback/services/import-service.js'), {
+      AbortSignal: {
+        timeout(ms) {
+          assert.equal(ms, 10000);
+          return AbortSignal.abort(new DOMException('Timed out', 'TimeoutError'));
+        },
+      },
+      fetch: async (_url, options) => {
+        assert.ok(options?.signal, 'queue reads must have a timeout');
+        if (failed) options.signal.throwIfAborted();
+        return response({ ok: true, data: { queue: { waiting: [{ id: 'new-request', song_name: '歌名' }] } } });
+      },
+    },
+  );
   const { createImportHandler } = await loadModuleExports(
     path.join(ROOT_DIR, 'public/js/playback/features/import-handler.js'),
     { document: { getElementById: () => button } },
   );
   const handler = createImportHandler({
     playbackState: state,
-    importService: {
-      async importFromSongQueue() {
-        if (failed) throw new Error('读取点歌队列失败');
-        return { tracks: [{ id: 'new' }], imported: 1, pending: 0, skipped: 0, importedRequestKeys: ['already-imported', 'new-request'] };
-      },
-    },
+    importService: new ImportService({
+      readJsonResponse: (r) => r.payload,
+      matchService: { async matchQueueItem() { return { autoAccept: true, track: { id: 'new' } }; } },
+    }),
     showError: (error) => errors.push(error.message),
     toast() {},
   });
   const callbacks = { insertPlaybackTracksNext: () => inserted++, savePlaybackState: () => saved++, renderPlayback() {} };
   await handler.importSongQueueToPlayback(callbacks);
-  assert.deepEqual(errors, ['读取点歌队列失败']);
+  assert.deepEqual(errors, ['读取点歌队列超时，请稍后重试']);
   assert.equal(button.disabled, false);
   assert.deepEqual(state.importedSongRequestKeys, ['already-imported']);
   assert.equal(saved, 0);
@@ -151,8 +164,43 @@ test('failed queue reads restore the import control and leave request history av
   assert.equal(inserted, 1);
   assert.equal(saved, 1);
   assert.equal(button.disabled, false);
-  assert.deepEqual(state.importedSongRequestKeys, ['already-imported', 'new-request']);
+  assert.deepEqual(Array.from(state.importedSongRequestKeys), ['["new-request",""]']);
 });
+
+for (const stalledUrl of ['/api/music/search', '/api/music/match-track']) {
+  test(`song matching times out ${stalledUrl} and continues with the fallback platform`, async () => {
+    const controllers = [];
+    const { MatchService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/match-service.js'), {
+      AbortSignal: {
+        timeout(ms) {
+          assert.equal(ms, 30000);
+          const controller = new AbortController();
+          controllers.push(controller);
+          return controller.signal;
+        },
+      },
+      fetch: async (url, options) => {
+        const body = JSON.parse(options.body);
+        const platform = body.platform || body.candidates[0].source;
+        if (platform === 'qq' && url === stalledUrl) {
+          assert.ok(options.signal, 'matching requests must have a timeout');
+          return new Promise((_resolve, reject) => {
+            options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+            queueMicrotask(() => controllers[0].abort(new DOMException('Timed out', 'TimeoutError')));
+          });
+        }
+        return response({ ok: true, data: url.endsWith('/search')
+          ? { tracks: [{ id: platform, source: platform, title: '歌名' }] }
+          : { results: [{ autoAccept: true, score: 100, track: body.candidates[0] }] } });
+      },
+    });
+    const service = new MatchService({ readJsonResponse: (r) => r.payload });
+    const matched = await service.matchQueueItem({ song_name: '歌名' }, ['qq', 'netease']);
+    assert.equal(matched.track.source, 'netease');
+    assert.equal(controllers.length, 2);
+    assert.equal(controllers[0].signal.aborted, true);
+  });
+}
 
 test('playback success paths do not emit per-render or per-lyric console output', () => {
   const rendererSource = fs.readFileSync(

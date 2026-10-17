@@ -42,11 +42,11 @@ test('sprint and blindbox have sibling component tabs, with sprint goal and canv
   assert.equal(await page.locator('#giftWishesPanel').isVisible(), false);
   assert.equal(await page.locator('#giftSprintForm').isVisible(), true);
   assert.equal(await page.locator('#giftSprintTargetRmb').count(), 1);
-  await page.locator('#giftSprintCopy').click();
+  await page.locator('#giftSprintOverlayUrl').click();
   assert.equal(await page.evaluate(() => window.messages.filter(message => message === '月底冲刺地址已复制').length), 1);
   await page.locator('#giftSprintPreview').click();
   assert.equal(await page.evaluate(() => window.openedComponent), 'gift-sprint');
-  assert.equal(await page.locator('#giftSprintOverlayUrl').inputValue(), 'http://lira-ui.test/gift-sprint');
+  assert.equal(await page.locator('#giftSprintOverlayUrl').textContent(), 'http://lira-ui.test/gift-sprint');
   await page.evaluate(() => window.renderSprintPreview({ targetRmb: 1000, remainingCrystalBalls: 0 }));
   assert.equal(await page.locator('#giftSprintTextPreview.is-complete').textContent(), '还差 0 个水晶球');
   await page.evaluate(() => window.renderSprintPreview({ targetRmb: 0, remainingCrystalBalls: 0 }));

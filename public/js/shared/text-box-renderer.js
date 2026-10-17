@@ -1,22 +1,20 @@
 import { normalizeTextBoxConfig } from './text-box-config.js';
 import { setGiftImage } from './gift-image-fallback.js';
+import { applyTextStyle } from './text-style.js';
 
-export function renderTextBox(host, input, { editable = false } = {}) {
+export function renderTextBox(host, input, { editable = false, singleLine = false } = {}) {
   const config = normalizeTextBoxConfig(input);
   const document = host.ownerDocument;
   host.classList.add('text-box-content');
   Object.assign(host.style, { fontSize: `${config.fontSize}px`, color: config.color,
-    textAlign: config.align, lineHeight: String(config.lineHeight), whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' });
+    textAlign: config.align, lineHeight: String(config.lineHeight),
+    whiteSpace: singleLine ? 'pre' : 'pre-wrap', overflowWrap: singleLine ? 'normal' : 'anywhere' });
   const nodes = config.nodes.map((node) => {
     const span = document.createElement('span');
     span.style.fontSize = `${node.fontSize ?? config.fontSize}px`;
     if (node.type === 'text') {
-      span.textContent = node.text;
-      Object.assign(span.style, { color: node.color ?? config.color, fontWeight: node.bold ? '700' : '400',
-        fontStyle: node.italic ? 'italic' : 'normal', textDecoration: node.underline ? 'underline' : 'none',
-        textDecorationColor: node.color ?? config.color,
-        webkitTextStroke: node.stroke ? '0.1em #000000' : '0px', paintOrder: 'stroke fill',
-        textShadow: node.shadow ? '0 0.1em 0.12em rgb(0 0 0 / 85%)' : 'none' });
+      span.textContent = singleLine ? node.text.replace(/\n/g, ' ') : node.text;
+      applyTextStyle(span, node, config);
     } else {
       span.className = 'text-box-token';
       span.contentEditable = 'false';

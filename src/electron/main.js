@@ -11,6 +11,7 @@ const {
   ipcMain,
   Menu,
   Notification,
+  net,
   protocol,
   safeStorage,
   session,
@@ -476,6 +477,7 @@ async function startDesktopApp() {
   logStartupPhase('bilibili-cookie-restore', phaseStartedAt);
 
   var serverOptions = {
+    fontFetch: (url, options) => net.fetch(url, options),
     host: process.env.HOST || '127.0.0.1',
     startPort: 3000,
     musicAuth: {
@@ -600,6 +602,11 @@ async function startDesktopApp() {
         }),
       onStateChanged: (listener) => lifecycleState.runtime.onGiftCatalogInitializationStateChanged(listener),
     },
+    fontLibrary: {
+      getState: () => lifecycleState.runtime.getFontLibraryState(),
+      initialize: () => lifecycleState.runtime.initializeFontLibrary(),
+      onStateChanged: listener => lifecycleState.runtime.onFontLibraryStateChanged(listener),
+    },
     getMainWindow: () => windowState.main,
     getDesktopBaseUrl: () => serverInfo.baseUrl,
     hasExactOrigin,
@@ -616,6 +623,7 @@ async function startDesktopApp() {
     bilibiliAuth: {
       getAuthState: getBilibiliAuthState,
       getCookieHeader: getBilibiliCookieHeader,
+      getSessionRevision: desktopAuth.getBilibiliSessionRevision,
       replaceCookieHeader: replaceBilibiliCookieHeader,
       logout: logoutBilibiliAccount,
     },

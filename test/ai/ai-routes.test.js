@@ -206,6 +206,8 @@ test('AI config GET/PUT never expose plaintext secrets and preserve omitted keys
         reasoningEffort: 'high',
         deepseekApiKey: '',
         qweatherApiKey: null,
+        deepseekApiKeyPreview: 'sk-new********',
+        providerPersonaIds: { deepseek: 'general' },
         unknownSecret: 'must-not-pass',
       }),
     },

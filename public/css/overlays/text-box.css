@@ -1,4 +1,8 @@
 @import url('../shared/text-box.css');
 
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
-#textBox { width: 640px; transform-origin: top left; }
+#textBox { width: 640px; transform-origin: top left; overflow: hidden; }
+.text-box-scroll-track { width: 640px; text-align: left; }
+#textBox[data-scroll-mode='horizontal'] .text-box-scroll-track { width: max-content; padding-inline: 640px; }
+#textBox[data-scroll-mode='horizontal'] .text-box-content { width: max-content; min-width: 640px; }
+#textBox[data-scroll-mode='vertical'] .text-box-scroll-track { padding-block: var(--text-box-viewport-height); }

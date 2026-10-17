@@ -42,7 +42,7 @@
 2. 未开播或 `alwaysHistory` → 启动 HistoryPoller;随后启动 OnlineRankPoller、FansMedalPoller 与 LiveStatusMonitor([danmaku-client.js:168-174](../../../../src/bilibili/danmaku-client.js#L168-L174))。
 3. `resolveDanmuInfo()`(WBI 签名)取 host + `wss_port||443` + token,组装 wsUrl 与认证包([danmaku-client.js:174-189](../../../../src/bilibili/danmaku-client.js#L174-L189),见 [protocol.md](protocol.md) §4.1)。
 4. `clearHandlers()` 后挂 open/message/close/error 处理器([danmaku-client.js:201-282](../../../../src/bilibili/danmaku-client.js#L201-L282));open 时若直播中停掉历史轮询([danmaku-client.js:213-215](../../../../src/bilibili/danmaku-client.js#L213-L215));close 时重启历史轮询并安排重连([danmaku-client.js:240-263](../../../../src/bilibili/danmaku-client.js#L240-L263))。
-5. `wsConnection.connect(wsUrl, authPayload, options)`([danmaku-client.js:284](../../../../src/bilibili/danmaku-client.js#L284))。
+5. `wsConnection.connect(wsUrl, authPayload, { ...options, waitForOpen: true })`：初次启动、自动重试和手动刷新均启用既有的 8 秒 WebSocket 建立连接超时；未收到 open/error/close 也会退出当前尝试并进入现有退避恢复。`start()` 本身仍立即返回（[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)、[websocket-connection.js](../../../../src/bilibili/danmaku/websocket-connection.js)）。
 
 ### 2.3 断线重连与退避
 
@@ -131,10 +131,10 @@ text.startsWith('点歌') || text.startsWith('随机')
 
 `handleDanmakuMessage(context, danmaku)`([bilibili-message-handler.js:11-101](../../../../src/bilibili/bilibili-message-handler.js#L11-L101)):
 
-1. 解析命令 → 非命令 `{accepted:false, reason:'不是点歌指令。'}`
+1. `source === 'superchat'` 且 `scSongRequestEnabled === 'false'` 时在解析前返回 `{accepted:false, reason:'SC 点歌已关闭。'}`，诊断为 `sc-song-requests-disabled`；不生成点歌回复、不写入队列或冷却。SC 留言由独立的 `onSuperChat` 路径照常接收。其他情况解析命令 → 非命令 `{accepted:false, reason:'不是点歌指令。'}`
 2. `settings.paused === 'true'` → 拒绝
    普通 request 随后对 `songRequestBlacklist` 每行应用 `cleanText`，与解析后的 `songName` 区分大小写完整比较；命中返回 `点歌内容命中黑名单。`，不进入冷却、歌库自动补全或入队。`78` 拦截 `点歌78` / `点歌 78`，不拦截 `点歌78号公路`。空名单不拦截；随机指令、手动入队及已有队列不受影响。
-3. 用户冷却：按本直播间已核验大航海选择对应身份间隔，空串沿用 `userCooldownSeconds`，0 不限；普通观众使用通用间隔。内存 `cooldownByUser` Map + `cooldownStore.touch` 持久化（DB 失败不阻断本次点歌）；UID 与 `open_id` 独立计时，启用间隔但缺少稳定身份时拒绝。
+3. 用户冷却：按本直播间已核验大航海选择对应身份间隔，空串沿用 `userCooldownSeconds`，0 不限；非大航海使用 `userCooldownSeconds`；UI 明确为「非大航海点歌间隔」，所有身份均按每位观众分别计时。内存 `cooldownByUser` Map + `cooldownStore.touch` 持久化（DB 失败不阻断本次点歌）；UID 与 `open_id` 独立计时，启用间隔但缺少稳定身份时拒绝。
 4. `enableRandomTagReply` 保留原设置键，对应 UI“点歌回复”；单曲和随机的歌曲冷却、配额、用户黑名单及身份资格拒绝转为未接受结果及自动 @ 回复（开关关闭则无回复），不推进观众冷却。内容由系统生成，无需词库；发送仍由客户端执行。
 5. random:`context.pickRandomSong(scopeText)`(歌库随机,scope 匹配标签/分类,见 [services.md](../music/services.md));无歌时若 `enableRandomTagReply==='true'` 生成 autoReply([bilibili-message-handler.js:42-57](../../../../src/bilibili/bilibili-message-handler.js#L42-L57)、[bilibili-message-handler.js:156-173](../../../../src/bilibili/bilibili-message-handler.js#L156-L173))
 6. request:`resolveSongRequest(songName)` 唯一名匹配后 `addQueueItem`([bilibili-message-handler.js:72-88](../../../../src/bilibili/bilibili-message-handler.js#L72-L88))

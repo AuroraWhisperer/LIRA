@@ -104,6 +104,9 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   await editor.focus();
   await desktop.keyboard.press('Control+a');
   await desktop.getByRole('button', { name: '下划线 (Ctrl+U)', exact: true }).click({ force: true });
+  await desktop.getByRole('button', { name: '文字字体', exact: true }).click({ force: true });
+  await desktop.getByRole('searchbox', { name: '文字字体：搜索', exact: true }).fill('小赖');
+  await desktop.getByRole('option', { name: '小赖字体 · 软萌手写', exact: true }).click({ force: true });
   const frame = desktop.frames().find(frame => new URL(frame.url()).pathname === '/text-box');
   await frame.waitForFunction(() => getComputedStyle(document.querySelector('#textBox > span')).textDecorationLine === 'underline');
   const output = frame.locator('#textBox > span').first();
@@ -113,6 +116,7 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   await desktop.waitForFunction(() => document.querySelector('[data-text-box="status"]').textContent === '已保存');
   const saved = await app.evaluate(() => global.canvasTest.scene());
   assert.equal(saved.document.items[0].appearance.config.nodes[0].underline, true);
+  assert.equal(saved.document.items[0].appearance.config.nodes[0].fontFamily, '"Lira Xiaolai"');
   assert.ok(saved.publishedVersion > 0);
   const source = await desktop.evaluate(() => textBoxCanvas.source());
   const readPublished = async () => {
@@ -146,6 +150,12 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   assert.equal(await editor.locator('[data-text-box-node]').count(), 2);
   assert.equal(await desktop.frameLocator('.component-preview-frame').locator('#textBox > span').first()
     .evaluate(node => getComputedStyle(node).textDecorationLine), 'underline');
+  assert.match(await desktop.frameLocator('.component-preview-frame').locator('#textBox > span').first()
+    .evaluate(node => getComputedStyle(node).fontFamily), /Lira Xiaolai/);
+  assert.equal(await desktop.frameLocator('.component-preview-frame').locator('#textBox').evaluate(async () => {
+    await document.fonts.ready;
+    return [...document.fonts].some(font => font.family === 'Lira Xiaolai' && font.status === 'loaded');
+  }), true, 'the overlay loads the selected font file, rather than silently using a fallback');
   await desktop.evaluate(async () => {
     const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
     const canvas = (await prepareComponentPreviews()).find(component => component.id === 'canvas');

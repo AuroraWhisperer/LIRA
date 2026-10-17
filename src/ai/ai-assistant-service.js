@@ -223,7 +223,7 @@ function createAiAssistantService(dependencies) {
       const excludedToolNames = new Set(quotaStore?.getExcludedToolNames?.() || []);
       // The store persists only the key hash, not config secrets or context text.
       const cacheKey = JSON.stringify([
-        'reply-v6',
+        'reply-v7',
         config,
         item.modelSessionRevision,
         item.personaScope,
@@ -247,6 +247,7 @@ function createAiAssistantService(dependencies) {
 
       const currentTime = getCurrentTime({}, { now: new Date(now()) }).formatted;
       const replyBudget = getReplyLengthBudget(item.userName, config.replyMaxChars);
+      const replyLimit = options.singleMessage ? replyBudget.oneMessage : replyBudget.threeMessages;
       let response = await deepseek.createResponse({
         config,
         instructions: buildReplyInstructions(
@@ -255,6 +256,7 @@ function createAiAssistantService(dependencies) {
           buildAvailableTools(config, excludedToolNames),
           item.userName,
           currentTime,
+          options.singleMessage,
         ) + (accountChat ? `\n${DOUBAO_CHAT_POLICY}` : ''),
         input,
         tools: buildAvailableTools(config, excludedToolNames),
@@ -289,6 +291,7 @@ function createAiAssistantService(dependencies) {
             buildAvailableTools(config, excludedToolNames),
             item.userName,
             currentTime,
+            options.singleMessage,
           ),
           input: outputs,
           tools: buildAvailableTools(config, excludedToolNames),
@@ -306,7 +309,7 @@ function createAiAssistantService(dependencies) {
       if (!accountChat) {
         const outputReview = await runSafetyReview(
           config,
-          buildOutputReviewPrompt(item.question, rawText, input),
+          buildOutputReviewPrompt(item.question, rawText, input, replyLimit),
           usage,
           'output_review',
           item.signal,
@@ -318,7 +321,7 @@ function createAiAssistantService(dependencies) {
       if (!checkLocalInput(approvedText).allowed || approvedText === SAFE_REFUSAL) {
         return { text: SAFE_REFUSAL, category: 'safety', usage, toolCalls: toolCallCount };
       }
-      const text = truncateReply(approvedText, replyBudget.threeMessages);
+      const text = truncateReply(approvedText, replyLimit);
       const result = {
         text,
         category: toolCallCount ? 'tool' : 'chat',
@@ -365,7 +368,7 @@ function createAiAssistantService(dependencies) {
 
   async function runSafetyReview(config, prompt, usage, purpose, signal) {
     const response = await deepseek.createResponse({
-      config,
+      config: { ...config, reasoningEnabled: false },
       instructions: prompt.instructions,
       input: prompt.input,
       tools: [],
@@ -467,7 +470,7 @@ function createAiAssistantService(dependencies) {
         `[AI] reply missing from room feed uid=${JSON.stringify(item.uid)} attempt=${attempt}/${MAX_DELIVERY_ATTEMPTS}`,
       );
       if (attempt < MAX_DELIVERY_ATTEMPTS && currentResult.category !== 'conversation_reset') {
-        currentResult = await generateReply(item, { bypassCache: true });
+        currentResult = await generateReply(item, { bypassCache: true, singleMessage: true });
       }
     }
     throw codedError('DANMAKU_SWALLOWED', 'AI 回复连续三次未完整出现在直播间弹幕中。');

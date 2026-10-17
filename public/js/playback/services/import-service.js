@@ -100,7 +100,7 @@ export class ImportService {
    * @returns {Promise<Object>} {items: Array}
    */
   async fetchSongQueue() {
-    const response = await fetch('/api/state');
+    const response = await fetch('/api/state', { signal: AbortSignal.timeout(10000) });
     const payload = await this.readJsonResponse(response, '读取点歌队列失败');
 
     if (!payload.ok) {

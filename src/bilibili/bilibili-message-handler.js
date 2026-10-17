@@ -33,6 +33,9 @@ function handleDanmakuMessage(
 ) {
   const text = cleanText(message);
   const settings = context.settings();
+  if (source === 'superchat' && settings.scSongRequestEnabled === 'false') {
+    return { accepted: false, reason: 'SC 点歌已关闭。' };
+  }
   const command = parseDanmakuCommand(text, settings);
   if (!command) {
     return { accepted: false, reason: '不是点歌指令。' };

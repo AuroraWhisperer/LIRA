@@ -130,6 +130,14 @@ contextBridge.exposeInMainWorld('liraLicense', {
   activate: (payload) => ipcRenderer.invoke('license:activate', payload),
   retry: () => ipcRenderer.invoke('license:retry'),
   getGiftCatalogState: () => ipcRenderer.invoke('license:get-gift-catalog-state'),
+  getFontLibraryState: () => ipcRenderer.invoke('license:get-font-library-state'),
+  retryFontLibrary: () => ipcRenderer.invoke('license:retry-font-library'),
+  onFontLibraryStateChanged: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('license:font-library-state-changed', listener);
+    return () => ipcRenderer.removeListener('license:font-library-state-changed', listener);
+  },
   retryGiftCatalog: () => ipcRenderer.invoke('license:retry-gift-catalog'),
   getProfile: () => ipcRenderer.invoke('license:get-profile'),
   getOverlaySettings: () => ipcRenderer.invoke('license:get-overlay-settings'),

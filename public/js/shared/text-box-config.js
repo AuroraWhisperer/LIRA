@@ -1,7 +1,9 @@
+import { normalizeTextFormat, TEXT_FORMAT_KEYS } from './text-format.js';
+
 export const TEXT_BOX_SIZE = Object.freeze([640, 180]);
 
 export function createTextBoxDefaults() {
-  return { version: 1, fontSize: 32, color: '#ffffff', align: 'left', lineHeight: 1.4,
+  return { version: 1, fontSize: 32, color: '#ffffff', align: 'left', lineHeight: 1.4, scrollMode: 'none',
     nodes: [{ type: 'text', text: '在这里输入文字' }] };
 }
 
@@ -43,23 +45,23 @@ export function normalizeTextBoxImageSource(value, type = 'image') {
 }
 
 export function normalizeTextBoxConfig(config) {
-  record(config, ['version', 'fontSize', 'color', 'align', 'lineHeight', 'nodes']);
+  record(config, ['version', 'fontSize', 'color', 'align', 'lineHeight', 'nodes', 'scrollMode'],
+    ['version', 'fontSize', 'color', 'align', 'lineHeight', 'nodes']);
+  const scrollMode = Object.hasOwn(config, 'scrollMode') ? config.scrollMode : 'none';
+  if (!['none', 'horizontal', 'vertical'].includes(scrollMode)) throw invalid();
   if (config.version !== 1 || !['left', 'center', 'right'].includes(config.align)
     || typeof config.lineHeight !== 'number' || !Number.isFinite(config.lineHeight)
     || config.lineHeight < 1 || config.lineHeight > 3 || !Array.isArray(config.nodes)) throw invalid();
   const nodes = config.nodes.map((node) => {
     const text = node?.type === 'text';
-    record(node, text ? ['type', 'text', 'bold', 'italic', 'underline', 'stroke', 'shadow', 'fontSize', 'color']
+    record(node, text ? ['type', 'text', ...TEXT_FORMAT_KEYS]
       : ['type', 'name', 'src', 'giftId', 'fontSize'], text ? ['type', 'text'] : ['type', 'name', 'src']);
     let result;
     if (text) {
       if (typeof node.text !== 'string' || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(node.text)) throw invalid();
       result = { type: 'text', text: node.text.replace(/\r\n?/g, '\n') };
-      for (const key of ['bold', 'italic', 'underline', 'stroke', 'shadow']) if (Object.hasOwn(node, key)) {
-        if (typeof node[key] !== 'boolean') throw invalid();
-        result[key] = node[key];
-      }
-      if (Object.hasOwn(node, 'color')) result.color = color(node.color);
+      try { Object.assign(result, normalizeTextFormat(node)); }
+      catch { throw invalid(); }
     } else {
       if (!['image', 'gift'].includes(node.type) || typeof node.name !== 'string'
         || node.name.length > 200 || /[\u0000-\u001f\u007f]/.test(node.name)) throw invalid();
@@ -75,5 +77,5 @@ export function normalizeTextBoxConfig(config) {
     return result;
   });
   return { version: 1, fontSize: fontSize(config.fontSize), color: color(config.color),
-    align: config.align, lineHeight: config.lineHeight, nodes };
+    align: config.align, lineHeight: config.lineHeight, scrollMode, nodes };
 }

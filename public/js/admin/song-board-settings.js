@@ -3,6 +3,7 @@ import { initParameterRanges } from '../shared/parameter-range.js';
 import { theme } from '../shared/theme.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { renderPresetCards } from './theme-preset-cards.js';
+import { ensureSavedFontOption, registerFontSelect } from '../shared/font-library.js';
 
 const THEME_DEFAULTS = {
   songBoardThemePrimary: '#ff6f91', songBoardThemeAccent: '#21b6a8', songBoardThemeText: '#fff7fb',
@@ -42,6 +43,7 @@ export function collectSongBoardSettings(form) {
 
 export function bindSongBoardSettings(form, controller) {
   const node = (id) => form.querySelector(`[id="${id}"]`);
+  const unregisterFont = registerFontSelect(node('songBoardFontFamily'));
   let timer;
   let pendingSave;
   const save = () => {
@@ -99,6 +101,7 @@ export function bindSongBoardSettings(form, controller) {
     if (await save()) toast('展示板主题已恢复默认');
   });
   function render({ draft, dirty, saving, error, applied }, force = false) {
+    ensureSavedFontOption(node('songBoardFontFamily'), draft.songBoardFontFamily);
     const saveState = node('songBoardSaveState');
     saveState.textContent = error ? '保存失败，修改已保留，可点击“保存展示板”重试。'
       : saving ? '正在保存…' : dirty ? '等待自动保存…' : applied ? '已保存并应用到直播画面' : '';
@@ -124,6 +127,7 @@ export function bindSongBoardSettings(form, controller) {
   return { save, dispose() {
     clearTimeout(timer);
     unsubscribe();
+    unregisterFont?.();
     form.removeEventListener('input', edit);
     form.removeEventListener('change', edit);
   } };

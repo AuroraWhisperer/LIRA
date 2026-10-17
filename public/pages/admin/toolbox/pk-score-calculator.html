@@ -1,0 +1,43 @@
+<section
+  id="otherPkScoreFeature"
+  class="other-feature-panel"
+  role="tabpanel"
+  aria-labelledby="otherPkScoreFeatureTab"
+  data-other-feature-panel
+  hidden
+>
+  <div class="other-feature-panel-body pk-score-panel">
+    <div class="pk-score-calculator">
+      <h2 class="ui-page-title">PK 算分</h2>
+      <div class="pk-score-main">
+        <div class="pk-score-controls">
+          <label class="pk-score-target-label" for="pkScoreTarget">需要的 PK 加分</label>
+          <input id="pkScoreTarget" type="number" min="0" step="1" inputmode="numeric" placeholder="例如 1000" aria-describedby="pkScoreError" />
+          <p id="pkScoreError" class="pk-score-error" role="alert" hidden></p>
+          <fieldset class="pk-score-win">
+            <legend class="sr-only">首胜加成</legend>
+            <label><input type="radio" name="pkScoreWin" value="normal" checked />非首胜</label>
+            <label><input id="pkScoreFirstWin" type="radio" name="pkScoreWin" value="first" />首胜 ×2</label>
+          </fieldset>
+          <label class="switch-control">
+            <input id="pkScoreDouble" type="checkbox" role="switch" checked />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span>双倍时段 ×2</span>
+          </label>
+        </div>
+        <div class="pk-score-results" aria-live="polite" aria-atomic="true">
+          <dl class="pk-score-totals">
+            <div><dt>所需电池</dt><dd id="pkScoreBatteries">—</dd></div>
+            <div><dt>折合人民币</dt><dd id="pkScoreRmb">—</dd></div>
+          </dl>
+          <p class="pk-score-awarded">可得加分 <strong id="pkScoreAwarded">—</strong></p>
+        </div>
+      </div>
+      <dl class="pk-score-conversions">
+        <div><dt>PK 条得分</dt><dd id="pkScoreBarConversion">1 电池 × 2（双倍）= 2 分</dd></div>
+        <div><dt>主播加分</dt><dd id="pkScoreAwardConversion">PK 条得分 ÷ 50，向下取整</dd></div>
+        <div><dt>人民币</dt><dd id="pkScoreRmbConversion">10 电池 = 1 元</dd></div>
+      </dl>
+    </div>
+  </div>
+</section>

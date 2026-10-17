@@ -57,7 +57,7 @@ test('toolbox sidebar groups remaining tools by entertainment, management and su
     [
       'live-interaction',
       '互动娱乐',
-      ['otherDanmakuFeature', 'otherDynamicLotteryFeature', 'otherGamesFeature', 'otherGiftEffectsFeature'],
+      ['otherDanmakuFeature', 'otherPkScoreFeature', 'otherDynamicLotteryFeature', 'otherGamesFeature', 'otherGiftEffectsFeature'],
     ],
     ['streamer-work', '日常管理', ['otherFanProfilesFeature', 'otherDailyTodoFeature']],
     [

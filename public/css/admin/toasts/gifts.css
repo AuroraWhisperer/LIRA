@@ -29,7 +29,8 @@
   font-size: calc(var(--type-size-control) + 2px);
   font-variant-numeric: tabular-nums;
 }
-.gift-catalog-update-toast progress {
+.gift-catalog-update-toast progress,
+.font-library-update-toast progress {
   display: block;
   appearance: none;
   width: 100%;
@@ -41,10 +42,12 @@
   background: color-mix(in srgb, var(--toast-secondary) 12%, transparent);
   accent-color: var(--toast-accent);
 }
-.gift-catalog-update-toast progress::-webkit-progress-bar {
+.gift-catalog-update-toast progress::-webkit-progress-bar,
+.font-library-update-toast progress::-webkit-progress-bar {
   background: transparent;
 }
-.gift-catalog-update-toast progress::-webkit-progress-value {
+.gift-catalog-update-toast progress::-webkit-progress-value,
+.font-library-update-toast progress::-webkit-progress-value {
   border-radius: 2px;
   background: var(--toast-accent);
 }

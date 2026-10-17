@@ -35,13 +35,29 @@ export function createTextBoxPreview({ media } = {}) {
         input.addEventListener('change', () => target.edit({ [key]: key === 'lineHeight' ? Number(input.value) : input.value }));
         label.append(input); layout.append(label); fields.set(key, input);
       }
-      content.append(label, editorHost, materials, layout, error);
+      const scrolling = previewElement('section', 'text-box-scroll-settings');
+      scrolling.append(previewElement('h4', 'text-box-section-title', '自动滚动'));
+      const directions = previewElement('div', 'text-box-scroll-options');
+      const switches = new Map();
+      for (const [mode, title] of [['horizontal', '横向滚动'], ['vertical', '纵向滚动']]) {
+        const label = previewElement('label', 'text-box-scroll-option', title);
+        const control = previewElement('span', 'switch-control');
+        const input = previewElement('input');
+        input.type = 'checkbox'; input.setAttribute('role', 'switch'); input.setAttribute('aria-label', title);
+        const track = previewElement('span', 'switch-track');
+        track.setAttribute('aria-hidden', 'true');
+        input.addEventListener('change', () => target.edit({ scrollMode: input.checked ? mode : 'none' }));
+        control.append(input, track); label.append(control); directions.append(label); switches.set(mode, input);
+      }
+      scrolling.append(directions, previewElement('p', 'text-box-scroll-hint', '横向单行向左，纵向保留换行向上；一次启用一个方向。'));
+      content.append(label, editorHost, materials, layout, scrolling, error);
       host.append(content);
       const stop = target.subscribe(({ draft, loaded }) => {
         const disabled = !loaded || host.closest('fieldset:disabled') !== null;
         composer.setConfig(draft, disabled);
         assets.setDisabled(disabled);
         for (const [key, input] of fields) { input.value = String(draft[key]); input.disabled = disabled; }
+        for (const [mode, input] of switches) { input.checked = draft.scrollMode === mode; input.disabled = disabled; }
       });
       return { dispose() { stop(); composer.dispose(); assets.dispose(); content.remove(); } };
     },

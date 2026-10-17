@@ -96,8 +96,8 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 ## 本机客户端外观
 
 [client-appearance.js](../../../src/electron/client-appearance.js) 在创建 runtime 和主窗口前读取
-`dataDir/client-appearance.json`，只持久化 `{ themeId }`。合法值是 `neutral`、`classic`、
-`terracotta`；未设置默认 `terracotta`（暖陶），坏 JSON、未知 ID 或读取失败本次回退默认并记录适度诊断，
+`dataDir/client-appearance.json`，只持久化 `{ themeId }`。合法值由
+[client-theme.js](../../../src/shared/client-theme.js) 的统一配色目录定义，包含 `dusty-rose`（烟粉 · 灰玫瑰）；未设置默认 `terracotta`（暖陶），坏 JSON、未知 ID 或读取失败本次回退默认并记录适度诊断，
 不覆盖原文件。显式应用按请求顺序写临时文件并原子替换；成功才更新内存快照，失败保留旧状态。
 替换遇到 `EPERM` / `EBUSY` 时按 50、100、150、200 毫秒间隔最多重试四次；持续占用或其他写入错误仍返回原有保存失败结果，不删除旧记录。
 关停先移除写入 IPC 并等待已接受的写入完成。
@@ -105,7 +105,7 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 它与账号、直播间、业务 settings、云同步和浏览器缓存分离，普通缓存清理不删除外观记录。
 runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 [server-core.md](../backend/server-core.md)。桥与错误码见 [preload.md](preload.md)。
-主窗口原生底色使用对应页面底：中性 `#f3f3f1`、经典 `#f7f3ef`、暖陶 `#f8f5ef`；
+主窗口原生底色使用统一配色目录中的对应页面底，与 `desktop/palettes.css` 一致；烟粉 · 灰玫瑰为 `#d4b6bd`。
 主 frame 导航时重新选择，登录仍为 `#f7f3ef`，不更改 `nativeTheme`。
 
 ## 1. 进程形态与入口
@@ -234,6 +234,8 @@ Device SSE 使用 15 秒连接期限和 60 秒完整事件块空闲期限；注�
 歌曲库的新增、编辑、删除和清空由 Electron 客户端本地管理页完成；每次成功 mutation 都在本地事务中保存账号所属的待传快照，并立即触发 songs scope 的完整快照上传。[cloud-song-sync-controller.js](../../../src/electron/cloud-song-sync-controller.js) 负责歌曲恢复、上传和拉取；父控制器保留授权、调度、revision 与 dirty 代次。账号准备阶段同步恢复该账号的待传快照，内容相同时保留原歌曲 ID；每轮及拉取落盘前重新检查待传状态。成功且生命周期仍有效的上传只确认其发送的 `mutationId`，较新的修改与其他账号的快照继续保留，停止或退出不删除待传数据。详见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。Streamer `/manage` 只展示最新同步歌单，不提供歌曲新增、编辑、启用切换、保存或删除控件。服务端既有歌曲 CRUD API 继续保留以兼容既有调用方，初次播种、云端 revision 和完整快照契约不变。
 
 settings 也保留账号所属的持久待传快照：启动或切回账号先恢复，再上传；存在待传记录时拒绝云端拉取覆盖。上传确认同时检查生命周期、修改代次和 `mutationId`，包括携带普通设置的礼物互动提交；迟到响应不能清除更新的修改。原子写入与私有记录格式见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。
+
+上传遇到 `INVALID_GIFT_BLIND_BOX_CONFIG` 时，只按服务器当前有效自定义身份移除已被接管/删除的旧 `customId`，保留其他本地设置、有效项的编辑和未分配身份的新草稿，再尝试一次。读取期间发生新编辑或换账号则放弃该次修复，成功回执之前保留持久待传记录；没有可确定移除的旧身份时报告冲突并保留原记录，不放宽服务端校验。普通网络失败沿用原重试行为。
 
 手动歌库同步先由主进程返回完整数量与确认代次，确认后进入同一串行队列，在执行时读取完整本地/待传快照。界面筛选不参与上传；确认期间的修改会进入最新快照，账号或授权生命周期变化则要求重新确认。请求入队即标记 songs dirty，阻止已在途云端拉取覆盖；成功、失败与较新修改的确认沿用自动路径。兼容 `syncSongs(songs)` 仍上传显式 payload，但也进入这条队列，不确认其他本地 pending。
 
@@ -455,3 +457,9 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 ADR [0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection.md) 以 SQLite `gift_sync_state` 替代旧 JSON cursor 路径。remote gift controller 拥有 `SOURCE_SWITCHING/BOOTSTRAPPING/CATCHING_UP/LIVE/OFFLINE/LEGACY_PARTIAL/ERROR` 状态和 HTTP/SSE 取消能力。每个异步任务捕获 `{sourceId, authorizationEpoch, controllerGeneration, projectionGeneration}`，在 await 前后与写事务前复核。
 
 授权 principal 变化时，`main.js` 先冻结本地礼物 API、递增 controller generation、abort HTTP/SSE 并 `await whenIdle()`，然后解析新 source 并只开放该分区。清库使用相同的 quiesce 边界并在 SQLite transaction 内递增 projection generation。Device token、source hash 输入、bootstrap token 和远端句柄始终只在 main process；日志不记录页 token 或完整礼物响应。完整时序见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
+
+## 共享字体初始化
+
+[desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时调用本地 runtime 的 `initializeFontLibrary()`，与礼物目录初始化并行，字体失败不阻塞原有桌面就绪条件。初始授权页显示独立字体进度，进入管理页后由字体 toast 接续；不重新统计礼物进度。
+
+字体 owner 使用随客户端发行的固定 JSON、两路并发和每个来源 5 分钟超时。桌面注入 Electron `net.fetch` 使用正常系统网络配置，固定 HTTPS 来源及重定向主机白名单，省略凭据，不通过 LIRA Server。清单变化、丢失或校验失败才下载；关闭在 HTTP drain 前取消字体任务，并等待写入收尾。源码开发允许复用与清单哈希一致的压缩副本。存储、来源及首次流量见[字体说明](../../../public/fonts/README.md)；公开桥字段见 [preload](preload.md)。

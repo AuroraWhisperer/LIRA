@@ -1,15 +1,12 @@
-import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
+import { localOverlayOrigin, toast } from '../../shared/utils.js';
+import { bindCopyUrl } from '../../shared/copy-url.js';
 import { renderGiftSprintText } from '../../shared/gift-sprint-text.js';
 import { openComponentPreview } from '../component-preview-dialog.js';
 
 export function initGiftSprintOverlay() {
   const url = `${localOverlayOrigin(location)}/gift-sprint`;
-  document.getElementById('giftSprintOverlayUrl').value = url;
-  document.getElementById('giftSprintCopy').addEventListener('click', () => {
-    copyText(url)
-      .then(() => toast('月底冲刺地址已复制'))
-      .catch(() => toast('复制失败，请手动复制地址。'));
-  });
+  document.getElementById('giftSprintOverlayUrl').textContent = url;
+  bindCopyUrl(document.getElementById('giftSprintOverlayUrl'), { onCopied: () => toast('月底冲刺地址已复制') });
   document.getElementById('giftSprintPreview').addEventListener('click', () => {
     openComponentPreview({ id: 'gift-sprint' });
   });

@@ -155,9 +155,10 @@ const RESPONSE_SCHEMAS = {
       ...fields('viewRevision asOf day partial'),
       session: fields('state stale startedAt endedAt'),
       items: [
-        fields(
-          'id period giftId giftName giftCategory imagePath target label displayStyle textTemplate textImagePosition textImageFormat textPendingColor textReceivedColor count todayCount remaining completed progress startAt',
-        ),
+        {
+          ...fields('id period giftId giftName giftCategory imagePath target label displayStyle textTemplate textImagePosition textImageFormat textPendingColor textReceivedColor count todayCount remaining completed progress startAt'),
+          textRuns: [fields('text bold italic underline stroke shadow fontSize fontFamily color')],
+        },
       ],
     },
   },

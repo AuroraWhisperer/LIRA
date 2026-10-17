@@ -16,7 +16,7 @@ const aliases = {
 export function parseTable(text, { preserveMissing = false } = {}) {
   const withoutBom = text.replace(/^﻿/, '');
   const clean = preserveMissing ? withoutBom : withoutBom.trim();
-  const delimiter = clean.includes('\t') ? '\t' : ',';
+  const delimiter = detectDelimiter(clean);
   const rows = parseDelimited(clean, delimiter);
   if (rows.length === 0) return [];
 
@@ -88,6 +88,24 @@ export function parseTable(text, { preserveMissing = false } = {}) {
       };
     })
     .filter((row) => row.name.trim());
+}
+
+function detectDelimiter(text) {
+  let inQuote = false;
+  let hasContent = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '"') {
+      if (inQuote && text[i + 1] === '"') i += 1;
+      else inQuote = !inQuote;
+    } else if (!inQuote && char === '\t') {
+      return '\t';
+    } else if (!inQuote && char === '\n' && hasContent) {
+      break;
+    }
+    if (/\S/.test(char)) hasContent = true;
+  }
+  return ',';
 }
 
 export function parseDelimited(text, delimiter) {

@@ -7,7 +7,7 @@ import { publishForms } from './legacy-admin-bridge.js';
 import { value, setValue, normalizeRangeValue } from '../shared/utils.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
 import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
-import { ensureSavedFontOption } from './local-font-library.js';
+import { ensureSavedFontOption } from '../shared/font-library.js';
 import { isComponentFieldEditing } from './component-preview-panel.js';
 import { notifyMediaPlayFailure } from '../shared/media-playback-feedback.js';
 import { activateModalFocus } from '../shared/modal-focus.js';
@@ -242,6 +242,9 @@ export class FormsService {
     const overlayStyle = values?.overlayQueueStyle || value('overlayQueueStyle') || 'classic';
     const activeQueueSettings = readQueueStyleSettings(values, overlayStyle);
     ensureSavedFontOption(document.getElementById('illustratedQueueFontFamily'), activeQueueSettings.fontFamily);
+    for (const key of ['overlayFontFamily', 'songBoardFontFamily']) {
+      ensureSavedFontOption(document.getElementById(key), values?.[key]);
+    }
     for (const [key, inputValue] of Object.entries(values || {})) setField(key, inputValue);
     setOverlayStyle(overlayStyle);
 

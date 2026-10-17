@@ -42,6 +42,7 @@ test('AI config masks secrets in public projection while storing them encrypted'
   assert.equal(defaults.deepseekApiKey, undefined);
   assert.equal(defaults.qweatherApiKey, undefined);
   assert.equal(defaults.amapApiKey, undefined);
+  assert.equal(defaults.deepseekApiKeyPreview, '');
 
   store.updateConfig({ deepseekApiKey: 'sk-secret-value', enabled: true });
   const row = db.prepare("SELECT value, is_secret FROM ai_configuration WHERE key = 'deepseekApiKey'").get();
@@ -50,6 +51,7 @@ test('AI config masks secrets in public projection while storing them encrypted'
   assert.equal(store.getConfig().deepseekApiKey, 'sk-secret-value');
   assert.equal(store.getPublicConfig().hasDeepSeekApiKey, true);
   assert.equal(store.getPublicConfig().deepseekApiKey, undefined);
+  assert.equal(store.getPublicConfig().deepseekApiKeyPreview, 'sk-sec********');
 
   store.updateConfig({
     qweatherApiKey: 'qw-key-123',
@@ -60,8 +62,42 @@ test('AI config masks secrets in public projection while storing them encrypted'
   assert.equal(publicConfig.hasAmapApiKey, true);
   assert.equal(publicConfig.qweatherApiKey, undefined);
   assert.equal(publicConfig.amapApiKey, undefined);
+  assert.equal(publicConfig.qweatherApiKeyPreview, '********');
+  assert.equal(publicConfig.amapApiKeyPreview, '********');
   assert.equal(store.getConfig().qweatherApiKey, 'qw-key-123');
   assert.equal(store.getConfig().amapApiKey, 'amap-key-456');
+});
+
+test('AI remembers platform persona selections across reload and ignores client replacements', (t) => {
+  const { db, store } = createStore();
+  t.after(() => db.close());
+  store.updateConfig({ modelProvider: 'deepseek', personaId: 'cat' });
+  store.updateConfig({ modelProvider: 'doubao', personaId: 'general' });
+  const reopened = createAiConfigStore(db, { isAvailable: () => true });
+  assert.equal(reopened.getPublicConfig().providerPersonaIds.deepseek, 'cat');
+  assert.equal(reopened.getPublicConfig().providerPersonaIds.doubao, 'general');
+  reopened.updateConfig({ providerPersonaIds: { deepseek: 'general' } });
+  assert.equal(reopened.getPublicConfig().providerPersonaIds.deepseek, 'cat');
+});
+
+test('deleting a persona clears remembered selections on other platforms', (t) => {
+  const { db, store } = createStore();
+  t.after(() => db.close());
+  store.updateConfig({ modelProvider: 'deepseek' });
+  const { personaId } = store.createPersona({ name: '测试角色', prompt: '这是用于测试的角色指南，请自然简洁地与观众交流。' });
+  store.updateConfig({ modelProvider: 'doubao', personaId: 'general' });
+  store.deletePersona(personaId);
+  assert.equal(store.getPublicConfig().providerPersonaIds.deepseek, 'general');
+  assert.equal(store.getPublicConfig().personaId, 'general');
+});
+
+test('failed platform changes roll back remembered personas with the configuration', (t) => {
+  const { db, store } = createStore();
+  t.after(() => db.close());
+  store.updateConfig({ modelProvider: 'deepseek', personaId: 'cat', deepseekApiKey: 'sk-synthetic-test-key' });
+  const before = store.getPublicConfig();
+  assert.throws(() => store.updateConfig({ modelProvider: 'openai', personaId: 'general' }), { code: 'AI_KEY_ORIGIN_CHANGED' });
+  assert.deepEqual(store.getPublicConfig(), before);
 });
 
 test('AI config normalizes the legacy DeepSeek model to its official name', () => {

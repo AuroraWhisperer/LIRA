@@ -20,6 +20,7 @@ function fixture(t) {
   let active;
   let identity = { accountName: 'first', streamerId: 1 };
   let upload = async () => {};
+  let read = async () => {};
   const cloud = new Map();
   const uploads = [];
   const key = () => JSON.stringify(['https://api.example.test', identity.accountName, identity.streamerId]);
@@ -40,16 +41,16 @@ function fixture(t) {
       licenseManager: {
         getCloudSyncIdentity: () => identity,
         watchCloudStateChangesInternal: undefined,
-        getCloudState: async () => ({
+        getCloudState: async () => { await read(); return ({
           settings: { initialized: true, ...cloudState() },
           songs: { initialized: true, revision: 1 },
           bilibili: { initialized: false, revision: 0 },
-        }),
+        }); },
         async updateCloudSettings(values) {
           const account = key();
           const snapshot = { revision: cloudState().revision + 1, values: { ...cloudState().values, ...values } };
           uploads.push({ account, values: structuredClone(values) });
-          await upload();
+          await upload(values);
           cloud.set(account, snapshot);
           return snapshot;
         },
@@ -79,6 +80,7 @@ function fixture(t) {
     get controller() { return active.controller; },
     key, cloud, uploads,
     setUpload(fn) { upload = fn; },
+    setRead(fn) { read = fn; },
     edit(values, notify = true) {
       settings.setSettings(values);
       if (notify) active.emitLocal('settings');
@@ -211,4 +213,84 @@ test('successful gift interaction uploads acknowledge the included pending setti
   assert.equal(result.ok, true);
   assert.equal(f.cloud.get(f.key()).values.queueLimit, 77);
   assert.equal(f.settings.getPendingCloudSettings(f.key()), null);
+});
+
+const customBox = (customId, name) => ({ customId, giftId: null, name, price: 2,
+  outputs: [{ giftId: '101', name: '礼物', price: 3 }] });
+const REMOVED_ID = '11111111-1111-4111-8111-111111111111';
+const KEPT_ID = '22222222-2222-4222-8222-222222222222';
+const invalidBoxes = () => Object.assign(new Error('INVALID_GIFT_BLIND_BOX_CONFIG'), { code: 'INVALID_GIFT_BLIND_BOX_CONFIG' });
+
+async function staleBoxFixture(t) {
+  const f = fixture(t);
+  await f.controller.start();
+  const kept = customBox(KEPT_ID, '仍有效');
+  f.cloud.get(f.key()).values.giftBlindBoxCustomConfigV2 = [kept];
+  f.edit({ queueLimit: '37', giftBlindBoxCustomConfigV2: JSON.stringify([
+    customBox(REMOVED_ID, '已被接管或删除'), { ...kept, price: 4 }, customBox(undefined, '新草稿'),
+  ]) }, false);
+  f.setUpload(async values => {
+    if (values.giftBlindBoxCustomConfigV2.some(box => box.customId === REMOVED_ID)) throw invalidBoxes();
+  });
+  return f;
+}
+
+test('stale custom identities stop blocking unrelated settings after database reopen', async (t) => {
+  const f = await staleBoxFixture(t);
+  await f.restart();
+  const remote = f.cloud.get(f.key()).values;
+  assert.equal(remote.queueLimit, 37);
+  assert.deepEqual(remote.giftBlindBoxCustomConfigV2.map(box => box.name), ['仍有效', '新草稿']);
+  assert.equal(remote.giftBlindBoxCustomConfigV2[0].price, 4);
+  assert.equal(f.settings.getPendingCloudSettings(f.key()), null);
+  assert.deepEqual(JSON.parse(f.settings.getSettings().giftBlindBoxCustomConfigV2), remote.giftBlindBoxCustomConfigV2);
+});
+
+test('conflict recovery cannot acknowledge edits made while reading the effective custom identities', async (t) => {
+  const f = await staleBoxFixture(t);
+  const reading = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  f.setRead(async () => { reading.resolve(); await release.promise; });
+  const syncing = f.controller.syncNow();
+  const settled = syncing.catch(error => error);
+  await reading.promise;
+  f.edit({ queueLimit: '88' }, false);
+  release.resolve();
+  await settled;
+  assert.equal(f.settings.getSettings().queueLimit, '88');
+  assert.equal(f.settings.getPendingCloudSettings(f.key()).values.queueLimit, '88');
+  f.setRead(async () => {});
+  await f.controller.syncNow();
+  assert.equal(f.cloud.get(f.key()).values.queueLimit, 88);
+  assert.equal(f.settings.getPendingCloudSettings(f.key()), null);
+});
+
+test('ambiguous blind box errors retain the pending snapshot and report the conflict', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  f.edit({ queueLimit: '37' }, false);
+  const mutation = f.settings.getPendingCloudSettings(f.key()).mutationId;
+  f.setUpload(async () => { throw invalidBoxes(); });
+  await assert.rejects(f.controller.syncNow(), { code: 'INVALID_GIFT_BLIND_BOX_CONFIG' });
+  assert.equal(f.settings.getPendingCloudSettings(f.key()).mutationId, mutation);
+  assert.equal(f.cloud.get(f.key()).values.queueLimit, 50);
+});
+
+test('a retired-identity recovery cannot retry or clear pending settings after an account switch', async (t) => {
+  const f = await staleBoxFixture(t);
+  const originalKey = f.key();
+  const reading = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  f.setRead(async () => { reading.resolve(); await release.promise; });
+  const syncing = f.controller.syncNow().catch(error => error);
+  await reading.promise;
+  f.setAccount('second', 2);
+  release.resolve();
+  await syncing;
+  await f.controller.whenIdle();
+  assert.equal(f.cloud.get(originalKey).values.queueLimit, 50);
+  assert.equal(f.settings.getPendingCloudSettings(originalKey).values.queueLimit, '37');
+  assert.equal(f.settings.getSettings().queueLimit, '50');
+  assert.equal(f.settings.getPendingCloudSettings(f.key()), null);
+  assert.equal(f.uploads.length, 1, 'only the original rejected request was sent');
 });

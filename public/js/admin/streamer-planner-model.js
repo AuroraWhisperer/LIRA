@@ -113,7 +113,8 @@ export function normalizeTask(value, fallbackId = '') {
   if (!value || typeof value !== 'object') return null;
   const title = String(value.title || '')
     .trim()
-    .slice(0, 80);
+    .slice(0, 80)
+    .replace(/[\uD800-\uDBFF]$/, '');
   if (!title) return null;
   return {
     id: String(value.id || fallbackId || createItemId('task')),

@@ -2,6 +2,7 @@
 
 const { registerLicenseOverlayIpc } = require('./license-overlay-ipc');
 const { registerLicenseSongsIpc } = require('./license-songs-ipc');
+const { registerFontLibraryIpc } = require('./font-library-ipc');
 const { registerLicenseFixedReplyIpc } = require('./license-fixed-reply-ipc');
 const { safeState, safeErrorCode, safeErrorIndex, safeString, sanitizePublicUrl } = require('./license-public-values');
 const { sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
@@ -99,6 +100,8 @@ function registerLicenseIpc(options = {}) {
   registerLicenseOverlayIpc({ safeHandle, licenseManager, onOverlaySettings: options.onOverlaySettings });
   registerLicenseFixedReplyIpc({ safeHandle, licenseManager, onFixedReplySettings: options.onFixedReplySettings });
   registerLicenseSongsIpc({ safeHandle, licenseManager, getCloudSyncController: options.getCloudSyncController });
+  const disposeFontLibrary = registerFontLibraryIpc({ safeHandle, licenseManager, getMainWindow,
+    fontLibrary: options.fontLibrary });
 
   const disposeLicenseState = licenseManager.onStateChanged((snapshot) => {
     const window = getMainWindow();
@@ -111,6 +114,7 @@ function registerLicenseIpc(options = {}) {
       window.webContents.send('license:gift-catalog-state-changed', sanitizeGiftCatalogState(snapshot));
   });
   return () => {
+    disposeFontLibrary();
     disposeGiftCatalogState?.();
     disposeLicenseState?.();
   };

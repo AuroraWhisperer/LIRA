@@ -229,7 +229,6 @@ function getElements() {
     roomState: document.getElementById('danmakuRoomState'),
     refreshButton: document.getElementById('danmakuRefreshBtn'),
     overlayUrl: document.getElementById('danmakuOverlayUrl'),
-    copyOverlayUrlButton: document.getElementById('danmakuCopyOverlayUrlBtn'),
     openOverlayButton: document.getElementById('danmakuOpenOverlayBtn'),
     previewOverlayButton: document.getElementById('danmakuPreviewOverlayBtn'),
     styleChip: document.getElementById('danmakuStyleChip'),

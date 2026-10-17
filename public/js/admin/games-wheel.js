@@ -1,6 +1,7 @@
 'use strict';
 
-import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
+import { api, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 import { eventBus } from '../shared/event-bus.js';
 
 let wheelState = null;
@@ -11,7 +12,7 @@ let wheelRequest = 0;
 
 export function initWheelAdmin() {
   byId('wheelCardTrigger').addEventListener('click', toggleWheelDetails);
-  byId('wheelOverlayUrl').addEventListener('click', () => copyWheelUrl(wheelOverlayUrl()).catch(showError));
+  bindCopyUrl(byId('wheelOverlayUrl'), { onCopied: () => toast('转盘网页地址已复制'), onError: showError });
   byId('wheelOpenUrlBtn').addEventListener('click', () => window.open(wheelOverlayUrl(), '_blank', 'noopener'));
   byId('wheelAddEntryBtn').addEventListener('click', addWheelEntry);
   byId('wheelSaveBtn').addEventListener('click', () => saveWheel().catch(showError));
@@ -215,11 +216,6 @@ async function spinWheel() {
 
 function wheelOverlayUrl() {
   return `${localOverlayOrigin()}/wheel`;
-}
-
-async function copyWheelUrl(url) {
-  await copyText(url);
-  toast('转盘网页地址已复制');
 }
 
 function byId(id) {

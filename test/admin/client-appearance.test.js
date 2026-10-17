@@ -172,7 +172,7 @@ test('appearance accepts a catalog option without a separate frontend allowlist'
 
 test('new light and dark choices can be applied, restored and switched back to an existing theme', async () => {
   const fixture = await createFixture({ setClientTheme: (themeId) => ({ ok: true, themeId }) });
-  for (const themeId of ['clear-jade', 'black-silver', 'rose-lustre', 'classic']) {
+  for (const themeId of ['clear-jade', 'black-silver', 'rose-lustre', 'dusty-rose', 'classic']) {
     await fixture.choose(themeId);
     await fixture.applyButton.dispatch('click');
     assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, themeId);

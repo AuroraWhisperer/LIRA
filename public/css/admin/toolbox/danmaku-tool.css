@@ -511,12 +511,6 @@
   gap: 12px;
   align-items: end;
 }
-.danmaku-overlay-link input {
-  width: 100%;
-  min-width: 0;
-  color: var(--text);
-  font-family: var(--font-mono);
-}
 .danmaku-overlay-actions {
   display: flex;
   flex-wrap: wrap;

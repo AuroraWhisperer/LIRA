@@ -430,7 +430,7 @@ class BilibiliDanmakuClient {
       });
     });
 
-    await this.wsConnection.connect(wsUrl, authPayload, options);
+    await this.wsConnection.connect(wsUrl, authPayload, { ...options, waitForOpen: true });
   }
 
   handleHistoryMessage(messageData) {

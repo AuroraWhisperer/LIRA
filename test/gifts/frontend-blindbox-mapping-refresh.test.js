@@ -266,6 +266,7 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
       hidden: false,
       textContent: '',
       href: '',
+      classList: { add() {} },
       append() {},
       getAttribute(name) {
         return this[name];
@@ -306,8 +307,6 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
   let listRenders = 0;
   const settings = createBlindboxSettings({
     documentRef: { getElementById: (id) => elements.get(id) || null, createElement: () => makeElement() },
-    navigatorRef: { clipboard: { writeText: async () => {} } },
-    promptRef() {},
     locationRef: {},
     value: (id) => elements.get(id)?.value || '',
     toast() {},

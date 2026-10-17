@@ -47,8 +47,9 @@ export class MatchService {
           fallbackMatch = matched;
         }
       } catch (error) {
-        onAttempt?.(null, { error: error.message || String(error) }, platform);
-        console.warn('[MatchService] match failed on platform:', platform, error.message || error);
+        const message = error.name === 'TimeoutError' ? '搜索或匹配超时，请稍后重试' : error.message || String(error);
+        onAttempt?.(null, { error: message }, platform);
+        console.warn('[MatchService] match failed on platform:', platform, message);
       }
     }
 
@@ -83,10 +84,12 @@ export class MatchService {
   async searchAndRank(item, platform) {
     const songName = item.song_name || item.songName || '';
     const artist = item.artist || '';
+    const signal = AbortSignal.timeout(30000);
 
     // 第一步：搜索候选曲目
     const searchResponse = await fetch('/api/music/search', {
       method: 'POST',
+      signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         platform,
@@ -105,6 +108,7 @@ export class MatchService {
     // 第二步：调用匹配接口
     const matchResponse = await fetch('/api/music/match-track', {
       method: 'POST',
+      signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ songName, artist, durationMs: Number(item.durationMs || 0), candidates }),
     });

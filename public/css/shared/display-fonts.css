@@ -1,4 +1,22 @@
-/* OFL font sources and licenses: public/fonts/player/README.md. */
+/* Shared font library; sources and licenses: public/fonts/README.md. */
+@import url('../lyrics/moonlit-font.css');
+
+@font-face {
+  font-family: 'Lira Zhimangxing';
+  src: url('/fonts/library/zhimangxing.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lira Mashanzheng';
+  src: url('/fonts/library/mashanzheng.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @font-face {
   font-family: 'Lira Maiyuan';
   src: url('/fonts/player/maiyuan.woff2') format('woff2');

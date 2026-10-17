@@ -23,6 +23,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
   let personas = [];
   let detectedProvider = '';
   let selectedId = '';
+  let providerPersonaIds = {};
   let selectionNotice = '';
   let editorId = null;
   let busy = false;
@@ -55,6 +56,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
     }));
     select.value = selected;
     selectedId = selected;
+    providerPersonaIds[byId('ModelProvider').value] = selected;
     renderSelection();
   }
 
@@ -206,10 +208,14 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
       if (!personas.length) return false;
       detectedProvider = '';
       selectionNotice = '';
-      const persona = personas.find((entry) => entry.id === select.value);
-      const changed = Boolean(persona?.provider && byId('ModelProvider').value !== 'auto' && persona.provider !== currentProvider());
-      if (changed) selectionNotice = '已切换为通用人格；小猫人格及其编辑内容仍保留在 DeepSeek 下。';
-      renderOptions(changed ? 'general' : select.value);
+      const remembered = providerPersonaIds[byId('ModelProvider').value];
+      const candidate = personas.some((entry) => entry.id === remembered) ? remembered : select.value;
+      const persona = personas.find((entry) => entry.id === candidate);
+      const unmatched = Boolean(persona?.provider && byId('ModelProvider').value !== 'auto' && persona.provider !== currentProvider());
+      const selected = unmatched ? 'general' : candidate;
+      const changed = selected !== select.value;
+      if (unmatched) selectionNotice = '已切换为通用人格；切回 DeepSeek 时会恢复上次选择。';
+      renderOptions(selected);
       return changed;
     },
     render(config, preservedFieldIds = new Set()) {
@@ -220,7 +226,9 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
       detectedProvider = config.modelProvider === 'auto' ? config.modelEndpoint?.provider || '' : '';
       manageButton.disabled = false;
       if (!preservedFieldIds.has(legacyPrompt.id)) legacyPrompt.value = config.systemPrompt || '';
-      const selected = preservedFieldIds.has(select.id) ? select.value : config.personaId || 'custom';
+      const preserveSelection = preservedFieldIds.has(select.id) || preservedFieldIds.has(byId('ModelProvider').id);
+      if (!preserveSelection) providerPersonaIds = { ...config.providerPersonaIds };
+      const selected = preserveSelection ? select.value : config.personaId || 'custom';
       if (selected !== selectedId) selectionNotice = '';
       if (config.hasCustomPersona || selected === 'custom') personas.push({ id: 'custom', name: '原有自定义角色', description: '保留的自定义角色指南' });
       renderOptions(selected);

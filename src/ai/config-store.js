@@ -18,6 +18,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
   const now = options.now || Date.now;
   let cached = null;
   let previousKeyOrigin = '';
+  let providerPersonaIds = {};
   let lastPrunedAt = null;
 
   function getConfig() {
@@ -25,6 +26,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     const stored = {};
     const rows = db.prepare('SELECT key, value, is_secret FROM ai_configuration').all();
     previousKeyOrigin = rows.find(row => row.key === 'doubaoPreviousKeyOrigin')?.value || '';
+    providerPersonaIds = safeJsonParse(rows.find(row => row.key === 'providerPersonaIds')?.value) || {};
     for (const row of rows) {
       if (!(row.key in AI_CONFIG_DEFAULTS)) continue;
       try {
@@ -50,7 +52,9 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     const config = getConfig();
     const result = {};
     for (const key of Object.keys(config)) {
-      if (!SECRET_SET.has(key) && !['personaPacks', 'builtinPersonaOverrides'].includes(key)) {
+      if (SECRET_SET.has(key)) {
+        result[`${key}Preview`] = config[key] ? `${config[key].length > 12 ? config[key].slice(0, 6) : ''}********` : '';
+      } else if (!['personaPacks', 'builtinPersonaOverrides'].includes(key)) {
         result[key] = config[key];
       }
     }
@@ -59,6 +63,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     result.hasAmapApiKey = Boolean(config.amapApiKey);
     result.secretEncryptionAvailable = Boolean(secretCodec?.isAvailable?.());
     result.personas = listPersonas(config);
+    result.providerPersonaIds = { ...providerPersonaIds, [config.modelProvider]: config.personaId };
     result.hasCustomPersona = config.personaId === 'custom' || config.systemPrompt !== GENERAL_PROMPT;
     result.modelEndpoint = describeModelEndpoint(
       config.deepseekResponsesUrl,
@@ -72,6 +77,12 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     const current = getConfig();
     const accountKeyOrigin = previousKeyOrigin;
     const normalized = normalizeAiConfig(changes, current);
+    const personaIds = new Set(['custom', ...listPersonas(normalized).map(persona => persona.id)]);
+    const nextProviderPersonaIds = Object.fromEntries(Object.entries({
+      ...providerPersonaIds,
+      [current.modelProvider]: current.personaId,
+      [normalized.modelProvider]: normalized.personaId,
+    }).map(([provider, id]) => [provider, personaIds.has(id) ? id : 'general']));
     const updatedAt = new Date(now()).toISOString();
     const write = db.prepare(`
       INSERT INTO ai_configuration (key, value, is_secret, updated_at)
@@ -97,6 +108,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
         const storedValue = secret && value ? secretCodec.encrypt(value) : serializeValue(value);
         write.run(key, storedValue, secret ? 1 : 0, updatedAt);
       }
+      write.run('providerPersonaIds', JSON.stringify(nextProviderPersonaIds), 0, updatedAt);
       // Account mode does not overwrite a previously saved manual endpoint.
       // Retain only the API key's origin so returning to its preset can safely
       // reuse the key even when that preset had no stored manual URL.

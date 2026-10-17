@@ -71,9 +71,9 @@ test('each style accepts exactly its own controls with bounded values and defaul
   }
 });
 
-test('identity, transparent and outline always use real gift images while accepting legacy saved options', () => {
+test('styles without gift artwork always use real gift images while accepting legacy saved options', () => {
   assert.equal(contract.DANMAKU_STYLE_OPTIONS.identity.label, '灵动弹幕');
-  for (const style of ['identity', 'transparent', 'outline']) {
+  for (const style of ['identity', 'transparent', 'outline', 'bubble', 'cream']) {
     for (const options of [{}, { giftImage: 'theme' }, { giftImage: 'gift' }]) {
       assert.deepEqual(contract.normalizeStyleOptions({ [style]: options }), { [style]: options });
       assert.equal(contract.styleOptionsFor(style, { [style]: options }).giftImage, 'gift');

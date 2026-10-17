@@ -6,7 +6,7 @@ import { componentField, syncComponentFieldValue, subscribeComponentFields } fro
 import { componentSaveMessage } from './component-config-controller.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
 import { setOverlayStyle } from './theme-style-view.js';
-import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
+import { ensureSavedFontOption, registerFontSelect } from '../shared/font-library.js';
 import { collectQueueTheme, pickQueueSettings, QUEUE_STYLE_CONTROLS } from './queue-theme-config.js';
 
 const RANGE_PAIRS = [
@@ -23,7 +23,7 @@ const RANGE_PAIRS = [
 
 export function bindQueueTheme(root, controller) {
   const node = (id) => componentField(root, id);
-  const unregisterFont = registerLocalFontSelect(node('illustratedQueueFontFamily'));
+  const unregisterFonts = ['overlayFontFamily', 'illustratedQueueFontFamily'].map(id => registerFontSelect(node(id)));
   for (const [rangeId, numberId, min, max, fallback, scale = 1] of RANGE_PAIRS) {
     const range = node(rangeId), number = node(numberId);
     range.addEventListener('input', () => { number.value = String(Number(range.value) * scale); });
@@ -59,6 +59,7 @@ export function bindQueueTheme(root, controller) {
   node('queueThemeDiscard')?.addEventListener('click', () => controller.discard());
   function render(state) {
     const { draft } = state;
+    ensureSavedFontOption(node('overlayFontFamily'), draft.overlayFontFamily);
     for (const [key, value] of Object.entries(draft)) {
       if (key === 'overlaySongColor' || key === 'overlayRequesterColor') continue;
       const control = node(key);
@@ -85,5 +86,5 @@ export function bindQueueTheme(root, controller) {
     if (status) status.textContent = componentSaveMessage(state);
   }
   const unsubscribe = subscribeComponentFields(root, controller, render);
-  return { dispose() { unsubscribe(); unregisterFont?.(); disposeParameterRanges(root); } };
+  return { dispose() { unsubscribe(); unregisterFonts.forEach(dispose => dispose?.()); disposeParameterRanges(root); } };
 }

@@ -45,13 +45,6 @@
 .opening-source-actions {
   flex: 1;
 }
-.opening-url-button {
-  width: 100%;
-  min-width: 0;
-  text-align: left;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
 .opening-preview-actions > button {
   flex-shrink: 0;
 }

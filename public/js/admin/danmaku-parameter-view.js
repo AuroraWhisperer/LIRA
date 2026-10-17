@@ -2,7 +2,7 @@ import { mountStyleParameters } from './component-style-parameters.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
 import { readAppearanceValue, editStyleOption, resetStyleOptions, isValidFullscreenDuration,
   floatingSpeedFromPixelsPerSecond, floatingSpeedToPixelsPerSecond, floatingSpeedLabel } from '../shared/danmaku-appearance-draft.js';
-import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
+import { ensureSavedFontOption, registerFontSelect } from '../shared/font-library.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 import { componentField, syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { enhanceColorControls } from '../shared/color-control.js';
@@ -12,7 +12,7 @@ export function bindDanmakuParameters(root, controller, onError) {
   const node = (id) => componentField(root, id);
   const controls = Object.fromEntries(['minGiftAmount', 'fontFamily', 'fontSize', 'textColor', 'bubbleColor', 'backgroundOpacity', 'giftImage', 'scrollDirection', 'edgeFade', 'entranceAnimation', 'decorationShape', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion']
     .map((key) => [key, node(`danmaku${key[0].toUpperCase()}${key.slice(1)}`)]));
-  const unregisterFont = registerLocalFontSelect(controls.fontFamily);
+  const unregisterFont = registerFontSelect(controls.fontFamily);
   const ranges = ['backgroundOpacity', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion'];
   ranges.forEach((key) => initParameterRanges(controls[key]));
   let renderedStyle;
@@ -57,7 +57,7 @@ export function bindDanmakuParameters(root, controller, onError) {
     renderRangeValue('backgroundOpacity');
     node('danmakuMinGiftAmountField').hidden = !limits.minGiftAmount;
     syncComponentFieldValue(controls.minGiftAmount, options.minGiftAmount || 0, force);
-    node('danmakuGiftImageField').hidden = !limits.giftImage || ['identity', 'transparent', 'outline'].includes(draft.style);
+    node('danmakuGiftImageField').hidden = !limits.giftImage || ['identity', 'transparent', 'outline', 'bubble', 'cream'].includes(draft.style);
     controls.giftImage.value = options.giftImage;
     node('danmakuScrollDirectionField').hidden = !limits.scrollDirection;
     controls.scrollDirection.value = options.scrollDirection;

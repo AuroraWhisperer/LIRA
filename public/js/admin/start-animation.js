@@ -1,6 +1,7 @@
 'use strict';
 
-import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
+import { localOverlayOrigin, toast } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { mountOpeningStylePicker } from './opening-style-picker.js';
 import {
@@ -417,14 +418,7 @@ function initStartAnimation() {
     }
   });
 
-  document.getElementById('openingCopyUrl')?.addEventListener('click', async () => {
-    try {
-      await copyText(sourceUrl);
-      toast('固定开播动画地址已复制');
-    } catch (error) {
-      toast(error.message || '复制失败，请手动复制地址。');
-    }
-  });
+  bindCopyUrl(document.getElementById('openingCopyUrl'), { onCopied: () => toast('固定开播动画地址已复制') });
   setSaveState('auto');
   render();
   loadSavedConfig();

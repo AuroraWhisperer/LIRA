@@ -3,13 +3,12 @@
 'use strict';
 
 import { DESKTOP_LYRIC_DEFAULTS } from '../lyrics/desktop-lyric-defaults.js';
-import { populateDesktopLyricFonts } from '../lyrics/desktop-lyric-fonts.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import * as sharedUtils from '../shared/utils.js';
 import { formsService } from './forms.js';
 import { stateService } from './state.js';
 import { desktopLyricPreview } from './desktop-lyric-preview.js';
-import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
+import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } from '../shared/font-library.js';
 import { createLyricSourceControls } from './lyric-source-controls.js';
 import { syncDesktopLyricKaraokeColorControls } from './desktop-lyric-controls.js';
 
@@ -70,8 +69,11 @@ export function createDesktopLyric({
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
     lyricSourceControls.init();
-    populateDesktopLyricFonts(document.getElementById('desktopLyricFontFamily'));
-    registerLocalFontSelect(document.getElementById('desktopLyricFontFamily'));
+    populateSystemFontOptions(document.getElementById('desktopLyricFontFamily'));
+    registerFontSelect(document.getElementById('desktopLyricFontFamily'));
+    const fontSelect = document.getElementById('desktopLyricFontFamily');
+    ensureSavedFontOption(fontSelect, DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily);
+    fontSelect.value = DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily;
     preview.init(form);
 
     // Range ↔ Number 双向绑定

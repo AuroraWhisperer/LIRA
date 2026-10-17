@@ -36,7 +36,7 @@ Schema 3 按服务器协议接收完整历史活动目录，不额外设置 10,0
 
 ### 礼物许愿
 
-`wish-service.js` 拥有三周期许愿；`wish-session.js` 按需读取 B 站 `room_init.live_time` / `live_status`，30 秒缓存并合并请求。直播间来自组合根的当前账号房间 getter。`gift-wish-store.js` 保存来源隔离的定义与最近直播窗口，按当前授权来源查询最终 active 流水；历史导入也参与计数，不依赖实时通知资格，不另设会被重放重复累加的计数器。
+`wish-service.js` 拥有三周期许愿；`wish-session.js` 按需读取 B 站 `room_init.live_time` / `live_status`，30 秒缓存并合并请求。直播间来自组合根的当前账号房间 getter。`gift-wish-store.js` 保存来源隔离的定义与最近直播窗口，按当前授权来源组合活动快照的最终流水、完整日汇总和非整日精确贡献。历史导入在快照激活后参与计数，不依赖实时通知资格；未激活下载不可见，互斥的统计集合避免重复累计。创建日及本场起止不以整日总量近似，正常明细回收不使已保留的进度倒退；存储与历史数据限制见[礼物保留存储](../storage.md#礼物保留存储)。
 
 - 长效从每条许愿的服务端创建时间开始。本日从北京时间当天 00:00 起算，包含本日创建前流水。本场从确认的开播时间起算，重新连接和软件重启不会重置；下一场开始自动切换窗口。确认离线时本场归零并等待开播，不把再次打开页面的时间当成下播时间；上游不可用时暂停本场计数，冻结到最后确认仍在直播的时间，恢复后重新按窗口统计。直播状态最多延迟一个 30 秒缓存周期。
 - 目标必须是正整数，实际数量只累计正整数 `num`，可以超过目标；进度条封顶 100%。修改目标/文案不重置创建时间，删除只删除许愿定义。计数反映当前账本，用户主动清除流水也会影响许愿。
@@ -173,7 +173,7 @@ live 事件严格为 `{eventId,cursor,phase,gift}`；eventId 为1–64字符，�
 
 客户端接收预算：pull/history 每个响应≤512 KiB，每页 events≤200；history page token≤4096字符，syncEpoch≤128字符。历史页还要求 historyBootstrapVersion=1、非负安全整数 recoveryCursor；hasMore=true 时必须有 nextPageToken，结束时必须 null。增量页只允许 final，cursor 严格递增，末条等于 nextCursor；版本页附 historyBootstrapVersion/syncEpoch/earliestCursor/latestCursor。以上是客户端验证条件，不外推服务器吞吐承诺；完整页字段集合见同一 contract 的 HISTORY_PAGE_KEYS/EVENT_PAGE_KEYS，异常整页拒绝。
 
-具备历史能力的服务按 §9 执行 bootstrap 与来源分区恢复；无历史能力的旧服务只保存 baseline 并显式处于 `LEGACY_PARTIAL`。历史页及 final cursor 和本地礼物投影在同一事务提交。SSE 断线、进程崩溃或漏包后以 final cursor pull 恢复，progress 不补拉；当前幂等身份包含 source 与远端事件身份，重复 final 不重复统计、加班结算或 `gift:frame`。
+具备历史能力的服务按 §9 执行 bootstrap 与来源分区恢复；无历史能力的旧服务仅在没有持久游标时建立 baseline，已有游标时保留并增量补齐离线 final，仍显式处于 `LEGACY_PARTIAL`。历史页及 final cursor 和本地礼物投影在同一事务提交。SSE 断线、进程崩溃或漏包后以 final cursor pull 恢复，progress 不补拉；当前幂等身份包含 source 与远端事件身份，重复 final 不重复统计、加班结算或 `gift:frame`。
 
 本地 B 站连接仍负责弹幕、点歌、SC、用户信息和小游戏；礼物只保留身份提示解析，记账回调已移除。B 站上游 WebSocket/REST 断线发生在服务器收到事件之前时没有历史重放或零丢失保证。单进程 broker 不承诺多实例 fan-out,多实例部署需另行设计。
 

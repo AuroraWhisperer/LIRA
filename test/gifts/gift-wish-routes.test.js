@@ -81,6 +81,8 @@ test('wish overlay can read only its progress and never mutate or expose source 
         target: 10,
         displayStyle: 'text',
         textTemplate: '许愿{礼物}（{已收}/{目标}）',
+        textRuns: [{ text: '许愿{礼物}（{已收}/{目标}）', fontFamily: '"Lira Xiaolai"',
+          fontSize: 40, underline: true, privateState: 'private' }],
         textImagePosition: 'inline',
         textImageFormat: 'static',
         textPendingColor: '#123456',
@@ -95,6 +97,8 @@ test('wish overlay can read only its progress and never mutate or expose source 
   assert.equal(result.items[0].count, 3);
   assert.equal(result.items[0].displayStyle, 'text');
   assert.equal(result.items[0].textTemplate, '许愿{礼物}（{已收}/{目标}）');
+  assert.deepEqual(result.items[0].textRuns, [{ text: '许愿{礼物}（{已收}/{目标}）',
+    fontFamily: '"Lira Xiaolai"', fontSize: 40, underline: true }]);
   assert.equal(result.items[0].textImagePosition, 'inline');
   assert.equal(result.items[0].textImageFormat, 'static');
   assert.equal(result.items[0].textPendingColor, '#123456');

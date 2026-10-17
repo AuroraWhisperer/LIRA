@@ -16,6 +16,7 @@ const { createServerCompatibility } = require('./server/compatibility-runtime');
 const { createRuntimeApiContextFactory } = require('./server/runtime-api-context');
 const { resolveServerRuntimeConfig, validateServerHost } = require('./server/runtime-config');
 const { createRuntimeTransport } = require('./server/runtime-transport');
+const { createFontLibrary } = require('./fonts/font-library');
 const { startRetentionMaintenance } = require('./server/startup-retention');
 const lifecycle = require('./server/lifecycle');
 const wsTransport = require('./server/ws');
@@ -70,6 +71,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let webSocketHub = null;
   let giftEffectResolver = null;
   let domainServices = null;
+  let fontLibrary = null;
   let sceneRuntime = null;
   let giftSyncStore = null;
   let giftRetentionStore = null;
@@ -116,6 +118,7 @@ function createServerRuntime(runtimeOptions = {}) {
     servePageOrAsset,
   } = createRuntimeTransport({
     publicDir: PUBLIC_DIR,
+    getFontLibrary: () => fontLibrary,
     defaultPort: START_PORT,
     getHost: () => HOST,
     getStartedPort: () => startedPort,
@@ -152,6 +155,7 @@ function createServerRuntime(runtimeOptions = {}) {
         auth: runtimeOptions.dynamicLotteryAuth,
       });
       fs.mkdirSync(OPENING_MUSIC_DIR, { recursive: true });
+      fontLibrary = createFontLibrary({ dataDir: DATA_DIR, publicDir: PUBLIC_DIR, fetch: runtimeOptions.fontFetch });
       reportPhase('database-init', Date.now() - phaseStartedAt);
       phaseStartedAt = Date.now();
       const settingsBootstrap = prepareSettingsBootstrap(db.songDb);
@@ -486,6 +490,7 @@ function createServerRuntime(runtimeOptions = {}) {
       }
 
       musicRuntime?.weSingCapture.cancelDiagnostics();
+      await fontLibrary?.close();
       await inflightTracker.drain();
       await disposeApplication({ optimize: true });
       await closeHttpServer();
@@ -511,6 +516,7 @@ function createServerRuntime(runtimeOptions = {}) {
 
   async function disposeApplication(options = {}) {
     const steps = [
+      ['fonts', () => fontLibrary?.close()],
       ['retention', () => stopRetentionMaintenance?.()],
       ['Bilibili', () => bilibiliRuntime?.stop()],
       ['scene events', () => sceneRuntime?.dispose()],
@@ -548,6 +554,7 @@ function createServerRuntime(runtimeOptions = {}) {
     webSocketHub = null;
     giftEffectResolver = null;
     domainServices = null;
+    fontLibrary = null;
     sceneRuntime = null;
     giftSyncStore = null;
     giftRetentionStore = null;
@@ -776,6 +783,9 @@ function createServerRuntime(runtimeOptions = {}) {
   return {
     start: startServer,
     stop: shutdownApplication,
+    initializeFontLibrary: () => fontLibrary?.initialize(),
+    getFontLibraryState: () => fontLibrary?.getState() || { status: 'idle' },
+    onFontLibraryStateChanged: listener => fontLibrary?.onStateChanged(listener) || (() => {}),
     setPreShutdownHook,
     persistPlaybackSnapshot,
     resumeAuthorizedWork,

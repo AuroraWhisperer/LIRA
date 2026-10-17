@@ -13,6 +13,13 @@ SC 的可撤销删除仍立即删除数据库行并留下防重 ID；`superchat-
 gift_retention_days 保存完整公开日分组的版本，gift_retention_receipts 保存准确去重键，
 gift_local_archives 与 gift_sprint_carry 保留本机已取得资格的统计。
 
+gift_db v20 由 [gift-wish-migration.js](../../../src/storage/gift-wish-migration.js) 幂等创建
+`gift_wish_contributions`。它按许愿、source、epoch 和事件身份保存非整日窗口所需的
+时间与数量；[gift-wish-retention.js](../../../src/storage/gift-wish-retention.js) 在快照替换或
+明细回收的同一事务中保存这些贡献，不重放实时消费者。计数排除仍有活动明细或已由完整日
+汇总覆盖的贡献；同 epoch 重建保留，换 epoch、清空来源或删除许愿时清除对应贡献。
+日汇总不能还原升级前已物理删除的非整日明细，迁移不推测其数量。
+
 [gift-retention-store.js](../../../src/storage/gift-retention-store.js) 将页和检查点同事务提交，
 校验固定 epoch、revision、coverage、令牌及 projection generation；下载完成后原子
 切换活动快照。限流、断网和重启继续旧检查点，失败时原活动视图保持可用。
@@ -127,6 +134,7 @@ data/
 │   ├── overtime-gift-catalog-v2.json      # 官方 gold 礼物与盲盒关系镜像
 │   ├── overtime-gift-assets-state-v2.json # 图片扫描完成状态
 │   ├── overtime-gift-images/ # 礼物图片与 index.json
+│   ├── fonts/                # 共享字体与 index.json，可重建且升级保留
 │   ├── music-api-cache/      # 音乐 API 响应(TTL 5 分钟)
 │   └── music-lyrics-cache/   # 歌词(TTL 30 天)
 ├── browser/                  # Electron userData/sessionData；包含持久资料
@@ -200,7 +208,7 @@ songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-ro
 | 表                  | 用途                                                         | 关键列/索引                                                                                                                                                                                                                                                           |
 | ------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `settings`          | 全部设置键值(key/value/updated_at),见 §7                     | key PK                                                                                                                                                                                                                                                                |
-| `ai_configuration` | AI 配置、凭据及角色包（与 settings 隔离） | key PK、`is_secret` 标记；`personaPacks` 为既有 value 列中的 JSON 数组，`personaId` 为当前角色，`systemPrompt` 保留自定义草稿；格式见 [ai.md](ai.md) §7.3 |
+| `ai_configuration` | AI 配置、凭据及角色包（与 settings 隔离） | key PK、`is_secret` 标记；`personaPacks` 为既有 value 列中的 JSON 数组，`personaId` 为当前角色，`providerPersonaIds` 为服务端维护的各平台人格选择 JSON 对象，`systemPrompt` 保留自定义草稿；格式见 [ai.md](ai.md) §7.3 |
 | `ai_request_logs`   | AI 请求审计日志                                              | uid/user_name/category/status/latency_ms/input_tokens/output_tokens/tool_calls/error_code;idx created_at                                                                                                                                                              |
 | `ai_api_usage`      | 月度配额计数                                                 | PK(category, month_key)、request_count；配额 store 初始化和跨月访问时保留北京当月、上月及未来月份，回收更早月份 |
 | `ai_viewer_context` | 观众短期多轮对话 | uid PK 保存可信房间/观众/人格作用域摘要；payload v2 含 sessionId、exchanges、truncated，兼容旧一问一答结构；expires_at 为到期时间。历史预算、按送达续期与周期清理由 [AI 契约](ai.md#33-连续互动与空闲清理) 定义；旧键不猜测房间迁移 |
@@ -240,8 +248,9 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 | `overtime_machine_state` | 加班机单例状态                                                       | **id=1 CHECK 单行**;enabled/enable_epoch/initial_seconds/remaining_ms/anchor_at_ms/status(paused\|running\|finished)/background_path/background_fit(cover\|contain\|fill)/revision,见 [overtime.md](overtime.md)                    |
 | `overtime_gift_rules`    | 加班机礼物规则                                                       | gift_id PK、mode(fixed\|random\|display)、fixed_seconds、outcomes_json、enabled、sort_order；display 文字与数量模式存于 outcomes_json                                                                                               |
 | `overtime_settlements`   | 结算流水(幂等)                                                       | gift_event_id **UNIQUE**、status(pending\|applied\|ignored)、rule_snapshot_json、requested/applied_delta_seconds、settle_after_ms、retry_count;idx(status, settle_after_ms)、idx(status, id DESC)                                   |
-| `gift_wishes` | 礼物许愿定义 | id PK、source_id FK、period(long/day/session)、礼物/variant 身份、类别、展示图片、整数 target、说明与创建时间、display_style（默认 card）、text_template（默认空）、text_image_position（默认 none）、text_image_format（默认 animated）、text_pending_color / text_received_color（默认空字符串，使用共享文字渲染器默认色）；来源/创建时间索引 |
+| `gift_wishes` | 礼物许愿定义 | id PK、source_id FK、period(long/day/session)、礼物/variant 身份、类别、展示图片、整数 target、说明与创建时间、display_style（默认 card）、text_template（默认空）、text_image_position（默认 none）、text_image_format（默认 animated）、text_pending_color / text_received_color（默认空字符串，使用共享文字渲染器默认色）、text_runs（JSON 数组文本，默认 `[]`，保存与模板一致的分段格式）；来源/创建时间索引 |
 | `gift_wish_sessions` | 最近确认的直播窗口 | source_id PK/FK、room_id、started_at、可空 ended_at、checked_at；按房间和当前来源读取；ended_at 记录下播前最后确认仍在直播的时间以关闭旧窗口，不代表实际下播时间 |
+| `gift_wish_contributions` | 许愿非整日精确贡献 | wish_id FK（删除级联）、source_id FK、sync_epoch、platform_id、created_at、num；主键 `(wish_id,sync_epoch,platform_id)` |
 
 v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示样式和文字模板，v15 幂等追加文字版图片位置和格式，v16 幂等追加两种文字颜色配置；旧许愿保留样式、文案和创建时间，文字版图片默认隐藏，颜色为空时使用渲染器默认值。原事件不变；许愿进度和今日数量实时从账本计算，不持久化今日收礼状态或首帧 PNG，删除礼物流水会影响统计。状态存储由 `gift-wish-store.js` 拥有。
 
@@ -298,7 +307,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | songDb      | `song_db`       | v1-v16 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设；v11 区分预设与保留输出行，活动预设可空；v12 新增账号隔离的 song_cooldowns 最近入队时间，不回填旧流水；v13 将档案歌曲和保留的两份恢复点转换为汇总，新增 requests.fan_recorded 与 random_request_history，保留随机功能需要的最近记录后清理旧终态队列和流水；v14 新增 fan_roster_templates 与记录引用，无损去重自动名单的重复依据；v15 新增粉丝记录及提醒的 profile_id 外键索引；v16 无损追加 queue.is_live 和 idx_queue_single_live 部分唯一索引 |
 | superChatDb | `super_chat_db` | v1-v2 | v1 基线；v2 新增最小防重 ID，删除旧 deleted 内容并覆盖后续删除路径 |
-| giftDb      | `gift_db`       | v1-v18 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度；v17 增加礼物保留快照、日汇总、准确去重键、本机归档及冲刺结转（见上文）；v18 新增保留快照双状态的时间升序/降序部分索引 |
+| giftDb      | `gift_db`       | v1-v20 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度；v17 增加礼物保留快照、日汇总、准确去重键、本机归档及冲刺结转（见上文）；v18 新增保留快照双状态的时间升序/降序部分索引；v19 幂等增加许愿 `text_runs`，旧模板、图片位置、身份与进度保持不变；v20 增加许愿非整日精确贡献（见上文） |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | checkinDb   | `checkin_db`    | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | lotteryDb   | `lottery_db`    | v1–v2 | v1 新建九张抽奖业务表、身份/幂等/顺序唯一约束及查询索引；v2 为 `lottery_evidence` 增加可空 `display_name TEXT`，无默认值，历史行保持 `NULL`，不新增索引；独立失败边界，不加入原五库迁移事务                                                                                                                                                                                                                                      |
@@ -420,6 +429,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 | 直播间       | `roomId`、`danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`queueLimit`、`userCooldownSeconds`                                                                                                                                                                                                                                                                                                                                            |
 | 旧引导兼容 | `onboardingVersion`、`onboardingCompletedAt`、`onboardingSkippedOptional`；保留旧完成记录，不参与现行引导的首次展示判断，当前流程见[交互式引导](../frontend/interactive-tour.md)                                                                                                                                                                                                                                                                                            |
 | 身份优先 | `guardPriorityEnabled=false`，按账号同步；LIVE 标记仅存在本机 queue.is_live，重启保留，具体排序见 [音乐服务](music/services.md) |
+| SC 点歌 | `scSongRequestEnabled=true`，沿用 settings 文本存储和账号同步；旧快照省略保留已存值。关闭只停止 SC 点歌指令，留言显示与已有队列保留 |
 | 观众点歌限制 | `userQueueLimit=0`、`userCooldownCaptainSeconds/userCooldownAdmiralSeconds/userCooldownGovernorSeconds` 为空串、`songRequestMinMedalLevel=0`、`songRequestGuardLevel=0`、`songRequestGuardMedalBypass=false`、`songRequestUserBlacklist=[]`；均按账号同步，默认不附加限制。名单用 JSON 文本存于 settings，不增加表；字段范围见 [设置 API](api.md)，准入与事务计数见 [音乐服务](music/services.md) |
 | 单曲冷却 | `songCooldownMode=off`（`off/hours/days`）、`songCooldownValue=1`（1–999），同步到云端账号设置；入队时间仅存本机，按账号 scope 隔离；语义见 [音乐服务](music/services.md) |
 | 点歌行为     | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest`                                                                                                                                                                                                                                                                                                                                                           |
@@ -532,3 +542,9 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 ## 签到云端数据与旧库兼容
 
 签到累计、每日记录和抽签结果保存在云端租户 `streamer.db`，随整库备份恢复后继续使用。客户端直接控制开关，并按需编辑服务器正式词库；已确认词库仅缓存于 Electron main 当前授权 context，编辑草稿仅保留于页面，不新增本地持久词库。不显示旧数据处理流程，也不自动读取或上传本机旧库；关闭或重启不清空云端历史。`checkin-data.db` 原位保留，daily-bot-legacy-reader 仅作为旧 API/IPC 的一次性只读兼容适配器，显式调用仍要求停写及归属确认。本地签到写入 store 与签到/抽签执行服务已删除，生产 domain-services 继续占用精确命令并返回 cloud-owned。普通旧库维护接口语义保持原状。
+
+## 共享字体缓存
+
+[src/fonts/font-library.js](../../../src/fonts/font-library.js) 拥有 `data/cache/fonts/`，路径由 `resolveDataPaths().fontsDir` 计算。它属于设备级可重建公共资源，与登录资料、用户上传素材和可执行安装文件分开；安装目录迁移沿用整个 data 根规则，升级不会重复下载。文件名为 `<SHA-256>.ttf` 或 `.woff2`；`index.json` 为 `{version:1,fonts:{<id>:{sha256,format}}}`，只保存已校验资源，无绝对路径或账号凭据。
+
+下载与索引均通过同目录独占临时文件写入后 rename。每个字体成功即保存，失败保留旧索引与旧文件；成功替换且索引写入后回收无人引用的旧文件，文件繁忙时保留待手工清理。启动按清单校验缓存，索引中断可从哈希文件恢复；取消下载不发布不完整字体。删除此缓存会在下次授权启动时重新下载，首次离线只能使用内置补字/系统字体。来源、体积及保留的开发副本见[字体说明](../../../public/fonts/README.md)。

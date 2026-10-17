@@ -1,7 +1,8 @@
 'use strict';
 
 import { initParameterRanges } from '../../shared/parameter-range.js';
-import { ensureSavedFontOption, registerLocalFontSelect } from '../../shared/local-font-library.js';
+import { ensureSavedFontOption, registerFontSelect } from '../../shared/font-library.js';
+import { SHARED_FONTS } from '../../shared/font-catalog.js';
 import { scrollActiveLyricIntoView } from './lyric-layout.js';
 import { dangerConfirm } from '../../shared/confirmation-dialog.js';
 
@@ -51,9 +52,8 @@ const FONTS = {
   sans: '"Microsoft YaHei", "PingFang SC", sans-serif',
   serif: '"SimSun", "Songti SC", serif',
   kai: '"KaiTi", "STKaiti", serif',
-  maiyuan: '"Lira Maiyuan", "Microsoft YaHei", sans-serif',
-  kuaile: '"Lira Kuaile", "Microsoft YaHei", sans-serif',
-  smiley: '"Lira Smiley", "Microsoft YaHei", sans-serif',
+  ...Object.fromEntries(SHARED_FONTS.filter(font => font.playerValue)
+    .map(font => [font.playerValue, `${font.value}, "Microsoft YaHei", sans-serif`])),
 };
 const initializedPanels = new WeakSet();
 
@@ -220,6 +220,7 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
   const preview = panel.querySelector('.player-appearance-preview');
   const canvas = panel.querySelector('.player-appearance-canvas');
   const fontSelects = fields.filter((field) => ['fontFamily', 'lyricFontFamily'].includes(field.dataset.appearanceKey));
+  const unregisterFonts = fontSelects.map((select) => registerFontSelect(select));
   let layoutTimer;
   function positionPreviewLyric() {
     scrollActiveLyricIntoView(canvas.querySelector('.player-fs-lyrics'), { center: settings.layout === 'lyrics' });
@@ -308,7 +309,6 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
     refreshTypography();
   });
   render();
-  const unregisterFonts = fontSelects.map((select) => registerLocalFontSelect(select));
   documentRef.fonts?.addEventListener('loadingdone', refreshTypography);
 
   const observer = new ResizeObserver(() => {

@@ -79,15 +79,27 @@ test('source changes preserve an in-flight import lock and finish disabled in We
   });
   await app.init();
   await flushAsyncWork();
+  assert.equal(app.element('songQueueImportPlayback').disabled, false);
   const importing = app.emit('songQueueImportPlayback', 'click');
+  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) {
+    assert.equal(app.element(id).textContent, '导入中…');
+    assert.equal(app.element(id).attributes.get('aria-busy'), 'true');
+  }
   await app.emit('source-tab-netease', 'click');
-  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, true);
+  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) {
+    assert.equal(app.element(id).disabled, true);
+    assert.match(app.element(id).title, /正在.*匹配/);
+  }
   await app.emit('source-tab-wesing', 'click');
   pending.resolve({ current: null, waiting: [] });
   await importing;
   for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, true);
   await app.emit('source-tab-qq', 'click');
-  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, false);
+  for (const [id, label] of [['songQueueImportPlayback', '导入播放器'], ['playbackImportSongQueue', '导入点歌']]) {
+    assert.equal(app.element(id).disabled, false);
+    assert.equal(app.element(id).textContent, label);
+    assert.equal(app.element(id).attributes.get('aria-busy'), 'false');
+  }
 });
 
 for (const source of ['qq-client', 'netease-client']) {

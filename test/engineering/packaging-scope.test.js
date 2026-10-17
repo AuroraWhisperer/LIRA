@@ -47,7 +47,7 @@ test('Playwright remains available only as a development dependency', () => {
   assert.equal(lock.packages['node_modules/playwright-core'].dev, true);
 });
 
-test('Moonlit resources stay out of the EXE while shared assets and trusted renderers remain', async () => {
+test('optional fonts and Moonlit media stay out of the EXE while licenses, fallbacks and renderers remain', async () => {
   const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
   const projectDir = path.resolve(__dirname, '../..');
   const output = path.join(projectDir, 'tmp/moonlit-packaging-match');
@@ -61,12 +61,22 @@ test('Moonlit resources stay out of the EXE while shared assets and trusted rend
     const file = path.join(entry.parentPath, entry.name);
     const relative = path.relative(projectDir, file).replaceAll('\\', '/');
     if (!/^public\/(img|fonts)\//.test(relative) || !/moonlit|moon-fan|clock-moon-serif/.test(relative)) continue;
-    count++; assert.equal(filter(file, await fs.stat(file)), false, relative);
+    count++; assert.equal(filter(file, await fs.stat(file)), relative.startsWith('public/fonts/moonlit-wenkai/') && entry.name !== 'README.md' && !entry.name.endsWith('.woff2'), relative);
   }
   assert.ok(count >= 35);
   for (const relative of ['public/fonts/guard-thanks-serif-400.woff2', 'public/js/overlays/opening-moon-fan.js',
     'public/css/overlays/clock/moonlit-fan.css', 'public/img/overlays/danmaku-previews/transparent.png']) {
     const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), true, relative);
+  }
+  for (const directory of ['player', 'library']) {
+    for (const name of await fs.readdir(path.join(projectDir, 'public/fonts', directory))) {
+      const file = path.join(projectDir, 'public/fonts', directory, name);
+      assert.equal(filter(file, await fs.stat(file)), name !== 'README.md' && !name.endsWith('.woff2'), file);
+    }
+  }
+  for (const relative of ['src/fonts/catalog.json', 'public/fonts/lyrics-fallback/gowundodum.woff2']) {
+    const file = path.join(projectDir, relative);
+    assert.equal(filter(file, await fs.stat(file)), true, relative);
   }
 });
 
@@ -85,7 +95,7 @@ test('packaging excludes opening samples and only the converted PNG groups', asy
   }
 });
 
-test('packaging omits external woodland media and authoring files while retaining its native renderer', async () => {
+test('packaging omits external media and maintenance metadata while retaining renderers and licensed assets', async () => {
   const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
   const projectDir = path.resolve(__dirname, '../..');
   const output = path.join(projectDir, 'tmp/woodland-packaging-match');
@@ -96,13 +106,47 @@ test('packaging omits external woodland media and authoring files while retainin
   const artwork = 'public/img/overlays/gift-frame/woodland-bloom';
   const excluded = (await fs.readdir(path.join(projectDir, artwork))).map(name => `${artwork}/${name}`);
   excluded.push('public/img/component-previews/gift-frame-default.webp', 'src/electron/AGENTS.md',
-    'public/js/admin/AGENTS.md', 'public/img/overlays/danmaku-comet/provenance.json');
+    'public/js/admin/AGENTS.md', 'public/img/overlays/danmaku-comet/provenance.json',
+    'public/img/admin/gifts/guard-icon-sources.json', 'public/img/overlays/danmaku-harbor/sources.json',
+    'src/shared/danmaku-source-manifest.json', 'public/fonts/README.md',
+    'public/fonts/lyrics-fallback/README.md');
   for (const relative of excluded) {
     const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), false, relative);
   }
   for (const relative of ['public/js/overlays/gift-effects-frame.js', 'public/css/overlays/gift-effects.css',
-    'public/img/gift-avatar-placeholder.svg', 'public/fonts/OFL-NotoSerifSC.txt']) {
+    'public/img/gift-avatar-placeholder.svg', 'public/fonts/OFL-NotoSerifSC.txt',
+    'public/css/playback/turntable.LICENSE.txt', 'public/fonts/lyrics-fallback/notosans-OFL.txt',
+    'public/js/lyrics/desktop-lyric-fonts.js', 'public/img/overlays/danmaku-comet/crane-frame.webp',
+    'public/img/admin/gifts/bilibili-guard-captain-thousand.webp',
+    'public/img/overlays/danmaku-harbor/captain-frame.png']) {
     const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), true, relative);
+  }
+});
+
+test('production dependencies omit development files and browser bundles but retain Node entries and licenses', async () => {
+  const { getNodeModuleFileMatcher } = require('app-builder-lib/out/fileMatcher');
+  const projectDir = path.resolve(__dirname, '../..');
+  const output = path.join(projectDir, 'tmp/dependency-packaging-match');
+  const filter = getNodeModuleFileMatcher(projectDir, output, value => value, {}, {
+    config: pkg.build, debugLogger: { isEnabled: false },
+  }).createFilter();
+  for (const [included, relatives] of [
+    [false, ['@clamber_l/crypto/Readme.MD', '@jixun/qmweb-sign/src/node.ts',
+      '@jixun/qmweb-sign/src/ag1_cipher.test.ts', 'qrc-decoder/dist/qrc_codec.d.cts',
+      'qrc-decoder/dist/qrc_codec.d.mts', 'semver/range.bnf',
+      'pako/dist/pako.js', 'pako/dist/pako_inflate.es5.js', 'js-yaml/dist/js-yaml.min.js']],
+    [true, ['@clamber_l/crypto/LICENSE_APACHE', '@clamber_l/crypto/LICENSE_MIT',
+      '@clamber_l/crypto/dist/loader.js', '@clamber_l/crypto/dist/um_wasm_bg.wasm',
+      '@jixun/qmweb-sign/dist/node.cjs', '@jixun/qmweb-sign/LICENSE',
+      'qrc-decoder/dist/qrc_codec.cjs', 'qrc-decoder/dist/qrc_codec.mjs', 'qrc-decoder/LICENSE',
+      'pako/index.js', 'pako/lib/inflate.js', 'pako/dist/pako.esm.mjs', 'pako/lib/zlib/README',
+      'pako/LICENSE', 'js-yaml/index.js', 'js-yaml/dist/js-yaml.mjs', 'js-yaml/LICENSE',
+      'semver/index.js', 'semver/LICENSE']],
+  ]) {
+    for (const relative of relatives) {
+      const file = path.join(projectDir, 'node_modules', relative);
+      assert.equal(filter(file, await fs.stat(file)), included, relative);
+    }
   }
 });
 

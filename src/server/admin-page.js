@@ -27,6 +27,7 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/live-components/page.html',
   'pages/admin/toolbox/shell-start.html',
   'pages/admin/toolbox/danmaku.html',
+  'pages/admin/toolbox/pk-score-calculator.html',
   'pages/admin/toolbox/games.html',
   'pages/admin/toolbox/dynamic-lottery.html',
   'pages/admin/toolbox/gift-effects.html',

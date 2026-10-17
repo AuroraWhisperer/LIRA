@@ -12,12 +12,8 @@
           </label>
         </div>
         <div class="danmaku-overlay-link">
-          <input id="danmakuOverlayUrl" type="text" aria-label="弹幕直播画面链接" readonly />
+          <button id="danmakuOverlayUrl" type="button" class="copy-url" aria-label="复制弹幕直播画面链接" disabled></button>
           <div class="danmaku-overlay-actions">
-            <button id="danmakuCopyOverlayUrlBtn" class="secondary component-icon-button" type="button" disabled>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>
-              复制链接
-            </button>
             <button id="danmakuOpenOverlayBtn" class="secondary" type="button" disabled>打开网页</button>
           </div>
         </div>
@@ -141,8 +137,8 @@
           <p id="danmakuParametersHint" class="hint" hidden></p>
           <div class="danmaku-parameter-grid">
             <label class="danmaku-parameter-field" for="danmakuFontFamily">
-              <span><strong>字体<lira-help label="字体说明">需在直播软件所在电脑安装该字体。</lira-help></strong></span>
-              <select id="danmakuFontFamily" disabled>
+              <span><strong>字体<lira-help label="字体说明">共享字体库随 LIRA 提供；本机字体需在直播软件所在电脑安装。</lira-help></strong></span>
+              <select id="danmakuFontFamily" data-select-search data-select-font-preview disabled>
                 <optgroup label="推荐字体">
                   <option value='"Microsoft YaHei UI"'>微软雅黑</option>
                   <option value='"SimHei"'>黑体</option>

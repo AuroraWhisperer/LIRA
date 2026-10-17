@@ -31,6 +31,7 @@
   let initializationBusy = false;
   let unsubscribe = () => {};
   let unsubscribeGiftCatalog = () => {};
+  let unsubscribeFonts = () => {};
   let unsubscribeWindowMaximized = () => {};
 
   const messages = {
@@ -381,9 +382,22 @@
       render(snapshot);
     });
   if (api?.onGiftCatalogStateChanged) unsubscribeGiftCatalog = api.onGiftCatalogStateChanged(renderGiftCatalogState);
+  const fontStatus = document.getElementById('fontLibraryInitializationStatus');
+  let fontEventSeen = false;
+  function renderFontState(state = {}) {
+    if (!fontStatus) return;
+    fontStatus.hidden = !['downloading', 'error'].includes(state.status);
+    fontStatus.textContent = state.status === 'error'
+      ? '部分字体暂未下载，进入后可重试；已下载字体仍可使用。'
+      : `正在准备字体 ${state.completed || 0} / ${state.total || 0}，进入后将在后台继续。`;
+  }
+  if (api?.onFontLibraryStateChanged)
+    unsubscribeFonts = api.onFontLibraryStateChanged(state => { fontEventSeen = true; renderFontState(state); });
+  api?.getFontLibraryState?.().then(state => { if (!fontEventSeen) renderFontState(state); }).catch(() => undefined);
   window.addEventListener('pagehide', () => {
     unsubscribeWindowMaximized();
     unsubscribeGiftCatalog();
+    unsubscribeFonts();
     unsubscribe();
   });
   // The page CSP blocks native submission even if this script cannot initialize.

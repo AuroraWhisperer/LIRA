@@ -1,3 +1,4 @@
+@import url('./display-fonts.css');
 @import './gift-wish-moonlit.css';
 
 .wish-card {
@@ -84,8 +85,6 @@
   font-variant-numeric: tabular-nums;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  -webkit-text-stroke: 2px #fffcf6;
-  paint-order: stroke fill;
 }
 .wish-card-progress {
   position: relative;

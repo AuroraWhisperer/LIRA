@@ -1,6 +1,7 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
+const { normalizeGiftWishTextRuns } = require('../../../public/js/shared/gift-wish-text.js');
 const { shanghaiDayStart, queryError } = require('./history-filters');
 const { createGiftWishSession } = require('./wish-session');
 
@@ -84,6 +85,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
         label: wish.label,
         displayStyle: wish.display_style,
         textTemplate: wish.text_template,
+        textRuns: JSON.parse(wish.text_runs),
         textImagePosition: wish.text_image_position,
         textImageFormat: wish.text_image_format,
         textPendingColor: wish.text_pending_color,
@@ -129,6 +131,11 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
     )
       throw invalid('展示文字最多 240 个字。');
     const textTemplate = input.textTemplate?.trim();
+    let textRuns;
+    if (input.textRuns !== undefined) {
+      try { textRuns = normalizeGiftWishTextRuns(input.textRuns, input.textTemplate); }
+      catch { throw invalid('文字格式无效，请重新编辑许愿内容。'); }
+    } else if (textTemplate !== undefined) textRuns = [];
     if (input.textImagePosition !== undefined && !TEXT_IMAGE_POSITIONS.has(input.textImagePosition))
       throw invalid('请选择有效的礼物图片位置。');
     if (input.textImageFormat !== undefined && !TEXT_IMAGE_FORMATS.has(input.textImageFormat))
@@ -147,6 +154,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
           label,
           displayStyle: input.displayStyle,
           textTemplate,
+          textRuns,
           textImagePosition: input.textImagePosition,
           textImageFormat: input.textImageFormat,
           textPendingColor,
@@ -173,6 +181,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
       label,
       displayStyle: input.displayStyle || 'card',
       textTemplate: textTemplate || '',
+      textRuns: textRuns || [],
       textImagePosition: input.textImagePosition || 'none',
       textImageFormat: input.textImageFormat || 'animated',
       textPendingColor: textPendingColor || '',

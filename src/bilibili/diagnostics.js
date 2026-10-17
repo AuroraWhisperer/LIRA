@@ -57,6 +57,7 @@ function logSongRequest(event, danmaku, details = {}) {
 function songRequestReason(reason) {
   const text = String(reason || '');
   if (/不是点歌指令/.test(text)) return 'not-a-song-command';
+  if (/SC 点歌已关闭/.test(text)) return 'sc-song-requests-disabled';
   if (/暂停接收点歌/.test(text)) return 'requests-paused';
   if (/点歌内容命中黑名单/.test(text)) return 'song-request-blacklisted';
   if (/你目前已被限制点歌/.test(text)) return 'requester-blacklisted';

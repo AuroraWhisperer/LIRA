@@ -11,10 +11,12 @@ const { readCssBundle } = require('../helpers/css-bundle');
 const { readJsModuleBundle } = require('../helpers/js-module-bundle');
 const { createLyricToggleButton, loadModuleExports, response } = require('../helpers/frontend-modules');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
+const { createDom } = require('../helpers/toast-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
 test('display overlay URLs use explicit settings capabilities without the legacy registry', async () => {
+  const { documentRef } = createDom();
   const nodes = new Map(
     [
       'queueUrl',
@@ -39,7 +41,7 @@ test('display overlay URLs use explicit settings capabilities without the legacy
       'liveClockUrl',
       'webSongPageUrl',
       'blindboxOverlayUrl',
-    ].map((id) => [id, { addEventListener() {} }]),
+    ].map((id) => [id, documentRef.createElement('button')]),
   );
   const copyButton = { addEventListener() {}, removeEventListener() {} };
   const window = { addEventListener() {} };
@@ -65,8 +67,9 @@ test('display overlay URLs use explicit settings capabilities without the legacy
 
 for (const initialProfile of ['older response', 'initial rejection', 'late rejection']) {
   test('web song page follows the current account with ' + initialProfile, async () => {
+    const { documentRef } = createDom();
     const html = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/song/overlay-addresses.html'), 'utf8');
-    const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)].map(([, id]) => [id, { addEventListener() {} }]));
+    const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)].map(([, id]) => [id, documentRef.createElement('button')]));
     nodes.set('blindboxOverlayUrl', {});
     const buttons = new Map();
     const listeners = new Set();

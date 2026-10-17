@@ -53,15 +53,50 @@ test('desktop wish styles show names and preview imported appearances before add
   await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
   await page.evaluate(async markup => {
     const html = new DOMParser().parseFromString(markup, 'text/html');
-    document.body.replaceChildren(html.getElementById('giftWishesPanel'), html.getElementById('giftWishPicker'));
+    const host = document.createElement('main');
+    host.className = 'app-shell gift-assistant';
+    host.append(html.getElementById('giftWishesPanel'));
+    document.body.replaceChildren(host);
     document.getElementById('giftWishesPanel').hidden = false;
     const { createGiftWishes } = await import('/js/admin/gifts/wishes.js');
     const { initComponentStyleLibraries } = await import('/js/admin/component-style-client.js');
+    const { enhanceColorControls } = await import('/js/shared/color-control.js');
+    await import('/js/admin/contextual-help.js');
+    enhanceColorControls();
     window.wishes = createGiftWishes();
     await window.wishes.open();
+    const { enhanceSelects } = await import('/js/shared/select-menu.js');
+    enhanceSelects();
     initComponentStyleLibraries();
   }, fs.readFileSync(path.join(root, 'public/pages/admin/toolbox/gift-wishes.html'), 'utf8'));
   const styles = page.locator('#giftWishDisplayStyle');
+  await styles.locator('input[value="text"]').check({ force: true });
+  await page.locator('#giftWishTextEditor').focus();
+  await page.keyboard.press('Control+a');
+  await page.getByRole('button', { name: '文字字体', exact: true }).click({ force: true });
+  await page.getByRole('searchbox', { name: '文字字体：搜索', exact: true }).fill('小赖');
+  await page.getByRole('option', { name: '小赖字体 · 软萌手写', exact: true }).click({ force: true });
+  assert.equal(await page.locator('#giftWishTextEditor [data-wish-token]').count(), 3);
+  assert.match(await page.locator('#giftWishDraftPreview .wish-card-text-run').first()
+    .evaluate(node => getComputedStyle(node).fontFamily), /Lira Xiaolai/);
+  await page.locator('#giftWishTextEditor').focus();
+  await page.keyboard.press('Control+z');
+  assert.equal(await page.locator('#giftWishDraftPreview .wish-card-text-run').count(), 0);
+  await styles.locator('input[value="card"]').check({ force: true });
+  const firstRow = await page.locator('#giftWishPick, #giftWishTarget, #giftWishLabel').evaluateAll(controls =>
+    controls.map(control => {
+      const { top, bottom } = control.getBoundingClientRect();
+      return { top, bottom };
+    }));
+  assert.deepEqual(firstRow[0], firstRow[1]);
+  assert.deepEqual(firstRow[1], firstRow[2]);
+  await styles.locator('input[value="text"]').check({ force: true });
+  assert.equal(await page.locator('#giftWishColorFields .lira-color-control').evaluateAll(controls => controls.length === 2 && controls.every(control => {
+    const input = control.querySelector('input').getBoundingClientRect();
+    const value = control.querySelector('.lira-color-value').getBoundingClientRect();
+    return value.right <= input.right - 5 && value.top >= input.top && value.bottom <= input.bottom;
+  })), true);
+  assert.equal(await page.locator('#giftWishDraftPreview .wish-card-text').evaluate(node => getComputedStyle(node).webkitTextStrokeWidth), '0px');
   const imported = styles.getByRole('button', { name: '预览样式：月渡花汀 · 礼物许愿', exact: true });
   await imported.waitFor();
   assert.equal(await styles.locator('img, video, .component-source-thumbnail').count(), 0);

@@ -1,4 +1,5 @@
 /* Danmaku overlay styles - ordered compatibility entrypoint. */
+@import url('../shared/display-fonts.css');
 @import url('./danmaku/base.css');
 @import url('./danmaku/gifts.css');
 @import url('./danmaku/signal.css');

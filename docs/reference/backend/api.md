@@ -301,10 +301,11 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 | 键/组 | 接受输入与存储形态 |
 | --- | --- |
-| `danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`onlyFromLibrary`、`allowDuplicate`、`guardPriorityEnabled`、`giftEffectDanmakuEnabled` | 仅 boolean、数字 0/1、精确字符串 `'true'/'false'/'0'/'1'`；存为 `'true'/'false'`，不接受任意 truthy 值 |
+| `danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`scSongRequestEnabled`、`onlyFromLibrary`、`allowDuplicate`、`guardPriorityEnabled`、`giftEffectDanmakuEnabled` | 仅 boolean、数字 0/1、精确字符串 `'true'/'false'/'0'/'1'`；存为 `'true'/'false'`，不接受任意 truthy 值 |
 | `queueLimit` / `userCooldownSeconds` | number 或十进制数字字符串（可首尾空白）；整数分别 1–300 / 0–3600，存规范十进制字符串；不接受指数/小数/符号形式的字符串 |
 | `songCooldownMode` / `songCooldownValue` | 模式严格为 `off/hours/days`；数值接受 1–999 的整数或十进制整数字符串，存规范字符串；非法批次不写入。云端同步新增可选字段，旧快照省略时保留本地值 |
 | `guardPriorityEnabled` | 默认关闭；按账号同步的可选字段，旧快照省略保留本地值；保存后重排现有等待队列，具体顺序见 [音乐服务](music/services.md#83-handlequeueactioncontext-action-rawidqueue-servicejs) |
+| `scSongRequestEnabled` | 默认开启；按账号同步的可选 boolean 字段，旧快照省略保留本地值。关闭时 SC 仅作留言，不解析普通或随机点歌、不入点歌队列和点歌板、不消耗点歌冷却；已有队列不变 |
 | `userQueueLimit` | 0–300 的整数或十进制整数字符串，默认 0（不限制单人活跃点歌数） |
 | `userCooldownCaptainSeconds` / `userCooldownAdmiralSeconds` / `userCooldownGovernorSeconds` | 精确空串表示沿用通用用户间隔（默认）；否则接受 0–3600 的整数或十进制整数字符串，0 明确不限制，空白串无效 |
 | `songRequestMinMedalLevel` / `songRequestGuardLevel` / `songRequestGuardMedalBypass` | 粉丝牌要求为 0–100（默认 0 不限）；大航海要求为 0 不限、3 舰长及以上、2 提督及以上、1 总督；前两项接受整数或十进制整数字符串。免牌开关默认 false，接受既有兼容 boolean 标量，只免粉丝牌、不免大航海等级要求 |
@@ -591,7 +592,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 礼物许愿接口由 `routes/gift-wish-routes.js` 合并到礼物路由。`GET /api/gifts/wishes` 返回当前授权来源的 `viewRevision/asOf/day/partial/session/items`；管理页额外取得内置舰队选择项。`POST /api/gifts/wishes/save` 接收 `viewRevision`、整数 `target`（1–999999999）、`label`（最多 40 字）；新建另需 `period`（`long/day/session`）及目录 `giftKey`（variantId 优先，舰队使用 guard ID），编辑只需 `id`，不改变礼物和起算时间。每个来源最多 30 条。`POST /api/gifts/wishes/delete` 接收 `viewRevision/id`。非法参数返回 400，来源未就绪或版本变化返回 409，客户端禁止选择 sourceId。保存/删除广播 `gift:wishes` 快照刷新通知。计数与时间窗口合同见 [礼物许愿](bilibili/gift.md#礼物许愿)。
 
-保存支持可选 `displayStyle`（`card` / `text` / `circle` / `moonlit`）、`textTemplate`（最多 240 个 Unicode code point，含标记，去除首尾空白）、`textImagePosition`（`none` / `before` / `after` / `inline`，兼容旧位置配置）和 `textImageFormat`（`animated` / `static`）。新建缺省为卡片、空模板、不显示图片及动态原图；旧编辑请求省略字段时保留已保存值，非法枚举返回 400。另支持可选 `textPendingColor` / `textReceivedColor`（`#RRGGBB` / `#RRGGBBAA`，无 Alpha 时完全不透明，保存为小写；空字符串使用默认色，新建省略同空字符串，编辑省略保留旧值，非法值返回 400）。两色字段同时包含在管理与 overlay 许愿投影中，按每条许愿保存，只作用于文字版。当前编辑器统一将图片位置写入模板的 `{图片}`，并将 `textImagePosition` 保存为 `none`；读取旧配置时转换成对应标记，显式图片标记优先，避免重复显示。上限为旧 200 字模板加图片标记留出空间。切换样式不改变礼物、创建时间或已收数量。这些字段及服务端计算的 `todayCount` 均包含在管理与 overlay 的许愿条目中，图片和动态标记的展示规则见 [前端页面](../frontend/pages.md)。
+保存支持可选 `displayStyle`（`card` / `text` / `circle` / `moonlit`）、`textTemplate`（最多 240 个 Unicode code point，含标记，去除首尾空白）、`textImagePosition`（`none` / `before` / `after` / `inline`，兼容旧位置配置）和 `textImageFormat`（`animated` / `static`）。新建缺省为卡片、空模板、不显示图片及动态原图；旧编辑请求省略字段时保留已保存值，非法枚举返回 400。另支持可选 `textPendingColor` / `textReceivedColor`（`#RRGGBB` / `#RRGGBBAA`，无 Alpha 时完全不透明，保存为小写；空字符串使用默认色，新建省略同空字符串，编辑省略保留旧值，非法值返回 400）。两色字段同时包含在管理与 overlay 许愿投影中，按每条许愿保存，只作用于文字版。当前编辑器统一将图片位置写入模板的 `{图片}`，并将 `textImagePosition` 保存为 `none`；读取旧配置时转换成对应标记，显式图片标记优先，避免重复显示。上限为旧 200 字模板加图片标记留出空间。新增可选 `textRuns`（最多 240 个片段的数组，空数组沿用纯模板）：每项仅允许 `text` 与可选 `bold` / `italic` / `underline` / `stroke` / `shadow` 布尔值、`fontSize`（8–240 整数）、`fontFamily`（非空字符串，最多 200 个 UTF-16 code unit，禁止控制字符及 `;{}<>`）、`color`（六/八位 HEX）。片段非空，合并内容最多 240 个 Unicode code point，去除首尾空白后必须与同时提交的 `textTemplate` 一致，已知模板标记不能跨片段拆开；非法字段/样式/错配返回 400。存储时同步裁掉片段首尾空白。编辑同时省略模板和格式保留两者；仅提交模板的旧请求清空旧格式，避免错配。管理与 overlay 投影均返回 `textRuns`，计数和文字占位仍实时替换，格式不含 HTML。切换样式不改变礼物、创建时间或已收数量。这些字段及服务端计算的 `todayCount` 均包含在管理与 overlay 的许愿条目中，图片和动态标记的展示规则见 [前端页面](../frontend/pages.md)。
 
 | 端点                                | 请求                                                                                                                          | 响应(data)                                          | 错误码                              |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- |
@@ -776,7 +777,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 | 端点                         | 请求                                                                                                     | 响应(data)                                                                                                                                 | 错误码                                      |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
-| `GET /api/ai/config`         | 无                                                                                                       | AI 配置(`getPublicConfig()`):密钥及原始 `personaPacks` 不出现，角色通过 `personas` 列表返回；包含 `has*ApiKey` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}` | —                                           |
+| `GET /api/ai/config`         | 无                                                                                                       | AI 配置(`getPublicConfig()`):完整密钥及原始 `personaPacks` 不出现，角色通过 `personas` 列表返回；包含 `has*ApiKey`、只读 `deepseekApiKeyPreview` / `qweatherApiKeyPreview` / `amapApiKeyPreview`（前 6 位加掩码，短密钥全掩码，见 [AI 密钥契约](ai.md#72-密钥加密与访问控制)）、只读 `providerPersonaIds`（各平台上次人格 ID）与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}` | —                                           |
 | `PUT /api/ai/config`         | body:仅 `ALLOWED_KEYS` 子集生效(其余忽略);密钥键传 `''` 跳过、传 `null` 置空                             | 更新后的配置(同 GET,密钥不回显)                                                                                                            | 400(`AI 配置无效。`)                        |
 | `GET /api/ai/status`         | 无                                                                                                       | AI 运行状态                                                                                                                                | —                                           |
 | `POST /api/ai/models`        | `{apiKey?, apiUrl?, modelProvider?, modelApiProtocol?}`；Key ≤ 512、URL ≤ 2048、两个枚举字段各 ≤ 32 字符 | 当前模型服务的模型列表；官方供应商忽略 `apiUrl`/协议覆盖                                                                                   | 400(字段、枚举或上游响应无效)               |
@@ -865,3 +866,9 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 ## 到期同步的云端接口边界
 
 设置页新增大航海到期账号后，不增加本地 HTTP 凭据路由。Electron main 经现有授权请求器调用远端 `/api/device/guard-expiry/account` 的 GET/PUT/DELETE；PUT 只在 main 登录完成后可附 Cookie。状态由[专用 preload 桥](../desktop/preload.md#大航海到期同步桥)安全投影，生命周期由[登录说明](../desktop/auth.md#15-可选的大航海到期账号)维护。
+
+## 共享字体资源
+
+[font-assets.js](../../../src/server/font-assets.js) 在本地 HTTP 静态资源路径提供 `GET/HEAD /css/shared/display-fonts.css`、`GET/HEAD /font-library/<id>` 和 `GET/HEAD /font-library/status`。它们与静态字体一样是公开、只读的非敏感资源，允许 CORS；不接受磁盘路径或外部 URL，不发起下载。CSS 只声明已可用的字体，资源缺失立即 404，不等待网络下载；未知 ID 返回 404，非 GET/HEAD 返回 405。字体返回真实 `font/ttf` 或 `font/woff2`，HEAD 无 body，所有响应 `Cache-Control: no-store`。状态只包含 `{status,completed,completedAt}`，无路径、账号或下载地址。
+
+下载清单随客户端发行，不从 LIRA Server 获取字体内容；生命周期与用户进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#共享字体缓存)。

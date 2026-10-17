@@ -41,9 +41,8 @@ test('AI panel mounts its controls with safe defaults', () => {
     'xiaomiAiTitle',
     'xiaomiAiProviderBadge',
     'xiaomiAiModelState',
-    'xiaomiAiProtocolCapability',
-    'xiaomiAiWebSearchCapability',
-    'xiaomiAiReasoningCapability',
+    'xiaomiAiWebSearchHelp',
+    'xiaomiAiReasoningHelp',
   ]) tagById(html, id);
   for (const id of ['xiaomiAiEnabled']) {
     const input = tagById(html, id);
@@ -63,6 +62,7 @@ test('AI panel mounts its controls with safe defaults', () => {
     assert.match(button, /\stype=["']button["']/);
   }
   const reasoning = tagById(html, 'xiaomiAiReasoning');
+  assert.match(tagById(html, 'xiaomiAiReasoningEffort'), /\saria-label="思考强度"/);
   assert.match(reasoning, /\stype=["']checkbox["']/);
   assert.doesNotMatch(reasoning, /\schecked(?:\s|=|\/?>)/);
   assert.doesNotMatch(html, /xiaomiAiReplyMaxChars|回复长度偏好/);

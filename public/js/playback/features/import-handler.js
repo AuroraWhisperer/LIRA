@@ -32,6 +32,7 @@ export function createImportHandler(deps) {
     buttons.forEach((button) => { button.disabled = true; button.dataset.importing = 'true'; });
 
     try {
+      callbacks.renderPlayback();
       const currentSource = playbackState.current && playbackState.current.source;
       const platforms = PlaybackUtils.preferredPlatforms(currentSource, playbackState.selectedSource);
       const result = await importService.importFromSongQueue({
@@ -47,17 +48,18 @@ export function createImportHandler(deps) {
       }
       stateActions.setImportedSongRequestKeys(result.importedRequestKeys);
       callbacks.savePlaybackState();
-      callbacks.renderPlayback();
 
       toast(result.empty ? '点歌队列为空' : `已导入 ${result.imported} 首，待确认 ${result.pending} 首，跳过 ${result.skipped} 首`);
     } catch (error) {
-      if (isCurrent()) showError(error);
+      if (isCurrent()) showError(error.name === 'TimeoutError'
+        ? new Error('读取点歌队列超时，请稍后重试') : error);
     } finally {
       importing = false;
       buttons.forEach((button) => {
         delete button.dataset.importing;
         button.disabled = playbackState.selectedSource === 'wesing';
       });
+      callbacks.renderPlayback();
     }
   }
 

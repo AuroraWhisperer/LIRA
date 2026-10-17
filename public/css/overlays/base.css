@@ -1,4 +1,5 @@
 /* Overlay styles - ordered compatibility entrypoint. */
+@import url('../shared/display-fonts.css');
 @import url('./base/foundation-and-classic.css');
 @import url('./base/identity.css');
 @import url('./base/storybook.css');

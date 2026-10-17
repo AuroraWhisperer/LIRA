@@ -16,7 +16,7 @@
 
 ### 客户端外观
 
-百宝箱 → 设置 → 客户端外观提供中性蓝、经典暖金、暖陶、清白 · 翠光、玄黑 · 银红、玫瑰映光六套配色，包含浅色与深色方案。选择候选只更新选项，点击“应用配色”后，经桌面桥成功保存才原位更新 `html[data-client-theme]`，不重新挂载播放器、保存业务设置或刷新页面。入口与反馈由 [client-appearance.js](../../../public/js/admin/client-appearance.js) 拥有。
+百宝箱 → 设置 → 客户端外观提供中性蓝、经典暖金、暖陶、清白 · 翠光、玄黑 · 银红、玫瑰映光、烟粉 · 灰玫瑰七套配色，包含浅色与深色方案。烟粉 · 灰玫瑰（`dusty-rose`）采用灰粉实色底、灰棕文字和低饱和玫瑰色按钮，与明亮渐变的玫瑰映光独立；内容面板、输入框与弹层逐层提亮，导航及下拉选中项使用较浓的烟粉底色，成功、警告、错误和信息保持各自语义色。选择候选只更新选项，点击“应用配色”后，经桌面桥成功保存才原位更新 `html[data-client-theme]`，不重新挂载播放器、保存业务设置或刷新页面。入口与反馈由 [client-appearance.js](../../../public/js/admin/client-appearance.js) 拥有。
 
 [desktop/palettes.css](../../../public/css/desktop/palettes.css) 只提供作用域内颜色及兼容别名；布局、字体与控件几何共用。默认 `terracotta`（暖陶），选项小样使用 `data-client-theme-preview` 在自身作用域解析别名。独立工具仅加载色板，不加载拖拽等桌面壳规则；新打开的预览与已授权礼物审计读取当前已提交主题，旧页面不自动同步或刷新。初始化白名单见 [服务核心](../backend/server-core.md)，本机保存及首帧底色见 [桌面主进程](../desktop/main.md)。
 
@@ -51,7 +51,7 @@
 
 普通正文、帮助、错误与可操作说明不得小于 12px；11px 只用于短而有边界的 microcopy。计时器、歌词、硬件数值、图表与其他展示数据可使用组件自有的 metric/presentation 字号，但不能反向覆盖通用正文。常规字重限定为 400/500/600/700。
 
-该契约只拥有 Electron/Admin chrome。`css/overlays/` 中除桌面外壳专用的 `overlays/desktop.css` 外，不消费 `ui-*` 或 `--type-*`；`/queue`、`/songlist` 继续读取持久化的 overlay 字体与字号，`/lyrics` 和 Admin 歌词预览继续读取同一组 `--preview-*` 用户配置。本地字体枚举由 `shared/local-font-library.js` 为直播歌词、点歌板与大播放器共享，沿用原生许可与必要时的用户手势重试；旧 Admin 路径保留兼容转导出。
+该契约只拥有 Electron/Admin chrome。`css/overlays/` 中除桌面外壳专用的 `overlays/desktop.css` 外，不消费 `ui-*` 或 `--type-*`；`/queue`、`/songlist` 继续读取持久化的 overlay 字体与字号，`/lyrics` 和 Admin 歌词预览继续读取同一组 `--preview-*` 用户配置。完整字体目录由 `shared/font-catalog.js` 拥有，`shared/font-library.js` 为播放器、歌词、弹幕、点歌板、展示板、画布参数及共享文字格式工具栏统一填充“共享字体库”，适配旧 ID 与字体名。本机字体枚举仍由 `shared/local-font-library.js` 共享，沿用原生许可与必要时的用户手势重试；旧 Admin/歌词字体模块 URL 保留兼容入口。
 
 ### 1.2 组件工作区的桌面尺度
 
@@ -83,14 +83,14 @@
 | 正文、按钮、字段标签 | 14px / 20px；正文、字段标签、开关行文字与输入值 400，按钮 500，选中项 600 | Fluent Body 1 尺度；同等任务不再混用 13px 和 14px。字段标签不加粗，粗体只留给分区/分组标题、选中项和按钮；输入框不继承标签字重，用户填写的内容始终是常规字重 |
 | 辅助说明、状态 | 12px / 18px，400–500 | 保留现有 caption 尺度；比 Fluent 12/16 多 2px 行距以容纳中文长说明；不把帮助文字压成 11px |
 | 常规按钮、输入框、下拉框 | 最小高 36px；文字按钮水平内边距 12px，宽度随文案 | 20px 文字行盒 + 上下各 7px 内边距 + 各 1px 边框；中文清楚且保持桌面密度。长文案允许增高 |
-| 下拉框 | 统一由 `components/select-menu.css` 绘制：触发框 500 字重，箭头置于圆角底座，展开时加 3px 主题色光环；弹层圆角 12px。单选选中项为左侧 3px 选中竖条 + 主题色底 + 600 字重，不显示对勾；多选（`.lira-multiselect`）选中项为实心勾选框 + 主题色底 + 600 字重。未选项 400 字重，悬停为正文色 6% 中性叠加；禁用项无底色、仅降低文字色；带标签的 `optgroup` 在组首显示小号组名 | 单选参照 Ant Design、Element Plus 与 Windows 11 下拉：单选不用对勾；对勾只表达「可多选」，参照 Linear、Notion 筛选器的勾选框列表。状态由竖条/勾选框、填充和字重共同表达（WCAG 1.4.1）。悬停与选中分属中性与主题色两套颜色，避免在浅色主色或深色外观中混淆。选中颜色跟随六套客户端外观：经典暖金为红到金渐变，清白 · 翠光与玫瑰映光沿用各自主按钮渐变，玄黑 · 银红为银红竖条 |
+| 下拉框 | 统一由 `components/select-menu.css` 绘制：触发框 500 字重，箭头置于圆角底座，展开时加 3px 主题色光环；弹层圆角 12px。单选选中项为左侧 3px 选中竖条 + 主题色底 + 600 字重，不显示对勾；多选（`.lira-multiselect`）选中项为实心勾选框 + 主题色底 + 600 字重。未选项 400 字重，悬停为正文色 6% 中性叠加；禁用项无底色、仅降低文字色；带标签的 `optgroup` 在组首显示小号组名 | 单选参照 Ant Design、Element Plus 与 Windows 11 下拉：单选不用对勾；对勾只表达「可多选」，参照 Linear、Notion 筛选器的勾选框列表。状态由竖条/勾选框、填充和字重共同表达（WCAG 1.4.1）。悬停与选中分属中性与主题色两套颜色，避免在浅色主色或深色外观中混淆。选中颜色跟随七套客户端外观：经典暖金为红到金渐变，清白 · 翠光与玫瑰映光沿用各自主按钮渐变，玄黑 · 银红为银红竖条，烟粉 · 灰玫瑰使用灰粉实色底与玫瑰色竖条 |
 | 导航行 | 一级行最小高 40px；礼物姬子项高 34px，缩进 32px；侧栏图标 20px；图文间距 12px | 导航承担持续定位，比表单操作多留点击空间；图标与正文中心对齐。样式卡片属于预览选择器，不强行压成按钮高度 |
 | 区块内分类 | 弹幕「固定位置 / 区域随机 / 飘窗弹幕」为分段控件：3px 内衬底，选项高 30px，选中项为面板色填充 + 细阴影 | 它只筛选同一区块里的样式网格，与左侧切换独立页面的导航区分层级，对应 Apple 分段控件的用法 |
 | 侧栏 | 常规 200px；901–1100px 窗口内为 160px；行在 8px 栏内边距内，行内左右 12px；底部「使用指南」下留 32px，不被全局播放器展开按钮遮挡 | 选中行带填充，需要两侧留白才不贴边；20px 图标 + 12px 间隔后保留约 128px 标签区。加班机用秒表、时钟用表盘、文本框用框内文字，与其余矩形外框图标同族，避免两个时钟图标难以区分 |
 | 礼物姬子导航 | 带礼物图标和箭头的组名行，默认展开；四个子项只用文字，当前项沿用选中填充和竖条；折叠时组名保留位置提示 | 参考 [Fluent 2 Nav](https://fluent2.microsoft.design/components/web/react/core/nav/usage/) 的类别与子项、[Carbon 左侧导航](https://v10.carbondesignsystem.com/components/UI-shell-left-panel/usage/) 的箭头折叠；以缩进、邻近和字重表达层级，组名只收放，不切页；右侧直接展示当前功能的设置 |
 | 侧栏选中态 | 外观主导航选中底色与描边 + 3px 选中竖条 + 600 字重；图标取选中文字色，标签保持正文色 | Windows 11 设置的导航选中样式；状态由填充、竖条和字重共同表达，不只依靠颜色（WCAG 1.4.1）。悬停按正文色 7% 叠加，因为侧栏位于页面底色而非面板上 |
-| 选中与强调色 | 竖条、选中环取 `--color-selection-marker`；实心徽标、标签文字取 `--color-selection-text`，徽标文字取面板色 | 跟随六套客户端外观。玄黑 · 银红的主色是接近白色的银灰，作为 1–2px 描边不可辨，选中标记改用该外观为此设定的红色；其余外观即各自主色 |
-| 主按钮 | 弹幕姬整页只有一个 `.primary`「应用到直播画面」，「预览与调整」「复制链接」为带图标的描边按钮；开播动画「预览」、加班机「保存画面」仍是各自任务组的主按钮 | Fluent Button：同一视图只保留一个强调按钮，其余用描边或安静按钮，新手能看出先点哪个 |
+| 选中与强调色 | 竖条、选中环取 `--color-selection-marker`；实心徽标、标签文字取 `--color-selection-text`，徽标文字取面板色 | 跟随七套客户端外观。玄黑 · 银红的主色是接近白色的银灰，作为 1–2px 描边不可辨，选中标记改用该外观为此设定的红色；其余外观即各自主色 |
+| 主按钮 | 弹幕姬整页只有一个 `.primary`「应用到直播画面」，「预览与调整」为带图标的描边按钮，网址块点击即可复制；开播动画「预览」、加班机「保存画面」仍是各自任务组的主按钮 | Fluent Button：同一视图只保留一个强调按钮，其余用描边或安静按钮，新手能看出先点哪个 |
 | 弹幕姬保存栏 | 「重新读取 / 放弃未保存修改 / 应用到直播画面」及保存状态吸附在内容区底部，贴齐面板左右边缘，半透明面板色 + 上边线 | 选样式、调参数时不必滚到页底找应用按钮，避免误以为已生效；与 Shopify Polaris 上下文保存栏、Discord 设置页未保存提示同理 |
 | 素材管理入口 | 「素材管理」集中在「组件」左侧导航底部，画布编辑器顶部保留同名入口；提供样式列表的组件页保留样式选择与「＋ 添加样式」。直播歌词设置页不挂载通用样式库，保持左侧设置、右侧实时预览；额外歌词样式在画布分类中导入 | 全局管理不混入组件分类。弹窗宽度上限 640px，直接以「已导入素材」开头，不重复入口标题及解释句；下接存储空间、备份与恢复，关闭位于右上角。排版参照 [Fluent 2 字号](https://fluent2.microsoft.design/typography)与[间距](https://fluent2.microsoft.design/layout)：分区 16/22px、正文及按钮 14/20px、辅助信息 12/16px，采用 8/16/24px 间距。移除按钮有红色描边，配色跟随客户端主题 |
 | 样式选择卡 | 选中：2px 选中环 + 缩略图右上角实心「已选」徽标；「添加样式」为虚线透明框 | 与 Windows 个性化、macOS 墙纸等缩略图选择器一致；徽标不占用名称行。占位操作不应比真实内容更醒目 |
@@ -109,6 +109,26 @@
 右侧主体随窗口高度填充并独立滚动；不为不同组件硬设相同内容高度。开播动画去除重复标题标签与多层容器，时钟在宽窗口中以左侧设置、右侧实时预览组织；开播动画使用两列表单，预览由顶部按钮进入画布。移动浏览器不是这些桌面设置页的验收目标，已有窄窗口导航回退仍保留。图标删除、富文本格式工具等紧凑控件沿用各自组件的既有尺寸；直播输出和素材缩略图不继承正文尺寸规范。
 
 通用操作按钮复用 `styles-base.css` 的原生 `button` 和 `.primary` / `.secondary` / `.danger` 语义变体。`.danger` 默认显示主题危险色描边，悬停加深边框并显示浅色底；音乐退出登录、顶部退出及停止/清空操作直接消费此规则，页面不得用透明边框覆盖普通危险操作按钮。导航页签、菜单项、窗口控制和播放器图标仍由各自组件定义外观，不强制添加矩形边框。按钮事件与业务逻辑仍由所属模块拥有，通用样式不注册事件或调用业务接口。
+
+### 1.3 可复制网址块
+
+管理页和画布弹出的框状网址共用 `shared/copy-url.js` 的 `bindCopyUrl(button, options)` 与 `css/components/copy-url.css`。使用原生 `<button type="button" class="copy-url">`，将完整网址写入 `textContent` 后绑定即可；普通导航链接和可编辑的 URL 输入不接入。按钮支持鼠标、Enter 和空格；长网址省略显示，悬停或聚焦显示完整地址，复制始终读取完整值。
+
+- 默认读取按钮的 `textContent.trim()`；动态地址可传 `getUrl()`，未就绪时由页面设置 `disabled`，空地址不会复制。
+- 复用 `utils.copyText` 的 Clipboard API 与 DOM 回退。默认成功/失败通知可用 `onCopied(url)`、`onError(error, url)` 覆盖，输出尺寸和领域状态仍由页面负责。
+- 同一按钮重复绑定会替换旧监听，返回的函数用于解除绑定；画布弹层销毁时调用。
+- `--copy-url-width` 默认 `100%`，`--copy-url-height` 默认 `36px`，由页面 CSS 或元素的 `style` 设置；容器只负责布局。按钮类型、复制行为和样式均由公共模块维护。
+
+```html
+<button id="sourceUrl" type="button" class="copy-url" style="--copy-url-width: 320px; --copy-url-height: 40px"></button>
+```
+
+```js
+import { bindCopyUrl } from '../shared/copy-url.js';
+const button = document.getElementById('sourceUrl');
+button.textContent = url;
+bindCopyUrl(button);
+```
 
 ## 2. 入口 URL(唯一成表处)
 
@@ -148,7 +168,9 @@
 | `/opening`         | [overlays/opening.html](../../../public/pages/overlays/opening.html)                                               | 浏览器源、管理页预览                                     | 固定开播画面地址,读取已保存的文案、动画、画质与音乐设置                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `/clock` | [overlays/clock.html](../../../public/pages/overlays/clock.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定萌时钟地址；默认读取已保存设置，支持逐字段 URL 参数覆盖；样式与参数见 [时钟契约](overlays.md#63-萌时钟clock) |
 
-礼物姬在「全屏礼物感谢」「滚动礼物」后增加「礼物许愿」。管理片段 `toolbox/gift-wishes.html` 由原礼物片段组合；`admin/gifts/wishes.js` 管理三周期与增改删，`wish-picker.js` 复用在售/全库目录，`shared/gift-wish-card.js` / CSS 与 overlay 共用实际展示。每条许愿默认可选「礼物卡片」「文字版」「圆形徽章」；月渡花汀在导入套装后作为画布样式使用。文字版将 `{图片}`、`{礼物}`、`{已收}`、`{目标}` 显示为不可拆开的中文内容块，提供插入按钮、问号说明和相邻的即时预览；支持原生撤销/重做、整块删除、复制/剪切及纯文本粘贴，粘贴已知标记时恢复内容块，保存仍使用原模板格式；默认“许愿{礼物}（{已收}/{目标}）”。图片标记可放任意位置，每处生成一个图片节点，删除全部图片标记即可隐藏；名称和数量使用文本节点，不解析 HTML。共享模板读取函数将旧 `textImagePosition` 的 before/after 转成首尾图片标记，inline 转成第一处礼物名称前的标记（无名称标记时前置）；模板已有 `{图片}` 时优先使用，不重复追加。编辑保存时写入转换后的模板并清除旧位置值为 none，保留内容和顺序。模板含图片标记时显示动态原图/静态 PNG 选择，原图没有动画时仍显示原静态图片，静态转换由 `shared/gift-wish-image.js` 在内存完成。文字颜色依据服务端 todayCount，默认今日未收到为雾蓝 #3b6ea8、已收到为翠绿 #21815c。默认值由共享 renderer 导出；每条许愿可分别自定义 textPendingColor / textReceivedColor，空值使用默认。编辑器提供取色器、恢复默认颜色和两状态对比预览，预览不修改真实收礼状态或数量，颜色随「添加许愿 / 保存修改」生效。已保存预览保留展示内容和编辑/删除操作。空、加载、同步不完整、直播状态未知均有对应提示，离开面板暂停轮询。面向用户的完整规则见内置指南 `usage-guide-guard-thanks.html#ug-gift-wishes`。
+礼物姬在「全屏礼物感谢」「滚动礼物」后增加「礼物许愿」。管理片段 `toolbox/gift-wishes.html` 由原礼物片段组合；`admin/gifts/wishes.js` 管理三周期与增改删，`wish-picker.js` 复用在售/全库目录，`shared/gift-wish-card.js` / CSS 与 overlay 共用实际展示。每条许愿默认可选「礼物卡片」「文字版」「圆形徽章」；月渡花汀在导入套装后作为画布样式使用。文字版将 `{图片}`、`{礼物}`、`{已收}`、`{目标}` 显示为不可拆开的中文内容块，提供插入按钮、问号说明和相邻的即时预览；支持原生撤销/重做、整块删除、复制/剪切及纯文本粘贴，粘贴已知标记时恢复内容块，保留原 `textTemplate`，可选 `textRuns` 保存一致的分段格式；默认“许愿{礼物}（{已收}/{目标}）”。文字版与文本框调用同一个 `admin/rich-text-toolbar.js`：选区可改字体、字号、加粗/斜体/下划线、文字颜色、描边和阴影，默认字体与清除格式恢复对应编辑器的默认外观。格式应用保留模板块、原生撤销和选区；字体调用现有共享字体库，不维护第二份列表。`shared/text-format.js` 校验文字格式，`shared/text-style.js` 供编辑器与展示复用样式。图片标记可放任意位置，每处生成一个图片节点，删除全部图片标记即可隐藏；名称和数量使用文本节点，不解析 HTML。共享模板读取函数将旧 `textImagePosition` 的 before/after 转成首尾图片标记，inline 转成第一处礼物名称前的标记（无名称标记时前置）；模板已有 `{图片}` 时优先使用，不重复追加。编辑保存时写入转换后的模板并清除旧位置值为 none，保留内容和顺序。模板含图片标记时显示动态原图/静态 PNG 选择，原图没有动画时仍显示原静态图片，静态转换由 `shared/gift-wish-image.js` 在内存完成。文字颜色依据服务端 todayCount，默认今日未收到为雾蓝 #3b6ea8、已收到为翠绿 #21815c。默认值由共享 renderer 导出；每条许愿可分别自定义 textPendingColor / textReceivedColor，空值使用默认。编辑器提供取色器、恢复默认颜色和两状态对比预览，预览不修改真实收礼状态或数量，颜色随「添加许愿 / 保存修改」生效。未显式指定片段颜色时继续继承收礼状态色；选区设色覆盖该片段，选择“默认颜色”恢复继承。已保存预览保留展示内容和编辑/删除操作。空、加载、同步不完整、直播状态未知均有对应提示，离开面板暂停轮询。面向用户的完整规则见内置指南 `usage-guide-guard-thanks.html#ug-gift-wishes`。
+
+文字版默认不描边，管理端预览、画布及独立浏览器源统一使用 `css/shared/gift-wish-card.css` 的文字样式。
 
 「月渡花汀」（`moonlit`）沿用同名开播动画的蓝白、银蓝与靛青配色，层叠白山茶、墨蓝枝叶、如意云纹、绢带与山水纹饰紧贴礼物圆框、环绕整圈。装饰原画为 `img/shared/gift-wish-moonlit.webp`；`shared/gift-wish-moonlit.js` / `css/shared/gift-wish-moonlit.css` 负责展示。圆框中的礼物图片、右侧同一行的礼物名称与已收 / 目标数量、下方细进度条均由实时 DOM 渲染；数量与进度条收在延长的深色墨段内，白色已收数和银蓝目标数避开末端浅色花瓣。条头固定显示银蓝折扇与云纹 `img/shared/gift-wish-moonlit-start.svg`，零进度仍保留。填充宽度使用服务端 `progress` 并限制在 0–100%，已收数量保留超过目标的真实值。银色流光沿进度条移动，端点有呼吸亮光与三枚飘散花瓣；零进度隐藏端点，达成时末端转为淡金。`prefers-reduced-motion: reduce` 停用进度过渡和装饰动画。
 
@@ -244,6 +266,8 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `gifts/notification.js` / `detection.js` / `sprint.js` / `recent.js`                | 礼物通知 / 检测状态 / 月底冲刺 / 最近礼物                                                                                                  | [app.md](app.md) §5                       |
 | `gifts/blindbox.js` / `blindbox-analysis.js` / `history.js`                         | 盲盒映射与统计 / 盲盒分析工作区 / 礼物历史抽屉                                                                                             | [app.md](app.md) §5                       |
 
+`pk-score-calculator.js` 拥有百宝箱「PK 算分」的本地试算与显示，由 `app.js` 按需加载；片段为 `toolbox/pk-score-calculator.html`，样式为 `css/admin/toolbox/pk-score-calculator.css`。默认值与换算规则见 [app.md §6.1](app.md#61-pk-算分)。
+
 ### 4.2 播放助手 `public/js/playback/`(纯 ES Module)
 
 播放页内的「播放器外观」由 `pages/admin/playback/appearance.html`、`js/playback/ui/appearance.js` 和 `css/playback/appearance.css` 拥有，入口及本机偏好见[播放器外观契约](playback.md#81-大播放器外观)。
@@ -267,6 +291,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | 文件                            | 说明                                                                                 |
 | ------------------------------- | ------------------------------------------------------------------------------------ |
 | `shared/utils.js`               | 全局工具 + 兼容层 `window.AdminApp.utils`(见 [comms.md](comms.md) §2)                |
+| `shared/copy-url.js` | 框状网址的原生按钮交互、完整地址提示、复制反馈与监听清理；接入与尺寸接口见本文 §1.3 |
 | `shared/event-bus.js`           | `EventBus` 单例 + `Events` 常量(见 [app.md](app.md) §2)                              |
 | `shared/logger.js`              | `Logger` 单例(挂 `window.AdminApp.logger`)                                           |
 | `shared/theme.js`               | 主题配置加载(`/data/theme-presets.json`)与预设访问器                                 |
@@ -310,7 +335,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `img/playback/qqmusic-icon.png` / `img/playback/player-turntable-chassis.png` / `img/admin/gifts/gift-section-icon.png` / `img/shared/live-refresh-icon.png` | 播放器/礼物面板图标                                                                                                                                                                                                                                   |
 | `data/theme-presets.json`                                                                                                                                    | 点歌板/歌单板主题预设，字段 schema 见 §6.1                                                                                                                                                                                                            |
 | `data/cache/overtime-gift-catalog-v2.json` / `data/cache/overtime-gift-images/` / `data/cache/overtime-gift-assets-state-v2.json`                            | 运行时用户数据，不属于 `public/` 静态资源；分别保存服务器付费礼物元数据、首次授权后按精确 ID 准备的图片缓存和版本化扫描完成状态，不进入源码或安装包                                                                                                   |
-| 字体                                                                                                                                                         | 管理界面沿用系统字体栈；大播放器提供随客户端打包的三款 OFL 字体，来源与离线交付见[字体说明](../../../public/fonts/player/README.md)，可调字段见[播放器外观](playback.md#81-大播放器外观)。组件专用字体由各组件资源拥有 |
+| 字体                                                                                                                                                         | 管理界面沿用系统字体栈；所有字体选择入口共用八款直接下载并缓存的 OFL 字体，来源、首次下载与离线缓存见[字体说明](../../../public/fonts/README.md)，可调字段见[播放器外观](playback.md#81-大播放器外观)。组件专用字体由各组件资源拥有 |
 
 礼物主目录由当前配置直播间的 Bilibili 礼物面板、`giftConfig` 和已配置的在售盲盒展开产生。LIRA Server 全局礼物目录不增加主目录成员；首次授权后，本地运行时保存其金瓜子正价子集并按精确礼物 ID 准备全部图片，供全局本地搜索、盲盒、历史高价值礼物和已保存规则复用。同名不同 ID 保持各自映射。服务器或图片不可用时保留礼物条目并显示 `gift-placeholder.svg`。因此源码和安装包不包含 `img/bilibili-gifts.json`、`img/bilibili-gifts/` 或三份旧礼物 Markdown。
 

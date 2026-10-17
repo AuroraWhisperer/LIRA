@@ -1,3 +1,4 @@
+@import url('./rich-text-toolbar.css');
 @import url('../shared/text-box.css');
 
 .text-box-page { width: 100%; max-width: 1200px; margin-inline: auto; }
@@ -25,36 +26,6 @@
 .text-box-detail-heading button { flex-shrink: 0; padding-inline: 10px; }
 .text-box-section-title { margin: 0 0 10px; font-size: 14px; font-weight: 650; color: var(--text); }
 .text-box-composer { min-width: 0; }
-.text-box-toolbar { position: fixed; z-index: 1200; display: inline-flex; align-items: center; gap: 4px; max-width: calc(100vw - 16px); padding: 5px; border: 0; border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-floating); }
-.text-box-toolbar[hidden] { display: none; }
-.text-box-toolbar button.text-box-format { display: grid; place-items: center; width: 30px; height: 30px; min-height: 30px; padding: 0; border: 0; background: transparent; color: var(--text); border-radius: var(--radius-sm); box-shadow: none; font-family: Georgia, serif; font-size: 17px; }
-.text-box-toolbar button[aria-pressed='true'] { background: var(--color-primary-light); color: var(--color-selection-text, var(--primary-strong)); }
-.text-box-format-bold { font-weight: 800; }
-.text-box-format-italic { font-style: italic; }
-.text-box-format-underline { text-decoration: underline; text-underline-offset: 3px; }
-.text-box-toolbar .lira-select { width: 84px; min-width: 84px; }
-.text-box-toolbar .lira-select-trigger, .text-box-font-size { min-height: 30px; height: 30px; padding: 3px 8px; font-size: 13px; }
-.text-box-toolbar .lira-select-trigger { padding-right: 24px; }
-.text-box-color { position: relative; display: grid; place-items: center; width: 30px; height: 30px; font-size: 18px; font-weight: 650; color: var(--text); cursor: pointer; }
-.text-box-color::after { content: ''; position: absolute; bottom: 2px; width: 16px; height: 3px; background: var(--text-box-current-color); outline: 1px solid var(--border); }
-.text-box-toolbar button:hover { background: var(--surface-2); }
-.text-box-toolbar button:focus-visible { outline: 2px solid var(--color-control-focus); outline-offset: 2px; }
-.text-box-toolbar button[aria-expanded='true'] { background: var(--surface-2); }
-.text-box-format-popover { position: fixed; width: 224px; max-width: calc(100vw - 16px); padding: 10px; border-radius: var(--radius-md); background: var(--surface); color: var(--text); box-shadow: var(--shadow-floating); }
-.text-box-format-popover[hidden], .text-box-recent-colors[hidden] { display: none; }
-.text-box-toolbar .text-box-format-action { display: flex; align-items: center; width: 100%; min-height: 34px; padding: 7px 9px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); box-shadow: none; text-align: left; font-size: 13px; font-weight: 450; }
-.text-box-format-action:hover { background: var(--surface-2); }
-.text-box-palette-label { margin: 12px 3px 8px; font-size: 12px; color: var(--muted); }
-.text-box-color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.text-box-toolbar .text-box-color-swatch { position: relative; min-width: 0; width: 28px; height: 28px; min-height: 28px; padding: 3px; border: 1px solid var(--border); border-radius: 6px; background: transparent; box-shadow: none; }
-.text-box-color-swatch::before { content: ''; display: block; width: 100%; height: 100%; border-radius: 3px; background: var(--text-box-swatch); }
-.text-box-toolbar .text-box-color-swatch[aria-pressed='true'] { border-color: var(--primary-strong); outline: 1px solid var(--primary-strong); background: transparent; }
-.text-box-custom-color { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 10px 3px 0; border-top: 1px solid var(--border); font-size: 13px; cursor: pointer; }
-.text-box-custom-color .lira-color-control { --color-control-height: 28px; width: 124px; }
-.text-box-effect-toggle::after { content: ''; margin-left: auto; width: 10px; height: 5px; }
-.text-box-effect-toggle[aria-pressed='true']::after { border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); }
-.text-box-effect-toggle[aria-pressed='mixed']::after { height: 0; border-bottom: 2px solid currentColor; }
-.text-box-toolbar .text-box-clear-format { border-top: 1px solid var(--border); border-radius: 0 0 var(--radius-sm) var(--radius-sm); margin-top: 6px; padding-top: 11px; }
 .text-box-editor { min-height: 210px; max-height: 340px; padding: 20px; border: 1px solid #535b69; border-radius: var(--radius-md); background: #252b35; outline: none; overflow: auto; caret-color: #ffffff; }
 .text-box-editor:focus { border-color: var(--color-border-focus); box-shadow: 0 0 0 2px var(--color-control-focus); }
 .text-box-editor:empty::before { content: attr(data-placeholder); font-size: 15px; color: #bbc4d1; pointer-events: none; }
@@ -73,6 +44,13 @@
 .text-box-layout-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
 .text-box-layout-fields label { display: grid; gap: 8px; font-size: 13px; color: var(--text); }
 .text-box-layout-fields select { width: 100%; }
+.text-box-scroll-settings { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.text-box-scroll-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.text-box-scroll-option { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; font-size: 13px; color: var(--text); cursor: pointer; }
+.text-box-scroll-option .switch-control { flex-shrink: 0; }
+.text-box-scroll-option .switch-control input { inset: 0; width: 100%; height: 100%; margin: 0; z-index: 1; pointer-events: auto; cursor: pointer; }
+.text-box-scroll-option:has(input:disabled), .text-box-scroll-option input:disabled { cursor: default; }
+.text-box-scroll-hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
 .text-box-faces { margin-top: 12px; padding: 12px 0; border-block: 1px solid var(--border); }
 .text-box-face-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
 .text-box-face-tabs button { border: 0; padding: 5px 8px; font-size: 12px; background: transparent; box-shadow: none; }

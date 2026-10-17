@@ -1,7 +1,8 @@
 'use strict';
 
 import { eventBus, Events } from '../shared/event-bus.js';
-import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
+import { api, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 import { createInteractionClient } from '../shared/interaction-client.js';
 import { initWheelAdmin } from './games-wheel.js';
 
@@ -24,7 +25,7 @@ export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
   initialized = true;
   byId('gamesOverlayUrl').textContent = overlayBaseUrl();
-  byId('gamesOverlayUrl').addEventListener('click', () => copyUrl(overlayBaseUrl()).catch(showError));
+  bindCopyUrl(byId('gamesOverlayUrl'), { onCopied: () => toast('游戏网页地址已复制'), onError: showError });
   byId('gamesOpenOverlayBtn').addEventListener('click', () => window.open(overlayBaseUrl(), '_blank', 'noopener'));
   byId('gamesRefreshViewersBtn').addEventListener('click', () => {
     requestViewerRefresh({ notify: true }).catch(showError);
@@ -462,11 +463,6 @@ function syncViewerMode() {
   const picker = document.querySelector('[data-viewer-picker="number-bomb"]');
   picker.classList.toggle('is-disabled', multi);
   byId('numberBombViewer').disabled = multi;
-}
-
-async function copyUrl(url) {
-  await copyText(url);
-  toast('游戏网页地址已复制');
 }
 
 function overlayBaseUrl() {

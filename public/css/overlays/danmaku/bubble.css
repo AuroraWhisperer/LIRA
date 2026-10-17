@@ -161,9 +161,9 @@ body[data-style='bubble']
   pointer-events: none;
 }
 
-/* 礼物通知卡：暖色猫咪插画卡，首字圆章与莓红数量胶囊，与聊天气泡区分。 */
+/* 礼物通知卡：暖色礼物原图卡，首字圆章与莓红数量胶囊，与聊天气泡区分。 */
 body[data-style='bubble'] .draw-danmaku-item.is-gift {
-  --danmaku-gift-art: url('/img/overlays/danmaku-gifts/thank-you-cat.png');
+  --danmaku-gift-art: none;
   --gift-ink: #5e3a31;
   --gift-name: #8a5a4c;
   --gift-action: #b2476a;

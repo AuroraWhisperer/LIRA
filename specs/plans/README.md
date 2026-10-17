@@ -8,6 +8,8 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-16-audio-assistant-qq-model](2026-10-16-audio-assistant-qq-model.md) | Paused | 10 月 17 日 QQ 模型版已更新原入口；15 组 PCM、20 秒静音、17 项路由、8 项歌曲及完整 DSP 检查通过。用户确认 QQ《咏春》和网易云外放正常，耳机按用户要求稍后再测。 |
+| [2026-10-16-audio-assistant-output-isolation](2026-10-16-audio-assistant-output-isolation.md) | Paused | QQ / 网易云实际外放已验收，网易云切歌自动恢复原声通过；保留当前使用版与用户设置，剩余新模型耳机输出、设备选择及恢复按用户要求稍后验证。 |
 | [2026-10-15-ai-conversation-continuity](2026-10-15-ai-conversation-continuity.md) | Awaiting Verification | 多轮历史、同观众串行、空闲清理和设置已完成；294 项相关测试、隔离 Electron、子代理验收及 DeepSeek 10 回合真实互动通过。豆包官网可聊天，但 adapter 经实际 207 秒间隔仍被验证拒绝；真实多轮待网页接入恢复后补验，安装版未更新。 |
 | [2026-10-15-random-danmaku-entrance](2026-10-15-random-danmaku-entrance.md) | Awaiting Verification | 尺寸、两种入场动画及客户端/画布 UI 已完成，214 项相关测试与隔离 Electron/浏览器验收通过；Server 并行修改使验证记录失效，文档门禁被盲盒 ADR-0102 冲突及豆包计划状态不同步阻断，待外部修改收束后复验。未打包或部署。 |
 | [2026-10-15-wesing-audio-diagnostics](2026-10-15-wesing-audio-diagnostics.md) | Awaiting Verification | 已修复非默认输出设备识别，加入播放诊断；报告按英文用途和本机时间命名，导出到日志文件夹。157 项相关回归、隔离 Electron、本机 COM、文档/架构/固定版本契约通过。待主播更新后实播验收，安装包未构建或发布。 |

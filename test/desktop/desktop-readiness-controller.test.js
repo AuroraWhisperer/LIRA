@@ -5,7 +5,7 @@ const test = require('node:test');
 const { LicenseState } = require('../../src/electron/license/license-runtime-policy');
 const { createDesktopReadinessController } = require('../../src/electron/desktop-readiness-controller');
 
-function createHarness({ ready = true, authorized = true } = {}) {
+function createHarness({ ready = true, authorized = true, initializeFontLibrary } = {}) {
   const cloud = Promise.withResolvers();
   const calls = [];
   const navigations = [];
@@ -36,6 +36,7 @@ function createHarness({ ready = true, authorized = true } = {}) {
       },
     },
     runtime: {
+      initializeFontLibrary,
       isGiftCatalogInitialized: () => ready,
       initializeGiftCatalog: (request) => {
         calls.push(['catalog', request.reason]);
@@ -149,4 +150,22 @@ test('dispose removes both listeners and rejects queued callbacks and repeated s
   assert.equal(h.catalogListeners.size, 0);
   assert.equal(h.calls.length, before);
   assert.equal(h.navigations.length, 0);
+});
+
+test('font download starts only after authorization and never delays gifts or navigation', async () => {
+  const fontDownload = Promise.withResolvers();
+  let fontStarts = 0;
+  const h = createHarness({ ready: false, authorized: false,
+    initializeFontLibrary: () => { fontStarts++; return fontDownload.promise; } });
+  h.controller.start();
+  assert.equal(fontStarts, 0);
+  h.change(LicenseState.AUTHORIZED);
+  assert.equal(fontStarts, 1);
+  assert.ok(h.calls.some(call => call[0] === 'catalog'));
+  h.ready();
+  assert.ok(h.navigations.some(navigation => navigation.url.endsWith('/admin?desktop=1')));
+  fontDownload.reject(new Error('offline'));
+  await Promise.resolve();
+  assert.ok(h.calls.some(call => call[1] === 'font-library'));
+  h.controller.dispose();
 });

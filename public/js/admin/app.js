@@ -61,6 +61,7 @@ function recoverToolboxInitialization(error) {
 const toolbox = createToolboxLifecycle({
   loaders: {
     otherGamesFeature: () => import('./games.js').then((module) => module.initGames),
+    otherPkScoreFeature: () => import('./pk-score-calculator.js').then((module) => module.initPkScoreCalculator),
   },
   onError: Utils.showError,
   onInitError: recoverToolboxInitialization,

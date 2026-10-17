@@ -74,7 +74,8 @@ test('illustrated queue styles 3-6 ship their artwork, stylesheets and admin opt
     /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.golden-lily-list\.scrolling[\s\S]*animation:\s*none/,
   );
   const storybookEntry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-3', 'entry.webp'));
-  assert.equal(storybookEntry.subarray(8, 16).toString('ascii'), 'WEBPVP8L', 'storybook entry asset should use lossless WebP');
+  assert.equal(storybookEntry.subarray(8, 16).toString('ascii'), 'WEBPVP8X', 'storybook entry asset should use extended WebP');
+  assert.equal(storybookEntry[20] & 0x10, 0x10, 'optimized storybook entry must retain its alpha channel');
 });
 
 test('style 4 keeps its viewport inside the frame and its scroll endpoint above the foreground', () => {

@@ -5,6 +5,48 @@ const test = require('node:test');
 const { chromium } = require('playwright');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 
+test('the shared font library loads complete display faces on demand in each rendering surface', { timeout: 45000 }, async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><meta charset="utf-8"><div id="sample">清风月光</div>' });
+  t.after(() => fixture.close());
+  const browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const errors = [];
+  const entries = ['/css/styles-base.css', '/css/overlays/base.css', '/css/overlays/danmaku.css',
+    '/css/lyrics/desktop-lyric.css', '/css/playback/appearance.css'];
+  for (const [index, stylesheet] of entries.entries()) {
+    const page = await browser.newPage();
+    const requests = [];
+    page.on('request', request => requests.push(request.url()));
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
+    const url = `${fixture.origin}/preview-test-host`;
+    assert.equal((await fetch(url)).status, 200);
+    await page.goto(url);
+    await page.addStyleTag({ url: `${fixture.origin}${stylesheet}` });
+    await page.evaluate(() => document.fonts.ready);
+    assert.equal(requests.some(url => /\/fonts\//.test(url)), false, `${stylesheet}: unused fonts stay unloaded`);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('DOM.enable'); await cdp.send('CSS.enable');
+    const fonts = await page.evaluate(async () => (await import('/js/shared/font-catalog.js')).SHARED_FONTS);
+    for (const font of index === 0 ? fonts : fonts.filter(font => font.id === 'zhimangxing')) {
+      const loaded = await page.evaluate(async font => {
+        document.getElementById('sample').style.font = `32px ${font.value}`;
+        return (await document.fonts.load(`32px ${font.value}`, '清风月光')).length;
+      }, font);
+      assert.ok(loaded > 0, `${stylesheet}: ${font.id}`);
+      const { root } = await cdp.send('DOM.getDocument');
+      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#sample' });
+      const { fonts: rendered } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+      assert.ok(rendered.length > 0 && rendered.every(font => font.isCustomFont), JSON.stringify(rendered));
+    }
+    const fontRequests = requests.filter(url => /\/fonts\//.test(url));
+    assert.equal(new Set(fontRequests).size, fontRequests.length, 'Shared imports do not duplicate font downloads.');
+    assert.ok(requests.every(url => url.startsWith(fixture.origin)), 'Fonts require no external service.');
+    await page.close();
+  }
+  assert.deepEqual(errors, []);
+});
+
 test('lyric fonts load locally on demand and fill multilingual gaps at regular and bold weights', { timeout: 30000 }, async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html><meta charset="utf-8">
     <link rel="stylesheet" href="/css/lyrics/desktop-lyric.css">

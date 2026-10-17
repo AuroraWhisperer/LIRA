@@ -12,6 +12,7 @@ function createNode(tagName) {
     tagName: String(tagName || '').toUpperCase(),
     children: [],
     dataset: {},
+    prepend(child) { child.parentNode = this; this.children.unshift(child); },
     appendChild(child) {
       child.parentNode = this;
       this.children.push(child);
@@ -35,8 +36,9 @@ function createSelect(value, builtIns) {
   });
   select.value = value;
   select.querySelector = (selector) => {
-    if (selector !== 'optgroup[data-local-fonts="true"]') return null;
-    return select.children.find((child) => child.dataset?.localFonts === 'true') || null;
+    const key = selector === 'optgroup[data-local-fonts="true"]' ? 'localFonts'
+      : selector === 'optgroup[data-shared-fonts]' ? 'sharedFonts' : null;
+    return key && select.children.find((child) => child.dataset?.[key] === 'true') || null;
   };
   Object.defineProperty(select, 'options', {
     get() {
@@ -103,6 +105,32 @@ test('shared local font library queries once for queue, desktop lyric and large 
   assert.equal(playerSelect.value, 'maiyuan');
   assert.deepEqual(playerSelect.querySelector('optgroup[data-local-fonts="true"]').children.map((option) => option.textContent),
     ['Arial', 'Cascadia Code', 'Microsoft YaHei']);
+});
+
+test('shared display fonts keep legacy selections without duplicate options or local-font queries', async () => {
+  let queries = 0;
+  const library = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/font-library.js'), {
+    document: { createElement: createNode }, console,
+    window: { queryLocalFonts: async () => { queries++; return [{ family: 'Custom Local' }, { family: 'Long'.repeat(30) }]; } },
+  });
+  const selections = ['maiyuan', 'Lira Smiley', '"月渡花汀文楷"', '"Unavailable Font"'];
+  for (const saved of selections) {
+    const select = createSelect(saved, [{ value: saved, label: '旧设置' }]);
+    const unregister = library.registerFontSelect(select, { maxLength: 80 });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(select.value, saved);
+    const group = select.querySelector('optgroup[data-shared-fonts]');
+    assert.deepEqual(group.children.map(option => option.dataset.fontId),
+      ['maiyuan', 'kuaile', 'smiley', 'xiaolai', 'assorted', 'zhimangxing', 'mashanzheng', 'wenkai']);
+    library.ensureSavedFontOption(select, saved);
+    library.populateSharedFontOptions(select);
+    assert.equal(select.value, saved);
+    assert.equal(select.children.filter(child => child.dataset.sharedFonts).length, 1);
+    assert.equal(new Set(select.options.map(option => option.value)).size, select.options.length);
+    assert.equal(select.querySelector('optgroup[data-local-fonts="true"]').children.length, 1);
+    unregister();
+  }
+  assert.equal(queries, 1);
 });
 
 test('shared local font library preserves a saved option missing from the current machine', async () => {

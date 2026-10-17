@@ -1,4 +1,5 @@
-import { copyText, toast } from '../shared/utils.js';
+import { toast } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { requestScene } from './scene-api.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
@@ -46,23 +47,19 @@ export function initCanvasOverlaySource() {
   document.querySelectorAll('#liveCanvasPreview, #liveComponentsCanvas').forEach((button) => {
     button.addEventListener('click', () => openComponentPreview());
   });
-  copy.addEventListener('click', async () => {
-    if (copy.disabled || !sourceUrl) return;
-    copy.disabled = true;
-    const requested = generation;
-    try {
-      await copyText(sourceUrl);
-      if (requested === generation) {
+  bindCopyUrl(copy, {
+    getUrl: () => sourceUrl,
+    onCopied: url => {
+      if (url === sourceUrl) {
         status.textContent = sourceSize
           ? `地址已复制；请在 OBS 或直播姬中设置为 ${sourceSize.width} × ${sourceSize.height}。`
           : '地址已复制。';
         toast('直播场景地址已复制');
       }
-    } catch (error) {
-      if (requested === generation) status.textContent = error.message;
-    } finally {
-      if (requested === generation) copy.disabled = false;
-    }
+    },
+    onError: (error, url) => {
+      if (url === sourceUrl) status.textContent = error.message;
+    },
   });
   window.addEventListener('pagehide', () => {
     generation += 1;

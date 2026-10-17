@@ -280,7 +280,7 @@ function styleOptionsFor(style, options = {}) {
     resolved = defaults;
   }
   // Keep accepting legacy image options while these styles always show the gift itself.
-  if (['identity', 'transparent', 'outline'].includes(style)) resolved.giftImage = 'gift';
+  if (['identity', 'transparent', 'outline', 'bubble', 'cream'].includes(style)) resolved.giftImage = 'gift';
   if (resolved.edgeFade === 'single') {
     resolved.edgeFade = resolved.scrollDirection === 'down' ? 'bottom' : 'top';
   }

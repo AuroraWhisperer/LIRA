@@ -27,6 +27,7 @@ const FIELD_MAP = Object.freeze({
   routesEnabled: ['xiaomiAiRoutesEnabled', 'checked'],
 });
 let doubaoStatus = null;
+const secretPlaceholders = new Map();
 
 export async function readApi(url, options = {}) {
   const response = await fetch(url, {
@@ -83,11 +84,11 @@ export function renderConfig(config, preservedFieldIds = new Set()) {
   renderConfigSummary(config);
 }
 
-export function renderConfigSummary(config) {
+export function renderConfigSummary(config, savedConfig = {}) {
   renderToolSettings();
-  renderSecretHint('xiaomiAiDeepSeekKeyHint', config.hasDeepSeekApiKey);
-  renderSecretHint('xiaomiAiQWeatherKeyHint', config.hasQWeatherApiKey);
-  renderSecretHint('xiaomiAiAmapKeyHint', config.hasAmapApiKey);
+  for (const [key, [id, kind, savedFlag]] of Object.entries(FIELD_MAP)) {
+    if (kind === 'secret') renderSecretHint(id, config[savedFlag], config[`${key}Preview`], Object.hasOwn(savedConfig, key));
+  }
   document.getElementById('xiaomiAiConfigState').textContent =
     config.hasDeepSeekApiKey && config.deepseekResponsesUrl && config.trigger ? '可运行' : '等待配置';
   document.getElementById('xiaomiAiModelState').textContent = config.model || '未配置';
@@ -163,45 +164,18 @@ export function renderProviderSelection(value, options = {}) {
 }
 
 function renderModelCapabilities(endpoint = {}) {
-  const protocol = endpoint.protocol || 'unconfigured';
   const webSearchMode = endpoint.webSearchMode || 'unconfigured';
   const reasoningMode = endpoint.reasoningMode || 'unconfigured';
-  setText(
-    'xiaomiAiProtocolCapability',
-    {
-      responses: 'Responses API',
-      chat_completions: 'Chat Completions',
-      unconfigured: '等待配置',
-    }[protocol] || '等待配置',
-  );
-  setText(
-    'xiaomiAiWebSearchCapability',
-    {
-      hosted: 'AI 平台搜索',
-      local_function: 'LIRA 搜索',
-      unconfigured: '等待配置',
-    }[webSearchMode] || '等待配置',
-  );
-  setText(
-    'xiaomiAiReasoningCapability',
-    {
-      effort: '可设置强度',
-      deepseek_effort: 'DeepSeek 强度',
-      gemini_effort: 'Gemini 强度',
-      provider_managed: '由平台决定',
-      unconfigured: '等待配置',
-    }[reasoningMode] || '等待配置',
-  );
 
   if (webSearchMode === 'hosted') {
     setText('xiaomiAiWebSearchLabel', 'AI 平台联网搜索');
-    setText('xiaomiAiWebSearchHelp', '使用 AI 平台提供的搜索功能，需要所选平台支持。');
+    setText('xiaomiAiWebSearchHelp', '使用平台原生搜索，需模型支持。');
   } else if (webSearchMode === 'local_function') {
     setText('xiaomiAiWebSearchLabel', 'LIRA 联网搜索');
-    setText('xiaomiAiWebSearchHelp', '需在「可选工具」开启「允许模型调用工具」，并使用支持工具调用的模型。');
+    setText('xiaomiAiWebSearchHelp', '需模型支持工具调用，并开启「可选工具 → 允许模型调用工具」。');
   } else {
     setText('xiaomiAiWebSearchLabel', '联网搜索');
-    setText('xiaomiAiWebSearchHelp', '保存地址和协议后显示实际联网方式。');
+    setText('xiaomiAiWebSearchHelp', '保存模型服务后确定搜索方式。');
   }
 
   const reasoningControl = document.getElementById('xiaomiAiReasoningControl');
@@ -211,15 +185,13 @@ function renderModelCapabilities(endpoint = {}) {
   if (reasoningControl) reasoningControl.hidden = !configurableReasoning;
   if (effortControl) effortControl.hidden = !configurableReasoning;
   if (providerManaged) providerManaged.hidden = reasoningMode !== 'provider_managed';
+  setText('xiaomiAiReasoningLabel', '深度思考');
   if (reasoningMode === 'effort') {
-    setText('xiaomiAiReasoningLabel', '深度思考');
-    setText('xiaomiAiReasoningHelp', '可以调整思考强度；选择「服务默认」时，使用平台的默认设置。');
+    setText('xiaomiAiReasoningHelp', '开启后可选强度；「服务默认」沿用平台设置。');
   } else if (reasoningMode === 'deepseek_effort') {
-    setText('xiaomiAiReasoningLabel', 'DeepSeek 思考');
-    setText('xiaomiAiReasoningHelp', '支持「低」「高」「最高」；其他等级会调整为最接近的可用等级。');
+    setText('xiaomiAiReasoningHelp', '开启后可选强度。DeepSeek 支持低、高、最高，其他等级自动就近匹配。');
   } else if (reasoningMode === 'gemini_effort') {
-    setText('xiaomiAiReasoningLabel', 'Gemini 思考');
-    setText('xiaomiAiReasoningHelp', '支持「最低」到「高」；能否关闭深度思考取决于所选模型。');
+    setText('xiaomiAiReasoningHelp', '开启后可选最低至高；能否关闭思考取决于 Gemini 模型。');
   }
   syncReasoningEffortAvailability();
 }
@@ -259,9 +231,12 @@ export function renderDoubaoStatus(status) {
   if (logout) logout.hidden = !status?.loggedIn;
 }
 
-function renderSecretHint(id, saved) {
-  const element = document.getElementById(id);
-  element.textContent = saved ? '已加密保存；清空或输入新值以更新' : '尚未保存';
+function renderSecretHint(id, saved, preview, clearValue) {
+  const input = document.getElementById(id);
+  if (!secretPlaceholders.has(id)) secretPlaceholders.set(id, input.placeholder);
+  input.placeholder = saved ? preview || '********' : secretPlaceholders.get(id);
+  if (clearValue) input.value = '';
+  document.getElementById(`${id}Hint`).textContent = saved ? '已加密保存；输入新密钥可替换，留空保留现有密钥' : '尚未保存';
 }
 
 export function setState(element, text, kind = '') {

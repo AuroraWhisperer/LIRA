@@ -226,6 +226,8 @@ HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真�
 
 本地扫码登录完成或本地退出后，main process 将 Bilibili scope 标记 dirty：已登录时读取分区 Cookie header 上传，退出时调用 Device `DELETE`。上传失败保留 dirty 并重试；云端应用不会再次触发本地登录/退出 IPC，因此不会产生同步回声。凭据 wire contract 见 [../backend/api.md](../backend/api.md) §0.3，轮询与生命周期见 [main.md](main.md) §2.2。
 
+云端读取捕获桌面会话代次，导入/解绑携带仅限主进程的 `isCurrent` 检查。`desktop-auth-controller.js` 在认证队列实际执行前复核会话、账号、同步生命周期及 dirty 状态；本地登录/退出进行中直接放弃云写入，不取消交互登录。用户操作入队即推进会话代次，旧 GET 或排队导入不能在退出完成后重新写 Cookie/快照。主动本地操作仍串行执行并保留原结果，未失效的后续云同步可正常恢复。
+
 ## 14. 动态抽奖专用账号
 
 [dynamic-lottery-auth.js](../../../src/electron/dynamic-lottery-auth.js) 是抽奖认证所有者；[dynamic-lottery-auth-store.js](../../../src/electron/dynamic-lottery-auth-store.js) 只管理其 Chromium Cookie 与加密快照。入口在桌面“百宝箱 → 动态抽奖”，由主进程现有授权管理器提供可信 `streamerId` 与 `getAuthorizationGeneration()` 登录生命周期，不接受 renderer 指定账号作用域。内部 `authorizationEpoch` 字段沿用名称，但保存该生命周期代次：正常 token 续期保留采集及网页会话，重新登录、激活/换账号、阻断清理和退出仍使旧操作失效。

@@ -1,0 +1,294 @@
+{
+  "version": 1,
+  "fonts": [
+    {
+      "id": "maiyuan",
+      "family": "Lira Maiyuan",
+      "label": "荆南麦圆",
+      "format": "ttf",
+      "sha256": "94ea78c51086b1ea58c1744784b2335dea2c5ef1c5193b80e02c7d46b8e0283f",
+      "size": 7996068,
+      "sources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/maoken-fonts/KNMaiyuan@580b2bb873828122f7816f1c5c4caf2667cba62f/fonts/TTF/KNMaiyuan-Regular.ttf",
+          "downloadSize": 7996068
+        },
+        {
+          "url": "https://raw.githubusercontent.com/maoken-fonts/KNMaiyuan/580b2bb873828122f7816f1c5c4caf2667cba62f/fonts/TTF/KNMaiyuan-Regular.ttf",
+          "downloadSize": 7996068
+        }
+      ],
+      "bundled": [
+        {
+          "path": "player/maiyuan.woff2",
+          "sha256": "00bb811406e2a37423a962c73d6a3b855071f565153d024136c8eda3d38fe5e0"
+        }
+      ]
+    },
+    {
+      "id": "kuaile",
+      "family": "Lira Kuaile",
+      "label": "站酷快乐体",
+      "format": "ttf",
+      "sha256": "812a6fc1fe54b6d73a419245c32dfeba8aa33104d5be90d1cf6af082007cb71d",
+      "size": 1514968,
+      "sources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/google/fonts@6d49995f5d8f1c7d476760a580ffb89ce1e52c5d/ofl/zcoolkuaile/ZCOOLKuaiLe-Regular.ttf",
+          "downloadSize": 1514968
+        },
+        {
+          "url": "https://raw.githubusercontent.com/google/fonts/6d49995f5d8f1c7d476760a580ffb89ce1e52c5d/ofl/zcoolkuaile/ZCOOLKuaiLe-Regular.ttf",
+          "downloadSize": 1514968
+        }
+      ],
+      "bundled": [
+        {
+          "path": "player/kuaile.woff2",
+          "sha256": "c6fc388b486afb363e00420540b56079561e4b46eba4c0d09a65b999bd0235e0"
+        }
+      ]
+    },
+    {
+      "id": "smiley",
+      "family": "Lira Smiley",
+      "label": "得意黑",
+      "format": "woff2",
+      "sha256": "731f22973349404b15a88a99ef3b5dd4104c0965c23b7e485c1f11e84fea99e2",
+      "size": 1150924,
+      "sources": [
+        {
+          "url": "https://github.com/atelier-anchor/smiley-sans/releases/download/v2.0.1/smiley-sans-v2.0.1.zip",
+          "zipEntry": "SmileySans-Oblique.ttf.woff2",
+          "archiveSha256": "299c0be6c960ae37361762eca76f7d0cd516615435bb96c0d4b98a1e70178a07",
+          "downloadSize": 5781344
+        }
+      ],
+      "bundled": [
+        {
+          "path": "player/smiley.woff2",
+          "sha256": "731f22973349404b15a88a99ef3b5dd4104c0965c23b7e485c1f11e84fea99e2"
+        }
+      ]
+    },
+    {
+      "id": "xiaolai",
+      "family": "Lira Xiaolai",
+      "label": "小赖字体",
+      "format": "ttf",
+      "sha256": "e2f68daf0e72777a8cf58bc83de1b98634b251e537ddbfca24b0ae50d1802da2",
+      "size": 22220806,
+      "sources": [
+        {
+          "url": "https://github.com/lxgw/kose-font/releases/download/v3.126/Xiaolai-Regular.ttf",
+          "downloadSize": 22220806
+        }
+      ],
+      "bundled": [
+        {
+          "path": "player/xiaolai.woff2",
+          "sha256": "f93a1d734a2a42acb63aebef76c663bf8e6be9f8be646497d3bd4707142cdc63"
+        }
+      ]
+    },
+    {
+      "id": "assorted",
+      "family": "Lira Assorted",
+      "label": "猫啃什锦黑",
+      "format": "ttf",
+      "sha256": "29b4fea4dfaf50be4b9ede602cc713eca1e411e0b498b74e8ea41f2c68f6fb90",
+      "size": 12602652,
+      "sources": [
+        {
+          "url": "https://github.com/maoken-fonts/MaokenAssortedSans/releases/download/v1.70/MaokenAssortedSans.ttf",
+          "downloadSize": 12602652
+        }
+      ],
+      "bundled": [
+        {
+          "path": "player/assorted.woff2",
+          "sha256": "8423638361bf42d33a196390ebc907b0605db432c60cc881bbb2c3b9665d7063"
+        }
+      ]
+    },
+    {
+      "id": "zhimangxing",
+      "family": "Lira Zhimangxing",
+      "label": "志莽行",
+      "format": "ttf",
+      "sha256": "644e0cae9b40f0b10ab729a01bd32032e3973bac22be3dccae01bf6ae7fde969",
+      "size": 4063532,
+      "sources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/google/fonts@e9678a5385322c63730122ba464765baad83cfd8/ofl/zhimangxing/ZhiMangXing-Regular.ttf",
+          "downloadSize": 4063532
+        },
+        {
+          "url": "https://raw.githubusercontent.com/google/fonts/e9678a5385322c63730122ba464765baad83cfd8/ofl/zhimangxing/ZhiMangXing-Regular.ttf",
+          "downloadSize": 4063532
+        }
+      ],
+      "bundled": [
+        {
+          "path": "library/zhimangxing.woff2",
+          "sha256": "9cd493650f11ecaf40c5291db897ddbe1dd0422bec81e7fc87ebc1726db0de2a"
+        }
+      ]
+    },
+    {
+      "id": "mashanzheng",
+      "family": "Lira Mashanzheng",
+      "label": "马善政",
+      "format": "ttf",
+      "sha256": "6d2546bb189c732a8ca29af9e22457b152387d158aa459e4ac2ce1e51788b7fb",
+      "size": 5857936,
+      "sources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/google/fonts@e9678a5385322c63730122ba464765baad83cfd8/ofl/mashanzheng/MaShanZheng-Regular.ttf",
+          "downloadSize": 5857936
+        },
+        {
+          "url": "https://raw.githubusercontent.com/google/fonts/e9678a5385322c63730122ba464765baad83cfd8/ofl/mashanzheng/MaShanZheng-Regular.ttf",
+          "downloadSize": 5857936
+        }
+      ],
+      "bundled": [
+        {
+          "path": "library/mashanzheng.woff2",
+          "sha256": "c7d3694525df10a332b01c185b147ccd20e8084ba194747b79dad16be3db4d23"
+        }
+      ]
+    },
+    {
+      "id": "wenkai",
+      "family": "月渡花汀文楷",
+      "label": "霞鹜文楷",
+      "format": "ttf",
+      "sha256": "526ec70cbb0118e871d481f8179e03ff045f0e4d72d080dcca87950c4ab27cca",
+      "size": 28267156,
+      "sources": [
+        {
+          "url": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522/LXGWWenKai-Light.ttf",
+          "downloadSize": 28267156
+        }
+      ],
+      "bundled": [
+        {
+          "path": "moonlit-wenkai/wenkai-00.woff2",
+          "sha256": "70fcc3997ac18fdb12e0bc7d1249663c0831cc6f93e69e6cd50fb528dc11cb6b",
+          "unicodeRange": "U+20-2469"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-01.woff2",
+          "sha256": "335d3d1da2019cc002b51722b4f766bf248875ad4493932878eb7926588fda03",
+          "unicodeRange": "U+246A-34B4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-02.woff2",
+          "sha256": "31da0feb868629ecf096e0bde21b2407a9c1d9a1825b7c4d61c2c068550ae676",
+          "unicodeRange": "U+34B5-3CB4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-03.woff2",
+          "sha256": "e139eb9d94dd101c2456048d572f308a78d7a49e635c2acf6a4fdca051f1d82d",
+          "unicodeRange": "U+3CB5-44B4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-04.woff2",
+          "sha256": "0376252376b6811e7b764d21eb7e201210a6182d1ee1d209f9eeb43b7942d8af",
+          "unicodeRange": "U+44B5-4CB4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-05.woff2",
+          "sha256": "73950991fc96ec865e42b08d8aaeb1d6eadd1b18eefdcef4baf3f59150c2d09e",
+          "unicodeRange": "U+4CB5-54B4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-06.woff2",
+          "sha256": "7df2d2dea986785698879c5a19ae4b455ec430d88006de6b698431f0f4a5a3df",
+          "unicodeRange": "U+54B5-5CB4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-07.woff2",
+          "sha256": "33dfa626115051bb648f0b1aa6ba3c8bbcc05c71553149529720087b82f3ec75",
+          "unicodeRange": "U+5CB5-64B4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-08.woff2",
+          "sha256": "fa85f2764a3a0b95a27443fce4cc7aefe445427d14f64170b3538d76b481650f",
+          "unicodeRange": "U+64B5-6CB4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-09.woff2",
+          "sha256": "cc332f8f69e55aae0928c969ace7f76bae6da4a5a5b72a45cac1273d846210d5",
+          "unicodeRange": "U+6CB5-74B4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-10.woff2",
+          "sha256": "974be82ecab748b0b99042984f819077308c78869e4381620bcad72e8e476525",
+          "unicodeRange": "U+74B5-7CB4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-11.woff2",
+          "sha256": "08b3d29a7a83c66512c60fa76396bd4489e2e37304bbecd06c3d5abc395f9070",
+          "unicodeRange": "U+7CB5-84B4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-12.woff2",
+          "sha256": "2005912f1082a5adcb60c926834e3c6172a58e427c20b3c9ac0c610b3e35024a",
+          "unicodeRange": "U+84B5-8CB4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-13.woff2",
+          "sha256": "fdc97a771b35ce802d1594b9c4d402a3ccee3ba949cd1d9b78908fd5b75bc1d0",
+          "unicodeRange": "U+8CB5-94B4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-14.woff2",
+          "sha256": "a657681e2516a817d8a5584d65f764082a196f11fc30a80a2e4e4d375cb2fb9a",
+          "unicodeRange": "U+94B5-9CB4"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-15.woff2",
+          "sha256": "0d48b6906c0470bdbb8940daa578239e81b9be03f3d27e96e5c143619db8a5aa",
+          "unicodeRange": "U+9CB5-B074"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-16.woff2",
+          "sha256": "a19c3a5b3d0f891b99188778c8b6927e5c1cfcd9607f2c8aa1c75d3928b1e11e",
+          "unicodeRange": "U+B075-B874"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-17.woff2",
+          "sha256": "e984efc63f0b6695afa6b13e17e7b3e6d2e140a02921f7430cb3ffa1968261dd",
+          "unicodeRange": "U+B875-C074"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-18.woff2",
+          "sha256": "4649fde06e28542d7b3a3bb3b6d1b71488ed89c2ffdb6f78780f97e0c08353f7",
+          "unicodeRange": "U+C075-C874"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-19.woff2",
+          "sha256": "ef8492dbef4f646e0805fc02e11a2e6df1ec4feaf4821df8ebdf42e73e0822f6",
+          "unicodeRange": "U+C875-D074"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-20.woff2",
+          "sha256": "c1ca4be1668ed23df79f87324e506d25d5779b366d8af473be1d8c138fbcee16",
+          "unicodeRange": "U+D075-F9C5"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-21.woff2",
+          "sha256": "2b878d631f1e57a2f005f65ce628bcb6794e1fb343a1d226e99119c6911de046",
+          "unicodeRange": "U+F9C6-277F0"
+        },
+        {
+          "path": "moonlit-wenkai/wenkai-22.woff2",
+          "sha256": "e50fa2a45621e5667decb02b131c1956daa764a24dfaccd229b11fa88fdc2fb0",
+          "unicodeRange": "U+278B2-FFFFD"
+        }
+      ]
+    }
+  ]
+}

@@ -106,6 +106,28 @@ test('stop freezes local queries without exposing the previous source', async ()
   controller.dispose();
 });
 
+test('legacy startup resumes its durable cursor and imports offline finals once', async (t) => {
+  const fixture = createFixture({
+    initialState: { finalCursor: 5 },
+    discovery: legacyPage({ nextCursor: 8 }),
+    streamEpoch: null,
+    catchUpPages: new Map([
+      [5, legacyPage({ nextCursor: 8, events: [6, 7, 8].map((id) => makeEvent(`offline-${id}`, id)) })],
+      [8, legacyPage({ nextCursor: 8 })],
+    ]),
+  });
+  const controller = createRemoteGiftController(fixture.options);
+  t.after(() => controller.dispose());
+  assert.equal(await controller.start(), true);
+  assert.deepEqual(fixture.pullCalls, [null, 5]);
+  assert.deepEqual(fixture.liveImports, ['offline-6', 'offline-7', 'offline-8']);
+  assert.equal(controller.getCursor(), 8);
+  await controller.start();
+  assert.deepEqual(fixture.pullCalls, [null, 5, null, 8]);
+  assert.deepEqual(fixture.liveImports, ['offline-6', 'offline-7', 'offline-8']);
+  assert.equal(controller.getStatus().state, GiftSyncState.LEGACY_PARTIAL);
+});
+
 test('expired bootstrap token restarts from page one without resetting projection', async () => {
   const expired = new Error('BOOTSTRAP_TOKEN_EXPIRED');
   expired.code = 'BOOTSTRAP_TOKEN_EXPIRED';

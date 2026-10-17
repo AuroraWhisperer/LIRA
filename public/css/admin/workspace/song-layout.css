@@ -426,14 +426,6 @@ body.player-dock-expanded .song-workspace {
   padding-block: 5px;
 }
 
-.song-workspace .overlay-address-item code {
-  font-family: var(--font-mono);
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-regular);
-  line-height: var(--type-leading-caption);
-  letter-spacing: var(--type-tracking-normal);
-}
-
 .queues-row .queue-panel .empty .empty-icon {
   width: 88px;
   height: 88px;

@@ -173,9 +173,10 @@ test('toolbox includes gift effect controls that copy the source URL and open it
   assert.doesNotMatch(toolSource, /debug/);
   const nodes = new Map([
     'giftEffectLookupForm', 'giftEffectGiftId', 'giftEffectOverlayUrl', 'giftEffectLookupState',
-    'giftEffectMatchSummary', 'giftEffectDanmakuEnabled', 'giftEffectCopyBtn', 'giftEffectOpenBtn',
+    'giftEffectMatchSummary', 'giftEffectDanmakuEnabled', 'giftEffectOpenBtn',
   ].map((id) => [id, {
     handlers: {},
+    classList: { add() {} },
     addEventListener(type, handler) { this.handlers[type] = handler; },
   }]));
   const copied = [];
@@ -187,7 +188,7 @@ test('toolbox includes gift effect controls that copy the source URL and open it
     window: { addEventListener() {}, open: (...args) => opened.push(args) },
   });
   giftEffects.init();
-  await nodes.get('giftEffectCopyBtn').handlers.click();
+  await nodes.get('giftEffectOverlayUrl').handlers.click();
   nodes.get('giftEffectOpenBtn').handlers.click();
   assert.equal(nodes.get('giftEffectOverlayUrl').textContent, 'http://127.0.0.1:3000/gift-effects');
   assert.deepEqual(copied, ['http://127.0.0.1:3000/gift-effects']);

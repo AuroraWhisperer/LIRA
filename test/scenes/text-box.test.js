@@ -15,7 +15,7 @@ function item(config, x = 0) {
 
 test('text boxes preserve structured text, formatting and atomic images without sharing mutable defaults', () => {
   const input = { ...createTextBoxDefaults(), nodes: [
-    { type: 'text', text: '你好\r\n(｡･ω･｡)ﾉ♡', bold: true, italic: false, underline: true, stroke: true, shadow: false, fontSize: 48, color: '#AABBCC' },
+    { type: 'text', text: '你好\r\n(｡･ω･｡)ﾉ♡', bold: true, italic: false, underline: true, stroke: true, shadow: false, fontSize: 48, color: '#AABBCC', fontFamily: '"Lira Xiaolai"' },
     { type: 'gift', name: '测试礼物', src: '/overtime-gift-images/123-a1.gif', giftId: 123, fontSize: 40 },
     { type: 'image', name: '上传动图', src: '/scene-text-images/11111111-1111-4111-8111-111111111111.gif' },
   ] };
@@ -28,6 +28,7 @@ test('text boxes preserve structured text, formatting and atomic images without 
   }
   assert.equal(result.nodes[0].stroke, true);
   assert.equal(result.nodes[0].shadow, false);
+  assert.equal(result.nodes[0].fontFamily, '"Lira Xiaolai"');
   assert.deepEqual(normalizeTextBoxConfig(createTextBoxDefaults()), createTextBoxDefaults());
   assert.equal(result.nodes[1].giftId, '123');
   assert.equal(result.nodes[2].src, input.nodes[2].src);
@@ -49,6 +50,7 @@ test('text box configuration rejects HTML payloads, arbitrary requests, invalid 
     { type: 'text', text: 'hello', shadow: '0 2px 3px red' },
     { type: 'text', text: 'hello', stroke: 1 },
     { type: 'text', text: 'hello', shadow: null },
+    ...['', 'x'.repeat(201), 'serif; color: red', '<img src=x>', 'bad\nfont'].map(fontFamily => ({ type: 'text', text: 'hello', fontFamily })),
     { type: 'gift', name: 'gift', src: '/img/gift-placeholder.png', stroke: true },
     ...['javascript:alert(1)', 'data:image/svg+xml,test', 'file:///private.png',
       'https://tracker.example/pixel.gif', '/overtime-gift-images/../private.png',
@@ -61,6 +63,22 @@ test('text box configuration rejects HTML payloads, arbitrary requests, invalid 
   const document = { schemaVersion: 1, id: randomUUID(), title: 'test', canvas: { width: 1920, height: 1080 },
     items: [{ ...item(createTextBoxDefaults()), appearance: { mode: 'shared' } }] };
   assert.throws(() => normalizeSceneDocument(document, { normalizeConfig: normalizeSceneConfig }));
+});
+
+test('text box scrolling defaults off for old scenes and survives scene and template round trips', () => {
+  const { scrollMode, ...legacy } = createTextBoxDefaults();
+  assert.equal(normalizeTextBoxConfig(legacy).scrollMode, 'none');
+  for (const mode of ['none', 'horizontal', 'vertical']) {
+    const config = { ...legacy, scrollMode: mode, nodes: [{ type: 'text', text: '长篇公告\n'.repeat(2000) }] };
+    const document = { schemaVersion: 1, id: randomUUID(), title: 'scroll', canvas: { width: 1920, height: 1080 },
+      items: [item(config)] };
+    const normalized = normalizeSceneDocument(document, { normalizeConfig: normalizeSceneConfig });
+    const imported = importSceneTemplate(exportSceneTemplate(normalized), { createId: randomUUID }).resolve({});
+    assert.deepEqual(imported.items[0].appearance.config, config);
+  }
+  for (const value of [null, true, 1, 'diagonal', '']) {
+    assert.throws(() => normalizeTextBoxConfig({ ...legacy, scrollMode: value }), { code: 'INVALID_SCENE_CONFIG' });
+  }
 });
 
 test('frontend and backend allow more than 32 text boxes while retaining other component and UTF-8 byte limits', () => {

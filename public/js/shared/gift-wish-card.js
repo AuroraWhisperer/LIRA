@@ -1,6 +1,8 @@
 import { setGiftImage } from './gift-image-fallback.js';
 import { setGiftWishTextImage } from './gift-wish-image.js';
 import { mountMoonlitGiftWish, updateMoonlitGiftWish } from './gift-wish-moonlit.js';
+import { applyTextStyle } from './text-style.js';
+import { WISH_TEXT_DEFAULTS } from './gift-wish-text.js';
 
 export const WISH_PERIODS = {
   long: '长效许愿',
@@ -25,6 +27,24 @@ export function getGiftWishTextTemplate(wish) {
     return template.replace('{礼物}', '{图片}{礼物}');
   if (wish.textImagePosition === 'before' || wish.textImagePosition === 'inline') return `{图片}${template}`;
   return template;
+}
+
+export function getGiftWishTextRuns(wish) {
+  const template = getGiftWishTextTemplate(wish);
+  if (!wish.textRuns?.length) return [{ text: template }];
+  const content = wish.textRuns.map(run => run.text).join('');
+  if (content === template) return wish.textRuns;
+  if (template === `{图片}${content}`) return [{ text: '{图片}' }, ...wish.textRuns];
+  if (template === `${content}{图片}`) return [...wish.textRuns, { text: '{图片}' }];
+  if (template === content.replace('{礼物}', '{图片}{礼物}')) {
+    let inserted = false;
+    return wish.textRuns.map(run => {
+      if (inserted || !run.text.includes('{礼物}')) return run;
+      inserted = true;
+      return { ...run, text: run.text.replace('{礼物}', '{图片}{礼物}') };
+    });
+  }
+  return [{ text: template }];
 }
 
 export function formatGiftWishText(wish, template = wish.textTemplate?.trim() || DEFAULT_WISH_TEXT) {
@@ -52,16 +72,22 @@ export function createGiftWishCard(wish, documentRef = document) {
       ? wish.textReceivedColor || DEFAULT_WISH_TEXT_COLORS.received
       : wish.textPendingColor || DEFAULT_WISH_TEXT_COLORS.pending);
     const text = element('p', 'wish-card-text');
-    const parts = getGiftWishTextTemplate(wish).split('{图片}');
-    parts.forEach((part, index) => {
-      if (index > 0) {
-        const image = element('img', 'wish-card-text-image');
-        image.alt = '';
-        setGiftWishTextImage(image, wish.imagePath, wish.textImageFormat);
-        text.append(image);
-      }
-      if (part) text.append(documentRef.createTextNode(formatGiftWishText(wish, part)));
-    });
+    const runs = getGiftWishTextRuns(wish);
+    for (const run of runs) {
+      const span = Object.keys(run).length > 1 ? element('span', 'wish-card-text-run') : text;
+      if (span !== text) applyTextStyle(span, run, WISH_TEXT_DEFAULTS);
+      const parts = run.text.split('{图片}');
+      parts.forEach((part, index) => {
+        if (index > 0) {
+          const image = element('img', 'wish-card-text-image');
+          image.alt = '';
+          setGiftWishTextImage(image, wish.imagePath, wish.textImageFormat);
+          span.append(image);
+        }
+        if (part) span.append(documentRef.createTextNode(formatGiftWishText(wish, part)));
+      });
+      if (span !== text) text.append(span);
+    }
     card.append(text);
     return card;
   }

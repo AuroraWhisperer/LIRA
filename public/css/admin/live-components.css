@@ -296,9 +296,9 @@
   gap: 8px;
   min-width: 0;
 }
-.live-components-page .danmaku-style-tools .danmaku-overlay-link input {
+.live-components-page .danmaku-style-tools .danmaku-overlay-link .copy-url {
   flex: 1;
-  width: 0;
+  --copy-url-width: 0px;
   min-width: 100px;
 }
 .live-components-page .danmaku-style-heading {

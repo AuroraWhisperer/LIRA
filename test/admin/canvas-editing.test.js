@@ -105,7 +105,7 @@ test('canvas invalid parameters show the field and reason in a top-right toast w
   assert.notEqual(await fontSize.inputValue(), '999', 'The existing parameter owner still rejects invalid values.');
 });
 
-test('canvas source address dismisses outside, on Escape and on its trigger while remaining selectable', { timeout: 30000 }, async t => {
+test('canvas source address copies on click and dismisses outside, on Escape and on its trigger', { timeout: 30000 }, async t => {
   const { page } = await editor(t, 'clock');
   await page.evaluate(() => {
     window.copiedSources = [];
@@ -116,14 +116,15 @@ test('canvas source address dismisses outside, on Escape and on its trigger whil
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const sceneCopy = page.getByRole('button', { name: '复制场景地址', exact: true });
   const componentCopy = page.getByRole('button', { name: '复制组件地址', exact: true });
-  const address = page.getByRole('textbox', { name: '直播源地址', exact: true });
+  const address = page.getByRole('button', { name: '复制直播源地址', exact: true });
   await sceneCopy.click();
   await page.locator('.preview-canvas-status').filter({ hasText: '直播源地址已复制' }).waitFor();
-  const sceneUrl = await address.inputValue();
+  const sceneUrl = await address.textContent();
   assert.equal(await page.evaluate(() => window.copiedSources.at(-1)), sceneUrl);
   await address.click();
-  await address.press('Control+a');
-  assert.equal(await address.isVisible(), true, 'The address remains available for manual copying.');
+  await page.waitForFunction(() => window.copiedSources.length === 2);
+  assert.equal(await page.evaluate(() => window.copiedSources.at(-1)), sceneUrl);
+  assert.equal(await address.isVisible(), true, 'Copying the address keeps the source visible.');
   await page.getByRole('textbox', { name: '组件名称', exact: true }).click();
   assert.equal(await address.isVisible(), false, 'Clicking outside dismisses the address.');
 
@@ -131,13 +132,13 @@ test('canvas source address dismisses outside, on Escape and on its trigger whil
   await address.waitFor({ state: 'visible' });
   await sceneCopy.click();
   assert.equal(await address.isVisible(), false, 'Clicking the same copy button dismisses the address.');
-  assert.equal(await page.evaluate(() => window.copiedSources.length), 2, 'Closing does not request or copy another source.');
+  assert.equal(await page.evaluate(() => window.copiedSources.length), 3, 'Closing does not request or copy another source.');
   await sceneCopy.click();
   await address.waitFor({ state: 'visible' });
   await componentCopy.click();
   await page.locator('.preview-canvas-status').filter({ hasText: '单组件地址已复制' }).waitFor();
-  assert.notEqual(await address.inputValue(), sceneUrl, 'The other copy button switches to its own source.');
-  assert.equal(await page.evaluate(() => window.copiedSources.at(-1)), await address.inputValue());
+  assert.notEqual(await address.textContent(), sceneUrl, 'The other copy button switches to its own source.');
+  assert.equal(await page.evaluate(() => window.copiedSources.at(-1)), await address.textContent());
   await address.focus();
   await address.press('Escape');
   assert.equal(await address.isVisible(), false);
@@ -220,13 +221,13 @@ test('canvas parameter groups retain edits, slider values and existing lyric dim
   assert.equal((await fontSaved).status(), 200);
   assert.equal(fixture.runtime.settings.desktopLyricFontFamily, multilingualFont, 'A complete font stack survives saving.');
   for (const family of ['Lira Xiaolai', 'Lira Assorted']) {
-    await font.selectOption(family);
+    await font.selectOption(`"${family}"`);
     await lyricFrame.waitForFunction(value => getComputedStyle(document.querySelector('.desktop-lyric-preview-card'))
       .getPropertyValue('--preview-font').includes(value), family);
     assert.ok(await lyricFrame.evaluate(async value => (await document.fonts.load(`40px "${value}"`, '可爱 Hello こんにちは')).length > 0, family),
       `${family} loads from the bundled font asset.`);
   }
-  await font.selectOption('Lira Kuaile');
+  await font.selectOption('"Lira Kuaile"');
 
   const fontSize = page.locator('[data-component-parameter="desktopLyricFontSize"]');
   const slider = page.getByRole('slider', { name: '字号滑块', exact: true });
@@ -252,7 +253,7 @@ test('canvas parameter groups retain edits, slider values and existing lyric dim
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   assert.equal(fixture.runtime.settings.desktopLyricFontSize, '64');
-  assert.equal(fixture.runtime.settings.desktopLyricFontFamily, 'Lira Kuaile');
+  assert.equal(fixture.runtime.settings.desktopLyricFontFamily, '"Lira Kuaile"');
   assert.equal(fixture.runtime.settings.desktopLyricShowTranslation, 'false');
 });
 

@@ -54,6 +54,31 @@ test('lyric state normalization limits browser-source payloads', () => {
   assert.equal(state.playing, true);
 });
 
+test('lyric text keeps complete Unicode characters within its existing UTF-16 budgets', () => {
+  for (const spare of [0, 1, 2]) {
+    const input = (limit) => `${'a'.repeat(limit - spare)}😀后续`;
+    const expected = (limit) => `${'a'.repeat(limit - spare)}${spare === 2 ? '😀' : ''}`;
+    const state = normalizeLyricState({
+      trackTitle: input(120),
+      artists: [input(80)],
+      lineText: input(240),
+      translation: input(240),
+      words: [{ text: input(40), startMs: 0, endMs: 100 }],
+    });
+    assert.equal(state.trackTitle, expected(120));
+    assert.equal(state.artists[0], expected(80));
+    assert.equal(state.lineText, expected(240));
+    assert.equal(state.translation, expected(240));
+    assert.equal(state.words[0].text, expected(40));
+    const timeline = normalizeLyricTimeline({
+      lines: [{ text: input(240), translation: input(240), roma: input(240) }],
+    });
+    assert.equal(timeline.lines[0].text, expected(240));
+    assert.equal(timeline.lines[0].translation, expected(240));
+    assert.equal(timeline.lines[0].roma, expected(240));
+  }
+});
+
 test('lyric states carry monotonic generation and sequence discontinuity markers', () => {
   const first = normalizeLyricState({
     lineText: 'first',

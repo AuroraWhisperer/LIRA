@@ -207,7 +207,7 @@ test('admin queue editors wire saved fonts and selected-style payloads without a
   const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
   const viewSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-view.js'), 'utf8');
 
-  assert.match(viewSource, /registerLocalFontSelect\(node\('illustratedQueueFontFamily'\)\)/);
+  assert.match(viewSource, /\['overlayFontFamily', 'illustratedQueueFontFamily'\]\.map\(id => registerFontSelect\(node\(id\)\)\)/);
   assert.match(formsSource, /ensureSavedFontOption\([\s\S]*?illustratedQueueFontFamily/);
   assert.match(formsSource, /readQueueStyleSettings\(/);
   assert.match(formSource, /queueSettingsPayload\(draft, changed\)/);

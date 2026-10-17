@@ -15,6 +15,11 @@ const ONLINE_CONTROL_TITLES = {
   songQueueImportPlayback: '将点歌队列导入播放器，不会自动完成点歌',
 };
 
+const IMPORT_CONTROL_LABELS = {
+  playbackImportSongQueue: '导入点歌',
+  songQueueImportPlayback: '导入播放器',
+};
+
 export function createRenderer(deps) {
   const { uiRenderer, playbackState, getPlaybackAudio, searchService, homeService, weSingService, escapeHtml } = deps;
 
@@ -68,8 +73,15 @@ export function createRenderer(deps) {
     ].forEach((id) => {
       const control = document.getElementById(id);
       if (!control) return;
-      control.disabled = isWeSing || control.dataset.importing === 'true';
-      if (isWeSing) {
+      const importing = control.dataset.importing === 'true';
+      control.disabled = isWeSing || importing;
+      if (Object.hasOwn(IMPORT_CONTROL_LABELS, id)) {
+        control.textContent = importing ? '导入中…' : IMPORT_CONTROL_LABELS[id];
+        control.setAttribute('aria-busy', String(importing));
+        control.title = importing ? '正在读取点歌队列并匹配歌曲，请稍候'
+          : isWeSing ? '全民 K歌不支持导入点歌，请切换到 QQ 音乐或网易云音乐'
+            : ONLINE_CONTROL_TITLES[id];
+      } else if (isWeSing) {
         control.title = '全民 K歌播放请在全民 K歌客户端中控制';
       } else if (Object.hasOwn(ONLINE_CONTROL_TITLES, id)) {
         // Play and mode titles are dynamic and have already been restored by renderAll().

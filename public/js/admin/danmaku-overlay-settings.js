@@ -1,4 +1,4 @@
-import { copyText } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 import { createDanmakuPreview, openDanmakuCanvas } from './danmaku-canvas-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
@@ -94,8 +94,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
       showStyleGroup(draft.style);
       displayedStyle = draft.style;
     }
-    elements.overlayUrl.value = overlayUrl;
-    elements.overlayUrl.placeholder = '登录 LIRA 后显示直播画面链接';
+    elements.overlayUrl.textContent = overlayUrl || '登录 LIRA 后显示直播画面链接';
     for (const button of elements.styleButtons) {
       button.setAttribute('aria-pressed', String(button.dataset.danmakuStyle === draft.style));
       button.disabled = !loaded;
@@ -105,7 +104,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
       : loading ? '正在读取样式' : '尚未读取样式';
     elements.styleSaveState.textContent = !overlayUrl ? '请先连接已授权的 LIRA 账号。'
       : state.error ? `应用失败，草稿已保留：${state.error}` : componentSaveMessage(state);
-    for (const button of [elements.copyOverlayUrlButton, elements.openOverlayButton]) button.disabled = !overlayUrl;
+    for (const button of [elements.overlayUrl, elements.openOverlayButton]) button.disabled = !overlayUrl;
     elements.previewOverlayButton.disabled = false;
     applyButton.disabled = !loaded || !dirty || saving;
     applyButton.textContent = saving ? '正在应用…' : '应用到直播画面';
@@ -123,10 +122,10 @@ export function initDanmakuOverlaySettings(elements, toast) {
   applyButton.addEventListener('click', () => saveComponentWithFeedback(controller, '弹幕姬样式', toast));
   discardButton?.addEventListener('click', () => controller.discard());
   reloadButton.addEventListener('click', () => { if (overlayUrl) return controller.reload(); });
-  elements.copyOverlayUrlButton.addEventListener('click', async () => {
-    if (!overlayUrl) return;
-    try { await copyText(overlayUrl); toast('弹幕姬直播画面链接已复制'); }
-    catch (error) { toast(error.message || '复制链接失败'); }
+  bindCopyUrl(elements.overlayUrl, {
+    getUrl: () => overlayUrl,
+    onCopied: () => toast('弹幕姬直播画面链接已复制'),
+    onError: error => toast(error.message || '复制链接失败'),
   });
   elements.openOverlayButton.addEventListener('click', () => {
     if (overlayUrl) window.open(overlayUrl, '_blank', 'noopener');

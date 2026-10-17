@@ -162,6 +162,7 @@ test('history sampling reports stale/duplicate commands without repeating idle s
 test('queue refusal codes preserve useful distinctions without echoing request text', () => {
   for (const [reason, code] of [
     ['不是点歌指令。', 'not-a-song-command'],
+    ['SC 点歌已关闭。', 'sc-song-requests-disabled'],
     ['用户冷却中，还需 10 秒。', 'user-cooldown'],
     ['你目前已被限制点歌。', 'requester-blacklisted'],
     ['暂时无法确认你的 UID，请稍后再点歌。', 'requester-identity-required'],

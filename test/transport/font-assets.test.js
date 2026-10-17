@@ -1,0 +1,45 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const test = require('node:test');
+const { createFontLibrary } = require('../../src/fonts/font-library');
+const { fonts } = require('../../src/fonts/catalog.json');
+const { startComponentPreviewServer } = require('../helpers/component-preview-server');
+
+test('cold font HTTP never blocks rendering, then serves verified fonts with HEAD/CORS', async t => {
+  const scratch = path.resolve(__dirname, '../../tmp/font-tests');
+  await fs.mkdir(scratch, { recursive: true });
+  const dataDir = await fs.mkdtemp(path.join(scratch, 'http-'));
+  t.after(() => fs.rm(dataDir, { recursive: true, force: true }));
+  const font = { ...fonts.find(font => font.id === 'smiley'), bundled: [] };
+  font.sources = [{ url: 'https://cdn.jsdelivr.net/test/font', downloadSize: font.size }];
+  const bytes = await fs.readFile(path.resolve(__dirname, '../../public/fonts/player/smiley.woff2'));
+  const download = Promise.withResolvers();
+  const library = createFontLibrary({ dataDir, publicDir: dataDir, fonts: [font], fetch: () => download.promise });
+  t.after(() => library.close());
+  const fixture = await startComponentPreviewServer({ fontLibrary: library });
+  t.after(() => fixture.close());
+  const initializing = library.initialize();
+  const stylesheet = await fetch(`${fixture.origin}/css/shared/display-fonts.css`);
+  assert.equal(stylesheet.status, 200);
+  assert.doesNotMatch(await stylesheet.text(), /\/font-library\/smiley/);
+  assert.equal((await fetch(`${fixture.origin}/font-library/smiley`)).status, 404);
+  download.resolve(new Response(bytes));
+  await initializing;
+  const response = await fetch(`${fixture.origin}/font-library/smiley`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'font/woff2');
+  assert.equal(response.headers.get('access-control-allow-origin'), '*');
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+  assert.match(await (await fetch(`${fixture.origin}/css/shared/display-fonts.css`)).text(), /\/font-library\/smiley/);
+  assert.equal((await (await fetch(`${fixture.origin}/font-library/status`)).json()).status, 'ready');
+  const head = await fetch(`${fixture.origin}/font-library/smiley`, { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal((await head.arrayBuffer()).byteLength, 0);
+  assert.equal(Number(head.headers.get('content-length')), bytes.length);
+  assert.equal((await fetch(`${fixture.origin}/font-library/unknown`)).status, 404);
+  assert.equal((await fetch(`${fixture.origin}/font-library/%2e%2e%2findex.json`)).status, 404);
+  assert.equal((await fetch(`${fixture.origin}/admin`)).status, 401);
+});

@@ -2,7 +2,8 @@
 // 百宝箱礼物特效工具：查询礼物 ID，并通知固定 overlay 网址播放。
 'use strict';
 
-import { api, copyText, localOverlayOrigin, readJsonResponse, toast } from '../shared/utils.js';
+import { api, localOverlayOrigin, readJsonResponse, toast } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 
 export const giftEffects = (() => {
   let initialized = false;
@@ -82,13 +83,9 @@ export const giftEffects = (() => {
       }
     });
 
-    document.getElementById('giftEffectCopyBtn').addEventListener('click', async () => {
-      try {
-        await copyText(liveUrl);
-        toast('礼物特效网址已复制', { type: 'success' });
-      } catch (_) {
-        toast('网址没复制成功，请重试或手动复制。', { type: 'error' });
-      }
+    bindCopyUrl(urlNode, {
+      onCopied: () => toast('礼物特效网址已复制', { type: 'success' }),
+      onError: () => toast('网址没复制成功，请重试或手动复制。', { type: 'error' }),
     });
     document.getElementById('giftEffectOpenBtn').addEventListener('click', () => {
       window.open(`${liveUrl}?preview=1`, 'liraGiftEffectPreview');

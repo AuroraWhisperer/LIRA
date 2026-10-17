@@ -16,11 +16,11 @@
   padding-bottom: var(--spacing-md);
   border-bottom: 1px solid var(--border);
 }
-.gift-sprint-source input {
+.gift-sprint-source .copy-url {
   flex: 1;
   min-width: 0;
 }
-.gift-sprint-source :is(label, button),
+.gift-sprint-source :is(label, button:not(.copy-url)),
 .gift-sprint-overlay-footer button {
   flex: 0 0 auto;
   white-space: nowrap;

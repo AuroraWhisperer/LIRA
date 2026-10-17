@@ -10,7 +10,7 @@ const { createOverlayBootstrap } = require('./overlay-bootstrap');
 const { serveStaticVideo } = require('./static-video');
 const { sendJson, contentType, verifyToken } = require('./http-utils');
 
-function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPlaybackSnapshotSession, getClientTheme) {
+function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPlaybackSnapshotSession, getClientTheme, fontLibraryEnabled = false) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendJson(res, 405, {
       ok: false,
@@ -67,6 +67,10 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
       return;
     }
     let body = content;
+    if (isHtml && fontLibraryEnabled) {
+      body = Buffer.from(body.toString('utf8').replace('</head>',
+        '<script type="module" src="/js/shared/font-library-loader.js"></script>\n</head>'));
+    }
     if (isAdminPage || relativePath === 'pages/component-preview.html' || relativePath === 'pages/gift-audit.html') {
       const themeId = normalizeClientThemeId(getClientTheme?.());
       body = Buffer.from(body.toString('utf8').replace(/<html\b([^>]*)>/i, (_tag, attributes) =>

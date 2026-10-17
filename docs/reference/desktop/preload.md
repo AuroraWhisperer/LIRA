@@ -15,6 +15,7 @@
 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js)、[gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js)：复用 main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [dynamic-lottery-auth-ipc.js](../../../src/electron/ipc/dynamic-lottery-auth-ipc.js)、[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) | 必须 | 必须 | 不另检查路径，包含同 origin 的 `/license` |
 | [license-ipc.js](../../../src/electron/ipc/license-ipc.js)：overlay-filters GET/PUT、overlay-viewers GET、fixed-reply-settings GET/PUT | 必须 | 必须 | 不另检查路径 |
+| [font-library-ipc.js](../../../src/electron/ipc/font-library-ipc.js)：retry-font-library | 必须 | 必须 | 不另检查路径；另要求 authorized |
 | 同上：其余 license | 必须 | **不要求** mainFrame 对象 | 不另检查路径；同 origin 子 frame 也通过该来源检查 |
 
 非法来源返回 `{ok:false,error:'IPC_SOURCE_INVALID'}`；license registrar 另带脱敏 `state`。此检查不是远端授权，具体操作仍受 LicenseManager 的授权及代次约束。当前主窗口匹配同时限定实际 Chromium session；renderer 不能指定分区。不要将未实施的路径/frame 限制写成已有保护。
@@ -95,6 +96,8 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:get-state` | `getState()` | `{ok:true,...LicenseSnapshot}` | [license.js](../../../public/js/license.js)、settings-auth |
 | `license:activate` | `activate({accountName,password,activationCode})` | `{ok,state,error?,streamer?}`；ACTIVATION_INPUT_INVALID / ACCOUNT_NAME_LENGTH / PASSWORD_TOO_LONG / ACTIVATION_CODE_INVALID | license.js |
 | `license:retry` | `retry()` | `{ok,...LicenseSnapshot}`，ok 表示 authorized | license.js |
+| `license:get-font-library-state` | `getFontLibraryState()` | `{ok:true,...FontLibrarySnapshot}` | license.js、font-library-toast、font-library-loader |
+| `license:retry-font-library` | `retryFontLibrary()`，无输入 | `{ok,...FontLibrarySnapshot}`；未授权 LICENSE_REQUIRED；只重试固定清单 | font-library-toast |
 | `license:get-gift-catalog-state` | `getGiftCatalogState()` | `{ok:true,...CatalogSnapshot}` | license.js、[catalog-update-toast.js](../../../public/js/admin/gifts/catalog-update-toast.js) |
 | `license:retry-gift-catalog` | `retryGiftCatalog()` | `{ok,...CatalogSnapshot}`，ok 表示 ready；未授权 LICENSE_REQUIRED | 同上 |
 | `license:get-profile` | `getProfile()` | `{ok:true,...LicenseSnapshot}`；同授权生命周期的在途读取合并，完成后再次调用仍远程刷新 | settings-license（完整设备资料）、server-overlay-url（补全启动恢复时缺失的网页地址） |
@@ -138,6 +141,7 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 不回显条目内容。新服务端持久化按账号隔离，首次欢迎优先匹配 UID，其他阶段和限制不变。
 
 - **LicenseSnapshot**：`{state,error,streamer?,device?}`；state 为 checking/needs_activation/needs_connection/authorizing/authorized/blocked，error 为受限代码或 null。streamer 只含 accountName(32)、displayName(80)、subdomain(63)、songPageUrl?/manageUrl?；device 只含 id(128)、name(100)、status(32)、licenseId(128)，括号为字符串截断上限。activate 将三字段转字符串后要求非空，上限分别 64/256/256；不接受 renderer 选择服务地址。
+- **FontLibrarySnapshot**：`{status,total,completed,failed,currentFont,completedAt}`；status 为 idle/checking/downloading/ready/error，计数为非负整数且 completed ≤ total、failed ≤ completed。currentFont 为长度至多 100 的名称，completedAt 为完成时间字符串。不会传入原始异常、下载地址或磁盘路径。
 - **CatalogSnapshot**：`{status,background,phase,completed,total,available,failed,percent,currentGiftId,currentGiftName,completedAt,error,warning}`。status=required/running/updating/ready/error；phase=idle/catalog/images/complete/error；计数非负且 completed≤total、available/failed≤completed、percent≤100；礼物 ID/名称上限 32/100；background 严格 boolean；completedAt 为 ISO 时间或 null。首次 running 与后台 updating 区分；后台 images 计数只表示本次下载，单图失败保留旧图。返回登录表单不撤销授权，renderer 离开准备流程后忽略迟到进度；进入 Admin 仍由 main 判定。
 - **OverlaySettings**：`{ok:true,style,fullscreenDurationSeconds,styleOptions?,layout?,styleParameters?,overlayUrl}`。style 使用 [danmaku-style-options.js](../../../src/shared/danmaku-style-options.js) 的 `DANMAKU_STYLE_OPTIONS` 登记值，可选 styleOptions 也由该模块归一化；时长整数 2–30。可选 layout 由 [danmaku-layout.js](../../../src/shared/danmaku-layout.js) 校验，styleParameters 由 [component-style-parameters.js](../../../src/shared/component-style-parameters.js) 按 danmaku 类型校验；省略的可选字段不由 IPC 补写。overlayUrl 为无凭据/query/fragment 的 HTTPS `/overlay/<16位base64url>`；消费者另验证与可信资料 origin 相同。它是只读 overlay capability，不能代替 Device token。
 - **过滤设置**：[overlay-filters-contract.js](../../../src/shared/overlay-filters-contract.js) 是字段 owner。非空 patch 只含 blockedUsers/blockedKeywords；最多 500 人/200 词，UID 为 1–20 位非零开头数字，name≤80、词≤100；在线观众≤150。清空仅提交相应空数组；404/405 映射 OVERLAY_FILTERS_UNSUPPORTED。只在服务器确认后更新已保存值。
@@ -179,6 +183,7 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 | `app:prepare-shutdown` | `musicAPI.onPrepareShutdown(callback)` | 无 | [playback-flush.js](../../../src/electron/playback-flush.js) / playback initializer |
 | `license:gift-interaction-state-changed` | `liraLicense.onGiftInteractionStateChanged(callback)` | GiftInteractionSnapshot | gift-interaction-ipc / interaction-controls |
 | `license:state-changed` | `liraLicense.onStateChanged(callback)` | LicenseSnapshot | license-ipc / license.js、Admin 账户与各云端面板 |
+| `license:font-library-state-changed` | `liraLicense.onFontLibraryStateChanged(callback)` | FontLibrarySnapshot | font-library-ipc / license.js、font-library-toast、font-library-loader |
 | `license:gift-catalog-state-changed` | `liraLicense.onGiftCatalogStateChanged(callback)` | CatalogSnapshot | license-ipc / license.js、catalog-update-toast |
 
 授权/目录事件发送到当前存活主窗口，并非“所有窗口”；license-ipc 发送时不另外检查页面路径或 origin。礼物互动发送另外检查精确 origin；资源检查发送还检查管理页。sender 检查与远端代次检查不能替代 renderer 自身任务 ID/草稿版本判断。

@@ -11,7 +11,7 @@ const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
 const { migrateGiftRetention } = require('./gift-retention-migration');
-const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors } = require('./gift-wish-migration');
+const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors, migrateGiftWishTextRuns, migrateGiftWishContributions } = require('./gift-wish-migration');
 const { migrateFanProfiles } = require('./fan-profile-migration');
 const { migrateFanSongRetention } = require('./fan-song-migration');
 const { migrateFanRosterObservations } = require('./fan-roster-observation-migration');
@@ -367,6 +367,10 @@ function runAllMigrations(databases, options = {}) {
               AND total_price > 0 AND num >= 1;
         `);
       },
+      // v19: optional structured text formatting; legacy templates remain unchanged.
+      migrateGiftWishTextRuns,
+      // v20: exact wish contributions for partial days outside retained details.
+      migrateGiftWishContributions,
     ]),
   );
 

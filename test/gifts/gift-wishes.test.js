@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createFixture } = require('../helpers/gift-query-fixture');
 const { createGiftWishStore } = require('../../src/storage/gift-wish-store');
-const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors } = require('../../src/storage/gift-wish-migration');
+const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors, migrateGiftWishTextRuns } = require('../../src/storage/gift-wish-migration');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
 const { createGiftWishService } = require('../../src/bilibili/gift/wish-service');
 const { giftVariantId } = require('../../src/shared/gift-identity');
@@ -483,4 +483,58 @@ test('each text color can be changed or reset while omitted colors remain saved'
   wish = (await f.service.getSnapshot()).items[0];
   assert.equal(wish.textPendingColor, '');
   assert.equal(wish.textReceivedColor, '');
+});
+
+test('structured wish text survives restart and partial edits; old template writers clear stale formatting', async t => {
+  const f = setup(t);
+  const textRuns = [{ text: '  想要', fontFamily: '"Lira Xiaolai"', fontSize: 40, bold: false, color: '#FF000080' },
+    { text: '{礼物}{图片}（{已收}/{目标}）  ', underline: true, shadow: true }];
+  const textTemplate = textRuns.map(run => run.text).join('');
+  const id = f.add('long', 'flower-v1', { displayStyle: 'text', textTemplate, textRuns });
+  const expected = [{ ...textRuns[0], text: '想要', color: '#ff000080' }, { ...textRuns[1], text: textRuns[1].text.trim() }];
+  const service = createGiftWishService({ ...f.options, store: createGiftWishStore(f.fixture.giftDb) });
+  assert.deepEqual((await service.getSnapshot()).items[0].textRuns, expected);
+  service.save({ id, viewRevision: 'source-' + f.source, target: 20, label: '只改备注' });
+  assert.deepEqual((await service.getSnapshot()).items[0].textRuns, expected);
+  service.save({ id, viewRevision: 'source-' + f.source, target: 20, label: '', textTemplate: '旧客户端新文字' });
+  assert.deepEqual((await service.getSnapshot()).items[0].textRuns, []);
+});
+
+test('wish formats reject mismatched templates, split tokens, unsafe styles and excess fragments', t => {
+  const f = setup(t);
+  for (const textRuns of [null, {}, [{ text: '别的内容' }], [{ text: '{礼' }, { text: '物}' }],
+    [{ text: '{礼物}', html: '<b>花</b>' }], [{ text: '{礼物}', fontFamily: 'serif; color: red' }],
+    [{ text: '{礼物}', fontSize: 241 }], [{ text: '{礼物}', underline: 1 }],
+    [{ text: '{礼物}', color: 'red' }], Array.from({ length: 241 }, () => ({ text: '字' }))]) {
+    assert.throws(() => f.add('long', 'flower-v1', { textTemplate: '{礼物}', textRuns }), { code: 'INVALID_GIFT_WISH' });
+  }
+  assert.throws(() => f.add('long', 'flower-v1', { textRuns: [{ text: '字' }] }), { code: 'INVALID_GIFT_WISH' });
+  assert.equal(f.store.list(f.source).length, 0);
+});
+
+test('v18 wish migration is repeatable and retains old templates, identity and progress', async t => {
+  const f = setup(t);
+  f.add('long', 'flower-v1', { displayStyle: 'text', textTemplate: '感谢{礼物}', textImagePosition: 'before' });
+  f.event('received', '2026-09-20T04:01:00Z', 4);
+  f.time('2026-09-20T04:02:00Z');
+  const before = (await f.service.getSnapshot()).items[0];
+  f.fixture.giftDb.exec("ALTER TABLE gift_wishes DROP COLUMN text_runs; UPDATE schema_version SET version = 18 WHERE key = 'gift_db';");
+  runAllMigrations(f.fixture.databases);
+  migrateGiftWishTextRuns(f.fixture.giftDb);
+  runAllMigrations(f.fixture.databases);
+  const service = createGiftWishService({ ...f.options, store: createGiftWishStore(f.fixture.giftDb) });
+  assert.deepEqual((await service.getSnapshot()).items[0], before);
+});
+
+test('v19 wish contribution migration is repeatable and preserves existing wishes', async t => {
+  const f = setup(t);
+  f.add('long');
+  f.event('received', '2026-09-20T04:01:00Z', 4);
+  f.time('2026-09-20T04:02:00Z');
+  const before = (await f.service.getSnapshot()).items;
+  f.fixture.giftDb.exec("DROP TABLE gift_wish_contributions; UPDATE schema_version SET version=19 WHERE key='gift_db';");
+  runAllMigrations(f.fixture.databases);
+  runAllMigrations(f.fixture.databases);
+  assert.deepEqual((await f.service.getSnapshot()).items, before);
+  assert.equal(f.fixture.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_contributions').get().n, 0);
 });

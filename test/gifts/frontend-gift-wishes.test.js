@@ -258,14 +258,16 @@ test('period selection keeps the unified browser-source URL and canvas preview, 
     const { enhanceSelects } = await import('/js/shared/select-menu.js');
     enhanceSelects();
   });
-  const url = await page.locator('#giftWishUrl').inputValue();
+  const url = await page.locator('#giftWishUrl').textContent();
   assert.match(url, /\/gift-wishes$/);
-  for (const [period, label] of [['day', '本日许愿'], ['session', '本场直播许愿'], ['long', '长效许愿']]) {
+  await page.locator('#giftWishUrl').click();
+  assert.equal(await page.evaluate(() => window.messages.filter(message => message === '许愿地址已复制').length), 1);
+  for (const [period, label] of [['day', '本日'], ['session', '本场直播'], ['long', '长效']]) {
     await page.getByRole('button', { name: '许愿统计周期', exact: true }).click();
     await page.getByRole('option', { name: label, exact: true }).click();
     assert.equal(await page.locator('#giftWishPeriod').inputValue(), period);
-    assert.equal(await page.locator('#giftWishDraftPreview .wish-card').getAttribute('aria-label'), `${label} · 礼物`);
-    assert.equal(await page.locator('#giftWishUrl').inputValue(), url);
+    assert.equal(await page.locator('#giftWishDraftPreview .wish-card').getAttribute('aria-label'), `${label}许愿 · 礼物`);
+    assert.equal(await page.locator('#giftWishUrl').textContent(), url);
     await page.evaluate(() => { window.openedComponent = null; });
     await page.locator('#giftWishPreview').click();
     assert.equal(await page.evaluate(() => window.openedComponent), 'gift-wishes');
@@ -317,7 +319,7 @@ test('wish drafts survive cancelled item and period changes and discard only aft
   assert.equal(await page.locator('#giftWishTarget').inputValue(), '25');
   assert.equal(await page.locator('#giftWishSelectedName').textContent(), 'one');
   await page.getByRole('button', { name: '许愿统计周期', exact: true }).click();
-  await page.getByRole('option', { name: '本日许愿', exact: true }).click();
+  await page.getByRole('option', { name: '本日', exact: true }).click();
   await page.getByRole('button', { name: '继续编辑', exact: true }).click();
   await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
   assert.equal(await page.locator('#giftWishPeriod').inputValue(), 'long');
@@ -329,7 +331,7 @@ test('wish drafts survive cancelled item and period changes and discard only aft
   assert.equal(await page.locator('#giftWishTarget').inputValue(), '10');
   await page.locator('#giftWishLabel').fill('未保存');
   await page.getByRole('button', { name: '许愿统计周期', exact: true }).click();
-  await page.getByRole('option', { name: '本日许愿', exact: true }).click();
+  await page.getByRole('option', { name: '本日', exact: true }).click();
   await page.getByRole('button', { name: '放弃修改', exact: true }).click();
   await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
   assert.equal(await page.locator('#giftWishPeriod').inputValue(), 'day');
@@ -762,6 +764,99 @@ test('wish text editing locks with the form and reports the existing template le
   await page.locator('#giftWishesRefresh').click();
   await page.waitForFunction(() => document.getElementById('giftWishFields').disabled);
   assert.equal(await editor.getAttribute('contenteditable'), 'false');
+});
+
+test('wish selection formatting reuses the toolbar, preserves tokens and state colors, and survives saving', async t => {
+  const page = await open(t);
+  page.setDefaultTimeout(5000);
+  await page.addStyleTag({ content: ['public/css/admin/gift-wishes.css', 'public/css/admin/rich-text-toolbar.css',
+    'public/css/shared/gift-wish-card.css'].map(path => fs.readFileSync(path, 'utf8').replace(/@import[^;]+;/g, '')).join('\n') });
+  await page.locator('#giftWishPick').click();
+  await page.locator('.gift-wish-option').click();
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  const defaultStroke = await page.locator('#giftWishDraftPreview .wish-card-text').evaluate(node => getComputedStyle(node).webkitTextStrokeWidth);
+  const editor = page.locator('#giftWishTextEditor');
+  await editor.focus();
+  await page.keyboard.press('Control+a');
+  await page.getByRole('toolbar', { name: '文字格式' }).waitFor();
+  await page.locator('.rich-text-font-family').selectOption('"Lira Xiaolai"');
+  await page.getByRole('button', { name: '下划线 (Ctrl+U)', exact: true }).click();
+  await page.locator('.rich-text-font-size').selectOption('40');
+  assert.equal(await editor.locator('[data-wish-token]').count(), 3);
+  const template = '许愿{礼物}（{已收}/{目标}）';
+  assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), template);
+  const output = page.locator('#giftWishDraftPreview .wish-card-text-run').first();
+  assert.match(await output.evaluate(node => getComputedStyle(node).fontFamily), /Lira Xiaolai/);
+  assert.equal(await output.evaluate(node => getComputedStyle(node).fontSize), '40px');
+  assert.equal(await output.evaluate(node => getComputedStyle(node).webkitTextStrokeWidth), defaultStroke);
+  await editor.focus();
+  await page.keyboard.press('Control+z');
+  assert.equal(await output.evaluate(node => getComputedStyle(node).fontSize), '24px');
+  await page.keyboard.press('Control+Shift+z');
+  assert.equal(await output.evaluate(node => getComputedStyle(node).fontSize), '40px');
+  const pending = await output.evaluate(node => getComputedStyle(node).color);
+  await page.locator('#giftWishPreviewState').selectOption('received');
+  assert.notEqual(await output.evaluate(node => getComputedStyle(node).color), pending);
+  await page.locator('#giftWishSave').click();
+  const saved = await page.evaluate(() => window.wishSaves[0]);
+  assert.equal(saved.textTemplate, template);
+  assert.equal(saved.textRuns.map(run => run.text).join(''), template);
+  assert.ok(saved.textRuns.every(run => run.fontFamily === '"Lira Xiaolai"' && run.underline && run.fontSize === 40 && !run.color));
+  assert.equal(saved.textPendingColor, '#3b6ea8');
+  assert.equal(saved.textReceivedColor, '#21815c');
+  await page.getByRole('button', { name: '编辑', exact: true }).click();
+  await editor.focus();
+  await page.keyboard.press('Control+a');
+  await page.getByRole('toolbar', { name: '文字格式' }).waitFor();
+  assert.equal(await page.locator('.rich-text-font-family').inputValue(), '"Lira Xiaolai"');
+  await page.getByRole('button', { name: '更多文字格式', exact: true }).click();
+  await page.getByRole('button', { name: '清除格式', exact: true }).click();
+  assert.equal(await editor.locator('[data-wish-token]').count(), 3);
+  await page.locator('#giftWishSave').click();
+  assert.ok((await page.evaluate(() => window.wishSaves[1].textRuns)).every(run => Object.keys(run).length === 1));
+});
+
+test('formatting one wish line preserves unselected lines and line breaks', async t => {
+  const page = await open(t);
+  await page.addStyleTag({ content: fs.readFileSync('public/css/admin/gift-wishes.css', 'utf8').replace(/@import[^;]+;/g, '') });
+  await page.locator('#giftWishPick').click();
+  await page.locator('.gift-wish-option').click();
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  const editor = page.locator('#giftWishTextEditor');
+  await editor.fill('首行');
+  await editor.press('End');
+  await editor.press('Enter');
+  await page.keyboard.insertText('中间行');
+  await editor.press('Enter');
+  await page.keyboard.insertText('末行');
+  const template = '首行\n中间行\n末行';
+  assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), template);
+  await editor.evaluate(node => {
+    const text = document.createTreeWalker(node, NodeFilter.SHOW_TEXT).nextNode();
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+  await page.getByRole('toolbar', { name: '文字格式' }).waitFor();
+  await page.locator('.rich-text-font-family').selectOption('"Lira Xiaolai"');
+  assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), template);
+  await page.locator('#giftWishSave').click();
+  const runs = await page.evaluate(() => window.wishSaves[0].textRuns);
+  assert.equal(runs.map(run => run.text).join(''), template);
+  assert.equal(runs[0].fontFamily, '"Lira Xiaolai"');
+  assert.ok(runs.slice(1).every(run => !run.fontFamily));
+});
+
+test('formatted wishes retain legacy image positions and literal text in the overlay', async t => {
+  for (const textImagePosition of ['before', 'after', 'inline']) {
+    const page = await openOverlay(t, 'long', [], { displayStyle: 'text', textImagePosition,
+      textTemplate: '<b>想要</b>{礼物}', textRuns: [{ text: '<b>想要</b>{礼物}', fontFamily: '"Lira Xiaolai"', underline: true }] });
+    assert.equal(await page.locator('.wish-card-text img').count(), 1);
+    assert.equal(await page.locator('.wish-card-text').textContent(), '<b>想要</b>小花花');
+    assert.equal(await page.locator('.wish-card-text b').count(), 0);
+    assert.match(await page.locator('.wish-card-text-run').first().evaluate(node => getComputedStyle(node).fontFamily), /Lira Xiaolai/);
+  }
 });
 
 test('static text images are PNG first frames and today color resets even when the cumulative wish is complete', async (t) => {

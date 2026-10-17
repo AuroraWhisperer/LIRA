@@ -24,6 +24,7 @@ test('connection and song request forms save independently and preserve pending 
   const values = {
     roomId: '123',
     paused: 'true',
+    scSongRequestEnabled: 'false',
     queueLimit: '30',
     userCooldownSeconds: '60',
     userQueueLimit: '2',

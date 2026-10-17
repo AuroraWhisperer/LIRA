@@ -46,7 +46,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 [generateReply](../../../src/ai/ai-assistant-service.js#L92-L179) 按序执行:
 
 1. **本地拒绝短路**:`item.localRefusal` 直接返回,`category: 'safety'`,不消耗模型配额。
-2. **查询缓存**：固定本次人格，按可信房间、UID 和人格读取已送达历史；任一保留片段未通过本地安全检查则不使用历史。缓存键覆盖规则版本（`reply-v6`，不读取旧策略缓存）、配置、账号代次、人格作用域、UID、昵称、问题、实际有界输入和不可用工具集合；store 只保存 SHA-256 摘要。首次未交付的随机 sessionId 不进入内容缓存键，相同无历史首问仍可命中。聊天/工具/缓存回答均须确认送达后才追加历史；重试固定同一历史快照和 sessionId，并绕过缓存。失败或拒绝不写记忆、不续期。
+2. **查询缓存**：固定本次人格，按可信房间、UID 和人格读取已送达历史；任一保留片段未通过本地安全检查则不使用历史。缓存键覆盖规则版本（`reply-v7`，不读取旧策略缓存）、配置、账号代次、人格作用域、UID、昵称、问题、实际有界输入和不可用工具集合；store 只保存 SHA-256 摘要。首次未交付的随机 sessionId 不进入内容缓存键，相同无历史首问仍可命中。聊天/工具/缓存回答均须确认送达后才追加历史；重试固定同一历史快照和 sessionId，并绕过缓存。失败或拒绝不写记忆、不续期。
 3. **输入安全审核**:先用 `buildConversationInput` 生成本次问题与短期上下文的 JSON。API 模式再交给 `buildInputReviewPrompt`，任务放在 `instructions`，待审 JSON 放在 `input`；未通过只返回固定 `SAFE_REFUSAL`。豆包账号模式保留本地检查，跳过此远程审核，直接进入生成以减少首字等待。
 4. **观众上下文**：输入 JSON 为 `{question, previousExchange}`；两轮及以上增加按时间排列的 `earlierExchanges`，裁剪后标记 `historyTruncated: true`。历史是同一观众当前会话的已交付问答，用于延续正常聊天、接龙、猜谜及省略，不具有覆盖公共规则的权限。API 输入审核与生成收到相同历史，详见 §3.3。
 5. **主生成**：`deepseek.createResponse` 的 `instructions` 先放公共事实/安全规则，再以单行 `JSON.stringify({ persona })` 传入角色风格资料，避免角色中的换行或标签拼接成额外指令段；已保存角色文本不变。实际可用工具、北京时间与发送预算由程序提供，多轮上下文用于理解当前活动与问题。见 [buildReplyInstructions](../../../src/ai/ai-assistant-helpers.js)。不强制猫语、颜文字、固定推荐数量或非思考模式。
@@ -56,7 +56,9 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 长度预算由 [getReplyLengthBudget](../../../src/ai/ai-assistant-helpers.js) 统一计算：单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度，允许 1–3 条。界面不提供长度偏好，旧 `replyMaxChars` 键仅兼容读写，不影响生成预算。所有内置、自建、导入角色都自动附加公共底层提示，角色资料仅用于名字、语气及普通互动偏好；发送时仍截断到预算。API 模式继续独立执行输入/输出审核；豆包用固定安全指令、本地输入/输出检查和无工具权限的单次生成。
 
-输出 token 上限按是否开启思考模式切换:`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`,审核请求固定 `REVIEW_OUTPUT_TOKENS = 384`([ai-assistant-service.js:22-24](../../../src/ai/ai-assistant-service.js#L22-L24)、[371-373](../../../src/ai/ai-assistant-service.js#L371-L373))。
+共享规则要求先给核心答案，再补充说明；成语接龙轮到助手时，应接观众最新有效词并实际给出符合约定的新成语，不能复述原词或只报尾字便交回合。输出审核同时检查衔接与当前回合，不把正确新词改回观众原词；审核收到与生成相同的正文长度上限，压缩时优先保留答案。送达重试改用单条预算，见 §9.2。这些是生成与审核要求，不是确定性的成语库校验。
+
+主生成及工具后续请求的输出 token 上限按是否开启思考模式切换：`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`（[ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js)）。输入、输出审核仅需短 JSON，固定 `REVIEW_OUTPUT_TOKENS = 384`，请求单独设 `reasoningEnabled: false`，避免思考内容耗尽审核输出额度；不修改已保存的思考设置，正式回答仍按用户设置执行（[runSafetyReview](../../../src/ai/ai-assistant-service.js)）。
 
 ### 3.2 顺序协调器(createOrderedAsyncCoordinator)
 
@@ -205,7 +207,7 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 | 加密实现     | `createElectronSecretCodec` 包装 Electron `safeStorage`(`isEncryptionAvailable()` 为真才可加密),值经 `encryptString` 后 Base64 落库;**刻意不提供明文回退**;非 Electron 独立模式 `isAvailable()` 为 false,写入密钥直接抛错"当前系统无法安全加密 API Key"                       | [secret-codec.js:3-31](../../../src/ai/secret-codec.js#L3-L31)                                                                                                          |
 | 读取降级     | 解密失败时该键置空并 `console.warn`(日志脱敏),不阻断其他配置读取                                                                                                                                                                                                              | [config-store.js:20-25](../../../src/ai/config-store.js#L20-L25)                                                                                                        |
 | 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段及原始 `personaPacks`，改为返回含内置和已保存角色的 `personas` 列表,替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey`、`secretEncryptionAvailable` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}`；`updateConfig` 返回相同公开视图 | [config-store.js](../../../src/ai/config-store.js)                                                                                                                      |
-| 前端遮罩     | 管理页密钥输入框类型为 `password`;已保存密钥不回填到真实 `value`（输入框保持为空，避免把掩码误当成新密钥提交）;提交时空值跳过该字段(保留现值);提示文案:"已加密保存；清空或输入新值以更新"                                                                                     | [ai-assistant-settings.js:266-286](../../../public/js/admin/ai-assistant-settings.js#L266-L286)、[256-264](../../../public/js/admin/ai-assistant-settings.js#L256-L264) |
+| 前端遮罩     | 管理页密钥输入框类型为 `password`；公开配置的 `deepseekApiKeyPreview`、`qweatherApiKeyPreview`、`amapApiKeyPreview` 仅返回前 6 位加 `********`，长度不超过 12 的密钥全部遮罩，未配置返回空串。预览仅放在 placeholder，完整密钥不回填 `value`；成功保存后清空已提交的密钥草稿，较新的输入保留。空值跳过该字段，保留现值；提示文案为“已加密保存；输入新密钥可替换，留空保留现有密钥” | [config-store.js](../../../src/ai/config-store.js)、[ai-assistant-config-view.js](../../../public/js/admin/ai-assistant-config-view.js)、[ai-assistant-settings.js](../../../public/js/admin/ai-assistant-settings.js) |
 
 管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §13);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。
 
@@ -235,6 +237,8 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 已有配置但未保存 personaId 时，有 systemPrompt 就完整保留为 custom，否则保留 cat；不再模糊识别并覆盖旧人设。旧工具开关显式值保持，缺失时按旧版 true 默认读取（包括函数总开关），首次更新会保存这些迁移值。新配置仍全部默认关闭。仅更新 systemPrompt 的旧调用者自动选择 custom；切换角色不会覆盖自定义草稿。
 
 公开视图的 `hasCustomPersona` 在当前选中 custom 或 systemPrompt 不同于通用默认模板时为 true，确保切走之后仍可重新选回原有自定义角色；新配置只列出两个内置预设。
+
+各平台的人格选择由 `config-store.js` 在同一配置事务中记录到 `ai_configuration` 的 `providerPersonaIds` JSON 对象行，键为 `modelProvider`，值为人格 ID；该映射通过公开配置只读返回，不接受客户端直接覆盖。界面切回平台时优先恢复其上次选择；没有记录时沿用当前兼容人格，小猫不适用于目标明确平台时改选 general。首次读取旧配置保留当前选择，下一次保存时补记；删除角色时，引用该角色的平台记录同步改为 general。刷新或重开页面仍能恢复已保存的选择。
 
 上下文以可信房间、观众 UID 和角色 ID/解析名字后的人设内容的组合作为作用域；换房间、角色、编辑人设或改变模板中的名字不会读到另一身份的记忆。缺少房间或 UID 时不读写持久记忆，昵称仅用于提及和限流。触发关键词兼作机器人名字，默认空；启用、关键词、模型及凭据就绪后才处理弹幕。存储方式见 [storage.md](storage.md) §3.1。
 
@@ -286,7 +290,7 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 
 - 匹配规则:同账号 uid、`observedAt >= sentAfter` 的弹幕,按内容逐条消费(去重已匹配项);带 `@用户名 ` 前缀时剥前缀后比对,兼容弹幕平台对 @ 的处理([danmaku-delivery-verifier.js:44-67](../../../src/ai/danmaku-delivery-verifier.js#L44-L67))。
 - 超时:`DELIVERY_CONFIRM_TIMEOUT_MS = 10000`;事件缓冲 TTL 60 秒防泄漏([danmaku-delivery-verifier.js:5-6](../../../src/ai/danmaku-delivery-verifier.js#L5-L6))。
-- **重试**:未确认送达时最多尝试 3 次，含首次发送，即最多重试 2 次（[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js) 的 `MAX_DELIVERY_ATTEMPTS` / `deliverReply`）。重试前**重新生成**回复（`bypassCache: true`，避免原内容再次被吞）；三次均未确认送达则抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志。发送本身抛错时直接进入协调器失败处理，不属于此未确认送达的重试循环。
+- **重试**:未确认送达时最多尝试 3 次，含首次发送，即最多重试 2 次（[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js) 的 `MAX_DELIVERY_ATTEMPTS` / `deliverReply`）。重试前按**原问题和同一份历史重新生成单条精简回复**（`bypassCache: true, singleMessage: true`）；主生成、工具后续、输出审核与最终截断统一使用扣除 @ 昵称后的单条正文预算，保留核心答案、不推进额外游戏回合。未完整送达的版本不作为新输入或写入会话，只有最终确认送达的答案进入历史。三次均未确认送达则抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志。发送本身抛错时直接进入协调器失败处理，不属于此未确认送达的重试循环。回归见 [ai-assistant-delivery.test.js](../../../test/ai/ai-assistant-delivery.test.js)。
 - **关闭**:`waitForDelivery` 接受本轮任务与 shutdown 合并的 signal；总开关关闭立即以 `false` 释放该轮 waiter，不销毁共用验证器。`dispose()` 幂等清除全部 pending timer 并以 `false` 释放 waiter。两类取消均不触发重新生成/重试或普通 delivery 失败审计。
 
 ### 9.3 失败回复文案
@@ -313,6 +317,6 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 | 上游超时/不可用   | `fetchJson` 归一化为 `UPSTREAM_TIMEOUT` / `UPSTREAM_UNAVAILABLE`,回复文案见 §9.3;失败已入日志                                                                                                                                                                                                                                 |
 | 第三方配额触顶    | 工具调用失败 → 该工具当次会话停用，按实际可用能力建议搜索或说明无法核实(§5);配额按月自动重置                                                                                                                                                                                                                                                  |
 | 模型空回复/截断   | `DEEPSEEK_OUTPUT_TRUNCATED` / `DEEPSEEK_INVALID_RESPONSE` 按失败文案回复                                                                                                                                                                                                                                                      |
-| 弹幕被吞(风控等)  | 送达验证 10 秒超时 → 重新生成后重发,最多 3 次;仍失败记 `delivery` 失败                                                                                                                                                                                                                                                        |
+| 弹幕未完整送达    | 送达验证 10 秒超时 → 按原问题生成单条精简回复后重发，最多 3 次（含首次）；仍失败记 `delivery` 失败                                                                                                                                                                                                                              |
 | 密钥缺失/不可加密 | 独立模式写入密钥抛错(§7.2);未配置时 `handleDanmaku` 直接 `disabled_or_unconfigured`                                                                                                                                                                                                                                           |
 | 服务关闭          | `aiRuntime.shutdown()` 单飞:停止准入并触发 `AI_SHUTDOWN`，丢弃未开始任务，等待 active generation/current delivery/direct provider 操作；取消后不再发送/重试或写 context/cache/audit，最后 dispose delivery verifier 并 flush `ai.log`。已开始的外部弹幕发送只能等待完成，不能撤回。见 [server-core.md](server-core.md) §6.2。 |

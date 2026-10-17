@@ -46,14 +46,7 @@
   letter-spacing: 0.12em;
 }
 .games-source-url {
-  width: max-content;
-  max-width: 100%;
-  padding: 8px 12px;
-  font-family: Consolas, monospace;
-  font-size: var(--type-size-control);
-  font-weight: 400;
-  text-align: left;
-  overflow-wrap: anywhere;
+  --copy-url-width: max-content;
 }
 .games-catalog {
   display: grid;

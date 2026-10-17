@@ -4,9 +4,67 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT = path.join(__dirname, '../..');
+
+test('Bilibili account changes reconnect the existing listener once without reconnecting on initialization', async () => {
+  const listeners = new Map();
+  const reconnects = [];
+  const noop = () => {};
+  const context = vm.createContext({
+    window: {},
+    document: {
+      addEventListener(type, listener) {
+        const handlers = listeners.get(type) || [];
+        handlers.push(listener);
+        listeners.set(type, handlers);
+      },
+    },
+  });
+  const dependencies = {
+    '../shared/utils.js': Object.fromEntries([
+      'api', 'dangerConfirm', 'localOverlayOrigin', 'logoutConfirm', 'readJsonResponse',
+      'showConfirmationDialog', 'showStackedToast', 'toast', 'value',
+    ].map(name => [name, noop])),
+    './settings-auth.js': { initBilibiliAuth: noop },
+    './settings-blindbox.js': { createBlindboxSettings: () => ({}) },
+    './settings-form.js': { createSettingsForm: () => ({}) },
+    './song-request-blacklist.js': { createSongRequestBlacklist: noop },
+    './song-request-user-blacklist.js': { createSongRequestUserBlacklist: noop },
+    './settings-license.js': { initLicenseAccountDevice: noop },
+    './settings-operations.js': {
+      createSettingsOperations: () => ({ reconnectBilibili: options => reconnects.push({ ...options }) }),
+    },
+    './settings-room-profile.js': { createBilibiliRoomProfile: () => ({ refresh: noop }) },
+    './settings-guard-expiry.js': { initGuardExpirySettings: () => ({ refresh: noop }) },
+    '../shared/event-bus.js': { eventBus: { on: noop }, Events: {} },
+    './state.js': { stateService: {} },
+    './forms.js': { formsService: {} },
+    './queue.js': { renderState: noop },
+    './gifts/blindbox.js': { giftBlindbox: {} },
+    './legacy-admin-bridge.js': { publishSettings: noop },
+  };
+  const entry = new vm.SourceTextModule(fs.readFileSync(path.join(ROOT, 'public/js/admin/settings.js'), 'utf8'), { context });
+  await entry.link(specifier => {
+    const exports = dependencies[specifier];
+    assert.ok(exports, `Unexpected dependency: ${specifier}`);
+    return new vm.SyntheticModule(Object.keys(exports), function () {
+      for (const [name, value] of Object.entries(exports)) this.setExport(name, value);
+    }, { context });
+  });
+  await entry.evaluate();
+  entry.namespace.initBilibiliAuth();
+  assert.deepEqual(reconnects, [], 'reading the saved account does not restart the listener');
+  const handlers = listeners.get('app:bilibili-auth-changed');
+  assert.equal(handlers.length, 1);
+  for (const change of ['login', 'logout']) {
+    handlers[0]();
+    assert.deepEqual(reconnects.at(-1), { silent: true }, `${change} refreshes the listener with current credentials`);
+  }
+  assert.equal(reconnects.length, 2);
+});
 
 function createElement(id, overrides = {}) {
   const listeners = new Map();

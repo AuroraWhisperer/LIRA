@@ -3,6 +3,7 @@
 const { createHash } = require('node:crypto');
 const { dayStart } = require('../shared/gift-summary-contract');
 const { activeSnapshot, transaction } = require('./gift-retention-store');
+const { archiveWishContributions } = require('./gift-wish-retention');
 
 function archiveQualifiedGift(db, row) {
   if (row.gift_stats_eligible !== 1) return;
@@ -45,6 +46,8 @@ function pruneLocalGiftBatch(db, sourceId, limit = 500) {
       AND NOT EXISTS (SELECT 1 FROM overtime_settlements o WHERE o.gift_event_id=g.id AND o.status='pending')
       AND NOT (g.gift_stats_eligible=1 AND g.gift_stats_delivered=0)
       ORDER BY g.id LIMIT ?`).all(sourceId,snapshot.detail_start,snapshot.summarized_before,snapshot.covered_cursor,limit);
+    archiveWishContributions(db, sourceId, { syncEpoch: snapshot.sync_epoch,
+      memberSnapshotId: snapshot.member_snapshot_id, eventIds: rows.map(row => row.id) });
     for (const row of rows) {
       archiveQualifiedGift(db, row);
       db.prepare('INSERT OR IGNORE INTO gift_retention_receipts VALUES (?,?)').run(sourceId,row.platform_id);

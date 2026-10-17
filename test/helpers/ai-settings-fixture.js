@@ -55,6 +55,7 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
       id,
       tagName,
       value: '',
+      placeholder: '',
       type: 'text',
       checked: false,
       hidden: false,
@@ -98,6 +99,7 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     const element = createElement(tagName, id);
     element.type = tag.match(/\btype="([^"]+)"/)?.[1] || 'text';
     element.value = tag.match(/\bvalue="([^"]*)"/)?.[1] || '';
+    element.placeholder = tag.match(/\bplaceholder="([^"]*)"/)?.[1] || '';
     element.checked = /\bchecked\b/.test(tag);
     element.hidden = /\bhidden\b/.test(tag);
     elements.set(id, element);

@@ -138,6 +138,33 @@ test('keyboard marks toggle repeatedly and toolbar formatting stays limited to t
   assert.deepEqual(letters(await read(page)).map(node => node.color || '#ffffff'), ['#ffffff', '#ff0000', '#ff0000', '#ffffff']);
 });
 
+test('large multiline paste uses one native edit, preserves final newlines and remains undoable', async t => {
+  const page = await mount(t, [{ type: 'text', text: '公告', bold: true }]);
+  await selectText(page, '公告');
+  const text = `${'直播间公告\n'.repeat(2000)}<img src=x onerror=alert(1)>\n\n`;
+  const result = await page.evaluate(text => {
+    let inputs = 0;
+    window.composer.editor.addEventListener('input', () => inputs++);
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', text);
+    const start = performance.now();
+    window.composer.editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
+    return { inputs, ms: performance.now() - start, elements: window.composer.editor.querySelectorAll('*').length,
+      changes: window.changes, images: window.composer.editor.querySelectorAll('img').length };
+  }, text);
+  assert.ok(await readText(page) === text, 'all lines, literal markup and final newlines survive the paste');
+  assert.equal(result.inputs, 1);
+  assert.equal(result.changes, 1);
+  assert.equal(result.images, 0);
+  assert.ok(result.elements < 10, 'paste must not create a DOM block for every line');
+  assert.ok((await read(page)).every(node => node.bold), 'plain-text paste retains the insertion style');
+  await page.keyboard.press('Control+z');
+  assert.equal(await readText(page), '公告');
+  await page.keyboard.press('Control+Shift+z');
+  assert.ok(await readText(page) === text);
+  t.diagnostic(`multiline paste: ${text.length} characters, ${result.ms.toFixed(1)} ms, ${result.elements} elements`);
+});
+
 test('nested styles preserve underline from ancestors and only a terminal placeholder BR is ignored', async (t) => {
   const page = await mount(t);
   const result = await page.evaluate(() => {
@@ -215,7 +242,7 @@ test('formatting appears above selected text only and never changes defaults fro
   await page.keyboard.press('ArrowRight');
   await toolbar.waitFor({ state: 'hidden' });
   await page.evaluate(() => {
-    const size = document.querySelector('.text-box-font-size');
+    const size = document.querySelector('.rich-text-font-size');
     size.value = '72'; size.dispatchEvent(new Event('change'));
   });
   assert.equal(await page.evaluate(() => window.config.fontSize), 32);
@@ -342,6 +369,40 @@ async function mountPreview(t) {
   await page.frameLocator('.component-preview-frame').locator('#textBox span').waitFor();
   return page;
 }
+
+test('scroll switches are exclusive and preserve long editable text and native undo', async (t) => {
+  const page = await mountPreview(t);
+  await page.addStyleTag({ url: `${fixture.origin}/css/admin/text-box.css` });
+  await page.addStyleTag({ url: `${fixture.origin}/css/components/switch-control.css` });
+  const editor = page.getByRole('textbox', { name: '文本框内容' });
+  const horizontal = page.getByRole('switch', { name: '横向滚动' });
+  const vertical = page.getByRole('switch', { name: '纵向滚动' });
+  assert.equal(await horizontal.isChecked(), false);
+  assert.equal(await vertical.isChecked(), false);
+  const text = '第一行公告\n第二行内容'.repeat(1000);
+  await editor.focus();
+  await page.keyboard.press('Control+a');
+  await page.evaluate(text => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', text);
+    document.querySelector('.text-box-editor').dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
+  }, text);
+  await page.evaluate(() => { window.originalEditorNode = document.querySelector('.text-box-editor').firstChild; });
+  await horizontal.check();
+  assert.equal(await vertical.isChecked(), false);
+  await vertical.check();
+  assert.equal(await horizontal.isChecked(), false);
+  assert.equal(await page.evaluate(() => window.controller.getState().draft.scrollMode), 'vertical');
+  assert.ok(await page.evaluate(text => window.controller.getState().draft.nodes.map(node => node.text || '').join('') === text, text),
+    'switching playback preserves every line in the editable configuration');
+  assert.equal(await page.evaluate(() => window.originalEditorNode === document.querySelector('.text-box-editor').firstChild), true);
+  await editor.focus();
+  await page.keyboard.press('Control+z');
+  assert.equal(await editor.textContent(), '在这里输入文字');
+  assert.equal(await vertical.isChecked(), true);
+  await vertical.uncheck();
+  assert.equal(await page.evaluate(() => window.controller.getState().draft.scrollMode), 'none');
+});
 
 test('text effects visibly update the live preview and disappear when toggled off', async (t) => {
   const page = await mountPreview(t);
@@ -548,4 +609,34 @@ test('disposing and remounting releases document handlers and inserts once per a
   assert.deepEqual(signals, { total: 8, active: 4 });
   assert.equal(await readText(page), '只插入一次');
   assert.equal(await page.locator('.text-box-editor').count(), 1);
+});
+
+test('the shared font menu retains the selected text and supports undo, default font and clearing', async t => {
+  const page = await mount(t, [{ type: 'text', text: '前选后', bold: true }]);
+  await page.addStyleTag({ url: `${fixture.origin}/css/admin/text-box.css` });
+  await page.addStyleTag({ url: `${fixture.origin}/css/components/select-menu.css` });
+  await page.addStyleTag({ content: '#host { margin: 180px 60px; }' });
+  await page.evaluate(async () => { const { enhanceSelects } = await import('/js/shared/select-menu.js'); enhanceSelects(); });
+  await selectText(page, '前选后', 1, 2);
+  await page.getByRole('button', { name: '文字字体', exact: true }).click();
+  await page.getByRole('searchbox', { name: '文字字体：搜索', exact: true }).fill('小赖');
+  await page.getByRole('option', { name: '小赖字体 · 软萌手写', exact: true }).click();
+  assert.equal(await page.evaluate(() => getSelection().toString()), '选');
+  assert.deepEqual(letters(await read(page)).map(node => node.fontFamily || ''), ['', '"Lira Xiaolai"', '']);
+  assert.ok(letters(await read(page)).every(node => node.bold));
+  await page.locator('.text-box-editor').focus();
+  await page.keyboard.press('Control+z');
+  assert.ok(letters(await read(page)).every(node => !node.fontFamily));
+  await page.keyboard.press('Control+Shift+z');
+  assert.equal(letters(await read(page))[1].fontFamily, '"Lira Xiaolai"');
+  await selectText(page, '选');
+  await page.locator('.rich-text-font-family').selectOption('');
+  assert.ok(letters(await read(page)).every(node => !node.fontFamily));
+  await page.locator('.rich-text-font-family').selectOption('"Lira Maiyuan"');
+  await page.getByRole('button', { name: '更多文字格式', exact: true }).click();
+  await page.getByRole('button', { name: '清除格式', exact: true }).click();
+  assert.deepEqual(letters(await read(page)), [
+    { type: 'text', text: '前', bold: true }, { type: 'text', text: '选' }, { type: 'text', text: '后', bold: true },
+  ]);
+  assert.deepEqual(await page.evaluate(() => window.failures), []);
 });

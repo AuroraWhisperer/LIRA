@@ -1,5 +1,6 @@
 import { previewElement, previewToolbarIcon } from './component-preview-surface.js';
 import { copyText, localOverlayOrigin } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 import { sceneSourceUrl } from './scene-source-url.js';
 import { getCanvasPublicationEntries } from './component-preview-publication.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
@@ -8,11 +9,14 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
   let disposed = false;
   let busy = false;
   let sourceButton = null;
-  const source = previewElement('input', 'preview-canvas-source');
+  const source = previewElement('button', 'copy-url preview-canvas-source');
   source.id = 'previewCanvasSource';
-  source.readOnly = true;
   source.hidden = true;
-  source.setAttribute('aria-label', '直播源地址');
+  source.setAttribute('aria-label', '复制直播源地址');
+  const disposeSource = bindCopyUrl(source, {
+    onCopied: () => report('直播源地址已复制', 'success'),
+    onError: error => report(error.message, 'error'),
+  });
   const copy = previewElement('button', 'secondary preview-canvas-icon-button');
   copy.title = '复制整个场景的直播源地址，应用修改后继续使用此地址';
   copy.setAttribute('aria-label', '复制场景地址');
@@ -71,7 +75,7 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
         const url = item?.appearance.mode === 'shared'
           ? new URL(SCENE_COMPONENTS[item.type].sourceUrl, localOverlayOrigin()).href
           : sceneSourceUrl({ ...result, ...(item ? { item: item.id } : {}) });
-        source.value = url;
+        source.textContent = url;
         showSource(item ? copyComponent : copy);
         await copyText(url);
         const size = sharedSource ? result.componentSizes?.[item.type] : item ? result.itemSizes?.[item.id] : result.canvas;
@@ -91,11 +95,13 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
   return {
     render(connected, saving) {
       copy.disabled = apply.disabled = !connected || saving || busy;
+      source.disabled = copy.disabled;
       copyComponent.hidden = !getSelection?.();
       copyComponent.disabled = copy.disabled;
     },
     dispose() {
       disposed = true;
+      disposeSource();
       document.removeEventListener('pointerdown', dismissSource, true);
       document.removeEventListener('keydown', escapeSource);
       source.remove(); copy.remove(); copyComponent.remove(); apply.remove();
