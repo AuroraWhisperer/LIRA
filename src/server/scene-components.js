@@ -67,7 +67,9 @@ const COMPONENT_PORTS = Object.freeze({
         !['classic', 'identity', 'festival', 'storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily'].includes(config.overlayQueueStyle)) throw invalidConfig();
       const normalized = normalizeSettingsPatch(config, QUEUE_DEFAULTS);
       if (normalized.error) throw invalidConfig();
-      return { ...QUEUE_DEFAULTS, ...normalized.values };
+      return { ...QUEUE_DEFAULTS,
+        identityQueueFontFamily: normalized.values.overlayFontFamily ?? QUEUE_DEFAULTS.identityQueueFontFamily,
+        ...normalized.values };
     },
     getDefault: (state) => projectOverlayState('queue', state).settings,
     getDisplay(getState) {

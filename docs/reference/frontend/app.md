@@ -275,7 +275,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 - 渲染:点歌队列 = `current + waiting` 拼表,置顶📌、序号、来源标签(`admin/danmaku/superchat/random:<scope>`/history)、SC 列表(价格降序、已处理状态);长歌名分级字号(`data-length="long|very-long"`);管理员队列字体预览(`--admin-queue-font-family`,[queue.js:236-243](../../../public/js/admin/queue.js#L236-L243))。
 - 操作:`/api/queue/action`(done/clear/pin/unpin/live/unlive/delete)、`/api/superchats/action`(assist/unassist/delete),成功后 `reloadState()` 乐观刷新;清空队列走 `dangerConfirm` 二次确认;未置顶首行不显示置顶按钮；仅首行显示 LIVE 切换按钮（aria-pressed），标记后保留第 1 位，取消恢复规则排序,置顶按钮行为随 `is_pinned` 切换(↧/↑)。
 - 状态条归属：`queue.js` 更新队列计数 `#queueSize`；歌库计数 `#songCount` 与 `#liveStatus` 由 `state-renderer.js` 按对应字段变化更新。
-- 滚轮处理:队列内滚动用 wheel 事件归一化(deltaMode 换算),到达边界后放行页面滚动([queue.js:47-74](../../../public/js/admin/queue.js#L47-L74))。
+- 滚轮处理：SC 与点歌队列共用 [queue.js](../../../public/js/admin/queue.js) 的 `bindQueueWheel`，按 `deltaMode` 换算后以 0.3 倍速度滚动列表。触底后拦截当前向下滚动，750 毫秒后放行外层页面；若相邻纵向滚轮事件间隔达到 180 毫秒，视为新手势并提前放行，后续连续输入保持放行。首次在已触底列表上滚动也进入缓冲；反向滚动或列表重新可向下滚动时重置缓冲。空列表、无需滚动的短列表及顶部向上滚动直接交给页面；两个队列分别维护缓冲状态。
 
 点歌规则的 `guardPriorityEnabled` 默认关闭，通过现有表单统一保存并保留未保存草稿；排序说明放在问号中。冷却模式保留问号说明，不再渲染控件下方重复段落。LIVE 是点歌队列标记，与播放器运行状态独立；各点歌板样式显示 LIVE，并把它纳入渲染变更判断。
 

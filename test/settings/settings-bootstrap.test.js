@@ -3,14 +3,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { prepareSettingsBootstrap } = require('../../src/server/settings-bootstrap');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 function fixture(t, values) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-settings-migration-'));
+  const root = createScratchDirectory('settings-migration-');
   const filename = path.join(root, 'settings.db');
   let db = new DatabaseSync(filename);
   t.after(() => {
@@ -104,4 +104,37 @@ test('an absent legacy queue font receives the current default without scaling',
   prepareSettingsBootstrap(state.db);
   assert.equal(state.value('queueSongFontSize'), DEFAULT_SETTINGS.queueSongFontSize);
   assert.equal(state.value('queueTitleFontSize'), '16');
+});
+
+test('queue style 2 copies the legacy font once and then persists independently across startup', t => {
+  const state = fixture(t, { overlayFontFamily: '"Lira Maiyuan"' });
+  const store = prepareSettingsBootstrap(state.db).settingsStore;
+  assert.equal(state.value('identityQueueFontFamily'), '"Lira Maiyuan"');
+  store.setSetting('overlayFontFamily', '"STKaiti"');
+  state.reopen();
+  prepareSettingsBootstrap(state.db).settingsStore.setSetting('identityQueueFontFamily', '"Lira Smiley"');
+  state.reopen();
+  prepareSettingsBootstrap(state.db);
+  assert.equal(state.value('overlayFontFamily'), '"STKaiti"');
+  assert.equal(state.value('identityQueueFontFamily'), '"Lira Smiley"');
+});
+
+test('both queue fonts default to Microsoft YaHei on a new installation', t => {
+  const state = fixture(t, {});
+  prepareSettingsBootstrap(state.db);
+  assert.equal(state.value('overlayFontFamily'), 'Microsoft YaHei');
+  assert.equal(state.value('identityQueueFontFamily'), 'Microsoft YaHei');
+});
+
+test('independent queue font migration rolls back on failure and retries without data loss', t => {
+  const state = fixture(t, { overlayFontFamily: '"STKaiti"' });
+  state.db.exec(`CREATE TRIGGER reject_identity_font BEFORE INSERT ON settings
+    WHEN NEW.key = 'identityQueueFontFamily' BEGIN SELECT RAISE(ABORT, 'font migration failed'); END;`);
+  assert.throws(() => prepareSettingsBootstrap(state.db), /font migration failed/);
+  assert.equal(state.value('identityQueueFontFamily'), undefined);
+  assert.equal(state.value('queueFontSizeRangeVersion'), undefined);
+  assert.equal(state.value('overlayFontFamily'), '"STKaiti"');
+  state.db.exec('DROP TRIGGER reject_identity_font');
+  prepareSettingsBootstrap(state.db);
+  assert.equal(state.value('identityQueueFontFamily'), '"STKaiti"');
 });

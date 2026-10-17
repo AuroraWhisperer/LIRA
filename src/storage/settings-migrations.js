@@ -103,6 +103,14 @@ function migrateQueueFontSizeSettings(db, savedVersion) {
   ).run(updatedAt);
 }
 
+function migrateIdentityQueueFontFamily(db) {
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    SELECT 'identityQueueFontFamily', value, ? FROM settings WHERE key = 'overlayFontFamily'
+    ON CONFLICT(key) DO NOTHING
+  `).run(now());
+}
+
 function migrateQueueStyleSettings(db, savedVersion) {
   if (String(savedVersion || '') === '1') return;
 
@@ -331,6 +339,7 @@ module.exports = {
   migrateQueueScrollSpeedSetting,
   migrateSongScrollSpeedSetting,
   migrateQueueFontSizeSettings,
+  migrateIdentityQueueFontFamily,
   getQueueStyleSettingsVersion,
   migrateQueueStyleSettings,
   migrateBlindBoxConfig,

@@ -35,6 +35,33 @@
           </button>
         </div>
 
+        <fieldset id="queueFontArea" class="theme-section">
+          <legend>字体设置</legend>
+          <label>
+            <span>字体 <lira-help>仅应用于当前风格。可选择共享字体库或本机已安装字体，默认使用微软雅黑。</lira-help></span>
+            <select id="overlayFontFamily" data-select-search data-select-font-preview data-dropdown-variant="settings">
+              <option
+                value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif"
+              >
+                中日英韩通用
+              </option>
+              <option value="Microsoft YaHei">微软雅黑（默认）</option>
+              <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
+              <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
+              <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
+              <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
+              <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
+              <option value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif">思源黑体 · 清晰现代</option>
+              <option value="YouYuan, STYuanti, PingFang SC, sans-serif">幼圆 · 圆润亲切</option>
+              <option value="STLiti, FZLiShu, KaiTi, serif">隶书 · 古朴庄重</option>
+              <option value="Georgia, Times New Roman, STSong, serif">Georgia · 优雅衬线</option>
+              <option value="Courier New, Consolas, monospace">等宽字体 · 极客风格</option>
+              <option value="STHupo, KaiTi, cursive">琥珀体 · 创意醒目</option>
+              <option value="Hannotate SC, KaiTi, serif">手札体 · 文艺清新</option>
+            </select>
+          </label>
+        </fieldset>
+
         <fieldset id="queueTitleArea" class="theme-section">
           <legend>标题设置</legend>
           <div class="grid-2">
@@ -154,29 +181,6 @@
           <fieldset class="theme-section">
             <legend>文字设置</legend>
             <div class="grid-2">
-              <label>
-                字体
-                <select id="overlayFontFamily" data-select-search data-select-font-preview data-dropdown-variant="settings">
-                  <option
-                    value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif"
-                  >
-                    中日英韩通用
-                  </option>
-                  <option value="Microsoft YaHei">微软雅黑（默认）</option>
-                  <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
-                  <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
-                  <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
-                  <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
-                  <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
-                  <option value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif">思源黑体 · 清晰现代</option>
-                  <option value="YouYuan, STYuanti, PingFang SC, sans-serif">幼圆 · 圆润亲切</option>
-                  <option value="STLiti, FZLiShu, KaiTi, serif">隶书 · 古朴庄重</option>
-                  <option value="Georgia, Times New Roman, STSong, serif">Georgia · 优雅衬线</option>
-                  <option value="Courier New, Consolas, monospace">等宽字体 · 极客风格</option>
-                  <option value="STHupo, KaiTi, cursive">琥珀体 · 创意醒目</option>
-                  <option value="Hannotate SC, KaiTi, serif">手札体 · 文艺清新</option>
-                </select>
-              </label>
               <label>
                 字重
                 <select id="overlayFontWeight" data-dropdown-variant="settings">

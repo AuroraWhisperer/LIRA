@@ -124,7 +124,14 @@ test('shared display fonts keep legacy selections without duplicate options or l
     const group = select.querySelector('optgroup[data-shared-fonts]');
     assert.deepEqual(group.children.map(option => option.dataset.fontId),
       ['maiyuan', 'kuaile', 'smiley', 'xiaolai', 'assorted', 'zhimangxing', 'mashanzheng', 'wenkai']);
+    const selected = select.options.find(option => option.value === saved);
+    let valueWrites = 0;
+    Object.defineProperty(selected, 'value', {
+      get: () => saved,
+      set() { valueWrites++; },
+    });
     library.ensureSavedFontOption(select, saved);
+    assert.equal(valueWrites, 0, 'An unchanged font must not rebuild the open menu during focusout.');
     library.populateSharedFontOptions(select);
     assert.equal(select.value, saved);
     assert.equal(select.children.filter(child => child.dataset.sharedFonts).length, 1);

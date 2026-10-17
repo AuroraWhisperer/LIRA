@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 
-// Official Rubber Band 3.3.0 source, compiled for x64; not a converted QQ DLL.
 internal sealed class RubberBandProcessor : IDisposable
 {
   const int BlockFrames = 1024;

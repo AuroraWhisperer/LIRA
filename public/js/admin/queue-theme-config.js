@@ -42,6 +42,7 @@ export function collectQueueTheme(root) {
   const styleValues = style === 'classic'
     ? { scrollMode: value('queueScrollMode'), scrollSpeed: value('queueScrollSpeed') }
     : Object.fromEntries(Object.entries(QUEUE_STYLE_CONTROLS).map(([field, id]) => [field, value(id)]));
+  if (style === 'identity') styleValues.fontFamily = value('overlayFontFamily');
   return { ...payload, ...queueStyleSettingsPayload(style, styleValues) };
 }
 

@@ -4,7 +4,7 @@ using Microsoft.ML.OnnxRuntime;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
-// The locally installed QQ model consumes 44.1 kHz stereo spectra.
+// The separation model consumes 44.1 kHz stereo spectra.
 internal sealed class StemSeparator : ISampleProvider, IDisposable
 {
   readonly ISampleProvider source;

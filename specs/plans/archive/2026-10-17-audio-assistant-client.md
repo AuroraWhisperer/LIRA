@@ -20,7 +20,7 @@ Status: Completed
 
 ## Proposed Changes
 
-1. `native/audio-assistant/` 迁入成熟核心与来源说明；新增无可见窗口的标准输入/输出控制宿主，配置与恢复记录位于客户端数据目录，资源位于独立构建目录。原生处理需要 WASAPI、ONNX 与 Rubber Band；保留原生辅助进程是复用成熟实现及隔离音频故障的必要边界，不添加 Node/Python 服务。
+1. `native/audio-assistant/` 迁入成熟核心；新增无可见窗口的标准输入/输出控制宿主，配置与恢复记录位于客户端数据目录，资源位于独立构建目录。原生处理需要 WASAPI、ONNX 与 Rubber Band；保留原生辅助进程是复用成熟实现及隔离音频故障的必要边界，不添加 Node/Python 服务。
 2. `scripts/build-audio-assistant.js` 使用已有 dotnet SDK 构建自带 .NET 的工作程序，复用本机样品 vendor；输出 `build/audio-assistant/`，不提交二进制、模型或个人设置。Electron 使用自带 Node；资源清单显式收集构建输出，缺失时给出可操作错误。
 3. `src/electron/audio-assistant.js` 与 `ipc/audio-assistant-ipc.js` 管理惰性启动、固定命令、参数校验、状态通知、退出关闭。文件选择复用桌面原生对话框，renderer 不获得任意进程/命令执行能力。
 4. 保留入口 owner，新增完整双栏设置、精简共享控件、帮助说明与统一错误状态。任何一处调参即更新另一处；忙碌和自动停止由权威状态回写。
@@ -45,4 +45,4 @@ Status: Completed
 
 ## Failure Handling / Done When
 
-停止或崩溃时由已迁入的路由守护恢复播放器；保留待恢复记录，不删除或覆盖用户数据。仅修改本任务内容，不执行 reset/checkout 或提交。功能、聚焦验证和文档一致后完成；实际歌曲听感与未覆盖硬件限制如实记录。QQ 模型及 Rubber Band 的既有来源/许可说明保留；本任务只准备本机使用，不声称具有第三方模型再分发授权。
+停止或崩溃时由已迁入的路由守护恢复播放器；保留待恢复记录，不删除或覆盖用户数据。仅修改本任务内容，不执行 reset/checkout 或提交。功能、聚焦验证和文档一致后完成；实际歌曲听感与未覆盖硬件限制如实记录。

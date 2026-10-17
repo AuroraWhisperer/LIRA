@@ -155,6 +155,36 @@ test('queue style controls exist, default to inherited typography and persist on
     { ...queueSettingsPayload({ overlayQueueStyle: 'golden-lily' }, { goldenLilyQueueFontSize: '30', unrelated: 'x' }) },
     { goldenLilyQueueFontSize: '30', overlayQueueStyle: 'golden-lily' },
   );
+
+  assert.equal(defaults.overlayFontFamily, 'Microsoft YaHei');
+  assert.equal(defaults.identityQueueFontFamily, 'Microsoft YaHei');
+  assert.equal(html.match(/\sid="overlayFontFamily"/g).length, 1, 'there is one active font selector');
+  for (const style of ['classic', 'identity']) {
+    for (const font of ['Microsoft YaHei', '"Lira Maiyuan"', '"Custom Local"']) {
+      values.overlayQueueStyle = style;
+      values.overlayFontFamily = font;
+      const collected = collectQueueTheme({ getElementById: (id) => ({ value: values[id] ?? '' }) });
+      const key = style === 'identity' ? 'identityQueueFontFamily' : 'overlayFontFamily';
+      const otherKey = style === 'identity' ? 'overlayFontFamily' : 'identityQueueFontFamily';
+      assert.equal(collected[key], font, `${style} saves its selected font`);
+      assert.equal(collected[otherKey], undefined, 'editing one style must not change the other font');
+      assert.equal(queueSettingsPayload(collected, { [key]: font })[key], font);
+      assert.ok(OVERLAY_THEME_KEYS.includes(key));
+      assert.equal(collected.illustratedQueueFontFamily, undefined, 'illustrated fonts remain independent');
+    }
+  }
+});
+
+test('queue font selector is shown for styles 1 and 2 while other typography stays scoped', async () => {
+  const fontArea = { hidden: false };
+  const root = { getElementById: id => id === 'queueFontArea' ? fontArea : null, querySelectorAll: () => [] };
+  const { setOverlayStyle } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/theme-style-view.js'));
+  for (const style of ['classic', 'identity', 'storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily']) {
+    setOverlayStyle(style, root);
+    assert.equal(fontArea.hidden, !['classic', 'identity'].includes(style), style);
+  }
+  setOverlayStyle('identity', root, 'moonlit-queue');
+  assert.equal(fontArea.hidden, true, 'resource styles retain their dedicated font');
 });
 
 test('queue styles migrate shared typography and scrolling into independent persisted values', () => {

@@ -88,6 +88,7 @@ const DEFAULT_SETTINGS = {
   queueSongFontSize: '28',
   queueTitleFontSize: '30',
   identityQueueFontSize: '28',
+  identityQueueFontFamily: 'Microsoft YaHei',
   identityQueueScrollMode: 'bounce',
   illustratedQueueFontFamily: 'default',
   illustratedQueueFontWeight: 'default',

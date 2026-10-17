@@ -17,6 +17,7 @@ const OVERLAY_THEME_KEYS = [
   'queueSongFontSize',
   'queueTitleFontSize',
   'identityQueueFontSize',
+  'identityQueueFontFamily',
   'identityQueueScrollMode',
   'identityQueueScrollSpeed',
   'illustratedQueueFontFamily',

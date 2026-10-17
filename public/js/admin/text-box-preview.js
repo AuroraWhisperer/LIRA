@@ -9,7 +9,7 @@ export function createTextBoxPreview({ media } = {}) {
   return { id: 'text-box', title: '文本框', sceneOnly: true, controller,
     url: new URL('/text-box?preview=1&componentPreview=1', location.href).href,
     size: () => TEXT_BOX_SIZE,
-    createPanel(host, target = controller) {
+    createPanel(host, target = controller, { settingsHost } = {}) {
       const content = previewElement('div', 'text-box-panel');
       const label = previewElement('h4', 'text-box-section-title', '内容');
       const editorHost = previewElement('div');
@@ -50,7 +50,11 @@ export function createTextBoxPreview({ media } = {}) {
         control.append(input, track); label.append(control); directions.append(label); switches.set(mode, input);
       }
       scrolling.append(directions, previewElement('p', 'text-box-scroll-hint', '横向单行向左，纵向保留换行向上；一次启用一个方向。'));
-      content.append(label, editorHost, materials, layout, scrolling, error);
+      const settings = previewElement('div', 'text-box-settings');
+      settings.append(layout, scrolling);
+      content.append(label, editorHost, materials);
+      (settingsHost || content).append(settings);
+      content.append(error);
       host.append(content);
       const stop = target.subscribe(({ draft, loaded }) => {
         const disabled = !loaded || host.closest('fieldset:disabled') !== null;
@@ -59,7 +63,7 @@ export function createTextBoxPreview({ media } = {}) {
         for (const [key, input] of fields) { input.value = String(draft[key]); input.disabled = disabled; }
         for (const [mode, input] of switches) { input.checked = draft.scrollMode === mode; input.disabled = disabled; }
       });
-      return { dispose() { stop(); composer.dispose(); assets.dispose(); content.remove(); } };
+      return { dispose() { stop(); composer.dispose(); assets.dispose(); settings.remove(); content.remove(); } };
     },
   };
 }

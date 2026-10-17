@@ -9,6 +9,7 @@ const STYLE_SETTING_KEYS = {
   },
   identity: {
     fontSize: 'identityQueueFontSize',
+    fontFamily: 'identityQueueFontFamily',
     scrollMode: 'identityQueueScrollMode',
     scrollSpeed: 'identityQueueScrollSpeed',
   },
@@ -66,13 +67,16 @@ export function readQueueStyleSettings(settings, style) {
 
   for (const field of Object.keys(FIELD_DEFAULTS)) {
     const key = keys[field];
-    const legacyKey = normalizedStyle === 'classic' ? null : LEGACY_KEYS[field];
+    const identityFont = normalizedStyle === 'identity' && field === 'fontFamily';
+    const legacyKey = normalizedStyle === 'classic' ? null : identityFont ? 'overlayFontFamily' : LEGACY_KEYS[field];
     if (key && source[key] !== undefined && source[key] !== null) {
       values[field] = String(source[key]);
     } else if (legacyKey && source[legacyKey] !== undefined && source[legacyKey] !== null) {
       values[field] = String(source[legacyKey]);
     } else if (normalizedStyle === 'classic' && field === 'fontSize') {
       values[field] = '28';
+    } else if (identityFont) {
+      values[field] = 'Microsoft YaHei';
     } else {
       values[field] = FIELD_DEFAULTS[field];
     }
@@ -106,6 +110,7 @@ export function resolveQueueStyleSettings(settings, style) {
     identityQueueScrollSpeed: active.scrollSpeed,
     queueScrollMode: active.scrollMode,
   };
+  if (active.style === 'identity') resolved.overlayFontFamily = active.fontFamily;
   if (QUEUE_ILLUSTRATED_STYLES.has(active.style)) {
     resolved.illustratedQueueFontFamily = active.fontFamily;
     resolved.illustratedQueueFontWeight = active.fontWeight;

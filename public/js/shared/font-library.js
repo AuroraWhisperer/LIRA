@@ -54,8 +54,9 @@ export function ensureSavedFontOption(select, value) {
     return;
   }
   const option = font && Array.from(select.options).find(item => item.dataset.fontId === font.id);
-  if (option) option.value = value;
-  else ensureLocalFontOption(select, value);
+  if (option) {
+    if (option.value !== value) option.value = value;
+  } else ensureLocalFontOption(select, value);
 }
 
 export function populateSharedFontOptions(select) {

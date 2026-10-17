@@ -37,6 +37,7 @@ function bootstrapSettingsStore(db) {
     const songSpeed = read.get('scrollSeconds');
     // Migrate only persisted legacy fonts, before inserting current defaults.
     settingsMigrations.migrateQueueFontSizeSettings(db, fontSizeVersion);
+    settingsMigrations.migrateIdentityQueueFontFamily(db);
     const settingsStore = createSettingsStore(db);
     settingsMigrations.migrateQueueScrollSpeedSetting(db, queueSpeedVersion);
     if (!songSpeed && !songSpeedVersion) {

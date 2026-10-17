@@ -366,6 +366,8 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 - **快照消费**:指纹 = 当前歌/等待队列的请求 ID、歌名、昵称、置顶，以及当前样式实际消费的舰队等级/粉丝牌等级/名称，再加 SC 与全部主题和滚动键;`queue:add`/`bilibili:danmaku`/`bilibili:superchat` 等 reason 走 80ms 延迟 `loadState()` 强刷(确保请求者元数据落库后再取,见 [queue.js:96-110](../../../public/js/overlays/queue.js#L96-L110));`live:status` 只更新直播状态不重渲染。
 - 主题:经典/身份版色板、字体、字号、置顶 3 条、规则 6 条均来自快照 `settings`(管理页「点歌板/展示板」配置);`public/js/shared/queue-style-settings.js` 在渲染和滚动测量前把当前 `overlayQueueStyle` 的独立设置投影到现有渲染字段。风格 2 保留 `identityQueueFontSize` 并新增独立滚动模式;风格 3–6 各自持久化内容字号、字体、字重、自定义文字颜色、纵向滚动模式和速度,旧共享 `illustratedQueue*`/`queueScrollMode` 值仅作为旧快照兼容回退。
 
+风格 1、2 的设置页、独立预览和画布参数使用「字体设置」选择器，分别读写 `overlayFontFamily` 与 `identityQueueFontFamily`，默认均为 `Microsoft YaHei`；选择器提供共享字体库和本机字体，切换风格回填各自选择，编辑时只更新当前风格的字体键。风格 2 渲染时将独立值投影至既有 `--overlay-font-family`；旧快照缺键时兼容原 `overlayFontFamily`。首次升级与旧场景读入保留旧字体，后续独立保存；插画风格保留各自字体，月渡花汀资源样式保留包内专用字体。
+
 ## 3. 歌单叠加层(/songlist)
 
 [overlays/songs.js](../../../public/js/overlays/songs.js)(ES Module):

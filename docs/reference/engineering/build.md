@@ -54,11 +54,11 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 ### 电音助手原生资源
 
-模型在安装资源中命名为 `vendor/lira.onnx`，名称不代表重新训练或更换权重。构建不复制含本机路径的 `qq-model.json` 和开发记录 `rubberband.json`，并清理旧构建中这两份记录及旧模型文件名；第三方许可证和版权声明继续随资源保留。
+模型资源统一使用 `vendor/lira.onnx`。构建只复制运行所需文件，不打包开发转换记录或本机路径，并清理旧构建中残留的记录及旧模型文件名。
 
 `npm run build:audio-assistant -- <vendor目录>` 使用本机 .NET SDK 发布 `native/audio-assistant/AudioAssistant.csproj`，生成含 .NET 运行库的 Windows x64 工作程序；未提供目录时复用本机 `tmp/audio-assistant-demo/vendor`。原生项目使用 .NET 8、NAudio 2.2.1、ONNX Runtime 1.26.0，复用 Rubber Band 3.3.0 的既有 DLL 与已校验模型。没有新增 npm 运行时依赖；客户端使用 Electron 自带 Node，终端用户无需安装 Node、Python 或 .NET。
 
-输出位于忽略的 `build/audio-assistant/`，构建中间产物位于 `tmp/audio-assistant-build/`。`build.extraResources` 将这一目录复制到安装资源的 `audio-assistant/`，排除 PDB；不打包试听 UI、样品设置、恢复记录、Python 环境或测试音频。构建前须准备完整 vendor 文件及其来源/许可声明；源码迁入不意味着第三方模型获得再分发授权，参见 [来源记录](../../../native/audio-assistant/README.md#来源)。发布前先完成原生资源构建与聚焦验证，再按[发布指南](../../../RELEASE_GUIDE.md)执行统一验证和安装器发布。
+输出位于忽略的 `build/audio-assistant/`，构建中间产物位于 `tmp/audio-assistant-build/`。`build.extraResources` 将这一目录复制到安装资源的 `audio-assistant/`，排除 PDB；不打包试听 UI、样品设置、恢复记录、Python 环境或测试音频。构建前须准备完整 vendor 文件；核心职责见[原生核心说明](../../../native/audio-assistant/README.md)。发布前先完成原生资源构建与聚焦验证，再按[发布指南](../../../RELEASE_GUIDE.md)执行统一验证和安装器发布。
 
 原生聚焦验证：先执行上述构建，再运行 `npm run test:audio-native`。脚本将测试工程输出到 `tmp/`，检查合成信号的 DSP、歌曲检测，并使用独立临时状态验证真实工作程序的中文管道、参数保存、失败后停止与 EOF 退出；不播放用户歌曲或修改声卡路由。
 

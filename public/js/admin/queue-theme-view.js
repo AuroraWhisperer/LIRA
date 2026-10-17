@@ -59,9 +59,12 @@ export function bindQueueTheme(root, controller) {
   node('queueThemeDiscard')?.addEventListener('click', () => controller.discard());
   function render(state) {
     const { draft } = state;
-    ensureSavedFontOption(node('overlayFontFamily'), draft.overlayFontFamily);
+    const active = readQueueStyleSettings(draft, draft.overlayQueueStyle);
+    const fontFamily = active.style === 'identity' ? active.fontFamily : draft.overlayFontFamily;
+    ensureSavedFontOption(node('overlayFontFamily'), fontFamily);
+    syncComponentFieldValue(node('overlayFontFamily'), fontFamily);
     for (const [key, value] of Object.entries(draft)) {
-      if (key === 'overlaySongColor' || key === 'overlayRequesterColor') continue;
+      if (key === 'overlaySongColor' || key === 'overlayRequesterColor' || key === 'overlayFontFamily') continue;
       const control = node(key);
       if (control) syncComponentFieldValue(control, value);
     }
@@ -70,7 +73,6 @@ export function bindQueueTheme(root, controller) {
       syncComponentFieldValue(node(`${key}Mode`), draft[key] ? 'custom' : 'inherit');
       syncComponentFieldValue(node(key), draft[key] || draft.themeText || '#fff7fb');
     }
-    const active = readQueueStyleSettings(draft, draft.overlayQueueStyle);
     ensureSavedFontOption(node('illustratedQueueFontFamily'), active.fontFamily);
     for (const [field, id] of Object.entries(QUEUE_STYLE_CONTROLS)) syncComponentFieldValue(node(id), active[field]);
     node('queueScrollSpeedRange').value = draft.queueScrollSpeed;

@@ -335,6 +335,17 @@ test('queue style settings resolve and persist only the selected style', async (
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'identityQueueFontSize'), false);
 });
 
+test('classic and identity resolve independent fonts while preserving old snapshots', async () => {
+  const namespace = await loadModuleExports(QUEUE_STYLE_SETTINGS_ENTRY, {});
+  const settings = { overlayFontFamily: '"Lira Maiyuan"', identityQueueFontFamily: '"STKaiti"' };
+  assert.equal(namespace.resolveQueueStyleSettings(settings, 'classic').overlayFontFamily, '"Lira Maiyuan"');
+  assert.equal(namespace.resolveQueueStyleSettings(settings, 'identity').overlayFontFamily, '"STKaiti"');
+  assert.equal(namespace.resolveQueueStyleSettings({ overlayFontFamily: 'KaiTi' }, 'identity').overlayFontFamily, 'KaiTi');
+  assert.equal(namespace.resolveQueueStyleSettings({}, 'identity').overlayFontFamily, 'Microsoft YaHei');
+  assert.deepEqual({ ...namespace.queueStyleSettingsPayload('identity', { fontFamily: '"Lira Smiley"' }) },
+    { identityQueueFontFamily: '"Lira Smiley"' });
+});
+
 test('queue viewport helper exposes uncapped proportional contain scaling', async () => {
   const namespace = await loadModuleExports(VIEWPORT_STATE_ENTRY, {});
   for (const [args, expected] of [

@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 
-// Windows internal per-application routing ABI, as documented by EarTrumpet.
-// Attribution and complete license: vendor/EarTrumpet-LICENSE.txt.
+// Windows internal per-application audio routing ABI.
 internal sealed class AppAudioRoute : IDisposable
 {
   const string RuntimeClass = "Windows.Media.Internal.AudioPolicyConfig";

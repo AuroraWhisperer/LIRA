@@ -15,10 +15,12 @@ export function setOverlayStyle(style, root = document, resourcePreset) {
   const { classicThemePresets, classicPresetLabels, classicPresetSwatches } = theme;
   const nextStyle = normalizePersistedQueueStyle(style);
   const moonlit = resourcePreset === 'moonlit-queue';
+  const fontArea = componentField(root, 'queueFontArea');
   const titleArea = componentField(root, 'queueTitleArea');
   const indexArea = componentField(root, 'queueIndexArea');
   if (titleArea) titleArea.hidden = nextStyle !== 'classic';
   if (indexArea) indexArea.hidden = !['classic', 'identity'].includes(nextStyle);
+  if (fontArea) fontArea.hidden = !['classic', 'identity'].includes(nextStyle) || moonlit;
   const styleControl = componentField(root, 'overlayQueueStyle');
   if (styleControl) styleControl.value = nextStyle;
   const illustratedDefaults = ILLUSTRATED_DEFAULT_LABELS[nextStyle] || ILLUSTRATED_DEFAULT_LABELS.storybook;

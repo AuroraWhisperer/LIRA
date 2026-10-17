@@ -65,6 +65,12 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   assert.equal(await status.textContent(), '');
   await desktop.locator('[data-text-box="add"]').click({ force: true });
   assert.equal(await status.textContent(), '文本框有未保存修改');
+  const layoutBounds = await desktop.locator('.text-box-layout-fields').boundingBox();
+  const scrollBounds = await desktop.locator('.text-box-scroll-settings').boundingBox();
+  assert.ok(scrollBounds.x > layoutBounds.x + layoutBounds.width,
+    'scroll settings use the right column beside text layout controls');
+  assert.ok(Math.abs(scrollBounds.y - layoutBounds.y) < 1,
+    'both settings groups start on the same row');
   await desktop.evaluate(async () => {
     const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
     window.textBoxCanvas = (await prepareComponentPreviews()).find(component => component.id === 'canvas');
@@ -140,6 +146,7 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   assert.equal((await readPublished()).canvas.width, published.canvas.width + 100,
     'text-box publication applies the saved non-text layout too, as disclosed beside the action');
   await desktop.locator('[data-text-box="remove"]').click({ force: true });
+  assert.equal(await desktop.locator('.text-box-detail-settings .text-box-settings').count(), 0);
   assert.equal(await status.textContent(), '文本框有未保存修改');
   assert.equal(await desktop.locator('[data-text-box="empty"]').isVisible(), true);
   await desktop.locator('[data-text-box="discard"]').click({ force: true });

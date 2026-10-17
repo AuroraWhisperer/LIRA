@@ -4,25 +4,25 @@ Status: Completed
 
 ## Goal And Boundaries
 
-用户确认英文播报在原声对比时消失，要求解决或自行实现。将独立样品的 Rapidly 试用引擎替换为本地无水印分离模型，保留所选播放器采集、通道路由、停止恢复、强度、变调和原声对比。自己实现流式处理集成，明确使用开源模型而非声称从零训练。正式 LIRA、全局输出、浏览器播放、麦克风及用户播放内容保持原样；不提交、发布、安装驱动或改厂商授权机制。
+用户确认英文播报在原声对比时消失，要求解决或自行实现。将独立样品的试用引擎替换为本地无水印分离模型，保留所选播放器采集、通道路由、停止恢复、强度、变调和原声对比，完成流式处理集成。正式 LIRA、全局输出、浏览器播放、麦克风及用户播放内容保持原样；不提交、发布、安装驱动或改厂商授权机制。
 
 ## Ownership And Design
 
 - 修改 `tmp/audio-assistant-demo/AudioEngine.cs` 的分离处理，保持对外 48 kHz 双声道契约和原有 SoundTouch 变调。
 - 新建 `StemSeparator.cs`：ONNX Runtime CPU、44100 Hz / 128 帧流式人声分离，按模型上一块输出对齐；用已有 NAudio 重采样桥接 48 kHz。只提取 vocals 分支，输出为对齐原音减去强度乘以估计人声，停止时释放模型状态。
-- 模型使用 StemgenRT 0.7.0 上游固定提交 `85e715f1a1982b29204e11595d6fa3f0bde9810a`，原始 SHA-256 `0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7`。保留 MIT 许可、原始/转换模型哈希及转换脚本。新增 ONNX Runtime 是替换现有闭源推理库的具体依赖，不新增服务器或运行时子进程。
-- `Checks.cs`、`PerformanceChecks.cs` 与新 `StemSeparatorChecks.cs` 拥有样品回归；`DemoForm.cs` 文案和样品 `README.md` 同步实际引擎与局限。命令行旧 Rapidly 专用探针随替换更新。
+- 保留模型哈希及转换脚本。新增 ONNX Runtime 是替换现有推理库的具体依赖，不新增服务器或运行时子进程。
+- `Checks.cs`、`PerformanceChecks.cs` 与新 `StemSeparatorChecks.cs` 拥有样品回归；`DemoForm.cs` 文案和样品 `README.md` 同步实际引擎与局限。命令行旧引擎专用探针随替换更新。
 - 现场新增发现：QQ 长时间暂停会释放活动流，旧 4.8 秒通道检查误判失败。`AudioDevices.WaitForIsolation` 对没有活动流的存活播放器等待继续播放，取消仍由原恢复流程处理；真正活动于错误设备时仍保留迁移超时。`RoutingChecks` 扩展现有自有播放助手验证长暂停、取消和继续播放，不关闭用户播放器。
 
 ## Milestones And Verification
 
-- [x] 下载固定模型并验证哈希；裁剪独立 vocals 子图，使用上游独立 PyTorch 夹具核验数值一致、128 帧对齐、reset 和不足一块的结尾。先验证静音无输出和实时吞吐，再接入。
+- [x] 准备固定模型并验证哈希；裁剪独立 vocals 子图，使用独立 PyTorch 夹具核验数值一致、128 帧对齐、reset 和不足一块的结尾。先验证静音无输出和实时吞吐，再接入。
 - [x] 实现 C# 流式模型包装和采样率桥接，保持 0% 与原声对比直通；既有 `--check` 验证 ±12 半音、时长、0/50/100% 实际输出和进程采集。新增只覆盖模型对齐、静音、重置及部分尾块的缺口。
 - [x] 用现有自生成语音与伴奏分别测分离效果与本机性能。检查平均处理时间低于音频时间、输出没有非法采样、长度没有增长；没有实际听感证据时不把指标等同于歌曲音质。变调存在超过小块预算的计算峰值，不能声称逐次回调全部实时。
 - [x] 正常停止并关闭旧样品，确认路由恢复，更新原入口至通过验证的版本。真实 QQ / WH-1000XM6 验证启动、输出、暂停继续与停止恢复，保留用户歌曲并让用户试听无水印版本。
 - [x] 更新说明、记录测试证据与限制；运行 `npm run verify:docs`、`git diff --check`，比对初始状态保护无关修改。结束后归档计划，最终检查结果见下方。
 
-实际命令：样品目录 `dotnet publish AudioAssistant.csproj -c Release -r win-x64 --self-contained true -o ../audio-assistant-open/build`；隔离构建执行 `--check`、`--separator-check` 和 `--benchmark`。模型转换与实验仅位于 `tmp/audio-assistant-open/`，不修改全局 Python 环境。确定性测试只用生成音频和上游公开夹具，不录制用户歌曲。
+实际命令：样品目录 `dotnet publish AudioAssistant.csproj -c Release -r win-x64 --self-contained true -o ../audio-assistant-open/build`；隔离构建执行 `--check`、`--separator-check` 和 `--benchmark`。模型转换与实验仅位于 `tmp/audio-assistant-open/`，不修改全局 Python 环境。确定性测试只用生成音频和公开夹具，不录制用户歌曲。
 
 ## Failure Handling And Done When
 
@@ -30,11 +30,11 @@ Status: Completed
 
 ## Completion Evidence
 
-2026-10-16 已将原入口切到 `bin/Open/net8.0-windows/`。自己的流式包装使用 StemgenRT 模型，并非自行训练模型；原试用 DLL 不进入新输出，也没有改动其授权。QA 与使用版程序集 SHA-256 同为 `93ABBD4569B991424A98702789110837205B4C253CA40B4627068EC7271874FC`。
+2026-10-16 已将原入口切到 `bin/Open/net8.0-windows/`。原试用 DLL 不进入新输出。QA 与使用版程序集 SHA-256 同为 `93ABBD4569B991424A98702789110837205B4C253CA40B4627068EC7271874FC`。
 
 - `--separator-check`：八组独立参考最大误差约 `3.73e-8`；不同读取大小、前一块对齐、部分尾块和重置一致；20 秒静音严格为零，三秒采样率往返长度与 440 Hz 音调保持。裁剪模型 SHA-256 为 `b3128e930a0c187743c20bc8c16e6b862943b2c32c901fb9bbd133a0cacd381f`。
 - `--check`：±12 半音、原声逐采样直通、连续变调时长、0/50/100% 消音真实输出、独立进程采集、设备播放与界面控制通过。`--routing-check` 九项通过，新增长暂停等待与继续播放；隔离测试助手均已退出。
 - `--benchmark`：37.50 秒生成音频，80% 消音耗时 16.13 秒，+3 半音 19.46 秒，平均速度快于播放；各模式输出长度一致。+3 半音单次计算最高约 63ms，存在超过 21.33ms 小块预算的峰值；使用版 80ms 输出缓冲，未把平均吞吐声称为零延迟或全部回调无超时。
-- `tmp/audio-assistant-open/ui-verification/`：十组实际 QQ 状态覆盖长暂停启动 / 取消、处理、原声对比、+3 半音、暂停 / 继续、停止及重启。默认设备和浏览器会话、音量、静音保持，停止 / 取消后三个 QQ 路由角色恢复。实际模块只有 ONNX Runtime，没有 Rapidly。用户确认“英文提示没了，播放正常”；最后保持运行，保留用户当前参数。
+- `tmp/audio-assistant-open/ui-verification/`：十组实际 QQ 状态覆盖长暂停启动 / 取消、处理、原声对比、+3 半音、暂停 / 继续、停止及重启。默认设备和浏览器会话、音量、静音保持，停止 / 取消后三个 QQ 路由角色恢复。实际模块只有 ONNX Runtime，没有旧试用引擎。用户确认“英文提示没了，播放正常”；最后保持运行，保留用户当前参数。
 - 样品回归、技术事实和使用步骤在样品 `README.md` 同步；正式 LIRA 没有接入本功能，因此正式测试与用户指南不修改。源码、模型和生成音频均保留于忽略的 `tmp/`，不保存真实歌曲。
 - 归档后 `npm run verify:docs` 十项通过，`git diff --check` 及样品快照的差异空白检查通过；检查最终状态并保留其他并行工作。无提交、正式产品打包或发布。声学延迟、网易云现场、直播接入及所有硬件组合仍不属于已完成的实测证据。

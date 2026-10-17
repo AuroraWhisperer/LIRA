@@ -378,5 +378,10 @@ test('appearance normalization rejects private keys, nested objects, nonfinite v
   assert.deepEqual(normalizeSceneConfig('clock', clock), clock);
   assert.deepEqual(normalizeSceneConfig('overtime', { path: '', fit: 'contain' }), { path: '', fit: 'contain' });
   assert.equal(normalizeSceneConfig('queue', {}).queueSongFontSize, DEFAULT_SETTINGS.queueSongFontSize);
+  assert.equal(normalizeSceneConfig('queue', {}).identityQueueFontFamily, 'Microsoft YaHei');
+  assert.equal(normalizeSceneConfig('queue', { overlayFontFamily: 'KaiTi' }).identityQueueFontFamily, 'KaiTi');
+  const fonts = normalizeSceneConfig('queue', { overlayFontFamily: 'KaiTi', identityQueueFontFamily: '"Lira Maiyuan"' });
+  assert.equal(fonts.overlayFontFamily, 'KaiTi');
+  assert.equal(fonts.identityQueueFontFamily, '"Lira Maiyuan"');
   assert.equal(normalizeSceneConfig('queue', { overlayQueueStyle: 'festival' }).overlayQueueStyle, 'festival');
 });

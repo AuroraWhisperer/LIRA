@@ -505,6 +505,7 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 | songScrollSpeedRangeVersion != '2' | 旧 scrollSeconds 范围20–200映射1–100；新库无旧值时直接写2，保留当前默认20；已有当前范围的设置保持原值 |
 | queueFontSizeRangeVersion != '2' | 在补默认值之前，仅将已保存的旧范围 queueSongFontSize/queueTitleFontSize 翻倍，完成写2；缺失项使用当前默认值，避免把新库默认字号再次放大 |
 | queueStyleSettingsVersion != '1' | 旧共享字号/字体/颜色/滚动值复制至 identity 与各插画风格独立键，完成写1 |
+| identityQueueFontFamily 缺失 | 默认插入前，在 bootstrap 事务内复制已保存的 overlayFontFamily；无旧值时默认为 Microsoft YaHei。仅补缺，之后两种风格独立保存；预设与展示投影均保留新键 |
 | desktopLyricKaraokeMode 缺失 | legacy desktopLyricKaraokeEnabled='false' 时初始化 off，否则默认模式 |
 | 旧 overlayRule3、4 原文 | 仅匹配旧默认文案时迁移，保留用户内容 |
 | songBoardFontSize 缺失 | 补当前默认28；所有已保存字号（包括16）保留，不以与历史默认相等为由覆盖用户设置 |

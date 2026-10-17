@@ -13,7 +13,7 @@ const SETTING_KEYS = {
     overlayRuleColor1 overlayRuleColor2 overlayRuleColor3 overlayRuleColor4 overlayRuleColor5 overlayRuleColor6
     overlayRuleFontSize overlayShowIndex overlaySongColor overlayTitle
     queueScrollMode queueScrollSpeed queueSongFontSize queueTitleFontSize
-    identityQueueFontSize identityQueueScrollMode identityQueueScrollSpeed
+    identityQueueFontSize identityQueueFontFamily identityQueueScrollMode identityQueueScrollSpeed
     illustratedQueueFontFamily illustratedQueueFontWeight illustratedQueueTextColor illustratedQueueUseCustomTextColor
     storybookQueueFontFamily storybookQueueFontSize storybookQueueFontWeight storybookQueueScrollMode
     storybookQueueScrollSpeed storybookQueueTextColor storybookQueueUseCustomTextColor

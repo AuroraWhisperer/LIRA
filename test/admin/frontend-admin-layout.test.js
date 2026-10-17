@@ -219,7 +219,7 @@ test('expanded toolbox navigation and planner lists retain visible scrolling aff
   );
 });
 
-test('admin queue wheel scrolls overflowing lists and releases the page at their edges', async () => {
+async function createQueueWheelRuntime() {
   const makeTarget = () => ({
     listeners: new Map(),
     addEventListener(type, listener) {
@@ -270,29 +270,65 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
 
   const queue = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'), sandbox);
   queue.initQueueForm();
-  const wheel = superChatPanel.listeners.get('wheel');
-  const dispatchWheel = (deltaY) => {
+  const dispatchWheel = (listId, deltaY, timeStamp, deltaMode = 0) => {
     let prevented = false;
-    wheel({
+    elements[listId].closest().listeners.get('wheel')({
       deltaY,
-      deltaMode: 0,
+      deltaMode,
+      timeStamp,
       preventDefault() {
         prevented = true;
       },
     });
     return prevented;
   };
+  return { elements, dispatchWheel };
+}
 
-  assert.equal(dispatchWheel(120), false, 'a non-overflowing queue should leave page scrolling alone');
-  superChatList.scrollHeight = 300;
-  assert.equal(dispatchWheel(120), true, 'an overflowing queue should consume downward wheel input');
-  assert.ok(superChatList.scrollTop > 0 && superChatList.scrollTop < 200);
-  superChatList.scrollTop = 200;
-  assert.equal(dispatchWheel(120), false, 'the bottom edge should release downward input to the page');
-  assert.equal(dispatchWheel(-120), true, 'the list should still consume input away from the bottom edge');
-  superChatList.scrollTop = 0;
-  assert.equal(dispatchWheel(-120), false, 'the top edge should release upward input to the page');
-});
+for (const listId of ['superChatList', 'queueList']) {
+  test(`${listId} holds continuous wheel input for 750ms after reaching the bottom`, async () => {
+    const { elements, dispatchWheel } = await createQueueWheelRuntime();
+    const list = elements[listId];
+    assert.equal(dispatchWheel(listId, 120, 0), false, 'a short queue leaves page scrolling alone');
+    list.scrollHeight = 300;
+    assert.equal(dispatchWheel(listId, 3, 10, 1), true);
+    assert.equal(list.scrollTop, 36, 'line-mode wheel input keeps its existing speed');
+    assert.equal(dispatchWheel(listId, 1, 20, 2), true);
+    assert.equal(list.scrollTop, 66, 'page-mode wheel input is normalized by the list height');
+    list.scrollTop = 164;
+    assert.equal(dispatchWheel(listId, 120, 50), true);
+    assert.equal(list.scrollTop, 200);
+    for (const timeStamp of [51, 150, 250, 350, 450, 550, 650, 749, 799]) {
+      assert.equal(dispatchWheel(listId, 120, timeStamp), true, `still held at ${timeStamp - 50}ms`);
+    }
+    assert.equal(dispatchWheel(listId, 120, 800), false, 'release exactly 750ms after reaching the bottom');
+    assert.equal(dispatchWheel(listId, 120, 810), false, 'subsequent input stays released');
+    assert.equal(list.scrollTop, 200, 'the hold never scrolls the list past its bottom');
+    assert.equal(dispatchWheel(listId, -120, 820), true, 'upward input immediately scrolls back into the list');
+    assert.equal(list.scrollTop, 164);
+    assert.equal(dispatchWheel(listId, 120, 830), true);
+    assert.equal(dispatchWheel(listId, 120, 840), true, 'returning to the bottom starts a fresh hold');
+    list.scrollTop = 0;
+    assert.equal(dispatchWheel(listId, -120, 850), false, 'the top edge still releases upward input');
+  });
+
+  test(`${listId} releases a new wheel gesture before the bottom hold expires`, async () => {
+    const { elements, dispatchWheel } = await createQueueWheelRuntime();
+    const list = elements[listId];
+    list.scrollHeight = 300;
+    list.scrollTop = 200;
+    assert.equal(dispatchWheel(listId, 120, 0), true, 'an already-bottomed list holds the first gesture');
+    assert.equal(dispatchWheel(listId, 120, 179), true, 'short event gaps belong to the same gesture');
+    assert.equal(dispatchWheel(listId, 120, 359), false, 'a 180ms pause starts the next gesture');
+    assert.equal(dispatchWheel(listId, 120, 369), false, 'the new gesture stays released');
+    list.scrollHeight = 400;
+    assert.equal(dispatchWheel(listId, 120, 379), true, 'new queue items make the list scrollable again');
+    assert.equal(list.scrollTop, 236);
+    list.scrollHeight = 100;
+    list.scrollTop = 0;
+    assert.equal(dispatchWheel(listId, 120, 389), false, 'clearing the queue removes the hold');
+  });
+}
 
 test('desktop admin keeps scrolling on the workspace instead of nesting it in tabs', () => {
   const workspaceSource = readCssBundle('public', 'css', 'admin', 'workspace.css');

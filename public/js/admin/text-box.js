@@ -94,7 +94,7 @@ export function initTextBoxes() {
       }); },
       subscribe(listener) { return canvas.controller.subscribe(() => listener(getState())); },
     };
-    panel = definition.createPanel(get('editor'), target);
+    panel = definition.createPanel(get('editor'), target, { settingsHost: get('settings') });
     preview = mountComponentPreview(get('preview'), { ...definition, controller: target,
       dataLabel: '',
       size: () => { const item = current(); return item ? [item.width, item.height] : TEXT_BOX_SIZE; } });
