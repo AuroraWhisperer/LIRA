@@ -53,6 +53,7 @@ function syncSelectedState(state) {
   const selected = select.options[select.selectedIndex];
   valueNode.textContent = selected?.textContent?.trim() || '请选择';
   trigger.disabled = select.disabled;
+  trigger.title = select.title || '';
   trigger.setAttribute('aria-disabled', String(select.disabled));
   trigger.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选择');
   state.optionsRoot.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选项');
@@ -219,7 +220,7 @@ function observeSelect(state) {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['disabled', 'label', 'selected', 'value', 'data-font-family'],
+    attributeFilter: ['disabled', 'label', 'selected', 'value', 'data-font-family', 'title'],
   });
   state.observing = true;
 }

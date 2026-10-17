@@ -388,7 +388,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 | 模块                     | 特有规则                                                                                                                                                       | 出处                                                                         |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `normalizeLyricState`    | 单行语义:`currentMs`/`durationMs`/`progress`/`playing`/`locked`/`words[]`;兼容版本字段 `generation`/`sequence` 用于客户端拒绝旧状态回灌                        | [lyric-state.js:5-30](../../../../src/music/lyric-state.js#L5-L30)           |
+| `normalizeLyricState`    | 单行语义:`currentMs`/`durationMs`/`progress`/`playing`/`playbackRate`/`locked`/`words[]`;`playbackRate` 接受有限正数并限制为 0.5–2，缺失或非法时为 1；位置仍为歌曲毫秒坐标，速率用于客户端时钟与动画推进。兼容版本字段 `generation`/`sequence` 用于客户端拒绝旧状态回灌 | [lyric-state.js](../../../../src/music/lyric-state.js) |
 | `normalizeLyricTimeline` | 全曲语义:**`MAX_LINES = 500` 行上限 + `MAX_TEXT_BUDGET = 48 KB` 文本预算**(按 `text+translation+roma` 长度累计,超预算即截断后续行);输入行按 `startMs` 稳定排序。每行可选 `words: [{text,startMs,endMs}]` 预载逐字时间，词数组 JSON 的 UTF-8 总预算 512 KiB；超预算的行仅省略 `words`，保留全文并回退当前句状态。 | [lyric-timeline.js](../../../../src/music/lyric-timeline.js) |
 
 内置、QQ、网易云和 WeSing 的完整时间轴均经过同一归一化入口。管理页快照和增量消息保留上述逐字时间；歌词浏览器源的 `overlay-projection` 对快照及 `lyric-timeline` 均仅允许词文本、起止时间，未知嵌套字段仍剔除。旧时间轴不带 `words` 时继续使用 `lyricState.words`；新增字段不改变消息类型、权限或持久化。

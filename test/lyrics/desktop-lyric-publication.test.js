@@ -18,12 +18,13 @@ test('official trial playback publishes song-relative lyric time and returns to 
   const words = [{ startMs: 30000, endMs: 34000, text: '试听歌词' }];
   const track = { id: 'netease:123', source: 'netease', playbackTrial: true, playbackTrialStartMs: 30000,
     lyrics: { lines: [{ startMs: 0, text: '开头' }, { startMs: 30000, text: '试听歌词', words }] } };
-  const audio = { currentTime: 2.345, duration: 30, paused: false };
+  const audio = { currentTime: 2.345, duration: 30, paused: false, playbackRate: 1.5 };
   await service.syncWindow(track, audio, true);
   let state = requests.at(-1).body;
   assert.equal(state.lineText, '试听歌词');
   assert.equal(state.currentMs, 32345);
   assert.equal(state.durationMs, 60000);
+  assert.equal(state.playbackRate, 1.5);
   assert.deepEqual(state.words, words);
   audio.currentTime = 1.25;
   audio.paused = true;
@@ -492,6 +493,25 @@ test('lyric clock anchors pause and resume without advancing while paused', asyn
   assert.equal(clock.getPosition().currentMs, 1500, 'resume uses the newly measured position');
   now = 2700;
   assert.equal(clock.getPosition().currentMs, 1700);
+  clock.dispose();
+});
+
+test('lyric clock follows playback speed and anchors rate changes without changing song coordinates', async () => {
+  let now = 0;
+  const { LyricClock } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/lyric-clock.js'));
+  const clock = new LyricClock({ now: () => now });
+  clock.setState({ currentMs: 1000, durationMs: 10000, playing: true, playbackRate: 2 });
+  now = 500;
+  assert.equal(clock.getPosition().currentMs, 2000);
+  clock.setState({ currentMs: 1900, playing: true, playbackRate: 0.5 });
+  now = 1500;
+  assert.equal(clock.getPosition().currentMs, 2400);
+  clock.setState({ currentMs: 2400, playing: false, playbackRate: 0.5 });
+  now = 2500;
+  assert.equal(clock.getPosition().currentMs, 2400);
+  clock.setState({ currentMs: 2400, playing: true });
+  now = 3000;
+  assert.equal(clock.getPosition().currentMs, 2900, 'Legacy states default to normal speed');
   clock.dispose();
 });
 

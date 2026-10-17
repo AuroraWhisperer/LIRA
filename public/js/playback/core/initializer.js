@@ -2,6 +2,8 @@
 // 初始化模块
 'use strict';
 
+import { bindAudioAssistantSpeed } from '../features/audio-assistant-speed.js';
+
 export function createInitializer(deps) {
   const {
     playbackState,
@@ -57,6 +59,15 @@ export function createInitializer(deps) {
   }
 
   function setupAudioEventListeners(audio) {
+    const disposeAssistantSpeed = bindAudioAssistantSpeed({
+      audio,
+      getTrackKey: () => playbackState.current ? `${playbackState.current.source}:${playbackState.current.id}` : '',
+    });
+    window.addEventListener('pagehide', disposeAssistantSpeed, { once: true });
+    audio.addEventListener('ratechange', () => {
+      updatePlaybackMediaSession();
+      syncPlaybackLyricWindow(true);
+    });
     audio.addEventListener('loadedmetadata', () => {
       const track = playbackState.current;
       if (track && Number.isFinite(audio.duration)) {

@@ -37,6 +37,19 @@ async function createAnimator(mode = 'discrete', { words = DEFAULT_WORDS, motion
   return { animator, created, getStyleWrites: () => styleWrites };
 }
 
+test('word highlights and motion follow playback speed without recreating their animations', async t => {
+  const { animator, created } = await createAnimator('waapi');
+  t.after(() => animator.dispose());
+  animator.sync({ currentMs: 1200 }, { playing: true, playbackRate: 2 });
+  assert.equal(animator.animations[0].playbackRate, 2);
+  assert.equal(animator.elements[0].motion.playbackRate, 2);
+  const count = created.length;
+  animator.sync({ currentMs: 1300 }, { playing: true, playbackRate: 0.5 });
+  assert.equal(animator.animations[0].playbackRate, 0.5);
+  assert.equal(animator.elements[0].motion.playbackRate, 0.5);
+  assert.equal(created.length, count);
+});
+
 test('continuous highlights leave unchanged upcoming and completed words idle', async t => {
   const { animator, created, getStyleWrites } = await createAnimator('waapi', { motionEnabled: false });
   t.after(() => animator.dispose());

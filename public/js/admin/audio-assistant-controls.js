@@ -2,7 +2,7 @@
 
 const FIELDS = [
   { key: 'strength', label: '声伴比例', min: -100, max: 100, value: 80, presets: [[-100, '人声'], [0, '原唱'], [100, '伴奏']], help: '连续调整人声与伴奏。分离为模型估算，可能有残留。' },
-  { key: 'speedPercent', label: '变速', min: 50, max: 200, value: 100, unit: '%', presets: [[50, '0.5×'], [100, '正常'], [150, '1.5×'], [200, '2.0×']], help: '100% 为正常速度。本地歌曲可调 0.5–2 倍，保持调性；外部实时采集固定原速。' },
+  { key: 'speedPercent', label: '变速', min: 50, max: 200, value: 100, unit: '%', presets: [[50, '0.5×'], [100, '正常'], [150, '1.5×'], [200, '2.0×']], help: '100% 为正常速度。LIRA 内置播放和本地歌曲可调 0.5–2 倍，保持调性；开启「当前歌曲」后生效。外部播放器实时采集固定原速。' },
   { key: 'semitones', label: '升降调', min: -12, max: 12, value: 0, presets: [[-12, '−12'], [-6, '−6'], [0, '原调'], [6, '+6'], [12, '+12']], help: '每 1 Key 为一个半音；调整音高不会改变速度。' },
   { key: 'volume', label: '输出音量', min: 0, max: 200, value: 70, presets: [], help: '0% 为静音，100% 为原音量，最高 200%。超过 100% 会放大，较响的歌曲可能失真。' },
 ];
@@ -117,6 +117,14 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
     const settings = { ...state.settings, ...optimistic };
     const local = (optimistic.source ?? state.source) === 'file';
     const busy = state.running || state.starting;
+    const speedAvailable = local || (optimistic.source === undefined && state.internalSource === true);
+    const preparing = state.ready ? '' : '音频组件尚未就绪，请稍候；若仍不可用，请查看下方状态提示。';
+    const speedHint = speedAvailable ? '' : '当前来源为外部实时采集，固定原速。变速请使用 LIRA 内置播放或本地歌曲文件。';
+    const routingHints = {
+      source: '请先关闭「当前歌曲」，停止处理后再切换音乐来源。',
+      cableId: '请先关闭「当前歌曲」，停止处理后再切换原声通道。',
+      outputId: '请先关闭「当前歌曲」，停止处理后再切换最终输出。',
+    };
     updateOptions(document.getElementById('audioAssistantSource'), [
       { id: 'auto', name: '自动检测 QQ / 网易云 / 全民 K 歌 / LIRA' },
       { id: 'file', name: '本地歌曲文件' }, ...(state.apps || []),
@@ -131,17 +139,19 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       for (const input of root.querySelectorAll('[data-audio-setting]')) {
         const key = input.dataset.audioSetting;
         if (input.type === 'checkbox') input.checked = optimistic.original ?? state.original ?? false;
-        else if (key !== 'source') input.value = String(key === 'speedPercent' && !local ? 100 : settings[key] ?? '');
-        input.disabled = !state.ready || (key === 'speedPercent' && !local) || (['source', 'outputId', 'cableId'].includes(key) && busy);
+        else if (key !== 'source') input.value = String(key === 'speedPercent' && !speedAvailable ? 100 : settings[key] ?? '');
+        input.title = preparing || (key === 'speedPercent' ? speedHint : '') || (busy ? routingHints[key] || '' : '');
+        input.disabled = Boolean(input.title);
       }
       for (const output of root.querySelectorAll('[data-audio-value]')) {
         const key = output.dataset.audioValue;
-        output.textContent = formatAudioParameter(key, key === 'speedPercent' && !local ? 100 : settings[key]);
+        output.textContent = formatAudioParameter(key, key === 'speedPercent' && !speedAvailable ? 100 : settings[key]);
       }
       for (const button of root.querySelectorAll('[data-audio-preset]')) {
         const key = button.dataset.audioPreset;
-        button.disabled = !state.ready || (key === 'speedPercent' && !local);
-        button.setAttribute('aria-pressed', String(Number(button.dataset.value) === (key === 'speedPercent' && !local ? 100 : settings[key])));
+        button.title = preparing || (key === 'speedPercent' ? speedHint : '');
+        button.disabled = Boolean(button.title);
+        button.setAttribute('aria-pressed', String(Number(button.dataset.value) === (key === 'speedPercent' && !speedAvailable ? 100 : settings[key])));
       }
       for (const toggle of root.querySelectorAll('[data-audio-active]')) {
         toggle.checked = Boolean(busy);
@@ -149,8 +159,13 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       }
       for (const song of root.querySelectorAll('[data-audio-song]')) { song.textContent = state.song || '等待播放器播放歌曲'; song.title = song.textContent; }
       for (const status of root.querySelectorAll('[data-audio-status]')) status.textContent = state.status || '正在准备音频组件…';
-      for (const button of root.querySelectorAll('[data-audio-action]')) button.disabled = !state.ready || (busy && button.dataset.audioAction !== 'mixer');
-      for (const group of root.querySelectorAll('[data-audio-group="speedPercent"]')) group.classList.toggle('is-unavailable', !local);
+      for (const button of root.querySelectorAll('[data-audio-action]')) {
+        const action = button.dataset.audioAction;
+        const stoppedAction = { recover: '恢复原声', refresh: '刷新设备', file: '选择歌曲' }[action];
+        button.title = preparing || (busy && stoppedAction ? `请先关闭「当前歌曲」，停止处理后再${stoppedAction}。` : '');
+        button.disabled = Boolean(button.title);
+      }
+      for (const group of root.querySelectorAll('[data-audio-group="speedPercent"]')) group.classList.toggle('is-unavailable', !speedAvailable);
     }
     const meter = page.querySelector('.audio-assistant-meter');
     const level = Math.round(Math.min(1, Math.max(0, state.level || 0)) * 100);
@@ -220,6 +235,14 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       if (preset) { change(preset.dataset.audioPreset, Number(preset.dataset.value)); return; }
       const action = event.target.closest('[data-audio-action]')?.dataset.audioAction;
       if (!action) return;
+      if (action === 'reset') {
+        for (const [key, value] of Object.entries({ strength: 0, speedPercent: 100, semitones: 0, volume: 60, original: false })) {
+          changes.change(key, value);
+        }
+        render();
+        await flush();
+        return;
+      }
       if (!await flush()) return;
       if (action === 'file') {
         try {

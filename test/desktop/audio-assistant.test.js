@@ -71,3 +71,25 @@ test('missing audio resources report recovery instructions without launching any
   assert.match(result.error, /build:audio-assistant/);
   await assistant.dispose();
 });
+
+test('internal audio source is derived from this Electron instance process IDs, never the player display name', async () => {
+  const child = worker();
+  const assistant = createAudioAssistant({ executable: 'worker.exe', dataDir: 'isolated', exists: () => true,
+    getProcessIds: () => [11, 22],
+    spawnProcess: () => {
+      queueMicrotask(() => publish({ ready: true, sourceProcessId: 22 }));
+      return child;
+    },
+  });
+  function publish(state) { child.stdout.write(JSON.stringify({ type: 'state', state }) + '\n'); }
+  child.stdin.on('data', (data) => child.stdout.write(JSON.stringify({ id: JSON.parse(data).id, ok: true }) + '\n'));
+  assert.equal((await assistant.invoke('get')).state.internalSource, true);
+  publish({ ready: true, sourceProcessId: 33, song: 'LIRA · Test', internalSource: true });
+  assert.equal(assistant.getState().internalSource, false);
+  publish({ ready: true, source: 'file', sourceProcessId: null });
+  assert.equal(assistant.getState().internalSource, false);
+  publish({ ready: true, sourceProcessId: 11 });
+  assert.equal(assistant.getState().internalSource, true);
+  await assistant.dispose();
+  assert.equal(assistant.getState().internalSource, false);
+});

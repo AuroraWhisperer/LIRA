@@ -62,7 +62,10 @@
       <section class="audio-assistant-sound" aria-labelledby="audioAssistantSoundTitle">
         <div class="audio-assistant-section-heading">
           <h3 id="audioAssistantSoundTitle">声音调节</h3>
-          <label class="switch-control"><span>当前歌曲</span><input type="checkbox" data-audio-active aria-label="处理当前歌曲" /><span class="switch-track"></span></label>
+          <div class="audio-assistant-sound-actions">
+            <button type="button" class="secondary" data-audio-action="reset">一键重置</button>
+            <label class="switch-control"><span>当前歌曲</span><input type="checkbox" data-audio-active aria-label="处理当前歌曲" /><span class="switch-track"></span></label>
+          </div>
         </div>
         <div data-audio-controls="full"></div>
         <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="original" /><span>原声对比</span><lira-help label="原声对比说明">临时跳过声伴处理、变速与升降调；输出音量仍生效。</lira-help></label>

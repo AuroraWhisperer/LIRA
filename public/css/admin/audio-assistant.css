@@ -86,7 +86,16 @@
 }
 
 .audio-assistant-section-heading {
+  flex-wrap: wrap;
   margin-bottom: 24px;
+}
+
+.audio-assistant-sound-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-left: auto;
 }
 
 .audio-assistant-field {

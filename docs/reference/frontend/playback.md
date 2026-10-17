@@ -58,6 +58,8 @@ playbackControls → audio.load()/play()
 
 **唯一播放实现**：[features/playback-controls.js](../../../public/js/playback/features/playback-controls.js) 处理实际播放命令；旧的重复播放器类和仅用于 `setAudio` 的组合接线已移除。
 
+电音助手的[内部倍速适配](../../../public/js/playback/features/audio-assistant-speed.js)由 `core/initializer.js` 绑定一次，只消费桌面会话状态。主进程确认当前采集来源属于本实例、且当前歌曲正在处理时，将保存的 0.5–2 倍速应用到现有 audio 的 `playbackRate`，保持 `preservesPitch` 开启；不重复请求音源或对实时采集再变速。原声对比、停止、工作程序退出和页面销毁恢复 1×；换曲的 `loadstart` 立即恢复并请求停止，停止完成前不接受旧运行状态重新加速新曲。`ratechange` 更新系统媒体状态并强制发布歌词状态；歌词位置仍使用歌曲时间，`playbackRate` 单独控制时钟与逐字动画的推进。
+
 | 操作 | 行为 |
 | ---- | ---- |
 | `playPlaybackTrack` | 解析音源并以播放代际保护迟到结果，更新当前曲目和历史后驱动 audio |

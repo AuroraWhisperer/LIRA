@@ -105,6 +105,23 @@ async function createFixture() {
   return { document, form, Select, observers, enhanceSelects, deliver, flushTimers };
 }
 
+test('enhanced selects copy and clear the disabled reason on their visible trigger', async () => {
+  const f = await createFixture();
+  const select = new f.Select();
+  select.disabled = true;
+  select.title = '请先关闭「当前歌曲」，停止处理后再切换最终输出。';
+  f.form.append(select);
+  f.enhanceSelects(select);
+  const [, trigger] = select.parentNode.children;
+  assert.equal(trigger.title, select.title);
+  assert.equal(trigger.disabled, true);
+  select.disabled = false;
+  select.title = '';
+  f.observers.find((observer) => observer.target === select).callback();
+  assert.equal(trigger.title, '');
+  assert.equal(trigger.disabled, false);
+});
+
 test('select blur waits for the next focused element and closes only outside its wrapper', async () => {
   const f = await createFixture();
   const select = new f.Select();

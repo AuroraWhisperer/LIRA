@@ -318,7 +318,7 @@ function resetActiveWords() {
 
 function updateActiveWordProgress(currentMs, force = false) {
   activeWordAnimator?.sync({ currentMs }, {
-    playing: latestState?.playing === true && renderer?.isVisible() !== false, force,
+    playing: latestState?.playing === true && renderer?.isVisible() !== false, playbackRate: latestState?.playbackRate, force,
   });
 }
 

@@ -8,7 +8,7 @@ export class LyricClock {
     this.driftThresholdMs = Number.isFinite(options.driftThresholdMs)
       ? Math.max(0, options.driftThresholdMs)
       : DEFAULT_DRIFT_THRESHOLD_MS;
-    this.state = { currentMs: 0, durationMs: 0, progress: 0, playing: false };
+    this.state = { currentMs: 0, durationMs: 0, progress: 0, playing: false, playbackRate: 1 };
     this.anchor = {
       currentMs: 0,
       durationMs: 0,
@@ -24,16 +24,18 @@ export class LyricClock {
     const incomingCurrentMs = numberValue(nextState.currentMs, previous.currentMs);
     const durationMs = Math.max(0, numberValue(nextState.durationMs, this.anchor.durationMs));
     const playing = nextState.playing === true;
+    const playbackRate = numberValue(nextState.playbackRate, 1) > 0 ? numberValue(nextState.playbackRate, 1) : 1;
     const discontinuity = options.force === true || options.discontinuity === true;
     const drift = incomingCurrentMs - previous.currentMs;
     const shouldAnchor = !this.hasState || discontinuity || !playing || playing !== this.state.playing
-      || Math.abs(drift) > this.driftThresholdMs;
+      || playbackRate !== this.state.playbackRate || Math.abs(drift) > this.driftThresholdMs;
     const currentMs = shouldAnchor ? incomingCurrentMs : previous.currentMs;
 
     this.state = {
       ...this.state,
       ...nextState,
       playing,
+      playbackRate,
       currentMs,
       durationMs,
     };
@@ -50,7 +52,7 @@ export class LyricClock {
   getPosition(now = this.now()) {
     const timestamp = numberValue(now, this.now());
     const elapsed = this.state.playing ? Math.max(0, timestamp - this.anchor.updatedAt) : 0;
-    const currentMs = clampDuration(this.anchor.currentMs + elapsed, this.anchor.durationMs);
+    const currentMs = clampDuration(this.anchor.currentMs + elapsed * this.state.playbackRate, this.anchor.durationMs);
     const progress = this.anchor.durationMs > 0 ? currentMs / this.anchor.durationMs : this.anchor.progress;
     return { currentMs, progress: clamp(progress, 0, 1) };
   }

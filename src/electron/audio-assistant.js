@@ -5,7 +5,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { createInterface } = require('node:readline');
 
-function createAudioAssistant({ executable, dataDir, spawnProcess = spawn, exists = fs.existsSync, onState = () => {} }) {
+function createAudioAssistant({ executable, dataDir, spawnProcess = spawn, exists = fs.existsSync, onState = () => {}, getProcessIds = () => [] }) {
   let child = null;
   let launching = null;
   let closing = null;
@@ -14,7 +14,8 @@ function createAudioAssistant({ executable, dataDir, spawnProcess = spawn, exist
   const requests = new Map();
 
   function publish(next) {
-    state = { ...next, revision: (state.revision || 0) + 1 };
+    const internalSource = next.ready === true && Number.isInteger(next.sourceProcessId) && getProcessIds().includes(next.sourceProcessId);
+    state = { ...next, internalSource, revision: (state.revision || 0) + 1 };
     onState(state);
   }
 

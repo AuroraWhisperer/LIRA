@@ -147,6 +147,7 @@ export class LyricService {
       durationMs: Math.round(duration * 1000),
       progress,
       playing: audio ? !audio.paused : false,
+      playbackRate: audio?.playbackRate || 1,
       locked: false,
       generation: this.stateGeneration,
       sequence: this.stateSequence,

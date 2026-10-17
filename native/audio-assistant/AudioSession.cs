@@ -39,6 +39,7 @@ internal sealed class AudioSession : IDisposable
     var app = SelectedApp();
     return new {
       ready = true, running = engine != null && !starting, starting, source, settings, original, status,
+      sourceProcessId = source == "file" ? null : activePid ?? app?.Pid,
       song = source == "file" ? filePath == null ? "尚未选择本地歌曲" : Path.GetFileName(filePath)
         : app == null ? "等待播放器播放歌曲" : $"{app.Name} · {app.Title}",
       sourceDevice = app?.Device ?? "", fileName = filePath == null ? "" : Path.GetFileName(filePath),

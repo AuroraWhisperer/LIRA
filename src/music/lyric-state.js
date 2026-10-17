@@ -23,6 +23,7 @@ function normalizeLyricState(input) {
     durationMs: clampNumber(state.durationMs, 0, MAX_TIME_MS),
     progress: clampNumber(state.progress, 0, 1),
     playing: state.playing === true,
+    playbackRate: Number.isFinite(state.playbackRate) && state.playbackRate > 0 ? clampNumber(state.playbackRate, 0.5, 2) : 1,
     locked: state.locked === true,
     generation: clampInteger(state.generation, 0),
     sequence: clampInteger(state.sequence, 0),

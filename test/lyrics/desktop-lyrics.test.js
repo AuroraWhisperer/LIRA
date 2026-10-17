@@ -22,6 +22,15 @@ test('lyric lines share bounds while word spacing remains significant', () => {
   }
 });
 
+test('lyric playback rate defaults to one and accepts only finite positive bounded speeds', () => {
+  for (const rate of [undefined, null, 0, -1, NaN, Infinity, '2']) {
+    assert.equal(normalizeLyricState({ playbackRate: rate }).playbackRate, 1);
+  }
+  for (const [input, expected] of [[0.2, 0.5], [0.5, 0.5], [1.5, 1.5], [2, 2], [5, 2]]) {
+    assert.equal(normalizeLyricState({ playbackRate: input }).playbackRate, expected);
+  }
+});
+
 test('lyric state normalization limits browser-source payloads', () => {
   const state = normalizeLyricState({
     trackTitle: ` Song\u0000${'x'.repeat(200)} `,

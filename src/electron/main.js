@@ -389,6 +389,7 @@ async function startDesktopApp() {
   audioAssistant = createAudioAssistant({
     executable: path.join(app.isPackaged ? process.resourcesPath : path.join(ROOT_DIR, 'build'), 'audio-assistant', 'LiraAudioAssistant.exe'),
     dataDir: pathState.dataDir,
+    getProcessIds: () => [process.pid, ...app.getAppMetrics().map((item) => item.pid)],
     onState: (state) => {
       const window = windowState.main;
       if (window && !window.isDestroyed()) window.webContents.send('audio-assistant:state', state);

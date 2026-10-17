@@ -47,7 +47,8 @@ export class LyricWordAnimator {
     const currentMs = Number(position.currentMs) || 0;
     const playing = options.playing === true;
     const force = options.force === true;
-    this.syncMotion(currentMs, playing, force);
+    const playbackRate = numberValue(options.playbackRate, 1) > 0 ? numberValue(options.playbackRate, 1) : 1;
+    this.syncMotion(currentMs, playing, force, playbackRate);
     if (this.mode === 'discrete') {
       this.syncDiscrete(currentMs);
       return;
@@ -70,6 +71,7 @@ export class LyricWordAnimator {
           animation.pause();
           this.animations[index] = animation;
         }
+        if (animation.playbackRate !== playbackRate) animation.playbackRate = playbackRate;
         const shouldAnchor =
           force ||
           !playing ||
@@ -113,7 +115,7 @@ export class LyricWordAnimator {
     this.discreteLastMs = targetMs;
   }
 
-  syncMotion(currentMs, playing, force) {
+  syncMotion(currentMs, playing, force, playbackRate) {
     if (!this.motionEnabled || !['waapi', 'discrete'].includes(this.mode)) return;
     this.elements.forEach((entry) => {
       const startMs = numberValue(entry.word.startMs, 0);
@@ -141,6 +143,7 @@ export class LyricWordAnimator {
         entry.motion.pause();
       }
       const animation = entry.motion;
+      if (animation.playbackRate !== playbackRate) animation.playbackRate = playbackRate;
       if (!playing && animation.playState !== 'paused') animation.pause();
       if ((force || !playing || animation.playState !== 'running'
         || Math.abs(Number(animation.currentTime) - time) > DRIFT_THRESHOLD_MS)

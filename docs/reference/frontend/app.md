@@ -356,9 +356,9 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 `toolbox-navigation.js` 只负责**功能导航**(侧边栏整体可折叠、功能分组及组件子导航可独立折叠、方向键/WAI-ARIA tab 模式、localStorage 记住折叠与选中项);[shell-start.html](../../../public/pages/admin/toolbox/shell-start.html)按互动娱乐、主播工具、应用支持三组呈现；礼物特效归入互动娱乐，电音助手、粉丝档案与主播工作台归入主播工具（沿用分组 ID `streamer-work`），设置、性能、使用文档与桌面更新归入应用支持,各面板仍由独立模块初始化:
 
-电音助手由 [audio-assistant.js](../../../public/js/admin/audio-assistant.js) 在 `app.js` 初始化一次，退出页面时释放监听和尺寸观察。工具页 `otherAudioAssistantFeature` 顶部将两个快捷入口按钮与主开关并排，点击按钮选择顶部 / 侧边样式、开启助手并展开同一快捷面板；操作说明放在问号中。左侧为来源 / 设备，右侧为声音参数，窄窗口改为上下分区；复用 `lira-help` 解释原声通道、输出、声伴、倍速、升降调与原声对比。主开关负责助手入口，开启时顶部 / 悬浮按钮互斥显示；当前歌曲开关独立控制音频处理，关闭主开关也停止处理。
+电音助手由 [audio-assistant.js](../../../public/js/admin/audio-assistant.js) 在 `app.js` 初始化一次，退出页面时释放监听和尺寸观察。工具页 `otherAudioAssistantFeature` 顶部将两个快捷入口按钮与主开关并排，点击按钮选择顶部 / 侧边样式、开启助手并展开同一快捷面板；操作说明放在问号中。左侧为来源 / 设备，右侧为声音参数，窄窗口改为上下分区；复用 `lira-help` 解释原声通道、输出、声伴、倍速、升降调与原声对比。主开关负责助手入口，开启时顶部 / 悬浮按钮互斥显示；当前歌曲开关独立控制音频处理，关闭主开关也停止处理。右侧「一键重置」与当前歌曲开关相邻，以一次 `configure` 恢复原唱（strength 0）、1×、原调、输出音量 60% 并关闭原声对比；处理中也可重置，来源、设备及歌曲开关保持不变。
 
-[audio-assistant-controls.js](../../../public/js/admin/audio-assistant-controls.js) 消费桌面统一会话状态；完整设置包含设备、声伴比例、倍速、升降调、音量与原声对比，快捷面板只有歌曲开关与前三项调节。共享控件生成和带编辑版本的串行写入保证双向即时同步，避免旧响应覆盖连续调参。外部实时来源固定原速，本地文件才允许倍速；切歌和换播放器会回写关闭状态。文件选择沿用 `musicAPI.selectLocalFiles`，处理通过 [受限音频 IPC](../desktop/preload.md#电音助手)。
+[audio-assistant-controls.js](../../../public/js/admin/audio-assistant-controls.js) 消费桌面统一会话状态；完整设置包含设备、声伴比例、倍速、升降调、音量与原声对比，快捷面板只有歌曲开关与前三项调节。共享控件生成和带编辑版本的串行写入保证双向即时同步，避免旧响应覆盖连续调参。本地文件与主进程确认的本实例内置播放允许倍速，开启当前歌曲处理后生效；其他外部实时来源固定原速。内置倍速由[播放域](playback.md#2-播放主流程)作用于源音频，采集 DSP 保持 1×。切歌和换播放器会回写关闭状态。禁用控件的悬浮提示说明等待音频组件、先关闭「当前歌曲」或实时采集不支持变速；增强下拉框同步原生 select 的 title。文件选择沿用 `musicAPI.selectLocalFiles`，处理通过 [受限音频 IPC](../desktop/preload.md#电音助手)。
 
 全局入口共用 `audioAssistantPanel` 原生 popover，切页仍可用，不创建独立 Electron 窗口。拖动有移动阈值，释放后贴左右边缘收成窄标签；拖动取消还原，调整窗口或播放器 dock 高度后保持在可用区域。点击、Escape、外部点击负责展开 / 收起，方向键可移动侧边入口。
 
@@ -387,7 +387,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 ### 6.1 PK 算分
 
-入口为「百宝箱 → 互动娱乐 → PK 算分」，副文案为「估算所需电池与金额」。[pk-score-calculator.html](../../../public/pages/admin/toolbox/pk-score-calculator.html) 由 Admin composer 组合，[pk-score-calculator.js](../../../public/js/admin/pk-score-calculator.js) 经 `app.js` 的百宝箱生命周期按需初始化，[pk-score-calculator.css](../../../public/css/admin/toolbox/pk-score-calculator.css) 拥有局部样式。计算只在本地进行，不读取直播间数据、不发请求、不持久化输入。
+入口为「百宝箱 → 互动娱乐 → PK 算分」，副文案为「估算所需电池与金额」。[pk-score-calculator.html](../../../public/pages/admin/toolbox/pk-score-calculator.html) 由 Admin composer 组合，[pk-score-calculator.js](../../../public/js/admin/pk-score-calculator.js) 经 `app.js` 的百宝箱生命周期按需初始化，[pk-score-calculator.css](../../../public/css/admin/toolbox/pk-score-calculator.css) 拥有局部样式。输入与结果置于居中卡片，换算规则独立放在面板下方。计算只在本地进行，不读取直播间数据、不发请求、不持久化输入。
 
 目标为非负整数，默认非首胜、双倍时段开启。试算口径为 10 电池 = 1 元；普通/双倍时段每电池贡献 1/2 PK 条分，首胜不改变 PK 条的换算规则；主播加分按「PK 条分 ÷ 50 × 首胜倍率」计算，最后向下取整。为达到目标，按「目标 ÷ 首胜倍率 × 50 ÷ 时段倍率」反算，仅对最终所需电池向上取整。页面显示电池、人民币、实际可得加分和三行明文换算。例如双倍时段、目标 239 分时，非首胜需要 5975 电池；切换首胜需要 2988 电池（298.80 元），PK 条得分 5976，主播加分仍为 239。输入为空或无效时清空结果；非整数、负数或超出安全整数运算范围时提示修正。
 

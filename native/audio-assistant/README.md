@@ -4,6 +4,8 @@
 
 `AudioSession` 接管原 DemoForm 的会话编排，`Program` 在无可见窗口的 STA 消息循环中处理标准输入/输出命令。Electron 管理该工作程序，不启动额外 Node、Python 或网络服务。停止、切歌、换播放器、关闭客户端或控制管道断开均结束当前处理；既有路由守护仍负责恢复，播放器已退出时保留恢复记录。
 
+快照报告当前选中或正在采集的 `sourceProcessId`，由 Electron 确认是否属于本实例。内置播放器在音源端变速，采集 DSP 始终保持 1×；本地文件继续由现有 Rubber Band 处理倍速。具体内部播放与恢复行为见[播放参考](../../docs/reference/frontend/playback.md#2-播放主流程)。
+
 构建与运行资源见 [构建参考](../../docs/reference/engineering/build.md#电音助手原生资源)。IPC 见 [桌面桥](../../docs/reference/desktop/preload.md#电音助手)，数据位置见 [存储](../../docs/reference/backend/storage.md#电音助手本机数据)。应用版本不从 `tmp` 加载源文件或运行库。
 
 ## 验证
