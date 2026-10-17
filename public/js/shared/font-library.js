@@ -1,10 +1,58 @@
 import { SHARED_FONTS, findSharedFont } from './font-catalog.js';
 import { ensureSavedFontOption as ensureLocalFontOption, registerLocalFontSelect } from './local-font-library.js';
 
+const registeredSelects = new Set();
+const fontReadiness = new Map();
+
+function sharedFaces(font) {
+  return Array.from(document.fonts || []).filter(face =>
+    face.family.replace(/^(['"])(.*)\1$/, '$2') === font.family);
+}
+
+function isReady(font) {
+  return fontReadiness.get(font.id)?.ready === true;
+}
+
+function refreshRegisteredSelects() {
+  registeredSelects.forEach(select => populateSharedFontOptions(select));
+}
+
+export function refreshSharedFonts() {
+  if (!registeredSelects.size) return;
+  for (const font of SHARED_FONTS) {
+    const faces = sharedFaces(font);
+    const previous = fontReadiness.get(font.id);
+    if (previous && previous.faces.length === faces.length
+      && faces.every((face, index) => face === previous.faces[index])) continue;
+    const readiness = { faces, ready: false };
+    fontReadiness.set(font.id, readiness);
+    if (!faces.length) continue;
+    // Let the browser resolve the current CSS face, including Unicode subsets.
+    // A fallback-only result must never count as an available shared font.
+    void document.fonts.load(`16px ${font.value}`, font.label).then(loaded => {
+      if (fontReadiness.get(font.id) !== readiness) return;
+      readiness.ready = loaded.length > 0 && loaded.every(face => face.status === 'loaded');
+      refreshRegisteredSelects();
+    }, () => {});
+  }
+  refreshRegisteredSelects();
+}
+
 // Preserve stored IDs / unquoted families without adding duplicate library choices.
 export function ensureSavedFontOption(select, value) {
   if (!select?.options || !value) return;
   const font = findSharedFont(value);
+  if (font && !isReady(font)) {
+    for (const option of Array.from(select.options)) {
+      if (option.dataset.sharedFontPending && option.value !== value) option.remove();
+    }
+    ensureLocalFontOption(select, value);
+    const option = Array.from(select.options).find(item => item.value === value);
+    option.textContent = `${font.label}（未就绪）`;
+    option.disabled = true;
+    option.dataset.sharedFontPending = 'true';
+    return;
+  }
   const option = font && Array.from(select.options).find(item => item.dataset.fontId === font.id);
   if (option) option.value = value;
   else ensureLocalFontOption(select, value);
@@ -21,6 +69,7 @@ export function populateSharedFontOptions(select) {
   group.label = '共享字体库';
   group.dataset.sharedFonts = 'true';
   for (const font of SHARED_FONTS) {
+    if (!isReady(font)) continue;
     const option = document.createElement('option');
     option.value = font.value;
     option.textContent = font.label;
@@ -28,7 +77,7 @@ export function populateSharedFontOptions(select) {
     option.dataset.fontFamily = font.value;
     group.appendChild(option);
   }
-  select.prepend(group);
+  if (group.children.length) select.prepend(group);
   select.dataset.selectSearch = '';
   select.dataset.selectFontPreview = '';
   ensureSavedFontOption(select, currentValue);
@@ -38,8 +87,13 @@ export function populateSharedFontOptions(select) {
 export function registerFontSelect(select, { maxLength } = {}) {
   if (!select) return;
   if (maxLength) select.dataset.fontMaxLength = String(maxLength);
-  populateSharedFontOptions(select);
-  return registerLocalFontSelect(select);
+  registeredSelects.add(select);
+  refreshSharedFonts();
+  const unregisterLocal = registerLocalFontSelect(select);
+  return () => {
+    registeredSelects.delete(select);
+    unregisterLocal();
+  };
 }
 
 const SYSTEM_FONT_OPTIONS = Object.freeze({

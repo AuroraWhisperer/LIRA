@@ -8,7 +8,9 @@ const { startComponentPreviewServer } = require('../helpers/component-preview-se
 let fixture;
 let browser;
 test.before(async () => {
-  fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><html><body><main id="host"></main></body></html>' });
+  fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html><html><head>
+    <link rel="stylesheet" href="/css/shared/display-fonts.css">
+    </head><body><main id="host"></main></body></html>` });
   browser = await chromium.launch({ headless: true });
 });
 test.after(async () => { await browser?.close(); await fixture?.close(); });

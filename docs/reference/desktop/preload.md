@@ -1,6 +1,21 @@
 # preload 桥与 IPC 全量注册表
 
-[preload.js](../../../src/electron/preload.js) 暴露 `plannerReminders`、`dailyBots`、`fanProfiles`、`giftExport`、`songAssistantDesktop`、`musicAPI`、`bilibiliAuth`、`dynamicLotteryAuth`、`guardExpiryAuth`、`liraLicense` 十个命名空间。本文是通道、方向、载荷与 action 的唯一成表处；窗口生命周期见 [main.md](main.md)，更新状态见 [update.md](update.md)，登录与会话见 [auth.md](auth.md)。invoke、事件和复用通道中的 action 分别核对，不混算。
+[preload.js](../../../src/electron/preload.js) 暴露 `audioAssistant`、`plannerReminders`、`dailyBots`、`fanProfiles`、`giftExport`、`songAssistantDesktop`、`musicAPI`、`bilibiliAuth`、`dynamicLotteryAuth`、`guardExpiryAuth`、`liraLicense` 十一个命名空间。本文是通道、方向、载荷与 action 的唯一成表处；窗口生命周期见 [main.md](main.md)，更新状态见 [update.md](update.md)，登录与会话见 [auth.md](auth.md)。invoke、事件和复用通道中的 action 分别核对，不混算。
+
+## 电音助手
+
+`audio-assistant-ipc.js` 复用 main-window registrar，校验当前主窗口、主 frame、精确 origin 和管理页路径。`audioAssistant.invoke({ op, value? })` → `audio-assistant:invoke`，返回 `{ ok, error?, state? }`；`audioAssistant.onState(callback)` 订阅 `audio-assistant:state` 并返回取消订阅函数。
+
+| op | value 与行为 |
+| --- | --- |
+| `get` | 无参数；惰性启动并取得统一会话快照 |
+| `configure` | 仅允许 [本机参数](../backend/storage.md#电音助手本机数据) 的 strength / semitones / speedPercent / volume / outputId / cableId，以及 `original: boolean`、`source: auto\|file\|pid:正整数`；数值必须为范围内整数，未知键拒绝 |
+| `file` | 已通过现有 `musicAPI.selectLocalFiles` 授权的音频路径；复用 local-media allowlist，拒绝任意文件 |
+| `start` / `stop` | 无参数；仅启停当前歌曲；停止可取消进行中的启动 |
+| `refresh` / `recover` | 无参数；空闲时刷新来源与设备 / 恢复遗留原声路由 |
+| `mixer` | 无参数；仅打开固定的 Windows 音量混合器设置 URI |
+
+快照字段为 ready、running、starting、source、settings、original、status、song、sourceDevice、fileName、apps（id/name）、outputs（id/name）、level、position、duration、pendingRecovery、revision；renderer 按 revision 接受新状态，两个界面消费同一快照。source 进程 ID 仅用于用户选择音频来源，不是权限主体。工作程序路径和数据目录由 main 指定；renderer 不能提交程序、命令行或 shell URL。
 
 ## 1. 安全模型
 
@@ -8,7 +23,8 @@
 
 | handler owner | 当前主窗口 webContents / 精确 desktop origin | 主 frame 对象 | pathname 范围 |
 | --- | --- | --- | --- |
-| [main-window-ipc.js](../../../src/electron/ipc/main-window-ipc.js)：music、playback、bilibili、desktop 资源检查与客户端外观 | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
+| [main-window-ipc.js](../../../src/electron/ipc/main-window-ipc.js)：music、playback、bilibili、audio-assistant、desktop 资源检查与客户端外观 | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
+| [screen-color-picker.js](../../../src/electron/screen-color-picker.js)：桌面全屏取色，复用 main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [update-ipc.js](../../../src/electron/ipc/update-ipc.js)：其余 desktop | 必须 | 必须 | 上述路径加 `/license` |
 | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) | 必须 | 必须 | `/`、`/admin`、`/settings` |
 | [planner-reminder-ipc.js](../../../src/electron/ipc/planner-reminder-ipc.js) | 必须 | 必须 | 仅 `/admin` |
@@ -32,6 +48,8 @@ Owner 为 [update-ipc.js](../../../src/electron/ipc/update-ipc.js)，客户端�
 | --- | --- | --- |
 | `desktop:set-client-theme` | `setClientTheme(themeId)`，恰好一个合法主题 ID 字符串；枚举及默认项由 [client-theme.js](../../../src/shared/client-theme.js) 的统一目录定义 | 成功 `{ok:true,themeId}`；失败 `{ok:false,error}`，错误为 `IPC_SOURCE_INVALID`、`IPC_ARGUMENTS_INVALID`、`CLIENT_THEME_INVALID` 或 `CLIENT_THEME_SAVE_FAILED`，失败不切换已提交状态 |
 | `desktop:get-info` | `getInfo()` | `{version,isPackaged,platform,dataDir,logFile,terminalLogFile,githubRepoUrl,updateState}` |
+| `desktop:pick-screen-color` | `pickScreenColor()`，无参数；owner 为 [screen-color-picker.js](../../../src/electron/screen-color-picker.js)，消费者为共享 `color-picker.js` | 选中 `{ok:true,sRGBHex:'#rrggbb'}`；取消 `{ok:true,canceled:true}`；失败 `{ok:false,error}`，错误为 `IPC_SOURCE_INVALID`、`IPC_ARGUMENTS_INVALID`、`SCREEN_COLOR_PICK_BUSY`、`SCREEN_COLOR_PICK_FAILED` |
+| `desktop:cancel-screen-color` | `cancelScreenColor()`，无参数；仅受信主窗口可取消 | `{ok:true}`；来源或参数错误同上；没有进行中的取色时无副作用 |
 | `desktop:get-resource-integrity-state` | `getResourceIntegrityState()` | 资源检查快照；多余参数 `IPC_ARGUMENTS_INVALID` |
 | `desktop:check-resource-integrity` | `checkResourceIntegrity()` | 当前/新任务快照，重复请求合并；同上 |
 | `desktop:check-for-updates` | `checkForUpdates()` | 更新状态对象，字段与错误状态见 [update.md](update.md) |
@@ -47,7 +65,9 @@ Owner 为 [update-ipc.js](../../../src/electron/ipc/update-ipc.js)，客户端�
 | `desktop:minimize-window` | `minimizeWindow()` | `undefined` |
 | `desktop:maximize-window` | `maximizeWindow()` | `undefined`；切换最大化状态 |
 
-资源检查与客户端外观仅接受管理页面；其余本组允许 `/license`。外观桥不接受路径、CSS 或 URL，外部工具页面没有写入权限；新打开工具通过 HTML 获取只读主题。资源快照的 `revision`、状态及错误语义由 [更新文档](update.md)「客户端资源检查」维护。
+资源检查、客户端外观与屏幕取色仅接受管理页面；其余本组允许 `/license`。外观桥不接受路径、CSS 或 URL，外部工具页面没有写入权限；新打开工具通过 HTML 获取只读主题。资源快照的 `revision`、状态及错误语义由 [更新文档](update.md)「客户端资源检查」维护。
+
+取色专用 preload 不向页面暴露主桌面桥。内部 `screen-color-picker:image`（main → 临时窗口）仅发送本屏的内存 PNG data URL；`screen-color-picker:reply`（临时窗口 → main）发送 `{type:'ready'}`、`{type:'cancel'}` 或 `{type:'pick',x,y}`（归一化坐标，有限数且 `0 ≤ x,y < 1`）。主进程只接受当前操作已登记窗口的 mainFrame 与精确本地页面 URL，依据内存图像计算 HEX；主桌面页面无法获取截图。临时窗口生命周期见 [windows.md](windows.md#5-全屏取色窗口)。
 
 ### 2.2 musicAPI 与 bilibiliAuth
 

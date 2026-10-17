@@ -217,7 +217,9 @@ export function createSettingsOperations({
     const button = documentRef.getElementById('reconnectBtn');
     if (!silent) {
       button.disabled = true;
-      button.textContent = '刷新中…';
+      button.setAttribute('aria-busy', 'true');
+      button.setAttribute('aria-label', '正在刷新直播');
+      button.title = '正在刷新直播';
     }
     try {
       const response = await fetchRef('/api/bilibili/reconnect', {
@@ -251,7 +253,9 @@ export function createSettingsOperations({
     } finally {
       if (!silent) {
         button.disabled = false;
-        button.textContent = '刷新直播';
+        button.removeAttribute('aria-busy');
+        button.setAttribute('aria-label', '刷新直播');
+        button.title = '刷新直播';
       }
     }
   }

@@ -118,5 +118,6 @@
 .lira-color-picker input:not([type='range']) { box-sizing: border-box; width: 100%; min-width: 0; height: 32px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 3px; background: var(--color-bg-primary); color: inherit; font: inherit; font-variant-numeric: tabular-nums; }
 .lira-color-picker .lira-color-hex-label { grid-template-columns: 60px 1fr; align-items: center; }
 .lira-color-picker-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--muted); }
-.lira-color-picker-footer button { min-height: 28px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 3px; background: var(--color-bg-primary); color: var(--text); font: inherit; cursor: pointer; }
+.lira-color-picker-footer button { flex-shrink: 0; min-height: 28px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 3px; background: var(--color-bg-primary); color: var(--text); font: inherit; cursor: pointer; }
+.lira-color-picker-footer button:disabled { opacity: 0.55; cursor: default; }
 .lira-color-picker :is(input, button):focus-visible { outline: 2px solid var(--color-control-focus, var(--primary)); outline-offset: 2px; }

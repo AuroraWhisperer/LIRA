@@ -61,10 +61,11 @@ export function createBlindBoxDatePicker({ onChange, onOpen }) {
             : '请选择开始日期';
     get('Apply').disabled = !endDate;
     const firstWeekday = (month.getDay() + 6) % 7;
+    const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
     const today = dateKey(new Date());
     const tabDate = focusedDate || (startDate.slice(0, 7) === dateKey(month).slice(0, 7) ? startDate : dateKey(month));
     const fragment = document.createDocumentFragment();
-    for (let index = 0; index < 42; index += 1) {
+    for (let index = 0; index < firstWeekday + daysInMonth; index += 1) {
       const date = new Date(month);
       date.setDate(1 - firstWeekday + index);
       const key = dateKey(date);

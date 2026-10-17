@@ -109,8 +109,10 @@ test('shared local font library queries once for queue, desktop lyric and large 
 
 test('shared display fonts keep legacy selections without duplicate options or local-font queries', async () => {
   let queries = 0;
+  const faces = require('../../src/fonts/catalog.json').fonts.map(font => ({ family: font.family, status: 'loaded' }));
+  faces.load = async descriptor => faces.filter(face => descriptor.includes(`"${face.family}"`));
   const library = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/font-library.js'), {
-    document: { createElement: createNode }, console,
+    document: { createElement: createNode, fonts: faces }, console,
     window: { queryLocalFonts: async () => { queries++; return [{ family: 'Custom Local' }, { family: 'Long'.repeat(30) }]; } },
   });
   const selections = ['maiyuan', 'Lira Smiley', '"月渡花汀文楷"', '"Unavailable Font"'];
@@ -131,6 +133,56 @@ test('shared display fonts keep legacy selections without duplicate options or l
     unregister();
   }
   assert.equal(queries, 1);
+});
+
+test('shared font menus exclude missing, loading and failed faces, then add decoded fonts without changing selection', async () => {
+  const pending = Promise.withResolvers();
+  const readyFace = { family: 'Lira Maiyuan', status: 'loading' };
+  const failedFace = { family: 'Lira Kuaile', status: 'error' };
+  const faces = [readyFace, failedFace];
+  let loads = 0;
+  faces.load = descriptor => {
+    loads++;
+    return descriptor.includes('Lira Maiyuan') ? pending.promise : Promise.reject(new Error('decode failed'));
+  };
+  const library = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/font-library.js'), {
+    document: { createElement: createNode, fonts: faces }, window: {},
+  });
+  const saved = createSelect('maiyuan', [{ value: 'default', label: '默认字体' }, { value: 'maiyuan', label: '旧设置' }]);
+  const fresh = createSelect('default', [{ value: 'default', label: '默认字体' }]);
+  const disposeSaved = library.registerFontSelect(saved);
+  const disposeFresh = library.registerFontSelect(fresh);
+  assert.equal(loads, 2, 'Selectors share each font load.');
+  assert.equal(saved.querySelector('optgroup[data-shared-fonts]'), null);
+  assert.equal(fresh.querySelector('optgroup[data-shared-fonts]'), null);
+  assert.equal(saved.value, 'maiyuan');
+  assert.equal(saved.options.find(option => option.value === 'maiyuan').disabled, true);
+  assert.match(saved.options.find(option => option.value === 'maiyuan').textContent, /未就绪/);
+  readyFace.status = 'loaded';
+  pending.resolve([readyFace]);
+  await new Promise(resolve => setImmediate(resolve));
+  for (const select of [saved, fresh]) {
+    const group = select.querySelector('optgroup[data-shared-fonts]');
+    assert.deepEqual(group.children.map(option => option.dataset.fontId), ['maiyuan']);
+    assert.ok(!group.children[0].disabled);
+    assert.doesNotMatch(group.children[0].textContent, /未就绪/);
+  }
+  assert.equal(saved.value, 'maiyuan');
+  assert.equal(fresh.value, 'default');
+  const replacement = { family: 'Lira Smiley', status: 'loaded' };
+  faces.splice(0, faces.length, replacement);
+  faces.load = async () => { loads++; return [replacement]; };
+  library.refreshSharedFonts();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(loads, 3);
+  assert.deepEqual(fresh.querySelector('optgroup[data-shared-fonts]').children.map(option => option.dataset.fontId), ['smiley']);
+  assert.equal(saved.value, 'maiyuan');
+  assert.equal(saved.options.find(option => option.value === 'maiyuan').disabled, true);
+  disposeSaved();
+  disposeFresh();
+  faces.splice(0, faces.length, readyFace);
+  library.refreshSharedFonts();
+  assert.equal(loads, 3, 'Disposed selectors do not trigger font loads after stylesheet changes.');
 });
 
 test('shared local font library preserves a saved option missing from the current machine', async () => {

@@ -1,4 +1,4 @@
-# 辅助窗口:音乐登录窗、B站登录窗
+# 辅助窗口:音乐登录窗、B站登录窗、全屏取色
 
 > 涉及文件:[src/electron/music-login-window.js](../../../src/electron/music-login-window.js)、[src/electron/bilibili-login-window.js](../../../src/electron/bilibili-login-window.js)
 
@@ -50,3 +50,17 @@
 [doubao-session.js](../../../src/electron/doubao-session.js) 拥有单一 1100×820 的官网窗口，父窗口为 LIRA 主窗口；标题为“LIRA · 豆包账号登录与验证”。无 preload、无 Node 集成，启用 contextIsolation 和 sandbox，拒绝权限请求、下载及弹窗。顶层导航/重定向只允许精确官方 origin；分区及入口见 [auth.md](auth.md#16-豆包个人账号)。
 
 点击扫码/验证按钮显示并聚焦该窗口，未登录时最多 15 秒等待官网“登录”按钮并打开登录面板；扫码确认和验证码由用户完成。普通关窗只隐藏，保留网页运行时用于后续文字请求；显式退出、请求取消/超时或应用 dispose 销毁本窗口。窗口不会加载 LIRA 管理页，也没有管理凭据或任意脚本 IPC。下次需要时重新创建，登录态仍由会话 owner 管理。
+
+## 5. 全屏取色窗口
+
+[screen-color-picker.js](../../../src/electron/screen-color-picker.js) 在用户点击取色时通过
+`desktopCapturer` 获取所有显示器的一次快照，以 `display_id` 匹配显示器，再按各自
+`bounds` 创建无边框置顶窗口。包含窗口外区域及多显示器；截图不落盘。点击坐标按
+截图实际像素尺寸换算，适配显示缩放和负坐标显示器。画面在取色期间保持静止，
+放大镜显示鼠标所指像素与 HEX；单击确认，Esc 或右键取消。不透明度由原颜色组件保留。
+
+固定本地 HTML 和独立 sandbox preload 使用内存分区 `lira-screen-color-picker`，保持
+context isolation、禁用 Node integration、禁止外部导航与新窗口；页面 CSP 不允许脚本或网络资源。
+只允许一次操作，截图缺失时整体失败；准备超过 15 秒失败。成功、取消、主窗口销毁或
+主 frame 导航、显示器配置变化、取色窗口关闭/崩溃以及 main 释放注册器均销毁全部临时
+窗口并释放图像引用、计时器与 owner/display 监听。成功或用户取消后恢复原主窗口焦点。

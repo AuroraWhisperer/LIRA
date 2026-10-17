@@ -21,28 +21,38 @@ test('PK score estimates apply the selected first-win and double-period multipli
   }
 });
 
-test('first win requires a full 50-point bucket before doubling the awarded score', async () => {
+test('first win applies before rounding so odd target scores remain exact', async () => {
   const { calculatePkScore } = await loadModuleExports(modulePath);
   assert.deepEqual({ ...calculatePkScore(1, true, true) }, {
-    batteries: 25, barScore: 50, awardedScore: 2,
+    batteries: 13, barScore: 26, awardedScore: 1,
   });
   assert.deepEqual({ ...calculatePkScore(3, true, false) }, {
-    batteries: 100, barScore: 100, awardedScore: 4,
+    batteries: 75, barScore: 75, awardedScore: 3,
   });
   assert.deepEqual({ ...calculatePkScore(1001, true, true) }, {
-    batteries: 12525, barScore: 25050, awardedScore: 1002,
+    batteries: 12513, barScore: 25026, awardedScore: 1001,
+  });
+});
+
+test('switching first win keeps the 239-point target and excludes its multiplier from PK bar points', async () => {
+  const { calculatePkScore } = await loadModuleExports(modulePath);
+  assert.deepEqual({ ...calculatePkScore(239, false, true) }, {
+    batteries: 5975, barScore: 11950, awardedScore: 239,
+  });
+  assert.deepEqual({ ...calculatePkScore(239, true, true) }, {
+    batteries: 2988, barScore: 5976, awardedScore: 239,
   });
 });
 
 test('battery estimates reach the target and one fewer battery cannot reach it', async () => {
   const { calculatePkScore } = await loadModuleExports(modulePath);
-  for (const target of [1, 2, 3, 49, 50, 51, 999, 1000, 1001]) {
+  for (const target of [1, 2, 3, 49, 50, 51, 239, 999, 1000, 1001]) {
     for (const firstWin of [false, true]) {
       for (const doublePeriod of [false, true]) {
         const result = calculatePkScore(target, firstWin, doublePeriod);
-        const scoreWithOneLess = Math.floor((result.batteries - 1) * (doublePeriod ? 2 : 1) / 50)
-          * (firstWin ? 2 : 1);
-        assert.ok(result.awardedScore >= target);
+        const scoreWithOneLess = Math.floor((result.batteries - 1) * (doublePeriod ? 2 : 1) / 50
+          * (firstWin ? 2 : 1));
+        assert.equal(result.awardedScore, target);
         assert.ok(scoreWithOneLess < target);
       }
     }

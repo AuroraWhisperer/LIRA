@@ -109,6 +109,8 @@ test('desktop lyric settings automatically list local font families and preserve
 });
 
 test('desktop lyric local font detection keeps built-ins when permission is denied', async () => {
+  const faces = require('../../src/fonts/catalog.json').fonts.map(font => ({ family: font.family, status: 'loaded' }));
+  faces.load = async descriptor => faces.filter(face => descriptor.includes(`"${face.family}"`));
   const form = { addEventListener() {} };
   const select = createFontNode();
   const elements = new Map([
@@ -120,6 +122,7 @@ test('desktop lyric local font detection keeps built-ins when permission is deni
     console: { ...console, warn() {} },
     document: {
       createElement: createFontNode,
+      fonts: faces,
       getElementById(id) {
         return elements.get(id) || null;
       },

@@ -65,6 +65,23 @@ test('first download is single-flight with two workers; subsequent startup uses 
   assert.equal(requests, 4);
 });
 
+test('all eight bundled fonts initialize on a clean offline install without downloads or a cache', async t => {
+  const { options, directory } = await fixture(t, catalog);
+  let requests = 0;
+  const library = createFontLibrary({ ...options, publicDir: path.resolve(__dirname, '../../public'),
+    fetch: async () => { requests++; throw new Error('Offline'); } });
+  t.after(() => library.close());
+  const state = await library.initialize();
+  assert.equal(state.status, 'ready');
+  assert.equal(state.total, 0);
+  assert.equal(requests, 0);
+  for (const font of catalog) {
+    assert.ok(library.stylesheet().includes(`font-family: '${font.family}'`), font.id);
+    for (const file of font.bundled) assert.ok(library.stylesheet().includes(`/fonts/${file.path}`), file.path);
+  }
+  await assert.rejects(fs.access(directory), { code: 'ENOENT' });
+});
+
 test('failed revision keeps the last good font; retry downloads only that revision', async t => {
   const old = entry('one');
   const { library, options, directory } = await fixture(t, [old], async () => new Response(bytes('one')));

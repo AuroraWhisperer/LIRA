@@ -1,4 +1,4 @@
-// Complete display fonts, downloaded and cached locally. Restricted title subsets and script fallbacks
+// Complete display fonts bundled for offline use. Restricted title subsets and script fallbacks
 // belong to their renderers and are not general-purpose font choices.
 export const SHARED_FONTS = Object.freeze([
   { id: 'maiyuan', family: 'Lira Maiyuan', label: '荆南麦圆 · 圆润可爱', playerValue: 'maiyuan' },

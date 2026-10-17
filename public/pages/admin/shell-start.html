@@ -209,15 +209,21 @@
           </nav>
         </div>
         <div class="status-strip">
-          <span id="wsStatus" class="pill warn" hidden></span>
-          <span id="liveStatus" class="pill warn">弹幕监听未启用</span>
+          <button id="audioAssistantTop" class="secondary topbar-icon-button" type="button" title="电音助手" aria-label="打开电音助手" aria-expanded="false" aria-controls="audioAssistantPanel" popovertarget="audioAssistantPanel" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4" /></svg>
+          </button>
+          <button id="liveStatus" class="pill topbar-live-status" type="button" title="查看直播与连接状态" aria-label="弹幕未启用，查看连接详情" aria-expanded="false" aria-controls="topbarStatusDetails" popovertarget="topbarStatusDetails">
+            <span id="liveStatusOwner" class="owner-name" hidden></span>
+            <span id="liveStatusLabel">弹幕未启用</span>
+          </button>
           <button
             id="reconnectBtn"
-            class="secondary"
+            class="secondary topbar-icon-button"
             type="button"
-            title="重新检测直播间开播状态"
+            title="刷新直播"
+            aria-label="刷新直播"
           >
-            刷新直播
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 17.9 17" /></svg>
           </button>
           <button id="shutdownBtn" class="danger" type="button">
             退出程序

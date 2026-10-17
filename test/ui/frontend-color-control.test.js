@@ -187,6 +187,108 @@ test('color editing ends once for the owning field when switching pickers or clo
   assert.deepEqual(await page.evaluate(() => window.colorEvents), [], 'Editing boundaries are not business input/change events.');
 });
 
+test('screen sampling prefers desktop, retains alpha and ignores canceled or stale selections', async t => {
+  const page = await pageFor(t, '<form><input id="first" type="color" value="#11223380"><input id="second" type="color" value="#445566"></form>');
+  await page.evaluate(() => {
+    window.sampleCalls = 0;
+    window.cancelCalls = 0;
+    window.songAssistantDesktop = {
+      pickScreenColor: () => { window.sampleCalls++; return new Promise(resolve => { window.resolveSample = resolve; }); },
+      cancelScreenColor: async () => { window.cancelCalls++; },
+    };
+    window.EyeDropper = class { open() { throw new Error('Desktop sampling must take priority'); } };
+  });
+  await page.locator('#first').click();
+  const sample = page.getByRole('button', { name: '取色', exact: true });
+  await sample.click();
+  assert.equal(await sample.isDisabled(), true);
+  await page.evaluate(() => window.resolveSample({ ok: true, sRGBHex: '#abcdef' }));
+  await page.waitForFunction(() => document.getElementById('first').value === '#abcdef80');
+  assert.deepEqual(await page.evaluate(() => window.colorEvents), [
+    { type: 'input', value: '#abcdef80' }, { type: 'change', value: '#abcdef80' },
+  ]);
+  await sample.click();
+  await page.evaluate(() => window.resolveSample({ ok: true, canceled: true }));
+  await page.waitForFunction(() => !document.querySelector('[data-eyedropper]').disabled);
+  assert.equal(await page.evaluate(() => window.colorEvents.length), 2);
+  await sample.click();
+  await page.locator('#second').click();
+  await page.waitForFunction(() => window.cancelCalls === 1);
+  await page.evaluate(() => window.resolveSample({ ok: true, sRGBHex: '#ff0000' }));
+  await page.waitForFunction(() => !document.querySelector('[data-eyedropper]').disabled);
+  assert.equal(await page.locator('#second').inputValue(), '#445566');
+  await sample.click();
+  await page.getByRole('dialog').press('Escape');
+  await page.waitForFunction(() => window.cancelCalls === 2);
+  await page.evaluate(() => window.resolveSample({ ok: true, canceled: true }));
+  assert.equal(await page.evaluate(() => window.colorEvents.length), 2);
+});
+
+test('browser sampling uses EyeDropper and reports failures without changing the color', async t => {
+  const page = await pageFor(t, '<input id="color" type="color" value="#112233">');
+  await page.evaluate(() => {
+    window.EyeDropper = class { async open() { return { sRGBHex: '#aabbcc' }; } };
+  });
+  await page.locator('#color').click();
+  await page.getByRole('button', { name: '取色', exact: true }).click();
+  assert.equal(await page.locator('#color').inputValue(), '#aabbcc');
+  await page.evaluate(() => { window.EyeDropper = class { async open() { throw new Error('Unavailable'); } }; });
+  await page.getByRole('button', { name: '取色', exact: true }).click();
+  assert.equal(await page.getByText('取色失败，请重试').isVisible(), true);
+  assert.equal(await page.locator('#color').inputValue(), '#aabbcc');
+  await page.getByRole('button', { name: '撤回', exact: true }).click();
+  assert.equal(await page.locator('#color').inputValue(), '#112233');
+});
+
+test('undo restores the previous manual edit including paired opacity and resets on reopen', async t => {
+  const page = await pageFor(t, '<form><input id="color" type="color" value="#112233" data-color-opacity="opacity"><input id="opacity" type="number" value="0.35" min="0" max="1" step="0.01"></form>');
+  await page.locator('#color').click();
+  const picker = page.getByRole('dialog');
+  const undo = picker.getByRole('button', { name: '撤回', exact: true });
+  assert.equal(await undo.isDisabled(), true);
+  assert.equal(await picker.getByText('透明 → 不透明', { exact: true }).isVisible(), true);
+  await picker.getByLabel('十六进制颜色', { exact: true }).fill('#abcdef');
+  await undo.click();
+  assert.equal(await page.locator('#color').inputValue(), '#112233');
+  assert.equal(await page.locator('#opacity').inputValue(), '0.35');
+  assert.equal(await undo.isDisabled(), true);
+  await picker.getByLabel('十六进制颜色', { exact: true }).fill('#aabbcc');
+  await picker.getByLabel('不透明度（%）', { exact: true }).fill('75');
+  await undo.click();
+  assert.equal(await page.locator('#color').inputValue(), '#aabbcc', 'Undo restores the previous edit, not the opening color.');
+  assert.equal(await page.locator('#opacity').inputValue(), '0.35');
+  await picker.getByLabel('红色 R', { exact: true }).fill('255');
+  await picker.getByRole('button', { name: '完成' }).click();
+  await page.locator('#color').click();
+  assert.equal(await undo.isDisabled(), true);
+  assert.equal(await page.locator('#color').inputValue(), '#ffbbcc');
+  assert.equal(await picker.locator('.lira-color-picker-footer').evaluate(footer => {
+    const { left, right } = footer.getBoundingClientRect();
+    return [...footer.children].filter(child => !child.hidden).every(child => {
+      const rect = child.getBoundingClientRect();
+      return rect.left >= left && rect.right <= right;
+    });
+  }), true, 'The short hint and three buttons fit the existing picker width.');
+});
+
+test('undo groups a continuous color-plane drag into one edit and emits one input/change pair', async t => {
+  const page = await pageFor(t, '<input id="color" type="color" value="#11223380">');
+  await page.locator('#color').click();
+  const plane = await page.locator('.lira-color-plane').boundingBox();
+  await page.mouse.move(plane.x + 30, plane.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(plane.x + 180, plane.y + 80, { steps: 5 });
+  await page.mouse.up();
+  assert.notEqual(await page.locator('#color').evaluate(input => input.value), '#11223380');
+  await page.evaluate(() => { window.colorEvents.length = 0; });
+  await page.getByRole('button', { name: '撤回', exact: true }).click();
+  assert.equal(await page.locator('#color').evaluate(input => input.value), '#11223380');
+  assert.deepEqual(await page.evaluate(() => window.colorEvents), [
+    { type: 'input', value: '#11223380' }, { type: 'change', value: '#11223380' },
+  ]);
+  assert.equal(await page.getByRole('button', { name: '撤回', exact: true }).isDisabled(), true);
+});
+
 test('generated component parameters restore defaults and update the owning draft immediately', async t => {
   const page = await pageFor(t, '');
   await page.evaluate(async () => {

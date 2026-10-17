@@ -2,10 +2,6 @@
   max-width: 820px;
 }
 
-.pk-score-calculator .ui-page-title {
-  margin: 0 0 22px;
-}
-
 .pk-score-main {
   display: grid;
   grid-template-columns: minmax(200px, 0.85fr) minmax(0, 1.15fr);

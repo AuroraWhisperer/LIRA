@@ -189,7 +189,7 @@
 }
 
 .blind-analysis-calendar-days .is-outside {
-  color: var(--muted);
+  visibility: hidden;
 }
 
 .blind-analysis-calendar-days .is-in-range {

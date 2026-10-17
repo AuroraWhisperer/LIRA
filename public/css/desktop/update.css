@@ -167,6 +167,57 @@
   border-top: 1px solid var(--border);
 }
 
+.resource-download-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resource-download-row {
+  padding: var(--spacing-md) 0;
+}
+
+.resource-download-row:not([hidden]) ~ .resource-download-row:not([hidden]) {
+  border-top: 1px solid var(--border);
+}
+
+.resource-download-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--type-size-body);
+}
+
+.resource-download-heading > span {
+  color: var(--primary-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.resource-download-row progress {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 7px;
+  accent-color: var(--primary);
+}
+
+.resource-download-row progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: var(--color-range-track);
+}
+
+.resource-download-row progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.resource-download-row .hint {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
 .desktop-support-copy {
   display: flex;
   flex-wrap: wrap;

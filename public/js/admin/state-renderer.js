@@ -1,21 +1,12 @@
 'use strict';
 
-import { escapeHtml } from '../shared/utils.js';
 import { formsService } from './forms.js';
 import { receiveComponentSettings, projectComponentDrafts } from './component-settings-sync.js';
 import { songs } from './songs.js';
 import { renderSongCooldownControls } from './song-cooldown-settings.js';
 import { renderQueueState, renderSuperChatQueue, applyAdminQueueFontPreview } from './queue.js';
-import { isLiveStatusDegraded } from './live-status-presentation.js';
-
-export function renderConnectionStatus(connectionState) {
-  const status = document.getElementById('wsStatus');
-  if (!status) return;
-  status.hidden = connectionState === 'connected';
-  if (status.hidden) return;
-  status.textContent = connectionState === 'shutdown' ? '程序已退出' : '与本机服务的连接已断开，正在重连';
-  status.className = 'pill warn';
-}
+import { renderLiveStatus, renderConnectionStatus } from './topbar-status.js';
+export { renderConnectionStatus };
 
 export function createAdminStateRenderer({
   renderQueue = renderQueueState,
@@ -75,18 +66,4 @@ function fillSettings(settings) {
     autoUpdateToggle.checked = settings.enableAutoUpdate === 'true';
     if (autoUpdateLabel) autoUpdateLabel.textContent = autoUpdateToggle.checked ? '已开启' : '已关闭';
   }
-}
-
-function renderLiveStatus(live) {
-  const node = document.getElementById('liveStatus');
-  const owner = live.ownerName ? `<span class="owner-name">${escapeHtml(live.ownerName)}</span>` : '';
-  const degraded = isLiveStatusDegraded(live);
-  const message = degraded ? '已连接，弹幕可能延迟（正在恢复实时连接）'
-    : live.message === '未开播，历史消息监听中' ? '未开播，正在接收弹幕'
-      : live.message || '弹幕监听未启用';
-  const status = escapeHtml(message);
-  let html = live.connected && owner ? `${owner} ${status}` : `${status}${owner ? ` ${owner}` : ''}`;
-  if (!live.connected && live.roomId) html += ` <span class="room-id-hint">· ${escapeHtml(live.roomId)}</span>`;
-  node.innerHTML = html;
-  node.className = degraded ? 'pill warn' : live.connected ? 'pill good' : live.enabled ? 'pill warn' : 'pill';
 }

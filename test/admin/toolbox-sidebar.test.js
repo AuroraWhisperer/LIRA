@@ -59,7 +59,7 @@ test('toolbox sidebar groups remaining tools by entertainment, management and su
       '互动娱乐',
       ['otherDanmakuFeature', 'otherPkScoreFeature', 'otherDynamicLotteryFeature', 'otherGamesFeature', 'otherGiftEffectsFeature'],
     ],
-    ['streamer-work', '日常管理', ['otherFanProfilesFeature', 'otherDailyTodoFeature']],
+    ['streamer-work', '主播工具', ['otherAudioAssistantFeature', 'otherFanProfilesFeature', 'otherDailyTodoFeature']],
     [
       'software-help',
       '应用支持',
@@ -121,7 +121,7 @@ test('toolbox group headings remain accessible collapsible buttons', () => {
   const navigation = html.match(/<nav\b[^>]*class=["']other-feature-menu["'][^>]*>([\s\S]*?)<\/nav\s*>/)?.[1];
   const groups = [
     ['live-interaction', '互动娱乐'],
-    ['streamer-work', '日常管理'],
+    ['streamer-work', '主播工具'],
     ['software-help', '应用支持'],
   ];
 

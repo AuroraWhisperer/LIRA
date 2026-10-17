@@ -7,6 +7,8 @@ const {
   app,
   autoUpdater,
   BrowserWindow,
+  desktopCapturer,
+  screen,
   dialog,
   ipcMain,
   Menu,
@@ -42,6 +44,9 @@ const { createDesktopUpdateController } = require('./desktop-update-controller')
 const { createDesktopState } = require('./desktop-state');
 const { createClientAppearance, getClientWindowBackground, bindClientAppearanceWindow } = require('./client-appearance');
 const { registerClientAppearanceIpc } = require('./ipc/client-appearance-ipc');
+const { registerScreenColorPicker } = require('./screen-color-picker');
+const { createAudioAssistant } = require('./audio-assistant');
+const { registerAudioAssistantIpc } = require('./ipc/audio-assistant-ipc');
 const { migrateLegacyUserData, resolveDesktopUserDataPaths } = require('./desktop-user-data');
 const { migrateBrowserData, migrateCacheData } = require('../storage/data-directory-migration');
 const { registerLocalFontPermissionHandler } = require('./desktop-permissions');
@@ -142,6 +147,9 @@ var readinessController = null;
 var clientAppearance = null;
 var doubaoSession = null;
 var disposeClientAppearanceIpc = null;
+var disposeScreenColorPicker = null;
+var audioAssistant = null;
+var disposeAudioAssistantIpc = null;
 var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
 var guardExpiryAuth = null;
@@ -343,6 +351,8 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
       disposeDailyBotIpc?.();
       disposePlannerReminderIpc?.();
       disposeClientAppearanceIpc?.();
+      disposeScreenColorPicker?.();
+      disposeAudioAssistantIpc?.();
       plannerReminderController?.dispose();
       dynamicLotteryAuth?.dispose();
       const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth, doubaoSession].filter(
@@ -355,6 +365,7 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
       fanProfileController = null;
       await Promise.all([
         integrityStopped,
+        audioAssistant?.dispose(),
         clientAppearance?.whenIdle(),
         dynamicLotteryAuth?.whenIdle(),
         guardExpiryAuth?.whenIdle(),
@@ -375,8 +386,21 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
 
 async function startDesktopApp() {
   configureDesktopEnvironment();
+  audioAssistant = createAudioAssistant({
+    executable: path.join(app.isPackaged ? process.resourcesPath : path.join(ROOT_DIR, 'build'), 'audio-assistant', 'LiraAudioAssistant.exe'),
+    dataDir: pathState.dataDir,
+    onState: (state) => {
+      const window = windowState.main;
+      if (window && !window.isDestroyed()) window.webContents.send('audio-assistant:state', state);
+    },
+  });
+  disposeAudioAssistantIpc = registerAudioAssistantIpc({ ipcMain, assistant: audioAssistant,
+    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl,
+    isPathAllowedForLocalMedia, shell });
   clientAppearance = createClientAppearance({ dataDir: pathState.dataDir, writeLog });
   disposeClientAppearanceIpc = registerClientAppearanceIpc({ ipcMain, appearance: clientAppearance,
+    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
+  disposeScreenColorPicker = registerScreenColorPicker({ ipcMain, BrowserWindow, desktopCapturer, screen,
     getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
   if (process.platform === 'win32') app.setAppUserModelId('com.aurorawhisperer.lira');
   writeLog('user-data-migration', userDataMigrationState.migration);

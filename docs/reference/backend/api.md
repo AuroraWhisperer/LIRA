@@ -871,4 +871,4 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 [font-assets.js](../../../src/server/font-assets.js) 在本地 HTTP 静态资源路径提供 `GET/HEAD /css/shared/display-fonts.css`、`GET/HEAD /font-library/<id>` 和 `GET/HEAD /font-library/status`。它们与静态字体一样是公开、只读的非敏感资源，允许 CORS；不接受磁盘路径或外部 URL，不发起下载。CSS 只声明已可用的字体，资源缺失立即 404，不等待网络下载；未知 ID 返回 404，非 GET/HEAD 返回 405。字体返回真实 `font/ttf` 或 `font/woff2`，HEAD 无 body，所有响应 `Cache-Control: no-store`。状态只包含 `{status,completed,completedAt}`，无路径、账号或下载地址。
 
-下载清单随客户端发行，不从 LIRA Server 获取字体内容；生命周期与用户进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#共享字体缓存)。
+八款完整字库及校验清单随客户端发行；正常安装的 CSS 引用包内 `/fonts/` 静态资源，首次使用不访问外网，也不从 LIRA Server 获取字体内容。旧下载缓存端点保留兼容；生命周期与用户进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#共享字体缓存)。

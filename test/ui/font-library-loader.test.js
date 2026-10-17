@@ -46,6 +46,18 @@ test('desktop font refresh preserves the previous stylesheet until load and igno
   const next = documentRef.head.children[1];
   next.fire('load');
   assert.deepEqual(documentRef.head.children, [next]);
+  publish({ status: 'downloading', completed: 3 });
+  const superseded = documentRef.head.children[1];
+  publish({ status: 'downloading', completed: 4 });
+  const latest = documentRef.head.children[1];
+  assert.notEqual(latest, superseded);
+  superseded.fire('load');
+  assert.deepEqual(documentRef.head.children, [next, latest]);
+  latest.fire('load');
+  assert.deepEqual(documentRef.head.children, [latest], 'Only the latest loaded sheet remains.');
+  publish({ status: 'ready', completed: 5 });
+  documentRef.head.children[1].fire('error');
+  assert.deepEqual(documentRef.head.children, [latest], 'A failed refresh preserves the usable sheet.');
   dispose();
   assert.equal(listeners.size, 0);
 });

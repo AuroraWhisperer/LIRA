@@ -6,9 +6,9 @@ const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createWebSocketHub } = require('../../src/server/ws');
 const { serveFontAsset } = require('../../src/server/font-assets');
 
-async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, danmakuEvents, getState, readDanmakuDisplay, dataDir, overtime, settings, fontLibrary } = {}) {
+async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, danmakuEvents, getState, readDanmakuDisplay, dataDir, overtime, settings, fontLibrary,
+  publicDir = path.resolve(__dirname, '../../public') } = {}) {
   const token = 'synthetic-desktop-component-preview-token';
-  const publicDir = path.resolve(__dirname, '../../public');
   const hub = getState ? createWebSocketHub({ closeTimeoutMs: 20 }) : null;
   const server = createHttpServer({ host: '127.0.0.1', startPort: 0, dataDir,
     getPhase: () => 'ready', getStartedPort: () => server.address()?.port,

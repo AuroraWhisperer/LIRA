@@ -6,6 +6,8 @@
 
 ## 1. 框架与命令
 
+- **电音助手**：`test/admin/audio-assistant*.test.js` 覆盖入口与连续参数同步，`test/desktop/audio-assistant*.test.js` 覆盖 IPC 来源、输入授权、进程复用和退出。`npm run test:audio-native` 单独编译并验证迁入的 C# 音频核心与真实管道，依赖先完成本机音频资源构建；检查源码在 `test/desktop/audio-assistant-native/`，中间产物、合成数据和恢复状态均在 `tmp/`，不使用个人歌曲或路由记录。
+
 - **框架**:Node 内置 `node:test` + `node:assert/strict`，测试运行器不依赖第三方框架；浏览器与 Electron 自动化使用开发依赖 Playwright（[package.json](../../../package.json)）。测试文件全部基于 `node:test`。
 - **全量运行**:`npm test` 通过 [run-tests.js](../../../scripts/run-tests.js) 递归收集 `test/` 各业务目录中的 `*.test.js`，排除 `helpers/` 和 `fixtures/`，再运行 `node --experimental-vm-modules --test --test-concurrency=<默认 8>`。默认并发取 8 与可用 CPU 数的较小值；显式转发的 `--test-concurrency` **替换**该默认值，运行器不会同时传入两个同名参数。实测同一台 32 逻辑 CPU 发布机：desktop 与 browser 两组 158 秒（并发 4 为 227 秒、并发 12 为 169 秒且桌面组开始因负载丢失用例），且并发 8 下桌面组 0 失败；因此默认停在 8，不再上调。选中 Windows 原生进程归属测试时，先独立运行该文件，再并发执行其余文件，避免其他测试进程竞争原生查询的固定期限；各批分别输出统计，任一批失败都会使整体失败。helper 和探针仍由拥有者导入或显式启动；保留进程隔离，收集清单按文件名排序。
 - **管理页回归**:`npm run test:admin` 固定运行 Admin 页面组合、外壳和 AI 测试并显式启用 ESM VM 模块;测试辅助加载器在未启用该 flag 时自动回退到静态 bundle,因此直接执行管理页测试也不会跳过 ESM 用例。

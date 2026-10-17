@@ -86,6 +86,15 @@ test('live components own unique panels while danmaku interaction stays in the t
   }
 });
 
+test('audio assistant has one toolbox panel and one global panel shared by both launchers', () => {
+  const html = composeAdminHtml(PUBLIC_DIR);
+  for (const id of ['otherAudioAssistantFeature', 'audioAssistantTop', 'audioAssistantFloat', 'audioAssistantPanel', 'topbarStatusDetails']) {
+    assert.equal(html.split(`id="${id}"`).length, 2, `${id} renders once`);
+  }
+  assert.ok(html.indexOf('id="audioAssistantPanel"') > html.indexOf('</main>'));
+  assert.doesNotMatch(html, /id="wsStatus"/);
+});
+
 test('admin composition expands the complete danmaku AI subfragment in place', () => {
   const parentPath = 'pages/admin/toolbox/danmaku.html';
   const aiPath = 'pages/admin/toolbox/danmaku-ai.html';

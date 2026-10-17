@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'">
+  <title>屏幕取色</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; }
+    #screen { position: fixed; inset: 0; width: 100%; height: 100%; }
+    #sample { position: fixed; display: none; pointer-events: none; padding: 8px; background: #202020; color: #fff; border: 1px solid #fff; border-radius: 8px; font: 14px/1.6 system-ui, sans-serif; }
+    #sample.visible { display: block; }
+    #zoom { display: block; width: 99px; height: 99px; image-rendering: pixelated; }
+    #hex { text-align: center; }
+    #hint { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 8px 16px; border-radius: 8px; background: #202020; color: #fff; font: 14px/1.6 system-ui, sans-serif; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <canvas id="screen"></canvas>
+  <div id="sample"><canvas id="zoom" width="99" height="99"></canvas><div id="hex"></div></div>
+  <div id="hint">单击取色 · Esc 取消</div>
+</body>
+</html>

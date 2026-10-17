@@ -136,6 +136,8 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
     './desktop-lyric.js': { desktopLyric: { initDesktopLyricForm: noop } },
     './song-import.js': { songImports: {} },
     './client-appearance.js': { initClientAppearance: noop },
+    './audio-assistant.js': { initAudioAssistant: noop },
+    './topbar-status.js': { initTopbarStatus: noop },
     './settings.js': {
       settings: {
         initSettingsForm: () => calls.push('settings'),

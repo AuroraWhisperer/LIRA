@@ -1,6 +1,8 @@
 # 前端页面与入口清单
 
-粉丝档案位于百宝箱 → 日常管理，沿用 `/admin`；`toolbox/fan-profiles-nav.html` 与 `toolbox/fan-profiles.html` 由既有 Admin composer 组合。页内“档案/提醒/设置”与“资料/手记/音乐/大航海”由 `js/admin/fans/` 拥有；在当前档案或已归档列表中直接切换人物时，保留当前详情页签。点歌姓名入口把同一个详情节点移入快捷 dialog，返回时还原，不新增公开页面或 浏览器源。私有数据通过主窗口 IPC 获取，页面本身不持有 token 或 scope 决策。
+粉丝档案位于百宝箱 → 主播工具，沿用 `/admin`；`toolbox/fan-profiles-nav.html` 与 `toolbox/fan-profiles.html` 由既有 Admin composer 组合。页内“档案/提醒/设置”与“资料/手记/音乐/大航海”由 `js/admin/fans/` 拥有；在当前档案或已归档列表中直接切换人物时，保留当前详情页签。点歌姓名入口把同一个详情节点移入快捷 dialog，返回时还原，不新增公开页面或 浏览器源。私有数据通过主窗口 IPC 获取，页面本身不持有 token 或 scope 决策。
+
+电音助手同属「主播工具」；设置片段 `toolbox/audio-assistant.html` 沿用通用导航，提供分区完整参数。`shared/audio-assistant.html` 与 `shared/topbar-status.html` 在主页面之外各组合一次，前者承载共享精简面板与侧边入口，后者承载顶栏连接详情；顶部图标由 `shell-start.html` 提供。对应 `audio-assistant.js`、`topbar-status.js` 由 `app.js` 装配；`audio-assistant-controls.js` 统一生成与同步两处音频控件。样式分别位于 `css/admin/audio-assistant.css`、`topbar-status.css`。本机偏好和交互边界见 [Admin 应用](app.md#6-组件与百宝箱)。
 
 档案手动同步与自动更新通知共用 `fans/view.js` 的 `rosterUpdateNotices`：成功统计、跳过说明、名单外资料查询失败分别为 success/info/warning toast；无跳过或失败时不生成对应通知，单次最多三条，成功统计不显示“跳过 0 位”。`fans/editor.js` 在关闭同步表单后消费 `notices`，普通保存仍沿用单条 `message`。最近一次手动结果保留在同步状态左侧的 `lira-help#fanRosterHelp`，内容节点 `fanRosterResult` 随组件初始化保留，不单独占行；尚无结果或账号上下文变化时隐藏并清空。自动整次失败只显示一条 error toast。IPC 结果字段不变。
 
@@ -297,7 +299,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `shared/theme.js`               | 主题配置加载(`/data/theme-presets.json`)与预设访问器                                 |
 | `shared/lyric-word-renderer.js` | 逐字歌词渲染器(rAF 驱动,WeSing 面板/直播歌词预览/歌词窗口共用)                       |
 | `shared/parameter-range.js`     | Admin 参数滑块进度与零点区段同步；扫描显式 `parameter-range` 控件并维护轨道 CSS 变量；`data-range-scale="balanced"` 为零点两侧各保留至少 25% 行程，统一拖动与视觉映射，原生值和键盘步长不变 |
-| `shared/color-picker.js` | 统一选色弹层：色相/明度饱和度、RGB/HEX、不透明度、可用时的屏幕取色；关闭释放本次编辑状态 |
+| `shared/color-picker.js` | 统一选色弹层：色相/明度饱和度、RGB/HEX、不透明度；桌面优先使用[全屏取色桥](../desktop/preload.md)，浏览器使用可用的 EyeDropper。取色保留不透明度；「撤回」恢复上一次操作前的颜色与不透明度，连续拖动算一次，撤回后或重新打开时清空记录；取色中禁用撤回。关闭或切换字段取消取色，迟到结果不写入其他字段；失败在弹层内提示 |
 | `shared/color-value.js` | 无 DOM 的 HEX 解析和 Alpha 序列化，保留旧六位纯色格式 |
 | `shared/color-control.js`       | `enhanceColorControls(root = document)` 原位增强颜色输入框，保留输入节点与业务事件；同步程序赋值、重置、动态节点及克隆面板。`data-color-opacity` 关联已有不透明度字段（按其 max/step 换算百分比），隐藏原控制行；未关联时以六/八位 HEX 保存颜色及 Alpha。表单序列化保留 Alpha |
 | `shared/select-menu.js`         | `enhanceSelects(root = document)` 把原生单选 `select` 增强为共享弹层（`components/select-menu.css`），自动接入动态节点；`optgroup` 标签写入 `data-label` 作为可见组名。单选可通过 `data-select-search` 启用名称搜索（输入框在 listbox 外，过滤不改变选择），通过 `data-select-font-preview` 用 option 的 `data-font-family` 或双引号字体值预览字体。复用处可在 `.lira-select` 上设置 `--select-marker-display: none` 隐藏选中竖条，默认显示；选中底色、边框与字重不受此开关影响。未声明属性的下拉行为不变。多选下拉使用同一样式文件的 `.lira-multiselect` 结构，不经此脚本 |
@@ -335,7 +337,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `img/playback/qqmusic-icon.png` / `img/playback/player-turntable-chassis.png` / `img/admin/gifts/gift-section-icon.png` / `img/shared/live-refresh-icon.png` | 播放器/礼物面板图标                                                                                                                                                                                                                                   |
 | `data/theme-presets.json`                                                                                                                                    | 点歌板/歌单板主题预设，字段 schema 见 §6.1                                                                                                                                                                                                            |
 | `data/cache/overtime-gift-catalog-v2.json` / `data/cache/overtime-gift-images/` / `data/cache/overtime-gift-assets-state-v2.json`                            | 运行时用户数据，不属于 `public/` 静态资源；分别保存服务器付费礼物元数据、首次授权后按精确 ID 准备的图片缓存和版本化扫描完成状态，不进入源码或安装包                                                                                                   |
-| 字体                                                                                                                                                         | 管理界面沿用系统字体栈；所有字体选择入口共用八款直接下载并缓存的 OFL 字体，来源、首次下载与离线缓存见[字体说明](../../../public/fonts/README.md)，可调字段见[播放器外观](playback.md#81-大播放器外观)。组件专用字体由各组件资源拥有 |
+| 字体                                                                                                                                                         | 管理界面沿用系统字体栈；所有字体选择入口共用八款随安装包内置的完整 OFL 字体，来源、安装位置与离线使用见[字体说明](../../../public/fonts/README.md)，可调字段见[播放器外观](playback.md#81-大播放器外观)。组件专用字体由各组件资源拥有 |
 
 礼物主目录由当前配置直播间的 Bilibili 礼物面板、`giftConfig` 和已配置的在售盲盒展开产生。LIRA Server 全局礼物目录不增加主目录成员；首次授权后，本地运行时保存其金瓜子正价子集并按精确礼物 ID 准备全部图片，供全局本地搜索、盲盒、历史高价值礼物和已保存规则复用。同名不同 ID 保持各自映射。服务器或图片不可用时保留礼物条目并显示 `gift-placeholder.svg`。因此源码和安装包不包含 `img/bilibili-gifts.json`、`img/bilibili-gifts/` 或三份旧礼物 Markdown。
 

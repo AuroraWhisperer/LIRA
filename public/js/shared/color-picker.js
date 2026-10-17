@@ -34,13 +34,14 @@ function createPicker(document) {
       <label>A %<input type="number" min="0" max="100" step="1" data-channel="alpha" aria-label="不透明度（%）" required></label>
     </div>
     <label class="lira-color-hex-label">HEX<input class="lira-color-hex" type="text" spellcheck="false" maxlength="7" pattern="#[0-9a-fA-F]{6}" aria-label="十六进制颜色" required></label>
-    <div class="lira-color-picker-footer"><span>0% 全透明 · 100% 不透明</span><button type="button" data-eyedropper hidden>取色</button><button type="button" data-done>完成</button></div>`;
+    <div class="lira-color-picker-footer"><span>透明 → 不透明</span><button type="button" data-undo disabled title="恢复上一次修改前的颜色和不透明度">撤回</button><button type="button" data-eyedropper hidden>取色</button><button type="button" data-done>完成</button></div>`;
   document.body.append(panel);
   const plane = panel.querySelector('.lira-color-plane');
   const marker = plane.firstElementChild;
   const hue = panel.querySelector('.lira-color-hue');
   const opacity = panel.querySelector('.lira-color-opacity');
   const hex = panel.querySelector('.lira-color-hex');
+  const undo = panel.querySelector('[data-undo]');
   const channels = Object.fromEntries([...panel.querySelectorAll('[data-channel]')].map(input => [input.dataset.channel, input]));
   let hsv;
   function refresh(keepHue = false) {
@@ -57,11 +58,20 @@ function createPicker(document) {
       if (document.activeElement !== input) input.value = String(key === 'alpha' ? percent : color[key]);
     }
     if (document.activeElement !== hex) hex.value = current.hex.toUpperCase();
+    const previous = current.editStart || current.previous;
+    undo.disabled = Boolean(sampling) || !previous || (previous.hex === current.hex && previous.alpha === current.alpha);
   }
-  function edit(color, alpha, type, keepHue = false) {
+  function edit(color, alpha, type, keepHue = false, remember = true) {
     if (!current || current.input.matches(':disabled')) return;
     const focused = document.activeElement;
+    if (remember && (color !== current.hex || alpha !== current.alpha)) {
+      current.editStart ??= { hex: current.hex, alpha: current.alpha };
+    }
     current.hex = color; current.alpha = alpha;
+    if (remember && type === 'change' && current.editStart) {
+      if (color !== current.editStart.hex || alpha !== current.editStart.alpha) current.previous = current.editStart;
+      current.editStart = null;
+    }
     current.onEdit(color, alpha, type);
     // Rich-text formatting restores its selection; keep keyboard editing in the picker.
     if (panel.contains(focused)) focused.focus({ preventScroll: true });
@@ -104,19 +114,51 @@ function createPicker(document) {
     if (event.key === 'Enter' && event.target.tagName === 'INPUT') { event.preventDefault(); event.target.blur(); }
   });
   panel.querySelector('[data-done]').addEventListener('click', () => panel.hidePopover());
+  undo.addEventListener('click', () => {
+    const previous = current?.editStart || current?.previous;
+    if (!previous || sampling) return;
+    current.editStart = null;
+    current.previous = null;
+    edit(previous.hex, previous.alpha, 'input', false, false);
+    edit(previous.hex, previous.alpha, 'change', false, false);
+  });
   const eyedropper = panel.querySelector('[data-eyedropper]');
+  const samplingHint = panel.querySelector('.lira-color-picker-footer > span');
+  const desktop = document.defaultView.songAssistantDesktop;
   let sampling;
-  if (document.defaultView.EyeDropper) {
+  if (desktop?.pickScreenColor || document.defaultView.EyeDropper) {
     eyedropper.hidden = false;
+    eyedropper.title = '从整个屏幕取色（Esc 取消）';
     eyedropper.addEventListener('click', async () => {
+      if (sampling) return;
       const selection = current;
-      sampling = new AbortController();
+      const controller = new AbortController();
+      sampling = controller;
+      eyedropper.disabled = true;
+      undo.disabled = true;
+      samplingHint.textContent = '单击屏幕取色 · Esc 取消';
+      let failed = false;
       try {
-        const result = await new document.defaultView.EyeDropper().open({ signal: sampling.signal });
+        if (desktop?.pickScreenColor) controller.signal.addEventListener('abort', () => {
+          void desktop.cancelScreenColor().catch(error => console.warn('[ColorPicker] Cancel sampling failed.', error));
+        }, { once: true });
+        const result = desktop?.pickScreenColor
+          ? await desktop.pickScreenColor()
+          : await new document.defaultView.EyeDropper().open({ signal: controller.signal });
+        if (result?.ok === false) throw new Error(result.error);
+        if (result?.canceled || controller.signal.aborted) return;
         if (current === selection) { edit(result.sRGBHex, current.alpha, 'input'); edit(current.hex, current.alpha, 'change'); }
       } catch (error) {
-        if (error.name !== 'AbortError') console.warn('[ColorPicker] Screen sampling failed.', error);
-      } finally { sampling = null; }
+        failed = error.name !== 'AbortError' && !controller.signal.aborted;
+        if (failed) console.warn('[ColorPicker] Screen sampling failed.', error);
+      } finally {
+        if (sampling === controller) {
+          sampling = null;
+          eyedropper.disabled = false;
+          samplingHint.textContent = failed ? '取色失败，请重试' : '透明 → 不透明';
+          refresh();
+        }
+      }
     });
   }
   panel.addEventListener('toggle', event => {
@@ -129,12 +171,13 @@ function createPicker(document) {
     if (document.activeElement === document.body || panel.contains(document.activeElement)) input.focus({ preventScroll: true });
     input.dispatchEvent(new Event('lira-color-edit-end', { bubbles: true }));
   });
-  return { panel, refresh };
+  return { panel, refresh, cancelSampling: () => sampling?.abort() };
 }
 
 export function openColorPicker(input, hex, alpha, onEdit, alphaStep = 1) {
   picker ??= createPicker(input.ownerDocument);
   if (current) {
+    picker.cancelSampling();
     delete current.input.dataset.colorEditing;
     current.input.setAttribute('aria-expanded', 'false');
     current.input.dispatchEvent(new Event('lira-color-edit-end', { bubbles: true }));

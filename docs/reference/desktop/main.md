@@ -1,5 +1,11 @@
 # 桌面壳主进程:窗口、协议与生命周期
 
+## 电音助手生命周期
+
+`main.js` 装配 `audio-assistant.js` 与受限 IPC。打开电音助手设置或启用入口时才启动原生工作程序；一个桌面实例复用一个进程。开发时从 `build/audio-assistant`、安装后从 `resources/audio-assistant` 加载，使用 Electron 自带 Node 管理标准输入/输出，不开放网络端口。无窗口 C# 宿主复用成熟分离、变调、WASAPI 与路由守护，renderer 只消费统一会话状态。
+
+主开关关闭会停止当前处理；切歌、换播放器、设备冲突由原生会话自动停止。正常桌面退出将工作程序的 stdin 关闭并纳入现有 shutdown 排空；故障退出后独立路由守护仍负责恢复，已退出播放器的恢复记录保留到其下次自然启动。不会安装驱动或改变系统默认输出。边界见 [IPC](preload.md#电音助手)、[本机数据](../backend/storage.md#电音助手本机数据) 与 [资源构建](../engineering/build.md#电音助手原生资源)。
+
 ## 使用中的本机画面与退出
 
 窗口关闭或普通退出时，`requestDesktopClose()` 读取当前 runtime 的
@@ -460,6 +466,6 @@ ADR [0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection
 
 ## 共享字体初始化
 
-[desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时调用本地 runtime 的 `initializeFontLibrary()`，与礼物目录初始化并行，字体失败不阻塞原有桌面就绪条件。初始授权页显示独立字体进度，进入管理页后由字体 toast 接续；不重新统计礼物进度。
+[desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时调用本地 runtime 的 `initializeFontLibrary()`，与礼物目录初始化并行。八款共享字体随安装包内置，正常初始化只校验本地资源，首次离线可用，无字体下载进度；资源异常时保留原有修复进度与 toast，字体失败不阻塞桌面就绪条件，不重新统计礼物进度。
 
-字体 owner 使用随客户端发行的固定 JSON、两路并发和每个来源 5 分钟超时。桌面注入 Electron `net.fetch` 使用正常系统网络配置，固定 HTTPS 来源及重定向主机白名单，省略凭据，不通过 LIRA Server。清单变化、丢失或校验失败才下载；关闭在 HTTP drain 前取消字体任务，并等待写入收尾。源码开发允许复用与清单哈希一致的压缩副本。存储、来源及首次流量见[字体说明](../../../public/fonts/README.md)；公开桥字段见 [preload](preload.md)。
+字体 owner 按随客户端发行的 JSON 校验有效旧缓存或内置 WOFF2。`src/server.js` 从自身模块位置解析 `public`，安装版读取 `resources/app.asar/public/fonts/`，不依赖启动工作目录、不向安装目录写缓存。内置资源与有效缓存均不可用时才沿用原下载修复路径：两路并发、每来源 5 分钟超时、Electron `net.fetch`、固定 HTTPS 来源及逐跳主机白名单、无凭据请求，不通过 LIRA Server；此异常路径仍依赖网络。关闭在 HTTP drain 前取消字体任务并等待写入收尾。存储及来源见[字体说明](../../../public/fonts/README.md)；公开桥字段见 [preload](preload.md)。

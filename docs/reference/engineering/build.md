@@ -52,6 +52,16 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 ## 2. 依赖清单(唯一成表处)
 
+### 电音助手原生资源
+
+模型在安装资源中命名为 `vendor/lira.onnx`，名称不代表重新训练或更换权重。构建不复制含本机路径的 `qq-model.json` 和开发记录 `rubberband.json`，并清理旧构建中这两份记录及旧模型文件名；第三方许可证和版权声明继续随资源保留。
+
+`npm run build:audio-assistant -- <vendor目录>` 使用本机 .NET SDK 发布 `native/audio-assistant/AudioAssistant.csproj`，生成含 .NET 运行库的 Windows x64 工作程序；未提供目录时复用本机 `tmp/audio-assistant-demo/vendor`。原生项目使用 .NET 8、NAudio 2.2.1、ONNX Runtime 1.26.0，复用 Rubber Band 3.3.0 的既有 DLL 与已校验模型。没有新增 npm 运行时依赖；客户端使用 Electron 自带 Node，终端用户无需安装 Node、Python 或 .NET。
+
+输出位于忽略的 `build/audio-assistant/`，构建中间产物位于 `tmp/audio-assistant-build/`。`build.extraResources` 将这一目录复制到安装资源的 `audio-assistant/`，排除 PDB；不打包试听 UI、样品设置、恢复记录、Python 环境或测试音频。构建前须准备完整 vendor 文件及其来源/许可声明；源码迁入不意味着第三方模型获得再分发授权，参见 [来源记录](../../../native/audio-assistant/README.md#来源)。发布前先完成原生资源构建与聚焦验证，再按[发布指南](../../../RELEASE_GUIDE.md)执行统一验证和安装器发布。
+
+原生聚焦验证：先执行上述构建，再运行 `npm run test:audio-native`。脚本将测试工程输出到 `tmp/`，检查合成信号的 DSP、歌曲检测，并使用独立临时状态验证真实工作程序的中文管道、参数保存、失败后停止与 EOF 退出；不播放用户歌曲或修改声卡路由。
+
 | 类型            | 包                  | 版本       | 用途                                                                    |
 | --------------- | ------------------- | ---------- | ----------------------------------------------------------------------- |
 | dependencies    | `@clamber_l/crypto` | `0.1.12`   | QQ音乐加密音频解码                                                      |
@@ -71,7 +81,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 本机导入的组件素材存储在 `dataDir/component-library/`，位于打包白名单之外。月渡花汀专用背景/开播/时钟/弹幕/许愿图片、WebM、时钟裁剪字体和缩略图从 `build.files` 排除，源码保留；小型受信 JS/CSS 继续打包。`node scripts/package-moonlit-suite.js` 生成独立 ZIP，格式见[套装指南](../../guides/component-style-packages.md)。
 
-共享库的 `public/fonts/{player,library,moonlit-wenkai}/*.woff2`（约 36.5 MiB）同样从 EXE 排除；下载清单 `src/fonts/catalog.json`、OFL 许可及约 6 MiB 歌词多语言补字保留。安装版由客户端直连字体源增量缓存，来源和首装网络量见[字体说明](../../../public/fonts/README.md)。源码压缩副本供开发预览/套装制作，不能删除；打包过滤由 packaging-scope 测试验证。实际安装器压缩体积须重新构建后测量，不能把源码字节数直接当作 EXE 减少量。
+共享库的 `public/fonts/{player,library,moonlit-wenkai}/*.woff2`（约 36.5 MiB）完整进入安装包，连同 `src/fonts/catalog.json`、OFL 许可及约 6 MiB 歌词多语言补字分发。安装后字体位于 `<安装目录>/resources/app.asar/public/fonts/`，通过 Electron 的 ASAR 文件读取和现有本地 HTTP 按需加载，首次使用无需联网或 VPN，也不注册系统字体；版本与许可见[字体说明](../../../public/fonts/README.md)。packaging-scope 测试验证打包过滤，bundled-fonts-electron 测试在含中文和空格的安装路径、不同工作目录、空缓存及禁止外网的条件下验证 ASAR 中八款字体的真实渲染。实际安装器压缩体积须重新构建后测量，不能将 WOFF2 总量直接等同于 EXE 增量。
 
 全部配置内联在 [package.json](../../../package.json) 的 `build` 字段,无独立 electron-builder 配置文件。
 

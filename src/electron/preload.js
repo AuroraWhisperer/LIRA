@@ -2,6 +2,16 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('audioAssistant', {
+  invoke: (request) => ipcRenderer.invoke('audio-assistant:invoke', request),
+  onState: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('audio-assistant:state', listener);
+    return () => ipcRenderer.removeListener('audio-assistant:state', listener);
+  },
+});
+
 contextBridge.exposeInMainWorld('plannerReminders', {
   getState: () => ipcRenderer.invoke('planner-reminders:get-state'),
   sync: (reminders) => ipcRenderer.invoke('planner-reminders:sync', reminders),
@@ -31,6 +41,8 @@ contextBridge.exposeInMainWorld('giftExport', {
 });
 
 contextBridge.exposeInMainWorld('songAssistantDesktop', {
+  pickScreenColor: () => ipcRenderer.invoke('desktop:pick-screen-color'),
+  cancelScreenColor: () => ipcRenderer.invoke('desktop:cancel-screen-color'),
   setClientTheme: (themeId) => ipcRenderer.invoke('desktop:set-client-theme', themeId),
   getInfo: () => ipcRenderer.invoke('desktop:get-info'),
   getResourceIntegrityState: () => ipcRenderer.invoke('desktop:get-resource-integrity-state'),

@@ -31,6 +31,7 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/toolbox/games.html',
   'pages/admin/toolbox/dynamic-lottery.html',
   'pages/admin/toolbox/gift-effects.html',
+  'pages/admin/toolbox/audio-assistant.html',
   'pages/admin/toolbox/planner.html',
   'pages/admin/toolbox/fan-profiles.html',
   'pages/admin/toolbox/settings.html',
@@ -45,6 +46,8 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/gifts/blindbox-analysis.html',
   'pages/admin/gifts/history.html',
   'pages/admin/main-end.html',
+  'pages/admin/shared/audio-assistant.html',
+  'pages/admin/shared/topbar-status.html',
   'pages/admin/shared/song-confirmation.html',
   'pages/admin/document-end.html',
 ]);

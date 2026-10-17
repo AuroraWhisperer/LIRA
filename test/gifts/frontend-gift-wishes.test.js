@@ -84,6 +84,18 @@ async function open(t) {
   return page;
 }
 
+async function loadSharedFont(page) {
+  await page.route('**/fonts/player/xiaolai.woff2', route => route.fulfill({
+    contentType: 'font/woff2', path: 'public/fonts/player/xiaolai.woff2',
+  }));
+  await page.evaluate(async () => {
+    const font = new FontFace('Lira Xiaolai', 'url(/fonts/player/xiaolai.woff2)');
+    document.fonts.add(await font.load());
+    const { refreshSharedFonts } = await import('/js/shared/font-library.js');
+    refreshSharedFonts();
+  });
+}
+
 async function openOverlay(t, period, missingAbortMethods, display = {}) {
   const page = await fixture(t, 'wish-overlay');
   await page.setContent('<main id="giftWishStage"></main><p id="giftWishOverlayStatus" hidden></p>');
@@ -768,6 +780,7 @@ test('wish text editing locks with the form and reports the existing template le
 
 test('wish selection formatting reuses the toolbar, preserves tokens and state colors, and survives saving', async t => {
   const page = await open(t);
+  await loadSharedFont(page);
   page.setDefaultTimeout(5000);
   await page.addStyleTag({ content: ['public/css/admin/gift-wishes.css', 'public/css/admin/rich-text-toolbar.css',
     'public/css/shared/gift-wish-card.css'].map(path => fs.readFileSync(path, 'utf8').replace(/@import[^;]+;/g, '')).join('\n') });
@@ -818,6 +831,7 @@ test('wish selection formatting reuses the toolbar, preserves tokens and state c
 
 test('formatting one wish line preserves unselected lines and line breaks', async t => {
   const page = await open(t);
+  await loadSharedFont(page);
   await page.addStyleTag({ content: fs.readFileSync('public/css/admin/gift-wishes.css', 'utf8').replace(/@import[^;]+;/g, '') });
   await page.locator('#giftWishPick').click();
   await page.locator('.gift-wish-option').click();

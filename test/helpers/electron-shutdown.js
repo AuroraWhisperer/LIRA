@@ -241,6 +241,17 @@ function createShutdownHarness(options = {}) {
       createClientAppearance: () => ({ getThemeId: () => 'neutral', whenIdle: () => options.appearanceIdle?.promise }),
     },
     './ipc/client-appearance-ipc': require('../../src/electron/ipc/client-appearance-ipc'),
+    './screen-color-picker': {
+      registerScreenColorPicker: () => () => calls.push('screen-color-picker:dispose'),
+    },
+    './audio-assistant': {
+      createAudioAssistant: () => ({
+        dispose: () => { calls.push('audio-assistant:dispose'); return options.audioAssistantIdle?.promise; },
+      }),
+    },
+    './ipc/audio-assistant-ipc': {
+      registerAudioAssistantIpc: () => () => calls.push('audio-assistant:remove-ipc'),
+    },
     './desktop-runtime': require('../../src/electron/desktop-runtime'),
     './desktop-auth-controller': {
       createDesktopAuthController: () => ({

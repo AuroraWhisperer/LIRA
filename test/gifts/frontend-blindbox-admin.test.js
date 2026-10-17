@@ -30,8 +30,8 @@ test('blind box analysis is a separate accessible workspace module', () => {
   assert.match(html, /id="blindBoxAnalysisClose"[^>]*aria-label="关闭盲盒分析"/);
   assert.match(html, /id="blindBoxAnalysisViewer"/);
   assert.match(html, /id="blindBoxAnalysisBox"/);
-  assert.match(html, /<select id="blindBoxAnalysisViewer" data-dropdown-variant="filter">/);
-  assert.match(html, /<select id="blindBoxAnalysisBox" data-dropdown-variant="filter">/);
+  assert.match(html, /<select id="blindBoxAnalysisViewer" data-dropdown-variant="filter" aria-label="筛选观众">/);
+  assert.match(html, /<select id="blindBoxAnalysisBox" data-dropdown-variant="filter" aria-label="筛选盲盒">/);
   assert.doesNotMatch(html, /role="listbox"/, 'filters use the shared select menu instead of a private listbox');
   assert.match(html, /data-blind-analysis-view="users"/);
   assert.match(html, /data-blind-analysis-view="boxes"/);
@@ -39,6 +39,61 @@ test('blind box analysis is a separate accessible workspace module', () => {
   assert.match(html, /id="blindBoxAnalysisBody"/);
   assert.match(html, /id="blindBoxAnalysisPrev"/);
   assert.match(html, /id="blindBoxAnalysisNext"/);
+});
+
+test('blind box calendar fits each month while keeping its weekday positions', async () => {
+  const elements = new Map();
+  function element() {
+    const classes = new Set();
+    const listeners = new Map();
+    return {
+      dataset: {}, children: [],
+      classList: {
+        toggle(name, active) {
+          if (active) classes.add(name);
+          else classes.delete(name);
+        },
+        contains: (name) => classes.has(name),
+      },
+      setAttribute() {}, focus() {},
+      addEventListener: (name, listener) => listeners.set(name, listener),
+      click: () => listeners.get('click')?.(),
+      querySelector: () => null, querySelectorAll: () => [],
+      append(child) { this.children.push(child); },
+      replaceChildren(fragment) { this.children = fragment.children; },
+    };
+  }
+  function getElementById(id) {
+    if (!elements.has(id)) elements.set(id, element());
+    return elements.get(id);
+  }
+  const days = getElementById('blindBoxAnalysisDateDays');
+  days.querySelectorAll = () => days.children;
+  const { createBlindBoxDatePicker } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox-analysis-dates.js'),
+    {
+      document: {
+        getElementById, addEventListener() {},
+        createElement: element, createDocumentFragment: element,
+      },
+    },
+  );
+  const picker = createBlindBoxDatePicker({ onChange() {} });
+  for (const [month, dayCount, weekdayOffset, rowCount] of [
+    ['2021-02', 28, 0, 4],
+    ['2024-02', 29, 3, 5],
+    ['2026-09', 30, 1, 5],
+    ['2026-03', 31, 6, 6],
+  ]) {
+    const firstDate = `${month}-01`;
+    picker.setSelection({ startDate: firstDate, endDate: firstDate });
+    getElementById('blindBoxAnalysisDateTrigger').click();
+    const monthDays = days.children.filter((button) => !button.classList.contains('is-outside'));
+    assert.equal(monthDays.length, dayCount, month);
+    assert.equal(days.children.indexOf(monthDays[0]), weekdayOffset, `${month} keeps weekday alignment`);
+    assert.equal(Math.ceil(days.children.length / 7), rowCount, `${month} has no extra empty rows`);
+    assert.equal(monthDays.at(-1).dataset.date, `${month}-${dayCount}`, month);
+  }
 });
 
 test('admin state forwards only gift snapshot reasons as gift events', () => {

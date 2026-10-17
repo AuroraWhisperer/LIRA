@@ -1,6 +1,6 @@
 # 共享字体库：原有五款字体
 
-五款字体现由[共享字体库](../README.md)统一提供给所有字体选择入口；`player/` 保留为兼容资源路径。全部以 SIL Open Font License 1.1 分发，许可原文随字体保存。WOFF2 保留作开发/素材副本，不再进入 EXE；安装版直接下载同版本原始 TTF（得意黑为官方 WOFF2），缓存后离线可用。统一由 `css/shared/display-fonts.css` 声明，选用或补字时加载，使用 `font-display: swap`。
+五款字体现由[共享字体库](../README.md)统一提供给所有字体选择入口；`player/` 保留为兼容资源路径。全部以 SIL Open Font License 1.1 分发，许可原文随字体保存。完整 WOFF2 随安装包内置，首次使用即可离线加载，无需下载或安装到系统。统一由 `css/shared/display-fonts.css` 声明，选用或补字时加载，使用 `font-display: swap`。
 
 | 文件 / CSS 字体族 | 字体来源 | 原始字符覆盖 | 许可 |
 | --- | --- | --- | --- |

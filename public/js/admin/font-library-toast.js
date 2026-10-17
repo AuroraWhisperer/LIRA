@@ -3,7 +3,7 @@ import { eventBus as defaultEventBus } from '../shared/event-bus.js';
 
 export function createFontLibraryToast({ window: windowRef = globalThis.window,
   document: documentRef = globalThis.document, bridge = windowRef?.liraLicense,
-  eventBus = defaultEventBus } = {}) {
+  eventBus = defaultEventBus, onState = () => {} } = {}) {
   let handle = null;
   let disposed = false;
   let initialized = false;
@@ -13,7 +13,9 @@ export function createFontLibraryToast({ window: windowRef = globalThis.window,
   let unsubscribeShutdown = () => {};
 
   function handleState(state = {}) {
-    if (disposed || !['downloading', 'ready', 'error'].includes(state.status)) return;
+    if (disposed) return;
+    onState(state);
+    if (!['downloading', 'ready', 'error'].includes(state.status)) return;
     const done = state.status !== 'downloading';
     if (done && state.completedAt && lastCompletedAt === state.completedAt) return;
     if (state.status === 'ready' && !state.total && !handle) return;

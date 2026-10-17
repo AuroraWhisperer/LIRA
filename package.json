@@ -1,12 +1,14 @@
 {
   "name": "lira",
-  "version": "5.4.3",
+  "version": "5.5.0",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
   "author": "Aurora",
   "main": "src/electron/entry.js",
   "scripts": {
+    "build:audio-assistant": "node scripts/build-audio-assistant.js",
+    "test:audio-native": "node scripts/verify-audio-assistant-native.js",
     "start": "node src/server.js",
     "desktop": "electron .",
     "check": "node scripts/check-js.js",
@@ -88,9 +90,6 @@
       "!public/img/shared/gift-wish-moonlit*",
       "!public/img/component-previews/*moonlit*",
       "!public/fonts/clock-moon-serif-400.woff2",
-      "!public/fonts/player/*.woff2",
-      "!public/fonts/library/*.woff2",
-      "!public/fonts/moonlit-wenkai/*.woff2",
       "!public/img/overlays/gift-frame/woodland-bloom/**/*",
       "!public/img/component-previews/gift-frame-default.webp",
       "!public/img/overlays/danmaku-ranked/*.png",
@@ -115,6 +114,16 @@
       "en-US"
     ],
     "asar": true,
+    "extraResources": [
+      {
+        "from": "build/audio-assistant",
+        "to": "audio-assistant",
+        "filter": [
+          "**/*",
+          "!**/*.pdb"
+        ]
+      }
+    ],
     "npmRebuild": false,
     "afterPack": "scripts/after-pack.js",
     "afterSign": "scripts/after-sign.js",

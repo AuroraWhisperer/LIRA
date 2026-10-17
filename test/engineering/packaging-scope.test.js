@@ -47,7 +47,7 @@ test('Playwright remains available only as a development dependency', () => {
   assert.equal(lock.packages['node_modules/playwright-core'].dev, true);
 });
 
-test('optional fonts and Moonlit media stay out of the EXE while licenses, fallbacks and renderers remain', async () => {
+test('shared fonts, licenses and fallbacks are bundled while optional Moonlit media stays external', async () => {
   const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
   const projectDir = path.resolve(__dirname, '../..');
   const output = path.join(projectDir, 'tmp/moonlit-packaging-match');
@@ -61,7 +61,7 @@ test('optional fonts and Moonlit media stay out of the EXE while licenses, fallb
     const file = path.join(entry.parentPath, entry.name);
     const relative = path.relative(projectDir, file).replaceAll('\\', '/');
     if (!/^public\/(img|fonts)\//.test(relative) || !/moonlit|moon-fan|clock-moon-serif/.test(relative)) continue;
-    count++; assert.equal(filter(file, await fs.stat(file)), relative.startsWith('public/fonts/moonlit-wenkai/') && entry.name !== 'README.md' && !entry.name.endsWith('.woff2'), relative);
+    count++; assert.equal(filter(file, await fs.stat(file)), relative.startsWith('public/fonts/moonlit-wenkai/') && entry.name !== 'README.md', relative);
   }
   assert.ok(count >= 35);
   for (const relative of ['public/fonts/guard-thanks-serif-400.woff2', 'public/js/overlays/opening-moon-fan.js',
@@ -71,7 +71,7 @@ test('optional fonts and Moonlit media stay out of the EXE while licenses, fallb
   for (const directory of ['player', 'library']) {
     for (const name of await fs.readdir(path.join(projectDir, 'public/fonts', directory))) {
       const file = path.join(projectDir, 'public/fonts', directory, name);
-      assert.equal(filter(file, await fs.stat(file)), name !== 'README.md' && !name.endsWith('.woff2'), file);
+      assert.equal(filter(file, await fs.stat(file)), name !== 'README.md', file);
     }
   }
   for (const relative of ['src/fonts/catalog.json', 'public/fonts/lyrics-fallback/gowundodum.woff2']) {

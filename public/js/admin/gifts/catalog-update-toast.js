@@ -16,6 +16,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
   const documentRef = dependencies.document || windowRef?.document || globalThis.document;
   const licenseBridge = dependencies.licenseBridge || windowRef?.liraLicense;
   const eventBus = dependencies.eventBus || defaultEventBus;
+  const onState = dependencies.onState || (() => {});
   const setTimeoutRef = dependencies.setTimeout || globalThis.setTimeout;
   const clearTimeoutRef = dependencies.clearTimeout || globalThis.clearTimeout;
   let initialized = false;
@@ -51,6 +52,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
     if (isStaleProgress(state)) return;
     if (isTerminalState(state) && state.completedAt && state.completedAt === lastCompletedAt) return;
     latestState = state;
+    onState(state);
 
     // The first initialization uses the license page and is intentionally
     // excluded from this admin-only incremental update notification.

@@ -31,9 +31,9 @@ body.blind-analysis-open .playback-player-panel {
   display: flex;
   align-items: center;
   gap: 16px;
-  min-height: 72px;
+  min-height: 60px;
   flex: 0 0 auto;
-  padding: 10px 20px 10px 24px;
+  padding: 8px 20px 8px 24px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -69,14 +69,6 @@ body.blind-analysis-open .playback-player-panel {
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-page-title);
   letter-spacing: var(--type-tracking-tight);
-}
-
-.blind-analysis-title-block p {
-  margin: 3px 0 0;
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-regular);
-  line-height: var(--type-leading-caption);
 }
 
 .blind-analysis-close {
@@ -179,9 +171,9 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-toolbar {
   display: flex;
-  align-items: end;
+  align-items: center;
   gap: 16px;
-  padding: 12px 14px;
+  padding: 8px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -190,7 +182,7 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-filters {
   display: flex;
-  align-items: end;
+  align-items: center;
   gap: 10px;
   min-width: 0;
 }
@@ -198,7 +190,6 @@ body.blind-analysis-open .playback-player-panel {
 .blind-analysis-filter {
   position: relative;
   display: grid;
-  gap: 5px;
   min-width: 190px;
   color: var(--muted);
   font-size: var(--type-size-caption);

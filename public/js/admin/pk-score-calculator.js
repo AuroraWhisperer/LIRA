@@ -8,12 +8,12 @@ export function calculatePkScore(targetScore, firstWin, doublePeriod) {
   if (!Number.isSafeInteger(targetScore) || targetScore < 0) return null;
   const winMultiplier = firstWin ? 2 : 1;
   const timeMultiplier = doublePeriod ? 2 : 1;
-  // PK 条先按完整的 50 分结算，再应用首胜加成。
-  const baseScore = Math.ceil(targetScore / winMultiplier);
+  // 首胜只影响主播加分，在应用倍率后统一取整。
+  const baseScore = targetScore / winMultiplier;
   const batteries = Math.ceil(baseScore * BAR_POINTS_PER_SCORE / timeMultiplier);
   const barScore = batteries * timeMultiplier;
   if (!Number.isSafeInteger(barScore)) return null;
-  const awardedScore = Math.floor(barScore / BAR_POINTS_PER_SCORE) * winMultiplier;
+  const awardedScore = Math.floor(barScore / BAR_POINTS_PER_SCORE * winMultiplier);
   return { batteries, barScore, awardedScore };
 }
 
@@ -40,12 +40,12 @@ export function initPkScoreCalculator() {
     error.textContent = invalid ? '请输入有效的非负整数' : '';
     target.setAttribute('aria-invalid', String(invalid));
     const timeFactor = doublePeriod.checked ? ' × 2（双倍）' : ' × 1';
-    const winFactor = firstWin.checked ? '后 × 2（首胜）' : '';
+    const winFactor = firstWin.checked ? ' × 2（首胜）' : '';
 
     if (!result || invalid) {
       batteries.textContent = rmb.textContent = awarded.textContent = '—';
       barConversion.textContent = `1 电池${timeFactor} = ${doublePeriod.checked ? 2 : 1} 分`;
-      awardConversion.textContent = `PK 条得分 ÷ 50，向下取整${winFactor}`;
+      awardConversion.textContent = `PK 条得分 ÷ 50${winFactor}，向下取整`;
       rmbConversion.textContent = '10 电池 = 1 元';
       return;
     }
@@ -58,7 +58,7 @@ export function initPkScoreCalculator() {
     rmb.textContent = `¥${moneyText}`;
     awarded.textContent = `${awardText} 分`;
     barConversion.textContent = `${batteryText} 电池${timeFactor} = ${barText} 分`;
-    awardConversion.textContent = `${barText} ÷ 50，向下取整${winFactor} = ${awardText} 分`;
+    awardConversion.textContent = `${barText} ÷ 50${winFactor}，向下取整 = ${awardText} 分`;
     rmbConversion.textContent = `${batteryText} 电池 ÷ 10 = ${moneyText} 元`;
   }
 

@@ -1,0 +1,141 @@
+.app-shell .status-strip {
+  flex-shrink: 0;
+}
+
+body.desktop-shell .topbar {
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
+body.desktop-shell .status-strip {
+  display: flex;
+}
+
+.app-shell .status-strip .topbar-icon-button {
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  flex: 0 0 32px;
+  -webkit-app-region: no-drag;
+}
+
+.topbar-icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.app-shell .status-strip .topbar-icon-button[aria-expanded='true'] {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--color-primary-light);
+}
+
+.app-shell .status-strip .topbar-live-status {
+  max-width: 240px;
+  border-radius: 999px;
+  -webkit-app-region: no-drag;
+}
+
+.topbar-live-status .owner-name {
+  min-width: 0;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#liveStatusLabel {
+  flex-shrink: 0;
+}
+
+.topbar-live-status .owner-name:not([hidden]) + #liveStatusLabel::before {
+  content: '·';
+  margin-right: 5px;
+  color: var(--muted);
+}
+
+.topbar-live-status:hover {
+  filter: brightness(0.97);
+}
+
+.topbar-status-details {
+  position: fixed;
+  inset: auto;
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100vh - 84px);
+  overflow: auto;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  background: var(--surface);
+  font-family: var(--font-ui);
+  font-size: var(--type-size-caption);
+  -webkit-app-region: no-drag;
+}
+
+.topbar-status-details h2 {
+  margin: 0 0 16px;
+  font-size: var(--type-size-card-title);
+}
+
+.topbar-status-details dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.topbar-status-details dl > div {
+  display: grid;
+  grid-template-columns: 5em 1fr;
+  gap: 12px;
+}
+
+.topbar-status-details dt {
+  color: var(--muted);
+}
+
+.topbar-status-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.topbar-icon-button:focus-visible,
+.topbar-live-status:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
+
+#reconnectBtn[aria-busy='true'] svg {
+  animation: topbar-refresh-spin 1s linear infinite;
+}
+
+@keyframes topbar-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1120px) {
+  .topbar-live-status .owner-name {
+    max-width: 64px;
+  }
+}
+
+@media (max-width: 960px) {
+  .topbar-live-status .owner-name {
+    display: none;
+  }
+
+  .topbar-live-status .owner-name:not([hidden]) + #liveStatusLabel::before {
+    content: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #reconnectBtn[aria-busy='true'] svg {
+    animation: none;
+  }
+}

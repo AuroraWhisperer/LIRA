@@ -200,7 +200,7 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 
 规范化仅接受已知字段、枚举、布尔值与六位或八位（含 alpha）十六进制颜色；有限数字按字段步长取整并限制范围，其他类型回退默认。旧偏好缺失的新字段补默认值。字体仅允许内置别名或单个双引号包裹的字体族，转义只接受引号和反斜线，拒绝控制字符、任意 CSS 声明和字体栈。示例内容用于看外观，不代表正在播放的歌曲；实际播放器仍由原渲染链更新歌曲、歌词和播放动画。
 
-两个字体入口共用 `shared/font-catalog.js` 的八款完整字库，由 `shared/font-library.js` 注册。新选项保存带引号的字体族名，旧 `maiyuan`、`kuaile`、`smiley` ID 保留；首次授权时直接下载并缓存，后续离线使用，选择后按需加载，缺字使用系统回退。来源、完整字符覆盖和 OFL 许可见[字体说明](../../../public/fonts/README.md)。两个字体下拉通过共享 `select-menu.js` 的可选搜索与字体预览增强，可按名称筛选，隐藏无匹配的分组；菜单限制高度，搜索框固定在顶部，选项在列表内滚动，字体效果由选项自身及右侧预览展示，控件文案保持客户端字体。歌曲与歌词的字体下拉通过 `shared/local-font-library.js` 与其他设置共用同一次 `queryLocalFonts()` 查询；旧 `admin/local-font-library.js` 是兼容转导出。已保存但本机缺失的字体保留选项并使用系统回退；拒绝字体读取仍可使用内置与常用系统字体。原生授权边界见[主窗口的本机字体权限](../desktop/main.md#4-主窗口)。
+两个字体入口共用 `shared/font-catalog.js` 的八款完整字库，由 `shared/font-library.js` 注册。新选项保存带引号的字体族名，旧 `maiyuan`、`kuaile`、`smiley` ID 保留；字体随安装包内置，首次即可离线使用，选择后按需加载，缺字使用系统回退。来源、完整字符覆盖和 OFL 许可见[字体说明](../../../public/fonts/README.md)。两个字体下拉通过共享 `select-menu.js` 的可选搜索与字体预览增强，可按名称筛选，隐藏无匹配的分组；菜单限制高度，搜索框固定在顶部，选项在列表内滚动，字体效果由选项自身及右侧预览展示，控件文案保持客户端字体。歌曲与歌词的字体下拉通过 `shared/local-font-library.js` 与其他设置共用同一次 `queryLocalFonts()` 查询；旧 `admin/local-font-library.js` 是兼容转导出。已保存但本机缺失的字体保留选项并使用系统回退；拒绝字体读取仍可使用内置与常用系统字体。原生授权边界见[主窗口的本机字体权限](../desktop/main.md#4-主窗口)。
 
 排版参数参考 [Better Lyrics](https://github.com/better-lyrics/better-lyrics/blob/master/STYLING.md) 的字体、行高、字重与副行配置，以及 [AMLL](https://amll.dev/en/reference/react/interfacelyricplayerprops.html) 的歌词强调与对齐；本页采用独立选项组合风格，不引入外部播放器运行时。
 

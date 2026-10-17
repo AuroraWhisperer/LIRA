@@ -283,8 +283,6 @@ export const giftAnalysis = (() => {
   }
 
   function renderContext(hasArchivedDetails) {
-    const parts = [state.viewerLabel || '全部观众', state.box || '全部盲盒'];
-    setText('blindBoxAnalysisSubtitle', parts.join(' · '));
     setText('blindBoxAnalysisTitle', state.dateRange ? '盲盒分析' : '今日盲盒分析');
     setText('blindBoxAnalysisUpdated', hasArchivedDetails ? '含历史汇总，过期逐笔记录不可用' : '刚刚更新');
   }

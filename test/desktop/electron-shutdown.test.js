@@ -49,6 +49,8 @@ test('confirming connected output close runs the existing ordered shutdown once'
   await h.state.lifecycle.closePromptPromise;
   assert.equal(h.count('dialog:close'), 1);
   assert.equal(h.count('runtime:stop'), 1);
+  assert.equal(h.count('screen-color-picker:dispose'), 1);
+  assert.ok(h.calls.indexOf('screen-color-picker:dispose') < h.calls.indexOf('runtime:stop'));
   assert.equal(h.count('playback:flush'), 1);
   assert.equal(h.count('app:exit'), 1);
 });
@@ -224,6 +226,7 @@ function assertFinalized(harness, restart) {
 // Each owner must be released during quit and drained before the backend and database stop.
 for (const [idleOption, disposedOnce, stoppedAtLeastOnce] of [
   ['appearanceIdle', [], []],
+  ['audioAssistantIdle', ['audio-assistant:dispose', 'audio-assistant:remove-ipc'], []],
   ['integrityIdle', [], ['integrity:stop']],
   ['authIdle', ['auth:dispose'], []],
   ['doubaoIdle', ['doubao:dispose'], []],

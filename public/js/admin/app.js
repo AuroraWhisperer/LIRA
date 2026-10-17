@@ -10,6 +10,8 @@ import { desktopLyric } from './desktop-lyric.js';
 import { songImports } from './song-import.js';
 import { settings } from './settings.js';
 import { initClientAppearance } from './client-appearance.js';
+import { initAudioAssistant } from './audio-assistant.js';
+import { initTopbarStatus } from './topbar-status.js';
 import { display } from './display.js';
 import { initComponentStyleLibraries } from './component-style-client.js';
 // 编写人：Aurora
@@ -92,7 +94,11 @@ const liveComponents = createToolboxLifecycle({
   onError: Utils.showError,
   onInitError: recoverToolboxInitialization,
 });
+let disposeAudioAssistant;
+let disposeTopbarStatus;
 window.addEventListener('beforeunload', () => {
+  disposeAudioAssistant?.();
+  disposeTopbarStatus?.();
   toolbox.dispose();
   liveComponents.dispose();
 }, {
@@ -121,6 +127,8 @@ async function initializeApp() {
   modules.desktop?.initDesktopShell?.();
   settings.initSettingsForm();
   initClientAppearance();
+  disposeAudioAssistant = initAudioAssistant();
+  disposeTopbarStatus = initTopbarStatus({ showToast: Utils.showStackedToast });
 
   enhanceSelects();
   enhanceColorControls();
