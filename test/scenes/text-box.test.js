@@ -66,10 +66,12 @@ test('text box configuration rejects HTML payloads, arbitrary requests, invalid 
 });
 
 test('text box scrolling defaults off for old scenes and survives scene and template round trips', () => {
-  const { scrollMode, ...legacy } = createTextBoxDefaults();
+  const { scrollMode, scrollSpeed, ...legacy } = createTextBoxDefaults();
   assert.equal(normalizeTextBoxConfig(legacy).scrollMode, 'none');
+  assert.equal(normalizeTextBoxConfig(legacy).scrollSpeed, 40);
+  assert.equal(normalizeTextBoxConfig({ ...legacy, scrollMode: 'horizontal' }).scrollSpeed, 40);
   for (const mode of ['none', 'horizontal', 'vertical']) {
-    const config = { ...legacy, scrollMode: mode, nodes: [{ type: 'text', text: '长篇公告\n'.repeat(2000) }] };
+    const config = { ...legacy, scrollMode: mode, scrollSpeed: 85, nodes: [{ type: 'text', text: '长篇公告\n'.repeat(2000) }] };
     const document = { schemaVersion: 1, id: randomUUID(), title: 'scroll', canvas: { width: 1920, height: 1080 },
       items: [item(config)] };
     const normalized = normalizeSceneDocument(document, { normalizeConfig: normalizeSceneConfig });
@@ -78,6 +80,12 @@ test('text box scrolling defaults off for old scenes and survives scene and temp
   }
   for (const value of [null, true, 1, 'diagonal', '']) {
     assert.throws(() => normalizeTextBoxConfig({ ...legacy, scrollMode: value }), { code: 'INVALID_SCENE_CONFIG' });
+  }
+  for (const value of [10, 40, 200]) {
+    assert.equal(normalizeSceneConfig('text-box', { ...legacy, scrollSpeed: value }).scrollSpeed, value);
+  }
+  for (const value of [undefined, null, true, '40', 0, 9, 201, 40.5, NaN, Infinity]) {
+    assert.throws(() => normalizeTextBoxConfig({ ...legacy, scrollSpeed: value }), { code: 'INVALID_SCENE_CONFIG' });
   }
 });
 

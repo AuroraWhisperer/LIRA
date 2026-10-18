@@ -77,11 +77,11 @@ export function openComponentSourceImport({ type, request, onSaved, onUse, onMed
     const preferred = html.find(item => /^index\.html?$/i.test(item.path))
       || (indexes.length === 1 ? indexes[0] : html.length === 1 ? html[0] : entries.length === 1 ? entries[0] : null);
     entry.replaceChildren();
-    if (!preferred) { const option = previewElement('option', '', '请选择要使用的样式'); option.value = ''; entry.append(option); }
+    if (!preferred) { const option = previewElement('option', '', '请选择要使用的样式'); option.value = ''; option.disabled = true; option.selected = true; entry.append(option); }
     for (const value of entries) {
       const option = previewElement('option', '', value.path); option.value = value.path; entry.append(option);
     }
-    if (preferred) entry.value = preferred.path;
+    entry.value = preferred?.path || '';
     entryLabel.hidden = entries.length < 2;
     const pasting = paste.open && text.value.trim();
     if (!pasting && entries.length > 1 && !preferred) advanced.open = true;

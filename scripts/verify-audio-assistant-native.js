@@ -23,10 +23,17 @@ if (checked.status !== 0) process.exit(checked.status || 1);
 
 async function checkBridge() {
   const dataDir = fs.mkdtempSync(path.join(root, 'tmp/audio-assistant-protocol-'));
-  const options = { executable: path.join(root, 'build/audio-assistant/LiraAudioAssistant.exe'), dataDir };
+  let pushes = 0;
+  const options = { executable: path.join(root, 'build/audio-assistant/LiraAudioAssistant.exe'), dataDir,
+    onState: () => { pushes++; } };
   let assistant = createAudioAssistant(options);
   try {
     assert.equal((await assistant.invoke('get')).ok, true, 'Hidden worker must initialize its UTF-8 pipes');
+    const idlePushes = pushes;
+    await new Promise((resolve) => setTimeout(resolve, 4500));
+    assert.equal(pushes, idlePushes, 'Idle workers must not broadcast unchanged state');
+    assert.equal((await assistant.invoke('refresh')).ok, true, 'Opening a source or device menu must still refresh inventory');
+    assert.ok(pushes > idlePushes, 'An explicit refresh must publish its result');
     const configured = await assistant.invoke('configure', { strength: -37, semitones: -4, speedPercent: 150, volume: 0, source: 'file' });
     assert.equal(configured.ok, true);
     const rejected = await assistant.invoke('start');

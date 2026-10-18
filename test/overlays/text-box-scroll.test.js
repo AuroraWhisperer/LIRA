@@ -110,6 +110,27 @@ test('vertical scrolling preserves lines, remeasures dimensions, and returns int
   assert.deepEqual([off.frames, off.x, off.y, off.spans], [0, 0, 0, 1]);
 });
 
+test('scroll speed updates both directions without rebuilding content, resetting position or duplicating frames', async t => {
+  const page = await mount(t);
+  for (const mode of ['horizontal', 'vertical']) {
+    const result = await page.evaluate(mode => {
+      config = { ...config, scrollMode: mode, scrollSpeed: 10, nodes: [{ type: 'text', text: '滚动公告\n'.repeat(100) }] };
+      playback.update(config);
+      const axis = mode === 'horizontal' ? 'scrollLeft' : 'scrollTop';
+      const start = host[axis];
+      const content = host.querySelector('.text-box-content');
+      advance(0); advance(1000);
+      const slow = host[axis];
+      config = { ...config, scrollSpeed: 200 };
+      playback.update(config);
+      const continuous = host[axis] === slow && host.querySelector('.text-box-content') === content;
+      advance(2000);
+      return { slow: slow - start, fast: host[axis] - slow, continuous, frames: pendingFrames.size };
+    }, mode);
+    assert.deepEqual(result, { slow: 10, fast: 200, continuous: true, frames: 1 }, mode);
+  }
+});
+
 test('short content moves, hidden playback pauses, and empty or disposed playback schedules no frames', async t => {
   const page = await mount(t);
   const result = await page.evaluate(() => {

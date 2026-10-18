@@ -65,12 +65,19 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   assert.equal(await status.textContent(), '');
   await desktop.locator('[data-text-box="add"]').click({ force: true });
   assert.equal(await status.textContent(), '文本框有未保存修改');
-  const layoutBounds = await desktop.locator('.text-box-layout-fields').boundingBox();
+  const layoutBounds = await desktop.locator('.text-box-layout-settings').boundingBox();
   const scrollBounds = await desktop.locator('.text-box-scroll-settings').boundingBox();
   assert.ok(scrollBounds.x > layoutBounds.x + layoutBounds.width,
     'scroll settings use the right column beside text layout controls');
   assert.ok(Math.abs(scrollBounds.y - layoutBounds.y) < 1,
     'both settings groups start on the same row');
+  const speed = desktop.getByRole('slider', { name: '滚动速率', exact: true });
+  assert.equal(await speed.isDisabled(), true);
+  await desktop.getByRole('switch', { name: '横向滚动', exact: true }).check({ force: true });
+  await speed.fill('85');
+  await desktop.getByRole('switch', { name: '纵向滚动', exact: true }).check({ force: true });
+  assert.equal(await speed.inputValue(), '85');
+  await desktop.getByRole('switch', { name: '纵向滚动', exact: true }).uncheck({ force: true });
   await desktop.evaluate(async () => {
     const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
     window.textBoxCanvas = (await prepareComponentPreviews()).find(component => component.id === 'canvas');
@@ -123,6 +130,7 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   const saved = await app.evaluate(() => global.canvasTest.scene());
   assert.equal(saved.document.items[0].appearance.config.nodes[0].underline, true);
   assert.equal(saved.document.items[0].appearance.config.nodes[0].fontFamily, '"Lira Xiaolai"');
+  assert.equal(saved.document.items[0].appearance.config.scrollSpeed, 85);
   assert.ok(saved.publishedVersion > 0);
   const source = await desktop.evaluate(() => textBoxCanvas.source());
   const readPublished = async () => {
@@ -153,6 +161,8 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   assert.equal(await status.textContent(), '已保存');
   assert.equal((await desktop.reload()).status(), 200);
   await openTextBoxes();
+  assert.equal(await speed.inputValue(), '85');
+  assert.equal(await speed.isDisabled(), true);
   await desktop.frameLocator('.component-preview-frame').locator('#textBox > span').first().waitFor();
   assert.equal(await editor.locator('[data-text-box-node]').count(), 2);
   assert.equal(await desktop.frameLocator('.component-preview-frame').locator('#textBox > span').first()

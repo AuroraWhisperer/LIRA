@@ -126,6 +126,7 @@ function openMenu(state, initialOffset = 0) {
   );
   if (state.search) state.search.focus();
   else focusOption(state, selectedIndex + initialOffset);
+  state.select.dispatchEvent(new Event('lira-select-open', { bubbles: true }));
 }
 
 function closeOpenMenus(except) {

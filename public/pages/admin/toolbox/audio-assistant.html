@@ -34,7 +34,8 @@
         <h3 id="audioAssistantRoutingTitle">音乐与设备</h3>
         <div class="audio-assistant-field">
           <label for="audioAssistantSource">音乐来源</label>
-          <select id="audioAssistantSource" data-audio-setting="source"><option value="auto">自动检测 QQ / 网易云 / 全民 K 歌 / LIRA</option><option value="file">本地歌曲文件</option></select>
+          <select id="audioAssistantSource" data-audio-setting="source"><option value="auto">自动识别正在播放的音乐（推荐）</option><option value="file">本地文件</option></select>
+          <p class="hint">先在 QQ 音乐、网易云音乐、全民 K 歌或 LIRA 中播放歌曲，通常无需手动选择。网页音乐请在列表中选择对应的浏览器。</p>
           <div id="audioAssistantFileRow" class="audio-assistant-file" hidden>
             <button type="button" class="secondary" data-audio-action="file">选择歌曲</button>
             <span id="audioAssistantFileName" class="hint">尚未选择</span>
@@ -46,36 +47,37 @@
           <span id="audioAssistantSourceDevice" class="hint"></span>
         </div>
         <div id="audioAssistantIsolation" class="audio-assistant-field">
-          <div class="audio-assistant-label"><label for="audioAssistantCable">原声通道</label><lira-help label="原声通道说明">选择空闲的独立声卡通道。处理时临时静音，停止后还原；不能与最终输出相同。</lira-help></div>
-          <select id="audioAssistantCable" data-audio-setting="cableId"><option value="">请选择独立通道</option></select>
+          <div class="audio-assistant-label"><label for="audioAssistantCable">原声通道</label><lira-help label="原声通道说明">用于隔离播放器原声，避免与处理后的声音同时播放。处理时临时静音，停止后还原；不能与最终输出相同。</lira-help></div>
+          <select id="audioAssistantCable" data-audio-setting="cableId" aria-describedby="audioAssistantCableHint"><option value="" disabled selected>请选择独立通道</option></select>
+          <p id="audioAssistantCableHint" class="hint">选空闲的虚拟音频通道，例如 OMEN 或 VB-CABLE；不要选正在听歌的扬声器或耳机。LIRA 内置播放也需要；没有可用通道可改用「本地文件」。</p>
         </div>
         <div class="audio-assistant-field">
           <div class="audio-assistant-label"><label for="audioAssistantOutput">最终输出</label><lira-help label="最终输出说明">自动跟随播放器处理前的输出；本地文件使用 Windows 默认设备。OBS 和哔哩哔哩直播姬采集此输出，避免重复采集原声。</lira-help></div>
-          <select id="audioAssistantOutput" data-audio-setting="outputId"><option value="">自动跟随原输出</option></select>
+          <select id="audioAssistantOutput" data-audio-setting="outputId" aria-describedby="audioAssistantOutputHint"><option value="">自动跟随原输出</option></select>
+          <p id="audioAssistantOutputHint" class="hint">处理后的声音从这里播放。选择实际听歌的扬声器或耳机，通常保持「自动跟随播放器原输出」即可。</p>
         </div>
         <div class="audio-assistant-device-actions">
           <button type="button" class="secondary" data-audio-action="refresh">刷新设备</button>
           <button type="button" class="secondary" data-audio-action="recover">恢复原声</button>
           <button type="button" class="secondary" data-audio-action="mixer">音量混合器</button>
         </div>
+        <p class="hint">展开下拉框时更新列表；选择后自动保存。</p>
       </section>
       <section class="audio-assistant-sound" aria-labelledby="audioAssistantSoundTitle">
         <div class="audio-assistant-section-heading">
           <h3 id="audioAssistantSoundTitle">声音调节</h3>
           <div class="audio-assistant-sound-actions">
             <button type="button" class="secondary" data-audio-action="reset">一键重置</button>
-            <label class="switch-control"><span>当前歌曲</span><input type="checkbox" data-audio-active aria-label="处理当前歌曲" /><span class="switch-track"></span></label>
+            <label class="switch-control"><span>当前歌曲</span><input type="checkbox" data-audio-active aria-label="处理当前歌曲" aria-describedby="audioAssistantStatus" /><span class="switch-track"></span></label>
           </div>
+        </div>
+        <div class="audio-assistant-statusbar">
+          <p id="audioAssistantStatus" data-audio-status role="status">音频组件未就绪</p>
+          <span class="audio-assistant-meter" role="meter" aria-label="输出电平" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></span>
         </div>
         <div data-audio-controls="full"></div>
         <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="original" /><span>原声对比</span><lira-help label="原声对比说明">临时跳过声伴处理、变速与升降调；输出音量仍生效。</lira-help></label>
       </section>
     </div>
-    <footer class="audio-assistant-statusbar">
-      <span data-audio-status role="status">打开设置后自动检测设备。开启助手即可使用当前歌曲开关。</span>
-      <span class="audio-assistant-meter" role="meter" aria-label="输出电平" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></span>
-    </footer>
-    <p id="audioAssistantControlError" class="hint audio-assistant-error" role="alert" hidden></p>
-    <p id="audioAssistantSaveError" class="hint" role="status" hidden></p>
   </div>
 </section>

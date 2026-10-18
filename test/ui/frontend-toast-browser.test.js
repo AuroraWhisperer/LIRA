@@ -315,6 +315,45 @@ test('browser keeps toast variants free of close controls, aligns content and pr
   assert.ok(Number.parseFloat(catalog.progressHeight) > 0);
   assert.ok(Number.parseFloat(catalog.countSize) >= 12);
   await page.evaluate(() => catalogToast.dispose());
+  await t.test('top-layer notifications remain above an open panel without stealing focus and release the layer on close', async () => {
+    const result = await page.evaluate(async () => {
+      const { createToastStack } = await import('/js/shared/toast.js');
+      const panel = document.createElement('section');
+      panel.setAttribute('popover', 'manual');
+      panel.style.cssText = 'inset:0;margin:0;width:100vw;height:100vh;background:white;';
+      const trigger = document.createElement('button');
+      trigger.textContent = '处理当前歌曲';
+      panel.append(trigger);
+      document.body.append(panel);
+      panel.showPopover();
+      trigger.focus();
+      const container = document.createElement('div');
+      container.className = 'toast-stack';
+      document.body.append(container);
+      const stack = createToastStack({ container });
+      const handle = stack.show({ key: 'audio', title: '电音助手', message: '请选择原声通道。', type: 'error', topLayer: true });
+      const onTop = () => {
+        const bounds = handle.node.getBoundingClientRect();
+        return handle.node.contains(document.elementFromPoint(bounds.left + 10, bounds.top + 10));
+      };
+      const firstVisible = onTop();
+      const focusKept = document.activeElement === trigger;
+      panel.hidePopover();
+      panel.showPopover();
+      handle.update({ message: '原声仍待恢复。' });
+      const updateVisible = onTop();
+      handle.close(true);
+      const released = !container.hasAttribute('popover');
+      const panelOpen = panel.matches(':popover-open');
+      stack.show({ message: '另一次提示', topLayer: true });
+      stack.dispose();
+      const disposed = !container.hasAttribute('popover');
+      panel.remove();
+      container.remove();
+      return { firstVisible, focusKept, updateVisible, released, panelOpen, disposed };
+    });
+    assert.deepEqual(result, { firstVisible: true, focusKept: true, updateVisible: true, released: true, panelOpen: true, disposed: true });
+  });
   await page.evaluate(async () => {
     document.getElementById('toast-styles').href = '/css/gift-audit.css';
     document.getElementById('toast').remove();

@@ -1,12 +1,11 @@
 import { renderTextBox } from '../shared/text-box-renderer.js';
 import { normalizeTextBoxConfig, TEXT_BOX_SIZE } from '../shared/text-box-config.js';
 
-const SPEED = 40;
-
 export function createTextBoxPlayback(host) {
   const document = host.ownerDocument;
   const view = document.defaultView;
   let mode = 'none';
+  let speed = 0;
   let signature = '';
   let content = null;
   let frame = null;
@@ -24,7 +23,7 @@ export function createTextBoxPlayback(host) {
   }
 
   function tick(time) {
-    if (previousTime !== null) position = (position + (time - previousTime) * SPEED / 1000) % distance;
+    if (previousTime !== null) position = (position + (time - previousTime) * speed / 1000) % distance;
     previousTime = time;
     if (mode === 'horizontal') host.scrollLeft = position;
     else host.scrollTop = position;
@@ -67,7 +66,9 @@ export function createTextBoxPlayback(host) {
     update(input) {
       if (disposed) return;
       const config = normalizeTextBoxConfig(input);
-      const next = JSON.stringify(config);
+      const { scrollSpeed, ...appearance } = config;
+      speed = scrollSpeed;
+      const next = JSON.stringify(appearance);
       if (next === signature) return;
       signature = next;
       stop(); observer.disconnect();

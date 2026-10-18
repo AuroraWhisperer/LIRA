@@ -262,6 +262,9 @@ test('games admin retries an empty viewer list with backoff and fills both viewe
   for (const id of ['numberBombViewer', 'gomokuViewer']) {
     assert.deepEqual(pickerTexts(id), ['请选择观众', '观众']);
     assert.equal(node(id).children[1].value, '7');
+    assert.equal(node(id).children[0].disabled, true);
+    assert.equal(node(id).value, '', 'refresh must not choose an opponent for the host');
+    node(id).value = '7';
   }
   assert.equal(timers.length, pendingTimers - 1, 'a non-empty answer schedules no further retry');
 
@@ -272,6 +275,10 @@ test('games admin retries an empty viewer list with backoff and fills both viewe
   assert.equal(viewerRequests, 8, 'an empty room stops after the last backoff step');
   assert.equal(viewerBodies.length, 0);
   assert.deepEqual(pickerTexts('gomokuViewer'), ['暂无当前在线观众']);
+  for (const id of ['numberBombViewer', 'gomokuViewer']) {
+    assert.equal(node(id).children[0].disabled, true);
+    assert.equal(node(id).value, '', 'an unavailable opponent returns to the placeholder');
+  }
 });
 
 test('games admin marks stale data once after a failed refresh and clears it on recovery', async () => {

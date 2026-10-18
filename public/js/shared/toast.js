@@ -18,6 +18,7 @@ export function createToastStack({
   const leaving = new Set();
   let sequence = 0;
   let disposed = false;
+  let inTopLayer = false;
   const reduced = () => windowRef?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const announcer = documentRef.createElement('div');
   announcer.className = 'toast-announcer';
@@ -25,6 +26,13 @@ export function createToastStack({
   announcer.setAttribute('aria-live', 'polite');
   announcer.setAttribute('aria-atomic', 'true');
   container.after(announcer);
+
+  function releaseTopLayer() {
+    if (!inTopLayer || entries.size || leaving.size) return;
+    container.hidePopover();
+    container.removeAttribute('popover');
+    inTopLayer = false;
+  }
 
   function stopTimer(entry) {
     if (entry.timer !== null) cancel(entry.timer);
@@ -119,6 +127,7 @@ export function createToastStack({
     const remove = () => {
       entry.node.remove();
       leaving.delete(entry);
+      releaseTopLayer();
     };
     if (immediate || !entry.visible || reduced()) remove();
     else {
@@ -193,6 +202,12 @@ export function createToastStack({
 
   function show(options) {
     if (disposed) return;
+    if (options.topLayer && typeof container.showPopover === 'function') {
+      container.setAttribute('popover', 'manual');
+      if (container.matches(':popover-open')) container.hidePopover();
+      container.showPopover();
+      inTopLayer = true;
+    }
     const key = options.key || `toast:${options.title || ''}:${options.message || ''}`;
     const existing = entries.get(key);
     if (existing) {
@@ -267,6 +282,7 @@ export function createToastStack({
       entry.node.remove();
     }
     leaving.clear();
+    releaseTopLayer();
     announcer.remove();
     windowRef?.removeEventListener?.('resize', layout);
     windowRef?.removeEventListener?.('pagehide', dispose);

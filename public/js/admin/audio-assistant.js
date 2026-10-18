@@ -1,6 +1,7 @@
 'use strict';
 
 import { initAudioAssistantControls } from './audio-assistant-controls.js';
+import { toast } from '../shared/toast.js';
 
 const STORAGE_KEY = 'admin.audioAssistant:v1';
 const FLOAT_SIZE = 52;
@@ -41,7 +42,6 @@ export function initAudioAssistant() {
   const enabled = document.getElementById('audioAssistantEnabled');
   const enabledState = document.getElementById('audioAssistantEnabledState');
   const placements = [...document.querySelectorAll('[data-audio-placement]')];
-  const saveError = document.getElementById('audioAssistantSaveError');
   const topbar = document.querySelector('.topbar');
   const player = document.querySelector('.playback-player-panel');
   const events = new AbortController();
@@ -65,10 +65,11 @@ export function initAudioAssistant() {
   function save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
-      saveError.hidden = true;
     } catch {
-      saveError.textContent = '本次设置已生效，但未能保存在本机。重新打开客户端后请再次设置。';
-      saveError.hidden = false;
+      // Placement buttons open their popover later in this click handler.
+      queueMicrotask(() => toast('本次设置已生效，但未能保存在本机。重新打开客户端后请再次设置。', {
+        key: 'audio-assistant-preferences', title: '电音助手设置未保存', type: 'warning', duration: 10000, topLayer: true,
+      }));
     }
   }
 

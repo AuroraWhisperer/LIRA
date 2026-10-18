@@ -146,6 +146,10 @@ export function createPlaybackControls(deps) {
     Object.assign(track, streamTrack);
 
     if (!options.isRetry) streamService.resetRetryCount();
+    if (Number.isInteger(options.playlistIndex) && options.playlistIndex >= 0) {
+      queueManager.jumpToPlaylistTrack(options.playlistIndex);
+    }
+    if (options.consumeHistory) stateActions.takePrevious();
     stateActions.beginTrack(track, options);
     audioRequestGeneration = requestGeneration;
     audio.dataset.trackId = track.id;
@@ -323,16 +327,19 @@ export function createPlaybackControls(deps) {
   async function playbackPrevious() {
     const audio = getPlaybackAudio();
     if (!audio) return;
-    if (audio.currentTime > 5) {
-      audio.currentTime = 0;
-      return;
-    }
-    const previousTrack = stateActions.takePrevious();
+    const useHistory = playbackState.queueType !== 'playlist' || playbackState.mode === 'shuffle';
+    const historyTrack = useHistory ? playbackState.history.at(-1) : null;
+    const playlistIndex = queueManager.getPreviousPlaylistIndex(historyTrack);
+    const previousTrack = historyTrack || playbackState.normalQueueTracks[playlistIndex];
     if (previousTrack) {
       await playPlaybackTrack(previousTrack, {
         fromHistory: true,
-        origin: 'history',
+        consumeHistory: Boolean(historyTrack),
+        playlistIndex,
+        origin: playlistIndex >= 0 ? 'normal' : 'history',
       });
+    } else if (playbackState.current) {
+      audio.currentTime = 0;
     }
   }
 

@@ -207,13 +207,16 @@ export class QueuePopup {
     const tracks = state.normalQueueTracks;
     if (!tracks || !tracks.length) return '';
 
-    const currentIndex = state.playlistIndex;
+    const currentKey = state.current ? getQueueTrackKey(state.current) : '';
+    const cursorTrack = tracks[state.playlistIndex];
+    const currentIndex = cursorTrack && getQueueTrackKey(cursorTrack) === currentKey
+      ? state.playlistIndex
+      : tracks.findIndex((track) => getQueueTrackKey(track) === currentKey);
 
     const rows = tracks
       .map((track, index) => {
         const isCurrent = index === currentIndex;
-        const isPast = index < currentIndex;
-        return UIComponents.renderPlaylistRow(track, index, isCurrent, isPast);
+        return UIComponents.renderPlaylistRow(track, index, isCurrent);
       })
       .join('');
 

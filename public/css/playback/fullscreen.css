@@ -356,15 +356,6 @@
   background: var(--color-primary-light) !important;
 }
 
-/* 已播放行 */
-.playback-queue-row.playlist-past {
-  opacity: 0.48;
-}
-
-.playback-queue-row.playlist-past:hover {
-  opacity: 0.82;
-}
-
 /* 正在播放小图标 */
 .playlist-now-icon {
   font-size: var(--type-size-micro);

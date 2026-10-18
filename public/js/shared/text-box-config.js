@@ -1,9 +1,10 @@
 import { normalizeTextFormat, TEXT_FORMAT_KEYS } from './text-format.js';
 
 export const TEXT_BOX_SIZE = Object.freeze([640, 180]);
+export const TEXT_BOX_SCROLL_SPEED = Object.freeze({ min: 10, max: 200, default: 40 });
 
 export function createTextBoxDefaults() {
-  return { version: 1, fontSize: 32, color: '#ffffff', align: 'left', lineHeight: 1.4, scrollMode: 'none',
+  return { version: 1, fontSize: 32, color: '#ffffff', align: 'left', lineHeight: 1.4, scrollMode: 'none', scrollSpeed: TEXT_BOX_SCROLL_SPEED.default,
     nodes: [{ type: 'text', text: '在这里输入文字' }] };
 }
 
@@ -45,10 +46,12 @@ export function normalizeTextBoxImageSource(value, type = 'image') {
 }
 
 export function normalizeTextBoxConfig(config) {
-  record(config, ['version', 'fontSize', 'color', 'align', 'lineHeight', 'nodes', 'scrollMode'],
+  record(config, ['version', 'fontSize', 'color', 'align', 'lineHeight', 'nodes', 'scrollMode', 'scrollSpeed'],
     ['version', 'fontSize', 'color', 'align', 'lineHeight', 'nodes']);
   const scrollMode = Object.hasOwn(config, 'scrollMode') ? config.scrollMode : 'none';
   if (!['none', 'horizontal', 'vertical'].includes(scrollMode)) throw invalid();
+  const scrollSpeed = Object.hasOwn(config, 'scrollSpeed') ? config.scrollSpeed : TEXT_BOX_SCROLL_SPEED.default;
+  if (!Number.isInteger(scrollSpeed) || scrollSpeed < TEXT_BOX_SCROLL_SPEED.min || scrollSpeed > TEXT_BOX_SCROLL_SPEED.max) throw invalid();
   if (config.version !== 1 || !['left', 'center', 'right'].includes(config.align)
     || typeof config.lineHeight !== 'number' || !Number.isFinite(config.lineHeight)
     || config.lineHeight < 1 || config.lineHeight > 3 || !Array.isArray(config.nodes)) throw invalid();
@@ -77,5 +80,5 @@ export function normalizeTextBoxConfig(config) {
     return result;
   });
   return { version: 1, fontSize: fontSize(config.fontSize), color: color(config.color),
-    align: config.align, lineHeight: config.lineHeight, scrollMode, nodes };
+    align: config.align, lineHeight: config.lineHeight, scrollMode, scrollSpeed, nodes };
 }

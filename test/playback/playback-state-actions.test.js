@@ -122,8 +122,9 @@ test('sequential duplicate tracks and separate same-song requests keep their own
     { id: 'a', songRequestKey: 'request-1' }, { id: 'a', songRequestKey: 'request-2' },
   ], 0, 'playlist');
   for (const index of [1, 2, 3]) {
-    assert.ok(queue.takeNext());
+    state.current = queue.takeNext().track;
     assert.equal(state.playlistIndex, index);
+    assert.equal(queue.getPreviousPlaylistIndex(), index - 1);
   }
 });
 

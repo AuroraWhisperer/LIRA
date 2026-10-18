@@ -150,6 +150,8 @@ function renderViewerOptions(select, viewers) {
   select.replaceChildren();
   const placeholder = document.createElement('option');
   placeholder.value = '';
+  placeholder.disabled = true;
+  placeholder.selected = true;
   placeholder.textContent = viewers.length ? '请选择观众' : '暂无当前在线观众';
   select.append(placeholder);
   for (const viewer of viewers) {
@@ -159,7 +161,7 @@ function renderViewerOptions(select, viewers) {
     option.textContent = viewer.name;
     select.append(option);
   }
-  if ([...select.options].some((option) => option.value === previous)) select.value = previous;
+  select.value = [...select.options].some((option) => option.value === previous) ? previous : '';
 }
 
 async function refreshSession() {

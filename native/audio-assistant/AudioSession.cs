@@ -214,10 +214,20 @@ internal sealed class AudioSession : IDisposable
   public async Task Tick()
   {
     ticks++;
-    if (pendingRecovery && ticks % 10 == 0 && !starting && engine == null) Recover();
-    bool refreshed = ticks % 8 == 0 && source != "file" && !starting;
+    if (starting) return;
+    if (engine == null)
+    {
+      if (pendingRecovery && ticks % 10 == 0)
+      {
+        string previousStatus = status;
+        bool previousPendingRecovery = pendingRecovery;
+        Recover();
+        if (status != previousStatus || pendingRecovery != previousPendingRecovery) Changed?.Invoke();
+      }
+      return;
+    }
+    bool refreshed = ticks % 8 == 0 && source != "file";
     if (refreshed) apps = AudioDevices.Apps(names);
-    if (engine == null || starting) { Changed?.Invoke(); return; }
     if (route != null && !AudioDevices.IsMuted(route.EndpointId))
     {
       Fail(new InvalidOperationException("原声通道被解除静音，已停止处理，避免重复播放。")); return;

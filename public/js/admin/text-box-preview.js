@@ -1,4 +1,5 @@
-import { createTextBoxDefaults, TEXT_BOX_SIZE } from '../shared/text-box-config.js';
+import { createTextBoxDefaults, TEXT_BOX_SIZE, TEXT_BOX_SCROLL_SPEED } from '../shared/text-box-config.js';
+import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 import { previewElement } from './component-preview-surface.js';
 import { mountTextBoxEditor } from './text-box-editor.js';
 import { mountTextBoxMedia } from './text-box-media.js';
@@ -23,6 +24,8 @@ export function createTextBoxPreview({ media } = {}) {
       const materials = previewElement('section', 'text-box-materials');
       const assets = mountTextBoxMedia(materials, { composer, request: media, onError: report });
       const layout = previewElement('div', 'text-box-layout-fields');
+      const typography = previewElement('section', 'text-box-settings-group text-box-layout-settings');
+      typography.append(previewElement('h4', 'text-box-section-title', '文字排版'), layout);
       const fields = new Map();
       for (const [key, title, options] of [
         ['align', '文字对齐', [['left', '左对齐'], ['center', '居中'], ['right', '右对齐']]],
@@ -35,8 +38,11 @@ export function createTextBoxPreview({ media } = {}) {
         input.addEventListener('change', () => target.edit({ [key]: key === 'lineHeight' ? Number(input.value) : input.value }));
         label.append(input); layout.append(label); fields.set(key, input);
       }
-      const scrolling = previewElement('section', 'text-box-scroll-settings');
-      scrolling.append(previewElement('h4', 'text-box-section-title', '自动滚动'));
+      const scrolling = previewElement('section', 'text-box-settings-group text-box-scroll-settings');
+      const scrollTitle = previewElement('h4', 'text-box-section-title', '自动滚动');
+      const scrollHelp = previewElement('lira-help', '', '横向单行向左，纵向保留换行向上；一次启用一个方向。两个都关闭时，文字静止。');
+      scrollHelp.setAttribute('label', '自动滚动说明');
+      scrollTitle.append(scrollHelp); scrolling.append(scrollTitle);
       const directions = previewElement('div', 'text-box-scroll-options');
       const switches = new Map();
       for (const [mode, title] of [['horizontal', '横向滚动'], ['vertical', '纵向滚动']]) {
@@ -49,21 +55,40 @@ export function createTextBoxPreview({ media } = {}) {
         input.addEventListener('change', () => target.edit({ scrollMode: input.checked ? mode : 'none' }));
         control.append(input, track); label.append(control); directions.append(label); switches.set(mode, input);
       }
-      scrolling.append(directions, previewElement('p', 'text-box-scroll-hint', '横向单行向左，纵向保留换行向上；一次启用一个方向。'));
+      const speed = previewElement('div', 'text-box-scroll-speed');
+      const speedHeading = previewElement('div', 'text-box-speed-heading');
+      const speedLabel = previewElement('span', '', '滚动速率');
+      const speedHelp = previewElement('lira-help', '', '开启任一滚动方向后可调节。横向和纵向共用此速率，数值越大滚动越快；只影响预览和直播画面。');
+      speedHelp.setAttribute('label', '滚动速率说明');
+      speedLabel.append(speedHelp);
+      const speedValue = previewElement('output', 'text-box-speed-value');
+      const slider = previewElement('input', 'parameter-range');
+      slider.type = 'range'; slider.min = TEXT_BOX_SCROLL_SPEED.min; slider.max = TEXT_BOX_SCROLL_SPEED.max; slider.step = 1;
+      slider.setAttribute('aria-label', '滚动速率');
+      slider.addEventListener('input', () => target.edit({ scrollSpeed: Number(slider.value) }));
+      speedHeading.append(speedLabel, speedValue);
+      speed.append(speedHeading, slider);
+      scrolling.append(directions, speed);
       const settings = previewElement('div', 'text-box-settings');
-      settings.append(layout, scrolling);
+      settings.append(typography, scrolling);
       content.append(label, editorHost, materials);
       (settingsHost || content).append(settings);
       content.append(error);
       host.append(content);
+      initParameterRanges(settings);
       const stop = target.subscribe(({ draft, loaded }) => {
         const disabled = !loaded || host.closest('fieldset:disabled') !== null;
         composer.setConfig(draft, disabled);
         assets.setDisabled(disabled);
         for (const [key, input] of fields) { input.value = String(draft[key]); input.disabled = disabled; }
         for (const [mode, input] of switches) { input.checked = draft.scrollMode === mode; input.disabled = disabled; }
+        slider.value = draft.scrollSpeed ?? TEXT_BOX_SCROLL_SPEED.default;
+        slider.disabled = disabled || draft.scrollMode === 'none';
+        speedValue.value = `${slider.value} 像素/秒`;
+        slider.setAttribute('aria-valuetext', speedValue.value);
+        refreshParameterRange(slider);
       });
-      return { dispose() { stop(); composer.dispose(); assets.dispose(); settings.remove(); content.remove(); } };
+      return { dispose() { stop(); composer.dispose(); assets.dispose(); disposeParameterRanges(settings); settings.remove(); content.remove(); } };
     },
   };
 }

@@ -355,6 +355,7 @@ async function mountPreview(t) {
   await page.addStyleTag({ url: `${fixture.origin}/css/admin/component-preview.css` });
   await page.addStyleTag({ content: '#host { display: flex; gap: 24px; margin-top: 160px; } .component-preview-stage { width: 640px; height: 180px; flex: none; }' });
   await page.evaluate(async () => {
+    await import('/js/admin/contextual-help.js');
     const { createTextBoxPreview } = await import('/js/admin/text-box-preview.js');
     const { createTextBoxDefaults } = await import('/js/shared/text-box-config.js');
     const { createComponentConfigController } = await import('/js/admin/component-config-controller.js');
@@ -376,11 +377,22 @@ test('scroll switches are exclusive and preserve long editable text and native u
   const page = await mountPreview(t);
   await page.addStyleTag({ url: `${fixture.origin}/css/admin/text-box.css` });
   await page.addStyleTag({ url: `${fixture.origin}/css/components/switch-control.css` });
+  await page.addStyleTag({ url: `${fixture.origin}/css/components/contextual-help.css` });
+  await page.addStyleTag({ url: `${fixture.origin}/css/components/parameter-range.css` });
   const editor = page.getByRole('textbox', { name: '文本框内容' });
   const horizontal = page.getByRole('switch', { name: '横向滚动' });
   const vertical = page.getByRole('switch', { name: '纵向滚动' });
+  const speed = page.getByRole('slider', { name: '滚动速率', exact: true });
   assert.equal(await horizontal.isChecked(), false);
   assert.equal(await vertical.isChecked(), false);
+  assert.equal(await speed.inputValue(), '40');
+  assert.equal(await speed.isDisabled(), true);
+  const help = page.getByRole('button', { name: '自动滚动说明' });
+  await help.focus();
+  assert.equal(await help.getAttribute('aria-expanded'), 'true');
+  assert.match(await page.getByRole('tooltip').textContent(), /一次启用一个方向/);
+  await help.press('Escape');
+  assert.equal(await help.getAttribute('aria-expanded'), 'false');
   const text = '第一行公告\n第二行内容'.repeat(1000);
   await editor.focus();
   await page.keyboard.press('Control+a');
@@ -392,8 +404,14 @@ test('scroll switches are exclusive and preserve long editable text and native u
   await page.evaluate(() => { window.originalEditorNode = document.querySelector('.text-box-editor').firstChild; });
   await horizontal.check();
   assert.equal(await vertical.isChecked(), false);
+  assert.equal(await speed.isDisabled(), false);
+  await speed.fill('85');
+  await speed.press('ArrowRight');
+  assert.equal(await page.evaluate(() => window.controller.getState().draft.scrollSpeed), 86);
+  assert.equal(await page.locator('.text-box-speed-value').textContent(), '86 像素/秒');
   await vertical.check();
   assert.equal(await horizontal.isChecked(), false);
+  assert.equal(await speed.inputValue(), '86');
   assert.equal(await page.evaluate(() => window.controller.getState().draft.scrollMode), 'vertical');
   assert.ok(await page.evaluate(text => window.controller.getState().draft.nodes.map(node => node.text || '').join('') === text, text),
     'switching playback preserves every line in the editable configuration');
@@ -404,6 +422,8 @@ test('scroll switches are exclusive and preserve long editable text and native u
   assert.equal(await vertical.isChecked(), true);
   await vertical.uncheck();
   assert.equal(await page.evaluate(() => window.controller.getState().draft.scrollMode), 'none');
+  assert.equal(await speed.isDisabled(), true);
+  assert.equal(await speed.inputValue(), '86');
 });
 
 test('text effects visibly update the live preview and disappear when toggled off', async (t) => {

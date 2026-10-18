@@ -7,6 +7,7 @@ internal static class NativeChecks
   static async Task Main(string[] args)
   {
     await InstallationExitChecks.Run(args[0], args[1]);
+    await CheckIdleSession(args[1]);
     // Construction verifies the packaged model hash and runs a warm-up inference.
     using (var model = new StemModel())
       Console.WriteLine("Packaged lira.onnx model loaded and inference completed.");
@@ -24,6 +25,49 @@ internal static class NativeChecks
     if (!SongMonitor.MatchesApp("com.aurorawhisperer.lira", "LIRA") || SongMonitor.MatchesApp("other.app", "LIRA"))
       throw new Exception("LIRA must use the desktop's existing media-session identity");
   }
+  static async Task CheckIdleSession(string scratch)
+  {
+    string root = Path.Combine(Path.GetFullPath(scratch), "audio-idle-" + Guid.NewGuid().ToString("N"));
+    string? previousDirectory = Environment.GetEnvironmentVariable("LIRA_AUDIO_DATA_DIR");
+    Directory.CreateDirectory(root);
+    Environment.SetEnvironmentVariable("LIRA_AUDIO_DATA_DIR", root);
+    try
+    {
+      using var session = new AudioSession(action => action());
+      int changes = 0;
+      session.Changed += () => changes++;
+      for (int i = 0; i < 16; i++) await session.Tick();
+      if (changes != 0) throw new Exception("An idle session must not publish periodic snapshots.");
+      session.Refresh();
+      if (JsonSerializer.SerializeToElement(session.Snapshot()).GetProperty("status").GetString() != "音乐来源和设备已刷新。")
+        throw new Exception("Explicit inventory refresh must remain available while idle.");
+
+      // An unreadable synthetic journal exercises retries without touching device routing.
+      string routes = Path.Combine(root, "routes");
+      Directory.CreateDirectory(routes);
+      string journal = Path.Combine(routes, "invalid-test-record.json");
+      File.WriteAllText(journal, "{");
+      session.Recover();
+      if (!JsonSerializer.SerializeToElement(session.Snapshot()).GetProperty("pendingRecovery").GetBoolean())
+        throw new Exception("The synthetic journal must require recovery.");
+      for (int i = 0; i < 20; i++) await session.Tick();
+      if (changes != 0) throw new Exception("Unchanged recovery errors must not be broadcast repeatedly.");
+      File.Delete(journal);
+      for (int i = 0; i < 10; i++) await session.Tick();
+      if (changes != 1 || JsonSerializer.SerializeToElement(session.Snapshot()).GetProperty("pendingRecovery").GetBoolean())
+        throw new Exception("Recovery completion must still publish its new state.");
+      for (int i = 0; i < 20; i++) await session.Tick();
+      if (changes != 1) throw new Exception("A recovered idle session must return to silence.");
+      Console.WriteLine("Idle session checks passed: no periodic snapshots, explicit refresh, recovery deduplication and completion.");
+    }
+    finally
+    {
+      Environment.SetEnvironmentVariable("LIRA_AUDIO_DATA_DIR", previousDirectory);
+      if (Path.GetDirectoryName(root) != Path.GetFullPath(scratch)) throw new Exception("Unsafe fixture cleanup path.");
+      Directory.Delete(root, true);
+    }
+  }
+
   static void CheckOutputVolume()
   {
     foreach (var (gain, volume) in new[] { (0.25, 0f), (0.25, 1f), (0.25, 2f), (0.75, 2f) })

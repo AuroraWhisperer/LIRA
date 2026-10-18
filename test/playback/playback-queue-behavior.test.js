@@ -139,12 +139,20 @@ test('queue rendering follows in-place metadata, match corrections and playlist 
   state.queueTitle = '本地歌单';
   state.normalQueueTracks.push(local, track('second', '第二首'));
   state.playlistIndex = 0;
+  state.current = local;
   popup.render(state);
   assert.match(list.innerHTML, /playlist-current[\s\S]*本地歌曲/);
   state.playlistIndex = 1;
   popup.render(state);
-  assert.match(list.innerHTML, /playlist-past[\s\S]*本地歌曲[\s\S]*playlist-current[\s\S]*第二首/);
+  assert.match(list.innerHTML, /playlist-current[\s\S]*本地歌曲/);
+  state.current = state.normalQueueTracks[1];
+  popup.render(state);
+  assert.match(list.innerHTML, /本地歌曲[\s\S]*playlist-current[\s\S]*第二首/);
+  assert.doesNotMatch(list.innerHTML, /playlist-past/);
   state.normalQueueTracks.splice(1, 1, track('replacement', '同位置替换曲目'));
+  popup.render(state);
+  assert.doesNotMatch(list.innerHTML, /playlist-current/);
+  state.current = state.normalQueueTracks[1];
   popup.render(state);
   assert.match(list.innerHTML, /playlist-current[\s\S]*同位置替换曲目/);
   assert.doesNotMatch(list.innerHTML, /第二首/);
@@ -585,6 +593,81 @@ test('clicking a track in the active playlist jumps without duplicating or repla
     persisted.normalQueue.map((item) => item.id),
     ['searched-between', 'liked-2', 'liked-3', 'liked-4'],
   );
+  assert.equal(app.audioPlayCalls(), 1);
+});
+
+for (const mode of ['sequence', 'repeat-one', 'shuffle']) {
+  test(`playlist previous wraps from the first track (${mode})`, async () => {
+    const tracks = [track('first', '第一首'), track('last', '最后一首')];
+    const app = await createPlaybackApp({ current: tracks[0], currentOrigin: 'normal',
+      normalQueueTracks: tracks, normalQueue: [tracks[1]], playlistIndex: 0,
+      queueType: 'playlist', mode, selectedSource: 'qq', volume: 0.75 });
+    await app.init();
+    await flushAsyncWork();
+    await app.emit('playbackQueueBtn', 'click');
+    app.element('music-player').currentTime = 11;
+    await app.emit('playbackPrev', 'click');
+    await flushAsyncWork();
+    assert.equal(app.savedState().current.id, 'last');
+    assert.equal(app.savedState().playlistIndex, 1);
+    assert.deepEqual(app.savedState().normalQueue, []);
+    assert.match(app.element('playbackQueueList').innerHTML, /第一首[\s\S]*playlist-current[\s\S]*最后一首/);
+    assert.doesNotMatch(app.element('playbackQueueList').innerHTML, /playlist-past/);
+    if (mode === 'shuffle') return;
+    await app.emit('playbackNext', 'click');
+    await flushAsyncWork();
+    assert.equal(app.savedState().current.id, 'first');
+    assert.equal(app.savedState().playlistIndex, 0);
+  });
+}
+
+test('playlist previous follows list order, aligns the cursor and restores the next track', async () => {
+  const tracks = [track('first', '第一首'), track('second', '第二首'), track('third', '第三首')];
+  const app = await createPlaybackApp({ current: tracks[1], currentOrigin: 'normal',
+    normalQueueTracks: tracks, normalQueue: [tracks[2]], playlistIndex: 1,
+    history: [track('unrelated', '其他歌单')], queueType: 'playlist', mode: 'sequence',
+    selectedSource: 'qq', volume: 0.75 });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackQueueBtn', 'click');
+  await app.emit('playbackPrev', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'first');
+  assert.equal(app.savedState().playlistIndex, 0);
+  assert.deepEqual(app.savedState().normalQueue.map(item => item.id), ['second', 'third']);
+  assert.match(app.element('playbackQueueList').innerHTML, /playlist-current[\s\S]*第一首/);
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'second');
+});
+
+for (const unavailable of [false, true]) {
+  test(`shuffle previous follows listening history and only commits an available track (${unavailable})`, async () => {
+    const tracks = [track('first', '第一首'), track('second', '第二首'), track('third', '第三首')];
+    const app = await createPlaybackApp({ current: tracks[1], currentOrigin: 'normal',
+      normalQueueTracks: tracks, normalQueue: [], playlistIndex: 1, history: [tracks[0], tracks[2]],
+      queueType: 'playlist', mode: 'shuffle', selectedSource: 'qq', volume: 0.75 },
+    { resolveStream: () => unavailable ? {} : { url: 'https://example.test/audio.mp3' } });
+    await app.init();
+    await flushAsyncWork();
+    await app.emit('playbackPrev', 'click');
+    await flushAsyncWork();
+    assert.equal(app.savedState().current.id, unavailable ? 'second' : 'third');
+    assert.equal(app.savedState().playlistIndex, unavailable ? 1 : 2);
+    assert.deepEqual(app.savedState().history.map(item => item.id), unavailable ? ['first', 'third'] : ['first']);
+  });
+}
+
+test('single-track playlist previous replays the same track', async () => {
+  const current = track('only', '唯一一首');
+  const app = await createPlaybackApp({ current, currentOrigin: 'normal', normalQueueTracks: [current],
+    normalQueue: [], playlistIndex: 0, queueType: 'playlist', mode: 'sequence', selectedSource: 'qq', volume: 0.75 });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPrev', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'only');
+  assert.equal(app.savedState().playlistIndex, 0);
   assert.equal(app.audioPlayCalls(), 1);
 });
 

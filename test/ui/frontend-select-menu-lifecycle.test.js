@@ -122,6 +122,30 @@ test('enhanced selects copy and clear the disabled reason on their visible trigg
   assert.equal(trigger.disabled, false);
 });
 
+test('selects notify consumers once per opening, including keyboard opening, without polling or changing the value', async () => {
+  const f = await createFixture();
+  const select = new f.Select();
+  f.form.append(select);
+  let openings = 0;
+  select.addEventListener('lira-select-open', () => { openings++; });
+  f.enhanceSelects(select);
+  const [, trigger] = select.parentNode.children;
+  const fire = (type, key) => trigger.dispatchEvent({ type, key, preventDefault() {} });
+  assert.equal(openings, 0);
+  fire('click');
+  fire('keydown', 'ArrowDown');
+  assert.equal(openings, 1, 'An already-open menu must not request another refresh');
+  fire('click');
+  assert.equal(openings, 1, 'Closing does not refresh');
+  fire('keydown', 'Enter');
+  assert.equal(openings, 2);
+  fire('click');
+  select.disabled = true;
+  fire('click');
+  assert.equal(openings, 2, 'Disabled routing controls must not refresh during processing');
+  assert.equal(select.value, '');
+});
+
 test('select blur waits for the next focused element and closes only outside its wrapper', async () => {
   const f = await createFixture();
   const select = new f.Select();
@@ -146,6 +170,35 @@ test('select blur waits for the next focused element and closes only outside its
   assert.equal(menu.hidden, true);
   assert.equal(trigger.getAttribute('aria-expanded'), 'false');
   assert.equal(f.document.activeElement, outside, 'closing must not steal focus back');
+});
+
+test('disabled placeholders stay visible but cannot be picked by click or keyboard', async () => {
+  const f = await createFixture();
+  const select = new f.Select();
+  for (const [value, text, disabled] of [['', '请选择观众', true], ['7', '观众', false]]) {
+    const option = f.document.createElement('option');
+    Object.assign(option, { value, textContent: text, disabled });
+    select.append(option);
+    select.options.push(option);
+  }
+  select.value = '';
+  f.form.append(select);
+  f.enhanceSelects(select);
+  const [, trigger, menu] = select.parentNode.children;
+  const [placeholder, viewer] = menu.querySelectorAll('[role="option"]');
+  const fire = (node, type, extra = {}) => node.dispatchEvent({ type, target: node, preventDefault() {}, ...extra });
+  assert.equal(placeholder.disabled, true);
+  assert.equal(placeholder.getAttribute('aria-disabled'), 'true');
+  fire(trigger, 'click');
+  assert.equal(f.document.activeElement, viewer, 'opening skips the placeholder without changing the selection');
+  assert.equal(select.value, '');
+  fire(menu, 'keydown', { key: 'Home' });
+  assert.equal(f.document.activeElement, viewer);
+  fire(menu, 'keydown', { key: 'Enter' });
+  assert.equal(select.value, '7');
+  fire(trigger, 'click');
+  fire(placeholder, 'click');
+  assert.equal(select.value, '7', 'even a dispatched placeholder click must not clear the selected viewer');
 });
 
 test('searchable font selects filter groups without changing selection and support text editing and keyboard choice', async () => {

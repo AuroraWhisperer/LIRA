@@ -219,11 +219,10 @@ export function renderQueueRow(track, origin, index, readonly, currentTrack, cur
  * @param {Object} track - 轨道对象
  * @param {number} index - 歌单索引
  * @param {boolean} isCurrent - 是否为当前播放
- * @param {boolean} isPast - 是否已播放过
  * @returns {string} HTML 字符串
  */
-export function renderPlaylistRow(track, index, isCurrent, isPast) {
-  const stateClass = isCurrent ? ' playlist-current' : isPast ? ' playlist-past' : '';
+export function renderPlaylistRow(track, index, isCurrent) {
+  const stateClass = isCurrent ? ' playlist-current' : '';
   const btnLabel = isCurrent ? '重播' : '播放';
   const songPrefix = isCurrent ? '<span class="playlist-now-icon" aria-hidden="true">▶</span> ' : '';
 

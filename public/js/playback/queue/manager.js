@@ -196,6 +196,19 @@ export class QueueManager {
     this.state.shuffleCursor = 0;
   }
 
+  getPreviousPlaylistIndex(previousTrack) {
+    const { normalQueueTracks: tracks, current, playlistIndex } = this.state;
+    if (this.state.queueType !== 'playlist' || !tracks.length) return -1;
+    if (previousTrack) {
+      return tracks.findIndex((track) => getQueueTrackKey(track) === getQueueTrackKey(previousTrack));
+    }
+    const currentKey = current ? getQueueTrackKey(current) : '';
+    const index = tracks[playlistIndex] && getQueueTrackKey(tracks[playlistIndex]) === currentKey
+      ? playlistIndex
+      : tracks.findIndex((track) => getQueueTrackKey(track) === currentKey);
+    return (Math.max(0, index) - 1 + tracks.length) % tracks.length;
+  }
+
   /**
    * 跳转到播放列表指定位置
    * @param {number} index - 目标索引

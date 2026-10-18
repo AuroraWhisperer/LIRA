@@ -16,6 +16,16 @@
   pointer-events: none;
 }
 
+.toast-stack[popover] {
+  left: auto;
+  bottom: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
 .toast {
   --toast-text: var(--color-toast-text, var(--text));
   --toast-secondary: var(--color-toast-secondary, var(--muted));

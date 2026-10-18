@@ -320,9 +320,11 @@ test('ambiguous folders ask which style to use instead of silently importing the
   const entry = dialog.getByRole('button', { name: '要使用的样式文件', exact: true });
   assert.equal(await entry.isVisible(), true);
   assert.equal(await dialog.locator('select').inputValue(), '');
+  assert.equal(await dialog.locator('select option:checked').evaluate(option => option.disabled), true);
   await dialog.getByRole('button', { name: '添加样式', exact: true }).click();
   assert.deepEqual(await listStyles(), []);
   await entry.click();
+  assert.equal(await dialog.getByRole('option', { name: '请选择要使用的样式', exact: true }).isDisabled(), true);
   await dialog.getByRole('option', { name: 'night.html', exact: true }).click();
   await dialog.getByRole('button', { name: '添加样式', exact: true }).click();
   await dialog.waitFor({ state: 'hidden' });

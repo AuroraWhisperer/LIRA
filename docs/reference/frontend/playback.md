@@ -132,6 +132,8 @@ playbackControls → audio.load()/play()
 - **收藏/歌单**:`playlist-operations.js` 通过 `/api/music/playlists/tracks/add|remove` 修改音乐 Provider 歌单，通过 `/api/music/home` 读取歌单；不调用本地 `/api/playback/favorites`。收藏/歌单展示数据经 `CacheManager` 24h 缓存跨启动保留。
 - **缓存统计**:`cache-operations.js` 展示 `GET /api/music/cache` 并支持 `/api/music/cache/clear`。
 
+歌单的「上一首」由 `QueueManager.getPreviousPlaylistIndex` 定位：顺序及单曲循环模式按列表回退，首曲环绕到末曲；随机模式优先使用实际播放历史，无历史时按列表回退。手动上一首不再按已播放 5 秒区分切歌与重置进度。`playback-controls` 接受有效音源后才消费历史，并通过 `jumpToPlaylistTrack` 同步游标、后续队列和随机顺序；失败或过时请求不提交回退状态。普通队列和电台仍回退实际历史，无历史但有当前歌曲时回到本曲开头。歌单高亮核对当前曲目键，游标不匹配时查找实际歌曲；同键重复条目优先保留匹配的游标位置。已播放条目保持正常显示，不作灰显。
+
 ## 6. 状态持久化(play_queue_state)
 
 `state-persistence.js` 在任何 await 之前读取管理页 HTML 的启动代次，并为本次 factory 分配页内 senderGeneration；每次保存通知只标记待保存并递增 sequence，完整曲目与队列快照在防抖发送或显式 flush 时捕获最新值。1500ms 防抖时机保持不变，不承诺持续事件期间的最长保存间隔。定时 HTTP 和卸载 IPC/beacon 携带相同 `snapshotVersion`，卸载直接发出快照，不等待网络握手。失败请求只可保留当前发送端最新序号的 pending，不能在较新保存后重新排入旧快照。旧发送端不会自动提代夺回写入权；独立调用须显式提供 `deps.snapshotWriter`，缺少启动信息时明确提示重新加载。服务端去重/拒绝及重启语义见 [API 合同](../backend/api.md) §5 和 [存储合同](../backend/storage.md) §3.4。
