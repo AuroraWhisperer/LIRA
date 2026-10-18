@@ -137,6 +137,7 @@ export function createAudioParameterQueue(send, onChange) {
 
 export function initAudioAssistantControls({ enabled, signal, bridge = window.audioAssistant }) {
   const page = document.getElementById('otherAudioAssistantFeature');
+  const mainPage = page.closest('.main-page');
   const panel = document.getElementById('audioAssistantPanel');
   const roots = [page, panel];
   const controls = roots.flatMap((root) => [...root.querySelectorAll('[data-audio-controls]')]);
@@ -318,11 +319,16 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
     }, { signal });
   }
   const unsubscribe = bridge?.onState(receive);
-  const observer = new MutationObserver(() => { if (!page.hidden) void load(); });
+  function loadVisibleSettings() {
+    if (!page.hidden && mainPage.classList.contains('active')) void load();
+  }
+  const observer = new MutationObserver(loadVisibleSettings);
   observer.observe(page, { attributes: true, attributeFilter: ['hidden'] });
+  observer.observe(mainPage, { attributes: true, attributeFilter: ['class'] });
   panel.addEventListener('toggle', () => { if (panel.matches(':popover-open')) void load(); }, { signal });
   render();
-  if (enabled() || !page.hidden) void load();
+  if (enabled()) void load();
+  else loadVisibleSettings();
   return {
     setEnabled(value) {
       render();

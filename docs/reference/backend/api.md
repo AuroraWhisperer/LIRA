@@ -281,10 +281,12 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `GET /api/health` | 匿名可用；有效管理 Bearer/query token 可读 ready 诊断详情；可选 `X-Lira-Instance-Challenge` | 匿名 `{serviceId,phase}`；详情与实例证明见 [server-core.md](server-core.md) §2/§7 | 400（Host 不匹配） |
 | `GET /api/state`            | 无                                                                                                                                                                        | 管理身份返回全量状态，overlay 返回 §0.0 的本页投影；管理数据与 WS 快照 `state` 一致(见 [ws.md](ws.md) §2)                                                      | —                    |
 | `GET /api/system/metrics`   | 查询参数 `windowMs`(可选,默认 5000)                                                                                                                                       | `getSystemMetrics` 采样窗口内 CPU/内存/GPU 指标(见 [server-core.md](server-core.md) §8)                                       | —                    |
-| `GET /api/system/hardware`  | 查询参数 `includeTemperatures=true`(可选)                                                                                                                                 | 本机 CPU/物理 GPU/内存型号与容量（排除虚拟显示适配器），以及当前显示器配置；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号                 | —                    |
+| `GET /api/system/hardware`  | 查询参数 `includeTemperatures=true`(可选)                                                                                                                                 | 本机操作系统版本、CPU/物理 GPU/内存型号与容量（排除虚拟显示适配器），以及当前显示器配置；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号                 | —                    |
 | `POST /api/system/shutdown` | body `{confirm: true}`(必须)                                                                                                                                              | `{shuttingDown: true}`,随后延迟 250ms 关闭服务                                                                                | 400 `缺少退出确认。` |
 
-硬件查询的 `displays` 为主屏优先的数组，元素为 `{name,primary,width,height,scalePercent,refreshRate}`；宽高是 Windows 当前显示模式的像素值，不是网页逻辑尺寸或屏幕最大支持分辨率。缩放百分比与刷新率（Hz）未知时为 `null`，Windows 默认频率标记 0/1 不作实际 Hz 展示。显示配置每次查询重新读取，CPU/GPU/内存型号仍缓存；不支持、读取失败或无可用显示器时返回 `displays:[]` 和 `displayMessage`，不阻断其他硬件信息。性能页打开和开始检测时查询，不后台轮询。
+硬件查询的 `operatingSystem` 为 `{name,displayVersion,buildNumber}`，均为字符串：`name` 为系统名称及版本类型，`displayVersion` 为功能版本（如 `25H2`），`buildNumber` 为系统内部版本（如 `26200.6899`）。未知名称为“未知系统”，其余未知字段为空字符串；只知道主 build 时不补造修订号。系统版本随静态硬件信息在进程内缓存。
+
+硬件查询的 `displays` 为主屏优先的数组，元素为 `{name,primary,width,height,scalePercent,refreshRate}`；宽高是 Windows 当前显示模式的像素值，不是网页逻辑尺寸或屏幕最大支持分辨率。缩放百分比与刷新率（Hz）未知时为 `null`，Windows 默认频率标记 0/1 不作实际 Hz 展示。显示配置每次查询重新读取，系统版本与 CPU/GPU/内存型号仍缓存；不支持、读取失败或无可用显示器时返回 `displays:[]` 和 `displayMessage`，不阻断其他硬件信息。性能页打开和开始检测时查询，不后台轮询。
 
 行为文档:[server-core.md](server-core.md) §6(启动/关闭时序)。
 

@@ -126,6 +126,8 @@ async function readStaticHardwareSummary() {
     cpuModel: os.cpus()[0]?.model || '',
     logicalCpuCount: os.cpus().length,
     totalMemoryBytes: os.totalmem(),
+    osName: os.version(),
+    osBuild: process.platform === 'win32' ? os.release().split('.')[2] : '',
   };
   if (process.platform !== 'win32') {
     return buildHardwareSummary({}, osSnapshot);
@@ -142,6 +144,13 @@ function readWindowsDeviceDetails() {
   const command = `
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$operatingSystem = $null
+$windowsVersion = $null
+try { $operatingSystem = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, BuildNumber } catch {}
+try {
+  $windowsVersion = Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion' |
+    Select-Object DisplayVersion, ReleaseId, UBR
+} catch {}
 $gpus = @(foreach ($gpu in Get-CimInstance Win32_VideoController) {
   $videoMemoryBytes = $null
   try {
@@ -158,6 +167,8 @@ $gpus = @(foreach ($gpu in Get-CimInstance Win32_VideoController) {
   }
 })
 [pscustomobject]@{
+  operatingSystem = $operatingSystem
+  windowsVersion = $windowsVersion
   cpus = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors)
   memoryModules = @(Get-CimInstance Win32_PhysicalMemory | Select-Object Manufacturer, PartNumber, Capacity, Speed)
   gpus = $gpus
@@ -281,8 +292,15 @@ function buildHardwareSummary(details = {}, osSnapshot = {}) {
   const logicalCpuCount =
     positiveInteger(primaryCpu.NumberOfLogicalProcessors) || positiveInteger(osSnapshot.logicalCpuCount) || null;
   const physicalCores = cpus.reduce((total, cpu) => total + positiveInteger(cpu.NumberOfCores), 0) || null;
+  const buildNumber = hardwareText(details.operatingSystem?.BuildNumber) || hardwareText(osSnapshot.osBuild);
+  const revision = details.windowsVersion?.UBR;
 
   return {
+    operatingSystem: {
+      name: hardwareText(details.operatingSystem?.Caption) || hardwareText(osSnapshot.osName) || '未知系统',
+      displayVersion: hardwareText(details.windowsVersion?.DisplayVersion) || hardwareText(details.windowsVersion?.ReleaseId),
+      buildNumber: buildNumber && Number.isInteger(revision) && revision >= 0 ? `${buildNumber}.${revision}` : buildNumber,
+    },
     cpu: {
       model: hardwareText(primaryCpu.Name) || hardwareText(osSnapshot.cpuModel) || '未知 CPU',
       physicalCores,
@@ -319,6 +337,7 @@ function buildHardwareSummary(details = {}, osSnapshot = {}) {
 
 function cloneHardwareSummary(summary) {
   return {
+    operatingSystem: { ...summary.operatingSystem },
     cpu: { ...summary.cpu },
     memory: {
       ...summary.memory,

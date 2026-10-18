@@ -139,25 +139,33 @@ export const metrics = (() => {
   async function loadHardwareSummary(includeTemperatures) {
     if (hardwareLoading) return;
     hardwareLoading = true;
-    document.getElementById('hardwareSummaryStatus').textContent = '正在读取本机硬件信息';
+    document.getElementById('hardwareSummaryStatus').textContent = '正在读取本机信息';
 
     try {
       const response = await fetch(`/api/system/hardware?includeTemperatures=${includeTemperatures}`);
       const payload = await response.json();
-      if (!payload.ok) throw new Error(payload.error || '硬件信息读取失败');
+      if (!payload.ok) throw new Error(payload.error || '本机信息读取失败');
       renderHardwareSummary(payload.data, includeTemperatures);
     } catch (_) {
-      document.getElementById('hardwareSummaryStatus').textContent = '硬件信息暂不可用，不影响性能检测';
+      document.getElementById('hardwareSummaryStatus').textContent = '本机信息暂不可用，不影响性能检测';
+      setHardwareText('hardwareOsName', '暂不可用');
+      setHardwareText('hardwareOsVersion', '未知');
+      setHardwareText('hardwareOsBuild', '未知');
     } finally {
       hardwareLoading = false;
     }
   }
 
   function renderHardwareSummary(summary, includesTemperatures) {
+    const operatingSystem = summary.operatingSystem || {};
     const cpu = summary.cpu || {};
     const memory = summary.memory || {};
     const gpus = Array.isArray(summary.gpus) ? summary.gpus : [];
     const memoryModules = Array.isArray(memory.modules) ? memory.modules : [];
+
+    setHardwareText('hardwareOsName', operatingSystem.name || '未知系统');
+    setHardwareText('hardwareOsVersion', operatingSystem.displayVersion || '未知');
+    setHardwareText('hardwareOsBuild', operatingSystem.buildNumber || '未知');
 
     setHardwareText('hardwareCpuModel', cpu.model || '未知 CPU');
     setHardwareText(
@@ -203,8 +211,8 @@ export const metrics = (() => {
         : 'Windows 未返回内存条型号',
     );
     document.getElementById('hardwareSummaryStatus').textContent = includesTemperatures
-      ? '型号和容量已缓存；GPU 温度为本次检测时临时读取'
-      : '型号和容量已读取；GPU 温度仅在检测时读取';
+      ? '系统版本、型号和容量已缓存；GPU 温度为本次检测时临时读取'
+      : '系统版本、型号和容量已读取；GPU 温度仅在检测时读取';
     renderDisplays(summary);
   }
 

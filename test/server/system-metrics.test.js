@@ -134,6 +134,34 @@ test('hardware summary uses small legacy allocations but rejects saturated 32-bi
   assert.deepEqual(summary.gpus.map((gpu) => gpu.videoMemoryBytes), [134217728, null, null]);
 });
 
+test('hardware summary preserves Windows edition and combines build with its update revision', () => {
+  for (const [name, displayVersion, build, revision] of [
+    ['Microsoft Windows 11 专业版', '25H2', '26200', 6899],
+    ['Microsoft Windows 10 家庭版', '22H2', '19045', 0],
+  ]) {
+    const summary = buildHardwareSummary({
+      operatingSystem: { Caption: ` ${name} `, BuildNumber: build, SerialNumber: 'must-not-leak' },
+      windowsVersion: { DisplayVersion: displayVersion, UBR: revision, ProductId: 'must-not-leak' },
+    });
+    assert.deepEqual(summary.operatingSystem, { name, displayVersion, buildNumber: `${build}.${revision}` });
+    assert.doesNotMatch(JSON.stringify(summary), /must-not-leak/);
+  }
+});
+
+test('missing Windows details retain known system information without inventing an update revision', () => {
+  const snapshot = { osName: 'Windows 11 Pro', osBuild: '26200' };
+  assert.deepEqual(buildHardwareSummary({}, snapshot).operatingSystem, {
+    name: 'Windows 11 Pro', displayVersion: '', buildNumber: '26200',
+  });
+  assert.equal(buildHardwareSummary({ windowsVersion: { ReleaseId: '1809', UBR: null } }, snapshot)
+    .operatingSystem.displayVersion, '1809');
+  assert.equal(buildHardwareSummary({ windowsVersion: { UBR: null } }, snapshot)
+    .operatingSystem.buildNumber, '26200');
+  assert.deepEqual(buildHardwareSummary().operatingSystem, {
+    name: '未知系统', displayVersion: '', buildNumber: '',
+  });
+});
+
 test('hardware summary excludes virtual display adapters from the GPU list', () => {
   const summary = buildHardwareSummary({
     gpus: [
@@ -163,6 +191,7 @@ test('hardware service caches static reads and refreshes temperatures only on re
     readStatic: async () => {
       staticCalls += 1;
       return {
+        operatingSystem: { name: 'Windows 11 Pro', displayVersion: '25H2', buildNumber: '26200.6899' },
         cpu: {
           model: 'CPU',
           physicalCores: 4,
@@ -190,11 +219,13 @@ test('hardware service caches static reads and refreshes temperatures only on re
   });
 
   const initial = await service.getHardwareSummary(false);
+  initial.operatingSystem.name = 'changed by consumer';
   const refreshed = await service.getHardwareSummary(true);
   await service.getHardwareSummary(false);
 
   assert.equal(staticCalls, 1);
   assert.equal(temperatureCalls, 1);
+  assert.equal(refreshed.operatingSystem.name, 'Windows 11 Pro');
   assert.equal(initial.gpus[0].temperatureCelsius, null);
   assert.equal(refreshed.gpus[0].temperatureCelsius, 62);
   assert.equal(refreshed.gpus[0].temperatureMessage, '');

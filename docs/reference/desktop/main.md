@@ -2,7 +2,9 @@
 
 ## 电音助手生命周期
 
-`main.js` 装配 `audio-assistant.js` 与受限 IPC。打开电音助手设置或启用入口时才启动原生工作程序；一个桌面实例复用一个进程。开发时从 `build/audio-assistant`、安装后从 `resources/audio-assistant` 加载，使用 Electron 自带 Node 管理标准输入/输出，不开放网络端口。无窗口 C# 宿主复用成熟分离、变调、WASAPI 与路由守护，renderer 只消费统一会话状态。
+实时进程采集（含 LIRA 内置播放）的版本下限为 Windows 10 2004（Build 19041），也允许 Windows 11；由 `ProcessCapture.SupportsWindowsVersion` 定义，`AudioSession.Start` 在改动设备路由前检查。本地文件不经过进程采集检查。微软[示例说明](https://learn.microsoft.com/en-us/samples/microsoft/windows-classic-samples/applicationloopbackaudio-sample/)标注 20348，但 [OBS 官方实现](https://github.com/obsproject/obs-studio/blob/master/plugins/win-wasapi/plugin-main.cpp)对同一接口采用 19041；本实现沿用该兼容边界。版本通过不跳过实际接口、设备隔离或失败恢复检查。
+
+`main.js` 装配 `audio-assistant.js` 与受限 IPC。打开电音助手设置或启用入口时才启动原生工作程序；一个桌面实例复用一个进程。设置页须同时满足百宝箱主页面激活、该子面板未隐藏；登录时仅恢复上次选中项不触发启动。开发时从 `build/audio-assistant`、安装后从 `resources/audio-assistant` 加载，使用 Electron 自带 Node 管理标准输入/输出，不开放网络端口。无窗口 C# 宿主复用成熟分离、变调、WASAPI 与路由守护，renderer 只消费统一会话状态。
 
 主开关关闭会停止当前处理；切歌、换播放器、设备冲突由原生会话自动停止。正常桌面退出将工作程序的 stdin 关闭并纳入现有 shutdown 排空；故障退出后独立路由守护仍负责恢复，已退出播放器的恢复记录保留到其下次自然启动。不会安装驱动或改变系统默认输出。边界见 [IPC](preload.md#电音助手)、[本机数据](../backend/storage.md#电音助手本机数据) 与 [资源构建](../engineering/build.md#电音助手原生资源)。
 

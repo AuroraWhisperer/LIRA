@@ -6,6 +6,106 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const entry = path.resolve('public/js/admin/audio-assistant-controls.js');
 
+async function createControlsFixture({ enabled = false, selected = false, visible = false } = {}) {
+  const nodes = new Map();
+  function getElementById(id) {
+    if (!nodes.has(id)) nodes.set(id, Object.assign(new EventTarget(), {
+      dataset: {}, hidden: false, querySelectorAll: () => [], replaceChildren() {},
+    }));
+    return nodes.get(id);
+  }
+  const page = getElementById('otherAudioAssistantFeature');
+  const mainPage = getElementById('otherAssistantPage');
+  const panel = getElementById('audioAssistantPanel');
+  page.hidden = !selected;
+  mainPage.classList = { contains: (name) => name === 'active' && visible };
+  page.closest = (selector) => selector === '.main-page' ? mainPage : null;
+  page.querySelector = () => ({ setAttribute() {}, firstElementChild: { style: {} } });
+  panel.matches = () => false;
+  const observed = new Map();
+  let notify;
+  let subscriptions = 0;
+  const calls = [];
+  const { initAudioAssistantControls } = await loadModuleExports(entry, {
+    document: { getElementById },
+    Option: function (name, id) { this.textContent = name; this.value = id; },
+    clearTimeout,
+    MutationObserver: class {
+      constructor(callback) { notify = callback; }
+      observe(target, options) { observed.set(target, options.attributeFilter); }
+      disconnect() { observed.clear(); }
+    },
+  });
+  const controls = initAudioAssistantControls({ enabled: () => enabled, signal: new AbortController().signal,
+    bridge: {
+      onState() { subscriptions++; return () => subscriptions--; },
+      async invoke({ op }) {
+        calls.push(op);
+        return { ok: true, state: { ready: true, status: '音乐来源和设备已刷新。' } };
+      },
+    },
+  });
+  function mutate(target, attribute) {
+    if (observed.get(target)?.includes(attribute)) notify();
+  }
+  return {
+    controls, calls,
+    get subscriptions() { return subscriptions; },
+    select(value) { page.hidden = !value; mutate(page, 'hidden'); },
+    show(value) { visible = value; mutate(mainPage, 'class'); },
+    enable(value) { enabled = value; controls.setEnabled(value); },
+  };
+}
+
+test('disabled audio assistant stays idle when login restores its selection inside the hidden toolbox', async (t) => {
+  const fixture = await createControlsFixture();
+  t.after(() => fixture.controls.dispose());
+  fixture.select(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(fixture.calls, [], 'Restoring a selected panel is not opening the toolbox');
+  fixture.show(true);
+  fixture.select(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(fixture.calls, ['get'], 'Opening the selected settings must initialize only once');
+  fixture.show(false);
+  fixture.show(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(fixture.calls, ['get']);
+});
+
+test('audio settings initialize only when both the toolbox and their selected panel are visible', async (t) => {
+  for (const state of [
+    { selected: false, visible: true },
+    { selected: true, visible: false },
+    { selected: true, visible: true },
+  ]) {
+    const fixture = await createControlsFixture(state);
+    t.after(() => fixture.controls.dispose());
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(fixture.calls, state.selected && state.visible ? ['get'] : []);
+    fixture.show(true);
+    fixture.select(true);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(fixture.calls, ['get']);
+  }
+});
+
+test('enabling the audio assistant loads it outside the toolbox and disposal releases its observers', async () => {
+  for (const enabled of [false, true]) {
+    const fixture = await createControlsFixture({ enabled });
+    try {
+      if (!enabled) fixture.enable(true);
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.deepEqual(fixture.calls, ['get']);
+      assert.equal(fixture.subscriptions, 1);
+    } finally { fixture.controls.dispose(); }
+    fixture.show(true);
+    fixture.select(true);
+    assert.equal(fixture.subscriptions, 0);
+    assert.deepEqual(fixture.calls, ['get']);
+  }
+});
+
 test('audio device labels explain virtual channels and translate speakers without hiding the device identity', async () => {
   const { formatAudioDeviceName } = await loadModuleExports(entry);
   assert.equal(formatAudioDeviceName('Speaker (Realtek(R) Audio)'), '扬声器 (Realtek(R) Audio)');

@@ -91,10 +91,24 @@
     <section class="hardware-summary" aria-labelledby="hardwareSummaryTitle">
       <div class="hardware-summary-head">
         <div>
-          <h4 id="hardwareSummaryTitle" class="ui-section-title">本机硬件</h4>
-          <p id="hardwareSummaryStatus">打开性能页后读取型号和容量；GPU 温度仅在检测时读取</p>
+          <h4 id="hardwareSummaryTitle" class="ui-section-title">本机信息</h4>
+          <p id="hardwareSummaryStatus">打开性能页后读取系统版本、型号和容量；GPU 温度仅在检测时读取</p>
         </div>
       </div>
+      <dl class="hardware-system" aria-label="操作系统版本">
+        <div class="hardware-system-name">
+          <dt>操作系统</dt>
+          <dd id="hardwareOsName">等待读取</dd>
+        </div>
+        <div>
+          <dt>版本</dt>
+          <dd id="hardwareOsVersion">--</dd>
+        </div>
+        <div>
+          <dt>OS 内部版本</dt>
+          <dd id="hardwareOsBuild">--</dd>
+        </div>
+      </dl>
       <div class="hardware-grid">
         <article class="hardware-card hardware-card--cpu">
           <div class="hardware-card-top">

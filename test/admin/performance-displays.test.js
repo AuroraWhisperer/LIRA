@@ -22,6 +22,28 @@ async function fixture(fetch) {
 const primary = { name: '显示器 1', primary: true, width: 2560, height: 1440, scalePercent: 150, refreshRate: 240 };
 const secondary = { name: '显示器 2', primary: false, width: 1080, height: 1920, scalePercent: null, refreshRate: null };
 
+test('system row displays Windows name, feature version and OS build and clears missing fields', async () => {
+  const { metrics, elements } = await fixture();
+  metrics.renderHardwareSummary({ operatingSystem: {
+    name: 'Microsoft Windows 11 专业版', displayVersion: '25H2', buildNumber: '26200.6899',
+  } }, false);
+  assert.equal(elements.get('hardwareOsName').textContent, 'Microsoft Windows 11 专业版');
+  assert.equal(elements.get('hardwareOsVersion').textContent, '25H2');
+  assert.equal(elements.get('hardwareOsBuild').textContent, '26200.6899');
+  metrics.renderHardwareSummary({}, true);
+  assert.equal(elements.get('hardwareOsName').textContent, '未知系统');
+  assert.equal(elements.get('hardwareOsVersion').textContent, '未知');
+  assert.equal(elements.get('hardwareOsBuild').textContent, '未知');
+});
+
+test('failed hardware queries leave the Windows row in an unavailable state', async () => {
+  const { metrics, elements } = await fixture(async () => { throw new Error('unavailable'); });
+  await metrics.loadHardwareSummary(false);
+  assert.equal(elements.get('hardwareOsName').textContent, '暂不可用');
+  assert.equal(elements.get('hardwareOsVersion').textContent, '未知');
+  assert.equal(elements.get('hardwareOsBuild').textContent, '未知');
+});
+
 test('display rows show physical pixels, per-screen settings and only the primary badge', async () => {
   const { metrics, elements } = await fixture();
   metrics.renderHardwareSummary({ displays: [primary, secondary] }, false);

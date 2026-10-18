@@ -198,6 +198,41 @@
   font-size: var(--type-size-caption);
 }
 
+.hardware-system {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-md) var(--spacing-xl);
+  margin: 0;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface));
+}
+
+.hardware-system > div {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.hardware-system > .hardware-system-name {
+  flex: 2 1 240px;
+}
+
+.hardware-system dt {
+  margin-bottom: var(--spacing-xs);
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.hardware-system dd {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
 .hardware-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr) minmax(0, 1fr);

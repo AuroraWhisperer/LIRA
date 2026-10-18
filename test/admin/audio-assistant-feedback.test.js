@@ -25,7 +25,7 @@ test('audio failures explain known native and desktop problems in Chinese with a
     ['Windows 未应用播放器隔离路由。', /系统默认.*独占模式/],
     ['原声通道被解除静音，已停止处理，避免重复播放。', /避免原声和处理后的声音同时播放/],
     ['歌曲已切换，请重新开启当前歌曲处理。', /重新开启「当前歌曲」/],
-    ['外部实时处理需要 Windows 11 或 Build 20348 以上系统。', /升级系统.*本地文件/],
+    ['外部实时处理需要 Windows 10 2004（Build 19041）或更新版本。', /Windows 10 2004.*更新 Windows.*本地文件/],
     ['音频组件未就绪，请重新安装完整客户端；开发环境请先运行 npm run build:audio-assistant。', /重新安装完整的 LIRA/],
     ['人声分离模型校验失败，请重新安装完整客户端。', /组件缺失或损坏/],
     ['变速变调引擎初始化失败。', /重新安装完整/],

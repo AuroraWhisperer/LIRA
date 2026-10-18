@@ -127,8 +127,8 @@ internal sealed class AudioSession : IDisposable
     {
       bool external = source != "file";
       if (!external && filePath == null) throw new InvalidOperationException("请先选择一首本地歌曲。");
-      if (external && !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 20348))
-        throw new InvalidOperationException("外部实时处理需要 Windows 11 或 Build 20348 以上系统。当前系统可使用本地歌曲。");
+      if (external && !ProcessCapture.SupportsWindowsVersion(Environment.OSVersion.Version))
+        throw new InvalidOperationException("外部实时处理需要 Windows 10 2004（Build 19041）或更新版本。请更新 Windows，或使用本地歌曲。");
       if (external && !outputs.Any(d => d.Id == settings.CableId))
         throw new InvalidOperationException("请先选择已有的独立原声通道；没有可用通道时可使用本地歌曲。");
       apps = AudioDevices.Apps(names);

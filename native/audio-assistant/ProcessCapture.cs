@@ -13,6 +13,9 @@ public sealed class ProcessCapture : IDisposable
   public event Action<Exception>? Failed;
   public long Frames { get; private set; }
 
+  // OBS uses this same process-loopback API on Windows 10 2004 and later.
+  internal static bool SupportsWindowsVersion(Version version) => version >= new Version(10, 0, 19041);
+
   public Task Start(int pid)
   {
     var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

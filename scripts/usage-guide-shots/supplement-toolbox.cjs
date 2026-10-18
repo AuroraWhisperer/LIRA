@@ -183,7 +183,7 @@ const SHOTS = [
   },
   { id: 'E19', file: 'toolbox-fan-profiles', title: '粉丝档案入口与筛选', feature: 'otherFanProfilesFeature' },
   { id: 'E20', file: 'toolbox-settings', title: '账户与网站设置（示例账号）', feature: 'otherSettingsFeature' },
-  { id: 'E21', file: 'toolbox-performance', title: '性能页与本机硬件入口', feature: 'otherPerformanceFeature' },
+  { id: 'E21', file: 'toolbox-performance', title: '性能页与本机信息入口', feature: 'otherPerformanceFeature' },
   {
     id: 'E10c',
     file: 'toolbox-rating',

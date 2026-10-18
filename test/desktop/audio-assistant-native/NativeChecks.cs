@@ -6,6 +6,7 @@ internal static class NativeChecks
 {
   static async Task Main(string[] args)
   {
+    CheckWindowsCompatibility();
     await InstallationExitChecks.Run(args[0], args[1]);
     await CheckIdleSession(args[1]);
     // Construction verifies the packaged model hash and runs a warm-up inference.
@@ -25,6 +26,17 @@ internal static class NativeChecks
     if (!SongMonitor.MatchesApp("com.aurorawhisperer.lira", "LIRA") || SongMonitor.MatchesApp("other.app", "LIRA"))
       throw new Exception("LIRA must use the desktop's existing media-session identity");
   }
+  static void CheckWindowsCompatibility()
+  {
+    foreach (int build in new[] { 19041, 19044, 19045, 20348, 22000, 26100 })
+      if (!ProcessCapture.SupportsWindowsVersion(new Version(10, 0, build)))
+        throw new Exception($"Process capture must allow Windows build {build}.");
+    foreach (var version in new[] { new Version(6, 3, 9600), new Version(10, 0, 18363), new Version(10, 0, 19040) })
+      if (ProcessCapture.SupportsWindowsVersion(version))
+        throw new Exception($"Process capture must reject Windows {version} before changing audio routes.");
+    Console.WriteLine("Windows compatibility checks passed: Windows 10 2004+, Windows 11 and older version rejection.");
+  }
+
   static async Task CheckIdleSession(string scratch)
   {
     string root = Path.Combine(Path.GetFullPath(scratch), "audio-idle-" + Guid.NewGuid().ToString("N"));
