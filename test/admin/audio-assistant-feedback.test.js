@@ -74,6 +74,62 @@ test('inline audio status stays short and never includes failure details', async
   assert.equal(formatAudioStatus({ ...state, running: true, status: '原声已隔离 · 等待播放器声音' }), '正在等待播放器声音');
 });
 
+test('restored deferred recovery stays inline during startup and polling, but an explicit retry gives feedback', async () => {
+  const { createAudioFeedback, formatAudioStatus } = await loadModuleExports(entry);
+  const notices = [];
+  const feedback = createAudioFeedback((message, options) => notices.push({ message, options }));
+  feedback.receive({ ready: false, status: '电音助手尚未启动。' });
+  const state = { ready: true, running: false, pendingRecovery: true, status: '音乐来源和设备已刷新。' };
+  feedback.begin();
+  feedback.receive(state);
+  feedback.finish('get', { ok: true });
+  for (const op of ['refresh', 'configure']) {
+    feedback.begin();
+    feedback.receive(state);
+    feedback.finish(op, { ok: true });
+  }
+  state.status = '后台将在播放器下次启动时恢复原声。';
+  for (let i = 0; i < 20; i++) feedback.receive({ ...state });
+  assert.equal(notices.length, 0, 'A saved recovery task is not a new failure in the current playback');
+  assert.equal(formatAudioStatus(state), '等待恢复原声');
+  feedback.begin();
+  feedback.receive(state);
+  feedback.finish('recover', { ok: true });
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].options.type, 'warning');
+  feedback.receive({ ...state });
+  assert.equal(notices.length, 1);
+});
+
+test('new deferred recovery still warns after processing, including when old recovery tasks are present', async () => {
+  const { createAudioFeedback } = await loadModuleExports(entry);
+  for (const inheritedRecovery of [false, true]) {
+    const notices = [];
+    const feedback = createAudioFeedback((message) => notices.push(message));
+    const state = { ready: true, pendingRecovery: inheritedRecovery, status: '音乐来源和设备已刷新。' };
+    feedback.receive(state);
+    feedback.receive({ ...state, starting: true, status: '正在启动音频处理…' });
+    feedback.receive({ ...state, running: true, status: '原声已隔离 · 等待播放器声音' });
+    assert.equal(notices.length, 0, 'Existing recovery work must not interrupt the next processing session');
+    const stopped = { ...state, pendingRecovery: true, status: '已停止；后台将在播放器下次启动时恢复原声。' };
+    feedback.receive(stopped);
+    feedback.receive(stopped);
+    assert.equal(notices.length, 1, 'Recovery needed after the current session must still be announced');
+  }
+});
+
+test('a real recovery failure is reported even in the first startup snapshot', async () => {
+  const { createAudioFeedback } = await loadModuleExports(entry);
+  const notices = [];
+  const feedback = createAudioFeedback((message, options) => notices.push({ message, options }));
+  feedback.begin();
+  feedback.receive({ ready: true, pendingRecovery: true, status: '原声通道恢复未完成：native error' });
+  feedback.finish('get', { ok: true });
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].options.type, 'error');
+  assert.match(notices[0].message, /原声尚未完全恢复/);
+});
+
 test('command failures and repeated background states produce one toast, while an explicit retry can notify again', async () => {
   const { createAudioFeedback } = await loadModuleExports(entry);
   const notices = [];

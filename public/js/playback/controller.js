@@ -168,7 +168,11 @@ export function createPlaybackController(initialOptions = {}) {
 
   const uiRenderer = new UIRenderer();
   const weSingService = new WeSingService({
-    onStateChange: renderPlayback,
+    onStateChange: () => {
+      if (playbackState.selectedSource === 'wesing') {
+        void providerOperations.refreshSelectedMusicProviderState();
+      }
+    },
     showError: (error) => showError(error),
     toast: (message) => toast(message),
     readJsonResponse: (response, message) => readJsonResponse(response, message),

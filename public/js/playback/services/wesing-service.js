@@ -230,6 +230,7 @@ export class WeSingService {
 
   applyStatus(nextState) {
     if (!nextState || typeof nextState !== 'object') return;
+    const previousStatus = this.status;
     this.status = {
       ...this.status,
       ...nextState,
@@ -240,7 +241,11 @@ export class WeSingService {
     };
     this.applyLyricState(this.status.lyricState, { notify: false });
     this.render();
-    this.onStateChange(this.status);
+    // Progress and lyrics belong to this view; only provider health affects the shared player.
+    if (['supported', 'cacheReady', 'platformDetected', 'status', 'message']
+      .some((key) => previousStatus[key] !== this.status[key])) {
+      this.onStateChange(this.status);
+    }
   }
 
   applyLyricState(nextState, options = {}) {

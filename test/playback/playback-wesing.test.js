@@ -8,6 +8,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { readCssBundle } = require('../helpers/css-bundle');
+const { createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 
@@ -121,6 +122,43 @@ test('WeSing browser client selects its preference, saves settings and follows o
   assert.equal(windowListeners.has('app:lyric-state'), false, 'global lyric output can belong to another player');
   windowListeners.get('app:wesing-state')({ detail: { lyricState: { lineText: '全民歌词' } } });
   assert.equal(service.status.lyricState.lineText, '全民歌词');
+});
+
+test('WeSing pushes only refresh the active provider when its health changes', async () => {
+  const app = await createPlaybackApp({
+    current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+  }, { sourceTabs: ['qq', 'wesing'] });
+  await app.init();
+  await flushAsyncWork();
+  const title = app.element('playbackTrackTitle');
+  let titleText = title.textContent;
+  let playerRenders = 0;
+  Object.defineProperty(title, 'textContent', {
+    get: () => titleText,
+    set(value) { playerRenders++; titleText = value; },
+  });
+  await app.emitWindow('app:wesing-state', { detail: {
+    platformDetected: true, cacheReady: true, status: 'ready', message: '已就绪',
+  } });
+  assert.equal(playerRenders, 0, 'an inactive provider must not redraw the online player');
+
+  await app.emit('source-tab-wesing', 'click');
+  await flushAsyncWork();
+  assert.equal(app.element('playbackSourceStatus').textContent, '已检测到全民 K歌');
+  playerRenders = 0;
+  for (let index = 0; index < 20; index++) {
+    await app.emitWindow('app:wesing-state', { detail: {
+      playing: true, currentMs: index * 100, lyricState: { lineText: `歌词 ${index}`, currentMs: index * 100 },
+    } });
+  }
+  assert.equal(playerRenders, 0, 'progress and lyrics update the WeSing view without redrawing the player');
+  await app.emitWindow('app:wesing-state', { detail: {
+    platformDetected: false, status: 'inactive', message: '等待检测',
+  } });
+  assert.equal(playerRenders, 1);
+  assert.equal(app.element('playbackSourceStatus').textContent, '全民 K歌等待检测');
+  assert.equal(app.element('playbackProviderHealth').textContent, '等待检测');
+  assert.equal(app.resolveStreamRequestCount(), 0, 'status pushes do not request song quality or stream URLs');
 });
 
 test('playback state accepts WeSing as a persisted source', async () => {

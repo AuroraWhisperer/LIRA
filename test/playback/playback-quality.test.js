@@ -4,6 +4,59 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
+test('quality options survive background updates and still reflect selection and stream fallback', async () => {
+  const app = await createPlaybackApp({
+    current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+  }, {
+    resolveStream: () => ({ url: 'https://example.test/audio.mp3', quality: 'high' }),
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackQualityBtn', 'click', { stopPropagation() {} });
+  const panel = app.element('playbackQualityPanel');
+  let html = panel.innerHTML;
+  let writes = 0;
+  Object.defineProperty(panel, 'innerHTML', {
+    get: () => html,
+    set(value) { writes++; html = value; },
+  });
+
+  await app.emit('music-player', 'pause');
+  for (let index = 0; index < 20; index++) {
+    await app.emitWindow('app:wesing-state', { detail: { currentMs: index * 250, playing: true } });
+  }
+  assert.equal(writes, 0, 'unchanged options must retain the buttons being focused or clicked');
+  assert.equal(panel.getAttribute('aria-hidden'), 'false');
+
+  await app.emit('playbackQualityPanel', 'click', {
+    stopPropagation() {}, target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
+  });
+  assert.equal(writes, 1, 'changing the preference updates the selected option once');
+  assert.match(html, /aria-checked="true" data-playback-quality="lossless"/);
+  assert.equal(app.savedState().qualityPreferences.qq, 'lossless');
+  assert.equal(app.element('playbackQualityLabel').textContent, 'HQ', 'the label still follows actual stream quality');
+  assert.deepEqual(app.errors(), []);
+});
+
+test('quality options follow provider changes and restore each provider preference', async () => {
+  const app = await createPlaybackApp({
+    selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+    qualityPreferences: { qq: 'lossless', netease: 'exhigh' },
+  }, { sourceTabs: ['qq', 'netease', 'wesing'] });
+  await app.init();
+  await flushAsyncWork();
+  const panel = app.element('playbackQualityPanel');
+  assert.match(panel.innerHTML, /aria-checked="true" data-playback-quality="lossless"/);
+  await app.emit('source-tab-netease', 'click');
+  assert.match(panel.innerHTML, /aria-checked="true" data-playback-quality="exhigh"/);
+  assert.doesNotMatch(panel.innerHTML, /data-playback-quality="premium"/);
+  await app.emit('source-tab-wesing', 'click');
+  assert.equal(panel.innerHTML, '');
+  await app.emit('source-tab-qq', 'click');
+  assert.match(panel.innerHTML, /aria-checked="true" data-playback-quality="lossless"/);
+  assert.match(panel.innerHTML, /data-playback-quality="premium"/);
+});
+
 for (const action of ['quality', 'recovery']) {
   for (const scenario of [
     { name: 'trial to full', before: 30000, after: 0, position: 5, expected: 35 },

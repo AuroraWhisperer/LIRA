@@ -78,7 +78,7 @@ function stateNotice(state) {
   if (!NORMAL_STATUSES.has(state.status || '')) {
     return formatAudioFailure(state.status, state.ready === false ? 'get' : 'state', state);
   }
-  if (state.pendingRecovery) {
+  if (state.pendingRecovery && !state.starting && !state.running) {
     return { type: 'warning', message: '原声尚待恢复，后台会继续尝试。若播放器已退出，会在它下次启动时恢复；也可点击「恢复原声」重试。' };
   }
   return null;
@@ -88,6 +88,7 @@ export function createAudioFeedback(notify = toast) {
   let state = {};
   let pending = 0;
   let lastNotice = '';
+  let reportDeferredRecovery = false;
   let handle;
   let disposed = false;
 
@@ -98,7 +99,8 @@ export function createAudioFeedback(notify = toast) {
 
   function reportState() {
     const notice = stateNotice(state);
-    if (notice && state.pendingRecovery && NORMAL_STATUSES.has(state.status || '') && lastNotice) return;
+    if (notice && state.pendingRecovery && NORMAL_STATUSES.has(state.status || '')
+      && (!reportDeferredRecovery || lastNotice)) return;
     if (notice && notice.message !== lastNotice) show(notice);
     lastNotice = notice?.message || '';
   }
@@ -111,6 +113,8 @@ export function createAudioFeedback(notify = toast) {
 
   return {
     receive(next) {
+      // Startup can restore old recovery tasks that only need to wait for a closed player.
+      if (next.ready && (!next.pendingRecovery || next.starting || next.running)) reportDeferredRecovery = true;
       state = next;
       if (!disposed && !pending) reportState();
     },

@@ -25,6 +25,7 @@ export class PlaybackBar {
     this.qualityButton = null;
     this.qualityLabel = null;
     this.qualityPanel = null;
+    this.renderedQualityKey = null;
     this.marqueeAnimations = new WeakMap();
     this.marqueeResizeObserver = null;
   }
@@ -44,6 +45,7 @@ export class PlaybackBar {
     this.qualityButton = document.getElementById('playbackQualityBtn');
     this.qualityLabel = document.getElementById('playbackQualityLabel');
     this.qualityPanel = document.getElementById('playbackQualityPanel');
+    this.renderedQualityKey = null;
 
     const marqueeElements = [this.titleEl, this.artistEl].filter(Boolean);
     if (typeof ResizeObserver === 'function') {
@@ -233,6 +235,11 @@ export class PlaybackBar {
       ? '当前音源不支持在这里切换音质'
       : `播放音质：${PlaybackUtils.getQualityLabel(source, actualQuality)}`;
     this.qualityLabel.textContent = disabled ? '音质' : PlaybackUtils.getQualityLabel(source, actualQuality);
+
+    // Keep focused and pressed options attached during unrelated playback updates.
+    const qualityKey = `${source}:${preferredQuality}`;
+    if (qualityKey === this.renderedQualityKey) return;
+    this.renderedQualityKey = qualityKey;
     this.qualityPanel.innerHTML = options
       .map(
         (option) => `

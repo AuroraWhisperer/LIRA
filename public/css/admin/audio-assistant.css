@@ -13,8 +13,8 @@
 
 .audio-assistant-heading {
   flex-wrap: wrap;
-  margin-bottom: 22px;
-  padding-bottom: 20px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -35,7 +35,7 @@
 .audio-assistant-placement-options {
   display: inline-flex;
   gap: 4px;
-  padding: 4px;
+  padding: 2px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-secondary);
@@ -45,7 +45,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 16px;
+  min-height: 32px;
+  padding: 4px 16px;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
