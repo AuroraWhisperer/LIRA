@@ -3,7 +3,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 
@@ -21,6 +20,8 @@ test(
         : false,
   },
   async (t) => {
+    const scratch = path.resolve(__dirname, '../../tmp');
+    fs.mkdirSync(scratch, { recursive: true });
     const source = ['installer-uninstall.nsh', 'installer-process.nsh', 'installer-data.nsh']
       .map(name => fs.readFileSync(path.join(__dirname, '../../build', name), 'utf8')).join('\n');
 
@@ -39,12 +40,21 @@ test(
       'silent-exit',
       'silent-timeout',
       'failed-process-check',
+      'audio-approved',
+      'audio-selected-directory',
+      'audio-other-directory',
+      'audio-other-directory-prefix',
+      'audio-silent',
+      'audio-legacy',
+      'audio-silent-timeout',
+      'audio-multiple',
+      'audio-failed-process-check',
     ]) {
       scenarios.push(t.test(scenario, async () => {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-close-test-'));
+        const root = fs.mkdtempSync(path.join(scratch, 'lira-close-test-'));
         const installDir = path.join(root, '旧版 LIRA');
         const newInstallDir = path.join(root, '新版 LIRA');
-        const otherDir = scenario === 'other-directory-prefix' ? newInstallDir + '-other' : path.join(root, 'other-application');
+        const otherDir = scenario.endsWith('other-directory-prefix') ? newInstallDir + '-other' : path.join(root, 'other-application');
         const dataDir = path.join(installDir, 'data');
         const dataFile = path.join(dataDir, 'fixture.txt');
         const backup = newInstallDir + '.lira-data-backup';
@@ -53,15 +63,19 @@ test(
         const prompts = path.join(root, 'prompts.txt');
         const preserved = path.join(root, 'preserved.txt');
         const appName = path.basename(root) + '.exe';
-        const unrelated = scenario.startsWith('other-directory');
+        const audio = scenario.startsWith('audio-');
+        const unrelated = scenario.includes('other-directory');
         const noApp = scenario === 'no-running-app';
         const windowless = scenario === 'windowless';
-        const checkFails = scenario === 'failed-process-check';
-        const appDirectory = unrelated ? otherDir : scenario === 'selected-directory' ? newInstallDir : installDir;
+        const checkFails = scenario.endsWith('failed-process-check');
+        const appRoot = unrelated ? otherDir : scenario.endsWith('selected-directory') ? newInstallDir : installDir;
+        const appDirectory = audio ? path.join(appRoot, 'resources', 'audio-assistant') : appRoot;
         const appFile = path.join(appDirectory, appName);
-        const silent = scenario.startsWith('silent-');
+        const silent = scenario.startsWith('silent-') || scenario.startsWith('audio-silent');
+        const legacyAudio = scenario === 'audio-legacy' || scenario === 'audio-silent-timeout';
         const exitsSilently = scenario === 'silent-exit';
         let holder;
+        let secondHolder;
 
         const compile = (name, lines) => {
           const script = path.join(root, name + '.nsi');
@@ -83,7 +97,7 @@ test(
           ].join('\n');
 
         try {
-          for (const directory of [dataDir, newInstallDir, otherDir]) fs.mkdirSync(directory, { recursive: true });
+          for (const directory of [dataDir, newInstallDir, otherDir, appDirectory]) fs.mkdirSync(directory, { recursive: true });
           fs.writeFileSync(dataFile, 'before close');
 
           // Only dialog responses are simulated; close requests, process checks,
@@ -91,6 +105,7 @@ test(
           const functions = (checkFails
             ? source.replace("System::Call 'kernel32::CreateToolhelp32Snapshot(i 2, i 0) p.r0 ?e'", 'StrCpy $0 -1\nPush 5')
             : source)
+            .replaceAll('LiraAudioAssistant.exe', audio ? appName : 'LiraAudioAssistant.exe')
             .replaceAll('$APPDATA', '${FIXTURE_APPDATA}')
             .replaceAll('$TEMP', '${FIXTURE_TEMP}')
             .replace(
@@ -103,7 +118,7 @@ test(
                 if (flags.includes('MB_RETRYCANCEL')) {
                   assert.equal(response, 'IDRETRY');
                   return (
-                    record(prompts, 'retry') +
+                    record(prompts, audio ? 'audio-retry' : 'retry') +
                     (scenario === 'retry'
                       ? `\nIntOp $fixtureRetries $fixtureRetries + 1\nStrCmp $fixtureRetries 1 ${label}`
                       : '')
@@ -120,7 +135,7 @@ test(
             `OutFile "${quote(path.join(root, 'installer.exe'))}"`,
             `!addplugindir /x86-unicode "${quote(plugins)}"`,
             '!define VERSION "fixture"',
-            `!define APP_EXECUTABLE_FILENAME "${appName}"`,
+            `!define APP_EXECUTABLE_FILENAME "${audio ? 'desktop-' : ''}${appName}"`,
             `!define FIXTURE_APPDATA "${quote(path.join(root, 'roaming'))}"`,
             `!define FIXTURE_TEMP "${quote(root)}"`,
             'Var fixtureRetries',
@@ -150,6 +165,20 @@ test(
             'RequestExecutionLevel user',
             `OutFile "${quote(appFile)}"`,
             'Function .onInit',
+            ...(audio ? [
+              "System::Call 'kernel32::GetCurrentProcessId() i.r0'",
+              legacyAudio ? 'StrCpy $0 0'
+                : "System::Call 'kernel32::CreateEventW(p 0, i 1, i 0, w \"Local\\LiraAudioAssistant-Install-$0\") p.r0'",
+              record(ready, 'ready'),
+              'fixtureAudioWait:',
+              'Sleep 50',
+              'StrCmp $0 0 fixtureAudioWait',
+              "System::Call 'kernel32::WaitForSingleObject(p r0, i 0) i.r1'",
+              'StrCmp $1 0 0 fixtureAudioWait',
+              record(requests, 'close'),
+              "System::Call 'kernel32::CloseHandle(p r0)'",
+              'Goto fixtureExit',
+            ] : [
             ...(windowless ? ['StrCpy $0 0', 'StrCpy $1 0'] : [
               'System::Call \'user32::CreateWindowExW(i 0, w "STATIC", w "fixture one", i 0, i 0, i 0, i 0, i 0, p 0, p 0, p 0, p 0) p.r0\'',
               'System::Call \'user32::CreateWindowExW(i 0, w "STATIC", w "fixture two", i 0, i 0, i 0, i 0, i 0, p 0, p 0, p 0, p 0) p.r1\'',
@@ -176,12 +205,13 @@ test(
             scenario === 'refused' || unrelated
               ? 'Goto fixtureMessages'
               : `IntCmp $5 ${scenario === 'retry' ? 4 : 2} fixtureExit fixtureMessages fixtureExit`,
+            ]),
             'fixtureExit:',
             'Sleep 600',
             `FileOpen $9 "${quote(dataFile)}" w`,
             'FileWrite $9 "saved before exit"',
             'FileClose $9',
-            'System::Free $2',
+            audio ? '' : 'System::Free $2',
             'SetErrorLevel 0',
             'Quit',
             'fixtureFailed:',
@@ -197,6 +227,14 @@ test(
             while (!fs.existsSync(ready) && Date.now() < deadline && holder.exitCode === null)
               await new Promise((resolve) => setTimeout(resolve, 25));
             assert.ok(fs.existsSync(ready), 'the isolated application process must be ready');
+            if (scenario === 'audio-multiple') {
+              secondHolder = spawn(appFile, ['/S'], { windowsHide: true, stdio: 'ignore' });
+              const secondDeadline = Date.now() + 10000;
+              while (fs.readFileSync(ready, 'utf8').trim().split('\r\n').length < 2
+                && Date.now() < secondDeadline && secondHolder.exitCode === null)
+                await new Promise((resolve) => setTimeout(resolve, 25));
+              assert.equal(fs.readFileSync(ready, 'utf8').trim().split('\r\n').length, 2);
+            }
           }
 
           const status = await new Promise((resolve, reject) => {
@@ -208,7 +246,8 @@ test(
             installer.once('error', reject);
             installer.once('close', resolve);
           });
-          const succeeds = noApp || unrelated || ['approved', 'selected-directory', 'retry', 'silent-exit'].includes(scenario);
+          const succeeds = noApp || unrelated || ['approved', 'selected-directory', 'retry', 'silent-exit',
+            'audio-approved', 'audio-selected-directory', 'audio-silent', 'audio-multiple'].includes(scenario);
           const report = path.join(root, 'LIRA-install-error.txt');
           assert.equal(
             status,
@@ -226,26 +265,28 @@ test(
           const responses = fs.existsSync(prompts) ? fs.readFileSync(prompts, 'utf8').trim().split('\r\n') : [];
           assert.deepEqual(
             responses,
-            silent || unrelated || noApp || checkFails
+            scenario === 'audio-legacy' ? ['audio-retry'] : silent || unrelated || noApp || checkFails || audio
               ? []
               : ['approved', 'selected-directory', 'cancelled'].includes(scenario)
                 ? ['confirm']
                 : ['confirm', 'retry'],
           );
-          if (scenario === 'cancelled' || unrelated || noApp || silent || windowless || checkFails) {
+          if (scenario === 'cancelled' || unrelated || noApp || (silent && !audio) || windowless || checkFails || legacyAudio) {
             assert.equal(fs.existsSync(requests), false, 'no close request should be sent');
           } else {
             const received = fs.readFileSync(requests, 'utf8').trim().split('\r\n');
-            assert.equal(received.length, scenario === 'retry' ? 4 : 2);
+            assert.equal(received.length, audio ? scenario === 'audio-multiple' ? 2 : 1 : scenario === 'retry' ? 4 : 2);
           }
         } finally {
-          if (holder && holder.exitCode === null) {
-            const exited = new Promise((resolve) => holder.once('exit', resolve));
-            holder.kill();
-            await exited;
+          for (const process of [holder, secondHolder]) {
+            if (process && process.exitCode === null) {
+              const exited = new Promise((resolve) => process.once('exit', resolve));
+              process.kill();
+              await exited;
+            }
           }
           const resolved = fs.realpathSync(root);
-          assert.equal(path.dirname(resolved), fs.realpathSync(os.tmpdir()));
+          assert.equal(path.dirname(resolved), fs.realpathSync(scratch));
           assert.ok(path.basename(resolved).startsWith('lira-close-test-'));
           fs.rmSync(resolved, { recursive: true, force: true });
         }

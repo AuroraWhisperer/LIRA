@@ -15,7 +15,9 @@ const published = spawnSync('dotnet', ['publish', path.join(root, 'test/desktop/
   `-p:BaseOutputPath=${path.join(scratch, 'bin')}${path.sep}`], { stdio: 'inherit', windowsHide: true });
 if (published.error) throw published.error;
 if (published.status !== 0) process.exit(published.status || 1);
-const checked = spawnSync(path.join(output, 'NativeChecks.exe'), [], { stdio: 'inherit', windowsHide: true });
+const checked = spawnSync(path.join(output, 'NativeChecks.exe'),
+  [path.join(root, 'build/audio-assistant/LiraAudioAssistant.exe'), path.join(root, 'tmp')],
+  { stdio: 'inherit', windowsHide: true });
 if (checked.error) throw checked.error;
 if (checked.status !== 0) process.exit(checked.status || 1);
 

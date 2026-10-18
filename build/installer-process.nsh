@@ -1,4 +1,7 @@
 Var liraPreviousInstallDir
+Var liraProcessName
+Var liraProcessRelativePath
+Var liraProcessId
 
 !ifdef BUILD_UNINSTALLER
   !define LIRA_PROCESS_PREFIX "un."
@@ -46,22 +49,73 @@ Function ${LIRA_PROCESS_PREFIX}liraEnsureAppExited
     StrCpy $R0 258
     Return
   liraAppExited:
+    Call ${LIRA_PROCESS_PREFIX}liraEnsureAudioExited
+FunctionEnd
+
+; Recovery guards may outlive Electron. Drain them before backup or file removal.
+Function ${LIRA_PROCESS_PREFIX}liraEnsureAudioExited
+  StrCpy $liraProcessName "LiraAudioAssistant.exe"
+  StrCpy $liraProcessRelativePath "resources\audio-assistant\$liraProcessName"
+  liraRestartAudioWait:
+    System::Call 'kernel32::GetTickCount() i.R2'
+  liraWaitForAudioExit:
+    Call ${LIRA_PROCESS_PREFIX}liraFindOwnedProcess
+    StrCmp $R0 603 liraAudioExited
+    StrCpy $R5 "无法确认电音助手是否退出，进程检查返回码：$R0。"
+    StrCmp $R0 0 0 liraAudioExitFailed
+    ; Only signal a PID after its full executable path has matched this install.
+    System::Call 'kernel32::OpenEventW(i 2, i 0, w "Local\LiraAudioAssistant-Install-$liraProcessId") p.R1 ?e'
+    Pop $R0
+    StrCmp $R1 0 liraAudioEventUnavailable
+    System::Call 'kernel32::SetEvent(p R1) i.R0'
+    System::Call 'kernel32::CloseHandle(p R1)'
+    StrCmp $R0 0 0 liraAudioExitPoll
+    StrCpy $R0 5
+    Goto liraAudioSignalFailed
+  liraAudioEventUnavailable:
+    ; Earlier helpers have no event; wait, then report them without killing them.
+    StrCmp $R0 2 liraAudioExitPoll
+  liraAudioSignalFailed:
+    StrCpy $R5 "无法通知电音助手退出，返回码：$R0。请关闭 LIRA 后重试。"
+    Return
+  liraAudioExitPoll:
+    System::Call 'kernel32::GetTickCount() i.R1'
+    IntOp $R1 $R1 - $R2
+    IntCmpU $R1 10000 liraAudioExitTimeout 0 liraAudioExitTimeout
+    Sleep 250
+    Goto liraWaitForAudioExit
+  liraAudioExitTimeout:
+    StrCpy $R0 258
+    StrCpy $R5 "电音助手的原声恢复进程仍在运行（LiraAudioAssistant.exe）。请关闭 LIRA；旧版本可先重启电脑，再直接${LIRA_PROCESS_ACTION}。原声恢复记录会保留。目录：$liraPreviousInstallDir；$INSTDIR。"
+    IfSilent liraAudioExitFailed
+    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$R5$\r$\n$\r$\n尚未继续处理数据。" /SD IDCANCEL IDRETRY liraRestartAudioWait
+    SetErrorLevel 2
+    Quit
+  liraAudioExitFailed:
+    Return
+  liraAudioExited:
     StrCpy $R0 0
 FunctionEnd
 
 ; NSIS is a 32-bit Unicode process; PROCESSENTRY32W has 556 bytes here.
 ; QueryFullProcessImageNameW also resolves 64-bit Electron processes.
 Function ${LIRA_PROCESS_PREFIX}liraFindAppProcess
+  StrCpy $liraProcessName "${APP_EXECUTABLE_FILENAME}"
+  StrCpy $liraProcessRelativePath "$liraProcessName"
+  Call ${LIRA_PROCESS_PREFIX}liraFindOwnedProcess
+FunctionEnd
+
+Function ${LIRA_PROCESS_PREFIX}liraFindOwnedProcess
   ; Avoid enumerating the whole process table when no matching name exists.
-  nsProcess::_FindProcess /NOUNLOAD "${APP_EXECUTABLE_FILENAME}"
+  nsProcess::_FindProcess /NOUNLOAD "$liraProcessName"
   Pop $R0
   nsProcess::_Unload
   StrCmp $R0 0 0 liraProcessAbsent
   System::Store "s"
-  GetFullPathName $5 "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+  GetFullPathName $5 "$INSTDIR\$liraProcessRelativePath"
   StrCpy $6 ""
   StrCmp $liraPreviousInstallDir "" +2
-    GetFullPathName $6 "$liraPreviousInstallDir\${APP_EXECUTABLE_FILENAME}"
+    GetFullPathName $6 "$liraPreviousInstallDir\$liraProcessRelativePath"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
   System::Call 'kernel32::CreateToolhelp32Snapshot(i 2, i 0) p.r0 ?e'
   Pop $R0
@@ -76,7 +130,7 @@ Function ${LIRA_PROCESS_PREFIX}liraFindAppProcess
     StrCmp $2 0 liraProcessEnumerationEnded
     System::Call '*$1(i, i, i.r3, p, i, i, i, i, i, &w260.r4)'
     StrCmp $3 $9 liraProcessNext
-    StrCmp $4 "${APP_EXECUTABLE_FILENAME}" 0 liraProcessNext
+    StrCmp $4 "$liraProcessName" 0 liraProcessNext
     System::Call 'kernel32::OpenProcess(i 0x1000, i 0, i r3) p.r7 ?e'
     Pop $R0
     StrCmp $7 0 liraProcessOpenFailed
@@ -103,6 +157,7 @@ Function ${LIRA_PROCESS_PREFIX}liraFindAppProcess
     StrCpy $R0 603
     Goto liraProcessFreeEntry
   liraProcessFound:
+    StrCpy $liraProcessId $3
     StrCpy $R0 0
   liraProcessFreeEntry:
     System::Free $1

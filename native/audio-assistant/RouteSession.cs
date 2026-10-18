@@ -76,7 +76,7 @@ internal sealed class RouteSession : IDisposable
     finally { helper.Dispose(); }
   }
 
-  public static void RunGuard(int pid, string endpointId)
+  public static void RunGuard(int pid, string endpointId, WaitHandle installationExit)
   {
     string? path = null;
     RouteRecord? record = null;
@@ -95,6 +95,7 @@ internal sealed class RouteSession : IDisposable
       using var endpoint = devices.GetDevice(endpointId);
       using var current = Process.GetCurrentProcess();
       using var policy = new AppAudioRoute();
+      if (installationExit.WaitOne(0)) return;
       record = new RouteRecord {
         Pid = pid, Started = process.StartTime.ToUniversalTime().Ticks, Executable = executable,
         GuardPid = Environment.ProcessId, GuardStarted = current.StartTime.ToUniversalTime().Ticks,
@@ -115,7 +116,8 @@ internal sealed class RouteSession : IDisposable
       Console.WriteLine("ready");
       Console.Out.Flush();
       // Restore even if the player exits before the UI notices. EOF also covers UI crashes.
-      Task.WhenAny(Task.Run(() => Console.ReadLine()), process.WaitForExitAsync()).GetAwaiter().GetResult();
+      Task.WhenAny(Task.Run(() => Console.ReadLine()), process.WaitForExitAsync(),
+        Task.Run(() => installationExit.WaitOne())).GetAwaiter().GetResult();
     }
     catch (Exception error)
     {
@@ -126,7 +128,7 @@ internal sealed class RouteSession : IDisposable
     }
     finally
     {
-      try { if (path != null && record != null) RestoreUntilDone(path, record, endpointOwnership); }
+      try { if (path != null && record != null) RestoreUntilDone(path, record, installationExit, endpointOwnership); }
       finally { endpointOwnership?.Dispose(); ownership?.Dispose(); }
     }
   }
@@ -163,7 +165,7 @@ internal sealed class RouteSession : IDisposable
     return errors.ToArray();
   }
 
-  public static void RunRecovery(string path)
+  public static void RunRecovery(string path, WaitHandle installationExit)
   {
     var record = ReadRecord(path);
     if (IsSameProcess(record.GuardPid, record.GuardStarted)) return;
@@ -171,10 +173,10 @@ internal sealed class RouteSession : IDisposable
     if (!File.Exists(path)) return;
     using var current = Process.GetCurrentProcess();
     record.GuardPid = current.Id; record.GuardStarted = current.StartTime.ToUniversalTime().Ticks;
-    RestoreUntilDone(path, record);
+    RestoreUntilDone(path, record, installationExit);
   }
 
-  static void RestoreUntilDone(string path, RouteRecord record, Ownership? endpointOwnership = null)
+  static void RestoreUntilDone(string path, RouteRecord record, WaitHandle installationExit, Ownership? endpointOwnership = null)
   {
     endpointOwnership ??= record.MutedEndpoint == null ? null : new Ownership("endpoint:" + record.MutedEndpoint);
     try
@@ -196,6 +198,9 @@ internal sealed class RouteSession : IDisposable
           catch (IOException) { } // The UI may have already exited; recovery still belongs to this guard.
           replied = true;
         }
+        // Installers may replace this binary only after the endpoint is safe.
+        // Keep deferred player undo information for recovery by the next version.
+        if (record.MutedEndpoint == null && installationExit.WaitOne(0)) return;
         if (pending) Thread.Sleep(500);
       }
     }

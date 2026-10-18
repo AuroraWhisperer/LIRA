@@ -4,8 +4,9 @@ using NAudio.Wave.SampleProviders;
 
 internal static class NativeChecks
 {
-  static async Task Main()
+  static async Task Main(string[] args)
   {
+    await InstallationExitChecks.Run(args[0], args[1]);
     // Construction verifies the packaged model hash and runs a warm-up inference.
     using (var model = new StemModel())
       Console.WriteLine("Packaged lira.onnx model loaded and inference completed.");

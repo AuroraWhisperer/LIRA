@@ -16,11 +16,13 @@ internal static class Program
       Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true });
       Console.SetError(new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false)) { AutoFlush = true });
       Directory.CreateDirectory(DataDirectory);
-      if (args.Length == 3 && args[0] == "--route-guard") { RouteSession.RunGuard(int.Parse(args[1]), args[2]); return; }
-      if (args.Length == 2 && args[0] == "--recover-route") { RouteSession.RunRecovery(args[1]); return; }
+      using var installationExit = new EventWaitHandle(false, EventResetMode.ManualReset,
+        $"Local\\LiraAudioAssistant-Install-{Environment.ProcessId}");
+      if (args.Length == 3 && args[0] == "--route-guard") { RouteSession.RunGuard(int.Parse(args[1]), args[2], installationExit); return; }
+      if (args.Length == 2 && args[0] == "--recover-route") { RouteSession.RunRecovery(args[1], installationExit); return; }
       if (args.Length != 1 || args[0] != "--bridge") throw new ArgumentException("未知电音助手启动方式。");
       ApplicationConfiguration.Initialize();
-      Application.Run(new AssistantContext());
+      Application.Run(new AssistantContext(installationExit));
     }
     catch (Exception error) { Console.Error.WriteLine(error.Message); Environment.ExitCode = 1; }
   }
@@ -33,12 +35,13 @@ internal sealed class AssistantContext : ApplicationContext
   readonly AudioSession session;
   bool ticking, closing;
 
-  public AssistantContext()
+  public AssistantContext(WaitHandle installationExit)
   {
     _ = dispatcher.Handle;
     session = new AudioSession(action => { if (!closing) dispatcher.BeginInvoke(action); });
     session.Changed += Publish;
     timer.Tick += async (_, _) => {
+      if (installationExit.WaitOne(0)) { Close(); return; }
       if (ticking || closing) return;
       ticking = true;
       try { await session.Tick(); }
