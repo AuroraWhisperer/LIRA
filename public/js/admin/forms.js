@@ -4,13 +4,14 @@ import { publishForms } from './legacy-admin-bridge.js';
 // 表单工具和通用组件
 ('use strict');
 
-import { value, setValue, normalizeRangeValue } from '../shared/utils.js';
+import { value, setValue, normalizeRangeValue, showError } from '../shared/utils.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
 import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { ensureSavedFontOption } from '../shared/font-library.js';
 import { isComponentFieldEditing } from './component-preview-panel.js';
 import { notifyMediaPlayFailure } from '../shared/media-playback-feedback.js';
 import { activateModalFocus } from '../shared/modal-focus.js';
+import { preparePlaybackOutput } from '../playback/features/output-device.js';
 
 /**
  * 表单服务
@@ -140,7 +141,10 @@ export class FormsService {
         const audio = document.getElementById('music-player');
         if (audio) {
           if (audio.paused) {
-            audio.play().catch((error) => {
+            const source = audio.src;
+            preparePlaybackOutput(audio).then(() => {
+              if (audio.src === source && audio.paused) return audio.play();
+            }, showError).catch((error) => {
               notifyMediaPlayFailure(error, audio);
             });
           } else {

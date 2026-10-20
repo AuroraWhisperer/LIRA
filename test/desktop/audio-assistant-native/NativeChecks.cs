@@ -70,7 +70,54 @@ internal static class NativeChecks
         throw new Exception("Recovery completion must still publish its new state.");
       for (int i = 0; i < 20; i++) await session.Tick();
       if (changes != 1) throw new Exception("A recovered idle session must return to silence.");
+
+      using var guard = System.Diagnostics.Process.GetCurrentProcess();
+      var deferred = new RouteSession.RouteRecord {
+        Executable = Path.Combine(root, "closed-player.exe"), Previous = new string?[] { null, null, null },
+        Endpoint = "test-route", Restoring = true, GuardPid = guard.Id,
+        GuardStarted = guard.StartTime.ToUniversalTime().Ticks,
+      };
+      File.WriteAllText(journal, JsonSerializer.Serialize(deferred));
+      session.Recover();
+      CheckRecovery(true, true);
+      session.Stop();
+      CheckRecovery(true, true);
+      int deferredChanges = changes;
+      for (int i = 0; i < 20; i++) await session.Tick();
+      if (changes != deferredChanges) throw new Exception("Safe deferred recovery must not keep changing its status.");
+
+      deferred.GuardStarted--;
+      File.WriteAllText(journal, JsonSerializer.Serialize(deferred));
+      if (RouteSession.ReadRecoveryState() != (true, false))
+        throw new Exception("A lost or replaced recovery guard must not be reported as safe background work.");
+      deferred.GuardStarted++;
+
+      // These records are synthetic: no real device, player or mute is changed.
+      foreach (string state in new[] { "muted", "error", "active", "invalid" })
+      {
+        deferred.MutedEndpoint = state == "muted" ? "test-muted-endpoint" : null;
+        deferred.RecoveryError = state == "error" ? "原声恢复未完成：test failure" : null;
+        deferred.Restoring = state != "active";
+        deferred.Previous = state == "invalid" ? Array.Empty<string?>() : new string?[3];
+        File.WriteAllText(journal, JsonSerializer.Serialize(deferred));
+        await session.Tick();
+        session.Recover();
+        CheckRecovery(true, false);
+      }
+      File.Delete(journal);
+      for (int i = 0; i < 10; i++) await session.Tick();
+      CheckRecovery(false, false);
+      session.Stop();
+      CheckRecovery(false, false);
       Console.WriteLine("Idle session checks passed: no periodic snapshots, explicit refresh, recovery deduplication and completion.");
+
+      void CheckRecovery(bool pending, bool waiting)
+      {
+        var snapshot = JsonSerializer.SerializeToElement(session.Snapshot());
+        if (snapshot.GetProperty("pendingRecovery").GetBoolean() != pending
+          || snapshot.GetProperty("recoveryDeferred").GetBoolean() != waiting)
+          throw new Exception($"Incorrect recovery state: pending={pending}, deferred={waiting}.");
+      }
     }
     finally
     {

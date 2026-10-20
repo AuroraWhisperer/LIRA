@@ -10,8 +10,8 @@ const missingChannel = '请先选择已有的独立原声通道；没有可用�
 test('audio failures explain known native and desktop problems in Chinese with a recovery step', async () => {
   const { formatAudioFailure } = await loadModuleExports(entry);
   const cases = [
-    [missingChannel, /空闲的虚拟音频通道.*本地文件/],
-    ['原声通道与最终输出不能相同，请选择空闲的独立通道。', /同一设备.*扬声器或耳机/],
+    [missingChannel, /声卡上空闲、可独立静音的输出通道.*虚拟音频通道.*本地文件/],
+    ['原声通道与最终输出不能相同，请选择空闲的独立通道。', /同一输出通道.*最终输出.*监听或送入直播.*另一个独立通道.*同一张声卡.*不要使用自动跟随/],
     ['原声通道正被 OtherPlayer 使用，请选择一个空闲的独立通道。', /其他程序.*其他空闲/],
     ['请先关闭当前歌曲的处理，再切换音乐来源或设备。', /先关闭「当前歌曲」/],
     ['另一个窗口正在处理或恢复此播放器，请等待它完成。', /另一个窗口.*等待原声恢复/],
@@ -22,7 +22,9 @@ test('audio failures explain known native and desktop problems in Chinese with a
     ['尚未识别当前歌曲，未接管音频。', /系统媒体信息或歌曲窗口标题/],
     ['无法识别播放器。', /普通权限启动/],
     ['播放器同时向多个设备输出，请手动选择最终输出后再开始。', /「最终输出」.*扬声器或耳机/],
-    ['Windows 未应用播放器隔离路由。', /系统默认.*独占模式/],
+    ['播放器未切入原声通道，已恢复。请将播放器输出设为系统默认，并关闭独占 / ASIO 后重试。', /播放器声音没有进入.*QQ 音乐、网易云音乐或 LIRA 内置播放器.*与「原声通道」相同.*独占模式.*ASIO/],
+    ['Windows 未应用播放器隔离路由。', /Windows.*输出设置.*音量混合器/],
+    ['无法关闭原声通道直通，已取消接管。', /原声通道静音.*可独立静音.*本地文件/],
     ['原声通道被解除静音，已停止处理，避免重复播放。', /避免原声和处理后的声音同时播放/],
     ['歌曲已切换，请重新开启当前歌曲处理。', /重新开启「当前歌曲」/],
     ['外部实时处理需要 Windows 10 2004（Build 19041）或更新版本。', /Windows 10 2004.*更新 Windows.*本地文件/],
@@ -128,6 +130,37 @@ test('a real recovery failure is reported even in the first startup snapshot', a
   assert.equal(notices.length, 1);
   assert.equal(notices[0].options.type, 'error');
   assert.match(notices[0].message, /原声尚未完全恢复/);
+});
+
+test('a closed player with restored channels needs no warning or manual restart', async () => {
+  const { createAudioFeedback, formatAudioStatus, formatAudioFailure } = await loadModuleExports(entry);
+  const notices = [];
+  const feedback = createAudioFeedback((message, options) => notices.push({ message, options }));
+  const state = { ready: true, pendingRecovery: true, recoveryDeferred: true,
+    status: '原声通道已恢复；播放器的输出设置将在下次播放时自动还原。' };
+  feedback.receive({ ...state, running: true, status: '正在处理当前歌曲' });
+  feedback.begin();
+  feedback.receive(state);
+  feedback.finish('stop', { ok: true });
+  for (let i = 0; i < 20; i++) feedback.receive({ ...state });
+  assert.equal(formatAudioStatus(state), '当前歌曲处理已关闭');
+  assert.equal(notices.length, 0, 'Normal background cleanup must not be announced as a failure');
+  assert.doesNotMatch(formatAudioFailure(missingChannel, 'start', state).message, /原声仍待恢复/);
+  feedback.begin();
+  feedback.receive(state);
+  feedback.finish('recover', { ok: true });
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].options.type, 'info');
+  assert.match(notices[0].message, /通道已恢复.*无需重开.*自动还原/);
+  feedback.receive(state);
+  assert.equal(notices.length, 1);
+
+  const failed = { ...state, recoveryDeferred: false, status: '原声通道恢复未完成：test error' };
+  feedback.receive(failed);
+  assert.equal(formatAudioStatus(failed), '等待恢复原声');
+  assert.equal(notices.at(-1).options.type, 'error');
+  feedback.receive({ ...failed, recoveryDeferred: true });
+  assert.equal(notices.at(-1).options.type, 'error', 'Actual errors must take precedence over deferred flags');
 });
 
 test('command failures and repeated background states produce one toast, while an explicit retry can notify again', async () => {

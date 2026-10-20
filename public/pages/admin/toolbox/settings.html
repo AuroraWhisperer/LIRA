@@ -58,6 +58,20 @@
       </div>
     </section>
 
+    <section class="license-account-card playback-output-settings" aria-labelledby="playbackOutputTitle">
+      <h3 id="playbackOutputTitle" class="ui-section-title">内置播放器输出</h3>
+      <p class="hint">选择 LIRA 内置播放器从哪个通道播放音乐，切换后自动保存。</p>
+      <div class="playback-output-controls">
+        <label for="playbackOutputDevice">输出通道</label>
+        <select id="playbackOutputDevice" aria-describedby="playbackOutputHint playbackOutputFeedback">
+          <option value="">系统默认输出</option>
+        </select>
+        <button id="playbackOutputRefresh" type="button" class="secondary">刷新设备</button>
+      </div>
+      <p id="playbackOutputHint" class="hint">使用电音助手时，这里与「原声通道」选同一个通道，「最终输出」另选一个。</p>
+      <p id="playbackOutputFeedback" class="hint" role="status" aria-live="polite"></p>
+    </section>
+
     <section class="license-account-card" aria-labelledby="licenseWebsitesTitle">
       <div class="license-website-row">
         <div class="license-website-copy">

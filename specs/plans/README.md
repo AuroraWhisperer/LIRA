@@ -8,6 +8,7 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-18-audio-assistant-isolation-diagnostics](2026-10-18-audio-assistant-isolation-diagnostics.md) | Awaiting Evidence | 已收到 Win10 + ROUTIST 的 v5 报告：枚举、静音及路由读回通过，播放器实际迁移未通过，停止恢复成功。待确认网易云默认/非独占输出后复测及实际播放验收；此前验证和安装版状态见计划。 |
 | [2026-10-18-audio-assistant-win10](2026-10-18-audio-assistant-win10.md) | Awaiting Verification | 已将实时采集下限修正为 Win10 2004，同步提示和说明；原生构建/回归与前端及指南 21 项通过。Win10 实机待验证，安装包未构建或发布。 |
 | [2026-10-16-audio-assistant-model](2026-10-16-audio-assistant-model.md) | Paused | 10 月 17 日分离模型已更新原入口；15 组 PCM、20 秒静音、17 项路由、8 项歌曲及完整 DSP 检查通过。用户确认 QQ《咏春》和网易云外放正常，耳机按用户要求稍后再测。 |
 | [2026-10-16-audio-assistant-output-isolation](2026-10-16-audio-assistant-output-isolation.md) | Paused | QQ / 网易云实际外放已验收，网易云切歌自动恢复原声通过；保留当前使用版与用户设置，剩余新模型耳机输出、设备选择及恢复按用户要求稍后验证。 |

@@ -10,6 +10,7 @@ import { desktopLyric } from './desktop-lyric.js';
 import { songImports } from './song-import.js';
 import { settings } from './settings.js';
 import { initClientAppearance } from './client-appearance.js';
+import { initPlaybackOutputSettings } from './playback-output-settings.js';
 import { initAudioAssistant } from './audio-assistant.js';
 import { initTopbarStatus } from './topbar-status.js';
 import { display } from './display.js';
@@ -95,9 +96,11 @@ const liveComponents = createToolboxLifecycle({
   onInitError: recoverToolboxInitialization,
 });
 let disposeAudioAssistant;
+let disposePlaybackOutputSettings;
 let disposeTopbarStatus;
 window.addEventListener('beforeunload', () => {
   disposeAudioAssistant?.();
+  disposePlaybackOutputSettings?.();
   disposeTopbarStatus?.();
   toolbox.dispose();
   liveComponents.dispose();
@@ -127,6 +130,7 @@ async function initializeApp() {
   modules.desktop?.initDesktopShell?.();
   settings.initSettingsForm();
   initClientAppearance();
+  disposePlaybackOutputSettings = initPlaybackOutputSettings();
   disposeAudioAssistant = initAudioAssistant();
   disposeTopbarStatus = initTopbarStatus({ showToast: Utils.showStackedToast });
 

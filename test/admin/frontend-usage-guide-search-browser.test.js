@@ -105,6 +105,8 @@ test('guide chapters own their migrated content and every internal link has one 
     'ug-obs': 'ug-scene-guide',
     'ug-fan-archive': 'ug-work',
     'ug-fan-music': 'ug-work',
+    'ug-audio-assistant': 'ug-work',
+    'ug-playback-output': 'ug-maintenance',
     'ug-fan-backup': 'ug-maintenance',
     'ug-glossary': 'ug-maintenance',
     'ug-feedback': 'ug-faq',
@@ -116,6 +118,8 @@ test('guide chapters own their migrated content and every internal link has one 
   for (const [label, hash] of [
     ['全民 K 歌歌词同步', '#ug-wesing-lyrics'],
     ['管理队列与导入点歌', '#ug-playback-queue'],
+    ['内置播放器输出', '#ug-playback-output'],
+    ['电音助手', '#ug-audio-assistant'],
     ['把礼物记录导出为 PNG 图片', '#ug-gift-export'],
     ['场景与素材', '#ug-scene-guide'],
     ['换电脑与迁移', '#ug-migration'],

@@ -22,7 +22,7 @@ js/playback.js          兼容层,仅 import playback/index.js
 | `provider/`   | manager                                                                                                                                                                | 平台选择(QQ/网易云/WeSing)、健康检查、登录态;桌面走 IPC、Web 回退 HTTP(见 [comms.md](comms.md) §4)                                                  |
 | `queue/`      | manager                                                                                                                                                                | `QueueManager`:普通/电台/歌单三种队列、shuffle 顺序、电台自动补量                                                                                   |
 | `services/`   | search / stream / lyric / match / import / home / wesing                                                                                                               | 业务服务(§4)                                                                                                                                        |
-| `features/`   | search-handler / match-handler / stream-handler / queue-operations / playback-controls / lyric-controls / radio-mode / home-handler / import-handler / pending-handler | UI 操作处理器,注入渲染回调与队列回调                                                                                                                |
+| `features/`   | search-handler / match-handler / stream-handler / queue-operations / playback-controls / lyric-controls / radio-mode / home-handler / import-handler / pending-handler / output-device | UI 操作处理器与本机音频输出,注入渲染回调与队列回调                                                                                                                |
 | `operations/` | provider-operations / state-persistence / playlist-operations / cache-operations                                                                                       | 横切操作:登录登出、状态持久化、收藏/歌单、缓存统计                                                                                                  |
 | `ui/`         | index / components / playback-bar / queue-popup / drawer / fullscreen                                                                                                  | `UIRenderer` + 各 UI 组件(DOM 渲染主控)                                                                                                             |
 | `content/`    | loader                                                                                                                                                                 | 首页/推荐/每日/电台/歌单内容加载(内存→localStorage 缓存命中先渲染,后台刷新后回调 `homeService._applyBackgroundUpdate` 更新并 toast)                 |
@@ -219,6 +219,16 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 - WAAPI 只代表动画调度方式，不保证 reveal 属性由 GPU 合成；运行时以 `LyricPerformanceProfile` 记录长帧，必要时按 WAAPI → 30fps 手动 reveal → 静态高亮降级。
 - 正常播放期间不在 30fps tick 写 `animation.currentTime`;tick 只读取 `LyricClock` 并检测 drift。仅 pause/resume、seek、切歌/时间线变化、明显回跳或超阈值 drift 允许重锚。
 - 调度器只使用 `requestAnimationFrame` + 约 33.3ms 时间门控，不使用 `setInterval`；页面隐藏、暂停或 reduced-motion 时停止/暂停循环。
+
+### 8.3 内置播放器输出
+
+「百宝箱 → 设置」的「内置播放器输出」卡片由 `admin/playback-output-settings.js` 展示；`playback/features/output-device.js` 拥有设备枚举、媒体输出切换和本机偏好。设置仅作用于 `#music-player`，不更改 Windows 默认设备或 QQ 音乐、网易云音乐客户端的输出；底部播放器与全屏歌词共用此音频元素。
+
+- 默认使用系统默认输出（`setSinkId('')`）。具名设备来自 `navigator.mediaDevices.enumerateDevices()` 的 `audiooutput`，隐藏重复的 default / communications 别名；实际切换调用 `HTMLMediaElement.setSinkId`，成功后才保存 `localStorage['playbackOutput:v1'] = { deviceId, name }`。设备 ID 是浏览器提供的本机标识，不等同于电音助手的 Windows 端点 ID；用户按设备名称对齐两个入口。
+- 开始播放、暂停后继续、音质切换后继续、点击全屏歌词和全屏空格快捷键播放，均等待最新输出选择完成。已保存的设备缺失或无法恢复时暂停并阻止继续播放，保留原选择，不静默回退到系统默认设备。`devicechange` 与手动「刷新设备」更新设备列表；接回设备后恢复通道，不自动开始播放。
+- 同源管理窗口通过 `storage` 事件同步，不重复写回。切换请求串行执行，过期结果不覆盖新偏好；媒体元素复用同一个输出控制器，在 `pagehide` 移除设备、存储和电音助手状态监听。
+- 电音助手启动先通过 `withPlaybackOutputLocked` 锁住新选择，等已有输出切换完成后才调用桌面启动；启动失败也会释放临时锁。启动、处理内置音乐或仍需恢复内置原声期间，禁止切换输出，并提示先关闭「当前歌曲」或恢复原声；安全延后到下次播放的恢复状态不会锁住选择。若另一窗口的设置同步撞上处理中，先暂停本窗口播放，等待处理结束后应用新通道。
+- 切换失败保留此前可用的输出；已生效但无法保存时明确提示只对本次有效。此偏好不进入服务器设置、播放队列快照或云端同步。Electron 原有权限下可直接枚举和选择输出，无需新增音频采集权限或 IPC。
 
 ## 9. 与点歌业务的关系
 

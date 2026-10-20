@@ -1,6 +1,7 @@
 'use strict';
 
 import { createAudioFeedback, formatAudioStatus } from './audio-assistant-feedback.js';
+import { withPlaybackOutputLocked } from '../playback/features/output-device.js';
 
 const FIELDS = [
   { key: 'strength', label: '声伴比例', min: -100, max: 100, value: 80, presets: [[-100, '人声'], [0, '原唱'], [100, '伴奏']], help: '调整歌声与伴奏的比例，去人声后可能仍有少量歌声。全民 K 歌如果播放的是伴奏，就不用再去人声，选「原唱」即可保留原来的伴奏；仍可单独升降调。' },
@@ -147,6 +148,7 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
   const changes = createAudioParameterQueue((patch) => invoke('configure', patch), render);
   const optimistic = changes.pending;
   let timer;
+  let processingAction = 0;
   let loading = null;
   let refreshing = null;
   let disposed = false;
@@ -228,9 +230,15 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
 
   async function invoke(op, value) {
     if (!bridge) { feedback.fail(op, '请从 Windows 桌面客户端使用电音助手。'); return false; }
+    const action = op === 'start' || op === 'stop' ? ++processingAction : processingAction;
     feedback.begin();
     try {
-      const result = await bridge.invoke({ op, ...(value === undefined ? {} : { value }) });
+      const request = () => op === 'start' && (disposed || !enabled() || action !== processingAction)
+        ? { ok: true }
+        : bridge.invoke({ op, ...(value === undefined ? {} : { value }) });
+      const result = await (op === 'start'
+        ? withPlaybackOutputLocked(document.getElementById('music-player'), request)
+        : request());
       if (disposed) return false;
       if (result.state) receive(result.state);
       feedback.finish(op, result);

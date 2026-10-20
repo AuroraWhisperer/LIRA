@@ -28,7 +28,9 @@ test('audio helper is lazy, reused for concurrent requests, and drains on shutdo
       assert.deepEqual(args, ['--bridge']);
       assert.equal(options.windowsHide, true);
       assert.ok(options.env.LIRA_AUDIO_DATA_DIR.endsWith('audio-assistant'));
-      queueMicrotask(() => child.stdout.write(JSON.stringify({ type: 'state', state: { ready: true, running: false } }) + '\n'));
+      queueMicrotask(() => child.stdout.write(JSON.stringify({ type: 'state', state: {
+        ready: true, running: false, pendingRecovery: true, recoveryDeferred: true,
+      } }) + '\n'));
       return child;
     },
   });
@@ -42,6 +44,8 @@ test('audio helper is lazy, reused for concurrent requests, and drains on shutdo
   const results = await Promise.all([assistant.invoke('get'), assistant.invoke('configure', { strength: -50 })]);
   assert.equal(launches, 1);
   assert.ok(results.every((item) => item.ok));
+  assert.ok(results.every((item) => item.state.pendingRecovery && item.state.recoveryDeferred),
+    'The desktop must preserve the native distinction between safe deferral and recovery failure');
   assert.equal(states[0].revision, 1);
   await assistant.dispose();
   assert.equal(assistant.getState().ready, false);

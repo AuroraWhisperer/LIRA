@@ -4,9 +4,10 @@
 
 import * as PlaybackUtils from '../utils.js';
 import { notifyMediaPlayFailure } from '../../shared/media-playback-feedback.js';
-import { escapeAttr, escapeHtml } from '../../shared/utils.js';
+import { escapeAttr, escapeHtml, showError } from '../../shared/utils.js';
 import { initPlayerAppearance } from './appearance.js';
 import { scrollActiveLyricIntoView } from './lyric-layout.js';
+import { preparePlaybackOutput } from '../features/output-device.js';
 
 const TONEARM_SVG = `
   <svg viewBox="0 0 240 440" data-player-tonearm="curved" aria-hidden="true">
@@ -389,7 +390,10 @@ export class FullscreenPlayer {
     this.setManualBrowsing(false);
 
     if (audio.paused) {
-      audio.play().catch((error) => {
+      const source = audio.src;
+      preparePlaybackOutput(audio).then(() => {
+        if (audio.src === source && audio.paused) return audio.play();
+      }, showError).catch((error) => {
         notifyMediaPlayFailure(error, audio);
       });
     }

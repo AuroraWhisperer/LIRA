@@ -3,6 +3,7 @@
 'use strict';
 
 import { bindAudioAssistantSpeed } from '../features/audio-assistant-speed.js';
+import { getPlaybackOutput } from '../features/output-device.js';
 
 export function createInitializer(deps) {
   const {
@@ -33,6 +34,9 @@ export function createInitializer(deps) {
       playbackInitialized = false;
       return;
     }
+
+    const output = getPlaybackOutput(audio);
+    window.addEventListener('pagehide', () => output.dispose(), { once: true });
 
     // 初始化 UI 渲染器
     uiRenderer.init();

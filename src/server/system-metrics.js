@@ -146,11 +146,11 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $operatingSystem = $null
 $windowsVersion = $null
-try { $operatingSystem = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, BuildNumber } catch {}
+try { $operatingSystem = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, BuildNumber } catch { $operatingSystem = $null }
 try {
   $windowsVersion = Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion' |
     Select-Object DisplayVersion, ReleaseId, UBR
-} catch {}
+} catch { $windowsVersion = $null }
 $gpus = @(foreach ($gpu in Get-CimInstance Win32_VideoController) {
   $videoMemoryBytes = $null
   try {

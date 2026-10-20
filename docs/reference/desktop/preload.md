@@ -15,7 +15,9 @@
 | `refresh` / `recover` | 无参数；空闲时刷新来源与设备 / 恢复遗留原声路由 |
 | `mixer` | 无参数；仅打开固定的 Windows 音量混合器设置 URI |
 
-快照字段为 ready、running、starting、source、sourceProcessId、internalSource、settings、original、status、song、sourceDevice、fileName、apps（id/name）、outputs（id/name）、level、position、duration、pendingRecovery、revision；renderer 按 revision 接受新状态，两个界面消费同一快照。原生核心报告 `sourceProcessId`（本地文件为 null，处理期间固定为采集进程）；主进程用本实例 PID 和 `app.getAppMetrics()` 判定 `internalSource`，不以播放器名称或 renderer 输入为依据，未就绪时为 false。source 进程 ID 仅用于用户选择音频来源，不是权限主体。工作程序路径和数据目录由 main 指定；renderer 不能提交程序、命令行或 shell URL。
+快照字段为 ready、running、starting、source、sourceProcessId、internalSource、settings、original、status、song、sourceDevice、fileName、apps（id/name）、outputs（id/name）、level、position、duration、pendingRecovery、recoveryDeferred、revision；renderer 按 revision 接受新状态，两个界面消费同一快照。原生核心报告 `sourceProcessId`（本地文件为 null，处理期间固定为采集进程）；主进程用本实例 PID 和 `app.getAppMetrics()` 判定 `internalSource`，不以播放器名称或 renderer 输入为依据，未就绪时为 false。source 进程 ID 仅用于用户选择音频来源，不是权限主体。工作程序路径和数据目录由 main 指定；renderer 不能提交程序、命令行或 shell URL。
+
+`pendingRecovery` 保持「仍有恢复工作」的原含义；`recoveryDeferred=true` 表示剩余记录全部由存活的守护负责、通道静音已归还、记录有效且没有恢复错误，只需在播放器下次播放时自动收尾。它不是所有路由设置已还原的证明。前端对这种状态不显示恢复警告；缺少该字段的旧组件仍按原规则提示，真实错误优先。
 
 ## 1. 安全模型
 

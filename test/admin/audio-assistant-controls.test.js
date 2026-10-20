@@ -6,7 +6,7 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const entry = path.resolve('public/js/admin/audio-assistant-controls.js');
 
-async function createControlsFixture({ enabled = false, selected = false, visible = false } = {}) {
+async function createControlsFixture({ enabled = false, selected = false, visible = false, outputSwitch = null } = {}) {
   const nodes = new Map();
   function getElementById(id) {
     if (!nodes.has(id)) nodes.set(id, Object.assign(new EventTarget(), {
@@ -17,6 +17,9 @@ async function createControlsFixture({ enabled = false, selected = false, visibl
   const page = getElementById('otherAudioAssistantFeature');
   const mainPage = getElementById('otherAssistantPage');
   const panel = getElementById('audioAssistantPanel');
+  if (outputSwitch) nodes.set('music-player', {
+    sinkId: '', pause() {}, async setSinkId() { await outputSwitch(); },
+  });
   page.hidden = !selected;
   mainPage.classList = { contains: (name) => name === 'active' && visible };
   page.closest = (selector) => selector === '.main-page' ? mainPage : null;
@@ -28,6 +31,7 @@ async function createControlsFixture({ enabled = false, selected = false, visibl
   const calls = [];
   const { initAudioAssistantControls } = await loadModuleExports(entry, {
     document: { getElementById },
+    ...(outputSwitch ? { navigator: { mediaDevices: { async enumerateDevices() { return []; } } } } : {}),
     Option: function (name, id) { this.textContent = name; this.value = id; },
     clearTimeout,
     MutationObserver: class {
@@ -54,8 +58,36 @@ async function createControlsFixture({ enabled = false, selected = false, visibl
     select(value) { page.hidden = !value; mutate(page, 'hidden'); },
     show(value) { visible = value; mutate(mainPage, 'class'); },
     enable(value) { enabled = value; controls.setEnabled(value); },
+    setActive(checked) {
+      const event = new Event('change');
+      Object.defineProperty(event, 'target', { value: { checked, matches: selector => selector === '[data-audio-active]' } });
+      page.dispatchEvent(event);
+    },
   };
 }
+
+test('stopping while the player output is switching cancels the waiting assistant start', async (t) => {
+  for (const cancel of ['toggle', 'disable', 'dispose']) {
+    const switching = Promise.withResolvers();
+    const release = Promise.withResolvers();
+    const fixture = await createControlsFixture({ enabled: true, outputSwitch: async () => {
+      switching.resolve();
+      await release.promise;
+    } });
+    t.after(() => fixture.controls.dispose());
+    await new Promise(resolve => setImmediate(resolve));
+    fixture.setActive(true);
+    await switching.promise;
+    assert.deepEqual(fixture.calls, ['get']);
+    if (cancel === 'toggle') fixture.setActive(false);
+    else if (cancel === 'disable') fixture.enable(false);
+    else fixture.controls.dispose();
+    await new Promise(resolve => setImmediate(resolve));
+    release.resolve();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(fixture.calls, cancel === 'dispose' ? ['get'] : ['get', 'stop'], cancel);
+  }
+});
 
 test('disabled audio assistant stays idle when login restores its selection inside the hidden toolbox', async (t) => {
   const fixture = await createControlsFixture();

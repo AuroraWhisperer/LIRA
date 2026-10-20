@@ -82,8 +82,10 @@
 <ol class="usage-guide-checks">
 <li>日历用「上个月」「下个月」「今天」切换月份。</li>
 <li>点「新建日程」，填「日程名称」、日期和时间。整天的事可以勾「全天」。</li>
+<li>需要到点提醒时，勾选「系统通知提醒」。有具体时间的日程会在开始时提醒；勾选「全天」后，再填「提醒时间」。</li>
 <li>选直播、工作或个人分类，需要的话写备注，再点「保存日程」。</li>
 </ol>
+<p>提醒需要 LIRA 保持运行，切换页面或最小化窗口都可以，退出 LIRA 后不会提醒。</p>
 <figure class="usage-guide-figure">
 <img alt="主播工作台，左边是月历，右上角是新建日程按钮，右边是备忘录和待办" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-planner.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>主播工作台：日历、备忘录和待办。</figcaption>
@@ -91,8 +93,8 @@
 <details class="usage-guide-foldout">
 <summary>查看新建日程窗口</summary>
 <figure class="usage-guide-figure usage-guide-figure--portrait">
-<img alt="新建日程窗口，可填日程名称、日期、时间、全天和分类" class="usage-guide-image" decoding="async" height="584" loading="lazy" src="/img/usage-guide/E/toolbox-planner-event.webp" style="--usage-guide-image-width: 480px" width="480"/>
-<figcaption>新建日程：名称、日期、时间和分类。</figcaption>
+<img alt="新建「直播准备」日程，已勾选全天和系统通知提醒，提醒时间为 09:00" class="usage-guide-image" decoding="async" height="624" loading="lazy" src="/img/usage-guide/E/toolbox-planner-event.webp" style="--usage-guide-image-width: 480px" width="500"/>
+<figcaption>全天日程开启「系统通知提醒」后，可单独设置提醒时间；图中为 09:00。</figcaption>
 </figure>
 </details></article>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.2.2 备忘录</strong></h5></div>
@@ -101,15 +103,59 @@
 <p>要办的事加到待办，做完勾掉。看到「已保存到本机」就是存好了，日历、备忘和待办只存在这台电脑上。</p></article></div>
 <h4 class="usage-guide-subsection-title" id="ug-audio-assistant">6.3 电音助手</h4>
 <p>实时处理播放器声音需要 Windows 10 2004 或更新版本，也支持 Windows 11；LIRA 内置播放同样适用。较早的 Win10 请更新 Windows，或选择「本地文件」直接处理歌曲。</p>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.3.1 先把输出通道对齐</strong></h5></div>
+<p>无论用 QQ 音乐、网易云音乐还是 LIRA 内置播放器，都先按这条规则设置：<strong class="usage-guide-keyword">播放器的输出通道与「原声通道」选同一个，「最终输出」选另一个。</strong></p>
+<p>原声通道接收播放器原声，处理时会把它静音，所以要选空闲、能独立静音的输出。可以使用同一张声卡上的独立通道，也可以使用独立的虚拟音频通道；没有可用通道时，可改用「本地文件」。</p>
+<div class="usage-guide-example-step">
+<p class="usage-guide-inline-title"><strong>1. 先设置播放器的输出通道</strong></p>
+<ul>
+<li><strong>QQ 音乐 / 网易云音乐客户端：</strong>在播放器自己的设置里找到「输出设备」或音频输出选项，选好要用作原声通道的设备。使用哪个播放器，就检查哪个播放器的设置。</li>
+<li><strong>LIRA 内置播放器：</strong>打开「百宝箱 → 设置 → 内置播放器输出」，在「输出通道」里选同一个设备。具体操作见<a data-usage-guide-link href="#ug-playback-output">内置播放器输出</a>。</li>
+</ul>
+<figure class="usage-guide-figure usage-guide-figure--compact">
+<img alt="播放器的输出设备设置，当前选择 Wasapi:Virtual Out 1/2，后面是声卡名称" class="usage-guide-image" decoding="async" height="160" loading="lazy" src="/img/usage-guide/E/music-player-output-device.webp" style="--usage-guide-image-width: 579px" width="579"/>
+<figcaption>播放器的输出设备示例。这里选的是 Virtual Out 1/2；有些播放器会在设备名前加「Wasapi:」，对照后面的通道和声卡名称即可。</figcaption>
+</figure>
+</div>
+<div class="usage-guide-example-step">
+<p class="usage-guide-inline-title"><strong>2. 再设置电音助手的原声通道和最终输出</strong></p>
+<p>打开<strong class="usage-guide-keyword">「百宝箱 → 主播工具 → 电音助手」</strong>。「原声通道」选刚才在播放器里选的设备；「最终输出」选实际监听或送入直播的另一个通道。</p>
+<p>例如，播放器输出和原声通道都选 <strong>Virtual Out 1/2</strong>，最终输出选 <strong>Analog Out 1/2</strong>，如下图。设备名称以你的声卡为准，不必照抄示例。</p>
+<figure class="usage-guide-figure usage-guide-figure--compact">
+<img alt="电音助手的原声通道选 Virtual Out 1/2，最终输出选 Analog Out 1/2，两个通道来自同一张声卡" class="usage-guide-image" decoding="async" height="226" loading="lazy" src="/img/usage-guide/E/audio-assistant-routing.webp" style="--usage-guide-image-width: 588px" width="588"/>
+<figcaption>电音助手：原声通道与播放器一致，最终输出使用另一个独立通道。</figcaption>
+</figure>
+<p>按上面的方式对齐后，<strong>最终输出请手动选择，别留在「自动跟随播放器原输出」</strong>。自动跟随会使用处理前的播放器输出，此时它已是原声通道，两者就会冲突。OBS 和哔哩哔哩直播姬采集最终输出，避免再叠加播放器原声。</p>
+</div>
+<details class="usage-guide-foldout"><summary>设备名称怎么看，找不到设备怎么办</summary>
+<p>两个列表都是播放输出（Out），不是麦克风输入。Analog Out 是模拟输出，Virtual Out 是虚拟输出；1/2、3/4 是两组声道，每组通常是左右立体声。名称含 Virtual 或声道编号不同，不代表一定能独立隔离原声，仍须通过启动检查。</p>
+<p>Speaker / Speakers 就是扬声器，列表会显示中文，并标明已识别的虚拟通道。展开来源或设备下拉框会更新列表，选择后自动保存；也可点「刷新设备」重新检测。空闲时不持续扫描播放器，开启「当前歌曲」前会重新识别；处理中的切歌检测和原声恢复仍会自动进行。</p>
+</details>
+</article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.3.2 开启助手与调节声音</strong></h5></div>
 <ol class="usage-guide-checks">
-<li>打开「百宝箱 → 主播工具 → 电音助手」，点击顶部的「顶部图标」或「侧边悬浮」按钮，即可开启助手并展开快捷面板。右侧总开关也可启停助手；关闭时会停止处理并恢复原声，开启后切换页面仍保留入口。</li>
-<li>「顶部图标」显示在右上角直播状态左侧；「侧边悬浮」可以拖动，贴近左右边缘时收成窄标签。一次只显示一种入口。</li>
-<li>点击图标、小块或边缘标签打开同一个面板；按 Escape、点击外部或「收起」关闭面板。侧边入口获得键盘焦点后，也能用方向键调整位置。</li>
-<li>在百宝箱左侧设置音乐来源、独立原声通道和最终输出。通常保持「自动识别正在播放的音乐」，先在 QQ 音乐、网易云音乐、全民 K 歌或 LIRA 中播放歌曲即可；网页音乐需手动指定对应浏览器。列表只显示能识别的常见播放器和浏览器。外部播放器先关闭自身消人声、变调、独占或 ASIO 输出；原声通道与最终输出须为不同设备。播放电脑里的歌曲时，选择「本地文件」，再点击「选择歌曲」，无需独立原声通道。全民 K 歌如果已经播放伴奏，声伴比例选「原唱」保留原来的伴奏，无需再去人声，仍可单独升降调。</li>
-<li>「原声通道」选空闲的虚拟音频通道，例如 OMEN 或 VB-CABLE，用于隔离原唱；「最终输出」选实际听歌的扬声器或耳机，通常保持自动跟随即可。Speaker / Speakers 就是扬声器，列表会显示中文并标明已识别的虚拟通道。展开来源或设备下拉框时更新列表，选择后自动保存；也可点击「刷新设备」手动重检。空闲时不持续扫描播放器，开启「当前歌曲」前会重新识别；处理中的切歌检测和原声恢复仍会自动进行。</li>
-<li>开启「当前歌曲」才会开始处理，开关下方只显示简短处理状态。操作失败、处理中断或本次处理结束后原声仍待恢复时，右上角会弹出中文通知，说明原因和下一步操作；同一问题不会随后台状态刷新反复弹出，鼠标停在通知上可暂停自动消失。启动时已有的待恢复任务仅在设置页显示状态，后台继续恢复；实际恢复失败仍会提示。LIRA 内置播放目前也需要独立原声通道；没有可用通道时，可改选「本地文件」。百宝箱提供完整参数；快捷面板保留声伴比例、变速与升降调，两处修改即时同步。LIRA 内置播放和本地文件可调整 0.5–2 倍速，保持音高；其他外部播放器实时采集固定原速。停止处理或勾选「原声对比」后恢复正常速度。</li>
-<li>点击「当前歌曲」开关旁的「一键重置」，恢复原唱、1 倍速、原调和 60% 输出音量，并关闭原声对比；处理中也可使用，音乐来源、设备和当前歌曲开关保持不变。</li>
-<li>切歌、换播放器或通道发生冲突时自动停止并恢复；下一首需手动开启。处理期间，恢复原声、刷新设备和来源/设备选择会置灰，悬浮可查看原因；请先关闭「当前歌曲」。正常停止会自动恢复播放器输出，仍有异常时再点「恢复原声」。OBS 和哔哩哔哩直播姬采集最终输出，避免再叠加播放器原声。</li>
+<li>点击页面顶部的「顶部图标」或「侧边悬浮」，开启助手并展开快捷面板。右侧总开关也可启停助手；开启后切换页面仍保留入口。</li>
+<li>音乐来源通常保持「自动识别正在播放的音乐」，在 QQ 音乐、网易云音乐、全民 K 歌或 LIRA 中播放歌曲即可。网页音乐需手动指定浏览器，列表只显示能识别的常见播放器和浏览器。外部播放器先关闭自身的消人声、变调、独占或 ASIO 输出。</li>
+<li>播放电脑里的歌曲时，音乐来源选「本地文件」，再点「选择歌曲」。这种方式直接处理文件，无需独立原声通道。</li>
+<li>开启<strong class="usage-guide-keyword">「当前歌曲」</strong>才会开始处理，开关下方显示处理状态。百宝箱里能调全部参数，快捷面板保留声伴比例、变速与升降调，两处修改即时同步。</li>
 </ol>
-<p>入口偏好、音频参数和设备选择保存在本机，重启不会自动处理歌曲。「输出音量」可调 0–200%，100% 为原音量，超过后会放大，较响的歌曲可能失真。「原声对比」临时跳过声伴处理、变速与变调；问号说明可查看各参数用途。人声与伴奏是模型估算，分离效果因歌曲而异。</p>
+<ul>
+<li><strong>声伴比例：</strong>按需要保留原唱或减少人声。全民 K 歌已经在播伴奏时，选「原唱」保留现有伴奏，不必再去人声，仍可单独升降调。人声与伴奏由模型估算，分离效果因歌曲而异。</li>
+<li><strong>变速：</strong>LIRA 内置播放和本地文件可调 0.5–2 倍速，并保持音高；其他外部播放器实时采集固定原速。停止处理或勾选「原声对比」后恢复正常速度。</li>
+<li><strong>输出音量：</strong>可调 0–200%，100% 为原音量，超过后会放大，较响的歌曲可能失真。</li>
+<li><strong>原声对比：</strong>临时跳过声伴处理、变速与升降调，输出音量仍生效。各参数旁的问号可以查看用途。</li>
+<li><strong>一键重置：</strong>在「当前歌曲」旁点击，恢复原唱、1 倍速、原调和 60% 输出音量，并关闭原声对比。处理中也可使用，音乐来源、设备和当前歌曲开关保持不变。</li>
+</ul>
+<details class="usage-guide-foldout"><summary>顶部图标和侧边悬浮怎么用</summary>
+<p>顶部图标在右上角直播状态左侧；侧边悬浮可以拖动，贴近左右边缘时收成窄标签。一次只显示一种入口。点击图标、悬浮块或边缘标签，打开的都是同一个面板；按 Escape、点击外部或「收起」关闭面板。侧边入口获得键盘焦点后，也能用方向键调整位置。</p>
+</details>
+<p>入口偏好、音频参数和设备选择保存在本机，重启后不会自动处理歌曲。</p>
+</article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.3.3 停止处理与恢复原声</strong></h5></div>
+<p>关闭「当前歌曲」或助手总开关，会停止处理并恢复处理前的原声。切歌、换播放器或通道发生冲突时，也会自动停止；下一首需手动开启。</p>
+<p>处理期间，「恢复原声」「刷新设备」和来源、设备选择会置灰，鼠标移上去可查看原因。要换通道，先关闭「当前歌曲」。正常停止会自动恢复；仍有异常时，再点「恢复原声」。</p>
+<p>停止处理不会替你改回播放器里手动选的输出通道。想直接用耳机或扬声器听原声时，回到 QQ 音乐、网易云音乐或 LIRA 的输出设置，切回平时使用的设备。</p>
+<p>操作失败、处理中断或原声通道仍待恢复时，右上角会弹出中文通知，说明原因和下一步操作。同一问题不会随后台刷新反复弹出，鼠标停在通知上可暂停自动消失。</p>
+<p>关闭外部播放器后，通道会先恢复声音；剩下的恢复工作会在它下次播放时自动完成，无需为此重新打开播放器。后台正常恢复时不弹警告，实际恢复失败仍会提示。</p>
+</article></div>
 </section>

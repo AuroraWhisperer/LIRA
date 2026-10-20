@@ -8,24 +8,49 @@ internal sealed class RouteSession : IDisposable
 {
   readonly Process helper;
   readonly Task<string?> readiness;
+  readonly int playerPid;
+  readonly long playerStarted;
   bool disposed;
   public string EndpointId { get; }
-  public bool RecoveryDeferred { get; private set; }
+  public bool PlayerExited => !IsSameProcess(playerPid, playerStarted);
   static string DirectoryPath => Path.Combine(Program.DataDirectory, "routes");
-  public static bool HasDeferredRecovery => Directory.Exists(DirectoryPath)
-    && Directory.GetFiles(DirectoryPath, "*.json").Any();
 
-  RouteSession(Process helper, string endpointId)
+  public static (bool Pending, bool Deferred) ReadRecoveryState()
+  {
+    if (!Directory.Exists(DirectoryPath)) return (false, false);
+    bool pending = false, deferred = true;
+    foreach (string path in Directory.GetFiles(DirectoryPath, "*.json"))
+    {
+      try
+      {
+        var record = ReadRecord(path);
+        pending = true;
+        // Only a live guard with a restored endpoint can finish quietly in the background.
+        deferred &= record.Restoring && record.MutedEndpoint == null && !record.RoutingRestored
+          && record.RecoveryError == null && record.Previous is { Length: 3 }
+          && !string.IsNullOrWhiteSpace(record.Executable) && !string.IsNullOrWhiteSpace(record.Endpoint)
+          && IsSameProcess(record.GuardPid, record.GuardStarted);
+      }
+      catch (FileNotFoundException) { }
+      catch { return (true, false); }
+    }
+    return (pending, pending && deferred);
+  }
+
+  RouteSession(Process helper, string endpointId, int playerPid, long playerStarted)
   {
     this.helper = helper; EndpointId = endpointId;
+    this.playerPid = playerPid; this.playerStarted = playerStarted;
     readiness = helper.StandardOutput.ReadLineAsync();
   }
 
   public static async Task<RouteSession> Start(int pid, string endpointId, CancellationToken cancellation = default)
   {
+    long started;
     using (var target = Process.GetProcessById(pid))
     {
       string executable = target.MainModule?.FileName ?? throw new InvalidOperationException("无法识别播放器。");
+      started = target.StartTime.ToUniversalTime().Ticks;
       RecoverPending();
       for (int attempt = 0; HasPending(executable) || HasPendingEndpoint(endpointId); attempt++)
       {
@@ -42,7 +67,7 @@ internal sealed class RouteSession : IDisposable
     info.ArgumentList.Add(endpointId);
     cancellation.ThrowIfCancellationRequested();
     var helper = Process.Start(info) ?? throw new InvalidOperationException("无法启动原声恢复助手。");
-    var session = new RouteSession(helper, endpointId);
+    var session = new RouteSession(helper, endpointId, pid, started);
     try
     {
       string? response = await session.readiness.WaitAsync(TimeSpan.FromSeconds(8), cancellation);
@@ -67,7 +92,7 @@ internal sealed class RouteSession : IDisposable
       // Cancellation of the wait does not cancel the outstanding pipe read.
       readiness.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
       string? response = helper.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
-      if (response == "pending") { RecoveryDeferred = true; return; }
+      if (response == "pending") return;
       bool exited = helper.WaitForExit(5000);
       int exitCode = exited ? helper.ExitCode : -1;
       string message = exited ? helper.StandardError.ReadToEnd().Trim() : "恢复助手仍在处理，稍后可点“恢复原声”。";

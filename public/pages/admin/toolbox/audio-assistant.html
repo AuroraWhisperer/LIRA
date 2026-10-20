@@ -46,12 +46,12 @@
           <span id="audioAssistantSourceDevice" class="hint"></span>
         </div>
         <div id="audioAssistantIsolation" class="audio-assistant-field">
-          <div class="audio-assistant-label"><label for="audioAssistantCable">原声通道</label><lira-help label="原声通道说明" tooltip-id="audioAssistantCableHint">选择空闲的虚拟音频通道，不能与最终输出相同。</lira-help></div>
+          <div class="audio-assistant-label"><label for="audioAssistantCable">原声通道</label><lira-help label="原声通道说明" tooltip-id="audioAssistantCableHint">与 QQ 音乐、网易云音乐的输出通道保持一致。使用 LIRA 内置播放器时，在「百宝箱 → 设置 → 内置播放器输出」中选择同一通道。这里会接收并静音播放器原声，须使用能独立静音的播放输出（Out），不能与最终输出相同。</lira-help></div>
           <select id="audioAssistantCable" data-audio-setting="cableId" aria-describedby="audioAssistantCableHint"><option value="" disabled selected>请选择独立通道</option></select>
         </div>
         <div class="audio-assistant-field">
-          <label for="audioAssistantOutput">最终输出</label>
-          <select id="audioAssistantOutput" data-audio-setting="outputId"><option value="">自动跟随原输出</option></select>
+          <div class="audio-assistant-label"><label for="audioAssistantOutput">最终输出</label><lira-help label="最终输出说明" tooltip-id="audioAssistantOutputHint">处理后的音乐从这里输出，选择实际监听或送入直播的通道，必须与原声通道不同。播放器已经设为原声通道时，请手动选择另一个设备，不要用「自动跟随播放器原输出」。</lira-help></div>
+          <select id="audioAssistantOutput" data-audio-setting="outputId" aria-describedby="audioAssistantOutputHint"><option value="">自动跟随播放器原输出</option></select>
         </div>
         <div class="audio-assistant-device-actions">
           <button type="button" class="secondary" data-audio-action="refresh">刷新设备</button>

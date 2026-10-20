@@ -16,7 +16,7 @@ internal sealed class AudioSession : IDisposable
   string? filePath;
   int ticks;
   int? activePid;
-  bool starting, disposed, original, pendingRecovery;
+  bool starting, disposed, original, pendingRecovery, recoveryDeferred;
   public event Action? Changed;
 
   public AudioSession(Action<Action> dispatch)
@@ -46,7 +46,7 @@ internal sealed class AudioSession : IDisposable
       apps = apps.Select(a => new { id = $"pid:{a.Pid}", name = $"{a.Name} · {a.Title}" }).ToArray(),
       outputs = outputs.Select(d => new { id = d.Id, name = d.Name }).ToArray(),
       level = engine?.Dsp.OutputPeak ?? 0, position = engine?.PositionSeconds ?? 0,
-      duration = engine?.DurationSeconds ?? 0, pendingRecovery,
+      duration = engine?.DurationSeconds ?? 0, pendingRecovery, recoveryDeferred,
     };
   }
 
@@ -63,7 +63,7 @@ internal sealed class AudioSession : IDisposable
   {
     RequireIdle();
     RefreshInventory();
-    if (!pendingRecovery) status = "音乐来源和设备已刷新。";
+    if (!pendingRecovery || recoveryDeferred) status = "音乐来源和设备已刷新。";
   }
 
   void RequireIdle()
@@ -79,7 +79,7 @@ internal sealed class AudioSession : IDisposable
     source = "file";
     settings.External = false;
     Save();
-    if (!pendingRecovery) status = "本地歌曲已就绪，开启当前歌曲即可处理。";
+    if (!pendingRecovery || recoveryDeferred) status = "本地歌曲已就绪，开启当前歌曲即可处理。";
   }
 
   public void Configure(JsonElement values)
@@ -102,7 +102,7 @@ internal sealed class AudioSession : IDisposable
     if (values.TryGetProperty("original", out var bypass)) original = bypass.GetBoolean();
     ApplyControls();
     Save();
-    if (!starting && engine == null && !pendingRecovery) status = "设置已保存。";
+    if (!starting && engine == null && (!pendingRecovery || recoveryDeferred)) status = "设置已保存。";
   }
 
   void ApplyControls()
@@ -160,8 +160,9 @@ internal sealed class AudioSession : IDisposable
       activePid = external ? app!.Pid : null;
       created.Stopped += error => dispatch(() => {
         if (engine != created) return;
+        bool playerExited = route?.PlayerExited == true;
         Stop();
-        if (error != null) status = $"音频已停止：{error.Message}\n{status}";
+        if (error != null && !playerExited) status = $"音频已停止：{error.Message}\n{status}";
         Changed?.Invoke();
       });
       ApplyControls();
@@ -187,10 +188,10 @@ internal sealed class AudioSession : IDisposable
     try { previous?.Dispose(); }
     catch (Exception error) { errors.Add("音频停止异常：" + error.Message); }
     try { previousRoute?.Dispose(); }
-    catch (Exception error) { pendingRecovery = true; errors.Add(error.Message); }
-    pendingRecovery |= previousRoute?.RecoveryDeferred == true;
+    catch (Exception error) { errors.Add(error.Message); }
+    UpdateRecoveryState(errors.Count > 0);
     status = errors.Count > 0 ? "已停止，原声恢复需要检查：" + string.Join("\n", errors)
-      : pendingRecovery ? "已停止；后台将在播放器下次启动时恢复原声。"
+      : pendingRecovery ? RecoveryStatus
       : previousRoute == null ? "当前歌曲处理已关闭" : "当前歌曲处理已关闭，播放器输出已还原";
     Changed?.Invoke();
   }
@@ -206,9 +207,18 @@ internal sealed class AudioSession : IDisposable
   {
     RequireIdle();
     var errors = RouteSession.RecoverPending();
-    pendingRecovery = errors.Length > 0 || RouteSession.HasDeferredRecovery;
+    UpdateRecoveryState(errors.Length > 0);
     if (errors.Length > 0) status = string.Join("\n", errors.Distinct());
-    else if (reportSuccess) status = pendingRecovery ? "后台将在播放器下次启动时恢复原声。" : "原声恢复完成。";
+    else if (reportSuccess) status = pendingRecovery ? RecoveryStatus : "原声恢复完成。";
+  }
+
+  string RecoveryStatus => recoveryDeferred
+    ? "原声通道已恢复；播放器的输出设置将在下次播放时自动还原。" : "正在恢复原声。";
+
+  void UpdateRecoveryState(bool failed)
+  {
+    (pendingRecovery, recoveryDeferred) = RouteSession.ReadRecoveryState();
+    if (failed) { pendingRecovery = true; recoveryDeferred = false; }
   }
 
   public async Task Tick()
@@ -221,12 +231,15 @@ internal sealed class AudioSession : IDisposable
       {
         string previousStatus = status;
         bool previousPendingRecovery = pendingRecovery;
+        bool previousDeferred = recoveryDeferred;
         Recover();
-        if (status != previousStatus || pendingRecovery != previousPendingRecovery) Changed?.Invoke();
+        if (status != previousStatus || pendingRecovery != previousPendingRecovery || recoveryDeferred != previousDeferred)
+          Changed?.Invoke();
       }
       return;
     }
     bool refreshed = ticks % 8 == 0 && source != "file";
+    if (route?.PlayerExited == true) { Stop(); return; }
     if (refreshed) apps = AudioDevices.Apps(names);
     if (route != null && !AudioDevices.IsMuted(route.EndpointId))
     {

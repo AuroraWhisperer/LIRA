@@ -8,6 +8,7 @@ import { PlaybackConfig } from '../config.js';
 import * as PlaybackUtils from '../utils.js';
 import { QueueManager } from '../queue/manager.js';
 import { isInterruptedMediaPlayError } from '../../shared/media-playback-feedback.js';
+import { preparePlaybackOutput } from './output-device.js';
 
 export function createPlaybackControls(deps) {
   const {
@@ -171,6 +172,8 @@ export function createPlaybackControls(deps) {
     }
 
     try {
+      await preparePlaybackOutput(audio);
+      if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
       await audio.play();
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
       if (startAt > 0) {
@@ -250,7 +253,11 @@ export function createPlaybackControls(deps) {
         },
         { once: true },
       );
-      if (shouldResume) await audio.play();
+      if (shouldResume) {
+        await preparePlaybackOutput(audio);
+        if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
+        await audio.play();
+      }
 
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
 
@@ -313,6 +320,8 @@ export function createPlaybackControls(deps) {
 
     if (audio.paused) {
       try {
+        await preparePlaybackOutput(audio);
+        if (playbackState.current !== track || !audio.paused) return;
         await audio.play();
       } catch (error) {
         if (!isInterruptedMediaPlayError(error)) showError(error);

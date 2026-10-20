@@ -183,6 +183,7 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   await page.locator('#playerFsClose').press('Tab');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playerFsLyrics');
   await page.locator('#playerFsLyrics').press('Space');
+  await page.waitForFunction(() => window.audioPlayCalls === 1);
   assert.equal(await page.evaluate(() => window.audioPlayCalls), 1);
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playerDockToggle', 'The visible shared player stays keyboard accessible.');

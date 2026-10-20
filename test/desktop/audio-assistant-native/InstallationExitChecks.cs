@@ -21,7 +21,8 @@ internal static class InstallationExitChecks
         finally { StopFixture(bridge); }
       }
 
-      string journal = Path.Combine(root, "deferred.json");
+      Directory.CreateDirectory(Path.Combine(root, "routes"));
+      string journal = Path.Combine(root, "routes", "deferred.json");
       var record = new RouteSession.RouteRecord {
         Executable = Path.Combine(root, "absent-player.exe"), Previous = new string?[] { null, "original", null },
         Endpoint = "fixture-route", Restoring = true, GuardPid = int.MaxValue,
@@ -34,6 +35,22 @@ internal static class InstallationExitChecks
         try
         {
           await ExpectPending(recovery);
+          using (var bridge = Start("--bridge"))
+          {
+            try
+            {
+              string? snapshot = await bridge.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10));
+              using var message = JsonDocument.Parse(snapshot ?? throw new Exception("Missing bridge state."));
+              var state = message.RootElement.GetProperty("state");
+              if (!state.GetProperty("pendingRecovery").GetBoolean() || !state.GetProperty("recoveryDeferred").GetBoolean())
+                throw new Exception("A closed player must allow safe background recovery without reopening it.");
+              RequestExit(bridge);
+              await ExpectExit(bridge);
+              if (!File.Exists(journal) || recovery.HasExited)
+                throw new Exception("Closing the UI must retain the deferred journal and its recovery guard.");
+            }
+            finally { StopFixture(bridge); }
+          }
           RequestExit(recovery);
           await ExpectExit(recovery);
           var retained = RouteSession.ReadRecord(journal);

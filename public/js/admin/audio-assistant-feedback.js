@@ -9,15 +9,16 @@ const NORMAL_STATUSES = new Set([
   '正在确认最终输出；若播放器暂停，请继续播放。', '正在检查播放器通道；可随时关闭当前歌曲处理。',
   '正在启动音频处理…', '正在处理当前歌曲', '当前歌曲处理已关闭', '当前歌曲处理已关闭，播放器输出已还原',
   '已停止；后台将在播放器下次启动时恢复原声。', '后台将在播放器下次启动时恢复原声。', '原声恢复完成。',
+  '原声通道已恢复；播放器的输出设置将在下次播放时自动还原。', '正在恢复原声。',
   '正在试听原声', '正在处理本地歌曲', '原声已隔离 · 原声对比',
   '原声已隔离 · 正在输出处理后的音乐', '原声已隔离 · 等待播放器声音',
 ]);
 
 const FAILURE_MESSAGES = [
   [/请从 Windows 桌面客户端/, '请在 Windows 版 LIRA 客户端中打开电音助手。'],
-  [/请先选择已有的独立原声通道/, '尚未选择可用的原声通道。请选择空闲的虚拟音频通道（如 OMEN 或 VB-CABLE），或将音乐来源改为「本地文件」。'],
-  [/原声通道与最终输出不能相同/, '原声通道与最终输出选中了同一设备。请把原声通道改为空闲的虚拟音频通道，把最终输出设为实际听歌的扬声器或耳机。'],
-  [/原声通道正被|其他程序开始使用原声通道/, '原声通道正在被其他程序使用。请停止该程序的播放，或选择其他空闲的虚拟音频通道。'],
+  [/请先选择已有的独立原声通道/, '尚未选择可用的原声通道。请选择声卡上空闲、可独立静音的输出通道，或独立的虚拟音频通道；没有可用通道时，可改用「本地文件」。'],
+  [/原声通道与最终输出不能相同/, '原声通道与最终输出选中了同一输出通道。请把「最终输出」改为实际监听或送入直播的另一个独立通道，可以来自同一张声卡。播放器已设到原声通道时，请手动选择最终输出，不要使用自动跟随。'],
+  [/原声通道正被|其他程序开始使用原声通道/, '原声通道正在被其他程序使用。请停止该程序的播放，或选择其他空闲、可独立静音的输出通道。'],
   [/请先关闭当前歌曲的处理/, '当前歌曲还在处理中。请先关闭「当前歌曲」，再切换音乐来源或设备。'],
   [/仍在处理或恢复中|另一个窗口正在处理或恢复|此前的恢复助手仍在运行/, '播放器或原声通道正在被另一个窗口使用或恢复。请先停止那个窗口的处理，等待原声恢复后再试。'],
   [/请先选择一首本地歌曲|本地歌曲不存在|请通过选择歌曲按钮/, '尚未选择歌曲，或之前的文件已不存在。请点击「选择歌曲」，重新打开本地音频文件。'],
@@ -26,7 +27,9 @@ const FAILURE_MESSAGES = [
   [/尚未识别当前歌曲/, '尚未识别到当前歌曲。请先播放歌曲，并在播放器中开启系统媒体信息或歌曲窗口标题；仍无法识别时，可改用「本地文件」。'],
   [/无法识别播放器/, '无法读取播放器信息。请以普通权限启动播放器和 LIRA，播放歌曲后重试。'],
   [/播放器同时向多个设备输出/, '播放器正在向多个设备输出声音。请在「最终输出」中明确选择实际听歌的扬声器或耳机，再开启处理。'],
-  [/播放器未切入原声通道|Windows 未应用播放器隔离路由|无法关闭原声通道直通/, '未能隔离播放器原声，处理已取消。请将播放器输出设为系统默认，关闭独占模式或 ASIO 输出后重试。'],
+  [/播放器未切入原声通道/, '播放器声音没有进入所选原声通道，处理已取消。请将 QQ 音乐、网易云音乐或 LIRA 内置播放器的输出通道设为与「原声通道」相同，关闭独占模式或 ASIO 输出后重试；仍失败时可改用「本地文件」。'],
+  [/Windows 未应用播放器隔离路由/, 'Windows 没有应用播放器的输出设置，处理已取消。请在「音量混合器」中检查播放器输出设置，重新打开播放器后重试；仍失败时可改用「本地文件」。'],
+  [/无法关闭原声通道直通/, '无法将所选原声通道静音，处理已取消，以免原声与处理后的声音重叠。请选择其他空闲、可独立静音的通道，或改用「本地文件」。'],
   [/原声通道被解除静音/, '原声通道被取消了静音，处理已自动停止，避免原声和处理后的声音同时播放。请检查其他音频软件的设置后重新开启。', 'warning'],
   [/歌曲已切换|歌曲或播放器已切换|已切换播放器/, '歌曲或播放器已切换，处理已自动关闭。需要继续处理时，请重新开启「当前歌曲」。', 'info'],
   [/外部实时处理需要 Windows/, '实时处理需要 Windows 10 2004 或更新版本，也支持 Windows 11。请更新 Windows，或将音乐来源改为「本地文件」。'],
@@ -53,11 +56,15 @@ const OPERATION_FAILURES = {
   state: '音频处理出现异常。请检查播放器和音频设备后重新开启；若原声未恢复，请点击「恢复原声」。',
 };
 
+function needsRecovery(state) {
+  return state.pendingRecovery && state.recoveryDeferred !== true;
+}
+
 export function formatAudioFailure(error, op = 'state', state = {}) {
   const detail = String(error || '').split(/\r?\n/).filter((line) => !NORMAL_STATUSES.has(line)).join('\n');
   const match = FAILURE_MESSAGES.find(([pattern]) => pattern.test(detail));
   let message = match?.[1] || OPERATION_FAILURES[op] || OPERATION_FAILURES.state;
-  if (state.pendingRecovery && !message.includes('恢复原声')) {
+  if (needsRecovery(state) && !message.includes('恢复原声')) {
     message += ' 原声仍待恢复，可点击「恢复原声」重试。';
   }
   return { message, type: match?.[2] || 'error' };
@@ -71,14 +78,14 @@ export function formatAudioStatus(state = {}) {
     if (state.original) return '正在试听原声';
     return state.source === 'file' ? '正在处理本地歌曲' : '正在处理当前歌曲';
   }
-  return state.pendingRecovery ? '等待恢复原声' : '当前歌曲处理已关闭';
+  return needsRecovery(state) ? '等待恢复原声' : '当前歌曲处理已关闭';
 }
 
 function stateNotice(state) {
   if (!NORMAL_STATUSES.has(state.status || '')) {
     return formatAudioFailure(state.status, state.ready === false ? 'get' : 'state', state);
   }
-  if (state.pendingRecovery && !state.starting && !state.running) {
+  if (needsRecovery(state) && !state.starting && !state.running) {
     return { type: 'warning', message: '原声尚待恢复，后台会继续尝试。若播放器已退出，会在它下次启动时恢复；也可点击「恢复原声」重试。' };
   }
   return null;
@@ -99,7 +106,7 @@ export function createAudioFeedback(notify = toast) {
 
   function reportState() {
     const notice = stateNotice(state);
-    if (notice && state.pendingRecovery && NORMAL_STATUSES.has(state.status || '')
+    if (notice && needsRecovery(state) && NORMAL_STATUSES.has(state.status || '')
       && (!reportDeferredRecovery || lastNotice)) return;
     if (notice && notice.message !== lastNotice) show(notice);
     lastNotice = notice?.message || '';
@@ -114,7 +121,7 @@ export function createAudioFeedback(notify = toast) {
   return {
     receive(next) {
       // Startup can restore old recovery tasks that only need to wait for a closed player.
-      if (next.ready && (!next.pendingRecovery || next.starting || next.running)) reportDeferredRecovery = true;
+      if (next.ready && (!needsRecovery(next) || next.starting || next.running)) reportDeferredRecovery = true;
       state = next;
       if (!disposed && !pending) reportState();
     },
@@ -125,7 +132,8 @@ export function createAudioFeedback(notify = toast) {
       // Native state arrives before the command reply; present that failure only once.
       if (!result?.ok) fail(op, result?.error);
       else if (op === 'recover' && state.pendingRecovery) {
-        const notice = stateNotice(state);
+        const notice = stateNotice(state) || { type: 'info',
+          message: '原声通道已恢复。已关闭的播放器无需重开，输出设置会在它下次播放时自动还原。' };
         show(notice);
         lastNotice = notice.message;
       } else if (!pending) reportState();

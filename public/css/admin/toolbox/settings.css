@@ -42,6 +42,28 @@
   flex: 0 0 auto;
 }
 
+.playback-output-settings {
+  display: grid;
+  gap: 12px;
+}
+
+.playback-output-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.playback-output-controls > select,
+.playback-output-controls > .lira-select {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.playback-output-settings [role='status']:empty {
+  display: none;
+}
+
 .license-account-details {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
