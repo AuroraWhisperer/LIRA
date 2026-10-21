@@ -47,12 +47,15 @@ const { registerClientAppearanceIpc } = require('./ipc/client-appearance-ipc');
 const { registerScreenColorPicker } = require('./screen-color-picker');
 const { createAudioAssistant } = require('./audio-assistant');
 const { registerAudioAssistantIpc } = require('./ipc/audio-assistant-ipc');
+const { createPlaybackOutput } = require('./playback-output');
+const { registerPlaybackOutputIpc } = require('./ipc/playback-output-ipc');
 const { migrateLegacyUserData, resolveDesktopUserDataPaths } = require('./desktop-user-data');
 const { migrateBrowserData, migrateCacheData } = require('../storage/data-directory-migration');
 const { registerLocalFontPermissionHandler } = require('./desktop-permissions');
 const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
 const { registerLocalMediaProtocol } = require('./local-media-protocol');
 const { configureMediaRequestHeaders } = require('./media-request-headers');
+const { configureAudioMediaCors } = require('./audio-media-cors');
 const { createDesktopRequestAuth } = require('./desktop-request-auth');
 const updateMgr = require('./update-manager');
 const playbackFlush = require('./playback-flush');
@@ -149,6 +152,8 @@ var doubaoSession = null;
 var disposeClientAppearanceIpc = null;
 var disposeScreenColorPicker = null;
 var audioAssistant = null;
+var playbackOutput = null;
+var disposePlaybackOutputIpc = null;
 var disposeAudioAssistantIpc = null;
 var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
@@ -175,6 +180,7 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
+      corsEnabled: true,
       stream: true,
       bypassCSP: true,
     },
@@ -225,6 +231,8 @@ if (userDataMigrationState.error) {
 } else if (!gotInstanceLock) {
   app.quit();
 } else {
+  // Native playback consumes Web Audio PCM even when Chromium hears only silence.
+  if (process.platform === 'win32') app.commandLine.appendSwitch('disable-renderer-backgrounding');
   app
     .whenReady()
     .then(startDesktopApp)
@@ -353,6 +361,7 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
       disposeClientAppearanceIpc?.();
       disposeScreenColorPicker?.();
       disposeAudioAssistantIpc?.();
+      disposePlaybackOutputIpc?.();
       plannerReminderController?.dispose();
       dynamicLotteryAuth?.dispose();
       const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth, doubaoSession].filter(
@@ -366,6 +375,7 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
       await Promise.all([
         integrityStopped,
         audioAssistant?.dispose(),
+        playbackOutput?.dispose(),
         clientAppearance?.whenIdle(),
         dynamicLotteryAuth?.whenIdle(),
         guardExpiryAuth?.whenIdle(),
@@ -386,10 +396,21 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
 
 async function startDesktopApp() {
   configureDesktopEnvironment();
+  playbackOutput = createPlaybackOutput({
+    executable: path.join(app.isPackaged ? process.resourcesPath : path.join(ROOT_DIR, 'build'), 'audio-assistant', 'LiraAudioAssistant.exe'),
+    dataDir: pathState.dataDir,
+    onFault: (fault) => {
+      const window = windowState.main;
+      if (window && !window.isDestroyed()) window.webContents.send('playback-output:fault', fault);
+    },
+  });
+  disposePlaybackOutputIpc = registerPlaybackOutputIpc({ ipcMain, output: playbackOutput,
+    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
   audioAssistant = createAudioAssistant({
     executable: path.join(app.isPackaged ? process.resourcesPath : path.join(ROOT_DIR, 'build'), 'audio-assistant', 'LiraAudioAssistant.exe'),
     dataDir: pathState.dataDir,
-    getProcessIds: () => [process.pid, ...app.getAppMetrics().map((item) => item.pid)],
+    getProcessIds: () => [process.pid, playbackOutput?.getProcessId(), ...app.getAppMetrics().map((item) => item.pid)],
+    getPlaybackProcessId: () => playbackOutput?.getCaptureProcessId(),
     onState: (state) => {
       const window = windowState.main;
       if (window && !window.isDestroyed()) window.webContents.send('audio-assistant:state', state);
@@ -491,6 +512,7 @@ async function startDesktopApp() {
     getToken: () => lifecycleState.runtime?.getApiToken?.() || '',
   });
   configureMediaRequestHeaders(session.defaultSession, mediaState, lifecycleState.requestAuth);
+  configureAudioMediaCors(session.defaultSession, { getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
   configureAutoUpdater();
   phaseStartedAt = Date.now();
   await restoreMusicCookieSnapshots();
@@ -815,7 +837,7 @@ function isPathAllowedForLocalMedia(filePath) {
 }
 
 function configureLocalMediaProtocol() {
-  registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia);
+  registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia, () => windowState.baseUrl);
 }
 
 function createMainWindow(baseUrl, authorized = false) {
@@ -834,6 +856,7 @@ function createMainWindow(baseUrl, authorized = false) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      backgroundThrottling: false,
     },
   };
   var iconPath = path.join(ROOT_DIR, 'build', 'icon.png');

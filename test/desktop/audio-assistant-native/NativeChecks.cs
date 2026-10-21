@@ -9,6 +9,7 @@ internal static class NativeChecks
     CheckWindowsCompatibility();
     await InstallationExitChecks.Run(args[0], args[1]);
     await CheckIdleSession(args[1]);
+    await DeviceInputChecks.Run(args[1]);
     // Construction verifies the packaged model hash and runs a warm-up inference.
     using (var model = new StemModel())
       Console.WriteLine("Packaged lira.onnx model loaded and inference completed.");

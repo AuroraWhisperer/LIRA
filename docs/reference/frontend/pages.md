@@ -270,6 +270,8 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 
 `pk-score-calculator.js` 拥有百宝箱「PK 算分」的本地试算与显示，由 `app.js` 按需加载；片段为 `toolbox/pk-score-calculator.html`，样式为 `css/admin/toolbox/pk-score-calculator.css`。默认值与换算规则见 [app.md §6.1](app.md#61-pk-算分)。
 
+「主播工具 → 世界时钟」沿用 `/admin`，由 `toolbox/world-clock.html`、`js/admin/world-clock/` 和 `css/admin/toolbox/world-clock.css` 拥有；按需加载、计时、城市偏好与地球生命周期见 [Admin 应用](app.md#世界时钟)。
+
 ### 4.2 播放助手 `public/js/playback/`(纯 ES Module)
 
 播放页内的「播放器外观」由 `pages/admin/playback/appearance.html`、`js/playback/ui/appearance.js` 和 `css/playback/appearance.css` 拥有，入口及本机偏好见[播放器外观契约](playback.md#81-大播放器外观)。

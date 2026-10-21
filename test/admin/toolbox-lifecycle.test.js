@@ -199,7 +199,7 @@ test('an import failure can retry in place and initialize successfully once', as
 test('optional editors have no eager entry imports or initialization calls', () => {
   const entry = fs.readFileSync(path.join(root, 'public/js/admin/index.js'), 'utf8');
   const app = fs.readFileSync(path.join(root, 'public/js/admin/app.js'), 'utf8');
-  for (const file of ['clock-card', 'start-animation', 'games', 'overtime']) {
+  for (const file of ['clock-card', 'start-animation', 'games', 'overtime', 'world-clock/index']) {
     assert.doesNotMatch(entry + app, new RegExp(`(?:from\\s+|import\\s+)['"]\\./${file}\\.js['"]`));
     assert.ok(app.includes(`import('./${file}.js')`));
   }

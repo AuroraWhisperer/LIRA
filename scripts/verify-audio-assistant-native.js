@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { createAudioAssistant } = require('../src/electron/audio-assistant');
+const { checkNativePlayback } = require('../test/desktop/playback-output-native-checks');
 
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'tmp/audio-assistant-native-checks');
@@ -65,4 +66,4 @@ async function checkBridge() {
   } finally { await assistant.dispose(); }
 }
 
-checkBridge().catch((error) => { console.error(error); process.exitCode = 1; });
+checkBridge().then(() => checkNativePlayback(root)).catch((error) => { console.error(error); process.exitCode = 1; });

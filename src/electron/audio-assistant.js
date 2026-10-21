@@ -5,7 +5,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { createInterface } = require('node:readline');
 
-function createAudioAssistant({ executable, dataDir, spawnProcess = spawn, exists = fs.existsSync, onState = () => {}, getProcessIds = () => [] }) {
+function createAudioAssistant({ executable, dataDir, spawnProcess = spawn, exists = fs.existsSync, onState = () => {}, getProcessIds = () => [], getPlaybackProcessId = () => null }) {
   let child = null;
   let launching = null;
   let closing = null;
@@ -84,7 +84,7 @@ function createAudioAssistant({ executable, dataDir, spawnProcess = spawn, exist
         if (child) child.stdin.end();
       }, 45000);
       requests.set(id, { resolve, reject, timer });
-      child.stdin.write(JSON.stringify({ id, op, value }) + '\n');
+      child.stdin.write(JSON.stringify({ id, op, value, playbackProcessId: getPlaybackProcessId() }) + '\n');
       return await promise;
     } catch (error) {
       return { ok: false, error: error.message, state };

@@ -1,5 +1,7 @@
 'use strict';
 
+import { createNativeOutput } from './native-output.js';
+
 export const PLAYBACK_OUTPUT_KEY = 'playbackOutput:v1';
 const outputs = new WeakMap();
 const DEFAULT_OUTPUT = { deviceId: '', name: '系统默认输出' };
@@ -20,11 +22,13 @@ export function getPlaybackOutput(audio, options = {}) {
   const windowRef = options.windowRef || window;
   const mediaDevices = options.mediaDevices || globalThis.navigator?.mediaDevices;
   const bridge = options.bridge || windowRef.audioAssistant;
+  const nativeBridge = options.nativeBridge || windowRef.playbackOutput;
   let storage = options.storage;
   if (!storage) { try { storage = windowRef.localStorage; } catch { storage = null; } }
   let selected;
   try { selected = readPreference(storage?.getItem(PLAYBACK_OUTPUT_KEY)); } catch { selected = { ...DEFAULT_OUTPUT }; }
-  const supported = typeof audio.setSinkId === 'function' && typeof mediaDevices?.enumerateDevices === 'function';
+  const supported = Boolean(nativeBridge || options.nativeOutput)
+    || typeof audio.setSinkId === 'function' && typeof mediaDevices?.enumerateDevices === 'function';
   const listeners = new Set();
   let devices = [];
   let message = '';
@@ -38,6 +42,16 @@ export function getPlaybackOutput(audio, options = {}) {
   let disposed = false;
   let revision = 0;
   let pending = Promise.resolve();
+  let appliedId = audio.sinkId || '';
+  const native = options.nativeOutput || (nativeBridge ? createNativeOutput(audio, { bridge: nativeBridge,
+    onFault: (error) => {
+      blocked = true;
+      appliedId = null;
+      message = error;
+      audio.pause();
+      publish();
+    },
+  }) : null);
 
   function snapshot() {
     return { ...selected, devices, supported, busy, processing: processing || startLocks > 0,
@@ -49,9 +63,17 @@ export function getPlaybackOutput(audio, options = {}) {
   }
 
   async function enumerate() {
-    return (await mediaDevices.enumerateDevices())
+    const browserDevices = (await mediaDevices.enumerateDevices())
       .filter((device) => device.kind === 'audiooutput' && device.deviceId && !['default', 'communications'].includes(device.deviceId))
-      .map((device, index) => ({ deviceId: device.deviceId, name: device.label || `输出设备 ${index + 1}` }));
+      .map((device, index) => ({ deviceId: device.deviceId,
+        name: `${native ? '自动：' : ''}${device.label || `输出设备 ${index + 1}`}` }));
+    if (!native) return browserDevices;
+    const nativeDevices = await native.enumerate();
+    if (selected.deviceId.startsWith('asio:') && !nativeDevices.some(device => device.deviceId === selected.deviceId)
+      && nativeDevices.some(device => device.deviceId === selected.deviceId.split('|')[0])) {
+      nativeDevices.push({ ...selected, backend: 'asio', name: `${selected.name}（连接待检查）` });
+    }
+    return [...nativeDevices, ...browserDevices];
   }
 
   function select(deviceId, { save = true, preference = null } = {}) {
@@ -84,9 +106,18 @@ export function getPlaybackOutput(audio, options = {}) {
         }
         const next = deviceId ? devices.find((device) => device.deviceId === deviceId) : DEFAULT_OUTPUT;
         if (!next) throw new Error(MISSING_HINT);
-        await audio.setSinkId(deviceId);
+        if (native) {
+          appliedId = null;
+          if (next.backend) await native.select(deviceId);
+          else await native.browser(deviceId);
+        } else await audio.setSinkId(deviceId);
+        appliedId = deviceId;
         if (disposed || request !== revision) return false;
         selected = { ...next };
+        if (next.backend === 'asio') {
+          devices = await enumerate();
+          selected = { ...(devices.find(device => device.deviceId === deviceId) || next) };
+        }
         blocked = Boolean(deferredPreference);
         message = '';
         if (save && !deferredPreference) {
@@ -102,12 +133,13 @@ export function getPlaybackOutput(audio, options = {}) {
         if (disposed || request !== revision) return false;
         if (!save) selected = preference || { ...selected, deviceId };
         const missing = selected.deviceId && !devices.some((device) => device.deviceId === selected.deviceId);
-        blocked = selected.deviceId !== (audio.sinkId || '') || Boolean(missing) || Boolean(deferredPreference);
+        blocked = selected.deviceId !== (native ? appliedId : audio.sinkId || '') || Boolean(missing) || Boolean(deferredPreference);
         if (blocked) audio.pause();
         message = error.name === 'NotAllowedError'
           ? '无法访问这个输出通道，请在 LIRA 桌面客户端重新选择。'
           : error.name === 'NotFoundError' ? MISSING_HINT
             : [MISSING_HINT, PROCESSING_HINT].includes(error.message) ? error.message
+              : deviceId.startsWith('asio:') ? 'ASIO 驱动未能启动，请检查声卡连接及驱动设置，或选择其他输出方式。'
               : '输出通道切换失败，请检查设备连接后重试。';
         return false;
       } finally {
@@ -174,6 +206,14 @@ export function getPlaybackOutput(audio, options = {}) {
     async prepare() {
       await waitForOutput();
       if (blocked) throw new Error('内置播放器输出通道不可用，请到「百宝箱 → 设置」重新选择。');
+      try { await native?.prepare(); }
+      catch {
+        blocked = true;
+        audio.pause();
+        message = '输出设备无法启动，请重新选择输出通道。';
+        publish();
+        throw new Error(message);
+      }
     },
     async lockWhile(task) {
       startLocks++;
@@ -191,6 +231,7 @@ export function getPlaybackOutput(audio, options = {}) {
       disposed = true;
       revision++;
       unsubscribe?.();
+      native?.dispose();
       windowRef.removeEventListener?.('storage', onStorage);
       mediaDevices?.removeEventListener?.('devicechange', refresh);
       listeners.clear();

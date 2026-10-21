@@ -260,6 +260,18 @@
   background: var(--border);
 }
 
+.audio-assistant-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.audio-assistant-levels > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .audio-assistant-meter > span {
   display: block;
   height: 100%;

@@ -5,7 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-async function fixture(preference = null) {
+async function fixture(preference = null, nativeOutput = null) {
   const { getPlaybackOutput, PLAYBACK_OUTPUT_KEY } = await loadModuleExports(path.resolve('public/js/playback/features/output-device.js'));
   const windowListeners = new Map();
   const deviceListeners = new Map();
@@ -31,6 +31,7 @@ async function fixture(preference = null) {
     },
   };
   const options = {
+    nativeOutput,
     storage,
     windowRef: {
       addEventListener: (event, listener) => windowListeners.set(event, listener),
@@ -68,6 +69,32 @@ async function fixture(preference = null) {
     reinitialize: () => getPlaybackOutput(audio, options),
   };
 }
+
+test('native output choices reach their backend, persist after success and never use setSinkId as a fake backend', async () => {
+  const calls = [];
+  let reject = false;
+  const native = {
+    enumerate: async () => [{ deviceId: 'waveout:port', name: 'WaveOut: Studio', backend: 'waveout' }],
+    select: async id => { calls.push(['native', id]); if (reject) throw new Error('disconnected'); },
+    browser: async id => calls.push(['browser', id]),
+    prepare: async () => calls.push(['prepare']),
+    dispose: () => calls.push(['dispose']),
+  };
+  const f = await fixture(null, native);
+  await f.output.prepare();
+  assert.equal(await f.output.select('waveout:port'), true);
+  assert.deepEqual(f.calls, []);
+  assert.ok(calls.some(call => call[0] === 'native' && call[1] === 'waveout:port'));
+  assert.equal(f.savedPreference().deviceId, 'waveout:port');
+  reject = true;
+  assert.equal(await f.output.select('waveout:port'), false);
+  await assert.rejects(f.output.prepare(), /输出通道不可用/);
+  assert.equal(f.audio.paused, true);
+  assert.equal(await f.output.select(''), true);
+  await f.output.prepare();
+  f.output.dispose();
+  assert.deepEqual(calls.at(-1), ['dispose']);
+});
 
 test('output selection applies to the media element before saving and restores the saved device', async () => {
   const f = await fixture({ deviceId: 'a', name: 'Channel a' });

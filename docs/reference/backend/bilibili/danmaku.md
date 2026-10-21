@@ -32,7 +32,7 @@
 | `restart()` | 同 start,但 `connect({waitForOpen: true})` **等待握手完成**才 resolve;失败仍安排重连后 rethrow                                      | [danmaku-client.js:94-120](../../../../src/bilibili/danmaku-client.js#L94-L120)   |
 | `stop()`    | `stopped=true`、递增 generation(使在途异步失效)、清重连定时器、关 WS、停全部轮询器、销毁 MessageHandlers                            | [danmaku-client.js:122-134](../../../../src/bilibili/danmaku-client.js#L122-L134) |
 
-`connectionGeneration` 是**代际屏障**:所有异步回调先过 `isConnectionCurrent(generation)`([danmaku-client.js:399-401](../../../../src/bilibili/danmaku-client.js#L399-L401))防止旧连接的消息/回调串扰新连接。
+`connectionGeneration` 是 start/restart/stop 的**代际屏障**；同一代内还以 `connectionAttempt` 标识当前尝试。连接 HTTP 返回、socket 状态与消息事件、失败回调同时核对 generation 和 attempt，被后续尝试取代的结果不能覆盖状态、替换新 socket 或安排重连（[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)）。
 
 ### 2.2 connect 流程
 
@@ -54,7 +54,7 @@
 
 重连失败路径:报告状态(`connected: historyFallbackActive`)→ 再次 `scheduleReconnect` 无限循环,直到 `stop()`([danmaku-client.js:376-396](../../../../src/bilibili/danmaku-client.js#L376-L396))。
 
-自动尝试次数不设总上限，但请求频率有上述上限；历史消息回退在等待期间继续工作。start/restart 取消旧恢复 timer；stop 取消 timer 并递增 generation，旧回调不得重新安排任务。连接尝试序号继续用于诊断，与退避失败计数分开。
+自动尝试次数不设总上限，但请求频率有上述上限；历史消息回退在等待期间继续工作。start/restart 取消旧恢复 timer；stop 取消 timer 并递增 generation，旧回调不得重新安排任务。连接尝试序号同时用于诊断和同代尝试归属校验，与退避失败计数分开。
 
 ## 3. 轮询器与缓存(全部间隔速查)
 

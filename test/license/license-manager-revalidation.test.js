@@ -5,6 +5,7 @@ const test = require('node:test');
 const { LicenseState } = require('../../src/electron/license/license-manager');
 const { RemoteLicenseError } = require('../../src/electron/license/remote-license-client');
 const { createHarness } = require('../helpers/license-manager-harness');
+const { createLicenseIpcFixture } = require('../helpers/license-ipc-fixture');
 
 test('cloud songs are read through the authorized device token', async () => {
   const { manager, calls } = createHarness({
@@ -283,6 +284,93 @@ test('activation remains gated when post-activation verification cannot connect'
   assert.equal(manager.getState(), LicenseState.NEEDS_CONNECTION);
   assert.equal(manager.getAccessToken(), '');
   manager.dispose();
+});
+
+for (const resumeSucceeds of [true, false]) {
+  test(`activation IPC waits for ${resumeSucceeds ? 'successful' : 'failed'} resume and coalesces waiting submissions`, async (t) => {
+    const failure = new RemoteLicenseError('NETWORK_UNAVAILABLE', 'offline', { retryable: true });
+    const { manager, remote, calls, control, state } = createHarness({
+      identity: { deviceId: 'd', publicKeyPem: 'public' },
+      challengeError: failure,
+    });
+    const resumeGate = Promise.withResolvers();
+    t.after(() => {
+      manager.dispose();
+      resumeGate.resolve();
+    });
+    await manager.bootstrap();
+    assert.equal(manager.getState(), LicenseState.NEEDS_CONNECTION);
+    control.challengeError = null;
+    const challenge = remote.challenge;
+    let firstChallenge = true;
+    remote.challenge = async () => {
+      if (firstChallenge) {
+        firstChallenge = false;
+        await resumeGate.promise;
+        if (!resumeSucceeds) throw failure;
+      }
+      return challenge();
+    };
+    const activation = t.mock.method(remote, 'activate');
+    const ipc = createLicenseIpcFixture({ licenseManager: manager, framePath: '/license' });
+    const pendingResume = manager.resume();
+    await new Promise(setImmediate);
+    assert.equal(manager.getState(), LicenseState.CHECKING);
+    const input = { accountName: 'mlbb', password: 'Fixture9!', activationCode: 'ABCD-EFGH' };
+    const first = ipc.invoke('license:activate', input);
+    const second = ipc.invoke('license:activate', input);
+    await new Promise(setImmediate);
+    assert.equal(activation.mock.callCount(), 0, 'activation must not overlap the background check');
+
+    resumeGate.resolve();
+    await pendingResume;
+    const results = await Promise.all([first, second]);
+
+    assert.deepEqual(results[0], {
+      ok: true,
+      state: LicenseState.AUTHORIZED,
+      streamer: { accountName: 'mlbb', displayName: 'mlbb', subdomain: 'mlbb' },
+    });
+    assert.deepEqual(results[1], results[0]);
+    assert.equal(activation.mock.callCount(), 1);
+    const request = activation.mock.calls[0].arguments[0];
+    assert.equal(request.accountName, input.accountName);
+    assert.equal(request.password, input.password);
+    assert.equal(request.code, input.activationCode);
+    assert.equal(calls.verifies, resumeSucceeds ? 2 : 1);
+    assert.equal(state.value.accountName, input.accountName);
+  });
+}
+
+test('dispose cancels activation waiting for bootstrap without sending its input', async (t) => {
+  const { manager, remote, calls } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  const challenge = Promise.withResolvers();
+  t.after(() => {
+    manager.dispose();
+    challenge.resolve({ challengeId: 'pending', nonce: 'n' });
+  });
+  remote.challenge = () => challenge.promise;
+  const activation = t.mock.method(remote, 'activate');
+  const pendingBootstrap = manager.bootstrap();
+  await new Promise(setImmediate);
+  const pendingActivation = manager.activate({
+    accountName: 'mlbb',
+    password: 'Fixture9!',
+    activationCode: 'ABCD-EFGH',
+  });
+
+  manager.dispose();
+  challenge.resolve({ challengeId: 'pending', nonce: 'n' });
+  await pendingBootstrap;
+
+  assert.deepEqual(await pendingActivation, {
+    ok: false,
+    state: LicenseState.CHECKING,
+    error: 'LICENSE_MANAGER_DISPOSED',
+  });
+  assert.equal(activation.mock.callCount(), 0);
+  assert.equal(calls.verifies, 0);
+  assert.equal(manager.getAccessToken(), '');
 });
 
 test('resume retries a connection state with the preserved device identity', async () => {

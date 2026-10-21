@@ -77,12 +77,23 @@ export function getAudioSourceOptions(apps = [], selected = 'auto') {
   return [
     { id: 'auto', name: '自动识别正在播放的音乐（推荐）' },
     { id: 'file', name: '本地文件' },
+    { id: 'input', name: '麦克风、线路或声卡回送' },
+    { id: 'loopback', name: '播放设备里的声音' },
     ...sources.map((app, index) => ({
       ...app,
       name: sources.filter((other) => other.name === app.name).length > 1 ? `${app.name}（音频 ${sources.slice(0, index + 1).filter((other) => other.name === app.name).length}）` : app.name,
       group: '手动指定播放音乐的应用',
     })),
   ];
+}
+
+export function getAudioInputChannels(channels = 0) {
+  const options = [{ id: 'auto', name: channels === 1 ? '自动（单声道）' : channels > 1 ? '自动（声道 1 / 2）' : '自动' }];
+  for (let channel = 0; channel < Math.min(channels, 128); channel++) {
+    if (channel % 2 === 0 && channel + 1 < channels) options.push({ id: `stereo:${channel}`, name: `声道 ${channel + 1} / ${channel + 2}（立体声）` });
+    options.push({ id: `mono:${channel}`, name: `声道 ${channel + 1}（单声道）` });
+  }
+  return options;
 }
 
 function updateOptions(select, items, selected, missingLabel = '设备已断开，请重新选择') {
@@ -156,7 +167,10 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
   function render() {
     if (disposed) return;
     const settings = { ...state.settings, ...optimistic };
-    const local = (optimistic.source ?? state.source) === 'file';
+    const selectedSource = optimistic.source ?? state.source;
+    const local = selectedSource === 'file';
+    const deviceSource = selectedSource === 'input' || selectedSource === 'loopback';
+    const musicAvailable = !deviceSource || settings.inputMusic === true;
     const busy = state.running || state.starting;
     const speedAvailable = local || (optimistic.source === undefined && state.internalSource === true);
     const preparing = state.ready ? '' : '音频组件尚未就绪，请稍候；仍不可用时，请重新打开电音助手。';
@@ -165,41 +179,68 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       source: '请先关闭「当前歌曲」，停止处理后再切换音乐来源。',
       cableId: '请先关闭「当前歌曲」，停止处理后再切换原声通道。',
       outputId: '请先关闭「当前歌曲」，停止处理后再切换最终输出。',
+      inputId: '请先关闭「处理声音」，再切换输入设备。',
+      loopbackId: '请先关闭「处理声音」，再切换采集设备。',
+      inputChannels: '请先关闭「处理声音」，再切换输入声道。',
+      inputMusic: '请先关闭「处理声音」，再切换音乐处理。',
     };
-    const selectedSource = optimistic.source ?? state.source;
+    if (deviceSource) {
+      routingHints.source = '请先关闭「处理声音」，再切换声音来源。';
+      routingHints.outputId = '请先关闭「处理声音」，再切换最终输出。';
+    }
     const outputs = (state.outputs || []).map((device) => ({ ...device, name: formatAudioDeviceName(device.name) }));
     updateOptions(document.getElementById('audioAssistantSource'), getAudioSourceOptions(state.apps, selectedSource),
-      selectedSource, '未找到之前的应用，请重新选择');
+      selectedSource, '未找到之前的来源，请重新选择');
     updateOptions(document.getElementById('audioAssistantCable'), [{ id: '', name: '请选择独立通道', disabled: true }, ...outputs], settings.cableId || '');
-    updateOptions(document.getElementById('audioAssistantOutput'), [{ id: '', name: local ? 'Windows 默认输出' : '自动跟随播放器原输出' }, ...outputs], settings.outputId || '');
+    const outputChoices = state.outputChoices || outputs;
+    updateOptions(document.getElementById('audioAssistantOutput'), [{ id: '', name: local || deviceSource ? 'Windows 默认输出' : '自动跟随播放器原输出' }, ...outputChoices], settings.outputId || '');
+    const inputSelect = document.getElementById('audioAssistantInput');
+    const inputKey = selectedSource === 'loopback' ? 'loopbackId' : 'inputId';
+    inputSelect.dataset.audioSetting = inputKey;
+    updateOptions(inputSelect, [{ id: '', name: 'Windows 默认设备' }, ...(selectedSource === 'loopback' ? outputs : state.inputs || [])], settings[inputKey] || '');
+    updateOptions(document.getElementById('audioAssistantInputChannels'), getAudioInputChannels(state.inputDevice?.channels),
+      settings.inputChannels || 'auto', '之前的声道不可用，请重新选择');
+    document.getElementById('audioAssistantDeviceInput').hidden = !deviceSource;
+    document.getElementById('audioAssistantInputHint').textContent = selectedSource === 'loopback'
+      ? '采集所选设备中正在播放的声音；最终输出须选另一个设备。这路声音会包含该设备上的其他应用。'
+      : '接入麦克风、线路或声卡回送。监听麦克风请使用耳机；使用声卡回送时，请在声卡里排除最终输出，避免声音循环。';
+    const format = state.inputDevice;
+    document.getElementById('audioAssistantInputFormat').textContent = state.inputError || (format
+      ? `自动适配 · ${format.sampleRate.toLocaleString()} Hz · ${format.channels} 声道` : '接好设备后点击「刷新设备」。');
     document.getElementById('audioAssistantFileRow').hidden = !local;
-    document.getElementById('audioAssistantIsolation').hidden = local;
+    document.getElementById('audioAssistantIsolation').hidden = local || deviceSource;
     document.getElementById('audioAssistantFileName').textContent = state.fileName || '尚未选择';
     document.getElementById('audioAssistantSourceDevice').textContent = state.sourceDevice ? `原输出：${formatAudioDeviceName(state.sourceDevice)}` : '';
     for (const root of roots) {
+      for (const label of root.querySelectorAll('[data-audio-active-label]')) label.textContent = deviceSource ? '处理声音' : '当前歌曲';
+      for (const label of root.querySelectorAll('[data-audio-source-label]')) label.textContent = deviceSource ? '当前来源' : '当前歌曲';
       for (const input of root.querySelectorAll('[data-audio-setting]')) {
         const key = input.dataset.audioSetting;
-        if (input.type === 'checkbox') input.checked = optimistic.original ?? state.original ?? false;
+        if (input.type === 'checkbox') input.checked = key === 'original' ? optimistic.original ?? state.original ?? false : settings[key] === true;
         else if (input.tagName !== 'SELECT') {
-          const value = String(key === 'speedPercent' && !speedAvailable ? 100 : settings[key] ?? '');
+          const value = String(key === 'strength' && !musicAvailable ? 0 : key === 'speedPercent' && !speedAvailable ? 100 : settings[key] ?? '');
           if (input.value !== value) input.value = value;
         }
-        const title = preparing || (key === 'speedPercent' ? speedHint : '') || (busy ? routingHints[key] || '' : '');
+        const title = preparing || (key === 'strength' && !musicAvailable ? '当前保留输入人声。需要处理音乐时，先停止，再启用「音乐处理」。' : '')
+          || (key === 'speedPercent' ? speedHint : '') || (busy ? routingHints[key] || '' : '');
         if (input.title !== title) input.title = title;
         if (input.disabled !== Boolean(title)) input.disabled = Boolean(title);
       }
       for (const output of root.querySelectorAll('[data-audio-value]')) {
         const key = output.dataset.audioValue;
-        output.textContent = formatAudioParameter(key, key === 'speedPercent' && !speedAvailable ? 100 : settings[key]);
+        output.textContent = key === 'strength' && !musicAvailable ? '保留输入人声'
+          : formatAudioParameter(key, key === 'speedPercent' && !speedAvailable ? 100 : settings[key]);
       }
       for (const button of root.querySelectorAll('[data-audio-preset]')) {
         const key = button.dataset.audioPreset;
-        button.title = preparing || (key === 'speedPercent' ? speedHint : '');
+        button.title = preparing || (key === 'strength' && !musicAvailable ? '需要处理音乐时，先停止，再启用「音乐处理」。' : '')
+          || (key === 'speedPercent' ? speedHint : '');
         button.disabled = Boolean(button.title);
         button.setAttribute('aria-pressed', String(Number(button.dataset.value) === (key === 'speedPercent' && !speedAvailable ? 100 : settings[key])));
       }
       for (const toggle of root.querySelectorAll('[data-audio-active]')) {
         toggle.checked = Boolean(busy);
+        toggle.setAttribute('aria-label', deviceSource ? '处理输入声音' : '处理当前歌曲');
         toggle.disabled = !enabled() || !state.ready;
       }
       for (const song of root.querySelectorAll('[data-audio-song]')) { song.textContent = state.song || '等待播放器播放歌曲'; song.title = song.textContent; }
@@ -210,15 +251,17 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       for (const button of root.querySelectorAll('[data-audio-action]')) {
         const action = button.dataset.audioAction;
         const stoppedAction = { recover: '恢复原声', refresh: '刷新设备', file: '选择歌曲' }[action];
-        button.title = preparing || (busy && stoppedAction ? `请先关闭「当前歌曲」，停止处理后再${stoppedAction}。` : '');
+        button.title = preparing || (busy && stoppedAction ? `请先关闭「${deviceSource ? '处理声音' : '当前歌曲'}」，停止处理后再${stoppedAction}。` : '');
         button.disabled = Boolean(button.title);
       }
       for (const group of root.querySelectorAll('[data-audio-group="speedPercent"]')) group.classList.toggle('is-unavailable', !speedAvailable);
+      for (const group of root.querySelectorAll('[data-audio-group="strength"]')) group.classList.toggle('is-unavailable', !musicAvailable);
     }
-    const meter = page.querySelector('.audio-assistant-meter');
-    const level = Math.round(Math.min(1, Math.max(0, state.level || 0)) * 100);
-    meter.setAttribute('aria-valuenow', String(level));
-    meter.firstElementChild.style.width = `${level}%`;
+    for (const meter of page.querySelectorAll('[data-audio-level]')) {
+      const level = Math.round(Math.min(1, Math.max(0, state[meter.dataset.audioLevel] || 0)) * 100);
+      meter.setAttribute('aria-valuenow', String(level));
+      meter.firstElementChild.style.width = `${level}%`;
+    }
   }
 
   function receive(next) {

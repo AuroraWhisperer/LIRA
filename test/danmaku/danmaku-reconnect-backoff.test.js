@@ -6,9 +6,10 @@ const { BilibiliDanmakuClient } = require('../../src/bilibili/danmaku-client');
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
-async function fixture(t) {
+async function fixture(t, { liveStatus = 1 } = {}) {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 10000 });
   const sockets = [];
+  const control = { autoOpen: true };
   class Socket {
     static OPEN = 1;
     constructor() {
@@ -16,8 +17,7 @@ async function fixture(t) {
       this.readyState = 0;
       sockets.push(this);
       queueMicrotask(() => {
-        this.readyState = 1;
-        this.emit('open', {});
+        if (control.autoOpen && this.readyState === 0) this.open();
       });
     }
     addEventListener(name, handler) {
@@ -30,12 +30,18 @@ async function fixture(t) {
     emit(name, value) {
       for (const handler of this.listeners.get(name) || []) handler(value);
     }
+    open() {
+      this.readyState = 1;
+      this.emit('open', {});
+    }
     send() {}
     close() {
+      if (this.readyState === 3) return;
       this.readyState = 3;
+      queueMicrotask(() => this.emit('close', { code: 1000 }));
     }
     disconnect() {
-      this.close();
+      this.readyState = 3;
       this.emit('close', { code: 1006 });
     }
     packet(operation, body) {
@@ -51,15 +57,16 @@ async function fixture(t) {
   }
   const original = global.WebSocket;
   global.WebSocket = Socket;
-  const client = new BilibiliDanmakuClient('123', { onStatus() {} });
+  const statuses = [];
+  const client = new BilibiliDanmakuClient('123', { onStatus: (status) => statuses.push(status) });
   t.after(() => {
     client.stop();
     global.WebSocket = original;
   });
   for (const method of ['info', 'warn', 'log']) t.mock.method(console, method, () => {});
-  client.apiClient.resolveRoomInfo = async () => ({ roomId: 123, uid: 456, liveStatus: 1 });
+  client.apiClient.resolveRoomInfo = async () => ({ roomId: 123, uid: 456, liveStatus });
   client.apiClient.resolveDanmuInfo = async () => ({ token: 'synthetic', host_list: [{ host: 'synthetic.invalid' }] });
-  for (const poller of [client.onlineRankPoller, client.fansMedalPoller, client.liveStatusMonitor]) {
+  for (const poller of [client.onlineRankPoller, client.fansMedalPoller]) {
     poller.start = () => {};
   }
   client.historyPoller.start = () => {
@@ -70,7 +77,7 @@ async function fixture(t) {
   };
   client.start();
   await flush();
-  return { client, sockets };
+  return { client, sockets, control, statuses };
 }
 
 test('open-close failures back off 1/2/4/8/16/30 seconds and remain capped', async (t) => {
@@ -146,4 +153,93 @@ test('manual restart cancels the old recovery timer and resets the failure count
   t.mock.timers.tick(1);
   await flush();
   assert.equal(sockets.length, 3);
+});
+
+for (const outcome of ['success', 'failure']) {
+  test(`live-start connection survives a superseded room lookup ${outcome}`, async (t) => {
+    const { client, sockets, statuses } = await fixture(t, { liveStatus: 0 });
+    const monitorLookup = Promise.withResolvers();
+    const reconnectLookup = Promise.withResolvers();
+    const pendingLookups = [monitorLookup.promise, reconnectLookup.promise];
+    const liveRoom = { roomId: 123, uid: 456, liveStatus: 1, ownerName: 'current' };
+    client.apiClient.resolveRoomInfo = () => pendingLookups.shift() || Promise.resolve(liveRoom);
+
+    const liveCheck = client.liveStatusMonitor.checkLiveStatus();
+    client.ws.disconnect();
+    t.mock.timers.tick(1000);
+    await flush();
+    assert.equal(pendingLookups.length, 0);
+    monitorLookup.resolve(liveRoom);
+    await liveCheck;
+    const healthySocket = client.ws;
+    healthySocket.packet(8, { code: 0 });
+    const statusCount = statuses.length;
+
+    if (outcome === 'success') reconnectLookup.resolve({ ...liveRoom, ownerName: 'superseded' });
+    else reconnectLookup.reject(new Error('superseded request failed'));
+    await flush();
+
+    assert.equal(client.ws, healthySocket);
+    assert.equal(healthySocket.readyState, 1);
+    assert.equal(client.ownerName, 'current');
+    assert.equal(statuses.length, statusCount);
+    assert.equal(client.reconnectTimer, null);
+    assert.equal(client.reconnecting, false);
+    t.mock.timers.tick(2000);
+    await flush();
+    assert.equal(sockets.length, 2);
+  });
+}
+
+test('a superseded pending socket cannot schedule another retry after live-start reconnect succeeds', async (t) => {
+  const { client, sockets, control, statuses } = await fixture(t);
+  control.autoOpen = false;
+  client.ws.disconnect();
+  t.mock.timers.tick(1000);
+  await flush();
+  const supersededSocket = client.ws;
+  assert.equal(supersededSocket.readyState, 0);
+
+  const liveReconnect = client.reconnectAfterLiveStarted(123);
+  await flush();
+  const healthySocket = client.ws;
+  assert.notEqual(healthySocket, supersededSocket);
+  assert.equal(supersededSocket.readyState, 3);
+  healthySocket.open();
+  healthySocket.packet(8, { code: 0 });
+  await liveReconnect;
+  await flush();
+
+  assert.equal(client.reconnectTimer, null);
+  assert.equal(statuses.at(-1).connected, true);
+  assert.equal(client.reconnecting, false);
+  t.mock.timers.tick(2000);
+  await flush();
+  assert.equal(client.ws, healthySocket);
+  assert.equal(healthySocket.readyState, 1);
+  assert.equal(sockets.length, 3);
+});
+
+test('closing the previous socket during live-start lookup leaves retry ownership with the new attempt', async (t) => {
+  const { client, sockets } = await fixture(t, { liveStatus: 0 });
+  const reconnectLookup = Promise.withResolvers();
+  const liveRoom = { roomId: 123, uid: 456, liveStatus: 1 };
+  let lookups = 0;
+  client.apiClient.resolveRoomInfo = () => ++lookups === 1 ? Promise.resolve(liveRoom) : reconnectLookup.promise;
+  const previousSocket = client.ws;
+  const liveCheck = client.liveStatusMonitor.checkLiveStatus();
+  await flush();
+  assert.equal(lookups, 2);
+  assert.equal(client.ws, previousSocket);
+
+  previousSocket.disconnect();
+  reconnectLookup.resolve(liveRoom);
+  await liveCheck;
+  const healthySocket = client.ws;
+  assert.equal(client.reconnectTimer, null);
+  t.mock.timers.tick(1000);
+  await flush();
+  assert.equal(client.ws, healthySocket);
+  assert.equal(healthySocket.readyState, 1);
+  assert.equal(sockets.length, 2);
 });

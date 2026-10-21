@@ -13,6 +13,19 @@ test('audio configuration rejects unknown fields, invalid types and out-of-range
   assert.equal(validConfiguration({ volume: 200 }), true);
 });
 
+test('device capture configuration accepts bounded channels and rejects arbitrary source or device payloads', () => {
+  for (const value of [
+    { source: 'input', inputId: '', inputChannels: 'auto', inputMusic: false },
+    { source: 'loopback', loopbackId: '{endpoint}', inputChannels: 'stereo:2' },
+    { inputChannels: 'mono:127' },
+  ]) assert.equal(validConfiguration(value), true);
+  for (const value of [
+    { source: 'asio' }, { inputChannels: 'mono:-1' }, { inputChannels: 'stereo:128' },
+    { inputChannels: 'stereo:01' }, { inputChannels: 'auto\n' }, { inputChannels: 2 },
+    { inputMusic: 'true' }, { inputId: '\0device' }, { loopbackId: 'a'.repeat(1025) },
+  ]) assert.equal(validConfiguration(value), false, JSON.stringify(value));
+});
+
 test('audio IPC is restricted to the authorized main frame and selected local audio paths', async () => {
   const handlers = new Map();
   const calls = [];

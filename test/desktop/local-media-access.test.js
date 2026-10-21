@@ -138,22 +138,25 @@ test('local media protocol enforces authorization and serves byte ranges', async
       },
     },
     (filePath) => filePath === allowedPath,
+    () => 'http://127.0.0.1:3000',
   );
 
   const allowedUrl = `local-media://media/${Buffer.from(allowedPath).toString('base64url')}`;
   const partial = await handler({
     url: allowedUrl,
-    headers: new Headers({ range: 'bytes=1-3' }),
+    headers: new Headers({ range: 'bytes=1-3', origin: 'http://127.0.0.1:3000' }),
   });
   assert.equal(partial.status, 206);
+  assert.equal(partial.headers.get('access-control-allow-origin'), 'http://127.0.0.1:3000');
   assert.equal(partial.headers.get('content-range'), 'bytes 1-3/6');
   assert.equal(Buffer.from(await partial.arrayBuffer()).toString('utf8'), 'bcd');
 
   const inverted = await handler({
     url: allowedUrl,
-    headers: new Headers({ range: 'bytes=4-2' }),
+    headers: new Headers({ range: 'bytes=4-2', origin: 'http://127.0.0.1:3000.evil.example' }),
   });
   assert.equal(inverted.status, 200);
+  assert.equal(inverted.headers.get('access-control-allow-origin'), null);
   assert.equal(inverted.headers.get('content-range'), null);
   assert.equal(Buffer.from(await inverted.arrayBuffer()).toString('utf8'), 'abcdef');
 

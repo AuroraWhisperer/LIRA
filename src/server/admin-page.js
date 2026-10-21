@@ -33,6 +33,7 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/toolbox/gift-effects.html',
   'pages/admin/toolbox/audio-assistant.html',
   'pages/admin/toolbox/planner.html',
+  'pages/admin/toolbox/world-clock.html',
   'pages/admin/toolbox/fan-profiles.html',
   'pages/admin/toolbox/settings.html',
   'pages/admin/toolbox/performance.html',

@@ -10,7 +10,7 @@ async function createControlsFixture({ enabled = false, selected = false, visibl
   const nodes = new Map();
   function getElementById(id) {
     if (!nodes.has(id)) nodes.set(id, Object.assign(new EventTarget(), {
-      dataset: {}, hidden: false, querySelectorAll: () => [], replaceChildren() {},
+      dataset: {}, hidden: false, querySelectorAll: () => [], replaceChildren(...children) { this.children = children; },
     }));
     return nodes.get(id);
   }
@@ -28,6 +28,7 @@ async function createControlsFixture({ enabled = false, selected = false, visibl
   const observed = new Map();
   let notify;
   let subscriptions = 0;
+  let receiveState;
   const calls = [];
   const { initAudioAssistantControls } = await loadModuleExports(entry, {
     document: { getElementById },
@@ -42,7 +43,7 @@ async function createControlsFixture({ enabled = false, selected = false, visibl
   });
   const controls = initAudioAssistantControls({ enabled: () => enabled, signal: new AbortController().signal,
     bridge: {
-      onState() { subscriptions++; return () => subscriptions--; },
+      onState(listener) { receiveState = listener; subscriptions++; return () => subscriptions--; },
       async invoke({ op }) {
         calls.push(op);
         return { ok: true, state: { ready: true, status: '音乐来源和设备已刷新。' } };
@@ -54,6 +55,8 @@ async function createControlsFixture({ enabled = false, selected = false, visibl
   }
   return {
     controls, calls,
+    node: getElementById,
+    receive(state) { receiveState(state); },
     get subscriptions() { return subscriptions; },
     select(value) { page.hidden = !value; mutate(page, 'hidden'); },
     show(value) { visible = value; mutate(mainPage, 'class'); },
@@ -87,6 +90,33 @@ test('stopping while the player output is switching cancels the waiting assistan
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(fixture.calls, cancel === 'dispose' ? ['get'] : ['get', 'stop'], cancel);
   }
+});
+
+test('device source rendering selects the matching inventory and hides player isolation without losing missing selections', async (t) => {
+  const fixture = await createControlsFixture();
+  t.after(() => fixture.controls.dispose());
+  const state = {
+    ready: true, source: 'input', status: '设置已保存。',
+    inputs: [{ id: 'mic', name: 'USB Microphone' }], outputs: [{ id: 'speakers', name: 'Studio Out 1/2' }],
+    settings: { inputId: 'mic', inputChannels: 'mono:2', inputMusic: false },
+    inputDevice: { channels: 4, sampleRate: 48000 },
+  };
+  fixture.receive(state);
+  assert.equal(fixture.node('audioAssistantDeviceInput').hidden, false);
+  assert.equal(fixture.node('audioAssistantIsolation').hidden, true);
+  assert.equal(fixture.node('audioAssistantInput').dataset.audioSetting, 'inputId');
+  assert.equal(fixture.node('audioAssistantInput').value, 'mic');
+  assert.deepEqual(fixture.node('audioAssistantInput').children.map(option => option.value), ['', 'mic']);
+  assert.equal(fixture.node('audioAssistantInputChannels').value, 'mono:2');
+  fixture.receive({ ...state, source: 'loopback', inputDevice: null, inputError: '输入设备不可用',
+    settings: { loopbackId: 'unplugged', inputChannels: 'auto' } });
+  assert.equal(fixture.node('audioAssistantInput').dataset.audioSetting, 'loopbackId');
+  assert.equal(fixture.node('audioAssistantInput').value, 'unplugged');
+  assert.equal(fixture.node('audioAssistantInput').children.at(-1).disabled, true);
+  assert.match(fixture.node('audioAssistantInputFormat').textContent, /不可用/);
+  fixture.receive({ ...state, source: 'auto' });
+  assert.equal(fixture.node('audioAssistantDeviceInput').hidden, true);
+  assert.equal(fixture.node('audioAssistantIsolation').hidden, false);
 });
 
 test('disabled audio assistant stays idle when login restores its selection inside the hidden toolbox', async (t) => {
@@ -158,12 +188,14 @@ test('music sources use readable names and hide unrecognized background apps wit
   assert.deepEqual(Array.from(options, ({ id, name }) => ({ id, name })), [
     { id: 'auto', name: '自动识别正在播放的音乐（推荐）' },
     { id: 'file', name: '本地文件' },
+    { id: 'input', name: '麦克风、线路或声卡回送' },
+    { id: 'loopback', name: '播放设备里的声音' },
     { id: 'pid:1', name: '微软 Edge 浏览器' },
     { id: 'pid:3', name: 'QQ 音乐 · 晴天 · 周杰伦' },
     { id: 'pid:4', name: '全民 K 歌' },
   ]);
-  assert.ok(options.slice(2).every((option) => option.group === '手动指定播放音乐的应用'));
-  assert.equal(getAudioSourceOptions().length, 2);
+  assert.ok(options.filter((option) => option.id.startsWith('pid:')).every((option) => option.group === '手动指定播放音乐的应用'));
+  assert.equal(getAudioSourceOptions().length, 4);
 });
 
 test('duplicate browser audio sources remain distinguishable and a previously selected unknown app stays selected', async () => {
@@ -174,11 +206,18 @@ test('duplicate browser audio sources remain distinguishable and a previously se
     { id: 'pid:56', name: 'unknown · PID 56' },
   ];
   const options = getAudioSourceOptions(apps, 'pid:56');
-  assert.equal(options[2].name, '微软 Edge 浏览器（音频 1）');
-  assert.equal(options[3].name, '微软 Edge 浏览器（音频 2）');
-  assert.equal(options[4].id, 'pid:56');
-  assert.equal(options[4].name, '其他应用（建议使用自动识别）');
+  assert.equal(options.find((option) => option.id === 'pid:12').name, '微软 Edge 浏览器（音频 1）');
+  assert.equal(options.find((option) => option.id === 'pid:34').name, '微软 Edge 浏览器（音频 2）');
+  assert.equal(options.find((option) => option.id === 'pid:56').name, '其他应用（建议使用自动识别）');
   assert.ok(options.every((option) => !/PID|进程/.test(option.name)));
+});
+
+test('input channel choices expose actual mono channels and stereo pairs without inventing extra devices', async () => {
+  const { getAudioInputChannels } = await loadModuleExports(entry);
+  assert.deepEqual(Array.from(getAudioInputChannels(1), option => option.id), ['auto', 'mono:0']);
+  assert.deepEqual(Array.from(getAudioInputChannels(4), option => option.id),
+    ['auto', 'stereo:0', 'mono:0', 'mono:1', 'stereo:2', 'mono:2', 'mono:3']);
+  assert.deepEqual(Array.from(getAudioInputChannels(), option => option.id), ['auto']);
 });
 
 test('audio parameter writes retain a newer same-value edit while earlier requests complete', async () => {

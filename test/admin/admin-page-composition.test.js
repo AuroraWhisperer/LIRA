@@ -86,6 +86,14 @@ test('live components own unique panels while danmaku interaction stays in the t
   }
 });
 
+test('world clock has one toolbox panel and one add-city dialog', () => {
+  const html = composeAdminHtml(PUBLIC_DIR);
+  for (const id of ['otherWorldClockFeature', 'otherWorldClockFeatureTab', 'worldClockAddTitle']) {
+    assert.equal(html.split(`id="${id}"`).length, 2, `${id} renders once`);
+  }
+  assert.equal(html.split('data-world-clock="dialog"').length, 2);
+});
+
 test('audio assistant has one toolbox panel and one global panel shared by both launchers', () => {
   const html = composeAdminHtml(PUBLIC_DIR);
   for (const id of ['otherAudioAssistantFeature', 'audioAssistantTop', 'audioAssistantFloat', 'audioAssistantPanel', 'topbarStatusDetails']) {

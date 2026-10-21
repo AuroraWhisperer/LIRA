@@ -1,6 +1,19 @@
 # preload 桥与 IPC 全量注册表
 
-[preload.js](../../../src/electron/preload.js) 暴露 `audioAssistant`、`plannerReminders`、`dailyBots`、`fanProfiles`、`giftExport`、`songAssistantDesktop`、`musicAPI`、`bilibiliAuth`、`dynamicLotteryAuth`、`guardExpiryAuth`、`liraLicense` 十一个命名空间。本文是通道、方向、载荷与 action 的唯一成表处；窗口生命周期见 [main.md](main.md)，更新状态见 [update.md](update.md)，登录与会话见 [auth.md](auth.md)。invoke、事件和复用通道中的 action 分别核对，不混算。
+[preload.js](../../../src/electron/preload.js) 暴露 `playbackOutput`、`audioAssistant`、`plannerReminders`、`dailyBots`、`fanProfiles`、`giftExport`、`songAssistantDesktop`、`musicAPI`、`bilibiliAuth`、`dynamicLotteryAuth`、`guardExpiryAuth`、`liraLicense` 十二个命名空间。本文是通道、方向、载荷与 action 的唯一成表处；窗口生命周期见 [main.md](main.md)，更新状态见 [update.md](update.md)，登录与会话见 [auth.md](auth.md)。invoke、事件和复用通道中的 action 分别核对，不混算。
+
+## 内置播放输出
+
+`playback-output-ipc.js` 复用 main-window registrar 的主窗口、主 frame、精确 origin 与管理路径限制。`playbackOutput.invoke({ op, value? })` → `playback-output:invoke`，返回 `{ ok, error?, data?, stale? }`；`onFault(callback)` 订阅 `playback-output:fault` 的 `{ stream, error }` 并返回取消订阅函数。
+
+| op | value 与行为 |
+| --- | --- |
+| `list` | 无参数；返回实际输出数组 `{ deviceId, name, backend, endpointId }` |
+| `open` | 仅 deviceId，最长 2048 字符，不含 NUL/换行；允许 wasapi/directsound/waveout/asio 前缀，原生层再验证真实设备；返回 main 生成的 stream、backend、endpointId |
+| `write` | 仅正安全整数 stream 和 8～16384 字节、8 字节对齐的 ArrayBuffer PCM；旧 stream 丢弃；原生验证有限采样并钳位，返回 bufferedFrames |
+| `stop` | 无参数；取消当前流并释放设备 |
+
+不得提交 PID、文件、URL、程序或命令行。每层最多排队 4 条；原生调用 5 秒超时，启动 15 秒超时。流标识与包序号由 main 生成；主 frame 导航/销毁/崩溃停止输出。
 
 ## 电音助手
 
@@ -9,13 +22,13 @@
 | op | value 与行为 |
 | --- | --- |
 | `get` | 无参数；惰性启动并取得统一会话快照 |
-| `configure` | 仅允许 [本机参数](../backend/storage.md#电音助手本机数据) 的 strength / semitones / speedPercent / volume / outputId / cableId，以及 `original: boolean`、`source: auto\|file\|pid:正整数`；数值必须为范围内整数，未知键拒绝 |
+| `configure` | 仅允许 [本机参数](../backend/storage.md#电音助手本机数据) 的 strength / semitones / speedPercent / volume / outputId / cableId / inputId / loopbackId / inputChannels / inputMusic，以及 `original: boolean`、`source: auto\|file\|pid:正整数\|input\|loopback`；数值必须为范围内整数，设备 ID 最多 1024 字符且禁止 NUL，声道索引 0～127，未知键拒绝。deviceSource 由原生会话派生，不能直接提交 |
 | `file` | 已通过现有 `musicAPI.selectLocalFiles` 授权的音频路径；复用 local-media allowlist，拒绝任意文件 |
-| `start` / `stop` | 无参数；仅启停当前歌曲；停止可取消进行中的启动 |
+| `start` / `stop` | 无参数；启停所选歌曲或设备声音；停止可取消进行中的启动 |
 | `refresh` / `recover` | 无参数；空闲时刷新来源与设备 / 恢复遗留原声路由 |
 | `mixer` | 无参数；仅打开固定的 Windows 音量混合器设置 URI |
 
-快照字段为 ready、running、starting、source、sourceProcessId、internalSource、settings、original、status、song、sourceDevice、fileName、apps（id/name）、outputs（id/name）、level、position、duration、pendingRecovery、recoveryDeferred、revision；renderer 按 revision 接受新状态，两个界面消费同一快照。原生核心报告 `sourceProcessId`（本地文件为 null，处理期间固定为采集进程）；主进程用本实例 PID 和 `app.getAppMetrics()` 判定 `internalSource`，不以播放器名称或 renderer 输入为依据，未就绪时为 false。source 进程 ID 仅用于用户选择音频来源，不是权限主体。工作程序路径和数据目录由 main 指定；renderer 不能提交程序、命令行或 shell URL。
+快照字段为 ready、running、starting、source、sourceProcessId、internalSource、settings、original、status、song、sourceDevice、fileName、apps（id/name）、outputs（id/name）、outputChoices（id/name，最终输出的实际接口选择）、inputs（id/name）、inputDevice（id/name/channels/sampleRate/bitsPerSample 或 null）、inputError、inputLevel、level、position、duration、pendingRecovery、recoveryDeferred、revision；renderer 按 revision 接受新状态，两个界面消费同一快照。inputLevel/level 分别为输入/输出峰值；inputError 为所选设备暂不可用的说明。原生核心报告 `sourceProcessId`（本地文件和设备输入为 null，播放器处理期间固定为采集进程）；主进程用本实例 PID 和 `app.getAppMetrics()` 判定 `internalSource`，不以播放器名称或 renderer 输入为依据，未就绪时为 false。source 进程 ID 仅用于用户选择音频来源，不是权限主体。工作程序路径和数据目录由 main 指定；renderer 不能提交程序、命令行或 shell URL。
 
 `pendingRecovery` 保持「仍有恢复工作」的原含义；`recoveryDeferred=true` 表示剩余记录全部由存活的守护负责、通道静音已归还、记录有效且没有恢复错误，只需在播放器下次播放时自动收尾。它不是所有路由设置已还原的证明。前端对这种状态不显示恢复警告；缺少该字段的旧组件仍按原规则提示，真实错误优先。
 
@@ -25,7 +38,7 @@
 
 | handler owner | 当前主窗口 webContents / 精确 desktop origin | 主 frame 对象 | pathname 范围 |
 | --- | --- | --- | --- |
-| [main-window-ipc.js](../../../src/electron/ipc/main-window-ipc.js)：music、playback、bilibili、audio-assistant、desktop 资源检查与客户端外观 | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
+| [main-window-ipc.js](../../../src/electron/ipc/main-window-ipc.js)：music、playback、playback-output、bilibili、audio-assistant、desktop 资源检查与客户端外观 | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [screen-color-picker.js](../../../src/electron/screen-color-picker.js)：桌面全屏取色，复用 main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [update-ipc.js](../../../src/electron/ipc/update-ipc.js)：其余 desktop | 必须 | 必须 | 上述路径加 `/license` |
 | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) | 必须 | 必须 | `/`、`/admin`、`/settings` |

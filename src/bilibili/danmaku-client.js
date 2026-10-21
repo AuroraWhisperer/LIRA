@@ -95,8 +95,9 @@ class BilibiliDanmakuClient {
     this.messageHandlers.updateConnectionGeneration(generation);
     this.historyPoller.updateStartTime(this.startedAtMs);
 
+    const connectionAttempt = this.connectionAttempt + 1;
     this.connect({}, generation).catch((error) => {
-      if (!this.isConnectionCurrent(generation)) return;
+      if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
       console.warn(`[Bilibili] connect failed: ${error.message}`);
       this.reconnecting = true;
       if (this.roomRunContext) this.historyPoller.start(this.roomRunContext);
@@ -125,10 +126,11 @@ class BilibiliDanmakuClient {
     this.messageHandlers.updateConnectionGeneration(generation);
     this.historyPoller.updateStartTime(this.startedAtMs);
 
+    const connectionAttempt = this.connectionAttempt + 1;
     try {
       await this.connect({ waitForOpen: true }, generation);
     } catch (error) {
-      if (!this.isConnectionCurrent(generation)) return;
+      if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
       console.warn(`[Bilibili] reconnect failed: ${error.message}`);
       this.reconnecting = true;
       if (this.roomRunContext) this.historyPoller.start(this.roomRunContext);
@@ -244,7 +246,7 @@ class BilibiliDanmakuClient {
     });
 
     const roomInfo = await this.apiClient.resolveRoomInfo();
-    if (!this.isConnectionCurrent(generation)) return;
+    if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
     const isLive = Number(roomInfo.liveStatus) === 1;
     this.ownerName = roomInfo.ownerName || '';
     this.ownerUid = String(roomInfo.uid || '');
@@ -273,7 +275,7 @@ class BilibiliDanmakuClient {
     this.liveStatusMonitor.start(roomInfo);
 
     const danmuInfo = await this.apiClient.resolveDanmuInfo(roomInfo.roomId);
-    if (!this.isConnectionCurrent(generation)) return;
+    if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
     const host = (danmuInfo.host_list || [])[0];
     if (!host) {
       throw new Error('没有可用的弹幕服务器。');
@@ -326,7 +328,7 @@ class BilibiliDanmakuClient {
     // 设置 WebSocket 事件处理
     let openedAt = null;
     this.wsConnection.on('open', () => {
-      if (!this.isConnectionCurrent(generation)) return;
+      if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
       openedAt = Date.now();
       logBilibiliDiagnostic('socket-open', trace);
       console.log(
@@ -370,7 +372,7 @@ class BilibiliDanmakuClient {
     });
 
     this.wsConnection.on('close', (event) => {
-      if (this.isConnectionCurrent(generation)) {
+      if (this.isConnectionCurrent(generation, connectionAttempt)) {
         logBilibiliDiagnostic('socket-closed', {
           ...trace,
           code: Number(event?.code) || 0,
@@ -409,7 +411,7 @@ class BilibiliDanmakuClient {
     });
 
     this.wsConnection.on('error', (event) => {
-      if (!this.isConnectionCurrent(generation)) return;
+      if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
       logBilibiliDiagnostic('socket-error', trace);
       console.warn(
         `[Bilibili][Connection] action=error trace=${JSON.stringify({
@@ -492,13 +494,14 @@ class BilibiliDanmakuClient {
       message: `已开播，正在重连礼物监听`,
     });
 
+    const connectionAttempt = this.connectionAttempt + 1;
     try {
       this.startedAtMs = Date.now();
       this.messageHandlers.updateStartTime(this.startedAtMs);
       this.historyPoller.updateStartTime(this.startedAtMs);
       await this.connect({}, generation);
     } catch (error) {
-      if (!this.isConnectionCurrent(generation)) return;
+      if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
       console.warn(`[Bilibili] reconnect after live start failed: ${error.message}`);
       this.reconnecting = true;
       this.report({
@@ -524,8 +527,9 @@ class BilibiliDanmakuClient {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       if (this.isConnectionCurrent(generation)) {
+        const connectionAttempt = this.connectionAttempt + 1;
         this.connect({}, generation).catch((error) => {
-          if (!this.isConnectionCurrent(generation)) return;
+          if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
           console.warn(`[Bilibili] reconnect failed: ${error.message}`);
           this.reconnecting = true;
           const historyFallbackActive = Boolean(this.historyPoller.timer);
@@ -548,8 +552,8 @@ class BilibiliDanmakuClient {
   getRealtimeState() {
     return getRealtimeState(this);
   }
-  isConnectionCurrent(generation) {
-    return !this.stopped && generation === this.connectionGeneration;
+  isConnectionCurrent(generation, connectionAttempt = this.connectionAttempt) {
+    return !this.stopped && generation === this.connectionGeneration && connectionAttempt === this.connectionAttempt;
   }
 
   report(status) {

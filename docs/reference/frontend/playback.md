@@ -224,11 +224,13 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 
 「百宝箱 → 设置」的「内置播放器输出」卡片由 `admin/playback-output-settings.js` 展示；`playback/features/output-device.js` 拥有设备枚举、媒体输出切换和本机偏好。设置仅作用于 `#music-player`，不更改 Windows 默认设备或 QQ 音乐、网易云音乐客户端的输出；底部播放器与全屏歌词共用此音频元素。
 
-- 默认使用系统默认输出（`setSinkId('')`）。具名设备来自 `navigator.mediaDevices.enumerateDevices()` 的 `audiooutput`，隐藏重复的 default / communications 别名；实际切换调用 `HTMLMediaElement.setSinkId`，成功后才保存 `localStorage['playbackOutput:v1'] = { deviceId, name }`。设备 ID 是浏览器提供的本机标识，不等同于电音助手的 Windows 端点 ID；用户按设备名称对齐两个入口。
+- 默认与「自动」选项保留 Chromium 输出和旧设备 ID；首次使用原生输出前通过 `HTMLMediaElement.setSinkId` 切换，之后通过同一 Web Audio 图的 `AudioContext.setSinkId` 切换。成功后才保存 `localStorage['playbackOutput:v1']` 的 deviceId/name；新增 backend/endpointId 为设备元数据，旧偏好仍可读取。
+- 原生选择来自 `PlaybackOutputs` 的实际枚举：WASAPI 活跃端点、DirectSound 枚举与端点 ID 的交集、WaveOut 的稳定端点映射，以及当前进程架构下已安装的 ASIO 驱动。有对应设备才显示接口默认选项；不按固定数量伪造设备。ASIO 驱动初列为「连接待检查」，显式打开成功后按驱动返回的声道名列相邻输出对；仅剩一个声道时下混为单声道。保存非首对后可在下次启动重新连接验证。麦克风、线路与回送属于助手输入，不混入输出菜单。
+- `native-output.js` 仍由 HTMLAudioElement 解码、控制进度/倍速/音量，`output-worklet.js` 送 48 kHz、32 位浮点、双声道 PCM 至受限原生桥。原生模式的工作线程只向本地音频图输出静音，避免同时外放；最多排队 4 包，每包正常 1024 帧。设备开始读取后才完成打开；暂停/跳转清空流，旧流包丢弃，自然结束短暂排空。WASAPI 为共享模式，ASIO 按驱动支持自动适配采样率，不提供独占、原码或任意位深/采样率承诺。
 - 开始播放、暂停后继续、音质切换后继续、点击全屏歌词和全屏空格快捷键播放，均等待最新输出选择完成。已保存的设备缺失或无法恢复时暂停并阻止继续播放，保留原选择，不静默回退到系统默认设备。`devicechange` 与手动「刷新设备」更新设备列表；接回设备后恢复通道，不自动开始播放。
 - 同源管理窗口通过 `storage` 事件同步，不重复写回。切换请求串行执行，过期结果不覆盖新偏好；媒体元素复用同一个输出控制器，在 `pagehide` 移除设备、存储和电音助手状态监听。
 - 电音助手启动先通过 `withPlaybackOutputLocked` 锁住新选择，等已有输出切换完成后才调用桌面启动；启动失败也会释放临时锁。启动、处理内置音乐或仍需恢复内置原声期间，禁止切换输出，并提示先关闭「当前歌曲」或恢复原声；安全延后到下次播放的恢复状态不会锁住选择。若另一窗口的设置同步撞上处理中，先暂停本窗口播放，等待处理结束后应用新通道。
-- 切换失败保留此前可用的输出；已生效但无法保存时明确提示只对本次有效。此偏好不进入服务器设置、播放队列快照或云端同步。Electron 原有权限下可直接枚举和选择输出，无需新增音频采集权限或 IPC。
+- 切换失败且旧输出已经释放时暂停并阻止继续播放；不静默改用外放。已生效但无法保存时明确提示只对本次有效。此偏好不进入服务器设置、播放队列快照或云端同步。原生桥与媒体解码权限见 [桌面生命周期](../desktop/main.md#内置播放原生输出)。
 
 ## 9. 与点歌业务的关系
 

@@ -1,6 +1,6 @@
 <section class="usage-guide-section" id="ug-work">
 <h3 class="usage-guide-section-title"><span aria-hidden="true" class="usage-guide-section-index">6</span>主播工具</h3>
-<p class="usage-guide-section-intro">在「百宝箱 → 主播工具」调节电音助手、管理观众资料和自己的安排。资料保存在本机，换机前先备份；旧截图中的「日常管理」现为「主播工具」。</p>
+<p class="usage-guide-section-intro">在「百宝箱 → 主播工具」调节电音助手、管理观众资料和日程、查看世界时钟。资料保存在本机，换机前先备份；旧截图中的「日常管理」现为「主播工具」。</p>
 <h4 class="usage-guide-subsection-title">6.1 粉丝档案</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-fan-profiles"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.1.1 建档与查找</strong></h5></div>
 <p>
@@ -102,9 +102,10 @@
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.2.3 待办与保存状态</strong></h5></div>
 <p>要办的事加到待办，做完勾掉。看到「已保存到本机」就是存好了，日历、备忘和待办只存在这台电脑上。</p></article></div>
 <h4 class="usage-guide-subsection-title" id="ug-audio-assistant">6.3 电音助手</h4>
+<p>在「声音来源」选择要处理的声音：播放器音乐、本地歌曲，或麦克风、线路和声卡回送。每次处理一路来源，下面分别说明设置方法。</p>
 <p>实时处理播放器声音需要 Windows 10 2004 或更新版本，也支持 Windows 11；LIRA 内置播放同样适用。较早的 Win10 请更新 Windows，或选择「本地文件」直接处理歌曲。</p>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.3.1 先把输出通道对齐</strong></h5></div>
-<p>无论用 QQ 音乐、网易云音乐还是 LIRA 内置播放器，都先按这条规则设置：<strong class="usage-guide-keyword">播放器的输出通道与「原声通道」选同一个，「最终输出」选另一个。</strong></p>
+<p>无论用 QQ 音乐、网易云音乐还是 LIRA 内置播放器，都先按这条规则设置：<strong class="usage-guide-keyword">播放器的输出通道与「原声通道」选同一个设备，「最终输出」选另一个。</strong>WASAPI、DirectSound、WaveOut 前缀表示播放方式，不能把同一设备的不同前缀当成两个独立通道。最终输出也可选本机实际接口；ASIO 音乐需要厂商提供的硬件回送，不能保证按播放器进程采集。</p>
 <p>原声通道接收播放器原声，处理时会把它静音，所以要选空闲、能独立静音的输出。可以使用同一张声卡上的独立通道，也可以使用独立的虚拟音频通道；没有可用通道时，可改用「本地文件」。</p>
 <div class="usage-guide-example-step">
 <p class="usage-guide-inline-title"><strong>1. 先设置播放器的输出通道</strong></p>
@@ -135,8 +136,8 @@
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.3.2 开启助手与调节声音</strong></h5></div>
 <ol class="usage-guide-checks">
 <li>点击页面顶部的「顶部图标」或「侧边悬浮」，开启助手并展开快捷面板。右侧总开关也可启停助手；开启后切换页面仍保留入口。</li>
-<li>音乐来源通常保持「自动识别正在播放的音乐」，在 QQ 音乐、网易云音乐、全民 K 歌或 LIRA 中播放歌曲即可。网页音乐需手动指定浏览器，列表只显示能识别的常见播放器和浏览器。外部播放器先关闭自身的消人声、变调、独占或 ASIO 输出。</li>
-<li>播放电脑里的歌曲时，音乐来源选「本地文件」，再点「选择歌曲」。这种方式直接处理文件，无需独立原声通道。</li>
+<li>处理播放器音乐时，「声音来源」保持「自动识别正在播放的音乐」，在播放器中播放歌曲即可。网页音乐需手动指定浏览器，列表只显示能识别的常见播放器和浏览器。外部播放器先关闭自身的消人声、变调、独占或 ASIO 输出。</li>
+<li>播放电脑里的歌曲时，「声音来源」选「本地文件」，再点「选择歌曲」。这种方式直接处理文件，无需独立原声通道。</li>
 <li>开启<strong class="usage-guide-keyword">「当前歌曲」</strong>才会开始处理，开关下方显示处理状态。百宝箱里能调全部参数，快捷面板保留声伴比例、变速与升降调，两处修改即时同步。</li>
 </ol>
 <ul>
@@ -151,11 +152,29 @@
 </details>
 <p>入口偏好、音频参数和设备选择保存在本机，重启后不会自动处理歌曲。</p>
 </article>
-<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.3.3 停止处理与恢复原声</strong></h5></div>
+<article class="usage-guide-feature" id="ug-audio-device-input"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.3.3 麦克风、线路与声卡回送</strong></h5></div>
+<ol class="usage-guide-checks">
+<li>在「声音来源」选<strong>麦克风、线路或声卡回送</strong>，再从「输入设备」选择接入的设备。声卡的回送一般显示为 Loopback、混音或厂商命名的录音通道，以声卡实际提供的名称为准。</li>
+<li>「输入声道」通常保持<strong>自动</strong>。只有声音接在声卡另一组接口时，才选择对应的单声道或立体声通道；采样率和格式会自动适配。</li>
+<li>「最终输出」选择要听到或送入直播的设备，开启<strong>处理声音</strong>。输入、输出电平分别显示声音是否进入 LIRA 和是否正在输出。</li>
+</ol>
+<p>麦克风默认保留人声，不做歌曲消人声处理。如果输入的是音乐，先停止处理，再开启「音乐处理」即可调节声伴比例。升降调和输出音量仍可使用；设备实时输入固定原速。切换来源或输入设备后，声道恢复自动，音乐处理重新关闭。</p>
+<p>想采集某个扬声器或声卡播放通道里的声音，选择<strong>播放设备里的声音</strong>，然后选择要采集的设备。它包含该设备上的其他应用声音，最终输出必须选另一个设备，不能将处理后的声音送回输入。</p>
+<p>监听麦克风请使用耳机。使用声卡自身的回送时，请在声卡控制面板中排除 LIRA 的最终输出，避免重复播放或声音循环；不同通道名称不代表已经隔离。OBS 和哔哩哔哩直播姬采集最终输出，避免重复加入同一路原声。</p>
+<p>设备列表以 Windows 和声卡驱动实际开放的通道为准。仅支持 ASIO、独占播放或声卡内部未开放的声音，不能保证直接采集。接好设备、安装厂商驱动后点击「刷新设备」；设备断开后需重新选择或接回，再手动开启处理。重启 LIRA 不会自动打开麦克风，也不会保存输入录音。</p>
+</article>
+<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>6.3.4 停止处理与恢复原声</strong></h5></div>
+<p>设备输入模式关闭「处理声音」即可释放输入和输出，不会修改播放器路由，也不因播放器切歌停止。以下原声恢复操作适用于播放器模式。</p>
 <p>关闭「当前歌曲」或助手总开关，会停止处理并恢复处理前的原声。切歌、换播放器或通道发生冲突时，也会自动停止；下一首需手动开启。</p>
 <p>处理期间，「恢复原声」「刷新设备」和来源、设备选择会置灰，鼠标移上去可查看原因。要换通道，先关闭「当前歌曲」。正常停止会自动恢复；仍有异常时，再点「恢复原声」。</p>
 <p>停止处理不会替你改回播放器里手动选的输出通道。想直接用耳机或扬声器听原声时，回到 QQ 音乐、网易云音乐或 LIRA 的输出设置，切回平时使用的设备。</p>
 <p>操作失败、处理中断或原声通道仍待恢复时，右上角会弹出中文通知，说明原因和下一步操作。同一问题不会随后台刷新反复弹出，鼠标停在通知上可暂停自动消失。</p>
 <p>关闭外部播放器后，通道会先恢复声音；剩下的恢复工作会在它下次播放时自动完成，无需为此重新打开播放器。后台正常恢复时不弹警告，实际恢复失败仍会提示。</p>
+</article></div>
+<h4 class="usage-guide-subsection-title" id="ug-world-clock">6.4 世界时钟</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature">
+<p>打开「百宝箱 → 主播工具 → 世界时钟」，默认查看北京、新加坡、东京、伦敦、洛杉矶、达拉斯和纽约。点击城市查看大字时间与相对北京时间的时差；英美夏令时自动换算，时间跟随电脑系统时钟。已保存的城市名单会保留，可通过「添加城市」补充东京。</p>
+<p>「添加城市」可搜索内置的 60 座城市，支持中文、英文和国家名称；列表右上角的 × 可移除城市。顶部可筛选已添加城市、切换 12/24 小时制，城市和时制会保存在当前客户端。</p>
+<p>城市列表不显示滚动条，添加较多城市后仍可用滚轮浏览。地球可拖动旋转、滚轮缩放，最多放大至初始大小的 3 倍，也可使用右下角按钮缩放、自动旋转或定位当前城市。地图影像保存在本机，昼夜界线为近似展示；离开页面后暂停刷新，返回时恢复。</p>
 </article></div>
 </section>

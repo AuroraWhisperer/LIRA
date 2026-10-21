@@ -298,6 +298,7 @@ test('toolbox tabs rely on sidebar titles instead of repeating page headers', ()
     'games.html',
     'gift-effects.html',
     'planner.html',
+    'world-clock.html',
     'performance.html',
     'desktop-update.html',
   ];

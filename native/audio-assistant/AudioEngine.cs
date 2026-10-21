@@ -1,20 +1,21 @@
 using System.Diagnostics;
-using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
 internal sealed class AudioEngine : IDisposable
 {
-  readonly WasapiOut output;
+  readonly IWavePlayer output;
   readonly DspSource dsp;
   readonly AudioFileReader? file;
   readonly ProcessCapture? capture;
+  readonly DeviceCapture? deviceCapture;
   public event Action<Exception?>? Stopped;
   public DspSource Dsp => dsp;
   public double PositionSeconds => file?.CurrentTime.TotalSeconds ?? 0;
   public double DurationSeconds => file?.TotalTime.TotalSeconds ?? 0;
 
-  public AudioEngine(string? filePath, int? processId, string? outputId, int strength, int semitones, int speedPercent = 100)
+  public AudioEngine(string? filePath, int? processId, string? outputId, int strength, int semitones, int speedPercent = 100,
+    AudioInputDevice? inputDevice = null, bool loopback = false, string inputChannels = "auto", string outputBackend = "wasapi")
   {
     try
     {
@@ -27,6 +28,12 @@ internal sealed class AudioEngine : IDisposable
         if (input.WaveFormat.Channels != 2) throw new InvalidOperationException("电音助手只支持单声道或双声道歌曲。");
         if (input.WaveFormat.SampleRate != 48000) input = new WdlResamplingSampleProvider(input, 48000);
       }
+      else if (inputDevice != null)
+      {
+        deviceCapture = new DeviceCapture(inputDevice.Id, loopback, inputChannels);
+        deviceCapture.Failed += error => Stopped?.Invoke(error);
+        input = deviceCapture.Input;
+      }
       else
       {
         var incoming = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(48000, 2)) {
@@ -38,13 +45,8 @@ internal sealed class AudioEngine : IDisposable
         input = incoming.ToSampleProvider();
       }
       dsp = new DspSource(input) { StrengthPercent = strength, Semitones = semitones, SpeedPercent = filePath == null ? 100 : speedPercent };
-      using var devices = new MMDeviceEnumerator();
-      using var device = string.IsNullOrEmpty(outputId)
-        ? devices.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia) : devices.GetDevice(outputId);
-      // Keep more queued audio available during bursts of model/pitch processing.
-      output = new WasapiOut(device, AudioClientShareMode.Shared, true, 80);
+      output = PlaybackOutputs.Create(outputBackend, string.IsNullOrEmpty(outputId) ? AudioDevices.DefaultOutputId() : outputId, dsp.ToWaveProvider());
       output.PlaybackStopped += (_, args) => Stopped?.Invoke(args.Exception);
-      output.Init(dsp.ToWaveProvider());
       ProcessId = processId;
     }
     catch { Dispose(); throw; }
@@ -59,16 +61,26 @@ internal sealed class AudioEngine : IDisposable
       // Fill ahead of the STFT look-ahead and the first WASAPI / pitch callback.
       await Task.Delay(120, cancellationToken);
     }
+    if (deviceCapture != null)
+    {
+      deviceCapture.Start();
+      await Task.Delay(60, cancellationToken);
+    }
     cancellationToken.ThrowIfCancellationRequested();
     output.Play();
   }
   public void Dispose()
   {
-    capture?.Dispose();
-    output?.Stop();
-    output?.Dispose();
-    dsp?.Dispose();
-    file?.Dispose();
+    try { capture?.Dispose(); }
+    finally
+    {
+      try { deviceCapture?.Dispose(); }
+      finally
+      {
+        try { output?.Dispose(); }
+        finally { dsp?.Dispose(); file?.Dispose(); }
+      }
+    }
   }
 }
 

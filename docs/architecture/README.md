@@ -10,7 +10,7 @@ LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同�
 | --- | --- | --- |
 | 本地后端 | 组合本地领域服务、HTTP/WS、存储与本地 Bilibili 输入 | [服务核心](../reference/backend/server-core.md) |
 | Electron main | 窗口、设备会话、平台登录、受限 IPC、远端同步及生命周期 | [主进程](../reference/desktop/main.md)、[认证](../reference/desktop/auth.md) |
-| 原生音频工作程序 | 复用成熟 WASAPI、分离、变调与恢复守护；由 Electron 惰性启动，以管道通信，不开放服务端口 | [电音助手生命周期](../reference/desktop/main.md#电音助手生命周期) |
+| 原生音频工作程序 | 复用音频接口、分离、变调与恢复守护；同一可执行文件的播放输出模式与助手分开进程，以免采集处理后的自身声音；由 Electron 惰性启动，以管道通信，不开放服务端口 | [电音助手生命周期](../reference/desktop/main.md#电音助手生命周期)、[播放输出](../reference/desktop/main.md#内置播放原生输出) |
 | Renderer | UI 状态与用户交互；通过受限桥调用桌面能力 | [Admin](../reference/frontend/app.md)、[通信](../reference/frontend/comms.md) |
 | LIRA Server | 权威礼物检测与账本、云端机器人和设备接口 | [礼物投影](../reference/backend/bilibili/gift.md)、[服务器契约锁](../../server-contract.lock.json) |
 | 直播画面展示 | 消费范围受限的展示数据，不取得管理或设备凭据 | [页面入口](../reference/frontend/pages.md)、[展示页](../reference/frontend/overlays.md) |

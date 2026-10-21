@@ -82,6 +82,7 @@ function createLicenseManager(options = {}) {
   let renewalPromise = null;
   let heartbeatPromise = null;
   let busy = null;
+  let busyOperation = '';
   let disposed = false;
   let lifecycleGeneration = 0;
   let authorizationEpoch = 0;
@@ -153,6 +154,7 @@ function createLicenseManager(options = {}) {
     if (allowTakeover) sessionId = '';
     clearSession();
     const generation = lifecycleGeneration;
+    busyOperation = 'bootstrap';
     busy = (async () => {
       setState(LicenseState.CHECKING);
       identity = stateStore.read();
@@ -214,16 +216,23 @@ function createLicenseManager(options = {}) {
       return await busy;
     } finally {
       busy = null;
+      busyOperation = '';
     }
   }
 
   async function activate(input = {}) {
     if (disposed) return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
+    if (busy && busyOperation === 'bootstrap') {
+      // A background check cannot stand in for the submitted activation.
+      await busy;
+      return activate(input);
+    }
     if (busy) return busy;
     sessionId = '';
     renewalNotBefore = 0;
     clearSession();
     const generation = lifecycleGeneration;
+    busyOperation = 'activate';
     busy = (async () => {
       const validated = validateActivationInput(input);
       if (!validated.ok) {
@@ -266,6 +275,7 @@ function createLicenseManager(options = {}) {
       return await busy;
     } finally {
       busy = null;
+      busyOperation = '';
     }
   }
 

@@ -21,6 +21,8 @@
 <article class="usage-guide-feature" id="ug-playback-output"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.1.3 内置播放器输出</strong></h5></div>
 <p>打开<strong class="usage-guide-keyword">「百宝箱 → 设置 → 内置播放器输出」</strong>，在「输出通道」里选择耳机、扬声器或声卡通道。默认选「系统默认输出」；看到「输出通道已切换并保存。」就设置好了，下次打开 LIRA 继续使用。</p>
 <p>这项设置控制 LIRA 内置播放器的声音。QQ 音乐和网易云音乐客户端仍在各自的设置里选择输出设备。</p>
+<p>列表按电脑实际设备和驱动显示。WASAPI、DirectSound、WaveOut 是不同的播放方式，同一声卡可能有多项；通常先用「系统默认输出」或 WASAPI。安装了 ASIO 驱动时也会出现对应选项，标为「连接待检查」的驱动要成功打开后才显示实际输出声道。接入声卡、安装驱动后点「刷新设备」，列表数量会随电脑变化。</p>
+<p>音频格式自动适配。麦克风、线路输入和声卡回送请到<a data-usage-guide-link href="#ug-audio-device-input">电音助手的设备输入</a>选择。ASIO 播放不保证能被系统声音采集接住，需要声卡提供的硬件回送；想直接配合进程采集时优先使用 WASAPI。</p>
 <p>配合电音助手时，这里的输出通道与助手的「原声通道」选同一个设备，「最终输出」另选一个独立通道。处理内置播放时，要先关闭「当前歌曲」，再切换输出通道。具体步骤见<a data-usage-guide-link href="#ug-audio-assistant">电音助手</a>。</p>
 <p>如果选中的设备被拔掉或暂时不可用，LIRA 会保留原选择并暂停播放。重新接好设备，或在这里换一个可用的输出通道后，再继续播放。</p>
 </article></div>

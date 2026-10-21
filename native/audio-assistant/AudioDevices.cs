@@ -10,9 +10,11 @@ internal record AudioApp(int Pid, string Name, string Title, bool Playing, strin
   public override string ToString() => $"{Name} · {Title}";
 }
 
+internal record AudioInputDevice(string Id, string Name, int Channels, int SampleRate, int BitsPerSample);
+
 internal static class AudioDevices
 {
-  public static List<AudioApp> Apps(AudioDeviceNames? names = null)
+  public static List<AudioApp> Apps(AudioDeviceNames? names = null, int? playbackProcessId = null)
   {
     var result = new List<AudioApp>();
     using var enumerator = new MMDeviceEnumerator();
@@ -35,7 +37,8 @@ internal static class AudioDevices
               if (app.Pid == pid) { previous = app; break; }
             using var process = previous == null ? Process.GetProcessById(pid) : null;
             var name = previous?.Name ?? process!.ProcessName;
-            if (name is "LiraAudioDemo" or "LiraAudioAssistant") continue;
+            if (pid == playbackProcessId) name = "LIRA";
+            else if (name is "LiraAudioDemo" or "LiraAudioAssistant") continue;
             var title = previous?.Title ?? process!.MainWindowTitle;
             bool playing = session.AudioMeterInformation.MasterPeakValue > 0.0001f;
             deviceName ??= names?.Get(deviceId, () => device.FriendlyName) ?? device.FriendlyName;
@@ -58,15 +61,38 @@ internal static class AudioDevices
     || name.Equals("LIRA", StringComparison.OrdinalIgnoreCase);
 
   public static List<(string Id, string Name)> Outputs(AudioDeviceNames? names = null)
+    => Endpoints(DataFlow.Render, names);
+
+  public static List<(string Id, string Name)> Inputs(AudioDeviceNames? names = null)
+    => Endpoints(DataFlow.Capture, names);
+
+  static List<(string Id, string Name)> Endpoints(DataFlow flow, AudioDeviceNames? names)
   {
     using var enumerator = new MMDeviceEnumerator();
-    return enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active).Select(device => {
+    return enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active).Select(device => {
       using (device)
       {
         string id = device.ID;
         return (id, names?.Get(id, () => device.FriendlyName) ?? device.FriendlyName);
       }
     }).ToList();
+  }
+
+  public static MMDevice OpenInput(string id, bool loopback)
+  {
+    using var enumerator = new MMDeviceEnumerator();
+    var flow = loopback ? DataFlow.Render : DataFlow.Capture;
+    var device = id.Length == 0 ? enumerator.GetDefaultAudioEndpoint(flow, Role.Multimedia) : enumerator.GetDevice(id);
+    if (device.State == DeviceState.Active && device.DataFlow == flow) return device;
+    device.Dispose();
+    throw new InvalidOperationException("输入设备不可用，请检查连接后重新选择。");
+  }
+
+  public static AudioInputDevice DescribeInput(string id, bool loopback)
+  {
+    using var device = OpenInput(id, loopback);
+    var format = device.AudioClient.MixFormat;
+    return new(device.ID, device.FriendlyName, format.Channels, format.SampleRate, format.BitsPerSample);
   }
 
   public static bool IsIsolationDevice(string name) => name.Contains("VB-Audio", StringComparison.OrdinalIgnoreCase)

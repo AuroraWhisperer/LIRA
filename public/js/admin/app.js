@@ -65,6 +65,7 @@ const toolbox = createToolboxLifecycle({
   loaders: {
     otherGamesFeature: () => import('./games.js').then((module) => module.initGames),
     otherPkScoreFeature: () => import('./pk-score-calculator.js').then((module) => module.initPkScoreCalculator),
+    otherWorldClockFeature: () => import('./world-clock/index.js').then((module) => module.initWorldClock),
   },
   onError: Utils.showError,
   onInitError: recoverToolboxInitialization,

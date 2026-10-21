@@ -9,9 +9,11 @@ function validConfiguration(value) {
   const entries = Object.entries(value);
   return entries.length > 0 && entries.every(([key, item]) => {
     if (Object.hasOwn(RANGES, key)) return Number.isInteger(item) && item >= RANGES[key][0] && item <= RANGES[key][1];
-    if (key === 'original') return typeof item === 'boolean';
-    if (key === 'source') return typeof item === 'string' && /^(auto|file|pid:[1-9]\d{0,9})$/.test(item);
-    if (key === 'outputId' || key === 'cableId') return typeof item === 'string' && item.length <= 1024 && !item.includes('\0');
+    if (key === 'original' || key === 'inputMusic') return typeof item === 'boolean';
+    if (key === 'source') return typeof item === 'string' && /^(auto|file|input|loopback|pid:[1-9]\d{0,9})$/.test(item);
+    if (key === 'inputChannels') return typeof item === 'string' && (item === 'auto'
+      || /^(mono|stereo):(0|[1-9]\d{0,2})$/.test(item) && Number(item.split(':')[1]) < 128);
+    if (['outputId', 'cableId', 'inputId', 'loopbackId'].includes(key)) return typeof item === 'string' && item.length <= 1024 && !item.includes('\0');
     return false;
   });
 }

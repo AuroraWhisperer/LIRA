@@ -5,6 +5,18 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const entry = path.resolve('public/js/admin/audio-assistant-feedback.js');
+
+test('device input status and failures identify input routing without asking for a player', async () => {
+  const { formatAudioStatus, formatAudioFailure } = await loadModuleExports(entry);
+  assert.equal(formatAudioStatus({ ready: true, running: true, source: 'input', status: '正在等待输入声音' }), '正在等待输入声音');
+  assert.equal(formatAudioStatus({ ready: true, running: true, source: 'loopback', status: '正在处理输入声音' }), '正在处理输入声音');
+  assert.equal(formatAudioStatus({ ready: true, source: 'input' }), '声音处理已关闭');
+  assert.match(formatAudioFailure('采集的播放设备与最终输出不能相同', 'start').message, /另一个设备/);
+  assert.match(formatAudioFailure('输入设备已停止', 'state').message, /刷新设备/);
+  const unknown = formatAudioFailure('capture failed', 'start', { source: 'input' });
+  assert.match(unknown.message, /输入设备、声道和最终输出/);
+  assert.doesNotMatch(unknown.message, /歌曲|播放器|原声通道/);
+});
 const missingChannel = '请先选择已有的独立原声通道；没有可用通道时可使用本地歌曲。';
 
 test('audio failures explain known native and desktop problems in Chinese with a recovery step', async () => {
@@ -13,11 +25,11 @@ test('audio failures explain known native and desktop problems in Chinese with a
     [missingChannel, /声卡上空闲、可独立静音的输出通道.*虚拟音频通道.*本地文件/],
     ['原声通道与最终输出不能相同，请选择空闲的独立通道。', /同一输出通道.*最终输出.*监听或送入直播.*另一个独立通道.*同一张声卡.*不要使用自动跟随/],
     ['原声通道正被 OtherPlayer 使用，请选择一个空闲的独立通道。', /其他程序.*其他空闲/],
-    ['请先关闭当前歌曲的处理，再切换音乐来源或设备。', /先关闭「当前歌曲」/],
+    ['请先关闭当前歌曲的处理，再切换音乐来源或设备。', /先关闭处理开关/],
     ['另一个窗口正在处理或恢复此播放器，请等待它完成。', /另一个窗口.*等待原声恢复/],
     ['本地歌曲不存在，请重新选择。', /「选择歌曲」.*重新打开/],
     ['电音助手只支持单声道或双声道歌曲。', /请选择单声道或双声道/],
-    ['没有检测到播放器，请先播放歌曲。', /先播放歌曲.*音乐来源/],
+    ['没有检测到播放器，请先播放歌曲。', /先播放歌曲.*声音来源/],
     ['播放器已退出或音频通道发生变化。', /先播放歌曲.*重新选择/],
     ['尚未识别当前歌曲，未接管音频。', /系统媒体信息或歌曲窗口标题/],
     ['无法识别播放器。', /普通权限启动/],
@@ -55,9 +67,9 @@ test('unknown audio errors use operation-specific Chinese copy and do not mistak
     stop: /未能确认.*停止/, refresh: /列表未能更新/, recover: /原声恢复失败/,
     file: /无法打开所选歌曲/, mixer: /系统音量混合器/, state: /音频处理出现异常/ };
   for (const [op, expected] of Object.entries(expectations)) {
-    const notice = formatAudioFailure('Unhandled COMException 0x88890004\n当前歌曲处理已关闭，播放器输出已还原', op);
+    const notice = formatAudioFailure('Unhandled COMException 0x80004005\n当前歌曲处理已关闭，播放器输出已还原', op);
     assert.match(notice.message, expected, op);
-    assert.doesNotMatch(notice.message, /COMException|0x88890004|原声尚未完全恢复/);
+    assert.doesNotMatch(notice.message, /COMException|0x80004005|原声尚未完全恢复/);
     assert.match(formatAudioFailure(undefined, op).message, expected, `Missing error: ${op}`);
   }
   assert.match(formatAudioFailure(missingChannel, 'start', { pendingRecovery: true }).message, /虚拟音频通道.*原声仍待恢复/);

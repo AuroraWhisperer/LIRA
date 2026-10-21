@@ -14,7 +14,7 @@ const MIME_TYPES = {
   '.wma': 'audio/x-ms-wma',
 };
 
-function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia) {
+function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia, getDesktopBaseUrl = () => '') {
   protocol.handle('local-media', async function (request) {
     // Parse URL: local-media://media/<base64url-encoded-path>
     let urlPath = '';
@@ -65,6 +65,11 @@ function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia) {
     if (!stat.isFile()) return new Response('Not a file', { status: 404 });
     const fileSize = stat.size;
     const contentType = MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+    let cors = {};
+    try {
+      const origin = new URL(getDesktopBaseUrl()).origin;
+      if (request.headers.get('origin') === origin) cors['Access-Control-Allow-Origin'] = origin;
+    } catch { cors = {}; }
 
     // 用流式读取替代 readFileSync/readSync，避免大媒体文件卡住主进程。
     const range = parseRange(request.headers.get('range'), fileSize);
@@ -84,6 +89,7 @@ function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia) {
       return new Response(Readable.toWeb(stream), {
         status: 206,
         headers: {
+          ...cors,
           'Content-Type': contentType,
           'Content-Range': `bytes ${range.start}-${range.end}/${fileSize}`,
           'Content-Length': String(chunkSize),
@@ -97,6 +103,7 @@ function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia) {
     return new Response(Readable.toWeb(stream), {
       status: 200,
       headers: {
+        ...cors,
         'Content-Type': contentType,
         'Content-Length': String(fileSize),
         'Accept-Ranges': 'bytes',

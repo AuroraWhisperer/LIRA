@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Runtime.InteropServices;
 
 internal sealed class AudioSession : IDisposable
 {
@@ -8,6 +9,10 @@ internal sealed class AudioSession : IDisposable
   readonly AssistantSettings settings;
   List<AudioApp> apps = new();
   List<(string Id, string Name)> outputs = new();
+  List<PlaybackOutput> playbackOutputs = new();
+  List<(string Id, string Name)> inputs = new();
+  AudioInputDevice? inputDevice;
+  string inputError = "";
   AudioEngine? engine;
   RouteSession? route;
   SongMonitor? song;
@@ -18,12 +23,13 @@ internal sealed class AudioSession : IDisposable
   int? activePid;
   bool starting, disposed, original, pendingRecovery, recoveryDeferred;
   public event Action? Changed;
+  public int? PlaybackProcessId { get; set; }
 
   public AudioSession(Action<Action> dispatch)
   {
     this.dispatch = dispatch;
     settings = AssistantSettings.Load(settingsPath);
-    source = settings.External ? "auto" : "file";
+    source = settings.DeviceSource.Length > 0 ? settings.DeviceSource : settings.External ? "auto" : "file";
     RefreshInventory();
     Recover(false);
   }
@@ -33,18 +39,24 @@ internal sealed class AudioSession : IDisposable
     ?? apps.FirstOrDefault(AudioDevices.IsMusicPlayer);
   AudioApp? SelectedApp() => source == "auto" ? AutoApp()
     : source.StartsWith("pid:") && int.TryParse(source[4..], out int pid) ? apps.FirstOrDefault(a => a.Pid == pid) : null;
+  bool DeviceSource => source is "input" or "loopback";
+  bool PlayerSource => source != "file" && !DeviceSource;
 
   public object Snapshot()
   {
     var app = SelectedApp();
     return new {
       ready = true, running = engine != null && !starting, starting, source, settings, original, status,
-      sourceProcessId = source == "file" ? null : activePid ?? app?.Pid,
-      song = source == "file" ? filePath == null ? "尚未选择本地歌曲" : Path.GetFileName(filePath)
+      sourceProcessId = PlayerSource ? activePid ?? app?.Pid : null,
+      song = DeviceSource ? inputDevice?.Name ?? "请选择可用的输入设备"
+        : source == "file" ? filePath == null ? "尚未选择本地歌曲" : Path.GetFileName(filePath)
         : app == null ? "等待播放器播放歌曲" : $"{app.Name} · {app.Title}",
-      sourceDevice = app?.Device ?? "", fileName = filePath == null ? "" : Path.GetFileName(filePath),
+      sourceDevice = DeviceSource ? "" : app?.Device ?? "", fileName = filePath == null ? "" : Path.GetFileName(filePath),
       apps = apps.Select(a => new { id = $"pid:{a.Pid}", name = $"{a.Name} · {a.Title}" }).ToArray(),
       outputs = outputs.Select(d => new { id = d.Id, name = d.Name }).ToArray(),
+      outputChoices = playbackOutputs.Select(d => new { id = d.Backend == "wasapi" && d.EndpointId.Length > 0 ? d.EndpointId : d.DeviceId, name = d.Name }).ToArray(),
+      inputs = inputs.Select(d => new { id = d.Id, name = d.Name }).ToArray(),
+      inputDevice, inputError, inputLevel = engine?.Dsp.InputPeak ?? 0,
       level = engine?.Dsp.OutputPeak ?? 0, position = engine?.PositionSeconds ?? 0,
       duration = engine?.DurationSeconds ?? 0, pendingRecovery, recoveryDeferred,
     };
@@ -54,9 +66,24 @@ internal sealed class AudioSession : IDisposable
   {
     names.Clear();
     outputs = AudioDevices.Outputs(names);
-    apps = AudioDevices.Apps(names);
+    playbackOutputs = PlaybackOutputs.Enumerate();
+    inputs = AudioDevices.Inputs(names);
+    apps = AudioDevices.Apps(names, PlaybackProcessId);
+    RefreshInput();
     if (settings.CableId.Length == 0)
       settings.CableId = outputs.FirstOrDefault(d => AudioDevices.IsIsolationDevice(d.Name)).Id ?? "";
+  }
+
+  void RefreshInput()
+  {
+    inputDevice = null;
+    inputError = "";
+    if (!DeviceSource) return;
+    try { inputDevice = AudioDevices.DescribeInput(source == "input" ? settings.InputId : settings.LoopbackId, source == "loopback"); }
+    catch (Exception error) when (error is COMException or InvalidOperationException)
+    {
+      inputError = "输入设备不可用，请检查连接后刷新设备。";
+    }
   }
 
   public void Refresh()
@@ -78,6 +105,8 @@ internal sealed class AudioSession : IDisposable
     filePath = path;
     source = "file";
     settings.External = false;
+    settings.DeviceSource = "";
+    RefreshInput();
     Save();
     if (!pendingRecovery || recoveryDeferred) status = "本地歌曲已就绪，开启当前歌曲即可处理。";
   }
@@ -88,13 +117,40 @@ internal sealed class AudioSession : IDisposable
     {
       RequireIdle();
       var next = selected.GetString()!;
-      if (next != "auto" && next != "file" && !apps.Any(a => next == $"pid:{a.Pid}"))
+      if (next != "auto" && next != "file" && next != "input" && next != "loopback" && !apps.Any(a => next == $"pid:{a.Pid}"))
         throw new InvalidOperationException("播放器已退出，请刷新来源。");
+      if (source != next) { settings.InputChannels = "auto"; settings.InputMusic = false; }
       source = next;
       settings.External = source != "file";
+      settings.DeviceSource = DeviceSource ? source : "";
     }
     if (values.TryGetProperty("outputId", out var output)) { RequireIdle(); settings.OutputId = output.GetString()!; }
     if (values.TryGetProperty("cableId", out var cable)) { RequireIdle(); settings.CableId = cable.GetString()!; }
+    if (values.TryGetProperty("inputId", out var input))
+    {
+      RequireIdle();
+      string id = input.GetString()!;
+      if (id.Length > 0 && !inputs.Any(d => d.Id == id)) throw new InvalidOperationException("输入设备不可用，请刷新设备后重新选择。");
+      if (settings.InputId != id) { settings.InputChannels = "auto"; settings.InputMusic = false; }
+      settings.InputId = id;
+    }
+    if (values.TryGetProperty("loopbackId", out var loopback))
+    {
+      RequireIdle();
+      string id = loopback.GetString()!;
+      if (id.Length > 0 && !outputs.Any(d => d.Id == id)) throw new InvalidOperationException("输入设备不可用，请刷新设备后重新选择。");
+      if (settings.LoopbackId != id) { settings.InputChannels = "auto"; settings.InputMusic = false; }
+      settings.LoopbackId = id;
+    }
+    if (values.TryGetProperty("inputChannels", out var channels))
+    {
+      RequireIdle();
+      if (!InputChannelProvider.IsValidSelection(channels.GetString()!)) throw new InvalidOperationException("输入声道无效，请重新选择。");
+      settings.InputChannels = channels.GetString()!;
+    }
+    if (values.TryGetProperty("inputMusic", out var music)) { RequireIdle(); settings.InputMusic = music.GetBoolean(); }
+    if (values.TryGetProperty("source", out _) || values.TryGetProperty("inputId", out _) || values.TryGetProperty("loopbackId", out _))
+      RefreshInput();
     if (values.TryGetProperty("strength", out var strength)) settings.Strength = Math.Clamp(strength.GetInt32(), -100, 100);
     if (values.TryGetProperty("semitones", out var semitones)) settings.Semitones = Math.Clamp(semitones.GetInt32(), -12, 12);
     if (values.TryGetProperty("speedPercent", out var speed)) settings.SpeedPercent = Math.Clamp(speed.GetInt32(), 50, 200);
@@ -108,7 +164,7 @@ internal sealed class AudioSession : IDisposable
   void ApplyControls()
   {
     if (engine == null) return;
-    engine.Dsp.StrengthPercent = settings.Strength;
+    engine.Dsp.StrengthPercent = DeviceSource && !settings.InputMusic ? 0 : settings.Strength;
     engine.Dsp.Semitones = settings.Semitones;
     engine.Dsp.SpeedPercent = source == "file" ? settings.SpeedPercent : 100;
     engine.Dsp.OutputVolume = settings.Volume / 100f;
@@ -125,20 +181,32 @@ internal sealed class AudioSession : IDisposable
     startup = cancellation;
     try
     {
-      bool external = source != "file";
-      if (!external && filePath == null) throw new InvalidOperationException("请先选择一首本地歌曲。");
+      bool external = PlayerSource;
+      if (source == "file" && filePath == null) throw new InvalidOperationException("请先选择一首本地歌曲。");
+      if (DeviceSource)
+      {
+        RefreshInput();
+        if (inputDevice == null) throw new InvalidOperationException(inputError);
+      }
       if (external && !ProcessCapture.SupportsWindowsVersion(Environment.OSVersion.Version))
         throw new InvalidOperationException("外部实时处理需要 Windows 10 2004（Build 19041）或更新版本。请更新 Windows，或使用本地歌曲。");
       if (external && !outputs.Any(d => d.Id == settings.CableId))
         throw new InvalidOperationException("请先选择已有的独立原声通道；没有可用通道时可使用本地歌曲。");
-      apps = AudioDevices.Apps(names);
+      if (external) apps = AudioDevices.Apps(names, PlaybackProcessId);
       var app = SelectedApp();
       if (external && app == null) throw new InvalidOperationException("没有检测到播放器，请先播放歌曲。");
-      status = "正在确认最终输出；若播放器暂停，请继续播放。";
+      status = external ? "正在确认最终输出；若播放器暂停，请继续播放。" : "正在启动音频处理…";
       Changed?.Invoke();
-      string outputId = await AudioDevices.ResolveOutput(settings.OutputId, external ? app!.Pid : null, cancellation.Token);
+      string outputBackend = "wasapi";
+      string outputId;
+      if (settings.OutputId.StartsWith("wasapi:") || settings.OutputId.StartsWith("directsound:")
+        || settings.OutputId.StartsWith("waveout:") || settings.OutputId.StartsWith("asio:"))
+        (outputBackend, outputId) = PlaybackOutputs.Resolve(settings.OutputId);
+      else outputId = await AudioDevices.ResolveOutput(settings.OutputId, external ? app!.Pid : null, cancellation.Token);
       if (external && outputId == settings.CableId)
         throw new InvalidOperationException("原声通道与最终输出不能相同，请选择空闲的独立通道。");
+      if (source == "loopback" && string.Equals(outputId, inputDevice!.Id, StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("采集的播放设备与最终输出不能相同，请另选输出设备，避免声音循环回送。");
       if (external)
       {
         song = await SongMonitor.Start(app!, cancellation.Token);
@@ -154,8 +222,9 @@ internal sealed class AudioSession : IDisposable
       cancellation.Token.ThrowIfCancellationRequested();
       status = "正在启动音频处理…";
       Changed?.Invoke();
-      var created = new AudioEngine(external ? null : filePath, external ? app!.Pid : null, outputId,
-        settings.Strength, settings.Semitones, settings.SpeedPercent);
+      var created = new AudioEngine(source == "file" ? filePath : null, external ? app!.Pid : null, outputId,
+        DeviceSource && !settings.InputMusic ? 0 : settings.Strength, settings.Semitones, settings.SpeedPercent,
+        DeviceSource ? inputDevice : null, source == "loopback", settings.InputChannels, outputBackend);
       engine = created;
       activePid = external ? app!.Pid : null;
       created.Stopped += error => dispatch(() => {
@@ -168,7 +237,7 @@ internal sealed class AudioSession : IDisposable
       ApplyControls();
       await created.Start(cancellation.Token);
       cancellation.Token.ThrowIfCancellationRequested();
-      status = "正在处理当前歌曲";
+      status = DeviceSource ? "正在处理输入声音" : "正在处理当前歌曲";
     }
     catch (OperationCanceledException) { Stop(); }
     catch (Exception error) { Fail(error); throw; }
@@ -238,9 +307,9 @@ internal sealed class AudioSession : IDisposable
       }
       return;
     }
-    bool refreshed = ticks % 8 == 0 && source != "file";
+    bool refreshed = ticks % 8 == 0 && PlayerSource;
     if (route?.PlayerExited == true) { Stop(); return; }
-    if (refreshed) apps = AudioDevices.Apps(names);
+    if (refreshed) apps = AudioDevices.Apps(names, PlaybackProcessId);
     if (route != null && !AudioDevices.IsMuted(route.EndpointId))
     {
       Fail(new InvalidOperationException("原声通道被解除静音，已停止处理，避免重复播放。")); return;
@@ -275,7 +344,8 @@ internal sealed class AudioSession : IDisposable
         }
       }
     }
-    status = source == "file" ? original ? "正在试听原声" : "正在处理本地歌曲"
+    status = DeviceSource ? engine.Dsp.InputPeak > 0.00001f ? original ? "正在试听原声" : "正在处理输入声音" : "正在等待输入声音"
+      : source == "file" ? original ? "正在试听原声" : "正在处理本地歌曲"
       : engine.Dsp.InputPeak > 0.00001f ? original ? "原声已隔离 · 原声对比" : "原声已隔离 · 正在输出处理后的音乐"
       : "原声已隔离 · 等待播放器声音";
     Changed?.Invoke();

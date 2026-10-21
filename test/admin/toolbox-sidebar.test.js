@@ -59,7 +59,7 @@ test('toolbox sidebar groups remaining tools by entertainment, management and su
       '互动娱乐',
       ['otherDanmakuFeature', 'otherPkScoreFeature', 'otherDynamicLotteryFeature', 'otherGamesFeature', 'otherGiftEffectsFeature'],
     ],
-    ['streamer-work', '主播工具', ['otherAudioAssistantFeature', 'otherFanProfilesFeature', 'otherDailyTodoFeature']],
+    ['streamer-work', '主播工具', ['otherAudioAssistantFeature', 'otherFanProfilesFeature', 'otherDailyTodoFeature', 'otherWorldClockFeature']],
     [
       'software-help',
       '应用支持',

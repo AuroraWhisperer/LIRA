@@ -2,6 +2,16 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('playbackOutput', {
+  invoke: (request) => ipcRenderer.invoke('playback-output:invoke', request),
+  onFault: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, fault) => callback(fault);
+    ipcRenderer.on('playback-output:fault', listener);
+    return () => ipcRenderer.removeListener('playback-output:fault', listener);
+  },
+});
+
 contextBridge.exposeInMainWorld('audioAssistant', {
   invoke: (request) => ipcRenderer.invoke('audio-assistant:invoke', request),
   onState: (callback) => {

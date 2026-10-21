@@ -20,6 +20,12 @@ internal static class Program
         $"Local\\LiraAudioAssistant-Install-{Environment.ProcessId}");
       if (args.Length == 3 && args[0] == "--route-guard") { RouteSession.RunGuard(int.Parse(args[1]), args[2], installationExit); return; }
       if (args.Length == 2 && args[0] == "--recover-route") { RouteSession.RunRecovery(args[1], installationExit); return; }
+      if (args.Length == 1 && args[0] == "--playback-output")
+      {
+        ApplicationConfiguration.Initialize();
+        Application.Run(new PlaybackOutputContext(installationExit));
+        return;
+      }
       if (args.Length != 1 || args[0] != "--bridge") throw new ArgumentException("未知电音助手启动方式。");
       ApplicationConfiguration.Initialize();
       Application.Run(new AssistantContext(installationExit));
@@ -73,6 +79,8 @@ internal sealed class AssistantContext : ApplicationContext
     {
       using var document = JsonDocument.Parse(line);
       var request = document.RootElement;
+      session.PlaybackProcessId = request.TryGetProperty("playbackProcessId", out var player)
+        && player.ValueKind == JsonValueKind.Number && player.TryGetInt32(out int pid) && pid > 0 ? pid : null;
       id = request.GetProperty("id").GetInt32();
       string operation = request.GetProperty("op").GetString()!;
       var value = request.TryGetProperty("value", out var argument) ? argument : default;
