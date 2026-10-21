@@ -1,7 +1,7 @@
 'use strict';
 
 import { CITIES, DEFAULT_IDS, matchesCity } from './cities.js';
-import { clockAt, dayDifference, differenceLabel, isDaylight, sunDirection } from './time.js';
+import { clockAt, dayDifference, isDaylight, sunDirection } from './time.js';
 import { createGlobe } from './globe.js';
 import { createTemperatureController } from './temperature.js';
 
@@ -78,7 +78,7 @@ export function initWorldClock() {
       const status = state?.loading ? '正在更新' : state?.failed ? (state.data ? '未更新，显示上次天气' : '天气暂不可用') : '当前天气';
       row.temperature.title = `${status}${updated ? ` · 微软天气更新于当地 ${updated}` : ''}`;
       row.condition.title = `${condition} · ${row.temperature.title}`;
-      row.button.setAttribute('aria-label', `查看${row.city.name}时间并定位，${value}，${condition}，${status}`);
+      row.button.setAttribute('aria-label', `定位${row.city.name}，${value}，${condition}，${status}`);
     }
   }
 
@@ -92,7 +92,7 @@ export function initWorldClock() {
     if (focus && selectedId) globe?.focus(CITY_BY_ID.get(selectedId));
   }
 
-  function selectCity(id) {
+  function selectCity(id, showDetails = false) {
     selectedId = id;
     save();
     for (const row of rows) {
@@ -100,9 +100,9 @@ export function initWorldClock() {
       row.button.setAttribute('aria-pressed', String(row.city.id === id));
     }
     syncMarkers(true);
-    get('details').hidden = false;
+    get('details').hidden = !showDetails;
     tick();
-    get('details').focus({ preventScroll: true });
+    if (showDetails) get('details').focus({ preventScroll: true });
   }
 
   function closeDetails() {
@@ -123,7 +123,7 @@ export function initWorldClock() {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'world-clock-city-select';
-      button.setAttribute('aria-label', `查看${city.name}时间并定位`);
+      button.setAttribute('aria-label', `定位${city.name}`);
       button.setAttribute('aria-pressed', String(city.id === selectedId));
       button.innerHTML = '<div class="world-clock-city-heading"><span class="world-clock-city-name"></span><span class="world-clock-city-country"></span><span class="world-clock-city-offset"></span></div><div class="world-clock-city-body"><div><div class="world-clock-city-time-row"><time class="world-clock-city-time"></time><span class="world-clock-city-period"></span></div><div class="world-clock-city-date"><span class="world-clock-date-text"></span><span class="world-clock-day-change"></span></div></div><div class="world-clock-weather"><span class="world-clock-temperature"></span><span class="world-clock-condition"></span></div></div>';
       button.querySelector('.world-clock-city-name').textContent = city.name;
@@ -230,7 +230,6 @@ export function initWorldClock() {
       get('time').dateTime = now.toISOString();
       setText(get('period'), clock.period);
       setText(get('date'), `${clock.fullDate} · ${clock.weekday}`);
-      setText(get('difference'), city.id === 'beijing' ? '北京时间' : differenceLabel(clock, reference));
     }
     const focusDisabled = !selectedId || !globeReady;
     if (get('focus').disabled !== focusDisabled) get('focus').disabled = focusDisabled;
@@ -323,7 +322,7 @@ export function initWorldClock() {
   function loadGlobe() {
     if (globeStarted) return;
     globeStarted = true;
-    createGlobe(get('globe'), get('markers'), selectCity, rotating => get('rotate').setAttribute('aria-pressed', String(rotating)), globeError)
+    createGlobe(get('globe'), get('markers'), id => selectCity(id, true), rotating => get('rotate').setAttribute('aria-pressed', String(rotating)), globeError)
       .then(instance => {
         if (disposed) { instance.destroy(); return; }
         globe = instance;

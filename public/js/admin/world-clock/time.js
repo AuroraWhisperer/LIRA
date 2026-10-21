@@ -36,15 +36,6 @@ export function dayDifference(clock, reference) {
   return days === -1 ? '前一天' : days === 1 ? '后一天' : `${days > 0 ? '后' : '前'}${Math.abs(days)}天`;
 }
 
-export function differenceLabel(clock, reference) {
-  const difference = clock.offsetMinutes - reference.offsetMinutes;
-  if (!difference) return '与北京时间相同';
-  const absolute = Math.abs(difference);
-  const hours = Math.floor(absolute / 60);
-  const minutes = absolute % 60;
-  return `比北京时间${difference > 0 ? '快' : '慢'} ${hours ? `${hours} 小时` : ''}${minutes ? ` ${minutes} 分钟` : ''}`.trim();
-}
-
 export function coordinates(lat, lon) {
   const latitude = lat * Math.PI / 180;
   const longitude = lon * Math.PI / 180;

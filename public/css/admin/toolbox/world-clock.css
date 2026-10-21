@@ -179,7 +179,6 @@
 }
 
 .world-clock-city-offset {
-  margin-left: auto;
   white-space: nowrap;
 }
 
@@ -216,8 +215,11 @@
   color: var(--color-selection-text);
 }
 
-.world-clock-light-icon {
+.world-clock-city-heading > .world-clock-light-icon {
+  width: 14px;
+  height: 14px;
   align-self: center;
+  margin-inline: auto;
   color: var(--color-warning);
 }
 
@@ -248,7 +250,7 @@
   overflow-wrap: anywhere;
 }
 
-.world-clock-light-icon.is-night {
+.world-clock-city-heading > .world-clock-light-icon.is-night {
   color: var(--muted);
 }
 
@@ -386,12 +388,6 @@
   color: var(--muted);
   font-size: var(--type-size-micro);
   overflow-wrap: anywhere;
-}
-
-.world-clock-difference {
-  margin: 12px 0 0;
-  color: var(--color-selection-text);
-  font-size: var(--type-size-caption);
 }
 
 .world-clock-stage {
@@ -626,7 +622,6 @@
   .world-clock-city-select { padding-inline: 10px; }
   .world-clock-city:nth-child(2) .world-clock-city-select { padding-top: 8px; }
   .world-clock-city-heading { flex-wrap: wrap; }
-  .world-clock-city-offset { margin-left: 0; }
   .world-clock-remove { opacity: 1; }
   .world-clock-empty { grid-column: 1 / -1; }
 }

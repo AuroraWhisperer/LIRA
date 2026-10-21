@@ -5,11 +5,11 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-let CITIES, DEFAULT_IDS, matchesCity, clockAt, dayDifference, differenceLabel, sunDirection, isDaylight, layoutCityLabels;
+let CITIES, DEFAULT_IDS, matchesCity, clockAt, dayDifference, sunDirection, isDaylight, layoutCityLabels;
 test.before(async () => {
   const directory = path.resolve(__dirname, '../../public/js/admin/world-clock');
   ({ CITIES, DEFAULT_IDS, matchesCity } = await loadModuleExports(path.join(directory, 'cities.js')));
-  ({ clockAt, dayDifference, differenceLabel, sunDirection, isDaylight } = await loadModuleExports(path.join(directory, 'time.js')));
+  ({ clockAt, dayDifference, sunDirection, isDaylight } = await loadModuleExports(path.join(directory, 'time.js')));
   ({ layoutCityLabels } = await loadModuleExports(path.join(directory, 'globe.js')));
 });
 
@@ -54,7 +54,6 @@ test('UK changes independently of US and the Beijing day boundary is explicit', 
   assert.equal(london.offsetMinutes, 0);
   assert.equal(dallas.offsetMinutes, -300);
   assert.equal(dayDifference(london, beijing), '前一天');
-  assert.equal(differenceLabel(dallas, beijing), '比北京时间慢 13 小时');
   assert.equal(clockAt('Europe/London', new Date('2026-03-29T00:59:59Z')).hour, '00');
   assert.equal(clockAt('Europe/London', new Date('2026-03-29T01:00:00Z')).hour, '02');
 });
