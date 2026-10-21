@@ -135,7 +135,7 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
       const dot = axis => point.vector.reduce((sum, value, index) => sum + value * axis[index], 0);
       const x = cx + dot(axes.east) * radius;
       const y = cy - dot(axes.north) * radius;
-      const visible = dot(axes.front) > 0.13 && x >= 8 && x <= width - 8 && y >= 8 && y <= height - 48;
+      const visible = dot(axes.front) > 0.13 && x >= 8 && x <= width - 8 && y >= 8 && y <= height - 30;
       point.node.hidden = !visible;
       if (!visible) continue;
       const leftLabel = x > width * 0.7;
@@ -143,7 +143,7 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
       point.node.style.left = `${x}px`;
       point.node.style.top = `${y}px`;
       const labelWidth = Math.max(76, point.city.name.length * 12 + 20);
-      const bounds = { left: leftLabel ? x - labelWidth - 12 : x + 12, top: y - 5, right: leftLabel ? x - 12 : x + labelWidth + 12, bottom: y + 39 };
+      const bounds = { left: leftLabel ? x - labelWidth - 12 : x + 12, top: y - 5, right: leftLabel ? x - 12 : x + labelWidth + 12, bottom: y + 21 };
       const overlaps = occupied.some(box => bounds.left < box.right && bounds.right > box.left && bounds.top < box.bottom && bounds.bottom > box.top);
       point.label.hidden = overlaps && !point.node.classList.contains('is-selected');
       if (!point.label.hidden) occupied.push(bounds);
@@ -267,14 +267,12 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
       points = [...cities].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId)).map(city => {
         const node = document.createElement('button');
         node.type = 'button';
-        node.className = `world-clock-marker${city.id === selectedId ? ' is-selected' : ''}`;
-        node.setAttribute('aria-label', `定位${city.name}`);
+        node.className = `world-clock-marker ghost${city.id === selectedId ? ' is-selected' : ''}`;
+        node.setAttribute('aria-label', `查看${city.name}时间并定位`);
+        node.setAttribute('aria-pressed', String(city.id === selectedId));
         const dot = document.createElement('i');
         const label = document.createElement('span');
         label.textContent = city.name;
-        const time = document.createElement('small');
-        time.dataset.worldClockMarkerTime = city.id;
-        label.append(time);
         node.append(dot, label);
         node.addEventListener('click', () => onSelect(city.id));
         markerLayer.append(node);

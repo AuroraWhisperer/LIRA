@@ -108,7 +108,7 @@ test('cloud exact commands use trimmed equality and ignore stale projections unt
   assert.equal(service.isCloudOwnedCommand('菜单'), false);
 });
 
-test('domain services attach a custom reply after built-in commands decline', () => {
+test('domain services attach a custom reply after built-in commands decline', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-custom-reply-'));
   const databases = createDatabases({ dataDir });
   const settingsStore = createSettingsStore(databases.songDb);
@@ -189,20 +189,30 @@ test('domain services attach a custom reply after built-in commands decline', ()
       bilibiliDiagnostics: {}, bilibiliAuthCache: { cookieHeader: '', uid: 0 },
     });
     try {
+      client.handlers.onLiveStatus(true);
       client.handlers.onMessage({ message: '菜单', uid: '456', userName: 'Bob' });
       assert.deepEqual(deliveries, [], 'a server-owned exact command must not also trigger local AI or keyword replies');
       client.handlers.onMessage({ message: '看看菜单', uid: '456', userName: 'Bob' });
+      await new Promise(setImmediate);
       assert.deepEqual(deliveries, ['ai', 'keyword']);
       assert.deepEqual(replies[0], {
         message: custom.customReplyReply.message,
         mentionTarget: { uid: '456', name: 'Bob' },
         mentionEveryChunk: true,
+        assertSessionCurrent: replies[0].assertSessionCurrent,
       });
+      assert.equal(typeof replies[0].assertSessionCurrent, 'function');
       settingsStore.setSetting('enableRandomTagReply', 'true');
       client.handlers.onMessage({ message: '随机点歌 不存在的分类', uid: '789', userName: 'Alice' });
+      await new Promise(setImmediate);
       assert.equal(replies.length, 2);
       assert.deepEqual(replies[1].mentionTarget, { uid: '789', name: 'Alice' });
       assert.equal(replies[1].mentionEveryChunk, true);
+      client.handlers.onLiveStatus(false);
+      client.handlers.onMessage({ message: '看看菜单', uid: '456', userName: 'Bob' });
+      client.handlers.onMessage({ message: '随机点歌 不存在的分类', uid: '789', userName: 'Alice' });
+      await new Promise(setImmediate);
+      assert.equal(replies.length, 2, 'both local fixed replies are silent while offline');
     } finally {
       client.stop();
     }

@@ -22,7 +22,7 @@
 
 .world-clock-toolbar {
   display: grid;
-  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   align-items: center;
   gap: var(--spacing-md);
   flex: none;
@@ -33,8 +33,8 @@
 .world-clock-actions,
 .world-clock-format,
 .world-clock-add,
-.world-clock-place,
-.world-clock-selected-time,
+.world-clock-details-heading,
+.world-clock-details-time,
 .world-clock-globe-controls,
 .world-clock-dialog-header {
   display: flex;
@@ -97,7 +97,7 @@
 
 .world-clock-body {
   display: grid;
-  grid-template-columns: 296px minmax(0, 1fr);
+  grid-template-columns: 272px minmax(0, 1fr);
   flex: 1;
   min-height: 0;
 }
@@ -160,7 +160,6 @@
 .world-clock-city-offset,
 .world-clock-city-period,
 .world-clock-city-date,
-.world-clock-place > span,
 .world-clock-catalog-city p,
 .world-clock-catalog-added {
   color: var(--muted);
@@ -248,60 +247,108 @@
 
 .world-clock-world {
   position: relative;
+  container-type: inline-size;
   min-width: 0;
   overflow: hidden;
   background: var(--surface);
 }
 
-.world-clock-selected {
+.world-clock-details {
   position: absolute;
-  top: 14px;
-  left: 18px;
+  position-anchor: --world-clock-selected-city;
+  position-area: right;
+  position-try-fallbacks: flip-inline, bottom, top;
+  position-visibility: anchors-visible;
   z-index: 1;
-  padding: 8px;
+  width: min(260px, calc(100cqw - 24px));
+  max-height: calc(100% - 24px);
+  margin: 12px;
+  overflow-y: auto;
+  padding: 16px;
   border-radius: var(--radius-lg);
   background: var(--surface);
-  pointer-events: none;
+  box-shadow: var(--shadow-floating);
 }
 
-.world-clock-place {
+.world-clock-world:has(.world-clock-marker.is-selected[hidden]) .world-clock-details {
+  visibility: hidden;
+}
+
+.world-clock-details-heading {
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
 }
 
-.world-clock-place h2 {
+.world-clock-details h2 {
   margin: 0;
-  font-size: var(--type-size-section-title);
+  font-size: var(--type-size-body);
   font-weight: var(--type-weight-semibold);
 }
 
-.world-clock-selected-time {
-  align-items: baseline;
-  gap: 8px;
-  margin-top: 8px;
+.world-clock-details-heading p,
+.world-clock-details-date,
+.world-clock-details-meta dt {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--type-size-micro);
 }
 
-.world-clock-selected-time > time {
-  font-size: 48px;
+.world-clock-details-heading > button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.world-clock-details-time {
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.world-clock-details-time > time {
+  font-size: var(--type-size-metric-lg);
   font-weight: var(--type-weight-medium);
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
   letter-spacing: -.025em;
 }
 
-.world-clock-selected-time > span,
-.world-clock-selected > p {
-  margin: 7px 0 0;
+.world-clock-details-time > span {
   color: var(--muted);
   font-size: var(--type-size-caption);
 }
 
-.world-clock-selected > .world-clock-difference {
+.world-clock-details-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.world-clock-details-meta dd {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--type-size-micro);
+  overflow-wrap: anywhere;
+}
+
+.world-clock-difference {
+  margin: 12px 0 0;
   color: var(--color-selection-text);
+  font-size: var(--type-size-caption);
 }
 
 .world-clock-stage {
   position: absolute;
-  inset: 86px 0 48px;
+  inset: 0;
 }
 
 .world-clock-stage > canvas {
@@ -334,36 +381,37 @@
   transform: translate(-5px, -5px);
   pointer-events: auto;
   white-space: nowrap;
+  color: #fff;
 }
 
 .world-clock-marker > i {
   width: 8px;
   height: 8px;
-  border: 1px solid var(--surface);
+  border: 1px solid #18212b;
   border-radius: 50%;
-  background: var(--color-control-accent);
+  background: currentColor;
 }
 
 .world-clock-marker > span {
-  padding: 4px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  color: var(--text);
   font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
   text-align: left;
+  -webkit-text-stroke: 3px #18212b;
+  paint-order: stroke fill;
 }
 
-.world-clock-marker small {
-  display: block;
-  color: var(--muted);
-  font-size: var(--type-size-micro);
-  font-variant-numeric: tabular-nums;
+.world-clock-marker.is-selected,
+.world-clock-marker:hover {
+  color: #ffe077;
 }
 
-.world-clock-marker.is-selected > span {
-  border-color: var(--color-control-accent);
-  color: var(--color-selection-text);
+.world-clock-marker.is-selected {
+  anchor-name: --world-clock-selected-city;
+}
+
+.world-clock-marker:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
 }
 
 .world-clock-marker.label-left {
@@ -517,6 +565,4 @@
   .world-clock-actions { justify-content: space-between; }
   .world-clock-city-time { font-size: var(--type-size-metric-sm); }
   .world-clock-city-offset { width: 100%; }
-  .world-clock-selected { left: 18px; }
-  .world-clock-selected-time > time { font-size: 40px; }
 }

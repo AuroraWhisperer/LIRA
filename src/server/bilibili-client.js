@@ -2,6 +2,7 @@
 
 const { BilibiliDanmakuClient } = require('../bilibili/danmaku-client');
 const { isBilibiliCommandText } = require('../bilibili/danmaku/command-text');
+const { createLiveReplySender } = require('../bilibili/danmaku/live-reply-sender');
 const { logSongRequest, songRequestReason } = require('../bilibili/diagnostics');
 
 function createBilibiliClient(roomId, context) {
@@ -20,6 +21,11 @@ function createBilibiliClient(roomId, context) {
     userInfoService,
   } = context;
   const fanScope = context.getFanScope?.() || null;
+  const fixedReplies = createLiveReplySender({
+    sender: danmakuSender,
+    captureReplySession: context.captureReplySession,
+    isShuttingDown,
+  });
   let client = null;
   client = new BilibiliDanmakuClient(
     roomId,
@@ -82,12 +88,8 @@ function createBilibiliClient(roomId, context) {
             captureReplySession: context.captureReplySession,
           });
           if (result.autoReply) {
-            void danmakuSender
-              .send({
-                message: result.autoReply.message,
-                mentionTarget: result.autoReply.target,
-                mentionEveryChunk: true,
-              })
+            void fixedReplies
+              .send(result.autoReply)
               .catch((error) => {
                 console.warn(
                   `[Bilibili] random scope auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`,
@@ -95,12 +97,8 @@ function createBilibiliClient(roomId, context) {
               });
           }
           if (result.customReplyReply) {
-            void danmakuSender
-              .send({
-                message: result.customReplyReply.message,
-                mentionTarget: result.customReplyReply.target,
-                mentionEveryChunk: true,
-              })
+            void fixedReplies
+              .send(result.customReplyReply)
               .catch((error) => {
                 console.warn(
                   `[Bilibili] custom auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`,
@@ -157,6 +155,7 @@ function createBilibiliClient(roomId, context) {
         }
       },
       onStatus: updateLiveStatus,
+      onLiveStatus: (isLive) => fixedReplies.setLive(isLive),
     },
     {
       diagnostics: bilibiliDiagnostics,

@@ -52,10 +52,6 @@ test('polling reports offline rooms, then reconnects exactly once when the room 
     (status) => statuses.push(status),
   );
   t.after(() => monitor.stop());
-  monitor.start({ roomId: '1', ownerName: '旧名', liveStatus: 1 });
-  t.mock.timers.tick(10 * 60 * 1000);
-  assert.equal(pendingRooms.length, 0, 'a room that is already live is not polled');
-
   monitor.start({ roomId: '1', ownerName: '旧名', liveStatus: 0 });
   t.mock.timers.tick(10 * 60 * 1000 - 1);
   assert.equal(pendingRooms.length, 0);
@@ -94,4 +90,35 @@ test('polling reports offline rooms, then reconnects exactly once when the room 
   monitor.setReconnectInFlight(true);
   t.mock.timers.tick(10 * 60 * 1000);
   assert.equal(pendingRooms.length, 0, 'a client reconnect in flight suspends polling');
+});
+
+test('live rooms keep polling and a newer socket transition overrides an in-flight poll', async (t) => {
+  const requests = [];
+  const statuses = [];
+  const monitor = new LiveStatusMonitor(
+    { resolveRoomInfo: () => { const pending = Promise.withResolvers(); requests.push(pending); return pending.promise; } },
+    () => assert.fail('an already live room must not reconnect'),
+    (status) => statuses.push(status.isLive),
+  );
+  t.after(() => monitor.stop());
+  monitor.start({ roomId: '1', liveStatus: 1 });
+  assert.notEqual(monitor.timer, null);
+  let pending = monitor.checkLiveStatus();
+  requests.shift().resolve({ roomId: '1', liveStatus: 1 });
+  await pending;
+  assert.deepEqual(statuses, [true]);
+  pending = monitor.checkLiveStatus();
+  monitor.observe(false, '1');
+  requests.shift().resolve({ roomId: '1', liveStatus: 1 });
+  await pending;
+  assert.deepEqual(statuses, [true, false]);
+  pending = monitor.checkLiveStatus();
+  monitor.observe(true, '1');
+  requests.shift().resolve({ roomId: '1', liveStatus: 0 });
+  await pending;
+  assert.deepEqual(statuses, [true, false, true]);
+  pending = monitor.checkLiveStatus();
+  requests.shift().resolve({ roomId: '1', liveStatus: 0 });
+  await pending;
+  assert.equal(statuses.at(-1), false);
 });

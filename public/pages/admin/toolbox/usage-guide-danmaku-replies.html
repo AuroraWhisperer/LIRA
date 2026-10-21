@@ -1,4 +1,5 @@
 <h4 class="usage-guide-subsection-title">3.1 发送与固定回复</h4>
+<p>固定回复中的签到、抽签在未开播时也可用，其余七项仅在确认直播中生效。下播保留开关与词库，取消尚未发送的回复；下次开播自动恢复，不补发旧消息。已提交给 B 站的弹幕无法撤回。</p>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-send-danmaku"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.1 手动发送</strong></h5></div>
 <p>打开「百宝箱 → 互动娱乐 → 弹幕互动」，先确认连接状态区的发送账号、目标直播间和发送权限。在发送区输入文字，输入框随内容自动增高，下方显示字数；右侧按钮与第一行对齐。点击「发送弹幕」或按 Ctrl + Enter 发送，超过 40 字会自动分段发送，并在发送结果中显示条数。该区域没有独立网页地址。</p>
 <figure class="usage-guide-figure">
@@ -12,14 +13,14 @@
 <li>自动发送期间，按钮会变为「停止自动发送」，再点一次即可停止后续发送；已经发出的弹幕不会撤回。发送失败时，先检查发送账号和连接状态。</li>
 </ol></article>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.3 关键词回复</strong></h5></div>
-<p>在「百宝箱 → 弹幕互动 → 固定回复」点击「关键词回复」旁的「编辑」，填写关键词与回复，添加后点击编辑区右下角的「保存关键词回复」。弹幕包含关键词就会触发，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。这里设置固定文案，不解析正则或变量。此功能需保持客户端在线，功能说明可点击标题旁的问号查看。「点歌回复」由系统生成随机无匹配、歌曲冷却、队列已满、重复歌曲或仅歌库规则拦截的提示，无需词库；点击该项“说明”查看示例。关闭回复不解除点歌规则限制。点歌规则见<a data-usage-guide-link href="#ug-random-song">随机点歌</a>；礼物查询与答谢见<a data-usage-guide-link href="#ug-gift-interactions">礼物答谢与查询弹幕</a>。</p>
+<p>在「百宝箱 → 弹幕互动 → 固定回复」点击「关键词回复」旁的「编辑」，填写关键词与回复，添加后点击编辑区右下角的「保存关键词回复」。弹幕包含关键词就会触发，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。这里设置固定文案，不解析正则或变量。关键词回复与点歌回复都需保持客户端在线且直播中，功能说明可点击标题旁的问号查看。「点歌回复」由系统生成随机无匹配、歌曲冷却、队列已满、重复歌曲或仅歌库规则拦截的提示，无需词库；点击该项“说明”查看示例。关闭回复不解除点歌规则限制。点歌规则见<a data-usage-guide-link href="#ug-random-song">随机点歌</a>；礼物查询与答谢见<a data-usage-guide-link href="#ug-gift-interactions">礼物答谢与查询弹幕</a>。</p>
 <figure class="usage-guide-figure">
 <img alt="关键词回复编辑区，包含你好和直播时间两条示例、添加与保存入口" class="usage-guide-image" decoding="async" height="337" loading="lazy" src="/img/usage-guide/E/danmaku-custom-reply.webp" style="--usage-guide-image-width: 1058px" width="1058"/>
 <figcaption>在「固定回复 → 关键词回复」点「编辑」后填写并保存；图中为示例文案。</figcaption>
 </figure></article>
 <article class="usage-guide-feature" id="ug-exact-replies"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.4 完整匹配回复与菜单</strong></h5></div>
 <p>点击「完整匹配回复 → 编辑」，填写完整触发词与回复，添加后保存。例如设为「月卡」时，观众单独发送「月卡」才回复；「怎么开月卡」不会触发，前后空格不影响，英文字母区分大小写。这里设置固定文案，不解析正则或变量。最多 30 条规则，触发词最多 30 字、回复最多 120 字。内置指令优先于自定义规则，不要用点歌、签到等已有指令作为触发词。</p>
-<p>开启完整匹配回复后，单独发送「菜单」即可查看互动指令，不需要另建菜单规则；回复列表首行显示这条内置规则及回复说明，不可修改或删除，也不占自定义规则额度。「菜单」是保留词，不能覆盖；菜单固定回复「签到、抽签、礼物特效、礼物查询、盲盒查询」，只列功能名称，不展开其他指令。签到、抽签、AI 互动助手、点歌回复、完整匹配回复、关键词回复和查询回复都会 @ 原弹幕发送者，长回复的每一段也会保留 @。完整匹配回复由服务器执行，命中后不会再重复触发关键词或 AI 回复。保存失败会保留草稿，切换账号会清空草稿。</p>
+<p>开启完整匹配回复后，在直播中单独发送「菜单」即可查看互动指令，不需要另建菜单规则；回复列表首行显示这条内置规则及回复说明，不可修改或删除，也不占自定义规则额度。「菜单」是保留词，不能覆盖；菜单固定回复「签到、抽签、礼物特效、礼物查询、盲盒查询」，只列功能名称，不展开其他指令。签到、抽签、AI 互动助手、点歌回复、完整匹配回复、关键词回复和查询回复都会 @ 原弹幕发送者，长回复的每一段也会保留 @。完整匹配回复由服务器执行，命中后不会再重复触发关键词或 AI 回复。保存失败会保留草稿，切换账号会清空草稿。</p>
 <figure class="usage-guide-figure"><img alt="完整匹配回复编辑示例：完整触发词和固定回复" class="usage-guide-image" decoding="async" loading="lazy" src="/img/usage-guide/E/danmaku-exact-reply.png" width="1995" height="506"/><figcaption>完整匹配回复示例：消息全文与触发词一致时回复。</figcaption></figure>
 </article>
 <article class="usage-guide-feature" id="ug-scheduled-danmaku"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.5 定时／随机弹幕</strong></h5></div>
@@ -30,7 +31,7 @@
 <figure class="usage-guide-figure"><img alt="定时弹幕词库：15 句内置文案、逐条编辑、搜索与分页" class="usage-guide-image" decoding="async" loading="lazy" src="/img/usage-guide/E/danmaku-scheduled.png" width="1331" height="657"/><figcaption>内置词库可逐条修改，保存词库与参数不会自动开启发送。</figcaption></figure>
 </article></div>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-query-replies"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.1.6 查询回复</strong></h5></div>
-<p>在「固定回复 → 查询回复」打开开关，再点「清单」查看、搜索可用指令。这里按真实账本动态统计，不填写固定文案，也无需保存；开关与「礼物 → 弹幕查询」同步。观众查询自己的记录，主播查询本房间记录，退出客户端后仍由服务器回复。</p>
+<p>在「固定回复 → 查询回复」打开开关，再点「清单」查看、搜索可用指令。这里按真实账本动态统计，不填写固定文案，也无需保存；开关与「礼物 → 弹幕查询」同步。观众查询自己的记录，主播查询本房间记录；直播中即使退出客户端也由服务器回复，下播暂停弹幕查询，不影响礼物记录与统计。</p>
 <p>可用「今天／今日」「昨天／昨日」「本周／这周」「本月／这个月」「上月／上个月」「今年」「去年」「累计／历史」加「礼物」「盲盒」或完整礼物名称，例如「本月盲盒」「上月礼物」；「全部盲盒」也表示累计盲盒。时间后可以加“的”。清单可按完整别名搜索，例如「今日礼物」。累计包含 LIRA 已记录并保留的历史汇总，不受约 90 天逐笔明细保留期限制，也不会补齐 LIRA 开始记录前的送礼。</p>
 <p>指定月份可发送「3月礼物」「12月盲盒」，月份支持 1—12 月，也可写作「03月礼物」；只写月份表示发送时北京时间的当年。指定年份发送「2026年礼物」，指定年月发送「2026年3月盲盒」；年份可替换为其他四位年份。所有范围按北京时间自然月／年计算；清单用「x月礼物／盲盒」「2026年x月礼物／盲盒」合并展示月份写法，发送时将 x 换成实际月份。</p>
 <figure class="usage-guide-figure"><img alt="独立的查询回复指令清单，搜索年份查看礼物和盲盒查询写法" class="usage-guide-image" decoding="async" loading="lazy" src="/img/usage-guide/E/danmaku-query-replies.png" width="1331" height="569"/><figcaption>指令清单展示动态回复说明；数据由实际账本生成。</figcaption></figure>
@@ -56,7 +57,7 @@
 <ul>
 <li>切完开关，要等服务器返回成功提示。有参数没保存时，按钮可能显示「开启并保存参数」。关掉进场欢迎，也会一起关掉二次问候、重点关注和久别重逢；下次打开欢迎时，这三项要按需要重新开。</li>
 <li>同一观众反复进场，不会每次都欢迎，默认间隔 30 分钟。荣耀门槛不是 0 时，如果进场消息里没有荣耀等级，就不会欢迎。</li>
-<li>服务器收到进场消息后才能欢迎，不一定每位进来的观众都能收到。监控连着、账号能发弹幕时，没开播也可能欢迎。想停下来，就关掉进场欢迎。</li>
+<li>服务器收到进场消息后才能欢迎，不一定每位进来的观众都能收到。只有确认直播中才发送欢迎和二次问候；下播取消待发送内容，开关保持原样，下次开播后对新进场生效。</li>
 </ul>
 
 <details class="usage-guide-foldout">

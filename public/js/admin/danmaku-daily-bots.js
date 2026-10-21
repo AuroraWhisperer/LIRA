@@ -71,7 +71,7 @@ export function initDanmakuDailyBots({
         saved = response.data;
         stale = false;
       }
-      overall.textContent = '关键词回复与点歌回复需客户端在线，其余功能在云端运行。';
+      overall.textContent = '签到、抽签全天可用，其余项目仅直播中生效。关键词与点歌回复需客户端在线，其余在云端运行。';
       if (action === 'update') {
         const name = payload.kind === 'checkin' ? '签到机器人' : '抽签机器人';
         toast(`${name}已${saved[payload.kind].enabled ? '开启' : '关闭'}`);

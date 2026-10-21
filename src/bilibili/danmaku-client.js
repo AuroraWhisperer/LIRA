@@ -54,6 +54,7 @@ class BilibiliDanmakuClient {
       {
         ...this.handlers,
         onMessage: (danmaku) => this.deliverDanmaku(danmaku),
+        onLiveStatus: (isLive) => this.liveStatusMonitor.observe(isLive, this.resolvedRoomId || this.roomId),
       },
       this.userInfoService,
       this.deduplicator,
@@ -149,6 +150,7 @@ class BilibiliDanmakuClient {
   }
 
   stop() {
+    this.handlers.onLiveStatus?.(false);
     if (!this.stopped) {
       logBilibiliDiagnostic('listener-stopped', {
         roomId: this.resolvedRoomId || this.roomId,
@@ -235,6 +237,7 @@ class BilibiliDanmakuClient {
 
   async connect(options = {}, generation = this.connectionGeneration) {
     if (!this.isConnectionCurrent(generation)) return;
+    this.handlers.onLiveStatus?.(false);
     const connectionAttempt = ++this.connectionAttempt;
     this.messageHandlers.updateConnectionAttempt(connectionAttempt);
     this.report({
@@ -248,6 +251,7 @@ class BilibiliDanmakuClient {
     const roomInfo = await this.apiClient.resolveRoomInfo();
     if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
     const isLive = Number(roomInfo.liveStatus) === 1;
+    this.handlers.onLiveStatus?.(isLive);
     this.ownerName = roomInfo.ownerName || '';
     this.ownerUid = String(roomInfo.uid || '');
     const roomScope = this.userInfoService.setRoom({
@@ -362,6 +366,7 @@ class BilibiliDanmakuClient {
       try {
         await this.messageHandlers.handlePackets(data, {
           ...metadata,
+          authenticated: this.wsConnection.connectionTrace?.authStatus === 'accepted',
           accountUid,
           roomId: String(roomInfo.roomId),
           connectionKey,
@@ -373,6 +378,7 @@ class BilibiliDanmakuClient {
 
     this.wsConnection.on('close', (event) => {
       if (this.isConnectionCurrent(generation, connectionAttempt)) {
+        this.handlers.onLiveStatus?.(false);
         logBilibiliDiagnostic('socket-closed', {
           ...trace,
           code: Number(event?.code) || 0,
@@ -463,6 +469,7 @@ class BilibiliDanmakuClient {
 
   handleLiveStatusChange(status) {
     if (this.stopped) return;
+    this.handlers.onLiveStatus?.(status.isLive === true);
     if (status.ownerName) {
       this.ownerName = status.ownerName;
     }

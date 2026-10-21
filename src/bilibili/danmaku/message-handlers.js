@@ -79,6 +79,7 @@ class MessageHandlers {
         }
       } else if (command === 'LIVE' || command === 'PREPARING') {
         this.resetLikeState();
+        if (ingress?.authenticated === true) this.handlers.onLiveStatus?.(command === 'LIVE');
       } else if (command === 'SUPER_CHAT_MESSAGE_DELETE') {
         const ids = extractBilibiliSuperChatDeleteIds(message);
         if (ids.length) this.handlers.onSuperChatDelete?.(ids);

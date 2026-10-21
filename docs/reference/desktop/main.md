@@ -57,6 +57,8 @@ remote-gift-controller 调用，沿用 main 持有的 DeviceBearer、来源和�
 
 ## 服务器固定回复设置
 
+固定回复九项中，签到和抽签全天可用，其他项目仅在确认直播中生效。下播保留设置、取消未发送工作；下一次开播恢复新事件处理，不补发旧消息。云端统一使用本场直播回复 source，桌面点歌与关键词回复共用直播发送入口，见[弹幕客户端参考](../backend/bilibili/danmaku.md)。
+
 自定义回复和定时/随机弹幕由服务器配置、匹配和发送。桌面通过
 `getFixedReplySettings()` 读取既有 `GET /api/device/cloud-state` 的 `settings.values`，
 `updateFixedReplySettings(patch)` 仅将本次修改提交给 `PUT /api/device/cloud-settings`；

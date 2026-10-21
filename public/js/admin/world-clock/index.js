@@ -77,7 +77,15 @@ export function initWorldClock() {
       row.button.setAttribute('aria-pressed', String(row.city.id === id));
     }
     syncMarkers(true);
+    get('details').hidden = false;
     tick();
+    get('details').focus({ preventScroll: true });
+  }
+
+  function closeDetails() {
+    const restoreFocus = get('details').contains(document.activeElement);
+    get('details').hidden = true;
+    if (restoreFocus) (rows.find(row => row.city.id === selectedId)?.button || get('globe')).focus({ preventScroll: true });
   }
 
   function renderCards() {
@@ -110,7 +118,10 @@ export function initWorldClock() {
       remove.addEventListener('click', () => {
         const index = ids.indexOf(city.id);
         ids = ids.filter(id => id !== city.id);
-        if (selectedId === city.id) selectedId = ids[Math.min(index, ids.length - 1)] || null;
+        if (selectedId === city.id) {
+          closeDetails();
+          selectedId = ids[Math.min(index, ids.length - 1)] || null;
+        }
         save();
         syncMarkers(true);
         renderCards();
@@ -175,28 +186,22 @@ export function initWorldClock() {
         row.lightIcon.setAttribute('aria-label', daylight ? '白昼' : '黑夜');
       }
     }
-    if (selectedId) {
+    if (selectedId && !get('details').hidden) {
       const city = CITY_BY_ID.get(selectedId);
       const clock = clocks.get(selectedId);
-      setText(get('name'), city.name === city.country ? city.name : `${city.country} · ${city.name}`);
+      setText(get('name'), city.name);
+      setText(get('country'), city.name === city.country ? '' : city.country);
+      get('country').hidden = city.name === city.country;
+      setText(get('zone'), city.zone);
       setText(get('offset'), clock.offset);
       renderTime(get('time'), clock);
       get('time').dateTime = now.toISOString();
       setText(get('period'), clock.period);
       setText(get('date'), `${clock.fullDate} · ${clock.weekday}`);
       setText(get('difference'), city.id === 'beijing' ? '北京时间' : differenceLabel(clock, reference));
-    } else {
-      setText(get('name'), '');
-      setText(get('time'), '--:--');
-      get('time').removeAttribute('datetime');
-      for (const name of ['offset', 'period', 'date', 'difference']) setText(get(name), '');
     }
     const focusDisabled = !selectedId || !globeReady;
     if (get('focus').disabled !== focusDisabled) get('focus').disabled = focusDisabled;
-    for (const node of root.querySelectorAll('[data-world-clock-marker-time]')) {
-      const clock = clocks.get(node.dataset.worldClockMarkerTime);
-      setText(node, `${clock.period ? `${clock.period} ` : ''}${clock.hour}:${clock.minute}`);
-    }
     if (globe && minute !== lastSunMinute) {
       globe.setSun(now);
       lastSunMinute = minute;
@@ -282,6 +287,13 @@ export function initWorldClock() {
   }
 
   listen(get('add'), 'click', openAdd);
+  listen(get('details-close'), 'click', closeDetails);
+  listen(document, 'keydown', event => {
+    if (!active || event.key !== 'Escape' || get('details').hidden || get('dialog').open) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeDetails();
+  });
   listen(get('close'), 'click', () => get('dialog').close());
   listen(get('dialog'), 'close', () => { syncGlobeActivity(); tick(); });
   listen(get('dialog'), 'click', event => {

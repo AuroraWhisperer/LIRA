@@ -26,17 +26,24 @@
   <div class="world-clock-body">
     <div class="world-clock-list" data-world-clock="list" aria-label="城市时钟"></div>
     <div class="world-clock-world">
-      <div class="world-clock-selected">
-        <div class="world-clock-place"><h2 data-world-clock="name"></h2><span data-world-clock="offset"></span></div>
-        <div class="world-clock-selected-time"><time data-world-clock="time"></time><span data-world-clock="period"></span></div>
-        <p data-world-clock="date"></p>
-        <p class="world-clock-difference" data-world-clock="difference"></p>
-      </div>
       <div class="world-clock-stage">
         <canvas data-world-clock="globe" aria-label="地球：拖动或方向键旋转，滚轮或加减键缩放" tabindex="0"></canvas>
         <div class="world-clock-markers" data-world-clock="markers" aria-label="地球上的城市"></div>
         <p class="world-clock-message" data-world-clock="message" role="status">正在加载地球…</p>
       </div>
+      <section class="world-clock-details" data-world-clock="details" aria-labelledby="worldClockDetailsTitle" tabindex="-1" hidden>
+        <div class="world-clock-details-heading">
+          <div><h2 id="worldClockDetailsTitle" data-world-clock="name"></h2><p data-world-clock="country"></p></div>
+          <button type="button" class="icon" data-world-clock="details-close" aria-label="关闭城市详情"><svg aria-hidden="true"><use href="#world-clock-close" /></svg></button>
+        </div>
+        <div class="world-clock-details-time"><time data-world-clock="time"></time><span data-world-clock="period"></span></div>
+        <p class="world-clock-details-date" data-world-clock="date"></p>
+        <dl class="world-clock-details-meta">
+          <div><dt>时区</dt><dd data-world-clock="zone"></dd></div>
+          <div><dt>UTC 偏移</dt><dd data-world-clock="offset"></dd></div>
+        </dl>
+        <p class="world-clock-difference" data-world-clock="difference"></p>
+      </section>
       <div class="world-clock-globe-controls" role="group" aria-label="地球控制">
         <button type="button" class="icon" data-world-clock="zoom-out" aria-label="缩小地球" title="缩小"><svg aria-hidden="true"><use href="#world-clock-minus" /></svg></button>
         <button type="button" class="icon" data-world-clock="zoom-in" aria-label="放大地球" title="放大"><svg aria-hidden="true"><use href="#world-clock-plus" /></svg></button>

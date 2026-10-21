@@ -81,6 +81,23 @@ function messagePacket(message) {
   return packet.buffer.slice(packet.byteOffset, packet.byteOffset + packet.byteLength);
 }
 
+test('authenticated LIVE and PREPARING notifications update reply eligibility and stop clears it', async (t) => {
+  const states = [];
+  const client = new BilibiliDanmakuClient('123', {
+    onStatus() {}, onLiveStatus: (isLive) => states.push(isLive),
+  });
+  t.after(() => client.stop());
+  client.stopped = false;
+  client.liveStatusMonitor.start({ roomId: '123', liveStatus: 1 });
+  await client.messageHandlers.handlePackets(Buffer.from(messagePacket({ cmd: 'PREPARING' })), { authenticated: false });
+  assert.deepEqual(states, []);
+  await client.messageHandlers.handlePackets(Buffer.from(messagePacket({ cmd: 'PREPARING' })), { authenticated: true });
+  await client.messageHandlers.handlePackets(Buffer.from(messagePacket({ cmd: 'LIVE' })), { authenticated: true });
+  assert.deepEqual(states, [false, true]);
+  client.stop();
+  assert.equal(states.at(-1), false);
+});
+
 test('extracted danmaku client keeps runtime dependencies and diagnostics', async () => {
   const originalFetch = global.fetch;
   const originalWebSocket = global.WebSocket;

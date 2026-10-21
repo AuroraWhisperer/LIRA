@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// 开播状态监控器 — 定时检测直播间开播状态，开播后触发重连。
+// 直播状态监控器 — 汇合实时通知与轮询，离线转开播时恢复监听。
 'use strict';
 
 const BILIBILI_LIVE_STATUS_POLL_MS = 10 * 60 * 1000;
@@ -15,6 +15,7 @@ class LiveStatusMonitor {
     this.reconnectInFlight = false;
     this.ownerName = '';
     this.localGeneration = 0;
+    this.isLive = null;
   }
 
   start(roomInfo) {
@@ -25,7 +26,8 @@ class LiveStatusMonitor {
       this.ownerName = roomInfo.ownerName;
     }
 
-    if (!roomInfo || Number(roomInfo.liveStatus) === 1) return;
+    this.isLive = roomInfo ? Number(roomInfo.liveStatus) === 1 : null;
+    if (!roomInfo) return;
 
     this.timer = setInterval(() => {
       this.checkLiveStatus().catch((error) => {
@@ -48,6 +50,19 @@ class LiveStatusMonitor {
     this.reconnectInFlight = value;
   }
 
+  observe(isLive, roomId) {
+    if (this.stopped) return;
+    // A newer socket event wins over a REST request already in flight.
+    this.localGeneration += 1;
+    this.isLive = isLive === true;
+    this.onStatusChange({
+      roomId,
+      isLive: this.isLive,
+      ownerName: this.ownerName,
+      message: this.isLive ? '已开播' : '未开播，历史消息监听中',
+    });
+  }
+
   async checkLiveStatus() {
     if (this.stopped || this.checkInFlight || this.reconnectInFlight) return;
 
@@ -59,17 +74,11 @@ class LiveStatusMonitor {
       if (roomInfo.ownerName) {
         this.ownerName = roomInfo.ownerName;
       }
-      if (Number(roomInfo.liveStatus) === 1) {
+      if (Number(roomInfo.liveStatus) === 1 && this.isLive !== true) {
         await this.triggerLiveStarted(roomInfo.roomId);
         return;
       }
-
-      this.onStatusChange({
-        roomId: roomInfo.roomId,
-        isLive: false,
-        ownerName: this.ownerName,
-        message: `未开播，历史消息监听中`,
-      });
+      this.observe(Number(roomInfo.liveStatus) === 1, roomInfo.roomId);
     } finally {
       this.checkInFlight = false;
     }
