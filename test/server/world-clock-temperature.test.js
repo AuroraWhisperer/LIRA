@@ -14,7 +14,7 @@ function weather(latitude = 39.9042, longitude = 116.4074) {
     currentLocation: { latitude: String(latitude), longitude: String(longitude) },
     currentCondition: {
       unitsRaw: { temperature: '°C' },
-      currentRaw: { temp: -1, created: '2026-10-21T21:20:00+08:00' },
+      currentRaw: { temp: -1, cap: ' 小雨 ', created: '2026-10-21T21:20:00+08:00' },
     },
   };
 }
@@ -32,6 +32,7 @@ test('temperature reads the requested MSN city and shares its response until the
   const requests = [];
   const nextWeather = weather();
   nextWeather.currentCondition.currentRaw.temp = 2;
+  nextWeather.currentCondition.currentRaw.cap = '多云';
   const service = createWorldClockTemperature({ now: () => time, fetch: (url, options) => {
     requests.push({ url, options });
     return requests.length === 1 ? first.promise : Promise.resolve(response(nextWeather));
@@ -54,6 +55,7 @@ test('temperature reads the requested MSN city and shares its response until the
   time += 30 * 60000 - 1;
   const cached = await service.getTemperature(LOCATION);
   assert.equal(cached.temperature, -1);
+  assert.equal(cached.condition, '小雨');
   assert.equal(cached.validAt, '2026-10-21T13:20:00.000Z');
   assert.equal(cached.updatedAt, cached.validAt);
   assert.equal(cached.fetchedAt, new Date(START).toISOString());
@@ -61,8 +63,21 @@ test('temperature reads the requested MSN city and shares its response until the
   time += 1;
   const refreshed = await service.getTemperature(LOCATION);
   assert.equal(refreshed.temperature, 2);
+  assert.equal(refreshed.condition, '多云');
   assert.equal(refreshed.fetchedAt, new Date(time).toISOString());
   assert.equal(requests.length, 2);
+});
+
+test('missing or invalid weather descriptions preserve a valid temperature without inferring clear skies', async t => {
+  for (const cap of [undefined, null, '', '  ', 0, { text: '晴朗' }]) {
+    const body = weather();
+    body.currentCondition.currentRaw.cap = cap;
+    const service = createWorldClockTemperature({ now: () => START, fetch: async () => response(body) });
+    t.after(() => service.close());
+    const result = await service.getTemperature(LOCATION);
+    assert.equal(result.temperature, -1);
+    assert.equal(result.condition, null);
+  }
 });
 
 test('a response crossing the hour does not keep the previous hour cached', async t => {
@@ -196,7 +211,9 @@ test('temperature route requires management authority and keeps validation at it
   const headers = { Authorization: `Bearer ${sessionToken}` };
   const result = await fetch(url, { headers });
   assert.equal(result.status, 200);
-  assert.equal((await result.json()).data.temperature, -1);
+  const data = (await result.json()).data;
+  assert.equal(data.temperature, -1);
+  assert.equal(data.condition, '小雨');
   assert.equal((await fetch(`${origin}/api/world-clock/temperature?latitude=91&longitude=0`, { headers })).status, 400);
   assert.equal((await fetch(url, { method: 'POST', headers })).status, 405);
   assert.equal(requests, 1);

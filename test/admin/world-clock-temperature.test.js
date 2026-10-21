@@ -7,7 +7,7 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const city = id => ({ id, lat: Number(id), lon: 100 });
-const data = temperature => ({ temperature, updatedAt: '2026-10-21T12:00:00Z', validAt: '2026-10-21T13:30:00Z' });
+const data = (temperature, condition) => ({ temperature, condition, updatedAt: '2026-10-21T12:00:00Z', validAt: '2026-10-21T13:30:00Z' });
 const HOUR_MS = 60 * 60 * 1000;
 const START = Date.parse('2026-10-21T13:37:45Z');
 
@@ -27,8 +27,8 @@ async function fixture(t, initialIds = ['1', '2', '3'], time = START) {
     clearTimeout(id) { timers.delete(id); },
     fetch(url, options) {
       const pending = Promise.withResolvers();
-      requests.push({ url, options, succeed(temperature) {
-        pending.resolve({ ok: true, json: async () => ({ ok: true, data: data(temperature) }) });
+      requests.push({ url, options, succeed(temperature, condition = '晴朗') {
+        pending.resolve({ ok: true, json: async () => ({ ok: true, data: data(temperature, condition) }) });
       }, fail: () => pending.reject(new Error('offline')) });
       return pending.promise;
     },
@@ -97,7 +97,7 @@ test('destroy aborts requests, clears scheduling and ignores late responses', as
 test('failed updates retain the previous value and partial failures stay silent', async t => {
   const f = await fixture(t, ['1', '2']);
   f.controller.start();
-  f.requests[0].succeed(12);
+  f.requests[0].succeed(12, '小雨');
   f.requests[1].succeed(15);
   await flush();
   await f.automaticRefresh();
@@ -105,6 +105,7 @@ test('failed updates retain the previous value and partial failures stay silent'
   f.requests[3].succeed(16);
   await flush();
   assert.equal(f.controller.get('1').data.temperature, 12);
+  assert.equal(f.controller.get('1').data.condition, '小雨');
   assert.equal(f.controller.get('1').failed, true);
   assert.equal(f.controller.get('1').loading, false);
   assert.equal(f.controller.get('2').failed, false);

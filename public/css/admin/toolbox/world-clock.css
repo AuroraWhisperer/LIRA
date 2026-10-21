@@ -183,6 +183,16 @@
   white-space: nowrap;
 }
 
+.world-clock-city-body {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.world-clock-city-body > :first-child {
+  flex-shrink: 0;
+}
+
 .world-clock-city-time-row {
   display: flex;
   align-items: baseline;
@@ -211,8 +221,17 @@
   color: var(--color-warning);
 }
 
-.world-clock-temperature {
+.world-clock-weather {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  min-width: 0;
   margin-left: auto;
+  text-align: right;
+}
+
+.world-clock-temperature {
   color: var(--text);
   font-size: var(--type-size-caption);
   font-variant-numeric: tabular-nums;
@@ -223,17 +242,10 @@
   color: var(--muted);
 }
 
-.world-clock-temperature-source {
-  grid-column: 1 / -1;
-  margin: 10px 13px 0;
+.world-clock-condition {
   color: var(--muted);
   font-size: var(--type-size-micro);
-  line-height: 1.6;
-}
-
-.world-clock-temperature-source a {
-  color: inherit;
-  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
 }
 
 .world-clock-light-icon.is-night {

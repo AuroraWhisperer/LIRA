@@ -68,17 +68,18 @@ export function initWorldClock() {
     for (const row of rows) {
       const state = temperatures.get(row.city.id);
       const value = state?.data ? `${Math.round(state.data.temperature)}°C` : '—°C';
+      const condition = state?.data?.condition || (state?.loading ? '天气更新中' : '暂无天气');
       setText(row.temperature, `${value}${state?.data && state.failed ? '*' : ''}`);
+      setText(row.condition, `${condition}${state?.data?.condition && state.failed ? '*' : ''}`);
       row.temperature.classList.toggle('is-stale', Boolean(state?.failed));
       const updated = state?.data ? new Date(state.data.updatedAt).toLocaleString('zh-CN', {
         timeZone: row.city.zone, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
       }) : '';
-      const status = state?.loading ? '正在更新' : state?.failed ? (state.data ? '未更新，显示上次温度' : '温度暂不可用') : '当前温度';
+      const status = state?.loading ? '正在更新' : state?.failed ? (state.data ? '未更新，显示上次天气' : '天气暂不可用') : '当前天气';
       row.temperature.title = `${status}${updated ? ` · 微软天气更新于当地 ${updated}` : ''}`;
-      row.button.setAttribute('aria-label', `查看${row.city.name}时间并定位，${value}，${status}`);
+      row.condition.title = `${condition} · ${row.temperature.title}`;
+      row.button.setAttribute('aria-label', `查看${row.city.name}时间并定位，${value}，${condition}，${status}`);
     }
-    const note = get('list').querySelector('.world-clock-temperature-note');
-    if (note) note.hidden = !rows.some(row => temperatures.get(row.city.id)?.failed && temperatures.get(row.city.id)?.data);
   }
 
   function save() {
@@ -124,15 +125,15 @@ export function initWorldClock() {
       button.className = 'world-clock-city-select';
       button.setAttribute('aria-label', `查看${city.name}时间并定位`);
       button.setAttribute('aria-pressed', String(city.id === selectedId));
-      button.innerHTML = '<div class="world-clock-city-heading"><span class="world-clock-city-name"></span><span class="world-clock-city-country"></span><span class="world-clock-city-offset"></span></div><div class="world-clock-city-time-row"><time class="world-clock-city-time"></time><span class="world-clock-city-period"></span></div><div class="world-clock-city-date"><span class="world-clock-date-text"></span><span class="world-clock-day-change"></span></div>';
+      button.innerHTML = '<div class="world-clock-city-heading"><span class="world-clock-city-name"></span><span class="world-clock-city-country"></span><span class="world-clock-city-offset"></span></div><div class="world-clock-city-body"><div><div class="world-clock-city-time-row"><time class="world-clock-city-time"></time><span class="world-clock-city-period"></span></div><div class="world-clock-city-date"><span class="world-clock-date-text"></span><span class="world-clock-day-change"></span></div></div><div class="world-clock-weather"><span class="world-clock-temperature"></span><span class="world-clock-condition"></span></div></div>';
       button.querySelector('.world-clock-city-name').textContent = city.name;
       button.querySelector('.world-clock-city-country').textContent = city.name === city.country ? '' : city.country;
       button.addEventListener('click', () => selectCity(city.id));
       const lightIcon = icon('sun', 'world-clock-light-icon');
-      const temperature = document.createElement('span');
-      temperature.className = 'world-clock-temperature';
+      const temperature = button.querySelector('.world-clock-temperature');
+      const condition = button.querySelector('.world-clock-condition');
       lightIcon.removeAttribute('aria-hidden');
-      button.querySelector('.world-clock-city-time-row').append(temperature, lightIcon);
+      button.querySelector('.world-clock-city-offset').before(lightIcon);
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'world-clock-remove';
@@ -155,7 +156,7 @@ export function initWorldClock() {
       });
       card.append(button, remove);
       list.append(card);
-      rows.push({ city, card, button, lightIcon, temperature, time: button.querySelector('time'),
+      rows.push({ city, card, button, lightIcon, temperature, condition, time: button.querySelector('time'),
         period: button.querySelector('.world-clock-city-period'), offset: button.querySelector('.world-clock-city-offset'),
         date: button.querySelector('.world-clock-date-text'), difference: button.querySelector('.world-clock-day-change') });
     }
@@ -173,7 +174,6 @@ export function initWorldClock() {
       }
       list.append(empty);
     }
-    if (visible.length) list.append(get('temperature-source').content.cloneNode(true));
     renderTemperatures();
     tick();
   }

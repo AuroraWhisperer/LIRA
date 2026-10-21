@@ -32,6 +32,7 @@ function parseWeather(html, latitude, longitude, now) {
   const location = state?.currentLocation;
   const current = state?.currentCondition;
   const temperature = current?.currentRaw?.temp;
+  const condition = current?.currentRaw?.cap;
   const updatedAt = Date.parse(current?.currentRaw?.created);
   if (state?.fallbackedLocation || coordinate(location?.latitude, 90) !== latitude
     || coordinate(location?.longitude, 180) !== longitude || current?.unitsRaw?.temperature !== '°C'
@@ -39,6 +40,7 @@ function parseWeather(html, latitude, longitude, now) {
   const timestamp = new Date(updatedAt).toISOString();
   return currentTemperature({
     temperature: Math.round(temperature * 10) / 10,
+    condition: typeof condition === 'string' ? condition.trim() || null : null,
     validAt: timestamp,
     updatedAt: timestamp,
     fetchedAt: new Date(now).toISOString(),
