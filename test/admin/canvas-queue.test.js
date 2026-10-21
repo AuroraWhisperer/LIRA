@@ -50,6 +50,8 @@ test('queue canvas frames fit each style and transparent artwork has no frosted 
     await page.locator(`[data-picker-style="${style}"]`).click();
     frame = await page.locator('.scene-editor-item.is-selected iframe').elementHandle().then(handle => handle.contentFrame());
     sizes[style] = await fittedPanel(frame, style);
+    assert.equal(await frame.locator('.queue-live-badge').first().textContent(), 'LIVE', style);
+    assert.equal(await frame.locator('#queueContent').textContent().then(text => text.includes('当前演唱')), false, style);
     if (style === 'classic') assert.notEqual(sizes[style].blur, 'none', 'classic retains its explicit blur setting');
     else assert.equal(sizes[style].blur, 'none', style);
     if (style === 'identity') assert.ok(sizes[style].panelWidth <= 430, 'identity retains its original maximum scale');

@@ -15,6 +15,7 @@ import { initAudioAssistant } from './audio-assistant.js';
 import { initTopbarStatus } from './topbar-status.js';
 import { display } from './display.js';
 import { initComponentStyleLibraries } from './component-style-client.js';
+import { initWorldClock } from './world-clock/index.js';
 // 编写人：Aurora
 // Admin应用统一入口 - ES6模块化版本
 ('use strict');
@@ -65,7 +66,6 @@ const toolbox = createToolboxLifecycle({
   loaders: {
     otherGamesFeature: () => import('./games.js').then((module) => module.initGames),
     otherPkScoreFeature: () => import('./pk-score-calculator.js').then((module) => module.initPkScoreCalculator),
-    otherWorldClockFeature: () => import('./world-clock/index.js').then((module) => module.initWorldClock),
   },
   onError: Utils.showError,
   onInitError: recoverToolboxInitialization,
@@ -134,6 +134,7 @@ async function initializeApp() {
   disposePlaybackOutputSettings = initPlaybackOutputSettings();
   disposeAudioAssistant = initAudioAssistant();
   disposeTopbarStatus = initTopbarStatus({ showToast: Utils.showStackedToast });
+  initWorldClock();
 
   enhanceSelects();
   enhanceColorControls();

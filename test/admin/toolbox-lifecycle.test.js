@@ -199,10 +199,17 @@ test('an import failure can retry in place and initialize successfully once', as
 test('optional editors have no eager entry imports or initialization calls', () => {
   const entry = fs.readFileSync(path.join(root, 'public/js/admin/index.js'), 'utf8');
   const app = fs.readFileSync(path.join(root, 'public/js/admin/app.js'), 'utf8');
-  for (const file of ['clock-card', 'start-animation', 'games', 'overtime', 'world-clock/index']) {
+  for (const file of ['clock-card', 'start-animation', 'games', 'overtime']) {
     assert.doesNotMatch(entry + app, new RegExp(`(?:from\\s+|import\\s+)['"]\\./${file}\\.js['"]`));
     assert.ok(app.includes(`import('./${file}.js')`));
   }
   assert.match(app, /onFeatureSelected: toolbox\.selectFeature/);
   assert.match(app, /toolbox\.setPage\(nextPageId\)/);
+});
+
+test('world clock starts with the app and no longer depends on toolbox selection', () => {
+  const app = fs.readFileSync(path.join(root, 'public/js/admin/app.js'), 'utf8');
+  assert.match(app, /import \{ initWorldClock \} from '\.\/world-clock\/index\.js'/);
+  assert.match(app, /initWorldClock\(\)/);
+  assert.doesNotMatch(app, /otherWorldClockFeature:.*import/);
 });

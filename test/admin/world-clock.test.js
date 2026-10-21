@@ -5,11 +5,12 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-let CITIES, DEFAULT_IDS, matchesCity, clockAt, dayDifference, differenceLabel, sunDirection, isDaylight;
+let CITIES, DEFAULT_IDS, matchesCity, clockAt, dayDifference, differenceLabel, sunDirection, isDaylight, layoutCityLabels;
 test.before(async () => {
   const directory = path.resolve(__dirname, '../../public/js/admin/world-clock');
   ({ CITIES, DEFAULT_IDS, matchesCity } = await loadModuleExports(path.join(directory, 'cities.js')));
   ({ clockAt, dayDifference, differenceLabel, sunDirection, isDaylight } = await loadModuleExports(path.join(directory, 'time.js')));
+  ({ layoutCityLabels } = await loadModuleExports(path.join(directory, 'globe.js')));
 });
 
 test('seven default cities use their winter and summer time-zone rules', () => {
@@ -81,4 +82,42 @@ test('day/night approximation puts Greenwich in daylight at equinox noon', () =>
   const sun = sunDirection(new Date('2026-03-20T12:00:00Z'));
   assert.ok(isDaylight({ lat: 0, lon: 0 }, sun));
   assert.equal(isDaylight({ lat: 0, lon: 180 }, sun), false);
+});
+
+test('visible city names use measured text boxes instead of a minimum estimated width', () => {
+  // Desktop reproduction: Dallas and New York are 71px apart, but their labels are only 36px and 24px wide.
+  const labels = layoutCityLabels([
+    { x: 144, y: 240, labelWidth: 36, labelHeight: 18, selected: true },
+    { x: 215, y: 237, labelWidth: 24, labelHeight: 18 },
+  ], 700, 500);
+  assert.ok(labels.every(Boolean));
+  assert.equal(labels[0].right, 192);
+  assert.equal(labels[1].left, 227);
+  const losAngeles = layoutCityLabels([
+    { x: 734, y: 249, labelWidth: 36, labelHeight: 18, selected: true, side: 'left' },
+    { x: 590, y: 269, labelWidth: 36, labelHeight: 18, side: 'right' },
+  ], 860, 500);
+  assert.ok(losAngeles.every(Boolean), 'Facing labels for Dallas and Los Angeles fit without hiding either city');
+});
+
+test('labels try the opposite side and vertical positions before hiding, without covering other dots', () => {
+  const labels = layoutCityLabels([
+    { x: 100, y: 100, labelWidth: 36, labelHeight: 18, selected: true },
+    { x: 140, y: 100, labelWidth: 36, labelHeight: 18 },
+    { x: 140, y: 110, labelWidth: 36, labelHeight: 18 },
+  ], 300, 200);
+  assert.ok(labels.every(Boolean));
+  assert.equal(labels[0].side, 'left', 'The first label must avoid the second city dot');
+  assert.equal(labels[1].side, 'right');
+  assert.equal(labels[2].side, 'bottom');
+});
+
+test('labels stay inside the viewport, retain a valid side, and hide only when crowded', () => {
+  const point = { x: 280, y: 100, labelWidth: 40, labelHeight: 18 };
+  assert.equal(layoutCityLabels([point], 300, 200)[0].side, 'left');
+  assert.equal(layoutCityLabels([{ ...point, x: 150, side: 'left' }], 300, 200)[0].side, 'left');
+  const crowded = Array.from({ length: 6 }, (_, i) => ({ x: 100, y: 100, labelWidth: 36, labelHeight: 18, selected: i === 0 }));
+  const labels = layoutCityLabels(crowded, 200, 200);
+  assert.ok(labels[0], 'Selected city retains priority');
+  assert.equal(labels.filter(Boolean).length, 4);
 });

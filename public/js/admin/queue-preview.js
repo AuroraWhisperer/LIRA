@@ -16,7 +16,7 @@ export function createQueuePreview({ controller, source = document, panelPrefix 
       return bindQueueTheme(panel, targetController);
     },
     startData: ({ emit }) => {
-      emit({ queue: { current: { song_name: '当前演唱 · 示例歌曲', requester_name: '示例观众' },
+      emit({ queue: { current: { song_name: '示例歌曲', requester_name: '示例观众', is_live: true },
         waiting: Array.from({ length: 12 }, (_, index) => ({ song_name: `待唱歌曲 ${index + 1}`,
           requester_name: `示例观众 ${index + 1}`, is_pinned: index === 0 })) },
         superChats: [{ message: '这是一条示例留言', price: 30 }] });

@@ -79,6 +79,7 @@ function createShutdownHarness(options = {}) {
 
   const app = Object.assign(new EventEmitter(), {
     isPackaged: false,
+    commandLine: { appendSwitch() {} },
     getPath: () => 'C:\\synthetic-lira-shutdown',
     setPath(name, value) {
       calls.push('app:path:' + name);
@@ -252,6 +253,12 @@ function createShutdownHarness(options = {}) {
     './ipc/audio-assistant-ipc': {
       registerAudioAssistantIpc: () => () => calls.push('audio-assistant:remove-ipc'),
     },
+    './playback-output': {
+      createPlaybackOutput: () => ({ dispose: () => calls.push('playback-output:dispose') }),
+    },
+    './ipc/playback-output-ipc': {
+      registerPlaybackOutputIpc: () => () => calls.push('playback-output:remove-ipc'),
+    },
     './desktop-runtime': require('../../src/electron/desktop-runtime'),
     './desktop-auth-controller': {
       createDesktopAuthController: () => ({
@@ -401,6 +408,7 @@ function createShutdownHarness(options = {}) {
     './media-request-headers': {
       configureMediaRequestHeaders() {},
     },
+    './audio-media-cors': { configureAudioMediaCors() {} },
     './desktop-request-auth': require('../../src/electron/desktop-request-auth'),
     './update-manager': {},
     './playback-flush': options.realPlaybackFlush ? require('../../src/electron/playback-flush') : {

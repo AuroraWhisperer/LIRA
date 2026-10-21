@@ -24,6 +24,7 @@ const ROUTE_MODULES = [
   require('./routes/system-routes'),
   require('./routes/settings-routes'),
   require('./routes/clock-routes'),
+  require('./routes/world-clock-routes'),
   require('./routes/opening-routes'),
   require('./routes/wesing-routes'),
   require('./routes/music-routes'),

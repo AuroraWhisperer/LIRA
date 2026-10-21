@@ -409,6 +409,19 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 | ----------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
 | `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（九套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`、`flipFrameColor`、`flipFaceColor`、`flipTextColor`、`moonMode`（light/dark/auto）、`moonIntervalSeconds`（1–86400 的整数，默认 30），以及 `styleOptions`（按内置样式保存的白名单外观）和可选对象 `styleParameters`（由已保存的 clockStyleParameters JSON 解析，按 clock 类型校验）；非法存量值回退默认配置 | —      |
 
+## 2.5 世界时钟温度(world-clock)
+
+> 模块文件：[world-clock-routes.js](../../../src/server/routes/world-clock-routes.js)、[world-clock-temperature.js](../../../src/server/world-clock-temperature.js)
+> 前缀：`/api/world-clock`
+
+| 端点 | 请求 | 响应(data) | 错误码 |
+| --- | --- | --- | --- |
+| `GET /api/world-clock/temperature` | 仅管理身份；查询 `latitude`（−90–90）、`longitude`（−180–180），必须为非空有限数值 | `{temperature,validAt,updatedAt,fetchedAt}`：摄氏温度保留一位小数；三个时间均为 ISO 8601，前两项为微软页面当前天气的生成时间，末项为页面获取时间 | 400 坐标无效；401 未认证；403 overlay 无权；503 上游/数据/容量暂不可用 |
+
+每个 server runtime 独立创建、关闭温度服务，通过 API context 注入，不复用 AI 的和风配置。服务固定请求 `https://www.msn.cn/zh-cn/weather/forecast`，以 Base64 JSON `loc` 传最多四位小数的经纬度和语言，`weadegreetype=C`；携带 LIRA 版本和项目联系链接的 User-Agent，无需 Key。禁止重定向，12 秒超时，解压后的页面限 512 KiB；只解析 `redux-data` 脚本标签中的 JSON，不运行网页脚本。取 `WeatherData._@STATE@_.currentCondition.currentRaw.temp/created`，检查摄氏单位、有限温度、目标坐标一致且未回退位置；数据更新超过 24 小时或超前超过一小时均拒绝。网页结构不再匹配时返回暂不可用，不取默认城市代替。
+
+内存按坐标合并在途请求，成功结果缓存至请求开始时的下个整点（最长 1 小时），最多 128 项，不在过期前驱逐有效项；满时先释放已到期且非在途项，否则返回 503。缓存命中保留原始数据时间和获取时间，跨整点完成的请求不延长缓存期限。错误至少退避一分钟并遵守更长的 Retry-After，不把旧结果包装成新的成功响应，不回退到收费来源。前端在软件启动和每个整点请求，切页不会发起请求；新 runtime 缓存为空，首次请求直接抓取。缓存仅在当前 runtime 内共享，不自动跨主播电脑共享。后台调度由管理页控制器拥有，服务本身无定时抓取或持久化；调用者取消不终止共享上游请求，runtime 关闭在 HTTP drain 前取消并排空请求。用户可见行为见 [世界地图](../frontend/app.md#世界地图)。
+
 ## 3. WeSing 采集域(wesing)
 
 > 模块文件:[src/server/routes/wesing-routes.js](../../../src/server/routes/wesing-routes.js)

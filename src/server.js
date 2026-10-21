@@ -50,6 +50,7 @@ const MAX_BODY_BYTES = 16 * 1024 * 1024;
 const { normalizeCloudSettingsSnapshot, serializeCloudSettings } = require('./server/settings-contract');
 const { buildDesktopMenuCommands } = require('./server/danmaku-menu');
 const { isAiReady } = require('./ai/config');
+const { createWorldClockTemperature } = require('./server/world-clock-temperature');
 
 function createServerRuntime(runtimeOptions = {}) {
   const {
@@ -72,6 +73,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let giftEffectResolver = null;
   let domainServices = null;
   let fontLibrary = null;
+  let worldClock = null;
   let sceneRuntime = null;
   let giftSyncStore = null;
   let giftRetentionStore = null;
@@ -156,6 +158,7 @@ function createServerRuntime(runtimeOptions = {}) {
       });
       fs.mkdirSync(OPENING_MUSIC_DIR, { recursive: true });
       fontLibrary = createFontLibrary({ dataDir: DATA_DIR, publicDir: PUBLIC_DIR, fetch: runtimeOptions.fontFetch });
+      worldClock = createWorldClockTemperature({ fetch: runtimeOptions.worldClockFetch });
       reportPhase('database-init', Date.now() - phaseStartedAt);
       phaseStartedAt = Date.now();
       const settingsBootstrap = prepareSettingsBootstrap(db.songDb);
@@ -280,6 +283,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getUserAvatar: (uid) => bilibiliRuntime.getUserAvatar(uid),
   });
   const createApiContext = createRuntimeApiContextFactory({
+    getWorldClock: () => worldClock,
     giftCards: giftRuntime.giftCards,
     getDynamicLottery: () => dynamicLottery,
     maxBodyBytes: MAX_BODY_BYTES,
@@ -491,6 +495,7 @@ function createServerRuntime(runtimeOptions = {}) {
 
       musicRuntime?.weSingCapture.cancelDiagnostics();
       await fontLibrary?.close();
+      await worldClock?.close();
       await inflightTracker.drain();
       await disposeApplication({ optimize: true });
       await closeHttpServer();
@@ -517,6 +522,7 @@ function createServerRuntime(runtimeOptions = {}) {
   async function disposeApplication(options = {}) {
     const steps = [
       ['fonts', () => fontLibrary?.close()],
+      ['world clock', () => worldClock?.close()],
       ['retention', () => stopRetentionMaintenance?.()],
       ['Bilibili', () => bilibiliRuntime?.stop()],
       ['scene events', () => sceneRuntime?.dispose()],
@@ -555,6 +561,7 @@ function createServerRuntime(runtimeOptions = {}) {
     giftEffectResolver = null;
     domainServices = null;
     fontLibrary = null;
+    worldClock = null;
     sceneRuntime = null;
     giftSyncStore = null;
     giftRetentionStore = null;

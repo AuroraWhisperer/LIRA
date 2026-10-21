@@ -60,13 +60,31 @@
 }
 
 .queue-live-badge {
-  display: inline-block;
-  padding: 0.1em 0.35em;
-  border: 1px solid currentColor;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.18em 0.4em;
   border-radius: 0.25em;
+  background: #c7354f;
+  color: #fff;
+  font-family: Arial, sans-serif;
   font-size: 0.65em;
+  font-weight: 800;
   line-height: 1.2;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-shadow: none;
+  -webkit-text-stroke: 0;
   vertical-align: 0.1em;
+}
+
+.queue-live-badge::before {
+  content: '';
+  width: 0.35em;
+  height: 0.35em;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .overlay-header {

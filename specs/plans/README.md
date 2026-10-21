@@ -8,6 +8,7 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-21-world-clock-weather](2026-10-21-world-clock-weather.md) | Paused | 微软天气温度已改为软件启动刷新、整点后台刷新且无 toast；68 项聚焦测试及隔离 Electron 验证通过。天气文字继续暂停。 |
 | [2026-10-20-native-playback-outputs](2026-10-20-native-playback-outputs.md) | Awaiting Verification | 实际接口/设备及 ASIO 驱动选择已接入；本机 9 个 Windows 输出、后台时钟及播放操作通过。本机 ASIO 驱动启动失败，外接声卡/硬件回送与听感待实机，安装包未更新。 |
 | [2026-10-20-audio-device-inputs](2026-10-20-audio-device-inputs.md) | Awaiting Verification | 已补齐 Windows 录音/回送输入、声道映射、格式适配和独立设备模式；原生及聚焦回归、隔离 Electron 已通过。外接声卡线路/硬件回送、听感、热拔插与直播软件实播待验，安装包未更新。 |
 | [2026-10-18-audio-assistant-isolation-diagnostics](2026-10-18-audio-assistant-isolation-diagnostics.md) | Awaiting Evidence | 已收到 Win10 + ROUTIST 的 v5 报告：枚举、静音及路由读回通过，播放器实际迁移未通过，停止恢复成功。待确认网易云默认/非独占输出后复测及实际播放验收；此前验证和安装版状态见计划。 |

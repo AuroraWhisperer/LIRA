@@ -187,7 +187,7 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 - **状态获取**:队列、歌单、盲盒、加班机等快照消费者先 `fetch('/api/state')` 拿首帧快照,再连 `/ws` 收后续快照;WS 断开时按指数退避重连,重连前再次 `loadState()` 兜底(见 [comms.md](comms.md) §3)。
 - **字体**:中文字体栈 `Microsoft YaHei / PingFang SC` + 多语言回退(`overlay-utils.js` 的 `multilingualFontFallback`);队列/歌单板经 CSS 变量 `--overlay-font-family` 由管理页设置注入,加班机数字与 LIVE 徽标用 Bahnschrift / Bahnschrift SemiCondensed(见 §4)。
 - **指纹去重**:内容未变不重渲染(队列层 `computeStateKey`、歌单层三段指纹、加班机 revision 比较,详见 [comms.md](comms.md) §3.2)。
-- **点歌 LIVE**：所有点歌板样式仅在单项 `is_live` 为 true 时显示 LIVE；使用后端队列顺序，不根据第 1 位猜测演唱状态。`is_live` 纳入队列指纹，单独切换标记也会刷新。
+- **点歌 LIVE**：所有点歌板样式仅在单项 `is_live` 为 true 时显示深珊瑚红底、白色圆点与 LIVE 字样的紧凑徽标；预览与实际浏览器源复用同一徽标，预览示例通过 `is_live` 标记，不把状态文字写入歌名。使用后端队列顺序，不根据第 1 位猜测演唱状态。`is_live` 纳入队列指纹，单独切换标记也会刷新。
 - **低功耗模式**:`overlay-utils.js` 的 `overlayLowPowerEnabled(settings)`——URL 参数 `?quality=low` 强制开启、`?quality=pretty|smooth` 强制关闭、否则读设置 `overlayLowPowerMode`([overlay-utils.js:48-53](../../../public/js/overlays/overlay-utils.js#L48-L53))。低功耗下加班机走 `low-motion` 类(动画 180ms、关闭 transform/filter,[overtime.css:307-310](../../../public/css/overlays/overtime.css#L307-L310))。
 
 ### 1.2 CSS 变量注入表(唯一成文处)

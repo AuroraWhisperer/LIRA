@@ -32,6 +32,9 @@ async function setup(t, reducedMotion = 'no-preference') {
       document.querySelector('.other-page').classList.toggle('sidebar-collapsed');
     });
   });
+  // Finish entry layout before Playwright's click retries can scroll and collapse the top directory.
+  await page.locator('#otherUsageGuideFeature').evaluate((panel) =>
+    Promise.all(panel.getAnimations({ subtree: true }).map((animation) => animation.finished)));
   return page;
 }
 

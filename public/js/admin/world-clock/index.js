@@ -1,9 +1,9 @@
 'use strict';
 
-import { showError } from '../../shared/utils.js';
 import { CITIES, DEFAULT_IDS, matchesCity } from './cities.js';
 import { clockAt, dayDifference, differenceLabel, isDaylight, sunDirection } from './time.js';
 import { createGlobe } from './globe.js';
+import { createTemperatureController } from './temperature.js';
 
 const STORAGE_KEY = 'admin.worldClock';
 const CITY_BY_ID = new Map(CITIES.map(city => [city.id, city]));
@@ -51,6 +51,7 @@ export function initWorldClock() {
   let selectedId = ids.includes(saved?.selectedId) ? saved.selectedId : (ids[0] || null);
   let rows = [];
   let globe;
+  let globeStarted = false;
   let globeReady = false;
   let globeVisible = false;
   let timer;
@@ -58,10 +59,31 @@ export function initWorldClock() {
   let disposed = false;
   let lastSunMinute = -1;
   let catalogMinute = '';
+  const temperatures = createTemperatureController({
+    getCities: () => ids.map(id => CITY_BY_ID.get(id)),
+    onChange: renderTemperatures,
+  });
+
+  function renderTemperatures() {
+    for (const row of rows) {
+      const state = temperatures.get(row.city.id);
+      const value = state?.data ? `${Math.round(state.data.temperature)}°C` : '—°C';
+      setText(row.temperature, `${value}${state?.data && state.failed ? '*' : ''}`);
+      row.temperature.classList.toggle('is-stale', Boolean(state?.failed));
+      const updated = state?.data ? new Date(state.data.updatedAt).toLocaleString('zh-CN', {
+        timeZone: row.city.zone, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+      }) : '';
+      const status = state?.loading ? '正在更新' : state?.failed ? (state.data ? '未更新，显示上次温度' : '温度暂不可用') : '当前温度';
+      row.temperature.title = `${status}${updated ? ` · 微软天气更新于当地 ${updated}` : ''}`;
+      row.button.setAttribute('aria-label', `查看${row.city.name}时间并定位，${value}，${status}`);
+    }
+    const note = get('list').querySelector('.world-clock-temperature-note');
+    if (note) note.hidden = !rows.some(row => temperatures.get(row.city.id)?.failed && temperatures.get(row.city.id)?.data);
+  }
 
   function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ids, format, selectedId })); }
-    catch { showError('世界时钟设置未保存，请重试。'); }
+    catch (error) { console.warn('世界地图设置未保存。', error); }
   }
 
   function syncMarkers(focus = false) {
@@ -107,8 +129,10 @@ export function initWorldClock() {
       button.querySelector('.world-clock-city-country').textContent = city.name === city.country ? '' : city.country;
       button.addEventListener('click', () => selectCity(city.id));
       const lightIcon = icon('sun', 'world-clock-light-icon');
+      const temperature = document.createElement('span');
+      temperature.className = 'world-clock-temperature';
       lightIcon.removeAttribute('aria-hidden');
-      button.querySelector('.world-clock-city-time-row').append(lightIcon);
+      button.querySelector('.world-clock-city-time-row').append(temperature, lightIcon);
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'world-clock-remove';
@@ -116,11 +140,11 @@ export function initWorldClock() {
       remove.title = `移除${city.name}`;
       remove.append(icon('close'));
       remove.addEventListener('click', () => {
-        const index = ids.indexOf(city.id);
+        const index = rows.findIndex(row => row.city.id === city.id);
         ids = ids.filter(id => id !== city.id);
         if (selectedId === city.id) {
           closeDetails();
-          selectedId = ids[Math.min(index, ids.length - 1)] || null;
+          selectedId = (rows[index + 1] || rows[index - 1])?.city.id || ids[0] || null;
         }
         save();
         syncMarkers(true);
@@ -131,7 +155,7 @@ export function initWorldClock() {
       });
       card.append(button, remove);
       list.append(card);
-      rows.push({ city, card, button, lightIcon, time: button.querySelector('time'),
+      rows.push({ city, card, button, lightIcon, temperature, time: button.querySelector('time'),
         period: button.querySelector('.world-clock-city-period'), offset: button.querySelector('.world-clock-city-offset'),
         date: button.querySelector('.world-clock-date-text'), difference: button.querySelector('.world-clock-day-change') });
     }
@@ -149,6 +173,8 @@ export function initWorldClock() {
       }
       list.append(empty);
     }
+    if (visible.length) list.append(get('temperature-source').content.cloneNode(true));
+    renderTemperatures();
     tick();
   }
 
@@ -170,6 +196,12 @@ export function initWorldClock() {
     const reference = clockAt('Asia/Shanghai', now, format);
     const sun = sunDirection(now);
     const clocks = new Map(ids.map(id => [id, clockAt(CITY_BY_ID.get(id).zone, now, format)]));
+    rows.sort((a, b) => clocks.get(a.city.id).offsetMinutes - clocks.get(b.city.id).offsetMinutes
+      || ids.indexOf(a.city.id) - ids.indexOf(b.city.id));
+    const list = get('list');
+    rows.forEach((row, index) => {
+      if (list.children[index] !== row.card) list.moveBefore(row.card, list.children[index]);
+    });
     for (const row of rows) {
       const clock = clocks.get(row.city.id);
       renderTime(row.time, clock);
@@ -242,6 +274,7 @@ export function initWorldClock() {
         renderCards();
         selectCity(city.id);
         rows.find(row => row.city.id === city.id)?.button.focus();
+        temperatures.refreshCity(city);
       });
       results.append(button);
     }
@@ -274,6 +307,7 @@ export function initWorldClock() {
     syncGlobeActivity();
     clearInterval(timer);
     if (active) {
+      loadGlobe();
       tick();
       timer = setInterval(tick, 1000);
     } else if (get('dialog').open) get('dialog').close();
@@ -284,6 +318,23 @@ export function initWorldClock() {
     get('message').textContent = message;
     get('message').hidden = false;
     for (const button of root.querySelectorAll('.world-clock-globe-controls button')) button.disabled = true;
+  }
+
+  function loadGlobe() {
+    if (globeStarted) return;
+    globeStarted = true;
+    createGlobe(get('globe'), get('markers'), selectCity, rotating => get('rotate').setAttribute('aria-pressed', String(rotating)), globeError)
+      .then(instance => {
+        if (disposed) { instance.destroy(); return; }
+        globe = instance;
+        globeReady = true;
+        syncGlobeActivity();
+        syncMarkers(true);
+        get('message').hidden = true;
+        for (const button of root.querySelectorAll('.world-clock-globe-controls button')) button.disabled = false;
+        tick();
+      })
+      .catch(error => { if (!disposed) globeError(error.message); });
   }
 
   listen(get('add'), 'click', openAdd);
@@ -327,6 +378,7 @@ export function initWorldClock() {
   intersection.observe(get('globe'));
   listen(window, 'pagehide', () => {
     disposed = true;
+    temperatures.destroy();
     clearInterval(timer);
     observer.disconnect();
     intersection.disconnect();
@@ -335,18 +387,7 @@ export function initWorldClock() {
     if (get('dialog').open) get('dialog').close();
   });
   renderCards();
-  syncVisibility();
   for (const button of root.querySelectorAll('.world-clock-globe-controls button')) button.disabled = true;
-  createGlobe(get('globe'), get('markers'), selectCity, rotating => get('rotate').setAttribute('aria-pressed', String(rotating)), globeError)
-    .then(instance => {
-      if (disposed) { instance.destroy(); return; }
-      globe = instance;
-      globeReady = true;
-      syncGlobeActivity();
-      syncMarkers(true);
-      get('message').hidden = true;
-      for (const button of root.querySelectorAll('.world-clock-globe-controls button')) button.disabled = false;
-      tick();
-    })
-    .catch(error => { if (!disposed) globeError(error.message); });
+  temperatures.start();
+  syncVisibility();
 }

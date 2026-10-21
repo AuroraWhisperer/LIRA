@@ -1,5 +1,33 @@
 import { coordinates, sunDirection } from './time.js';
 
+// Coordinates and measured label sizes are in CSS pixels, like the marker layer.
+export function layoutCityLabels(markers, width, height) {
+  const occupied = [];
+  const intersects = (a, b) => a.left < b.right + 3 && a.right > b.left - 3
+    && a.top < b.bottom + 3 && a.bottom > b.top - 3;
+  const dots = markers.map(({ x, y }) => ({ left: x - 5, right: x + 5, top: y - 5, bottom: y + 5 }));
+  return markers.map(marker => {
+    const { x, y, labelWidth: w, labelHeight: h } = marker;
+    if (!w || !h) return null;
+    const positions = {
+      right: [x + 12, y - h / 2],
+      left: [x - 12 - w, y - h / 2],
+      top: [x - w / 2, y - 12 - h],
+      bottom: [x - w / 2, y + 12],
+    };
+    const sides = [...new Set([marker.side || 'right', 'right', 'left', 'top', 'bottom'])];
+    const candidates = sides.map(side => {
+      const [left, top] = positions[side];
+      return { side, left, top, right: left + w, bottom: top + h };
+    }).filter(box => box.left >= 3 && box.right <= width - 3 && box.top >= 3 && box.bottom <= height - 3);
+    const free = candidates.find(box => !occupied.some(other => intersects(box, other))
+      && !dots.some(dot => intersects(box, dot)));
+    const placed = free || (marker.selected ? candidates[0] : null);
+    if (placed) occupied.push(placed);
+    return placed || null;
+  });
+}
+
 const VERTEX = `
   attribute vec2 position;
   void main() { gl_Position = vec4(position, 0.0, 1.0); }
@@ -130,7 +158,7 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
     for (const key of ['east', 'north', 'front']) gl.uniform3fv(uniforms[key], axes[key]);
     gl.uniform3fv(uniforms.sun, sun);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-    const occupied = [];
+    const visiblePoints = [];
     for (const point of points) {
       const dot = axis => point.vector.reduce((sum, value, index) => sum + value * axis[index], 0);
       const x = cx + dot(axes.east) * radius;
@@ -138,15 +166,19 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
       const visible = dot(axes.front) > 0.13 && x >= 8 && x <= width - 8 && y >= 8 && y <= height - 30;
       point.node.hidden = !visible;
       if (!visible) continue;
-      const leftLabel = x > width * 0.7;
-      point.node.classList.toggle('label-left', leftLabel);
       point.node.style.left = `${x}px`;
       point.node.style.top = `${y}px`;
-      const labelWidth = Math.max(76, point.city.name.length * 12 + 20);
-      const bounds = { left: leftLabel ? x - labelWidth - 12 : x + 12, top: y - 5, right: leftLabel ? x - 12 : x + labelWidth + 12, bottom: y + 21 };
-      const overlaps = occupied.some(box => bounds.left < box.right && bounds.right > box.left && bounds.top < box.bottom && bounds.bottom > box.top);
-      point.label.hidden = overlaps && !point.node.classList.contains('is-selected');
-      if (!point.label.hidden) occupied.push(bounds);
+      point.x = x;
+      point.y = y;
+      visiblePoints.push(point);
+    }
+    const placements = layoutCityLabels(visiblePoints, width, height);
+    for (const [index, point] of visiblePoints.entries()) {
+      const placed = placements[index];
+      point.label.style.visibility = placed ? '' : 'hidden';
+      if (!placed) continue;
+      point.node.dataset.labelSide = placed.side;
+      point.side = placed.side;
     }
   }
 
@@ -239,6 +271,15 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
   });
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);
+  const labelObserver = new ResizeObserver(entries => {
+    for (const entry of entries) {
+      const point = points.find(item => item.label === entry.target);
+      if (!point || !entry.contentRect.width || !entry.contentRect.height) continue;
+      point.labelWidth = entry.contentRect.width;
+      point.labelHeight = entry.contentRect.height;
+    }
+    startFrame();
+  });
 
   return {
     zoom,
@@ -263,6 +304,7 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
     },
     setSun(date) { sun = sunDirection(date); startFrame(); },
     setCities(cities, selectedId) {
+      labelObserver.disconnect();
       markerLayer.replaceChildren();
       points = [...cities].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId)).map(city => {
         const node = document.createElement('button');
@@ -274,16 +316,19 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
         const label = document.createElement('span');
         label.textContent = city.name;
         node.append(dot, label);
+        label.style.visibility = 'hidden';
         node.addEventListener('click', () => onSelect(city.id));
         markerLayer.append(node);
-        return { city, node, label, vector: coordinates(city.lat, city.lon) };
+        return { city, node, label, selected: city.id === selectedId, vector: coordinates(city.lat, city.lon) };
       });
+      for (const point of points) labelObserver.observe(point.label);
       startFrame();
     },
     destroy() {
       disposed = true;
       cancelAnimationFrame(animation);
       observer.disconnect();
+      labelObserver.disconnect();
       events.abort();
       markerLayer.replaceChildren();
       for (const texture of textures) gl.deleteTexture(texture);

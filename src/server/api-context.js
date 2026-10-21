@@ -33,6 +33,7 @@ function createApiContext(options) {
   const overtimeGiftCatalog = domainServices.overtimeGiftCatalog || createUnavailableGiftSaleCatalogService();
 
   return {
+    worldClock: options.worldClock,
     dynamicLottery: options.dynamicLottery,
     scenes: options.scenes,
     sceneEvents: options.sceneEvents,
