@@ -2,7 +2,6 @@
 
 const { randomInt: cryptoRandomInt } = require('node:crypto');
 const { performance } = require('node:perf_hooks');
-const { createOvertimeStore } = require('./overtime-store');
 const {
   MAX_OVERTIME_SECONDS,
   MAX_EFFECT_FACTOR,
@@ -52,7 +51,7 @@ function createOvertimeService(options = {}) {
   const cancelTimeout = options.clearTimeout || clearTimeout;
   const randomInt = typeof options.randomInt === 'function' ? options.randomInt : cryptoRandomInt;
   const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
-  const store = options.store || createOvertimeStore(options.giftDb);
+  const store = options.store;
   let state = normalizeState(store.getState() || store.ensureState(toIso(now())));
   let monotonicAnchorMs = monotonicNow();
   let zeroTimer = null;

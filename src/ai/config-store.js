@@ -14,23 +14,22 @@ const { describeModelEndpoint } = require('./model-endpoint');
 const SECRET_SET = new Set(AI_SECRET_KEYS);
 const EXPIRED_PRUNE_INTERVAL_MS = 60 * 1000;
 
-function createAiConfigStore(db, secretCodec, options = {}) {
+function createAiConfigStore(persistence, secretCodec, options = {}) {
   const now = options.now || Date.now;
   let cached = null;
-  let previousKeyOrigin = '';
-  let providerPersonaIds = {};
   let lastPrunedAt = null;
 
   function getConfig() {
-    if (cached) return structuredClone(cached);
+    if (!cached) cached = decodeConfiguration(persistence.readConfiguration());
+    return structuredClone(cached.config);
+  }
+
+  function decodeConfiguration(rows) {
     const stored = {};
-    const rows = db.prepare('SELECT key, value, is_secret FROM ai_configuration').all();
-    previousKeyOrigin = rows.find(row => row.key === 'doubaoPreviousKeyOrigin')?.value || '';
-    providerPersonaIds = safeJsonParse(rows.find(row => row.key === 'providerPersonaIds')?.value) || {};
     for (const row of rows) {
       if (!(row.key in AI_CONFIG_DEFAULTS)) continue;
       try {
-        const raw = row.is_secret ? secretCodec.decrypt(row.value) : row.value;
+        const raw = row.isSecret ? secretCodec.decrypt(row.value) : row.value;
         stored[row.key] = parseStoredValue(row.key, raw);
       } catch (error) {
         console.warn(`[AI][Config] unable to read ${row.key}: ${redactError(error.message)}`);
@@ -44,8 +43,11 @@ function createAiConfigStore(db, secretCodec, options = {}) {
         if (!Object.hasOwn(stored, key)) stored[key] = true;
       }
     }
-    cached = normalizeAiConfig(stored, AI_CONFIG_DEFAULTS);
-    return structuredClone(cached);
+    return {
+      config: normalizeAiConfig(stored, AI_CONFIG_DEFAULTS),
+      previousKeyOrigin: rows.find(row => row.key === 'doubaoPreviousKeyOrigin')?.value || '',
+      providerPersonaIds: safeJsonParse(rows.find(row => row.key === 'providerPersonaIds')?.value) || {},
+    };
   }
 
   function getPublicConfig() {
@@ -63,7 +65,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     result.hasAmapApiKey = Boolean(config.amapApiKey);
     result.secretEncryptionAvailable = Boolean(secretCodec?.isAvailable?.());
     result.personas = listPersonas(config);
-    result.providerPersonaIds = { ...providerPersonaIds, [config.modelProvider]: config.personaId };
+    result.providerPersonaIds = { ...cached.providerPersonaIds, [config.modelProvider]: config.personaId };
     result.hasCustomPersona = config.personaId === 'custom' || config.systemPrompt !== GENERAL_PROMPT;
     result.modelEndpoint = describeModelEndpoint(
       config.deepseekResponsesUrl,
@@ -75,60 +77,47 @@ function createAiConfigStore(db, secretCodec, options = {}) {
 
   function updateConfig(changes = {}) {
     const current = getConfig();
-    const accountKeyOrigin = previousKeyOrigin;
+    const accountKeyOrigin = cached.previousKeyOrigin;
     const normalized = normalizeAiConfig(changes, current);
     const personaIds = new Set(['custom', ...listPersonas(normalized).map(persona => persona.id)]);
     const nextProviderPersonaIds = Object.fromEntries(Object.entries({
-      ...providerPersonaIds,
+      ...cached.providerPersonaIds,
       [current.modelProvider]: current.personaId,
       [normalized.modelProvider]: normalized.personaId,
     }).map(([provider, id]) => [provider, personaIds.has(id) ? id : 'general']));
     const updatedAt = new Date(now()).toISOString();
-    const write = db.prepare(`
-      INSERT INTO ai_configuration (key, value, is_secret, updated_at)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(key) DO UPDATE SET
-        value = excluded.value,
-        is_secret = excluded.is_secret,
-        updated_at = excluded.updated_at
-    `);
-
-    db.exec('BEGIN');
-    try {
-      const keys = new Set([...Object.keys(changes), 'personaId', 'webSearchEnabled', 'functionCallingEnabled', 'weatherEnabled', 'placesEnabled', 'routesEnabled']);
-      for (const key of keys) {
-        if (!(key in AI_CONFIG_DEFAULTS)) continue;
-        if (
-          MODEL_PROVIDER_PRESETS[normalized.modelProvider] &&
-          ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)
-        )
-          continue;
-        const secret = SECRET_SET.has(key);
-        const value = normalized[key];
-        const storedValue = secret && value ? secretCodec.encrypt(value) : serializeValue(value);
-        write.run(key, storedValue, secret ? 1 : 0, updatedAt);
-      }
-      write.run('providerPersonaIds', JSON.stringify(nextProviderPersonaIds), 0, updatedAt);
-      // Account mode does not overwrite a previously saved manual endpoint.
-      // Retain only the API key's origin so returning to its preset can safely
-      // reuse the key even when that preset had no stored manual URL.
-      if (current.modelProvider !== 'doubao' && normalized.modelProvider === 'doubao') {
-        const origin = current.deepseekApiKey && current.deepseekResponsesUrl ? new URL(current.deepseekResponsesUrl).origin : '';
-        write.run('doubaoPreviousKeyOrigin', origin, 0, updatedAt);
-      }
-      // Read the prospective persisted config: leaving a preset may restore
-      // a previously saved custom URL that is hidden by the current preset.
-      cached = null;
-      assertSavedModelKeyOrigin(current.modelProvider === 'doubao' ? { ...current, deepseekResponsesUrl: accountKeyOrigin } : current,
-        getConfig(), Object.hasOwn(changes, 'deepseekApiKey'));
-      if (current.modelProvider === 'doubao' && normalized.modelProvider !== 'doubao') write.run('doubaoPreviousKeyOrigin', '', 0, updatedAt);
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      cached = null;
-      throw error;
+    const entries = [];
+    const keys = new Set([...Object.keys(changes), 'personaId', 'webSearchEnabled', 'functionCallingEnabled', 'weatherEnabled', 'placesEnabled', 'routesEnabled']);
+    for (const key of keys) {
+      if (!(key in AI_CONFIG_DEFAULTS)) continue;
+      if (
+        MODEL_PROVIDER_PRESETS[normalized.modelProvider] &&
+        ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)
+      )
+        continue;
+      const isSecret = SECRET_SET.has(key);
+      const value = normalized[key];
+      entries.push({ key, value: isSecret && value ? secretCodec.encrypt(value) : serializeValue(value), isSecret });
     }
-    cached = null;
+    entries.push({ key: 'providerPersonaIds', value: JSON.stringify(nextProviderPersonaIds), isSecret: false });
+    // Account mode does not overwrite a previously saved manual endpoint.
+    // Retain only the API key's origin so returning to its preset can safely
+    // reuse the key even when that preset had no stored manual URL.
+    if (current.modelProvider !== 'doubao' && normalized.modelProvider === 'doubao') {
+      const origin = current.deepseekApiKey && current.deepseekResponsesUrl ? new URL(current.deepseekResponsesUrl).origin : '';
+      entries.push({ key: 'doubaoPreviousKeyOrigin', value: origin, isSecret: false });
+    }
+    if (current.modelProvider === 'doubao' && normalized.modelProvider !== 'doubao') {
+      entries.push({ key: 'doubaoPreviousKeyOrigin', value: '', isSecret: false });
+    }
+    let nextConfiguration;
+    persistence.updateConfiguration(entries, updatedAt, rows => {
+      // Leaving a preset may restore a stored custom URL hidden by the current preset.
+      nextConfiguration = decodeConfiguration(rows);
+      assertSavedModelKeyOrigin(current.modelProvider === 'doubao' ? { ...current, deepseekResponsesUrl: accountKeyOrigin } : current,
+        nextConfiguration.config, Object.hasOwn(changes, 'deepseekApiKey'));
+    });
+    cached = nextConfiguration;
     return getPublicConfig();
   }
 
@@ -182,58 +171,45 @@ function createAiConfigStore(db, secretCodec, options = {}) {
   }
 
   function logRequest(entry = {}) {
-    db.prepare(
-      `
-      INSERT INTO ai_request_logs (
-        uid, user_name, category, status, latency_ms,
-        input_tokens, output_tokens, tool_calls, error_code, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    ).run(
-      String(entry.uid || ''),
-      String(entry.userName || '').slice(0, 80),
-      String(entry.category || '').slice(0, 40),
-      String(entry.status || '').slice(0, 24),
-      toNonNegativeInteger(entry.latencyMs),
-      toNonNegativeInteger(entry.inputTokens),
-      toNonNegativeInteger(entry.outputTokens),
-      toNonNegativeInteger(entry.toolCalls),
-      String(entry.errorCode || '').slice(0, 80),
-      now(),
-    );
+    persistence.appendRequestLog({
+      uid: String(entry.uid || ''),
+      userName: String(entry.userName || '').slice(0, 80),
+      category: String(entry.category || '').slice(0, 40),
+      status: String(entry.status || '').slice(0, 24),
+      latencyMs: toNonNegativeInteger(entry.latencyMs),
+      inputTokens: toNonNegativeInteger(entry.inputTokens),
+      outputTokens: toNonNegativeInteger(entry.outputTokens),
+      toolCalls: toNonNegativeInteger(entry.toolCalls),
+      errorCode: String(entry.errorCode || '').slice(0, 80),
+      createdAt: now(),
+    });
   }
 
   function isBlacklisted(uid) {
     if (!uid) return false;
-    return Boolean(db.prepare('SELECT 1 FROM ai_blacklist WHERE uid = ?').get(String(uid)));
+    return persistence.isBlacklisted(String(uid));
   }
 
   function setBlacklist(uid, blocked, details = {}) {
     const normalizedUid = String(uid || '').trim();
     if (!normalizedUid) throw new Error('UID 不能为空。');
     if (!blocked) {
-      db.prepare('DELETE FROM ai_blacklist WHERE uid = ?').run(normalizedUid);
+      persistence.deleteBlacklistEntry(normalizedUid);
       return;
     }
-    db.prepare(
-      `
-      INSERT INTO ai_blacklist (uid, user_name, reason, created_at)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(uid) DO UPDATE SET user_name = excluded.user_name, reason = excluded.reason
-    `,
-    ).run(
-      normalizedUid,
-      String(details.userName || '').slice(0, 80),
-      String(details.reason || '').slice(0, 200),
-      now(),
-    );
+    persistence.upsertBlacklistEntry({
+      uid: normalizedUid,
+      userName: String(details.userName || '').slice(0, 80),
+      reason: String(details.reason || '').slice(0, 200),
+      createdAt: now(),
+    });
   }
 
   function getContext(uid, personaScope = '') {
     if (personaScope) uid = `persona:${hashCacheKey(JSON.stringify([String(uid), personaScope]))}`;
-    const row = db.prepare('SELECT payload, expires_at FROM ai_viewer_context WHERE uid = ?').get(String(uid || ''));
-    if (!row || Number(row.expires_at) <= now()) {
-      if (row) db.prepare('DELETE FROM ai_viewer_context WHERE uid = ?').run(String(uid || ''));
+    const row = persistence.readContext(String(uid || ''));
+    if (!row || row.expiresAt <= now()) {
+      if (row) persistence.deleteContext(String(uid || ''));
       return null;
     }
     return safeJsonParse(row.payload);
@@ -242,25 +218,20 @@ function createAiConfigStore(db, secretCodec, options = {}) {
   function setContext(uid, payload, ttlSeconds, personaScope = '') {
     if (!uid || !payload) return;
     if (personaScope) uid = `persona:${hashCacheKey(JSON.stringify([String(uid), personaScope]))}`;
-    db.prepare(
-      `
-      INSERT INTO ai_viewer_context (uid, payload, expires_at) VALUES (?, ?, ?)
-      ON CONFLICT(uid) DO UPDATE SET payload = excluded.payload, expires_at = excluded.expires_at
-    `,
-    ).run(String(uid), JSON.stringify(payload), now() + Math.max(1, Number(ttlSeconds) || 1) * 1000);
+    persistence.writeContext(String(uid), JSON.stringify(payload), now() + Math.max(1, Number(ttlSeconds) || 1) * 1000);
     pruneExpiredIfDue();
   }
 
   function clearContext(uid, personaScope = '') {
     if (personaScope) uid = `persona:${hashCacheKey(JSON.stringify([String(uid), personaScope]))}`;
-    db.prepare('DELETE FROM ai_viewer_context WHERE uid = ?').run(String(uid || ''));
+    persistence.deleteContext(String(uid || ''));
   }
 
   function getCache(key) {
     const cacheKey = hashCacheKey(key);
-    const row = db.prepare('SELECT payload, expires_at FROM ai_query_cache WHERE cache_key = ?').get(cacheKey);
-    if (!row || Number(row.expires_at) <= now()) {
-      if (row) db.prepare('DELETE FROM ai_query_cache WHERE cache_key = ?').run(cacheKey);
+    const row = persistence.readCache(cacheKey);
+    if (!row || row.expiresAt <= now()) {
+      if (row) persistence.deleteCache(cacheKey);
       return null;
     }
     return safeJsonParse(row.payload);
@@ -269,19 +240,13 @@ function createAiConfigStore(db, secretCodec, options = {}) {
   function setCache(key, payload, ttlSeconds) {
     const ttl = Number(ttlSeconds) || 0;
     if (!key || !payload || ttl <= 0) return;
-    db.prepare(
-      `
-      INSERT INTO ai_query_cache (cache_key, payload, expires_at) VALUES (?, ?, ?)
-      ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, expires_at = excluded.expires_at
-    `,
-    ).run(hashCacheKey(key), JSON.stringify(payload), now() + ttl * 1000);
+    persistence.writeCache(hashCacheKey(key), JSON.stringify(payload), now() + ttl * 1000);
     pruneExpiredIfDue();
   }
 
   function pruneExpired() {
     const timestamp = now();
-    db.prepare('DELETE FROM ai_viewer_context WHERE expires_at <= ?').run(timestamp);
-    db.prepare('DELETE FROM ai_query_cache WHERE expires_at <= ?').run(timestamp);
+    persistence.pruneExpired(timestamp);
     lastPrunedAt = timestamp;
   }
 

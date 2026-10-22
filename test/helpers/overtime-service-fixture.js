@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createOvertimeService } = require('../../src/overtime');
+const { createOvertimeStore } = require('../../src/storage/overtime-store');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 
 function createFixture() {
@@ -15,7 +16,7 @@ function createFixture() {
     clock,
     createService(options = {}) {
       return createOvertimeService({
-        giftDb: db.giftDb,
+        store: createOvertimeStore(db.giftDb),
         now: clock.now,
         monotonicNow: clock.monotonicNow,
         setTimeout: clock.setTimeout,

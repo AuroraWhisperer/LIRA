@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { createFixture } = require('../helpers/overtime-service-fixture');
-const { createOvertimeStore } = require('../../src/overtime/overtime-store');
+const { createOvertimeStore } = require('../../src/storage/overtime-store');
 
 test('enable epochs advance only on disabled to enabled transitions', () => {
   const fixture = createFixture();

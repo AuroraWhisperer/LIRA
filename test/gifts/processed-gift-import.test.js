@@ -15,6 +15,7 @@ TICKET_IDENTITY.variantId = giftVariantId({
 const { createGiftService } = require('../../src/bilibili/gift');
 const { buildGiftFrameEvent } = require('../../src/bilibili/gift/frame-config');
 const { createOvertimeConsumer, createOvertimeService } = require('../../src/overtime');
+const { createOvertimeStore } = require('../../src/storage/overtime-store');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const {
   createFakeClock,
@@ -281,7 +282,7 @@ test('processed final reaches existing statistics, overtime, history, snapshot, 
   };
   const overtimeUpdates = [];
   const overtime = createOvertimeService({
-    giftDb: db.giftDb,
+    store: createOvertimeStore(db.giftDb),
     now: clock.now,
     monotonicNow: clock.now,
     setTimeout: clock.setTimeout,

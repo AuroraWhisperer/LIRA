@@ -68,6 +68,29 @@ test('temperature reads the requested MSN city and shares its response until the
   assert.equal(requests.length, 2);
 });
 
+test('weather descriptions use familiar Chinese labels without changing precipitation or uncertainty', async t => {
+  const cases = [
+    [' 大部晴朗 ', '晴间多云'],
+    ['以晴为主', '晴间多云'],
+    ['晴朗', '晴'],
+    ['局部晴朗', '多云'],
+    ['局部多云', '多云'],
+    ['大部多云', '多云'],
+    ...['晴', '少云', '晴间多云', '多云', '阴', '小雨', '小阵雨', '大雨', '冻雨',
+      '雨夹雪', '暴雪', '雷阵雨', '雷阵雨伴有冰雹', '局部阵雨', '可能有雷雨', '多云转晴', '浮尘']
+      .map(condition => [condition, condition]),
+  ];
+  for (const [caption, expected] of cases) {
+    const body = weather();
+    body.currentCondition.currentRaw.cap = caption;
+    const service = createWorldClockTemperature({ now: () => START, fetch: async () => response(body) });
+    t.after(() => service.close());
+    const result = await service.getTemperature(LOCATION);
+    assert.equal(result.condition, expected, caption);
+    assert.equal(result.temperature, -1);
+  }
+});
+
 test('missing or invalid weather descriptions preserve a valid temperature without inferring clear skies', async t => {
   for (const cap of [undefined, null, '', '  ', 0, { text: '晴朗' }]) {
     const body = weather();

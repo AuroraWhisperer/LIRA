@@ -1,4 +1,5 @@
-import * as songUtils from '../shared/utils.js';
+import { value, setValue, toast, api, debounce, dangerConfirm } from '../shared/utils.js';
+import { escapeHtml, escapeAttr } from '../shared/html-escape.js';
 import { stateService } from './state.js';
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 // 编写人：Aurora
@@ -11,6 +12,8 @@ import {
   readSelectedTags,
   splitCategoryNames,
 } from './song-category-filter.js';
+
+const songUtils = { escapeHtml, escapeAttr, value, setValue, toast, api, debounce, dangerConfirm };
 
 export function createSongs({ state = stateService, utils = songUtils } = {}) {
   const { escapeHtml, escapeAttr, value, setValue, toast, api, debounce, dangerConfirm } = utils;

@@ -4,7 +4,7 @@
 
 import * as PlaybackUtils from '../utils.js';
 import * as UIComponents from './components.js';
-import { escapeHtml } from '../../shared/utils.js';
+import { escapeHtml } from '../../shared/html-escape.js';
 
 /**
  * 抽屉管理器

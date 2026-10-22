@@ -1,6 +1,7 @@
 'use strict';
 
 const { getClockConfig, normalizeClockSettingValue, normalizeClockStyleOptions } = require('./clock-contract');
+const { CLOCK_APPEARANCE_KEYS } = require('../../public/js/shared/clock-settings.js');
 const { normalizeSettingsPatch } = require('./settings-contract');
 const { projectOverlayState } = require('./overlay-projection');
 const { validateBackground } = require('../overtime/overtime-contract');
@@ -18,10 +19,7 @@ const { normalizeResourceStyle } = require('../../public/js/shared/component-res
 const { BACKGROUND_FIELDS, getBackgroundAppearance } = require('../../public/js/shared/background-appearance.js');
 const { normalizeStyleParameters } = require('../shared/component-style-parameters');
 
-const CLOCK_KEYS = { style: 'clockStyle', showDate: 'clockShowDate', showSeconds: 'clockShowSeconds',
-  hourFormat: 'clockHourFormat', label: 'clockLabel', flipFrameColor: 'clockFlipFrameColor',
-  flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor',
-  moonMode: 'clockMoonMode', moonIntervalSeconds: 'clockMoonIntervalSeconds' };
+const CLOCK_KEYS = { style: 'clockStyle', ...CLOCK_APPEARANCE_KEYS };
 const QUEUE_DEFAULTS = projectOverlayState('queue', { settings: DEFAULT_SETTINGS }).settings;
 const DISPLAY_STATE_FIELDS = { queue: ['queue', 'superChats'], overtime: ['overtime'],
   'gift-sprint': ['giftSprint'], lyrics: ['lyricState', 'lyricTimeline'] };

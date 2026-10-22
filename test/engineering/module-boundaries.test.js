@@ -15,11 +15,6 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
   'public/js/shared/theme.js': 5,
   'public/js/shared/utils.js': 4,
 };
-const DOMAIN_SQL_LIMITS = {
-  'src/ai/config-store.js': 18,
-  // Includes pre-existing multiline calls that the original pattern missed.
-  'src/overtime/overtime-store.js': 23,
-};
 const EMPTY_CATCH_LIMITS = {
   'src/ai/deepseek-client.js': 1,
   'src/ai/http-client.js': 1,
@@ -79,6 +74,14 @@ test('domain services use stores instead of SQLite statements', () => {
   assert.doesNotMatch(superChatService, /context\.db|\bdb\.superChatDb\b/);
   assert.doesNotMatch(songs, /\.(?:prepare|exec)\s*\(/);
   assert.doesNotMatch(songs, /require\([^\n]*storage\//);
+  const aiConfiguration = read('src/ai/config-store.js');
+  assert.doesNotMatch(aiConfiguration, /\.(?:prepare|exec)\s*\(/);
+  assert.doesNotMatch(aiConfiguration, /require\([^\n]*storage\//);
+  for (const file of listJavaScriptFiles('src/overtime')) {
+    const source = read(file);
+    assert.doesNotMatch(source, /\.(?:prepare|exec)\s*\(|\bgiftDb\b|context\.db/, file);
+    assert.doesNotMatch(source, /require\([^\n]*storage\//, file);
+  }
   for (const name of [
     'projection-service',
     'statistics-consumer',
@@ -193,26 +196,26 @@ test('domain SQL detection includes statements split across lines', () => {
   assert.equal('store.prepare(sql)'.match(DOMAIN_SQL_PATTERN), null);
 });
 
-test('receiver-aware domain SQL usage is frozen and can only decrease', () => {
+test('domain SQL receivers stay inside storage', () => {
   const candidates = listJavaScriptFiles('src').filter((relativePath) => !relativePath.startsWith('src/storage/'));
 
   for (const relativePath of candidates) {
-    const count = read(relativePath).match(DOMAIN_SQL_PATTERN)?.length || 0;
-    if (count === 0) continue;
-    assert.ok(
-      Object.hasOwn(DOMAIN_SQL_LIMITS, relativePath),
-      `${relativePath} introduces receiver-aware SQL usage outside storage`,
-    );
-    assert.ok(
-      count <= DOMAIN_SQL_LIMITS[relativePath],
-      `${relativePath} increases receiver-aware SQL usage outside storage`,
-    );
+    assert.doesNotMatch(read(relativePath), DOMAIN_SQL_PATTERN, `${relativePath} issues SQL outside storage`);
   }
+});
 
-  for (const [relativePath, limit] of Object.entries(DOMAIN_SQL_LIMITS)) {
-    const count = read(relativePath).match(DOMAIN_SQL_PATTERN)?.length || 0;
-    assert.ok(count > 0, `${relativePath} has no receiver-aware SQL usage; remove its baseline`);
-    assert.ok(count <= limit, `${relativePath} increases receiver-aware SQL usage outside storage`);
+test('pure frontend helper consumers bypass the legacy utility aggregation', () => {
+  const pureHelpers = new Set([
+    'escapeHtml', 'escapeAttr', 'formatTime', 'formatDateTime', 'formatBytes',
+    'formatDuration', 'formatSuperChatPrice', 'formatMoney', 'formatCompactNumber',
+  ]);
+  for (const file of listJavaScriptFiles('public/js')) {
+    for (const match of read(file).matchAll(/\b(?:import|export)\s*\{([^}]+)\}\s*from\s*['"](\.[^'"]+)['"]/g)) {
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[2]));
+      if (target !== 'public/js/shared/utils.js') continue;
+      const imported = match[1].split(',').map(binding => binding.trim().split(/\s+/)[0]);
+      assert.deepEqual(imported.filter(name => pureHelpers.has(name)), [], `${file} must import pure helpers from their owner`);
+    }
   }
 });
 

@@ -58,6 +58,8 @@ export function initWorldClock() {
   let active = false;
   let disposed = false;
   let lastSunMinute = -1;
+  let catalogMatches = [];
+  let catalogShown = 0;
   let catalogMinute = '';
   const temperatures = createTemperatureController({
     getCities: () => ids.map(id => CITY_BY_ID.get(id)),
@@ -127,7 +129,7 @@ export function initWorldClock() {
       button.setAttribute('aria-pressed', String(city.id === selectedId));
       button.innerHTML = '<div class="world-clock-city-heading"><span class="world-clock-city-name"></span><span class="world-clock-city-country"></span><span class="world-clock-city-offset"></span></div><div class="world-clock-city-body"><div><div class="world-clock-city-time-row"><time class="world-clock-city-time"></time><span class="world-clock-city-period"></span></div><div class="world-clock-city-date"><span class="world-clock-date-text"></span><span class="world-clock-day-change"></span></div></div><div class="world-clock-weather"><span class="world-clock-temperature"></span><span class="world-clock-condition"></span></div></div>';
       button.querySelector('.world-clock-city-name').textContent = city.name;
-      button.querySelector('.world-clock-city-country').textContent = city.name === city.country ? '' : city.country;
+      button.querySelector('.world-clock-city-country').textContent = city.name === city.country ? '' : [city.country, city.region].filter(Boolean).join(' · ');
       button.addEventListener('click', () => selectCity(city.id));
       const lightIcon = icon('sun', 'world-clock-light-icon');
       const temperature = button.querySelector('.world-clock-temperature');
@@ -222,7 +224,7 @@ export function initWorldClock() {
       const city = CITY_BY_ID.get(selectedId);
       const clock = clocks.get(selectedId);
       setText(get('name'), city.name);
-      setText(get('country'), city.name === city.country ? '' : city.country);
+      setText(get('country'), city.name === city.country ? '' : [city.country, city.region].filter(Boolean).join(' · '));
       get('country').hidden = city.name === city.country;
       setText(get('zone'), city.zone);
       setText(get('offset'), clock.offset);
@@ -239,33 +241,31 @@ export function initWorldClock() {
     }
   }
 
-  function renderCatalog() {
+  function renderCatalog(append = false) {
     catalogMinute = '';
-    const matches = CITIES.filter(city => matchesCity(city, get('search').value));
     const results = get('results');
-    results.replaceChildren();
-    for (const city of matches) {
-      const added = ids.includes(city.id);
+    const query = get('search').value.trim();
+    if (!append) {
+      catalogMatches = query ? CITIES.filter(city => !ids.includes(city.id) && matchesCity(city, query)) : [];
+      catalogShown = 0;
+      results.replaceChildren();
+      results.scrollTop = 0;
+    }
+    const nextIndex = catalogShown;
+    for (const city of catalogMatches.slice(catalogShown, catalogShown + 100)) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'world-clock-catalog-city';
-      button.disabled = added;
-      button.setAttribute('aria-label', added ? `${city.name}已添加` : `添加${city.name}`);
+      button.setAttribute('aria-label', `添加${city.name}`);
       const content = document.createElement('div');
       const name = document.createElement('strong');
       name.textContent = city.name;
       const details = document.createElement('p');
-      details.textContent = `${city.country} · ${city.english}`;
+      details.textContent = [city.country, city.region, city.english].filter(Boolean).join(' · ');
       content.append(name, details);
       const time = document.createElement('time');
       time.dataset.worldClockCatalogTime = city.id;
-      button.append(content, time, icon(added ? 'check' : 'plus'));
-      if (added) {
-        const note = document.createElement('span');
-        note.className = 'world-clock-catalog-added';
-        note.textContent = '已添加';
-        button.append(note);
-      }
+      button.append(content, time, icon('plus'));
       button.addEventListener('click', () => {
         ids.push(city.id);
         get('filter').value = '';
@@ -277,12 +277,17 @@ export function initWorldClock() {
       });
       results.append(button);
     }
-    if (!matches.length) {
+    catalogShown = Math.min(catalogShown + 100, catalogMatches.length);
+    get('catalog-footer').hidden = !catalogMatches.length;
+    get('catalog-summary').textContent = `共 ${catalogMatches.length.toLocaleString()} 座城市，已显示 ${catalogShown.toLocaleString()} 座`;
+    get('more').hidden = catalogShown === catalogMatches.length;
+    if (!catalogMatches.length) {
       const empty = document.createElement('p');
       empty.className = 'world-clock-empty';
-      empty.textContent = '未找到城市';
+      empty.textContent = query ? '没有匹配的可添加城市' : '输入城市名称或国家开始搜索';
       results.append(empty);
     }
+    if (append) results.children[nextIndex]?.focus();
     tick();
   }
 
@@ -352,7 +357,8 @@ export function initWorldClock() {
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) get('dialog').close();
   });
   listen(get('filter'), 'input', renderCards);
-  listen(get('search'), 'input', renderCatalog);
+  listen(get('search'), 'input', () => renderCatalog());
+  listen(get('more'), 'click', () => renderCatalog(true));
   for (const button of root.querySelectorAll('[data-world-clock-format]')) {
     button.setAttribute('aria-pressed', String(button.dataset.worldClockFormat === format));
     listen(button, 'click', () => {

@@ -49,8 +49,9 @@ dependencies to projection, consumer, query or analysis implementations.
 protects those implementations, and gift projection/import tests protect
 transaction, retry and idempotency behavior.
 
-- **Current shape:** Selected domain and server files issue SQL through known
-  database receivers outside `src/storage/`.
+AI configuration now receives `src/storage/ai-state-store.js` from `server/ai-runtime.js`; the domain retains codec, persona, TTL and key-origin rules. Overtime receives `src/storage/overtime-store.js` from `server/domain-services.js`, preserving the same gift database and transaction boundaries. Both former SQL exceptions are removed.
+
+- **Current shape:** Known database receivers no longer issue SQL outside `src/storage/`; the text scan is not a complete semantic dependency analysis.
 - **New-code rule:** New domain behavior depends on a narrow store or repository;
   it does not call SQLite statement APIs.
 - **Task-scoped migration:** Move only the SQL needed by the current change into
@@ -59,8 +60,7 @@ transaction, retry and idempotency behavior.
 - **Target architecture:** SQL, table knowledge, and transaction ownership live
   under `src/storage/`.
 - **Enforcement:** Incrementally enforced by `test/engineering/module-boundaries.test.js`,
-  test `receiver-aware domain SQL usage is frozen and can only decrease`. That
-  test is the only numeric authority and uses receiver-aware raw-text scanning.
+  test `domain SQL receivers stay inside storage`, with no allowlist. It uses receiver-aware raw-text scanning; selected domain/store import assertions and behavioral tests complement it.
 
 ## Shared Utility Aggregation
 
@@ -74,6 +74,12 @@ transaction, retry and idempotency behavior.
 - **Enforcement:** N/A - prose boundary. Selected regression assertions in
   `test/engineering/module-boundaries.test.js` prevent known spreadsheet/ZIP codecs and Bilibili rules from
   returning to the aggregation point; review covers other topics.
+
+### Frontend pure helpers and compatibility
+
+`public/js/shared/html-escape.js` owns HTML/attribute escaping; `display-format.js` owns display formatting. Direct consumers, including playback helpers, import these modules without loading dialogs, toast, requests or legacy global publication. The original falsy-input semantics remain unchanged; classic overlays and confirmation-dialog escaping retain their separate contracts.
+
+`shared/utils.js` still exposes its existing named exports, aggregate object and `window.AdminApp.utils` publication for compatibility. Remaining UI/request consumers may migrate only within their own tasks. Remove a compatibility export or publisher only after its real consumers have migrated; `public/js/playback/operations/provider-operations.js` still reads `window.AdminApp.utils.logoutConfirm` directly. `module-boundaries.test.js` prevents named pure-helper imports from returning to the aggregate entry; `test/ui/frontend-pure-utils.test.js` exercises real ESM imports without UI globals or network access.
 
 ## Mutable Behavior In Composition Roots
 

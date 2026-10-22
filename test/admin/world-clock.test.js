@@ -69,12 +69,46 @@ test('half-hour and quarter-hour zones, noon and midnight are preserved', () => 
 });
 
 test('catalog has distinct IDs, valid zones, and searchable city/country names', () => {
-  assert.equal(CITIES.length, 60);
+  assert.ok(CITIES.length > 6000, 'The offline catalog covers major cities worldwide');
+  assert.ok(new Set(CITIES.map(city => city.country)).size > 180);
   assert.equal(new Set(CITIES.map(city => city.id)).size, CITIES.length);
-  for (const city of CITIES) assert.doesNotThrow(() => clockAt(city.zone));
+  assert.equal(new Set(CITIES.map(city => `${city.country}|${city.lat}|${city.lon}`)).size, CITIES.length);
+  for (const city of CITIES) {
+    assert.ok(city.name && city.english && city.country, city.id);
+    assert.ok(Number.isFinite(city.lat) && Math.abs(city.lat) <= 90, city.id);
+    assert.ok(Number.isFinite(city.lon) && Math.abs(city.lon) <= 180, city.id);
+  }
+  for (const zone of new Set(CITIES.map(city => city.zone))) assert.doesNotThrow(() => clockAt(zone));
   assert.ok(matchesCity(CITIES.find(city => city.id === 'dallas'), '达拉斯'));
   assert.ok(matchesCity(CITIES.find(city => city.id === 'london'), '英国'));
   assert.ok(matchesCity(CITIES.find(city => city.id === 'sao-paulo'), 'sao paulo'));
+});
+
+test('Atlanta is searchable in Chinese and English with the correct seasonal clock and location', () => {
+  const cities = CITIES.filter(city => matchesCity(city, '亚特兰大'));
+  assert.equal(cities.length, 1);
+  const atlanta = cities[0];
+  assert.equal(atlanta.english, 'Atlanta');
+  assert.equal(atlanta.country, '美国');
+  assert.equal(atlanta.region, 'Georgia');
+  assert.ok(Math.abs(atlanta.lat - 33.75) < 0.2 && Math.abs(atlanta.lon + 84.39) < 0.2);
+  for (const query of [' ATLANTA ', '亞特蘭大', '美国 Atlanta', 'United States Georgia Atlanta']) {
+    assert.ok(matchesCity(atlanta, query), query);
+  }
+  assert.equal(clockAt(atlanta.zone, new Date('2026-01-15T12:00:00Z')).hour, '07');
+  assert.equal(clockAt(atlanta.zone, new Date('2026-07-15T12:00:00Z')).hour, '08');
+  assert.equal(matchesCity(atlanta, 'Atlanta Canada'), false);
+});
+
+test('expanded catalog covers domestic and international cities and disambiguates names by region', () => {
+  for (const name of ['深圳', '成都', '杭州', '西安', '厦门', '拉斯维加斯', '匹兹堡', '渥太华', '多哈', '釜山', '布拉格']) {
+    assert.ok(CITIES.some(city => matchesCity(city, name)), name);
+  }
+  const lasVegas = CITIES.filter(city => city.english === 'Las Vegas' && city.country === '美国');
+  assert.equal(lasVegas.length, 2);
+  assert.ok(lasVegas.some(city => city.region === 'Nevada' && city.zone === 'America/Los_Angeles'));
+  assert.ok(lasVegas.some(city => city.region === 'New Mexico' && city.zone === 'America/Denver'));
+  assert.equal(CITIES.filter(city => matchesCity(city, 'this-city-does-not-exist')).length, 0);
 });
 
 test('day/night approximation puts Greenwich in daylight at equinox noon', () => {

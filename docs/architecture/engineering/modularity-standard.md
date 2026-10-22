@@ -140,7 +140,7 @@ Status meanings:
 | Rule ID               | Rule                                                          | Status                 | Enforcement                                                                                                                                                                      |
 | --------------------- | ------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle          | Incrementally Enforced | Selected composition-root assertions plus review                                                                                                                                 |
-| `MOD-STORAGE-001`     | Domain services do not issue SQL                              | Incrementally Enforced | Receiver-aware SQL debt budget                                                                                                                                                   |
+| `MOD-STORAGE-001`     | Domain services do not issue SQL                              | Incrementally Enforced | Receiver-aware no-SQL scan outside storage (no allowlist), selected domain import guards                                                                                                                                                   |
 | `MOD-STORAGE-002`     | Stores own transaction boundaries                             | Incrementally Enforced | Selected store atomicity tests plus review                                                                                                                                       |
 | `MOD-ADMIN-001`       | New Admin code does not add global-state access               | Incrementally Enforced | `window.AdminApp` debt budget                                                                                                                                                    |
 | `MOD-FRONTEND-001`    | New frontend code uses explicit ESM boundaries                | Incrementally Enforced | `test/engineering/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
@@ -173,7 +173,7 @@ contract:
 Current fitness functions block or freeze selected regressions, including:
 
 - Song, Queue and SuperChat services issuing SQLite statements directly.
-- Receiver-aware domain SQL debt expanding outside storage.
+- Known database receivers issuing SQL outside storage.
 - Admin legacy global debt expanding to a new file or beyond a file baseline.
 - Empty or comment-only catch debt expanding in `src/` or `public/js/`.
 - Playback composition reintroducing generic dependencies or mutable forward
@@ -287,7 +287,7 @@ inside the remote client, and the overlay connector stays in its adapter domain;
 neither is a domain-neutral shared utility or a universal sync manager.
 
 These checks strengthen the existing rules without changing their status to
-`Enforced`. Remaining legacy Admin globals, domain SQL exceptions, empty catches,
+`Enforced`. Remaining legacy Admin globals, incomplete SQL/dependency detection, empty catches,
 the shared utility aggregation point, and incomplete public-contract inventory
 remain tracked debt. Passing the current gates does not certify the entire
 repository as free of coupling or asynchronous defects.

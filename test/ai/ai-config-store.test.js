@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 
 function createStore(options = {}) {
@@ -17,11 +18,14 @@ function createStore(options = {}) {
         .toString()
         .replace(/^encrypted:/, ''),
   };
-  return { db, store: createAiConfigStore(db, codec, options) };
+  const persistence = createAiStateStore(db);
+  return { db, persistence, store: createAiConfigStore(persistence, codec, options) };
 }
 
-test('AI config masks secrets in public projection while storing them encrypted', () => {
-  const { db, store } = createStore();
+test('AI config masks secrets in public projection while storing them encrypted', (t) => {
+  const { db, persistence, store } = createStore();
+  t.after(() => db.close());
+  const write = t.mock.method(persistence, 'updateConfiguration');
   const defaults = store.getPublicConfig();
   assert.equal(defaults.enabled, true);
   assert.equal(defaults.trigger, '');
@@ -48,6 +52,9 @@ test('AI config masks secrets in public projection while storing them encrypted'
   const row = db.prepare("SELECT value, is_secret FROM ai_configuration WHERE key = 'deepseekApiKey'").get();
   assert.equal(row.is_secret, 1);
   assert.doesNotMatch(row.value, /sk-secret-value/);
+  assert.deepEqual(write.mock.calls[0].arguments[0].find(entry => entry.key === 'deepseekApiKey'), {
+    key: 'deepseekApiKey', value: row.value, isSecret: true,
+  });
   assert.equal(store.getConfig().deepseekApiKey, 'sk-secret-value');
   assert.equal(store.getPublicConfig().hasDeepSeekApiKey, true);
   assert.equal(store.getPublicConfig().deepseekApiKey, undefined);
@@ -73,7 +80,7 @@ test('AI remembers platform persona selections across reload and ignores client 
   t.after(() => db.close());
   store.updateConfig({ modelProvider: 'deepseek', personaId: 'cat' });
   store.updateConfig({ modelProvider: 'doubao', personaId: 'general' });
-  const reopened = createAiConfigStore(db, { isAvailable: () => true });
+  const reopened = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
   assert.equal(reopened.getPublicConfig().providerPersonaIds.deepseek, 'cat');
   assert.equal(reopened.getPublicConfig().providerPersonaIds.doubao, 'general');
   reopened.updateConfig({ providerPersonaIds: { deepseek: 'general' } });
@@ -98,6 +105,39 @@ test('failed platform changes roll back remembered personas with the configurati
   const before = store.getPublicConfig();
   assert.throws(() => store.updateConfig({ modelProvider: 'openai', personaId: 'general' }), { code: 'AI_KEY_ORIGIN_CHANGED' });
   assert.deepEqual(store.getPublicConfig(), before);
+});
+
+test('failed commits preserve cached configuration, platform personas and key origin', (t) => {
+  const { db, store } = createStore();
+  t.after(() => db.close());
+  store.updateConfig({ modelProvider: 'openai', personaId: 'cat', deepseekApiKey: 'sk-synthetic-original-key' });
+  store.updateConfig({ modelProvider: 'doubao', personaId: 'general' });
+  const before = store.getPublicConfig();
+  const storedRows = () => db.prepare('SELECT * FROM ai_configuration ORDER BY key').all();
+  const beforeRows = storedRows();
+  db.exec(`
+    PRAGMA foreign_keys = ON;
+    CREATE TABLE ai_commit_failure (
+      configuration_key TEXT REFERENCES ai_configuration(key) DEFERRABLE INITIALLY DEFERRED
+    );
+    CREATE TRIGGER fail_ai_commit AFTER UPDATE OF value ON ai_configuration
+    WHEN NEW.key = 'providerPersonaIds'
+    BEGIN
+      INSERT INTO ai_commit_failure (configuration_key) VALUES ('missing-fixture-key');
+    END;
+  `);
+
+  assert.throws(() => store.updateConfig({
+    modelProvider: 'openai', personaId: 'cat', model: 'uncommitted-model', deepseekApiKey: 'sk-synthetic-replacement-key',
+  }), /FOREIGN KEY constraint failed/);
+  assert.deepEqual(storedRows(), beforeRows);
+  assert.deepEqual(store.getPublicConfig(), before);
+  assert.equal(store.getConfig().deepseekApiKey, 'sk-synthetic-original-key');
+
+  db.exec('DROP TRIGGER fail_ai_commit');
+  store.updateConfig({ modelProvider: 'openai', personaId: 'cat' });
+  assert.equal(store.getConfig().deepseekApiKey, 'sk-synthetic-original-key');
+  assert.equal(store.getPublicConfig().providerPersonaIds.doubao, 'general');
 });
 
 test('AI config normalizes the legacy DeepSeek model to its official name', () => {
@@ -263,7 +303,7 @@ function retentionFixture(t) {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
   t.after(() => db.close());
-  const createStore = () => createAiConfigStore(db, {}, { now: () => now });
+  const createStore = () => createAiConfigStore(createAiStateStore(db), {}, { now: () => now });
   return {
     db,
     createStore,

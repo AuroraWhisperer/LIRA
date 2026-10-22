@@ -7,7 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { createGiftMaintenanceStore } = require('../../src/storage/gift-maintenance-store');
-const { createOvertimeStore } = require('../../src/overtime/overtime-store');
+const { createOvertimeStore } = require('../../src/storage/overtime-store');
 const schema = require('../../src/storage/schema');
 
 function createTestGiftDb() {

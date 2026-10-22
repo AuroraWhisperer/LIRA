@@ -2,7 +2,8 @@
 // 播放助手工具函数模块
 'use strict';
 
-import { escapeAttr, escapeHtml, formatCompactNumber } from '../shared/utils.js';
+import { escapeAttr, escapeHtml } from '../shared/html-escape.js';
+import { formatCompactNumber } from '../shared/display-format.js';
 
 export function getSongRequestKey(item) {
   if (item?.id === undefined || item.id === null) return '';

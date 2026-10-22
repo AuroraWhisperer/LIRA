@@ -1,49 +1,29 @@
 'use strict';
 
 const { normalizeStyleParameters } = require('../shared/component-style-parameters');
-const { CLOCK_APPEARANCE_KEYS, clockStyleOptions } = require('../../public/js/shared/clock-settings.js');
+const {
+  CLOCK_APPEARANCE_KEYS,
+  CLOCK_STYLE_LABELS: DEFAULT_LABELS,
+  CLOCK_FLIP_COLORS,
+  clockStyleOptions,
+} = require('../../public/js/shared/clock-settings.js');
 
-const CLOCK_STYLE_VALUES = new Set([
-  'peach',
-  'starlight',
-  'soda',
-  'timeline-horizontal',
-  'timeline-vertical',
-  'digital',
-  'minimal',
-  'orbit',
-  'flip',
-  'moonlit-fan',
-]);
-const CLOCK_BOOLEAN_SETTING_KEYS = new Set(['clockShowDate', 'clockShowSeconds']);
-const CLOCK_COLOR_DEFAULTS = Object.freeze({
-  clockFlipFrameColor: '#e4e4e4',
-  clockFlipFaceColor: '#ffffff',
-  clockFlipTextColor: '#303030',
-});
+const CLOCK_STYLE_VALUES = new Set(Object.keys(DEFAULT_LABELS));
+const CLOCK_BOOLEAN_SETTING_KEYS = new Set([CLOCK_APPEARANCE_KEYS.showDate, CLOCK_APPEARANCE_KEYS.showSeconds]);
+const CLOCK_COLOR_DEFAULTS = Object.freeze(Object.fromEntries(
+  Object.entries(CLOCK_FLIP_COLORS).map(([field, value]) => [CLOCK_APPEARANCE_KEYS[field], value]),
+));
 const CLOCK_SETTING_KEYS = new Set([
   'clockStyle',
   'clockStyleParameters',
   'clockStyleOptions',
   ...CLOCK_BOOLEAN_SETTING_KEYS,
-  'clockHourFormat',
-  'clockLabel',
-  'clockMoonMode',
-  'clockMoonIntervalSeconds',
+  CLOCK_APPEARANCE_KEYS.hourFormat,
+  CLOCK_APPEARANCE_KEYS.label,
+  CLOCK_APPEARANCE_KEYS.moonMode,
+  CLOCK_APPEARANCE_KEYS.moonIntervalSeconds,
   ...Object.keys(CLOCK_COLOR_DEFAULTS),
 ]);
-const DEFAULT_LABELS = Object.freeze({
-  peach: '今天也要闪闪发光',
-  starlight: '今晚与星星一起值班',
-  soda: '今天也要元气满满',
-  'timeline-horizontal': '',
-  'timeline-vertical': '',
-  digital: '',
-  minimal: '',
-  orbit: '',
-  flip: '',
-  'moonlit-fan': '',
-});
 const MAX_LABEL_LENGTH = 16;
 
 function cleanClockLabel(value) {

@@ -1,6 +1,7 @@
 'use strict';
 
-import { escapeAttr, escapeHtml, formatDateTime } from '../../shared/utils.js';
+import { escapeAttr, escapeHtml } from '../../shared/html-escape.js';
+import { formatDateTime } from '../../shared/display-format.js';
 
 const renderedBodies = new WeakMap();
 

@@ -3,17 +3,15 @@
 
 import {
   copyText,
-  escapeHtml,
-  escapeAttr,
   value,
-  formatTime,
-  formatSuperChatPrice,
   withMultilingualFallback,
   toast,
   showError,
   api,
   dangerConfirm,
 } from '../shared/utils.js';
+import { escapeHtml, escapeAttr } from '../shared/html-escape.js';
+import { formatTime, formatSuperChatPrice } from '../shared/display-format.js';
 import { stateService } from './state.js';
 
 const QUEUE_BOTTOM_HOLD_MS = 750;

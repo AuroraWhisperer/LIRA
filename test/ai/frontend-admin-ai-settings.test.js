@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 const { createAiSettingsFixture, flushAiTasks, aiResponse } = require('../helpers/ai-settings-fixture');
 
@@ -199,7 +200,7 @@ test('changing platform restores its previous selection without deleting cat edi
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(SONG_SCHEMA);
-  const store = createAiConfigStore(db, { isAvailable: () => true });
+  const store = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
   const prompt = '你是一只安静的橘猫，认真听观众说话，用简洁自然的语气陪聊。';
   store.updateConfig({ modelProvider: 'deepseek', personaId: 'cat' });
   store.updatePersona({ id: 'cat', description: '安静的橘猫', prompt });
@@ -248,7 +249,7 @@ test('DeepSeek persona and key preview return after Doubao and a fresh settings 
   t.after(() => db.close());
   db.exec(SONG_SCHEMA);
   const codec = { isAvailable: () => true, encrypt: value => `encrypted:${value}`, decrypt: value => value.slice(10) };
-  let store = createAiConfigStore(db, codec);
+  let store = createAiConfigStore(createAiStateStore(db), codec);
   store.updateConfig({ modelProvider: 'deepseek', personaId: 'cat', deepseekApiKey: 'sk-synthetic-test-key' });
   const openSettings = () => createAiSettingsFixture({
     config: store.getPublicConfig(),
@@ -266,7 +267,7 @@ test('DeepSeek persona and key preview return after Doubao and a fresh settings 
   await switchProvider('doubao');
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'general');
   assert.equal(f.elements.get('xiaomiAiKeyControl').hidden, true);
-  store = createAiConfigStore(db, codec);
+  store = createAiConfigStore(createAiStateStore(db), codec);
   f = await openSettings();
   await switchProvider('deepseek');
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'cat');
@@ -280,7 +281,7 @@ test('switching back during a pending provider save preserves the remembered per
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(SONG_SCHEMA);
-  const store = createAiConfigStore(db, { isAvailable: () => true });
+  const store = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
   store.updateConfig({ modelProvider: 'deepseek', personaId: 'cat' });
   let completeFirstSave;
   let saveCount = 0;
@@ -411,7 +412,7 @@ test('saving a named role waits for pending settings without overwriting the edi
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
   t.after(() => db.close());
-  const store = createAiConfigStore(db, { isAvailable: () => true });
+  const store = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
   let finishSave;
   const f = await createAiSettingsFixture({
     config: store.getPublicConfig(),
@@ -774,7 +775,7 @@ for (const outcome of ['successful', 'failed']) {
     const db = new DatabaseSync(':memory:');
     t.after(() => db.close());
     db.exec(SONG_SCHEMA);
-    const store = createAiConfigStore(db, { isAvailable: () => true });
+    const store = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
     const customUrl = 'https://saved-custom.example/v1';
     store.updateConfig({
       enabled: false,

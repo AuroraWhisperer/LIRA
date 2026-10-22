@@ -4,6 +4,9 @@
 
 ## 历史报告
 
+- [模块化与公共能力复用整改](2026-10-22-modularity-reuse-remediation.md)
+
+- [模块化与公共能力复用审计](2026-10-22-modularity-reuse-audit.md)（[审计提示词](2026-10-22-modularity-reuse-audit-prompt.md)）
 - [客户端实现与文档差异核对](2026-10-11-client-document-alignment.md)
 - [客户端与服务器通讯整改及整体复审](2026-10-10-communication-remediation-review.md)
 - [客户端结构整改与第二轮复审](2026-10-10-client-structure-remediation-review.md)

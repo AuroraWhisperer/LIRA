@@ -1,8 +1,8 @@
 # 加班机:礼物驱动倒计时与结算
 
-> 涉及文件:[src/overtime/index.js](../../../src/overtime/index.js)、[src/overtime/overtime-service.js](../../../src/overtime/overtime-service.js)、[src/overtime/overtime-effects.js](../../../src/overtime/overtime-effects.js)、[src/overtime/overtime-store.js](../../../src/overtime/overtime-store.js)、[src/overtime/overtime-contract.js](../../../src/overtime/overtime-contract.js)、[src/overtime/overtime-consumer.js](../../../src/overtime/overtime-consumer.js)、[src/bilibili/gift/projection-service.js](../../../src/bilibili/gift/projection-service.js)、[src/bilibili/gift/remote-catalog-cache.js](../../../src/bilibili/gift/remote-catalog-cache.js)、[src/bilibili/gift/hybrid-catalog.js](../../../src/bilibili/gift/hybrid-catalog.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
+> 涉及文件:[src/overtime/index.js](../../../src/overtime/index.js)、[src/overtime/overtime-service.js](../../../src/overtime/overtime-service.js)、[src/overtime/overtime-effects.js](../../../src/overtime/overtime-effects.js)、[src/storage/overtime-store.js](../../../src/storage/overtime-store.js)、[src/overtime/overtime-contract.js](../../../src/overtime/overtime-contract.js)、[src/overtime/overtime-consumer.js](../../../src/overtime/overtime-consumer.js)、[src/bilibili/gift/projection-service.js](../../../src/bilibili/gift/projection-service.js)、[src/bilibili/gift/remote-catalog-cache.js](../../../src/bilibili/gift/remote-catalog-cache.js)、[src/bilibili/gift/hybrid-catalog.js](../../../src/bilibili/gift/hybrid-catalog.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
 
-本文档是加班机领域的 **as-built 事实源**,描述 `src/overtime/` 的实际实现;旧设计规格 `11-overtime-machine-design.md` 中的设计规格类章节(需求条目、画面与 Admin 设计、验收清单)已按实现废弃,不再维护。HTTP 端点见 [api.md](api.md) §11,`overtime:update` 消息与快照字段见 [ws.md](ws.md) §2–§3,三张表 DDL 见 [storage.md](storage.md) §3.3,礼物投影服务见 [bilibili/gift.md](bilibili/gift.md),直播画面与 Admin 界面分别见 [frontend/overlays.md](../frontend/overlays.md) 与 [frontend/app.md](../frontend/app.md)。
+本文档是加班机领域的 **as-built 事实源**,描述 `src/overtime/` 与 `src/storage/overtime-store.js` 的实际实现;旧设计规格 `11-overtime-machine-design.md` 中的设计规格类章节(需求条目、画面与 Admin 设计、验收清单)已按实现废弃,不再维护。HTTP 端点见 [api.md](api.md) §11,`overtime:update` 消息与快照字段见 [ws.md](ws.md) §2–§3,三张表 DDL 见 [storage.md](storage.md) §3.3,礼物投影服务见 [bilibili/gift.md](bilibili/gift.md),直播画面与 Admin 界面分别见 [frontend/overlays.md](../frontend/overlays.md) 与 [frontend/app.md](../frontend/app.md)。
 
 ## 1. 职责与架构
 
@@ -16,25 +16,25 @@
 
 | 文件                      | 职责                                                                                                                |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `overtime-service.js`     | 计时状态机(`createOvertimeService`):权威倒计时、状态转移、事务/定时器与补偿调度                                     |
+| `overtime-service.js`     | 计时状态机(`createOvertimeService`):权威倒计时、状态转移、持久化调用、定时器与补偿调度                                     |
 | `overtime-effects.js`     | 礼物规则匹配、随机抽取与结算 effect 计算；无数据库、定时器或广播副作用                                              |
-| `overtime-store.js`       | 三张表的全部 SQL(`createOvertimeStore`):状态读写、规则整表替换、pending/结算事务(`BEGIN IMMEDIATE`)、补偿查询       |
+| `storage/overtime-store.js`       | 三张表的全部 SQL(`createOvertimeStore`):状态读写、规则整表替换、pending/结算事务(`BEGIN IMMEDIATE`)、补偿查询       |
 | `overtime-contract.js`    | 输入校验与常量(`validateTimeInput/validateAction/validateBackground/validateRules` 及 `MAX_*` 常量,§4–§5)           |
 | `overtime-consumer.js`    | 礼物消费者适配层(`createOvertimeConsumer`):`progress → observeGift`、`final → finalizeGift`                         |
 | `remote-catalog-cache.js` | Electron 主进程注入的服务器全局礼物目录缓存:持久化规范化快照、ETag 条件刷新、单飞与低频轮询；网络失败不覆盖已有快照 |
 | `remote-gift-image-cache.js` | 服务器图片缓存:限定配置服务器 origin/固定路径、限制下载大小与时限、校验 raster 图片并原子写入运行时 data 目录 |
 | `hybrid-catalog.js`       | 目录 facade:主读取/刷新固定使用 Bilibili 当前房间目录；服务器快照按完整礼物身份提供图片并支持按名称或 ID 搜索             |
-| `index.js`                | 统一导出(contract 透传 + 三个工厂)                                                                                  |
+| `index.js`                | 领域导出(contract 透传 + service/consumer 两个工厂)                                                                                  |
 
 ### 1.2 装配与单例
 
-`createDomainServices`([domain-services.js:89-95](../../../src/server/domain-services.js#L89-L95),见 [server-core.md](server-core.md) §5)按序:
+`createDomainServices`([domain-services.js](../../../src/server/domain-services.js),见 [server-core.md](server-core.md) §5)按序:
 
-1. `overtime = createOvertimeService({ giftDb: db.giftDb, onUpdate: onOvertimeUpdate })` — 只依赖 `gift-data.db` 与 `onUpdate` 回调,不依赖 settings/其他领域。
+1. `overtime = createOvertimeService({ store: createOvertimeStore(db.giftDb), onUpdate: onOvertimeUpdate })` — 组合根从 storage 创建适配器并显式注入；领域服务只消费 store，不接收数据库句柄，也不自行创建适配器。仍使用同一个 `gift-data.db`，事务由 store 拥有。
 2. `overtimeConsumer = createOvertimeConsumer({ service: overtime })` — 消费者 `name: 'overtime'`,`isEnabled()` 即 `getCurrentEpoch() > 0`([overtime-consumer.js:8-17](../../../src/overtime/overtime-consumer.js#L8-L17))。
 3. `giftService.createGiftService(baseContext, { consumers: [overtimeConsumer], getOvertimeEpoch: overtime.getCurrentEpoch })` — 消费者注册进服务器结果投影器；`getOvertimeEpoch` 决定首次收到事件时冻结的加班 epoch。
 
-状态是**单例行** `overtime_machine_state.id = 1`(DDL `CHECK (id = 1)`,[schema.js:315-327](../../../src/storage/schema.js#L315-L327));服务启动时 `getState() || ensureState()` 惰性插入安全默认行(`enabled=0/epoch=0/remaining_ms=0/status='paused'/revision=0`,[overtime-store.js:8-20](../../../src/overtime/overtime-store.js#L8-L20))。迁移版本 giftDb v5 负责为旧库插入该行(见 [storage.md](storage.md) §4)。
+状态是**单例行** `overtime_machine_state.id = 1`(DDL `CHECK (id = 1)`,[schema.js:315-327](../../../src/storage/schema.js#L315-L327));服务启动时 `getState() || ensureState()` 惰性插入安全默认行(`enabled=0/epoch=0/remaining_ms=0/status='paused'/revision=0`,[overtime-store.js](../../../src/storage/overtime-store.js))。迁移版本 giftDb v5 负责为旧库插入该行(见 [storage.md](storage.md) §4)。
 
 ### 1.3 服务构造时的恢复顺序
 
@@ -93,7 +93,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 | `revision`                           | **单调递增**,每次 `commit`/礼物结算/归零恢复时 `+1`,客户端据此丢弃旧增量        |
 | `updated_at`                         | ISO 时间,审计用                                                                 |
 
-各字段读写:[normalizeState:407-420](../../../src/overtime/overtime-service.js#L407-L420)、[saveState:22-41](../../../src/overtime/overtime-store.js#L22-L41)、[getSnapshot:37-50](../../../src/overtime/overtime-service.js#L37-L50)。
+各字段读写:[normalizeState:407-420](../../../src/overtime/overtime-service.js#L407-L420)、[saveState](../../../src/storage/overtime-store.js)、[getSnapshot:37-50](../../../src/overtime/overtime-service.js#L37-L50)。
 
 ### 2.2 状态转移(全部先 `materialize()` 物化再写锚点)
 
@@ -102,7 +102,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 | 操作         | 语义                                                                                                 | 出处                                                                                                                                     |
 | ------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `enable`     | 置 enabled、epoch+1、status=`paused`(**启用后保持暂停,须手动开始**);已启用则 no-op                   | [overtime-service.js:85-93](../../../src/overtime/overtime-service.js#L85-L93)                                                           |
-| `disable`    | 物化后置 disabled、status=`paused`,`saveStateAndIgnorePending` 把全部 pending 置 `ignored`           | [95-102](../../../src/overtime/overtime-service.js#L95-L102)、[overtime-store.js:43-53](../../../src/overtime/overtime-store.js#L43-L53) |
+| `disable`    | 物化后置 disabled、status=`paused`,`saveStateAndIgnorePending` 把全部 pending 置 `ignored`           | [95-102](../../../src/overtime/overtime-service.js#L95-L102)、[overtime-store.js](../../../src/storage/overtime-store.js) |
 | `start`      | 未启用抛错(`overtime must be enabled before start.`);`remainingMs>0` → `running`,否则保持 `finished` | [104-111](../../../src/overtime/overtime-service.js#L104-L111)                                                                           |
 | `pause`      | `remainingMs<=0` 时归 `finished`,否则 `paused`(时间冻结)                                             | [113-119](../../../src/overtime/overtime-service.js#L113-L119)                                                                           |
 | `reset`      | `remainingMs = initialSeconds*1000`,归零时 `finished` 否则 `paused`                                  | [121-127](../../../src/overtime/overtime-service.js#L121-L127)                                                                           |
@@ -129,9 +129,9 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 ### 3.1 结算键与生命周期
 
 - 一个 `gift_events.id` 就是一次连击最终封账后的礼物组,也是唯一结算键:`overtime_settlements.gift_event_id UNIQUE`([schema.js:344-347](../../../src/storage/schema.js#L344-L347))。`quantityMode='group'` 时整组执行一次规则；`quantityMode='item'` 时按封账数量 `num` 执行对应次数。
-- 结算行状态:`pending → applied | ignored`(CHECK 约束);`applied/ignored` 是终态,重复包、迟到包、数量继续增长都不再修改(`isComplete`,[overtime-store.js:335-337](../../../src/overtime/overtime-store.js#L335-L337))。
+- 结算行状态:`pending → applied | ignored`(CHECK 约束);`applied/ignored` 是终态,重复包、迟到包、数量继续增长都不再修改(`isComplete`,[overtime-store.js](../../../src/storage/overtime-store.js))。
 - **服务器收尾**：平台结束标记和 5 秒静默窗口由服务器判定。客户端收到服务器 `final` 后，加班机立即结算，不增加第二个静默窗口。
-- **资格冻结**:`gift_events.overtime_epoch` 在组内第一个平台包到达时写入当时的 `enable_epoch`(未启用为 0),后续连击不得改变;加班机只在 `enabled=1 且 overtime_epoch === enable_epoch` 时处理事件(`isEligible`,[overtime-store.js:328-333](../../../src/overtime/overtime-store.js#L328-L333))——关闭期间开始的组即使重新启用后封账也不补投、不回放。
+- **资格冻结**:`gift_events.overtime_epoch` 在组内第一个平台包到达时写入当时的 `enable_epoch`(未启用为 0),后续连击不得改变;加班机只在 `enabled=1 且 overtime_epoch === enable_epoch` 时处理事件(`isEligible`,[overtime-store.js](../../../src/storage/overtime-store.js))——关闭期间开始的组即使重新启用后封账也不补投、不回放。
 
 同一启用轮次内，已经收到但尚未结算的礼物继续保留资格；切换账号、直播间或 active source 不会自动结束本轮，也不取消旧来源的待结算工作。收到 final 或补偿恢复后，符合本轮资格的礼物仍结算到本地同一个计时器。`disable` 才结束本轮并忽略 pending；再次 `enable` 递增 epoch，旧轮礼物不再补算。启停不清零已累计时间，恢复初始时间仍由独立的 `reset` 操作完成。此约定仅针对本轮已接收的礼物，不改变历史同步的消费者资格或终态幂等规则。
 
@@ -146,14 +146,14 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 | `ignored`    | final 但无启用规则                 | 占用唯一结算键,不广播          |
 | `applied`    | 结算完成,携带新状态与 `adjustment` | 更新内存、重建定时器、广播     |
 
-`observeGift`([overtime-store.js:89-103](../../../src/overtime/overtime-store.js#L89-L103))与 `settleFinal`([105-163](../../../src/overtime/overtime-store.js#L105-L163))各自在 `BEGIN IMMEDIATE` 事务内执行([immediate:274-284](../../../src/overtime/overtime-store.js#L274-L284)),全部路径幂等。
+`observeGift`([overtime-store.js](../../../src/storage/overtime-store.js))与 `settleFinal`([overtime-store.js](../../../src/storage/overtime-store.js))各自在 `BEGIN IMMEDIATE` 事务内执行([immediate](../../../src/storage/overtime-store.js)),全部路径幂等。
 
 ### 3.3 结算事务与时间变化
 
 | 阶段                | 行为                                                                                                                                                                                                                       | 出处                                                                                                                           |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| pending 幂等 upsert | `ensurePending`:`INSERT … ON CONFLICT(gift_event_id) DO UPDATE … WHERE status='pending'`,仅刷新快照字段(quantity/total_price/事件时间)                                                                                     | [overtime-store.js:236-263](../../../src/overtime/overtime-store.js#L236-L263)                                                 |
-| final 结算          | `settleFinal` 同一事务内:复验 enabled/epoch → 幂等确保 pending → 确认 `detection_status='final'` → 查 `enabled=1` 规则(无规则 → ignored)→ `resolve` 计算时间变化 → `saveState` + pending 行置 `applied`(写全量快照字段)    | [overtime-store.js:105-163](../../../src/overtime/overtime-store.js#L105-L163)                                                 |
+| pending 幂等 upsert | `ensurePending`:`INSERT … ON CONFLICT(gift_event_id) DO UPDATE … WHERE status='pending'`,仅刷新快照字段(quantity/total_price/事件时间)                                                                                     | [overtime-store.js](../../../src/storage/overtime-store.js)                                                 |
+| final 结算          | `settleFinal` 同一事务内:复验 enabled/epoch → 幂等确保 pending → 确认 `detection_status='final'` → 查 `enabled=1` 规则(无规则 → ignored)→ `resolve` 计算时间变化 → `saveState` + pending 行置 `applied`(写全量快照字段)    | [overtime-store.js](../../../src/storage/overtime-store.js)                                                 |
 | 时间变化            | 按规则的 `quantityMode` 得到执行次数:连击组模式为 1,具体数量模式为 `num`;固定操作顺序重复,随机模式每次独立抽取。最终 `appliedDeltaSeconds = trunc((afterMs-beforeMs)/1000)`,经 `clampMs` **双向钳制**:负数归零、超上限截断 | [overtime-service.js:202-278](../../../src/overtime/overtime-service.js#L202-L278)                                             |
 | 状态联动            | `afterMs === 0` → `finished`;`requested>0` 且当前 `finished` → 自动恢复 `running`                                                                                                                                          | [210-211](../../../src/overtime/overtime-service.js#L210-L211)                                                                 |
 | 审计快照            | `rule_snapshot_json`:`{mode, quantityMode, fixedEffect\|null, outcomes[], displayText, ruleUpdatedAt}`;盲盒结果 `outcomes_json` 单次为 version 2、多次为 version 3(§4.3);`rule_mode` = `fixed/random/display/ignored`                               | [215-221](../../../src/overtime/overtime-service.js#L215-L221)、[247-266](../../../src/overtime/overtime-service.js#L247-L266) |
@@ -179,22 +179,22 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 }
 ```
 
-盲盒模式时 `result` 为持久化的抽取对象(§4.3),画面只播放 `resultSeconds`。settlement 行镜像同一快照:`quantity/total_price/event_created_at/event_updated_at` 均为封账瞬间值([overtime-store.js:133-155](../../../src/overtime/overtime-store.js#L133-L155))。
+盲盒模式时 `result` 为持久化的抽取对象(§4.3),画面只播放 `resultSeconds`。settlement 行镜像同一快照:`quantity/total_price/event_created_at/event_updated_at` 均为封账瞬间值([overtime-store.js](../../../src/storage/overtime-store.js))。
 
 ### 3.4 失败重试与补偿扫描
 
 | 机制           | 行为                                                                                                                                                                                                                 | 出处                                                                                                                                                               |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 结算事务失败   | 事务回滚,行保持 pending;`recordFailure` 递增 `retry_count`、写 `settle_after_ms = now + delay`,延迟按指数退避 `min(30, 2^(retryCount-1))` 秒(**1、2、4、8、16、30、30…**);`last_error` 只存单行化错误摘要(≤500 字符) | [overtime-store.js:165-185](../../../src/overtime/overtime-store.js#L165-L185)、[344-346](../../../src/overtime/overtime-store.js#L344-L346)                       |
-| 重试调度       | `scheduleRecovery` 单定时器(可 `unref`)到点执行 `recoverSettlements`;空闲时按 `getNextPendingAt` 只从 final 礼物的 pending 结算取最近到期时间预排；未封账的 progress 不参与重试调度,无需礼物活动                                                                                     | [overtime-service.js:333-353](../../../src/overtime/overtime-service.js#L333-L353)、[overtime-store.js:200-208](../../../src/overtime/overtime-store.js#L200-L208) |
-| 补偿扫描       | 服务构造时与每次重试:扫描 `detection_status='final' AND overtime_epoch=当前epoch AND (无 settlement 或 pending 到期)` 的组补投,按 `id ASC`、单批 ≤100                                                                | [overtime-store.js:187-198](../../../src/overtime/overtime-store.js#L187-L198)、[overtime-service.js:315-331](../../../src/overtime/overtime-service.js#L315-L331) |
+| 结算事务失败   | 事务回滚,行保持 pending;`recordFailure` 递增 `retry_count`、写 `settle_after_ms = now + delay`,延迟按指数退避 `min(30, 2^(retryCount-1))` 秒(**1、2、4、8、16、30、30…**);`last_error` 只存单行化错误摘要(≤500 字符) | [overtime-store.js](../../../src/storage/overtime-store.js)                       |
+| 重试调度       | `scheduleRecovery` 单定时器(可 `unref`)到点执行 `recoverSettlements`;空闲时按 `getNextPendingAt` 只从 final 礼物的 pending 结算取最近到期时间预排；未封账的 progress 不参与重试调度,无需礼物活动                                                                                     | [overtime-service.js:333-353](../../../src/overtime/overtime-service.js#L333-L353)、[overtime-store.js](../../../src/storage/overtime-store.js) |
+| 补偿扫描       | 服务构造时与每次重试:扫描 `detection_status='final' AND overtime_epoch=当前epoch AND (无 settlement 或 pending 到期)` 的组补投,按 `id ASC`、单批 ≤100                                                                | [overtime-store.js](../../../src/storage/overtime-store.js)、[overtime-service.js:315-331](../../../src/overtime/overtime-service.js#L315-L331) |
 | 投影消费者重投 | final 分发失败时投影服务按 `min(30s, 1s·2^attempt)` 退避重发同一 `final` 事件(退避指数上限 5，失败时继续重试),直到 dispatch 无失败                                                                                                     | [projection-service.js](../../../src/bilibili/gift/projection-service.js)                                                                          |
 
 两个补偿器(统计消费者用 `gift_stats_delivered`,加班机用 settlement 行)互不干扰,任何一次投递都幂等;加班机补偿只对 epoch 匹配的组生效,历史事件不会回放(ADR [0006-shared-gift-detection-core](../../architecture/adr/0006-shared-gift-detection-core.md))。
 
 ## 4. 规则与时间盲盒
 
-规则表 `overtime_gift_rules`(`gift_id` PK)由 `POST /api/overtime/rules` **整表原子替换**(`replaceRules` 在单个 `BEGIN IMMEDIATE` 事务内 DELETE + 批量 INSERT,[overtime-store.js:62-87](../../../src/overtime/overtime-store.js#L62-L87));读取按 `sort_order, gift_id` 排序([55-60](../../../src/overtime/overtime-store.js#L55-L60)),快照 `rules` 字段返回**全部**规则(含停用)。
+规则表 `overtime_gift_rules`(`gift_id` PK)由 `POST /api/overtime/rules` **整表原子替换**(`replaceRules` 在单个 `BEGIN IMMEDIATE` 事务内 DELETE + 批量 INSERT,[overtime-store.js](../../../src/storage/overtime-store.js));读取按 `sort_order, gift_id` 排序([overtime-store.js](../../../src/storage/overtime-store.js)),快照 `rules` 字段返回**全部**规则(含停用)。
 
 ### 4.1 校验常量
 
@@ -216,7 +216,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 
 ### 4.3 存储形态与带权抽取
 
-- 规则存储:`mode='fixed'` 时写入 version 2 effect;`random` 写入 version 2 outcomes;`display` 写入 `{ "version": 3, "quantityMode": "group", "displayText": "…" }`([overtime-store.js:78-80](../../../src/overtime/overtime-store.js#L78-L80))。
+- 规则存储:`mode='fixed'` 时写入 version 2 effect;`random` 写入 version 2 outcomes;`display` 写入 `{ "version": 3, "quantityMode": "group", "displayText": "…" }`([overtime-store.js](../../../src/storage/overtime-store.js))。
 - 结算行审计：单次随机结果保存 `{version:2,selectedIndex,selectedEffect:{operation,value},totalWeight}`；多次执行保存 `{version:3,quantity,selectedIndexes,totalWeight}`，并结合结算行的规则快照还原各项效果。客户端仅展示持久化结果，不自行重抽。
 - `selectRuleResult` 位于 [overtime-service.js](../../../src/overtime/overtime-service.js)：fixed 使用 `fixedEffect`，random 按权重通过 `node:crypto.randomInt(totalWeight)` 选择 effect；多次结果由 [overtime-effects.js](../../../src/overtime/overtime-effects.js) 的 `summarizeRandomOutcomes` 汇总。
 - **随机结果按执行次数产生**:`group` 模式抽一次,`item` 模式按最终数量独立抽取;同一结算会保存全部抽中索引。页面刷新、WS 重连和重复礼物包都不能重抽(结算行已 complete)。
@@ -242,7 +242,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 
 | 操作                                            | 语义                                                                        | 出处                                                                                                                                                           |
 | ----------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getOverview()`                                 | 快照 + `pendingCount` + 最近 20 条 `applied/ignored` 结算(limit 钳制 1–100) | [overtime-service.js:56-62](../../../src/overtime/overtime-service.js#L56-L62)、[overtime-store.js:222-230](../../../src/overtime/overtime-store.js#L222-L230) |
+| `getOverview()`                                 | 快照 + `pendingCount` + 最近 20 条 `applied/ignored` 结算(limit 钳制 1–100) | [overtime-service.js:56-62](../../../src/overtime/overtime-service.js#L56-L62)、[overtime-store.js](../../../src/storage/overtime-store.js) |
 | `setTime({initialSeconds?, remainingSeconds?})` | 改重置基准或当前时间;后者强制 `paused`                                      | [overtime-service.js:64-74](../../../src/overtime/overtime-service.js#L64-L74)                                                                                 |
 | `act({action})`                                 | start/pause/reset/enable/disable(§2.2)                                      | [76-83](../../../src/overtime/overtime-service.js#L76-L83)                                                                                                     |
 | `setBackground({path?, fit?})`                  | 背景配置,`commit('config')`                                                 | [129-136](../../../src/overtime/overtime-service.js#L129-L136)                                                                                                 |

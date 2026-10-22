@@ -64,6 +64,12 @@ gift_db v20 由 [gift-wish-migration.js](../../../src/storage/gift-wish-migratio
 
 `requester-target-store.js` 持有随机点歌请求者查询，由 `server/domain-services.js` 注入 `songDb`。查询和返回结构沿用既有合同，见 [音乐服务 §12](music/services.md#12-请求者定位storagerequester-target-storejs)；本次归位不改变表、排序或迁移版本。
 
+### AI 与加班机存储适配器
+
+[ai-state-store.js](../../../src/storage/ai-state-store.js) 由 `server/ai-runtime.js` 在 `songDb` 上创建，注入 AI 配置领域。它持有配置、请求日志、黑名单、会话和查询缓存的 SQL；配置及 provider 人格映射在同一事务内写入，提交前将候选行交给领域校验，异常回滚。密钥加解密、有效 origin 检查、公开脱敏、TTL 和哈希键规则仍由 `ai/config-store.js` 拥有，领域缓存仅在提交成功后更新。细节见 [AI 参考](ai.md)。
+
+[overtime-store.js](../../../src/storage/overtime-store.js) 由 `server/domain-services.js` 在 `giftDb` 上创建，注入加班机服务；它保留状态、规则、结算和 `BEGIN IMMEDIATE` 事务，计时器与恢复调度仍由领域服务持有。领域 `overtime/index.js` 只导出合同、service 和 consumer。两项归位不改变数据库文件、schema、设置键或持久化格式。细节见 [加班机参考](overtime.md)。
+
 ### 歌库显式更新事务
 
 `songStore.applyImportUpdate(buildPlan)` 在单个事务中读取完整歌曲及分类，将稳定行对象传给音乐域计划器重新校验预览，然后执行该计划的 INSERT/UPDATE，整份替换计划还会 DELETE 未列出的歌曲。匹配歌曲保留 id 和引用；删除歌曲先解除 queue/requests 的 song_id 关联，保留点歌记录文本。保留独立分类目录；插入新分类、歌曲增删改、引用变更及云同步 pending 快照一起提交或回滚。事务内不发生网络调用，成功后的同步由路由触发。

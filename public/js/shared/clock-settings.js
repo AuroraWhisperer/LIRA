@@ -8,6 +8,11 @@ export const FLIP_PALETTES = Object.freeze({
   light: ['#e4e4e4', '#ffffff', '#303030'], dark: ['#757575', '#353535', '#ffffff'],
   lilac: ['#cb69e3', '#ffffff', '#bc59d6'],
 });
+export const CLOCK_FLIP_COLORS = Object.freeze({
+  flipFrameColor: FLIP_PALETTES.light[0],
+  flipFaceColor: FLIP_PALETTES.light[1],
+  flipTextColor: FLIP_PALETTES.light[2],
+});
 export const CLOCK_APPEARANCE_KEYS = Object.freeze({ showDate: 'clockShowDate', showSeconds: 'clockShowSeconds',
   hourFormat: 'clockHourFormat', label: 'clockLabel', flipFrameColor: 'clockFlipFrameColor',
   flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor', moonMode: 'clockMoonMode',
@@ -40,9 +45,9 @@ export function clockSettingsPayload(config) {
     ...(config.styleOptions === undefined ? {} : { clockStyleOptions: JSON.stringify(config.styleOptions) }),
     clockStyle: config.style, clockShowDate: config.showDate ? 'true' : 'false',
     clockShowSeconds: config.showSeconds ? 'true' : 'false', clockHourFormat: config.hourFormat,
-    clockLabel: config.label, clockFlipFrameColor: config.flipFrameColor || FLIP_PALETTES.light[0],
-    clockFlipFaceColor: config.flipFaceColor || FLIP_PALETTES.light[1],
-    clockFlipTextColor: config.flipTextColor || FLIP_PALETTES.light[2],
+    clockLabel: config.label, clockFlipFrameColor: config.flipFrameColor || CLOCK_FLIP_COLORS.flipFrameColor,
+    clockFlipFaceColor: config.flipFaceColor || CLOCK_FLIP_COLORS.flipFaceColor,
+    clockFlipTextColor: config.flipTextColor || CLOCK_FLIP_COLORS.flipTextColor,
     clockMoonMode: config.moonMode ?? 'light', clockMoonIntervalSeconds: String(config.moonIntervalSeconds ?? 30) };
 }
 
@@ -55,9 +60,9 @@ export function clockConfigFromSettings(settings) {
   }
   const config = { ...(styleParameters === undefined ? {} : { styleParameters }), style, showDate: settings.clockShowDate !== 'false', showSeconds: settings.clockShowSeconds !== 'false',
     hourFormat: settings.clockHourFormat === '12' ? '12' : '24', label: settings.clockLabel || CLOCK_STYLE_LABELS[style],
-    flipFrameColor: settings.clockFlipFrameColor || FLIP_PALETTES.light[0],
-    flipFaceColor: settings.clockFlipFaceColor || FLIP_PALETTES.light[1],
-    flipTextColor: settings.clockFlipTextColor || FLIP_PALETTES.light[2],
+    flipFrameColor: settings.clockFlipFrameColor || CLOCK_FLIP_COLORS.flipFrameColor,
+    flipFaceColor: settings.clockFlipFaceColor || CLOCK_FLIP_COLORS.flipFaceColor,
+    flipTextColor: settings.clockFlipTextColor || CLOCK_FLIP_COLORS.flipTextColor,
     ...readClockMoonConfig({ moonMode: settings.clockMoonMode, moonIntervalSeconds: settings.clockMoonIntervalSeconds }) };
   if (settings.clockStyleOptions === undefined) return config;
   let stored;

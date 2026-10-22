@@ -49,14 +49,14 @@ import { createCacheOperations } from './operations/cache-operations.js';
 
 // ── 共享工具导入 ──
 import * as Utils from '../shared/utils.js';
+import { escapeHtml } from '../shared/html-escape.js';
+import { formatBytes } from '../shared/display-format.js';
 
 export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   // SECTION 1 — 工具函数提取
   // ══════════════════════════════════════════════════════════════
-  const escapeHtml = Utils.escapeHtml;
   const value = Utils.value;
-  const formatBytes = Utils.formatBytes;
 
   let toast = Utils.toast;
   let showError = Utils.showError;

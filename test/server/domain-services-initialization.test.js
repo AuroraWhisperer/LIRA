@@ -22,7 +22,6 @@ test.after(() => {
 
 const { createDatabases, closeDatabases } = require('../../src/storage/database');
 const { createSettingsStore } = require('../../src/storage/settings-store');
-const { createOvertimeStore } = require('../../src/overtime/overtime-store');
 const overtimeModule = require('../../src/overtime');
 const giftModule = require('../../src/bilibili/gift');
 const saleModule = require('../../src/bilibili/gift/sale-catalog');
@@ -152,7 +151,8 @@ function fixture({ failure = '', cleanupFails = false, shared = true } = {}) {
       '../overtime': {
         ...overtimeModule,
         createOvertimeService(options) {
-          const store = createOvertimeStore(options.giftDb);
+          assert.equal(Object.hasOwn(options, 'giftDb'), false);
+          const store = options.store;
           if (phase === 'recovery')
             store.listRecoverableFinal = () => {
               throw originalError;

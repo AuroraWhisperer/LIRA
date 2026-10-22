@@ -1,4 +1,4 @@
-import { formatMoney } from '../../shared/utils.js';
+import { formatMoney } from '../../shared/display-format.js';
 import { renderGiftSprintOverlay } from './sprint-overlay.js';
 // 编写人：Aurora
 // 月底冲刺模块 - 负责月底冲刺目标和水晶球统计显示

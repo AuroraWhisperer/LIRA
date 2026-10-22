@@ -4,7 +4,8 @@
 
 import * as PlaybackUtils from '../utils.js';
 import { notifyMediaPlayFailure } from '../../shared/media-playback-feedback.js';
-import { escapeAttr, escapeHtml, showError } from '../../shared/utils.js';
+import { escapeAttr, escapeHtml } from '../../shared/html-escape.js';
+import { showError } from '../../shared/utils.js';
 import { initPlayerAppearance } from './appearance.js';
 import { scrollActiveLyricIntoView } from './lyric-layout.js';
 import { preparePlaybackOutput } from '../features/output-device.js';

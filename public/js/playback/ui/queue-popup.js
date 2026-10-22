@@ -3,7 +3,7 @@
 'use strict';
 
 import * as UIComponents from './components.js';
-import { escapeHtml } from '../../shared/utils.js';
+import { escapeHtml } from '../../shared/html-escape.js';
 import { getQueueTrackKey } from '../utils.js';
 
 // Copy the row templates' primitive inputs: queue arrays and tracks can mutate in place.

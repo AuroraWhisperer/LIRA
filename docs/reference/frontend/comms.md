@@ -24,7 +24,9 @@
 
 ## 2. HTTP 模式(fetch + `{ok}` 信封)
 
-### 2.1 工具函数([shared/utils.js](../../../public/js/shared/utils.js))
+### 2.1 工具函数与兼容入口
+
+[shared/utils.js](../../../public/js/shared/utils.js) 保留以下具名导出及旧聚合对象。转义直接使用 [html-escape.js](../../../public/js/shared/html-escape.js)，格式化直接使用 [display-format.js](../../../public/js/shared/display-format.js)；这两个纯入口不加载 UI 或网络能力。通知、确认框与响应解析分别由既有 `toast.js`、`confirmation-dialog.js`、`json-response.js` 拥有。
 
 | 函数                                                                                              | 用途                                                                                                                       |
 | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |

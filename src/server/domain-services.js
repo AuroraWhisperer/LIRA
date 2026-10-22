@@ -18,6 +18,7 @@ const { createGiftQueryStore } = require('../storage/gift-query-store');
 const { createGiftMaintenanceStore } = require('../storage/gift-maintenance-store');
 const { createGiftProjectionStore } = require('../storage/gift-projection-store');
 const { createGiftStatisticsStore } = require('../storage/gift-statistics-store');
+const { createOvertimeStore } = require('../storage/overtime-store');
 const { createRequesterTargetStore } = require('../storage/requester-target-store');
 const songService = require('../music/song-service');
 const { createSongMetadataReader } = require('../music/song-metadata');
@@ -108,7 +109,7 @@ function createDomainServices(options) {
 
   let overtimeGiftCatalog;
   const overtime = createOvertimeService({
-    giftDb: db.giftDb,
+    store: createOvertimeStore(db.giftDb),
     onUpdate: onOvertimeUpdate,
     allowedRemoteImageOrigins: () => {
       const imageBaseUrl = options.remoteGiftCatalog?.imageBaseUrl;

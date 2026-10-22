@@ -1,4 +1,6 @@
-import { escapeHtml, formatDateTime, formatMoney, readJsonResponse } from '../../shared/utils.js';
+import { escapeHtml } from '../../shared/html-escape.js';
+import { formatDateTime, formatMoney } from '../../shared/display-format.js';
+import { readJsonResponse } from '../../shared/json-response.js';
 // 盲盒分析工作区：独立管理筛选、视图、分页和请求生命周期。
 ('use strict');
 

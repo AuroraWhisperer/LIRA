@@ -2,6 +2,7 @@
 
 const path = require('node:path');
 const { createAiConfigStore } = require('../ai/config-store');
+const { createAiStateStore } = require('../storage/ai-state-store');
 const { createAiApiQuotaStore } = require('../ai/api-quota-store');
 const { createElectronSecretCodec } = require('../ai/secret-codec');
 const { createDeepSeekClient } = require('../ai/deepseek-client');
@@ -15,7 +16,7 @@ const { createDanmakuDeliveryVerifier } = require('../ai/danmaku-delivery-verifi
 
 function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender }) {
   const configStore = createAiConfigStore(
-    songDb,
+    createAiStateStore(songDb),
     runtimeOptions.aiSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
   );
   const quotaStore = createAiApiQuotaStore(songDb);

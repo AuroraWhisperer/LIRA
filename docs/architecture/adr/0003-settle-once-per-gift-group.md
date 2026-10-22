@@ -46,5 +46,5 @@ Fixed rules apply the configured seconds once; time blind boxes draw once with `
 ## References
 
 - ../backend/overtime.md
-- `src/overtime/overtime-store.js` (`observeGift`, `settleFinal`, `ensurePending`, `listRecoverableFinal`)
+- `src/storage/overtime-store.js` (`observeGift`, `settleFinal`, `ensurePending`, `listRecoverableFinal`)
 - `src/overtime/overtime-service.js` (`finalizeGift`, `selectRuleResult`)

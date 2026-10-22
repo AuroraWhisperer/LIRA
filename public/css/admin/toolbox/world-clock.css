@@ -172,8 +172,7 @@
 .world-clock-city-offset,
 .world-clock-city-period,
 .world-clock-city-date,
-.world-clock-catalog-city p,
-.world-clock-catalog-added {
+.world-clock-catalog-city p {
   color: var(--muted);
   font-size: var(--type-size-micro);
 }
@@ -511,8 +510,8 @@
 
 .world-clock-dialog {
   width: min(470px, calc(100vw - 40px));
-  max-height: calc(100vh - 64px);
-  padding: 22px;
+  max-height: min(480px, calc(100vh - 64px));
+  padding: 16px 22px 22px;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--surface);
@@ -526,7 +525,7 @@
 .world-clock-dialog-header {
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .world-clock-dialog-header h2 {
@@ -540,7 +539,7 @@
 }
 
 .world-clock-results {
-  max-height: min(420px, calc(100vh - 240px));
+  max-height: min(280px, calc(100vh - 260px));
   overflow: auto;
   margin-top: 12px;
 }
@@ -581,6 +580,24 @@
 
 .world-clock-catalog-city > svg {
   color: var(--color-control-accent);
+}
+
+.world-clock-catalog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.world-clock-catalog-footer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.world-clock-catalog-footer button {
+  flex-shrink: 0;
 }
 
 .world-clock-empty {

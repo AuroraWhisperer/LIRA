@@ -6,6 +6,15 @@ const { readResponseText } = require('../shared/response-body');
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 128;
 const USER_AGENT = `LIRA/${version} (+https://github.com/AuroraWhisperer/LIRA)`;
+// Match whole captions so precipitation, intensity and uncertainty stay intact.
+const CONDITION_LABELS = new Map([
+  ['晴朗', '晴'],
+  ['以晴为主', '晴间多云'],
+  ['大部晴朗', '晴间多云'],
+  ['局部晴朗', '多云'],
+  ['局部多云', '多云'],
+  ['大部多云', '多云'],
+]);
 
 function unavailable() {
   return Object.assign(new Error('温度暂时无法更新，请稍后再试。'), { status: 503 });
@@ -32,7 +41,8 @@ function parseWeather(html, latitude, longitude, now) {
   const location = state?.currentLocation;
   const current = state?.currentCondition;
   const temperature = current?.currentRaw?.temp;
-  const condition = current?.currentRaw?.cap;
+  const caption = current?.currentRaw?.cap;
+  const condition = typeof caption === 'string' ? caption.trim() || null : null;
   const updatedAt = Date.parse(current?.currentRaw?.created);
   if (state?.fallbackedLocation || coordinate(location?.latitude, 90) !== latitude
     || coordinate(location?.longitude, 180) !== longitude || current?.unitsRaw?.temperature !== '°C'
@@ -40,7 +50,7 @@ function parseWeather(html, latitude, longitude, now) {
   const timestamp = new Date(updatedAt).toISOString();
   return currentTemperature({
     temperature: Math.round(temperature * 10) / 10,
-    condition: typeof condition === 'string' ? condition.trim() || null : null,
+    condition: CONDITION_LABELS.get(condition) ?? condition,
     validAt: timestamp,
     updatedAt: timestamp,
     fetchedAt: new Date(now).toISOString(),

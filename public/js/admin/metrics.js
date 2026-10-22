@@ -2,7 +2,8 @@
 // 性能监控
 'use strict';
 
-import { formatDateTime, formatBytes, formatDuration, toast, showError } from '../shared/utils.js';
+import { formatDateTime, formatBytes, formatDuration } from '../shared/display-format.js';
+import { toast, showError } from '../shared/utils.js';
 
 export const metrics = (() => {
   const METRICS_SAMPLE_SECONDS = 5;

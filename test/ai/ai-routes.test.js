@@ -6,6 +6,7 @@ const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 const { ALLOWED_KEYS, routes } = require('../../src/server/routes/ai-routes');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 const { buildAiRuntime } = require('../../src/server/ai-runtime');
 const { createRuntimeApiContextFactory } = require('../../src/server/runtime-api-context');
@@ -107,7 +108,7 @@ test('Doubao account HTTP routes receive the session through AI runtime composit
 test('saving disabled through the config route aborts accepted work after committing the setting', async (t) => {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
-  const store = createAiConfigStore(db, { encrypt: value => value, decrypt: value => value });
+  const store = createAiConfigStore(createAiStateStore(db), { encrypt: value => value, decrypt: value => value });
   store.updateConfig({
     enabled: true,
     trigger: '小米',
@@ -136,7 +137,7 @@ test('persona routes persist validated roles and return safe errors without chan
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
   t.after(() => db.close());
-  const store = createAiConfigStore(db, { encrypt: (value) => value, decrypt: (value) => value });
+  const store = createAiConfigStore(createAiStateStore(db), { encrypt: (value) => value, decrypt: (value) => value });
   store.updateConfig({ deepseekApiKey: 'private-model-key' });
   const context = { ai: store };
   async function request(route, body) {

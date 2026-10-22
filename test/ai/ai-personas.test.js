@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 const { normalizePersonaPack, resolvePersona } = require('../../src/ai/personas');
@@ -18,7 +19,7 @@ function fixture(t) {
   db.exec(SONG_SCHEMA);
   t.after(() => db.close());
   const codec = { isAvailable: () => true, encrypt: (value) => `encrypted:${value}`, decrypt: (value) => value.slice(10) };
-  return { db, store: createAiConfigStore(db, codec), reopen: () => createAiConfigStore(db, codec) };
+  return { db, store: createAiConfigStore(createAiStateStore(db), codec), reopen: () => createAiConfigStore(createAiStateStore(db), codec) };
 }
 
 test('new assistant uses a general persona and offers no tools without opting in', (t) => {

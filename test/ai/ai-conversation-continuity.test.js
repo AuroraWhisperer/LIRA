@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 const { createAiAssistantService } = require('../../src/ai/ai-assistant-service');
 const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
@@ -13,7 +14,7 @@ function fixture(t, options = {}) {
   let time = 1000000;
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
-  const store = createAiConfigStore(db, {}, { now: () => time });
+  const store = createAiConfigStore(createAiStateStore(db), {}, { now: () => time });
   const config = { ...AI_CONFIG_DEFAULTS, enabled: true, trigger: '小米', modelProvider: 'doubao', contextTtlSeconds: 600, roomLimitPerMinute: 120 };
   const requests = [];
   const delivered = [];
@@ -159,6 +160,6 @@ test('saved idle time survives reopening while missing settings use the 10 minut
   const f = fixture(t);
   assert.equal(f.store.getConfig().contextTtlSeconds, 600);
   f.store.updateConfig({ contextTtlSeconds: 1200 });
-  const reopened = createAiConfigStore(f.db, {});
+  const reopened = createAiConfigStore(createAiStateStore(f.db), {});
   assert.equal(reopened.getConfig().contextTtlSeconds, 1200);
 });

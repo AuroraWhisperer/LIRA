@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 const { applyRetentionPolicies, readRetentionPolicy } = require('../../src/storage/retention');
 const { createAiConfigStore } = require('../../src/ai/config-store');
@@ -18,7 +19,7 @@ function fixture(t) {
   songDb.exec(SONG_SCHEMA);
   t.after(() => songDb.close());
   let timestamp = NOW;
-  const store = createAiConfigStore(songDb, {}, { now: () => timestamp });
+  const store = createAiConfigStore(createAiStateStore(songDb), {}, { now: () => timestamp });
   return {
     songDb,
     store,

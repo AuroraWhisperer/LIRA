@@ -3,7 +3,8 @@
 'use strict';
 
 import * as PlaybackUtils from '../utils.js';
-import { escapeAttr, escapeHtml, showConfirmationDialog } from '../../shared/utils.js';
+import { escapeAttr, escapeHtml } from '../../shared/html-escape.js';
+import { showConfirmationDialog } from '../../shared/confirmation-dialog.js';
 
 /**
  * 渲染当前播放封面

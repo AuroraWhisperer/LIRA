@@ -1,5 +1,11 @@
-// Coordinates identify the city on the globe; IANA zones own all clock rules.
-export const CITIES = [
+import { CITY_CATALOG } from './city-catalog.js';
+
+const catalog = CITY_CATALOG.map(([id, name, english, country, zone, lat, lon, region, aliases]) =>
+  ({ id, name, english, country, zone, lat, lon, region, aliases }));
+const catalogById = new Map(catalog.map(city => [city.id, city]));
+
+// Preserve saved IDs and the original cities' names, coordinates and clock rules.
+const originalCities = [
   ['beijing', '北京', 'Beijing', '中国', 'Asia/Shanghai', 39.9042, 116.4074],
   ['singapore', '新加坡', 'Singapore', '新加坡', 'Asia/Singapore', 1.3521, 103.8198],
   ['london', '伦敦', 'London', '英国', 'Europe/London', 51.5074, -0.1278],
@@ -60,11 +66,23 @@ export const CITIES = [
   ['johannesburg', '约翰内斯堡', 'Johannesburg', '南非', 'Africa/Johannesburg', -26.2041, 28.0473],
   ['nairobi', '内罗毕', 'Nairobi', '肯尼亚', 'Africa/Nairobi', -1.2921, 36.8219],
   ['lagos', '拉各斯', 'Lagos', '尼日利亚', 'Africa/Lagos', 6.5244, 3.3792],
-].map(([id, name, english, country, zone, lat, lon]) => ({ id, name, english, country, zone, lat, lon }));
+].map(([id, name, english, country, zone, lat, lon]) =>
+  ({ ...catalogById.get(id), id, name, english, country, zone, lat, lon }));
+
+const originalIds = new Set(originalCities.map(city => city.id));
+export const CITIES = [...originalCities, ...catalog.filter(city => !originalIds.has(city.id))];
 
 export const DEFAULT_IDS = ['beijing', 'singapore', 'tokyo', 'london', 'los-angeles', 'dallas', 'new-york'];
 
+function normalize(value) {
+  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+}
+
+const searchText = new Map(CITIES.map(city => [city.id,
+  normalize(`${city.name} ${city.english} ${city.country} ${city.region || ''} ${city.aliases || ''} ${city.zone}`),
+]));
+
 export function matchesCity(city, query) {
-  const normalize = value => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-  return normalize(`${city.name} ${city.english} ${city.country} ${city.zone}`).includes(normalize(query.trim()));
+  const text = searchText.get(city.id);
+  return normalize(query).split(/\s+/).every(term => text.includes(term));
 }

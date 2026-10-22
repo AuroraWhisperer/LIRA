@@ -1,4 +1,4 @@
-import { escapeHtml, escapeAttr } from '../../shared/utils.js';
+import { escapeHtml, escapeAttr } from '../../shared/html-escape.js';
 import { bilibiliAvatarSource } from '../settings-auth.js';
 import { getGuardIcon } from '../../shared/bilibili-guard-icons.js';
 

@@ -574,6 +574,8 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 ## 6.3 时钟(/clock)
 
+[shared/clock-settings.js](../../../public/js/shared/clock-settings.js) 是内置时钟样式 ID、默认文案、翻页颜色及外观设置键的共同来源。后端 `clock-contract.js`、场景适配器和时钟 overlay 直接派生所需集合与映射；严格输入校验仍归后端，宽容回退、旧 URL 参数优先级和布局/DOM 仍归 overlay，预览继续使用同一共享定义。
+
 [overlays/clock.js](../../../public/js/overlays/clock.js) 驱动固定 `/clock`
 浏览器源，默认首帧使用本页凭据从只读接口 `GET /api/clock/config` 读取已保存设置，并使用
 设备本地时区显示当前时间、日期和星期。页面外层透明；横向样式使用 560×190

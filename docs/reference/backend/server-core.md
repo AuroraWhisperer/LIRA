@@ -144,7 +144,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 | `songs`                                                  | song-service 封装(save/list/find/pickRandom/count…)       | [music/services.md](music/services.md)     |
 | `queue`                                                  | queue-service(快照/加歌/动作/启动清理)                    | [music/services.md](music/services.md)     |
 | `gifts`                                                  | gift-service + 消费者注册表(加班机消费者)                 | [bilibili/gift.md](bilibili/gift.md)       |
-| `overtime`                                               | `createOvertimeService({giftDb, onUpdate})`               | [overtime.md](overtime.md)                 |
+| `overtime`                                               | `createOvertimeService({store, onUpdate})`               | [overtime.md](overtime.md)                 |
 | `superChats`                                             | superchat-service                                         | [bilibili/gift.md](bilibili/gift.md)       |
 | `messages`                                               | bilibili-message-handler + checkin/fortune/customReply 链 | [bilibili/danmaku.md](bilibili/danmaku.md) |
 | `checkins / fortunes / customReplies / requesterTargets` | 弹幕机器人四件套                                          | [bilibili/danmaku.md](bilibili/danmaku.md) |

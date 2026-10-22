@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 const { createAiAssistantService } = require('../../src/ai/ai-assistant-service');
 const { createDeepSeekClient } = require('../../src/ai/deepseek-client');
@@ -12,7 +13,7 @@ const { routes } = require('../../src/server/routes/ai-routes');
 function fixture(t, config = {}) {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
-  const store = createAiConfigStore(db, {
+  const store = createAiConfigStore(createAiStateStore(db), {
     isAvailable: () => true,
     encrypt: (value) => Buffer.from(value).toString('base64'),
     decrypt: (value) => Buffer.from(value, 'base64').toString(),
@@ -62,7 +63,7 @@ test('Doubao preserves an official key origin across reload without replacing th
   store.updateConfig({ modelProvider: 'openai', deepseekApiKey: 'openai-test-key' });
   store.updateConfig({ modelProvider: 'doubao' });
   assert.equal(store.getPublicConfig().doubaoPreviousKeyOrigin, undefined);
-  const reloaded = createAiConfigStore(db, { isAvailable: () => true,
+  const reloaded = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true,
     encrypt: value => Buffer.from(value).toString('base64'), decrypt: value => Buffer.from(value, 'base64').toString() });
   assert.throws(() => reloaded.updateConfig({ modelProvider: 'custom' }), { code: 'AI_KEY_ORIGIN_CHANGED' });
   assert.equal(reloaded.getConfig().modelProvider, 'doubao');

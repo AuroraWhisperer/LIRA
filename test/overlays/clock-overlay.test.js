@@ -27,6 +27,23 @@ const FLIP_COLORS = { flipFrameColor: '#e4e4e4', flipFaceColor: '#ffffff', flipT
 const MOON_DEFAULTS = { moonMode: 'light', moonIntervalSeconds: 30 };
 const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
+test('clock shared defaults round-trip every style through settings, scenes and overlay input', async () => {
+  const shared = require('../../public/js/shared/clock-settings.js');
+  const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
+  assert.equal(DEFAULT_LABELS, shared.CLOCK_STYLE_LABELS);
+  assert.deepEqual(shared.CLOCK_FLIP_COLORS, FLIP_COLORS);
+  assert.deepEqual([...CLOCK_STYLE_VALUES], Object.keys(shared.CLOCK_STYLE_LABELS));
+  for (const [style, label] of Object.entries(shared.CLOCK_STYLE_LABELS)) {
+    const config = getClockConfig({ clockStyle: style, clockStyleOptions: '{}' });
+    const payload = assertClockRoundTrip(config);
+    assert.deepEqual(shared.clockConfigFromSettings(payload), config);
+    assert.deepEqual(Object.keys(config.styleOptions[style]), Object.keys(shared.CLOCK_APPEARANCE_KEYS));
+    assert.deepEqual({ ...overlay.readClockConfig(new URLSearchParams({ style })) }, {
+      style, showDate: true, showSeconds: true, hour12: false, label, ...FLIP_COLORS, ...MOON_DEFAULTS,
+    });
+  }
+});
+
 test('cute clock overlay owns a fixed frameable route and complete assets', () => {
   assert.equal(require('../../src/server/access-policy').getOverlayScope('/clock'), 'clock');
 

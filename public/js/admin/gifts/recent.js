@@ -1,7 +1,8 @@
 // 编写人：Aurora
 // 最近礼物模块 - 负责最近礼物列表渲染和图标工具函数
 import { eventBus, Events } from '../../shared/event-bus.js';
-import { escapeHtml, formatTime, formatMoney } from '../../shared/utils.js';
+import { escapeHtml } from '../../shared/html-escape.js';
+import { formatTime, formatMoney } from '../../shared/display-format.js';
 import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
 import { findBlindBoxTheme } from './blindbox-theme.js';
 import { getGuardIcon } from '../../shared/bilibili-guard-icons.js';

@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createDatabases, closeDatabases, clearAllData } = require('../../src/storage/database');
 const { createOvertimeService } = require('../../src/overtime');
+const { createOvertimeStore } = require('../../src/storage/overtime-store');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 
 const fixture = createUiFixture();
@@ -88,7 +89,7 @@ test('same-connection snapshots and updates share the revision guard', async (t)
 test('clear-all synchronizes the existing overtime socket and rejects pre-clear HTTP state', async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-overtime-overlay-'));
   const db = createDatabases({ dataDir });
-  const service = createOvertimeService({ giftDb: db.giftDb });
+  const service = createOvertimeService({ store: createOvertimeStore(db.giftDb) });
   t.after(() => {
     service.dispose();
     closeDatabases(db);

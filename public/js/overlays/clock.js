@@ -4,35 +4,18 @@ import { createComponentStyleEffects } from './component-style-effects.js';
 import { componentEffectBounds } from './component-effect-filters.js';
 import { createFlipCell } from './clock-flip.js';
 import { createOverlaySocket } from './socket-client.js';
-import { clockConfigFromSettings, readClockMoonConfig } from '../shared/clock-settings.js';
+import {
+  CLOCK_STYLE_LABELS,
+  CLOCK_FLIP_COLORS,
+  clockConfigFromSettings,
+  readClockMoonConfig,
+} from '../shared/clock-settings.js';
 import { createComponentPreviewClient, isComponentPreview, isSceneComponent } from './component-preview-client.js';
 import { componentOutputViewport, watchComponentOutputSize } from './component-output-size.js';
 
-const CLOCK_STYLE_VALUES = new Set([
-  'peach',
-  'starlight',
-  'soda',
-  'timeline-horizontal',
-  'timeline-vertical',
-  'digital',
-  'minimal',
-  'orbit',
-  'flip',
-  'moonlit-fan',
-]);
-const DEFAULT_LABELS = Object.freeze({
-  peach: '今天也要闪闪发光',
-  starlight: '今晚与星星一起值班',
-  soda: '今天也要元气满满',
-  'timeline-horizontal': '',
-  'timeline-vertical': '',
-  digital: '',
-  minimal: '',
-  orbit: '',
-  flip: '',
-  'moonlit-fan': '',
-});
-const FLIP_COLORS = Object.freeze({ flipFrameColor: '#e4e4e4', flipFaceColor: '#ffffff', flipTextColor: '#303030' });
+const DEFAULT_LABELS = CLOCK_STYLE_LABELS;
+const FLIP_COLORS = CLOCK_FLIP_COLORS;
+const CLOCK_STYLE_VALUES = new Set(Object.keys(DEFAULT_LABELS));
 const MAX_LABEL_LENGTH = 16;
 const CLOCK_FRAME_GUTTER = 8;
 const CLOCK_LAYOUTS = Object.freeze({
