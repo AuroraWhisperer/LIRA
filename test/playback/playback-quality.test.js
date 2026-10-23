@@ -4,11 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
-test('quality options survive background updates and still reflect selection and stream fallback', async () => {
+test('quality options survive background updates and still reflect a successful selection', async () => {
   const app = await createPlaybackApp({
     current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75,
   }, {
-    resolveStream: () => ({ url: 'https://example.test/audio.mp3', quality: 'high' }),
+    resolveStream: (_count, request) => ({ url: 'https://example.test/audio.mp3', quality: request.quality }),
   });
   await app.init();
   await flushAsyncWork();
@@ -34,9 +34,61 @@ test('quality options survive background updates and still reflect selection and
   assert.equal(writes, 1, 'changing the preference updates the selected option once');
   assert.match(html, /aria-checked="true" data-playback-quality="lossless"/);
   assert.equal(app.savedState().qualityPreferences.qq, 'lossless');
-  assert.equal(app.element('playbackQualityLabel').textContent, 'HQ', 'the label still follows actual stream quality');
+  assert.equal(app.element('playbackQualityLabel').textContent, 'SQ');
   assert.deepEqual(app.errors(), []);
 });
+
+for (const source of ['qq', 'netease']) {
+  for (const failure of ['fallback', 'lower fallback', 'empty', 'error']) {
+    test(`${source} quality selection restores the original quality and audio after ${failure}`, async () => {
+      const previousQuality = source === 'netease' ? 'lossless' : 'high';
+      const requestedQuality = source === 'netease' ? 'hires' : 'lossless';
+      const previousLabel = source === 'netease' ? '无损' : 'HQ';
+      const requestedLabel = source === 'netease' ? 'Hi-Res' : 'SQ';
+      const app = await createPlaybackApp({
+        current: { ...track('song', '歌曲'), source }, selectedSource: source,
+        mode: 'sequence', volume: 0.75, qualityPreferences: { [source]: previousQuality },
+      }, {
+        resolveStream: (count) => {
+          if (count === 1) return { url: 'https://example.test/original.mp3', quality: previousQuality };
+          if (failure === 'error') throw new Error('quality unavailable');
+          if (failure === 'empty') return {};
+          return { url: 'https://example.test/fallback.mp3',
+            quality: failure === 'fallback' ? previousQuality : 'standard' };
+        },
+      });
+      await app.init();
+      await flushAsyncWork();
+      await app.emit('playbackPlayPause', 'click');
+      const audio = app.element('music-player');
+      audio.currentTime = 47;
+      if (source === 'qq') await app.emit('playbackPlayPause', 'click');
+      let loads = 0;
+      audio.load = () => { loads++; audio.currentTime = 0; };
+
+      await app.emit('playbackQualityPanel', 'click', {
+        stopPropagation() {}, target: closestTarget({ playbackQuality: requestedQuality }, 'data-playback-quality'),
+      });
+      await app.emit('music-player', 'loadedmetadata');
+      await app.emitWindow('pagehide');
+
+      assert.equal(audio.src, 'https://example.test/original.mp3');
+      assert.equal(audio.currentTime, 47);
+      assert.equal(audio.paused, source === 'qq');
+      assert.equal(loads, 0);
+      assert.equal(app.audioPlayCalls(), 1);
+      assert.equal(app.resolveStreamRequestCount(), 2);
+      assert.equal(app.element('playbackQualityLabel').textContent, previousLabel);
+      assert.match(app.element('playbackQualityPanel').innerHTML,
+        new RegExp(`aria-checked="true" data-playback-quality="${previousQuality}"`));
+      assert.equal(app.ipcSavedState().qualityPreferences[source], previousQuality);
+      const toasts = app.element('toast').prepended.map((item) => item.textContent);
+      assert.ok(toasts.some((message) => message.includes(failure.includes('fallback')
+        ? `${requestedLabel}不可用，已保留${previousLabel}音质`
+        : failure === 'empty' ? '当前账号无法播放该歌曲' : 'quality unavailable')));
+    });
+  }
+}
 
 test('quality options follow provider changes and restore each provider preference', async () => {
   const app = await createPlaybackApp({
@@ -50,6 +102,12 @@ test('quality options follow provider changes and restore each provider preferen
   await app.emit('source-tab-netease', 'click');
   assert.match(panel.innerHTML, /aria-checked="true" data-playback-quality="exhigh"/);
   assert.doesNotMatch(panel.innerHTML, /data-playback-quality="premium"/);
+  await app.emit('playbackQualityPanel', 'click', {
+    stopPropagation() {}, target: closestTarget({ playbackQuality: 'hires' }, 'data-playback-quality'),
+  });
+  assert.match(panel.innerHTML, /aria-checked="true" data-playback-quality="hires"/);
+  assert.equal(app.savedState().qualityPreferences.netease, 'hires');
+  assert.equal(app.resolveStreamRequestCount(), 0, 'without a current track, only the default changes');
   await app.emit('source-tab-wesing', 'click');
   assert.equal(panel.innerHTML, '');
   await app.emit('source-tab-qq', 'click');
@@ -290,9 +348,9 @@ test('quality selection refreshes the current stream and persists the provider p
       async resolveStream(_count, body) {
         requestBody = body;
         return {
-          url: 'https://example.test/high.mp3',
+          url: 'https://example.test/lossless.flac',
           requestedQuality: 'lossless',
-          quality: 'high',
+          quality: 'lossless',
         };
       },
     },
@@ -312,9 +370,9 @@ test('quality selection refreshes the current stream and persists the provider p
   assert.equal(requestBody.quality, 'lossless');
   assert.equal(requestBody.track.sourceTrackId, 'quality-song');
   assert.equal(requestBody.track.sourceSongType, 1);
-  assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
+  assert.equal(app.element('music-player').src, 'https://example.test/lossless.flac');
   assert.equal(app.element('music-player').currentTime, 47);
-  assert.equal(app.element('playbackQualityLabel').textContent, 'HQ');
+  assert.equal(app.element('playbackQualityLabel').textContent, 'SQ');
   assert.equal(app.ipcSavedState().qualityPreferences.qq, 'lossless');
 });
 
@@ -410,6 +468,41 @@ test('a stale quality stream cannot replace a newer quality selection', async ()
   assert.equal(app.audioPlayCalls(), 3);
   assert.deepEqual(app.errors(), []);
 });
+
+for (const staleQuality of ['lossless', 'standard']) {
+  test(`a failed overlapping quality selection keeps the last applied quality (${staleQuality})`, async () => {
+    const pending = Promise.withResolvers();
+    const app = await createPlaybackApp({
+      current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+      qualityPreferences: { qq: 'high' },
+    }, {
+      resolveStream: (_count, request) => {
+        if (request.quality === 'lossless') return pending.promise;
+        return { url: `https://example.test/${request.quality}.mp3`, quality: 'high' };
+      },
+    });
+    await app.init();
+    await flushAsyncWork();
+    await app.emit('playbackPlayPause', 'click');
+    const changing = app.emit('playbackQualityPanel', 'click', {
+      stopPropagation() {}, target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
+    });
+    await flushAsyncWork();
+    await app.emit('playbackQualityPanel', 'click', {
+      stopPropagation() {}, target: closestTarget({ playbackQuality: 'premium' }, 'data-playback-quality'),
+    });
+    assert.equal(app.savedState().qualityPreferences.qq, 'high');
+    const toasts = app.element('toast').prepended.slice();
+    pending.resolve({ url: 'https://example.test/stale.mp3', quality: staleQuality });
+    await changing;
+
+    assert.equal(app.savedState().qualityPreferences.qq, 'high');
+    assert.match(app.element('playbackQualityPanel').innerHTML, /aria-checked="true" data-playback-quality="high"/);
+    assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
+    assert.equal(app.audioPlayCalls(), 1);
+    assert.deepEqual(app.element('toast').prepended, toasts);
+  });
+}
 
 test('a stale quality stream cannot replace the next track', async () => {
   let resolveLossless;

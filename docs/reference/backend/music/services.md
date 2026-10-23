@@ -129,7 +129,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | `getMusicHomeContent(registry, body)`                 | 首页内容(带缓存),见 §6.2                                                                                                                                                                                                          |
 | `getMusicTrackLyrics(registry, body)`                 | 歌词(带缓存),见 §6.3                                                                                                                                                                                                              |
 | `parseLyricPayload(body)`                             | 纯文本歌词解析:`lyric/translation/wordLyric(yrc)/roma` 各**截 512 KB**,`cleanTextPreserveLines` 保换行,喂 `parseLyricResult`;供前端直接粘贴歌词用([lyrics-service.js:150-156](../../../../src/music/lyrics-service.js#L150-L156)) |
-| `matchMusicTrackCandidates(body)`                     | 匹配打分入口:`songName` 截 120 必填、`artist` 截 80、`durationMs`;candidates 截 50;`threshold: 70` 硬编码;返回 `{request, threshold, results}`([lyrics-service.js:158-171](../../../../src/music/lyrics-service.js#L158-L171))    |
+| `matchMusicTrackCandidates(body)`                     | 匹配打分入口:`songName` 截 120 必填、`artist` 截 80、`durationMs`;candidates 截 50;`threshold` 取匹配模块的 `AUTO_ACCEPT_SCORE`(70);返回 `{request, threshold, results}`([lyrics-service.js](../../../../src/music/lyrics-service.js))    |
 | `writeMusicPlaylistTracks(registry, body, operation)` | 歌单写入门面,见 §6.4                                                                                                                                                                                                              |
 | `normalizeMusicTrackForProvider`                      | 透传 §4.1                                                                                                                                                                                                                         |
 
@@ -272,23 +272,26 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ## 9. 歌曲匹配(song-matcher.js)
 
-**打分模型**,弹幕点歌智能匹配与 WeSing 在线兜底共用(见 [wesing.md](wesing.md) §7)。
+**打分模型**，用于点歌导入播放器及匹配诊断。WeSing 在线兜底使用独立的版本/时长匹配规则(见 [wesing.md](wesing.md) §7)。
 
 | 常数                | 值  | 出处                                                          |
 | ------------------- | --- | ------------------------------------------------------------- |
 | `AUTO_ACCEPT_SCORE` | 70  | [song-matcher.js:3](../../../../src/music/song-matcher.js#L3) |
 
-`scoreTrackMatch(request, candidate)`([song-matcher.js:12-53](../../../../src/music/song-matcher.js#L12-L53))加分项:
+`scoreTrackMatch(request, candidate)`([song-matcher.js](../../../../src/music/song-matcher.js))自行归一化请求，可独立调用。先检查完整歌名是否一致、忽略版本标记后是否一致或仅有单个英文字母误拼；均不满足时返回 `null`，歌手、时长和专辑信息不能单独构成候选。请求明确包含版本类型时，候选的标题或专辑必须包含相应类型，否则也返回 `null`。加分项:
 
 | 条件                                                                           | 加分 |
 | ------------------------------------------------------------------------------ | ---- |
-| `track.title === request.songName` 完全一致                                    | +60  |
-| 任一 artist 与请求 artist 完全一致                                             | +25  |
-| 清洗后标题一致但原文不同(`cleanTitle === cleanSongName && title !== songName`) | +15  |
+| 完整歌名归一后一致(忽略大小写、全半角、标点及空白，保留括号内容)                | +60  |
+| 任一 artist 与请求 artist 归一后一致(忽略大小写、全半角及首尾空白)               | +25  |
+| 仅忽略已识别的括号版本标记后歌名一致                                           | +15  |
+| 清洗后的完整标题长度相同且至少 5 个字符，仅一个位置的英文字母不同                | +10  |
 | 双 durationMs > 0 且差 ≤ 5000ms                                                | +10  |
-| 有专辑信息且专辑不含惩罚词                                                     | +5   |
+| 有专辑信息且专辑不含未请求的版本类型                                           | +5   |
 
-惩罚项(`penaltyRules`,[song-matcher.js:85-94](../../../../src/music/song-matcher.js#L85-L94)),作用于 `title + album` 小写文本:
+误拼容错只比较完整标题，不做子串匹配，不容忍中文替换或多个字母错误；误拼候选即使歌手、时长和专辑都命中也最多 50 分，只进入待确认，不会自动接受。
+
+版本规则集中在 `VERSION_RULES`，由 `findVersionRules` 统一识别标题、专辑及括号标记。英文关键词按完整单词匹配，避免将 `Alive`、`Discover`、`Adjective` 误判为 Live、Cover 或 DJ；中文关键词按子串匹配。仅对请求未指定的版本类型扣分:
 
 | 关键词                                  | 扣分 |
 | --------------------------------------- | ---- |
@@ -298,7 +301,9 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | `翻唱\|cover`                           | -20  |
 | `加速\|慢速\|speed up\|sped up\|slowed` | -20  |
 
-`rankTrackCandidates` 按分数降序、同分按标题字典序;`normalizeSongKey` 剥括号内容与全部标点空白([song-matcher.js](../../../../src/music/song-matcher.js))。`normalizeCandidate` 兼容 `artists[]` 与 `artist` 按 `/` 切分，并保留同一候选的 Provider 标识、封面及权益字段；评分不会丢失 QQ 的 `sourceSongId/sourceMediaId/sourceSongType` 等播放与歌单元数据。
+自动接受除总分达到 `AUTO_ACCEPT_SCORE` 外，还要求：填写的歌手命中；双方均有时长时误差不超过 5 秒；候选未被平台标记 `playable: false`。冲突候选保留待确认并给出原因，不能靠其他加分抵消这些限制。仅填写歌名、未提供歌手或时长时，普通完整匹配最高 65 分，仍需确认；不要求用户补填歌手才能获得相关候选。
+
+`rankTrackCandidates` 排除 `null` 后按分数降序，同分优先未标记不可播的歌曲，其余保留 Provider 搜索返回的相关性顺序；全部不相关时返回空数组。`normalizeSongKey` 做 NFKC、大小写及标点空白归一化；`stripVersionAnnotations` 只删除包含已知版本类型的括号内容，保留 `Run (To You)` 等有意义的歌名部分。`normalizeCandidate` 兼容 `artists[]` 与 `artist` 按 `/` 切分，并保留同一候选的 Provider 标识、封面及权益字段；评分不会丢失 QQ 的 `sourceSongId/sourceMediaId/sourceSongType` 等播放与歌单元数据。
 
 ## 10. 随机点歌筛选(random-song-filter.js + tag-aliases.js)
 

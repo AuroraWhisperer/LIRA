@@ -66,7 +66,7 @@ playbackControls → audio.load()/play()
 | `togglePlayback` | 无当前曲目时取下一首，否则在有效音源上切换播放/暂停 |
 | `playbackPrevious` | 当前进度超过 5 秒先回到开头，否则读取播放历史 |
 | `playbackNext` | 自然结束时执行单曲循环并有界跳过不可播曲目；手动下一首与失败跳过推进队列，保留列表回绕及电台补量 |
-| `changePlaybackQuality` | 保存音质选择并重新解析当前流，只有请求仍有效时恢复切换前进度；是否继续播放以 URL 返回时的暂停状态为准 |
+| `changePlaybackQuality` | 确认目标音质可用后切换并保存选择；不可用时保留原音质与音频。只有请求仍有效时恢复切换前进度，是否继续播放以 URL 返回时的暂停状态为准 |
 
 切歌、音质切换、清空队列与平台退出共用播放控制器拥有的请求代际。队列通过内部 `invalidatePlaybackRequests` 回调使全部在途操作失效；播放页切入全民 K 歌标签也使旧请求失效并暂停本页音频，QQ/网易云标签互切保持原播放行为。Provider 在成功退出后传入平台，仅取消该平台发起的播放请求，包括当前曲目尚属于另一平台的情况。另一个平台的在途请求可继续，保留音频也可继续错误恢复。流解析使用曲目副本，只有当前请求才能合并流元数据、替换音频或恢复进度，迟到成功与失败不能覆盖新状态或在退出后恢复播放。
 
@@ -111,7 +111,7 @@ playbackControls → audio.load()/play()
 | search-service | 在线搜索 `POST /api/music/search`(platform/keyword/limit,默认 9 条),`searchGeneration` 防串号(旧请求结果丢弃)                                                                                                                                    |
 | stream-service | 播放流解析 `POST /api/music/resolve-stream`(`forceRefresh` + `quality`),URL 缓存 + 30s 刷新边距 + 1 次重试;Provider 返回的实际 `quality` 回写 track,用于展示权益降级                                                                             |
 | lyric-service  | 歌词加载、行定位、浏览器端 lyric-state/timeline 上报(§3)                                                                                                                                                                                         |
-| match-service  | 点歌匹配:`/api/music/search` 候选 → `POST /api/music/match-track` 匹配,未匹配进入 `pendingRequests` 待确认(弹确认弹窗)                                                                                                                           |
+| match-service  | 点歌匹配:`/api/music/search` 候选 → `POST /api/music/match-track` 匹配；未获自动接受的相关候选进入 `pendingRequests` 待确认，无相关候选时继续备用平台，两平台均无匹配则跳过且可重试                                                                                                                           |
 | import-service | 点歌队列导入:读 `/api/state` 的 queue 快照，过滤已处理请求后最多匹配 30 条；自动接受结果插入下一首，其余候选进入待确认                                                                                                                                 |
 | home-service   | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后 toast"已自动更新")                                                                                               |
 | wesing-service | 全民 K 歌适配层:`/api/music/wesing/*`(active/refresh/configure/offset/diagnose/diagnose/export)+ WS `wesing-state` 实时状态 + `LyricWordRenderer` 逐字现场；`wesing-diagnostics` 管理“重新检测”左侧的“播放诊断”、20 秒采样结果面板及用户主动将 JSON 保存到日志目录（英文用途和本机时间命名，成功显示路径），复用当前采集器，收起后迟到结果不重开面板(详见 [backend/music/wesing.md](../backend/music/wesing.md));源切换用 `activationQueue` 串行化,避免后端状态错乱 |
@@ -170,14 +170,14 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 
 搜索结果由搜索完成、清空和切换音源入口更新，不随普通播放状态刷新重复构造。队列弹窗关闭时暂缓列表渲染，打开时读取最新状态；可见时只在实际展示字段变化后重建列表，包含数组或曲目原地修改。
 
-音质菜单仅在所属音源或该音源的偏好音质变化时重建选项；暂停、后台状态等无关更新保留按钮节点、焦点和点击目标。播放条的音质标签仍独立反映实际音源品质，包括请求品质不可用时的回退结果。
+音质菜单仅在所属音源或该音源的偏好音质变化时重建选项；暂停、后台状态等无关更新保留按钮节点、焦点和点击目标。手动切换等待解析时保留原选中项。播放条的音质标签仍独立反映实际音源品质，包括普通播放时服务端降级返回的实际档位。
 
 全民 K 歌的进度、歌词推送由其专属面板更新，不触发整个播放器重绘。只有平台检测、支持情况、缓存就绪、健康状态或提示消息变化时才通知编排层；当前选中全民 K 歌时从已接收的状态同步平台信息，不额外请求音质或播放地址，也不刷新 QQ／网易云播放器。
 
 全屏播放器在音频更新时复用相同标题、歌手、缺省封面与空歌词节点；当前歌词索引不变时跳过整表高亮遍历，重建歌词（含翻译/罗马音切换）后重新应用高亮。歌词获取沿既有状态入口替换行数组，播放器按数组引用检测新版歌词：即使歌曲 id 与行数未变，关闭期间重新获取歌词后再打开也更新文字和点击跳转时间；相同行数组的重复渲染继续复用节点，不逐帧序列化歌词。时间更新、seek、手动浏览、滚动和唱片动画保持原节奏。
 
 - `ui/index.js` `UIRenderer` 渲染整页;`ui/playback-bar.js` 底部控制栏(进度/播放暂停/上下首/音量/模式/队列弹出/歌词);`ui/fullscreen.js` 全屏播放器(点击面板切换,ESC 退出,空格播放暂停,封面背景按 `pickBackgroundTheme` 30 套轮换,[forms.js:74-92](../../../public/js/admin/forms.js#L74-L92));`ui/drawer.js` 首页抽屉(歌单内页与返回栈);`ui/queue-popup.js` 队列弹出窗(收起播放器时联动关闭)。
-- **音质菜单**:`ui/playback-bar.js` 对 QQ 显示标准(128kbps)/HQ(最高 320kbps)/SQ(FLAC)/臻品(Q0 本地解密)/全景声(O8 本地解密),对网易云显示五档;选项沿用共享单选样式(`.lira-select-panel` + `.lira-select-option`),当前档位以选中竖条与底色表示,不显示对勾;`features/playback-controls.js:changePlaybackQuality` 保存默认档位、强制刷新当前流并在 `loadedmetadata` 后恢复切换前进度。服务端若降级,按钮显示实际档位并 toast 提示。Q0/O8 不承诺 QQ 客户端专属杜比或空间 DSP 效果,边界见 [qq-provider.md](../backend/music/qq-provider.md) §7.2。
+- **音质菜单**:`ui/playback-bar.js` 对 QQ 显示标准(128kbps)/HQ(最高 320kbps)/SQ(FLAC)/臻品(Q0 本地解密)/全景声(O8 本地解密),对网易云显示五档;选项沿用共享单选样式(`.lira-select-panel` + `.lira-select-option`),当前档位以选中竖条与底色表示,不显示对勾;`features/playback-controls.js:changePlaybackQuality` 强制解析目标档位，返回品质与请求一致时才替换当前流并保存选择，在 `loadedmetadata` 后恢复切换前进度。若返回降级品质，toast 提示目标不可用并保留原音质；降级、空地址或解析失败均不替换原音频，菜单与保存的偏好恢复为原音质，播放进度和暂停状态不变。迟到请求不能回写选择。没有当前在线曲目时仍可直接保存默认档位。Q0/O8 不承诺 QQ 客户端专属杜比或空间 DSP 效果,边界见 [qq-provider.md](../backend/music/qq-provider.md) §7.2。
 - **工作区集成**:播放器 dock 默认收起(`player-dock-collapsed`,避免遮挡点歌工作区),由 `forms.js` 的 `setPlayerDockCollapsed` 统一管理,收起时联动关闭全屏播放器/队列弹窗/音量面板([forms.js:133-169](../../../public/js/admin/forms.js#L133-L169))。
 - `core/event-handlers.js` 绑定播放页 DOM 事件(搜索框、队列操作、抽屉、全屏按钮、媒体会话按键),控制器显式注入其所需回调;`core/renderer.js` 输出渲染函数(进度/全屏/待确认弹窗/搜索结果/首页结果/匹配结果)供控制器组合。
 - 播放器状态变化统一走 `onStateChange → renderPlayback() + savePlaybackState()`;MediaSession(系统媒体控制)由 `updatePlaybackMediaSession(togglePlayback, playbackPrevious, playbackNext)` 更新([controller.js](../../../public/js/playback/controller.js) 的 `updatePlaybackMediaSession`)。
@@ -196,7 +196,7 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 | `artworkSize` / `rotation` | `100`，60–110%；`true`，播放时旋转；封面样式不旋转，保留旋转偏好供切回唱片时使用 |
 | `backgroundMode` | `auto`（沿用原主题背景）、`solid`、`gradient` |
 | `backgroundColor` / `gradientColor` / `backgroundOpacity` | `#fff1f4` / `#c9dced` / `100`（0–100）；颜色在自定义背景模式下生效 |
-| `fontFamily` / `lyricFontFamily` | 歌曲字体默认 `system`；歌词默认 `inherit` 跟随歌曲字体，也可独立选择。均支持 `system`、`sans`、`serif`、`kai`，兼容旧 `maiyuan`（荆南麦圆）、`kuaile`（站酷快乐体）、`smiley`（得意黑）ID，以及共享字库/本机字体产生的单个双引号转义字体族名 |
+| `fontFamily` / `lyricFontFamily` | 歌名与歌手字体默认 `system`（「使用 LIRA 界面字体」）；歌词默认 `inherit`（「与歌名、歌手一致」），也可选择 `system` 直接使用界面字体或独立选字体。均支持 `system`、`sans`、`serif`、`kai`，兼容旧 `maiyuan`（荆南麦圆）、`kuaile`（站酷快乐体）、`smiley`（得意黑）ID，以及共享字库/本机字体产生的单个双引号转义字体族名 |
 | `textAlign` | `left`，另支持 `center`；经典及纯歌词布局使用此偏好，黑胶布局固定居中但不改写偏好 |
 | `titleSize` / `artistSize` / `lyricSize` | `42`（8–200px）/ `20`（8–120px）/ `32`（8–160px）；默认值沿用各窗口宽度的字号适配，自定义字号优先；副行随自定义歌词基准字号的 0.5625 倍缩放 |
 | `lyricLineHeight` | `1.4`，0.8–4 倍，步长 0.1；默认保留正文 1.4、副行 1.5，自定义值同时作用于正文及副行 |
@@ -207,6 +207,8 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 | `titleColor` / `artistColor` / `lyricColor` / `activeLyricColor` | `#302a27` / `#665b53` / `#796d63` / `#302a27`；分别控制歌名、歌手、普通歌词、当前歌词 |
 
 规范化仅接受已知字段、枚举、布尔值与六位或八位（含 alpha）十六进制颜色；有限数字按字段步长取整并限制范围，其他类型回退默认。旧偏好缺失的新字段补默认值。字体仅允许内置别名或单个双引号包裹的字体族，转义只接受引号和反斜线，拒绝控制字符、任意 CSS 声明和字体栈。示例内容用于看外观，不代表正在播放的歌曲；实际播放器仍由原渲染链更新歌曲、歌词和播放动画。
+
+大播放器的歌词正文、译文与罗马音在显示时，将两个英文字母之间的弯撇号或全角撇号（`‘`、`’`、`＇`）转为窄撇号 `'`，避免中文字体把 `I’m` 等英文缩写中的撇号排成汉字宽度；不改写原始歌词数据，不处理中文引号或词间空格，输出仍经过 HTML 转义。
 
 两个字体入口共用 `shared/font-catalog.js` 的八款完整字库，由 `shared/font-library.js` 注册。新选项保存带引号的字体族名，旧 `maiyuan`、`kuaile`、`smiley` ID 保留；字体随安装包内置，首次即可离线使用，选择后按需加载，缺字使用系统回退。来源、完整字符覆盖和 OFL 许可见[字体说明](../../../public/fonts/README.md)。两个字体下拉通过共享 `select-menu.js` 的可选搜索与字体预览增强，可按名称筛选，隐藏无匹配的分组；菜单限制高度，搜索框固定在顶部，选项在列表内滚动，字体效果由选项自身及右侧预览展示，控件文案保持客户端字体。歌曲与歌词的字体下拉通过 `shared/local-font-library.js` 与其他设置共用同一次 `queryLocalFonts()` 查询；旧 `admin/local-font-library.js` 是兼容转导出。已保存但本机缺失的字体保留选项并使用系统回退；拒绝字体读取仍可使用内置与常用系统字体。原生授权边界见[主窗口的本机字体权限](../desktop/main.md#4-主窗口)。
 

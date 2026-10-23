@@ -10,6 +10,11 @@ import { initPlayerAppearance } from './appearance.js';
 import { scrollActiveLyricIntoView } from './lyric-layout.js';
 import { preparePlaybackOutput } from '../features/output-device.js';
 
+function renderLyricText(text) {
+  // CJK fonts can give curly apostrophes a full-em width inside English words.
+  return escapeHtml((text || '').replace(/([A-Za-z])[\u2018\u2019\uFF07](?=[A-Za-z])/g, "$1'"));
+}
+
 const TONEARM_SVG = `
   <svg viewBox="0 0 240 440" data-player-tonearm="curved" aria-hidden="true">
     <defs>
@@ -325,9 +330,9 @@ export class FullscreenPlayer {
           </svg>
         </button>
         <div class="lyric-content">
-          <span class="lyric-text">${escapeHtml(line.text || '')}</span>
-          ${showTrans && line.translation ? `<span class="lyric-trans">${escapeHtml(line.translation)}</span>` : ''}
-          ${showRoma && line.roma ? `<span class="lyric-trans">${escapeHtml(line.roma)}</span>` : ''}
+          <span class="lyric-text">${renderLyricText(line.text)}</span>
+          ${showTrans && line.translation ? `<span class="lyric-trans">${renderLyricText(line.translation)}</span>` : ''}
+          ${showRoma && line.roma ? `<span class="lyric-trans">${renderLyricText(line.roma)}</span>` : ''}
         </div>
       </div>
     `,

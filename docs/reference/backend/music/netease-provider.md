@@ -118,6 +118,7 @@ GET https://music.163.com/api/search/get/web?s=<关键词>&type=1&limit=<1-30 �
 ```
 
 - `s` 必填(空抛"缺少搜索关键词");`limit`/`offset` 由 `clampInteger` 限制
+- 搜索与健康检查共用 `readSearchSongs` 校验：只有上游业务 `code=200` 且含 `result.songs[]` 或明确的 `result.songCount=0` 才成功。业务失败保留错误码和上游 `message`/`msg`；缺少结果结构时报错，不再当成空搜索结果。本地存在登录 Cookie 不代表搜索接口成功。
 - 响应 `data.result.songs[]` → `mapTracksWithArtwork` → `mapNeteaseSong`(见 §8.1)；缺少专辑封面的歌曲按去重 ID 每批最多 100 首请求 `/api/song/detail` 补全，失败保留原列表并沿用歌手图片回退（[netease-provider.js](../../../../src/music/providers/netease-provider.js)）。
 - 健康检查复用:`s=晴天, type=1, limit=1`([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
@@ -256,7 +257,7 @@ GET https://music.163.com/api/nuser/account/get
 
 ### 7.13 健康检查([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
-不是独立端点,复用 §7.1 搜索探测:`getSafeAuthState()` → `requestJson('/api/search/get/web', {s:'晴天', type:'1', limit:'1', offset:'0'})`:成功 + `auth.loggedIn` → `logged-in`;成功无登录 → `public-ok`;失败 → `api-error`。`auth` 经 `sanitizeAuthState` 脱敏。
+不是独立端点,复用 §7.1 搜索探测:`getSafeAuthState()` → `requestJson('/api/search/get/web', {s:'晴天', type:'1', limit:'1', offset:'0'})` → `readSearchSongs` 校验业务响应:成功 + `auth.loggedIn` → `logged-in`;成功无登录 → `public-ok`;HTTP、业务码或结果结构失败 → `api-error`。`auth` 经 `sanitizeAuthState` 脱敏，保留本地凭据状态，不把接口失败等同于退出登录。
 
 ## 8. 映射函数
 

@@ -223,6 +223,38 @@ test('Netease provider rejects unsafe upstream stream protocols', async () => {
   await assert.rejects(provider.resolvePlayableUrl({ sourceTrackId: '461011' }), /地址无效/);
 });
 
+test('Netease search and health reject upstream failures despite a local login cookie', async (t) => {
+  const cases = [
+    { data: { code: 301, msg: '需要登录' }, message: /code=301，需要登录/ },
+    { data: { code: 405, message: '操作频繁' }, message: /code=405，操作频繁/ },
+    { data: {}, message: /网易云音乐搜索失败/ },
+    { data: { code: 200 }, message: /网易云音乐搜索响应缺少歌曲结果/ },
+  ];
+  let response;
+  t.mock.method(globalThis, 'fetch', async () => Response.json(response));
+  const provider = createProvider();
+
+  for (const { data, message } of cases) {
+    response = data;
+    await assert.rejects(provider.searchTracks('晴天'), message);
+    const health = await provider.healthCheck();
+    assert.equal(health.ok, false);
+    assert.equal(health.status, 'api-error');
+    assert.equal(health.auth.loggedIn, true);
+    assert.match(health.message, message);
+  }
+});
+
+test('Netease search accepts an explicit empty result without requesting artwork', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => Response.json({
+    code: 200,
+    result: { songCount: 0 },
+  }));
+
+  assert.deepEqual(await createProvider().searchTracks('No matches'), []);
+  assert.equal(fetch.mock.callCount(), 1);
+});
+
 test('Netease search enriches result artwork with one batched song-detail request', async () => {
   const provider = createProvider();
   const requests = [];
@@ -230,6 +262,7 @@ test('Netease search enriches result artwork with one batched song-detail reques
     requests.push({ pathname, params });
     if (pathname === '/api/search/get/web') {
       return {
+        code: 200,
         result: {
           songs: [
             {
@@ -275,6 +308,7 @@ test('Netease search preserves artist artwork when song-detail lookup fails', as
   provider.requestJson = async (pathname) =>
     pathname === '/api/search/get/web'
       ? {
+          code: 200,
           result: {
             songs: [
               {

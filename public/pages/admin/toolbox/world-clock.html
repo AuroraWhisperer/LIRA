@@ -3,6 +3,7 @@
     <symbol id="world-clock-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
     <symbol id="world-clock-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
     <symbol id="world-clock-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
+    <symbol id="world-clock-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M5 6l1 14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-14M10 10v7M14 10v7" /></symbol>
     <symbol id="world-clock-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></symbol>
     <symbol id="world-clock-rotate" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7" /></symbol>
     <symbol id="world-clock-focus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /><circle cx="12" cy="12" r="1" /></symbol>
@@ -25,6 +26,19 @@
   <div class="world-clock-body">
     <div class="world-clock-list" data-world-clock="list" aria-label="城市时钟"></div>
     <div class="world-clock-world">
+      <div class="world-clock-space" data-world-clock="space" aria-hidden="true">
+        <div class="world-clock-stars world-clock-stars-far"></div>
+        <div class="world-clock-stars world-clock-stars-near">
+          <i class="world-clock-star" style="left:12%;top:18%;--twinkle:3.2s;--phase:-1s"></i>
+          <i class="world-clock-star" style="left:28%;top:9%;--twinkle:4.7s;--phase:-3s"></i>
+          <i class="world-clock-star" style="left:72%;top:13%;--twinkle:3.8s;--phase:-2s"></i>
+          <i class="world-clock-star" style="left:89%;top:35%;--twinkle:2.8s;--phase:-.4s"></i>
+          <i class="world-clock-star" style="left:9%;top:54%;--twinkle:4.1s;--phase:-2.8s"></i>
+          <i class="world-clock-star" style="left:84%;top:73%;--twinkle:3.5s;--phase:-1.7s"></i>
+          <i class="world-clock-star" style="left:24%;top:87%;--twinkle:2.6s;--phase:-.8s"></i>
+          <i class="world-clock-star" style="left:67%;top:93%;--twinkle:4.4s;--phase:-3.4s"></i>
+        </div>
+      </div>
       <div class="world-clock-stage">
         <canvas data-world-clock="globe" aria-label="地球：拖动或方向键旋转，滚轮或加减键缩放" tabindex="0"></canvas>
         <div class="world-clock-markers" data-world-clock="markers" aria-label="地球上的城市"></div>
@@ -49,6 +63,10 @@
         <button type="button" class="icon" data-world-clock="focus" aria-label="定位当前城市" title="定位当前城市"><svg aria-hidden="true"><use href="#world-clock-focus" /></svg></button>
       </div>
     </div>
+  </div>
+  <p class="sr-only" data-world-clock="order-status" role="status"></p>
+  <div class="world-clock-city-menu" data-world-clock="city-menu" popover="auto" role="menu" aria-label="城市操作">
+    <button type="button" data-world-clock="remove-city" role="menuitem"><svg aria-hidden="true"><use href="#world-clock-trash" /></svg><span>从列表移除</span></button>
   </div>
   <dialog class="world-clock-dialog" data-world-clock="dialog" aria-labelledby="worldClockAddTitle">
     <div class="world-clock-dialog-header"><h2 id="worldClockAddTitle">添加城市</h2><button type="button" class="icon" data-world-clock="close" aria-label="关闭添加城市"><svg aria-hidden="true"><use href="#world-clock-close" /></svg></button></div>

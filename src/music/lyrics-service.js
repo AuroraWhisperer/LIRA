@@ -13,7 +13,7 @@ const {
   MUSIC_LYRIC_CACHE_MAX_BYTES,
 } = require('./music-cache');
 const { parseLyricResult } = require('./lyric-parser');
-const { rankTrackCandidates } = require('./song-matcher');
+const { AUTO_ACCEPT_SCORE, rankTrackCandidates } = require('./song-matcher');
 const { normalizeMusicPlatform } = require('./provider-registry');
 const { normalizeMusicTrackForProvider } = require('./track-contract');
 
@@ -216,7 +216,7 @@ function matchMusicTrackCandidates(body) {
 
   return {
     request,
-    threshold: 70,
+    threshold: AUTO_ACCEPT_SCORE,
     results: rankTrackCandidates(request, candidates),
   };
 }

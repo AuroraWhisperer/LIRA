@@ -213,17 +213,19 @@ export function createPlaybackControls(deps) {
     const normalizedQuality = PlaybackUtils.normalizeQuality(source, quality);
     if (!PlaybackUtils.getQualityOptions(source).some((item) => item.id === quality)) return;
 
-    stateActions.setQuality(source, normalizedQuality);
-    stateActions.commit();
-
     const track = playbackState.current;
     if (!audio || !track || track.source !== source) {
+      stateActions.setQuality(source, normalizedQuality);
+      stateActions.commit();
       toast(
         `${PlaybackUtils.getSourceName(source)}默认音质已设为${PlaybackUtils.getQualityLabel(source, normalizedQuality)}`,
       );
       return;
     }
 
+    const previousQuality = PlaybackUtils.normalizeQuality(
+      source, track.playbackQuality || playbackState.qualityPreferences?.[source],
+    );
     const songPosition = (Number.isFinite(audio.currentTime) ? audio.currentTime : 0) +
       PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000;
     const requestGeneration = invalidatePlaybackRequests();
@@ -237,6 +239,12 @@ export function createPlaybackControls(deps) {
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
       audioRequestGeneration = requestGeneration;
       if (!streamUrl) return;
+      if (streamTrack.playbackQuality !== normalizedQuality) {
+        toast(
+          `${PlaybackUtils.getQualityLabel(source, normalizedQuality)}不可用，已保留${PlaybackUtils.getQualityLabel(source, previousQuality)}音质`,
+        );
+        return;
+      }
       Object.assign(track, streamTrack);
       const resumeAt = Math.max(0, songPosition - PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000);
 
@@ -261,19 +269,16 @@ export function createPlaybackControls(deps) {
 
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
 
-      const actualQuality = PlaybackUtils.getQualityLabel(source, track.playbackQuality);
-      const requestedLabel = PlaybackUtils.getQualityLabel(source, normalizedQuality);
-      toast(
-        actualQuality === requestedLabel
-          ? `已切换到${actualQuality}音质`
-          : `${requestedLabel}不可用，已使用${actualQuality}音质`,
-      );
-      stateActions.commit();
+      toast(`已切换到${PlaybackUtils.getQualityLabel(source, normalizedQuality)}音质`);
     } catch (error) {
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
       audioRequestGeneration = requestGeneration;
       showError(error);
-      renderPlayback();
+    } finally {
+      if (isCurrentPlaybackRequest(requestGeneration, track)) {
+        stateActions.setQuality(source, PlaybackUtils.normalizeQuality(source, track.playbackQuality || previousQuality));
+        stateActions.commit();
+      }
     }
   }
 

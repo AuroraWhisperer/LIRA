@@ -26,6 +26,19 @@ const NETEASE_BASE_URL = 'https://music.163.com';
 const REQUEST_TIMEOUT_MS = 10000;
 const STREAM_TTL_MS = 5 * 60 * 1000;
 
+function readSearchSongs(data) {
+  const code = Number(data?.code);
+  if (code !== 200) {
+    const message = data && (data.message || data.msg);
+    throw new Error(
+      `网易云音乐搜索失败（code=${Number.isFinite(code) ? code : 'unknown'}${message ? `，${message}` : ''}）。`,
+    );
+  }
+  if (Array.isArray(data.result?.songs)) return data.result.songs;
+  if (data.result?.songCount === 0) return [];
+  throw new Error('网易云音乐搜索响应缺少歌曲结果。');
+}
+
 class NeteaseMusicProvider {
   constructor(options = {}) {
     this.source = 'netease';
@@ -37,12 +50,13 @@ class NeteaseMusicProvider {
   async healthCheck() {
     const auth = await this.getSafeAuthState();
     try {
-      await this.requestJson('/api/search/get/web', {
+      const data = await this.requestJson('/api/search/get/web', {
         s: '晴天',
         type: '1',
         limit: '1',
         offset: '0',
       });
+      readSearchSongs(data);
       const loggedIn = Boolean(auth && auth.loggedIn);
       return {
         source: this.source,
@@ -78,8 +92,7 @@ class NeteaseMusicProvider {
       limit: String(limit),
       offset: String(offset),
     });
-    const songs = data && data.result && Array.isArray(data.result.songs) ? data.result.songs : [];
-    return this.mapTracksWithArtwork(songs);
+    return this.mapTracksWithArtwork(readSearchSongs(data));
   }
 
   async mapTracksWithArtwork(songs) {

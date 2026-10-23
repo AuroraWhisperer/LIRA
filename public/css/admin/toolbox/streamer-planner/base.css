@@ -12,6 +12,11 @@
   background: var(--surface);
   color: var(--text);
   letter-spacing: 0;
+  scrollbar-width: none;
+}
+
+.streamer-planner::-webkit-scrollbar {
+  display: none;
 }
 
 .planner-header,

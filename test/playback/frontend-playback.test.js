@@ -425,6 +425,27 @@ test('fullscreen resets lyric mode before rendering a different track', async ()
   assert.equal(player._lastLyricTrackId, 'new-track');
 });
 
+test('fullscreen lyrics use narrow apostrophes within English words without changing quotes or source data', async () => {
+  const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'));
+  const player = new FullscreenPlayer();
+  player.lyricsContainer = { innerHTML: '', addEventListener() {} };
+  const line = {
+    startMs: 1000,
+    text: 'Cuz I’m on, don‘t stop, we＇re here. ‘你好’ “世界” <script>',
+    translation: 'I’m here',
+    roma: 'Don’t go',
+  };
+  const original = { ...line };
+  player.lyricMode = 'trans';
+  player.renderLyricLines([line]);
+  assert.match(player.lyricsContainer.innerHTML, /Cuz I&#39;m on, don&#39;t stop, we&#39;re here\. ‘你好’ “世界” &lt;script&gt;/);
+  assert.match(player.lyricsContainer.innerHTML, /<span class="lyric-trans">I&#39;m here<\/span>/);
+  player.lyricMode = 'roma';
+  player.renderLyricLines([line]);
+  assert.match(player.lyricsContainer.innerHTML, /<span class="lyric-trans">Don&#39;t go<\/span>/);
+  assert.deepEqual(line, original);
+});
+
 test('fullscreen lyric buttons follow available track data in romanization-first order', async () => {
   const html = readAdminFragmentHtml('pages/admin/playback/fullscreen.html');
   const romaButtonPosition = html.indexOf('id="fsRomaToggleBtn"');

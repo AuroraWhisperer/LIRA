@@ -38,7 +38,9 @@ test('music auth projection retains status fields and excludes credentials', () 
 
 test('provider health results retain login status without exposing credentials on success or failure', async (t) => {
   let available = true;
-  t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: available ? 200 : 503 }));
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ code: 200, result: { songCount: 0 } }, {
+    status: available ? 200 : 503,
+  }));
   for (const [source, Provider] of [['qq', QQMusicProvider], ['netease', NeteaseMusicProvider]]) {
     const provider = new Provider({
       getAuthState(platform) {
